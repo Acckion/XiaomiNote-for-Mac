@@ -1,0 +1,5 @@
+// Debug configuration for MiNoteMac
+ENABLE_DEBUG_DYLIB = YES
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+GCC_OPTIMIZATION_LEVEL = 0
