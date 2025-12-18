@@ -20,7 +20,10 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .executableTarget(
             name: "MiNoteMac",
-            path: "Sources/MiNoteMac"
+            path: "Sources/MiNoteMac",
+            resources: [
+                .process("Resources")
+            ]
         ),
     ]
 )

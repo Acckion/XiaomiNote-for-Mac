@@ -330,6 +330,59 @@ class LocalStorageService {
         try savePendingDeletions(deletions)
         print("添加待删除笔记: \(deletion.noteId)")
     }
+    
+    // MARK: - 图片文件管理
+    
+    /// 获取图片存储目录
+    private var imagesDirectory: URL {
+        return documentsDirectory.appendingPathComponent("images")
+    }
+    
+    /// 确保图片目录存在
+    private func ensureImagesDirectory() throws {
+        let imgDir = imagesDirectory
+        if !fileManager.fileExists(atPath: imgDir.path) {
+            try fileManager.createDirectory(at: imgDir, withIntermediateDirectories: true, attributes: nil)
+            print("创建图片目录: \(imgDir.path)")
+        }
+    }
+    
+    /// 保存图片文件
+    /// - Parameters:
+    ///   - imageData: 图片数据
+    ///   - fileId: 文件ID（用于生成文件名）
+    ///   - fileType: 文件类型（如 "jpeg", "png"）
+    func saveImage(imageData: Data, fileId: String, fileType: String) throws {
+        try ensureImagesDirectory()
+        
+        let fileName = "\(fileId).\(fileType)"
+        let fileURL = imagesDirectory.appendingPathComponent(fileName)
+        
+        try imageData.write(to: fileURL)
+        print("保存图片到本地: \(fileURL.path)")
+    }
+    
+    /// 检查图片文件是否存在
+    func imageExists(fileId: String, fileType: String) -> Bool {
+        let fileName = "\(fileId).\(fileType)"
+        let fileURL = imagesDirectory.appendingPathComponent(fileName)
+        return fileManager.fileExists(atPath: fileURL.path)
+    }
+    
+    /// 获取图片文件URL
+    func getImageURL(fileId: String, fileType: String) -> URL? {
+        let fileName = "\(fileId).\(fileType)"
+        let fileURL = imagesDirectory.appendingPathComponent(fileName)
+        return fileManager.fileExists(atPath: fileURL.path) ? fileURL : nil
+    }
+    
+    /// 加载图片数据
+    func loadImage(fileId: String, fileType: String) -> Data? {
+        guard let fileURL = getImageURL(fileId: fileId, fileType: fileType) else {
+            return nil
+        }
+        return try? Data(contentsOf: fileURL)
+    }
 }
 
 // MARK: - 同步状态模型

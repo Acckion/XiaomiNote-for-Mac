@@ -4,6 +4,7 @@ import AppKit
 struct MiNoteEditor: NSViewRepresentable {
     @Binding var xmlContent: String
     @Binding var isEditable: Bool
+    var noteRawData: [String: Any]? = nil
     var onTextViewCreated: ((NSTextView) -> Void)? = nil
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -35,7 +36,7 @@ struct MiNoteEditor: NSViewRepresentable {
         textView.textContainer?.containerSize = NSSize(width: textView.frame.width, height: CGFloat.greatestFiniteMagnitude)
 
         // Set initial content
-        textView.textStorage?.setAttributedString(MiNoteContentParser.parseToAttributedString(xmlContent))
+        textView.textStorage?.setAttributedString(MiNoteContentParser.parseToAttributedString(xmlContent, noteRawData: noteRawData))
         
         textView.isEditable = isEditable
         
@@ -58,7 +59,7 @@ struct MiNoteEditor: NSViewRepresentable {
         
         // Update content only if it's different from the current attributed string
         // This prevents infinite loops and preserves cursor position
-        let newAttributedString = MiNoteContentParser.parseToAttributedString(xmlContent)
+        let newAttributedString = MiNoteContentParser.parseToAttributedString(xmlContent, noteRawData: noteRawData)
         if !textView.attributedString().isEqual(to: newAttributedString) {
             let selectedRange = textView.selectedRange()
             textView.textStorage?.setAttributedString(newAttributedString)

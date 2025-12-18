@@ -91,6 +91,52 @@ build_release() {
     fi
 }
 
+# 生成应用图标
+generate_app_icon() {
+    print_info "生成应用图标..."
+    
+    ICON_SOURCE="Sources/MiNoteMac/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+    ICONSET_DIR="${BUILD_DIR}/AppIcon.iconset"
+    ICNS_FILE="${BUILD_DIR}/AppIcon.icns"
+    
+    if [ ! -f "${ICON_SOURCE}" ]; then
+        print_warning "图标源文件未找到: ${ICON_SOURCE}，跳过图标生成"
+        return
+    fi
+    
+    # 创建临时 iconset 目录
+    mkdir -p "${ICONSET_DIR}"
+    
+    # 生成不同尺寸的图标（macOS iconset 需要的文件名格式）
+    print_info "生成图标尺寸..."
+    sips -z 16 16     "${ICON_SOURCE}" --out "${ICONSET_DIR}/icon_16x16.png" > /dev/null 2>&1
+    sips -z 32 32     "${ICON_SOURCE}" --out "${ICONSET_DIR}/icon_16x16@2x.png" > /dev/null 2>&1
+    sips -z 32 32     "${ICON_SOURCE}" --out "${ICONSET_DIR}/icon_32x32.png" > /dev/null 2>&1
+    sips -z 64 64     "${ICON_SOURCE}" --out "${ICONSET_DIR}/icon_32x32@2x.png" > /dev/null 2>&1
+    sips -z 128 128   "${ICON_SOURCE}" --out "${ICONSET_DIR}/icon_128x128.png" > /dev/null 2>&1
+    sips -z 256 256   "${ICON_SOURCE}" --out "${ICONSET_DIR}/icon_128x128@2x.png" > /dev/null 2>&1
+    sips -z 256 256   "${ICON_SOURCE}" --out "${ICONSET_DIR}/icon_256x256.png" > /dev/null 2>&1
+    sips -z 512 512   "${ICON_SOURCE}" --out "${ICONSET_DIR}/icon_256x256@2x.png" > /dev/null 2>&1
+    sips -z 512 512   "${ICON_SOURCE}" --out "${ICONSET_DIR}/icon_512x512.png" > /dev/null 2>&1
+    cp "${ICON_SOURCE}" "${ICONSET_DIR}/icon_512x512@2x.png"
+    
+    # 使用 iconutil 生成 .icns 文件
+    if iconutil -c icns "${ICONSET_DIR}" -o "${ICNS_FILE}" 2>/dev/null; then
+        if [ -f "${ICNS_FILE}" ]; then
+            print_success "图标生成成功: ${ICNS_FILE}"
+        else
+            print_warning "图标生成失败，将使用默认图标"
+        fi
+    else
+        print_warning "iconutil 执行失败，尝试直接使用 PNG 图标"
+        # 如果 iconutil 失败，直接复制 PNG 文件（虽然不推荐，但可以作为后备方案）
+        cp "${ICON_SOURCE}" "${BUILD_DIR}/AppIcon.png"
+    fi
+    
+    # 清理临时目录
+    rm -rf "${ICONSET_DIR}"
+}
+
 # 创建应用程序包
 create_app_bundle() {
     print_info "创建应用程序包..."
@@ -98,6 +144,9 @@ create_app_bundle() {
     # 创建目录结构
     mkdir -p "${MACOS_DIR}"
     mkdir -p "${RESOURCES_DIR}"
+    
+    # 生成应用图标
+    generate_app_icon
     
     # 复制可执行文件
     EXECUTABLE_PATH="${BUILD_DIR}/release/${PROJECT_NAME}"
@@ -109,7 +158,33 @@ create_app_bundle() {
         exit 1
     fi
     
+    # 复制图标文件
+    ICNS_FILE="${BUILD_DIR}/AppIcon.icns"
+    if [ -f "${ICNS_FILE}" ]; then
+        cp "${ICNS_FILE}" "${RESOURCES_DIR}/AppIcon.icns"
+        print_info "已复制图标文件到 ${RESOURCES_DIR}/AppIcon.icns"
+        # macOS Info.plist 中的图标文件名不需要扩展名
+        ICON_FILE_NAME="AppIcon"
+    else
+        print_warning "图标文件未找到，将不设置应用图标"
+        ICON_FILE_NAME=""
+    fi
+    
+    # 复制 Assets.xcassets（如果存在）
+    ASSETS_DIR="Sources/MiNoteMac/Resources/Assets.xcassets"
+    if [ -d "${ASSETS_DIR}" ]; then
+        cp -R "${ASSETS_DIR}" "${RESOURCES_DIR}/" 2>/dev/null || true
+        print_info "已复制资源文件到 ${RESOURCES_DIR}/"
+    fi
+    
     # 创建 Info.plist
+    if [ -n "${ICON_FILE_NAME}" ]; then
+        ICON_PLIST="    <key>CFBundleIconFile</key>
+    <string>${ICON_FILE_NAME}</string>"
+    else
+        ICON_PLIST=""
+    fi
+    
     cat > "${CONTENTS_DIR}/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -139,6 +214,7 @@ create_app_bundle() {
     <string>NSApplication</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+${ICON_PLIST}
 </dict>
 </plist>
 EOF

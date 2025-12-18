@@ -16,6 +16,8 @@ targets:
     deploymentTarget: "14.0"
     sources:
       - path: Sources/MiNoteMac
+    resources:
+      - path: Sources/MiNoteMac/Resources
     settings:
       base:
         PRODUCT_NAME: MiNoteMac

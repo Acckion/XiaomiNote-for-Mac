@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 class MiNoteService {
     static let shared = MiNoteService()
@@ -267,10 +268,10 @@ class MiNoteService {
                         if hasLoginURL {
                             print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
                         }
-                        DispatchQueue.main.async {
-                            self.onCookieExpired?()
-                        }
-                        throw MiNoteError.cookieExpired
+                    DispatchQueue.main.async {
+                        self.onCookieExpired?()
+                    }
+                    throw MiNoteError.cookieExpired
                     } else if self.hasValidCookie() && !isAuthError {
                         // 有 cookie 但不是明确的认证错误，可能是其他原因，不视为过期
                         print("[MiNoteService] 401 错误但不是明确的认证失败，可能是其他原因")
@@ -363,10 +364,10 @@ class MiNoteService {
                         if hasLoginURL {
                             print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
                         }
-                        DispatchQueue.main.async {
-                            self.onCookieExpired?()
-                        }
-                        throw MiNoteError.cookieExpired
+                    DispatchQueue.main.async {
+                        self.onCookieExpired?()
+                    }
+                    throw MiNoteError.cookieExpired
                     } else if self.hasValidCookie() && !isAuthError {
                         print("[MiNoteService] 401 错误但不是明确的认证失败")
                         print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
@@ -437,7 +438,10 @@ class MiNoteService {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             
-            if let httpResponse = response as? HTTPURLResponse {
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
                 let responseString = String(data: data, encoding: .utf8)
                 
                 // 记录响应
@@ -451,46 +455,59 @@ class MiNoteService {
                 )
                 
                 if httpResponse.statusCode == 401 {
-                    let responseBody = responseString ?? ""
-                    
-                    // 更全面的认证错误判断
-                    let hasLoginURL = responseBody.contains("serviceLogin") || 
-                                     responseBody.contains("account.xiaomi.com") ||
-                                     responseBody.contains("pass/serviceLogin")
-                    let hasAuthKeywords = responseBody.contains("unauthorized") || 
-                                         responseBody.contains("未授权") ||
-                                         responseBody.contains("登录") ||
-                                         responseBody.contains("login") ||
-                                         responseBody.contains("\"R\":401") ||
-                                         responseBody.contains("\"S\":\"Err\"")
-                    let isAuthError = hasLoginURL || hasAuthKeywords
-                    let isInGracePeriod = checkIfInGracePeriod()
-                    
-                    if isInGracePeriod {
-                        print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
-                        throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
+                let responseBody = responseString ?? ""
+                
+                // 更全面的认证错误判断
+                let hasLoginURL = responseBody.contains("serviceLogin") || 
+                                 responseBody.contains("account.xiaomi.com") ||
+                                 responseBody.contains("pass/serviceLogin")
+                let hasAuthKeywords = responseBody.contains("unauthorized") || 
+                                     responseBody.contains("未授权") ||
+                                     responseBody.contains("登录") ||
+                                     responseBody.contains("login") ||
+                                     responseBody.contains("\"R\":401") ||
+                                     responseBody.contains("\"S\":\"Err\"")
+                let isAuthError = hasLoginURL || hasAuthKeywords
+                let isInGracePeriod = checkIfInGracePeriod()
+                
+                if isInGracePeriod {
+                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
+                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
+                }
+                
+                if self.hasValidCookie() && isAuthError {
+                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
+                    if hasLoginURL {
+                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
                     }
-                    
-                    if self.hasValidCookie() && isAuthError {
-                        print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
-                        if hasLoginURL {
-                            print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
-                        }
-                        DispatchQueue.main.async {
-                            self.onCookieExpired?()
-                        }
-                        throw MiNoteError.cookieExpired
-                    } else if self.hasValidCookie() && !isAuthError {
-                        print("[MiNoteService] 401 错误但不是明确的认证失败")
-                        print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-                        throw MiNoteError.networkError(URLError(.badServerResponse))
-                    } else {
-                        throw MiNoteError.notAuthenticated
+                    DispatchQueue.main.async {
+                        self.onCookieExpired?()
                     }
+                    throw MiNoteError.cookieExpired
+                } else if self.hasValidCookie() && !isAuthError {
+                    print("[MiNoteService] 401 错误但不是明确的认证失败")
+                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                } else {
+                    throw MiNoteError.notAuthenticated
                 }
             }
             
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            
+            // 验证响应：检查 code 字段
+            if let code = json["code"] as? Int {
+                if code != 0 {
+                    let message = json["description"] as? String ?? json["message"] as? String ?? "创建笔记失败"
+                    print("[MiNoteService] 创建笔记失败，code: \(code), message: \(message)")
+                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                }
+            }
+            
             return json
         } catch {
             NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
@@ -498,7 +515,461 @@ class MiNoteService {
         }
     }
     
-    func updateNote(noteId: String, title: String, content: String, folderId: String = "0", existingTag: String = "", originalCreateDate: Int? = nil) async throws -> [String: Any] {
+    /// 创建文件夹
+    func createFolder(name: String) async throws -> [String: Any] {
+        let entry: [String: Any] = [
+            "subject": name,
+            "createDate": Int(Date().timeIntervalSince1970 * 1000),
+            "modifyDate": Int(Date().timeIntervalSince1970 * 1000)
+        ]
+        
+        // 使用 JSONSerialization 的 sortedKeys 选项确保字段顺序一致
+        guard let entryData = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]),
+              let entryJson = String(data: entryData, encoding: .utf8) else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/note/folder", method: "POST", error: URLError(.cannotParseResponse))
+            throw URLError(.cannotParseResponse)
+        }
+        
+        // 参考 Obsidian 插件：使用 encodeURIComponent 进行 URL 编码
+        let entryEncoded = encodeURIComponent(entryJson)
+        let serviceTokenEncoded = encodeURIComponent(serviceToken)
+        let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
+        
+        let urlString = "\(baseURL)/note/folder"
+        
+        // 记录请求
+        let postHeaders = getPostHeaders()
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "POST",
+            headers: postHeaders,
+            body: body
+        )
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = postHeaders
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body.data(using: .utf8)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let responseString = String(data: data, encoding: .utf8)
+            
+            // 记录响应
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "POST",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            if httpResponse.statusCode == 401 {
+                let responseBody = responseString ?? ""
+                
+                // 更全面的认证错误判断
+                let hasLoginURL = responseBody.contains("serviceLogin") || 
+                                 responseBody.contains("account.xiaomi.com") ||
+                                 responseBody.contains("pass/serviceLogin")
+                let hasAuthKeywords = responseBody.contains("unauthorized") || 
+                                     responseBody.contains("未授权") ||
+                                     responseBody.contains("登录") ||
+                                     responseBody.contains("login") ||
+                                     responseBody.contains("\"R\":401") ||
+                                     responseBody.contains("\"S\":\"Err\"")
+                let isAuthError = hasLoginURL || hasAuthKeywords
+                let isInGracePeriod = checkIfInGracePeriod()
+                
+                if isInGracePeriod {
+                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
+                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
+                }
+                
+                if self.hasValidCookie() && isAuthError {
+                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
+                    if hasLoginURL {
+                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
+                    }
+                    DispatchQueue.main.async {
+                        self.onCookieExpired?()
+                    }
+                    throw MiNoteError.cookieExpired
+                } else if self.hasValidCookie() && !isAuthError {
+                    print("[MiNoteService] 401 错误但不是明确的认证失败")
+                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                } else {
+                    throw MiNoteError.notAuthenticated
+                }
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            
+            // 验证响应：检查 code 字段
+            if let code = json["code"] as? Int {
+                if code != 0 {
+                    let message = json["description"] as? String ?? json["message"] as? String ?? "创建文件夹失败"
+                    print("[MiNoteService] 创建文件夹失败，code: \(code), message: \(message)")
+                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                }
+            }
+            
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
+            throw error
+        }
+    }
+    
+    /// 获取文件夹详情
+    func fetchFolderDetails(folderId: String) async throws -> [String: Any] {
+        var urlComponents = URLComponents(string: "\(baseURL)/note/folder/\(folderId)")
+        urlComponents?.queryItems = [
+            URLQueryItem(name: "ts", value: "\(Int(Date().timeIntervalSince1970 * 1000))")
+        ]
+        
+        guard let urlString = urlComponents?.url?.absoluteString else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/note/folder/\(folderId)", method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+        
+        guard let url = urlComponents?.url else {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let responseString = String(data: data, encoding: .utf8)
+            
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "GET",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            if httpResponse.statusCode == 401 {
+                let responseBody = responseString ?? ""
+                let hasLoginURL = responseBody.contains("serviceLogin") ||
+                                 responseBody.contains("account.xiaomi.com") ||
+                                 responseBody.contains("pass/serviceLogin")
+                let hasAuthKeywords = responseBody.contains("unauthorized") ||
+                                     responseBody.contains("未授权") ||
+                                     responseBody.contains("登录") ||
+                                     responseBody.contains("login") ||
+                                     responseBody.contains("\"R\":401") ||
+                                     responseBody.contains("\"S\":\"Err\"")
+                let isAuthError = hasLoginURL || hasAuthKeywords
+                let isInGracePeriod = checkIfInGracePeriod()
+                
+                if isInGracePeriod {
+                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
+                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
+                }
+                
+                if self.hasValidCookie() && isAuthError {
+                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
+                    if hasLoginURL {
+                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
+                    }
+                    DispatchQueue.main.async {
+                        self.onCookieExpired?()
+                    }
+                    throw MiNoteError.cookieExpired
+                } else if self.hasValidCookie() && !isAuthError {
+                    print("[MiNoteService] 401 错误但不是明确的认证失败")
+                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                } else {
+                    throw MiNoteError.notAuthenticated
+                }
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            throw error
+        }
+    }
+    
+    /// 重命名文件夹
+    func renameFolder(folderId: String, newName: String, existingTag: String, originalCreateDate: Int? = nil) async throws -> [String: Any] {
+        let createDate = originalCreateDate ?? Int(Date().timeIntervalSince1970 * 1000)
+        
+        let entry: [String: Any] = [
+            "id": folderId,
+            "tag": existingTag,
+            "createDate": createDate,
+            "modifyDate": Int(Date().timeIntervalSince1970 * 1000),
+            "subject": newName,
+            "type": "folder"
+        ]
+        
+        // 使用 JSONSerialization 的 sortedKeys 选项确保字段顺序一致
+        guard let entryData = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]),
+              let entryJson = String(data: entryData, encoding: .utf8) else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/note/folder/\(folderId)", method: "POST", error: URLError(.cannotParseResponse))
+            throw URLError(.cannotParseResponse)
+        }
+        
+        // 参考 Obsidian 插件：使用 encodeURIComponent 进行 URL 编码
+        let entryEncoded = encodeURIComponent(entryJson)
+        let serviceTokenEncoded = encodeURIComponent(serviceToken)
+        let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
+        
+        let urlString = "\(baseURL)/note/folder/\(folderId)"
+        
+        // 记录请求
+        let postHeaders = getPostHeaders()
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "POST",
+            headers: postHeaders,
+            body: body
+        )
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = postHeaders
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body.data(using: .utf8)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let responseString = String(data: data, encoding: .utf8)
+            
+            // 记录响应
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "POST",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            if httpResponse.statusCode == 401 {
+                let responseBody = responseString ?? ""
+                
+                // 更全面的认证错误判断
+                let hasLoginURL = responseBody.contains("serviceLogin") || 
+                                 responseBody.contains("account.xiaomi.com") ||
+                                 responseBody.contains("pass/serviceLogin")
+                let hasAuthKeywords = responseBody.contains("unauthorized") || 
+                                     responseBody.contains("未授权") ||
+                                     responseBody.contains("登录") ||
+                                     responseBody.contains("login") ||
+                                     responseBody.contains("\"R\":401") ||
+                                     responseBody.contains("\"S\":\"Err\"")
+                let isAuthError = hasLoginURL || hasAuthKeywords
+                let isInGracePeriod = checkIfInGracePeriod()
+                
+                if isInGracePeriod {
+                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
+                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
+                }
+                
+                if self.hasValidCookie() && isAuthError {
+                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
+                    if hasLoginURL {
+                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
+                    }
+                    DispatchQueue.main.async {
+                        self.onCookieExpired?()
+                    }
+                    throw MiNoteError.cookieExpired
+                } else if self.hasValidCookie() && !isAuthError {
+                    print("[MiNoteService] 401 错误但不是明确的认证失败")
+                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                } else {
+                    throw MiNoteError.notAuthenticated
+                }
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            
+            // 验证响应：检查 code 字段
+            if let code = json["code"] as? Int {
+                if code != 0 {
+                    let message = json["description"] as? String ?? json["message"] as? String ?? "重命名文件夹失败"
+                    print("[MiNoteService] 重命名文件夹失败，code: \(code), message: \(message)")
+                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                }
+            }
+            
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
+            throw error
+        }
+    }
+    
+    /// 删除文件夹
+    func deleteFolder(folderId: String, tag: String, purge: Bool = false) async throws -> [String: Any] {
+        // 构建请求体：tag={tag}&purge={purge}&serviceToken={serviceToken}
+        let tagEncoded = encodeURIComponent(tag)
+        let purgeString = purge ? "true" : "false"
+        let serviceTokenEncoded = encodeURIComponent(serviceToken)
+        let body = "tag=\(tagEncoded)&purge=\(purgeString)&serviceToken=\(serviceTokenEncoded)"
+        
+        let urlString = "\(baseURL)/note/full/\(folderId)/delete"
+        
+        // 记录请求
+        let postHeaders = getPostHeaders()
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "POST",
+            headers: postHeaders,
+            body: body
+        )
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = postHeaders
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body.data(using: .utf8)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let responseString = String(data: data, encoding: .utf8)
+            
+            // 记录响应
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "POST",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            if httpResponse.statusCode == 401 {
+                let responseBody = responseString ?? ""
+                
+                // 更全面的认证错误判断
+                let hasLoginURL = responseBody.contains("serviceLogin") || 
+                                 responseBody.contains("account.xiaomi.com") ||
+                                 responseBody.contains("pass/serviceLogin")
+                let hasAuthKeywords = responseBody.contains("unauthorized") || 
+                                     responseBody.contains("未授权") ||
+                                     responseBody.contains("登录") ||
+                                     responseBody.contains("login") ||
+                                     responseBody.contains("\"R\":401") ||
+                                     responseBody.contains("\"S\":\"Err\"")
+                let isAuthError = hasLoginURL || hasAuthKeywords
+                let isInGracePeriod = checkIfInGracePeriod()
+                
+                if isInGracePeriod {
+                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
+                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
+                }
+                
+                if self.hasValidCookie() && isAuthError {
+                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
+                    if hasLoginURL {
+                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
+                    }
+                    DispatchQueue.main.async {
+                        self.onCookieExpired?()
+                    }
+                    throw MiNoteError.cookieExpired
+                } else if self.hasValidCookie() && !isAuthError {
+                    print("[MiNoteService] 401 错误但不是明确的认证失败")
+                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                } else {
+                    throw MiNoteError.notAuthenticated
+                }
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            
+            // 验证响应：检查 code 字段
+            if let code = json["code"] as? Int {
+                if code != 0 {
+                    let message = json["description"] as? String ?? json["message"] as? String ?? "删除文件夹失败"
+                    print("[MiNoteService] 删除文件夹失败，code: \(code), message: \(message)")
+                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                }
+            }
+            
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
+            throw error
+        }
+    }
+    
+    func updateNote(noteId: String, title: String, content: String, folderId: String = "0", existingTag: String = "", originalCreateDate: Int? = nil, imageData: [[String: Any]]? = nil) async throws -> [String: Any] {
         let createDate = originalCreateDate ?? Int(Date().timeIntervalSince1970 * 1000)
         
         // 参考正确的请求示例：extraInfo 应该是包含字段的 JSON 字符串
@@ -522,6 +993,16 @@ class MiNoteService {
             cleanedContent = String(cleanedContent.dropFirst("<new-format/>".count))
         }
         
+        // 构建 setting 对象，如果提供了图片数据则包含
+        var setting: [String: Any] = [
+            "themeId": 0,
+            "stickyTime": 0,
+            "version": 0
+        ]
+        if let imageData = imageData, !imageData.isEmpty {
+            setting["data"] = imageData
+        }
+        
         let entry: [String: Any] = [
             "id": noteId,
             "tag": existingTag,
@@ -530,11 +1011,7 @@ class MiNoteService {
             "modifyDate": Int(Date().timeIntervalSince1970 * 1000),
             "colorId": 0,
             "content": cleanedContent,
-            "setting": [
-                "themeId": 0,
-                "stickyTime": 0,
-                "version": 0
-            ],
+            "setting": setting,
             "folderId": folderId,
             "alertDate": 0,
             "extraInfo": extraInfoString
@@ -618,10 +1095,10 @@ class MiNoteService {
                         if hasLoginURL {
                             print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
                         }
-                        DispatchQueue.main.async {
-                            self.onCookieExpired?()
-                        }
-                        throw MiNoteError.cookieExpired
+                    DispatchQueue.main.async {
+                        self.onCookieExpired?()
+                    }
+                    throw MiNoteError.cookieExpired
                     } else if self.hasValidCookie() && !isAuthError {
                         print("[MiNoteService] 401 错误但不是明确的认证失败")
                         print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
@@ -721,8 +1198,8 @@ class MiNoteService {
             for folderEntry in folderEntries {
                 // 检查类型，只处理文件夹类型（参考 Obsidian 插件）
                 if let type = folderEntry["type"] as? String, type == "folder" {
-                    if let folder = Folder.fromMinoteData(folderEntry) {
-                        folders.append(folder)
+                if let folder = Folder.fromMinoteData(folderEntry) {
+                    folders.append(folder)
                         print("[MiNoteService] 解析文件夹: id=\(folder.id), name=\(folder.name)")
                     } else {
                         print("[MiNoteService] 警告：无法解析文件夹条目: \(folderEntry)")
@@ -737,8 +1214,8 @@ class MiNoteService {
             print("[MiNoteService] 从响应顶层找到 \(folderEntries.count) 个文件夹")
             for folderEntry in folderEntries {
                 if let type = folderEntry["type"] as? String, type == "folder" {
-                    if let folder = Folder.fromMinoteData(folderEntry) {
-                        folders.append(folder)
+                if let folder = Folder.fromMinoteData(folderEntry) {
+                    folders.append(folder)
                     }
                 }
             }
@@ -770,7 +1247,270 @@ class MiNoteService {
     
     // MARK: - File Upload
     
-    /// 上传文件到小米服务器
+    /// 计算文件的SHA1哈希值
+    private func sha1Hash(of data: Data) -> String {
+        let digest = Insecure.SHA1.hash(data: data)
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+    
+    /// 计算文件的MD5哈希值
+    private func md5Hash(of data: Data) -> String {
+        let digest = Insecure.MD5.hash(data: data)
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+    
+    /// 上传图片到小米服务器（新API）
+    /// - Parameters:
+    ///   - imageData: 图片数据
+    ///   - fileName: 文件名
+    ///   - mimeType: MIME 类型（如 "image/jpeg", "image/png"）
+    /// - Returns: 包含文件ID的响应字典
+    func uploadImage(imageData: Data, fileName: String, mimeType: String) async throws -> [String: Any] {
+        guard isAuthenticated() else {
+            throw MiNoteError.notAuthenticated
+        }
+        
+        // 计算文件哈希值
+        let sha1 = sha1Hash(of: imageData)
+        let md5 = md5Hash(of: imageData)
+        let fileSize = imageData.count
+        
+        print("[MiNoteService] 开始上传图片: \(fileName), 大小: \(fileSize) 字节, SHA1: \(sha1)")
+        
+        // 第一步：请求上传
+        let requestUploadResponse = try await requestImageUpload(
+            fileName: fileName,
+            fileSize: fileSize,
+            sha1: sha1,
+            md5: md5,
+            mimeType: mimeType
+        )
+        
+        guard let fileId = requestUploadResponse["fileId"] as? String else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        print("[MiNoteService] 获取到 fileId: \(fileId)")
+        
+        // 第二步：获取上传URL
+        let uploadURLResponse = try await getImageUploadURL(fileId: fileId, type: "note_img")
+        
+        guard let kssData = uploadURLResponse["kss"] as? [String: Any],
+              let blocks = kssData["blocks"] as? [[String: Any]],
+              let firstBlock = blocks.first,
+              let urls = firstBlock["urls"] as? [String],
+              let uploadURLString = urls.first,
+              let uploadURL = URL(string: uploadURLString) else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        print("[MiNoteService] 获取到上传URL: \(uploadURLString)")
+        
+        // 第三步：实际上传文件到KSS
+        try await uploadFileToKSS(fileData: imageData, uploadURL: uploadURL)
+        
+        print("[MiNoteService] 图片上传成功: \(fileId)")
+        
+        // 返回文件信息
+        return [
+            "fileId": fileId,
+            "digest": sha1,
+            "mimeType": mimeType
+        ]
+    }
+    
+    /// 请求图片上传（第一步）
+    private func requestImageUpload(fileName: String, fileSize: Int, sha1: String, md5: String, mimeType: String) async throws -> [String: Any] {
+        let urlString = "\(baseURL)/file/v2/user/request_upload_file"
+        
+        // 构建 data 参数
+        let dataDict: [String: Any] = [
+            "type": "note_img",
+            "storage": [
+                "filename": fileName,
+                "size": fileSize,
+                "sha1": sha1,
+                "mimeType": mimeType,
+                "kss": [
+                    "block_infos": [
+                        [
+                            "blob": [:] as [String: Any],
+                            "size": fileSize,
+                            "md5": md5,
+                            "sha1": sha1
+                        ]
+                    ]
+                ]
+            ]
+        ]
+        
+        guard let dataJson = try? JSONSerialization.data(withJSONObject: dataDict, options: [.sortedKeys]),
+              let dataString = String(data: dataJson, encoding: .utf8) else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        let dataEncoded = encodeURIComponent(dataString)
+        let serviceTokenEncoded = encodeURIComponent(serviceToken)
+        let body = "data=\(dataEncoded)&serviceToken=\(serviceTokenEncoded)"
+        
+        let postHeaders = getPostHeaders()
+        
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "POST",
+            headers: postHeaders,
+            body: "data=\(dataString.prefix(200))...&serviceToken=..."
+        )
+        
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = postHeaders
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body.data(using: .utf8)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            let responseString = String(data: data, encoding: .utf8)
+            
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "POST",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            if httpResponse.statusCode == 401 {
+                // 处理401错误（与之前相同的逻辑）
+                let responseBody = responseString ?? ""
+                let hasLoginURL = responseBody.contains("serviceLogin") || 
+                                 responseBody.contains("account.xiaomi.com") ||
+                                 responseBody.contains("pass/serviceLogin")
+                let hasAuthKeywords = responseBody.contains("unauthorized") || 
+                                     responseBody.contains("未授权") ||
+                                     responseBody.contains("登录") ||
+                                     responseBody.contains("login") ||
+                                     responseBody.contains("\"R\":401") ||
+                                     responseBody.contains("\"S\":\"Err\"")
+                let isAuthError = hasLoginURL || hasAuthKeywords
+                
+                if hasValidCookie() && isAuthError {
+                    DispatchQueue.main.async {
+                        self.onCookieExpired?()
+                    }
+                    throw MiNoteError.cookieExpired
+                } else {
+                    throw MiNoteError.notAuthenticated
+                }
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+        }
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        guard let code = json["code"] as? Int, code == 0,
+              let dataDict = json["data"] as? [String: Any] else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        return dataDict
+    }
+    
+    /// 获取图片上传URL（第二步）
+    private func getImageUploadURL(fileId: String, type: String) async throws -> [String: Any] {
+        let ts = Int(Date().timeIntervalSince1970 * 1000)
+        let urlString = "\(baseURL)/file/full/v2?ts=\(ts)&type=\(type)&fileid=\(encodeURIComponent(fileId))"
+        
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+        
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            let responseString = String(data: data, encoding: .utf8)
+            
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "GET",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+        }
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        guard let code = json["code"] as? Int, code == 0,
+              let dataDict = json["data"] as? [String: Any] else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        return dataDict
+    }
+    
+    /// 上传文件到KSS（第三步）
+    private func uploadFileToKSS(fileData: Data, uploadURL: URL) async throws {
+        NetworkLogger.shared.logRequest(
+            url: uploadURL.absoluteString,
+            method: "PUT",
+            headers: [:],
+            body: "[文件数据: \(fileData.count) 字节]"
+        )
+        
+        var request = URLRequest(url: uploadURL)
+        request.httpMethod = "PUT"
+        request.setValue("\(fileData.count)", forHTTPHeaderField: "Content-Length")
+        request.httpBody = fileData
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            NetworkLogger.shared.logResponse(
+                url: uploadURL.absoluteString,
+                method: "PUT",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: "[响应数据: \(data.count) 字节]",
+                error: nil
+            )
+            
+            guard httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+        }
+    }
+    
+    /// 上传文件到小米服务器（旧方法，保留兼容性）
     /// - Parameters:
     ///   - fileData: 文件数据
     ///   - fileName: 文件名

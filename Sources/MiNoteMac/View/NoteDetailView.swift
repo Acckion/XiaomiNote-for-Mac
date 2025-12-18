@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct NoteDetailView: View {
     @ObservedObject var viewModel: NotesViewModel
@@ -12,6 +13,7 @@ struct NoteDetailView: View {
     @State private var isInitializing: Bool = true // 标记是否正在初始化
     @State private var originalTitle: String = "" // 保存原始标题用于比较
     @State private var originalContent: String = "" // 保存原始内容用于比较
+    @State private var textView: NSTextView? = nil // 存储 NSTextView 引用
     
     var body: some View {
         Group {
@@ -21,36 +23,43 @@ struct NoteDetailView: View {
                     Color(nsColor: NSColor.textBackgroundColor)
                         .ignoresSafeArea()
                     
-                    VStack(spacing: 0) {
+                VStack(spacing: 0) {
                         // 标题（作为放大的正文，不单独区分）
-                        HStack {
-                            TextField("笔记标题", text: $editedTitle)
+                    HStack {
+                        TextField("笔记标题", text: $editedTitle)
                                 .font(.system(size: 28, weight: .regular))
-                                .textFieldStyle(.plain)
+                            .textFieldStyle(.plain)
                                 .foregroundColor(Color(nsColor: NSColor.labelColor))
-                                .padding(.horizontal, 16)
+                            .padding(.horizontal, 16)
                                 .padding(.top, 16)
                                 .padding(.bottom, 8)
-                            
-                            Spacer()
-                            
-                            // 保存状态指示器
-                            if isSaving {
-                                ProgressView()
-                                    .controlSize(.small)
-                                    .padding(.trailing, 16)
+                        
+                        Spacer()
+                        
+                        // 保存状态指示器
+                        if isSaving {
+                            ProgressView()
+                                .controlSize(.small)
+                                .padding(.trailing, 16)
                                     .padding(.top, 16)
-                            } else if showSaveSuccess {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                    .padding(.trailing, 16)
+                        } else if showSaveSuccess {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .padding(.trailing, 16)
                                     .padding(.top, 16)
                             }
                         }
                         
                         // 编辑器区域（正文）
-                        MiNoteEditor(xmlContent: $editedContent, isEditable: $isEditable)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        MiNoteEditor(
+                            xmlContent: $editedContent,
+                            isEditable: $isEditable,
+                            noteRawData: note.rawData,
+                            onTextViewCreated: { tv in
+                                textView = tv
+                            }
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
                 .onAppear {
@@ -61,6 +70,19 @@ struct NoteDetailView: View {
                     // 使用 Note.primaryXMLContent 统一决定展示/编辑用的正文
                     editedContent = note.primaryXMLContent
                     originalContent = note.primaryXMLContent
+                    
+                    // 如果笔记内容为空，尝试获取完整内容
+                    if note.content.isEmpty {
+                        Task {
+                            await viewModel.ensureNoteHasFullContent(note)
+                            // 获取完成后，更新显示内容
+                            if let updatedNote = viewModel.selectedNote {
+                                editedContent = updatedNote.primaryXMLContent
+                                originalContent = updatedNote.primaryXMLContent
+                            }
+                        }
+                    }
+                    
                     // 延迟一点时间后取消初始化标志，确保所有 onChange 都已处理
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         isInitializing = false
@@ -73,6 +95,19 @@ struct NoteDetailView: View {
                     originalTitle = newValue.title
                     editedContent = newValue.primaryXMLContent
                     originalContent = newValue.primaryXMLContent
+                    
+                    // 如果新笔记内容为空，尝试获取完整内容
+                    if newValue.content.isEmpty {
+                        Task {
+                            await viewModel.ensureNoteHasFullContent(newValue)
+                            // 获取完成后，更新显示内容
+                            if let updatedNote = viewModel.selectedNote {
+                                editedContent = updatedNote.primaryXMLContent
+                                originalContent = updatedNote.primaryXMLContent
+                            }
+                        }
+                    }
+                    
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         isInitializing = false
                     }
@@ -138,28 +173,38 @@ struct NoteDetailView: View {
                 HStack(spacing: 8) {
                     Menu {
                         Button("大标题") {
-                            // 格式操作由 EditorToolbar 处理
+                            applyHeading(level: 1)
                         }
-                        Button("标题") {}
-                        Button("副标题") {}
+                        Button("标题") {
+                            applyHeading(level: 2)
+                        }
+                        Button("副标题") {
+                            applyHeading(level: 3)
+                        }
                         Divider()
-                        Button("加粗") {}
-                        Button("斜体") {}
+                        Button("加粗") {
+                            toggleBold()
+                        }
+                        Button("斜体") {
+                            toggleItalic()
+                        }
                     } label: {
                         Image(systemName: "textformat")
                     }
                     
                     Button {
-                        // TODO: 插入代办
+                        insertCheckbox()
                     } label: {
                         Image(systemName: "checklist")
                     }
+                    .help("插入待办")
                     
                     Button {
-                        // TODO: 插入附件
+                        insertImage()
                     } label: {
                         Image(systemName: "paperclip")
                     }
+                    .help("插入图片")
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
@@ -224,6 +269,203 @@ struct NoteDetailView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+    }
+    
+    // MARK: - 格式操作
+    
+    /// 应用标题格式
+    private func applyHeading(level: Int) {
+        guard let textView = textView,
+              let textStorage = textView.textStorage else { return }
+        
+        let range = textView.selectedRange()
+        var targetRange = range
+        
+        // 如果没有选择，选择当前段落
+        if range.length == 0 {
+            let paragraphRange = (textView.string as NSString).paragraphRange(for: range)
+            if paragraphRange.length > 0 {
+                targetRange = paragraphRange
+                textView.setSelectedRange(targetRange)
+            } else {
+                return
+            }
+        }
+        
+        var fontSize: CGFloat
+        var isBold = true
+        
+        switch level {
+        case 1:
+            fontSize = 24
+        case 2:
+            fontSize = 18
+        case 3:
+            fontSize = 14
+        default:
+            fontSize = NSFont.systemFontSize
+            isBold = false
+        }
+        
+        let font = isBold
+            ? NSFont.boldSystemFont(ofSize: fontSize)
+            : NSFont.systemFont(ofSize: fontSize)
+        
+        textStorage.beginEditing()
+        textStorage.addAttribute(.font, value: font, range: targetRange)
+        textStorage.endEditing()
+        
+        textView.didChangeText()
+    }
+    
+    /// 切换加粗
+    private func toggleBold() {
+        guard let textView = textView,
+              let textStorage = textView.textStorage else { return }
+        
+        let range = textView.selectedRange()
+        guard range.length > 0 && range.location < textView.string.count else { return }
+        
+        // 检查当前是否加粗
+        var shouldBold = true
+        if range.location < textStorage.length {
+            if let font = textStorage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont {
+                if font.fontDescriptor.symbolicTraits.contains(.bold) {
+                    shouldBold = false
+                }
+            }
+        }
+        
+        // 应用或移除加粗
+        textStorage.beginEditing()
+        textStorage.enumerateAttribute(.font, in: range, options: []) { (value, subrange, _) in
+            if let oldFont = value as? NSFont {
+                let fontSize = oldFont.pointSize
+                let newFont: NSFont
+                if shouldBold {
+                    newFont = NSFont.boldSystemFont(ofSize: fontSize)
+                } else {
+                    var fontDescriptor = oldFont.fontDescriptor
+                    var traits = fontDescriptor.symbolicTraits
+                    traits.remove(.bold)
+                    fontDescriptor = fontDescriptor.withSymbolicTraits(traits)
+                    newFont = NSFont(descriptor: fontDescriptor, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize)
+                }
+                textStorage.addAttribute(.font, value: newFont, range: subrange)
+            } else {
+                let baseFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+                let newFont = shouldBold
+                    ? NSFont.boldSystemFont(ofSize: baseFont.pointSize)
+                    : baseFont
+                textStorage.addAttribute(.font, value: newFont, range: subrange)
+            }
+        }
+        textStorage.endEditing()
+        
+        textView.didChangeText()
+    }
+    
+    /// 切换斜体
+    private func toggleItalic() {
+        guard let textView = textView,
+              let textStorage = textView.textStorage else { return }
+        
+        let range = textView.selectedRange()
+        guard range.length > 0 && range.location < textView.string.count else { return }
+        
+        // 检查当前是否斜体
+        var shouldItalic = true
+        if range.location < textStorage.length {
+            if let font = textStorage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont {
+                if font.fontDescriptor.symbolicTraits.contains(.italic) {
+                    shouldItalic = false
+                }
+            }
+        }
+        
+        // 应用或移除斜体
+        textStorage.beginEditing()
+        textStorage.enumerateAttribute(.font, in: range, options: []) { (value, subrange, _) in
+            if let oldFont = value as? NSFont {
+                let fontSize = oldFont.pointSize
+                var fontDescriptor = oldFont.fontDescriptor
+                var traits = fontDescriptor.symbolicTraits
+                
+                if shouldItalic {
+                    traits.insert(.italic)
+                } else {
+                    traits.remove(.italic)
+                }
+                
+                fontDescriptor = fontDescriptor.withSymbolicTraits(traits)
+                let newFont = NSFont(descriptor: fontDescriptor, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize)
+                textStorage.addAttribute(.font, value: newFont, range: subrange)
+            } else {
+                let baseFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+                var fontDescriptor = baseFont.fontDescriptor
+                if shouldItalic {
+                    fontDescriptor = fontDescriptor.withSymbolicTraits([.italic])
+                }
+                let newFont = NSFont(descriptor: fontDescriptor, size: baseFont.pointSize) ?? baseFont
+                textStorage.addAttribute(.font, value: newFont, range: subrange)
+            }
+        }
+        textStorage.endEditing()
+        
+        textView.didChangeText()
+    }
+    
+    /// 插入待办（复选框）
+    private func insertCheckbox() {
+        guard let textView = textView,
+              let textStorage = textView.textStorage else { return }
+        
+        let range = textView.selectedRange()
+        let checkboxText = "☐ " // 使用复选框符号
+        
+        // 在当前位置插入复选框
+        let attributedString = NSAttributedString(string: checkboxText, attributes: [
+            .font: NSFont.systemFont(ofSize: NSFont.systemFontSize),
+            .foregroundColor: NSColor.labelColor
+        ])
+        
+        textStorage.beginEditing()
+        textStorage.insert(attributedString, at: range.location)
+        textStorage.endEditing()
+        
+        // 移动光标到复选框后面
+        let newRange = NSRange(location: range.location + checkboxText.count, length: 0)
+        textView.setSelectedRange(newRange)
+        
+        // 触发 textDidChange，让 Coordinator 自动更新 XML
+        textView.didChangeText()
+    }
+    
+    private func insertImage() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.image, .jpeg, .png, .gif]
+        panel.message = "选择要插入的图片"
+        
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                Task {
+                    do {
+                        try await viewModel.uploadImageAndInsertToNote(imageURL: url)
+                        // 刷新编辑器内容
+                if let note = viewModel.selectedNote {
+                            editedContent = note.primaryXMLContent
+                            originalContent = note.primaryXMLContent
+                        }
+                    } catch {
+                        saveError = "上传图片失败: \(error.localizedDescription)"
+                        showSaveError = true
+                    }
+                }
             }
         }
     }

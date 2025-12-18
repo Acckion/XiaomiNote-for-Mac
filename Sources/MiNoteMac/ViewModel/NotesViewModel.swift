@@ -19,11 +19,16 @@ class NotesViewModel: ObservableObject {
     @Published var syncProgress: Double = 0
     @Published var syncStatusMessage: String = ""
     @Published var lastSyncTime: Date?
-    @Published var syncResult: SyncResult?
+    @Published var syncResult: SyncService.SyncResult?
     
     private let service = MiNoteService.shared
     private let syncService = SyncService.shared
     private let localStorage = LocalStorageService.shared
+    private let networkMonitor = NetworkMonitor.shared
+    private let offlineQueue = OfflineOperationQueue.shared
+    
+    // 网络状态
+    @Published var isOnline: Bool = true
     
     var filteredNotes: [Note] {
         if searchText.isEmpty {
@@ -32,6 +37,9 @@ class NotesViewModel: ObservableObject {
                     return notes.filter { $0.isStarred }
                 } else if folder.id == "0" {
                     return notes
+                } else if folder.id == "uncategorized" {
+                    // 未分类文件夹：显示 folderId 为 "0" 或空的笔记
+                    return notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }
                 } else {
                     return notes.filter { $0.folderId == folder.id }
                 }
@@ -43,6 +51,12 @@ class NotesViewModel: ObservableObject {
                 note.content.localizedCaseInsensitiveContains(searchText)
             }
         }
+    }
+    
+    /// 未分类文件夹（计算属性）
+    var uncategorizedFolder: Folder {
+        let uncategorizedCount = notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }.count
+        return Folder(id: "uncategorized", name: "未分类", count: uncategorizedCount, isSystem: false)
     }
     
     var isLoggedIn: Bool {
@@ -61,6 +75,305 @@ class NotesViewModel: ObservableObject {
         
         // 设置cookie过期处理器
         setupCookieExpiredHandler()
+        
+        // 监听网络状态
+        setupNetworkMonitoring()
+        
+        // 监听网络恢复通知
+        NotificationCenter.default.addObserver(
+            forName: .networkDidBecomeAvailable,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleNetworkRestored()
+        }
+    }
+    
+    private func setupNetworkMonitoring() {
+        // 绑定网络状态
+        networkMonitor.$isOnline
+            .assign(to: &$isOnline)
+    }
+    
+    @MainActor
+    private func handleNetworkRestored() {
+        print("[VIEWMODEL] 网络已恢复，开始处理待同步操作")
+        Task {
+            await processPendingOperations()
+        }
+    }
+    
+    /// 处理待同步的离线操作
+    private func processPendingOperations() async {
+        let operations = offlineQueue.getPendingOperations()
+        guard !operations.isEmpty else { return }
+        
+        print("[VIEWMODEL] 开始处理 \(operations.count) 个待同步操作")
+        
+        for operation in operations {
+            do {
+                switch operation.type {
+                case .createNote:
+                    try await processCreateNoteOperation(operation)
+                case .updateNote:
+                    try await processUpdateNoteOperation(operation)
+                case .deleteNote:
+                    try await processDeleteNoteOperation(operation)
+                case .uploadImage:
+                    // 图片上传操作在更新笔记时一起处理
+                    break
+                case .createFolder:
+                    try await processCreateFolderOperation(operation)
+                case .renameFolder:
+                    try await processRenameFolderOperation(operation)
+                case .deleteFolder:
+                    try await processDeleteFolderOperation(operation)
+                }
+                
+                // 操作成功，移除
+                try offlineQueue.removeOperation(operation.id)
+                print("[VIEWMODEL] 成功处理离线操作: \(operation.type.rawValue), noteId: \(operation.noteId)")
+            } catch {
+                print("[VIEWMODEL] 处理离线操作失败: \(operation.type.rawValue), noteId: \(operation.noteId), error: \(error.localizedDescription)")
+                // 如果操作失败，保留在队列中，下次再试
+            }
+        }
+    }
+    
+    private func processCreateNoteOperation(_ operation: OfflineOperation) async throws {
+        guard let note = try? localStorage.loadNote(noteId: operation.noteId) else {
+            throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "笔记不存在"])
+        }
+        
+        // 创建笔记到云端
+        let response = try await service.createNote(
+            title: note.title,
+            content: note.content,
+            folderId: note.folderId
+        )
+        
+        // 解析响应并更新本地笔记
+        if let code = response["code"] as? Int, code == 0,
+           let data = response["data"] as? [String: Any],
+           let entry = data["entry"] as? [String: Any],
+           let serverNoteId = entry["id"] as? String,
+           let tag = entry["tag"] as? String {
+            
+            // 如果服务器返回的 ID 与本地不同，需要创建新笔记并删除旧的
+            if note.id != serverNoteId {
+                // 构建更新后的 rawData
+                var updatedRawData = note.rawData ?? [:]
+                for (key, value) in entry {
+                    updatedRawData[key] = value
+                }
+                updatedRawData["tag"] = tag
+                
+                // 创建新的笔记对象（使用服务器返回的 ID）
+                let updatedNote = Note(
+                    id: serverNoteId,
+                    title: note.title,
+                    content: note.content,
+                    folderId: note.folderId,
+                    isStarred: note.isStarred,
+                    createdAt: note.createdAt,
+                    updatedAt: note.updatedAt,
+                    tags: note.tags,
+                    rawData: updatedRawData
+                )
+                
+                // 删除旧的本地文件
+                try? localStorage.deleteNote(noteId: note.id)
+                
+                // 更新笔记列表
+                if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                    notes.remove(at: index)
+                    notes.append(updatedNote)
+                }
+                
+                // 保存新笔记
+                try localStorage.saveNote(updatedNote)
+            } else {
+                // 更新现有笔记的 rawData
+                var updatedRawData = note.rawData ?? [:]
+                for (key, value) in entry {
+                    updatedRawData[key] = value
+                }
+                updatedRawData["tag"] = tag
+                
+                let updatedNote = Note(
+                    id: note.id,
+                    title: note.title,
+                    content: note.content,
+                    folderId: note.folderId,
+                    isStarred: note.isStarred,
+                    createdAt: note.createdAt,
+                    updatedAt: note.updatedAt,
+                    tags: note.tags,
+                    rawData: updatedRawData
+                )
+                
+                // 更新笔记列表
+                if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                    notes[index] = updatedNote
+                }
+                
+                // 保存更新后的笔记
+                try localStorage.saveNote(updatedNote)
+            }
+        }
+        
+        print("[VIEWMODEL] 离线创建的笔记已同步到云端: \(note.id)")
+    }
+    
+    private func processUpdateNoteOperation(_ operation: OfflineOperation) async throws {
+        guard let note = try? localStorage.loadNote(noteId: operation.noteId) else {
+            throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "笔记不存在"])
+        }
+        
+        // 更新笔记到云端
+        try await updateNote(note)
+        print("[VIEWMODEL] 离线更新的笔记已同步到云端: \(note.id)")
+    }
+    
+    private func processDeleteNoteOperation(_ operation: OfflineOperation) async throws {
+        // 删除操作已经在 deleteNote 中处理，这里只需要确认
+        print("[VIEWMODEL] 离线删除的笔记已确认: \(operation.noteId)")
+    }
+    
+    private func processCreateFolderOperation(_ operation: OfflineOperation) async throws {
+        // 从操作数据中解析文件夹信息
+        guard let operationData = try? JSONDecoder().decode([String: String].self, from: operation.data),
+              let folderName = operationData["name"] else {
+            throw NSError(domain: "MiNote", code: 400, userInfo: [NSLocalizedDescriptionKey: "无效的文件夹操作数据"])
+        }
+        
+        // 创建文件夹到云端
+        let response = try await service.createFolder(name: folderName)
+        
+        // 解析响应并更新本地文件夹
+        if let code = response["code"] as? Int, code == 0,
+           let data = response["data"] as? [String: Any],
+           let entry = data["entry"] as? [String: Any] {
+            
+            // 处理 ID（可能是 String 或 Int）
+            var serverFolderId: String?
+            if let idString = entry["id"] as? String {
+                serverFolderId = idString
+            } else if let idInt = entry["id"] as? Int {
+                serverFolderId = String(idInt)
+            }
+            
+            guard let folderId = serverFolderId,
+                  let subject = entry["subject"] as? String else {
+                throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "服务器返回无效的文件夹信息"])
+            }
+            
+            // 如果服务器返回的 ID 与本地不同，需要更新
+            if operation.noteId != folderId {
+                // 更新文件夹列表
+                if let index = folders.firstIndex(where: { $0.id == operation.noteId }) {
+                    let updatedFolder = Folder(
+                        id: folderId,
+                        name: subject,
+                        count: 0,
+                        isSystem: false,
+                        createdAt: Date()
+                    )
+                    folders[index] = updatedFolder
+                    // 只保存非系统文件夹
+                    try localStorage.saveFolders(folders.filter { !$0.isSystem })
+                }
+            } else {
+                // 更新现有文件夹
+                if let index = folders.firstIndex(where: { $0.id == operation.noteId }) {
+                    let updatedFolder = Folder(
+                        id: folderId,
+                        name: subject,
+                        count: 0,
+                        isSystem: false,
+                        createdAt: Date()
+                    )
+                    folders[index] = updatedFolder
+                    // 只保存非系统文件夹
+                    try localStorage.saveFolders(folders.filter { !$0.isSystem })
+                }
+            }
+        }
+        
+        print("[VIEWMODEL] 离线创建的文件夹已同步到云端: \(operation.noteId)")
+    }
+    
+    private func processRenameFolderOperation(_ operation: OfflineOperation) async throws {
+        // 从操作数据中解析文件夹信息
+        guard let operationData = try? JSONDecoder().decode([String: String].self, from: operation.data),
+              let oldName = operationData["oldName"],
+              let newName = operationData["newName"] else {
+            throw NSError(domain: "MiNote", code: 400, userInfo: [NSLocalizedDescriptionKey: "无效的文件夹重命名操作数据"])
+        }
+        
+        // 获取本地文件夹对象
+        guard var folder = folders.first(where: { $0.id == operation.noteId }) else {
+            throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在"])
+        }
+        
+        // 获取最新的 tag 和 createDate
+        var existingTag = folder.rawData?["tag"] as? String ?? ""
+        var originalCreateDate = folder.rawData?["createDate"] as? Int
+        
+        do {
+            let folderDetails = try await service.fetchFolderDetails(folderId: folder.id)
+            if let data = folderDetails["data"] as? [String: Any],
+               let entry = data["entry"] as? [String: Any] {
+                if let latestTag = entry["tag"] as? String, !latestTag.isEmpty {
+                    existingTag = latestTag
+                }
+                if let latestCreateDate = entry["createDate"] as? Int {
+                    originalCreateDate = latestCreateDate
+                }
+            }
+        } catch {
+            print("[VIEWMODEL] 处理离线重命名操作时获取最新文件夹信息失败: \(error)，将使用本地存储的 tag")
+        }
+        
+        if existingTag.isEmpty {
+            existingTag = folder.id
+        }
+        
+        // 重命名文件夹到云端
+        let response = try await service.renameFolder(
+            folderId: folder.id,
+            newName: newName,
+            existingTag: existingTag,
+            originalCreateDate: originalCreateDate
+        )
+        
+        if let code = response["code"] as? Int, code == 0 {
+            // 更新本地文件夹对象
+            if let index = folders.firstIndex(where: { $0.id == folder.id }) {
+                folders[index].name = newName
+                folders[index].rawData = response["data"] as? [String: Any] ?? response // 更新 rawData
+                try localStorage.saveFolders(folders.filter { !$0.isSystem })
+            }
+            print("[VIEWMODEL] 离线重命名的文件夹已同步到云端: \(folder.id) -> \(newName)")
+        } else {
+            let code = response["code"] as? Int ?? -1
+            let message = response["description"] as? String ?? response["message"] as? String ?? "同步重命名文件夹失败"
+            throw NSError(domain: "MiNote", code: code, userInfo: [NSLocalizedDescriptionKey: message])
+        }
+    }
+    
+    private func processDeleteFolderOperation(_ operation: OfflineOperation) async throws {
+        // 从操作数据中解析文件夹信息
+        guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
+              let folderId = operationData["folderId"] as? String,
+              let tag = operationData["tag"] as? String,
+              let purge = operationData["purge"] as? Bool else {
+            throw NSError(domain: "MiNote", code: 400, userInfo: [NSLocalizedDescriptionKey: "无效的文件夹删除操作数据"])
+        }
+        
+        // 删除文件夹到云端
+        _ = try await service.deleteFolder(folderId: folderId, tag: tag, purge: purge)
+        print("[VIEWMODEL] 离线删除的文件夹已同步到云端: \(folderId)")
     }
     
     private func loadLocalData() {
@@ -425,60 +738,57 @@ class NotesViewModel: ObservableObject {
     
     // MARK: - 云端数据加载（旧方法，保留兼容性）
     
+    /// 从云端加载笔记（首次登录时使用，执行完整同步）
     func loadNotesFromCloud() async {
         guard service.isAuthenticated() else {
             errorMessage = "请先登录小米账号"
             return
         }
         
-        // 在加载笔记前，先重试删除失败的笔记
-        do {
-            try await syncService.retryPendingDeletions()
-        } catch {
-            print("[VIEWMODEL] 重试删除失败: \(error)")
+        // 检查是否已有同步状态
+        let hasSyncStatus = localStorage.loadSyncStatus() != nil
+        
+        if hasSyncStatus {
+            // 如果有同步状态，使用增量同步
+            await performIncrementalSync()
+        } else {
+            // 如果没有同步状态（首次登录），使用完整同步
+            await performFullSync()
         }
-        
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let response = try await service.fetchPage()
-            let newNotes = service.parseNotes(from: response)
-            let newFolders = service.parseFolders(from: response)
-            
-            // 更新数据
-            self.notes = newNotes
-            self.folders = newFolders
-            
-            // 保存文件夹到本地存储
-            do {
-                try localStorage.saveFolders(newFolders)
-            } catch {
-                print("保存文件夹失败: \(error)")
-            }
-            
-            // 如果没有选择文件夹，选择第一个
-            if selectedFolder == nil {
-                selectedFolder = folders.first
-            }
-            
-        } catch let error as MiNoteError {
-            handleMiNoteError(error)
-        } catch {
-            errorMessage = "加载笔记失败: \(error.localizedDescription)"
-        }
-        
-        isLoading = false
     }
     
     // MARK: - 统一的笔记创建/更新接口（推荐使用）
     
-    /// 创建笔记（统一接口，使用 Note 对象）
+    /// 创建笔记（统一接口，使用 Note 对象，支持离线模式）
     func createNote(_ note: Note) async throws {
-        guard service.isAuthenticated() else {
-            throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
+        // 先保存到本地（无论在线还是离线）
+        try localStorage.saveNote(note)
+        
+        // 更新视图数据
+        if !notes.contains(where: { $0.id == note.id }) {
+            notes.append(note)
+        }
+        selectedNote = note
+        updateFolderCounts()
+        
+        // 如果离线或未认证，添加到离线队列
+        if !isOnline || !service.isAuthenticated() {
+            let operationData = try JSONEncoder().encode([
+                "title": note.title,
+                "content": note.content,
+                "folderId": note.folderId
+            ])
+            let operation = OfflineOperation(
+                type: .createNote,
+                noteId: note.id,
+                data: operationData
+            )
+            try offlineQueue.addOperation(operation)
+            print("[VIEWMODEL] 离线模式：笔记已保存到本地，等待同步: \(note.id)")
+            return
         }
         
+        // 在线模式：尝试上传到云端
         isLoading = true
         errorMessage = nil
         
@@ -491,27 +801,92 @@ class NotesViewModel: ObservableObject {
                 folderId: note.folderId
             )
             
-            if let noteId = response["id"] as? String,
-               let _ = response["tag"] as? String {
-                // 创建本地笔记对象
-                let newNote = Note(
-                    id: noteId,
-                    title: note.title,
-                    content: note.content,
-                    folderId: note.folderId,
-                    isStarred: note.isStarred,
-                    createdAt: note.createdAt,
-                    updatedAt: note.updatedAt,
-                    tags: note.tags,
-                    rawData: response
-                )
+            // 解析响应：响应格式为 {"code": 0, "data": {"entry": {...}}}
+            var noteId: String?
+            var tag: String?
+            var entryData: [String: Any]?
+            
+            // 检查响应格式
+            if let code = response["code"] as? Int, code == 0 {
+                if let data = response["data"] as? [String: Any],
+                   let entry = data["entry"] as? [String: Any] {
+                    noteId = entry["id"] as? String
+                    tag = entry["tag"] as? String
+                    entryData = entry
+                    print("[VIEWMODEL] 从 data.entry 获取笔记信息: id=\(noteId ?? "nil"), tag=\(tag ?? "nil")")
+                }
+            } else {
+                // 兼容旧格式：直接在响应根级别
+                noteId = response["id"] as? String
+                tag = response["tag"] as? String
+                entryData = response
+                print("[VIEWMODEL] 使用旧格式响应: id=\(noteId ?? "nil"), tag=\(tag ?? "nil")")
+            }
+            
+            if let noteId = noteId, let tag = tag, !tag.isEmpty {
+                // 更新 rawData，包含完整的 entry 数据
+                var updatedRawData = note.rawData ?? [:]
+                if let entryData = entryData {
+                    for (key, value) in entryData {
+                        updatedRawData[key] = value
+                    }
+                }
+                updatedRawData["tag"] = tag
                 
-                // 保存到本地存储
-                try localStorage.saveNote(newNote)
-                
-                // 更新视图数据
-                notes.append(newNote)
-                selectedNote = newNote
+                // 如果本地笔记的 ID 与服务器返回的不同，需要创建新笔记并删除旧的
+                if note.id != noteId {
+                    // 创建新的笔记对象（使用服务器返回的 ID）
+                    let updatedNote = Note(
+                        id: noteId,
+                        title: note.title,
+                        content: note.content,
+                        folderId: note.folderId,
+                        isStarred: note.isStarred,
+                        createdAt: note.createdAt,
+                        updatedAt: note.updatedAt,
+                        tags: note.tags,
+                        rawData: updatedRawData
+                    )
+                    
+                    // 删除旧的本地文件
+                    try? localStorage.deleteNote(noteId: note.id)
+                    
+                    // 更新笔记列表
+                    if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                        notes.remove(at: index)
+                        notes.append(updatedNote)
+                    }
+                    
+                    // 保存新笔记
+                    try localStorage.saveNote(updatedNote)
+                    
+                    // 更新选中状态
+                    selectedNote = updatedNote
+                } else {
+                    // ID 相同，更新现有笔记
+                    let updatedNote = Note(
+                        id: note.id,
+                        title: note.title,
+                        content: note.content,
+                        folderId: note.folderId,
+                        isStarred: note.isStarred,
+                        createdAt: note.createdAt,
+                        updatedAt: note.updatedAt,
+                        tags: note.tags,
+                        rawData: updatedRawData
+                    )
+                    
+                    // 更新笔记列表
+                    if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                        notes[index] = updatedNote
+                    }
+                    
+                    // 保存更新后的笔记
+                    try localStorage.saveNote(updatedNote)
+                    
+                    // 更新选中状态
+                    selectedNote = updatedNote
+                }
                 
                 // 更新文件夹计数
                 updateFolderCounts()
@@ -519,15 +894,53 @@ class NotesViewModel: ObservableObject {
                 throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "创建笔记失败：服务器返回无效响应"])
             }
         } catch {
-            errorMessage = "创建笔记失败: \(error.localizedDescription)"
-            throw error
+            // 网络错误：添加到离线队列
+            if let urlError = error as? URLError {
+                let operationData = try JSONEncoder().encode([
+                    "title": note.title,
+                    "content": note.content,
+                    "folderId": note.folderId
+                ])
+                let operation = OfflineOperation(
+                    type: .createNote,
+                    noteId: note.id,
+                    data: operationData
+                )
+                try offlineQueue.addOperation(operation)
+                print("[VIEWMODEL] 网络错误：笔记已保存到本地，等待同步: \(note.id)")
+                errorMessage = "网络错误，笔记已保存到本地，将在网络恢复后自动同步"
+            } else {
+                errorMessage = "创建笔记失败: \(error.localizedDescription)"
+                throw error
+            }
         }
     }
     
-    /// 更新笔记（统一接口，使用 Note 对象）
+    /// 更新笔记（统一接口，使用 Note 对象，支持离线模式）
     func updateNote(_ note: Note) async throws {
-        guard service.isAuthenticated() else {
-            throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
+        // 先保存到本地（无论在线还是离线）
+        try localStorage.saveNote(note)
+        
+        // 更新笔记列表
+        if let index = notes.firstIndex(where: { $0.id == note.id }) {
+            notes[index] = note
+        }
+        
+        // 如果离线或未认证，添加到离线队列
+        if !isOnline || !service.isAuthenticated() {
+            let operationData = try JSONEncoder().encode([
+                "title": note.title,
+                "content": note.content,
+                "folderId": note.folderId
+            ])
+            let operation = OfflineOperation(
+                type: .updateNote,
+                noteId: note.id,
+                data: operationData
+            )
+            try offlineQueue.addOperation(operation)
+            print("[VIEWMODEL] 离线模式：笔记已更新到本地，等待同步: \(note.id)")
+            return
         }
         
         isLoading = true
@@ -566,13 +979,22 @@ class NotesViewModel: ObservableObject {
                 print("[VIEWMODEL] 警告：tag 仍然为空，使用 noteId 作为 fallback: \(existingTag)")
             }
             
+            // 从 rawData 中提取图片信息（setting.data）
+            var imageData: [[String: Any]]? = nil
+            if let rawData = note.rawData,
+               let setting = rawData["setting"] as? [String: Any],
+               let settingData = setting["data"] as? [[String: Any]] {
+                imageData = settingData
+            }
+            
             let response = try await service.updateNote(
                 noteId: note.id,
                 title: note.title,
                 content: note.content,
                 folderId: note.folderId,
                 existingTag: existingTag,
-                originalCreateDate: originalCreateDate
+                originalCreateDate: originalCreateDate,
+                imageData: imageData
             )
             
             // 检查响应是否成功（小米笔记API返回格式: {"code": 0, "data": {...}}）
@@ -632,8 +1054,72 @@ class NotesViewModel: ObservableObject {
                 throw NSError(domain: "MiNote", code: code, userInfo: [NSLocalizedDescriptionKey: message])
             }
         } catch {
-            errorMessage = "更新笔记失败: \(error.localizedDescription)"
-            throw error
+            // 网络错误：添加到离线队列
+            if let urlError = error as? URLError {
+                let operationData = try? JSONEncoder().encode([
+                    "title": note.title,
+                    "content": note.content,
+                    "folderId": note.folderId
+                ])
+                if let operationData = operationData {
+                    let operation = OfflineOperation(
+                        type: .updateNote,
+                        noteId: note.id,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] 网络错误：笔记已更新到本地，等待同步: \(note.id)")
+                    errorMessage = "网络错误，笔记已更新到本地，将在网络恢复后自动同步"
+                } else {
+                    errorMessage = "更新笔记失败: \(error.localizedDescription)"
+                    throw error
+                }
+            } else {
+                errorMessage = "更新笔记失败: \(error.localizedDescription)"
+                throw error
+            }
+        }
+    }
+    
+    /// 确保笔记有完整内容（如果内容为空，从服务器获取）
+    func ensureNoteHasFullContent(_ note: Note) async {
+        // 如果笔记已经有完整内容，不需要获取
+        if !note.content.isEmpty {
+            return
+        }
+        
+        // 如果连 snippet 都没有，可能笔记不存在，不需要获取
+        if note.rawData?["snippet"] == nil {
+            return
+        }
+        
+        print("[VIEWMODEL] 笔记内容为空，获取完整内容: \(note.id)")
+        
+        do {
+            // 获取笔记详情
+            let noteDetails = try await service.fetchNoteDetails(noteId: note.id)
+            
+            // 更新笔记内容
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                var updatedNote = notes[index]
+                updatedNote.updateContent(from: noteDetails)
+                
+                // 保存到本地
+                try localStorage.saveNote(updatedNote)
+                
+                // 更新列表中的笔记
+                notes[index] = updatedNote
+                
+                // 如果这是当前选中的笔记，更新选中状态
+                if selectedNote?.id == note.id {
+                    selectedNote = updatedNote
+                }
+                
+                print("[VIEWMODEL] 已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count)")
+            }
+        } catch {
+            print("[VIEWMODEL] 获取笔记完整内容失败: \(error.localizedDescription)")
+            // 不显示错误，因为可能只是网络问题，用户仍然可以查看 snippet
         }
     }
     
@@ -740,6 +1226,340 @@ class NotesViewModel: ObservableObject {
         selectedNote = nil // 切换文件夹时清空笔记选择
     }
     
+    /// 创建文件夹（支持离线模式）
+    func createFolder(name: String) async throws {
+        // 生成临时文件夹ID（离线时使用）
+        let tempFolderId = UUID().uuidString
+        
+        // 创建本地文件夹对象
+        let newFolder = Folder(
+            id: tempFolderId,
+            name: name,
+            count: 0,
+            isSystem: false,
+            createdAt: Date()
+        )
+        
+        // 先保存到本地（无论在线还是离线）
+        let systemFolders = folders.filter { $0.isSystem }
+        var userFolders = folders.filter { !$0.isSystem }
+        userFolders.append(newFolder)
+        try localStorage.saveFolders(userFolders)
+        
+        // 更新视图数据（系统文件夹在前）
+        folders = systemFolders + userFolders
+        
+        // 如果离线或未认证，添加到离线队列
+        if !isOnline || !service.isAuthenticated() {
+            let operationData = try JSONEncoder().encode([
+                "name": name
+            ])
+            let operation = OfflineOperation(
+                type: .createFolder,
+                noteId: tempFolderId, // 对于文件夹操作，使用 folderId
+                data: operationData
+            )
+            try offlineQueue.addOperation(operation)
+            print("[VIEWMODEL] 离线模式：文件夹已保存到本地，等待同步: \(tempFolderId)")
+            return
+        }
+        
+        // 在线模式：尝试上传到云端
+        isLoading = true
+        errorMessage = nil
+        
+        defer { isLoading = false }
+        
+        do {
+            let response = try await service.createFolder(name: name)
+            
+            // 解析响应：响应格式为 {"code": 0, "data": {"entry": {...}}}
+            var folderId: String?
+            var folderName: String?
+            var entryData: [String: Any]?
+            
+            // 检查响应格式
+            if let code = response["code"] as? Int, code == 0 {
+                if let data = response["data"] as? [String: Any],
+                   let entry = data["entry"] as? [String: Any] {
+                    // 处理 ID（可能是 String 或 Int）
+                    if let idString = entry["id"] as? String {
+                        folderId = idString
+                    } else if let idInt = entry["id"] as? Int {
+                        folderId = String(idInt)
+                    }
+                    folderName = entry["subject"] as? String ?? name
+                    entryData = entry
+                    print("[VIEWMODEL] 从 data.entry 获取文件夹信息: id=\(folderId ?? "nil"), name=\(folderName ?? "nil")")
+                }
+            }
+            
+            if let folderId = folderId, let folderName = folderName {
+                // 如果服务器返回的 ID 与本地不同，需要更新
+                if tempFolderId != folderId {
+                    // 创建新的文件夹对象（使用服务器返回的 ID）
+                    let updatedFolder = Folder(
+                        id: folderId,
+                        name: folderName,
+                        count: 0,
+                        isSystem: false,
+                        createdAt: Date()
+                    )
+                    
+                    // 更新文件夹列表（保持系统文件夹在前）
+                    let systemFolders = folders.filter { $0.isSystem }
+                    var userFolders = folders.filter { !$0.isSystem }
+                    
+                    if let index = userFolders.firstIndex(where: { $0.id == tempFolderId }) {
+                        userFolders.remove(at: index)
+                        userFolders.append(updatedFolder)
+                    }
+                    
+                    folders = systemFolders + userFolders
+                    
+                    // 保存到本地存储
+                    try localStorage.saveFolders(userFolders)
+                } else {
+                    // ID 相同，更新现有文件夹
+                    let updatedFolder = Folder(
+                        id: folderId,
+                        name: folderName,
+                        count: 0,
+                        isSystem: false,
+                        createdAt: Date()
+                    )
+                    
+                    // 更新文件夹列表（保持系统文件夹在前）
+                    let systemFolders = folders.filter { $0.isSystem }
+                    var userFolders = folders.filter { !$0.isSystem }
+                    
+                    if let index = userFolders.firstIndex(where: { $0.id == tempFolderId }) {
+                        userFolders[index] = updatedFolder
+                    }
+                    
+                    folders = systemFolders + userFolders
+                    
+                    // 保存到本地存储
+                    try localStorage.saveFolders(userFolders)
+                }
+            } else {
+                throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "创建文件夹失败：服务器返回无效响应"])
+            }
+        } catch {
+            // 网络错误：添加到离线队列
+            if let urlError = error as? URLError {
+                let operationData = try JSONEncoder().encode([
+                    "name": name
+                ])
+                let operation = OfflineOperation(
+                    type: .createFolder,
+                    noteId: tempFolderId,
+                    data: operationData
+                )
+                try offlineQueue.addOperation(operation)
+                print("[VIEWMODEL] 网络错误：文件夹已保存到本地，等待同步: \(tempFolderId)")
+                errorMessage = "网络错误，文件夹已保存到本地，将在网络恢复后自动同步"
+            } else {
+                errorMessage = "创建文件夹失败: \(error.localizedDescription)"
+                throw error
+            }
+        }
+    }
+    
+    /// 重命名文件夹
+    func renameFolder(_ folder: Folder, newName: String) async throws {
+        // 先更新本地（无论在线还是离线）
+        if let index = folders.firstIndex(where: { $0.id == folder.id }) {
+            folders[index].name = newName
+            try localStorage.saveFolders(folders.filter { !$0.isSystem })
+            // 确保 selectedFolder 也更新
+            if selectedFolder?.id == folder.id {
+                selectedFolder?.name = newName
+            }
+        } else {
+            throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在"])
+        }
+        
+        // 如果离线或未认证，添加到离线队列
+        if !isOnline || !service.isAuthenticated() {
+            let operationData = try JSONEncoder().encode([
+                "oldName": folder.name,
+                "newName": newName
+            ])
+            let operation = OfflineOperation(
+                type: .renameFolder,
+                noteId: folder.id, // 对于文件夹操作，使用 folderId
+                data: operationData
+            )
+            try offlineQueue.addOperation(operation)
+            print("[VIEWMODEL] 离线模式：文件夹已在本地重命名，等待同步: \(folder.id)")
+            return
+        }
+        
+        // 在线模式：尝试上传到云端
+        isLoading = true
+        errorMessage = nil
+        
+        defer { isLoading = false }
+        
+        do {
+            // 获取最新的 tag 和 createDate
+            var existingTag = folder.rawData?["tag"] as? String ?? ""
+            var originalCreateDate = folder.rawData?["createDate"] as? Int
+            
+            print("[VIEWMODEL] 上传前获取最新 tag，当前 tag: \(existingTag.isEmpty ? "空" : existingTag)")
+            do {
+                let folderDetails = try await service.fetchFolderDetails(folderId: folder.id)
+                if let data = folderDetails["data"] as? [String: Any],
+                   let entry = data["entry"] as? [String: Any] {
+                    if let latestTag = entry["tag"] as? String, !latestTag.isEmpty {
+                        existingTag = latestTag
+                        print("[VIEWMODEL] 从服务器获取到最新 tag: \(existingTag)")
+                    }
+                    if let latestCreateDate = entry["createDate"] as? Int {
+                        originalCreateDate = latestCreateDate
+                        print("[VIEWMODEL] 从服务器获取到最新 createDate: \(latestCreateDate)")
+                    }
+                }
+            } catch {
+                print("[VIEWMODEL] 获取最新文件夹信息失败: \(error)，将使用本地存储的 tag")
+            }
+            
+            if existingTag.isEmpty {
+                existingTag = folder.id
+                print("[VIEWMODEL] 警告：tag 仍然为空，使用 folderId 作为 fallback: \(existingTag)")
+            }
+            
+            let response = try await service.renameFolder(
+                folderId: folder.id,
+                newName: newName,
+                existingTag: existingTag,
+                originalCreateDate: originalCreateDate
+            )
+            
+            if let code = response["code"] as? Int, code == 0 {
+                // 更新本地文件夹对象
+                if let index = folders.firstIndex(where: { $0.id == folder.id }) {
+                    var updatedFolder = folders[index]
+                    updatedFolder.name = newName
+                    updatedFolder.rawData = response["data"] as? [String: Any] ?? response // 更新 rawData
+                    folders[index] = updatedFolder
+                    try localStorage.saveFolders(folders.filter { !$0.isSystem })
+                    if selectedFolder?.id == folder.id {
+                        selectedFolder = updatedFolder
+                    }
+                }
+                print("[VIEWMODEL] 文件夹重命名成功: \(folder.id) -> \(newName)")
+            } else {
+                let code = response["code"] as? Int ?? -1
+                let message = response["description"] as? String ?? response["message"] as? String ?? "重命名文件夹失败"
+                print("[VIEWMODEL] 重命名文件夹失败，code: \(code), message: \(message)")
+                throw NSError(domain: "MiNote", code: code, userInfo: [NSLocalizedDescriptionKey: message])
+            }
+        } catch {
+            if let urlError = error as? URLError {
+                let operationData = try JSONEncoder().encode([
+                    "oldName": folder.name,
+                    "newName": newName
+                ])
+                let operation = OfflineOperation(
+                    type: .renameFolder,
+                    noteId: folder.id,
+                    data: operationData
+                )
+                try offlineQueue.addOperation(operation)
+                print("[VIEWMODEL] 网络错误：文件夹已在本地重命名，等待同步: \(folder.id)")
+                errorMessage = "网络错误，文件夹已在本地重命名，将在网络恢复后自动同步"
+            } else {
+                errorMessage = "重命名文件夹失败: \(error.localizedDescription)"
+                throw error
+            }
+        }
+    }
+    
+    /// 删除文件夹
+    func deleteFolder(_ folder: Folder) async throws {
+        // 1. 先在本地删除
+        if let index = folders.firstIndex(where: { $0.id == folder.id }) {
+            folders.remove(at: index)
+            try localStorage.saveFolders(folders.filter { !$0.isSystem })
+            if selectedFolder?.id == folder.id {
+                selectedFolder = nil
+            }
+        } else {
+            throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在"])
+        }
+        
+        // 如果离线或未认证，添加到离线队列
+        if !isOnline || !service.isAuthenticated() {
+            let operationDict: [String: Any] = [
+                "folderId": folder.id,
+                "tag": folder.rawData?["tag"] as? String ?? folder.id,
+                "purge": false
+            ]
+            let operationData = try JSONSerialization.data(withJSONObject: operationDict)
+            let operation = OfflineOperation(
+                type: .deleteFolder,
+                noteId: folder.id,
+                data: operationData
+            )
+            try offlineQueue.addOperation(operation)
+            print("[VIEWMODEL] 离线模式：文件夹已在本地删除，等待同步: \(folder.id)")
+            return
+        }
+        
+        // 2. 尝试使用API删除云端
+        isLoading = true
+        errorMessage = nil
+        
+        defer { isLoading = false }
+        
+        do {
+            var finalTag = folder.rawData?["tag"] as? String ?? folder.id
+            if finalTag.isEmpty || finalTag == folder.id {
+                print("[VIEWMODEL] 文件夹 tag 为空或等于 folderId，尝试从服务器获取最新 tag")
+                do {
+                    let folderDetails = try await service.fetchFolderDetails(folderId: folder.id)
+                    if let data = folderDetails["data"] as? [String: Any],
+                       let entry = data["entry"] as? [String: Any],
+                       let latestTag = entry["tag"] as? String, !latestTag.isEmpty {
+                        finalTag = latestTag
+                        print("[VIEWMODEL] 从服务器获取到最新 tag: \(finalTag)")
+                    }
+                } catch {
+                    print("[VIEWMODEL] 获取最新文件夹 tag 失败: \(error)，将使用 folderId")
+                }
+            }
+            
+            if finalTag.isEmpty {
+                finalTag = folder.id
+            }
+            
+            _ = try await service.deleteFolder(folderId: folder.id, tag: finalTag, purge: false)
+            print("[VIEWMODEL] 云端文件夹删除成功: \(folder.id)")
+        } catch {
+            if let urlError = error as? URLError {
+                let operationDict: [String: Any] = [
+                    "folderId": folder.id,
+                    "tag": folder.rawData?["tag"] as? String ?? folder.id,
+                    "purge": false
+                ]
+                let operationData = try JSONSerialization.data(withJSONObject: operationDict)
+                let operation = OfflineOperation(
+                    type: .deleteFolder,
+                    noteId: folder.id,
+                    data: operationData
+                )
+                try offlineQueue.addOperation(operation)
+                print("[VIEWMODEL] 网络错误：文件夹已在本地删除，等待同步: \(folder.id)")
+                errorMessage = "网络错误，文件夹已在本地删除，将在网络恢复后自动同步"
+            } else {
+                errorMessage = "删除文件夹失败: \(error.localizedDescription)"
+                throw error
+            }
+        }
+    }
+    
     // MARK: - 便捷方法
     
     /// 创建新笔记的便捷方法（用于快速创建空笔记）
@@ -772,6 +1592,120 @@ class NotesViewModel: ObservableObject {
                 self?.errorMessage = "Cookie已过期，请重新登录或刷新Cookie"
                 self?.showLoginView = true
             }
+        }
+    }
+    
+    // MARK: - 图片上传
+    
+    /// 上传图片并插入到当前笔记
+    /// - Parameter imageURL: 图片文件URL
+    func uploadImageAndInsertToNote(imageURL: URL) async throws {
+        guard let note = selectedNote else {
+            throw NSError(domain: "MiNote", code: 400, userInfo: [NSLocalizedDescriptionKey: "请先选择笔记"])
+        }
+        
+        guard service.isAuthenticated() else {
+            throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        defer { isLoading = false }
+        
+        do {
+            // 读取图片数据
+            let imageData = try Data(contentsOf: imageURL)
+            let fileName = imageURL.lastPathComponent
+            
+            // 根据文件扩展名推断 MIME 类型
+            let fileExtension = (imageURL.pathExtension as NSString).lowercased
+            let mimeType: String
+            switch fileExtension {
+            case "jpg", "jpeg":
+                mimeType = "image/jpeg"
+            case "png":
+                mimeType = "image/png"
+            case "gif":
+                mimeType = "image/gif"
+            case "webp":
+                mimeType = "image/webp"
+            default:
+                mimeType = "image/jpeg"
+            }
+            
+            // 上传图片
+            let uploadResult = try await service.uploadImage(
+                imageData: imageData,
+                fileName: fileName,
+                mimeType: mimeType
+            )
+            
+            guard let fileId = uploadResult["fileId"] as? String,
+                  let digest = uploadResult["digest"] as? String else {
+                throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "上传图片失败：服务器返回无效响应"])
+            }
+            
+            print("[VIEWMODEL] 图片上传成功: fileId=\(fileId), digest=\(digest)")
+            
+            // 保存图片到本地
+            let fileType = String(mimeType.dropFirst("image/".count))
+            try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
+            
+            // 更新笔记的 setting.data，添加图片信息
+            var updatedNote = note
+            var rawData = updatedNote.rawData ?? [:]
+            var setting = rawData["setting"] as? [String: Any] ?? [
+                "themeId": 0,
+                "stickyTime": 0,
+                "version": 0
+            ]
+            
+            var settingData = setting["data"] as? [[String: Any]] ?? []
+            let imageInfo: [String: Any] = [
+                "fileId": fileId,
+                "mimeType": mimeType,
+                "digest": digest
+            ]
+            settingData.append(imageInfo)
+            setting["data"] = settingData
+            rawData["setting"] = setting
+            updatedNote.rawData = rawData
+            
+            // 在笔记内容中添加图片引用（☺格式）
+            let imageReference = "☺ \(fileId)<0/><>"
+            var newContent = updatedNote.content
+            if newContent.isEmpty {
+                newContent = "<new-format/><text indent=\"1\">\(imageReference)</text>"
+            } else {
+                // 在内容末尾添加图片引用
+                let cleanedContent = newContent.replacingOccurrences(of: "<new-format/>", with: "")
+                newContent = "<new-format/>\(cleanedContent)\n<text indent=\"1\">\(imageReference)</text>"
+            }
+            updatedNote.content = newContent
+            
+            // 更新笔记（需要传递 rawData 以包含 setting.data）
+            // 注意：updateNote 方法会从 rawData 中提取 setting.data
+            try await updateNote(updatedNote)
+            
+            // 更新本地笔记对象（从服务器响应中获取最新数据）
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                // 重新加载笔记以获取服务器返回的最新数据
+                if let updated = try? localStorage.loadNote(noteId: note.id) {
+                    notes[index] = updated
+                    selectedNote = updated
+                } else {
+                    // 如果无法加载，至少更新本地对象
+                    notes[index] = updatedNote
+                    selectedNote = updatedNote
+                }
+            }
+            
+            print("[VIEWMODEL] 图片已插入到笔记: \(note.id)")
+            
+        } catch {
+            errorMessage = "上传图片失败: \(error.localizedDescription)"
+            throw error
         }
     }
     

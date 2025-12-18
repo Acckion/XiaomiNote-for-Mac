@@ -46,6 +46,18 @@
     "swift-dependencies": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkLogger.swiftdeps",
     "diagnostics": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkLogger.dia"
   },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/NetworkMonitor.swift": {
+    "object": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkMonitor.swift.o",
+    "swiftmodule": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkMonitor~partial.swiftmodule",
+    "swift-dependencies": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkMonitor.swiftdeps",
+    "diagnostics": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkMonitor.dia"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/OfflineOperationQueue.swift": {
+    "object": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/OfflineOperationQueue.swift.o",
+    "swiftmodule": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/OfflineOperationQueue~partial.swiftmodule",
+    "swift-dependencies": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/OfflineOperationQueue.swiftdeps",
+    "diagnostics": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/OfflineOperationQueue.dia"
+  },
   "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/SyncService.swift": {
     "object": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/SyncService.swift.o",
     "swiftmodule": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/SyncService~partial.swiftmodule",
@@ -123,5 +135,11 @@
     "swiftmodule": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NotesViewModel~partial.swiftmodule",
     "swift-dependencies": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NotesViewModel.swiftdeps",
     "diagnostics": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NotesViewModel.dia"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/DerivedSources/resource_bundle_accessor.swift": {
+    "object": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/resource_bundle_accessor.swift.o",
+    "swiftmodule": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/resource_bundle_accessor~partial.swiftmodule",
+    "swift-dependencies": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/resource_bundle_accessor.swiftdeps",
+    "diagnostics": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/resource_bundle_accessor.dia"
   }
 }
