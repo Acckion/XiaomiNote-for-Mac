@@ -1,6 +1,6 @@
 import Foundation
 
-class LocalStorageService {
+final class LocalStorageService: @unchecked Sendable {
     static let shared = LocalStorageService()
     
     private let fileManager = FileManager.default

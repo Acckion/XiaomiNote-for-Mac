@@ -1,7 +1,7 @@
 import Foundation
 import CryptoKit
 
-class MiNoteService {
+final class MiNoteService: @unchecked Sendable {
     static let shared = MiNoteService()
     
     private let baseURL = "https://i.mi.com"
@@ -393,12 +393,28 @@ class MiNoteService {
             cleanedContent = String(cleanedContent.dropFirst("<new-format/>".count))
         }
         
+        // 构建 extraInfo，包含标题（参考 updateNote 的实现）
+        let extraInfoDict: [String: Any] = [
+            "note_content_type": "common",
+            "web_images": "",
+            "mind_content_plain_text": "",
+            "title": title,
+            "mind_content": ""
+        ]
+        
+        guard let extraInfoData = try? JSONSerialization.data(withJSONObject: extraInfoDict),
+              let extraInfoString = String(data: extraInfoData, encoding: .utf8) else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/note/note", method: "POST", error: URLError(.cannotParseResponse))
+            throw URLError(.cannotParseResponse)
+        }
+        
         let entry: [String: Any] = [
             "content": cleanedContent,
             "colorId": 0,
             "folderId": folderId,
             "createDate": Int(Date().timeIntervalSince1970 * 1000),
-            "modifyDate": Int(Date().timeIntervalSince1970 * 1000)
+            "modifyDate": Int(Date().timeIntervalSince1970 * 1000),
+            "extraInfo": extraInfoString  // 添加 extraInfo 包含标题
         ]
         
         // 使用 JSONSerialization 的 sortedKeys 选项确保字段顺序一致
@@ -1237,7 +1253,7 @@ class MiNoteService {
         }
         if !hasStarred {
             let starredIndex = hasAllNotes ? 1 : 0
-            folders.insert(Folder(id: "starred", name: "收藏", count: 0, isSystem: true), at: starredIndex)
+            folders.insert(Folder(id: "starred", name: "置顶", count: 0, isSystem: true), at: starredIndex)
         }
         
         print("[MiNoteService] 最终文件夹列表: \(folders.map { "\($0.name)(\($0.id))" }.joined(separator: ", "))")

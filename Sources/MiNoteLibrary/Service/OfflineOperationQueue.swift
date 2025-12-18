@@ -29,7 +29,7 @@ struct OfflineOperation: Codable, Identifiable {
 }
 
 /// 离线操作队列管理器
-class OfflineOperationQueue {
+final class OfflineOperationQueue: @unchecked Sendable {
     static let shared = OfflineOperationQueue()
     
     private let localStorage = LocalStorageService.shared

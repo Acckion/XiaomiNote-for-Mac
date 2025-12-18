@@ -1,23 +1,23 @@
 import Foundation
 
-struct Note: Identifiable, Codable, Hashable {
-    let id: String
-    var title: String
-    var content: String
-    var folderId: String
-    var isStarred: Bool = false
-    var createdAt: Date
-    var updatedAt: Date
-    var tags: [String] = []
+public struct Note: Identifiable, Codable, Hashable {
+    public let id: String
+    public var title: String
+    public var content: String
+    public var folderId: String
+    public var isStarred: Bool = false
+    public var createdAt: Date
+    public var updatedAt: Date
+    public var tags: [String] = []
     
     // 小米笔记格式的原始数据
-    var rawData: [String: Any]?
+    public var rawData: [String: Any]?
     
     enum CodingKeys: String, CodingKey {
         case id, title, content, folderId, isStarred, createdAt, updatedAt, tags, rawData
     }
     
-    init(id: String, title: String, content: String, folderId: String, isStarred: Bool = false, 
+    public init(id: String, title: String, content: String, folderId: String, isStarred: Bool = false, 
          createdAt: Date, updatedAt: Date, tags: [String] = [], rawData: [String: Any]? = nil) {
         self.id = id
         self.title = title
@@ -31,7 +31,7 @@ struct Note: Identifiable, Codable, Hashable {
     }
     
     // 自定义编码
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(title, forKey: .title)
@@ -52,7 +52,7 @@ struct Note: Identifiable, Codable, Hashable {
     }
     
     // 自定义解码
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         title = try container.decode(String.self, forKey: .title)
@@ -72,7 +72,7 @@ struct Note: Identifiable, Codable, Hashable {
     }
     
     // 自定义 Equatable 实现
-    static func == (lhs: Note, rhs: Note) -> Bool {
+    public static func == (lhs: Note, rhs: Note) -> Bool {
         // 比较 rawData 时，只比较关键字段
         let lhsRawData = lhs.rawData ?? [:]
         let rhsRawData = rhs.rawData ?? [:]
@@ -93,7 +93,7 @@ struct Note: Identifiable, Codable, Hashable {
     }
     
     // Hashable 实现
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(title)
         hasher.combine(content)

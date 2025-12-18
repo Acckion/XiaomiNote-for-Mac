@@ -1,5 +1,5 @@
 // Debug configuration for MiNoteMac
-ENABLE_DEBUG_DYLIB = YES
+// ENABLE_DEBUG_DYLIB 已废弃，移除以避免 -enable-dynamic-replacement 错误
 SWIFT_OPTIMIZATION_LEVEL = -Onone
 DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
 GCC_OPTIMIZATION_LEVEL = 0

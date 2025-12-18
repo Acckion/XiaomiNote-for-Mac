@@ -1,8 +1,9 @@
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
-class NotesViewModel: ObservableObject {
+public class NotesViewModel: ObservableObject {
     @Published var notes: [Note] = []
     @Published var folders: [Folder] = []
     @Published var selectedNote: Note?
@@ -26,9 +27,11 @@ class NotesViewModel: ObservableObject {
     private let localStorage = LocalStorageService.shared
     private let networkMonitor = NetworkMonitor.shared
     private let offlineQueue = OfflineOperationQueue.shared
+    private var cancellables = Set<AnyCancellable>()
     
-    // 网络状态
+    // 网络状态（无网络或cookie失效时均为离线）
     @Published var isOnline: Bool = true
+    @Published var cookieExpiredShown: Bool = false  // 记录是否已显示cookie失效提示
     
     var filteredNotes: [Note] {
         if searchText.isEmpty {
@@ -63,7 +66,7 @@ class NotesViewModel: ObservableObject {
         return service.isAuthenticated()
     }
     
-    init() {
+    public init() {
         // 加载本地数据
         loadLocalData()
         
@@ -73,11 +76,21 @@ class NotesViewModel: ObservableObject {
         // 加载同步状态
         loadSyncStatus()
         
+        // 恢复上次选中的笔记
+        restoreLastSelectedNote()
+        
         // 设置cookie过期处理器
         setupCookieExpiredHandler()
         
         // 监听网络状态
         setupNetworkMonitoring()
+        
+        // 监听selectedNote变化，保存到UserDefaults
+        $selectedNote
+            .sink { [weak self] note in
+                self?.saveLastSelectedNote(note)
+            }
+            .store(in: &cancellables)
         
         // 监听网络恢复通知
         NotificationCenter.default.addObserver(
@@ -90,9 +103,26 @@ class NotesViewModel: ObservableObject {
     }
     
     private func setupNetworkMonitoring() {
-        // 绑定网络状态
+        // 计算在线状态：需要同时满足网络连接和cookie有效
+        // 无网络或cookie失效时均显示离线
         networkMonitor.$isOnline
-            .assign(to: &$isOnline)
+            .sink { [weak self] networkOnline in
+                guard let self = self else { return }
+                let hasValidCookie = self.service.hasValidCookie()
+                self.isOnline = networkOnline && hasValidCookie
+            }
+            .store(in: &cancellables)
+        
+        // 监听cookie变化（通过定时检查或通知）
+        Timer.publish(every: 1.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                let networkOnline = self.networkMonitor.isOnline
+                let hasValidCookie = self.service.hasValidCookie()
+                self.isOnline = networkOnline && hasValidCookie
+            }
+            .store(in: &cancellables)
     }
     
     @MainActor
@@ -104,14 +134,25 @@ class NotesViewModel: ObservableObject {
     }
     
     /// 处理待同步的离线操作
+    @MainActor
     private func processPendingOperations() async {
+        // 确保在线且已认证
+        guard isOnline && service.isAuthenticated() else {
+            print("[VIEWMODEL] 网络未恢复或未认证，跳过处理离线操作")
+            return
+        }
+        
         let operations = offlineQueue.getPendingOperations()
-        guard !operations.isEmpty else { return }
+        guard !operations.isEmpty else {
+            print("[VIEWMODEL] 没有待处理的离线操作")
+            return
+        }
         
         print("[VIEWMODEL] 开始处理 \(operations.count) 个待同步操作")
         
         for operation in operations {
             do {
+                print("[VIEWMODEL] 处理离线操作: \(operation.type.rawValue), noteId: \(operation.noteId)")
                 switch operation.type {
                 case .createNote:
                     try await processCreateNoteOperation(operation)
@@ -132,25 +173,37 @@ class NotesViewModel: ObservableObject {
                 
                 // 操作成功，移除
                 try offlineQueue.removeOperation(operation.id)
-                print("[VIEWMODEL] 成功处理离线操作: \(operation.type.rawValue), noteId: \(operation.noteId)")
+                print("[VIEWMODEL] ✅ 成功处理离线操作: \(operation.type.rawValue), noteId: \(operation.noteId)")
             } catch {
-                print("[VIEWMODEL] 处理离线操作失败: \(operation.type.rawValue), noteId: \(operation.noteId), error: \(error.localizedDescription)")
+                print("[VIEWMODEL] ❌ 处理离线操作失败: \(operation.type.rawValue), noteId: \(operation.noteId)")
+                print("[VIEWMODEL] 错误详情: \(error)")
+                print("[VIEWMODEL] 错误堆栈: \(error.localizedDescription)")
                 // 如果操作失败，保留在队列中，下次再试
             }
         }
+        
+        print("[VIEWMODEL] 离线操作处理完成")
     }
     
+    @MainActor
     private func processCreateNoteOperation(_ operation: OfflineOperation) async throws {
+        print("[VIEWMODEL] processCreateNoteOperation: 开始处理，noteId=\(operation.noteId)")
+        
         guard let note = try? localStorage.loadNote(noteId: operation.noteId) else {
+            print("[VIEWMODEL] processCreateNoteOperation: ❌ 笔记不存在，noteId=\(operation.noteId)")
             throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "笔记不存在"])
         }
         
+        print("[VIEWMODEL] processCreateNoteOperation: 找到笔记，title=\(note.title), folderId=\(note.folderId)")
+        
         // 创建笔记到云端
+        print("[VIEWMODEL] processCreateNoteOperation: 调用 API 创建笔记到云端...")
         let response = try await service.createNote(
             title: note.title,
             content: note.content,
             folderId: note.folderId
         )
+        print("[VIEWMODEL] processCreateNoteOperation: API 调用成功，响应: \(response)")
         
         // 解析响应并更新本地笔记
         if let code = response["code"] as? Int, code == 0,
@@ -158,6 +211,20 @@ class NotesViewModel: ObservableObject {
            let entry = data["entry"] as? [String: Any],
            let serverNoteId = entry["id"] as? String,
            let tag = entry["tag"] as? String {
+            
+            // 获取服务器返回的 folderId（如果有）
+            let serverFolderId: String
+            if let folderIdValue = entry["folderId"] {
+                if let folderIdInt = folderIdValue as? Int {
+                    serverFolderId = String(folderIdInt)
+                } else if let folderIdStr = folderIdValue as? String {
+                    serverFolderId = folderIdStr
+                } else {
+                    serverFolderId = note.folderId
+                }
+            } else {
+                serverFolderId = note.folderId
+            }
             
             // 如果服务器返回的 ID 与本地不同，需要创建新笔记并删除旧的
             if note.id != serverNoteId {
@@ -168,12 +235,12 @@ class NotesViewModel: ObservableObject {
                 }
                 updatedRawData["tag"] = tag
                 
-                // 创建新的笔记对象（使用服务器返回的 ID）
+                // 创建新的笔记对象（使用服务器返回的 ID 和 folderId）
                 let updatedNote = Note(
                     id: serverNoteId,
                     title: note.title,
                     content: note.content,
-                    folderId: note.folderId,
+                    folderId: serverFolderId, // 使用服务器返回的 folderId
                     isStarred: note.isStarred,
                     createdAt: note.createdAt,
                     updatedAt: note.updatedAt,
@@ -184,14 +251,23 @@ class NotesViewModel: ObservableObject {
                 // 删除旧的本地文件
                 try? localStorage.deleteNote(noteId: note.id)
                 
-                // 更新笔记列表
-                if let index = notes.firstIndex(where: { $0.id == note.id }) {
-                    notes.remove(at: index)
-                    notes.append(updatedNote)
+                // 更新笔记列表（在主线程）
+                await MainActor.run {
+                    if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                        self.notes.remove(at: index)
+                        self.notes.append(updatedNote)
+                    }
+                    // 如果当前选中的是旧笔记，更新为新笔记
+                    if self.selectedNote?.id == note.id {
+                        self.selectedNote = updatedNote
+                    }
+                    // 更新文件夹计数
+                    self.updateFolderCounts()
                 }
                 
                 // 保存新笔记
                 try localStorage.saveNote(updatedNote)
+                print("[VIEWMODEL] processCreateNoteOperation: ✅ 成功更新笔记 ID: \(note.id) -> \(serverNoteId)")
             } else {
                 // 更新现有笔记的 rawData
                 var updatedRawData = note.rawData ?? [:]
@@ -204,7 +280,7 @@ class NotesViewModel: ObservableObject {
                     id: note.id,
                     title: note.title,
                     content: note.content,
-                    folderId: note.folderId,
+                    folderId: serverFolderId, // 使用服务器返回的 folderId
                     isStarred: note.isStarred,
                     createdAt: note.createdAt,
                     updatedAt: note.updatedAt,
@@ -212,17 +288,29 @@ class NotesViewModel: ObservableObject {
                     rawData: updatedRawData
                 )
                 
-                // 更新笔记列表
-                if let index = notes.firstIndex(where: { $0.id == note.id }) {
-                    notes[index] = updatedNote
+                // 更新笔记列表（在主线程）
+                await MainActor.run {
+                    if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                        self.notes[index] = updatedNote
+                    }
+                    // 如果当前选中的是这个笔记，更新它
+                    if self.selectedNote?.id == note.id {
+                        self.selectedNote = updatedNote
+                    }
+                    // 更新文件夹计数
+                    self.updateFolderCounts()
                 }
                 
                 // 保存更新后的笔记
                 try localStorage.saveNote(updatedNote)
+                print("[VIEWMODEL] processCreateNoteOperation: ✅ 成功更新笔记: \(note.id)")
             }
+        } else {
+            print("[VIEWMODEL] processCreateNoteOperation: ⚠️ 响应格式不正确: \(response)")
+            throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "服务器响应格式不正确: \(response)"])
         }
         
-        print("[VIEWMODEL] 离线创建的笔记已同步到云端: \(note.id)")
+        print("[VIEWMODEL] processCreateNoteOperation: ✅ 离线创建的笔记已同步到云端: \(note.id)")
     }
     
     private func processUpdateNoteOperation(_ operation: OfflineOperation) async throws {
@@ -400,6 +488,11 @@ class NotesViewModel: ObservableObject {
     private func loadFolders() {
         do {
             let localFolders = try localStorage.loadFolders()
+            print("从数据库加载了 \(localFolders.count) 个文件夹")
+            for folder in localFolders {
+                print("  - id: \(folder.id), name: \(folder.name), isSystem: \(folder.isSystem)")
+            }
+            
             if !localFolders.isEmpty {
                 // 确保系统文件夹存在
                 var foldersWithCount = localFolders
@@ -412,7 +505,7 @@ class NotesViewModel: ObservableObject {
                     foldersWithCount.insert(Folder(id: "0", name: "所有笔记", count: notes.count, isSystem: true), at: 0)
                 }
                 if !hasStarred {
-                    foldersWithCount.insert(Folder(id: "starred", name: "收藏", count: notes.filter { $0.isStarred }.count, isSystem: true), at: hasAllNotes ? 1 : 0)
+                    foldersWithCount.insert(Folder(id: "starred", name: "置顶", count: notes.filter { $0.isStarred }.count, isSystem: true), at: hasAllNotes ? 1 : 0)
                 }
                 
                 // 更新文件夹计数
@@ -427,9 +520,13 @@ class NotesViewModel: ObservableObject {
                     }
                 }
                 self.folders = foldersWithCount
-                print("从本地存储加载了 \(localFolders.count) 个文件夹")
+                print("最终 folders 数组包含 \(folders.count) 个文件夹:")
+                for folder in folders {
+                    print("  - id: \(folder.id), name: \(folder.name), isSystem: \(folder.isSystem), count: \(folder.count)")
+                }
             } else {
                 // 如果没有本地文件夹数据，加载示例数据
+                print("数据库中没有文件夹，加载示例数据")
                 loadSampleFolders()
             }
         } catch {
@@ -534,7 +631,7 @@ class NotesViewModel: ObservableObject {
         // 临时示例文件夹数据
         self.folders = [
             Folder(id: "0", name: "所有笔记", count: notes.count, isSystem: true),
-            Folder(id: "starred", name: "收藏", count: notes.filter { $0.isStarred }.count, isSystem: true),
+            Folder(id: "starred", name: "置顶", count: notes.filter { $0.isStarred }.count, isSystem: true),
             Folder(id: "1", name: "工作", count: notes.filter { $0.folderId == "1" }.count),
             Folder(id: "2", name: "个人", count: notes.filter { $0.folderId == "2" }.count)
         ]
@@ -558,6 +655,70 @@ class NotesViewModel: ObservableObject {
             syncInterval = 300 // 默认值
         }
         autoSave = defaults.bool(forKey: "autoSave")
+    }
+    
+    /// 保存最后选中的笔记ID
+    private func saveLastSelectedNote(_ note: Note?) {
+        let defaults = UserDefaults.standard
+        if let noteId = note?.id {
+            defaults.set(noteId, forKey: "lastSelectedNoteId")
+            print("[VIEWMODEL] 已保存最后选中的笔记ID: \(noteId)")
+        } else {
+            defaults.removeObject(forKey: "lastSelectedNoteId")
+            print("[VIEWMODEL] 已清除最后选中的笔记ID")
+        }
+    }
+    
+    /// 恢复上次选中的笔记，如果没有则选中第一篇笔记
+    private func restoreLastSelectedNote() {
+        // 等待notes加载完成后再恢复
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self = self else { return }
+            
+            // 如果已经有选中的笔记，不覆盖
+            if self.selectedNote != nil {
+                return
+            }
+            
+            // 尝试恢复上次选中的笔记
+            let defaults = UserDefaults.standard
+            if let lastNoteId = defaults.string(forKey: "lastSelectedNoteId"),
+               let lastNote = self.notes.first(where: { $0.id == lastNoteId }) {
+                // 找到上次选中的笔记，选中它
+                self.selectedNote = lastNote
+                // 确保选中的文件夹也正确
+                let folderId = lastNote.folderId
+                if !folderId.isEmpty && folderId != "0" {
+                    if let folder = self.folders.first(where: { $0.id == folderId }) {
+                        self.selectedFolder = folder
+                    }
+                } else {
+                    // 如果笔记在"所有笔记"或未分类，确保选中正确的文件夹
+                    if self.selectedFolder == nil {
+                        self.selectedFolder = self.folders.first(where: { $0.id == "0" })
+                    }
+                }
+                print("[VIEWMODEL] 已恢复上次选中的笔记: \(lastNoteId)")
+            } else {
+                // 没有上次选中的笔记，选中第一篇笔记
+                if let firstNote = self.notes.first {
+                    self.selectedNote = firstNote
+                    // 确保选中的文件夹也正确
+                    let folderId = firstNote.folderId
+                    if !folderId.isEmpty && folderId != "0" {
+                        if let folder = self.folders.first(where: { $0.id == folderId }) {
+                            self.selectedFolder = folder
+                        }
+                    } else {
+                        // 如果笔记在"所有笔记"或未分类，确保选中正确的文件夹
+                        if self.selectedFolder == nil {
+                            self.selectedFolder = self.folders.first(where: { $0.id == "0" })
+                        }
+                    }
+                    print("[VIEWMODEL] 已选中第一篇笔记: \(firstNote.id)")
+                }
+            }
+        }
     }
     
     // MARK: - 同步功能
@@ -680,6 +841,9 @@ class NotesViewModel: ObservableObject {
             
             // 重新加载文件夹（从本地存储）
             loadFolders()
+            
+            // 同步后也恢复选中的笔记
+            restoreLastSelectedNote()
             
         } catch {
             print("同步后加载本地数据失败: \(error)")
@@ -824,6 +988,20 @@ class NotesViewModel: ObservableObject {
             }
             
             if let noteId = noteId, let tag = tag, !tag.isEmpty {
+                // 获取服务器返回的 folderId（如果有）
+                let serverFolderId: String
+                if let entryData = entryData, let folderIdValue = entryData["folderId"] {
+                    if let folderIdInt = folderIdValue as? Int {
+                        serverFolderId = String(folderIdInt)
+                    } else if let folderIdStr = folderIdValue as? String {
+                        serverFolderId = folderIdStr
+                    } else {
+                        serverFolderId = note.folderId
+                    }
+                } else {
+                    serverFolderId = note.folderId
+                }
+                
                 // 更新 rawData，包含完整的 entry 数据
                 var updatedRawData = note.rawData ?? [:]
                 if let entryData = entryData {
@@ -835,12 +1013,12 @@ class NotesViewModel: ObservableObject {
                 
                 // 如果本地笔记的 ID 与服务器返回的不同，需要创建新笔记并删除旧的
                 if note.id != noteId {
-                    // 创建新的笔记对象（使用服务器返回的 ID）
+                    // 创建新的笔记对象（使用服务器返回的 ID 和 folderId）
                     let updatedNote = Note(
                         id: noteId,
                         title: note.title,
                         content: note.content,
-                        folderId: note.folderId,
+                        folderId: serverFolderId, // 使用服务器返回的 folderId
                         isStarred: note.isStarred,
                         createdAt: note.createdAt,
                         updatedAt: note.updatedAt,
@@ -894,25 +1072,43 @@ class NotesViewModel: ObservableObject {
                 throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "创建笔记失败：服务器返回无效响应"])
             }
         } catch {
-            // 网络错误：添加到离线队列
+            // 网络错误或cookie失效：添加到离线队列，不显示弹窗
             if let urlError = error as? URLError {
-                let operationData = try JSONEncoder().encode([
+                let operationData = try? JSONEncoder().encode([
                     "title": note.title,
                     "content": note.content,
                     "folderId": note.folderId
                 ])
-                let operation = OfflineOperation(
-                    type: .createNote,
-                    noteId: note.id,
-                    data: operationData
-                )
-                try offlineQueue.addOperation(operation)
-                print("[VIEWMODEL] 网络错误：笔记已保存到本地，等待同步: \(note.id)")
-                errorMessage = "网络错误，笔记已保存到本地，将在网络恢复后自动同步"
+                if let operationData = operationData {
+                    let operation = OfflineOperation(
+                        type: .createNote,
+                        noteId: note.id,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] 网络错误：笔记已保存到本地，等待同步: \(note.id)")
+                }
+            } else if case MiNoteError.cookieExpired = error {
+                // Cookie失效：保存到离线队列
+                let operationData = try? JSONEncoder().encode([
+                    "title": note.title,
+                    "content": note.content,
+                    "folderId": note.folderId
+                ])
+                if let operationData = operationData {
+                    let operation = OfflineOperation(
+                        type: .createNote,
+                        noteId: note.id,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] Cookie失效：笔记已保存到离线队列: \(note.id)")
+                }
             } else {
-                errorMessage = "创建笔记失败: \(error.localizedDescription)"
-                throw error
+                // 其他错误：静默处理，不显示弹窗
+                print("[VIEWMODEL] 创建笔记失败: \(error.localizedDescription)")
             }
+            // 不设置 errorMessage，避免弹窗提示
         }
     }
     
@@ -987,6 +1183,9 @@ class NotesViewModel: ObservableObject {
                 imageData = settingData
             }
             
+            // 使用 nonisolated(unsafe) 来标记这个变量是安全的（这些数据只是被读取和传递）
+            nonisolated(unsafe) let unsafeImageData = imageData
+            
             let response = try await service.updateNote(
                 noteId: note.id,
                 title: note.title,
@@ -994,7 +1193,7 @@ class NotesViewModel: ObservableObject {
                 folderId: note.folderId,
                 existingTag: existingTag,
                 originalCreateDate: originalCreateDate,
-                imageData: imageData
+                imageData: unsafeImageData
             )
             
             // 检查响应是否成功（小米笔记API返回格式: {"code": 0, "data": {...}}）
@@ -1054,7 +1253,7 @@ class NotesViewModel: ObservableObject {
                 throw NSError(domain: "MiNote", code: code, userInfo: [NSLocalizedDescriptionKey: message])
             }
         } catch {
-            // 网络错误：添加到离线队列
+            // 网络错误或cookie失效：添加到离线队列，不显示弹窗
             if let urlError = error as? URLError {
                 let operationData = try? JSONEncoder().encode([
                     "title": note.title,
@@ -1069,15 +1268,28 @@ class NotesViewModel: ObservableObject {
                     )
                     try? offlineQueue.addOperation(operation)
                     print("[VIEWMODEL] 网络错误：笔记已更新到本地，等待同步: \(note.id)")
-                    errorMessage = "网络错误，笔记已更新到本地，将在网络恢复后自动同步"
-                } else {
-                    errorMessage = "更新笔记失败: \(error.localizedDescription)"
-                    throw error
+                }
+            } else if case MiNoteError.cookieExpired = error {
+                // Cookie失效：保存到离线队列
+                let operationData = try? JSONEncoder().encode([
+                    "title": note.title,
+                    "content": note.content,
+                    "folderId": note.folderId
+                ])
+                if let operationData = operationData {
+                    let operation = OfflineOperation(
+                        type: .updateNote,
+                        noteId: note.id,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] Cookie失效：笔记已保存到离线队列: \(note.id)")
                 }
             } else {
-                errorMessage = "更新笔记失败: \(error.localizedDescription)"
-                throw error
+                // 其他错误：静默处理，不显示弹窗
+                print("[VIEWMODEL] 更新笔记失败: \(error.localizedDescription)")
             }
+            // 不设置 errorMessage，避免弹窗提示
         }
     }
     
@@ -1346,24 +1558,66 @@ class NotesViewModel: ObservableObject {
                 throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "创建文件夹失败：服务器返回无效响应"])
             }
         } catch {
-            // 网络错误：添加到离线队列
+            // 网络错误或cookie失效：添加到离线队列，不显示弹窗
             if let urlError = error as? URLError {
-                let operationData = try JSONEncoder().encode([
+                let operationData = try? JSONEncoder().encode([
                     "name": name
                 ])
-                let operation = OfflineOperation(
-                    type: .createFolder,
-                    noteId: tempFolderId,
-                    data: operationData
-                )
-                try offlineQueue.addOperation(operation)
-                print("[VIEWMODEL] 网络错误：文件夹已保存到本地，等待同步: \(tempFolderId)")
-                errorMessage = "网络错误，文件夹已保存到本地，将在网络恢复后自动同步"
+                if let operationData = operationData {
+                    let operation = OfflineOperation(
+                        type: .createFolder,
+                        noteId: tempFolderId,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] 网络错误：文件夹已保存到本地，等待同步: \(tempFolderId)")
+                }
+            } else if case MiNoteError.cookieExpired = error {
+                // Cookie失效：保存到离线队列
+                let operationData = try? JSONEncoder().encode([
+                    "name": name
+                ])
+                if let operationData = operationData {
+                    let operation = OfflineOperation(
+                        type: .createFolder,
+                        noteId: tempFolderId,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] Cookie失效：文件夹已保存到离线队列: \(tempFolderId)")
+                }
             } else {
-                errorMessage = "创建文件夹失败: \(error.localizedDescription)"
-                throw error
+                // 其他错误：静默处理，不显示弹窗
+                print("[VIEWMODEL] 创建文件夹失败: \(error.localizedDescription)")
             }
+            // 不设置 errorMessage，避免弹窗提示
         }
+    }
+    
+    /// 切换文件夹置顶状态
+    func toggleFolderPin(_ folder: Folder) async throws {
+        // 先更新本地（无论在线还是离线）
+        if let index = folders.firstIndex(where: { $0.id == folder.id }) {
+            folders[index].isPinned.toggle()
+            try localStorage.saveFolders(folders.filter { !$0.isSystem })
+            // 确保 selectedFolder 也更新
+            if selectedFolder?.id == folder.id {
+                selectedFolder?.isPinned.toggle()
+            }
+            // 重新加载文件夹列表以更新排序
+            loadFolders()
+        } else {
+            throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在"])
+        }
+        
+        // 如果离线或未认证，保存到本地即可（置顶状态是本地功能，不需要同步到云端）
+        if !isOnline || !service.isAuthenticated() {
+            print("[VIEWMODEL] 离线模式：文件夹置顶状态已更新: \(folder.id)")
+            return
+        }
+        
+        // 在线模式：保存到本地数据库（置顶状态是本地功能，不需要同步到云端）
+        print("[VIEWMODEL] 文件夹置顶状态已更新: \(folder.id)")
     }
     
     /// 重命名文件夹
@@ -1457,23 +1711,41 @@ class NotesViewModel: ObservableObject {
                 throw NSError(domain: "MiNote", code: code, userInfo: [NSLocalizedDescriptionKey: message])
             }
         } catch {
+            // 网络错误或cookie失效：添加到离线队列，不显示弹窗
             if let urlError = error as? URLError {
-                let operationData = try JSONEncoder().encode([
+                let operationData = try? JSONEncoder().encode([
                     "oldName": folder.name,
                     "newName": newName
                 ])
-                let operation = OfflineOperation(
-                    type: .renameFolder,
-                    noteId: folder.id,
-                    data: operationData
-                )
-                try offlineQueue.addOperation(operation)
-                print("[VIEWMODEL] 网络错误：文件夹已在本地重命名，等待同步: \(folder.id)")
-                errorMessage = "网络错误，文件夹已在本地重命名，将在网络恢复后自动同步"
+                if let operationData = operationData {
+                    let operation = OfflineOperation(
+                        type: .renameFolder,
+                        noteId: folder.id,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] 网络错误：文件夹已在本地重命名，等待同步: \(folder.id)")
+                }
+            } else if case MiNoteError.cookieExpired = error {
+                // Cookie失效：保存到离线队列
+                let operationData = try? JSONEncoder().encode([
+                    "oldName": folder.name,
+                    "newName": newName
+                ])
+                if let operationData = operationData {
+                    let operation = OfflineOperation(
+                        type: .renameFolder,
+                        noteId: folder.id,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] Cookie失效：文件夹已保存到离线队列: \(folder.id)")
+                }
             } else {
-                errorMessage = "重命名文件夹失败: \(error.localizedDescription)"
-                throw error
+                // 其他错误：静默处理，不显示弹窗
+                print("[VIEWMODEL] 重命名文件夹失败: \(error.localizedDescription)")
             }
+            // 不设置 errorMessage，避免弹窗提示
         }
     }
     
@@ -1538,35 +1810,55 @@ class NotesViewModel: ObservableObject {
             _ = try await service.deleteFolder(folderId: folder.id, tag: finalTag, purge: false)
             print("[VIEWMODEL] 云端文件夹删除成功: \(folder.id)")
         } catch {
+            // 网络错误或cookie失效：添加到离线队列，不显示弹窗
             if let urlError = error as? URLError {
                 let operationDict: [String: Any] = [
                     "folderId": folder.id,
                     "tag": folder.rawData?["tag"] as? String ?? folder.id,
                     "purge": false
                 ]
-                let operationData = try JSONSerialization.data(withJSONObject: operationDict)
-                let operation = OfflineOperation(
-                    type: .deleteFolder,
-                    noteId: folder.id,
-                    data: operationData
-                )
-                try offlineQueue.addOperation(operation)
-                print("[VIEWMODEL] 网络错误：文件夹已在本地删除，等待同步: \(folder.id)")
-                errorMessage = "网络错误，文件夹已在本地删除，将在网络恢复后自动同步"
+                if let operationData = try? JSONSerialization.data(withJSONObject: operationDict) {
+                    let operation = OfflineOperation(
+                        type: .deleteFolder,
+                        noteId: folder.id,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] 网络错误：文件夹已在本地删除，等待同步: \(folder.id)")
+                }
+            } else if case MiNoteError.cookieExpired = error {
+                // Cookie失效：保存到离线队列
+                let operationDict: [String: Any] = [
+                    "folderId": folder.id,
+                    "tag": folder.rawData?["tag"] as? String ?? folder.id,
+                    "purge": false
+                ]
+                if let operationData = try? JSONSerialization.data(withJSONObject: operationDict) {
+                    let operation = OfflineOperation(
+                        type: .deleteFolder,
+                        noteId: folder.id,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] Cookie失效：文件夹已保存到离线队列: \(folder.id)")
+                }
             } else {
-                errorMessage = "删除文件夹失败: \(error.localizedDescription)"
-                throw error
+                // 其他错误：静默处理，不显示弹窗
+                print("[VIEWMODEL] 删除文件夹失败: \(error.localizedDescription)")
             }
+            // 不设置 errorMessage，避免弹窗提示
         }
     }
     
     // MARK: - 便捷方法
     
     /// 创建新笔记的便捷方法（用于快速创建空笔记）
-    func createNewNote() {
+    public func createNewNote() {
         // 创建一个默认笔记，使用标准的 XML 格式
+        // 使用临时 ID（如果离线）或等待 API 返回的真实 ID（如果在线）
+        let tempId = UUID().uuidString
         let newNote = Note(
-            id: UUID().uuidString,
+            id: tempId,
             title: "新笔记",
             content: "<new-format/><text indent=\"1\"></text>",
             folderId: selectedFolder?.id ?? "0",
@@ -1575,12 +1867,14 @@ class NotesViewModel: ObservableObject {
             updatedAt: Date()
         )
         
-        notes.append(newNote)
-        selectedNote = newNote
-        
-        // 更新文件夹计数
-        if let index = folders.firstIndex(where: { $0.id == newNote.folderId }) {
-            folders[index].count += 1
+        // 使用统一的创建接口，它会处理在线/离线逻辑
+        Task {
+            do {
+                try await createNote(newNote)
+            } catch {
+                print("[VIEWMODEL] 创建笔记失败: \(error)")
+                errorMessage = "创建笔记失败: \(error.localizedDescription)"
+            }
         }
     }
     
@@ -1589,8 +1883,23 @@ class NotesViewModel: ObservableObject {
     private func setupCookieExpiredHandler() {
         service.onCookieExpired = { [weak self] in
             DispatchQueue.main.async {
-                self?.errorMessage = "Cookie已过期，请重新登录或刷新Cookie"
-                self?.showLoginView = true
+                guard let self = self else { return }
+                
+                // 仅在cookie失效时提示一次，不能重复提示
+                if !self.cookieExpiredShown {
+                    self.cookieExpiredShown = true
+                    // 显示一次提示（不弹窗，只设置错误消息，UI可以显示）
+                    self.errorMessage = "Cookie已过期，已切换到离线模式。操作将保存到离线队列，请重新登录后同步。"
+                    
+                    // 3秒后清除错误消息
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        self.errorMessage = nil
+                    }
+                }
+                
+                // 更新在线状态（cookie失效时视为离线）
+                let networkOnline = self.networkMonitor.isOnline
+                self.isOnline = networkOnline && false // cookie失效，视为离线
             }
         }
     }
@@ -1704,7 +2013,9 @@ class NotesViewModel: ObservableObject {
             print("[VIEWMODEL] 图片已插入到笔记: \(note.id)")
             
         } catch {
-            errorMessage = "上传图片失败: \(error.localizedDescription)"
+            // 上传失败：静默处理，不显示弹窗
+            print("[VIEWMODEL] 上传图片失败: \(error.localizedDescription)")
+            // 不设置 errorMessage，避免弹窗提示
             throw error
         }
     }

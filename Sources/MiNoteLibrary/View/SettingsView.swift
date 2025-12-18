@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct SettingsView: View {
+public struct SettingsView: View {
     @ObservedObject var viewModel: NotesViewModel
     @Environment(\.dismiss) private var dismiss
     
@@ -13,7 +13,11 @@ struct SettingsView: View {
     @State private var showClearCacheAlert: Bool = false
     @State private var showAboutSheet: Bool = false
     
-    var body: some View {
+    public init(viewModel: NotesViewModel) {
+        self.viewModel = viewModel
+    }
+    
+    public var body: some View {
         NavigationStack {
             Form {
                 Section("同步设置") {

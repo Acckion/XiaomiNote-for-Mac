@@ -1,38 +1,36 @@
 import Foundation
 
-struct Folder: Identifiable, Codable, Equatable, Hashable {
-    let id: String
-    var name: String
-    var count: Int
-    var isSystem: Bool = false
-    var createdAt: Date = Date()
-    var rawData: [String: Any]? = nil // 存储原始 API 数据（包括 tag 等）
+public struct Folder: Identifiable, Codable, Equatable, Hashable {
+    public let id: String
+    public var name: String
+    public var count: Int
+    public var isSystem: Bool = false
+    public var isPinned: Bool = false  // 是否置顶
+    public var createdAt: Date = Date()
+    public var rawData: [String: Any]? = nil // 存储原始 API 数据（包括 tag 等）
     
     enum CodingKeys: String, CodingKey {
-        case id, name, count, isSystem, createdAt
+        case id, name, count, isSystem, isPinned, createdAt
     }
     
-    init(id: String, name: String, count: Int, isSystem: Bool = false, createdAt: Date = Date(), rawData: [String: Any]? = nil) {
+    public init(id: String, name: String, count: Int, isSystem: Bool = false, isPinned: Bool = false, createdAt: Date = Date(), rawData: [String: Any]? = nil) {
         self.id = id
         self.name = name
         self.count = count
         self.isSystem = isSystem
+        self.isPinned = isPinned
         self.createdAt = createdAt
         self.rawData = rawData
     }
     
     // Hashable 实现
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
     
-    // Equatable 实现（忽略 rawData）
-    static func == (lhs: Folder, rhs: Folder) -> Bool {
-        return lhs.id == rhs.id &&
-               lhs.name == rhs.name &&
-               lhs.count == rhs.count &&
-               lhs.isSystem == rhs.isSystem &&
-               lhs.createdAt == rhs.createdAt
+    // Equatable 实现（只比较 id，这样未分类文件夹即使 count 变化也能保持选中状态）
+    public static func == (lhs: Folder, rhs: Folder) -> Bool {
+        return lhs.id == rhs.id
     }
     
     // 从小米笔记API数据创建

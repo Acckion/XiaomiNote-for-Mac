@@ -350,3 +350,6 @@ struct EditorToolbar: View {
     }
 }
 
+#Preview {
+    LoginView(viewModel: NotesViewModel())
+}

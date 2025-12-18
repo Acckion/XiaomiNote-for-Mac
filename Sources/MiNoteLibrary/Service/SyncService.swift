@@ -1,6 +1,6 @@
 import Foundation
 
-class SyncService {
+final class SyncService: @unchecked Sendable {
     static let shared = SyncService()
     
     private let miNoteService = MiNoteService.shared
@@ -26,7 +26,7 @@ class SyncService {
     
     // MARK: - 完整同步
     
-    /// 执行完整同步（拉取所有云端笔记到本地）
+    /// 执行完整同步（清除所有本地数据，拉取所有云端文件夹）
     func performFullSync() async throws -> SyncResult {
         print("[SYNC] 开始执行完整同步")
         guard !isSyncing else {
@@ -41,7 +41,7 @@ class SyncService {
         
         isSyncing = true
         syncProgress = 0
-        syncStatusMessage = "开始同步..."
+        syncStatusMessage = "开始完整同步..."
         
         defer {
             isSyncing = false
@@ -52,15 +52,27 @@ class SyncService {
         var syncTag = ""
         
         do {
-            // 加载现有的同步状态
-            var syncStatus = localStorage.loadSyncStatus() ?? SyncStatus()
-            print("[SYNC] 加载同步状态：lastSyncTime=\(String(describing: syncStatus.lastSyncTime)), syncTag=\(String(describing: syncStatus.syncTag))")
+            // 1. 清除所有本地数据
+            syncStatusMessage = "清除所有本地数据..."
+            print("[SYNC] 清除所有本地笔记和文件夹")
+            let localNotes = try localStorage.getAllLocalNotes()
+            for note in localNotes {
+                try localStorage.deleteNote(noteId: note.id)
+            }
+            let localFolders = try localStorage.loadFolders()
+            for folder in localFolders {
+                if !folder.isSystem && folder.id != "0" && folder.id != "starred" {
+                    try DatabaseService.shared.deleteFolder(folderId: folder.id)
+                }
+            }
+            print("[SYNC] 已清除所有本地数据")
             
-            // 分页获取所有笔记
+            // 2. 拉取所有云端文件夹和笔记
+            var syncStatus = SyncStatus()
             var pageCount = 0
             var totalNotes = 0
             var syncedNotes = 0
-            var cloudNoteIds = Set<String>() // 收集所有云端笔记ID
+            var allCloudFolders: [Folder] = []
             
             while true {
                 pageCount += 1
@@ -91,36 +103,30 @@ class SyncService {
                 
                 totalNotes += notes.count
                 
-                // 收集云端笔记ID
-                for note in notes {
-                    cloudNoteIds.insert(note.id)
-                }
-                
-                // 处理文件夹
-                var allFolders: [Folder] = []
+                // 收集所有云端文件夹
                 for folder in folders {
-                    try await processFolder(folder)
-                    allFolders.append(folder)
+                    if !folder.isSystem && folder.id != "0" && folder.id != "starred" {
+                        allCloudFolders.append(folder)
+                    }
                 }
                 
-                // 保存文件夹列表到本地
-                if !allFolders.isEmpty {
-                    try localStorage.saveFolders(allFolders)
-                }
-                
-                // 处理笔记
+                // 处理笔记（直接保存，因为已经清除了本地数据）
                 for (index, note) in notes.enumerated() {
                     syncProgress = Double(syncedNotes + index) / Double(max(totalNotes, 1))
                     syncStatusMessage = "正在同步笔记: \(note.title)"
                     
-                    // 完整同步模式：传递 isFullSync=true，不跳过任何笔记
-                    let noteResult = try await processNote(note, isFullSync: true)
-                    result.addNoteResult(noteResult)
+                    // 获取笔记详情
+                    let noteDetails = try await miNoteService.fetchNoteDetails(noteId: note.id)
+                    var updatedNote = note
+                    updatedNote.updateContent(from: noteDetails)
                     
-                    if noteResult.success {
-                        syncStatus.addSyncedNote(note.id)
-                        syncedNotes += 1
-                    }
+                    // 下载图片
+                    try await downloadNoteImages(from: noteDetails, noteId: note.id)
+                    
+                    // 保存到本地
+                    try localStorage.saveNote(updatedNote)
+                    syncStatus.addSyncedNote(note.id)
+                    syncedNotes += 1
                 }
                 
                 // 检查是否还有下一页
@@ -133,21 +139,11 @@ class SyncService {
                 }
             }
             
-            // 删除本地存在但云端已删除的笔记
-            syncStatusMessage = "检查并删除云端已删除的笔记..."
-            let localNotes = try localStorage.getAllLocalNotes()
-            var deletedCount = 0
-            for localNote in localNotes {
-                if !cloudNoteIds.contains(localNote.id) {
-                    // 本地笔记在云端不存在，删除本地笔记
-                    print("[SYNC] 删除本地笔记（云端已删除）: \(localNote.title) (\(localNote.id))")
-                    try localStorage.deleteNote(noteId: localNote.id)
-                    syncStatus.removeSyncedNote(localNote.id)
-                    deletedCount += 1
-                }
-            }
-            if deletedCount > 0 {
-                print("[SYNC] 已删除 \(deletedCount) 个云端已删除的本地笔记")
+            // 3. 保存所有云端文件夹
+            syncStatusMessage = "保存云端文件夹..."
+            if !allCloudFolders.isEmpty {
+                try localStorage.saveFolders(allCloudFolders)
+                print("[SYNC] 已保存 \(allCloudFolders.count) 个云端文件夹")
             }
             
             // 更新同步状态
@@ -155,14 +151,8 @@ class SyncService {
             syncStatus.lastPageSyncTime = Date()
             try localStorage.saveSyncStatus(syncStatus)
             
-            // 重试删除失败的笔记
-            try await retryPendingDeletions()
-            
-            // 清理本地已删除的笔记
-            try await cleanupDeletedNotes(syncStatus: syncStatus)
-            
             syncProgress = 1.0
-            syncStatusMessage = "同步完成"
+            syncStatusMessage = "完整同步完成"
             
             result.totalNotes = totalNotes
             result.syncedNotes = syncedNotes
@@ -233,25 +223,29 @@ class SyncService {
             let folders = miNoteService.parseFolders(from: pageResponse)
             
             var syncedNotes = 0
+            var cloudNoteIds = Set<String>() // 收集云端笔记ID
+            var cloudFolderIds = Set<String>() // 收集云端文件夹ID
             
-            // 处理文件夹
-            var allFolders: [Folder] = []
+            // 收集云端笔记和文件夹ID
+            for note in notes {
+                cloudNoteIds.insert(note.id)
+            }
             for folder in folders {
-                try await processFolder(folder)
-                allFolders.append(folder)
+                if !folder.isSystem && folder.id != "0" && folder.id != "starred" {
+                    cloudFolderIds.insert(folder.id)
+                }
             }
             
-            // 保存文件夹列表到本地
-            if !allFolders.isEmpty {
-                try localStorage.saveFolders(allFolders)
-            }
+            // 处理文件夹（按照增量同步规则）
+            syncStatusMessage = "同步文件夹..."
+            try await syncFoldersIncremental(cloudFolders: folders, cloudFolderIds: cloudFolderIds)
             
-            // 处理笔记
+            // 处理笔记（按照增量同步规则）
             for (index, note) in notes.enumerated() {
                 syncProgress = Double(index) / Double(max(notes.count, 1))
                 syncStatusMessage = "正在同步笔记: \(note.title)"
                 
-                let noteResult = try await processNote(note)
+                let noteResult = try await syncNoteIncremental(cloudNote: note)
                 result.addNoteResult(noteResult)
                 
                 if noteResult.success {
@@ -266,6 +260,10 @@ class SyncService {
             }
             updatedStatus.lastSyncTime = Date()
             try localStorage.saveSyncStatus(updatedStatus)
+            
+            // 处理只有本地存在但云端不存在的笔记和文件夹
+            syncStatusMessage = "检查本地独有的笔记和文件夹..."
+            try await syncLocalOnlyItems(cloudNoteIds: cloudNoteIds, cloudFolderIds: cloudFolderIds)
             
             // 重试删除失败的笔记
             try await retryPendingDeletions()
@@ -283,6 +281,225 @@ class SyncService {
         }
         
         return result
+    }
+    
+    // MARK: - 增量同步辅助方法
+    
+    /// 增量同步文件夹
+    private func syncFoldersIncremental(cloudFolders: [Folder], cloudFolderIds: Set<String>) async throws {
+        let offlineQueue = OfflineOperationQueue.shared
+        let pendingOps = offlineQueue.getPendingOperations()
+        let localFolders = try localStorage.loadFolders()
+        
+        for cloudFolder in cloudFolders {
+            // 跳过系统文件夹
+            if cloudFolder.isSystem || cloudFolder.id == "0" || cloudFolder.id == "starred" {
+                continue
+            }
+            
+            if let localFolder = localFolders.first(where: { $0.id == cloudFolder.id }) {
+                // 情况1：云端和本地都存在
+                // 比较时间戳
+                if cloudFolder.createdAt > localFolder.createdAt {
+                    // 1.2 云端较新，拉取云端覆盖本地
+                    try localStorage.saveFolders([cloudFolder])
+                    print("[SYNC] 文件夹云端较新，已更新: \(cloudFolder.name)")
+                } else if localFolder.createdAt > cloudFolder.createdAt {
+                    // 1.1 本地较新，上传本地到云端（通过离线队列）
+                    // 这里需要检查是否有重命名操作
+                    let hasRenameOp = pendingOps.contains { op in
+                        op.type == .renameFolder && op.noteId == localFolder.id
+                    }
+                    if !hasRenameOp {
+                        // 创建更新操作
+                        let opData: [String: Any] = [
+                            "folderId": localFolder.id,
+                            "name": localFolder.name
+                        ]
+                        let data = try JSONSerialization.data(withJSONObject: opData)
+                        let operation = OfflineOperation(
+                            type: .renameFolder,
+                            noteId: localFolder.id,
+                            data: data
+                        )
+                        try offlineQueue.addOperation(operation)
+                        print("[SYNC] 文件夹本地较新，已添加到上传队列: \(localFolder.name)")
+                    }
+                } else {
+                    // 1.3 时间一致，考虑内容（这里简单比较名称）
+                    if cloudFolder.name != localFolder.name {
+                        // 名称不同，使用云端版本
+                        try localStorage.saveFolders([cloudFolder])
+                        print("[SYNC] 文件夹名称不同，已更新: \(cloudFolder.name)")
+                    }
+                }
+            } else {
+                // 情况2：只有云端存在，本地不存在
+                // 2.1 检查离线删除队列
+                let hasDeleteOp = pendingOps.contains { op in
+                    op.type == .deleteFolder && op.noteId == cloudFolder.id
+                }
+                if hasDeleteOp {
+                    // 在删除队列中，删除云端文件夹
+                    if let tag = cloudFolder.rawData?["tag"] as? String {
+                        _ = try await miNoteService.deleteFolder(folderId: cloudFolder.id, tag: tag, purge: false)
+                        print("[SYNC] 文件夹在删除队列中，已删除云端: \(cloudFolder.name)")
+                    }
+                } else {
+                    // 2.2 不在删除队列，拉取到本地
+                    try localStorage.saveFolders([cloudFolder])
+                    print("[SYNC] 新文件夹，已拉取到本地: \(cloudFolder.name)")
+                }
+            }
+        }
+    }
+    
+    /// 增量同步单个笔记
+    private func syncNoteIncremental(cloudNote: Note) async throws -> NoteSyncResult {
+        var result = NoteSyncResult(noteId: cloudNote.id, noteTitle: cloudNote.title)
+        let offlineQueue = OfflineOperationQueue.shared
+        let pendingOps = offlineQueue.getPendingOperations()
+        
+        if let localNote = try localStorage.loadNote(noteId: cloudNote.id) {
+            // 情况1：云端和本地都存在
+            if localNote.updatedAt > cloudNote.updatedAt {
+                // 1.1 本地较新，上传本地到云端
+                let hasUpdateOp = pendingOps.contains { op in
+                    op.type == .updateNote && op.noteId == localNote.id
+                }
+                if !hasUpdateOp {
+                    // 创建更新操作
+                    let opData: [String: Any] = [
+                        "title": localNote.title,
+                        "content": localNote.content,
+                        "folderId": localNote.folderId
+                    ]
+                    let data = try JSONSerialization.data(withJSONObject: opData)
+                    let operation = OfflineOperation(
+                        type: .updateNote,
+                        noteId: localNote.id,
+                        data: data
+                    )
+                    try offlineQueue.addOperation(operation)
+                    print("[SYNC] 笔记本地较新，已添加到上传队列: \(localNote.title)")
+                }
+                result.status = .skipped
+                result.message = "本地较新，等待上传"
+                result.success = true
+            } else if cloudNote.updatedAt > localNote.updatedAt {
+                // 1.2 云端较新，拉取云端覆盖本地
+                let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
+                var updatedNote = cloudNote
+                updatedNote.updateContent(from: noteDetails)
+                try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                try localStorage.saveNote(updatedNote)
+                result.status = .updated
+                result.message = "已从云端更新"
+                result.success = true
+                print("[SYNC] 笔记云端较新，已更新: \(cloudNote.title)")
+            } else {
+                // 1.3 时间一致，比较内容
+                if localNote.primaryXMLContent != cloudNote.primaryXMLContent {
+                    // 内容不同，获取详情并更新
+                    let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
+                    var updatedNote = cloudNote
+                    updatedNote.updateContent(from: noteDetails)
+                    try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                    try localStorage.saveNote(updatedNote)
+                    result.status = .updated
+                    result.message = "内容不同，已更新"
+                    result.success = true
+                } else {
+                    result.status = .skipped
+                    result.message = "内容相同，跳过"
+                    result.success = true
+                }
+            }
+        } else {
+            // 情况2：只有云端存在，本地不存在
+            // 2.1 检查离线删除队列
+            let hasDeleteOp = pendingOps.contains { op in
+                op.type == .deleteNote && op.noteId == cloudNote.id
+            }
+            if hasDeleteOp {
+                // 在删除队列中，删除云端笔记
+                if let tag = cloudNote.rawData?["tag"] as? String {
+                    _ = try await miNoteService.deleteNote(noteId: cloudNote.id, tag: tag, purge: false)
+                    result.status = .skipped
+                    result.message = "在删除队列中，已删除云端"
+                    result.success = true
+                    print("[SYNC] 笔记在删除队列中，已删除云端: \(cloudNote.title)")
+                }
+            } else {
+                // 2.2 不在删除队列，拉取到本地
+                let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
+                var updatedNote = cloudNote
+                updatedNote.updateContent(from: noteDetails)
+                try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                try localStorage.saveNote(updatedNote)
+                result.status = .created
+                result.message = "已从云端拉取"
+                result.success = true
+                print("[SYNC] 新笔记，已拉取到本地: \(cloudNote.title)")
+            }
+        }
+        
+        return result
+    }
+    
+    /// 处理只有本地存在但云端不存在的笔记和文件夹
+    private func syncLocalOnlyItems(cloudNoteIds: Set<String>, cloudFolderIds: Set<String>) async throws {
+        let offlineQueue = OfflineOperationQueue.shared
+        let pendingOps = offlineQueue.getPendingOperations()
+        let localNotes = try localStorage.getAllLocalNotes()
+        let localFolders = try localStorage.loadFolders()
+        
+        // 处理本地独有的笔记
+        for localNote in localNotes {
+            if !cloudNoteIds.contains(localNote.id) {
+                // 情况3：只有本地存在，云端不存在
+                // 3.1 检查离线新建队列
+                let hasCreateOp = pendingOps.contains { op in
+                    op.type == .createNote && op.noteId == localNote.id
+                }
+                if hasCreateOp {
+                    // 在新建队列中，上传到云端
+                    _ = try await miNoteService.createNote(
+                        title: localNote.title,
+                        content: localNote.content,
+                        folderId: localNote.folderId
+                    )
+                    print("[SYNC] 笔记在新建队列中，已上传到云端: \(localNote.title)")
+                } else {
+                    // 3.2 不在新建队列，删除本地笔记
+                    try localStorage.deleteNote(noteId: localNote.id)
+                    print("[SYNC] 笔记不在新建队列，已删除本地: \(localNote.title)")
+                }
+            }
+        }
+        
+        // 处理本地独有的文件夹
+        for localFolder in localFolders {
+            if !localFolder.isSystem && 
+               localFolder.id != "0" && 
+               localFolder.id != "starred" &&
+               !cloudFolderIds.contains(localFolder.id) {
+                // 情况3：只有本地存在，云端不存在
+                // 3.1 检查离线新建队列
+                let hasCreateOp = pendingOps.contains { op in
+                    op.type == .createFolder && op.noteId == localFolder.id
+                }
+                if hasCreateOp {
+                    // 在新建队列中，上传到云端
+                    _ = try await miNoteService.createFolder(name: localFolder.name)
+                    print("[SYNC] 文件夹在新建队列中，已上传到云端: \(localFolder.name)")
+                } else {
+                    // 3.2 不在新建队列，删除本地文件夹
+                    try DatabaseService.shared.deleteFolder(folderId: localFolder.id)
+                    print("[SYNC] 文件夹不在新建队列，已删除本地: \(localFolder.name)")
+                }
+            }
+        }
     }
     
     // MARK: - 处理单个笔记
@@ -323,6 +540,9 @@ class SyncService {
                 var updatedNote = note
                 updatedNote.updateContent(from: noteDetails)
                 print("[SYNC] 更新笔记内容完成: \(note.id), 内容长度: \(updatedNote.content.count)")
+                
+                // 处理图片：下载笔记中的图片
+                try await downloadNoteImages(from: noteDetails, noteId: note.id)
                 
                 // 保存到本地（替换现有文件）
                 try localStorage.saveNote(updatedNote)
@@ -576,15 +796,23 @@ class SyncService {
     ///   - noteDetails: 笔记详情响应
     ///   - noteId: 笔记ID（用于日志）
     private func downloadNoteImages(from noteDetails: [String: Any], noteId: String) async throws {
+        print("[SYNC] 开始下载笔记图片: \(noteId)")
+        print("[SYNC] noteDetails 键: \(noteDetails.keys)")
+        
         // 提取 entry 对象
         var entry: [String: Any]?
-        if let data = noteDetails["data"] as? [String: Any],
-           let dataEntry = data["entry"] as? [String: Any] {
-            entry = dataEntry
+        if let data = noteDetails["data"] as? [String: Any] {
+            print("[SYNC] 找到 data 字段，包含键: \(Array(data.keys))")
+            if let dataEntry = data["entry"] as? [String: Any] {
+                entry = dataEntry
+                print("[SYNC] 从 data.entry 提取到 entry，包含键: \(Array(dataEntry.keys))")
+            }
         } else if let directEntry = noteDetails["entry"] as? [String: Any] {
             entry = directEntry
+            print("[SYNC] 从顶层 entry 提取到 entry，包含键: \(Array(directEntry.keys))")
         } else if noteDetails["id"] != nil || noteDetails["content"] != nil {
             entry = noteDetails
+            print("[SYNC] 使用 noteDetails 本身作为 entry，包含键: \(Array(noteDetails.keys))")
         }
         
         guard let entry = entry else {
@@ -593,23 +821,46 @@ class SyncService {
         }
         
         // 从 setting.data 中提取图片信息
-        guard let setting = entry["setting"] as? [String: Any],
-              let settingData = setting["data"] as? [[String: Any]] else {
-            print("[SYNC] 笔记没有图片: \(noteId)")
+        guard let setting = entry["setting"] as? [String: Any] else {
+            print("[SYNC] entry 中没有 setting 字段，跳过图片下载: \(noteId)")
+            print("[SYNC] entry 包含的键: \(entry.keys)")
             return
         }
         
-        var imageTasks: [Task<Void, Never>] = []
+        print("[SYNC] 找到 setting 字段，包含键: \(setting.keys)")
         
-        for imgData in settingData {
-            guard let fileId = imgData["fileId"] as? String,
-                  let mimeType = imgData["mimeType"] as? String,
-                  mimeType.hasPrefix("image/") else {
+        guard let settingData = setting["data"] as? [[String: Any]] else {
+            print("[SYNC] setting 中没有 data 字段或 data 不是数组，跳过图片下载: \(noteId)")
+            return
+        }
+        
+        print("[SYNC] 找到 \(settingData.count) 个图片条目")
+        
+        var imageTasks: [Task<Void, Never>] = []
+        var imageCount = 0
+        
+        for (index, imgData) in settingData.enumerated() {
+            print("[SYNC] 处理图片条目 \(index + 1)/\(settingData.count): \(imgData.keys)")
+            
+            guard let fileId = imgData["fileId"] as? String else {
+                print("[SYNC] 图片条目 \(index + 1) 没有 fileId，跳过")
+                continue
+            }
+            
+            guard let mimeType = imgData["mimeType"] as? String else {
+                print("[SYNC] 图片条目 \(index + 1) 没有 mimeType，跳过")
+                continue
+            }
+            
+            guard mimeType.hasPrefix("image/") else {
+                print("[SYNC] 图片条目 \(index + 1) mimeType 不是图片类型: \(mimeType)，跳过")
                 continue
             }
             
             // 提取文件类型（如 "jpeg", "png"）
             let fileType = String(mimeType.dropFirst("image/".count))
+            imageCount += 1
+            print("[SYNC] 找到图片 \(imageCount): fileId=\(fileId), fileType=\(fileType)")
             
             // 检查图片是否已存在
             if localStorage.imageExists(fileId: fileId, fileType: fileType) {
@@ -622,8 +873,9 @@ class SyncService {
                 do {
                     print("[SYNC] 开始下载图片: \(fileId).\(fileType)")
                     let imageData = try await miNoteService.downloadFile(fileId: fileId, type: "note_img")
+                    print("[SYNC] 图片下载完成，大小: \(imageData.count) 字节")
                     try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
-                    print("[SYNC] 图片下载成功: \(fileId).\(fileType)")
+                    print("[SYNC] 图片保存成功: \(fileId).\(fileType)")
                 } catch {
                     print("[SYNC] 图片下载失败: \(fileId).\(fileType), 错误: \(error.localizedDescription)")
                     // 不抛出错误，继续下载其他图片
@@ -639,6 +891,8 @@ class SyncService {
                 await task.value
             }
             print("[SYNC] 所有图片下载完成")
+        } else {
+            print("[SYNC] 没有需要下载的图片（共找到 \(imageCount) 个图片条目）")
         }
     }
     

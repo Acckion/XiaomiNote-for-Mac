@@ -2,7 +2,7 @@ import Foundation
 import SQLite3
 
 /// SQLite 数据库服务
-class DatabaseService {
+final class DatabaseService: @unchecked Sendable {
     static let shared = DatabaseService()
     
     private var db: OpaquePointer?
@@ -69,11 +69,18 @@ class DatabaseService {
             name TEXT NOT NULL,
             count INTEGER NOT NULL DEFAULT 0,
             is_system INTEGER NOT NULL DEFAULT 0,
+            is_pinned INTEGER NOT NULL DEFAULT 0,
             created_at REAL NOT NULL,
             raw_data TEXT -- JSON 对象
         );
         """
         executeSQL(createFoldersTable)
+        
+        // 如果表已存在但没有 is_pinned 字段，添加该字段
+        let addPinnedColumn = """
+        ALTER TABLE folders ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0;
+        """
+        executeSQL(addPinnedColumn, ignoreError: true)  // 忽略错误（如果字段已存在）
         
         // 创建 offline_operations 表
         let createOfflineOperationsTable = """
@@ -123,7 +130,7 @@ class DatabaseService {
         executeSQL("CREATE INDEX IF NOT EXISTS idx_offline_operations_timestamp ON offline_operations(timestamp);")
     }
     
-    private func executeSQL(_ sql: String) {
+    private func executeSQL(_ sql: String, ignoreError: Bool = false) {
         var statement: OpaquePointer?
         defer {
             if statement != nil {
@@ -132,13 +139,15 @@ class DatabaseService {
         }
         
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-            print("[Database] SQL 准备失败: \(String(cString: sqlite3_errmsg(db)))")
+            if !ignoreError {
+                print("[Database] SQL 准备失败: \(String(cString: sqlite3_errmsg(db)))")
+            }
             return
         }
         
-        guard sqlite3_step(statement) == SQLITE_DONE else {
+        let result = sqlite3_step(statement)
+        if result != SQLITE_DONE && !ignoreError {
             print("[Database] SQL 执行失败: \(String(cString: sqlite3_errmsg(db)))")
-            return
         }
     }
     
@@ -245,12 +254,24 @@ class DatabaseService {
             }
             
             var notes: [Note] = []
+            var rowCount = 0
             while sqlite3_step(statement) == SQLITE_ROW {
-                if let note = try parseNote(from: statement) {
-                    notes.append(note)
+                rowCount += 1
+                print("[Database] getAllNotes: 处理第 \(rowCount) 行")
+                do {
+                    if let note = try parseNote(from: statement) {
+                        notes.append(note)
+                        print("[Database] getAllNotes: 成功解析并添加笔记 id=\(note.id)")
+                    } else {
+                        print("[Database] getAllNotes: ⚠️ parseNote 返回 nil，跳过该行")
+                    }
+                } catch {
+                    print("[Database] getAllNotes: ⚠️ 解析笔记时出错: \(error)")
+                    print("[Database] getAllNotes: 错误详情: \(error.localizedDescription)")
                 }
             }
             
+            print("[Database] getAllNotes: 总共处理 \(rowCount) 行，成功解析 \(notes.count) 条笔记")
             return notes
         }
     }
@@ -308,9 +329,14 @@ class DatabaseService {
     }
     
     private func parseNote(from statement: OpaquePointer?) throws -> Note? {
-        guard let statement = statement else { return nil }
+        guard let statement = statement else {
+            print("[Database] parseNote: statement 为 nil")
+            return nil
+        }
         
         let id = String(cString: sqlite3_column_text(statement, 0))
+        print("[Database] parseNote: 开始解析笔记 id=\(id)")
+        
         let title = String(cString: sqlite3_column_text(statement, 1))
         let content = String(cString: sqlite3_column_text(statement, 2))
         let folderId = String(cString: sqlite3_column_text(statement, 3))
@@ -318,25 +344,53 @@ class DatabaseService {
         let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 5))
         let updatedAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 6))
         
+        print("[Database] parseNote: 基础字段解析完成 - title=\(title), content长度=\(content.count), folderId=\(folderId)")
+        
         // 解析 tags
         var tags: [String] = []
         if let tagsText = sqlite3_column_text(statement, 7) {
             let tagsString = String(cString: tagsText)
-            if let tagsData = tagsString.data(using: .utf8) {
-                tags = try JSONDecoder().decode([String].self, from: tagsData)
+            print("[Database] parseNote: tags 字段存在，长度=\(tagsString.count), 内容=\(tagsString.prefix(100))")
+            if !tagsString.isEmpty, let tagsData = tagsString.data(using: .utf8) {
+                if let decodedTags = try? JSONDecoder().decode([String].self, from: tagsData) {
+                    tags = decodedTags
+                    print("[Database] parseNote: tags 解析成功，数量=\(tags.count)")
+                } else {
+                    print("[Database] parseNote: ⚠️ tags JSON 解析失败，tagsString=\(tagsString)")
+                }
+            } else {
+                print("[Database] parseNote: tags 字段为空或无法转换为 Data")
             }
+        } else {
+            print("[Database] parseNote: tags 字段为 NULL")
         }
         
         // 解析 raw_data
         var rawData: [String: Any]? = nil
         if let rawDataText = sqlite3_column_text(statement, 8) {
             let rawDataString = String(cString: rawDataText)
-            if let rawDataData = rawDataString.data(using: .utf8) {
-                rawData = try JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
+            let rawDataLength = rawDataString.count
+            print("[Database] parseNote: raw_data 字段存在，长度=\(rawDataLength)")
+            
+            if !rawDataString.isEmpty, let rawDataData = rawDataString.data(using: .utf8) {
+                if let parsedRawData = try? JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any] {
+                    rawData = parsedRawData
+                    print("[Database] parseNote: raw_data JSON 解析成功，包含 \(parsedRawData.count) 个键")
+                } else {
+                    print("[Database] parseNote: ⚠️ raw_data JSON 解析失败")
+                    print("[Database] parseNote: raw_data 前200字符: \(rawDataString.prefix(200))")
+                    if rawDataLength > 200 {
+                        print("[Database] parseNote: raw_data 后200字符: \(rawDataString.suffix(200))")
+                    }
+                }
+            } else {
+                print("[Database] parseNote: raw_data 字段为空或无法转换为 Data")
             }
+        } else {
+            print("[Database] parseNote: raw_data 字段为 NULL")
         }
         
-        return Note(
+        let note = Note(
             id: id,
             title: title,
             content: content,
@@ -347,6 +401,9 @@ class DatabaseService {
             tags: tags,
             rawData: rawData
         )
+        
+        print("[Database] parseNote: 笔记解析完成 id=\(id), title=\(title)")
+        return note
     }
     
     // MARK: - 文件夹操作
@@ -355,8 +412,8 @@ class DatabaseService {
     func saveFolder(_ folder: Folder) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = """
-            INSERT OR REPLACE INTO folders (id, name, count, is_system, created_at, raw_data)
-            VALUES (?, ?, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO folders (id, name, count, is_system, is_pinned, created_at, raw_data)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
             """
             
             var statement: OpaquePointer?
@@ -374,7 +431,8 @@ class DatabaseService {
             sqlite3_bind_text(statement, 2, (folder.name as NSString).utf8String, -1, nil)
             sqlite3_bind_int(statement, 3, Int32(folder.count))
             sqlite3_bind_int(statement, 4, folder.isSystem ? 1 : 0)
-            sqlite3_bind_double(statement, 5, folder.createdAt.timeIntervalSince1970)
+            sqlite3_bind_int(statement, 5, folder.isPinned ? 1 : 0)
+            sqlite3_bind_double(statement, 6, folder.createdAt.timeIntervalSince1970)
             
             // raw_data 作为 JSON
             var rawDataJSON: String? = nil
@@ -382,7 +440,7 @@ class DatabaseService {
                 let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
                 rawDataJSON = String(data: jsonData, encoding: .utf8)
             }
-            sqlite3_bind_text(statement, 6, rawDataJSON, -1, nil)
+            sqlite3_bind_text(statement, 7, rawDataJSON, -1, nil)
             
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
@@ -402,7 +460,7 @@ class DatabaseService {
     /// 加载所有文件夹
     func loadFolders() throws -> [Folder] {
         return try dbQueue.sync {
-            let sql = "SELECT id, name, count, is_system, created_at, raw_data FROM folders ORDER BY is_system DESC, name ASC;"
+            let sql = "SELECT id, name, count, is_system, is_pinned, created_at, raw_data FROM folders ORDER BY is_pinned DESC, is_system DESC, name ASC;"
             
             var statement: OpaquePointer?
             defer {
@@ -416,12 +474,23 @@ class DatabaseService {
             }
             
             var folders: [Folder] = []
+            var rowCount = 0
             while sqlite3_step(statement) == SQLITE_ROW {
-                if let folder = try parseFolder(from: statement) {
-                    folders.append(folder)
+                rowCount += 1
+                do {
+                    if let folder = try parseFolder(from: statement) {
+                        folders.append(folder)
+                        print("[Database] loadFolders: 成功解析文件夹 id=\(folder.id), name=\(folder.name), isSystem=\(folder.isSystem)")
+                    } else {
+                        print("[Database] loadFolders: ⚠️ parseFolder 返回 nil，跳过该行")
+                    }
+                } catch {
+                    print("[Database] loadFolders: ⚠️ 解析文件夹时出错: \(error)")
+                    // 继续处理下一行，不中断整个加载过程
                 }
             }
             
+            print("[Database] loadFolders: 总共处理 \(rowCount) 行，成功解析 \(folders.count) 个文件夹")
             return folders
         }
     }
@@ -455,18 +524,46 @@ class DatabaseService {
     private func parseFolder(from statement: OpaquePointer?) throws -> Folder? {
         guard let statement = statement else { return nil }
         
+        let columnCount = sqlite3_column_count(statement)
         let id = String(cString: sqlite3_column_text(statement, 0))
         let name = String(cString: sqlite3_column_text(statement, 1))
         let count = Int(sqlite3_column_int(statement, 2))
         let isSystem = sqlite3_column_int(statement, 3) != 0
-        let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 4))
         
-        // 解析 raw_data
+        // 检查 is_pinned 列是否存在（兼容旧数据库）
+        // 新数据库：id, name, count, is_system, is_pinned, created_at, raw_data (7列)
+        // 旧数据库：id, name, count, is_system, created_at, raw_data (6列)
+        let isPinned: Bool
+        let createdAtIndex: Int32
+        let rawDataIndex: Int32
+        
+        if columnCount >= 7 {
+            // 新数据库结构，包含 is_pinned
+            isPinned = sqlite3_column_int(statement, 4) != 0
+            createdAtIndex = 5
+            rawDataIndex = 6
+        } else {
+            // 旧数据库结构，没有 is_pinned
+            isPinned = false
+            createdAtIndex = 4
+            rawDataIndex = 5
+        }
+        
+        let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, createdAtIndex))
+        
+        // 解析 raw_data（可能为 NULL 或空字符串）
         var rawData: [String: Any]? = nil
-        if let rawDataText = sqlite3_column_text(statement, 5) {
-            let rawDataString = String(cString: rawDataText)
-            if let rawDataData = rawDataString.data(using: .utf8) {
-                rawData = try JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
+        if sqlite3_column_type(statement, rawDataIndex) != SQLITE_NULL {
+            if let rawDataText = sqlite3_column_text(statement, rawDataIndex) {
+                let rawDataString = String(cString: rawDataText)
+                if !rawDataString.isEmpty, let rawDataData = rawDataString.data(using: .utf8), !rawDataData.isEmpty {
+                    do {
+                        rawData = try JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
+                    } catch {
+                        // 如果 JSON 解析失败，记录错误但不阻止文件夹加载
+                        print("[Database] parseFolder: 解析 raw_data 失败 (id=\(id)): \(error)")
+                    }
+                }
             }
         }
         
@@ -475,6 +572,7 @@ class DatabaseService {
             name: name,
             count: count,
             isSystem: isSystem,
+            isPinned: isPinned,
             createdAt: createdAt,
             rawData: rawData
         )

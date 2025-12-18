@@ -3,7 +3,8 @@ import Network
 import Combine
 
 /// 网络状态监控服务
-class NetworkMonitor: ObservableObject {
+@MainActor
+final class NetworkMonitor: ObservableObject, @unchecked Sendable {
     static let shared = NetworkMonitor()
     
     @Published var isOnline: Bool = true

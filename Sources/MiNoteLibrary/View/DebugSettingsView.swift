@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-struct DebugSettingsView: View {
+public struct DebugSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var cookieString: String = ""
@@ -17,7 +17,9 @@ struct DebugSettingsView: View {
     @State private var isEditingCookie: Bool = false
     @State private var editedCookieString: String = ""
     
-    var body: some View {
+    public init() {}
+    
+    public var body: some View {
         NavigationStack {
             Form {
                 Section("登录凭证") {

@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
 
-class NetworkLogger {
+final class NetworkLogger: @unchecked Sendable {
     static let shared = NetworkLogger()
     
     private let logger = Logger(subsystem: "com.xiaomi.minote.mac", category: "network")
@@ -129,15 +129,17 @@ class NetworkLogger {
     }
     
     func exportLogs() -> String {
-        var exportText = "小米笔记网络日志导出\n"
-        exportText += "导出时间: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .medium))\n"
-        exportText += "日志数量: \(logs.count)\n\n"
-        
-        for log in logs.reversed() { // 按时间顺序导出
-            exportText += "\(log.description)\n\n"
+        return queue.sync {
+            var exportText = "小米笔记网络日志导出\n"
+            exportText += "导出时间: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .medium))\n"
+            exportText += "日志数量: \(logs.count)\n\n"
+            
+            for log in logs.reversed() { // 按时间顺序导出
+                exportText += "\(log.description)\n\n"
+            }
+            
+            return exportText
         }
-        
-        return exportText
     }
 }
 
