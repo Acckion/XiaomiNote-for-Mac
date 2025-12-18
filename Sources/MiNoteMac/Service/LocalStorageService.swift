@@ -5,6 +5,7 @@ class LocalStorageService {
     
     private let fileManager = FileManager.default
     private let documentsDirectory: URL
+    private let database = DatabaseService.shared
     
     private init() {
         // 获取应用程序支持目录
@@ -29,180 +30,70 @@ class LocalStorageService {
     
     // MARK: - 笔记存储
     
-    /// 保存笔记到本地（使用小米笔记原生格式）
+    /// 保存笔记到本地（使用数据库）
     func saveNote(_ note: Note) throws {
-        let noteData = note.toMinoteData()
-        
-        // 将数据转换为JSON
-        let jsonData = try JSONSerialization.data(withJSONObject: noteData, options: .prettyPrinted)
-        
-        // 创建文件名：使用笔记ID作为文件名
-        let fileName = "\(note.id).json"
-        let fileURL = documentsDirectory.appendingPathComponent(fileName)
-        
-        // 写入文件
-        try jsonData.write(to: fileURL)
-        
-        print("保存笔记到本地: \(fileURL.path)")
+        try database.saveNote(note)
     }
     
     /// 从本地加载笔记
     func loadNote(noteId: String) throws -> Note? {
-        let fileName = "\(noteId).json"
-        let fileURL = documentsDirectory.appendingPathComponent(fileName)
-        
-        guard fileManager.fileExists(atPath: fileURL.path) else {
-            return nil
-        }
-        
-        // 读取文件
-        let jsonData = try Data(contentsOf: fileURL)
-        let noteData = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
-        
-        // 转换为Note对象
-        if let noteData = noteData, let note = Note.fromMinoteData(noteData) {
-            return note
-        }
-        
-        return nil
+        return try database.loadNote(noteId: noteId)
     }
     
     /// 删除本地笔记
     func deleteNote(noteId: String) throws {
-        let fileName = "\(noteId).json"
-        let fileURL = documentsDirectory.appendingPathComponent(fileName)
-        
-        if fileManager.fileExists(atPath: fileURL.path) {
-            try fileManager.removeItem(at: fileURL)
-            print("删除本地笔记: \(fileURL.path)")
-        }
+        try database.deleteNote(noteId: noteId)
     }
     
     /// 获取所有本地笔记
     func getAllLocalNotes() throws -> [Note] {
-        var notes: [Note] = []
-        
-        do {
-            let fileURLs = try fileManager.contentsOfDirectory(at: documentsDirectory, includingPropertiesForKeys: nil)
-            
-            for fileURL in fileURLs {
-                if fileURL.pathExtension == "json" {
-                    do {
-                        let jsonData = try Data(contentsOf: fileURL)
-                        let noteData = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
-                        
-                        if let noteData = noteData, let note = Note.fromMinoteData(noteData) {
-                            notes.append(note)
-                        }
-                    } catch {
-                        print("读取笔记文件失败 \(fileURL.lastPathComponent): \(error)")
-                    }
-                }
-            }
-        } catch {
-            print("获取目录内容失败: \(error)")
-        }
-        
-        return notes
+        return try database.getAllNotes()
     }
     
     /// 检查笔记是否存在本地副本
     func noteExistsLocally(noteId: String) -> Bool {
-        let fileName = "\(noteId).json"
-        let fileURL = documentsDirectory.appendingPathComponent(fileName)
-        return fileManager.fileExists(atPath: fileURL.path)
+        return database.noteExists(noteId: noteId)
     }
     
     /// 获取笔记的本地修改时间
     func getNoteLocalModificationDate(noteId: String) -> Date? {
-        let fileName = "\(noteId).json"
-        let fileURL = documentsDirectory.appendingPathComponent(fileName)
-        
-        do {
-            let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
-            return attributes[.modificationDate] as? Date
-        } catch {
-            return nil
+        // 从数据库加载笔记并返回 updatedAt
+        if let note = try? database.loadNote(noteId: noteId) {
+            return note.updatedAt
         }
+        return nil
     }
     
     // MARK: - 同步状态管理
     
     /// 保存同步状态
     func saveSyncStatus(_ status: SyncStatus) throws {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        
-        let jsonData = try encoder.encode(status)
-        let fileURL = documentsDirectory.appendingPathComponent("sync_status.json")
-        
-        try jsonData.write(to: fileURL)
+        try database.saveSyncStatus(status)
     }
     
     /// 加载同步状态
     func loadSyncStatus() -> SyncStatus? {
-        let fileURL = documentsDirectory.appendingPathComponent("sync_status.json")
-        
-        guard fileManager.fileExists(atPath: fileURL.path) else {
-            return nil
-        }
-        
-        do {
-            let jsonData = try Data(contentsOf: fileURL)
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            
-            return try decoder.decode(SyncStatus.self, from: jsonData)
-        } catch {
-            print("加载同步状态失败: \(error)")
-            return nil
-        }
+        return try? database.loadSyncStatus()
     }
     
     /// 清除同步状态
     func clearSyncStatus() throws {
-        let fileURL = documentsDirectory.appendingPathComponent("sync_status.json")
-        
-        if fileManager.fileExists(atPath: fileURL.path) {
-            try fileManager.removeItem(at: fileURL)
-        }
+        try database.clearSyncStatus()
     }
     
     // MARK: - 文件夹管理
     
     /// 保存文件夹列表到本地
     func saveFolders(_ folders: [Folder]) throws {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        
-        let jsonData = try encoder.encode(folders)
-        let fileURL = documentsDirectory.appendingPathComponent("folders.json")
-        
-        try jsonData.write(to: fileURL)
+        try database.saveFolders(folders)
         print("保存文件夹列表到本地: \(folders.count) 个文件夹")
     }
     
     /// 从本地加载文件夹列表
     func loadFolders() throws -> [Folder] {
-        let fileURL = documentsDirectory.appendingPathComponent("folders.json")
-        
-        guard fileManager.fileExists(atPath: fileURL.path) else {
-            print("文件夹列表文件不存在")
-            return []
-        }
-        
-        do {
-            let jsonData = try Data(contentsOf: fileURL)
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            
-            let folders = try decoder.decode([Folder].self, from: jsonData)
-            print("从本地加载文件夹列表: \(folders.count) 个文件夹")
-            return folders
-        } catch {
-            print("加载文件夹列表失败: \(error)")
-            return []
-        }
+        let folders = try database.loadFolders()
+        print("从本地加载文件夹列表: \(folders.count) 个文件夹")
+        return folders
     }
     
     /// 创建文件夹（文件系统目录）
@@ -285,25 +176,21 @@ class LocalStorageService {
     
     /// 保存待删除的笔记（删除失败的笔记）
     func savePendingDeletions(_ deletions: [PendingDeletion]) throws {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let jsonData = try encoder.encode(deletions)
-        let fileURL = documentsDirectory.appendingPathComponent("pending_deletions.json")
-        try jsonData.write(to: fileURL)
+        // 清空现有数据并重新保存
+        let existing = try? database.getAllPendingDeletions()
+        for existingDeletion in existing ?? [] {
+            try? database.deletePendingDeletion(noteId: existingDeletion.noteId)
+        }
+        for deletion in deletions {
+            try database.savePendingDeletion(deletion)
+        }
         print("保存 \(deletions.count) 个待删除笔记")
     }
     
     /// 加载待删除的笔记列表
     func loadPendingDeletions() -> [PendingDeletion] {
-        let fileURL = documentsDirectory.appendingPathComponent("pending_deletions.json")
-        guard fileManager.fileExists(atPath: fileURL.path) else {
-            return []
-        }
         do {
-            let jsonData = try Data(contentsOf: fileURL)
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let deletions = try decoder.decode([PendingDeletion].self, from: jsonData)
+            let deletions = try database.getAllPendingDeletions()
             print("加载了 \(deletions.count) 个待删除笔记")
             return deletions
         } catch {
@@ -314,20 +201,14 @@ class LocalStorageService {
     
     /// 移除待删除的笔记（删除成功后调用）
     func removePendingDeletion(noteId: String) throws {
-        var deletions = loadPendingDeletions()
-        deletions.removeAll { $0.noteId == noteId }
-        try savePendingDeletions(deletions)
+        try database.deletePendingDeletion(noteId: noteId)
         print("移除待删除笔记: \(noteId)")
     }
     
     
     /// 添加待删除的笔记（删除失败时调用）
     func addPendingDeletion(_ deletion: PendingDeletion) throws {
-        var deletions = loadPendingDeletions()
-        // 如果已存在，先移除旧的
-        deletions.removeAll { $0.noteId == deletion.noteId }
-        deletions.append(deletion)
-        try savePendingDeletions(deletions)
+        try database.savePendingDeletion(deletion)
         print("添加待删除笔记: \(deletion.noteId)")
     }
     
@@ -423,10 +304,10 @@ struct PendingDeletion: Codable {
     let purge: Bool
     let createdAt: Date
     
-    init(noteId: String, tag: String, purge: Bool = false) {
+    init(noteId: String, tag: String, purge: Bool = false, createdAt: Date = Date()) {
         self.noteId = noteId
         self.tag = tag
         self.purge = purge
-        self.createdAt = Date()
+        self.createdAt = createdAt
     }
 }
