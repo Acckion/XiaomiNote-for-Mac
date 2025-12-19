@@ -25,6 +25,8 @@ struct FormatMenuView: View {
         context.hasStyle(RichTextStyle.bold)
     }
     
+    /// 从 context 获取斜体状态
+    /// 确保与粗体、下划线等操作一致
     private var isItalic: Bool {
         context.hasStyle(RichTextStyle.italic)
     }
@@ -78,7 +80,7 @@ struct FormatMenuView: View {
                 }
                 .buttonStyle(.plain)
                 
-                // 斜体按钮
+                // 斜体按钮（与粗体、下划线等操作一致）
                 Button(action: {
                     print("🔘 [FormatMenuView] 点击斜体按钮，当前状态: \(isItalic)")
                     handleItalicToggle()
@@ -358,9 +360,10 @@ struct FormatMenuView: View {
     
     private func handleItalicToggle() {
         print("🔧 [FormatMenuView] handleItalicToggle - 切换前: \(context.hasStyle(RichTextStyle.italic))")
-        // 使用 RichTextContext 直接切换格式
+        // 使用 RichTextContext 直接切换格式（与粗体、下划线等操作一致）
         context.toggleStyle(RichTextStyle.italic)
         print("🔧 [FormatMenuView] handleItalicToggle - 切换后: \(context.hasStyle(RichTextStyle.italic))")
+        print("🔧 [FormatMenuView] handleItalicToggle - context.styles: \(context.styles)")
         // 同时发送通知（向后兼容）
         NotificationCenter.default.post(
             name: NSNotification.Name("MiNoteEditorFormatAction"),

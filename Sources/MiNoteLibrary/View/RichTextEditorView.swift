@@ -54,15 +54,41 @@ struct RichTextEditorView: View {
     var body: some View {
         RichTextEditor(
             text: $text,
-            context: context
+            context: context,
+            format: .archivedData,  // 使用 archivedData 格式支持图片附件
+            viewConfiguration: { textView in
+                // 配置图片支持，确保图片附件能正确显示
+                textView.imageConfiguration = .init(
+                    pasteConfiguration: .enabled,  // 启用粘贴图片
+                    dropConfiguration: .enabled,   // 启用拖拽图片
+                    maxImageSize: (
+                        width: .points(600),       // 最大宽度 600pt
+                        height: .points(800)       // 最大高度 800pt
+                    )
+                )
+                
+                // 确保撤销功能已启用（默认已启用，这里显式设置以确保）
+                #if macOS
+                if let nsTextView = textView as? NSTextView {
+                    nsTextView.allowsUndo = true
+                }
+                #endif
+            }
         )
         .richTextEditorStyle(.standard)
+        .richTextEditorConfig(
+            .init(
+                isScrollingEnabled: true,  // 启用内部滚动，让编辑器能够正常工作
+                isScrollBarsVisible: false,  // 隐藏滚动条，避免显示两个滚动条
+                isContinuousSpellCheckingEnabled: true
+            )
+        )
         .disabled(!isEditable)
         .preference(key: RichTextContextPreferenceKey.self, value: context)
         .onChange(of: text) { oldValue, newValue in
-            // 避免循环更新 - 比较字符串内容而不是对象引用
+            // 当 text binding 变化时（例如从外部加载内容），确保更新编辑器
             if oldValue.string != newValue.string || oldValue.length != newValue.length {
-                print("[RichTextEditorView] 文本内容变化，更新编辑器")
+                print("[RichTextEditorView] onChange: 文本内容变化，更新编辑器")
                 print("[RichTextEditorView] 旧长度: \(oldValue.length), 新长度: \(newValue.length)")
                 print("[RichTextEditorView] 新内容预览: \(newValue.string.prefix(50))")
                 // 使用 context 的 setAttributedString 方法更新编辑器
@@ -74,25 +100,36 @@ struct RichTextEditorView: View {
         .onChange(of: context.styles) { oldValue, newValue in
             // 当格式状态变化时（光标移动或选择改变），RichTextCoordinator 会自动同步
             // FormatMenuView 通过 @ObservedObject 会自动更新
-            print("🔄 [RichTextEditorView] context.styles 变化:")
-            print("   - 加粗: \(newValue[RichTextStyle.bold] ?? false)")
-            print("   - 斜体: \(newValue[RichTextStyle.italic] ?? false)")
-            print("   - 下划线: \(newValue[RichTextStyle.underlined] ?? false)")
-            print("   - 删除线: \(newValue[RichTextStyle.strikethrough] ?? false)")
+            let boldChanged = (oldValue[RichTextStyle.bold] ?? false) != (newValue[RichTextStyle.bold] ?? false)
+            let italicChanged = (oldValue[RichTextStyle.italic] ?? false) != (newValue[RichTextStyle.italic] ?? false)
+            let underlineChanged = (oldValue[RichTextStyle.underlined] ?? false) != (newValue[RichTextStyle.underlined] ?? false)
+            let strikethroughChanged = (oldValue[RichTextStyle.strikethrough] ?? false) != (newValue[RichTextStyle.strikethrough] ?? false)
+            
+            if boldChanged || italicChanged || underlineChanged || strikethroughChanged {
+                print("🔄 [RichTextEditorView] context.styles 变化:")
+                print("   - 加粗: \(newValue[RichTextStyle.bold] ?? false) \(boldChanged ? "(已变化)" : "")")
+                print("   - 斜体: \(newValue[RichTextStyle.italic] ?? false) \(italicChanged ? "(已变化)" : "")")
+                print("   - 下划线: \(newValue[RichTextStyle.underlined] ?? false) \(underlineChanged ? "(已变化)" : "")")
+                print("   - 删除线: \(newValue[RichTextStyle.strikethrough] ?? false) \(strikethroughChanged ? "(已变化)" : "")")
+            }
         }
         .onChange(of: context.selectedRange) { oldValue, newValue in
             // 当选中范围变化时，RichTextCoordinator 会同步格式状态
             print("🔄 [RichTextEditorView] context.selectedRange 变化: location=\(newValue.location), length=\(newValue.length)")
         }
-        .onAppear {
-            setupContext()
-            // 初始化时设置文本内容
-            print("[RichTextEditorView] onAppear，设置初始文本，长度: \(text.length)")
+        .task {
+            // 使用 task 确保在视图完全加载后再设置内容，避免在视图更新过程中发布更改
+            print("[RichTextEditorView] task 开始，设置初始文本，长度: \(text.length)")
             print("[RichTextEditorView] context 实例: \(context)")
-            if text.length > 0 {
-                context.setAttributedString(to: text)
-            } else {
+            print("[RichTextEditorView] 文本内容预览: '\(text.string.prefix(100))'")
+            // 等待一小段时间确保视图完全初始化
+            try? await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
+            // 无论文本是否为空，都设置到 context，确保编辑器初始化
+            context.setAttributedString(to: text)
+            if text.length == 0 {
                 print("[RichTextEditorView] ⚠️ 初始文本为空")
+            } else {
+                print("[RichTextEditorView] ✅ 初始文本已设置到 context，长度: \(text.length)")
             }
         }
     }
@@ -133,8 +170,8 @@ struct RichTextEditorView: View {
 /// 支持RTF数据和XML格式的双向转换
 @available(macOS 14.0, *)
 struct RichTextEditorWrapper: View {
-    /// RTF数据绑定（用于与现有代码兼容）
-    @Binding var rtfData: Data?
+    /// 存档数据绑定（使用 archivedData 格式以支持图片附件）
+    @Binding var rtfData: Data?  // 保持名称兼容，但实际使用 archivedData
     
     /// 是否可编辑
     @Binding var isEditable: Bool
@@ -159,6 +196,7 @@ struct RichTextEditorWrapper: View {
     
     @State private var attributedText: NSAttributedString = NSAttributedString()
     @State private var lastRTFData: Data? = nil
+    @State private var lastXMLContent: String? = nil  // 跟踪 XML 内容，避免重复加载
     
     init(
         rtfData: Binding<Data?>,
@@ -193,21 +231,26 @@ struct RichTextEditorWrapper: View {
                 handleContentChange(newText)
             }
         )
-        .onAppear {
-            // 先加载内容
+        .task {
+            // 使用 task 确保在视图完全加载后再处理
+            print("[RichTextEditorWrapper] task 开始，加载内容")
             loadContent()
+            // 等待一小段时间让内容加载完成
+            try? await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
+            // 加载内容后，确保设置到 context（在异步任务中，避免在视图更新过程中发布更改）
+            if attributedText.length > 0 {
+                print("[RichTextEditorWrapper] 内容已加载，设置到 context，长度: \(attributedText.length)")
+                editorContext.setAttributedString(to: attributedText)
+            }
             // 通知外部 context 已准备好
             onContextChange?(editorContext)
         }
         .onChange(of: editorContext.styles) { oldValue, newValue in
             // 当格式状态变化时，通知外部（触发格式栏更新）
-            onContextChange?(editorContext)
-        }
-        .task {
-            // 使用 task 确保在视图完全加载后再处理
-            // 等待一小段时间让内容加载完成
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
-            // 此时 attributedText 应该已经更新，RichTextEditorView 的 onChange 会处理
+            // 使用 Task 避免在视图更新过程中发布更改
+            Task { @MainActor in
+                onContextChange?(editorContext)
+            }
         }
         .onChange(of: rtfData) { oldValue, newValue in
             // 只在RTF数据真正改变时重新加载
@@ -217,48 +260,62 @@ struct RichTextEditorWrapper: View {
             }
         }
         .onChange(of: xmlContent) { oldValue, newValue in
-            // 如果提供了XML内容且没有RTF数据，从XML加载
-            if let xml = newValue, rtfData == nil {
-                print("[RichTextEditorWrapper] XML内容变化，重新加载")
+            // 如果XML内容变化，从XML重新加载（确保包含所有附件）
+            if let xml = newValue, xml != oldValue, !xml.isEmpty {
+                print("[RichTextEditorWrapper] XML内容变化，重新加载（优先使用XML以包含图片等附件）")
                 loadFromXML(xml)
             }
         }
         .onChange(of: attributedText) { oldValue, newValue in
             // 当 attributedText 改变时，确保编辑器更新
             // 这个 onChange 会在 loadContent 后触发，确保内容被正确设置
-            if oldValue.string != newValue.string {
+            if oldValue.string != newValue.string || oldValue.length != newValue.length {
                 print("[RichTextEditorWrapper] attributedText 内容变化: '\(oldValue.string.prefix(50))' -> '\(newValue.string.prefix(50))'")
+                print("[RichTextEditorWrapper] 旧长度: \(oldValue.length), 新长度: \(newValue.length)")
+                // 使用 Task 避免在视图更新过程中发布更改
+                // 注意：RichTextEditor 从 text binding 读取内容，所以需要同时更新 context 和 text binding
+                Task { @MainActor in
+                    editorContext.setAttributedString(to: newValue)
+                }
             }
         }
     }
     
-    /// 加载内容（优先使用RTF数据，否则使用XML）
+    /// 加载内容（优先使用存档数据，否则使用XML）
     private func loadContent() {
         print("[RichTextEditorWrapper] 开始加载内容...")
-        print("[RichTextEditorWrapper] rtfData: \(rtfData != nil ? "存在(\(rtfData!.count)字节)" : "不存在")")
+        print("[RichTextEditorWrapper] rtfData (archivedData): \(rtfData != nil ? "存在(\(rtfData!.count)字节)" : "不存在")")
         print("[RichTextEditorWrapper] xmlContent: \(xmlContent != nil ? "存在(\(xmlContent!.count)字符)" : "不存在")")
         
-        if let rtfData = rtfData {
-            // 从RTF数据加载
-            if let loadedText = try? NSAttributedString(
-                data: rtfData,
-                options: [.documentType: NSAttributedString.DocumentType.rtf],
-                documentAttributes: nil
-            ) {
+        // 优先从 archivedData 加载（支持图片附件）
+        if let archivedData = rtfData {
+            do {
+                // 尝试使用 RichTextKit 的方式加载 archivedData
+                let loadedText = try NSAttributedString(data: archivedData, format: .archivedData)
                 attributedText = loadedText
-                lastRTFData = rtfData
-                print("[RichTextEditorWrapper] ✅ 从RTF数据加载内容，长度: \(loadedText.length)")
+                lastRTFData = archivedData
+                print("[RichTextEditorWrapper] ✅ 从 archivedData 加载内容，长度: \(loadedText.length)")
                 print("[RichTextEditorWrapper] 文本内容预览: \(loadedText.string.prefix(100))")
+                // 检查是否包含附件
+                var attachmentCount = 0
+                loadedText.enumerateAttribute(.attachment, in: NSRange(location: 0, length: loadedText.length), options: []) { (value, _, _) in
+                    if value != nil { attachmentCount += 1 }
+                }
+                print("[RichTextEditorWrapper] 附件数量: \(attachmentCount)")
                 return
-            } else {
-                print("[RichTextEditorWrapper] ⚠️ RTF数据解析失败")
+            } catch {
+                print("[RichTextEditorWrapper] ⚠️ archivedData 解析失败: \(error)")
+                // 如果解析失败，尝试从 XML 加载
             }
         }
         
-        // 如果没有RTF数据，尝试从XML转换（向后兼容）
-        if let xml = xmlContent, !xml.isEmpty {
-            print("[RichTextEditorWrapper] 尝试从XML加载...")
+        // 如果没有存档数据或解析失败，从 XML 转换（这样可以包含图片等附件）
+        if let xml = xmlContent, !xml.isEmpty, xml != lastXMLContent {
+            print("[RichTextEditorWrapper] 尝试从XML加载（包含图片等附件）...")
             loadFromXML(xml)
+            lastXMLContent = xml
+        } else if let xml = xmlContent, !xml.isEmpty {
+            print("[RichTextEditorWrapper] XML内容未变化，跳过重新加载")
         } else {
             // 都没有，使用空内容
             attributedText = NSAttributedString(string: "")
@@ -268,41 +325,97 @@ struct RichTextEditorWrapper: View {
     
     /// 从XML内容加载
     private func loadFromXML(_ xml: String) {
-        print("[RichTextEditorWrapper] 从XML加载，XML长度: \(xml.count)")
+        print("[RichTextEditorWrapper] 🖼️ ========== 从XML加载内容 ==========")
+        print("[RichTextEditorWrapper] XML长度: \(xml.count)")
+        print("[RichTextEditorWrapper] noteRawData: \(noteRawData != nil ? "存在" : "nil")")
+        
+        // 检查 noteRawData 中的图片信息
+        if let rawData = noteRawData,
+           let setting = rawData["setting"] as? [String: Any],
+           let settingData = setting["data"] as? [[String: Any]] {
+            print("！！！图片处理！！！ [RichTextEditorWrapper] 🖼️ noteRawData 包含 \(settingData.count) 个图片条目")
+            for (index, imgData) in settingData.enumerated() {
+                if let fileId = imgData["fileId"] as? String,
+                   let mimeType = imgData["mimeType"] as? String {
+                    print("！！！图片处理！！！ [RichTextEditorWrapper] 🖼️ 图片 #\(index + 1): fileId=\(fileId), mimeType=\(mimeType)")
+                    // 检查图片是否存在
+                    let fileType = String(mimeType.dropFirst("image/".count))
+                    let exists = LocalStorageService.shared.imageExists(fileId: fileId, fileType: fileType)
+                    print("！！！图片处理！！！ [RichTextEditorWrapper] 🖼️    存在: \(exists)")
+                }
+            }
+        } else {
+            print("！！！图片处理！！！ [RichTextEditorWrapper] 🖼️ ⚠️ noteRawData 中没有图片信息")
+        }
+        
         let loadedText = MiNoteContentParser.parseToAttributedString(xml, noteRawData: noteRawData)
         // 更新 attributedText，这会触发 RichTextEditorView 的 onChange
         attributedText = loadedText
         print("[RichTextEditorWrapper] ✅ 从XML加载内容，长度: \(loadedText.length)")
         print("[RichTextEditorWrapper] 文本内容预览: \(loadedText.string.prefix(100))")
         
-        // 同时生成RTF数据并保存
-        let rtfRange = NSRange(location: 0, length: loadedText.length)
-        if let rtfData = try? loadedText.data(
-            from: rtfRange,
-            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
-        ) {
-            self.rtfData = rtfData
-            lastRTFData = rtfData
-            print("[RichTextEditorWrapper] ✅ 生成RTF数据，长度: \(rtfData.count)字节")
-        } else {
-            print("[RichTextEditorWrapper] ⚠️ 生成RTF数据失败")
+        // 检查是否包含附件
+        var attachmentCount = 0
+        var imageAttachmentCount = 0
+        loadedText.enumerateAttribute(.attachment, in: NSRange(location: 0, length: loadedText.length), options: []) { (value, range, _) in
+            if value != nil {
+                attachmentCount += 1
+                if let attachment = value as? NSTextAttachment {
+                    print("！！！图片处理！！！ [RichTextEditorWrapper] 🖼️ 附件 #\(attachmentCount): 类型=\(type(of: attachment)), 位置=\(range.location), bounds=\(attachment.bounds)")
+                    if let imageAttachment = attachment as? RichTextImageAttachment {
+                        imageAttachmentCount += 1
+                        print("！！！图片处理！！！ [RichTextEditorWrapper]    - RichTextImageAttachment: image=\(imageAttachment.image != nil ? "存在" : "nil"), attachmentCell=\(imageAttachment.attachmentCell != nil ? "存在" : "nil")")
+                    }
+                }
+            }
+        }
+        print("！！！图片处理！！！ [RichTextEditorWrapper] 🖼️ 附件统计: 总数=\(attachmentCount), 图片=\(imageAttachmentCount)")
+        
+        // 不在这里设置 context，让 onChange(of: attributedText) 处理，避免在视图更新过程中发布更改
+        
+        // 生成 archivedData 格式的数据（支持图片附件），而不是 RTF
+        do {
+            let archivedData = try loadedText.richTextData(for: .archivedData)
+            self.rtfData = archivedData
+            lastRTFData = archivedData
+            print("[RichTextEditorWrapper] ✅ 生成 archivedData，长度: \(archivedData.count)字节")
+        } catch {
+            print("[RichTextEditorWrapper] ⚠️ 生成 archivedData 失败: \(error)")
+            // 如果失败，尝试使用 NSKeyedArchiver
+            if let archivedData = try? NSKeyedArchiver.archivedData(
+                withRootObject: loadedText,
+                requiringSecureCoding: false
+            ) {
+                self.rtfData = archivedData
+                lastRTFData = archivedData
+                print("[RichTextEditorWrapper] ✅ 使用 NSKeyedArchiver 生成 archivedData，长度: \(archivedData.count)字节")
+            }
         }
     }
     
     /// 处理内容变化
     private func handleContentChange(_ newText: NSAttributedString) {
-        // 将NSAttributedString转换为RTF数据
-        let rtfRange = NSRange(location: 0, length: newText.length)
-        if let rtfData = try? newText.data(
-            from: rtfRange,
-            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
-        ) {
+        // 将NSAttributedString转换为 archivedData 格式（支持图片附件）
+        do {
+            let archivedData = try newText.richTextData(for: .archivedData)
             // 只在数据真正改变时更新
-            if rtfData != lastRTFData {
-                self.rtfData = rtfData
-                lastRTFData = rtfData
-                onContentChange?(rtfData)
-                print("[RichTextEditorWrapper] 内容已更新，RTF数据长度: \(rtfData.count) 字节")
+            if archivedData != lastRTFData {
+                self.rtfData = archivedData
+                lastRTFData = archivedData
+                onContentChange?(archivedData)
+                print("[RichTextEditorWrapper] 内容已更新，archivedData 长度: \(archivedData.count) 字节")
+            }
+        } catch {
+            print("[RichTextEditorWrapper] ⚠️ 转换 archivedData 失败: \(error)")
+            // 如果失败，尝试使用 NSKeyedArchiver
+            if let archivedData = try? NSKeyedArchiver.archivedData(
+                withRootObject: newText,
+                requiringSecureCoding: false
+            ), archivedData != lastRTFData {
+                self.rtfData = archivedData
+                lastRTFData = archivedData
+                onContentChange?(archivedData)
+                print("[RichTextEditorWrapper] 使用 NSKeyedArchiver 更新内容，长度: \(archivedData.count) 字节")
             }
         }
     }

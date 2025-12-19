@@ -15,6 +15,7 @@
 		18021F0E3CE77ABC9062D4DD /* OfflineOperationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D1C6CACE3C147825607106 /* OfflineOperationQueue.swift */; };
 		1DF15B463E6D141AD6A04E0D /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19CE08A1CDCF94C551D20E51 /* NetworkMonitor.swift */; };
 		21D18111453D5C66791D221D /* MiNoteLibrary.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; };
+		22C94CA469B328552068483E /* CookieRefreshView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C5B9382487C27C0DCE9537A /* CookieRefreshView.swift */; };
 		2892DE9DF5909F639453F7EF /* XMLReversibilityTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEBA8B045168080EF8181BC3 /* XMLReversibilityTest.swift */; };
 		379940B416A995F1EC1343FB /* NoteEditorWithPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A4A1F332A881259EAB626A /* NoteEditorWithPreviewView.swift */; };
 		46146E87652EBF78CBD635C8 /* MiNoteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587A0C9CB4BD8A71F364C4E7 /* MiNoteService.swift */; };
@@ -39,7 +40,6 @@
 		DA77A42F8FDBD2DCB66D4E32 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF646372B5CED37C5970C887 /* Note.swift */; };
 		DAD3F0D38E114C0631F9F25B /* LocalStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59F444DD3ECD304A51795C2D /* LocalStorageService.swift */; };
 		DEAA2E4DCB56E13E68C2E4DF /* MoveNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF8E96AA0D85782AEBF114E /* MoveNoteView.swift */; };
-		DC600C68418D43A185412AF2 /* CookieRefreshView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EFF97102C594A0FBE48F126 /* CookieRefreshView.swift */; };
 		EADD025D0D4A5C156FAC563C /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97270EFAE55440EEDAA01661 /* LoginView.swift */; };
 		F511BA2AB66C264174ED8BD4 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37620C953116D1808597F0E2 /* SettingsView.swift */; };
 		F8B26FDAED61C89BF162717B /* FormatMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6E41489C440EED33E932D6 /* FormatMenuView.swift */; };
@@ -97,8 +97,8 @@
 		7E78992CF7765CE27B05A0BF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		899BCC1A64E0C7397963A22B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		8EF6707EE2D91F9759ED9DF6 /* TitleEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleEditorView.swift; sourceTree = "<group>"; };
-		5EFF97102C594A0FBE48F126 /* CookieRefreshView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookieRefreshView.swift; sourceTree = "<group>"; };
 		97270EFAE55440EEDAA01661 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		9C5B9382487C27C0DCE9537A /* CookieRefreshView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookieRefreshView.swift; sourceTree = "<group>"; };
 		AF646372B5CED37C5970C887 /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
 		BFF8E96AA0D85782AEBF114E /* MoveNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveNoteView.swift; sourceTree = "<group>"; };
 		C2707995632193C250FB2E95 /* Folder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Folder.swift; sourceTree = "<group>"; };
@@ -144,7 +144,7 @@
 			isa = PBXGroup;
 			children = (
 				899BCC1A64E0C7397963A22B /* ContentView.swift */,
-				5EFF97102C594A0FBE48F126 /* CookieRefreshView.swift */,
+				9C5B9382487C27C0DCE9537A /* CookieRefreshView.swift */,
 				7D618654ECC216026290166E /* DebugSettingsView.swift */,
 				567DA36FDBC75FD2B55B09EB /* EditorToolbar.swift */,
 				7B6E41489C440EED33E932D6 /* FormatMenuView.swift */,
@@ -360,13 +360,13 @@
 			files = (
 				70D0B38212A1740EAE99C61D /* AttributedStringConverter.swift in Sources */,
 				08E355BA0F55B6147B818BB7 /* ContentView.swift in Sources */,
+				22C94CA469B328552068483E /* CookieRefreshView.swift in Sources */,
 				13A3D0BE46C8453AE5A5AC57 /* DatabaseService.swift in Sources */,
 				B1126FD8C91399CA66D798E5 /* DebugSettingsView.swift in Sources */,
 				8B60215B8052BA7AA3E07753 /* EditorToolbar.swift in Sources */,
 				49180BDC746E4820429FD773 /* Folder.swift in Sources */,
 				F8B26FDAED61C89BF162717B /* FormatMenuView.swift in Sources */,
 				DAD3F0D38E114C0631F9F25B /* LocalStorageService.swift in Sources */,
-				DC600C68418D43A185412AF2 /* CookieRefreshView.swift in Sources */,
 				EADD025D0D4A5C156FAC563C /* LoginView.swift in Sources */,
 				CF6DE736A8829F5B477729BE /* MiNoteContentParser.swift in Sources */,
 				048402EA2165B5AE26C7D7E8 /* MiNoteEditor.swift in Sources */,
@@ -660,7 +660,6 @@
 /* Begin XCSwiftPackageProductDependency section */
 		74F25B04FB6D33A5E4258BC5 /* RichTextKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 5BBC8CA8EE7A31E785A1B661 /* XCLocalSwiftPackageReference "RichTextKit-1.2" */;
 			productName = RichTextKit;
 		};
 /* End XCSwiftPackageProductDependency section */

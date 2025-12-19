@@ -641,8 +641,46 @@ final class SyncService: @unchecked Sendable {
                 }
                 if hasCreateOp {
                     // 在新建队列中，上传到云端
-                    _ = try await miNoteService.createFolder(name: localFolder.name)
-                    print("[SYNC] 文件夹在新建队列中，已上传到云端: \(localFolder.name)")
+                    let response = try await miNoteService.createFolder(name: localFolder.name)
+                    
+                    // 解析响应并获取服务器返回的文件夹ID
+                    if let code = response["code"] as? Int, code == 0,
+                       let data = response["data"] as? [String: Any],
+                       let entry = data["entry"] as? [String: Any] {
+                        
+                        // 处理 ID（可能是 String 或 Int）
+                        var serverFolderId: String?
+                        if let idString = entry["id"] as? String {
+                            serverFolderId = idString
+                        } else if let idInt = entry["id"] as? Int {
+                            serverFolderId = String(idInt)
+                        }
+                        
+                        if let folderId = serverFolderId, folderId != localFolder.id {
+                            // ID不同，需要更新
+                            // 1. 更新所有使用旧文件夹ID的笔记
+                            try DatabaseService.shared.updateNotesFolderId(oldFolderId: localFolder.id, newFolderId: folderId)
+                            
+                            // 2. 删除旧的文件夹记录
+                            try DatabaseService.shared.deleteFolder(folderId: localFolder.id)
+                            
+                            // 3. 创建新文件夹并保存
+                            let updatedFolder = Folder(
+                                id: folderId,
+                                name: entry["subject"] as? String ?? localFolder.name,
+                                count: 0,
+                                isSystem: false,
+                                createdAt: Date()
+                            )
+                            try localStorage.saveFolders([updatedFolder])
+                            
+                            print("[SYNC] ✅ 文件夹ID已更新: \(localFolder.id) -> \(folderId), 并删除了旧文件夹记录")
+                        } else {
+                            print("[SYNC] 文件夹在新建队列中，已上传到云端: \(localFolder.name), ID: \(serverFolderId ?? localFolder.id)")
+                        }
+                    } else {
+                        print("[SYNC] ⚠️ 文件夹在新建队列中，已上传到云端，但服务器返回无效响应: \(localFolder.name)")
+                    }
                 } else {
                     // 3.2 不在新建队列，删除本地文件夹
                     try DatabaseService.shared.deleteFolder(folderId: localFolder.id)

@@ -152,6 +152,58 @@ final class LocalStorageService: @unchecked Sendable {
         return fileURL
     }
     
+    /// 重命名文件夹的图片目录（当文件夹ID更新时）
+    /// 
+    /// - Parameters:
+    ///   - oldFolderId: 旧的文件夹ID
+    ///   - newFolderId: 新的文件夹ID
+    /// - Throws: 文件系统操作失败
+    func renameFolderImageDirectory(oldFolderId: String, newFolderId: String) throws {
+        let imagesDirectory = documentsDirectory.appendingPathComponent("images")
+        let oldFolderDirectory = imagesDirectory.appendingPathComponent(oldFolderId)
+        let newFolderDirectory = imagesDirectory.appendingPathComponent(newFolderId)
+        
+        // 如果旧目录存在且新目录不存在，则重命名
+        if fileManager.fileExists(atPath: oldFolderDirectory.path) && 
+           !fileManager.fileExists(atPath: newFolderDirectory.path) {
+            try fileManager.moveItem(at: oldFolderDirectory, to: newFolderDirectory)
+            print("[LocalStorage] 重命名图片目录: \(oldFolderId) -> \(newFolderId)")
+        } else if fileManager.fileExists(atPath: oldFolderDirectory.path) && 
+                  fileManager.fileExists(atPath: newFolderDirectory.path) {
+            // 如果两个目录都存在，合并内容
+            let oldContents = try? fileManager.contentsOfDirectory(at: oldFolderDirectory, includingPropertiesForKeys: nil)
+            if let contents = oldContents {
+                for item in contents {
+                    let destination = newFolderDirectory.appendingPathComponent(item.lastPathComponent)
+                    if !fileManager.fileExists(atPath: destination.path) {
+                        try fileManager.moveItem(at: item, to: destination)
+                    } else {
+                        // 如果目标文件已存在，删除源文件
+                        try? fileManager.removeItem(at: item)
+                    }
+                }
+                // 删除旧目录
+                try? fileManager.removeItem(at: oldFolderDirectory)
+                print("[LocalStorage] 合并图片目录: \(oldFolderId) -> \(newFolderId)")
+            }
+        }
+    }
+    
+    /// 删除文件夹的图片目录（当文件夹被删除时）
+    /// 
+    /// - Parameter folderId: 要删除的文件夹ID
+    /// - Throws: 文件系统操作失败
+    func deleteFolderImageDirectory(folderId: String) throws {
+        let imagesDirectory = documentsDirectory.appendingPathComponent("images")
+        let folderDirectory = imagesDirectory.appendingPathComponent(folderId)
+        
+        // 如果目录存在，删除它及其所有内容
+        if fileManager.fileExists(atPath: folderDirectory.path) {
+            try fileManager.removeItem(at: folderDirectory)
+            print("[LocalStorage] 删除图片目录: \(folderId)")
+        }
+    }
+    
     /// 获取图片
     func getImage(imageId: String, folderId: String) -> Data? {
         let fileURL = documentsDirectory

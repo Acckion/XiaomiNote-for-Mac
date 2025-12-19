@@ -535,8 +535,23 @@ public class NotesViewModel: ObservableObject {
             
             // 如果服务器返回的 ID 与本地不同，需要更新
             if operation.noteId != folderId {
-                // 更新文件夹列表
-                if let index = folders.firstIndex(where: { $0.id == operation.noteId }) {
+                let oldFolderId = operation.noteId
+                
+                // 1. 更新所有使用旧文件夹ID的笔记，将它们的 folder_id 更新为新ID
+                try DatabaseService.shared.updateNotesFolderId(oldFolderId: oldFolderId, newFolderId: folderId)
+                
+                // 2. 更新内存中的笔记列表
+                for i in 0..<notes.count {
+                    if notes[i].folderId == oldFolderId {
+                        notes[i].folderId = folderId
+                    }
+                }
+                
+                // 3. 删除数据库中的旧文件夹记录
+                try DatabaseService.shared.deleteFolder(folderId: oldFolderId)
+                
+                // 4. 更新文件夹列表
+                if let index = folders.firstIndex(where: { $0.id == oldFolderId }) {
                     let updatedFolder = Folder(
                         id: folderId,
                         name: subject,
@@ -547,6 +562,8 @@ public class NotesViewModel: ObservableObject {
                     folders[index] = updatedFolder
                     // 只保存非系统文件夹
                     try localStorage.saveFolders(folders.filter { !$0.isSystem })
+                    
+                    print("[VIEWMODEL] ✅ 文件夹ID已更新: \(oldFolderId) -> \(folderId), 并删除了旧文件夹记录")
                 }
             } else {
                 // 更新现有文件夹
@@ -638,7 +655,11 @@ public class NotesViewModel: ObservableObject {
         
         // 删除文件夹到云端
         _ = try await service.deleteFolder(folderId: folderId, tag: tag, purge: purge)
-        print("[VIEWMODEL] 离线删除的文件夹已同步到云端: \(folderId)")
+        print("[VIEWMODEL] ✅ 离线删除的文件夹已同步到云端: \(folderId)")
+        
+        // 刷新文件夹列表和笔记列表
+        loadFolders()
+        updateFolderCounts()
     }
     
     private func loadLocalData() {
@@ -1696,7 +1717,7 @@ public class NotesViewModel: ObservableObject {
         // 更新视图数据（系统文件夹在前）
         folders = systemFolders + userFolders
         
-        // 如果离线或未认证，添加到离线队列
+            // 如果离线或未认证，添加到离线队列
         if !isOnline || !service.isAuthenticated() {
             let operationData = try JSONEncoder().encode([
                 "name": name
@@ -1708,6 +1729,8 @@ public class NotesViewModel: ObservableObject {
             )
             try offlineQueue.addOperation(operation)
             print("[VIEWMODEL] 离线模式：文件夹已保存到本地，等待同步: \(tempFolderId)")
+            // 刷新文件夹列表
+            loadFolders()
             return
         }
         
@@ -1744,7 +1767,20 @@ public class NotesViewModel: ObservableObject {
             if let folderId = folderId, let folderName = folderName {
                 // 如果服务器返回的 ID 与本地不同，需要更新
                 if tempFolderId != folderId {
-                    // 创建新的文件夹对象（使用服务器返回的 ID）
+                    // 1. 更新所有使用旧文件夹ID的笔记，将它们的 folder_id 更新为新ID
+                    try DatabaseService.shared.updateNotesFolderId(oldFolderId: tempFolderId, newFolderId: folderId)
+                    
+                    // 2. 更新内存中的笔记列表
+                    for i in 0..<notes.count {
+                        if notes[i].folderId == tempFolderId {
+                            notes[i].folderId = folderId
+                        }
+                    }
+                    
+                    // 3. 删除数据库中的旧文件夹记录
+                    try DatabaseService.shared.deleteFolder(folderId: tempFolderId)
+                    
+                    // 4. 创建新的文件夹对象（使用服务器返回的 ID）
                     let updatedFolder = Folder(
                         id: folderId,
                         name: folderName,
@@ -1753,7 +1789,7 @@ public class NotesViewModel: ObservableObject {
                         createdAt: Date()
                     )
                     
-                    // 更新文件夹列表（保持系统文件夹在前）
+                    // 5. 更新文件夹列表（保持系统文件夹在前）
                     let systemFolders = folders.filter { $0.isSystem }
                     var userFolders = folders.filter { !$0.isSystem }
                     
@@ -1764,8 +1800,10 @@ public class NotesViewModel: ObservableObject {
                     
                     folders = systemFolders + userFolders
                     
-                    // 保存到本地存储
+                    // 6. 保存到本地存储
                     try localStorage.saveFolders(userFolders)
+                    
+                    print("[VIEWMODEL] ✅ 文件夹ID已更新: \(tempFolderId) -> \(folderId), 并删除了旧文件夹记录")
                 } else {
                     // ID 相同，更新现有文件夹
                     let updatedFolder = Folder(
@@ -2012,6 +2050,9 @@ public class NotesViewModel: ObservableObject {
             )
             try offlineQueue.addOperation(operation)
             print("[VIEWMODEL] 离线模式：文件夹已在本地删除，等待同步: \(folder.id)")
+            // 刷新文件夹列表和笔记列表
+            loadFolders()
+            updateFolderCounts()
             return
         }
         
@@ -2043,7 +2084,11 @@ public class NotesViewModel: ObservableObject {
             }
             
             _ = try await service.deleteFolder(folderId: folder.id, tag: finalTag, purge: false)
-            print("[VIEWMODEL] 云端文件夹删除成功: \(folder.id)")
+            print("[VIEWMODEL] ✅ 云端文件夹删除成功: \(folder.id)")
+            
+            // 删除成功后，刷新文件夹列表和笔记列表
+            loadFolders()
+            updateFolderCounts()
         } catch {
             // 网络错误或cookie失效：添加到离线队列，不显示弹窗
             if let urlError = error as? URLError {

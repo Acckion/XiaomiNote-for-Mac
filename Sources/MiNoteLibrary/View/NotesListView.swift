@@ -347,69 +347,71 @@ struct NoteRow: View {
     }
     
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(note.title.isEmpty ? "无标题" : note.title)
-                    .font(.system(size: 14))
-                    .lineLimit(1)
-                    .foregroundColor(.primary)
-                
-                HStack(spacing: 4) {
-                    Text(formatDate(note.updatedAt))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                    
-                    Text(extractPreviewText(from: note.content))
-                        .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(note.title.isEmpty ? "无标题" : note.title)
+                        .font(.system(size: 14))
                         .lineLimit(1)
-                }
-            }
-            
-            Spacer()
-            
-            // 图片预览（如果有图片）
-            if let imageInfo = getFirstImageInfo(from: note) {
-                Group {
-                    if let nsImage = thumbnailImage {
-                        Image(nsImage: nsImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } else {
-                        Image(systemName: "photo")
-                            .font(.system(size: 20))
+                        .foregroundColor(.primary)
+                    
+                    HStack(spacing: 4) {
+                        Text(formatDate(note.updatedAt))
+                            .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                        
+                        Text(extractPreviewText(from: note.content))
+                            .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            .lineLimit(1)
                     }
                 }
-                .frame(width: 50, height: 50)
-                .background(Color(NSColor.controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
-                )
-                .onAppear {
-                    loadThumbnail(imageInfo: imageInfo)
+                
+                Spacer()
+                
+                // 图片预览（如果有图片）
+                if let imageInfo = getFirstImageInfo(from: note) {
+                    Group {
+                        if let nsImage = thumbnailImage {
+                            Image(nsImage: nsImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } else {
+                            Image(systemName: "photo")
+                                .font(.system(size: 20))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .frame(width: 50, height: 50)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+                    )
+                    .onAppear {
+                        loadThumbnail(imageInfo: imageInfo)
+                    }
+                }
+                
+                // 锁图标（如果有）
+                if note.rawData?["isLocked"] as? Bool == true {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
                 }
             }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
             
-            // 锁图标（如果有）
-            if note.rawData?["isLocked"] as? Bool == true {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 8)
-        .background(alignment: .bottom) {
+            // 分割线：放在笔记项之间的中间位置，向下偏移一点以居中
             if showDivider {
                 Rectangle()
                     .fill(Color(NSColor.separatorColor))
                     .frame(height: 0.5)
-                    .padding(.leading, 8)  // 与文字左对齐
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .offset(y: 6)  // 向下偏移到两个笔记的中间位置
+                    .padding(.leading, 8)  // 与文字左对齐
+                    .padding(.top, 8)  // 向下偏移，使分割线位于两个笔记项之间
             }
         }
     }

@@ -156,9 +156,6 @@ public struct ContentView: View {
         .sheet(isPresented: $showingLogin) {
             LoginView(viewModel: viewModel)
         }
-        .sheet(isPresented: $showingCookieRefresh) {
-            CookieRefreshView(viewModel: viewModel)
-        }
         .onAppear(perform: handleAppear)
         .onChange(of: viewModel.showLoginView) { oldValue, newValue in
             if newValue {
@@ -675,9 +672,9 @@ struct SidebarView: View {
                         .tag(starredFolder)
                         .contextMenu {
                             Button {
-                                showSystemFolderRenameAlert(folder: starredFolder)
+                                createNewFolder()
                             } label: {
-                                Label("重命名文件夹", systemImage: "pencil.circle")
+                                Label("新建文件夹", systemImage: "folder.badge.plus")
                             }
                         }
                 }
@@ -688,9 +685,9 @@ struct SidebarView: View {
                         .tag(allNotesFolder)
                         .contextMenu {
                             Button {
-                                showSystemFolderRenameAlert(folder: allNotesFolder)
+                                createNewFolder()
                             } label: {
-                                Label("重命名文件夹", systemImage: "pencil.circle")
+                                Label("新建文件夹", systemImage: "folder.badge.plus")
                             }
                         }
                 }
@@ -714,9 +711,9 @@ struct SidebarView: View {
                     .tag(viewModel.uncategorizedFolder)
                     .contextMenu {
                         Button {
-                            renameUncategorizedFolder()
+                            createNewFolder()
                         } label: {
-                            Label("重命名文件夹", systemImage: "pencil.circle")
+                            Label("新建文件夹", systemImage: "folder.badge.plus")
                         }
                     }
                 
@@ -740,6 +737,15 @@ struct SidebarView: View {
                     SidebarFolderRow(folder: folder)
                         .tag(folder)
                         .contextMenu {
+                            // 新建文件夹
+                            Button {
+                                createNewFolder()
+                            } label: {
+                                Label("新建文件夹", systemImage: "folder.badge.plus")
+                            }
+                            
+                            Divider()
+                            
                             // 置顶/取消置顶文件夹
                             Button {
                                 toggleFolderPin(folder)
@@ -755,6 +761,7 @@ struct SidebarView: View {
                             } label: {
                                 Label("重命名文件夹", systemImage: "pencil.circle")
                             }
+                            
                             // 删除文件夹
                             Button(role: .destructive) {
                                 deleteFolder(folder)
@@ -937,16 +944,57 @@ struct SidebarView: View {
         
         if response == .alertFirstButtonReturn {
             let newName = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !newName.isEmpty && newName != folder.name {
-                Task {
-                    do {
-                        try await viewModel.renameFolder(folder, newName: newName)
-                    } catch {
-                        viewModel.errorMessage = "重命名文件夹失败: \(error.localizedDescription)"
+            
+            // 验证新名称
+            if newName.isEmpty {
+                let errorAlert = NSAlert()
+                errorAlert.messageText = "文件夹名称不能为空"
+                errorAlert.informativeText = "请输入一个有效的文件夹名称。"
+                errorAlert.alertStyle = .warning
+                errorAlert.addButton(withTitle: "确定")
+                errorAlert.runModal()
+                return
+            }
+            
+            if newName == folder.name {
+                // 名称未改变，无需操作
+                return
+            }
+            
+            // 检查是否有同名文件夹
+            if viewModel.folders.contains(where: { $0.name == newName && $0.id != folder.id }) {
+                let errorAlert = NSAlert()
+                errorAlert.messageText = "文件夹名称已存在"
+                errorAlert.informativeText = "已存在名为 \"\(newName)\" 的文件夹，请使用其他名称。"
+                errorAlert.alertStyle = .warning
+                errorAlert.addButton(withTitle: "确定")
+                errorAlert.runModal()
+                return
+            }
+            
+            Task {
+                do {
+                    try await viewModel.renameFolder(folder, newName: newName)
+                } catch {
+                    // 根据错误类型显示不同的提示
+                    let errorMessage: String
+                    if let nsError = error as NSError? {
+                        if nsError.code == 409 {
+                            errorMessage = "文件夹名称已存在，请使用其他名称。"
+                        } else {
+                            errorMessage = "重命名文件夹失败: \(error.localizedDescription)"
+                        }
+                    } else {
+                        errorMessage = "重命名文件夹失败: \(error.localizedDescription)"
                     }
+                    
+                    let errorAlert = NSAlert()
+                    errorAlert.messageText = "重命名失败"
+                    errorAlert.informativeText = errorMessage
+                    errorAlert.alertStyle = .warning
+                    errorAlert.addButton(withTitle: "确定")
+                    errorAlert.runModal()
                 }
-            } else if newName.isEmpty {
-                viewModel.errorMessage = "文件夹名称不能为空"
             }
         }
     }

@@ -224,12 +224,46 @@ struct NoteDetailView: View {
     
     private var formatToolbarGroup: some View {
         HStack(spacing: 6) {
+            undoButton
+            redoButton
+            Divider()
+                .frame(height: 16)
             formatMenu
             checkboxButton
             imageButton
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 1)
+    }
+    
+    /// 撤销按钮
+    /// 
+    /// 注意：键盘快捷键 Cmd+Z 和 Cmd+Shift+Z 由 NSTextView 自动处理，无需手动设置
+    private var undoButton: some View {
+        Button {
+            editorContext.handle(.undoLatestChange)
+        } label: {
+            Image(systemName: "arrow.uturn.backward")
+                .font(.system(size: 16))
+        }
+        .buttonStyle(.plain)
+        .disabled(!editorContext.canUndoLatestChange)
+        .help("撤销 (⌘Z)")
+    }
+    
+    /// 重做按钮
+    /// 
+    /// 注意：键盘快捷键 Cmd+Z 和 Cmd+Shift+Z 由 NSTextView 自动处理，无需手动设置
+    private var redoButton: some View {
+        Button {
+            editorContext.handle(.redoLatestChange)
+        } label: {
+            Image(systemName: "arrow.uturn.forward")
+                .font(.system(size: 16))
+        }
+        .buttonStyle(.plain)
+        .disabled(!editorContext.canRedoLatestChange)
+        .help("重做 (⌘⇧Z)")
     }
     
     @State private var showFormatMenu: Bool = false

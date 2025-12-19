@@ -604,6 +604,51 @@ final class DatabaseService: @unchecked Sendable {
         }
     }
     
+    /// 更新笔记的文件夹ID（用于文件夹ID从临时ID更新为服务器ID时，或删除文件夹时移动笔记到未分类）
+    /// 
+    /// - Parameters:
+    ///   - oldFolderId: 旧的文件夹ID
+    ///   - newFolderId: 新的文件夹ID
+    /// - Throws: DatabaseError（数据库操作失败）
+    func updateNotesFolderId(oldFolderId: String, newFolderId: String) throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = "UPDATE notes SET folder_id = ? WHERE folder_id = ?;"
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (newFolderId as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 2, (oldFolderId as NSString).utf8String, -1, nil)
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            let changes = sqlite3_changes(db)
+            print("[Database] 更新笔记文件夹ID: \(oldFolderId) -> \(newFolderId), 影响了 \(changes) 条笔记")
+            
+            // 只有在更新ID时（而不是移动到未分类时）才重命名图片目录
+            // 移动到未分类时，图片应该保留在原目录或移动到未分类目录（根据业务需求）
+            // 这里我们选择保留在原目录，因为图片目录名是 folderId，移动到未分类时folderId变为"0"
+            // 但原文件夹的图片应该保留在原来的目录中（如果之后文件夹被恢复，图片还在）
+            // 或者可以根据需要移动到未分类的图片目录
+            // 当前实现：如果是从临时ID更新为服务器ID，重命名目录；如果是删除文件夹（移动到未分类），不重命名目录
+            if newFolderId != "0" && oldFolderId != "0" {
+                // 这是ID更新操作，不是删除操作，需要重命名图片目录
+                try LocalStorageService.shared.renameFolderImageDirectory(oldFolderId: oldFolderId, newFolderId: newFolderId)
+            }
+            // 如果移动到未分类（newFolderId == "0"），图片目录保留在原处，或者可以根据需要移动到未分类目录
+        }
+    }
+    
     private func parseFolder(from statement: OpaquePointer?) throws -> Folder? {
         guard let statement = statement else { return nil }
         
