@@ -841,6 +841,17 @@ class MiNoteContentParser {
                 continue
             }
             
+            // 对于图片占位符，不需要提取后面的文本，因为占位符本身就是完整的内容
+            if match.type == "image" {
+                // 图片占位符格式：🖼️IMAGE_fileId::fileType🖼️
+                // 直接使用占位符本身，不提取后面的文本
+                let placeholderRange = Range(match.range, in: content)!
+                let placeholder = String(content[placeholderRange])
+                print("！！！图片处理！！！ 🔍 [extractTextTagsWithIntervals] 图片占位符: '\(placeholder)'")
+                allItems.append((match.range, match.type, false, match.indent, match.inputNumber, match.level, placeholder))
+                continue
+            }
+            
             // 提取标签后的文本（直到下一个标签或换行符）
             let tagEnd = match.range.location + match.range.length
             var textEnd = content.count
@@ -1752,16 +1763,33 @@ class MiNoteContentParser {
             return
         }
         
+        // 从后往前处理，避免替换后位置变化影响前面的匹配
         for (index, match) in matches.reversed().enumerated() {
+            // 每次循环都重新获取当前字符串，因为之前的替换可能已经改变了字符串
+            let currentString = result.string
+            let currentLength = result.length
+            
+            // 验证 match.range 是否在当前字符串范围内
+            if match.range.location < 0 || match.range.location >= currentLength {
+                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ⚠️ 占位符范围超出边界，跳过: location=\(match.range.location), length=\(currentLength)")
+                continue
+            }
+            
+            // 调整 range 以确保不超出边界
+            let safeRange = NSRange(
+                location: match.range.location,
+                length: min(match.range.length, currentLength - match.range.location)
+            )
+            
             if match.numberOfRanges >= 3,
-               let fileIdRange = Range(match.range(at: 1), in: string),
-               let fileTypeRange = Range(match.range(at: 2), in: string) {
-                let fileId = String(string[fileIdRange])
-                let fileType = String(string[fileTypeRange])
+               let fileIdRange = Range(match.range(at: 1), in: currentString),
+               let fileTypeRange = Range(match.range(at: 2), in: currentString) {
+                let fileId = String(currentString[fileIdRange])
+                let fileType = String(currentString[fileTypeRange])
                 
                 print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ========== 处理图片占位符 #\(index + 1)/\(matches.count) ==========")
                 print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] fileId=\(fileId), fileType=\(fileType)")
-                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 占位符范围: \(match.range)")
+                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 占位符范围: \(safeRange)")
                 
                 // 从本地加载图片
                 print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 尝试从本地加载图片: fileId=\(fileId), fileType=\(fileType)")
@@ -1783,7 +1811,12 @@ class MiNoteContentParser {
                         print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ❌ 无法从数据创建 NSImage")
                         print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 图片数据前10字节: \(imageData.prefix(10).map { String(format: "%02x", $0) }.joined(separator: " "))")
                         let placeholderText = "[图片加载失败: \(fileId)]"
-                        result.replaceCharacters(in: match.range, with: NSAttributedString(string: placeholderText, attributes: [.foregroundColor: NSColor.systemRed]))
+                        // 验证范围有效性
+                        if safeRange.location >= 0 && safeRange.location + safeRange.length <= result.length {
+                            result.replaceCharacters(in: safeRange, with: NSAttributedString(string: placeholderText, attributes: [.foregroundColor: NSColor.systemRed]))
+                        } else {
+                            print("！！！图片处理！！！ ⚠️ [processImagePlaceholders] 范围无效，无法替换占位文本")
+                        }
                         continue
                     }
                     
@@ -1890,17 +1923,32 @@ class MiNoteContentParser {
                     
                     // 替换占位符
                     print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 替换占位符...")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 占位符范围: \(match.range)")
+                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 占位符范围: \(safeRange)")
                     print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 替换前结果长度: \(result.length)")
-                    result.replaceCharacters(in: match.range, with: imageAttr)
+                    
+                    // 保存替换位置和新的长度
+                    let replaceLocation = safeRange.location
+                    let oldLength = safeRange.length
+                    let newLength = imageAttr.length
+                    
+                    // 确保范围有效
+                    guard replaceLocation >= 0 && replaceLocation + oldLength <= result.length else {
+                        print("！！！图片处理！！！ ⚠️ [processImagePlaceholders] 占位符范围无效，跳过替换: location=\(replaceLocation), oldLength=\(oldLength), resultLength=\(result.length)")
+                        continue
+                    }
+                    
+                    result.replaceCharacters(in: safeRange, with: imageAttr)
                     print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 替换后结果长度: \(result.length)")
                     
-                    // 验证替换后的附件
+                    // 验证替换后的附件（使用替换后的新范围）
                     var attachmentInResult = false
-                    result.enumerateAttribute(.attachment, in: match.range, options: []) { (value, range, _) in
-                        if value != nil {
-                            attachmentInResult = true
-                            print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ✅ 验证：替换后在位置 \(range.location) 找到附件")
+                    let verifyRange = NSRange(location: replaceLocation, length: min(newLength, result.length - replaceLocation))
+                    if verifyRange.location + verifyRange.length <= result.length {
+                        result.enumerateAttribute(.attachment, in: verifyRange, options: []) { (value, range, _) in
+                            if value != nil {
+                                attachmentInResult = true
+                                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ✅ 验证：替换后在位置 \(range.location) 找到附件")
+                            }
                         }
                     }
                     
@@ -1920,7 +1968,12 @@ class MiNoteContentParser {
                             .font: NSFont.systemFont(ofSize: 12)
                         ]
                     )
-                    result.replaceCharacters(in: match.range, with: placeholderAttr)
+                    // 验证范围有效性
+                    if safeRange.location >= 0 && safeRange.location + safeRange.length <= result.length {
+                        result.replaceCharacters(in: safeRange, with: placeholderAttr)
+                    } else {
+                        print("！！！图片处理！！！ ⚠️ [processImagePlaceholders] 范围无效，无法替换占位文本")
+                    }
                 }
             } else {
                 print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ⚠️ 占位符格式不正确，跳过")

@@ -705,7 +705,7 @@ struct SidebarView: View {
             }
             
             // MARK: 我的文件夹 Section
-            Section("我的文件夹") {
+            Section {
                 // 未分类文件夹 - 现在 Folder 的 Equatable 只比较 id，所以可以正常保持选中状态
                 SidebarFolderRow(folder: viewModel.uncategorizedFolder)
                     .tag(viewModel.uncategorizedFolder)
@@ -770,13 +770,16 @@ struct SidebarView: View {
                             }
                         }
                 }
-            }
-            // Section 级别的右键菜单：新建文件夹
-            .contextMenu {
-                Button {
-                    createNewFolder()
-                } label: {
-                    Label("新建文件夹", systemImage: "folder.badge.plus")
+            } header: {
+                HStack {
+                    Text("我的文件夹")
+                }
+                .contextMenu {
+                    Button {
+                        createNewFolder()
+                    } label: {
+                        Label("新建文件夹", systemImage: "folder.badge.plus")
+                    }
                 }
             }
         }

@@ -411,7 +411,7 @@ struct NoteRow: View {
                     .frame(height: 0.5)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, 8)  // 与文字左对齐
-                    .padding(.top, 8)  // 向下偏移，使分割线位于两个笔记项之间
+                    .padding(.top, 10)  // 向下偏移，使分割线位于两个笔记项之间
             }
         }
     }

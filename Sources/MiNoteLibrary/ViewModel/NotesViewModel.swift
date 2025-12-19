@@ -2024,7 +2024,26 @@ public class NotesViewModel: ObservableObject {
     
     /// 删除文件夹
     func deleteFolder(_ folder: Folder) async throws {
-        // 1. 先在本地删除
+        // 1. 先移动文件夹内的所有笔记到"未分类"
+        print("[VIEWMODEL] 删除文件夹前，移动笔记到未分类: \(folder.id)")
+        try DatabaseService.shared.moveNotesToUncategorized(fromFolderId: folder.id)
+        // 更新内存中的笔记列表
+        for i in 0..<notes.count {
+            if notes[i].folderId == folder.id {
+                notes[i].folderId = "0"  // 0 表示未分类
+            }
+        }
+        
+        // 2. 删除文件夹的图片目录
+        do {
+            try LocalStorageService.shared.deleteFolderImageDirectory(folderId: folder.id)
+            print("[VIEWMODEL] ✅ 已删除文件夹图片目录: \(folder.id)")
+        } catch {
+            print("[VIEWMODEL] ⚠️ 删除文件夹图片目录失败: \(error.localizedDescription)")
+            // 不抛出错误，继续执行删除操作
+        }
+        
+        // 3. 从本地删除文件夹
         if let index = folders.firstIndex(where: { $0.id == folder.id }) {
             folders.remove(at: index)
             try localStorage.saveFolders(folders.filter { !$0.isSystem })

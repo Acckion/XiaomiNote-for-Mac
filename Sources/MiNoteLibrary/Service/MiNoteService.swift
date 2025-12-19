@@ -1048,13 +1048,22 @@ final class MiNoteService: @unchecked Sendable {
             
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
             
+            // 记录响应内容以便调试
+            print("[MiNoteService] 删除文件夹响应: \(json)")
+            
             // 验证响应：检查 code 字段
+            // 如果响应中没有 code 字段，或者 code 为 0，则认为成功
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "删除文件夹失败"
                     print("[MiNoteService] 删除文件夹失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                } else {
+                    print("[MiNoteService] ✅ 删除文件夹成功，code: \(code)")
                 }
+            } else {
+                // 如果没有 code 字段，但状态码是 200，也认为成功
+                print("[MiNoteService] ✅ 删除文件夹成功（响应中没有 code 字段，但状态码为 200）")
             }
             
             return json
