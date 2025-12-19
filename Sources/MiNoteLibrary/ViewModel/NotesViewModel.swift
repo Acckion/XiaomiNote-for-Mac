@@ -1359,11 +1359,15 @@ public class NotesViewModel: ObservableObject {
     /// - Throws: 更新失败时抛出错误（网络错误、认证错误等）
     func updateNote(_ note: Note) async throws {
         // 先保存到本地（无论在线还是离线）
+        // 这确保了即使云端保存失败，本地数据也不会丢失
         try localStorage.saveNote(note)
         
         // 更新笔记列表
         if let index = notes.firstIndex(where: { $0.id == note.id }) {
             notes[index] = note
+        } else {
+            // 如果笔记不在列表中（新建笔记），添加到列表
+            notes.append(note)
         }
         
         // 如果离线或未认证，添加到离线队列
@@ -1394,8 +1398,12 @@ public class NotesViewModel: ObservableObject {
             var originalCreateDate = note.rawData?["createDate"] as? Int
             
             print("[VIEWMODEL] 上传前获取最新 tag，当前 tag: \(existingTag.isEmpty ? "空" : existingTag)")
+            
+            // 检查笔记是否已存在于云端
+            var noteExistsInCloud = false
             do {
                 let noteDetails = try await service.fetchNoteDetails(noteId: note.id)
+                noteExistsInCloud = true
                 if let data = noteDetails["data"] as? [String: Any],
                    let entry = data["entry"] as? [String: Any] {
                     // 获取最新的 tag
@@ -1410,7 +1418,98 @@ public class NotesViewModel: ObservableObject {
                     }
                 }
             } catch {
+                // 获取失败，可能是新建笔记还没上传，或者笔记不存在
                 print("[VIEWMODEL] 获取最新笔记信息失败: \(error)，将使用本地存储的 tag")
+                noteExistsInCloud = false
+            }
+            
+            // 如果笔记不存在于云端，可能是新建笔记，先创建它
+            if !noteExistsInCloud {
+                print("[VIEWMODEL] 笔记不存在于云端，尝试创建: \(note.id)")
+                do {
+                    let createResponse = try await service.createNote(
+                        title: note.title,
+                        content: note.content,
+                        folderId: note.folderId
+                    )
+                    
+                    // 如果创建成功，更新笔记ID和rawData
+                    if let code = createResponse["code"] as? Int, code == 0,
+                       let data = createResponse["data"] as? [String: Any],
+                       let entry = data["entry"] as? [String: Any] {
+                        if let newNoteId = entry["id"] as? String {
+                            if newNoteId != note.id {
+                                // ID 发生变化，需要更新本地笔记
+                                print("[VIEWMODEL] ✅ 笔记创建成功，ID更新: \(note.id) -> \(newNoteId)")
+                                
+                                // 更新rawData
+                                var updatedRawData = note.rawData ?? [:]
+                                for (key, value) in entry {
+                                    updatedRawData[key] = value
+                                }
+                                
+                                // 创建新的 Note 实例（因为 id 是 let 常量）
+                                let updatedNote = Note(
+                                    id: newNoteId,
+                                    title: note.title,
+                                    content: note.content,
+                                    folderId: note.folderId,
+                                    isStarred: note.isStarred,
+                                    createdAt: note.createdAt,
+                                    updatedAt: note.updatedAt,
+                                    tags: note.tags,
+                                    rawData: updatedRawData,
+                                    rtfData: note.rtfData
+                                )
+                                
+                                // 更新笔记列表
+                                if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                                    notes[index] = updatedNote
+                                }
+                                
+                                // 如果当前选中的笔记，也更新它
+                                if selectedNote?.id == note.id {
+                                    selectedNote = updatedNote
+                                }
+                                
+                                // 保存到本地
+                                try localStorage.saveNote(updatedNote)
+                                
+                                print("[VIEWMODEL] ✅ 新建笔记创建并保存成功: \(newNoteId)")
+                                return
+                            } else {
+                                // ID 相同，更新 rawData
+                                print("[VIEWMODEL] ✅ 笔记创建成功，ID相同，更新 rawData: \(note.id)")
+                                
+                                var updatedNote = note
+                                var updatedRawData = updatedNote.rawData ?? [:]
+                                for (key, value) in entry {
+                                    updatedRawData[key] = value
+                                }
+                                updatedNote.rawData = updatedRawData
+                                
+                                // 更新笔记列表
+                                if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                                    notes[index] = updatedNote
+                                }
+                                
+                                // 如果当前选中的笔记，也更新它
+                                if selectedNote?.id == note.id {
+                                    selectedNote = updatedNote
+                                }
+                                
+                                // 保存到本地
+                                try localStorage.saveNote(updatedNote)
+                                
+                                print("[VIEWMODEL] ✅ 新建笔记创建并保存成功: \(note.id)")
+                                return
+                            }
+                        }
+                    }
+                } catch {
+                    print("[VIEWMODEL] ⚠️ 创建笔记失败: \(error)，将尝试更新（可能会失败）")
+                    // 继续尝试更新，可能会失败，但至少本地已保存
+                }
             }
             
             // 确保 tag 不为空（如果仍然为空，使用 noteId 作为 fallback）
@@ -1964,24 +2063,58 @@ public class NotesViewModel: ObservableObject {
                 originalCreateDate: originalCreateDate
             )
             
-            if let code = response["code"] as? Int, code == 0 {
+            // 检查响应是否成功（code == 0 或没有 code 字段但 result == "ok"）
+            let code = response["code"] as? Int
+            let isSuccess = (code == 0) || (code == nil && response["result"] as? String == "ok")
+            
+            if isSuccess {
                 // 更新本地文件夹对象
                 if let index = folders.firstIndex(where: { $0.id == folder.id }) {
                     var updatedFolder = folders[index]
                     updatedFolder.name = newName
-                    updatedFolder.rawData = response["data"] as? [String: Any] ?? response // 更新 rawData
+                    
+                    // 构建更新的 rawData
+                    // 先保留原有的 rawData（包含 subject 等字段）
+                    var updatedRawData: [String: Any] = updatedFolder.rawData ?? [:]
+                    
+                    // 如果有 data 字段，合并它（包含新的 tag、modifyDate 等）
+                    if let data = response["data"] as? [String: Any] {
+                        // 合并 data，但保留原有的 subject 字段（因为 data 中没有 subject）
+                        updatedRawData = updatedRawData.merging(data) { (old, new) in new }
+                        print("[VIEWMODEL] 合并 response.data 到 rawData: \(data)")
+                    }
+                    
+                    // 如果有 entry 字段（根级别），也合并进去（包含完整的文件夹信息）
+                    if let entry = response["entry"] as? [String: Any] {
+                        updatedRawData = updatedRawData.merging(entry) { (_, new) in new }
+                        print("[VIEWMODEL] 合并 response.entry 到 rawData")
+                    }
+                    
+                    // 确保包含必要的字段
+                    updatedRawData["tag"] = updatedRawData["tag"] ?? (response["data"] as? [String: Any])?["tag"] ?? existingTag
+                    // 确保 subject 字段设置为新名称（因为 API 响应中可能没有 subject）
+                    updatedRawData["subject"] = newName
+                    // 确保 id 字段正确
+                    updatedRawData["id"] = folder.id
+                    // 确保 type 字段
+                    updatedRawData["type"] = "folder"
+                    
+                    updatedFolder.rawData = updatedRawData
                     folders[index] = updatedFolder
+                    
                     try localStorage.saveFolders(folders.filter { !$0.isSystem })
+                    
                     if selectedFolder?.id == folder.id {
                         selectedFolder = updatedFolder
                     }
+                    
+                    print("[VIEWMODEL] ✅ 文件夹重命名成功: \(folder.id) -> \(newName), 新 tag: \(updatedRawData["tag"] ?? "nil")")
                 }
-                print("[VIEWMODEL] 文件夹重命名成功: \(folder.id) -> \(newName)")
             } else {
-                let code = response["code"] as? Int ?? -1
+                let errorCode = code ?? -1
                 let message = response["description"] as? String ?? response["message"] as? String ?? "重命名文件夹失败"
-                print("[VIEWMODEL] 重命名文件夹失败，code: \(code), message: \(message)")
-                throw NSError(domain: "MiNote", code: code, userInfo: [NSLocalizedDescriptionKey: message])
+                print("[VIEWMODEL] 重命名文件夹失败，code: \(errorCode), message: \(message)")
+                throw NSError(domain: "MiNote", code: errorCode, userInfo: [NSLocalizedDescriptionKey: message])
             }
         } catch {
             // 网络错误或cookie失效：添加到离线队列，不显示弹窗
@@ -2024,15 +2157,15 @@ public class NotesViewModel: ObservableObject {
     
     /// 删除文件夹
     func deleteFolder(_ folder: Folder) async throws {
-        // 1. 先移动文件夹内的所有笔记到"未分类"
-        print("[VIEWMODEL] 删除文件夹前，移动笔记到未分类: \(folder.id)")
-        try DatabaseService.shared.moveNotesToUncategorized(fromFolderId: folder.id)
-        // 更新内存中的笔记列表
-        for i in 0..<notes.count {
-            if notes[i].folderId == folder.id {
-                notes[i].folderId = "0"  // 0 表示未分类
-            }
-        }
+        // 1. 不需要先移动文件夹内的所有笔记到"未分类"
+//        print("[VIEWMODEL] 删除文件夹前，移动笔记到未分类: \(folder.id)")
+//        try DatabaseService.shared.moveNotesToUncategorized(fromFolderId: folder.id)
+//        // 更新内存中的笔记列表
+//        for i in 0..<notes.count {
+//            if notes[i].folderId == folder.id {
+//                notes[i].folderId = "0"  // 0 表示未分类
+//            }
+//        }
         
         // 2. 删除文件夹的图片目录
         do {
@@ -2046,10 +2179,14 @@ public class NotesViewModel: ObservableObject {
         // 3. 从本地删除文件夹
         if let index = folders.firstIndex(where: { $0.id == folder.id }) {
             folders.remove(at: index)
+            // 从数据库删除文件夹记录
+            try DatabaseService.shared.deleteFolder(folderId: folder.id)
+            // 保存剩余的文件夹列表
             try localStorage.saveFolders(folders.filter { !$0.isSystem })
             if selectedFolder?.id == folder.id {
                 selectedFolder = nil
             }
+            print("[VIEWMODEL] ✅ 已从本地删除文件夹: \(folder.id)")
         } else {
             throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在"])
         }
@@ -2105,7 +2242,9 @@ public class NotesViewModel: ObservableObject {
             _ = try await service.deleteFolder(folderId: folder.id, tag: finalTag, purge: false)
             print("[VIEWMODEL] ✅ 云端文件夹删除成功: \(folder.id)")
             
-            // 删除成功后，刷新文件夹列表和笔记列表
+            // 确保从数据库中删除（虽然之前已经删除了，但为了保险再检查一次）
+            // 注意：文件夹已经在步骤3中从数据库删除了，这里不需要再次删除
+            // 但需要刷新文件夹列表和笔记列表
             loadFolders()
             updateFolderCounts()
         } catch {

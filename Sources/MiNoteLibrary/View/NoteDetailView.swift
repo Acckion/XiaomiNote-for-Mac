@@ -18,6 +18,8 @@ struct NoteDetailView: View {
     @State private var originalAttributedText: AttributedString = AttributedString() // 保存原始 AttributedString 用于比较
     @State private var useRichTextKit: Bool = true  // 是否使用RichTextKit编辑器
     @StateObject private var editorContext = RichTextContext()  // RichTextContext（用于格式栏同步）
+    @State private var pendingSaveWorkItem: DispatchWorkItem? = nil  // 待执行的保存任务
+    @State private var currentEditingNoteId: String? = nil  // 当前正在编辑的笔记ID
     
     var body: some View {
         Group {
@@ -29,15 +31,28 @@ struct NoteDetailView: View {
         }
         .onChange(of: viewModel.selectedNote) { oldValue, newValue in
             // 当 selectedNote 对象变化时（包括内容更新），更新视图
-            if let note = newValue {
-                // 只有当笔记真正变化时才更新（避免重复更新）
-                if let oldNote = oldValue {
-                    if oldNote.id != note.id || oldNote.content != note.content {
+            // 在切换笔记前，先保存当前笔记的更改
+            if let oldNote = oldValue, let newNote = newValue, oldNote.id != newNote.id {
+                // 笔记ID变化，说明切换到了不同的笔记，先立即保存当前笔记
+                Task { @MainActor in
+                    await saveChangesImmediately(for: oldNote)
+                    // 保存完成后再切换到新笔记
+                    if let note = newValue {
                         handleNoteChange(note)
                     }
-                } else {
-                    // 如果之前没有选中的笔记，直接更新
-                    handleNoteChange(note)
+                }
+            } else {
+                // 不是切换笔记，正常处理
+                if let note = newValue {
+                    // 只有当笔记真正变化时才更新（避免重复更新）
+                    if let oldNote = oldValue {
+                        if oldNote.id != note.id || oldNote.content != note.content {
+                            handleNoteChange(note)
+                        }
+                    } else {
+                        // 如果之前没有选中的笔记，直接更新
+                        handleNoteChange(note)
+                    }
                 }
             }
         }
@@ -67,10 +82,10 @@ struct NoteDetailView: View {
     
     @ViewBuilder
     private func noteEditorView(for note: Note) -> some View {
-                ZStack {
-                    Color(nsColor: NSColor.textBackgroundColor)
-                        .ignoresSafeArea()
-                    
+        ZStack {
+            Color(nsColor: NSColor.textBackgroundColor)
+                .ignoresSafeArea()
+            
             // 标题现在作为编辑器内容的一部分，可以随正文滚动
             editorContentView(for: note)
         }
@@ -99,19 +114,19 @@ struct NoteDetailView: View {
     
     @ViewBuilder
     private var saveStatusIndicator: some View {
-                        if isSaving {
-                            ProgressView()
-                                .controlSize(.small)
-                                .padding(.trailing, 16)
-                                    .padding(.top, 16)
-                        } else if showSaveSuccess {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                                .padding(.trailing, 16)
-                                    .padding(.top, 16)
-                            }
-                        }
-                        
+        if isSaving {
+            ProgressView()
+                .controlSize(.small)
+                .padding(.trailing, 16)
+                .padding(.top, 16)
+        } else if showSaveSuccess {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+                .padding(.trailing, 16)
+                .padding(.top, 16)
+        }
+    }
+    
     private func editorContentView(for note: Note) -> some View {
         GeometryReader { geometry in
             ScrollView {
@@ -203,24 +218,24 @@ struct NoteDetailView: View {
     }
     
     private var emptyNoteView: some View {
-                VStack(spacing: 16) {
-                    Image(systemName: "note.text")
-                        .font(.system(size: 48))
-                        .foregroundColor(.secondary)
-                    
-                    Text("选择笔记或创建新笔记")
-                        .font(.title2)
-                        .foregroundColor(.secondary)
-                    
-                    Button(action: {
-                        viewModel.createNewNote()
-                    }) {
-                        Label("新建笔记", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 16) {
+            Image(systemName: "note.text")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+            
+            Text("选择笔记或创建新笔记")
+                .font(.title2)
+                .foregroundColor(.secondary)
+            
+            Button(action: {
+                viewModel.createNewNote()
+            }) {
+                Label("新建笔记", systemImage: "plus")
             }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
     
     private var formatToolbarGroup: some View {
         HStack(spacing: 6) {
@@ -237,7 +252,7 @@ struct NoteDetailView: View {
     }
     
     /// 撤销按钮
-    /// 
+    ///
     /// 注意：键盘快捷键 Cmd+Z 和 Cmd+Shift+Z 由 NSTextView 自动处理，无需手动设置
     private var undoButton: some View {
         Button {
@@ -252,7 +267,7 @@ struct NoteDetailView: View {
     }
     
     /// 重做按钮
-    /// 
+    ///
     /// 注意：键盘快捷键 Cmd+Z 和 Cmd+Shift+Z 由 NSTextView 自动处理，无需手动设置
     private var redoButton: some View {
         Button {
@@ -314,61 +329,61 @@ struct NoteDetailView: View {
             NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: v2Action)
         }
     }
-                    
+    
     private var checkboxButton: some View {
-                    Button {
-                        insertCheckbox()
-                    } label: {
-                        Image(systemName: "checklist")
-                    }
-                    .help("插入待办")
+        Button {
+            insertCheckbox()
+        } label: {
+            Image(systemName: "checklist")
+        }
+        .help("插入待办")
     }
-                    
+    
     private var imageButton: some View {
-                    Button {
-                        insertImage()
-                    } label: {
-                        Image(systemName: "paperclip")
-                    }
-                    .help("插入图片")
+        Button {
+            insertImage()
+        } label: {
+            Image(systemName: "paperclip")
+        }
+        .help("插入图片")
     }
     
     @ViewBuilder
     private func shareAndMoreButtons(for note: Note) -> some View {
-                    Button {
-                        let sharingPicker = NSSharingServicePicker(items: [note.content])
-                        if let keyWindow = NSApplication.shared.keyWindow,
-                           let contentView = keyWindow.contentView {
-                            sharingPicker.show(relativeTo: .zero, of: contentView, preferredEdge: .minY)
-                        }
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                    
-                    Menu {
-                        Button {
-                            viewModel.toggleStar(note)
-                        } label: {
-                            Label(note.isStarred ? "取消置顶备忘录" : "置顶备忘录",
-                                  systemImage: note.isStarred ? "pin.slash" : "pin")
-                        }
-                        
-                        Divider()
-                        
-                        Button(role: .destructive) {
-                            viewModel.deleteNote(note)
-                        } label: {
-                            Label("删除备忘录", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
+        Button {
+            let sharingPicker = NSSharingServicePicker(items: [note.content])
+            if let keyWindow = NSApplication.shared.keyWindow,
+               let contentView = keyWindow.contentView {
+                sharingPicker.show(relativeTo: .zero, of: contentView, preferredEdge: .minY)
+            }
+        } label: {
+            Image(systemName: "square.and.arrow.up")
+        }
+        
+        Menu {
+            Button {
+                viewModel.toggleStar(note)
+            } label: {
+                Label(note.isStarred ? "取消置顶备忘录" : "置顶备忘录",
+                      systemImage: note.isStarred ? "pin.slash" : "pin")
+            }
+            
+            Divider()
+            
+            Button(role: .destructive) {
+                viewModel.deleteNote(note)
+            } label: {
+                Label("删除备忘录", systemImage: "trash")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
         }
     }
     
     private var searchToolbarItem: some View {
-                    HStack {
-                        Spacer()
-                            TextField("搜索", text: $viewModel.searchText)
+        HStack {
+            Spacer()
+            TextField("搜索", text: $viewModel.searchText)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 200)
         }
@@ -389,6 +404,9 @@ struct NoteDetailView: View {
     
     private func handleNoteAppear(_ note: Note) {
         isInitializing = true
+        // 更新当前编辑的笔记ID
+        currentEditingNoteId = note.id
+        
         // 如果标题为空或者是默认的"未命名笔记_xxx"，设置为空字符串以显示占位符
         let cleanTitle = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
         editedTitle = cleanTitle
@@ -455,6 +473,9 @@ struct NoteDetailView: View {
     
     private func handleNoteChange(_ newValue: Note) {
         isInitializing = true
+        // 更新当前编辑的笔记ID
+        currentEditingNoteId = newValue.id
+        
         // 如果标题为空或者是默认的"未命名笔记_xxx"，设置为空字符串以显示占位符
         let cleanTitle = newValue.title.isEmpty || newValue.title.hasPrefix("未命名笔记_") ? "" : newValue.title
         editedTitle = cleanTitle
@@ -570,76 +591,188 @@ struct NoteDetailView: View {
         NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: MiNoteEditorV2.FormatAction.bold) // 临时使用
     }
     
+    /// 保存更改（带防抖）
     private func saveChanges() {
         guard let note = viewModel.selectedNote else { return }
         
-        // 防抖处理：延迟保存
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            Task {
-                isSaving = true
+        // 取消之前的保存任务
+        pendingSaveWorkItem?.cancel()
+        
+        // 创建新的保存任务
+        // 注意：SwiftUI View 是 struct，不需要 weak 引用
+        // 需要捕获必要的值，因为 struct 在闭包执行时可能已经被释放
+        let currentNoteId = currentEditingNoteId
+        let viewModelRef = viewModel  // 捕获 viewModel 引用
+        
+        // 捕获当前的编辑内容
+        let currentEditedTitle = editedTitle
+        let currentEditedAttributedText = editedAttributedText
+        let currentEditedRTFData = editedRTFData
+        let currentUseRichTextKit = useRichTextKit
+        let currentOriginalTitle = originalTitle
+        let currentOriginalAttributedText = originalAttributedText
+        
+        let workItem = DispatchWorkItem {
+            Task { @MainActor in
+                guard let note = viewModelRef.selectedNote, note.id == currentNoteId else {
+                    return
+                }
+                
+                // 在闭包中，我们需要通过 viewModel 来更新笔记
+                // 但由于 struct 的特性，我们直接构建 Note 并调用 updateNote
+                let finalRTFData: Data?
+                let finalAttributedText: AttributedString
+                
+                if currentUseRichTextKit, let rtfData = currentEditedRTFData {
+                    finalRTFData = rtfData
+                    if let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
+                        finalAttributedText = attributedText
+                    } else {
+                        finalAttributedText = currentEditedAttributedText
+                    }
+                } else {
+                    finalAttributedText = currentEditedAttributedText
+                    finalRTFData = AttributedStringConverter.attributedStringToRTFData(currentEditedAttributedText)
+                }
+                
+                let xmlContent = AttributedStringConverter.attributedStringToXML(finalAttributedText)
+                
+                let updatedNote = Note(
+                    id: note.id,
+                    title: currentEditedTitle,
+                    content: xmlContent,
+                    folderId: note.folderId,
+                    isStarred: note.isStarred,
+                    createdAt: note.createdAt,
+                    updatedAt: Date(),
+                    tags: note.tags,
+                    rawData: note.rawData,
+                    rtfData: finalRTFData
+                )
                 
                 do {
-                    // 优先使用RTF数据（如果使用RichTextKit编辑器）
-                    let finalRTFData: Data?
-                    let finalAttributedText: AttributedString
-                    
-                    if useRichTextKit, let rtfData = editedRTFData {
-                        // 从RTF数据转换
-                        finalRTFData = rtfData
-                        if let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
-                            finalAttributedText = attributedText
-                        } else {
-                            finalAttributedText = editedAttributedText
-                        }
-                    } else {
-                        // 从AttributedString转换
-                        finalAttributedText = editedAttributedText
-                        finalRTFData = AttributedStringConverter.attributedStringToRTFData(editedAttributedText)
+                    try await viewModelRef.updateNote(updatedNote)
+                    print("[NoteDetailView] ✅ 延迟保存成功: \(note.id)")
+                } catch {
+                    print("[NoteDetailView] ❌ 延迟保存失败: \(error.localizedDescription)")
+                }
+            }
+        }
+        pendingSaveWorkItem = workItem
+        
+        // 防抖处理：延迟保存
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+    }
+    
+    /// 立即保存更改（用于切换笔记前）
+    @MainActor
+    private func saveChangesImmediately(for note: Note) async {
+        // 取消待执行的保存任务
+        pendingSaveWorkItem?.cancel()
+        pendingSaveWorkItem = nil
+        
+        // 检查是否有未保存的更改
+        let hasTitleChanges = editedTitle != originalTitle
+        let hasContentChanges = String(editedAttributedText.characters) != String(originalAttributedText.characters)
+        
+        if hasTitleChanges || hasContentChanges {
+            print("[NoteDetailView] 切换笔记前立即保存当前笔记: \(note.id), hasTitleChanges=\(hasTitleChanges), hasContentChanges=\(hasContentChanges)")
+            await performSave(for: note)
+        } else {
+            print("[NoteDetailView] 当前笔记没有未保存的更改，跳过保存: \(note.id)")
+        }
+    }
+    
+    /// 执行保存操作
+    @MainActor
+    private func performSave(for note: Note) async {
+        guard note.id == currentEditingNoteId else {
+            print("[NoteDetailView] ⚠️ 笔记ID不匹配，跳过保存: current=\(currentEditingNoteId ?? "nil"), note=\(note.id)")
+            return
+        }
+        
+        isSaving = true
+        
+        do {
+            // 优先使用RTF数据（如果使用RichTextKit编辑器）
+            let finalRTFData: Data?
+            let finalAttributedText: AttributedString
+            
+            if useRichTextKit, let rtfData = editedRTFData {
+                // 从RTF数据转换
+                finalRTFData = rtfData
+                if let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
+                    finalAttributedText = attributedText
+                } else {
+                    finalAttributedText = editedAttributedText
+                }
+            } else {
+                // 从AttributedString转换
+                finalAttributedText = editedAttributedText
+                finalRTFData = AttributedStringConverter.attributedStringToRTFData(editedAttributedText)
+            }
+            
+            // 从 AttributedString 转换为 XML（用于同步到云端）
+            let xmlContent = AttributedStringConverter.attributedStringToXML(finalAttributedText)
+            
+            let updatedNote = Note(
+                id: note.id,
+                title: editedTitle,
+                content: xmlContent,  // 同步时使用 XML
+                folderId: note.folderId,
+                isStarred: note.isStarred,
+                createdAt: note.createdAt,
+                updatedAt: Date(),
+                tags: note.tags,
+                rawData: note.rawData,
+                rtfData: finalRTFData  // 本地存储使用 RTF
+            )
+            
+            // 保存到云端（如果失败，至少保存到本地）
+            do {
+                try await viewModel.updateNote(updatedNote)
+                
+                // 保存成功后更新原始值，避免重复保存
+                originalTitle = editedTitle
+                originalAttributedText = finalAttributedText
+                if useRichTextKit {
+                    editedRTFData = finalRTFData
+                }
+                
+                // 保存成功反馈
+                withAnimation {
+                    showSaveSuccess = true
+                    isSaving = false
+                }
+                
+                print("[NoteDetailView] ✅ 笔记保存成功: \(note.id), title=\(editedTitle), content长度=\(xmlContent.count)")
+                
+                // 3秒后隐藏成功提示
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    withAnimation {
+                        showSaveSuccess = false
                     }
-                    
-                    // 从 AttributedString 转换为 XML（用于同步到云端）
-                    let xmlContent = AttributedStringConverter.attributedStringToXML(finalAttributedText)
-                    
-                    let updatedNote = Note(
-                        id: note.id,
-                        title: editedTitle,
-                        content: xmlContent,  // 同步时使用 XML
-                        folderId: note.folderId,
-                        isStarred: note.isStarred,
-                        createdAt: note.createdAt,
-                        updatedAt: Date(),
-                        tags: note.tags,
-                        rawData: note.rawData,
-                        rtfData: finalRTFData  // 本地存储使用 RTF
-                    )
-                    
+                }
+            } catch {
+                // 保存到云端失败，但至少保存到本地，确保内容不丢失
+                print("[NoteDetailView] ⚠️ 保存到云端失败，保存到本地: \(error.localizedDescription)")
+                
+                // 尝试保存到本地
+                do {
                     try await viewModel.updateNote(updatedNote)
+                    print("[NoteDetailView] ✅ 已保存到本地: \(note.id)")
                     
-                    // 保存成功后更新原始值，避免重复保存
+                    // 即使云端保存失败，也更新原始值，避免重复尝试保存
                     originalTitle = editedTitle
                     originalAttributedText = finalAttributedText
                     if useRichTextKit {
                         editedRTFData = finalRTFData
                     }
-                    
-                    // 保存成功反馈
-                    withAnimation {
-                        showSaveSuccess = true
-                        isSaving = false
-                    }
-                    
-                    // 3秒后隐藏成功提示
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                        withAnimation {
-                            showSaveSuccess = false
-                        }
-                    }
-                    
                 } catch {
-                    // 保存失败：静默处理，不显示弹窗
-                    print("[NoteDetailView] 保存失败: \(error.localizedDescription)")
-                    isSaving = false
+                    print("[NoteDetailView] ❌ 保存到本地也失败: \(error.localizedDescription)")
                 }
+                
+                isSaving = false
             }
         }
     }
@@ -647,8 +780,8 @@ struct NoteDetailView: View {
     // MARK: - 转换方法已移至 AttributedStringConverter
 }
 
-
 #Preview {
     NoteDetailView(viewModel: NotesViewModel())
         .frame(width: 600, height: 400)
 }
+

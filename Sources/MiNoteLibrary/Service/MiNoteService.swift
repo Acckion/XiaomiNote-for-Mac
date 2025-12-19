@@ -938,13 +938,21 @@ final class MiNoteService: @unchecked Sendable {
             
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
             
+            // 记录响应内容以便调试
+            print("[MiNoteService] 重命名文件夹响应: \(json)")
+            
             // 验证响应：检查 code 字段
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "重命名文件夹失败"
                     print("[MiNoteService] 重命名文件夹失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                } else {
+                    print("[MiNoteService] ✅ 重命名文件夹成功，code: \(code)")
                 }
+            } else {
+                // 如果没有 code 字段，但状态码是 200，也认为成功
+                print("[MiNoteService] ✅ 重命名文件夹成功（响应中没有 code 字段，但状态码为 200）")
             }
             
             return json
@@ -1861,6 +1869,128 @@ final class MiNoteService: @unchecked Sendable {
             }
             
             return data
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            throw error
+        }
+    }
+    
+    /// 获取笔记历史版本列表
+    /// 
+    /// - Parameters:
+    ///   - noteId: 笔记ID
+    ///   - timestamp: 时间戳（毫秒），可选，默认为当前时间
+    /// - Returns: 包含历史版本列表的响应字典
+    func fetchNoteHistoryVersions(noteId: String, timestamp: Int? = nil) async throws -> [String: Any] {
+        let ts = timestamp ?? Int(Date().timeIntervalSince1970 * 1000)
+        
+        var urlComponents = URLComponents(string: "\(self.baseURL)/note/full/history/times")
+        urlComponents?.queryItems = [
+            URLQueryItem(name: "ts", value: "\(ts)"),
+            URLQueryItem(name: "id", value: noteId)
+        ]
+        
+        guard let urlString = urlComponents?.url?.absoluteString else {
+            NetworkLogger.shared.logError(url: "\(self.baseURL)/note/full/history/times", method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        // 记录请求
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: self.getHeaders(),
+            body: nil
+        )
+        
+        guard let url = urlComponents?.url else {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = self.getHeaders()
+        request.httpMethod = "GET"
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let responseString = String(data: data, encoding: .utf8)
+            
+            // 记录响应
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "GET",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            if httpResponse.statusCode == 401 {
+                let responseBody = responseString ?? ""
+                
+                // 更全面的认证错误判断
+                let hasLoginURL = responseBody.contains("serviceLogin") || 
+                                 responseBody.contains("account.xiaomi.com") ||
+                                 responseBody.contains("pass/serviceLogin")
+                let hasAuthKeywords = responseBody.contains("unauthorized") || 
+                                     responseBody.contains("未授权") ||
+                                     responseBody.contains("登录") ||
+                                     responseBody.contains("login") ||
+                                     responseBody.contains("\"R\":401") ||
+                                     responseBody.contains("\"S\":\"Err\"")
+                let isAuthError = hasLoginURL || hasAuthKeywords
+                let isInGracePeriod = self.checkIfInGracePeriod()
+                
+                if isInGracePeriod {
+                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
+                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
+                }
+                
+                if self.hasValidCookie() && isAuthError {
+                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
+                    if hasLoginURL {
+                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
+                    }
+                    DispatchQueue.main.async {
+                        self.onCookieExpired?()
+                    }
+                    throw MiNoteError.cookieExpired
+                } else if self.hasValidCookie() && !isAuthError {
+                    print("[MiNoteService] 401 错误但不是明确的认证失败")
+                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                } else {
+                    throw MiNoteError.notAuthenticated
+                }
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            
+            // 验证响应：检查 code 字段
+            if let code = json["code"] as? Int {
+                if code != 0 {
+                    let message = json["description"] as? String ?? json["message"] as? String ?? "获取笔记历史版本失败"
+                    print("[MiNoteService] 获取笔记历史版本失败，code: \(code), message: \(message)")
+                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                } else {
+                    print("[MiNoteService] ✅ 获取笔记历史版本成功，code: \(code)")
+                }
+            } else {
+                // 如果没有 code 字段，但状态码是 200，也认为成功
+                print("[MiNoteService] ✅ 获取笔记历史版本成功（响应中没有 code 字段，但状态码为 200）")
+            }
+            
+            return json
         } catch {
             NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
             throw error
