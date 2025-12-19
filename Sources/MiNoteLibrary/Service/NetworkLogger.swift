@@ -130,15 +130,15 @@ final class NetworkLogger: @unchecked Sendable {
     
     func exportLogs() -> String {
         return queue.sync {
-            var exportText = "小米笔记网络日志导出\n"
-            exportText += "导出时间: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .medium))\n"
-            exportText += "日志数量: \(logs.count)\n\n"
-            
-            for log in logs.reversed() { // 按时间顺序导出
-                exportText += "\(log.description)\n\n"
-            }
-            
-            return exportText
+        var exportText = "小米笔记网络日志导出\n"
+        exportText += "导出时间: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .medium))\n"
+        exportText += "日志数量: \(logs.count)\n\n"
+        
+        for log in logs.reversed() { // 按时间顺序导出
+            exportText += "\(log.description)\n\n"
+        }
+        
+        return exportText
         }
     }
 }

@@ -1,0 +1,107 @@
+{
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Paragraph/NSMutableParagraphStyleValueLabel.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSMutableParagraphStyleValueLabel.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSMutableParagraphStyleValueLabel.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSMutableParagraphStyleValueLabel.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSMutableParagraphStyleValueLabel.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSMutableParagraphStyleValueLabel.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Paragraph/NSParagraphStyle+Mutable.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSParagraphStyle+Mutable.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSParagraphStyle+Mutable.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSParagraphStyle+Mutable.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSParagraphStyle+Mutable.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSParagraphStyle+Mutable.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Paragraph/NSParagraphStyle+Views.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSParagraphStyle+Views.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSParagraphStyle+Views.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSParagraphStyle+Views.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSParagraphStyle+Views.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSParagraphStyle+Views.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Paragraph/NSTextAlignment+Views.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSTextAlignment+Views.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSTextAlignment+Views.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSTextAlignment+Views.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSTextAlignment+Views.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/NSTextAlignment+Views.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Paragraph/Picker+RichTextParagraphValue.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Picker+RichTextParagraphValue.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Picker+RichTextParagraphValue.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Picker+RichTextParagraphValue.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Picker+RichTextParagraphValue.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Picker+RichTextParagraphValue.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Paragraph/Stepper+RichTextParagraphValue.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Stepper+RichTextParagraphValue.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Stepper+RichTextParagraphValue.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Stepper+RichTextParagraphValue.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Stepper+RichTextParagraphValue.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Stepper+RichTextParagraphValue.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Paragraph/Toggle+RichTextParagraphValue.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Toggle+RichTextParagraphValue.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Toggle+RichTextParagraphValue.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Toggle+RichTextParagraphValue.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Toggle+RichTextParagraphValue.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/Toggle+RichTextParagraphValue.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Pasteboard/PasteboardImageReader.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PasteboardImageReader.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PasteboardImageReader.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PasteboardImageReader.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PasteboardImageReader.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PasteboardImageReader.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Pdf/PdfDataError.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfDataError.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfDataError.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfDataError.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfDataError.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfDataError.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Pdf/PdfPageConfiguration.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfPageConfiguration.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfPageConfiguration.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfPageConfiguration.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfPageConfiguration.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfPageConfiguration.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Pdf/PdfPageMargins.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfPageMargins.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfPageMargins.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfPageMargins.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfPageMargins.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/PdfPageMargins.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Pdf/RichTextPdfDataReader.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextPdfDataReader.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextPdfDataReader.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextPdfDataReader.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextPdfDataReader.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextPdfDataReader.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Sharing/RichTextNSSharingMenu.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextNSSharingMenu.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextNSSharingMenu.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextNSSharingMenu.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextNSSharingMenu.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextNSSharingMenu.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Sharing/RichTextShareMenu.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextShareMenu.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextShareMenu.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextShareMenu.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextShareMenu.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextShareMenu.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Sharing/RichTextShareService.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextShareService.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextShareService.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextShareService.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextShareService.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextShareService.swiftdeps"
+  }
+}

@@ -3,20 +3,7 @@
 
   ],
   "copyCommands" : {
-    "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac_MiNoteMac.bundle/Assets.xcassets" : {
-      "inputs" : [
-        {
-          "kind" : "directory",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Resources/Assets.xcassets"
-        }
-      ],
-      "outputs" : [
-        {
-          "kind" : "directory",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac_MiNoteMac.bundle/Assets.xcassets"
-        }
-      ]
-    }
+
   },
   "explicitTargetDependencyImportCheckingMode" : {
     "none" : {
@@ -30,143 +17,144 @@
 
   ],
   "swiftCommands" : {
-    "C.MiNoteMac-arm64-apple-macosx26.0-release.module" : {
+    "C.MiNoteLibrary-arm64-apple-macosx26.0-release.module" : {
       "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
-      "fileList" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/sources",
+      "fileList" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/sources",
       "importPath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/Modules",
       "inputs" : [
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/App.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Helper/MiNoteContentParser.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Helper/MiNoteContentParser.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Folder.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Model/Folder.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Note.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Model/Note.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/DatabaseService.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/LocalStorageService.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/LocalStorageService.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/MiNoteService.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/MiNoteService.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/NetworkLogger.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/NetworkLogger.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/NetworkMonitor.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/NetworkMonitor.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/OfflineOperationQueue.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/OfflineOperationQueue.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/SyncService.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/SyncService.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/ContentView.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/ContentView.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/DebugSettingsView.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/DebugSettingsView.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/EditorToolbar.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/EditorToolbar.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/LoginView.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/FormatMenuView.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/MiNoteEditor.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/LoginView.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NetworkLogView.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/MiNoteEditor.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NewNoteView.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/MoveNoteView.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NoteDetailView.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NetworkLogView.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NoteEditorWithPreviewView.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NewNoteView.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NotesListView.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NoteDetailView.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/SettingsView.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NoteEditorWithPreviewView.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/ViewModel/NotesViewModel.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NotesListView.swift"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/DerivedSources/resource_bundle_accessor.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/SettingsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/ViewModel/NotesViewModel.swift"
         },
         {
           "kind" : "file",
           "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"
         },
         {
-          "kind" : "virtual",
-          "name" : "<MiNoteMac-arm64-apple-macosx26.0-release.module-resources>"
-        },
-        {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/sources"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/sources"
         }
       ],
-      "isLibrary" : false,
-      "moduleName" : "MiNoteMac",
-      "moduleOutputPath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/Modules/MiNoteMac.swiftmodule",
+      "isLibrary" : true,
+      "moduleName" : "MiNoteLibrary",
+      "moduleOutputPath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/Modules/MiNoteLibrary.swiftmodule",
       "objects" : [
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/App.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/MiNoteContentParser.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/Folder.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/Note.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/LocalStorageService.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/MiNoteService.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkLogger.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkMonitor.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/OfflineOperationQueue.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/SyncService.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/ContentView.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/DebugSettingsView.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/EditorToolbar.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/LoginView.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/MiNoteEditor.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkLogView.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NewNoteView.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NoteDetailView.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NoteEditorWithPreviewView.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NotesListView.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/SettingsView.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NotesViewModel.swift.o",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/resource_bundle_accessor.swift.o"
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MiNoteContentParser.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/Folder.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/Note.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/DatabaseService.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/LocalStorageService.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MiNoteService.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NetworkLogger.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NetworkMonitor.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/OfflineOperationQueue.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/SyncService.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/ContentView.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/DebugSettingsView.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/EditorToolbar.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/FormatMenuView.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/LoginView.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MiNoteEditor.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MoveNoteView.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NetworkLogView.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NewNoteView.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NoteDetailView.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NoteEditorWithPreviewView.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NotesListView.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/SettingsView.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NotesViewModel.swift.o"
       ],
       "otherArguments" : [
         "-target",
@@ -178,17 +166,17 @@
         "-O",
         "-j10",
         "-DSWIFT_PACKAGE",
-        "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
         "-module-cache-path",
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/ModuleCache",
         "-parseable-output",
-        "-Xfrontend",
-        "-entry-point-function-name",
-        "-Xfrontend",
-        "MiNoteMac_main",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/include/MiNoteLibrary-Swift.h",
         "-color-diagnostics",
         "-swift-version",
-        "5",
+        "6",
         "-plugin-path",
         "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
         "-sdk",
@@ -222,132 +210,247 @@
         "swiftui_minote_for_mac",
         "-disable-sandbox"
       ],
-      "outputFileMapPath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/output-file-map.json",
+      "outputFileMapPath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/output-file-map.json",
       "outputs" : [
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/App.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MiNoteContentParser.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/MiNoteContentParser.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/Folder.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/Folder.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/Note.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/Note.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/DatabaseService.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/LocalStorageService.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/LocalStorageService.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/MiNoteService.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MiNoteService.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkLogger.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NetworkLogger.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkMonitor.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NetworkMonitor.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/OfflineOperationQueue.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/OfflineOperationQueue.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/SyncService.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/SyncService.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/ContentView.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/ContentView.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/DebugSettingsView.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/DebugSettingsView.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/EditorToolbar.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/EditorToolbar.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/LoginView.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/FormatMenuView.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/MiNoteEditor.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/LoginView.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkLogView.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MiNoteEditor.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NewNoteView.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MoveNoteView.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NoteDetailView.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NetworkLogView.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NoteEditorWithPreviewView.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NewNoteView.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NotesListView.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NoteDetailView.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/SettingsView.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NoteEditorWithPreviewView.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NotesViewModel.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NotesListView.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/resource_bundle_accessor.swift.o"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/SettingsView.swift.o"
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/Modules/MiNoteMac.swiftmodule"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NotesViewModel.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/Modules/MiNoteLibrary.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Helper/MiNoteContentParser.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Folder.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Note.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/DatabaseService.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/LocalStorageService.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/MiNoteService.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/NetworkLogger.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/NetworkMonitor.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/OfflineOperationQueue.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/SyncService.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/ContentView.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/DebugSettingsView.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/EditorToolbar.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/FormatMenuView.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/LoginView.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/MiNoteEditor.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/MoveNoteView.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NetworkLogView.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NewNoteView.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NoteDetailView.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NoteEditorWithPreviewView.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NotesListView.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/SettingsView.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/ViewModel/NotesViewModel.swift"
+      ],
+      "tempsPath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build",
+      "wholeModuleOptimization" : true
+    },
+    "C.MiNoteMacApp-arm64-apple-macosx26.0-release.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/sources",
+      "importPath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/App.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/NoteDetailWindowView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/Modules/MiNoteLibrary.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "MiNoteMacApp",
+      "moduleOutputPath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/Modules/MiNoteMacApp.swiftmodule",
+      "objects" : [
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/App.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/NoteDetailWindowView.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-whole-module-optimization",
+        "-num-threads",
+        "10",
+        "-serialize-diagnostics",
+        "-O",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "MiNoteMacApp_main",
+        "-color-diagnostics",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "swiftui_minote_for_mac",
+        "-disable-sandbox"
+      ],
+      "outputFileMapPath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/App.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/NoteDetailWindowView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/Modules/MiNoteMacApp.swiftmodule"
         }
       ],
       "prepareForIndexing" : false,
       "sources" : [
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/App.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Helper/MiNoteContentParser.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Model/Folder.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Model/Note.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/LocalStorageService.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/MiNoteService.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/NetworkLogger.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/NetworkMonitor.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/OfflineOperationQueue.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/SyncService.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/ContentView.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/DebugSettingsView.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/EditorToolbar.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/LoginView.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/MiNoteEditor.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NetworkLogView.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NewNoteView.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NoteDetailView.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NoteEditorWithPreviewView.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NotesListView.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/SettingsView.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/ViewModel/NotesViewModel.swift",
-        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/DerivedSources/resource_bundle_accessor.swift"
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/NoteDetailWindowView.swift"
       ],
-      "tempsPath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build",
+      "tempsPath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build",
       "wholeModuleOptimization" : true
     }
   },
@@ -355,36 +458,37 @@
 
   },
   "swiftTargetScanArgs" : {
-    "MiNoteMac" : [
+    "MiNoteLibrary" : [
       "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
       "-module-name",
-      "MiNoteMac",
+      "MiNoteLibrary",
       "-package-name",
       "swiftui_minote_for_mac",
       "-c",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/App.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Helper/MiNoteContentParser.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Model/Folder.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Model/Note.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/LocalStorageService.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/MiNoteService.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/NetworkLogger.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/NetworkMonitor.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/OfflineOperationQueue.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/SyncService.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/ContentView.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/DebugSettingsView.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/EditorToolbar.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/LoginView.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/MiNoteEditor.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NetworkLogView.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NewNoteView.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NoteDetailView.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NoteEditorWithPreviewView.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NotesListView.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/SettingsView.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/ViewModel/NotesViewModel.swift",
-      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/DerivedSources/resource_bundle_accessor.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Helper/MiNoteContentParser.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Folder.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Note.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/DatabaseService.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/LocalStorageService.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/MiNoteService.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/NetworkLogger.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/NetworkMonitor.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/OfflineOperationQueue.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/SyncService.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/ContentView.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/DebugSettingsView.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/EditorToolbar.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/FormatMenuView.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/LoginView.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/MiNoteEditor.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/MoveNoteView.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NetworkLogView.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NewNoteView.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NoteDetailView.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NoteEditorWithPreviewView.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NotesListView.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/SettingsView.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/ViewModel/NotesViewModel.swift",
       "-I",
       "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/Modules",
       "-target",
@@ -396,17 +500,83 @@
       "-O",
       "-j10",
       "-DSWIFT_PACKAGE",
-      "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/include/MiNoteLibrary-Swift.h",
+      "-color-diagnostics",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "swiftui_minote_for_mac",
+      "-disable-sandbox",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "MiNoteMacApp" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "MiNoteMacApp",
+      "-package-name",
+      "swiftui_minote_for_mac",
+      "-c",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/App.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/NoteDetailWindowView.swift",
+      "-I",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-whole-module-optimization",
+      "-num-threads",
+      "10",
+      "-serialize-diagnostics",
+      "-O",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
       "-module-cache-path",
       "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/ModuleCache",
       "-parseable-output",
       "-Xfrontend",
       "-entry-point-function-name",
       "-Xfrontend",
-      "MiNoteMac_main",
+      "MiNoteMacApp_main",
       "-color-diagnostics",
       "-swift-version",
-      "5",
+      "6",
       "-plugin-path",
       "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
       "-sdk",
@@ -444,8 +614,11 @@
     ]
   },
   "targetDependencyMap" : {
-    "MiNoteMac" : [
+    "MiNoteLibrary" : [
 
+    ],
+    "MiNoteMacApp" : [
+      "MiNoteLibrary"
     ]
   },
   "testDiscoveryCommands" : {
@@ -460,7 +633,227 @@
     }
   },
   "writeCommands" : {
-    "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/sources" : {
+    "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Helper/MiNoteContentParser.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Folder.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Note.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/DatabaseService.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/LocalStorageService.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/MiNoteService.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/NetworkLogger.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/NetworkMonitor.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/OfflineOperationQueue.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/SyncService.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/DebugSettingsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/EditorToolbar.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/FormatMenuView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/LoginView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/MiNoteEditor.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/MoveNoteView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NetworkLogView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NewNoteView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NoteDetailView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NoteEditorWithPreviewView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NotesListView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/SettingsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/ViewModel/NotesViewModel.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/sources"
+    },
+    "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/DatabaseService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/DebugSettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/EditorToolbar.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/Folder.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/FormatMenuView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/LocalStorageService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/LoginView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MiNoteContentParser.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MiNoteEditor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MiNoteService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MoveNoteView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NetworkLogView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NetworkLogger.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NetworkMonitor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NewNoteView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/Note.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NoteDetailView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NoteEditorWithPreviewView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NotesListView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NotesViewModel.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/OfflineOperationQueue.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/SettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/SyncService.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/App.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/NoteDetailWindowView.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.product/Objects.LinkFileList"
+    },
+    "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/sources" : {
       "alwaysOutOfDate" : false,
       "inputs" : [
         {
@@ -473,196 +866,10 @@
         },
         {
           "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Helper/MiNoteContentParser.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Model/Folder.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Model/Note.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/LocalStorageService.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/MiNoteService.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/NetworkLogger.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/NetworkMonitor.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/OfflineOperationQueue.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/Service/SyncService.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/ContentView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/DebugSettingsView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/EditorToolbar.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/LoginView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/MiNoteEditor.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NetworkLogView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NewNoteView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NoteDetailView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NoteEditorWithPreviewView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/NotesListView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/View/SettingsView.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/ViewModel/NotesViewModel.swift"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/DerivedSources/resource_bundle_accessor.swift"
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/NoteDetailWindowView.swift"
         }
       ],
-      "outputFilePath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/sources"
-    },
-    "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.product/Objects.LinkFileList" : {
-      "alwaysOutOfDate" : false,
-      "inputs" : [
-        {
-          "kind" : "virtual",
-          "name" : "<link-file-list>"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/App.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/ContentView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/DebugSettingsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/EditorToolbar.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/Folder.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/LocalStorageService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/LoginView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/MiNoteContentParser.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/MiNoteEditor.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/MiNoteService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkLogView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkLogger.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NetworkMonitor.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NewNoteView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/Note.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NoteDetailView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NoteEditorWithPreviewView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NotesListView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/NotesViewModel.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/OfflineOperationQueue.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/SettingsView.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/SyncService.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.build/resource_bundle_accessor.swift.o"
-        }
-      ],
-      "outputFilePath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMac.product/Objects.LinkFileList"
+      "outputFilePath" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/sources"
     },
     "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt" : {
       "alwaysOutOfDate" : true,

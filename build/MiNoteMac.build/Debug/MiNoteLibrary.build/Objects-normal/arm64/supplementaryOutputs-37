@@ -1,0 +1,23 @@
+{
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NoteDetailView.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NoteDetailView.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NoteDetailView.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NoteDetailView.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NoteDetailView.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NoteDetailView.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NoteEditorWithPreviewView.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NoteEditorWithPreviewView.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NoteEditorWithPreviewView.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NoteEditorWithPreviewView.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NoteEditorWithPreviewView.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NoteEditorWithPreviewView.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/NotesListView.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NotesListView.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NotesListView.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NotesListView.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NotesListView.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/NotesListView.swiftdeps"
+  }
+}

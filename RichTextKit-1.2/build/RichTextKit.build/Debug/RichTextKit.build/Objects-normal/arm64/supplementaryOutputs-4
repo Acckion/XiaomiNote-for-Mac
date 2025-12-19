@@ -1,0 +1,107 @@
+{
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextViewComponent+Attributes.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Attributes.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Attributes.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Attributes.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Attributes.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Attributes.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextViewComponent+Colors.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Colors.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Colors.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Colors.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Colors.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Colors.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextViewComponent+Font.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Font.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Font.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Font.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Font.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Font.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextViewComponent+Images.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Images.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Images.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Images.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Images.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Images.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextViewComponent+Paragraph.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Paragraph.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Paragraph.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Paragraph.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Paragraph.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Paragraph.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextViewComponent+Pasting.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Pasting.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Pasting.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Pasting.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Pasting.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Pasting.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextViewComponent+Ranges.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Ranges.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Ranges.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Ranges.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Ranges.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Ranges.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextViewComponent+Styles.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Styles.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Styles.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Styles.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Styles.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Styles.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextViewComponent+Superscript.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Superscript.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Superscript.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Superscript.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Superscript.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent+Superscript.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextViewComponent.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextViewComponent.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextView_AppKit.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextView_AppKit.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextView_AppKit.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextView_AppKit.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextView_AppKit.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextView_AppKit.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Bridging/RichTextView_UIKit.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextView_UIKit.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextView_UIKit.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextView_UIKit.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextView_UIKit.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextView_UIKit.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Colors/ColorRepresentable.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/ColorRepresentable.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/ColorRepresentable.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/ColorRepresentable.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/ColorRepresentable.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/ColorRepresentable.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Colors/RichTextColor+Picker.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextColor+Picker.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextColor+Picker.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextColor+Picker.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextColor+Picker.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextColor+Picker.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Colors/RichTextColor.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextColor.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextColor.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextColor.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextColor.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/build/RichTextKit.build/Debug/RichTextKit.build/Objects-normal/arm64/RichTextColor.swiftdeps"
+  }
+}

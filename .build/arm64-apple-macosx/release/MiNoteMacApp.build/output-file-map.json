@@ -1,0 +1,19 @@
+{
+  "": {
+    "dependencies": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/MiNoteMacApp.d",
+    "object": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/MiNoteMacApp.o",
+    "swift-dependencies": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/master.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/App.swift": {
+    "object": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/App.swift.o",
+    "swiftmodule": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/App~partial.swiftmodule",
+    "swift-dependencies": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/App.swiftdeps",
+    "diagnostics": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/App.dia"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/NoteDetailWindowView.swift": {
+    "object": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/NoteDetailWindowView.swift.o",
+    "swiftmodule": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/NoteDetailWindowView~partial.swiftmodule",
+    "swift-dependencies": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/NoteDetailWindowView.swiftdeps",
+    "diagnostics": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteMacApp.build/NoteDetailWindowView.dia"
+  }
+}

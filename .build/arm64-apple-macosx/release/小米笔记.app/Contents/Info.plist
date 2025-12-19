@@ -26,6 +26,8 @@
     <string>NSApplication</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSAccentColorName</key>
+    <string>Yellow</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
 </dict>

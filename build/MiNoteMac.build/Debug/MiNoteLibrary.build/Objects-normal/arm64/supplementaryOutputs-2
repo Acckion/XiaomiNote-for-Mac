@@ -1,0 +1,23 @@
+{
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Folder.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/Folder.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/Folder.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/Folder.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/Folder.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/Folder.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/EditorToolbar.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/EditorToolbar.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/EditorToolbar.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/EditorToolbar.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/EditorToolbar.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/EditorToolbar.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/FormatMenuView.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/FormatMenuView.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/FormatMenuView.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/FormatMenuView.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/FormatMenuView.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/FormatMenuView.swiftdeps"
+  }
+}

@@ -170,19 +170,9 @@ public struct SettingsView: View {
     }
     
     private func refreshCookie() {
-        // 直接打开登录视图来刷新cookie
-        let alert = NSAlert()
-        alert.messageText = "刷新Cookie"
-        alert.informativeText = "Cookie已过期，需要重新登录小米账号来获取新的Cookie。"
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "去登录")
-        alert.addButton(withTitle: "取消")
-        
-        if alert.runModal() == .alertFirstButtonReturn {
-            // 显示登录视图
-            viewModel.showLoginView = true
-            dismiss()
-        }
+        // 参考 Obsidian 插件：打开Cookie刷新视图
+        // 显示Cookie刷新视图（而不是登录视图）
+        viewModel.showCookieRefreshView = true
     }
     
     private func clearCache() {

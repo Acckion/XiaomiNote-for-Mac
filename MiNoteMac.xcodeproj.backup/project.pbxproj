@@ -1,0 +1,669 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		048402EA2165B5AE26C7D7E8 /* MiNoteEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 228F39EBE3C9A59521361345 /* MiNoteEditor.swift */; };
+		08DA95CC567BE3D0EF366883 /* NotesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D76C86E30A5062CAF94D0A /* NotesListView.swift */; };
+		08E355BA0F55B6147B818BB7 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 899BCC1A64E0C7397963A22B /* ContentView.swift */; };
+		0CCDEBB4DB6B30FF58A99676 /* NetworkLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = C50C112F6B4452CE0180EB74 /* NetworkLogger.swift */; };
+		13A3D0BE46C8453AE5A5AC57 /* DatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B1D7E624DF253C07C01376 /* DatabaseService.swift */; };
+		18021F0E3CE77ABC9062D4DD /* OfflineOperationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D1C6CACE3C147825607106 /* OfflineOperationQueue.swift */; };
+		1DF15B463E6D141AD6A04E0D /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19CE08A1CDCF94C551D20E51 /* NetworkMonitor.swift */; };
+		21D18111453D5C66791D221D /* MiNoteLibrary.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; };
+		2892DE9DF5909F639453F7EF /* XMLReversibilityTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEBA8B045168080EF8181BC3 /* XMLReversibilityTest.swift */; };
+		379940B416A995F1EC1343FB /* NoteEditorWithPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A4A1F332A881259EAB626A /* NoteEditorWithPreviewView.swift */; };
+		46146E87652EBF78CBD635C8 /* MiNoteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587A0C9CB4BD8A71F364C4E7 /* MiNoteService.swift */; };
+		479FC5FD5C076D121F4CFF61 /* MiNoteEditorV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1CCD6998A57DECFC22BAA01 /* MiNoteEditorV2.swift */; };
+		49180BDC746E4820429FD773 /* Folder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2707995632193C250FB2E95 /* Folder.swift */; };
+		58D92D458E9306E74D5EE7D5 /* RichTextKit in Frameworks */ = {isa = PBXBuildFile; productRef = 74F25B04FB6D33A5E4258BC5 /* RichTextKit */; };
+		615881628A721CC39363FC3B /* NewNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3119E8C539E7C9A6BA2EACC /* NewNoteView.swift */; };
+		67B51E3FF8FED57EB63E000F /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5EDD8E69C0A0FFA4F2732 /* SyncService.swift */; };
+		70D0B38212A1740EAE99C61D /* AttributedStringConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71B669895CBBCACA3585BDE8 /* AttributedStringConverter.swift */; };
+		86E3C186412052CE4FAACE6A /* MiNoteLibrary.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		8B60215B8052BA7AA3E07753 /* EditorToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567DA36FDBC75FD2B55B09EB /* EditorToolbar.swift */; };
+		8BD76061009C76B4112E81C4 /* NetworkLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 028A0CD24BAB7BF46FFBB48A /* NetworkLogView.swift */; };
+		8EC27E72E7C0EF2AAD95BF84 /* TitleEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EF6707EE2D91F9759ED9DF6 /* TitleEditorView.swift */; };
+		9BCD207D7B2B39AF4505E2F5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7E78992CF7765CE27B05A0BF /* Assets.xcassets */; };
+		A13B020ABBDB66D9C2EA0B9C /* NotesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019A488CCA2E1E21AF8361E0 /* NotesViewModel.swift */; };
+		AE321F1F3598F5F63850CF7A /* NoteDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E57318E0E7816DE9095F9F /* NoteDetailView.swift */; };
+		B1126FD8C91399CA66D798E5 /* DebugSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D618654ECC216026290166E /* DebugSettingsView.swift */; };
+		CF6DE736A8829F5B477729BE /* MiNoteContentParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65262F00AA05AEE9F2565401 /* MiNoteContentParser.swift */; };
+		D0AD5C1D9245EF07697070D0 /* XMLConversionTester.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB696411171B9EF9F3A4242 /* XMLConversionTester.swift */; };
+		D15198A6141F07FD48C24890 /* XMLConversionValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 617362413C96866519E3F63C /* XMLConversionValidator.swift */; };
+		D4C433F7392D5562CA17466D /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B00E144F0064250DE47B3E8 /* App.swift */; };
+		DA77A42F8FDBD2DCB66D4E32 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF646372B5CED37C5970C887 /* Note.swift */; };
+		DAD3F0D38E114C0631F9F25B /* LocalStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59F444DD3ECD304A51795C2D /* LocalStorageService.swift */; };
+		DEAA2E4DCB56E13E68C2E4DF /* MoveNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF8E96AA0D85782AEBF114E /* MoveNoteView.swift */; };
+		DC600C68418D43A185412AF2 /* CookieRefreshView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EFF97102C594A0FBE48F126 /* CookieRefreshView.swift */; };
+		EADD025D0D4A5C156FAC563C /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97270EFAE55440EEDAA01661 /* LoginView.swift */; };
+		F511BA2AB66C264174ED8BD4 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37620C953116D1808597F0E2 /* SettingsView.swift */; };
+		F8B26FDAED61C89BF162717B /* FormatMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6E41489C440EED33E932D6 /* FormatMenuView.swift */; };
+		FA3694454A8745C6C7A10C0F /* RichTextEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69CECF634DAAFB4C82F0835E /* RichTextEditorView.swift */; };
+		FDAF04CDDE399CD4A3919A8D /* NoteDetailWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5CEB6B65A21B230227354E /* NoteDetailWindowView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A769861F3EDD6FB8EA164C3E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 81355B570EBB2374DE65DBBC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 232A4CD56DA5C94820886B74;
+			remoteInfo = MiNoteLibrary;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		2D69F786639E49791BAEDE19 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				86E3C186412052CE4FAACE6A /* MiNoteLibrary.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		019A488CCA2E1E21AF8361E0 /* NotesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesViewModel.swift; sourceTree = "<group>"; };
+		028A0CD24BAB7BF46FFBB48A /* NetworkLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogView.swift; sourceTree = "<group>"; };
+		02B1D7E624DF253C07C01376 /* DatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseService.swift; sourceTree = "<group>"; };
+		19CE08A1CDCF94C551D20E51 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
+		228F39EBE3C9A59521361345 /* MiNoteEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteEditor.swift; sourceTree = "<group>"; };
+		330447DDB151694673431B9E /* MiNoteLibrary.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = MiNoteLibrary.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		37620C953116D1808597F0E2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		37A4A1F332A881259EAB626A /* NoteEditorWithPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorWithPreviewView.swift; sourceTree = "<group>"; };
+		3B00E144F0064250DE47B3E8 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		476A9C03E0B49614A06D5122 /* RichTextKit-1.2 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "RichTextKit-1.2"; path = "RichTextKit-1.2"; sourceTree = SOURCE_ROOT; };
+		47D76C86E30A5062CAF94D0A /* NotesListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListView.swift; sourceTree = "<group>"; };
+		567DA36FDBC75FD2B55B09EB /* EditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorToolbar.swift; sourceTree = "<group>"; };
+		56F5EDD8E69C0A0FFA4F2732 /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
+		587A0C9CB4BD8A71F364C4E7 /* MiNoteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteService.swift; sourceTree = "<group>"; };
+		59F444DD3ECD304A51795C2D /* LocalStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStorageService.swift; sourceTree = "<group>"; };
+		617362413C96866519E3F63C /* XMLConversionValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLConversionValidator.swift; sourceTree = "<group>"; };
+		65262F00AA05AEE9F2565401 /* MiNoteContentParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteContentParser.swift; sourceTree = "<group>"; };
+		69CECF634DAAFB4C82F0835E /* RichTextEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditorView.swift; sourceTree = "<group>"; };
+		71B669895CBBCACA3585BDE8 /* AttributedStringConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttributedStringConverter.swift; sourceTree = "<group>"; };
+		7B6E41489C440EED33E932D6 /* FormatMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatMenuView.swift; sourceTree = "<group>"; };
+		7C5CEB6B65A21B230227354E /* NoteDetailWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailWindowView.swift; sourceTree = "<group>"; };
+		7D618654ECC216026290166E /* DebugSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSettingsView.swift; sourceTree = "<group>"; };
+		7E78992CF7765CE27B05A0BF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		899BCC1A64E0C7397963A22B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		8EF6707EE2D91F9759ED9DF6 /* TitleEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleEditorView.swift; sourceTree = "<group>"; };
+		5EFF97102C594A0FBE48F126 /* CookieRefreshView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookieRefreshView.swift; sourceTree = "<group>"; };
+		97270EFAE55440EEDAA01661 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		AF646372B5CED37C5970C887 /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
+		BFF8E96AA0D85782AEBF114E /* MoveNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveNoteView.swift; sourceTree = "<group>"; };
+		C2707995632193C250FB2E95 /* Folder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Folder.swift; sourceTree = "<group>"; };
+		C50C112F6B4452CE0180EB74 /* NetworkLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogger.swift; sourceTree = "<group>"; };
+		D0E57318E0E7816DE9095F9F /* NoteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailView.swift; sourceTree = "<group>"; };
+		D3119E8C539E7C9A6BA2EACC /* NewNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewNoteView.swift; sourceTree = "<group>"; };
+		DAB696411171B9EF9F3A4242 /* XMLConversionTester.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLConversionTester.swift; sourceTree = "<group>"; };
+		E1CCD6998A57DECFC22BAA01 /* MiNoteEditorV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteEditorV2.swift; sourceTree = "<group>"; };
+		E4859FC7DF92EAA20C7ABF7C /* MiNoteMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MiNoteMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EEBA8B045168080EF8181BC3 /* XMLReversibilityTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLReversibilityTest.swift; sourceTree = "<group>"; };
+		F9D1C6CACE3C147825607106 /* OfflineOperationQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineOperationQueue.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1AAC36BBA7ED816CB6C70ADF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				21D18111453D5C66791D221D /* MiNoteLibrary.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAFF1E7D20D1EB04C3DFFBAA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				58D92D458E9306E74D5EE7D5 /* RichTextKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1421EF796F8114B65CAEFA00 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				476A9C03E0B49614A06D5122 /* RichTextKit-1.2 */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		2D7704AE54BE01D728CA84E6 /* View */ = {
+			isa = PBXGroup;
+			children = (
+				899BCC1A64E0C7397963A22B /* ContentView.swift */,
+				5EFF97102C594A0FBE48F126 /* CookieRefreshView.swift */,
+				7D618654ECC216026290166E /* DebugSettingsView.swift */,
+				567DA36FDBC75FD2B55B09EB /* EditorToolbar.swift */,
+				7B6E41489C440EED33E932D6 /* FormatMenuView.swift */,
+				97270EFAE55440EEDAA01661 /* LoginView.swift */,
+				228F39EBE3C9A59521361345 /* MiNoteEditor.swift */,
+				E1CCD6998A57DECFC22BAA01 /* MiNoteEditorV2.swift */,
+				BFF8E96AA0D85782AEBF114E /* MoveNoteView.swift */,
+				028A0CD24BAB7BF46FFBB48A /* NetworkLogView.swift */,
+				D3119E8C539E7C9A6BA2EACC /* NewNoteView.swift */,
+				D0E57318E0E7816DE9095F9F /* NoteDetailView.swift */,
+				37A4A1F332A881259EAB626A /* NoteEditorWithPreviewView.swift */,
+				47D76C86E30A5062CAF94D0A /* NotesListView.swift */,
+				69CECF634DAAFB4C82F0835E /* RichTextEditorView.swift */,
+				37620C953116D1808597F0E2 /* SettingsView.swift */,
+				8EF6707EE2D91F9759ED9DF6 /* TitleEditorView.swift */,
+			);
+			path = View;
+			sourceTree = "<group>";
+		};
+		35BBF0899E592177F9F49D3A = {
+			isa = PBXGroup;
+			children = (
+				7F791109747952ED64F68037 /* MiNoteLibrary */,
+				FF00D46E18151BB29A967A42 /* MiNoteMac */,
+				1421EF796F8114B65CAEFA00 /* Packages */,
+				E36C01639E475CC428F4308B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		443AD2E33FB405A4D7B6AC21 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				7E78992CF7765CE27B05A0BF /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		6E60B56FB0B1DD732948B741 /* ViewModel */ = {
+			isa = PBXGroup;
+			children = (
+				019A488CCA2E1E21AF8361E0 /* NotesViewModel.swift */,
+			);
+			path = ViewModel;
+			sourceTree = "<group>";
+		};
+		7F791109747952ED64F68037 /* MiNoteLibrary */ = {
+			isa = PBXGroup;
+			children = (
+				E5559D52A488AE2BCE60F497 /* Helper */,
+				9D5FE6CE093AAAFE063E4951 /* Model */,
+				F0A3C84C8F6563BB0061A02C /* Service */,
+				2D7704AE54BE01D728CA84E6 /* View */,
+				6E60B56FB0B1DD732948B741 /* ViewModel */,
+			);
+			name = MiNoteLibrary;
+			path = Sources/MiNoteLibrary;
+			sourceTree = "<group>";
+		};
+		9D5FE6CE093AAAFE063E4951 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				C2707995632193C250FB2E95 /* Folder.swift */,
+				AF646372B5CED37C5970C887 /* Note.swift */,
+			);
+			path = Model;
+			sourceTree = "<group>";
+		};
+		E36C01639E475CC428F4308B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				330447DDB151694673431B9E /* MiNoteLibrary.framework */,
+				E4859FC7DF92EAA20C7ABF7C /* MiNoteMac.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E5559D52A488AE2BCE60F497 /* Helper */ = {
+			isa = PBXGroup;
+			children = (
+				71B669895CBBCACA3585BDE8 /* AttributedStringConverter.swift */,
+				65262F00AA05AEE9F2565401 /* MiNoteContentParser.swift */,
+				DAB696411171B9EF9F3A4242 /* XMLConversionTester.swift */,
+				617362413C96866519E3F63C /* XMLConversionValidator.swift */,
+				EEBA8B045168080EF8181BC3 /* XMLReversibilityTest.swift */,
+			);
+			path = Helper;
+			sourceTree = "<group>";
+		};
+		F0A3C84C8F6563BB0061A02C /* Service */ = {
+			isa = PBXGroup;
+			children = (
+				02B1D7E624DF253C07C01376 /* DatabaseService.swift */,
+				59F444DD3ECD304A51795C2D /* LocalStorageService.swift */,
+				587A0C9CB4BD8A71F364C4E7 /* MiNoteService.swift */,
+				C50C112F6B4452CE0180EB74 /* NetworkLogger.swift */,
+				19CE08A1CDCF94C551D20E51 /* NetworkMonitor.swift */,
+				F9D1C6CACE3C147825607106 /* OfflineOperationQueue.swift */,
+				56F5EDD8E69C0A0FFA4F2732 /* SyncService.swift */,
+			);
+			path = Service;
+			sourceTree = "<group>";
+		};
+		FF00D46E18151BB29A967A42 /* MiNoteMac */ = {
+			isa = PBXGroup;
+			children = (
+				3B00E144F0064250DE47B3E8 /* App.swift */,
+				7C5CEB6B65A21B230227354E /* NoteDetailWindowView.swift */,
+				443AD2E33FB405A4D7B6AC21 /* Resources */,
+			);
+			name = MiNoteMac;
+			path = Sources/MiNoteMac;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		232A4CD56DA5C94820886B74 /* MiNoteLibrary */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 97A8611189E3F62654430ADE /* Build configuration list for PBXNativeTarget "MiNoteLibrary" */;
+			buildPhases = (
+				CC9EEF7062AB90AD32B6CFB2 /* Sources */,
+				AAFF1E7D20D1EB04C3DFFBAA /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MiNoteLibrary;
+			packageProductDependencies = (
+				74F25B04FB6D33A5E4258BC5 /* RichTextKit */,
+			);
+			productName = MiNoteLibrary;
+			productReference = 330447DDB151694673431B9E /* MiNoteLibrary.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		D24DAD724A999670EE75D089 /* MiNoteMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CDCC672759D2DCA242BB0306 /* Build configuration list for PBXNativeTarget "MiNoteMac" */;
+			buildPhases = (
+				52224CB34CDC6FEDAC2A236F /* Sources */,
+				8C19332CF6F60445318CD7E6 /* Resources */,
+				1AAC36BBA7ED816CB6C70ADF /* Frameworks */,
+				2D69F786639E49791BAEDE19 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9361876CA7112C10F5588F86 /* PBXTargetDependency */,
+			);
+			name = MiNoteMac;
+			packageProductDependencies = (
+			);
+			productName = MiNoteMac;
+			productReference = E4859FC7DF92EAA20C7ABF7C /* MiNoteMac.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		81355B570EBB2374DE65DBBC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = 73AC666F62BCE7EDDA9F8CE6 /* Build configuration list for PBXProject "MiNoteMac" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = "zh-Hans";
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				"zh-Hans",
+			);
+			mainGroup = 35BBF0899E592177F9F49D3A;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5BBC8CA8EE7A31E785A1B661 /* XCLocalSwiftPackageReference "RichTextKit-1.2" */,
+			);
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				232A4CD56DA5C94820886B74 /* MiNoteLibrary */,
+				D24DAD724A999670EE75D089 /* MiNoteMac */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8C19332CF6F60445318CD7E6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9BCD207D7B2B39AF4505E2F5 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		52224CB34CDC6FEDAC2A236F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D4C433F7392D5562CA17466D /* App.swift in Sources */,
+				FDAF04CDDE399CD4A3919A8D /* NoteDetailWindowView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC9EEF7062AB90AD32B6CFB2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				70D0B38212A1740EAE99C61D /* AttributedStringConverter.swift in Sources */,
+				08E355BA0F55B6147B818BB7 /* ContentView.swift in Sources */,
+				13A3D0BE46C8453AE5A5AC57 /* DatabaseService.swift in Sources */,
+				B1126FD8C91399CA66D798E5 /* DebugSettingsView.swift in Sources */,
+				8B60215B8052BA7AA3E07753 /* EditorToolbar.swift in Sources */,
+				49180BDC746E4820429FD773 /* Folder.swift in Sources */,
+				F8B26FDAED61C89BF162717B /* FormatMenuView.swift in Sources */,
+				DAD3F0D38E114C0631F9F25B /* LocalStorageService.swift in Sources */,
+				DC600C68418D43A185412AF2 /* CookieRefreshView.swift in Sources */,
+				EADD025D0D4A5C156FAC563C /* LoginView.swift in Sources */,
+				CF6DE736A8829F5B477729BE /* MiNoteContentParser.swift in Sources */,
+				048402EA2165B5AE26C7D7E8 /* MiNoteEditor.swift in Sources */,
+				479FC5FD5C076D121F4CFF61 /* MiNoteEditorV2.swift in Sources */,
+				46146E87652EBF78CBD635C8 /* MiNoteService.swift in Sources */,
+				DEAA2E4DCB56E13E68C2E4DF /* MoveNoteView.swift in Sources */,
+				8BD76061009C76B4112E81C4 /* NetworkLogView.swift in Sources */,
+				0CCDEBB4DB6B30FF58A99676 /* NetworkLogger.swift in Sources */,
+				1DF15B463E6D141AD6A04E0D /* NetworkMonitor.swift in Sources */,
+				615881628A721CC39363FC3B /* NewNoteView.swift in Sources */,
+				DA77A42F8FDBD2DCB66D4E32 /* Note.swift in Sources */,
+				AE321F1F3598F5F63850CF7A /* NoteDetailView.swift in Sources */,
+				379940B416A995F1EC1343FB /* NoteEditorWithPreviewView.swift in Sources */,
+				08DA95CC567BE3D0EF366883 /* NotesListView.swift in Sources */,
+				A13B020ABBDB66D9C2EA0B9C /* NotesViewModel.swift in Sources */,
+				18021F0E3CE77ABC9062D4DD /* OfflineOperationQueue.swift in Sources */,
+				FA3694454A8745C6C7A10C0F /* RichTextEditorView.swift in Sources */,
+				F511BA2AB66C264174ED8BD4 /* SettingsView.swift in Sources */,
+				67B51E3FF8FED57EB63E000F /* SyncService.swift in Sources */,
+				8EC27E72E7C0EF2AAD95BF84 /* TitleEditorView.swift in Sources */,
+				D0AD5C1D9245EF07697070D0 /* XMLConversionTester.swift in Sources */,
+				D15198A6141F07FD48C24890 /* XMLConversionValidator.swift in Sources */,
+				2892DE9DF5909F639453F7EF /* XMLReversibilityTest.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		9361876CA7112C10F5588F86 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 232A4CD56DA5C94820886B74 /* MiNoteLibrary */;
+			targetProxy = A769861F3EDD6FB8EA164C3E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		05F5844AC9C70F658AD28F7E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		1434C361BFB76100EC90AC73 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteLibrary;
+				PRODUCT_NAME = MiNoteLibrary;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		448C68BB6A2EC9A4AF516C83 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteMac;
+				PRODUCT_NAME = MiNoteMac;
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		600E9CC8031EEB1049D6A3FA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteLibrary;
+				PRODUCT_NAME = MiNoteLibrary;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		9200C758F77B18A9E10B87EF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A7527F90D0500B8DF99DED71 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_DEBUG_DYLIB = YES;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteMac;
+				PRODUCT_NAME = MiNoteMac;
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		73AC666F62BCE7EDDA9F8CE6 /* Build configuration list for PBXProject "MiNoteMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9200C758F77B18A9E10B87EF /* Debug */,
+				05F5844AC9C70F658AD28F7E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		97A8611189E3F62654430ADE /* Build configuration list for PBXNativeTarget "MiNoteLibrary" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				600E9CC8031EEB1049D6A3FA /* Debug */,
+				1434C361BFB76100EC90AC73 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CDCC672759D2DCA242BB0306 /* Build configuration list for PBXNativeTarget "MiNoteMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A7527F90D0500B8DF99DED71 /* Debug */,
+				448C68BB6A2EC9A4AF516C83 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5BBC8CA8EE7A31E785A1B661 /* XCLocalSwiftPackageReference "RichTextKit-1.2" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "RichTextKit-1.2";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		74F25B04FB6D33A5E4258BC5 /* RichTextKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5BBC8CA8EE7A31E785A1B661 /* XCLocalSwiftPackageReference "RichTextKit-1.2" */;
+			productName = RichTextKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 81355B570EBB2374DE65DBBC /* Project object */;
+}

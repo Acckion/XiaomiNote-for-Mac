@@ -1,5 +1,16 @@
 import Foundation
 
+/// 笔记数据模型
+/// 
+/// 表示一条笔记的所有信息，包括：
+/// - 基本信息：ID、标题、内容、文件夹ID等
+/// - 元数据：创建时间、更新时间、标签、收藏状态等
+/// - 原始数据：rawData存储从API获取的原始数据（包括tag等）
+/// - RTF数据：rtfData存储AttributedString的RTF格式（用于macOS原生存储）
+/// 
+/// **数据格式**：
+/// - content: XML格式的笔记内容（小米笔记格式）
+/// - rawData: 包含tag、createDate等API需要的字段
 public struct Note: Identifiable, Codable, Hashable {
     public let id: String
     public var title: String
@@ -13,12 +24,15 @@ public struct Note: Identifiable, Codable, Hashable {
     // 小米笔记格式的原始数据
     public var rawData: [String: Any]?
     
+    // macOS 26 原生存储：RTF 格式的 AttributedString 数据
+    public var rtfData: Data?
+    
     enum CodingKeys: String, CodingKey {
-        case id, title, content, folderId, isStarred, createdAt, updatedAt, tags, rawData
+        case id, title, content, folderId, isStarred, createdAt, updatedAt, tags, rawData, rtfData
     }
     
     public init(id: String, title: String, content: String, folderId: String, isStarred: Bool = false, 
-         createdAt: Date, updatedAt: Date, tags: [String] = [], rawData: [String: Any]? = nil) {
+         createdAt: Date, updatedAt: Date, tags: [String] = [], rawData: [String: Any]? = nil, rtfData: Data? = nil) {
         self.id = id
         self.title = title
         self.content = content
@@ -28,6 +42,7 @@ public struct Note: Identifiable, Codable, Hashable {
         self.updatedAt = updatedAt
         self.tags = tags
         self.rawData = rawData
+        self.rtfData = rtfData
     }
     
     // 自定义编码
@@ -110,7 +125,15 @@ public struct Note: Identifiable, Codable, Hashable {
         }
     }
     
-    // 从小米笔记API数据创建
+    // MARK: - 数据转换
+    
+    /// 从小米笔记API数据创建Note对象
+    /// 
+    /// 解析API返回的笔记数据，提取标题、时间戳等信息
+    /// 注意：此方法创建的对象content为空，需要后续调用fetchNoteDetails获取完整内容
+    /// 
+    /// - Parameter data: API返回的笔记数据字典
+    /// - Returns: Note对象，如果数据无效则返回nil
     static func fromMinoteData(_ data: [String: Any]) -> Note? {
         guard let id = data["id"] as? String else {
             return nil
@@ -161,7 +184,12 @@ public struct Note: Identifiable, Codable, Hashable {
         )
     }
     
-    // 从笔记详情API响应更新内容
+    /// 从笔记详情API响应更新内容
+    /// 
+    /// 解析API返回的笔记详情，更新content、title等字段
+    /// 支持多种响应格式（data.entry、直接entry、响应本身）
+    /// 
+    /// - Parameter noteDetails: API返回的笔记详情字典
     mutating func updateContent(from noteDetails: [String: Any]) {
         print("[NOTE] 开始更新内容，响应结构: \(noteDetails.keys)")
         
@@ -322,7 +350,11 @@ public struct Note: Identifiable, Codable, Hashable {
         return copy
     }
     
-    // 转换为小米笔记API格式
+    /// 转换为小米笔记API格式
+    /// 
+    /// 将Note对象转换为API需要的字典格式
+    /// 
+    /// - Returns: API格式的字典
     func toMinoteData() -> [String: Any] {
         var data: [String: Any] = [
             "id": id,

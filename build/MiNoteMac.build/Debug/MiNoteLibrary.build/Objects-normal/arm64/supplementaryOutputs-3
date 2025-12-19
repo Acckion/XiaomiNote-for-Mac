@@ -1,0 +1,23 @@
+{
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Helper/MiNoteContentParser.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/MiNoteContentParser.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/MiNoteContentParser.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/MiNoteContentParser.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/MiNoteContentParser.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/MiNoteContentParser.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/LocalStorageService.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/LocalStorageService.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/LocalStorageService.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/LocalStorageService.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/LocalStorageService.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/LocalStorageService.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/LoginView.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/LoginView.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/LoginView.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/LoginView.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/LoginView.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/arm64/LoginView.swiftdeps"
+  }
+}

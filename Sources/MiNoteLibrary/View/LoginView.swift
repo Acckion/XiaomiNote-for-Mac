@@ -77,7 +77,7 @@ struct LoginView: View {
                 // 加载指示器 - 覆盖在主内容之上
                 if isLoading && !isLoggedIn {
                     Color(NSColor.windowBackgroundColor)
-                        .opacity(0.95)
+                        .opacity(0.5)
                         .ignoresSafeArea()
                     
                     VStack(spacing: 16) {

@@ -1,0 +1,3 @@
+module MiNoteLibrary {
+    header "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/include/MiNoteLibrary-Swift.h"
+}

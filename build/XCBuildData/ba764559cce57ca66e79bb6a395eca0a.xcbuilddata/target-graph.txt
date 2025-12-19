@@ -1,0 +1,9 @@
+Target dependency graph (4 targets)
+Target 'MiNoteLibrary' in project 'MiNoteMac'
+➜ Explicit dependency on target 'RichTextKit' in project 'RichTextKit'
+Target 'RichTextKit' in project 'RichTextKit'
+➜ Explicit dependency on target 'RichTextKit' in project 'RichTextKit'
+➜ Explicit dependency on target 'RichTextKit_RichTextKit' in project 'RichTextKit'
+Target 'RichTextKit' in project 'RichTextKit'
+➜ Explicit dependency on target 'RichTextKit_RichTextKit' in project 'RichTextKit'
+Target 'RichTextKit_RichTextKit' in project 'RichTextKit' (no dependencies)

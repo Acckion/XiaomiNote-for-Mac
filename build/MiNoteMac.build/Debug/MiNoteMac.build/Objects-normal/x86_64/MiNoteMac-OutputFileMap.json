@@ -1,0 +1,39 @@
+{
+  "" : {
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/MiNoteMac-primary.dia",
+    "emit-module-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/MiNoteMac-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/MiNoteMac-primary-emit-module.dia",
+    "pch" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/MiNoteMac-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/MiNoteMac-primary.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/App.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/App.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/App.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/App.dia",
+    "index-unit-output-path" : "/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/App.o",
+    "llvm-bc" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/App.bc",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/App.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/App.swiftdeps",
+    "swiftmodule" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/App~partial.swiftmodule"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteMac/NoteDetailWindowView.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/NoteDetailWindowView.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/NoteDetailWindowView.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/NoteDetailWindowView.dia",
+    "index-unit-output-path" : "/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/NoteDetailWindowView.o",
+    "llvm-bc" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/NoteDetailWindowView.bc",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/NoteDetailWindowView.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/NoteDetailWindowView.swiftdeps",
+    "swiftmodule" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/NoteDetailWindowView~partial.swiftmodule"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteMac.build/Objects-normal/x86_64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}

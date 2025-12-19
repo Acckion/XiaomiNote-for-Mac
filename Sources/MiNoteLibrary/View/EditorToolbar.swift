@@ -152,7 +152,7 @@ struct EditorToolbar: View {
     
     private func applyHeading(level: Int) {
         guard let textView = textView,
-              let textStorage = textView.textStorage else { return }
+              let _ = textView.textStorage else { return }
         
         let range = textView.selectedRange()
         var targetRange = range

@@ -28,5 +28,7 @@
 	<string></string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSAccentColorName</key>
+	<string>Yellow</string>
 </dict>
 </plist>

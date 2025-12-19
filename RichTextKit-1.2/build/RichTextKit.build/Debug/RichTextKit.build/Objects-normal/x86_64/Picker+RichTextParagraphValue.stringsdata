@@ -1,0 +1,32 @@
+{
+  "source": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Paragraph/Picker+RichTextParagraphValue.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%@",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 69
+        }
+      },
+      {
+        "comment": "",
+        "key": "Context",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 69
+        }
+      },
+      {
+        "comment": "",
+        "key": "Paragraph",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 69
+        }
+      }
+    ]
+  },
+  "version": 1
+}

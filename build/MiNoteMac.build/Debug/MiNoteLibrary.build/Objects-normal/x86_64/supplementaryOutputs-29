@@ -1,0 +1,23 @@
+{
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/SyncService.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/SyncService.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/SyncService.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/SyncService.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/SyncService.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/SyncService.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/SettingsView.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/SettingsView.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/SettingsView.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/SettingsView.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/SettingsView.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/SettingsView.swiftdeps"
+  },
+  "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/View/TitleEditorView.swift" : {
+    "const-values" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/TitleEditorView.swiftconstvalues",
+    "dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/TitleEditorView.d",
+    "diagnostics" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/TitleEditorView.dia",
+    "object" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/TitleEditorView.o",
+    "swift-dependencies" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/build/MiNoteMac.build/Debug/MiNoteLibrary.build/Objects-normal/x86_64/TitleEditorView.swiftdeps"
+  }
+}

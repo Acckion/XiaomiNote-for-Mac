@@ -214,6 +214,8 @@ create_app_bundle() {
     <string>NSApplication</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSAccentColorName</key>
+    <string>Yellow</string>
 ${ICON_PLIST}
 </dict>
 </plist>

@@ -7,10 +7,24 @@ struct MiNoteMacApp: App {
     @StateObject private var viewModel = NotesViewModel()
     @Environment(\.openWindow) private var openWindow
     
+    init() {
+        // 设置应用强调色为黄色
+        // 注意：根据 macOS 官方文档，应用强调色只有在系统设置中
+        // "系统设置 > 外观 > 强调色" 设置为"多色"时才会生效。
+        // 如果系统强调色设置为其他颜色（如紫色、蓝色），系统会使用用户选择的颜色。
+        // 
+        // 要让应用显示黄色强调色，用户需要：
+        // 1. 打开"系统设置"
+        // 2. 点击"外观"
+        // 3. 将"强调色"设置为"多色"
+        // 
+        // 然后应用会自动使用我们在 Info.plist 中设置的黄色强调色。
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView(viewModel: viewModel)
-                .navigationTitle("备忘录")
+                .accentColor(.yellow)  // 设置应用强调色为黄色（当系统强调色为"多色"时生效）
                 .onAppear {
                     // 激活应用程序
                     NSApp.activate(ignoringOtherApps: true)
@@ -99,13 +113,24 @@ struct MiNoteMacApp: App {
         
         Settings {
             SettingsView(viewModel: viewModel)
+                .accentColor(.yellow)  // 设置设置窗口的强调色为黄色
         }
         
         Window("调试设置", id: "debug-settings") {
             DebugSettingsView()
+                .accentColor(.yellow)  // 设置调试设置窗口的强调色为黄色
         }
         .windowStyle(.titleBar)
         .windowResizability(.contentSize)
+        
+        // 笔记详情窗口（用于在新窗口打开笔记）
+        WindowGroup("备忘录", id: "note-detail") {
+            NoteDetailWindowView()
+                .accentColor(.yellow)  // 设置笔记详情窗口的强调色为黄色
+        }
+        .windowStyle(.titleBar)
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 800, height: 600)
     }
     
     private func openDebugSettings() {
@@ -164,8 +189,9 @@ struct MiNoteMacApp: App {
             note.content
         ])
         
-        if let window = NSApp.windows.first(where: { $0.isKeyWindow }) {
-            sharingService.show(relativeTo: .zero, of: window.contentView!, preferredEdge: .minY)
+        if let window = NSApp.windows.first(where: { $0.isKeyWindow }),
+           let contentView = window.contentView {
+            sharingService.show(relativeTo: NSRect.zero, of: contentView, preferredEdge: NSRectEdge.minY)
         }
     }
     
@@ -225,7 +251,7 @@ struct MiNoteMacApp: App {
         panel.begin { response in
             if response == .OK, let url = panel.url {
                 do {
-                    try note.content.write(to: url, atomically: true, encoding: .utf8)
+                    try note.content.write(to: url, atomically: true, encoding: String.Encoding.utf8)
                 } catch {
                     print("[App] 导出笔记失败: \(error)")
                     let errorAlert = NSAlert()

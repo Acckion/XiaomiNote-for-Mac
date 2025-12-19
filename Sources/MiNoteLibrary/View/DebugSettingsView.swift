@@ -48,7 +48,7 @@ public struct DebugSettingsView: View {
                             TextEditor(text: $editedCookieString)
                                 .font(.system(.body, design: .monospaced))
                                 .frame(height: 120)
-                                .border(Color.accentColor.opacity(0.5), width: 1)
+                                .border(Color.yellow.opacity(0.5), width: 1)
                                 .onChange(of: editedCookieString) { oldValue, newValue in
                                     // 实时解析 serviceToken
                                     parseServiceToken(from: newValue)
@@ -397,7 +397,7 @@ public struct DebugSettingsView: View {
         sysctlbyname("hw.model", nil, &size, nil, 0)
         var model = [CChar](repeating: 0, count: size)
         sysctlbyname("hw.model", &model, &size, nil, 0)
-        return String(cString: model)
+        return String(decoding: model.prefix(while: { $0 != 0 }), as: UTF8.self)
     }
     
     private func getMemoryUsage() -> String {

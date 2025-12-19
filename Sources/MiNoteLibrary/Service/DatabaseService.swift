@@ -1,7 +1,17 @@
 import Foundation
 import SQLite3
 
-/// SQLite 数据库服务
+/// SQLite数据库服务
+/// 
+/// 负责所有数据库操作，包括：
+/// - 笔记的CRUD操作
+/// - 文件夹的CRUD操作
+/// - 离线操作队列管理
+/// - 同步状态管理
+/// - 待删除笔记管理
+/// 
+/// **线程安全**：使用并发队列（DispatchQueue）确保线程安全
+/// **数据库位置**：存储在应用程序支持目录中
 final class DatabaseService: @unchecked Sendable {
     static let shared = DatabaseService()
     
@@ -45,6 +55,14 @@ final class DatabaseService: @unchecked Sendable {
         }
     }
     
+    /// 创建数据库表
+    /// 
+    /// 创建以下表：
+    /// - notes: 笔记表
+    /// - folders: 文件夹表
+    /// - offline_operations: 离线操作队列表
+    /// - sync_status: 同步状态表（单行表）
+    /// - pending_deletions: 待删除笔记表
     private func createTables() {
         // 创建 notes 表
         let createNotesTable = """
@@ -57,10 +75,17 @@ final class DatabaseService: @unchecked Sendable {
             created_at REAL NOT NULL,
             updated_at REAL NOT NULL,
             tags TEXT, -- JSON 数组
-            raw_data TEXT -- JSON 对象
+            raw_data TEXT, -- JSON 对象
+            rtf_data BLOB -- RTF 格式的 AttributedString 数据（macOS 26 原生存储）
         );
         """
         executeSQL(createNotesTable)
+        
+        // 如果表已存在但没有 rtf_data 字段，添加该字段
+        let addRTFColumn = """
+        ALTER TABLE notes ADD COLUMN rtf_data BLOB;
+        """
+        executeSQL(addRTFColumn, ignoreError: true)  // 忽略错误（如果字段已存在）
         
         // 创建 folders 表
         let createFoldersTable = """
@@ -140,7 +165,7 @@ final class DatabaseService: @unchecked Sendable {
         
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             if !ignoreError {
-                print("[Database] SQL 准备失败: \(String(cString: sqlite3_errmsg(db)))")
+            print("[Database] SQL 准备失败: \(String(cString: sqlite3_errmsg(db)))")
             }
             return
         }
@@ -163,12 +188,17 @@ final class DatabaseService: @unchecked Sendable {
     
     // MARK: - 笔记操作
     
-    /// 保存笔记
+    /// 保存笔记（插入或更新）
+    /// 
+    /// 如果笔记已存在，则更新；否则插入新记录
+    /// 
+    /// - Parameter note: 要保存的笔记对象
+    /// - Throws: DatabaseError（数据库操作失败）
     func saveNote(_ note: Note) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = """
-            INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data, rtf_data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
             
             var statement: OpaquePointer?
@@ -203,6 +233,13 @@ final class DatabaseService: @unchecked Sendable {
             }
             sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
             
+            // rtf_data 作为 BLOB（AttributedString 的 RTF 格式）
+            if let rtfData = note.rtfData {
+                sqlite3_bind_blob(statement, 10, (rtfData as NSData).bytes, Int32(rtfData.count), nil)
+            } else {
+                sqlite3_bind_null(statement, 10)
+            }
+            
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
@@ -212,9 +249,13 @@ final class DatabaseService: @unchecked Sendable {
     }
     
     /// 加载笔记
+    /// 
+    /// - Parameter noteId: 笔记ID
+    /// - Returns: 笔记对象，如果不存在则返回nil
+    /// - Throws: DatabaseError（数据库操作失败）
     func loadNote(noteId: String) throws -> Note? {
         return try dbQueue.sync {
-            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes WHERE id = ?;"
+            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data, rtf_data FROM notes WHERE id = ?;"
             
             var statement: OpaquePointer?
             defer {
@@ -238,9 +279,14 @@ final class DatabaseService: @unchecked Sendable {
     }
     
     /// 获取所有笔记
+    /// 
+    /// 按更新时间倒序排列（最新的在前）
+    /// 
+    /// - Returns: 笔记数组
+    /// - Throws: DatabaseError（数据库操作失败）
     func getAllNotes() throws -> [Note] {
         return try dbQueue.sync {
-            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes ORDER BY updated_at DESC;"
+            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data, rtf_data FROM notes ORDER BY updated_at DESC;"
             
             var statement: OpaquePointer?
             defer {
@@ -277,6 +323,9 @@ final class DatabaseService: @unchecked Sendable {
     }
     
     /// 删除笔记
+    /// 
+    /// - Parameter noteId: 要删除的笔记ID
+    /// - Throws: DatabaseError（数据库操作失败）
     func deleteNote(noteId: String) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM notes WHERE id = ?;"
@@ -303,6 +352,9 @@ final class DatabaseService: @unchecked Sendable {
     }
     
     /// 检查笔记是否存在
+    /// 
+    /// - Parameter noteId: 笔记ID
+    /// - Returns: 如果存在返回true，否则返回false
     func noteExists(noteId: String) -> Bool {
         return dbQueue.sync {
             let sql = "SELECT COUNT(*) FROM notes WHERE id = ?;"
@@ -390,6 +442,22 @@ final class DatabaseService: @unchecked Sendable {
             print("[Database] parseNote: raw_data 字段为 NULL")
         }
         
+        // 解析 rtf_data（AttributedString 的 RTF 格式）
+        var rtfData: Data? = nil
+        let columnCount = sqlite3_column_count(statement)
+        if columnCount >= 10 {
+            if sqlite3_column_type(statement, 9) != SQLITE_NULL {
+                let dataLength = sqlite3_column_bytes(statement, 9)
+                let dataPointer = sqlite3_column_blob(statement, 9)
+                if let dataPointer = dataPointer {
+                    rtfData = Data(bytes: dataPointer, count: Int(dataLength))
+                    print("[Database] parseNote: rtf_data 字段存在，长度=\(rtfData?.count ?? 0)")
+                }
+            } else {
+                print("[Database] parseNote: rtf_data 字段为 NULL")
+            }
+        }
+        
         let note = Note(
             id: id,
             title: title,
@@ -399,7 +467,8 @@ final class DatabaseService: @unchecked Sendable {
             createdAt: createdAt,
             updatedAt: updatedAt,
             tags: tags,
-            rawData: rawData
+            rawData: rawData,
+            rtfData: rtfData
         )
         
         print("[Database] parseNote: 笔记解析完成 id=\(id), title=\(title)")
@@ -408,7 +477,10 @@ final class DatabaseService: @unchecked Sendable {
     
     // MARK: - 文件夹操作
     
-    /// 保存文件夹
+    /// 保存文件夹（插入或更新）
+    /// 
+    /// - Parameter folder: 要保存的文件夹对象
+    /// - Throws: DatabaseError（数据库操作失败）
     func saveFolder(_ folder: Folder) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = """
@@ -451,6 +523,9 @@ final class DatabaseService: @unchecked Sendable {
     }
     
     /// 保存多个文件夹
+    /// 
+    /// - Parameter folders: 文件夹数组
+    /// - Throws: DatabaseError（数据库操作失败）
     func saveFolders(_ folders: [Folder]) throws {
         for folder in folders {
             try saveFolder(folder)
@@ -458,6 +533,14 @@ final class DatabaseService: @unchecked Sendable {
     }
     
     /// 加载所有文件夹
+    /// 
+    /// 按以下顺序排列：
+    /// 1. 置顶文件夹（is_pinned = 1）
+    /// 2. 系统文件夹（is_system = 1）
+    /// 3. 普通文件夹（按名称升序）
+    /// 
+    /// - Returns: 文件夹数组
+    /// - Throws: DatabaseError（数据库操作失败）
     func loadFolders() throws -> [Folder] {
         return try dbQueue.sync {
             let sql = "SELECT id, name, count, is_system, is_pinned, created_at, raw_data FROM folders ORDER BY is_pinned DESC, is_system DESC, name ASC;"
@@ -478,8 +561,8 @@ final class DatabaseService: @unchecked Sendable {
             while sqlite3_step(statement) == SQLITE_ROW {
                 rowCount += 1
                 do {
-                    if let folder = try parseFolder(from: statement) {
-                        folders.append(folder)
+                if let folder = try parseFolder(from: statement) {
+                    folders.append(folder)
                         print("[Database] loadFolders: 成功解析文件夹 id=\(folder.id), name=\(folder.name), isSystem=\(folder.isSystem)")
                     } else {
                         print("[Database] loadFolders: ⚠️ parseFolder 返回 nil，跳过该行")
@@ -555,10 +638,10 @@ final class DatabaseService: @unchecked Sendable {
         var rawData: [String: Any]? = nil
         if sqlite3_column_type(statement, rawDataIndex) != SQLITE_NULL {
             if let rawDataText = sqlite3_column_text(statement, rawDataIndex) {
-                let rawDataString = String(cString: rawDataText)
+            let rawDataString = String(cString: rawDataText)
                 if !rawDataString.isEmpty, let rawDataData = rawDataString.data(using: .utf8), !rawDataData.isEmpty {
                     do {
-                        rawData = try JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
+                rawData = try JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
                     } catch {
                         // 如果 JSON 解析失败，记录错误但不阻止文件夹加载
                         print("[Database] parseFolder: 解析 raw_data 失败 (id=\(id)): \(error)")
@@ -580,7 +663,12 @@ final class DatabaseService: @unchecked Sendable {
     
     // MARK: - 离线操作队列
     
-    /// 添加离线操作
+    /// 添加离线操作到队列
+    /// 
+    /// 离线操作会在网络恢复时自动处理
+    /// 
+    /// - Parameter operation: 离线操作对象
+    /// - Throws: DatabaseError（数据库操作失败）
     func addOfflineOperation(_ operation: OfflineOperation) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = """
@@ -614,6 +702,11 @@ final class DatabaseService: @unchecked Sendable {
     }
     
     /// 获取所有离线操作
+    /// 
+    /// 按时间戳升序排列（最早的在前面）
+    /// 
+    /// - Returns: 离线操作数组
+    /// - Throws: DatabaseError（数据库操作失败）
     func getAllOfflineOperations() throws -> [OfflineOperation] {
         return try dbQueue.sync {
             let sql = "SELECT id, type, note_id, data, timestamp FROM offline_operations ORDER BY timestamp ASC;"
@@ -707,6 +800,11 @@ final class DatabaseService: @unchecked Sendable {
     // MARK: - 同步状态
     
     /// 保存同步状态
+    /// 
+    /// 同步状态是单行表（id = 1），每次保存都会替换现有记录
+    /// 
+    /// - Parameter status: 同步状态对象
+    /// - Throws: DatabaseError（数据库操作失败）
     func saveSyncStatus(_ status: SyncStatus) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = """
@@ -756,6 +854,9 @@ final class DatabaseService: @unchecked Sendable {
     }
     
     /// 加载同步状态
+    /// 
+    /// - Returns: 同步状态对象，如果不存在则返回nil
+    /// - Throws: DatabaseError（数据库操作失败）
     func loadSyncStatus() throws -> SyncStatus? {
         return try dbQueue.sync {
             let sql = "SELECT last_sync_time, sync_tag, synced_note_ids, last_page_sync_time FROM sync_status WHERE id = 1;"

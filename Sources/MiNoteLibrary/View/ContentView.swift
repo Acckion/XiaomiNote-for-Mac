@@ -13,6 +13,7 @@ import AppKit
 /// - 左侧：侧边栏（文件夹列表）
 /// - 中间：笔记列表（显示选中文件夹的笔记）
 /// - 右侧：笔记编辑器（显示和编辑选中的笔记）
+@available(macOS 14.0, *)
 public struct ContentView: View {
     // MARK: - 数据绑定和状态管理
     
@@ -32,6 +33,9 @@ public struct ContentView: View {
     
     /// 是否显示登录弹窗
     @State private var showingLogin = false
+    
+    /// 是否显示Cookie刷新弹窗
+    @State private var showingCookieRefresh = false
     
     /// 是否显示同步菜单（已废弃，保留用于兼容）
     @State private var showingSyncMenu = false
@@ -152,11 +156,20 @@ public struct ContentView: View {
         .sheet(isPresented: $showingLogin) {
             LoginView(viewModel: viewModel)
         }
+        .sheet(isPresented: $showingCookieRefresh) {
+            CookieRefreshView(viewModel: viewModel)
+        }
         .onAppear(perform: handleAppear)
         .onChange(of: viewModel.showLoginView) { oldValue, newValue in
             if newValue {
                 showingLogin = true
                 viewModel.showLoginView = false
+            }
+        }
+        .onChange(of: viewModel.showCookieRefreshView) { oldValue, newValue in
+            if newValue {
+                showingCookieRefresh = true
+                viewModel.showCookieRefreshView = false
             }
         }
     }
@@ -207,7 +220,7 @@ public struct ContentView: View {
     /// 
     /// 显示选中文件夹的笔记列表，包含：
     /// - 笔记列表（NotesListView）
-    /// - 工具栏（新建按钮、文件夹信息、在线状态、搜索框）
+    /// - 工具栏（在线状态、搜索框）
     /// 
     /// 宽度设置：
     /// - 最小：calculatedNotesListMinWidth（动态计算）
@@ -226,25 +239,17 @@ public struct ContentView: View {
                 )
             }
         }
+        .navigationTitle(viewModel.selectedFolder?.name ?? "所有笔记")
+        .navigationSubtitle("\(viewModel.filteredNotes.count) 个备忘录")
         .navigationSplitViewColumnWidth(
             min: calculatedNotesListMinWidth,
             ideal: calculatedNotesListIdealWidth,
             max: notesListMaxWidth
         )
         .toolbar {
-            // 左侧：新建笔记按钮
-            ToolbarItem(placement: .principal) {
-                newNoteButton
-            }
-            
-            // 中间：文件夹信息（文件夹名称 + 笔记数量）
-            ToolbarItem(placement: .navigation) {
-                folderInfoView
-            }
-            
-            // 自动位置：在线状态指示器
+            // 自动位置：在线状态指示器（Cookie失效时可点击刷新）
             ToolbarItem(placement: .automatic) {
-                onlineStatusIndicator
+                onlineStatusIndicatorWithAction
             }
             
 //            // 右侧：搜索框/搜索按钮
@@ -286,26 +291,6 @@ public struct ContentView: View {
         .help("新建笔记")
     }
     
-    /// 文件夹信息视图
-    /// 
-    /// 显示当前选中文件夹的名称和笔记数量
-    /// 位置：工具栏中间（.principal）
-    /// 
-    /// 显示内容：
-    /// - 文件夹名称（大标题）
-    /// - 笔记数量（小字，灰色）
-    private var folderInfoView: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(viewModel.selectedFolder?.name ?? "所有笔记")
-                .font(.title3)
-                .fontWeight(.semibold)
-            
-            Text("\(viewModel.filteredNotes.count) 个备忘录")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .background(Color.clear)
-    }
     
     /// 在线状态指示器
     /// 
@@ -314,17 +299,79 @@ public struct ContentView: View {
     /// 
     /// 显示内容：
     /// - 绿色圆点 + "在线"（网络正常且cookie有效）
-    /// - 橙色圆点 + "离线"（网络断开或cookie失效）
+    /// - 红色圆点 + "Cookie失效"（网络正常但cookie失效）
+    /// - 黄色圆点 + "离线"（网络断开）
     private var onlineStatusIndicator: some View {
         HStack(spacing: 4) {
             Circle()
-                .fill(viewModel.isOnline ? Color.green : Color.orange)
+                .fill(statusColor)
                 .frame(width: 8, height: 8)
-            Text(viewModel.isOnline ? "在线" : "离线")
+            Text(statusText)
                 .font(.caption2)
-                .foregroundColor(viewModel.isOnline ? .green : .orange)
+                .foregroundColor(statusColor)
         }
-        .help(viewModel.isOnline ? "已连接到小米笔记服务器" : "离线模式：更改将在网络恢复后同步")
+        .help(statusHelpText)
+    }
+    
+    /// 状态颜色
+    private var statusColor: Color {
+        if viewModel.isOnline {
+            return .green
+        } else if viewModel.isCookieExpired {
+            return .red
+        } else {
+            return .yellow
+        }
+    }
+    
+    /// 状态文本
+    private var statusText: String {
+        if viewModel.isOnline {
+            return "在线"
+        } else if viewModel.isCookieExpired {
+            return "Cookie失效"
+        } else {
+            return "离线"
+        }
+    }
+    
+    /// 状态提示文本
+    private var statusHelpText: String {
+        if viewModel.isOnline {
+            return "已连接到小米笔记服务器"
+        } else if viewModel.isCookieExpired {
+            return "Cookie已失效，请刷新Cookie或重新登录（点击可刷新）"
+        } else {
+            return "离线模式：更改将在网络恢复后同步"
+        }
+    }
+    
+    /// 状态指示器（可点击刷新Cookie）
+    /// 
+    /// Cookie失效时可以点击刷新，其他状态显示为普通文本
+    private var onlineStatusIndicatorWithAction: some View {
+        Group {
+            if viewModel.isCookieExpired {
+                // Cookie失效时，显示为可点击的按钮
+                Button {
+                    viewModel.showCookieRefreshView = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(statusColor)
+                            .frame(width: 8, height: 8)
+                        Text(statusText)
+                            .font(.caption2)
+                            .foregroundColor(statusColor)
+                    }
+                }
+                .buttonStyle(.plain)
+                .help(statusHelpText)
+            } else {
+                // 其他状态显示为普通文本
+                onlineStatusIndicator
+            }
+        }
     }
     
     /// 搜索工具栏项 - 响应式搜索框/按钮
@@ -543,15 +590,15 @@ public struct ContentView: View {
     /// - 检查用户认证状态
     /// - 如果未认证，显示登录界面
     private func handleAppear() {
-        print("ContentView onAppear - 检查认证状态")
-        let isAuthenticated = MiNoteService.shared.isAuthenticated()
-        print("isAuthenticated: \(isAuthenticated)")
-        
-        if !isAuthenticated {
-            print("显示登录界面")
-            showingLogin = true
-        } else {
-            print("已认证，不显示登录界面")
+            print("ContentView onAppear - 检查认证状态")
+            let isAuthenticated = MiNoteService.shared.isAuthenticated()
+            print("isAuthenticated: \(isAuthenticated)")
+            
+            if !isAuthenticated {
+                print("显示登录界面")
+                showingLogin = true
+            } else {
+                print("已认证，不显示登录界面")
         }
     }
     
@@ -654,7 +701,7 @@ struct SidebarView: View {
                     // 同步时显示加载图标
                     if viewModel.isSyncing {
                         ProgressView()
-                            .scaleEffect(0.5)  // 缩小图标大小
+                            .scaleEffect(0.4)  // 缩小图标大小
                             .frame(width: 10, height: 10)
                     }
                 }
@@ -727,6 +774,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .accentColor(.yellow)  // 设置列表选择颜色为黄色
         .toolbar {
             // 工具栏：同步菜单按钮
             ToolbarItem(placement: .primaryAction) {
@@ -1010,20 +1058,14 @@ struct SidebarFolderRow: View {
     
     /// 根据文件夹ID返回对应的颜色
     /// 
-    /// 颜色映射：
-    /// - "0" (所有笔记): 蓝色
-    /// - "starred" (置顶): 橙色
-    /// - "uncategorized" (未分类): 灰色
-    /// - "new" (新建): 蓝色
-    /// - 其他: 橙色（如果置顶）或默认颜色
+    /// 颜色映射（统一使用白色）：
+    /// - "0" (所有笔记): 白色
+    /// - "starred" (置顶): 白色
+    /// - "uncategorized" (未分类): 白色
+    /// - "new" (新建): 白色
+    /// - 其他: 白色
     private var folderColor: Color {
-        switch folder.id {
-        case "0": return .blue
-        case "starred": return .orange
-        case "uncategorized": return .gray
-        case "new": return .blue
-        default: return folder.isPinned ? .orange : .primary
-        }
+        return .white
     }
 }
 
@@ -1094,6 +1136,7 @@ struct SyncStatusOverlay: View {
     }
 }
 
+@available(macOS 14.0, *)
 #Preview {
     ContentView(viewModel: NotesViewModel())
 }

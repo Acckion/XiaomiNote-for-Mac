@@ -1,0 +1,24 @@
+{
+  "source": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Colors/RichTextColor+Picker.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 108
+        }
+      },
+      {
+        "comment": "",
+        "key": "Preview",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 156
+        }
+      }
+    ]
+  },
+  "version": 1
+}

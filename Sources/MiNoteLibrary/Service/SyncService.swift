@@ -1,16 +1,33 @@
 import Foundation
 
+/// 同步服务
+/// 
+/// 负责管理本地笔记与云端笔记的同步，包括：
+/// - 完整同步：清除所有本地数据，从云端拉取全部笔记
+/// - 增量同步：只同步自上次同步以来的更改
+/// - 冲突解决：处理本地和云端同时修改的情况
+/// - 离线操作队列：管理网络断开时的操作
 final class SyncService: @unchecked Sendable {
     static let shared = SyncService()
     
+    // MARK: - 依赖服务
+    
+    /// 小米笔记API服务
     private let miNoteService = MiNoteService.shared
+    
+    /// 本地存储服务
     private let localStorage = LocalStorageService.shared
     
-    private var isSyncing = false
-    private var syncProgress: Double = 0
-    private var syncStatusMessage: String = ""
-    
     // MARK: - 同步状态
+    
+    /// 是否正在同步
+    private var isSyncing = false
+    
+    /// 同步进度（0.0 - 1.0）
+    private var syncProgress: Double = 0
+    
+    /// 同步状态消息（用于UI显示）
+    private var syncStatusMessage: String = ""
     
     var isSyncingNow: Bool {
         return isSyncing
@@ -26,7 +43,17 @@ final class SyncService: @unchecked Sendable {
     
     // MARK: - 完整同步
     
-    /// 执行完整同步（清除所有本地数据，拉取所有云端文件夹）
+    /// 执行完整同步
+    /// 
+    /// 完整同步会：
+    /// 1. 清除所有本地笔记和文件夹
+    /// 2. 从云端拉取所有笔记和文件夹
+    /// 3. 下载笔记的完整内容和图片
+    /// 
+    /// **注意**：完整同步会丢失所有本地未同步的更改，请谨慎使用
+    /// 
+    /// - Returns: 同步结果，包含同步的笔记数量等信息
+    /// - Throws: SyncError（同步错误、网络错误等）
     func performFullSync() async throws -> SyncResult {
         print("[SYNC] 开始执行完整同步")
         guard !isSyncing else {
@@ -107,7 +134,7 @@ final class SyncService: @unchecked Sendable {
                 for folder in folders {
                     if !folder.isSystem && folder.id != "0" && folder.id != "starred" {
                         allCloudFolders.append(folder)
-                    }
+                }
                 }
                 
                 // 处理笔记（直接保存，因为已经清除了本地数据）
@@ -125,8 +152,8 @@ final class SyncService: @unchecked Sendable {
                     
                     // 保存到本地
                     try localStorage.saveNote(updatedNote)
-                    syncStatus.addSyncedNote(note.id)
-                    syncedNotes += 1
+                        syncStatus.addSyncedNote(note.id)
+                        syncedNotes += 1
                 }
                 
                 // 检查是否还有下一页
@@ -168,14 +195,38 @@ final class SyncService: @unchecked Sendable {
     
     // MARK: - 增量同步
     
-    /// 执行增量同步（只同步自上次同步以来的更改）
+    /// 执行增量同步
+    /// 
+    /// 增量同步会：
+    /// 1. 使用上次同步的syncTag获取自上次同步以来的更改
+    /// 2. 比较本地和云端的时间戳，决定使用哪个版本
+    /// 3. 处理冲突：本地较新则上传，云端较新则下载
+    /// 4. 处理离线操作队列中的操作
+    /// 
+    /// **同步策略**：
+    /// - 如果本地修改时间 > 云端修改时间：保留本地版本，上传到云端
+    /// - 如果云端修改时间 > 本地修改时间：下载云端版本，覆盖本地
+    /// - 如果时间相同但内容不同：下载云端版本（以云端为准）
+    /// 
+    /// - Returns: 同步结果，包含同步的笔记数量等信息
+    /// - Throws: SyncError（同步错误、网络错误等）
     func performIncrementalSync() async throws -> SyncResult {
+        print("[SYNC] 开始执行增量同步")
         guard !isSyncing else {
+            print("[SYNC] 错误：同步正在进行中")
             throw SyncError.alreadySyncing
         }
         
         guard miNoteService.isAuthenticated() else {
+            print("[SYNC] 错误：未认证")
             throw SyncError.notAuthenticated
+        }
+        
+        // 加载现有的同步状态
+        guard let syncStatus = localStorage.loadSyncStatus() else {
+            // 如果没有同步状态，执行完整同步（在设置 isSyncing 之前检查）
+            print("[SYNC] 未找到同步记录，执行完整同步...")
+            return try await performFullSync()
         }
         
         isSyncing = true
@@ -184,17 +235,12 @@ final class SyncService: @unchecked Sendable {
         
         defer {
             isSyncing = false
+            print("[SYNC] 增量同步结束，isSyncing设置为false")
         }
         
         var result = SyncResult()
         
         do {
-            // 加载现有的同步状态
-            guard let syncStatus = localStorage.loadSyncStatus() else {
-                // 如果没有同步状态，执行完整同步
-                syncStatusMessage = "未找到同步记录，执行完整同步..."
-                return try await performFullSync()
-            }
             
             let lastSyncTag = syncStatus.syncTag ?? ""
             syncStatusMessage = "获取自上次同步以来的更改..."
@@ -286,6 +332,15 @@ final class SyncService: @unchecked Sendable {
     // MARK: - 增量同步辅助方法
     
     /// 增量同步文件夹
+    /// 
+    /// 处理文件夹的增量同步逻辑：
+    /// - 如果云端和本地都存在：比较时间戳，使用较新的版本
+    /// - 如果只有云端存在：检查是否在删除队列中，如果是则删除云端，否则拉取到本地
+    /// - 如果只有本地存在：检查是否在创建队列中，如果是则上传到云端，否则删除本地
+    /// 
+    /// - Parameters:
+    ///   - cloudFolders: 云端文件夹列表
+    ///   - cloudFolderIds: 云端文件夹ID集合（用于快速查找）
     private func syncFoldersIncremental(cloudFolders: [Folder], cloudFolderIds: Set<String>) async throws {
         let offlineQueue = OfflineOperationQueue.shared
         let pendingOps = offlineQueue.getPendingOperations()
@@ -355,6 +410,18 @@ final class SyncService: @unchecked Sendable {
     }
     
     /// 增量同步单个笔记
+    /// 
+    /// 处理单个笔记的增量同步逻辑：
+    /// - 如果本地和云端都存在：
+    ///   - 本地较新：添加到更新队列，等待上传
+    ///   - 云端较新：下载并覆盖本地
+    ///   - 时间相同：比较内容，如果不同则下载云端版本
+    /// - 如果只有云端存在：
+    ///   - 在删除队列中：删除云端笔记
+    ///   - 不在删除队列：下载到本地
+    /// 
+    /// - Parameter cloudNote: 云端笔记对象
+    /// - Returns: 同步结果，包含同步状态和消息
     private func syncNoteIncremental(cloudNote: Note) async throws -> NoteSyncResult {
         var result = NoteSyncResult(noteId: cloudNote.id, noteTitle: cloudNote.title)
         let offlineQueue = OfflineOperationQueue.shared
@@ -432,15 +499,39 @@ final class SyncService: @unchecked Sendable {
                 }
             } else {
                 // 2.2 不在删除队列，拉取到本地
-                let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
-                var updatedNote = cloudNote
-                updatedNote.updateContent(from: noteDetails)
-                try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
-                try localStorage.saveNote(updatedNote)
-                result.status = .created
-                result.message = "已从云端拉取"
-                result.success = true
-                print("[SYNC] 新笔记，已拉取到本地: \(cloudNote.title)")
+                // 再次检查本地是否已存在（防止竞态条件）
+                if let existingNote = try? localStorage.loadNote(noteId: cloudNote.id) {
+                    // 笔记已存在，使用更新逻辑而不是创建逻辑
+                    if existingNote.updatedAt < cloudNote.updatedAt {
+                        // 云端较新，更新本地
+                        let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
+                        var updatedNote = cloudNote
+                        updatedNote.updateContent(from: noteDetails)
+                        try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                        try localStorage.saveNote(updatedNote)
+                        result.status = .updated
+                        result.message = "已从云端更新"
+                        result.success = true
+                        print("[SYNC] 笔记已存在但云端较新，已更新: \(cloudNote.title)")
+                    } else {
+                        // 本地较新或相同，跳过
+                        result.status = .skipped
+                        result.message = "本地已存在且较新或相同"
+                        result.success = true
+                        print("[SYNC] 笔记已存在且本地较新或相同，跳过: \(cloudNote.title)")
+                    }
+                } else {
+                    // 确实不存在，拉取到本地
+                    let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
+                    var updatedNote = cloudNote
+                    updatedNote.updateContent(from: noteDetails)
+                    try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                    try localStorage.saveNote(updatedNote)
+                    result.status = .created
+                    result.message = "已从云端拉取"
+                    result.success = true
+                    print("[SYNC] 新笔记，已拉取到本地: \(cloudNote.title)")
+                }
             }
         }
         
@@ -448,6 +539,18 @@ final class SyncService: @unchecked Sendable {
     }
     
     /// 处理只有本地存在但云端不存在的笔记和文件夹
+    /// 
+    /// 这种情况可能发生在：
+    /// 1. 本地创建了笔记但尚未上传（在创建队列中）
+    /// 2. 云端已删除但本地仍存在（需要删除本地）
+    /// 
+    /// **处理策略**：
+    /// - 如果在创建队列中：上传到云端
+    /// - 如果不在创建队列中：删除本地（说明云端已删除）
+    /// 
+    /// - Parameters:
+    ///   - cloudNoteIds: 云端笔记ID集合
+    ///   - cloudFolderIds: 云端文件夹ID集合
     private func syncLocalOnlyItems(cloudNoteIds: Set<String>, cloudFolderIds: Set<String>) async throws {
         let offlineQueue = OfflineOperationQueue.shared
         let pendingOps = offlineQueue.getPendingOperations()
@@ -464,16 +567,63 @@ final class SyncService: @unchecked Sendable {
                 }
                 if hasCreateOp {
                     // 在新建队列中，上传到云端
-                    _ = try await miNoteService.createNote(
-                        title: localNote.title,
-                        content: localNote.content,
-                        folderId: localNote.folderId
-                    )
-                    print("[SYNC] 笔记在新建队列中，已上传到云端: \(localNote.title)")
+                    // 注意：上传后可能会返回新的ID，但此时增量同步已经完成，不会导致重复
+                    // 因为下次同步时会正确处理ID变更
+                    do {
+                        let response = try await miNoteService.createNote(
+                            title: localNote.title,
+                            content: localNote.content,
+                            folderId: localNote.folderId
+                        )
+                        
+                        // 如果服务器返回了新的ID，更新本地笔记
+                        if let code = response["code"] as? Int, code == 0,
+                           let data = response["data"] as? [String: Any],
+                           let entry = data["entry"] as? [String: Any],
+                           let serverNoteId = entry["id"] as? String,
+                           serverNoteId != localNote.id {
+                            // 服务器返回了新的ID，需要更新本地笔记
+                            var updatedRawData = localNote.rawData ?? [:]
+                            for (key, value) in entry {
+                                updatedRawData[key] = value
+                            }
+                            
+                            let updatedNote = Note(
+                                id: serverNoteId,
+                                title: localNote.title,
+                                content: localNote.content,
+                                folderId: localNote.folderId,
+                                isStarred: localNote.isStarred,
+                                createdAt: localNote.createdAt,
+                                updatedAt: localNote.updatedAt,
+                                tags: localNote.tags,
+                                rawData: updatedRawData
+                            )
+                            
+                            // 先保存新笔记，再删除旧笔记
+                            try localStorage.saveNote(updatedNote)
+                            try localStorage.deleteNote(noteId: localNote.id)
+                            print("[SYNC] 笔记上传后ID变更: \(localNote.id) -> \(serverNoteId)")
+                        } else {
+                            print("[SYNC] 笔记在新建队列中，已上传到云端: \(localNote.title)")
+                        }
+                    } catch {
+                        print("[SYNC] 上传笔记失败: \(error.localizedDescription)")
+                        // 继续处理，不中断同步
+                    }
                 } else {
                     // 3.2 不在新建队列，删除本地笔记
-                    try localStorage.deleteNote(noteId: localNote.id)
-                    print("[SYNC] 笔记不在新建队列，已删除本地: \(localNote.title)")
+                    // 但需要检查是否有待处理的更新操作（可能笔记正在上传中）
+                    let hasUpdateOp = pendingOps.contains { op in
+                        op.type == .updateNote && op.noteId == localNote.id
+                    }
+                    if !hasUpdateOp {
+                        // 没有待处理的操作，删除本地笔记
+                        try localStorage.deleteNote(noteId: localNote.id)
+                        print("[SYNC] 笔记不在新建队列，已删除本地: \(localNote.title)")
+                    } else {
+                        print("[SYNC] 笔记有待处理的更新操作，保留本地: \(localNote.title)")
+                    }
                 }
             }
         }
@@ -504,6 +654,14 @@ final class SyncService: @unchecked Sendable {
     
     // MARK: - 处理单个笔记
     
+    /// 处理单个笔记（完整同步模式）
+    /// 
+    /// 在完整同步模式下，直接下载并替换本地笔记，不进行任何比较
+    /// 
+    /// - Parameters:
+    ///   - note: 要处理的笔记
+    ///   - isFullSync: 是否为完整同步模式
+    /// - Returns: 同步结果
     private func processNote(_ note: Note, isFullSync: Bool = false) async throws -> NoteSyncResult {
         print("[SYNC] 开始处理笔记: \(note.id) - \(note.title), 完整同步模式: \(isFullSync)")
         var result = NoteSyncResult(noteId: note.id, noteTitle: note.title)
@@ -778,8 +936,13 @@ final class SyncService: @unchecked Sendable {
         return result
     }
     
-    // MARK: 处理文件夹
+    // MARK: - 处理文件夹
     
+    /// 处理文件夹（创建本地目录）
+    /// 
+    /// 注意：此方法已废弃，文件夹现在通过数据库管理，不再使用文件系统目录
+    /// 
+    /// - Parameter folder: 要处理的文件夹
     private func processFolder(_ folder: Folder) async throws {
         // 创建文件夹目录
         do {
@@ -792,9 +955,13 @@ final class SyncService: @unchecked Sendable {
     // MARK: - 图片处理
     
     /// 下载笔记中的图片
+    /// 
+    /// 从笔记的setting.data字段中提取图片信息，并下载到本地
+    /// 图片信息包括：fileId、mimeType等
+    /// 
     /// - Parameters:
-    ///   - noteDetails: 笔记详情响应
-    ///   - noteId: 笔记ID（用于日志）
+    ///   - noteDetails: 笔记详情响应（包含setting.data字段）
+    ///   - noteId: 笔记ID（用于日志和错误处理）
     private func downloadNoteImages(from noteDetails: [String: Any], noteId: String) async throws {
         print("[SYNC] 开始下载笔记图片: \(noteId)")
         print("[SYNC] noteDetails 键: \(noteDetails.keys)")
@@ -896,8 +1063,14 @@ final class SyncService: @unchecked Sendable {
         }
     }
     
-    // MARK: 清理已删除的笔记
+    // MARK: - 清理已删除的笔记
     
+    /// 清理已删除的笔记（已废弃）
+    /// 
+    /// 此方法目前只记录日志，不执行实际清理操作
+    /// 删除逻辑已整合到增量同步中
+    /// 
+    /// - Parameter syncStatus: 同步状态
     private func cleanupDeletedNotes(syncStatus: SyncStatus) async throws {
         syncStatusMessage = "清理已删除的笔记..."
         
@@ -918,6 +1091,12 @@ final class SyncService: @unchecked Sendable {
     // MARK: - 手动同步单个笔记
     
     /// 手动同步单个笔记
+    /// 
+    /// 用于用户手动触发单个笔记的同步，例如在笔记详情页面点击"同步"按钮
+    /// 
+    /// - Parameter noteId: 要同步的笔记ID
+    /// - Returns: 同步结果
+    /// - Throws: SyncError（同步错误、网络错误等）
     func syncSingleNote(noteId: String) async throws -> NoteSyncResult {
         guard miNoteService.isAuthenticated() else {
             throw SyncError.notAuthenticated
@@ -955,6 +1134,9 @@ final class SyncService: @unchecked Sendable {
     
     // MARK: - 取消同步
     
+    /// 取消正在进行的同步
+    /// 
+    /// 注意：此方法只是设置标志位，不会立即中断正在执行的网络请求
     func cancelSync() {
         isSyncing = false
         syncStatusMessage = "同步已取消"
@@ -962,7 +1144,15 @@ final class SyncService: @unchecked Sendable {
     
     // MARK: - 重试待删除的笔记
     
-    /// 重试删除失败的笔记（可在应用启动时或同步时调用）
+    /// 重试删除失败的笔记
+    /// 
+    /// 当笔记删除失败时（例如网络错误），会保存到待删除列表
+    /// 此方法会尝试重新删除这些笔记
+    /// 
+    /// 建议在以下时机调用：
+    /// - 应用启动时
+    /// - 网络恢复时
+    /// - 同步开始时
     func retryPendingDeletions() async throws {
         let pendingDeletions = localStorage.loadPendingDeletions()
         
@@ -1001,12 +1191,19 @@ final class SyncService: @unchecked Sendable {
     
     // MARK: - 重置同步状态
     
+    /// 重置同步状态
+    /// 
+    /// 清除所有同步记录，下次同步将执行完整同步
+    /// 用于解决同步问题或重新开始同步
     func resetSyncStatus() throws {
         try localStorage.clearSyncStatus()
     }
     
     // MARK: - 同步结果模型
     
+    /// 同步结果
+    /// 
+    /// 包含同步操作的统计信息，用于UI显示和日志记录
     struct SyncResult {
         var totalNotes: Int = 0
         var syncedNotes: Int = 0
@@ -1033,6 +1230,7 @@ final class SyncService: @unchecked Sendable {
         }
     }
     
+    /// 单个笔记的同步结果
     struct NoteSyncResult {
         let noteId: String
         let noteTitle: String
@@ -1040,6 +1238,7 @@ final class SyncService: @unchecked Sendable {
         var status: SyncStatusType = .failed
         var message: String = ""
         
+        /// 同步状态类型
         enum SyncStatusType {
             case created
             case updated
@@ -1050,6 +1249,7 @@ final class SyncService: @unchecked Sendable {
     
     // MARK: - 同步错误
     
+    /// 同步错误类型
     enum SyncError: LocalizedError {
         case alreadySyncing
         case notAuthenticated

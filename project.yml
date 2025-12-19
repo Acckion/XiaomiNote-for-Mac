@@ -2,24 +2,29 @@ name: MiNoteMac
 options:
   bundleIdPrefix: com.minote
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "26.0"
   developmentLanguage: zh-Hans
   xcodeVersion: "15.0"
   
-packages: {}
+packages:
+  RichTextKit:
+    path: ./RichTextKit-1.2
 
 targets:
   MiNoteLibrary:
     type: framework
     platform: macOS
-    deploymentTarget: "14.0"
+    deploymentTarget: "26.0"
     sources:
       - path: Sources/MiNoteLibrary
+    dependencies:
+      - package: RichTextKit
+        product: RichTextKit
     settings:
       base:
         PRODUCT_NAME: MiNoteLibrary
         PRODUCT_BUNDLE_IDENTIFIER: com.minote.MiNoteLibrary
-        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
         SWIFT_VERSION: "6.0"
         DEFINES_MODULE: YES
         GENERATE_INFOPLIST_FILE: YES
@@ -44,7 +49,7 @@ targets:
       base:
         PRODUCT_NAME: MiNoteMac
         PRODUCT_BUNDLE_IDENTIFIER: com.minote.MiNoteMac
-        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
         SWIFT_VERSION: "6.0"
       configs:
         Debug:
@@ -65,6 +70,7 @@ targets:
         NSPrincipalClass: NSApplication
         NSMainStoryboardFile: ""
         NSHighResolutionCapable: true
+        NSAccentColorName: Yellow
 
 schemes:
   MiNoteMac:

@@ -1,0 +1,54 @@
+大部分情况下每个 <text indent=\"1\">here</text>\n 代表一行笔记，特殊情况除外。其中here是文本内容，indent的数字是缩进，1代表不缩进。
+
+普通文本（一行）：
+<text indent=\"1\">测试文本</text>\n
+
+大标题：
+<text indent=\"1\"><size>大标题</size></text>\n
+
+二级标题：
+<text indent=\"1\"><mid-size>二级标题</mid-size></text>\n
+
+三级标题：
+<text indent=\"1\"><h3-size>三级标题</h3-size></text>\n
+
+加粗：使用<b>包裹
+<text indent=\"1\"><b>加粗</b></text>\n
+
+斜体：使用<i>包裹
+<text indent=\"1\"><i>斜体</i></text>\n
+
+下划线：
+<text indent=\"1\"><u>下划线</u></text>\n
+
+删除线：
+<text indent=\"1\"><delete>删除线</delete></text>\n
+
+特殊，无序列表不用<text>包裹：
+<bullet indent=\"1\" />无序列表\n
+
+特殊，有序列表不用<text>包裹：
+<order indent=\"1\" inputNumber=\"0\" />有序列表1\n
+<order indent=\"1\" inputNumber=\"0\" />有序列表2\n
+
+特殊，checkbox不用<text>包裹代表一行
+<input type=\"checkbox\" indent=\"1\" level=\"3\" />checkbox\n
+
+特殊，分割线用<hr />
+<hr />\n
+
+特殊，引用块可能有多行，使用<quote>包裹：
+<quote><text indent=\"1\">引用1<\/text>\n<text indent=\"1\">引用2<\/text><\/quote>\n
+
+普通文本默认左侧对齐：
+<text indent=\"1\">居左<\/text>\n
+
+居中对齐：
+<text indent=\"1\"><center>居中<\/center><\/text>\n
+
+右侧对齐：
+<text indent=\"1\"><right>居右<\/right><\/text>\n
+
+缩进一格（修改text indent数字）
+<text indent=\"2\">缩进<\/text>"
+

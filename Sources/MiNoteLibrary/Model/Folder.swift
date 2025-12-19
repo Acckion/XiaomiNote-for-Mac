@@ -1,5 +1,15 @@
 import Foundation
 
+/// 文件夹数据模型
+/// 
+/// 表示一个文件夹，包括：
+/// - 基本信息：ID、名称、笔记数量
+/// - 系统属性：是否为系统文件夹、是否置顶
+/// - 原始数据：rawData存储从API获取的原始数据（包括tag等）
+/// 
+/// **系统文件夹**：
+/// - id = "0": 所有笔记
+/// - id = "starred": 置顶笔记
 public struct Folder: Identifiable, Codable, Equatable, Hashable {
     public let id: String
     public var name: String
@@ -33,7 +43,14 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
         return lhs.id == rhs.id
     }
     
-    // 从小米笔记API数据创建
+    // MARK: - 数据转换
+    
+    /// 从小米笔记API数据创建Folder对象
+    /// 
+    /// 解析API返回的文件夹数据，提取名称、ID等信息
+    /// 
+    /// - Parameter data: API返回的文件夹数据字典
+    /// - Returns: Folder对象，如果数据无效则返回nil
     static func fromMinoteData(_ data: [String: Any]) -> Folder? {
         // 检查类型，只处理文件夹类型
         if let type = data["type"] as? String, type != "folder" {
@@ -74,7 +91,9 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
         return Folder(id: id, name: name, count: count, isSystem: isSystem, createdAt: createdAt, rawData: data)
     }
     
-    // 转换为小米笔记API格式
+    /// 转换为小米笔记API格式
+    /// 
+    /// - Returns: API格式的字典
     func toMinoteData() -> [String: Any] {
         return [
             "id": id,

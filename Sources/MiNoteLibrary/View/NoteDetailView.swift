@@ -1,10 +1,13 @@
 import SwiftUI
 import AppKit
+import RichTextKit
 
+@available(macOS 14.0, *)
 struct NoteDetailView: View {
     @ObservedObject var viewModel: NotesViewModel
     @State private var editedTitle: String = ""
-    @State private var editedContent: String = ""
+    @State private var editedAttributedText: AttributedString = AttributedString()  // 使用 AttributedString（SwiftUI 原生）
+    @State private var editedRTFData: Data? = nil  // RTF数据（用于RichTextKit编辑器）
     @State private var isSaving: Bool = false
     @State private var showSaveSuccess: Bool = false
     @State private var showSaveError: Bool = false
@@ -12,8 +15,9 @@ struct NoteDetailView: View {
     @State private var isEditable: Bool = true // New state for editor editability
     @State private var isInitializing: Bool = true // 标记是否正在初始化
     @State private var originalTitle: String = "" // 保存原始标题用于比较
-    @State private var originalContent: String = "" // 保存原始内容用于比较
-    @State private var textView: NSTextView? = nil // 存储 NSTextView 引用
+    @State private var originalAttributedText: AttributedString = AttributedString() // 保存原始 AttributedString 用于比较
+    @State private var useRichTextKit: Bool = true  // 是否使用RichTextKit编辑器
+    @StateObject private var editorContext = RichTextContext()  // RichTextContext（用于格式栏同步）
     
     var body: some View {
         Group {
@@ -23,29 +27,50 @@ struct NoteDetailView: View {
                 emptyNoteView
             }
         }
+        .onChange(of: viewModel.selectedNote) { oldValue, newValue in
+            // 当 selectedNote 对象变化时（包括内容更新），更新视图
+            if let note = newValue {
+                // 只有当笔记真正变化时才更新（避免重复更新）
+                if let oldNote = oldValue {
+                    if oldNote.id != note.id || oldNote.content != note.content {
+                        handleNoteChange(note)
+                    }
+                } else {
+                    // 如果之前没有选中的笔记，直接更新
+                    handleNoteChange(note)
+                }
+            }
+        }
+        .navigationTitle("")  // 添加空的 navigationTitle 以确保 toolbar 绑定到 detail 列
         .toolbar {
+            // 最左侧：新建笔记按钮和格式工具按钮组（放在同一个 ToolbarItem 中，避免自动分割线）
             ToolbarItem(placement: .automatic) {
-                formatToolbarGroup
+                HStack(spacing: 8) {
+                    newNoteButton
+                    formatToolbarGroup
+                }
             }
             
+            // 搜索框（自动位置）
+            ToolbarItem(placement: .automatic) {
+                searchToolbarItem
+            }
+            
+            // 最右侧：共享和更多按钮
             ToolbarItemGroup(placement: .primaryAction) {
                 if let note = viewModel.selectedNote {
                     shareAndMoreButtons(for: note)
                 }
-            }
-            
-            ToolbarItem(placement: .automatic) {
-                searchToolbarItem
             }
         }
     }
     
     @ViewBuilder
     private func noteEditorView(for note: Note) -> some View {
-        ZStack {
-            Color(nsColor: NSColor.textBackgroundColor)
-                .ignoresSafeArea()
-            
+                ZStack {
+                    Color(nsColor: NSColor.textBackgroundColor)
+                        .ignoresSafeArea()
+                    
             // 标题现在作为编辑器内容的一部分，可以随正文滚动
             editorContentView(for: note)
         }
@@ -58,7 +83,7 @@ struct NoteDetailView: View {
         .onChange(of: editedTitle) { oldValue, newValue in
             handleTitleChange(newValue)
         }
-        .onChange(of: editedContent) { oldValue, newValue in
+        .onChange(of: editedAttributedText) { oldValue, newValue in
             handleContentChange(newValue)
         }
         // 移除保存失败弹窗，改为静默处理
@@ -74,204 +99,317 @@ struct NoteDetailView: View {
     
     @ViewBuilder
     private var saveStatusIndicator: some View {
-        if isSaving {
-            ProgressView()
-                .controlSize(.small)
-                .padding(.trailing, 16)
-                .padding(.top, 16)
-        } else if showSaveSuccess {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
-                .padding(.trailing, 16)
-                .padding(.top, 16)
+                        if isSaving {
+                            ProgressView()
+                                .controlSize(.small)
+                                .padding(.trailing, 16)
+                                    .padding(.top, 16)
+                        } else if showSaveSuccess {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .padding(.trailing, 16)
+                                    .padding(.top, 16)
+                            }
+                        }
+                        
+    private func editorContentView(for note: Note) -> some View {
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // 标题编辑区域
+                    titleEditorView
+                        .padding(.horizontal, 16)
+                        .padding(.top, 16)
+                        .frame(minHeight: 60) // 增加最小高度，确保40pt字体完整显示
+                    
+                    // 日期和字数信息（只读）
+                    metaInfoView(for: note)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                    
+                    // 间距
+                    Spacer()
+                        .frame(height: 16)
+                    
+                    // 正文编辑区域 - 填充剩余空间
+                    bodyEditorView
+                        .padding(.horizontal, 16) // 与标题左边对齐
+                        .frame(minHeight: max(600, geometry.size.height - 200)) // 填充窗口高度，减去标题和间距
+                }
+                .frame(maxWidth: .infinity)
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    private func editorContentView(for note: Note) -> some View {
-        MiNoteEditor(
-            xmlContent: $editedContent,
-            isEditable: $isEditable,
-            noteRawData: note.rawData,
-            onTextViewCreated: { tv in
-                textView = tv
-            },
-            title: editedTitle,
-            onTitleChange: { newTitle in
-                // 标题变化时更新 editedTitle
-                if newTitle != editedTitle {
-                    editedTitle = newTitle
-                }
-            }
+    /// 标题编辑区域
+    private var titleEditorView: some View {
+        TitleEditorView(
+            title: $editedTitle,
+            isEditable: $isEditable
         )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    /// 日期和字数信息视图（只读）
+    private func metaInfoView(for note: Note) -> some View {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy年MM月dd日 HH:mm"
+        let updateDateString = dateFormatter.string(from: note.updatedAt)
+        
+        // 计算字数（从 AttributedString 计算）
+        let wordCount = calculateWordCount(from: editedAttributedText)
+        
+        return Text("\(updateDateString) · \(wordCount) 字")
+            .font(.system(size: 10))
+            .foregroundColor(.secondary)
+    }
+    
+    /// 计算字数（从 AttributedString）
+    private func calculateWordCount(from attributedText: AttributedString) -> Int {
+        return attributedText.characters.count
+    }
+    
+    /// 正文编辑区域（使用RichTextKit编辑器）
+    private var bodyEditorView: some View {
+        Group {
+            if useRichTextKit {
+                // 使用新的RichTextKit编辑器
+                RichTextEditorWrapper(
+                    rtfData: $editedRTFData,
+                    isEditable: $isEditable,
+                    editorContext: editorContext,
+                    noteRawData: viewModel.selectedNote?.rawData,
+                    xmlContent: viewModel.selectedNote?.primaryXMLContent,
+                    onContentChange: { newRTFData in
+                        // RTF数据变化时，转换为AttributedString用于保存
+                        if let rtfData = newRTFData,
+                           let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
+                            editedAttributedText = attributedText
+                            handleContentChange(attributedText)
+                        }
+                    }
+                )
+                .padding(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+            } else {
+                // 使用原有的MiNoteEditorV2（作为备选）
+                MiNoteEditorV2(
+                    attributedText: $editedAttributedText,
+                    isEditable: $isEditable,
+                    noteRawData: viewModel.selectedNote?.rawData
+                )
+                .padding(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+            }
+        }
     }
     
     private var emptyNoteView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "note.text")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
-            
-            Text("选择笔记或创建新笔记")
-                .font(.title2)
-                .foregroundColor(.secondary)
-            
-            Button(action: {
-                viewModel.createNewNote()
-            }) {
-                Label("新建笔记", systemImage: "plus")
+                VStack(spacing: 16) {
+                    Image(systemName: "note.text")
+                        .font(.system(size: 48))
+                        .foregroundColor(.secondary)
+                    
+                    Text("选择笔记或创建新笔记")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        viewModel.createNewNote()
+                    }) {
+                        Label("新建笔记", systemImage: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
     
     private var formatToolbarGroup: some View {
         HStack(spacing: 6) {
-            // 三个点菜单
-            Menu {
-                Button("更多选项") {
-                    // TODO: 实现更多选项
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 14))
-            }
-            .buttonStyle(.plain)
-            
-            // 编辑按钮
-            Button {
-                isEditable.toggle()
-            } label: {
-                Image(systemName: "pencil")
-                    .font(.system(size: 14))
-            }
-            .buttonStyle(.plain)
-            
             formatMenu
             checkboxButton
-            
-            // 表格按钮
-            Button {
-                // TODO: 插入表格
-            } label: {
-                Image(systemName: "tablecells")
-                    .font(.system(size: 14))
-            }
-            .buttonStyle(.plain)
-            .help("插入表格")
-            
             imageButton
-            
-            // 设置按钮
-            Button {
-                // TODO: 打开设置
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 14))
-            }
-            .buttonStyle(.plain)
-            .help("设置")
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 1)
     }
     
+    @State private var showFormatMenu: Bool = false
+    
     private var formatMenu: some View {
-        Menu {
-            Button("大标题") {
-                applyHeading(level: 1)
-            }
-            Button("标题") {
-                applyHeading(level: 2)
-            }
-            Button("副标题") {
-                applyHeading(level: 3)
-            }
-            Divider()
-            Button("加粗") {
-                toggleBold()
-            }
-            Button("斜体") {
-                toggleItalic()
-            }
+        Button {
+            showFormatMenu.toggle()
         } label: {
             Image(systemName: "textformat")
+                .font(.system(size: 16))
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
+            FormatMenuView(context: editorContext) { action in
+                handleFormatAction(action)
+                showFormatMenu = false
+            }
         }
     }
     
+    private func handleFormatAction(_ action: MiNoteEditor.FormatAction) {
+        // 将 MiNoteEditor.FormatAction 转换为 MiNoteEditorV2.FormatAction
+        let v2Action: MiNoteEditorV2.FormatAction?
+        
+        switch action {
+        case .bold:
+            v2Action = .bold
+        case .italic:
+            v2Action = .italic
+        case .underline:
+            v2Action = .underline
+        case .strikethrough:
+            v2Action = .strikethrough
+        case .heading(let level):
+            v2Action = .heading(level)
+        case .highlight:
+            v2Action = .highlight
+        case .textAlignment(let alignment):
+            v2Action = .textAlignment(alignment)
+        case .fontSize, .checkbox, .image:
+            // 这些操作在 MiNoteEditorV2 中暂不支持，直接发送通知
+            NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: action)
+            return
+        }
+        
+        // 发送 MiNoteEditorV2 格式操作
+        if let v2Action = v2Action {
+            NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: v2Action)
+        }
+    }
+                    
     private var checkboxButton: some View {
-        Button {
-            insertCheckbox()
-        } label: {
-            Image(systemName: "checklist")
-        }
-        .help("插入待办")
+                    Button {
+                        insertCheckbox()
+                    } label: {
+                        Image(systemName: "checklist")
+                    }
+                    .help("插入待办")
     }
-    
+                    
     private var imageButton: some View {
-        Button {
-            insertImage()
-        } label: {
-            Image(systemName: "paperclip")
-        }
-        .help("插入图片")
+                    Button {
+                        insertImage()
+                    } label: {
+                        Image(systemName: "paperclip")
+                    }
+                    .help("插入图片")
     }
     
     @ViewBuilder
     private func shareAndMoreButtons(for note: Note) -> some View {
-        Button {
-            let sharingPicker = NSSharingServicePicker(items: [note.content])
-            if let keyWindow = NSApplication.shared.keyWindow,
-               let contentView = keyWindow.contentView {
-                sharingPicker.show(relativeTo: .zero, of: contentView, preferredEdge: .minY)
-            }
-        } label: {
-            Image(systemName: "square.and.arrow.up")
-        }
-        
-        Menu {
-            Button {
-                viewModel.toggleStar(note)
-            } label: {
-                Label(note.isStarred ? "取消置顶备忘录" : "置顶备忘录",
-                      systemImage: note.isStarred ? "pin.slash" : "pin")
-            }
-            
-            Divider()
-            
-            Button(role: .destructive) {
-                viewModel.deleteNote(note)
-            } label: {
-                Label("删除备忘录", systemImage: "trash")
-            }
-        } label: {
-            Image(systemName: "ellipsis.circle")
+                    Button {
+                        let sharingPicker = NSSharingServicePicker(items: [note.content])
+                        if let keyWindow = NSApplication.shared.keyWindow,
+                           let contentView = keyWindow.contentView {
+                            sharingPicker.show(relativeTo: .zero, of: contentView, preferredEdge: .minY)
+                        }
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    
+                    Menu {
+                        Button {
+                            viewModel.toggleStar(note)
+                        } label: {
+                            Label(note.isStarred ? "取消置顶备忘录" : "置顶备忘录",
+                                  systemImage: note.isStarred ? "pin.slash" : "pin")
+                        }
+                        
+                        Divider()
+                        
+                        Button(role: .destructive) {
+                            viewModel.deleteNote(note)
+                        } label: {
+                            Label("删除备忘录", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
         }
     }
     
     private var searchToolbarItem: some View {
-        HStack {
-            Spacer()
-            TextField("搜索", text: $viewModel.searchText)
+                    HStack {
+                        Spacer()
+                            TextField("搜索", text: $viewModel.searchText)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 200)
         }
     }
     
+    /// 新建笔记按钮
+    private var newNoteButton: some View {
+        Button {
+            viewModel.createNewNote()
+        } label: {
+            Image(systemName: "square.and.pencil")
+                .font(.system(size: 13, weight: .medium))
+                .offset(y:-1)
+            // 中等粗细
+        }
+        .help("新建笔记")
+    }
+    
     private func handleNoteAppear(_ note: Note) {
         isInitializing = true
-        editedTitle = note.title
-        originalTitle = note.title
-        editedContent = note.primaryXMLContent
-        originalContent = note.primaryXMLContent
+        // 如果标题为空或者是默认的"未命名笔记_xxx"，设置为空字符串以显示占位符
+        let cleanTitle = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
+        editedTitle = cleanTitle
+        originalTitle = cleanTitle
+        
+        // 加载RTF数据（用于RichTextKit编辑器）
+        if let rtfData = note.rtfData {
+            editedRTFData = rtfData
+        } else {
+            // 如果没有RTF数据，从XML转换生成RTF数据
+            if let attributedText = AttributedStringConverter.xmlToAttributedString(note.primaryXMLContent, noteRawData: note.rawData),
+               let rtfData = AttributedStringConverter.attributedStringToRTFData(attributedText) {
+                editedRTFData = rtfData
+            } else {
+                editedRTFData = nil
+            }
+        }
+        
+        // 使用 AttributedString：优先从 RTF 数据转换，否则从 XML 转换
+        if let rtfData = note.rtfData,
+           let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
+            editedAttributedText = attributedText
+            originalAttributedText = attributedText
+        } else {
+            // 向后兼容：如果没有 RTF 数据，从 XML 转换
+            if let attributedText = AttributedStringConverter.xmlToAttributedString(note.primaryXMLContent, noteRawData: note.rawData) {
+                editedAttributedText = attributedText
+                originalAttributedText = attributedText
+            } else {
+                editedAttributedText = AttributedString()
+                originalAttributedText = AttributedString()
+            }
+        }
         
         if note.content.isEmpty {
             Task {
                 await viewModel.ensureNoteHasFullContent(note)
                 if let updatedNote = viewModel.selectedNote {
-                    editedContent = updatedNote.primaryXMLContent
-                    originalContent = updatedNote.primaryXMLContent
+                    // 更新RTF数据
+                    if let rtfData = updatedNote.rtfData {
+                        editedRTFData = rtfData
+                    } else if let attributedText = AttributedStringConverter.xmlToAttributedString(updatedNote.primaryXMLContent, noteRawData: updatedNote.rawData),
+                              let rtfData = AttributedStringConverter.attributedStringToRTFData(attributedText) {
+                        editedRTFData = rtfData
+                    }
+                    
+                    // 更新AttributedString
+                    if let rtfData = updatedNote.rtfData,
+                       let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
+                        editedAttributedText = attributedText
+                        originalAttributedText = attributedText
+                    } else if let attributedText = AttributedStringConverter.xmlToAttributedString(updatedNote.primaryXMLContent, noteRawData: updatedNote.rawData) {
+                        editedAttributedText = attributedText
+                        originalAttributedText = attributedText
+                    }
                 }
             }
         }
@@ -283,17 +421,61 @@ struct NoteDetailView: View {
     
     private func handleNoteChange(_ newValue: Note) {
         isInitializing = true
-        editedTitle = newValue.title
-        originalTitle = newValue.title
-        editedContent = newValue.primaryXMLContent
-        originalContent = newValue.primaryXMLContent
+        // 如果标题为空或者是默认的"未命名笔记_xxx"，设置为空字符串以显示占位符
+        let cleanTitle = newValue.title.isEmpty || newValue.title.hasPrefix("未命名笔记_") ? "" : newValue.title
+        editedTitle = cleanTitle
+        originalTitle = cleanTitle
+        
+        // 加载RTF数据（用于RichTextKit编辑器）
+        if let rtfData = newValue.rtfData {
+            editedRTFData = rtfData
+        } else {
+            // 如果没有RTF数据，从XML转换生成RTF数据
+            if let attributedText = AttributedStringConverter.xmlToAttributedString(newValue.primaryXMLContent, noteRawData: newValue.rawData),
+               let rtfData = AttributedStringConverter.attributedStringToRTFData(attributedText) {
+                editedRTFData = rtfData
+            } else {
+                editedRTFData = nil
+            }
+        }
+        
+        // 使用 AttributedString：优先从 RTF 数据转换，否则从 XML 转换
+        if let rtfData = newValue.rtfData,
+           let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
+            editedAttributedText = attributedText
+            originalAttributedText = attributedText
+        } else {
+            // 向后兼容：如果没有 RTF 数据，从 XML 转换
+            if let attributedText = AttributedStringConverter.xmlToAttributedString(newValue.primaryXMLContent, noteRawData: newValue.rawData) {
+                editedAttributedText = attributedText
+                originalAttributedText = attributedText
+            } else {
+                editedAttributedText = AttributedString()
+                originalAttributedText = AttributedString()
+            }
+        }
         
         if newValue.content.isEmpty {
             Task {
                 await viewModel.ensureNoteHasFullContent(newValue)
                 if let updatedNote = viewModel.selectedNote {
-                    editedContent = updatedNote.primaryXMLContent
-                    originalContent = updatedNote.primaryXMLContent
+                    // 更新RTF数据
+                    if let rtfData = updatedNote.rtfData {
+                        editedRTFData = rtfData
+                    } else if let attributedText = AttributedStringConverter.xmlToAttributedString(updatedNote.primaryXMLContent, noteRawData: updatedNote.rawData),
+                              let rtfData = AttributedStringConverter.attributedStringToRTFData(attributedText) {
+                        editedRTFData = rtfData
+                    }
+                    
+                    // 更新AttributedString
+                    if let rtfData = updatedNote.rtfData,
+                       let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
+                        editedAttributedText = attributedText
+                        originalAttributedText = attributedText
+                    } else if let attributedText = AttributedStringConverter.xmlToAttributedString(updatedNote.primaryXMLContent, noteRawData: updatedNote.rawData) {
+                        editedAttributedText = attributedText
+                        originalAttributedText = attributedText
+                    }
                 }
             }
         }
@@ -311,10 +493,13 @@ struct NoteDetailView: View {
         }
     }
     
-    private func handleContentChange(_ newValue: String) {
+    private func handleContentChange(_ newValue: AttributedString) {
         guard !isInitializing else { return }
-        if newValue != originalContent {
-            originalContent = newValue
+        // 比较 AttributedString 是否改变（通过字符串内容比较）
+        let newString = String(newValue.characters)
+        let originalString = String(originalAttributedText.characters)
+        if newString != originalString {
+            originalAttributedText = newValue
             saveChanges()
         }
     }
@@ -322,198 +507,33 @@ struct NoteDetailView: View {
     // MARK: - 格式操作
     
     /// 应用标题格式
+    /// 使用新的 AttributedString API，通过通知发送格式操作
     private func applyHeading(level: Int) {
-        guard let textView = textView,
-              let textStorage = textView.textStorage else { return }
-        
-        let range = textView.selectedRange()
-        var targetRange = range
-        
-        // 如果没有选择，选择当前段落
-        if range.length == 0 {
-            let paragraphRange = (textView.string as NSString).paragraphRange(for: range)
-            if paragraphRange.length > 0 {
-                targetRange = paragraphRange
-                textView.setSelectedRange(targetRange)
-            } else {
-                return
-            }
-        }
-        
-        var fontSize: CGFloat
-        var isBold = true
-        
-        switch level {
-        case 1:
-            fontSize = 24
-        case 2:
-            fontSize = 18
-        case 3:
-            fontSize = 14
-        default:
-            fontSize = NSFont.systemFontSize
-            isBold = false
-        }
-        
-        let font = isBold
-            ? NSFont.boldSystemFont(ofSize: fontSize)
-            : NSFont.systemFont(ofSize: fontSize)
-        
-        textStorage.beginEditing()
-        textStorage.addAttribute(.font, value: font, range: targetRange)
-        textStorage.endEditing()
-        
-        textView.didChangeText()
+        NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: MiNoteEditorV2.FormatAction.heading(level))
     }
     
     /// 切换加粗
+    /// 使用新的 AttributedString API
     private func toggleBold() {
-        guard let textView = textView,
-              let textStorage = textView.textStorage else { return }
-        
-        let range = textView.selectedRange()
-        guard range.length > 0 && range.location < textView.string.count else { return }
-        
-        // 检查当前是否加粗
-        var shouldBold = true
-        if range.location < textStorage.length {
-            if let font = textStorage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont {
-                if font.fontDescriptor.symbolicTraits.contains(.bold) {
-                    shouldBold = false
-                }
-            }
-        }
-        
-        // 应用或移除加粗
-        textStorage.beginEditing()
-        textStorage.enumerateAttribute(.font, in: range, options: []) { (value, subrange, _) in
-            if let oldFont = value as? NSFont {
-                let fontSize = oldFont.pointSize
-                let newFont: NSFont
-                if shouldBold {
-                    newFont = NSFont.boldSystemFont(ofSize: fontSize)
-                } else {
-                    var fontDescriptor = oldFont.fontDescriptor
-                    var traits = fontDescriptor.symbolicTraits
-                    traits.remove(.bold)
-                    fontDescriptor = fontDescriptor.withSymbolicTraits(traits)
-                    newFont = NSFont(descriptor: fontDescriptor, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize)
-                }
-                textStorage.addAttribute(.font, value: newFont, range: subrange)
-            } else {
-                let baseFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
-                let newFont = shouldBold
-                    ? NSFont.boldSystemFont(ofSize: baseFont.pointSize)
-                    : baseFont
-                textStorage.addAttribute(.font, value: newFont, range: subrange)
-            }
-        }
-        textStorage.endEditing()
-        
-        textView.didChangeText()
+        NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: MiNoteEditorV2.FormatAction.bold)
     }
     
     /// 切换斜体
+    /// 使用新的 AttributedString API
     private func toggleItalic() {
-        guard let textView = textView,
-              let textStorage = textView.textStorage else { return }
-        
-        let range = textView.selectedRange()
-        guard range.length > 0 && range.location < textView.string.count else { return }
-        
-        // 检查当前是否斜体
-        var shouldItalic = true
-        if range.location < textStorage.length {
-            if let font = textStorage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont {
-                if font.fontDescriptor.symbolicTraits.contains(.italic) {
-                    shouldItalic = false
-                }
-            }
-        }
-        
-        // 应用或移除斜体
-        textStorage.beginEditing()
-        textStorage.enumerateAttribute(.font, in: range, options: []) { (value, subrange, _) in
-            if let oldFont = value as? NSFont {
-                let fontSize = oldFont.pointSize
-                var fontDescriptor = oldFont.fontDescriptor
-                var traits = fontDescriptor.symbolicTraits
-                
-                if shouldItalic {
-                    traits.insert(.italic)
-                } else {
-                    traits.remove(.italic)
-                }
-                
-                fontDescriptor = fontDescriptor.withSymbolicTraits(traits)
-                let newFont = NSFont(descriptor: fontDescriptor, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize)
-                textStorage.addAttribute(.font, value: newFont, range: subrange)
-            } else {
-                let baseFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
-                var fontDescriptor = baseFont.fontDescriptor
-                if shouldItalic {
-                    fontDescriptor = fontDescriptor.withSymbolicTraits([.italic])
-                }
-                let newFont = NSFont(descriptor: fontDescriptor, size: baseFont.pointSize) ?? baseFont
-                textStorage.addAttribute(.font, value: newFont, range: subrange)
-            }
-        }
-        textStorage.endEditing()
-        
-        textView.didChangeText()
+        NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: MiNoteEditorV2.FormatAction.italic)
     }
     
     /// 插入待办（复选框）
+    /// 使用新的 AttributedString API
     private func insertCheckbox() {
-        guard let textView = textView,
-              let textStorage = textView.textStorage else { return }
-        
-        let range = textView.selectedRange()
-        let checkboxText = "☐ " // 使用复选框符号
-        
-        // 在当前位置插入复选框
-        let attributedString = NSAttributedString(string: checkboxText, attributes: [
-            .font: NSFont.systemFont(ofSize: NSFont.systemFontSize),
-            .foregroundColor: NSColor.labelColor
-        ])
-        
-        textStorage.beginEditing()
-        textStorage.insert(attributedString, at: range.location)
-        textStorage.endEditing()
-        
-        // 移动光标到复选框后面
-        let newRange = NSRange(location: range.location + checkboxText.count, length: 0)
-        textView.setSelectedRange(newRange)
-        
-        // 触发 textDidChange，让 Coordinator 自动更新 XML
-        textView.didChangeText()
+        // TODO: 实现复选框插入（需要 AttributedString 支持）
+        NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: MiNoteEditorV2.FormatAction.bold) // 临时使用
     }
     
     private func insertImage() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.allowedContentTypes = [.image, .jpeg, .png, .gif]
-        panel.message = "选择要插入的图片"
-        
-        panel.begin { response in
-            if response == .OK, let url = panel.url {
-                Task {
-                    do {
-                        try await viewModel.uploadImageAndInsertToNote(imageURL: url)
-                        // 刷新编辑器内容
-                if let note = viewModel.selectedNote {
-                            editedContent = note.primaryXMLContent
-                            originalContent = note.primaryXMLContent
-                        }
-                    } catch {
-                        saveError = "上传图片失败: \(error.localizedDescription)"
-                        showSaveError = true
-                    }
-                }
-            }
-        }
+        // TODO: 实现图片插入（需要 AttributedString 支持）
+        NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: MiNoteEditorV2.FormatAction.bold) // 临时使用
     }
     
     private func saveChanges() {
@@ -525,21 +545,48 @@ struct NoteDetailView: View {
                 isSaving = true
                 
                 do {
+                    // 优先使用RTF数据（如果使用RichTextKit编辑器）
+                    let finalRTFData: Data?
+                    let finalAttributedText: AttributedString
+                    
+                    if useRichTextKit, let rtfData = editedRTFData {
+                        // 从RTF数据转换
+                        finalRTFData = rtfData
+                        if let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
+                            finalAttributedText = attributedText
+                        } else {
+                            finalAttributedText = editedAttributedText
+                        }
+                    } else {
+                        // 从AttributedString转换
+                        finalAttributedText = editedAttributedText
+                        finalRTFData = AttributedStringConverter.attributedStringToRTFData(editedAttributedText)
+                    }
+                    
+                    // 从 AttributedString 转换为 XML（用于同步到云端）
+                    let xmlContent = AttributedStringConverter.attributedStringToXML(finalAttributedText)
+                    
                     let updatedNote = Note(
                         id: note.id,
                         title: editedTitle,
-                        content: editedContent, // editedContent is now XML string
+                        content: xmlContent,  // 同步时使用 XML
                         folderId: note.folderId,
                         isStarred: note.isStarred,
                         createdAt: note.createdAt,
-                        updatedAt: Date()
+                        updatedAt: Date(),
+                        tags: note.tags,
+                        rawData: note.rawData,
+                        rtfData: finalRTFData  // 本地存储使用 RTF
                     )
                     
                     try await viewModel.updateNote(updatedNote)
                     
                     // 保存成功后更新原始值，避免重复保存
                     originalTitle = editedTitle
-                    originalContent = editedContent
+                    originalAttributedText = finalAttributedText
+                    if useRichTextKit {
+                        editedRTFData = finalRTFData
+                    }
                     
                     // 保存成功反馈
                     withAnimation {
@@ -562,6 +609,8 @@ struct NoteDetailView: View {
             }
         }
     }
+    
+    // MARK: - 转换方法已移至 AttributedStringConverter
 }
 
 

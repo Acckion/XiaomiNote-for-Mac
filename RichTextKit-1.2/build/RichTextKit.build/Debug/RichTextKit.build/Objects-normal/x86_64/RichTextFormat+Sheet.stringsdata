@@ -1,0 +1,24 @@
+{
+  "source": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/RichTextKit-1.2/Sources/RichTextKit/Format/RichTextFormat+Sheet.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 80
+        }
+      },
+      {
+        "comment": "",
+        "key": "Toggle sheet",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 144
+        }
+      }
+    ]
+  },
+  "version": 1
+}

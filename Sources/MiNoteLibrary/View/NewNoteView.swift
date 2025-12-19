@@ -1,5 +1,6 @@
 import SwiftUI
 
+@available(macOS 14.0, *)
 struct NewNoteView: View {
     @ObservedObject var viewModel: NotesViewModel
     @Environment(\.dismiss) private var dismiss
@@ -46,7 +47,18 @@ struct NewNoteView: View {
                     }
                     
                     // 编辑器区域（正文）
-                    MiNoteEditor(xmlContent: $xmlContent, isEditable: $isEditable)
+                    MiNoteEditor(rtfData: Binding(
+                        get: { 
+                            // 从 XML 转换为 RTF（向后兼容）
+                            return convertXMLToRTF(xmlContent)
+                        },
+                        set: { newRTFData in
+                            // 从 RTF 转换为 XML
+                            if let xml = convertRTFToXML(newRTFData) {
+                                xmlContent = xml
+                            }
+                        }
+                    ), isEditable: $isEditable)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -121,8 +133,42 @@ struct NewNoteView: View {
             }
         }
     }
+    
+    // MARK: - RTF 和 XML 转换辅助方法
+    
+    /// 将 XML 转换为 RTF 数据
+    private func convertXMLToRTF(_ xmlContent: String) -> Data? {
+        guard !xmlContent.isEmpty else { return nil }
+        
+        var bodyContent = xmlContent
+        if !bodyContent.hasPrefix("<new-format/>") {
+            bodyContent = "<new-format/>" + bodyContent
+        }
+        
+        let attributedString = MiNoteContentParser.parseToAttributedString(bodyContent, noteRawData: nil)
+        let rtfRange = NSRange(location: 0, length: attributedString.length)
+        return try? attributedString.data(from: rtfRange, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+    }
+    
+    /// 将 RTF 数据转换为 XML
+    private func convertRTFToXML(_ rtfData: Data?) -> String? {
+        guard let rtfData = rtfData else { return nil }
+        
+        guard let attributedString = try? NSAttributedString(data: rtfData, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil) else {
+            return nil
+        }
+        
+        var xmlContent = MiNoteContentParser.parseToXML(attributedString)
+        xmlContent = xmlContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        if xmlContent.isEmpty {
+            xmlContent = "<new-format/><text indent=\"1\"></text>"
+        }
+        
+        return xmlContent
+    }
 }
 
+@available(macOS 14.0, *)
 #Preview {
     NewNoteView(viewModel: NotesViewModel())
 }
