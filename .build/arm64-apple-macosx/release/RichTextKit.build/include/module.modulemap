@@ -1,0 +1,3 @@
+module RichTextKit {
+    header "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/RichTextKit.build/include/RichTextKit-Swift.h"
+}

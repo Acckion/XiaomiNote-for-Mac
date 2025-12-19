@@ -6,16 +6,17 @@ import RichTextKit
 struct NoteDetailView: View {
     @ObservedObject var viewModel: NotesViewModel
     @State private var editedTitle: String = ""
-    @State private var editedAttributedText: AttributedString = AttributedString()  // 使用 AttributedString（SwiftUI 原生）
+    @State private var editedAttributedText: AttributedString = AttributedStringConverter.createEmptyAttributedString()  // 使用 AttributedString（SwiftUI 原生），带有默认属性
     @State private var editedRTFData: Data? = nil  // RTF数据（用于RichTextKit编辑器）
     @State private var isSaving: Bool = false
+    @State private var isUploading: Bool = false  // 上传状态
     @State private var showSaveSuccess: Bool = false
     @State private var showSaveError: Bool = false
     @State private var saveError: String = ""
     @State private var isEditable: Bool = true // New state for editor editability
     @State private var isInitializing: Bool = true // 标记是否正在初始化
     @State private var originalTitle: String = "" // 保存原始标题用于比较
-    @State private var originalAttributedText: AttributedString = AttributedString() // 保存原始 AttributedString 用于比较
+    @State private var originalAttributedText: AttributedString = AttributedStringConverter.createEmptyAttributedString() // 保存原始 AttributedString 用于比较，带有默认属性
     @State private var useRichTextKit: Bool = true  // 是否使用RichTextKit编辑器
     @StateObject private var editorContext = RichTextContext()  // RichTextContext（用于格式栏同步）
     @State private var pendingSaveWorkItem: DispatchWorkItem? = nil  // 待执行的保存任务
@@ -114,17 +115,29 @@ struct NoteDetailView: View {
     
     @ViewBuilder
     private var saveStatusIndicator: some View {
-        if isSaving {
-            ProgressView()
-                .controlSize(.small)
-                .padding(.trailing, 16)
-                .padding(.top, 16)
-        } else if showSaveSuccess {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
-                .padding(.trailing, 16)
-                .padding(.top, 16)
+        HStack(spacing: 4) {
+            if isSaving {
+                ProgressView()
+                    .controlSize(.small)
+                if isUploading {
+                    Text("上传中...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("保存中...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } else if showSaveSuccess {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                Text("已保存")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
+        .padding(.trailing, 16)
+        .padding(.top, 16)
     }
     
     private func editorContentView(for note: Note) -> some View {
@@ -203,14 +216,6 @@ struct NoteDetailView: View {
                             handleContentChange(attributedText)
                         }
                     }
-                )
-                .padding(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-            } else {
-                // 使用原有的MiNoteEditorV2（作为备选）
-                MiNoteEditorV2(
-                    attributedText: $editedAttributedText,
-                    isEditable: $isEditable,
-                    noteRawData: viewModel.selectedNote?.rawData
                 )
                 .padding(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
             }
@@ -293,42 +298,12 @@ struct NoteDetailView: View {
         .buttonStyle(.plain)
         .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
             FormatMenuView(context: editorContext) { action in
-                handleFormatAction(action)
+                // FormatMenuView 使用 RichTextContext 直接处理格式操作，这里只需要关闭菜单
                 showFormatMenu = false
             }
         }
     }
     
-    private func handleFormatAction(_ action: MiNoteEditor.FormatAction) {
-        // 将 MiNoteEditor.FormatAction 转换为 MiNoteEditorV2.FormatAction
-        let v2Action: MiNoteEditorV2.FormatAction?
-        
-        switch action {
-        case .bold:
-            v2Action = .bold
-        case .italic:
-            v2Action = .italic
-        case .underline:
-            v2Action = .underline
-        case .strikethrough:
-            v2Action = .strikethrough
-        case .heading(let level):
-            v2Action = .heading(level)
-        case .highlight:
-            v2Action = .highlight
-        case .textAlignment(let alignment):
-            v2Action = .textAlignment(alignment)
-        case .fontSize, .checkbox, .image:
-            // 这些操作在 MiNoteEditorV2 中暂不支持，直接发送通知
-            NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: action)
-            return
-        }
-        
-        // 发送 MiNoteEditorV2 格式操作
-        if let v2Action = v2Action {
-            NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: v2Action)
-        }
-    }
     
     private var checkboxButton: some View {
         Button {
@@ -346,6 +321,108 @@ struct NoteDetailView: View {
             Image(systemName: "paperclip")
         }
         .help("插入图片")
+    }
+    
+    /// 处理格式操作（目前 FormatMenuView 已经直接使用 RichTextContext 处理，此函数保留用于未来扩展）
+    private func handleFormatAction(_ action: MiNoteEditor.FormatAction) {
+        // FormatMenuView 已经通过 RichTextContext 直接处理格式操作
+        // 这里可以添加额外的逻辑，例如记录操作历史等
+        print("[NoteDetailView] 格式操作: \(action)")
+    }
+    
+    /// 插入复选框
+    private func insertCheckbox() {
+        // 使用 RichTextContext 在当前位置插入复选框
+        let checkbox = CheckboxTextAttachment()
+        let checkboxString = NSAttributedString(attachment: checkbox)
+        // 在复选框后添加一个空格
+        let checkboxWithSpace = NSMutableAttributedString(attributedString: checkboxString)
+        checkboxWithSpace.append(NSAttributedString(string: " "))
+        
+        // 获取插入位置
+        let insertLocation: Int
+        if editorContext.hasSelectedRange {
+            insertLocation = editorContext.selectedRange.location
+            // 替换选中的文本
+            editorContext.handle(.replaceSelectedText(with: checkboxWithSpace))
+        } else {
+            // 如果没有选中范围，在光标位置或文档末尾插入
+            insertLocation = editorContext.selectedRange.location < editorContext.attributedString.length 
+                ? editorContext.selectedRange.location 
+                : editorContext.attributedString.length
+            // 在指定位置插入
+            editorContext.handle(.replaceText(in: NSRange(location: insertLocation, length: 0), with: checkboxWithSpace))
+        }
+        
+        print("[NoteDetailView] 已插入复选框")
+    }
+    
+    /// 插入图片
+    private func insertImage() {
+        // 打开文件选择器选择图片
+        let openPanel = NSOpenPanel()
+        openPanel.allowedContentTypes = [.image, .png, .jpeg, .gif]
+        openPanel.allowsMultipleSelection = false
+        openPanel.canChooseDirectories = false
+        openPanel.canChooseFiles = true
+        
+        openPanel.begin { response in
+            if response == .OK, let url = openPanel.url {
+                // 在主线程处理图片插入
+                Task { @MainActor in
+                    await self.insertImage(from: url)
+                }
+            }
+        }
+    }
+    
+    /// 从 URL 插入图片
+    @MainActor
+    private func insertImage(from url: URL) async {
+        guard let image = NSImage(contentsOf: url) else {
+            print("[NoteDetailView] ⚠️ 无法加载图片: \(url)")
+            return
+        }
+        
+        // 调整图片大小（最大宽度 600pt）
+        let maxWidth: CGFloat = 600
+        let imageSize = image.size
+        let aspectRatio = imageSize.width / imageSize.height
+        let newSize: NSSize
+        if imageSize.width > maxWidth {
+            newSize = NSSize(width: maxWidth, height: maxWidth / aspectRatio)
+        } else {
+            newSize = imageSize
+        }
+        
+        // 创建图片附件
+        let imageAttachment = NSTextAttachment()
+        imageAttachment.image = image
+        imageAttachment.bounds = NSRect(origin: .zero, size: newSize)
+        
+        let imageString = NSMutableAttributedString(attributedString: NSAttributedString(attachment: imageAttachment))
+        // 在图片后添加换行
+        imageString.append(NSAttributedString(string: "\n"))
+        
+        // 插入图片到编辑器
+        let insertLocation: Int
+        if editorContext.hasSelectedRange {
+            insertLocation = editorContext.selectedRange.location
+            // 替换选中的文本
+            editorContext.handle(.replaceSelectedText(with: imageString))
+        } else {
+            // 如果没有选中范围，在光标位置或文档末尾插入
+            insertLocation = editorContext.selectedRange.location < editorContext.attributedString.length 
+                ? editorContext.selectedRange.location 
+                : editorContext.attributedString.length
+            // 在指定位置插入
+            editorContext.handle(.replaceText(in: NSRange(location: insertLocation, length: 0), with: imageString))
+        }
+        
+        print("[NoteDetailView] 已插入图片: \(url.lastPathComponent)")
+        
+        // 触发保存（图片插入后需要保存）
+        saveChanges()
     }
     
     @ViewBuilder
@@ -436,8 +513,10 @@ struct NoteDetailView: View {
                 editedAttributedText = attributedText
                 originalAttributedText = attributedText
             } else {
-                editedAttributedText = AttributedString()
-                originalAttributedText = AttributedString()
+                // 新建笔记或内容为空时，创建带有默认属性的空 AttributedString
+                // 确保文本颜色等属性正确设置，适配深色模式
+                editedAttributedText = AttributedStringConverter.createEmptyAttributedString()
+                originalAttributedText = AttributedStringConverter.createEmptyAttributedString()
             }
         }
         
@@ -505,8 +584,10 @@ struct NoteDetailView: View {
                 editedAttributedText = attributedText
                 originalAttributedText = attributedText
             } else {
-                editedAttributedText = AttributedString()
-                originalAttributedText = AttributedString()
+                // 新建笔记或内容为空时，创建带有默认属性的空 AttributedString
+                // 确保文本颜色等属性正确设置，适配深色模式
+                editedAttributedText = AttributedStringConverter.createEmptyAttributedString()
+                originalAttributedText = AttributedStringConverter.createEmptyAttributedString()
             }
         }
         
@@ -559,43 +640,13 @@ struct NoteDetailView: View {
         }
     }
     
-    // MARK: - 格式操作
     
-    /// 应用标题格式
-    /// 使用新的 AttributedString API，通过通知发送格式操作
-    private func applyHeading(level: Int) {
-        NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: MiNoteEditorV2.FormatAction.heading(level))
-    }
     
-    /// 切换加粗
-    /// 使用新的 AttributedString API
-    private func toggleBold() {
-        NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: MiNoteEditorV2.FormatAction.bold)
-    }
-    
-    /// 切换斜体
-    /// 使用新的 AttributedString API
-    private func toggleItalic() {
-        NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: MiNoteEditorV2.FormatAction.italic)
-    }
-    
-    /// 插入待办（复选框）
-    /// 使用新的 AttributedString API
-    private func insertCheckbox() {
-        // TODO: 实现复选框插入（需要 AttributedString 支持）
-        NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: MiNoteEditorV2.FormatAction.bold) // 临时使用
-    }
-    
-    private func insertImage() {
-        // TODO: 实现图片插入（需要 AttributedString 支持）
-        NotificationCenter.default.post(name: NSNotification.Name("MiNoteEditorFormatAction"), object: MiNoteEditorV2.FormatAction.bold) // 临时使用
-    }
-    
-    /// 保存更改（带防抖）
+    /// 保存更改（带防抖，自动上传到云端）
     private func saveChanges() {
         guard let note = viewModel.selectedNote else { return }
         
-        // 取消之前的保存任务
+        // 如果正在保存或上传，取消之前的任务并重新调度
         pendingSaveWorkItem?.cancel()
         
         // 创建新的保存任务
@@ -609,12 +660,11 @@ struct NoteDetailView: View {
         let currentEditedAttributedText = editedAttributedText
         let currentEditedRTFData = editedRTFData
         let currentUseRichTextKit = useRichTextKit
-        let currentOriginalTitle = originalTitle
-        let currentOriginalAttributedText = originalAttributedText
         
         let workItem = DispatchWorkItem {
             Task { @MainActor in
                 guard let note = viewModelRef.selectedNote, note.id == currentNoteId else {
+                    print("[NoteDetailView] ⚠️ 笔记已切换，取消保存: \(currentNoteId ?? "nil")")
                     return
                 }
                 
@@ -650,17 +700,47 @@ struct NoteDetailView: View {
                     rtfData: finalRTFData
                 )
                 
+                // 标记开始保存和上传
+                isSaving = true
+                isUploading = viewModelRef.isOnline && viewModelRef.isLoggedIn
+                
                 do {
+                    // updateNote 会自动处理本地保存和云端上传
                     try await viewModelRef.updateNote(updatedNote)
-                    print("[NoteDetailView] ✅ 延迟保存成功: \(note.id)")
+                    print("[NoteDetailView] ✅ 自动保存并上传成功: \(note.id)")
+                    
+                    // 保存成功后更新原始值，避免重复保存
+                    originalTitle = currentEditedTitle
+                    originalAttributedText = finalAttributedText
+                    if currentUseRichTextKit {
+                        editedRTFData = finalRTFData
+                    }
+                    
+                    // 显示成功提示（短暂显示）
+                    withAnimation {
+                        showSaveSuccess = true
+                        isSaving = false
+                        isUploading = false
+                    }
+                    
+                    // 2秒后隐藏成功提示
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation {
+                            showSaveSuccess = false
+                        }
+                    }
                 } catch {
-                    print("[NoteDetailView] ❌ 延迟保存失败: \(error.localizedDescription)")
+                    print("[NoteDetailView] ❌ 自动保存失败: \(error.localizedDescription)")
+                    isSaving = false
+                    isUploading = false
+                    
+                    // 即使上传失败，本地已保存，不显示错误（离线时会自动添加到队列）
                 }
             }
         }
         pendingSaveWorkItem = workItem
         
-        // 防抖处理：延迟保存
+        // 防抖处理：延迟0.5秒后自动保存并上传（避免频繁上传）
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
     }
     
@@ -692,6 +772,7 @@ struct NoteDetailView: View {
         }
         
         isSaving = true
+        isUploading = viewModel.isOnline && viewModel.isLoggedIn
         
         do {
             // 优先使用RTF数据（如果使用RichTextKit编辑器）
@@ -743,12 +824,13 @@ struct NoteDetailView: View {
                 withAnimation {
                     showSaveSuccess = true
                     isSaving = false
+                    isUploading = false
                 }
                 
                 print("[NoteDetailView] ✅ 笔记保存成功: \(note.id), title=\(editedTitle), content长度=\(xmlContent.count)")
                 
-                // 3秒后隐藏成功提示
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                // 2秒后隐藏成功提示
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                     withAnimation {
                         showSaveSuccess = false
                     }
@@ -773,6 +855,7 @@ struct NoteDetailView: View {
                 }
                 
                 isSaving = false
+                isUploading = false
             }
         }
     }

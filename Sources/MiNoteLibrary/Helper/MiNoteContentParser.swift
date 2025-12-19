@@ -2582,7 +2582,7 @@ class MiNoteContentParser {
     }
     
     /// 默认属性
-    private static func defaultAttributes() -> [NSAttributedString.Key: Any] {
+    static func defaultAttributes() -> [NSAttributedString.Key: Any] {
         return [
             .foregroundColor: NSColor.labelColor,
             .font: NSFont.systemFont(ofSize: baseFontSize),

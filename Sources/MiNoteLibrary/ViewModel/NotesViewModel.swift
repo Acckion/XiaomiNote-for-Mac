@@ -632,8 +632,43 @@ public class NotesViewModel: ObservableObject {
         if let code = response["code"] as? Int, code == 0 {
             // 更新本地文件夹对象
             if let index = folders.firstIndex(where: { $0.id == folder.id }) {
-                folders[index].name = newName
-                folders[index].rawData = response["data"] as? [String: Any] ?? response // 更新 rawData
+                var updatedFolder = folders[index]
+                updatedFolder.name = newName
+                
+                // 更新 rawData
+                var updatedRawData = updatedFolder.rawData ?? [:]
+                if let data = response["data"] as? [String: Any],
+                   let entry = data["entry"] as? [String: Any] {
+                    for (key, value) in entry {
+                        updatedRawData[key] = value
+                    }
+                } else if let entry = response["entry"] as? [String: Any] {
+                    for (key, value) in entry {
+                        updatedRawData[key] = value
+                    }
+                }
+                updatedRawData["subject"] = newName
+                // 从响应中获取 tag
+                var tagValue: String? = nil
+                if let data = response["data"] as? [String: Any] {
+                    tagValue = data["tag"] as? String
+                }
+                if tagValue == nil, let entry = response["entry"] as? [String: Any] {
+                    tagValue = entry["tag"] as? String
+                }
+                updatedRawData["tag"] = tagValue ?? updatedRawData["tag"] as? String ?? existingTag
+                updatedFolder.rawData = updatedRawData
+                
+                // 重新创建数组以确保 SwiftUI 检测到变化
+                var updatedFolders = folders
+                updatedFolders[index] = updatedFolder
+                folders = updatedFolders
+                
+                // 更新选中的文件夹（如果当前选中的是这个文件夹）
+                if selectedFolder?.id == folder.id {
+                    selectedFolder = updatedFolder
+                }
+                
                 try localStorage.saveFolders(folders.filter { !$0.isSystem })
             }
             print("[VIEWMODEL] 离线重命名的文件夹已同步到云端: \(folder.id) -> \(newName)")
@@ -1996,10 +2031,23 @@ public class NotesViewModel: ObservableObject {
     func renameFolder(_ folder: Folder, newName: String) async throws {
         // 先更新本地（无论在线还是离线）
         if let index = folders.firstIndex(where: { $0.id == folder.id }) {
-            folders[index].name = newName
+            var updatedFolder = folders[index]
+            updatedFolder.name = newName
+            // 更新 rawData 中的 subject 字段
+            var updatedRawData = updatedFolder.rawData ?? [:]
+            updatedRawData["subject"] = newName
+            updatedFolder.rawData = updatedRawData
+            
+            // 重新创建数组以确保 SwiftUI 检测到变化
+            var updatedFolders = folders
+            updatedFolders[index] = updatedFolder
+            folders = updatedFolders
+            
             try localStorage.saveFolders(folders.filter { !$0.isSystem })
+            
             // 确保 selectedFolder 也更新
             if selectedFolder?.id == folder.id {
+                selectedFolder = updatedFolder
                 selectedFolder?.name = newName
             }
         } else {
@@ -2100,15 +2148,27 @@ public class NotesViewModel: ObservableObject {
                     updatedRawData["type"] = "folder"
                     
                     updatedFolder.rawData = updatedRawData
-                    folders[index] = updatedFolder
+                    
+                    // 更新文件夹列表：重新创建数组以确保 SwiftUI 检测到变化
+                    var updatedFolders = folders
+                    updatedFolders[index] = updatedFolder
+                    folders = updatedFolders
                     
                     try localStorage.saveFolders(folders.filter { !$0.isSystem })
                     
+                    // 更新选中的文件夹（如果当前选中的是这个文件夹）
                     if selectedFolder?.id == folder.id {
                         selectedFolder = updatedFolder
+                        print("[VIEWMODEL] ✅ 已更新 selectedFolder: \(newName)")
                     }
                     
                     print("[VIEWMODEL] ✅ 文件夹重命名成功: \(folder.id) -> \(newName), 新 tag: \(updatedRawData["tag"] ?? "nil")")
+                    print("[VIEWMODEL] ✅ 文件夹列表已更新，当前文件夹数量: \(folders.count)")
+                    if let updatedFolderInList = folders.first(where: { $0.id == folder.id }) {
+                        print("[VIEWMODEL] ✅ 验证：文件夹列表中名称已更新为: \(updatedFolderInList.name)")
+                    }
+                } else {
+                    print("[VIEWMODEL] ⚠️ 警告：在文件夹列表中未找到要重命名的文件夹: \(folder.id)")
                 }
             } else {
                 let errorCode = code ?? -1
@@ -2157,15 +2217,30 @@ public class NotesViewModel: ObservableObject {
     
     /// 删除文件夹
     func deleteFolder(_ folder: Folder) async throws {
-        // 1. 不需要先移动文件夹内的所有笔记到"未分类"
-//        print("[VIEWMODEL] 删除文件夹前，移动笔记到未分类: \(folder.id)")
-//        try DatabaseService.shared.moveNotesToUncategorized(fromFolderId: folder.id)
-//        // 更新内存中的笔记列表
-//        for i in 0..<notes.count {
-//            if notes[i].folderId == folder.id {
-//                notes[i].folderId = "0"  // 0 表示未分类
-//            }
-//        }
+        // 1. 先获取并保存 tag（在删除本地数据之前，确保有正确的 tag 用于云端删除）
+        var finalTag = folder.rawData?["tag"] as? String ?? folder.id
+        
+        // 如果 tag 为空或等于 folderId，尝试从服务器获取最新 tag（在删除本地之前）
+        if finalTag.isEmpty || finalTag == folder.id {
+            print("[VIEWMODEL] 文件夹 tag 为空或等于 folderId，尝试从服务器获取最新 tag")
+            do {
+                let folderDetails = try await service.fetchFolderDetails(folderId: folder.id)
+                if let data = folderDetails["data"] as? [String: Any],
+                   let entry = data["entry"] as? [String: Any],
+                   let latestTag = entry["tag"] as? String, !latestTag.isEmpty {
+                    finalTag = latestTag
+                    print("[VIEWMODEL] 从服务器获取到最新 tag: \(finalTag)")
+                }
+            } catch {
+                print("[VIEWMODEL] 获取最新文件夹 tag 失败: \(error)，将使用 folderId")
+                // 如果获取失败，继续使用 folderId
+            }
+        }
+        
+        // 确保 tag 不为空
+        if finalTag.isEmpty {
+            finalTag = folder.id
+        }
         
         // 2. 删除文件夹的图片目录
         do {
@@ -2195,7 +2270,7 @@ public class NotesViewModel: ObservableObject {
         if !isOnline || !service.isAuthenticated() {
             let operationDict: [String: Any] = [
                 "folderId": folder.id,
-                "tag": folder.rawData?["tag"] as? String ?? folder.id,
+                "tag": finalTag,  // 使用已获取的 tag
                 "purge": false
             ]
             let operationData = try JSONSerialization.data(withJSONObject: operationDict)
@@ -2205,42 +2280,23 @@ public class NotesViewModel: ObservableObject {
                 data: operationData
             )
             try offlineQueue.addOperation(operation)
-            print("[VIEWMODEL] 离线模式：文件夹已在本地删除，等待同步: \(folder.id)")
+            print("[VIEWMODEL] 离线模式：文件夹已在本地删除，等待同步: \(folder.id), tag: \(finalTag)")
             // 刷新文件夹列表和笔记列表
             loadFolders()
             updateFolderCounts()
             return
         }
         
-        // 2. 尝试使用API删除云端
+        // 4. 尝试使用API删除云端（使用已获取的 tag）
         isLoading = true
         errorMessage = nil
         
         defer { isLoading = false }
         
         do {
-            var finalTag = folder.rawData?["tag"] as? String ?? folder.id
-            if finalTag.isEmpty || finalTag == folder.id {
-                print("[VIEWMODEL] 文件夹 tag 为空或等于 folderId，尝试从服务器获取最新 tag")
-                do {
-                    let folderDetails = try await service.fetchFolderDetails(folderId: folder.id)
-                    if let data = folderDetails["data"] as? [String: Any],
-                       let entry = data["entry"] as? [String: Any],
-                       let latestTag = entry["tag"] as? String, !latestTag.isEmpty {
-                        finalTag = latestTag
-                        print("[VIEWMODEL] 从服务器获取到最新 tag: \(finalTag)")
-                    }
-                } catch {
-                    print("[VIEWMODEL] 获取最新文件夹 tag 失败: \(error)，将使用 folderId")
-                }
-            }
-            
-            if finalTag.isEmpty {
-                finalTag = folder.id
-            }
-            
+            // 调用删除API（使用之前获取的 tag）
             _ = try await service.deleteFolder(folderId: folder.id, tag: finalTag, purge: false)
-            print("[VIEWMODEL] ✅ 云端文件夹删除成功: \(folder.id)")
+            print("[VIEWMODEL] ✅ 云端文件夹删除成功: \(folder.id), tag: \(finalTag)")
             
             // 确保从数据库中删除（虽然之前已经删除了，但为了保险再检查一次）
             // 注意：文件夹已经在步骤3中从数据库删除了，这里不需要再次删除
@@ -2249,28 +2305,15 @@ public class NotesViewModel: ObservableObject {
             updateFolderCounts()
         } catch {
             // 网络错误或cookie失效：添加到离线队列，不显示弹窗
+            print("[VIEWMODEL] ⚠️ 云端删除文件夹失败: \(error.localizedDescription)，已保存到离线队列")
+            
+            let operationDict: [String: Any] = [
+                "folderId": folder.id,
+                "tag": finalTag,  // 使用已获取的 tag
+                "purge": false
+            ]
+            
             if let urlError = error as? URLError {
-                let operationDict: [String: Any] = [
-                    "folderId": folder.id,
-                    "tag": folder.rawData?["tag"] as? String ?? folder.id,
-                    "purge": false
-                ]
-                if let operationData = try? JSONSerialization.data(withJSONObject: operationDict) {
-                let operation = OfflineOperation(
-                    type: .deleteFolder,
-                    noteId: folder.id,
-                    data: operationData
-                )
-                    try? offlineQueue.addOperation(operation)
-                print("[VIEWMODEL] 网络错误：文件夹已在本地删除，等待同步: \(folder.id)")
-                }
-            } else if case MiNoteError.cookieExpired = error {
-                // Cookie失效：保存到离线队列
-                let operationDict: [String: Any] = [
-                    "folderId": folder.id,
-                    "tag": folder.rawData?["tag"] as? String ?? folder.id,
-                    "purge": false
-                ]
                 if let operationData = try? JSONSerialization.data(withJSONObject: operationDict) {
                     let operation = OfflineOperation(
                         type: .deleteFolder,
@@ -2278,11 +2321,30 @@ public class NotesViewModel: ObservableObject {
                         data: operationData
                     )
                     try? offlineQueue.addOperation(operation)
-                    print("[VIEWMODEL] Cookie失效：文件夹已保存到离线队列: \(folder.id)")
+                    print("[VIEWMODEL] 网络错误：文件夹已在本地删除，等待同步: \(folder.id), tag: \(finalTag)")
+                }
+            } else if case MiNoteError.cookieExpired = error {
+                // Cookie失效：保存到离线队列
+                if let operationData = try? JSONSerialization.data(withJSONObject: operationDict) {
+                    let operation = OfflineOperation(
+                        type: .deleteFolder,
+                        noteId: folder.id,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] Cookie失效：文件夹已在本地删除，等待同步: \(folder.id), tag: \(finalTag)")
                 }
             } else {
-                // 其他错误：静默处理，不显示弹窗
-                print("[VIEWMODEL] 删除文件夹失败: \(error.localizedDescription)")
+                // 其他错误（如API返回失败）：也保存到离线队列重试
+                if let operationData = try? JSONSerialization.data(withJSONObject: operationDict) {
+                    let operation = OfflineOperation(
+                        type: .deleteFolder,
+                        noteId: folder.id,
+                        data: operationData
+                    )
+                    try? offlineQueue.addOperation(operation)
+                    print("[VIEWMODEL] API错误：文件夹已在本地删除，保存到离线队列等待重试: \(folder.id), tag: \(finalTag)")
+                }
             }
             // 不设置 errorMessage，避免弹窗提示
         }

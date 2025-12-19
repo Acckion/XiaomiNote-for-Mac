@@ -122,5 +122,16 @@ public struct AttributedStringConverter {
         
         return xmlContent
     }
+    
+    /// 创建带有默认属性的空 AttributedString（用于新建笔记）
+    /// 确保文本颜色等属性正确设置，适配深色模式
+    public static func createEmptyAttributedString() -> AttributedString {
+        // 创建一个带有默认属性的 NSAttributedString
+        let defaultAttributes = MiNoteContentParser.defaultAttributes()
+        let nsAttributedString = NSAttributedString(string: "", attributes: defaultAttributes)
+        
+        // 转换为 AttributedString
+        return AttributedString(nsAttributedString)
+    }
 }
 

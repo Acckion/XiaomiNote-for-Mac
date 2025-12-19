@@ -19,7 +19,6 @@
 		2892DE9DF5909F639453F7EF /* XMLReversibilityTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEBA8B045168080EF8181BC3 /* XMLReversibilityTest.swift */; };
 		379940B416A995F1EC1343FB /* NoteEditorWithPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A4A1F332A881259EAB626A /* NoteEditorWithPreviewView.swift */; };
 		46146E87652EBF78CBD635C8 /* MiNoteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587A0C9CB4BD8A71F364C4E7 /* MiNoteService.swift */; };
-		479FC5FD5C076D121F4CFF61 /* MiNoteEditorV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1CCD6998A57DECFC22BAA01 /* MiNoteEditorV2.swift */; };
 		49180BDC746E4820429FD773 /* Folder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2707995632193C250FB2E95 /* Folder.swift */; };
 		58D92D458E9306E74D5EE7D5 /* RichTextKit in Frameworks */ = {isa = PBXBuildFile; productRef = 74F25B04FB6D33A5E4258BC5 /* RichTextKit */; };
 		615881628A721CC39363FC3B /* NewNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3119E8C539E7C9A6BA2EACC /* NewNoteView.swift */; };
@@ -106,7 +105,6 @@
 		D0E57318E0E7816DE9095F9F /* NoteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailView.swift; sourceTree = "<group>"; };
 		D3119E8C539E7C9A6BA2EACC /* NewNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewNoteView.swift; sourceTree = "<group>"; };
 		DAB696411171B9EF9F3A4242 /* XMLConversionTester.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLConversionTester.swift; sourceTree = "<group>"; };
-		E1CCD6998A57DECFC22BAA01 /* MiNoteEditorV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteEditorV2.swift; sourceTree = "<group>"; };
 		E4859FC7DF92EAA20C7ABF7C /* MiNoteMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MiNoteMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EEBA8B045168080EF8181BC3 /* XMLReversibilityTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLReversibilityTest.swift; sourceTree = "<group>"; };
 		F9D1C6CACE3C147825607106 /* OfflineOperationQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineOperationQueue.swift; sourceTree = "<group>"; };
@@ -150,7 +148,6 @@
 				7B6E41489C440EED33E932D6 /* FormatMenuView.swift */,
 				97270EFAE55440EEDAA01661 /* LoginView.swift */,
 				228F39EBE3C9A59521361345 /* MiNoteEditor.swift */,
-				E1CCD6998A57DECFC22BAA01 /* MiNoteEditorV2.swift */,
 				BFF8E96AA0D85782AEBF114E /* MoveNoteView.swift */,
 				028A0CD24BAB7BF46FFBB48A /* NetworkLogView.swift */,
 				D3119E8C539E7C9A6BA2EACC /* NewNoteView.swift */,
@@ -370,7 +367,6 @@
 				EADD025D0D4A5C156FAC563C /* LoginView.swift in Sources */,
 				CF6DE736A8829F5B477729BE /* MiNoteContentParser.swift in Sources */,
 				048402EA2165B5AE26C7D7E8 /* MiNoteEditor.swift in Sources */,
-				479FC5FD5C076D121F4CFF61 /* MiNoteEditorV2.swift in Sources */,
 				46146E87652EBF78CBD635C8 /* MiNoteService.swift in Sources */,
 				DEAA2E4DCB56E13E68C2E4DF /* MoveNoteView.swift in Sources */,
 				8BD76061009C76B4112E81C4 /* NetworkLogView.swift in Sources */,
