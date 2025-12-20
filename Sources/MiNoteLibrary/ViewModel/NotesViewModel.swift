@@ -672,21 +672,34 @@ public class NotesViewModel: ObservableObject {
     }
     
     private func processRenameFolderOperation(_ operation: OfflineOperation) async throws {
+        print("[FolderRename] ========== processRenameFolderOperation() 开始 ==========")
+        print("[FolderRename] 操作 ID: \(operation.id)")
+        print("[FolderRename] 文件夹 ID: \(operation.noteId)")
+        
         // 从操作数据中解析文件夹信息
         guard let operationData = try? JSONDecoder().decode([String: String].self, from: operation.data),
               let oldName = operationData["oldName"],
               let newName = operationData["newName"] else {
+            print("[FolderRename] ❌ 错误：无效的文件夹重命名操作数据")
             throw NSError(domain: "MiNote", code: 400, userInfo: [NSLocalizedDescriptionKey: "无效的文件夹重命名操作数据"])
         }
         
+        print("[FolderRename] 旧名称: '\(oldName)' -> 新名称: '\(newName)'")
+        
         // 获取本地文件夹对象
         guard var folder = folders.first(where: { $0.id == operation.noteId }) else {
+            print("[FolderRename] ❌ 错误：文件夹不存在，folderId: \(operation.noteId)")
+            print("[FolderRename] 当前 folders 数组: \(folders.map { "\($0.id):'\($0.name)'" }.joined(separator: ", "))")
             throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在"])
         }
+        
+        print("[FolderRename] ✅ 找到文件夹: id=\(folder.id), name='\(folder.name)'")
         
         // 获取最新的 tag 和 createDate
         var existingTag = folder.rawData?["tag"] as? String ?? ""
         var originalCreateDate = folder.rawData?["createDate"] as? Int
+        
+        print("[FolderRename] 当前 tag: \(existingTag.isEmpty ? "空" : existingTag)")
         
         do {
             let folderDetails = try await service.fetchFolderDetails(folderId: folder.id)
@@ -694,20 +707,24 @@ public class NotesViewModel: ObservableObject {
                let entry = data["entry"] as? [String: Any] {
                 if let latestTag = entry["tag"] as? String, !latestTag.isEmpty {
                     existingTag = latestTag
+                    print("[FolderRename] 从服务器获取到最新 tag: \(existingTag)")
                 }
                 if let latestCreateDate = entry["createDate"] as? Int {
                     originalCreateDate = latestCreateDate
+                    print("[FolderRename] 从服务器获取到最新 createDate: \(latestCreateDate)")
                 }
             }
         } catch {
-            print("[VIEWMODEL] 处理离线重命名操作时获取最新文件夹信息失败: \(error)，将使用本地存储的 tag")
+            print("[FolderRename] ⚠️ 获取最新文件夹信息失败: \(error)，将使用本地存储的 tag")
         }
         
         if existingTag.isEmpty {
             existingTag = folder.id
+            print("[FolderRename] 警告：tag 仍然为空，使用 folderId 作为 fallback: \(existingTag)")
         }
         
         // 重命名文件夹到云端
+        print("[FolderRename] 调用云端 API 重命名文件夹...")
         let response = try await service.renameFolder(
             folderId: folder.id,
             newName: newName,
@@ -716,40 +733,68 @@ public class NotesViewModel: ObservableObject {
         )
         
         if let code = response["code"] as? Int, code == 0 {
+            print("[FolderRename] ✅ 云端重命名成功，更新本地数据")
+            print("[FolderRename] 当前 folders 数组数量: \(folders.count)")
+            print("[FolderRename] 当前 folders 数组内容: \(folders.map { "\($0.id):'\($0.name)'" }.joined(separator: ", "))")
+            
             // 更新本地文件夹对象
-            if let index = folders.firstIndex(where: { $0.id == folder.id }) {
-                var updatedFolder = folders[index]
-                updatedFolder.name = newName
-                
-                // 更新 rawData（使用统一的提取方法）
-                var updatedRawData = updatedFolder.rawData ?? [:]
-                if let entry = extractEntry(from: response) {
-                    for (key, value) in entry {
-                        updatedRawData[key] = value
-                    }
-                }
-                updatedRawData["subject"] = newName
-                // 从响应中获取 tag（使用统一的提取方法）
-                let tagValue = extractTag(from: response, fallbackTag: updatedRawData["tag"] as? String ?? existingTag)
-                updatedRawData["tag"] = tagValue
-                updatedFolder.rawData = updatedRawData
-                
-                // 重新创建数组以确保 SwiftUI 检测到变化
-                var updatedFolders = folders
-                updatedFolders[index] = updatedFolder
-                folders = updatedFolders
-                
-                // 更新选中的文件夹（如果当前选中的是这个文件夹）
-                if selectedFolder?.id == folder.id {
-                    selectedFolder = updatedFolder
-                }
-                
-                try localStorage.saveFolders(folders.filter { !$0.isSystem })
+            guard let index = folders.firstIndex(where: { $0.id == folder.id }) else {
+                print("[FolderRename] ❌ 错误：在 folders 数组中未找到文件夹")
+                throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在"])
             }
-            print("[VIEWMODEL] 离线重命名的文件夹已同步到云端: \(folder.id) -> \(newName)")
+            
+            print("[FolderRename] ✅ 找到文件夹，索引: \(index)")
+            print("[FolderRename] 更新前的文件夹: id=\(folders[index].id), name='\(folders[index].name)'")
+            
+            var updatedFolder = folders[index]
+            updatedFolder.name = newName
+            
+            // 更新 rawData（使用统一的提取方法）
+            var updatedRawData = updatedFolder.rawData ?? [:]
+            if let entry = extractEntry(from: response) {
+                for (key, value) in entry {
+                    updatedRawData[key] = value
+                }
+            }
+            updatedRawData["subject"] = newName
+            // 从响应中获取 tag（使用统一的提取方法）
+            let tagValue = extractTag(from: response, fallbackTag: updatedRawData["tag"] as? String ?? existingTag)
+            updatedRawData["tag"] = tagValue
+            updatedFolder.rawData = updatedRawData
+            
+            print("[FolderRename] 更新后的文件夹对象: id=\(updatedFolder.id), name='\(updatedFolder.name)', tag='\(tagValue)'")
+            
+            // 重新创建数组以确保 SwiftUI 检测到变化
+            var updatedFolders = folders
+            print("[FolderRename] 更新前 folders 数组引用: \(Unmanaged.passUnretained(folders as AnyObject).toOpaque())")
+            updatedFolders[index] = updatedFolder
+            folders = updatedFolders
+            print("[FolderRename] 更新后 folders 数组引用: \(Unmanaged.passUnretained(folders as AnyObject).toOpaque())")
+            print("[FolderRename] 更新后 folders 数组数量: \(folders.count)")
+            print("[FolderRename] 更新后 folders 数组内容: \(folders.map { "\($0.id):'\($0.name)'" }.joined(separator: ", "))")
+            
+            // 强制触发 UI 更新
+            print("[FolderRename] 调用 objectWillChange.send() 触发 UI 更新")
+            objectWillChange.send()
+            
+            // 更新选中的文件夹（如果当前选中的是这个文件夹）
+            if selectedFolder?.id == folder.id {
+                print("[FolderRename] 更新 selectedFolder: '\(selectedFolder?.name ?? "nil")' -> '\(newName)'")
+                selectedFolder = updatedFolder
+                print("[FolderRename] ✅ selectedFolder 已更新: '\(selectedFolder?.name ?? "nil")'")
+            } else {
+                print("[FolderRename] selectedFolder 不是当前文件夹，无需更新")
+            }
+            
+            try localStorage.saveFolders(folders.filter { !$0.isSystem })
+            print("[FolderRename] ✅ 已保存到本地存储")
+            
+            print("[FolderRename] ✅ 离线重命名的文件夹已同步到云端: \(folder.id) -> \(newName)")
+            print("[FolderRename] ========== processRenameFolderOperation() 完成 ==========")
         } else {
             let message = extractErrorMessage(from: response, defaultMessage: "同步重命名文件夹失败")
             let code = response["code"] as? Int ?? -1
+            print("[FolderRename] ❌ 云端重命名失败，code: \(code), message: \(message)")
             throw NSError(domain: "MiNote", code: code, userInfo: [NSLocalizedDescriptionKey: message])
         }
     }
@@ -851,11 +896,17 @@ public class NotesViewModel: ObservableObject {
     }
     
     private func loadFolders() {
+        print("[FolderRename] ========== loadFolders() 开始 ==========")
+        print("[FolderRename] 调用栈: \(Thread.callStackSymbols.prefix(5).joined(separator: "\n"))")
+        print("[FolderRename] 当前 folders 数组数量: \(folders.count)")
+        print("[FolderRename] 当前 folders 数组内容: \(folders.map { "\($0.id):'\($0.name)'" }.joined(separator: ", "))")
+        print("[FolderRename] 当前 folders 数组引用: \(Unmanaged.passUnretained(folders as AnyObject).toOpaque())")
+        
         do {
             let localFolders = try localStorage.loadFolders()
-            print("从数据库加载了 \(localFolders.count) 个文件夹")
+            print("[FolderRename] 从数据库加载了 \(localFolders.count) 个文件夹")
             for folder in localFolders {
-                print("  - id: \(folder.id), name: \(folder.name), isSystem: \(folder.isSystem)")
+                print("[FolderRename]   - id: \(folder.id), name: '\(folder.name)', isSystem: \(folder.isSystem)")
             }
             
             if !localFolders.isEmpty {
@@ -887,18 +938,29 @@ public class NotesViewModel: ObservableObject {
                         foldersWithCount[i].count = notes.filter { $0.folderId == folder.id }.count
                     }
                 }
+                
+                print("[FolderRename] 准备更新 folders 数组")
+                print("[FolderRename] 更新前 folders 数组引用: \(Unmanaged.passUnretained(folders as AnyObject).toOpaque())")
+                print("[FolderRename] 新 folders 数组内容: \(foldersWithCount.map { "\($0.id):'\($0.name)'" }.joined(separator: ", "))")
+                
                 self.folders = foldersWithCount
-                print("最终 folders 数组包含 \(folders.count) 个文件夹:")
+                
+                print("[FolderRename] 更新后 folders 数组引用: \(Unmanaged.passUnretained(folders as AnyObject).toOpaque())")
+                print("[FolderRename] 最终 folders 数组包含 \(folders.count) 个文件夹:")
                 for folder in folders {
-                    print("  - id: \(folder.id), name: \(folder.name), isSystem: \(folder.isSystem), count: \(folder.count)")
+                    print("[FolderRename]   - id: \(folder.id), name: '\(folder.name)', isSystem: \(folder.isSystem), count: \(folder.count)")
                 }
+                
+                // 强制触发 UI 更新
+                print("[FolderRename] 调用 objectWillChange.send() 触发 UI 更新")
+                objectWillChange.send()
             } else {
                 // 如果没有本地文件夹数据，加载示例数据
-                print("数据库中没有文件夹，加载示例数据")
+                print("[FolderRename] 数据库中没有文件夹，加载示例数据")
                 loadSampleFolders()
             }
         } catch {
-            print("加载文件夹失败: \(error)")
+            print("[FolderRename] ❌ 加载文件夹失败: \(error)")
             // 加载示例数据作为后备
             loadSampleFolders()
         }
@@ -906,7 +968,10 @@ public class NotesViewModel: ObservableObject {
         // 如果没有选择文件夹，选择第一个
         if selectedFolder == nil {
             selectedFolder = folders.first
+            print("[FolderRename] 自动选择第一个文件夹: '\(selectedFolder?.name ?? "nil")'")
         }
+        
+        print("[FolderRename] ========== loadFolders() 完成 ==========")
     }
     
     private func loadSampleData() {
@@ -1136,6 +1201,10 @@ public class NotesViewModel: ObservableObject {
         }
         
         do {
+            print("[FolderRename] ========== performFullSync() 开始 ==========")
+            print("[FolderRename] 同步前 folders 数组数量: \(folders.count)")
+            print("[FolderRename] 同步前 folders 数组内容: \(folders.map { "\($0.id):'\($0.name)'" }.joined(separator: ", "))")
+            
             print("[VIEWMODEL] 调用syncService.performFullSync()")
             let result = try await syncService.performFullSync()
             print("[VIEWMODEL] syncService.performFullSync() 成功完成")
@@ -1145,11 +1214,16 @@ public class NotesViewModel: ObservableObject {
             self.lastSyncTime = result.lastSyncTime
             
             // 重新加载本地数据
+            print("[FolderRename] 同步完成，准备重新加载本地数据...")
             await loadLocalDataAfterSync()
+            
+            print("[FolderRename] 同步后 folders 数组数量: \(folders.count)")
+            print("[FolderRename] 同步后 folders 数组内容: \(folders.map { "\($0.id):'\($0.name)'" }.joined(separator: ", "))")
             
             syncProgress = 1.0
             syncStatusMessage = "同步完成: 成功同步 \(result.syncedNotes) 条笔记"
             print("[VIEWMODEL] 同步成功: 同步了 \(result.syncedNotes) 条笔记")
+            print("[FolderRename] ========== performFullSync() 完成 ==========")
             
         } catch let error as MiNoteError {
             print("[VIEWMODEL] MiNoteError: \(error)")
@@ -1210,6 +1284,10 @@ public class NotesViewModel: ObservableObject {
     
     /// 同步后重新加载本地数据
     private func loadLocalDataAfterSync() async {
+        print("[FolderRename] ========== loadLocalDataAfterSync() 开始 ==========")
+        print("[FolderRename] 同步前 folders 数组数量: \(folders.count)")
+        print("[FolderRename] 同步前 folders 数组内容: \(folders.map { "\($0.id):'\($0.name)'" }.joined(separator: ", "))")
+        
         do {
             // 保存当前选中的笔记ID
             let currentSelectedNoteId = selectedNote?.id
@@ -1218,7 +1296,11 @@ public class NotesViewModel: ObservableObject {
             self.notes = localNotes
             
             // 重新加载文件夹（从本地存储）
+            print("[FolderRename] 调用 loadFolders() 重新加载文件夹列表")
             loadFolders()
+            
+            print("[FolderRename] 同步后 folders 数组数量: \(folders.count)")
+            print("[FolderRename] 同步后 folders 数组内容: \(folders.map { "\($0.id):'\($0.name)'" }.joined(separator: ", "))")
             
             // 如果之前有选中的笔记，更新为重新加载的版本（确保内容是最新的）
             if let noteId = currentSelectedNoteId,
@@ -1233,8 +1315,11 @@ public class NotesViewModel: ObservableObject {
                 restoreLastSelectedNote()
             }
             
+            print("[FolderRename] ========== loadLocalDataAfterSync() 完成 ==========")
+            
         } catch {
-            print("同步后加载本地数据失败: \(error)")
+            print("[FolderRename] ❌ 同步后加载本地数据失败: \(error)")
+            print("[FolderRename] ========== loadLocalDataAfterSync() 失败 ==========")
         }
     }
     
@@ -2175,22 +2260,32 @@ public class NotesViewModel: ObservableObject {
             updatedFolders[index] = updatedFolder
             folders = updatedFolders
             
+            // 强制触发 UI 更新（通过 objectWillChange）
+            objectWillChange.send()
+            
             try localStorage.saveFolders(folders.filter { !$0.isSystem })
             
-            // 确保 selectedFolder 也更新
+            // 确保 selectedFolder 也更新（使用新的 updatedFolder 实例）
             if selectedFolder?.id == folder.id {
                 selectedFolder = updatedFolder
-                selectedFolder?.name = newName
+                print("[VIEWMODEL] ✅ 已更新 selectedFolder（初始）: \(newName)")
             }
+            
+            // 打印调试信息
+            print("[VIEWMODEL] 🔍 调试：初始更新后，文件夹名称 = \(updatedFolder.name)")
         } else {
             throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在"])
         }
         
-        // 如果离线或未认证，添加到离线队列
+        // 如果离线或未认证，添加到离线队列（本地已更新，等待上线后同步）
         if !isOnline || !service.isAuthenticated() {
+            print("[FolderRename] ========== 离线模式 ==========")
+            print("[FolderRename] isOnline: \(isOnline), isAuthenticated: \(service.isAuthenticated())")
+            print("[FolderRename] 文件夹已在本地重命名（'\(folder.name)' -> '\(newName)'），添加到离线队列")
+            
             let operationData = try JSONEncoder().encode([
-                "oldName": folder.name,
-                "newName": newName
+                "oldName": folder.name,  // 保存原始名称（重命名前的名称）
+                "newName": newName       // 保存新名称
             ])
             let operation = OfflineOperation(
                 type: .renameFolder,
@@ -2198,7 +2293,8 @@ public class NotesViewModel: ObservableObject {
                 data: operationData
             )
             try offlineQueue.addOperation(operation)
-            print("[VIEWMODEL] 离线模式：文件夹已在本地重命名，等待同步: \(folder.id)")
+            print("[FolderRename] ✅ 离线重命名操作已添加到队列: \(folder.id)")
+            print("[FolderRename] ========== 离线模式处理完成 ==========")
             return
         }
         
@@ -2248,60 +2344,95 @@ public class NotesViewModel: ObservableObject {
             let isSuccess = (code == 0) || (code == nil && response["result"] as? String == "ok")
             
             if isSuccess {
-                // 更新本地文件夹对象
-                if let index = folders.firstIndex(where: { $0.id == folder.id }) {
-                    var updatedFolder = folders[index]
-                    updatedFolder.name = newName
-                    
-                    // 构建更新的 rawData
-                    // 先保留原有的 rawData（包含 subject 等字段）
-                    var updatedRawData: [String: Any] = updatedFolder.rawData ?? [:]
-                    
-                    // 如果有 data 字段，合并它（包含新的 tag、modifyDate 等）
-                    if let data = response["data"] as? [String: Any] {
-                        // 合并 data，但保留原有的 subject 字段（因为 data 中没有 subject）
-                        updatedRawData = updatedRawData.merging(data) { (old, new) in new }
-                        print("[VIEWMODEL] 合并 response.data 到 rawData: \(data)")
-                    }
-                    
-                    // 如果有 entry 字段（根级别），也合并进去（包含完整的文件夹信息）
-                    if let entry = response["entry"] as? [String: Any] {
-                        updatedRawData = updatedRawData.merging(entry) { (_, new) in new }
-                        print("[VIEWMODEL] 合并 response.entry 到 rawData")
-                    }
-                    
-                    // 确保包含必要的字段
-                    updatedRawData["tag"] = updatedRawData["tag"] ?? (response["data"] as? [String: Any])?["tag"] ?? existingTag
-                    // 确保 subject 字段设置为新名称（因为 API 响应中可能没有 subject）
-                    updatedRawData["subject"] = newName
-                    // 确保 id 字段正确
-                    updatedRawData["id"] = folder.id
-                    // 确保 type 字段
-                    updatedRawData["type"] = "folder"
-                    
-                    updatedFolder.rawData = updatedRawData
-                    
-                    // 更新文件夹列表：重新创建数组以确保 SwiftUI 检测到变化
-                    var updatedFolders = folders
-                    updatedFolders[index] = updatedFolder
-                    folders = updatedFolders
-                    
-                    try localStorage.saveFolders(folders.filter { !$0.isSystem })
-                    
-                    // 更新选中的文件夹（如果当前选中的是这个文件夹）
-                    if selectedFolder?.id == folder.id {
-                        selectedFolder = updatedFolder
-                        print("[VIEWMODEL] ✅ 已更新 selectedFolder: \(newName)")
-                    }
-                    
-                    print("[VIEWMODEL] ✅ 文件夹重命名成功: \(folder.id) -> \(newName), 新 tag: \(updatedRawData["tag"] ?? "nil")")
-                    print("[VIEWMODEL] ✅ 文件夹列表已更新，当前文件夹数量: \(folders.count)")
-                    if let updatedFolderInList = folders.first(where: { $0.id == folder.id }) {
-                        print("[VIEWMODEL] ✅ 验证：文件夹列表中名称已更新为: \(updatedFolderInList.name)")
-                    }
-                } else {
-                    print("[VIEWMODEL] ⚠️ 警告：在文件夹列表中未找到要重命名的文件夹: \(folder.id)")
+                print("[FolderRename] ========== 云端重命名成功，更新本地数据 ==========")
+                print("[FolderRename] 响应 code: \(code ?? -1)")
+                print("[FolderRename] 当前 folders 数组数量: \(folders.count)")
+                print("[FolderRename] 当前 folders 数组内容: \(folders.map { "\($0.id):\($0.name)" }.joined(separator: ", "))")
+                
+                // 更新本地文件夹对象（类已经是 @MainActor，不需要额外的 MainActor.run）
+                guard let index = folders.firstIndex(where: { $0.id == folder.id }) else {
+                    print("[FolderRename] ❌ 错误：在 folders 数组中未找到文件夹，folderId: \(folder.id)")
+                    print("[FolderRename] 当前 folders 数组: \(folders.map { "\($0.id):\($0.name)" }.joined(separator: ", "))")
+                    throw NSError(domain: "MiNote", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在"])
                 }
+                
+                print("[FolderRename] ✅ 找到文件夹，索引: \(index)")
+                print("[FolderRename] 更新前的文件夹: id=\(folders[index].id), name='\(folders[index].name)'")
+                
+                // 从当前 folders 数组获取最新的文件夹对象
+                var updatedFolder = folders[index]
+                updatedFolder.name = newName
+                
+                // 构建更新的 rawData
+                // 先保留原有的 rawData（包含 subject 等字段）
+                var updatedRawData: [String: Any] = updatedFolder.rawData ?? [:]
+                
+                // 如果有 data 字段，合并它（包含新的 tag、modifyDate 等）
+                if let data = response["data"] as? [String: Any] {
+                    // 合并 data，但保留原有的 subject 字段（因为 data 中没有 subject）
+                    updatedRawData = updatedRawData.merging(data) { (old, new) in new }
+                    print("[FolderRename] 合并 response.data 到 rawData")
+                }
+                
+                // 如果有 entry 字段（根级别），也合并进去（包含完整的文件夹信息）
+                if let entry = response["entry"] as? [String: Any] {
+                    updatedRawData = updatedRawData.merging(entry) { (_, new) in new }
+                    print("[FolderRename] 合并 response.entry 到 rawData")
+                }
+                
+                // 使用统一的提取方法获取 tag
+                let tagValue = extractTag(from: response, fallbackTag: existingTag)
+                updatedRawData["tag"] = tagValue
+                // 确保 subject 字段设置为新名称（因为 API 响应中可能没有 subject）
+                updatedRawData["subject"] = newName
+                // 确保 id 字段正确
+                updatedRawData["id"] = folder.id
+                // 确保 type 字段
+                updatedRawData["type"] = "folder"
+                
+                updatedFolder.rawData = updatedRawData
+                
+                print("[FolderRename] 更新后的文件夹对象: id=\(updatedFolder.id), name='\(updatedFolder.name)', tag='\(tagValue)'")
+                
+                // 更新文件夹列表：重新创建数组以确保 SwiftUI 检测到变化
+                // 由于 Folder 的 Equatable 只比较 id，我们需要确保创建新数组来触发 SwiftUI 更新
+                var updatedFolders = folders
+                print("[FolderRename] 更新前 folders 数组引用: \(Unmanaged.passUnretained(folders as AnyObject).toOpaque())")
+                updatedFolders[index] = updatedFolder
+                folders = updatedFolders
+                print("[FolderRename] 更新后 folders 数组引用: \(Unmanaged.passUnretained(folders as AnyObject).toOpaque())")
+                print("[FolderRename] 更新后 folders 数组数量: \(folders.count)")
+                print("[FolderRename] 更新后 folders 数组内容: \(folders.map { "\($0.id):\($0.name)" }.joined(separator: ", "))")
+                
+                // 强制触发 UI 更新（通过 objectWillChange）
+                print("[FolderRename] 调用 objectWillChange.send() 触发 UI 更新")
+                objectWillChange.send()
+                
+                // 更新选中的文件夹（如果当前选中的是这个文件夹）
+                if selectedFolder?.id == folder.id {
+                    print("[FolderRename] 更新 selectedFolder: '\(selectedFolder?.name ?? "nil")' -> '\(newName)'")
+                    selectedFolder = updatedFolder
+                    print("[FolderRename] ✅ selectedFolder 已更新: '\(selectedFolder?.name ?? "nil")'")
+                } else {
+                    print("[FolderRename] selectedFolder 不是当前文件夹，无需更新")
+                }
+                
+                // 保存到本地存储（保存的是更新后的 folders）
+                print("[FolderRename] 保存到本地存储...")
+                try localStorage.saveFolders(folders.filter { !$0.isSystem })
+                print("[FolderRename] ✅ 已保存到本地存储")
+                
+                // 验证保存后的数据
+                if let savedFolders = try? localStorage.loadFolders() {
+                    if let savedFolder = savedFolders.first(where: { $0.id == folder.id }) {
+                        print("[FolderRename] ✅ 验证：从数据库读取的文件夹名称 = '\(savedFolder.name)'")
+                    } else {
+                        print("[FolderRename] ⚠️ 验证：从数据库读取时未找到文件夹")
+                    }
+                }
+                
+                print("[FolderRename] ✅ 文件夹重命名成功: \(folder.id) -> \(newName), 新 tag: \(tagValue)")
+                print("[FolderRename] ========== 云端重命名完成 ==========")
             } else {
                 let errorCode = code ?? -1
                 let message = response["description"] as? String ?? response["message"] as? String ?? "重命名文件夹失败"
@@ -2349,11 +2480,36 @@ public class NotesViewModel: ObservableObject {
     
     /// 删除文件夹
     func deleteFolder(_ folder: Folder) async throws {
-        // 如果离线或未认证，添加到离线队列（只保存 folderID，等待上线后再通过 folderID 查询 tag 并删除）
+        // 如果离线或未认证，先删除本地文件夹，然后添加到离线队列
         if !isOnline || !service.isAuthenticated() {
-            print("[VIEWMODEL] 离线模式：将文件夹删除操作添加到离线队列，folderId: \(folder.id)")
+            print("[VIEWMODEL] 离线模式：先删除本地文件夹，然后添加到离线队列，folderId: \(folder.id)")
             
-            // 只保存 folderID（不保存 tag，因为离线时无法获取）
+            // 1. 先删除本地文件夹
+            // 删除文件夹的图片目录
+            do {
+                try LocalStorageService.shared.deleteFolderImageDirectory(folderId: folder.id)
+                print("[VIEWMODEL] ✅ 已删除文件夹图片目录: \(folder.id)")
+            } catch {
+                print("[VIEWMODEL] ⚠️ 删除文件夹图片目录失败: \(error.localizedDescription)")
+                // 不抛出错误，继续执行删除操作
+            }
+            
+            // 从本地删除文件夹
+            if let index = folders.firstIndex(where: { $0.id == folder.id }) {
+                folders.remove(at: index)
+                // 从数据库删除文件夹记录
+                try DatabaseService.shared.deleteFolder(folderId: folder.id)
+                // 保存剩余的文件夹列表
+                try localStorage.saveFolders(folders.filter { !$0.isSystem })
+                if selectedFolder?.id == folder.id {
+                    selectedFolder = nil
+                }
+                print("[VIEWMODEL] ✅ 已从本地删除文件夹: \(folder.id)")
+            } else {
+                print("[VIEWMODEL] ⚠️ 文件夹列表中未找到要删除的文件夹: \(folder.id)")
+            }
+            
+            // 2. 添加到离线队列（只保存 folderID，等待上线后再通过 folderID 查询 tag 并删除）
             let operationDict: [String: Any] = [
                 "folderId": folder.id,
                 "purge": false
@@ -2370,6 +2526,10 @@ public class NotesViewModel: ObservableObject {
             )
             try offlineQueue.addOperation(operation)
             print("[VIEWMODEL] ✅ 离线删除操作已添加到队列: \(folder.id)")
+            
+            // 刷新文件夹列表和笔记列表
+            loadFolders()
+            updateFolderCounts()
             return
         }
         

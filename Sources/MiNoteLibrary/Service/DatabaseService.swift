@@ -928,14 +928,18 @@ final class DatabaseService: @unchecked Sendable {
             
             var syncTag: String? = nil
             if sqlite3_column_type(statement, 1) != SQLITE_NULL {
-                syncTag = String(cString: sqlite3_column_text(statement, 1))
+                if let textPointer = sqlite3_column_text(statement, 1) {
+                    syncTag = String(cString: textPointer)
+                }
             }
             
             var syncedNoteIds: [String] = []
             if sqlite3_column_type(statement, 2) != SQLITE_NULL {
-                let syncedNoteIdsString = String(cString: sqlite3_column_text(statement, 2))
-                if let syncedNoteIdsData = syncedNoteIdsString.data(using: .utf8) {
-                    syncedNoteIds = try JSONDecoder().decode([String].self, from: syncedNoteIdsData)
+                if let textPointer = sqlite3_column_text(statement, 2) {
+                    let syncedNoteIdsString = String(cString: textPointer)
+                    if let syncedNoteIdsData = syncedNoteIdsString.data(using: .utf8) {
+                        syncedNoteIds = try JSONDecoder().decode([String].self, from: syncedNoteIdsData)
+                    }
                 }
             }
             
