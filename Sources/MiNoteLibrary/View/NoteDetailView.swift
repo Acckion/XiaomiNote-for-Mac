@@ -231,6 +231,7 @@ struct NoteDetailView: View {
                                         print("![[debug]] [NoteDetailView] 准备调用 saveToLocalOnly，笔记ID: \(note.id)")
                                         Task { @MainActor in
                                             await saveToLocalOnly(for: note)
+                                            scheduleCloudUpload(for: note)
                                         }
                                     } else {
                                         print("![[debug]] [NoteDetailView] ⚠️ selectedNote 为 nil，无法保存")
@@ -880,13 +881,31 @@ struct NoteDetailView: View {
             print("![[debug]] [NoteDetailView] ✅ 本地保存成功: \(note.id), RTF长度: \(finalRTFData?.count ?? 0), XML长度: \(xmlContent.count)")
             
             // 更新 ViewModel 中的笔记对象
+            // 注意：更新 ViewModel 会触发 onChange(of: note)，但我们已经在保存中，不应该重新加载
             print("![[debug]] ========== 数据流程节点13: 更新 ViewModel ==========")
             if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
-                viewModel.notes[index] = updatedNote
-                if viewModel.selectedNote?.id == note.id {
-                    viewModel.selectedNote = updatedNote
+                // 延迟更新 ViewModel，确保 saveToLocalOnly 完全完成后再更新
+                // 这样可以避免触发重新加载
+                Task { @MainActor in
+                    // 等待一小段时间，确保保存操作完全完成
+                    try? await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
+                    
+                    // 临时标记正在保存，避免触发重新加载
+                    let wasSaving = isSavingLocally
+                    isSavingLocally = true
+                    
+                    viewModel.notes[index] = updatedNote
+                    if viewModel.selectedNote?.id == note.id {
+                        viewModel.selectedNote = updatedNote
+                    }
+                    
+                    // 恢复保存状态
+                    isSavingLocally = wasSaving
+                    
+                    print("![[debug]] [NoteDetailView] ✅ ViewModel 已更新（延迟），索引: \(index)")
                 }
-                print("![[debug]] [NoteDetailView] ✅ ViewModel 已更新，索引: \(index)")
+                
+                print("![[debug]] [NoteDetailView] ✅ ViewModel 更新任务已安排，索引: \(index)")
             } else {
                 print("![[debug]] [NoteDetailView] ⚠️ 笔记不在列表中，无法更新 ViewModel")
             }
@@ -1295,7 +1314,23 @@ struct NoteDetailView: View {
             }
         } else {
             // 相同笔记，只是内容更新
+            // 注意：如果这是保存操作导致的更新，不应该重新加载内容（会覆盖编辑器状态）
+            // 只有在外部更新（如云端同步）时才重新加载
             print("[[调试]]步骤61.2 [NoteDetailView] 相同笔记，只是内容更新，笔记ID: \(newNote.id)")
+            
+            // 检查是否是保存操作导致的更新（通过检查是否正在保存）
+            if isSavingLocally || isSavingBeforeSwitch {
+                print("[[调试]]步骤61.3 [NoteDetailView] ⚠️ 正在保存，跳过重新加载（避免覆盖编辑器状态）")
+                return
+            }
+            
+            // 检查是否是初始化阶段
+            if isInitializing {
+                print("[[调试]]步骤61.4 [NoteDetailView] ⚠️ 正在初始化，跳过重新加载")
+                return
+            }
+            
+            // 只有非保存操作导致的更新才重新加载
             Task { @MainActor in
                 await handleNoteChangeAsync(newNote)
             }

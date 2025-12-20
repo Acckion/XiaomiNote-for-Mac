@@ -91,38 +91,21 @@ struct RichTextEditorView: View {
         .disabled(!isEditable)
         .preference(key: RichTextContextPreferenceKey.self, value: context)
         .onChange(of: text) { oldValue, newValue in
-            // 当 text binding 变化时（例如从外部加载内容或用户输入），确保更新编辑器
+            // 当 text binding 变化时（例如从外部加载内容或用户输入），直接保存，不进行比较
             print("![[debug]] ========== 数据流程节点EDIT2: onChange(of: text) 触发 ==========")
             print("![[debug]] [RichTextEditorView] text binding 变化，旧长度: \(oldValue.length), 新长度: \(newValue.length)")
-            print("![[debug]] [RichTextEditorView] lastKnown 长度: \(lastKnownAttributedString.length)")
             
-            // 检查是否与 lastKnown 相同（避免重复处理）
-            let isSameAsLastKnown = newValue.string == lastKnownAttributedString.string && newValue.length == lastKnownAttributedString.length
+            // 更新 lastKnownAttributedString
+            lastKnownAttributedString = newValue
             
-            if oldValue.string != newValue.string || oldValue.length != newValue.length {
-                if isSameAsLastKnown {
-                    print("![[debug]] [RichTextEditorView] ⚠️ 文本内容变化，但与 lastKnown 相同，可能是从通知触发的，跳过重复处理")
-                    return
-                }
-                
-                print("![[debug]] [RichTextEditorView] ✅ 文本内容确实变化")
-                print("![[debug]] [RichTextEditorView] 📝 onChange(of: text): 文本内容变化")
-                print("![[debug]] [RichTextEditorView] 旧长度: \(oldValue.length), 新长度: \(newValue.length)")
-                print("![[debug]] [RichTextEditorView] 旧内容预览: '\(oldValue.string.prefix(50))'")
-                print("![[debug]] [RichTextEditorView] 新内容预览: '\(newValue.string.prefix(50))'")
-                
-                // 更新 lastKnownAttributedString
-                lastKnownAttributedString = newValue
-                
-                // 使用 context 的 setAttributedString 方法更新编辑器
-                // 因为直接改变 binding 不会更新编辑器（RichTextKit 已知问题）
-                context.setAttributedString(to: newValue)
-                // 触发内容变化回调
-                print("![[debug]] [RichTextEditorView] ✅ 调用 onContentChange 回调")
-                onContentChange?(newValue)
-            } else {
-                print("![[debug]] [RichTextEditorView] ⚠️ 文本内容未变化，跳过处理")
-            }
+            // 使用 context 的 setAttributedString 方法更新编辑器
+            // 因为直接改变 binding 不会更新编辑器（RichTextKit 已知问题）
+            context.setAttributedString(to: newValue)
+            
+            // 直接触发内容变化回调（不进行比较）
+            print("![[debug]] [RichTextEditorView] ✅ onChange(of: text) 触发 onContentChange 回调")
+            onContentChange?(newValue)
+            print("![[debug]] [RichTextEditorView] ✅ onContentChange 回调已调用")
         }
         .onReceive(NotificationCenter.default.publisher(for: NSText.didChangeNotification)) { notification in
             // 监听 NSTextView 的文本变化通知（macOS）
@@ -174,12 +157,10 @@ struct RichTextEditorView: View {
                 // 更新 lastKnownAttributedString
                 lastKnownAttributedString = currentText
                 
-                // 更新 text binding（如果还没更新）
-                if text.string != currentText.string || text.length != currentText.length {
-                    text = currentText
-                }
+                // 更新 text binding（直接更新，不进行比较）
+                text = currentText
                 
-                // 触发保存
+                // 触发保存（不进行比较）
                 print("![[debug]] [RichTextEditorView] ✅ 格式变化触发 onContentChange 回调")
                 onContentChange?(currentText)
                 print("![[debug]] [RichTextEditorView] ✅ onContentChange 回调已调用")
