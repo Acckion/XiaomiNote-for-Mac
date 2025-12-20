@@ -1,4 +1,0 @@
-module RichTextKit {
-header "RichTextKit-Swift.h"
-export *
-}

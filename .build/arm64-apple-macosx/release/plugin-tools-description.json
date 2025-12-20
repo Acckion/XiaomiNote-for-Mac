@@ -135,6 +135,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/NoteHistoryVersion.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/DatabaseService.swift"
         },
         {
@@ -257,6 +261,7 @@
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/XMLReversibilityTest.swift.o",
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/Folder.swift.o",
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/Note.swift.o",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NoteHistoryVersion.swift.o",
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/DatabaseService.swift.o",
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/LocalStorageService.swift.o",
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/MiNoteService.swift.o",
@@ -365,6 +370,10 @@
         {
           "kind" : "file",
           "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/Note.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NoteHistoryVersion.swift.o"
         },
         {
           "kind" : "file",
@@ -480,6 +489,7 @@
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Helper/XMLReversibilityTest.swift",
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Folder.swift",
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Note.swift",
+        "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/NoteHistoryVersion.swift",
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/DatabaseService.swift",
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/LocalStorageService.swift",
         "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/MiNoteService.swift",
@@ -2217,6 +2227,7 @@
       "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Helper/XMLReversibilityTest.swift",
       "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Folder.swift",
       "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/Note.swift",
+      "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/NoteHistoryVersion.swift",
       "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/DatabaseService.swift",
       "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/LocalStorageService.swift",
       "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/MiNoteService.swift",
@@ -2638,6 +2649,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Model/NoteHistoryVersion.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/Sources/MiNoteLibrary/Service/DatabaseService.swift"
         },
         {
@@ -2833,6 +2848,10 @@
         {
           "kind" : "file",
           "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NoteEditorWithPreviewView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.build/arm64-apple-macosx/release/MiNoteLibrary.build/NoteHistoryVersion.swift.o"
         },
         {
           "kind" : "file",

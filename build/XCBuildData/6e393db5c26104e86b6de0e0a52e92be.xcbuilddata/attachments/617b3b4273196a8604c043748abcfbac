@@ -1,4 +1,0 @@
-framework module MiNoteLibrary {
-  header "MiNoteLibrary-Swift.h"
-  requires objc
-}

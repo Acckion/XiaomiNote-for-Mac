@@ -1,4 +1,0 @@
-Target dependency graph (2 targets)
-Target 'MiNoteMac' in project 'MiNoteMac'
-➜ Explicit dependency on target 'MiNoteLibrary' in project 'MiNoteMac'
-Target 'MiNoteLibrary' in project 'MiNoteMac' (no dependencies)
