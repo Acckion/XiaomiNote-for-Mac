@@ -106,7 +106,7 @@ struct RichTextEditorView: View {
             let strikethroughChanged = (oldValue[RichTextStyle.strikethrough] ?? false) != (newValue[RichTextStyle.strikethrough] ?? false)
             
             if boldChanged || italicChanged || underlineChanged || strikethroughChanged {
-                print("🔄 [RichTextEditorView] context.styles 变化:")
+            print("🔄 [RichTextEditorView] context.styles 变化:")
                 print("   - 加粗: \(newValue[RichTextStyle.bold] ?? false) \(boldChanged ? "(已变化)" : "")")
                 print("   - 斜体: \(newValue[RichTextStyle.italic] ?? false) \(italicChanged ? "(已变化)" : "")")
                 print("   - 下划线: \(newValue[RichTextStyle.underlined] ?? false) \(underlineChanged ? "(已变化)" : "")")
@@ -385,7 +385,7 @@ struct RichTextEditorWrapper: View {
             if let archivedData = try? NSKeyedArchiver.archivedData(
                 withRootObject: loadedText,
                 requiringSecureCoding: false
-            ) {
+        ) {
                 self.rtfData = archivedData
                 lastRTFData = archivedData
                 print("[RichTextEditorWrapper] ✅ 使用 NSKeyedArchiver 生成 archivedData，长度: \(archivedData.count)字节")

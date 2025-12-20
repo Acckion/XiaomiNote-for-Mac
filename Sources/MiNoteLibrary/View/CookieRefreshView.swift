@@ -20,20 +20,20 @@ struct CookieRefreshView: View {
         VStack(spacing: 0) {
             // 标题栏 - 参考 Obsidian 插件：显示提示信息
             VStack(spacing: 0) {
-                HStack {
-                    Text("刷新Cookie")
-                        .font(.headline)
-                        .padding(.leading, 16)
-                    
-                    Spacer()
-                    
-                    Button("关闭") {
-                        dismiss()
-                    }
-                    .keyboardShortcut(.escape, modifiers: [])
-                    .padding(.trailing, 16)
+            HStack {
+                Text("刷新Cookie")
+                    .font(.headline)
+                    .padding(.leading, 16)
+                
+                Spacer()
+                
+                Button("关闭") {
+                    dismiss()
                 }
-                .padding(.vertical, 12)
+                .keyboardShortcut(.escape, modifiers: [])
+                .padding(.trailing, 16)
+            }
+            .padding(.vertical, 12)
                 
                 // 参考 Obsidian 插件：添加提示信息
                 HStack {
@@ -207,8 +207,8 @@ struct CookieRefreshWebView: NSViewRepresentable {
             
             // 如果不是 profile 页面，显示加载状态
             if !url.contains("status/lite/profile") {
-                DispatchQueue.main.async {
-                    self.parent.isLoading = true
+            DispatchQueue.main.async {
+                self.parent.isLoading = true
                 }
             }
         }

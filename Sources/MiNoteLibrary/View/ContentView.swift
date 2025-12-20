@@ -773,12 +773,12 @@ struct SidebarView: View {
             } header: {
                 HStack {
                     Text("我的文件夹")
-                }
-                .contextMenu {
-                    Button {
-                        createNewFolder()
-                    } label: {
-                        Label("新建文件夹", systemImage: "folder.badge.plus")
+            }
+            .contextMenu {
+                Button {
+                    createNewFolder()
+                } label: {
+                    Label("新建文件夹", systemImage: "folder.badge.plus")
                     }
                 }
             }
@@ -975,10 +975,10 @@ struct SidebarView: View {
                 return
             }
             
-            Task {
-                do {
-                    try await viewModel.renameFolder(folder, newName: newName)
-                } catch {
+                Task {
+                    do {
+                        try await viewModel.renameFolder(folder, newName: newName)
+                    } catch {
                     // 根据错误类型显示不同的提示
                     let errorMessage: String
                     if let nsError = error as NSError? {
@@ -986,7 +986,7 @@ struct SidebarView: View {
                             errorMessage = "文件夹名称已存在，请使用其他名称。"
                         } else {
                             errorMessage = "重命名文件夹失败: \(error.localizedDescription)"
-                        }
+                }
                     } else {
                         errorMessage = "重命名文件夹失败: \(error.localizedDescription)"
                     }

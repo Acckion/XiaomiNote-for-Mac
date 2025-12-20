@@ -297,55 +297,7 @@ final class MiNoteService: @unchecked Sendable {
                 
                 // 检查401未授权错误
                 if httpResponse.statusCode == 401 {
-                    // 检查响应内容，判断是否真的是认证失败
-                    let responseBody = responseString ?? ""
-                    
-                    // 更全面的认证错误判断
-                    // 1. 检查响应中的登录URL（小米笔记API返回的登录重定向）
-                    let hasLoginURL = responseBody.contains("serviceLogin") || 
-                                     responseBody.contains("account.xiaomi.com") ||
-                                     responseBody.contains("pass/serviceLogin")
-                    
-                    // 2. 检查常见的认证错误关键词
-                    let hasAuthKeywords = responseBody.contains("unauthorized") || 
-                                         responseBody.contains("未授权") ||
-                                         responseBody.contains("登录") ||
-                                         responseBody.contains("login") ||
-                                         responseBody.contains("\"R\":401") ||
-                                         responseBody.contains("\"S\":\"Err\"")
-                    
-                    let isAuthError = hasLoginURL || hasAuthKeywords
-                    
-                    // 检查是否在刚登录后的保护期内
-                    let isInGracePeriod = checkIfInGracePeriod()
-                    
-                    if isInGracePeriod {
-                        print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，可能是 cookie 尚未完全生效，不视为过期")
-                        // 在保护期内，即使有 cookie 也不视为过期，可能是 cookie 还在生效中
-                        throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
-                    }
-                    
-                    // 根据当前是否有有效cookie来区分：未登录 vs Cookie过期
-                    if self.hasValidCookie() && isAuthError {
-                        // 已经有cookie且确实是认证错误，则视为cookie过期
-                        print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
-                        if hasLoginURL {
-                            print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
-                        }
-                    DispatchQueue.main.async {
-                        self.onCookieExpired?()
-                    }
-                    throw MiNoteError.cookieExpired
-                    } else if self.hasValidCookie() && !isAuthError {
-                        // 有 cookie 但不是明确的认证错误，可能是其他原因，不视为过期
-                        print("[MiNoteService] 401 错误但不是明确的认证失败，可能是其他原因")
-                        print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-                        throw MiNoteError.networkError(URLError(.badServerResponse))
-                    } else {
-                        // 没有cookie，说明尚未登录
-                        print("[MiNoteService] 401 错误且没有有效cookie，需要登录")
-                        throw MiNoteError.notAuthenticated
-                    }
+                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
                 }
             }
             
@@ -410,42 +362,7 @@ final class MiNoteService: @unchecked Sendable {
                 )
                 
                 if httpResponse.statusCode == 401 {
-                    let responseBody = responseString ?? ""
-                    
-                    // 更全面的认证错误判断
-                    let hasLoginURL = responseBody.contains("serviceLogin") || 
-                                     responseBody.contains("account.xiaomi.com") ||
-                                     responseBody.contains("pass/serviceLogin")
-                    let hasAuthKeywords = responseBody.contains("unauthorized") || 
-                                         responseBody.contains("未授权") ||
-                                         responseBody.contains("登录") ||
-                                         responseBody.contains("login") ||
-                                         responseBody.contains("\"R\":401") ||
-                                         responseBody.contains("\"S\":\"Err\"")
-                    let isAuthError = hasLoginURL || hasAuthKeywords
-                    let isInGracePeriod = checkIfInGracePeriod()
-                    
-                    if isInGracePeriod {
-                        print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
-                        throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
-                    }
-                    
-                    if self.hasValidCookie() && isAuthError {
-                        print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
-                        if hasLoginURL {
-                            print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
-                        }
-                    DispatchQueue.main.async {
-                        self.onCookieExpired?()
-                    }
-                    throw MiNoteError.cookieExpired
-                    } else if self.hasValidCookie() && !isAuthError {
-                        print("[MiNoteService] 401 错误但不是明确的认证失败")
-                        print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-                        throw MiNoteError.networkError(URLError(.badServerResponse))
-                    } else {
-                        throw MiNoteError.notAuthenticated
-                    }
+                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
                 }
             }
             
@@ -550,42 +467,7 @@ final class MiNoteService: @unchecked Sendable {
                 )
                 
                 if httpResponse.statusCode == 401 {
-                let responseBody = responseString ?? ""
-                
-                // 更全面的认证错误判断
-                let hasLoginURL = responseBody.contains("serviceLogin") || 
-                                 responseBody.contains("account.xiaomi.com") ||
-                                 responseBody.contains("pass/serviceLogin")
-                let hasAuthKeywords = responseBody.contains("unauthorized") || 
-                                     responseBody.contains("未授权") ||
-                                     responseBody.contains("登录") ||
-                                     responseBody.contains("login") ||
-                                     responseBody.contains("\"R\":401") ||
-                                     responseBody.contains("\"S\":\"Err\"")
-                let isAuthError = hasLoginURL || hasAuthKeywords
-                let isInGracePeriod = checkIfInGracePeriod()
-                
-                if isInGracePeriod {
-                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
-                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
-                }
-                
-                if self.hasValidCookie() && isAuthError {
-                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
-                    if hasLoginURL {
-                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
-                    }
-                    DispatchQueue.main.async {
-                        self.onCookieExpired?()
-                    }
-                    throw MiNoteError.cookieExpired
-                } else if self.hasValidCookie() && !isAuthError {
-                    print("[MiNoteService] 401 错误但不是明确的认证失败")
-                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-                    throw MiNoteError.networkError(URLError(.badServerResponse))
-                } else {
-                    throw MiNoteError.notAuthenticated
-                }
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
             }
             
             guard httpResponse.statusCode == 200 else {
@@ -672,42 +554,7 @@ final class MiNoteService: @unchecked Sendable {
             )
             
             if httpResponse.statusCode == 401 {
-                let responseBody = responseString ?? ""
-                
-                // 更全面的认证错误判断
-                let hasLoginURL = responseBody.contains("serviceLogin") || 
-                                 responseBody.contains("account.xiaomi.com") ||
-                                 responseBody.contains("pass/serviceLogin")
-                let hasAuthKeywords = responseBody.contains("unauthorized") || 
-                                     responseBody.contains("未授权") ||
-                                     responseBody.contains("登录") ||
-                                     responseBody.contains("login") ||
-                                     responseBody.contains("\"R\":401") ||
-                                     responseBody.contains("\"S\":\"Err\"")
-                let isAuthError = hasLoginURL || hasAuthKeywords
-                let isInGracePeriod = checkIfInGracePeriod()
-                
-                if isInGracePeriod {
-                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
-                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
-                }
-                
-                if self.hasValidCookie() && isAuthError {
-                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
-                    if hasLoginURL {
-                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
-                    }
-                    DispatchQueue.main.async {
-                        self.onCookieExpired?()
-                    }
-                    throw MiNoteError.cookieExpired
-                } else if self.hasValidCookie() && !isAuthError {
-                    print("[MiNoteService] 401 错误但不是明确的认证失败")
-                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-                    throw MiNoteError.networkError(URLError(.badServerResponse))
-                } else {
-                    throw MiNoteError.notAuthenticated
-                }
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
             }
             
             guard httpResponse.statusCode == 200 else {
@@ -734,96 +581,66 @@ final class MiNoteService: @unchecked Sendable {
     
     /// 获取文件夹详情
     func fetchFolderDetails(folderId: String) async throws -> [String: Any] {
-        var urlComponents = URLComponents(string: "\(baseURL)/note/folder/\(folderId)")
-        urlComponents?.queryItems = [
-            URLQueryItem(name: "ts", value: "\(Int(Date().timeIntervalSince1970 * 1000))")
-        ]
+        // 使用 /note/full/page API 获取文件夹信息，需要遍历所有分页以确保找到目标文件夹
+        var syncTag = ""
+        var foundFolder: [String: Any]? = nil
         
-        guard let urlString = urlComponents?.url?.absoluteString else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/note/folder/\(folderId)", method: "GET", error: URLError(.badURL))
-            throw URLError(.badURL)
-        }
-        
-        NetworkLogger.shared.logRequest(
-            url: urlString,
-            method: "GET",
-            headers: getHeaders(),
-            body: nil
-        )
-        
-        guard let url = urlComponents?.url else {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
-            throw URLError(.badURL)
-        }
-        
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = getHeaders()
-        request.httpMethod = "GET"
-        
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+        // 遍历所有分页，直到找到目标文件夹或没有更多数据
+        while foundFolder == nil {
+            let pageResponse = try await fetchPage(syncTag: syncTag)
             
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-            
-            let responseString = String(data: data, encoding: .utf8)
-            
-            NetworkLogger.shared.logResponse(
-                url: urlString,
-                method: "GET",
-                statusCode: httpResponse.statusCode,
-                headers: httpResponse.allHeaderFields as? [String: String],
-                response: responseString,
-                error: nil
-            )
-            
-            if httpResponse.statusCode == 401 {
-                let responseBody = responseString ?? ""
-                let hasLoginURL = responseBody.contains("serviceLogin") ||
-                                 responseBody.contains("account.xiaomi.com") ||
-                                 responseBody.contains("pass/serviceLogin")
-                let hasAuthKeywords = responseBody.contains("unauthorized") ||
-                                     responseBody.contains("未授权") ||
-                                     responseBody.contains("登录") ||
-                                     responseBody.contains("login") ||
-                                     responseBody.contains("\"R\":401") ||
-                                     responseBody.contains("\"S\":\"Err\"")
-                let isAuthError = hasLoginURL || hasAuthKeywords
-                let isInGracePeriod = checkIfInGracePeriod()
+            // 解析文件夹列表
+            if let data = pageResponse["data"] as? [String: Any],
+               let folderEntries = data["folders"] as? [[String: Any]] {
                 
-                if isInGracePeriod {
-                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
-                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
+                // 查找目标文件夹
+                for folderEntry in folderEntries {
+                    // 处理 ID（可能是 String 或 Int）
+                    var entryId: String? = nil
+                    if let idString = folderEntry["id"] as? String {
+                        entryId = idString
+                    } else if let idInt = folderEntry["id"] as? Int {
+                        entryId = String(idInt)
+                    }
+                    
+                    if entryId == folderId {
+                        foundFolder = folderEntry
+                        print("[MiNoteService] ✅ 找到目标文件夹: \(folderId), tag: \(folderEntry["tag"] as? String ?? "nil")")
+                        break
+                    }
                 }
                 
-                if self.hasValidCookie() && isAuthError {
-                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
-                    if hasLoginURL {
-                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
-                    }
-                    DispatchQueue.main.async {
-                        self.onCookieExpired?()
-                    }
-                    throw MiNoteError.cookieExpired
-                } else if self.hasValidCookie() && !isAuthError {
-                    print("[MiNoteService] 401 错误但不是明确的认证失败")
-                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                // 如果已经找到文件夹，退出循环
+                if foundFolder != nil {
+                    break
+                }
+                
+                // 检查是否有更多分页（syncTag 在响应顶层，不在 data 中）
+                if let nextSyncTag = pageResponse["syncTag"] as? String, !nextSyncTag.isEmpty, nextSyncTag != syncTag {
+                    syncTag = nextSyncTag
+                    // 继续查找下一页
                 } else {
-                    throw MiNoteError.notAuthenticated
+                    // 没有更多分页，退出循环
+                    break
                 }
+            } else {
+                // 响应格式不正确或没有文件夹数据，退出循环
+                break
             }
-            
-            guard httpResponse.statusCode == 200 else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-            
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-            return json
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
-            throw error
+        }
+        
+        // 如果找到了文件夹，构造返回格式（与原来的 API 格式一致）
+        if let folderEntry = foundFolder {
+            // 返回格式: {"data": {"entry": {...}}}
+            return [
+                "code": 0,
+                "data": [
+                    "entry": folderEntry
+                ]
+            ]
+        } else {
+            // 未找到文件夹
+            throw NSError(domain: "MiNoteService", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在: \(folderId)"])
         }
     }
     
@@ -894,42 +711,7 @@ final class MiNoteService: @unchecked Sendable {
             )
             
             if httpResponse.statusCode == 401 {
-                let responseBody = responseString ?? ""
-                
-                // 更全面的认证错误判断
-                let hasLoginURL = responseBody.contains("serviceLogin") || 
-                                 responseBody.contains("account.xiaomi.com") ||
-                                 responseBody.contains("pass/serviceLogin")
-                let hasAuthKeywords = responseBody.contains("unauthorized") || 
-                                     responseBody.contains("未授权") ||
-                                     responseBody.contains("登录") ||
-                                     responseBody.contains("login") ||
-                                     responseBody.contains("\"R\":401") ||
-                                     responseBody.contains("\"S\":\"Err\"")
-                let isAuthError = hasLoginURL || hasAuthKeywords
-                let isInGracePeriod = checkIfInGracePeriod()
-                
-                if isInGracePeriod {
-                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
-                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
-                }
-                
-                if self.hasValidCookie() && isAuthError {
-                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
-                    if hasLoginURL {
-                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
-                    }
-                    DispatchQueue.main.async {
-                        self.onCookieExpired?()
-                    }
-                    throw MiNoteError.cookieExpired
-                } else if self.hasValidCookie() && !isAuthError {
-                    print("[MiNoteService] 401 错误但不是明确的认证失败")
-                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-                    throw MiNoteError.networkError(URLError(.badServerResponse))
-                } else {
-                    throw MiNoteError.notAuthenticated
-                }
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
             }
             
             guard httpResponse.statusCode == 200 else {
@@ -1012,42 +794,7 @@ final class MiNoteService: @unchecked Sendable {
             )
             
             if httpResponse.statusCode == 401 {
-                let responseBody = responseString ?? ""
-                
-                // 更全面的认证错误判断
-                let hasLoginURL = responseBody.contains("serviceLogin") || 
-                                 responseBody.contains("account.xiaomi.com") ||
-                                 responseBody.contains("pass/serviceLogin")
-                let hasAuthKeywords = responseBody.contains("unauthorized") || 
-                                     responseBody.contains("未授权") ||
-                                     responseBody.contains("登录") ||
-                                     responseBody.contains("login") ||
-                                     responseBody.contains("\"R\":401") ||
-                                     responseBody.contains("\"S\":\"Err\"")
-                let isAuthError = hasLoginURL || hasAuthKeywords
-                let isInGracePeriod = checkIfInGracePeriod()
-                
-                if isInGracePeriod {
-                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
-                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
-                }
-                
-                if self.hasValidCookie() && isAuthError {
-                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
-                    if hasLoginURL {
-                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
-                    }
-                    DispatchQueue.main.async {
-                        self.onCookieExpired?()
-                    }
-                    throw MiNoteError.cookieExpired
-                } else if self.hasValidCookie() && !isAuthError {
-                    print("[MiNoteService] 401 错误但不是明确的认证失败")
-                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-                    throw MiNoteError.networkError(URLError(.badServerResponse))
-                } else {
-                    throw MiNoteError.notAuthenticated
-                }
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
             }
             
             guard httpResponse.statusCode == 200 else {
@@ -1194,42 +941,7 @@ final class MiNoteService: @unchecked Sendable {
                 )
                 
                 if httpResponse.statusCode == 401 {
-                    let responseBody = responseString ?? ""
-                    
-                    // 更全面的认证错误判断
-                    let hasLoginURL = responseBody.contains("serviceLogin") || 
-                                     responseBody.contains("account.xiaomi.com") ||
-                                     responseBody.contains("pass/serviceLogin")
-                    let hasAuthKeywords = responseBody.contains("unauthorized") || 
-                                         responseBody.contains("未授权") ||
-                                         responseBody.contains("登录") ||
-                                         responseBody.contains("login") ||
-                                         responseBody.contains("\"R\":401") ||
-                                         responseBody.contains("\"S\":\"Err\"")
-                    let isAuthError = hasLoginURL || hasAuthKeywords
-                    let isInGracePeriod = checkIfInGracePeriod()
-                    
-                    if isInGracePeriod {
-                        print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
-                        throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
-                    }
-                    
-                    if self.hasValidCookie() && isAuthError {
-                        print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
-                        if hasLoginURL {
-                            print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
-                        }
-                    DispatchQueue.main.async {
-                        self.onCookieExpired?()
-                    }
-                    throw MiNoteError.cookieExpired
-                    } else if self.hasValidCookie() && !isAuthError {
-                        print("[MiNoteService] 401 错误但不是明确的认证失败")
-                        print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-                        throw MiNoteError.networkError(URLError(.badServerResponse))
-                    } else {
-                        throw MiNoteError.notAuthenticated
-                    }
+                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
                 }
             }
             
@@ -1520,27 +1232,7 @@ final class MiNoteService: @unchecked Sendable {
             )
             
             if httpResponse.statusCode == 401 {
-                // 处理401错误（与之前相同的逻辑）
-                let responseBody = responseString ?? ""
-                let hasLoginURL = responseBody.contains("serviceLogin") || 
-                                 responseBody.contains("account.xiaomi.com") ||
-                                 responseBody.contains("pass/serviceLogin")
-                let hasAuthKeywords = responseBody.contains("unauthorized") || 
-                                     responseBody.contains("未授权") ||
-                                     responseBody.contains("登录") ||
-                                     responseBody.contains("login") ||
-                                     responseBody.contains("\"R\":401") ||
-                                     responseBody.contains("\"S\":\"Err\"")
-                let isAuthError = hasLoginURL || hasAuthKeywords
-                
-                if hasValidCookie() && isAuthError {
-                    DispatchQueue.main.async {
-                        self.onCookieExpired?()
-                    }
-                    throw MiNoteError.cookieExpired
-                } else {
-                    throw MiNoteError.notAuthenticated
-                }
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
             }
             
             guard httpResponse.statusCode == 200 else {
@@ -1826,41 +1518,7 @@ final class MiNoteService: @unchecked Sendable {
                 
                 if httpResponse.statusCode == 401 {
                     let responseBody = String(data: data, encoding: .utf8) ?? ""
-                    
-                    // 更全面的认证错误判断
-                    let hasLoginURL = responseBody.contains("serviceLogin") || 
-                                     responseBody.contains("account.xiaomi.com") ||
-                                     responseBody.contains("pass/serviceLogin")
-                    let hasAuthKeywords = responseBody.contains("unauthorized") || 
-                                         responseBody.contains("未授权") ||
-                                         responseBody.contains("登录") ||
-                                         responseBody.contains("login") ||
-                                         responseBody.contains("\"R\":401") ||
-                                         responseBody.contains("\"S\":\"Err\"")
-                    let isAuthError = hasLoginURL || hasAuthKeywords
-                    let isInGracePeriod = checkIfInGracePeriod()
-                    
-                    if isInGracePeriod {
-                        print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
-                        throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
-                    }
-                    
-                    if self.hasValidCookie() && isAuthError {
-                        print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
-                        if hasLoginURL {
-                            print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
-                        }
-                        DispatchQueue.main.async {
-                            self.onCookieExpired?()
-                        }
-                        throw MiNoteError.cookieExpired
-                    } else if self.hasValidCookie() && !isAuthError {
-                        print("[MiNoteService] 401 错误但不是明确的认证失败")
-                        print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-                        throw MiNoteError.networkError(URLError(.badServerResponse))
-                    } else {
-                        throw MiNoteError.notAuthenticated
-                    }
+                    try handle401Error(responseBody: responseBody, urlString: urlString)
                 }
                 
                 guard httpResponse.statusCode == 200 else {
@@ -1932,42 +1590,7 @@ final class MiNoteService: @unchecked Sendable {
             )
             
             if httpResponse.statusCode == 401 {
-                let responseBody = responseString ?? ""
-                
-                // 更全面的认证错误判断
-                let hasLoginURL = responseBody.contains("serviceLogin") || 
-                                 responseBody.contains("account.xiaomi.com") ||
-                                 responseBody.contains("pass/serviceLogin")
-                let hasAuthKeywords = responseBody.contains("unauthorized") || 
-                                     responseBody.contains("未授权") ||
-                                     responseBody.contains("登录") ||
-                                     responseBody.contains("login") ||
-                                     responseBody.contains("\"R\":401") ||
-                                     responseBody.contains("\"S\":\"Err\"")
-                let isAuthError = hasLoginURL || hasAuthKeywords
-                let isInGracePeriod = self.checkIfInGracePeriod()
-                
-                if isInGracePeriod {
-                    print("[MiNoteService] 401 错误发生在 cookie 设置后的保护期内，不视为过期")
-                    throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
-                }
-                
-                if self.hasValidCookie() && isAuthError {
-                    print("[MiNoteService] 检测到 cookie 过期（401 + 认证错误）")
-                    if hasLoginURL {
-                        print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
-                    }
-                    DispatchQueue.main.async {
-                        self.onCookieExpired?()
-                    }
-                    throw MiNoteError.cookieExpired
-                } else if self.hasValidCookie() && !isAuthError {
-                    print("[MiNoteService] 401 错误但不是明确的认证失败")
-                    print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-                    throw MiNoteError.networkError(URLError(.badServerResponse))
-                } else {
-                    throw MiNoteError.notAuthenticated
-                }
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
             }
             
             guard httpResponse.statusCode == 200 else {
