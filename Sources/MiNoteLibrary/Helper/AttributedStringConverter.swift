@@ -6,17 +6,35 @@ import SwiftUI
 public struct AttributedStringConverter {
     
     /// 将 RTF Data 转换为 AttributedString
+    /// 支持 archivedData 和 RTF 两种格式
     public static func rtfDataToAttributedString(_ rtfData: Data?) -> AttributedString? {
-        guard let rtfData = rtfData else { return nil }
+        guard let rtfData = rtfData else {
+            print("![[debug]] [AttributedStringConverter] rtfData 为 nil")
+            return nil
+        }
         
-        // 从 RTF 数据创建 NSAttributedString
+        print("![[debug]] [AttributedStringConverter] 开始转换 rtfData，长度: \(rtfData.count) 字节")
+        
+        // 首先尝试使用 RichTextKit 的 archivedData 格式（这是主要格式）
+        do {
+            let nsAttributedString = try NSAttributedString(data: rtfData, format: .archivedData)
+            print("![[debug]] [AttributedStringConverter] ✅ 使用 archivedData 格式成功，长度: \(nsAttributedString.length)")
+            return AttributedString(nsAttributedString)
+        } catch {
+            print("![[debug]] [AttributedStringConverter] ⚠️ archivedData 格式失败: \(error)，尝试 RTF 格式")
+        }
+        
+        // 如果 archivedData 失败，尝试 RTF 格式
         guard let nsAttributedString = try? NSAttributedString(
             data: rtfData,
             options: [.documentType: NSAttributedString.DocumentType.rtf],
             documentAttributes: nil
         ) else {
+            print("![[debug]] [AttributedStringConverter] ❌ RTF 格式也失败")
             return nil
         }
+        
+        print("![[debug]] [AttributedStringConverter] ✅ 使用 RTF 格式成功，长度: \(nsAttributedString.length)")
         
         // 将 NSAttributedString 转换为 AttributedString
         return AttributedString(nsAttributedString)

@@ -196,6 +196,9 @@ final class DatabaseService: @unchecked Sendable {
     /// - Parameter note: 要保存的笔记对象
     /// - Throws: DatabaseError（数据库操作失败）
     func saveNote(_ note: Note) throws {
+        print("![[debug]] ========== 数据流程节点DB1: DatabaseService.saveNote 开始 ==========")
+        print("![[debug]] [Database] 保存笔记，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count), rtfData存在: \(note.rtfData != nil), rtfData长度: \(note.rtfData?.count ?? 0)")
+        
         try dbQueue.sync(flags: .barrier) {
             let sql = """
             INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data, rtf_data)
@@ -210,9 +213,12 @@ final class DatabaseService: @unchecked Sendable {
             }
             
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+                let errorMsg = String(cString: sqlite3_errmsg(db))
+                print("![[debug]] [Database] ❌ SQL准备失败: \(errorMsg)")
+                throw DatabaseError.prepareFailed(errorMsg)
             }
             
+            print("![[debug]] ========== 数据流程节点DB2: 绑定参数 ==========")
             // 绑定参数
             sqlite3_bind_text(statement, 1, (note.id as NSString).utf8String, -1, nil)
             sqlite3_bind_text(statement, 2, (note.title as NSString).utf8String, -1, nil)
@@ -235,21 +241,25 @@ final class DatabaseService: @unchecked Sendable {
             sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
             
             // rtf_data 作为 BLOB（AttributedString 的 RTF 格式）
+            print("![[debug]] ========== 数据流程节点DB3: 绑定 rtf_data ==========")
             if let rtfData = note.rtfData {
-                print("[[调试]]步骤20.1 [Database] 准备保存rtfData，长度: \(rtfData.count) 字节")
+                print("![[debug]] [Database] ✅ 准备保存rtfData，长度: \(rtfData.count) 字节")
                 sqlite3_bind_blob(statement, 10, (rtfData as NSData).bytes, Int32(rtfData.count), nil)
+                print("![[debug]] [Database] ✅ rtfData 已绑定到 SQL 语句")
             } else {
-                print("[[调试]]步骤20.1 [Database] ⚠️ 警告：note.rtfData为nil，将保存NULL到数据库")
+                print("![[debug]] [Database] ⚠️ 警告：note.rtfData为nil，将保存NULL到数据库")
                 sqlite3_bind_null(statement, 10)
             }
             
+            print("![[debug]] ========== 数据流程节点DB4: 执行 SQL ==========")
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[[调试]]步骤20.2 [Database] ⚠️ SQL执行失败: \(errorMsg)")
+                print("![[debug]] [Database] ❌ SQL执行失败: \(errorMsg)")
                 throw DatabaseError.executionFailed(errorMsg)
             }
             
-            print("[[调试]]步骤20 [Database] 保存笔记到数据库，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count), rtfData长度: \(note.rtfData?.count ?? 0), rtfData已保存: \(note.rtfData != nil)")
+            print("![[debug]] ========== 数据流程节点DB5: 数据库保存成功 ==========")
+            print("![[debug]] [Database] ✅ 保存笔记到数据库成功，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count), rtfData长度: \(note.rtfData?.count ?? 0), rtfData已保存: \(note.rtfData != nil)")
         }
     }
     
