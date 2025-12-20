@@ -2,6 +2,14 @@ import SwiftUI
 import AppKit
 import RichTextKit
 
+/// 笔记详情视图
+/// 
+/// 负责显示和编辑单个笔记的内容，包括：
+/// - 标题编辑
+/// - 富文本内容编辑（使用 RichTextKit）
+/// - 自动保存（本地立即保存，云端延迟上传）
+/// - 格式工具栏
+/// 
 @available(macOS 14.0, *)
 struct NoteDetailView: View {
     @ObservedObject var viewModel: NotesViewModel
@@ -191,66 +199,25 @@ struct NoteDetailView: View {
                     xmlContent: viewModel.selectedNote?.primaryXMLContent,
                     onContentChange: { newRTFData in
                         // RTF数据变化时，更新 editedRTFData 并立即保存
-                        print("![[debug]] ========== 数据流程节点3: onContentChange 回调接收 ==========")
-                        guard !isInitializing else {
-                            print("![[debug]] [NoteDetailView] ⚠️ 编辑器内容变化回调触发，但正在初始化，跳过处理")
+                        guard !isInitializing, let rtfData = newRTFData else {
                             return
                         }
-                        print("![[debug]] [NoteDetailView] ✅ 编辑器内容变化回调触发，RTF数据长度: \(newRTFData?.count ?? 0)")
-                        if let rtfData = newRTFData {
-                            editedRTFData = rtfData
-                            print("[[调试]]步骤3 [NoteDetailView] 更新本地状态，editedRTFData已更新: true, 长度: \(rtfData.count)")
-                            
-                            // 转换为 AttributedString 用于比较和显示
-                            if let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
-                                // 检查内容是否真的改变了
-                                let newString = String(attributedText.characters)
-                                let originalString = String(originalAttributedText.characters)
-                                print("[[调试]]步骤4 [NoteDetailView] 内容变化检测，新内容长度: \(newString.count), 原始内容长度: \(originalString.count), 是否变化: \(newString != originalString)")
-                                
-                                if newString != originalString {
-                                    editedAttributedText = attributedText
-                                    print("[[调试]]步骤4.1 [NoteDetailView] 内容已变化，更新editedAttributedText，长度: \(attributedText.characters.count)")
-                                    
-                                    // 立即触发保存（不等待 onChange 触发）
-                                    if let note = viewModel.selectedNote {
-                                        print("![[debug]] ========== 数据流程节点4: 触发保存任务（内容变化） ==========")
-                                        print("![[debug]] [NoteDetailView] 准备调用 saveToLocalOnly，笔记ID: \(note.id)")
-                                        Task { @MainActor in
-                                            await saveToLocalOnly(for: note)
-                                            scheduleCloudUpload(for: note)
-                                        }
-                                    } else {
-                                        print("![[debug]] [NoteDetailView] ⚠️ selectedNote 为 nil，无法保存")
-                                    }
-                                } else {
-                                    // 即使文本相同，格式可能变化，也触发保存检查
-                                    print("![[debug]] [NoteDetailView] 文本未变化，但可能格式变化，触发保存检查")
-                                    if let note = viewModel.selectedNote {
-                                        print("![[debug]] ========== 数据流程节点4: 触发保存任务（格式变化） ==========")
-                                        print("![[debug]] [NoteDetailView] 准备调用 saveToLocalOnly，笔记ID: \(note.id)")
-                                        Task { @MainActor in
-                                            await saveToLocalOnly(for: note)
-                                            scheduleCloudUpload(for: note)
-                                        }
-                                    } else {
-                                        print("![[debug]] [NoteDetailView] ⚠️ selectedNote 为 nil，无法保存")
-                                    }
-                                }
-                            } else {
-                                // 如果无法转换，直接保存 RTF 数据
-                                print("![[debug]] [NoteDetailView] 无法转换为 AttributedString，直接保存 RTF 数据")
-                                if let note = viewModel.selectedNote {
-                                    print("![[debug]] ========== 数据流程节点4: 触发保存任务（无法转换） ==========")
-                                    print("![[debug]] [NoteDetailView] 准备调用 saveToLocalOnly，笔记ID: \(note.id)")
-                                    Task { @MainActor in
-                                        await saveToLocalOnly(for: note)
-                                        scheduleCloudUpload(for: note)
-                                    }
-                                } else {
-                                    print("![[debug]] [NoteDetailView] ⚠️ selectedNote 为 nil，无法保存")
-                                }
-                            }
+                        
+                        editedRTFData = rtfData
+                        
+                        // 转换为 AttributedString 用于显示和保存
+                        if let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
+                            editedAttributedText = attributedText
+                        }
+                        
+                        // 立即触发保存（文本变化或格式变化都需要保存）
+                        guard let note = viewModel.selectedNote else {
+                            return
+                        }
+                        
+                        Task { @MainActor in
+                            await saveToLocalOnly(for: note)
+                            scheduleCloudUpload(for: note)
                         }
                     }
                 )
@@ -459,7 +426,9 @@ struct NoteDetailView: View {
         print("[NoteDetailView] 已插入图片: \(url.lastPathComponent)")
         
         // 触发保存（图片插入后需要保存）
-        saveChanges()
+        Task { @MainActor in
+            await performSaveImmediately()
+        }
     }
     
     @ViewBuilder
@@ -535,12 +504,14 @@ struct NoteDetailView: View {
         }
     }
     
+    /// 加载笔记内容到编辑器
+    /// 
+    /// 优先使用 rtfData，如果没有则从 XML 生成并保存。
+    /// 
+    /// - Parameter note: 要加载的笔记对象
     @MainActor
     private func loadNoteContent(_ note: Note) async {
-        print("![[debug]] ========== 数据流程节点LOAD1: 开始加载笔记内容 ==========")
-        print("![[debug]] [NoteDetailView] 加载新笔记内容，笔记ID: \(note.id), 标题: \(note.title)")
         isInitializing = true
-        // 更新当前编辑的笔记ID
         currentEditingNoteId = note.id
         
         // 如果标题为空或者是默认的"未命名笔记_xxx"，设置为空字符串以显示占位符
@@ -548,108 +519,74 @@ struct NoteDetailView: View {
         editedTitle = cleanTitle
         originalTitle = cleanTitle
         
-        // 优化：优先使用 rtf_data，如果没有则从 XML 生成并保存
-        print("![[debug]] ========== 数据流程节点LOAD2: 检查 rtfData 是否存在 ==========")
-        print("![[debug]] [NoteDetailView] 加载笔记内容，rtfData存在: \(note.rtfData != nil), XML长度: \(note.primaryXMLContent.count)")
-        
         var finalRTFData: Data? = note.rtfData
         var finalAttributedText: AttributedString?
         
         // 如果有 rtfData，直接从 rtfData 加载
         if let rtfData = note.rtfData {
-            print("![[debug]] ========== 数据流程节点LOAD3: 从 rtfData 加载 ==========")
-            print("![[debug]] [NoteDetailView] ✅ 使用现有RTF数据，长度: \(rtfData.count)")
             finalRTFData = rtfData
             finalAttributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData)
-            print("![[debug]] [NoteDetailView] ✅ 从 rtfData 转换为 AttributedString，长度: \(finalAttributedText?.characters.count ?? 0)")
         } else if !note.primaryXMLContent.isEmpty {
             // 如果没有 rtfData，从 XML 转换生成 rtfData
-            print("![[debug]] ========== 数据流程节点LOAD4: 从 XML 转换生成 rtfData ==========")
-            print("![[debug]] [NoteDetailView] ⚠️ 没有RTF数据，从XML转换生成")
-            
-            // 从 XML 转换为 NSAttributedString
             let nsAttributedString = MiNoteContentParser.parseToAttributedString(note.primaryXMLContent, noteRawData: note.rawData)
-            print("![[debug]] [NoteDetailView] ✅ 解析AttributedString成功，长度: \(nsAttributedString.length)")
             
             // 尝试使用 archivedData 格式（支持图片附件）
             var generatedRTFData: Data?
             do {
-                print("![[debug]] ========== 数据流程节点LOAD5: 生成 archivedData ==========")
                 generatedRTFData = try nsAttributedString.richTextData(for: .archivedData)
-                print("![[debug]] [NoteDetailView] ✅ 使用 archivedData 格式生成 rtfData，长度: \(generatedRTFData?.count ?? 0) 字节")
             } catch {
-                print("[[调试]]步骤68.2 [NoteDetailView] ⚠️ 生成 archivedData 失败: \(error)，尝试使用 RTF 格式")
                 // 回退到 RTF 格式
                 let rtfRange = NSRange(location: 0, length: nsAttributedString.length)
                 generatedRTFData = try? nsAttributedString.data(from: rtfRange, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
-                if let rtfData = generatedRTFData {
-                    print("[[调试]]步骤68.2 [NoteDetailView] ✅ 使用 RTF 格式生成 rtfData，长度: \(rtfData.count) 字节")
-                } else {
-                    print("[[调试]]步骤68.2 [NoteDetailView] ⚠️ RTF 格式也失败，无法生成 rtfData")
-                }
             }
             
             // 如果成功生成 rtfData，保存到数据库
             if let rtfData = generatedRTFData {
-                print("![[debug]] ========== 数据流程节点LOAD6: 保存生成的 rtfData 到数据库 ==========")
                 finalRTFData = rtfData
                 
                 // 保存到数据库
                 var updatedNote = note
                 updatedNote.rtfData = rtfData
                 do {
-                    print("![[debug]] [NoteDetailView] 准备保存生成的 rtfData 到数据库，长度: \(rtfData.count)")
                     try LocalStorageService.shared.saveNote(updatedNote)
-                    print("![[debug]] [NoteDetailView] ✅ 成功保存 rtfData 到数据库")
                     
-                    // 更新 ViewModel 中的笔记对象（在主线程上执行，确保线程安全）
+                    // 更新 ViewModel 中的笔记对象
                     await MainActor.run {
                         if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
                             viewModel.notes[index] = updatedNote
                             if viewModel.selectedNote?.id == note.id {
                                 viewModel.selectedNote = updatedNote
                             }
-                            print("![[debug]] [NoteDetailView] ✅ ViewModel 已更新，索引: \(index)")
                         }
                     }
                 } catch {
-                    print("![[debug]] [NoteDetailView] ❌ 保存 rtfData 到数据库失败: \(error)")
+                    print("[NoteDetailView] ⚠️ 保存生成的 rtfData 到数据库失败: \(error)")
                 }
                 
                 // 转换为 AttributedString
-                print("![[debug]] ========== 数据流程节点LOAD7: 转换为 AttributedString ==========")
                 finalAttributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData)
-                print("![[debug]] [NoteDetailView] ✅ 转换为 AttributedString，长度: \(finalAttributedText?.characters.count ?? 0)")
             } else {
                 // 如果无法生成 rtfData，从 XML 直接转换 AttributedString（向后兼容）
-                print("[[调试]]步骤68.2 [NoteDetailView] ⚠️ 无法生成 rtfData，使用 XML 直接转换")
                 finalAttributedText = AttributedStringConverter.xmlToAttributedString(note.primaryXMLContent, noteRawData: note.rawData)
             }
         } else {
             // 内容为空，创建空 AttributedString
-            print("[[调试]]步骤68.2 [NoteDetailView] 内容为空，创建空 AttributedString")
             finalAttributedText = AttributedStringConverter.createEmptyAttributedString()
         }
         
         // 设置编辑器状态
-        print("![[debug]] ========== 数据流程节点LOAD8: 设置编辑器状态 ==========")
         editedRTFData = finalRTFData
         if let attributedText = finalAttributedText {
             editedAttributedText = attributedText
             originalAttributedText = attributedText
-            print("![[debug]] [NoteDetailView] ✅ 设置编辑器内容，AttributedString长度: \(attributedText.characters.count)")
-            print("![[debug]] [NoteDetailView] ✅ editedRTFData长度: \(finalRTFData?.count ?? 0)")
         } else {
             // 如果仍然无法获取内容，创建空 AttributedString
             editedAttributedText = AttributedStringConverter.createEmptyAttributedString()
             originalAttributedText = AttributedStringConverter.createEmptyAttributedString()
-            print("![[debug]] [NoteDetailView] ⚠️ 创建空AttributedString")
         }
         
         // 重置 lastSavedRTFData，确保下次编辑能正确保存
         lastSavedRTFData = finalRTFData
-        print("![[debug]] [NoteDetailView] ✅ 重置 lastSavedRTFData，长度: \(finalRTFData?.count ?? 0)")
-        print("![[debug]] ========== 数据流程节点LOAD9: 加载笔记内容完成 ==========")
         
         if note.content.isEmpty {
             await viewModel.ensureNoteHasFullContent(note)
@@ -677,25 +614,23 @@ struct NoteDetailView: View {
         // 延迟一小段时间后标记初始化完成
         try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
         isInitializing = false
-        print("[[调试]]步骤69 [NoteDetailView] 笔记加载完成，笔记ID: \(note.id), 初始化完成，editedAttributedText长度: \(editedAttributedText.characters.count)")
     }
     
+    /// 处理笔记变化
+    /// 
+    /// 在加载新笔记前，确保保存当前笔记的更改。
+    /// 
+    /// - Parameter newValue: 新的笔记对象
     private func handleNoteChange(_ newValue: Note) {
-        // 在加载新笔记前，确保保存当前笔记的更改
-        // 等待保存任务完成，确保保存完成后再加载新笔记
         let saveTask = saveCurrentNoteBeforeSwitching(newNoteId: newValue.id)
         
-        // 如果保存任务存在，等待它完成后再继续
-        if let saveTask = saveTask {
-            Task { @MainActor in
+        Task { @MainActor in
+            // 如果有保存任务，等待它完成
+            if let saveTask = saveTask {
                 await saveTask.value
-                await loadNoteContent(newValue)
             }
-        } else {
-            // 没有保存任务，直接加载笔记内容
-            Task { @MainActor in
-                await loadNoteContent(newValue)
-            }
+            // 加载新笔记内容
+            await loadNoteContent(newValue)
         }
     }
     
@@ -715,35 +650,43 @@ struct NoteDetailView: View {
         }
     }
     
+    /// 处理内容变化
+    /// 
+    /// 当 AttributedString 变化时，立即保存。
+    /// 
+    /// - Parameter newValue: 新的 AttributedString
     private func handleContentChange(_ newValue: AttributedString) {
         guard !isInitializing else {
-            print("[[调试]]步骤4.2 [NoteDetailView] 内容变化检测，但正在初始化，跳过处理")
             return
         }
-        // 比较 AttributedString 是否改变（通过字符串内容比较）
+        
+        // 检查内容是否真的改变了
         let newString = String(newValue.characters)
         let originalString = String(originalAttributedText.characters)
-        print("[[调试]]步骤4.2 [NoteDetailView] 内容变化检测，新内容长度: \(newString.count), 原始内容长度: \(originalString.count), 是否变化: \(newString != originalString)")
-        if newString != originalString {
-            print("[[调试]]步骤5 [NoteDetailView] 内容变化检测到，立即保存，笔记ID: \(viewModel.selectedNote?.id ?? "无")")
-            originalAttributedText = newValue
-            // 立即保存，不使用防抖
-            Task { @MainActor in
-                print("[[调试]]步骤6 [NoteDetailView] 触发立即保存，笔记ID: \(viewModel.selectedNote?.id ?? "无")")
-                await performSaveImmediately()
-            }
+        
+        guard newString != originalString else {
+            return
+        }
+        
+        originalAttributedText = newValue
+        
+        // 立即保存
+        Task { @MainActor in
+            await performSaveImmediately()
         }
     }
     
     
     
     /// 保存更改（优化策略：本地立即保存，云端延迟上传）
+    /// 
+    /// 此方法已废弃，现在使用 `performSaveImmediately` 替代。
+    /// 保留用于向后兼容。
+    /// 
+    @available(*, deprecated, message: "使用 performSaveImmediately 替代")
     private func saveChanges() {
-        guard let note = viewModel.selectedNote else { return }
-        
-        // 如果正在为切换而保存，不执行防抖保存（避免冲突）
-        if isSavingBeforeSwitch {
-            print("[NoteDetailView] 正在为切换而保存，跳过防抖保存")
+        guard let note = viewModel.selectedNote,
+              !isSavingBeforeSwitch else {
             return
         }
         
@@ -751,39 +694,39 @@ struct NoteDetailView: View {
         let hasTitleChanges = editedTitle != originalTitle
         let hasContentChanges = String(editedAttributedText.characters) != String(originalAttributedText.characters)
         
-        // 如果没有更改，直接返回
-        guard hasTitleChanges || hasContentChanges else { return }
+        guard hasTitleChanges || hasContentChanges else {
+            return
+        }
         
-        // 取消之前的云端上传任务（但保留本地保存）
+        // 取消之前的云端上传任务
         pendingCloudUploadWorkItem?.cancel()
         
-        // 立即保存到本地（无延迟，确保数据不丢失）
+        // 立即保存到本地
         Task { @MainActor in
             await saveToLocalOnly(for: note)
         }
         
-        // 延迟上传到云端（智能防抖：根据内容大小调整延迟时间）
+        // 延迟上传到云端
         scheduleCloudUpload(for: note)
     }
     
     /// 仅保存到本地（立即执行，无延迟）
+    /// 
+    /// 从编辑器获取最新内容，保存到本地数据库，不触发云端上传。
+    /// 云端上传由 `scheduleCloudUpload` 单独处理。
+    /// 
+    /// - Parameter note: 要保存的笔记对象
     @MainActor
     private func saveToLocalOnly(for note: Note) async {
-        print("![[debug]] ========== 数据流程节点5: saveToLocalOnly 开始执行 ==========")
-        print("![[debug]] [NoteDetailView] 保存到本地，笔记ID: \(note.id), currentEditingNoteId: \(currentEditingNoteId ?? "nil")")
-        
+        // 验证笔记ID
         guard note.id == currentEditingNoteId else {
-            print("![[debug]] [NoteDetailView] ❌ 笔记ID不匹配，跳过保存: current=\(currentEditingNoteId ?? "nil"), note=\(note.id)")
             return
         }
         
-        // 如果正在保存，等待完成（避免并发保存导致数据不一致）
+        // 防止并发保存
         if isSavingLocally {
-            print("![[debug]] [NoteDetailView] ⚠️ 正在本地保存，等待完成...")
-            // 等待一小段时间后重试
             try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
             if isSavingLocally {
-                print("![[debug]] [NoteDetailView] ❌ 仍在保存中，跳过重复保存")
                 return
             }
         }
@@ -792,137 +735,39 @@ struct NoteDetailView: View {
         defer { isSavingLocally = false }
         
         do {
-            // 获取最新的编辑内容（总是从 editorContext 获取，确保是最新的）
-            let finalRTFData: Data?
-            let finalAttributedText: AttributedString
+            // 获取最新内容
+            let (rtfData, attributedText) = getLatestContentFromEditor()
             
-            if useRichTextKit {
-                print("![[debug]] ========== 数据流程节点6: 从 editorContext 获取最新内容 ==========")
-                // 从 editorContext 获取最新的内容（这是最可靠的数据源）
-                let contextAttributedString = editorContext.attributedString
-                print("![[debug]] [NoteDetailView] ✅ 从 editorContext 获取内容，长度: \(contextAttributedString.length)")
-                
-                if contextAttributedString.length > 0 {
-                    let swiftUIAttributedText = AttributedString(contextAttributedString)
-                    do {
-                        print("![[debug]] ========== 数据流程节点7: 生成 archivedData ==========")
-                        let archivedData = try contextAttributedString.richTextData(for: .archivedData)
-                        finalRTFData = archivedData
-                        finalAttributedText = swiftUIAttributedText
-                        print("![[debug]] [NoteDetailView] ✅ 生成 archivedData 成功，长度: \(archivedData.count) 字节")
-                    } catch {
-                        print("![[debug]] [NoteDetailView] ⚠️ 生成 archivedData 失败: \(error)，使用 editedRTFData")
-                        // 如果失败，尝试使用 editedRTFData
-                        finalRTFData = editedRTFData
-                        finalAttributedText = swiftUIAttributedText
-                    }
-                } else {
-                    // 如果 context 为空，使用 editedRTFData 或 editedAttributedText
-                    print("![[debug]] [NoteDetailView] ⚠️ editorContext 内容为空，使用 editedRTFData")
-                    finalRTFData = editedRTFData
-                    finalAttributedText = editedAttributedText
-                }
-            } else {
-                finalRTFData = AttributedStringConverter.attributedStringToRTFData(editedAttributedText)
-                finalAttributedText = editedAttributedText
+            // 检查是否有变化（避免重复保存）
+            guard hasContentChanged(rtfData: rtfData) else {
+                return
             }
-            
-            // 检查数据是否真的变化了（避免重复保存）
-            print("![[debug]] ========== 数据流程节点8: 检查数据是否变化 ==========")
-            if let lastSaved = lastSavedRTFData, let current = finalRTFData, lastSaved == current {
-                // 但还要检查标题是否变化
-                if editedTitle == originalTitle {
-                    print("![[debug]] [NoteDetailView] ⚠️ 内容和标题都未变化，跳过保存")
-                    return
-                } else {
-                    print("![[debug]] [NoteDetailView] ✅ 标题已变化，继续保存")
-                }
-            } else {
-                print("![[debug]] [NoteDetailView] ✅ 内容已变化，继续保存")
-            }
-            
-            // 转换为 XML（用于数据库存储）
-            print("![[debug]] ========== 数据流程节点9: 转换为 XML ==========")
-            let xmlContent = AttributedStringConverter.attributedStringToXML(finalAttributedText)
-            print("![[debug]] [NoteDetailView] ✅ XML 转换完成，长度: \(xmlContent.count)")
             
             // 构建更新的笔记对象
-            print("![[debug]] ========== 数据流程节点10: 构建 Note 对象 ==========")
-            let updatedNote = Note(
-                id: note.id,
-                title: editedTitle,
-                content: xmlContent,
-                folderId: note.folderId,
-                isStarred: note.isStarred,
-                createdAt: note.createdAt,
-                updatedAt: Date(),
-                tags: note.tags,
-                rawData: note.rawData,
-                rtfData: finalRTFData
-            )
-            print("![[debug]] [NoteDetailView] ✅ Note 对象构建完成，rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
+            let updatedNote = buildUpdatedNote(from: note, rtfData: rtfData, attributedText: attributedText)
             
-            // 仅保存到本地数据库（不触发云端上传）
-            print("![[debug]] ========== 数据流程节点11: 保存到数据库 ==========")
-            print("![[debug]] [NoteDetailView] 准备调用 LocalStorageService.saveNote，笔记ID: \(note.id)")
+            // 保存到数据库
             try LocalStorageService.shared.saveNote(updatedNote)
-            print("![[debug]] [NoteDetailView] ✅ 数据库保存成功！笔记ID: \(note.id)")
             
-            // 更新状态（保存成功后）
-            print("![[debug]] ========== 数据流程节点12: 更新状态变量 ==========")
-            lastSavedRTFData = finalRTFData
-            originalTitle = editedTitle
-            originalAttributedText = finalAttributedText
-            if useRichTextKit {
-                editedRTFData = finalRTFData
-            }
-            print("![[debug]] [NoteDetailView] ✅ 状态变量已更新，lastSavedRTFData长度: \(lastSavedRTFData?.count ?? 0)")
+            // 更新状态
+            updateSaveState(rtfData: rtfData, attributedText: attributedText)
             
-            print("![[debug]] [NoteDetailView] ✅ 本地保存成功: \(note.id), RTF长度: \(finalRTFData?.count ?? 0), XML长度: \(xmlContent.count)")
-            
-            // 更新 ViewModel 中的笔记对象
-            // 注意：更新 ViewModel 会触发 onChange(of: note)，但我们已经在保存中，不应该重新加载
-            print("![[debug]] ========== 数据流程节点13: 更新 ViewModel ==========")
-            if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
-                // 延迟更新 ViewModel，确保 saveToLocalOnly 完全完成后再更新
-                // 这样可以避免触发重新加载
-                Task { @MainActor in
-                    // 等待一小段时间，确保保存操作完全完成
-                    try? await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
-                    
-                    // 临时标记正在保存，避免触发重新加载
-                    let wasSaving = isSavingLocally
-                    isSavingLocally = true
-                    
-                    viewModel.notes[index] = updatedNote
-                    if viewModel.selectedNote?.id == note.id {
-                        viewModel.selectedNote = updatedNote
-                    }
-                    
-                    // 恢复保存状态
-                    isSavingLocally = wasSaving
-                    
-                    print("![[debug]] [NoteDetailView] ✅ ViewModel 已更新（延迟），索引: \(index)")
-                }
-                
-                print("![[debug]] [NoteDetailView] ✅ ViewModel 更新任务已安排，索引: \(index)")
-            } else {
-                print("![[debug]] [NoteDetailView] ⚠️ 笔记不在列表中，无法更新 ViewModel")
-            }
-            
-            print("![[debug]] ========== 数据流程节点14: saveToLocalOnly 完成 ==========")
+            // 延迟更新 ViewModel（避免触发重新加载）
+            updateViewModelDelayed(with: updatedNote)
             
         } catch {
-            print("![[debug]] ========== 数据流程节点ERROR: 保存失败 ==========")
-            print("![[debug]] [NoteDetailView] ❌ 本地保存失败: \(error.localizedDescription)")
-            print("![[debug]] [NoteDetailView] 错误详情: \(error)")
+            print("[NoteDetailView] ❌ 本地保存失败: \(error.localizedDescription)")
         }
     }
     
     /// 安排云端上传（智能防抖）
+    /// 
+    /// 根据内容大小智能调整防抖时间，避免频繁上传。
+    /// 大文件延迟更长，小文件延迟较短。
+    /// 
+    /// - Parameter note: 要上传的笔记对象
     private func scheduleCloudUpload(for note: Note) {
         guard viewModel.isOnline && viewModel.isLoggedIn else {
-            print("[NoteDetailView] 离线模式，跳过云端上传")
             return
         }
         
@@ -931,70 +776,34 @@ struct NoteDetailView: View {
         
         // 根据内容大小智能调整防抖时间
         let rtfDataSize = editedRTFData?.count ?? 0
-        let debounceTime: TimeInterval
+        let debounceTime: TimeInterval = {
+            if rtfDataSize > 1_000_000 { return 3.0 }      // > 1MB: 3秒
+            else if rtfDataSize > 500_000 { return 2.0 } // > 500KB: 2秒
+            else { return 1.0 }                          // 小文件: 1秒
+        }()
         
-        if rtfDataSize > 1_000_000 {  // > 1MB
-            debounceTime = 3.0  // 大文件延迟 3 秒
-        } else if rtfDataSize > 500_000 {  // > 500KB
-            debounceTime = 2.0  // 中等文件延迟 2 秒
-        } else {
-            debounceTime = 1.0  // 小文件延迟 1 秒
-        }
-        
+        // 捕获当前状态
         let currentNoteId = currentEditingNoteId
         let viewModelRef = viewModel
-        let currentEditedTitle = editedTitle
-        let currentEditedAttributedText = editedAttributedText
-        let currentEditedRTFData = editedRTFData
-        let currentUseRichTextKit = useRichTextKit
         
         let uploadWorkItem = DispatchWorkItem {
             Task { @MainActor in
                 guard let note = viewModelRef.selectedNote, note.id == currentNoteId else {
-                    print("[NoteDetailView] ⚠️ 笔记已切换，取消云端上传: \(currentNoteId ?? "nil")")
                     return
                 }
                 
-                // 获取最新的内容
-                let finalRTFData: Data?
-                let finalAttributedText: AttributedString
+                // 获取最新内容
+                let (rtfData, attributedText) = self.getLatestContentFromEditor()
                 
-                if currentUseRichTextKit, let rtfData = currentEditedRTFData {
-                    finalRTFData = rtfData
-                    if let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
-                        finalAttributedText = attributedText
-                    } else {
-                        finalAttributedText = currentEditedAttributedText
-                    }
-                } else {
-                    finalAttributedText = currentEditedAttributedText
-                    finalRTFData = AttributedStringConverter.attributedStringToRTFData(currentEditedAttributedText)
-                }
+                // 构建更新的笔记对象
+                let updatedNote = self.buildUpdatedNote(from: note, rtfData: rtfData, attributedText: attributedText)
                 
-                let xmlContent = AttributedStringConverter.attributedStringToXML(finalAttributedText)
-                
-                let updatedNote = Note(
-                    id: note.id,
-                    title: currentEditedTitle,
-                    content: xmlContent,
-                    folderId: note.folderId,
-                    isStarred: note.isStarred,
-                    createdAt: note.createdAt,
-                    updatedAt: Date(),
-                    tags: note.tags,
-                    rawData: note.rawData,
-                    rtfData: finalRTFData
-                )
-                
-                // 标记开始上传
+                // 开始上传
                 isUploading = true
-                print("[NoteDetailView] ✅ 开始云端上传: \(note.id)")
                 
                 do {
-                    // 触发云端上传（updateNote 会再次保存到本地，但这是幂等操作，确保数据一致性）
-                    // 注意：虽然本地已保存，但 updateNote 中的保存可以确保数据完全同步
+                    // 触发云端上传（updateNote 会再次保存到本地，这是幂等操作）
                     try await viewModelRef.updateNote(updatedNote)
-                    print("[NoteDetailView] ✅ 云端上传成功: \(note.id)")
                     
                     // 显示成功提示
                     withAnimation {
@@ -1020,10 +829,13 @@ struct NoteDetailView: View {
         
         // 智能防抖：根据内容大小调整延迟时间
         DispatchQueue.main.asyncAfter(deadline: .now() + debounceTime, execute: uploadWorkItem)
-        print("[NoteDetailView] 📅 安排云端上传，延迟: \(debounceTime)秒, RTF大小: \(rtfDataSize)字节")
     }
     
     /// 立即保存更改（用于切换笔记前）
+    /// 
+    /// 在切换到新笔记前，确保当前笔记的更改已保存。
+    /// 
+    /// - Parameter note: 要保存的笔记对象
     @MainActor
     private func saveChangesImmediately(for note: Note) async {
         // 取消待执行的保存任务
@@ -1031,26 +843,20 @@ struct NoteDetailView: View {
         pendingSaveWorkItem = nil
         pendingCloudUploadWorkItem?.cancel()
         
-        print("[NoteDetailView] 切换笔记前立即保存当前笔记: \(note.id)")
-        
-        // 如果使用 RichTextKit，确保从 editorContext 获取最新内容
+        // 如果使用 RichTextKit，确保从 editorContext 获取最新内容并更新状态
         if useRichTextKit {
             let contextAttributedString = editorContext.attributedString
             if contextAttributedString.length > 0 {
-                // 转换为 AttributedString (SwiftUI)
                 let swiftUIAttributedString = AttributedString(contextAttributedString)
                 editedAttributedText = swiftUIAttributedString
-                // 更新 RTF 数据（使用 archivedData 格式以支持图片附件）
+                
+                // 更新 RTF 数据
                 do {
                     let archivedData = try contextAttributedString.richTextData(for: .archivedData)
                     editedRTFData = archivedData
-                    print("[NoteDetailView] ✅ 从 editorContext 获取最新内容，长度: \(contextAttributedString.length)")
                 } catch {
-                    print("[NoteDetailView] ⚠️ 从 editorContext 获取 RTF 数据失败: \(error)，尝试使用 RTF 格式")
                     // 如果 archivedData 失败，尝试使用 RTF 格式
-                    if let rtfData = AttributedStringConverter.attributedStringToRTFData(swiftUIAttributedString) {
-                        editedRTFData = rtfData
-                    }
+                    editedRTFData = AttributedStringConverter.attributedStringToRTFData(swiftUIAttributedString)
                 }
             }
         }
@@ -1060,38 +866,35 @@ struct NoteDetailView: View {
     }
     
     /// 立即执行保存操作（编辑即保存）
+    /// 
+    /// 立即保存到本地，并安排云端上传。
+    /// 
     @MainActor
     private func performSaveImmediately() async {
-        guard let note = viewModel.selectedNote else {
-            print("[[调试]]步骤7 [NoteDetailView] 执行立即保存，但selectedNote为nil，跳过")
+        guard let note = viewModel.selectedNote,
+              note.id == currentEditingNoteId,
+              !isSavingBeforeSwitch else {
             return
         }
         
-        guard note.id == currentEditingNoteId else {
-            print("[[调试]]步骤7 [NoteDetailView] ⚠️ 笔记ID不匹配，跳过保存: current=\(currentEditingNoteId ?? "nil"), note=\(note.id)")
-            return
-        }
-        
-        // 如果正在为切换而保存，不执行保存（避免冲突）
-        if isSavingBeforeSwitch {
-            print("[[调试]]步骤7 [NoteDetailView] 正在为切换而保存，跳过立即保存")
-            return
-        }
-        
-        print("[[调试]]步骤7 [NoteDetailView] 执行立即保存，笔记ID: \(note.id)")
-        // 直接调用 saveToLocalOnly，立即保存到本地
+        // 立即保存到本地
         await saveToLocalOnly(for: note)
         
         // 安排云端上传（如果在线）
         scheduleCloudUpload(for: note)
     }
     
-    /// 执行保存操作
+    /// 执行保存操作（已废弃，使用 saveToLocalOnly + scheduleCloudUpload）
+    /// 
+    /// 此方法保留用于向后兼容，但推荐使用新的分层保存策略：
+    /// - `saveToLocalOnly`: 立即保存到本地
+    /// - `scheduleCloudUpload`: 延迟上传到云端
+    /// 
+    /// - Parameter note: 要保存的笔记对象
     @MainActor
+    @available(*, deprecated, message: "使用 saveToLocalOnly + scheduleCloudUpload 替代")
     private func performSave(for note: Note) async {
-        print("[[调试]]步骤8 [NoteDetailView] 开始执行保存操作，笔记ID: \(note.id), 当前编辑笔记ID: \(currentEditingNoteId ?? "nil"), 是否匹配: \(note.id == currentEditingNoteId)")
         guard note.id == currentEditingNoteId else {
-            print("[[调试]]步骤8 [NoteDetailView] ⚠️ 笔记ID不匹配，跳过保存: current=\(currentEditingNoteId ?? "nil"), note=\(note.id)")
             return
         }
         
@@ -1099,94 +902,18 @@ struct NoteDetailView: View {
         let willUpload = viewModel.isOnline && viewModel.isLoggedIn
         isUploading = willUpload
         
-        if willUpload {
-            print("[[调试]]步骤8.1 [NoteDetailView] ✅开始上传: \(note.id)")
-        } else {
-            print("[[调试]]步骤8.1 [NoteDetailView] 离线模式，仅保存到本地: \(note.id)")
-        }
-        
         do {
-            // 优先使用RTF数据（如果使用RichTextKit编辑器）
-            let finalRTFData: Data?
-            let finalAttributedText: AttributedString
+            // 获取最新内容
+            let (rtfData, attributedText) = getLatestContentFromEditor()
             
-            if useRichTextKit {
-                // 从 editorContext 获取最新的 attributedString（确保获取最新内容）
-                let contextAttributedString = editorContext.attributedString
-                print("[[调试]]步骤9 [NoteDetailView] 从editorContext获取内容，使用RichTextKit: true, context内容长度: \(contextAttributedString.length)")
-                if contextAttributedString.length > 0 {
-                    // 转换为 AttributedString (SwiftUI)
-                    let swiftUIAttributedText = AttributedString(contextAttributedString)
-                    // 更新 RTF 数据（使用 archivedData 格式以支持图片附件）
-                    do {
-                        let archivedData = try contextAttributedString.richTextData(for: .archivedData)
-                        finalRTFData = archivedData
-                        editedRTFData = archivedData
-                        finalAttributedText = swiftUIAttributedText
-                        print("[[调试]]步骤10 [NoteDetailView] ✅ 从 editorContext 获取最新内容，长度: \(contextAttributedString.length), RTF数据长度: \(archivedData.count)")
-                    } catch {
-                        print("[[调试]]步骤10 [NoteDetailView] ⚠️ 从 editorContext 获取 RTF 数据失败: \(error)，使用现有数据")
-                        finalRTFData = editedRTFData
-                        finalAttributedText = swiftUIAttributedText
-                    }
-                } else if let rtfData = editedRTFData {
-                    // 如果 context 中没有内容，使用现有的 RTF 数据
-                    print("[[调试]]步骤9.1 [NoteDetailView] context中没有内容，使用现有RTF数据，长度: \(rtfData.count)")
-                    finalRTFData = rtfData
-                    if let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
-                        finalAttributedText = attributedText
-                    } else {
-                        finalAttributedText = editedAttributedText
-                    }
-                } else {
-                    // 都没有，从 AttributedString 转换
-                    print("[[调试]]步骤9.2 [NoteDetailView] 没有RTF数据，从AttributedString转换")
-                    finalAttributedText = editedAttributedText
-                    finalRTFData = AttributedStringConverter.attributedStringToRTFData(editedAttributedText)
-                }
-            } else {
-                // 从AttributedString转换
-                print("[[调试]]步骤9 [NoteDetailView] 不使用RichTextKit，从AttributedString转换")
-                finalAttributedText = editedAttributedText
-                finalRTFData = AttributedStringConverter.attributedStringToRTFData(editedAttributedText)
-            }
-            
-            print("[[调试]]步骤11 [NoteDetailView] 准备转换为XML，AttributedString长度: \(finalAttributedText.characters.count)")
-            // 从 AttributedString 转换为 XML（用于同步到云端）
-            let xmlContent = AttributedStringConverter.attributedStringToXML(finalAttributedText)
-            print("[[调试]]步骤16 [NoteDetailView] 获得XML内容，长度: \(xmlContent.count), 笔记ID: \(note.id), 内容预览: \(xmlContent.prefix(100))")
-            
-            print("[[调试]]步骤17 [NoteDetailView] 构建更新的Note对象，ID: \(note.id), 标题: \(editedTitle), XML长度: \(xmlContent.count), RTF长度: \(finalRTFData?.count ?? 0)")
-            let updatedNote = Note(
-                id: note.id,
-                title: editedTitle,
-                content: xmlContent,  // 同步时使用 XML
-                folderId: note.folderId,
-                isStarred: note.isStarred,
-                createdAt: note.createdAt,
-                updatedAt: Date(),
-                tags: note.tags,
-                rawData: note.rawData,
-                rtfData: finalRTFData  // 本地存储使用 RTF
-            )
-            
-            // 验证 rtfData 是否正确设置
-            print("[[调试]]步骤17.1 [NoteDetailView] 验证updatedNote.rtfData，存在: \(updatedNote.rtfData != nil), 长度: \(updatedNote.rtfData?.count ?? 0)")
-            if updatedNote.rtfData == nil {
-                print("[[调试]]步骤17.1 [NoteDetailView] ⚠️ 警告：updatedNote.rtfData为nil，finalRTFData存在: \(finalRTFData != nil)")
-            }
+            // 构建更新的笔记对象
+            let updatedNote = buildUpdatedNote(from: note, rtfData: rtfData, attributedText: attributedText)
             
             // updateNote 会先保存到本地，然后上传到云端（如果在线）
-            print("[[调试]]步骤18 [NoteDetailView] 调用viewModel.updateNote，笔记ID: \(updatedNote.id), rtfData存在: \(updatedNote.rtfData != nil)")
             try await viewModel.updateNote(updatedNote)
             
-            // 保存成功后更新原始值，避免重复保存
-            print("[[调试]]步骤58 [NoteDetailView] 更新原始值，originalTitle: '\(editedTitle)', originalAttributedText长度: \(finalAttributedText.characters.count)")
-            originalTitle = editedTitle
-            originalAttributedText = finalAttributedText
-            if useRichTextKit {
-                editedRTFData = finalRTFData
-            }
+            // 更新状态
+            updateSaveState(rtfData: rtfData, attributedText: attributedText)
             
             // 保存成功反馈
             withAnimation {
@@ -1195,9 +922,6 @@ struct NoteDetailView: View {
                 isUploading = false
             }
             
-            print("[[调试]]步骤60 [NoteDetailView] 保存完成，笔记ID: \(note.id), title: \(editedTitle), content长度: \(xmlContent.count)")
-            print("[[调试]]步骤59 [NoteDetailView] 显示保存成功提示，笔记ID: \(note.id)")
-            
             // 2秒后隐藏成功提示
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 withAnimation {
@@ -1205,8 +929,7 @@ struct NoteDetailView: View {
                 }
             }
         } catch {
-            // 保存失败（本地保存应该在 updateNote 中已经完成）
-            print("[[调试]]步骤57.1 [NoteDetailView] ⚠️ 保存失败: \(error.localizedDescription), 笔记ID: \(note.id)")
+            print("[NoteDetailView] ❌ 保存失败: \(error.localizedDescription)")
             isSaving = false
             isUploading = false
         }
@@ -1215,25 +938,20 @@ struct NoteDetailView: View {
     // MARK: - 切换笔记保存逻辑
     
     /// 在切换到新笔记前保存当前笔记的更改
-    /// 返回一个 Task，调用者可以等待它完成
+    /// 
+    /// 返回一个 Task，调用者可以等待它完成。
+    /// 确保在切换笔记前，当前笔记的所有更改都已保存。
+    /// 
+    /// - Parameter newNoteId: 要切换到的新笔记ID
+    /// - Returns: 保存任务，如果不需要保存则返回 nil
     @discardableResult
     private func saveCurrentNoteBeforeSwitching(newNoteId: String) -> Task<Void, Never>? {
-        print("![[debug]] ========== 数据流程节点SWITCH1: 切换笔记前保存检查 ==========")
         guard let currentNoteId = currentEditingNoteId,
-              currentNoteId != newNoteId else {
-            print("![[debug]] [NoteDetailView] ⚠️ 不需要保存当前笔记（相同笔记或没有当前笔记），当前ID: \(currentEditingNoteId ?? "nil"), 新ID: \(newNoteId)")
-            return nil
-        }
-        
-        guard let currentNote = viewModel.selectedNote,
+              currentNoteId != newNoteId,
+              let currentNote = viewModel.selectedNote,
               currentNote.id == currentNoteId else {
-            print("![[debug]] [NoteDetailView] ⚠️ 当前笔记不匹配，跳过保存: currentEditingNoteId=\(currentEditingNoteId ?? "nil")")
             return nil
         }
-        
-        // 总是保存（不检查是否有变化，因为 editorContext 可能已更新但 editedAttributedText 未更新）
-        // 这样可以确保所有编辑内容都被保存
-        print("![[debug]] [NoteDetailView] ✅ 切换笔记前保存当前笔记，当前笔记ID: \(currentNoteId), 新笔记ID: \(newNoteId)")
         
         // 取消待执行的保存任务
         pendingSaveWorkItem?.cancel()
@@ -1244,40 +962,27 @@ struct NoteDetailView: View {
         isSavingBeforeSwitch = true
         
         return Task { @MainActor in
-            print("![[debug]] ========== 数据流程节点SWITCH2: 切换前从 editorContext 获取内容 ==========")
-            // 确保使用最新的编辑内容进行保存
-            // 如果使用 RichTextKit，需要从 editorContext 获取最新内容
+            // 如果使用 RichTextKit，确保从 editorContext 获取最新内容并更新状态
             if useRichTextKit {
-                // 从 editorContext 获取最新的 attributedString
                 let contextAttributedString = editorContext.attributedString
-                print("![[debug]] [NoteDetailView] ✅ 切换前从editorContext获取内容，context长度: \(contextAttributedString.length)")
                 if contextAttributedString.length > 0 {
-                    // 转换为 AttributedString (SwiftUI)
                     let swiftUIAttributedString = AttributedString(contextAttributedString)
                     editedAttributedText = swiftUIAttributedString
-                    // 更新 RTF 数据（使用 archivedData 格式以支持图片附件）
+                    
+                    // 更新 RTF 数据
                     do {
                         let archivedData = try contextAttributedString.richTextData(for: .archivedData)
                         editedRTFData = archivedData
-                        print("![[debug]] [NoteDetailView] ✅ 从 editorContext 获取最新内容，长度: \(contextAttributedString.length), RTF数据长度: \(archivedData.count)")
                     } catch {
-                        print("![[debug]] [NoteDetailView] ⚠️ 从 editorContext 获取 RTF 数据失败: \(error)，尝试使用 RTF 格式")
                         // 如果 archivedData 失败，尝试使用 RTF 格式
-                        if let rtfData = AttributedStringConverter.attributedStringToRTFData(swiftUIAttributedString) {
-                            editedRTFData = rtfData
-                        }
+                        editedRTFData = AttributedStringConverter.attributedStringToRTFData(swiftUIAttributedString)
                     }
-                } else {
-                    print("![[debug]] [NoteDetailView] ⚠️ editorContext 内容为空")
                 }
             }
             
-            print("![[debug]] ========== 数据流程节点SWITCH3: 切换前调用 saveToLocalOnly ==========")
-            print("![[debug]] [NoteDetailView] 执行切换前保存，当前笔记ID: \(currentNote.id)")
             // 直接调用 saveToLocalOnly，确保保存最新内容
             await saveToLocalOnly(for: currentNote)
             isSavingBeforeSwitch = false
-            print("![[debug]] ========== 数据流程节点SWITCH4: 切换前保存完成 ==========")
         }
     }
     
@@ -1346,7 +1051,117 @@ struct NoteDetailView: View {
         await loadNoteContent(newValue)
     }
     
-    // MARK: - 转换方法已移至 AttributedStringConverter
+    // MARK: - 保存辅助方法
+    
+    /// 从编辑器获取最新的内容（RTF数据和AttributedString）
+    /// - Returns: (rtfData: 存档数据, attributedText: SwiftUI AttributedString)
+    private func getLatestContentFromEditor() -> (rtfData: Data?, attributedText: AttributedString) {
+        if useRichTextKit {
+            let contextAttributedString = editorContext.attributedString
+            
+            if contextAttributedString.length > 0 {
+                let swiftUIAttributedText = AttributedString(contextAttributedString)
+                
+                // 尝试生成 archivedData（支持图片附件）
+                do {
+                    let archivedData = try contextAttributedString.richTextData(for: .archivedData)
+                    return (archivedData, swiftUIAttributedText)
+                } catch {
+                    // 如果失败，使用 editedRTFData 作为后备
+                    return (editedRTFData, swiftUIAttributedText)
+                }
+            } else {
+                // 如果 context 为空，使用 editedRTFData 或 editedAttributedText
+                return (editedRTFData, editedAttributedText)
+            }
+        } else {
+            // 非 RichTextKit 模式
+            let rtfData = AttributedStringConverter.attributedStringToRTFData(editedAttributedText)
+            return (rtfData, editedAttributedText)
+        }
+    }
+    
+    /// 构建更新的笔记对象
+    /// - Parameters:
+    ///   - note: 原始笔记对象
+    ///   - rtfData: RTF数据
+    ///   - attributedText: AttributedString
+    /// - Returns: 更新后的笔记对象
+    private func buildUpdatedNote(
+        from note: Note,
+        rtfData: Data?,
+        attributedText: AttributedString
+    ) -> Note {
+        let xmlContent = AttributedStringConverter.attributedStringToXML(attributedText)
+        
+        return Note(
+            id: note.id,
+            title: editedTitle,
+            content: xmlContent,
+            folderId: note.folderId,
+            isStarred: note.isStarred,
+            createdAt: note.createdAt,
+            updatedAt: Date(),
+            tags: note.tags,
+            rawData: note.rawData,
+            rtfData: rtfData
+        )
+    }
+    
+    /// 更新保存后的状态变量
+    /// - Parameters:
+    ///   - rtfData: 保存的RTF数据
+    ///   - attributedText: 保存的AttributedString
+    private func updateSaveState(rtfData: Data?, attributedText: AttributedString) {
+        lastSavedRTFData = rtfData
+        originalTitle = editedTitle
+        originalAttributedText = attributedText
+        
+        if useRichTextKit {
+            editedRTFData = rtfData
+        }
+    }
+    
+    /// 更新 ViewModel 中的笔记对象（延迟更新，避免触发重新加载）
+    /// - Parameter updatedNote: 更新后的笔记对象
+    private func updateViewModelDelayed(with updatedNote: Note) {
+        guard let index = viewModel.notes.firstIndex(where: { $0.id == updatedNote.id }) else {
+            return
+        }
+        
+        // 延迟更新 ViewModel，确保保存操作完全完成后再更新
+        // 这样可以避免触发重新加载
+        Task { @MainActor in
+            // 等待一小段时间，确保保存操作完全完成
+            try? await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
+            
+            // 临时标记正在保存，避免触发重新加载
+            let wasSaving = isSavingLocally
+            isSavingLocally = true
+            
+            viewModel.notes[index] = updatedNote
+            if viewModel.selectedNote?.id == updatedNote.id {
+                viewModel.selectedNote = updatedNote
+            }
+            
+            // 恢复保存状态
+            isSavingLocally = wasSaving
+        }
+    }
+    
+    /// 检查内容是否真的变化了（避免重复保存）
+    /// - Parameters:
+    ///   - rtfData: 当前的RTF数据
+    /// - Returns: 如果内容或标题有变化，返回true
+    private func hasContentChanged(rtfData: Data?) -> Bool {
+        // 检查RTF数据是否变化
+        if let lastSaved = lastSavedRTFData, let current = rtfData, lastSaved == current {
+            // RTF数据相同，检查标题是否变化
+            return editedTitle != originalTitle
+        }
+        // RTF数据不同，肯定有变化
+        return true
+    }
 }
 
 #Preview {
