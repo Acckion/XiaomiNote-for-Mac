@@ -108,10 +108,13 @@ public struct AttributedStringConverter {
     
     /// 将 AttributedString 转换为 XML（用于同步到云端）
     public static func attributedStringToXML(_ attributedString: AttributedString) -> String {
+        print("[[调试]]步骤12 [AttributedStringConverter] 开始AttributedString到XML转换，输入AttributedString长度: \(attributedString.characters.count)")
         // 将 AttributedString 转换为 NSAttributedString
         let nsAttributedString = NSAttributedString(attributedString)
+        print("[[调试]]步骤13 [AttributedStringConverter] 转换为NSAttributedString，长度: \(nsAttributedString.length)")
         
         // 将 NSAttributedString 转换为 XML
+        print("[[调试]]步骤14 [AttributedStringConverter] 调用MiNoteContentParser.parseToXML，输入NSAttributedString长度: \(nsAttributedString.length)")
         var xmlContent = MiNoteContentParser.parseToXML(nsAttributedString)
         
         // 清理内容：移除开头的空段落
@@ -120,6 +123,7 @@ public struct AttributedStringConverter {
             xmlContent = "<new-format/><text indent=\"1\"></text>"
         }
         
+        print("[[调试]]步骤15 [AttributedStringConverter] XML转换完成，XML内容长度: \(xmlContent.count), 内容预览: \(xmlContent.prefix(100))")
         return xmlContent
     }
     

@@ -1,0 +1,88 @@
+/*
+ Localizable.strings
+ RichTextKit
+ 
+ Created by Daniel Saidi on 2022-12-14.
+ Copyright © 2022 Daniel Saidi. All rights reserved.
+ */
+
+"locale" = "nb";
+
+"done" = "Færdig";
+"more" = "Mer";
+
+"font" = "Skrifttype";
+"fontSize" = "Skriftstørrelse";
+"fontSizeIncrease" = "Større";
+"fontSizeIncreaseDescription" = "Øk skriftstørrelsen";
+"fontSizeDecrease" = "Mindre";
+"fontSizeDecreaseDescription" = "Reduser skriftstørrelsen";
+
+"color" = "Farge";
+"foregroundColor" = "Tekst";
+"backgroundColor" = "Bakgrunn";
+"underlineColor" = "Underline Color";
+"strikethroughColor" = "Striketrough Color";
+"strokeColor" = "Stroke Color";
+
+"actionCopy" = "Kopiere";
+"actionDelete" = "Slette";
+"actionDismissKeyboard" = "Lukk tastaturet";
+"actionPrint" = "Skrive ut";
+"actionReplace" = "Erstatte";
+
+"actionRedoLatestChange" = "Angre";
+"actionUndoLatestChange" = "Gjøre om";
+
+"fileFormatRtk" = "Rich Text Kit (.rtk)";
+"fileFormatPdf" = "PDF (.pdf)";
+"fileFormatRtf" = "Formatert tekst (.rtf)";
+"fileFormatTxt" = "Ren tekst (.txt)";
+
+"indent" = "Indrag";
+"indentIncrease" = "Øk";
+"indentIncreaseDescription" = "Øk indrag";
+"indentDecrease" = "Reduser";
+"indentDecreaseDescription" = "Reduser indrag";
+
+"lineSpacing" = "Linjeavstand";
+"lineSpacingIncrease" = "Øk";
+"lineSpacingIncreaseDescription" = "Øk linjeavstand";
+"lineSpacingDecrease" = "Reduser";
+"lineSpacingDecreaseDescription" = "Reduser linjeavstand";
+
+"menuExport" = "Eksporterer";
+"menuExportAs" = "Eksporterer som...";
+"menuFormat" = "Format";
+"menuPrint" = "Skrive ut...";
+"menuSave" = "Lagre";
+"menuSaveAs" = "Lagre som...";
+"menuShare" = "Del";
+"menuShareAs" = "Del som...";
+"menuText" = "Tekst";
+
+"highlightedRange" = "Highlight Range";
+"highlightingStyle" = "Highlighting Style";
+
+"pasteImage" = "Paste Image";
+"pasteImages" = "Paste Images";
+"pasteText" = "Paste text";
+"selectRange" = "Select Range";
+"setAttributedString" = "Set attributed String";
+
+"styleBold" = "Fet";
+"styleItalic" = "Kursiv";
+"styleStrikethrough" = "Gjennomstreking";
+"styleUnderlined" = "Understreket";
+
+"superscript" = "Baslinje";
+"superscriptIncrease" = "Øk";
+"superscriptIncreaseDescription" = "Øk baslinje";
+"superscriptDecrease" = "Reduser";
+"superscriptDecreaseDescription" = "Reduser baslinje";
+
+"textAlignment" = "Tekstjustering";
+"textAlignmentLeft" = "Venstrejustert";
+"textAlignmentRight" = "Høyrejustert";
+"textAlignmentCentered" = "Sentrert";
+"textAlignmentJustified" = "Margin justert";

@@ -1,6 +1,7 @@
 import SwiftUI
 import RichTextKit
 import Foundation
+import Combine
 
 /// PreferenceKey 用于在视图层次中传递 RichTextContext
 @available(macOS 14.0, *)
@@ -39,6 +40,10 @@ struct RichTextEditorView: View {
     
     /// 内容变化回调
     var onContentChange: ((NSAttributedString) -> Void)? = nil
+    
+    @State private var lastKnownAttributedString: NSAttributedString = NSAttributedString()
+    @State private var contentCheckTimer: Timer?
+    @State private var timerLastText: NSAttributedString = NSAttributedString()
     
     /// 格式操作类型
     enum FormatAction {
@@ -86,15 +91,35 @@ struct RichTextEditorView: View {
         .disabled(!isEditable)
         .preference(key: RichTextContextPreferenceKey.self, value: context)
         .onChange(of: text) { oldValue, newValue in
-            // 当 text binding 变化时（例如从外部加载内容），确保更新编辑器
+            // 当 text binding 变化时（例如从外部加载内容或用户输入），确保更新编辑器
             if oldValue.string != newValue.string || oldValue.length != newValue.length {
-                print("[RichTextEditorView] onChange: 文本内容变化，更新编辑器")
+                print("[RichTextEditorView] 📝 onChange(of: text): 文本内容变化")
                 print("[RichTextEditorView] 旧长度: \(oldValue.length), 新长度: \(newValue.length)")
-                print("[RichTextEditorView] 新内容预览: \(newValue.string.prefix(50))")
+                print("[RichTextEditorView] 旧内容预览: '\(oldValue.string.prefix(50))'")
+                print("[RichTextEditorView] 新内容预览: '\(newValue.string.prefix(50))'")
                 // 使用 context 的 setAttributedString 方法更新编辑器
                 // 因为直接改变 binding 不会更新编辑器（RichTextKit 已知问题）
                 context.setAttributedString(to: newValue)
+                // 触发内容变化回调
+                print("[RichTextEditorView] ✅ 调用 onContentChange 回调")
                 onContentChange?(newValue)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSText.didChangeNotification)) { notification in
+            // 监听 NSTextView 的文本变化通知（macOS）
+            // 这是备用方案，确保能捕获所有文本变化
+            if let textView = notification.object as? NSTextView {
+                let newText = textView.attributedString()
+                if newText.string != text.string || newText.length != text.length {
+                    print("[RichTextEditorView] 📝 NSText.didChangeNotification: 文本内容变化")
+                    print("[RichTextEditorView] 当前 text.length: \(text.length), textView.length: \(newText.length)")
+                    print("[RichTextEditorView] 新内容预览: '\(newText.string.prefix(50))'")
+                    // 更新 text binding（这会触发 onChange）
+                    text = newText
+                    // 直接触发回调（双重保险）
+                    print("[RichTextEditorView] ✅ 从通知直接调用 onContentChange 回调")
+                    onContentChange?(newText)
+                }
             }
         }
         .onChange(of: context.styles) { oldValue, newValue in
@@ -126,11 +151,20 @@ struct RichTextEditorView: View {
             try? await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
             // 无论文本是否为空，都设置到 context，确保编辑器初始化
             context.setAttributedString(to: text)
+            lastKnownAttributedString = text
             if text.length == 0 {
                 print("[RichTextEditorView] ⚠️ 初始文本为空")
             } else {
                 print("[RichTextEditorView] ✅ 初始文本已设置到 context，长度: \(text.length)")
             }
+            
+            // 启动定时器定期检查 context.attributedString 的变化（备用方案）
+            startContentCheckTimer()
+        }
+        .onDisappear {
+            // 停止定时器
+            contentCheckTimer?.invalidate()
+            contentCheckTimer = nil
         }
     }
     
@@ -161,6 +195,40 @@ struct RichTextEditorView: View {
         // 配置上下文选项
         // 初始化时设置文本内容
         context.setAttributedString(to: text)
+    }
+    
+    /// 启动内容检查定时器（备用方案，确保能捕获所有内容变化）
+    /// 根据 RichTextKit 文档，text binding 应该会自动更新，但为了确保万无一失，我们添加定时器检查
+    private func startContentCheckTimer() {
+        contentCheckTimer?.invalidate()
+        let contextRef = context  // 捕获 context 引用（RichTextContext 是 class）
+        let textBinding = _text   // 捕获 Binding 的 ProjectedValue
+        let onContentChangeRef = onContentChange  // 捕获回调
+        
+        // 初始化 timerLastText
+        timerLastText = lastKnownAttributedString
+        
+        contentCheckTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak contextRef] _ in
+            guard let contextRef = contextRef else { return }
+            let currentText = contextRef.attributedString
+            
+            // 在主线程上安全地访问和更新状态
+            DispatchQueue.main.async {
+                // 检查内容是否变化
+                if currentText.string != self.timerLastText.string || currentText.length != self.timerLastText.length {
+                    print("[RichTextEditorView] 📝 定时器检测到内容变化")
+                    print("[RichTextEditorView] 旧长度: \(self.timerLastText.length), 新长度: \(currentText.length)")
+                    print("[RichTextEditorView] 新内容预览: '\(currentText.string.prefix(50))'")
+                    // 更新 text binding（这会触发 onChange(of: text)）
+                    textBinding.wrappedValue = currentText
+                    self.timerLastText = currentText
+                    self.lastKnownAttributedString = currentText
+                    // 触发回调（双重保险）
+                    print("[RichTextEditorView] ✅ 从定时器调用 onContentChange 回调")
+                    onContentChangeRef?(currentText)
+                }
+            }
+        }
     }
 }
 
@@ -395,27 +463,68 @@ struct RichTextEditorWrapper: View {
     
     /// 处理内容变化
     private func handleContentChange(_ newText: NSAttributedString) {
-        // 将NSAttributedString转换为 archivedData 格式（支持图片附件）
-        do {
-            let archivedData = try newText.richTextData(for: .archivedData)
-            // 只在数据真正改变时更新
-            if archivedData != lastRTFData {
+        print("[[调试]]步骤1 [RichTextEditorWrapper] 用户输入文本，编辑器内容长度: \(newText.length), 文本内容: '\(newText.string.prefix(50))'")
+        
+        // 先比较文本内容，使用 attributedText 状态变量（应该已经是最新的）
+        let newTextString = newText.string
+        let currentTextString = attributedText.string
+        let textChanged = newTextString != currentTextString || newText.length != attributedText.length
+        
+        print("[[调试]]步骤1.0.1 [RichTextEditorWrapper] 文本内容比较，新文本长度: \(newTextString.count), 当前文本长度: \(currentTextString.count), 是否变化: \(textChanged)")
+        print("[[调试]]步骤1.0.2 [RichTextEditorWrapper] lastRTFData状态: \(lastRTFData != nil ? "存在(\(lastRTFData!.count)字节)" : "nil")")
+        
+        // 如果文本内容改变了，总是更新（不依赖 Data 比较）
+        if textChanged {
+            print("[[调试]]步骤1.0.3 [RichTextEditorWrapper] 文本内容已变化，准备更新")
+            
+            // 将NSAttributedString转换为 archivedData 格式（支持图片附件）
+            do {
+                let archivedData = try newText.richTextData(for: .archivedData)
+                print("[[调试]]步骤1.0.4 [RichTextEditorWrapper] 生成archivedData，长度: \(archivedData.count) 字节")
+                
+                // 更新状态
                 self.rtfData = archivedData
                 lastRTFData = archivedData
+                attributedText = newText  // 更新 attributedText
+                
+                // 触发回调
                 onContentChange?(archivedData)
-                print("[RichTextEditorWrapper] 内容已更新，archivedData 长度: \(archivedData.count) 字节")
+                print("[[调试]]步骤1.1 [RichTextEditorWrapper] 内容已更新，archivedData 长度: \(archivedData.count) 字节")
+            } catch {
+                print("[[调试]]步骤1.2 [RichTextEditorWrapper] ⚠️ 转换 archivedData 失败: \(error)")
+                // 如果失败，尝试使用 NSKeyedArchiver
+                if let archivedData = try? NSKeyedArchiver.archivedData(
+                    withRootObject: newText,
+                    requiringSecureCoding: false
+                ) {
+                    self.rtfData = archivedData
+                    lastRTFData = archivedData
+                    attributedText = newText  // 更新 attributedText
+                    onContentChange?(archivedData)
+                    print("[[调试]]步骤1.2 [RichTextEditorWrapper] 使用 NSKeyedArchiver 更新内容，长度: \(archivedData.count) 字节")
+                } else {
+                    print("[[调试]]步骤1.2 [RichTextEditorWrapper] ⚠️ NSKeyedArchiver 也失败，无法更新内容")
+                }
             }
-        } catch {
-            print("[RichTextEditorWrapper] ⚠️ 转换 archivedData 失败: \(error)")
-            // 如果失败，尝试使用 NSKeyedArchiver
-            if let archivedData = try? NSKeyedArchiver.archivedData(
-                withRootObject: newText,
-                requiringSecureCoding: false
-            ), archivedData != lastRTFData {
-                self.rtfData = archivedData
-                lastRTFData = archivedData
-                onContentChange?(archivedData)
-                print("[RichTextEditorWrapper] 使用 NSKeyedArchiver 更新内容，长度: \(archivedData.count) 字节")
+        } else {
+            // 文本内容相同，但可能格式有变化，检查 Data
+            print("[[调试]]步骤1.0.3 [RichTextEditorWrapper] 文本内容未变化，检查数据变化")
+            do {
+                let archivedData = try newText.richTextData(for: .archivedData)
+                let dataChanged = lastRTFData == nil || archivedData != lastRTFData
+                print("[[调试]]步骤1.0.4 [RichTextEditorWrapper] 数据比较，数据变化: \(dataChanged)")
+                
+                if dataChanged {
+                    self.rtfData = archivedData
+                    lastRTFData = archivedData
+                    attributedText = newText  // 更新 attributedText
+                    onContentChange?(archivedData)
+                    print("[[调试]]步骤1.1 [RichTextEditorWrapper] 数据已变化，已更新，archivedData 长度: \(archivedData.count) 字节")
+                } else {
+                    print("[[调试]]步骤1.1 [RichTextEditorWrapper] 内容未变化，跳过更新（文本和数据都相同）")
+                }
+            } catch {
+                print("[[调试]]步骤1.1 [RichTextEditorWrapper] ⚠️ 检查数据变化时转换失败: \(error)，跳过更新")
             }
         }
     }

@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import AppKit
 
 /// SQLite数据库服务
 /// 
@@ -235,16 +236,20 @@ final class DatabaseService: @unchecked Sendable {
             
             // rtf_data 作为 BLOB（AttributedString 的 RTF 格式）
             if let rtfData = note.rtfData {
+                print("[[调试]]步骤20.1 [Database] 准备保存rtfData，长度: \(rtfData.count) 字节")
                 sqlite3_bind_blob(statement, 10, (rtfData as NSData).bytes, Int32(rtfData.count), nil)
             } else {
+                print("[[调试]]步骤20.1 [Database] ⚠️ 警告：note.rtfData为nil，将保存NULL到数据库")
                 sqlite3_bind_null(statement, 10)
             }
             
             guard sqlite3_step(statement) == SQLITE_DONE else {
-                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+                let errorMsg = String(cString: sqlite3_errmsg(db))
+                print("[[调试]]步骤20.2 [Database] ⚠️ SQL执行失败: \(errorMsg)")
+                throw DatabaseError.executionFailed(errorMsg)
             }
             
-            print("[Database] 保存笔记: \(note.id)")
+            print("[[调试]]步骤20 [Database] 保存笔记到数据库，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count), rtfData长度: \(note.rtfData?.count ?? 0), rtfData已保存: \(note.rtfData != nil)")
         }
     }
     
@@ -274,7 +279,16 @@ final class DatabaseService: @unchecked Sendable {
                 return nil
             }
             
-            return try parseNote(from: statement)
+            guard var note = try parseNote(from: statement) else {
+                return nil
+            }
+            
+            // 如果 rtfData 为 nil 但 content 不为空，生成 rtfData 并保存
+            if note.rtfData == nil && !note.content.isEmpty {
+                note = try generateAndSaveRTFData(for: note)
+            }
+            
+            return note
         }
     }
     
@@ -305,7 +319,11 @@ final class DatabaseService: @unchecked Sendable {
                 rowCount += 1
                 print("[Database] getAllNotes: 处理第 \(rowCount) 行")
                 do {
-                    if let note = try parseNote(from: statement) {
+                    if var note = try parseNote(from: statement) {
+                        // 如果 rtfData 为 nil 但 content 不为空，生成 rtfData 并保存
+                        if note.rtfData == nil && !note.content.isEmpty {
+                            note = try generateAndSaveRTFData(for: note)
+                        }
                         notes.append(note)
                         print("[Database] getAllNotes: 成功解析并添加笔记 id=\(note.id)")
                     } else {
@@ -473,6 +491,82 @@ final class DatabaseService: @unchecked Sendable {
         
         print("[Database] parseNote: 笔记解析完成 id=\(id), title=\(title)")
         return note
+    }
+    
+    /// 为笔记生成 rtfData（如果缺失）并保存到数据库
+    /// 
+    /// - Parameter note: 需要生成 rtfData 的笔记
+    /// - Returns: 更新后的笔记（包含生成的 rtfData）
+    /// - Throws: DatabaseError（数据库操作失败）
+    private func generateAndSaveRTFData(for note: Note) throws -> Note {
+        print("[Database] generateAndSaveRTFData: 开始为笔记生成 rtfData，笔记ID: \(note.id), content长度: \(note.content.count)")
+        
+        // 确保 content 不为空
+        guard !note.content.isEmpty else {
+            print("[Database] generateAndSaveRTFData: content 为空，跳过生成")
+            return note
+        }
+        
+        // 从 XML 生成 AttributedString
+        let attributedString = MiNoteContentParser.parseToAttributedString(note.content, noteRawData: note.rawData)
+        print("[Database] generateAndSaveRTFData: 解析 AttributedString 成功，长度: \(attributedString.length)")
+        
+        // 尝试使用 archivedData 格式（支持图片附件）
+        var rtfData: Data?
+        do {
+            rtfData = try attributedString.richTextData(for: .archivedData)
+            print("[Database] generateAndSaveRTFData: ✅ 使用 archivedData 格式生成 rtfData，长度: \(rtfData?.count ?? 0) 字节")
+        } catch {
+            print("[Database] generateAndSaveRTFData: ⚠️ 生成 archivedData 失败: \(error)，尝试使用 RTF 格式")
+            // 回退到 RTF 格式
+            let rtfRange = NSRange(location: 0, length: attributedString.length)
+            rtfData = try? attributedString.data(from: rtfRange, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+            if let rtfData = rtfData {
+                print("[Database] generateAndSaveRTFData: ✅ 使用 RTF 格式生成 rtfData，长度: \(rtfData.count) 字节")
+            } else {
+                print("[Database] generateAndSaveRTFData: ⚠️ RTF 格式也失败，无法生成 rtfData")
+            }
+        }
+        
+        // 如果成功生成 rtfData，更新笔记并保存到数据库
+        if let rtfData = rtfData {
+            var updatedNote = note
+            updatedNote.rtfData = rtfData
+            
+            // 保存到数据库（注意：此方法在 dbQueue.sync 中调用，所以直接使用 db，不再获取锁）
+            let sql = """
+            UPDATE notes SET rtf_data = ? WHERE id = ?;
+            """
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            // 绑定 rtf_data
+            sqlite3_bind_blob(statement, 1, (rtfData as NSData).bytes, Int32(rtfData.count), nil)
+            // 绑定 id
+            sqlite3_bind_text(statement, 2, (note.id as NSString).utf8String, -1, nil)
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                let errorMsg = String(cString: sqlite3_errmsg(db))
+                print("[Database] generateAndSaveRTFData: ⚠️ 更新 rtf_data 失败: \(errorMsg)")
+                throw DatabaseError.executionFailed(errorMsg)
+            }
+            
+            print("[Database] generateAndSaveRTFData: ✅ 成功保存 rtfData 到数据库，笔记ID: \(note.id)")
+            
+            return updatedNote
+        } else {
+            print("[Database] generateAndSaveRTFData: ⚠️ 无法生成 rtfData，返回原始笔记")
+            return note
+        }
     }
     
     // MARK: - 文件夹操作

@@ -154,11 +154,14 @@ final class MiNoteService: @unchecked Sendable {
             }
             throw MiNoteError.cookieExpired
         }
-        // 已有Cookie但不是明确的认证错误：可能是其他原因
+        // 已有Cookie但不是明确的认证错误：仍然可能是Cookie问题，设置为离线状态
         else if self.hasValidCookie() && !isAuthError {
-            print("[MiNoteService] 401错误但不是明确的认证失败")
+            print("[MiNoteService] 401错误但不是明确的认证失败，仍视为Cookie过期，设置为离线状态")
             print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-            throw MiNoteError.networkError(URLError(.badServerResponse))
+            DispatchQueue.main.async {
+                self.onCookieExpired?()
+            }
+            throw MiNoteError.cookieExpired  // 统一作为cookieExpired处理，确保添加到离线队列
         }
         // 没有Cookie：说明尚未登录
         else {
@@ -841,6 +844,7 @@ final class MiNoteService: @unchecked Sendable {
     /// - Returns: 更新后的笔记信息
     /// - Throws: MiNoteError（网络错误、认证错误等）
     func updateNote(noteId: String, title: String, content: String, folderId: String = "0", existingTag: String = "", originalCreateDate: Int? = nil, imageData: [[String: Any]]? = nil) async throws -> [String: Any] {
+        print("[[调试]]步骤34 [MiNoteService] 进入updateNote服务方法，noteId: \(noteId), title: \(title), content长度: \(content.count)")
         let createDate = originalCreateDate ?? Int(Date().timeIntervalSince1970 * 1000)
         
         // 参考正确的请求示例：extraInfo 应该是包含字段的 JSON 字符串
@@ -851,6 +855,7 @@ final class MiNoteService: @unchecked Sendable {
             "title": title,
             "mind_content": ""
         ]
+        print("[[调试]]步骤35 [MiNoteService] 构建extraInfo，title: \(title)")
         
         guard let extraInfoData = try? JSONSerialization.data(withJSONObject: extraInfoDict),
               let extraInfoString = String(data: extraInfoData, encoding: .utf8) else {
@@ -863,6 +868,7 @@ final class MiNoteService: @unchecked Sendable {
         if cleanedContent.hasPrefix("<new-format/>") {
             cleanedContent = String(cleanedContent.dropFirst("<new-format/>".count))
         }
+        print("[[调试]]步骤36 [MiNoteService] 清理content，原始长度: \(content.count), 清理后长度: \(cleanedContent.count)")
         
         // 构建 setting 对象，如果提供了图片数据则包含
         var setting: [String: Any] = [
@@ -873,6 +879,7 @@ final class MiNoteService: @unchecked Sendable {
         if let imageData = imageData, !imageData.isEmpty {
             setting["data"] = imageData
         }
+        print("[[调试]]步骤37 [MiNoteService] 构建setting对象，包含图片数据: \(imageData != nil && !imageData!.isEmpty)")
         
         let entry: [String: Any] = [
             "id": noteId,
@@ -887,6 +894,7 @@ final class MiNoteService: @unchecked Sendable {
             "alertDate": 0,
             "extraInfo": extraInfoString
         ]
+        print("[[调试]]步骤38 [MiNoteService] 构建entry对象，id: \(noteId), tag: \(existingTag), content长度: \(cleanedContent.count)")
         
         // 使用 JSONSerialization 的 sortedKeys 选项确保字段顺序一致
         guard let entryData = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]),
@@ -894,6 +902,7 @@ final class MiNoteService: @unchecked Sendable {
             NetworkLogger.shared.logError(url: "\(baseURL)/note/note/\(noteId)", method: "POST", error: URLError(.cannotParseResponse))
             throw URLError(.cannotParseResponse)
         }
+        print("[[调试]]步骤39 [MiNoteService] 序列化entry为JSON，JSON长度: \(entryJson.count)")
         
         // 参考 Obsidian 插件：使用 encodeURIComponent 进行 URL 编码
         // 在 Swift 中，我们需要模拟 encodeURIComponent 的行为
@@ -901,6 +910,8 @@ final class MiNoteService: @unchecked Sendable {
         let entryEncoded = encodeURIComponent(entryJson)
         let serviceTokenEncoded = encodeURIComponent(serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
+        print("[[调试]]步骤40 [MiNoteService] URL编码完成，entry编码后长度: \(entryEncoded.count)")
+        print("[[调试]]步骤41 [MiNoteService] 构建请求体，body长度: \(body.count)")
         
         let urlString = "\(baseURL)/note/note/\(noteId)"
         
@@ -923,12 +934,15 @@ final class MiNoteService: @unchecked Sendable {
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
         request.httpBody = body.data(using: .utf8)
+        print("[[调试]]步骤42 [MiNoteService] 创建HTTP请求，URL: \(urlString), method: POST")
         
         do {
+            print("[[调试]]步骤43 [MiNoteService] 发送网络请求，笔记ID: \(noteId)")
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
                 let responseString = String(data: data, encoding: .utf8)
+                print("[[调试]]步骤44 [MiNoteService] 接收HTTP响应，状态码: \(httpResponse.statusCode)")
                 
                 // 记录响应
                 NetworkLogger.shared.logResponse(
@@ -941,11 +955,14 @@ final class MiNoteService: @unchecked Sendable {
                 )
                 
                 if httpResponse.statusCode == 401 {
+                    print("[[调试]]步骤45 [MiNoteService] 处理401错误，需要重新认证")
                     try handle401Error(responseBody: responseString ?? "", urlString: urlString)
                 }
             }
             
+            print("[[调试]]步骤46 [MiNoteService] 解析响应JSON，响应长度: \(data.count)")
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            print("[[调试]]步骤47 [MiNoteService] 返回响应，code: \(json["code"] ?? "无")")
             return json
         } catch {
             NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)

@@ -15,14 +15,30 @@ class CheckboxTextAttachment: NSTextAttachment {
         }
     }
     
+    // MARK: - NSSecureCoding 支持
+    // 注意：NSTextAttachment 已经支持 NSSecureCoding，不需要重新实现 supportsSecureCoding
+    
     override init(data contentData: Data?, ofType uti: String?) {
         super.init(data: contentData, ofType: uti)
         setupCheckbox()
     }
     
     required init?(coder: NSCoder) {
+        // 先调用父类初始化
         super.init(coder: coder)
+        
+        // 然后解码自定义属性
+        if coder.containsValue(forKey: "isChecked") {
+            self.isChecked = coder.decodeBool(forKey: "isChecked")
+        }
+        
         setupCheckbox()
+    }
+    
+    /// 编码方法（用于存档）
+    override func encode(with coder: NSCoder) {
+        super.encode(with: coder)
+        coder.encode(isChecked, forKey: "isChecked")
     }
     
     private func setupCheckbox() {
@@ -211,18 +227,12 @@ class MiNoteContentParser {
     ///   - noteRawData: 笔记原始数据（用于提取图片信息等）
     /// - Returns: 转换后的 NSAttributedString
     static func parseToAttributedString(_ xmlContent: String, noteRawData: [String: Any]? = nil) -> NSAttributedString {
-        print("🔍 [Parser] ========== 开始解析 XML ==========")
-        print("🔍 [Parser] 输入 XML 长度: \(xmlContent.count)")
-        print("🔍 [Parser] 输入 XML 内容（前500字符）: \(String(xmlContent.prefix(500)))")
-        
         guard !xmlContent.isEmpty else {
-            print("🔍 [Parser] XML 内容为空，返回空字符串")
             return NSAttributedString(string: "", attributes: defaultAttributes())
         }
         
         // 移除 <new-format/> 标签
         var cleanedContent = xmlContent.replacingOccurrences(of: "<new-format/>", with: "")
-        print("🔍 [Parser] 清理后内容长度: \(cleanedContent.count)")
         
         // 提取图片信息
         let imageDict = extractImageDict(from: noteRawData)
@@ -256,12 +266,8 @@ class MiNoteContentParser {
         // 这样可以正确识别 <hr /> 在两个 <text> 标签之间的情况
         
         // 解析所有 <text> 标签，同时检查标签之间的内容（可能包含 <hr /> 或图片占位符）
-        print("🔍 [Parser] 准备提取 <text> 标签，processedContent 长度: \(processedContent.count)")
-        print("🔍 [Parser] processedContent 预览（前1000字符）:\n\(String(processedContent.prefix(1000)))")
-        
         // 使用更智能的方式：提取 <text> 标签及其之间的内容（包括图片占位符）
         let textTagsWithIntervals = extractTextTagsWithIntervals(from: processedContent)
-        print("🔍 [Parser] 找到 \(textTagsWithIntervals.count) 个文本段落（包括间隔、图片占位符等）")
         
         // 跟踪每个缩进级别的有序列表序号（用于自动递增）
         var orderCounters: [Int: Int] = [:]  // [indent: currentNumber]
@@ -269,8 +275,6 @@ class MiNoteContentParser {
         for (index, item) in textTagsWithIntervals.enumerated() {
             switch item {
             case .textTag(let indent, let content):
-                print("🔍 [Parser] 处理第 \(index + 1) 个 <text> 标签，indent=\(indent)")
-                print("🔍 [Parser] 标签内容（前200字符）: \(String(content.prefix(200)))")
                 // 检查是否是引用块占位符
                 if content.hasPrefix("🔄QUOTE_PLACEHOLDER_") {
                     if let quoteIndex = Int(content.replacingOccurrences(of: "🔄QUOTE_PLACEHOLDER_", with: "").replacingOccurrences(of: "🔄", with: "")),
@@ -289,14 +293,6 @@ class MiNoteContentParser {
                         }
                     }
                 } else if let textAttr = parseTextTag(content, indent: indent) {
-                    print("🔍 [Parser] 成功解析文本标签，长度: \(textAttr.length)")
-                    // 检查第一个字符的属性
-                    if textAttr.length > 0 {
-                        let attrs = textAttr.attributes(at: 0, effectiveRange: nil)
-                        if let font = attrs[.font] as? NSFont {
-                            print("🔍 [Parser] 第一个字符字体: size=\(font.pointSize), bold=\(font.fontDescriptor.symbolicTraits.contains(.bold)), italic=\(font.fontDescriptor.symbolicTraits.contains(.italic))")
-                        }
-                    }
                     result.append(textAttr)
                     // 在段落之间添加换行（除了最后一个）
                     // 重要：换行符不应该包含段落样式，让下一个段落使用自己的缩进
@@ -309,23 +305,10 @@ class MiNoteContentParser {
                         ]
                         result.append(NSAttributedString(string: "\n", attributes: newlineAttrs))
                     }
-                } else {
-                    print("⚠️ [Parser] 警告：无法解析文本标签")
                 }
                 
             case .hr:
-                print("🔍 [Parser] 处理分割线（独立标签或 <text> 标签之间）")
                 if let hrAttr = parseHrTag() {
-                    print("🔍 [Parser] 成功创建分割线，长度: \(hrAttr.length)")
-                    // 检查是否包含附件
-                    var hasAttachment = false
-                    hrAttr.enumerateAttribute(.attachment, in: NSRange(location: 0, length: hrAttr.length), options: []) { (value, range, _) in
-                        if value != nil {
-                            hasAttachment = true
-                        }
-                    }
-                    print("🔍 [Parser] 分割线是否包含附件: \(hasAttachment)")
-                    
                     // 换行符不应该包含段落样式
                     let newlineAttrs: [NSAttributedString.Key: Any] = [
                         .foregroundColor: NSColor.labelColor,
@@ -334,11 +317,8 @@ class MiNoteContentParser {
                     result.append(NSAttributedString(string: "\n", attributes: newlineAttrs))
                     result.append(hrAttr)
                     result.append(NSAttributedString(string: "\n", attributes: newlineAttrs))
-                } else {
-                    print("⚠️ [Parser] 警告：无法创建分割线")
                 }
             case .bullet(let indent, let text):
-                print("🔍 [Parser] 处理独立无序列表，indent=\(indent), text=\(text)")
                 if let bulletAttr = parseStandaloneBullet(indent: indent, text: text) {
                     result.append(bulletAttr)
                     if index < textTagsWithIntervals.count - 1 {
@@ -346,7 +326,6 @@ class MiNoteContentParser {
                     }
                 }
             case .order(let indent, let inputNumber, let text):
-                print("🔍 [Parser] 处理独立有序列表，indent=\(indent), inputNumber=\(inputNumber), text=\(text)")
                 // 自动递增序号：如果这是相同缩进级别的连续有序列表项，递增序号
                 // 否则，使用 inputNumber（如果为 0，则从 1 开始）
                 let currentCounter = orderCounters[indent] ?? 0
@@ -364,7 +343,6 @@ class MiNoteContentParser {
                     effectiveInputNumber = currentCounter
                     orderCounters[indent] = currentCounter + 1
                 }
-                print("🔍 [Parser] 有序列表序号：inputNumber=\(inputNumber), currentCounter=\(currentCounter), effectiveInputNumber=\(effectiveInputNumber)")
                 if let orderAttr = parseStandaloneOrder(indent: indent, inputNumber: effectiveInputNumber, text: text) {
                     result.append(orderAttr)
                     if index < textTagsWithIntervals.count - 1 {
@@ -379,38 +357,8 @@ class MiNoteContentParser {
                 // 如果不是有序列表，重置该缩进级别的计数器
                 // （这里不需要重置，因为下一个非有序列表项会自然中断序列）
             case .checkbox(let indent, let level, let text):
-                print("🔍 [Parser] ========== 处理独立复选框 ==========")
-                print("🔍 [Parser] indent=\(indent), level=\(level), text='\(text)'")
                 if let checkboxAttr = parseStandaloneCheckbox(indent: indent, level: level, text: text) {
-                    print("🔍 [Parser] 复选框解析成功，长度: \(checkboxAttr.length)")
-                    
-                    // 验证附件
-                    var hasAttachment = false
-                    checkboxAttr.enumerateAttribute(.attachment, in: NSRange(location: 0, length: checkboxAttr.length), options: []) { (value, range, _) in
-                        if value != nil {
-                            hasAttachment = true
-                            print("🔍 [Parser] 复选框附件存在于位置: \(range.location)")
-                            if let att = value as? CheckboxTextAttachment {
-                                print("🔍 [Parser] 附件类型正确: CheckboxTextAttachment, image=\(att.image != nil ? "存在" : "nil")")
-                            }
-                        }
-                    }
-                    print("🔍 [Parser] 复选框是否包含附件: \(hasAttachment)")
-                    print("🔍 [Parser] 复选框字符串: '\(checkboxAttr.string)'")
-                    
                     result.append(checkboxAttr)
-                    
-                    // 验证添加到结果后
-                    print("🔍 [Parser] 复选框已添加到结果，当前结果长度: \(result.length)")
-                    var hasAttachmentInResult = false
-                    result.enumerateAttribute(.attachment, in: NSRange(location: 0, length: result.length), options: []) { (value, range, _) in
-                        if value != nil {
-                            hasAttachmentInResult = true
-                            print("🔍 [Parser] 结果中复选框附件存在于位置: \(range.location)")
-                        }
-                    }
-                    print("🔍 [Parser] 结果中是否包含复选框附件: \(hasAttachmentInResult)")
-                    
                     if index < textTagsWithIntervals.count - 1 {
                         // 换行符不应该包含段落样式
                         let newlineAttrs: [NSAttributedString.Key: Any] = [
@@ -419,41 +367,19 @@ class MiNoteContentParser {
                         ]
                         result.append(NSAttributedString(string: "\n", attributes: newlineAttrs))
                     }
-                } else {
-                    print("⚠️ [Parser] 警告：无法解析复选框")
                 }
-                print("🔍 [Parser] ========== 复选框处理完成 ==========")
             case .quote(let quoteIndexString):
-                print("🔍 [Parser] ========== 处理独立引用块 ==========")
-                print("🔍 [Parser] quoteIndexString='\(quoteIndexString)'")
                 // 提取引用索引
                 if let quoteIndex = Int(quoteIndexString),
                    quoteIndex < quotePlaceholders.count {
                     let actualQuoteContent = quotePlaceholders[quoteIndex].content
-                    print("🔍 [Parser] 引用块 #\(quoteIndex) 内容长度: \(actualQuoteContent.count)")
-                    print("🔍 [Parser] 引用块 #\(quoteIndex) 内容预览: \(String(actualQuoteContent.prefix(200)))")
-                    print("🔍 [Parser] 引用块 #\(quoteIndex) 完整内容:\n\(actualQuoteContent)")
-                    
                     if let quoteAttr = parseQuoteBlock(actualQuoteContent) {
-                        print("🔍 [Parser] 引用块解析成功，长度: \(quoteAttr.length)")
-                        print("🔍 [Parser] 引用块字符串: '\(quoteAttr.string.prefix(100))'")
-                        
                         result.append(quoteAttr)
-                        
-                        // 验证添加到结果后
-                        print("🔍 [Parser] 引用块已添加到结果，当前结果长度: \(result.length)")
-                        
                         if index < textTagsWithIntervals.count - 1 {
                             result.append(NSAttributedString(string: "\n", attributes: newlineAttributes()))
                         }
-                    } else {
-                        print("⚠️ [Parser] 警告：无法解析引用块 #\(quoteIndex)")
                     }
-                } else {
-                    print("⚠️ [Parser] 警告：引用块索引无效: \(quoteIndexString)")
-                    print("🔍 [Parser] quotePlaceholders.count=\(quotePlaceholders.count)")
                 }
-                print("🔍 [Parser] ========== 引用块处理完成 ==========")
             case .image(let placeholder):
                 print("！！！图片处理！！！ 🖼️ [Parser] ========== 处理独立图片占位符 ==========")
                 print("！！！图片处理！！！ 🖼️ [Parser] 占位符: '\(placeholder)'")
@@ -494,43 +420,35 @@ class MiNoteContentParser {
         }
         
         // 在整个解析完成后，处理所有图片占位符（确保不在 <text> 标签内的图片也能被处理）
-        print("！！！图片处理！！！ 🖼️ [Parser] ========== 开始处理最终结果中的图片占位符 ==========")
-        print("！！！图片处理！！！ 🖼️ [Parser] 当前结果长度: \(result.length)")
-        print("！！！图片处理！！！ 🖼️ [Parser] 当前结果字符串: '\(result.string)'")
-        print("！！！图片处理！！！ 🖼️ [Parser] 检查是否包含图片占位符...")
-        
-        // 先检查是否有图片占位符
-        let placeholderPattern = try! NSRegularExpression(pattern: "🖼️IMAGE_([^:]+)::([^🖼️]+)🖼️", options: [])
-        let placeholderMatches = placeholderPattern.matches(in: result.string, options: [], range: NSRange(result.string.startIndex..., in: result.string))
-        print("！！！图片处理！！！ 🖼️ [Parser] 找到 \(placeholderMatches.count) 个图片占位符待处理")
-        
         processImagePlaceholders(in: result)
         
-        // 验证处理后的附件数量
-        var finalAttachmentCount = 0
-        result.enumerateAttribute(.attachment, in: NSRange(location: 0, length: result.length), options: []) { (value, range, _) in
-            if value != nil {
-                finalAttachmentCount += 1
-                if let attachment = value as? NSTextAttachment {
-                    print("！！！图片处理！！！ 🖼️ [Parser] 附件 #\(finalAttachmentCount) 类型: \(type(of: attachment)), bounds: \(attachment.bounds)")
-                    if let imageAttachment = attachment as? RichTextImageAttachment {
-                        print("！！！图片处理！！！ 🖼️ [Parser]    - RichTextImageAttachment, image: \(imageAttachment.image != nil ? "存在" : "nil"), attachmentCell: \(imageAttachment.attachmentCell != nil ? "存在" : "nil")")
-                    }
-                }
-            }
-        }
-        print("！！！图片处理！！！ 🖼️ [Parser] ========== 图片占位符处理完成，最终附件数量: \(finalAttachmentCount) ==========")
-        
-        print("🔍 [Parser] 最终结果长度: \(result.length)")
-        print("🔍 [Parser] ========== 解析完成 ==========")
         return result
     }
     
-    // MARK: - NSAttributedString to XML
+    // MARK: - NSAttributedString to XML (本地格式转XML)
     
-    /// 将 NSAttributedString 转换为小米笔记 XML 格式
-    /// - Parameter attributedString: 要转换的 NSAttributedString
-    /// - Returns: 转换后的 XML 字符串
+    /// 将本地 NSAttributedString 格式转换为小米笔记 XML 格式（用于上传到云端）
+    /// 
+    /// 转换规则（参考格式示例）：
+    /// 1. 普通文本：<text indent="1">文本</text>\n
+    /// 2. 大标题：<text indent="1"><size>大标题</size></text>\n
+    /// 3. 二级标题：<text indent="1"><mid-size>二级标题</mid-size></text>\n
+    /// 4. 三级标题：<text indent="1"><h3-size>三级标题</h3-size></text>\n
+    /// 5. 加粗：<text indent="1"><b>加粗</b></text>\n
+    /// 6. 斜体：<text indent="1"><i>斜体</i></text>\n
+    /// 7. 下划线：<text indent="1"><u>下划线</u></text>\n
+    /// 8. 删除线：<text indent="1"><delete>删除线</delete></text>\n
+    /// 9. 无序列表：<bullet indent="1" />无序列表\n（不用<text>包裹）
+    /// 10. 有序列表：<order indent="1" inputNumber="0" />有序列表\n（不用<text>包裹）
+    /// 11. checkbox：<input type="checkbox" indent="1" level="3" />checkbox\n（不用<text>包裹）
+    /// 12. 分割线：<hr />\n
+    /// 13. 引用块：<quote><text indent="1">引用1</text>\n<text indent="1">引用2</text></quote>\n
+    /// 14. 居中对齐：<text indent="1"><center>居中</center></text>\n
+    /// 15. 右对齐：<text indent="1"><right>居右</right></text>\n
+    /// 16. 缩进：修改 indent 数字（如 <text indent="2">缩进</text>）
+    /// 
+    /// - Parameter attributedString: 要转换的 NSAttributedString（本地格式）
+    /// - Returns: 转换后的 XML 字符串（小米笔记格式）
     static func parseToXML(_ attributedString: NSAttributedString) -> String {
         guard attributedString.length > 0 else {
             return "<new-format/><text indent=\"1\"></text>"
@@ -648,29 +566,19 @@ class MiNoteContentParser {
     private static func preprocessSpecialElements(_ content: String, imageDict: [String: String]) -> String {
         var processed = content
         
-        print("🔍 [preprocessSpecialElements] ========== 开始预处理 ==========")
-        print("🔍 [preprocessSpecialElements] 输入内容长度: \(content.count)")
-        print("🔍 [preprocessSpecialElements] 输入内容预览（前500字符）: \(String(content.prefix(500)))")
-        print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] imageDict 包含 \(imageDict.count) 个图片条目")
-        print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] imageDict: \(imageDict)")
-        
         // 处理图片引用
         // 格式1: ☺ fileId<0/></> 或 ☺ fileId
         // 参考 Obsidian 插件：content.replace(/☺\s+([^<]+)(<0\/><\/>)?/gm, ...)
         let imagePattern1 = try! NSRegularExpression(pattern: "☺\\s+([^<\\s]+)(<0\\/><\\/>)?", options: [])
         let imageMatches1 = imagePattern1.matches(in: processed, options: [], range: NSRange(processed.startIndex..., in: processed))
-        print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] 格式1 (☺) 找到 \(imageMatches1.count) 个匹配")
         for match in imageMatches1.reversed() {
             if match.numberOfRanges >= 2,
                let fileIdRange = Range(match.range(at: 1), in: processed) {
                 let fileId = String(processed[fileIdRange])
                 let fileType = imageDict[fileId] ?? "jpeg"
                 let placeholder = "🖼️IMAGE_\(fileId)::\(fileType)🖼️"
-                print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] 格式1: fileId=\(fileId), fileType=\(fileType), 使用占位符: \(placeholder)")
                 if let range = Range(match.range, in: processed) {
-                    let originalText = String(processed[range])
                     processed.replaceSubrange(range, with: placeholder)
-                    print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] 格式1: 替换 '\(originalText)' -> '\(placeholder)'")
                 }
             }
         }
@@ -679,18 +587,14 @@ class MiNoteContentParser {
         // 参考 Obsidian 插件：content.replace(/<img fileid="([^"]+)" imgshow="0" imgdes="" \/>/g, ...)
         let imagePattern2 = try! NSRegularExpression(pattern: "<img[^>]+fileid=\"([^\"]+)\"[^>]*/>", options: [])
         let imageMatches2 = imagePattern2.matches(in: processed, options: [], range: NSRange(processed.startIndex..., in: processed))
-        print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] 格式2 (<img>) 找到 \(imageMatches2.count) 个匹配")
         for match in imageMatches2.reversed() {
             if match.numberOfRanges >= 2,
                let fileIdRange = Range(match.range(at: 1), in: processed) {
                 let fileId = String(processed[fileIdRange])
                 let fileType = imageDict[fileId] ?? "jpeg"
                 let placeholder = "🖼️IMAGE_\(fileId)::\(fileType)🖼️"
-                print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] 格式2: fileId=\(fileId), fileType=\(fileType), 使用占位符: \(placeholder)")
                 if let range = Range(match.range, in: processed) {
-                    let originalText = String(processed[range])
                     processed.replaceSubrange(range, with: placeholder)
-                    print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] 格式2: 替换 '\(originalText)' -> '\(placeholder)'")
                 }
             }
         }
@@ -698,38 +602,18 @@ class MiNoteContentParser {
         // 格式3: [图片: fileId]
         let imagePattern3 = try! NSRegularExpression(pattern: "\\[图片:\\s*([^\\]]+)\\]", options: [])
         let imageMatches3 = imagePattern3.matches(in: processed, options: [], range: NSRange(processed.startIndex..., in: processed))
-        print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] 格式3 ([图片:]) 找到 \(imageMatches3.count) 个匹配")
         for match in imageMatches3.reversed() {
             if match.numberOfRanges >= 2,
                let fileIdRange = Range(match.range(at: 1), in: processed) {
                 let fileId = String(processed[fileIdRange]).trimmingCharacters(in: .whitespaces)
                 let fileType = imageDict[fileId] ?? "jpeg"
                 let placeholder = "🖼️IMAGE_\(fileId)::\(fileType)🖼️"
-                print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] 格式3: fileId=\(fileId), fileType=\(fileType), 使用占位符: \(placeholder)")
                 if let range = Range(match.range, in: processed) {
-                    let originalText = String(processed[range])
                     processed.replaceSubrange(range, with: placeholder)
-                    print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] 格式3: 替换 '\(originalText)' -> '\(placeholder)'")
                 }
             }
         }
         
-        // 验证占位符是否被正确创建
-        let placeholderPattern = try! NSRegularExpression(pattern: "🖼️IMAGE_([^:]+)::([^🖼️]+)🖼️", options: [])
-        let placeholderMatches = placeholderPattern.matches(in: processed, options: [], range: NSRange(processed.startIndex..., in: processed))
-        print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] 预处理后找到 \(placeholderMatches.count) 个图片占位符")
-        if placeholderMatches.count > 0 {
-            for (index, match) in placeholderMatches.enumerated() {
-                if let range = Range(match.range, in: processed) {
-                    let placeholder = String(processed[range])
-                    print("！！！图片处理！！！ 🔍 [preprocessSpecialElements] 占位符 #\(index + 1): '\(placeholder)'")
-                }
-            }
-        }
-        
-        print("🔍 [preprocessSpecialElements] 预处理完成，输出内容长度: \(processed.count)")
-        print("🔍 [preprocessSpecialElements] 输出内容预览（前500字符）: \(String(processed.prefix(500)))")
-        print("🔍 [preprocessSpecialElements] ========== 预处理结束 ==========")
         return processed
     }
     
@@ -766,9 +650,6 @@ class MiNoteContentParser {
     /// 提取所有 <text> 标签及其之间的内容（包括 <hr />、独立的 <bullet />、<order />、<input />）
     private static func extractTextTagsWithIntervals(from content: String) -> [TextSegment] {
         var segments: [TextSegment] = []
-        
-        print("🔍 [extractTextTagsWithIntervals] 开始提取，内容长度: \(content.count)")
-        print("🔍 [extractTextTagsWithIntervals] 内容预览（前500字符）: \(String(content.prefix(500)))")
         
         // 首先提取所有独立标签（不在 <text> 内的）
         // 格式：<bullet indent="1" />文本内容\n
@@ -823,8 +704,6 @@ class MiNoteContentParser {
         let textTagPattern = try! NSRegularExpression(pattern: "<text[^>]*>(.*?)</text>", options: [.dotMatchesLineSeparators])
         let textMatches = textTagPattern.matches(in: content, options: [], range: NSRange(content.startIndex..., in: content))
         
-        print("🔍 [extractTextTagsWithIntervals] 找到 \(textMatches.count) 个 <text> 标签，\(allMatches.count) 个独立标签")
-        
         // 合并所有匹配项（独立标签和 <text> 标签），按位置排序
         var allItems: [(range: NSRange, type: String, isTextTag: Bool, indent: Int?, inputNumber: Int?, level: Int?, content: String?)] = []
         
@@ -836,7 +715,6 @@ class MiNoteContentParser {
                 // 直接使用占位符本身，不提取后面的文本
                 let placeholderRange = Range(match.range, in: content)!
                 let placeholder = String(content[placeholderRange])
-                print("🔍 [extractTextTagsWithIntervals] 引用占位符: '\(placeholder)'")
                 allItems.append((match.range, match.type, false, match.indent, match.inputNumber, match.level, placeholder))
                 continue
             }
@@ -866,7 +744,6 @@ class MiNoteContentParser {
                     // 计算从 remainingStartIndex 到 newlineIndex 的距离
                     let newlineOffset = remainingContent.distance(from: remainingContent.startIndex, to: newlineIndex)
                     textEnd = tagEnd + newlineOffset
-                    print("🔍 [extractTextTagsWithIntervals] 找到换行符，tagEnd=\(tagEnd), newlineOffset=\(newlineOffset), textEnd=\(textEnd)")
                 } else {
                     // 如果没有换行符，检查是否有下一个标签
                     var nextTagLocation = content.count
@@ -892,7 +769,6 @@ class MiNoteContentParser {
                 let rawText = String(content[textStartIndex..<textEndIndex])
                 // 只去除前后的空白和换行，保留中间内容
                 text = rawText.trimmingCharacters(in: CharacterSet(charactersIn: " \n\t"))
-                print("🔍 [extractTextTagsWithIntervals] 提取到文本: '\(text)' (原始: '\(rawText)')")
             }
             
             allItems.append((match.range, match.type, false, match.indent, match.inputNumber, match.level, text))
@@ -946,15 +822,12 @@ class MiNoteContentParser {
                             let indexString = content
                                 .replacingOccurrences(of: "🔄QUOTE_PLACEHOLDER_", with: "")
                                 .replacingOccurrences(of: "🔄", with: "")
-                            print("🔍 [extractTextTagsWithIntervals] 提取引用索引: '\(indexString)' from '\(content)'")
                             segments.append(.quote(content: indexString))
                         } else {
                             // 如果不是占位符格式，可能是直接的内容（不应该发生）
-                            print("⚠️ [extractTextTagsWithIntervals] 引用内容不是占位符格式: '\(content)'")
                             segments.append(.quote(content: content))
                         }
                     } else {
-                        print("⚠️ [extractTextTagsWithIntervals] 引用内容为 nil")
                         segments.append(.quote(content: ""))
                     }
                 case "image":
@@ -987,29 +860,7 @@ class MiNoteContentParser {
     
     /// 解析 <text> 标签内容
     private static func parseTextTag(_ content: String, indent: Int) -> NSAttributedString? {
-        print("🔍 [parseTextTag] ========== 开始解析文本标签 ==========")
-        print("🔍 [parseTextTag] indent=\(indent), 内容长度=\(content.count)")
-        print("🔍 [parseTextTag] 内容预览: \(String(content.prefix(200)))")
-        
-        // 检查是否包含图片占位符（用于日志记录）
-        do {
-            let placeholderPatternForCheck = try NSRegularExpression(pattern: "🖼️IMAGE_([^:]+)::([^🖼️]+)🖼️", options: [])
-            let placeholderMatches = placeholderPatternForCheck.matches(in: content, options: [], range: NSRange(content.startIndex..., in: content))
-            if placeholderMatches.count > 0 {
-                print("！！！图片处理！！！ 🔍 [parseTextTag] ⚠️ 在文本标签内容中发现 \(placeholderMatches.count) 个图片占位符")
-                for (index, match) in placeholderMatches.enumerated() {
-                    if let range = Range(match.range, in: content) {
-                        let placeholder = String(content[range])
-                        print("！！！图片处理！！！ 🔍 [parseTextTag] 占位符 #\(index + 1): '\(placeholder)'")
-                    }
-                }
-            }
-        } catch {
-            print("🔍 [parseTextTag] 无法创建占位符正则表达式: \(error)")
-        }
-        
         guard !content.isEmpty else {
-            print("🔍 [parseTextTag] 内容为空，返回空段落")
             // 空段落
             let paragraphStyle = createParagraphStyle(indent: indent, alignment: .left)
             return NSAttributedString(string: "", attributes: [
@@ -1018,7 +869,7 @@ class MiNoteContentParser {
             ])
         }
         
-        // 检查是否是特殊元素（复选框、列表等）
+        // 检查是否是特殊元素（复选框、列表等，这些应该在独立标签中处理，不应该在<text>标签内）
         if content.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("<input") {
             return parseCheckboxTag(content, indent: indent)
         }
@@ -1045,7 +896,6 @@ class MiNoteContentParser {
             // 如果 <hr /> 前后只有空白字符，说明这是独立的分割线
             if beforeHR.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
                afterHR.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                print("🔍 [parseTextTag] 检测到分割线标签（在 <text> 标签内）")
                 return parseHrTag()
             }
         }
@@ -1064,18 +914,15 @@ class MiNoteContentParser {
            let contentRange = Range(centerMatch.range(at: 1), in: innerContent) {
             alignment = .center
             innerContent = String(innerContent[contentRange])
-            print("🔍 [parseTextTag] 检测到居中标签，提取内容: '\(innerContent)'")
         } else if let rightMatch = rightPattern.firstMatch(in: innerContent, options: [], range: NSRange(innerContent.startIndex..., in: innerContent)),
                   rightMatch.numberOfRanges >= 2,
                   let contentRange = Range(rightMatch.range(at: 1), in: innerContent) {
             alignment = .right
             innerContent = String(innerContent[contentRange])
-            print("🔍 [parseTextTag] 检测到居右标签，提取内容: '\(innerContent)'")
         }
         
         // 先解码 HTML 实体
         innerContent = decodeHTMLEntities(innerContent)
-        print("🔍 [parseTextTag] 解码后内容: \(String(innerContent.prefix(200)))")
         
         let result = NSMutableAttributedString()
         var currentIndex = innerContent.startIndex
@@ -1107,36 +954,10 @@ class MiNoteContentParser {
                     // 处理开始标签
                     if !tagContent.hasPrefix("/") {
                         tagCount += 1
-                        print("🔍 [parseTextTag] 遇到开始标签 #\(tagCount): <\(tagContent)>")
-                        print("🔍 [parseTextTag] 当前样式: fontSize=\(currentStyle.fontSize), isBold=\(currentStyle.isBold), isItalic=\(currentStyle.isItalic)")
-                        
-                        // 特别关注斜体标签
-                        if tagContent == "i" {
-                            print("🔍 [parseTextTag] ========== 检测到斜体开始标签 <i> ==========")
-                        }
-                        
                         handleStartTag(tagContent, styleStack: &styleStack, currentStyle: &currentStyle)
-                        print("🔍 [parseTextTag] 处理后样式: fontSize=\(currentStyle.fontSize), isBold=\(currentStyle.isBold), isItalic=\(currentStyle.isItalic)")
-                        
-                        if tagContent == "i" {
-                            print("🔍 [parseTextTag] ========== 斜体开始标签处理完成 ==========")
-                        }
                     } else {
                         let endTagName = String(tagContent.dropFirst())  // 移除 "/"
-                        print("🔍 [parseTextTag] 遇到结束标签: </\(endTagName)>")
-                        
-                        // 特别关注斜体结束标签
-                        if endTagName == "i" {
-                            print("🔍 [parseTextTag] ========== 检测到斜体结束标签 </i> ==========")
-                            print("🔍 [parseTextTag] 结束前样式: fontSize=\(currentStyle.fontSize), isBold=\(currentStyle.isBold), isItalic=\(currentStyle.isItalic)")
-                        }
-                        
                         handleEndTag(tagContent, styleStack: &styleStack, currentStyle: &currentStyle, baseIndent: indent)
-                        print("🔍 [parseTextTag] 恢复后样式: fontSize=\(currentStyle.fontSize), isBold=\(currentStyle.isBold), isItalic=\(currentStyle.isItalic)")
-                        
-                        if endTagName == "i" {
-                            print("🔍 [parseTextTag] ========== 斜体结束标签处理完成 ==========")
-                        }
                     }
                     
                     currentIndex = innerContent.index(after: tagEnd)
@@ -1154,51 +975,17 @@ class MiNoteContentParser {
         
         // 输出剩余的文本
         if !textBuffer.isEmpty {
-            print("🔍 [parseTextTag] 输出剩余文本缓冲区: '\(textBuffer)'")
-            print("🔍 [parseTextTag] 输出时样式状态: fontSize=\(currentStyle.fontSize), isBold=\(currentStyle.isBold), isItalic=\(currentStyle.isItalic)")
             appendText(textBuffer, to: result, style: currentStyle, indent: indent, alignment: alignment)
-            
-            // 验证输出后的字体属性
-            if result.length > 0 {
-                let lastRange = NSRange(location: max(0, result.length - textBuffer.count), length: min(textBuffer.count, result.length))
-                if lastRange.location < result.length {
-                    let attrs = result.attributes(at: lastRange.location, effectiveRange: nil)
-                    if let font = attrs[.font] as? NSFont {
-                        let traits = font.fontDescriptor.symbolicTraits
-                        let hasItalic = traits.contains(.italic)
-                        print("🔍 [parseTextTag] 输出后字体验证: fontName=\(font.fontName), size=\(font.pointSize), hasItalic=\(hasItalic)")
-                    }
-                }
-            }
         }
-        
-        print("！！！图片处理！！！ 🔍 [parseTextTag] 处理图片占位符前，结果长度: \(result.length)")
-        print("！！！图片处理！！！ 🔍 [parseTextTag] 处理图片占位符前，结果字符串: '\(result.string)'")
-        
-        // 检查结果中是否包含占位符
-        let placeholderPattern = try! NSRegularExpression(pattern: "🖼️IMAGE_([^:]+)::([^🖼️]+)🖼️", options: [])
-        let placeholderMatches = placeholderPattern.matches(in: result.string, options: [], range: NSRange(result.string.startIndex..., in: result.string))
-        print("！！！图片处理！！！ 🔍 [parseTextTag] 在结果中找到 \(placeholderMatches.count) 个图片占位符待处理")
         
         // 处理图片占位符
         processImagePlaceholders(in: result)
-        print("！！！图片处理！！！ 🔍 [parseTextTag] 处理图片占位符后，结果长度: \(result.length)")
-        print("🔍 [parseTextTag] ========== 文本标签解析完成 ==========")
         
         // 确保整个段落都应用正确的对齐方式
         if result.length > 0 {
             let fullRange = NSRange(location: 0, length: result.length)
             let paragraphStyle = createParagraphStyle(indent: indent, alignment: alignment)
             result.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
-            
-            // 检查最终结果的属性
-            let attrs = result.attributes(at: 0, effectiveRange: nil)
-            if let font = attrs[.font] as? NSFont {
-                print("🔍 [parseTextTag] 最终第一个字符字体: size=\(font.pointSize), bold=\(font.fontDescriptor.symbolicTraits.contains(.bold)), italic=\(font.fontDescriptor.symbolicTraits.contains(.italic))")
-            }
-            if let paraStyle = attrs[.paragraphStyle] as? NSParagraphStyle {
-                print("🔍 [parseTextTag] 最终段落对齐: \(paraStyle.alignment == .left ? "left" : paraStyle.alignment == .center ? "center" : "right")")
-            }
         }
         
         return result.length > 0 ? result : nil
@@ -1479,42 +1266,32 @@ class MiNoteContentParser {
     private static func parseStandaloneBullet(indent: Int, text: String) -> NSAttributedString? {
         let result = NSMutableAttributedString()
         
-        print("🔍 [parseStandaloneBullet] 开始解析，indent=\(indent), text='\(text)'")
-        
         // 添加项目符号
         let bulletAttr = NSAttributedString(string: "• ", attributes: defaultAttributes())
         result.append(bulletAttr)
         
         // 解析文本内容（可能包含内联样式）
         if !text.isEmpty {
-            print("🔍 [parseStandaloneBullet] 文本不为空，长度=\(text.count)")
             // 对于独立标签后的文本，通常不包含 XML 标签，直接作为纯文本处理
             // 但如果包含样式标签（如 <b>、<i>），则尝试解析
             if text.contains("<") && text.contains(">") {
                 // 可能包含样式标签，尝试解析
-                print("🔍 [parseStandaloneBullet] 文本包含标签，尝试解析")
                 if let textAttr = parseTextTag(text, indent: indent) {
-                    print("🔍 [parseStandaloneBullet] 成功解析为富文本，长度: \(textAttr.length)")
                     result.append(textAttr)
                 } else {
-                    print("🔍 [parseStandaloneBullet] 解析失败，使用纯文本")
                     let plainTextAttr = NSAttributedString(string: text, attributes: defaultAttributes())
                     result.append(plainTextAttr)
                 }
             } else {
                 // 纯文本，直接添加
-                print("🔍 [parseStandaloneBullet] 纯文本，直接添加: '\(text)'")
                 let plainTextAttr = NSAttributedString(string: text, attributes: defaultAttributes())
                 result.append(plainTextAttr)
             }
-        } else {
-            print("⚠️ [parseStandaloneBullet] 文本为空")
         }
         
         let paragraphStyle = createParagraphStyle(indent: indent, alignment: .left)
         result.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: result.length))
         
-        print("🔍 [parseStandaloneBullet] 最终结果长度: \(result.length), 字符串: '\(result.string)'")
         return result.length > 0 ? result : nil
     }
     
@@ -1522,45 +1299,34 @@ class MiNoteContentParser {
     private static func parseStandaloneOrder(indent: Int, inputNumber: Int, text: String) -> NSAttributedString? {
         let result = NSMutableAttributedString()
         
-        print("🔍 [parseStandaloneOrder] 开始解析，indent=\(indent), inputNumber=\(inputNumber), text='\(text)'")
-        
         // 添加序号（inputNumber 是 0-based，显示时 +1）
         // 注意：如果 inputNumber 为 0，表示这是第一个，应该显示为 1
         let orderNumber = inputNumber + 1
         let orderAttr = NSAttributedString(string: "\(orderNumber). ", attributes: defaultAttributes())
         result.append(orderAttr)
-        print("🔍 [parseStandaloneOrder] 添加序号: \(orderNumber)")
         
         // 解析文本内容（可能包含内联样式）
         if !text.isEmpty {
-            print("🔍 [parseStandaloneOrder] 文本不为空，长度=\(text.count)")
             // 对于独立标签后的文本，通常不包含 XML 标签，直接作为纯文本处理
             // 但如果包含样式标签（如 <b>、<i>），则尝试解析
             if text.contains("<") && text.contains(">") {
                 // 可能包含样式标签，尝试解析
-                print("🔍 [parseStandaloneOrder] 文本包含标签，尝试解析")
                 if let textAttr = parseTextTag(text, indent: indent) {
-                    print("🔍 [parseStandaloneOrder] 成功解析为富文本，长度: \(textAttr.length)")
                     result.append(textAttr)
                 } else {
-                    print("🔍 [parseStandaloneOrder] 解析失败，使用纯文本")
                     let plainTextAttr = NSAttributedString(string: text, attributes: defaultAttributes())
                     result.append(plainTextAttr)
                 }
             } else {
                 // 纯文本，直接添加
-                print("🔍 [parseStandaloneOrder] 纯文本，直接添加: '\(text)'")
                 let plainTextAttr = NSAttributedString(string: text, attributes: defaultAttributes())
                 result.append(plainTextAttr)
             }
-        } else {
-            print("⚠️ [parseStandaloneOrder] 文本为空")
         }
         
         let paragraphStyle = createParagraphStyle(indent: indent, alignment: .left)
         result.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: result.length))
         
-        print("🔍 [parseStandaloneOrder] 最终结果长度: \(result.length), 字符串: '\(result.string)'")
         return result.length > 0 ? result : nil
     }
     
@@ -1568,10 +1334,7 @@ class MiNoteContentParser {
     private static func parseStandaloneCheckbox(indent: Int, level: Int, text: String) -> NSAttributedString? {
         let result = NSMutableAttributedString()
         
-        print("🔍 [parseStandaloneCheckbox] 开始解析，indent=\(indent), level=\(level), text='\(text)'")
-        
         // 创建可交互的复选框附件
-        print("🔍 [parseStandaloneCheckbox] 开始创建 CheckboxTextAttachment")
         let attachment = CheckboxTextAttachment(data: nil, ofType: nil)
         attachment.isChecked = false  // 默认未选中
         
@@ -1579,15 +1342,10 @@ class MiNoteContentParser {
         #if macOS
         if attachment.attachmentCell == nil {
             attachment.attachmentCell = CheckboxAttachmentCell(checkbox: attachment)
-            print("🔍 [parseStandaloneCheckbox] 手动设置 attachmentCell")
         }
-        print("🔍 [parseStandaloneCheckbox] attachmentCell=\(attachment.attachmentCell != nil ? "存在" : "nil")")
         #endif
         
-        print("🔍 [parseStandaloneCheckbox] CheckboxTextAttachment 创建完成，image=\(attachment.image != nil ? "存在" : "nil"), bounds=\(attachment.bounds)")
-        
         let checkboxAttr = NSMutableAttributedString(attributedString: NSAttributedString(attachment: attachment))
-        print("🔍 [parseStandaloneCheckbox] 创建 NSAttributedString(attachment)，长度: \(checkboxAttr.length)")
         
         // 重要：在创建 NSAttributedString 后，需要重新设置 attachmentCell
         // 因为 NSAttributedString(attachment:) 可能不会保留 attachmentCell
@@ -1595,7 +1353,6 @@ class MiNoteContentParser {
         if let att = checkboxAttr.attribute(.attachment, at: 0, effectiveRange: nil) as? CheckboxTextAttachment {
             if att.attachmentCell == nil {
                 att.attachmentCell = CheckboxAttachmentCell(checkbox: att)
-                print("🔍 [parseStandaloneCheckbox] 在创建 NSAttributedString 后重新设置 attachmentCell")
             }
             // 确保图片存在
             if att.image == nil {
@@ -1604,71 +1361,39 @@ class MiNoteContentParser {
         }
         #endif
         
-        // 验证附件是否正确添加
-        var hasAttachmentInAttr = false
-        checkboxAttr.enumerateAttribute(.attachment, in: NSRange(location: 0, length: checkboxAttr.length), options: []) { (value, range, _) in
-            if value != nil {
-                hasAttachmentInAttr = true
-                print("🔍 [parseStandaloneCheckbox] 验证：附件存在于位置 \(range.location)")
-            }
-        }
-        print("🔍 [parseStandaloneCheckbox] 附件验证结果: \(hasAttachmentInAttr)")
-        
         result.append(checkboxAttr)
         
         // 添加空格
         let spaceAttr = NSAttributedString(string: " ", attributes: defaultAttributes())
         result.append(spaceAttr)
-        print("🔍 [parseStandaloneCheckbox] 添加可交互复选框图标和空格，当前长度: \(result.length)")
         
         // 解析文本内容（可能包含内联样式）
         if !text.isEmpty {
-            print("🔍 [parseStandaloneCheckbox] 文本不为空，长度=\(text.count)")
             // 对于独立标签后的文本，通常不包含 XML 标签，直接作为纯文本处理
             // 但如果包含样式标签（如 <b>、<i>），则尝试解析
             if text.contains("<") && text.contains(">") {
                 // 可能包含样式标签，尝试解析
-                print("🔍 [parseStandaloneCheckbox] 文本包含标签，尝试解析")
                 if let textAttr = parseTextTag(text, indent: indent) {
-                    print("🔍 [parseStandaloneCheckbox] 成功解析为富文本，长度: \(textAttr.length)")
                     result.append(textAttr)
                 } else {
-                    print("🔍 [parseStandaloneCheckbox] 解析失败，使用纯文本")
                     let plainTextAttr = NSAttributedString(string: text, attributes: defaultAttributes())
                     result.append(plainTextAttr)
                 }
             } else {
                 // 纯文本，直接添加
-                print("🔍 [parseStandaloneCheckbox] 纯文本，直接添加: '\(text)'")
                 let plainTextAttr = NSAttributedString(string: text, attributes: defaultAttributes())
                 result.append(plainTextAttr)
             }
-        } else {
-            print("⚠️ [parseStandaloneCheckbox] 文本为空")
         }
         
         let paragraphStyle = createParagraphStyle(indent: indent, alignment: .left)
         result.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: result.length))
-        
-        print("🔍 [parseStandaloneCheckbox] 最终结果长度: \(result.length), 字符串: '\(result.string)'")
-        // 检查是否包含附件
-        if result.length > 0 {
-            var hasAttachment = false
-            result.enumerateAttribute(.attachment, in: NSRange(location: 0, length: result.length), options: []) { (value, range, _) in
-                if value != nil {
-                    hasAttachment = true
-                }
-            }
-            print("🔍 [parseStandaloneCheckbox] 是否包含附件: \(hasAttachment)")
-        }
         
         return result.length > 0 ? result : nil
     }
     
     /// 解析分割线标签
     private static func parseHrTag() -> NSAttributedString? {
-        print("🔍 [parseHrTag] 开始创建分割线")
-        
         // 创建附件，使用自定义的 HorizontalRuleAttachmentCell 来绘制填满宽度的分割线
         let attachment = NSTextAttachment()
         // 不设置 image，而是使用自定义的 cell 来绘制
@@ -1681,10 +1406,7 @@ class MiNoteContentParser {
         #if macOS
         let cell = HorizontalRuleAttachmentCell()
         attachment.attachmentCell = cell
-        print("🔍 [parseHrTag] 设置 HorizontalRuleAttachmentCell，将填满整个宽度")
         #endif
-        
-        print("🔍 [parseHrTag] 创建附件，bounds=\(attachment.bounds), attachmentCell=\(attachment.attachmentCell != nil ? "存在" : "nil")")
         
         // 创建段落样式，让分割线填满整个宽度
         let paragraphStyle = NSMutableParagraphStyle()
@@ -1711,36 +1433,9 @@ class MiNoteContentParser {
             if att.attachmentCell == nil || !(att.attachmentCell is HorizontalRuleAttachmentCell) {
                 let cell = HorizontalRuleAttachmentCell()
                 att.attachmentCell = cell
-                print("🔍 [parseHrTag] 在创建 NSAttributedString 后重新设置 HorizontalRuleAttachmentCell")
             }
         }
         #endif
-        
-        print("🔍 [parseHrTag] 属性字符串创建完成，长度: \(attributedString.length)")
-        
-        // 验证附件是否正确添加
-        var hasAttachment = false
-        attributedString.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attributedString.length), options: []) { (value, range, _) in
-            if value != nil {
-                hasAttachment = true
-                if let att = value as? NSTextAttachment {
-                    print("🔍 [parseHrTag] 附件验证: image=\(att.image != nil ? "存在" : "nil"), bounds=\(att.bounds), attachmentCell=\(att.attachmentCell != nil ? "存在" : "nil")")
-                }
-            }
-        }
-        print("🔍 [parseHrTag] 分割线创建完成，包含附件: \(hasAttachment), 长度: \(attributedString.length)")
-        
-        // 额外验证：检查字符串内容
-        print("🔍 [parseHrTag] 最终字符串内容: '\(attributedString.string)'")
-        print("🔍 [parseHrTag] 最终字符串长度: \(attributedString.string.count)")
-        
-        // 检查附件图片是否真的存在
-        if let att = attributedString.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
-            print("🔍 [parseHrTag] 附件详细信息:")
-            print("  - image: \(att.image != nil ? "存在，size=\(att.image!.size)" : "nil")")
-            print("  - bounds: \(att.bounds)")
-            print("  - attachmentCell: \(att.attachmentCell != nil ? "存在" : "nil")")
-        }
         
         return attributedString
     }
@@ -2315,8 +2010,7 @@ class MiNoteContentParser {
                 let isHorizontalLine = imageWidth >= 300 && imageWidth <= 500 && imageHeight >= 0.5 && imageHeight <= 2.0
                 
                 if isHorizontalLine {
-                    print("🔍 [convertParagraphToXML] 检测到分割线（通过 NSTextAttachment，宽度=\(imageWidth), 高度=\(imageHeight)），转换为 <hr />")
-                    return "<hr />"
+                        return "<hr />"
                 }
             }
         }
@@ -2330,7 +2024,6 @@ class MiNoteContentParser {
                 let isHorizontalLine = imageWidth >= 300 && imageWidth <= 500 && imageHeight >= 0.5 && imageHeight <= 2.0
                 
                 if isHorizontalLine {
-                    print("🔍 [convertParagraphToXML] 检测到分割线（通过附件占位符），转换为 <hr />")
                     return "<hr />"
                 }
             }
@@ -2356,7 +2049,6 @@ class MiNoteContentParser {
         // 分割线：检查是否包含足够多的 "─" 字符（至少30个），且主要是分割线字符
         let dashCount = paragraphString.filter { $0 == "─" }.count
         if dashCount >= 30 && paragraphString.trimmingCharacters(in: .whitespacesAndNewlines).allSatisfy({ $0 == "─" || $0 == " " || $0 == "\n" }) {
-            print("🔍 [convertParagraphToXML] 检测到分割线（通过字符），转换为 <hr />")
             return "<hr />"
         }
         
@@ -2365,6 +2057,9 @@ class MiNoteContentParser {
     }
     
     /// 转换普通段落为 XML
+    /// 
+    /// 格式：<text indent="1">内容</text>\n
+    /// 内容可以包含内联样式标签：<b>、<i>、<u>、<delete>、<size>、<mid-size>、<h3-size>、<center>、<right>、<background>等
     private static func convertNormalParagraphToXML(_ paragraph: NSAttributedString) -> String {
         let fullRange = NSRange(location: 0, length: paragraph.length)
         
@@ -2438,7 +2133,10 @@ class MiNoteContentParser {
         return "<text indent=\"\(indent)\">\(finalText)</text>"
     }
     
-    /// 转换复选框为 XML
+    /// 转换复选框为 XML（根据格式示例：不用<text>包裹）
+    /// 
+    /// 格式：<input type="checkbox" indent="1" level="3" />checkbox文本\n
+    /// 注意：checkbox 标签后直接跟文本，不使用 <text> 标签包裹
     private static func convertCheckboxToXML(_ paragraph: NSAttributedString) -> String {
         var indent = 1
         if let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
@@ -2446,7 +2144,7 @@ class MiNoteContentParser {
         }
         
         // 提取复选框后的文本
-        let checkboxXML = "<input type=\"checkbox\" indent=\"\(indent)\" level=\"3\" />"
+        let checkboxTag = "<input type=\"checkbox\" indent=\"\(indent)\" level=\"3\" />"
         
         // 检查是否有文本内容
         let string = paragraph.string
@@ -2455,15 +2153,20 @@ class MiNoteContentParser {
             let textRange = NSRange(location: 1, length: paragraph.length - 1)
             if textRange.location < paragraph.length {
                 let textAttr = paragraph.attributedSubstring(from: textRange)
-                let textXML = convertTextToXML(textAttr)
-                return "<text indent=\"\(indent)\">\(checkboxXML)\(textXML)</text>"
+                // 提取纯文本内容（不转换XML，因为checkbox标签后直接跟文本）
+                let textContent = escapeXML(textAttr.string.trimmingCharacters(in: .whitespacesAndNewlines))
+                return "\(checkboxTag)\(textContent)"
             }
         }
         
-        return "<text indent=\"\(indent)\">\(checkboxXML)</text>"
+        // 只有复选框，没有文本
+        return checkboxTag
     }
     
-    /// 转换无序列表为 XML
+    /// 转换无序列表为 XML（根据格式示例：不用<text>包裹）
+    /// 
+    /// 格式：<bullet indent="1" />无序列表文本\n
+    /// 注意：bullet 标签后直接跟文本，不使用 <text> 标签包裹
     private static func convertBulletToXML(_ paragraph: NSAttributedString) -> String {
         var indent = 1
         if let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
@@ -2475,15 +2178,21 @@ class MiNoteContentParser {
             let textRange = NSRange(location: 2, length: paragraph.length - 2)
             if textRange.location < paragraph.length {
                 let textAttr = paragraph.attributedSubstring(from: textRange)
-                let textXML = convertTextToXML(textAttr)
-                return "<text indent=\"\(indent)\"><bullet indent=\"\(indent)\" />\(textXML)</text>"
+                // 提取纯文本内容（不转换XML，因为bullet标签后直接跟文本）
+                let textContent = escapeXML(textAttr.string.trimmingCharacters(in: .whitespacesAndNewlines))
+                return "<bullet indent=\"\(indent)\" />\(textContent)"
             }
         }
         
-        return "<text indent=\"\(indent)\"><bullet indent=\"\(indent)\" /></text>"
+        // 只有bullet，没有文本
+        return "<bullet indent=\"\(indent)\" />"
     }
     
-    /// 转换有序列表为 XML
+    /// 转换有序列表为 XML（根据格式示例：不用<text>包裹）
+    /// 
+    /// 格式：<order indent="1" inputNumber="0" />有序列表文本\n
+    /// 注意：order 标签后直接跟文本，不使用 <text> 标签包裹
+    /// inputNumber 是 0-based 索引（显示时会+1，所以0显示为1）
     private static func convertOrderToXML(_ paragraph: NSAttributedString, match: NSTextCheckingResult) -> String {
         var indent = 1
         if let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
@@ -2503,17 +2212,22 @@ class MiNoteContentParser {
                     let textAttrRange = NSRange(location: textStart, length: paragraph.length - textStart)
                     if textAttrRange.location < paragraph.length {
                         let textAttr = paragraph.attributedSubstring(from: textAttrRange)
-                        let textXML = convertTextToXML(textAttr)
-                        return "<text indent=\"\(indent)\"><order indent=\"\(indent)\" inputNumber=\"\(inputNumber)\" />\(textXML)</text>"
+                        // 提取纯文本内容（不转换XML，因为order标签后直接跟文本）
+                        let textContent = escapeXML(textAttr.string.trimmingCharacters(in: .whitespacesAndNewlines))
+                        return "<order indent=\"\(indent)\" inputNumber=\"\(inputNumber)\" />\(textContent)"
                     }
                 }
             }
         }
         
-        return "<text indent=\"\(indent)\"><order indent=\"\(indent)\" inputNumber=\"0\" /></text>"
+        // 只有order，没有文本
+        return "<order indent=\"\(indent)\" inputNumber=\"0\" />"
     }
     
-    /// 转换文本内容为 XML（不包含 <text> 标签）
+    /// 转换文本内容为 XML（不包含 <text> 标签，用于嵌套在 <text> 内的内联样式）
+    /// 
+    /// 用于转换段落内的文本样式，如加粗、斜体、下划线等
+    /// 返回的XML会嵌套在 <text> 标签内
     private static func convertTextToXML(_ attributedString: NSAttributedString) -> String {
         let fullRange = NSRange(location: 0, length: attributedString.length)
         var innerXML = NSMutableString()
@@ -2655,4 +2369,5 @@ extension NSColor {
         }
     }
 }
+
 

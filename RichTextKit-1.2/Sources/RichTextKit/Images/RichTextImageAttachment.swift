@@ -171,7 +171,7 @@ open class RichTextImageAttachment: NSTextAttachment {
     #if macOS
     /**
      Get or set the attachment image.
-
+     
      This will use the underlying functionality to setup the
      attachment in a way that makes it multi-platform.
      */
@@ -181,8 +181,16 @@ open class RichTextImageAttachment: NSTextAttachment {
                 let data = contents,
                 let image = ImageRepresentable(data: data)
             else { return nil }
-            return MainActor.assumeIsolated {
-                NSTextAttachmentCell(imageCell: image)
+            
+            // 确保在主线程上创建 attachmentCell
+            // 使用同步方式，因为这是属性 getter，必须同步返回
+            if Thread.isMainThread {
+                return NSTextAttachmentCell(imageCell: image)
+            } else {
+                // 如果不在主线程，使用 DispatchQueue.main.sync 确保在主线程执行
+                return DispatchQueue.main.sync {
+                    NSTextAttachmentCell(imageCell: image)
+                }
             }
         }
         set {

@@ -146,11 +146,13 @@ final class SyncService: @unchecked Sendable {
                     let noteDetails = try await miNoteService.fetchNoteDetails(noteId: note.id)
                     var updatedNote = note
                     updatedNote.updateContent(from: noteDetails)
+                    print("[SYNC] 更新笔记内容，rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
                     
                     // 下载图片
                     try await downloadNoteImages(from: noteDetails, noteId: note.id)
                     
-                    // 保存到本地
+                    // 保存到本地（updateContent已经生成了rtfData）
+                    print("[SYNC] 保存笔记，rtfData存在: \(updatedNote.rtfData != nil)")
                     try localStorage.saveNote(updatedNote)
                         syncStatus.addSyncedNote(note.id)
                         syncedNotes += 1
@@ -458,7 +460,9 @@ final class SyncService: @unchecked Sendable {
                 let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
                 var updatedNote = cloudNote
                 updatedNote.updateContent(from: noteDetails)
+                print("[SYNC] 更新笔记内容，rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
                 try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                print("[SYNC] 保存笔记，rtfData存在: \(updatedNote.rtfData != nil)")
                 try localStorage.saveNote(updatedNote)
                 result.status = .updated
                 result.message = "已从云端更新"
@@ -471,7 +475,9 @@ final class SyncService: @unchecked Sendable {
                     let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
                     var updatedNote = cloudNote
                     updatedNote.updateContent(from: noteDetails)
+                    print("[SYNC] 更新笔记内容，rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
                     try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                    print("[SYNC] 保存笔记，rtfData存在: \(updatedNote.rtfData != nil)")
                     try localStorage.saveNote(updatedNote)
                     result.status = .updated
                     result.message = "内容不同，已更新"
@@ -507,7 +513,9 @@ final class SyncService: @unchecked Sendable {
                         let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
                         var updatedNote = cloudNote
                         updatedNote.updateContent(from: noteDetails)
+                        print("[SYNC] 更新笔记内容，rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
                         try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                        print("[SYNC] 保存笔记，rtfData存在: \(updatedNote.rtfData != nil)")
                         try localStorage.saveNote(updatedNote)
                         result.status = .updated
                         result.message = "已从云端更新"
@@ -525,7 +533,9 @@ final class SyncService: @unchecked Sendable {
                     let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
                     var updatedNote = cloudNote
                     updatedNote.updateContent(from: noteDetails)
+                    print("[SYNC] 更新笔记内容，rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
                     try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                    print("[SYNC] 保存笔记，rtfData存在: \(updatedNote.rtfData != nil)")
                     try localStorage.saveNote(updatedNote)
                     result.status = .created
                     result.message = "已从云端拉取"
@@ -735,12 +745,13 @@ final class SyncService: @unchecked Sendable {
                 // 更新笔记内容
                 var updatedNote = note
                 updatedNote.updateContent(from: noteDetails)
-                print("[SYNC] 更新笔记内容完成: \(note.id), 内容长度: \(updatedNote.content.count)")
+                print("[SYNC] 更新笔记内容完成: \(note.id), 内容长度: \(updatedNote.content.count), rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
                 
                 // 处理图片：下载笔记中的图片
                 try await downloadNoteImages(from: noteDetails, noteId: note.id)
                 
-                // 保存到本地（替换现有文件）
+                // 保存到本地（替换现有文件，updateContent已经生成了rtfData）
+                print("[SYNC] 保存笔记到本地，rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
                 try localStorage.saveNote(updatedNote)
                 print("[SYNC] 保存笔记到本地: \(note.id)")
                 
@@ -783,6 +794,7 @@ final class SyncService: @unchecked Sendable {
                             let noteDetails = try await miNoteService.fetchNoteDetails(noteId: note.id)
                             var cloudNote = note
                             cloudNote.updateContent(from: noteDetails)
+                            print("[SYNC] 更新笔记内容，rtfData存在: \(cloudNote.rtfData != nil), rtfData长度: \(cloudNote.rtfData?.count ?? 0)")
                             
                             // 比较完整内容
                             let localContent = localNote.primaryXMLContent
@@ -802,6 +814,9 @@ final class SyncService: @unchecked Sendable {
                                 try await downloadNoteImages(from: noteDetails, noteId: note.id)
                                 // 使用已获取的 noteDetails 继续更新流程
                                 var updatedNote = cloudNote
+                                updatedNote.updateContent(from: noteDetails)
+                                print("[SYNC] 更新笔记内容，rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
+                                print("[SYNC] 保存笔记到本地，rtfData存在: \(updatedNote.rtfData != nil)")
                                 try localStorage.saveNote(updatedNote)
                                 print("[SYNC] 保存笔记到本地: \(note.id)")
                                 result.status = .updated
@@ -870,7 +885,7 @@ final class SyncService: @unchecked Sendable {
                 // 更新笔记内容
                 var updatedNote = note
                 updatedNote.updateContent(from: noteDetails)
-                print("[SYNC] 更新笔记内容完成: \(note.id), 内容长度: \(updatedNote.content.count)")
+                print("[SYNC] 更新笔记内容完成: \(note.id), 内容长度: \(updatedNote.content.count), rtfData存在: \(updatedNote.rtfData != nil)")
                 
                 // 处理图片：下载笔记中的图片
                 try await downloadNoteImages(from: noteDetails, noteId: note.id)
@@ -881,7 +896,8 @@ final class SyncService: @unchecked Sendable {
                     print("[SYNC] 原始响应: \(noteDetails)")
                 }
                 
-                // 保存到本地
+                // 保存到本地（updateContent已经生成了rtfData）
+                print("[SYNC] 保存笔记到本地，rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
                 try localStorage.saveNote(updatedNote)
                 print("[SYNC] 保存笔记到本地: \(note.id)")
                 
@@ -938,7 +954,7 @@ final class SyncService: @unchecked Sendable {
                 // 更新笔记内容
                 var newNote = note
                 newNote.updateContent(from: noteDetails)
-                print("[SYNC] 更新新笔记内容完成: \(note.id), 内容长度: \(newNote.content.count)")
+                print("[SYNC] 更新新笔记内容完成: \(note.id), 内容长度: \(newNote.content.count), rtfData存在: \(newNote.rtfData != nil)")
                 
                 // 处理图片：下载笔记中的图片
                 try await downloadNoteImages(from: noteDetails, noteId: note.id)
@@ -949,7 +965,8 @@ final class SyncService: @unchecked Sendable {
                     print("[SYNC] 原始响应: \(noteDetails)")
                 }
                 
-                // 保存到本地
+                // 保存到本地（updateContent已经生成了rtfData）
+                print("[SYNC] 保存新笔记到本地，rtfData存在: \(newNote.rtfData != nil), rtfData长度: \(newNote.rtfData?.count ?? 0)")
                 try localStorage.saveNote(newNote)
                 print("[SYNC] 保存新笔记到本地: \(note.id)")
                 

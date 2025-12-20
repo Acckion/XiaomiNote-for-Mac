@@ -1,4 +1,6 @@
 import Foundation
+import AppKit
+import RichTextKit
 
 /// 笔记数据模型
 /// 
@@ -315,7 +317,36 @@ public struct Note: Identifiable, Codable, Hashable {
         }
         self.rawData = updatedRawData
         
-        print("[NOTE] 内容更新完成，最终内容长度: \(self.content.count)")
+        // 从XML生成rtfData（如果content不为空且rtfData为空）
+        if !self.content.isEmpty && self.rtfData == nil {
+            print("[NOTE] 从XML生成rtfData，content长度: \(self.content.count)")
+            // parseToAttributedString 返回非可选的 NSAttributedString
+            let attributedString = MiNoteContentParser.parseToAttributedString(self.content, noteRawData: self.rawData)
+            print("[NOTE] 解析AttributedString成功，长度: \(attributedString.length)")
+            
+            // 使用archivedData格式（支持图片附件）
+            do {
+                let archivedData = try attributedString.richTextData(for: .archivedData)
+                self.rtfData = archivedData
+                print("[NOTE] ✅ 成功生成rtfData，长度: \(archivedData.count) 字节")
+            } catch {
+                print("[NOTE] ⚠️ 生成archivedData失败: \(error)，尝试使用RTF格式")
+                // 回退到RTF格式
+                let rtfRange = NSRange(location: 0, length: attributedString.length)
+                if let rtfData = try? attributedString.data(from: rtfRange, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]) {
+                    self.rtfData = rtfData
+                    print("[NOTE] ✅ 使用RTF格式生成rtfData，长度: \(rtfData.count) 字节")
+                } else {
+                    print("[NOTE] ⚠️ RTF格式也失败，rtfData保持为nil")
+                }
+            }
+        } else if self.rtfData != nil {
+            print("[NOTE] rtfData已存在，跳过生成，长度: \(self.rtfData?.count ?? 0) 字节")
+        } else if self.content.isEmpty {
+            print("[NOTE] content为空，跳过生成rtfData")
+        }
+        
+        print("[NOTE] 内容更新完成，最终内容长度: \(self.content.count), rtfData存在: \(self.rtfData != nil)")
     }
     
     // MARK: - 内容访问/更新工具
