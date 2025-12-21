@@ -521,21 +521,14 @@ final class DatabaseService: @unchecked Sendable {
         let attributedString = MiNoteContentParser.parseToAttributedString(note.content, noteRawData: note.rawData)
         print("[Database] generateAndSaveRTFData: 解析 AttributedString 成功，长度: \(attributedString.length)")
         
-        // 尝试使用 archivedData 格式（支持图片附件）
+        // 使用 archivedData 格式（支持图片附件）
         var rtfData: Data?
         do {
             rtfData = try attributedString.richTextData(for: .archivedData)
-            print("[Database] generateAndSaveRTFData: ✅ 使用 archivedData 格式生成 rtfData，长度: \(rtfData?.count ?? 0) 字节")
+            print("[Database] generateAndSaveRTFData: ✅ 使用 archivedData 格式生成数据，长度: \(rtfData?.count ?? 0) 字节")
         } catch {
-            print("[Database] generateAndSaveRTFData: ⚠️ 生成 archivedData 失败: \(error)，尝试使用 RTF 格式")
-            // 回退到 RTF 格式
-            let rtfRange = NSRange(location: 0, length: attributedString.length)
-            rtfData = try? attributedString.data(from: rtfRange, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
-            if let rtfData = rtfData {
-                print("[Database] generateAndSaveRTFData: ✅ 使用 RTF 格式生成 rtfData，长度: \(rtfData.count) 字节")
-            } else {
-                print("[Database] generateAndSaveRTFData: ⚠️ RTF 格式也失败，无法生成 rtfData")
-            }
+            print("[Database] generateAndSaveRTFData: ❌ 生成 archivedData 失败: \(error)")
+            rtfData = nil
         }
         
         // 如果成功生成 rtfData，更新笔记并保存到数据库

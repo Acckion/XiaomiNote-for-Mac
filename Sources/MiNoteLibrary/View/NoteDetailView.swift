@@ -1,12 +1,11 @@
 import SwiftUI
 import AppKit
-import RichTextKit
 
 /// 笔记详情视图
 /// 
 /// 负责显示和编辑单个笔记的内容，包括：
 /// - 标题编辑
-/// - 富文本内容编辑（使用 RichTextKit）
+/// - 富文本内容编辑（使用 Web 编辑器）
 /// - 自动保存（本地立即保存，云端延迟上传）
 /// - 格式工具栏
 /// 
@@ -15,7 +14,7 @@ struct NoteDetailView: View {
     @ObservedObject var viewModel: NotesViewModel
     @State private var editedTitle: String = ""
     @State private var editedAttributedText: AttributedString = AttributedStringConverter.createEmptyAttributedString()  // 使用 AttributedString（SwiftUI 原生），带有默认属性
-    @State private var editedRTFData: Data? = nil  // RTF数据（用于RichTextKit编辑器）
+    @State private var editedRTFData: Data? = nil  // RTF数据（保留用于向后兼容）
     @State private var isSaving: Bool = false
     @State private var isUploading: Bool = false  // 上传状态
     @State private var showSaveSuccess: Bool = false
@@ -25,8 +24,6 @@ struct NoteDetailView: View {
     @State private var isInitializing: Bool = true // 标记是否正在初始化
     @State private var originalTitle: String = "" // 保存原始标题用于比较
     @State private var originalAttributedText: AttributedString = AttributedStringConverter.createEmptyAttributedString() // 保存原始 AttributedString 用于比较，带有默认属性
-    @State private var useRichTextKit: Bool = true  // 是否使用RichTextKit编辑器
-    @StateObject private var editorContext = RichTextContext()  // RichTextContext（用于格式栏同步）
     @State private var pendingSaveWorkItem: DispatchWorkItem? = nil  // 待执行的保存任务
     @State private var pendingCloudUploadWorkItem: DispatchWorkItem? = nil  // 待执行的云端上传任务
     @State private var currentEditingNoteId: String? = nil  // 当前正在编辑的笔记ID
@@ -34,6 +31,9 @@ struct NoteDetailView: View {
     @State private var pendingSwitchNoteId: String? = nil  // 等待切换的笔记ID
     @State private var lastSavedRTFData: Data? = nil  // 上次保存的 RTF 数据，用于避免重复保存
     @State private var isSavingLocally: Bool = false  // 标记是否正在本地保存
+    
+    // Web编辑器上下文
+    @StateObject private var webEditorContext = WebEditorContext()
     
     var body: some View {
         Group {
@@ -186,46 +186,54 @@ struct NoteDetailView: View {
         return attributedText.characters.count
     }
     
-    /// 正文编辑区域（使用RichTextKit编辑器）
+    /// 正文编辑区域（使用Web编辑器）
     private var bodyEditorView: some View {
         Group {
-            if useRichTextKit {
-                // 使用新的RichTextKit编辑器
-                RichTextEditorWrapper(
-                    rtfData: $editedRTFData,
+            if let note = viewModel.selectedNote {
+                // 使用新的Web编辑器
+                WebEditorWrapper(
+                    content: Binding(
+                        get: { note.primaryXMLContent },
+                        set: { newContent in
+                            // 内容变化时处理
+                            guard !isInitializing else { return }
+                            
+                            // 检查内容是否真的变化了
+                            if newContent != note.primaryXMLContent {
+                                // 内容确实变化了，触发保存
+                                Task { @MainActor in
+                                    await saveToLocalOnly(for: note)
+                                    scheduleCloudUpload(for: note)
+                                }
+                            }
+                        }
+                    ),
                     isEditable: $isEditable,
-                    editorContext: editorContext,
-                    noteRawData: viewModel.selectedNote?.rawData,
-                    xmlContent: viewModel.selectedNote?.primaryXMLContent,
-                    onContentChange: { newRTFData in
-                        // RTF数据变化时，更新 editedRTFData 并检查是否需要保存
-                        guard !isInitializing, let rtfData = newRTFData else {
-                            return
+                    editorContext: webEditorContext,
+                    noteRawData: {
+                        if let rawData = note.rawData,
+                           let jsonData = try? JSONSerialization.data(withJSONObject: rawData, options: []) {
+                            return String(data: jsonData, encoding: .utf8)
+                        }
+                        return nil
+                    }(),
+                    xmlContent: note.primaryXMLContent,
+                    onContentChange: { newContent in
+                        // 内容变化回调
+                        guard !isInitializing else { 
+                            print("[WebEditor] 内容变化，但正在初始化，跳过保存")
+                            return 
                         }
                         
-                        // 检查内容是否真的变化了（避免仅打开笔记就触发保存）
-                        // 比较 RTF 数据，如果相同则跳过保存
-                        if let lastSaved = lastSavedRTFData, lastSaved == rtfData {
-                            // RTF 数据相同，不需要保存（避免不必要的网络请求和修改时间更新）
-                            // 但需要更新 editedRTFData 以确保状态一致
-                            print("![[debug]]数据相同，不需要保存")
-                            editedRTFData = rtfData
-                            return
-                        }
-                        
-                        editedRTFData = rtfData
-                        
-                        // 转换为 AttributedString 用于显示和保存
-                        if let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
-                            editedAttributedText = attributedText
-                        }
-                        
-                        // 内容确实变化了，触发保存
-                        guard let note = viewModel.selectedNote else {
-                            return
-                        }
-                        
+                        // 将XML内容转换为AttributedString并更新状态
                         Task { @MainActor in
+                            if let attributedText = AttributedStringConverter.xmlToAttributedString(newContent, noteRawData: note.rawData) {
+                                editedAttributedText = attributedText
+                            }
+                            
+                            // 触发保存
+                            guard let note = viewModel.selectedNote else { return }
+                            print("[WebEditor] 内容已更改，长度: \(newContent.count)，触发保存")
                             await saveToLocalOnly(for: note)
                             scheduleCloudUpload(for: note)
                         }
@@ -264,6 +272,7 @@ struct NoteDetailView: View {
                 .frame(height: 16)
             formatMenu
             checkboxButton
+            horizontalRuleButton
             imageButton
         }
         .padding(.horizontal, 8)
@@ -271,32 +280,26 @@ struct NoteDetailView: View {
     }
     
     /// 撤销按钮
-    ///
-    /// 注意：键盘快捷键 Cmd+Z 和 Cmd+Shift+Z 由 NSTextView 自动处理，无需手动设置
     private var undoButton: some View {
         Button {
-            editorContext.handle(.undoLatestChange)
+            webEditorContext.undo()
         } label: {
             Image(systemName: "arrow.uturn.backward")
                 .font(.system(size: 16))
         }
         .buttonStyle(.plain)
-        .disabled(!editorContext.canUndoLatestChange)
         .help("撤销 (⌘Z)")
     }
     
     /// 重做按钮
-    ///
-    /// 注意：键盘快捷键 Cmd+Z 和 Cmd+Shift+Z 由 NSTextView 自动处理，无需手动设置
     private var redoButton: some View {
         Button {
-            editorContext.handle(.redoLatestChange)
+            webEditorContext.redo()
         } label: {
             Image(systemName: "arrow.uturn.forward")
                 .font(.system(size: 16))
         }
         .buttonStyle(.plain)
-        .disabled(!editorContext.canRedoLatestChange)
         .help("重做 (⌘⇧Z)")
     }
     
@@ -311,8 +314,8 @@ struct NoteDetailView: View {
         }
         .buttonStyle(.plain)
         .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
-            FormatMenuView(context: editorContext) { action in
-                // FormatMenuView 使用 RichTextContext 直接处理格式操作，这里只需要关闭菜单
+            WebFormatMenuView(context: webEditorContext) { action in
+                // WebFormatMenuView 使用 WebEditorContext 处理格式操作，这里只需要关闭菜单
                 showFormatMenu = false
             }
         }
@@ -328,6 +331,15 @@ struct NoteDetailView: View {
         .help("插入待办")
     }
     
+    private var horizontalRuleButton: some View {
+        Button {
+            insertHorizontalRule()
+        } label: {
+            Image(systemName: "minus")
+        }
+        .help("插入分割线")
+    }
+    
     private var imageButton: some View {
         Button {
             insertImage()
@@ -337,38 +349,36 @@ struct NoteDetailView: View {
         .help("插入图片")
     }
     
-    /// 处理格式操作（目前 FormatMenuView 已经直接使用 RichTextContext 处理，此函数保留用于未来扩展）
-    private func handleFormatAction(_ action: MiNoteEditor.FormatAction) {
-        // FormatMenuView 已经通过 RichTextContext 直接处理格式操作
-        // 这里可以添加额外的逻辑，例如记录操作历史等
+    /// 处理格式操作（已废弃，WebFormatMenuView 通过 WebEditorContext 直接处理格式操作）
+    private func handleFormatAction(_ action: FormatAction) {
+        // WebFormatMenuView 已经通过 WebEditorContext 直接处理格式操作
+        // 此函数保留用于向后兼容
         print("[NoteDetailView] 格式操作: \(action)")
+    }
+    
+    /// 格式操作类型（用于向后兼容）
+    enum FormatAction {
+        case bold
+        case italic
+        case underline
+        case strikethrough
+        case heading(Int)
+        case highlight
+        case textAlignment(NSTextAlignment)
     }
     
     /// 插入复选框
     private func insertCheckbox() {
-        // 使用 RichTextContext 在当前位置插入复选框
-        let checkbox = CheckboxTextAttachment()
-        let checkboxString = NSAttributedString(attachment: checkbox)
-        // 在复选框后添加一个空格
-        let checkboxWithSpace = NSMutableAttributedString(attributedString: checkboxString)
-        checkboxWithSpace.append(NSAttributedString(string: " "))
-        
-        // 获取插入位置
-        let insertLocation: Int
-        if editorContext.hasSelectedRange {
-            insertLocation = editorContext.selectedRange.location
-            // 替换选中的文本
-            editorContext.handle(.replaceSelectedText(with: checkboxWithSpace))
-        } else {
-            // 如果没有选中范围，在光标位置或文档末尾插入
-            insertLocation = editorContext.selectedRange.location < editorContext.attributedString.length 
-                ? editorContext.selectedRange.location 
-                : editorContext.attributedString.length
-            // 在指定位置插入
-            editorContext.handle(.replaceText(in: NSRange(location: insertLocation, length: 0), with: checkboxWithSpace))
-        }
-        
-        print("[NoteDetailView] 已插入复选框")
+        // 使用 WebEditorContext 插入复选框
+        webEditorContext.insertCheckbox()
+        print("[NoteDetailView] 已插入复选框（Web编辑器）")
+    }
+    
+    /// 插入分割线
+    private func insertHorizontalRule() {
+        // 使用 WebEditorContext 插入分割线
+        webEditorContext.insertHorizontalRule()
+        print("[NoteDetailView] 已插入分割线（Web编辑器）")
     }
     
     /// 插入图片
@@ -393,47 +403,30 @@ struct NoteDetailView: View {
     /// 从 URL 插入图片
     @MainActor
     private func insertImage(from url: URL) async {
-        guard let image = NSImage(contentsOf: url) else {
+        // 使用 WebEditorContext 插入图片
+        // 将图片转换为 base64 数据 URL
+        guard let imageData = try? Data(contentsOf: url) else {
             print("[NoteDetailView] ⚠️ 无法加载图片: \(url)")
             return
         }
+        let base64String = imageData.base64EncodedString()
         
-        // 调整图片大小（最大宽度 600pt）
-        let maxWidth: CGFloat = 600
-        let imageSize = image.size
-        let aspectRatio = imageSize.width / imageSize.height
-        let newSize: NSSize
-        if imageSize.width > maxWidth {
-            newSize = NSSize(width: maxWidth, height: maxWidth / aspectRatio)
-        } else {
-            newSize = imageSize
+        let mimeType: String
+        switch url.pathExtension.lowercased() {
+        case "png":
+            mimeType = "image/png"
+        case "jpg", "jpeg":
+            mimeType = "image/jpeg"
+        case "gif":
+            mimeType = "image/gif"
+        default:
+            mimeType = "image/jpeg"
         }
         
-        // 创建图片附件
-        let imageAttachment = NSTextAttachment()
-        imageAttachment.image = image
-        imageAttachment.bounds = NSRect(origin: .zero, size: newSize)
+        let dataUrl = "data:\(mimeType);base64,\(base64String)"
+        webEditorContext.insertImage(dataUrl, altText: url.lastPathComponent)
         
-        let imageString = NSMutableAttributedString(attributedString: NSAttributedString(attachment: imageAttachment))
-        // 在图片后添加换行
-        imageString.append(NSAttributedString(string: "\n"))
-        
-        // 插入图片到编辑器
-        let insertLocation: Int
-        if editorContext.hasSelectedRange {
-            insertLocation = editorContext.selectedRange.location
-            // 替换选中的文本
-            editorContext.handle(.replaceSelectedText(with: imageString))
-        } else {
-            // 如果没有选中范围，在光标位置或文档末尾插入
-            insertLocation = editorContext.selectedRange.location < editorContext.attributedString.length 
-                ? editorContext.selectedRange.location 
-                : editorContext.attributedString.length
-            // 在指定位置插入
-            editorContext.handle(.replaceText(in: NSRange(location: insertLocation, length: 0), with: imageString))
-        }
-        
-        print("[NoteDetailView] 已插入图片: \(url.lastPathComponent)")
+        print("[NoteDetailView] 已插入图片（Web编辑器）: \(url.lastPathComponent)")
         
         // 触发保存（图片插入后需要保存）
         Task { @MainActor in
@@ -540,14 +533,13 @@ struct NoteDetailView: View {
             // 如果没有 rtfData，从 XML 转换生成 rtfData
             let nsAttributedString = MiNoteContentParser.parseToAttributedString(note.primaryXMLContent, noteRawData: note.rawData)
             
-            // 尝试使用 archivedData 格式（支持图片附件）
+            // 使用 archivedData 格式（支持图片附件）
             var generatedRTFData: Data?
             do {
                 generatedRTFData = try nsAttributedString.richTextData(for: .archivedData)
             } catch {
-                // 回退到 RTF 格式
-                let rtfRange = NSRange(location: 0, length: nsAttributedString.length)
-                generatedRTFData = try? nsAttributedString.data(from: rtfRange, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+                print("[NoteDetailView] ⚠️ 生成 archivedData 失败: \(error)")
+                generatedRTFData = nil
             }
             
             // 如果成功生成 rtfData，保存到数据库
@@ -646,15 +638,14 @@ struct NoteDetailView: View {
     
     private func handleTitleChange(_ newValue: String) {
         guard !isInitializing else {
-            print("[[调试]]步骤4.3 [NoteDetailView] 标题变化检测，但正在初始化，跳过处理")
+            print("[NoteDetailView] 标题变化检测，但正在初始化，跳过处理")
             return
         }
         if newValue != originalTitle {
-            print("[[调试]]步骤5 [NoteDetailView] 标题变化检测到，立即保存，旧标题: '\(originalTitle)', 新标题: '\(newValue)'")
+            print("[NoteDetailView] 标题变化: '\(originalTitle)' -> '\(newValue)'")
             originalTitle = newValue
             // 立即保存，不使用防抖
             Task { @MainActor in
-                print("[[调试]]步骤6 [NoteDetailView] 触发立即保存，笔记ID: \(viewModel.selectedNote?.id ?? "无")")
                 await performSaveImmediately()
             }
         }
@@ -745,41 +736,13 @@ struct NoteDetailView: View {
         defer { isSavingLocally = false }
         
         do {
-            // 获取最新内容
-            let (rtfData, attributedText) = getLatestContentFromEditor()
-            
-            // 验证内容不是标题（防止标题被错误地保存为正文）
-            let contentString = String(attributedText.characters).trimmingCharacters(in: .whitespacesAndNewlines)
-            let titleString = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            if contentString == titleString && !contentString.isEmpty {
-                print("⚠️ [NoteDetailView] 错误：正文内容与标题相同，跳过保存以防止数据丢失")
-                // 如果内容与标题相同，使用 editedAttributedText 作为后备
-                // 这确保即使 getLatestContentFromEditor 返回了错误的内容，我们也能使用正确的正文
-                let fallbackAttributedText = editedAttributedText
-                let fallbackRtfData = editedRTFData
-                
-                // 检查是否有变化（避免重复保存）
-                guard hasContentChanged(rtfData: fallbackRtfData) else {
-                    return
-                }
-                
-                // 构建更新的笔记对象（使用后备内容）
-                let updatedNote = buildUpdatedNote(from: note, rtfData: fallbackRtfData, attributedText: fallbackAttributedText)
-                
-                // 保存到数据库
-                try LocalStorageService.shared.saveNote(updatedNote)
-                
-                // 更新状态
-                updateSaveState(rtfData: fallbackRtfData, attributedText: fallbackAttributedText)
-                
-                // 延迟更新 ViewModel（避免触发重新加载）
-                updateViewModelDelayed(with: updatedNote)
-                return
-            }
+            // 获取最新内容（从Web编辑器获取）
+            print("[NoteDetailView] 开始保存笔记到本地: \(note.id)")
+            let (rtfData, attributedText) = await getLatestContentFromEditor()
             
             // 检查是否有变化（避免重复保存）
             guard hasContentChanged(rtfData: rtfData) else {
+                print("[NoteDetailView] 内容未变化，跳过保存")
                 return
             }
             
@@ -788,6 +751,7 @@ struct NoteDetailView: View {
             
             // 保存到数据库
             try LocalStorageService.shared.saveNote(updatedNote)
+            print("[NoteDetailView] ✅ 笔记已保存到本地，XML长度: \(updatedNote.content.count)")
             
             // 更新状态
             updateSaveState(rtfData: rtfData, attributedText: attributedText)
@@ -832,8 +796,8 @@ struct NoteDetailView: View {
                     return
                 }
                 
-                // 获取最新内容
-                let (rtfData, attributedText) = self.getLatestContentFromEditor()
+                // 获取最新内容（从Web编辑器获取）
+                let (rtfData, attributedText) = await self.getLatestContentFromEditor()
                 
                 // 构建更新的笔记对象
                 let updatedNote = self.buildUpdatedNote(from: note, rtfData: rtfData, attributedText: attributedText)
@@ -883,24 +847,6 @@ struct NoteDetailView: View {
         pendingSaveWorkItem = nil
         pendingCloudUploadWorkItem?.cancel()
         
-        // 如果使用 RichTextKit，确保从 editorContext 获取最新内容并更新状态
-        if useRichTextKit {
-            let contextAttributedString = editorContext.attributedString
-            if contextAttributedString.length > 0 {
-                let swiftUIAttributedString = AttributedString(contextAttributedString)
-                editedAttributedText = swiftUIAttributedString
-                
-                // 更新 RTF 数据
-                do {
-                    let archivedData = try contextAttributedString.richTextData(for: .archivedData)
-                    editedRTFData = archivedData
-                } catch {
-                    // 如果 archivedData 失败，尝试使用 RTF 格式
-                    editedRTFData = AttributedStringConverter.attributedStringToRTFData(swiftUIAttributedString)
-                }
-            }
-        }
-        
         // 直接调用 saveToLocalOnly，确保保存最新内容
         await saveToLocalOnly(for: note)
     }
@@ -943,8 +889,8 @@ struct NoteDetailView: View {
         isUploading = willUpload
         
         do {
-            // 获取最新内容
-            let (rtfData, attributedText) = getLatestContentFromEditor()
+            // 获取最新内容（从Web编辑器获取）
+            let (rtfData, attributedText) = await getLatestContentFromEditor()
             
             // 构建更新的笔记对象
             let updatedNote = buildUpdatedNote(from: note, rtfData: rtfData, attributedText: attributedText)
@@ -1002,24 +948,6 @@ struct NoteDetailView: View {
         isSavingBeforeSwitch = true
         
         return Task { @MainActor in
-            // 如果使用 RichTextKit，确保从 editorContext 获取最新内容并更新状态
-            if useRichTextKit {
-                let contextAttributedString = editorContext.attributedString
-                if contextAttributedString.length > 0 {
-                    let swiftUIAttributedString = AttributedString(contextAttributedString)
-                    editedAttributedText = swiftUIAttributedString
-                    
-                    // 更新 RTF 数据
-                    do {
-                        let archivedData = try contextAttributedString.richTextData(for: .archivedData)
-                        editedRTFData = archivedData
-                    } catch {
-                        // 如果 archivedData 失败，尝试使用 RTF 格式
-                        editedRTFData = AttributedStringConverter.attributedStringToRTFData(swiftUIAttributedString)
-                    }
-                }
-            }
-            
             // 直接调用 saveToLocalOnly，确保保存最新内容
             await saveToLocalOnly(for: currentNote)
             isSavingBeforeSwitch = false
@@ -1028,7 +956,7 @@ struct NoteDetailView: View {
     
     /// 处理选中的笔记变化
     private func handleSelectedNoteChange(oldValue: Note?, newValue: Note?) {
-        print("[[调试]]步骤61 [NoteDetailView] 检测笔记切换，旧笔记ID: \(oldValue?.id ?? "无"), 新笔记ID: \(newValue?.id ?? "无")")
+        print("[NoteDetailView] 检测笔记切换，旧笔记ID: \(oldValue?.id ?? "无"), 新笔记ID: \(newValue?.id ?? "无")")
         guard let oldNote = oldValue, let newNote = newValue else {
             // 如果没有旧笔记或新笔记，直接处理
             if let note = newValue {
@@ -1039,20 +967,20 @@ struct NoteDetailView: View {
         
         // 如果切换到不同的笔记
         if oldNote.id != newNote.id {
-            print("[[调试]]步骤61.1 [NoteDetailView] 切换到新笔记: \(oldNote.id) -> \(newNote.id)")
+            print("[NoteDetailView] 切换到新笔记: \(oldNote.id) -> \(newNote.id)")
             // 保存当前笔记的更改，并等待保存任务完成
             let saveTask = saveCurrentNoteBeforeSwitching(newNoteId: newNote.id)
             
             // 如果保存任务存在，等待它完成后再加载新笔记
             if let saveTask = saveTask {
-                print("[[调试]]步骤66 [NoteDetailView] 等待切换前保存完成，保存任务存在: true")
+                print("[NoteDetailView] 等待切换前保存完成")
                 Task { @MainActor in
                     await saveTask.value
                     await handleNoteChangeAsync(newNote)
                 }
             } else {
                 // 没有保存任务，直接加载新笔记
-                print("[[调试]]步骤66 [NoteDetailView] 等待切换前保存完成，保存任务存在: false，直接加载新笔记")
+                print("[NoteDetailView] 无待保存内容，直接加载新笔记")
                 Task { @MainActor in
                     await handleNoteChangeAsync(newNote)
                 }
@@ -1061,17 +989,17 @@ struct NoteDetailView: View {
             // 相同笔记，只是内容更新
             // 注意：如果这是保存操作导致的更新，不应该重新加载内容（会覆盖编辑器状态）
             // 只有在外部更新（如云端同步）时才重新加载
-            print("[[调试]]步骤61.2 [NoteDetailView] 相同笔记，只是内容更新，笔记ID: \(newNote.id)")
+            print("[NoteDetailView] 相同笔记内容更新，笔记ID: \(newNote.id)")
             
             // 检查是否是保存操作导致的更新（通过检查是否正在保存）
             if isSavingLocally || isSavingBeforeSwitch {
-                print("[[调试]]步骤61.3 [NoteDetailView] ⚠️ 正在保存，跳过重新加载（避免覆盖编辑器状态）")
+                print("[NoteDetailView] 正在保存，跳过重新加载（避免覆盖编辑器状态）")
                 return
             }
             
             // 检查是否是初始化阶段
             if isInitializing {
-                print("[[调试]]步骤61.4 [NoteDetailView] ⚠️ 正在初始化，跳过重新加载")
+                print("[NoteDetailView] 正在初始化，跳过重新加载")
                 return
             }
             
@@ -1087,7 +1015,7 @@ struct NoteDetailView: View {
     private func handleNoteChangeAsync(_ newValue: Note) async {
         // 直接加载新笔记内容
         // 保存已经在 handleSelectedNoteChange 中处理过了
-        print("[[调试]]步骤67 [NoteDetailView] 异步处理笔记变化，笔记ID: \(newValue.id)")
+        print("[NoteDetailView] 加载笔记内容，笔记ID: \(newValue.id)")
         await loadNoteContent(newValue)
     }
     
@@ -1095,38 +1023,29 @@ struct NoteDetailView: View {
     
     /// 从编辑器获取最新的内容（RTF数据和AttributedString）
     /// - Returns: (rtfData: 存档数据, attributedText: SwiftUI AttributedString)
-    private func getLatestContentFromEditor() -> (rtfData: Data?, attributedText: AttributedString) {
-        if useRichTextKit {
-            let contextAttributedString = editorContext.attributedString
-            
-            // 验证内容不是标题（标题不应该出现在正文编辑器中）
-            // 如果 context 的内容与标题相同，说明可能出现了错误，使用 editedAttributedText 作为后备
-            let contextString = contextAttributedString.string.trimmingCharacters(in: .whitespacesAndNewlines)
-            let titleString = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            if contextAttributedString.length > 0 && contextString != titleString {
-                let swiftUIAttributedText = AttributedString(contextAttributedString)
-                
-                // 尝试生成 archivedData（支持图片附件）
-                do {
-                    let archivedData = try contextAttributedString.richTextData(for: .archivedData)
-                    return (archivedData, swiftUIAttributedText)
-                } catch {
-                    // 如果失败，使用 editedRTFData 作为后备
-                    return (editedRTFData, swiftUIAttributedText)
-                }
-            } else {
-                // 如果 context 为空或内容与标题相同，使用 editedRTFData 或 editedAttributedText
-                // 这确保即使 context 被错误地设置为标题，我们也能使用正确的正文内容
-                if contextString == titleString && contextAttributedString.length > 0 {
-                    print("⚠️ [NoteDetailView] 警告：editorContext 的内容与标题相同，使用 editedAttributedText 作为后备")
-                }
-                return (editedRTFData, editedAttributedText)
+    @MainActor
+    private func getLatestContentFromEditor() async -> (rtfData: Data?, attributedText: AttributedString) {
+        // Web编辑器模式：从WebEditorContext获取最新内容
+        if let currentContent = await getCurrentEditorContent() {
+            // 将XML转换为AttributedString
+            if let attributedText = AttributedStringConverter.xmlToAttributedString(currentContent, noteRawData: viewModel.selectedNote?.rawData) {
+                let rtfData = AttributedStringConverter.attributedStringToRTFData(attributedText)
+                return (rtfData, attributedText)
             }
-        } else {
-            // 非 RichTextKit 模式
-            let rtfData = AttributedStringConverter.attributedStringToRTFData(editedAttributedText)
-            return (rtfData, editedAttributedText)
+        }
+        
+        // 如果无法从编辑器获取，使用editedAttributedText作为后备
+        let rtfData = AttributedStringConverter.attributedStringToRTFData(editedAttributedText)
+        return (rtfData, editedAttributedText)
+    }
+    
+    /// 从Web编辑器获取当前内容
+    @MainActor
+    private func getCurrentEditorContent() async -> String? {
+        return await withCheckedContinuation { continuation in
+            webEditorContext.getCurrentContent { content in
+                continuation.resume(returning: content.isEmpty ? nil : content)
+            }
         }
     }
     
@@ -1165,10 +1084,7 @@ struct NoteDetailView: View {
         lastSavedRTFData = rtfData
         originalTitle = editedTitle
         originalAttributedText = attributedText
-        
-        if useRichTextKit {
-            editedRTFData = rtfData
-        }
+        editedRTFData = rtfData
     }
     
     /// 更新 ViewModel 中的笔记对象（延迟更新，避免触发重新加载）

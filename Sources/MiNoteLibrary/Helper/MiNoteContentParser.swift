@@ -16,7 +16,10 @@ class CheckboxTextAttachment: NSTextAttachment {
     }
     
     // MARK: - NSSecureCoding 支持
-    // 注意：NSTextAttachment 已经支持 NSSecureCoding，不需要重新实现 supportsSecureCoding
+    /// 必须实现 supportsSecureCoding 以支持安全编码
+    public override class var supportsSecureCoding: Bool {
+        return true
+    }
     
     override init(data contentData: Data?, ofType uti: String?) {
         super.init(data: contentData, ofType: uti)
@@ -554,6 +557,14 @@ class MiNoteContentParser {
                     let nextParagraphString = nextParagraph.string.trimmingCharacters(in: .whitespacesAndNewlines)
                     if nextParagraph.length == 1 || nextParagraphString == "\u{FFFC}" || nextParagraphString.isEmpty {
                         if let attachment = nextParagraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
+                            // 优先检查 RichTextKit 的分割线附件
+                            if attachment is RichTextHorizontalRuleAttachment {
+                                // 下一个是分割线，跳过这个空段落
+                                i += 1
+                                continue
+                            }
+                            
+                            // 兼容旧的 HorizontalRuleAttachmentCell
                             #if macOS
                             if attachment.attachmentCell is HorizontalRuleAttachmentCell {
                                 // 下一个是分割线，跳过这个空段落
@@ -595,6 +606,14 @@ class MiNoteContentParser {
             let paragraphString = paragraph.string.trimmingCharacters(in: .whitespacesAndNewlines)
             if paragraph.length == 1 || paragraphString == "\u{FFFC}" || paragraphString.isEmpty {
                 if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
+                    // 优先检查 RichTextKit 的分割线附件
+                    if attachment is RichTextHorizontalRuleAttachment {
+                        xmlParts.append("<hr />")
+                        i += 1
+                        continue
+                    }
+                    
+                    // 兼容旧的 HorizontalRuleAttachmentCell
                     #if macOS
                     if attachment.attachmentCell is HorizontalRuleAttachmentCell {
                         xmlParts.append("<hr />")
@@ -671,6 +690,14 @@ class MiNoteContentParser {
                 if paragraph.string.hasPrefix("\u{FFFC}") {
                     return true
                 }
+            }
+        }
+        
+        // 检查 RichTextKit 的引用块附件
+        if paragraph.string.hasPrefix("\u{FFFC}"),
+           let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
+            if attachment is RichTextBlockQuoteAttachment {
+                return true
             }
         }
         
@@ -1086,6 +1113,10 @@ class MiNoteContentParser {
                 let rawText = String(content[textStartIndex..<textEndIndex])
                 // 只去除前后的空白和换行，保留中间内容
                 text = rawText.trimmingCharacters(in: CharacterSet(charactersIn: " \n\t"))
+                
+                print("🔍 [extractTextTagsWithIntervals] 提取标签后文本: type=\(match.type), raw='\(rawText.prefix(20))', trimmed='\(text.prefix(20))'")
+            } else {
+                print("🔍 [extractTextTagsWithIntervals] 标签后无文本: type=\(match.type)")
             }
             
             allItems.append((match.range, match.type, false, match.indent, match.inputNumber, match.level, text))
@@ -1440,45 +1471,9 @@ class MiNoteContentParser {
                     
                     mutableAttr.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: mutableAttr.length))
                     
-                    // 在引用块开头添加一个竖线附件（作为视觉标识）
-                    // 创建一个竖线图片，高度约为一行文字的高度
-                    let lineWidth: CGFloat = 4.0  // 竖线宽度
-                    let lineHeight: CGFloat = 20.0  // 竖线高度（约等于一行文字）
-                    
-                    let quoteLineImage = NSImage(size: NSSize(width: lineWidth, height: lineHeight))
-                    quoteLineImage.lockFocus()
-                    // 使用系统分隔符颜色，自动适配深色模式
-                    NSColor.separatorColor.setFill()
-                    NSRect(x: 0, y: 0, width: lineWidth, height: lineHeight).fill()
-                    quoteLineImage.unlockFocus()
-                    quoteLineImage.isTemplate = false
-                    quoteLineImage.cacheMode = .never
-                    
-                    let quoteLineAttachment = NSTextAttachment()
-                    quoteLineAttachment.image = quoteLineImage
-                    // 调整 bounds 使其与文字基线对齐
-                    quoteLineAttachment.bounds = NSRect(x: 0, y: -lineHeight / 2 + 4, width: lineWidth, height: lineHeight)
-                    
-                    #if macOS
-                    if let image = quoteLineImage {
-                        let cell = NSTextAttachmentCell(imageCell: image)
-                        quoteLineAttachment.attachmentCell = cell
-                    }
-                    #endif
-                    
-                    let quoteLineAttr = NSMutableAttributedString(attributedString: NSAttributedString(attachment: quoteLineAttachment))
-                    
-                    // 在创建 NSAttributedString 后重新设置 attachmentCell
-                    #if macOS
-                    if let att = quoteLineAttr.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
-                        if att.attachmentCell == nil, let image = att.image {
-                            let cell = NSTextAttachmentCell(imageCell: image)
-                            att.attachmentCell = cell
-                        }
-                        // 确保 bounds 正确
-                        att.bounds = quoteLineAttachment.bounds
-                    }
-                    #endif
+                    // 使用 RichTextKit 的引用块附件
+                    let blockQuoteAttachment = RichTextBlockQuoteAttachment(indicatorColor: NSColor.separatorColor)
+                    let quoteLineAttr = NSMutableAttributedString(attributedString: NSAttributedString(attachment: blockQuoteAttachment))
                     
                     // 在内容前添加竖线和空格
                     let spaceAfterLine = NSAttributedString(string: "  ", attributes: newlineAttributes())  // 两个空格，更清晰
@@ -1507,23 +1502,9 @@ class MiNoteContentParser {
         // 提取复选框后的文本
         let checkboxPattern = try! NSRegularExpression(pattern: "<input[^>]*type=\"checkbox\"[^>]*/>", options: [])
         if let match = checkboxPattern.firstMatch(in: content, options: [], range: NSRange(content.startIndex..., in: content)) {
-            // 创建可交互的复选框附件
-            let attachment = CheckboxTextAttachment(data: nil, ofType: nil)
-            attachment.isChecked = false  // 默认未选中
+            // 使用 RichTextKit 的复选框附件
+            let attachment = RichTextCheckboxAttachment(isChecked: false)
             let checkboxAttr = NSMutableAttributedString(attributedString: NSAttributedString(attachment: attachment))
-            
-            // 重要：在创建 NSAttributedString 后，需要重新设置 attachmentCell
-            #if macOS
-            if let att = checkboxAttr.attribute(.attachment, at: 0, effectiveRange: nil) as? CheckboxTextAttachment {
-                if att.attachmentCell == nil {
-                    att.attachmentCell = CheckboxAttachmentCell(checkbox: att)
-                }
-                // 确保图片存在
-                if att.image == nil {
-                    att.updateImage()
-                }
-            }
-            #endif
             
             result.append(checkboxAttr)
             
@@ -1606,6 +1587,7 @@ class MiNoteContentParser {
     
     /// 解析独立无序列表（不在 <text> 标签内）
     private static func parseStandaloneBullet(indent: Int, text: String) -> NSAttributedString? {
+        print("🔍 [parseStandaloneBullet] 解析无序列表，indent=\(indent), text='\(text)'")
         let result = NSMutableAttributedString()
         
         // 添加项目符号
@@ -1639,6 +1621,7 @@ class MiNoteContentParser {
     
     /// 解析独立有序列表（不在 <text> 标签内）
     private static func parseStandaloneOrder(indent: Int, inputNumber: Int, text: String) -> NSAttributedString? {
+        print("🔍 [parseStandaloneOrder] 解析有序列表，indent=\(indent), inputNumber=\(inputNumber), text='\(text)'")
         let result = NSMutableAttributedString()
         
         // 添加序号（inputNumber 是 0-based，显示时 +1）
@@ -1736,27 +1719,14 @@ class MiNoteContentParser {
     
     /// 解析分割线标签
     private static func parseHrTag() -> NSAttributedString? {
-        // 创建附件，使用自定义的 HorizontalRuleAttachmentCell 来绘制填满宽度的分割线
-        let attachment = NSTextAttachment()
-        // 不设置 image，而是使用自定义的 cell 来绘制
-        
-        // 设置 bounds（宽度会被 cell 动态调整）
-        let lineHeight: CGFloat = 1.0
-        attachment.bounds = NSRect(x: 0, y: -lineHeight / 2 - 1, width: 10000, height: lineHeight)
-        
-        // 在 macOS 上，使用自定义的 HorizontalRuleAttachmentCell
-        #if macOS
-        let cell = HorizontalRuleAttachmentCell()
-        attachment.attachmentCell = cell
-        #endif
+        // 使用 RichTextKit 的分割线附件
+        let attachment = RichTextHorizontalRuleAttachment()
         
         // 创建段落样式，让分割线填满整个宽度
         let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .left  // 左对齐，让分割线从左边开始
-        // 减少段落间距，避免产生额外的空行
+        paragraphStyle.alignment = .left
         paragraphStyle.paragraphSpacingBefore = 0.0
         paragraphStyle.paragraphSpacing = 0.0
-        // 设置左右边距为0，确保分割线可以延伸到边缘
         paragraphStyle.headIndent = 0
         paragraphStyle.firstLineHeadIndent = 0
         paragraphStyle.tailIndent = 0
@@ -1767,18 +1737,6 @@ class MiNoteContentParser {
         
         let attributedString = NSMutableAttributedString(attributedString: NSAttributedString(attachment: attachment))
         attributedString.addAttributes(attrs, range: NSRange(location: 0, length: attributedString.length))
-        
-        // 重要：在创建 NSAttributedString 后，需要重新设置 attachmentCell
-        // 因为 NSAttributedString(attachment:) 可能不会保留 attachmentCell
-        #if macOS
-        if let att = attributedString.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
-            // 确保 attachmentCell 存在（使用自定义的 HorizontalRuleAttachmentCell）
-            if att.attachmentCell == nil || !(att.attachmentCell is HorizontalRuleAttachmentCell) {
-                let cell = HorizontalRuleAttachmentCell()
-                att.attachmentCell = cell
-            }
-        }
-        #endif
         
         return attributedString
     }
@@ -2342,11 +2300,15 @@ class MiNoteContentParser {
         // 检查是否是特殊元素
         let paragraphString = paragraph.string.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // 分割线：优先检查 HorizontalRuleAttachmentCell 类型（最可靠的方法）
-        // 分割线使用 HorizontalRuleAttachmentCell 来绘制，检查 attachmentCell 类型
+        // 分割线：检查 RichTextHorizontalRuleAttachment 类型（优先）或旧的 HorizontalRuleAttachmentCell
         if paragraph.length == 1 || paragraphString == "\u{FFFC}" || paragraphString.isEmpty {
             if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
-                // 在 macOS 上，检查 attachmentCell 类型
+                // 优先检查 RichTextKit 的分割线附件
+                if attachment is RichTextHorizontalRuleAttachment {
+                    return "<hr />"
+                }
+                
+                // 兼容旧的 HorizontalRuleAttachmentCell
                 #if macOS
                 if attachment.attachmentCell is HorizontalRuleAttachmentCell {
                     return "<hr />"
@@ -2373,6 +2335,13 @@ class MiNoteContentParser {
             }
         }
         
+        // 检查 RichTextKit 的引用块附件
+        if !hasQuoteLine, let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
+            if attachment is RichTextBlockQuoteAttachment {
+                hasQuoteLine = true
+            }
+        }
+        
         // 或者通过附件尺寸判断（引用块的竖线：宽度3-5，高度15-25）
         if !hasQuoteLine, let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment,
            let image = attachment.image {
@@ -2383,6 +2352,16 @@ class MiNoteContentParser {
         
         // 复选框（排除引用块的竖线和分割线）
         if !hasQuoteLine, let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
+            // 优先检查 RichTextKit 的复选框附件
+            if attachment is RichTextCheckboxAttachment {
+                return convertCheckboxToXML(paragraph)
+            }
+            
+            // 兼容旧的 CheckboxTextAttachment
+            if attachment is CheckboxTextAttachment {
+                return convertCheckboxToXML(paragraph)
+            }
+            
             // 先检查是否是分割线（已经在上面处理）
             #if macOS
             if attachment.attachmentCell is HorizontalRuleAttachmentCell {

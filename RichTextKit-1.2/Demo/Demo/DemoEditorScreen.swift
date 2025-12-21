@@ -14,14 +14,50 @@ struct DemoEditorScreen: View {
     @Binding var document: DemoDocument
 
     @State private var isInspectorPresented = false
+    @State private var showAttachmentDemo = false
 
     @StateObject var context = RichTextContext()
 
     var body: some View {
         VStack(spacing: 0) {
             #if os(macOS)
-            RichTextFormat.Toolbar(context: context)
+            // 自定义工具栏，添加新功能按钮
+            HStack(spacing: 12) {
+                RichTextFormat.Toolbar(context: context)
+                
+                Divider()
+                    .frame(height: 20)
+                
+                // 新增功能按钮
+                Button {
+                    context.insertCheckbox(isChecked: false, withSpace: true)
+                } label: {
+                    Image(systemName: "checklist")
+                }
+                .help("插入待办复选框")
+                
+                Button {
+                    context.insertHorizontalRule(withNewlines: true)
+                } label: {
+                    Image(systemName: "minus")
+                }
+                .help("插入分割线")
+                
+                Button {
+                    context.insertBlockQuote(withSpace: true)
+                    context.applyBlockQuoteStyling()
+                } label: {
+                    Image(systemName: "quote.bubble")
+                }
+                .help("插入引用块")
+                
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color(NSColor.controlBackgroundColor))
             #endif
+            
             RichTextEditor(
                 text: $document.text,
                 context: context
@@ -39,6 +75,9 @@ struct DemoEditorScreen: View {
             )
             #endif
         }
+        .sheet(isPresented: $showAttachmentDemo) {
+            AttachmentFeaturesDemo()
+        }
         .inspector(isPresented: $isInspectorPresented) {
             RichTextFormat.Sidebar(context: context)
                 #if os(macOS)
@@ -53,6 +92,17 @@ struct DemoEditorScreen: View {
                         .aspectRatio(1, contentMode: .fit)
                 }
             }
+            
+            #if os(macOS)
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    showAttachmentDemo = true
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                }
+                .help("测试新增功能")
+            }
+            #endif
         }
         .frame(minWidth: 500)
         .focusedValue(\.richTextContext, context)

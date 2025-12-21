@@ -113,12 +113,12 @@ struct MiNoteMacApp: App {
         
         Settings {
             SettingsView(viewModel: viewModel)
-                .accentColor(.yellow)  // 设置设置窗口的强调色为黄色
+                .accentColor(Color.yellow)  // 设置设置窗口的强调色为黄色
         }
         
         Window("调试设置", id: "debug-settings") {
             DebugSettingsView()
-                .accentColor(.yellow)  // 设置调试设置窗口的强调色为黄色
+                .accentColor(Color.yellow)  // 设置调试设置窗口的强调色为黄色
         }
         .windowStyle(.titleBar)
         .windowResizability(.contentSize)
@@ -126,7 +126,7 @@ struct MiNoteMacApp: App {
         // 笔记详情窗口（用于在新窗口打开笔记）
         WindowGroup("备忘录", id: "note-detail") {
             NoteDetailWindowView()
-                .accentColor(.yellow)  // 设置笔记详情窗口的强调色为黄色
+                .accentColor(Color.yellow)  // 设置笔记详情窗口的强调色为黄色
         }
         .windowStyle(.titleBar)
         .windowResizability(.contentMinSize)

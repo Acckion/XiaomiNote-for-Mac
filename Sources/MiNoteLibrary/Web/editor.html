@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>小米笔记编辑器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* 浅色模式颜色变量 */
+        :root {
+            --bg-color: #fff;
+            --text-color: #333;
+            --bullet-color: #666;
+            --quote-border: #ccc;
+            --quote-text: #666;
+            --hr-color: #ddd;
+            --placeholder-color: #999;
+        }
+        
+        /* 深色模式颜色变量 */
+        html[data-color-scheme="dark"],
+        :root[data-color-scheme="dark"] {
+            --bg-color: #1e1e1e;
+            --text-color: #d4d4d4;
+            --bullet-color: #858585;
+            --quote-border: #5a5a5a;
+            --quote-text: #858585;
+            --hr-color: #3e3e42;
+            --placeholder-color: #6a6a6a;
+            }
+        }
+        
+        /* 确保body也应用深色模式 */
+        html[data-color-scheme="dark"] body,
+        :root[data-color-scheme="dark"] body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            padding: 0;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        
+        #editor-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #editor-content {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            outline: none;
+            min-height: 200px;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        
+        /* 小米笔记样式 */
+        .mi-note-text {
+            margin-bottom: 8px;
+            padding-left: 0;
+        }
+        
+        .mi-note-text.indent-1 { padding-left: 0; }
+        .mi-note-text.indent-2 { padding-left: 20px; }
+        .mi-note-text.indent-3 { padding-left: 40px; }
+        .mi-note-text.indent-4 { padding-left: 60px; }
+        .mi-note-text.indent-5 { padding-left: 80px; }
+        
+        .mi-note-bullet, .mi-note-order, .mi-note-checkbox {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .mi-note-bullet::before {
+            content: "•";
+            margin-right: 8px;
+            color: var(--bullet-color);
+        }
+        
+        .mi-note-order::before {
+            content: attr(data-number) ".";
+            margin-right: 8px;
+            color: var(--bullet-color);
+            min-width: 20px;
+            text-align: right;
+        }
+        
+        .mi-note-checkbox {
+            display: flex;
+            align-items: center;
+        }
+        
+        .mi-note-checkbox input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        
+        .mi-note-hr {
+            height: 1px;
+            background-color: var(--hr-color);
+            margin: 16px 0;
+            border: none;
+            transition: background-color 0.2s ease;
+        }
+        
+        .mi-note-quote {
+            border-left: 3px solid var(--quote-border);
+            padding-left: 12px;
+            margin: 8px 0;
+            color: var(--quote-text);
+            transition: border-color 0.2s ease, color 0.2s ease;
+        }
+        
+        .mi-note-text.center {
+            text-align: center;
+        }
+        
+        .mi-note-text.right {
+            text-align: right;
+        }
+        
+        /* 富文本样式 */
+        .mi-note-text b, .mi-note-text strong {
+            font-weight: bold;
+        }
+        
+        .mi-note-text i, .mi-note-text em {
+            font-style: italic;
+        }
+        
+        .mi-note-text u {
+            text-decoration: underline;
+        }
+        
+        .mi-note-text delete {
+            text-decoration: line-through;
+        }
+        
+        .mi-note-text .size-large {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .mi-note-text .size-mid {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .mi-note-text .size-h3 {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        /* 图片样式 */
+        .mi-note-image {
+            max-width: 100%;
+            height: auto;
+            margin: 8px 0;
+        }
+        
+        /* 占位符 */
+        .placeholder {
+            color: var(--placeholder-color);
+        }
+        
+        /* 确保所有文本元素使用正确的颜色 */
+        .mi-note-text,
+        .mi-note-bullet,
+        .mi-note-order,
+        .mi-note-checkbox {
+            color: var(--text-color);
+        }
+        
+        /* 焦点样式 */
+        #editor-content:focus {
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="editor-container">
+        <div id="editor-content" contenteditable="true" spellcheck="false">
+            <!-- 内容将在这里动态加载 -->
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentContent = '';
+        let isInitialized = false;
+        let orderCounter = 1;
+        
+        // 与Swift通信的桥接
+        window.MiNoteWebEditor = {
+            // 从Swift接收XML内容并渲染到编辑器
+            loadContent: function(xmlContent) {
+                console.log('从Swift接收XML内容:', xmlContent.substring(0, 100) + '...');
+                currentContent = xmlContent;
+                renderXMLToEditor(xmlContent);
+                isInitialized = true;
+                return '内容已加载';
+            },
+            
+            // 获取当前编辑器的内容并转换为XML
+            getContent: function() {
+                const htmlContent = document.getElementById('editor-content').innerHTML;
+                const xmlContent = convertHTMLToXML(htmlContent);
+                console.log('转换为XML:', xmlContent.substring(0, 100) + '...');
+                currentContent = xmlContent;
+                return xmlContent;
+            },
+            
+            // 执行格式操作（从原生工具栏调用）
+            executeFormatAction: function(action, value) {
+                console.log('执行格式操作:', action, value);
+                return executeFormatCommand(action, value);
+            },
+            
+            // 插入图片
+            insertImage: function(imageUrl, altText) {
+                console.log('插入图片:', imageUrl);
+                return insertImageAtCursor(imageUrl, altText);
+            },
+            
+            // 设置颜色方案（深色/浅色模式）
+            setColorScheme: function(scheme) {
+                console.log('[WebEditor] ========== 设置颜色方案 ==========');
+                console.log('[WebEditor] 请求的方案:', scheme);
+                
+                const root = document.documentElement;
+                const body = document.body;
+                const oldScheme = root.getAttribute('data-color-scheme');
+                console.log('[WebEditor] 当前颜色方案:', oldScheme, '-> 新方案:', scheme);
+                
+                // 设置属性到html和body元素
+                if (scheme === 'dark') {
+                    root.setAttribute('data-color-scheme', 'dark');
+                    if (body) {
+                        body.setAttribute('data-color-scheme', 'dark');
+                    }
+                    console.log('[WebEditor] ✅ 已设置为深色模式');
+                } else {
+                    root.setAttribute('data-color-scheme', 'light');
+                    if (body) {
+                        body.setAttribute('data-color-scheme', 'light');
+                    }
+                    console.log('[WebEditor] ✅ 已设置为浅色模式');
+                }
+                
+                // 验证设置是否生效
+                const actualScheme = root.getAttribute('data-color-scheme');
+                console.log('[WebEditor] 验证: data-color-scheme =', actualScheme);
+                
+                // 检查CSS变量值
+                const computedStyle = getComputedStyle(root);
+                const bgColor = computedStyle.getPropertyValue('--bg-color').trim();
+                const textColor = computedStyle.getPropertyValue('--text-color').trim();
+                console.log('[WebEditor] CSS变量值:', {
+                    '--bg-color': bgColor || '(未设置)',
+                    '--text-color': textColor || '(未设置)',
+                    'body背景色': body ? getComputedStyle(body).backgroundColor : 'N/A',
+                    'body文字色': body ? getComputedStyle(body).color : 'N/A'
+                });
+                
+                // 强制重新计算样式（触发重排）
+                if (body) {
+                    const display = body.style.display;
+                    body.style.display = 'none';
+                    void body.offsetHeight; // 触发重排
+                    body.style.display = display;
+                }
+                
+                // 再次检查CSS变量
+                const bgColorAfter = getComputedStyle(root).getPropertyValue('--bg-color').trim();
+                const textColorAfter = getComputedStyle(root).getPropertyValue('--text-color').trim();
+                console.log('[WebEditor] 重排后CSS变量:', {
+                    '--bg-color': bgColorAfter || '(未设置)',
+                    '--text-color': textColorAfter || '(未设置)'
+                });
+                
+                console.log('[WebEditor] =================================');
+                return '颜色方案已设置为: ' + scheme;
+            },
+            
+            // 检查编辑器状态
+            getStatus: function() {
+                return {
+                    isInitialized: isInitialized,
+                    hasContent: currentContent.length > 0,
+                    selection: getSelectionInfo()
+                };
+            }
+        };
+        
+        // 初始化编辑器
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Web编辑器已加载');
+            setupEditor();
+            
+            // 初始化时使用浅色模式（Swift会在加载完成后设置正确的模式）
+            document.documentElement.setAttribute('data-color-scheme', 'light');
+            
+            // 通知Swift编辑器已准备就绪
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.editorBridge) {
+                window.webkit.messageHandlers.editorBridge.postMessage({
+                    type: 'editorReady',
+                    timestamp: Date.now()
+                });
+            }
+        });
+        
+        // 设置编辑器事件
+        function setupEditor() {
+            const editor = document.getElementById('editor-content');
+            
+            // 输入事件
+            editor.addEventListener('input', function() {
+                debounceContentChange();
+            });
+            
+            // 选择变化事件
+            document.addEventListener('selectionchange', function() {
+                updateSelectionState();
+            });
+            
+            // 粘贴事件处理（特别是图片）
+            editor.addEventListener('paste', function(e) {
+                handlePaste(e);
+            });
+            
+            // 按键事件
+            editor.addEventListener('keydown', function(e) {
+                handleKeyDown(e);
+            });
+            
+            // 点击事件（处理checkbox等）
+            editor.addEventListener('click', function(e) {
+                handleClick(e);
+            });
+        }
+        
+        // 防抖内容变化
+        let contentChangeTimeout;
+        function debounceContentChange() {
+            clearTimeout(contentChangeTimeout);
+            contentChangeTimeout = setTimeout(function() {
+                notifyContentChanged();
+            }, 500);
+        }
+        
+        // 通知Swift内容已更改
+        function notifyContentChanged() {
+            if (!isInitialized) return;
+            
+            const xmlContent = window.MiNoteWebEditor.getContent();
+            
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.editorBridge) {
+                window.webkit.messageHandlers.editorBridge.postMessage({
+                    type: 'contentChanged',
+                    content: xmlContent,
+                    timestamp: Date.now()
+                });
+            }
+        }
+        
+        // 更新选择状态
+        function updateSelectionState() {
+            // 可以在这里实现选择状态跟踪
+        }
+        
+        // 处理粘贴
+        function handlePaste(e) {
+            const items = e.clipboardData.items;
+            let hasImage = false;
+            
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    hasImage = true;
+                    const blob = items[i].getAsFile();
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(event) {
+                        const base64Data = event.target.result;
+                        
+                        // 通知Swift处理图片
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.editorBridge) {
+                            window.webkit.messageHandlers.editorBridge.postMessage({
+                                type: 'imagePasted',
+                                imageData: base64Data,
+                                timestamp: Date.now()
+                            });
+                        }
+                    };
+                    
+                    reader.readAsDataURL(blob);
+                    e.preventDefault();
+                    break;
+                }
+            }
+            
+            // 如果没有图片，允许默认粘贴行为
+            if (!hasImage) {
+                // 延迟处理文本粘贴，以便DOM更新
+                setTimeout(function() {
+                    notifyContentChanged();
+                }, 0);
+            }
+        }
+        
+        // 处理按键
+        function handleKeyDown(e) {
+            // Enter键处理
+            if (e.key === 'Enter') {
+                setTimeout(function() {
+                    notifyContentChanged();
+                }, 0);
+            }
+            
+            // Tab键处理（缩进）
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                // 可以在这里实现缩进逻辑
+                notifyContentChanged();
+            }
+        }
+        
+        // 处理点击（特别是checkbox）
+        function handleClick(e) {
+            if (e.target.type === 'checkbox') {
+                // checkbox状态变化
+                setTimeout(function() {
+                    notifyContentChanged();
+                }, 0);
+            }
+        }
+        
+        // 执行格式命令
+        function executeFormatCommand(action, value) {
+            const editor = document.getElementById('editor-content');
+            const selection = window.getSelection();
+            
+            if (!selection.rangeCount) return '无选中文本';
+            
+            document.execCommand('styleWithCSS', false, true);
+            
+            switch(action) {
+                case 'bold':
+                    document.execCommand('bold', false, null);
+                    break;
+                case 'italic':
+                    document.execCommand('italic', false, null);
+                    break;
+                case 'underline':
+                    document.execCommand('underline', false, null);
+                    break;
+                case 'strikethrough':
+                    document.execCommand('strikethrough', false, null);
+                    break;
+                case 'heading':
+                    // 处理标题
+                    const headingLevel = parseInt(value) || 1;
+                    applyHeading(headingLevel);
+                    break;
+                case 'textAlignment':
+                    document.execCommand('justify' + value, false, null);
+                    break;
+                case 'bulletList':
+                    toggleBulletList();
+                    break;
+                case 'orderList':
+                    toggleOrderList();
+                    break;
+                case 'checkbox':
+                    insertCheckbox();
+                    break;
+                case 'horizontalRule':
+                    insertHorizontalRule();
+                    break;
+                case 'quote':
+                    toggleQuote();
+                    break;
+                case 'indent':
+                    changeIndent(value);
+                    break;
+                default:
+                    console.warn('未知格式操作:', action);
+            }
+            
+            notifyContentChanged();
+            return '格式已应用: ' + action;
+        }
+        
+        // 应用标题
+        function applyHeading(level) {
+            const tagName = level === 1 ? 'h1' : level === 2 ? 'h2' : 'h3';
+            document.execCommand('formatBlock', false, tagName);
+        }
+        
+        // 切换无序列表
+        function toggleBulletList() {
+            document.execCommand('insertUnorderedList', false, null);
+        }
+        
+        // 切换有序列表
+        function toggleOrderList() {
+            document.execCommand('insertOrderedList', false, null);
+        }
+        
+        // 插入复选框
+        function insertCheckbox() {
+            const editor = document.getElementById('editor-content');
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+            
+            const checkboxContainer = document.createElement('div');
+            checkboxContainer.className = 'mi-note-checkbox';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            
+            const textSpan = document.createElement('span');
+            textSpan.textContent = '待办事项';
+            textSpan.contentEditable = true;
+            
+            checkboxContainer.appendChild(checkbox);
+            checkboxContainer.appendChild(textSpan);
+            
+            range.insertNode(checkboxContainer);
+            range.setStartAfter(checkboxContainer);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        
+        // 插入水平分割线
+        function insertHorizontalRule() {
+            const hr = document.createElement('hr');
+            hr.className = 'mi-note-hr';
+            
+            const editor = document.getElementById('editor-content');
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+            
+            range.insertNode(hr);
+            
+            // 在分割线后插入换行
+            const br = document.createElement('br');
+            range.setStartAfter(hr);
+            range.insertNode(br);
+            
+            // 移动光标到新行
+            range.setStartAfter(br);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        
+        // 切换引用块
+        function toggleQuote() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            
+            const range = selection.getRangeAt(0);
+            const selectedText = range.toString();
+            
+            if (selectedText) {
+                // 如果有选中文本，将其包裹在引用块中
+                const quoteElement = document.createElement('blockquote');
+                quoteElement.className = 'mi-note-quote';
+                quoteElement.textContent = selectedText;
+                
+                range.deleteContents();
+                range.insertNode(quoteElement);
+            } else {
+                // 如果没有选中文本，在当前行插入引用块
+                document.execCommand('formatBlock', false, 'blockquote');
+            }
+        }
+        
+        // 改变缩进
+        function changeIndent(direction) {
+            if (direction === 'increase') {
+                document.execCommand('indent', false, null);
+            } else {
+                document.execCommand('outdent', false, null);
+            }
+        }
+        
+        // 插入图片
+        function insertImageAtCursor(imageUrl, altText) {
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.alt = altText || '图片';
+            img.className = 'mi-note-image';
+            
+            const editor = document.getElementById('editor-content');
+            const selection = window.getSelection();
+            
+            if (selection.rangeCount) {
+                const range = selection.getRangeAt(0);
+                range.insertNode(img);
+                
+                // 在图片后插入空格以便继续输入
+                const space = document.createTextNode(' ');
+                range.setStartAfter(img);
+                range.insertNode(space);
+                
+                // 移动光标到空格后
+                range.setStartAfter(space);
+                range.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            } else {
+                editor.appendChild(img);
+            }
+            
+            notifyContentChanged();
+            return '图片已插入';
+        }
+        
+        // 获取选择信息
+        function getSelectionInfo() {
+            const selection = window.getSelection();
+            return {
+                hasSelection: selection.rangeCount > 0,
+                selectedText: selection.toString(),
+                rangeCount: selection.rangeCount
+            };
+        }
+        
+        // ==================== XML/HTML转换函数 ====================
+        
+        // 将小米笔记XML渲染为HTML
+        function renderXMLToEditor(xmlContent) {
+            const editor = document.getElementById('editor-content');
+            
+            if (!xmlContent || xmlContent.trim() === '') {
+                editor.innerHTML = '<div class="placeholder">开始输入...</div>';
+                return;
+            }
+            
+            try {
+                // 解析XML行
+                const lines = xmlContent.split('\n').filter(line => line.trim() !== '');
+                let html = '';
+                let inQuote = false;
+                let quoteContent = '';
+                let orderListNumber = 1;
+                let isInOrderList = false;
+                
+                for (let line of lines) {
+                    line = line.trim();
+                    
+                    // 处理引用块
+                    if (line.startsWith('<quote>')) {
+                        inQuote = true;
+                        quoteContent = '';
+                        continue;
+                    }
+                    
+                    if (line.endsWith('</quote>')) {
+                        inQuote = false;
+                        line = quoteContent + line.replace('</quote>', '');
+                        // 继续处理，下面会处理完整的引用内容
+                    }
+                    
+                    if (inQuote) {
+                        quoteContent += line + '\n';
+                        continue;
+                    }
+                    
+                    // 处理各种XML元素
+                    if (line.startsWith('<text')) {
+                        html += parseTextElement(line);
+                        isInOrderList = false;
+                    } else if (line.startsWith('<bullet')) {
+                        html += parseBulletElement(line);
+                        isInOrderList = false;
+                    } else if (line.startsWith('<order')) {
+                        const result = parseOrderElement(line, isInOrderList ? orderListNumber : 1);
+                        html += result.html;
+                        orderListNumber = result.nextNumber;
+                        isInOrderList = true;
+                    } else if (line.startsWith('<input type="checkbox"')) {
+                        html += parseCheckboxElement(line);
+                        isInOrderList = false;
+                    } else if (line.startsWith('<hr')) {
+                        html += parseHRElement(line);
+                        isInOrderList = false;
+                    } else if (line.startsWith('<quote>')) {
+                        // 引用块已经在上面处理了
+                        html += parseQuoteElement(line);
+                        isInOrderList = false;
+                    } else if (line.startsWith('<img')) {
+                        html += parseImageElement(line);
+                        isInOrderList = false;
+                    }
+                }
+                
+                editor.innerHTML = html;
+                
+                // 重新初始化编辑器状态
+                isInitialized = true;
+                console.log('XML内容已成功渲染为HTML');
+                
+            } catch (error) {
+                console.error('渲染XML时出错:', error);
+                editor.innerHTML = '<div class="placeholder">渲染内容时出错，请检查XML格式</div>';
+            }
+        }
+        
+        // 解析文本元素 <text indent="1">内容</text>
+        function parseTextElement(line) {
+            // 提取属性
+            const indentMatch = line.match(/indent="(\d+)"/);
+            const indent = indentMatch ? parseInt(indentMatch[1]) : 1;
+            
+            // 提取内容（去除外层text标签）
+            const contentStart = line.indexOf('>') + 1;
+            const contentEnd = line.lastIndexOf('<');
+            let content = line.substring(contentStart, contentEnd);
+            
+            // 检查是否有对齐标签（<center>或<right>）
+            let alignClass = '';
+            if (content.includes('<center>')) {
+                alignClass = 'center';
+                // 移除对齐标签，因为processRichTextTags会处理它们
+            } else if (content.includes('<right>')) {
+                alignClass = 'right';
+            }
+            
+            // 处理富文本标签（包括对齐标签）
+            content = processRichTextTags(content);
+            
+            // 构建HTML
+            let className = `mi-note-text indent-${indent}`;
+            if (alignClass) {
+                className += ` ${alignClass}`;
+            }
+            
+            return `<div class="${className}">${content}</div>`;
+        }
+        
+        // 解析无序列表元素 <bullet indent="1">内容</bullet>
+        function parseBulletElement(line) {
+            const indentMatch = line.match(/indent="(\d+)"/);
+            const indent = indentMatch ? parseInt(indentMatch[1]) : 1;
+            
+            const contentStart = line.indexOf('>') + 1;
+            const contentEnd = line.lastIndexOf('<');
+            let content = line.substring(contentStart, contentEnd);
+            
+            content = processRichTextTags(content);
+            
+            return `<div class="mi-note-bullet indent-${indent}">${content}</div>`;
+        }
+        
+        // 解析有序列表元素 <order indent="1" inputNumber="0">内容</order>
+        function parseOrderElement(line, currentNumber) {
+            const indentMatch = line.match(/indent="(\d+)"/);
+            const inputNumberMatch = line.match(/inputNumber="(\d+)"/);
+            const indent = indentMatch ? parseInt(indentMatch[1]) : 1;
+            const inputNumber = inputNumberMatch ? parseInt(inputNumberMatch[1]) : 0;
+            
+            const contentStart = line.indexOf('>') + 1;
+            const contentEnd = line.lastIndexOf('<');
+            let content = line.substring(contentStart, contentEnd);
+            
+            content = processRichTextTags(content);
+            
+            // 根据小米笔记格式示例的规则：
+            // - 如果inputNumber为0，使用当前计数器
+            // - 如果inputNumber不为0，使用实际值，并重置计数器
+            let displayNumber;
+            if (inputNumber === 0) {
+                displayNumber = currentNumber;
+            } else {
+                displayNumber = inputNumber;
+                // 重置计数器为inputNumber + 1
+                currentNumber = inputNumber + 1;
+            }
+            
+            const html = `<div class="mi-note-order indent-${indent}" data-number="${displayNumber}">${content}</div>`;
+            
+            return {
+                html: html,
+                nextNumber: currentNumber + 1
+            };
+        }
+        
+        // 解析复选框元素 <input type="checkbox" indent="1" level="3">内容</input>
+        function parseCheckboxElement(line) {
+            const checkedMatch = line.match(/checked="(\w+)"/);
+            const indentMatch = line.match(/indent="(\d+)"/);
+            const levelMatch = line.match(/level="(\d+)"/);
+            
+            const checked = checkedMatch ? (checkedMatch[1] === 'true') : false;
+            const indent = indentMatch ? parseInt(indentMatch[1]) : 1;
+            const level = levelMatch ? parseInt(levelMatch[1]) : 3;
+            
+            const contentStart = line.indexOf('>') + 1;
+            const contentEnd = line.lastIndexOf('<');
+            let content = line.substring(contentStart, contentEnd);
+            
+            content = processRichTextTags(content);
+            
+            const checkedAttr = checked ? 'checked' : '';
+            return `<div class="mi-note-checkbox indent-${indent}"><input type="checkbox" ${checkedAttr}>${content}</div>`;
+        }
+        
+        // 解析水平分割线 <hr/>
+        function parseHRElement(line) {
+            return '<hr class="mi-note-hr">';
+        }
+        
+        // 解析引用块 <quote>内容</quote>
+        function parseQuoteElement(line) {
+            const contentStart = line.indexOf('>') + 1;
+            const contentEnd = line.lastIndexOf('<');
+            let content = line.substring(contentStart, contentEnd);
+            
+            content = processRichTextTags(content);
+            
+            return `<blockquote class="mi-note-quote">${content}</blockquote>`;
+        }
+        
+        // 解析图片元素 <img src="..." alt="..."/>
+        function parseImageElement(line) {
+            const srcMatch = line.match(/src="([^"]+)"/);
+            const altMatch = line.match(/alt="([^"]*)"/);
+            const src = srcMatch ? srcMatch[1] : '';
+            const alt = altMatch ? altMatch[1] : '图片';
+            
+            return `<img src="${src}" alt="${alt}" class="mi-note-image">`;
+        }
+        
+        // 处理富文本标签
+        function processRichTextTags(content) {
+            // 替换小米笔记标签为标准HTML标签
+            content = content.replace(/<b>/g, '<b>').replace(/<\/b>/g, '</b>');
+            content = content.replace(/<i>/g, '<i>').replace(/<\/i>/g, '</i>');
+            content = content.replace(/<u>/g, '<u>').replace(/<\/u>/g, '</u>');
+            content = content.replace(/<delete>/g, '<delete>').replace(/<\/delete>/g, '</delete>');
+            
+            // 处理标题标签（根据小米笔记格式示例）
+            content = content.replace(/<size>/g, '<span class="size-large">').replace(/<\/size>/g, '</span>');
+            content = content.replace(/<mid-size>/g, '<span class="size-mid">').replace(/<\/mid-size>/g, '</span>');
+            content = content.replace(/<h3-size>/g, '<span class="size-h3">').replace(/<\/h3-size>/g, '</span>');
+            
+            // 处理对齐标签
+            content = content.replace(/<center>/g, '<span style="text-align: center; display: block;">').replace(/<\/center>/g, '</span>');
+            content = content.replace(/<right>/g, '<span style="text-align: right; display: block;">').replace(/<\/right>/g, '</span>');
+            
+            return content;
+        }
+        
+        // 将HTML转换回小米笔记XML
+        function convertHTMLToXML(htmlContent) {
+            if (!htmlContent || htmlContent.trim() === '') {
+                return '';
+            }
+            
+            console.log('[convertHTMLToXML] 开始转换HTML到XML，HTML长度:', htmlContent.length);
+            
+            // 创建临时div来解析HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            
+            let xmlLines = [];
+            
+            // 遍历所有子节点（包括嵌套的元素）
+            const processNode = (node) => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    const tagName = node.tagName ? node.tagName.toLowerCase() : '';
+                    const className = node.className || '';
+                    
+            // 检查是否是特殊元素（列表、分割线、引用等）
+            // 支持我们自己的 mi-note- 前缀，以及小米笔记的 pm- 前缀，以及标准HTML标签
+            const isSpecialElement = className.includes('mi-note-bullet') ||
+                                           className.includes('mi-note-order') ||
+                                           className.includes('mi-note-checkbox') ||
+                                           className.includes('mi-note-hr') ||
+                                           className.includes('mi-note-quote') ||
+                                           className.includes('mi-note-image') ||
+                                           className.includes('pm-bullet-list') ||
+                                           className.includes('pm-order-list') ||
+                                           className.includes('pm-checklist') ||
+                                           tagName === 'hr' ||
+                                           tagName === 'blockquote' ||
+                                           tagName === 'img' ||
+                                           tagName === 'ul' ||
+                                           tagName === 'ol' ||
+                                           tagName === 'li';
+                    
+                    if (isSpecialElement) {
+                        // 直接转换特殊元素
+                        const xmlLine = convertNodeToXML(node);
+                        if (xmlLine) {
+                            xmlLines.push(xmlLine);
+                        }
+                    } else if (className.includes('mi-note-text') || tagName === 'div' || tagName === 'p') {
+                        // 处理文本元素，检查是否包含嵌套的特殊元素
+                        const hasSpecialChildren = node.querySelector('.mi-note-bullet, .mi-note-order, .mi-note-checkbox, .mi-note-hr, .mi-note-quote, .mi-note-image, .pm-bullet-list, .pm-order-list, .pm-checklist, hr, blockquote, img');
+                        
+                        if (hasSpecialChildren) {
+                            // 如果包含特殊子元素，递归处理子节点
+                            const children = node.childNodes;
+                            for (let child of children) {
+                                processNode(child);
+                            }
+                        } else {
+                            // 普通文本元素
+                            const xmlLine = convertNodeToXML(node);
+                            if (xmlLine) {
+                                xmlLines.push(xmlLine);
+                            }
+                        }
+                    } else {
+                        // 其他元素，递归处理子节点
+                        const children = node.childNodes;
+                        for (let child of children) {
+                            processNode(child);
+                        }
+                    }
+                } else if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== '') {
+                    // 处理纯文本节点（可能是占位符）
+                    if (!node.textContent.includes('开始输入...')) {
+                        xmlLines.push(`<text indent="1" align="left">${escapeXML(node.textContent)}</text>`);
+                    }
+                }
+            };
+            
+            // 处理所有直接子节点
+            const nodes = tempDiv.childNodes;
+            for (let node of nodes) {
+                processNode(node);
+            }
+            
+            const result = xmlLines.join('\n');
+            console.log('[convertHTMLToXML] 转换完成，XML行数:', xmlLines.length, '，XML长度:', result.length);
+            console.log('[convertHTMLToXML] XML内容预览:', result.substring(0, 200));
+            
+            return result;
+        }
+        
+        // 将DOM节点转换为XML行
+        function convertNodeToXML(node) {
+            const tagName = node.tagName ? node.tagName.toLowerCase() : '';
+            const className = node.className || '';
+            
+            console.log('[convertNodeToXML] 处理节点:', tagName, className);
+            
+            // 处理文本元素（支持 mi-note-text 和普通 p 标签）
+            if (className.includes('mi-note-text') || (tagName === 'p' && !className.includes('pm-block'))) {
+                const indent = getIndentFromClass(className) || getIndentFromDataAttr(node) || '1';
+                const align = getAlignFromClass(className);
+                const content = extractContentWithRichText(node);
+                
+                // 处理高亮（pm-highlight）
+                let processedContent = content;
+                if (content.includes('pm-highlight')) {
+                    // 如果内容包含高亮标记，需要在提取时处理
+                    // 这里先提取内容，高亮会在extractContentWithRichText中处理
+                }
+                
+                const result = `<text indent="${indent}" align="${align}">${processedContent}</text>`;
+                console.log('[convertNodeToXML] 文本元素:', result);
+                return result;
+            }
+            
+            // 处理标题元素（pm-size-middle, pm-size-h3等）
+            if (className.includes('pm-size-middle')) {
+                const indent = getIndentFromClass(className) || getIndentFromDataAttr(node) || '1';
+                const content = extractContentWithRichText(node);
+                // 二级标题使用 <mid-size> 标签
+                const result = `<text indent="${indent}" align="left"><mid-size>${content}</mid-size></text>`;
+                console.log('[convertNodeToXML] 二级标题:', result);
+                return result;
+            }
+            
+            if (className.includes('pm-size-h3')) {
+                const indent = getIndentFromClass(className) || getIndentFromDataAttr(node) || '1';
+                const content = extractContentWithRichText(node);
+                // 三级标题使用 <h3-size> 标签
+                const result = `<text indent="${indent}" align="left"><h3-size>${content}</h3-size></text>`;
+                console.log('[convertNodeToXML] 三级标题:', result);
+                return result;
+            }
+            
+            // 处理无序列表（支持 mi-note-bullet 和 pm-bullet-list）
+            if (className.includes('mi-note-bullet') || className.includes('pm-bullet-list')) {
+                const indent = getIndentFromClass(className) || getIndentFromDataAttr(node);
+                const content = extractContentWithRichText(node);
+                // 注意：Swift端期望格式为 <bullet ... />文本内容
+                const result = `<bullet indent="${indent}" />${content}`;
+                console.log('[convertNodeToXML] 无序列表:', result, 'content长度:', content.length);
+                return result;
+            }
+            
+            // 处理有序列表（支持 mi-note-order 和 pm-order-list）
+            if (className.includes('mi-note-order') || className.includes('pm-order-list')) {
+                const indent = getIndentFromClass(className) || getIndentFromDataAttr(node);
+                // 支持 data-number 和 data-start 属性
+                const numberAttr = node.getAttribute('data-number') || node.getAttribute('data-start') || '1';
+                const number = parseInt(numberAttr, 10);
+                // 小米笔记 XML 中 inputNumber 是 0-based，所以需要减 1
+                const zeroBasedNumber = Math.max(0, number - 1);
+                
+                const content = extractContentWithRichText(node);
+                // 注意：Swift端期望格式为 <order ... />文本内容
+                const result = `<order indent="${indent}" inputNumber="${zeroBasedNumber}" />${content}`;
+                console.log('[convertNodeToXML] 有序列表:', result, 'content长度:', content.length);
+                return result;
+            }
+            
+            // 处理复选框（支持 mi-note-checkbox 和 pm-checklist）
+            if (className.includes('mi-note-checkbox') || className.includes('pm-checklist')) {
+                const checkbox = node.querySelector('input[type="checkbox"]');
+                // 支持 data-checked 属性
+                const dataChecked = node.getAttribute('data-checked');
+                const checked = dataChecked === 'true' || (checkbox ? checkbox.checked : false);
+                const indent = getIndentFromClass(className) || getIndentFromDataAttr(node);
+                const level = node.getAttribute('data-level') || '3';
+                
+                // 提取内容时，确保不包含 checkbox 本身
+                // extractContentWithRichText 已经处理了移除 checkbox input 元素
+                let content = extractContentWithRichText(node);
+                
+                // 如果 content 为空，尝试 textContent
+                if (!content.trim()) {
+                    console.log('[convertNodeToXML] 复选框 content 为空，尝试 clone.textContent');
+                    // 克隆节点并移除 checkbox
+                    const clone = node.cloneNode(true);
+                    const cb = clone.querySelector('input[type="checkbox"]');
+                    if (cb) cb.parentNode.removeChild(cb);
+                    content = clone.textContent || '';
+                }
+                
+                // 无论如何，先匹配 Swift 端的格式
+                const result = `<input type="checkbox" indent="${indent}" level="${level}" />${content}`;
+                console.log('[convertNodeToXML] 复选框:', result, 'content长度:', content.length);
+                return result;
+            }
+            
+            // 处理水平分割线
+            if (className.includes('mi-note-hr') || tagName === 'hr') {
+                console.log('[convertNodeToXML] 水平分割线');
+                return '<hr />';
+            }
+            
+            // 处理引用块（支持 mi-note-quote 和 blockquote.quote）
+            if (className.includes('mi-note-quote') || (tagName === 'blockquote' && className.includes('quote'))) {
+                // 对于引用块，需要处理内部的段落
+                let quoteContent = '';
+                const children = node.childNodes;
+                for (let child of children) {
+                    if (child.nodeType === Node.ELEMENT_NODE) {
+                        const childTag = child.tagName ? child.tagName.toLowerCase() : '';
+                        const childClass = child.className || '';
+                        if (childTag === 'p' || childClass.includes('mi-note-text')) {
+                            const indent = getIndentFromClass(childClass) || getIndentFromDataAttr(child) || '1';
+                            const content = extractContentWithRichText(child);
+                            quoteContent += `<text indent="${indent}" align="left">${content}</text>\n`;
+                        }
+                    }
+                }
+                quoteContent = quoteContent.trim();
+                const result = `<quote>${quoteContent}</quote>`;
+                console.log('[convertNodeToXML] 引用块:', result);
+                return result;
+            }
+            
+            // 处理图片
+            if (className.includes('mi-note-image') || tagName === 'img') {
+                const src = node.getAttribute('src') || '';
+                const alt = node.getAttribute('alt') || '';
+                const fileId = node.getAttribute('fileid') || ''; // 小米笔记特有属性
+                
+                // 如果有 fileId，使用小米笔记的 img 标签格式
+                // <img fileid="fileId" ... />
+                if (fileId) {
+                     return `<img fileid="${fileId}" src="${src}" alt="${alt}" />`;
+                }
+                
+                const result = `<img src="${src}" alt="${alt}" />`;
+                console.log('[convertNodeToXML] 图片:', result);
+                return result;
+            }
+            
+            // 处理标准HTML列表项（<li>标签）
+            if (tagName === 'li') {
+                // 检查父元素是<ul>还是<ol>
+                const parent = node.parentElement;
+                const parentTag = parent ? parent.tagName.toLowerCase() : '';
+                const parentClass = parent ? parent.className || '' : '';
+                
+                // 确定缩进级别（基于嵌套深度）
+                let indent = '1';
+                let current = node;
+                let depth = 0;
+                while (current.parentElement) {
+                    const parentTag = current.parentElement.tagName.toLowerCase();
+                    if (parentTag === 'ul' || parentTag === 'ol') {
+                        depth++;
+                    }
+                    current = current.parentElement;
+                }
+                if (depth > 0) {
+                    indent = Math.min(depth, 5).toString(); // 最大缩进5级
+                }
+                
+                const content = extractContentWithRichText(node);
+                
+                if (parentTag === 'ul' || parentClass.includes('mi-note-bullet') || parentClass.includes('pm-bullet-list')) {
+                    // 无序列表
+                    const result = `<bullet indent="${indent}">${content}</bullet>`;
+                    console.log('[convertNodeToXML] 标准HTML无序列表项:', result);
+                    return result;
+                } else if (parentTag === 'ol' || parentClass.includes('mi-note-order') || parentClass.includes('pm-order-list')) {
+                    // 有序列表
+                    // 尝试从data-start或data-number属性获取序号
+                    const startAttr = parent ? parent.getAttribute('start') : null;
+                    const dataStart = parent ? parent.getAttribute('data-start') : null;
+                    const dataNumber = node.getAttribute('data-number');
+                    
+                    let number = '1';
+                    if (dataNumber) {
+                        number = dataNumber;
+                    } else if (dataStart) {
+                        number = dataStart;
+                    } else if (startAttr) {
+                        number = startAttr;
+                    }
+                    
+                    const result = `<order indent="${indent}" inputNumber="${number}">${content}</order>`;
+                    console.log('[convertNodeToXML] 标准HTML有序列表项:', result);
+                    return result;
+                }
+            }
+            
+            // 处理标准HTML列表容器（<ul>和<ol>标签）
+            if (tagName === 'ul' || tagName === 'ol') {
+                // 对于列表容器，我们需要处理其子元素（<li>）
+                // 返回null，让convertHTMLToXML递归处理子节点
+                console.log('[convertNodeToXML] 处理标准HTML列表容器:', tagName);
+                return null;
+            }
+            
+            // 处理标准HTML元素（如p, div等），但只有在没有特殊class时才处理
+            if ((tagName === 'p' || tagName === 'div') && !className.includes('mi-note-')) {
+                const content = extractContentWithRichText(node);
+                if (content.trim() !== '') {
+                    const result = `<text indent="1" align="left">${content}</text>`;
+                    console.log('[convertNodeToXML] 标准HTML元素:', result);
+                    return result;
+                }
+            }
+            
+            // 如果无法识别，返回null（不应该到达这里，因为convertHTMLToXML已经过滤了）
+            console.warn('[convertNodeToXML] 无法识别的节点:', tagName, className, node);
+            return null;
+        }
+        
+        // 从class名中提取缩进级别
+        function getIndentFromClass(className) {
+            if (!className) return null;
+            const match = className.match(/indent-(\d+)/);
+            return match ? match[1] : null;
+        }
+        
+        // 从data-indentation属性中提取缩进级别
+        function getIndentFromDataAttr(node) {
+            const indentation = node.getAttribute('data-indentation');
+            return indentation || '1';
+        }
+        
+        // 从class名中提取对齐方式
+        function getAlignFromClass(className) {
+            if (className.includes('center')) return 'center';
+            if (className.includes('right')) return 'right';
+            return 'left';
+        }
+        
+        // 提取内容并保留富文本标签
+        function extractContentWithRichText(node) {
+            let content = '';
+            
+            // 克隆节点以避免修改原始DOM
+            const clone = node.cloneNode(true);
+            
+            // 移除不需要的属性
+            clone.removeAttribute('class');
+            clone.removeAttribute('data-number');
+            
+            // 处理复选框容器
+            const checkbox = clone.querySelector('input[type="checkbox"]');
+            if (checkbox) {
+                checkbox.parentNode.removeChild(checkbox);
+            }
+            
+            // 处理列表标记
+            if (clone.classList && clone.classList.contains('mi-note-bullet')) {
+                // 移除伪元素内容
+                clone.style.setProperty('--bullet-content', '""');
+            }
+            
+            if (clone.classList && clone.classList.contains('mi-note-order')) {
+                clone.removeAttribute('data-number');
+            }
+            
+            // 转换HTML标签回小米笔记标签
+            content = clone.innerHTML;
+            
+            // 转换标准HTML标签为小米笔记标签（保持不变）
+            content = content.replace(/<b>/g, '<b>').replace(/<\/b>/g, '</b>');
+            content = content.replace(/<i>/g, '<i>').replace(/<\/i>/g, '</i>');
+            content = content.replace(/<u>/g, '<u>').replace(/<\/u>/g, '</u>');
+            content = content.replace(/<delete>/g, '<delete>').replace(/<\/delete>/g, '</delete>');
+            content = content.replace(/<del>/g, '<delete>').replace(/<\/del>/g, '</delete>');
+            
+            // 处理高亮（pm-highlight）
+            // 使用正则表达式匹配完整的span标签对
+            content = content.replace(/<span class="pm-highlight[^"]*">(.*?)<\/span>/g, '<highlight>$1</highlight>');
+            
+            // 转换标题类（根据小米笔记格式示例）
+            content = content.replace(/<span class="size-large">/g, '<size>');
+            content = content.replace(/<span class="size-mid">/g, '<mid-size>');
+            content = content.replace(/<span class="size-h3">/g, '<h3-size>');
+            
+            // 转换对齐样式
+            content = content.replace(/<span style="text-align: center; display: block;">/g, '<center>');
+            content = content.replace(/<span style="text-align: right; display: block;">/g, '<right>');
+            
+            // 替换所有span结束标签（但要保留已转换的标签）
+            // 先标记已转换的标签
+            content = content.replace(/<\/highlight>/g, '[[HIGHLIGHT_END]]');
+            content = content.replace(/<\/size>/g, '[[SIZE_END]]');
+            content = content.replace(/<\/mid-size>/g, '[[MIDSIZE_END]]');
+            content = content.replace(/<\/h3-size>/g, '[[H3SIZE_END]]');
+            content = content.replace(/<\/center>/g, '[[CENTER_END]]');
+            content = content.replace(/<\/right>/g, '[[RIGHT_END]]');
+            
+            // 删除剩余的span标签
+            content = content.replace(/<span[^>]*>/g, '');
+            content = content.replace(/<\/span>/g, '');
+            
+            // 恢复标记的标签
+            content = content.replace(/\[\[HIGHLIGHT_END\]\]/g, '</highlight>');
+            content = content.replace(/\[\[SIZE_END\]\]/g, '</size>');
+            content = content.replace(/\[\[MIDSIZE_END\]\]/g, '</mid-size>');
+            content = content.replace(/\[\[H3SIZE_END\]\]/g, '</h3-size>');
+            content = content.replace(/\[\[CENTER_END\]\]/g, '</center>');
+            content = content.replace(/\[\[RIGHT_END\]\]/g, '</right>');
+            
+            // 清理多余的空白span标签
+            content = content.replace(/<span[^>]*>\s*<\/span>/g, '');
+            
+            return content;
+        }
+        
+        // 转义XML特殊字符
+        function escapeXML(text) {
+                return text
+                    .replace(/&/g, '&amp;')    // & 转义为 &amp;
+                    .replace(/</g, '&lt;')     // < 转义为 &lt;
+                    .replace(/>/g, '&gt;')     // > 转义为 &gt;
+                    .replace(/"/g, '&quot;')   // " 转义为 &quot;
+                    .replace(/'/g, '&apos;');  // ' 转义为 &apos;
+            }
+
+        
+        // 初始化完成
+        console.log('小米笔记Web编辑器已初始化完成');
+    </script>
+</body>
+</html>

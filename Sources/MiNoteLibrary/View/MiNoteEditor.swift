@@ -186,7 +186,17 @@ struct MiNoteEditorRepresentable: NSViewRepresentable {
             var isStrikethrough: Bool = false
             var hasHighlight: Bool = false
             var textAlignment: NSTextAlignment = .left
-            var textStyle: FormatMenuView.TextStyle = .body
+            var textStyle: TextStyle = .body
+        }
+        
+        // 文本样式枚举（用于格式状态检测）
+        enum TextStyle: String, CaseIterable {
+            case title = "标题"
+            case subtitle = "小标题"
+            case subheading = "副标题"
+            case body = "正文"
+            case bulletList = "无序列表"
+            case numberedList = "有序列表"
         }
         
         // 检查指定范围是否为只读区域
@@ -336,16 +346,16 @@ struct MiNoteEditorRepresentable: NSViewRepresentable {
         isUpdatingFromExternal = true
         defer { isUpdatingFromExternal = false }
         
-            // macOS 26 原生存储：从 RTF 数据加载
+            // 从 archivedData 加载
             if let rtfData = parent.rtfData {
-                // 从 RTF 数据创建 NSAttributedString
-                if let attributedString = try? NSAttributedString(data: rtfData, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil) {
+                // 从 archivedData 创建 NSAttributedString
+                if let attributedString = try? NSAttributedString(data: rtfData, format: .archivedData) {
                     textStorage.setAttributedString(attributedString)
                     lastRTFData = rtfData
-                    print("[MiNoteEditor] 从 RTF 数据加载内容，长度: \(rtfData.count) 字节")
+                    print("[MiNoteEditor] 从 archivedData 加载内容，长度: \(rtfData.count) 字节")
                 } else {
-                    print("[MiNoteEditor] ⚠️ 无法从 RTF 数据创建 NSAttributedString")
-                    // 如果 RTF 解析失败，创建一个空的 AttributedString
+                    print("[MiNoteEditor] ⚠️ 无法从 archivedData 创建 NSAttributedString")
+                    // 如果解析失败，创建一个空的 AttributedString
                     textStorage.setAttributedString(NSAttributedString(string: ""))
                     lastRTFData = nil
                 }
@@ -649,26 +659,25 @@ struct MiNoteEditorRepresentable: NSViewRepresentable {
             
             // 异步处理内容更新，避免在视图更新期间修改状态
             pendingUpdateTask = Task { @MainActor in
-                // macOS 26 原生存储：将 NSAttributedString 转换为 RTF 数据
+                // 将 NSAttributedString 转换为 archivedData
                 let attributedString = textView.attributedString()
                 
-                // 将 NSAttributedString 转换为 RTF 数据
-                let rtfRange = NSRange(location: 0, length: attributedString.length)
-                if let rtfData = try? attributedString.data(from: rtfRange, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]) {
+                // 将 NSAttributedString 转换为 archivedData
+                if let rtfData = try? attributedString.richTextData(for: .archivedData) {
                     // 只在内容真正改变时才更新
                     if rtfData != lastRTFData {
                         isUpdatingFromExternal = true
                         
-                        // 更新 RTF 数据
+                        // 更新 archivedData
                         parent.rtfData = rtfData
                         lastRTFData = rtfData
                         
-                        print("[MiNoteEditor] 保存 RTF 数据，长度: \(rtfData.count) 字节")
+                        print("[MiNoteEditor] 保存 archivedData，长度: \(rtfData.count) 字节")
                         
                         isUpdatingFromExternal = false
                     }
                 } else {
-                    print("[MiNoteEditor] ⚠️ 无法将 NSAttributedString 转换为 RTF 数据")
+                    print("[MiNoteEditor] ⚠️ 无法生成 archivedData")
                 }
             }
         }
@@ -875,7 +884,7 @@ struct MiNoteEditorRepresentable: NSViewRepresentable {
             print("🔍 [updateFormatState] 检测到对齐方式: \(detectedAlignment.rawValue) (左=0, 居中=1, 右=2)")
             
             // 检测文本样式（标题、正文、列表等）
-            var detectedStyle: FormatMenuView.TextStyle = .body
+            var detectedStyle: TextStyle = .body
             
             // 获取光标所在段落的范围（用于检测文本样式）
             let styleString = textStorage.string

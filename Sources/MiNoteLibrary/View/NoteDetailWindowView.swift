@@ -3,11 +3,13 @@ import AppKit
 import MiNoteLibrary
 
 /// 笔记详情窗口视图（用于在新窗口打开笔记）
-struct NoteDetailWindowView: View {
+public struct NoteDetailWindowView: View {
     @StateObject private var viewModel = NotesViewModel()
     @State private var noteId: String?
     
-    var body: some View {
+    public init() {}
+    
+    public var body: some View {
         Group {
             if let noteId = noteId,
                let note = viewModel.notes.first(where: { $0.id == noteId }) {

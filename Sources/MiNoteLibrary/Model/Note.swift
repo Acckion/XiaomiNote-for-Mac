@@ -1,6 +1,5 @@
 import Foundation
 import AppKit
-import RichTextKit
 
 /// 笔记数据模型
 /// 
@@ -328,17 +327,10 @@ public struct Note: Identifiable, Codable, Hashable {
             do {
                 let archivedData = try attributedString.richTextData(for: .archivedData)
                 self.rtfData = archivedData
-                print("[NOTE] ✅ 成功生成rtfData，长度: \(archivedData.count) 字节")
+                print("[NOTE] ✅ 成功生成archivedData，长度: \(archivedData.count) 字节")
             } catch {
-                print("[NOTE] ⚠️ 生成archivedData失败: \(error)，尝试使用RTF格式")
-                // 回退到RTF格式
-                let rtfRange = NSRange(location: 0, length: attributedString.length)
-                if let rtfData = try? attributedString.data(from: rtfRange, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]) {
-                    self.rtfData = rtfData
-                    print("[NOTE] ✅ 使用RTF格式生成rtfData，长度: \(rtfData.count) 字节")
-                } else {
-                    print("[NOTE] ⚠️ RTF格式也失败，rtfData保持为nil")
-                }
+                print("[NOTE] ❌ 生成archivedData失败: \(error)，rtfData保持为nil")
+                self.rtfData = nil
             }
         } else if self.rtfData != nil {
             print("[NOTE] rtfData已存在，跳过生成，长度: \(self.rtfData?.count ?? 0) 字节")

@@ -5,52 +5,35 @@ import SwiftUI
 @available(macOS 14.0, *)
 public struct AttributedStringConverter {
     
-    /// 将 RTF Data 转换为 AttributedString
-    /// 支持 archivedData 和 RTF 两种格式
+    /// 将 archivedData 转换为 AttributedString
+    /// 只支持 archivedData 格式（RichTextKit 的标准格式）
     public static func rtfDataToAttributedString(_ rtfData: Data?) -> AttributedString? {
         guard let rtfData = rtfData else {
-            print("![[debug]] [AttributedStringConverter] rtfData 为 nil")
+            print("![[debug]] [AttributedStringConverter] archivedData 为 nil")
             return nil
         }
         
-        print("![[debug]] [AttributedStringConverter] 开始转换 rtfData，长度: \(rtfData.count) 字节")
+        print("![[debug]] [AttributedStringConverter] 开始转换 archivedData，长度: \(rtfData.count) 字节")
         
-        // 首先尝试使用 RichTextKit 的 archivedData 格式（这是主要格式）
+        // 使用 RichTextKit 的 archivedData 格式
         do {
             let nsAttributedString = try NSAttributedString(data: rtfData, format: .archivedData)
             print("![[debug]] [AttributedStringConverter] ✅ 使用 archivedData 格式成功，长度: \(nsAttributedString.length)")
             return AttributedString(nsAttributedString)
         } catch {
-            print("![[debug]] [AttributedStringConverter] ⚠️ archivedData 格式失败: \(error)，尝试 RTF 格式")
-        }
-        
-        // 如果 archivedData 失败，尝试 RTF 格式
-        guard let nsAttributedString = try? NSAttributedString(
-            data: rtfData,
-            options: [.documentType: NSAttributedString.DocumentType.rtf],
-            documentAttributes: nil
-        ) else {
-            print("![[debug]] [AttributedStringConverter] ❌ RTF 格式也失败")
+            print("![[debug]] [AttributedStringConverter] ❌ archivedData 格式失败: \(error)")
             return nil
         }
-        
-        print("![[debug]] [AttributedStringConverter] ✅ 使用 RTF 格式成功，长度: \(nsAttributedString.length)")
-        
-        // 将 NSAttributedString 转换为 AttributedString
-        return AttributedString(nsAttributedString)
     }
     
-    /// 将 AttributedString 转换为 RTF Data
+    /// 将 AttributedString 转换为 archivedData
+    /// 使用 RichTextKit 的 archivedData 格式（支持所有附件类型）
     public static func attributedStringToRTFData(_ attributedString: AttributedString) -> Data? {
         // 将 AttributedString 转换为 NSAttributedString
         let nsAttributedString = NSAttributedString(attributedString)
         
-        // 将 NSAttributedString 转换为 RTF 数据
-        let rtfRange = NSRange(location: 0, length: nsAttributedString.length)
-        return try? nsAttributedString.data(
-            from: rtfRange,
-            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
-        )
+        // 使用 archivedData 格式（RichTextKit 标准格式）
+        return try? nsAttributedString.richTextData(for: .archivedData)
     }
     
     /// 将 XML 内容转换为 AttributedString（用于向后兼容）
@@ -86,21 +69,9 @@ public struct AttributedStringConverter {
         }
         
         // 将 NSAttributedString 转换为 AttributedString
-        // 使用 RTF 作为中间格式，确保所有属性都被正确转换
-        // 这是因为 AttributedString(nsAttributedString) 在某些情况下可能丢失属性
-        let rtfRange = NSRange(location: 0, length: nsAttributedString.length)
-        guard let rtfData = try? nsAttributedString.data(from: rtfRange, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]) else {
-            print("⚠️ [AttributedStringConverter] 无法生成 RTF 数据，使用直接转换")
-            return AttributedString(nsAttributedString)
-        }
-        
-        // 通过 RTF 数据转换，这样可以确保所有格式属性都被保留
-        guard let attributedString = rtfDataToAttributedString(rtfData) else {
-            print("⚠️ [AttributedStringConverter] RTF 转换失败，使用直接转换")
-            return AttributedString(nsAttributedString)
-        }
-        
-        print("✅ [AttributedStringConverter] 使用 RTF 转换方法，确保格式保留")
+        // 直接转换，不再使用 RTF 作为中间格式
+        let attributedString = AttributedString(nsAttributedString)
+        print("✅ [AttributedStringConverter] 直接转换为 AttributedString")
         
         // 调试：检查转换后的 AttributedString 的属性
         print("🔍 [AttributedStringConverter] AttributedString 字符数: \(attributedString.characters.count)")

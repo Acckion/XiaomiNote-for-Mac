@@ -13,7 +13,6 @@ import SwiftUI
 struct DemoApp: App {
 
     var body: some Scene {
-
         DocumentGroup(newDocument: DemoDocument()) { file in
             DemoEditorScreen(
                 document: file.$document

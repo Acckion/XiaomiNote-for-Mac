@@ -146,15 +146,16 @@ struct NewNoteView: View {
         }
         
         let attributedString = MiNoteContentParser.parseToAttributedString(bodyContent, noteRawData: nil)
-        let rtfRange = NSRange(location: 0, length: attributedString.length)
-        return try? attributedString.data(from: rtfRange, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+        // 使用 archivedData 格式
+        return try? attributedString.richTextData(for: .archivedData)
     }
     
-    /// 将 RTF 数据转换为 XML
+    /// 将 archivedData 转换为 XML
     private func convertRTFToXML(_ rtfData: Data?) -> String? {
         guard let rtfData = rtfData else { return nil }
         
-        guard let attributedString = try? NSAttributedString(data: rtfData, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil) else {
+        // 使用 archivedData 格式读取
+        guard let attributedString = try? NSAttributedString(data: rtfData, format: .archivedData) else {
             return nil
         }
         
