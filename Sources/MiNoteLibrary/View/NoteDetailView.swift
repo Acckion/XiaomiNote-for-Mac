@@ -198,8 +198,18 @@ struct NoteDetailView: View {
                     noteRawData: viewModel.selectedNote?.rawData,
                     xmlContent: viewModel.selectedNote?.primaryXMLContent,
                     onContentChange: { newRTFData in
-                        // RTF数据变化时，更新 editedRTFData 并立即保存
+                        // RTF数据变化时，更新 editedRTFData 并检查是否需要保存
                         guard !isInitializing, let rtfData = newRTFData else {
+                            return
+                        }
+                        
+                        // 检查内容是否真的变化了（避免仅打开笔记就触发保存）
+                        // 比较 RTF 数据，如果相同则跳过保存
+                        if let lastSaved = lastSavedRTFData, lastSaved == rtfData {
+                            // RTF 数据相同，不需要保存（避免不必要的网络请求和修改时间更新）
+                            // 但需要更新 editedRTFData 以确保状态一致
+                            print("![[debug]]数据相同，不需要保存")
+                            editedRTFData = rtfData
                             return
                         }
                         
@@ -210,7 +220,7 @@ struct NoteDetailView: View {
                             editedAttributedText = attributedText
                         }
                         
-                        // 立即触发保存（文本变化或格式变化都需要保存）
+                        // 内容确实变化了，触发保存
                         guard let note = viewModel.selectedNote else {
                             return
                         }

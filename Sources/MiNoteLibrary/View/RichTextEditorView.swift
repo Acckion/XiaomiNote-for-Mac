@@ -487,35 +487,44 @@ struct RichTextEditorWrapper: View {
     /// 处理内容变化
     /// 
     /// 将编辑器内容转换为 archivedData 格式并触发回调。
-    /// 不进行比较，直接更新并触发保存。
+    /// 会进行比较，只有内容真的变化时才触发回调。
     /// 
     /// - Parameter newText: 新的 NSAttributedString 内容
     private func handleContentChange(_ newText: NSAttributedString) {
         // 将NSAttributedString转换为 archivedData 格式（支持图片附件）
+        let archivedData: Data?
         do {
-            let archivedData = try newText.richTextData(for: .archivedData)
-            
-            // 更新状态
-            self.rtfData = archivedData
-            lastRTFData = archivedData
-            attributedText = newText
-            
-            // 触发回调
-            onContentChange?(archivedData)
+            archivedData = try newText.richTextData(for: .archivedData)
         } catch {
             // 如果失败，尝试使用 NSKeyedArchiver
-            if let archivedData = try? NSKeyedArchiver.archivedData(
+            archivedData = try? NSKeyedArchiver.archivedData(
                 withRootObject: newText,
                 requiringSecureCoding: false
-            ) {
-                self.rtfData = archivedData
-                lastRTFData = archivedData
-                attributedText = newText
-                onContentChange?(archivedData)
-            } else {
-                print("[RichTextEditorWrapper] ⚠️ 无法生成 archivedData: \(error)")
-            }
+            )
         }
+        
+        guard let archivedData = archivedData else {
+            print("[RichTextEditorWrapper] ⚠️ 无法生成 archivedData")
+            return
+        }
+        
+        // 检查内容是否真的变化了（避免仅加载笔记就触发保存）
+        if let lastSaved = lastRTFData, lastSaved == archivedData {
+            // 数据相同，不需要触发回调
+            print("![[debug]]数据相同，不需要触发回调")
+            // 但仍然更新状态以确保一致性
+            self.rtfData = archivedData
+            attributedText = newText
+            return
+        }
+        
+        // 内容确实变化了，更新状态并触发回调
+        self.rtfData = archivedData
+        lastRTFData = archivedData
+        attributedText = newText
+        
+        // 触发回调
+        onContentChange?(archivedData)
     }
     
     /// 处理格式操作
