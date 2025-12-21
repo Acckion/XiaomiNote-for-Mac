@@ -55,7 +55,7 @@
 ## 技术栈
 
 - **语言**: Swift 6.0
-- **UI框架**: SwiftUI
+- **UI 框架**: SwiftUI
 - **富文本编辑**: RichTextKit 1.2
 - **包管理**: Swift Package Manager (SPM)
 - **最低系统要求**: macOS 14.0+
@@ -98,9 +98,11 @@ swift package resolve
 ```
 
 ### 构建项目
+
 #### 使用 Xcode
 
 1. 使用 XcodeGen 生成 Xcode 项目（如果还没有）：
+
    ```bash
    # 如果已安装 xcodegen
    xcodegen generate
@@ -160,6 +162,7 @@ swift package resolve
 - **云端存储**: 使用 XML 格式（小米笔记格式）存储，与小米笔记服务器兼容
 
 详细说明请参考：
+
 - [文本存储方式说明.md](./文本存储方式说明.md)
 - [笔记保存和上传流程说明.md](./笔记保存和上传流程说明.md)
 
@@ -172,6 +175,7 @@ swift package resolve
 ### 数据库
 
 应用程序使用 SQLite 数据库存储本地笔记数据，数据库文件位于：
+
 ```
 ~/Library/Application Support/MiNoteMac/database.sqlite
 ```
@@ -179,6 +183,7 @@ swift package resolve
 ### 图片存储
 
 图片文件存储在：
+
 ```
 ~/Documents/MiNoteImages/
 ```
@@ -223,6 +228,7 @@ swift package resolve
 **许可证**: RichTextKit 使用 [MIT 许可证](https://opensource.org/licenses/MIT)，版权归 Daniel Saidi (2022-2024) 所有。
 
 完整的许可证信息请参考：
+
 - [RichTextKit-1.2/LICENSE](./RichTextKit-1.2/LICENSE)
 - [第三方许可证说明](./THIRD_PARTY_LICENSES.md)
 
@@ -262,3 +268,6 @@ swift package resolve
 - 支持文件夹管理
 - 支持图片上传
 
+### v1.1.0
+
+- 优化刷新 cookie、登录、在线状态指示器
