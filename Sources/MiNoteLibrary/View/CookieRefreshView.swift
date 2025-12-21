@@ -127,12 +127,9 @@ struct CookieRefreshView: View {
         // 更新MiNoteService的cookie
         MiNoteService.shared.setCookie(cookieString)
         
-        // 清除cookie失效状态
-        viewModel.isCookieExpired = false
-        viewModel.cookieExpiredShown = false
-        
-        // 在线状态会在 setupNetworkMonitoring 中自动更新（通过定时器检查）
-        // 这里只需要清除cookie失效状态，在线状态会自动计算
+        // 通知 AuthenticationStateManager Cookie刷新完成
+        // 这会清除cookie失效状态并恢复在线状态
+        viewModel.handleCookieRefreshed()
         
         // 更新UI
         withAnimation {
@@ -297,14 +294,43 @@ struct CookieRefreshWebView: NSViewRepresentable {
                 return
             }
             
-            // 主页加载完成后，清除加载状态，等待用户点击"登录"按钮
-            // 不再自动跳转到 profile 页面，让用户自然登录流程完成后，页面会自动跳转到 profile 页面
+            // 主页加载完成后，检查是否已经登录
+            // 如果已经登录，直接进入获取cookie流程；否则等待用户点击"登录"按钮
             if currentURL.contains("i.mi.com") && !currentURL.contains("status/lite/profile") && !hasLoadedProfile {
-                print("[CookieRefreshWebView] 主页加载完成，等待用户点击登录按钮")
-                DispatchQueue.main.async {
-                    self.parent.isLoading = false
+                print("[CookieRefreshWebView] 主页加载完成，检查是否已经登录")
+                
+                // 检查是否已经登录：从 cookie store 获取 cookie，检查是否包含 serviceToken 和 userId
+                webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] cookies in
+                    guard let self = self, !self.cookieExtracted else { return }
+                    
+                    print("[CookieRefreshWebView] 检查登录状态，获取到 \(cookies.count) 个 cookie")
+                    
+                    // 检查是否有有效的登录cookie
+                    let cookieString = cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+                    let hasServiceToken = cookieString.contains("serviceToken=")
+                    let hasUserId = cookieString.contains("userId=")
+                    
+                    if hasServiceToken && hasUserId && !cookieString.isEmpty {
+                        // 已经登录，直接导航到 profile 页面获取完整 cookie
+                        print("[CookieRefreshWebView] ✅ 检测到已登录，直接进入获取cookie流程")
+                        DispatchQueue.main.async {
+                            self.parent.isLoading = true
+                            // 延迟一小段时间，确保页面完全加载
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                if let profileURL = URL(string: "https://i.mi.com/status/lite/profile?ts=\(Int(Date().timeIntervalSince1970 * 1000))") {
+                                    print("[CookieRefreshWebView] 访问 profile 页面: \(profileURL.absoluteString)")
+                                    webView.load(URLRequest(url: profileURL))
+                                }
+                            }
+                        }
+                    } else {
+                        // 未登录，等待用户点击"登录"按钮
+                        print("[CookieRefreshWebView] ⚠️ 未检测到有效登录cookie，等待用户点击登录按钮")
+                        DispatchQueue.main.async {
+                            self.parent.isLoading = false
+                        }
+                    }
                 }
-                // 不再自动跳转，等待用户登录后的自然跳转
                 return
             }
             

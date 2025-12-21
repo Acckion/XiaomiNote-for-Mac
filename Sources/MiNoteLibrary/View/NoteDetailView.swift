@@ -198,19 +198,26 @@ struct NoteDetailView: View {
                     noteRawData: viewModel.selectedNote?.rawData,
                     xmlContent: viewModel.selectedNote?.primaryXMLContent,
                     onContentChange: { newRTFData in
-                        // RTF数据变化时，更新 editedRTFData
-                        // 注意：这里不直接触发保存，而是通过 onChange(of: editedAttributedText) 来触发保存
-                        // 这样可以统一在 handleContentChange 中进行内容比较，避免误判
+                        // RTF数据变化时，更新 editedRTFData 并立即保存
                         guard !isInitializing, let rtfData = newRTFData else {
                             return
                         }
                         
                         editedRTFData = rtfData
                         
-                        // 转换为 AttributedString，这会触发 onChange(of: editedAttributedText)
-                        // handleContentChange 会进行 XML 内容比较，确保只有真正变化时才保存
+                        // 转换为 AttributedString 用于显示和保存
                         if let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
                             editedAttributedText = attributedText
+                        }
+                        
+                        // 立即触发保存（文本变化或格式变化都需要保存）
+                        guard let note = viewModel.selectedNote else {
+                            return
+                        }
+                        
+                        Task { @MainActor in
+                            await saveToLocalOnly(for: note)
+                            scheduleCloudUpload(for: note)
                         }
                     }
                 )
@@ -645,50 +652,23 @@ struct NoteDetailView: View {
     
     /// 处理内容变化
     /// 
-    /// 当 AttributedString 变化时，先比较是否真的发生了更改（包括格式和内容），再保存。
-    /// 通过比较 XML 内容来检测实际的变化，避免因为 RTF 数据生成的微小差异而误判。
+    /// 当 AttributedString 变化时，立即保存。
     /// 
     /// - Parameter newValue: 新的 AttributedString
     private func handleContentChange(_ newValue: AttributedString) {
         guard !isInitializing else {
-            print("[NoteDetailView] 内容变化检测，但正在初始化，跳过处理")
             return
         }
         
-        // 将新的 AttributedString 转换为 XML 进行比较
-        // XML 表示内容的结构和格式，能够准确检测内容是否真的发生了变化
-        // 这样可以避免因为 RTF 数据生成的微小差异（如 UUID、时间戳等元数据）而误判
-        let newXML = AttributedStringConverter.attributedStringToXML(newValue)
+        // 检查内容是否真的改变了
+        let newString = String(newValue.characters)
+        let originalString = String(originalAttributedText.characters)
         
-        // 将原始 AttributedString 也转换为 XML 进行比较
-        let originalXML = AttributedStringConverter.attributedStringToXML(originalAttributedText)
-        
-        // 比较 XML 内容是否真的发生了变化
-        let hasContentChanged = newXML != originalXML
-        
-        // 如果没有变化，不进行保存
-        guard hasContentChanged else {
-            print("[NoteDetailView] 内容未发生实际变化（XML 比较），跳过保存")
+        guard newString != originalString else {
             return
         }
         
-        print("[NoteDetailView] 检测到内容变化（XML 比较），准备保存")
-        print("[NoteDetailView] 原XML长度: \(originalXML.count), 新XML长度: \(newXML.count)")
-        
-        // 更新状态
         originalAttributedText = newValue
-        
-        // 将新的 AttributedString 转换为 RTF 数据用于保存
-        let newRTFData: Data?
-        do {
-            let nsAttributedString = try NSAttributedString(newValue, including: \.appKit)
-            newRTFData = try nsAttributedString.richTextData(for: .archivedData)
-        } catch {
-            newRTFData = AttributedStringConverter.attributedStringToRTFData(newValue)
-            print("[NoteDetailView] 使用 RTF 格式作为备用: \(error.localizedDescription)")
-        }
-        
-        editedRTFData = newRTFData
         
         // 立即保存
         Task { @MainActor in

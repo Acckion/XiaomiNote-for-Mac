@@ -13,6 +13,7 @@
 		0CCDEBB4DB6B30FF58A99676 /* NetworkLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = C50C112F6B4452CE0180EB74 /* NetworkLogger.swift */; };
 		13A3D0BE46C8453AE5A5AC57 /* DatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B1D7E624DF253C07C01376 /* DatabaseService.swift */; };
 		18021F0E3CE77ABC9062D4DD /* OfflineOperationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D1C6CACE3C147825607106 /* OfflineOperationQueue.swift */; };
+		C876E8A88BC94EBDB2855F1A /* AuthenticationStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D91D413488B4D67849A5948 /* AuthenticationStateManager.swift */; };
 		1DF15B463E6D141AD6A04E0D /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19CE08A1CDCF94C551D20E51 /* NetworkMonitor.swift */; };
 		21D18111453D5C66791D221D /* MiNoteLibrary.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; };
 		22C94CA469B328552068483E /* CookieRefreshView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C5B9382487C27C0DCE9537A /* CookieRefreshView.swift */; };
@@ -74,6 +75,7 @@
 		019A488CCA2E1E21AF8361E0 /* NotesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesViewModel.swift; sourceTree = "<group>"; };
 		028A0CD24BAB7BF46FFBB48A /* NetworkLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogView.swift; sourceTree = "<group>"; };
 		02B1D7E624DF253C07C01376 /* DatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseService.swift; sourceTree = "<group>"; };
+		1D91D413488B4D67849A5948 /* AuthenticationStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationStateManager.swift; sourceTree = "<group>"; };
 		19CE08A1CDCF94C551D20E51 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		228F39EBE3C9A59521361345 /* MiNoteEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteEditor.swift; sourceTree = "<group>"; };
 		330447DDB151694673431B9E /* MiNoteLibrary.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = MiNoteLibrary.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -233,6 +235,7 @@
 		F0A3C84C8F6563BB0061A02C /* Service */ = {
 			isa = PBXGroup;
 			children = (
+				1D91D413488B4D67849A5948 /* AuthenticationStateManager.swift */,
 				02B1D7E624DF253C07C01376 /* DatabaseService.swift */,
 				59F444DD3ECD304A51795C2D /* LocalStorageService.swift */,
 				587A0C9CB4BD8A71F364C4E7 /* MiNoteService.swift */,
@@ -358,6 +361,7 @@
 				70D0B38212A1740EAE99C61D /* AttributedStringConverter.swift in Sources */,
 				08E355BA0F55B6147B818BB7 /* ContentView.swift in Sources */,
 				22C94CA469B328552068483E /* CookieRefreshView.swift in Sources */,
+				C876E8A88BC94EBDB2855F1A /* AuthenticationStateManager.swift in Sources */,
 				13A3D0BE46C8453AE5A5AC57 /* DatabaseService.swift in Sources */,
 				B1126FD8C91399CA66D798E5 /* DebugSettingsView.swift in Sources */,
 				8B60215B8052BA7AA3E07753 /* EditorToolbar.swift in Sources */,

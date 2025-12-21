@@ -40,10 +40,10 @@ public class NotesViewModel: ObservableObject {
     @Published var searchText = ""
     
     /// 是否显示登录视图
-    @Published var showLoginView = false
+    @Published var showLoginView: Bool = false
     
     /// 是否显示Cookie刷新视图
-    @Published var showCookieRefreshView = false
+    @Published var showCookieRefreshView: Bool = false
     
     // MARK: - 设置
     
@@ -70,7 +70,7 @@ public class NotesViewModel: ObservableObject {
     /// 同步结果
     @Published var syncResult: SyncService.SyncResult?
     
-    // MARK: - 网络状态
+    // MARK: - 网络状态（从 AuthenticationStateManager 同步）
     
     /// 是否在线（需要同时满足网络连接和Cookie有效）
     @Published var isOnline: Bool = true
@@ -97,6 +97,9 @@ public class NotesViewModel: ObservableObject {
     
     /// 本地存储服务
     private let localStorage = LocalStorageService.shared
+    
+    /// 认证状态管理器（统一管理登录、Cookie刷新和在线状态）
+    private let authStateManager = AuthenticationStateManager()
     
     /// 网络监控服务
     private let networkMonitor = NetworkMonitor.shared
@@ -172,11 +175,9 @@ public class NotesViewModel: ObservableObject {
         // 恢复上次选中的笔记
         restoreLastSelectedNote()
         
-        // 设置cookie过期处理器
-        setupCookieExpiredHandler()
-        
-        // 监听网络状态
-        setupNetworkMonitoring()
+        // 同步 AuthenticationStateManager 的状态到 ViewModel
+        // 这样 AuthenticationStateManager 的状态变化会触发 ViewModel 的 @Published 属性更新，进而触发 UI 更新
+        setupAuthStateSync()
         
         // 监听selectedNote变化，保存到UserDefaults
         $selectedNote
@@ -195,101 +196,38 @@ public class NotesViewModel: ObservableObject {
         }
     }
     
-    private func setupNetworkMonitoring() {
-        // 计算在线状态：需要同时满足网络连接和cookie有效
-        // 区分三种状态：
-        // 1. 在线：网络正常且cookie有效
-        // 2. Cookie失效：网络正常但cookie失效
-        // 3. 离线：网络断开
-        networkMonitor.$isOnline
-            .sink { [weak self] networkOnline in
-                guard let self = self else { return }
-                
-                // 如果用户选择保持离线模式，不自动更新在线状态
-                if self.shouldStayOffline {
-                    // 确保状态保持一致
-                    if self.isOnline {
-                        self.isOnline = false
-                    }
-                    if !self.isCookieExpired {
-                        self.isCookieExpired = true
-                    }
-                    return
-                }
-                
-                // 如果弹窗正在显示（等待用户选择），不自动更新在线状态
-                // 确保在弹窗显示期间状态保持为"Cookie失效"而不是"在线"
-                if self.cookieExpiredShown {
-                    // 确保状态保持一致（Cookie失效）
-                    if self.isOnline {
-                        self.isOnline = false
-                    }
-                    if !self.isCookieExpired {
-                        self.isCookieExpired = true
-                    }
-                    return
-                }
-                
-                let hasValidCookie = self.service.hasValidCookie()
-                
-                self.isOnline = networkOnline && hasValidCookie
-                // 如果网络正常但cookie无效，标记为cookie失效
-                if networkOnline && !hasValidCookie {
-                    self.isCookieExpired = true
-                } else if hasValidCookie {
-                    // Cookie恢复有效时，清除失效状态
-                    self.isCookieExpired = false
-                }
-            }
-            .store(in: &cancellables)
+    /// 同步 AuthenticationStateManager 的状态到 ViewModel
+    /// 
+    /// 通过 Combine 将 AuthenticationStateManager 的 @Published 属性同步到 ViewModel 的 @Published 属性
+    /// 这样 AuthenticationStateManager 的状态变化会自动触发 ViewModel 的状态更新，进而触发 UI 更新
+    private func setupAuthStateSync() {
+        // 同步 isOnline
+        authStateManager.$isOnline
+            .assign(to: &$isOnline)
         
-        // 监听cookie变化（通过定时检查或通知）
-        Timer.publish(every: 1.0, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                guard let self = self else { return }
-                
-                // 如果用户选择保持离线模式，不自动更新在线状态
-                if self.shouldStayOffline {
-                    // 确保状态保持一致
-                    if self.isOnline {
-                        self.isOnline = false
-                    }
-                    if !self.isCookieExpired {
-                        self.isCookieExpired = true
-                    }
-                    return
-                }
-                
-                // 如果弹窗正在显示（等待用户选择），不自动更新在线状态
-                // 确保在弹窗显示期间状态保持为"Cookie失效"而不是"在线"
-                if self.cookieExpiredShown {
-                    // 确保状态保持一致（Cookie失效）
-                    if self.isOnline {
-                        self.isOnline = false
-                    }
-                    if !self.isCookieExpired {
-                        self.isCookieExpired = true
-                    }
-                    return
-                }
-                
-                let networkOnline = self.networkMonitor.isOnline
-                let hasValidCookie = self.service.hasValidCookie()
-                
-                // 如果之前是离线状态（因为Cookie过期），且现在Cookie恢复了，则恢复在线状态
-                if self.isCookieExpired && hasValidCookie {
-                    self.restoreOnlineStatus()
-                } else {
-                    // 正常更新在线状态
-                    self.isOnline = networkOnline && hasValidCookie
-                    // 如果网络正常但cookie无效，标记为cookie失效
-                    if networkOnline && !hasValidCookie {
-                        self.isCookieExpired = true
-                    }
-                }
-            }
-            .store(in: &cancellables)
+        // 同步 isCookieExpired
+        authStateManager.$isCookieExpired
+            .assign(to: &$isCookieExpired)
+        
+        // 同步 cookieExpiredShown
+        authStateManager.$cookieExpiredShown
+            .assign(to: &$cookieExpiredShown)
+        
+        // 同步 showCookieExpiredAlert
+        authStateManager.$showCookieExpiredAlert
+            .assign(to: &$showCookieExpiredAlert)
+        
+        // 同步 shouldStayOffline
+        authStateManager.$shouldStayOffline
+            .assign(to: &$shouldStayOffline)
+        
+        // 同步 showLoginView
+        authStateManager.$showLoginView
+            .assign(to: &$showLoginView)
+        
+        // 同步 showCookieRefreshView
+        authStateManager.$showCookieRefreshView
+            .assign(to: &$showCookieRefreshView)
     }
     
     @MainActor
@@ -2814,52 +2752,26 @@ public class NotesViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Cookie过期处理
-    
-    private func setupCookieExpiredHandler() {
-        service.onCookieExpired = { [weak self] in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                // 立即设置为离线状态，阻止后续请求（从弹窗显示开始就停止重复请求）
-                self.isOnline = false
-                self.isCookieExpired = true
-                
-                // 只有在未保持离线模式且未显示过弹窗时，才显示弹窗
-                if !self.shouldStayOffline && !self.cookieExpiredShown {
-                    // 显示弹窗
-                    self.showCookieExpiredAlert = true
-                    self.cookieExpiredShown = true
-                    print("[CookieExpired] Cookie失效，立即设置为离线状态并显示弹窗提示，后续请求将被阻止")
-                } else if self.shouldStayOffline {
-                    // 如果用户已选择保持离线模式，不再显示弹窗
-                    self.cookieExpiredShown = true
-                    print("[CookieExpired] Cookie失效，用户已选择保持离线模式，不再显示弹窗")
-                } else {
-                    // 已经显示过弹窗，只更新状态
-                    print("[CookieExpired] Cookie失效，已显示过弹窗，只更新离线状态")
-                }
-            }
-        }
-    }
+    // MARK: - Cookie过期处理（委托给 AuthenticationStateManager）
     
     /// 处理Cookie失效弹窗的"刷新Cookie"选项
     @MainActor
     func handleCookieExpiredRefresh() {
-        print("[CookieExpired] 用户选择刷新Cookie")
-        shouldStayOffline = false
-        showCookieRefreshView = true
+        authStateManager.handleCookieExpiredRefresh()
     }
     
     /// 处理Cookie失效弹窗的"取消"选项
     @MainActor
     func handleCookieExpiredCancel() {
-        print("[CookieExpired] 用户选择保持离线模式")
-        shouldStayOffline = true
-        // 由于cookieExpiredShown已经是true，不需要再调用setOfflineStatus
-        // 只需要确保isOnline和isCookieExpired状态正确
-        isOnline = false
-        isCookieExpired = true
-        print("[CookieExpired] 已设置为离线模式，后续请求将不会发送")
+        authStateManager.handleCookieExpiredCancel()
+    }
+    
+    /// 处理Cookie刷新完成
+    /// 
+    /// Cookie刷新成功后调用此方法
+    @MainActor
+    func handleCookieRefreshed() {
+        authStateManager.handleCookieRefreshed()
     }
     
     // MARK: - 图片上传

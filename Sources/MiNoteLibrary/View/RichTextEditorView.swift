@@ -424,6 +424,22 @@ struct RichTextEditorWrapper: View {
         }
         
         let loadedText = MiNoteContentParser.parseToAttributedString(xml, noteRawData: noteRawData)
+        
+        // 先更新 lastRTFData，避免触发 onChange(of: rtfData) 时重新加载
+        // 这可以避免在加载过程中触发不必要的内容变化检测
+        do {
+            let archivedData = try loadedText.richTextData(for: .archivedData)
+            lastRTFData = archivedData
+        } catch {
+            // 如果失败，尝试使用 NSKeyedArchiver
+            if let archivedData = try? NSKeyedArchiver.archivedData(
+                withRootObject: loadedText,
+                requiringSecureCoding: false
+            ) {
+                lastRTFData = archivedData
+            }
+        }
+        
         // 更新 attributedText，这会触发 RichTextEditorView 的 onChange
         attributedText = loadedText
         print("[RichTextEditorWrapper] ✅ 从XML加载内容，长度: \(loadedText.length)")
