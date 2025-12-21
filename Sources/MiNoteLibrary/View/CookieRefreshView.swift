@@ -11,7 +11,7 @@ struct CookieRefreshView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: NotesViewModel
     
-    @State private var isLoading: Bool = false
+    @State private var isLoading: Bool = true  // 初始状态为加载中，因为页面需要加载
     @State private var showError: Bool = false
     @State private var errorMessage: String = ""
     @State private var isCookieRefreshed: Bool = false
@@ -193,6 +193,7 @@ struct CookieRefreshWebView: NSViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate {
         var parent: CookieRefreshWebView
         private var cookieExtracted = false  // 防止重复提取
+        private var hasLoadedProfile = false  // 标记是否已加载profile页面
         private var retryCount = 0
         private let maxRetries = 3
         
@@ -207,8 +208,8 @@ struct CookieRefreshWebView: NSViewRepresentable {
             
             // 如果不是 profile 页面，显示加载状态
             if !url.contains("status/lite/profile") {
-            DispatchQueue.main.async {
-                self.parent.isLoading = true
+                DispatchQueue.main.async {
+                    self.parent.isLoading = true
                 }
             }
         }
@@ -222,9 +223,105 @@ struct CookieRefreshWebView: NSViewRepresentable {
                 return
             }
             
-            // 参考 Obsidian 插件：主页加载完成后，等待用户登录或自动触发 profile 请求
-            // 不需要手动导航到 profile 页面，因为主页会自动加载 profile
-            // 我们只需要在 decidePolicyFor 中监听请求头即可
+            // 如果是 profile 页面加载完成，从 cookie store 获取 Cookie（参考 LoginView 的实现）
+            if currentURL.contains("i.mi.com/status/lite/profile") {
+                print("[CookieRefreshWebView] Profile 页面加载完成，从 cookie store 获取 Cookie...")
+                hasLoadedProfile = true
+                
+                // 参考 LoginView：使用 URLSession 来获取完整的 Cookie 字符串
+                // 从 WKWebView 的 cookie store 获取所有 cookie
+                webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] cookies in
+                    guard let self = self, !self.cookieExtracted else { return }
+                    
+                    print("[CookieRefreshWebView] 从 WKWebView 获取到 \(cookies.count) 个 cookie")
+                    
+                    // 参考 LoginView：将所有 cookie 复制到 URLSession 的 cookie 存储
+                    let cookieStore = HTTPCookieStorage.shared
+                    cookieStore.cookieAcceptPolicy = .always
+                    
+                    // 清除旧的 cookie，避免冲突
+                    if let oldCookies = cookieStore.cookies {
+                        for oldCookie in oldCookies {
+                            cookieStore.deleteCookie(oldCookie)
+                        }
+                    }
+                    
+                    // 添加新的 cookie
+                    for cookie in cookies {
+                        cookieStore.setCookie(cookie)
+                    }
+                    
+                    // 使用 URLSession 发送请求，URLSession 会自动组装完整的 Cookie 字符串
+                    if let profileURL = URL(string: "https://i.mi.com/status/lite/profile?ts=\(Int(Date().timeIntervalSince1970 * 1000))") {
+                        var request = URLRequest(url: profileURL)
+                        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", forHTTPHeaderField: "User-Agent")
+                        request.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
+                        
+                        let config = URLSessionConfiguration.default
+                        config.httpCookieStorage = cookieStore
+                        config.httpShouldSetCookies = true
+                        let session = URLSession(configuration: config)
+                        
+                        // 发送请求，URLSession 会自动添加 Cookie 头
+                        let task = session.dataTask(with: request) { [weak self] data, response, error in
+                            guard let self = self, !self.cookieExtracted else { return }
+                            
+                            // 从 cookie store 获取所有相关的 cookie（URLSession 会自动过滤）
+                            let relevantCookies = cookieStore.cookies(for: profileURL) ?? []
+                            
+                            // 构建完整的 Cookie 字符串（参考 LoginView 的实现）
+                            let cookieString = relevantCookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+                            
+                            print("[CookieRefreshWebView] 构建的 Cookie 字符串（前300字符）: \(String(cookieString.prefix(300)))...")
+                            print("[CookieRefreshWebView] 包含 \(relevantCookies.count) 个 cookie")
+                            
+                            // 验证 cookie 是否有效
+                            let hasServiceToken = cookieString.contains("serviceToken=")
+                            let hasUserId = cookieString.contains("userId=")
+                            
+                            if hasServiceToken && hasUserId && !cookieString.isEmpty {
+                                print("[CookieRefreshWebView] ✅ Cookie 验证通过，提取成功")
+                                self.cookieExtracted = true
+                                DispatchQueue.main.async {
+                                    self.parent.isLoading = false
+                                    self.parent.onCookieExtracted(cookieString)
+                                }
+                            } else {
+                                print("[CookieRefreshWebView] ⚠️ Cookie 验证失败: hasServiceToken=\(hasServiceToken), hasUserId=\(hasUserId), cookieString长度=\(cookieString.count)")
+                                // Cookie 验证失败，继续等待用户登录
+                            }
+                        }
+                        task.resume()
+                    }
+                }
+                return
+            }
+            
+            // 主页加载完成后，等待一段时间后主动导航到 profile 页面（参考 Obsidian 插件）
+            // Obsidian 插件监听 profile 请求的发送，我们主动触发这个请求
+            if currentURL.contains("i.mi.com") && !currentURL.contains("status/lite/profile") && !hasLoadedProfile {
+                print("[CookieRefreshWebView] 主页加载完成，等待后访问 profile 页面获取 Cookie")
+                DispatchQueue.main.async {
+                    self.parent.isLoading = false
+                }
+                
+                // 等待页面完全加载并设置所有 cookie（参考 LoginView 的延迟逻辑）
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    if !self.cookieExtracted && !self.hasLoadedProfile {
+                        if let profileURL = URL(string: "https://i.mi.com/status/lite/profile?ts=\(Int(Date().timeIntervalSince1970 * 1000))") {
+                            print("[CookieRefreshWebView] 访问 profile 页面: \(profileURL.absoluteString)")
+                            webView.load(URLRequest(url: profileURL))
+                        }
+                    }
+                }
+                return
+            }
+            
+            // 其他情况，清除加载状态
+            DispatchQueue.main.async {
+                self.parent.isLoading = false
+                print("[CookieRefreshWebView] 页面加载完成，已清除加载状态")
+            }
         }
         
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -241,8 +338,7 @@ struct CookieRefreshWebView: NSViewRepresentable {
             }
         }
         
-        /// 参考 Obsidian 插件的 session.webRequest.onSendHeaders 实现
-        /// 在请求发送前监听请求头，直接从请求头中提取 Cookie
+        /// 监听所有导航请求，记录 profile 请求用于调试
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             let requestURL = navigationAction.request.url
             guard let urlString = requestURL?.absoluteString else {
@@ -250,60 +346,13 @@ struct CookieRefreshWebView: NSViewRepresentable {
                 return
             }
             
-            // 参考 Obsidian 插件：监听 profile 页面的请求（匹配 pattern: */status/lite/profile?ts=*）
-            // Obsidian 插件使用: `urls: [\`https://${get(settingsStore).host}/status/lite/profile?ts=*\`]`
+            // 检测 profile 请求，用于调试日志
             if urlString.contains("i.mi.com/status/lite/profile") && urlString.contains("ts=") {
                 print("[CookieRefreshWebView] 检测到 profile 请求: \(urlString)")
-                
-                // 参考 Obsidian 插件：直接从请求头的 Cookie 字段获取
-                // Obsidian: `const cookie = details.requestHeaders['Cookie'];`
-                if let cookieHeader = navigationAction.request.value(forHTTPHeaderField: "Cookie") {
-                    print("[CookieRefreshWebView] ✅ 从请求头提取到Cookie（前300字符）: \(String(cookieHeader.prefix(300)))...")
-                    
-                    // 参考 Obsidian 插件：验证 cookie 是否有效
-                    // Obsidian 插件: `if (cookie) { settingsStore.actions.setCookie(cookie); ... } else { this.modal.reload(); }`
-                    let hasServiceToken = cookieHeader.contains("serviceToken=")
-                    let hasUserId = cookieHeader.contains("userId=")
-                    
-                    if hasServiceToken && hasUserId && !cookieHeader.isEmpty {
-                        // Cookie 有效，提取并关闭窗口（参考 Obsidian 插件）
-                        cookieExtracted = true
-                        DispatchQueue.main.async {
-                            self.parent.isLoading = false
-                            self.parent.onCookieExtracted(cookieHeader)
-                        }
-                        // 参考 Obsidian 插件：取消导航，因为我们已经获取到 cookie
-                        decisionHandler(.cancel)
-                        return
-                    } else {
-                        print("[CookieRefreshWebView] ⚠️ Cookie验证失败: hasServiceToken=\(hasServiceToken), hasUserId=\(hasUserId)")
-                        // 参考 Obsidian 插件：如果 cookie 无效，重新加载页面
-                        if retryCount < maxRetries {
-                            retryCount += 1
-                            print("[CookieRefreshWebView] 重试 \(retryCount)/\(maxRetries)")
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                webView.reload()
-                            }
-                        } else {
-                            print("[CookieRefreshWebView] ❌ 达到最大重试次数")
-                            DispatchQueue.main.async {
-                                self.parent.isLoading = false
-                            }
-                        }
-                    }
-                } else {
-                    print("[CookieRefreshWebView] ⚠️ 请求头中没有 Cookie 字段")
-                    // 参考 Obsidian 插件：如果没有 cookie，重新加载
-                    if retryCount < maxRetries && !cookieExtracted {
-                        retryCount += 1
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                            webView.reload()
-                        }
-                    }
-                }
+                // 允许请求继续，等待 didFinish 回调中从 cookie store 获取 Cookie
             }
             
-            // 允许所有其他导航
+            // 允许所有导航继续
             decisionHandler(.allow)
         }
     }

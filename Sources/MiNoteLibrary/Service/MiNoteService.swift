@@ -28,6 +28,10 @@ final class MiNoteService: @unchecked Sendable {
     /// Cookie过期回调，当检测到Cookie过期时调用
     var onCookieExpired: (() -> Void)?
     
+    /// Cookie是否已标记为失效（用于防止重复触发回调）
+    private var cookieExpiredFlag: Bool = false
+    private let cookieExpiredLock = NSLock()
+    
     /// Cookie设置时间，用于判断是否在保护期内
     private var cookieSetTime: Date?
     
@@ -72,6 +76,10 @@ final class MiNoteService: @unchecked Sendable {
         saveCredentials()
         // 记录 cookie 设置时间
         cookieSetTime = Date()
+        // 清除cookie失效标志
+        cookieExpiredLock.lock()
+        cookieExpiredFlag = false
+        cookieExpiredLock.unlock()
         print("[MiNoteService] Cookie 已设置，时间: \(cookieSetTime?.description ?? "未知")")
     }
     
@@ -149,8 +157,21 @@ final class MiNoteService: @unchecked Sendable {
             if hasLoginURL {
                 print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
             }
-            DispatchQueue.main.async {
-                self.onCookieExpired?()
+            // 使用锁确保只触发一次回调
+            cookieExpiredLock.lock()
+            let shouldTrigger = !cookieExpiredFlag
+            if shouldTrigger {
+                cookieExpiredFlag = true
+                print("[MiNoteService] 首次检测到Cookie失效，触发回调并阻止后续请求")
+            } else {
+                print("[MiNoteService] Cookie失效已被处理，跳过重复回调")
+            }
+            cookieExpiredLock.unlock()
+            
+            if shouldTrigger {
+                DispatchQueue.main.async {
+                    self.onCookieExpired?()
+                }
             }
             throw MiNoteError.cookieExpired
         }
@@ -158,8 +179,21 @@ final class MiNoteService: @unchecked Sendable {
         else if self.hasValidCookie() && !isAuthError {
             print("[MiNoteService] 401错误但不是明确的认证失败，仍视为Cookie过期，设置为离线状态")
             print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
-            DispatchQueue.main.async {
-                self.onCookieExpired?()
+            // 使用锁确保只触发一次回调
+            cookieExpiredLock.lock()
+            let shouldTrigger = !cookieExpiredFlag
+            if shouldTrigger {
+                cookieExpiredFlag = true
+                print("[MiNoteService] 首次检测到Cookie失效，触发回调并阻止后续请求")
+            } else {
+                print("[MiNoteService] Cookie失效已被处理，跳过重复回调")
+            }
+            cookieExpiredLock.unlock()
+            
+            if shouldTrigger {
+                DispatchQueue.main.async {
+                    self.onCookieExpired?()
+                }
             }
             throw MiNoteError.cookieExpired  // 统一作为cookieExpired处理，确保添加到离线队列
         }
@@ -997,6 +1031,9 @@ final class MiNoteService: @unchecked Sendable {
         cookie = ""
         serviceToken = ""
         cookieSetTime = nil
+        cookieExpiredLock.lock()
+        cookieExpiredFlag = false
+        cookieExpiredLock.unlock()
         UserDefaults.standard.removeObject(forKey: "minote_cookie")
         print("Cookie已清除")
     }

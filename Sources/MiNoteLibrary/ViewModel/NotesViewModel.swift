@@ -81,6 +81,12 @@ public class NotesViewModel: ObservableObject {
     /// 是否已显示Cookie失效提示（避免重复提示）
     @Published var cookieExpiredShown: Bool = false
     
+    /// 是否显示Cookie失效弹窗
+    @Published var showCookieExpiredAlert: Bool = false
+    
+    /// 是否保持离线模式（用户点击"取消"后设置为true，阻止后续请求）
+    @Published var shouldStayOffline: Bool = false
+    
     // MARK: - 依赖服务
     
     /// 小米笔记API服务
@@ -453,6 +459,8 @@ public class NotesViewModel: ObservableObject {
         print("[OfflineStatus] 恢复在线状态")
         isCookieExpired = false
         cookieExpiredShown = false
+        shouldStayOffline = false  // 清除离线模式标志
+        showCookieExpiredAlert = false  // 清除弹窗状态
         
         // 重新计算在线状态（需要网络和Cookie都有效）
         let networkOnline = networkMonitor.isOnline
@@ -2760,10 +2768,46 @@ public class NotesViewModel: ObservableObject {
         service.onCookieExpired = { [weak self] in
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                // 使用统一的离线状态设置方法
-                self.setOfflineStatus(reason: "Cookie过期（通过onCookieExpired回调）")
+                // 立即设置为离线状态，阻止后续请求（从弹窗显示开始就停止重复请求）
+                self.isOnline = false
+                self.isCookieExpired = true
+                
+                // 只有在未保持离线模式且未显示过弹窗时，才显示弹窗
+                if !self.shouldStayOffline && !self.cookieExpiredShown {
+                    // 显示弹窗
+                    self.showCookieExpiredAlert = true
+                    self.cookieExpiredShown = true
+                    print("[CookieExpired] Cookie失效，立即设置为离线状态并显示弹窗提示，后续请求将被阻止")
+                } else if self.shouldStayOffline {
+                    // 如果用户已选择保持离线模式，不再显示弹窗
+                    self.cookieExpiredShown = true
+                    print("[CookieExpired] Cookie失效，用户已选择保持离线模式，不再显示弹窗")
+                } else {
+                    // 已经显示过弹窗，只更新状态
+                    print("[CookieExpired] Cookie失效，已显示过弹窗，只更新离线状态")
+                }
             }
         }
+    }
+    
+    /// 处理Cookie失效弹窗的"刷新Cookie"选项
+    @MainActor
+    func handleCookieExpiredRefresh() {
+        print("[CookieExpired] 用户选择刷新Cookie")
+        shouldStayOffline = false
+        showCookieRefreshView = true
+    }
+    
+    /// 处理Cookie失效弹窗的"取消"选项
+    @MainActor
+    func handleCookieExpiredCancel() {
+        print("[CookieExpired] 用户选择保持离线模式")
+        shouldStayOffline = true
+        // 由于cookieExpiredShown已经是true，不需要再调用setOfflineStatus
+        // 只需要确保isOnline和isCookieExpired状态正确
+        isOnline = false
+        isCookieExpired = true
+        print("[CookieExpired] 已设置为离线模式，后续请求将不会发送")
     }
     
     // MARK: - 图片上传

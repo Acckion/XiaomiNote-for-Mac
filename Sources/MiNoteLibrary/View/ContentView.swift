@@ -37,6 +37,9 @@ public struct ContentView: View {
     /// 是否显示Cookie刷新弹窗
     @State private var showingCookieRefresh = false
     
+    /// 是否显示Cookie失效弹窗
+    @State private var showingCookieExpiredAlert = false
+    
     /// 是否显示同步菜单（已废弃，保留用于兼容）
     @State private var showingSyncMenu = false
     
@@ -155,6 +158,25 @@ public struct ContentView: View {
         }
         .sheet(isPresented: $showingLogin) {
             LoginView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showingCookieRefresh) {
+            CookieRefreshView(viewModel: viewModel)
+        }
+        .alert("Cookie已失效", isPresented: $showingCookieExpiredAlert) {
+            Button("刷新Cookie") {
+                viewModel.handleCookieExpiredRefresh()
+            }
+            Button("取消", role: .cancel) {
+                viewModel.handleCookieExpiredCancel()
+            }
+        } message: {
+            Text("Cookie已失效，请刷新Cookie以恢复同步功能。选择\"取消\"将保持离线模式。")
+        }
+        .onChange(of: viewModel.showCookieExpiredAlert) { oldValue, newValue in
+            if newValue {
+                showingCookieExpiredAlert = true
+                viewModel.showCookieExpiredAlert = false
+            }
         }
         .onAppear(perform: handleAppear)
         .onChange(of: viewModel.showLoginView) { oldValue, newValue in

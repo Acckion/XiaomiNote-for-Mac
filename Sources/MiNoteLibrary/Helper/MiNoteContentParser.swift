@@ -1954,10 +1954,10 @@ class MiNoteContentParser {
         
         // 应用斜体效果：使用 obliqueness 属性确保斜体一定会渲染
         // 这是 macOS 上最可靠的斜体渲染方法，即使字体本身包含斜体特性也设置
-        // obliqueness 值通常在 -0.1 到 -0.3 之间，-0.2 是常见的斜体倾斜度
+        // obliqueness 正值向右倾斜，负值向左倾斜，0.2 是常见的斜体倾斜度（向右倾斜）
         if style.isItalic {
-            attrs[.obliqueness] = -0.2
-            print("  ✅ [appendText] 已设置 obliqueness = -0.2 来应用斜体效果（字体包含斜体特性: \(hasItalic)）")
+            attrs[.obliqueness] = 0.2
+            print("  ✅ [appendText] 已设置 obliqueness = 0.2 来应用斜体效果（向右倾斜，字体包含斜体特性: \(hasItalic)）")
         }
         
         // 背景色
