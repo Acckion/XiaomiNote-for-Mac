@@ -143,7 +143,30 @@ class HorizontalRuleAttachmentCell: NSTextAttachmentCell {
     
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {
         // 绘制分割线，填满整个 cellFrame 宽度
-        let separatorColor = NSColor.separatorColor
+        // 根据外观模式选择颜色，确保在深色和浅色模式下都有良好的可见性
+        var separatorColor: NSColor
+        
+        // 尝试获取当前外观模式
+        var appearance: NSAppearance?
+        if let controlView = controlView {
+            appearance = controlView.effectiveAppearance
+            if appearance == nil, let window = controlView.window {
+                appearance = window.effectiveAppearance
+            }
+        }
+        if appearance == nil {
+            appearance = NSAppearance.current
+        }
+        
+        if let appearance = appearance,
+           appearance.name == .darkAqua || appearance.name == .vibrantDark {
+            // 深色模式：使用白色（用户要求）
+            separatorColor = NSColor.white
+        } else {
+            // 浅色模式：使用系统分隔符颜色
+            separatorColor = NSColor.separatorColor
+        }
+        
         separatorColor.setFill()
         
         // 创建一个填满宽度的矩形，高度为1
@@ -309,14 +332,24 @@ class MiNoteContentParser {
                 
             case .hr:
                 if let hrAttr = parseHrTag() {
-                    // 换行符不应该包含段落样式
-                    let newlineAttrs: [NSAttributedString.Key: Any] = [
-                        .foregroundColor: NSColor.labelColor,
-                        .font: NSFont.systemFont(ofSize: baseFontSize)
-                    ]
-                    result.append(NSAttributedString(string: "\n", attributes: newlineAttrs))
+                    // 分割线附件本身已经是一个段落（包含paragraphStyle），不需要前后都添加换行符
+                    // 只在分割线不是第一个元素时，在前面添加换行符
+                    if index > 0 {
+                        let newlineAttrs: [NSAttributedString.Key: Any] = [
+                            .foregroundColor: NSColor.labelColor,
+                            .font: NSFont.systemFont(ofSize: baseFontSize)
+                        ]
+                        result.append(NSAttributedString(string: "\n", attributes: newlineAttrs))
+                    }
                     result.append(hrAttr)
-                    result.append(NSAttributedString(string: "\n", attributes: newlineAttrs))
+                    // 只在分割线不是最后一个元素时，在后面添加换行符
+                    if index < textTagsWithIntervals.count - 1 {
+                        let newlineAttrs: [NSAttributedString.Key: Any] = [
+                            .foregroundColor: NSColor.labelColor,
+                            .font: NSFont.systemFont(ofSize: baseFontSize)
+                        ]
+                        result.append(NSAttributedString(string: "\n", attributes: newlineAttrs))
+                    }
                 }
             case .bullet(let indent, let text):
                 if let bulletAttr = parseStandaloneBullet(indent: indent, text: text) {
@@ -326,23 +359,47 @@ class MiNoteContentParser {
                     }
                 }
             case .order(let indent, let inputNumber, let text):
-                // 自动递增序号：如果这是相同缩进级别的连续有序列表项，递增序号
-                // 否则，使用 inputNumber（如果为 0，则从 1 开始）
-                let currentCounter = orderCounters[indent] ?? 0
-                let effectiveInputNumber: Int
-                if inputNumber == 0 && currentCounter == 0 {
-                    // 第一个有序列表项，从 1 开始
-                    effectiveInputNumber = 0
-                    orderCounters[indent] = 1
-                } else if inputNumber > 0 {
-                    // 使用 XML 中指定的 inputNumber
-                    effectiveInputNumber = inputNumber
-                    orderCounters[indent] = inputNumber + 1
+                // 小米笔记的有序列表规则：
+                // - 连续多行的有序列表，序号自动递增
+                // - 第一行的inputNumber是实际值，后续行的inputNumber应该都是0
+                // - 例如：inputNumber为0,0,0,0，渲染为1,2,3,4
+                // - 例如：100,0,0,0渲染为100,101,102,103
+                
+                // 检查是否是连续的有序列表（前一个segment也是同缩进级别的order）
+                let isFirstInSequence: Bool
+                if index > 0 {
+                    let prevItem = textTagsWithIntervals[index - 1]
+                    if case .order(let prevIndent, _, _) = prevItem, prevIndent == indent {
+                        isFirstInSequence = false  // 前一个也是同缩进的有序列表，说明这是连续的
+                    } else {
+                        isFirstInSequence = true  // 前一个不是有序列表或不同缩进，说明这是新序列的开始
+                        // 重置该缩进级别的计数器
+                        orderCounters[indent] = nil
+                    }
                 } else {
-                    // 自动递增
-                    effectiveInputNumber = currentCounter
-                    orderCounters[indent] = currentCounter + 1
+                    isFirstInSequence = true
                 }
+                
+                let effectiveInputNumber: Int
+                if isFirstInSequence {
+                    // 这是序列的第一项，使用XML中的inputNumber
+                    effectiveInputNumber = inputNumber
+                    // 保存第一个inputNumber，用于后续项计算显示序号
+                    orderCounters[indent] = inputNumber
+                    // 初始化序号偏移计数器为0（第一项使用inputNumber，从第二项开始递增）
+                    orderCounters[indent + 1000] = 0
+                } else {
+                    // 这是连续的有序列表项，inputNumber应该为0
+                    // 但我们需要根据第一个inputNumber来计算当前应该显示的序号
+                    let firstInputNumber = orderCounters[indent] ?? 0
+                    let currentOffset = orderCounters[indent + 1000] ?? 0
+                    // 显示序号 = 第一个inputNumber + 1 + 偏移量（+1是因为第二项应该比第一项大1）
+                    let displayOrderNumber = (firstInputNumber + 1) + (currentOffset + 1)
+                    effectiveInputNumber = displayOrderNumber - 1  // 转换为0-based的inputNumber用于显示
+                    // 递增序号偏移计数器
+                    orderCounters[indent + 1000] = currentOffset + 1
+                }
+                
                 if let orderAttr = parseStandaloneOrder(indent: indent, inputNumber: effectiveInputNumber, text: text) {
                     result.append(orderAttr)
                     if index < textTagsWithIntervals.count - 1 {
@@ -354,8 +411,6 @@ class MiNoteContentParser {
                         result.append(NSAttributedString(string: "\n", attributes: newlineAttrs))
                     }
                 }
-                // 如果不是有序列表，重置该缩进级别的计数器
-                // （这里不需要重置，因为下一个非有序列表项会自然中断序列）
             case .checkbox(let indent, let level, let text):
                 if let checkboxAttr = parseStandaloneCheckbox(indent: indent, level: level, text: text) {
                     result.append(checkboxAttr)
@@ -456,7 +511,8 @@ class MiNoteContentParser {
         
         var xmlParts: [String] = ["<new-format/>"]
         
-        // 按段落分割（使用 enumerateSubstrings 更可靠）
+        // 先收集所有段落（用于识别引用块和有序列表）
+        var paragraphs: [NSAttributedString] = []
         let string = attributedString.string
         let fullRange = string.startIndex..<string.endIndex
         
@@ -466,7 +522,9 @@ class MiNoteContentParser {
             // 跳过空段落（但保留换行）
             let rangeLength = string.distance(from: substringRange.lowerBound, to: substringRange.upperBound)
             if substring.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && rangeLength <= 1 {
-                xmlParts.append("<text indent=\"1\"></text>")
+                // 对于空段落，创建一个标记，后续处理时会转换为空text标签
+                let emptyAttr = NSAttributedString(string: "\u{FFFD}")  // 使用特殊字符作为标记
+                paragraphs.append(emptyAttr)
                 return
             }
             
@@ -477,12 +535,271 @@ class MiNoteContentParser {
             
             if paragraphRange.location < attributedString.length {
                 let paragraphAttr = attributedString.attributedSubstring(from: paragraphRange)
-                let paragraphXML = convertParagraphToXML(paragraphAttr)
-                xmlParts.append(paragraphXML)
+                paragraphs.append(paragraphAttr)
             }
         }
         
+        // 处理段落，识别引用块和有序列表
+        var i = 0
+        var orderCounters: [Int: Int] = [:]  // [indent: currentInputNumber] 用于跟踪有序列表序号
+        
+        while i < paragraphs.count {
+            let paragraph = paragraphs[i]
+            
+            // 处理空段落
+            if paragraph.length == 1 && paragraph.string == "\u{FFFD}" {
+                // 检查下一个段落是否是分割线，如果是，跳过这个空段落（避免在分割线前添加空行）
+                if i + 1 < paragraphs.count {
+                    let nextParagraph = paragraphs[i + 1]
+                    let nextParagraphString = nextParagraph.string.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if nextParagraph.length == 1 || nextParagraphString == "\u{FFFC}" || nextParagraphString.isEmpty {
+                        if let attachment = nextParagraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
+                            #if macOS
+                            if attachment.attachmentCell is HorizontalRuleAttachmentCell {
+                                // 下一个是分割线，跳过这个空段落
+                                i += 1
+                                continue
+                            }
+                            #endif
+                            if attachment.bounds.width >= 100 && attachment.bounds.height <= 2.0 {
+                                // 下一个是分割线，跳过这个空段落
+                                i += 1
+                                continue
+                            }
+                        }
+                    }
+                }
+                xmlParts.append("<text indent=\"1\"></text>")
+                i += 1
+                continue
+            }
+            
+            // 检查是否是引用段落
+            if isQuoteParagraph(paragraph) {
+                // 收集连续的引用段落
+                var quoteParagraphs: [NSAttributedString] = [paragraph]
+                i += 1
+                
+                while i < paragraphs.count && isQuoteParagraph(paragraphs[i]) {
+                    quoteParagraphs.append(paragraphs[i])
+                    i += 1
+                }
+                
+                // 转换为引用块XML
+                let quoteXML = convertQuoteBlockToXML(quoteParagraphs)
+                xmlParts.append(quoteXML)
+                continue
+            }
+            
+            // 检查是否是分割线（在有序列表之前检查，避免分割线被当作普通段落处理）
+            let paragraphString = paragraph.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            if paragraph.length == 1 || paragraphString == "\u{FFFC}" || paragraphString.isEmpty {
+                if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
+                    #if macOS
+                    if attachment.attachmentCell is HorizontalRuleAttachmentCell {
+                        xmlParts.append("<hr />")
+                        i += 1
+                        continue
+                    }
+                    #endif
+                    if attachment.bounds.width >= 100 && attachment.bounds.height <= 2.0 {
+                        xmlParts.append("<hr />")
+                        i += 1
+                        continue
+                    }
+                }
+            }
+            
+            // 检查是否是有序列表
+            if let match = try? NSRegularExpression(pattern: "^\\d+\\.\\s+(.+)").firstMatch(in: paragraphString, options: [], range: NSRange(paragraphString.startIndex..., in: paragraphString)) {
+                // 检查是否是连续的有序列表（前一个段落也是有序列表且同缩进）
+                var prevWasOrder = false
+                var prevIndent = 1
+                if i > 0 {
+                    let prevParagraph = paragraphs[i - 1]
+                    let prevParagraphString = prevParagraph.string.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if let prevMatch = try? NSRegularExpression(pattern: "^\\d+\\.\\s+(.+)").firstMatch(in: prevParagraphString, options: [], range: NSRange(prevParagraphString.startIndex..., in: prevParagraphString)) {
+                        // 前一个也是有序列表，检查缩进是否相同
+                        if let prevParagraphStyle = prevParagraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
+                            prevIndent = max(1, Int(prevParagraphStyle.headIndent / indentUnit) + 1)
+                        }
+                        var currentIndent = 1
+                        if let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
+                            currentIndent = max(1, Int(paragraphStyle.headIndent / indentUnit) + 1)
+                        }
+                        prevWasOrder = (prevIndent == currentIndent)
+                    }
+                }
+                
+                // 如果不是连续的，需要重置该缩进级别的计数器
+                if !prevWasOrder {
+                    var currentIndent = 1
+                    if let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
+                        currentIndent = max(1, Int(paragraphStyle.headIndent / indentUnit) + 1)
+                    }
+                    // 只重置当前缩进级别的计数器
+                    orderCounters[currentIndent] = nil
+                }
+                
+                let orderXML = convertOrderToXML(paragraph, match: match, orderCounters: &orderCounters)
+                xmlParts.append(orderXML)
+                i += 1
+                continue
+            } else {
+                // 不是有序列表，如果有之前的有序列表计数器，需要重置
+                orderCounters.removeAll()
+            }
+            
+            // 普通段落
+            let paragraphXML = convertParagraphToXML(paragraph)
+            xmlParts.append(paragraphXML)
+            i += 1
+        }
+        
         return xmlParts.joined(separator: "\n")
+    }
+    
+    /// 检查段落是否是引用段落
+    private static func isQuoteParagraph(_ paragraph: NSAttributedString) -> Bool {
+        guard paragraph.length > 0 else { return false }
+        
+        // 检查段落样式（引用块通常有左侧缩进约20）
+        if let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
+            let quoteIndent: CGFloat = 20.0
+            if abs(paragraphStyle.firstLineHeadIndent - quoteIndent) < 5.0 || abs(paragraphStyle.headIndent - quoteIndent) < 5.0 {
+                // 检查是否有竖线附件
+                if paragraph.string.hasPrefix("\u{FFFC}") {
+                    return true
+                }
+            }
+        }
+        
+        // 或者通过附件尺寸判断（引用块的竖线：宽度3-5，高度15-25）
+        if paragraph.string.hasPrefix("\u{FFFC}"),
+           let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment,
+           let image = attachment.image {
+            let imageWidth = image.size.width
+            let imageHeight = image.size.height
+            if imageWidth >= 3.0 && imageWidth <= 5.0 && imageHeight >= 15.0 && imageHeight <= 25.0 {
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    /// 转换引用块为XML
+    /// 
+    /// 格式：<quote><text indent="1">引用1</text>\n<text indent="1">引用2</text></quote>\n
+    private static func convertQuoteBlockToXML(_ paragraphs: [NSAttributedString]) -> String {
+        var quoteParts: [String] = []
+        
+        for paragraph in paragraphs {
+            // 移除竖线附件和后面的空格
+            var textAttr = paragraph
+            let paragraphString = paragraph.string
+            
+            // 查找竖线附件后的文本起始位置（跳过附件字符和可能的空格）
+            var textStart = 0
+            if paragraphString.hasPrefix("\u{FFFC}") {
+                textStart = 1  // 跳过附件字符
+                // 跳过附件后的空格（通常有两个空格）
+                while textStart < paragraphString.count && paragraphString[paragraphString.index(paragraphString.startIndex, offsetBy: textStart)] == " " {
+                    textStart += 1
+                }
+            }
+            
+            if textStart > 0 && textStart < paragraph.length {
+                let textRange = NSRange(location: textStart, length: paragraph.length - textStart)
+                if textRange.location < paragraph.length && textRange.location + textRange.length <= paragraph.length {
+                    textAttr = paragraph.attributedSubstring(from: textRange)
+                }
+            }
+            
+            // 转换为text标签（移除竖线后的内容，缩进为1）
+            let textXML = convertNormalParagraphToXMLForQuote(textAttr)
+            quoteParts.append(textXML)
+        }
+        
+        return "<quote>\(quoteParts.joined(separator: "\n"))</quote>"
+    }
+    
+    /// 转换普通段落为XML（用于引用块内，缩进固定为1）
+    private static func convertNormalParagraphToXMLForQuote(_ paragraph: NSAttributedString) -> String {
+        let fullRange = NSRange(location: 0, length: paragraph.length)
+        
+        // 引用块内的段落缩进固定为1
+        let indent = 1
+        var alignment: NSTextAlignment = .left
+        
+        if let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
+            alignment = paragraphStyle.alignment
+        }
+        
+        var innerXML = NSMutableString()
+        
+        paragraph.enumerateAttributes(in: fullRange, options: []) { (attrs, range, _) in
+            let substring = paragraph.attributedSubstring(from: range).string
+            var currentText = escapeXML(substring)
+            
+            // 检查字体样式
+            if let font = attrs[.font] as? NSFont {
+                    var needsBold = font.fontDescriptor.symbolicTraits.contains(.bold)
+                    // 检查斜体：可以通过symbolicTraits或obliqueness属性
+                    var needsItalic = font.fontDescriptor.symbolicTraits.contains(.italic)
+                    // 如果symbolicTraits中没有斜体，检查obliqueness属性（斜体可能通过此属性设置）
+                    if !needsItalic, let obliqueness = attrs[.obliqueness] as? CGFloat, obliqueness > 0 {
+                        needsItalic = true
+                    }
+                    
+                // 标题样式
+                if font.pointSize >= h1FontSize {
+                        currentText = "<size>\(currentText)</size>"
+                    needsBold = false
+                } else if font.pointSize >= h2FontSize {
+                        currentText = "<mid-size>\(currentText)</mid-size>"
+                    needsBold = false
+                } else if font.pointSize >= h3FontSize {
+                        currentText = "<h3-size>\(currentText)</h3-size>"
+                    needsBold = false
+                    }
+
+                    if needsBold {
+                        currentText = "<b>\(currentText)</b>"
+                    }
+                    if needsItalic {
+                        currentText = "<i>\(currentText)</i>"
+                    }
+                }
+                
+            // 下划线
+            if let underlineStyle = attrs[.underlineStyle] as? Int, underlineStyle != 0 {
+                    currentText = "<u>\(currentText)</u>"
+                }
+                
+            // 删除线
+            if let strikethroughStyle = attrs[.strikethroughStyle] as? Int, strikethroughStyle != 0 {
+                    currentText = "<delete>\(currentText)</delete>"
+                }
+
+            // 背景色
+            if let bgColor = attrs[.backgroundColor] as? NSColor,
+               let hexColor = bgColor.toHex() {
+                        currentText = "<background color=\"#\(hexColor)\">\(currentText)</background>"
+                    }
+            
+            innerXML.append(currentText)
+        }
+        
+        // 对齐方式
+        var finalText = innerXML as String
+        if alignment == .center {
+            finalText = "<center>\(finalText)</center>"
+        } else if alignment == .right {
+            finalText = "<right>\(finalText)</right>"
+        }
+        
+        return "<text indent=\"\(indent)\">\(finalText)</text>"
     }
     
     // MARK: - 纯文本转 XML
@@ -1034,18 +1351,43 @@ class MiNoteContentParser {
                     
                 case .order(let indent, let inputNumber, let text):
                     print("🔍 [parseQuoteBlock] 处理 <order /> 标签，indent=\(indent), inputNumber=\(inputNumber), text='\(text)'")
-                    // Auto-increment logic for ordered lists
-                    let currentCounter = orderCounters[indent] ?? 0
-                    let effectiveInputNumber: Int
-                    if inputNumber == 0 && currentCounter == 0 {
-                        effectiveInputNumber = 0
-                        orderCounters[indent] = 1
-                    } else if inputNumber > 0 {
-                        effectiveInputNumber = inputNumber
-                        orderCounters[indent] = inputNumber + 1
+                    // 小米笔记的有序列表规则：
+                    // - 连续多行的有序列表，序号自动递增
+                    // - 第一行的inputNumber是实际值，后续行的inputNumber应该都是0
+                    
+                    // 检查是否是连续的有序列表（前一个segment也是同缩进级别的order）
+                    let isFirstInSequence: Bool
+                    if index > 0 {
+                        let prevItem = segments[index - 1]
+                        if case .order(let prevIndent, _, _) = prevItem, prevIndent == indent {
+                            isFirstInSequence = false  // 前一个也是同缩进的有序列表，说明这是连续的
+                        } else {
+                            isFirstInSequence = true  // 前一个不是有序列表或不同缩进，说明这是新序列的开始
+                            // 重置该缩进级别的计数器
+                            orderCounters[indent] = nil
+                        }
                     } else {
-                        effectiveInputNumber = currentCounter
-                        orderCounters[indent] = currentCounter + 1
+                        isFirstInSequence = true
+                    }
+                    
+                    let effectiveInputNumber: Int
+                    if isFirstInSequence {
+                        // 这是序列的第一项，使用XML中的inputNumber
+                        effectiveInputNumber = inputNumber
+                        // 保存第一个inputNumber，用于后续项计算显示序号
+                        orderCounters[indent] = inputNumber
+                        // 初始化序号偏移计数器为0（第一项使用inputNumber，从第二项开始递增）
+                        orderCounters[indent + 1000] = 0
+                    } else {
+                        // 这是连续的有序列表项，inputNumber应该为0
+                        // 但我们需要根据第一个inputNumber来计算当前应该显示的序号
+                        let firstInputNumber = orderCounters[indent] ?? 0
+                        let currentOffset = orderCounters[indent + 1000] ?? 0
+                        // 显示序号 = 第一个inputNumber + 1 + 偏移量（+1是因为第二项应该比第一项大1）
+                        let displayOrderNumber = (firstInputNumber + 1) + (currentOffset + 1)
+                        effectiveInputNumber = displayOrderNumber - 1  // 转换为0-based的inputNumber用于显示
+                        // 递增序号偏移计数器
+                        orderCounters[indent + 1000] = currentOffset + 1
                     }
                     segmentAttr = parseStandaloneOrder(indent: indent, inputNumber: effectiveInputNumber, text: text)
                     
@@ -1411,8 +1753,9 @@ class MiNoteContentParser {
         // 创建段落样式，让分割线填满整个宽度
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .left  // 左对齐，让分割线从左边开始
-        paragraphStyle.paragraphSpacingBefore = 8.0
-        paragraphStyle.paragraphSpacing = 8.0
+        // 减少段落间距，避免产生额外的空行
+        paragraphStyle.paragraphSpacingBefore = 0.0
+        paragraphStyle.paragraphSpacing = 0.0
         // 设置左右边距为0，确保分割线可以延伸到边缘
         paragraphStyle.headIndent = 0
         paragraphStyle.firstLineHeadIndent = 0
@@ -1999,41 +2342,73 @@ class MiNoteContentParser {
         // 检查是否是特殊元素
         let paragraphString = paragraph.string.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // 分割线：优先检查 NSTextAttachment（分割线是通过图片附件创建的）
-        // 检查段落是否只包含附件（分割线通常只包含一个附件，没有其他文本）
-        if paragraph.length == 1 {
-            if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment,
-               let image = attachment.image {
-                // 分割线的特征：宽度约为 400，高度约为 1
-                let imageWidth = image.size.width
-                let imageHeight = image.size.height
-                let isHorizontalLine = imageWidth >= 300 && imageWidth <= 500 && imageHeight >= 0.5 && imageHeight <= 2.0
-                
-                if isHorizontalLine {
-                        return "<hr />"
+        // 分割线：优先检查 HorizontalRuleAttachmentCell 类型（最可靠的方法）
+        // 分割线使用 HorizontalRuleAttachmentCell 来绘制，检查 attachmentCell 类型
+        if paragraph.length == 1 || paragraphString == "\u{FFFC}" || paragraphString.isEmpty {
+            if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
+                // 在 macOS 上，检查 attachmentCell 类型
+                #if macOS
+                if attachment.attachmentCell is HorizontalRuleAttachmentCell {
+                    return "<hr />"
                 }
-            }
-        }
-        
-        // 如果段落字符串只包含附件占位符（\u{FFFC}），也检查是否是分割线
-        if paragraphString == "\u{FFFC}" || paragraphString.isEmpty {
-            if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment,
-               let image = attachment.image {
-                let imageWidth = image.size.width
-                let imageHeight = image.size.height
-                let isHorizontalLine = imageWidth >= 300 && imageWidth <= 500 && imageHeight >= 0.5 && imageHeight <= 2.0
+                #endif
                 
-                if isHorizontalLine {
+                // 如果没有 attachmentCell，检查 bounds（分割线 bounds 通常宽度很大，高度为1）
+                if attachment.bounds.width >= 100 && attachment.bounds.height <= 2.0 {
                     return "<hr />"
                 }
             }
         }
         
-        // 复选框
-        if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment,
-           let image = attachment.image,
-           image.size.width <= 20 && image.size.width > 0 {
-            return convertCheckboxToXML(paragraph)
+        // 引用块的竖线附件检测（必须在checkbox检测之前）
+        // 引用块的竖线特征：宽度约为 4，高度约为 20
+        // 引用块可以通过段落样式（左侧缩进）来识别，但为了更准确，也检查竖线附件
+        // 如果段落包含引用块的竖线，不应该被误判为checkbox
+        var hasQuoteLine = false
+        if let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
+            // 引用块通常有较大的左侧缩进（firstLineHeadIndent 和 headIndent 都约为 20）
+            let quoteIndent: CGFloat = 20.0
+            if abs(paragraphStyle.firstLineHeadIndent - quoteIndent) < 5.0 || abs(paragraphStyle.headIndent - quoteIndent) < 5.0 {
+                hasQuoteLine = true
+            }
+        }
+        
+        // 或者通过附件尺寸判断（引用块的竖线：宽度3-5，高度15-25）
+        if !hasQuoteLine, let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment,
+           let image = attachment.image {
+            let imageWidth = image.size.width
+            let imageHeight = image.size.height
+            hasQuoteLine = imageWidth >= 3.0 && imageWidth <= 5.0 && imageHeight >= 15.0 && imageHeight <= 25.0
+        }
+        
+        // 复选框（排除引用块的竖线和分割线）
+        if !hasQuoteLine, let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
+            // 先检查是否是分割线（已经在上面处理）
+            #if macOS
+            if attachment.attachmentCell is HorizontalRuleAttachmentCell {
+                // 已经处理为分割线，跳过
+            } else if let image = attachment.image {
+                let imageWidth = image.size.width
+                let imageHeight = image.size.height
+                // checkbox的特征：宽度<=20且>0，高度也较小（通常<=20）
+                // 排除引用块的竖线（宽度3-5，高度15-25）
+                let isCheckbox = imageWidth <= 20 && imageWidth > 0 && imageHeight <= 20 && !(imageWidth >= 3.0 && imageWidth <= 5.0 && imageHeight >= 15.0 && imageHeight <= 25.0)
+                if isCheckbox {
+                    return convertCheckboxToXML(paragraph)
+                }
+            }
+            #else
+            if let image = attachment.image {
+                let imageWidth = image.size.width
+                let imageHeight = image.size.height
+                // checkbox的特征：宽度<=20且>0，高度也较小（通常<=20）
+                // 排除引用块的竖线（宽度3-5，高度15-25）
+                let isCheckbox = imageWidth <= 20 && imageWidth > 0 && imageHeight <= 20 && !(imageWidth >= 3.0 && imageWidth <= 5.0 && imageHeight >= 15.0 && imageHeight <= 25.0)
+                if isCheckbox {
+                    return convertCheckboxToXML(paragraph)
+                }
+            }
+            #endif
         }
         
         // 无序列表
@@ -2041,10 +2416,7 @@ class MiNoteContentParser {
             return convertBulletToXML(paragraph)
         }
         
-        // 有序列表
-        if let match = try? NSRegularExpression(pattern: "^\\d+\\.\\s+(.+)").firstMatch(in: paragraphString, options: [], range: NSRange(paragraphString.startIndex..., in: paragraphString)) {
-            return convertOrderToXML(paragraph, match: match)
-        }
+        // 注意：有序列表和引用块已经在 parseToXML 中处理，这里不会收到这些类型的段落
         
         // 分割线：检查是否包含足够多的 "─" 字符（至少30个），且主要是分割线字符
         let dashCount = paragraphString.filter { $0 == "─" }.count
@@ -2081,7 +2453,12 @@ class MiNoteContentParser {
             // 检查字体样式
             if let font = attrs[.font] as? NSFont {
                     var needsBold = font.fontDescriptor.symbolicTraits.contains(.bold)
+                    // 检查斜体：可以通过symbolicTraits或obliqueness属性
                     var needsItalic = font.fontDescriptor.symbolicTraits.contains(.italic)
+                    // 如果symbolicTraits中没有斜体，检查obliqueness属性（斜体可能通过此属性设置）
+                    if !needsItalic, let obliqueness = attrs[.obliqueness] as? CGFloat, obliqueness > 0 {
+                        needsItalic = true
+                    }
                     
                 // 标题样式
                 if font.pointSize >= h1FontSize {
@@ -2193,35 +2570,73 @@ class MiNoteContentParser {
     /// 格式：<order indent="1" inputNumber="0" />有序列表文本\n
     /// 注意：order 标签后直接跟文本，不使用 <text> 标签包裹
     /// inputNumber 是 0-based 索引（显示时会+1，所以0显示为1）
-    private static func convertOrderToXML(_ paragraph: NSAttributedString, match: NSTextCheckingResult) -> String {
+    /// 
+    /// 小米笔记的有序列表规则：
+    /// - 连续多行的有序列表，第一行的inputNumber是实际值，后续行的inputNumber都是0
+    /// - 例如：inputNumber为0,0,0,0，渲染为1,2,3,4
+    /// - 例如：100,0,0,0渲染为100,101,102,103
+    private static func convertOrderToXML(_ paragraph: NSAttributedString, match: NSTextCheckingResult, orderCounters: inout [Int: Int]) -> String {
         var indent = 1
         if let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
             indent = max(1, Int(paragraphStyle.headIndent / indentUnit) + 1)
         }
         
         let string = paragraph.string
-        if match.numberOfRanges >= 2,
-           let numberRange = Range(match.range, in: string) {
-            let numberText = String(string[numberRange])
-            if let orderNumber = Int(numberText.replacingOccurrences(of: ". ", with: "")) {
-                let inputNumber = max(0, orderNumber - 1)  // 转换为 0-based
-                
-                if match.numberOfRanges >= 2,
-                   let textRange = Range(match.range(at: 1), in: string) {
-                    let textStart = string.distance(from: string.startIndex, to: textRange.lowerBound)
-                    let textAttrRange = NSRange(location: textStart, length: paragraph.length - textStart)
-                    if textAttrRange.location < paragraph.length {
-                        let textAttr = paragraph.attributedSubstring(from: textAttrRange)
-                        // 提取纯文本内容（不转换XML，因为order标签后直接跟文本）
-                        let textContent = escapeXML(textAttr.string.trimmingCharacters(in: .whitespacesAndNewlines))
-                        return "<order indent=\"\(indent)\" inputNumber=\"\(inputNumber)\" />\(textContent)"
+        var inputNumber = 0
+        
+        // 正则表达式匹配 "^\\d+\\.\\s+(.+)" 
+        // match.range 是整个匹配（包括数字、点、空格和文本）
+        // match.range(at: 1) 是第一个捕获组（文本部分）
+        if match.numberOfRanges >= 2 {
+            // 提取数字部分（从 match.range 的开始到第一个点之前）
+            let fullMatchRange = match.range
+            if let fullRange = Range(fullMatchRange, in: string) {
+                let fullMatchText = String(string[fullRange])
+                // 提取数字：从开始到第一个点之前
+                if let dotIndex = fullMatchText.firstIndex(of: ".") {
+                    let numberText = String(fullMatchText[..<dotIndex])
+                    if let orderNumber = Int(numberText) {
+                        // 检查是否是连续有序列表的第一项
+                        // orderCounters[indent]存储第一个inputNumber，如果为nil说明这是新序列
+                        let isFirstInSequence = (orderCounters[indent] == nil)
+                        
+                        if isFirstInSequence {
+                            // 这是序列的第一项，使用显示的序号转换为inputNumber（0-based）
+                            inputNumber = max(0, orderNumber - 1)
+                            // 保存第一个inputNumber
+                            orderCounters[indent] = inputNumber
+                        } else {
+                            // 这是连续的有序列表项，inputNumber应该为0
+                            inputNumber = 0
+                        }
+                        
+                        // 提取文本部分（使用捕获组）
+                        if let textRange = Range(match.range(at: 1), in: string) {
+                            let textStart = string.distance(from: string.startIndex, to: textRange.lowerBound)
+                            let textLength = string.distance(from: textRange.lowerBound, to: textRange.upperBound)
+                            let textAttrRange = NSRange(location: textStart, length: textLength)
+                            
+                            if textAttrRange.location < paragraph.length && textAttrRange.location + textAttrRange.length <= paragraph.length {
+                                let textAttr = paragraph.attributedSubstring(from: textAttrRange)
+                                // 提取纯文本内容（不转换XML，因为order标签后直接跟文本）
+                                let textContent = escapeXML(textAttr.string.trimmingCharacters(in: .whitespacesAndNewlines))
+                                return "<order indent=\"\(indent)\" inputNumber=\"\(inputNumber)\" />\(textContent)"
+                            }
+                        }
                     }
                 }
             }
         }
         
         // 只有order，没有文本
-        return "<order indent=\"\(indent)\" inputNumber=\"0\" />"
+        let isFirstInSequence = (orderCounters[indent] == nil)
+        if isFirstInSequence {
+            inputNumber = 0
+            orderCounters[indent] = 0
+        } else {
+            inputNumber = 0
+        }
+        return "<order indent=\"\(indent)\" inputNumber=\"\(inputNumber)\" />"
     }
     
     /// 转换文本内容为 XML（不包含 <text> 标签，用于嵌套在 <text> 内的内联样式）
@@ -2239,7 +2654,12 @@ class MiNoteContentParser {
             // 检查字体样式
             if let font = attrs[.font] as? NSFont {
                 var needsBold = font.fontDescriptor.symbolicTraits.contains(.bold)
+                // 检查斜体：可以通过symbolicTraits或obliqueness属性
                 var needsItalic = font.fontDescriptor.symbolicTraits.contains(.italic)
+                // 如果symbolicTraits中没有斜体，检查obliqueness属性（斜体可能通过此属性设置）
+                if !needsItalic, let obliqueness = attrs[.obliqueness] as? CGFloat, obliqueness > 0 {
+                    needsItalic = true
+                }
                 
                 // 标题样式
                 if font.pointSize >= h1FontSize {

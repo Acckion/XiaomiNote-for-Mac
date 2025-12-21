@@ -543,8 +543,11 @@ struct RichTextEditorWrapper: View {
             // TODO: 实现标题样式
             print("[RichTextEditorWrapper] 标题样式暂未实现: level=\(level)")
         case .highlight:
-            // TODO: 实现高亮
-            print("[RichTextEditorWrapper] 高亮暂未实现")
+            // 高亮已通过 FormatMenuView 的 context.setColor 处理
+            // 这里不需要额外操作，因为 RichTextContext 会通过 actionPublisher 处理
+            // 但为了确保状态同步，我们触发一次同步
+            // context.setColor 已在 FormatMenuView 中调用
+            break
         case .textAlignment(let alignment):
             editorContext.paragraphStyle.alignment = alignment
         }

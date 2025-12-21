@@ -748,6 +748,36 @@ struct NoteDetailView: View {
             // 获取最新内容
             let (rtfData, attributedText) = getLatestContentFromEditor()
             
+            // 验证内容不是标题（防止标题被错误地保存为正文）
+            let contentString = String(attributedText.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+            let titleString = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            if contentString == titleString && !contentString.isEmpty {
+                print("⚠️ [NoteDetailView] 错误：正文内容与标题相同，跳过保存以防止数据丢失")
+                // 如果内容与标题相同，使用 editedAttributedText 作为后备
+                // 这确保即使 getLatestContentFromEditor 返回了错误的内容，我们也能使用正确的正文
+                let fallbackAttributedText = editedAttributedText
+                let fallbackRtfData = editedRTFData
+                
+                // 检查是否有变化（避免重复保存）
+                guard hasContentChanged(rtfData: fallbackRtfData) else {
+                    return
+                }
+                
+                // 构建更新的笔记对象（使用后备内容）
+                let updatedNote = buildUpdatedNote(from: note, rtfData: fallbackRtfData, attributedText: fallbackAttributedText)
+                
+                // 保存到数据库
+                try LocalStorageService.shared.saveNote(updatedNote)
+                
+                // 更新状态
+                updateSaveState(rtfData: fallbackRtfData, attributedText: fallbackAttributedText)
+                
+                // 延迟更新 ViewModel（避免触发重新加载）
+                updateViewModelDelayed(with: updatedNote)
+                return
+            }
+            
             // 检查是否有变化（避免重复保存）
             guard hasContentChanged(rtfData: rtfData) else {
                 return
@@ -1069,7 +1099,12 @@ struct NoteDetailView: View {
         if useRichTextKit {
             let contextAttributedString = editorContext.attributedString
             
-            if contextAttributedString.length > 0 {
+            // 验证内容不是标题（标题不应该出现在正文编辑器中）
+            // 如果 context 的内容与标题相同，说明可能出现了错误，使用 editedAttributedText 作为后备
+            let contextString = contextAttributedString.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            let titleString = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            if contextAttributedString.length > 0 && contextString != titleString {
                 let swiftUIAttributedText = AttributedString(contextAttributedString)
                 
                 // 尝试生成 archivedData（支持图片附件）
@@ -1081,7 +1116,11 @@ struct NoteDetailView: View {
                     return (editedRTFData, swiftUIAttributedText)
                 }
             } else {
-                // 如果 context 为空，使用 editedRTFData 或 editedAttributedText
+                // 如果 context 为空或内容与标题相同，使用 editedRTFData 或 editedAttributedText
+                // 这确保即使 context 被错误地设置为标题，我们也能使用正确的正文内容
+                if contextString == titleString && contextAttributedString.length > 0 {
+                    print("⚠️ [NoteDetailView] 警告：editorContext 的内容与标题相同，使用 editedAttributedText 作为后备")
+                }
                 return (editedRTFData, editedAttributedText)
             }
         } else {

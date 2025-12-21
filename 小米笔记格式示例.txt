@@ -28,6 +28,11 @@
 <bullet indent=\"1\" />无序列表\n
 
 特殊，有序列表不用<text>包裹：
+有序列表的inputNumber规则：
+- 连续多行的有序列表，第一行的inputNumber是实际值，后续行的inputNumber都是0
+- 序号会自动递增显示
+- 例如：<order indent=\"1\" inputNumber=\"0\" />列表1\n<order indent=\"1\" inputNumber=\"0\" />列表2\n 渲染为1. 列表1\n2. 列表2
+- 例如：<order indent=\"1\" inputNumber=\"99\" />列表1\n<order indent=\"1\" inputNumber=\"0\" />列表2\n 渲染为100. 列表1\n101. 列表2
 <order indent=\"1\" inputNumber=\"0\" />有序列表1\n
 <order indent=\"1\" inputNumber=\"0\" />有序列表2\n
 

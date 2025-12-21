@@ -40,8 +40,13 @@ struct FormatMenuView: View {
     }
     
     private var isHighlight: Bool {
-        // TODO: 实现高亮检查
-        false
+        // 检查是否有背景色（高亮）
+        // ColorRepresentable 在 macOS 上就是 NSColor
+        if let backgroundColor = context.color(for: .background) as? NSColor {
+            // 检查背景色是否不是透明色（即存在高亮）
+            return backgroundColor.alphaComponent > 0
+        }
+        return false
     }
     
     private var textAlignment: NSTextAlignment {
@@ -264,6 +269,15 @@ struct FormatMenuView: View {
             print("   - 下划线: \(newValue[RichTextStyle.underlined] ?? false)")
             print("   - 删除线: \(newValue[RichTextStyle.strikethrough] ?? false)")
         }
+        .onChange(of: context.colors) { oldValue, newValue in
+            // 当颜色变化时（特别是背景色/高亮），更新按钮状态
+            print("🔄 [FormatMenuView] context.colors 变化: \(newValue)")
+            let oldHighlight = (oldValue[.background] as? NSColor)?.alphaComponent ?? 0 > 0
+            let newHighlight = (newValue[.background] as? NSColor)?.alphaComponent ?? 0 > 0
+            if oldHighlight != newHighlight {
+                print("   - 高亮状态变化: \(oldHighlight) -> \(newHighlight)")
+            }
+        }
         .onChange(of: context.selectedRange) { oldValue, newValue in
             print("🔄 [FormatMenuView] context.selectedRange 变化: location=\(newValue.location), length=\(newValue.length)")
         }
@@ -373,11 +387,23 @@ struct FormatMenuView: View {
     }
     
     private func handleHighlightToggle() {
-        // 发送高亮操作通知
+        print("🔧 [FormatMenuView] handleHighlightToggle - 切换前: \(isHighlight)")
+        // 使用 RichTextContext 切换高亮背景色
+        if isHighlight {
+            // 移除高亮：设置为透明色
+            context.setColor(.background, to: NSColor.clear)
+        } else {
+            // 添加高亮：使用黄色半透明（与小米笔记颜色一致）
+            let highlightColor = NSColor(hex: "9affe8af") ?? NSColor.yellow.withAlphaComponent(0.5)
+            context.setColor(.background, to: highlightColor)
+        }
+        print("🔧 [FormatMenuView] handleHighlightToggle - 切换后: \(isHighlight)")
+        // 同时发送通知（向后兼容）
         NotificationCenter.default.post(
             name: NSNotification.Name("MiNoteEditorFormatAction"),
             object: MiNoteEditor.FormatAction.highlight
         )
+        onFormatAction?(.highlight)
     }
 }
 
