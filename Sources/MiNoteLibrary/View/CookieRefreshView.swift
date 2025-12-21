@@ -297,23 +297,14 @@ struct CookieRefreshWebView: NSViewRepresentable {
                 return
             }
             
-            // 主页加载完成后，等待一段时间后主动导航到 profile 页面（参考 Obsidian 插件）
-            // Obsidian 插件监听 profile 请求的发送，我们主动触发这个请求
+            // 主页加载完成后，清除加载状态，等待用户点击"登录"按钮
+            // 不再自动跳转到 profile 页面，让用户自然登录流程完成后，页面会自动跳转到 profile 页面
             if currentURL.contains("i.mi.com") && !currentURL.contains("status/lite/profile") && !hasLoadedProfile {
-                print("[CookieRefreshWebView] 主页加载完成，等待后访问 profile 页面获取 Cookie")
+                print("[CookieRefreshWebView] 主页加载完成，等待用户点击登录按钮")
                 DispatchQueue.main.async {
                     self.parent.isLoading = false
                 }
-                
-                // 等待页面完全加载并设置所有 cookie（参考 LoginView 的延迟逻辑）
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    if !self.cookieExtracted && !self.hasLoadedProfile {
-                        if let profileURL = URL(string: "https://i.mi.com/status/lite/profile?ts=\(Int(Date().timeIntervalSince1970 * 1000))") {
-                            print("[CookieRefreshWebView] 访问 profile 页面: \(profileURL.absoluteString)")
-                            webView.load(URLRequest(url: profileURL))
-                        }
-                    }
-                }
+                // 不再自动跳转，等待用户登录后的自然跳转
                 return
             }
             

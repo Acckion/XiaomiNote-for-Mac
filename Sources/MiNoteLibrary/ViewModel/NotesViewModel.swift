@@ -204,6 +204,32 @@ public class NotesViewModel: ObservableObject {
         networkMonitor.$isOnline
             .sink { [weak self] networkOnline in
                 guard let self = self else { return }
+                
+                // 如果用户选择保持离线模式，不自动更新在线状态
+                if self.shouldStayOffline {
+                    // 确保状态保持一致
+                    if self.isOnline {
+                        self.isOnline = false
+                    }
+                    if !self.isCookieExpired {
+                        self.isCookieExpired = true
+                    }
+                    return
+                }
+                
+                // 如果弹窗正在显示（等待用户选择），不自动更新在线状态
+                // 确保在弹窗显示期间状态保持为"Cookie失效"而不是"在线"
+                if self.cookieExpiredShown {
+                    // 确保状态保持一致（Cookie失效）
+                    if self.isOnline {
+                        self.isOnline = false
+                    }
+                    if !self.isCookieExpired {
+                        self.isCookieExpired = true
+                    }
+                    return
+                }
+                
                 let hasValidCookie = self.service.hasValidCookie()
                 
                 self.isOnline = networkOnline && hasValidCookie
@@ -222,6 +248,32 @@ public class NotesViewModel: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
+                
+                // 如果用户选择保持离线模式，不自动更新在线状态
+                if self.shouldStayOffline {
+                    // 确保状态保持一致
+                    if self.isOnline {
+                        self.isOnline = false
+                    }
+                    if !self.isCookieExpired {
+                        self.isCookieExpired = true
+                    }
+                    return
+                }
+                
+                // 如果弹窗正在显示（等待用户选择），不自动更新在线状态
+                // 确保在弹窗显示期间状态保持为"Cookie失效"而不是"在线"
+                if self.cookieExpiredShown {
+                    // 确保状态保持一致（Cookie失效）
+                    if self.isOnline {
+                        self.isOnline = false
+                    }
+                    if !self.isCookieExpired {
+                        self.isCookieExpired = true
+                    }
+                    return
+                }
+                
                 let networkOnline = self.networkMonitor.isOnline
                 let hasValidCookie = self.service.hasValidCookie()
                 

@@ -103,8 +103,13 @@ struct RichTextEditorView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSText.didChangeNotification)) { notification in
             // 监听 NSTextView 的文本变化通知（macOS）
-            // 直接保存，不进行比较
             guard let textView = notification.object as? NSTextView else {
+                return
+            }
+            
+            // 检查输入法是否正在组合中（hasMarkedText）
+            if textView.hasMarkedText() {
+                print("[RichTextEditorView] 输入法正在组合中，延迟保存")
                 return
             }
             
@@ -116,7 +121,7 @@ struct RichTextEditorView: View {
             // 更新 text binding（这会触发 onChange）
             text = newText
             
-            // 直接触发回调（这是主要的数据流，触发保存）
+            // 触发回调（这是主要的数据流，触发保存）
             onContentChange?(newText)
         }
         .onChange(of: context.styles) { oldValue, newValue in
