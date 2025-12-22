@@ -1,7 +1,0 @@
-# options
---swiftversion 5.8
-
-# rules
---rules consecutiveBlankLines
---rules consecutiveSpaces
---rules trailingSpace

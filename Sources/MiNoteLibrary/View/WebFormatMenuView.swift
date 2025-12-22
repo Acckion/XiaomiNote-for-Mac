@@ -32,17 +32,27 @@ struct WebFormatMenuView: View {
         case quote
     }
     
-    /// 文本样式枚举
+    /// 文本样式枚举（对应小米笔记格式）
     enum TextStyle: String, CaseIterable {
-        case title = "标题"
-        case subtitle = "小标题"
-        case subheading = "副标题"
-        case body = "正文"
-        case bulletList = "无序列表"
-        case numberedList = "有序列表"
+        case title = "大标题"           // <size>
+        case subtitle = "二级标题"      // <mid-size>
+        case subheading = "三级标题"   // <h3-size>
+        case body = "正文"              // 普通文本
+        case bulletList = "无序列表"    // <bullet>
+        case numberedList = "有序列表"  // <order>
         
         var displayName: String {
             return rawValue
+        }
+        
+        /// 对应的标题级别（用于设置 headingLevel）
+        var headingLevel: Int? {
+            switch self {
+            case .title: return 1
+            case .subtitle: return 2
+            case .subheading: return 3
+            default: return nil
+            }
         }
     }
     
@@ -124,7 +134,7 @@ struct WebFormatMenuView: View {
             // 分割线
             Divider()
             
-            // 文本样式列表（单选：标题、小标题、副标题、正文、无序列表、有序列表）
+            // 文本样式列表（单选：大标题、二级标题、三级标题、正文、无序列表、有序列表）
             VStack(spacing: 0) {
                 ForEach(TextStyle.allCases, id: \.self) { style in
                     Button(action: {
@@ -154,7 +164,7 @@ struct WebFormatMenuView: View {
             // 块引用上方的分割线
             Divider()
             
-            // 块引用（可勾选）
+            // 引用块（可勾选）
             Button(action: {
                 isBlockQuote.toggle()
                 handleBlockQuoteToggle()
@@ -166,7 +176,7 @@ struct WebFormatMenuView: View {
                         .foregroundColor(.yellow)
                         .frame(width: 20, alignment: .leading)
                     
-                    Text("块引用")
+                    Text("引用块")
                         .font(.system(size: 13))
                         .foregroundColor(.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -246,15 +256,15 @@ struct WebFormatMenuView: View {
         }
         .onChange(of: context.headingLevel) { oldValue, newValue in
             print("🔄 [WebFormatMenuView] 标题级别变化: \(String(describing: oldValue)) -> \(String(describing: newValue))")
-            // 更新当前样式
+            // 更新当前样式（根据标题级别）
             if let level = newValue {
                 switch level {
                 case 1:
-                    currentStyle = .title
+                    currentStyle = .title      // 大标题 <size>
                 case 2:
-                    currentStyle = .subtitle
+                    currentStyle = .subtitle   // 二级标题 <mid-size>
                 case 3:
-                    currentStyle = .subheading
+                    currentStyle = .subheading // 三级标题 <h3-size>
                 default:
                     currentStyle = .body
                 }
@@ -278,21 +288,27 @@ struct WebFormatMenuView: View {
         
         switch style {
         case .title:
+            // 大标题：使用 <size> 标签
             context.setHeadingLevel(1)
             onFormatAction?(.heading(1))
         case .subtitle:
+            // 二级标题：使用 <mid-size> 标签
             context.setHeadingLevel(2)
             onFormatAction?(.heading(2))
         case .subheading:
+            // 三级标题：使用 <h3-size> 标签
             context.setHeadingLevel(3)
             onFormatAction?(.heading(3))
         case .body:
+            // 正文：清除标题格式
             context.setHeadingLevel(nil)
             onFormatAction?(.heading(0))
         case .bulletList:
+            // 无序列表：使用 <bullet> 标签
             context.toggleBulletList()
             onFormatAction?(.bulletList)
         case .numberedList:
+            // 有序列表：使用 <order> 标签
             context.toggleOrderList()
             onFormatAction?(.orderList)
         }

@@ -13,6 +13,7 @@
 		0F5F13DCEB36876EE87B5D2B /* WebEditorContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B325C84FAE102FC3949E0D9 /* WebEditorContext.swift */; };
 		13A3D0BE46C8453AE5A5AC57 /* DatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B1D7E624DF253C07C01376 /* DatabaseService.swift */; };
 		18021F0E3CE77ABC9062D4DD /* OfflineOperationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D1C6CACE3C147825607106 /* OfflineOperationQueue.swift */; };
+		1B08E6568B52420DBD7DB1F6 /* xml-to-html.js in Resources */ = {isa = PBXBuildFile; fileRef = E53473BAEDF5B80BBCE0E138 /* xml-to-html.js */; };
 		1DF15B463E6D141AD6A04E0D /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19CE08A1CDCF94C551D20E51 /* NetworkMonitor.swift */; };
 		20BB627F98823947C2399384 /* NoteHistoryVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 893322552395E9A65891443B /* NoteHistoryVersion.swift */; };
 		21D18111453D5C66791D221D /* MiNoteLibrary.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; };
@@ -50,6 +51,7 @@
 		EC528F2178C1391F42AD260B /* WebEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD77259664AE993C6B5E2C0 /* WebEditorView.swift */; };
 		F23AAEC7EDA6B107DE7F102D /* NewRichTextEditorUsageExample.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DE1F4EFB7F2EA61AF1B8C24 /* NewRichTextEditorUsageExample.swift */; };
 		F511BA2AB66C264174ED8BD4 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37620C953116D1808597F0E2 /* SettingsView.swift */; };
+		F6443DE63F084A3D5C30E780 /* html-to-xml.js in Resources */ = {isa = PBXBuildFile; fileRef = F093E6D53768A49E34C7A67B /* html-to-xml.js */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -118,7 +120,9 @@
 		DAB696411171B9EF9F3A4242 /* XMLConversionTester.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLConversionTester.swift; sourceTree = "<group>"; };
 		E4859FC7DF92EAA20C7ABF7C /* MiNoteMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MiNoteMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E52881C25C9462ECA2EB2B4E /* new_editor.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = new_editor.html; sourceTree = "<group>"; };
+		E53473BAEDF5B80BBCE0E138 /* xml-to-html.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "xml-to-html.js"; sourceTree = "<group>"; };
 		EEBA8B045168080EF8181BC3 /* XMLReversibilityTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLReversibilityTest.swift; sourceTree = "<group>"; };
+		F093E6D53768A49E34C7A67B /* html-to-xml.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "html-to-xml.js"; sourceTree = "<group>"; };
 		F9D1C6CACE3C147825607106 /* OfflineOperationQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineOperationQueue.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -154,8 +158,10 @@
 			isa = PBXGroup;
 			children = (
 				05E7B38F6108DA4E6A03089C /* editor.html */,
+				F093E6D53768A49E34C7A67B /* html-to-xml.js */,
 				E52881C25C9462ECA2EB2B4E /* new_editor.html */,
 				5AD7737B17EA30B449AC8E0B /* test_conversion.html */,
+				E53473BAEDF5B80BBCE0E138 /* xml-to-html.js */,
 			);
 			path = Web;
 			sourceTree = "<group>";
@@ -363,8 +369,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				45881967D52E9420F5F8DE5F /* editor.html in Resources */,
+				F6443DE63F084A3D5C30E780 /* html-to-xml.js in Resources */,
 				74D0BB52F5CB48ABDD76DAB5 /* new_editor.html in Resources */,
 				B3B66545FA4D9A18E16362C9 /* test_conversion.html in Resources */,
+				1B08E6568B52420DBD7DB1F6 /* xml-to-html.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
