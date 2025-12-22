@@ -439,30 +439,20 @@ class MiNoteContentParser {
                     }
                 }
             case .image(let placeholder):
-                print("！！！图片处理！！！ 🖼️ [Parser] ========== 处理独立图片占位符 ==========")
-                print("！！！图片处理！！！ 🖼️ [Parser] 占位符: '\(placeholder)'")
-                
                 // 解析占位符获取 fileId 和 fileType
                 let placeholderPattern = try! NSRegularExpression(pattern: "🖼️IMAGE_([^:]+)::([^🖼️]+)🖼️", options: [])
                 if let match = placeholderPattern.firstMatch(in: placeholder, options: [], range: NSRange(placeholder.startIndex..., in: placeholder)),
                    match.numberOfRanges >= 3,
                    let fileIdRange = Range(match.range(at: 1), in: placeholder),
                    let fileTypeRange = Range(match.range(at: 2), in: placeholder) {
-                    let fileId = String(placeholder[fileIdRange])
-                    let fileType = String(placeholder[fileTypeRange])
-                    print("！！！图片处理！！！ 🖼️ [Parser] 解析占位符: fileId=\(fileId), fileType=\(fileType)")
-                    
                     // 创建图片附件
-                    // 先创建一个临时 NSAttributedString 来处理图片
                     let tempResult = NSMutableAttributedString(string: placeholder)
                     processImagePlaceholders(in: tempResult)
                     
                     // 如果处理成功，应该只有一个字符（附件字符）
                     if tempResult.length == 1 {
                         result.append(tempResult)
-                        print("！！！图片处理！！！ 🖼️ [Parser] ✅ 图片占位符已转换为附件")
                     } else {
-                        print("！！！图片处理！！！ 🖼️ [Parser] ⚠️ 图片占位符处理失败，保持原样")
                         result.append(NSAttributedString(string: placeholder))
                     }
                     
@@ -470,10 +460,8 @@ class MiNoteContentParser {
                         result.append(NSAttributedString(string: "\n", attributes: newlineAttributes()))
                     }
                 } else {
-                    print("！！！图片处理！！！ 🖼️ [Parser] ⚠️ 无法解析图片占位符格式")
                     result.append(NSAttributedString(string: placeholder))
                 }
-                print("！！！图片处理！！！ 🖼️ [Parser] ========== 图片占位符处理完成 ==========")
             }
         }
         
@@ -857,52 +845,27 @@ class MiNoteContentParser {
     private static func extractImageDict(from noteRawData: [String: Any]?) -> [String: String] {
         var imageDict: [String: String] = [:]
         
-        print("！！！图片处理！！！ 🖼️ [extractImageDict] ========== 开始提取图片信息 ==========")
-        print("！！！图片处理！！！ 🖼️ [extractImageDict] noteRawData: \(noteRawData != nil ? "存在" : "nil")")
-        
         guard let rawData = noteRawData else {
-            print("！！！图片处理！！！ 🖼️ [extractImageDict] ⚠️ noteRawData 为 nil，返回空字典")
             return imageDict
         }
-        
-        print("！！！图片处理！！！ 🖼️ [extractImageDict] rawData 键: \(rawData.keys)")
         
         guard let setting = rawData["setting"] as? [String: Any] else {
-            print("！！！图片处理！！！ 🖼️ [extractImageDict] ⚠️ rawData 中没有 setting 字段")
             return imageDict
         }
-        
-        print("！！！图片处理！！！ 🖼️ [extractImageDict] setting 键: \(setting.keys)")
         
         guard let settingData = setting["data"] as? [[String: Any]] else {
-            print("！！！图片处理！！！ 🖼️ [extractImageDict] ⚠️ setting 中没有 data 字段或 data 不是数组")
             return imageDict
         }
         
-        print("！！！图片处理！！！ 🖼️ [extractImageDict] settingData 数组长度: \(settingData.count)")
-        
-        for (index, imgData) in settingData.enumerated() {
-            print("！！！图片处理！！！ 🖼️ [extractImageDict] 处理图片条目 \(index + 1)/\(settingData.count): \(imgData.keys)")
-            
+        for imgData in settingData {
             if let fileId = imgData["fileId"] as? String,
-               let mimeType = imgData["mimeType"] as? String {
-                print("！！！图片处理！！！ 🖼️ [extractImageDict]    - fileId: \(fileId)")
-                print("！！！图片处理！！！ 🖼️ [extractImageDict]    - mimeType: \(mimeType)")
-                
-                if mimeType.hasPrefix("image/") {
-                    let fileType = String(mimeType.dropFirst("image/".count))
-                    imageDict[fileId] = fileType
-                    print("！！！图片处理！！！ 🖼️ [extractImageDict] ✅ 添加图片: fileId=\(fileId), fileType=\(fileType)")
-                } else {
-                    print("！！！图片处理！！！ 🖼️ [extractImageDict] ⚠️ mimeType 不是图片类型，跳过: \(mimeType)")
-                }
-            } else {
-                print("！！！图片处理！！！ 🖼️ [extractImageDict] ⚠️ 图片条目缺少 fileId 或 mimeType")
+               let mimeType = imgData["mimeType"] as? String,
+               mimeType.hasPrefix("image/") {
+                let fileType = String(mimeType.dropFirst("image/".count))
+                imageDict[fileId] = fileType
             }
         }
         
-        print("！！！图片处理！！！ 🖼️ [extractImageDict] ========== 提取完成，共 \(imageDict.count) 个图片 ==========")
-        print("！！！图片处理！！！ 🖼️ [extractImageDict] imageDict: \(imageDict)")
         return imageDict
     }
     
@@ -1181,10 +1144,7 @@ class MiNoteContentParser {
                 case "image":
                     // 图片占位符格式：🖼️IMAGE_fileId::fileType🖼️
                     if let placeholder = item.content {
-                        print("！！！图片处理！！！ 🔍 [extractTextTagsWithIntervals] 提取图片占位符: '\(placeholder)'")
                         segments.append(.image(placeholder: placeholder))
-                    } else {
-                        print("！！！图片处理！！！ ⚠️ [extractTextTagsWithIntervals] 图片占位符内容为 nil")
                     }
                 default:
                     break
@@ -1326,9 +1286,6 @@ class MiNoteContentParser {
             appendText(textBuffer, to: result, style: currentStyle, indent: indent, alignment: alignment)
         }
         
-        // 处理图片占位符
-        processImagePlaceholders(in: result)
-        
         // 确保整个段落都应用正确的对齐方式
         if result.length > 0 {
             let fullRange = NSRange(location: 0, length: result.length)
@@ -1431,18 +1388,14 @@ class MiNoteContentParser {
                     segmentAttr = parseHrTag()
                     
                 case .image(let placeholder):
-                    print("！！！图片处理！！！ 🔍 [parseQuoteBlock] 处理图片占位符: '\(placeholder)'")
                     // 创建图片附件
-                    // 先创建一个临时 NSAttributedString 来处理图片
                     let tempResult = NSMutableAttributedString(string: placeholder)
                     processImagePlaceholders(in: tempResult)
                     
                     // 如果处理成功，应该只有一个字符（附件字符）
                     if tempResult.length == 1 {
                         segmentAttr = tempResult
-                        print("！！！图片处理！！！ 🔍 [parseQuoteBlock] ✅ 图片占位符已转换为附件")
                     } else {
-                        print("！！！图片处理！！！ 🔍 [parseQuoteBlock] ⚠️ 图片占位符处理失败，保持原样")
                         segmentAttr = NSAttributedString(string: placeholder)
                     }
                     
@@ -1745,17 +1698,16 @@ class MiNoteContentParser {
     /// 处理图片占位符
     private static func processImagePlaceholders(in result: NSMutableAttributedString) {
         let string = result.string
-        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ========== 开始处理图片占位符 ==========")
-        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 输入字符串长度: \(string.count)")
-        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 输入字符串内容: '\(string)'")
+        
+        // 先快速检查是否包含图片占位符，如果没有就直接返回，避免不必要的处理
+        guard string.contains("🖼️IMAGE_") && string.contains("🖼️") else {
+            return
+        }
         
         let placeholderPattern = try! NSRegularExpression(pattern: "🖼️IMAGE_([^:]+)::([^🖼️]+)🖼️", options: [])
         let matches = placeholderPattern.matches(in: string, options: [], range: NSRange(string.startIndex..., in: string))
         
-        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 找到 \(matches.count) 个图片占位符")
-        
         if matches.isEmpty {
-            print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ⚠️ 没有找到图片占位符，跳过处理")
             return
         }
         
@@ -1767,7 +1719,6 @@ class MiNoteContentParser {
             
             // 验证 match.range 是否在当前字符串范围内
             if match.range.location < 0 || match.range.location >= currentLength {
-                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ⚠️ 占位符范围超出边界，跳过: location=\(match.range.location), length=\(currentLength)")
                 continue
             }
             
@@ -1783,42 +1734,16 @@ class MiNoteContentParser {
                 let fileId = String(currentString[fileIdRange])
                 let fileType = String(currentString[fileTypeRange])
                 
-                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ========== 处理图片占位符 #\(index + 1)/\(matches.count) ==========")
-                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] fileId=\(fileId), fileType=\(fileType)")
-                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 占位符范围: \(safeRange)")
-                
                 // 从本地加载图片
-                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 尝试从本地加载图片: fileId=\(fileId), fileType=\(fileType)")
-                
-                // 检查图片是否存在
-                let imageExists = LocalStorageService.shared.imageExists(fileId: fileId, fileType: fileType)
-                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 图片文件存在: \(imageExists)")
-                
-                if let imageURL = LocalStorageService.shared.getImageURL(fileId: fileId, fileType: fileType) {
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 图片URL: \(imageURL.path)")
-                }
-                
                 if let imageData = LocalStorageService.shared.loadImage(fileId: fileId, fileType: fileType) {
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ✅ 图片数据加载成功，大小: \(imageData.count) 字节")
-                    
                     // 创建 NSImage
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 尝试从数据创建 NSImage...")
                     guard let image = NSImage(data: imageData) else {
-                        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ❌ 无法从数据创建 NSImage")
-                        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 图片数据前10字节: \(imageData.prefix(10).map { String(format: "%02x", $0) }.joined(separator: " "))")
                         let placeholderText = "[图片加载失败: \(fileId)]"
-                        // 验证范围有效性
                         if safeRange.location >= 0 && safeRange.location + safeRange.length <= result.length {
                             result.replaceCharacters(in: safeRange, with: NSAttributedString(string: placeholderText, attributes: [.foregroundColor: NSColor.systemRed]))
-                        } else {
-                            print("！！！图片处理！！！ ⚠️ [processImagePlaceholders] 范围无效，无法替换占位文本")
                         }
                         continue
                     }
-                    
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ✅ NSImage 创建成功")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 原始大小: width=\(image.size.width), height=\(image.size.height)")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 图片表示: \(image.representations.count) 个")
                     
                     // 确定 UTI 类型
                     let uti: UTType
@@ -1829,133 +1754,61 @@ class MiNoteContentParser {
                     } else if fileType.lowercased() == "gif" {
                         uti = .gif
                     } else {
-                        // 默认使用 JPEG
                         uti = .jpeg
                     }
                     
                     // 使用 RichTextKit 的 RichTextImageAttachment
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 创建 RichTextImageAttachment...")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - UTI类型: \(uti.identifier)")
                     let attachment = RichTextImageAttachment(data: imageData, ofType: uti)
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ✅ RichTextImageAttachment 创建成功")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - attachment.contents: \(attachment.contents != nil ? "存在(\(attachment.contents!.count)字节)" : "nil")")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - attachment.image: \(attachment.image != nil ? "存在" : "nil")")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - attachment.attachmentCell: \(attachment.attachmentCell != nil ? "存在" : "nil")")
                     
                     // 设置图片大小（限制最大宽度，保持宽高比）
                     let maxWidth: CGFloat = 600
                     let imageSize = image.size
-                    // 确保 imageSize 有效
                     let actualWidth = imageSize.width > 0 ? imageSize.width : maxWidth
                     let actualHeight = imageSize.height > 0 ? imageSize.height : maxWidth * 0.75
                     let aspectRatio = actualHeight / actualWidth
                     let displayWidth = min(maxWidth, actualWidth)
                     let displayHeight = displayWidth * aspectRatio
                     
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 计算显示尺寸:")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 原始: \(actualWidth) x \(actualHeight)")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 显示: \(displayWidth) x \(displayHeight)")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 宽高比: \(aspectRatio)")
-                    
                     // 设置图片 bounds（确保图片垂直居中对齐）
-                    // y 值需要调整以与文字基线对齐（负值表示向上偏移）
                     attachment.bounds = NSRect(x: 0, y: -displayHeight / 2 - 2, width: displayWidth, height: displayHeight)
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 设置图片 bounds: \(attachment.bounds)")
                     
-                    // 在 macOS 上，RichTextImageAttachment 会自动处理 attachmentCell
-                    // 但为了确保图片能正确显示，我们显式设置
                     #if macOS
-                    // RichTextImageAttachment 的 attachmentCell 会从 contents 自动创建
-                    // 但我们可以确保 image 属性被设置（用于备用）
                     if attachment.image == nil {
                         attachment.image = image
-                        print("！！！图片处理！！！ 🔍 [processImagePlaceholders] 手动设置 attachment.image")
                     }
                     
-                    // 验证 attachmentCell 是否存在
-                    if attachment.attachmentCell == nil {
-                        // 尝试从 imageData 创建 cell
-                        if let attachmentImage = attachment.image ?? image {
-                            let cell = NSTextAttachmentCell(imageCell: attachmentImage)
-                            attachment.attachmentCell = cell
-                            print("！！！图片处理！！！ 🔍 [processImagePlaceholders] 手动创建并设置 attachmentCell")
-                        } else {
-                            print("！！！图片处理！！！ ⚠️ [processImagePlaceholders] 无法创建 attachmentCell：image 为 nil")
-                        }
-                    } else {
-                        print("！！！图片处理！！！ 🔍 [processImagePlaceholders] attachmentCell 已存在")
+                    if attachment.attachmentCell == nil, let attachmentImage = attachment.image ?? image {
+                        attachment.attachmentCell = NSTextAttachmentCell(imageCell: attachmentImage)
                     }
                     #endif
                     
                     // 创建包含附件的 NSAttributedString
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 创建包含附件的 NSAttributedString...")
                     let imageAttr = NSMutableAttributedString(attributedString: NSAttributedString(attachment: attachment))
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ✅ NSAttributedString 创建成功，长度: \(imageAttr.length)")
                     
-                    // 验证附件是否正确设置
+                    // 确保附件正确设置
                     if let att = imageAttr.attribute(.attachment, at: 0, effectiveRange: nil) as? RichTextImageAttachment {
-                        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ✅ 附件已正确设置到 NSAttributedString")
-                        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 附件类型: \(type(of: att))")
-                        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 附件 bounds: \(att.bounds)")
-                        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 附件 image: \(att.image != nil ? "存在" : "nil")")
-                        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 附件 attachmentCell: \(att.attachmentCell != nil ? "存在" : "nil")")
-                        // 确保 bounds 正确
                         if att.bounds != attachment.bounds {
                             att.bounds = attachment.bounds
-                            print("！！！图片处理！！！ 🔍 [processImagePlaceholders] 更新附件的 bounds")
                         }
                         
                         #if macOS
-                        // 再次确保 attachmentCell 存在
                         if att.attachmentCell == nil, let attImage = att.image ?? image {
-                            let cell = NSTextAttachmentCell(imageCell: attImage)
-                            att.attachmentCell = cell
-                            print("！！！图片处理！！！ 🔍 [processImagePlaceholders] 在 NSAttributedString 中重新设置 attachmentCell")
+                            att.attachmentCell = NSTextAttachmentCell(imageCell: attImage)
                         }
                         #endif
-                    } else {
-                        print("！！！图片处理！！！ ⚠️ [processImagePlaceholders] 警告：附件未正确设置到 NSAttributedString")
                     }
                     
                     // 替换占位符
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 替换占位符...")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 占位符范围: \(safeRange)")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 替换前结果长度: \(result.length)")
-                    
-                    // 保存替换位置和新的长度
                     let replaceLocation = safeRange.location
                     let oldLength = safeRange.length
-                    let newLength = imageAttr.length
                     
-                    // 确保范围有效
                     guard replaceLocation >= 0 && replaceLocation + oldLength <= result.length else {
-                        print("！！！图片处理！！！ ⚠️ [processImagePlaceholders] 占位符范围无效，跳过替换: location=\(replaceLocation), oldLength=\(oldLength), resultLength=\(result.length)")
                         continue
                     }
                     
                     result.replaceCharacters(in: safeRange, with: imageAttr)
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    - 替换后结果长度: \(result.length)")
-                    
-                    // 验证替换后的附件（使用替换后的新范围）
-                    var attachmentInResult = false
-                    let verifyRange = NSRange(location: replaceLocation, length: min(newLength, result.length - replaceLocation))
-                    if verifyRange.location + verifyRange.length <= result.length {
-                        result.enumerateAttribute(.attachment, in: verifyRange, options: []) { (value, range, _) in
-                            if value != nil {
-                                attachmentInResult = true
-                                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ✅ 验证：替换后在位置 \(range.location) 找到附件")
-                            }
-                        }
-                    }
-                    
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ✅ 成功替换图片占位符: fileId=\(fileId), 显示大小=(\(displayWidth), \(displayHeight)), 附件已添加: \(attachmentInResult)")
                 } else {
                     // 图片不存在，显示占位文本
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ❌ 图片不存在或无法加载: fileId=\(fileId), fileType=\(fileType)")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 请检查:")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    1. 图片是否已下载到本地")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    2. fileId 和 fileType 是否正确")
-                    print("！！！图片处理！！！ 🖼️ [processImagePlaceholders]    3. LocalStorageService 是否正确配置")
                     let placeholderText = "[图片: \(fileId).\(fileType)]"
                     let placeholderAttr = NSAttributedString(
                         string: placeholderText,
@@ -1964,32 +1817,12 @@ class MiNoteContentParser {
                             .font: NSFont.systemFont(ofSize: 12)
                         ]
                     )
-                    // 验证范围有效性
                     if safeRange.location >= 0 && safeRange.location + safeRange.length <= result.length {
                         result.replaceCharacters(in: safeRange, with: placeholderAttr)
-                    } else {
-                        print("！！！图片处理！！！ ⚠️ [processImagePlaceholders] 范围无效，无法替换占位文本")
                     }
                 }
-            } else {
-                print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ⚠️ 占位符格式不正确，跳过")
             }
         }
-        
-        // 最终验证：统计所有附件
-        var totalAttachments = 0
-        var imageAttachments = 0
-        result.enumerateAttribute(.attachment, in: NSRange(location: 0, length: result.length), options: []) { (value, range, _) in
-            if value != nil {
-                totalAttachments += 1
-                if value is RichTextImageAttachment {
-                    imageAttachments += 1
-                }
-            }
-        }
-        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] ========== 处理完成 ==========")
-        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 最终结果长度: \(result.length)")
-        print("！！！图片处理！！！ 🖼️ [processImagePlaceholders] 总附件数量: \(totalAttachments) (其中图片: \(imageAttachments))")
     }
     
     // MARK: 样式状态管理
@@ -2726,8 +2559,8 @@ class MiNoteContentParser {
 // MARK: - NSColor Extension for Hex conversion
 
 extension NSColor {
-    convenience init?(hex: String) {
-        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+    convenience init?(hex hexString: String) {
+        var hexSanitized = hexString.trimmingCharacters(in: .whitespacesAndNewlines)
         hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
 
         var rgb: UInt64 = 0

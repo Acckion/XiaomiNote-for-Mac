@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		048402EA2165B5AE26C7D7E8 /* MiNoteEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 228F39EBE3C9A59521361345 /* MiNoteEditor.swift */; };
 		08DA95CC567BE3D0EF366883 /* NotesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D76C86E30A5062CAF94D0A /* NotesListView.swift */; };
 		08E355BA0F55B6147B818BB7 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 899BCC1A64E0C7397963A22B /* ContentView.swift */; };
 		0CCDEBB4DB6B30FF58A99676 /* NetworkLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = C50C112F6B4452CE0180EB74 /* NetworkLogger.swift */; };
@@ -27,10 +26,10 @@
 		67B51E3FF8FED57EB63E000F /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5EDD8E69C0A0FFA4F2732 /* SyncService.swift */; };
 		67BEA8E05D3C27BF275623E3 /* WebFormatMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC6D721B06B0AC3EC5F7F400 /* WebFormatMenuView.swift */; };
 		70D0B38212A1740EAE99C61D /* AttributedStringConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71B669895CBBCACA3585BDE8 /* AttributedStringConverter.swift */; };
+		7155FAF964267DB92210E377 /* NewRichTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA3274347D891BE314C5B30B /* NewRichTextEditor.swift */; };
 		77440C573F9033B3E19C82F4 /* NoteDetailWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 811806EC0E2194915D9D09EF /* NoteDetailWindowView.swift */; };
 		86E3C186412052CE4FAACE6A /* MiNoteLibrary.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8A2C981878DCE366A3D9C201 /* AuthenticationStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDFFDADBC26BAD5769E0663 /* AuthenticationStateManager.swift */; };
-		8B60215B8052BA7AA3E07753 /* EditorToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567DA36FDBC75FD2B55B09EB /* EditorToolbar.swift */; };
 		8BD76061009C76B4112E81C4 /* NetworkLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 028A0CD24BAB7BF46FFBB48A /* NetworkLogView.swift */; };
 		8EC27E72E7C0EF2AAD95BF84 /* TitleEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EF6707EE2D91F9759ED9DF6 /* TitleEditorView.swift */; };
 		9BCD207D7B2B39AF4505E2F5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7E78992CF7765CE27B05A0BF /* Assets.xcassets */; };
@@ -48,6 +47,7 @@
 		DEAA2E4DCB56E13E68C2E4DF /* MoveNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF8E96AA0D85782AEBF114E /* MoveNoteView.swift */; };
 		EADD025D0D4A5C156FAC563C /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97270EFAE55440EEDAA01661 /* LoginView.swift */; };
 		EC528F2178C1391F42AD260B /* WebEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD77259664AE993C6B5E2C0 /* WebEditorView.swift */; };
+		F23AAEC7EDA6B107DE7F102D /* NewRichTextEditorUsageExample.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DE1F4EFB7F2EA61AF1B8C24 /* NewRichTextEditorUsageExample.swift */; };
 		F511BA2AB66C264174ED8BD4 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37620C953116D1808597F0E2 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
@@ -80,16 +80,15 @@
 		028A0CD24BAB7BF46FFBB48A /* NetworkLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogView.swift; sourceTree = "<group>"; };
 		02B1D7E624DF253C07C01376 /* DatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseService.swift; sourceTree = "<group>"; };
 		05E7B38F6108DA4E6A03089C /* editor.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = editor.html; sourceTree = "<group>"; };
+		0DE1F4EFB7F2EA61AF1B8C24 /* NewRichTextEditorUsageExample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewRichTextEditorUsageExample.swift; sourceTree = "<group>"; };
 		14341E6F50CEB67D65922396 /* WebEditorWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebEditorWrapper.swift; sourceTree = "<group>"; };
 		19CE08A1CDCF94C551D20E51 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		1B325C84FAE102FC3949E0D9 /* WebEditorContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebEditorContext.swift; sourceTree = "<group>"; };
-		228F39EBE3C9A59521361345 /* MiNoteEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteEditor.swift; sourceTree = "<group>"; };
 		330447DDB151694673431B9E /* MiNoteLibrary.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = MiNoteLibrary.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		37620C953116D1808597F0E2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3B00E144F0064250DE47B3E8 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		476A9C03E0B49614A06D5122 /* RichTextKit-1.2 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "RichTextKit-1.2"; path = "RichTextKit-1.2"; sourceTree = SOURCE_ROOT; };
 		47D76C86E30A5062CAF94D0A /* NotesListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListView.swift; sourceTree = "<group>"; };
-		567DA36FDBC75FD2B55B09EB /* EditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorToolbar.swift; sourceTree = "<group>"; };
 		56F5EDD8E69C0A0FFA4F2732 /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
 		587A0C9CB4BD8A71F364C4E7 /* MiNoteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteService.swift; sourceTree = "<group>"; };
 		59F444DD3ECD304A51795C2D /* LocalStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStorageService.swift; sourceTree = "<group>"; };
@@ -106,6 +105,7 @@
 		97270EFAE55440EEDAA01661 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		9C5B9382487C27C0DCE9537A /* CookieRefreshView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookieRefreshView.swift; sourceTree = "<group>"; };
 		AF646372B5CED37C5970C887 /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
+		BA3274347D891BE314C5B30B /* NewRichTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewRichTextEditor.swift; sourceTree = "<group>"; };
 		BC6D721B06B0AC3EC5F7F400 /* WebFormatMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebFormatMenuView.swift; sourceTree = "<group>"; };
 		BFF8E96AA0D85782AEBF114E /* MoveNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveNoteView.swift; sourceTree = "<group>"; };
 		C2707995632193C250FB2E95 /* Folder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Folder.swift; sourceTree = "<group>"; };
@@ -163,12 +163,12 @@
 				899BCC1A64E0C7397963A22B /* ContentView.swift */,
 				9C5B9382487C27C0DCE9537A /* CookieRefreshView.swift */,
 				7D618654ECC216026290166E /* DebugSettingsView.swift */,
-				567DA36FDBC75FD2B55B09EB /* EditorToolbar.swift */,
 				97270EFAE55440EEDAA01661 /* LoginView.swift */,
-				228F39EBE3C9A59521361345 /* MiNoteEditor.swift */,
 				BFF8E96AA0D85782AEBF114E /* MoveNoteView.swift */,
 				028A0CD24BAB7BF46FFBB48A /* NetworkLogView.swift */,
 				D3119E8C539E7C9A6BA2EACC /* NewNoteView.swift */,
+				BA3274347D891BE314C5B30B /* NewRichTextEditor.swift */,
+				0DE1F4EFB7F2EA61AF1B8C24 /* NewRichTextEditorUsageExample.swift */,
 				D0E57318E0E7816DE9095F9F /* NoteDetailView.swift */,
 				811806EC0E2194915D9D09EF /* NoteDetailWindowView.swift */,
 				47D76C86E30A5062CAF94D0A /* NotesListView.swift */,
@@ -393,18 +393,18 @@
 				22C94CA469B328552068483E /* CookieRefreshView.swift in Sources */,
 				13A3D0BE46C8453AE5A5AC57 /* DatabaseService.swift in Sources */,
 				B1126FD8C91399CA66D798E5 /* DebugSettingsView.swift in Sources */,
-				8B60215B8052BA7AA3E07753 /* EditorToolbar.swift in Sources */,
 				49180BDC746E4820429FD773 /* Folder.swift in Sources */,
 				DAD3F0D38E114C0631F9F25B /* LocalStorageService.swift in Sources */,
 				EADD025D0D4A5C156FAC563C /* LoginView.swift in Sources */,
 				CF6DE736A8829F5B477729BE /* MiNoteContentParser.swift in Sources */,
-				048402EA2165B5AE26C7D7E8 /* MiNoteEditor.swift in Sources */,
 				46146E87652EBF78CBD635C8 /* MiNoteService.swift in Sources */,
 				DEAA2E4DCB56E13E68C2E4DF /* MoveNoteView.swift in Sources */,
 				8BD76061009C76B4112E81C4 /* NetworkLogView.swift in Sources */,
 				0CCDEBB4DB6B30FF58A99676 /* NetworkLogger.swift in Sources */,
 				1DF15B463E6D141AD6A04E0D /* NetworkMonitor.swift in Sources */,
 				615881628A721CC39363FC3B /* NewNoteView.swift in Sources */,
+				7155FAF964267DB92210E377 /* NewRichTextEditor.swift in Sources */,
+				F23AAEC7EDA6B107DE7F102D /* NewRichTextEditorUsageExample.swift in Sources */,
 				DA77A42F8FDBD2DCB66D4E32 /* Note.swift in Sources */,
 				AE321F1F3598F5F63850CF7A /* NoteDetailView.swift in Sources */,
 				77440C573F9033B3E19C82F4 /* NoteDetailWindowView.swift in Sources */,

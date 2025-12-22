@@ -5,37 +5,6 @@ import SwiftUI
 @available(macOS 14.0, *)
 public struct AttributedStringConverter {
     
-    /// 将 archivedData 转换为 AttributedString
-    /// 只支持 archivedData 格式（RichTextKit 的标准格式）
-    public static func rtfDataToAttributedString(_ rtfData: Data?) -> AttributedString? {
-        guard let rtfData = rtfData else {
-            print("![[debug]] [AttributedStringConverter] archivedData 为 nil")
-            return nil
-        }
-        
-        print("![[debug]] [AttributedStringConverter] 开始转换 archivedData，长度: \(rtfData.count) 字节")
-        
-        // 使用 RichTextKit 的 archivedData 格式
-        do {
-            let nsAttributedString = try NSAttributedString(data: rtfData, format: .archivedData)
-            print("![[debug]] [AttributedStringConverter] ✅ 使用 archivedData 格式成功，长度: \(nsAttributedString.length)")
-            return AttributedString(nsAttributedString)
-        } catch {
-            print("![[debug]] [AttributedStringConverter] ❌ archivedData 格式失败: \(error)")
-            return nil
-        }
-    }
-    
-    /// 将 AttributedString 转换为 archivedData
-    /// 使用 RichTextKit 的 archivedData 格式（支持所有附件类型）
-    public static func attributedStringToRTFData(_ attributedString: AttributedString) -> Data? {
-        // 将 AttributedString 转换为 NSAttributedString
-        let nsAttributedString = NSAttributedString(attributedString)
-        
-        // 使用 archivedData 格式（RichTextKit 标准格式）
-        return try? nsAttributedString.richTextData(for: .archivedData)
-    }
-    
     /// 将 XML 内容转换为 AttributedString（用于向后兼容）
     public static func xmlToAttributedString(_ xmlContent: String, noteRawData: [String: Any]?) -> AttributedString? {
         guard !xmlContent.isEmpty else { return nil }
@@ -51,46 +20,11 @@ public struct AttributedStringConverter {
         
         // 调试：检查 NSAttributedString 的属性
         print("🔍 [AttributedStringConverter] NSAttributedString 长度: \(nsAttributedString.length)")
-        if nsAttributedString.length > 0 {
-            let attrs = nsAttributedString.attributes(at: 0, effectiveRange: nil)
-            print("🔍 [AttributedStringConverter] 第一个字符的属性:")
-            if let font = attrs[.font] as? NSFont {
-                print("  - 字体: \(font.fontName), 大小: \(font.pointSize), 加粗: \(font.fontDescriptor.symbolicTraits.contains(.bold)), 斜体: \(font.fontDescriptor.symbolicTraits.contains(.italic))")
-            }
-            if let underlineStyle = attrs[.underlineStyle] as? Int {
-                print("  - 下划线: \(underlineStyle)")
-            }
-            if let strikethroughStyle = attrs[.strikethroughStyle] as? Int {
-                print("  - 删除线: \(strikethroughStyle)")
-            }
-            if let backgroundColor = attrs[.backgroundColor] as? NSColor {
-                print("  - 背景色: \(backgroundColor)")
-            }
-        }
         
         // 将 NSAttributedString 转换为 AttributedString
         // 直接转换，不再使用 RTF 作为中间格式
         let attributedString = AttributedString(nsAttributedString)
         print("✅ [AttributedStringConverter] 直接转换为 AttributedString")
-        
-        // 调试：检查转换后的 AttributedString 的属性
-        print("🔍 [AttributedStringConverter] AttributedString 字符数: \(attributedString.characters.count)")
-        if !attributedString.characters.isEmpty {
-            let firstRun = attributedString.runs.first
-            print("🔍 [AttributedStringConverter] 第一个 run 的属性:")
-            if let font = firstRun?.font {
-                print("  - 字体: \(font)")
-            }
-            if let underlineStyle = firstRun?.underlineStyle {
-                print("  - 下划线: \(underlineStyle)")
-            }
-            if let strikethroughStyle = firstRun?.strikethroughStyle {
-                print("  - 删除线: \(strikethroughStyle)")
-            }
-            if let backgroundColor = firstRun?.backgroundColor {
-                print("  - 背景色: \(backgroundColor)")
-            }
-        }
         
         return attributedString
     }

@@ -7,7 +7,6 @@ import AppKit
 /// - 基本信息：ID、标题、内容、文件夹ID等
 /// - 元数据：创建时间、更新时间、标签、收藏状态等
 /// - 原始数据：rawData存储从API获取的原始数据（包括tag等）
-/// - RTF数据：rtfData存储AttributedString的RTF格式（用于macOS原生存储）
 /// 
 /// **数据格式**：
 /// - content: XML格式的笔记内容（小米笔记格式）
@@ -25,15 +24,12 @@ public struct Note: Identifiable, Codable, Hashable {
     // 小米笔记格式的原始数据
     public var rawData: [String: Any]?
     
-    // macOS 26 原生存储：RTF 格式的 AttributedString 数据
-    public var rtfData: Data?
-    
     enum CodingKeys: String, CodingKey {
-        case id, title, content, folderId, isStarred, createdAt, updatedAt, tags, rawData, rtfData
+        case id, title, content, folderId, isStarred, createdAt, updatedAt, tags, rawData
     }
     
     public init(id: String, title: String, content: String, folderId: String, isStarred: Bool = false, 
-         createdAt: Date, updatedAt: Date, tags: [String] = [], rawData: [String: Any]? = nil, rtfData: Data? = nil) {
+         createdAt: Date, updatedAt: Date, tags: [String] = [], rawData: [String: Any]? = nil) {
         self.id = id
         self.title = title
         self.content = content
@@ -43,7 +39,6 @@ public struct Note: Identifiable, Codable, Hashable {
         self.updatedAt = updatedAt
         self.tags = tags
         self.rawData = rawData
-        self.rtfData = rtfData
     }
     
     // 自定义编码
@@ -315,30 +310,6 @@ public struct Note: Identifiable, Codable, Hashable {
             updatedRawData[key] = value
         }
         self.rawData = updatedRawData
-        
-        // 从XML生成rtfData（如果content不为空且rtfData为空）
-        if !self.content.isEmpty && self.rtfData == nil {
-            print("[NOTE] 从XML生成rtfData，content长度: \(self.content.count)")
-            // parseToAttributedString 返回非可选的 NSAttributedString
-            let attributedString = MiNoteContentParser.parseToAttributedString(self.content, noteRawData: self.rawData)
-            print("[NOTE] 解析AttributedString成功，长度: \(attributedString.length)")
-            
-            // 使用archivedData格式（支持图片附件）
-            do {
-                let archivedData = try attributedString.richTextData(for: .archivedData)
-                self.rtfData = archivedData
-                print("[NOTE] ✅ 成功生成archivedData，长度: \(archivedData.count) 字节")
-            } catch {
-                print("[NOTE] ❌ 生成archivedData失败: \(error)，rtfData保持为nil")
-                self.rtfData = nil
-            }
-        } else if self.rtfData != nil {
-            print("[NOTE] rtfData已存在，跳过生成，长度: \(self.rtfData?.count ?? 0) 字节")
-        } else if self.content.isEmpty {
-            print("[NOTE] content为空，跳过生成rtfData")
-        }
-        
-        print("[NOTE] 内容更新完成，最终内容长度: \(self.content.count), rtfData存在: \(self.rtfData != nil)")
     }
     
     // MARK: - 内容访问/更新工具

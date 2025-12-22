@@ -25,8 +25,12 @@ struct WebEditorWrapper: View {
                 editorContext.executeFormatActionClosure = coordinator.executeFormatActionClosure
                 editorContext.insertImageClosure = coordinator.insertImageClosure
                 editorContext.getCurrentContentClosure = coordinator.getCurrentContentClosure
+                editorContext.forceSaveContentClosure = coordinator.forceSaveContentClosure
                 editorContext.undoClosure = coordinator.undoClosure
                 editorContext.redoClosure = coordinator.redoClosure
+                editorContext.openWebInspectorClosure = { [weak coordinator] in
+                    coordinator?.openWebInspector()
+                }
                 
                 editorContext.editorReady()
                 print("Web编辑器已准备就绪")

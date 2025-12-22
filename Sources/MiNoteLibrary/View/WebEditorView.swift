@@ -1,6 +1,32 @@
 import SwiftUI
 import WebKit
 import AppKit
+import Carbon
+
+/// 自定义WKWebView，用于拦截右键菜单并确保在外部窗口打开Web Inspector
+class InspectorWKWebView: WKWebView {
+    weak var inspectorCoordinator: WebEditorView.Coordinator?
+    
+    override func menu(for event: NSEvent) -> NSMenu? {
+        // 拦截系统菜单，确保"检查元素"使用外部窗口
+        let menu = NSMenu()
+        
+        // 添加"检查元素"菜单项，使用我们的方法打开（外部窗口）
+        let inspectItem = NSMenuItem(title: "检查元素", action: #selector(openInspector), keyEquivalent: "")
+        inspectItem.target = self
+        menu.addItem(inspectItem)
+        
+        print("[InspectorWKWebView] 拦截右键菜单，添加自定义'检查元素'项")
+        
+        return menu
+    }
+    
+    @objc private func openInspector() {
+        print("[InspectorWKWebView] 右键菜单触发，打开Web Inspector（外部窗口）")
+        // 使用coordinator的方法打开Web Inspector（外部窗口）
+        inspectorCoordinator?.openWebInspector()
+    }
+}
 
 /// Web编辑器视图，包装WKWebView来加载HTML编辑器
 struct WebEditorView: NSViewRepresentable {
@@ -42,8 +68,30 @@ struct WebEditorView: NSViewRepresentable {
     }
     
     func makeNSView(context: Context) -> WKWebView {
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        // 使用自定义的WKWebView子类来拦截右键菜单
+        let webView = InspectorWKWebView(frame: .zero, configuration: configuration)
+        webView.inspectorCoordinator = context.coordinator
+        
+        // 启用检查器 (macOS 13.3+)
+        if #available(macOS 13.3, *) {
+            webView.isInspectable = true
+            print("[WebEditorView] ✅ Web Inspector已启用 (isInspectable = true)")
+        } else {
+            print("[WebEditorView] ⚠️ macOS版本低于13.3，无法使用isInspectable属性")
+        }
+        
+        // 保存webView引用到coordinator，以便后续打开Web Inspector
+        context.coordinator.webView = webView
+        
         webView.navigationDelegate = context.coordinator
+        
+        // 确保在页面加载完成后再次设置isInspectable（某些情况下需要延迟设置）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            if #available(macOS 13.3, *) {
+                webView.isInspectable = true
+                print("[WebEditorView] ✅ 延迟设置Web Inspector (isInspectable = true)")
+            }
+        }
         
         // 设置 coordinator 到 message handler
         messageHandler.setCoordinator(context.coordinator)
@@ -77,6 +125,25 @@ struct WebEditorView: NSViewRepresentable {
         
         if let htmlURL = htmlURL {
             webView.loadFileURL(htmlURL, allowingReadAccessTo: htmlURL.deletingLastPathComponent())
+            
+            // 页面加载完成后，输出一些测试日志到控制台
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                let testLog = """
+                console.log('%c========================================', 'color: green; font-size: 16px; font-weight: bold;');
+                console.log('%cWeb Inspector 控制台测试', 'color: green; font-size: 14px; font-weight: bold;');
+                console.log('%c如果你能看到这条消息，说明控制台工作正常', 'color: blue; font-size: 12px;');
+                console.log('当前时间:', new Date().toLocaleString());
+                console.log('编辑器URL:', window.location.href);
+                console.log('%c========================================', 'color: green; font-size: 16px; font-weight: bold;');
+                """
+                webView.evaluateJavaScript(testLog) { result, error in
+                    if let error = error {
+                        print("[WebEditorView] 输出测试日志失败: \(error)")
+                    } else {
+                        print("[WebEditorView] ✅ 测试日志已输出到控制台")
+                    }
+                }
+            }
         } else {
             // 如果找不到文件，尝试从main bundle加载（向后兼容）
             if let mainBundleURL = Bundle.main.url(forResource: "editor", withExtension: "html", subdirectory: "Resources/Web") {
@@ -104,47 +171,36 @@ struct WebEditorView: NSViewRepresentable {
     }
     
     func updateNSView(_ webView: WKWebView, context: Context) {
+        // 如果是来自Web的更新，跳过内容回写
+        if context.coordinator.isUpdatingFromWeb {
+            return
+        }
+        
         // 当内容变化时，更新WebView中的内容
-        if context.coordinator.lastContent != content {
+        // 注意：只有当内容真正从外部变化时才更新（比如切换到其他笔记）
+        // 如果内容是从Web编辑器更新的，isUpdatingFromWeb 标志已经阻止了这里
+        // 使用更精确的内容比较，避免因微小差异导致不必要的更新
+        let normalizedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedLastContent = context.coordinator.lastContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 只有当内容真正不同时才更新，避免不必要的JavaScript调用
+        if normalizedContent != normalizedLastContent {
             context.coordinator.lastContent = content
             
-            // 调用JavaScript函数加载内容
+            // 调用JavaScript函数加载内容（会保存和恢复光标位置）
+            // loadContent 内部会检查内容是否真的需要重新渲染
             let javascript = "window.MiNoteWebEditor.loadContent(`\(content.escapedForJavaScript())`)"
             webView.evaluateJavaScript(javascript) { result, error in
                 if let error = error {
-                    print("加载内容到WebView失败: \(error)")
+                    print("[WebEditorView] 加载内容到WebView失败: \(error)")
                 }
             }
         }
         
-        // 检测并更新深色模式（每次updateNSView都检查，确保同步）
-        let isDarkMode = detectDarkMode()
-        print("[WebEditorView] updateNSView - 当前深色模式状态: \(isDarkMode), 上次状态: \(context.coordinator.lastDarkMode)")
-        
-        // 强制更新一次（确保初始状态正确，即使状态相同也更新一次）
-        let shouldUpdate = context.coordinator.lastDarkMode != isDarkMode
-        
-        if shouldUpdate {
-            print("[WebEditorView] 深色模式状态变化: \(context.coordinator.lastDarkMode) -> \(isDarkMode)")
-            context.coordinator.lastDarkMode = isDarkMode
-            let modeString = isDarkMode ? "dark" : "light"
-            let javascript = "window.MiNoteWebEditor.setColorScheme('\(modeString)')"
-            print("[WebEditorView] 执行JavaScript设置深色模式: \(modeString)")
-            print("[WebEditorView] JavaScript代码: \(javascript)")
-            
-            // 使用异步方式执行，确保WebView已准备好
-            DispatchQueue.main.async {
-                webView.evaluateJavaScript(javascript) { result, error in
-                    if let error = error {
-                        print("[WebEditorView] ❌ 设置深色模式失败: \(error.localizedDescription)")
-                    } else {
-                        print("[WebEditorView] ✅ 深色模式已更新: \(modeString), 返回结果: \(String(describing: result))")
-                    }
-                }
-            }
-        } else {
-            print("[WebEditorView] 深色模式状态未变化，跳过更新")
-        }
+        // 注意：深色模式检测已移除，改为使用KVO响应式监听，避免性能损耗
+        // 深色模式会在以下情况自动更新：
+        // 1. 页面加载完成后初始化设置（webView(_:didFinish:)）
+        // 2. 系统外观变化时通过KVO自动触发（setupAppearanceObserver）
     }
     
     // 检测系统是否处于深色模式
@@ -214,17 +270,134 @@ struct WebEditorView: NSViewRepresentable {
         var lastContent: String = ""
         var lastDarkMode: Bool = false
         weak var webView: WKWebView?
+        weak var observedWindow: NSWindow? // 保存被观察的窗口引用
+        var appearanceTimer: Timer? // 保留以防万一，虽然现在主要用KVO
+        
+        // 标志：是否正在处理来自Web端的更新
+        var isUpdatingFromWeb: Bool = false
         
         // 操作闭包，用于从外部执行操作
         var executeFormatActionClosure: ((String, String?) -> Void)?
         var insertImageClosure: ((String, String) -> Void)?
         var getCurrentContentClosure: ((@escaping (String) -> Void) -> Void)?
+        var forceSaveContentClosure: ((@escaping () -> Void) -> Void)?
         var undoClosure: (() -> Void)?
         var redoClosure: (() -> Void)?
         
         init(_ parent: WebEditorView) {
             self.parent = parent
         }
+        
+        /// 打开Web Inspector（在外部窗口中打开，并确保显示在最前面）
+        func openWebInspector() {
+            guard let webView = webView else { 
+                print("[WebEditorView] ⚠️ 无法打开Web Inspector: webView为nil")
+                return 
+            }
+            
+            print("[WebEditorView] 尝试打开 Web Inspector（外部窗口）")
+            
+            // 使用私有API打开Web Inspector
+            let inspectorKey = "_inspector"
+            
+            if webView.responds(to: NSSelectorFromString(inspectorKey)) {
+                if let inspector = webView.value(forKey: inspectorKey) as? NSObject {
+                    print("[WebEditorView] ✅ 获取到 _inspector 对象")
+                    
+                    // 优先尝试 detach 方法，确保在独立窗口中打开
+                    let detachSelector = NSSelectorFromString("detach")
+                    if inspector.responds(to: detachSelector) {
+                        print("[WebEditorView] 调用 _inspector.detach() 在独立窗口中打开")
+                        inspector.perform(detachSelector)
+                        
+                        // 延迟一点时间，然后调用 show 确保窗口显示
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            let showSelector = NSSelectorFromString("show")
+                            if inspector.responds(to: showSelector) {
+                                inspector.perform(showSelector)
+                                print("[WebEditorView] 已调用 _inspector.show()")
+                            }
+                        }
+                    } else {
+                        // 如果没有 detach 方法，尝试 show 方法
+                        print("[WebEditorView] ⚠️ _inspector 没有 detach 方法，尝试 show")
+                        let showSelector = NSSelectorFromString("show")
+                        if inspector.responds(to: showSelector) {
+                            inspector.perform(showSelector)
+                            print("[WebEditorView] 已调用 _inspector.show()")
+                        }
+                    }
+                    
+                    // 尝试将窗口带到前台
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.bringInspectorWindowToFront()
+                    }
+                    
+                    // 额外尝试：使用 toggleInspector 方法（如果有）
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        let toggleSelector = NSSelectorFromString("toggleInspector")
+                        if inspector.responds(to: toggleSelector) {
+                            inspector.perform(toggleSelector)
+                            print("[WebEditorView] 已调用 _inspector.toggleInspector()")
+                        }
+                    }
+                } else {
+                    print("[WebEditorView] ⚠️ 无法获取 _inspector 对象")
+                }
+            } else {
+                print("[WebEditorView] ⚠️ WebView 不响应 _inspector 选择器")
+                
+                // 备用方案：尝试使用 performSelector 直接调用
+                let performSelector = NSSelectorFromString("performSelector:")
+                if webView.responds(to: performSelector) {
+                    print("[WebEditorView] 尝试备用方案：直接调用 performSelector")
+                    // 尝试调用 showInspector 或 toggleInspector
+                    let showInspectorSelector = NSSelectorFromString("showInspector")
+                    let toggleInspectorSelector = NSSelectorFromString("toggleInspector")
+                    
+                    if webView.responds(to: showInspectorSelector) {
+                        webView.perform(showInspectorSelector)
+                        print("[WebEditorView] 已调用 showInspector")
+                    } else if webView.responds(to: toggleInspectorSelector) {
+                        webView.perform(toggleInspectorSelector)
+                        print("[WebEditorView] 已调用 toggleInspector")
+                    }
+                }
+            }
+        }
+        
+        /// 将 Inspector 窗口带到前台
+        private func bringInspectorWindowToFront() {
+            print("[WebEditorView] 尝试将 Inspector 窗口带到前台")
+            
+            // 查找所有可能的 Inspector 窗口标题
+            let possibleTitles = [
+                "Web Inspector",
+                "检查器",
+                "Developer Tools",
+                "— editor.html",
+                "Inspector",
+                "WebKit Inspector",
+                "Web Inspector —",
+                "Web Inspector -"
+            ]
+            
+            for window in NSApplication.shared.windows {
+                if let title = window.title as String? {
+                    for possibleTitle in possibleTitles {
+                        if title.contains(possibleTitle) {
+                            window.makeKeyAndOrderFront(nil)
+                            window.orderFrontRegardless() // 确保窗口显示在最前面
+                            print("[WebEditorView] ✅ 已将 Inspector 窗口带到前台: \(title)")
+                            return
+                        }
+                    }
+                }
+            }
+            
+            print("[WebEditorView] ⚠️ 未找到 Inspector 窗口")
+        }
+        
         
         // 设置操作闭包
         func setupActionClosures() {
@@ -267,6 +440,21 @@ struct WebEditorView: NSViewRepresentable {
                     } else {
                         completion("")
                     }
+                }
+            }
+            
+            forceSaveContentClosure = { [weak self] completion in
+                guard let webView = self?.webView else {
+                    completion()
+                    return
+                }
+                webView.evaluateJavaScript("window.MiNoteWebEditor.forceSaveContent()") { result, error in
+                    if let error = error {
+                        print("强制保存内容失败: \(error)")
+                    } else {
+                        print("强制保存内容成功")
+                    }
+                    completion()
                 }
             }
             
@@ -334,16 +522,29 @@ struct WebEditorView: NSViewRepresentable {
         // 设置外观变化监听器（仅使用KVO，不使用定时器）
         private func setupAppearanceObserver() {
             // 监听窗口外观变化（使用 KVO）
-            if let window = NSApplication.shared.windows.first {
-                window.addObserver(
-                    self,
-                    forKeyPath: "effectiveAppearance",
-                    options: [.new, .old],
-                    context: nil
-                )
-                print("[WebEditorView] ✅ 已设置窗口外观KVO监听")
-            } else {
-                print("[WebEditorView] ⚠️ 未找到窗口，无法设置KVO监听")
+            // 必须在主线程访问 NSApplication
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                
+                if let window = NSApplication.shared.windows.first {
+                    // 如果已经监听了其他窗口，先移除
+                    if let oldWindow = self.observedWindow, oldWindow != window {
+                        oldWindow.removeObserver(self, forKeyPath: "effectiveAppearance")
+                    }
+                    
+                    if self.observedWindow != window {
+                        window.addObserver(
+                            self,
+                            forKeyPath: "effectiveAppearance",
+                            options: [.new, .old],
+                            context: nil
+                        )
+                        self.observedWindow = window
+                        print("[WebEditorView] ✅ 已设置窗口外观KVO监听")
+                    }
+                } else {
+                    print("[WebEditorView] ⚠️ 未找到窗口，无法设置KVO监听")
+                }
             }
         }
         
@@ -351,7 +552,10 @@ struct WebEditorView: NSViewRepresentable {
         override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
             if keyPath == "effectiveAppearance" {
                 print("[WebEditorView] 📢 KVO检测到窗口外观变化")
-                updateColorScheme()
+                // 在主线程更新 UI
+                DispatchQueue.main.async { [weak self] in
+                    self?.updateColorScheme()
+                }
             } else {
                 super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
             }
@@ -395,7 +599,7 @@ struct WebEditorView: NSViewRepresentable {
         
         deinit {
             // 移除KVO监听器
-            if let window = NSApplication.shared.windows.first {
+            if let window = observedWindow {
                 window.removeObserver(self, forKeyPath: "effectiveAppearance")
                 print("[WebEditorView] 已移除窗口外观KVO监听")
             }
@@ -411,14 +615,14 @@ struct WebEditorView: NSViewRepresentable {
     class EditorMessageHandler: NSObject, WKScriptMessageHandler {
         let onContentChanged: (String) -> Void
         let onEditorReady: (Coordinator) -> Void
-        weak var coordinator: Coordinator?
+        weak var coordinator: WebEditorView.Coordinator?
         
         init(onContentChanged: @escaping (String) -> Void, onEditorReady: @escaping (Coordinator) -> Void) {
             self.onContentChanged = onContentChanged
             self.onEditorReady = onEditorReady
         }
         
-        func setCoordinator(_ coordinator: Coordinator) {
+        func setCoordinator(_ coordinator: WebEditorView.Coordinator) {
             self.coordinator = coordinator
         }
         
@@ -435,8 +639,47 @@ struct WebEditorView: NSViewRepresentable {
                 
             case "contentChanged":
                 if let content = body["content"] as? String {
-                    print("内容已更改，长度: \(content.count)")
-                    onContentChanged(content)
+                    // print("内容已更改，长度: \(content.count)")
+                    
+                    // 标记这是来自Web的更新，并同步 lastContent
+                    // 必须在主线程上设置，确保在 SwiftUI 更新之前生效
+                    if Thread.isMainThread {
+                        // 已经在主线程，直接设置
+                        if let coordinator = self.coordinator {
+                            coordinator.isUpdatingFromWeb = true
+                            coordinator.lastContent = content
+                            self.onContentChanged(content)
+                            // 延迟一点时间后重置标志，确保所有相关的 updateNSView 调用都能检测到
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                coordinator.isUpdatingFromWeb = false
+                            }
+                        } else {
+                            self.onContentChanged(content)
+                        }
+                    } else {
+                        // 不在主线程，切换到主线程
+                        DispatchQueue.main.async { [weak self] in
+                            guard let self = self else { return }
+                            
+                            if let coordinator = self.coordinator {
+                                // 先设置标志，确保后续的 updateNSView 能够检测到
+                                coordinator.isUpdatingFromWeb = true
+                                coordinator.lastContent = content
+                                
+                                // 然后触发内容变化回调
+                                // 这个回调可能会触发 SwiftUI 更新，但由于 isUpdatingFromWeb 已设置，会被跳过
+                                self.onContentChanged(content)
+                                
+                                // 延迟一点时间后重置标志，确保所有相关的 updateNSView 调用都能检测到
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                    coordinator.isUpdatingFromWeb = false
+                                }
+                            } else {
+                                // 如果 coordinator 不存在，直接调用回调
+                                self.onContentChanged(content)
+                            }
+                        }
+                    }
                 }
                 
             case "imagePasted":
@@ -444,6 +687,13 @@ struct WebEditorView: NSViewRepresentable {
                     print("图片已粘贴，数据长度: \(imageData.count)")
                     // 这里可以处理base64图片数据
                     // 例如保存到本地并生成minote:// URL
+                }
+                
+            case "log":
+                if let message = body["message"] as? String,
+                   let level = body["level"] as? String {
+                    let prefix = level == "error" ? "🔴" : (level == "warn" ? "⚠️" : "📝")
+                    print("[JS] \(prefix) \(message)")
                 }
                 
             default:

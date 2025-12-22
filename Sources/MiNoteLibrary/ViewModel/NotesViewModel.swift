@@ -1833,8 +1833,7 @@ public class NotesViewModel: ObservableObject {
                                     createdAt: note.createdAt,
                                     updatedAt: note.updatedAt,
                                     tags: note.tags,
-                                    rawData: updatedRawData,
-                                    rtfData: note.rtfData
+                                    rawData: updatedRawData
                                 )
                                 
                                 // 更新笔记列表
@@ -1924,7 +1923,7 @@ public class NotesViewModel: ObservableObject {
                 // 更新本地笔记
                 if let index = notes.firstIndex(where: { $0.id == note.id }) {
                     var updatedNote = note
-                    print("[[调试]]步骤48.1 [VIEWMODEL] 创建updatedNote副本，rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
+                    print("[[调试]]步骤48.1 [VIEWMODEL] 创建updatedNote副本")
                     
                     // 从响应中提取更新后的数据
                     if let data = response["data"] as? [String: Any],
@@ -1965,15 +1964,8 @@ public class NotesViewModel: ObservableObject {
                         updatedNote.rawData = updatedRawData
                     }
                     
-                    // 确保保留 rtfData（重要：服务器响应不包含rtfData，必须保留原有的）
-                    print("[[调试]]步骤52 [VIEWMODEL] 检查rtfData，更新前rtfData存在: \(updatedNote.rtfData != nil), 原始note.rtfData存在: \(note.rtfData != nil)")
-                    if updatedNote.rtfData == nil && note.rtfData != nil {
-                        updatedNote.rtfData = note.rtfData
-                        print("[[调试]]步骤52 [VIEWMODEL] ⚠️ rtfData丢失，已恢复，长度: \(updatedNote.rtfData?.count ?? 0)")
-                    }
-                    
                     // 保存到本地存储
-                    print("[[调试]]步骤53 [VIEWMODEL] 保存更新后的笔记到本地，笔记ID: \(updatedNote.id), rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
+                    print("[[调试]]步骤53 [VIEWMODEL] 保存更新后的笔记到本地，笔记ID: \(updatedNote.id)")
                     try localStorage.saveNote(updatedNote)
                     
                     notes[index] = updatedNote
@@ -2055,10 +2047,10 @@ public class NotesViewModel: ObservableObject {
             if let index = notes.firstIndex(where: { $0.id == note.id }) {
                 var updatedNote = notes[index]
                 updatedNote.updateContent(from: noteDetails)
-                print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent更新完成，rtfData存在: \(updatedNote.rtfData != nil), rtfData长度: \(updatedNote.rtfData?.count ?? 0)")
+                print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent更新完成")
                 
-                // 保存到本地（updateContent已经生成了rtfData）
-                print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent保存到本地，rtfData存在: \(updatedNote.rtfData != nil)")
+                // 保存到本地
+                print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent保存到本地")
                 try localStorage.saveNote(updatedNote)
                 
                 // 更新列表中的笔记

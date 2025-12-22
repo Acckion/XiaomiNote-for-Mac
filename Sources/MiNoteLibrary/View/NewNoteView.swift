@@ -12,6 +12,7 @@ struct NewNoteView: View {
     @State private var showError: Bool = false
     @State private var errorMessage: String = ""
     @State private var isEditable: Bool = true
+    @StateObject private var webEditorContext = WebEditorContext()
     
     var body: some View {
         NavigationStack {
@@ -47,19 +48,22 @@ struct NewNoteView: View {
                     }
                     
                     // 编辑器区域（正文）
-                    MiNoteEditor(rtfData: Binding(
-                        get: { 
-                            // 从 XML 转换为 RTF（向后兼容）
-                            return convertXMLToRTF(xmlContent)
-                        },
-                        set: { newRTFData in
-                            // 从 RTF 转换为 XML
-                            if let xml = convertRTFToXML(newRTFData) {
-                                xmlContent = xml
+                    WebEditorWrapper(
+                        content: Binding(
+                            get: { xmlContent },
+                            set: { newContent in
+                                xmlContent = newContent
                             }
+                        ),
+                        isEditable: $isEditable,
+                        editorContext: webEditorContext,
+                        noteRawData: nil,
+                        xmlContent: xmlContent,
+                        onContentChange: { newContent in
+                            xmlContent = newContent
                         }
-                    ), isEditable: $isEditable)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    )
+                    .frame(maxWidth: CGFloat.infinity, maxHeight: CGFloat.infinity)
                 }
             }
             .navigationTitle("新建笔记")
@@ -134,39 +138,6 @@ struct NewNoteView: View {
         }
     }
     
-    // MARK: - RTF 和 XML 转换辅助方法
-    
-    /// 将 XML 转换为 RTF 数据
-    private func convertXMLToRTF(_ xmlContent: String) -> Data? {
-        guard !xmlContent.isEmpty else { return nil }
-        
-        var bodyContent = xmlContent
-        if !bodyContent.hasPrefix("<new-format/>") {
-            bodyContent = "<new-format/>" + bodyContent
-        }
-        
-        let attributedString = MiNoteContentParser.parseToAttributedString(bodyContent, noteRawData: nil)
-        // 使用 archivedData 格式
-        return try? attributedString.richTextData(for: .archivedData)
-    }
-    
-    /// 将 archivedData 转换为 XML
-    private func convertRTFToXML(_ rtfData: Data?) -> String? {
-        guard let rtfData = rtfData else { return nil }
-        
-        // 使用 archivedData 格式读取
-        guard let attributedString = try? NSAttributedString(data: rtfData, format: .archivedData) else {
-            return nil
-        }
-        
-        var xmlContent = MiNoteContentParser.parseToXML(attributedString)
-        xmlContent = xmlContent.trimmingCharacters(in: .whitespacesAndNewlines)
-        if xmlContent.isEmpty {
-            xmlContent = "<new-format/><text indent=\"1\"></text>"
-        }
-        
-        return xmlContent
-    }
 }
 
 @available(macOS 14.0, *)

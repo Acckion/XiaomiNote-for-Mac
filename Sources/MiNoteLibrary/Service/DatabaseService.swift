@@ -76,17 +76,10 @@ final class DatabaseService: @unchecked Sendable {
             created_at REAL NOT NULL,
             updated_at REAL NOT NULL,
             tags TEXT, -- JSON 数组
-            raw_data TEXT, -- JSON 对象
-            rtf_data BLOB -- RTF 格式的 AttributedString 数据（macOS 26 原生存储）
+            raw_data TEXT -- JSON 对象
         );
         """
         executeSQL(createNotesTable)
-        
-        // 如果表已存在但没有 rtf_data 字段，添加该字段
-        let addRTFColumn = """
-        ALTER TABLE notes ADD COLUMN rtf_data BLOB;
-        """
-        executeSQL(addRTFColumn, ignoreError: true)  // 忽略错误（如果字段已存在）
         
         // 创建 folders 表
         let createFoldersTable = """
@@ -196,13 +189,12 @@ final class DatabaseService: @unchecked Sendable {
     /// - Parameter note: 要保存的笔记对象
     /// - Throws: DatabaseError（数据库操作失败）
     func saveNote(_ note: Note) throws {
-        print("![[debug]] ========== 数据流程节点DB1: DatabaseService.saveNote 开始 ==========")
-        print("![[debug]] [Database] 保存笔记，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count), rtfData存在: \(note.rtfData != nil), rtfData长度: \(note.rtfData?.count ?? 0)")
+        print("![[debug]] [Database] 保存笔记，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
         
         try dbQueue.sync(flags: .barrier) {
             let sql = """
-            INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data, rtf_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
             
             var statement: OpaquePointer?
@@ -240,17 +232,6 @@ final class DatabaseService: @unchecked Sendable {
             }
             sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
             
-            // rtf_data 作为 BLOB（AttributedString 的 RTF 格式）
-            print("![[debug]] ========== 数据流程节点DB3: 绑定 rtf_data ==========")
-            if let rtfData = note.rtfData {
-                print("![[debug]] [Database] ✅ 准备保存rtfData，长度: \(rtfData.count) 字节")
-                sqlite3_bind_blob(statement, 10, (rtfData as NSData).bytes, Int32(rtfData.count), nil)
-                print("![[debug]] [Database] ✅ rtfData 已绑定到 SQL 语句")
-            } else {
-                print("![[debug]] [Database] ⚠️ 警告：note.rtfData为nil，将保存NULL到数据库")
-                sqlite3_bind_null(statement, 10)
-            }
-            
             print("![[debug]] ========== 数据流程节点DB4: 执行 SQL ==========")
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
@@ -259,7 +240,7 @@ final class DatabaseService: @unchecked Sendable {
             }
             
             print("![[debug]] ========== 数据流程节点DB5: 数据库保存成功 ==========")
-            print("![[debug]] [Database] ✅ 保存笔记到数据库成功，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count), rtfData长度: \(note.rtfData?.count ?? 0), rtfData已保存: \(note.rtfData != nil)")
+            print("![[debug]] [Database] ✅ 保存笔记到数据库成功，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
         }
     }
     
@@ -270,7 +251,7 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func loadNote(noteId: String) throws -> Note? {
         return try dbQueue.sync {
-            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data, rtf_data FROM notes WHERE id = ?;"
+            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes WHERE id = ?;"
             
             var statement: OpaquePointer?
             defer {
@@ -291,11 +272,6 @@ final class DatabaseService: @unchecked Sendable {
             
             guard var note = try parseNote(from: statement) else {
                 return nil
-            }
-            
-            // 如果 rtfData 为 nil 但 content 不为空，生成 rtfData 并保存
-            if note.rtfData == nil && !note.content.isEmpty {
-                note = try generateAndSaveRTFData(for: note)
             }
             
             return note
@@ -330,10 +306,6 @@ final class DatabaseService: @unchecked Sendable {
                 print("[Database] getAllNotes: 处理第 \(rowCount) 行")
                 do {
                     if var note = try parseNote(from: statement) {
-                        // 如果 rtfData 为 nil 但 content 不为空，生成 rtfData 并保存
-                        if note.rtfData == nil && !note.content.isEmpty {
-                            note = try generateAndSaveRTFData(for: note)
-                        }
                         notes.append(note)
                         print("[Database] getAllNotes: 成功解析并添加笔记 id=\(note.id)")
                     } else {
@@ -496,80 +468,10 @@ final class DatabaseService: @unchecked Sendable {
             updatedAt: updatedAt,
             tags: tags,
             rawData: rawData,
-            rtfData: rtfData
         )
         
         print("[Database] parseNote: 笔记解析完成 id=\(id), title=\(title)")
         return note
-    }
-    
-    /// 为笔记生成 rtfData（如果缺失）并保存到数据库
-    /// 
-    /// - Parameter note: 需要生成 rtfData 的笔记
-    /// - Returns: 更新后的笔记（包含生成的 rtfData）
-    /// - Throws: DatabaseError（数据库操作失败）
-    private func generateAndSaveRTFData(for note: Note) throws -> Note {
-        print("[Database] generateAndSaveRTFData: 开始为笔记生成 rtfData，笔记ID: \(note.id), content长度: \(note.content.count)")
-        
-        // 确保 content 不为空
-        guard !note.content.isEmpty else {
-            print("[Database] generateAndSaveRTFData: content 为空，跳过生成")
-            return note
-        }
-        
-        // 从 XML 生成 AttributedString
-        let attributedString = MiNoteContentParser.parseToAttributedString(note.content, noteRawData: note.rawData)
-        print("[Database] generateAndSaveRTFData: 解析 AttributedString 成功，长度: \(attributedString.length)")
-        
-        // 使用 archivedData 格式（支持图片附件）
-        var rtfData: Data?
-        do {
-            rtfData = try attributedString.richTextData(for: .archivedData)
-            print("[Database] generateAndSaveRTFData: ✅ 使用 archivedData 格式生成数据，长度: \(rtfData?.count ?? 0) 字节")
-        } catch {
-            print("[Database] generateAndSaveRTFData: ❌ 生成 archivedData 失败: \(error)")
-            rtfData = nil
-        }
-        
-        // 如果成功生成 rtfData，更新笔记并保存到数据库
-        if let rtfData = rtfData {
-            var updatedNote = note
-            updatedNote.rtfData = rtfData
-            
-            // 保存到数据库（注意：此方法在 dbQueue.sync 中调用，所以直接使用 db，不再获取锁）
-            let sql = """
-            UPDATE notes SET rtf_data = ? WHERE id = ?;
-            """
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            // 绑定 rtf_data
-            sqlite3_bind_blob(statement, 1, (rtfData as NSData).bytes, Int32(rtfData.count), nil)
-            // 绑定 id
-            sqlite3_bind_text(statement, 2, (note.id as NSString).utf8String, -1, nil)
-            
-            guard sqlite3_step(statement) == SQLITE_DONE else {
-                let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[Database] generateAndSaveRTFData: ⚠️ 更新 rtf_data 失败: \(errorMsg)")
-                throw DatabaseError.executionFailed(errorMsg)
-            }
-            
-            print("[Database] generateAndSaveRTFData: ✅ 成功保存 rtfData 到数据库，笔记ID: \(note.id)")
-            
-            return updatedNote
-        } else {
-            print("[Database] generateAndSaveRTFData: ⚠️ 无法生成 rtfData，返回原始笔记")
-            return note
-        }
     }
     
     // MARK: - 文件夹操作

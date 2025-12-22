@@ -20,8 +20,10 @@ class WebEditorContext: ObservableObject {
     var executeFormatActionClosure: ((String, String?) -> Void)?
     var insertImageClosure: ((String, String) -> Void)?
     var getCurrentContentClosure: ((@escaping (String) -> Void) -> Void)?
+    var forceSaveContentClosure: ((@escaping () -> Void) -> Void)?
     var undoClosure: (() -> Void)?
     var redoClosure: (() -> Void)?
+    var openWebInspectorClosure: (() -> Void)?
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -131,6 +133,11 @@ class WebEditorContext: ObservableObject {
         getCurrentContentClosure?(completion)
     }
     
+    // 强制保存当前内容（用于切换笔记前）
+    func forceSaveContent(completion: @escaping () -> Void) {
+        forceSaveContentClosure?(completion)
+    }
+    
     // 撤销操作
     func undo() {
         undoClosure?()
@@ -151,6 +158,11 @@ class WebEditorContext: ObservableObject {
     func updateSelection(hasSelection: Bool, selectedText: String = "") {
         self.hasSelection = hasSelection
         self.selectedText = selectedText
+    }
+    
+    // 打开Web Inspector
+    func openWebInspector() {
+        openWebInspectorClosure?()
     }
 }
 

@@ -14,7 +14,6 @@ struct NoteDetailView: View {
     @ObservedObject var viewModel: NotesViewModel
     @State private var editedTitle: String = ""
     @State private var editedAttributedText: AttributedString = AttributedStringConverter.createEmptyAttributedString()  // 使用 AttributedString（SwiftUI 原生），带有默认属性
-    @State private var editedRTFData: Data? = nil  // RTF数据（保留用于向后兼容）
     @State private var isSaving: Bool = false
     @State private var isUploading: Bool = false  // 上传状态
     @State private var showSaveSuccess: Bool = false
@@ -29,7 +28,7 @@ struct NoteDetailView: View {
     @State private var currentEditingNoteId: String? = nil  // 当前正在编辑的笔记ID
     @State private var isSavingBeforeSwitch: Bool = false  // 标记是否正在为切换笔记而保存
     @State private var pendingSwitchNoteId: String? = nil  // 等待切换的笔记ID
-    @State private var lastSavedRTFData: Data? = nil  // 上次保存的 RTF 数据，用于避免重复保存
+    @State private var lastSavedXMLContent: String = ""  // 上次保存的 XML 内容，用于避免重复保存
     @State private var isSavingLocally: Bool = false  // 标记是否正在本地保存
     
     // Web编辑器上下文
@@ -83,13 +82,27 @@ struct NoteDetailView: View {
             handleNoteAppear(note)
         }
         .onChange(of: note) { oldValue, newValue in
-            handleNoteChange(newValue)
+            // 如果笔记ID相同，跳过处理（避免打断用户编辑）
+            if oldValue.id == newValue.id {
+                print("[NoteDetailView] onChange(note): 笔记ID相同，跳过处理")
+                return
+            }
+            // 使用 Task 异步执行，避免在视图更新过程中修改状态
+            Task { @MainActor in
+                await handleNoteChange(newValue)
+            }
         }
         .onChange(of: editedTitle) { oldValue, newValue in
-            handleTitleChange(newValue)
+            // 使用 Task 异步执行，避免在视图更新过程中修改状态
+            Task { @MainActor in
+                await handleTitleChange(newValue)
+            }
         }
         .onChange(of: editedAttributedText) { oldValue, newValue in
-            handleContentChange(newValue)
+            // 使用 Task 异步执行，避免在视图更新过程中修改状态
+            Task { @MainActor in
+                await handleContentChange(newValue)
+            }
         }
         // 移除保存失败弹窗，改为静默处理
         // .alert("保存失败", isPresented: $showSaveError) {
@@ -221,21 +234,35 @@ struct NoteDetailView: View {
                     onContentChange: { newContent in
                         // 内容变化回调
                         guard !isInitializing else { 
-                            print("[WebEditor] 内容变化，但正在初始化，跳过保存")
+                            print("[保存流程] 步骤1: 内容变化，但正在初始化，跳过保存")
                             return 
                         }
                         
+                        print("[保存流程] 步骤1: 收到内容变化通知，XML长度: \(newContent.count)")
+                        
                         // 将XML内容转换为AttributedString并更新状态
                         Task { @MainActor in
+                            print("[保存流程] 步骤2: 开始处理内容变化")
+                            
                             if let attributedText = AttributedStringConverter.xmlToAttributedString(newContent, noteRawData: note.rawData) {
                                 editedAttributedText = attributedText
+                                print("[保存流程] 步骤3: 已更新 editedAttributedText，长度: \(attributedText.characters.count)")
+                            } else {
+                                print("[保存流程] ⚠️ 步骤3: XML转换失败")
                             }
                             
-                            // 触发保存
-                            guard let note = viewModel.selectedNote else { return }
-                            print("[WebEditor] 内容已更改，长度: \(newContent.count)，触发保存")
-                            await saveToLocalOnly(for: note)
-                            scheduleCloudUpload(for: note)
+                        // 触发保存，直接使用接收到的内容，避免双重获取
+                        guard let note = viewModel.selectedNote else { 
+                            print("[保存流程] ⚠️ 步骤4: selectedNote 为 nil，无法保存")
+                            return 
+                        }
+                        
+                        print("[保存流程] 步骤4: 开始保存，笔记ID: \(note.id)")
+                        print("[保存流程] 步骤5: 调用 saveToLocalOnlyWithContent，使用接收到的XML内容")
+                        await saveToLocalOnlyWithContent(xmlContent: newContent, for: note)
+                        print("[保存流程] 步骤6: 调用 scheduleCloudUpload")
+                        scheduleCloudUpload(for: note)
+                        print("[保存流程] ✅ 保存流程完成")
                         }
                     }
                 )
@@ -274,6 +301,9 @@ struct NoteDetailView: View {
             checkboxButton
             horizontalRuleButton
             imageButton
+            Divider()
+                .frame(height: 16)
+            debugButton
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 1)
@@ -347,6 +377,35 @@ struct NoteDetailView: View {
             Image(systemName: "paperclip")
         }
         .help("插入图片")
+    }
+    
+    private var debugButton: some View {
+        Button {
+            openWebInspector()
+        } label: {
+            Image(systemName: "ladybug")
+        }
+        .help("打开Web检查器 (⌘⌥I)")
+        .keyboardShortcut("i", modifiers: [.command, .option])
+    }
+    
+    /// 打开Web Inspector
+    private func openWebInspector() {
+        // 通过WebEditorContext打开Web Inspector
+        webEditorContext.openWebInspector()
+        
+        // 同时输出测试日志
+        Task { @MainActor in
+            // 延迟一点时间，确保Web Inspector已打开
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+            
+            // 输出测试日志
+            webEditorContext.getCurrentContentClosure? { _ in
+                // 通过JavaScript输出测试日志
+                // 注意：这需要在WebView中执行，但我们没有直接访问
+                // 所以日志会通过editorBridge发送到Swift，然后打印到Xcode控制台
+            }
+        }
     }
     
     /// 处理格式操作（已废弃，WebFormatMenuView 通过 WebEditorContext 直接处理格式操作）
@@ -509,7 +568,7 @@ struct NoteDetailView: View {
     
     /// 加载笔记内容到编辑器
     /// 
-    /// 优先使用 rtfData，如果没有则从 XML 生成并保存。
+    /// 从 XML 内容加载笔记到编辑器。
     /// 
     /// - Parameter note: 要加载的笔记对象
     @MainActor
@@ -522,62 +581,17 @@ struct NoteDetailView: View {
         editedTitle = cleanTitle
         originalTitle = cleanTitle
         
-        var finalRTFData: Data? = note.rtfData
         var finalAttributedText: AttributedString?
         
-        // 如果有 rtfData，直接从 rtfData 加载
-        if let rtfData = note.rtfData {
-            finalRTFData = rtfData
-            finalAttributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData)
-        } else if !note.primaryXMLContent.isEmpty {
-            // 如果没有 rtfData，从 XML 转换生成 rtfData
-            let nsAttributedString = MiNoteContentParser.parseToAttributedString(note.primaryXMLContent, noteRawData: note.rawData)
-            
-            // 使用 archivedData 格式（支持图片附件）
-            var generatedRTFData: Data?
-            do {
-                generatedRTFData = try nsAttributedString.richTextData(for: .archivedData)
-            } catch {
-                print("[NoteDetailView] ⚠️ 生成 archivedData 失败: \(error)")
-                generatedRTFData = nil
-            }
-            
-            // 如果成功生成 rtfData，保存到数据库
-            if let rtfData = generatedRTFData {
-                finalRTFData = rtfData
-                
-                // 保存到数据库
-                var updatedNote = note
-                updatedNote.rtfData = rtfData
-                do {
-                    try LocalStorageService.shared.saveNote(updatedNote)
-                    
-                    // 更新 ViewModel 中的笔记对象
-                    await MainActor.run {
-                        if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
-                            viewModel.notes[index] = updatedNote
-                            if viewModel.selectedNote?.id == note.id {
-                                viewModel.selectedNote = updatedNote
-                            }
-                        }
-                    }
-                } catch {
-                    print("[NoteDetailView] ⚠️ 保存生成的 rtfData 到数据库失败: \(error)")
-                }
-                
-                // 转换为 AttributedString
-                finalAttributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData)
-            } else {
-                // 如果无法生成 rtfData，从 XML 直接转换 AttributedString（向后兼容）
-                finalAttributedText = AttributedStringConverter.xmlToAttributedString(note.primaryXMLContent, noteRawData: note.rawData)
-            }
+        // 从 XML 转换 AttributedString
+        if !note.primaryXMLContent.isEmpty {
+            finalAttributedText = AttributedStringConverter.xmlToAttributedString(note.primaryXMLContent, noteRawData: note.rawData)
         } else {
             // 内容为空，创建空 AttributedString
             finalAttributedText = AttributedStringConverter.createEmptyAttributedString()
         }
         
         // 设置编辑器状态
-        editedRTFData = finalRTFData
         if let attributedText = finalAttributedText {
             editedAttributedText = attributedText
             originalAttributedText = attributedText
@@ -587,28 +601,17 @@ struct NoteDetailView: View {
             originalAttributedText = AttributedStringConverter.createEmptyAttributedString()
         }
         
-        // 重置 lastSavedRTFData，确保下次编辑能正确保存
-        lastSavedRTFData = finalRTFData
+        // 重置 lastSavedXMLContent，确保下次编辑能正确保存
+        lastSavedXMLContent = note.primaryXMLContent
         
         if note.content.isEmpty {
             await viewModel.ensureNoteHasFullContent(note)
             if let updatedNote = viewModel.selectedNote {
-                // 更新RTF数据
-                if let rtfData = updatedNote.rtfData {
-                    editedRTFData = rtfData
-                } else if let attributedText = AttributedStringConverter.xmlToAttributedString(updatedNote.primaryXMLContent, noteRawData: updatedNote.rawData),
-                          let rtfData = AttributedStringConverter.attributedStringToRTFData(attributedText) {
-                    editedRTFData = rtfData
-                }
-                
                 // 更新AttributedString
-                if let rtfData = updatedNote.rtfData,
-                   let attributedText = AttributedStringConverter.rtfDataToAttributedString(rtfData) {
+                if let attributedText = AttributedStringConverter.xmlToAttributedString(updatedNote.primaryXMLContent, noteRawData: updatedNote.rawData) {
                     editedAttributedText = attributedText
                     originalAttributedText = attributedText
-                } else if let attributedText = AttributedStringConverter.xmlToAttributedString(updatedNote.primaryXMLContent, noteRawData: updatedNote.rawData) {
-                    editedAttributedText = attributedText
-                    originalAttributedText = attributedText
+                    lastSavedXMLContent = updatedNote.primaryXMLContent
                 }
             }
         }
@@ -623,20 +626,20 @@ struct NoteDetailView: View {
     /// 在加载新笔记前，确保保存当前笔记的更改。
     /// 
     /// - Parameter newValue: 新的笔记对象
-    private func handleNoteChange(_ newValue: Note) {
+    @MainActor
+    private func handleNoteChange(_ newValue: Note) async {
         let saveTask = saveCurrentNoteBeforeSwitching(newNoteId: newValue.id)
         
-        Task { @MainActor in
-            // 如果有保存任务，等待它完成
-            if let saveTask = saveTask {
-                await saveTask.value
-            }
-            // 加载新笔记内容
-            await loadNoteContent(newValue)
+        // 如果有保存任务，等待它完成
+        if let saveTask = saveTask {
+            await saveTask.value
         }
+        // 加载新笔记内容
+        await loadNoteContent(newValue)
     }
     
-    private func handleTitleChange(_ newValue: String) {
+    @MainActor
+    private func handleTitleChange(_ newValue: String) async {
         guard !isInitializing else {
             print("[NoteDetailView] 标题变化检测，但正在初始化，跳过处理")
             return
@@ -645,9 +648,7 @@ struct NoteDetailView: View {
             print("[NoteDetailView] 标题变化: '\(originalTitle)' -> '\(newValue)'")
             originalTitle = newValue
             // 立即保存，不使用防抖
-            Task { @MainActor in
-                await performSaveImmediately()
-            }
+            await performSaveImmediately()
         }
     }
     
@@ -656,7 +657,8 @@ struct NoteDetailView: View {
     /// 当 AttributedString 变化时，立即保存。
     /// 
     /// - Parameter newValue: 新的 AttributedString
-    private func handleContentChange(_ newValue: AttributedString) {
+    @MainActor
+    private func handleContentChange(_ newValue: AttributedString) async {
         guard !isInitializing else {
             return
         }
@@ -672,9 +674,7 @@ struct NoteDetailView: View {
         originalAttributedText = newValue
         
         // 立即保存
-        Task { @MainActor in
-            await performSaveImmediately()
-        }
+        await performSaveImmediately()
     }
     
     
@@ -711,6 +711,84 @@ struct NoteDetailView: View {
         scheduleCloudUpload(for: note)
     }
     
+    /// 仅保存到本地（使用指定的内容）
+    /// 
+    /// 直接使用提供的 XML 内容保存，不重新从编辑器获取。
+    /// 
+    /// - Parameters:
+    ///   - xmlContent: 要保存的 XML 内容
+    ///   - note: 要保存的笔记对象
+    @MainActor
+    private func saveToLocalOnlyWithContent(xmlContent: String, for note: Note) async {
+        // 验证笔记ID
+        guard note.id == currentEditingNoteId else {
+            print("[保存流程] ⚠️ saveToLocalOnlyWithContent: 笔记ID不匹配，当前编辑: \(currentEditingNoteId ?? "无"), 要保存: \(note.id)")
+            return
+        }
+        
+        // 防止并发保存
+        if isSavingLocally {
+            print("[保存流程] ⚠️ saveToLocalOnlyWithContent: 正在保存中，等待...")
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+            if isSavingLocally {
+                print("[保存流程] ⚠️ saveToLocalOnlyWithContent: 仍在保存中，跳过")
+                return
+            }
+        }
+        
+        isSavingLocally = true
+        defer { isSavingLocally = false }
+        
+        do {
+            print("[保存流程] saveToLocalOnlyWithContent 步骤1: 开始保存笔记到本地: \(note.id)")
+            print("[保存流程] saveToLocalOnlyWithContent 步骤2: 使用提供的XML内容，长度: \(xmlContent.count)")
+            
+            // 将XML转换为AttributedString
+            let attributedText: AttributedString
+            if let converted = AttributedStringConverter.xmlToAttributedString(xmlContent, noteRawData: note.rawData) {
+                attributedText = converted
+                print("[保存流程] saveToLocalOnlyWithContent 步骤3: XML转换成功，AttributedString长度: \(attributedText.characters.count)")
+            } else {
+                print("[保存流程] ⚠️ saveToLocalOnlyWithContent 步骤3: XML转换失败，使用 editedAttributedText")
+                attributedText = editedAttributedText
+            }
+            
+            // 检查是否有变化（避免重复保存）
+            print("[保存流程] saveToLocalOnlyWithContent 步骤4: 检查内容是否变化")
+            print("[保存流程]   当前XML: \(xmlContent.prefix(100))...")
+            print("[保存流程]   上次保存XML: \(lastSavedXMLContent.prefix(100))...")
+            print("[保存流程]   标题变化: \(editedTitle != originalTitle)")
+            
+            guard hasContentChanged(xmlContent: xmlContent) else {
+                print("[保存流程] ⚠️ saveToLocalOnlyWithContent 步骤5: 内容未变化，跳过保存")
+                return
+            }
+            
+            print("[保存流程] saveToLocalOnlyWithContent 步骤5: 内容有变化，继续保存")
+            
+            // 构建更新的笔记对象
+            let updatedNote = buildUpdatedNote(from: note, xmlContent: xmlContent, attributedText: attributedText)
+            print("[保存流程] saveToLocalOnlyWithContent 步骤6: 已构建更新的笔记对象")
+            
+            // 保存到数据库
+            print("[保存流程] saveToLocalOnlyWithContent 步骤7: 开始保存到数据库")
+            try LocalStorageService.shared.saveNote(updatedNote)
+            print("[保存流程] ✅ saveToLocalOnlyWithContent 步骤8: 笔记已保存到本地数据库，XML长度: \(updatedNote.content.count)")
+            
+            // 更新状态
+            updateSaveState(xmlContent: xmlContent, attributedText: attributedText)
+            print("[保存流程] saveToLocalOnlyWithContent 步骤9: 已更新保存状态")
+            
+            // 延迟更新 ViewModel（避免触发重新加载）
+            updateViewModelDelayed(with: updatedNote)
+            print("[保存流程] saveToLocalOnlyWithContent 步骤10: 已安排延迟更新 ViewModel")
+            
+        } catch {
+            print("[保存流程] ❌ saveToLocalOnlyWithContent: 本地保存失败: \(error.localizedDescription)")
+            print("[保存流程]   错误详情: \(error)")
+        }
+    }
+    
     /// 仅保存到本地（立即执行，无延迟）
     /// 
     /// 从编辑器获取最新内容，保存到本地数据库，不触发云端上传。
@@ -721,13 +799,16 @@ struct NoteDetailView: View {
     private func saveToLocalOnly(for note: Note) async {
         // 验证笔记ID
         guard note.id == currentEditingNoteId else {
+            print("[保存流程] ⚠️ saveToLocalOnly: 笔记ID不匹配，当前编辑: \(currentEditingNoteId ?? "无"), 要保存: \(note.id)")
             return
         }
         
         // 防止并发保存
         if isSavingLocally {
+            print("[保存流程] ⚠️ saveToLocalOnly: 正在保存中，等待...")
             try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
             if isSavingLocally {
+                print("[保存流程] ⚠️ saveToLocalOnly: 仍在保存中，跳过")
                 return
             }
         }
@@ -737,30 +818,44 @@ struct NoteDetailView: View {
         
         do {
             // 获取最新内容（从Web编辑器获取）
-            print("[NoteDetailView] 开始保存笔记到本地: \(note.id)")
-            let (rtfData, attributedText) = await getLatestContentFromEditor()
+            print("[保存流程] saveToLocalOnly 步骤1: 开始保存笔记到本地: \(note.id)")
+            print("[保存流程] saveToLocalOnly 步骤2: 调用 getLatestContentFromEditor")
+            let (xmlContent, attributedText) = await getLatestContentFromEditor()
+            print("[保存流程] saveToLocalOnly 步骤3: 获取到内容，XML长度: \(xmlContent.count), AttributedString长度: \(attributedText.characters.count)")
             
             // 检查是否有变化（避免重复保存）
-            guard hasContentChanged(rtfData: rtfData) else {
-                print("[NoteDetailView] 内容未变化，跳过保存")
+            print("[保存流程] saveToLocalOnly 步骤4: 检查内容是否变化")
+            print("[保存流程]   当前XML: \(xmlContent.prefix(100))...")
+            print("[保存流程]   上次保存XML: \(lastSavedXMLContent.prefix(100))...")
+            print("[保存流程]   标题变化: \(editedTitle != originalTitle)")
+            
+            guard hasContentChanged(xmlContent: xmlContent) else {
+                print("[保存流程] ⚠️ saveToLocalOnly 步骤5: 内容未变化，跳过保存")
                 return
             }
             
+            print("[保存流程] saveToLocalOnly 步骤5: 内容有变化，继续保存")
+            
             // 构建更新的笔记对象
-            let updatedNote = buildUpdatedNote(from: note, rtfData: rtfData, attributedText: attributedText)
+            let updatedNote = buildUpdatedNote(from: note, xmlContent: xmlContent, attributedText: attributedText)
+            print("[保存流程] saveToLocalOnly 步骤6: 已构建更新的笔记对象")
             
             // 保存到数据库
+            print("[保存流程] saveToLocalOnly 步骤7: 开始保存到数据库")
             try LocalStorageService.shared.saveNote(updatedNote)
-            print("[NoteDetailView] ✅ 笔记已保存到本地，XML长度: \(updatedNote.content.count)")
+            print("[保存流程] ✅ saveToLocalOnly 步骤8: 笔记已保存到本地数据库，XML长度: \(updatedNote.content.count)")
             
             // 更新状态
-            updateSaveState(rtfData: rtfData, attributedText: attributedText)
+            updateSaveState(xmlContent: xmlContent, attributedText: attributedText)
+            print("[保存流程] saveToLocalOnly 步骤9: 已更新保存状态")
             
             // 延迟更新 ViewModel（避免触发重新加载）
             updateViewModelDelayed(with: updatedNote)
+            print("[保存流程] saveToLocalOnly 步骤10: 已安排延迟更新 ViewModel")
             
         } catch {
-            print("[NoteDetailView] ❌ 本地保存失败: \(error.localizedDescription)")
+            print("[保存流程] ❌ saveToLocalOnly: 本地保存失败: \(error.localizedDescription)")
+            print("[保存流程]   错误详情: \(error)")
         }
     }
     
@@ -779,11 +874,11 @@ struct NoteDetailView: View {
         pendingCloudUploadWorkItem?.cancel()
         
         // 根据内容大小智能调整防抖时间
-        let rtfDataSize = editedRTFData?.count ?? 0
+        let xmlContentSize = note.primaryXMLContent.count
         let debounceTime: TimeInterval = {
-            if rtfDataSize > 1_000_000 { return 3.0 }      // > 1MB: 3秒
-            else if rtfDataSize > 500_000 { return 2.0 } // > 500KB: 2秒
-            else { return 1.0 }                          // 小文件: 1秒
+            if xmlContentSize > 100_000 { return 3.0 }      // > 100KB: 3秒
+            else if xmlContentSize > 50_000 { return 2.0 } // > 50KB: 2秒
+            else { return 1.0 }                            // 小文件: 1秒
         }()
         
         // 捕获当前状态
@@ -797,10 +892,10 @@ struct NoteDetailView: View {
                 }
                 
                 // 获取最新内容（从Web编辑器获取）
-                let (rtfData, attributedText) = await self.getLatestContentFromEditor()
+                let (xmlContent, attributedText) = await self.getLatestContentFromEditor()
                 
                 // 构建更新的笔记对象
-                let updatedNote = self.buildUpdatedNote(from: note, rtfData: rtfData, attributedText: attributedText)
+                let updatedNote = self.buildUpdatedNote(from: note, xmlContent: xmlContent, attributedText: attributedText)
                 
                 // 开始上传
                 isUploading = true
@@ -890,16 +985,16 @@ struct NoteDetailView: View {
         
         do {
             // 获取最新内容（从Web编辑器获取）
-            let (rtfData, attributedText) = await getLatestContentFromEditor()
+            let (xmlContent, attributedText) = await getLatestContentFromEditor()
             
             // 构建更新的笔记对象
-            let updatedNote = buildUpdatedNote(from: note, rtfData: rtfData, attributedText: attributedText)
+            let updatedNote = buildUpdatedNote(from: note, xmlContent: xmlContent, attributedText: attributedText)
             
             // updateNote 会先保存到本地，然后上传到云端（如果在线）
             try await viewModel.updateNote(updatedNote)
             
             // 更新状态
-            updateSaveState(rtfData: rtfData, attributedText: attributedText)
+            updateSaveState(xmlContent: xmlContent, attributedText: attributedText)
             
             // 保存成功反馈
             withAnimation {
@@ -948,7 +1043,17 @@ struct NoteDetailView: View {
         isSavingBeforeSwitch = true
         
         return Task { @MainActor in
-            // 直接调用 saveToLocalOnly，确保保存最新内容
+            // 先强制保存编辑器中的最新内容
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                webEditorContext.forceSaveContent {
+                    continuation.resume()
+                }
+            }
+            
+            // 等待一小段时间，确保内容变化回调已经处理
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+            
+            // 然后保存到本地
             await saveToLocalOnly(for: currentNote)
             isSavingBeforeSwitch = false
         }
@@ -960,7 +1065,9 @@ struct NoteDetailView: View {
         guard let oldNote = oldValue, let newNote = newValue else {
             // 如果没有旧笔记或新笔记，直接处理
             if let note = newValue {
-                handleNoteChange(note)
+                Task { @MainActor in
+                    await handleNoteChange(note)
+                }
             }
             return
         }
@@ -991,9 +1098,15 @@ struct NoteDetailView: View {
             // 只有在外部更新（如云端同步）时才重新加载
             print("[NoteDetailView] 相同笔记内容更新，笔记ID: \(newNote.id)")
             
-            // 检查是否是保存操作导致的更新（通过检查是否正在保存）
-            if isSavingLocally || isSavingBeforeSwitch {
-                print("[NoteDetailView] 正在保存，跳过重新加载（避免覆盖编辑器状态）")
+            // 检查是否是当前正在编辑的笔记
+            if currentEditingNoteId == newNote.id {
+                print("[NoteDetailView] 这是当前正在编辑的笔记，跳过重新加载（避免打断用户编辑）")
+                return
+            }
+            
+            // 检查是否是保存操作导致的更新（通过检查是否正在保存或上传）
+            if isSavingLocally || isSavingBeforeSwitch || isUploading {
+                print("[NoteDetailView] 正在保存或上传，跳过重新加载（避免覆盖编辑器状态）")
                 return
             }
             
@@ -1021,22 +1134,31 @@ struct NoteDetailView: View {
     
     // MARK: - 保存辅助方法
     
-    /// 从编辑器获取最新的内容（RTF数据和AttributedString）
-    /// - Returns: (rtfData: 存档数据, attributedText: SwiftUI AttributedString)
+    /// 从编辑器获取最新的内容（XML内容和AttributedString）
+    /// - Returns: (xmlContent: XML内容, attributedText: SwiftUI AttributedString)
     @MainActor
-    private func getLatestContentFromEditor() async -> (rtfData: Data?, attributedText: AttributedString) {
+    private func getLatestContentFromEditor() async -> (xmlContent: String, attributedText: AttributedString) {
+        print("[保存流程] getLatestContentFromEditor: 开始获取编辑器内容")
+        
         // Web编辑器模式：从WebEditorContext获取最新内容
         if let currentContent = await getCurrentEditorContent() {
+            print("[保存流程] getLatestContentFromEditor: 从编辑器获取到内容，长度: \(currentContent.count)")
             // 将XML转换为AttributedString
             if let attributedText = AttributedStringConverter.xmlToAttributedString(currentContent, noteRawData: viewModel.selectedNote?.rawData) {
-                let rtfData = AttributedStringConverter.attributedStringToRTFData(attributedText)
-                return (rtfData, attributedText)
+                print("[保存流程] getLatestContentFromEditor: XML转换成功，AttributedString长度: \(attributedText.characters.count)")
+                return (currentContent, attributedText)
+            } else {
+                print("[保存流程] ⚠️ getLatestContentFromEditor: XML转换失败，使用后备方案")
             }
+        } else {
+            print("[保存流程] ⚠️ getLatestContentFromEditor: 无法从编辑器获取内容，使用后备方案")
         }
         
-        // 如果无法从编辑器获取，使用editedAttributedText作为后备
-        let rtfData = AttributedStringConverter.attributedStringToRTFData(editedAttributedText)
-        return (rtfData, editedAttributedText)
+        // 如果无法从编辑器获取，使用editedAttributedText作为后备，转换为XML
+        print("[保存流程] getLatestContentFromEditor: 使用 editedAttributedText 作为后备")
+        let xmlContent = AttributedStringConverter.attributedStringToXML(editedAttributedText)
+        print("[保存流程] getLatestContentFromEditor: 后备XML长度: \(xmlContent.count)")
+        return (xmlContent, editedAttributedText)
     }
     
     /// 从Web编辑器获取当前内容
@@ -1052,16 +1174,14 @@ struct NoteDetailView: View {
     /// 构建更新的笔记对象
     /// - Parameters:
     ///   - note: 原始笔记对象
-    ///   - rtfData: RTF数据
+    ///   - xmlContent: XML内容
     ///   - attributedText: AttributedString
     /// - Returns: 更新后的笔记对象
     private func buildUpdatedNote(
         from note: Note,
-        rtfData: Data?,
+        xmlContent: String,
         attributedText: AttributedString
     ) -> Note {
-        let xmlContent = AttributedStringConverter.attributedStringToXML(attributedText)
-        
         return Note(
             id: note.id,
             title: editedTitle,
@@ -1071,20 +1191,18 @@ struct NoteDetailView: View {
             createdAt: note.createdAt,
             updatedAt: Date(),
             tags: note.tags,
-            rawData: note.rawData,
-            rtfData: rtfData
+            rawData: note.rawData
         )
     }
     
     /// 更新保存后的状态变量
     /// - Parameters:
-    ///   - rtfData: 保存的RTF数据
+    ///   - xmlContent: 保存的XML内容
     ///   - attributedText: 保存的AttributedString
-    private func updateSaveState(rtfData: Data?, attributedText: AttributedString) {
-        lastSavedRTFData = rtfData
+    private func updateSaveState(xmlContent: String, attributedText: AttributedString) {
+        lastSavedXMLContent = xmlContent
         originalTitle = editedTitle
         originalAttributedText = attributedText
-        editedRTFData = rtfData
     }
     
     /// 更新 ViewModel 中的笔记对象（延迟更新，避免触发重新加载）
@@ -1116,15 +1234,15 @@ struct NoteDetailView: View {
     
     /// 检查内容是否真的变化了（避免重复保存）
     /// - Parameters:
-    ///   - rtfData: 当前的RTF数据
+    ///   - xmlContent: 当前的XML内容
     /// - Returns: 如果内容或标题有变化，返回true
-    private func hasContentChanged(rtfData: Data?) -> Bool {
-        // 检查RTF数据是否变化
-        if let lastSaved = lastSavedRTFData, let current = rtfData, lastSaved == current {
-            // RTF数据相同，检查标题是否变化
+    private func hasContentChanged(xmlContent: String) -> Bool {
+        // 检查XML内容是否变化
+        if lastSavedXMLContent == xmlContent {
+            // XML内容相同，检查标题是否变化
             return editedTitle != originalTitle
         }
-        // RTF数据不同，肯定有变化
+        // XML内容不同，肯定有变化
         return true
     }
 }
