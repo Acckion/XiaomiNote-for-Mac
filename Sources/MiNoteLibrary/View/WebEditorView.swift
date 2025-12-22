@@ -276,6 +276,9 @@ struct WebEditorView: NSViewRepresentable {
         // 标志：是否正在处理来自Web端的更新
         var isUpdatingFromWeb: Bool = false
         
+        // WebEditorContext 引用，用于更新格式状态
+        weak var webEditorContext: WebEditorContext?
+        
         // 操作闭包，用于从外部执行操作
         var executeFormatActionClosure: ((String, String?) -> Void)?
         var insertImageClosure: ((String, String) -> Void)?
@@ -694,6 +697,41 @@ struct WebEditorView: NSViewRepresentable {
                    let level = body["level"] as? String {
                     let prefix = level == "error" ? "🔴" : (level == "warn" ? "⚠️" : "📝")
                     print("[JS] \(prefix) \(message)")
+                }
+                
+            case "formatStateChanged":
+                if let formatState = body["formatState"] as? [String: Any] {
+                    DispatchQueue.main.async { [weak self] in
+                        // 需要访问 WebEditorContext 来更新格式状态
+                        // 由于 EditorMessageHandler 没有直接访问 WebEditorContext 的引用
+                        // 我们需要通过 coordinator 来访问
+                        if let coordinator = self?.coordinator,
+                           let webEditorContext = coordinator.webEditorContext {
+                            if let isBold = formatState["isBold"] as? Bool {
+                                webEditorContext.isBold = isBold
+                            }
+                            if let isItalic = formatState["isItalic"] as? Bool {
+                                webEditorContext.isItalic = isItalic
+                            }
+                            if let isUnderline = formatState["isUnderline"] as? Bool {
+                                webEditorContext.isUnderline = isUnderline
+                            }
+                            if let isStrikethrough = formatState["isStrikethrough"] as? Bool {
+                                webEditorContext.isStrikethrough = isStrikethrough
+                            }
+                            if let isHighlighted = formatState["isHighlighted"] as? Bool {
+                                webEditorContext.isHighlighted = isHighlighted
+                            }
+                            if let textAlignmentStr = formatState["textAlignment"] as? String {
+                                webEditorContext.textAlignment = TextAlignment.fromString(textAlignmentStr)
+                            }
+                            if let headingLevel = formatState["headingLevel"] as? Int {
+                                webEditorContext.headingLevel = headingLevel > 0 ? headingLevel : nil
+                            } else if formatState["headingLevel"] is NSNull {
+                                webEditorContext.headingLevel = nil
+                            }
+                        }
+                    }
                 }
                 
             default:

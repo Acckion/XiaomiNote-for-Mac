@@ -22,6 +22,7 @@ struct WebEditorWrapper: View {
             },
             onEditorReady: { coordinator in
                 // 编辑器准备就绪，设置操作闭包到 editorContext
+                coordinator.webEditorContext = editorContext
                 editorContext.executeFormatActionClosure = coordinator.executeFormatActionClosure
                 editorContext.insertImageClosure = coordinator.insertImageClosure
                 editorContext.getCurrentContentClosure = coordinator.getCurrentContentClosure

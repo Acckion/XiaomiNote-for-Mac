@@ -13,6 +13,7 @@ class WebEditorContext: ObservableObject {
     @Published var isItalic: Bool = false
     @Published var isUnderline: Bool = false
     @Published var isStrikethrough: Bool = false
+    @Published var isHighlighted: Bool = false
     @Published var textAlignment: TextAlignment = .leading
     @Published var headingLevel: Int? = nil
     
@@ -63,6 +64,11 @@ class WebEditorContext: ObservableObject {
     func toggleStrikethrough() {
         executeFormatActionClosure?("strikethrough", nil)
         isStrikethrough.toggle()
+    }
+    
+    func toggleHighlight() {
+        executeFormatActionClosure?("highlight", nil)
+        isHighlighted.toggle()
     }
     
     func setTextAlignment(_ alignment: TextAlignment) {

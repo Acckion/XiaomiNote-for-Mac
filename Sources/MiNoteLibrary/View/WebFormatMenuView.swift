@@ -105,19 +105,18 @@ struct WebFormatMenuView: View {
                 }
                 .buttonStyle(.plain)
                 
-                // 高亮按钮（暂时禁用，因为Web编辑器可能不支持）
+                // 高亮按钮
                 Button(action: {
-                    // 暂时不实现高亮功能
+                    handleHighlightToggle()
                 }) {
-                    Image(systemName: "pencil")
+                    Image(systemName: "highlighter")
                         .font(.system(size: 12))
-                        .foregroundColor(.primary)
+                        .foregroundColor(context.isHighlighted ? .white : .primary)
                         .frame(width: 32, height: 32)
-                        .background(Color.clear)
+                        .background(context.isHighlighted ? Color.yellow : Color.clear)
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(true)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -328,9 +327,14 @@ struct WebFormatMenuView: View {
         context.toggleItalic()
         onFormatAction?(.italic)
     }
-}
-
-#Preview {
-    WebFormatMenuView(context: WebEditorContext())
-        .padding()
+    
+    private func handleHighlightToggle() {
+        context.toggleHighlight()
+        onFormatAction?(.highlight)
+    }
+    
+    #Preview {
+        WebFormatMenuView(context: WebEditorContext())
+            .padding()
+    }
 }

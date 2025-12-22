@@ -24,6 +24,9 @@
 删除线：
 <text indent=\"1\"><delete>删除线</delete></text>\n
 
+高亮：
+<text indent=\"1\"><background color=\"#9affe8af\">高亮<\/background><\/text>\n
+
 特殊，无序列表不用<text>包裹：
 <bullet indent=\"1\" />无序列表\n
 

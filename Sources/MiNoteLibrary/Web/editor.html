@@ -74,6 +74,12 @@
         }
         
         /* 小米笔记样式 */
+        .mi-note-highlight {
+            background-color: rgba(154, 255, 232, 0.69); /* #9affe8af */
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        
         .mi-note-text {
             margin-bottom: 8px;
             padding-left: 0;
@@ -1356,6 +1362,546 @@
         // 创建全局性能监控器实例
         const performanceMonitor = new PerformanceMonitor();
         
+        // ==================== 格式管理器 ====================
+        
+        /**
+         * 统一格式管理器
+         * 管理文本格式（加粗、斜体、下划线、删除线、高亮）的切换和应用
+         * 支持两种模式：
+         * 1. 有选中文本时：切换选中文本的格式
+         * 2. 无选中文本时：切换"即将输入的格式状态"，不影响当前文本
+         */
+        class FormatManager {
+            constructor() {
+                // 即将输入的格式状态（当没有选中文本时使用）
+                this.pendingFormats = {
+                    bold: false,
+                    italic: false,
+                    underline: false,
+                    strikethrough: false,
+                    highlight: false
+                };
+                
+                // 格式命令映射
+                this.formatCommands = {
+                    bold: {
+                        command: 'bold',
+                        tag: 'b',
+                        style: 'fontWeight',
+                        styleValue: 'bold'
+                    },
+                    italic: {
+                        command: 'italic',
+                        tag: 'i',
+                        style: 'fontStyle',
+                        styleValue: 'italic'
+                    },
+                    underline: {
+                        command: 'underline',
+                        tag: 'u',
+                        style: 'textDecoration',
+                        styleValue: 'underline'
+                    },
+                    strikethrough: {
+                        command: 'strikethrough',
+                        tag: 'delete',
+                        style: 'textDecoration',
+                        styleValue: 'line-through'
+                    },
+                    highlight: {
+                        command: null, // 高亮不使用 execCommand
+                        tag: null,
+                        style: 'backgroundColor',
+                        styleValue: 'rgba(154, 255, 232, 0.69)',
+                        className: 'mi-note-highlight'
+                    }
+                };
+            }
+            
+            /**
+             * 切换格式
+             * @param {string} formatType - 格式类型：'bold', 'italic', 'underline', 'strikethrough', 'highlight'
+             * @returns {boolean} 是否成功
+             */
+            toggleFormat(formatType) {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) {
+                    return false;
+                }
+                
+                const range = selection.getRangeAt(0);
+                const hasSelection = !range.collapsed;
+                
+                if (hasSelection) {
+                    // 有选中文本：切换选中文本的格式
+                    return this.toggleSelectedTextFormat(formatType, range);
+                } else {
+                    // 无选中文本：切换"即将输入的格式状态"
+                    const wasActive = this.pendingFormats[formatType];
+                    this.pendingFormats[formatType] = !wasActive;
+                    console.log(`[FormatManager] 切换即将输入的格式状态: ${formatType} = ${this.pendingFormats[formatType]}`);
+                    
+                    // 如果启用了格式，立即在光标位置插入格式标记，确保后续输入会应用格式
+                    if (this.pendingFormats[formatType]) {
+                        this.insertFormatMarker(formatType, range, selection);
+                    } else {
+                        // 如果禁用了格式，移除格式标记
+                        this.removeFormatMarker(formatType, range, selection);
+                    }
+                    
+                    return true;
+                }
+            }
+            
+            /**
+             * 在光标位置插入格式标记（零宽度空格 + 格式）
+             * 这样后续输入会继承格式
+             * 简化版本：使用 document.execCommand 来应用格式，更可靠
+             */
+            insertFormatMarker(formatType, range, selection) {
+                const formatConfig = this.formatCommands[formatType];
+                
+                // 检查光标位置是否已经有格式标记
+                const container = range.commonAncestorContainer;
+                let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+                let hasFormat = false;
+                
+                // 检查是否已经在相应格式的元素内
+                while (element && element !== document.body) {
+                    if (formatType === 'highlight') {
+                        if (element.classList && element.classList.contains('mi-note-highlight')) {
+                            hasFormat = true;
+                            break;
+                        }
+                    } else {
+                        const tagName = element.tagName ? element.tagName.toLowerCase() : '';
+                        if (tagName === formatConfig.tag) {
+                            hasFormat = true;
+                            break;
+                        }
+                    }
+                    element = element.parentElement;
+                }
+                
+                if (hasFormat) {
+                    // 已经在格式元素内，不需要插入标记
+                    return;
+                }
+                
+                // 对于非高亮格式，使用 document.execCommand 更简单可靠
+                if (formatType !== 'highlight' && formatConfig.command) {
+                    try {
+                        // 插入零宽度空格，然后应用格式
+                        const textNode = document.createTextNode('\u200B');
+                        range.insertNode(textNode);
+                        
+                        // 将光标移到文本节点后
+                        const newRange = document.createRange();
+                        newRange.setStartAfter(textNode);
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                        
+                        // 应用格式
+                        document.execCommand('styleWithCSS', false, true);
+                        document.execCommand(formatConfig.command, false, null);
+                        
+                        // 将光标移回文本节点内（格式应用后）
+                        const finalRange = document.createRange();
+                        const updatedTextNode = selection.anchorNode;
+                        if (updatedTextNode && updatedTextNode.nodeType === Node.TEXT_NODE) {
+                            finalRange.setStart(updatedTextNode, updatedTextNode.textContent.length);
+                            finalRange.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(finalRange);
+                        }
+                    } catch (error) {
+                        console.error(`[FormatManager] 插入格式标记失败: ${formatType}`, error);
+                    }
+                } else if (formatType === 'highlight') {
+                    // 高亮需要特殊处理
+                    const highlightSpan = document.createElement('span');
+                    highlightSpan.className = 'mi-note-highlight';
+                    highlightSpan.style.backgroundColor = 'rgba(154, 255, 232, 0.69)';
+                    
+                    const textNode = document.createTextNode('\u200B');
+                    highlightSpan.appendChild(textNode);
+                    
+                    try {
+                        range.insertNode(highlightSpan);
+                        
+                        // 将光标移到高亮span内的文本节点末尾
+                        const newRange = document.createRange();
+                        newRange.setStart(textNode, 1);
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    } catch (error) {
+                        console.error(`[FormatManager] 插入高亮标记失败:`, error);
+                    }
+                }
+            }
+            
+            /**
+             * 移除格式标记
+             * 当关闭格式按钮时，确保光标移出格式元素，这样新输入的文本不会继承格式
+             */
+            removeFormatMarker(formatType, range, selection) {
+                const container = range.commonAncestorContainer;
+                const formatConfig = this.formatCommands[formatType];
+                let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+                
+                // 向上查找格式元素
+                while (element && element !== document.body) {
+                    let isFormatElement = false;
+                    
+                    if (formatType === 'highlight') {
+                        if (element.classList && element.classList.contains('mi-note-highlight')) {
+                            isFormatElement = true;
+                        }
+                    } else {
+                        const tagName = element.tagName ? element.tagName.toLowerCase() : '';
+                        if (tagName === formatConfig.tag) {
+                            isFormatElement = true;
+                        }
+                    }
+                    
+                    if (isFormatElement) {
+                        // 检查元素内容是否只有零宽度空格
+                        const textContent = element.textContent || '';
+                        const hasOnlyZeroWidthSpace = textContent.trim() === '' || textContent === '\u200B';
+                        
+                        if (hasOnlyZeroWidthSpace) {
+                            // 只有零宽度空格，可以安全移除格式元素
+                            const parent = element.parentElement;
+                            if (parent) {
+                                // 将光标移到父元素
+                                const elementIndex = Array.from(parent.childNodes).indexOf(element);
+                                const newRange = document.createRange();
+                                newRange.setStart(parent, elementIndex);
+                                newRange.collapse(true);
+                                selection.removeAllRanges();
+                                selection.addRange(newRange);
+                                
+                                // 移除格式元素
+                                element.remove();
+                            }
+                        } else {
+                            // 格式元素内有实际文本，需要将光标移出格式元素
+                            // 在格式元素后插入一个文本节点，并将光标移到那里
+                            const parent = element.parentElement;
+                            if (parent) {
+                                // 创建新的文本节点（零宽度空格，用于光标定位）
+                                const textNode = document.createTextNode('\u200B');
+                                
+                                // 将新文本节点插入到格式元素之后
+                                if (element.nextSibling) {
+                                    parent.insertBefore(textNode, element.nextSibling);
+                                } else {
+                                    parent.appendChild(textNode);
+                                }
+                                
+                                // 将光标移到新文本节点
+                                const newRange = document.createRange();
+                                newRange.setStart(textNode, 1);
+                                newRange.collapse(true);
+                                selection.removeAllRanges();
+                                selection.addRange(newRange);
+                            }
+                        }
+                        break;
+                    }
+                    
+                    element = element.parentElement;
+                }
+            }
+            
+            /**
+             * 切换选中文本的格式
+             * @param {string} formatType - 格式类型
+             * @param {Range} range - 选择范围
+             * @returns {boolean} 是否成功
+             */
+            toggleSelectedTextFormat(formatType, range) {
+                const formatConfig = this.formatCommands[formatType];
+                if (!formatConfig) {
+                    console.warn(`[FormatManager] 未知格式类型: ${formatType}`);
+                    return false;
+                }
+                
+                if (formatType === 'highlight') {
+                    // 高亮使用特殊处理
+                    return this.toggleHighlightForSelection(range);
+                } else {
+                    // 其他格式使用 execCommand
+                    try {
+                        document.execCommand('styleWithCSS', false, true);
+                        document.execCommand(formatConfig.command, false, null);
+                        return true;
+                    } catch (error) {
+                        console.error(`[FormatManager] 切换格式失败: ${formatType}`, error);
+                        return false;
+                    }
+                }
+            }
+            
+            /**
+             * 切换选中文本的高亮
+             * @param {Range} range - 选择范围
+             * @returns {boolean} 是否成功
+             */
+            toggleHighlightForSelection(range) {
+                const selectedText = range.toString();
+                const container = range.commonAncestorContainer;
+                let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+                
+                // 检查选中文本是否已经有高亮
+                let hasHighlight = false;
+                const highlightElements = [];
+                
+                if (selectedText) {
+                    // 有选中文本：检查选中范围内的所有高亮元素
+                    const walker = document.createTreeWalker(
+                        range.commonAncestorContainer,
+                        NodeFilter.SHOW_ELEMENT,
+                        {
+                            acceptNode: function(node) {
+                                if (node.classList && node.classList.contains('mi-note-highlight')) {
+                                    return NodeFilter.FILTER_ACCEPT;
+                                }
+                                return NodeFilter.FILTER_SKIP;
+                            }
+                        }
+                    );
+                    
+                    let node;
+                    while (node = walker.nextNode()) {
+                        highlightElements.push(node);
+                        hasHighlight = true;
+                    }
+                } else {
+                    // 无选中文本：检查光标位置是否有高亮
+                    while (element && element !== document.body) {
+                        if (element.classList && element.classList.contains('mi-note-highlight')) {
+                            hasHighlight = true;
+                            highlightElements.push(element);
+                            break;
+                        }
+                        element = element.parentElement;
+                    }
+                }
+                
+                if (hasHighlight) {
+                    // 移除高亮
+                    highlightElements.forEach(el => {
+                        const parent = el.parentElement;
+                        while (el.firstChild) {
+                            parent.insertBefore(el.firstChild, el);
+                        }
+                        el.remove();
+                    });
+                } else {
+                    // 添加高亮
+                    const highlightSpan = document.createElement('span');
+                    highlightSpan.className = 'mi-note-highlight';
+                    highlightSpan.style.backgroundColor = 'rgba(154, 255, 232, 0.69)';
+                    
+                    if (selectedText) {
+                        // 有选中文本：包裹选中文本
+                        try {
+                            const contents = range.extractContents();
+                            highlightSpan.appendChild(contents);
+                            range.insertNode(highlightSpan);
+                        } catch (error) {
+                            console.error('[FormatManager] 添加高亮失败:', error);
+                            return false;
+                        }
+                    } else {
+                        // 无选中文本：在光标位置插入高亮span（用于后续输入）
+                        range.insertNode(highlightSpan);
+                        // 将光标移到高亮span内
+                        const newRange = document.createRange();
+                        newRange.setStart(highlightSpan, 0);
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                }
+                
+                return true;
+            }
+            
+            /**
+             * 应用即将输入的格式到新输入的文本
+             * 在输入事件中调用
+             * 使用 document.execCommand 来应用格式（更可靠）
+             */
+            applyPendingFormats() {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) {
+                    return;
+                }
+                
+                const range = selection.getRangeAt(0);
+                if (!range.collapsed) {
+                    // 有选中文本，不应用待应用的格式
+                    return;
+                }
+                
+                // 检查是否有待应用的格式
+                const hasPendingFormats = Object.values(this.pendingFormats).some(v => v);
+                if (!hasPendingFormats) {
+                    return;
+                }
+                
+                // 使用 document.execCommand 应用格式
+                // 注意：需要在输入前设置格式，所以这个方法应该在 beforeinput 事件中调用
+                // 但为了兼容性，我们在输入后检查并应用格式
+                try {
+                    document.execCommand('styleWithCSS', false, true);
+                    
+                    // 应用每个待应用的格式
+                    if (this.pendingFormats.bold) {
+                        document.execCommand('bold', false, null);
+                    }
+                    if (this.pendingFormats.italic) {
+                        document.execCommand('italic', false, null);
+                    }
+                    if (this.pendingFormats.underline) {
+                        document.execCommand('underline', false, null);
+                    }
+                    if (this.pendingFormats.strikethrough) {
+                        document.execCommand('strikethrough', false, null);
+                    }
+                    
+                    // 高亮需要特殊处理
+                    if (this.pendingFormats.highlight) {
+                        // 检查光标位置是否已经有高亮
+                        const container = range.commonAncestorContainer;
+                        let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+                        let hasHighlight = false;
+                        
+                        while (element && element !== document.body) {
+                            if (element.classList && element.classList.contains('mi-note-highlight')) {
+                                hasHighlight = true;
+                                break;
+                            }
+                            element = element.parentElement;
+                        }
+                        
+                        if (!hasHighlight) {
+                            // 在光标位置插入高亮span
+                            const highlightSpan = document.createElement('span');
+                            highlightSpan.className = 'mi-note-highlight';
+                            highlightSpan.style.backgroundColor = 'rgba(154, 255, 232, 0.69)';
+                            highlightSpan.innerHTML = '\u200B'; // 零宽度空格
+                            range.insertNode(highlightSpan);
+                            
+                            // 将光标移到高亮span内
+                            const newRange = document.createRange();
+                            newRange.setStart(highlightSpan.firstChild || highlightSpan, 1);
+                            newRange.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                        }
+                    }
+                } catch (error) {
+                    console.error('[FormatManager] 应用待应用格式失败:', error);
+                }
+            }
+            
+            /**
+             * 获取当前格式状态（用于格式菜单显示）
+             * @returns {Object} 格式状态对象
+             */
+            getCurrentFormatState() {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) {
+                    // 无选择：返回待应用的格式状态
+                    return {
+                        bold: this.pendingFormats.bold,
+                        italic: this.pendingFormats.italic,
+                        underline: this.pendingFormats.underline,
+                        strikethrough: this.pendingFormats.strikethrough,
+                        highlight: this.pendingFormats.highlight
+                    };
+                }
+                
+                const range = selection.getRangeAt(0);
+                const container = range.commonAncestorContainer;
+                let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+                
+                const state = {
+                    bold: false,
+                    italic: false,
+                    underline: false,
+                    strikethrough: false,
+                    highlight: false
+                };
+                
+                // 向上遍历查找格式
+                while (element && element !== document.body) {
+                    const tagName = element.tagName ? element.tagName.toLowerCase() : '';
+                    const className = element.className || '';
+                    const style = window.getComputedStyle(element);
+                    
+                    // 检测加粗
+                    if (tagName === 'b' || tagName === 'strong' || 
+                        parseInt(style.fontWeight) >= 600) {
+                        state.bold = true;
+                    }
+                    
+                    // 检测斜体
+                    if (tagName === 'i' || tagName === 'em' || 
+                        style.fontStyle === 'italic') {
+                        state.italic = true;
+                    }
+                    
+                    // 检测下划线
+                    if (tagName === 'u' || 
+                        style.textDecoration.includes('underline')) {
+                        state.underline = true;
+                    }
+                    
+                    // 检测删除线
+                    if (tagName === 'delete' || tagName === 's' || tagName === 'strike' ||
+                        style.textDecoration.includes('line-through')) {
+                        state.strikethrough = true;
+                    }
+                    
+                    // 检测高亮
+                    if (className.includes('mi-note-highlight') ||
+                        (style.backgroundColor && 
+                         style.backgroundColor !== 'rgba(0, 0, 0, 0)' && 
+                         style.backgroundColor !== 'transparent' &&
+                         style.backgroundColor !== 'rgb(255, 255, 255)' &&
+                         style.backgroundColor !== 'rgb(0, 0, 0)')) {
+                        state.highlight = true;
+                    }
+                    
+                    element = element.parentElement;
+                }
+                
+                return state;
+            }
+            
+            /**
+             * 重置待应用的格式状态
+             */
+            resetPendingFormats() {
+                this.pendingFormats = {
+                    bold: false,
+                    italic: false,
+                    underline: false,
+                    strikethrough: false,
+                    highlight: false
+                };
+            }
+        }
+        
+        // 创建全局格式管理器实例
+        const formatManager = new FormatManager();
+        
         // ==================== 光标管理器 ====================
         
         /**
@@ -2075,6 +2621,11 @@
                     return;
                 }
                 
+                // 应用待应用的格式（在输入后）
+                // 注意：由于浏览器限制，我们无法在输入后直接应用格式
+                // 所以这个方法主要用于检测和更新格式状态
+                // 实际的格式应用需要在 beforeinput 事件中处理
+                
                 // 检查是否是 Enter 键导致的输入（换行）
                 const isEnterInput = e.inputType === 'insertParagraph' || 
                                      e.inputType === 'insertLineBreak' ||
@@ -2164,6 +2715,11 @@
                     ensureListItemsHaveVisibleCursor();
                 }, 10);
                 
+                // 点击后更新格式状态
+                setTimeout(function() {
+                    updateSelectionState();
+                }, 10);
+                
                 // 处理checkbox等特殊点击
                 handleClick(e);
                 
@@ -2195,6 +2751,137 @@
             editor.addEventListener('click', handleEditorClick);
             editor.addEventListener('paste', handlePasteEvent);
             editor.addEventListener('keydown', handleKeyDownEvent);
+            
+            // 在输入后检查并确保格式正确应用
+            // 注意：需要同时处理启用和禁用格式的情况
+            editor.addEventListener('input', function(e) {
+                // 延迟检查，确保 DOM 已更新
+                setTimeout(function() {
+                    const selection = window.getSelection();
+                    if (!selection.rangeCount) {
+                        return;
+                    }
+                    
+                    const range = selection.getRangeAt(0);
+                    if (!range.collapsed) {
+                        return;
+                    }
+                    
+                    // 检查光标位置的文本节点
+                    const container = range.commonAncestorContainer;
+                    if (container.nodeType !== Node.TEXT_NODE) {
+                        return;
+                    }
+                    
+                    const textNode = container;
+                    let parent = textNode.parentElement;
+                    
+                    // 检查所有格式类型
+                    const formatOrder = ['highlight', 'bold', 'italic', 'underline', 'strikethrough'];
+                    
+                    for (const formatType of formatOrder) {
+                        const formatConfig = formatManager.formatCommands[formatType];
+                        const isFormatEnabled = formatManager.pendingFormats[formatType];
+                        
+                        // 向上查找格式元素
+                        let hasFormat = false;
+                        let formatElement = null;
+                        let current = parent;
+                        
+                        while (current && current !== document.body) {
+                            if (formatType === 'highlight') {
+                                if (current.classList && current.classList.contains('mi-note-highlight')) {
+                                    hasFormat = true;
+                                    formatElement = current;
+                                    break;
+                                }
+                            } else {
+                                const tagName = current.tagName ? current.tagName.toLowerCase() : '';
+                                if (tagName === formatConfig.tag) {
+                                    hasFormat = true;
+                                    formatElement = current;
+                                    break;
+                                }
+                            }
+                            current = current.parentElement;
+                        }
+                        
+                        if (isFormatEnabled) {
+                            // 格式已启用：如果没有格式元素，需要创建
+                            if (!hasFormat) {
+                                // 创建格式元素
+                                let newFormatElement;
+                                if (formatType === 'highlight') {
+                                    newFormatElement = document.createElement('span');
+                                    newFormatElement.className = 'mi-note-highlight';
+                                    newFormatElement.style.backgroundColor = 'rgba(154, 255, 232, 0.69)';
+                                } else {
+                                    newFormatElement = document.createElement(formatConfig.tag);
+                                }
+                                
+                                // 包裹文本节点
+                                if (textNode.parentElement) {
+                                    textNode.parentElement.insertBefore(newFormatElement, textNode);
+                                }
+                                newFormatElement.appendChild(textNode);
+                                
+                                // 更新 parent 引用
+                                parent = newFormatElement;
+                            } else {
+                                // 如果格式元素存在，但文本节点不在其中，需要移动
+                                if (formatElement && !formatElement.contains(textNode)) {
+                                    formatElement.appendChild(textNode);
+                                    parent = formatElement;
+                                }
+                            }
+                        } else {
+                            // 格式已禁用：如果有格式元素，需要将文本节点移出
+                            if (hasFormat && formatElement) {
+                                // 检查格式元素是否只包含当前文本节点（新输入的文本）
+                                const formatChildren = Array.from(formatElement.childNodes);
+                                const onlyCurrentTextNode = formatChildren.length === 1 && formatChildren[0] === textNode;
+                                
+                                if (onlyCurrentTextNode) {
+                                    // 格式元素只包含新输入的文本，可以安全移除格式元素
+                                    const formatParent = formatElement.parentElement;
+                                    if (formatParent) {
+                                        // 将文本节点移到格式元素的父元素
+                                        formatParent.insertBefore(textNode, formatElement);
+                                        formatElement.remove();
+                                        parent = formatParent;
+                                    }
+                                } else {
+                                    // 格式元素包含其他内容，需要将新输入的文本移出
+                                    // 在格式元素后创建新的文本节点，并将新输入的文本移到那里
+                                    const formatParent = formatElement.parentElement;
+                                    if (formatParent) {
+                                        // 从格式元素中移除文本节点
+                                        formatElement.removeChild(textNode);
+                                        
+                                        // 将文本节点插入到格式元素之后
+                                        if (formatElement.nextSibling) {
+                                            formatParent.insertBefore(textNode, formatElement.nextSibling);
+                                        } else {
+                                            formatParent.appendChild(textNode);
+                                        }
+                                        
+                                        parent = formatParent;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 更新光标位置
+                    if (textNode && textNode.parentElement) {
+                        const newRange = document.createRange();
+                        newRange.setStart(textNode, textNode.textContent.length);
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                }, 0);
+            }, { passive: true });
             
             // ==================== 注册事件处理器到 EventManager ====================
             
@@ -2503,8 +3190,146 @@
         }
         
         // 更新选择状态
+        // 检测当前光标位置的格式状态
+        function detectFormatState() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) {
+                // 无选择：返回待应用的格式状态
+                const pendingState = formatManager.getCurrentFormatState();
+                return {
+                    isBold: pendingState.bold,
+                    isItalic: pendingState.italic,
+                    isUnderline: pendingState.underline,
+                    isStrikethrough: pendingState.strikethrough,
+                    isHighlighted: pendingState.highlight,
+                    textAlignment: 'left',
+                    headingLevel: null
+                };
+            }
+            
+            const range = selection.getRangeAt(0);
+            const container = range.commonAncestorContainer;
+            
+            // 向上查找包含格式的元素
+            let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+            if (!element) {
+                const pendingState = formatManager.getCurrentFormatState();
+                return {
+                    isBold: pendingState.bold,
+                    isItalic: pendingState.italic,
+                    isUnderline: pendingState.underline,
+                    isStrikethrough: pendingState.strikethrough,
+                    isHighlighted: pendingState.highlight,
+                    textAlignment: 'left',
+                    headingLevel: null
+                };
+            }
+            
+            // 使用 FormatManager 获取格式状态
+            const formatState = formatManager.getCurrentFormatState();
+            
+            // 检测标题级别和对齐方式（这些不在 FormatManager 中处理）
+            let textAlignment = 'left';
+            let headingLevel = null;
+            let currentElement = element;
+            
+            while (currentElement && currentElement !== document.body) {
+                const tagName = currentElement.tagName ? currentElement.tagName.toLowerCase() : '';
+                const className = currentElement.className || '';
+                
+                // 检测标题级别（小米笔记格式）
+                if (!headingLevel) {
+                    // 检查标签内的内容（检查 span 标签的 class）
+                    if (tagName === 'span') {
+                        if (className.includes('size-large')) {
+                            headingLevel = 1; // 大标题
+                        } else if (className.includes('size-mid')) {
+                            headingLevel = 2; // 二级标题
+                        } else if (className.includes('size-h3')) {
+                            headingLevel = 3; // 三级标题
+                        }
+                    }
+                    // 检查父元素内的 span 标签
+                    if (!headingLevel && currentElement.querySelector) {
+                        if (currentElement.querySelector('span.size-large')) {
+                            headingLevel = 1;
+                        } else if (currentElement.querySelector('span.size-mid')) {
+                            headingLevel = 2;
+                        } else if (currentElement.querySelector('span.size-h3')) {
+                            headingLevel = 3;
+                        }
+                    }
+                    // 检查 innerHTML（作为备用）
+                    if (!headingLevel) {
+                        const innerHTML = currentElement.innerHTML || '';
+                        if (innerHTML.includes('<size>') || innerHTML.includes('size-large')) {
+                            headingLevel = 1;
+                        } else if (innerHTML.includes('<mid-size>') || innerHTML.includes('size-mid')) {
+                            headingLevel = 2;
+                        } else if (innerHTML.includes('<h3-size>') || innerHTML.includes('size-h3')) {
+                            headingLevel = 3;
+                        }
+                    }
+                    // 检查标准 HTML 标签（作为备用）
+                    if (!headingLevel) {
+                        if (tagName === 'h1' || className.includes('h1-size')) {
+                            headingLevel = 1;
+                        } else if (tagName === 'h2' || className.includes('mid-size')) {
+                            headingLevel = 2;
+                        } else if (tagName === 'h3' || className.includes('h3-size')) {
+                            headingLevel = 3;
+                        }
+                    }
+                }
+                
+                // 检测对齐方式
+                if (currentElement.classList && currentElement.classList.contains('mi-note-text')) {
+                    if (currentElement.classList.contains('center')) {
+                        textAlignment = 'center';
+                    } else if (currentElement.classList.contains('right')) {
+                        textAlignment = 'right';
+                    } else {
+                        textAlignment = 'left';
+                    }
+                }
+                
+                currentElement = currentElement.parentElement;
+            }
+            
+            return {
+                isBold: formatState.bold,
+                isItalic: formatState.italic,
+                isUnderline: formatState.underline,
+                isStrikethrough: formatState.strikethrough,
+                isHighlighted: formatState.highlight,
+                textAlignment: textAlignment,
+                headingLevel: headingLevel
+            };
+        }
+        
+        // 更新选择状态并通知 Swift 端
         function updateSelectionState() {
-            // 可以在这里实现选择状态跟踪
+            try {
+                const formatState = detectFormatState();
+                
+                // 发送格式状态到 Swift 端
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.editorBridge) {
+                    window.webkit.messageHandlers.editorBridge.postMessage({
+                        type: 'formatStateChanged',
+                        formatState: {
+                            isBold: formatState.isBold,
+                            isItalic: formatState.isItalic,
+                            isUnderline: formatState.isUnderline,
+                            isStrikethrough: formatState.isStrikethrough,
+                            isHighlighted: formatState.isHighlighted,
+                            textAlignment: formatState.textAlignment,
+                            headingLevel: formatState.headingLevel
+                        }
+                    });
+                }
+            } catch (error) {
+                errorHandler.handle(error, 'updateSelectionState', {});
+            }
         }
         
         // 保存当前光标位置
@@ -3321,14 +4146,14 @@
                 // 向上查找，直到找到列表项或编辑器
                 while (listItem && listItem !== editor) {
                     if (listItem.classList) {
-                        if (listItem.classList.contains('mi-note-order') || listItem.classList.contains('mi-note-bullet')) {
-                            currentCursorInListItem = listItem;
+                    if (listItem.classList.contains('mi-note-order') || listItem.classList.contains('mi-note-bullet')) {
+                        currentCursorInListItem = listItem;
                             break;
-                        } else if (listItem.classList.contains('mi-note-checkbox')) {
-                            currentCursorInListItem = listItem;
-                            isCheckbox = true;
+                    } else if (listItem.classList.contains('mi-note-checkbox')) {
+                        currentCursorInListItem = listItem;
+                        isCheckbox = true;
                             break;
-                        }
+                    }
                     }
                     listItem = listItem.parentElement;
                 }
@@ -3466,8 +4291,8 @@
                         
                         // 设置光标位置（只在光标确实在这个列表项中时）
                         if (currentCursorInListItem === item) {
-                            const range = document.createRange();
-                            range.setStart(textNode, textNode.textContent.length);
+                        const range = document.createRange();
+                        range.setStart(textNode, textNode.textContent.length);
                             range.collapse(true);
                             selection.removeAllRanges();
                             selection.addRange(range);
@@ -3566,22 +4391,25 @@
             const editor = document.getElementById('editor-content');
             const selection = window.getSelection();
             
-            if (!selection.rangeCount) return '无选中文本';
+            if (!selection.rangeCount) {
+                // 无选择时，使用 FormatManager 切换待应用的格式状态
+                if (action === 'bold' || action === 'italic' || action === 'underline' || 
+                    action === 'strikethrough' || action === 'highlight') {
+                    formatManager.toggleFormat(action);
+                    notifyContentChanged();
+                    return '格式状态已切换: ' + action;
+                }
+                return '无选中文本';
+            }
             
-            document.execCommand('styleWithCSS', false, true);
-            
+            // 有选择时，使用 FormatManager 切换选中文本的格式
             switch(action) {
                 case 'bold':
-                    document.execCommand('bold', false, null);
-                    break;
                 case 'italic':
-                    document.execCommand('italic', false, null);
-                    break;
                 case 'underline':
-                    document.execCommand('underline', false, null);
-                    break;
                 case 'strikethrough':
-                    document.execCommand('strikethrough', false, null);
+                case 'highlight':
+                    formatManager.toggleFormat(action);
                     break;
                 case 'heading':
                     // 处理标题
@@ -3637,26 +4465,40 @@
         function insertCheckbox() {
             const editor = document.getElementById('editor-content');
             const selection = window.getSelection();
+            if (!selection.rangeCount) {
+                // 如果没有选择，在编辑器末尾插入
+                const range = document.createRange();
+                range.selectNodeContents(editor);
+                range.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+            
             const range = selection.getRangeAt(0);
             
             const checkboxContainer = document.createElement('div');
-            checkboxContainer.className = 'mi-note-checkbox';
+            checkboxContainer.className = 'mi-note-checkbox indent-1';
             
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             
-            const textSpan = document.createElement('span');
-            textSpan.textContent = '待办事项';
-            textSpan.contentEditable = true;
+            // 创建文本节点（零宽度空格，确保光标可见），不显示"待办事项"提示词
+            const textNode = document.createTextNode('\u200B');
             
             checkboxContainer.appendChild(checkbox);
-            checkboxContainer.appendChild(textSpan);
+            checkboxContainer.appendChild(textNode);
             
             range.insertNode(checkboxContainer);
-            range.setStartAfter(checkboxContainer);
-            range.collapse(true);
+            
+            // 将光标移到文本节点，确保光标可见
+            const newRange = document.createRange();
+            newRange.setStart(textNode, textNode.textContent.length);
+            newRange.collapse(true);
             selection.removeAllRanges();
-            selection.addRange(range);
+            selection.addRange(newRange);
+            
+            // 确保编辑器保持焦点
+            editor.focus();
         }
         
         // 插入水平分割线
@@ -3680,6 +4522,136 @@
             range.collapse(true);
             selection.removeAllRanges();
             selection.addRange(range);
+        }
+        
+        // 切换高亮
+        function toggleHighlight() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            
+            const range = selection.getRangeAt(0);
+            const selectedText = range.toString();
+            
+            if (!selectedText) {
+                // 如果没有选中文本，检查光标位置的格式
+                const container = range.commonAncestorContainer;
+                let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+                
+                // 向上查找是否有高亮样式
+                let hasHighlight = false;
+                while (element && element !== document.body) {
+                    const style = window.getComputedStyle(element);
+                    const bgColor = style.backgroundColor;
+                    // 检查是否有背景色（不是透明或默认背景色）
+                    if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent' && 
+                        bgColor !== 'rgb(255, 255, 255)' && bgColor !== 'rgb(0, 0, 0)') {
+                        hasHighlight = true;
+                        break;
+                    }
+                    // 检查是否有 mi-note-highlight 类
+                    if (element.classList && element.classList.contains('mi-note-highlight')) {
+                        hasHighlight = true;
+                        break;
+                    }
+                    element = element.parentElement;
+                }
+                
+                if (hasHighlight) {
+                    // 移除高亮：查找并移除高亮span
+                    element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+                    while (element && element !== document.body) {
+                        if (element.classList && element.classList.contains('mi-note-highlight')) {
+                            // 移除高亮类，保留内容
+                            const parent = element.parentElement;
+                            while (element.firstChild) {
+                                parent.insertBefore(element.firstChild, element);
+                            }
+                            element.remove();
+                            break;
+                        }
+                        element = element.parentElement;
+                    }
+                } else {
+                    // 添加高亮：使用默认颜色 #9affe8af（小米笔记格式示例中的颜色）
+                    const highlightSpan = document.createElement('span');
+                    highlightSpan.className = 'mi-note-highlight';
+                    highlightSpan.style.backgroundColor = 'rgba(154, 255, 232, 0.69)'; // #9affe8af 转换为 rgba
+                    
+                    // 如果光标在文本节点中，需要包裹文本节点
+                    if (container.nodeType === Node.TEXT_NODE) {
+                        const textNode = container;
+                        const parent = textNode.parentElement;
+                        const text = textNode.textContent;
+                        const offset = range.startOffset;
+                        
+                        // 分割文本节点
+                        const beforeText = text.substring(0, offset);
+                        const afterText = text.substring(offset);
+                        
+                        // 创建新的文本节点
+                        if (beforeText) {
+                            const beforeNode = document.createTextNode(beforeText);
+                            parent.insertBefore(beforeNode, textNode);
+                        }
+                        
+                        // 创建高亮span（包含光标位置的一个字符或零宽度空格）
+                        const highlightText = afterText.length > 0 ? afterText.charAt(0) : '\u200B';
+                        highlightSpan.textContent = highlightText;
+                        parent.insertBefore(highlightSpan, textNode);
+                        
+                        // 更新剩余文本
+                        if (afterText.length > 1) {
+                            const afterNode = document.createTextNode(afterText.substring(1));
+                            parent.insertBefore(afterNode, textNode);
+                        }
+                        
+                        textNode.remove();
+                        
+                        // 设置光标到高亮span内
+                        const newRange = document.createRange();
+                        newRange.setStart(highlightSpan.firstChild || highlightSpan, highlightText.length);
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                }
+            } else {
+                // 有选中文本，应用或移除高亮
+                const container = range.commonAncestorContainer;
+                let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+                
+                // 检查选中文本是否已经有高亮
+                let hasHighlight = false;
+                const highlightElements = range.commonAncestorContainer.querySelectorAll ? 
+                    range.commonAncestorContainer.querySelectorAll('.mi-note-highlight') : [];
+                if (highlightElements.length > 0) {
+                    hasHighlight = true;
+                }
+                
+                if (hasHighlight) {
+                    // 移除高亮
+                    highlightElements.forEach(el => {
+                        const parent = el.parentElement;
+                        while (el.firstChild) {
+                            parent.insertBefore(el.firstChild, el);
+                        }
+                        el.remove();
+                    });
+                } else {
+                    // 添加高亮
+                    const highlightSpan = document.createElement('span');
+                    highlightSpan.className = 'mi-note-highlight';
+                    highlightSpan.style.backgroundColor = 'rgba(154, 255, 232, 0.69)'; // #9affe8af
+                    
+                    try {
+                        const contents = range.extractContents();
+                        highlightSpan.appendChild(contents);
+                        range.insertNode(highlightSpan);
+                    } catch (e) {
+                        console.error('应用高亮失败:', e);
+                    }
+                }
+            }
         }
         
         // 切换引用块
@@ -3915,7 +4887,7 @@
                     editor.appendChild(fragment);
                 } else {
                     // 少量内容，直接设置 innerHTML（更快）
-                    editor.innerHTML = html;
+                editor.innerHTML = html;
                 }
                 
                 // 缓存转换结果
@@ -4175,6 +5147,24 @@
             content = content.replace(/<i>/g, '<i>').replace(/<\/i>/g, '</i>');
             content = content.replace(/<u>/g, '<u>').replace(/<\/u>/g, '</u>');
             content = content.replace(/<delete>/g, '<delete>').replace(/<\/delete>/g, '</delete>');
+            
+            // 处理高亮标签 <background color="...">（根据小米笔记格式示例）
+            // 匹配 <background color="#颜色值">内容</background>
+            content = content.replace(/<background\s+color="([^"]+)"\s*>(.*?)<\/background>/gi, function(match, color, text) {
+                // 将颜色值转换为有效的CSS颜色
+                // 小米笔记格式示例中的颜色是 #9affe8af（包含alpha通道）
+                // 如果颜色值包含alpha，需要转换为rgba格式
+                let cssColor = color;
+                if (color.length === 9 && color.startsWith('#')) {
+                    // 格式：#RRGGBBAA，需要转换为rgba
+                    const r = parseInt(color.substring(1, 3), 16);
+                    const g = parseInt(color.substring(3, 5), 16);
+                    const b = parseInt(color.substring(5, 7), 16);
+                    const a = parseInt(color.substring(7, 9), 16) / 255;
+                    cssColor = `rgba(${r}, ${g}, ${b}, ${a})`;
+                }
+                return `<span class="mi-note-highlight" style="background-color: ${cssColor};">${text}</span>`;
+            });
             
             // 处理标题标签（根据小米笔记格式示例）
             content = content.replace(/<size>/g, '<span class="size-large">').replace(/<\/size>/g, '</span>');
@@ -4792,9 +5782,53 @@
             content = content.replace(/<delete>/g, '<delete>').replace(/<\/delete>/g, '</delete>');
             content = content.replace(/<del>/g, '<delete>').replace(/<\/del>/g, '</delete>');
             
-            // 处理高亮（pm-highlight）
-            // 使用正则表达式匹配完整的span标签对
-            content = content.replace(/<span class="pm-highlight[^"]*">(.*?)<\/span>/g, '<highlight>$1</highlight>');
+            // 处理高亮（mi-note-highlight 或 pm-highlight）
+            // 匹配带有背景色的span标签，提取颜色值并转换为 <background color="..."> 标签
+            content = content.replace(/<span\s+class="(?:mi-note-highlight|pm-highlight)[^"]*"\s+style="[^"]*background-color:\s*([^;"]+)[^"]*"[^>]*>(.*?)<\/span>/gi, function(match, bgColor, text) {
+                // 将CSS颜色值转换为小米笔记格式
+                let colorValue = bgColor.trim();
+                
+                // 如果是rgba格式，转换为#RRGGBBAA格式
+                const rgbaMatch = colorValue.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/);
+                if (rgbaMatch) {
+                    const r = parseInt(rgbaMatch[1]).toString(16).padStart(2, '0');
+                    const g = parseInt(rgbaMatch[2]).toString(16).padStart(2, '0');
+                    const b = parseInt(rgbaMatch[3]).toString(16).padStart(2, '0');
+                    const a = rgbaMatch[4] ? Math.round(parseFloat(rgbaMatch[4]) * 255).toString(16).padStart(2, '0') : 'ff';
+                    colorValue = `#${r}${g}${b}${a}`;
+                } else if (colorValue.startsWith('#')) {
+                    // 如果已经是#格式，确保是9位（包含alpha）
+                    if (colorValue.length === 7) {
+                        colorValue = colorValue + 'ff'; // 添加不透明度
+                    }
+                }
+                
+                return `<background color="${colorValue}">${text}</background>`;
+            });
+            
+            // 也处理内联样式的高亮（没有class但有background-color样式）
+            content = content.replace(/<span\s+style="[^"]*background-color:\s*([^;"]+)[^"]*"[^>]*>(.*?)<\/span>/gi, function(match, bgColor, text) {
+                // 检查是否已经有其他格式标签（如<b>、<i>等），如果有则不处理高亮
+                if (text.includes('<b>') || text.includes('<i>') || text.includes('<u>') || text.includes('<delete>')) {
+                    return match; // 保留原样，让其他处理函数处理
+                }
+                
+                let colorValue = bgColor.trim();
+                const rgbaMatch = colorValue.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/);
+                if (rgbaMatch) {
+                    const r = parseInt(rgbaMatch[1]).toString(16).padStart(2, '0');
+                    const g = parseInt(rgbaMatch[2]).toString(16).padStart(2, '0');
+                    const b = parseInt(rgbaMatch[3]).toString(16).padStart(2, '0');
+                    const a = rgbaMatch[4] ? Math.round(parseFloat(rgbaMatch[4]) * 255).toString(16).padStart(2, '0') : 'ff';
+                    colorValue = `#${r}${g}${b}${a}`;
+                } else if (colorValue.startsWith('#')) {
+                    if (colorValue.length === 7) {
+                        colorValue = colorValue + 'ff';
+                    }
+                }
+                
+                return `<background color="${colorValue}">${text}</background>`;
+            });
             
             // 转换标题类（根据小米笔记格式示例）
             content = content.replace(/<span class="size-large">/g, '<size>');
