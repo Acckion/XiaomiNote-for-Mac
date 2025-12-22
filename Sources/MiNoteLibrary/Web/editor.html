@@ -109,10 +109,31 @@
         }
         
         /* 确保有序列表和无序列表项即使为空也有可见的光标 */
+        /* 注意：:empty 选择器只在元素完全为空时生效，如果包含 <br> 或其他元素则不会生效 */
+        /* 所以我们需要在 JavaScript 中确保空列表项有零宽度空格 */
+        /* 使用 min-height 确保空列表项有高度，让光标可见 */
+        .mi-note-order:empty,
+        .mi-note-bullet:empty {
+            min-height: 1.5em; /* 确保有足够高度显示光标 */
+        }
+        
         .mi-note-order:empty::after,
         .mi-note-bullet:empty::after {
             content: "\u200B"; /* 零宽度空格，确保光标可见 */
             display: inline;
+        }
+        
+        /* 确保列表项即使只有 <br> 也能显示光标 */
+        .mi-note-order:has(br:only-child)::after,
+        .mi-note-bullet:has(br:only-child)::after {
+            content: "\u200B";
+            display: inline;
+        }
+        
+        /* 确保 checkbox 为空时也有可见的光标 */
+        .mi-note-checkbox:has(input[type="checkbox"]:only-child),
+        .mi-note-checkbox:has(input[type="checkbox"]:first-child:last-child) {
+            min-height: 1.5em; /* 确保有足够高度显示光标 */
         }
         
         /* 确保列表项内容区域可以正确显示光标 */
@@ -229,13 +250,1495 @@
     </div>
 
     <script>
-        // 全局变量
-        let currentContent = '';
-        let isInitialized = false;
-        let isComposing = false; // 是否正在输入法组合输入（中文输入等）
-        let isLoadingContent = false; // 是否正在从Swift加载内容（避免触发内容变化通知）
-        let isFixingCursor = false; // 是否正在修复光标位置（避免触发内容变化通知）
-        let orderCounter = 1;
+        // ==================== 事件管理器 ====================
+        /**
+         * 统一的事件管理器
+         * 提供事件注册、触发、优先级和拦截功能
+         */
+        class EventManager {
+            constructor() {
+                this.handlers = new Map(); // 事件处理器映射
+                this.priorities = new Map(); // 事件优先级映射
+                this.interceptors = new Map(); // 事件拦截器映射
+            }
+            
+            /**
+             * 注册事件处理器
+             * @param {string} event - 事件名称
+             * @param {Function} handler - 事件处理函数
+             * @param {number} priority - 优先级（数字越大优先级越高，默认0）
+             */
+            on(event, handler, priority = 0) {
+                if (!this.handlers.has(event)) {
+                    this.handlers.set(event, []);
+                    this.priorities.set(event, []);
+                }
+                
+                const handlers = this.handlers.get(event);
+                const priorities = this.priorities.get(event);
+                
+                // 按优先级插入
+                let insertIndex = handlers.length;
+                for (let i = 0; i < priorities.length; i++) {
+                    if (priority > priorities[i]) {
+                        insertIndex = i;
+                        break;
+                    }
+                }
+                
+                handlers.splice(insertIndex, 0, handler);
+                priorities.splice(insertIndex, 0, priority);
+            }
+            
+            /**
+             * 移除事件处理器
+             * @param {string} event - 事件名称
+             * @param {Function} handler - 要移除的处理函数
+             */
+            off(event, handler) {
+                if (!this.handlers.has(event)) return;
+                
+                const handlers = this.handlers.get(event);
+                const priorities = this.priorities.get(event);
+                const index = handlers.indexOf(handler);
+                
+                if (index !== -1) {
+                    handlers.splice(index, 1);
+                    priorities.splice(index, 1);
+                }
+            }
+            
+            /**
+             * 触发事件
+             * @param {string} event - 事件名称
+             * @param {*} data - 事件数据
+             * @returns {boolean} - 是否被拦截（true表示被拦截，不继续执行）
+             */
+            emit(event, data) {
+                // 检查拦截器
+                if (this.interceptors.has(event)) {
+                    const interceptors = this.interceptors.get(event);
+                    for (const interceptor of interceptors) {
+                        if (interceptor(data) === false) {
+                            // 拦截器返回false，停止事件传播
+                            return true;
+                        }
+                    }
+                }
+                
+                // 执行处理器（按优先级从高到低）
+                if (this.handlers.has(event)) {
+                    const handlers = this.handlers.get(event);
+                    for (const handler of handlers) {
+                        try {
+                            handler(data);
+                        } catch (error) {
+                            console.error(`[EventManager] 事件处理器执行错误 [${event}]:`, error);
+                            // 继续执行其他处理器
+                        }
+                    }
+                }
+                
+                return false;
+            }
+            
+            /**
+             * 注册事件拦截器
+             * @param {string} event - 事件名称
+             * @param {Function} interceptor - 拦截器函数，返回false可阻止事件传播
+             */
+            intercept(event, interceptor) {
+                if (!this.interceptors.has(event)) {
+                    this.interceptors.set(event, []);
+                }
+                this.interceptors.get(event).push(interceptor);
+            }
+            
+            /**
+             * 移除事件拦截器
+             * @param {string} event - 事件名称
+             * @param {Function} interceptor - 要移除的拦截器
+             */
+            removeInterceptor(event, interceptor) {
+                if (!this.interceptors.has(event)) return;
+                
+                const interceptors = this.interceptors.get(event);
+                const index = interceptors.indexOf(interceptor);
+                if (index !== -1) {
+                    interceptors.splice(index, 1);
+                }
+            }
+            
+            /**
+             * 清除所有事件处理器
+             */
+            clear() {
+                this.handlers.clear();
+                this.priorities.clear();
+                this.interceptors.clear();
+            }
+        }
+        
+        // 创建全局事件管理器实例
+        const eventManager = new EventManager();
+        
+        // ==================== 状态管理器 ====================
+        /**
+         * 统一的状态管理器
+         * 提供状态更新、订阅和通知功能
+         */
+        class StateManager {
+            constructor(initialState = {}) {
+                this.state = initialState;
+                this.listeners = new Map(); // 按状态键存储监听器
+                this.globalListeners = []; // 全局监听器（监听所有状态变化）
+            }
+            
+            /**
+             * 获取状态
+             * @param {string} key - 状态键（可选，不传则返回全部状态）
+             * @returns {*} 状态值
+             */
+            getState(key) {
+                if (key) {
+                    return this.state[key];
+                }
+                return { ...this.state }; // 返回副本，避免直接修改
+            }
+            
+            /**
+             * 设置状态
+             * @param {string|Object} keyOrUpdates - 状态键或更新对象
+             * @param {*} value - 状态值（当第一个参数是键时）
+             */
+            setState(keyOrUpdates, value) {
+                let updates = {};
+                
+                if (typeof keyOrUpdates === 'string') {
+                    // 单个状态更新
+                    updates[keyOrUpdates] = value;
+                } else if (typeof keyOrUpdates === 'object') {
+                    // 批量状态更新
+                    updates = keyOrUpdates;
+                }
+                
+                const oldState = { ...this.state };
+                const changedKeys = [];
+                
+                // 更新状态
+                for (const key in updates) {
+                    if (this.state[key] !== updates[key]) {
+                        this.state[key] = updates[key];
+                        changedKeys.push(key);
+                    }
+                }
+                
+                // 如果有变化，通知监听器
+                if (changedKeys.length > 0) {
+                    // 通知全局监听器
+                    for (const listener of this.globalListeners) {
+                        try {
+                            listener(this.state, oldState, changedKeys);
+                        } catch (error) {
+                            console.error('[StateManager] 全局监听器执行错误:', error);
+                        }
+                    }
+                    
+                    // 通知特定键的监听器
+                    for (const key of changedKeys) {
+                        if (this.listeners.has(key)) {
+                            const keyListeners = this.listeners.get(key);
+                            for (const listener of keyListeners) {
+                                try {
+                                    listener(this.state[key], oldState[key], key);
+                                } catch (error) {
+                                    console.error(`[StateManager] 监听器执行错误 [${key}]:`, error);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 触发状态变化事件
+                    eventManager.emit('state:changed', {
+                        state: this.state,
+                        oldState: oldState,
+                        changedKeys: changedKeys
+                    });
+                }
+            }
+            
+            /**
+             * 订阅状态变化
+             * @param {string|Function} keyOrListener - 状态键或监听器函数
+             * @param {Function} listener - 监听器函数（当第一个参数是键时）
+             */
+            subscribe(keyOrListener, listener) {
+                if (typeof keyOrListener === 'function') {
+                    // 全局监听器
+                    this.globalListeners.push(keyOrListener);
+                    return () => {
+                        const index = this.globalListeners.indexOf(keyOrListener);
+                        if (index !== -1) {
+                            this.globalListeners.splice(index, 1);
+                        }
+                    };
+                } else {
+                    // 特定键的监听器
+                    const key = keyOrListener;
+                    if (!this.listeners.has(key)) {
+                        this.listeners.set(key, []);
+                    }
+                    this.listeners.get(key).push(listener);
+                    
+                    // 返回取消订阅函数
+                    return () => {
+                        const keyListeners = this.listeners.get(key);
+                        const index = keyListeners.indexOf(listener);
+                        if (index !== -1) {
+                            keyListeners.splice(index, 1);
+                        }
+                    };
+                }
+            }
+            
+            /**
+             * 取消订阅
+             * @param {string} key - 状态键
+             * @param {Function} listener - 监听器函数
+             */
+            unsubscribe(key, listener) {
+                if (this.listeners.has(key)) {
+                    const keyListeners = this.listeners.get(key);
+                    const index = keyListeners.indexOf(listener);
+                    if (index !== -1) {
+                        keyListeners.splice(index, 1);
+                    }
+                }
+            }
+            
+            /**
+             * 重置状态
+             * @param {Object} newState - 新状态（可选）
+             */
+            reset(newState = {}) {
+                const oldState = { ...this.state };
+                this.state = { ...newState };
+                
+                // 通知所有监听器
+                const allKeys = Object.keys({ ...oldState, ...newState });
+                for (const listener of this.globalListeners) {
+                    try {
+                        listener(this.state, oldState, allKeys);
+                    } catch (error) {
+                        console.error('[StateManager] 全局监听器执行错误:', error);
+                    }
+                }
+                
+                eventManager.emit('state:reset', {
+                    state: this.state,
+                    oldState: oldState
+                });
+            }
+        }
+        
+        // 创建全局状态管理器实例
+        const stateManager = new StateManager({
+            currentContent: '',
+            isInitialized: false,
+            isComposing: false,
+            isLoadingContent: false,
+            isFixingCursor: false,
+            orderCounter: 1
+        });
+        
+        // 为了向后兼容，保留全局变量的访问方式（通过 getter/setter）
+        // 但实际数据存储在 StateManager 中
+        Object.defineProperty(window, 'currentContent', {
+            get: () => stateManager.getState('currentContent'),
+            set: (value) => stateManager.setState('currentContent', value)
+        });
+        
+        Object.defineProperty(window, 'isInitialized', {
+            get: () => stateManager.getState('isInitialized'),
+            set: (value) => stateManager.setState('isInitialized', value)
+        });
+        
+        Object.defineProperty(window, 'isComposing', {
+            get: () => stateManager.getState('isComposing'),
+            set: (value) => stateManager.setState('isComposing', value)
+        });
+        
+        Object.defineProperty(window, 'isLoadingContent', {
+            get: () => stateManager.getState('isLoadingContent'),
+            set: (value) => stateManager.setState('isLoadingContent', value)
+        });
+        
+        Object.defineProperty(window, 'isFixingCursor', {
+            get: () => stateManager.getState('isFixingCursor'),
+            set: (value) => stateManager.setState('isFixingCursor', value)
+        });
+        
+        Object.defineProperty(window, 'orderCounter', {
+            get: () => stateManager.getState('orderCounter'),
+            set: (value) => stateManager.setState('orderCounter', value)
+        });
+        
+        // 为了向后兼容，保留全局变量引用（但使用 StateManager）
+        let currentContent = stateManager.getState('currentContent');
+        let isInitialized = stateManager.getState('isInitialized');
+        let isComposing = stateManager.getState('isComposing');
+        let isLoadingContent = stateManager.getState('isLoadingContent');
+        let isFixingCursor = stateManager.getState('isFixingCursor');
+        let orderCounter = stateManager.getState('orderCounter');
+        
+        // 订阅状态变化，同步到全局变量（向后兼容）
+        stateManager.subscribe((newState, oldState, changedKeys) => {
+            if (changedKeys.includes('currentContent')) {
+                currentContent = newState.currentContent;
+            }
+            if (changedKeys.includes('isInitialized')) {
+                isInitialized = newState.isInitialized;
+            }
+            if (changedKeys.includes('isComposing')) {
+                isComposing = newState.isComposing;
+            }
+            if (changedKeys.includes('isLoadingContent')) {
+                isLoadingContent = newState.isLoadingContent;
+            }
+            if (changedKeys.includes('isFixingCursor')) {
+                isFixingCursor = newState.isFixingCursor;
+            }
+            if (changedKeys.includes('orderCounter')) {
+                orderCounter = newState.orderCounter;
+            }
+        });
+        
+        // ==================== 转换缓存管理器 ====================
+        
+        /**
+         * 转换缓存管理器
+         * 用于缓存 HTML↔XML 转换结果，提高性能
+         */
+        class ConversionCacheManager {
+            constructor(maxSize = 50) {
+                this.htmlToXmlCache = new Map(); // HTML → XML 缓存
+                this.xmlToHtmlCache = new Map(); // XML → HTML 缓存
+                this.maxSize = maxSize; // 最大缓存条目数
+                this.hitCount = 0; // 缓存命中次数
+                this.missCount = 0; // 缓存未命中次数
+            }
+            
+            /**
+             * 计算内容的简单哈希（用于缓存键）
+             * @param {string} content - 内容
+             * @returns {string} 哈希值
+             */
+            _hashContent(content) {
+                // 使用简单的哈希算法（FNV-1a 变体）
+                let hash = 2166136261;
+                for (let i = 0; i < content.length; i++) {
+                    hash ^= content.charCodeAt(i);
+                    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+                }
+                return hash.toString(36);
+            }
+            
+            /**
+             * 清理最旧的缓存条目（LRU策略）
+             * @param {Map} cache - 要清理的缓存
+             */
+            _evictOldest(cache) {
+                if (cache.size <= this.maxSize) {
+                    return;
+                }
+                
+                // 删除最旧的条目（Map 保持插入顺序）
+                const firstKey = cache.keys().next().value;
+                if (firstKey !== undefined) {
+                    cache.delete(firstKey);
+                    eventManager.emit('cache:evicted', {
+                        cacheType: cache === this.htmlToXmlCache ? 'htmlToXml' : 'xmlToHtml',
+                        key: firstKey
+                    });
+                }
+            }
+            
+            /**
+             * 获取 HTML → XML 的缓存结果
+             * @param {string} html - HTML 内容
+             * @returns {string|null} 缓存的 XML 内容，如果不存在则返回 null
+             */
+            getHtmlToXml(html) {
+                const key = this._hashContent(html);
+                const cached = this.htmlToXmlCache.get(key);
+                
+                if (cached) {
+                    // 验证缓存是否仍然有效（内容是否匹配）
+                    if (cached.html === html) {
+                        this.hitCount++;
+                        eventManager.emit('cache:hit', {
+                            type: 'htmlToXml',
+                            key: key
+                        });
+                        return cached.xml;
+                    } else {
+                        // 哈希冲突，删除无效缓存
+                        this.htmlToXmlCache.delete(key);
+                    }
+                }
+                
+                this.missCount++;
+                eventManager.emit('cache:miss', {
+                    type: 'htmlToXml',
+                    key: key
+                });
+                return null;
+            }
+            
+            /**
+             * 设置 HTML → XML 的缓存
+             * @param {string} html - HTML 内容
+             * @param {string} xml - XML 内容
+             */
+            setHtmlToXml(html, xml) {
+                const key = this._hashContent(html);
+                
+                // 存储完整的 HTML 和 XML，用于验证
+                this.htmlToXmlCache.set(key, {
+                    html: html,
+                    xml: xml,
+                    timestamp: Date.now()
+                });
+                
+                // 清理最旧的缓存
+                this._evictOldest(this.htmlToXmlCache);
+                
+                eventManager.emit('cache:set', {
+                    type: 'htmlToXml',
+                    key: key
+                });
+            }
+            
+            /**
+             * 获取 XML → HTML 的缓存结果
+             * @param {string} xml - XML 内容
+             * @returns {string|null} 缓存的 HTML 内容，如果不存在则返回 null
+             */
+            getXmlToHtml(xml) {
+                const key = this._hashContent(xml);
+                const cached = this.xmlToHtmlCache.get(key);
+                
+                if (cached) {
+                    // 验证缓存是否仍然有效（内容是否匹配）
+                    if (cached.xml === xml) {
+                        this.hitCount++;
+                        eventManager.emit('cache:hit', {
+                            type: 'xmlToHtml',
+                            key: key
+                        });
+                        return cached.html;
+                    } else {
+                        // 哈希冲突，删除无效缓存
+                        this.xmlToHtmlCache.delete(key);
+                    }
+                }
+                
+                this.missCount++;
+                eventManager.emit('cache:miss', {
+                    type: 'xmlToHtml',
+                    key: key
+                });
+                return null;
+            }
+            
+            /**
+             * 设置 XML → HTML 的缓存
+             * @param {string} xml - XML 内容
+             * @param {string} html - HTML 内容
+             */
+            setXmlToHtml(xml, html) {
+                const key = this._hashContent(xml);
+                
+                // 存储完整的 XML 和 HTML，用于验证
+                this.xmlToHtmlCache.set(key, {
+                    xml: xml,
+                    html: html,
+                    timestamp: Date.now()
+                });
+                
+                // 清理最旧的缓存
+                this._evictOldest(this.xmlToHtmlCache);
+                
+                eventManager.emit('cache:set', {
+                    type: 'xmlToHtml',
+                    key: key
+                });
+            }
+            
+            /**
+             * 清除所有缓存
+             */
+            clear() {
+                const htmlToXmlSize = this.htmlToXmlCache.size;
+                const xmlToHtmlSize = this.xmlToHtmlCache.size;
+                
+                this.htmlToXmlCache.clear();
+                this.xmlToHtmlCache.clear();
+                
+                eventManager.emit('cache:cleared', {
+                    htmlToXmlSize: htmlToXmlSize,
+                    xmlToHtmlSize: xmlToHtmlSize
+                });
+            }
+            
+            /**
+             * 清除特定类型的缓存
+             * @param {string} type - 缓存类型：'htmlToXml' 或 'xmlToHtml'
+             */
+            clearType(type) {
+                if (type === 'htmlToXml') {
+                    this.htmlToXmlCache.clear();
+                } else if (type === 'xmlToHtml') {
+                    this.xmlToHtmlCache.clear();
+                }
+            }
+            
+            /**
+             * 获取缓存统计信息
+             * @returns {Object} 统计信息
+             */
+            getStats() {
+                const totalRequests = this.hitCount + this.missCount;
+                const hitRate = totalRequests > 0 ? (this.hitCount / totalRequests * 100).toFixed(2) : 0;
+                
+                return {
+                    htmlToXmlSize: this.htmlToXmlCache.size,
+                    xmlToHtmlSize: this.xmlToHtmlCache.size,
+                    hitCount: this.hitCount,
+                    missCount: this.missCount,
+                    hitRate: hitRate + '%',
+                    maxSize: this.maxSize
+                };
+            }
+        }
+        
+        // 创建全局转换缓存管理器实例
+        const conversionCache = new ConversionCacheManager(50);
+        
+        // ==================== DOM 操作优化工具 ====================
+        
+        /**
+         * DOM 操作优化工具类
+         * 用于批量 DOM 操作，减少重排和重绘
+         */
+        class DOMOptimizer {
+            constructor() {
+                this.batchOperations = [];
+                this.isBatching = false;
+            }
+            
+            /**
+             * 开始批量操作
+             * 在批量操作期间，所有 DOM 修改都会被延迟执行
+             */
+            startBatch() {
+                if (this.isBatching) {
+                    return;
+                }
+                this.isBatching = true;
+                this.batchOperations = [];
+                eventManager.emit('dom:batch:start', {
+                    timestamp: Date.now()
+                });
+            }
+            
+            /**
+             * 结束批量操作
+             * 执行所有延迟的 DOM 操作
+             */
+            endBatch() {
+                if (!this.isBatching) {
+                    return;
+                }
+                
+                // 使用 requestAnimationFrame 优化批量操作
+                requestAnimationFrame(() => {
+                    // 按类型分组操作
+                    const operations = this.batchOperations;
+                    
+                    // 执行所有操作
+                    for (const op of operations) {
+                        try {
+                            this._executeOperation(op);
+                        } catch (error) {
+                            console.error('[DOMOptimizer] 批量操作执行错误:', error, op);
+                        }
+                    }
+                    
+                    this.batchOperations = [];
+                    this.isBatching = false;
+                    
+                    eventManager.emit('dom:batch:end', {
+                        operationCount: operations.length,
+                        timestamp: Date.now()
+                    });
+                });
+            }
+            
+            /**
+             * 执行单个操作
+             * @private
+             */
+            _executeOperation(op) {
+                switch (op.type) {
+                    case 'remove':
+                        if (op.element && op.element.parentNode) {
+                            op.element.parentNode.removeChild(op.element);
+                        }
+                        break;
+                    case 'append':
+                        if (op.parent && op.child) {
+                            op.parent.appendChild(op.child);
+                        }
+                        break;
+                    case 'insertBefore':
+                        if (op.parent && op.newNode && op.referenceNode) {
+                            op.parent.insertBefore(op.newNode, op.referenceNode);
+                        }
+                        break;
+                    case 'setAttribute':
+                        if (op.element) {
+                            op.element.setAttribute(op.name, op.value);
+                        }
+                        break;
+                    case 'removeAttribute':
+                        if (op.element) {
+                            op.element.removeAttribute(op.name);
+                        }
+                        break;
+                    case 'setInnerHTML':
+                        if (op.element) {
+                            op.element.innerHTML = op.html;
+                        }
+                        break;
+                    case 'setTextContent':
+                        if (op.element) {
+                            op.element.textContent = op.text;
+                        }
+                        break;
+                    case 'addClass':
+                        if (op.element) {
+                            op.element.classList.add(op.className);
+                        }
+                        break;
+                    case 'removeClass':
+                        if (op.element) {
+                            op.element.classList.remove(op.className);
+                        }
+                        break;
+                }
+            }
+            
+            /**
+             * 添加批量操作
+             * @param {string} type - 操作类型
+             * @param {Object} params - 操作参数
+             */
+            addOperation(type, params) {
+                if (this.isBatching) {
+                    this.batchOperations.push({ type, ...params });
+                } else {
+                    // 如果不是批量模式，立即执行
+                    this._executeOperation({ type, ...params });
+                }
+            }
+            
+            /**
+             * 使用 DocumentFragment 批量创建和插入元素
+             * @param {HTMLElement} container - 容器元素
+             * @param {Function} createElements - 创建元素的函数，返回元素数组或 DocumentFragment
+             * @returns {DocumentFragment|Array} 创建的元素
+             */
+            batchCreateAndInsert(container, createElements) {
+                const fragment = document.createDocumentFragment();
+                const elements = createElements();
+                
+                if (Array.isArray(elements)) {
+                    for (const el of elements) {
+                        fragment.appendChild(el);
+                    }
+                } else if (elements instanceof DocumentFragment) {
+                    fragment.appendChild(elements);
+                } else if (elements instanceof Node) {
+                    fragment.appendChild(elements);
+                }
+                
+                // 如果不在批量模式，立即插入
+                if (!this.isBatching) {
+                    container.appendChild(fragment);
+                } else {
+                    // 在批量模式，延迟插入
+                    this.addOperation('append', {
+                        parent: container,
+                        child: fragment
+                    });
+                }
+                
+                return fragment;
+            }
+            
+            /**
+             * 批量移除元素
+             * @param {Array<HTMLElement>} elements - 要移除的元素数组
+             */
+            batchRemove(elements) {
+                if (!Array.isArray(elements)) {
+                    elements = [elements];
+                }
+                
+                for (const el of elements) {
+                    this.addOperation('remove', { element: el });
+                }
+            }
+            
+            /**
+             * 批量设置属性
+             * @param {Array<HTMLElement>} elements - 元素数组
+             * @param {string} name - 属性名
+             * @param {string} value - 属性值
+             */
+            batchSetAttribute(elements, name, value) {
+                if (!Array.isArray(elements)) {
+                    elements = [elements];
+                }
+                
+                for (const el of elements) {
+                    this.addOperation('setAttribute', {
+                        element: el,
+                        name: name,
+                        value: value
+                    });
+                }
+            }
+            
+            /**
+             * 批量添加类名
+             * @param {Array<HTMLElement>} elements - 元素数组
+             * @param {string} className - 类名
+             */
+            batchAddClass(elements, className) {
+                if (!Array.isArray(elements)) {
+                    elements = [elements];
+                }
+                
+                for (const el of elements) {
+                    this.addOperation('addClass', {
+                        element: el,
+                        className: className
+                    });
+                }
+            }
+            
+            /**
+             * 批量移除类名
+             * @param {Array<HTMLElement>} elements - 元素数组
+             * @param {string} className - 类名
+             */
+            batchRemoveClass(elements, className) {
+                if (!Array.isArray(elements)) {
+                    elements = [elements];
+                }
+                
+                for (const el of elements) {
+                    this.addOperation('removeClass', {
+                        element: el,
+                        className: className
+                    });
+                }
+            }
+        }
+        
+        // 创建全局 DOM 优化器实例
+        const domOptimizer = new DOMOptimizer();
+        
+        // ==================== 错误处理器 ====================
+        
+        /**
+         * 统一错误处理器
+         * 用于统一处理和管理编辑器中的错误
+         */
+        class ErrorHandler {
+            constructor() {
+                this.errors = []; // 错误历史记录
+                this.maxErrors = 100; // 最大错误记录数
+                this.errorListeners = []; // 错误监听器
+            }
+            
+            /**
+             * 处理错误
+             * @param {Error|string} error - 错误对象或错误消息
+             * @param {string} context - 错误上下文
+             * @param {Object} metadata - 额外元数据
+             */
+            handle(error, context = 'unknown', metadata = {}) {
+                const errorInfo = {
+                    message: error instanceof Error ? error.message : String(error),
+                    stack: error instanceof Error ? error.stack : undefined,
+                    context: context,
+                    timestamp: Date.now(),
+                    ...metadata
+                };
+                
+                // 记录错误
+                this.errors.push(errorInfo);
+                if (this.errors.length > this.maxErrors) {
+                    this.errors.shift();
+                }
+                
+                // 控制台输出
+                console.error(`[ErrorHandler] [${context}]`, errorInfo);
+                
+                // 触发错误事件
+                eventManager.emit('error:occurred', errorInfo);
+                
+                // 通知所有监听器
+                for (const listener of this.errorListeners) {
+                    try {
+                        listener(errorInfo);
+                    } catch (e) {
+                        console.error('[ErrorHandler] 监听器执行错误:', e);
+                    }
+                }
+                
+                // 尝试通知 Swift（如果可用）
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.editorBridge) {
+                    try {
+                        window.webkit.messageHandlers.editorBridge.postMessage({
+                            type: 'error',
+                            error: {
+                                message: errorInfo.message,
+                                context: errorInfo.context,
+                                timestamp: errorInfo.timestamp
+                            }
+                        });
+                    } catch (e) {
+                        // 忽略通知失败
+                    }
+                }
+                
+                return errorInfo;
+            }
+            
+            /**
+             * 添加错误监听器
+             * @param {Function} listener - 监听器函数
+             */
+            onError(listener) {
+                this.errorListeners.push(listener);
+                return () => {
+                    const index = this.errorListeners.indexOf(listener);
+                    if (index !== -1) {
+                        this.errorListeners.splice(index, 1);
+                    }
+                };
+            }
+            
+            /**
+             * 获取错误历史
+             * @param {number} limit - 限制返回数量
+             * @returns {Array}
+             */
+            getErrors(limit = 10) {
+                return this.errors.slice(-limit);
+            }
+            
+            /**
+             * 清除错误历史
+             */
+            clearErrors() {
+                this.errors = [];
+                eventManager.emit('error:cleared', {});
+            }
+            
+            /**
+             * 安全执行函数（自动捕获错误）
+             * @param {Function} fn - 要执行的函数
+             * @param {string} context - 上下文
+             * @param {*} defaultValue - 错误时的默认返回值
+             * @returns {*} 函数返回值或默认值
+             */
+            safeExecute(fn, context = 'unknown', defaultValue = null) {
+                try {
+                    return fn();
+                } catch (error) {
+                    this.handle(error, context);
+                    return defaultValue;
+                }
+            }
+            
+            /**
+             * 安全执行异步函数（自动捕获错误）
+             * @param {Function} fn - 要执行的异步函数
+             * @param {string} context - 上下文
+             * @param {*} defaultValue - 错误时的默认返回值
+             * @returns {Promise} Promise 对象
+             */
+            async safeExecuteAsync(fn, context = 'unknown', defaultValue = null) {
+                try {
+                    return await fn();
+                } catch (error) {
+                    this.handle(error, context);
+                    return defaultValue;
+                }
+            }
+        }
+        
+        // 创建全局错误处理器实例
+        const errorHandler = new ErrorHandler();
+        
+        // ==================== 性能监控器 ====================
+        
+        /**
+         * 性能监控器
+         * 用于收集和监控编辑器性能指标
+         */
+        class PerformanceMonitor {
+            constructor() {
+                this.metrics = {
+                    conversions: [], // 转换操作指标
+                    domOperations: [], // DOM 操作指标
+                    contentChanges: [], // 内容变化指标
+                    renderOperations: [] // 渲染操作指标
+                };
+                this.maxMetrics = 100; // 每种指标的最大记录数
+                this.timers = new Map(); // 计时器映射
+            }
+            
+            /**
+             * 开始计时
+             * @param {string} name - 计时器名称
+             * @param {Object} metadata - 元数据
+             */
+            startTimer(name, metadata = {}) {
+                const timerId = `${name}_${Date.now()}_${Math.random()}`;
+                this.timers.set(timerId, {
+                    name: name,
+                    start: performance.now(),
+                    metadata: metadata
+                });
+                return timerId;
+            }
+            
+            /**
+             * 结束计时并记录指标
+             * @param {string} timerId - 计时器 ID
+             * @param {string} category - 指标类别
+             * @returns {number} 耗时（毫秒）
+             */
+            endTimer(timerId, category = 'general') {
+                const timer = this.timers.get(timerId);
+                if (!timer) {
+                    console.warn('[PerformanceMonitor] 计时器不存在:', timerId);
+                    return 0;
+                }
+                
+                const duration = performance.now() - timer.start;
+                const metric = {
+                    name: timer.name,
+                    duration: duration,
+                    timestamp: Date.now(),
+                    category: category,
+                    ...timer.metadata
+                };
+                
+                // 记录指标
+                if (this.metrics[category]) {
+                    this.metrics[category].push(metric);
+                    if (this.metrics[category].length > this.maxMetrics) {
+                        this.metrics[category].shift();
+                    }
+                }
+                
+                this.timers.delete(timerId);
+                
+                // 触发性能指标事件
+                eventManager.emit('performance:metric', metric);
+                
+                return duration;
+            }
+            
+            /**
+             * 记录指标
+             * @param {string} name - 指标名称
+             * @param {number} value - 指标值
+             * @param {string} category - 指标类别
+             * @param {Object} metadata - 元数据
+             */
+            recordMetric(name, value, category = 'general', metadata = {}) {
+                const metric = {
+                    name: name,
+                    value: value,
+                    timestamp: Date.now(),
+                    category: category,
+                    ...metadata
+                };
+                
+                if (this.metrics[category]) {
+                    this.metrics[category].push(metric);
+                    if (this.metrics[category].length > this.maxMetrics) {
+                        this.metrics[category].shift();
+                    }
+                }
+                
+                eventManager.emit('performance:metric', metric);
+            }
+            
+            /**
+             * 获取性能统计
+             * @param {string} category - 指标类别（可选）
+             * @returns {Object} 性能统计
+             */
+            getStats(category = null) {
+                if (category) {
+                    const metrics = this.metrics[category] || [];
+                    return this._calculateStats(metrics);
+                }
+                
+                const stats = {};
+                for (const cat in this.metrics) {
+                    stats[cat] = this._calculateStats(this.metrics[cat]);
+                }
+                return stats;
+            }
+            
+            /**
+             * 计算统计信息
+             * @private
+             */
+            _calculateStats(metrics) {
+                if (metrics.length === 0) {
+                    return {
+                        count: 0,
+                        avg: 0,
+                        min: 0,
+                        max: 0,
+                        total: 0
+                    };
+                }
+                
+                const values = metrics.map(m => m.duration || m.value || 0);
+                const sum = values.reduce((a, b) => a + b, 0);
+                const avg = sum / values.length;
+                const min = Math.min(...values);
+                const max = Math.max(...values);
+                
+                return {
+                    count: metrics.length,
+                    avg: avg.toFixed(2),
+                    min: min.toFixed(2),
+                    max: max.toFixed(2),
+                    total: sum.toFixed(2)
+                };
+            }
+            
+            /**
+             * 清除所有指标
+             */
+            clear() {
+                for (const cat in this.metrics) {
+                    this.metrics[cat] = [];
+                }
+                this.timers.clear();
+                eventManager.emit('performance:cleared', {});
+            }
+        }
+        
+        // 创建全局性能监控器实例
+        const performanceMonitor = new PerformanceMonitor();
+        
+        // ==================== 光标管理器 ====================
+        
+        /**
+         * 光标管理器
+         * 统一管理编辑器的光标位置和选择
+         */
+        class CursorManager {
+            constructor() {
+                this.savedSelections = new Map(); // 保存的选择
+                this.maxSavedSelections = 10; // 最大保存选择数
+            }
+            
+            /**
+             * 保存当前选择
+             * @param {string} id - 选择 ID（可选）
+             * @returns {string} 选择 ID
+             */
+            saveSelection(id = null) {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) {
+                    return null;
+                }
+                
+                const range = selection.getRangeAt(0).cloneRange();
+                const selectionId = id || `selection_${Date.now()}_${Math.random()}`;
+                
+                this.savedSelections.set(selectionId, {
+                    range: range,
+                    timestamp: Date.now()
+                });
+                
+                // 限制保存的选择数量
+                if (this.savedSelections.size > this.maxSavedSelections) {
+                    const firstKey = this.savedSelections.keys().next().value;
+                    this.savedSelections.delete(firstKey);
+                }
+                
+                eventManager.emit('cursor:saved', {
+                    id: selectionId,
+                    timestamp: Date.now()
+                });
+                
+                return selectionId;
+            }
+            
+            /**
+             * 恢复选择
+             * @param {string} id - 选择 ID
+             * @returns {boolean} 是否成功恢复
+             */
+            restoreSelection(id) {
+                const saved = this.savedSelections.get(id);
+                if (!saved) {
+                    console.warn('[CursorManager] 选择不存在:', id);
+                    return false;
+                }
+                
+                try {
+                    const selection = window.getSelection();
+                    selection.removeAllRanges();
+                    selection.addRange(saved.range);
+                    
+                    eventManager.emit('cursor:restored', {
+                        id: id,
+                        timestamp: Date.now()
+                    });
+                    
+                    return true;
+                } catch (error) {
+                    errorHandler.handle(error, 'CursorManager.restoreSelection', { id: id });
+                    return false;
+                }
+            }
+            
+            /**
+             * 获取当前选择信息
+             * @returns {Object} 选择信息
+             */
+            getSelectionInfo() {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) {
+                    return {
+                        hasSelection: false,
+                        selectedText: '',
+                        rangeCount: 0
+                    };
+                }
+                
+                const range = selection.getRangeAt(0);
+                return {
+                    hasSelection: true,
+                    selectedText: selection.toString(),
+                    rangeCount: selection.rangeCount,
+                    startOffset: range.startOffset,
+                    endOffset: range.endOffset,
+                    startContainer: range.startContainer,
+                    endContainer: range.endContainer
+                };
+            }
+            
+            /**
+             * 设置光标位置
+             * @param {Node} node - 目标节点
+             * @param {number} offset - 偏移量
+             * @returns {boolean} 是否成功设置
+             */
+            setCursorPosition(node, offset = 0) {
+                try {
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    range.setStart(node, offset);
+                    range.collapse(true);
+                    
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    
+                    eventManager.emit('cursor:position:set', {
+                        node: node,
+                        offset: offset,
+                        timestamp: Date.now()
+                    });
+                    
+                    return true;
+                } catch (error) {
+                    errorHandler.handle(error, 'CursorManager.setCursorPosition', { node: node, offset: offset });
+                    return false;
+                }
+            }
+            
+            /**
+             * 移动到节点末尾
+             * @param {Node} node - 目标节点
+             * @returns {boolean} 是否成功移动
+             */
+            moveToEnd(node) {
+                try {
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(node);
+                    range.collapse(false);
+                    
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    
+                    return true;
+                } catch (error) {
+                    errorHandler.handle(error, 'CursorManager.moveToEnd', { node: node });
+                    return false;
+                }
+            }
+            
+            /**
+             * 移动到节点开头
+             * @param {Node} node - 目标节点
+             * @returns {boolean} 是否成功移动
+             */
+            moveToStart(node) {
+                try {
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(node);
+                    range.collapse(true);
+                    
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    
+                    return true;
+                } catch (error) {
+                    errorHandler.handle(error, 'CursorManager.moveToStart', { node: node });
+                    return false;
+                }
+            }
+            
+            /**
+             * 清除所有保存的选择
+             */
+            clearSavedSelections() {
+                this.savedSelections.clear();
+                eventManager.emit('cursor:cleared', {});
+            }
+        }
+        
+        // 创建全局光标管理器实例
+        const cursorManager = new CursorManager();
+        
+        // ==================== 历史记录管理器 ====================
+        
+        /**
+         * 历史记录管理器
+         * 用于实现撤销/重做功能
+         */
+        class HistoryManager {
+            constructor(maxSize = 50) {
+                this.history = []; // 历史记录数组
+                this.currentIndex = -1; // 当前历史记录索引
+                this.maxSize = maxSize; // 最大历史记录数
+                this.isUndoing = false; // 是否正在执行撤销操作
+                this.isRedoing = false; // 是否正在执行重做操作
+                this.isRecording = true; // 是否正在记录历史
+            }
+            
+            /**
+             * 添加历史记录
+             * @param {string} content - 内容（XML格式）
+             * @param {Object} metadata - 元数据（可选）
+             */
+            push(content, metadata = {}) {
+                // 如果正在执行撤销/重做，不记录历史
+                if (this.isUndoing || this.isRedoing) {
+                    return;
+                }
+                
+                // 如果未启用记录，不记录历史
+                if (!this.isRecording) {
+                    return;
+                }
+                
+                // 如果内容与当前历史记录相同，不添加
+                if (this.currentIndex >= 0 && this.history[this.currentIndex].content === content) {
+                    return;
+                }
+                
+                // 如果当前不在历史记录的末尾，删除后面的记录（分支历史）
+                if (this.currentIndex < this.history.length - 1) {
+                    this.history = this.history.slice(0, this.currentIndex + 1);
+                }
+                
+                // 添加新的历史记录
+                this.history.push({
+                    content: content,
+                    timestamp: Date.now(),
+                    ...metadata
+                });
+                
+                // 限制历史记录数量
+                if (this.history.length > this.maxSize) {
+                    this.history.shift();
+                } else {
+                    this.currentIndex = this.history.length - 1;
+                }
+                
+                // 触发历史记录变化事件
+                eventManager.emit('history:added', {
+                    index: this.currentIndex,
+                    total: this.history.length,
+                    canUndo: this.canUndo(),
+                    canRedo: this.canRedo()
+                });
+            }
+            
+            /**
+             * 撤销操作
+             * @returns {string|null} 撤销后的内容，如果无法撤销则返回 null
+             */
+            undo() {
+                if (!this.canUndo()) {
+                    eventManager.emit('history:undo:failed', {
+                        reason: 'no_history'
+                    });
+                    return null;
+                }
+                
+                this.isUndoing = true;
+                this.currentIndex--;
+                
+                const historyItem = this.history[this.currentIndex];
+                
+                // 触发撤销事件
+                eventManager.emit('history:undo', {
+                    index: this.currentIndex,
+                    total: this.history.length,
+                    canUndo: this.canUndo(),
+                    canRedo: this.canRedo()
+                });
+                
+                this.isUndoing = false;
+                
+                return historyItem.content;
+            }
+            
+            /**
+             * 重做操作
+             * @returns {string|null} 重做后的内容，如果无法重做则返回 null
+             */
+            redo() {
+                if (!this.canRedo()) {
+                    eventManager.emit('history:redo:failed', {
+                        reason: 'no_history'
+                    });
+                    return null;
+                }
+                
+                this.isRedoing = true;
+                this.currentIndex++;
+                
+                const historyItem = this.history[this.currentIndex];
+                
+                // 触发重做事件
+                eventManager.emit('history:redo', {
+                    index: this.currentIndex,
+                    total: this.history.length,
+                    canUndo: this.canUndo(),
+                    canRedo: this.canRedo()
+                });
+                
+                this.isRedoing = false;
+                
+                return historyItem.content;
+            }
+            
+            /**
+             * 检查是否可以撤销
+             * @returns {boolean}
+             */
+            canUndo() {
+                return this.currentIndex > 0;
+            }
+            
+            /**
+             * 检查是否可以重做
+             * @returns {boolean}
+             */
+            canRedo() {
+                return this.currentIndex < this.history.length - 1;
+            }
+            
+            /**
+             * 清除所有历史记录
+             */
+            clear() {
+                const oldSize = this.history.length;
+                this.history = [];
+                this.currentIndex = -1;
+                
+                eventManager.emit('history:cleared', {
+                    oldSize: oldSize
+                });
+            }
+            
+            /**
+             * 获取历史记录统计信息
+             * @returns {Object}
+             */
+            getStats() {
+                return {
+                    total: this.history.length,
+                    currentIndex: this.currentIndex,
+                    canUndo: this.canUndo(),
+                    canRedo: this.canRedo(),
+                    maxSize: this.maxSize
+                };
+            }
+            
+            /**
+             * 启用/禁用历史记录
+             * @param {boolean} enabled - 是否启用
+             */
+            setRecording(enabled) {
+                this.isRecording = enabled;
+                eventManager.emit('history:recording:changed', {
+                    enabled: enabled
+                });
+            }
+            
+            /**
+             * 重置历史记录（保留当前状态作为第一个记录）
+             * @param {string} content - 当前内容
+             */
+            reset(content) {
+                this.history = [{
+                    content: content,
+                    timestamp: Date.now()
+                }];
+                this.currentIndex = 0;
+                
+                eventManager.emit('history:reset', {
+                    content: content
+                });
+            }
+        }
+        
+        // 创建全局历史记录管理器实例
+        const historyManager = new HistoryManager(50);
         
         // 与Swift通信的桥接
         window.MiNoteWebEditor = {
@@ -250,11 +1753,12 @@
                 console.log('[loadContent] ========== 开始加载内容 ==========');
                 console.log('[loadContent] 传入XML长度:', xmlContent ? xmlContent.length : 0);
                 console.log('[loadContent] 当前currentContent长度:', currentContent ? currentContent.length : 0);
-                console.log('[loadContent] isInitialized:', isInitialized);
+                const state = stateManager.getState();
+                console.log('[loadContent] isInitialized:', state.isInitialized);
                 
                 // 如果内容没有实际变化，不需要重新加载，保持光标位置
-                if (currentContent === xmlContent) {
-                    console.log('[loadContent] ⚠️ 内容未变化，跳过加载');
+                if (state.currentContent === xmlContent) {
+                    console.log('[loadContent] ⚠️ 内容未变化（currentContent === xmlContent），跳过加载');
                     return '内容未变化';
                 }
                 
@@ -267,39 +1771,50 @@
                 console.log('[loadContent] 是否有占位符:', hasPlaceholder);
                 
                 // 如果编辑器是空的或只有占位符，或者还没有初始化，必须加载内容
-                if (!hasPlaceholder && isInitialized) {
+                if (!hasPlaceholder && state.isInitialized) {
                     // 编辑器有实际内容且已初始化，检查是否与传入的XML相同
                     try {
-                        const currentXML = convertHTMLToXML(editor);
+                        // 获取当前编辑器的 HTML 内容并转换为 XML
+                        const currentHTMLContent = editor.innerHTML;
+                        const currentXML = convertHTMLToXML(currentHTMLContent);
                         console.log('[loadContent] 当前编辑器XML长度:', currentXML.length);
+                        
                         if (currentXML === xmlContent) {
                             // 内容相同，只是更新 currentContent，不重新渲染
-                            currentContent = xmlContent;
-                            console.log('[loadContent] ⚠️ 内容相同，跳过重新渲染');
+                            // 这说明传入的 XML 是用户编辑后的保存结果，编辑器已经是最新的
+                            stateManager.setState('currentContent', xmlContent);
+                            console.log('[loadContent] ⚠️ 内容相同（编辑器XML === 传入XML），跳过重新渲染');
                             return '内容相同，跳过重新渲染';
                         } else {
+                            // 内容不同，需要重新渲染
+                            // 这说明传入的 XML 是外部更新（如云端同步），需要更新编辑器
                             console.log('[loadContent] 内容不同，需要重新渲染');
-                            console.log('[loadContent]   当前XML预览:', currentXML.substring(0, 100));
+                            console.log('[loadContent]   当前编辑器XML预览:', currentXML.substring(0, 100));
                             console.log('[loadContent]   传入XML预览:', xmlContent.substring(0, 100));
+                            console.log('[loadContent]   当前编辑器XML长度:', currentXML.length, '传入XML长度:', xmlContent.length);
                         }
                     } catch (e) {
-                        // 转换失败，继续加载
+                        // 转换失败，可能是 HTML 格式有问题，但为了安全起见，继续加载
                         console.warn('[loadContent] ⚠️ 转换当前HTML到XML失败，继续加载:', e);
+                        console.warn('[loadContent]   错误详情:', e.message, e.stack);
+                        // 转换失败时，为了安全起见，继续加载内容
                     }
                 } else {
                     console.log('[loadContent] 编辑器为空或未初始化，必须加载内容');
                 }
                 
                 // 设置加载标志，避免在加载过程中触发内容变化通知
-                isLoadingContent = true;
+                stateManager.setState('isLoadingContent', true);
                 console.log('[loadContent] 开始渲染XML到编辑器...');
                 
                 // 保存当前光标位置
                 const savedSelection = saveSelection();
                 
-                currentContent = xmlContent;
+                stateManager.setState({
+                    currentContent: xmlContent,
+                    isInitialized: true
+                });
                 renderXMLToEditor(xmlContent);
-                isInitialized = true;
                 
                 // 恢复光标位置并确保编辑器焦点
                 if (savedSelection) {
@@ -312,7 +1827,7 @@
                         
                         // 延迟重置加载标志，确保所有相关的事件都已处理
                         setTimeout(function() {
-                            isLoadingContent = false;
+                            stateManager.setState('isLoadingContent', false);
                         }, 100);
                     }, 0);
                 } else {
@@ -323,7 +1838,7 @@
                         
                         // 延迟重置加载标志
                         setTimeout(function() {
-                            isLoadingContent = false;
+                            stateManager.setState('isLoadingContent', false);
                         }, 100);
                     }, 0);
                 }
@@ -425,8 +1940,74 @@
                 return {
                     isInitialized: isInitialized,
                     hasContent: currentContent.length > 0,
-                    selection: getSelectionInfo()
+                    selection: getSelectionInfo(),
+                    history: historyManager.getStats()
                 };
+            },
+            
+            // 撤销操作
+            undo: function() {
+                const undoContent = historyManager.undo();
+                if (undoContent !== null) {
+                    // 临时禁用历史记录，避免撤销操作本身被记录
+                    historyManager.setRecording(false);
+                    // 加载撤销后的内容
+                    this.loadContent(undoContent);
+                    // 重新启用历史记录
+                    setTimeout(() => {
+                        historyManager.setRecording(true);
+                    }, 100);
+                    return '已撤销';
+                }
+                return '无法撤销：没有历史记录';
+            },
+            
+            // 重做操作
+            redo: function() {
+                const redoContent = historyManager.redo();
+                if (redoContent !== null) {
+                    // 临时禁用历史记录，避免重做操作本身被记录
+                    historyManager.setRecording(false);
+                    // 加载重做后的内容
+                    this.loadContent(redoContent);
+                    // 重新启用历史记录
+                    setTimeout(() => {
+                        historyManager.setRecording(true);
+                    }, 100);
+                    return '已重做';
+                }
+                return '无法重做：没有历史记录';
+            },
+            
+            // 获取历史记录统计
+            getHistoryStats: function() {
+                return historyManager.getStats();
+            },
+            
+            // 清除历史记录
+            clearHistory: function() {
+                historyManager.clear();
+                return '历史记录已清除';
+            },
+            
+            // 获取 DOM 优化统计
+            getDOMStats: function() {
+                return {
+                    isBatching: domOptimizer.isBatching,
+                    pendingOperations: domOptimizer.batchOperations.length
+                };
+            },
+            
+            // 开始批量 DOM 操作
+            startDOMBatch: function() {
+                domOptimizer.startBatch();
+                return '已开始批量 DOM 操作';
+            },
+            
+            // 结束批量 DOM 操作
+            endDOMBatch: function() {
+                domOptimizer.endBatch();
+                return '已结束批量 DOM 操作';
             }
         };
         
@@ -485,10 +2066,12 @@
         function setupEditor() {
             const editor = document.getElementById('editor-content');
             
-            // 输入事件
-            editor.addEventListener('input', function(e) {
+            // ==================== 使用 EventManager 管理事件 ====================
+            
+            // 输入事件处理
+            const handleInput = function(e) {
                 // 如果正在修复光标，不处理输入事件，避免循环
-                if (isFixingCursor) {
+                if (stateManager.getState('isFixingCursor')) {
                     return;
                 }
                 
@@ -498,8 +2081,11 @@
                                      (e.inputType && e.inputType.includes('paragraph'));
                 
                 // 如果是换行，立即确保光标位置正确（不等待防抖）
-                if (isEnterInput && !isComposing) {
+                if (isEnterInput && !stateManager.getState('isComposing')) {
                     setTimeout(function() {
+                        // 清理所有列表项中的 <br> 标签
+                        cleanBrTagsFromListItems();
+                        
                         const selection = window.getSelection();
                         if (selection.rangeCount > 0) {
                             const range = selection.getRangeAt(0);
@@ -519,68 +2105,185 @@
                     }, 0);
                 }
                 
+                // 定期清理列表项中的 <br> 标签（防抖处理）
+                const state = stateManager.getState();
+                if (!state.isComposing && !state.isFixingCursor) {
+                    // 延迟清理，避免频繁操作
+                    setTimeout(function() {
+                        cleanBrTagsFromListItems();
+                    }, 100);
+                }
+                
                 // 只有在非组合输入状态下才触发内容变化
-                if (!isComposing && !isFixingCursor) {
+                if (!state.isComposing && !state.isFixingCursor) {
                 debounceContentChange();
                 }
-            });
+            };
             
-            // 输入法组合开始（中文输入开始）
-            editor.addEventListener('compositionstart', function(e) {
-                isComposing = true;
+            // 输入法组合开始
+            const handleCompositionStart = function(e) {
+                stateManager.setState('isComposing', true);
                 console.log('[Editor] 开始输入法组合输入');
-            });
+                eventManager.emit('composition:start', e);
+            };
             
-            // 输入法组合更新（中文输入过程中）
-            editor.addEventListener('compositionupdate', function(e) {
+            // 输入法组合更新
+            const handleCompositionUpdate = function(e) {
                 // 组合输入过程中，不触发内容变化
-                // isComposing 已经在 compositionstart 中设置为 true
-            });
+                eventManager.emit('composition:update', e);
+            };
             
-            // 输入法组合结束（中文输入完成）
-            editor.addEventListener('compositionend', function(e) {
-                isComposing = false;
+            // 输入法组合结束
+            const handleCompositionEnd = function(e) {
+                stateManager.setState('isComposing', false);
                 console.log('[Editor] 输入法组合输入结束');
+                eventManager.emit('composition:end', e);
                 // 组合输入结束后，延迟一点再触发内容变化，确保输入已完成
                 setTimeout(function() {
                     debounceContentChange();
                 }, 50);
-            });
+            };
             
             // 选择变化事件
-            document.addEventListener('selectionchange', function() {
+            const handleSelectionChange = function() {
                 updateSelectionState();
+                eventManager.emit('selection:change', {});
                 
                 // 延迟检查列表项光标可见性（不在删除操作时立即检查）
-                // 使用防抖，避免频繁检查
+                // 使用防抖，避免频繁检查，但延迟时间缩短以提高响应速度
                 clearTimeout(window.cursorCheckTimeout);
                 window.cursorCheckTimeout = setTimeout(function() {
                     ensureListItemsHaveVisibleCursor();
-                }, 100);
-            });
+                }, 50);
+            };
             
-            // 粘贴事件处理（特别是图片）
-            editor.addEventListener('paste', function(e) {
-                handlePaste(e);
-            });
-            
-            // 按键事件
-            editor.addEventListener('keydown', function(e) {
-                handleKeyDown(e);
-            });
-            
-            // 点击事件（处理checkbox等）
-            editor.addEventListener('click', function(e) {
+            // 点击事件处理
+            const handleEditorClick = function(e) {
+                // 点击时立即检查，确保光标可见
+                setTimeout(function() {
+                    ensureListItemsHaveVisibleCursor();
+                }, 10);
+                
+                // 处理checkbox等特殊点击
                 handleClick(e);
+                
+                // 触发点击事件
+                eventManager.emit('editor:click', e);
+            };
+            
+            // 粘贴事件处理
+            const handlePasteEvent = function(e) {
+                eventManager.emit('editor:paste', e);
+                handlePaste(e);
+            };
+            
+            // 按键事件处理
+            const handleKeyDownEvent = function(e) {
+                // 先触发事件，允许拦截
+                const intercepted = eventManager.emit('editor:keydown', e);
+                if (!intercepted) {
+                handleKeyDown(e);
+                }
+            };
+            
+            // 注册原生事件监听器
+            editor.addEventListener('input', handleInput);
+            editor.addEventListener('compositionstart', handleCompositionStart);
+            editor.addEventListener('compositionupdate', handleCompositionUpdate);
+            editor.addEventListener('compositionend', handleCompositionEnd);
+            document.addEventListener('selectionchange', handleSelectionChange);
+            editor.addEventListener('click', handleEditorClick);
+            editor.addEventListener('paste', handlePasteEvent);
+            editor.addEventListener('keydown', handleKeyDownEvent);
+            
+            // ==================== 注册事件处理器到 EventManager ====================
+            
+            // 输入事件处理（优先级：0，默认）
+            eventManager.on('editor:input', function(e) {
+                // 额外的输入处理逻辑可以在这里添加
+                // 例如：自动格式化、实时预览等
             });
+            
+            // 按键事件处理（优先级：10，高优先级，在其他处理之前执行）
+            eventManager.on('editor:keydown', function(e) {
+                // 高优先级处理，例如：快捷键拦截、特殊按键处理等
+            }, 10);
+            
+            // 粘贴事件处理（优先级：5，中等优先级）
+            eventManager.on('editor:paste', function(e) {
+                // 粘贴预处理，例如：格式清理、内容验证等
+            }, 5);
+            
+            // 点击事件处理（优先级：0，默认）
+            eventManager.on('editor:click', function(e) {
+                // 点击后处理，例如：更新工具栏状态等
+            });
+            
+            // 选择变化事件处理（优先级：0，默认）
+            eventManager.on('selection:change', function(data) {
+                // 选择变化后处理，例如：更新格式工具栏状态等
+            });
+            
+            // 输入法组合事件处理
+            eventManager.on('composition:start', function(e) {
+                // 输入法开始时的处理
+            });
+            
+            eventManager.on('composition:update', function(e) {
+                // 输入法更新时的处理
+            });
+            
+            eventManager.on('composition:end', function(e) {
+                // 输入法结束时的处理
+            });
+            
+            // 状态变化事件处理
+            eventManager.on('state:changed', function(data) {
+                // 状态变化时的处理，例如：更新UI、触发副作用等
+                const { state, oldState, changedKeys } = data;
+                
+                // 如果内容变化，可以在这里添加额外的处理
+                if (changedKeys.includes('currentContent')) {
+                    // 内容变化后的处理
+                }
+                
+                // 如果初始化状态变化，可以在这里添加处理
+                if (changedKeys.includes('isInitialized') && state.isInitialized) {
+                    // 编辑器初始化完成后的处理
+                }
+            });
+            
+            // 添加事件拦截器示例（如果需要阻止某些事件）
+            // eventManager.intercept('editor:keydown', function(e) {
+            //     // 如果返回 false，将阻止事件继续传播
+            //     if (e.key === 'Escape') {
+            //         // 阻止 Escape 键的默认处理
+            //         return false;
+            //     }
+            //     return true; // 允许事件继续传播
+            // });
+            
+            console.log('[EventManager] ✅ 编辑器事件已注册到 EventManager');
+            console.log('[EventManager] 已注册事件:', Array.from(eventManager.handlers.keys()));
         }
+        
+        // ==================== 内容变化管理 ====================
         
         // 防抖内容变化
         let contentChangeTimeout;
         function debounceContentChange() {
+            // 触发内容变化防抖事件（低优先级，用于通知其他模块）
+            eventManager.emit('content:change:debounce', {
+                timestamp: Date.now()
+            });
+            
             // 如果正在组合输入，不触发内容变化通知
             if (isComposing) {
                 console.log('[Editor] 正在组合输入，跳过内容变化通知');
+                eventManager.emit('content:change:skipped', {
+                    reason: 'composing',
+                    timestamp: Date.now()
+                });
                 return;
             }
             
@@ -588,9 +2291,23 @@
             contentChangeTimeout = setTimeout(function() {
                 // 再次检查是否正在组合输入
                 if (!isComposing) {
+                    // 触发内容变化前事件
+                    eventManager.emit('content:change:before', {
+                        timestamp: Date.now()
+                    });
+                    
                 notifyContentChanged();
+                    
+                    // 触发内容变化后事件
+                    eventManager.emit('content:change:after', {
+                        timestamp: Date.now()
+                    });
                 } else {
                     console.log('[Editor] 组合输入中，延迟通知内容变化');
+                    eventManager.emit('content:change:skipped', {
+                        reason: 'composing_delayed',
+                        timestamp: Date.now()
+                    });
                 }
             }, 500);
         }
@@ -598,11 +2315,22 @@
         // 强制立即通知内容变化（用于切换笔记前保存）
         function forceNotifyContentChanged() {
             console.log('[Editor] 强制立即通知内容变化');
+            
+            // 触发强制保存事件
+            eventManager.emit('content:save:force', {
+                timestamp: Date.now()
+            });
+            
             // 清除防抖延迟
             clearTimeout(contentChangeTimeout);
+            
             // 立即通知，不检查 isLoadingContent（因为这是主动保存）
-            if (!isInitialized) {
+            if (!stateManager.getState('isInitialized')) {
                 console.log('[Editor] 编辑器未初始化，跳过通知');
+                eventManager.emit('content:save:skipped', {
+                    reason: 'not_initialized',
+                    timestamp: Date.now()
+                });
                 return;
             }
             
@@ -611,13 +2339,39 @@
             // 更新当前内容
             currentContent = xmlContent;
             
+            // 触发强制保存准备完成事件
+            eventManager.emit('content:save:ready', {
+                xmlContent: xmlContent,
+                xmlLength: xmlContent.length,
+                timestamp: Date.now()
+            });
+            
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.editorBridge) {
+                // 触发发送前事件（允许拦截）
+                const intercepted = eventManager.emit('content:save:before-send', {
+                    xmlContent: xmlContent,
+                    xmlLength: xmlContent.length,
+                    force: true
+                });
+                
+                if (!intercepted) {
                 window.webkit.messageHandlers.editorBridge.postMessage({
                     type: 'contentChanged',
                     content: xmlContent,
                     timestamp: Date.now(),
                     force: true // 标记为强制保存
                 });
+                    
+                    // 触发发送完成事件
+                    eventManager.emit('content:save:sent', {
+                        xmlContent: xmlContent,
+                        xmlLength: xmlContent.length,
+                        force: true,
+                        timestamp: Date.now()
+                    });
+                } else {
+                    console.log('[Editor] 强制保存被拦截');
+                }
             }
         }
         
@@ -625,24 +2379,48 @@
         function notifyContentChanged() {
             console.log('[保存流程] notifyContentChanged: 开始');
             
-            if (!isInitialized) {
+            // 触发内容通知开始事件
+            eventManager.emit('content:notify:start', {
+                timestamp: Date.now()
+            });
+            
+            const state = stateManager.getState();
+            
+            if (!state.isInitialized) {
                 console.log('[保存流程] ⚠️ notifyContentChanged: 编辑器未初始化');
+                eventManager.emit('content:notify:skipped', {
+                    reason: 'not_initialized',
+                    timestamp: Date.now()
+                });
                 return;
             }
             
             // 如果正在修复光标位置，不触发内容变化通知，避免抖动
-            if (isFixingCursor) {
+            if (state.isFixingCursor) {
                 console.log('[保存流程] ⚠️ notifyContentChanged: 正在修复光标，跳过内容变化通知');
+                eventManager.emit('content:notify:skipped', {
+                    reason: 'fixing_cursor',
+                    timestamp: Date.now()
+                });
                 return;
             }
+            
+            // 清理所有列表项中的 <br> 标签（在转换之前）
+            cleanBrTagsFromListItems();
+            
+            // 触发清理完成事件
+            eventManager.emit('content:clean:complete', {
+                timestamp: Date.now()
+            });
             
             console.log('[保存流程] notifyContentChanged 步骤1: 获取当前内容');
             const xmlContent = window.MiNoteWebEditor.getContent();
             console.log('[保存流程] notifyContentChanged 步骤2: 获取到XML内容，长度: ' + xmlContent.length);
-            console.log('[保存流程]   上次保存的currentContent长度: ' + (currentContent ? currentContent.length : 0));
+            const currentState = stateManager.getState();
+            console.log('[保存流程]   上次保存的currentContent长度: ' + (currentState.currentContent ? currentState.currentContent.length : 0));
             
             // 保存旧的 currentContent 用于比较和日志
-            const oldContent = currentContent;
+            const oldContent = currentState.currentContent;
             
             // 如果内容和当前保存的内容相同，也不触发通知
             // 注意：这里比较的是转换后的 XML，如果用户只是改变了格式但内容相同，可能会被跳过
@@ -663,19 +2441,65 @@
             console.log('[保存流程]   内容差异: 旧长度=' + (oldContent ? oldContent.length : 0) + ', 新长度=' + xmlContent.length);
             
             // 更新当前内容（在发送通知之前更新，避免重复通知）
-            currentContent = xmlContent;
+            stateManager.setState('currentContent', xmlContent);
+            
+            // 保存历史记录（在内容变化时）
+            // 只有在非撤销/重做操作时才保存历史
+            if (!historyManager.isUndoing && !historyManager.isRedoing) {
+                historyManager.push(xmlContent, {
+                    action: 'content_change',
+                    timestamp: Date.now()
+                });
+            }
+            
+            // 触发内容准备完成事件
+            eventManager.emit('content:notify:ready', {
+                xmlContent: xmlContent,
+                xmlLength: xmlContent.length,
+                timestamp: Date.now()
+            });
             
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.editorBridge) {
                 console.log('[保存流程] notifyContentChanged 步骤4: 发送消息到Swift');
+                
+                // 触发发送前事件（允许拦截）
+                const intercepted = eventManager.emit('content:notify:before-send', {
+                    xmlContent: xmlContent,
+                    xmlLength: xmlContent.length
+                });
+                
+                if (!intercepted) {
                 window.webkit.messageHandlers.editorBridge.postMessage({
                     type: 'contentChanged',
                     content: xmlContent,
                     timestamp: Date.now()
                 });
+                    
+                    // 触发发送完成事件
+                    eventManager.emit('content:notify:sent', {
+                        xmlContent: xmlContent,
+                        xmlLength: xmlContent.length,
+                        timestamp: Date.now()
+                    });
+                    
                 console.log('[保存流程] ✅ notifyContentChanged: 消息已发送，XML长度: ' + xmlContent.length);
+                } else {
+                    console.log('[保存流程] ⚠️ notifyContentChanged: 消息发送被拦截');
+                }
             } else {
                 console.log('[保存流程] ⚠️ notifyContentChanged: editorBridge 不存在');
+                eventManager.emit('content:notify:error', {
+                    error: 'editorBridge_not_found',
+                    timestamp: Date.now()
+                });
             }
+            
+            // 触发内容通知完成事件
+            eventManager.emit('content:notify:complete', {
+                xmlContent: xmlContent,
+                xmlLength: xmlContent.length,
+                timestamp: Date.now()
+            });
         }
         
         // 更新选择状态
@@ -684,7 +2508,36 @@
         }
         
         // 保存当前光标位置
+        // 为了向后兼容，保留原有函数接口，但使用 CursorManager
         function saveSelection() {
+            return cursorManager.saveSelection();
+        }
+        
+        function restoreSelection(savedSelection) {
+            if (typeof savedSelection === 'string') {
+                // 新的 ID 格式
+                return cursorManager.restoreSelection(savedSelection);
+            } else if (savedSelection && savedSelection.range) {
+                // 旧的格式，尝试恢复
+                try {
+                    const selection = window.getSelection();
+                    selection.removeAllRanges();
+                    selection.addRange(savedSelection.range);
+                    return true;
+                } catch (error) {
+                    errorHandler.handle(error, 'restoreSelection', { savedSelection: savedSelection });
+                    return false;
+                }
+            }
+            return false;
+        }
+        
+        function getSelectionInfo() {
+            return cursorManager.getSelectionInfo();
+        }
+        
+        // 保留旧的 saveSelection 实现作为备用（已废弃）
+        function _saveSelectionLegacy() {
             const selection = window.getSelection();
             if (!selection.rangeCount) {
                 return null;
@@ -858,6 +2711,57 @@
         function handleKeyDown(e) {
             const editor = document.getElementById('editor-content');
             
+            // 撤销/重做快捷键处理（Cmd+Z / Ctrl+Z 和 Cmd+Shift+Z / Ctrl+Shift+Z）
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const isUndo = (isMac && e.metaKey && e.key === 'z' && !e.shiftKey) || 
+                          (!isMac && e.ctrlKey && e.key === 'z' && !e.shiftKey);
+            const isRedo = (isMac && e.metaKey && (e.key === 'z' && e.shiftKey) || e.key === 'Z') || 
+                          (!isMac && e.ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey)));
+            
+            if (isUndo || isRedo) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // 获取当前内容
+                const currentContent = window.MiNoteWebEditor.getContent();
+                
+                if (isUndo) {
+                    // 执行撤销
+                    const undoContent = historyManager.undo();
+                    if (undoContent !== null) {
+                        console.log('[History] 执行撤销操作');
+                        // 临时禁用历史记录，避免撤销操作本身被记录
+                        historyManager.setRecording(false);
+                        // 加载撤销后的内容
+                        window.MiNoteWebEditor.loadContent(undoContent);
+                        // 重新启用历史记录
+                        setTimeout(() => {
+                            historyManager.setRecording(true);
+                        }, 100);
+                    } else {
+                        console.log('[History] 无法撤销：没有历史记录');
+                    }
+                } else if (isRedo) {
+                    // 执行重做
+                    const redoContent = historyManager.redo();
+                    if (redoContent !== null) {
+                        console.log('[History] 执行重做操作');
+                        // 临时禁用历史记录，避免重做操作本身被记录
+                        historyManager.setRecording(false);
+                        // 加载重做后的内容
+                        window.MiNoteWebEditor.loadContent(redoContent);
+                        // 重新启用历史记录
+                        setTimeout(() => {
+                            historyManager.setRecording(true);
+                        }, 100);
+                    } else {
+                        console.log('[History] 无法重做：没有历史记录');
+                    }
+                }
+                
+                return;
+            }
+            
             // Enter键处理
             if (e.key === 'Enter' || e.keyCode === 13) {
                 // 确保编辑器有焦点
@@ -868,14 +2772,208 @@
                 // 保存当前光标位置（在换行之前）
                 const selection = window.getSelection();
                 let savedRange = null;
+                let currentListItem = null;
+                let isCheckbox = false;
+                
                 if (selection.rangeCount > 0) {
                     savedRange = selection.getRangeAt(0).cloneRange();
+                    const container = savedRange.commonAncestorContainer;
+                    
+                    // 查找光标所在的列表项
+                    const listItem = container.nodeType === Node.TEXT_NODE 
+                        ? container.parentElement 
+                        : container;
+                    
+                    if (listItem) {
+                        if (listItem.classList && (listItem.classList.contains('mi-note-order') || listItem.classList.contains('mi-note-bullet'))) {
+                            currentListItem = listItem;
+                        } else if (listItem.classList && listItem.classList.contains('mi-note-checkbox')) {
+                            currentListItem = listItem;
+                            isCheckbox = true;
+                        } else {
+                            // 向上查找父元素
+                            let parent = listItem.parentElement;
+                            while (parent && parent !== editor) {
+                                if (parent.classList) {
+                                    if (parent.classList.contains('mi-note-order') || parent.classList.contains('mi-note-bullet')) {
+                                        currentListItem = parent;
+                                        break;
+                                    } else if (parent.classList.contains('mi-note-checkbox')) {
+                                        currentListItem = parent;
+                                        isCheckbox = true;
+                                        break;
+                                    }
+                                }
+                                parent = parent.parentElement;
+                            }
+                        }
+                    }
                 }
                 
-                // 不阻止默认行为，让浏览器自然插入换行（<br> 或 <div>）
-                // Enter 键的默认行为应该自动插入换行
-                // 注意：这里不调用 e.preventDefault()，让浏览器处理换行
+                // 如果光标在列表项中，检查当前列表项是否为空
+                if (currentListItem) {
+                    let itemContent = '';
+                    
+                    if (isCheckbox) {
+                        // Checkbox 的特殊处理：内容在 checkbox input 后面
+                        const checkboxInput = currentListItem.querySelector('input[type="checkbox"]');
+                        for (let i = 0; i < currentListItem.childNodes.length; i++) {
+                            const child = currentListItem.childNodes[i];
+                            if (child !== checkboxInput) {
+                                if (child.nodeType === Node.TEXT_NODE) {
+                                    itemContent += child.textContent;
+                                } else if (child.nodeType === Node.ELEMENT_NODE) {
+                                    // 检查是否是 <br> 标签
+                                    if (child.tagName && child.tagName.toLowerCase() === 'br') {
+                                        itemContent += '\n';
+                                    } else {
+                                        itemContent += child.textContent;
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // 有序列表或无序列表
+                        itemContent = currentListItem.textContent || currentListItem.innerText || '';
+                    }
+                    
+                    // 移除零宽度空格和空白字符
+                    const cleanContent = itemContent.replace(/\u200B/g, '').replace(/\n/g, '').trim();
+                    
+                    // 如果列表项为空或只有空白，退出列表
+                    if (cleanContent === '') {
+                        e.preventDefault();
+                        
+                        // 创建一个普通的文本段落
+                        const textDiv = document.createElement('div');
+                        textDiv.className = 'mi-note-text indent-1';
+                        textDiv.innerHTML = '\u200B'; // 零宽度空格，确保光标可见
+                        
+                        // 在列表项后插入文本段落
+                        if (currentListItem.nextSibling) {
+                            currentListItem.parentNode.insertBefore(textDiv, currentListItem.nextSibling);
+                        } else {
+                            currentListItem.parentNode.appendChild(textDiv);
+                        }
+                        
+                        // 将光标移到新创建的文本段落
+                        const range = document.createRange();
+                        range.selectNodeContents(textDiv);
+                        range.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                        
+                        // 删除空的列表项
+                        currentListItem.remove();
+                        
+                        // 通知内容变化
+                        setTimeout(function() {
+                            notifyContentChanged();
+                        }, 0);
+                        
+                        return;
+                    }
+                }
                 
+                // 如果光标在checkbox中，且有内容，创建新的空checkbox
+                if (currentListItem && isCheckbox && cleanContent !== '') {
+                    e.preventDefault();
+                    
+                    // 获取当前checkbox的缩进
+                    const indent = getIndentFromClass(currentListItem.className) || '1';
+                    const checkboxInput = currentListItem.querySelector('input[type="checkbox"]');
+                    const isChecked = checkboxInput ? checkboxInput.checked : false;
+                    
+                    // 创建新的checkbox
+                    const newCheckbox = document.createElement('div');
+                    newCheckbox.className = `mi-note-checkbox indent-${indent}`;
+                    
+                    // 创建checkbox input
+                    const newCheckboxInput = document.createElement('input');
+                    newCheckboxInput.type = 'checkbox';
+                    if (isChecked) {
+                        newCheckboxInput.checked = true;
+                    }
+                    
+                    // 创建文本节点（零宽度空格，确保光标可见）
+                    const textNode = document.createTextNode('\u200B');
+                    
+                    // 组装checkbox
+                    newCheckbox.appendChild(newCheckboxInput);
+                    newCheckbox.appendChild(textNode);
+                    
+                    // 在当前checkbox后插入新checkbox
+                    if (currentListItem.nextSibling) {
+                        currentListItem.parentNode.insertBefore(newCheckbox, currentListItem.nextSibling);
+                    } else {
+                        currentListItem.parentNode.appendChild(newCheckbox);
+                    }
+                    
+                    // 将光标移到新checkbox的文本节点
+                    const range = document.createRange();
+                    range.setStart(textNode, textNode.textContent.length);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    
+                    // 通知内容变化
+                    setTimeout(function() {
+                        notifyContentChanged();
+                    }, 0);
+                    
+                    return;
+                }
+                
+                // 如果光标在列表项中，手动处理换行，确保创建新的列表项
+                if (currentListItem && !isCheckbox) {
+                    e.preventDefault();
+                    
+                    // 获取当前列表项的缩进和类型
+                    const indent = getIndentFromClass(currentListItem.className) || '1';
+                    const isOrderList = currentListItem.classList.contains('mi-note-order');
+                    
+                    // 创建新的列表项
+                    const newListItem = document.createElement('div');
+                    if (isOrderList) {
+                        // 有序列表：获取当前序号并递增
+                        const currentNumber = parseInt(currentListItem.getAttribute('data-number') || '1', 10);
+                        newListItem.className = `mi-note-order indent-${indent}`;
+                        newListItem.setAttribute('data-number', currentNumber + 1);
+                    } else {
+                        // 无序列表
+                        newListItem.className = `mi-note-bullet indent-${indent}`;
+                    }
+                    
+                    // 添加零宽度空格，确保光标可见（使用文本节点而不是innerHTML）
+                    const textNode = document.createTextNode('\u200B');
+                    newListItem.appendChild(textNode);
+                    
+                    // 在当前列表项后插入新列表项
+                    if (currentListItem.nextSibling) {
+                        currentListItem.parentNode.insertBefore(newListItem, currentListItem.nextSibling);
+                    } else {
+                        currentListItem.parentNode.appendChild(newListItem);
+                    }
+                    
+                    // 将光标移到新列表项的文本节点（确保光标可见）
+                    const range = document.createRange();
+                    range.setStart(textNode, textNode.textContent.length);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    
+                    // 确保编辑器保持焦点
+                    editor.focus();
+                    
+                    // 通知内容变化
+                    setTimeout(function() {
+                        notifyContentChanged();
+                    }, 0);
+                    
+                    return;
+                }
+                
+                // 不在列表项中，让浏览器自然插入换行
                 // 延迟处理，确保换行已经被浏览器插入
                 setTimeout(function() {
                     const selection = window.getSelection();
@@ -894,16 +2992,12 @@
                             selection.addRange(range);
                         } else {
                             // 光标在编辑器中，确保它在新行的正确位置
-                            // 如果浏览器插入的是 <br>，光标应该在 <br> 之后
-                            // 如果浏览器插入的是 <div>，光标应该在 <div> 内部
                             const containerNode = container.nodeType === Node.TEXT_NODE 
                                 ? container.parentNode 
                                 : container;
                             
                             // 检查光标位置是否合理
                             if (range.collapsed) {
-                                // 光标是折叠的（单点），这是正常的
-                                // 但需要确保它在正确的位置
                                 let currentNode = range.startContainer;
                                 
                                 // 如果当前节点是文本节点，检查是否需要调整
@@ -911,7 +3005,6 @@
                                     // 文本节点，光标位置应该正常
                                 } else {
                                     // 非文本节点，可能需要调整
-                                    // 如果是一个空的块元素（如新创建的 <div>），将光标放在里面
                                     if (currentNode.nodeType === Node.ELEMENT_NODE && 
                                         currentNode.tagName && 
                                         (currentNode.tagName === 'DIV' || currentNode.tagName === 'P') &&
@@ -938,6 +3031,15 @@
                         editor.focus();
                     }
                     
+                    // 清理所有列表项中的 <br> 标签（在检查之前）
+                    cleanBrTagsFromListItems();
+                    
+                    // 确保新创建的列表项有可见的光标（如果是空列表项）
+                    ensureListItemsHaveVisibleCursor();
+                    
+                    // 再次清理，确保没有遗漏
+                    cleanBrTagsFromListItems();
+                    
                     // 通知内容变化
                     notifyContentChanged();
                 }, 20); // 增加延迟，确保浏览器完成换行插入
@@ -948,6 +3050,178 @@
                 e.preventDefault();
                 // 可以在这里实现缩进逻辑
                 notifyContentChanged();
+            }
+            
+            // Backspace键处理（删除多余的 <br> 标签，空列表项时退出列表）
+            if (e.key === 'Backspace' || e.keyCode === 8) {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const container = range.commonAncestorContainer;
+                    
+                    // 检查光标是否在列表项中
+                    let listItem = container.nodeType === Node.TEXT_NODE 
+                        ? container.parentElement 
+                        : container;
+                    
+                    // 向上查找列表项
+                    if (listItem && (!listItem.classList || 
+                        (!listItem.classList.contains('mi-note-order') && 
+                         !listItem.classList.contains('mi-note-bullet') &&
+                         !listItem.classList.contains('mi-note-checkbox')))) {
+                        let parent = listItem.parentElement;
+                        while (parent && parent !== editor) {
+                            if (parent.classList && 
+                                (parent.classList.contains('mi-note-order') || 
+                                 parent.classList.contains('mi-note-bullet') ||
+                                 parent.classList.contains('mi-note-checkbox'))) {
+                                listItem = parent;
+                                break;
+                            }
+                            parent = parent.parentElement;
+                        }
+                    }
+                    
+                    if (listItem && listItem.classList && 
+                        (listItem.classList.contains('mi-note-order') || 
+                         listItem.classList.contains('mi-note-bullet') ||
+                         listItem.classList.contains('mi-note-checkbox'))) {
+                        // 光标在列表项中
+                        if (range.collapsed) {
+                            // 检查列表项内容（在删除之前）
+                            let itemContent = '';
+                            const checkbox = listItem.querySelector('input[type="checkbox"]');
+                            const isCheckbox = listItem.classList.contains('mi-note-checkbox');
+                            
+                            // 获取列表项内容
+                            for (let i = 0; i < listItem.childNodes.length; i++) {
+                                const child = listItem.childNodes[i];
+                                if (isCheckbox && child === checkbox) {
+                                    continue;
+                                }
+                                if (child.nodeType === Node.TEXT_NODE) {
+                                    itemContent += child.textContent;
+                                } else if (child.nodeType === Node.ELEMENT_NODE) {
+                                    if (child.tagName && child.tagName.toLowerCase() === 'br') {
+                                        itemContent += '\n';
+                                    } else {
+                                        itemContent += child.textContent;
+                                    }
+                                }
+                            }
+                            
+                            // 移除零宽度空格和空白字符
+                            const cleanContent = itemContent.replace(/\u200B/g, '').replace(/\n/g, '').trim();
+                            
+                            // 如果列表项为空或只有空白，且光标在开头，退出列表
+                            if (cleanContent === '') {
+                                // 检查光标是否在列表项的开头位置
+                                const offset = range.startOffset;
+                                const node = range.startContainer;
+                                
+                                // 判断光标是否在开头
+                                let isAtStart = false;
+                                
+                                if (node.nodeType === Node.TEXT_NODE) {
+                                    // 文本节点：检查是否是第一个文本节点，且偏移为 0
+                                    if (offset === 0) {
+                                        // 检查是否是列表项的第一个文本节点（跳过 checkbox）
+                                        let firstTextNode = null;
+                                        for (let i = 0; i < listItem.childNodes.length; i++) {
+                                            const child = listItem.childNodes[i];
+                                            if (isCheckbox && child === checkbox) {
+                                                continue;
+                                            }
+                                            if (child.nodeType === Node.TEXT_NODE) {
+                                                firstTextNode = child;
+                                                break;
+                                            }
+                                        }
+                                        isAtStart = (node === firstTextNode);
+                                    }
+                                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                                    // 元素节点：检查是否是列表项本身或第一个子元素
+                                    if (node === listItem) {
+                                        isAtStart = (offset === 0);
+                                    } else {
+                                        // 检查是否是第一个子元素（跳过 checkbox）
+                                        let firstChild = listItem.firstChild;
+                                        if (isCheckbox && checkbox && checkbox === firstChild) {
+                                            firstChild = checkbox.nextSibling;
+                                        }
+                                        isAtStart = (node === firstChild && offset === 0);
+                                    }
+                                }
+                                
+                                if (isAtStart) {
+                                    e.preventDefault();
+                                    
+                                    // 创建一个普通的文本段落
+                                    const textDiv = document.createElement('div');
+                                    textDiv.className = 'mi-note-text indent-1';
+                                    textDiv.innerHTML = '\u200B';
+                                    
+                                    // 在列表项后插入文本段落
+                                    if (listItem.nextSibling) {
+                                        listItem.parentNode.insertBefore(textDiv, listItem.nextSibling);
+                                    } else {
+                                        listItem.parentNode.appendChild(textDiv);
+                                    }
+                                    
+                                    // 将光标移到新创建的文本段落
+                                    const newRange = document.createRange();
+                                    newRange.selectNodeContents(textDiv);
+                                    newRange.collapse(true);
+                                    selection.removeAllRanges();
+                                    selection.addRange(newRange);
+                                    
+                                    // 删除空的列表项
+                                    listItem.remove();
+                                    
+                                    // 通知内容变化
+                                    setTimeout(function() {
+                                        notifyContentChanged();
+                                    }, 0);
+                                    
+                                    return;
+                                }
+                            }
+                            
+                            // 延迟处理，让浏览器先执行默认的删除行为
+                            setTimeout(function() {
+                                // 清理列表项中所有的 <br> 标签（列表项不应该包含 <br>）
+                                const children = listItem.childNodes;
+                                let brNodes = [];
+                                
+                                // 收集所有 <br> 标签
+                                for (let i = 0; i < children.length; i++) {
+                                    const child = children[i];
+                                    if (child === checkbox) {
+                                        continue;
+                                    }
+                                    if (child.nodeType === Node.ELEMENT_NODE && 
+                                        child.tagName && 
+                                        child.tagName.toLowerCase() === 'br') {
+                                        brNodes.push(child);
+                                    }
+                                }
+                                
+                                // 删除所有 <br> 标签（列表项不应该包含 <br>）
+                                if (brNodes.length > 0) {
+                                    for (let i = 0; i < brNodes.length; i++) {
+                                        brNodes[i].remove();
+                                    }
+                                    
+                                    // 确保有零宽度空格
+                                    ensureListItemsHaveVisibleCursor();
+                                    
+                                    // 通知内容变化
+                                    notifyContentChanged();
+                                }
+                            }, 0);
+                        }
+                    }
+                }
             }
         }
         
@@ -961,16 +3235,74 @@
             }
         }
         
+        // 清理列表项中的 <br> 标签（列表项不应该包含 <br>）
+        function cleanBrTagsFromListItems() {
+            const editor = document.getElementById('editor-content');
+            if (!editor) return;
+            
+            // 查找所有列表项
+            const listItems = editor.querySelectorAll('.mi-note-order, .mi-note-bullet, .mi-note-checkbox');
+            
+            if (listItems.length === 0) {
+                return;
+            }
+            
+            // 收集所有需要删除的 <br> 标签
+            const brNodesToRemove = [];
+            
+            for (let i = 0; i < listItems.length; i++) {
+                const item = listItems[i];
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                const children = item.childNodes;
+                
+                // 收集当前列表项中的所有 <br> 标签
+                for (let j = 0; j < children.length; j++) {
+                    const child = children[j];
+                    if (child === checkbox) {
+                        continue;
+                    }
+                    if (child.nodeType === Node.ELEMENT_NODE && 
+                        child.tagName && 
+                        child.tagName.toLowerCase() === 'br') {
+                        brNodesToRemove.push(child);
+                    }
+                }
+            }
+            
+            // 批量删除所有 <br> 标签（使用批量操作优化性能）
+            if (brNodesToRemove.length > 0) {
+                // 如果有很多节点需要删除，使用批量操作
+                if (brNodesToRemove.length > 10) {
+                    domOptimizer.startBatch();
+                    domOptimizer.batchRemove(brNodesToRemove);
+                    domOptimizer.endBatch();
+                } else {
+                    // 少量节点直接删除
+                    for (let j = 0; j < brNodesToRemove.length; j++) {
+                        const br = brNodesToRemove[j];
+                        if (br.parentNode) {
+                            br.parentNode.removeChild(br);
+                        }
+                    }
+                }
+                
+                eventManager.emit('dom:clean:br-tags', {
+                    removedCount: brNodesToRemove.length,
+                    listItemCount: listItems.length
+                });
+            }
+        }
+        
         // 确保列表项在为空时有可见的光标
         // 只在光标移动或点击时检查，不在删除操作时立即检查，避免干扰删除
         function ensureListItemsHaveVisibleCursor() {
             // 如果正在修复光标，跳过，避免循环
-            if (isFixingCursor) {
+            if (stateManager.getState('isFixingCursor')) {
                 return;
             }
             
             // 设置标志，避免修改 DOM 时触发内容变化通知
-            isFixingCursor = true;
+            stateManager.setState('isFixingCursor', true);
             
             const editor = document.getElementById('editor-content');
             const selection = window.getSelection();
@@ -982,27 +3314,46 @@
                 const range = selection.getRangeAt(0);
                 const container = range.commonAncestorContainer;
                 // 查找光标所在的列表项
-                const listItem = container.nodeType === Node.TEXT_NODE 
+                let listItem = container.nodeType === Node.TEXT_NODE 
                     ? container.parentElement 
                     : container;
-                if (listItem) {
-                    if (listItem.classList.contains('mi-note-order') || listItem.classList.contains('mi-note-bullet')) {
-                        currentCursorInListItem = listItem;
-                    } else if (listItem.classList.contains('mi-note-checkbox')) {
-                        currentCursorInListItem = listItem;
-                        isCheckbox = true;
+                
+                // 向上查找，直到找到列表项或编辑器
+                while (listItem && listItem !== editor) {
+                    if (listItem.classList) {
+                        if (listItem.classList.contains('mi-note-order') || listItem.classList.contains('mi-note-bullet')) {
+                            currentCursorInListItem = listItem;
+                            break;
+                        } else if (listItem.classList.contains('mi-note-checkbox')) {
+                            currentCursorInListItem = listItem;
+                            isCheckbox = true;
+                            break;
+                        }
                     }
+                    listItem = listItem.parentElement;
                 }
             }
             
-            // 只处理光标所在的列表项，避免修改所有列表项导致抖动
+            // 处理光标所在的列表项
             if (currentCursorInListItem) {
                 const item = currentCursorInListItem;
                 
                 if (isCheckbox) {
                     // Checkbox 的特殊处理：内容在 checkbox input 后面
                     // 查找 checkbox input 元素
-                    const checkboxInput = item.querySelector('input[type="checkbox"]');
+                    let checkboxInput = item.querySelector('input[type="checkbox"]');
+                    
+                    // 如果checkbox没有input元素，创建一个（修复渲染问题）
+                    if (!checkboxInput) {
+                        checkboxInput = document.createElement('input');
+                        checkboxInput.type = 'checkbox';
+                        // 将input插入到checkbox容器的最前面
+                        if (item.firstChild) {
+                            item.insertBefore(checkboxInput, item.firstChild);
+                        } else {
+                            item.appendChild(checkboxInput);
+                        }
+                    }
                     
                     // 获取 checkbox 之后的所有内容（排除 checkbox input 本身）
                     let textContent = '';
@@ -1057,33 +3408,146 @@
                     }
                 } else {
                     // 普通列表项（有序列表或无序列表）的处理
-                    const textContent = item.textContent || '';
-                    const hasOnlyWhitespace = textContent.replace(/\u200B/g, '').trim() === '';
-                    
-                    // 如果为空或只有空白，且没有零宽度空格，添加一个
-                    if (hasOnlyWhitespace && !textContent.includes('\u200B')) {
-                        // 检查是否已经有文本节点
+                    // 检查列表项是否为空或只有空白（包括只有 <br> 的情况）
+                    let hasContent = false;
+                    let hasTextNode = false;
                         let textNode = null;
+                    
+                    // 检查所有子节点
                         for (let i = 0; i < item.childNodes.length; i++) {
-                            if (item.childNodes[i].nodeType === Node.TEXT_NODE) {
-                                textNode = item.childNodes[i];
-                                // 如果文本节点为空，添加零宽度空格
-                                if (textNode.textContent.trim() === '') {
-                                    textNode.textContent = '\u200B';
-                                }
+                        const child = item.childNodes[i];
+                        if (child.nodeType === Node.TEXT_NODE) {
+                            hasTextNode = true;
+                            textNode = child;
+                            // 检查文本节点是否有实际内容（排除零宽度空格）
+                            const text = child.textContent.replace(/\u200B/g, '').trim();
+                            if (text !== '') {
+                                hasContent = true;
+                                break;
+                            }
+                        } else if (child.nodeType === Node.ELEMENT_NODE) {
+                            // 如果是 <br> 标签，删除它（列表项不应该包含 <br>）
+                            if (child.tagName && child.tagName.toLowerCase() === 'br') {
+                                child.remove();
+                                continue;
+                            }
+                            // 检查元素节点是否有实际内容
+                            const elementText = child.textContent.replace(/\u200B/g, '').trim();
+                            if (elementText !== '') {
+                                hasContent = true;
                                 break;
                             }
                         }
+                    }
+                    
+                    // 如果列表项为空或只有空白（包括只有 <br>），确保有零宽度空格
+                    if (!hasContent) {
+                        // 再次检查并删除所有 <br> 标签
+                        const children = item.childNodes;
+                        for (let i = children.length - 1; i >= 0; i--) {
+                            const child = children[i];
+                            if (child.nodeType === Node.ELEMENT_NODE && 
+                                child.tagName && 
+                                child.tagName.toLowerCase() === 'br') {
+                                child.remove();
+                            }
+                        }
                         
-                        // 如果没有文本节点，创建一个
-                        if (!textNode) {
+                        if (textNode) {
+                            // 已有文本节点，确保它有零宽度空格
+                            if (!textNode.textContent.includes('\u200B')) {
+                                textNode.textContent = '\u200B';
+                            }
+                        } else {
+                            // 没有文本节点，创建一个
                             textNode = document.createTextNode('\u200B');
                             item.appendChild(textNode);
                         }
                         
-                        // 设置光标位置
+                        // 设置光标位置（只在光标确实在这个列表项中时）
+                        if (currentCursorInListItem === item) {
+                            const range = document.createRange();
+                            range.setStart(textNode, textNode.textContent.length);
+                            range.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                    }
+                }
+            }
+            
+            // 额外检查：如果光标在空列表项中但没有文本节点，强制添加并设置光标
+            if (currentCursorInListItem && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const container = range.commonAncestorContainer;
+                
+                // 检查光标是否真的在列表项内部
+                let isInsideListItem = false;
+                let node = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+                while (node && node !== editor) {
+                    if (node === currentCursorInListItem) {
+                        isInsideListItem = true;
+                        break;
+                    }
+                    node = node.parentElement;
+                }
+                
+                if (isInsideListItem) {
+                    // 检查列表项是否有文本节点
+                    let hasTextNode = false;
+                    let foundTextNode = null;
+                    
+                    for (let i = 0; i < currentCursorInListItem.childNodes.length; i++) {
+                        const child = currentCursorInListItem.childNodes[i];
+                        if (child.nodeType === Node.TEXT_NODE) {
+                            hasTextNode = true;
+                            foundTextNode = child;
+                            // 确保文本节点有零宽度空格
+                            if (!child.textContent.includes('\u200B')) {
+                                child.textContent = '\u200B';
+                            }
+                            break;
+                        }
+                    }
+                    
+                    // 如果是checkbox，还要检查是否有input元素
+                    if (isCheckbox) {
+                        const checkboxInput = currentCursorInListItem.querySelector('input[type="checkbox"]');
+                        if (!checkboxInput) {
+                            // 如果没有input元素，创建一个
+                            const newInput = document.createElement('input');
+                            newInput.type = 'checkbox';
+                            if (currentCursorInListItem.firstChild) {
+                                currentCursorInListItem.insertBefore(newInput, currentCursorInListItem.firstChild);
+                            } else {
+                                currentCursorInListItem.appendChild(newInput);
+                            }
+                        }
+                        
+                        // 确保checkbox后面有文本节点
+                        if (!hasTextNode) {
+                            const checkboxInput = currentCursorInListItem.querySelector('input[type="checkbox"]');
+                            foundTextNode = document.createTextNode('\u200B');
+                            if (checkboxInput && checkboxInput.nextSibling) {
+                                currentCursorInListItem.insertBefore(foundTextNode, checkboxInput.nextSibling);
+                            } else if (checkboxInput) {
+                                currentCursorInListItem.appendChild(foundTextNode);
+                            } else {
+                                currentCursorInListItem.appendChild(foundTextNode);
+                            }
+                        }
+                    } else {
+                        // 普通列表项，如果没有文本节点，创建一个
+                        if (!hasTextNode) {
+                            foundTextNode = document.createTextNode('\u200B');
+                            currentCursorInListItem.appendChild(foundTextNode);
+                        }
+                    }
+                    
+                    // 设置光标位置到文本节点
+                    if (foundTextNode) {
                         const range = document.createRange();
-                        range.setStart(textNode, textNode.textContent.length);
+                        range.setStart(foundTextNode, foundTextNode.textContent.length);
                         range.collapse(true);
                         selection.removeAllRanges();
                         selection.addRange(range);
@@ -1093,7 +3557,7 @@
             
             // 重置标志
             setTimeout(function() {
-                isFixingCursor = false;
+                stateManager.setState('isFixingCursor', false);
             }, 10);
         }
         
@@ -1281,14 +3745,9 @@
             return '图片已插入';
         }
         
-        // 获取选择信息
+        // 获取选择信息（已迁移到 CursorManager，保留此函数以向后兼容）
         function getSelectionInfo() {
-            const selection = window.getSelection();
-            return {
-                hasSelection: selection.rangeCount > 0,
-                selectedText: selection.toString(),
-                rangeCount: selection.rangeCount
-            };
+            return cursorManager.getSelectionInfo();
         }
         
         // ==================== XML/HTML转换函数 ====================
@@ -1308,9 +3767,28 @@
             if (!xmlContent || xmlContent.trim() === '') {
                 console.log('[renderXMLToEditor] XML内容为空，显示占位符');
                 editor.innerHTML = '<div class="placeholder">开始输入...</div>';
-                isInitialized = true; // 即使内容为空，也标记为已初始化
+                stateManager.setState('isInitialized', true); // 即使内容为空，也标记为已初始化
                 return;
             }
+            
+            // 尝试从缓存获取
+            const cached = conversionCache.getXmlToHtml(xmlContent);
+            if (cached !== null) {
+                console.log('[renderXMLToEditor] ✅ 使用缓存结果，XML长度:', xmlContent.length);
+                eventManager.emit('conversion:cache:hit', {
+                    type: 'xmlToHtml',
+                    xmlLength: xmlContent.length
+                });
+                editor.innerHTML = cached;
+                stateManager.setState('isInitialized', true);
+                return;
+            }
+            
+            console.log('[renderXMLToEditor] 缓存未命中，开始转换');
+            eventManager.emit('conversion:cache:miss', {
+                type: 'xmlToHtml',
+                xmlLength: xmlContent.length
+            });
             
             try {
                 // 解析XML行
@@ -1389,6 +3867,11 @@
                     } else if (line.startsWith('<input type="checkbox"')) {
                         const parsed = parseCheckboxElement(line);
                         console.log('[renderXMLToEditor] 解析复选框，结果长度:', parsed.length);
+                        console.log('[renderXMLToEditor] 解析复选框，结果预览:', parsed.substring(0, 200));
+                        // 验证解析结果是否包含input元素
+                        if (!parsed.includes('<input type="checkbox"')) {
+                            console.error('[renderXMLToEditor] ⚠️ 复选框解析结果缺少input元素！', parsed);
+                        }
                         html += parsed;
                         isInOrderList = false;
                     } else if (line.startsWith('<hr')) {
@@ -1414,14 +3897,41 @@
                     return;
                 }
                 
-                editor.innerHTML = html;
+                // 使用批量操作优化 DOM 更新
+                // 对于大量内容，使用 DocumentFragment 可以提高性能
+                if (html.length > 10000) {
+                    // 大量内容，使用 DocumentFragment
+                    const fragment = document.createDocumentFragment();
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    
+                    while (tempDiv.firstChild) {
+                        fragment.appendChild(tempDiv.firstChild);
+                    }
+                    
+                    // 清空编辑器
+                    editor.innerHTML = '';
+                    // 批量插入
+                    editor.appendChild(fragment);
+                } else {
+                    // 少量内容，直接设置 innerHTML（更快）
+                    editor.innerHTML = html;
+                }
+                
+                // 缓存转换结果
+                conversionCache.setXmlToHtml(xmlContent, html);
+                eventManager.emit('conversion:complete', {
+                    type: 'xmlToHtml',
+                    xmlLength: xmlContent.length,
+                    htmlLength: html.length
+                });
                 
                 // 验证内容是否已设置
                 console.log('[renderXMLToEditor] 设置后的编辑器内容长度:', editor.innerHTML.length);
                 console.log('[renderXMLToEditor] 设置后的编辑器子元素数量:', editor.children.length);
                 
                 // 重新初始化编辑器状态
-                isInitialized = true;
+                stateManager.setState('isInitialized', true);
                 console.log('[renderXMLToEditor] ✅ XML内容已成功渲染为HTML，isInitialized=true');
                 console.log('[renderXMLToEditor] =================================');
                 
@@ -1431,7 +3941,7 @@
                 if (editor) {
                 editor.innerHTML = '<div class="placeholder">渲染内容时出错，请检查XML格式</div>';
                 }
-                isInitialized = true; // 即使出错，也标记为已初始化，避免无限循环
+                stateManager.setState('isInitialized', true); // 即使出错，也标记为已初始化，避免无限循环
             }
         }
         
@@ -1491,6 +4001,10 @@
             
             content = processRichTextTags(content);
             
+            // 清理内容中的 <br> 标签（列表项不应该包含 <br>）
+            // 将 <br> 替换为空字符串
+            content = content.replace(/<br\s*\/?>/gi, '');
+            
             // 如果内容为空，添加零宽度空格确保光标可见
             if (content.trim() === '') {
                 content = '\u200B';
@@ -1525,28 +4039,38 @@
             
             content = processRichTextTags(content);
             
+            // 清理内容中的 <br> 标签（列表项不应该包含 <br>）
+            // 将 <br> 替换为空字符串
+            content = content.replace(/<br\s*\/?>/gi, '');
+            
             // 如果内容为空，添加零宽度空格确保光标可见
             if (content.trim() === '') {
                 content = '\u200B';
             }
             
             // 根据小米笔记格式示例的规则：
-            // - 如果inputNumber为0，使用当前计数器
-            // - 如果inputNumber不为0，使用实际值，并重置计数器
+            // - inputNumber 是 0-based（0 表示从当前计数器开始，非0表示实际值-1）
+            // - 如果inputNumber为0，使用当前计数器，并递增
+            // - 如果inputNumber不为0，使用实际值（inputNumber + 1），并重置计数器
             let displayNumber;
             if (inputNumber === 0) {
+                // inputNumber 为 0，使用当前计数器
                 displayNumber = currentNumber;
+                // 递增计数器
+                currentNumber = currentNumber + 1;
             } else {
-                displayNumber = inputNumber;
-                // 重置计数器为inputNumber + 1
-                currentNumber = inputNumber + 1;
+                // inputNumber 不为 0，表示实际值 - 1（因为 inputNumber 是 0-based）
+                // 例如：inputNumber="99" 表示显示 100
+                displayNumber = inputNumber + 1;
+                // 重置计数器为下一个值
+                currentNumber = displayNumber + 1;
             }
             
             const html = `<div class="mi-note-order indent-${indent}" data-number="${displayNumber}">${content}</div>`;
             
             return {
                 html: html,
-                nextNumber: currentNumber + 1
+                nextNumber: currentNumber
             };
         }
         
@@ -1579,13 +4103,19 @@
             
             content = processRichTextTags(content);
             
+            // 清理内容中的 <br> 标签（列表项不应该包含 <br>）
+            // 将 <br> 替换为空字符串
+            content = content.replace(/<br\s*\/?>/gi, '');
+            
             // 如果内容为空，添加零宽度空格确保光标可见
             if (content.trim() === '') {
                 content = '\u200B';
             }
             
             const checkedAttr = checked ? 'checked' : '';
-            return `<div class="mi-note-checkbox indent-${indent}"><input type="checkbox" ${checkedAttr}>${content}</div>`;
+            const result = `<div class="mi-note-checkbox indent-${indent}"><input type="checkbox" ${checkedAttr}>${content}</div>`;
+            console.log('[parseCheckboxElement] 解析结果:', result.substring(0, 150), 'indent:', indent, 'checked:', checked, 'content长度:', content.length);
+            return result;
         }
         
         // 解析水平分割线 <hr/>
@@ -1660,11 +4190,32 @@
         
         // 将HTML转换回小米笔记XML
         function convertHTMLToXML(htmlContent) {
+            const timerId = performanceMonitor.startTimer('convertHTMLToXML', {
+                htmlLength: htmlContent ? htmlContent.length : 0
+            });
+            
             if (!htmlContent || htmlContent.trim() === '') {
+                performanceMonitor.endTimer(timerId, 'conversions');
                 return '';
             }
             
+            // 尝试从缓存获取
+            const cached = conversionCache.getHtmlToXml(htmlContent);
+            if (cached !== null) {
+                console.log('[convertHTMLToXML] ✅ 使用缓存结果，HTML长度:', htmlContent.length);
+                eventManager.emit('conversion:cache:hit', {
+                    type: 'htmlToXml',
+                    htmlLength: htmlContent.length
+                });
+                performanceMonitor.endTimer(timerId, 'conversions');
+                return cached;
+            }
+            
             console.log('[convertHTMLToXML] 开始转换HTML到XML，HTML长度:', htmlContent.length);
+            eventManager.emit('conversion:cache:miss', {
+                type: 'htmlToXml',
+                htmlLength: htmlContent.length
+            });
             
             // 创建临时div来解析HTML
             const tempDiv = document.createElement('div');
@@ -1804,6 +4355,21 @@
             console.log('[convertHTMLToXML] 转换完成，XML行数:', xmlLines.length, '，XML长度:', result.length);
             console.log('[convertHTMLToXML] XML内容预览:', result.substring(0, 200));
             
+            // 缓存转换结果（注意：这里需要原始 htmlContent，而不是处理后的）
+            // 由于函数开始时已经检查了缓存，这里直接设置缓存即可
+            conversionCache.setHtmlToXml(htmlContent, result);
+            eventManager.emit('conversion:complete', {
+                type: 'htmlToXml',
+                htmlLength: htmlContent.length,
+                xmlLength: result.length
+            });
+            
+            // 结束性能计时
+            const duration = performanceMonitor.endTimer(timerId, 'conversions');
+            if (duration > 0) {
+                console.log('[convertHTMLToXML] 转换耗时:', duration.toFixed(2), 'ms');
+            }
+            
             return result;
         }
         
@@ -1859,7 +4425,25 @@
             // 处理无序列表（支持 mi-note-bullet 和 pm-bullet-list）
             if (className.includes('mi-note-bullet') || className.includes('pm-bullet-list')) {
                 const indent = getIndentFromClass(className) || getIndentFromDataAttr(node);
-                const content = extractContentWithRichText(node);
+                let content = extractContentWithRichText(node);
+                
+                // 清理内容中的 <br> 标签（列表项不应该包含 <br>）
+                content = content.replace(/<br\s*\/?>/gi, '');
+                
+                // 清理内容中的 <li> 标签（列表项不应该包含 <li>，这些是浏览器自动插入的）
+                content = content.replace(/<li[^>]*>/gi, '');
+                content = content.replace(/<\/li>/gi, '');
+                
+                // 清理 <ul> 和 <ol> 标签
+                content = content.replace(/<ul[^>]*>/gi, '');
+                content = content.replace(/<\/ul>/gi, '');
+                content = content.replace(/<ol[^>]*>/gi, '');
+                content = content.replace(/<\/ol>/gi, '');
+                
+                // 清理 todo-list__item 类
+                content = content.replace(/class="todo-list__item[^"]*"/gi, '');
+                content = content.replace(/class='todo-list__item[^']*'/gi, '');
+                
                 // 注意：Swift端期望格式为 <bullet ... />文本内容
                 const result = `<bullet indent="${indent}" />${content}`;
                 console.log('[convertNodeToXML] 无序列表:', result, 'content长度:', content.length);
@@ -1889,7 +4473,25 @@
                     console.log('[convertNodeToXML] 有序列表第一行或不同缩进，使用实际值:', zeroBasedNumber);
                 }
                 
-                const content = extractContentWithRichText(node);
+                let content = extractContentWithRichText(node);
+                
+                // 清理内容中的 <br> 标签（列表项不应该包含 <br>）
+                content = content.replace(/<br\s*\/?>/gi, '');
+                
+                // 清理内容中的 <li> 标签（列表项不应该包含 <li>，这些是浏览器自动插入的）
+                content = content.replace(/<li[^>]*>/gi, '');
+                content = content.replace(/<\/li>/gi, '');
+                
+                // 清理 <ul> 和 <ol> 标签
+                content = content.replace(/<ul[^>]*>/gi, '');
+                content = content.replace(/<\/ul>/gi, '');
+                content = content.replace(/<ol[^>]*>/gi, '');
+                content = content.replace(/<\/ol>/gi, '');
+                
+                // 清理 todo-list__item 类
+                content = content.replace(/class="todo-list__item[^"]*"/gi, '');
+                content = content.replace(/class='todo-list__item[^']*'/gi, '');
+                
                 // 注意：Swift端期望格式为 <order ... />文本内容
                 const result = `<order indent="${indent}" inputNumber="${zeroBasedNumber}" />${content}`;
                 console.log('[convertNodeToXML] 有序列表:', result, 'content长度:', content.length);
@@ -1909,6 +4511,23 @@
                 // extractContentWithRichText 已经处理了移除 checkbox input 元素
                 let content = extractContentWithRichText(node);
                 
+                // 清理内容中的 <br> 标签（列表项不应该包含 <br>）
+                content = content.replace(/<br\s*\/?>/gi, '');
+                
+                // 清理内容中的 <li> 标签（列表项不应该包含 <li>，这些是浏览器自动插入的）
+                content = content.replace(/<li[^>]*>/gi, '');
+                content = content.replace(/<\/li>/gi, '');
+                
+                // 清理 <ul> 和 <ol> 标签
+                content = content.replace(/<ul[^>]*>/gi, '');
+                content = content.replace(/<\/ul>/gi, '');
+                content = content.replace(/<ol[^>]*>/gi, '');
+                content = content.replace(/<\/ol>/gi, '');
+                
+                // 清理 todo-list__item 类
+                content = content.replace(/class="todo-list__item[^"]*"/gi, '');
+                content = content.replace(/class='todo-list__item[^']*'/gi, '');
+                
                 // 如果 content 为空，尝试 textContent
                 if (!content.trim()) {
                     console.log('[convertNodeToXML] 复选框 content 为空，尝试 clone.textContent');
@@ -1916,6 +4535,18 @@
                     const clone = node.cloneNode(true);
                     const cb = clone.querySelector('input[type="checkbox"]');
                     if (cb) cb.parentNode.removeChild(cb);
+                    // 也移除 <br> 标签
+                    const brTags = clone.querySelectorAll('br');
+                    brTags.forEach(br => br.remove());
+                    const children = clone.childNodes;
+                    for (let i = children.length - 1; i >= 0; i--) {
+                        const child = children[i];
+                        if (child.nodeType === Node.ELEMENT_NODE && 
+                            child.tagName && 
+                            child.tagName.toLowerCase() === 'br') {
+                            child.remove();
+                        }
+                    }
                     content = clone.textContent || '';
                 }
                 
@@ -2100,8 +4731,53 @@
                 orderTags.forEach(tag => tag.remove());
             }
             
+            // 如果是列表项，移除所有不应该存在的标签
+            if (clone.classList && (clone.classList.contains('mi-note-bullet') || 
+                                    clone.classList.contains('mi-note-order') ||
+                                    clone.classList.contains('mi-note-checkbox'))) {
+                // 移除所有 <br> 标签（列表项不应该包含 <br>）
+                const brTags = clone.querySelectorAll('br');
+                brTags.forEach(br => br.remove());
+                
+                // 移除所有 <li> 标签（列表项不应该包含 <li>，这些是浏览器自动插入的）
+                const liTags = clone.querySelectorAll('li');
+                liTags.forEach(li => {
+                    // 保留 <li> 的内容，但移除标签本身
+                    const parent = li.parentNode;
+                    while (li.firstChild) {
+                        parent.insertBefore(li.firstChild, li);
+                    }
+                    li.remove();
+                });
+                
+                // 也移除直接的 <br> 和 <li> 子节点
+                const children = clone.childNodes;
+                for (let i = children.length - 1; i >= 0; i--) {
+                    const child = children[i];
+                    if (child.nodeType === Node.ELEMENT_NODE && 
+                        child.tagName) {
+                        const tagName = child.tagName.toLowerCase();
+                        if (tagName === 'br' || tagName === 'li') {
+                            // 如果是 <li>，保留其内容但移除标签
+                            if (tagName === 'li') {
+                                const parent = child.parentNode;
+                                while (child.firstChild) {
+                                    parent.insertBefore(child.firstChild, child);
+                                }
+                            }
+                            child.remove();
+                        }
+                    }
+                }
+            }
+            
             // 转换HTML标签回小米笔记标签
             content = clone.innerHTML;
+            
+            // 再次清理：移除所有残留的 <li> 标签（包括嵌套的）
+            // 使用正则表达式移除所有 <li> 标签，但保留其内容
+            content = content.replace(/<li[^>]*>/gi, '');
+            content = content.replace(/<\/li>/gi, '');
             
             // 如果内容为空，尝试使用 textContent 作为后备
             if (!content || content.trim() === '') {

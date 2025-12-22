@@ -27,6 +27,7 @@
 		67BEA8E05D3C27BF275623E3 /* WebFormatMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC6D721B06B0AC3EC5F7F400 /* WebFormatMenuView.swift */; };
 		70D0B38212A1740EAE99C61D /* AttributedStringConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71B669895CBBCACA3585BDE8 /* AttributedStringConverter.swift */; };
 		7155FAF964267DB92210E377 /* NewRichTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA3274347D891BE314C5B30B /* NewRichTextEditor.swift */; };
+		74D0BB52F5CB48ABDD76DAB5 /* new_editor.html in Resources */ = {isa = PBXBuildFile; fileRef = E52881C25C9462ECA2EB2B4E /* new_editor.html */; };
 		77440C573F9033B3E19C82F4 /* NoteDetailWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 811806EC0E2194915D9D09EF /* NoteDetailWindowView.swift */; };
 		86E3C186412052CE4FAACE6A /* MiNoteLibrary.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8A2C981878DCE366A3D9C201 /* AuthenticationStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDFFDADBC26BAD5769E0663 /* AuthenticationStateManager.swift */; };
@@ -116,6 +117,7 @@
 		D3119E8C539E7C9A6BA2EACC /* NewNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewNoteView.swift; sourceTree = "<group>"; };
 		DAB696411171B9EF9F3A4242 /* XMLConversionTester.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLConversionTester.swift; sourceTree = "<group>"; };
 		E4859FC7DF92EAA20C7ABF7C /* MiNoteMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MiNoteMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E52881C25C9462ECA2EB2B4E /* new_editor.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = new_editor.html; sourceTree = "<group>"; };
 		EEBA8B045168080EF8181BC3 /* XMLReversibilityTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLReversibilityTest.swift; sourceTree = "<group>"; };
 		F9D1C6CACE3C147825607106 /* OfflineOperationQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineOperationQueue.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -152,6 +154,7 @@
 			isa = PBXGroup;
 			children = (
 				05E7B38F6108DA4E6A03089C /* editor.html */,
+				E52881C25C9462ECA2EB2B4E /* new_editor.html */,
 				5AD7737B17EA30B449AC8E0B /* test_conversion.html */,
 			);
 			path = Web;
@@ -360,6 +363,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				45881967D52E9420F5F8DE5F /* editor.html in Resources */,
+				74D0BB52F5CB48ABDD76DAB5 /* new_editor.html in Resources */,
 				B3B66545FA4D9A18E16362C9 /* test_conversion.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
