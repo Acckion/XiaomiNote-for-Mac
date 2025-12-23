@@ -31,6 +31,20 @@ struct NoteDetailView: View {
     @State private var lastSavedXMLContent: String = ""  // 上次保存的 XML 内容，用于避免重复保存
     @State private var isSavingLocally: Bool = false  // 标记是否正在本地保存
     
+    // 图片插入相关状态
+    @State private var showImageInsertAlert: Bool = false  // 控制图片插入弹窗显示
+    @State private var imageInsertMessage: String = ""  // 图片插入弹窗消息
+    @State private var isInsertingImage: Bool = false  // 标记是否正在插入图片
+    @State private var imageInsertStatus: ImageInsertStatus = .idle  // 图片插入状态
+    
+    // 图片插入状态枚举
+    enum ImageInsertStatus {
+        case idle
+        case uploading
+        case success
+        case failed
+    }
+    
     // Web编辑器上下文
     @StateObject private var webEditorContext = WebEditorContext()
     
@@ -107,6 +121,16 @@ struct NoteDetailView: View {
         // } message: {
         //     Text(saveError)
         // }
+        .sheet(isPresented: $showImageInsertAlert) {
+            ImageInsertStatusView(
+                isInserting: isInsertingImage,
+                message: imageInsertMessage,
+                status: imageInsertStatus,
+                onDismiss: {
+                    imageInsertStatus = .idle
+                }
+            )
+        }
     }
     
     @ViewBuilder
@@ -170,8 +194,62 @@ struct NoteDetailView: View {
     private var titleEditorView: some View {
         TitleEditorView(
             title: $editedTitle,
-            isEditable: $isEditable
+            isEditable: $isEditable,
+            hasRealTitle: hasRealTitle()
         )
+    }
+    
+    /// 检查当前笔记是否有真正的标题
+    private func hasRealTitle() -> Bool {
+        guard let note = viewModel.selectedNote else { return false }
+        
+        // 如果标题为空，没有真正的标题
+        if note.title.isEmpty {
+            return false
+        }
+        
+        // 如果标题是"未命名笔记_xxx"格式，没有真正的标题
+        if note.title.hasPrefix("未命名笔记_") {
+            return false
+        }
+        
+        // 检查 rawData 中的 extraInfo 是否有真正的标题
+        if let rawData = note.rawData,
+           let extraInfo = rawData["extraInfo"] as? String,
+           let extraData = extraInfo.data(using: .utf8),
+           let extraJson = try? JSONSerialization.jsonObject(with: extraData) as? [String: Any],
+           let realTitle = extraJson["title"] as? String,
+           !realTitle.isEmpty {
+            // 如果 extraInfo 中有标题，且与当前标题匹配，说明有真正的标题
+            if realTitle == note.title {
+                return true
+            }
+        }
+        
+        // 检查标题是否与内容的第一行匹配（去除XML标签后）
+        // 如果匹配，说明标题可能是从内容中提取的（处理旧数据），没有真正的标题
+        if !note.content.isEmpty {
+            // 移除XML标签，提取纯文本
+            let textContent = note.content
+                .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                .replacingOccurrences(of: "&amp;", with: "&")
+                .replacingOccurrences(of: "&lt;", with: "<")
+                .replacingOccurrences(of: "&gt;", with: ">")
+                .replacingOccurrences(of: "&quot;", with: "\"")
+                .replacingOccurrences(of: "&apos;", with: "'")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // 获取第一行
+            let firstLine = textContent.split(separator: "\n").first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            
+            // 如果标题与第一行匹配，说明可能是从内容中提取的（处理旧数据）
+            if !firstLine.isEmpty && note.title == firstLine {
+                return false
+            }
+        }
+        
+        // 默认情况下，如果标题不为空且不是"未命名笔记_xxx"，认为有真正的标题
+        return true
     }
     
     /// 日期和字数信息视图（只读）
@@ -323,6 +401,9 @@ struct NoteDetailView: View {
             imageButton
             Divider()
                 .frame(height: 16)
+            indentButtons
+            Divider()
+                .frame(height: 16)
             debugButton
         }
         .padding(.horizontal, 8)
@@ -397,6 +478,29 @@ struct NoteDetailView: View {
             Image(systemName: "paperclip")
         }
         .help("插入图片")
+    }
+    
+    /// 缩进按钮组
+    private var indentButtons: some View {
+        HStack(spacing: 0) {
+            Button {
+                webEditorContext.increaseIndent()
+            } label: {
+                Image(systemName: "increase.indent")
+                    .font(.system(size: 16))
+            }
+            .buttonStyle(.plain)
+            .help("增加缩进")
+            
+            Button {
+                webEditorContext.decreaseIndent()
+            } label: {
+                Image(systemName: "decrease.indent")
+                    .font(.system(size: 16))
+            }
+            .buttonStyle(.plain)
+            .help("减少缩进")
+        }
     }
     
     private var debugButton: some View {
@@ -482,34 +586,92 @@ struct NoteDetailView: View {
     /// 从 URL 插入图片
     @MainActor
     private func insertImage(from url: URL) async {
-        // 使用 WebEditorContext 插入图片
-        // 将图片转换为 base64 数据 URL
-        guard let imageData = try? Data(contentsOf: url) else {
-            print("[NoteDetailView] ⚠️ 无法加载图片: \(url)")
+        // 先上传图片到服务器，获取 fileId
+        // 然后使用 minote://image/{fileId} URL 插入图片
+        // 这样可以避免将 base64 数据保存到 XML content 中
+        
+        guard let note = viewModel.selectedNote else {
+            print("[NoteDetailView] ⚠️ 无法插入图片：未选择笔记")
+            imageInsertMessage = "无法插入图片：未选择笔记"
+            showImageInsertAlert = true
             return
         }
-        let base64String = imageData.base64EncodedString()
         
-        let mimeType: String
-        switch url.pathExtension.lowercased() {
-        case "png":
-            mimeType = "image/png"
-        case "jpg", "jpeg":
-            mimeType = "image/jpeg"
-        case "gif":
-            mimeType = "image/gif"
-        default:
-            mimeType = "image/jpeg"
+        // 显示"正在插入"的弹窗
+        isInsertingImage = true
+        imageInsertStatus = .uploading
+        imageInsertMessage = "正在上传图片：\(url.lastPathComponent)..."
+        showImageInsertAlert = true
+        
+        guard viewModel.isOnline && viewModel.isLoggedIn else {
+            print("[NoteDetailView] ⚠️ 无法插入图片：未登录或离线")
+            // 离线模式：暂时使用 base64，但应该提示用户
+            guard let imageData = try? Data(contentsOf: url) else {
+                print("[NoteDetailView] ⚠️ 无法加载图片: \(url)")
+                isInsertingImage = false
+                imageInsertStatus = .failed
+                imageInsertMessage = "无法加载图片：\(url.lastPathComponent)"
+                // 弹窗已经在显示，状态更新会自动刷新内容
+                return
+            }
+            let base64String = imageData.base64EncodedString()
+            let mimeType: String
+            switch url.pathExtension.lowercased() {
+            case "png":
+                mimeType = "image/png"
+            case "jpg", "jpeg":
+                mimeType = "image/jpeg"
+            case "gif":
+                mimeType = "image/gif"
+            default:
+                mimeType = "image/jpeg"
+            }
+            let dataUrl = "data:\(mimeType);base64,\(base64String)"
+            webEditorContext.insertImage(dataUrl, altText: url.lastPathComponent)
+            print("[NoteDetailView] ⚠️ 离线模式：已插入 base64 图片（临时）: \(url.lastPathComponent)")
+            
+            // 显示离线模式提示
+            // 延迟一下再显示结果，让用户看到"正在插入"的状态
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+            isInsertingImage = false
+            imageInsertStatus = .success
+            imageInsertMessage = "已插入图片（离线模式，临时）：\(url.lastPathComponent)"
+            // 弹窗已经在显示，状态更新会自动刷新内容
+            return
         }
         
-        let dataUrl = "data:\(mimeType);base64,\(base64String)"
-        webEditorContext.insertImage(dataUrl, altText: url.lastPathComponent)
-        
-        print("[NoteDetailView] 已插入图片（Web编辑器）: \(url.lastPathComponent)")
-        
-        // 触发保存（图片插入后需要保存）
-        Task { @MainActor in
-            await performSaveImmediately()
+        do {
+            // 使用 ViewModel 的上传方法，直接获取 fileId
+            let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
+            
+            // 使用 minote://image/{fileId} URL 插入图片到编辑器
+            let imageUrl = "minote://image/\(fileId)"
+            webEditorContext.insertImage(imageUrl, altText: url.lastPathComponent)
+            
+            print("[NoteDetailView] ✅ 已插入图片（Web编辑器）: \(url.lastPathComponent), fileId: \(fileId)")
+            
+            // 显示成功提示
+            // 延迟一下再显示结果，让用户看到"正在插入"的状态
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+            isInsertingImage = false
+            imageInsertStatus = .success
+            imageInsertMessage = "图片插入成功：\(url.lastPathComponent)"
+            // 弹窗已经在显示，状态更新会自动刷新内容
+            
+            // 触发保存（图片插入后需要保存）
+            Task { @MainActor in
+                await performSaveImmediately()
+            }
+        } catch {
+            print("[NoteDetailView] ❌ 上传图片失败: \(error.localizedDescription)")
+            
+            // 显示失败提示
+            // 延迟一下再显示结果，让用户看到"正在插入"的状态
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+            isInsertingImage = false
+            imageInsertStatus = .failed
+            imageInsertMessage = "图片插入失败：\(error.localizedDescription)"
+            // 弹窗已经在显示，状态更新会自动刷新内容
         }
     }
     
@@ -838,66 +1000,120 @@ struct NoteDetailView: View {
     /// - Parameters:
     ///   - note: 要上传的笔记对象
     ///   - xmlContent: 要上传的 XML 内容（已保存的）
+    // 云端上传任务
+    @State private var cloudUploadTask: Task<Void, Never>? = nil
+    @State private var lastUploadedContent: String = ""  // 上次上传的内容，用于检测是否有修改
+    
     private func scheduleCloudUpload(for note: Note, xmlContent: String) {
         guard viewModel.isOnline && viewModel.isLoggedIn else {
+            // 不在线，取消任务
+            cloudUploadTask?.cancel()
+            cloudUploadTask = nil
             return
         }
         
-        // 取消之前的云端上传任务
-        pendingCloudUploadWorkItem?.cancel()
+        // 检查内容是否有变化
+        guard xmlContent != lastUploadedContent else {
+            // 内容没有变化，取消任务（不循环上传）
+            cloudUploadTask?.cancel()
+            cloudUploadTask = nil
+            return
+        }
         
-        // 根据内容大小智能调整防抖时间
-        let xmlContentSize = xmlContent.count
-        let debounceTime: TimeInterval = {
-            if xmlContentSize > 100_000 { return 3.0 }      // > 100KB: 3秒
-            else if xmlContentSize > 50_000 { return 2.0 } // > 50KB: 2秒
-            else { return 1.0 }                            // 小文件: 1秒
-        }()
+        // 取消之前的任务
+        cloudUploadTask?.cancel()
+        cloudUploadTask = nil
         
         // 捕获当前状态
         let currentNoteId = currentEditingNoteId
         let viewModelRef = viewModel
         
-        let uploadWorkItem = DispatchWorkItem {
-            Task { @MainActor in
-                guard let note = viewModelRef.selectedNote, note.id == currentNoteId else {
-                    return
+        // 使用 Task 实现定时检查（每5秒检查一次是否有修改）
+        // 这样避免了在 struct 中使用 Timer 闭包的问题
+        cloudUploadTask = Task { @MainActor in
+            // 立即执行第一次上传（如果有修改）
+            if xmlContent != lastUploadedContent {
+                await performCloudUpload(for: note, xmlContent: xmlContent)
+                lastUploadedContent = xmlContent
+            }
+            
+            // 然后每5秒检查一次
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5_000_000_000) // 5秒
+                
+                // 检查任务是否已取消
+                if Task.isCancelled {
+                    break
                 }
                 
-                // 直接使用传入的 XML 内容，不重新获取
-                let updatedNote = self.buildUpdatedNote(from: note, xmlContent: xmlContent)
+                // 检查笔记ID是否仍然匹配
+                guard let note = viewModelRef.selectedNote,
+                      note.id == currentNoteId,
+                      note.id == currentEditingNoteId else {
+                    break
+                }
                 
-                // 开始上传
-                isUploading = true
+                // 获取当前内容
+                let currentContent = await getLatestContentFromEditor()
                 
-                do {
-                    // 触发云端上传（updateNote 会再次保存到本地，这是幂等操作）
-                    try await viewModelRef.updateNote(updatedNote)
-                    
-                    // 显示成功提示
-                    withAnimation {
-                        showSaveSuccess = true
-                        isUploading = false
-                    }
-                    
-                    // 2秒后隐藏成功提示
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        withAnimation {
-                            showSaveSuccess = false
-                        }
-                    }
-                } catch {
-                    print("[NoteDetailView] ❌ 云端上传失败: \(error.localizedDescription)")
-                    isUploading = false
-                    // 上传失败不影响本地数据，离线时会自动添加到队列
+                // 检查内容是否有变化
+                if currentContent != lastUploadedContent {
+                    // 有修改，执行上传
+                    print("[保存流程] 定时上传: 检测到内容变化，开始上传")
+                    await performCloudUpload(for: note, xmlContent: currentContent)
+                    lastUploadedContent = currentContent
+                } else {
+                    // 无修改，停止任务（不循环上传）
+                    print("[保存流程] 定时上传: 无修改，停止任务")
+                    break
                 }
             }
         }
         
-        pendingCloudUploadWorkItem = uploadWorkItem
+        // 立即执行第一次上传（如果有修改）
+        Task { @MainActor in
+            if xmlContent != lastUploadedContent {
+                await performCloudUpload(for: note, xmlContent: xmlContent)
+                lastUploadedContent = xmlContent
+            }
+        }
+    }
+    
+    /// 执行云端上传
+    @MainActor
+    private func performCloudUpload(for note: Note, xmlContent: String) async {
+        // 验证笔记ID
+        guard note.id == currentEditingNoteId else {
+            return
+        }
         
-        // 智能防抖：根据内容大小调整延迟时间
-        DispatchQueue.main.asyncAfter(deadline: .now() + debounceTime, execute: uploadWorkItem)
+        // 直接使用传入的 XML 内容，不重新获取
+        let updatedNote = buildUpdatedNote(from: note, xmlContent: xmlContent)
+        
+        // 开始上传
+        isUploading = true
+        
+        do {
+            // 触发云端上传（updateNote 会再次保存到本地，这是幂等操作）
+            try await viewModel.updateNote(updatedNote)
+            
+            // 显示成功提示
+            withAnimation {
+                showSaveSuccess = true
+                isUploading = false
+            }
+            
+            // 2秒后隐藏成功提示
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                withAnimation {
+                    showSaveSuccess = false
+                }
+            }
+        } catch {
+            print("[NoteDetailView] ❌ 云端上传失败: \(error.localizedDescription)")
+            isUploading = false
+            // 上传失败不影响本地数据，离线时会自动添加到队列
+        }
     }
     
     /// 立即保存更改（用于切换笔记前）
@@ -1005,10 +1221,12 @@ struct NoteDetailView: View {
             return nil
         }
         
-        // 取消待执行的保存任务
+        // 取消待执行的保存任务和上传任务
         pendingSaveWorkItem?.cancel()
         pendingSaveWorkItem = nil
         pendingCloudUploadWorkItem?.cancel()
+        cloudUploadTask?.cancel()
+        cloudUploadTask = nil
         
         // 标记正在为切换而保存
         isSavingBeforeSwitch = true
@@ -1206,6 +1424,53 @@ struct NoteDetailView: View {
         }
         // XML内容不同，肯定有变化
         return true
+    }
+}
+
+/// 图片插入状态视图
+@available(macOS 14.0, *)
+struct ImageInsertStatusView: View {
+    let isInserting: Bool
+    let message: String
+    let status: NoteDetailView.ImageInsertStatus
+    let onDismiss: () -> Void
+    
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            if isInserting {
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .padding(.bottom, 8)
+            } else {
+                // 根据状态显示不同的图标
+                Image(systemName: status == .success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(status == .success ? .green : .red)
+                    .padding(.bottom, 8)
+            }
+            
+            Text(isInserting ? "正在插入图片" : (status == .success ? "插入成功" : "插入失败"))
+                .font(.headline)
+            
+            Text(message)
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            if !isInserting {
+                Button("确定") {
+                    onDismiss()
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 8)
+            }
+        }
+        .padding(30)
+        .frame(width: 400)
     }
 }
 

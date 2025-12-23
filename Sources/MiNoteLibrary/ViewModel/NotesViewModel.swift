@@ -1727,36 +1727,72 @@ public class NotesViewModel: ObservableObject {
     /// - Throws: 更新失败时抛出错误（网络错误、认证错误等）
     func updateNote(_ note: Note) async throws {
         print("[[调试]]步骤19 [VIEWMODEL] 进入updateNote方法，笔记ID: \(note.id), 标题: \(note.title)")
+        
+        // 先尝试从数据库加载现有笔记，确保 rawData（特别是 setting.data）是完整的
+        var noteToSave = note
+        if let existingNote = try? localStorage.loadNote(noteId: note.id),
+           let existingRawData = existingNote.rawData {
+            // 合并 rawData：保留现有的 setting.data，更新其他字段
+            var mergedRawData = existingRawData
+            if let newRawData = note.rawData {
+                // 如果新笔记有 rawData，合并它们
+                for (key, value) in newRawData {
+                    mergedRawData[key] = value
+                }
+                // 特别处理 setting.data：如果现有笔记有 setting.data，保留它
+                if let existingSetting = existingRawData["setting"] as? [String: Any],
+                   let existingSettingData = existingSetting["data"] as? [[String: Any]],
+                   !existingSettingData.isEmpty {
+                    var mergedSetting = mergedRawData["setting"] as? [String: Any] ?? [:]
+                    mergedSetting["data"] = existingSettingData
+                    mergedRawData["setting"] = mergedSetting
+                    print("[[调试]]步骤19.1 [VIEWMODEL] 保留现有的 setting.data，包含 \(existingSettingData.count) 个图片")
+                }
+            }
+            // 使用合并后的 rawData 创建新的 Note 对象
+            noteToSave = Note(
+                id: note.id,
+                title: note.title,
+                content: note.content,
+                folderId: note.folderId,
+                isStarred: note.isStarred,
+                createdAt: note.createdAt,
+                updatedAt: note.updatedAt,
+                tags: note.tags,
+                rawData: mergedRawData
+            )
+        }
+        
         // 先保存到本地（无论在线还是离线）
         // 这确保了即使云端保存失败，本地数据也不会丢失
-        print("[[调试]]步骤20 [VIEWMODEL] 保存到本地数据库，笔记ID: \(note.id)")
-        try localStorage.saveNote(note)
+        print("[[调试]]步骤20 [VIEWMODEL] 保存到本地数据库，笔记ID: \(noteToSave.id)")
+        try localStorage.saveNote(noteToSave)
         
         // 更新笔记列表
-        if let index = notes.firstIndex(where: { $0.id == note.id }) {
-            notes[index] = note
-            print("[[调试]]步骤21 [VIEWMODEL] 更新笔记列表，笔记ID: \(note.id), 列表索引: \(index)")
+        if let index = notes.firstIndex(where: { $0.id == noteToSave.id }) {
+            notes[index] = noteToSave
+            print("[[调试]]步骤21 [VIEWMODEL] 更新笔记列表，笔记ID: \(noteToSave.id), 列表索引: \(index)")
         } else {
             // 如果笔记不在列表中（新建笔记），添加到列表
-            notes.append(note)
-            print("[[调试]]步骤21 [VIEWMODEL] 更新笔记列表，笔记ID: \(note.id), 列表索引: 新增")
+            notes.append(noteToSave)
+            print("[[调试]]步骤21 [VIEWMODEL] 更新笔记列表，笔记ID: \(noteToSave.id), 列表索引: 新增")
         }
         
         // 如果离线或未认证，添加到离线队列
         print("[[调试]]步骤22 [VIEWMODEL] 检查在线状态，isOnline: \(isOnline), isAuthenticated: \(service.isAuthenticated())")
         if !isOnline || !service.isAuthenticated() {
-            let operationData = try JSONEncoder().encode([
-                "title": note.title,
-                "content": note.content,
-                "folderId": note.folderId
-            ])
-            let operation = OfflineOperation(
-                type: .updateNote,
-                noteId: note.id,
-                data: operationData
-            )
-            try offlineQueue.addOperation(operation)
-            print("[[调试]]步骤23 [VIEWMODEL] 离线模式，添加到离线队列，笔记ID: \(note.id)")
+                let operationData = try JSONEncoder().encode([
+                    "title": noteToSave.title,
+                    "content": noteToSave.content,
+                    "folderId": noteToSave.folderId
+                ])
+                let operation = OfflineOperation(
+                    type: .updateNote,
+                    noteId: noteToSave.id,
+                    data: operationData
+                )
+                try offlineQueue.addOperation(operation)
+                print("[[调试]]步骤23 [VIEWMODEL] 离线模式，添加到离线队列，笔记ID: \(noteToSave.id)")
             return
         }
         
@@ -1767,16 +1803,17 @@ public class NotesViewModel: ObservableObject {
         
         do {
             // 参考 Obsidian 插件：每次上传前都先获取云端最新的笔记信息，包括 tag
-            var existingTag = note.rawData?["tag"] as? String ?? ""
-            var originalCreateDate = note.rawData?["createDate"] as? Int
+            // 使用 noteToSave 而不是 note，因为 noteToSave 有完整的 rawData
+            var existingTag = noteToSave.rawData?["tag"] as? String ?? ""
+            var originalCreateDate = noteToSave.rawData?["createDate"] as? Int
             
             print("[[调试]]步骤26 [VIEWMODEL] 获取现有tag，当前tag: \(existingTag.isEmpty ? "空" : existingTag)")
             
             // 检查笔记是否已存在于云端
             var noteExistsInCloud = false
-            print("[[调试]]步骤27 [VIEWMODEL] 检查笔记是否存在于云端，笔记ID: \(note.id)")
+            print("[[调试]]步骤27 [VIEWMODEL] 检查笔记是否存在于云端，笔记ID: \(noteToSave.id)")
             do {
-                let noteDetails = try await service.fetchNoteDetails(noteId: note.id)
+                let noteDetails = try await service.fetchNoteDetails(noteId: noteToSave.id)
                 noteExistsInCloud = true
                 if let data = noteDetails["data"] as? [String: Any],
                    let entry = data["entry"] as? [String: Any] {
@@ -1800,12 +1837,12 @@ public class NotesViewModel: ObservableObject {
             
             // 如果笔记不存在于云端，可能是新建笔记，先创建它
             if !noteExistsInCloud {
-                print("[[调试]]步骤29 [VIEWMODEL] 笔记不存在于云端，尝试创建，笔记ID: \(note.id)")
+                print("[[调试]]步骤29 [VIEWMODEL] 笔记不存在于云端，尝试创建，笔记ID: \(noteToSave.id)")
                 do {
                     let createResponse = try await service.createNote(
-                        title: note.title,
-                        content: note.content,
-                        folderId: note.folderId
+                        title: noteToSave.title,
+                        content: noteToSave.content,
+                        folderId: noteToSave.folderId
                     )
                     
                     // 如果创建成功，更新笔记ID和rawData
@@ -1813,12 +1850,12 @@ public class NotesViewModel: ObservableObject {
                        let data = createResponse["data"] as? [String: Any],
                        let entry = data["entry"] as? [String: Any] {
                         if let newNoteId = entry["id"] as? String {
-                            if newNoteId != note.id {
+                            if newNoteId != noteToSave.id {
                                 // ID 发生变化，需要更新本地笔记
-                                print("[VIEWMODEL] ✅ 笔记创建成功，ID更新: \(note.id) -> \(newNoteId)")
+                                print("[VIEWMODEL] ✅ 笔记创建成功，ID更新: \(noteToSave.id) -> \(newNoteId)")
                                 
                                 // 更新rawData
-                                var updatedRawData = note.rawData ?? [:]
+                                var updatedRawData = noteToSave.rawData ?? [:]
                                 for (key, value) in entry {
                                     updatedRawData[key] = value
                                 }
@@ -1826,23 +1863,23 @@ public class NotesViewModel: ObservableObject {
                                 // 创建新的 Note 实例（因为 id 是 let 常量）
                                 let updatedNote = Note(
                                     id: newNoteId,
-                                    title: note.title,
-                                    content: note.content,
-                                    folderId: note.folderId,
-                                    isStarred: note.isStarred,
-                                    createdAt: note.createdAt,
-                                    updatedAt: note.updatedAt,
-                                    tags: note.tags,
+                                    title: noteToSave.title,
+                                    content: noteToSave.content,
+                                    folderId: noteToSave.folderId,
+                                    isStarred: noteToSave.isStarred,
+                                    createdAt: noteToSave.createdAt,
+                                    updatedAt: noteToSave.updatedAt,
+                                    tags: noteToSave.tags,
                                     rawData: updatedRawData
                                 )
                                 
                                 // 更新笔记列表
-                                if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                                if let index = notes.firstIndex(where: { $0.id == noteToSave.id }) {
                                     notes[index] = updatedNote
                                 }
                                 
                                 // 如果当前选中的笔记，也更新它
-                                if selectedNote?.id == note.id {
+                                if selectedNote?.id == noteToSave.id {
                                     selectedNote = updatedNote
                                 }
                                 
@@ -1853,9 +1890,9 @@ public class NotesViewModel: ObservableObject {
                                 return
                             } else {
                                 // ID 相同，更新 rawData
-                                print("[VIEWMODEL] ✅ 笔记创建成功，ID相同，更新 rawData: \(note.id)")
+                                print("[VIEWMODEL] ✅ 笔记创建成功，ID相同，更新 rawData: \(noteToSave.id)")
                                 
-                                var updatedNote = note
+                                var updatedNote = noteToSave
                                 var updatedRawData = updatedNote.rawData ?? [:]
                                 for (key, value) in entry {
                                     updatedRawData[key] = value
@@ -1863,19 +1900,19 @@ public class NotesViewModel: ObservableObject {
                                 updatedNote.rawData = updatedRawData
                                 
                                 // 更新笔记列表
-                                if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                                if let index = notes.firstIndex(where: { $0.id == noteToSave.id }) {
                                     notes[index] = updatedNote
                                 }
                                 
                                 // 如果当前选中的笔记，也更新它
-                                if selectedNote?.id == note.id {
+                                if selectedNote?.id == noteToSave.id {
                                     selectedNote = updatedNote
                                 }
                                 
                                 // 保存到本地
                                 try localStorage.saveNote(updatedNote)
                                 
-                                print("[VIEWMODEL] ✅ 新建笔记创建并保存成功: \(note.id)")
+                                print("[VIEWMODEL] ✅ 新建笔记创建并保存成功: \(noteToSave.id)")
                                 return
                             }
                         }
@@ -1888,29 +1925,42 @@ public class NotesViewModel: ObservableObject {
             
             // 确保 tag 不为空（如果仍然为空，使用 noteId 作为 fallback）
             if existingTag.isEmpty {
-                existingTag = note.id
+                existingTag = noteToSave.id
                 print("[[调试]]步骤32 [VIEWMODEL] 警告：tag 仍然为空，使用 noteId 作为 fallback: \(existingTag)")
             }
             
             // 从 rawData 中提取图片信息（setting.data）
+            // 使用 noteToSave 而不是 note，因为 noteToSave 有完整的 rawData
             var imageData: [[String: Any]]? = nil
-            if let rawData = note.rawData,
+            if let rawData = noteToSave.rawData,
                let setting = rawData["setting"] as? [String: Any],
                let settingData = setting["data"] as? [[String: Any]] {
                 imageData = settingData
+                print("[[调试]]步骤31 [VIEWMODEL] 从 noteToSave.rawData 提取图片信息，imageData数量: \(imageData?.count ?? 0)")
+            } else {
+                print("[[调试]]步骤31 [VIEWMODEL] ⚠️ 无法从 noteToSave.rawData 提取图片信息")
+                if let rawData = noteToSave.rawData {
+                    print("[[调试]]步骤31.1 [VIEWMODEL] rawData 存在，包含键: \(rawData.keys)")
+                    if let setting = rawData["setting"] as? [String: Any] {
+                        print("[[调试]]步骤31.2 [VIEWMODEL] setting 存在，包含键: \(setting.keys)")
+                    } else {
+                        print("[[调试]]步骤31.2 [VIEWMODEL] setting 不存在或类型不正确")
+                    }
+                } else {
+                    print("[[调试]]步骤31.1 [VIEWMODEL] rawData 为 nil")
+                }
             }
-            print("[[调试]]步骤31 [VIEWMODEL] 提取图片信息，imageData数量: \(imageData?.count ?? 0)")
             
             // 使用 nonisolated(unsafe) 来标记这个变量是安全的（这些数据只是被读取和传递）
             nonisolated(unsafe) let unsafeImageData = imageData
             
-            print("[[调试]]步骤33 [VIEWMODEL] 调用service.updateNote上传，笔记ID: \(note.id), title: \(note.title), content长度: \(note.content.count)")
+            print("[[调试]]步骤33 [VIEWMODEL] 调用service.updateNote上传，笔记ID: \(noteToSave.id), title: \(noteToSave.title), content长度: \(noteToSave.content.count)")
             
             let response = try await service.updateNote(
-                noteId: note.id,
-                title: note.title,
-                content: note.content,
-                folderId: note.folderId,
+                noteId: noteToSave.id,
+                title: noteToSave.title,
+                content: noteToSave.content,
+                folderId: noteToSave.folderId,
                 existingTag: existingTag,
                 originalCreateDate: originalCreateDate,
                 imageData: unsafeImageData
@@ -1921,8 +1971,8 @@ public class NotesViewModel: ObservableObject {
             print("[[调试]]步骤48 [VIEWMODEL] 检查响应code，code: \(code), 是否成功: \(code == 0)")
             if code == 0 {
                 // 更新本地笔记
-                if let index = notes.firstIndex(where: { $0.id == note.id }) {
-                    var updatedNote = note
+                if let index = notes.firstIndex(where: { $0.id == noteToSave.id }) {
+                    var updatedNote = noteToSave
                     print("[[调试]]步骤48.1 [VIEWMODEL] 创建updatedNote副本")
                     
                     // 从响应中提取更新后的数据
@@ -2014,7 +2064,7 @@ public class NotesViewModel: ObservableObject {
                 }
             } else {
                 // 其他错误：静默处理，不显示弹窗
-                print("[[调试]]步骤57 [VIEWMODEL] 更新笔记失败，笔记ID: \(note.id), 错误: \(error.localizedDescription)")
+                print("[[调试]]步骤57 [VIEWMODEL] 更新笔记失败，笔记ID: \(noteToSave.id), 错误: \(error.localizedDescription)")
             }
             // 不设置 errorMessage，避免弹窗提示
         }
@@ -2770,7 +2820,8 @@ public class NotesViewModel: ObservableObject {
     
     /// 上传图片并插入到当前笔记
     /// - Parameter imageURL: 图片文件URL
-    func uploadImageAndInsertToNote(imageURL: URL) async throws {
+    /// - Returns: 上传成功后的 fileId
+    func uploadImageAndInsertToNote(imageURL: URL) async throws -> String {
         guard let note = selectedNote else {
             throw NSError(domain: "MiNote", code: 400, userInfo: [NSLocalizedDescriptionKey: "请先选择笔记"])
         }
@@ -2843,21 +2894,17 @@ public class NotesViewModel: ObservableObject {
             rawData["setting"] = setting
             updatedNote.rawData = rawData
             
-            // 在笔记内容中添加图片引用（☺格式）
-            let imageReference = "☺ \(fileId)<0/><>"
-            var newContent = updatedNote.content
-            if newContent.isEmpty {
-                newContent = "<new-format/><text indent=\"1\">\(imageReference)</text>"
-            } else {
-                // 在内容末尾添加图片引用
-                let cleanedContent = newContent.replacingOccurrences(of: "<new-format/>", with: "")
-                newContent = "<new-format/>\(cleanedContent)\n<text indent=\"1\">\(imageReference)</text>"
-            }
-            updatedNote.content = newContent
+            // 注意：根据小米笔记的格式，图片不应该直接添加到 content 中
+            // 图片信息只在 setting.data 中，content 中的图片标签由编辑器管理
+            // 所以这里不修改 content，只更新 setting.data
+            // 编辑器会在用户插入图片时自动添加 <img fileid="..." /> 标签
             
             // 更新笔记（需要传递 rawData 以包含 setting.data）
             // 注意：updateNote 方法会从 rawData 中提取 setting.data
             try await updateNote(updatedNote)
+            
+            // 返回 fileId，供编辑器使用
+            print("[VIEWMODEL] 图片已添加到笔记的 setting.data: \(note.id), fileId: \(fileId)")
             
             // 更新本地笔记对象（从服务器响应中获取最新数据）
             if let index = notes.firstIndex(where: { $0.id == note.id }) {
@@ -2874,6 +2921,8 @@ public class NotesViewModel: ObservableObject {
             
             print("[VIEWMODEL] 图片已插入到笔记: \(note.id)")
             
+            // 返回 fileId 供编辑器使用
+            return fileId
         } catch {
             // 上传失败：静默处理，不显示弹窗
             print("[VIEWMODEL] 上传图片失败: \(error.localizedDescription)")

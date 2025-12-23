@@ -350,10 +350,10 @@ struct NoteRow: View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(note.title.isEmpty ? "无标题" : note.title)
+                    Text(hasRealTitle() ? note.title : "无标题")
                         .font(.system(size: 14))
                         .lineLimit(1)
-                        .foregroundColor(.primary)
+                        .foregroundColor(hasRealTitle() ? .primary : .secondary)
                     
                     HStack(spacing: 4) {
                         Text(formatDate(note.updatedAt))
@@ -414,6 +414,63 @@ struct NoteRow: View {
                     .padding(.top, 10)  // 向下偏移，使分割线位于两个笔记项之间
             }
         }
+    }
+    
+    /// 检查笔记是否有真正的标题（不是从内容中提取的）
+    /// 判断逻辑：
+    /// 1. 如果标题为空，返回 false
+    /// 2. 如果标题是"未命名笔记_xxx"格式，返回 false
+    /// 3. 检查 rawData 中的 extraInfo 是否有真正的标题
+    /// 4. 如果标题与内容的第一行匹配（去除XML标签后），返回 false（处理旧数据）
+    /// 5. 否则返回 true（有真正的标题）
+    private func hasRealTitle() -> Bool {
+        // 如果标题为空，没有真正的标题
+        if note.title.isEmpty {
+            return false
+        }
+        
+        // 如果标题是"未命名笔记_xxx"格式，没有真正的标题
+        if note.title.hasPrefix("未命名笔记_") {
+            return false
+        }
+        
+        // 检查 rawData 中的 extraInfo 是否有真正的标题
+        if let rawData = note.rawData,
+           let extraInfo = rawData["extraInfo"] as? String,
+           let extraData = extraInfo.data(using: .utf8),
+           let extraJson = try? JSONSerialization.jsonObject(with: extraData) as? [String: Any],
+           let realTitle = extraJson["title"] as? String,
+           !realTitle.isEmpty {
+            // 如果 extraInfo 中有标题，且与当前标题匹配，说明有真正的标题
+            if realTitle == note.title {
+                return true
+            }
+        }
+        
+        // 检查标题是否与内容的第一行匹配（去除XML标签后）
+        // 如果匹配，说明标题可能是从内容中提取的（处理旧数据），没有真正的标题
+        if !note.content.isEmpty {
+            // 移除XML标签，提取纯文本
+            let textContent = note.content
+                .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                .replacingOccurrences(of: "&amp;", with: "&")
+                .replacingOccurrences(of: "&lt;", with: "<")
+                .replacingOccurrences(of: "&gt;", with: ">")
+                .replacingOccurrences(of: "&quot;", with: "\"")
+                .replacingOccurrences(of: "&apos;", with: "'")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // 获取第一行
+            let firstLine = textContent.split(separator: "\n").first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            
+            // 如果标题与第一行匹配，说明可能是从内容中提取的（处理旧数据）
+            if !firstLine.isEmpty && note.title == firstLine {
+                return false
+            }
+        }
+        
+        // 默认情况下，如果标题不为空且不是"未命名笔记_xxx"，认为有真正的标题
+        return true
     }
     
     private func formatDate(_ date: Date) -> String {

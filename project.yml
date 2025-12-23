@@ -6,10 +6,6 @@ options:
   developmentLanguage: zh-Hans
   xcodeVersion: "15.0"
   
-packages:
-  RichTextKit:
-    path: ./RichTextKit-1.2
-
 targets:
   MiNoteLibrary:
     type: framework
@@ -22,9 +18,6 @@ targets:
     resources:
       - path: Sources/MiNoteLibrary/Web
         type: folder
-    dependencies:
-      - package: RichTextKit
-        product: RichTextKit
     settings:
       base:
         PRODUCT_NAME: MiNoteLibrary

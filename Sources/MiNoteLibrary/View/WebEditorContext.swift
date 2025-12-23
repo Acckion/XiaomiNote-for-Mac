@@ -8,7 +8,7 @@ class WebEditorContext: ObservableObject {
     @Published var hasSelection: Bool = false
     @Published var selectedText: String = ""
     
-    // 格式状态
+    // 格式状态（参考 CKEditor 5：状态由编辑器同步，不手动管理）
     @Published var isBold: Bool = false
     @Published var isItalic: Bool = false
     @Published var isUnderline: Bool = false
@@ -16,6 +16,8 @@ class WebEditorContext: ObservableObject {
     @Published var isHighlighted: Bool = false
     @Published var textAlignment: TextAlignment = .leading
     @Published var headingLevel: Int? = nil
+    @Published var listType: String? = nil  // 'bullet' 或 'order' 或 nil
+    @Published var isInQuote: Bool = false  // 是否在引用块中
     
     // 操作闭包，用于执行编辑器操作
     var executeFormatActionClosure: ((String, String?) -> Void)?
@@ -45,30 +47,30 @@ class WebEditorContext: ObservableObject {
         print("内容已更新，长度: \(content.count)")
     }
     
-    // 格式操作
+    // 格式操作（参考 CKEditor 5：不手动切换状态，状态由编辑器同步）
     func toggleBold() {
         executeFormatActionClosure?("bold", nil)
-        isBold.toggle()
+        // 状态由编辑器通过 formatStateChanged 消息同步，不在这里手动切换
     }
     
     func toggleItalic() {
         executeFormatActionClosure?("italic", nil)
-        isItalic.toggle()
+        // 状态由编辑器通过 formatStateChanged 消息同步，不在这里手动切换
     }
     
     func toggleUnderline() {
         executeFormatActionClosure?("underline", nil)
-        isUnderline.toggle()
+        // 状态由编辑器通过 formatStateChanged 消息同步，不在这里手动切换
     }
     
     func toggleStrikethrough() {
         executeFormatActionClosure?("strikethrough", nil)
-        isStrikethrough.toggle()
+        // 状态由编辑器通过 formatStateChanged 消息同步，不在这里手动切换
     }
     
     func toggleHighlight() {
         executeFormatActionClosure?("highlight", nil)
-        isHighlighted.toggle()
+        // 状态由编辑器通过 formatStateChanged 消息同步，不在这里手动切换
     }
     
     func setTextAlignment(_ alignment: TextAlignment) {
@@ -85,18 +87,17 @@ class WebEditorContext: ObservableObject {
         }
         
         executeFormatActionClosure?("textAlignment", alignmentValue)
-        textAlignment = alignment
+        // 状态由编辑器通过 formatStateChanged 消息同步，不在这里手动设置
     }
     
     func setHeadingLevel(_ level: Int?) {
         if let level = level {
             executeFormatActionClosure?("heading", "\(level)")
-            headingLevel = level
         } else {
             // 清除标题格式
             executeFormatActionClosure?("heading", "0")
-            headingLevel = nil
         }
+        // 状态由编辑器通过 formatStateChanged 消息同步，不在这里手动设置
     }
     
     // 列表操作

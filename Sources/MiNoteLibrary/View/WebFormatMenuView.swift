@@ -8,9 +8,6 @@ struct WebFormatMenuView: View {
     /// Web编辑器上下文
     @ObservedObject var context: WebEditorContext
     
-    @State private var currentStyle: TextStyle = .body
-    @State private var isBlockQuote: Bool = false
-    
     var onFormatAction: ((FormatAction) -> Void)?
     
     init(context: WebEditorContext, onFormatAction: ((FormatAction) -> Void)? = nil) {
@@ -135,14 +132,15 @@ struct WebFormatMenuView: View {
             Divider()
             
             // 文本样式列表（单选：大标题、二级标题、三级标题、正文、无序列表、有序列表）
+            // 根据编辑器状态动态更新勾选状态（参考 CKEditor 5）
             VStack(spacing: 0) {
                 ForEach(TextStyle.allCases, id: \.self) { style in
                     Button(action: {
                         handleStyleSelection(style)
                     }) {
                         HStack {
-                            // 勾选标记
-                            Image(systemName: style == currentStyle ? "checkmark" : "")
+                            // 勾选标记（根据编辑器状态动态显示）
+                            Image(systemName: isStyleSelected(style) ? "checkmark" : "")
                                 .font(.system(size: 12))
                                 .foregroundColor(.yellow)
                                 .frame(width: 20, alignment: .leading)
@@ -154,7 +152,7 @@ struct WebFormatMenuView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(style == currentStyle ? Color.yellow.opacity(0.1) : Color.clear)
+                        .background(isStyleSelected(style) ? Color.yellow.opacity(0.1) : Color.clear)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -165,13 +163,13 @@ struct WebFormatMenuView: View {
             Divider()
             
             // 引用块（可勾选）
+            // 注意：需要添加 isInQuote 状态到 WebEditorContext
             Button(action: {
-                isBlockQuote.toggle()
                 handleBlockQuoteToggle()
             }) {
                 HStack {
-                    // 勾选标记
-                    Image(systemName: isBlockQuote ? "checkmark" : "")
+                    // 勾选标记（根据编辑器状态动态显示）
+                    Image(systemName: context.isInQuote ? "checkmark" : "")
                         .font(.system(size: 12))
                         .foregroundColor(.yellow)
                         .frame(width: 20, alignment: .leading)
@@ -183,7 +181,7 @@ struct WebFormatMenuView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(isBlockQuote ? Color.yellow.opacity(0.1) : Color.clear)
+                .background(context.isInQuote ? Color.yellow.opacity(0.1) : Color.clear)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -256,21 +254,16 @@ struct WebFormatMenuView: View {
         }
         .onChange(of: context.headingLevel) { oldValue, newValue in
             print("🔄 [WebFormatMenuView] 标题级别变化: \(String(describing: oldValue)) -> \(String(describing: newValue))")
-            // 更新当前样式（根据标题级别）
-            if let level = newValue {
-                switch level {
-                case 1:
-                    currentStyle = .title      // 大标题 <size>
-                case 2:
-                    currentStyle = .subtitle   // 二级标题 <mid-size>
-                case 3:
-                    currentStyle = .subheading // 三级标题 <h3-size>
-                default:
-                    currentStyle = .body
-                }
-            } else {
-                currentStyle = .body
-            }
+            // 状态已由编辑器同步，不需要手动更新 currentStyle
+            // currentStyle 会通过 isStyleSelected 方法动态计算
+        }
+        .onChange(of: context.listType) { oldValue, newValue in
+            print("🔄 [WebFormatMenuView] 列表类型变化: \(String(describing: oldValue)) -> \(String(describing: newValue))")
+            // 状态已由编辑器同步
+        }
+        .onChange(of: context.isInQuote) { oldValue, newValue in
+            print("🔄 [WebFormatMenuView] 引用块状态变化: \(oldValue) -> \(newValue)")
+            // 状态已由编辑器同步
         }
         .onAppear {
             print("✅ [WebFormatMenuView] 已显示，context: \(context)")
@@ -283,9 +276,25 @@ struct WebFormatMenuView: View {
         }
     }
     
+    /// 检查样式是否被选中（参考 CKEditor 5 的 isOn 绑定）
+    private func isStyleSelected(_ style: TextStyle) -> Bool {
+        switch style {
+        case .title:
+            return context.headingLevel == 1
+        case .subtitle:
+            return context.headingLevel == 2
+        case .subheading:
+            return context.headingLevel == 3
+        case .body:
+            return context.headingLevel == nil && context.listType == nil
+        case .bulletList:
+            return context.listType == "bullet"
+        case .numberedList:
+            return context.listType == "order"
+        }
+    }
+    
     private func handleStyleSelection(_ style: TextStyle) {
-        currentStyle = style
-        
         switch style {
         case .title:
             // 大标题：使用 <size> 标签
@@ -312,6 +321,7 @@ struct WebFormatMenuView: View {
             context.toggleOrderList()
             onFormatAction?(.orderList)
         }
+        // 不手动更新 currentStyle，由编辑器状态同步
     }
     
     private func handleBlockQuoteToggle() {

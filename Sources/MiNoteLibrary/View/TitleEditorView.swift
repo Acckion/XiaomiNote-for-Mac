@@ -6,6 +6,7 @@ import AppKit
 struct TitleEditorView: NSViewRepresentable {
     @Binding var title: String
     @Binding var isEditable: Bool
+    var hasRealTitle: Bool = true  // 是否有真正的标题（不是从内容中提取的）
     
     func makeNSView(context: Context) -> NSView {
         // 创建一个容器视图
@@ -69,6 +70,19 @@ struct TitleEditorView: NSViewRepresentable {
             object: nil
         )
         
+        // 监听窗口成为主窗口，用于检测焦点变化
+        // 延迟设置，因为此时 textView.window 可能还是 nil
+        DispatchQueue.main.async {
+            if let window = textView.window {
+                NotificationCenter.default.addObserver(
+                    context.coordinator,
+                    selector: #selector(Coordinator.windowDidBecomeKey),
+                    name: NSWindow.didBecomeKeyNotification,
+                    object: window
+                )
+            }
+        }
+        
         return containerView
     }
     
@@ -77,14 +91,50 @@ struct TitleEditorView: NSViewRepresentable {
         
         guard let textView = context.coordinator.textView else { return }
         
-        // 如果内容从外部改变，更新文本视图
+        // 防止在更新过程中递归调用
+        guard !context.coordinator.isUpdatingFromExternal else { return }
+        
+        // 确保在主线程上执行
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async {
+                self.updateNSView(nsView, context: context)
+            }
+            return
+        }
+        
+        // 检查当前显示的是否是占位符
+        // 根据是否有真正的标题确定占位符文本
+        let currentPlaceholder = hasRealTitle == false ? "无标题" : "标题"
+        let currentString = textView.string
+        let isShowingPlaceholder = currentString == currentPlaceholder || currentString == "标题" || currentString == "无标题"
+        
+        // 安全地检查颜色
+        var isPlaceholderColor = false
+        if let textStorage = textView.textStorage, textStorage.length > 0 {
+            let currentColor = textStorage.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+            isPlaceholderColor = currentColor == NSColor.placeholderTextColor || currentColor == NSColor.secondaryLabelColor
+        }
+        
+        // 如果内容从外部改变，且当前不是占位符，更新文本视图
         let cleanTitle = title.isEmpty ? "" : title
-        if textView.string != cleanTitle {
-            context.coordinator.isUpdatingFromExternal = true
-            textView.string = cleanTitle
-            // 确保文本颜色正确（适配深色模式）
-            textView.textColor = NSColor.labelColor
-            context.coordinator.isUpdatingFromExternal = false
+        
+        // 如果当前显示的是占位符，不要更新文本视图（让 updatePlaceholder 处理）
+        if isShowingPlaceholder && isPlaceholderColor {
+            // 如果标题从外部变为非空，需要清除占位符并显示标题
+            if !cleanTitle.isEmpty {
+                context.coordinator.isUpdatingFromExternal = true
+                textView.string = cleanTitle
+                textView.textColor = NSColor.labelColor
+                context.coordinator.isUpdatingFromExternal = false
+            }
+        } else {
+            // 当前不是占位符，正常更新
+            if currentString != cleanTitle {
+                context.coordinator.isUpdatingFromExternal = true
+                textView.string = cleanTitle
+                textView.textColor = NSColor.labelColor
+                context.coordinator.isUpdatingFromExternal = false
+            }
         }
         
         // 确保文本颜色始终正确（适配深色模式）
@@ -101,7 +151,17 @@ struct TitleEditorView: NSViewRepresentable {
         }
         
         // 更新占位符
-        context.coordinator.updatePlaceholder()
+        // 如果标题为空，立即更新占位符（不需要延迟）
+        if title.isEmpty {
+            context.coordinator.updatePlaceholder()
+        } else {
+            // 如果标题不为空，延迟更新占位符（避免在更新过程中触发）
+            let coordinator = context.coordinator
+            DispatchQueue.main.async { [weak coordinator] in
+                guard let coordinator = coordinator else { return }
+                coordinator.updatePlaceholder()
+            }
+        }
         
         textView.isEditable = isEditable
     }
@@ -114,7 +174,10 @@ struct TitleEditorView: NSViewRepresentable {
         var parent: TitleEditorView?
         var textView: NSTextView?
         var isUpdatingFromExternal: Bool = false
-        private let placeholderText = "标题"
+        private var placeholderText: String {
+            // 根据是否有真正的标题显示不同的占位符
+            return parent?.hasRealTitle == false ? "无标题" : "标题"
+        }
         
         /// 处理外观变化（深色/浅色模式切换）
         @objc func appearanceChanged() {
@@ -126,32 +189,67 @@ struct TitleEditorView: NSViewRepresentable {
         }
         
         func updatePlaceholder() {
-            guard let textView = textView,
-                  let textStorage = textView.textStorage else { return }
+            // 确保在主线程上执行
+            guard Thread.isMainThread else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.updatePlaceholder()
+                }
+                return
+            }
             
-            // 如果文本为空，显示占位符
-            if textStorage.string.isEmpty {
+            guard let textView = textView,
+                  let textStorage = textView.textStorage,
+                  let parent = parent else { return }
+            
+            // 防止递归调用
+            guard !isUpdatingFromExternal else { return }
+            
+            let currentPlaceholder = placeholderText
+            let currentString = textStorage.string
+            
+            // 如果文本为空或者是占位符文本，显示占位符
+            if currentString.isEmpty || currentString == currentPlaceholder || currentString == "标题" || currentString == "无标题" {
+                // 检查当前显示的是否已经是正确的占位符
+                var currentColor: NSColor? = nil
+                if textStorage.length > 0 {
+                    currentColor = textStorage.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+                }
+                
+                let expectedColor = parent.hasRealTitle == false ? NSColor.secondaryLabelColor : NSColor.placeholderTextColor
+                if currentString == currentPlaceholder && currentColor == expectedColor {
+                    // 已经是正确的占位符，不需要更新
+                    return
+                }
+                
                 // 设置占位符的行高
                 let paragraphStyle = NSMutableParagraphStyle()
                 paragraphStyle.minimumLineHeight = 50  // 适配40pt字体
                 paragraphStyle.maximumLineHeight = 50  // 适配40pt字体
                 
+                // 使用灰色显示"无标题"占位符
+                let placeholderColor = parent.hasRealTitle == false ? NSColor.secondaryLabelColor : NSColor.placeholderTextColor
+                
                 let placeholderAttr = NSAttributedString(
-                    string: placeholderText,
+                    string: currentPlaceholder,
                     attributes: [
-                        .foregroundColor: NSColor.placeholderTextColor,
+                        .foregroundColor: placeholderColor,
                         .font: NSFont.systemFont(ofSize: 40, weight: .bold),  // 增大占位符字体
                         .paragraphStyle: paragraphStyle
                     ]
                 )
                 isUpdatingFromExternal = true
                 textStorage.setAttributedString(placeholderAttr)
+                // 确保 textView 是可编辑的，即使显示占位符
+                textView.isEditable = true
                 isUpdatingFromExternal = false
             } else {
                 // 如果当前显示的是占位符，清除它
-                if textStorage.string == placeholderText {
-                    let currentColor = textStorage.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
-                    if currentColor == NSColor.placeholderTextColor {
+                if currentString == currentPlaceholder || currentString == "标题" || currentString == "无标题" {
+                    var currentColor: NSColor? = nil
+                    if textStorage.length > 0 {
+                        currentColor = textStorage.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+                    }
+                    if currentColor == NSColor.placeholderTextColor || currentColor == NSColor.secondaryLabelColor {
                         isUpdatingFromExternal = true
                         textStorage.setAttributedString(NSAttributedString(string: ""))
                         isUpdatingFromExternal = false
@@ -166,9 +264,10 @@ struct TitleEditorView: NSViewRepresentable {
                   !isUpdatingFromExternal else { return }
             
             let newTitle = textView.string
+            let currentPlaceholder = placeholderText
             
             // 如果输入的是占位符文本，清空
-            if newTitle == placeholderText {
+            if newTitle == currentPlaceholder || newTitle == "标题" || newTitle == "无标题" {
                 isUpdatingFromExternal = true
                 textView.string = ""
                 textView.textColor = NSColor.labelColor  // 确保文本颜色正确
@@ -178,7 +277,9 @@ struct TitleEditorView: NSViewRepresentable {
             }
             
             // 更新标题（如果不是占位符）
-            if newTitle != parent.title && newTitle != placeholderText {
+            // 即使 newTitle 是空字符串，也要更新 parent.title，以便触发保存
+            if newTitle != currentPlaceholder && newTitle != "标题" && newTitle != "无标题" {
+                // 总是更新 parent.title，即使它和当前值相同（空字符串的情况）
                 parent.title = newTitle
                 // 确保文本颜色正确（适配深色模式）
                 textView.textColor = NSColor.labelColor
@@ -187,16 +288,70 @@ struct TitleEditorView: NSViewRepresentable {
         
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = textView,
-                  let textStorage = textView.textStorage else { return }
+                  let textStorage = textView.textStorage,
+                  !isUpdatingFromExternal else { return }
+            
+            let currentPlaceholder = placeholderText
+            let currentString = textStorage.string
             
             // 如果当前显示的是占位符，且用户点击了，清除占位符
-            if textStorage.string == placeholderText {
-                let currentColor = textStorage.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
-                if currentColor == NSColor.placeholderTextColor {
+            if currentString == currentPlaceholder || currentString == "标题" || currentString == "无标题" {
+                var currentColor: NSColor? = nil
+                if textStorage.length > 0 {
+                    currentColor = textStorage.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+                }
+                if currentColor == NSColor.placeholderTextColor || currentColor == NSColor.secondaryLabelColor {
                     isUpdatingFromExternal = true
                     textStorage.setAttributedString(NSAttributedString(string: ""))
+                    textView.textColor = NSColor.labelColor  // 确保文本颜色正确
+                    // 更新 parent.title 为空字符串，触发保存
+                    if let parent = parent {
+                        parent.title = ""
+                    }
                     isUpdatingFromExternal = false
                 }
+            }
+        }
+        
+        // 处理文本视图获得焦点时清除占位符
+        func textViewDidBecomeFirstResponder(_ textView: NSTextView) {
+            guard let textStorage = textView.textStorage,
+                  !isUpdatingFromExternal else { return }
+            
+            let currentPlaceholder = placeholderText
+            let currentString = textStorage.string
+            
+            // 如果当前显示的是占位符，清除它
+            if currentString == currentPlaceholder || currentString == "标题" || currentString == "无标题" {
+                var currentColor: NSColor? = nil
+                if textStorage.length > 0 {
+                    currentColor = textStorage.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+                }
+                if currentColor == NSColor.placeholderTextColor || currentColor == NSColor.secondaryLabelColor {
+                    isUpdatingFromExternal = true
+                    textStorage.setAttributedString(NSAttributedString(string: ""))
+                    textView.textColor = NSColor.labelColor  // 确保文本颜色正确
+                    // 更新 parent.title 为空字符串，触发保存
+                    if let parent = parent {
+                        parent.title = ""
+                    }
+                    isUpdatingFromExternal = false
+                }
+            }
+        }
+        
+        /// 处理窗口成为主窗口时，检查文本视图是否获得焦点
+        @objc func windowDidBecomeKey(_ notification: Notification) {
+            guard let textView = textView,
+                  let window = notification.object as? NSWindow,
+                  window === textView.window else { return }
+            
+            // 延迟检查，确保焦点已经设置
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self,
+                      let textView = self.textView,
+                      window.firstResponder === textView else { return }
+                self.textViewDidBecomeFirstResponder(textView)
             }
         }
     }

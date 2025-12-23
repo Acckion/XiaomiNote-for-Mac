@@ -246,6 +246,8 @@
         let isInitialized = false;
         let isLoadingContent = false;
         let contentChangeTimer = null;
+        let formatStateSyncTimer = null; // 格式状态同步定时器
+        let isComposing = false; // 是否正在组合输入（IME 输入法输入中）
 
         // ==================== 初始化 ====================
         document.addEventListener('DOMContentLoaded', function() {
@@ -259,35 +261,184 @@
                     return;
                 }
                 
+            // 初始化 DOM Writer（统一 DOM 操作接口）
+            domWriter = new DOMWriter(editor);
+                
             // 设置占位符
             if (!editor.innerHTML.trim()) {
                 editor.innerHTML = '<div class="placeholder">开始输入...</div>';
             }
 
+            // 组合输入开始（IME 输入法开始输入，如中文输入）
+            editor.addEventListener('compositionstart', function() {
+                isComposing = true;
+                console.log('[Editor] 组合输入开始');
+                // 清除待处理的定时器，避免在组合输入期间触发
+                clearTimeout(contentChangeTimer);
+                clearTimeout(formatStateSyncTimer);
+            });
+
+            // 组合输入更新（IME 输入法输入过程中）
+            editor.addEventListener('compositionupdate', function() {
+                // 保持 isComposing 为 true
+                isComposing = true;
+            });
+
+            // 组合输入结束（IME 输入法输入完成）
+            editor.addEventListener('compositionend', function() {
+                isComposing = false;
+                console.log('[Editor] 组合输入结束');
+                // 组合输入结束后，延迟触发内容变化通知（等待 DOM 更新）
+                setTimeout(function() {
+                    if (!isLoadingContent && !isComposing) {
+                        notifyContentChanged();
+                    }
+                }, 50); // 50ms 延迟，确保 DOM 更新完成
+            });
+
             // 内容变化监听（防抖处理）
-            editor.addEventListener('input', function() {
-                if (isLoadingContent) {
+            // 注意：在组合输入期间不触发，避免打断输入
+            editor.addEventListener('input', function(e) {
+                if (isLoadingContent || isComposing) {
                     return;
                 }
                 clearTimeout(contentChangeTimer);
                 contentChangeTimer = setTimeout(function() {
-                    notifyContentChanged();
+                    if (!isComposing) {
+                        notifyContentChanged();
+                    }
                 }, 300); // 300ms 防抖
             });
 
             // 选择变化监听（用于同步格式状态）
+            // 参考 CKEditor 5：在 selectionchange 时同步所有格式状态
+            // 注意：不要在这里修复光标位置，避免与格式操作冲突导致光标跳动
+            // 注意：在组合输入期间不触发，避免打断输入
             document.addEventListener('selectionchange', function() {
-                if (isLoadingContent || !isInitialized) {
+                if (isLoadingContent || !isInitialized || isComposing) {
                     return;
                 }
-                syncFormatState();
+                // 延迟同步，避免频繁更新
+                // 使用 requestAnimationFrame 确保状态检查在 DOM 更新后执行
+                clearTimeout(formatStateSyncTimer);
+                formatStateSyncTimer = setTimeout(function() {
+                    if (!isComposing) {
+                        requestAnimationFrame(() => {
+                            if (!isComposing && !isLoadingContent) {
+                                syncFormatState();
+                            }
+                        });
+                    }
+                }, 30); // 减少防抖延迟到 30ms，提高响应速度
+            });
+
+            // 输入事件时也同步格式状态（参考 CKEditor 5）
+            // 注意：在组合输入期间不触发，避免打断输入
+            editor.addEventListener('input', function() {
+                if (isLoadingContent || !isInitialized || isComposing) {
+                    return;
+                }
+                // 延迟同步，避免频繁更新
+                // 使用 requestAnimationFrame 确保状态检查在 DOM 更新后执行
+                clearTimeout(formatStateSyncTimer);
+                formatStateSyncTimer = setTimeout(function() {
+                    if (!isComposing) {
+                        requestAnimationFrame(() => {
+                            if (!isComposing && !isLoadingContent) {
+                                syncFormatState();
+                            }
+                        });
+                    }
+                }, 30); // 减少防抖延迟到 30ms，提高响应速度
+            });
+
+            // 键盘事件时也同步格式状态（参考 CKEditor 5）
+            // 注意：在组合输入期间不触发，避免打断输入
+            editor.addEventListener('keyup', function() {
+                if (isLoadingContent || !isInitialized || isComposing) {
+                    return;
+                }
+                // 延迟同步，避免频繁更新
+                // 使用 requestAnimationFrame 确保状态检查在 DOM 更新后执行
+                clearTimeout(formatStateSyncTimer);
+                formatStateSyncTimer = setTimeout(function() {
+                    if (!isComposing) {
+                        requestAnimationFrame(() => {
+                            if (!isComposing && !isLoadingContent) {
+                                syncFormatState();
+                            }
+                        });
+                    }
+                }, 30); // 减少防抖延迟到 30ms，提高响应速度
             });
 
             // 处理回车键事件
+            // 注意：在组合输入期间不处理，避免打断输入
+            // 使用 capture 阶段捕获事件，确保在其他处理之前执行
             editor.addEventListener('keydown', function(e) {
+                if (isComposing) {
+                    return; // 组合输入期间不处理
+                }
                 if (e.key === 'Enter' && !e.shiftKey) {
+                    // 在处理回车键之前，先检查是否在 checkbox、bullet 或 order 中
+                    // 如果是，立即阻止默认行为，避免浏览器创建额外的元素
+                    const selection = window.getSelection();
+                    if (selection && selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        let container = range.commonAncestorContainer;
+                        if (container.nodeType === Node.TEXT_NODE) {
+                            container = container.parentElement;
+                        }
+                        
+                        let current = container;
+                        while (current && current !== editor) {
+                            if (current.classList && (
+                                current.classList.contains('mi-note-checkbox') ||
+                                current.classList.contains('mi-note-bullet') ||
+                                current.classList.contains('mi-note-order')
+                            )) {
+                                // 在特殊元素中，立即阻止默认行为
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleEnterKey(e);
+                                return;
+                            }
+                            current = current.parentElement;
+                        }
+                    }
+                    
+                    // 不在特殊元素中，正常处理
                     handleEnterKey(e);
                 }
+            }, true); // 使用 capture 阶段，确保在其他处理之前执行
+
+            // 使用 MutationObserver 监听 DOM 变化，自动修复光标位置（参考 CKEditor 5 的 Selection Post-Fixer）
+            // 这确保在每次 DOM 操作后，光标位置都是有效的
+            let mutationObserverTimer = null;
+            const mutationObserver = new MutationObserver(function(mutations) {
+                // 只在非加载内容时修复光标位置
+                if (isLoadingContent || !isInitialized || isComposing) {
+                    return;
+                }
+                
+                // 防抖处理，避免频繁调用 normalizeCursorPosition
+                clearTimeout(mutationObserverTimer);
+                mutationObserverTimer = setTimeout(() => {
+                    // 延迟修复，确保 DOM 操作完成
+                    requestAnimationFrame(() => {
+                        if (!isComposing && !isLoadingContent) {
+                            normalizeCursorPosition();
+                        }
+                    });
+                }, 10); // 10ms 防抖，平衡响应速度和性能
+            });
+            
+            // 开始监听 DOM 变化
+            mutationObserver.observe(editor, {
+                childList: true,      // 监听子节点的添加和删除
+                subtree: true,        // 监听所有后代节点
+                characterData: true,  // 监听文本内容变化
+                attributes: false     // 不监听属性变化（避免频繁触发）
             });
 
             // 初始化完成
@@ -302,8 +453,913 @@
             }
         });
 
+        // ==================== DOM Writer（统一 DOM 操作接口）====================
+        /**
+         * DOM Writer 类（参考 CKEditor 5 的 writer 接口）
+         * 
+         * 封装所有 DOM 操作，确保：
+         * 1. 操作原子性（要么全部成功，要么全部失败）
+         * 2. 自动处理光标位置保存/恢复
+         * 3. 自动触发状态同步
+         * 4. 支持批量操作
+         */
+        class DOMWriter {
+            constructor(editor) {
+                this.editor = editor;
+                this.batchMode = false;
+                this.batchOperations = [];
+                this.shouldSyncState = false;
+                
+                // 操作历史（用于撤销/重做）
+                this.operationHistory = [];
+                this.historyIndex = -1;
+                this.maxHistorySize = 50; // 最多保存 50 个操作
+            }
+
+            /**
+             * 开始批量操作模式
+             * 在批量操作期间，DOM 更新会延迟执行
+             */
+            beginBatch() {
+                this.batchMode = true;
+                this.batchOperations = [];
+            }
+
+            /**
+             * 结束批量操作模式
+             * 执行所有延迟的 DOM 操作
+             * @param {Object} metadata - 批量操作的元数据（用于历史记录）
+             */
+            endBatch(metadata = null) {
+                this.batchMode = false;
+                const operations = this.batchOperations;
+                this.batchOperations = [];
+                
+                // 记录批量操作前的状态
+                const beforeState = this._captureState();
+                const savedPosition = window.MiNoteWebEditor._saveCursorPosition();
+                
+                // 执行所有操作
+                operations.forEach(op => op());
+                
+                // 记录批量操作后的状态
+                const afterState = this._captureState();
+                
+                // 添加到历史记录（如果不是加载内容操作）
+                if (!isLoadingContent && metadata !== null) {
+                    this._addToHistory({
+                        type: metadata.type || 'batch',
+                        beforeState: beforeState,
+                        afterState: afterState,
+                        savedPosition: savedPosition,
+                        timestamp: Date.now()
+                    });
+                }
+                
+                // 批量操作后，统一处理光标和状态
+                if (this.shouldSyncState) {
+                    requestAnimationFrame(() => {
+                        if (!isComposing && !isLoadingContent) {
+                            normalizeCursorPosition();
+                            syncFormatState();
+                        }
+                    });
+                    this.shouldSyncState = false;
+                }
+            }
+
+            /**
+             * 执行 DOM 操作（自动处理光标和状态）
+             * @param {Function} operation - DOM 操作函数
+             * @param {boolean} syncState - 是否同步状态（默认 true）
+             * @param {Object} metadata - 操作元数据（用于历史记录）
+             */
+            execute(operation, syncState = true, metadata = null) {
+                // 保存光标位置
+                const savedPosition = window.MiNoteWebEditor._saveCursorPosition();
+                
+                // 记录操作前的状态（用于撤销）
+                const beforeState = this._captureState();
+                
+                if (this.batchMode) {
+                    // 批量模式：延迟执行
+                    this.batchOperations.push(() => {
+                        operation();
+                        if (syncState) {
+                            this.shouldSyncState = true;
+                        }
+                    });
+                } else {
+                    // 立即执行
+                    operation();
+                    
+                    // 记录操作后的状态
+                    const afterState = this._captureState();
+                    
+                    // 添加到历史记录（如果不是加载内容操作）
+                    // 注意：metadata 为 null 时表示不记录历史（如加载内容、属性变化等）
+                    if (!isLoadingContent && metadata !== null) {
+                        this._addToHistory({
+                            type: metadata.type || 'operation',
+                            beforeState: beforeState,
+                            afterState: afterState,
+                            savedPosition: savedPosition,
+                            timestamp: Date.now()
+                        });
+                    }
+                    
+                    // 恢复光标位置
+                    if (savedPosition) {
+                        requestAnimationFrame(() => {
+                            window.MiNoteWebEditor._restoreCursorPosition(savedPosition);
+                        });
+                    }
+                    
+                    // 同步状态
+                    if (syncState) {
+                        requestAnimationFrame(() => {
+                            if (!isComposing && !isLoadingContent) {
+                                normalizeCursorPosition();
+                                syncFormatState();
+                            }
+                        });
+                    }
+                }
+            }
+
+            /**
+             * 执行操作并记录历史（便捷方法）
+             * @param {Function} operation - DOM 操作函数
+             * @param {string} type - 操作类型
+             * @param {boolean} syncState - 是否同步状态（默认 true）
+             */
+            executeWithHistory(operation, type, syncState = true) {
+                this.execute(operation, syncState, { type: type });
+            }
+
+            /**
+             * 执行 execCommand 并记录历史
+             * 由于 execCommand 是浏览器原生 API，不能直接包装，所以需要在调用前后记录状态
+             * @param {string} command - execCommand 命令
+             * @param {boolean} showUI - 是否显示 UI（默认 false）
+             * @param {string} value - 命令值（可选）
+             * @param {string} type - 操作类型（用于历史记录）
+             * @returns {boolean} execCommand 的返回值
+             */
+            executeCommandWithHistory(command, showUI = false, value = null, type = 'format') {
+                // 记录操作前的状态
+                const beforeState = this._captureState();
+                const savedPosition = window.MiNoteWebEditor._saveCursorPosition();
+                
+                // 执行 execCommand
+                const result = document.execCommand(command, showUI, value);
+                
+                // 如果执行成功，记录操作后的状态
+                if (result && !isLoadingContent) {
+                    // 延迟捕获状态，确保 DOM 更新完成
+                    requestAnimationFrame(() => {
+                        const afterState = this._captureState();
+                        
+                        // 添加到历史记录
+                        this._addToHistory({
+                            type: type,
+                            command: command,
+                            beforeState: beforeState,
+                            afterState: afterState,
+                            savedPosition: savedPosition,
+                            timestamp: Date.now()
+                        });
+                        
+                        // 同步状态
+                        if (!isComposing && !isLoadingContent) {
+                            normalizeCursorPosition();
+                            syncFormatState();
+                        }
+                    });
+                }
+                
+                return result;
+            }
+
+            /**
+             * 捕获当前编辑器状态（用于历史记录）
+             * @returns {Object} 状态快照
+             */
+            _captureState() {
+                return {
+                    html: this.editor.innerHTML,
+                    cursorPosition: window.MiNoteWebEditor._saveCursorPosition()
+                };
+            }
+
+            /**
+             * 添加到操作历史
+             * @param {Object} operation - 操作记录
+             */
+            _addToHistory(operation) {
+                // 如果当前不在历史末尾，删除后面的记录（重做分支被覆盖）
+                if (this.historyIndex < this.operationHistory.length - 1) {
+                    this.operationHistory = this.operationHistory.slice(0, this.historyIndex + 1);
+                }
+                
+                // 添加到历史
+                this.operationHistory.push(operation);
+                this.historyIndex = this.operationHistory.length - 1;
+                
+                // 限制历史大小
+                if (this.operationHistory.length > this.maxHistorySize) {
+                    this.operationHistory.shift();
+                    this.historyIndex--;
+                }
+            }
+
+            /**
+             * 撤销上一个操作
+             * @returns {boolean} 是否成功撤销
+             */
+            undo() {
+                if (this.historyIndex < 0) {
+                    return false; // 没有可撤销的操作
+                }
+                
+                const operation = this.operationHistory[this.historyIndex];
+                
+                // 恢复之前的状态
+                this.editor.innerHTML = operation.beforeState.html;
+                
+                // 恢复光标位置
+                if (operation.beforeState.cursorPosition) {
+                    requestAnimationFrame(() => {
+                        window.MiNoteWebEditor._restoreCursorPosition(operation.beforeState.cursorPosition);
+                    });
+                }
+                
+                this.historyIndex--;
+                
+                // 同步状态
+                requestAnimationFrame(() => {
+                    if (!isComposing && !isLoadingContent) {
+                        normalizeCursorPosition();
+                        syncFormatState();
+                        notifyContentChanged();
+                    }
+                });
+                
+                return true;
+            }
+
+            /**
+             * 重做上一个操作
+             * @returns {boolean} 是否成功重做
+             */
+            redo() {
+                if (this.historyIndex >= this.operationHistory.length - 1) {
+                    return false; // 没有可重做的操作
+                }
+                
+                this.historyIndex++;
+                const operation = this.operationHistory[this.historyIndex];
+                
+                // 恢复之后的状态
+                this.editor.innerHTML = operation.afterState.html;
+                
+                // 恢复光标位置
+                if (operation.afterState.cursorPosition) {
+                    requestAnimationFrame(() => {
+                        window.MiNoteWebEditor._restoreCursorPosition(operation.afterState.cursorPosition);
+                    });
+                }
+                
+                // 同步状态
+                requestAnimationFrame(() => {
+                    if (!isComposing && !isLoadingContent) {
+                        normalizeCursorPosition();
+                        syncFormatState();
+                        notifyContentChanged();
+                    }
+                });
+                
+                return true;
+            }
+
+            /**
+             * 清空操作历史
+             */
+            clearHistory() {
+                this.operationHistory = [];
+                this.historyIndex = -1;
+            }
+
+            /**
+             * 检查是否可以撤销
+             * @returns {boolean}
+             */
+            canUndo() {
+                return this.historyIndex >= 0;
+            }
+
+            /**
+             * 检查是否可以重做
+             * @returns {boolean}
+             */
+            canRedo() {
+                return this.historyIndex < this.operationHistory.length - 1;
+            }
+
+            /**
+             * 插入节点
+             * @param {Node} node - 要插入的节点
+             * @param {Node} referenceNode - 参考节点
+             * @param {boolean} before - 是否插入到参考节点之前（默认 false，插入之后）
+             */
+            insertNode(node, referenceNode, before = false) {
+                this.execute(() => {
+                    const parent = referenceNode.parentNode;
+                    if (!parent) {
+                        console.warn('[DOMWriter] 参考节点没有父节点，无法插入');
+                        return;
+                    }
+                    
+                    if (before) {
+                        parent.insertBefore(node, referenceNode);
+                    } else {
+                        if (referenceNode.nextSibling) {
+                            parent.insertBefore(node, referenceNode.nextSibling);
+                        } else {
+                            parent.appendChild(node);
+                        }
+                    }
+                });
+            }
+
+            /**
+             * 移除节点
+             * @param {Node} node - 要移除的节点
+             */
+            removeNode(node) {
+                this.execute(() => {
+                    if (node.parentNode) {
+                        node.parentNode.removeChild(node);
+                    }
+                });
+            }
+
+            /**
+             * 替换节点
+             * @param {Node} oldNode - 旧节点
+             * @param {Node} newNode - 新节点
+             */
+            replaceNode(oldNode, newNode) {
+                this.execute(() => {
+                    if (oldNode.parentNode) {
+                        oldNode.parentNode.replaceChild(newNode, oldNode);
+                    }
+                });
+            }
+
+            /**
+             * 设置元素属性
+             * @param {Element} element - 元素
+             * @param {string} name - 属性名
+             * @param {string} value - 属性值
+             */
+            setAttribute(element, name, value) {
+                this.execute(() => {
+                    element.setAttribute(name, value);
+                }, false); // 属性变化不需要立即同步状态
+            }
+
+            /**
+             * 移除元素属性
+             * @param {Element} element - 元素
+             * @param {string} name - 属性名
+             */
+            removeAttribute(element, name) {
+                this.execute(() => {
+                    element.removeAttribute(name);
+                }, false);
+            }
+
+            /**
+             * 设置元素类名
+             * @param {Element} element - 元素
+             * @param {string} className - 类名
+             * @param {boolean} add - true 添加，false 移除
+             */
+            setClass(element, className, add) {
+                this.execute(() => {
+                    if (add) {
+                        element.classList.add(className);
+                    } else {
+                        element.classList.remove(className);
+                    }
+                });
+            }
+
+            /**
+             * 设置元素样式
+             * @param {Element} element - 元素
+             * @param {string} property - 样式属性
+             * @param {string} value - 样式值
+             */
+            setStyle(element, property, value) {
+                this.execute(() => {
+                    element.style[property] = value;
+                }, false);
+            }
+
+            /**
+             * 设置元素内容
+             * @param {Element} element - 元素
+             * @param {string} content - 内容（HTML 字符串）
+             */
+            setContent(element, content) {
+                this.execute(() => {
+                    element.innerHTML = content;
+                });
+            }
+
+            /**
+             * 增量更新 DOM（只更新变化的部分）
+             * 参考 CKEditor 5 的增量更新机制
+             * @param {string} newHtml - 新的 HTML 内容
+             * @param {string} oldHtml - 旧的 HTML 内容（可选，如果不提供则使用当前内容）
+             * @returns {boolean} 是否成功更新
+             */
+            incrementalUpdate(newHtml, oldHtml = null) {
+                if (!oldHtml) {
+                    oldHtml = this.editor.innerHTML;
+                }
+
+                // 如果内容完全相同，不需要更新
+                if (oldHtml === newHtml) {
+                    return false;
+                }
+
+                // 简单的增量更新策略：
+                // 1. 如果内容差异很大（超过 50%），完全重新加载
+                // 2. 否则，尝试只更新变化的部分
+
+                const oldLength = oldHtml.length;
+                const newLength = newHtml.length;
+                const lengthDiff = Math.abs(newLength - oldLength) / Math.max(oldLength, newLength, 1);
+
+                // 如果差异超过 50%，完全重新加载
+                if (lengthDiff > 0.5) {
+                    this.execute(() => {
+                        this.editor.innerHTML = newHtml;
+                    }, true, null); // 不记录历史（因为是外部加载）
+                    return true;
+                }
+
+                // 尝试增量更新：比较新旧内容的差异
+                // 简化策略：如果内容结构相似，尝试保留光标位置附近的节点
+                try {
+                    // 创建临时容器来解析新 HTML
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = newHtml;
+
+                    // 比较子节点数量
+                    const oldChildren = Array.from(this.editor.children);
+                    const newChildren = Array.from(tempDiv.children);
+
+                    // 如果子节点数量相同，尝试逐个更新
+                    if (oldChildren.length === newChildren.length) {
+                        let hasChanges = false;
+                        this.beginBatch();
+
+                        for (let i = 0; i < oldChildren.length; i++) {
+                            const oldChild = oldChildren[i];
+                            const newChild = newChildren[i];
+
+                            // 比较节点的 outerHTML
+                            if (oldChild.outerHTML !== newChild.outerHTML) {
+                                // 节点不同，替换它
+                                this.replaceNode(oldChild, newChild.cloneNode(true));
+                                hasChanges = true;
+                            }
+                        }
+
+                        this.endBatch(null); // 不记录历史
+
+                        if (hasChanges) {
+                            return true;
+                        }
+                    }
+
+                    // 如果增量更新失败，回退到完全重新加载
+                    this.execute(() => {
+                        this.editor.innerHTML = newHtml;
+                    }, true, null); // 不记录历史
+                    return true;
+                } catch (e) {
+                    console.warn('[DOMWriter] 增量更新失败，回退到完全重新加载:', e);
+                    // 回退到完全重新加载
+                    this.execute(() => {
+                        this.editor.innerHTML = newHtml;
+                    }, true, null); // 不记录历史
+                    return true;
+                }
+            }
+
+            /**
+             * 设置光标位置
+             * @param {Node} node - 节点
+             * @param {number} offset - 偏移量
+             */
+            setSelection(node, offset) {
+                this.execute(() => {
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    range.setStart(node, offset);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }, false); // 设置光标不需要同步状态
+            }
+        }
+
+        // 全局 DOM Writer 实例
+        let domWriter = null;
+
+        /**
+         * 从元素获取缩进级别
+         * @param {HTMLElement} element - 元素
+         * @returns {string} 缩进级别
+         */
+        function getIndentFromElement(element) {
+            if (!element) return '1';
+            
+            // 先检查类名中的 indent-X
+            const classMatch = element.className.match(/indent-(\d+)/);
+            if (classMatch) {
+                return classMatch[1];
+            }
+            
+            // 再检查 style 中的 padding-left
+            const style = element.getAttribute('style') || '';
+            const match = style.match(/padding-left:\s*(\d+)px/);
+            if (match) {
+                const paddingLeft = parseInt(match[1], 10);
+                const indent = Math.floor(paddingLeft / 20) + 1;
+                return indent.toString();
+            }
+            return '1';
+        }
+        
+        /**
+         * 设置元素的缩进级别
+         * @param {HTMLElement} element - 元素
+         * @param {number} indent - 缩进级别（1-5）
+         */
+        function setIndentForElement(element, indent) {
+            if (!element) return;
+            
+            // 限制缩进级别在 1-5 之间
+            indent = Math.max(1, Math.min(5, indent));
+            
+            if (element.classList.contains('mi-note-text')) {
+                // 文本元素：使用类名
+                // 移除所有 indent-X 类
+                element.className = element.className.replace(/\s*indent-\d+/g, '');
+                // 添加新的 indent 类
+                if (indent > 1) {
+                    element.classList.add(`indent-${indent}`);
+                }
+            } else if (element.classList.contains('mi-note-bullet') || 
+                       element.classList.contains('mi-note-order') || 
+                       element.classList.contains('mi-note-checkbox')) {
+                // 列表和待办项：使用 padding-left
+                const paddingLeft = (indent - 1) * 20;
+                const currentStyle = element.getAttribute('style') || '';
+                // 移除现有的 padding-left
+                const newStyle = currentStyle.replace(/padding-left:\s*\d+px;?/g, '').trim();
+                // 添加新的 padding-left
+                element.setAttribute('style', newStyle + (newStyle ? ' ' : '') + `padding-left: ${paddingLeft}px;`);
+            }
+        }
+
         // ==================== window.MiNoteWebEditor 接口 ====================
         window.MiNoteWebEditor = {
+            /**
+             * 保存当前光标位置（参考 CKEditor 5 的光标管理）
+             * 改进：使用文本内容作为锚点，更可靠
+             * @returns {Object|null} 保存的光标位置信息
+             */
+            _saveCursorPosition: function() {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) {
+                    return null;
+                }
+
+                const range = selection.getRangeAt(0);
+                const editor = document.getElementById('editor-content');
+                if (!editor || !editor.contains(range.commonAncestorContainer)) {
+                    return null;
+                }
+
+                try {
+                    // 方法1：保存文本锚点（最可靠的方法，参考 CKEditor 5 的文本位置标记）
+                    // 在光标前后保存一些文本内容作为锚点，用于恢复时定位
+                    const startNode = range.startContainer;
+                    const endNode = range.endContainer;
+                    
+                    // 获取光标前后的文本内容作为锚点
+                    let startAnchorText = '';
+                    let endAnchorText = '';
+                    let startAnchorOffset = 0;
+                    let endAnchorOffset = 0;
+                    
+                    if (startNode.nodeType === Node.TEXT_NODE) {
+                        const text = startNode.textContent || '';
+                        const offset = range.startOffset;
+                        // 保存光标前 20 个字符和后 20 个字符作为锚点
+                        const beforeText = text.substring(Math.max(0, offset - 20), offset);
+                        const afterText = text.substring(offset, Math.min(text.length, offset + 20));
+                        startAnchorText = beforeText + '|' + afterText; // 使用 | 标记光标位置
+                        startAnchorOffset = beforeText.length;
+                    } else {
+                        // 如果不是文本节点，尝试获取父文本节点
+                        const textNode = this._findTextNode(startNode, range.startOffset);
+                        if (textNode) {
+                            const text = textNode.textContent || '';
+                            const offset = textNode === startNode ? range.startOffset : 0;
+                            const beforeText = text.substring(Math.max(0, offset - 20), offset);
+                            const afterText = text.substring(offset, Math.min(text.length, offset + 20));
+                            startAnchorText = beforeText + '|' + afterText;
+                            startAnchorOffset = beforeText.length;
+                        }
+                    }
+                    
+                    if (endNode.nodeType === Node.TEXT_NODE) {
+                        const text = endNode.textContent || '';
+                        const offset = range.endOffset;
+                        const beforeText = text.substring(Math.max(0, offset - 20), offset);
+                        const afterText = text.substring(offset, Math.min(text.length, offset + 20));
+                        endAnchorText = beforeText + '|' + afterText;
+                        endAnchorOffset = beforeText.length;
+                    } else {
+                        const textNode = this._findTextNode(endNode, range.endOffset);
+                        if (textNode) {
+                            const text = textNode.textContent || '';
+                            const offset = textNode === endNode ? range.endOffset : 0;
+                            const beforeText = text.substring(Math.max(0, offset - 20), offset);
+                            const afterText = text.substring(offset, Math.min(text.length, offset + 20));
+                            endAnchorText = beforeText + '|' + afterText;
+                            endAnchorOffset = beforeText.length;
+                        }
+                    }
+
+                    // 方法2：保存路径信息（作为备用）
+                    const startPath = this._getNodePath(range.startContainer, editor);
+                    const endPath = this._getNodePath(range.endContainer, editor);
+                    
+                    return {
+                        // 文本锚点（主要方法）
+                        startAnchorText: startAnchorText,
+                        startAnchorOffset: startAnchorOffset,
+                        endAnchorText: endAnchorText,
+                        endAnchorOffset: endAnchorOffset,
+                        // 路径信息（备用方法）
+                        startPath: startPath,
+                        startOffset: range.startOffset,
+                        endPath: endPath,
+                        endOffset: range.endOffset,
+                        collapsed: range.collapsed,
+                        // 原始节点引用（如果 DOM 没变可以直接使用）
+                        startContainer: range.startContainer,
+                        endContainer: range.endContainer
+                    };
+                } catch (e) {
+                    console.warn('[loadContent] 保存光标位置失败:', e);
+                    return null;
+                }
+            },
+
+            /**
+             * 查找文本节点（用于光标位置保存）
+             * @param {Node} node - 起始节点
+             * @param {number} offset - 偏移量
+             * @returns {Node|null} 文本节点
+             */
+            _findTextNode: function(node, offset) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    return node;
+                }
+                
+                // 如果是元素节点，根据偏移量查找子节点
+                if (node.nodeType === Node.ELEMENT_NODE && node.childNodes.length > 0) {
+                    if (offset < node.childNodes.length) {
+                        const child = node.childNodes[offset];
+                        if (child.nodeType === Node.TEXT_NODE) {
+                            return child;
+                        }
+                        // 递归查找
+                        return this._findTextNode(child, 0);
+                    }
+                }
+                
+                return null;
+            },
+
+            /**
+             * 获取节点在编辑器中的路径（用于恢复光标位置）
+             * 参考 CKEditor 5 的路径保存机制
+             * @param {Node} node - 节点
+             * @param {HTMLElement} root - 根元素
+             * @returns {Array|null} 节点路径
+             */
+            _getNodePath: function(node, root) {
+                const path = [];
+                let current = node;
+
+                while (current && current !== root && current !== document.body) {
+                    // 计算当前节点在父节点中的索引
+                    let index = 0;
+                    let sibling = current;
+                    while (sibling.previousSibling) {
+                        sibling = sibling.previousSibling;
+                        index++;
+                    }
+                    path.unshift(index);
+                    current = current.parentNode;
+                }
+
+                return path.length > 0 ? path : null;
+            },
+
+            /**
+             * 恢复光标位置（参考 CKEditor 5 的光标管理）
+             * @param {Object} savedPosition - 保存的光标位置信息
+             */
+            _restoreCursorPosition: function(savedPosition) {
+                if (!savedPosition) {
+                    return;
+                }
+
+                const selection = window.getSelection();
+                const editor = document.getElementById('editor-content');
+                if (!editor || !selection) {
+                    return;
+                }
+
+                try {
+                    // 方法1：使用文本锚点恢复（最可靠，即使 DOM 结构变化也能恢复）
+                    if (savedPosition.startAnchorText) {
+                        const anchorText = savedPosition.startAnchorText;
+                        const parts = anchorText.split('|');
+                        if (parts.length === 2) {
+                            const beforeText = parts[0];
+                            const afterText = parts[1];
+                            
+                            // 在整个编辑器中搜索匹配的文本
+                            const editorText = editor.textContent || editor.innerText || '';
+                            const searchText = beforeText + afterText;
+                            const index = editorText.indexOf(searchText);
+                            
+                            if (index !== -1) {
+                                // 找到匹配的文本，计算光标位置
+                                const targetOffset = index + beforeText.length;
+                                
+                                // 找到对应的文本节点和偏移量
+                                const walker = document.createTreeWalker(
+                                    editor,
+                                    NodeFilter.SHOW_TEXT,
+                                    null
+                                );
+                                
+                                let currentOffset = 0;
+                                let targetNode = null;
+                                let targetNodeOffset = 0;
+                                
+                                let node = walker.nextNode();
+                                while (node) {
+                                    const nodeLength = node.textContent.length;
+                                    if (currentOffset + nodeLength >= targetOffset) {
+                                        targetNode = node;
+                                        targetNodeOffset = targetOffset - currentOffset;
+                                        break;
+                                    }
+                                    currentOffset += nodeLength;
+                                    node = walker.nextNode();
+                                }
+                                
+                                if (targetNode) {
+                                    const range = document.createRange();
+                                    range.setStart(targetNode, Math.min(targetNodeOffset, targetNode.textContent.length));
+                                    range.collapse(true);
+                                    selection.removeAllRanges();
+                                    selection.addRange(range);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+
+                    // 方法2：使用路径恢复（如果 DOM 结构没变）
+                    if (savedPosition.startPath && savedPosition.endPath) {
+                        const startNode = this._getNodeByPath(savedPosition.startPath, editor);
+                        const endNode = this._getNodeByPath(savedPosition.endPath, editor);
+
+                        if (startNode && endNode) {
+                            try {
+                                const range = document.createRange();
+                                const startOffset = Math.min(savedPosition.startOffset || 0, 
+                                    startNode.nodeType === Node.TEXT_NODE ? startNode.textContent.length : 0);
+                                const endOffset = Math.min(savedPosition.endOffset || 0,
+                                    endNode.nodeType === Node.TEXT_NODE ? endNode.textContent.length : 0);
+                                
+                                range.setStart(startNode, startOffset);
+                                range.setEnd(endNode, endOffset);
+                                
+                                selection.removeAllRanges();
+                                selection.addRange(range);
+                                return;
+                            } catch (e) {
+                                // 路径恢复失败，继续尝试其他方法
+                            }
+                        }
+                    }
+
+                    // 方法3：使用保存的容器恢复（如果 DOM 结构完全没变）
+                    if (savedPosition.startContainer && savedPosition.endContainer) {
+                        try {
+                            const range = document.createRange();
+                            const startOffset = Math.min(savedPosition.startOffset || 0,
+                                savedPosition.startContainer.nodeType === Node.TEXT_NODE 
+                                    ? savedPosition.startContainer.textContent.length : 0);
+                            const endOffset = Math.min(savedPosition.endOffset || 0,
+                                savedPosition.endContainer.nodeType === Node.TEXT_NODE 
+                                    ? savedPosition.endContainer.textContent.length : 0);
+                            
+                            range.setStart(savedPosition.startContainer, startOffset);
+                            range.setEnd(savedPosition.endContainer, endOffset);
+                            
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                            return;
+                        } catch (e) {
+                            // 节点已不存在，继续尝试其他方法
+                        }
+                    }
+
+                    // 方法4：回退到文档末尾（避免光标跳到开头）
+                    const walker = document.createTreeWalker(
+                        editor,
+                        NodeFilter.SHOW_TEXT,
+                        null
+                    );
+                    let lastTextNode = null;
+                    let textNode = walker.nextNode();
+                    while (textNode) {
+                        lastTextNode = textNode;
+                        textNode = walker.nextNode();
+                    }
+                    if (lastTextNode) {
+                        const range = document.createRange();
+                        const offset = Math.min(savedPosition.startOffset || 0, lastTextNode.textContent.length);
+                        range.setStart(lastTextNode, offset);
+                        range.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                } catch (e) {
+                    console.warn('[loadContent] 恢复光标位置失败:', e);
+                    // 最后的回退：将光标放到文档末尾
+                    try {
+                        const range = document.createRange();
+                        range.selectNodeContents(editor);
+                        range.collapse(false);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    } catch (e2) {
+                        console.error('[loadContent] 回退光标位置也失败:', e2);
+                    }
+                }
+            },
+
+            /**
+             * 根据路径获取节点（参考 CKEditor 5 的路径恢复机制）
+             * @param {Array} path - 节点路径
+             * @param {HTMLElement} root - 根元素
+             * @returns {Node|null} 节点
+             */
+            _getNodeByPath: function(path, root) {
+                let current = root;
+                
+                for (let i = 0; i < path.length; i++) {
+                    const index = path[i];
+                    
+                    if (!current || !current.childNodes || index >= current.childNodes.length) {
+                        return null;
+                    }
+                    
+                    current = current.childNodes[index];
+                }
+                
+                return current;
+            },
+
             /**
              * 加载 XML 内容到编辑器
              * @param {string} xmlContent - 小米笔记 XML 格式内容
@@ -316,17 +1372,86 @@
                     return '编辑器元素不存在';
                 }
 
+                // 如果正在组合输入，延迟加载（避免打断输入）
+                if (isComposing) {
+                    console.log('[loadContent] 正在组合输入，延迟加载');
+                    // 延迟到组合输入结束后再加载
+                    setTimeout(() => {
+                        if (!isComposing) {
+                            this.loadContent(xmlContent);
+                        }
+                    }, 100);
+                    return '延迟加载（组合输入中）';
+                }
+
                 console.log('[loadContent] 开始加载内容，XML长度:', xmlContent ? xmlContent.length : 0);
 
-                // 如果内容没有实际变化，不需要重新加载
+                // 如果内容没有实际变化，不需要重新加载（避免光标位置丢失）
                 if (currentContent === xmlContent) {
                     console.log('[loadContent] 内容未变化，跳过加载');
                     return '内容未变化';
                 }
 
+                // 检查当前编辑器内容是否与要加载的内容相同（避免不必要的重新加载）
+                // 改进：更严格的内容比较，避免误判
+                const currentHtml = editor.innerHTML;
+                // 排除占位符
+                if (currentHtml && !currentHtml.includes('开始输入...') && !currentHtml.includes('placeholder')) {
+                    try {
+                        // 先比较 XML 内容（更快）
+                        if (currentContent === xmlContent) {
+                            console.log('[loadContent] XML 内容相同，跳过加载');
+                            // 清除待恢复的光标位置（因为不需要重新加载）
+                            window._pendingCursorPosition = null;
+                            window._hasPendingCursorPosition = false;
+                            return '内容已是最新';
+                        }
+                        
+                        // 如果 XML 不同，再比较转换后的 HTML（更准确但更慢）
+                        // 注意：在比较前，先保存当前光标位置，因为转换可能会影响 DOM
+                        const savedPositionBeforeCompare = window.MiNoteWebEditor._saveCursorPosition();
+                        const currentXml = htmlToXmlConverter.convert(currentHtml);
+                        
+                        // 规范化比较：去除末尾的空行差异（可能是转换导致的微小差异）
+                        const normalizedCurrentXml = currentXml.replace(/\n+$/, '');
+                        const normalizedXmlContent = xmlContent.replace(/\n+$/, '');
+                        
+                        if (normalizedCurrentXml === normalizedXmlContent) {
+                            console.log('[loadContent] 编辑器内容与要加载的内容相同（规范化比较），跳过加载');
+                            currentContent = xmlContent; // 更新 currentContent，但不重新加载
+                            // 清除待恢复的光标位置（因为不需要重新加载）
+                            window._pendingCursorPosition = null;
+                            window._hasPendingCursorPosition = false;
+                            
+                            // 如果之前保存了光标位置，恢复它（因为转换可能影响了 DOM）
+                            if (savedPositionBeforeCompare) {
+                                requestAnimationFrame(() => {
+                                    window.MiNoteWebEditor._restoreCursorPosition(savedPositionBeforeCompare);
+                                });
+                            }
+                            
+                            return '内容已是最新';
+                        }
+                    } catch (e) {
+                        // 转换失败，继续加载
+                        console.warn('[loadContent] 检查内容是否相同时转换失败:', e);
+                    }
+                }
+
+                // 保存当前光标位置（在重新加载前）
+                // 优先使用全局保存的位置（来自 notifyContentChanged），如果没有则保存当前位置
+                const savedPosition = window._pendingCursorPosition || this._saveCursorPosition();
+                // 清除全局保存的位置，避免重复使用
+                window._pendingCursorPosition = null;
+
                 // 设置加载标志
                 isLoadingContent = true;
                 currentContent = xmlContent;
+                
+                // 清空操作历史（因为这是外部加载，不是用户操作）
+                if (domWriter) {
+                    domWriter.clearHistory();
+                }
 
                 // 如果内容为空，显示占位符
                 if (!xmlContent || xmlContent.trim() === '') {
@@ -342,11 +1467,41 @@
                     if (!html || html.trim() === '') {
                         editor.innerHTML = '<div class="placeholder">开始输入...</div>';
                     } else {
-                        editor.innerHTML = html;
+                        // 尝试增量更新（减少 DOM 重新加载）
+                        const currentHtml = editor.innerHTML;
+                        if (domWriter && currentHtml && !currentHtml.includes('开始输入...') && !currentHtml.includes('placeholder')) {
+                            // 使用增量更新
+                            const updated = domWriter.incrementalUpdate(html, currentHtml);
+                            if (updated) {
+                                console.log('[loadContent] 使用增量更新，HTML长度:', html.length);
+                            } else {
+                                console.log('[loadContent] 内容未变化（增量更新检查），HTML长度:', html.length);
+                            }
+                        } else {
+                            // 完全重新加载
+                            editor.innerHTML = html;
+                            console.log('[loadContent] 完全重新加载，HTML长度:', html.length);
+                        }
                     }
-                    console.log('[loadContent] 内容已加载，HTML长度:', html.length);
                     isInitialized = true;
-                    } catch (error) {
+                    
+                    // 恢复光标位置（在 DOM 更新后）
+                    // 改进：使用双重 requestAnimationFrame 确保 DOM 完全渲染
+                    if (savedPosition) {
+                        // 第一帧：等待 DOM 更新完成
+                        requestAnimationFrame(() => {
+                            // 第二帧：确保浏览器完成渲染后再恢复光标
+                            requestAnimationFrame(() => {
+                                this._restoreCursorPosition(savedPosition);
+                                // 恢复后清除标志
+                                window._hasPendingCursorPosition = false;
+                            });
+                        });
+                    } else {
+                        // 如果没有待恢复的位置，清除标志
+                        window._hasPendingCursorPosition = false;
+                    }
+                } catch (error) {
                     console.error('[loadContent] 转换失败:', error);
                     console.error('[loadContent] 错误详情:', error.message, error.stack);
                     editor.innerHTML = '<div class="placeholder">内容加载失败</div>';
@@ -397,6 +1552,54 @@
                 console.log('[forceSaveContent] 强制保存当前内容');
                 notifyContentChanged();
                 return '内容已强制保存';
+            },
+
+            /**
+             * 撤销上一个操作
+             * @returns {string} 状态信息
+             */
+            undo: function() {
+                if (!domWriter) {
+                    return 'DOMWriter 未初始化';
+                }
+                
+                if (domWriter.undo()) {
+                    return '已撤销';
+                } else {
+                    return '没有可撤销的操作';
+                }
+            },
+
+            /**
+             * 重做上一个操作
+             * @returns {string} 状态信息
+             */
+            redo: function() {
+                if (!domWriter) {
+                    return 'DOMWriter 未初始化';
+                }
+                
+                if (domWriter.redo()) {
+                    return '已重做';
+                } else {
+                    return '没有可重做的操作';
+                }
+            },
+
+            /**
+             * 检查是否可以撤销
+             * @returns {boolean}
+             */
+            canUndo: function() {
+                return domWriter ? domWriter.canUndo() : false;
+            },
+
+            /**
+             * 检查是否可以重做
+             * @returns {boolean}
+             */
+            canRedo: function() {
+                return domWriter ? domWriter.canRedo() : false;
             },
             
             /**
@@ -470,6 +1673,13 @@
                             return this.insertCheckbox();
                         case 'horizontalRule':
                             return this.insertHorizontalRule();
+                        case 'indent':
+                            if (value === 'increase') {
+                                return this.increaseIndent();
+                            } else if (value === 'decrease') {
+                                return this.decreaseIndent();
+                            }
+                            return '无效的缩进操作';
                         default:
                             console.log('[executeFormatAction] 未实现的操作:', action);
                             return '操作暂未实现: ' + action;
@@ -520,34 +1730,100 @@
                     }
 
                     if (range.collapsed) {
-                        // 光标位置：需要清除或应用格式
+                        // 光标位置：切换格式（参考 CKEditor 5 的 AttributeCommand.execute）
+                        // CKEditor 5 对于折叠选择使用 writer.setSelectionAttribute/writer.removeSelectionAttribute
+                        // 我们使用 execCommand 来实现类似效果
                         if (isCurrentlyFormatted) {
-                            // 当前已应用格式，需要清除
-                            // 将光标移出格式元素，确保后续输入不继承格式
+                            // 当前已应用格式，需要清除（类似 writer.removeSelectionAttribute）
                             this.clearFormatAtCursor(range, format, tagName, className);
                         } else {
-                            // 当前未应用格式，需要应用
-                            // 获取更新后的 range（可能已经被移动）
-                            const updatedRange = selection.rangeCount > 0 ? selection.getRangeAt(0) : range;
-                            
-                            // 确保光标不在其他格式元素内，然后应用格式
-                            this.ensureCursorOutsideFormatElements(updatedRange, format, tagName, className);
-                            
-                            // 再次获取 range（可能已经被移动）
-                            const finalRange = selection.rangeCount > 0 ? selection.getRangeAt(0) : updatedRange;
+                            // 当前未应用格式，需要应用（类似 writer.setSelectionAttribute）
+                            // 参考 CKEditor 5：对于折叠选择，直接设置选择属性，后续输入会自动继承
                             
                             if (tagName) {
-                                // 使用 execCommand 应用格式（会在输入时生效）
-                                document.execCommand(format, false, null);
+                                // 对于下划线和删除线，需要特殊处理以确保它们可以共存
+                                // execCommand 可能会清除其他 text-decoration 格式
+                                if (format === 'underline' || format === 'strikethrough') {
+                                    // 检查是否已经有另一种格式
+                                    const otherFormat = format === 'underline' ? 'strikethrough' : 'underline';
+                                    const hasOtherFormat = this._checkFormatStateInternal(range, otherFormat);
+                                    
+                                    if (hasOtherFormat) {
+                                        // 如果已经有另一种格式，需要手动处理以确保两种格式共存
+                                        // 找到包含另一种格式的元素
+                                        let container = range.commonAncestorContainer;
+                                        if (container.nodeType === Node.TEXT_NODE) {
+                                            container = container.parentElement;
+                                        }
+                                        
+                                        let otherFormatElement = null;
+                                        let current = container;
+                                        const otherTagName = format === 'underline' ? 's' : 'u';
+                                        
+                                        while (current && current !== document.body) {
+                                            if (current.nodeType === Node.ELEMENT_NODE) {
+                                                const tag = current.tagName ? current.tagName.toLowerCase() : '';
+                                                if (tag === otherTagName || 
+                                                    (otherTagName === 's' && (tag === 'strike' || tag === 'del'))) {
+                                                    otherFormatElement = current;
+                                                    break;
+                                                }
+                                            }
+                                            current = current.parentElement || current.parentNode;
+                                        }
+                                        
+                                        if (otherFormatElement) {
+                                            // 在已有格式元素内创建新格式元素
+                                            const newFormatElement = document.createElement(tagName);
+                                            newFormatElement.innerHTML = '\u200B';
+                                            
+                                            // 在格式元素内插入
+                                            if (otherFormatElement.firstChild) {
+                                                otherFormatElement.insertBefore(newFormatElement, otherFormatElement.firstChild);
+                                            } else {
+                                                otherFormatElement.appendChild(newFormatElement);
+                                            }
+                                            
+                                            // 移动光标到新格式元素内
+                                            const newRange = document.createRange();
+                                            newRange.setStart(newFormatElement.firstChild, 0);
+                                            newRange.collapse(true);
+                                            selection.removeAllRanges();
+                                            selection.addRange(newRange);
+                                        } else {
+                                            // 没有其他格式，使用 execCommand（记录历史）
+                                            if (domWriter) {
+                                                domWriter.executeCommandWithHistory(format, false, null, 'format-' + format);
+                                            } else {
+                                                document.execCommand(format, false, null);
+                                            }
+                                        }
+                                    } else {
+                                        // 没有其他格式，使用 execCommand（记录历史）
+                                        if (domWriter) {
+                                            domWriter.executeCommandWithHistory(format, false, null, 'format-' + format);
+                                        } else {
+                                            document.execCommand(format, false, null);
+                                        }
+                                    }
+                                } else {
+                                    // 其他格式（bold, italic），直接使用 execCommand（记录历史）
+                                    if (domWriter) {
+                                        domWriter.executeCommandWithHistory(format, false, null, 'format-' + format);
+                                    } else {
+                                        document.execCommand(format, false, null);
+                                    }
+                                }
                             } else if (className) {
-                                // 高亮：创建高亮 span 等待输入
+                                // 高亮：需要特殊处理（execCommand 不支持自定义类名）
+                                // 创建高亮 span 等待输入
                                 const highlightSpan = document.createElement('span');
                                 highlightSpan.className = className;
                                 highlightSpan.style.backgroundColor = 'rgba(154, 255, 232, 0.69)';
                                 highlightSpan.innerHTML = '\u200B';
                                 
                                 // 确保在正确的位置插入
-                                finalRange.insertNode(highlightSpan);
+                                range.insertNode(highlightSpan);
                                 
                                 // 移动光标到 span 内
                                 const newRange = document.createRange();
@@ -558,15 +1834,87 @@
                             }
                         }
                     } else {
-                        // 有选中文本：切换格式
+                        // 有选中文本：切换格式（参考 CKEditor 5 的 AttributeCommand.execute）
+                        // CKEditor 5 对于非折叠选择使用 writer.setAttribute/writer.removeAttribute 在范围内操作
                         if (isCurrentlyFormatted) {
-                            // 当前已应用格式，需要清除
+                            // 当前已应用格式，需要清除（类似 writer.removeAttribute）
                             this.removeFormatFromSelection(range, format, tagName, className);
                         } else {
-                            // 当前未应用格式，需要应用
+                            // 当前未应用格式，需要应用（类似 writer.setAttribute）
                             if (tagName) {
-                                document.execCommand(format, false, null);
+                                // 对于下划线和删除线，需要特殊处理以确保它们可以共存
+                                if (format === 'underline' || format === 'strikethrough') {
+                                    // 检查是否已经有另一种格式
+                                    const otherFormat = format === 'underline' ? 'strikethrough' : 'underline';
+                                    const hasOtherFormat = this._checkFormatStateInternal(range, otherFormat);
+                                    
+                                    if (hasOtherFormat) {
+                                        // 如果已经有另一种格式，需要手动处理以确保两种格式共存
+                                        // 获取选中文本
+                                        const selectedText = range.extractContents();
+                                        
+                                        // 创建新格式元素，并将选中文本放入其中
+                                        const newFormatElement = document.createElement(tagName);
+                                        
+                                        // 检查选中内容是否已经在另一种格式元素内
+                                        let container = range.commonAncestorContainer;
+                                        if (container.nodeType === Node.TEXT_NODE) {
+                                            container = container.parentElement;
+                                        }
+                                        
+                                        let otherFormatElement = null;
+                                        let current = container;
+                                        const otherTagName = format === 'underline' ? 's' : 'u';
+                                        
+                                        while (current && current !== document.body) {
+                                            if (current.nodeType === Node.ELEMENT_NODE) {
+                                                const tag = current.tagName ? current.tagName.toLowerCase() : '';
+                                                if (tag === otherTagName || 
+                                                    (otherTagName === 's' && (tag === 'strike' || tag === 'del'))) {
+                                                    otherFormatElement = current;
+                                                    break;
+                                                }
+                                            }
+                                            current = current.parentElement || current.parentNode;
+                                        }
+                                        
+                                        if (otherFormatElement) {
+                                            // 在已有格式元素内创建新格式元素
+                                            newFormatElement.appendChild(selectedText);
+                                            otherFormatElement.appendChild(newFormatElement);
+                                            
+                                            // 恢复选择
+                                            const newRange = document.createRange();
+                                            newRange.selectNodeContents(newFormatElement);
+                                            selection.removeAllRanges();
+                                            selection.addRange(newRange);
+                                        } else {
+                                            // 没有其他格式，使用 execCommand（记录历史）
+                                            range.insertNode(selectedText);
+                                            if (domWriter) {
+                                                domWriter.executeCommandWithHistory(format, false, null, 'format-' + format);
+                                            } else {
+                                                document.execCommand(format, false, null);
+                                            }
+                                        }
+                                    } else {
+                                        // 没有其他格式，使用 execCommand（记录历史）
+                                        if (domWriter) {
+                                            domWriter.executeCommandWithHistory(format, false, null, 'format-' + format);
+                                        } else {
+                                            document.execCommand(format, false, null);
+                                        }
+                                    }
+                                } else {
+                                    // 其他格式（bold, italic），直接使用 execCommand（记录历史）
+                                    if (domWriter) {
+                                        domWriter.executeCommandWithHistory(format, false, null, 'format-' + format);
+                                    } else {
+                                        document.execCommand(format, false, null);
+                                    }
+                                }
                             } else if (className) {
+                                // 高亮：需要特殊处理
                                 const selectedText = range.toString();
                                 const highlightSpan = document.createElement('span');
                                 highlightSpan.className = className;
@@ -575,7 +1923,7 @@
                                 range.deleteContents();
                                 range.insertNode(highlightSpan);
                                 
-                                // 恢复选择
+                                // 恢复选择（保持选中状态，类似 CKEditor 5 的行为）
                                 selection.removeAllRanges();
                                 const newRange = document.createRange();
                                 newRange.selectNodeContents(highlightSpan);
@@ -585,6 +1933,13 @@
                     }
 
                     notifyContentChanged();
+                    // 格式操作后立即同步状态（参考 CKEditor 5）
+                    // 使用 requestAnimationFrame 确保状态检查在 DOM 更新后执行
+                    requestAnimationFrame(() => {
+                        if (!isComposing && !isLoadingContent) {
+                            syncFormatState();
+                        }
+                    });
                     return format + ' 格式已' + (isCurrentlyFormatted ? '清除' : '应用');
                 } catch (error) {
                     console.error('[applyFormat] 应用格式失败:', error);
@@ -609,6 +1964,158 @@
                 }
                 
                 return this._checkFormatStateInternal(range, format);
+            },
+
+            /**
+             * 检查标题级别（参考 CKEditor 5 的 heading command value）
+             * @param {Range} range - 选择范围（可选）
+             * @returns {number|null} 标题级别 (1=大标题, 2=二级标题, 3=三级标题, null=正文)
+             */
+            checkHeadingLevel: function(range) {
+                if (!range) {
+                    const selection = window.getSelection();
+                    if (!selection.rangeCount) {
+                        return null;
+                    }
+                    range = selection.getRangeAt(0);
+                }
+
+                let container = range.commonAncestorContainer;
+                if (container.nodeType === Node.TEXT_NODE) {
+                    container = container.parentElement;
+                }
+
+                // 向上查找标题元素
+                let current = container;
+                while (current && current !== document.body) {
+                    if (current.nodeType === Node.ELEMENT_NODE) {
+                        const className = current.className || '';
+                        // 检查标题类名
+                        if (className.includes('mi-note-size')) {
+                            return 1; // 大标题 <size>
+                        } else if (className.includes('mi-note-mid-size')) {
+                            return 2; // 二级标题 <mid-size>
+                        } else if (className.includes('mi-note-h3-size')) {
+                            return 3; // 三级标题 <h3-size>
+                        }
+                    }
+                    current = current.parentElement || current.parentNode;
+                }
+
+                return null; // 正文
+            },
+
+            /**
+             * 检查列表类型（参考 CKEditor 5 的 list command value）
+             * @param {Range} range - 选择范围（可选）
+             * @returns {string|null} 列表类型 ('bullet'=无序列表, 'order'=有序列表, null=非列表)
+             */
+            checkListType: function(range) {
+                if (!range) {
+                    const selection = window.getSelection();
+                    if (!selection.rangeCount) {
+                        return null;
+                    }
+                    range = selection.getRangeAt(0);
+                }
+
+                let container = range.commonAncestorContainer;
+                if (container.nodeType === Node.TEXT_NODE) {
+                    container = container.parentElement;
+                }
+
+                // 向上查找列表元素
+                let current = container;
+                while (current && current !== document.body) {
+                    if (current.nodeType === Node.ELEMENT_NODE) {
+                        const className = current.className || '';
+                        // 检查列表类名
+                        if (className.includes('mi-note-bullet')) {
+                            return 'bullet'; // 无序列表 <bullet>
+                        } else if (className.includes('mi-note-order')) {
+                            return 'order'; // 有序列表 <order>
+                        }
+                    }
+                    current = current.parentElement || current.parentNode;
+                }
+
+                return null; // 非列表
+            },
+
+            /**
+             * 检查文本对齐方式（参考 CKEditor 5 的 alignment command value）
+             * @param {Range} range - 选择范围（可选）
+             * @returns {string} 对齐方式 ('left', 'center', 'right')
+             */
+            checkTextAlignment: function(range) {
+                if (!range) {
+                    const selection = window.getSelection();
+                    if (!selection.rangeCount) {
+                        return 'left';
+                    }
+                    range = selection.getRangeAt(0);
+                }
+
+                let container = range.commonAncestorContainer;
+                if (container.nodeType === Node.TEXT_NODE) {
+                    container = container.parentElement;
+                }
+
+                // 向上查找文本元素（mi-note-text）
+                let current = container;
+                while (current && current !== document.body) {
+                    if (current.nodeType === Node.ELEMENT_NODE) {
+                        const className = current.className || '';
+                        // 检查对齐类名
+                        if (className.includes('mi-note-text')) {
+                            // 检查是否有对齐样式（使用 center 和 right 类名）
+                            if (current.classList.contains('center')) {
+                                return 'center'; // 居中 <center>
+                            } else if (current.classList.contains('right')) {
+                                return 'right'; // 居右 <right>
+                            }
+                            return 'left'; // 默认左对齐
+                        }
+                    }
+                    current = current.parentElement || current.parentNode;
+                }
+
+                return 'left'; // 默认左对齐
+            },
+
+            /**
+             * 检查是否在引用块中（参考 CKEditor 5 的 blockQuote command value）
+             * @param {Range} range - 选择范围（可选）
+             * @returns {boolean} 是否在引用块中
+             */
+            checkQuoteState: function(range) {
+                if (!range) {
+                    const selection = window.getSelection();
+                    if (!selection.rangeCount) {
+                        return false;
+                    }
+                    range = selection.getRangeAt(0);
+                }
+
+                let container = range.commonAncestorContainer;
+                if (container.nodeType === Node.TEXT_NODE) {
+                    container = container.parentElement;
+                }
+
+                // 向上查找引用块元素
+                let current = container;
+                while (current && current !== document.body) {
+                    if (current.nodeType === Node.ELEMENT_NODE) {
+                        const className = current.className || '';
+                        // 检查引用块类名
+                        if (className.includes('mi-note-quote')) {
+                            return true; // 在引用块中 <quote>
+                        }
+                    }
+                    current = current.parentElement || current.parentNode;
+                }
+
+                return false; // 不在引用块中
             },
 
             /**
@@ -639,7 +2146,8 @@
                         break;
                 }
 
-                // 方法1：使用 document.queryCommandState 检查格式状态（最准确，类似 CKEditor 5）
+                // 方法1：优先使用 document.queryCommandState（最准确，类似 CKEditor 5 的 selection.hasAttribute）
+                // 这是最接近 CKEditor 5 实现的方法
                 try {
                     if (tagName) {
                         const state = document.queryCommandState(format);
@@ -652,7 +2160,8 @@
                     // queryCommandState 可能不支持某些格式，继续使用 DOM 检查
                 }
 
-                // 方法2：使用 DOM 检查格式状态（更可靠的方法，参考 CKEditor 5）
+                // 方法2：使用 DOM 检查格式状态（参考 CKEditor 5 的 _getValueFromFirstAllowedNode）
+                // CKEditor 5 会检查选择范围内的第一个允许该属性的节点
                 let container = range.commonAncestorContainer;
                 
                 // 如果是文本节点，检查其父元素
@@ -682,15 +2191,28 @@
                     current = current.parentElement || current.parentNode;
                 }
 
-                // 方法3：如果光标位置没有格式，检查选中文本是否包含格式
+                // 方法3：对于非折叠选择，检查选中文本是否包含格式（参考 CKEditor 5 的 range.getItems）
+                // CKEditor 5 会遍历选择范围内的所有节点
                 if (!range.collapsed) {
                     try {
                         const contents = range.cloneContents();
                         // 检查克隆内容中是否包含格式元素
                         if (tagName) {
-                            const formatElements = contents.querySelectorAll(tagName + ', strong, em, strike, del');
+                            // 检查所有可能的格式标签变体
+                            const formatElements = contents.querySelectorAll(
+                                tagName + ', strong, em, strike, del, s'
+                            );
                             if (formatElements.length > 0) {
-                                return true;
+                                // 检查是否所有文本都在格式元素内
+                                // 如果选中文本完全在格式元素内，返回 true
+                                const allTextInFormat = Array.from(formatElements).some(el => {
+                                    const elText = el.textContent || '';
+                                    const rangeText = range.toString();
+                                    return elText.includes(rangeText) || rangeText.includes(elText);
+                                });
+                                if (allTextInFormat) {
+                                    return true;
+                                }
                             }
                         }
                         if (className) {
@@ -708,7 +2230,12 @@
             },
 
             /**
-             * 清除光标位置的格式（改进版，参考 CKEditor 5 的实现方式）
+             * 清除光标位置的格式（优化版，参考 CKEditor 5 的 AttributeCommand 实现）
+             * 
+             * CKEditor 5 的核心思路：
+             * - 对于折叠选择，使用 writer.removeSelectionAttribute（类似 execCommand 的 removeFormat）
+             * - 自动处理光标位置，确保后续输入不继承格式
+             * 
              * @param {Range} range - 选择范围
              * @param {string} format - 格式类型
              * @param {string} tagName - 标签名
@@ -717,38 +2244,135 @@
             clearFormatAtCursor: function(range, format, tagName, className) {
                 const selection = window.getSelection();
                 
-                // 方法1：尝试使用 removeFormat 命令（更可靠，类似 CKEditor 5 的方式）
-                // 这是最接近标准实现的方法
-                try {
-                    // 先使用 removeFormat 清除所有格式
-                    document.execCommand('removeFormat', false, null);
-                    // 然后再次应用格式以切换状态（这会清除当前格式）
-                    // 注意：这里不需要再次应用，因为我们要清除格式
-                    // 但为了确保状态正确，我们检查一下
-                    const stillFormatted = document.queryCommandState(format);
-                    if (!stillFormatted) {
-                        // 格式已清除，光标位置应该已经正确
-                        return;
+                // 方法1：优先使用 execCommand（最可靠，类似 CKEditor 5 的 writer.removeSelectionAttribute）
+                // 但只对 execCommand 支持的格式（bold, italic, underline, strikethrough）使用
+                // 高亮等自定义格式直接使用手动方法
+                if (tagName && !className) {
+                    try {
+                        const isFormatted = document.queryCommandState(format);
+                        if (isFormatted) {
+                            // 检查光标是否在格式元素末尾
+                            let container = range.commonAncestorContainer;
+                            let formatElement = null;
+                            let isAtEnd = false;
+                            
+                            // 向上查找格式元素
+                            let current = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+                            while (current && current !== document.body) {
+                                if (current.nodeType === Node.ELEMENT_NODE) {
+                                    const tag = current.tagName ? current.tagName.toLowerCase() : '';
+                                    if (tagName && (
+                                        tag === tagName || 
+                                        (tag === 'strong' && tagName === 'b') || 
+                                        (tag === 'em' && tagName === 'i') ||
+                                        (tag === 'strike' && tagName === 's') ||
+                                        (tag === 'del' && tagName === 's')
+                                    )) {
+                                        formatElement = current;
+                                        // 检查光标是否在格式元素末尾
+                                        if (container.nodeType === Node.TEXT_NODE) {
+                                            const textNode = container;
+                                            const lastTextNode = this.getLastTextNode(formatElement);
+                                            if (textNode === lastTextNode && range.startOffset === textNode.textContent.length) {
+                                                isAtEnd = true;
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                                current = current.parentElement || current.parentNode;
+                            }
+                            
+                            // 如果光标在格式元素末尾，先移出再清除格式（避免光标跳到开头）
+                            if (isAtEnd && formatElement) {
+                                const parent = formatElement.parentElement;
+                                if (parent) {
+                                    // 在格式元素后查找或创建文本节点
+                                    let nextTextNode = formatElement.nextSibling;
+                                    while (nextTextNode && nextTextNode.nodeType !== Node.TEXT_NODE) {
+                                        if (nextTextNode.nodeType === Node.ELEMENT_NODE) {
+                                            const walker = document.createTreeWalker(
+                                                nextTextNode,
+                                                NodeFilter.SHOW_TEXT,
+                                                null
+                                            );
+                                            const firstText = walker.nextNode();
+                                            if (firstText) {
+                                                nextTextNode = firstText;
+                                                break;
+                                            }
+                                        }
+                                        nextTextNode = nextTextNode.nextSibling;
+                                    }
+                                    
+                                    if (!nextTextNode || nextTextNode.nodeType !== Node.TEXT_NODE) {
+                                        // 创建新文本节点
+                                        nextTextNode = document.createTextNode('');
+                                        if (formatElement.nextSibling) {
+                                            parent.insertBefore(nextTextNode, formatElement.nextSibling);
+                                        } else {
+                                            parent.appendChild(nextTextNode);
+                                        }
+                                    }
+                                    
+                                    // 移动光标到格式元素后的文本节点
+                                    const newRange = document.createRange();
+                                    newRange.setStart(nextTextNode, 0);
+                                    newRange.collapse(true);
+                                    selection.removeAllRanges();
+                                    selection.addRange(newRange);
+                                    
+                                    // 现在清除格式（光标已经在格式元素外）
+                                    if (domWriter) {
+                                        domWriter.executeCommandWithHistory(format, false, null, 'format-' + format);
+                                    } else {
+                                        document.execCommand(format, false, null);
+                                    }
+                                    return;
+                                }
+                            }
+                            
+                            // 使用 execCommand 切换格式（会清除当前格式）（记录历史）
+                            if (domWriter) {
+                                domWriter.executeCommandWithHistory(format, false, null, 'format-' + format);
+                            } else {
+                                document.execCommand(format, false, null);
+                            }
+                            
+                            // 验证格式是否已清除
+                            const stillFormatted = document.queryCommandState(format);
+                            if (!stillFormatted) {
+                                // 格式已清除，execCommand 已经处理了光标位置
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        // execCommand 可能不支持，继续使用手动方法
+                        console.warn('[clearFormatAtCursor] execCommand 清除格式失败，使用手动方法:', e);
                     }
-                } catch (e) {
-                    // removeFormat 可能不支持，继续使用手动方法
-                    console.warn('[clearFormatAtCursor] removeFormat 命令失败，使用手动方法:', e);
                 }
                 
-                // 方法2：手动清除（当 removeFormat 不可用时）
-                // 查找光标位置所在的格式元素
+                // 方法2：手动清除（当 execCommand 不可用或失败时，或自定义格式如高亮）
+                // 参考 CKEditor 5 的思路：找到格式元素，将光标移出并移除格式元素
+                // 关键：如果光标在格式元素末尾，清除格式后光标应该在格式元素后（不是开头）
                 let container = range.commonAncestorContainer;
                 let formatElement = null;
                 
-                // 向上查找格式标签
+                // 向上查找格式标签（支持所有变体）
                 let current = container;
                 while (current && current !== document.body) {
                     if (current.nodeType === Node.ELEMENT_NODE) {
                         const tag = current.tagName ? current.tagName.toLowerCase() : '';
-                        // 检查是否是目标格式元素
-                        if (tagName && (tag === tagName || (tag === 'strong' && tagName === 'b') || (tag === 'em' && tagName === 'i'))) {
-                            formatElement = current;
-                            break;
+                        // 检查是否是目标格式元素（支持所有变体）
+                        if (tagName) {
+                            if (tag === tagName || 
+                                (tag === 'strong' && tagName === 'b') || 
+                                (tag === 'em' && tagName === 'i') ||
+                                (tag === 'strike' && tagName === 's') ||
+                                (tag === 'del' && tagName === 's')) {
+                                formatElement = current;
+                                break;
+                            }
                         }
                         if (className && current.classList && current.classList.contains(className)) {
                             formatElement = current;
@@ -759,56 +2383,259 @@
                 }
 
                 if (formatElement) {
-                    // 如果光标在格式元素内，需要将光标移出格式元素
+                    // 光标在格式元素内，需要移出并移除格式元素（参考 CKEditor 5 的光标管理）
                     const parent = formatElement.parentElement;
                     if (!parent) {
-                        // 如果没有父元素，使用 execCommand
-                        try {
-                            document.execCommand(format, false, null);
-                        } catch (e) {
-                            console.warn('[clearFormatAtCursor] execCommand 清除格式失败:', e);
+                        // 如果没有父元素，尝试使用 execCommand（仅对支持的格式）
+                        if (tagName) {
+                            try {
+                                if (domWriter) {
+                                    domWriter.executeCommandWithHistory(format, false, null, 'format-' + format);
+                                } else {
+                                    document.execCommand(format, false, null);
+                                }
+                            } catch (e) {
+                                console.warn('[clearFormatAtCursor] execCommand 清除格式失败:', e);
+                            }
                         }
                         return;
                     }
 
-                    // 检查光标是否在格式元素的末尾
-                    let isAtEnd = false;
+                    // 确定光标是否在格式元素的末尾
+                    let cursorIsAtEnd = false;
                     if (container.nodeType === Node.TEXT_NODE) {
                         const textNode = container;
-                        const offset = range.startOffset;
                         const lastTextNode = this.getLastTextNode(formatElement);
-                        if (textNode === lastTextNode) {
-                            isAtEnd = offset === textNode.textContent.length;
-                        }
-                    } else {
-                        const lastTextNode = this.getLastTextNode(formatElement);
-                        if (lastTextNode) {
-                            const offset = range.startOffset;
-                            isAtEnd = offset === lastTextNode.textContent.length;
+                        if (textNode === lastTextNode && range.startOffset === textNode.textContent.length) {
+                            cursorIsAtEnd = true;
                         }
                     }
+
+                    // 对于自定义格式（如高亮），需要特殊处理
+                    // 关键：如果光标在格式元素末尾，只移出光标，不展开整个元素（与加粗逻辑一致）
+                    // 但是，移出光标后，高亮格式已经被"清除"（因为光标不在高亮元素内了）
+                    // 这与加粗的逻辑一致：移出光标后，execCommand 会清除格式
+                    if (className) {
+                        if (cursorIsAtEnd) {
+                            // 光标在高亮元素末尾，只移出光标，保留高亮元素内容
+                            // 在格式元素后查找或创建文本节点
+                            let nextTextNode = formatElement.nextSibling;
+                            while (nextTextNode && nextTextNode.nodeType !== Node.TEXT_NODE) {
+                                if (nextTextNode.nodeType === Node.ELEMENT_NODE) {
+                                    const walker = document.createTreeWalker(
+                                        nextTextNode,
+                                        NodeFilter.SHOW_TEXT,
+                                        null
+                                    );
+                                    const firstText = walker.nextNode();
+                                    if (firstText) {
+                                        nextTextNode = firstText;
+                                        break;
+                                    }
+                                }
+                                nextTextNode = nextTextNode.nextSibling;
+                            }
+                            
+                            if (!nextTextNode || nextTextNode.nodeType !== Node.TEXT_NODE) {
+                                // 创建新文本节点
+                                nextTextNode = document.createTextNode('');
+                                if (formatElement.nextSibling) {
+                                    parent.insertBefore(nextTextNode, formatElement.nextSibling);
+                                } else {
+                                    parent.appendChild(nextTextNode);
+                                }
+                            }
+                            
+                            // 移动光标到格式元素后的文本节点
+                            // 注意：光标移出后，高亮格式已经被"清除"（因为光标不在高亮元素内了）
+                            // 这与加粗的逻辑一致：移出光标后，execCommand 会清除格式
+                            const newRange = document.createRange();
+                            newRange.setStart(nextTextNode, 0);
+                            newRange.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                            
+                            // 验证：确保光标不在高亮元素内
+                            // 如果光标仍然在高亮元素内，需要进一步处理
+                            const currentContainer = newRange.commonAncestorContainer;
+                            let currentParent = currentContainer.nodeType === Node.TEXT_NODE ? currentContainer.parentElement : currentContainer;
+                            let stillInHighlight = false;
+                            while (currentParent && currentParent !== document.body) {
+                                if (currentParent.classList && currentParent.classList.contains(className)) {
+                                    stillInHighlight = true;
+                                    break;
+                                }
+                                currentParent = currentParent.parentElement || currentParent.parentNode;
+                            }
+                            
+                            // 如果光标仍然在高亮元素内，说明移出失败，需要展开高亮元素
+                            if (stillInHighlight) {
+                                // 展开高亮元素的内容
+                                const fragment = document.createDocumentFragment();
+                                while (formatElement.firstChild) {
+                                    fragment.appendChild(formatElement.firstChild);
+                                }
+                                
+                                // 在格式元素后插入内容
+                                if (formatElement.nextSibling) {
+                                    parent.insertBefore(fragment, formatElement.nextSibling);
+                                } else {
+                                    parent.appendChild(fragment);
+                                }
+                                
+                                // 移除格式元素
+                                parent.removeChild(formatElement);
+                                
+                                // 移动光标到展开内容后的位置
+                                if (fragment.childNodes.length > 0) {
+                                    const lastNode = fragment.lastChild;
+                                    if (lastNode.nodeType === Node.TEXT_NODE) {
+                                        const finalRange = document.createRange();
+                                        finalRange.setStart(lastNode, lastNode.textContent.length);
+                                        finalRange.collapse(true);
+                                        selection.removeAllRanges();
+                                        selection.addRange(finalRange);
+                                    } else {
+                                        const lastTextNode = this.getLastTextNode(fragment);
+                                        if (lastTextNode) {
+                                            const finalRange = document.createRange();
+                                            finalRange.setStart(lastTextNode, lastTextNode.textContent.length);
+                                            finalRange.collapse(true);
+                                            selection.removeAllRanges();
+                                            selection.addRange(finalRange);
+                                        }
+                                    }
+                                } else {
+                                    const newTextNode = document.createTextNode('');
+                                    if (formatElement.nextSibling) {
+                                        parent.insertBefore(newTextNode, formatElement.nextSibling);
+                                    } else {
+                                        parent.appendChild(newTextNode);
+                                    }
+                                    const finalRange = document.createRange();
+                                    finalRange.setStart(newTextNode, 0);
+                                    finalRange.collapse(true);
+                                    selection.removeAllRanges();
+                                    selection.addRange(finalRange);
+                                }
+                            }
+                            
+                            return;
+                        } else {
+                            // 光标不在末尾，需要展开格式元素的内容
+                            const fragment = document.createDocumentFragment();
+                            while (formatElement.firstChild) {
+                                fragment.appendChild(formatElement.firstChild);
+                            }
+                            
+                            // 在格式元素后插入内容
+                            if (formatElement.nextSibling) {
+                                parent.insertBefore(fragment, formatElement.nextSibling);
+                            } else {
+                                parent.appendChild(fragment);
+                            }
+                            
+                            // 移除格式元素
+                            parent.removeChild(formatElement);
+                            
+                            // 移动光标到展开内容后的位置
+                            if (fragment.childNodes.length > 0) {
+                                const lastNode = fragment.lastChild;
+                                if (lastNode.nodeType === Node.TEXT_NODE) {
+                                    const newRange = document.createRange();
+                                    newRange.setStart(lastNode, lastNode.textContent.length);
+                                    newRange.collapse(true);
+                                    selection.removeAllRanges();
+                                    selection.addRange(newRange);
+                                } else {
+                                    // 如果最后一个节点不是文本节点，查找最后一个文本节点
+                                    const lastTextNode = this.getLastTextNode(fragment);
+                                    if (lastTextNode) {
+                                        const newRange = document.createRange();
+                                        newRange.setStart(lastTextNode, lastTextNode.textContent.length);
+                                        newRange.collapse(true);
+                                        selection.removeAllRanges();
+                                        selection.addRange(newRange);
+                                    }
+                                }
+                            } else {
+                                // 如果格式元素为空，在格式元素位置创建文本节点
+                                const newTextNode = document.createTextNode('');
+                                if (formatElement.nextSibling) {
+                                    parent.insertBefore(newTextNode, formatElement.nextSibling);
+                                } else {
+                                    parent.appendChild(newTextNode);
+                                }
+                                const newRange = document.createRange();
+                                newRange.setStart(newTextNode, 0);
+                                newRange.collapse(true);
+                                selection.removeAllRanges();
+                                selection.addRange(newRange);
+                            }
+                            return;
+                        }
+                    }
+
+                    // 对于 execCommand 支持的格式，检查格式元素后是否已有文本节点
+                    let nextTextNode = null;
+                    let nextSibling = formatElement.nextSibling;
                     
-                    // 无论光标在格式元素的什么位置，都将其移出
-                    // 在格式元素后插入文本节点（类似 CKEditor 5 的行为）
-                    const textNode = document.createTextNode('');
-                    if (formatElement.nextSibling) {
-                        parent.insertBefore(textNode, formatElement.nextSibling);
-                    } else {
-                        parent.appendChild(textNode);
+                    // 查找格式元素后的第一个文本节点
+                    while (nextSibling) {
+                        if (nextSibling.nodeType === Node.TEXT_NODE) {
+                            nextTextNode = nextSibling;
+                            break;
+                        } else if (nextSibling.nodeType === Node.ELEMENT_NODE) {
+                            // 查找子元素中的第一个文本节点
+                            const walker = document.createTreeWalker(
+                                nextSibling,
+                                NodeFilter.SHOW_TEXT,
+                                null
+                            );
+                            const firstText = walker.nextNode();
+                            if (firstText) {
+                                nextTextNode = firstText;
+                                break;
+                            }
+                        }
+                        nextSibling = nextSibling.nextSibling;
                     }
                     
-                    // 移动光标到文本节点
-                    const newRange = document.createRange();
-                    newRange.setStart(textNode, 0);
-                    newRange.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(newRange);
+                    // 如果格式元素后已有文本节点，直接移动光标到那里（避免创建新节点）
+                    if (nextTextNode) {
+                        const newRange = document.createRange();
+                        newRange.setStart(nextTextNode, 0);
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    } else {
+                        // 如果没有文本节点，创建一个
+                        const newTextNode = document.createTextNode('');
+                        if (formatElement.nextSibling) {
+                            parent.insertBefore(newTextNode, formatElement.nextSibling);
+                        } else {
+                            parent.appendChild(newTextNode);
+                        }
+                        
+                        // 移动光标到新文本节点
+                        const newRange = document.createRange();
+                        newRange.setStart(newTextNode, 0);
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
                 } else {
-                    // 使用 execCommand 清除格式
-                    try {
-                        document.execCommand(format, false, null);
-                    } catch (e) {
-                        console.warn('[clearFormatAtCursor] execCommand 清除格式失败:', e);
+                    // 光标不在格式元素内，直接使用 execCommand 清除（仅对支持的格式）
+                    if (tagName) {
+                        try {
+                            if (domWriter) {
+                                domWriter.executeCommandWithHistory(format, false, null, 'format-' + format);
+                            } else {
+                                document.execCommand(format, false, null);
+                            }
+                        } catch (e) {
+                            console.warn('[clearFormatAtCursor] execCommand 清除格式失败:', e);
+                        }
                     }
                 }
             },
@@ -840,16 +2667,27 @@
 
             /**
              * 确保光标不在格式元素内（应用格式前调用）
-             * 如果光标在任何格式元素内，将其移出，确保新输入的内容格式与菜单状态一致
+             * 
+             * 参考 CKEditor 5 的思路：当应用格式时，如果光标在其他格式元素内，
+             * 应该将光标移出，确保新应用的格式不会与其他格式冲突。
+             * 
+             * 注意：对于 execCommand 支持的格式（bold, italic, underline, strikethrough），
+             * execCommand 会自动处理，这个方法主要用于高亮等自定义格式。
+             * 
              * @param {Range} range - 选择范围
              * @param {string} format - 格式类型
              * @param {string} tagName - 标签名
              * @param {string} className - 类名
              */
             ensureCursorOutsideFormatElements: function(range, format, tagName, className) {
-                const selection = window.getSelection();
+                // 对于 execCommand 支持的格式，不需要手动处理
+                // execCommand 会自动处理光标位置和格式应用
+                if (tagName && ['bold', 'italic', 'underline', 'strikethrough'].includes(format)) {
+                    return;
+                }
                 
-                // 查找光标位置是否在任何格式元素内（加粗、斜体、下划线、删除线、高亮）
+                // 只对自定义格式（如高亮）需要手动处理
+                const selection = window.getSelection();
                 let container = range.commonAncestorContainer;
                 let formatElement = null;
                 
@@ -880,24 +2718,6 @@
                     // 光标在格式元素内，需要移出
                     const parent = formatElement.parentElement;
                     if (parent) {
-                        // 检查光标是否在格式元素的末尾
-                        let isAtEnd = false;
-                        if (container.nodeType === Node.TEXT_NODE) {
-                            const textNode = container;
-                            const offset = range.startOffset;
-                            const lastTextNode = this.getLastTextNode(formatElement);
-                            if (textNode === lastTextNode) {
-                                isAtEnd = offset === textNode.textContent.length;
-                            }
-                        } else {
-                            const lastTextNode = this.getLastTextNode(formatElement);
-                            if (lastTextNode) {
-                                const offset = range.startOffset;
-                                isAtEnd = offset === lastTextNode.textContent.length;
-                            }
-                        }
-                        
-                        // 无论光标在格式元素的什么位置，都将其移出
                         // 在格式元素后插入文本节点
                         const textNode = document.createTextNode('');
                         if (formatElement.nextSibling) {
@@ -917,20 +2737,38 @@
             },
 
             /**
-             * 从选中文本中移除格式
+             * 从选中文本中移除格式（参考 CKEditor 5 的 RemoveFormatCommand）
+             * 
+             * CKEditor 5 使用 writer.removeAttribute 在范围内移除格式属性
+             * 我们使用 execCommand 实现类似效果
+             * 
              * @param {Range} range - 选择范围
              * @param {string} format - 格式类型
              * @param {string} tagName - 标签名
              * @param {string} className - 类名
              */
             removeFormatFromSelection: function(range, format, tagName, className) {
-                // 使用 execCommand 移除格式
+                const selection = window.getSelection();
+                
+                // 方法1：优先使用 execCommand（最可靠，类似 CKEditor 5 的 writer.removeAttribute）
+                // 但只对 execCommand 支持的格式（bold, italic, underline, strikethrough）使用
+                if (tagName && !className) {
+                    try {
+                        // execCommand 会自动处理选中文本的格式移除（记录历史）
+                        if (domWriter) {
+                            domWriter.executeCommandWithHistory(format, false, null, 'format-' + format);
+                        } else {
+                            document.execCommand(format, false, null);
+                        }
+                        return;
+                    } catch (e) {
+                        console.warn('[removeFormatFromSelection] execCommand 失败，使用手动方法:', e);
+                    }
+                }
+                
+                // 方法2：手动移除格式（当 execCommand 不可用或失败时，或自定义格式如高亮）
+                // 主要用于高亮等自定义格式
                 try {
-                    document.execCommand(format, false, null);
-                } catch (e) {
-                    // 如果 execCommand 失败，手动移除格式标签
-                    console.warn('[removeFormatFromSelection] execCommand 失败，手动移除格式:', e);
-                    
                     const contents = range.extractContents();
                     const walker = document.createTreeWalker(
                         contents,
@@ -942,8 +2780,17 @@
                     let node = walker.nextNode();
                     while (node) {
                         if (node.nodeType === Node.ELEMENT_NODE) {
-                            if (tagName && node.tagName && node.tagName.toLowerCase() === tagName) {
-                                // 移除格式标签，保留内容
+                            const tag = node.tagName ? node.tagName.toLowerCase() : '';
+                            const nodeClassName = node.className || '';
+                            // 检查是否是目标格式元素（支持所有变体）
+                            if (tagName && (
+                                tag === tagName || 
+                                (tag === 'strong' && tagName === 'b') || 
+                                (tag === 'em' && tagName === 'i') ||
+                                (tag === 'strike' && tagName === 's') ||
+                                (tag === 'del' && tagName === 's')
+                            )) {
+                                // 移除格式标签，保留内容（类似 CKEditor 5 的 unwrap）
                                 while (node.firstChild) {
                                     fragment.appendChild(node.firstChild);
                                 }
@@ -953,7 +2800,32 @@
                                     fragment.appendChild(node.firstChild);
                                 }
                             } else {
-                                fragment.appendChild(node.cloneNode(true));
+                                // 保留其他元素，但递归处理其子元素
+                                const clonedNode = node.cloneNode(false);
+                                const childFragment = document.createDocumentFragment();
+                                let childNode = walker.nextNode();
+                                while (childNode && childNode.parentNode === node) {
+                                    if (childNode.nodeType === Node.TEXT_NODE) {
+                                        childFragment.appendChild(childNode.cloneNode(true));
+                                    } else if (childNode.nodeType === Node.ELEMENT_NODE) {
+                                        // 递归处理子元素
+                                        const childTag = childNode.tagName ? childNode.tagName.toLowerCase() : '';
+                                        if (tagName && (
+                                            childTag === tagName || 
+                                            (childTag === 'strong' && tagName === 'b') || 
+                                            (childTag === 'em' && tagName === 'i')
+                                        )) {
+                                            while (childNode.firstChild) {
+                                                childFragment.appendChild(childNode.firstChild);
+                                            }
+                                        } else {
+                                            childFragment.appendChild(childNode.cloneNode(true));
+                                        }
+                                    }
+                                    childNode = walker.nextNode();
+                                }
+                                clonedNode.appendChild(childFragment);
+                                fragment.appendChild(clonedNode);
                             }
                         } else {
                             fragment.appendChild(node.cloneNode(true));
@@ -961,7 +2833,17 @@
                         node = walker.nextNode();
                     }
 
+                    range.deleteContents();
                     range.insertNode(fragment);
+                    
+                    // 恢复选择（保持选中状态）
+                    selection.removeAllRanges();
+                    const newRange = document.createRange();
+                    newRange.setStartBefore(fragment);
+                    newRange.setEndAfter(fragment);
+                    selection.addRange(newRange);
+                } catch (e) {
+                    console.error('[removeFormatFromSelection] 手动移除格式失败:', e);
                 }
             },
 
@@ -976,9 +2858,16 @@
                     return '请先选中文本或定位光标';
                 }
 
+                if (!domWriter) {
+                    return 'DOMWriter 未初始化';
+                }
+
                 const range = selection.getRangeAt(0);
                 
                 try {
+                    // 使用 DOMWriter 批量操作模式
+                    domWriter.beginBatch();
+                    
                     // 查找包含选中文本的文本元素
                     let textElement = range.commonAncestorContainer;
                     if (textElement.nodeType === Node.TEXT_NODE) {
@@ -990,6 +2879,9 @@
                         textElement = textElement.parentElement;
                     }
 
+                    let targetNode = null;
+                    let targetOffset = 0;
+
                     if (textElement && textElement.classList.contains('mi-note-text')) {
                         // 在文本元素中应用标题格式
                         if (level === 0) {
@@ -1000,8 +2892,11 @@
                                 while (span.firstChild) {
                                     parent.insertBefore(span.firstChild, span);
                                 }
-                                parent.removeChild(span);
+                                domWriter.removeNode(span);
                             });
+                            // 光标位置：移动到文本元素开头
+                            targetNode = textElement;
+                            targetOffset = 0;
                         } else {
                             // 应用标题格式
                             let className = '';
@@ -1020,19 +2915,19 @@
                                 titleSpan.className = className;
                                 titleSpan.textContent = selectedText;
                                 range.deleteContents();
-                                range.insertNode(titleSpan);
+                                domWriter.execute(() => {
+                                    range.insertNode(titleSpan);
+                                }, true, { type: 'apply-heading' });
+                                targetNode = titleSpan;
+                                targetOffset = 0;
                             } else if (className) {
                                 // 光标位置，在文本元素开头插入标题 span
                                 const titleSpan = document.createElement('span');
                                 titleSpan.className = className;
                                 titleSpan.innerHTML = '\u200B';
-                                textElement.insertBefore(titleSpan, textElement.firstChild);
-                                
-                                // 移动光标到标题 span 内
-                                range.setStart(titleSpan, 0);
-                                range.collapse(true);
-                                selection.removeAllRanges();
-                                selection.addRange(range);
+                                domWriter.insertNode(titleSpan, textElement, true);
+                                targetNode = titleSpan;
+                                targetOffset = 0;
                             }
                         }
                     } else {
@@ -1056,29 +2951,55 @@
                                 titleSpan.className = className;
                                 titleSpan.innerHTML = '\u200B';
                                 textDiv.appendChild(titleSpan);
+                                targetNode = titleSpan;
+                                targetOffset = 0;
                             } else {
                                 textDiv.innerHTML = '\u200B';
+                                targetNode = textDiv;
+                                targetOffset = 0;
                             }
                         } else {
                             textDiv.innerHTML = '\u200B';
+                            targetNode = textDiv;
+                            targetOffset = 0;
                         }
 
                         if (range.collapsed) {
-                            range.insertNode(textDiv);
-                            range.setStart(textDiv, 0);
-                            range.collapse(true);
+                            domWriter.execute(() => {
+                                range.insertNode(textDiv);
+                            }, true, { type: 'apply-heading' });
                         } else {
-                            range.deleteContents();
-                            range.insertNode(textDiv);
-                            range.setStart(textDiv, 0);
-                            range.collapse(true);
+                            domWriter.execute(() => {
+                                range.deleteContents();
+                                range.insertNode(textDiv);
+                            }, true, { type: 'apply-heading' });
                         }
-                        
-                        selection.removeAllRanges();
-                        selection.addRange(range);
                     }
 
-                    notifyContentChanged();
+                    // 结束批量操作
+                    domWriter.endBatch({ type: 'apply-heading' });
+                    
+                    // 设置光标位置
+                    if (targetNode) {
+                        requestAnimationFrame(() => {
+                            const range2 = document.createRange();
+                            range2.setStart(targetNode, targetOffset);
+                            range2.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(range2);
+                            
+                            notifyContentChanged();
+                            syncFormatState();
+                        });
+                    } else {
+                        notifyContentChanged();
+                        requestAnimationFrame(() => {
+                            if (!isComposing && !isLoadingContent) {
+                                syncFormatState();
+                            }
+                        });
+                    }
+                    
                     return '标题格式已应用';
                 } catch (error) {
                     console.error('[applyHeading] 应用标题格式失败:', error);
@@ -1095,6 +3016,10 @@
                 const selection = window.getSelection();
                 if (!selection.rangeCount) {
                     return '没有选中文本';
+                }
+
+                if (!domWriter) {
+                    return 'DOMWriter 未初始化';
                 }
 
                 const range = selection.getRangeAt(0);
@@ -1115,17 +3040,31 @@
                 }
 
                 try {
+                    // 使用 DOMWriter 批量操作模式
+                    domWriter.beginBatch();
+                    
                     // 移除现有的对齐类
-                    textElement.classList.remove('center', 'right');
+                    domWriter.setClass(textElement, 'center', false);
+                    domWriter.setClass(textElement, 'right', false);
                     
                     // 应用新的对齐方式
                     if (alignment === 'center') {
-                        textElement.classList.add('center');
+                        domWriter.setClass(textElement, 'center', true);
                     } else if (alignment === 'right') {
-                        textElement.classList.add('right');
+                        domWriter.setClass(textElement, 'right', true);
                     }
 
+                    // 结束批量操作
+                    domWriter.endBatch({ type: 'apply-alignment' });
+                    
                     notifyContentChanged();
+                    // 格式操作后立即同步状态
+                    // 使用 requestAnimationFrame 确保状态检查在 DOM 更新后执行
+                    requestAnimationFrame(() => {
+                        if (!isComposing && !isLoadingContent) {
+                            syncFormatState();
+                        }
+                    });
                     return '对齐方式已应用: ' + alignment;
                 } catch (error) {
                     console.error('[applyAlignment] 应用对齐方式失败:', error);
@@ -1143,6 +3082,10 @@
                     return '编辑器元素不存在';
                 }
 
+                if (!domWriter) {
+                    return 'DOMWriter 未初始化';
+                }
+
                 const selection = window.getSelection();
                 let range = null;
 
@@ -1159,22 +3102,103 @@
                     range.collapse(false);
                 }
 
+                // 检查光标是否在文本元素中
+                let container = range.commonAncestorContainer;
+                if (container.nodeType === Node.TEXT_NODE) {
+                    container = container.parentElement;
+                }
+                
+                let textElement = null;
+                let hasContent = false;
+                let contentHTML = '';
+                
+                if (container && container.classList && container.classList.contains('mi-note-text')) {
+                    textElement = container;
+                    const text = container.textContent || container.innerText || '';
+                    const trimmedText = text.replace(/\u200B/g, '').trim();
+                    hasContent = trimmedText !== '';
+                    if (hasContent) {
+                        // 提取内容（保留格式）
+                        contentHTML = container.innerHTML;
+                        // 清理零宽度空格
+                        contentHTML = contentHTML.replace(/\u200B/g, '');
+                    }
+                }
+
+                // 使用 DOMWriter 批量操作模式
+                domWriter.beginBatch();
+                
                 // 创建无序列表元素
                 const bulletDiv = document.createElement('div');
                 bulletDiv.className = 'mi-note-bullet';
                 bulletDiv.style.paddingLeft = '0px'; // indent 1
-                bulletDiv.innerHTML = '\u200B';
+                
+                if (hasContent && textElement) {
+                    // 如果有内容，将内容放入列表项
+                    bulletDiv.innerHTML = contentHTML || '\u200B';
+                    // 替换文本元素
+                    domWriter.replaceNode(textElement, bulletDiv);
+                } else if (textElement) {
+                    // 空文本元素，直接替换
+                    bulletDiv.innerHTML = '\u200B';
+                    domWriter.replaceNode(textElement, bulletDiv);
+                } else {
+                    // 不在文本元素中，插入新元素
+                    bulletDiv.innerHTML = '\u200B';
+                    const referenceNode = range.startContainer.nodeType === Node.TEXT_NODE 
+                        ? range.startContainer.parentElement 
+                        : range.startContainer;
+                    if (referenceNode && referenceNode.parentNode) {
+                        domWriter.insertNode(bulletDiv, referenceNode, false);
+                    } else {
+                        domWriter.execute(() => {
+                            range.insertNode(bulletDiv);
+                        }, true, { type: 'insert-bullet-list' });
+                    }
+                }
 
-                // 插入元素
-                range.insertNode(bulletDiv);
+                // 移动光标到列表项内（如果有内容，移动到末尾；否则在开头）
+                let targetNode = null;
+                let targetOffset = 0;
+                
+                if (hasContent && bulletDiv.lastChild) {
+                    // 有内容，移动到末尾
+                    if (bulletDiv.lastChild.nodeType === Node.TEXT_NODE) {
+                        targetNode = bulletDiv.lastChild;
+                        targetOffset = bulletDiv.lastChild.textContent.length;
+                    } else {
+                        targetNode = bulletDiv;
+                        targetOffset = bulletDiv.childNodes.length;
+                    }
+                } else {
+                    // 无内容，移动到开头
+                    if (bulletDiv.firstChild && bulletDiv.firstChild.nodeType === Node.TEXT_NODE) {
+                        targetNode = bulletDiv.firstChild;
+                        targetOffset = 0;
+                    } else {
+                        const textNode = document.createTextNode('\u200B');
+                        bulletDiv.appendChild(textNode);
+                        targetNode = textNode;
+                        targetOffset = 0;
+                    }
+                }
+                
+                // 结束批量操作（会自动处理光标和状态同步）
+                domWriter.endBatch({ type: 'insert-bullet-list' });
+                
+                // 设置光标位置
+                requestAnimationFrame(() => {
+                    const selection2 = window.getSelection();
+                    const range2 = document.createRange();
+                    range2.setStart(targetNode, targetOffset);
+                    range2.collapse(true);
+                    selection2.removeAllRanges();
+                    selection2.addRange(range2);
+                    
+                    notifyContentChanged();
+                    syncFormatState();
+                });
 
-                // 移动光标到列表项后
-                range.setStartAfter(bulletDiv);
-                range.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(range);
-
-                notifyContentChanged();
                 return '无序列表已插入';
             },
 
@@ -1188,6 +3212,10 @@
                     return '编辑器元素不存在';
                 }
 
+                if (!domWriter) {
+                    return 'DOMWriter 未初始化';
+                }
+
                 const selection = window.getSelection();
                 let range = null;
 
@@ -1204,23 +3232,104 @@
                     range.collapse(false);
                 }
 
+                // 检查光标是否在文本元素中
+                let container = range.commonAncestorContainer;
+                if (container.nodeType === Node.TEXT_NODE) {
+                    container = container.parentElement;
+                }
+                
+                let textElement = null;
+                let hasContent = false;
+                let contentHTML = '';
+                
+                if (container && container.classList && container.classList.contains('mi-note-text')) {
+                    textElement = container;
+                    const text = container.textContent || container.innerText || '';
+                    const trimmedText = text.replace(/\u200B/g, '').trim();
+                    hasContent = trimmedText !== '';
+                    if (hasContent) {
+                        // 提取内容（保留格式）
+                        contentHTML = container.innerHTML;
+                        // 清理零宽度空格
+                        contentHTML = contentHTML.replace(/\u200B/g, '');
+                    }
+                }
+
+                // 使用 DOMWriter 批量操作模式
+                domWriter.beginBatch();
+                
                 // 创建有序列表元素
                 const orderDiv = document.createElement('div');
                 orderDiv.className = 'mi-note-order';
                 orderDiv.setAttribute('data-number', '1');
                 orderDiv.style.paddingLeft = '0px'; // indent 1
-                orderDiv.innerHTML = '\u200B';
+                
+                if (hasContent && textElement) {
+                    // 如果有内容，将内容放入列表项
+                    orderDiv.innerHTML = contentHTML || '\u200B';
+                    // 替换文本元素
+                    domWriter.replaceNode(textElement, orderDiv);
+                } else if (textElement) {
+                    // 空文本元素，直接替换
+                    orderDiv.innerHTML = '\u200B';
+                    domWriter.replaceNode(textElement, orderDiv);
+                } else {
+                    // 不在文本元素中，插入新元素
+                    orderDiv.innerHTML = '\u200B';
+                    const referenceNode = range.startContainer.nodeType === Node.TEXT_NODE 
+                        ? range.startContainer.parentElement 
+                        : range.startContainer;
+                    if (referenceNode && referenceNode.parentNode) {
+                        domWriter.insertNode(orderDiv, referenceNode, false);
+                    } else {
+                        domWriter.execute(() => {
+                            range.insertNode(orderDiv);
+                        }, true, { type: 'insert-order-list' });
+                    }
+                }
 
-                // 插入元素
-                range.insertNode(orderDiv);
+                // 移动光标到列表项内（如果有内容，移动到末尾；否则在开头）
+                let targetNode = null;
+                let targetOffset = 0;
+                
+                if (hasContent && orderDiv.lastChild) {
+                    // 有内容，移动到末尾
+                    if (orderDiv.lastChild.nodeType === Node.TEXT_NODE) {
+                        targetNode = orderDiv.lastChild;
+                        targetOffset = orderDiv.lastChild.textContent.length;
+                    } else {
+                        targetNode = orderDiv;
+                        targetOffset = orderDiv.childNodes.length;
+                    }
+                } else {
+                    // 无内容，移动到开头
+                    if (orderDiv.firstChild && orderDiv.firstChild.nodeType === Node.TEXT_NODE) {
+                        targetNode = orderDiv.firstChild;
+                        targetOffset = 0;
+                    } else {
+                        const textNode = document.createTextNode('\u200B');
+                        orderDiv.appendChild(textNode);
+                        targetNode = textNode;
+                        targetOffset = 0;
+                    }
+                }
+                
+                // 结束批量操作（会自动处理光标和状态同步）
+                domWriter.endBatch({ type: 'insert-order-list' });
+                
+                // 设置光标位置
+                requestAnimationFrame(() => {
+                    const selection2 = window.getSelection();
+                    const range2 = document.createRange();
+                    range2.setStart(targetNode, targetOffset);
+                    range2.collapse(true);
+                    selection2.removeAllRanges();
+                    selection2.addRange(range2);
+                    
+                    notifyContentChanged();
+                    syncFormatState();
+                });
 
-                // 移动光标到列表项后
-                range.setStartAfter(orderDiv);
-                range.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(range);
-
-                notifyContentChanged();
                 return '有序列表已插入';
             },
 
@@ -1270,6 +3379,13 @@
                 selection.addRange(range);
 
                 notifyContentChanged();
+                // 格式操作后立即同步状态
+                // 使用 requestAnimationFrame 确保状态检查在 DOM 更新后执行
+                requestAnimationFrame(() => {
+                    if (!isComposing && !isLoadingContent) {
+                        syncFormatState();
+                    }
+                });
                 return '引用块已插入';
             },
 
@@ -1278,17 +3394,21 @@
              * @returns {string} 状态信息
              */
             insertCheckbox: function() {
-            const editor = document.getElementById('editor-content');
+                const editor = document.getElementById('editor-content');
                 if (!editor) {
                     return '编辑器元素不存在';
                 }
 
-            const selection = window.getSelection();
+                if (!domWriter) {
+                    return 'DOMWriter 未初始化';
+                }
+
+                const selection = window.getSelection();
                 let range = null;
 
                 if (selection.rangeCount > 0) {
                     range = selection.getRangeAt(0);
-                        } else {
+                } else {
                     range = document.createRange();
                     // 如果编辑器为空，直接添加到末尾
                     if (editor.childNodes.length === 0 || 
@@ -1301,6 +3421,32 @@
                     range.collapse(false);
                 }
 
+                // 检查光标是否在文本元素中
+                let container = range.commonAncestorContainer;
+                if (container.nodeType === Node.TEXT_NODE) {
+                    container = container.parentElement;
+                }
+                
+                let textElement = null;
+                let hasContent = false;
+                let contentHTML = '';
+                
+                if (container && container.classList && container.classList.contains('mi-note-text')) {
+                    textElement = container;
+                    const text = container.textContent || container.innerText || '';
+                    const trimmedText = text.replace(/\u200B/g, '').trim();
+                    hasContent = trimmedText !== '';
+                    if (hasContent) {
+                        // 提取内容（保留格式）
+                        contentHTML = container.innerHTML;
+                        // 清理零宽度空格
+                        contentHTML = contentHTML.replace(/\u200B/g, '');
+                    }
+                }
+
+                // 使用 DOMWriter 批量操作模式
+                domWriter.beginBatch();
+                
                 // 创建复选框元素
                 const checkboxDiv = document.createElement('div');
                 checkboxDiv.className = 'mi-note-checkbox';
@@ -1312,20 +3458,73 @@
                 checkboxDiv.appendChild(checkbox);
 
                 const span = document.createElement('span');
-                span.innerHTML = '\u200B'; // 零宽度空格，确保光标可见
+                if (hasContent && textElement) {
+                    // 如果有内容，将内容放入 span
+                    span.innerHTML = contentHTML || '\u200B';
+                } else {
+                    span.innerHTML = '\u200B'; // 零宽度空格，确保光标可见
+                }
                 checkboxDiv.appendChild(span);
 
-                // 插入元素
-                range.insertNode(checkboxDiv);
+                if (textElement) {
+                    // 替换文本元素
+                    domWriter.replaceNode(textElement, checkboxDiv);
+                } else {
+                    // 不在文本元素中，插入新元素
+                    const referenceNode = range.startContainer.nodeType === Node.TEXT_NODE 
+                        ? range.startContainer.parentElement 
+                        : range.startContainer;
+                    if (referenceNode && referenceNode.parentNode) {
+                        domWriter.insertNode(checkboxDiv, referenceNode, false);
+                    } else {
+                        domWriter.execute(() => {
+                            range.insertNode(checkboxDiv);
+                        }, true, { type: 'insert-checkbox' });
+                    }
+                }
 
-                // 移动光标到复选框后
-                range.setStartAfter(span);
-                        range.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
+                // 移动光标到复选框的 span 内（如果有内容，移动到末尾；否则在开头）
+                let targetNode = null;
+                let targetOffset = 0;
+                
+                if (hasContent && span.lastChild) {
+                    // 有内容，移动到末尾
+                    if (span.lastChild.nodeType === Node.TEXT_NODE) {
+                        targetNode = span.lastChild;
+                        targetOffset = span.lastChild.textContent.length;
+                    } else {
+                        targetNode = span;
+                        targetOffset = span.childNodes.length;
+                    }
+                } else {
+                    // 无内容，移动到开头
+                    if (span.firstChild && span.firstChild.nodeType === Node.TEXT_NODE) {
+                        targetNode = span.firstChild;
+                        targetOffset = 0;
+                    } else {
+                        const textNode = document.createTextNode('\u200B');
+                        span.appendChild(textNode);
+                        targetNode = textNode;
+                        targetOffset = 0;
+                    }
+                }
+                
+                // 结束批量操作（会自动处理光标和状态同步）
+                domWriter.endBatch({ type: 'insert-checkbox' });
+                
+                // 设置光标位置
+                requestAnimationFrame(() => {
+                    const selection2 = window.getSelection();
+                    const range2 = document.createRange();
+                    range2.setStart(targetNode, targetOffset);
+                    range2.collapse(true);
+                    selection2.removeAllRanges();
+                    selection2.addRange(range2);
                     
-                // 通知内容变化
                     notifyContentChanged();
+                    syncFormatState();
+                });
+
                 return '复选框已插入';
             },
 
@@ -1401,7 +3600,7 @@
 
                 if (selection.rangeCount > 0) {
                     range = selection.getRangeAt(0);
-                    } else {
+                } else {
                     range = document.createRange();
                     // 如果编辑器为空，直接添加到末尾
                     if (editor.childNodes.length === 0 || 
@@ -1414,9 +3613,50 @@
                     range.collapse(false);
                 }
 
-                // 创建图片容器
-                const container = document.createElement('div');
-                container.className = 'mi-note-image-container';
+                // 检查光标是否在列表项或待办项中
+                let container = range.commonAncestorContainer;
+                if (container.nodeType === Node.TEXT_NODE) {
+                    container = container.parentElement;
+                }
+                
+                // 向上查找，检查是否在列表项（mi-note-bullet, mi-note-order）或待办项（mi-note-checkbox）中
+                let listItem = null;
+                let currentNode = container;
+                while (currentNode && currentNode !== editor) {
+                    if (currentNode.classList) {
+                        if (currentNode.classList.contains('mi-note-bullet') ||
+                            currentNode.classList.contains('mi-note-order') ||
+                            currentNode.classList.contains('mi-note-checkbox')) {
+                            listItem = currentNode;
+                            break;
+                        }
+                    }
+                    currentNode = currentNode.parentElement;
+                }
+
+                // 如果在列表项或待办项中，需要先退出
+                if (listItem) {
+                    // 在列表项/待办项之后插入图片
+                    // 创建一个新的范围，定位到列表项之后
+                    let newRange = document.createRange();
+                    if (listItem.nextSibling) {
+                        // 如果列表项后面有兄弟节点，在兄弟节点之前插入
+                        newRange.setStartBefore(listItem.nextSibling);
+                        newRange.collapse(true);
+                        range = newRange;
+                    } else if (listItem.parentNode) {
+                        // 如果列表项是最后一个，在父节点末尾插入
+                        newRange.setStartAfter(listItem);
+                        newRange.collapse(true);
+                        range = newRange;
+                    }
+                    // 如果无法设置新范围（不应该发生），继续使用原来的 range
+                }
+
+                // 创建图片容器（使用 div 确保单独一行）
+                const imageContainer = document.createElement('div');
+                imageContainer.className = 'mi-note-image-container';
+                imageContainer.style.margin = '8px 0'; // 添加上下边距，确保单独一行
 
                 // 创建图片元素
                 const img = document.createElement('img');
@@ -1434,25 +3674,161 @@
                     console.log('[insertImage] 插入小米笔记图片:', imageUrl);
                 }
 
-                container.appendChild(img);
+                imageContainer.appendChild(img);
 
-                // 插入元素
-                range.insertNode(container);
+                // 插入图片容器
+                range.insertNode(imageContainer);
 
                 // 在图片后插入换行，确保可以继续输入
                 const br = document.createElement('br');
-                range.setStartAfter(container);
+                range.setStartAfter(imageContainer);
                 range.insertNode(br);
 
                 // 移动光标到图片后
                 range.setStartAfter(br);
-                    range.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                    
+                range.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                
                     // 通知内容变化
                         notifyContentChanged();
                 return '图片已插入';
+            },
+            
+            /**
+             * 增加缩进
+             * @returns {string} 状态信息
+             */
+            increaseIndent: function() {
+                const editor = document.getElementById('editor-content');
+                if (!editor) {
+                    return '编辑器元素不存在';
+                }
+                
+                if (!domWriter) {
+                    return 'DOMWriter 未初始化';
+                }
+                
+                const selection = window.getSelection();
+                if (!selection.rangeCount) {
+                    return '请先选择内容';
+                }
+                
+                const range = selection.getRangeAt(0);
+                let container = range.commonAncestorContainer;
+                
+                // 如果是文本节点，获取父元素
+                if (container.nodeType === Node.TEXT_NODE) {
+                    container = container.parentElement;
+                }
+                
+                // 向上查找，找到可缩进的元素（文本、列表、待办项）
+                let targetElement = null;
+                let currentNode = container;
+                while (currentNode && currentNode !== editor) {
+                    if (currentNode.classList) {
+                        if (currentNode.classList.contains('mi-note-text') ||
+                            currentNode.classList.contains('mi-note-bullet') ||
+                            currentNode.classList.contains('mi-note-order') ||
+                            currentNode.classList.contains('mi-note-checkbox')) {
+                            targetElement = currentNode;
+                            break;
+                        }
+                    }
+                    currentNode = currentNode.parentElement;
+                }
+                
+                if (!targetElement) {
+                    return '无法找到可缩进的元素';
+                }
+                
+                // 获取当前缩进级别
+                const currentIndent = parseInt(getIndentFromElement(targetElement), 10);
+                if (currentIndent >= 5) {
+                    return '已达到最大缩进级别';
+                }
+                
+                // 使用 DOMWriter 批量操作
+                domWriter.beginBatch();
+                
+                // 增加缩进
+                setIndentForElement(targetElement, currentIndent + 1);
+                
+                // 结束批量操作
+                domWriter.endBatch({ type: 'increase-indent' });
+                
+                // 通知内容变化
+                notifyContentChanged();
+                
+                return '缩进已增加';
+            },
+            
+            /**
+             * 减少缩进
+             * @returns {string} 状态信息
+             */
+            decreaseIndent: function() {
+                const editor = document.getElementById('editor-content');
+                if (!editor) {
+                    return '编辑器元素不存在';
+                }
+                
+                if (!domWriter) {
+                    return 'DOMWriter 未初始化';
+                }
+                
+                const selection = window.getSelection();
+                if (!selection.rangeCount) {
+                    return '请先选择内容';
+                }
+                
+                const range = selection.getRangeAt(0);
+                let container = range.commonAncestorContainer;
+                
+                // 如果是文本节点，获取父元素
+                if (container.nodeType === Node.TEXT_NODE) {
+                    container = container.parentElement;
+                }
+                
+                // 向上查找，找到可缩进的元素（文本、列表、待办项）
+                let targetElement = null;
+                let currentNode = container;
+                while (currentNode && currentNode !== editor) {
+                    if (currentNode.classList) {
+                        if (currentNode.classList.contains('mi-note-text') ||
+                            currentNode.classList.contains('mi-note-bullet') ||
+                            currentNode.classList.contains('mi-note-order') ||
+                            currentNode.classList.contains('mi-note-checkbox')) {
+                            targetElement = currentNode;
+                            break;
+                        }
+                    }
+                    currentNode = currentNode.parentElement;
+                }
+                
+                if (!targetElement) {
+                    return '无法找到可缩进的元素';
+                }
+                
+                // 获取当前缩进级别
+                const currentIndent = parseInt(getIndentFromElement(targetElement), 10);
+                if (currentIndent <= 1) {
+                    return '已达到最小缩进级别';
+                }
+                
+                // 使用 DOMWriter 批量操作
+                domWriter.beginBatch();
+                
+                // 减少缩进
+                setIndentForElement(targetElement, currentIndent - 1);
+                
+                // 结束批量操作
+                domWriter.endBatch({ type: 'decrease-indent' });
+                
+                // 通知内容变化
+                notifyContentChanged();
+                
+                return '缩进已减少';
             }
         };
 
@@ -1462,6 +3838,11 @@
          * @param {KeyboardEvent} e - 键盘事件
          */
         function handleEnterKey(e) {
+            // 如果正在组合输入，不处理回车键（避免打断输入）
+            if (isComposing) {
+                return;
+            }
+            
             const editor = document.getElementById('editor-content');
             if (!editor) return;
             
@@ -1505,22 +3886,40 @@
 
             // 处理 checkbox 回车
             if (checkboxElement) {
-                                    e.preventDefault();
-                createNewCheckbox(checkboxElement);
-                return;
+                e.preventDefault();
+                e.stopPropagation(); // 阻止事件冒泡，确保不会触发其他处理
+                e.stopImmediatePropagation(); // 立即停止事件传播
+                
+                // 检查是否为空，如果为空则转换为普通正文
+                if (isCheckboxEmpty(checkboxElement)) {
+                    convertCheckboxToText(checkboxElement);
+                } else {
+                    createNewCheckbox(checkboxElement);
+                }
+                return false; // 确保返回 false，进一步阻止默认行为
             }
 
             // 处理无序列表回车
             if (bulletElement) {
                 e.preventDefault();
-                createNewBullet(bulletElement);
-                                    return;
+                // 检查是否为空，如果为空则转换为普通正文
+                if (isBulletEmpty(bulletElement)) {
+                    convertBulletToText(bulletElement);
+                } else {
+                    createNewBullet(bulletElement);
+                }
+                return;
             }
 
             // 处理有序列表回车
             if (orderElement) {
                 e.preventDefault();
-                createNewOrder(orderElement);
+                // 检查是否为空，如果为空则转换为普通正文
+                if (isOrderEmpty(orderElement)) {
+                    convertOrderToText(orderElement);
+                } else {
+                    createNewOrder(orderElement);
+                }
                 return;
             }
         }
@@ -1532,6 +3931,29 @@
         function createNewCheckbox(currentCheckbox) {
             const editor = document.getElementById('editor-content');
             if (!editor) return;
+            
+            // 检查是否已经有下一个 checkbox（防止重复创建）
+            // 如果下一个兄弟节点已经是 checkbox，说明可能已经创建过了
+            if (currentCheckbox.nextSibling && 
+                currentCheckbox.nextSibling.classList && 
+                currentCheckbox.nextSibling.classList.contains('mi-note-checkbox')) {
+                // 已经有下一个 checkbox，直接移动光标到那里
+                const nextCheckbox = currentCheckbox.nextSibling;
+                const nextSpan = nextCheckbox.querySelector('span');
+                if (nextSpan) {
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    if (nextSpan.firstChild && nextSpan.firstChild.nodeType === Node.TEXT_NODE) {
+                        range.setStart(nextSpan.firstChild, 0);
+                    } else {
+                        range.selectNodeContents(nextSpan);
+                    }
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+                return;
+            }
             
             const indent = getIndentFromElement(currentCheckbox);
             const level = currentCheckbox.getAttribute('data-level') || '3';
@@ -1553,19 +3975,34 @@
             // 插入到当前 checkbox 之后
             if (currentCheckbox.nextSibling) {
                 editor.insertBefore(newCheckbox, currentCheckbox.nextSibling);
-                } else {
+            } else {
                 editor.appendChild(newCheckbox);
             }
 
-            // 设置光标到新 checkbox
-            const selection = window.getSelection();
-                        const range = document.createRange();
-            range.selectNodeContents(span);
-                        range.collapse(true);
-                        selection.removeAllRanges();
-                        selection.addRange(range);
-
-            notifyContentChanged();
+            // 立即设置光标到新 checkbox，避免浏览器默认行为
+            // 使用双重 requestAnimationFrame 确保 DOM 更新完成后再设置光标
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const selection = window.getSelection();
+                    if (!selection) return;
+                    
+                    const range = document.createRange();
+                    // 确保选择 span 内的文本节点，而不是整个 span
+                    if (span.firstChild && span.firstChild.nodeType === Node.TEXT_NODE) {
+                        range.setStart(span.firstChild, 0);
+                    } else {
+                        range.selectNodeContents(span);
+                    }
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    
+                    // 延迟通知内容变化，确保光标位置已设置
+                    setTimeout(() => {
+                        notifyContentChanged();
+                    }, 0);
+                });
+            });
         }
 
         /**
@@ -1628,38 +4065,383 @@
                 editor.appendChild(newOrder);
             }
 
-            // 设置光标到新 order
+            // 设置光标到新 order 的内容区域（确保可以正常输入和换行）
             const selection = window.getSelection();
             const range = document.createRange();
-            range.selectNodeContents(newOrder);
+            // 直接选择列表项的内容，而不是整个节点
+            if (newOrder.firstChild && newOrder.firstChild.nodeType === Node.TEXT_NODE) {
+                range.setStart(newOrder.firstChild, 0);
                 range.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(range);
+            } else {
+                // 如果没有文本节点，创建一个
+                const textNode = document.createTextNode('\u200B');
+                newOrder.appendChild(textNode);
+                range.setStart(textNode, 0);
+                range.collapse(true);
+            }
+            selection.removeAllRanges();
+            selection.addRange(range);
             
             notifyContentChanged();
         }
 
         /**
-         * 从元素获取缩进级别
-         * @param {HTMLElement} element - 元素
-         * @returns {string} 缩进级别
+         * 检查 checkbox 是否为空
+         * @param {HTMLElement} checkboxElement - checkbox 元素
+         * @returns {boolean} 是否为空
          */
-        function getIndentFromElement(element) {
-            const style = element.getAttribute('style') || '';
-            const match = style.match(/padding-left:\s*(\d+)px/);
-            if (match) {
-                const paddingLeft = parseInt(match[1], 10);
-                const indent = Math.floor(paddingLeft / 20) + 1;
-                return indent.toString();
+        function isCheckboxEmpty(checkboxElement) {
+            // 查找 span 元素（checkbox 的内容在 span 中）
+            const span = checkboxElement.querySelector('span');
+            if (!span) {
+                return true;
             }
-            return '1';
+            
+            // 获取文本内容，去除零宽空格和空白字符
+            const text = span.textContent || span.innerText || '';
+            const trimmedText = text.replace(/\u200B/g, '').trim();
+            
+            return trimmedText === '';
+        }
+
+        /**
+         * 检查无序列表项是否为空
+         * @param {HTMLElement} bulletElement - 无序列表项元素
+         * @returns {boolean} 是否为空
+         */
+        function isBulletEmpty(bulletElement) {
+            // 获取文本内容，去除零宽空格和空白字符
+            const text = bulletElement.textContent || bulletElement.innerText || '';
+            const trimmedText = text.replace(/\u200B/g, '').trim();
+            
+            return trimmedText === '';
+        }
+
+        /**
+         * 检查有序列表项是否为空
+         * @param {HTMLElement} orderElement - 有序列表项元素
+         * @returns {boolean} 是否为空
+         */
+        function isOrderEmpty(orderElement) {
+            // 获取文本内容，去除零宽空格和空白字符
+            const text = orderElement.textContent || orderElement.innerText || '';
+            const trimmedText = text.replace(/\u200B/g, '').trim();
+            
+            return trimmedText === '';
+        }
+
+        /**
+         * 将 checkbox 转换为普通正文
+         * @param {HTMLElement} checkboxElement - checkbox 元素
+         */
+        function convertCheckboxToText(checkboxElement) {
+            const editor = document.getElementById('editor-content');
+            if (!editor) return;
+            
+            // 获取缩进级别
+            const indent = getIndentFromElement(checkboxElement);
+            
+            // 创建普通正文元素
+            const textDiv = document.createElement('div');
+            textDiv.className = 'mi-note-text indent-' + indent;
+            textDiv.innerHTML = '\u200B';
+            
+            // 替换 checkbox 元素
+            if (checkboxElement.nextSibling) {
+                editor.insertBefore(textDiv, checkboxElement.nextSibling);
+            } else {
+                editor.appendChild(textDiv);
+            }
+            editor.removeChild(checkboxElement);
+            
+            // 设置光标到新文本元素
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(textDiv);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            notifyContentChanged();
+        }
+
+        /**
+         * 将无序列表项转换为普通正文
+         * @param {HTMLElement} bulletElement - 无序列表项元素
+         */
+        function convertBulletToText(bulletElement) {
+            const editor = document.getElementById('editor-content');
+            if (!editor) return;
+            
+            // 获取缩进级别
+            const indent = getIndentFromElement(bulletElement);
+            
+            // 创建普通正文元素
+            const textDiv = document.createElement('div');
+            textDiv.className = 'mi-note-text indent-' + indent;
+            textDiv.innerHTML = '\u200B';
+            
+            // 替换 bullet 元素
+            if (bulletElement.nextSibling) {
+                editor.insertBefore(textDiv, bulletElement.nextSibling);
+            } else {
+                editor.appendChild(textDiv);
+            }
+            editor.removeChild(bulletElement);
+            
+            // 设置光标到新文本元素
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(textDiv);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            notifyContentChanged();
+        }
+
+        /**
+         * 将有序列表项转换为普通正文
+         * @param {HTMLElement} orderElement - 有序列表项元素
+         */
+        function convertOrderToText(orderElement) {
+            const editor = document.getElementById('editor-content');
+            if (!editor) return;
+            
+            // 获取缩进级别
+            const indent = getIndentFromElement(orderElement);
+            
+            // 创建普通正文元素
+            const textDiv = document.createElement('div');
+            textDiv.className = 'mi-note-text indent-' + indent;
+            textDiv.innerHTML = '\u200B';
+            
+            // 替换 order 元素
+            if (orderElement.nextSibling) {
+                editor.insertBefore(textDiv, orderElement.nextSibling);
+            } else {
+                editor.appendChild(textDiv);
+            }
+            editor.removeChild(orderElement);
+            
+            // 设置光标到新文本元素
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(textDiv);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            notifyContentChanged();
+        }
+
+        // ==================== 光标位置修复 ====================
+        /**
+         * 规范化光标位置（参考 CKEditor 5 的 selection post-fixer）
+         * 
+         * CKEditor 5 使用 selection post-fixer 确保光标位置正确：
+         * - 折叠选择必须在允许文本的位置（使用 schema.getNearestSelectionRange）
+         * - 非折叠选择不能跨越 limit 元素边界
+         * 
+         * 我们实现类似的机制来修复光标位置，避免光标"乱跑"
+         */
+        function normalizeCursorPosition() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) {
+                return;
+            }
+
+            const range = selection.getRangeAt(0);
+            const editor = document.getElementById('editor-content');
+            if (!editor) {
+                return;
+            }
+
+            // 如果选择不在编辑器内，不需要修复
+            if (!editor.contains(range.commonAncestorContainer)) {
+                return;
+            }
+
+            try {
+                // 对于折叠选择，找到最近的有效文本位置（类似 CKEditor 5 的 getNearestSelectionRange）
+                if (range.collapsed) {
+                    let container = range.commonAncestorContainer;
+                    let needsFix = false;
+                    let fixedNode = null;
+                    let fixedOffset = 0;
+
+                    // 检查光标是否在不可编辑的元素内（如 checkbox、hr、image 等）
+                    let current = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+                    while (current && current !== editor) {
+                        const className = current.className || '';
+                        const tagName = current.tagName ? current.tagName.toLowerCase() : '';
+                        
+                        // 如果光标在特殊元素内，需要移出
+                        if (className.includes('mi-note-checkbox') || 
+                            className.includes('mi-note-hr') ||
+                            className.includes('mi-note-image') ||
+                            tagName === 'hr' ||
+                            tagName === 'img') {
+                            needsFix = true;
+                            // 在元素后查找或创建文本节点
+                            const parent = current.parentElement;
+                            if (parent) {
+                                // 查找元素后的第一个文本节点
+                                let nextNode = current.nextSibling;
+                                while (nextNode) {
+                                    if (nextNode.nodeType === Node.TEXT_NODE) {
+                                        fixedNode = nextNode;
+                                        fixedOffset = 0;
+                                        break;
+                                    } else if (nextNode.nodeType === Node.ELEMENT_NODE) {
+                                        // 查找子元素中的第一个文本节点
+                                        const walker = document.createTreeWalker(
+                                            nextNode,
+                                            NodeFilter.SHOW_TEXT,
+                                            null
+                                        );
+                                        const firstText = walker.nextNode();
+                                        if (firstText) {
+                                            fixedNode = firstText;
+                                            fixedOffset = 0;
+                                            break;
+                                        }
+                                    }
+                                    nextNode = nextNode.nextSibling;
+                                }
+                                
+                                // 如果没找到文本节点，创建一个
+                                if (!fixedNode) {
+                                    const textNode = document.createTextNode('');
+                                    if (current.nextSibling) {
+                                        parent.insertBefore(textNode, current.nextSibling);
+                                    } else {
+                                        parent.appendChild(textNode);
+                                    }
+                                    fixedNode = textNode;
+                                    fixedOffset = 0;
+                                }
+                            }
+                            break;
+                        }
+                        current = current.parentElement;
+                    }
+
+                    // 如果光标在空文本节点中（只有零宽度空格），尝试移动到最近的文本节点
+                    if (!needsFix && container.nodeType === Node.TEXT_NODE) {
+                        const textNode = container;
+                        if (textNode.textContent === '\u200B' || 
+                            (textNode.textContent.trim() === '' && textNode.textContent.length > 0)) {
+                            // 尝试移动到相邻的非空文本节点
+                            let nextNode = textNode.nextSibling;
+                            let prevNode = textNode.previousSibling;
+                            
+                            // 优先移动到下一个文本节点
+                            while (nextNode) {
+                                if (nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent.trim() !== '') {
+                                    fixedNode = nextNode;
+                                    fixedOffset = 0;
+                                    needsFix = true;
+                                    break;
+                                } else if (nextNode.nodeType === Node.ELEMENT_NODE) {
+                                    // 查找子元素中的第一个文本节点
+                                    const walker = document.createTreeWalker(
+                                        nextNode,
+                                        NodeFilter.SHOW_TEXT,
+                                        null
+                                    );
+                                    let node = walker.nextNode();
+                                    while (node) {
+                                        if (node.textContent.trim() !== '') {
+                                            fixedNode = node;
+                                            fixedOffset = 0;
+                                            needsFix = true;
+                                            break;
+                                        }
+                                        node = walker.nextNode();
+                                    }
+                                    if (needsFix) break;
+                                }
+                                nextNode = nextNode.nextSibling;
+                            }
+                            
+                            // 如果下一个节点没找到，尝试上一个节点
+                            if (!needsFix) {
+                                while (prevNode) {
+                                    if (prevNode.nodeType === Node.TEXT_NODE && prevNode.textContent.trim() !== '') {
+                                        fixedNode = prevNode;
+                                        fixedOffset = prevNode.textContent.length;
+                                        needsFix = true;
+                                        break;
+                                    } else if (prevNode.nodeType === Node.ELEMENT_NODE) {
+                                        // 查找子元素中的最后一个文本节点
+                                        const walker = document.createTreeWalker(
+                                            prevNode,
+                                            NodeFilter.SHOW_TEXT,
+                                            null
+                                        );
+                                        let lastText = null;
+                                        let node = walker.nextNode();
+                                        while (node) {
+                                            if (node.textContent.trim() !== '') {
+                                                lastText = node;
+                                            }
+                                            node = walker.nextNode();
+                                        }
+                                        if (lastText) {
+                                            fixedNode = lastText;
+                                            fixedOffset = lastText.textContent.length;
+                                            needsFix = true;
+                                            break;
+                                        }
+                                    }
+                                    prevNode = prevNode.previousSibling;
+                                }
+                            }
+                            
+                            // 如果都没找到，尝试移动到父元素的下一个文本节点
+                            if (!needsFix && textNode.parentElement) {
+                                const parent = textNode.parentElement;
+                                let sibling = parent.nextSibling;
+                                while (sibling) {
+                                    if (sibling.nodeType === Node.TEXT_NODE && sibling.textContent.trim() !== '') {
+                                        fixedNode = sibling;
+                                        fixedOffset = 0;
+                                        needsFix = true;
+                                        break;
+                                    }
+                                    sibling = sibling.nextSibling;
+                                }
+                            }
+                        }
+                    }
+
+                    // 如果需要修复，更新选择
+                    if (needsFix && fixedNode) {
+                        const newRange = document.createRange();
+                        newRange.setStart(fixedNode, fixedOffset);
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                }
+            } catch (e) {
+                // 忽略修复过程中的错误，避免影响正常编辑
+                console.warn('[normalizeCursorPosition] 修复光标位置失败:', e);
+            }
         }
 
         // ==================== 格式状态同步 ====================
         /**
          * 同步格式状态到 Swift（用于更新格式菜单）
+         * 参考 CKEditor 5 的实现：统一检查所有格式状态，包括文本格式、标题、列表、对齐方式
+         * 注意：在组合输入期间不触发，避免打断输入
          */
         function syncFormatState() {
+            if (isComposing) {
+                return;
+            }
+            
             const selection = window.getSelection();
             if (!selection.rangeCount) {
                 return;
@@ -1667,13 +4449,21 @@
 
             const range = selection.getRangeAt(0);
             
-            // 检查各种格式状态
+            // 检查文本格式状态（加粗、斜体、下划线、删除线、高亮）
             const formatState = {
                 isBold: window.MiNoteWebEditor.checkFormatState(range, 'bold'),
                 isItalic: window.MiNoteWebEditor.checkFormatState(range, 'italic'),
                 isUnderline: window.MiNoteWebEditor.checkFormatState(range, 'underline'),
                 isStrikethrough: window.MiNoteWebEditor.checkFormatState(range, 'strikethrough'),
-                isHighlighted: window.MiNoteWebEditor.checkFormatState(range, 'highlight')
+                isHighlighted: window.MiNoteWebEditor.checkFormatState(range, 'highlight'),
+                // 检查标题级别
+                headingLevel: window.MiNoteWebEditor.checkHeadingLevel(range),
+                // 检查列表类型
+                listType: window.MiNoteWebEditor.checkListType(range),
+                // 检查对齐方式
+                textAlignment: window.MiNoteWebEditor.checkTextAlignment(range),
+                // 检查是否在引用块中
+                isInQuote: window.MiNoteWebEditor.checkQuoteState(range)
             };
 
             // 通知 Swift 更新格式状态
@@ -1688,17 +4478,31 @@
         // ==================== 内容变化通知 ====================
         /**
          * 通知内容已变化
+         * 注意：在组合输入期间不触发，避免打断输入
          */
         function notifyContentChanged() {
-            if (isLoadingContent || !isInitialized) {
+            if (isLoadingContent || !isInitialized || isComposing) {
                 return;
             }
 
+            // 在获取内容前保存光标位置（防止后续重新加载时丢失）
+            // 这很重要，因为 Swift 端可能会在保存后重新加载内容
+            const savedPosition = window.MiNoteWebEditor._saveCursorPosition();
+            
             const xmlContent = window.MiNoteWebEditor.getContent();
             
             // 更新当前内容
             if (currentContent !== xmlContent) {
                 currentContent = xmlContent;
+                
+                // 如果内容变化了，保存光标位置到全局变量（供 loadContent 使用）
+                // 这样即使 Swift 端重新加载内容，也能恢复光标位置
+                // 但只在确实需要时才保存（避免不必要的保存）
+                if (savedPosition) {
+                    window._pendingCursorPosition = savedPosition;
+                    // 设置一个标志，表示有待恢复的光标位置
+                    window._hasPendingCursorPosition = true;
+                }
                 
                 // 通知 Swift
                 if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.editorBridge) {
@@ -1707,10 +4511,19 @@
                         content: xmlContent
                     });
                 }
+            } else {
+                // 如果内容没有变化，清除待恢复的光标位置（避免使用过期的位置）
+                window._pendingCursorPosition = null;
+                window._hasPendingCursorPosition = false;
             }
             
             // 同步格式状态
-            syncFormatState();
+            // 使用 requestAnimationFrame 确保状态检查在 DOM 更新后执行
+            requestAnimationFrame(() => {
+                if (!isComposing && !isLoadingContent) {
+                    syncFormatState();
+                }
+            });
         }
 
         // ==================== 日志重定向 ====================

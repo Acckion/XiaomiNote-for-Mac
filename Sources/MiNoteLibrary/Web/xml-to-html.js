@@ -124,10 +124,6 @@ class XMLToHTMLConverter {
         const indentMatch = line.match(/indent="(\d+)"/);
         const indent = indentMatch ? indentMatch[1] : '1';
 
-        // 提取 align 属性（如果有）
-        const alignMatch = line.match(/align="(\w+)"/);
-        const align = alignMatch ? alignMatch[1] : 'left';
-
         // 提取文本内容（去除 <text> 和 </text> 标签）
         const contentMatch = line.match(/<text[^>]*>(.*?)<\/text>/);
         if (!contentMatch) {
@@ -136,11 +132,32 @@ class XMLToHTMLConverter {
 
         let content = contentMatch[1];
         
-        // 处理富文本格式
-        const richContent = this.extractRichTextContent(content);
+        // 检查是否有对齐标签（<center> 或 <right>）
+        // 注意：对齐标签应该包裹整个内容，而不是部分内容
+        let alignClass = '';
+        let processedContent = content;
+        
+        // 去除前后空白字符，以便更准确地匹配
+        const trimmedContent = content.trim();
+        
+        // 检查是否整个内容被 <center> 包裹（允许前后空白）
+        const centerMatch = trimmedContent.match(/^<center>(.*?)<\/center>$/s);
+        if (centerMatch) {
+            alignClass = ' center';
+            processedContent = centerMatch[1].trim();
+        } else {
+            // 检查是否整个内容被 <right> 包裹（允许前后空白）
+            const rightMatch = trimmedContent.match(/^<right>(.*?)<\/right>$/s);
+            if (rightMatch) {
+                alignClass = ' right';
+                processedContent = rightMatch[1].trim();
+            }
+        }
+        
+        // 处理富文本格式（处理对齐标签内的内容）
+        const richContent = this.extractRichTextContent(processedContent);
 
         // 构建 HTML
-        const alignClass = align === 'center' ? ' center' : (align === 'right' ? ' right' : '');
         // 如果内容为空，至少保留一个空格以确保可见
         const finalContent = richContent || '\u200B';
         return `<div class="mi-note-text indent-${indent}${alignClass}">${finalContent}</div>`;
@@ -185,13 +202,14 @@ class XMLToHTMLConverter {
             return `<span class="mi-note-h3-size">${processedContent}</span>`;
         });
 
-        // 处理居中对齐 <center>（可能包含其他格式）
+        // 注意：<center> 和 <right> 标签不应该在这里处理
+        // 它们应该在 parseTextElement 中处理，作为整个文本元素的对齐方式
+        // 如果内容中有嵌套的 <center> 或 <right> 标签（不应该出现，但为了兼容性保留），则转换为 span
         html = html.replace(/<center>(.*?)<\/center>/g, (match, content) => {
             let processedContent = this.processNestedFormats(content);
             return `<span class="mi-note-center">${processedContent}</span>`;
         });
 
-        // 处理右对齐 <right>（可能包含其他格式）
         html = html.replace(/<right>(.*?)<\/right>/g, (match, content) => {
             let processedContent = this.processNestedFormats(content);
             return `<span class="mi-note-right">${processedContent}</span>`;
@@ -343,7 +361,7 @@ class XMLToHTMLConverter {
     parseImageElement(line) {
         // 提取 src 属性
         const srcMatch = line.match(/src="([^"]+)"/);
-        const src = srcMatch ? srcMatch[1] : '';
+        let src = srcMatch ? srcMatch[1] : '';
 
         // 提取 alt 属性
         const altMatch = line.match(/alt="([^"]+)"/);
@@ -353,9 +371,32 @@ class XMLToHTMLConverter {
         const fileIdMatch = line.match(/fileid="([^"]+)"/);
         const fileId = fileIdMatch ? fileIdMatch[1] : '';
 
+        // 提取 imgshow 和 imgdes 属性（小米笔记特有）
+        const imgshowMatch = line.match(/imgshow="([^"]*)"/);
+        const imgshow = imgshowMatch ? imgshowMatch[1] : '0';
+        const imgdesMatch = line.match(/imgdes="([^"]*)"/);
+        const imgdes = imgdesMatch ? imgdesMatch[1] : '';
+
+        // 如果只有 fileid 而没有有效的 src，使用 minote:// 协议
+        // 如果 src 为空或无效，且存在 fileid，则使用 fileid 构建 minote:// URL
+        if ((!src || src.trim() === '') && fileId) {
+            src = `minote://image/${fileId}`;
+        }
+
+        // 如果 src 存在但 fileid 也存在，优先使用 fileid 构建 URL（更可靠）
+        if (fileId && (!src || src.trim() === '' || !src.startsWith('http') && !src.startsWith('data:'))) {
+            src = `minote://image/${fileId}`;
+        }
+
         let imgTag = `<img src="${src}" alt="${alt}" class="mi-note-image"`;
         if (fileId) {
             imgTag += ` fileid="${fileId}"`;
+        }
+        if (imgshow !== undefined && imgshow !== null) {
+            imgTag += ` imgshow="${imgshow}"`;
+        }
+        if (imgdes !== undefined && imgdes !== null) {
+            imgTag += ` imgdes="${imgdes}"`;
         }
         imgTag += ' />';
 

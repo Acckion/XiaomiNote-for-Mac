@@ -171,8 +171,10 @@ struct WebEditorView: NSViewRepresentable {
     }
     
     func updateNSView(_ webView: WKWebView, context: Context) {
-        // 如果是来自Web的更新，跳过内容回写
+        // 如果是来自Web的更新，跳过内容回写（避免循环更新）
         if context.coordinator.isUpdatingFromWeb {
+            // 即使标志为 true，也更新 lastContent，确保下次比较时不会误判
+            context.coordinator.lastContent = content
             return
         }
         
@@ -195,6 +197,9 @@ struct WebEditorView: NSViewRepresentable {
                     print("[WebEditorView] 加载内容到WebView失败: \(error)")
                 }
             }
+        } else {
+            // 即使内容相同，也更新 lastContent，确保下次比较时不会误判
+            context.coordinator.lastContent = content
         }
         
         // 注意：深色模式检测已移除，改为使用KVO响应式监听，避免性能损耗
@@ -630,9 +635,19 @@ struct WebEditorView: NSViewRepresentable {
         }
         
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard let body = message.body as? [String: Any],
-                  let type = body["type"] as? String else {
+            // 安全地处理消息体，避免 NSXPCDecoder 警告
+            // 只提取我们需要的类型，而不是直接转换为 [String: Any]
+            guard let bodyDict = message.body as? NSDictionary,
+                  let type = bodyDict["type"] as? String else {
                 return
+            }
+            
+            // 将 NSDictionary 转换为 [String: Any]，但只提取我们需要的键
+            var body: [String: Any] = [:]
+            for key in bodyDict.allKeys {
+                if let keyString = key as? String {
+                    body[keyString] = bodyDict[keyString]
+                }
             }
             
             switch type {
@@ -651,9 +666,11 @@ struct WebEditorView: NSViewRepresentable {
                         if let coordinator = self.coordinator {
                             coordinator.isUpdatingFromWeb = true
                             coordinator.lastContent = content
+                            // 先触发内容变化回调（这会更新 currentXMLContent，可能触发 SwiftUI 重新渲染）
                             self.onContentChanged(content)
-                            // 延迟一点时间后重置标志，确保所有相关的 updateNSView 调用都能检测到
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            // 延迟更长时间后重置标志，确保所有相关的 updateNSView 调用都能检测到
+                            // 增加延迟时间，避免 SwiftUI 重新渲染时触发不必要的 loadContent
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 coordinator.isUpdatingFromWeb = false
                             }
                         } else {
@@ -673,14 +690,64 @@ struct WebEditorView: NSViewRepresentable {
                                 // 这个回调可能会触发 SwiftUI 更新，但由于 isUpdatingFromWeb 已设置，会被跳过
                                 self.onContentChanged(content)
                                 
-                                // 延迟一点时间后重置标志，确保所有相关的 updateNSView 调用都能检测到
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                // 延迟更长时间后重置标志，确保所有相关的 updateNSView 调用都能检测到
+                                // 增加延迟时间，避免 SwiftUI 重新渲染时触发不必要的 loadContent
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     coordinator.isUpdatingFromWeb = false
                                 }
                             } else {
                                 // 如果 coordinator 不存在，直接调用回调
                                 self.onContentChanged(content)
                             }
+                        }
+                    }
+                }
+                
+            case "formatStateChanged":
+                // 处理格式状态变化（参考 CKEditor 5 的状态同步）
+                if let formatState = body["formatState"] as? [String: Any],
+                   let coordinator = self.coordinator,
+                   let webEditorContext = coordinator.webEditorContext {
+                    DispatchQueue.main.async {
+                        // 更新文本格式状态
+                        if let isBold = formatState["isBold"] as? Bool {
+                            webEditorContext.isBold = isBold
+                        }
+                        if let isItalic = formatState["isItalic"] as? Bool {
+                            webEditorContext.isItalic = isItalic
+                        }
+                        if let isUnderline = formatState["isUnderline"] as? Bool {
+                            webEditorContext.isUnderline = isUnderline
+                        }
+                        if let isStrikethrough = formatState["isStrikethrough"] as? Bool {
+                            webEditorContext.isStrikethrough = isStrikethrough
+                        }
+                        if let isHighlighted = formatState["isHighlighted"] as? Bool {
+                            webEditorContext.isHighlighted = isHighlighted
+                        }
+                        
+                        // 更新标题级别
+                        if let headingLevel = formatState["headingLevel"] as? Int {
+                            webEditorContext.headingLevel = headingLevel > 0 ? headingLevel : nil
+                        } else if formatState["headingLevel"] is NSNull {
+                            webEditorContext.headingLevel = nil
+                        }
+                        
+                        // 更新对齐方式
+                        if let alignmentString = formatState["textAlignment"] as? String {
+                            webEditorContext.textAlignment = TextAlignment.fromString(alignmentString)
+                        }
+                        
+                        // 更新列表类型
+                        if let listType = formatState["listType"] as? String {
+                            webEditorContext.listType = listType
+                        } else if formatState["listType"] is NSNull {
+                            webEditorContext.listType = nil
+                        }
+                        
+                        // 更新引用块状态
+                        if let isInQuote = formatState["isInQuote"] as? Bool {
+                            webEditorContext.isInQuote = isInQuote
                         }
                     }
                 }
@@ -749,34 +816,185 @@ struct WebEditorView: NSViewRepresentable {
             }
             
             // 解析minote://image/{id}格式的URL
+            // 支持多种路径格式：
+            // 1. /image/{id} - 标准格式
+            // 2. /{userId}.{fileId} - 用户ID.文件ID格式（如 /1315204657.iWIa7HjEEF53X3XD8vvm5Q）
+            // 3. /{fileId} - 直接文件ID格式
             let path = url.path
+            
+            var searchFileName: String? = nil  // 完整的文件名（可能包含userId.fileId）
+            var fileId: String? = nil          // 仅文件ID部分
+            
             if path.hasPrefix("/image/") {
-                let imageId = String(path.dropFirst("/image/".count))
+                // 标准格式: /image/{id}
+                let id = String(path.dropFirst("/image/".count))
+                fileId = id
+                searchFileName = id
+            } else if path.hasPrefix("/") {
+                // 处理其他格式: /{userId}.{fileId} 或 /{fileId}
+                let pathWithoutSlash = String(path.dropFirst())
                 
-                // 这里应该从本地存储加载图片数据
-                // 暂时返回一个占位图片
-                let placeholderImage = NSImage(systemSymbolName: "photo", accessibilityDescription: "图片") ?? NSImage()
+                // 使用完整路径作为文件名（因为实际文件名是 {userId}.{fileId}.{extension}）
+                searchFileName = pathWithoutSlash
                 
-                if let imageData = placeholderImage.tiffRepresentation,
-                   let bitmap = NSBitmapImageRep(data: imageData),
-                   let pngData = bitmap.representation(using: .png, properties: [:]) {
-                    
-                    let response = HTTPURLResponse(
-                        url: url,
-                        statusCode: 200,
-                        httpVersion: "HTTP/1.1",
-                        headerFields: [
-                            "Content-Type": "image/png",
-                            "Content-Length": "\(pngData.count)"
-                        ]
-                    )!
-                    
-                    urlSchemeTask.didReceive(response)
-                    urlSchemeTask.didReceive(pngData)
-                    urlSchemeTask.didFinish()
+                // 如果包含点号，可能是 {userId}.{fileId} 格式，提取 fileId 部分
+                if let lastDotIndex = pathWithoutSlash.lastIndex(of: ".") {
+                    // 提取点号后的部分作为 fileId
+                    let potentialFileId = String(pathWithoutSlash[pathWithoutSlash.index(after: lastDotIndex)...])
+                    // 验证是否是有效的文件ID格式（通常包含字母和数字，长度大于10）
+                    if potentialFileId.count > 10 && potentialFileId.allSatisfy({ $0.isLetter || $0.isNumber }) {
+                        fileId = potentialFileId
+                        print("[ImageURLSchemeHandler] 从路径 \(path) 提取文件ID: \(potentialFileId)")
+                    } else {
+                        // 如果点号后的部分看起来不像文件ID，使用整个路径作为 fileId
+                        fileId = pathWithoutSlash
+                        print("[ImageURLSchemeHandler] 使用完整路径作为文件ID: \(pathWithoutSlash)")
+                    }
+                } else {
+                    // 没有点号，直接使用路径作为 fileId
+                    fileId = pathWithoutSlash
+                    print("[ImageURLSchemeHandler] 使用路径作为文件ID: \(pathWithoutSlash)")
                 }
+            }
+            
+            guard let fileName = searchFileName, !fileName.isEmpty else {
+                urlSchemeTask.didFailWithError(NSError(domain: "ImageURLSchemeHandler", code: 404, userInfo: [NSLocalizedDescriptionKey: "无效的图片URL路径: \(path)"]))
+                return
+            }
+            
+            print("[ImageURLSchemeHandler] 解析图片URL: 路径=\(path), 文件名=\(fileName), 文件ID=\(fileId ?? "无")")
+            
+            // 从本地存储加载图片数据
+            // 尝试多种方式加载图片：
+            // 1. 从 images/ 目录直接查找完整文件名（支持 {userId}.{fileId}.{extension} 格式）
+            // 2. 使用新的 loadImage 方法（需要 fileType，仅 fileId）
+            // 3. 尝试从 images/图片/ 目录加载（特殊目录）
+            // 4. 使用旧的 getImage 方法（需要 folderId）
+            
+            var imageData: Data? = nil
+            var contentType = "image/jpeg"
+            
+            let fileManager = FileManager.default
+            let appSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            let appBundleID = Bundle.main.bundleIdentifier ?? "com.minote.MiNoteMac"
+            let documentsDirectory = appSupportURL.appendingPathComponent(appBundleID)
+            let imagesDirectory = documentsDirectory.appendingPathComponent("images")
+            let imageFormats = ["jpg", "jpeg", "png", "gif"]
+            
+            // 首先尝试从 images/ 目录直接查找完整文件名（支持 {userId}.{fileId}.{extension} 格式）
+            // 例如：1315204657.32PrHDJQJF1XECFIuBhVYw.jpeg
+            if fileManager.fileExists(atPath: imagesDirectory.path) {
+                for format in imageFormats {
+                    let fileURL = imagesDirectory.appendingPathComponent("\(fileName).\(format)")
+                    if fileManager.fileExists(atPath: fileURL.path) {
+                        if let data = try? Data(contentsOf: fileURL) {
+                            imageData = data
+                            contentType = format == "png" ? "image/png" : 
+                                         format == "gif" ? "image/gif" : 
+                                         "image/jpeg"
+                            print("[ImageURLSchemeHandler] 从 images/ 目录加载图片: \(fileName).\(format)")
+                            break
+                        }
+                    }
+                }
+            }
+            
+            // 如果失败，尝试使用新的 loadImage 方法（仅 fileId，不需要 userId）
+            if imageData == nil, let id = fileId {
+                let localStorage = LocalStorageService.shared
+                for format in imageFormats {
+                    if let data = localStorage.loadImage(fileId: id, fileType: format) {
+                        imageData = data
+                        contentType = format == "png" ? "image/png" : 
+                                     format == "gif" ? "image/gif" : 
+                                     "image/jpeg"
+                        print("[ImageURLSchemeHandler] 使用 loadImage 方法加载图片: \(id).\(format)")
+                        break
+                    }
+                }
+            }
+            
+            // 如果失败，尝试从 images/图片/ 目录加载（特殊目录）
+            if imageData == nil {
+                let specialImageDirectory = imagesDirectory.appendingPathComponent("图片")
+                if fileManager.fileExists(atPath: specialImageDirectory.path) {
+                    for format in imageFormats {
+                        let fileURL = specialImageDirectory.appendingPathComponent("\(fileName).\(format)")
+                        if fileManager.fileExists(atPath: fileURL.path) {
+                            if let data = try? Data(contentsOf: fileURL) {
+                                imageData = data
+                                contentType = format == "png" ? "image/png" : 
+                                             format == "gif" ? "image/gif" : 
+                                             "image/jpeg"
+                                print("[ImageURLSchemeHandler] 从特殊目录 images/图片/ 加载图片: \(fileName).\(format)")
+                                break
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 如果失败，尝试从数据库查找笔记的 folderId（使用旧的 getImage 方法）
+            if imageData == nil, let id = fileId {
+                let localStorage = LocalStorageService.shared
+                // 尝试从所有可能的文件夹中查找图片
+                // 这是一个回退方案，性能可能不是最优
+                do {
+                    let notes = try localStorage.getAllLocalNotes()
+                    for note in notes {
+                        if let data = localStorage.getImage(imageId: id, folderId: note.folderId) {
+                            imageData = data
+                            contentType = "image/jpeg"
+                            print("[ImageURLSchemeHandler] 从文件夹 \(note.folderId) 加载图片: \(id)")
+                            break
+                        }
+                    }
+                } catch {
+                    print("[ImageURLSchemeHandler] 查找图片时出错: \(error)")
+                }
+            }
+            
+            // 如果找到了图片数据，返回它
+            if let imageData = imageData {
+                let response = HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: "HTTP/1.1",
+                    headerFields: [
+                        "Content-Type": contentType,
+                        "Content-Length": "\(imageData.count)"
+                    ]
+                )!
+                
+                urlSchemeTask.didReceive(response)
+                urlSchemeTask.didReceive(imageData)
+                urlSchemeTask.didFinish()
+                return
+            }
+            
+            // 如果找不到图片，返回占位图片
+            print("[ImageURLSchemeHandler] 未找到图片: \(fileName)，返回占位图片")
+            let placeholderImage = NSImage(systemSymbolName: "photo", accessibilityDescription: "图片") ?? NSImage()
+            
+            if let placeholderData = placeholderImage.tiffRepresentation,
+               let bitmap = NSBitmapImageRep(data: placeholderData),
+               let pngData = bitmap.representation(using: .png, properties: [:]) {
+                
+                let response = HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: "HTTP/1.1",
+                    headerFields: [
+                        "Content-Type": "image/png",
+                        "Content-Length": "\(pngData.count)"
+                    ]
+                )!
+                
+                urlSchemeTask.didReceive(response)
+                urlSchemeTask.didReceive(pngData)
+                urlSchemeTask.didFinish()
             } else {
-                urlSchemeTask.didFailWithError(NSError(domain: "ImageURLSchemeHandler", code: 404, userInfo: nil))
+                urlSchemeTask.didFailWithError(NSError(domain: "ImageURLSchemeHandler", code: 404, userInfo: [NSLocalizedDescriptionKey: "图片未找到: \(fileName)"]))
             }
         }
         

@@ -143,12 +143,12 @@ public struct Note: Identifiable, Codable, Hashable {
             title = extraJson["title"] as? String ?? ""
         }
         
-        // 如果extraInfo中没有标题，使用snippet的第一行
-        if title.isEmpty, let snippet = data["snippet"] as? String {
-            title = snippet.split(separator: "\n").first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        // 如果extraInfo中没有标题，尝试从entry直接获取
+        if title.isEmpty, let entryTitle = data["title"] as? String, !entryTitle.isEmpty {
+            title = entryTitle
         }
         
-        // 如果还是没有标题，使用ID
+        // 如果还是没有标题，使用ID（不再从snippet或content中提取）
         if title.isEmpty {
             title = "未命名笔记_\(id)"
         }
@@ -245,38 +245,24 @@ public struct Note: Identifiable, Codable, Hashable {
             print("[NOTE] 从entry直接获取标题: \(title)")
         }
         
-        // 如果还是没有标题，尝试从snippet中提取第一行
-        if newTitle == nil || newTitle?.hasPrefix("未命名笔记_") == true {
-            if let snippet = entry["snippet"] as? String, !snippet.isEmpty {
-                let firstLine = snippet.split(separator: "\n").first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                if !firstLine.isEmpty && !firstLine.hasPrefix("未命名笔记_") {
-                    newTitle = firstLine
-                    print("[NOTE] 从snippet提取标题: \(firstLine)")
-                }
-            }
-        }
-        
-        // 如果还是没有标题，尝试从content中提取第一行
-        if newTitle == nil || newTitle?.hasPrefix("未命名笔记_") == true {
-            if let content = entry["content"] as? String, !content.isEmpty {
-                // 移除XML标签，提取纯文本
-                let textContent = content
-                    .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                let firstLine = textContent.split(separator: "\n").first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                if !firstLine.isEmpty && !firstLine.hasPrefix("未命名笔记_") && firstLine.count < 100 {
-                    newTitle = firstLine
-                    print("[NOTE] 从content提取标题: \(firstLine)")
-                }
-            }
-        }
+        // 不再从snippet或content中提取标题
+        // 如果还是没有标题，保持为空或"未命名笔记_xxx"格式
         
         // 更新标题（如果找到了新的标题）
         if let title = newTitle, !title.isEmpty {
             self.title = title
             print("[NOTE] 最终标题: \(title)")
         } else {
-            print("[NOTE] 警告：无法提取标题，保持原标题: \(self.title)")
+            // 如果没有找到新的标题，且当前标题是"未命名笔记_xxx"格式，保持它
+            // 否则，如果当前标题是从内容中提取的，清空它
+            if !self.title.isEmpty && !self.title.hasPrefix("未命名笔记_") {
+                // 检查当前标题是否可能是从内容中提取的
+                // 如果是，清空它，让它显示为"无标题"
+                self.title = ""
+                print("[NOTE] 清空从内容中提取的标题")
+            } else {
+                print("[NOTE] 保持原标题: \(self.title)")
+            }
         }
         
         // 更新其他字段

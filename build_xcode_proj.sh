@@ -21,12 +21,6 @@ if [ ! -f "project.yml" ]; then
     exit 1
 fi
 
-# 检查 RichTextKit-1.2 是否存在
-if [ ! -d "RichTextKit-1.2" ]; then
-    echo "❌ 错误: RichTextKit-1.2 目录不存在"
-    echo "请确保 RichTextKit-1.2 在项目根目录中"
-    exit 1
-fi
 
 # 清理旧的 Xcode 项目（可选）
 if [ -d "MiNoteMac.xcodeproj" ]; then

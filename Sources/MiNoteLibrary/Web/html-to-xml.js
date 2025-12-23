@@ -70,6 +70,7 @@ class HTMLToXMLConverter {
                 className.includes('mi-note-hr') ||
                 className.includes('mi-note-quote') ||
                 className.includes('mi-note-image') ||
+                className.includes('mi-note-image-container') ||
                 tagName === 'hr' ||
                 tagName === 'blockquote' ||
                 tagName === 'img';
@@ -79,7 +80,7 @@ class HTMLToXMLConverter {
             } else if (className.includes('mi-note-text') || tagName === 'div' || tagName === 'p') {
                 // 处理文本元素，检查是否包含嵌套的特殊元素
                 const hasSpecialChildren = node.querySelector(
-                    '.mi-note-bullet, .mi-note-order, .mi-note-checkbox, .mi-note-hr, .mi-note-quote, .mi-note-image, hr, blockquote, img'
+                    '.mi-note-bullet, .mi-note-order, .mi-note-checkbox, .mi-note-hr, .mi-note-quote, .mi-note-image, .mi-note-image-container, hr, blockquote, img'
                 );
 
                 if (hasSpecialChildren) {
@@ -152,7 +153,7 @@ class HTMLToXMLConverter {
         if (className.includes('mi-note-text') || (tagName === 'p' && !className.includes('pm-block'))) {
             const indent = this.getIndentFromClass(className) || this.getIndentFromDataAttr(node) || '1';
             const align = this.getAlignFromClass(className);
-            const content = this.extractContentWithRichText(node);
+            let content = this.extractContentWithRichText(node);
 
             // 如果内容为空或只有零宽度空格，返回空文本
             const trimmedContent = content.replace(/\u200B/g, '').trim();
@@ -160,12 +161,14 @@ class HTMLToXMLConverter {
                 return `<text indent="${indent}"></text>`;
             }
 
-            let result = `<text indent="${indent}"`;
-            if (align && align !== 'left') {
-                result += ` align="${align}"`;
+            // 根据对齐方式包裹内容（使用 <center> 或 <right> 标签，而不是 align 属性）
+            if (align === 'center') {
+                content = `<center>${content}</center>`;
+            } else if (align === 'right') {
+                content = `<right>${content}</right>`;
             }
-            result += `>${content}</text>`;
-            return result;
+
+            return `<text indent="${indent}">${content}</text>`;
         }
 
         // 处理无序列表
@@ -295,21 +298,69 @@ class HTMLToXMLConverter {
             return `<quote>${quoteContent}</quote>`;
         }
 
+        // 处理图片容器
+        if (className.includes('mi-note-image-container')) {
+            // 从容器中查找 img 元素
+            const img = node.querySelector('img');
+            if (img) {
+                // 递归处理 img 元素
+                return this.convertNodeToXML(img);
+            }
+            return null;
+        }
+
         // 处理图片
         if (className.includes('mi-note-image') || tagName === 'img') {
-            const src = node.getAttribute('src') || '';
+            let src = node.getAttribute('src') || '';
             const alt = node.getAttribute('alt') || '';
-            const fileId = node.getAttribute('fileid') || '';
+            let fileId = node.getAttribute('fileid') || '';
 
             // 文本元素会中断有序列表的连续性
             this.orderListState.isInContinuousList = false;
             this.orderListState.lastIndent = null;
             this.orderListState.lastNumber = null;
 
-            if (fileId) {
-                return `<img fileid="${fileId}" src="${src}" alt="${alt}" />`;
+            // 如果 src 是 minote://image/{fileId} 格式，提取 fileId
+            if (src.startsWith('minote://image/')) {
+                const extractedFileId = src.replace('minote://image/', '');
+                if (!fileId && extractedFileId) {
+                    fileId = extractedFileId;
+                }
+                // 对于 minote:// 协议的图片，不保存 src 到 XML（云端不识别）
+                // 只保存 fileid，让云端通过 fileid 识别图片
+                src = '';
             }
-            return `<img src="${src}" alt="${alt}" />`;
+
+            // 如果有 fileId，优先使用 fileId（这是小米笔记的标准格式）
+            if (fileId) {
+                // 获取 imgshow 和 imgdes 属性（如果存在）
+                const imgshow = node.getAttribute('imgshow') || '0';
+                const imgdes = node.getAttribute('imgdes') || '';
+                
+                // 注意：根据小米笔记的格式，不应该将 base64 数据保存到 XML
+                // base64 数据会导致 XML 过大，导致数据库卡死
+                // 如果 src 是 data: URL（base64 图片），但已经有 fileId，只保存 fileid
+                // 如果没有 fileId 但有 data URL，说明是离线模式，暂时保存 base64（但应该警告用户）
+                if (src.startsWith('data:') && !fileId) {
+                    // 离线模式：暂时保存 base64，但应该警告用户
+                    console.warn('[html-to-xml] ⚠️ 检测到 base64 图片但没有 fileId，这会导致 XML 过大。建议先上传图片。');
+                    return `<img src="${src}" alt="${alt}" />`;
+                } else if (fileId) {
+                    // 有 fileId：只保存 fileid，不保存 base64 数据
+                    return `<img fileid="${fileId}" imgshow="${imgshow}" imgdes="${imgdes}" />`;
+                } else {
+                    // 其他情况：只保存 fileid（如果存在）
+                    return `<img fileid="${fileId}" imgshow="${imgshow}" imgdes="${imgdes}" />`;
+                }
+            }
+            
+            // 如果没有 fileId，但有 src（可能是网络图片或 data URL），保存 src
+            if (src && (src.startsWith('http') || src.startsWith('data:'))) {
+                return `<img src="${src}" alt="${alt}" />`;
+            }
+            
+            // 如果既没有 fileId 也没有有效的 src，返回空（不应该发生）
+            return '';
         }
 
         // 处理标准HTML元素（如p, div等），但只有在没有特殊class时才处理

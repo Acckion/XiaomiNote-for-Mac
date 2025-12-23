@@ -1185,34 +1185,78 @@ final class MiNoteService: @unchecked Sendable {
             mimeType: mimeType
         )
         
-        guard let fileId = requestUploadResponse["fileId"] as? String else {
+        // 检查文件是否已存在
+        var fileId: String? = nil
+        
+        // 情况1：服务器有缓存（文件已存在）
+        // 响应格式：{"data": {"fileId": "...", "digest": "...", "mimeType": "..."}}
+        if let existingFileId = requestUploadResponse["fileId"] as? String {
+            fileId = existingFileId
+            print("[MiNoteService] ✅ 情况1：服务器有缓存，fileId: \(fileId!)")
+        }
+        // 情况2：服务器无缓存（新文件）
+        // 响应格式：{"data": {"storage": {"uploadId": "...", "exists": false, "kss": {...}}}}
+        else if let storage = requestUploadResponse["storage"] as? [String: Any] {
+            let exists = storage["exists"] as? Bool ?? false
+            
+            if exists {
+                // 理论上不应该到这里，因为如果 exists: true，应该在上面就返回 fileId 了
+                // 但为了安全起见，还是处理一下
+                if let existingFileId = storage["fileId"] as? String {
+                    fileId = existingFileId
+                    print("[MiNoteService] ✅ 情况1（备用路径）：服务器有缓存，从 storage 获取 fileId: \(fileId!)")
+                } else {
+                    print("[MiNoteService] ⚠️ 文件已存在但没有 fileId，这不应该发生")
+                    throw MiNoteError.invalidResponse
+                }
+            } else {
+                // 情况2：新文件，需要实际上传
+                print("[MiNoteService] ✅ 情况2：服务器无缓存，需要上传新文件")
+                // 新文件，需要实际上传
+                guard let uploadId = storage["uploadId"] as? String,
+                      let kss = storage["kss"] as? [String: Any],
+                      let blockMetas = kss["block_metas"] as? [[String: Any]],
+                      let firstBlockMeta = blockMetas.first,
+                      let blockMeta = firstBlockMeta["block_meta"] as? String,
+                      let fileMeta = kss["file_meta"] as? String,
+                      let nodeUrls = kss["node_urls"] as? [String],
+                      let nodeUrl = nodeUrls.first else {
+                    throw MiNoteError.invalidResponse
+                }
+                
+                print("[MiNoteService] 新文件，需要上传，uploadId: \(uploadId)")
+                
+                // 第二步：实际上传文件数据，获取 commit_meta
+                let commitMeta = try await uploadFileChunk(
+                    fileData: imageData,
+                    nodeUrl: nodeUrl,
+                    fileMeta: fileMeta,
+                    blockMeta: blockMeta,
+                    chunkPos: 0
+                )
+                
+                // 第三步：提交上传，获取 fileId
+                fileId = try await commitImageUpload(
+                    uploadId: uploadId,
+                    fileSize: fileSize,
+                    sha1: sha1,
+                    fileMeta: fileMeta,
+                    commitMeta: commitMeta
+                )
+                
+                print("[MiNoteService] 文件上传并提交成功，fileId: \(fileId!)")
+            }
+        }
+        
+        guard let finalFileId = fileId else {
             throw MiNoteError.invalidResponse
         }
         
-        print("[MiNoteService] 获取到 fileId: \(fileId)")
-        
-        // 第二步：获取上传URL
-        let uploadURLResponse = try await getImageUploadURL(fileId: fileId, type: "note_img")
-        
-        guard let kssData = uploadURLResponse["kss"] as? [String: Any],
-              let blocks = kssData["blocks"] as? [[String: Any]],
-              let firstBlock = blocks.first,
-              let urls = firstBlock["urls"] as? [String],
-              let uploadURLString = urls.first,
-              let uploadURL = URL(string: uploadURLString) else {
-            throw MiNoteError.invalidResponse
-        }
-        
-        print("[MiNoteService] 获取到上传URL: \(uploadURLString)")
-        
-        // 第三步：实际上传文件到KSS
-        try await uploadFileToKSS(fileData: imageData, uploadURL: uploadURL)
-        
-        print("[MiNoteService] 图片上传成功: \(fileId)")
+        print("[MiNoteService] 图片上传流程完成，fileId: \(finalFileId)")
         
         // 返回文件信息
         return [
-            "fileId": fileId,
+            "fileId": finalFileId,
             "digest": sha1,
             "mimeType": mimeType
         ]
@@ -1357,36 +1401,160 @@ final class MiNoteService: @unchecked Sendable {
         return dataDict
     }
     
-    /// 上传文件到KSS（第三步）
-    private func uploadFileToKSS(fileData: Data, uploadURL: URL) async throws {
+    /// 上传文件块到KSS（第二步）
+    /// - Returns: commit_meta，用于后续提交上传
+    private func uploadFileChunk(fileData: Data, nodeUrl: String, fileMeta: String, blockMeta: String, chunkPos: Int) async throws -> String {
+        // 构建上传URL：{nodeUrl}/upload_block_chunk?chunk_pos={chunkPos}&&file_meta={fileMeta}&block_meta={blockMeta}
+        var urlString = "\(nodeUrl)/upload_block_chunk"
+        urlString += "?chunk_pos=\(chunkPos)"
+        urlString += "&&file_meta=\(encodeURIComponent(fileMeta))"
+        urlString += "&block_meta=\(encodeURIComponent(blockMeta))"
+        
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
+        }
+        
         NetworkLogger.shared.logRequest(
-            url: uploadURL.absoluteString,
-            method: "PUT",
-            headers: [:],
+            url: urlString,
+            method: "POST",
+            headers: ["Content-Type": "application/octet-stream"],
             body: "[文件数据: \(fileData.count) 字节]"
         )
         
-        var request = URLRequest(url: uploadURL)
-        request.httpMethod = "PUT"
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
         request.setValue("\(fileData.count)", forHTTPHeaderField: "Content-Length")
         request.httpBody = fileData
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
         if let httpResponse = response as? HTTPURLResponse {
+            let responseString = String(data: data, encoding: .utf8) ?? ""
+            
             NetworkLogger.shared.logResponse(
-                url: uploadURL.absoluteString,
-                method: "PUT",
+                url: urlString,
+                method: "POST",
                 statusCode: httpResponse.statusCode,
                 headers: httpResponse.allHeaderFields as? [String: String],
-                response: "[响应数据: \(data.count) 字节]",
+                response: responseString,
                 error: nil
             )
             
             guard httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
+                print("[MiNoteService] 上传文件块失败，状态码: \(httpResponse.statusCode), 响应: \(responseString)")
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            // 尝试从响应中解析 commit_meta
+            // 响应可能是 JSON 格式，包含 commit_meta 字段
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let commitMeta = json["commit_meta"] as? String {
+                print("[MiNoteService] 从上传响应中获取到 commit_meta")
+                return commitMeta
+            } else if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let dataDict = json["data"] as? [String: Any],
+                      let commitMeta = dataDict["commit_meta"] as? String {
+                print("[MiNoteService] 从上传响应的 data 字段中获取到 commit_meta")
+                return commitMeta
+            } else {
+                // 如果响应中没有 commit_meta，使用 blockMeta 作为 fallback
+                // 或者可能需要从其他地方获取
+                print("[MiNoteService] ⚠️ 上传响应中没有 commit_meta，使用 blockMeta 作为 fallback")
+                print("[MiNoteService] 上传响应内容: \(responseString.prefix(500))")
+                return blockMeta
+            }
+        }
+        
+        // 如果无法解析响应，使用 blockMeta 作为 fallback
+        print("[MiNoteService] ⚠️ 无法解析上传响应，使用 blockMeta 作为 fallback")
+        return blockMeta
+    }
+    
+    /// 提交图片上传（第三步）
+    private func commitImageUpload(uploadId: String, fileSize: Int, sha1: String, fileMeta: String, commitMeta: String) async throws -> String {
+        let urlString = "\(baseURL)/file/v2/user/commit"
+        
+        // 构建 commit 数据
+        let commitData: [String: Any] = [
+            "storage": [
+                "uploadId": uploadId,
+                "size": fileSize,
+                "sha1": sha1,
+                "kss": [
+                    "file_meta": fileMeta,
+                    "commit_metas": [
+                        [
+                            "commit_meta": commitMeta
+                        ]
+                    ]
+                ]
+            ]
+        ]
+        
+        guard let commitJson = try? JSONSerialization.data(withJSONObject: commitData, options: [.sortedKeys]),
+              let commitString = String(data: commitJson, encoding: .utf8) else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        let commitEncoded = encodeURIComponent(commitString)
+        let serviceTokenEncoded = encodeURIComponent(serviceToken)
+        let body = "commit=\(commitEncoded)&serviceToken=\(serviceTokenEncoded)"
+        
+        let postHeaders = getPostHeaders()
+        
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "POST",
+            headers: postHeaders,
+            body: "commit=\(commitString.prefix(200))...&serviceToken=..."
+        )
+        
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = postHeaders
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body.data(using: .utf8)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            let responseString = String(data: data, encoding: .utf8)
+            
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "POST",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            if httpResponse.statusCode == 401 {
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+            }
+            
+            guard httpResponse.statusCode == 200 else {
                 throw MiNoteError.networkError(URLError(.badServerResponse))
             }
         }
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        guard let code = json["code"] as? Int, code == 0,
+              let dataDict = json["data"] as? [String: Any],
+              let fileId = dataDict["fileId"] as? String else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        print("[MiNoteService] 提交上传成功，fileId: \(fileId)")
+        return fileId
     }
     
     /// 上传文件到小米服务器（旧方法，保留兼容性）
