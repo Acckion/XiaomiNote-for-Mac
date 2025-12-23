@@ -54,6 +54,9 @@ struct WebEditorView: NSViewRepresentable {
         preferences.setValue(true, forKey: "developerExtrasEnabled")
         config.preferences = preferences
         
+        // 注意：在 macOS 上，WKWebView 不支持 allowFileAccessFromFileURLs 配置
+        // 使用 loadFileURL:allowingReadAccessTo: 方法已经足够允许访问本地资源
+        
         // 添加消息处理器用于与JavaScript通信
         let userContentController = WKUserContentController()
         let handler = EditorMessageHandler(onContentChanged: onContentChanged, onEditorReady: onEditorReady)
@@ -124,7 +127,84 @@ struct WebEditorView: NSViewRepresentable {
         }
         
         if let htmlURL = htmlURL {
-            webView.loadFileURL(htmlURL, allowingReadAccessTo: htmlURL.deletingLastPathComponent())
+            // 在 macOS 上，使用 loadHTMLString 并设置 baseURL 可以更好地处理相对路径的模块文件
+            // 读取 HTML 文件内容
+            if let htmlContent = try? String(contentsOf: htmlURL, encoding: .utf8) {
+                // 设置 baseURL 为 Resources 目录（HTML 文件所在的目录）
+                var baseURL = htmlURL.deletingLastPathComponent()
+                // 如果 HTML 在 Web 子目录中，baseURL 应该是 Resources 目录
+                if baseURL.lastPathComponent == "Web" {
+                    baseURL = baseURL.deletingLastPathComponent()
+                }
+                
+                // 尝试动态加载模块文件并注入到 HTML 中
+                let resourcesURL = baseURL
+                // 注意：xml-to-html.js 和 html-to-xml.js 必须在 converter.js 之前加载
+                let moduleFiles = [
+                    "logger.js",
+                    "constants.js",
+                    "utils.js",
+                    "xml-to-html.js",  // 必须在 converter.js 之前
+                    "html-to-xml.js",  // 必须在 converter.js 之前
+                    "command.js",
+                    "format-commands.js",
+                    "dom-writer.js",
+                    "converter.js",
+                    "cursor.js",
+                    "editor-core.js",
+                    "editor-api.js",
+                    "editor-init.js"
+                ]
+                
+                var injectedScripts = ""
+                var allModulesLoaded = true
+                
+                for moduleFile in moduleFiles {
+                    let moduleURL = resourcesURL.appendingPathComponent(moduleFile)
+                    if let moduleContent = try? String(contentsOf: moduleURL, encoding: .utf8) {
+                        injectedScripts += "<script>\n\(moduleContent)\n</script>\n"
+                        print("[WebEditorView] ✅ 成功加载模块: \(moduleFile)")
+                    } else {
+                        print("[WebEditorView] ⚠️ 无法加载模块: \(moduleFile) at \(moduleURL.path)")
+                        allModulesLoaded = false
+                    }
+                }
+                
+                if allModulesLoaded {
+                    // 替换 HTML 中的 <script src="..."> 标签为内联脚本
+                    var modifiedHTML = htmlContent
+                    // 移除原有的模块加载脚本标签
+                    for moduleFile in moduleFiles {
+                        let pattern = "<script[^>]*src=[\"']\(moduleFile)[\"'][^>]*></script>"
+                        modifiedHTML = modifiedHTML.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
+                    }
+                    // 在 </head> 之前插入内联脚本
+                    if let headEndRange = modifiedHTML.range(of: "</head>", options: .caseInsensitive) {
+                        modifiedHTML.insert(contentsOf: injectedScripts, at: headEndRange.lowerBound)
+                    } else {
+                        // 如果没有 </head>，在 <body> 之前插入
+                        if let bodyStartRange = modifiedHTML.range(of: "<body", options: .caseInsensitive) {
+                            modifiedHTML.insert(contentsOf: injectedScripts, at: bodyStartRange.lowerBound)
+                        }
+                    }
+                    
+                    print("[WebEditorView] ✅ 所有模块已内联到 HTML")
+                    webView.loadHTMLString(modifiedHTML, baseURL: baseURL)
+                } else {
+                    // 如果部分模块加载失败，使用原始 HTML 和 baseURL
+                    print("[WebEditorView] ⚠️ 部分模块加载失败，使用原始 HTML")
+                    webView.loadHTMLString(htmlContent, baseURL: baseURL)
+                }
+            } else {
+                // 如果读取失败，回退到 loadFileURL
+                var resourcesURL = htmlURL.deletingLastPathComponent()
+                if resourcesURL.lastPathComponent == "Web" {
+                    resourcesURL = resourcesURL.deletingLastPathComponent()
+                }
+                print("[WebEditorView] 回退到 loadFileURL，HTML URL: \(htmlURL.path)")
+                print("[WebEditorView] Allowing read access to: \(resourcesURL.path)")
+                webView.loadFileURL(htmlURL, allowingReadAccessTo: resourcesURL)
+            }
             
             // 页面加载完成后，输出一些测试日志到控制台
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -147,7 +227,12 @@ struct WebEditorView: NSViewRepresentable {
         } else {
             // 如果找不到文件，尝试从main bundle加载（向后兼容）
             if let mainBundleURL = Bundle.main.url(forResource: "editor", withExtension: "html", subdirectory: "Resources/Web") {
-                webView.loadFileURL(mainBundleURL, allowingReadAccessTo: mainBundleURL.deletingLastPathComponent())
+                // 允许访问整个 Resources 目录（包含 modules 子目录）
+                // mainBundleURL 是 Resources/Web/editor.html
+                // 需要访问 Resources 目录
+                let webURL = mainBundleURL.deletingLastPathComponent() // Resources/Web
+                let resourcesURL = webURL.deletingLastPathComponent() // Resources
+                webView.loadFileURL(mainBundleURL, allowingReadAccessTo: resourcesURL)
             } else {
                 // 如果还是找不到文件，加载一个简单的HTML并显示调试信息
                 let resourcePath = bundle.resourceURL?.path ?? "未知"

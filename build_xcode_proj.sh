@@ -39,12 +39,6 @@ if [ $? -eq 0 ]; then
     echo "✅ Xcode 项目生成成功!"
     echo "📂 项目文件: MiNoteMac.xcodeproj"
     
-    # 先构建 RichTextKit 包（确保它可以正常编译）
-    echo "🔨 构建 RichTextKit 包..."
-    cd RichTextKit-1.2
-    swift build 2>&1 | grep -E "(error|Build complete)" || true
-    cd ..
-    
     # 解析 Swift Package 依赖
     echo "📦 解析 Swift Package 依赖..."
     xcodebuild -resolvePackageDependencies -project MiNoteMac.xcodeproj 2>&1 | grep -v "warning:" || true
