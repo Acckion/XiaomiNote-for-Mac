@@ -62,11 +62,8 @@ struct NoteDetailView: View {
         .navigationTitle("")  // 添加空的 navigationTitle 以确保 toolbar 绑定到 detail 列
         .toolbar {
             // 最左侧：新建笔记按钮和格式工具按钮组（放在同一个 ToolbarItem 中，避免自动分割线）
-            ToolbarItem(placement: .automatic) {
-                HStack(spacing: 8) {
-                    newNoteButton
+            ToolbarItemGroup(placement: .automatic) {
                     formatToolbarGroup
-                }
             }
             
             // 搜索框（自动位置）
@@ -391,6 +388,9 @@ struct NoteDetailView: View {
     
     private var formatToolbarGroup: some View {
         HStack(spacing: 6) {
+            newNoteButton
+            Divider()
+                .frame(height: 16)
             undoButton
             redoButton
             Divider()
@@ -406,8 +406,8 @@ struct NoteDetailView: View {
                 .frame(height: 16)
             debugButton
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 1)
+        .padding(.horizontal, -1)
+        .padding(.vertical, 0)
     }
     
     /// 撤销按钮
@@ -416,9 +416,8 @@ struct NoteDetailView: View {
             webEditorContext.undo()
         } label: {
             Image(systemName: "arrow.uturn.backward")
-                .font(.system(size: 16))
+                .font(.system(size: 12))
         }
-        .buttonStyle(.plain)
         .help("撤销 (⌘Z)")
     }
     
@@ -428,77 +427,84 @@ struct NoteDetailView: View {
             webEditorContext.redo()
         } label: {
             Image(systemName: "arrow.uturn.forward")
-                .font(.system(size: 16))
+                .font(.system(size: 12))
         }
-        .buttonStyle(.plain)
         .help("重做 (⌘⇧Z)")
     }
     
     @State private var showFormatMenu: Bool = false
     
     private var formatMenu: some View {
-        Button {
-            showFormatMenu.toggle()
-        } label: {
-            Image(systemName: "textformat")
-                .font(.system(size: 16))
-        }
-        .buttonStyle(.plain)
-        .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
-            WebFormatMenuView(context: webEditorContext) { action in
-                // WebFormatMenuView 使用 WebEditorContext 处理格式操作，这里只需要关闭菜单
-                showFormatMenu = false
+        HStack(spacing: 8) {
+            Button {
+                showFormatMenu.toggle()
+            } label: {
+                Image(systemName: "textformat")
+                    .font(.system(size: 14))
+            }
+            
+            .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
+                WebFormatMenuView(context: webEditorContext) { action in
+                    // WebFormatMenuView 使用 WebEditorContext 处理格式操作，这里只需要关闭菜单
+                    showFormatMenu = false
+                }
             }
         }
     }
     
     
     private var checkboxButton: some View {
-        Button {
-            insertCheckbox()
-        } label: {
-            Image(systemName: "checklist")
+        HStack(spacing: 8) {
+            Button {
+                insertCheckbox()
+            } label: {
+                Image(systemName: "checklist")
+            }
+            .help("插入待办")
         }
-        .help("插入待办")
     }
     
     private var horizontalRuleButton: some View {
-        Button {
-            insertHorizontalRule()
-        } label: {
-            Image(systemName: "minus")
+        HStack(spacing: 8) {
+            Button {
+                insertHorizontalRule()
+            } label: {
+                Image(systemName: "minus")
+                    .font(.system(size: 16))
+            }
+            .help("插入分割线")
         }
-        .help("插入分割线")
     }
     
     private var imageButton: some View {
-        Button {
-            insertImage()
-        } label: {
-            Image(systemName: "paperclip")
+        HStack(spacing: 8) {
+            Button {
+                insertImage()
+            } label: {
+                Image(systemName: "paperclip")
+                    .font(.system(size: 13))
+            }
+            .help("插入图片")
         }
-        .help("插入图片")
     }
     
     /// 缩进按钮组
     private var indentButtons: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             Button {
                 webEditorContext.increaseIndent()
             } label: {
                 Image(systemName: "increase.indent")
-                    .font(.system(size: 16))
+                    .font(.system(size: 14))
             }
-            .buttonStyle(.plain)
             .help("增加缩进")
             
             Button {
                 webEditorContext.decreaseIndent()
             } label: {
                 Image(systemName: "decrease.indent")
-                    .font(.system(size: 16))
+                    .font(.system(size: 14))
             }
-            .buttonStyle(.plain)
             .help("减少缩进")
         }
     }
@@ -606,28 +612,28 @@ struct NoteDetailView: View {
         guard viewModel.isOnline && viewModel.isLoggedIn else {
             print("[NoteDetailView] ⚠️ 无法插入图片：未登录或离线")
             // 离线模式：暂时使用 base64，但应该提示用户
-            guard let imageData = try? Data(contentsOf: url) else {
-                print("[NoteDetailView] ⚠️ 无法加载图片: \(url)")
+        guard let imageData = try? Data(contentsOf: url) else {
+            print("[NoteDetailView] ⚠️ 无法加载图片: \(url)")
                 isInsertingImage = false
                 imageInsertStatus = .failed
                 imageInsertMessage = "无法加载图片：\(url.lastPathComponent)"
                 // 弹窗已经在显示，状态更新会自动刷新内容
-                return
-            }
-            let base64String = imageData.base64EncodedString()
-            let mimeType: String
-            switch url.pathExtension.lowercased() {
-            case "png":
-                mimeType = "image/png"
-            case "jpg", "jpeg":
-                mimeType = "image/jpeg"
-            case "gif":
-                mimeType = "image/gif"
-            default:
-                mimeType = "image/jpeg"
-            }
-            let dataUrl = "data:\(mimeType);base64,\(base64String)"
-            webEditorContext.insertImage(dataUrl, altText: url.lastPathComponent)
+            return
+        }
+        let base64String = imageData.base64EncodedString()
+        let mimeType: String
+        switch url.pathExtension.lowercased() {
+        case "png":
+            mimeType = "image/png"
+        case "jpg", "jpeg":
+            mimeType = "image/jpeg"
+        case "gif":
+            mimeType = "image/gif"
+        default:
+            mimeType = "image/jpeg"
+        }
+        let dataUrl = "data:\(mimeType);base64,\(base64String)"
+        webEditorContext.insertImage(dataUrl, altText: url.lastPathComponent)
             print("[NoteDetailView] ⚠️ 离线模式：已插入 base64 图片（临时）: \(url.lastPathComponent)")
             
             // 显示离线模式提示
@@ -657,10 +663,10 @@ struct NoteDetailView: View {
             imageInsertStatus = .success
             imageInsertMessage = "图片插入成功：\(url.lastPathComponent)"
             // 弹窗已经在显示，状态更新会自动刷新内容
-            
-            // 触发保存（图片插入后需要保存）
-            Task { @MainActor in
-                await performSaveImmediately()
+        
+        // 触发保存（图片插入后需要保存）
+        Task { @MainActor in
+            await performSaveImmediately()
             }
         } catch {
             print("[NoteDetailView] ❌ 上传图片失败: \(error.localizedDescription)")
@@ -1071,7 +1077,7 @@ struct NoteDetailView: View {
         }
         
         // 立即执行第一次上传（如果有修改）
-        Task { @MainActor in
+            Task { @MainActor in
             if xmlContent != lastUploadedContent {
                 await performCloudUpload(for: note, xmlContent: xmlContent)
                 lastUploadedContent = xmlContent
@@ -1084,36 +1090,36 @@ struct NoteDetailView: View {
     private func performCloudUpload(for note: Note, xmlContent: String) async {
         // 验证笔记ID
         guard note.id == currentEditingNoteId else {
-            return
-        }
-        
-        // 直接使用传入的 XML 内容，不重新获取
-        let updatedNote = buildUpdatedNote(from: note, xmlContent: xmlContent)
-        
-        // 开始上传
-        isUploading = true
-        
-        do {
-            // 触发云端上传（updateNote 会再次保存到本地，这是幂等操作）
-            try await viewModel.updateNote(updatedNote)
-            
-            // 显示成功提示
-            withAnimation {
-                showSaveSuccess = true
-                isUploading = false
-            }
-            
-            // 2秒后隐藏成功提示
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                withAnimation {
-                    showSaveSuccess = false
+                    return
                 }
-            }
-        } catch {
-            print("[NoteDetailView] ❌ 云端上传失败: \(error.localizedDescription)")
-            isUploading = false
-            // 上传失败不影响本地数据，离线时会自动添加到队列
-        }
+                
+                // 直接使用传入的 XML 内容，不重新获取
+        let updatedNote = buildUpdatedNote(from: note, xmlContent: xmlContent)
+                
+                // 开始上传
+                isUploading = true
+                
+                do {
+                    // 触发云端上传（updateNote 会再次保存到本地，这是幂等操作）
+            try await viewModel.updateNote(updatedNote)
+                    
+                    // 显示成功提示
+                    withAnimation {
+                        showSaveSuccess = true
+                        isUploading = false
+                    }
+                    
+                    // 2秒后隐藏成功提示
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation {
+                            showSaveSuccess = false
+                        }
+                    }
+                } catch {
+                    print("[NoteDetailView] ❌ 云端上传失败: \(error.localizedDescription)")
+                    isUploading = false
+                    // 上传失败不影响本地数据，离线时会自动添加到队列
+                }
     }
     
     /// 立即保存更改（用于切换笔记前）

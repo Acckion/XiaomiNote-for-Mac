@@ -1781,17 +1781,17 @@ public class NotesViewModel: ObservableObject {
         // 如果离线或未认证，添加到离线队列
         print("[[调试]]步骤22 [VIEWMODEL] 检查在线状态，isOnline: \(isOnline), isAuthenticated: \(service.isAuthenticated())")
         if !isOnline || !service.isAuthenticated() {
-                let operationData = try JSONEncoder().encode([
+            let operationData = try JSONEncoder().encode([
                     "title": noteToSave.title,
                     "content": noteToSave.content,
                     "folderId": noteToSave.folderId
-                ])
-                let operation = OfflineOperation(
-                    type: .updateNote,
+            ])
+            let operation = OfflineOperation(
+                type: .updateNote,
                     noteId: noteToSave.id,
-                    data: operationData
-                )
-                try offlineQueue.addOperation(operation)
+                data: operationData
+            )
+            try offlineQueue.addOperation(operation)
                 print("[[调试]]步骤23 [VIEWMODEL] 离线模式，添加到离线队列，笔记ID: \(noteToSave.id)")
             return
         }

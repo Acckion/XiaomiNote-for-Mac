@@ -130,10 +130,10 @@ struct TitleEditorView: NSViewRepresentable {
         } else {
             // 当前不是占位符，正常更新
             if currentString != cleanTitle {
-                context.coordinator.isUpdatingFromExternal = true
-                textView.string = cleanTitle
-                textView.textColor = NSColor.labelColor
-                context.coordinator.isUpdatingFromExternal = false
+            context.coordinator.isUpdatingFromExternal = true
+            textView.string = cleanTitle
+            textView.textColor = NSColor.labelColor
+            context.coordinator.isUpdatingFromExternal = false
             }
         }
         
@@ -153,7 +153,7 @@ struct TitleEditorView: NSViewRepresentable {
         // 更新占位符
         // 如果标题为空，立即更新占位符（不需要延迟）
         if title.isEmpty {
-            context.coordinator.updatePlaceholder()
+        context.coordinator.updatePlaceholder()
         } else {
             // 如果标题不为空，延迟更新占位符（避免在更新过程中触发）
             let coordinator = context.coordinator

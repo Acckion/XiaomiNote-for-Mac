@@ -1221,11 +1221,11 @@ final class MiNoteService: @unchecked Sendable {
                       let fileMeta = kss["file_meta"] as? String,
                       let nodeUrls = kss["node_urls"] as? [String],
                       let nodeUrl = nodeUrls.first else {
-                    throw MiNoteError.invalidResponse
-                }
-                
+            throw MiNoteError.invalidResponse
+        }
+        
                 print("[MiNoteService] 新文件，需要上传，uploadId: \(uploadId)")
-                
+        
                 // 第二步：实际上传文件数据，获取 commit_meta
                 let commitMeta = try await uploadFileChunk(
                     fileData: imageData,

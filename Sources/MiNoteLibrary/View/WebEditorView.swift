@@ -974,25 +974,25 @@ struct WebEditorView: NSViewRepresentable {
             
             // 如果找不到图片，返回占位图片
             print("[ImageURLSchemeHandler] 未找到图片: \(fileName)，返回占位图片")
-            let placeholderImage = NSImage(systemSymbolName: "photo", accessibilityDescription: "图片") ?? NSImage()
-            
+                let placeholderImage = NSImage(systemSymbolName: "photo", accessibilityDescription: "图片") ?? NSImage()
+                
             if let placeholderData = placeholderImage.tiffRepresentation,
                let bitmap = NSBitmapImageRep(data: placeholderData),
-               let pngData = bitmap.representation(using: .png, properties: [:]) {
-                
-                let response = HTTPURLResponse(
-                    url: url,
-                    statusCode: 200,
-                    httpVersion: "HTTP/1.1",
-                    headerFields: [
-                        "Content-Type": "image/png",
-                        "Content-Length": "\(pngData.count)"
-                    ]
-                )!
-                
-                urlSchemeTask.didReceive(response)
-                urlSchemeTask.didReceive(pngData)
-                urlSchemeTask.didFinish()
+                   let pngData = bitmap.representation(using: .png, properties: [:]) {
+                    
+                    let response = HTTPURLResponse(
+                        url: url,
+                        statusCode: 200,
+                        httpVersion: "HTTP/1.1",
+                        headerFields: [
+                            "Content-Type": "image/png",
+                            "Content-Length": "\(pngData.count)"
+                        ]
+                    )!
+                    
+                    urlSchemeTask.didReceive(response)
+                    urlSchemeTask.didReceive(pngData)
+                    urlSchemeTask.didFinish()
             } else {
                 urlSchemeTask.didFailWithError(NSError(domain: "ImageURLSchemeHandler", code: 404, userInfo: [NSLocalizedDescriptionKey: "图片未找到: \(fileName)"]))
             }
