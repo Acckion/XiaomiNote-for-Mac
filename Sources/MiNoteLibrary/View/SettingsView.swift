@@ -43,6 +43,10 @@ public struct SettingsView: View {
                     }
                 }
                 
+                Section("私密笔记") {
+                    PrivateNotesPasswordSettingsView()
+                }
+                
                 Section("账户") {
                     HStack {
                         Text("登录状态")
@@ -256,6 +260,287 @@ public struct SettingsView: View {
         alert.alertStyle = .informational
         alert.addButton(withTitle: "确定")
         alert.runModal()
+    }
+}
+
+// 私密笔记密码设置视图
+struct PrivateNotesPasswordSettingsView: View {
+    @State private var showSetPasswordDialog: Bool = false
+    @State private var showChangePasswordDialog: Bool = false
+    @State private var showDeletePasswordAlert: Bool = false
+    @State private var showErrorAlert: Bool = false
+    @State private var errorMessage: String = ""
+    @State private var showSuccessAlert: Bool = false
+    @State private var successMessage: String = ""
+    @State private var touchIDEnabled: Bool = false
+    
+    private let passwordManager = PrivateNotesPasswordManager.shared
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if passwordManager.hasPassword() {
+                HStack {
+                    Text("密码状态")
+                    Spacer()
+                    Text("已设置")
+                        .foregroundColor(.green)
+                }
+                
+                Button("修改密码") {
+                    showChangePasswordDialog = true
+                }
+                
+                Button("删除密码", role: .destructive) {
+                    showDeletePasswordAlert = true
+                }
+                
+                Divider()
+                
+                // Touch ID 设置
+                if passwordManager.isBiometricAvailable() {
+                    Toggle("使用 \(passwordManager.getBiometricType() ?? "Touch ID")", isOn: $touchIDEnabled)
+                        .onChange(of: touchIDEnabled) { newValue in
+                            passwordManager.setTouchIDEnabled(newValue)
+                        }
+                        .help("启用后，访问私密笔记时可以使用 \(passwordManager.getBiometricType() ?? "Touch ID") 验证")
+                } else {
+                    HStack {
+                        Text("\(passwordManager.getBiometricType() ?? "Touch ID") 不可用")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .help("设备不支持生物识别或未设置生物识别")
+                }
+            } else {
+                HStack {
+                    Text("密码状态")
+                    Spacer()
+                    Text("未设置")
+                        .foregroundColor(.secondary)
+                }
+                
+                Button("设置密码") {
+                    showSetPasswordDialog = true
+                }
+            }
+        }
+        .onAppear {
+            touchIDEnabled = passwordManager.isTouchIDEnabled()
+        }
+        .sheet(isPresented: $showSetPasswordDialog) {
+            SetPasswordDialogView(
+                isPresented: $showSetPasswordDialog,
+                onSuccess: {
+                    successMessage = "密码设置成功"
+                    showSuccessAlert = true
+                },
+                onError: { error in
+                    errorMessage = error
+                    showErrorAlert = true
+                }
+            )
+        }
+        .sheet(isPresented: $showChangePasswordDialog) {
+            ChangePasswordDialogView(
+                isPresented: $showChangePasswordDialog,
+                onSuccess: {
+                    successMessage = "密码修改成功"
+                    showSuccessAlert = true
+                },
+                onError: { error in
+                    errorMessage = error
+                    showErrorAlert = true
+                }
+            )
+        }
+        .alert("删除密码", isPresented: $showDeletePasswordAlert) {
+            Button("删除", role: .destructive) {
+                if passwordManager.deletePassword() {
+                    successMessage = "密码已删除"
+                    showSuccessAlert = true
+                } else {
+                    errorMessage = "删除密码失败"
+                    showErrorAlert = true
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("确定要删除私密笔记密码吗？删除后访问私密笔记将不再需要密码。")
+        }
+        .alert("错误", isPresented: $showErrorAlert) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text(errorMessage)
+        }
+        .alert("成功", isPresented: $showSuccessAlert) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text(successMessage)
+        }
+    }
+}
+
+// 设置密码对话框
+struct SetPasswordDialogView: View {
+    @Binding var isPresented: Bool
+    @State private var password: String = ""
+    @State private var confirmPassword: String = ""
+    @State private var showError: Bool = false
+    @State private var errorMessage: String = ""
+    
+    let onSuccess: () -> Void
+    let onError: (String) -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("设置私密笔记密码")
+                .font(.headline)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("密码")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                SecureField("请输入密码", text: $password)
+                    .textFieldStyle(.roundedBorder)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("确认密码")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                SecureField("请再次输入密码", text: $confirmPassword)
+                    .textFieldStyle(.roundedBorder)
+            }
+            
+            if showError {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
+            
+            HStack {
+                Button("取消") {
+                    isPresented = false
+                }
+                .keyboardShortcut(.cancelAction)
+                
+                Spacer()
+                
+                Button("确定") {
+                    if password.isEmpty {
+                        errorMessage = "密码不能为空"
+                        showError = true
+                    } else if password != confirmPassword {
+                        errorMessage = "两次输入的密码不一致"
+                        showError = true
+                    } else if password.count < 4 {
+                        errorMessage = "密码长度至少为4位"
+                        showError = true
+                    } else {
+                        do {
+                            try PrivateNotesPasswordManager.shared.setPassword(password)
+                            isPresented = false
+                            onSuccess()
+                        } catch {
+                            onError(error.localizedDescription)
+                            isPresented = false
+                        }
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(20)
+        .frame(width: 400)
+    }
+}
+
+// 修改密码对话框
+struct ChangePasswordDialogView: View {
+    @Binding var isPresented: Bool
+    @State private var currentPassword: String = ""
+    @State private var newPassword: String = ""
+    @State private var confirmPassword: String = ""
+    @State private var showError: Bool = false
+    @State private var errorMessage: String = ""
+    
+    let onSuccess: () -> Void
+    let onError: (String) -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("修改私密笔记密码")
+                .font(.headline)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("当前密码")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                SecureField("请输入当前密码", text: $currentPassword)
+                    .textFieldStyle(.roundedBorder)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("新密码")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                SecureField("请输入新密码", text: $newPassword)
+                    .textFieldStyle(.roundedBorder)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("确认新密码")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                SecureField("请再次输入新密码", text: $confirmPassword)
+                    .textFieldStyle(.roundedBorder)
+            }
+            
+            if showError {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
+            
+            HStack {
+                Button("取消") {
+                    isPresented = false
+                }
+                .keyboardShortcut(.cancelAction)
+                
+                Spacer()
+                
+                Button("确定") {
+                    if !PrivateNotesPasswordManager.shared.verifyPassword(currentPassword) {
+                        errorMessage = "当前密码不正确"
+                        showError = true
+                    } else if newPassword.isEmpty {
+                        errorMessage = "新密码不能为空"
+                        showError = true
+                    } else if newPassword != confirmPassword {
+                        errorMessage = "两次输入的新密码不一致"
+                        showError = true
+                    } else if newPassword.count < 4 {
+                        errorMessage = "密码长度至少为4位"
+                        showError = true
+                    } else {
+                        do {
+                            try PrivateNotesPasswordManager.shared.setPassword(newPassword)
+                            isPresented = false
+                            onSuccess()
+                        } catch {
+                            onError(error.localizedDescription)
+                            isPresented = false
+                        }
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(20)
+        .frame(width: 400)
     }
 }
 

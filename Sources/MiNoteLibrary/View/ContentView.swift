@@ -43,6 +43,9 @@ public struct ContentView: View {
     /// 是否显示同步菜单（已废弃，保留用于兼容）
     @State private var showingSyncMenu = false
     
+    /// 是否显示离线操作处理进度视图
+    @State private var showingOfflineOperationsProgress = false
+    
     /// 当前窗口宽度 - 用于响应式布局计算
     @State private var windowWidth: CGFloat = 800
     
@@ -161,6 +164,12 @@ public struct ContentView: View {
         }
         .sheet(isPresented: $showingCookieRefresh) {
             CookieRefreshView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showingOfflineOperationsProgress) {
+            OfflineOperationsProgressView(processor: OfflineOperationProcessor.shared)
+        }
+        .sheet(isPresented: $viewModel.showPrivateNotesPasswordDialog) {
+            PrivateNotesPasswordInputDialogView(viewModel: viewModel)
         }
         .alert("Cookie已失效", isPresented: $showingCookieExpiredAlert) {
             Button("刷新Cookie") {
@@ -360,6 +369,15 @@ public struct ContentView: View {
         }
     }
     
+    /// 状态提示文本（包含待处理操作信息）
+    private var statusHelpTextWithOperations: String {
+        var helpText = statusHelpText
+        if viewModel.pendingOperationsCount > 0 {
+            helpText += "\n待处理操作: \(viewModel.pendingOperationsCount) 个"
+        }
+        return helpText
+    }
+    
     /// 状态指示器（合并了同步功能）
     /// 
     /// 显示在线状态，点击可打开菜单，包含：
@@ -452,6 +470,32 @@ public struct ContentView: View {
             
             Divider()
             
+            // 离线操作处理
+            if viewModel.pendingOperationsCount > 0 {
+                Button {
+                    showingOfflineOperationsProgress = true
+                    Task {
+                        await OfflineOperationProcessor.shared.processOperations()
+                    }
+                } label: {
+                    Label("处理离线操作 (\(viewModel.pendingOperationsCount))", systemImage: "arrow.clockwise.circle")
+                }
+                .disabled(viewModel.isProcessingOfflineOperations || !viewModel.isOnline)
+                
+                if viewModel.failedOperationsCount > 0 {
+                    Button {
+                        Task {
+                            await OfflineOperationProcessor.shared.retryFailedOperations()
+                        }
+                    } label: {
+                        Label("重试失败操作 (\(viewModel.failedOperationsCount))", systemImage: "arrow.counterclockwise.circle")
+                    }
+                    .disabled(viewModel.isProcessingOfflineOperations || !viewModel.isOnline)
+                }
+                
+                Divider()
+            }
+            
             // 同步状态
             Button {
                 // 显示同步状态信息
@@ -462,13 +506,21 @@ public struct ContentView: View {
                     
                     let alert = NSAlert()
                     alert.messageText = "同步状态"
-                    alert.informativeText = "上次同步时间: \(formatter.string(from: lastSync))"
+                    var infoText = "上次同步时间: \(formatter.string(from: lastSync))"
+                    if viewModel.pendingOperationsCount > 0 {
+                        infoText += "\n待处理操作: \(viewModel.pendingOperationsCount) 个"
+                    }
+                    alert.informativeText = infoText
                     alert.addButton(withTitle: "确定")
                     alert.runModal()
                 } else {
                     let alert = NSAlert()
                     alert.messageText = "同步状态"
-                    alert.informativeText = "从未同步"
+                    var infoText = "从未同步"
+                    if viewModel.pendingOperationsCount > 0 {
+                        infoText += "\n待处理操作: \(viewModel.pendingOperationsCount) 个"
+                    }
+                    alert.informativeText = infoText
                     alert.addButton(withTitle: "确定")
                     alert.runModal()
                 }
@@ -490,9 +542,16 @@ public struct ContentView: View {
                 Text(statusText)
                     .font(.caption2)
                     .foregroundColor(statusColor)
+                
+                // 显示待处理操作数量（如果有）
+                if viewModel.pendingOperationsCount > 0 {
+                    Text("(\(viewModel.pendingOperationsCount))")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                }
             }
         }
-        .help(statusHelpText)
+        .help(statusHelpTextWithOperations)
     }
     
 
@@ -787,6 +846,43 @@ struct SidebarView: View {
                                     viewModel.setFolderSortOrder(starredFolder, sortOrder: .title)
                                 } label: {
                                     Label("标题", systemImage: viewModel.getFolderSortOrder(starredFolder) == .title ? "checkmark" : "")
+                                }
+                            } label: {
+                                Label("排序方式", systemImage: "arrow.up.arrow.down")
+                            }
+                        }
+                }
+                // 私密笔记文件夹
+                if let privateNotesFolder = viewModel.folders.first(where: { $0.id == "2" }) {
+                    SidebarFolderRow(folder: privateNotesFolder)
+                        .tag(privateNotesFolder)
+                        .contextMenu {
+                            Button {
+                                createNewFolder()
+                            } label: {
+                                Label("新建文件夹", systemImage: "folder.badge.plus")
+                            }
+                            
+                            Divider()
+                            
+                            // 排序方式
+                            Menu {
+                                Button {
+                                    viewModel.setFolderSortOrder(privateNotesFolder, sortOrder: .editDate)
+                                } label: {
+                                    Label("编辑日期", systemImage: viewModel.getFolderSortOrder(privateNotesFolder) == .editDate ? "checkmark" : "")
+                                }
+                                
+                                Button {
+                                    viewModel.setFolderSortOrder(privateNotesFolder, sortOrder: .createDate)
+                                } label: {
+                                    Label("创建日期", systemImage: viewModel.getFolderSortOrder(privateNotesFolder) == .createDate ? "checkmark" : "")
+                                }
+                                
+                                Button {
+                                    viewModel.setFolderSortOrder(privateNotesFolder, sortOrder: .title)
+                                } label: {
+                                    Label("标题", systemImage: viewModel.getFolderSortOrder(privateNotesFolder) == .title ? "checkmark" : "")
                                 }
                             } label: {
                                 Label("排序方式", systemImage: "arrow.up.arrow.down")

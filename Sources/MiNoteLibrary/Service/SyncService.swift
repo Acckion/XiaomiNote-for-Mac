@@ -168,7 +168,56 @@ final class SyncService: @unchecked Sendable {
                 }
             }
             
-            // 3. 保存所有云端文件夹
+            // 3. 获取并同步私密笔记
+            syncStatusMessage = "获取私密笔记..."
+            do {
+                let privateNotesResponse = try await miNoteService.fetchPrivateNotes(folderId: "2", limit: 200)
+                let privateNotes = miNoteService.parseNotes(from: privateNotesResponse)
+                
+                print("[SYNC] 获取到 \(privateNotes.count) 条私密笔记")
+                totalNotes += privateNotes.count
+                
+                // 处理私密笔记
+                for (index, note) in privateNotes.enumerated() {
+                    syncProgress = Double(syncedNotes + index) / Double(max(totalNotes, 1))
+                    syncStatusMessage = "正在同步私密笔记: \(note.title)"
+                    
+                    // 获取笔记详情
+                    let noteDetails = try await miNoteService.fetchNoteDetails(noteId: note.id)
+                    var updatedNote = note
+                    updatedNote.updateContent(from: noteDetails)
+                    print("[SYNC] 更新私密笔记内容，content长度: \(updatedNote.content.count)")
+                    
+                    // 下载图片
+                    try await downloadNoteImages(from: noteDetails, noteId: note.id)
+                    
+                    // 保存到本地（确保 folderId 为 "2"）
+                    var finalNote = updatedNote
+                    if finalNote.folderId != "2" {
+                        finalNote = Note(
+                            id: finalNote.id,
+                            title: finalNote.title,
+                            content: finalNote.content,
+                            folderId: "2",
+                            isStarred: finalNote.isStarred,
+                            createdAt: finalNote.createdAt,
+                            updatedAt: finalNote.updatedAt,
+                            tags: finalNote.tags,
+                            rawData: finalNote.rawData
+                        )
+                    }
+                    
+                    print("[SYNC] 保存私密笔记: \(finalNote.id)")
+                    try localStorage.saveNote(finalNote)
+                    syncStatus.addSyncedNote(finalNote.id)
+                    syncedNotes += 1
+                }
+            } catch {
+                print("[SYNC] ⚠️ 获取私密笔记失败: \(error.localizedDescription)")
+                // 不抛出错误，继续执行同步流程
+            }
+            
+            // 4. 保存所有云端文件夹
             syncStatusMessage = "保存云端文件夹..."
             if !allCloudFolders.isEmpty {
                 try localStorage.saveFolders(allCloudFolders)

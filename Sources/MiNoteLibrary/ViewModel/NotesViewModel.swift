@@ -61,11 +61,24 @@ public class NotesViewModel: ObservableObject {
     /// 搜索文本
     @Published var searchText = ""
     
+    /// 搜索筛选选项
+    @Published var searchFilterHasTags: Bool = false
+    @Published var searchFilterHasChecklist: Bool = false
+    @Published var searchFilterHasImages: Bool = false
+    @Published var searchFilterHasAudio: Bool = false // 待实现
+    @Published var searchFilterIsPrivate: Bool = false
+    
     /// 是否显示登录视图
     @Published var showLoginView: Bool = false
     
     /// 是否显示Cookie刷新视图
     @Published var showCookieRefreshView: Bool = false
+    
+    /// 私密笔记是否已解锁
+    @Published var isPrivateNotesUnlocked: Bool = false
+    
+    /// 是否显示私密笔记密码输入对话框
+    @Published var showPrivateNotesPasswordDialog: Bool = false
     
     // MARK: - 设置
     
@@ -91,6 +104,34 @@ public class NotesViewModel: ObservableObject {
     
     /// 同步结果
     @Published var syncResult: SyncService.SyncResult?
+    
+    // MARK: - 离线操作处理器
+    
+    /// 离线操作处理器（用于观察处理状态）
+    @MainActor
+    private let offlineProcessor = OfflineOperationProcessor.shared
+    
+    // MARK: - 离线操作状态
+    
+    /// 待处理的离线操作数量
+    var pendingOperationsCount: Int {
+        offlineQueue.getPendingOperations().count
+    }
+    
+    /// 是否正在处理离线操作
+    var isProcessingOfflineOperations: Bool {
+        offlineProcessor.isProcessing
+    }
+    
+    /// 离线操作处理进度
+    var offlineOperationsProgress: Double {
+        offlineProcessor.progress
+    }
+    
+    /// 失败的离线操作数量
+    var failedOperationsCount: Int {
+        offlineProcessor.failedOperations.count
+    }
     
     // MARK: - 网络状态（从 AuthenticationStateManager 同步）
     
@@ -136,16 +177,20 @@ public class NotesViewModel: ObservableObject {
     
     /// 过滤后的笔记列表
     /// 
-    /// 根据搜索文本和选中的文件夹过滤笔记，并根据文件夹的排序方式排序
+    /// 根据搜索文本、选中的文件夹和筛选选项过滤笔记，并根据文件夹的排序方式排序
     var filteredNotes: [Note] {
         let filtered: [Note]
         
+        // 首先根据搜索文本和文件夹过滤
         if searchText.isEmpty {
             if let folder = selectedFolder {
                 if folder.id == "starred" {
                     filtered = notes.filter { $0.isStarred }
                 } else if folder.id == "0" {
                     filtered = notes
+                } else if folder.id == "2" {
+                    // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
+                    filtered = notes.filter { $0.folderId == "2" }
                 } else if folder.id == "uncategorized" {
                     // 未分类文件夹：显示 folderId 为 "0" 或空的笔记
                     filtered = notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }
@@ -162,8 +207,78 @@ public class NotesViewModel: ObservableObject {
             }
         }
         
+        // 应用搜索筛选选项
+        let filteredBySearchOptions = filtered.filter { note in
+            // 含标签的笔记
+            if searchFilterHasTags && note.tags.isEmpty {
+                return false
+            }
+            
+            // 含核对清单的笔记
+            if searchFilterHasChecklist && !noteHasChecklist(note) {
+                return false
+            }
+            
+            // 含图片的笔记
+            if searchFilterHasImages && !noteHasImages(note) {
+                return false
+            }
+            
+            // 含录音的笔记（待实现）
+            if searchFilterHasAudio && !noteHasAudio(note) {
+                return false
+            }
+            
+            // 私密笔记
+            if searchFilterIsPrivate && note.folderId != "2" {
+                return false
+            }
+            
+            return true
+        }
+        
         // 应用全局排序（笔记列表排序方式）
-        return sortNotes(filtered, by: notesListSortField, direction: notesListSortDirection)
+        return sortNotes(filteredBySearchOptions, by: notesListSortField, direction: notesListSortDirection)
+    }
+    
+    /// 检查笔记是否包含核对清单
+    /// 
+    /// - Parameter note: 要检查的笔记
+    /// - Returns: 如果包含核对清单返回 true，否则返回 false
+    private func noteHasChecklist(_ note: Note) -> Bool {
+        let content = note.primaryXMLContent.lowercased()
+        // 检查是否包含 checkbox 相关标签
+        return content.contains("checkbox") ||
+               content.contains("type=\"checkbox\"") ||
+               (content.contains("<input") && content.contains("checkbox"))
+    }
+    
+    /// 检查笔记是否包含图片
+    /// 
+    /// - Parameter note: 要检查的笔记
+    /// - Returns: 如果包含图片返回 true，否则返回 false
+    private func noteHasImages(_ note: Note) -> Bool {
+        let content = note.primaryXMLContent.lowercased()
+        // 检查是否包含图片相关标签
+        if content.contains("<img") || content.contains("image") || content.contains("fileid") {
+            return true
+        }
+        // 检查 rawData 中是否有图片数据
+        if let setting = note.rawData?["setting"] as? [String: Any],
+           let data = setting["data"] as? [[String: Any]], !data.isEmpty {
+            return true
+        }
+        return false
+    }
+    
+    /// 检查笔记是否包含录音（待实现）
+    /// 
+    /// - Parameter note: 要检查的笔记
+    /// - Returns: 如果包含录音返回 true，否则返回 false
+    private func noteHasAudio(_ note: Note) -> Bool {
+        // 待实现：检查笔记中是否包含录音
+        // 目前返回 false
+        return false
     }
     
     /// 根据排序方式和方向对笔记进行排序
@@ -441,15 +556,18 @@ public class NotesViewModel: ObservableObject {
     private func addOperationToOfflineQueue(
         type: OfflineOperationType,
         noteId: String,
-        data: [String: Any]
+        data: [String: Any],
+        priority: Int? = nil
     ) -> Bool {
         do {
             // 使用 JSONSerialization 编码 [String: Any] 字典
             let operationData = try JSONSerialization.data(withJSONObject: data, options: [])
+            let operationPriority = priority ?? OfflineOperation.calculatePriority(for: type)
             let operation = OfflineOperation(
                 type: type,
                 noteId: noteId,
-                data: operationData
+                data: operationData,
+                priority: operationPriority
             )
             try offlineQueue.addOperation(operation)
             return true
@@ -930,11 +1048,11 @@ public class NotesViewModel: ObservableObject {
             print("[FolderRename] ✅ 找到文件夹，索引: \(index)")
             print("[FolderRename] 更新前的文件夹: id=\(folders[index].id), name='\(folders[index].name)'")
             
-            var updatedFolder = folders[index]
-            updatedFolder.name = newName
+            // 获取当前文件夹对象
+            let currentFolder = folders[index]
             
             // 更新 rawData（使用统一的提取方法）
-            var updatedRawData = updatedFolder.rawData ?? [:]
+            var updatedRawData = currentFolder.rawData ?? [:]
             if let entry = extractEntry(from: response) {
                 for (key, value) in entry {
                     updatedRawData[key] = value
@@ -944,7 +1062,17 @@ public class NotesViewModel: ObservableObject {
             // 从响应中获取 tag（使用统一的提取方法）
             let tagValue = extractTag(from: response, fallbackTag: updatedRawData["tag"] as? String ?? existingTag)
             updatedRawData["tag"] = tagValue
-            updatedFolder.rawData = updatedRawData
+            
+            // 创建新的 Folder 实例（而不是修改现有实例），确保 SwiftUI 检测到变化
+            let updatedFolder = Folder(
+                id: currentFolder.id,
+                name: newName,
+                count: currentFolder.count,
+                isSystem: currentFolder.isSystem,
+                isPinned: currentFolder.isPinned,
+                createdAt: currentFolder.createdAt,
+                rawData: updatedRawData
+            )
             
             print("[FolderRename] 更新后的文件夹对象: id=\(updatedFolder.id), name='\(updatedFolder.name)', tag='\(tagValue)'")
             
@@ -1100,12 +1228,18 @@ public class NotesViewModel: ObservableObject {
                 // 检查是否有系统文件夹，如果没有则添加
                 let hasAllNotes = foldersWithCount.contains { $0.id == "0" }
                 let hasStarred = foldersWithCount.contains { $0.id == "starred" }
+                let hasPrivateNotes = foldersWithCount.contains { $0.id == "2" }
                 
                 if !hasAllNotes {
                     foldersWithCount.insert(Folder(id: "0", name: "所有笔记", count: notes.count, isSystem: true), at: 0)
                 }
                 if !hasStarred {
                     foldersWithCount.insert(Folder(id: "starred", name: "置顶", count: notes.filter { $0.isStarred }.count, isSystem: true), at: hasAllNotes ? 1 : 0)
+                }
+                if !hasPrivateNotes {
+                    let privateNotesCount = notes.filter { $0.folderId == "2" }.count
+                    let insertIndex = (hasAllNotes ? 1 : 0) + (hasStarred ? 1 : 0)
+                    foldersWithCount.insert(Folder(id: "2", name: "私密笔记", count: privateNotesCount, isSystem: true), at: insertIndex)
                 }
                 
                 // 更新文件夹计数
@@ -1115,6 +1249,9 @@ public class NotesViewModel: ObservableObject {
                         foldersWithCount[i].count = notes.count
                     } else if folder.id == "starred" {
                         foldersWithCount[i].count = notes.filter { $0.isStarred }.count
+                    } else if folder.id == "2" {
+                        // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
+                        foldersWithCount[i].count = notes.filter { $0.folderId == "2" }.count
                     } else if folder.id == "uncategorized" {
                         // 未分类文件夹：显示 folderId 为 "0" 或空的笔记
                         foldersWithCount[i].count = notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }.count
@@ -1381,6 +1518,9 @@ public class NotesViewModel: ObservableObject {
             return notes.filter { $0.isStarred }
         } else if folder.id == "0" {
             return notes
+        } else if folder.id == "2" {
+            // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
+            return notes.filter { $0.folderId == "2" }
         } else if folder.id == "uncategorized" {
             return notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }
         } else {
@@ -1568,6 +1708,9 @@ public class NotesViewModel: ObservableObject {
             } else if folder.id == "starred" {
                 // 收藏
                 folders[i].count = notes.filter { $0.isStarred }.count
+            } else if folder.id == "2" {
+                // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
+                folders[i].count = notes.filter { $0.folderId == "2" }.count
             } else if folder.id == "uncategorized" {
                 // 未分类文件夹：显示 folderId 为 "0" 或空的笔记
                 folders[i].count = notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }.count
@@ -2334,8 +2477,44 @@ public class NotesViewModel: ObservableObject {
         return folderSortOrders[folder.id]
     }
     
+    /// 验证私密笔记密码
+    /// 
+    /// - Parameter password: 输入的密码
+    /// - Returns: 如果密码正确返回 true，否则返回 false
+    func verifyPrivateNotesPassword(_ password: String) -> Bool {
+        let isValid = PrivateNotesPasswordManager.shared.verifyPassword(password)
+        if isValid {
+            isPrivateNotesUnlocked = true
+        }
+        return isValid
+    }
+    
+    /// 解锁私密笔记（用于跳过密码验证，例如未设置密码时或 Touch ID 验证成功后）
+    func unlockPrivateNotes() {
+        isPrivateNotesUnlocked = true
+    }
+    
     func selectFolder(_ folder: Folder?) {
         let oldFolder = selectedFolder
+        
+        // 如果切换到私密笔记文件夹，检查密码
+        if let folder = folder, folder.id == "2" {
+            // 检查是否已设置密码
+            if PrivateNotesPasswordManager.shared.hasPassword() {
+                // 如果未解锁，显示密码输入对话框
+                if !isPrivateNotesUnlocked {
+                    showPrivateNotesPasswordDialog = true
+                    return // 不切换文件夹，等待密码验证
+                }
+            } else {
+                // 未设置密码，直接允许访问
+                isPrivateNotesUnlocked = true
+            }
+        } else {
+            // 切换到其他文件夹，重置解锁状态
+            isPrivateNotesUnlocked = false
+        }
+        
         selectedFolder = folder
         
         // 获取新文件夹中的笔记列表
@@ -2345,6 +2524,9 @@ public class NotesViewModel: ObservableObject {
                 notesInNewFolder = notes.filter { $0.isStarred }
             } else if folder.id == "0" {
                 notesInNewFolder = notes
+            } else if folder.id == "2" {
+                // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
+                notesInNewFolder = notes.filter { $0.folderId == "2" }
             } else if folder.id == "uncategorized" {
                 notesInNewFolder = notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }
             } else {
@@ -2562,12 +2744,22 @@ public class NotesViewModel: ObservableObject {
     func renameFolder(_ folder: Folder, newName: String) async throws {
         // 先更新本地（无论在线还是离线）
         if let index = folders.firstIndex(where: { $0.id == folder.id }) {
-            var updatedFolder = folders[index]
-            updatedFolder.name = newName
+            let currentFolder = folders[index]
+            
             // 更新 rawData 中的 subject 字段
-            var updatedRawData = updatedFolder.rawData ?? [:]
+            var updatedRawData = currentFolder.rawData ?? [:]
             updatedRawData["subject"] = newName
-            updatedFolder.rawData = updatedRawData
+            
+            // 创建新的 Folder 实例（而不是修改现有实例），确保 SwiftUI 检测到变化
+            let updatedFolder = Folder(
+                id: currentFolder.id,
+                name: newName,
+                count: currentFolder.count,
+                isSystem: currentFolder.isSystem,
+                isPinned: currentFolder.isPinned,
+                createdAt: currentFolder.createdAt,
+                rawData: updatedRawData
+            )
             
             // 重新创建数组以确保 SwiftUI 检测到变化
             var updatedFolders = folders
@@ -2673,13 +2865,12 @@ public class NotesViewModel: ObservableObject {
                 print("[FolderRename] ✅ 找到文件夹，索引: \(index)")
                 print("[FolderRename] 更新前的文件夹: id=\(folders[index].id), name='\(folders[index].name)'")
                 
-                // 从当前 folders 数组获取最新的文件夹对象
-                var updatedFolder = folders[index]
-                updatedFolder.name = newName
+                // 获取当前文件夹对象
+                let currentFolder = folders[index]
                 
                 // 构建更新的 rawData
                 // 先保留原有的 rawData（包含 subject 等字段）
-                var updatedRawData: [String: Any] = updatedFolder.rawData ?? [:]
+                var updatedRawData: [String: Any] = currentFolder.rawData ?? [:]
                 
                 // 如果有 data 字段，合并它（包含新的 tag、modifyDate 等）
                 if let data = response["data"] as? [String: Any] {
@@ -2704,7 +2895,16 @@ public class NotesViewModel: ObservableObject {
                 // 确保 type 字段
                 updatedRawData["type"] = "folder"
                 
-                updatedFolder.rawData = updatedRawData
+                // 创建新的 Folder 实例（而不是修改现有实例），确保 SwiftUI 检测到变化
+                let updatedFolder = Folder(
+                    id: currentFolder.id,
+                    name: newName,
+                    count: currentFolder.count,
+                    isSystem: currentFolder.isSystem,
+                    isPinned: currentFolder.isPinned,
+                    createdAt: currentFolder.createdAt,
+                    rawData: updatedRawData
+                )
                 
                 print("[FolderRename] 更新后的文件夹对象: id=\(updatedFolder.id), name='\(updatedFolder.name)', tag='\(tagValue)'")
                 

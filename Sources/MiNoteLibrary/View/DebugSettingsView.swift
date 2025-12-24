@@ -16,6 +16,9 @@ public struct DebugSettingsView: View {
     @State private var saveAlertMessage: String = ""
     @State private var isEditingCookie: Bool = false
     @State private var editedCookieString: String = ""
+    @State private var showPrivateNotesTestAlert: Bool = false
+    @State private var privateNotesTestResult: String = ""
+    @State private var isTestingPrivateNotes: Bool = false
     
     public init() {}
     
@@ -113,6 +116,11 @@ public struct DebugSettingsView: View {
                     Button("测试网络连接") {
                         testNetworkConnection()
                     }
+                    
+                    Button("测试私密笔记API") {
+                        testPrivateNotesAPI()
+                    }
+                    .disabled(isTestingPrivateNotes)
                     
                     Button("导出调试日志") {
                         exportDebugLogs()
@@ -230,6 +238,11 @@ public struct DebugSettingsView: View {
             } message: {
                 Text(saveAlertMessage)
             }
+            .alert("私密笔记API测试结果", isPresented: $showPrivateNotesTestAlert) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(privateNotesTestResult)
+            }
             .onAppear {
                 loadCredentials()
                 editedCookieString = cookieString
@@ -333,6 +346,71 @@ public struct DebugSettingsView: View {
                 networkTestResult = "网络连接失败：\(error.localizedDescription)"
                 showNetworkTestAlert = true
             }
+        }
+    }
+    
+    private func testPrivateNotesAPI() {
+        isTestingPrivateNotes = true
+        Task {
+            do {
+                let response = try await MiNoteService.shared.fetchPrivateNotes(folderId: "2", limit: 200)
+                
+                // 解析响应
+                var resultText = "✅ 私密笔记API测试成功！\n\n"
+                
+                // 检查响应结构
+                if let code = response["code"] as? Int {
+                    resultText += "响应代码: \(code)\n"
+                }
+                
+                // 解析笔记列表
+                var notesCount = 0
+                if let data = response["data"] as? [String: Any] {
+                    if let entries = data["entries"] as? [[String: Any]] {
+                        notesCount = entries.count
+                        resultText += "笔记数量: \(notesCount)\n\n"
+                        
+                        // 显示前5条笔记的标题
+                        if !entries.isEmpty {
+                            resultText += "笔记列表（前5条）：\n"
+                            for (index, entry) in entries.prefix(5).enumerated() {
+                                var title = "未命名笔记"
+                                if let extraInfo = entry["extraInfo"] as? String,
+                                   let extraData = extraInfo.data(using: .utf8),
+                                   let extraJson = try? JSONSerialization.jsonObject(with: extraData) as? [String: Any],
+                                   let entryTitle = extraJson["title"] as? String {
+                                    title = entryTitle
+                                } else if let entryTitle = entry["title"] as? String {
+                                    title = entryTitle
+                                }
+                                resultText += "\(index + 1). \(title)\n"
+                            }
+                        }
+                    } else {
+                        resultText += "未找到笔记列表\n"
+                    }
+                } else {
+                    resultText += "响应格式异常\n"
+                }
+                
+                // 显示完整响应（JSON格式，用于调试）
+                if let jsonData = try? JSONSerialization.data(withJSONObject: response, options: .prettyPrinted),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    resultText += "\n完整响应（前500字符）：\n"
+                    resultText += String(jsonString.prefix(500))
+                    if jsonString.count > 500 {
+                        resultText += "\n... (已截断)"
+                    }
+                }
+                
+                privateNotesTestResult = resultText
+                showPrivateNotesTestAlert = true
+            } catch {
+                privateNotesTestResult = "❌ 私密笔记API测试失败：\n\(error.localizedDescription)\n\n错误详情：\(error)"
+                showPrivateNotesTestAlert = true
+            }
+            
+            isTestingPrivateNotes = false
         }
     }
     

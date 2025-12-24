@@ -402,7 +402,7 @@ struct NoteDetailView: View {
     private var searchToolbarItem: some View {
             Group {
                 if windowWidth > 800 {
-                    // 宽度足够，显示搜索框
+                    // 宽度足够，显示搜索框和筛选按钮
                     HStack(spacing: 4) {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
@@ -412,6 +412,16 @@ struct NoteDetailView: View {
                             .textFieldStyle(.plain)
                             .frame(width: 150)
                             .font(.system(size: 13))
+                        
+                        // 筛选按钮
+                        Menu {
+                            SearchFilterMenuContent(viewModel: viewModel)
+                        } label: {
+                            Image(systemName: hasAnyFilter() ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                                .foregroundColor(.secondary)
+                                .font(.system(size: 12))
+                        }
+                        .help("筛选")
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -429,33 +439,7 @@ struct NoteDetailView: View {
                     }
                     .help("搜索笔记")
                     .popover(isPresented: $showingSearchField, arrowEdge: .top) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("搜索笔记")
-                                .font(.headline)
-                                .padding(.bottom, 4)
-                            
-                            HStack {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundColor(.secondary)
-                                
-                                TextField("输入搜索关键词", text: $viewModel.searchText)
-                                    .textFieldStyle(.plain)
-                            }
-                            .padding(8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color(nsColor: NSColor.controlBackgroundColor))
-                            )
-                            
-                            if !viewModel.searchText.isEmpty {
-                                Button("清除") {
-                                    viewModel.searchText = ""
-                                }
-                                .buttonStyle(.borderless)
-                            }
-                        }
-                        .padding(12)
-                        .frame(width: 250)
+                        SearchFilterPopoverView(viewModel: viewModel)
                     }
                 }
             }
@@ -480,6 +464,15 @@ struct NoteDetailView: View {
             .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    /// 检查是否有任何筛选选项被启用
+    private func hasAnyFilter() -> Bool {
+        return viewModel.searchFilterHasTags ||
+               viewModel.searchFilterHasChecklist ||
+               viewModel.searchFilterHasImages ||
+               viewModel.searchFilterHasAudio ||
+               viewModel.searchFilterIsPrivate
     }
     
     /// 撤销按钮

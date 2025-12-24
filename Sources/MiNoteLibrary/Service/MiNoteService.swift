@@ -278,6 +278,97 @@ final class MiNoteService: @unchecked Sendable {
         }
     }
     
+    /// 获取私密笔记列表
+    /// 
+    /// 获取指定文件夹（通常是私密笔记文件夹，folderId=2）的笔记列表
+    /// 
+    /// - Parameters:
+    ///   - folderId: 文件夹ID，默认为2（私密笔记）
+    ///   - limit: 每页数量，默认200
+    /// - Returns: 包含笔记列表的响应字典
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    func fetchPrivateNotes(folderId: String = "2", limit: Int = 200) async throws -> [String: Any] {
+        // 构建URL参数
+        var urlComponents = URLComponents(string: "\(baseURL)/note/full/folder")
+        urlComponents?.queryItems = [
+            URLQueryItem(name: "ts", value: "\(Int(Date().timeIntervalSince1970 * 1000))"),
+            URLQueryItem(name: "folderId", value: folderId),
+            URLQueryItem(name: "limit", value: "\(limit)")
+        ]
+        
+        guard let urlString = urlComponents?.url?.absoluteString else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/note/full/folder", method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+        
+        // 记录请求
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let responseString = String(data: data, encoding: .utf8)
+            
+            // 记录响应
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "GET",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            // 处理401未授权错误
+            if httpResponse.statusCode == 401 {
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            
+            // 验证响应：检查 code 字段
+            if let code = json["code"] as? Int {
+                if code != 0 {
+                    let message = json["description"] as? String ?? json["message"] as? String ?? "获取私密笔记失败"
+                    print("[MiNoteService] 获取私密笔记失败，code: \(code), message: \(message)")
+                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                } else {
+                    print("[MiNoteService] ✅ 获取私密笔记成功，code: \(code)")
+                }
+            } else {
+                // 如果没有 code 字段，但状态码是 200，也认为成功
+                print("[MiNoteService] ✅ 获取私密笔记成功（响应中没有 code 字段，但状态码为 200）")
+            }
+            
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            throw error
+        }
+    }
+    
     /// 获取笔记列表（分页）
     /// 
     /// 用于同步功能，支持增量同步（通过syncTag）

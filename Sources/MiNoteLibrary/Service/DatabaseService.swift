@@ -49,6 +49,10 @@ final class DatabaseService: @unchecked Sendable {
                 return
             }
             
+            // 启用多线程模式（SQLITE_OPEN_FULLMUTEX）
+            // 这确保数据库连接可以在多个线程间安全共享
+            sqlite3_busy_timeout(db, 5000) // 设置忙等待超时为5秒
+            
             print("[Database] 数据库已打开: \(dbPath.path)")
             
             // 创建表
@@ -108,10 +112,17 @@ final class DatabaseService: @unchecked Sendable {
             type TEXT NOT NULL,
             note_id TEXT NOT NULL,
             data BLOB NOT NULL,
-            timestamp REAL NOT NULL
+            timestamp REAL NOT NULL,
+            priority INTEGER NOT NULL DEFAULT 0,
+            retry_count INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT,
+            status TEXT NOT NULL DEFAULT 'pending'
         );
         """
         executeSQL(createOfflineOperationsTable)
+        
+        // 迁移：为已存在的表添加新字段（如果字段不存在）
+        migrateOfflineOperationsTable()
         
         // 创建 sync_status 表（单行表）
         let createSyncStatusTable = """
@@ -147,6 +158,39 @@ final class DatabaseService: @unchecked Sendable {
         
         // offline_operations 表索引
         executeSQL("CREATE INDEX IF NOT EXISTS idx_offline_operations_timestamp ON offline_operations(timestamp);")
+        executeSQL("CREATE INDEX IF NOT EXISTS idx_offline_operations_status ON offline_operations(status);")
+        executeSQL("CREATE INDEX IF NOT EXISTS idx_offline_operations_priority ON offline_operations(priority DESC, timestamp ASC);")
+    }
+    
+    /// 迁移 offline_operations 表，添加新字段
+    /// 
+    /// 为已存在的表添加以下字段（如果不存在）：
+    /// - priority: 操作优先级
+    /// - retry_count: 重试次数
+    /// - last_error: 最后错误信息
+    /// - status: 操作状态
+    private func migrateOfflineOperationsTable() {
+        // 检查并添加 priority 字段
+        let addPriorityColumn = "ALTER TABLE offline_operations ADD COLUMN priority INTEGER NOT NULL DEFAULT 0;"
+        executeSQL(addPriorityColumn, ignoreError: true)
+        
+        // 检查并添加 retry_count 字段
+        let addRetryCountColumn = "ALTER TABLE offline_operations ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0;"
+        executeSQL(addRetryCountColumn, ignoreError: true)
+        
+        // 检查并添加 last_error 字段
+        let addLastErrorColumn = "ALTER TABLE offline_operations ADD COLUMN last_error TEXT;"
+        executeSQL(addLastErrorColumn, ignoreError: true)
+        
+        // 检查并添加 status 字段
+        let addStatusColumn = "ALTER TABLE offline_operations ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';"
+        executeSQL(addStatusColumn, ignoreError: true)
+        
+        // 更新所有现有记录的状态为 'pending'（如果 status 为空）
+        let updateStatus = "UPDATE offline_operations SET status = 'pending' WHERE status IS NULL OR status = '';"
+        executeSQL(updateStatus, ignoreError: true)
+        
+        print("[Database] 离线操作表迁移完成")
     }
     
     private func executeSQL(_ sql: String, ignoreError: Bool = false) {
@@ -286,7 +330,7 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func getAllNotes() throws -> [Note] {
         return try dbQueue.sync {
-            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data, rtf_data FROM notes ORDER BY updated_at DESC;"
+            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes ORDER BY updated_at DESC;"
             
             var statement: OpaquePointer?
             defer {
@@ -440,22 +484,6 @@ final class DatabaseService: @unchecked Sendable {
             }
         } else {
             print("[Database] parseNote: raw_data 字段为 NULL")
-        }
-        
-        // 解析 rtf_data（AttributedString 的 RTF 格式）
-        var rtfData: Data? = nil
-        let columnCount = sqlite3_column_count(statement)
-        if columnCount >= 10 {
-            if sqlite3_column_type(statement, 9) != SQLITE_NULL {
-                let dataLength = sqlite3_column_bytes(statement, 9)
-                let dataPointer = sqlite3_column_blob(statement, 9)
-                if let dataPointer = dataPointer {
-                    rtfData = Data(bytes: dataPointer, count: Int(dataLength))
-                    print("[Database] parseNote: rtf_data 字段存在，长度=\(rtfData?.count ?? 0)")
-                }
-            } else {
-                print("[Database] parseNote: rtf_data 字段为 NULL")
-            }
         }
         
         let note = Note(
@@ -651,7 +679,6 @@ final class DatabaseService: @unchecked Sendable {
     private func parseFolder(from statement: OpaquePointer?) throws -> Folder? {
         guard let statement = statement else { return nil }
         
-        let columnCount = sqlite3_column_count(statement)
         let id = String(cString: sqlite3_column_text(statement, 0))
         let name = String(cString: sqlite3_column_text(statement, 1))
         let count = Int(sqlite3_column_int(statement, 2))
@@ -660,17 +687,19 @@ final class DatabaseService: @unchecked Sendable {
         // 检查 is_pinned 列是否存在（兼容旧数据库）
         // 新数据库：id, name, count, is_system, is_pinned, created_at, raw_data (7列)
         // 旧数据库：id, name, count, is_system, created_at, raw_data (6列)
+        // 通过检查第4列（索引4）的类型来判断是否有 is_pinned 字段
         let isPinned: Bool
         let createdAtIndex: Int32
         let rawDataIndex: Int32
         
-        if columnCount >= 7 {
+        // 检查第4列是否存在且不是 NULL（如果是 INTEGER 类型，说明有 is_pinned 字段）
+        if sqlite3_column_type(statement, 4) == SQLITE_INTEGER {
             // 新数据库结构，包含 is_pinned
             isPinned = sqlite3_column_int(statement, 4) != 0
             createdAtIndex = 5
             rawDataIndex = 6
         } else {
-            // 旧数据库结构，没有 is_pinned
+            // 旧数据库结构，没有 is_pinned（第4列是 created_at）
             isPinned = false
             createdAtIndex = 4
             rawDataIndex = 5
@@ -716,8 +745,8 @@ final class DatabaseService: @unchecked Sendable {
     func addOfflineOperation(_ operation: OfflineOperation) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = """
-            INSERT OR REPLACE INTO offline_operations (id, type, note_id, data, timestamp)
-            VALUES (?, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO offline_operations (id, type, note_id, data, timestamp, priority, retry_count, last_error, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
             
             var statement: OpaquePointer?
@@ -736,24 +765,34 @@ final class DatabaseService: @unchecked Sendable {
             sqlite3_bind_text(statement, 3, (operation.noteId as NSString).utf8String, -1, nil)
             sqlite3_bind_blob(statement, 4, (operation.data as NSData).bytes, Int32(operation.data.count), nil)
             sqlite3_bind_double(statement, 5, operation.timestamp.timeIntervalSince1970)
+            sqlite3_bind_int(statement, 6, Int32(operation.priority))
+            sqlite3_bind_int(statement, 7, Int32(operation.retryCount))
+            
+            if let lastError = operation.lastError {
+                sqlite3_bind_text(statement, 8, (lastError as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(statement, 8)
+            }
+            
+            sqlite3_bind_text(statement, 9, (operation.status.rawValue as NSString).utf8String, -1, nil)
             
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
             
-            print("[Database] 添加离线操作: \(operation.id)")
+            print("[Database] 添加离线操作: \(operation.id), type: \(operation.type.rawValue), priority: \(operation.priority), status: \(operation.status.rawValue)")
         }
     }
     
     /// 获取所有离线操作
     /// 
-    /// 按时间戳升序排列（最早的在前面）
+    /// 按优先级降序、时间戳升序排列（高优先级且早的在前面）
     /// 
     /// - Returns: 离线操作数组
     /// - Throws: DatabaseError（数据库操作失败）
     func getAllOfflineOperations() throws -> [OfflineOperation] {
         return try dbQueue.sync {
-            let sql = "SELECT id, type, note_id, data, timestamp FROM offline_operations ORDER BY timestamp ASC;"
+            let sql = "SELECT id, type, note_id, data, timestamp, priority, retry_count, last_error, status FROM offline_operations ORDER BY priority DESC, timestamp ASC;"
             
             var statement: OpaquePointer?
             defer {
@@ -815,6 +854,13 @@ final class DatabaseService: @unchecked Sendable {
     private func parseOfflineOperation(from statement: OpaquePointer?) throws -> OfflineOperation? {
         guard let statement = statement else { return nil }
         
+        // 检查新字段是否存在（兼容旧数据和新数据）
+        // 旧数据：id, type, note_id, data, timestamp (5列)
+        // 新数据：id, type, note_id, data, timestamp, priority, retry_count, last_error, status (9列)
+        // 通过检查第5列（索引5）的类型来判断是否有新字段
+        // 如果是 INTEGER 类型，说明有 priority 字段（新数据）；如果是 NULL，说明是旧数据
+        let hasNewFields = sqlite3_column_type(statement, 5) != SQLITE_NULL
+        
         let id = String(cString: sqlite3_column_text(statement, 0))
         let typeString = String(cString: sqlite3_column_text(statement, 1))
         guard let type = OfflineOperationType(rawValue: typeString) else {
@@ -832,13 +878,50 @@ final class DatabaseService: @unchecked Sendable {
         
         let timestamp = Date(timeIntervalSince1970: sqlite3_column_double(statement, 4))
         
-        return OfflineOperation(
-            id: id,
-            type: type,
-            noteId: noteId,
-            data: data,
-            timestamp: timestamp
-        )
+        // 解析新字段（如果存在）
+        if hasNewFields {
+            let priority = Int(sqlite3_column_int(statement, 5))
+            let retryCount = Int(sqlite3_column_int(statement, 6))
+            
+            var lastError: String? = nil
+            if sqlite3_column_type(statement, 7) != SQLITE_NULL {
+                if let errorText = sqlite3_column_text(statement, 7) {
+                    lastError = String(cString: errorText)
+                }
+            }
+            
+            var status = OfflineOperationStatus.pending
+            if sqlite3_column_type(statement, 8) != SQLITE_NULL {
+                if let statusText = sqlite3_column_text(statement, 8) {
+                    status = OfflineOperationStatus(rawValue: String(cString: statusText)) ?? .pending
+                }
+            }
+            
+            return OfflineOperation(
+                id: id,
+                type: type,
+                noteId: noteId,
+                data: data,
+                timestamp: timestamp,
+                priority: priority,
+                retryCount: retryCount,
+                lastError: lastError,
+                status: status
+            )
+        } else {
+            // 兼容旧数据，使用默认值
+            return OfflineOperation(
+                id: id,
+                type: type,
+                noteId: noteId,
+                data: data,
+                timestamp: timestamp,
+                priority: OfflineOperation.calculatePriority(for: type),
+                retryCount: 0,
+                lastError: nil,
+                status: .pending
+            )
+        }
     }
     
     // MARK: - 同步状态
