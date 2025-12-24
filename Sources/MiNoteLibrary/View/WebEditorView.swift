@@ -151,6 +151,8 @@ struct WebEditorView: NSViewRepresentable {
                     "dom-writer.js",
                     "converter.js",
                     "cursor.js",
+                    "format.js",  // 必须在 editor-api.js 之前
+                    "enter-handler.js",  // 回车键处理模块
                     "editor-core.js",
                     "editor-api.js",
                     "editor-init.js"

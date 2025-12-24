@@ -137,3 +137,4 @@ log.debug(LOG_MODULES.HISTORY, '合并操作', {
 2. **用户可配置**：允许用户自定义合并时间窗口
 3. **操作分组**：类似 CKEditor 5 的 Batch 机制，支持嵌套操作分组
 
+

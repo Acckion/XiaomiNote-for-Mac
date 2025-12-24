@@ -27,7 +27,7 @@
     // - window.MiNoteEditor.Command (CommandManager)
     // - window.MiNoteEditor.Command.registerFormatCommands
     // - window.MiNoteEditor.EditorCore (syncFormatState, notifyContentChanged, normalizeCursorPosition)
-    // - window.handleEnterKey (在 editor.html 中定义)
+    // - window.MiNoteEditor.EnterHandler (回车键处理模块)
 
     /**
      * 初始化编辑器
@@ -110,7 +110,10 @@
             // 组合输入结束后，延迟触发内容变化通知（等待 DOM 更新）
             setTimeout(function() {
                 if (!window.isLoadingContent && !window.isComposing) {
-                    const notifyContentChanged = window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.notifyContentChanged;
+                    // 尝试从多个位置获取 notifyContentChanged 函数
+                    const notifyContentChanged = (window.MiNoteEditor && window.MiNoteEditor.Editor && window.MiNoteEditor.Editor.notifyContentChanged) ||
+                                                 (window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.notifyContentChanged) ||
+                                                 window.notifyContentChanged;
                     if (notifyContentChanged) {
                         notifyContentChanged();
                     }
@@ -129,7 +132,10 @@
             }
             window.contentChangeTimer = setTimeout(function() {
                 if (!window.isComposing) {
-                    const notifyContentChanged = window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.notifyContentChanged;
+                    // 尝试从多个位置获取 notifyContentChanged 函数
+                    const notifyContentChanged = (window.MiNoteEditor && window.MiNoteEditor.Editor && window.MiNoteEditor.Editor.notifyContentChanged) ||
+                                                 (window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.notifyContentChanged) ||
+                                                 window.notifyContentChanged;
                     if (notifyContentChanged) {
                         notifyContentChanged();
                     }
@@ -154,7 +160,10 @@
                 if (!window.isComposing) {
                     requestAnimationFrame(() => {
                         if (!window.isComposing && !window.isLoadingContent) {
-                            const syncFormatState = window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.syncFormatState;
+                            // 尝试从多个位置获取 syncFormatState 函数
+                            const syncFormatState = (window.MiNoteEditor && window.MiNoteEditor.Editor && window.MiNoteEditor.Editor.syncFormatState) ||
+                                                   (window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.syncFormatState) ||
+                                                   window.syncFormatState;
                             if (syncFormatState) {
                                 syncFormatState();
                             }
@@ -179,7 +188,10 @@
                 if (!window.isComposing) {
                     requestAnimationFrame(() => {
                         if (!window.isComposing && !window.isLoadingContent) {
-                            const syncFormatState = window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.syncFormatState;
+                            // 尝试从多个位置获取 syncFormatState 函数
+                            const syncFormatState = (window.MiNoteEditor && window.MiNoteEditor.Editor && window.MiNoteEditor.Editor.syncFormatState) ||
+                                                   (window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.syncFormatState) ||
+                                                   window.syncFormatState;
                             if (syncFormatState) {
                                 syncFormatState();
                             }
@@ -204,7 +216,10 @@
                 if (!window.isComposing) {
                     requestAnimationFrame(() => {
                         if (!window.isComposing && !window.isLoadingContent) {
-                            const syncFormatState = window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.syncFormatState;
+                            // 尝试从多个位置获取 syncFormatState 函数
+                            const syncFormatState = (window.MiNoteEditor && window.MiNoteEditor.Editor && window.MiNoteEditor.Editor.syncFormatState) ||
+                                                   (window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.syncFormatState) ||
+                                                   window.syncFormatState;
                             if (syncFormatState) {
                                 syncFormatState();
                             }
@@ -242,8 +257,11 @@
                             // 在特殊元素中，立即阻止默认行为
                             e.preventDefault();
                             e.stopPropagation();
-                            if (window.handleEnterKey) {
-                                window.handleEnterKey(e);
+                            // 尝试从多个位置获取 handleEnterKey 函数
+                            const handleEnterKey = (window.MiNoteEditor && window.MiNoteEditor.EnterHandler && window.MiNoteEditor.EnterHandler.handleEnterKey) ||
+                                                 window.handleEnterKey;
+                            if (handleEnterKey) {
+                                handleEnterKey(e);
                             }
                             return;
                         }
@@ -252,8 +270,11 @@
                 }
                 
                 // 不在特殊元素中，正常处理
-                if (window.handleEnterKey) {
-                    window.handleEnterKey(e);
+                // 尝试从多个位置获取 handleEnterKey 函数
+                const handleEnterKey = (window.MiNoteEditor && window.MiNoteEditor.EnterHandler && window.MiNoteEditor.EnterHandler.handleEnterKey) ||
+                                     window.handleEnterKey;
+                if (handleEnterKey) {
+                    handleEnterKey(e);
                 }
             }
         }, true); // 使用 capture 阶段，确保在其他处理之前执行
@@ -273,14 +294,17 @@
             }
             mutationObserverTimer = setTimeout(() => {
                 // 延迟修复，确保 DOM 操作完成
-                requestAnimationFrame(() => {
-                    if (!window.isComposing && !window.isLoadingContent) {
-                        const normalizeCursorPosition = window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.normalizeCursorPosition;
-                        if (normalizeCursorPosition) {
-                            normalizeCursorPosition();
+                    requestAnimationFrame(() => {
+                        if (!window.isComposing && !window.isLoadingContent) {
+                            // 尝试从多个位置获取 normalizeCursorPosition 函数
+                            const normalizeCursorPosition = (window.MiNoteEditor && window.MiNoteEditor.Editor && window.MiNoteEditor.Editor.normalizeCursorPosition) ||
+                                                           (window.MiNoteEditor && window.MiNoteEditor.EditorCore && window.MiNoteEditor.EditorCore.normalizeCursorPosition) ||
+                                                           window.normalizeCursorPosition;
+                            if (normalizeCursorPosition) {
+                                normalizeCursorPosition();
+                            }
                         }
-                    }
-                });
+                    });
             }, 10); // 10ms 防抖，平衡响应速度和性能
         });
         

@@ -28,12 +28,6 @@ struct NotesListView: View {
                 moveNoteSheetView(for: note)
             }
         }
-        // 移除上传时的加载动画
-        // .overlay {
-        //     if viewModel.isLoading {
-        //         loadingOverlay
-        //     }
-        // }
     }
     
     private var emptyNotesView: some View {
@@ -339,6 +333,7 @@ struct NoteRow: View {
     let showDivider: Bool
     let viewModel: NotesViewModel?
     @State private var thumbnailImage: NSImage? = nil
+    @State private var currentImageFileId: String? = nil // 跟踪当前显示的图片ID
     
     init(note: Note, showDivider: Bool = false, viewModel: NotesViewModel? = nil) {
         self.note = note
@@ -385,12 +380,24 @@ struct NoteRow: View {
                     .frame(width: 50, height: 50)
                     .background(Color(NSColor.controlBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .clipped() // 确保超出部分被剪裁
                     .overlay(
                         RoundedRectangle(cornerRadius: 4)
                             .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
                     )
                     .onAppear {
-                        loadThumbnail(imageInfo: imageInfo)
+                        // 首次加载或图片ID变化时，重新加载
+                        if currentImageFileId != imageInfo.fileId {
+                            loadThumbnail(imageInfo: imageInfo)
+                            currentImageFileId = imageInfo.fileId
+                        }
+                    }
+                    .onChange(of: imageInfo.fileId) { oldValue, newValue in
+                        // 图片ID变化时，重新加载
+                        if currentImageFileId != newValue {
+                            loadThumbnail(imageInfo: imageInfo)
+                            currentImageFileId = newValue
+                        }
                     }
                 }
                 
@@ -403,6 +410,14 @@ struct NoteRow: View {
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 8)
+            .onChange(of: note.content) { oldValue, newValue in
+                // 笔记内容变化时，重新检查并更新图片
+                updateThumbnail()
+            }
+            .onChange(of: note.updatedAt) { oldValue, newValue in
+                // 更新时间变化时，重新检查并更新图片
+                updateThumbnail()
+            }
             
             // 分割线：放在笔记项之间的中间位置，向下偏移一点以居中
             if showDivider {
@@ -536,24 +551,71 @@ struct NoteRow: View {
         return nil
     }
     
+    /// 更新缩略图（根据当前笔记内容）
+    private func updateThumbnail() {
+        if let imageInfo = getFirstImageInfo(from: note) {
+            // 如果图片ID变化了，重新加载
+            if currentImageFileId != imageInfo.fileId {
+                loadThumbnail(imageInfo: imageInfo)
+                currentImageFileId = imageInfo.fileId
+            }
+        } else {
+            // 如果没有图片了，清空缩略图
+            if currentImageFileId != nil || thumbnailImage != nil {
+                currentImageFileId = nil
+                thumbnailImage = nil
+            }
+        }
+    }
+    
     /// 加载缩略图
     private func loadThumbnail(imageInfo: (fileId: String, fileType: String)) {
         // 在后台线程加载图片
         Task {
             if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
                let nsImage = NSImage(data: imageData) {
-                // 创建缩略图（50x50）
+                // 创建缩略图（50x50），使用剪裁模式而不是拉伸
                 let thumbnailSize = NSSize(width: 50, height: 50)
                 let thumbnail = NSImage(size: thumbnailSize)
+                
                 thumbnail.lockFocus()
-                nsImage.draw(in: NSRect(origin: .zero, size: thumbnailSize),
-                            from: NSRect(origin: .zero, size: nsImage.size),
-                            operation: .sourceOver,
-                            fraction: 1.0)
-                thumbnail.unlockFocus()
+                defer { thumbnail.unlockFocus() }
+                
+                // 计算缩放比例，保持宽高比
+                let imageSize = nsImage.size
+                let scaleX = thumbnailSize.width / imageSize.width
+                let scaleY = thumbnailSize.height / imageSize.height
+                let scale = max(scaleX, scaleY) // 使用较大的缩放比例，确保覆盖整个区域
+                
+                // 计算缩放后的尺寸
+                let scaledSize = NSSize(
+                    width: imageSize.width * scale,
+                    height: imageSize.height * scale
+                )
+                
+                // 计算居中位置
+                let offsetX = (thumbnailSize.width - scaledSize.width) / 2
+                let offsetY = (thumbnailSize.height - scaledSize.height) / 2
+                
+                // 填充背景色（可选）
+                NSColor.controlBackgroundColor.setFill()
+                NSRect(origin: .zero, size: thumbnailSize).fill()
+                
+                // 绘制图片（居中，可能会超出边界，但会被 clipShape 剪裁）
+                nsImage.draw(
+                    in: NSRect(origin: NSPoint(x: offsetX, y: offsetY), size: scaledSize),
+                    from: NSRect(origin: .zero, size: imageSize),
+                    operation: .sourceOver,
+                    fraction: 1.0
+                )
                 
                 await MainActor.run {
                     self.thumbnailImage = thumbnail
+                }
+            } else {
+                // 如果加载失败，清空缩略图
+                await MainActor.run {
+                    self.thumbnailImage = nil
                 }
             }
         }

@@ -1852,6 +1852,215 @@ enum MiNoteError: Error {
     case invalidResponse
 }
 
+// MARK: - 历史版本相关方法
+
+extension MiNoteService {
+    /// 获取笔记历史版本列表
+    /// 
+    /// - Parameter noteId: 笔记ID
+    /// - Returns: 包含历史版本列表的响应字典，其中 data.tvList 是版本数组
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    func getNoteHistoryTimes(noteId: String) async throws -> [String: Any] {
+        let ts = Int(Date().timeIntervalSince1970 * 1000)
+        var urlComponents = URLComponents(string: "\(baseURL)/note/full/history/times")
+        urlComponents?.queryItems = [
+            URLQueryItem(name: "ts", value: "\(ts)"),
+            URLQueryItem(name: "id", value: noteId)
+        ]
+        
+        guard let urlString = urlComponents?.url?.absoluteString else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/note/full/history/times", method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+        
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                let responseString = String(data: data, encoding: .utf8)
+                
+                NetworkLogger.shared.logResponse(
+                    url: urlString,
+                    method: "GET",
+                    statusCode: httpResponse.statusCode,
+                    headers: httpResponse.allHeaderFields as? [String: String],
+                    response: responseString,
+                    error: nil
+                )
+                
+                if httpResponse.statusCode == 401 {
+                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    let errorMessage = responseString ?? "未知错误"
+                    print("[MiNoteService] 获取历史版本列表失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                }
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            throw error
+        }
+    }
+    
+    /// 获取笔记历史版本内容
+    /// 
+    /// - Parameters:
+    ///   - noteId: 笔记ID
+    ///   - version: 版本号（时间戳）
+    /// - Returns: 包含历史版本笔记数据的响应字典，格式与普通笔记相同
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    func getNoteHistory(noteId: String, version: Int64) async throws -> [String: Any] {
+        let ts = Int(Date().timeIntervalSince1970 * 1000)
+        var urlComponents = URLComponents(string: "\(baseURL)/note/full/history")
+        urlComponents?.queryItems = [
+            URLQueryItem(name: "ts", value: "\(ts)"),
+            URLQueryItem(name: "id", value: noteId),
+            URLQueryItem(name: "version", value: "\(version)")
+        ]
+        
+        guard let urlString = urlComponents?.url?.absoluteString else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/note/full/history", method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+        
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                let responseString = String(data: data, encoding: .utf8)
+                
+                NetworkLogger.shared.logResponse(
+                    url: urlString,
+                    method: "GET",
+                    statusCode: httpResponse.statusCode,
+                    headers: httpResponse.allHeaderFields as? [String: String],
+                    response: responseString,
+                    error: nil
+                )
+                
+                if httpResponse.statusCode == 401 {
+                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    let errorMessage = responseString ?? "未知错误"
+                    print("[MiNoteService] 获取历史版本内容失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                }
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            throw error
+        }
+    }
+    
+    /// 恢复笔记历史版本
+    /// 
+    /// - Parameters:
+    ///   - noteId: 笔记ID
+    ///   - version: 要恢复的版本号（时间戳）
+    /// - Returns: API响应字典，包含恢复后的笔记信息
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    func restoreNoteHistory(noteId: String, version: Int64) async throws -> [String: Any] {
+        let urlString = "\(baseURL)/note/note/\(noteId)/history"
+        
+        let serviceTokenEncoded = encodeURIComponent(serviceToken)
+        let body = "id=\(noteId)&version=\(version)&serviceToken=\(serviceTokenEncoded)"
+        
+        let postHeaders = getPostHeaders()
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "POST",
+            headers: postHeaders,
+            body: body
+        )
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = postHeaders
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body.data(using: .utf8)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                let responseString = String(data: data, encoding: .utf8)
+                
+                NetworkLogger.shared.logResponse(
+                    url: urlString,
+                    method: "POST",
+                    statusCode: httpResponse.statusCode,
+                    headers: httpResponse.allHeaderFields as? [String: String],
+                    response: responseString,
+                    error: nil
+                )
+                
+                if httpResponse.statusCode == 401 {
+                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    let errorMessage = responseString ?? "未知错误"
+                    print("[MiNoteService] 恢复历史版本失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                }
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
+            throw error
+        }
+    }
+}
+
 extension MiNoteError: LocalizedError {
     var errorDescription: String? {
         switch self {

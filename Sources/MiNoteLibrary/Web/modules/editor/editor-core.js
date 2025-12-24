@@ -652,11 +652,18 @@
     // 导出到全局命名空间
     window.MiNoteEditor = window.MiNoteEditor || {};
     window.MiNoteEditor.Editor = window.MiNoteEditor.Editor || {};
+    window.MiNoteEditor.EditorCore = window.MiNoteEditor.EditorCore || {}; // 为了向后兼容，也导出到 EditorCore
     window.MiNoteEditor.Editor.loadContent = loadContent;
     window.MiNoteEditor.Editor.getContent = getContent;
     window.MiNoteEditor.Editor.normalizeCursorPosition = normalizeCursorPosition;
     window.MiNoteEditor.Editor.syncFormatState = syncFormatState;
     window.MiNoteEditor.Editor.notifyContentChanged = notifyContentChanged;
+    // 向后兼容：也导出到 EditorCore
+    window.MiNoteEditor.EditorCore.loadContent = loadContent;
+    window.MiNoteEditor.EditorCore.getContent = getContent;
+    window.MiNoteEditor.EditorCore.normalizeCursorPosition = normalizeCursorPosition;
+    window.MiNoteEditor.EditorCore.syncFormatState = syncFormatState;
+    window.MiNoteEditor.EditorCore.notifyContentChanged = notifyContentChanged;
 
     // 向后兼容：暴露到全局
     window.loadContent = loadContent;

@@ -91,6 +91,9 @@
         init: initConverters,
         xmlToHtml: xmlToHtml,
         htmlToXml: htmlToXml,
+        // 导出转换器类（如果已定义）
+        XMLToHTMLConverter: typeof XMLToHTMLConverter !== 'undefined' ? XMLToHTMLConverter : undefined,
+        HTMLToXMLConverter: typeof HTMLToXMLConverter !== 'undefined' ? HTMLToXMLConverter : undefined,
         getXmlToHtmlConverter: () => {
             if (!xmlToHtmlConverter) initConverters();
             return xmlToHtmlConverter;

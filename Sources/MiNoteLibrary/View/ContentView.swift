@@ -262,7 +262,7 @@ public struct ContentView: View {
         .navigationSubtitle("\(viewModel.filteredNotes.count) 个备忘录")
         .navigationSplitViewColumnWidth(
             min: calculatedNotesListMinWidth,
-            ideal: calculatedNotesListIdealWidth,
+            ideal: notesListMaxWidth,
             max: notesListMaxWidth
         )
         .toolbar {
@@ -270,11 +270,6 @@ public struct ContentView: View {
             ToolbarItem(placement: .automatic) {
                 onlineStatusIndicatorWithAction
             }
-            
-//            // 右侧：搜索框/搜索按钮
-//            ToolbarItem(placement: .primaryAction) {
-//                searchToolbarItem
-//            }
         }
     }
     
@@ -365,107 +360,143 @@ public struct ContentView: View {
         }
     }
     
-    /// 状态指示器（可点击刷新Cookie）
+    /// 状态指示器（合并了同步功能）
     /// 
-    /// Cookie失效时可以点击刷新，其他状态显示为普通文本
+    /// 显示在线状态，点击可打开菜单，包含：
+    /// - 同步选项（完整同步、增量同步）
+    /// - Cookie刷新选项（如果失效）
+    /// - 重置同步状态
+    /// - 同步状态
     private var onlineStatusIndicatorWithAction: some View {
-        Group {
+        Menu {
+            // 同步选项
+            Button {
+                Task {
+                    await viewModel.performFullSync()
+                }
+            } label: {
+                Label("完整同步", systemImage: "arrow.down.circle")
+            }
+            .disabled(viewModel.isSyncing || !viewModel.isLoggedIn)
+            
+            Button {
+                Task {
+                    await viewModel.performIncrementalSync()
+                }
+            } label: {
+                Label("增量同步", systemImage: "arrow.down.circle.dotted")
+            }
+            .disabled(viewModel.isSyncing || !viewModel.isLoggedIn)
+            
+            Divider()
+            
+            // Cookie刷新（如果失效）
             if viewModel.isCookieExpired {
-                // Cookie失效时，显示为可点击的按钮
                 Button {
                     viewModel.showCookieRefreshView = true
                 } label: {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(statusColor)
-                            .frame(width: 8, height: 8)
-                        Text(statusText)
-                            .font(.caption2)
-                            .foregroundColor(statusColor)
-                    }
+                    Label("刷新Cookie", systemImage: "arrow.clockwise")
                 }
-                .buttonStyle(.plain)
-                .help(statusHelpText)
-            } else {
-                // 其他状态显示为普通文本
-                onlineStatusIndicator
+                
+                Divider()
+            }
+            
+            // 重置同步状态
+            Button {
+                viewModel.resetSyncStatus()
+            } label: {
+                Label("重置同步状态", systemImage: "arrow.counterclockwise")
+            }
+            .disabled(viewModel.isSyncing)
+            
+            Divider()
+            
+            // 笔记列表排序方式
+            Menu {
+                // 排序字段
+                Button {
+                    viewModel.setNotesListSortField(.createDate)
+                } label: {
+                    Label("按创建时间排序", systemImage: viewModel.notesListSortField == .createDate ? "checkmark" : "")
+                }
+                
+                Button {
+                    viewModel.setNotesListSortField(.editDate)
+                } label: {
+                    Label("按修改时间排序", systemImage: viewModel.notesListSortField == .editDate ? "checkmark" : "")
+                }
+                
+                Button {
+                    viewModel.setNotesListSortField(.title)
+                } label: {
+                    Label("按名称排序", systemImage: viewModel.notesListSortField == .title ? "checkmark" : "")
+                }
+                
+                Divider()
+                
+                // 排序方向
+                Button {
+                    viewModel.setNotesListSortDirection(.ascending)
+                } label: {
+                    Label("升序", systemImage: viewModel.notesListSortDirection == .ascending ? "checkmark" : "")
+                }
+                
+                Button {
+                    viewModel.setNotesListSortDirection(.descending)
+                } label: {
+                    Label("降序", systemImage: viewModel.notesListSortDirection == .descending ? "checkmark" : "")
+                }
+            } label: {
+                Label("笔记列表排序", systemImage: "arrow.up.arrow.down")
+            }
+            
+            Divider()
+            
+            // 同步状态
+            Button {
+                // 显示同步状态信息
+                if let lastSync = viewModel.lastSyncTime {
+                    let formatter = DateFormatter()
+                    formatter.dateStyle = .short
+                    formatter.timeStyle = .short
+                    
+                    let alert = NSAlert()
+                    alert.messageText = "同步状态"
+                    alert.informativeText = "上次同步时间: \(formatter.string(from: lastSync))"
+                    alert.addButton(withTitle: "确定")
+                    alert.runModal()
+                } else {
+                    let alert = NSAlert()
+                    alert.messageText = "同步状态"
+                    alert.informativeText = "从未同步"
+                    alert.addButton(withTitle: "确定")
+                    alert.runModal()
+                }
+            } label: {
+                Label("同步状态", systemImage: "info.circle")
+            }
+        } label: {
+            HStack(spacing: 4) {
+                // 同步时显示加载图标，否则显示状态圆点
+                if viewModel.isSyncing {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 8, height: 8)
+                } else {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 8, height: 8)
+                }
+                Text(statusText)
+                    .font(.caption2)
+                    .foregroundColor(statusColor)
             }
         }
+        .help(statusHelpText)
     }
     
-    /// 搜索工具栏项 - 响应式搜索框/按钮
-    /// 
-    /// 位置：工具栏最右侧（.primaryAction）
-    /// 
-    /// 响应式行为：
-    /// - 窗口宽度 > 800：显示搜索框（带放大镜图标和输入框）
-    /// - 窗口宽度 ≤ 800：显示搜索按钮（点击后弹出搜索弹窗）
-    /// 
-    /// 搜索框样式：
-    /// - 圆角背景
-    /// - 宽度：150px
-    /// - 字体大小：13pt
-    private var searchToolbarItem: some View {
-        Group {
-            if windowWidth > 800 {
-                // 宽度足够，显示搜索框
-                HStack(spacing: 4) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                        .font(.system(size: 12))
-                    
-                    TextField("搜索笔记", text: $viewModel.searchText)
-                        .textFieldStyle(.plain)
-                        .frame(width: 150)
-                        .font(.system(size: 13))
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(nsColor: NSColor.controlBackgroundColor))
-                )
-            } else {
-                // 宽度不够，显示搜索按钮
-                Button {
-                    showingSearchField.toggle()
-                } label: {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14))
-                }
-                .help("搜索笔记")
-                .popover(isPresented: $showingSearchField, arrowEdge: .top) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("搜索笔记")
-                            .font(.headline)
-                            .padding(.bottom, 4)
-                        
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.secondary)
-                            
-                            TextField("输入搜索关键词", text: $viewModel.searchText)
-                                .textFieldStyle(.plain)
-                        }
-                        .padding(8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color(nsColor: NSColor.controlBackgroundColor))
-                        )
-                        
-                        if !viewModel.searchText.isEmpty {
-                            Button("清除") {
-                                viewModel.searchText = ""
-                            }
-                            .buttonStyle(.borderless)
-                        }
-                    }
-                    .padding(12)
-                    .frame(width: 250)
-                }
-            }
-        }
-    }
+
+    
     
     // MARK: - 列宽度计算逻辑
     
@@ -688,6 +719,43 @@ struct SidebarView: View {
         List(selection: $viewModel.selectedFolder) {
             // MARK: 小米笔记 Section
             Section {
+                // 所有笔记文件夹
+                if let allNotesFolder = viewModel.folders.first(where: { $0.id == "0" }) {
+                    SidebarFolderRow(folder: allNotesFolder)
+                        .tag(allNotesFolder)
+                        .contextMenu {
+                            Button {
+                                createNewFolder()
+                            } label: {
+                                Label("新建文件夹", systemImage: "folder.badge.plus")
+                            }
+                            
+                            Divider()
+                            
+                            // 排序方式
+                            Menu {
+                                Button {
+                                    viewModel.setFolderSortOrder(allNotesFolder, sortOrder: .editDate)
+                                } label: {
+                                    Label("编辑日期", systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .editDate ? "checkmark" : "")
+                                }
+                                
+                                Button {
+                                    viewModel.setFolderSortOrder(allNotesFolder, sortOrder: .createDate)
+                                } label: {
+                                    Label("创建日期", systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .createDate ? "checkmark" : "")
+                                }
+                                
+                                Button {
+                                    viewModel.setFolderSortOrder(allNotesFolder, sortOrder: .title)
+                                } label: {
+                                    Label("标题", systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .title ? "checkmark" : "")
+                                }
+                            } label: {
+                                Label("排序方式", systemImage: "arrow.up.arrow.down")
+                            }
+                        }
+                }
                 // 置顶文件夹
                 if let starredFolder = viewModel.folders.first(where: { $0.id == "starred" }) {
                     SidebarFolderRow(folder: starredFolder)
@@ -698,18 +766,30 @@ struct SidebarView: View {
                             } label: {
                                 Label("新建文件夹", systemImage: "folder.badge.plus")
                             }
-                        }
-                }
-                
-                // 所有笔记文件夹
-                if let allNotesFolder = viewModel.folders.first(where: { $0.id == "0" }) {
-                    SidebarFolderRow(folder: allNotesFolder)
-                        .tag(allNotesFolder)
-                        .contextMenu {
-                            Button {
-                                createNewFolder()
+                            
+                            Divider()
+                            
+                            // 排序方式
+                            Menu {
+                                Button {
+                                    viewModel.setFolderSortOrder(starredFolder, sortOrder: .editDate)
+                                } label: {
+                                    Label("编辑日期", systemImage: viewModel.getFolderSortOrder(starredFolder) == .editDate ? "checkmark" : "")
+                                }
+                                
+                                Button {
+                                    viewModel.setFolderSortOrder(starredFolder, sortOrder: .createDate)
+                                } label: {
+                                    Label("创建日期", systemImage: viewModel.getFolderSortOrder(starredFolder) == .createDate ? "checkmark" : "")
+                                }
+                                
+                                Button {
+                                    viewModel.setFolderSortOrder(starredFolder, sortOrder: .title)
+                                } label: {
+                                    Label("标题", systemImage: viewModel.getFolderSortOrder(starredFolder) == .title ? "checkmark" : "")
+                                }
                             } label: {
-                                Label("新建文件夹", systemImage: "folder.badge.plus")
+                                Label("排序方式", systemImage: "arrow.up.arrow.down")
                             }
                         }
                 }
@@ -736,6 +816,31 @@ struct SidebarView: View {
                             createNewFolder()
                         } label: {
                             Label("新建文件夹", systemImage: "folder.badge.plus")
+                        }
+                        
+                        Divider()
+                        
+                        // 排序方式
+                        Menu {
+                            Button {
+                                viewModel.setFolderSortOrder(viewModel.uncategorizedFolder, sortOrder: .editDate)
+                            } label: {
+                                Label("编辑日期", systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .editDate ? "checkmark" : "")
+                            }
+                            
+                            Button {
+                                viewModel.setFolderSortOrder(viewModel.uncategorizedFolder, sortOrder: .createDate)
+                            } label: {
+                                Label("创建日期", systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .createDate ? "checkmark" : "")
+                            }
+                            
+                            Button {
+                                viewModel.setFolderSortOrder(viewModel.uncategorizedFolder, sortOrder: .title)
+                            } label: {
+                                Label("标题", systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .title ? "checkmark" : "")
+                            }
+                        } label: {
+                            Label("排序方式", systemImage: "arrow.up.arrow.down")
                         }
                     }
                 
@@ -768,11 +873,27 @@ struct SidebarView: View {
                             
                             Divider()
                             
-                            // 置顶/取消置顶文件夹
-                            Button {
-                                toggleFolderPin(folder)
+                            // 排序方式
+                            Menu {
+                                Button {
+                                    viewModel.setFolderSortOrder(folder, sortOrder: .editDate)
+                                } label: {
+                                    Label("编辑日期", systemImage: viewModel.getFolderSortOrder(folder) == .editDate ? "checkmark" : "")
+                                }
+                                
+                                Button {
+                                    viewModel.setFolderSortOrder(folder, sortOrder: .createDate)
+                                } label: {
+                                    Label("创建日期", systemImage: viewModel.getFolderSortOrder(folder) == .createDate ? "checkmark" : "")
+                                }
+                                
+                                Button {
+                                    viewModel.setFolderSortOrder(folder, sortOrder: .title)
+                                } label: {
+                                    Label("标题", systemImage: viewModel.getFolderSortOrder(folder) == .title ? "checkmark" : "")
+                                }
                             } label: {
-                                Label(folder.isPinned ? "取消置顶" : "置顶文件夹", systemImage: folder.isPinned ? "pin.slash" : "pin")
+                                Label("排序方式", systemImage: "arrow.up.arrow.down")
                             }
                             
                             Divider()
@@ -807,55 +928,6 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .accentColor(.yellow)  // 设置列表选择颜色为黄色
-        .toolbar {
-            // 工具栏：同步菜单按钮
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    // 新建文件夹
-                    Button(action: createNewFolder) {
-                        Label("新建文件夹", systemImage: "folder.badge.plus")
-                    }
-                    
-                    Divider()
-                    
-                    // 完整同步
-                    Button(action: performFullSync) {
-                        Label("完整同步", systemImage: "arrow.down.circle")
-                    }
-                    .disabled(viewModel.isSyncing || !viewModel.isLoggedIn)
-                    
-                    // 增量同步
-                    Button(action: performIncrementalSync) {
-                        Label("增量同步", systemImage: "arrow.down.circle.dotted")
-                    }
-                    .disabled(viewModel.isSyncing || !viewModel.isLoggedIn)
-                    
-                    Divider()
-                    
-                    // 重置同步状态
-                    Button(action: resetSyncStatus) {
-                        Label("重置同步状态", systemImage: "arrow.counterclockwise")
-                    }
-                    .disabled(viewModel.isSyncing)
-                    
-                    Divider()
-                    
-                    // 同步状态
-                    Button(action: showSyncStatus) {
-                        Label("同步状态", systemImage: "info.circle")
-                    }
-                } label: {
-                    // 同步时显示加载图标，否则显示同步图标
-                    if viewModel.isSyncing {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                }
-                .disabled(viewModel.isSyncing)
-            }
-        }
     }
     
     // MARK: - 侧边栏操作函数

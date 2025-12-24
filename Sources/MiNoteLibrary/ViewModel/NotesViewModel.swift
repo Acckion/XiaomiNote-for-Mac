@@ -2,6 +2,19 @@ import Foundation
 import SwiftUI
 import Combine
 
+/// 笔记排序方式
+public enum NoteSortOrder: String, Codable {
+    case editDate = "editDate"      // 编辑日期
+    case createDate = "createDate"  // 创建日期
+    case title = "title"            // 标题
+}
+
+/// 排序方向
+public enum SortDirection: String, Codable {
+    case ascending = "ascending"   // 升序
+    case descending = "descending"  // 降序
+}
+
 /// 笔记视图模型
 /// 
 /// 负责管理应用的主要业务逻辑和状态，包括：
@@ -27,6 +40,15 @@ public class NotesViewModel: ObservableObject {
     
     /// 当前选中的文件夹
     @Published public var selectedFolder: Folder?
+    
+    /// 文件夹排序方式（按文件夹ID存储）
+    @Published public var folderSortOrders: [String: NoteSortOrder] = [:]
+    
+    /// 笔记列表全局排序字段
+    @Published public var notesListSortField: NoteSortOrder = .editDate
+    
+    /// 笔记列表排序方向
+    @Published public var notesListSortDirection: SortDirection = .descending
     
     // MARK: - UI状态
     
@@ -114,28 +136,50 @@ public class NotesViewModel: ObservableObject {
     
     /// 过滤后的笔记列表
     /// 
-    /// 根据搜索文本和选中的文件夹过滤笔记
+    /// 根据搜索文本和选中的文件夹过滤笔记，并根据文件夹的排序方式排序
     var filteredNotes: [Note] {
+        let filtered: [Note]
+        
         if searchText.isEmpty {
             if let folder = selectedFolder {
                 if folder.id == "starred" {
-                    return notes.filter { $0.isStarred }
+                    filtered = notes.filter { $0.isStarred }
                 } else if folder.id == "0" {
-                    return notes
+                    filtered = notes
                 } else if folder.id == "uncategorized" {
                     // 未分类文件夹：显示 folderId 为 "0" 或空的笔记
-                    return notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }
+                    filtered = notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }
                 } else {
-                    return notes.filter { $0.folderId == folder.id }
+                    filtered = notes.filter { $0.folderId == folder.id }
                 }
+            } else {
+                filtered = notes
             }
-            return notes
         } else {
-            return notes.filter { note in
+            filtered = notes.filter { note in
                 note.title.localizedCaseInsensitiveContains(searchText) ||
                 note.content.localizedCaseInsensitiveContains(searchText)
             }
         }
+        
+        // 应用全局排序（笔记列表排序方式）
+        return sortNotes(filtered, by: notesListSortField, direction: notesListSortDirection)
+    }
+    
+    /// 根据排序方式和方向对笔记进行排序
+    private func sortNotes(_ notes: [Note], by sortOrder: NoteSortOrder, direction: SortDirection) -> [Note] {
+        let sorted: [Note]
+        switch sortOrder {
+        case .editDate:
+            sorted = notes.sorted { $0.updatedAt < $1.updatedAt }
+        case .createDate:
+            sorted = notes.sorted { $0.createdAt < $1.createdAt }
+        case .title:
+            sorted = notes.sorted { $0.title.localizedCompare($1.title) == .orderedAscending }
+        }
+        
+        // 根据排序方向决定是否反转
+        return direction == .descending ? sorted.reversed() : sorted
     }
     
     /// 未分类文件夹（虚拟文件夹）
@@ -172,17 +216,17 @@ public class NotesViewModel: ObservableObject {
         // 加载同步状态
         loadSyncStatus()
         
-        // 恢复上次选中的笔记
-        restoreLastSelectedNote()
+        // 恢复上次选中的文件夹和笔记
+        restoreLastSelectedState()
         
         // 同步 AuthenticationStateManager 的状态到 ViewModel
         // 这样 AuthenticationStateManager 的状态变化会触发 ViewModel 的 @Published 属性更新，进而触发 UI 更新
         setupAuthStateSync()
         
-        // 监听selectedNote变化，保存到UserDefaults
-        $selectedNote
-            .sink { [weak self] note in
-                self?.saveLastSelectedNote(note)
+        // 监听selectedNote和selectedFolder变化，保存状态
+        Publishers.CombineLatest($selectedNote, $selectedFolder)
+            .sink { [weak self] _, _ in
+                self?.saveLastSelectedState()
             }
             .store(in: &cancellables)
         
@@ -1228,69 +1272,119 @@ public class NotesViewModel: ObservableObject {
             syncInterval = 300 // 默认值
         }
         autoSave = defaults.bool(forKey: "autoSave")
-    }
-    
-    /// 保存最后选中的笔记ID
-    private func saveLastSelectedNote(_ note: Note?) {
-        let defaults = UserDefaults.standard
-        if let noteId = note?.id {
-            defaults.set(noteId, forKey: "lastSelectedNoteId")
-            print("[VIEWMODEL] 已保存最后选中的笔记ID: \(noteId)")
-        } else {
-            defaults.removeObject(forKey: "lastSelectedNoteId")
-            print("[VIEWMODEL] 已清除最后选中的笔记ID")
+        
+        // 加载笔记列表排序设置
+        if let sortFieldString = defaults.string(forKey: "notesListSortField"),
+           let sortField = NoteSortOrder(rawValue: sortFieldString) {
+            notesListSortField = sortField
+        }
+        if let sortDirectionString = defaults.string(forKey: "notesListSortDirection"),
+           let sortDirection = SortDirection(rawValue: sortDirectionString) {
+            notesListSortDirection = sortDirection
         }
     }
     
-    /// 恢复上次选中的笔记，如果没有则选中第一篇笔记
-    private func restoreLastSelectedNote() {
-        // 等待notes加载完成后再恢复
+    /// 设置笔记列表排序字段
+    func setNotesListSortField(_ field: NoteSortOrder) {
+        notesListSortField = field
+        let defaults = UserDefaults.standard
+        defaults.set(field.rawValue, forKey: "notesListSortField")
+    }
+    
+    /// 设置笔记列表排序方向
+    func setNotesListSortDirection(_ direction: SortDirection) {
+        notesListSortDirection = direction
+        let defaults = UserDefaults.standard
+        defaults.set(direction.rawValue, forKey: "notesListSortDirection")
+    }
+    
+    /// 加载文件夹排序方式
+    private func loadFolderSortOrders() {
+        let defaults = UserDefaults.standard
+        if let jsonString = defaults.string(forKey: "folderSortOrders"),
+           let jsonData = jsonString.data(using: .utf8),
+           let decoded = try? JSONDecoder().decode([String: NoteSortOrder].self, from: jsonData) {
+            folderSortOrders = decoded
+        }
+    }
+    
+    /// 保存最后选中的文件夹和笔记ID
+    private func saveLastSelectedState() {
+        let defaults = UserDefaults.standard
+        
+        // 保存文件夹ID
+        if let folderId = selectedFolder?.id {
+            defaults.set(folderId, forKey: "lastSelectedFolderId")
+        } else {
+            defaults.removeObject(forKey: "lastSelectedFolderId")
+        }
+        
+        // 保存笔记ID
+        if let noteId = selectedNote?.id {
+            defaults.set(noteId, forKey: "lastSelectedNoteId")
+        } else {
+            defaults.removeObject(forKey: "lastSelectedNoteId")
+        }
+    }
+    
+    /// 恢复上次选中的文件夹和笔记，如果没有则选中"所有笔记"文件夹的第一个笔记
+    private func restoreLastSelectedState() {
+        // 等待notes和folders加载完成后再恢复
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             guard let self = self else { return }
             
-            // 如果已经有选中的笔记，不覆盖
-            if self.selectedNote != nil {
-                return
+            let defaults = UserDefaults.standard
+            
+            // 尝试恢复上次选中的文件夹
+            var restoredFolder: Folder?
+            if let lastFolderId = defaults.string(forKey: "lastSelectedFolderId"),
+               let folder = self.folders.first(where: { $0.id == lastFolderId }) {
+                restoredFolder = folder
+                self.selectedFolder = folder
+                print("[VIEWMODEL] 已恢复上次选中的文件夹: \(lastFolderId)")
+            } else {
+                // 没有上次选中的文件夹，默认选择"所有笔记"
+                restoredFolder = self.folders.first(where: { $0.id == "0" })
+                self.selectedFolder = restoredFolder
+                print("[VIEWMODEL] 默认选择所有笔记文件夹")
             }
             
+            // 获取当前文件夹中的笔记列表
+            let notesInFolder = self.getNotesInFolder(restoredFolder)
+            
             // 尝试恢复上次选中的笔记
-            let defaults = UserDefaults.standard
             if let lastNoteId = defaults.string(forKey: "lastSelectedNoteId"),
                let lastNote = self.notes.first(where: { $0.id == lastNoteId }) {
-                // 找到上次选中的笔记，选中它
-                self.selectedNote = lastNote
-                // 确保选中的文件夹也正确
-                let folderId = lastNote.folderId
-                if !folderId.isEmpty && folderId != "0" {
-                    if let folder = self.folders.first(where: { $0.id == folderId }) {
-                        self.selectedFolder = folder
-                    }
+                // 检查笔记是否在当前文件夹中
+                if notesInFolder.contains(where: { $0.id == lastNoteId }) {
+                    // 笔记在当前文件夹中，选中它
+                    self.selectedNote = lastNote
+                    print("[VIEWMODEL] 已恢复上次选中的笔记: \(lastNoteId)")
                 } else {
-                    // 如果笔记在"所有笔记"或未分类，确保选中正确的文件夹
-                    if self.selectedFolder == nil {
-                        self.selectedFolder = self.folders.first(where: { $0.id == "0" })
-                    }
+                    // 笔记不在当前文件夹中，选择当前文件夹的第一个笔记
+                    self.selectedNote = notesInFolder.first
+                    print("[VIEWMODEL] 笔记不在当前文件夹，选择第一个笔记")
                 }
-                print("[VIEWMODEL] 已恢复上次选中的笔记: \(lastNoteId)")
             } else {
-                // 没有上次选中的笔记，选中第一篇笔记
-                if let firstNote = self.notes.first {
-                    self.selectedNote = firstNote
-                    // 确保选中的文件夹也正确
-                    let folderId = firstNote.folderId
-                    if !folderId.isEmpty && folderId != "0" {
-                        if let folder = self.folders.first(where: { $0.id == folderId }) {
-                            self.selectedFolder = folder
-                        }
-                    } else {
-                        // 如果笔记在"所有笔记"或未分类，确保选中正确的文件夹
-                        if self.selectedFolder == nil {
-                            self.selectedFolder = self.folders.first(where: { $0.id == "0" })
-                        }
-                    }
-                    print("[VIEWMODEL] 已选中第一篇笔记: \(firstNote.id)")
-                }
+                // 没有上次选中的笔记，选择当前文件夹的第一个笔记
+                self.selectedNote = notesInFolder.first
+                print("[VIEWMODEL] 选择当前文件夹的第一个笔记")
             }
+        }
+    }
+    
+    /// 获取文件夹中的笔记列表
+    private func getNotesInFolder(_ folder: Folder?) -> [Note] {
+        guard let folder = folder else { return notes }
+        
+        if folder.id == "starred" {
+            return notes.filter { $0.isStarred }
+        } else if folder.id == "0" {
+            return notes
+        } else if folder.id == "uncategorized" {
+            return notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }
+        } else {
+            return notes.filter { $0.folderId == folder.id }
         }
     }
     
@@ -1451,8 +1545,8 @@ public class NotesViewModel: ObservableObject {
                     print("[VIEWMODEL] 同步后更新选中笔记: \(noteId)")
                 }
             } else {
-                // 如果没有选中的笔记，尝试恢复上次选中的笔记
-                restoreLastSelectedNote()
+                // 如果没有选中的笔记，尝试恢复上次选中的状态
+                restoreLastSelectedState()
             }
             
             print("[FolderRename] ========== loadLocalDataAfterSync() 完成 ==========")
@@ -2217,9 +2311,67 @@ public class NotesViewModel: ObservableObject {
         }
     }
     
+    /// 设置文件夹的排序方式
+    /// 
+    /// - Parameters:
+    ///   - folder: 要设置排序方式的文件夹
+    ///   - sortOrder: 排序方式
+    func setFolderSortOrder(_ folder: Folder, sortOrder: NoteSortOrder) {
+        folderSortOrders[folder.id] = sortOrder
+        // 保存到 UserDefaults
+        let defaults = UserDefaults.standard
+        if let encoded = try? JSONEncoder().encode(folderSortOrders),
+           let jsonString = String(data: encoded, encoding: .utf8) {
+            defaults.set(jsonString, forKey: "folderSortOrders")
+        }
+    }
+    
+    /// 获取文件夹的排序方式
+    /// 
+    /// - Parameter folder: 文件夹
+    /// - Returns: 排序方式，如果没有设置则返回 nil
+    func getFolderSortOrder(_ folder: Folder) -> NoteSortOrder? {
+        return folderSortOrders[folder.id]
+    }
+    
     func selectFolder(_ folder: Folder?) {
+        let oldFolder = selectedFolder
         selectedFolder = folder
-        selectedNote = nil // 切换文件夹时清空笔记选择
+        
+        // 获取新文件夹中的笔记列表
+        let notesInNewFolder: [Note]
+        if let folder = folder {
+            if folder.id == "starred" {
+                notesInNewFolder = notes.filter { $0.isStarred }
+            } else if folder.id == "0" {
+                notesInNewFolder = notes
+            } else if folder.id == "uncategorized" {
+                notesInNewFolder = notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }
+            } else {
+                notesInNewFolder = notes.filter { $0.folderId == folder.id }
+            }
+        } else {
+            notesInNewFolder = []
+        }
+        
+        // 检查当前选中的笔记是否在新文件夹中
+        if let currentNote = selectedNote {
+            let isNoteInNewFolder = notesInNewFolder.contains { $0.id == currentNote.id }
+            
+            if isNoteInNewFolder {
+                // 当前笔记在新文件夹中，保持不变
+                // 但需要确保使用最新的笔记对象（从 notesInNewFolder 中获取）
+                if let updatedNote = notesInNewFolder.first(where: { $0.id == currentNote.id }) {
+                    selectedNote = updatedNote
+                }
+            } else {
+                // 当前笔记不在新文件夹中，选择新文件夹的第一个笔记
+                selectedNote = notesInNewFolder.first
+            }
+        } else {
+            // 当前没有选中的笔记，选择新文件夹的第一个笔记
+            selectedNote = notesInNewFolder.first
+        }
     }
     
     /// 创建文件夹
@@ -2927,6 +3079,127 @@ public class NotesViewModel: ObservableObject {
             // 上传失败：静默处理，不显示弹窗
             print("[VIEWMODEL] 上传图片失败: \(error.localizedDescription)")
             // 不设置 errorMessage，避免弹窗提示
+            throw error
+        }
+    }
+    
+    // MARK: - 历史版本
+    
+    /// 获取笔记历史版本列表
+    /// - Parameter noteId: 笔记ID
+    /// - Returns: 历史版本列表
+    func getNoteHistoryTimes(noteId: String) async throws -> [NoteHistoryVersion] {
+        guard service.isAuthenticated() else {
+            throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        
+        do {
+            let response = try await service.getNoteHistoryTimes(noteId: noteId)
+            
+            guard let code = response["code"] as? Int, code == 0,
+                  let data = response["data"] as? [String: Any],
+                  let tvList = data["tvList"] as? [[String: Any]] else {
+                throw MiNoteError.invalidResponse
+            }
+            
+            var versions: [NoteHistoryVersion] = []
+            for item in tvList {
+                if let updateTime = item["updateTime"] as? Int64,
+                   let version = item["version"] as? Int64 {
+                    versions.append(NoteHistoryVersion(version: version, updateTime: updateTime))
+                }
+            }
+            
+            return versions
+        } catch {
+            if let miNoteError = error as? MiNoteError {
+                handleMiNoteError(miNoteError)
+            } else {
+                errorMessage = "获取历史版本失败: \(error.localizedDescription)"
+            }
+            throw error
+        }
+    }
+    
+    /// 获取笔记历史版本内容
+    /// - Parameters:
+    ///   - noteId: 笔记ID
+    ///   - version: 版本号
+    /// - Returns: 历史版本的笔记对象
+    func getNoteHistory(noteId: String, version: Int64) async throws -> Note {
+        guard service.isAuthenticated() else {
+            throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        
+        do {
+            let response = try await service.getNoteHistory(noteId: noteId, version: version)
+            
+            guard let code = response["code"] as? Int, code == 0,
+                  let data = response["data"] as? [String: Any],
+                  let entry = data["entry"] as? [String: Any] else {
+                throw MiNoteError.invalidResponse
+            }
+            
+            // 使用 Note.fromMinoteData 解析历史版本数据
+            guard var note = Note.fromMinoteData(entry) else {
+                throw MiNoteError.invalidResponse
+            }
+            
+            // 使用 updateContent 更新内容（包括 content 字段）
+            note.updateContent(from: response)
+            
+            return note
+        } catch {
+            if let miNoteError = error as? MiNoteError {
+                handleMiNoteError(miNoteError)
+            } else {
+                errorMessage = "获取历史版本内容失败: \(error.localizedDescription)"
+            }
+            throw error
+        }
+    }
+    
+    /// 恢复笔记历史版本
+    /// - Parameters:
+    ///   - noteId: 笔记ID
+    ///   - version: 要恢复的版本号
+    func restoreNoteHistory(noteId: String, version: Int64) async throws {
+        guard service.isAuthenticated() else {
+            throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        
+        do {
+            let response = try await service.restoreNoteHistory(noteId: noteId, version: version)
+            
+            guard let code = response["code"] as? Int, code == 0 else {
+                throw MiNoteError.invalidResponse
+            }
+            
+            // 恢复成功后，重新同步笔记以获取最新数据
+            await performFullSync()
+            
+            // 更新选中的笔记
+            if let index = notes.firstIndex(where: { $0.id == noteId }) {
+                selectedNote = notes[index]
+            }
+        } catch {
+            if let miNoteError = error as? MiNoteError {
+                handleMiNoteError(miNoteError)
+            } else {
+                errorMessage = "恢复历史版本失败: \(error.localizedDescription)"
+            }
             throw error
         }
     }

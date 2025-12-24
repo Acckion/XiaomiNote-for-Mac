@@ -45,6 +45,13 @@ struct NoteDetailView: View {
         case failed
     }
     
+    // 历史版本相关状态
+    @State private var showingHistoryView: Bool = false
+    
+    // 搜索相关状态
+    @State private var windowWidth: CGFloat = 800  // 当前窗口宽度，用于响应式搜索框
+    @State private var showingSearchField: Bool = false  // 控制搜索弹窗显示
+    
     // Web编辑器上下文
     @StateObject private var webEditorContext = WebEditorContext()
     
@@ -56,27 +63,51 @@ struct NoteDetailView: View {
                 emptyNoteView
             }
         }
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear {
+                        windowWidth = geometry.size.width
+                    }
+                    .onChange(of: geometry.size.width) { oldValue, newValue in
+                        windowWidth = newValue
+                    }
+            }
+        )
         .onChange(of: viewModel.selectedNote) { oldValue, newValue in
             handleSelectedNoteChange(oldValue: oldValue, newValue: newValue)
         }
-        .navigationTitle("")  // 添加空的 navigationTitle 以确保 toolbar 绑定到 detail 列
+        .navigationTitle("详情")  // 详情视图标题
         .toolbar {
-            // 最左侧：新建笔记按钮和格式工具按钮组（放在同一个 ToolbarItem 中，避免自动分割线）
             ToolbarItemGroup(placement: .automatic) {
-                    formatToolbarGroup
+                newNoteButton
             }
-            
-            // 搜索框（自动位置）
-            ToolbarItem(placement: .automatic) {
-                searchToolbarItem
+            ToolbarSpacer()
+            ToolbarItemGroup(placement: .automatic) {
+                undoButton
+                redoButton
             }
-            
-            // 最右侧：共享和更多按钮
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarSpacer(.fixed)
+            // 自定义工具栏：左侧新建按钮，中间格式工具栏（紧挨着的多个栏），右侧共享按钮
+            ToolbarItemGroup(placement: .automatic) {
+                formatMenu
+                checkboxButton
+                horizontalRuleButton
+                imageButton
+            }
+            ToolbarSpacer(.fixed)
+            ToolbarItemGroup(placement: .automatic) {
+                indentButtons
+                Spacer()
+                
+                // 共享和更多按钮（右侧）
                 if let note = viewModel.selectedNote {
                     shareAndMoreButtons(for: note)
                 }
+                searchToolbarItem
+                
             }
+            
         }
     }
     
@@ -109,15 +140,6 @@ struct NoteDetailView: View {
                 await handleTitleChange(newValue)
             }
         }
-        // 移除保存失败弹窗，改为静默处理
-        // .alert("保存失败", isPresented: $showSaveError) {
-        //     Button("重试") {
-        //         saveChanges()
-        //     }
-        //     Button("取消", role: .cancel) {}
-        // } message: {
-        //     Text(saveError)
-        // }
         .sheet(isPresented: $showImageInsertAlert) {
             ImageInsertStatusView(
                 isInserting: isInsertingImage,
@@ -365,7 +387,81 @@ struct NoteDetailView: View {
             }
         }
     }
+    /// 搜索工具栏项 - 响应式搜索框/按钮
+    ///
+    /// 位置：工具栏最右侧（.primaryAction）
+    ///
+    /// 响应式行为：
+    /// - 窗口宽度 > 800：显示搜索框（带放大镜图标和输入框）
+    /// - 窗口宽度 ≤ 800：显示搜索按钮（点击后弹出搜索弹窗）
+    ///
+    /// 搜索框样式：
+    /// - 圆角背景
+    /// - 宽度：150px
+    /// - 字体大小：13pt
+    private var searchToolbarItem: some View {
+            Group {
+                if windowWidth > 800 {
+                    // 宽度足够，显示搜索框
+                    HStack(spacing: 4) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 12))
+                        
+                        TextField("搜索笔记", text: $viewModel.searchText)
+                            .textFieldStyle(.plain)
+                            .frame(width: 150)
+                            .font(.system(size: 13))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(nsColor: NSColor.controlBackgroundColor))
+                    )
+                } else {
+                    // 宽度不够，显示搜索按钮
+                    Button {
+                        showingSearchField.toggle()
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 14))
+                    }
+                    .help("搜索笔记")
+                    .popover(isPresented: $showingSearchField, arrowEdge: .top) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("搜索笔记")
+                                .font(.headline)
+                                .padding(.bottom, 4)
+                            
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.secondary)
+                                
+                                TextField("输入搜索关键词", text: $viewModel.searchText)
+                                    .textFieldStyle(.plain)
+                            }
+                            .padding(8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color(nsColor: NSColor.controlBackgroundColor))
+                            )
+                            
+                            if !viewModel.searchText.isEmpty {
+                                Button("清除") {
+                                    viewModel.searchText = ""
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                        .padding(12)
+                        .frame(width: 250)
+                    }
+                }
+            }
+        }
     
+    ///  新建笔记
     private var emptyNoteView: some View {
         VStack(spacing: 16) {
             Image(systemName: "note.text")
@@ -386,39 +482,13 @@ struct NoteDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    private var formatToolbarGroup: some View {
-        HStack(spacing: 6) {
-            newNoteButton
-            Divider()
-                .frame(height: 16)
-            undoButton
-            redoButton
-            Divider()
-                .frame(height: 16)
-            formatMenu
-            checkboxButton
-            horizontalRuleButton
-            imageButton
-            Divider()
-                .frame(height: 16)
-            indentButtons
-            Divider()
-                .frame(height: 16)
-            debugButton
-        }
-        .padding(.horizontal, -1)
-        .padding(.vertical, 0)
-    }
-    
     /// 撤销按钮
     private var undoButton: some View {
         Button {
             webEditorContext.undo()
         } label: {
-            Image(systemName: "arrow.uturn.backward")
-                .font(.system(size: 12))
+            Label("撤销", systemImage: "arrow.uturn.backward")
         }
-        .help("撤销 (⌘Z)")
     }
     
     /// 重做按钮
@@ -426,86 +496,63 @@ struct NoteDetailView: View {
         Button {
             webEditorContext.redo()
         } label: {
-            Image(systemName: "arrow.uturn.forward")
-                .font(.system(size: 12))
+            Label("重做", systemImage: "arrow.uturn.forward")
         }
-        .help("重做 (⌘⇧Z)")
     }
     
     @State private var showFormatMenu: Bool = false
     
     private var formatMenu: some View {
-        HStack(spacing: 8) {
-            Button {
-                showFormatMenu.toggle()
-            } label: {
-                Image(systemName: "textformat")
-                    .font(.system(size: 14))
-            }
-            
-            .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
-                WebFormatMenuView(context: webEditorContext) { action in
-                    // WebFormatMenuView 使用 WebEditorContext 处理格式操作，这里只需要关闭菜单
-                    showFormatMenu = false
-                }
+        Button {
+            showFormatMenu.toggle()
+        } label: {
+            Label("格式", systemImage: "textformat")
+        }
+        .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
+            WebFormatMenuView(context: webEditorContext) { action in
+                // WebFormatMenuView 使用 WebEditorContext 处理格式操作，这里只需要关闭菜单
+                showFormatMenu = false
             }
         }
     }
     
-    
     private var checkboxButton: some View {
-        HStack(spacing: 8) {
-            Button {
-                insertCheckbox()
-            } label: {
-                Image(systemName: "checklist")
-            }
-            .help("插入待办")
+        Button {
+            insertCheckbox()
+        } label: {
+            Label("插入待办", systemImage: "checklist")
         }
     }
     
     private var horizontalRuleButton: some View {
-        HStack(spacing: 8) {
-            Button {
-                insertHorizontalRule()
-            } label: {
-                Image(systemName: "minus")
-                    .font(.system(size: 16))
-            }
-            .help("插入分割线")
+        Button {
+            insertHorizontalRule()
+        } label: {
+            Label("插入分割线", systemImage: "minus")
         }
     }
     
     private var imageButton: some View {
-        HStack(spacing: 8) {
-            Button {
-                insertImage()
-            } label: {
-                Image(systemName: "paperclip")
-                    .font(.system(size: 13))
-            }
-            .help("插入图片")
+        Button {
+            insertImage()
+        } label: {
+            Label("插入图片", systemImage: "paperclip")
         }
     }
     
     /// 缩进按钮组
+    @ViewBuilder
     private var indentButtons: some View {
-        HStack(spacing: 8) {
-            Button {
-                webEditorContext.increaseIndent()
-            } label: {
-                Image(systemName: "increase.indent")
-                    .font(.system(size: 14))
-            }
-            .help("增加缩进")
-            
-            Button {
-                webEditorContext.decreaseIndent()
-            } label: {
-                Image(systemName: "decrease.indent")
-                    .font(.system(size: 14))
-            }
-            .help("减少缩进")
+        Button {
+            webEditorContext.increaseIndent()
+        } label: {
+            Label("增加缩进", systemImage: "increase.indent")
+        }
+        
+        Button {
+            webEditorContext.decreaseIndent()
+        } label: {
+            Label("减少缩进", systemImage: "decrease.indent")
         }
     }
     
@@ -690,7 +737,13 @@ struct NoteDetailView: View {
                 sharingPicker.show(relativeTo: .zero, of: contentView, preferredEdge: .minY)
             }
         } label: {
-            Image(systemName: "square.and.arrow.up")
+            Label("分享", systemImage: "square.and.arrow.up")
+        }
+        
+        Button {
+            showingHistoryView = true
+        } label: {
+            Label("历史版本", systemImage: "clock.arrow.circlepath")
         }
         
         Menu {
@@ -700,40 +753,31 @@ struct NoteDetailView: View {
                 Label(note.isStarred ? "取消置顶备忘录" : "置顶备忘录",
                       systemImage: note.isStarred ? "pin.slash" : "pin")
             }
-            
-            Divider()
-            
             Button(role: .destructive) {
                 viewModel.deleteNote(note)
             } label: {
                 Label("删除备忘录", systemImage: "trash")
             }
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Label("更多", systemImage: "ellipsis.circle")
+        }
+        .sheet(isPresented: $showingHistoryView) {
+            if let note = viewModel.selectedNote {
+                NoteHistoryView(viewModel: viewModel, noteId: note.id)
+            }
         }
     }
-    
-    private var searchToolbarItem: some View {
-        HStack {
-            Spacer()
-            TextField("搜索", text: $viewModel.searchText)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 200)
-        }
-    }
+
     
     /// 新建笔记按钮
     private var newNoteButton: some View {
         Button {
             viewModel.createNewNote()
         } label: {
-            Image(systemName: "square.and.pencil")
-                .font(.system(size: 13, weight: .medium))
-                .offset(y:-1)
-            // 中等粗细
+            Label("新建笔记", systemImage: "square.and.pencil")
         }
-        .help("新建笔记")
     }
+
     
     private func handleNoteAppear(_ note: Note) {
         // 在加载新笔记前，确保保存当前笔记的更改
