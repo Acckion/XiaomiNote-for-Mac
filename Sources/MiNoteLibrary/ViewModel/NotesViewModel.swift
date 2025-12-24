@@ -80,6 +80,18 @@ public class NotesViewModel: ObservableObject {
     /// 是否显示私密笔记密码输入对话框
     @Published var showPrivateNotesPasswordDialog: Bool = false
     
+    /// 用户信息（用户名和头像）
+    @Published var userProfile: UserProfile?
+    
+    /// 回收站笔记列表
+    @Published var deletedNotes: [DeletedNote] = []
+    
+    /// 是否正在加载回收站笔记
+    @Published var isLoadingDeletedNotes: Bool = false
+    
+    /// 是否显示回收站视图
+    @Published var showTrashView: Bool = false
+    
     // MARK: - 设置
     
     /// 同步间隔（秒），默认5分钟
@@ -153,7 +165,7 @@ public class NotesViewModel: ObservableObject {
     // MARK: - 依赖服务
     
     /// 小米笔记API服务
-    private let service = MiNoteService.shared
+    internal let service = MiNoteService.shared
     
     /// 同步服务
     private let syncService = SyncService.shared
@@ -334,6 +346,13 @@ public class NotesViewModel: ObservableObject {
         // 恢复上次选中的文件夹和笔记
         restoreLastSelectedState()
         
+        // 如果已登录，获取用户信息
+        if isLoggedIn {
+            Task {
+                await fetchUserProfile()
+            }
+        }
+        
         // 同步 AuthenticationStateManager 的状态到 ViewModel
         // 这样 AuthenticationStateManager 的状态变化会触发 ViewModel 的 @Published 属性更新，进而触发 UI 更新
         setupAuthStateSync()
@@ -342,6 +361,17 @@ public class NotesViewModel: ObservableObject {
         Publishers.CombineLatest($selectedNote, $selectedFolder)
             .sink { [weak self] _, _ in
                 self?.saveLastSelectedState()
+            }
+            .store(in: &cancellables)
+        
+        // 监听searchText变化，当搜索时自动取消选中文件夹
+        $searchText
+            .sink { [weak self] searchText in
+                guard let self = self else { return }
+                if !searchText.isEmpty && self.selectedFolder != nil {
+                    // 当有搜索文本时，取消选中文件夹
+                    self.selectedFolder = nil
+                }
             }
             .store(in: &cancellables)
         
@@ -1241,6 +1271,8 @@ public class NotesViewModel: ObservableObject {
                     let insertIndex = (hasAllNotes ? 1 : 0) + (hasStarred ? 1 : 0)
                     foldersWithCount.insert(Folder(id: "2", name: "私密笔记", count: privateNotesCount, isSystem: true), at: insertIndex)
                 }
+                
+                // 回收站不再作为文件夹显示，而是作为按钮
                 
                 // 更新文件夹计数
                 for i in 0..<foldersWithCount.count {
@@ -3418,6 +3450,75 @@ public class NotesViewModel: ObservableObject {
             errorMessage = "网络错误: \(underlyingError.localizedDescription)"
         case .invalidResponse:
             errorMessage = "服务器返回无效响应"
+        }
+    }
+    
+    /// 获取回收站笔记
+    /// 
+    /// 从服务器获取已删除的笔记列表
+    func fetchDeletedNotes() async {
+        guard service.isAuthenticated() else {
+            print("[VIEWMODEL] 未认证，无法获取回收站笔记")
+            return
+        }
+        
+        isLoadingDeletedNotes = true
+        defer { isLoadingDeletedNotes = false }
+        
+        do {
+            let response = try await service.fetchDeletedNotes()
+            
+            guard let code = response["code"] as? Int, code == 0,
+                  let data = response["data"] as? [String: Any],
+                  let entries = data["entries"] as? [[String: Any]] else {
+                throw MiNoteError.invalidResponse
+            }
+            
+            var deletedNotes: [DeletedNote] = []
+            for entry in entries {
+                if let deletedNote = DeletedNote.fromAPIResponse(entry) {
+                    deletedNotes.append(deletedNote)
+                }
+            }
+            
+            await MainActor.run {
+                self.deletedNotes = deletedNotes
+                print("[VIEWMODEL] ✅ 获取回收站笔记成功，共 \(deletedNotes.count) 条")
+                
+                // 更新回收站文件夹的计数
+                if let trashIndex = folders.firstIndex(where: { $0.id == "trash" }) {
+                    folders[trashIndex].count = deletedNotes.count
+                }
+            }
+        } catch {
+            print("[VIEWMODEL] ❌ 获取回收站笔记失败: \(error.localizedDescription)")
+            await MainActor.run {
+                self.deletedNotes = []
+            }
+        }
+    }
+    
+    /// 获取用户信息
+    /// 
+    /// 从服务器获取当前登录用户的昵称和头像
+    func fetchUserProfile() async {
+        guard service.isAuthenticated() else {
+            print("[VIEWMODEL] 未认证，无法获取用户信息")
+            return
+        }
+        
+        do {
+            let profileData = try await service.fetchUserProfile()
+            if let profile = UserProfile.fromAPIResponse(profileData) {
+                await MainActor.run {
+                    self.userProfile = profile
+                    print("[VIEWMODEL] ✅ 获取用户信息成功: \(profile.nickname)")
+                }
+            } else {
+                print("[VIEWMODEL] ⚠️ 无法解析用户信息")
+            }
+        } catch {
+            print("[VIEWMODEL] ❌ 获取用户信息失败: \(error.localizedDescription)")
         }
     }
 }

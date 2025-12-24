@@ -345,20 +345,35 @@ struct NoteRow: View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(hasRealTitle() ? note.title : "无标题")
-                        .font(.system(size: 14))
-                        .lineLimit(1)
-                        .foregroundColor(hasRealTitle() ? .primary : .secondary)
+                    // 标题 - 支持搜索高亮
+                    if let viewModel = viewModel, !viewModel.searchText.isEmpty {
+                        highlightText(hasRealTitle() ? note.title : "无标题", searchText: viewModel.searchText)
+                            .font(.system(size: 14))
+                            .lineLimit(1)
+                    } else {
+                        Text(hasRealTitle() ? note.title : "无标题")
+                            .font(.system(size: 14))
+                            .lineLimit(1)
+                            .foregroundColor(hasRealTitle() ? .primary : .secondary)
+                    }
                     
                     HStack(spacing: 4) {
                         Text(formatDate(note.updatedAt))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                         
-                        Text(extractPreviewText(from: note.content))
-                            .font(.system(size: 11))
+                        // 预览文本 - 支持搜索高亮
+                        if let viewModel = viewModel, !viewModel.searchText.isEmpty {
+                            highlightPreviewText(from: note.content, searchText: viewModel.searchText)
+                                .font(.system(size: 11))
                                 .foregroundColor(.secondary)
-                            .lineLimit(1)
+                                .lineLimit(1)
+                        } else {
+                            Text(extractPreviewText(from: note.content))
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
                     }
                 }
                 
@@ -619,6 +634,124 @@ struct NoteRow: View {
                 }
             }
         }
+    }
+    
+    /// 高亮显示文本中的搜索关键词
+    private func highlightText(_ text: String, searchText: String) -> Text {
+        guard !searchText.isEmpty else {
+            return Text(text)
+        }
+        
+        let lowercasedText = text.lowercased()
+        let lowercasedSearchText = searchText.lowercased()
+        
+        // 查找所有匹配的位置
+        var ranges: [Range<String.Index>] = []
+        var searchStartIndex = lowercasedText.startIndex
+        
+        while let range = lowercasedText.range(of: lowercasedSearchText, range: searchStartIndex..<lowercasedText.endIndex) {
+            ranges.append(range)
+            searchStartIndex = range.upperBound
+        }
+        
+        // 如果没有匹配，返回普通文本
+        if ranges.isEmpty {
+            return Text(text)
+                .foregroundColor(.primary)
+        }
+        
+        // 构建高亮文本
+        var resultText = Text(verbatim: "")
+        var currentIndex = text.startIndex
+        
+        for range in ranges {
+            // 添加匹配前的文本
+            if currentIndex < range.lowerBound {
+                let beforeMatch = String(text[currentIndex..<range.lowerBound])
+                resultText = resultText + Text(verbatim: beforeMatch)
+            }
+            
+            // 添加高亮的匹配文本
+            let matchText = String(text[range])
+            resultText = resultText + Text(verbatim: matchText)
+                .foregroundColor(.yellow)  // 使用主题色黄色
+                .fontWeight(.medium)
+            
+            currentIndex = range.upperBound
+        }
+        
+        // 添加剩余的文本
+        if currentIndex < text.endIndex {
+            let remainingText = String(text[currentIndex..<text.endIndex])
+            resultText = resultText + Text(verbatim: remainingText)
+        }
+        
+        return resultText
+    }
+    
+    /// 高亮显示预览文本中的搜索关键词
+    private func highlightPreviewText(from xmlContent: String, searchText: String) -> Text {
+        guard !searchText.isEmpty else {
+            return Text(extractPreviewText(from: xmlContent))
+                .foregroundColor(.secondary)
+        }
+        
+        // 提取纯文本预览
+        let previewText = extractPreviewText(from: xmlContent)
+        
+        // 如果预览文本是"无内容"，直接返回
+        if previewText == "无内容" {
+            return Text(previewText)
+                .foregroundColor(.secondary)
+        }
+        
+        let lowercasedText = previewText.lowercased()
+        let lowercasedSearchText = searchText.lowercased()
+        
+        // 查找所有匹配的位置
+        var ranges: [Range<String.Index>] = []
+        var searchStartIndex = lowercasedText.startIndex
+        
+        while let range = lowercasedText.range(of: lowercasedSearchText, range: searchStartIndex..<lowercasedText.endIndex) {
+            ranges.append(range)
+            searchStartIndex = range.upperBound
+        }
+        
+        // 如果没有匹配，返回普通文本
+        if ranges.isEmpty {
+            return Text(previewText)
+                .foregroundColor(.secondary)
+        }
+        
+        // 构建高亮文本
+        var resultText = Text(verbatim: "")
+        var currentIndex = previewText.startIndex
+        
+        for range in ranges {
+            // 添加匹配前的文本
+            if currentIndex < range.lowerBound {
+                let beforeMatch = String(previewText[currentIndex..<range.lowerBound])
+                resultText = resultText + Text(verbatim: beforeMatch)
+                    .foregroundColor(.secondary)
+            }
+            
+            // 添加高亮的匹配文本
+            let matchText = String(previewText[range])
+            resultText = resultText + Text(verbatim: matchText)
+                .foregroundColor(.yellow)  // 使用主题色黄色
+                .fontWeight(.medium)
+            
+            currentIndex = range.upperBound
+        }
+        
+        // 添加剩余的文本
+        if currentIndex < previewText.endIndex {
+            let remainingText = String(previewText[currentIndex..<previewText.endIndex])
+            resultText = resultText + Text(verbatim: remainingText)
+                .foregroundColor(.secondary)
+        }
+        
+        return resultText
     }
 }
 

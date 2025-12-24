@@ -48,15 +48,44 @@ public struct SettingsView: View {
                 }
                 
                 Section("账户") {
-                    HStack {
-                        Text("登录状态")
-                        Spacer()
-                        if viewModel.isLoggedIn {
-                            Text("已登录")
-                                .foregroundColor(.green)
-                        } else {
-                            Text("未登录")
-                                .foregroundColor(.red)
+                    // 用户信息显示
+                    if let profile = viewModel.userProfile {
+                        HStack {
+                            // 头像
+                            AsyncImage(url: URL(string: profile.icon)) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Image(systemName: "person.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
+                            
+                            // 用户名
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(profile.nickname)
+                                    .font(.headline)
+                                Text("已登录")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        HStack {
+                            Text("登录状态")
+                            Spacer()
+                            if viewModel.isLoggedIn {
+                                Text("已登录")
+                                    .foregroundColor(.green)
+                            } else {
+                                Text("未登录")
+                                    .foregroundColor(.red)
+                            }
                         }
                     }
                     

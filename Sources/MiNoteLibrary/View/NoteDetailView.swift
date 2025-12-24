@@ -104,8 +104,10 @@ struct NoteDetailView: View {
                 if let note = viewModel.selectedNote {
                     shareAndMoreButtons(for: note)
                 }
-                searchToolbarItem
-                
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                // 搜索工具栏项 - 使用toolbar统一的方式
+                                searchBar
             }
             
         }
@@ -387,63 +389,6 @@ struct NoteDetailView: View {
             }
         }
     }
-    /// 搜索工具栏项 - 响应式搜索框/按钮
-    ///
-    /// 位置：工具栏最右侧（.primaryAction）
-    ///
-    /// 响应式行为：
-    /// - 窗口宽度 > 800：显示搜索框（带放大镜图标和输入框）
-    /// - 窗口宽度 ≤ 800：显示搜索按钮（点击后弹出搜索弹窗）
-    ///
-    /// 搜索框样式：
-    /// - 圆角背景
-    /// - 宽度：150px
-    /// - 字体大小：13pt
-    private var searchToolbarItem: some View {
-            Group {
-                if windowWidth > 800 {
-                    // 宽度足够，显示搜索框和筛选按钮
-                    HStack(spacing: 4) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 12))
-                        
-                        TextField("搜索笔记", text: $viewModel.searchText)
-                            .textFieldStyle(.plain)
-                            .frame(width: 150)
-                            .font(.system(size: 13))
-                        
-                        // 筛选按钮
-                        Menu {
-                            SearchFilterMenuContent(viewModel: viewModel)
-                        } label: {
-                            Image(systemName: hasAnyFilter() ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                                .foregroundColor(.secondary)
-                                .font(.system(size: 12))
-                        }
-                        .help("筛选")
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(nsColor: NSColor.controlBackgroundColor))
-                    )
-                } else {
-                    // 宽度不够，显示搜索按钮
-                    Button {
-                        showingSearchField.toggle()
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 14))
-                    }
-                    .help("搜索笔记")
-                    .popover(isPresented: $showingSearchField, arrowEdge: .top) {
-                        SearchFilterPopoverView(viewModel: viewModel)
-                    }
-                }
-            }
-        }
     
     ///  新建笔记
     private var emptyNoteView: some View {
@@ -483,6 +428,101 @@ struct NoteDetailView: View {
             Label("撤销", systemImage: "arrow.uturn.backward")
         }
     }
+    
+    private var searchBar: some View {
+        Group {
+            if windowWidth > 800 {
+                // 宽度足够，显示搜索框，点击搜索框弹出筛选菜单
+                HStack(spacing: 4) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 12))
+                    
+                    TextField("搜索笔记", text: $viewModel.searchText)
+                        .textFieldStyle(.plain)
+                        .frame(width: 150)
+                        .font(.system(size: 13))
+                }
+                .padding(.horizontal, 8)
+                .onTapGesture {
+                    // 点击搜索框时显示筛选菜单
+                    showingSearchField = true
+                }
+                .popover(isPresented: $showingSearchField, arrowEdge: .top) {
+                    SearchFilterPopoverView(viewModel: viewModel)
+                }
+                .overlay(
+                    // 在搜索框右上角显示筛选状态指示器
+                    Group {
+                        if hasAnyFilter() {
+                            Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                                .foregroundColor(.blue)
+                                .font(.system(size: 8))
+                                .offset(x: 8, y: -8)
+                        }
+                    },
+                    alignment: .topTrailing
+                )
+            } else {
+                // 宽度不够，显示搜索按钮，点击按钮展开搜索框
+                HStack(spacing: 4) {
+                    if showingSearchField {
+                        // 展开的搜索框
+                        HStack(spacing: 4) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
+                                .font(.system(size: 12))
+                            
+                            TextField("搜索笔记", text: $viewModel.searchText)
+                                .textFieldStyle(.plain)
+                                .frame(width: 120)
+                                .font(.system(size: 13))
+                                .onSubmit {
+                                    // 提交搜索时收起搜索框
+                                    showingSearchField = false
+                                }
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(nsColor: NSColor.controlBackgroundColor))
+                        )
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        
+                        // 关闭按钮
+                        Button {
+                            withAnimation {
+                                showingSearchField = false
+                            }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                                .font(.system(size: 12))
+                        }
+                        .buttonStyle(.plain)
+                        .help("收起搜索框")
+                        .transition(.opacity)
+                    } else {
+                        // 搜索按钮
+                        Button {
+                            withAnimation {
+                                showingSearchField = true
+                            }
+                        } label: {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 14))
+                        }
+                        .help("搜索笔记")
+                        .transition(.opacity)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.2), value: showingSearchField)
+            }
+        }
+    }
+    
+    
     
     /// 重做按钮
     private var redoButton: some View {
@@ -746,6 +786,17 @@ struct NoteDetailView: View {
                 Label(note.isStarred ? "取消置顶备忘录" : "置顶备忘录",
                       systemImage: note.isStarred ? "pin.slash" : "pin")
             }
+            
+            Divider()
+            
+            Button {
+                viewModel.showTrashView = true
+            } label: {
+                Label("回收站", systemImage: "trash")
+            }
+            
+            Divider()
+            
             Button(role: .destructive) {
                 viewModel.deleteNote(note)
             } label: {
@@ -758,6 +809,9 @@ struct NoteDetailView: View {
             if let note = viewModel.selectedNote {
                 NoteHistoryView(viewModel: viewModel, noteId: note.id)
             }
+        }
+        .sheet(isPresented: $viewModel.showTrashView) {
+            TrashView(viewModel: viewModel)
         }
     }
 

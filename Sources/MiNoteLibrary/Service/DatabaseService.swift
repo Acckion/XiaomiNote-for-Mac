@@ -44,14 +44,24 @@ final class DatabaseService: @unchecked Sendable {
     
     private func initializeDatabase() {
         dbQueue.sync(flags: .barrier) {
-            guard sqlite3_open(dbPath.path, &db) == SQLITE_OK else {
-                print("[Database] 无法打开数据库: \(String(cString: sqlite3_errmsg(db)))")
+            // 使用 SQLITE_OPEN_FULLMUTEX 标志启用多线程模式
+            // 这确保数据库连接可以在多个线程间安全共享
+            let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
+            guard sqlite3_open_v2(dbPath.path, &db, flags, nil) == SQLITE_OK else {
+                let errorMsg = db != nil ? String(cString: sqlite3_errmsg(db)) : "无法打开数据库"
+                print("[Database] 无法打开数据库: \(errorMsg)")
+                if db != nil {
+                    sqlite3_close(db)
+                    db = nil
+                }
                 return
             }
             
-            // 启用多线程模式（SQLITE_OPEN_FULLMUTEX）
-            // 这确保数据库连接可以在多个线程间安全共享
-            sqlite3_busy_timeout(db, 5000) // 设置忙等待超时为5秒
+            // 设置忙等待超时为5秒
+            sqlite3_busy_timeout(db, 5000)
+            
+            // 启用外键约束
+            sqlite3_exec(db, "PRAGMA foreign_keys = ON;", nil, nil, nil)
             
             print("[Database] 数据库已打开: \(dbPath.path)")
             
@@ -792,6 +802,11 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func getAllOfflineOperations() throws -> [OfflineOperation] {
         return try dbQueue.sync {
+            // 确保数据库连接有效
+            guard let db = db else {
+                throw DatabaseError.prepareFailed("数据库连接无效")
+            }
+            
             let sql = "SELECT id, type, note_id, data, timestamp, priority, retry_count, last_error, status FROM offline_operations ORDER BY priority DESC, timestamp ASC;"
             
             var statement: OpaquePointer?
@@ -802,7 +817,9 @@ final class DatabaseService: @unchecked Sendable {
             }
             
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+                let errorMsg = String(cString: sqlite3_errmsg(db))
+                print("[Database] ❌ 准备SQL语句失败: \(errorMsg)")
+                throw DatabaseError.prepareFailed(errorMsg)
             }
             
             var operations: [OfflineOperation] = []

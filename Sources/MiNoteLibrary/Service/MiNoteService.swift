@@ -15,7 +15,7 @@ final class MiNoteService: @unchecked Sendable {
     // MARK: - 配置常量
     
     /// 小米笔记API基础URL
-    private let baseURL = "https://i.mi.com"
+    internal let baseURL = "https://i.mi.com"
     
     // MARK: - 认证状态
     
@@ -87,7 +87,7 @@ final class MiNoteService: @unchecked Sendable {
         return !cookie.isEmpty && !serviceToken.isEmpty
     }
     
-    private func getHeaders() -> [String: String] {
+    internal func getHeaders() -> [String: String] {
         return [
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept-Encoding": "gzip, deflate, br",
@@ -128,7 +128,7 @@ final class MiNoteService: @unchecked Sendable {
     ///   - responseBody: HTTP响应体字符串
     ///   - urlString: 请求URL（用于日志）
     /// - Throws: MiNoteError（cookieExpired、notAuthenticated或networkError）
-    private func handle401Error(responseBody: String, urlString: String) throws {
+    internal func handle401Error(responseBody: String, urlString: String) throws {
         // 检查响应中是否包含登录重定向URL（明确的认证失败标志）
         let hasLoginURL = responseBody.contains("serviceLogin") || 
                          responseBody.contains("account.xiaomi.com") ||
@@ -2163,6 +2163,291 @@ extension MiNoteError: LocalizedError {
             return "网络错误: \(error.localizedDescription)"
         case .invalidResponse:
             return "服务器返回无效响应"
+        }
+    }
+}
+
+// MARK: - 用户信息和状态检查相关方法
+
+extension MiNoteService {
+    /// 获取用户信息（用户名和头像）
+    /// 
+    /// 从小米云服务获取当前登录用户的基本信息
+    /// 
+    /// - Returns: 用户信息字典，包含 nickname 和 icon
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    func fetchUserProfile() async throws -> [String: Any] {
+        // 构建URL参数
+        var urlComponents = URLComponents(string: "\(baseURL)/status/lite/profile")
+        urlComponents?.queryItems = [
+            URLQueryItem(name: "ts", value: "\(Int(Date().timeIntervalSince1970 * 1000))")
+        ]
+        
+        guard let urlString = urlComponents?.url?.absoluteString else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/status/lite/profile", method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+        
+        // 记录请求
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let responseString = String(data: data, encoding: .utf8)
+            
+            // 记录响应
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "GET",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            // 处理401未授权错误
+            if httpResponse.statusCode == 401 {
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            
+            // 验证响应：检查 code 字段
+            if let code = json["code"] as? Int {
+                if code != 0 {
+                    let message = json["description"] as? String ?? json["message"] as? String ?? "获取用户信息失败"
+                    print("[MiNoteService] 获取用户信息失败，code: \(code), message: \(message)")
+                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                } else {
+                    print("[MiNoteService] ✅ 获取用户信息成功，code: \(code)")
+                }
+            } else {
+                // 如果没有 code 字段，但状态码是 200，也认为成功
+                print("[MiNoteService] ✅ 获取用户信息成功（响应中没有 code 字段，但状态码为 200）")
+            }
+            
+            // 返回 data 字段中的用户信息
+            if let data = json["data"] as? [String: Any] {
+                return data
+            } else {
+                // 如果没有 data 字段，返回整个响应
+                return json
+            }
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            throw error
+        }
+    }
+    
+    /// 检查服务状态
+    /// 
+    /// 这是一个通用的健康检查 API，用于验证：
+    /// - 服务器是否可访问
+    /// - 认证是否有效
+    /// - 连接是否正常
+    /// 
+    /// 通常在以下场景调用：
+    /// - 登录后验证连接
+    /// - 同步前检查服务可用性
+    /// - 定期心跳检测
+    /// 
+    /// - Returns: 检查结果字典，包含 result、code、description 等
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    func checkServiceStatus() async throws -> [String: Any] {
+        // 构建URL参数
+        var urlComponents = URLComponents(string: "\(baseURL)/common/check")
+        urlComponents?.queryItems = [
+            URLQueryItem(name: "ts", value: "\(Int(Date().timeIntervalSince1970 * 1000))")
+        ]
+        
+        guard let urlString = urlComponents?.url?.absoluteString else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/common/check", method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+        
+        // 记录请求
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let responseString = String(data: data, encoding: .utf8)
+            
+            // 记录响应
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "GET",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            // 处理401未授权错误
+            if httpResponse.statusCode == 401 {
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            
+            // 验证响应：检查 code 字段
+            if let code = json["code"] as? Int {
+                if code != 0 {
+                    let message = json["description"] as? String ?? json["message"] as? String ?? "服务检查失败"
+                    print("[MiNoteService] 服务检查失败，code: \(code), message: \(message)")
+                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                } else {
+                    print("[MiNoteService] ✅ 服务检查成功，code: \(code)")
+                }
+            } else {
+                // 如果没有 code 字段，但状态码是 200，也认为成功
+                print("[MiNoteService] ✅ 服务检查成功（响应中没有 code 字段，但状态码为 200）")
+            }
+            
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            throw error
+        }
+    }
+    
+    /// 获取回收站笔记列表
+    /// 
+    /// 从服务器获取已删除的笔记列表
+    /// 
+    /// - Parameters:
+    ///   - limit: 每页返回的记录数，默认 200
+    ///   - ts: 时间戳（可选，如果不提供则使用当前时间）
+    /// - Returns: 包含 entries、folders、lastPage、expireInterval、syncTag 的字典
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    /// 
+    /// **注意**：`_dc` 参数与 `ts` 参数相同，都是时间戳，用于缓存控制
+    func fetchDeletedNotes(limit: Int = 200, ts: Int64? = nil) async throws -> [String: Any] {
+        let timestamp = ts ?? Int64(Date().timeIntervalSince1970 * 1000)
+        
+        // 构建URL参数
+        var urlComponents = URLComponents(string: "\(baseURL)/note/deleted/page")
+        urlComponents?.queryItems = [
+            URLQueryItem(name: "ts", value: "\(timestamp)"),
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            URLQueryItem(name: "_dc", value: "\(timestamp)")  // _dc 与 ts 相同，用于缓存控制
+        ]
+        
+        guard let urlString = urlComponents?.url?.absoluteString else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/note/deleted/page", method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+        
+        // 记录请求
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let responseString = String(data: data, encoding: .utf8)
+            
+            // 记录响应
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "GET",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            // 处理401未授权错误
+            if httpResponse.statusCode == 401 {
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            
+            // 验证响应：检查 code 字段
+            if let code = json["code"] as? Int {
+                if code != 0 {
+                    let message = json["description"] as? String ?? json["message"] as? String ?? "获取回收站笔记失败"
+                    print("[MiNoteService] 获取回收站笔记失败，code: \(code), message: \(message)")
+                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                } else {
+                    print("[MiNoteService] ✅ 获取回收站笔记成功，code: \(code)")
+                }
+            } else {
+                // 如果没有 code 字段，但状态码是 200，也认为成功
+                print("[MiNoteService] ✅ 获取回收站笔记成功（响应中没有 code 字段，但状态码为 200）")
+            }
+            
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            throw error
         }
     }
 }

@@ -171,6 +171,9 @@ public struct ContentView: View {
         .sheet(isPresented: $viewModel.showPrivateNotesPasswordDialog) {
             PrivateNotesPasswordInputDialogView(viewModel: viewModel)
         }
+        .sheet(isPresented: $viewModel.showTrashView) {
+            TrashView(viewModel: viewModel)
+        }
         .alert("Cookie已失效", isPresented: $showingCookieExpiredAlert) {
             Button("刷新Cookie") {
                 viewModel.handleCookieExpiredRefresh()
@@ -198,6 +201,17 @@ public struct ContentView: View {
             if newValue {
                 showingCookieRefresh = true
                 viewModel.showCookieRefreshView = false
+            }
+        }
+        .onChange(of: viewModel.isLoggedIn) { oldValue, newValue in
+            if newValue {
+                // 登录成功后获取用户信息
+                Task {
+                    await viewModel.fetchUserProfile()
+                }
+            } else {
+                // 登出后清空用户信息
+                viewModel.userProfile = nil
             }
         }
     }
@@ -256,10 +270,10 @@ public struct ContentView: View {
     /// - 最大：notesListMaxWidth（400）
     private var notesListContent: some View {
         Group {
-            if viewModel.selectedFolder != nil {
+            if viewModel.selectedFolder != nil || !viewModel.searchText.isEmpty {
                 NotesListView(viewModel: viewModel)
             } else {
-                // 如果没有选中文件夹，显示空状态
+                // 如果没有选中文件夹且没有搜索，显示空状态
                 ContentUnavailableView(
                     "选择文件夹",
                     systemImage: "folder",
@@ -267,8 +281,8 @@ public struct ContentView: View {
                 )
             }
         }
-        .navigationTitle(viewModel.selectedFolder?.name ?? "所有笔记")
-        .navigationSubtitle("\(viewModel.filteredNotes.count) 个备忘录")
+        .navigationTitle(viewModel.searchText.isEmpty ? (viewModel.selectedFolder?.name ?? "所有笔记") : "搜索")
+        .navigationSubtitle(viewModel.searchText.isEmpty ? "\(viewModel.filteredNotes.count) 个备忘录" : "找到 \(viewModel.filteredNotes.count) 个结果")
         .navigationSplitViewColumnWidth(
             min: calculatedNotesListMinWidth,
             ideal: notesListMaxWidth,
@@ -862,31 +876,6 @@ struct SidebarView: View {
                             } label: {
                                 Label("新建文件夹", systemImage: "folder.badge.plus")
                             }
-                            
-                            Divider()
-                            
-                            // 排序方式
-                            Menu {
-                                Button {
-                                    viewModel.setFolderSortOrder(privateNotesFolder, sortOrder: .editDate)
-                                } label: {
-                                    Label("编辑日期", systemImage: viewModel.getFolderSortOrder(privateNotesFolder) == .editDate ? "checkmark" : "")
-                                }
-                                
-                                Button {
-                                    viewModel.setFolderSortOrder(privateNotesFolder, sortOrder: .createDate)
-                                } label: {
-                                    Label("创建日期", systemImage: viewModel.getFolderSortOrder(privateNotesFolder) == .createDate ? "checkmark" : "")
-                                }
-                                
-                                Button {
-                                    viewModel.setFolderSortOrder(privateNotesFolder, sortOrder: .title)
-                                } label: {
-                                    Label("标题", systemImage: viewModel.getFolderSortOrder(privateNotesFolder) == .title ? "checkmark" : "")
-                                }
-                            } label: {
-                                Label("排序方式", systemImage: "arrow.up.arrow.down")
-                            }
                         }
                 }
             } header: {
@@ -1012,12 +1001,12 @@ struct SidebarView: View {
             } header: {
                 HStack {
                     Text("我的文件夹")
-            }
-            .contextMenu {
-                Button {
-                    createNewFolder()
-                } label: {
-                    Label("新建文件夹", systemImage: "folder.badge.plus")
+                }
+                .contextMenu {
+                    Button {
+                        createNewFolder()
+                    } label: {
+                        Label("新建文件夹", systemImage: "folder.badge.plus")
                     }
                 }
             }

@@ -19,13 +19,92 @@ public struct DebugSettingsView: View {
     @State private var showPrivateNotesTestAlert: Bool = false
     @State private var privateNotesTestResult: String = ""
     @State private var isTestingPrivateNotes: Bool = false
+    @State private var showEncryptionInfoTestAlert: Bool = false
+    @State private var encryptionInfoTestResult: String = ""
+    @State private var isTestingEncryptionInfo: Bool = false
+    @State private var showServiceStatusCheckAlert: Bool = false
+    @State private var serviceStatusCheckResult: String = ""
+    @State private var isTestingServiceStatus: Bool = false
     
     public init() {}
     
     public var body: some View {
         NavigationStack {
             Form {
-                Section("登录凭证") {
+                credentialsSection
+                debugToolsSection
+                apiInfoSection
+                systemInfoSection
+            }
+            .formStyle(.grouped)
+            .navigationTitle("调试设置")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("刷新") {
+                        loadCredentials()
+                    }
+                }
+            }
+            .alert("复制成功", isPresented: $showCopyAlert) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(copyAlertMessage)
+            }
+            .alert("清除Cookie", isPresented: $showClearAlert) {
+                Button("清除", role: .destructive) {
+                    clearCookie()
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("确定要清除Cookie吗？清除后需要重新登录。")
+            }
+            .alert("网络测试结果", isPresented: $showNetworkTestAlert) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(networkTestResult)
+            }
+            .alert("导出日志", isPresented: $showExportLogsAlert) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text("调试日志已导出到桌面")
+            }
+            .alert("保存Cookie", isPresented: $showSaveAlert) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(saveAlertMessage)
+            }
+            .alert("私密笔记API测试结果", isPresented: $showPrivateNotesTestAlert) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(privateNotesTestResult)
+            }
+            .alert("加密信息API测试结果", isPresented: $showEncryptionInfoTestAlert) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(encryptionInfoTestResult)
+            }
+            .alert("服务状态检查API测试结果", isPresented: $showServiceStatusCheckAlert) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(serviceStatusCheckResult)
+            }
+            .onAppear {
+                loadCredentials()
+            }
+        }
+    }
+    
+    // MARK: - View Components
+    
+    @ViewBuilder
+    private var credentialsSection: some View {
+        Section("登录凭证") {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Cookie")
@@ -110,145 +189,109 @@ public struct DebugSettingsView: View {
                                 .foregroundColor(.red)
                         }
                     }
-                }
-                
-                Section("调试工具") {
-                    Button("测试网络连接") {
-                        testNetworkConnection()
-                    }
-                    
-                    Button("测试私密笔记API") {
-                        testPrivateNotesAPI()
-                    }
-                    .disabled(isTestingPrivateNotes)
-                    
-                    Button("导出调试日志") {
-                        exportDebugLogs()
-                    }
-                    
-                    Button("清除所有本地数据") {
-                        clearAllLocalData()
-                    }
-                    
-                    Button("重置应用程序") {
-                        resetApplication()
-                    }
-                }
-                
-                Section("API信息") {
-                    HStack {
-                        Text("Base URL")
-                        Spacer()
-                        Text("https://i.mi.com")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("User Agent")
-                        Spacer()
-                        Text("Chrome/120.0.0.0")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("Cookie长度")
-                        Spacer()
-                        Text("\(cookieString.count) 字符")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("Service Token长度")
-                        Spacer()
-                        Text("\(serviceToken.count) 字符")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Section("系统信息") {
-                    HStack {
-                        Text("应用程序版本")
-                        Spacer()
-                        Text("1.0.0")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("macOS版本")
-                        Spacer()
-                        Text("\(ProcessInfo.processInfo.operatingSystemVersionString)")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("设备型号")
-                        Spacer()
-                        Text(getDeviceModel())
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("内存使用")
-                        Spacer()
-                        Text(getMemoryUsage())
-                            .foregroundColor(.secondary)
-                    }
-                }
+        }
+    }
+    
+    @ViewBuilder
+    private var debugToolsSection: some View {
+        Section("调试工具") {
+            Button("测试网络连接") {
+                testNetworkConnection()
             }
-            .formStyle(.grouped)
-            .navigationTitle("调试设置")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("刷新") {
-                        loadCredentials()
-                    }
-                }
+            
+            Button("测试私密笔记API") {
+                testPrivateNotesAPI()
             }
-            .alert("复制成功", isPresented: $showCopyAlert) {
-                Button("确定", role: .cancel) {}
-            } message: {
-                Text(copyAlertMessage)
+            .disabled(isTestingPrivateNotes)
+            
+            Button("测试加密信息API") {
+                testEncryptionInfoAPI()
             }
-            .alert("清除Cookie", isPresented: $showClearAlert) {
-                Button("清除", role: .destructive) {
-                    clearCookie()
-                }
-                Button("取消", role: .cancel) {}
-            } message: {
-                Text("确定要清除Cookie吗？清除后需要重新登录。")
+            .disabled(isTestingEncryptionInfo)
+            
+            Button("测试服务状态检查API") {
+                testServiceStatusCheckAPI()
             }
-            .alert("网络测试结果", isPresented: $showNetworkTestAlert) {
-                Button("确定", role: .cancel) {}
-            } message: {
-                Text(networkTestResult)
+            .disabled(isTestingServiceStatus)
+            
+            Button("导出调试日志") {
+                exportDebugLogs()
             }
-            .alert("导出日志", isPresented: $showExportLogsAlert) {
-                Button("确定", role: .cancel) {}
-            } message: {
-                Text("调试日志已导出到桌面")
+            
+            Button("清除所有本地数据") {
+                clearAllLocalData()
             }
-            .alert("保存Cookie", isPresented: $showSaveAlert) {
-                Button("确定", role: .cancel) {}
-            } message: {
-                Text(saveAlertMessage)
-            }
-            .alert("私密笔记API测试结果", isPresented: $showPrivateNotesTestAlert) {
-                Button("确定", role: .cancel) {}
-            } message: {
-                Text(privateNotesTestResult)
-            }
-            .onAppear {
-                loadCredentials()
-                editedCookieString = cookieString
+            
+            Button("重置应用程序") {
+                resetApplication()
             }
         }
-        .frame(width: 600, height: 700)
+    }
+    
+    @ViewBuilder
+    private var apiInfoSection: some View {
+        Section("API信息") {
+            HStack {
+                Text("Base URL")
+                Spacer()
+                Text("https://i.mi.com")
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack {
+                Text("User Agent")
+                Spacer()
+                Text("Chrome/120.0.0.0")
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack {
+                Text("Cookie长度")
+                Spacer()
+                Text("\(cookieString.count) 字符")
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack {
+                Text("Service Token长度")
+                Spacer()
+                Text("\(serviceToken.count) 字符")
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var systemInfoSection: some View {
+        Section("系统信息") {
+            HStack {
+                Text("应用程序版本")
+                Spacer()
+                Text("1.0.0")
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack {
+                Text("macOS版本")
+                Spacer()
+                Text("\(ProcessInfo.processInfo.operatingSystemVersionString)")
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack {
+                Text("设备型号")
+                Spacer()
+                Text(getDeviceModel())
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack {
+                Text("内存使用")
+                Spacer()
+                Text(getMemoryUsage())
+                    .foregroundColor(.secondary)
+            }
+        }
     }
     
     private func loadCredentials() {
@@ -411,6 +454,140 @@ public struct DebugSettingsView: View {
             }
             
             isTestingPrivateNotes = false
+        }
+    }
+    
+    private func testEncryptionInfoAPI() {
+        isTestingEncryptionInfo = true
+        Task {
+            do {
+                let response = try await MiNoteService.shared.getEncryptionInfo(hsid: 2, appId: "micloud")
+                
+                // 解析响应
+                var resultText = "✅ 加密信息API测试成功！\n\n"
+                
+                // 解析各个字段
+                if let zone = response["zone"] as? Int {
+                    resultText += "区域标识 (zone): \(zone)\n"
+                }
+                
+                if let e2eeStatus = response["e2eeStatus"] as? String {
+                    resultText += "端到端加密状态 (e2eeStatus): \(e2eeStatus)\n"
+                    if e2eeStatus == "close" {
+                        resultText += "  → 当前未启用端到端加密，笔记数据未加密\n"
+                    } else if e2eeStatus == "open" {
+                        resultText += "  → 已启用端到端加密，需要解密才能读取\n"
+                    }
+                }
+                
+                if let serverSignZone = response["serverSignZone"] as? Int {
+                    resultText += "服务器签名区域 (serverSignZone): \(serverSignZone)\n"
+                }
+                
+                if let nonce = response["nonce"] as? String {
+                    resultText += "随机数 (nonce): \(nonce.prefix(50))...\n"
+                }
+                
+                // 解析应用密钥信息
+                if let maxAppkey = response["maxAppkey"] as? [String: Any] {
+                    resultText += "\n应用密钥信息:\n"
+                    if let appKeyVersion = maxAppkey["appKeyVersion"] as? Int64 {
+                        resultText += "  密钥版本: \(appKeyVersion)\n"
+                    }
+                    if let setEncryptAppKeys = maxAppkey["setEncryptAppKeys"] as? Bool {
+                        resultText += "  已设置加密密钥: \(setEncryptAppKeys ? "是" : "否")\n"
+                    }
+                    if let encryptAppKeysSize = maxAppkey["encryptAppKeysSize"] as? Int {
+                        resultText += "  加密密钥大小: \(encryptAppKeysSize)\n"
+                    }
+                    if let setAppKeyVersion = maxAppkey["setAppKeyVersion"] as? Bool {
+                        resultText += "  已设置密钥版本: \(setAppKeyVersion ? "是" : "否")\n"
+                    }
+                }
+                
+                resultText += "\n📝 分析:\n"
+                resultText += "此API用于检查端到端加密状态。\n"
+                resultText += "在访问私密笔记或最近删除笔记时，系统会调用此API\n"
+                resultText += "来确定是否需要解密数据。\n"
+                resultText += "如果 e2eeStatus 为 'close'，说明数据未加密，可直接读取。\n"
+                resultText += "如果 e2eeStatus 为 'open'，需要使用返回的加密信息解密数据。"
+                
+                await MainActor.run {
+                    encryptionInfoTestResult = resultText
+                    showEncryptionInfoTestAlert = true
+                    isTestingEncryptionInfo = false
+                }
+            } catch {
+                await MainActor.run {
+                    encryptionInfoTestResult = "❌ 加密信息API测试失败：\(error.localizedDescription)"
+                    showEncryptionInfoTestAlert = true
+                    isTestingEncryptionInfo = false
+                }
+            }
+        }
+    }
+    
+    private func testServiceStatusCheckAPI() {
+        isTestingServiceStatus = true
+        Task {
+            do {
+                let response = try await MiNoteService.shared.checkServiceStatus()
+                
+                // 解析响应
+                var resultText = "✅ 服务状态检查API测试成功！\n\n"
+                
+                // 解析各个字段
+                if let result = response["result"] as? String {
+                    resultText += "结果 (result): \(result)\n"
+                }
+                
+                if let code = response["code"] as? Int {
+                    resultText += "响应代码 (code): \(code)\n"
+                }
+                
+                if let description = response["description"] as? String {
+                    resultText += "描述 (description): \(description)\n"
+                }
+                
+                if let reason = response["reason"] as? String, !reason.isEmpty {
+                    resultText += "原因 (reason): \(reason)\n"
+                }
+                
+                if let retriable = response["retriable"] as? Bool {
+                    resultText += "可重试 (retriable): \(retriable ? "是" : "否")\n"
+                }
+                
+                if let ts = response["ts"] as? Int64 {
+                    let date = Date(timeIntervalSince1970: TimeInterval(ts) / 1000.0)
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                    resultText += "时间戳 (ts): \(formatter.string(from: date))\n"
+                }
+                
+                resultText += "\n📝 分析:\n"
+                resultText += "此API是一个通用的健康检查接口，用于：\n"
+                resultText += "1. 验证服务器是否可访问\n"
+                resultText += "2. 检查认证状态是否有效\n"
+                resultText += "3. 验证网络连接是否正常\n"
+                resultText += "4. 作为心跳检测使用\n\n"
+                resultText += "通常在以下场景调用：\n"
+                resultText += "- 登录后验证连接\n"
+                resultText += "- 同步前检查服务可用性\n"
+                resultText += "- 定期心跳检测\n"
+                resultText += "- 在访问重要功能前验证服务状态"
+                
+                await MainActor.run {
+                    serviceStatusCheckResult = resultText
+                    showServiceStatusCheckAlert = true
+                    isTestingServiceStatus = false
+                }
+            } catch {
+                await MainActor.run {
+                    serviceStatusCheckResult = "❌ 服务状态检查API测试失败：\(error.localizedDescription)"
+                    showServiceStatusCheckAlert = true
+                    isTestingServiceStatus = false
+                }
+            }
         }
     }
     

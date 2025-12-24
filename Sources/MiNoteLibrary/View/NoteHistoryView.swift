@@ -360,7 +360,7 @@ private struct VersionPreviewView: View {
 
 /// 历史版本内容 WebView（只读）
 @available(macOS 14.0, *)
-private struct HistoryContentWebView: NSViewRepresentable {
+struct HistoryContentWebView: NSViewRepresentable {
     let content: String
     
     // 日志记录器

@@ -1,0 +1,79 @@
+# 短期功能
+1. 搜索框实现Mac备忘录样式
+2. 搜索结果展示实现Mac备忘录样式
+3. 优化设置页面
+4. 优化重命名文件夹、新建文件夹弹窗
+5. 尝试静默刷新cookie
+6. 私密笔记验证修复
+7. 添加全部笔记和搜索结果的笔记列表文件夹显示
+
+
+# 长期功能
+1. 思维笔记解析和显示
+2. 端到端加密支持
+3. 代办事项支持
+
+
+# API接口记录
+## 获取代办
+请求 URL: https://i.mi.com/todo/v1/user/records/0?ts=1766599238280
+请求方法: GET
+状态代码: 200 OK
+远程地址: 127.0.0.1:7897
+引用站点策略: strict-origin-when-cross-origin
+content-encoding: gzip
+content-type: application/json
+date: Wed, 24 Dec 2025 18:00:38 GMT
+server: Tengine
+:authority i.mi.com
+:method GET
+:path /todo/v1/user/records/0?ts=1766599238280
+:scheme https
+accept: */*
+accept-encoding: gzip, deflate, br, zstd
+accept-language: zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7
+cookie: Hm_lvt_21cf8e00109c51ddc329127cade0bc77=1747382684......
+dnt: 1
+priority: u=1, i
+referer: https://i.mi.com/note/h5
+sec-ch-ua: "Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "macOS"
+sec-fetch-dest: empty
+sec-fetch-mode: cors
+sec-fetch-site: same-origin
+user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0
+
+响应：
+{
+    "result": "ok",
+    "retriable": false,
+    "code": 0,
+    "data": {
+        "record": {
+            "contentJson": {
+                "folder": {
+                    "syncId": 0
+                },
+                "sort": {
+                    "eTag": "12697100320243872",
+                    "orders": [
+                        "11361199335997537",
+                        "12209401093881920",
+                        "12134475657380064",
+                        "12195560091287744",
+                        "11136039787626560"
+                    ]
+                }
+            },
+            "eTag": 0,
+            "id": 0,
+            "type": "folder",
+            "status": "normal"
+        },
+        "purged": false,
+        "existed": true
+    },
+    "description": "成功",
+    "ts": 1766599238389
+}
