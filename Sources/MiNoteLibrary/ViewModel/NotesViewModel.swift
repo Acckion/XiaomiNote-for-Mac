@@ -83,10 +83,40 @@ public class NotesViewModel: ObservableObject {
     @Published var showCookieRefreshView: Bool = false
     
     /// 私密笔记是否已解锁
-    @Published var isPrivateNotesUnlocked: Bool = false
+    @Published var isPrivateNotesUnlocked: Bool = false {
+        didSet {
+            // 当私密笔记解锁时，如果当前选中的笔记是私密笔记，重新加载内容
+            if isPrivateNotesUnlocked, let note = selectedNote, note.folderId == "2" {
+                print("[VIEWMODEL] 私密笔记已解锁，重新加载笔记内容: \(note.id)")
+                Task {
+                    await ensureNoteHasFullContent(note)
+                }
+            }
+        }
+    }
     
     /// 是否显示私密笔记密码输入对话框
     @Published var showPrivateNotesPasswordDialog: Bool = false
+    
+    // MARK: - 私密笔记锁定状态管理
+    
+    /// 上次解锁时间（用于超时锁定）
+    @Published private var lastUnlockTime: Date?
+    
+    /// 锁定定时器
+    private var lockTimer: Timer?
+    
+    /// 锁定超时时间（秒），默认5分钟
+    @Published var lockTimeout: Double = 300
+    
+    /// 是否启用超时锁定
+    @Published var enableTimeoutLock: Bool = true
+    
+    /// 是否启用系统休眠/锁屏时锁定
+    @Published var enableSleepLock: Bool = true
+    
+    /// 是否正在监听系统事件
+    private var isMonitoringSystemEvents: Bool = false
     
     /// 用户信息（用户名和头像）
     @Published var userProfile: UserProfile?
@@ -447,6 +477,15 @@ public class NotesViewModel: ObservableObject {
             print("[NotesViewModel] 收到静默刷新Cookie通知")
             self?.checkAndSilentlyRefreshCookieIfNeeded()
         }
+        
+        // 监听系统事件（用于休眠/锁屏锁定）
+        setupSystemEventMonitoring()
+        
+        // 加载锁定设置
+        loadLockSettings()
+        
+        // 启动锁定定时器
+        startLockTimer()
     }
     
     /// 同步 AuthenticationStateManager 的状态到 ViewModel
@@ -2398,44 +2437,64 @@ public class NotesViewModel: ObservableObject {
     ///
     /// - Parameter note: 要检查的笔记对象
     func ensureNoteHasFullContent(_ note: Note) async {
+        print("[DEBUG] ensureNoteHasFullContent 开始: 笔记ID=\(note.id), 文件夹ID=\(note.folderId)")
+        print("[DEBUG] 笔记内容长度: \(note.content.count), rawData.snippet: \(note.rawData?["snippet"] != nil ? "有" : "无")")
+        
         // 如果笔记已经有完整内容，不需要获取
         if !note.content.isEmpty {
+            print("[DEBUG] 笔记已有完整内容，长度: \(note.content.count)，跳过获取")
             return
         }
-        
+
         // 如果连 snippet 都没有，可能笔记不存在，不需要获取
         if note.rawData?["snippet"] == nil {
+            print("[DEBUG] 笔记没有snippet，可能不存在，跳过获取")
             return
         }
-        
-        print("[VIEWMODEL] 笔记内容为空，获取完整内容: \(note.id)")
-        
+
+        // 检查是否为私密笔记，如果未解锁则跳过获取内容
+        if note.folderId == "2" {
+            let passwordManager = PrivateNotesPasswordManager.shared
+            if passwordManager.hasPassword() && !isPrivateNotesUnlocked {
+                print("[DEBUG] 私密笔记未解锁，跳过获取完整内容: \(note.id)")
+                return
+            }
+        }
+
+        print("[DEBUG] 笔记内容为空，获取完整内容: \(note.id)")
+
         do {
             // 获取笔记详情
+            print("[DEBUG] 调用 service.fetchNoteDetails 获取笔记详情")
             let noteDetails = try await service.fetchNoteDetails(noteId: note.id)
-            
+            print("[DEBUG] 获取笔记详情成功")
+
             // 更新笔记内容
             if let index = notes.firstIndex(where: { $0.id == note.id }) {
                 var updatedNote = notes[index]
+                print("[DEBUG] 更新笔记内容前: content长度=\(updatedNote.content.count)")
                 updatedNote.updateContent(from: noteDetails)
-                print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent更新完成")
-                
+                print("[DEBUG] 更新笔记内容后: content长度=\(updatedNote.content.count)")
+
                 // 保存到本地
-                print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent保存到本地")
+                print("[DEBUG] 保存到本地数据库")
                 try localStorage.saveNote(updatedNote)
-                
+
                 // 更新列表中的笔记
                 notes[index] = updatedNote
-                
+
                 // 如果这是当前选中的笔记，更新选中状态
                 if selectedNote?.id == note.id {
                     selectedNote = updatedNote
+                    print("[DEBUG] 更新 selectedNote")
                 }
-                
-                print("[VIEWMODEL] 已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count)")
+
+                print("[DEBUG] 已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count)")
+            } else {
+                print("[DEBUG] 在 notes 列表中未找到笔记: \(note.id)")
             }
         } catch {
-            print("[VIEWMODEL] 获取笔记完整内容失败: \(error.localizedDescription)")
+            print("[DEBUG] 获取笔记完整内容失败: \(error.localizedDescription)")
             // 不显示错误，因为可能只是网络问题，用户仍然可以查看 snippet
         }
     }
@@ -2569,13 +2628,9 @@ public class NotesViewModel: ObservableObject {
         let isValid = PrivateNotesPasswordManager.shared.verifyPassword(password)
         if isValid {
             isPrivateNotesUnlocked = true
+            lastUnlockTime = Date() // 记录解锁时间
         }
         return isValid
-    }
-    
-    /// 解锁私密笔记（用于跳过密码验证，例如未设置密码时或 Touch ID 验证成功后）
-    func unlockPrivateNotes() {
-        isPrivateNotesUnlocked = true
     }
     
     func selectFolder(_ folder: Folder?) {
@@ -2596,7 +2651,13 @@ public class NotesViewModel: ObservableObject {
             }
         } else {
             // 切换到其他文件夹，重置解锁状态
-            isPrivateNotesUnlocked = false
+            // 只有在设置了密码的情况下才需要锁定
+            if PrivateNotesPasswordManager.shared.hasPassword() {
+                isPrivateNotesUnlocked = false
+            } else {
+                // 未设置密码，私密笔记始终可访问
+                isPrivateNotesUnlocked = true
+            }
         }
         
         selectedFolder = folder
@@ -4066,5 +4127,196 @@ public class NotesViewModel: ObservableObject {
                 }
             }
         }
+    }
+    
+    // MARK: - 私密笔记锁定状态管理方法
+    
+    /// 设置系统事件监听
+    private func setupSystemEventMonitoring() {
+        guard !isMonitoringSystemEvents else { return }
+        
+        // 监听系统休眠/唤醒通知
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSystemWillSleep),
+            name: NSWorkspace.willSleepNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSystemDidWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+        
+        // 监听屏幕锁定/解锁通知
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleScreenLocked),
+            name: NSWorkspace.screensDidSleepNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleScreenUnlocked),
+            name: NSWorkspace.screensDidWakeNotification,
+            object: nil
+        )
+        
+        // 监听应用失去/获得焦点
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppDidResignActive),
+            name: NSApplication.didResignActiveNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppDidBecomeActive),
+            name: NSApplication.didBecomeActiveNotification,
+            object: nil
+        )
+        
+        isMonitoringSystemEvents = true
+        print("[LockManager] 系统事件监听已启动")
+    }
+    
+    /// 启动锁定定时器
+    private func startLockTimer() {
+        // 停止现有的定时器
+        lockTimer?.invalidate()
+        
+        // 如果未启用超时锁定，不启动定时器
+        guard enableTimeoutLock else { return }
+        
+        // 每秒检查一次是否超时
+        lockTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.checkLockTimeout()
+        }
+        
+        print("[LockManager] 锁定定时器已启动，超时时间: \(lockTimeout)秒")
+    }
+    
+    /// 检查锁定超时
+    private func checkLockTimeout() {
+        guard enableTimeoutLock,
+              isPrivateNotesUnlocked,
+              let lastUnlockTime = lastUnlockTime else {
+            return
+        }
+        
+        let elapsedTime = Date().timeIntervalSince(lastUnlockTime)
+        
+        if elapsedTime >= lockTimeout {
+            print("[LockManager] 超时锁定：距离上次解锁已过去 \(Int(elapsedTime)) 秒，超过超时时间 \(Int(lockTimeout)) 秒")
+            lockPrivateNotes()
+        }
+    }
+    
+    /// 解锁私密笔记（记录解锁时间）
+    func unlockPrivateNotes() {
+        isPrivateNotesUnlocked = true
+        lastUnlockTime = Date()
+        print("[LockManager] 私密笔记已解锁，记录解锁时间: \(lastUnlockTime?.description ?? "无")")
+    }
+    
+    /// 锁定私密笔记
+    func lockPrivateNotes() {
+        guard isPrivateNotesUnlocked else { return }
+        
+        isPrivateNotesUnlocked = false
+        lastUnlockTime = nil
+        
+        // 如果当前在私密笔记文件夹，切换到所有笔记文件夹
+        if selectedFolder?.id == "2" {
+            let allNotesFolder = folders.first(where: { $0.id == "0" })
+            selectedFolder = allNotesFolder
+            print("[LockManager] 已锁定私密笔记，切换到所有笔记文件夹")
+        }
+        
+        print("[LockManager] 私密笔记已锁定")
+    }
+    
+    /// 处理系统即将休眠
+    @objc private func handleSystemWillSleep() {
+        guard enableSleepLock else { return }
+        
+        print("[LockManager] 系统即将休眠，锁定私密笔记")
+        lockPrivateNotes()
+    }
+    
+    /// 处理系统唤醒
+    @objc private func handleSystemDidWake() {
+        print("[LockManager] 系统已唤醒")
+        // 系统唤醒时不自动解锁，需要用户重新验证
+    }
+    
+    /// 处理屏幕锁定
+    @objc private func handleScreenLocked() {
+        guard enableSleepLock else { return }
+        
+        print("[LockManager] 屏幕已锁定，锁定私密笔记")
+        lockPrivateNotes()
+    }
+    
+    /// 处理屏幕解锁
+    @objc private func handleScreenUnlocked() {
+        print("[LockManager] 屏幕已解锁")
+        // 屏幕解锁时不自动解锁，需要用户重新验证
+    }
+    
+    /// 处理应用失去焦点
+    @objc private func handleAppDidResignActive() {
+        guard enableSleepLock else { return }
+        
+        print("[LockManager] 应用失去焦点，锁定私密笔记")
+        lockPrivateNotes()
+    }
+    
+    /// 处理应用获得焦点
+    @objc private func handleAppDidBecomeActive() {
+        print("[LockManager] 应用获得焦点")
+        // 应用获得焦点时不自动解锁，需要用户重新验证
+    }
+    
+    /// 重置解锁时间（当用户有操作时调用）
+    func resetUnlockTimer() {
+        guard isPrivateNotesUnlocked else { return }
+        
+        lastUnlockTime = Date()
+        print("[LockManager] 解锁时间已重置: \(lastUnlockTime?.description ?? "无")")
+    }
+    
+    /// 更新锁定设置
+    func updateLockSettings(timeout: Double, enableTimeout: Bool, enableSleep: Bool) {
+        lockTimeout = timeout
+        enableTimeoutLock = enableTimeout
+        enableSleepLock = enableSleep
+        
+        // 保存到 UserDefaults
+        UserDefaults.standard.set(timeout, forKey: "privateNotesLockTimeout")
+        UserDefaults.standard.set(enableTimeout, forKey: "privateNotesEnableTimeoutLock")
+        UserDefaults.standard.set(enableSleep, forKey: "privateNotesEnableSleepLock")
+        
+        // 重新启动定时器
+        startLockTimer()
+        
+        print("[LockManager] 锁定设置已更新：超时=\(timeout)秒，启用超时锁定=\(enableTimeout)，启用休眠锁定=\(enableSleep)")
+    }
+    
+    /// 加载锁定设置
+    private func loadLockSettings() {
+        let defaults = UserDefaults.standard
+        lockTimeout = defaults.double(forKey: "privateNotesLockTimeout")
+        if lockTimeout == 0 {
+            lockTimeout = 300 // 默认5分钟
+        }
+        enableTimeoutLock = defaults.bool(forKey: "privateNotesEnableTimeoutLock")
+        enableSleepLock = defaults.bool(forKey: "privateNotesEnableSleepLock")
+        
+        print("[LockManager] 加载锁定设置：超时=\(lockTimeout)秒，启用超时锁定=\(enableTimeoutLock)，启用休眠锁定=\(enableSleepLock)")
     }
 }

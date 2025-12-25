@@ -84,23 +84,41 @@ public struct Note: Identifiable, Codable, Hashable {
     
     // 自定义 Equatable 实现
     public static func == (lhs: Note, rhs: Note) -> Bool {
-        // 比较 rawData 时，只比较关键字段
+        // 比较基本字段
+        guard lhs.id == rhs.id &&
+              lhs.title == rhs.title &&
+              lhs.content == rhs.content &&
+              lhs.folderId == rhs.folderId &&
+              lhs.isStarred == rhs.isStarred &&
+              lhs.createdAt == rhs.createdAt &&
+              lhs.updatedAt == rhs.updatedAt &&
+              lhs.tags == rhs.tags else {
+            return false
+        }
+        
+        // 比较 rawData
         let lhsRawData = lhs.rawData ?? [:]
         let rhsRawData = rhs.rawData ?? [:]
         
-        // 将 rawData 转换为字符串进行比较
-        let lhsRawDataString = String(describing: lhsRawData.sorted(by: { $0.key < $1.key }))
-        let rhsRawDataString = String(describing: rhsRawData.sorted(by: { $0.key < $1.key }))
+        // 如果两个都是空字典，认为相等
+        if lhsRawData.isEmpty && rhsRawData.isEmpty {
+            return true
+        }
         
-        return lhs.id == rhs.id &&
-               lhs.title == rhs.title &&
-               lhs.content == rhs.content &&
-               lhs.folderId == rhs.folderId &&
-               lhs.isStarred == rhs.isStarred &&
-               lhs.createdAt == rhs.createdAt &&
-               lhs.updatedAt == rhs.updatedAt &&
-               lhs.tags == rhs.tags &&
-               lhsRawDataString == rhsRawDataString
+        // 使用 JSON 序列化来比较 rawData
+        do {
+            let lhsData = try JSONSerialization.data(withJSONObject: lhsRawData, options: [])
+            let rhsData = try JSONSerialization.data(withJSONObject: rhsRawData, options: [])
+            
+            // 比较 JSON 数据
+            return lhsData == rhsData
+        } catch {
+            // 如果 JSON 序列化失败，回退到字符串比较
+            print("[NOTE] JSON 序列化失败，使用字符串比较: \(error)")
+            let lhsRawDataString = String(describing: lhsRawData)
+            let rhsRawDataString = String(describing: rhsRawData)
+            return lhsRawDataString == rhsRawDataString
+        }
     }
     
     // Hashable 实现
@@ -114,10 +132,17 @@ public struct Note: Identifiable, Codable, Hashable {
         hasher.combine(updatedAt)
         hasher.combine(tags)
         
-        // 将 rawData 转换为字符串进行哈希
+        // 使用 JSON 序列化来哈希 rawData
         if let rawData = rawData {
-            let rawDataString = String(describing: rawData.sorted(by: { $0.key < $1.key }))
-            hasher.combine(rawDataString)
+            do {
+                let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
+                hasher.combine(jsonData)
+            } catch {
+                // 如果 JSON 序列化失败，回退到字符串哈希
+                print("[NOTE] JSON 序列化失败，使用字符串哈希: \(error)")
+                let rawDataString = String(describing: rawData)
+                hasher.combine(rawDataString)
+            }
         }
     }
     

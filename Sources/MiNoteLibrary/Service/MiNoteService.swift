@@ -17,6 +17,12 @@ final class MiNoteService: @unchecked Sendable {
     /// 小米笔记API基础URL
     internal let baseURL = "https://i.mi.com"
     
+    /// 网络请求超时时间（秒）
+    private let requestTimeout: TimeInterval = 30.0
+    
+    /// 图片上传超时时间（秒）
+    private let uploadTimeout: TimeInterval = 60.0
+    
     // MARK: - 认证状态
     
     /// Cookie字符串，用于API认证
@@ -105,6 +111,34 @@ final class MiNoteService: @unchecked Sendable {
     }
     
     // MARK: - 工具方法
+    
+    /// 创建带有超时设置的 URLRequest
+    /// 
+    /// - Parameters:
+    ///   - url: 请求URL
+    ///   - method: HTTP方法（GET、POST等）
+    ///   - headers: 请求头
+    ///   - body: 请求体（可选）
+    ///   - timeout: 超时时间（秒），默认为 requestTimeout
+    /// - Returns: 配置好的 URLRequest
+    private func createRequest(
+        url: URL,
+        method: String,
+        headers: [String: String],
+        body: Data? = nil,
+        timeout: TimeInterval? = nil
+    ) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = headers
+        request.httpMethod = method
+        request.timeoutInterval = timeout ?? requestTimeout
+        
+        if let body = body {
+            request.httpBody = body
+        }
+        
+        return request
+    }
     
     /// 模拟 JavaScript 的 encodeURIComponent 函数
     /// 
@@ -236,11 +270,14 @@ final class MiNoteService: @unchecked Sendable {
             throw URLError(.badURL)
         }
         
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = postHeaders
-        request.httpMethod = "POST"
+        // 使用新的 createRequest 方法，设置超时时间
+        var request = createRequest(
+            url: url,
+            method: "POST",
+            headers: postHeaders,
+            body: body.data(using: .utf8)
+        )
         request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body.data(using: .utf8)
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)

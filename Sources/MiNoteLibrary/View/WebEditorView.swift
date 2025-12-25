@@ -258,8 +258,11 @@ struct WebEditorView: NSViewRepresentable {
     }
     
     func updateNSView(_ webView: WKWebView, context: Context) {
+        print("[DEBUG] WebEditorView.updateNSView: 开始，content长度=\(content.count), lastContent长度=\(context.coordinator.lastContent.count)")
+        
         // 如果是来自Web的更新，跳过内容回写（避免循环更新）
         if context.coordinator.isUpdatingFromWeb {
+            print("[DEBUG] WebEditorView.updateNSView: 来自Web的更新，跳过内容回写")
             // 即使标志为 true，也更新 lastContent，确保下次比较时不会误判
             context.coordinator.lastContent = content
             return
@@ -272,19 +275,26 @@ struct WebEditorView: NSViewRepresentable {
         let normalizedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedLastContent = context.coordinator.lastContent.trimmingCharacters(in: .whitespacesAndNewlines)
         
+        print("[DEBUG] WebEditorView.updateNSView: 标准化比较 - normalizedContent长度=\(normalizedContent.count), normalizedLastContent长度=\(normalizedLastContent.count)")
+        
         // 只有当内容真正不同时才更新，避免不必要的JavaScript调用
         if normalizedContent != normalizedLastContent {
+            print("[DEBUG] WebEditorView.updateNSView: 内容不同，更新WebView")
             context.coordinator.lastContent = content
             
             // 调用JavaScript函数加载内容（会保存和恢复光标位置）
             // loadContent 内部会检查内容是否真的需要重新渲染
             let javascript = "window.MiNoteWebEditor.loadContent(`\(content.escapedForJavaScript())`)"
+            print("[DEBUG] WebEditorView.updateNSView: 执行JavaScript: loadContent")
             webView.evaluateJavaScript(javascript) { result, error in
                 if let error = error {
-                    print("[WebEditorView] 加载内容到WebView失败: \(error)")
+                    print("[DEBUG] WebEditorView.updateNSView: 加载内容到WebView失败: \(error)")
+                } else {
+                    print("[DEBUG] WebEditorView.updateNSView: 加载内容到WebView成功")
                 }
             }
         } else {
+            print("[DEBUG] WebEditorView.updateNSView: 内容相同，跳过更新")
             // 即使内容相同，也更新 lastContent，确保下次比较时不会误判
             context.coordinator.lastContent = content
         }
@@ -582,7 +592,7 @@ struct WebEditorView: NSViewRepresentable {
         
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             self.webView = webView
-            print("[WebEditorView] ✅ WebView加载完成")
+            print("[DEBUG] WebEditorView.webView(didFinish): WebView加载完成")
             
             // 设置操作闭包
             setupActionClosures()
@@ -594,24 +604,43 @@ struct WebEditorView: NSViewRepresentable {
             setupAppearanceObserver()
             
             // 初始设置深色模式（延迟一点确保DOM已完全加载）
-            print("[WebEditorView] 开始初始设置深色模式")
+            print("[DEBUG] WebEditorView: 开始初始设置深色模式")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 guard let self = self else { return }
-                print("[WebEditorView] 延迟后设置深色模式（确保DOM已加载）")
+                print("[DEBUG] WebEditorView: 延迟后设置深色模式（确保DOM已加载）")
                 self.updateColorScheme(webView: webView, force: true)
             }
             
-            // 初始加载内容
-            if !lastContent.isEmpty {
-                let javascript = "window.MiNoteWebEditor.loadContent(`\(lastContent.escapedForJavaScript())`)"
-                webView.evaluateJavaScript(javascript) { result, error in
-                    if let error = error {
-                        print("[WebEditorView] ❌ 初始加载内容失败: \(error)")
-                    } else {
-                        print("[WebEditorView] ✅ 初始内容加载成功")
+        // 初始加载内容
+        print("[DEBUG] WebEditorView: 检查是否需要初始加载内容，lastContent长度=\(lastContent.count)")
+        if !lastContent.isEmpty {
+            // 打印前100个字符以查看XML内容
+            let preview = lastContent.prefix(100)
+            print("[DEBUG] WebEditorView: XML内容预览: \(preview)")
+            
+            let javascript = "window.MiNoteWebEditor.loadContent(`\(lastContent.escapedForJavaScript())`)"
+            print("[DEBUG] WebEditorView: 执行JavaScript加载内容: loadContent")
+            webView.evaluateJavaScript(javascript) { result, error in
+                if let error = error {
+                    print("[DEBUG] WebEditorView: ❌ 初始加载内容失败: \(error)")
+                } else {
+                    print("[DEBUG] WebEditorView: ✅ 初始内容加载成功")
+                    
+                    // 延迟检查编辑器内容
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        webView.evaluateJavaScript("document.getElementById('editor-content').innerHTML.length") { result, error in
+                            if let error = error {
+                                print("[DEBUG] WebEditorView: 检查编辑器内容失败: \(error)")
+                            } else if let htmlLength = result as? Int {
+                                print("[DEBUG] WebEditorView: 编辑器HTML内容长度: \(htmlLength)")
+                            }
+                        }
                     }
                 }
             }
+        } else {
+            print("[DEBUG] WebEditorView: lastContent为空，跳过初始内容加载")
+        }
         }
         
         // 设置外观变化监听器（仅使用KVO，不使用定时器）

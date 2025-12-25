@@ -323,13 +323,13 @@ struct NoteDetailView: View {
                 // 使用新的Web编辑器
                 WebEditorWrapper(
                     content: Binding(
-                        get: { note.primaryXMLContent },
+                        get: { currentXMLContent },
                         set: { newContent in
                             // 内容变化时处理
                             guard !isInitializing else { return }
                             
                             // 检查内容是否真的变化了
-                            if newContent != note.primaryXMLContent {
+                            if newContent != currentXMLContent {
                                 // 内容确实变化了，触发保存
                                 Task { @MainActor in
                                     await saveToLocalOnly(for: note)
@@ -349,7 +349,7 @@ struct NoteDetailView: View {
                         }
                         return nil
                     }(),
-                    xmlContent: note.primaryXMLContent,
+                    xmlContent: currentXMLContent,
                     onContentChange: { newContent in
                         // 内容变化回调
                         guard !isInitializing else { 
@@ -736,29 +736,62 @@ struct NoteDetailView: View {
     }
     
     /// 加载笔记内容到编辑器
-    /// 
+    ///
     /// 从 XML 内容加载笔记到编辑器。
-    /// 
+    ///
     /// - Parameter note: 要加载的笔记对象
     @MainActor
     private func loadNoteContent(_ note: Note) async {
+        print("[DEBUG] loadNoteContent 开始: 笔记ID=\(note.id), 文件夹ID=\(note.folderId), 标题=\(note.title)")
+        print("[DEBUG] 笔记内容长度: \(note.content.count), primaryXMLContent长度: \(note.primaryXMLContent.count)")
+        
         isInitializing = true
         currentEditingNoteId = note.id
-        
+
         // 如果标题为空或者是默认的"未命名笔记_xxx"，设置为空字符串以显示占位符
         let cleanTitle = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
         editedTitle = cleanTitle
         originalTitle = cleanTitle
-        
+
         // 设置 XML 内容
         let xmlContent = note.primaryXMLContent
         currentXMLContent = xmlContent
         originalXMLContent = xmlContent
-        
+
         // 重置 lastSavedXMLContent，确保下次编辑能正确保存
         lastSavedXMLContent = xmlContent
         
-        if note.content.isEmpty {
+        // 打印 XML 内容预览
+        let xmlPreview = xmlContent.prefix(200)
+        print("[DEBUG] XML内容预览: \(xmlPreview)")
+        
+        print("[DEBUG] 初始设置: currentXMLContent长度=\(currentXMLContent.count), editedTitle='\(editedTitle)'")
+
+        // 对于私密笔记，如果内容为空，尝试获取完整内容
+        if note.folderId == "2" {
+            print("[DEBUG] 这是私密笔记，检查内容状态")
+            print("[DEBUG] 私密笔记解锁状态: \(viewModel.isPrivateNotesUnlocked)")
+            print("[DEBUG] 私密笔记内容长度: \(note.content.count), primaryXMLContent长度: \(note.primaryXMLContent.count)")
+            
+            if note.content.isEmpty {
+                print("[DEBUG] 私密笔记内容为空，尝试获取完整内容: \(note.id)")
+                await viewModel.ensureNoteHasFullContent(note)
+                if let updatedNote = viewModel.selectedNote {
+                    // 更新 XML 内容
+                    let updatedXMLContent = updatedNote.primaryXMLContent
+                    currentXMLContent = updatedXMLContent
+                    originalXMLContent = updatedXMLContent
+                    lastSavedXMLContent = updatedXMLContent
+                    print("[DEBUG] 私密笔记内容已更新，长度: \(updatedXMLContent.count)")
+                } else {
+                    print("[DEBUG] 无法获取更新后的笔记")
+                }
+            } else {
+                print("[DEBUG] 私密笔记已有内容，长度: \(note.content.count)")
+            }
+        } else if note.content.isEmpty {
+            // 非私密笔记，如果内容为空，获取完整内容
+            print("[DEBUG] 非私密笔记内容为空，获取完整内容: \(note.id)")
             await viewModel.ensureNoteHasFullContent(note)
             if let updatedNote = viewModel.selectedNote {
                 // 更新 XML 内容
@@ -766,12 +799,16 @@ struct NoteDetailView: View {
                 currentXMLContent = updatedXMLContent
                 originalXMLContent = updatedXMLContent
                 lastSavedXMLContent = updatedXMLContent
+                print("[DEBUG] 非私密笔记内容已更新，长度: \(updatedXMLContent.count)")
             }
+        } else {
+            print("[DEBUG] 笔记已有内容，长度: \(note.content.count)")
         }
-        
+
         // 延迟一小段时间后标记初始化完成
         try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
         isInitializing = false
+        print("[DEBUG] loadNoteContent 完成: currentXMLContent长度=\(currentXMLContent.count), isInitializing=\(isInitializing)")
     }
     
     /// 处理笔记变化
