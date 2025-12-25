@@ -62,3 +62,37 @@ struct SearchFilterMenuContent: View {
     }
 }
 
+// MARK: - 筛选标签扩展
+extension NotesViewModel {
+    /// 获取筛选标签文本
+    var filterTagsText: String {
+        var tags: [String] = []
+        
+        if searchFilterHasChecklist {
+            tags.append("核对清单")
+        }
+        if searchFilterHasImages {
+            tags.append("图片")
+        }
+        if searchFilterIsPrivate {
+            tags.append("私密")
+        }
+        if searchFilterHasTags {
+            tags.append("标签")
+        }
+        if searchFilterHasAudio {
+            tags.append("录音")
+        }
+        
+        return tags.isEmpty ? "" : "筛选: " + tags.joined(separator: ", ")
+    }
+    
+    /// 检查是否有筛选选项
+    var hasSearchFilters: Bool {
+        return searchFilterHasTags ||
+               searchFilterHasChecklist ||
+               searchFilterHasImages ||
+               searchFilterHasAudio ||
+               searchFilterIsPrivate
+    }
+}

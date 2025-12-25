@@ -270,10 +270,10 @@ public struct ContentView: View {
     /// - 最大：notesListMaxWidth（400）
     private var notesListContent: some View {
         Group {
-            if viewModel.selectedFolder != nil || !viewModel.searchText.isEmpty {
+            if viewModel.selectedFolder != nil || !viewModel.searchText.isEmpty || viewModel.hasSearchFilters {
                 NotesListView(viewModel: viewModel)
             } else {
-                // 如果没有选中文件夹且没有搜索，显示空状态
+                // 如果没有选中文件夹且没有搜索且没有筛选，显示空状态
                 ContentUnavailableView(
                     "选择文件夹",
                     systemImage: "folder",
@@ -281,13 +281,18 @@ public struct ContentView: View {
                 )
             }
         }
-        .navigationTitle(viewModel.searchText.isEmpty ? (viewModel.selectedFolder?.name ?? "所有笔记") : "搜索")
-        .navigationSubtitle(viewModel.searchText.isEmpty ? "\(viewModel.filteredNotes.count) 个备忘录" : "找到 \(viewModel.filteredNotes.count) 个结果")
+        .navigationTitle(viewModel.searchText.isEmpty && !viewModel.hasSearchFilters ? (viewModel.selectedFolder?.name ?? "所有笔记") : "搜索")
+        .navigationSubtitle(viewModel.searchText.isEmpty && !viewModel.hasSearchFilters ? "\(viewModel.filteredNotes.count) 个备忘录" : "找到 \(viewModel.filteredNotes.count) 个结果")
         .navigationSplitViewColumnWidth(
             min: calculatedNotesListMinWidth,
             ideal: notesListMaxWidth,
             max: notesListMaxWidth
         )
+        .searchable(text: $viewModel.searchText, placement: .toolbar, prompt: viewModel.filterTagsText.isEmpty ? "搜索笔记" : viewModel.filterTagsText)
+        .searchToolbarBehavior(.automatic)
+        .searchSuggestions {
+            SearchFilterMenuContent(viewModel: viewModel)
+        }
         .toolbar {
             // 自动位置：在线状态指示器（Cookie失效时可点击刷新）
             ToolbarItem(placement: .automatic) {

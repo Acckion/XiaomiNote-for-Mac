@@ -201,8 +201,26 @@ public class NotesViewModel: ObservableObject {
     var filteredNotes: [Note] {
         let filtered: [Note]
         
-        // 首先根据搜索文本和文件夹过滤
-        if searchText.isEmpty {
+        // 检查是否有搜索文本或筛选选项
+        let hasSearchText = !searchText.isEmpty
+        let hasSearchFilters = searchFilterHasTags || searchFilterHasChecklist || searchFilterHasImages || searchFilterHasAudio || searchFilterIsPrivate
+        
+        // 如果有搜索文本或筛选选项，显示所有笔记中符合条件的
+        if hasSearchText || hasSearchFilters {
+            // 搜索时显示所有笔记
+            filtered = notes.filter { note in
+                // 如果有搜索文本，检查标题和内容
+                if hasSearchText {
+                    let matchesSearch = note.title.localizedCaseInsensitiveContains(searchText) ||
+                                       note.content.localizedCaseInsensitiveContains(searchText)
+                    if !matchesSearch {
+                        return false
+                    }
+                }
+                return true
+            }
+        } else {
+            // 没有搜索时，根据选中的文件夹过滤
             if let folder = selectedFolder {
                 if folder.id == "starred" {
                     filtered = notes.filter { $0.isStarred }
@@ -219,11 +237,6 @@ public class NotesViewModel: ObservableObject {
                 }
             } else {
                 filtered = notes
-            }
-        } else {
-            filtered = notes.filter { note in
-                note.title.localizedCaseInsensitiveContains(searchText) ||
-                note.content.localizedCaseInsensitiveContains(searchText)
             }
         }
         
@@ -379,6 +392,39 @@ public class NotesViewModel: ObservableObject {
                 if !searchText.isEmpty && self.selectedFolder != nil {
                     // 当有搜索文本时，取消选中文件夹
                     self.selectedFolder = nil
+                }
+            }
+            .store(in: &cancellables)
+        
+        // 监听筛选选项变化，当有筛选选项时自动取消选中文件夹
+        Publishers.CombineLatest4(
+            $searchFilterHasTags,
+            $searchFilterHasChecklist,
+            $searchFilterHasImages,
+            $searchFilterIsPrivate
+        )
+        .sink { [weak self] hasTags, hasChecklist, hasImages, isPrivate in
+            guard let self = self else { return }
+            let hasFilters = hasTags || hasChecklist || hasImages || isPrivate
+            if hasFilters && self.selectedFolder != nil {
+                // 当有筛选选项时，取消选中文件夹
+                self.selectedFolder = nil
+            }
+        }
+        .store(in: &cancellables)
+        
+        // 监听selectedFolder变化，当选择文件夹时取消搜索状态
+        $selectedFolder
+            .sink { [weak self] folder in
+                guard let self = self else { return }
+                if folder != nil {
+                    // 当选择文件夹时，清除搜索文本和筛选选项
+                    self.searchText = ""
+                    self.searchFilterHasTags = false
+                    self.searchFilterHasChecklist = false
+                    self.searchFilterHasImages = false
+                    self.searchFilterHasAudio = false
+                    self.searchFilterIsPrivate = false
                 }
             }
             .store(in: &cancellables)
