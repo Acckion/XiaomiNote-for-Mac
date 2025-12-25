@@ -231,7 +231,16 @@ class AuthenticationStateManager: ObservableObject {
     /// 
     /// 自动地、隐藏界面地进行刷新，如果失败则显示弹窗
     private func performSilentCookieRefresh() async {
+        NetworkLogger.shared.logRequest(
+            url: "silent-cookie-refresh",
+            method: "POST",
+            headers: nil,
+            body: "开始静默Cookie刷新流程"
+        )
         print("[AuthenticationStateManager] 开始执行静默Cookie刷新")
+        
+        // 记录开始时间
+        let startTime = Date()
         
         // 通知ViewModel执行静默刷新
         NotificationCenter.default.post(name: Notification.Name("performSilentCookieRefresh"), object: nil)
@@ -241,14 +250,30 @@ class AuthenticationStateManager: ObservableObject {
         
         // 检查刷新结果
         let hasValidCookie = service.hasValidCookie()
+        let elapsedTime = Date().timeIntervalSince(startTime)
         
         await MainActor.run {
             if hasValidCookie {
-                print("[AuthenticationStateManager] ✅ 静默Cookie刷新成功")
+                NetworkLogger.shared.logResponse(
+                    url: "silent-cookie-refresh",
+                    method: "POST",
+                    statusCode: 200,
+                    headers: nil,
+                    response: "静默Cookie刷新成功，耗时\(String(format: "%.2f", elapsedTime))秒",
+                    error: nil
+                )
+                print("[AuthenticationStateManager] ✅ 静默Cookie刷新成功，耗时\(String(format: "%.2f", elapsedTime))秒")
                 // 恢复在线状态
                 restoreOnlineStatus()
             } else {
-                print("[AuthenticationStateManager] ❌ 静默Cookie刷新失败，显示弹窗要求手动刷新")
+                NetworkLogger.shared.logError(
+                    url: "silent-cookie-refresh",
+                    method: "POST",
+                    error: NSError(domain: "AuthenticationStateManager", code: 401, userInfo: [
+                        NSLocalizedDescriptionKey: "静默Cookie刷新失败，耗时\(String(format: "%.2f", elapsedTime))秒"
+                    ])
+                )
+                print("[AuthenticationStateManager] ❌ 静默Cookie刷新失败，耗时\(String(format: "%.2f", elapsedTime))秒，显示弹窗要求手动刷新")
                 // 显示弹窗要求用户手动刷新
                 showCookieExpiredAlert = true
             }

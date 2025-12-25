@@ -2645,10 +2645,12 @@ public class NotesViewModel: ObservableObject {
     /// **特性**：
     /// - 支持离线模式：如果离线，会保存到本地并添加到离线队列
     /// - 自动处理ID变更：如果服务器返回新的ID，会自动更新本地文件夹
+    /// - 返回新创建的文件夹ID（临时ID或服务器返回的ID）
     ///
     /// - Parameter name: 文件夹名称
+    /// - Returns: 新创建的文件夹ID
     /// - Throws: 创建失败时抛出错误
-    public func createFolder(name: String) async throws {
+    public func createFolder(name: String) async throws -> String {
         // 生成临时文件夹ID（离线时使用）
         let tempFolderId = UUID().uuidString
         
@@ -2684,7 +2686,7 @@ public class NotesViewModel: ObservableObject {
             print("[VIEWMODEL] 离线模式：文件夹已保存到本地，等待同步: \(tempFolderId)")
             // 刷新文件夹列表
             loadFolders()
-            return
+            return tempFolderId
         }
         
         // 在线模式：尝试上传到云端
@@ -2757,6 +2759,7 @@ public class NotesViewModel: ObservableObject {
                     try localStorage.saveFolders(userFolders)
                     
                     print("[VIEWMODEL] ✅ 文件夹ID已更新: \(tempFolderId) -> \(folderId), 并删除了旧文件夹记录")
+                    return folderId
                 } else {
                     // ID 相同，更新现有文件夹
                     let updatedFolder = Folder(
@@ -2779,6 +2782,8 @@ public class NotesViewModel: ObservableObject {
                     
                     // 保存到本地存储
                     try localStorage.saveFolders(userFolders)
+                    
+                    return folderId
                 }
             } else {
                 throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "创建文件夹失败：服务器返回无效响应"])
@@ -2795,6 +2800,7 @@ public class NotesViewModel: ObservableObject {
                 context: "创建文件夹"
             )
             // 不设置 errorMessage，避免弹窗提示
+            return tempFolderId
         }
     }
     
@@ -3787,13 +3793,22 @@ public class NotesViewModel: ObservableObject {
     ///
     /// - Returns: 如果刷新成功返回 true，否则返回 false
     private func refreshCookieSilently() async throws -> Bool {
+        NetworkLogger.shared.logRequest(
+            url: "silent-cookie-refresh",
+            method: "POST",
+            headers: nil,
+            body: "开始静默刷新Cookie流程"
+        )
         print("[SilentRefresh] 开始静默刷新Cookie")
+        
+        // 记录开始时间
+        let startTime = Date()
         
         // 创建一个临时的WKWebView来刷新Cookie
         // 这里简化实现，实际应该使用与CookieRefreshView相同的逻辑
         // 但由于WKWebView需要在主线程创建，我们需要使用MainActor
         
-        return await MainActor.run {
+        let result = await MainActor.run {
             // 创建WebView配置
             let configuration = WKWebViewConfiguration()
             configuration.applicationNameForUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -3830,6 +3845,31 @@ public class NotesViewModel: ObservableObject {
             print("[SilentRefresh] 静默刷新结果: \(refreshSuccess ? "成功" : "失败")")
             return refreshSuccess
         }
+        
+        let elapsedTime = Date().timeIntervalSince(startTime)
+        
+        if result {
+            NetworkLogger.shared.logResponse(
+                url: "silent-cookie-refresh",
+                method: "POST",
+                statusCode: 200,
+                headers: nil,
+                response: "静默Cookie刷新成功，耗时\(String(format: "%.2f", elapsedTime))秒",
+                error: nil
+            )
+            print("[SilentRefresh] ✅ 静默Cookie刷新成功，耗时\(String(format: "%.2f", elapsedTime))秒")
+        } else {
+            NetworkLogger.shared.logError(
+                url: "silent-cookie-refresh",
+                method: "POST",
+                error: NSError(domain: "NotesViewModel", code: 401, userInfo: [
+                    NSLocalizedDescriptionKey: "静默Cookie刷新失败，耗时\(String(format: "%.2f", elapsedTime))秒"
+                ])
+            )
+            print("[SilentRefresh] ❌ 静默Cookie刷新失败，耗时\(String(format: "%.2f", elapsedTime))秒")
+        }
+        
+        return result
     }
     
     // MARK: - 静默Cookie刷新委托

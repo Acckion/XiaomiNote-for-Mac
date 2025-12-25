@@ -140,10 +140,16 @@ struct WebFormatMenuView: View {
                     }) {
                         HStack {
                             // 勾选标记（根据编辑器状态动态显示）
-                            Image(systemName: isStyleSelected(style) ? "checkmark" : "")
-                                .font(.system(size: 12))
-                                .foregroundColor(.yellow)
-                                .frame(width: 20, alignment: .leading)
+                            if isStyleSelected(style) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.yellow)
+                                    .frame(width: 20, alignment: .leading)
+                            } else {
+                                // 当未选中时显示空白占位符
+                                Color.clear
+                                    .frame(width: 20, alignment: .leading)
+                            }
                             
                             Text(style.displayName)
                                 .font(.system(size: 13))
@@ -169,10 +175,16 @@ struct WebFormatMenuView: View {
             }) {
                 HStack {
                     // 勾选标记（根据编辑器状态动态显示）
-                    Image(systemName: context.isInQuote ? "checkmark" : "")
-                        .font(.system(size: 12))
-                        .foregroundColor(.yellow)
-                        .frame(width: 20, alignment: .leading)
+                    if context.isInQuote {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12))
+                            .foregroundColor(.yellow)
+                            .frame(width: 20, alignment: .leading)
+                    } else {
+                        // 当未选中时显示空白占位符
+                        Color.clear
+                            .frame(width: 20, alignment: .leading)
+                    }
                     
                     Text("引用块")
                         .font(.system(size: 13))
