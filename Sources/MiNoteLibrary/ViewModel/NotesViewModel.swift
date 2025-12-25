@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import WebKit
 
 /// 笔记排序方式
 public enum NoteSortOrder: String, Codable {
@@ -36,7 +37,14 @@ public class NotesViewModel: ObservableObject {
     @Published public var folders: [Folder] = []
     
     /// 当前选中的笔记
-    @Published public var selectedNote: Note?
+    @Published public var selectedNote: Note? {
+        didSet {
+            // 当选中笔记变化时，检查是否为私密笔记
+            if let note = selectedNote, note.folderId == "2" {
+                checkPrivateNoteAccess()
+            }
+        }
+    }
     
     /// 当前选中的文件夹
     @Published public var selectedFolder: Folder?
@@ -188,7 +196,7 @@ public class NotesViewModel: ObservableObject {
     // MARK: - 计算属性
     
     /// 过滤后的笔记列表
-    /// 
+    ///
     /// 根据搜索文本、选中的文件夹和筛选选项过滤笔记，并根据文件夹的排序方式排序
     var filteredNotes: [Note] {
         let filtered: [Note]
@@ -254,19 +262,19 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 检查笔记是否包含核对清单
-    /// 
+    ///
     /// - Parameter note: 要检查的笔记
     /// - Returns: 如果包含核对清单返回 true，否则返回 false
     private func noteHasChecklist(_ note: Note) -> Bool {
         let content = note.primaryXMLContent.lowercased()
         // 检查是否包含 checkbox 相关标签
         return content.contains("checkbox") ||
-               content.contains("type=\"checkbox\"") ||
-               (content.contains("<input") && content.contains("checkbox"))
+        content.contains("type=\"checkbox\"") ||
+        (content.contains("<input") && content.contains("checkbox"))
     }
     
     /// 检查笔记是否包含图片
-    /// 
+    ///
     /// - Parameter note: 要检查的笔记
     /// - Returns: 如果包含图片返回 true，否则返回 false
     private func noteHasImages(_ note: Note) -> Bool {
@@ -284,7 +292,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 检查笔记是否包含录音（待实现）
-    /// 
+    ///
     /// - Parameter note: 要检查的笔记
     /// - Returns: 如果包含录音返回 true，否则返回 false
     private func noteHasAudio(_ note: Note) -> Bool {
@@ -310,7 +318,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 未分类文件夹（虚拟文件夹）
-    /// 
+    ///
     /// 显示folderId为"0"或空的笔记，用于组织未分类的笔记
     var uncategorizedFolder: Folder {
         let uncategorizedCount = notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }.count
@@ -325,7 +333,7 @@ public class NotesViewModel: ObservableObject {
     // MARK: - 初始化
     
     /// 初始化视图模型
-    /// 
+    ///
     /// 执行以下初始化操作：
     /// 1. 加载本地数据
     /// 2. 加载设置
@@ -383,10 +391,20 @@ public class NotesViewModel: ObservableObject {
         ) { [weak self] _ in
             self?.handleNetworkRestored()
         }
+        
+        // 监听静默刷新Cookie通知
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("performSilentCookieRefresh"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("[NotesViewModel] 收到静默刷新Cookie通知")
+            self?.checkAndSilentlyRefreshCookieIfNeeded()
+        }
     }
     
     /// 同步 AuthenticationStateManager 的状态到 ViewModel
-    /// 
+    ///
     /// 通过 Combine 将 AuthenticationStateManager 的 @Published 属性同步到 ViewModel 的 @Published 属性
     /// 这样 AuthenticationStateManager 的状态变化会自动触发 ViewModel 的状态更新，进而触发 UI 更新
     private func setupAuthStateSync() {
@@ -430,7 +448,7 @@ public class NotesViewModel: ObservableObject {
     // MARK: - 离线操作辅助方法
     
     /// 从 API 响应中提取 tag 值
-    /// 
+    ///
     /// 优先从 response["data"]["tag"] 获取，其次从 response["entry"]["tag"] 获取
     /// - Parameter response: API 响应字典
     /// - Parameter fallbackTag: 如果响应中没有 tag，使用的默认值
@@ -458,7 +476,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 从 API 响应中提取 entry 数据
-    /// 
+    ///
     /// 优先从 response["data"]["entry"] 获取，其次从 response["entry"] 获取
     /// - Parameter response: API 响应字典
     /// - Returns: entry 字典，如果不存在则返回 nil
@@ -478,7 +496,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 检查 API 响应是否成功
-    /// 
+    ///
     /// - Parameter response: API 响应字典
     /// - Returns: 如果成功返回 true，否则返回 false
     private func isResponseSuccess(_ response: [String: Any]) -> Bool {
@@ -493,17 +511,17 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 从 API 响应中提取错误信息
-    /// 
+    ///
     /// - Parameter response: API 响应字典
     /// - Returns: 错误消息，如果无法提取则返回默认消息
     private func extractErrorMessage(from response: [String: Any], defaultMessage: String = "操作失败") -> String {
-        return response["description"] as? String 
-            ?? response["message"] as? String 
-            ?? defaultMessage
+        return response["description"] as? String
+        ?? response["message"] as? String
+        ?? defaultMessage
     }
     
     /// 统一处理离线操作的错误
-    /// 
+    ///
     /// - Parameters:
     ///   - operation: 离线操作
     ///   - error: 发生的错误
@@ -518,12 +536,12 @@ public class NotesViewModel: ObservableObject {
     // MARK: - 统一的离线队列管理
     
     /// 统一处理错误并将操作添加到离线队列
-    /// 
+    ///
     /// 此方法处理以下情况：
     /// - 401 Cookie过期：设置离线状态，添加到队列
     /// - 网络错误：添加到队列
     /// - 其他错误：根据错误类型决定是否添加到队列
-    /// 
+    ///
     /// - Parameters:
     ///   - error: 发生的错误
     ///   - operationType: 操作类型
@@ -576,7 +594,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 将操作添加到离线队列（内部方法，统一编码逻辑）
-    /// 
+    ///
     /// - Parameters:
     ///   - type: 操作类型
     ///   - noteId: 笔记或文件夹ID
@@ -608,7 +626,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 设置离线状态
-    /// 
+    ///
     /// - Parameter reason: 离线原因（用于日志）
     @MainActor
     private func setOfflineStatus(reason: String) {
@@ -629,7 +647,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 恢复在线状态
-    /// 
+    ///
     /// 当Cookie恢复有效时调用此方法
     @MainActor
     private func restoreOnlineStatus() {
@@ -660,13 +678,13 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 处理待同步的离线操作
-    /// 
+    ///
     /// 当网络恢复时，处理离线操作队列中的操作：
     /// - 创建笔记：上传到云端
     /// - 更新笔记：同步到云端
     /// - 删除笔记：从云端删除
     /// - 文件夹操作：同步到云端
-    /// 
+    ///
     /// **注意**：操作失败时会保留在队列中，下次网络恢复时重试
     @MainActor
     private func processPendingOperations() async {
@@ -762,119 +780,77 @@ public class NotesViewModel: ObservableObject {
         
         // 如果服务器返回的 ID 与本地不同，需要创建新笔记并删除旧的
         if note.id != serverNoteId {
-                // 检查新ID的笔记是否已存在（可能由增量同步创建）
-                if let existingNote = try? localStorage.loadNote(noteId: serverNoteId) {
-                    // 新ID的笔记已存在，合并内容（保留较新的版本）
-                    print("[VIEWMODEL] processCreateNoteOperation: ⚠️ 新ID的笔记已存在，合并内容: \(serverNoteId)")
-                    
-                    // 比较时间戳，保留较新的版本
-                    let shouldUseLocal = note.updatedAt > existingNote.updatedAt
-                    let finalNote: Note
-                    
-                    if shouldUseLocal {
-                        // 本地版本较新，使用本地内容但保留服务器返回的ID和rawData
-                        var updatedRawData = note.rawData ?? [:]
-                        for (key, value) in entry {
-                            updatedRawData[key] = value
-                        }
-                        updatedRawData["tag"] = tag
-                        
-                        finalNote = Note(
-                            id: serverNoteId,
-                            title: note.title,
-                            content: note.content,
-                            folderId: serverFolderId,
-                            isStarred: note.isStarred,
-                            createdAt: note.createdAt,
-                            updatedAt: note.updatedAt,
-                            tags: note.tags,
-                            rawData: updatedRawData
-                        )
-                    } else {
-                        // 已存在的版本较新，保留它
-                        finalNote = existingNote
-                    }
-                    
-                    // 删除旧的本地笔记
-                    try? localStorage.deleteNote(noteId: note.id)
-                    
-                    // 更新笔记列表（在主线程）
-                    await MainActor.run {
-                        // 移除旧笔记
-                        if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
-                            self.notes.remove(at: index)
-                        }
-                        // 添加或更新新笔记
-                        if let index = self.notes.firstIndex(where: { $0.id == serverNoteId }) {
-                            self.notes[index] = finalNote
-                        } else {
-                            self.notes.append(finalNote)
-                        }
-                        // 如果当前选中的是旧笔记，更新为新笔记
-                        if self.selectedNote?.id == note.id {
-                            self.selectedNote = finalNote
-                        }
-                        // 更新文件夹计数
-                        self.updateFolderCounts()
-                    }
-                    
-                    // 保存最终笔记
-                    try localStorage.saveNote(finalNote)
-                    print("[VIEWMODEL] processCreateNoteOperation: ✅ 成功合并笔记 ID: \(note.id) -> \(serverNoteId)")
-                } else {
-                    // 新ID的笔记不存在，正常创建
-                    // 构建更新后的 rawData
+            // 检查新ID的笔记是否已存在（可能由增量同步创建）
+            if let existingNote = try? localStorage.loadNote(noteId: serverNoteId) {
+                // 新ID的笔记已存在，合并内容（保留较新的版本）
+                print("[VIEWMODEL] processCreateNoteOperation: ⚠️ 新ID的笔记已存在，合并内容: \(serverNoteId)")
+                
+                // 比较时间戳，保留较新的版本
+                let shouldUseLocal = note.updatedAt > existingNote.updatedAt
+                let finalNote: Note
+                
+                if shouldUseLocal {
+                    // 本地版本较新，使用本地内容但保留服务器返回的ID和rawData
                     var updatedRawData = note.rawData ?? [:]
                     for (key, value) in entry {
                         updatedRawData[key] = value
                     }
                     updatedRawData["tag"] = tag
                     
-                    // 创建新的笔记对象（使用服务器返回的 ID 和 folderId）
-                    let updatedNote = Note(
+                    finalNote = Note(
                         id: serverNoteId,
                         title: note.title,
                         content: note.content,
-                        folderId: serverFolderId, // 使用服务器返回的 folderId
+                        folderId: serverFolderId,
                         isStarred: note.isStarred,
                         createdAt: note.createdAt,
                         updatedAt: note.updatedAt,
                         tags: note.tags,
                         rawData: updatedRawData
                     )
-                    
-                    // 先保存新笔记，再删除旧笔记（防止竞态条件）
-                    try localStorage.saveNote(updatedNote)
-                    
-                    // 删除旧的本地文件
-                    try? localStorage.deleteNote(noteId: note.id)
-                    
-                    // 更新笔记列表（在主线程）
-                    await MainActor.run {
-                        if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
-                            self.notes.remove(at: index)
-                            self.notes.append(updatedNote)
-                        }
-                        // 如果当前选中的是旧笔记，更新为新笔记
-                        if self.selectedNote?.id == note.id {
-                            self.selectedNote = updatedNote
-                        }
-                        // 更新文件夹计数
-                        self.updateFolderCounts()
-                    }
-                    
-                    print("[VIEWMODEL] processCreateNoteOperation: ✅ 成功更新笔记 ID: \(note.id) -> \(serverNoteId)")
+                } else {
+                    // 已存在的版本较新，保留它
+                    finalNote = existingNote
                 }
+                
+                // 删除旧的本地笔记
+                try? localStorage.deleteNote(noteId: note.id)
+                
+                // 更新笔记列表（在主线程）
+                await MainActor.run {
+                    // 移除旧笔记
+                    if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                        self.notes.remove(at: index)
+                    }
+                    // 添加或更新新笔记
+                    if let index = self.notes.firstIndex(where: { $0.id == serverNoteId }) {
+                        self.notes[index] = finalNote
+                    } else {
+                        self.notes.append(finalNote)
+                    }
+                    // 如果当前选中的是旧笔记，更新为新笔记
+                    if self.selectedNote?.id == note.id {
+                        self.selectedNote = finalNote
+                    }
+                    // 更新文件夹计数
+                    self.updateFolderCounts()
+                }
+                
+                // 保存最终笔记
+                try localStorage.saveNote(finalNote)
+                print("[VIEWMODEL] processCreateNoteOperation: ✅ 成功合并笔记 ID: \(note.id) -> \(serverNoteId)")
             } else {
-                // 更新现有笔记的 rawData
+                // 新ID的笔记不存在，正常创建
+                // 构建更新后的 rawData
                 var updatedRawData = note.rawData ?? [:]
                 for (key, value) in entry {
                     updatedRawData[key] = value
                 }
                 updatedRawData["tag"] = tag
                 
+                // 创建新的笔记对象（使用服务器返回的 ID 和 folderId）
                 let updatedNote = Note(
-                    id: note.id,
+                    id: serverNoteId,
                     title: note.title,
                     content: note.content,
                     folderId: serverFolderId, // 使用服务器返回的 folderId
@@ -885,12 +861,19 @@ public class NotesViewModel: ObservableObject {
                     rawData: updatedRawData
                 )
                 
+                // 先保存新笔记，再删除旧笔记（防止竞态条件）
+                try localStorage.saveNote(updatedNote)
+                
+                // 删除旧的本地文件
+                try? localStorage.deleteNote(noteId: note.id)
+                
                 // 更新笔记列表（在主线程）
                 await MainActor.run {
                     if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
-                        self.notes[index] = updatedNote
+                        self.notes.remove(at: index)
+                        self.notes.append(updatedNote)
                     }
-                    // 如果当前选中的是这个笔记，更新它
+                    // 如果当前选中的是旧笔记，更新为新笔记
                     if self.selectedNote?.id == note.id {
                         self.selectedNote = updatedNote
                     }
@@ -898,10 +881,45 @@ public class NotesViewModel: ObservableObject {
                     self.updateFolderCounts()
                 }
                 
-                // 保存更新后的笔记
-                try localStorage.saveNote(updatedNote)
-                print("[VIEWMODEL] processCreateNoteOperation: ✅ 成功更新笔记: \(note.id)")
+                print("[VIEWMODEL] processCreateNoteOperation: ✅ 成功更新笔记 ID: \(note.id) -> \(serverNoteId)")
             }
+        } else {
+            // 更新现有笔记的 rawData
+            var updatedRawData = note.rawData ?? [:]
+            for (key, value) in entry {
+                updatedRawData[key] = value
+            }
+            updatedRawData["tag"] = tag
+            
+            let updatedNote = Note(
+                id: note.id,
+                title: note.title,
+                content: note.content,
+                folderId: serverFolderId, // 使用服务器返回的 folderId
+                isStarred: note.isStarred,
+                createdAt: note.createdAt,
+                updatedAt: note.updatedAt,
+                tags: note.tags,
+                rawData: updatedRawData
+            )
+            
+            // 更新笔记列表（在主线程）
+            await MainActor.run {
+                if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                    self.notes[index] = updatedNote
+                }
+                // 如果当前选中的是这个笔记，更新它
+                if self.selectedNote?.id == note.id {
+                    self.selectedNote = updatedNote
+                }
+                // 更新文件夹计数
+                self.updateFolderCounts()
+            }
+            
+            // 保存更新后的笔记
+            try localStorage.saveNote(updatedNote)
+            print("[VIEWMODEL] processCreateNoteOperation: ✅ 成功更新笔记: \(note.id)")
+        }
         // 响应已在 guard 语句中验证，这里不需要 else 分支
         
         print("[VIEWMODEL] processCreateNoteOperation: ✅ 离线创建的笔记已同步到云端: \(note.id)")
@@ -1237,7 +1255,7 @@ public class NotesViewModel: ObservableObject {
         loadFolders()
     }
     
-    private func loadFolders() {
+    public func loadFolders() {
         print("[FolderRename] ========== loadFolders() 开始 ==========")
         print("[FolderRename] 调用栈: \(Thread.callStackSymbols.prefix(5).joined(separator: "\n"))")
         print("[FolderRename] 当前 folders 数组数量: \(folders.count)")
@@ -1318,11 +1336,8 @@ public class NotesViewModel: ObservableObject {
             loadSampleFolders()
         }
         
-        // 如果没有选择文件夹，选择第一个
-        if selectedFolder == nil {
-            selectedFolder = folders.first
-            print("[FolderRename] 自动选择第一个文件夹: '\(selectedFolder?.name ?? "nil")'")
-        }
+        // 注意：这里不自动选择文件夹，因为 restoreLastSelectedState() 会处理文件夹选择
+        // 应用程序启动时会强制选择"所有笔记"文件夹
         
         print("[FolderRename] ========== loadFolders() 完成 ==========")
     }
@@ -1504,41 +1519,32 @@ public class NotesViewModel: ObservableObject {
             
             let defaults = UserDefaults.standard
             
-            // 尝试恢复上次选中的文件夹
-            var restoredFolder: Folder?
-            if let lastFolderId = defaults.string(forKey: "lastSelectedFolderId"),
-               let folder = self.folders.first(where: { $0.id == lastFolderId }) {
-                restoredFolder = folder
-                self.selectedFolder = folder
-                print("[VIEWMODEL] 已恢复上次选中的文件夹: \(lastFolderId)")
-            } else {
-                // 没有上次选中的文件夹，默认选择"所有笔记"
-                restoredFolder = self.folders.first(where: { $0.id == "0" })
-                self.selectedFolder = restoredFolder
-                print("[VIEWMODEL] 默认选择所有笔记文件夹")
+            // 应用程序启动时，总是强制选择"所有笔记"文件夹，忽略上次选中的状态
+            // 这是为了确保用户每次打开应用时都从"所有笔记"开始
+            let allNotesFolder = self.folders.first(where: { $0.id == "0" })
+            self.selectedFolder = allNotesFolder
+            print("[VIEWMODEL] 应用程序启动：强制选择所有笔记文件夹")
+            
+            // 获取"所有笔记"文件夹中的笔记列表
+            let notesInAllNotesFolder = self.getNotesInFolder(allNotesFolder)
+            print("[VIEWMODEL] 所有笔记文件夹中的笔记数量: \(notesInAllNotesFolder.count)")
+            
+            // 选择"所有笔记"文件夹的第一个笔记
+            // 确保总是选择第一个笔记，即使它是置顶笔记
+            self.selectedNote = notesInAllNotesFolder.first
+            print("[VIEWMODEL] 选择所有笔记文件夹的第一个笔记: \(notesInAllNotesFolder.first?.id ?? "无")")
+            
+            // 如果仍然没有选中的笔记，强制选择第一个笔记
+            if self.selectedNote == nil && !notesInAllNotesFolder.isEmpty {
+                self.selectedNote = notesInAllNotesFolder.first
+                print("[VIEWMODEL] 强制选择第一个笔记: \(notesInAllNotesFolder.first?.id ?? "无")")
             }
             
-            // 获取当前文件夹中的笔记列表
-            let notesInFolder = self.getNotesInFolder(restoredFolder)
+            // 最终状态检查
+            print("[VIEWMODEL] 最终状态 - 选中文件夹: \(self.selectedFolder?.name ?? "无"), 选中笔记: \(self.selectedNote?.title ?? "无")")
             
-            // 尝试恢复上次选中的笔记
-            if let lastNoteId = defaults.string(forKey: "lastSelectedNoteId"),
-               let lastNote = self.notes.first(where: { $0.id == lastNoteId }) {
-                // 检查笔记是否在当前文件夹中
-                if notesInFolder.contains(where: { $0.id == lastNoteId }) {
-                    // 笔记在当前文件夹中，选中它
-                    self.selectedNote = lastNote
-                    print("[VIEWMODEL] 已恢复上次选中的笔记: \(lastNoteId)")
-                } else {
-                    // 笔记不在当前文件夹中，选择当前文件夹的第一个笔记
-                    self.selectedNote = notesInFolder.first
-                    print("[VIEWMODEL] 笔记不在当前文件夹，选择第一个笔记")
-                }
-            } else {
-                // 没有上次选中的笔记，选择当前文件夹的第一个笔记
-                self.selectedNote = notesInFolder.first
-                print("[VIEWMODEL] 选择当前文件夹的第一个笔记")
-            }
+            // 注意：这里不保存状态到UserDefaults，因为我们希望每次启动都从"所有笔记"开始
+            // 用户的操作（如选择其他文件夹或笔记）会在其他地方自动保存
         }
     }
     
@@ -1563,9 +1569,9 @@ public class NotesViewModel: ObservableObject {
     // MARK: - 同步功能
     
     /// 执行完整同步
-    /// 
+    ///
     /// 完整同步会清除所有本地数据，然后从云端拉取所有笔记和文件夹
-    /// 
+    ///
     /// **注意**：此操作会丢失所有本地未同步的更改
     func performFullSync() async {
         print("[VIEWMODEL] 开始执行完整同步")
@@ -1643,7 +1649,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 执行增量同步
-    /// 
+    ///
     /// 增量同步只同步自上次同步以来的更改，不会清除本地数据
     /// 如果从未同步过，会自动执行完整同步
     func performIncrementalSync() async {
@@ -1809,14 +1815,14 @@ public class NotesViewModel: ObservableObject {
     // MARK: - 笔记CRUD操作（统一接口）
     
     /// 创建笔记
-    /// 
+    ///
     /// **统一接口**：推荐使用此方法创建笔记，而不是直接调用API
-    /// 
+    ///
     /// **特性**：
     /// - 支持离线模式：如果离线，会保存到本地并添加到离线队列
     /// - 自动处理ID变更：如果服务器返回新的ID，会自动更新本地笔记
     /// - 自动更新UI：创建后会自动更新笔记列表和文件夹计数
-    /// 
+    ///
     /// - Parameter note: 要创建的笔记对象
     /// - Throws: 创建失败时抛出错误（网络错误、认证错误等）
     public func createNote(_ note: Note) async throws {
@@ -1984,14 +1990,14 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 更新笔记
-    /// 
+    ///
     /// **统一接口**：推荐使用此方法更新笔记，而不是直接调用API
-    /// 
+    ///
     /// **特性**：
     /// - 支持离线模式：如果离线，会保存到本地并添加到离线队列
     /// - 自动获取最新tag：更新前会从服务器获取最新的tag，避免并发冲突
     /// - 自动更新UI：更新后会自动更新笔记列表
-    /// 
+    ///
     /// - Parameter note: 要更新的笔记对象
     /// - Throws: 更新失败时抛出错误（网络错误、认证错误等）
     func updateNote(_ note: Note) async throws {
@@ -2051,17 +2057,17 @@ public class NotesViewModel: ObservableObject {
         print("[[调试]]步骤22 [VIEWMODEL] 检查在线状态，isOnline: \(isOnline), isAuthenticated: \(service.isAuthenticated())")
         if !isOnline || !service.isAuthenticated() {
             let operationData = try JSONEncoder().encode([
-                    "title": noteToSave.title,
-                    "content": noteToSave.content,
-                    "folderId": noteToSave.folderId
+                "title": noteToSave.title,
+                "content": noteToSave.content,
+                "folderId": noteToSave.folderId
             ])
             let operation = OfflineOperation(
                 type: .updateNote,
-                    noteId: noteToSave.id,
+                noteId: noteToSave.id,
                 data: operationData
             )
             try offlineQueue.addOperation(operation)
-                print("[[调试]]步骤23 [VIEWMODEL] 离线模式，添加到离线队列，笔记ID: \(noteToSave.id)")
+            print("[[调试]]步骤23 [VIEWMODEL] 离线模式，添加到离线队列，笔记ID: \(noteToSave.id)")
             return
         }
         
@@ -2340,10 +2346,10 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 确保笔记有完整内容
-    /// 
+    ///
     /// 如果笔记内容为空（只有snippet），会从服务器获取完整内容
     /// 用于延迟加载，提高列表加载速度
-    /// 
+    ///
     /// - Parameter note: 要检查的笔记对象
     func ensureNoteHasFullContent(_ note: Note) async {
         // 如果笔记已经有完整内容，不需要获取
@@ -2487,7 +2493,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 设置文件夹的排序方式
-    /// 
+    ///
     /// - Parameters:
     ///   - folder: 要设置排序方式的文件夹
     ///   - sortOrder: 排序方式
@@ -2502,7 +2508,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 获取文件夹的排序方式
-    /// 
+    ///
     /// - Parameter folder: 文件夹
     /// - Returns: 排序方式，如果没有设置则返回 nil
     func getFolderSortOrder(_ folder: Folder) -> NoteSortOrder? {
@@ -2510,7 +2516,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 验证私密笔记密码
-    /// 
+    ///
     /// - Parameter password: 输入的密码
     /// - Returns: 如果密码正确返回 true，否则返回 false
     func verifyPrivateNotesPassword(_ password: String) -> Bool {
@@ -2589,11 +2595,11 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 创建文件夹
-    /// 
+    ///
     /// **特性**：
     /// - 支持离线模式：如果离线，会保存到本地并添加到离线队列
     /// - 自动处理ID变更：如果服务器返回新的ID，会自动更新本地文件夹
-    /// 
+    ///
     /// - Parameter name: 文件夹名称
     /// - Throws: 创建失败时抛出错误
     public func createFolder(name: String) async throws {
@@ -2618,7 +2624,7 @@ public class NotesViewModel: ObservableObject {
         // 更新视图数据（系统文件夹在前）
         folders = systemFolders + userFolders
         
-            // 如果离线或未认证，添加到离线队列
+        // 如果离线或未认证，添加到离线队列
         if !isOnline || !service.isAuthenticated() {
             let operationData = try JSONEncoder().encode([
                 "name": name
@@ -3193,7 +3199,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 处理Cookie刷新完成
-    /// 
+    ///
     /// Cookie刷新成功后调用此方法
     @MainActor
     func handleCookieRefreshed() {
@@ -3454,7 +3460,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 获取回收站笔记
-    /// 
+    ///
     /// 从服务器获取已删除的笔记列表
     func fetchDeletedNotes() async {
         guard service.isAuthenticated() else {
@@ -3499,7 +3505,7 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 获取用户信息
-    /// 
+    ///
     /// 从服务器获取当前登录用户的昵称和头像
     func fetchUserProfile() async {
         guard service.isAuthenticated() else {
@@ -3519,6 +3525,460 @@ public class NotesViewModel: ObservableObject {
             }
         } catch {
             print("[VIEWMODEL] ❌ 获取用户信息失败: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - 私密笔记访问验证
+    
+    /// 检查私密笔记访问权限
+    ///
+    /// 当用户尝试访问私密笔记时调用此方法
+    /// 如果已设置密码且未解锁，显示密码输入对话框
+    /// 如果用户取消验证，会清空 selectedNote
+    private func checkPrivateNoteAccess() {
+        let passwordManager = PrivateNotesPasswordManager.shared
+        
+        if passwordManager.hasPassword() {
+            // 已设置密码，需要验证
+            if !isPrivateNotesUnlocked {
+                showPrivateNotesPasswordDialog = true
+                // 注意：这里不清空 selectedNote，因为用户可能取消验证
+                // 密码验证成功后，isPrivateNotesUnlocked 会被设置为 true
+                // 如果用户取消验证，需要在密码输入对话框的 onDisappear 中处理
+            }
+        } else {
+            // 未设置密码，直接允许访问
+            isPrivateNotesUnlocked = true
+        }
+    }
+    
+    /// 处理私密笔记密码验证取消
+    ///
+    /// 当用户取消密码验证时调用此方法
+    func handlePrivateNotesPasswordCancel() {
+        // 清空选中的笔记，因为用户取消了验证
+        selectedNote = nil
+    }
+    
+    // MARK: - 自动刷新Cookie
+    
+    /// 自动刷新Cookie定时器
+    private var autoRefreshCookieTimer: Timer?
+    
+    /// 上次自动刷新Cookie的时间
+    private var lastAutoRefreshCookieDate: Date?
+    
+    /// 启动自动刷新Cookie定时器（如果需要）
+    func startAutoRefreshCookieIfNeeded() {
+        // 停止现有的定时器
+        stopAutoRefreshCookie()
+        
+        // 检查是否启用自动刷新Cookie
+        let defaults = UserDefaults.standard
+        let autoRefreshCookie = defaults.bool(forKey: "autoRefreshCookie")
+        if !autoRefreshCookie {
+            print("[AutoRefreshCookie] 自动刷新Cookie未启用")
+            return
+        }
+        
+        // 获取刷新间隔
+        let interval = defaults.double(forKey: "autoRefreshInterval")
+        if interval <= 0 {
+            print("[AutoRefreshCookie] 无效的刷新间隔: \(interval)，使用默认值（每天）")
+            return
+        }
+        
+        print("[AutoRefreshCookie] 启动自动刷新Cookie定时器，间隔: \(interval)秒（\(interval/86400)天）")
+        
+        // 启动定时器
+        autoRefreshCookieTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            self?.checkAndRefreshCookieIfNeeded()
+        }
+        
+        // 立即检查一次
+        checkAndRefreshCookieIfNeeded()
+    }
+    
+    /// 停止自动刷新Cookie定时器
+    func stopAutoRefreshCookie() {
+        autoRefreshCookieTimer?.invalidate()
+        autoRefreshCookieTimer = nil
+        print("[AutoRefreshCookie] 已停止自动刷新Cookie定时器")
+    }
+    
+    /// 检查并刷新Cookie（如果需要）
+    private func checkAndRefreshCookieIfNeeded() {
+        // 检查是否在线
+        guard isOnline else {
+            print("[AutoRefreshCookie] 当前离线，跳过Cookie刷新")
+            return
+        }
+        
+        // 检查是否已认证
+        guard service.isAuthenticated() else {
+            print("[AutoRefreshCookie] 未认证，跳过Cookie刷新")
+            return
+        }
+        
+        // 检查Cookie是否即将过期（例如，距离上次刷新超过一半的时间间隔）
+        let defaults = UserDefaults.standard
+        let interval = defaults.double(forKey: "autoRefreshInterval")
+        
+        if let lastRefresh = lastAutoRefreshCookieDate {
+            let timeSinceLastRefresh = Date().timeIntervalSince(lastRefresh)
+            if timeSinceLastRefresh < interval / 2 {
+                // 距离上次刷新时间太短，跳过
+                print("[AutoRefreshCookie] 距离上次刷新时间太短（\(timeSinceLastRefresh)秒），跳过")
+                return
+            }
+        }
+        
+        print("[AutoRefreshCookie] 开始自动刷新Cookie")
+        performAutoCookieRefresh()
+    }
+    
+    /// 执行自动Cookie刷新
+    private func performAutoCookieRefresh() {
+        // 在后台执行Cookie刷新
+        Task {
+            do {
+                print("[AutoRefreshCookie] 开始执行自动Cookie刷新")
+                
+                // 这里可以调用现有的Cookie刷新逻辑
+                // 由于Cookie刷新需要用户交互（点击登录按钮），我们需要自动完成这个流程
+                // 我们可以使用现有的CookieRefreshView逻辑，但需要自动点击登录按钮
+                
+                // 暂时使用简单的实现：调用现有的刷新方法
+                // 注意：这需要修改CookieRefreshView以支持自动点击登录按钮
+                await MainActor.run {
+                    // 显示Cookie刷新视图
+                    self.showCookieRefreshView = true
+                }
+                
+                // 记录刷新时间
+                lastAutoRefreshCookieDate = Date()
+                print("[AutoRefreshCookie] ✅ 自动Cookie刷新已启动")
+                
+            } catch {
+                print("[AutoRefreshCookie] ❌ 自动Cookie刷新失败: \(error)")
+            }
+        }
+    }
+    
+    /// 处理自动Cookie刷新完成
+    func handleAutoCookieRefreshComplete() {
+        print("[AutoRefreshCookie] ✅ 自动Cookie刷新完成")
+        lastAutoRefreshCookieDate = Date()
+    }
+    
+    // MARK: - 静默刷新Cookie
+    
+    /// 检查是否需要静默刷新Cookie
+    ///
+    /// 当Cookie失效时，如果启用了静默刷新设置，会自动尝试刷新Cookie
+    /// 如果刷新失败，才会显示弹窗要求用户手动刷新
+    func checkAndSilentlyRefreshCookieIfNeeded() {
+        // 检查是否启用了静默刷新
+        let defaults = UserDefaults.standard
+        let silentRefreshOnFailure = defaults.bool(forKey: "silentRefreshOnFailure")
+        
+        if !silentRefreshOnFailure {
+            print("[SilentRefresh] 静默刷新未启用，直接显示弹窗")
+            showCookieExpiredAlert = true
+            return
+        }
+        
+        // 检查是否在线
+        guard isOnline else {
+            print("[SilentRefresh] 当前离线，无法静默刷新，显示弹窗")
+            showCookieExpiredAlert = true
+            return
+        }
+        
+        // 检查是否已认证（Cookie是否有效）
+        guard !service.isAuthenticated() else {
+            print("[SilentRefresh] Cookie仍然有效，无需刷新")
+            return
+        }
+        
+        print("[SilentRefresh] Cookie失效，开始静默刷新")
+        performSilentCookieRefresh()
+    }
+    
+    /// 执行静默Cookie刷新
+    private func performSilentCookieRefresh() {
+        Task {
+            do {
+                print("[SilentRefresh] 开始执行静默Cookie刷新")
+                
+                // 使用现有的Cookie刷新逻辑，但静默执行
+                // 我们需要创建一个临时的WebView来刷新Cookie
+                let cookieRefreshed = try await refreshCookieSilently()
+                
+                if cookieRefreshed {
+                    print("[SilentRefresh] ✅ 静默Cookie刷新成功")
+                    // 恢复在线状态
+                    await MainActor.run {
+                        self.restoreOnlineStatus()
+                    }
+                } else {
+                    print("[SilentRefresh] ❌ 静默Cookie刷新失败，显示弹窗")
+                    await MainActor.run {
+                        self.showCookieExpiredAlert = true
+                    }
+                }
+                
+            } catch {
+                print("[SilentRefresh] ❌ 静默Cookie刷新出错: \(error)，显示弹窗")
+                await MainActor.run {
+                    self.showCookieExpiredAlert = true
+                }
+            }
+        }
+    }
+    
+    /// 静默刷新Cookie（不显示UI）
+    ///
+    /// - Returns: 如果刷新成功返回 true，否则返回 false
+    private func refreshCookieSilently() async throws -> Bool {
+        print("[SilentRefresh] 开始静默刷新Cookie")
+        
+        // 创建一个临时的WKWebView来刷新Cookie
+        // 这里简化实现，实际应该使用与CookieRefreshView相同的逻辑
+        // 但由于WKWebView需要在主线程创建，我们需要使用MainActor
+        
+        return await MainActor.run {
+            // 创建WebView配置
+            let configuration = WKWebViewConfiguration()
+            configuration.applicationNameForUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            
+            let webView = WKWebView(frame: .zero, configuration: configuration)
+            
+            // 创建信号量来等待页面加载完成
+            let semaphore = DispatchSemaphore(value: 0)
+            var refreshSuccess = false
+            
+            // 设置导航委托
+            let delegate = SilentCookieRefreshDelegate { success in
+                refreshSuccess = success
+                semaphore.signal()
+            }
+            webView.navigationDelegate = delegate
+            
+            // 加载小米登录页面
+            var request = URLRequest(url: URL(string: "https://i.mi.com")!)
+            request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", forHTTPHeaderField: "User-Agent")
+            request.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
+            
+            print("[SilentRefresh] 加载URL: https://i.mi.com")
+            webView.load(request)
+            
+            // 等待页面加载完成（最多30秒）
+            let result = semaphore.wait(timeout: .now() + 30.0)
+            
+            if result == .timedOut {
+                print("[SilentRefresh] ⚠️ 静默刷新超时")
+                return false
+            }
+            
+            print("[SilentRefresh] 静默刷新结果: \(refreshSuccess ? "成功" : "失败")")
+            return refreshSuccess
+        }
+    }
+    
+    // MARK: - 静默Cookie刷新委托
+    
+    /// 静默Cookie刷新的导航委托
+    class SilentCookieRefreshDelegate: NSObject, WKNavigationDelegate {
+        let completion: (Bool) -> Void
+        private var hasLoadedProfile = false
+        private var cookieExtracted = false
+        
+        init(completion: @escaping (Bool) -> Void) {
+            self.completion = completion
+        }
+        
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            let currentURL = webView.url?.absoluteString ?? "未知URL"
+            print("[SilentRefresh] 页面加载完成: \(currentURL)")
+            
+            // 如果已经提取过 cookie，不再处理
+            if cookieExtracted {
+                return
+            }
+            
+            // 如果是 profile 页面加载完成，从 cookie store 获取 Cookie
+            if currentURL.contains("i.mi.com/status/lite/profile") {
+                print("[SilentRefresh] Profile 页面加载完成，从 cookie store 获取 Cookie...")
+                hasLoadedProfile = true
+                
+                webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] (cookies: [HTTPCookie]) in
+                    guard let self = self, !self.cookieExtracted else { return }
+                    
+                    print("[SilentRefresh] 从 WKWebView 获取到 \(cookies.count) 个 cookie")
+                    
+                    // 构建 Cookie 字符串
+                    let cookieString = cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+                    
+                    print("[SilentRefresh] 构建的 Cookie 字符串（前300字符）: \(String(cookieString.prefix(300)))...")
+                    
+                    // 验证 cookie 是否有效
+                    let hasServiceToken = cookieString.contains("serviceToken=")
+                    let hasUserId = cookieString.contains("userId=")
+                    
+                    if hasServiceToken && hasUserId && !cookieString.isEmpty {
+                        print("[SilentRefresh] ✅ Cookie 验证通过，提取成功")
+                        self.cookieExtracted = true
+                        
+                        // 更新MiNoteService的cookie
+                        MiNoteService.shared.setCookie(cookieString)
+                        
+                        // 通知完成
+                        self.completion(true)
+                    } else {
+                        print("[SilentRefresh] ⚠️ Cookie 验证失败: hasServiceToken=\(hasServiceToken), hasUserId=\(hasUserId), cookieString长度=\(cookieString.count)")
+                        self.completion(false)
+                    }
+                }
+                return
+            }
+            
+            // 主页加载完成后，检查是否已经登录
+            if currentURL.contains("i.mi.com") && !currentURL.contains("status/lite/profile") && !hasLoadedProfile {
+                print("[SilentRefresh] 主页加载完成，检查是否已经登录")
+                
+                webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] (cookies: [HTTPCookie]) in
+                    guard let self = self, !self.cookieExtracted else { return }
+                    
+                    print("[SilentRefresh] 检查登录状态，获取到 \(cookies.count) 个 cookie")
+                    
+                    // 检查是否有有效的登录cookie
+                    let cookieString = cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+                    let hasServiceToken = cookieString.contains("serviceToken=")
+                    let hasUserId = cookieString.contains("userId=")
+                    
+                    if hasServiceToken && hasUserId && !cookieString.isEmpty {
+                        // 已经登录，直接导航到 profile 页面获取完整 cookie
+                        print("[SilentRefresh] ✅ 检测到已登录，直接进入获取cookie流程")
+                        
+                        // 延迟一小段时间，确保页面完全加载
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            if let profileURL = URL(string: "https://i.mi.com/status/lite/profile?ts=\(Int(Date().timeIntervalSince1970 * 1000))") {
+                                print("[SilentRefresh] 访问 profile 页面: \(profileURL.absoluteString)")
+                                webView.load(URLRequest(url: profileURL))
+                            }
+                        }
+                    } else {
+                        // 未登录，尝试自动点击登录按钮
+                        print("[SilentRefresh] ⚠️ 未检测到有效登录cookie，尝试自动点击登录按钮")
+                        self.autoClickLoginButton(webView: webView)
+                    }
+                }
+                return
+            }
+        }
+        
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            print("[SilentRefresh] 导航失败: \(error.localizedDescription)")
+            completion(false)
+        }
+        
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            print("[SilentRefresh] 加载失败: \(error.localizedDescription)")
+            completion(false)
+        }
+        
+        /// 自动点击登录按钮
+        private func autoClickLoginButton(webView: WKWebView) {
+            print("[SilentRefresh] 开始自动点击登录按钮")
+            
+            let javascript = """
+        // 尝试多种方式查找并点击登录按钮
+        (function() {
+            // 方法1：通过class选择器查找按钮
+            function clickLoginButtonByClass() {
+                const loginButton = document.querySelector('.miui-btn.miui-btn-primary.miui-darkmode-support.login-btn-hdPJi');
+                if (loginButton) {
+                    console.log('通过class找到登录按钮，点击它');
+                    loginButton.click();
+                    return true;
+                }
+                return false;
+            }
+            
+            // 方法2：通过文本内容查找按钮
+            function clickLoginButtonByText() {
+                const buttons = document.querySelectorAll('button');
+                for (const button of buttons) {
+                    if (button.textContent.includes('使用小米账号登录')) {
+                        console.log('通过文本找到登录按钮，点击它');
+                        button.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            // 方法3：通过包含"登录"文本的按钮
+            function clickLoginButtonByLoginText() {
+                const buttons = document.querySelectorAll('button');
+                for (const button of buttons) {
+                    if (button.textContent.includes('登录')) {
+                        console.log('通过"登录"文本找到按钮，点击它');
+                        button.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            // 方法4：通过包含"小米账号"文本的按钮
+            function clickLoginButtonByMiAccountText() {
+                const buttons = document.querySelectorAll('button');
+                for (const button of buttons) {
+                    if (button.textContent.includes('小米账号')) {
+                        console.log('通过"小米账号"文本找到按钮，点击它');
+                        button.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            // 执行所有方法
+            let clicked = false;
+            clicked = clickLoginButtonByClass();
+            if (!clicked) clicked = clickLoginButtonByText();
+            if (!clicked) clicked = clickLoginButtonByLoginText();
+            if (!clicked) clicked = clickLoginButtonByMiAccountText();
+            
+            if (clicked) {
+                console.log('✅ 自动点击登录按钮成功');
+                return 'success';
+            } else {
+                console.log('❌ 未找到登录按钮');
+                return 'not_found';
+            }
+        })();
+        """
+            
+            webView.evaluateJavaScript(javascript) { result, error in
+                if let error = error {
+                    print("[SilentRefresh] 执行JavaScript失败: \(error)")
+                    // 自动点击失败，通知完成
+                    self.completion(false)
+                } else if let result = result as? String {
+                    print("[SilentRefresh] JavaScript执行结果: \(result)")
+                    if result == "success" {
+                        // 自动点击成功，等待页面跳转
+                        print("[SilentRefresh] 自动点击成功，等待页面跳转")
+                    } else {
+                        // 未找到登录按钮，通知完成
+                        print("[SilentRefresh] 未找到登录按钮")
+                        self.completion(false)
+                    }
+                }
+            }
         }
     }
 }

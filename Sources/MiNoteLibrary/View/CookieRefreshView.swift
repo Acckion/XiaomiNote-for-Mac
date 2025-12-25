@@ -1,6 +1,11 @@
 import SwiftUI
 import WebKit
 
+// 自动点击登录按钮的通知名称
+extension Notification.Name {
+    static let autoClickLoginButton = Notification.Name("autoClickLoginButton")
+}
+
 /// Cookie刷新视图
 /// 
 /// 参考 Obsidian 插件的实现：
@@ -18,7 +23,7 @@ struct CookieRefreshView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // 标题栏 - 参考 Obsidian 插件：显示提示信息
+
             VStack(spacing: 0) {
             HStack {
                 Text("刷新Cookie")
@@ -35,13 +40,21 @@ struct CookieRefreshView: View {
             }
             .padding(.vertical, 12)
                 
-                // 参考 Obsidian 插件：添加提示信息
+
                 HStack {
-                    Text("点击【使用小米账号登录】以刷新Cookie")
+                    Text("点击[使用小米账号登录]以刷新Cookie")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.leading, 16)
                     Spacer()
+                    
+                    // 自动点击按钮
+                    Button("自动点击登录按钮") {
+                        autoClickLoginButton()
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.trailing, 16)
+                    .help("自动点击页面上的'使用小米账号登录'按钮")
                 }
                 .padding(.bottom, 8)
             }
@@ -57,7 +70,8 @@ struct CookieRefreshView: View {
                         onCookieExtracted: { cookieString in
                             handleCookieExtracted(cookieString: cookieString)
                         },
-                        isLoading: $isLoading
+                        isLoading: $isLoading,
+                        autoClickLoginButton: true // 启用自动点击
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -120,6 +134,11 @@ struct CookieRefreshView: View {
         }
     }
     
+    private func autoClickLoginButton() {
+        // 通知WebView自动点击登录按钮
+        NotificationCenter.default.post(name: .autoClickLoginButton, object: nil)
+    }
+    
     private func handleCookieExtracted(cookieString: String) {
         print("[CookieRefreshView] Cookie提取成功")
         print("[CookieRefreshView] Cookie字符串（前300字符）: \(String(cookieString.prefix(300)))...")
@@ -160,6 +179,7 @@ struct CookieRefreshView: View {
 struct CookieRefreshWebView: NSViewRepresentable {
     let onCookieExtracted: (String) -> Void
     @Binding var isLoading: Bool
+    var autoClickLoginButton: Bool = false
     
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -169,6 +189,9 @@ struct CookieRefreshWebView: NSViewRepresentable {
         
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
+        
+        // 保存webView引用到Coordinator
+        context.coordinator.setWebView(webView)
         
         // 参考 Obsidian 插件：直接加载主页
         var request = URLRequest(url: URL(string: "https://i.mi.com")!)
@@ -193,10 +216,126 @@ struct CookieRefreshWebView: NSViewRepresentable {
         private var hasLoadedProfile = false  // 标记是否已加载profile页面
         private var retryCount = 0
         private let maxRetries = 3
+        private var webView: WKWebView?
         
         init(_ parent: CookieRefreshWebView) {
             self.parent = parent
+            super.init()
             print("[CookieRefreshWebView] Coordinator初始化")
+            
+            // 监听自动点击登录按钮的通知
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleAutoClickLoginButton),
+                name: .autoClickLoginButton,
+                object: nil
+            )
+        }
+        
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
+        
+        func setWebView(_ webView: WKWebView) {
+            self.webView = webView
+        }
+        
+        @objc private func handleAutoClickLoginButton() {
+            print("[CookieRefreshWebView] 收到自动点击登录按钮通知")
+            autoClickLoginButton()
+        }
+        
+        private func autoClickLoginButton() {
+            guard let webView = webView else {
+                print("[CookieRefreshWebView] WebView未初始化，无法自动点击")
+                return
+            }
+            
+            print("[CookieRefreshWebView] 开始自动点击登录按钮")
+            
+            // 尝试多种方式查找并点击登录按钮
+            let javascript = """
+            // 方法1：通过class选择器查找按钮
+            function clickLoginButtonByClass() {
+                const loginButton = document.querySelector('.miui-btn.miui-btn-primary.miui-darkmode-support.login-btn-hdPJi');
+                if (loginButton) {
+                    console.log('通过class找到登录按钮，点击它');
+                    loginButton.click();
+                    return true;
+                }
+                return false;
+            }
+            
+            // 方法2：通过文本内容查找按钮
+            function clickLoginButtonByText() {
+                const buttons = document.querySelectorAll('button');
+                for (const button of buttons) {
+                    if (button.textContent.includes('使用小米账号登录')) {
+                        console.log('通过文本找到登录按钮，点击它');
+                        button.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            // 方法3：通过包含"登录"文本的按钮
+            function clickLoginButtonByLoginText() {
+                const buttons = document.querySelectorAll('button');
+                for (const button of buttons) {
+                    if (button.textContent.includes('登录')) {
+                        console.log('通过"登录"文本找到按钮，点击它');
+                        button.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            // 方法4：通过包含"小米账号"文本的按钮
+            function clickLoginButtonByMiAccountText() {
+                const buttons = document.querySelectorAll('button');
+                for (const button of buttons) {
+                    if (button.textContent.includes('小米账号')) {
+                        console.log('通过"小米账号"文本找到按钮，点击它');
+                        button.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            // 执行所有方法
+            (function() {
+                let clicked = false;
+                clicked = clickLoginButtonByClass();
+                if (!clicked) clicked = clickLoginButtonByText();
+                if (!clicked) clicked = clickLoginButtonByLoginText();
+                if (!clicked) clicked = clickLoginButtonByMiAccountText();
+                
+                if (clicked) {
+                    console.log('✅ 自动点击登录按钮成功');
+                    return 'success';
+                } else {
+                    console.log('❌ 未找到登录按钮');
+                    // 输出所有按钮信息用于调试
+                    const buttons = document.querySelectorAll('button');
+                    console.log('页面上的按钮数量:', buttons.length);
+                    buttons.forEach((button, index) => {
+                        console.log(`按钮 ${index}:`, button.outerHTML);
+                    });
+                    return 'not_found';
+                }
+            })();
+            """
+            
+            webView.evaluateJavaScript(javascript) { result, error in
+                if let error = error {
+                    print("[CookieRefreshWebView] 执行JavaScript失败: \(error)")
+                } else if let result = result as? String {
+                    print("[CookieRefreshWebView] JavaScript执行结果: \(result)")
+                }
+            }
         }
         
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
@@ -329,6 +468,14 @@ struct CookieRefreshWebView: NSViewRepresentable {
                         DispatchQueue.main.async {
                             self.parent.isLoading = false
                         }
+                        
+                        // 如果启用了自动点击登录按钮，延迟一段时间后自动点击
+                        if self.parent.autoClickLoginButton {
+                            print("[CookieRefreshWebView] 启用自动点击登录按钮，延迟2秒后执行")
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                self.autoClickLoginButton()
+                            }
+                        }
                     }
                 }
                 return
@@ -393,4 +540,3 @@ class CookieSchemeHandler: NSObject, WKURLSchemeHandler {
         // 停止请求处理
     }
 }
-

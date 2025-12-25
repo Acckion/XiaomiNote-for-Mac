@@ -8,6 +8,9 @@ public struct SettingsView: View {
     @AppStorage("autoSave") private var autoSave: Bool = true
     @AppStorage("offlineMode") private var offlineMode: Bool = false
     @AppStorage("theme") private var theme: String = "system"
+    @AppStorage("autoRefreshCookie") private var autoRefreshCookie: Bool = false
+    @AppStorage("autoRefreshInterval") private var autoRefreshInterval: Double = 86400 // 默认每天（24小时）
+    @AppStorage("silentRefreshOnFailure") private var silentRefreshOnFailure: Bool = true // 默认启用静默刷新
     
     @State private var showLogoutAlert: Bool = false
     @State private var showClearCacheAlert: Bool = false
@@ -33,6 +36,23 @@ public struct SettingsView: View {
                     
                     Toggle("离线模式", isOn: $offlineMode)
                         .help("离线模式下仅使用本地缓存，不进行网络同步")
+                    
+                    Divider()
+                    
+                    Toggle("自动刷新Cookie", isOn: $autoRefreshCookie)
+                        .help("启用后，系统会自动定期刷新Cookie，避免Cookie过期导致同步失败")
+                    
+                    if autoRefreshCookie {
+                        Picker("刷新频率", selection: $autoRefreshInterval) {
+                            Text("每天").tag(86400.0)
+                            Text("每周").tag(604800.0)
+                            Text("每月").tag(2592000.0)
+                        }
+                        .help("自动刷新Cookie的时间间隔")
+                    }
+                    
+                    Toggle("Cookie失效时静默刷新", isOn: $silentRefreshOnFailure)
+                        .help("启用后，当Cookie失效时会自动尝试静默刷新，刷新失败才会弹窗提示")
                 }
                 
                 Section("外观") {
@@ -180,10 +200,20 @@ public struct SettingsView: View {
         UserDefaults.standard.set(autoSave, forKey: "autoSave")
         UserDefaults.standard.set(offlineMode, forKey: "offlineMode")
         UserDefaults.standard.set(theme, forKey: "theme")
+        UserDefaults.standard.set(autoRefreshCookie, forKey: "autoRefreshCookie")
+        UserDefaults.standard.set(autoRefreshInterval, forKey: "autoRefreshInterval")
+        UserDefaults.standard.set(silentRefreshOnFailure, forKey: "silentRefreshOnFailure")
         
         // 通知ViewModel设置已更改
         viewModel.syncInterval = syncInterval
         viewModel.autoSave = autoSave
+        
+        // 启动或停止自动刷新Cookie定时器
+        if autoRefreshCookie {
+            viewModel.startAutoRefreshCookieIfNeeded()
+        } else {
+            viewModel.stopAutoRefreshCookie()
+        }
     }
     
     private func logout() {

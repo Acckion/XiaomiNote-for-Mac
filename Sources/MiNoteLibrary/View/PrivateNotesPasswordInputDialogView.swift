@@ -58,6 +58,8 @@ struct PrivateNotesPasswordInputDialogView: View {
             
             HStack {
                 Button("取消") {
+                    // 用户取消验证，通知视图模型
+                    viewModel.handlePrivateNotesPasswordCancel()
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
@@ -80,6 +82,12 @@ struct PrivateNotesPasswordInputDialogView: View {
                 // 延迟一小段时间，让对话框先显示
                 try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
                 authenticateWithTouchID()
+            }
+        }
+        .onDisappear {
+            // 当对话框消失时，如果用户没有验证成功，需要处理取消逻辑
+            if !viewModel.isPrivateNotesUnlocked {
+                viewModel.handlePrivateNotesPasswordCancel()
             }
         }
     }
@@ -144,4 +152,3 @@ struct PrivateNotesPasswordInputDialogView: View {
         }
     }
 }
-

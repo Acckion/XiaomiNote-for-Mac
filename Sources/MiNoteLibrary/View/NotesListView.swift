@@ -290,6 +290,46 @@ struct NotesListView: View {
             
             // 创建新的视图模型和视图
             let newViewModel = NotesViewModel()
+            
+            // 检查是否为私密笔记
+            if note.folderId == "2" {
+                // 私密笔记：需要验证密码
+                let passwordManager = PrivateNotesPasswordManager.shared
+                
+                if passwordManager.hasPassword() {
+                    // 已设置密码，需要验证
+                    // 显示密码输入对话框
+                    let passwordDialog = PrivateNotesPasswordInputDialogView(viewModel: newViewModel)
+                    let hostingView = NSHostingView(rootView: passwordDialog)
+                    
+                    // 创建对话框窗口
+                    let dialogWindow = NSWindow(
+                        contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+                        styleMask: [.titled, .closable],
+                        backing: .buffered,
+                        defer: false
+                    )
+                    dialogWindow.title = "访问私密笔记"
+                    dialogWindow.contentView = hostingView
+                    dialogWindow.center()
+                    
+                    // 显示对话框
+                    NSApplication.shared.runModal(for: dialogWindow)
+                    
+                    // 检查是否已解锁
+                    if !newViewModel.isPrivateNotesUnlocked {
+                        // 用户取消或验证失败，不打开新窗口
+                        dialogWindow.close()
+                        return
+                    }
+                    
+                    dialogWindow.close()
+                } else {
+                    // 未设置密码，直接允许访问
+                    newViewModel.isPrivateNotesUnlocked = true
+                }
+            }
+            
             newViewModel.selectedNote = note
             newViewModel.selectedFolder = viewModel.folders.first { $0.id == note.folderId } ?? viewModel.folders.first { $0.id == "0" }
             

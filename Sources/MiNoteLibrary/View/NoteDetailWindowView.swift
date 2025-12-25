@@ -6,6 +6,8 @@ import MiNoteLibrary
 public struct NoteDetailWindowView: View {
     @StateObject private var viewModel = NotesViewModel()
     @State private var noteId: String?
+    @State private var showingPasswordDialog = false
+    @State private var noteToOpen: Note?
     
     public init() {}
     
@@ -16,8 +18,14 @@ public struct NoteDetailWindowView: View {
                 // 使用 ContentView 来显示笔记详情
                 ContentView(viewModel: viewModel)
                     .onAppear {
-                        viewModel.selectedNote = note
-                        viewModel.selectedFolder = viewModel.folders.first { $0.id == note.folderId } ?? viewModel.folders.first { $0.id == "0" }
+                        // 检查是否为私密笔记
+                        if note.folderId == "2" {
+                            handlePrivateNoteAccess(note: note)
+                        } else {
+                            // 非私密笔记，直接设置
+                            viewModel.selectedNote = note
+                            viewModel.selectedFolder = viewModel.folders.first { $0.id == note.folderId } ?? viewModel.folders.first { $0.id == "0" }
+                        }
                     }
             } else {
                 ContentUnavailableView(
@@ -28,6 +36,23 @@ public struct NoteDetailWindowView: View {
             }
         }
         .frame(minWidth: 600, minHeight: 400)
+        .sheet(isPresented: $showingPasswordDialog) {
+            if let note = noteToOpen {
+                PrivateNotesPasswordInputDialogView(viewModel: viewModel)
+                    .onDisappear {
+                        // 检查是否已解锁
+                        if viewModel.isPrivateNotesUnlocked {
+                            // 已解锁，设置笔记
+                            viewModel.selectedNote = note
+                            viewModel.selectedFolder = viewModel.folders.first { $0.id == note.folderId } ?? viewModel.folders.first { $0.id == "0" }
+                        } else {
+                            // 未解锁，清空笔记ID
+                            self.noteId = nil
+                            self.noteToOpen = nil
+                        }
+                    }
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenNoteInNewWindow"))) { notification in
             if let noteId = notification.object as? String {
                 self.noteId = noteId
@@ -37,5 +62,19 @@ public struct NoteDetailWindowView: View {
             }
         }
     }
+    
+    private func handlePrivateNoteAccess(note: Note) {
+        let passwordManager = PrivateNotesPasswordManager.shared
+        
+        if passwordManager.hasPassword() {
+            // 已设置密码，需要验证
+            noteToOpen = note
+            showingPasswordDialog = true
+        } else {
+            // 未设置密码，直接允许访问
+            viewModel.isPrivateNotesUnlocked = true
+            viewModel.selectedNote = note
+            viewModel.selectedFolder = viewModel.folders.first { $0.id == note.folderId } ?? viewModel.folders.first { $0.id == "0" }
+        }
+    }
 }
-

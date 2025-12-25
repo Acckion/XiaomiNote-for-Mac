@@ -788,6 +788,12 @@ struct SidebarView: View {
     @ObservedObject var viewModel: NotesViewModel
     @State private var showingSyncMenu = false
     
+    // 行内编辑状态
+    @State private var editingFolderId: String? = nil
+    @State private var editingFolderName: String = ""
+    @State private var isCreatingNewFolder: Bool = false
+    @State private var newFolderName: String = ""
+    
     var body: some View {
         List(selection: $viewModel.selectedFolder) {
             // MARK: 小米笔记 Section
@@ -946,8 +952,24 @@ struct SidebarView: View {
                     // 否则按名称排序
                     return folder1.name < folder2.name
                 }) { folder in
-                    SidebarFolderRow(folder: folder)
+                    if editingFolderId == folder.id {
+                        // 编辑模式
+                        SidebarFolderRow(
+                            folder: folder,
+                            isEditing: true,
+                            editingName: $editingFolderName,
+                            onCommit: {
+                                saveRename(folder: folder)
+                            },
+                            onCancel: {
+                                cancelRename()
+                            }
+                        )
                         .tag(folder)
+                    } else {
+                        // 正常模式
+                        SidebarFolderRow(folder: folder)
+                            .tag(folder)
                         .contextMenu {
                             // 新建文件夹
                             Button {
@@ -985,7 +1007,7 @@ struct SidebarView: View {
                             
                             // 重命名文件夹
                             Button {
-                                renameFolder(folder)
+                                startRename(folder: folder)
                             } label: {
                                 Label("重命名文件夹", systemImage: "pencil.circle")
                             }
@@ -997,6 +1019,27 @@ struct SidebarView: View {
                                 Label("删除文件夹", systemImage: "trash")
                             }
                         }
+                    }
+                }
+                
+                // 新建文件夹行（只在创建时显示）
+                if isCreatingNewFolder {
+                    HStack {
+                        Image(systemName: "folder.badge.plus")
+                            .foregroundColor(.white)
+                            .font(.system(size: 16))
+                            .frame(width: 24)
+                        
+                        AutoFocusTextField(
+                            text: $newFolderName,
+                            placeholder: "输入文件夹名称",
+                            onCommit: saveNewFolder
+                        )
+                        .onSubmit {
+                            saveNewFolder()
+                        }
+                    }
+                    .tag(Folder(id: "new", name: "新建文件夹", count: 0, isSystem: false, isPinned: false))
                 }
             } header: {
                 HStack {
@@ -1013,6 +1056,23 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .accentColor(.yellow)  // 设置列表选择颜色为黄色
+        .onKeyPress(.return) {
+            // 检查是否应该进入重命名模式
+            if let selectedFolder = viewModel.selectedFolder,
+               !selectedFolder.isSystem,
+               selectedFolder.id != "uncategorized",
+               selectedFolder.id != "0",
+               selectedFolder.id != "starred",
+               selectedFolder.id != "2",
+               editingFolderId == nil,
+               !isCreatingNewFolder {
+                // 检查鼠标是否悬停在选中的文件夹上
+                // 这里需要检查鼠标位置，但由于 SwiftUI 的限制，我们暂时假设如果选中了文件夹就可以重命名
+                startRename(folder: selectedFolder)
+                return .handled
+            }
+            return .ignored
+        }
     }
     
     // MARK: - 侧边栏操作函数
@@ -1038,35 +1098,64 @@ struct SidebarView: View {
     
     /// 创建新文件夹
     /// 
-    /// 显示输入对话框，让用户输入文件夹名称
+    /// 进入行内编辑模式，在文件夹列表中添加新建文件夹行
     private func createNewFolder() {
-        // 显示输入对话框
-        let alert = NSAlert()
-        alert.messageText = "新建文件夹"
-        alert.informativeText = "请输入文件夹名称："
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "创建")
-        alert.addButton(withTitle: "取消")
+        isCreatingNewFolder = true
+        newFolderName = ""
+    }
+    
+    /// 保存新建的文件夹
+    private func saveNewFolder() {
+        let folderName = newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        let inputField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        inputField.placeholderString = "文件夹名称"
-        alert.accessoryView = inputField
-        alert.window.initialFirstResponder = inputField
+        // 验证文件夹名称
+        if folderName.isEmpty {
+            // 名称为空，取消创建
+            isCreatingNewFolder = false
+            newFolderName = ""
+            return
+        }
         
-        let response = alert.runModal()
+        // 检查是否有同名文件夹
+        if viewModel.folders.contains(where: { $0.name == folderName }) {
+            // 名称已存在，显示弹窗提示
+            showDuplicateNameAlert(isNewFolder: true, folderName: folderName)
+            return
+        }
         
-        if response == .alertFirstButtonReturn {
-            let folderName = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !folderName.isEmpty {
-                Task {
-                    do {
-                        try await viewModel.createFolder(name: folderName)
-                    } catch {
-                        print("[ContentView] 创建文件夹失败: \(error.localizedDescription)")
+        // 防止重复提交
+        guard isCreatingNewFolder else { return }
+        
+        // 立即重置状态，避免重复创建
+        let creating = isCreatingNewFolder
+        isCreatingNewFolder = false
+        newFolderName = ""
+        
+        // 执行创建
+        Task {
+            do {
+                if creating {
+                    try await viewModel.createFolder(name: folderName)
+                    // 创建成功后，刷新文件夹列表并选中新创建的文件夹
+                    DispatchQueue.main.async {
+                        // 刷新文件夹列表
+                        viewModel.loadFolders()
+                        // 查找并选中新创建的文件夹
+                        if let newFolder = viewModel.folders.first(where: { $0.name == folderName && !$0.isSystem }) {
+                            viewModel.selectedFolder = newFolder
+                        }
                     }
                 }
+            } catch {
+                print("[ContentView] 创建文件夹失败: \(error.localizedDescription)")
             }
         }
+    }
+    
+    /// 取消新建文件夹
+    private func cancelNewFolder() {
+        isCreatingNewFolder = false
+        newFolderName = ""
     }
     
     /// 切换文件夹置顶状态
@@ -1230,6 +1319,95 @@ struct SidebarView: View {
             alert.runModal()
         }
     }
+    
+    // MARK: - 行内编辑方法
+    
+    /// 开始重命名文件夹
+    /// - Parameter folder: 要重命名的文件夹
+    private func startRename(folder: Folder) {
+        editingFolderId = folder.id
+        editingFolderName = folder.name
+    }
+    
+    /// 保存重命名
+    /// - Parameter folder: 要重命名的文件夹
+    private func saveRename(folder: Folder) {
+        let newName = editingFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 验证新名称
+        if newName.isEmpty {
+            // 名称不能为空，恢复原名称
+            editingFolderId = nil
+            editingFolderName = ""
+            return
+        }
+        
+        if newName == folder.name {
+            // 名称未改变，无需操作
+            editingFolderId = nil
+            editingFolderName = ""
+            return
+        }
+        
+        // 检查是否有同名文件夹
+        if viewModel.folders.contains(where: { $0.name == newName && $0.id != folder.id }) {
+            // 名称已存在，显示弹窗提示
+            showDuplicateNameAlert(isNewFolder: false, folderName: newName)
+            return
+        }
+        
+        // 执行重命名
+        Task {
+            do {
+                try await viewModel.renameFolder(folder, newName: newName)
+                editingFolderId = nil
+                editingFolderName = ""
+            } catch {
+                // 重命名失败，恢复原名称
+                editingFolderId = nil
+                editingFolderName = ""
+                print("[ContentView] 重命名文件夹失败: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    /// 取消重命名
+    private func cancelRename() {
+        editingFolderId = nil
+        editingFolderName = ""
+    }
+    
+    /// 显示名称重复弹窗
+    /// - Parameters:
+    ///   - isNewFolder: 是否是新建文件夹（true）还是重命名（false）
+    ///   - folderName: 重复的文件夹名称
+    private func showDuplicateNameAlert(isNewFolder: Bool, folderName: String) {
+        let alert = NSAlert()
+        alert.messageText = "名称已被使用"
+        alert.informativeText = "已存在名为 \"\(folderName)\" 的文件夹。请选取一个不同的名称。"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "放弃更改")
+        alert.addButton(withTitle: "好")
+        
+        let response = alert.runModal()
+        
+        if response == .alertFirstButtonReturn {
+            // 放弃更改
+            if isNewFolder {
+                // 对于新建文件夹，取消创建
+                isCreatingNewFolder = false
+                newFolderName = ""
+            } else {
+                // 对于重命名，取消编辑
+                editingFolderId = nil
+                editingFolderName = ""
+            }
+        } else {
+            // 点击"好"，保持编辑状态
+            // 对于新建文件夹，保持创建状态
+            // 对于重命名，保持编辑状态
+        }
+    }
 }
 
 // MARK: - 侧边栏文件夹行视图
@@ -1238,7 +1416,7 @@ struct SidebarView: View {
 /// 
 /// 显示单个文件夹的信息：
 /// - 文件夹图标（根据文件夹类型显示不同图标和颜色）
-/// - 文件夹名称
+/// - 文件夹名称（支持编辑模式）
 /// - 笔记数量
 struct SidebarFolderRow: View {
     /// 文件夹数据
@@ -1246,6 +1424,42 @@ struct SidebarFolderRow: View {
     
     /// 名称前缀（可选，用于特殊显示）
     var prefix: String = ""
+    
+    /// 是否正在编辑
+    var isEditing: Bool = false
+    
+    /// 编辑中的名称（绑定到父视图）
+    @Binding var editingName: String
+    
+    /// 完成编辑的回调
+    var onCommit: (() -> Void)? = nil
+    
+    /// 取消编辑的回调
+    var onCancel: (() -> Void)? = nil
+    
+    /// 焦点状态
+    @FocusState private var isFocused: Bool
+    
+    /// 鼠标是否悬停在该行上
+    @State private var isHovering: Bool = false
+    
+    /// 初始化器 - 用于正常模式（非编辑模式）
+    init(folder: Folder, prefix: String = "") {
+        self.folder = folder
+        self.prefix = prefix
+        self.isEditing = false
+        self._editingName = .constant("")
+    }
+    
+    /// 初始化器 - 用于编辑模式
+    init(folder: Folder, isEditing: Bool, editingName: Binding<String>, onCommit: (() -> Void)? = nil, onCancel: (() -> Void)? = nil) {
+        self.folder = folder
+        self.prefix = ""
+        self.isEditing = isEditing
+        self._editingName = editingName
+        self.onCommit = onCommit
+        self.onCancel = onCancel
+    }
     
     var body: some View {
         HStack {
@@ -1255,17 +1469,60 @@ struct SidebarFolderRow: View {
                 .font(.system(size: 16))  // 图标大小：16pt
                 .frame(width: 24)  // 图标容器宽度：24px
             
-            // 文件夹名称
-            Text(prefix + folder.name)
-                .lineLimit(1)
+            if isEditing {
+                // 编辑模式：显示 TextField
+                TextField("文件夹名称", text: $editingName, onCommit: {
+                    onCommit?()
+                })
+                .textFieldStyle(.plain)
+                .focused($isFocused)
+                .onSubmit {
+                    onCommit?()
+                }
+                .onAppear {
+                    // 自动聚焦并选中所有文本
+                    DispatchQueue.main.async {
+                        isFocused = true
+                        // 选中所有文本
+                        if let textField = NSApp.keyWindow?.firstResponder as? NSTextView {
+                            textField.selectAll(nil)
+                        }
+                    }
+                }
+                .onChange(of: isEditing) { oldValue, newValue in
+                    if newValue {
+                        // 进入编辑模式时自动聚焦
+                        DispatchQueue.main.async {
+                            isFocused = true
+                        }
+                    } else {
+                        // 退出编辑模式时移除焦点
+                        isFocused = false
+                    }
+                }
+            } else {
+                // 正常模式：显示文件夹名称
+                Text(prefix + folder.name)
+                    .lineLimit(1)
+            }
             
             Spacer()
             
-            // 笔记数量
-            Text("\(folder.count)")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            // 笔记数量（编辑模式下不显示）
+            if !isEditing {
+                Text("\(folder.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .background(
+            // 透明背景用于捕获键盘事件
+            Color.clear
+                .contentShape(Rectangle())
+        )
     }
     
     /// 根据文件夹ID返回对应的图标
@@ -1363,6 +1620,37 @@ struct SyncStatusOverlay: View {
         .padding(.bottom, 20)
         .padding(.horizontal, 20)
         .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+}
+
+// MARK: - 自动聚焦文本字段
+
+/// 自动聚焦的文本字段
+/// 
+/// 一个自定义的 TextField，在出现时自动聚焦并选中所有文本
+struct AutoFocusTextField: View {
+    @Binding var text: String
+    let placeholder: String
+    let onCommit: () -> Void
+    
+    @FocusState private var isFocused: Bool
+    
+    var body: some View {
+        TextField(placeholder, text: $text, onCommit: onCommit)
+            .textFieldStyle(.plain)
+            .focused($isFocused)
+            .onAppear {
+                // 延迟一点时间确保视图已经完全渲染
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isFocused = true
+                    // 选中所有文本
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        if let textField = NSApp.keyWindow?.firstResponder as? NSTextView {
+                            textField.selectAll(nil)
+                        }
+                    }
+                }
+            }
     }
 }
 

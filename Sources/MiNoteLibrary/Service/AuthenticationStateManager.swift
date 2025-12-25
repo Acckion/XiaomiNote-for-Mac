@@ -148,23 +148,28 @@ class AuthenticationStateManager: ObservableObject {
     
     /// 处理Cookie过期
     private func handleCookieExpired() {
-        // 立即设置为离线状态，阻止后续请求（从弹窗显示开始就停止重复请求）
+        // 立即设置为离线状态，阻止后续请求
         isOnline = false
         isCookieExpired = true
         
-        // 只有在未保持离线模式且未显示过弹窗时，才显示弹窗
+        // 只有在未保持离线模式且未显示过弹窗时，才处理
         if !shouldStayOffline && !cookieExpiredShown {
-            // 显示弹窗
-            showCookieExpiredAlert = true
+            print("[AuthenticationStateManager] Cookie失效，开始静默刷新流程")
+            
+            // 标记为已显示过弹窗，避免重复触发
             cookieExpiredShown = true
-            print("[AuthenticationStateManager] Cookie失效，立即设置为离线状态并显示弹窗提示，后续请求将被阻止")
+            
+            // 启动静默刷新任务
+            Task {
+                await performSilentCookieRefresh()
+            }
         } else if shouldStayOffline {
-            // 如果用户已选择保持离线模式，不再显示弹窗
+            // 如果用户已选择保持离线模式，不再处理
             cookieExpiredShown = true
-            print("[AuthenticationStateManager] Cookie失效，用户已选择保持离线模式，不再显示弹窗")
+            print("[AuthenticationStateManager] Cookie失效，用户已选择保持离线模式，不再处理")
         } else {
-            // 已经显示过弹窗，只更新状态
-            print("[AuthenticationStateManager] Cookie失效，已显示过弹窗，只更新离线状态")
+            // 已经处理过，只更新状态
+            print("[AuthenticationStateManager] Cookie失效，已处理过，只更新离线状态")
         }
     }
     
@@ -222,6 +227,34 @@ class AuthenticationStateManager: ObservableObject {
         restoreOnlineStatus()
     }
     
+    /// 执行静默Cookie刷新
+    /// 
+    /// 自动地、隐藏界面地进行刷新，如果失败则显示弹窗
+    private func performSilentCookieRefresh() async {
+        print("[AuthenticationStateManager] 开始执行静默Cookie刷新")
+        
+        // 通知ViewModel执行静默刷新
+        NotificationCenter.default.post(name: Notification.Name("performSilentCookieRefresh"), object: nil)
+        
+        // 等待一段时间让静默刷新完成（10秒）
+        try? await Task.sleep(nanoseconds: 10_000_000_000)
+        
+        // 检查刷新结果
+        let hasValidCookie = service.hasValidCookie()
+        
+        await MainActor.run {
+            if hasValidCookie {
+                print("[AuthenticationStateManager] ✅ 静默Cookie刷新成功")
+                // 恢复在线状态
+                restoreOnlineStatus()
+            } else {
+                print("[AuthenticationStateManager] ❌ 静默Cookie刷新失败，显示弹窗要求手动刷新")
+                // 显示弹窗要求用户手动刷新
+                showCookieExpiredAlert = true
+            }
+        }
+    }
+    
     /// 显示登录视图
     func showLogin() {
         showLoginView = true
@@ -242,4 +275,3 @@ class AuthenticationStateManager: ObservableObject {
         showCookieRefreshView = false
     }
 }
-
