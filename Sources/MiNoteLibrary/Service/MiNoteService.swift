@@ -86,7 +86,7 @@ final class MiNoteService: @unchecked Sendable {
         cookieExpiredLock.lock()
         cookieExpiredFlag = false
         cookieExpiredLock.unlock()
-        print("[MiNoteService] Cookie 已设置，时间: \(cookieSetTime?.description ?? "未知")")
+        // print("[MiNoteService] Cookie 已设置，时间: \(cookieSetTime?.description ?? "未知")")
     }
     
     func isAuthenticated() -> Bool {
@@ -181,24 +181,24 @@ final class MiNoteService: @unchecked Sendable {
         
         // 保护期内：可能是Cookie刚设置，尚未完全生效，不视为过期
         if isInGracePeriod {
-            print("[MiNoteService] 401错误发生在Cookie设置后的保护期内，不视为过期")
+            // print("[MiNoteService] 401错误发生在Cookie设置后的保护期内，不视为过期")
             throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
         }
         
         // 已有Cookie且确实是认证错误：视为Cookie过期
         if self.hasValidCookie() && isAuthError {
-            print("[MiNoteService] 检测到Cookie过期（401 + 认证错误）")
+            // print("[MiNoteService] 检测到Cookie过期（401 + 认证错误）")
             if hasLoginURL {
-                print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
+                // print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
             }
             // 使用锁确保只触发一次回调
             cookieExpiredLock.lock()
             let shouldTrigger = !cookieExpiredFlag
             if shouldTrigger {
                 cookieExpiredFlag = true
-                print("[MiNoteService] 首次检测到Cookie失效，触发回调并阻止后续请求")
+                // print("[MiNoteService] 首次检测到Cookie失效，触发回调并阻止后续请求")
             } else {
-                print("[MiNoteService] Cookie失效已被处理，跳过重复回调")
+                // print("[MiNoteService] Cookie失效已被处理，跳过重复回调")
             }
             cookieExpiredLock.unlock()
             
@@ -211,16 +211,16 @@ final class MiNoteService: @unchecked Sendable {
         }
         // 已有Cookie但不是明确的认证错误：仍然可能是Cookie问题，设置为离线状态
         else if self.hasValidCookie() && !isAuthError {
-            print("[MiNoteService] 401错误但不是明确的认证失败，仍视为Cookie过期，设置为离线状态")
-            print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
+            // print("[MiNoteService] 401错误但不是明确的认证失败，仍视为Cookie过期，设置为离线状态")
+            // print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
             // 使用锁确保只触发一次回调
             cookieExpiredLock.lock()
             let shouldTrigger = !cookieExpiredFlag
             if shouldTrigger {
                 cookieExpiredFlag = true
-                print("[MiNoteService] 首次检测到Cookie失效，触发回调并阻止后续请求")
+                // print("[MiNoteService] 首次检测到Cookie失效，触发回调并阻止后续请求")
             } else {
-                print("[MiNoteService] Cookie失效已被处理，跳过重复回调")
+                // print("[MiNoteService] Cookie失效已被处理，跳过重复回调")
             }
             cookieExpiredLock.unlock()
             
@@ -302,7 +302,7 @@ final class MiNoteService: @unchecked Sendable {
                 
                 if httpResponse.statusCode != 200 {
                     let errorMessage = responseString ?? "未知错误"
-                    print("[MiNoteService] 删除笔记失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    // print("[MiNoteService] 删除笔记失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
                     throw MiNoteError.networkError(URLError(.badServerResponse))
                 }
             }
@@ -389,14 +389,14 @@ final class MiNoteService: @unchecked Sendable {
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "获取私密笔记失败"
-                    print("[MiNoteService] 获取私密笔记失败，code: \(code), message: \(message)")
+                    // print("[MiNoteService] 获取私密笔记失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
                 } else {
-                    print("[MiNoteService] ✅ 获取私密笔记成功，code: \(code)")
+                    // print("[MiNoteService] ✅ 获取私密笔记成功，code: \(code)")
                 }
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
-                print("[MiNoteService] ✅ 获取私密笔记成功（响应中没有 code 字段，但状态码为 200）")
+                // print("[MiNoteService] ✅ 获取私密笔记成功（响应中没有 code 字段，但状态码为 200）")
             }
             
             return json
@@ -645,7 +645,7 @@ final class MiNoteService: @unchecked Sendable {
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "创建笔记失败"
-                    print("[MiNoteService] 创建笔记失败，code: \(code), message: \(message)")
+                    // print("[MiNoteService] 创建笔记失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
                 }
             }
@@ -732,7 +732,7 @@ final class MiNoteService: @unchecked Sendable {
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "创建文件夹失败"
-                    print("[MiNoteService] 创建文件夹失败，code: \(code), message: \(message)")
+                    // print("[MiNoteService] 创建文件夹失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
                 }
             }
@@ -770,7 +770,7 @@ final class MiNoteService: @unchecked Sendable {
                     
                     if entryId == folderId {
                         foundFolder = folderEntry
-                        print("[MiNoteService] ✅ 找到目标文件夹: \(folderId), tag: \(folderEntry["tag"] as? String ?? "nil")")
+                        // print("[MiNoteService] ✅ 找到目标文件夹: \(folderId), tag: \(folderEntry["tag"] as? String ?? "nil")")
                         break
                     }
                 }
@@ -886,20 +886,20 @@ final class MiNoteService: @unchecked Sendable {
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
             
             // 记录响应内容以便调试
-            print("[MiNoteService] 重命名文件夹响应: \(json)")
+            // print("[MiNoteService] 重命名文件夹响应: \(json)")
             
             // 验证响应：检查 code 字段
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "重命名文件夹失败"
-                    print("[MiNoteService] 重命名文件夹失败，code: \(code), message: \(message)")
+                    // print("[MiNoteService] 重命名文件夹失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
                 } else {
-                    print("[MiNoteService] ✅ 重命名文件夹成功，code: \(code)")
+                    // print("[MiNoteService] ✅ 重命名文件夹成功，code: \(code)")
                 }
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
-                print("[MiNoteService] ✅ 重命名文件夹成功（响应中没有 code 字段，但状态码为 200）")
+                // print("[MiNoteService] ✅ 重命名文件夹成功（响应中没有 code 字段，但状态码为 200）")
             }
             
             return json
@@ -969,21 +969,21 @@ final class MiNoteService: @unchecked Sendable {
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
             
             // 记录响应内容以便调试
-            print("[MiNoteService] 删除文件夹响应: \(json)")
+            // print("[MiNoteService] 删除文件夹响应: \(json)")
             
             // 验证响应：检查 code 字段
             // 如果响应中没有 code 字段，或者 code 为 0，则认为成功
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "删除文件夹失败"
-                    print("[MiNoteService] 删除文件夹失败，code: \(code), message: \(message)")
+                    // print("[MiNoteService] 删除文件夹失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
                 } else {
-                    print("[MiNoteService] ✅ 删除文件夹成功，code: \(code)")
+                    // print("[MiNoteService] ✅ 删除文件夹成功，code: \(code)")
                 }
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
-                print("[MiNoteService] ✅ 删除文件夹成功（响应中没有 code 字段，但状态码为 200）")
+                // print("[MiNoteService] ✅ 删除文件夹成功（响应中没有 code 字段，但状态码为 200）")
             }
             
             return json
@@ -1006,7 +1006,7 @@ final class MiNoteService: @unchecked Sendable {
     /// - Returns: 更新后的笔记信息
     /// - Throws: MiNoteError（网络错误、认证错误等）
     func updateNote(noteId: String, title: String, content: String, folderId: String = "0", existingTag: String = "", originalCreateDate: Int? = nil, imageData: [[String: Any]]? = nil) async throws -> [String: Any] {
-        print("[[调试]]步骤34 [MiNoteService] 进入updateNote服务方法，noteId: \(noteId), title: \(title), content长度: \(content.count)")
+        // print("[[调试]]步骤34 [MiNoteService] 进入updateNote服务方法，noteId: \(noteId), title: \(title), content长度: \(content.count)")
         let createDate = originalCreateDate ?? Int(Date().timeIntervalSince1970 * 1000)
         
         // 参考正确的请求示例：extraInfo 应该是包含字段的 JSON 字符串
@@ -1017,7 +1017,7 @@ final class MiNoteService: @unchecked Sendable {
             "title": title,
             "mind_content": ""
         ]
-        print("[[调试]]步骤35 [MiNoteService] 构建extraInfo，title: \(title)")
+        // print("[[调试]]步骤35 [MiNoteService] 构建extraInfo，title: \(title)")
         
         guard let extraInfoData = try? JSONSerialization.data(withJSONObject: extraInfoDict),
               let extraInfoString = String(data: extraInfoData, encoding: .utf8) else {
@@ -1030,7 +1030,7 @@ final class MiNoteService: @unchecked Sendable {
         if cleanedContent.hasPrefix("<new-format/>") {
             cleanedContent = String(cleanedContent.dropFirst("<new-format/>".count))
         }
-        print("[[调试]]步骤36 [MiNoteService] 清理content，原始长度: \(content.count), 清理后长度: \(cleanedContent.count)")
+        // print("[[调试]]步骤36 [MiNoteService] 清理content，原始长度: \(content.count), 清理后长度: \(cleanedContent.count)")
         
         // 构建 setting 对象，如果提供了图片数据则包含
         var setting: [String: Any] = [
@@ -1041,7 +1041,7 @@ final class MiNoteService: @unchecked Sendable {
         if let imageData = imageData, !imageData.isEmpty {
             setting["data"] = imageData
         }
-        print("[[调试]]步骤37 [MiNoteService] 构建setting对象，包含图片数据: \(imageData != nil && !imageData!.isEmpty)")
+        // print("[[调试]]步骤37 [MiNoteService] 构建setting对象，包含图片数据: \(imageData != nil && !imageData!.isEmpty)")
         
         let entry: [String: Any] = [
             "id": noteId,
@@ -1056,7 +1056,7 @@ final class MiNoteService: @unchecked Sendable {
             "alertDate": 0,
             "extraInfo": extraInfoString
         ]
-        print("[[调试]]步骤38 [MiNoteService] 构建entry对象，id: \(noteId), tag: \(existingTag), content长度: \(cleanedContent.count)")
+        // print("[[调试]]步骤38 [MiNoteService] 构建entry对象，id: \(noteId), tag: \(existingTag), content长度: \(cleanedContent.count)")
         
         // 使用 JSONSerialization 的 sortedKeys 选项确保字段顺序一致
         guard let entryData = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]),
@@ -1064,7 +1064,7 @@ final class MiNoteService: @unchecked Sendable {
             NetworkLogger.shared.logError(url: "\(baseURL)/note/note/\(noteId)", method: "POST", error: URLError(.cannotParseResponse))
             throw URLError(.cannotParseResponse)
         }
-        print("[[调试]]步骤39 [MiNoteService] 序列化entry为JSON，JSON长度: \(entryJson.count)")
+        // print("[[调试]]步骤39 [MiNoteService] 序列化entry为JSON，JSON长度: \(entryJson.count)")
         
         // 参考 Obsidian 插件：使用 encodeURIComponent 进行 URL 编码
         // 在 Swift 中，我们需要模拟 encodeURIComponent 的行为
@@ -1072,8 +1072,8 @@ final class MiNoteService: @unchecked Sendable {
         let entryEncoded = encodeURIComponent(entryJson)
         let serviceTokenEncoded = encodeURIComponent(serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
-        print("[[调试]]步骤40 [MiNoteService] URL编码完成，entry编码后长度: \(entryEncoded.count)")
-        print("[[调试]]步骤41 [MiNoteService] 构建请求体，body长度: \(body.count)")
+        // print("[[调试]]步骤40 [MiNoteService] URL编码完成，entry编码后长度: \(entryEncoded.count)")
+        // print("[[调试]]步骤41 [MiNoteService] 构建请求体，body长度: \(body.count)")
         
         let urlString = "\(baseURL)/note/note/\(noteId)"
         
@@ -1096,15 +1096,15 @@ final class MiNoteService: @unchecked Sendable {
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
         request.httpBody = body.data(using: .utf8)
-        print("[[调试]]步骤42 [MiNoteService] 创建HTTP请求，URL: \(urlString), method: POST")
+        // print("[[调试]]步骤42 [MiNoteService] 创建HTTP请求，URL: \(urlString), method: POST")
         
         do {
-            print("[[调试]]步骤43 [MiNoteService] 发送网络请求，笔记ID: \(noteId)")
+            // print("[[调试]]步骤43 [MiNoteService] 发送网络请求，笔记ID: \(noteId)")
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
                 let responseString = String(data: data, encoding: .utf8)
-                print("[[调试]]步骤44 [MiNoteService] 接收HTTP响应，状态码: \(httpResponse.statusCode)")
+                // print("[[调试]]步骤44 [MiNoteService] 接收HTTP响应，状态码: \(httpResponse.statusCode)")
                 
                 // 记录响应
                 NetworkLogger.shared.logResponse(
@@ -1117,14 +1117,14 @@ final class MiNoteService: @unchecked Sendable {
                 )
                 
                 if httpResponse.statusCode == 401 {
-                    print("[[调试]]步骤45 [MiNoteService] 处理401错误，需要重新认证")
+                    // print("[[调试]]步骤45 [MiNoteService] 处理401错误，需要重新认证")
                     try handle401Error(responseBody: responseString ?? "", urlString: urlString)
                 }
             }
             
-            print("[[调试]]步骤46 [MiNoteService] 解析响应JSON，响应长度: \(data.count)")
+            // print("[[调试]]步骤46 [MiNoteService] 解析响应JSON，响应长度: \(data.count)")
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-            print("[[调试]]步骤47 [MiNoteService] 返回响应，code: \(json["code"] ?? "无")")
+            // print("[[调试]]步骤47 [MiNoteService] 返回响应，code: \(json["code"] ?? "无")")
             return json
         } catch {
             NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
@@ -1143,7 +1143,7 @@ final class MiNoteService: @unchecked Sendable {
     /// 
     /// - Returns: 是否成功刷新（当前实现返回false，表示需要用户手动操作）
     func refreshCookie() async throws -> Bool {
-        print("[MiNoteService] 开始刷新Cookie...")
+        // print("[MiNoteService] 开始刷新Cookie...")
         
         // 注意：实际的cookie刷新逻辑在 CookieRefreshView 中实现
         // 这里只负责清除旧cookie，返回false表示需要用户手动操作
@@ -1163,7 +1163,7 @@ final class MiNoteService: @unchecked Sendable {
         cookieExpiredFlag = false
         cookieExpiredLock.unlock()
         UserDefaults.standard.removeObject(forKey: "minote_cookie")
-        print("Cookie已清除")
+        // print("Cookie已清除")
     }
     
     func hasValidCookie() -> Bool {
@@ -1188,7 +1188,7 @@ final class MiNoteService: @unchecked Sendable {
         // 首先尝试从data字段获取entries
         if let data = response["data"] as? [String: Any],
            let entries = data["entries"] as? [[String: Any]] {
-            print("[MiNoteService] 从data字段找到 \(entries.count) 条笔记")
+            // print("[MiNoteService] 从data字段找到 \(entries.count) 条笔记")
             for entry in entries {
                 if let note = Note.fromMinoteData(entry) {
                     notes.append(note)
@@ -1197,17 +1197,17 @@ final class MiNoteService: @unchecked Sendable {
         }
         // 如果data字段没有，尝试直接从响应中获取（向后兼容）
         else if let entries = response["entries"] as? [[String: Any]] {
-            print("[MiNoteService] 从响应顶层找到 \(entries.count) 条笔记")
+            // print("[MiNoteService] 从响应顶层找到 \(entries.count) 条笔记")
             for entry in entries {
                 if let note = Note.fromMinoteData(entry) {
                     notes.append(note)
                 }
             }
         } else {
-            print("[MiNoteService] 警告：未找到entries字段")
-            print("[MiNoteService] 响应结构: \(response.keys)")
+            // print("[MiNoteService] 警告：未找到entries字段")
+            // print("[MiNoteService] 响应结构: \(response.keys)")
             if let data = response["data"] as? [String: Any] {
-                print("[MiNoteService] data字段包含: \(data.keys)")
+                // print("[MiNoteService] data字段包含: \(data.keys)")
             }
         }
         
@@ -1221,24 +1221,24 @@ final class MiNoteService: @unchecked Sendable {
         // 参考 Obsidian 插件：文件夹在 page.data.folders 中，使用 subject 字段作为名称
         if let data = response["data"] as? [String: Any],
            let folderEntries = data["folders"] as? [[String: Any]] {
-            print("[MiNoteService] 从data字段找到 \(folderEntries.count) 个文件夹条目")
+            // print("[MiNoteService] 从data字段找到 \(folderEntries.count) 个文件夹条目")
             for folderEntry in folderEntries {
                 // 检查类型，只处理文件夹类型（参考 Obsidian 插件）
                 if let type = folderEntry["type"] as? String, type == "folder" {
                 if let folder = Folder.fromMinoteData(folderEntry) {
                     folders.append(folder)
-                        print("[MiNoteService] 解析文件夹: id=\(folder.id), name=\(folder.name)")
+                        // print("[MiNoteService] 解析文件夹: id=\(folder.id), name=\(folder.name)")
                     } else {
-                        print("[MiNoteService] 警告：无法解析文件夹条目: \(folderEntry)")
+                        // print("[MiNoteService] 警告：无法解析文件夹条目: \(folderEntry)")
                     }
                 } else {
-                    print("[MiNoteService] 跳过非文件夹条目，type=\(folderEntry["type"] ?? "未知")")
+                    // print("[MiNoteService] 跳过非文件夹条目，type=\(folderEntry["type"] ?? "未知")")
                 }
             }
         }
         // 如果data字段没有，尝试直接从响应中获取（向后兼容）
         else if let folderEntries = response["folders"] as? [[String: Any]] {
-            print("[MiNoteService] 从响应顶层找到 \(folderEntries.count) 个文件夹")
+            // print("[MiNoteService] 从响应顶层找到 \(folderEntries.count) 个文件夹")
             for folderEntry in folderEntries {
                 if let type = folderEntry["type"] as? String, type == "folder" {
                 if let folder = Folder.fromMinoteData(folderEntry) {
@@ -1247,10 +1247,10 @@ final class MiNoteService: @unchecked Sendable {
                 }
             }
         } else {
-            print("[MiNoteService] 警告：未找到folders字段")
+            // print("[MiNoteService] 警告：未找到folders字段")
             // 打印响应结构以便调试
             if let data = response["data"] as? [String: Any] {
-                print("[MiNoteService] data字段包含: \(data.keys)")
+                // print("[MiNoteService] data字段包含: \(data.keys)")
             }
         }
         
@@ -1267,7 +1267,7 @@ final class MiNoteService: @unchecked Sendable {
             folders.insert(Folder(id: "starred", name: "置顶", count: 0, isSystem: true), at: starredIndex)
         }
         
-        print("[MiNoteService] 最终文件夹列表: \(folders.map { "\($0.name)(\($0.id))" }.joined(separator: ", "))")
+        // print("[MiNoteService] 最终文件夹列表: \(folders.map { "\($0.name)(\($0.id))" }.joined(separator: ", "))")
         
         return folders
     }
@@ -1302,7 +1302,7 @@ final class MiNoteService: @unchecked Sendable {
         let md5 = md5Hash(of: imageData)
         let fileSize = imageData.count
         
-        print("[MiNoteService] 开始上传图片: \(fileName), 大小: \(fileSize) 字节, SHA1: \(sha1)")
+        // print("[MiNoteService] 开始上传图片: \(fileName), 大小: \(fileSize) 字节, SHA1: \(sha1)")
         
         // 第一步：请求上传
         let requestUploadResponse = try await requestImageUpload(
@@ -1320,7 +1320,7 @@ final class MiNoteService: @unchecked Sendable {
         // 响应格式：{"data": {"fileId": "...", "digest": "...", "mimeType": "..."}}
         if let existingFileId = requestUploadResponse["fileId"] as? String {
             fileId = existingFileId
-            print("[MiNoteService] ✅ 情况1：服务器有缓存，fileId: \(fileId!)")
+            // print("[MiNoteService] ✅ 情况1：服务器有缓存，fileId: \(fileId!)")
         }
         // 情况2：服务器无缓存（新文件）
         // 响应格式：{"data": {"storage": {"uploadId": "...", "exists": false, "kss": {...}}}}
@@ -1332,14 +1332,14 @@ final class MiNoteService: @unchecked Sendable {
                 // 但为了安全起见，还是处理一下
                 if let existingFileId = storage["fileId"] as? String {
                     fileId = existingFileId
-                    print("[MiNoteService] ✅ 情况1（备用路径）：服务器有缓存，从 storage 获取 fileId: \(fileId!)")
+                    // print("[MiNoteService] ✅ 情况1（备用路径）：服务器有缓存，从 storage 获取 fileId: \(fileId!)")
                 } else {
-                    print("[MiNoteService] ⚠️ 文件已存在但没有 fileId，这不应该发生")
+                    // print("[MiNoteService] ⚠️ 文件已存在但没有 fileId，这不应该发生")
                     throw MiNoteError.invalidResponse
                 }
             } else {
                 // 情况2：新文件，需要实际上传
-                print("[MiNoteService] ✅ 情况2：服务器无缓存，需要上传新文件")
+                // print("[MiNoteService] ✅ 情况2：服务器无缓存，需要上传新文件")
                 // 新文件，需要实际上传
                 guard let uploadId = storage["uploadId"] as? String,
                       let kss = storage["kss"] as? [String: Any],
@@ -1352,7 +1352,7 @@ final class MiNoteService: @unchecked Sendable {
             throw MiNoteError.invalidResponse
         }
         
-                print("[MiNoteService] 新文件，需要上传，uploadId: \(uploadId)")
+                // print("[MiNoteService] 新文件，需要上传，uploadId: \(uploadId)")
         
                 // 第二步：实际上传文件数据，获取 commit_meta
                 let commitMeta = try await uploadFileChunk(
@@ -1372,7 +1372,7 @@ final class MiNoteService: @unchecked Sendable {
                     commitMeta: commitMeta
                 )
                 
-                print("[MiNoteService] 文件上传并提交成功，fileId: \(fileId!)")
+                // print("[MiNoteService] 文件上传并提交成功，fileId: \(fileId!)")
             }
         }
         
@@ -1380,7 +1380,7 @@ final class MiNoteService: @unchecked Sendable {
             throw MiNoteError.invalidResponse
         }
         
-        print("[MiNoteService] 图片上传流程完成，fileId: \(finalFileId)")
+        // print("[MiNoteService] 图片上传流程完成，fileId: \(finalFileId)")
         
         // 返回文件信息
         return [
@@ -1570,7 +1570,7 @@ final class MiNoteService: @unchecked Sendable {
             )
             
             guard httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
-                print("[MiNoteService] 上传文件块失败，状态码: \(httpResponse.statusCode), 响应: \(responseString)")
+                // print("[MiNoteService] 上传文件块失败，状态码: \(httpResponse.statusCode), 响应: \(responseString)")
                 throw MiNoteError.networkError(URLError(.badServerResponse))
             }
             
@@ -1578,24 +1578,24 @@ final class MiNoteService: @unchecked Sendable {
             // 响应可能是 JSON 格式，包含 commit_meta 字段
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let commitMeta = json["commit_meta"] as? String {
-                print("[MiNoteService] 从上传响应中获取到 commit_meta")
+                // print("[MiNoteService] 从上传响应中获取到 commit_meta")
                 return commitMeta
             } else if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let dataDict = json["data"] as? [String: Any],
                       let commitMeta = dataDict["commit_meta"] as? String {
-                print("[MiNoteService] 从上传响应的 data 字段中获取到 commit_meta")
+                // print("[MiNoteService] 从上传响应的 data 字段中获取到 commit_meta")
                 return commitMeta
             } else {
                 // 如果响应中没有 commit_meta，使用 blockMeta 作为 fallback
                 // 或者可能需要从其他地方获取
-                print("[MiNoteService] ⚠️ 上传响应中没有 commit_meta，使用 blockMeta 作为 fallback")
-                print("[MiNoteService] 上传响应内容: \(responseString.prefix(500))")
+                // print("[MiNoteService] ⚠️ 上传响应中没有 commit_meta，使用 blockMeta 作为 fallback")
+                // print("[MiNoteService] 上传响应内容: \(responseString.prefix(500))")
                 return blockMeta
             }
         }
         
         // 如果无法解析响应，使用 blockMeta 作为 fallback
-        print("[MiNoteService] ⚠️ 无法解析上传响应，使用 blockMeta 作为 fallback")
+        // print("[MiNoteService] ⚠️ 无法解析上传响应，使用 blockMeta 作为 fallback")
         return blockMeta
     }
     
@@ -1681,7 +1681,7 @@ final class MiNoteService: @unchecked Sendable {
             throw MiNoteError.invalidResponse
         }
         
-        print("[MiNoteService] 提交上传成功，fileId: \(fileId)")
+        // print("[MiNoteService] 提交上传成功，fileId: \(fileId)")
         return fileId
     }
     
@@ -1750,7 +1750,7 @@ final class MiNoteService: @unchecked Sendable {
                 // 检查其他错误状态码
                 guard httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
                     let errorMessage = responseString ?? "未知错误"
-                    print("[MiNoteService] 文件上传失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    // print("[MiNoteService] 文件上传失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
                     throw MiNoteError.networkError(URLError(.badServerResponse))
                 }
             }
@@ -1760,11 +1760,11 @@ final class MiNoteService: @unchecked Sendable {
             // 检查响应是否成功
             if let code = json["code"] as? Int, code != 0 {
                 let message = json["message"] as? String ?? "上传失败"
-                print("[MiNoteService] 文件上传失败: \(message)")
+                // print("[MiNoteService] 文件上传失败: \(message)")
                 throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
             }
             
-            print("[MiNoteService] 文件上传成功")
+            // print("[MiNoteService] 文件上传成功")
             return json
         } catch {
             NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
@@ -1953,14 +1953,14 @@ final class MiNoteService: @unchecked Sendable {
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "获取笔记历史版本失败"
-                    print("[MiNoteService] 获取笔记历史版本失败，code: \(code), message: \(message)")
+                    // print("[MiNoteService] 获取笔记历史版本失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
                 } else {
-                    print("[MiNoteService] ✅ 获取笔记历史版本成功，code: \(code)")
+                    // print("[MiNoteService] ✅ 获取笔记历史版本成功，code: \(code)")
                 }
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
-                print("[MiNoteService] ✅ 获取笔记历史版本成功（响应中没有 code 字段，但状态码为 200）")
+                // print("[MiNoteService] ✅ 获取笔记历史版本成功（响应中没有 code 字段，但状态码为 200）")
             }
             
             return json
@@ -2038,7 +2038,7 @@ extension MiNoteService {
                 
                 if httpResponse.statusCode != 200 {
                     let errorMessage = responseString ?? "未知错误"
-                    print("[MiNoteService] 获取历史版本列表失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    // print("[MiNoteService] 获取历史版本列表失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
                     throw MiNoteError.networkError(URLError(.badServerResponse))
                 }
             }
@@ -2109,7 +2109,7 @@ extension MiNoteService {
                 
                 if httpResponse.statusCode != 200 {
                     let errorMessage = responseString ?? "未知错误"
-                    print("[MiNoteService] 获取历史版本内容失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    // print("[MiNoteService] 获取历史版本内容失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
                     throw MiNoteError.networkError(URLError(.badServerResponse))
                 }
             }
@@ -2175,7 +2175,7 @@ extension MiNoteService {
                 
                 if httpResponse.statusCode != 200 {
                     let errorMessage = responseString ?? "未知错误"
-                    print("[MiNoteService] 恢复历史版本失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    // print("[MiNoteService] 恢复历史版本失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
                     throw MiNoteError.networkError(URLError(.badServerResponse))
                 }
             }
@@ -2276,14 +2276,14 @@ extension MiNoteService {
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "获取用户信息失败"
-                    print("[MiNoteService] 获取用户信息失败，code: \(code), message: \(message)")
+                    // print("[MiNoteService] 获取用户信息失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
                 } else {
-                    print("[MiNoteService] ✅ 获取用户信息成功，code: \(code)")
+                    // print("[MiNoteService] ✅ 获取用户信息成功，code: \(code)")
                 }
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
-                print("[MiNoteService] ✅ 获取用户信息成功（响应中没有 code 字段，但状态码为 200）")
+                // print("[MiNoteService] ✅ 获取用户信息成功（响应中没有 code 字段，但状态码为 200）")
             }
             
             // 返回 data 字段中的用户信息
@@ -2376,14 +2376,14 @@ extension MiNoteService {
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "服务检查失败"
-                    print("[MiNoteService] 服务检查失败，code: \(code), message: \(message)")
+                    // print("[MiNoteService] 服务检查失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
                 } else {
-                    print("[MiNoteService] ✅ 服务检查成功，code: \(code)")
+                    // print("[MiNoteService] ✅ 服务检查成功，code: \(code)")
                 }
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
-                print("[MiNoteService] ✅ 服务检查成功（响应中没有 code 字段，但状态码为 200）")
+                // print("[MiNoteService] ✅ 服务检查成功（响应中没有 code 字段，但状态码为 200）")
             }
             
             return json
@@ -2471,14 +2471,14 @@ extension MiNoteService {
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "获取回收站笔记失败"
-                    print("[MiNoteService] 获取回收站笔记失败，code: \(code), message: \(message)")
+                    // print("[MiNoteService] 获取回收站笔记失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
                 } else {
-                    print("[MiNoteService] ✅ 获取回收站笔记成功，code: \(code)")
+                    // print("[MiNoteService] ✅ 获取回收站笔记成功，code: \(code)")
                 }
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
-                print("[MiNoteService] ✅ 获取回收站笔记成功（响应中没有 code 字段，但状态码为 200）")
+                // print("[MiNoteService] ✅ 获取回收站笔记成功（响应中没有 code 字段，但状态码为 200）")
             }
             
             return json

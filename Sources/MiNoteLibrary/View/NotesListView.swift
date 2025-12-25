@@ -54,7 +54,6 @@ struct NotesListView: View {
                     Section {
                         ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
                             NoteRow(note: note, showDivider: index < notes.count - 1, viewModel: viewModel)
-                                .id("\(note.id)-\(note.updatedAt.timeIntervalSince1970)")
                                 .tag(note)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                     swipeActions(for: note)
@@ -79,7 +78,6 @@ struct NotesListView: View {
                     Section {
                         ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
                             NoteRow(note: note, showDivider: index < notes.count - 1, viewModel: viewModel)
-                                .id("\(note.id)-\(note.updatedAt.timeIntervalSince1970)")
                                 .tag(note)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                     swipeActions(for: note)
@@ -371,25 +369,62 @@ struct NotesListView: View {
 }
 
 struct NoteRow: View {
-    @State private var note: Note
+    let note: Note
     let showDivider: Bool
     let viewModel: NotesViewModel?
     @State private var thumbnailImage: NSImage? = nil
     @State private var currentImageFileId: String? = nil // 跟踪当前显示的图片ID
     
     init(note: Note, showDivider: Bool = false, viewModel: NotesViewModel? = nil) {
-        self._note = State(initialValue: note)
+        self.note = note
         self.showDivider = showDivider
         self.viewModel = viewModel
-        print("[NoteRow] 初始化，笔记ID: \(note.id), 标题: \(note.title), 内容长度: \(note.content.count), 更新时间: \(note.updatedAt)")
     }
     
-    /// 更新笔记内容（当外部笔记变化时调用）
-    private func updateNoteIfNeeded(_ newNote: Note) {
-        if note.id == newNote.id && note != newNote {
-            print("[NoteRow] 外部笔记变化，更新内部状态，笔记ID: \(note.id), 旧内容长度: \(note.content.count), 新内容长度: \(newNote.content.count)")
-            note = newNote
+    /// 判断是否应该显示文件夹信息
+    private var shouldShowFolderInfo: Bool {
+        guard let viewModel = viewModel else { return false }
+        
+        // 在"所有笔记"文件夹中显示文件夹信息
+        if let selectedFolder = viewModel.selectedFolder, selectedFolder.id == "0" {
+            return true
         }
+        
+        // 在搜索结果中显示文件夹信息
+        if !viewModel.searchText.isEmpty {
+            return true
+        }
+        
+        // 在筛选结果中显示文件夹信息
+        if viewModel.searchFilterHasTags || viewModel.searchFilterHasChecklist || 
+           viewModel.searchFilterHasImages || viewModel.searchFilterHasAudio || 
+           viewModel.searchFilterIsPrivate {
+            return true
+        }
+        
+        return false
+    }
+    
+    /// 获取文件夹名称
+    private func getFolderName(for note: Note) -> String {
+        guard let viewModel = viewModel else { return "" }
+        
+        // 如果是私密笔记
+        if note.folderId == "2" {
+            return "私密笔记"
+        }
+        
+        // 查找对应的文件夹
+        if let folder = viewModel.folders.first(where: { $0.id == note.folderId }) {
+            return folder.name
+        }
+        
+        // 如果是未分类的笔记
+        if note.folderId == "0" || note.folderId.isEmpty {
+            return "未分类"
+        }
+        
+        return "未知文件夹"
     }
     
     var body: some View {
@@ -425,20 +460,6 @@ struct NoteRow: View {
                                 .foregroundColor(.secondary)
                                 .lineLimit(1)
                         }
-                    }
-                    
-                    // 文件夹显示（当在"所有笔记"文件夹或有搜索/筛选时显示）
-                    if shouldShowFolder {
-                        HStack(spacing: 4) {
-                            Image(systemName: "folder")
-                                .font(.system(size: 9))
-                                .foregroundColor(.secondary)
-                            Text(getFolderName(for: note.folderId))
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                        }
-                        .padding(.top, 2)
                     }
                 }
                 
@@ -492,21 +513,31 @@ struct NoteRow: View {
             .padding(.horizontal, 8)
             .onChange(of: note.content) { oldValue, newValue in
                 // 笔记内容变化时，重新检查并更新图片
-                print("[NoteRow] 内容变化检测，笔记ID: \(note.id), 旧长度: \(oldValue.count), 新长度: \(newValue.count)")
                 updateThumbnail()
             }
             .onChange(of: note.updatedAt) { oldValue, newValue in
                 // 更新时间变化时，重新检查并更新图片
-                print("[NoteRow] 更新时间变化检测，笔记ID: \(note.id), 旧时间: \(oldValue), 新时间: \(newValue)")
                 updateThumbnail()
             }
-            .onChange(of: note) { oldValue, newValue in
-                // 笔记对象本身变化时，重新检查并更新图片
-                print("[NoteRow] 笔记对象变化检测，笔记ID: \(note.id), 旧内容长度: \(oldValue.content.count), 新内容长度: \(newValue.content.count)")
-                updateThumbnail()
-            }
-            .onAppear {
-                print("[NoteRow] 视图出现，笔记ID: \(note.id), 内容长度: \(note.content.count), 更新时间: \(note.updatedAt)")
+            
+            // 文件夹信息（在"所有笔记"和搜索结果中显示）- 移动到卡片最下方
+            if shouldShowFolderInfo {
+                let folderName = getFolderName(for: note)
+                if !folderName.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "folder")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        
+                        Text(folderName)
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 4)
+                }
             }
             
             // 分割线：放在笔记项之间的中间位置，向下偏移一点以居中
@@ -827,50 +858,6 @@ struct NoteRow: View {
         }
         
         return resultText
-    }
-    
-    /// 判断是否应该显示文件夹信息
-    private var shouldShowFolder: Bool {
-        guard let viewModel = viewModel else { return false }
-        
-        // 检查是否在"所有笔记"文件夹
-        let isAllNotesFolder = viewModel.selectedFolder?.id == "0"
-        
-        // 检查是否有搜索文本
-        let hasSearchText = !viewModel.searchText.isEmpty
-        
-        // 检查是否有筛选选项
-        let hasSearchFilters = viewModel.searchFilterHasTags || 
-                               viewModel.searchFilterHasChecklist || 
-                               viewModel.searchFilterHasImages || 
-                               viewModel.searchFilterHasAudio || 
-                               viewModel.searchFilterIsPrivate
-        
-        // 当在"所有笔记"文件夹或有搜索/筛选时显示文件夹
-        return isAllNotesFolder || hasSearchText || hasSearchFilters
-    }
-    
-    /// 获取文件夹名称
-    private func getFolderName(for folderId: String) -> String {
-        guard let viewModel = viewModel else { return folderId }
-        
-        // 系统文件夹
-        switch folderId {
-        case "0":
-            return "所有笔记"
-        case "starred":
-            return "置顶"
-        case "2":
-            return "私密笔记"
-        case "uncategorized":
-            return "未分类"
-        default:
-            // 查找用户文件夹
-            if let folder = viewModel.folders.first(where: { $0.id == folderId }) {
-                return folder.name
-            }
-            return folderId
-        }
     }
 }
 

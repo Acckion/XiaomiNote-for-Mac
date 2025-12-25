@@ -49,7 +49,7 @@ final class DatabaseService: @unchecked Sendable {
             let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
             guard sqlite3_open_v2(dbPath.path, &db, flags, nil) == SQLITE_OK else {
                 let errorMsg = db != nil ? String(cString: sqlite3_errmsg(db)) : "无法打开数据库"
-                print("[Database] 无法打开数据库: \(errorMsg)")
+                // print("[Database] 无法打开数据库: \(errorMsg)")
                 if db != nil {
                     sqlite3_close(db)
                     db = nil
@@ -63,7 +63,7 @@ final class DatabaseService: @unchecked Sendable {
             // 启用外键约束
             sqlite3_exec(db, "PRAGMA foreign_keys = ON;", nil, nil, nil)
             
-            print("[Database] 数据库已打开: \(dbPath.path)")
+            // print("[Database] 数据库已打开: \(dbPath.path)")
             
             // 创建表
             createTables()
@@ -200,7 +200,7 @@ final class DatabaseService: @unchecked Sendable {
         let updateStatus = "UPDATE offline_operations SET status = 'pending' WHERE status IS NULL OR status = '';"
         executeSQL(updateStatus, ignoreError: true)
         
-        print("[Database] 离线操作表迁移完成")
+        // print("[Database] 离线操作表迁移完成")
     }
     
     private func executeSQL(_ sql: String, ignoreError: Bool = false) {
@@ -213,14 +213,14 @@ final class DatabaseService: @unchecked Sendable {
         
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             if !ignoreError {
-            print("[Database] SQL 准备失败: \(String(cString: sqlite3_errmsg(db)))")
+            // print("[Database] SQL 准备失败: \(String(cString: sqlite3_errmsg(db)))")
             }
             return
         }
         
         let result = sqlite3_step(statement)
         if result != SQLITE_DONE && !ignoreError {
-            print("[Database] SQL 执行失败: \(String(cString: sqlite3_errmsg(db)))")
+            // print("[Database] SQL 执行失败: \(String(cString: sqlite3_errmsg(db)))")
         }
     }
     
@@ -229,7 +229,7 @@ final class DatabaseService: @unchecked Sendable {
             if db != nil {
                 sqlite3_close(db)
                 db = nil
-                print("[Database] 数据库已关闭")
+                // print("[Database] 数据库已关闭")
             }
         }
     }
@@ -243,7 +243,7 @@ final class DatabaseService: @unchecked Sendable {
     /// - Parameter note: 要保存的笔记对象
     /// - Throws: DatabaseError（数据库操作失败）
     func saveNote(_ note: Note) throws {
-        print("![[debug]] [Database] 保存笔记，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
+        // print("![[debug]] [Database] 保存笔记，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
         
         try dbQueue.sync(flags: .barrier) {
             let sql = """
@@ -260,11 +260,11 @@ final class DatabaseService: @unchecked Sendable {
             
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("![[debug]] [Database] ❌ SQL准备失败: \(errorMsg)")
+                // print("![[debug]] [Database] ❌ SQL准备失败: \(errorMsg)")
                 throw DatabaseError.prepareFailed(errorMsg)
             }
             
-            print("![[debug]] ========== 数据流程节点DB2: 绑定参数 ==========")
+            // print("![[debug]] ========== 数据流程节点DB2: 绑定参数 ==========")
             // 绑定参数
             sqlite3_bind_text(statement, 1, (note.id as NSString).utf8String, -1, nil)
             sqlite3_bind_text(statement, 2, (note.title as NSString).utf8String, -1, nil)
@@ -286,15 +286,15 @@ final class DatabaseService: @unchecked Sendable {
             }
             sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
             
-            print("![[debug]] ========== 数据流程节点DB4: 执行 SQL ==========")
+            // print("![[debug]] ========== 数据流程节点DB4: 执行 SQL ==========")
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("![[debug]] [Database] ❌ SQL执行失败: \(errorMsg)")
+                // print("![[debug]] [Database] ❌ SQL执行失败: \(errorMsg)")
                 throw DatabaseError.executionFailed(errorMsg)
             }
             
-            print("![[debug]] ========== 数据流程节点DB5: 数据库保存成功 ==========")
-            print("![[debug]] [Database] ✅ 保存笔记到数据库成功，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
+            // print("![[debug]] ========== 数据流程节点DB5: 数据库保存成功 ==========")
+            // print("![[debug]] [Database] ✅ 保存笔记到数据库成功，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
         }
     }
     
@@ -357,21 +357,21 @@ final class DatabaseService: @unchecked Sendable {
             var rowCount = 0
             while sqlite3_step(statement) == SQLITE_ROW {
                 rowCount += 1
-                print("[Database] getAllNotes: 处理第 \(rowCount) 行")
+                // print("[Database] getAllNotes: 处理第 \(rowCount) 行")
                 do {
                     if var note = try parseNote(from: statement) {
                         notes.append(note)
-                        print("[Database] getAllNotes: 成功解析并添加笔记 id=\(note.id)")
+                        // print("[Database] getAllNotes: 成功解析并添加笔记 id=\(note.id)")
                     } else {
-                        print("[Database] getAllNotes: ⚠️ parseNote 返回 nil，跳过该行")
+                        // print("[Database] getAllNotes: ⚠️ parseNote 返回 nil，跳过该行")
                     }
                 } catch {
-                    print("[Database] getAllNotes: ⚠️ 解析笔记时出错: \(error)")
-                    print("[Database] getAllNotes: 错误详情: \(error.localizedDescription)")
+                    // print("[Database] getAllNotes: ⚠️ 解析笔记时出错: \(error)")
+                    // print("[Database] getAllNotes: 错误详情: \(error.localizedDescription)")
                 }
             }
             
-            print("[Database] getAllNotes: 总共处理 \(rowCount) 行，成功解析 \(notes.count) 条笔记")
+            // print("[Database] getAllNotes: 总共处理 \(rowCount) 行，成功解析 \(notes.count) 条笔记")
             return notes
         }
     }
@@ -401,7 +401,7 @@ final class DatabaseService: @unchecked Sendable {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
             
-            print("[Database] 删除笔记: \(noteId)")
+            // print("[Database] 删除笔记: \(noteId)")
         }
     }
     
@@ -436,12 +436,12 @@ final class DatabaseService: @unchecked Sendable {
     
     private func parseNote(from statement: OpaquePointer?) throws -> Note? {
         guard let statement = statement else {
-            print("[Database] parseNote: statement 为 nil")
+            // print("[Database] parseNote: statement 为 nil")
             return nil
         }
         
         let id = String(cString: sqlite3_column_text(statement, 0))
-        print("[Database] parseNote: 开始解析笔记 id=\(id)")
+        // print("[Database] parseNote: 开始解析笔记 id=\(id)")
         
         let title = String(cString: sqlite3_column_text(statement, 1))
         let content = String(cString: sqlite3_column_text(statement, 2))
@@ -450,25 +450,25 @@ final class DatabaseService: @unchecked Sendable {
         let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 5))
         let updatedAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 6))
         
-        print("[Database] parseNote: 基础字段解析完成 - title=\(title), content长度=\(content.count), folderId=\(folderId)")
+        // print("[Database] parseNote: 基础字段解析完成 - title=\(title), content长度=\(content.count), folderId=\(folderId)")
         
         // 解析 tags
         var tags: [String] = []
         if let tagsText = sqlite3_column_text(statement, 7) {
             let tagsString = String(cString: tagsText)
-            print("[Database] parseNote: tags 字段存在，长度=\(tagsString.count), 内容=\(tagsString.prefix(100))")
+            // print("[Database] parseNote: tags 字段存在，长度=\(tagsString.count), 内容=\(tagsString.prefix(100))")
             if !tagsString.isEmpty, let tagsData = tagsString.data(using: .utf8) {
                 if let decodedTags = try? JSONDecoder().decode([String].self, from: tagsData) {
                     tags = decodedTags
-                    print("[Database] parseNote: tags 解析成功，数量=\(tags.count)")
+                    // print("[Database] parseNote: tags 解析成功，数量=\(tags.count)")
                 } else {
-                    print("[Database] parseNote: ⚠️ tags JSON 解析失败，tagsString=\(tagsString)")
+                    // print("[Database] parseNote: ⚠️ tags JSON 解析失败，tagsString=\(tagsString)")
                 }
             } else {
-                print("[Database] parseNote: tags 字段为空或无法转换为 Data")
+                // print("[Database] parseNote: tags 字段为空或无法转换为 Data")
             }
         } else {
-            print("[Database] parseNote: tags 字段为 NULL")
+            // print("[Database] parseNote: tags 字段为 NULL")
         }
         
         // 解析 raw_data
@@ -476,24 +476,24 @@ final class DatabaseService: @unchecked Sendable {
         if let rawDataText = sqlite3_column_text(statement, 8) {
             let rawDataString = String(cString: rawDataText)
             let rawDataLength = rawDataString.count
-            print("[Database] parseNote: raw_data 字段存在，长度=\(rawDataLength)")
+            // print("[Database] parseNote: raw_data 字段存在，长度=\(rawDataLength)")
             
             if !rawDataString.isEmpty, let rawDataData = rawDataString.data(using: .utf8) {
                 if let parsedRawData = try? JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any] {
                     rawData = parsedRawData
-                    print("[Database] parseNote: raw_data JSON 解析成功，包含 \(parsedRawData.count) 个键")
+                    // print("[Database] parseNote: raw_data JSON 解析成功，包含 \(parsedRawData.count) 个键")
                 } else {
-                    print("[Database] parseNote: ⚠️ raw_data JSON 解析失败")
-                    print("[Database] parseNote: raw_data 前200字符: \(rawDataString.prefix(200))")
-                    if rawDataLength > 200 {
-                        print("[Database] parseNote: raw_data 后200字符: \(rawDataString.suffix(200))")
-                    }
+                    // print("[Database] parseNote: ⚠️ raw_data JSON 解析失败")
+                    // print("[Database] parseNote: raw_data 前200字符: \(rawDataString.prefix(200))")
+                    // if rawDataLength > 200 {
+                    //     print("[Database] parseNote: raw_data 后200字符: \(rawDataString.suffix(200))")
+                    // }
                 }
             } else {
-                print("[Database] parseNote: raw_data 字段为空或无法转换为 Data")
+                // print("[Database] parseNote: raw_data 字段为空或无法转换为 Data")
             }
         } else {
-            print("[Database] parseNote: raw_data 字段为 NULL")
+            // print("[Database] parseNote: raw_data 字段为 NULL")
         }
         
         let note = Note(
@@ -508,7 +508,7 @@ final class DatabaseService: @unchecked Sendable {
             rawData: rawData,
         )
         
-        print("[Database] parseNote: 笔记解析完成 id=\(id), title=\(title)")
+        // print("[Database] parseNote: 笔记解析完成 id=\(id), title=\(title)")
         return note
     }
     
@@ -555,7 +555,7 @@ final class DatabaseService: @unchecked Sendable {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
             
-            print("[Database] 保存文件夹: \(folder.id)")
+            // print("[Database] 保存文件夹: \(folder.id)")
         }
     }
     
@@ -600,17 +600,17 @@ final class DatabaseService: @unchecked Sendable {
                 do {
                 if let folder = try parseFolder(from: statement) {
                     folders.append(folder)
-                        print("[Database] loadFolders: 成功解析文件夹 id=\(folder.id), name=\(folder.name), isSystem=\(folder.isSystem)")
+                        // print("[Database] loadFolders: 成功解析文件夹 id=\(folder.id), name=\(folder.name), isSystem=\(folder.isSystem)")
                     } else {
-                        print("[Database] loadFolders: ⚠️ parseFolder 返回 nil，跳过该行")
+                        // print("[Database] loadFolders: ⚠️ parseFolder 返回 nil，跳过该行")
                     }
                 } catch {
-                    print("[Database] loadFolders: ⚠️ 解析文件夹时出错: \(error)")
+                    // print("[Database] loadFolders: ⚠️ 解析文件夹时出错: \(error)")
                     // 继续处理下一行，不中断整个加载过程
                 }
             }
             
-            print("[Database] loadFolders: 总共处理 \(rowCount) 行，成功解析 \(folders.count) 个文件夹")
+            // print("[Database] loadFolders: 总共处理 \(rowCount) 行，成功解析 \(folders.count) 个文件夹")
             return folders
         }
     }
@@ -637,7 +637,7 @@ final class DatabaseService: @unchecked Sendable {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
             
-            print("[Database] 删除文件夹: \(folderId)")
+            // print("[Database] 删除文件夹: \(folderId)")
         }
     }
     
@@ -670,7 +670,7 @@ final class DatabaseService: @unchecked Sendable {
             }
             
             let changes = sqlite3_changes(db)
-            print("[Database] 更新笔记文件夹ID: \(oldFolderId) -> \(newFolderId), 影响了 \(changes) 条笔记")
+            // print("[Database] 更新笔记文件夹ID: \(oldFolderId) -> \(newFolderId), 影响了 \(changes) 条笔记")
             
             // 只有在更新ID时（而不是移动到未分类时）才重命名图片目录
             // 移动到未分类时，图片应该保留在原目录或移动到未分类目录（根据业务需求）
@@ -727,7 +727,7 @@ final class DatabaseService: @unchecked Sendable {
                 rawData = try JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
                     } catch {
                         // 如果 JSON 解析失败，记录错误但不阻止文件夹加载
-                        print("[Database] parseFolder: 解析 raw_data 失败 (id=\(id)): \(error)")
+                        // print("[Database] parseFolder: 解析 raw_data 失败 (id=\(id)): \(error)")
                     }
                 }
             }
@@ -790,7 +790,7 @@ final class DatabaseService: @unchecked Sendable {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
             
-            print("[Database] 添加离线操作: \(operation.id), type: \(operation.type.rawValue), priority: \(operation.priority), status: \(operation.status.rawValue)")
+            // print("[Database] 添加离线操作: \(operation.id), type: \(operation.type.rawValue), priority: \(operation.priority), status: \(operation.status.rawValue)")
         }
     }
     
@@ -818,7 +818,7 @@ final class DatabaseService: @unchecked Sendable {
             
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[Database] ❌ 准备SQL语句失败: \(errorMsg)")
+                // print("[Database] ❌ 准备SQL语句失败: \(errorMsg)")
                 throw DatabaseError.prepareFailed(errorMsg)
             }
             
@@ -855,7 +855,7 @@ final class DatabaseService: @unchecked Sendable {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
             
-            print("[Database] 删除离线操作: \(operationId)")
+            // print("[Database] 删除离线操作: \(operationId)")
         }
     }
     
@@ -864,7 +864,7 @@ final class DatabaseService: @unchecked Sendable {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM offline_operations;"
             executeSQL(sql)
-            print("[Database] 清空所有离线操作")
+            // print("[Database] 清空所有离线操作")
         }
     }
     
@@ -993,7 +993,7 @@ final class DatabaseService: @unchecked Sendable {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
             
-            print("[Database] 保存同步状态")
+            // print("[Database] 保存同步状态")
         }
     }
     
@@ -1061,7 +1061,7 @@ final class DatabaseService: @unchecked Sendable {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM sync_status WHERE id = 1;"
             executeSQL(sql)
-            print("[Database] 清除同步状态")
+            // print("[Database] 清除同步状态")
         }
     }
     
@@ -1095,7 +1095,7 @@ final class DatabaseService: @unchecked Sendable {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
             
-            print("[Database] 保存待删除笔记: \(deletion.noteId)")
+            // print("[Database] 保存待删除笔记: \(deletion.noteId)")
         }
     }
     
@@ -1151,7 +1151,7 @@ final class DatabaseService: @unchecked Sendable {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
             
-            print("[Database] 删除待删除笔记: \(noteId)")
+            // print("[Database] 删除待删除笔记: \(noteId)")
         }
     }
 }
@@ -1163,5 +1163,3 @@ enum DatabaseError: Error {
     case executionFailed(String)
     case invalidData(String)
 }
-
-

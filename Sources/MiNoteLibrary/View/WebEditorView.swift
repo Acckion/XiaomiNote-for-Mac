@@ -7,7 +7,7 @@ import Carbon
 class InspectorWKWebView: WKWebView {
     weak var inspectorCoordinator: WebEditorView.Coordinator?
     
-    override func menu(for event: NSEvent) -> NSMenu? {
+        override func menu(for event: NSEvent) -> NSMenu? {
         // 拦截系统菜单，确保"检查元素"使用外部窗口
         let menu = NSMenu()
         
@@ -16,13 +16,13 @@ class InspectorWKWebView: WKWebView {
         inspectItem.target = self
         menu.addItem(inspectItem)
         
-        print("[InspectorWKWebView] 拦截右键菜单，添加自定义'检查元素'项")
+        // print("[InspectorWKWebView] 拦截右键菜单，添加自定义'检查元素'项")
         
         return menu
     }
     
     @objc private func openInspector() {
-        print("[InspectorWKWebView] 右键菜单触发，打开Web Inspector（外部窗口）")
+        // print("[InspectorWKWebView] 右键菜单触发，打开Web Inspector（外部窗口）")
         // 使用coordinator的方法打开Web Inspector（外部窗口）
         inspectorCoordinator?.openWebInspector()
     }
@@ -258,11 +258,8 @@ struct WebEditorView: NSViewRepresentable {
     }
     
     func updateNSView(_ webView: WKWebView, context: Context) {
-        print("[DEBUG] WebEditorView.updateNSView: 开始，content长度=\(content.count), lastContent长度=\(context.coordinator.lastContent.count)")
-        
         // 如果是来自Web的更新，跳过内容回写（避免循环更新）
         if context.coordinator.isUpdatingFromWeb {
-            print("[DEBUG] WebEditorView.updateNSView: 来自Web的更新，跳过内容回写")
             // 即使标志为 true，也更新 lastContent，确保下次比较时不会误判
             context.coordinator.lastContent = content
             return
@@ -275,26 +272,19 @@ struct WebEditorView: NSViewRepresentable {
         let normalizedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedLastContent = context.coordinator.lastContent.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        print("[DEBUG] WebEditorView.updateNSView: 标准化比较 - normalizedContent长度=\(normalizedContent.count), normalizedLastContent长度=\(normalizedLastContent.count)")
-        
         // 只有当内容真正不同时才更新，避免不必要的JavaScript调用
         if normalizedContent != normalizedLastContent {
-            print("[DEBUG] WebEditorView.updateNSView: 内容不同，更新WebView")
             context.coordinator.lastContent = content
             
             // 调用JavaScript函数加载内容（会保存和恢复光标位置）
             // loadContent 内部会检查内容是否真的需要重新渲染
             let javascript = "window.MiNoteWebEditor.loadContent(`\(content.escapedForJavaScript())`)"
-            print("[DEBUG] WebEditorView.updateNSView: 执行JavaScript: loadContent")
             webView.evaluateJavaScript(javascript) { result, error in
                 if let error = error {
-                    print("[DEBUG] WebEditorView.updateNSView: 加载内容到WebView失败: \(error)")
-                } else {
-                    print("[DEBUG] WebEditorView.updateNSView: 加载内容到WebView成功")
+                    print("[WebEditorView] 加载内容到WebView失败: \(error)")
                 }
             }
         } else {
-            print("[DEBUG] WebEditorView.updateNSView: 内容相同，跳过更新")
             // 即使内容相同，也更新 lastContent，确保下次比较时不会误判
             context.coordinator.lastContent = content
         }
@@ -324,10 +314,10 @@ struct WebEditorView: NSViewRepresentable {
             // 优先使用窗口的 appearance，如果没有窗口则使用 NSApp 的
             let isDark = isDark2 || isDark1
             
-            print("[WebEditorView] 深色模式检测 - NSApp: \(isDark1), Window: \(isDark2), 最终结果: \(isDark)")
+            // print("[WebEditorView] 深色模式检测 - NSApp: \(isDark1), Window: \(isDark2), 最终结果: \(isDark)")
             return isDark
         }
-        print("[WebEditorView] macOS版本低于10.14，不支持深色模式")
+        // print("[WebEditorView] macOS版本低于10.14，不支持深色模式")
         return false
     }
     
@@ -592,7 +582,7 @@ struct WebEditorView: NSViewRepresentable {
         
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             self.webView = webView
-            print("[DEBUG] WebEditorView.webView(didFinish): WebView加载完成")
+            // print("[WebEditorView] ✅ WebView加载完成")
             
             // 设置操作闭包
             setupActionClosures()
@@ -604,43 +594,24 @@ struct WebEditorView: NSViewRepresentable {
             setupAppearanceObserver()
             
             // 初始设置深色模式（延迟一点确保DOM已完全加载）
-            print("[DEBUG] WebEditorView: 开始初始设置深色模式")
+            // print("[WebEditorView] 开始初始设置深色模式")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 guard let self = self else { return }
-                print("[DEBUG] WebEditorView: 延迟后设置深色模式（确保DOM已加载）")
+                // print("[WebEditorView] 延迟后设置深色模式（确保DOM已加载）")
                 self.updateColorScheme(webView: webView, force: true)
             }
             
-        // 初始加载内容
-        print("[DEBUG] WebEditorView: 检查是否需要初始加载内容，lastContent长度=\(lastContent.count)")
-        if !lastContent.isEmpty {
-            // 打印前100个字符以查看XML内容
-            let preview = lastContent.prefix(100)
-            print("[DEBUG] WebEditorView: XML内容预览: \(preview)")
-            
-            let javascript = "window.MiNoteWebEditor.loadContent(`\(lastContent.escapedForJavaScript())`)"
-            print("[DEBUG] WebEditorView: 执行JavaScript加载内容: loadContent")
-            webView.evaluateJavaScript(javascript) { result, error in
-                if let error = error {
-                    print("[DEBUG] WebEditorView: ❌ 初始加载内容失败: \(error)")
-                } else {
-                    print("[DEBUG] WebEditorView: ✅ 初始内容加载成功")
-                    
-                    // 延迟检查编辑器内容
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        webView.evaluateJavaScript("document.getElementById('editor-content').innerHTML.length") { result, error in
-                            if let error = error {
-                                print("[DEBUG] WebEditorView: 检查编辑器内容失败: \(error)")
-                            } else if let htmlLength = result as? Int {
-                                print("[DEBUG] WebEditorView: 编辑器HTML内容长度: \(htmlLength)")
-                            }
-                        }
+            // 初始加载内容
+            if !lastContent.isEmpty {
+                let javascript = "window.MiNoteWebEditor.loadContent(`\(lastContent.escapedForJavaScript())`)"
+                webView.evaluateJavaScript(javascript) { result, error in
+                    if let error = error {
+                        // print("[WebEditorView] ❌ 初始加载内容失败: \(error)")
+                    } else {
+                        // print("[WebEditorView] ✅ 初始内容加载成功")
                     }
                 }
             }
-        } else {
-            print("[DEBUG] WebEditorView: lastContent为空，跳过初始内容加载")
-        }
         }
         
         // 设置外观变化监听器（仅使用KVO，不使用定时器）
@@ -675,7 +646,7 @@ struct WebEditorView: NSViewRepresentable {
         // KVO 回调
         override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
             if keyPath == "effectiveAppearance" {
-                print("[WebEditorView] 📢 KVO检测到窗口外观变化")
+                // print("[WebEditorView] 📢 KVO检测到窗口外观变化")
                 // 在主线程更新 UI
                 DispatchQueue.main.async { [weak self] in
                     self?.updateColorScheme()
@@ -688,36 +659,36 @@ struct WebEditorView: NSViewRepresentable {
         // 更新颜色方案
         private func updateColorScheme(webView: WKWebView? = nil, force: Bool = false) {
             guard let webView = webView ?? self.webView else {
-                print("[WebEditorView] ⚠️ updateColorScheme: webView为nil，无法更新")
+                // print("[WebEditorView] ⚠️ updateColorScheme: webView为nil，无法更新")
                 return
             }
             
             let isDarkMode = parent.detectDarkMode()
-            print("[WebEditorView] updateColorScheme - 检测到深色模式: \(isDarkMode), 上次状态: \(lastDarkMode), 强制更新: \(force)")
+            // print("[WebEditorView] updateColorScheme - 检测到深色模式: \(isDarkMode), 上次状态: \(lastDarkMode), 强制更新: \(force)")
             
             // 如果强制更新或模式改变，则更新
             let shouldUpdate = force || (lastDarkMode != isDarkMode)
             
             if shouldUpdate {
                 if !force {
-                    print("[WebEditorView] 深色模式状态变化，开始更新: \(lastDarkMode) -> \(isDarkMode)")
+                    // print("[WebEditorView] 深色模式状态变化，开始更新: \(lastDarkMode) -> \(isDarkMode)")
                 } else {
-                    print("[WebEditorView] 强制更新深色模式: \(isDarkMode)")
+                    // print("[WebEditorView] 强制更新深色模式: \(isDarkMode)")
                 }
                 lastDarkMode = isDarkMode
                 let modeString = isDarkMode ? "dark" : "light"
                 let modeJavascript = "window.MiNoteWebEditor.setColorScheme('\(modeString)')"
-                print("[WebEditorView] 执行JavaScript: \(modeJavascript)")
+                // print("[WebEditorView] 执行JavaScript: \(modeJavascript)")
                 
                 webView.evaluateJavaScript(modeJavascript) { result, error in
                     if let error = error {
-                        print("[WebEditorView] ❌ 设置深色模式失败: \(error.localizedDescription)")
+                        // print("[WebEditorView] ❌ 设置深色模式失败: \(error.localizedDescription)")
                     } else {
-                        print("[WebEditorView] ✅ 深色模式已更新: \(modeString), JavaScript返回: \(String(describing: result))")
+                        // print("[WebEditorView] ✅ 深色模式已更新: \(modeString), JavaScript返回: \(String(describing: result))")
                     }
                 }
             } else {
-                print("[WebEditorView] 深色模式状态未变化，跳过更新")
+                // print("[WebEditorView] 深色模式状态未变化，跳过更新")
             }
         }
         
@@ -768,8 +739,9 @@ struct WebEditorView: NSViewRepresentable {
             
             switch type {
             case "editorReady":
-                print("Web编辑器已准备就绪")
+                // print("Web编辑器已准备就绪")
                 // editorReady 现在在 didFinish 中处理，这里不需要调用
+                break
                 
             case "contentChanged":
                 if let content = body["content"] as? String {
@@ -870,7 +842,7 @@ struct WebEditorView: NSViewRepresentable {
                 
             case "imagePasted":
                 if let imageData = body["imageData"] as? String {
-                    print("图片已粘贴，数据长度: \(imageData.count)")
+                    // print("图片已粘贴，数据长度: \(imageData.count)")
                     // 这里可以处理base64图片数据
                     // 例如保存到本地并生成minote:// URL
                 }
@@ -879,46 +851,12 @@ struct WebEditorView: NSViewRepresentable {
                 if let message = body["message"] as? String,
                    let level = body["level"] as? String {
                     let prefix = level == "error" ? "🔴" : (level == "warn" ? "⚠️" : "📝")
-                    print("[JS] \(prefix) \(message)")
-                }
-                
-            case "formatStateChanged":
-                if let formatState = body["formatState"] as? [String: Any] {
-                    DispatchQueue.main.async { [weak self] in
-                        // 需要访问 WebEditorContext 来更新格式状态
-                        // 由于 EditorMessageHandler 没有直接访问 WebEditorContext 的引用
-                        // 我们需要通过 coordinator 来访问
-                        if let coordinator = self?.coordinator,
-                           let webEditorContext = coordinator.webEditorContext {
-                            if let isBold = formatState["isBold"] as? Bool {
-                                webEditorContext.isBold = isBold
-                            }
-                            if let isItalic = formatState["isItalic"] as? Bool {
-                                webEditorContext.isItalic = isItalic
-                            }
-                            if let isUnderline = formatState["isUnderline"] as? Bool {
-                                webEditorContext.isUnderline = isUnderline
-                            }
-                            if let isStrikethrough = formatState["isStrikethrough"] as? Bool {
-                                webEditorContext.isStrikethrough = isStrikethrough
-                            }
-                            if let isHighlighted = formatState["isHighlighted"] as? Bool {
-                                webEditorContext.isHighlighted = isHighlighted
-                            }
-                            if let textAlignmentStr = formatState["textAlignment"] as? String {
-                                webEditorContext.textAlignment = TextAlignment.fromString(textAlignmentStr)
-                            }
-                            if let headingLevel = formatState["headingLevel"] as? Int {
-                                webEditorContext.headingLevel = headingLevel > 0 ? headingLevel : nil
-                            } else if formatState["headingLevel"] is NSNull {
-                                webEditorContext.headingLevel = nil
-                            }
-                        }
-                    }
+                    // print("[JS] \(prefix) \(message)")
                 }
                 
             default:
-                print("收到未知消息类型: \(type)")
+                // print("收到未知消息类型: \(type)")
+                break
             }
         }
     }
@@ -944,32 +882,38 @@ struct WebEditorView: NSViewRepresentable {
             if path.hasPrefix("/image/") {
                 // 标准格式: /image/{id}
                 let id = String(path.dropFirst("/image/".count))
-                fileId = id
-                searchFileName = id
+                // 检查id是否为空
+                if !id.isEmpty {
+                    fileId = id
+                    searchFileName = id
+                }
             } else if path.hasPrefix("/") {
                 // 处理其他格式: /{userId}.{fileId} 或 /{fileId}
                 let pathWithoutSlash = String(path.dropFirst())
                 
-                // 使用完整路径作为文件名（因为实际文件名是 {userId}.{fileId}.{extension}）
-                searchFileName = pathWithoutSlash
-                
-                // 如果包含点号，可能是 {userId}.{fileId} 格式，提取 fileId 部分
-                if let lastDotIndex = pathWithoutSlash.lastIndex(of: ".") {
-                    // 提取点号后的部分作为 fileId
-                    let potentialFileId = String(pathWithoutSlash[pathWithoutSlash.index(after: lastDotIndex)...])
-                    // 验证是否是有效的文件ID格式（通常包含字母和数字，长度大于10）
-                    if potentialFileId.count > 10 && potentialFileId.allSatisfy({ $0.isLetter || $0.isNumber }) {
-                        fileId = potentialFileId
-                        print("[ImageURLSchemeHandler] 从路径 \(path) 提取文件ID: \(potentialFileId)")
+                // 检查路径是否为空
+                if !pathWithoutSlash.isEmpty {
+                    // 使用完整路径作为文件名（因为实际文件名是 {userId}.{fileId}.{extension}）
+                    searchFileName = pathWithoutSlash
+                    
+                    // 如果包含点号，可能是 {userId}.{fileId} 格式，提取 fileId 部分
+                    if let lastDotIndex = pathWithoutSlash.lastIndex(of: ".") {
+                        // 提取点号后的部分作为 fileId
+                        let potentialFileId = String(pathWithoutSlash[pathWithoutSlash.index(after: lastDotIndex)...])
+                        // 验证是否是有效的文件ID格式（通常包含字母和数字，长度大于10）
+                        if potentialFileId.count > 10 && potentialFileId.allSatisfy({ $0.isLetter || $0.isNumber }) {
+                            fileId = potentialFileId
+                            // print("[ImageURLSchemeHandler] 从路径 \(path) 提取文件ID: \(potentialFileId)")
+                        } else {
+                            // 如果点号后的部分看起来不像文件ID，使用整个路径作为 fileId
+                            fileId = pathWithoutSlash
+                            // print("[ImageURLSchemeHandler] 使用完整路径作为文件ID: \(pathWithoutSlash)")
+                        }
                     } else {
-                        // 如果点号后的部分看起来不像文件ID，使用整个路径作为 fileId
+                        // 没有点号，直接使用路径作为 fileId
                         fileId = pathWithoutSlash
-                        print("[ImageURLSchemeHandler] 使用完整路径作为文件ID: \(pathWithoutSlash)")
+                        // print("[ImageURLSchemeHandler] 使用路径作为文件ID: \(pathWithoutSlash)")
                     }
-                } else {
-                    // 没有点号，直接使用路径作为 fileId
-                    fileId = pathWithoutSlash
-                    print("[ImageURLSchemeHandler] 使用路径作为文件ID: \(pathWithoutSlash)")
                 }
             }
             
@@ -978,7 +922,7 @@ struct WebEditorView: NSViewRepresentable {
                 return
             }
             
-            print("[ImageURLSchemeHandler] 解析图片URL: 路径=\(path), 文件名=\(fileName), 文件ID=\(fileId ?? "无")")
+            // print("[ImageURLSchemeHandler] 解析图片URL: 路径=\(path), 文件名=\(fileName), 文件ID=\(fileId ?? "无")")
             
             // 从本地存储加载图片数据
             // 尝试多种方式加载图片：
@@ -1008,7 +952,7 @@ struct WebEditorView: NSViewRepresentable {
                             contentType = format == "png" ? "image/png" : 
                                          format == "gif" ? "image/gif" : 
                                          "image/jpeg"
-                            print("[ImageURLSchemeHandler] 从 images/ 目录加载图片: \(fileName).\(format)")
+                            // print("[ImageURLSchemeHandler] 从 images/ 目录加载图片: \(fileName).\(format)")
                             break
                         }
                     }
@@ -1024,7 +968,7 @@ struct WebEditorView: NSViewRepresentable {
                         contentType = format == "png" ? "image/png" : 
                                      format == "gif" ? "image/gif" : 
                                      "image/jpeg"
-                        print("[ImageURLSchemeHandler] 使用 loadImage 方法加载图片: \(id).\(format)")
+                        // print("[ImageURLSchemeHandler] 使用 loadImage 方法加载图片: \(id).\(format)")
                         break
                     }
                 }
@@ -1042,7 +986,7 @@ struct WebEditorView: NSViewRepresentable {
                                 contentType = format == "png" ? "image/png" : 
                                              format == "gif" ? "image/gif" : 
                                              "image/jpeg"
-                                print("[ImageURLSchemeHandler] 从特殊目录 images/图片/ 加载图片: \(fileName).\(format)")
+                                // print("[ImageURLSchemeHandler] 从特殊目录 images/图片/ 加载图片: \(fileName).\(format)")
                                 break
                             }
                         }
@@ -1061,12 +1005,12 @@ struct WebEditorView: NSViewRepresentable {
                         if let data = localStorage.getImage(imageId: id, folderId: note.folderId) {
                             imageData = data
                             contentType = "image/jpeg"
-                            print("[ImageURLSchemeHandler] 从文件夹 \(note.folderId) 加载图片: \(id)")
+                            // print("[ImageURLSchemeHandler] 从文件夹 \(note.folderId) 加载图片: \(id)")
                             break
                         }
                     }
                 } catch {
-                    print("[ImageURLSchemeHandler] 查找图片时出错: \(error)")
+                    // print("[ImageURLSchemeHandler] 查找图片时出错: \(error)")
                 }
             }
             
@@ -1089,7 +1033,7 @@ struct WebEditorView: NSViewRepresentable {
             }
             
             // 如果找不到图片，返回占位图片
-            print("[ImageURLSchemeHandler] 未找到图片: \(fileName)，返回占位图片")
+            // print("[ImageURLSchemeHandler] 未找到图片: \(fileName)，返回占位图片")
                 let placeholderImage = NSImage(systemSymbolName: "photo", accessibilityDescription: "图片") ?? NSImage()
                 
             if let placeholderData = placeholderImage.tiffRepresentation,

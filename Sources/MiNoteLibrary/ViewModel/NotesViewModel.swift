@@ -255,7 +255,8 @@ public class NotesViewModel: ObservableObject {
                 if folder.id == "starred" {
                     filtered = notes.filter { $0.isStarred }
                 } else if folder.id == "0" {
-                    filtered = notes
+                    // 所有笔记：显示除了私密笔记（folderId == "2"）之外的所有笔记
+                    filtered = notes.filter { $0.folderId != "2" }
                 } else if folder.id == "2" {
                     // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
                     filtered = notes.filter { $0.folderId == "2" }
@@ -1381,7 +1382,8 @@ public class NotesViewModel: ObservableObject {
                 for i in 0..<foldersWithCount.count {
                     let folder = foldersWithCount[i]
                     if folder.id == "0" {
-                        foldersWithCount[i].count = notes.count
+                        // 所有笔记：显示除了私密笔记（folderId == "2"）之外的所有笔记
+                        foldersWithCount[i].count = notes.filter { $0.folderId != "2" }.count
                     } else if folder.id == "starred" {
                         foldersWithCount[i].count = notes.filter { $0.isStarred }.count
                     } else if folder.id == "2" {
@@ -1640,7 +1642,8 @@ public class NotesViewModel: ObservableObject {
         if folder.id == "starred" {
             return notes.filter { $0.isStarred }
         } else if folder.id == "0" {
-            return notes
+            // 所有笔记：显示除了私密笔记（folderId == "2"）之外的所有笔记
+            return notes.filter { $0.folderId != "2" }
         } else if folder.id == "2" {
             // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
             return notes.filter { $0.folderId == "2" }
@@ -2668,7 +2671,8 @@ public class NotesViewModel: ObservableObject {
             if folder.id == "starred" {
                 notesInNewFolder = notes.filter { $0.isStarred }
             } else if folder.id == "0" {
-                notesInNewFolder = notes
+                // 所有笔记：显示除了私密笔记（folderId == "2"）之外的所有笔记
+                notesInNewFolder = notes.filter { $0.folderId != "2" }
             } else if folder.id == "2" {
                 // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
                 notesInNewFolder = notes.filter { $0.folderId == "2" }
@@ -3801,20 +3805,13 @@ public class NotesViewModel: ObservableObject {
             return
         }
         
-        // 检查是否在线
-        guard isOnline else {
-            print("[SilentRefresh] 当前离线，无法静默刷新，显示弹窗")
-            showCookieExpiredAlert = true
-            return
-        }
-        
         // 检查是否已认证（Cookie是否有效）
         guard !service.isAuthenticated() else {
             print("[SilentRefresh] Cookie仍然有效，无需刷新")
             return
         }
         
-        print("[SilentRefresh] Cookie失效，开始静默刷新")
+        print("[SilentRefresh] Cookie失效，开始静默刷新（无论在线/离线）")
         performSilentCookieRefresh()
     }
     
