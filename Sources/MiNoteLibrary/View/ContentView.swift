@@ -1108,7 +1108,8 @@ struct SidebarView: View {
                    let editingFolder = viewModel.folders.first(where: { $0.id == editingFolderId }) {
                     // 延迟一小段时间，确保点击事件已经处理完成
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        saveRename(folder: editingFolder)
+                        // 标记这是通过点击其他文件夹退出的
+                        saveRename(folder: editingFolder, isExitingByClickingOtherFolder: true)
                     }
                 }
             }
@@ -1301,79 +1302,11 @@ struct SidebarView: View {
     
     /// 重命名文件夹
     /// 
-    /// 显示输入对话框，让用户输入新名称
+    /// 使用内联编辑方式，直接在文件夹名称处进行修改
     /// - Parameter folder: 要重命名的文件夹
     private func renameFolder(_ folder: Folder) {
-        let alert = NSAlert()
-        alert.messageText = "重命名文件夹"
-        alert.informativeText = "请输入新的文件夹名称："
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "重命名")
-        alert.addButton(withTitle: "取消")
-        
-        let inputField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        inputField.placeholderString = "新文件夹名称"
-        inputField.stringValue = folder.name
-        alert.accessoryView = inputField
-        alert.window.initialFirstResponder = inputField
-        
-        let response = alert.runModal()
-        
-        if response == .alertFirstButtonReturn {
-            let newName = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            // 验证新名称
-            if newName.isEmpty {
-                let errorAlert = NSAlert()
-                errorAlert.messageText = "文件夹名称不能为空"
-                errorAlert.informativeText = "请输入一个有效的文件夹名称。"
-                errorAlert.alertStyle = .warning
-                errorAlert.addButton(withTitle: "确定")
-                errorAlert.runModal()
-                return
-            }
-            
-            if newName == folder.name {
-                // 名称未改变，无需操作
-                return
-            }
-            
-            // 检查是否有同名文件夹
-            if viewModel.folders.contains(where: { $0.name == newName && $0.id != folder.id }) {
-                let errorAlert = NSAlert()
-                errorAlert.messageText = "文件夹名称已存在"
-                errorAlert.informativeText = "已存在名为 \"\(newName)\" 的文件夹，请使用其他名称。"
-                errorAlert.alertStyle = .warning
-                errorAlert.addButton(withTitle: "确定")
-                errorAlert.runModal()
-                return
-            }
-            
-                Task {
-                    do {
-                        try await viewModel.renameFolder(folder, newName: newName)
-                    } catch {
-                    // 根据错误类型显示不同的提示
-                    let errorMessage: String
-                    if let nsError = error as NSError? {
-                        if nsError.code == 409 {
-                            errorMessage = "文件夹名称已存在，请使用其他名称。"
-                        } else {
-                            errorMessage = "重命名文件夹失败: \(error.localizedDescription)"
-                }
-                    } else {
-                        errorMessage = "重命名文件夹失败: \(error.localizedDescription)"
-                    }
-                    
-                    let errorAlert = NSAlert()
-                    errorAlert.messageText = "重命名失败"
-                    errorAlert.informativeText = errorMessage
-                    errorAlert.alertStyle = .warning
-                    errorAlert.addButton(withTitle: "确定")
-                    errorAlert.runModal()
-                }
-            }
-        }
+        // 使用内联编辑方式，直接进入编辑状态
+        startRename(folder: folder)
     }
     
     /// 删除文件夹
@@ -1437,7 +1370,8 @@ struct SidebarView: View {
     
     /// 保存重命名
     /// - Parameter folder: 要重命名的文件夹
-    private func saveRename(folder: Folder) {
+    /// - Parameter isExitingByClickingOtherFolder: 是否通过点击其他文件夹退出编辑状态
+    private func saveRename(folder: Folder, isExitingByClickingOtherFolder: Bool = false) {
         let newName = editingFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // 验证新名称
@@ -1457,6 +1391,15 @@ struct SidebarView: View {
         
         // 检查是否有同名文件夹
         if viewModel.folders.contains(where: { $0.name == newName && $0.id != folder.id }) {
+            // 如果通过点击其他文件夹退出，总是显示弹窗（不检查防重复逻辑）
+            if isExitingByClickingOtherFolder {
+                // 名称已存在，显示弹窗提示
+                // 注意：在显示弹窗前，需要先恢复编辑状态，因为用户已经点击了其他文件夹
+                // 但我们需要阻止文件夹切换，直到用户处理完重复名称的问题
+                showDuplicateNameAlertOnExit(isNewFolder: false, folderName: newName, folder: folder)
+                return
+            }
+            
             // 检查是否刚刚显示过相同的重复名称弹窗（防止重复弹窗）
             let now = Date()
             if let lastTime = lastDuplicateAlertTime,
@@ -1533,6 +1476,51 @@ struct SidebarView: View {
             // 对于新建文件夹，isCreatingNewFolder 和 newFolderName 保持不变
             
             // 注意：不需要在这里聚焦文本字段，因为 SidebarFolderRow 的 onAppear 会自动处理
+        }
+    }
+    
+    /// 显示名称重复弹窗（当通过点击其他文件夹退出时）
+    /// - Parameters:
+    ///   - isNewFolder: 是否是新建文件夹（true）还是重命名（false）
+    ///   - folderName: 重复的文件夹名称
+    ///   - folder: 正在编辑的文件夹（用于恢复选中状态）
+    private func showDuplicateNameAlertOnExit(isNewFolder: Bool, folderName: String, folder: Folder) {
+        // 记录弹窗显示的时间和名称
+        lastDuplicateAlertFolderName = folderName
+        lastDuplicateAlertTime = Date()
+        
+        let alert = NSAlert()
+        alert.messageText = "名称已被使用"
+        alert.informativeText = "已存在名为 \"\(folderName)\" 的文件夹。请选取一个不同的名称。"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "放弃更改")
+        alert.addButton(withTitle: "好")
+        
+        let response = alert.runModal()
+        
+        if response == .alertFirstButtonReturn {
+            // 放弃更改
+            if isNewFolder {
+                // 对于新建文件夹，取消创建
+                isCreatingNewFolder = false
+                newFolderName = ""
+            } else {
+                // 对于重命名，取消编辑
+                editingFolderId = nil
+                editingFolderName = ""
+            }
+        } else {
+            // 点击"好"，恢复编辑状态并重新选中该文件夹
+            if isNewFolder {
+                // 对于新建文件夹，保持创建状态
+                // 不需要做任何操作
+            } else {
+                // 对于重命名，恢复编辑状态并重新选中该文件夹
+                editingFolderId = folder.id
+                editingFolderName = folderName
+                // 重新选中该文件夹，确保用户可以继续编辑
+                viewModel.selectedFolder = folder
+            }
         }
     }
 }
