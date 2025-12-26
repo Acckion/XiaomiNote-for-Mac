@@ -185,6 +185,9 @@ public class NotesViewModel: ObservableObject {
     /// Combine订阅集合
     private var cancellables = Set<AnyCancellable>()
     
+    /// 自动刷新Cookie定时器
+    private var autoRefreshCookieTimer: Timer?
+    
     // MARK: - 计算属性
     
     /// 过滤后的笔记列表
@@ -1302,18 +1305,15 @@ public class NotesViewModel: ObservableObject {
                 loadSampleFolders()
             }
         } catch {
-            print("[FolderRename] ❌ 加载文件夹失败: \(error)")
-            // 加载示例数据作为后备
-            loadSampleFolders()
+            // 使用统一的错误处理和离线队列添加逻辑
+            // 注意：这里不能使用 tempFolderId 和 name，因为它们在 loadFolders 方法中未定义
+            // 这些变量应该在 createFolder 方法中定义，而不是在 loadFolders 中
+            // 这里只是捕获加载文件夹时的错误，不应该创建文件夹
+            print("[VIEWMODEL] 加载文件夹失败: \(error)")
+            // 不设置 errorMessage，避免弹窗提示
         }
         
-        // 如果没有选择文件夹，选择第一个
-        if selectedFolder == nil {
-            selectedFolder = folders.first
-            print("[FolderRename] 自动选择第一个文件夹: '\(selectedFolder?.name ?? "nil")'")
-        }
-        
-        print("[FolderRename] ========== loadFolders() 完成 ==========")
+        // loadFolders 方法没有返回值，所以不需要返回语句
     }
     
     private func loadSampleData() {
@@ -2515,6 +2515,12 @@ public class NotesViewModel: ObservableObject {
         isPrivateNotesUnlocked = true
     }
     
+    /// 处理私密笔记密码验证取消
+    func handlePrivateNotesPasswordCancel() {
+        isPrivateNotesUnlocked = false
+        showPrivateNotesPasswordDialog = false
+    }
+    
     func selectFolder(_ folder: Folder?) {
         let oldFolder = selectedFolder
         
@@ -2725,6 +2731,9 @@ public class NotesViewModel: ObservableObject {
             } else {
                 throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "创建文件夹失败：服务器返回无效响应"])
             }
+            
+            // 返回文件夹ID
+            return folderId ?? tempFolderId
         } catch {
             // 使用统一的错误处理和离线队列添加逻辑
             _ = handleErrorAndAddToOfflineQueue(
@@ -2737,6 +2746,8 @@ public class NotesViewModel: ObservableObject {
                 context: "创建文件夹"
             )
             // 不设置 errorMessage，避免弹窗提示
+            // 返回临时文件夹ID
+            return tempFolderId
         }
     }
     
@@ -3513,6 +3524,79 @@ public class NotesViewModel: ObservableObject {
             }
         } catch {
             print("[VIEWMODEL] ❌ 获取用户信息失败: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - 自动刷新Cookie定时器管理
+    
+    /// 启动自动刷新Cookie定时器（如果需要）
+    func startAutoRefreshCookieIfNeeded() {
+        // 检查是否已登录
+        guard service.isAuthenticated() else {
+            print("[VIEWMODEL] 未登录，不启动自动刷新Cookie定时器")
+            return
+        }
+        
+        // 检查是否已有定时器在运行
+        if autoRefreshCookieTimer != nil {
+            print("[VIEWMODEL] 自动刷新Cookie定时器已在运行")
+            return
+        }
+        
+        // 从UserDefaults获取刷新间隔
+        let defaults = UserDefaults.standard
+        let autoRefreshInterval = defaults.double(forKey: "autoRefreshInterval")
+        if autoRefreshInterval == 0 {
+            // 默认每天刷新一次（24小时）
+            defaults.set(86400.0, forKey: "autoRefreshInterval")
+        }
+        
+        print("[VIEWMODEL] 启动自动刷新Cookie定时器，间隔: \(autoRefreshInterval)秒")
+        
+        // 创建定时器
+        autoRefreshCookieTimer = Timer.scheduledTimer(withTimeInterval: autoRefreshInterval, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            Task { @MainActor in
+                print("[VIEWMODEL] 自动刷新Cookie定时器触发")
+                await self.refreshCookieAutomatically()
+            }
+        }
+    }
+    
+    /// 停止自动刷新Cookie定时器
+    func stopAutoRefreshCookie() {
+        print("[VIEWMODEL] 停止自动刷新Cookie定时器")
+        autoRefreshCookieTimer?.invalidate()
+        autoRefreshCookieTimer = nil
+    }
+    
+    /// 自动刷新Cookie（由定时器调用）
+    private func refreshCookieAutomatically() async {
+        print("[VIEWMODEL] 开始自动刷新Cookie")
+        
+        // 检查是否已登录
+        guard service.isAuthenticated() else {
+            print("[VIEWMODEL] 未登录，跳过自动刷新Cookie")
+            return
+        }
+        
+        // 检查是否在线
+        guard isOnline else {
+            print("[VIEWMODEL] 离线状态，跳过自动刷新Cookie")
+            return
+        }
+        
+        do {
+            // 尝试刷新Cookie
+            let success = try await service.refreshCookie()
+            if success {
+                print("[VIEWMODEL] ✅ 自动刷新Cookie成功")
+            } else {
+                print("[VIEWMODEL] ⚠️ 自动刷新Cookie失败")
+            }
+        } catch {
+            print("[VIEWMODEL] ❌ 自动刷新Cookie出错: \(error.localizedDescription)")
         }
     }
 }
