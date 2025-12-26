@@ -227,7 +227,7 @@ class AuthenticationStateManager: ObservableObject {
         restoreOnlineStatus()
     }
     
-    /// 执行1刷新
+    /// 执行静默Cookie刷新
     /// 
     /// 自动地、隐藏界面地进行刷新，如果失败则显示弹窗
     private func performSilentCookieRefresh() async {
@@ -245,8 +245,8 @@ class AuthenticationStateManager: ObservableObject {
         // 通知ViewModel执行静默刷新
         NotificationCenter.default.post(name: Notification.Name("performSilentCookieRefresh"), object: nil)
         
-        // 等待一段时间让静默刷新完成（15秒）
-        try? await Task.sleep(nanoseconds: 15_000_000_000)
+        // 等待一段时间让静默刷新完成（10秒）
+        try? await Task.sleep(nanoseconds: 10_000_000_000)
         
         // 检查刷新结果
         let hasValidCookie = service.hasValidCookie()

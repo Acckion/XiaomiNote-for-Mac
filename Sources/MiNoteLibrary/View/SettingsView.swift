@@ -12,6 +12,10 @@ public struct SettingsView: View {
     @AppStorage("autoRefreshInterval") private var autoRefreshInterval: Double = 86400 // 默认每天（24小时）
     @AppStorage("silentRefreshOnFailure") private var silentRefreshOnFailure: Bool = true // 默认启用静默刷新
     
+    // 编辑器显示设置
+    @AppStorage("editorFontSize") private var editorFontSize: Double = 14.0 // 默认字体大小 14px
+    @AppStorage("editorLineHeight") private var editorLineHeight: Double = 1.5 // 默认行间距 1.5
+    
     @State private var showLogoutAlert: Bool = false
     @State private var showClearCacheAlert: Bool = false
     @State private var showAboutSheet: Bool = false
@@ -61,6 +65,87 @@ public struct SettingsView: View {
                         Text("浅色").tag("light")
                         Text("深色").tag("dark")
                     }
+                    
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("编辑器显示")
+                            .font(.headline)
+                            .padding(.bottom, 4)
+                        
+                        // 字体大小设置
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("字体大小")
+                                Spacer()
+                                Text("\(Int(editorFontSize))px")
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Slider(value: $editorFontSize, in: 12...24, step: 1) {
+                                Text("字体大小")
+                            } minimumValueLabel: {
+                                Text("12")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            } maximumValueLabel: {
+                                Text("24")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .onChange(of: editorFontSize) { newValue in
+                                // 立即应用字体大小更改
+                                applyEditorSettings()
+                            }
+                        }
+                        
+                        // 行间距设置
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("行间距")
+                                Spacer()
+                                Text(String(format: "%.1f", editorLineHeight))
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Slider(value: $editorLineHeight, in: 1.0...2.5, step: 0.1) {
+                                Text("行间距")
+                            } minimumValueLabel: {
+                                Text("1.0")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            } maximumValueLabel: {
+                                Text("2.5")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .onChange(of: editorLineHeight) { newValue in
+                                // 立即应用行间距更改
+                                applyEditorSettings()
+                            }
+                        }
+                        
+                        // 预设按钮
+                        HStack {
+                            Button("重置为默认") {
+                                editorFontSize = 14.0
+                                editorLineHeight = 1.5
+                                applyEditorSettings()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            
+                            Spacer()
+                            
+                            Button("应用设置") {
+                                applyEditorSettings()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        }
+                        .padding(.top, 8)
+                    }
+                    .padding(.vertical, 8)
                 }
                 
                 Section("私密笔记") {
@@ -203,6 +288,8 @@ public struct SettingsView: View {
         UserDefaults.standard.set(autoRefreshCookie, forKey: "autoRefreshCookie")
         UserDefaults.standard.set(autoRefreshInterval, forKey: "autoRefreshInterval")
         UserDefaults.standard.set(silentRefreshOnFailure, forKey: "silentRefreshOnFailure")
+        UserDefaults.standard.set(editorFontSize, forKey: "editorFontSize")
+        UserDefaults.standard.set(editorLineHeight, forKey: "editorLineHeight")
         
         // 通知ViewModel设置已更改
         viewModel.syncInterval = syncInterval
@@ -214,6 +301,24 @@ public struct SettingsView: View {
         } else {
             viewModel.stopAutoRefreshCookie()
         }
+        
+        // 应用编辑器设置
+        applyEditorSettings()
+    }
+    
+    /// 应用编辑器显示设置（字体大小和行间距）
+    private func applyEditorSettings() {
+        // 通知所有活动的 WebEditorView 更新显示设置
+        NotificationCenter.default.post(
+            name: NSNotification.Name("EditorSettingsChanged"),
+            object: nil,
+            userInfo: [
+                "fontSize": editorFontSize,
+                "lineHeight": editorLineHeight
+            ]
+        )
+        
+        print("[SettingsView] 编辑器设置已更新: 字体大小=\(editorFontSize)px, 行间距=\(editorLineHeight)")
     }
     
     private func logout() {

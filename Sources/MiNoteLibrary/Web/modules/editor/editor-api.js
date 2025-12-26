@@ -135,6 +135,63 @@
         },
         
         /**
+         * 应用编辑器显示设置（字体大小和行间距）
+         * @param {Object} settings - 编辑器设置对象
+         * @param {number} settings.fontSize - 字体大小（像素）
+         * @param {number} settings.lineHeight - 行间距（倍数）
+         * @returns {string} 状态信息
+         */
+        applyEditorSettings: function(settings) {
+            log.debug(LOG_MODULES.EDITOR, '应用编辑器设置', settings);
+            
+            const root = document.documentElement;
+            const editor = document.getElementById('editor-content');
+            
+            if (!editor) {
+                log.error(LOG_MODULES.EDITOR, '无法找到编辑器元素');
+                return '编辑器元素不存在';
+            }
+            
+            // 验证设置值
+            const fontSize = Math.max(12, Math.min(24, settings.fontSize || 14));
+            const lineHeight = Math.max(1.0, Math.min(2.5, settings.lineHeight || 1.5));
+            
+            // 更新 CSS 变量
+            root.style.setProperty('--editor-font-size', `${fontSize}px`);
+            root.style.setProperty('--editor-line-height', lineHeight.toString());
+            
+            // 更新编辑器元素的样式
+            editor.style.fontSize = `${fontSize}px`;
+            editor.style.lineHeight = lineHeight.toString();
+            
+            // 更新所有文本元素的样式
+            const textElements = editor.querySelectorAll('.mi-note-text, .mi-note-bullet, .mi-note-order, .mi-note-checkbox');
+            textElements.forEach(element => {
+                element.style.fontSize = `${fontSize}px`;
+                element.style.lineHeight = lineHeight.toString();
+            });
+            
+            // 更新标题元素的相对大小
+            const titleSizeElements = editor.querySelectorAll('.mi-note-size, .mi-note-mid-size, .mi-note-h3-size');
+            titleSizeElements.forEach(element => {
+                if (element.classList.contains('mi-note-size')) {
+                    element.style.fontSize = `calc(${fontSize}px * 1.714)`;
+                } else if (element.classList.contains('mi-note-mid-size')) {
+                    element.style.fontSize = `calc(${fontSize}px * 1.429)`;
+                } else if (element.classList.contains('mi-note-h3-size')) {
+                    element.style.fontSize = `calc(${fontSize}px * 1.286)`;
+                }
+            });
+            
+            log.debug(LOG_MODULES.EDITOR, '编辑器设置已应用', { 
+                fontSize: `${fontSize}px`, 
+                lineHeight: lineHeight 
+            });
+            
+            return `编辑器设置已应用: 字体大小=${fontSize}px, 行间距=${lineHeight}`;
+        },
+        
+        /**
          * 执行格式操作
          * @param {string} action - 操作类型
          * @param {string} value - 操作值（可选）

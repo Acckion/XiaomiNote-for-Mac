@@ -108,12 +108,6 @@ class XMLToHTMLConverter {
                 this.orderListState.currentNumber = 1;
                 this.orderListState.lastIndent = null;
                 this.orderListState.lastNumber = null;
-            } else if (trimmedLine.startsWith('☺')) {
-                // 处理格式1的图片：☺ 1315204657.bsdv_GVbvnWDW50jmD3Xmg<0/><\/>
-                html += this.parseImageElement(trimmedLine);
-                this.orderListState.currentNumber = 1;
-                this.orderListState.lastIndent = null;
-                this.orderListState.lastNumber = null;
             }
         }
 
@@ -365,42 +359,23 @@ class XMLToHTMLConverter {
      * @returns {string} HTML
      */
     parseImageElement(line) {
-        let fileId = '';
-        let imgshow = '0';
-        let imgdes = '';
-        let src = '';
-        let alt = '';
+        // 提取 src 属性
+        const srcMatch = line.match(/src="([^"]+)"/);
+        let src = srcMatch ? srcMatch[1] : '';
 
-        // 检查是否是格式1：☺ 1315204657.bsdv_GVbvnWDW50jmD3Xmg<0/><\/>
-        if (line.startsWith('☺')) {
-            // 解析格式1：提取fileid
-            const format1Match = line.match(/☺\s+([^<]+)<0\/><\/>/);
-            if (format1Match) {
-                fileId = format1Match[1].trim();
-                // 格式1没有imgshow和imgdes属性，使用默认值
-                imgshow = '0';
-                imgdes = '';
-            }
-        } else {
-            // 格式2：<img fileid="..." imgshow="..." imgdes="..." />
-            // 提取 src 属性
-            const srcMatch = line.match(/src="([^"]+)"/);
-            src = srcMatch ? srcMatch[1] : '';
+        // 提取 alt 属性
+        const altMatch = line.match(/alt="([^"]+)"/);
+        const alt = altMatch ? altMatch[1] : '';
 
-            // 提取 alt 属性
-            const altMatch = line.match(/alt="([^"]+)"/);
-            alt = altMatch ? altMatch[1] : '';
+        // 提取 fileid 属性（小米笔记特有）
+        const fileIdMatch = line.match(/fileid="([^"]+)"/);
+        const fileId = fileIdMatch ? fileIdMatch[1] : '';
 
-            // 提取 fileid 属性（小米笔记特有）
-            const fileIdMatch = line.match(/fileid="([^"]+)"/);
-            fileId = fileIdMatch ? fileIdMatch[1] : '';
-
-            // 提取 imgshow 和 imgdes 属性（小米笔记特有）
-            const imgshowMatch = line.match(/imgshow="([^"]*)"/);
-            imgshow = imgshowMatch ? imgshowMatch[1] : '0';
-            const imgdesMatch = line.match(/imgdes="([^"]*)"/);
-            imgdes = imgdesMatch ? imgdesMatch[1] : '';
-        }
+        // 提取 imgshow 和 imgdes 属性（小米笔记特有）
+        const imgshowMatch = line.match(/imgshow="([^"]*)"/);
+        const imgshow = imgshowMatch ? imgshowMatch[1] : '0';
+        const imgdesMatch = line.match(/imgdes="([^"]*)"/);
+        const imgdes = imgdesMatch ? imgdesMatch[1] : '';
 
         // 如果只有 fileid 而没有有效的 src，使用 minote:// 协议
         // 如果 src 为空或无效，且存在 fileid，则使用 fileid 构建 minote:// URL
@@ -486,3 +461,4 @@ class XMLToHTMLConverter {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = XMLToHTMLConverter;
 }
+

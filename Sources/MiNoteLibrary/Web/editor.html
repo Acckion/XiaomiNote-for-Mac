@@ -21,6 +21,10 @@
             --quote-text: #666;
             --hr-color: #ddd;
             --placeholder-color: #999;
+            
+            /* 编辑器显示设置 */
+            --editor-font-size: 14px;
+            --editor-line-height: 1.5;
         }
         
         /* 深色模式颜色变量 */
@@ -37,15 +41,15 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            font-size: 14px;
-            line-height: 1.5;
+            font-size: var(--editor-font-size);
+            line-height: var(--editor-line-height);
             color: var(--text-color);
             background-color: var(--bg-color);
             padding: 0;
             margin: 0;
             height: 100vh;
             overflow: hidden;
-            transition: background-color 0.2s ease, color 0.2s ease;
+            transition: background-color 0.2s ease, color 0.2s ease, font-size 0.2s ease, line-height 0.2s ease;
         }
         
         #editor-container {
@@ -62,7 +66,9 @@
             min-height: 200px;
             color: var(--text-color);
             background-color: var(--bg-color);
-            transition: background-color 0.2s ease, color 0.2s ease;
+            font-size: var(--editor-font-size);
+            line-height: var(--editor-line-height);
+            transition: background-color 0.2s ease, color 0.2s ease, font-size 0.2s ease, line-height 0.2s ease;
         }
         
         /* 小米笔记样式 */
@@ -75,6 +81,8 @@
         .mi-note-text {
             margin-bottom: 8px;
             padding-left: 0;
+            font-size: var(--editor-font-size);
+            line-height: var(--editor-line-height);
         }
         
         .mi-note-text.indent-1 { padding-left: 0; }
@@ -88,6 +96,8 @@
             display: flex;
             align-items: flex-start;
             position: relative;
+            font-size: var(--editor-font-size);
+            line-height: var(--editor-line-height);
         }
         
         .mi-note-bullet::before {
@@ -183,17 +193,17 @@
         }
         
         .mi-note-text .mi-note-size {
-            font-size: 24px;
+            font-size: calc(var(--editor-font-size) * 1.714); /* 24px when base is 14px */
             font-weight: bold;
         }
         
         .mi-note-text .mi-note-mid-size {
-            font-size: 20px;
+            font-size: calc(var(--editor-font-size) * 1.429); /* 20px when base is 14px */
             font-weight: bold;
         }
         
         .mi-note-text .mi-note-h3-size {
-            font-size: 18px;
+            font-size: calc(var(--editor-font-size) * 1.286); /* 18px when base is 14px */
             font-weight: bold;
         }
         

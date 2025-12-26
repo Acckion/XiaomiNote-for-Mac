@@ -21,7 +21,7 @@ public final class OfflineOperationProcessor: ObservableObject {
     // MARK: - 配置
     
     /// 最大并发操作数
-    var maxConcurrentOperations: Int = 2
+    var maxConcurrentOperations: Int = 3
     
     /// 最大重试次数
     var maxRetryCount: Int = 3
@@ -662,3 +662,4 @@ public final class OfflineOperationProcessor: ObservableObject {
         return initialRetryDelay * pow(2.0, Double(retryCount))
     }
 }
+

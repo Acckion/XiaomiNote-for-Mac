@@ -96,29 +96,8 @@ public struct Note: Identifiable, Codable, Hashable {
             return false
         }
         
-        // 比较 rawData
-        let lhsRawData = lhs.rawData ?? [:]
-        let rhsRawData = rhs.rawData ?? [:]
-        
-        // 如果两个都是空字典，认为相等
-        if lhsRawData.isEmpty && rhsRawData.isEmpty {
-            return true
-        }
-        
-        // 使用 JSON 序列化来比较 rawData
-        do {
-            let lhsData = try JSONSerialization.data(withJSONObject: lhsRawData, options: [])
-            let rhsData = try JSONSerialization.data(withJSONObject: rhsRawData, options: [])
-            
-            // 比较 JSON 数据
-            return lhsData == rhsData
-        } catch {
-            // 如果 JSON 序列化失败，回退到字符串比较
-            print("[NOTE] JSON 序列化失败，使用字符串比较: \(error)")
-            let lhsRawDataString = String(describing: lhsRawData)
-            let rhsRawDataString = String(describing: rhsRawData)
-            return lhsRawDataString == rhsRawDataString
-        }
+        // 比较 rawData，特别关注图片信息
+        return compareRawData(lhs.rawData, rhs.rawData)
     }
     
     // Hashable 实现
@@ -132,16 +111,148 @@ public struct Note: Identifiable, Codable, Hashable {
         hasher.combine(updatedAt)
         hasher.combine(tags)
         
-        // 使用 JSON 序列化来哈希 rawData
-        if let rawData = rawData {
-            do {
-                let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
-                hasher.combine(jsonData)
-            } catch {
-                // 如果 JSON 序列化失败，回退到字符串哈希
-                print("[NOTE] JSON 序列化失败，使用字符串哈希: \(error)")
-                let rawDataString = String(describing: rawData)
-                hasher.combine(rawDataString)
+        // 使用专门的 rawData 哈希方法
+        hashRawData(into: &hasher)
+    }
+    
+    /// 比较两个 rawData 字典是否相等，特别关注图片信息
+    private static func compareRawData(_ lhs: [String: Any]?, _ rhs: [String: Any]?) -> Bool {
+        // 如果两个都是 nil，相等
+        if lhs == nil && rhs == nil {
+            return true
+        }
+        
+        // 如果只有一个为 nil，不相等
+        guard let lhs = lhs, let rhs = rhs else {
+            return false
+        }
+        
+        // 比较关键字段
+        let lhsKeys = Set(lhs.keys)
+        let rhsKeys = Set(rhs.keys)
+        
+        // 如果键的数量不同，不相等
+        if lhsKeys != rhsKeys {
+            return false
+        }
+        
+        // 比较每个键的值
+        for key in lhsKeys {
+            guard let lhsValue = lhs[key], let rhsValue = rhs[key] else {
+                return false
+            }
+            
+            // 特别处理 setting.data 数组（包含图片信息）
+            if key == "setting" {
+                if !compareSettingData(lhsValue, rhsValue) {
+                    return false
+                }
+                continue
+            }
+            
+            // 其他字段使用字符串比较
+            let lhsString = String(describing: lhsValue)
+            let rhsString = String(describing: rhsValue)
+            if lhsString != rhsString {
+                return false
+            }
+        }
+        
+        return true
+    }
+    
+    /// 比较 setting.data 数组，特别关注图片信息
+    private static func compareSettingData(_ lhs: Any, _ rhs: Any) -> Bool {
+        // 尝试解析为字典
+        guard let lhsDict = lhs as? [String: Any],
+              let rhsDict = rhs as? [String: Any] else {
+            // 如果无法解析为字典，使用字符串比较
+            return String(describing: lhs) == String(describing: rhs)
+        }
+        
+        // 比较 data 数组
+        let lhsData = lhsDict["data"] as? [[String: Any]] ?? []
+        let rhsData = rhsDict["data"] as? [[String: Any]] ?? []
+        
+        // 如果数组长度不同，不相等
+        if lhsData.count != rhsData.count {
+            return false
+        }
+        
+        // 比较每个图片信息
+        for i in 0..<lhsData.count {
+            let lhsItem = lhsData[i]
+            let rhsItem = rhsData[i]
+            
+            // 比较图片关键字段
+            let lhsFileId = lhsItem["fileId"] as? String ?? ""
+            let rhsFileId = rhsItem["fileId"] as? String ?? ""
+            let lhsMimeType = lhsItem["mimeType"] as? String ?? ""
+            let rhsMimeType = rhsItem["mimeType"] as? String ?? ""
+            
+            if lhsFileId != rhsFileId || lhsMimeType != rhsMimeType {
+                return false
+            }
+        }
+        
+        // 比较其他 setting 字段
+        let lhsOtherKeys = Set(lhsDict.keys).subtracting(["data"])
+        let rhsOtherKeys = Set(rhsDict.keys).subtracting(["data"])
+        
+        if lhsOtherKeys != rhsOtherKeys {
+            return false
+        }
+        
+        for key in lhsOtherKeys {
+            guard let lhsValue = lhsDict[key], let rhsValue = rhsDict[key] else {
+                return false
+            }
+            
+            if String(describing: lhsValue) != String(describing: rhsValue) {
+                return false
+            }
+        }
+        
+        return true
+    }
+    
+    /// 哈希 rawData，特别关注图片信息
+    private func hashRawData(into hasher: inout Hasher) {
+        guard let rawData = rawData else {
+            hasher.combine(0) // nil 的哈希值
+            return
+        }
+        
+        // 对每个键值对进行哈希
+        for (key, value) in rawData.sorted(by: { $0.key < $1.key }) {
+            hasher.combine(key)
+            
+            // 特别处理 setting.data
+            if key == "setting", let settingDict = value as? [String: Any] {
+                hashSettingData(settingDict, into: &hasher)
+            } else {
+                hasher.combine(String(describing: value))
+            }
+        }
+    }
+    
+    /// 哈希 setting.data 数组
+    private func hashSettingData(_ settingDict: [String: Any], into hasher: inout Hasher) {
+        // 哈希其他 setting 字段
+        for (key, value) in settingDict.sorted(by: { $0.key < $1.key }) where key != "data" {
+            hasher.combine(key)
+            hasher.combine(String(describing: value))
+        }
+        
+        // 哈希 data 数组中的图片信息
+        if let dataArray = settingDict["data"] as? [[String: Any]] {
+            for item in dataArray {
+                if let fileId = item["fileId"] as? String {
+                    hasher.combine(fileId)
+                }
+                if let mimeType = item["mimeType"] as? String {
+                    hasher.combine(mimeType)
+                }
             }
         }
     }

@@ -374,6 +374,7 @@ struct NoteRow: View {
     let viewModel: NotesViewModel?
     @State private var thumbnailImage: NSImage? = nil
     @State private var currentImageFileId: String? = nil // 跟踪当前显示的图片ID
+    @State private var imageRefreshTrigger = UUID() // 强制刷新触发器
     
     init(note: Note, showDivider: Bool = false, viewModel: NotesViewModel? = nil) {
         self.note = note
@@ -381,50 +382,52 @@ struct NoteRow: View {
         self.viewModel = viewModel
     }
     
-    /// 判断是否应该显示文件夹信息
+    /// 是否应该显示文件夹信息
+    /// 当满足以下条件之一时显示：
+    /// 1. 菜单栏中选中的文件夹是"所有笔记"（id="0"）
+    /// 2. 有搜索文本
+    /// 3. 有搜索筛选选项
     private var shouldShowFolderInfo: Bool {
         guard let viewModel = viewModel else { return false }
         
-        // 在"所有笔记"文件夹中显示文件夹信息
-        if let selectedFolder = viewModel.selectedFolder, selectedFolder.id == "0" {
-            return true
-        }
+        // 检查是否有搜索文本
+        let hasSearchText = !viewModel.searchText.isEmpty
         
-        // 在搜索结果中显示文件夹信息
-        if !viewModel.searchText.isEmpty {
-            return true
-        }
+        // 检查是否有搜索筛选选项
+        let hasSearchFilters = viewModel.searchFilterHasTags || 
+                              viewModel.searchFilterHasChecklist || 
+                              viewModel.searchFilterHasImages || 
+                              viewModel.searchFilterHasAudio || 
+                              viewModel.searchFilterIsPrivate
         
-        // 在筛选结果中显示文件夹信息
-        if viewModel.searchFilterHasTags || viewModel.searchFilterHasChecklist || 
-           viewModel.searchFilterHasImages || viewModel.searchFilterHasAudio || 
-           viewModel.searchFilterIsPrivate {
-            return true
-        }
+        // 检查菜单栏中选中的文件夹是否是"所有笔记"
+        let isAllNotesFolder = viewModel.selectedFolder?.id == "0"
         
-        return false
+        return isAllNotesFolder || hasSearchText || hasSearchFilters
     }
     
     /// 获取文件夹名称
-    private func getFolderName(for note: Note) -> String {
-        guard let viewModel = viewModel else { return "" }
+    private func getFolderName(for folderId: String) -> String {
+        guard let viewModel = viewModel else { return folderId }
         
-        // 如果是私密笔记
-        if note.folderId == "2" {
+        // 系统文件夹的特殊处理
+        if folderId == "0" {
+            return "所有笔记"
+        } else if folderId == "starred" {
+            return "置顶"
+        } else if folderId == "2" {
             return "私密笔记"
-        }
-        
-        // 查找对应的文件夹
-        if let folder = viewModel.folders.first(where: { $0.id == note.folderId }) {
-            return folder.name
-        }
-        
-        // 如果是未分类的笔记
-        if note.folderId == "0" || note.folderId.isEmpty {
+        } else if folderId == "uncategorized" {
             return "未分类"
         }
         
-        return "未知文件夹"
+        // 从文件夹列表中查找
+        if let folder = viewModel.folders.first(where: { $0.id == folderId }) {
+            return folder.name
+        }
+        
+        // 如果找不到，返回文件夹ID
+        return folderId
     }
     
     var body: some View {
@@ -461,6 +464,20 @@ struct NoteRow: View {
                                 .lineLimit(1)
                         }
                     }
+                    
+                    // 文件夹信息（在特定条件下显示）
+                    if shouldShowFolderInfo {
+                        HStack(spacing: 4) {
+                            Image(systemName: "folder")
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary)
+                            Text(getFolderName(for: note.folderId))
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                        .padding(.top, 2)
+                    }
                 }
                 
                 Spacer()
@@ -486,9 +503,11 @@ struct NoteRow: View {
                         RoundedRectangle(cornerRadius: 4)
                             .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
                     )
+                    .id(imageRefreshTrigger) // 使用触发器强制视图重建
                     .onAppear {
                         // 首次加载或图片ID变化时，重新加载
                         if currentImageFileId != imageInfo.fileId {
+                            print("[NoteRow] onAppear: 加载缩略图，fileId: \(imageInfo.fileId)")
                             loadThumbnail(imageInfo: imageInfo)
                             currentImageFileId = imageInfo.fileId
                         }
@@ -496,6 +515,7 @@ struct NoteRow: View {
                     .onChange(of: imageInfo.fileId) { oldValue, newValue in
                         // 图片ID变化时，重新加载
                         if currentImageFileId != newValue {
+                            print("[NoteRow] onChange(fileId): 图片ID变化，重新加载缩略图: \(oldValue ?? "nil") -> \(newValue)")
                             loadThumbnail(imageInfo: imageInfo)
                             currentImageFileId = newValue
                         }
@@ -513,32 +533,22 @@ struct NoteRow: View {
             .padding(.horizontal, 8)
             .onChange(of: note.content) { oldValue, newValue in
                 // 笔记内容变化时，重新检查并更新图片
+                print("[NoteRow] onChange(content): 笔记内容变化，更新缩略图")
                 updateThumbnail()
             }
             .onChange(of: note.updatedAt) { oldValue, newValue in
                 // 更新时间变化时，重新检查并更新图片
+                print("[NoteRow] onChange(updatedAt): 更新时间变化，更新缩略图")
                 updateThumbnail()
             }
-            
-            // 文件夹信息（在"所有笔记"和搜索结果中显示）- 移动到卡片最下方
-            if shouldShowFolderInfo {
-                let folderName = getFolderName(for: note)
-                if !folderName.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "folder")
-                            .font(.system(size: 10))
-                            .foregroundColor(.secondary)
-                        
-                        Text(folderName)
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 4)
-                }
+            .onChange(of: noteImageHash) { oldValue, newValue in
+                // 图片信息哈希值变化时，强制更新缩略图
+                // 这确保当图片插入/删除时能正确刷新
+                print("[NoteRow] onChange(noteImageHash): 图片信息哈希值变化 (\(oldValue) -> \(newValue))，更新缩略图")
+                updateThumbnail()
             }
+            // 注意：不能直接使用 onChange(of: note.rawData)，因为 [String: Any]? 不符合 Equatable
+            // 我们使用 noteImageHash 来检测图片变化，它已经包含了 rawData 中的图片信息
             
             // 分割线：放在笔记项之间的中间位置，向下偏移一点以居中
             if showDivider {
@@ -672,69 +682,157 @@ struct NoteRow: View {
         return nil
     }
     
+    /// 获取图片信息的哈希值，用于检测变化
+    private func getImageInfoHash(from note: Note) -> String {
+        guard let rawData = note.rawData,
+              let setting = rawData["setting"] as? [String: Any],
+              let settingData = setting["data"] as? [[String: Any]] else {
+            return "no_images"
+        }
+        
+        // 提取所有图片信息并生成哈希
+        var imageInfos: [String] = []
+        for imgData in settingData {
+            if let fileId = imgData["fileId"] as? String,
+               let mimeType = imgData["mimeType"] as? String,
+               mimeType.hasPrefix("image/") {
+                imageInfos.append("\(fileId):\(mimeType)")
+            }
+        }
+        
+        if imageInfos.isEmpty {
+            return "no_images"
+        }
+        
+        // 排序以确保一致的哈希
+        return imageInfos.sorted().joined(separator: "|")
+    }
+    
+    /// 检查 rawData 变化并更新缩略图
+    private func checkAndUpdateThumbnailForRawDataChange(oldValue: [String: Any]?, newValue: [String: Any]?) {
+        let oldImageHash = getImageInfoHash(from: Note(id: "", title: "", content: "", folderId: "", createdAt: Date(), updatedAt: Date(), rawData: oldValue))
+        let newImageHash = getImageInfoHash(from: Note(id: "", title: "", content: "", folderId: "", createdAt: Date(), updatedAt: Date(), rawData: newValue))
+        
+        if oldImageHash != newImageHash {
+            print("[NoteRow] rawData变化检测到图片哈希变化: \(oldImageHash) -> \(newImageHash)")
+            // 强制刷新触发器，确保视图重建
+            imageRefreshTrigger = UUID()
+            updateThumbnail()
+        }
+    }
+    
+    /// 当前笔记的图片哈希值（计算属性）
+    private var noteImageHash: String {
+        getImageInfoHash(from: note)
+    }
+    
     /// 更新缩略图（根据当前笔记内容）
     private func updateThumbnail() {
+        print("[NoteRow] updateThumbnail: 开始更新缩略图")
+        
         if let imageInfo = getFirstImageInfo(from: note) {
+            print("[NoteRow] updateThumbnail: 找到图片信息，fileId: \(imageInfo.fileId), currentImageFileId: \(currentImageFileId ?? "nil")")
+            
             // 如果图片ID变化了，重新加载
             if currentImageFileId != imageInfo.fileId {
+                print("[NoteRow] updateThumbnail: 图片ID变化，重新加载缩略图")
                 loadThumbnail(imageInfo: imageInfo)
                 currentImageFileId = imageInfo.fileId
+            } else {
+                print("[NoteRow] updateThumbnail: 图片ID未变化，检查是否需要重新加载")
+                // 即使ID相同，也检查图片文件是否存在
+                Task {
+                    if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
+                       let nsImage = NSImage(data: imageData) {
+                        await MainActor.run {
+                            // 如果当前没有缩略图或需要更新，重新加载
+                            if thumbnailImage == nil {
+                                print("[NoteRow] updateThumbnail: 当前没有缩略图，重新加载")
+                                loadThumbnail(imageInfo: imageInfo)
+                            }
+                        }
+                    } else {
+                        print("[NoteRow] updateThumbnail: 图片文件不存在，清空缩略图")
+                        await MainActor.run {
+                            thumbnailImage = nil
+                        }
+                    }
+                }
             }
         } else {
+            print("[NoteRow] updateThumbnail: 没有找到图片信息")
             // 如果没有图片了，清空缩略图
             if currentImageFileId != nil || thumbnailImage != nil {
+                print("[NoteRow] updateThumbnail: 清空缩略图状态")
                 currentImageFileId = nil
                 thumbnailImage = nil
+                // 强制刷新触发器，确保视图更新
+                imageRefreshTrigger = UUID()
             }
         }
     }
     
     /// 加载缩略图
     private func loadThumbnail(imageInfo: (fileId: String, fileType: String)) {
+        print("[NoteRow] loadThumbnail: 开始加载缩略图，fileId: \(imageInfo.fileId), fileType: \(imageInfo.fileType)")
+        
         // 在后台线程加载图片
         Task {
-            if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
-               let nsImage = NSImage(data: imageData) {
-                // 创建缩略图（50x50），使用剪裁模式而不是拉伸
-                let thumbnailSize = NSSize(width: 50, height: 50)
-                let thumbnail = NSImage(size: thumbnailSize)
+            if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType) {
+                print("[NoteRow] loadThumbnail: 成功加载图片数据，大小: \(imageData.count) 字节")
                 
-                thumbnail.lockFocus()
-                defer { thumbnail.unlockFocus() }
-                
-                // 计算缩放比例，保持宽高比
-                let imageSize = nsImage.size
-                let scaleX = thumbnailSize.width / imageSize.width
-                let scaleY = thumbnailSize.height / imageSize.height
-                let scale = max(scaleX, scaleY) // 使用较大的缩放比例，确保覆盖整个区域
-                
-                // 计算缩放后的尺寸
-                let scaledSize = NSSize(
-                    width: imageSize.width * scale,
-                    height: imageSize.height * scale
-                )
-                
-                // 计算居中位置
-                let offsetX = (thumbnailSize.width - scaledSize.width) / 2
-                let offsetY = (thumbnailSize.height - scaledSize.height) / 2
-                
-                // 填充背景色（可选）
-                NSColor.controlBackgroundColor.setFill()
-                NSRect(origin: .zero, size: thumbnailSize).fill()
-                
-                // 绘制图片（居中，可能会超出边界，但会被 clipShape 剪裁）
-                nsImage.draw(
-                    in: NSRect(origin: NSPoint(x: offsetX, y: offsetY), size: scaledSize),
-                    from: NSRect(origin: .zero, size: imageSize),
-                    operation: .sourceOver,
-                    fraction: 1.0
-                )
-                
-                await MainActor.run {
-                    self.thumbnailImage = thumbnail
+                if let nsImage = NSImage(data: imageData) {
+                    print("[NoteRow] loadThumbnail: 成功创建NSImage，尺寸: \(nsImage.size)")
+                    
+                    // 创建缩略图（50x50），使用剪裁模式而不是拉伸
+                    let thumbnailSize = NSSize(width: 50, height: 50)
+                    let thumbnail = NSImage(size: thumbnailSize)
+                    
+                    thumbnail.lockFocus()
+                    defer { thumbnail.unlockFocus() }
+                    
+                    // 计算缩放比例，保持宽高比
+                    let imageSize = nsImage.size
+                    let scaleX = thumbnailSize.width / imageSize.width
+                    let scaleY = thumbnailSize.height / imageSize.height
+                    let scale = max(scaleX, scaleY) // 使用较大的缩放比例，确保覆盖整个区域
+                    
+                    // 计算缩放后的尺寸
+                    let scaledSize = NSSize(
+                        width: imageSize.width * scale,
+                        height: imageSize.height * scale
+                    )
+                    
+                    // 计算居中位置
+                    let offsetX = (thumbnailSize.width - scaledSize.width) / 2
+                    let offsetY = (thumbnailSize.height - scaledSize.height) / 2
+                    
+                    // 填充背景色（可选）
+                    NSColor.controlBackgroundColor.setFill()
+                    NSRect(origin: .zero, size: thumbnailSize).fill()
+                    
+                    // 绘制图片（居中，可能会超出边界，但会被 clipShape 剪裁）
+                    nsImage.draw(
+                        in: NSRect(origin: NSPoint(x: offsetX, y: offsetY), size: scaledSize),
+                        from: NSRect(origin: .zero, size: imageSize),
+                        operation: .sourceOver,
+                        fraction: 1.0
+                    )
+                    
+                    await MainActor.run {
+                        print("[NoteRow] loadThumbnail: 设置缩略图")
+                        self.thumbnailImage = thumbnail
+                        // 更新刷新触发器，确保视图更新
+                        self.imageRefreshTrigger = UUID()
+                    }
+                } else {
+                    print("[NoteRow] loadThumbnail: 无法从数据创建NSImage")
+                    await MainActor.run {
+                        self.thumbnailImage = nil
+                    }
                 }
             } else {
-                // 如果加载失败，清空缩略图
+                print("[NoteRow] loadThumbnail: 无法加载图片数据，fileId: \(imageInfo.fileId)")
                 await MainActor.run {
                     self.thumbnailImage = nil
                 }

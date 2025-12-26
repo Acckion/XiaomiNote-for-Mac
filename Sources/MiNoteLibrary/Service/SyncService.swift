@@ -148,8 +148,16 @@ final class SyncService: @unchecked Sendable {
                     updatedNote.updateContent(from: noteDetails)
                     print("[SYNC] 更新笔记内容，content长度: \(updatedNote.content.count)")
                     
-                    // 下载图片
-                    try await downloadNoteImages(from: noteDetails, noteId: note.id)
+                    // 下载图片，并获取更新后的 setting.data
+                    if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
+                        // 更新笔记的 rawData 中的 setting.data
+                        var rawData = updatedNote.rawData ?? [:]
+                        var setting = rawData["setting"] as? [String: Any] ?? [:]
+                        setting["data"] = updatedSettingData
+                        rawData["setting"] = setting
+                        updatedNote.rawData = rawData
+                        print("[SYNC] 更新笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                    }
                     
                     // 保存到本地
                     print("[SYNC] 保存笔记: \(updatedNote.id)")
@@ -188,8 +196,16 @@ final class SyncService: @unchecked Sendable {
                     updatedNote.updateContent(from: noteDetails)
                     print("[SYNC] 更新私密笔记内容，content长度: \(updatedNote.content.count)")
                     
-                    // 下载图片
-                    try await downloadNoteImages(from: noteDetails, noteId: note.id)
+                    // 下载图片，并获取更新后的 setting.data
+                    if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
+                        // 更新笔记的 rawData 中的 setting.data
+                        var rawData = updatedNote.rawData ?? [:]
+                        var setting = rawData["setting"] as? [String: Any] ?? [:]
+                        setting["data"] = updatedSettingData
+                        rawData["setting"] = setting
+                        updatedNote.rawData = rawData
+                        print("[SYNC] 更新私密笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                    }
                     
                     // 保存到本地（确保 folderId 为 "2"）
                     var finalNote = updatedNote
@@ -510,7 +526,18 @@ final class SyncService: @unchecked Sendable {
                 var updatedNote = cloudNote
                 updatedNote.updateContent(from: noteDetails)
                 print("[SYNC] 更新笔记内容，content长度: \(updatedNote.content.count)")
-                try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                
+                // 下载图片，并获取更新后的 setting.data
+                if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id) {
+                    // 更新笔记的 rawData 中的 setting.data
+                    var rawData = updatedNote.rawData ?? [:]
+                    var setting = rawData["setting"] as? [String: Any] ?? [:]
+                    setting["data"] = updatedSettingData
+                    rawData["setting"] = setting
+                    updatedNote.rawData = rawData
+                    print("[SYNC] 更新笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                }
+                
                 print("[SYNC] 保存笔记: \(updatedNote.id)")
                 try localStorage.saveNote(updatedNote)
                 result.status = .updated
@@ -525,7 +552,18 @@ final class SyncService: @unchecked Sendable {
                     var updatedNote = cloudNote
                     updatedNote.updateContent(from: noteDetails)
                     print("[SYNC] 更新笔记内容，content长度: \(updatedNote.content.count)")
-                    try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                    
+                    // 下载图片，并获取更新后的 setting.data
+                    if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id) {
+                        // 更新笔记的 rawData 中的 setting.data
+                        var rawData = updatedNote.rawData ?? [:]
+                        var setting = rawData["setting"] as? [String: Any] ?? [:]
+                        setting["data"] = updatedSettingData
+                        rawData["setting"] = setting
+                        updatedNote.rawData = rawData
+                        print("[SYNC] 更新笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                    }
+                    
                     print("[SYNC] 保存笔记: \(updatedNote.id)")
                     try localStorage.saveNote(updatedNote)
                     result.status = .updated
@@ -563,7 +601,18 @@ final class SyncService: @unchecked Sendable {
                         var updatedNote = cloudNote
                         updatedNote.updateContent(from: noteDetails)
                         print("[SYNC] 更新笔记内容，content长度: \(updatedNote.content.count)")
-                        try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                        
+                        // 下载图片，并获取更新后的 setting.data
+                        if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id) {
+                            // 更新笔记的 rawData 中的 setting.data
+                            var rawData = updatedNote.rawData ?? [:]
+                            var setting = rawData["setting"] as? [String: Any] ?? [:]
+                            setting["data"] = updatedSettingData
+                            rawData["setting"] = setting
+                            updatedNote.rawData = rawData
+                            print("[SYNC] 更新笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                        }
+                        
                         print("[SYNC] 保存笔记: \(updatedNote.id)")
                         try localStorage.saveNote(updatedNote)
                         result.status = .updated
@@ -583,7 +632,18 @@ final class SyncService: @unchecked Sendable {
                     var updatedNote = cloudNote
                     updatedNote.updateContent(from: noteDetails)
                     print("[SYNC] 更新笔记内容，content长度: \(updatedNote.content.count)")
-                    try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id)
+                    
+                    // 下载图片，并获取更新后的 setting.data
+                    if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id) {
+                        // 更新笔记的 rawData 中的 setting.data
+                        var rawData = updatedNote.rawData ?? [:]
+                        var setting = rawData["setting"] as? [String: Any] ?? [:]
+                        setting["data"] = updatedSettingData
+                        rawData["setting"] = setting
+                        updatedNote.rawData = rawData
+                        print("[SYNC] 更新笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                    }
+                    
                     print("[SYNC] 保存笔记: \(updatedNote.id)")
                     try localStorage.saveNote(updatedNote)
                     result.status = .created
@@ -796,8 +856,16 @@ final class SyncService: @unchecked Sendable {
                 updatedNote.updateContent(from: noteDetails)
                 print("[SYNC] 更新笔记内容完成: \(note.id), 内容长度: \(updatedNote.content.count)")
                 
-                // 处理图片：下载笔记中的图片
-                try await downloadNoteImages(from: noteDetails, noteId: note.id)
+                // 处理图片：下载笔记中的图片，并获取更新后的 setting.data
+                if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
+                    // 更新笔记的 rawData 中的 setting.data
+                    var rawData = updatedNote.rawData ?? [:]
+                    var setting = rawData["setting"] as? [String: Any] ?? [:]
+                    setting["data"] = updatedSettingData
+                    rawData["setting"] = setting
+                    updatedNote.rawData = rawData
+                    print("[SYNC] 更新笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                }
                 
                 // 保存到本地（替换现有文件）
                 print("[SYNC] 保存笔记到本地: \(updatedNote.id)")
@@ -859,8 +927,17 @@ final class SyncService: @unchecked Sendable {
                             } else {
                                 // 内容不同，需要更新
                                 print("[SYNC] 时间戳接近但内容不同，需要更新: \(note.id)")
-                                // 处理图片：下载笔记中的图片
-                                try await downloadNoteImages(from: noteDetails, noteId: note.id)
+                                // 处理图片：下载笔记中的图片，并获取更新后的 setting.data
+                                if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
+                                    // 更新笔记的 rawData 中的 setting.data
+                                    var rawData = cloudNote.rawData ?? [:]
+                                    var setting = rawData["setting"] as? [String: Any] ?? [:]
+                                    setting["data"] = updatedSettingData
+                                    rawData["setting"] = setting
+                                    cloudNote.rawData = rawData
+                                    print("[SYNC] 更新笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                                }
+                                
                                 // 使用已获取的 noteDetails 继续更新流程
                                 var updatedNote = cloudNote
                                 updatedNote.updateContent(from: noteDetails)
@@ -936,8 +1013,16 @@ final class SyncService: @unchecked Sendable {
                 updatedNote.updateContent(from: noteDetails)
                 print("[SYNC] 更新笔记内容完成: \(note.id), 内容长度: \(updatedNote.content.count)")
                 
-                // 处理图片：下载笔记中的图片
-                try await downloadNoteImages(from: noteDetails, noteId: note.id)
+                // 处理图片：下载笔记中的图片，并获取更新后的 setting.data
+                if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
+                    // 更新笔记的 rawData 中的 setting.data
+                    var rawData = updatedNote.rawData ?? [:]
+                    var setting = rawData["setting"] as? [String: Any] ?? [:]
+                    setting["data"] = updatedSettingData
+                    rawData["setting"] = setting
+                    updatedNote.rawData = rawData
+                    print("[SYNC] 更新笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                }
                 
                 // 调试：检查更新后的内容
                 if updatedNote.content.isEmpty {
@@ -1005,8 +1090,16 @@ final class SyncService: @unchecked Sendable {
                 newNote.updateContent(from: noteDetails)
                 print("[SYNC] 更新新笔记内容完成: \(note.id), 内容长度: \(newNote.content.count)")
                 
-                // 处理图片：下载笔记中的图片
-                try await downloadNoteImages(from: noteDetails, noteId: note.id)
+                // 处理图片：下载笔记中的图片，并获取更新后的 setting.data
+                if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
+                    // 更新笔记的 rawData 中的 setting.data
+                    var rawData = newNote.rawData ?? [:]
+                    var setting = rawData["setting"] as? [String: Any] ?? [:]
+                    setting["data"] = updatedSettingData
+                    rawData["setting"] = setting
+                    newNote.rawData = rawData
+                    print("[SYNC] 更新新笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                }
                 
                 // 调试：检查更新后的内容
                 if newNote.content.isEmpty {
@@ -1066,7 +1159,8 @@ final class SyncService: @unchecked Sendable {
     /// - Parameters:
     ///   - noteDetails: 笔记详情响应（包含setting.data字段）
     ///   - noteId: 笔记ID（用于日志和错误处理）
-    private func downloadNoteImages(from noteDetails: [String: Any], noteId: String) async throws {
+    /// - Returns: 更新后的setting.data数组，包含图片下载状态信息
+    private func downloadNoteImages(from noteDetails: [String: Any], noteId: String) async throws -> [[String: Any]]? {
         print("[SYNC] 开始下载笔记图片: \(noteId)")
         print("[SYNC] noteDetails 键: \(noteDetails.keys)")
         
@@ -1088,29 +1182,28 @@ final class SyncService: @unchecked Sendable {
         
         guard let entry = entry else {
             print("[SYNC] 无法提取 entry，跳过图片下载: \(noteId)")
-            return
+            return nil
         }
         
         // 从 setting.data 中提取图片信息
         guard let setting = entry["setting"] as? [String: Any] else {
             print("[SYNC] entry 中没有 setting 字段，跳过图片下载: \(noteId)")
             print("[SYNC] entry 包含的键: \(entry.keys)")
-            return
+            return nil
         }
         
         print("[SYNC] 找到 setting 字段，包含键: \(setting.keys)")
         
-        guard let settingData = setting["data"] as? [[String: Any]] else {
+        guard var settingData = setting["data"] as? [[String: Any]] else {
             print("[SYNC] setting 中没有 data 字段或 data 不是数组，跳过图片下载: \(noteId)")
-            return
+            return nil
         }
         
         print("[SYNC] 找到 \(settingData.count) 个图片条目")
         
-        var imageTasks: [Task<Void, Never>] = []
-        var imageCount = 0
-        
-        for (index, imgData) in settingData.enumerated() {
+        // 使用简单的异步循环，避免复杂的并发问题
+        for index in 0..<settingData.count {
+            let imgData = settingData[index]
             print("[SYNC] 处理图片条目 \(index + 1)/\(settingData.count): \(imgData.keys)")
             
             guard let fileId = imgData["fileId"] as? String else {
@@ -1130,41 +1223,39 @@ final class SyncService: @unchecked Sendable {
             
             // 提取文件类型（如 "jpeg", "png"）
             let fileType = String(mimeType.dropFirst("image/".count))
-            imageCount += 1
-            print("[SYNC] 找到图片 \(imageCount): fileId=\(fileId), fileType=\(fileType)")
+            print("[SYNC] 找到图片: fileId=\(fileId), fileType=\(fileType)")
             
             // 检查图片是否已存在
             if localStorage.imageExists(fileId: fileId, fileType: fileType) {
                 print("[SYNC] 图片已存在，跳过下载: \(fileId).\(fileType)")
+                // 更新 settingData 条目，添加本地存在标志
+                var updatedImgData = imgData
+                updatedImgData["localExists"] = true
+                settingData[index] = updatedImgData
                 continue
             }
             
-            // 创建下载任务（不抛出错误，错误在内部处理）
-            let task = Task<Void, Never> {
-                do {
-                    print("[SYNC] 开始下载图片: \(fileId).\(fileType)")
-                    let imageData = try await miNoteService.downloadFile(fileId: fileId, type: "note_img")
-                    print("[SYNC] 图片下载完成，大小: \(imageData.count) 字节")
-                    try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
-                    print("[SYNC] 图片保存成功: \(fileId).\(fileType)")
-                } catch {
-                    print("[SYNC] 图片下载失败: \(fileId).\(fileType), 错误: \(error.localizedDescription)")
-                    // 不抛出错误，继续下载其他图片
-                }
+            // 下载图片
+            do {
+                print("[SYNC] 开始下载图片: \(fileId).\(fileType)")
+                let imageData = try await miNoteService.downloadFile(fileId: fileId, type: "note_img")
+                print("[SYNC] 图片下载完成，大小: \(imageData.count) 字节")
+                try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
+                print("[SYNC] 图片保存成功: \(fileId).\(fileType)")
+                
+                // 更新 settingData 条目，添加下载成功标志
+                var updatedImgData = imgData
+                updatedImgData["localExists"] = true
+                updatedImgData["downloaded"] = true
+                settingData[index] = updatedImgData
+            } catch {
+                print("[SYNC] 图片下载失败: \(fileId).\(fileType), 错误: \(error.localizedDescription)")
+                // 下载失败，不更新 settingData
             }
-            imageTasks.append(task)
         }
         
-        // 等待所有图片下载完成
-        if !imageTasks.isEmpty {
-            print("[SYNC] 等待 \(imageTasks.count) 张图片下载完成...")
-            for task in imageTasks {
-                await task.value
-            }
-            print("[SYNC] 所有图片下载完成")
-        } else {
-            print("[SYNC] 没有需要下载的图片（共找到 \(imageCount) 个图片条目）")
-        }
+        print("[SYNC] 所有图片处理完成，共处理 \(settingData.count) 个条目")
+        return settingData
     }
     
     // MARK: - 清理已删除的笔记

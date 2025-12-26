@@ -1679,15 +1679,8 @@ struct SidebarFolderRow: View {
     /// - "uncategorized" (未分类): folder.badge.questionmark
     /// - "new" (新建): folder.badge.plus
     /// - 其他: folder（如果置顶则显示 pin.fill）
-    /// - 空字符串或无效ID: folder（默认图标）
     private var folderIcon: String {
-        let folderId = folder.id.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        if folderId.isEmpty {
-            return "folder"  // 默认图标
-        }
-        
-        switch folderId {
+        switch folder.id {
         case "0": return "tray.full"
         case "starred": return "pin.fill"
         case "uncategorized": return "folder.badge.questionmark"
@@ -1718,7 +1711,7 @@ struct AccountRow: View {
     
     var body: some View {
         HStack {
-            Image(systemName: icon.isEmpty ? "person.circle" : icon)
+            Image(systemName: icon)
                 .foregroundColor(.secondary)
                 .frame(width: 20)
             

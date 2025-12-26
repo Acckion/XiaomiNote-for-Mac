@@ -21,9 +21,9 @@ final class LocalStorageService: @unchecked Sendable {
         if !fileManager.fileExists(atPath: documentsDirectory.path) {
             do {
                 try fileManager.createDirectory(at: documentsDirectory, withIntermediateDirectories: true, attributes: nil)
-                // print("创建应用程序支持目录: \(documentsDirectory.path)")
+                print("创建应用程序支持目录: \(documentsDirectory.path)")
             } catch {
-                // print("创建目录失败: \(error)")
+                print("创建目录失败: \(error)")
             }
         }
     }
@@ -86,13 +86,13 @@ final class LocalStorageService: @unchecked Sendable {
     /// 保存文件夹列表到本地
     func saveFolders(_ folders: [Folder]) throws {
         try database.saveFolders(folders)
-        // print("保存文件夹列表到本地: \(folders.count) 个文件夹")
+        print("保存文件夹列表到本地: \(folders.count) 个文件夹")
     }
     
     /// 从本地加载文件夹列表
     func loadFolders() throws -> [Folder] {
         let folders = try database.loadFolders()
-        // print("从本地加载文件夹列表: \(folders.count) 个文件夹")
+        print("从本地加载文件夹列表: \(folders.count) 个文件夹")
         return folders
     }
     
@@ -123,7 +123,7 @@ final class LocalStorageService: @unchecked Sendable {
                 }
             }
         } catch {
-            // print("获取文件夹列表失败: \(error)")
+            print("获取文件夹列表失败: \(error)")
         }
         
         return folders
@@ -167,7 +167,7 @@ final class LocalStorageService: @unchecked Sendable {
         if fileManager.fileExists(atPath: oldFolderDirectory.path) && 
            !fileManager.fileExists(atPath: newFolderDirectory.path) {
             try fileManager.moveItem(at: oldFolderDirectory, to: newFolderDirectory)
-            // print("[LocalStorage] 重命名图片目录: \(oldFolderId) -> \(newFolderId)")
+            print("[LocalStorage] 重命名图片目录: \(oldFolderId) -> \(newFolderId)")
         } else if fileManager.fileExists(atPath: oldFolderDirectory.path) && 
                   fileManager.fileExists(atPath: newFolderDirectory.path) {
             // 如果两个目录都存在，合并内容
@@ -184,7 +184,7 @@ final class LocalStorageService: @unchecked Sendable {
                 }
                 // 删除旧目录
                 try? fileManager.removeItem(at: oldFolderDirectory)
-                // print("[LocalStorage] 合并图片目录: \(oldFolderId) -> \(newFolderId)")
+                print("[LocalStorage] 合并图片目录: \(oldFolderId) -> \(newFolderId)")
             }
         }
     }
@@ -200,7 +200,7 @@ final class LocalStorageService: @unchecked Sendable {
         // 如果目录存在，删除它及其所有内容
         if fileManager.fileExists(atPath: folderDirectory.path) {
             try fileManager.removeItem(at: folderDirectory)
-            // print("[LocalStorage] 删除图片目录: \(folderId)")
+            print("[LocalStorage] 删除图片目录: \(folderId)")
         }
     }
     
@@ -236,17 +236,17 @@ final class LocalStorageService: @unchecked Sendable {
         for deletion in deletions {
             try database.savePendingDeletion(deletion)
         }
-        // print("保存 \(deletions.count) 个待删除笔记")
+        print("保存 \(deletions.count) 个待删除笔记")
     }
     
     /// 加载待删除的笔记列表
     func loadPendingDeletions() -> [PendingDeletion] {
         do {
             let deletions = try database.getAllPendingDeletions()
-            // print("加载了 \(deletions.count) 个待删除笔记")
+            print("加载了 \(deletions.count) 个待删除笔记")
             return deletions
         } catch {
-            // print("加载待删除笔记列表失败: \(error)")
+            print("加载待删除笔记列表失败: \(error)")
             return []
         }
     }
@@ -254,14 +254,14 @@ final class LocalStorageService: @unchecked Sendable {
     /// 移除待删除的笔记（删除成功后调用）
     func removePendingDeletion(noteId: String) throws {
         try database.deletePendingDeletion(noteId: noteId)
-        // print("移除待删除笔记: \(noteId)")
+        print("移除待删除笔记: \(noteId)")
     }
     
     
     /// 添加待删除的笔记（删除失败时调用）
     func addPendingDeletion(_ deletion: PendingDeletion) throws {
         try database.savePendingDeletion(deletion)
-        // print("添加待删除笔记: \(deletion.noteId)")
+        print("添加待删除笔记: \(deletion.noteId)")
     }
     
     // MARK: - 图片文件管理
@@ -276,7 +276,7 @@ final class LocalStorageService: @unchecked Sendable {
         let imgDir = imagesDirectory
         if !fileManager.fileExists(atPath: imgDir.path) {
             try fileManager.createDirectory(at: imgDir, withIntermediateDirectories: true, attributes: nil)
-            // print("创建图片目录: \(imgDir.path)")
+            print("创建图片目录: \(imgDir.path)")
         }
     }
     
@@ -292,7 +292,7 @@ final class LocalStorageService: @unchecked Sendable {
         let fileURL = imagesDirectory.appendingPathComponent(fileName)
         
         try imageData.write(to: fileURL)
-        // print("保存图片到本地: \(fileURL.path)")
+        print("保存图片到本地: \(fileURL.path)")
     }
     
     /// 检查图片文件是否存在
