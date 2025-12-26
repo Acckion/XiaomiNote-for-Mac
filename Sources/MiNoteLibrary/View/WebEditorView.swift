@@ -1,5 +1,5 @@
-@preconcurrency import SwiftUI
-@preconcurrency import WebKit
+import SwiftUI
+import WebKit
 import AppKit
 import Carbon
 
@@ -48,7 +48,6 @@ struct WebEditorView: NSViewRepresentable {
         
         // 启用JavaScript
         let preferences = WKPreferences()
-        // 注意：javaScriptEnabled 在 macOS 11.0 后已弃用，使用 WKWebpagePreferences.allowsContentJavaScript
         preferences.javaScriptEnabled = true
         preferences.javaScriptCanOpenWindowsAutomatically = true
         // 启用开发者工具（允许右键 -> 检查元素）
@@ -299,20 +298,23 @@ struct WebEditorView: NSViewRepresentable {
     // 检测系统是否处于深色模式
     private func detectDarkMode() -> Bool {
         if #available(macOS 10.14, *) {
-            // 优先使用当前窗口的 effectiveAppearance（最准确）
+            // 方法1: 使用 NSApp.effectiveAppearance
+            let appearance = NSApp.effectiveAppearance
+            let bestMatch = appearance.bestMatch(from: [.darkAqua, .aqua])
+            let isDark1 = bestMatch == .darkAqua
+            
+            // 方法2: 使用当前窗口的 effectiveAppearance（更准确）
+            var isDark2 = false
             if let window = NSApplication.shared.windows.first {
                 let windowAppearance = window.effectiveAppearance
                 let windowBestMatch = windowAppearance.bestMatch(from: [.darkAqua, .aqua])
-                let isDark = windowBestMatch == .darkAqua
-                print("[WebEditorView] 深色模式检测 - 窗口外观: \(isDark)")
-                return isDark
+                isDark2 = windowBestMatch == .darkAqua
             }
             
-            // 如果没有窗口，使用 NSApp.effectiveAppearance
-            let appearance = NSApp.effectiveAppearance
-            let bestMatch = appearance.bestMatch(from: [.darkAqua, .aqua])
-            let isDark = bestMatch == .darkAqua
-            print("[WebEditorView] 深色模式检测 - NSApp外观: \(isDark)")
+            // 优先使用窗口的 appearance，如果没有窗口则使用 NSApp 的
+            let isDark = isDark2 || isDark1
+            
+            print("[WebEditorView] 深色模式检测 - NSApp: \(isDark1), Window: \(isDark2), 最终结果: \(isDark)")
             return isDark
         }
         print("[WebEditorView] macOS版本低于10.14，不支持深色模式")
@@ -376,73 +378,10 @@ struct WebEditorView: NSViewRepresentable {
         var forceSaveContentClosure: ((@escaping () -> Void) -> Void)?
         var undoClosure: (() -> Void)?
         var redoClosure: (() -> Void)?
-        
-        // 编辑器设置监听器
-        private var settingsObserver: NSObjectProtocol?
+        var highlightSearchTextClosure: ((String) -> Void)?
         
         init(_ parent: WebEditorView) {
             self.parent = parent
-            super.init()
-            
-            // 监听编辑器设置变化
-            setupSettingsObserver()
-        }
-        
-        /// 设置编辑器设置监听器
-        private func setupSettingsObserver() {
-            // 监听编辑器设置变化通知
-            settingsObserver = NotificationCenter.default.addObserver(
-                forName: NSNotification.Name("EditorSettingsChanged"),
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                self?.handleEditorSettingsChanged(notification)
-            }
-        }
-        
-        /// 处理编辑器设置变化
-        @MainActor
-        private func handleEditorSettingsChanged(_ notification: Notification) {
-            guard let webView = self.webView else { return }
-            
-            // 从通知中获取设置值
-            let fontSize = notification.userInfo?["fontSize"] as? Double ?? 14.0
-            let lineHeight = notification.userInfo?["lineHeight"] as? Double ?? 1.5
-            
-            print("[WebEditorView] 收到编辑器设置变化通知: 字体大小=\(fontSize)px, 行间距=\(lineHeight)")
-            
-            // 应用设置到 Web 编辑器
-            applyEditorSettings(fontSize: fontSize, lineHeight: lineHeight, webView: webView)
-        }
-        
-        /// 应用编辑器设置到 Web 编辑器
-        private func applyEditorSettings(fontSize: Double, lineHeight: Double, webView: WKWebView) {
-            let javascript = """
-            window.MiNoteWebEditor.applyEditorSettings({
-                fontSize: \(fontSize),
-                lineHeight: \(lineHeight)
-            });
-            """
-            
-            webView.evaluateJavaScript(javascript) { result, error in
-                if let error = error {
-                    print("[WebEditorView] ❌ 应用编辑器设置失败: \(error.localizedDescription)")
-                } else {
-                    print("[WebEditorView] ✅ 编辑器设置已应用: 字体大小=\(fontSize)px, 行间距=\(lineHeight)")
-                }
-            }
-        }
-        
-        /// 获取当前编辑器设置
-        private func getCurrentEditorSettings() -> (fontSize: Double, lineHeight: Double) {
-            let fontSize = UserDefaults.standard.double(forKey: "editorFontSize")
-            let lineHeight = UserDefaults.standard.double(forKey: "editorLineHeight")
-            
-            // 使用默认值如果设置不存在
-            return (
-                fontSize > 0 ? fontSize : 14.0,
-                lineHeight > 0 ? lineHeight : 1.5
-            )
         }
         
         /// 打开Web Inspector（在外部窗口中打开，并确保显示在最前面）
@@ -640,6 +579,24 @@ struct WebEditorView: NSViewRepresentable {
                     }
                 }
             }
+            
+            highlightSearchTextClosure = { [weak self] searchText in
+                guard let webView = self?.webView else { return }
+                let escapedText = searchText
+                    .replacingOccurrences(of: "\\", with: "\\\\")
+                    .replacingOccurrences(of: "`", with: "\\`")
+                    .replacingOccurrences(of: "$", with: "\\$")
+                    .replacingOccurrences(of: "'", with: "\\'")
+                    .replacingOccurrences(of: "\"", with: "\\\"")
+                let javascript = "window.MiNoteWebEditor.highlightSearchText('\(escapedText)')"
+                webView.evaluateJavaScript(javascript) { result, error in
+                    if let error = error {
+                        print("[WebEditorView] 高亮搜索文本失败: \(error)")
+                    } else {
+                        print("[WebEditorView] 搜索高亮已更新: \(searchText)")
+                    }
+                }
+            }
         }
         
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -649,20 +606,24 @@ struct WebEditorView: NSViewRepresentable {
             // 设置操作闭包
             setupActionClosures()
             
+            // 设置 WebEditorContext 的闭包（如果存在）
+            if let webEditorContext = self.webEditorContext {
+                webEditorContext.highlightSearchTextClosure = self.highlightSearchTextClosure
+            }
+            
             // 通知外部编辑器已准备好，传递 coordinator
             parent.onEditorReady(self)
             
             // 设置外观变化监听器
             setupAppearanceObserver()
             
-            // 立即设置深色模式（不再延迟，避免闪动）
-            print("[WebEditorView] 立即设置深色模式（避免闪动）")
-            self.updateColorScheme(webView: webView, force: true)
-            
-            // 应用当前编辑器设置（字体大小和行间距）
-            let settings = getCurrentEditorSettings()
-            print("[WebEditorView] 应用当前编辑器设置: 字体大小=\(settings.fontSize)px, 行间距=\(settings.lineHeight)")
-            applyEditorSettings(fontSize: settings.fontSize, lineHeight: settings.lineHeight, webView: webView)
+            // 初始设置深色模式（延迟一点确保DOM已完全加载）
+            print("[WebEditorView] 开始初始设置深色模式")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                guard let self = self else { return }
+                print("[WebEditorView] 延迟后设置深色模式（确保DOM已加载）")
+                self.updateColorScheme(webView: webView, force: true)
+            }
             
             // 初始加载内容
             if !lastContent.isEmpty {
@@ -761,16 +722,7 @@ struct WebEditorView: NSViewRepresentable {
                 window.removeObserver(self, forKeyPath: "effectiveAppearance")
                 print("[WebEditorView] 已移除窗口外观KVO监听")
             }
-            
-            // 移除设置监听器（在主线程上执行）
-            if let observer = settingsObserver {
-                DispatchQueue.main.async {
-                    NotificationCenter.default.removeObserver(observer)
-                    print("[WebEditorView] 已移除编辑器设置监听器")
-                }
-            }
-            
-            print("[WebEditorView] Coordinator已释放，移除所有监听器")
+            print("[WebEditorView] Coordinator已释放，移除外观监听器")
         }
         
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -923,6 +875,41 @@ struct WebEditorView: NSViewRepresentable {
                    let level = body["level"] as? String {
                     let prefix = level == "error" ? "🔴" : (level == "warn" ? "⚠️" : "📝")
                     print("[JS] \(prefix) \(message)")
+                }
+                
+            case "formatStateChanged":
+                if let formatState = body["formatState"] as? [String: Any] {
+                    DispatchQueue.main.async { [weak self] in
+                        // 需要访问 WebEditorContext 来更新格式状态
+                        // 由于 EditorMessageHandler 没有直接访问 WebEditorContext 的引用
+                        // 我们需要通过 coordinator 来访问
+                        if let coordinator = self?.coordinator,
+                           let webEditorContext = coordinator.webEditorContext {
+                            if let isBold = formatState["isBold"] as? Bool {
+                                webEditorContext.isBold = isBold
+                            }
+                            if let isItalic = formatState["isItalic"] as? Bool {
+                                webEditorContext.isItalic = isItalic
+                            }
+                            if let isUnderline = formatState["isUnderline"] as? Bool {
+                                webEditorContext.isUnderline = isUnderline
+                            }
+                            if let isStrikethrough = formatState["isStrikethrough"] as? Bool {
+                                webEditorContext.isStrikethrough = isStrikethrough
+                            }
+                            if let isHighlighted = formatState["isHighlighted"] as? Bool {
+                                webEditorContext.isHighlighted = isHighlighted
+                            }
+                            if let textAlignmentStr = formatState["textAlignment"] as? String {
+                                webEditorContext.textAlignment = TextAlignment.fromString(textAlignmentStr)
+                            }
+                            if let headingLevel = formatState["headingLevel"] as? Int {
+                                webEditorContext.headingLevel = headingLevel > 0 ? headingLevel : nil
+                            } else if formatState["headingLevel"] is NSNull {
+                                webEditorContext.headingLevel = nil
+                            }
+                        }
+                    }
                 }
                 
             default:

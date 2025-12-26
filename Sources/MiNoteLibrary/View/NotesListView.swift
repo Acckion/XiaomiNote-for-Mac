@@ -331,11 +331,11 @@ struct NotesListView: View {
 struct NoteRow: View {
     let note: Note
     let showDivider: Bool
-    let viewModel: NotesViewModel?
+    @ObservedObject var viewModel: NotesViewModel
     @State private var thumbnailImage: NSImage? = nil
     @State private var currentImageFileId: String? = nil // 跟踪当前显示的图片ID
     
-    init(note: Note, showDivider: Bool = false, viewModel: NotesViewModel? = nil) {
+    init(note: Note, showDivider: Bool = false, viewModel: NotesViewModel) {
         self.note = note
         self.showDivider = showDivider
         self.viewModel = viewModel
@@ -351,8 +351,6 @@ struct NoteRow: View {
     /// 不显示场景：
     /// - 选中"未分类"文件夹（id = "uncategorized"）
     private var shouldShowFolderInfo: Bool {
-        guard let viewModel = viewModel else { return false }
-        
         // 如果选中"未分类"文件夹，不显示文件夹信息
         if let folderId = viewModel.selectedFolder?.id, folderId == "uncategorized" {
             return false
@@ -379,7 +377,6 @@ struct NoteRow: View {
 
     /// 获取文件夹名称
     private func getFolderName(for folderId: String) -> String {
-        guard let viewModel = viewModel else { return folderId }
         
         // 系统文件夹名称
         if folderId == "0" {
@@ -403,7 +400,8 @@ struct NoteRow: View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(hasRealTitle() ? note.title : "无标题")
+                    // 标题（支持搜索高亮）
+                    highlightText(hasRealTitle() ? note.title : "无标题", searchText: viewModel.searchText)
                         .font(.system(size: 14))
                         .lineLimit(1)
                         .foregroundColor(hasRealTitle() ? .primary : .secondary)
@@ -413,7 +411,8 @@ struct NoteRow: View {
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                         
-                        Text(extractPreviewText(from: note.content))
+                        // 预览文本（支持搜索高亮）
+                        highlightText(extractPreviewText(from: note.content), searchText: viewModel.searchText)
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -500,8 +499,8 @@ struct NoteRow: View {
                 print("[NoteRow] onChange(noteImageHash): 图片信息哈希值变化 (\(oldValue) -> \(newValue))，更新缩略图")
                 updateThumbnail()
             }
-            // 使用 ID + 更新时间来强制视图重建，确保内容预览和笔记预览能够刷新
-            .id("\(note.id)_\(note.updatedAt.timeIntervalSince1970)")
+            // 使用 ID + 更新时间 + 搜索文本来强制视图重建，确保内容预览和笔记预览能够刷新
+            .id("\(note.id)_\(note.updatedAt.timeIntervalSince1970)_\(viewModel.searchText)")
             
             // 分割线：放在笔记项之间的中间位置，向下偏移一点以居中
             if showDivider {
@@ -587,6 +586,98 @@ struct NoteRow: View {
             let day = calendar.component(.day, from: date)
             return "\(year)/\(month)/\(day)"
         }
+    }
+    
+    /// 高亮显示文本中的搜索关键词
+    /// - Parameters:
+    ///   - text: 要显示的文本
+    ///   - searchText: 搜索关键词
+    /// - Returns: 高亮后的 Text 视图
+    @ViewBuilder
+    private func highlightText(_ text: String, searchText: String) -> some View {
+        // 如果搜索文本为空，直接返回普通文本（确保退出搜索时清除高亮）
+        if searchText.isEmpty || text.isEmpty {
+            Text(text)
+        } else {
+            // 只有当有搜索文本时才应用高亮
+            let attributedString = buildHighlightedAttributedString(text: text, searchText: searchText)
+            Text(attributedString)
+        }
+    }
+    
+    /// 构建高亮的 AttributedString
+    private func buildHighlightedAttributedString(text: String, searchText: String) -> AttributedString {
+        // 使用 NSMutableAttributedString 更可靠
+        let nsAttributedString = NSMutableAttributedString(string: text)
+        let searchTextLower = searchText.lowercased()
+        let textLower = text.lowercased()
+        
+        // 使用 NSString 来确保正确的 NSRange 计算（支持多字节字符）
+        let nsText = textLower as NSString
+        let nsSearchText = searchTextLower as NSString
+        
+        var searchLocation = 0
+        
+        // 查找所有匹配并应用高亮
+        while searchLocation < nsText.length {
+            let searchRange = NSRange(location: searchLocation, length: nsText.length - searchLocation)
+            let foundRange = nsText.range(of: nsSearchText as String, options: [], range: searchRange)
+            
+            if foundRange.location != NSNotFound {
+                // 计算在原始字符串中的对应范围（使用原始文本的 NSString）
+                let originalNSText = text as NSString
+                let originalRange = NSRange(location: foundRange.location, length: foundRange.length)
+                
+                // 确保范围有效
+                if originalRange.location + originalRange.length <= originalNSText.length {
+                    // 应用高亮样式
+                    nsAttributedString.addAttribute(.backgroundColor, value: NSColor.yellow.withAlphaComponent(0.4), range: originalRange)
+                }
+                
+                // 继续搜索下一个匹配
+                searchLocation = foundRange.location + foundRange.length
+            } else {
+                break
+            }
+        }
+        
+        // 转换为 AttributedString
+        return AttributedString(nsAttributedString)
+    }
+    
+    /// 将文本分割为高亮和非高亮部分
+    private func splitTextWithHighlight(text: String, searchText: String) -> [(text: String, isHighlighted: Bool)] {
+        guard !searchText.isEmpty && !text.isEmpty else {
+            return [(text: text, isHighlighted: false)]
+        }
+        
+        var parts: [(text: String, isHighlighted: Bool)] = []
+        let searchTextLower = searchText.lowercased()
+        let textLower = text.lowercased()
+        
+        var currentIndex = text.startIndex
+        
+        while let range = textLower.range(of: searchTextLower, range: currentIndex..<text.endIndex) {
+            // 添加高亮前的文本
+            if currentIndex < range.lowerBound {
+                let beforeText = String(text[currentIndex..<range.lowerBound])
+                parts.append((text: beforeText, isHighlighted: false))
+            }
+            
+            // 添加高亮的文本（使用原始文本以保持大小写）
+            let highlightedText = String(text[range])
+            parts.append((text: highlightedText, isHighlighted: true))
+            
+            currentIndex = range.upperBound
+        }
+        
+        // 添加剩余的文本
+        if currentIndex < text.endIndex {
+            let remainingText = String(text[currentIndex..<text.endIndex])
+            parts.append((text: remainingText, isHighlighted: false))
+        }
+        
+        return parts.isEmpty ? [(text: text, isHighlighted: false)] : parts
     }
     
     /// 从 XML 内容中提取预览文本（去除 XML 标签，返回纯文本开头部分）

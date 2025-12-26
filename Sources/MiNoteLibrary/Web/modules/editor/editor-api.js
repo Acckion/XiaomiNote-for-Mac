@@ -135,63 +135,6 @@
         },
         
         /**
-         * 应用编辑器显示设置（字体大小和行间距）
-         * @param {Object} settings - 编辑器设置对象
-         * @param {number} settings.fontSize - 字体大小（像素）
-         * @param {number} settings.lineHeight - 行间距（倍数）
-         * @returns {string} 状态信息
-         */
-        applyEditorSettings: function(settings) {
-            log.debug(LOG_MODULES.EDITOR, '应用编辑器设置', settings);
-            
-            const root = document.documentElement;
-            const editor = document.getElementById('editor-content');
-            
-            if (!editor) {
-                log.error(LOG_MODULES.EDITOR, '无法找到编辑器元素');
-                return '编辑器元素不存在';
-            }
-            
-            // 验证设置值
-            const fontSize = Math.max(12, Math.min(24, settings.fontSize || 14));
-            const lineHeight = Math.max(1.0, Math.min(2.5, settings.lineHeight || 1.5));
-            
-            // 更新 CSS 变量
-            root.style.setProperty('--editor-font-size', `${fontSize}px`);
-            root.style.setProperty('--editor-line-height', lineHeight.toString());
-            
-            // 更新编辑器元素的样式
-            editor.style.fontSize = `${fontSize}px`;
-            editor.style.lineHeight = lineHeight.toString();
-            
-            // 更新所有文本元素的样式
-            const textElements = editor.querySelectorAll('.mi-note-text, .mi-note-bullet, .mi-note-order, .mi-note-checkbox');
-            textElements.forEach(element => {
-                element.style.fontSize = `${fontSize}px`;
-                element.style.lineHeight = lineHeight.toString();
-            });
-            
-            // 更新标题元素的相对大小
-            const titleSizeElements = editor.querySelectorAll('.mi-note-size, .mi-note-mid-size, .mi-note-h3-size');
-            titleSizeElements.forEach(element => {
-                if (element.classList.contains('mi-note-size')) {
-                    element.style.fontSize = `calc(${fontSize}px * 1.714)`;
-                } else if (element.classList.contains('mi-note-mid-size')) {
-                    element.style.fontSize = `calc(${fontSize}px * 1.429)`;
-                } else if (element.classList.contains('mi-note-h3-size')) {
-                    element.style.fontSize = `calc(${fontSize}px * 1.286)`;
-                }
-            });
-            
-            log.debug(LOG_MODULES.EDITOR, '编辑器设置已应用', { 
-                fontSize: `${fontSize}px`, 
-                lineHeight: lineHeight 
-            });
-            
-            return `编辑器设置已应用: 字体大小=${fontSize}px, 行间距=${lineHeight}`;
-        },
-        
-        /**
          * 执行格式操作
          * @param {string} action - 操作类型
          * @param {string} value - 操作值（可选）
@@ -2219,6 +2162,110 @@
             notifyContentChanged();
             
             return '缩进已减少';
+        },
+
+        /**
+         * 高亮显示搜索文本
+         * @param {string} searchText - 要搜索的文本（如果为空，则清除所有高亮）
+         * @returns {string} 状态信息
+         */
+        highlightSearchText: function(searchText) {
+            // 保存当前搜索文本，供 loadContent 使用
+            window._currentSearchText = searchText;
+            const editor = document.getElementById('editor-content');
+            if (!editor) {
+                log.error(LOG_MODULES.EDITOR, '无法找到编辑器元素');
+                return '编辑器元素不存在';
+            }
+
+            // 清除之前的高亮标记（类名为 mi-note-search-highlight）
+            const existingHighlights = editor.querySelectorAll('.mi-note-search-highlight');
+            existingHighlights.forEach(highlight => {
+                // 将高亮标记替换为其内容（保留格式）
+                const parent = highlight.parentNode;
+                while (highlight.firstChild) {
+                    parent.insertBefore(highlight.firstChild, highlight);
+                }
+                parent.removeChild(highlight);
+            });
+
+            // 如果搜索文本为空，只清除高亮
+            if (!searchText || searchText.trim() === '') {
+                return '已清除搜索高亮';
+            }
+
+            // 获取编辑器的所有文本内容（包括 HTML 标签内的文本）
+            const walker = document.createTreeWalker(
+                editor,
+                NodeFilter.SHOW_TEXT,
+                null
+            );
+
+            const searchTextLower = searchText.toLowerCase();
+            const matches = [];
+
+            // 收集所有匹配的文本节点
+            let node = walker.nextNode();
+            while (node) {
+                const text = node.textContent;
+                const textLower = text.toLowerCase();
+                
+                // 查找所有匹配位置（支持多个匹配）
+                let index = 0;
+                while ((index = textLower.indexOf(searchTextLower, index)) !== -1) {
+                    matches.push({
+                        node: node,
+                        start: index,
+                        end: index + searchText.length
+                    });
+                    index += searchText.length;
+                }
+                node = walker.nextNode();
+            }
+
+            // 如果没有匹配，返回
+            if (matches.length === 0) {
+                return '未找到匹配的文本';
+            }
+
+            // 从后往前处理匹配（避免索引变化问题）
+            matches.reverse().forEach(match => {
+                const { node, start, end } = match;
+                const text = node.textContent;
+                
+                // 分割文本节点
+                const beforeText = text.substring(0, start);
+                const matchText = text.substring(start, end);
+                const afterText = text.substring(end);
+
+                // 创建新的文本节点
+                const beforeNode = document.createTextNode(beforeText);
+                const afterNode = document.createTextNode(afterText);
+
+                // 创建高亮标记
+                const highlightSpan = document.createElement('span');
+                highlightSpan.className = 'mi-note-search-highlight';
+                highlightSpan.style.backgroundColor = 'rgba(255, 235, 59, 0.4)'; // 黄色高亮，与列表高亮一致
+                highlightSpan.textContent = matchText;
+
+                // 替换原文本节点
+                const parent = node.parentNode;
+                if (beforeText) {
+                    parent.insertBefore(beforeNode, node);
+                }
+                parent.insertBefore(highlightSpan, node);
+                if (afterText) {
+                    parent.insertBefore(afterNode, node);
+                }
+                parent.removeChild(node);
+            });
+
+            log.debug(LOG_MODULES.EDITOR, '搜索高亮完成', { 
+                searchText: searchText, 
+                matchCount: matches.length 
+            });
+
+            return `已高亮 ${matches.length} 处匹配`;
         }
     }); // 结束 Object.assign
     

@@ -1,19 +1,6 @@
 import SwiftUI
 import AppKit
 
-/// 搜索工具栏行为
-/// 
-/// 根据 SwiftUI 官方文档，SearchToolbarBehavior 控制工具栏中搜索字段的行为。
-/// 有两种行为：
-/// - automatic: 自动行为
-/// - minimize: 将搜索字段渲染为类似按钮的控件，点击时展开
-struct SearchToolbarBehavior: Equatable, Hashable, Sendable {
-    static let automatic = SearchToolbarBehavior()
-    static let minimize = SearchToolbarBehavior()
-    
-    private init() {}
-}
-
 /// 笔记详情视图
 /// 
 /// 负责显示和编辑单个笔记的内容，包括：
@@ -61,6 +48,7 @@ struct NoteDetailView: View {
     // 历史版本相关状态
     @State private var showingHistoryView: Bool = false
     
+    
     // Web编辑器上下文
     @StateObject private var webEditorContext = WebEditorContext()
     
@@ -74,6 +62,12 @@ struct NoteDetailView: View {
         }
         .onChange(of: viewModel.selectedNote) { oldValue, newValue in
             handleSelectedNoteChange(oldValue: oldValue, newValue: newValue)
+        }
+        .onChange(of: viewModel.searchText) { oldValue, newValue in
+            // 当搜索文本变化时，更新编辑器中的高亮
+            if webEditorContext.isEditorReady {
+                webEditorContext.highlightSearchText(newValue)
+            }
         }
         .navigationTitle("详情")  // 详情视图标题
         .toolbar {
@@ -118,6 +112,10 @@ struct NoteDetailView: View {
         }
         .onAppear {
             handleNoteAppear(note)
+            // 如果编辑器已准备好且有搜索文本，应用高亮
+            if webEditorContext.isEditorReady && !viewModel.searchText.isEmpty {
+                webEditorContext.highlightSearchText(viewModel.searchText)
+            }
         }
         .onChange(of: note) { oldValue, newValue in
             // 如果笔记ID相同，跳过处理（避免打断用户编辑）
@@ -405,6 +403,7 @@ struct NoteDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
+    /// 检查是否有任何筛选选项被启用
     /// 撤销按钮
     private var undoButton: some View {
         Button {
@@ -413,6 +412,7 @@ struct NoteDetailView: View {
             Label("撤销", systemImage: "arrow.uturn.backward")
         }
     }
+    
     
     /// 重做按钮
     private var redoButton: some View {
@@ -772,6 +772,13 @@ struct NoteDetailView: View {
         // 延迟一小段时间后标记初始化完成
         try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
         isInitializing = false
+        
+        // 如果编辑器已准备好且有搜索文本，应用高亮
+        // 延迟一点时间确保编辑器内容已加载完成
+        try? await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
+        if webEditorContext.isEditorReady && !viewModel.searchText.isEmpty {
+            webEditorContext.highlightSearchText(viewModel.searchText)
+        }
     }
     
     /// 处理笔记变化

@@ -32,6 +32,7 @@ struct WebEditorWrapper: View {
                 editorContext.openWebInspectorClosure = { [weak coordinator] in
                     coordinator?.openWebInspector()
                 }
+                editorContext.highlightSearchTextClosure = coordinator.highlightSearchTextClosure
                 
                 editorContext.editorReady()
                 print("Web编辑器已准备就绪")

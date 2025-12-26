@@ -253,6 +253,16 @@
             window.isLoadingContent = false;
         }
 
+        // 如果存在搜索文本，应用高亮
+        if (window._currentSearchText && window.MiNoteWebEditor && window.MiNoteWebEditor.highlightSearchText) {
+            // 延迟一点时间确保 DOM 完全渲染
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    window.MiNoteWebEditor.highlightSearchText(window._currentSearchText);
+                });
+            });
+        }
+
         return '内容已加载';
     }
 

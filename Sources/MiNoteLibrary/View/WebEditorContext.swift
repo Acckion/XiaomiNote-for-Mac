@@ -27,6 +27,7 @@ class WebEditorContext: ObservableObject {
     var undoClosure: (() -> Void)?
     var redoClosure: (() -> Void)?
     var openWebInspectorClosure: (() -> Void)?
+    var highlightSearchTextClosure: ((String) -> Void)?
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -170,6 +171,11 @@ class WebEditorContext: ObservableObject {
     // 打开Web Inspector
     func openWebInspector() {
         openWebInspectorClosure?()
+    }
+    
+    // 高亮搜索文本
+    func highlightSearchText(_ searchText: String) {
+        highlightSearchTextClosure?(searchText)
     }
 }
 
