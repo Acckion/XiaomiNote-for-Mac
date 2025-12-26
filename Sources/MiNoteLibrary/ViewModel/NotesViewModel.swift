@@ -3529,11 +3529,17 @@ public class NotesViewModel: ObservableObject {
     
     // MARK: - 自动刷新Cookie定时器管理
     
-    /// 启动自动刷新Cookie定时器（如果需要）
+    /// 启动自动刷新Cookie定时器（改进版）
     func startAutoRefreshCookieIfNeeded() {
         // 检查是否已登录
         guard service.isAuthenticated() else {
             print("[VIEWMODEL] 未登录，不启动自动刷新Cookie定时器")
+            return
+        }
+        
+        // 检查Cookie是否有效，避免不必要的定时器
+        guard service.hasValidCookie() else {
+            print("[VIEWMODEL] Cookie无效，不启动自动刷新Cookie定时器")
             return
         }
         
@@ -3545,7 +3551,14 @@ public class NotesViewModel: ObservableObject {
         
         // 从UserDefaults获取刷新间隔
         let defaults = UserDefaults.standard
+        let autoRefreshCookie = defaults.bool(forKey: "autoRefreshCookie")
         let autoRefreshInterval = defaults.double(forKey: "autoRefreshInterval")
+        
+        guard autoRefreshCookie, autoRefreshInterval > 0 else {
+            print("[VIEWMODEL] 自动刷新Cookie未启用或间隔为0")
+            return
+        }
+        
         if autoRefreshInterval == 0 {
             // 默认每天刷新一次（24小时）
             defaults.set(86400.0, forKey: "autoRefreshInterval")
@@ -3571,7 +3584,7 @@ public class NotesViewModel: ObservableObject {
         autoRefreshCookieTimer = nil
     }
     
-    /// 自动刷新Cookie（由定时器调用）
+    /// 自动刷新Cookie（改进版）
     private func refreshCookieAutomatically() async {
         print("[VIEWMODEL] 开始自动刷新Cookie")
         
@@ -3587,6 +3600,12 @@ public class NotesViewModel: ObservableObject {
             return
         }
         
+        // 检查Cookie是否仍然有效，避免不必要的刷新
+        guard !service.hasValidCookie() else {
+            print("[VIEWMODEL] ✅ Cookie仍然有效，跳过自动刷新")
+            return
+        }
+        
         do {
             // 尝试刷新Cookie
             let success = try await service.refreshCookie()
@@ -3598,5 +3617,11 @@ public class NotesViewModel: ObservableObject {
         } catch {
             print("[VIEWMODEL] ❌ 自动刷新Cookie出错: \(error.localizedDescription)")
         }
+    }
+    
+    /// 静默处理Cookie失效（由ContentView调用）
+    func handleCookieExpiredSilently() async {
+        print("[VIEWMODEL] 静默处理Cookie失效")
+        await authStateManager.handleCookieExpiredSilently()
     }
 }

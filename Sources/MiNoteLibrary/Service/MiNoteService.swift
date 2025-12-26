@@ -1097,16 +1097,57 @@ final class MiNoteService: @unchecked Sendable {
     
     // MARK: - Cookie Management
     
-    /// 刷新Cookie
+    /// 刷新Cookie（带重试机制）
     /// 
     /// 参考 Obsidian 插件的实现：
     /// 1. 打开浏览器窗口加载 https://i.mi.com
     /// 2. 监听 https://i.mi.com/status/lite/profile?ts=* 的请求头
     /// 3. 从请求头的Cookie中提取cookie并保存
     /// 
-    /// - Returns: 是否成功刷新（当前实现返回false，表示需要用户手动操作）
+    /// - Returns: 是否成功刷新
     func refreshCookie() async throws -> Bool {
-        print("[MiNoteService] 开始刷新Cookie...")
+        print("[MiNoteService] 刷新Cookie（带重试机制）")
+        
+        // 先检查Cookie是否仍然有效，避免不必要的刷新
+        if hasValidCookie() {
+            print("[MiNoteService] ✅ Cookie仍然有效，跳过刷新")
+            return true
+        }
+        
+        var attempt = 0
+        let maxAttempts = 3
+        var lastError: Error?
+        
+        while attempt < maxAttempts {
+            attempt += 1
+            print("[MiNoteService] 刷新Cookie尝试 \(attempt)/\(maxAttempts)")
+            
+            do {
+                let success = try await performCookieRefresh()
+                if success {
+                    print("[MiNoteService] ✅ Cookie刷新成功")
+                    return true
+                }
+            } catch {
+                print("[MiNoteService] ❌ Cookie刷新失败 (尝试 \(attempt)): \(error)")
+                lastError = error
+                
+                // 如果不是最后一次尝试，等待一段时间再重试
+                if attempt < maxAttempts {
+                    let delaySeconds = TimeInterval(attempt * 2) // 指数退避：2, 4, 6秒
+                    print("[MiNoteService] 等待 \(delaySeconds) 秒后重试...")
+                    try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+                }
+            }
+        }
+        
+        print("[MiNoteService] ❌ 所有刷新尝试都失败")
+        throw lastError ?? MiNoteError.networkError(URLError(.cannotConnectToHost))
+    }
+    
+    /// 执行实际的Cookie刷新逻辑
+    private func performCookieRefresh() async throws -> Bool {
+        print("[MiNoteService] 执行Cookie刷新请求")
         
         // 注意：实际的cookie刷新逻辑在 CookieRefreshView 中实现
         // 这里只负责清除旧cookie，返回false表示需要用户手动操作
@@ -1129,8 +1170,28 @@ final class MiNoteService: @unchecked Sendable {
         print("Cookie已清除")
     }
     
+    /// 检查Cookie是否有效（更严格的检查）
     func hasValidCookie() -> Bool {
-        return !cookie.isEmpty && !serviceToken.isEmpty
+        // 原有的检查逻辑...
+        // 添加额外的检查：Cookie是否包含必要的字段
+        
+        guard let cookie = UserDefaults.standard.string(forKey: "minote_cookie"),
+              !cookie.isEmpty else {
+            print("[MiNoteService] Cookie检查：无Cookie或Cookie为空")
+            return false
+        }
+        
+        // 检查Cookie是否包含必要的字段
+        let hasUserId = cookie.contains("userId=")
+        let hasServiceToken = cookie.contains("serviceToken=")
+        
+        if !hasUserId || !hasServiceToken {
+            print("[MiNoteService] Cookie检查：缺少必要字段")
+            return false
+        }
+        
+        print("[MiNoteService] Cookie检查：Cookie有效")
+        return true
     }
     
     /// 检查是否在 cookie 设置后的保护期内
