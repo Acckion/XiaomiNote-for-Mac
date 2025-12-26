@@ -1226,7 +1226,7 @@ public class NotesViewModel: ObservableObject {
         loadFolders()
     }
     
-    private func loadFolders() {
+    public func loadFolders() {
         print("[FolderRename] ========== loadFolders() 开始 ==========")
         print("[FolderRename] 调用栈: \(Thread.callStackSymbols.prefix(5).joined(separator: "\n"))")
         print("[FolderRename] 当前 folders 数组数量: \(folders.count)")
@@ -2590,7 +2590,7 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// - Parameter name: 文件夹名称
     /// - Throws: 创建失败时抛出错误
-    public func createFolder(name: String) async throws {
+    public func createFolder(name: String) async throws -> String {
         // 生成临时文件夹ID（离线时使用）
         let tempFolderId = UUID().uuidString
         
@@ -2626,7 +2626,7 @@ public class NotesViewModel: ObservableObject {
             print("[VIEWMODEL] 离线模式：文件夹已保存到本地，等待同步: \(tempFolderId)")
             // 刷新文件夹列表
             loadFolders()
-            return
+            return tempFolderId
         }
         
         // 在线模式：尝试上传到云端
