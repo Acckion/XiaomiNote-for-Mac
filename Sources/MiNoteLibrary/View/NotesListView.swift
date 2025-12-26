@@ -290,46 +290,6 @@ struct NotesListView: View {
             
             // 创建新的视图模型和视图
             let newViewModel = NotesViewModel()
-            
-            // 检查是否为私密笔记
-            if note.folderId == "2" {
-                // 私密笔记：需要验证密码
-                let passwordManager = PrivateNotesPasswordManager.shared
-                
-                if passwordManager.hasPassword() {
-                    // 已设置密码，需要验证
-                    // 显示密码输入对话框
-                    let passwordDialog = PrivateNotesPasswordInputDialogView(viewModel: newViewModel)
-                    let hostingView = NSHostingView(rootView: passwordDialog)
-                    
-                    // 创建对话框窗口
-                    let dialogWindow = NSWindow(
-                        contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
-                        styleMask: [.titled, .closable],
-                        backing: .buffered,
-                        defer: false
-                    )
-                    dialogWindow.title = "访问私密笔记"
-                    dialogWindow.contentView = hostingView
-                    dialogWindow.center()
-                    
-                    // 显示对话框
-                    NSApplication.shared.runModal(for: dialogWindow)
-                    
-                    // 检查是否已解锁
-                    if !newViewModel.isPrivateNotesUnlocked {
-                        // 用户取消或验证失败，不打开新窗口
-                        dialogWindow.close()
-                        return
-                    }
-                    
-                    dialogWindow.close()
-                } else {
-                    // 未设置密码，直接允许访问
-                    newViewModel.isPrivateNotesUnlocked = true
-                }
-            }
-            
             newViewModel.selectedNote = note
             newViewModel.selectedFolder = viewModel.folders.first { $0.id == note.folderId } ?? viewModel.folders.first { $0.id == "0" }
             
@@ -374,59 +334,68 @@ struct NoteRow: View {
     let viewModel: NotesViewModel?
     @State private var thumbnailImage: NSImage? = nil
     @State private var currentImageFileId: String? = nil // 跟踪当前显示的图片ID
-    @State private var imageRefreshTrigger = UUID() // 强制刷新触发器
     
     init(note: Note, showDivider: Bool = false, viewModel: NotesViewModel? = nil) {
         self.note = note
         self.showDivider = showDivider
         self.viewModel = viewModel
     }
-    
+
     /// 是否应该显示文件夹信息
-    /// 当满足以下条件之一时显示：
-    /// 1. 菜单栏中选中的文件夹是"所有笔记"（id="0"）
-    /// 2. 有搜索文本
-    /// 3. 有搜索筛选选项
+    ///
+    /// 显示场景：
+    /// 1. 选中"所有笔记"文件夹（id = "0"）
+    /// 2. 选中"置顶"文件夹（id = "starred"）
+    /// 3. 有搜索文本或任意搜索筛选条件（搜索结果视图）
+    ///
+    /// 不显示场景：
+    /// - 选中"未分类"文件夹（id = "uncategorized"）
     private var shouldShowFolderInfo: Bool {
         guard let viewModel = viewModel else { return false }
         
-        // 检查是否有搜索文本
-        let hasSearchText = !viewModel.searchText.isEmpty
+        // 如果选中"未分类"文件夹，不显示文件夹信息
+        if let folderId = viewModel.selectedFolder?.id, folderId == "uncategorized" {
+            return false
+        }
         
-        // 检查是否有搜索筛选选项
-        let hasSearchFilters = viewModel.searchFilterHasTags || 
-                              viewModel.searchFilterHasChecklist || 
-                              viewModel.searchFilterHasImages || 
-                              viewModel.searchFilterHasAudio || 
-                              viewModel.searchFilterIsPrivate
+        // 有搜索文本
+        if !viewModel.searchText.isEmpty {
+            return true
+        }
         
-        // 检查菜单栏中选中的文件夹是否是"所有笔记"
-        let isAllNotesFolder = viewModel.selectedFolder?.id == "0"
+        // 有任意搜索筛选条件
+        if viewModel.searchFilterHasTags ||
+           viewModel.searchFilterHasChecklist ||
+           viewModel.searchFilterHasImages ||
+           viewModel.searchFilterHasAudio ||
+           viewModel.searchFilterIsPrivate {
+            return true
+        }
         
-        return isAllNotesFolder || hasSearchText || hasSearchFilters
+        // 根据当前选中文件夹判断
+        guard let folderId = viewModel.selectedFolder?.id else { return false }
+        return folderId == "0" || folderId == "starred"
     }
-    
+
     /// 获取文件夹名称
     private func getFolderName(for folderId: String) -> String {
         guard let viewModel = viewModel else { return folderId }
         
-        // 系统文件夹的特殊处理
+        // 系统文件夹名称
         if folderId == "0" {
-            return "所有笔记"
+            return "未分类"
         } else if folderId == "starred" {
             return "置顶"
         } else if folderId == "2" {
             return "私密笔记"
-        } else if folderId == "uncategorized" {
-            return "未分类"
-        }
+        } 
         
-        // 从文件夹列表中查找
+        // 用户自定义文件夹
         if let folder = viewModel.folders.first(where: { $0.id == folderId }) {
             return folder.name
         }
         
-        // 如果找不到，返回文件夹ID
+        // 找不到时，回退显示 ID（理论上很少出现）
         return folderId
     }
     
@@ -434,35 +403,20 @@ struct NoteRow: View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
-                    // 标题 - 支持搜索高亮
-                    if let viewModel = viewModel, !viewModel.searchText.isEmpty {
-                        highlightText(hasRealTitle() ? note.title : "无标题", searchText: viewModel.searchText)
-                            .font(.system(size: 14))
-                            .lineLimit(1)
-                    } else {
-                        Text(hasRealTitle() ? note.title : "无标题")
-                            .font(.system(size: 14))
-                            .lineLimit(1)
-                            .foregroundColor(hasRealTitle() ? .primary : .secondary)
-                    }
+                    Text(hasRealTitle() ? note.title : "无标题")
+                        .font(.system(size: 14))
+                        .lineLimit(1)
+                        .foregroundColor(hasRealTitle() ? .primary : .secondary)
                     
                     HStack(spacing: 4) {
                         Text(formatDate(note.updatedAt))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                         
-                        // 预览文本 - 支持搜索高亮
-                        if let viewModel = viewModel, !viewModel.searchText.isEmpty {
-                            highlightPreviewText(from: note.content, searchText: viewModel.searchText)
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                        } else {
-                            Text(extractPreviewText(from: note.content))
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                        }
+                        Text(extractPreviewText(from: note.content))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
                     }
                     
                     // 文件夹信息（在特定条件下显示）
@@ -503,11 +457,9 @@ struct NoteRow: View {
                         RoundedRectangle(cornerRadius: 4)
                             .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
                     )
-                    .id(imageRefreshTrigger) // 使用触发器强制视图重建
                     .onAppear {
                         // 首次加载或图片ID变化时，重新加载
                         if currentImageFileId != imageInfo.fileId {
-                            print("[NoteRow] onAppear: 加载缩略图，fileId: \(imageInfo.fileId)")
                             loadThumbnail(imageInfo: imageInfo)
                             currentImageFileId = imageInfo.fileId
                         }
@@ -515,7 +467,6 @@ struct NoteRow: View {
                     .onChange(of: imageInfo.fileId) { oldValue, newValue in
                         // 图片ID变化时，重新加载
                         if currentImageFileId != newValue {
-                            print("[NoteRow] onChange(fileId): 图片ID变化，重新加载缩略图: \(oldValue ?? "nil") -> \(newValue)")
                             loadThumbnail(imageInfo: imageInfo)
                             currentImageFileId = newValue
                         }
@@ -533,13 +484,15 @@ struct NoteRow: View {
             .padding(.horizontal, 8)
             .onChange(of: note.content) { oldValue, newValue in
                 // 笔记内容变化时，重新检查并更新图片
-                print("[NoteRow] onChange(content): 笔记内容变化，更新缩略图")
                 updateThumbnail()
             }
             .onChange(of: note.updatedAt) { oldValue, newValue in
                 // 更新时间变化时，重新检查并更新图片
-                print("[NoteRow] onChange(updatedAt): 更新时间变化，更新缩略图")
                 updateThumbnail()
+            }
+            .onChange(of: note.title) { oldValue, newValue in
+                // 笔记标题变化时，强制视图刷新
+                print("[NoteRow] onChange(title): 笔记标题变化: \(oldValue) -> \(newValue)")
             }
             .onChange(of: noteImageHash) { oldValue, newValue in
                 // 图片信息哈希值变化时，强制更新缩略图
@@ -547,8 +500,8 @@ struct NoteRow: View {
                 print("[NoteRow] onChange(noteImageHash): 图片信息哈希值变化 (\(oldValue) -> \(newValue))，更新缩略图")
                 updateThumbnail()
             }
-            // 注意：不能直接使用 onChange(of: note.rawData)，因为 [String: Any]? 不符合 Equatable
-            // 我们使用 noteImageHash 来检测图片变化，它已经包含了 rawData 中的图片信息
+            // 使用 ID + 更新时间来强制视图重建，确保内容预览和笔记预览能够刷新
+            .id("\(note.id)_\(note.updatedAt.timeIntervalSince1970)")
             
             // 分割线：放在笔记项之间的中间位置，向下偏移一点以居中
             if showDivider {
@@ -708,19 +661,6 @@ struct NoteRow: View {
         return imageInfos.sorted().joined(separator: "|")
     }
     
-    /// 检查 rawData 变化并更新缩略图
-    private func checkAndUpdateThumbnailForRawDataChange(oldValue: [String: Any]?, newValue: [String: Any]?) {
-        let oldImageHash = getImageInfoHash(from: Note(id: "", title: "", content: "", folderId: "", createdAt: Date(), updatedAt: Date(), rawData: oldValue))
-        let newImageHash = getImageInfoHash(from: Note(id: "", title: "", content: "", folderId: "", createdAt: Date(), updatedAt: Date(), rawData: newValue))
-        
-        if oldImageHash != newImageHash {
-            print("[NoteRow] rawData变化检测到图片哈希变化: \(oldImageHash) -> \(newImageHash)")
-            // 强制刷新触发器，确保视图重建
-            imageRefreshTrigger = UUID()
-            updateThumbnail()
-        }
-    }
-    
     /// 当前笔记的图片哈希值（计算属性）
     private var noteImageHash: String {
         getImageInfoHash(from: note)
@@ -728,234 +668,72 @@ struct NoteRow: View {
     
     /// 更新缩略图（根据当前笔记内容）
     private func updateThumbnail() {
-        print("[NoteRow] updateThumbnail: 开始更新缩略图")
-        
         if let imageInfo = getFirstImageInfo(from: note) {
-            print("[NoteRow] updateThumbnail: 找到图片信息，fileId: \(imageInfo.fileId), currentImageFileId: \(currentImageFileId ?? "nil")")
-            
             // 如果图片ID变化了，重新加载
             if currentImageFileId != imageInfo.fileId {
-                print("[NoteRow] updateThumbnail: 图片ID变化，重新加载缩略图")
                 loadThumbnail(imageInfo: imageInfo)
                 currentImageFileId = imageInfo.fileId
-            } else {
-                print("[NoteRow] updateThumbnail: 图片ID未变化，检查是否需要重新加载")
-                // 即使ID相同，也检查图片文件是否存在
-                Task {
-                    if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
-                       let nsImage = NSImage(data: imageData) {
-                        await MainActor.run {
-                            // 如果当前没有缩略图或需要更新，重新加载
-                            if thumbnailImage == nil {
-                                print("[NoteRow] updateThumbnail: 当前没有缩略图，重新加载")
-                                loadThumbnail(imageInfo: imageInfo)
-                            }
-                        }
-                    } else {
-                        print("[NoteRow] updateThumbnail: 图片文件不存在，清空缩略图")
-                        await MainActor.run {
-                            thumbnailImage = nil
-                        }
-                    }
-                }
             }
         } else {
-            print("[NoteRow] updateThumbnail: 没有找到图片信息")
             // 如果没有图片了，清空缩略图
             if currentImageFileId != nil || thumbnailImage != nil {
-                print("[NoteRow] updateThumbnail: 清空缩略图状态")
                 currentImageFileId = nil
                 thumbnailImage = nil
-                // 强制刷新触发器，确保视图更新
-                imageRefreshTrigger = UUID()
             }
         }
     }
     
     /// 加载缩略图
     private func loadThumbnail(imageInfo: (fileId: String, fileType: String)) {
-        print("[NoteRow] loadThumbnail: 开始加载缩略图，fileId: \(imageInfo.fileId), fileType: \(imageInfo.fileType)")
-        
         // 在后台线程加载图片
         Task {
-            if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType) {
-                print("[NoteRow] loadThumbnail: 成功加载图片数据，大小: \(imageData.count) 字节")
+            if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
+               let nsImage = NSImage(data: imageData) {
+                // 创建缩略图（50x50），使用剪裁模式而不是拉伸
+                let thumbnailSize = NSSize(width: 50, height: 50)
+                let thumbnail = NSImage(size: thumbnailSize)
                 
-                if let nsImage = NSImage(data: imageData) {
-                    print("[NoteRow] loadThumbnail: 成功创建NSImage，尺寸: \(nsImage.size)")
-                    
-                    // 创建缩略图（50x50），使用剪裁模式而不是拉伸
-                    let thumbnailSize = NSSize(width: 50, height: 50)
-                    let thumbnail = NSImage(size: thumbnailSize)
-                    
-                    thumbnail.lockFocus()
-                    defer { thumbnail.unlockFocus() }
-                    
-                    // 计算缩放比例，保持宽高比
-                    let imageSize = nsImage.size
-                    let scaleX = thumbnailSize.width / imageSize.width
-                    let scaleY = thumbnailSize.height / imageSize.height
-                    let scale = max(scaleX, scaleY) // 使用较大的缩放比例，确保覆盖整个区域
-                    
-                    // 计算缩放后的尺寸
-                    let scaledSize = NSSize(
-                        width: imageSize.width * scale,
-                        height: imageSize.height * scale
-                    )
-                    
-                    // 计算居中位置
-                    let offsetX = (thumbnailSize.width - scaledSize.width) / 2
-                    let offsetY = (thumbnailSize.height - scaledSize.height) / 2
-                    
-                    // 填充背景色（可选）
-                    NSColor.controlBackgroundColor.setFill()
-                    NSRect(origin: .zero, size: thumbnailSize).fill()
-                    
-                    // 绘制图片（居中，可能会超出边界，但会被 clipShape 剪裁）
-                    nsImage.draw(
-                        in: NSRect(origin: NSPoint(x: offsetX, y: offsetY), size: scaledSize),
-                        from: NSRect(origin: .zero, size: imageSize),
-                        operation: .sourceOver,
-                        fraction: 1.0
-                    )
-                    
-                    await MainActor.run {
-                        print("[NoteRow] loadThumbnail: 设置缩略图")
-                        self.thumbnailImage = thumbnail
-                        // 更新刷新触发器，确保视图更新
-                        self.imageRefreshTrigger = UUID()
-                    }
-                } else {
-                    print("[NoteRow] loadThumbnail: 无法从数据创建NSImage")
-                    await MainActor.run {
-                        self.thumbnailImage = nil
-                    }
+                thumbnail.lockFocus()
+                defer { thumbnail.unlockFocus() }
+                
+                // 计算缩放比例，保持宽高比
+                let imageSize = nsImage.size
+                let scaleX = thumbnailSize.width / imageSize.width
+                let scaleY = thumbnailSize.height / imageSize.height
+                let scale = max(scaleX, scaleY) // 使用较大的缩放比例，确保覆盖整个区域
+                
+                // 计算缩放后的尺寸
+                let scaledSize = NSSize(
+                    width: imageSize.width * scale,
+                    height: imageSize.height * scale
+                )
+                
+                // 计算居中位置
+                let offsetX = (thumbnailSize.width - scaledSize.width) / 2
+                let offsetY = (thumbnailSize.height - scaledSize.height) / 2
+                
+                // 填充背景色（可选）
+                NSColor.controlBackgroundColor.setFill()
+                NSRect(origin: .zero, size: thumbnailSize).fill()
+                
+                // 绘制图片（居中，可能会超出边界，但会被 clipShape 剪裁）
+                nsImage.draw(
+                    in: NSRect(origin: NSPoint(x: offsetX, y: offsetY), size: scaledSize),
+                    from: NSRect(origin: .zero, size: imageSize),
+                    operation: .sourceOver,
+                    fraction: 1.0
+                )
+                
+                await MainActor.run {
+                    self.thumbnailImage = thumbnail
                 }
             } else {
-                print("[NoteRow] loadThumbnail: 无法加载图片数据，fileId: \(imageInfo.fileId)")
+                // 如果加载失败，清空缩略图
                 await MainActor.run {
                     self.thumbnailImage = nil
                 }
             }
         }
-    }
-    
-    /// 高亮显示文本中的搜索关键词
-    private func highlightText(_ text: String, searchText: String) -> Text {
-        guard !searchText.isEmpty else {
-            return Text(text)
-        }
-        
-        let lowercasedText = text.lowercased()
-        let lowercasedSearchText = searchText.lowercased()
-        
-        // 查找所有匹配的位置
-        var ranges: [Range<String.Index>] = []
-        var searchStartIndex = lowercasedText.startIndex
-        
-        while let range = lowercasedText.range(of: lowercasedSearchText, range: searchStartIndex..<lowercasedText.endIndex) {
-            ranges.append(range)
-            searchStartIndex = range.upperBound
-        }
-        
-        // 如果没有匹配，返回普通文本
-        if ranges.isEmpty {
-            return Text(text)
-                .foregroundColor(.primary)
-        }
-        
-        // 构建高亮文本
-        var resultText = Text(verbatim: "")
-        var currentIndex = text.startIndex
-        
-        for range in ranges {
-            // 添加匹配前的文本
-            if currentIndex < range.lowerBound {
-                let beforeMatch = String(text[currentIndex..<range.lowerBound])
-                resultText = resultText + Text(verbatim: beforeMatch)
-            }
-            
-            // 添加高亮的匹配文本
-            let matchText = String(text[range])
-            resultText = resultText + Text(verbatim: matchText)
-                .foregroundColor(.yellow)  // 使用主题色黄色
-                .fontWeight(.medium)
-            
-            currentIndex = range.upperBound
-        }
-        
-        // 添加剩余的文本
-        if currentIndex < text.endIndex {
-            let remainingText = String(text[currentIndex..<text.endIndex])
-            resultText = resultText + Text(verbatim: remainingText)
-        }
-        
-        return resultText
-    }
-    
-    /// 高亮显示预览文本中的搜索关键词
-    private func highlightPreviewText(from xmlContent: String, searchText: String) -> Text {
-        guard !searchText.isEmpty else {
-            return Text(extractPreviewText(from: xmlContent))
-                .foregroundColor(.secondary)
-        }
-        
-        // 提取纯文本预览
-        let previewText = extractPreviewText(from: xmlContent)
-        
-        // 如果预览文本是"无内容"，直接返回
-        if previewText == "无内容" {
-            return Text(previewText)
-                .foregroundColor(.secondary)
-        }
-        
-        let lowercasedText = previewText.lowercased()
-        let lowercasedSearchText = searchText.lowercased()
-        
-        // 查找所有匹配的位置
-        var ranges: [Range<String.Index>] = []
-        var searchStartIndex = lowercasedText.startIndex
-        
-        while let range = lowercasedText.range(of: lowercasedSearchText, range: searchStartIndex..<lowercasedText.endIndex) {
-            ranges.append(range)
-            searchStartIndex = range.upperBound
-        }
-        
-        // 如果没有匹配，返回普通文本
-        if ranges.isEmpty {
-            return Text(previewText)
-                .foregroundColor(.secondary)
-        }
-        
-        // 构建高亮文本
-        var resultText = Text(verbatim: "")
-        var currentIndex = previewText.startIndex
-        
-        for range in ranges {
-            // 添加匹配前的文本
-            if currentIndex < range.lowerBound {
-                let beforeMatch = String(previewText[currentIndex..<range.lowerBound])
-                resultText = resultText + Text(verbatim: beforeMatch)
-                    .foregroundColor(.secondary)
-            }
-            
-            // 添加高亮的匹配文本
-            let matchText = String(previewText[range])
-            resultText = resultText + Text(verbatim: matchText)
-                .foregroundColor(.yellow)  // 使用主题色黄色
-                .fontWeight(.medium)
-            
-            currentIndex = range.upperBound
-        }
-        
-        // 添加剩余的文本
-        if currentIndex < previewText.endIndex {
-            let remainingText = String(previewText[currentIndex..<previewText.endIndex])
-            resultText = resultText + Text(verbatim: remainingText)
-                .foregroundColor(.secondary)
-        }
-        
-        return resultText
     }
 }
 

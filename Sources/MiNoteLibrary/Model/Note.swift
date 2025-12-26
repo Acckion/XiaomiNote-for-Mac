@@ -53,9 +53,9 @@ public struct Note: Identifiable, Codable, Hashable {
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(tags, forKey: .tags)
         
-        // 编码 rawData 为 JSON 数据
+        // 编码 rawData 为 JSON 数据，使用更稳定的选项
         if let rawData = rawData {
-            let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
+            let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [.fragmentsAllowed, .sortedKeys])
             try container.encode(jsonData, forKey: .rawData)
         } else {
             try container.encodeNil(forKey: .rawData)
@@ -74,10 +74,24 @@ public struct Note: Identifiable, Codable, Hashable {
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         tags = try container.decode([String].self, forKey: .tags)
         
-        // 解码 rawData
-        if let jsonData = try? container.decode(Data?.self, forKey: .rawData) {
-            rawData = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any]
-        } else {
+        // 解码 rawData，使用更健壮的错误处理
+        do {
+            if let jsonData = try container.decodeIfPresent(Data.self, forKey: .rawData) {
+                // 尝试解析为 [String: Any]
+                if let dict = try JSONSerialization.jsonObject(with: jsonData, options: [.fragmentsAllowed, .mutableContainers]) as? [String: Any] {
+                    rawData = dict
+                } else if let array = try JSONSerialization.jsonObject(with: jsonData, options: [.fragmentsAllowed]) as? [Any] {
+                    // 如果是数组，包装为字典
+                    rawData = ["data": array]
+                } else {
+                    // 其他类型，包装为字典
+                    rawData = ["value": try JSONSerialization.jsonObject(with: jsonData, options: [.fragmentsAllowed])]
+                }
+            } else {
+                rawData = nil
+            }
+        } catch {
+            print("[Note] 解码 rawData 失败: \(error)")
             rawData = nil
         }
     }

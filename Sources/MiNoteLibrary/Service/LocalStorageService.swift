@@ -314,7 +314,91 @@ final class LocalStorageService: @unchecked Sendable {
         guard let fileURL = getImageURL(fileId: fileId, fileType: fileType) else {
             return nil
         }
-        return try? Data(contentsOf: fileURL)
+        
+        do {
+            let data = try Data(contentsOf: fileURL)
+            print("[LocalStorage] 加载图片成功: \(fileId).\(fileType), 大小: \(data.count) 字节")
+            return data
+        } catch {
+            print("[LocalStorage] 加载图片失败: \(fileId).\(fileType), 错误: \(error)")
+            return nil
+        }
+    }
+    
+    /// 验证图片文件是否有效
+    func validateImage(fileId: String, fileType: String) -> Bool {
+        guard let fileURL = getImageURL(fileId: fileId, fileType: fileType) else {
+            return false
+        }
+        
+        // 检查文件是否存在
+        guard fileManager.fileExists(atPath: fileURL.path) else {
+            return false
+        }
+        
+        // 检查文件大小（至少1字节）
+        do {
+            let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+            if let fileSize = attributes[.size] as? Int64, fileSize > 0 {
+                return true
+            }
+        } catch {
+            print("[LocalStorage] 验证图片失败: \(fileId).\(fileType), 错误: \(error)")
+        }
+        
+        return false
+    }
+    
+    /// 清理无效的图片文件
+    func cleanupInvalidImages() {
+        do {
+            try ensureImagesDirectory()
+            let fileURLs = try fileManager.contentsOfDirectory(at: imagesDirectory, includingPropertiesForKeys: [.fileSizeKey])
+            
+            var cleanedCount = 0
+            for fileURL in fileURLs {
+                // 检查文件大小
+                do {
+                    let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                    if let fileSize = attributes[.size] as? Int64, fileSize == 0 {
+                        // 删除大小为0的文件
+                        try fileManager.removeItem(at: fileURL)
+                        cleanedCount += 1
+                        print("[LocalStorage] 清理无效图片: \(fileURL.lastPathComponent)")
+                    }
+                } catch {
+                    // 如果无法获取属性，尝试删除文件
+                    try? fileManager.removeItem(at: fileURL)
+                    cleanedCount += 1
+                    print("[LocalStorage] 清理无法访问的图片: \(fileURL.lastPathComponent)")
+                }
+            }
+            
+            if cleanedCount > 0 {
+                print("[LocalStorage] 清理完成，删除了 \(cleanedCount) 个无效图片文件")
+            }
+        } catch {
+            print("[LocalStorage] 清理图片时出错: \(error)")
+        }
+    }
+    
+    /// 获取图片文件信息
+    func getImageInfo(fileId: String, fileType: String) -> (exists: Bool, size: Int64?, modifiedDate: Date?)? {
+        guard let fileURL = getImageURL(fileId: fileId, fileType: fileType) else {
+            return nil
+        }
+        
+        do {
+            let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+            let exists = fileManager.fileExists(atPath: fileURL.path)
+            let size = attributes[.size] as? Int64
+            let modifiedDate = attributes[.modificationDate] as? Date
+            
+            return (exists: exists, size: size, modifiedDate: modifiedDate)
+        } catch {
+            print("[LocalStorage] 获取图片信息失败: \(fileId).\(fileType), 错误: \(error)")
+            return nil
+        }
     }
 }
 
