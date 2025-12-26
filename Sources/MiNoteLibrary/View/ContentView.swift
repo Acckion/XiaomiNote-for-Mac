@@ -1112,6 +1112,12 @@ struct SidebarView: View {
                         saveRename(folder: editingFolder, isExitingByClickingOtherFolder: true)
                     }
                 }
+                
+                // 确保切换文件夹时，编辑视图跟随更新
+                // 调用 selectFolder 方法来处理笔记选择逻辑
+                if newValue != oldValue {
+                    viewModel.selectFolder(newValue)
+                }
             }
         }
     }
