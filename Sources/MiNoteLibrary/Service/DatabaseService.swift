@@ -90,6 +90,7 @@ final class DatabaseService: @unchecked Sendable {
             created_at REAL NOT NULL,
             updated_at REAL NOT NULL,
             tags TEXT, -- JSON 数组
+            html_content TEXT, -- HTML 缓存
             raw_data TEXT -- JSON 对象
         );
         """
@@ -211,7 +212,11 @@ final class DatabaseService: @unchecked Sendable {
     /// 检查并修复 raw_data 字段的 JSON 格式问题
     /// 确保现有数据与新 Note 模型的编码/解码兼容
     private func migrateNotesTable() {
-        print("[Database] 开始迁移 notes 表，检查 raw_data 字段兼容性")
+        print("[Database] 开始迁移 notes 表，检查字段兼容性")
+        
+        // 添加 html_content 字段（如果不存在）
+        let addHtmlContentColumn = "ALTER TABLE notes ADD COLUMN html_content TEXT;"
+        executeSQL(addHtmlContentColumn, ignoreError: true)
         
         // 1. 检查是否有 raw_data 字段为 NULL 的记录
         let checkNullSQL = "SELECT COUNT(*) FROM notes WHERE raw_data IS NULL;"
@@ -287,8 +292,8 @@ final class DatabaseService: @unchecked Sendable {
         
         try dbQueue.sync(flags: .barrier) {
             let sql = """
-            INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, html_content, raw_data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
             
             var statement: OpaquePointer?
@@ -318,13 +323,20 @@ final class DatabaseService: @unchecked Sendable {
             let tagsJSON = try JSONEncoder().encode(note.tags)
             sqlite3_bind_text(statement, 8, String(data: tagsJSON, encoding: .utf8), -1, nil)
             
+            // html_content
+            if let html = note.htmlContent {
+                sqlite3_bind_text(statement, 9, (html as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(statement, 9)
+            }
+            
             // raw_data 作为 JSON
             var rawDataJSON: String? = nil
             if let rawData = note.rawData {
                 let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
                 rawDataJSON = String(data: jsonData, encoding: .utf8)
             }
-            sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
+            sqlite3_bind_text(statement, 10, rawDataJSON, -1, nil)
             
             print("![[debug]] ========== 数据流程节点DB4: 执行 SQL ==========")
             guard sqlite3_step(statement) == SQLITE_DONE else {
@@ -345,7 +357,7 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func loadNote(noteId: String) throws -> Note? {
         return try dbQueue.sync {
-            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes WHERE id = ?;"
+            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, html_content, raw_data FROM notes WHERE id = ?;"
             
             var statement: OpaquePointer?
             defer {
@@ -380,7 +392,7 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func getAllNotes() throws -> [Note] {
         return try dbQueue.sync {
-            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes ORDER BY updated_at DESC;"
+            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, html_content, raw_data FROM notes ORDER BY updated_at DESC;"
             
             var statement: OpaquePointer?
             defer {
@@ -511,9 +523,15 @@ final class DatabaseService: @unchecked Sendable {
             print("[Database] parseNote: tags 字段为 NULL")
         }
         
+        // 解析 html_content
+        var htmlContent: String? = nil
+        if let htmlText = sqlite3_column_text(statement, 8) {
+            htmlContent = String(cString: htmlText)
+        }
+        
         // 解析 raw_data
         var rawData: [String: Any]? = nil
-        if let rawDataText = sqlite3_column_text(statement, 8) {
+        if let rawDataText = sqlite3_column_text(statement, 9) {
             let rawDataString = String(cString: rawDataText)
             let rawDataLength = rawDataString.count
             print("[Database] parseNote: raw_data 字段存在，长度=\(rawDataLength)")
@@ -545,7 +563,8 @@ final class DatabaseService: @unchecked Sendable {
             createdAt: createdAt,
             updatedAt: updatedAt,
             tags: tags,
-            rawData: rawData,
+            htmlContent: htmlContent,
+            rawData: rawData
         )
         
         print("[Database] parseNote: 笔记解析完成 id=\(id), title=\(title)")

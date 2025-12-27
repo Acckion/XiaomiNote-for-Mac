@@ -21,15 +21,18 @@ public struct Note: Identifiable, Codable, Hashable {
     public var updatedAt: Date
     public var tags: [String] = []
     
+    // 编辑器生成的原始 HTML 内容（缓存）
+    public var htmlContent: String?
+    
     // 小米笔记格式的原始数据
     public var rawData: [String: Any]?
     
     enum CodingKeys: String, CodingKey {
-        case id, title, content, folderId, isStarred, createdAt, updatedAt, tags, rawData
+        case id, title, content, folderId, isStarred, createdAt, updatedAt, tags, htmlContent, rawData
     }
     
     public init(id: String, title: String, content: String, folderId: String, isStarred: Bool = false, 
-         createdAt: Date, updatedAt: Date, tags: [String] = [], rawData: [String: Any]? = nil) {
+         createdAt: Date, updatedAt: Date, tags: [String] = [], htmlContent: String? = nil, rawData: [String: Any]? = nil) {
         self.id = id
         self.title = title
         self.content = content
@@ -38,6 +41,7 @@ public struct Note: Identifiable, Codable, Hashable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.tags = tags
+        self.htmlContent = htmlContent
         self.rawData = rawData
     }
     
@@ -52,6 +56,7 @@ public struct Note: Identifiable, Codable, Hashable {
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(tags, forKey: .tags)
+        try container.encodeIfPresent(htmlContent, forKey: .htmlContent)
         
         // 编码 rawData 为 JSON 数据，使用更稳定的选项
         if let rawData = rawData {
@@ -73,6 +78,7 @@ public struct Note: Identifiable, Codable, Hashable {
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         tags = try container.decode([String].self, forKey: .tags)
+        htmlContent = try container.decodeIfPresent(String.self, forKey: .htmlContent)
         
         // 解码 rawData，使用更健壮的错误处理
         do {
@@ -106,7 +112,8 @@ public struct Note: Identifiable, Codable, Hashable {
               lhs.isStarred == rhs.isStarred &&
               lhs.createdAt == rhs.createdAt &&
               lhs.updatedAt == rhs.updatedAt &&
-              lhs.tags == rhs.tags else {
+              lhs.tags == rhs.tags &&
+              lhs.htmlContent == rhs.htmlContent else {
             return false
         }
         
@@ -124,6 +131,7 @@ public struct Note: Identifiable, Codable, Hashable {
         hasher.combine(createdAt)
         hasher.combine(updatedAt)
         hasher.combine(tags)
+        hasher.combine(htmlContent)
         
         // 使用专门的 rawData 哈希方法
         hashRawData(into: &hasher)

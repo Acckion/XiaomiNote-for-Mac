@@ -59,7 +59,7 @@ struct NewNoteView: View {
                         editorContext: webEditorContext,
                         noteRawData: nil,
                         xmlContent: xmlContent,
-                        onContentChange: { newContent in
+                        onContentChange: { newContent, _ in
                             xmlContent = newContent
                         }
                     )

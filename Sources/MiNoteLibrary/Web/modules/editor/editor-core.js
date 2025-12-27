@@ -655,9 +655,12 @@
             
             // 通知 Swift
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.editorBridge) {
+                const editor = document.getElementById('editor-content');
+                const htmlContent = editor ? editor.innerHTML : '';
                 window.webkit.messageHandlers.editorBridge.postMessage({
                     type: 'contentChanged',
-                    content: xmlContent
+                    content: xmlContent,
+                    html: htmlContent
                 });
             }
         } else {

@@ -31,14 +31,14 @@ class InspectorWKWebView: WKWebView {
 /// Web编辑器视图，包装WKWebView来加载HTML编辑器
 struct WebEditorView: NSViewRepresentable {
     @Binding var content: String
-    let onContentChanged: (String) -> Void
+    let onContentChanged: (String, String?) -> Void
     let onEditorReady: (Coordinator) -> Void
     
     // WebView配置
     private let configuration: WKWebViewConfiguration
     private let messageHandler: EditorMessageHandler
     
-    init(content: Binding<String>, onContentChanged: @escaping (String) -> Void, onEditorReady: @escaping (Coordinator) -> Void) {
+    init(content: Binding<String>, onContentChanged: @escaping (String, String?) -> Void, onEditorReady: @escaping (Coordinator) -> Void) {
         self._content = content
         self.onContentChanged = onContentChanged
         self.onEditorReady = onEditorReady
@@ -560,8 +560,9 @@ struct WebEditorView: NSViewRepresentable {
                     if let error = error {
                         print("撤销失败: \(error)")
                     } else {
+                        // Undo/Redo 时不需要 HTML 缓存更新，直接拿内容即可
                         self?.getCurrentContentClosure? { content in
-                            self?.parent.onContentChanged(content)
+                            self?.parent.onContentChanged(content, nil)
                         }
                     }
                 }
@@ -574,7 +575,7 @@ struct WebEditorView: NSViewRepresentable {
                         print("重做失败: \(error)")
                     } else {
                         self?.getCurrentContentClosure? { content in
-                            self?.parent.onContentChanged(content)
+                            self?.parent.onContentChanged(content, nil)
                         }
                     }
                 }
@@ -732,11 +733,11 @@ struct WebEditorView: NSViewRepresentable {
     
     // 消息处理器
     class EditorMessageHandler: NSObject, WKScriptMessageHandler {
-        let onContentChanged: (String) -> Void
+        let onContentChanged: (String, String?) -> Void // 增加了 HTML 参数
         let onEditorReady: (Coordinator) -> Void
         weak var coordinator: WebEditorView.Coordinator?
         
-        init(onContentChanged: @escaping (String) -> Void, onEditorReady: @escaping (Coordinator) -> Void) {
+        init(onContentChanged: @escaping (String, String?) -> Void, onEditorReady: @escaping (Coordinator) -> Void) {
             self.onContentChanged = onContentChanged
             self.onEditorReady = onEditorReady
         }
@@ -768,47 +769,31 @@ struct WebEditorView: NSViewRepresentable {
                 
             case "contentChanged":
                 if let content = body["content"] as? String {
-                    // print("内容已更改，长度: \(content.count)")
+                    let html = body["html"] as? String
                     
-                    // 标记这是来自Web的更新，并同步 lastContent
-                    // 必须在主线程上设置，确保在 SwiftUI 更新之前生效
                     if Thread.isMainThread {
-                        // 已经在主线程，直接设置
                         if let coordinator = self.coordinator {
                             coordinator.isUpdatingFromWeb = true
                             coordinator.lastContent = content
-                            // 先触发内容变化回调（这会更新 currentXMLContent，可能触发 SwiftUI 重新渲染）
-                            self.onContentChanged(content)
-                            // 延迟更长时间后重置标志，确保所有相关的 updateNSView 调用都能检测到
-                            // 增加延迟时间，避免 SwiftUI 重新渲染时触发不必要的 loadContent
+                            self.onContentChanged(content, html)
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 coordinator.isUpdatingFromWeb = false
                             }
                         } else {
-                            self.onContentChanged(content)
+                            self.onContentChanged(content, html)
                         }
                     } else {
-                        // 不在主线程，切换到主线程
                         DispatchQueue.main.async { [weak self] in
                             guard let self = self else { return }
-                            
                             if let coordinator = self.coordinator {
-                                // 先设置标志，确保后续的 updateNSView 能够检测到
                                 coordinator.isUpdatingFromWeb = true
                                 coordinator.lastContent = content
-                                
-                                // 然后触发内容变化回调
-                                // 这个回调可能会触发 SwiftUI 更新，但由于 isUpdatingFromWeb 已设置，会被跳过
-                                self.onContentChanged(content)
-                                
-                                // 延迟更长时间后重置标志，确保所有相关的 updateNSView 调用都能检测到
-                                // 增加延迟时间，避免 SwiftUI 重新渲染时触发不必要的 loadContent
+                                self.onContentChanged(content, html)
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     coordinator.isUpdatingFromWeb = false
                                 }
                             } else {
-                                // 如果 coordinator 不存在，直接调用回调
-                                self.onContentChanged(content)
+                                self.onContentChanged(content, html)
                             }
                         }
                     }
@@ -877,40 +862,6 @@ struct WebEditorView: NSViewRepresentable {
                     print("[JS] \(prefix) \(message)")
                 }
                 
-            case "formatStateChanged":
-                if let formatState = body["formatState"] as? [String: Any] {
-                    DispatchQueue.main.async { [weak self] in
-                        // 需要访问 WebEditorContext 来更新格式状态
-                        // 由于 EditorMessageHandler 没有直接访问 WebEditorContext 的引用
-                        // 我们需要通过 coordinator 来访问
-                        if let coordinator = self?.coordinator,
-                           let webEditorContext = coordinator.webEditorContext {
-                            if let isBold = formatState["isBold"] as? Bool {
-                                webEditorContext.isBold = isBold
-                            }
-                            if let isItalic = formatState["isItalic"] as? Bool {
-                                webEditorContext.isItalic = isItalic
-                            }
-                            if let isUnderline = formatState["isUnderline"] as? Bool {
-                                webEditorContext.isUnderline = isUnderline
-                            }
-                            if let isStrikethrough = formatState["isStrikethrough"] as? Bool {
-                                webEditorContext.isStrikethrough = isStrikethrough
-                            }
-                            if let isHighlighted = formatState["isHighlighted"] as? Bool {
-                                webEditorContext.isHighlighted = isHighlighted
-                            }
-                            if let textAlignmentStr = formatState["textAlignment"] as? String {
-                                webEditorContext.textAlignment = TextAlignment.fromString(textAlignmentStr)
-                            }
-                            if let headingLevel = formatState["headingLevel"] as? Int {
-                                webEditorContext.headingLevel = headingLevel > 0 ? headingLevel : nil
-                            } else if formatState["headingLevel"] is NSNull {
-                                webEditorContext.headingLevel = nil
-                            }
-                        }
-                    }
-                }
                 
             default:
                 print("收到未知消息类型: \(type)")
@@ -1085,7 +1036,12 @@ struct WebEditorView: NSViewRepresentable {
             
             // 如果找不到图片，返回占位图片
             print("[ImageURLSchemeHandler] 未找到图片: \(fileName)，返回占位图片")
-                let placeholderImage = NSImage(systemSymbolName: "photo", accessibilityDescription: "图片") ?? NSImage()
+            let placeholderImage: NSImage
+            if #available(macOS 11.0, *) {
+                placeholderImage = NSImage(systemSymbolName: "photo", accessibilityDescription: "图片") ?? NSImage()
+            } else {
+                placeholderImage = NSImage()
+            }
                 
             if let placeholderData = placeholderImage.tiffRepresentation,
                let bitmap = NSBitmapImageRep(data: placeholderData),

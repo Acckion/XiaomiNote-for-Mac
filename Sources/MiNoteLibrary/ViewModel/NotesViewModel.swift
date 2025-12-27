@@ -1739,27 +1739,30 @@ public class NotesViewModel: ObservableObject {
     /// 更新文件夹计数
     private func updateFolderCounts() {
         let currentNotes = self.notes
-        for i in 0..<self.folders.count {
-            if i >= self.folders.count { break }
-            let folder = self.folders[i]
+        // 使用局部变量避免在循环中修改数组
+        var updatedFolders = self.folders
+        for i in 0..<updatedFolders.count {
+            let folder = updatedFolders[i]
             
             if folder.id == "0" {
                 // 所有笔记
-                self.folders[i].count = currentNotes.count
+                updatedFolders[i].count = currentNotes.count
             } else if folder.id == "starred" {
                 // 收藏
-                self.folders[i].count = currentNotes.filter { $0.isStarred }.count
+                updatedFolders[i].count = currentNotes.filter { $0.isStarred }.count
             } else if folder.id == "2" {
                 // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
-                self.folders[i].count = currentNotes.filter { $0.folderId == "2" }.count
+                updatedFolders[i].count = currentNotes.filter { $0.folderId == "2" }.count
             } else if folder.id == "uncategorized" {
                 // 未分类文件夹：显示 folderId 为 "0" 或空的笔记
-                self.folders[i].count = currentNotes.filter { $0.folderId == "0" || $0.folderId.isEmpty }.count
+                updatedFolders[i].count = currentNotes.filter { $0.folderId == "0" || $0.folderId.isEmpty }.count
             } else {
                 // 普通文件夹
-                self.folders[i].count = currentNotes.filter { $0.folderId == folder.id }.count
+                updatedFolders[i].count = currentNotes.filter { $0.folderId == folder.id }.count
             }
         }
+        // 一次性更新数组
+        self.folders = updatedFolders
     }
     
     /// 取消同步
@@ -2006,347 +2009,185 @@ public class NotesViewModel: ObservableObject {
     /// - Parameter note: 要更新的笔记对象
     /// - Throws: 更新失败时抛出错误（网络错误、认证错误等）
     func updateNote(_ note: Note) async throws {
-        print("[[调试]]步骤19 [VIEWMODEL] 进入updateNote方法，笔记ID: \(note.id), 标题: \(note.title)")
+        print("[VIEWMODEL] updateNote: \(note.id), title: \(note.title)")
         
-        // 先尝试从数据库加载现有笔记，确保 rawData（特别是 setting.data）是完整的
-        var noteToSave = note
-        if let existingNote = try? localStorage.loadNote(noteId: note.id),
-           let existingRawData = existingNote.rawData {
-            // 合并 rawData：保留现有的 setting.data，更新其他字段
-            var mergedRawData = existingRawData
-            if let newRawData = note.rawData {
-                // 如果新笔记有 rawData，合并它们
-                for (key, value) in newRawData {
-                    mergedRawData[key] = value
-                }
-                // 特别处理 setting.data：如果现有笔记有 setting.data，保留它
-                if let existingSetting = existingRawData["setting"] as? [String: Any],
-                   let existingSettingData = existingSetting["data"] as? [[String: Any]],
-                   !existingSettingData.isEmpty {
-                    var mergedSetting = mergedRawData["setting"] as? [String: Any] ?? [:]
-                    mergedSetting["data"] = existingSettingData
-                    mergedRawData["setting"] = mergedSetting
-                    print("[[调试]]步骤19.1 [VIEWMODEL] 保留现有的 setting.data，包含 \(existingSettingData.count) 个图片")
-                }
-            }
-            // 使用合并后的 rawData 创建新的 Note 对象
-            noteToSave = Note(
-                id: note.id,
-                title: note.title,
-                content: note.content,
-                folderId: note.folderId,
-                isStarred: note.isStarred,
-                createdAt: note.createdAt,
-                updatedAt: note.updatedAt,
-                tags: note.tags,
-                rawData: mergedRawData
-            )
-        }
+        // 1. 合并并本地持久化
+        let noteToSave = mergeWithLocalData(note)
+        try await applyLocalUpdate(noteToSave)
         
-        // 先保存到本地（无论在线还是离线）
-        // 这确保了即使云端保存失败，本地数据也不会丢失
-        print("[[调试]]步骤20 [VIEWMODEL] 保存到本地数据库，笔记ID: \(noteToSave.id)")
-        try localStorage.saveNote(noteToSave)
-        
-        // 更新笔记列表
-        if let index = notes.firstIndex(where: { $0.id == noteToSave.id }) {
-            notes[index] = noteToSave
-            print("[[调试]]步骤21 [VIEWMODEL] 更新笔记列表，笔记ID: \(noteToSave.id), 列表索引: \(index)")
-        } else {
-            // 如果笔记不在列表中（新建笔记），添加到列表
-            notes.append(noteToSave)
-            print("[[调试]]步骤21 [VIEWMODEL] 更新笔记列表，笔记ID: \(noteToSave.id), 列表索引: 新增")
-        }
-        
-        // 如果离线或未认证，添加到离线队列
-        print("[[调试]]步骤22 [VIEWMODEL] 检查在线状态，isOnline: \(isOnline), isAuthenticated: \(service.isAuthenticated())")
-        if !isOnline || !service.isAuthenticated() {
-            let operationData = try JSONEncoder().encode([
-                    "title": noteToSave.title,
-                    "content": noteToSave.content,
-                    "folderId": noteToSave.folderId
-            ])
-            let operation = OfflineOperation(
-                type: .updateNote,
-                    noteId: noteToSave.id,
-                data: operationData
-            )
-            try offlineQueue.addOperation(operation)
-                print("[[调试]]步骤23 [VIEWMODEL] 离线模式，添加到离线队列，笔记ID: \(noteToSave.id)")
+        // 2. 检查同步状态
+        guard isOnline && service.isAuthenticated() else {
+            queueOfflineUpdate(noteToSave)
             return
         }
         
         isLoading = true
-        errorMessage = nil
-        
         defer { isLoading = false }
         
         do {
-            // 参考 Obsidian 插件：每次上传前都先获取云端最新的笔记信息，包括 tag
-            // 使用 noteToSave 而不是 note，因为 noteToSave 有完整的 rawData
-            var existingTag = noteToSave.rawData?["tag"] as? String ?? ""
-            var originalCreateDate = noteToSave.rawData?["createDate"] as? Int
-            
-            print("[[调试]]步骤26 [VIEWMODEL] 获取现有tag，当前tag: \(existingTag.isEmpty ? "空" : existingTag)")
-            
-            // 检查笔记是否已存在于云端
-            var noteExistsInCloud = false
-            print("[[调试]]步骤27 [VIEWMODEL] 检查笔记是否存在于云端，笔记ID: \(noteToSave.id)")
-            do {
-                let noteDetails = try await service.fetchNoteDetails(noteId: noteToSave.id)
-                noteExistsInCloud = true
-                if let data = noteDetails["data"] as? [String: Any],
-                   let entry = data["entry"] as? [String: Any] {
-                    // 获取最新的 tag
-                    if let latestTag = entry["tag"] as? String, !latestTag.isEmpty {
-                        existingTag = latestTag
-                        print("[[调试]]步骤28 [VIEWMODEL] 从服务器获取到最新 tag: \(existingTag)")
-                    }
-                    // 获取最新的 createDate
-                    if let latestCreateDate = entry["createDate"] as? Int {
-                        originalCreateDate = latestCreateDate
-                        print("[[调试]]步骤28 [VIEWMODEL] 从服务器获取到最新 createDate: \(latestCreateDate)")
-                    }
-                    print("[[调试]]步骤28 [VIEWMODEL] 从服务器获取最新信息，tag: \(existingTag.isEmpty ? "无" : existingTag), createDate: \(originalCreateDate != nil ? String(originalCreateDate!) : "无")")
-                }
-            } catch {
-                // 获取失败，可能是新建笔记还没上传，或者笔记不存在
-                print("[[调试]]步骤27.1 [VIEWMODEL] 获取最新笔记信息失败: \(error)，将使用本地存储的 tag")
-                noteExistsInCloud = false
-            }
-            
-            // 如果笔记不存在于云端，可能是新建笔记，先创建它
-            if !noteExistsInCloud {
-                print("[[调试]]步骤29 [VIEWMODEL] 笔记不存在于云端，尝试创建，笔记ID: \(noteToSave.id)")
-                do {
-                    let createResponse = try await service.createNote(
-                        title: noteToSave.title,
-                        content: noteToSave.content,
-                        folderId: noteToSave.folderId
-                    )
-                    
-                    // 如果创建成功，更新笔记ID和rawData
-                    if let code = createResponse["code"] as? Int, code == 0,
-                       let data = createResponse["data"] as? [String: Any],
-                       let entry = data["entry"] as? [String: Any] {
-                        if let newNoteId = entry["id"] as? String {
-                            if newNoteId != noteToSave.id {
-                                // ID 发生变化，需要更新本地笔记
-                                print("[VIEWMODEL] ✅ 笔记创建成功，ID更新: \(noteToSave.id) -> \(newNoteId)")
-                                
-                                // 更新rawData
-                                var updatedRawData = noteToSave.rawData ?? [:]
-                                for (key, value) in entry {
-                                    updatedRawData[key] = value
-                                }
-                                
-                                // 创建新的 Note 实例（因为 id 是 let 常量）
-                                let updatedNote = Note(
-                                    id: newNoteId,
-                                    title: noteToSave.title,
-                                    content: noteToSave.content,
-                                    folderId: noteToSave.folderId,
-                                    isStarred: noteToSave.isStarred,
-                                    createdAt: noteToSave.createdAt,
-                                    updatedAt: noteToSave.updatedAt,
-                                    tags: noteToSave.tags,
-                                    rawData: updatedRawData
-                                )
-                                
-                                // 更新笔记列表
-                                if let index = notes.firstIndex(where: { $0.id == noteToSave.id }) {
-                                    notes[index] = updatedNote
-                                }
-                                
-                                // 如果当前选中的笔记，也更新它
-                                if selectedNote?.id == noteToSave.id {
-                                    selectedNote = updatedNote
-                                }
-                                
-                                // 保存到本地
-                                try localStorage.saveNote(updatedNote)
-                                
-                                print("[VIEWMODEL] ✅ 新建笔记创建并保存成功: \(newNoteId)")
-                                return
-                            } else {
-                                // ID 相同，更新 rawData
-                                print("[VIEWMODEL] ✅ 笔记创建成功，ID相同，更新 rawData: \(noteToSave.id)")
-                                
-                                var updatedNote = noteToSave
-                                var updatedRawData = updatedNote.rawData ?? [:]
-                                for (key, value) in entry {
-                                    updatedRawData[key] = value
-                                }
-                                updatedNote.rawData = updatedRawData
-                                
-                                // 更新笔记列表
-                                if let index = notes.firstIndex(where: { $0.id == noteToSave.id }) {
-                                    notes[index] = updatedNote
-                                }
-                                
-                                // 如果当前选中的笔记，也更新它
-                                if selectedNote?.id == noteToSave.id {
-                                    selectedNote = updatedNote
-                                }
-                                
-                                // 保存到本地
-                                try localStorage.saveNote(updatedNote)
-                                
-                                print("[VIEWMODEL] ✅ 新建笔记创建并保存成功: \(noteToSave.id)")
-                                return
-                            }
-                        }
-                    }
-                } catch {
-                    print("[VIEWMODEL] ⚠️ 创建笔记失败: \(error)，将尝试更新（可能会失败）")
-                    // 继续尝试更新，可能会失败，但至少本地已保存
-                }
-            }
-            
-            // 确保 tag 不为空（如果仍然为空，使用 noteId 作为 fallback）
-            if existingTag.isEmpty {
-                existingTag = noteToSave.id
-                print("[[调试]]步骤32 [VIEWMODEL] 警告：tag 仍然为空，使用 noteId 作为 fallback: \(existingTag)")
-            }
-            
-            // 从 rawData 中提取图片信息（setting.data）
-            // 使用 noteToSave 而不是 note，因为 noteToSave 有完整的 rawData
-            var imageData: [[String: Any]]? = nil
-            if let rawData = noteToSave.rawData,
-               let setting = rawData["setting"] as? [String: Any],
-               let settingData = setting["data"] as? [[String: Any]] {
-                imageData = settingData
-                print("[[调试]]步骤31 [VIEWMODEL] 从 noteToSave.rawData 提取图片信息，imageData数量: \(imageData?.count ?? 0)")
-            } else {
-                print("[[调试]]步骤31 [VIEWMODEL] ⚠️ 无法从 noteToSave.rawData 提取图片信息")
-                if let rawData = noteToSave.rawData {
-                    print("[[调试]]步骤31.1 [VIEWMODEL] rawData 存在，包含键: \(rawData.keys)")
-                    if let setting = rawData["setting"] as? [String: Any] {
-                        print("[[调试]]步骤31.2 [VIEWMODEL] setting 存在，包含键: \(setting.keys)")
-                    } else {
-                        print("[[调试]]步骤31.2 [VIEWMODEL] setting 不存在或类型不正确")
-                    }
-                } else {
-                    print("[[调试]]步骤31.1 [VIEWMODEL] rawData 为 nil")
-                }
-            }
-            
-            // 使用 nonisolated(unsafe) 来标记这个变量是安全的（这些数据只是被读取和传递）
-            nonisolated(unsafe) let unsafeImageData = imageData
-            
-            print("[[调试]]步骤33 [VIEWMODEL] 调用service.updateNote上传，笔记ID: \(noteToSave.id), title: \(noteToSave.title), content长度: \(noteToSave.content.count)")
-            
-            let response = try await service.updateNote(
-                noteId: noteToSave.id,
-                title: noteToSave.title,
-                content: noteToSave.content,
-                folderId: noteToSave.folderId,
-                existingTag: existingTag,
-                originalCreateDate: originalCreateDate,
-                imageData: unsafeImageData
-            )
-            
-            // 检查响应是否成功（小米笔记API返回格式: {"code": 0, "data": {...}}）
-            let code = response["code"] as? Int ?? -1
-            print("[[调试]]步骤48 [VIEWMODEL] 检查响应code，code: \(code), 是否成功: \(code == 0)")
-            if code == 0 {
-                // 更新本地笔记
-                if let index = notes.firstIndex(where: { $0.id == noteToSave.id }) {
-                    var updatedNote = noteToSave
-                    print("[[调试]]步骤48.1 [VIEWMODEL] 创建updatedNote副本")
-                    
-                    // 从响应中提取更新后的数据
-                    if let data = response["data"] as? [String: Any],
-                       let entry = data["entry"] as? [String: Any] {
-                        print("[[调试]]步骤49 [VIEWMODEL] 提取响应数据，entry字段存在: true")
-                        // 更新 rawData，保留原有数据并合并新数据
-                        var updatedRawData = updatedNote.rawData ?? [:]
-                        for (key, value) in entry {
-                            updatedRawData[key] = value
-                        }
-                        updatedRawData["tag"] = entry["tag"] ?? existingTag  // 确保tag被更新
-                        
-                        // 优先使用服务器返回的 modifyDate，确保时间戳一致
-                        if let modifyDate = entry["modifyDate"] as? Int {
-                            updatedRawData["modifyDate"] = modifyDate
-                            updatedNote.updatedAt = Date(timeIntervalSince1970: TimeInterval(modifyDate) / 1000)
-                            print("[[调试]]步骤50 [VIEWMODEL] 使用服务器返回的 modifyDate: \(modifyDate), updatedAt: \(updatedNote.updatedAt)")
-                        } else {
-                            // 如果服务器没有返回 modifyDate，使用当前时间
-                            let currentModifyDate = Int(Date().timeIntervalSince1970 * 1000)
-                            updatedRawData["modifyDate"] = currentModifyDate
-                            updatedNote.updatedAt = Date()
-                            print("[[调试]]步骤50 [VIEWMODEL] 服务器未返回 modifyDate，使用当前时间: \(currentModifyDate)")
-                        }
-                        
-                        updatedNote.rawData = updatedRawData
-                        print("[[调试]]步骤51 [VIEWMODEL] 更新rawData，tag: \(updatedRawData["tag"] as? String ?? "无"), modifyDate: \(updatedRawData["modifyDate"] ?? "无")")
-                        
-                        // 更新笔记内容（如果响应中包含）
-                        if let newContent = entry["content"] as? String {
-                            updatedNote.content = newContent
-                        }
-                    } else {
-                        // 如果响应格式不同，至少更新rawData
-                        print("[[调试]]步骤49 [VIEWMODEL] 提取响应数据，entry字段存在: false")
-                        var updatedRawData = updatedNote.rawData ?? [:]
-                        updatedRawData.merge(response) { (_, new) in new }
-                        updatedNote.rawData = updatedRawData
-                    }
-                    
-                    // 保存到本地存储
-                    print("[[调试]]步骤53 [VIEWMODEL] 保存更新后的笔记到本地，笔记ID: \(updatedNote.id)")
-                    try localStorage.saveNote(updatedNote)
-                    
-                    notes[index] = updatedNote
-                    selectedNote = updatedNote
-                    print("[[调试]]步骤54 [VIEWMODEL] 更新UI状态，笔记ID: \(updatedNote.id)")
-                    
-                    print("[[调试]]步骤54.1 [VIEWMODEL] 笔记更新成功，笔记ID: \(note.id), tag: \(updatedNote.rawData?["tag"] as? String ?? "无")")
-                }
-            } else {
-                let message = response["message"] as? String ?? "更新笔记失败"
-                print("[[调试]]步骤48.1 [VIEWMODEL] 更新笔记失败，code: \(code), message: \(message)")
-                throw NSError(domain: "MiNote", code: code, userInfo: [NSLocalizedDescriptionKey: message])
-            }
+            try await performCloudUpdateWithRetry(noteToSave)
         } catch {
-            // 网络错误或cookie失效：添加到离线队列，不显示弹窗
-            if let urlError = error as? URLError {
-                let operationData = try? JSONEncoder().encode([
-                    "title": note.title,
-                    "content": note.content,
-                    "folderId": note.folderId
-                ])
-                if let operationData = operationData {
-                    let operation = OfflineOperation(
-                        type: .updateNote,
-                        noteId: note.id,
-                        data: operationData
-                    )
-                    try? offlineQueue.addOperation(operation)
-                    print("[[调试]]步骤55 [VIEWMODEL] 网络错误，添加到离线队列，笔记ID: \(note.id), 错误: \(error.localizedDescription)")
-                }
-            } else if case MiNoteError.cookieExpired = error {
-                // Cookie失效：保存到离线队列
-                let operationData = try? JSONEncoder().encode([
-                    "title": note.title,
-                    "content": note.content,
-                    "folderId": note.folderId
-                ])
-                if let operationData = operationData {
-                    let operation = OfflineOperation(
-                        type: .updateNote,
-                        noteId: note.id,
-                        data: operationData
-                    )
-                    try? offlineQueue.addOperation(operation)
-                    print("[[调试]]步骤56 [VIEWMODEL] Cookie失效，添加到离线队列，笔记ID: \(note.id)")
-                }
-            } else {
-                // 其他错误：静默处理，不显示弹窗
-                print("[[调试]]步骤57 [VIEWMODEL] 更新笔记失败，笔记ID: \(noteToSave.id), 错误: \(error.localizedDescription)")
+            handleUpdateError(error, for: noteToSave)
+        }
+    }
+    
+    private func mergeWithLocalData(_ note: Note) -> Note {
+        guard let existingNote = try? localStorage.loadNote(noteId: note.id),
+              let existingRawData = existingNote.rawData else {
+            return note
+        }
+        
+        var mergedRawData = existingRawData
+        if let newRawData = note.rawData {
+            for (key, value) in newRawData {
+                mergedRawData[key] = value
             }
-            // 不设置 errorMessage，避免弹窗提示
+        }
+        
+        // 特别处理 setting.data (图片)
+        if let existingSetting = existingRawData["setting"] as? [String: Any],
+           let existingSettingData = existingSetting["data"] as? [[String: Any]],
+           !existingSettingData.isEmpty {
+            var mergedSetting = mergedRawData["setting"] as? [String: Any] ?? [:]
+            mergedSetting["data"] = existingSettingData
+            mergedRawData["setting"] = mergedSetting
+        }
+        
+        var merged = note
+        merged.rawData = mergedRawData
+        // 确保保留现有的 htmlContent，除非传入的笔记有更新的（这里通常传入的会有最新的 htmlContent）
+        if note.htmlContent == nil {
+            merged.htmlContent = existingNote.htmlContent
+        }
+        return merged
+    }
+    
+    private func applyLocalUpdate(_ note: Note) async throws {
+        // 立即物理保存
+        try localStorage.saveNote(note)
+        
+        // 更新内存列表
+        if let index = notes.firstIndex(where: { $0.id == note.id }) {
+            notes[index] = note
+        }
+        
+        // 守卫更新 selectedNote 引用：只有当用户依然停留在当个笔记时才更新
+        // 这样可以避免用户切换笔记后，旧任务的完成把 UI 拉回去
+        if selectedNote?.id == note.id {
+            selectedNote = note
+        }
+    }
+    
+    private func queueOfflineUpdate(_ note: Note) {
+        let data: [String: Any] = [
+            "title": note.title,
+            "content": note.content,
+            "folderId": note.folderId
+        ]
+        _ = addOperationToOfflineQueue(type: .updateNote, noteId: note.id, data: data)
+    }
+    
+    private func performCloudUpdateWithRetry(_ note: Note, retryOnConflict: Bool = true) async throws {
+        var existingTag = note.rawData?["tag"] as? String ?? ""
+        let originalCreateDate = note.rawData?["createDate"] as? Int
+        
+        // 如果没有 tag，先 fetch 一次（通常是新建笔记或者是从 snippet 转换来的）
+        if existingTag.isEmpty {
+            let details = try await service.fetchNoteDetails(noteId: note.id)
+            if let entry = extractEntry(from: details), let tag = entry["tag"] as? String {
+                existingTag = tag
+            }
+        }
+        
+        // 提取图片信息
+        let imageData = (note.rawData?["setting"] as? [String: Any])?["data"] as? [[String: Any]]
+        nonisolated(unsafe) let unsafeImageData = imageData
+        
+        let response = try await service.updateNote(
+            noteId: note.id,
+            title: note.title,
+            content: note.content,
+            folderId: note.folderId,
+            existingTag: existingTag,
+            originalCreateDate: originalCreateDate,
+            imageData: unsafeImageData
+        )
+        
+        let code = response["code"] as? Int ?? -1
+        
+        // 10017 通常是 tag 冲突代码
+        if code == 10017 && retryOnConflict {
+            print("[VIEWMODEL] 检测到 Tag 冲突，尝试拉取最新状态并重试...")
+            let details = try await service.fetchNoteDetails(noteId: note.id)
+            if let entry = extractEntry(from: details) {
+                var updatedWithNewTag = note
+                var raw = note.rawData ?? [:]
+                for (k, v) in entry { raw[k] = v }
+                updatedWithNewTag.rawData = raw
+                // 递归重试一次，不再允许冲突重试
+                try await performCloudUpdateWithRetry(updatedWithNewTag, retryOnConflict: false)
+                return
+            }
+        }
+        
+        if code == 0 {
+            if let entry = extractEntry(from: response) {
+                var updatedNote = note
+                var updatedRawData = updatedNote.rawData ?? [:]
+                for (key, value) in entry { updatedRawData[key] = value }
+
+                if let modifyDate = entry["modifyDate"] as? Int {
+                    updatedNote.updatedAt = Date(timeIntervalSince1970: TimeInterval(modifyDate) / 1000)
+                }
+                updatedNote.rawData = updatedRawData
+
+                // 再次应用本地更新（包含 ID 守卫判断）
+                try await applyLocalUpdate(updatedNote)
+            }
+        } else {
+            let message = response["message"] as? String ?? "更新笔记失败"
+            print("[[调试]]步骤48.1 [VIEWMODEL] 更新笔记失败，code: \(code), message: \(message)")
+            throw NSError(domain: "MiNote", code: code, userInfo: [NSLocalizedDescriptionKey: message])
+        }
+    }
+
+    /// 统一处理更新时的错误（内部方法）
+    private func handleUpdateError(_ error: Error, for note: Note) {
+        // 网络错误或cookie失效：添加到离线队列，不显示弹窗
+        if let urlError = error as? URLError {
+            let operationData = try? JSONEncoder().encode([
+                "title": note.title,
+                "content": note.content,
+                "folderId": note.folderId
+            ])
+            if let operationData = operationData {
+                let operation = OfflineOperation(
+                    type: .updateNote,
+                    noteId: note.id,
+                    data: operationData
+                )
+                try? offlineQueue.addOperation(operation)
+                print("[VIEWMODEL] 网络错误，添加到离线队列，笔记ID: \(note.id), 错误: \(urlError.localizedDescription)")
+            }
+        } else if case MiNoteError.cookieExpired = error {
+            // Cookie失效：保存到离线队列
+            let operationData = try? JSONEncoder().encode([
+                "title": note.title,
+                "content": note.content,
+                "folderId": note.folderId
+            ])
+            if let operationData = operationData {
+                let operation = OfflineOperation(
+                    type: .updateNote,
+                    noteId: note.id,
+                    data: operationData
+                )
+                try? offlineQueue.addOperation(operation)
+                print("[VIEWMODEL] Cookie失效，添加到离线队列，笔记ID: \(note.id)")
+            }
+        } else {
+            // 其他错误：静默处理，不显示弹窗
+            print("[VIEWMODEL] 更新本地成功但云端失败，笔记ID: \(note.id), 错误: \(error.localizedDescription)")
         }
     }
     

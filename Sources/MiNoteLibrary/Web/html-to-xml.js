@@ -399,11 +399,11 @@ class HTMLToXMLConverter {
         const brs = clone.querySelectorAll('br');
         brs.forEach(br => br.remove());
 
-        // 移除所有只包含零宽度空格的 span
+        // 移除所有包含零宽度空格或为空的 span（如果是为了占位）
         const spans = clone.querySelectorAll('span');
         spans.forEach(span => {
             const text = span.textContent || '';
-            if (text.trim() === '' || text === '\u200B' || text.trim() === '\u200B') {
+            if (text.replace(/\u200B/g, '').trim() === '') {
                 span.remove();
             }
         });
@@ -414,10 +414,8 @@ class HTMLToXMLConverter {
         const processNode = (n) => {
             if (n.nodeType === Node.TEXT_NODE) {
                 const nodeText = n.textContent;
-                // 跳过零宽度空格
-                if (nodeText !== '\u200B') {
-                    text += nodeText;
-                }
+                // 移除零宽度空格，保留其他内容
+                text += nodeText.replace(/\u200B/g, '');
             } else if (n.nodeType === Node.ELEMENT_NODE) {
                 const tagName = n.tagName ? n.tagName.toLowerCase() : '';
                 // 对于 checkbox，保留基本的格式标签
@@ -491,9 +489,10 @@ class HTMLToXMLConverter {
         const processChild = (child) => {
             if (child.nodeType === Node.TEXT_NODE) {
                 const text = child.textContent;
-                // 跳过零宽度空格
-                if (text.trim() && !text.includes('\u200B')) {
-                    content += this.escapeXML(text);
+                // 移除零宽度空格字符本身，但保留文本节点中的其他内容
+                const cleanText = text.replace(/\u200B/g, '');
+                if (cleanText.length > 0) {
+                    content += this.escapeXML(cleanText);
                 }
             } else if (child.nodeType === Node.ELEMENT_NODE) {
                 const tagName = child.tagName ? child.tagName.toLowerCase() : '';
@@ -678,4 +677,3 @@ class HTMLToXMLConverter {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = HTMLToXMLConverter;
 }
-

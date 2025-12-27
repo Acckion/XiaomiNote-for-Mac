@@ -7,14 +7,17 @@ struct WebEditorWrapper: View {
     @ObservedObject var editorContext: WebEditorContext
     let noteRawData: String?
     let xmlContent: String?
-    let onContentChange: (String) -> Void
+    let onContentChange: (String, String?) -> Void
+    
+    @State private var lastLoadedContent: String = ""
+    @State private var isInitialLoad: Bool = true
     
     var body: some View {
         WebEditorView(
             content: $content,
-            onContentChanged: { newContent in
-                // 内容变化时通知父组件
-                onContentChange(newContent)
+            onContentChanged: { newContent, html in
+                // 内容变化时通知父组件，同时传递新获取的 HTML 缓存
+                onContentChange(newContent, html)
                 // 使用Task延迟更新，避免在视图更新期间修改@Published属性
                 Task { @MainActor in
                     editorContext.content = newContent
@@ -42,13 +45,21 @@ struct WebEditorWrapper: View {
         .onAppear {
             // 初始加载内容
             if !content.isEmpty {
-                // 内容已经通过绑定传递
+                lastLoadedContent = content
+                print("[WebEditorWrapper] 初始加载内容 - 长度: \(content.count)")
             }
+            isInitialLoad = false
         }
         .onChange(of: content) { oldValue, newValue in
             // 当外部内容变化时（如切换笔记），更新编辑器
             if oldValue != newValue {
-                // 内容会通过WebEditorView的updateNSView自动更新
+                // 内容污染防护：确保新内容与上次加载的内容不同
+                if newValue != lastLoadedContent {
+                    print("[WebEditorWrapper] 内容变化 - 从长度 \(oldValue.count) 到 \(newValue.count)")
+                    lastLoadedContent = newValue
+                } else {
+                    print("[WebEditorWrapper] 内容未变化，跳过更新")
+                }
             }
         }
         .onChange(of: isEditable) { oldValue, newValue in
@@ -57,4 +68,3 @@ struct WebEditorWrapper: View {
         }
     }
 }
-

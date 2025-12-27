@@ -143,13 +143,13 @@ final class MiNoteService: @unchecked Sendable {
                              responseBody.contains("\"S\":\"Err\"")
         
         let isAuthError = hasLoginURL || hasAuthKeywords
-        let isInGracePeriod = checkIfInGracePeriod()
+        // let isInGracePeriod = checkIfInGracePeriod()
         
-        // 保护期内：可能是Cookie刚设置，尚未完全生效，不视为过期
-        if isInGracePeriod {
-            print("[MiNoteService] 401错误发生在Cookie设置后的保护期内，不视为过期")
-            throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
-        }
+        // // 保护期内：可能是Cookie刚设置，尚未完全生效，不视为过期
+        // if isInGracePeriod {
+        //     print("[MiNoteService] 401错误发生在Cookie设置后的保护期内，不视为过期")
+        //     throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
+        // }
         
         // 已有Cookie且确实是认证错误：视为Cookie过期
         if self.hasValidCookie() && isAuthError {
@@ -1147,83 +1147,22 @@ final class MiNoteService: @unchecked Sendable {
     
     /// 执行实际的Cookie刷新逻辑
     private func performCookieRefresh() async throws -> Bool {
-        print("[MiNoteService] 🔄 执行实际的Cookie刷新逻辑")
+        print("[MiNoteService] 🔄 执行实际的Cookie刷新逻辑（使用静默WebView）")
         
-        // 尝试调用一个轻量级的API来刷新Cookie
-        // 使用 /common/check 端点，这是一个轻量级的健康检查API
-        let urlString = "\(baseURL)/common/check"
-        
-        // 记录请求
-        NetworkLogger.shared.logRequest(
-            url: urlString,
-            method: "GET",
-            headers: getHeaders(),
-            body: nil
-        )
-        
-        guard let url = URL(string: urlString) else {
-            print("[MiNoteService] ❌ 无效的URL: \(urlString)")
-            return false
-        }
-        
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = getHeaders()
-        request.httpMethod = "GET"
-        
+        // 使用 SilentCookieRefreshManager 进行静默刷新
+        // 复用 CookieRefreshWebView 的自动点击登录按钮逻辑
         do {
-            print("[MiNoteService] 📡 发送Cookie刷新请求到: \(urlString)")
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                let responseString = String(data: data, encoding: .utf8) ?? ""
-                print("[MiNoteService] 📡 收到响应，状态码: \(httpResponse.statusCode)")
-                
-                // 记录响应
-                NetworkLogger.shared.logResponse(
-                    url: urlString,
-                    method: "GET",
-                    statusCode: httpResponse.statusCode,
-                    headers: httpResponse.allHeaderFields as? [String: String],
-                    response: responseString,
-                    error: nil
-                )
-                
-                // 检查响应头中是否有新的Cookie
-                if let newCookie = httpResponse.allHeaderFields["Set-Cookie"] as? String {
-                    print("[MiNoteService] 🍪 从响应头获取到新Cookie")
-                    setCookie(newCookie)
-                    return true
-                } else if let cookies = httpResponse.allHeaderFields["Set-Cookie"] as? [String] {
-                    print("[MiNoteService] 🍪 从响应头获取到多个新Cookie")
-                    let combinedCookie = cookies.joined(separator: "; ")
-                    setCookie(combinedCookie)
-                    return true
-                }
-                
-                // 如果状态码是200，即使没有新Cookie，也认为成功（可能是Cookie仍然有效）
-                if httpResponse.statusCode == 200 {
-                    print("[MiNoteService] ✅ Cookie刷新请求成功（状态码200）")
-                    // 检查响应中是否有认证错误
-                    if responseString.contains("未授权") || responseString.contains("unauthorized") {
-                        print("[MiNoteService] ⚠️ 响应包含认证错误，Cookie可能仍然无效")
-                        return false
-                    }
-                    return true
-                }
-                
-                // 处理401错误
-                if httpResponse.statusCode == 401 {
-                    print("[MiNoteService] ❌ Cookie刷新失败，状态码401")
-                    try handle401Error(responseBody: responseString, urlString: urlString)
-                    return false
-                }
+            let success = try await SilentCookieRefreshManager.shared.refresh()
+            if success {
+                print("[MiNoteService] ✅ 静默Cookie刷新成功")
+                return true
+            } else {
+                print("[MiNoteService] ⚠️ 静默Cookie刷新返回false")
+                return false
             }
-            
-            print("[MiNoteService] ⚠️ 无法解析响应或没有新Cookie")
-            return false
         } catch {
-            print("[MiNoteService] ❌ Cookie刷新请求失败: \(error)")
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            print("[MiNoteService] ❌ 静默Cookie刷新失败: \(error)")
+            NetworkLogger.shared.logError(url: "silent-cookie-refresh", method: "POST", error: error)
             return false
         }
     }

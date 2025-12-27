@@ -499,8 +499,9 @@ struct NoteRow: View {
                 print("[NoteRow] onChange(noteImageHash): 图片信息哈希值变化 (\(oldValue) -> \(newValue))，更新缩略图")
                 updateThumbnail()
             }
-            // 使用 ID + 更新时间 + 搜索文本来强制视图重建，确保内容预览和笔记预览能够刷新
-            .id("\(note.id)_\(note.updatedAt.timeIntervalSince1970)_\(viewModel.searchText)")
+            // 使用更稳定的标识符：笔记ID + 搜索文本（只在搜索文本变化时重建）
+            // 移除更新时间，避免每次保存都导致视图重建
+            .id("\(note.id)_\(viewModel.searchText)")
             
             // 分割线：放在笔记项之间的中间位置，向下偏移一点以居中
             if showDivider {
