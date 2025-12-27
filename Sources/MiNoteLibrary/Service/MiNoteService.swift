@@ -1147,16 +1147,85 @@ final class MiNoteService: @unchecked Sendable {
     
     /// 执行实际的Cookie刷新逻辑
     private func performCookieRefresh() async throws -> Bool {
-        print("[MiNoteService] 执行Cookie刷新请求")
+        print("[MiNoteService] 🔄 执行实际的Cookie刷新逻辑")
         
-        // 注意：实际的cookie刷新逻辑在 CookieRefreshView 中实现
-        // 这里只负责清除旧cookie，返回false表示需要用户手动操作
-        // 清除现有cookie（可选，根据Obsidian插件逻辑，可能不需要清除）
-        // clearCookie()
+        // 尝试调用一个轻量级的API来刷新Cookie
+        // 使用 /common/check 端点，这是一个轻量级的健康检查API
+        let urlString = "\(baseURL)/common/check"
         
-        // 返回false，表示需要用户手动打开Cookie刷新窗口
-        // 实际的刷新逻辑在 CookieRefreshView 中实现
-        return false
+        // 记录请求
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+        
+        guard let url = URL(string: urlString) else {
+            print("[MiNoteService] ❌ 无效的URL: \(urlString)")
+            return false
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+        
+        do {
+            print("[MiNoteService] 📡 发送Cookie刷新请求到: \(urlString)")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                let responseString = String(data: data, encoding: .utf8) ?? ""
+                print("[MiNoteService] 📡 收到响应，状态码: \(httpResponse.statusCode)")
+                
+                // 记录响应
+                NetworkLogger.shared.logResponse(
+                    url: urlString,
+                    method: "GET",
+                    statusCode: httpResponse.statusCode,
+                    headers: httpResponse.allHeaderFields as? [String: String],
+                    response: responseString,
+                    error: nil
+                )
+                
+                // 检查响应头中是否有新的Cookie
+                if let newCookie = httpResponse.allHeaderFields["Set-Cookie"] as? String {
+                    print("[MiNoteService] 🍪 从响应头获取到新Cookie")
+                    setCookie(newCookie)
+                    return true
+                } else if let cookies = httpResponse.allHeaderFields["Set-Cookie"] as? [String] {
+                    print("[MiNoteService] 🍪 从响应头获取到多个新Cookie")
+                    let combinedCookie = cookies.joined(separator: "; ")
+                    setCookie(combinedCookie)
+                    return true
+                }
+                
+                // 如果状态码是200，即使没有新Cookie，也认为成功（可能是Cookie仍然有效）
+                if httpResponse.statusCode == 200 {
+                    print("[MiNoteService] ✅ Cookie刷新请求成功（状态码200）")
+                    // 检查响应中是否有认证错误
+                    if responseString.contains("未授权") || responseString.contains("unauthorized") {
+                        print("[MiNoteService] ⚠️ 响应包含认证错误，Cookie可能仍然无效")
+                        return false
+                    }
+                    return true
+                }
+                
+                // 处理401错误
+                if httpResponse.statusCode == 401 {
+                    print("[MiNoteService] ❌ Cookie刷新失败，状态码401")
+                    try handle401Error(responseBody: responseString, urlString: urlString)
+                    return false
+                }
+            }
+            
+            print("[MiNoteService] ⚠️ 无法解析响应或没有新Cookie")
+            return false
+        } catch {
+            print("[MiNoteService] ❌ Cookie刷新请求失败: \(error)")
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            return false
+        }
     }
     
     func clearCookie() {
@@ -1172,9 +1241,17 @@ final class MiNoteService: @unchecked Sendable {
     
     /// 检查Cookie是否有效（更严格的检查）
     func hasValidCookie() -> Bool {
-        // 原有的检查逻辑...
-        // 添加额外的检查：Cookie是否包含必要的字段
+        // 首先检查是否有Cookie失效标志
+        cookieExpiredLock.lock()
+        let isExpired = cookieExpiredFlag
+        cookieExpiredLock.unlock()
         
+        if isExpired {
+            print("[MiNoteService] Cookie检查：Cookie已标记为失效")
+            return false
+        }
+        
+        // 检查Cookie是否存在且包含必要的字段
         guard let cookie = UserDefaults.standard.string(forKey: "minote_cookie"),
               !cookie.isEmpty else {
             print("[MiNoteService] Cookie检查：无Cookie或Cookie为空")

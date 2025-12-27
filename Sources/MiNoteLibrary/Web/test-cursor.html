@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>光标管理模块测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        #editor-content {
+            border: 1px solid #ccc;
+            padding: 20px;
+            min-height: 200px;
+            margin: 20px 0;
+            outline: none;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #0056CC;
+        }
+        
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        
+        .success {
+            color: green;
+        }
+        
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>光标管理模块测试</h1>
+    
+    <div class="test-section">
+        <h3>测试编辑器</h3>
+        <div id="editor-content" contenteditable="true">
+            <p>这是一个测试段落。</p>
+            <p>这是另一个段落。</p>
+            <ul>
+                <li>列表项1</li>
+                <li>列表项2</li>
+            </ul>
+            <blockquote>这是一个引用块</blockquote>
+            <p>包含<b>粗体</b>和<i>斜体</i>文本。</p>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h3>光标操作测试</h3>
+        <button onclick="testSavePosition()">保存光标位置</button>
+        <button onclick="testRestorePosition()">恢复光标位置</button>
+        <button onclick="testNormalizePosition()">规范化光标位置</button>
+        <button onclick="testSchemaValidation()">Schema验证测试</button>
+        <button onclick="testPostFixer()">Post-Fixer测试</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>测试日志</h3>
+        <div id="log" class="log"></div>
+    </div>
+    
+    <!-- 加载光标管理模块 -->
+    <script src="modules/cursor/position.js"></script>
+    <script src="modules/cursor/selection.js"></script>
+    <script src="modules/cursor/schema.js"></script>
+    <script src="modules/cursor/post-fixer.js"></script>
+    <script src="modules/cursor/manager.js"></script>
+    <script src="modules/cursor/index.js"></script>
+    
+    <script>
+        let savedPosition = null;
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span class="${type}">[${timestamp}] ${message}</span>`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function testSavePosition() {
+            try {
+                const editor = document.getElementById('editor-content');
+                if (!window.MiNoteEditor || !window.MiNoteEditor.CursorModule) {
+                    log('错误: CursorModule 未加载', 'error');
+                    return;
+                }
+                
+                savedPosition = window.MiNoteEditor.CursorModule.savePosition(editor);
+                if (savedPosition) {
+                    log(`成功保存光标位置: ${JSON.stringify(savedPosition)}`, 'success');
+                } else {
+                    log('警告: 保存的光标位置为空', 'error');
+                }
+            } catch (error) {
+                log(`保存光标位置失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function testRestorePosition() {
+            try {
+                if (!savedPosition) {
+                    log('错误: 请先保存光标位置', 'error');
+                    return;
+                }
+                
+                const editor = document.getElementById('editor-content');
+                const restored = window.MiNoteEditor.CursorModule.restorePosition(editor, savedPosition);
+                
+                if (restored) {
+                    log('成功恢复光标位置', 'success');
+                } else {
+                    log('警告: 恢复光标位置失败', 'error');
+                }
+            } catch (error) {
+                log(`恢复光标位置失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function testNormalizePosition() {
+            try {
+                const editor = document.getElementById('editor-content');
+                const normalized = window.MiNoteEditor.CursorModule.normalizePosition(editor);
+                
+                if (normalized) {
+                    log(`成功规范化光标位置: ${JSON.stringify(normalized)}`, 'success');
+                } else {
+                    log('警告: 规范化光标位置失败', 'error');
+                }
+            } catch (error) {
+                log(`规范化光标位置失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function testSchemaValidation() {
+            try {
+                const editor = document.getElementById('editor-content');
+                const selection = window.getSelection();
+                
+                if (!selection || selection.rangeCount === 0) {
+                    log('错误: 请先选择一些文本', 'error');
+                    return;
+                }
+                
+                const range = selection.getRangeAt(0);
+                const isValid = window.MiNoteEditor.CursorModule.isValidPosition(editor, range);
+                
+                if (isValid) {
+                    log('Schema验证通过: 光标位置有效', 'success');
+                } else {
+                    log('Schema验证失败: 光标位置无效', 'error');
+                }
+            } catch (error) {
+                log(`Schema验证失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function testPostFixer() {
+            try {
+                const editor = document.getElementById('editor-content');
+                
+                // 模拟DOM操作
+                const p = document.createElement('p');
+                p.textContent = '新插入的段落';
+                editor.appendChild(p);
+                
+                // 触发Post-Fixer
+                window.MiNoteEditor.CursorModule.fixSelection(editor);
+                
+                log('Post-Fixer测试完成', 'success');
+            } catch (error) {
+                log(`Post-Fixer测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 初始化日志
+        log('测试页面已加载');
+        log('请点击编辑器中的任意位置，然后测试光标功能');
+    </script>
+</body>
+</html>

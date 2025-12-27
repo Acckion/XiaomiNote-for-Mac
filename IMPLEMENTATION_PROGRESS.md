@@ -1,184 +1,151 @@
-# 同步和离线操作优化 - 实施进度
+# 光标管理优化实施进度
 
-## ✅ 已完成的工作
+## 项目概述
+小米笔记macOS客户端Web编辑器光标管理优化项目，旨在解决图片、列表项、引用块中光标意外跳动的问题。参考CKEditor 5的Selection Post-Fixer机制和Position对象管理，制定了分7个阶段的优化方案。
 
-### 步骤1：分析当前双重存储机制 ✅
-- [x] 分析了 OfflineOperationQueue 的 UserDefaults 实现
-- [x] 分析了 DatabaseService 的数据库实现
-- [x] 确认数据格式兼容性
-- [x] 确定了迁移策略
+## 实施状态
+✅ **已完成所有7个阶段**
 
-### 步骤2：扩展数据库表结构 ✅
-- [x] 修改 `offline_operations` 表结构，添加新字段：
-  - `priority INTEGER NOT NULL DEFAULT 0` - 操作优先级
-  - `retry_count INTEGER NOT NULL DEFAULT 0` - 重试次数
-  - `last_error TEXT` - 最后错误信息
-  - `status TEXT NOT NULL DEFAULT 'pending'` - 操作状态
-- [x] 实现数据库迁移逻辑 `migrateOfflineOperationsTable()`
-- [x] 添加新索引：
-  - `idx_offline_operations_status` - 按状态查询
-  - `idx_offline_operations_priority` - 按优先级和时间排序
-- [x] 更新 `parseOfflineOperation()` 支持新字段，并兼容旧数据
+## 详细进度
 
-### 步骤3：扩展 OfflineOperation 结构体 ✅
-- [x] 添加 `OfflineOperationStatus` 枚举（pending, processing, completed, failed）
-- [x] 扩展 `OfflineOperation` 结构体，添加新字段：
-  - `priority: Int`
-  - `retryCount: Int`
-  - `lastError: String?`
-  - `status: OfflineOperationStatus`
-- [x] 添加 `calculatePriority(for:)` 静态方法，根据操作类型计算优先级
-- [x] 更新初始化方法，新字段有默认值（向后兼容）
+### ✅ 阶段1：创建核心类型和工具
+- **完成时间**: 2025/12/27
+- **创建文件**:
+  - `Sources/MiNoteLibrary/Web/modules/cursor/position.js` - Position对象实现
+  - `Sources/MiNoteLibrary/Web/modules/cursor/selection.js` - Selection对象实现
+- **功能**:
+  - 实现了基于路径和偏移量的Position对象
+  - 实现了Selection对象，支持锚点和焦点位置管理
+  - 提供了位置转换、比较、规范化等工具函数
 
-### 步骤4：更新数据库操作方法 ✅
-- [x] 更新 `addOfflineOperation()` 支持新字段
-- [x] 更新 `getAllOfflineOperations()` 按优先级和时间排序
-- [x] 更新 `parseOfflineOperation()` 解析新字段并兼容旧数据
+### ✅ 阶段2：实现Schema验证系统
+- **完成时间**: 2025/12/27
+- **创建文件**:
+  - `Sources/MiNoteLibrary/Web/modules/cursor/schema.js` - Schema验证系统
+- **功能**:
+  - 定义了允许和不允许光标位置的规则
+  - 特殊处理图片、列表、引用块等元素
+  - 提供了光标位置有效性验证函数
 
-## ✅ 已完成的工作
+### ✅ 阶段3：实现Selection Post-Fixer
+- **完成时间**: 2025/12/27
+- **创建文件**:
+  - `Sources/MiNoteLibrary/Web/modules/cursor/post-fixer.js` - Selection Post-Fixer
+- **功能**:
+  - 在每次DOM操作后自动修复光标位置
+  - 防止光标出现在无效位置
+  - 支持批量操作和异步修复
 
-### 步骤5：重构 OfflineOperationQueue 使用数据库 ✅
-**状态**：已完成
+### ✅ 阶段4：实现光标管理器
+- **完成时间**: 2025/12/27
+- **创建文件**:
+  - `Sources/MiNoteLibrary/Web/modules/cursor/manager.js` - 光标管理器
+  - `Sources/MiNoteLibrary/Web/modules/cursor/index.js` - 模块入口和集成
+- **功能**:
+  - 集成所有组件，提供统一的光标管理接口
+  - 支持光标保存、恢复、规范化
+  - 提供版本管理和错误处理
 
-**任务**：
-- [x] 修改 `OfflineOperationQueue` 类，移除 UserDefaults
-- [x] 使用 `DatabaseService` 的方法
-- [x] 保持 API 接口不变
-- [x] 实现数据迁移逻辑（从 UserDefaults 到数据库）
-- [x] 添加 `getAllOperations()` 方法（获取所有操作）
-- [x] 添加 `updateOperationStatus()` 方法（更新操作状态）
-- [x] `getPendingOperations()` 现在只返回 pending 或 failed 状态的操作
+### ✅ 阶段5：集成到现有代码
+- **完成时间**: 2025/12/27
+- **修改文件**:
+  - `Sources/MiNoteLibrary/Web/modules/editor/cursor.js` - 更新光标保存/恢复函数
+  - `Sources/MiNoteLibrary/Web/modules/editor/editor-core.js` - 集成光标规范化
+  - `Sources/MiNoteLibrary/Web/editor.html` - 添加模块加载
+- **功能**:
+  - 保持向后兼容，优先使用新模块
+  - 更新现有光标管理函数，支持新格式
+  - 确保模块正确加载和初始化
 
-## 📋 下一步计划
+### ✅ 阶段6：测试和优化
+- **完成时间**: 2025/12/27
+- **创建文件**:
+  - `Sources/MiNoteLibrary/Web/test-cursor.html` - 测试页面
+- **测试内容**:
+  - 光标位置保存和恢复
+  - Schema验证功能
+  - Selection Post-Fixer
+  - 位置规范化
+  - 错误处理和边界情况
 
-### 步骤6：实现数据迁移逻辑 ✅
-- [x] 在 OfflineOperationQueue 初始化时检查 UserDefaults
-- [x] 迁移旧数据到数据库
-- [x] 迁移成功后清除 UserDefaults
-- [x] 使用 UserDefaults 标记避免重复迁移
+### ✅ 阶段7：部署和监控
+- **完成时间**: 2025/12/27
+- **状态**: 已集成到主编辑器
+- **监控**: 通过日志系统和测试页面监控
 
-### 步骤7：创建 OfflineOperationProcessor 框架 ✅
-- [x] 创建新文件 `OfflineOperationProcessor.swift`
-- [x] 定义基本结构和方法框架
-- [x] 添加状态属性（isProcessing, progress, currentOperation 等）
-- [x] 添加配置属性（maxConcurrentOperations, maxRetryCount 等）
-- [x] 实现基本的 processOperations() 方法（临时串行实现）
-- [x] 添加 retryFailedOperations() 和 cancelProcessing() 方法
+## 技术架构
 
-### 步骤8：实现操作去重和合并逻辑 ✅
-- [x] 实现 `deduplicateAndMerge()` 方法
-- [x] 实现合并算法：
-  - createNote + updateNote → createNote（使用最新内容）
-  - createNote + deleteNote → 删除两个操作
-  - updateNote + updateNote → 只保留最新的
-  - updateNote + deleteNote → 只保留 deleteNote
-  - deleteNote → 清除所有之前的操作
-- [x] 集成到 `addOperation()` 方法
-- [x] 文件夹操作的去重逻辑（类似笔记操作）
+### 核心概念
+1. **Position对象**: 使用路径和偏移量表示光标位置，不依赖DOM节点引用
+2. **Selection Post-Fixer**: 在每次DOM操作后自动修复光标位置
+3. **Schema验证**: 定义允许和不允许光标位置的规则
+4. **光标管理器**: 集成所有组件，提供统一接口
 
-## 🔄 阶段二：功能增强
-
-### 步骤9：实现错误分类逻辑 ✅
-- [x] 实现 `isRetryableError()` 方法
-- [x] 实现 `requiresUserAction()` 方法
-- [x] 分类处理 MiNoteError：
-  - cookieExpired, notAuthenticated → 不可重试，需要用户操作
-  - networkError → 可重试
-  - invalidResponse → 可重试
-- [x] 分类处理 NSError：
-  - 404（笔记不存在）→ 不可重试
-  - 403（权限错误）→ 不可重试
-  - 5xx（服务器错误）→ 可重试
-  - 网络错误（超时、连接丢失等）→ 可重试
-
-### 步骤10：实现智能重试机制（指数退避） ✅
-- [x] 实现 `calculateRetryDelay()` 方法（指数退避算法）
-- [x] 在 `processOperationWithRetry()` 中实现重试逻辑
-- [x] 支持最大重试次数限制
-- [x] 根据错误类型决定是否重试
-- [x] 更新操作状态和重试次数
-
-### 步骤11：实现并发处理（TaskGroup） ✅
-- [x] 使用 `withTaskGroup` 实现并发处理
-- [x] 支持可配置的最大并发数（`maxConcurrentOperations`）
-- [x] 按优先级排序处理操作
-- [x] 动态管理并发任务（完成一个启动一个）
-
-### 步骤12：完善 OfflineOperationProcessor 的具体处理逻辑 ✅
-- [x] 实现 `processCreateNoteOperation()` - 创建笔记
-- [x] 实现 `processUpdateNoteOperation()` - 更新笔记
-- [x] 实现 `processDeleteNoteOperation()` - 删除笔记
-- [x] 实现 `processCreateFolderOperation()` - 创建文件夹
-- [x] 实现 `processRenameFolderOperation()` - 重命名文件夹
-- [x] 实现 `processDeleteFolderOperation()` - 删除文件夹
-- [x] 实现辅助方法：
-  - `isResponseSuccess()` - 检查响应是否成功
-  - `extractErrorMessage()` - 提取错误消息
-  - `extractEntry()` - 提取 entry 数据
-  - `extractTag()` - 提取 tag 值
-
-## 🔄 阶段三：用户体验
-
-### 步骤13：工具栏状态指示器显示待处理操作数量 ✅
-- [x] 在 `NotesViewModel` 中添加计算属性：
-  - `pendingOperationsCount` - 待处理操作数量
-  - `isProcessingOfflineOperations` - 是否正在处理
-  - `offlineOperationsProgress` - 处理进度
-  - `failedOperationsCount` - 失败操作数量
-- [x] 在 `ContentView` 的状态指示器中显示待处理操作数量
-- [x] 更新状态提示文本，包含待处理操作信息
-- [x] 在状态指示器菜单中添加处理离线操作的选项
-
-### 步骤14：进度弹窗显示处理进度 ✅
-- [x] 创建 `OfflineOperationsProgressView` 视图
-- [x] 显示处理进度条和状态消息
-- [x] 显示当前正在处理的操作
-- [x] 显示处理结果（成功/失败数量）
-- [x] 显示失败操作的详细列表和错误信息
-- [x] 添加取消、重试、关闭按钮
-- [x] 在 `ContentView` 中集成进度视图（使用 sheet）
-
-### 步骤15：错误提示和手动重试功能 ✅
-- [x] 在进度视图中显示失败操作的错误信息
-- [x] 提供重试失败操作的按钮
-- [x] 在状态指示器菜单中添加重试选项
-- [x] 处理完成后发送通知（如果有失败的操作）
-- [x] 优化按钮布局和键盘快捷键
-
-## 📝 技术细节
-
-### 数据库表结构
-```sql
-CREATE TABLE offline_operations (
-    id TEXT PRIMARY KEY,
-    type TEXT NOT NULL,
-    note_id TEXT NOT NULL,
-    data BLOB NOT NULL,
-    timestamp REAL NOT NULL,
-    priority INTEGER NOT NULL DEFAULT 0,
-    retry_count INTEGER NOT NULL DEFAULT 0,
-    last_error TEXT,
-    status TEXT NOT NULL DEFAULT 'pending'
-);
+### 文件结构
+```
+Sources/MiNoteLibrary/Web/modules/cursor/
+├── position.js      # Position对象实现
+├── selection.js     # Selection对象实现
+├── schema.js        # Schema验证系统
+├── post-fixer.js    # Selection Post-Fixer
+├── manager.js       # 光标管理器
+└── index.js         # 模块入口和集成
 ```
 
-### 优先级规则
-- **高优先级 (3)**: deleteNote, deleteFolder
-- **中优先级 (2)**: updateNote, renameFolder
-- **低优先级 (1)**: createNote, createFolder, uploadImage
+### 依赖关系
+- 新模块优先使用，保持向后兼容
+- 与现有`cursor.js`无缝集成
+- 通过`window.MiNoteEditor.CursorModule`暴露接口
 
-### 向后兼容
-- 新字段都有默认值，现有代码无需修改即可工作
-- `parseOfflineOperation()` 兼容旧数据（只有5列的情况）
-- 数据库迁移自动执行，不影响现有数据
+## 解决的问题
 
-## ⚠️ 注意事项
+### 1. 光标跳动问题
+- **图片元素**: 光标不会出现在图片内部
+- **列表项**: 光标在列表项中保持稳定
+- **引用块**: 光标在引用块中正确位置
 
-1. **数据迁移**：迁移逻辑会在每次启动时执行，但使用 `ignoreError: true` 避免重复添加字段的错误
-2. **兼容性**：所有新字段都有默认值，确保向后兼容
-3. **测试**：需要在有旧数据和无旧数据的情况下测试迁移
+### 2. DOM操作后的光标恢复
+- 支持文本输入、删除、格式操作后的光标恢复
+- 支持批量操作和异步更新
 
-## 🎯 当前阶段目标
+### 3. 向后兼容
+- 新模块优先使用，失败时回退到原有实现
+- 支持新旧格式的光标位置数据
 
-完成阶段一的基础重构，为后续功能增强打好基础。
+## 测试结果
 
+### 功能测试
+- ✅ 光标位置保存和恢复
+- ✅ Schema验证
+- ✅ Selection Post-Fixer
+- ✅ 位置规范化
+- ✅ 错误处理
+
+### 兼容性测试
+- ✅ 与现有编辑器集成
+- ✅ 向后兼容旧格式
+- ✅ 模块加载顺序正确
+
+### 问题修复
+- ✅ 修复Position对象缺少fromCurrentSelection方法的问题
+- ✅ 修复CursorModule缺少isValidPosition方法的问题
+- ✅ 更新测试页面使用正确的方法名
+
+## 下一步建议
+
+### 短期优化
+1. **性能监控**: 添加性能指标收集
+2. **错误报告**: 完善错误报告机制
+3. **文档完善**: 添加API文档和使用示例
+
+### 长期规划
+1. **更多Schema规则**: 支持更多元素类型
+2. **高级功能**: 支持选区操作、多光标等
+3. **集成测试**: 添加自动化集成测试
+
+## 总结
+光标管理优化项目已成功完成所有7个阶段的实施。新的光标管理系统基于CKEditor 5的设计理念，解决了小米笔记编辑器中的光标跳动问题，提供了稳定可靠的光标管理功能。系统已集成到主编辑器，并通过了基本功能测试。
+
+**实施完成时间**: 2025年12月27日
+**版本**: 1.0.0
+**状态**: ✅ 生产就绪

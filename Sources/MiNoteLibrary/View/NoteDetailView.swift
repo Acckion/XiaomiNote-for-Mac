@@ -807,8 +807,106 @@ struct NoteDetailView: View {
         if newValue != originalTitle {
             print("[NoteDetailView] 标题变化: '\(originalTitle)' -> '\(newValue)'")
             originalTitle = newValue
-            // 立即保存，不使用防抖
-            await performSaveImmediately()
+            
+            // 使用内存中的 currentXMLContent 直接保存，避免在重绘时从 JS 拉取内容
+            // 因为 currentXMLContent 已经通过 onContentChange 保持最新
+            await performTitleChangeSave(newTitle: newValue)
+        }
+    }
+    
+    /// 执行标题变化时的保存（使用内存缓存的内容）
+    @MainActor
+    private func performTitleChangeSave(newTitle: String) async {
+        guard let note = viewModel.selectedNote,
+              note.id == currentEditingNoteId else {
+            print("[保存流程] ⚠️ performTitleChangeSave: 笔记不匹配或未选择笔记")
+            return
+        }
+        
+        // 防止并发保存
+        if isSavingLocally {
+            print("[保存流程] ⚠️ performTitleChangeSave: 正在保存中，等待...")
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+            if isSavingLocally {
+                print("[保存流程] ⚠️ performTitleChangeSave: 仍在保存中，跳过")
+                return
+            }
+        }
+        
+        isSavingLocally = true
+        defer { isSavingLocally = false }
+        
+        do {
+            print("[保存流程] performTitleChangeSave 步骤1: 开始保存标题变化，笔记ID: \(note.id)")
+            
+            // 使用内存中的 currentXMLContent，而不是重新从编辑器获取
+            // 这样可以避免在标题变化引起的重绘期间读取不稳定的 DOM
+            let xmlContent = currentXMLContent.isEmpty ? note.primaryXMLContent : currentXMLContent
+            print("[保存流程] performTitleChangeSave 步骤2: 使用内存中的 XML 内容，长度: \(xmlContent.count)")
+            
+            // 检查内容是否异常（比如突然变得很短，可能是内容丢失）
+            // 阈值：如果原内容 > 300 字节且当前内容 < 150 字节且缩水超过 50%，则认为可能丢失
+            let originalContent = note.primaryXMLContent
+            if originalContent.count > 300 && xmlContent.count < 150 && xmlContent.count < originalContent.count / 2 {
+                print("[保存流程] ⚠️ performTitleChangeSave 步骤3: 检测到内容可能丢失！")
+                print("[保存流程]   原始内容长度: \(originalContent.count)")
+                print("[保存流程]   当前内容长度: \(xmlContent.count)")
+                print("[保存流程]   使用原始内容作为备份来保存标题")
+                
+                // 使用原始内容，避免保存空内容
+                await saveTitleAndContent(title: newTitle, xmlContent: originalContent, for: note)
+                return
+            }
+            
+            // 正常保存
+            await saveTitleAndContent(title: newTitle, xmlContent: xmlContent, for: note)
+            
+        } catch {
+            print("[保存流程] ❌ performTitleChangeSave: 保存失败: \(error.localizedDescription)")
+        }
+    }
+    
+    /// 保存标题和内容
+    @MainActor
+    private func saveTitleAndContent(title: String, xmlContent: String, for note: Note) async {
+        do {
+            print("[保存流程] saveTitleAndContent 步骤1: 构建更新的笔记对象")
+            
+            // 构建更新的笔记对象
+            let updatedNote = Note(
+                id: note.id,
+                title: title,
+                content: xmlContent,
+                folderId: note.folderId,
+                isStarred: note.isStarred,
+                createdAt: note.createdAt,
+                updatedAt: Date(),
+                tags: note.tags,
+                rawData: note.rawData
+            )
+            
+            print("[保存流程] saveTitleAndContent 步骤2: 开始保存到数据库")
+            try LocalStorageService.shared.saveNote(updatedNote)
+            print("[保存流程] ✅ saveTitleAndContent 步骤3: 笔记已保存到本地数据库，标题: \(title), 长度: \(xmlContent.count)")
+            
+            // 更新状态
+            lastSavedXMLContent = xmlContent
+            originalTitle = title
+            originalXMLContent = xmlContent
+            currentXMLContent = xmlContent
+            
+            print("[保存流程] saveTitleAndContent 步骤4: 已更新保存状态")
+            
+            // 延迟更新 ViewModel（避免触发重新加载）
+            updateViewModelDelayed(with: updatedNote)
+            print("[保存流程] saveTitleAndContent 步骤5: 已安排延迟更新 ViewModel")
+            
+            // 安排云端上传
+            scheduleCloudUpload(for: updatedNote, xmlContent: xmlContent)
+            print("[保存流程] saveTitleAndContent 步骤6: 已安排云端上传")
+            
+        } catch {
+            print("[保存流程] ❌ saveTitleAndContent: 保存失败: \(error.localizedDescription)")
         }
     }
     

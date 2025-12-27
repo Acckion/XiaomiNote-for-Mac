@@ -792,16 +792,20 @@ public class NotesViewModel: ObservableObject {
                     
                     // 更新笔记列表（在主线程）
                     await MainActor.run {
-                        // 移除旧笔记
-                        if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                    // 移除旧笔记
+                    if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                        if index < self.notes.count {
                             self.notes.remove(at: index)
                         }
-                        // 添加或更新新笔记
-                        if let index = self.notes.firstIndex(where: { $0.id == serverNoteId }) {
+                    }
+                    // 添加或更新新笔记
+                    if let index = self.notes.firstIndex(where: { $0.id == serverNoteId }) {
+                        if index < self.notes.count {
                             self.notes[index] = finalNote
-                        } else {
-                            self.notes.append(finalNote)
                         }
+                    } else {
+                        self.notes.append(finalNote)
+                    }
                         // 如果当前选中的是旧笔记，更新为新笔记
                         if self.selectedNote?.id == note.id {
                             self.selectedNote = finalNote
@@ -843,10 +847,12 @@ public class NotesViewModel: ObservableObject {
                     
                     // 更新笔记列表（在主线程）
                     await MainActor.run {
-                        if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                    if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                        if index < self.notes.count {
                             self.notes.remove(at: index)
                             self.notes.append(updatedNote)
                         }
+                    }
                         // 如果当前选中的是旧笔记，更新为新笔记
                         if self.selectedNote?.id == note.id {
                             self.selectedNote = updatedNote
@@ -952,10 +958,12 @@ public class NotesViewModel: ObservableObject {
             try DatabaseService.shared.updateNotesFolderId(oldFolderId: oldFolderId, newFolderId: folderId)
             
             // 2. 更新内存中的笔记列表
-            for i in 0..<notes.count {
-                if notes[i].folderId == oldFolderId {
-                    notes[i].folderId = folderId
+            self.notes = self.notes.map { note in
+                var updatedNote = note
+                if updatedNote.folderId == oldFolderId {
+                    updatedNote.folderId = folderId
                 }
+                return updatedNote
             }
             
             // 3. 删除数据库中的旧文件夹记录
@@ -1189,8 +1197,10 @@ public class NotesViewModel: ObservableObject {
         }
         
         // 从本地删除文件夹
-        if let index = folders.firstIndex(where: { $0.id == folderId }) {
-            folders.remove(at: index)
+        if let index = self.folders.firstIndex(where: { $0.id == folderId }) {
+            if index < self.folders.count {
+                self.folders.remove(at: index)
+            }
             // 从数据库删除文件夹记录
             try DatabaseService.shared.deleteFolder(folderId: folderId)
             // 保存剩余的文件夹列表
@@ -1253,14 +1263,20 @@ public class NotesViewModel: ObservableObject {
                 let hasPrivateNotes = foldersWithCount.contains { $0.id == "2" }
                 
                 if !hasAllNotes {
-                    foldersWithCount.insert(Folder(id: "0", name: "所有笔记", count: notes.count, isSystem: true), at: 0)
+                    let insertIndex = min(0, foldersWithCount.count)
+                    foldersWithCount.insert(Folder(id: "0", name: "所有笔记", count: notes.count, isSystem: true), at: insertIndex)
                 }
+                
+                let currentHasAllNotes = foldersWithCount.contains { $0.id == "0" }
                 if !hasStarred {
-                    foldersWithCount.insert(Folder(id: "starred", name: "置顶", count: notes.filter { $0.isStarred }.count, isSystem: true), at: hasAllNotes ? 1 : 0)
+                    let insertIndex = min(currentHasAllNotes ? 1 : 0, foldersWithCount.count)
+                    foldersWithCount.insert(Folder(id: "starred", name: "置顶", count: notes.filter { $0.isStarred }.count, isSystem: true), at: insertIndex)
                 }
+                
+                let currentHasStarred = foldersWithCount.contains { $0.id == "starred" }
                 if !hasPrivateNotes {
                     let privateNotesCount = notes.filter { $0.folderId == "2" }.count
-                    let insertIndex = (hasAllNotes ? 1 : 0) + (hasStarred ? 1 : 0)
+                    let insertIndex = min((currentHasAllNotes ? 1 : 0) + (currentHasStarred ? 1 : 0), foldersWithCount.count)
                     foldersWithCount.insert(Folder(id: "2", name: "私密笔记", count: privateNotesCount, isSystem: true), at: insertIndex)
                 }
                 
@@ -1493,41 +1509,43 @@ public class NotesViewModel: ObservableObject {
             
             let defaults = UserDefaults.standard
             
-            // 尝试恢复上次选中的文件夹
-            var restoredFolder: Folder?
-            if let lastFolderId = defaults.string(forKey: "lastSelectedFolderId"),
-               let folder = self.folders.first(where: { $0.id == lastFolderId }) {
-                restoredFolder = folder
-                self.selectedFolder = folder
-                print("[VIEWMODEL] 已恢复上次选中的文件夹: \(lastFolderId)")
+        // 尝试恢复上次选中的文件夹
+        var restoredFolder: Folder?
+        let currentFolders = self.folders
+        if let lastFolderId = defaults.string(forKey: "lastSelectedFolderId"),
+           let folder = currentFolders.first(where: { $0.id == lastFolderId }) {
+            restoredFolder = folder
+            self.selectedFolder = folder
+            print("[VIEWMODEL] 已恢复上次选中的文件夹: \(lastFolderId)")
+        } else {
+            // 没有上次选中的文件夹，默认选择"所有笔记"
+            restoredFolder = currentFolders.first(where: { $0.id == "0" })
+            self.selectedFolder = restoredFolder
+            print("[VIEWMODEL] 默认选择所有笔记文件夹")
+        }
+        
+        // 获取当前文件夹中的笔记列表
+        let notesInFolder = self.getNotesInFolder(restoredFolder)
+        let currentNotes = self.notes
+        
+        // 尝试恢复上次选中的笔记
+        if let lastNoteId = defaults.string(forKey: "lastSelectedNoteId"),
+           let lastNote = currentNotes.first(where: { $0.id == lastNoteId }) {
+            // 检查笔记是否在当前文件夹中
+            if notesInFolder.contains(where: { $0.id == lastNoteId }) {
+                // 笔记在当前文件夹中，选中它
+                self.selectedNote = lastNote
+                print("[VIEWMODEL] 已恢复上次选中的笔记: \(lastNoteId)")
             } else {
-                // 没有上次选中的文件夹，默认选择"所有笔记"
-                restoredFolder = self.folders.first(where: { $0.id == "0" })
-                self.selectedFolder = restoredFolder
-                print("[VIEWMODEL] 默认选择所有笔记文件夹")
-            }
-            
-            // 获取当前文件夹中的笔记列表
-            let notesInFolder = self.getNotesInFolder(restoredFolder)
-            
-            // 尝试恢复上次选中的笔记
-            if let lastNoteId = defaults.string(forKey: "lastSelectedNoteId"),
-               let lastNote = self.notes.first(where: { $0.id == lastNoteId }) {
-                // 检查笔记是否在当前文件夹中
-                if notesInFolder.contains(where: { $0.id == lastNoteId }) {
-                    // 笔记在当前文件夹中，选中它
-                    self.selectedNote = lastNote
-                    print("[VIEWMODEL] 已恢复上次选中的笔记: \(lastNoteId)")
-                } else {
-                    // 笔记不在当前文件夹中，选择当前文件夹的第一个笔记
-                    self.selectedNote = notesInFolder.first
-                    print("[VIEWMODEL] 笔记不在当前文件夹，选择第一个笔记")
-                }
-            } else {
-                // 没有上次选中的笔记，选择当前文件夹的第一个笔记
+                // 笔记不在当前文件夹中，选择当前文件夹的第一个笔记
                 self.selectedNote = notesInFolder.first
-                print("[VIEWMODEL] 选择当前文件夹的第一个笔记")
+                print("[VIEWMODEL] 笔记不在当前文件夹，选择第一个笔记")
             }
+        } else {
+            // 没有上次选中的笔记，选择当前文件夹的第一个笔记
+            self.selectedNote = notesInFolder.first
+            print("[VIEWMODEL] 选择当前文件夹的第一个笔记")
+        }
         }
     }
     
@@ -1720,24 +1738,26 @@ public class NotesViewModel: ObservableObject {
     
     /// 更新文件夹计数
     private func updateFolderCounts() {
-        for i in 0..<folders.count {
-            let folder = folders[i]
+        let currentNotes = self.notes
+        for i in 0..<self.folders.count {
+            if i >= self.folders.count { break }
+            let folder = self.folders[i]
             
             if folder.id == "0" {
                 // 所有笔记
-                folders[i].count = notes.count
+                self.folders[i].count = currentNotes.count
             } else if folder.id == "starred" {
                 // 收藏
-                folders[i].count = notes.filter { $0.isStarred }.count
+                self.folders[i].count = currentNotes.filter { $0.isStarred }.count
             } else if folder.id == "2" {
                 // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
-                folders[i].count = notes.filter { $0.folderId == "2" }.count
+                self.folders[i].count = currentNotes.filter { $0.folderId == "2" }.count
             } else if folder.id == "uncategorized" {
                 // 未分类文件夹：显示 folderId 为 "0" 或空的笔记
-                folders[i].count = notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }.count
+                self.folders[i].count = currentNotes.filter { $0.folderId == "0" || $0.folderId.isEmpty }.count
             } else {
                 // 普通文件夹
-                folders[i].count = notes.filter { $0.folderId == folder.id }.count
+                self.folders[i].count = currentNotes.filter { $0.folderId == folder.id }.count
             }
         }
     }
@@ -1939,9 +1959,11 @@ public class NotesViewModel: ObservableObject {
                     )
                     
                     // 更新笔记列表
-                    if let index = notes.firstIndex(where: { $0.id == note.id }) {
-                        notes[index] = updatedNote
+                if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                    if index < self.notes.count {
+                        self.notes[index] = updatedNote
                     }
+                }
                     
                     // 保存更新后的笔记
                     try localStorage.saveNote(updatedNote)
@@ -2379,8 +2401,10 @@ public class NotesViewModel: ObservableObject {
     
     func deleteNote(_ note: Note) {
         // 1. 先在本地删除
-        if let index = notes.firstIndex(where: { $0.id == note.id }) {
-            notes.remove(at: index)
+        if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+            if index < self.notes.count {
+                self.notes.remove(at: index)
+            }
             
             // 更新文件夹计数
             if let folderIndex = folders.firstIndex(where: { $0.id == note.folderId }) {
@@ -2452,8 +2476,10 @@ public class NotesViewModel: ObservableObject {
     }
     
     public func toggleStar(_ note: Note) {
-        if let index = notes.firstIndex(where: { $0.id == note.id }) {
-            notes[index].isStarred.toggle()
+        if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+            if index < self.notes.count {
+                self.notes[index].isStarred.toggle()
+            }
             
             // 更新文件夹计数
             if note.isStarred {
@@ -2672,10 +2698,12 @@ public class NotesViewModel: ObservableObject {
                     try DatabaseService.shared.updateNotesFolderId(oldFolderId: tempFolderId, newFolderId: folderId)
                     
                     // 2. 更新内存中的笔记列表
-                    for i in 0..<notes.count {
-                        if notes[i].folderId == tempFolderId {
-                            notes[i].folderId = folderId
+                    self.notes = self.notes.map { note in
+                        var updatedNote = note
+                        if updatedNote.folderId == tempFolderId {
+                            updatedNote.folderId = folderId
                         }
+                        return updatedNote
                     }
                     
                     // 3. 删除数据库中的旧文件夹记录
@@ -2695,8 +2723,10 @@ public class NotesViewModel: ObservableObject {
                     var userFolders = folders.filter { !$0.isSystem }
                     
                     if let index = userFolders.firstIndex(where: { $0.id == tempFolderId }) {
-                        userFolders.remove(at: index)
-                        userFolders.append(updatedFolder)
+                        if index < userFolders.count {
+                            userFolders.remove(at: index)
+                            userFolders.append(updatedFolder)
+                        }
                     }
                     
                     folders = systemFolders + userFolders
@@ -2754,9 +2784,11 @@ public class NotesViewModel: ObservableObject {
     /// 切换文件夹置顶状态
     func toggleFolderPin(_ folder: Folder) async throws {
         // 先更新本地（无论在线还是离线）
-        if let index = folders.firstIndex(where: { $0.id == folder.id }) {
-            folders[index].isPinned.toggle()
-            try localStorage.saveFolders(folders.filter { !$0.isSystem })
+            if let index = self.folders.firstIndex(where: { $0.id == folder.id }) {
+                if index < self.folders.count {
+                    self.folders[index].isPinned.toggle()
+                    try? localStorage.saveFolders(self.folders.filter { !$0.isSystem })
+                }
             // 确保 selectedFolder 也更新
             if selectedFolder?.id == folder.id {
                 selectedFolder?.isPinned.toggle()
@@ -3136,8 +3168,10 @@ public class NotesViewModel: ObservableObject {
         }
         
         // 从本地删除文件夹
-        if let index = folders.firstIndex(where: { $0.id == folder.id }) {
-            folders.remove(at: index)
+        if let index = self.folders.firstIndex(where: { $0.id == folder.id }) {
+            if index < self.folders.count {
+                self.folders.remove(at: index)
+            }
             // 从数据库删除文件夹记录
             try DatabaseService.shared.deleteFolder(folderId: folder.id)
             // 保存剩余的文件夹列表
@@ -3428,8 +3462,10 @@ public class NotesViewModel: ObservableObject {
             await performFullSync()
             
             // 更新选中的笔记
-            if let index = notes.firstIndex(where: { $0.id == noteId }) {
-                selectedNote = notes[index]
+            if let index = self.notes.firstIndex(where: { $0.id == noteId }) {
+                if index < self.notes.count {
+                    selectedNote = self.notes[index]
+                }
             }
         } catch {
             if let miNoteError = error as? MiNoteError {

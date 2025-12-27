@@ -337,22 +337,38 @@
     }
 
     /**
-     * 修复光标位置（参考 CKEditor 5 的 Selection Post-Fixer）
+     * 修复光标位置（使用新的光标管理模块）
      * 确保光标位置始终有效，避免光标在不可编辑的元素内
      */
     function normalizeCursorPosition() {
+        const editor = document.getElementById('editor-content');
+        if (!editor) {
+            return;
+        }
+
+        // 使用新的光标管理模块
+        if (window.MiNoteEditor && window.MiNoteEditor.CursorModule) {
+            return window.MiNoteEditor.CursorModule.normalizePosition(editor);
+        }
+        
+        // 回退到原有的 Post-Fixer
+        if (window.MiNoteEditor && window.MiNoteEditor.SelectionPostFixer) {
+            const selection = window.getSelection();
+            if (!selection || !selection.rangeCount) {
+                return;
+            }
+            
+            const postFixer = new window.MiNoteEditor.SelectionPostFixer(editor);
+            return postFixer.fix(selection);
+        }
+        
+        // 如果新模块不可用，使用原有的实现（保持向后兼容）
         const selection = window.getSelection();
         if (!selection.rangeCount) {
             return;
         }
 
         const range = selection.getRangeAt(0);
-        const editor = document.getElementById('editor-content');
-        if (!editor) {
-            return;
-        }
-
-        // 如果选择不在编辑器内，不需要修复
         if (!editor.contains(range.commonAncestorContainer)) {
             return;
         }
@@ -691,4 +707,3 @@
     window.MiNoteWebEditor.getContent = getContent;
     
 })();
-

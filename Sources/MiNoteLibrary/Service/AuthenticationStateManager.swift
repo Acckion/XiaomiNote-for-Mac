@@ -303,7 +303,8 @@ class AuthenticationStateManager: ObservableObject {
     
     /// 尝试静默刷新Cookie（最多3次）
     private func attemptSilentRefresh() async {
-        print("[AuthenticationStateManager] 开始静默刷新Cookie")
+        print("[AuthenticationStateManager] 🚀 开始静默刷新Cookie流程")
+        print("[AuthenticationStateManager] 📊 当前状态: isOnline=\(isOnline), isCookieExpired=\(isCookieExpired), cookieExpiredShown=\(cookieExpiredShown)")
         
         var attempt = 0
         let maxAttempts = 3
@@ -311,21 +312,26 @@ class AuthenticationStateManager: ObservableObject {
         
         while attempt < maxAttempts && !success {
             attempt += 1
-            print("[AuthenticationStateManager] 静默刷新尝试 \(attempt)/\(maxAttempts)")
+            print("[AuthenticationStateManager] 🔄 静默刷新尝试 \(attempt)/\(maxAttempts)")
             
             do {
+                print("[AuthenticationStateManager] 📡 调用MiNoteService.refreshCookie()...")
                 // 尝试刷新Cookie
                 let refreshSuccess = try await MiNoteService.shared.refreshCookie()
+                print("[AuthenticationStateManager] 📡 refreshCookie()返回: \(refreshSuccess)")
+                
                 if refreshSuccess {
                     print("[AuthenticationStateManager] ✅ 静默刷新成功")
                     success = true
                     
                     // 恢复在线状态
                     await MainActor.run {
+                        print("[AuthenticationStateManager] 🔄 恢复在线状态前检查: hasValidCookie=\(MiNoteService.shared.hasValidCookie())")
                         isCookieExpired = false
                         isOnline = true
                         cookieExpiredShown = false
                         showCookieExpiredAlert = false
+                        print("[AuthenticationStateManager] ✅ 状态已更新: isOnline=\(isOnline), isCookieExpired=\(isCookieExpired)")
                     }
                     
                     // 通知ViewModel处理待同步操作
@@ -333,6 +339,8 @@ class AuthenticationStateManager: ObservableObject {
                     // 暂时注释掉，因为静默刷新成功后，用户操作时会自动触发同步
                     // await NotesViewModel.shared?.processPendingOperations()
                     break
+                } else {
+                    print("[AuthenticationStateManager] ⚠️ refreshCookie()返回false，但未抛出错误")
                 }
             } catch {
                 print("[AuthenticationStateManager] ❌ 静默刷新失败 (尝试 \(attempt)): \(error)")
@@ -341,7 +349,7 @@ class AuthenticationStateManager: ObservableObject {
             // 如果不是最后一次尝试，等待一段时间再重试
             if attempt < maxAttempts {
                 let delaySeconds = TimeInterval(attempt * 5) // 指数退避：5, 10, 15秒
-                print("[AuthenticationStateManager] 等待 \(delaySeconds) 秒后重试...")
+                print("[AuthenticationStateManager] ⏳ 等待 \(delaySeconds) 秒后重试...")
                 try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
             }
         }
@@ -352,7 +360,10 @@ class AuthenticationStateManager: ObservableObject {
                 showCookieExpiredAlert = true
                 isCookieExpired = true
                 isOnline = false
+                print("[AuthenticationStateManager] 🚨 显示弹窗，状态设置为离线")
             }
+        } else {
+            print("[AuthenticationStateManager] 🎉 静默刷新流程完成，成功恢复在线状态")
         }
     }
     
