@@ -11,7 +11,7 @@ import AppKit
 /// **数据格式**：
 /// - content: XML格式的笔记内容（小米笔记格式）
 /// - rawData: 包含tag、createDate等API需要的字段
-public struct Note: Identifiable, Codable, Hashable {
+public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
     public let id: String
     public var title: String
     public var content: String

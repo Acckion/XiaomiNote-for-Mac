@@ -481,6 +481,23 @@ struct NoteRow: View {
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 8)
+            .onHover { hovering in
+                if hovering {
+                    // 延迟100ms后预加载笔记
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                        // 如果笔记内容为空，预加载完整内容
+                        if note.content.isEmpty {
+                            if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+                                await MemoryCacheManager.shared.cacheNote(fullNote)
+                                Swift.print("[预加载] 悬停预加载完成 - ID: \(note.id.prefix(8))...")
+                            }
+                        } else {
+                            await MemoryCacheManager.shared.cacheNote(note)
+                        }
+                    }
+                }
+            }
             .onChange(of: note.content) { oldValue, newValue in
                 // 笔记内容变化时，重新检查并更新图片
                 updateThumbnail()

@@ -1695,6 +1695,77 @@ public class NotesViewModel: ObservableObject {
         }
     }
     
+    /// 预加载笔记内容
+    /// 
+    /// 预加载前N条笔记的完整内容到内存缓存
+    /// 
+    /// - Parameter count: 预加载数量，默认5条
+    private func preloadNotesContent(count: Int = 5) {
+        Task { @MainActor in
+            let notesToPreload = Array(notes.prefix(count))
+            
+            for note in notesToPreload {
+                // 如果笔记内容为空，需要从数据库或服务器加载完整内容
+                if note.content.isEmpty {
+                    // 尝试从数据库加载
+                    if let fullNote = try? localStorage.loadNote(noteId: note.id) {
+                        // 更新内存缓存
+                        await MemoryCacheManager.shared.cacheNote(fullNote)
+                        
+                        // 更新notes数组中的笔记
+                        if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                            notes[index] = fullNote
+                        }
+                    } else {
+                        // 如果数据库中没有，尝试从服务器获取
+                        do {
+                            await ensureNoteHasFullContent(note)
+                        } catch {
+                            Swift.print("[预加载] 获取笔记完整内容失败 - ID: \(note.id.prefix(8))..., 错误: \(error)")
+                        }
+                    }
+                } else {
+                    // 笔记已有内容，直接缓存
+                    await MemoryCacheManager.shared.cacheNote(note)
+                }
+            }
+            
+            Swift.print("[预加载] 预加载完成 - 预加载 \(notesToPreload.count) 条笔记")
+        }
+    }
+    
+    /// 预加载相邻笔记
+    /// 
+    /// 预加载当前笔记的前后各N条笔记
+    /// 
+    /// - Parameters:
+    ///   - currentNoteId: 当前笔记ID
+    ///   - count: 前后各预加载的数量，默认2条
+    func preloadAdjacentNotes(currentNoteId: String, count: Int = 2) {
+        Task { @MainActor in
+            guard let currentIndex = notes.firstIndex(where: { $0.id == currentNoteId }) else {
+                return
+            }
+            
+            let startIndex = max(0, currentIndex - count)
+            let endIndex = min(notes.count, currentIndex + count + 1)
+            let notesToPreload = Array(notes[startIndex..<endIndex])
+            
+            for note in notesToPreload {
+                // 只预加载没有完整内容的笔记
+                if note.content.isEmpty {
+                    if let fullNote = try? localStorage.loadNote(noteId: note.id) {
+                        await MemoryCacheManager.shared.cacheNote(fullNote)
+                    }
+                } else {
+                    await MemoryCacheManager.shared.cacheNote(note)
+                }
+            }
+            
+            Swift.print("[预加载] 相邻笔记预加载完成 - 当前笔记索引: \(currentIndex), 预加载 \(notesToPreload.count) 条")
+        }
+    }
+    
     /// 同步后重新加载本地数据
     private func loadLocalDataAfterSync() async {
         print("[FolderRename] ========== loadLocalDataAfterSync() 开始 ==========")
@@ -1707,6 +1778,9 @@ public class NotesViewModel: ObservableObject {
             
             let localNotes = try localStorage.getAllLocalNotes()
             self.notes = localNotes
+            
+            // 预加载前5条笔记到内存缓存
+            preloadNotesContent(count: 5)
             
             // 重新加载文件夹（从本地存储）
             print("[FolderRename] 调用 loadFolders() 重新加载文件夹列表")
@@ -2060,6 +2134,34 @@ public class NotesViewModel: ObservableObject {
             merged.htmlContent = existingNote.htmlContent
         }
         return merged
+    }
+    
+    /// 更新笔记列表中的笔记
+    /// 
+    /// - Parameters:
+    ///   - note: 要更新的笔记对象
+    ///   - preserveSelection: 是否保留选中状态（不更新selectedNote），默认false
+    ///                         true: 不更新selectedNote，避免UI闪烁
+    ///                         false: 如果当前选中的笔记匹配，则更新selectedNote
+    func updateNoteInList(_ note: Note, preserveSelection: Bool = false) {
+        guard let index = notes.firstIndex(where: { $0.id == note.id }) else {
+            Swift.print("[VIEWMODEL] updateNoteInList: 笔记不存在，ID: \(note.id.prefix(8))...")
+            return
+        }
+        
+        // 更新笔记列表
+        notes[index] = note
+        
+        // 根据preserveSelection参数决定是否更新selectedNote
+        if !preserveSelection {
+            // 如果当前选中的笔记就是被更新的笔记，更新selectedNote
+            if selectedNote?.id == note.id {
+                selectedNote = note
+            }
+        }
+        // preserveSelection为true时，不更新selectedNote，避免UI闪烁
+        
+        Swift.print("[VIEWMODEL] updateNoteInList: 更新笔记列表 - ID: \(note.id.prefix(8))..., preserveSelection: \(preserveSelection)")
     }
     
     private func applyLocalUpdate(_ note: Note) async throws {
