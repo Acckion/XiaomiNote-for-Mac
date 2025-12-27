@@ -957,10 +957,7 @@ struct NoteDetailView: View {
         return Note(id: note.id, title: titleToUse, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: Date(), tags: note.tags, rawData: note.rawData)
     }
     
-    // 已废弃：使用viewModel.updateNoteInList替代
-    // 保留此方法以保持兼容性，但内部调用新的updateNoteInList方法
     private func updateViewModelDelayed(with updated: Note) {
-        // 使用新的updateNoteInList方法，preserveSelection设为false（保持原有行为）
         viewModel.updateNoteInList(updated, preserveSelection: false)
     }
     

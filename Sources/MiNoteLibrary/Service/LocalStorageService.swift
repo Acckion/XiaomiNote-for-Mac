@@ -107,7 +107,6 @@ final class LocalStorageService: @unchecked Sendable {
         return folderURL
     }
     
-    /// 获取所有文件夹（文件系统目录名称，已废弃，使用loadFolders代替）
     func getAllFolders() throws -> [String] {
         var folders: [String] = []
         

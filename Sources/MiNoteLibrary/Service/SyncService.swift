@@ -1135,11 +1135,6 @@ final class SyncService: @unchecked Sendable {
     
     // MARK: - 处理文件夹
     
-    /// 处理文件夹（创建本地目录）
-    /// 
-    /// 注意：此方法已废弃，文件夹现在通过数据库管理，不再使用文件系统目录
-    /// 
-    /// - Parameter folder: 要处理的文件夹
     private func processFolder(_ folder: Folder) async throws {
         // 创建文件夹目录
         do {
@@ -1260,12 +1255,6 @@ final class SyncService: @unchecked Sendable {
     
     // MARK: - 清理已删除的笔记
     
-    /// 清理已删除的笔记（已废弃）
-    /// 
-    /// 此方法目前只记录日志，不执行实际清理操作
-    /// 删除逻辑已整合到增量同步中
-    /// 
-    /// - Parameter syncStatus: 同步状态
     private func cleanupDeletedNotes(syncStatus: SyncStatus) async throws {
         syncStatusMessage = "清理已删除的笔记..."
         

@@ -40,7 +40,6 @@ public struct ContentView: View {
     /// 是否显示Cookie失效弹窗
     @State private var showingCookieExpiredAlert = false
     
-    /// 是否显示同步菜单（已废弃，保留用于兼容）
     @State private var showingSyncMenu = false
     
     /// 是否显示离线操作处理进度视图
@@ -1755,9 +1754,6 @@ struct AccountRow: View {
 
 // MARK: - 同步状态覆盖层
 
-/// 同步状态覆盖层（已废弃，保留用于兼容）
-/// 
-/// 注意：当前已移除底部同步状态显示，只保留按钮的旋转动画
 struct SyncStatusOverlay: View {
     @ObservedObject var viewModel: NotesViewModel
     
