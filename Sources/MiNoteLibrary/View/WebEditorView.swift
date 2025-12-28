@@ -137,6 +137,27 @@ struct WebEditorView: NSViewRepresentable {
                     baseURL = baseURL.deletingLastPathComponent()
                 }
                 
+                // #region agent log
+                // 在加载HTML之前检测深色模式，以便在HTML中立即应用
+                let isDarkMode = detectDarkMode()
+                let darkModeScript = """
+                <script>
+                (function() {
+                    // 立即设置深色模式，避免白色闪烁
+                    // 这个脚本必须在CSS加载之前执行
+                    var isDark = \(isDarkMode);
+                    if (isDark) {
+                        document.documentElement.setAttribute('data-color-scheme', 'dark');
+                        document.body && document.body.setAttribute('data-color-scheme', 'dark');
+                    } else {
+                        document.documentElement.setAttribute('data-color-scheme', 'light');
+                        document.body && document.body.setAttribute('data-color-scheme', 'light');
+                    }
+                })();
+                </script>
+                """
+                // #endregion agent log
+                
                 // 尝试动态加载模块文件并注入到 HTML 中
                 let resourcesURL = baseURL
                 // 注意：xml-to-html.js 和 html-to-xml.js 必须在 converter.js 之前加载
@@ -180,6 +201,26 @@ struct WebEditorView: NSViewRepresentable {
                         let pattern = "<script[^>]*src=[\"']\(moduleFile)[\"'][^>]*></script>"
                         modifiedHTML = modifiedHTML.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
                     }
+                    
+                    // #region agent log
+                    // 在 <head> 标签之后立即插入深色模式设置脚本（在CSS之前）
+                    // 这样CSS加载时就能立即应用深色模式样式，避免白色闪烁
+                    if let headStartRange = modifiedHTML.range(of: "<head>", options: .caseInsensitive) {
+                        let insertPosition = modifiedHTML.index(headStartRange.upperBound, offsetBy: 0)
+                        modifiedHTML.insert(contentsOf: darkModeScript, at: insertPosition)
+                        print("[WebEditorView] ✅ 已在HTML头部注入深色模式设置脚本 (深色模式: \(isDarkMode))")
+                    } else {
+                        // 如果没有 <head>，在 <html> 之后插入
+                        if let htmlStartRange = modifiedHTML.range(of: "<html", options: .caseInsensitive) {
+                            if let htmlEndRange = modifiedHTML.range(of: ">", range: htmlStartRange.upperBound..<modifiedHTML.endIndex) {
+                                let insertPosition = modifiedHTML.index(htmlEndRange.upperBound, offsetBy: 0)
+                                modifiedHTML.insert(contentsOf: darkModeScript, at: insertPosition)
+                                print("[WebEditorView] ✅ 已在HTML标签后注入深色模式设置脚本 (深色模式: \(isDarkMode))")
+                            }
+                        }
+                    }
+                    // #endregion agent log
+                    
                     // 在 </head> 之前插入内联脚本
                     if let headEndRange = modifiedHTML.range(of: "</head>", options: .caseInsensitive) {
                         modifiedHTML.insert(contentsOf: injectedScripts, at: headEndRange.lowerBound)
@@ -194,8 +235,17 @@ struct WebEditorView: NSViewRepresentable {
                     webView.loadHTMLString(modifiedHTML, baseURL: baseURL)
                 } else {
                     // 如果部分模块加载失败，使用原始 HTML 和 baseURL
+                    // 但仍然注入深色模式设置脚本
+                    var modifiedHTML = htmlContent
+                    // #region agent log
+                    if let headStartRange = modifiedHTML.range(of: "<head>", options: .caseInsensitive) {
+                        let insertPosition = modifiedHTML.index(headStartRange.upperBound, offsetBy: 0)
+                        modifiedHTML.insert(contentsOf: darkModeScript, at: insertPosition)
+                        print("[WebEditorView] ✅ 已在HTML头部注入深色模式设置脚本 (深色模式: \(isDarkMode), 回退模式)")
+                    }
+                    // #endregion agent log
                     print("[WebEditorView] ⚠️ 部分模块加载失败，使用原始 HTML")
-                    webView.loadHTMLString(htmlContent, baseURL: baseURL)
+                    webView.loadHTMLString(modifiedHTML, baseURL: baseURL)
                 }
             } else {
                 // 如果读取失败，回退到 loadFileURL
@@ -618,13 +668,16 @@ struct WebEditorView: NSViewRepresentable {
             // 设置外观变化监听器
             setupAppearanceObserver()
             
-            // 初始设置深色模式（延迟一点确保DOM已完全加载）
+            // 初始设置深色模式
+            // 注意：如果使用loadHTMLString，深色模式已经在HTML加载时通过内联脚本设置
+            // 如果使用loadFileURL，需要在这里立即设置（不延迟，避免白色闪烁）
             print("[WebEditorView] 开始初始设置深色模式")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                guard let self = self else { return }
-                print("[WebEditorView] 延迟后设置深色模式（确保DOM已加载）")
-                self.updateColorScheme(webView: webView, force: true)
-            }
+            // #region agent log
+            // 立即设置深色模式，不延迟，避免白色闪烁
+            // 对于loadHTMLString的情况，这只是同步确认
+            // 对于loadFileURL的情况，这是首次设置
+            self.updateColorScheme(webView: webView, force: true)
+            // #endregion agent log
             
             // 初始加载内容
             if !lastContent.isEmpty {

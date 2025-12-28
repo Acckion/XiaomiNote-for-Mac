@@ -55,6 +55,7 @@ struct NotesListView: View {
                         ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
                             NoteRow(note: note, showDivider: index < notes.count - 1, viewModel: viewModel)
                                 .tag(note)
+                                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                     swipeActions(for: note)
                                 }
@@ -79,6 +80,7 @@ struct NotesListView: View {
                         ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
                             NoteRow(note: note, showDivider: index < notes.count - 1, viewModel: viewModel)
                                 .tag(note)
+                                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                     swipeActions(for: note)
                                 }
@@ -481,55 +483,87 @@ struct NoteRow: View {
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 8)
-            .onHover { hovering in
-                if hovering {
-                    // 延迟100ms后预加载笔记
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-                        // 如果笔记内容为空，预加载完整内容
-                        if note.content.isEmpty {
-                            if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
-                                await MemoryCacheManager.shared.cacheNote(fullNote)
-                                Swift.print("[预加载] 悬停预加载完成 - ID: \(note.id.prefix(8))...")
+            
+            // 分割线：放在卡片内容之后，在卡片下方
+            if showDivider {
+                GeometryReader { geometry in
+                    let leadingPadding: CGFloat = 8  // 左侧padding，与文字左对齐
+                    let trailingPadding: CGFloat = 8  // 右侧padding，可以调整这个值来控制右侧空白
+                    let lineWidth = geometry.size.width - leadingPadding - trailingPadding
+                    
+                    Rectangle()
+                        .fill(Color(NSColor.separatorColor))
+                        .frame(height: 0.5)
+                        .frame(width: lineWidth, alignment: .leading)
+                        .padding(.leading, leadingPadding)
+                        // #region agent log
+                        .onAppear {
+                            let logPath = "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.cursor/debug.log"
+                            let logEntry = "{\"location\":\"NotesListView.swift:divider\",\"message\":\"分割线GeometryReader渲染\",\"data\":{\"noteId\":\"\(note.id.prefix(8))\",\"showDivider\":\(showDivider),\"method\":\"geometry_calculated_width\",\"totalWidth\":\(geometry.size.width),\"lineWidth\":\(lineWidth),\"leadingPadding\":\(leadingPadding),\"trailingPadding\":\(trailingPadding),\"hypothesisId\":\"H\"},\"timestamp\":\(Int(Date().timeIntervalSince1970 * 1000)),\"sessionId\":\"debug-session\",\"runId\":\"post-fix\"}\n"
+                            if let fileHandle = FileHandle(forWritingAtPath: logPath) {
+                                defer { try? fileHandle.close() }
+                                try? fileHandle.seekToEnd()
+                                try? fileHandle.write(contentsOf: logEntry.data(using: .utf8)!)
+                            } else {
+                                try? logEntry.write(toFile: logPath, atomically: true, encoding: .utf8)
                             }
-                        } else {
-                            await MemoryCacheManager.shared.cacheNote(note)
                         }
+                        // #endregion
+                }
+                .frame(height: 0.5)  // GeometryReader 需要明确的高度
+            }
+        }
+        .onHover { hovering in
+            if hovering {
+                // 延迟100ms后预加载笔记
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                    // 如果笔记内容为空，预加载完整内容
+                    if note.content.isEmpty {
+                        if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+                            await MemoryCacheManager.shared.cacheNote(fullNote)
+                            Swift.print("[预加载] 悬停预加载完成 - ID: \(note.id.prefix(8))...")
+                        }
+                    } else {
+                        await MemoryCacheManager.shared.cacheNote(note)
                     }
                 }
             }
-            .onChange(of: note.content) { oldValue, newValue in
-                // 笔记内容变化时，重新检查并更新图片
-                updateThumbnail()
-            }
-            .onChange(of: note.updatedAt) { oldValue, newValue in
-                // 更新时间变化时，重新检查并更新图片
-                updateThumbnail()
-            }
-            .onChange(of: note.title) { oldValue, newValue in
-                // 笔记标题变化时，强制视图刷新
-                print("[NoteRow] onChange(title): 笔记标题变化: \(oldValue) -> \(newValue)")
-            }
-            .onChange(of: noteImageHash) { oldValue, newValue in
-                // 图片信息哈希值变化时，强制更新缩略图
-                // 这确保当图片插入/删除时能正确刷新
-                print("[NoteRow] onChange(noteImageHash): 图片信息哈希值变化 (\(oldValue) -> \(newValue))，更新缩略图")
-                updateThumbnail()
-            }
-            // 使用更稳定的标识符：笔记ID + 搜索文本（只在搜索文本变化时重建）
-            // 移除更新时间，避免每次保存都导致视图重建
-            .id("\(note.id)_\(viewModel.searchText)")
-            
-            // 分割线：放在笔记项之间的中间位置，向下偏移一点以居中
-            if showDivider {
-                Rectangle()
-                    .fill(Color(NSColor.separatorColor))
-                    .frame(height: 0.5)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 8)  // 与文字左对齐
-                    .padding(.top, 10)  // 向下偏移，使分割线位于两个笔记项之间
+        }
+        .onChange(of: note.content) { oldValue, newValue in
+            // 笔记内容变化时，重新检查并更新图片
+            updateThumbnail()
+        }
+        .onChange(of: note.updatedAt) { oldValue, newValue in
+            // 更新时间变化时，重新检查并更新图片
+            updateThumbnail()
+        }
+        .onChange(of: note.title) { oldValue, newValue in
+            // 笔记标题变化时，强制视图刷新
+            print("[NoteRow] onChange(title): 笔记标题变化: \(oldValue) -> \(newValue)")
+        }
+        .onChange(of: noteImageHash) { oldValue, newValue in
+            // 图片信息哈希值变化时，强制更新缩略图
+            // 这确保当图片插入/删除时能正确刷新
+            print("[NoteRow] onChange(noteImageHash): 图片信息哈希值变化 (\(oldValue) -> \(newValue))，更新缩略图")
+            updateThumbnail()
+        }
+        // 使用更稳定的标识符：笔记ID + 搜索文本（只在搜索文本变化时重建）
+        // 移除更新时间，避免每次保存都导致视图重建
+        .id("\(note.id)_\(viewModel.searchText)")
+        // #region agent log
+        .onAppear {
+            let logPath = "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.cursor/debug.log"
+            let logEntry = "{\"location\":\"NotesListView.swift:body\",\"message\":\"NoteRow渲染\",\"data\":{\"noteId\":\"\(note.id.prefix(8))\",\"showDivider\":\(showDivider),\"verticalPadding\":6,\"layoutMethod\":\"overlay\",\"hypothesisId\":\"B\"},\"timestamp\":\(Int(Date().timeIntervalSince1970 * 1000)),\"sessionId\":\"debug-session\",\"runId\":\"initial\"}\n"
+            if let fileHandle = FileHandle(forWritingAtPath: logPath) {
+                defer { try? fileHandle.close() }
+                try? fileHandle.seekToEnd()
+                try? fileHandle.write(contentsOf: logEntry.data(using: .utf8)!)
+            } else {
+                try? logEntry.write(toFile: logPath, atomically: true, encoding: .utf8)
             }
         }
+        // #endregion
     }
     
     /// 检查笔记是否有真正的标题（不是从内容中提取的）

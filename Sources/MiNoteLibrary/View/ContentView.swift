@@ -453,19 +453,19 @@ public struct ContentView: View {
                 Button {
                     viewModel.setNotesListSortField(.createDate)
                 } label: {
-                    Label("按创建时间排序", systemImage: viewModel.notesListSortField == .createDate ? "checkmark" : "")
+                    Label("按创建时间排序", systemImage: viewModel.notesListSortField == .createDate ? "checkmark" : "circle")
                 }
                 
                 Button {
                     viewModel.setNotesListSortField(.editDate)
                 } label: {
-                    Label("按修改时间排序", systemImage: viewModel.notesListSortField == .editDate ? "checkmark" : "")
+                    Label("按修改时间排序", systemImage: viewModel.notesListSortField == .editDate ? "checkmark" : "circle")
                 }
                 
                 Button {
                     viewModel.setNotesListSortField(.title)
                 } label: {
-                    Label("按名称排序", systemImage: viewModel.notesListSortField == .title ? "checkmark" : "")
+                    Label("按名称排序", systemImage: viewModel.notesListSortField == .title ? "checkmark" : "circle")
                 }
                 
                 Divider()
@@ -474,13 +474,13 @@ public struct ContentView: View {
                 Button {
                     viewModel.setNotesListSortDirection(.ascending)
                 } label: {
-                    Label("升序", systemImage: viewModel.notesListSortDirection == .ascending ? "checkmark" : "")
+                    Label("升序", systemImage: viewModel.notesListSortDirection == .ascending ? "checkmark" : "circle")
                 }
                 
                 Button {
                     viewModel.setNotesListSortDirection(.descending)
                 } label: {
-                    Label("降序", systemImage: viewModel.notesListSortDirection == .descending ? "checkmark" : "")
+                    Label("降序", systemImage: viewModel.notesListSortDirection == .descending ? "checkmark" : "circle")
                 }
             } label: {
                 Label("笔记列表排序", systemImage: "arrow.up.arrow.down")
@@ -876,19 +876,19 @@ struct SidebarView: View {
                                 Button {
                                     viewModel.setFolderSortOrder(allNotesFolder, sortOrder: .editDate)
                                 } label: {
-                                    Label("编辑日期", systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .editDate ? "checkmark" : "")
+                                    Label("编辑日期", systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .editDate ? "checkmark" : "circle")
                                 }
                                 
                                 Button {
                                     viewModel.setFolderSortOrder(allNotesFolder, sortOrder: .createDate)
                                 } label: {
-                                    Label("创建日期", systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .createDate ? "checkmark" : "")
+                                    Label("创建日期", systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .createDate ? "checkmark" : "circle")
                                 }
                                 
                                 Button {
                                     viewModel.setFolderSortOrder(allNotesFolder, sortOrder: .title)
                                 } label: {
-                                    Label("标题", systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .title ? "checkmark" : "")
+                                    Label("标题", systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .title ? "checkmark" : "circle")
                                 }
                             } label: {
                                 Label("排序方式", systemImage: "arrow.up.arrow.down")
@@ -913,19 +913,19 @@ struct SidebarView: View {
                                 Button {
                                     viewModel.setFolderSortOrder(starredFolder, sortOrder: .editDate)
                                 } label: {
-                                    Label("编辑日期", systemImage: viewModel.getFolderSortOrder(starredFolder) == .editDate ? "checkmark" : "")
+                                    Label("编辑日期", systemImage: viewModel.getFolderSortOrder(starredFolder) == .editDate ? "checkmark" : "circle")
                                 }
                                 
                                 Button {
                                     viewModel.setFolderSortOrder(starredFolder, sortOrder: .createDate)
                                 } label: {
-                                    Label("创建日期", systemImage: viewModel.getFolderSortOrder(starredFolder) == .createDate ? "checkmark" : "")
+                                    Label("创建日期", systemImage: viewModel.getFolderSortOrder(starredFolder) == .createDate ? "checkmark" : "circle")
                                 }
                                 
                                 Button {
                                     viewModel.setFolderSortOrder(starredFolder, sortOrder: .title)
                                 } label: {
-                                    Label("标题", systemImage: viewModel.getFolderSortOrder(starredFolder) == .title ? "checkmark" : "")
+                                    Label("标题", systemImage: viewModel.getFolderSortOrder(starredFolder) == .title ? "checkmark" : "circle")
                                 }
                             } label: {
                                 Label("排序方式", systemImage: "arrow.up.arrow.down")
@@ -976,19 +976,19 @@ struct SidebarView: View {
                             Button {
                                 viewModel.setFolderSortOrder(viewModel.uncategorizedFolder, sortOrder: .editDate)
                             } label: {
-                                Label("编辑日期", systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .editDate ? "checkmark" : "")
+                                Label("编辑日期", systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .editDate ? "checkmark" : "circle")
                             }
                             
                             Button {
                                 viewModel.setFolderSortOrder(viewModel.uncategorizedFolder, sortOrder: .createDate)
                             } label: {
-                                Label("创建日期", systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .createDate ? "checkmark" : "")
+                                Label("创建日期", systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .createDate ? "checkmark" : "circle")
                             }
                             
                             Button {
                                 viewModel.setFolderSortOrder(viewModel.uncategorizedFolder, sortOrder: .title)
                             } label: {
-                                Label("标题", systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .title ? "checkmark" : "")
+                                Label("标题", systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .title ? "checkmark" : "circle")
                             }
                         } label: {
                             Label("排序方式", systemImage: "arrow.up.arrow.down")
@@ -1045,19 +1045,19 @@ struct SidebarView: View {
                                 Button {
                                     viewModel.setFolderSortOrder(folder, sortOrder: .editDate)
                                 } label: {
-                                    Label("编辑日期", systemImage: viewModel.getFolderSortOrder(folder) == .editDate ? "checkmark" : "")
+                                    Label("编辑日期", systemImage: viewModel.getFolderSortOrder(folder) == .editDate ? "checkmark" : "circle")
                                 }
                                 
                                 Button {
                                     viewModel.setFolderSortOrder(folder, sortOrder: .createDate)
                                 } label: {
-                                    Label("创建日期", systemImage: viewModel.getFolderSortOrder(folder) == .createDate ? "checkmark" : "")
+                                    Label("创建日期", systemImage: viewModel.getFolderSortOrder(folder) == .createDate ? "checkmark" : "circle")
                                 }
                                 
                                 Button {
                                     viewModel.setFolderSortOrder(folder, sortOrder: .title)
                                 } label: {
-                                    Label("标题", systemImage: viewModel.getFolderSortOrder(folder) == .title ? "checkmark" : "")
+                                    Label("标题", systemImage: viewModel.getFolderSortOrder(folder) == .title ? "checkmark" : "circle")
                                 }
                             } label: {
                                 Label("排序方式", systemImage: "arrow.up.arrow.down")
