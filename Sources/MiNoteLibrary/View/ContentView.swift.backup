@@ -1,0 +1,506 @@
+import SwiftUI
+import AppKit
+
+/// 统一的自定义工具栏内容
+/// 
+/// 将所有工具栏项整合到一个 ToolbarContent 中，避免多个 toolbar(id:) 调用导致的布局问题
+struct MainToolbarContent: ToolbarContent {
+    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var webEditorContext: WebEditorContext
+    @Binding var showFormatMenu: Bool
+    @Binding var showingHistoryView: Bool
+    @Binding var showingOfflineOperationsProgress: Bool
+    let insertImageAction: () -> Void
+    
+    /// 状态颜色
+    private var statusColor: Color {
+        if viewModel.isOnline {
+            return .green
+        } else if viewModel.isCookieExpired {
+            return .red
+        } else {
+            return .yellow
+        }
+    }
+    
+    /// 状态文本
+    private var statusText: String {
+        if viewModel.isOnline {
+            return "在线"
+        } else if viewModel.isCookieExpired {
+            return "Cookie失效"
+        } else {
+            return "离线"
+        }
+    }
+    
+    /// 状态提示文本
+    private var statusHelpText: String {
+        if viewModel.isOnline {
+            return "已连接到小米笔记服务器"
+        } else if viewModel.isCookieExpired {
+            return "Cookie已失效，请刷新Cookie或重新登录（点击可刷新）"
+        } else {
+            return "离线模式：更改将在网络恢复后同步"
+        }
+    }
+    
+    /// 状态提示文本（包含待处理操作信息）
+    private var statusHelpTextWithOperations: String {
+        var helpText = statusHelpText
+        if viewModel.pendingOperationsCount > 0 {
+            helpText += "\n待处理操作: \(viewModel.pendingOperationsCount) 个"
+        }
+        return helpText
+    }
+    
+    var body: some ToolbarContent {
+        // 第一组：新建笔记和编辑功能
+        ToolbarItem(id: "new-note") {
+            Button {
+                viewModel.createNewNote()
+            } label: { Label("新建笔记", systemImage: "square.and.pencil") }
+        }
+        .defaultCustomization(.visible)
+        
+        // 可调间距
+        ToolbarItem(id: "flexible-spacer-1") {
+            Spacer()
+                .frame(minWidth: 0, maxWidth: .infinity)
+        }
+        .defaultCustomization(.visible)
+        
+        ToolbarItem(id: "undo") {
+            Button { webEditorContext.undo() } label: { Label("撤销", systemImage: "arrow.uturn.backward") }
+        }
+        .defaultCustomization(.visible)
+        
+        ToolbarItem(id: "redo") {
+            Button { webEditorContext.redo() } label: { Label("重做", systemImage: "arrow.uturn.forward") }
+        }
+        .defaultCustomization(.visible)
+        
+        // 固定间距
+        ToolbarItem(id: "fixed-spacer-1") {
+            Spacer()
+                .frame(width: 8)
+        }
+        .defaultCustomization(.visible)
+        
+        ToolbarItem(id: "format") {
+            Button { showFormatMenu.toggle() } label: { Label("格式", systemImage: "textformat") }
+                .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
+                    WebFormatMenuView(context: webEditorContext) { _ in showFormatMenu = false }
+                }
+        }
+        .defaultCustomization(.visible)
+        
+        ToolbarItem(id: "checkbox") {
+            Button { webEditorContext.insertCheckbox() } label: { Label("插入待办", systemImage: "checklist") }
+        }
+        .defaultCustomization(.visible)
+        
+        ToolbarItem(id: "horizontal-rule") {
+            Button { webEditorContext.insertHorizontalRule() } label: { Label("插入分割线", systemImage: "minus") }
+        }
+        .defaultCustomization(.visible)
+        
+        ToolbarItem(id: "image") {
+            Button { insertImageAction() } label: { Label("插入图片", systemImage: "paperclip") }
+        }
+        .defaultCustomization(.visible)
+        
+        // 固定间距
+        ToolbarItem(id: "fixed-spacer-2") {
+            Spacer()
+                .frame(width: 8)
+        }
+        .defaultCustomization(.visible)
+        
+        // 第二组：缩进和分享功能
+        ToolbarItem(id: "increase-indent") {
+            Button { webEditorContext.increaseIndent() } label: { Label("增加缩进", systemImage: "increase.indent") }
+        }
+        .defaultCustomization(.visible)
+        
+        ToolbarItem(id: "decrease-indent") {
+            Button { webEditorContext.decreaseIndent() } label: { Label("减少缩进", systemImage: "decrease.indent") }
+        }
+        .defaultCustomization(.visible)
+        
+        // 可调间距
+        ToolbarItem(id: "flexible-spacer-2") {
+            Spacer()
+                .frame(minWidth: 0, maxWidth: .infinity)
+        }
+        .defaultCustomization(.visible)
+        
+        ToolbarItem(id: "share") {
+            Button {
+                if let note = viewModel.selectedNote {
+                    let picker = NSSharingServicePicker(items: [note.content])
+                    if let window = NSApplication.shared.keyWindow, let view = window.contentView {
+                        picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
+                    }
+                }
+            } label: { Label("分享", systemImage: "square.and.arrow.up") }
+            .disabled(viewModel.selectedNote == nil)
+        }
+        .defaultCustomization(.visible)
+        
+        ToolbarItem(id: "history") {
+            Button { showingHistoryView = true } label: { Label("历史版本", systemImage: "clock.arrow.circlepath") }
+                .disabled(viewModel.selectedNote == nil)
+        }
+        .defaultCustomization(.visible)
+        
+        // 更多菜单（简化版）
+        ToolbarItem(id: "more") {
+            Button {
+                // 简化：直接显示回收站
+                viewModel.showTrashView = true
+            } label: { Label("回收站", systemImage: "trash") }
+        }
+        .defaultCustomization(.visible)
+        
+        // 在线状态指示器（简化版）
+        ToolbarItem(id: "online-status", placement: .automatic) {
+            Menu {
+                // 同步选项
+                Button {
+                    Task {
+                        await viewModel.performFullSync()
+                    }
+                } label: {
+                    Label("完整同步", systemImage: "arrow.down.circle")
+                }
+                .disabled(viewModel.isSyncing || !viewModel.isLoggedIn)
+                
+                Button {
+                    Task {
+                        await viewModel.performIncrementalSync()
+                    }
+                } label: {
+                    Label("增量同步", systemImage: "arrow.down.circle.dotted")
+                }
+                .disabled(viewModel.isSyncing || !viewModel.isLoggedIn)
+                
+                Divider()
+                
+                // Cookie刷新（如果失效）
+                if viewModel.isCookieExpired {
+                    Button {
+                        viewModel.showCookieRefreshView = true
+                    } label: {
+                        Label("刷新Cookie", systemImage: "arrow.clockwise")
+                    }
+                    
+                    Divider()
+                }
+                
+                // 重置同步状态
+                Button {
+                    viewModel.resetSyncStatus()
+                } label: {
+                    Label("重置同步状态", systemImage: "arrow.counterclockwise")
+                }
+                .disabled(viewModel.isSyncing)
+                
+                Divider()
+                
+                // 笔记列表排序方式
+                Menu {
+                    // 排序字段
+                    Button {
+                        viewModel.setNotesListSortField(.createDate)
+                    } label: {
+                        Label("按创建时间排序", systemImage: viewModel.notesListSortField == .createDate ? "checkmark" : "circle")
+                    }
+                    
+                    Button {
+                        viewModel.setNotesListSortField(.editDate)
+                    } label: {
+                        Label("按修改时间排序", systemImage: viewModel.notesListSortField == .editDate ? "checkmark" : "circle")
+                    }
+                    
+                    Button {
+                        viewModel.setNotesListSortField(.title)
+                    } label: {
+                        Label("按名称排序", systemImage: viewModel.notesListSortField == .title ? "checkmark" : "circle")
+                    }
+                    
+                    Divider()
+                    
+                    // 排序方向
+                    Button {
+                        viewModel.setNotesListSortDirection(.ascending)
+                    } label: {
+                        Label("升序", systemImage: viewModel.notesListSortDirection == .ascending ? "checkmark" : "circle")
+                    }
+                    
+                    Button {
+                        viewModel.setNotesListSortDirection(.descending)
+                    } label: {
+                        Label("降序", systemImage: viewModel.notesListSortDirection == .descending ? "checkmark" : "circle")
+                    }
+                } label: {
+                    Label("笔记列表排序", systemImage: "arrow.up.arrow.down")
+                }
+                
+                Divider()
+                
+                // 离线操作处理
+                if viewModel.pendingOperationsCount > 0 {
+                    Button {
+                        showingOfflineOperationsProgress = true
+                        Task {
+                            await OfflineOperationProcessor.shared.processOperations()
+                        }
+                    } label: {
+                        Label("处理离线操作 (\(viewModel.pendingOperationsCount))", systemImage: "arrow.clockwise.circle")
+                    }
+                    .disabled(viewModel.isProcessingOfflineOperations || !viewModel.isOnline)
+                    
+                    if viewModel.failedOperationsCount > 0 {
+                        Button {
+                            Task {
+                                await OfflineOperationProcessor.shared.retryFailedOperations()
+                            }
+                        } label: {
+                            Label("重试失败操作 (\(viewModel.failedOperationsCount))", systemImage: "arrow.counterclockwise.circle")
+                        }
+                        .disabled(viewModel.isProcessingOfflineOperations || !viewModel.isOnline)
+                    }
+                    
+                    Divider()
+                }
+                
+                // 同步状态
+                Button {
+                    // 显示同步状态信息
+                    if let lastSync = viewModel.lastSyncTime {
+                        let formatter = DateFormatter()
+                        formatter.dateStyle = .short
+                        formatter.timeStyle = .short
+                        
+                        let alert = NSAlert()
+                        alert.messageText = "同步状态"
+                        var infoText = "上次同步时间: \(formatter.string(from: lastSync))"
+                        if viewModel.pendingOperationsCount > 0 {
+                            infoText += "\n待处理操作: \(viewModel.pendingOperationsCount) 个"
+                        }
+                        alert.informativeText = infoText
+                        alert.addButton(withTitle: "确定")
+                        alert.runModal()
+                    } else {
+                        let alert = NSAlert()
+                        alert.messageText = "同步状态"
+                        var infoText = "从未同步"
+                        if viewModel.pendingOperationsCount > 0 {
+                            infoText += "\n待处理操作: \(viewModel.pendingOperationsCount) 个"
+                        }
+                        alert.informativeText = infoText
+                        alert.addButton(withTitle: "确定")
+                        alert.runModal()
+                    }
+                } label: {
+                    Label("同步状态", systemImage: "info.circle")
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    // 同步时显示加载图标，否则显示状态圆点
+                    if viewModel.isSyncing {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                            .frame(width: 8, height: 8)
+                    } else {
+                        Circle()
+                            .fill(statusColor)
+                            .frame(width: 8, height: 8)
+                    }
+                    Text(statusText)
+                        .font(.caption2)
+                        .foregroundColor(statusColor)
+                    
+                    // 显示待处理操作数量（如果有）
+                    if viewModel.pendingOperationsCount > 0 {
+                        Text("(\(viewModel.pendingOperationsCount))")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+            .help(statusHelpTextWithOperations)
+        }
+        .defaultCustomization(.visible)
+    }
+}
+
+/// 主内容视图 - 应用程序的核心UI容器
+///
+/// 这个视图负责：
+/// - 管理三栏布局（侧边栏、笔记列表、编辑区）
+/// - 响应式窗口大小调整
+/// - 工具栏和搜索功能
+/// - 窗口标题设置
+///
+/// UI布局说明：
+/// - 左侧：侧边栏（文件夹列表）
+/// - 中间：笔记列表（显示选中文件夹的笔记）
+/// - 右侧：笔记编辑器（显示和编辑选中的笔记）
+@available(macOS 14.0, *)
+public struct ContentView: View {
+    // MARK: - 数据绑定和状态管理
+
+    /// 视图模型 - 管理笔记、文件夹、同步等业务逻辑
+    @ObservedObject var viewModel: NotesViewModel
+
+    /// 侧边栏可见性状态
+    /// - `.all`: 显示所有列（侧边栏、列表、编辑区）
+    /// - `.detailOnly`: 只显示列表和编辑区（隐藏侧边栏）
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
+
+    /// 是否显示新建笔记弹窗
+    @State private var showingNewNote = false
+
+    /// 是否显示设置弹窗
+    @State private var showingSettings = false
+
+    /// 是否显示登录弹窗
+    @State private var showingLogin = false
+
+    /// 是否显示Cookie刷新弹窗
+    @State private var showingCookieRefresh = false
+
+    /// 是否显示Cookie失效弹窗
+    @State private var showingCookieExpiredAlert = false
+
+    @State private var showingSyncMenu = false
+
+    /// 是否显示离线操作处理进度视图
+    @State private var showingOfflineOperationsProgress = false
+
+    /// Web编辑器上下文 - 管理编辑器状态和格式操作
+    @StateObject private var webEditorContext = WebEditorContext()
+
+    /// 是否显示历史版本视图
+    @State private var showingHistoryView: Bool = false
+
+    /// 是否显示格式菜单
+    @State private var showFormatMenu: Bool = false
+
+    /// 图片插入相关状态
+    @State private var showImageInsertAlert: Bool = false
+    @State private var imageInsertMessage: String = ""
+    @State private var isInsertingImage: Bool = false
+    @State private var imageInsertStatus: ImageInsertStatus = .idle
+
+    enum ImageInsertStatus {
+        case idle, uploading, success, failed
+    }
+
+    /// 当前窗口宽度 - 用于响应式布局计算
+    @State private var windowWidth: CGFloat = 800
+
+    /// 上次更新时间 - 用于防抖处理
+    @State private var lastUpdateTime: Date = Date()
+
+    /// 是否显示搜索框弹窗（当窗口宽度不够时）
+    @State private var showingSearchField: Bool = false
+
+    /// 工具栏宽度 - 用于搜索框响应式显示（当前未使用，保留用于未来扩展）
+    @State private var toolbarWidth: CGFloat = 0
+
+    // MARK: - 列宽度常量定义
+
+    /// 侧边栏最小宽度（像素）
+    private let sidebarMinWidth: CGFloat = 180
+
+    /// 侧边栏最大宽度（像素）
+    private let sidebarMaxWidth: CGFloat = 300
+
+    /// 侧边栏理想宽度（像素）
+    private let sidebarIdealWidth: CGFloat = 250
+
+    /// 笔记列表栏最小宽度（像素）
+    private let notesListMinWidth: CGFloat = 200
+
+    /// 笔记列表栏最大宽度（像素）
+    private let notesListMaxWidth: CGFloat = 400
+
+    /// 笔记列表栏理想宽度（像素）
+    private let notesListIdealWidth: CGFloat = 300
+
+    /// 编辑栏最小宽度（像素）
+    private let detailMinWidth: CGFloat = 300
+
+    /// 编辑栏绝对最小宽度（像素）- 当窗口非常小时，可以缩小到这个值
+    private let detailAbsoluteMinWidth: CGFloat = 250
+
+    /// 编辑栏理想宽度（像素）
+    private let detailIdealWidth: CGFloat = 500
+
+    /// 分隔线和边距宽度（像素）- 用于计算可用空间
+    private let separatorWidth: CGFloat = 20
+
+    // MARK: - 计算属性：窗口和布局相关
+
+    /// 计算最小窗口宽度
+    /// 公式：侧边栏最小 + 笔记列表最小 + 编辑栏绝对最小 + 分隔线
+    /// 当前值：180 + 200 + 250 + 20 = 650
+    private var minWindowWidth: CGFloat {
+        sidebarMinWidth + notesListMinWidth + detailAbsoluteMinWidth + separatorWidth
+    }
+
+    /// 计算隐藏侧边栏的阈值
+    /// 当窗口宽度小于这个值时，自动隐藏侧边栏
+    /// 公式：笔记列表最小 + 编辑栏绝对最小 + 分隔线
+    /// 当前值：200 + 250 + 20 = 470
+    private var hideSidebarThreshold: CGFloat {
+        notesListMinWidth + detailAbsoluteMinWidth + separatorWidth
+    }
+
+    // MARK: - 初始化方法
+
+    /// 初始化方法
+    /// - Parameter viewModel: 笔记视图模型实例
+    public init(viewModel: NotesViewModel) {
+        self.viewModel = viewModel
+    }
+
+    // MARK: - 主视图
+
+    /// 主视图body
+    ///
+    /// 布局结构：
+    /// ```
+    /// GeometryReader (监听窗口大小变化)
+    ///   └─ NavigationSplitView (三栏布局)
+    ///        ├─ sidebarContent (侧边栏)
+    ///        ├─ notesListContent (笔记列表)
+    ///        └─ detailContent (编辑区)
+    /// ```
+    public var body: some View {
+        GeometryReader { geometry in
+            mainNavigationView
+                .onAppear {
+                    // 初始化窗口宽度
+                    windowWidth = geometry.size.width
+                    updateColumnVisibility(for: geometry.size.width)
+                }
+                .onChange(of: geometry.size.width) { oldValue, newValue in
+                    // 防抖处理：避免频繁更新导致抖动
+                    let now = Date()
+                    if now.timeIntervalSince(lastUpdateTime) > 0.1 {
+                        windowWidth = newValue
+                        updateColumnVisibility(for: newValue)
+                        lastUpdateTime = now
+                    } else {
+                        // 延迟更新
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            windowWidth = newValue
+                            updateColumnVisibility(for: newValue)
+                            lastUpdateTime = Date()
+                        }
+                    }
+                }

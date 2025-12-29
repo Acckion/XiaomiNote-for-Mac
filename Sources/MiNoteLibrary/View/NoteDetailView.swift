@@ -51,45 +51,59 @@ struct NoteDetailView: View {
     @StateObject private var webEditorContext = WebEditorContext()
     
     var body: some View {
-        Group {
-            if let note = viewModel.selectedNote {
-                noteEditorView(for: note)
-            } else {
-                emptyNoteView
+        mainContentView
+            .onChange(of: viewModel.selectedNote) { oldValue, newValue in
+                handleSelectedNoteChange(oldValue: oldValue, newValue: newValue)
             }
-        }
-        .onChange(of: viewModel.selectedNote) { oldValue, newValue in
-            handleSelectedNoteChange(oldValue: oldValue, newValue: newValue)
-        }
-        .onChange(of: viewModel.searchText) { _, newValue in
-            if webEditorContext.isEditorReady {
-                webEditorContext.highlightSearchText(newValue)
-            }
-        }
-        .navigationTitle("详情")
-        .toolbar {
-            ToolbarItemGroup(placement: .automatic) {
-                newNoteButton
-            }
-            ToolbarSpacer()
-            ToolbarItemGroup(placement: .automatic) {
-                undoButton
-                redoButton
-            }
-            ToolbarSpacer(.fixed)
-            ToolbarItemGroup(placement: .automatic) {
-                formatMenu
-                checkboxButton
-                horizontalRuleButton
-                imageButton
-            }
-            ToolbarSpacer(.fixed)
-            ToolbarItemGroup(placement: .automatic) {
-                indentButtons
-                Spacer()
-                if let note = viewModel.selectedNote {
-                    shareAndMoreButtons(for: note)
+            .onChange(of: viewModel.searchText) { _, newValue in
+                if webEditorContext.isEditorReady {
+                    webEditorContext.highlightSearchText(newValue)
                 }
+            }
+            .navigationTitle("详情")
+            .toolbar {
+                toolbarContent
+            }
+    }
+    
+    /// 主内容视图
+    @ViewBuilder
+    private var mainContentView: some View {
+        // 检查是否是私密笔记文件夹且未解锁
+        if let folder = viewModel.selectedFolder, folder.id == "2", !viewModel.isPrivateNotesUnlocked {
+            // 显示验证界面
+            PrivateNotesVerificationView(viewModel: viewModel)
+        } else if let note = viewModel.selectedNote {
+            noteEditorView(for: note)
+        } else {
+            emptyNoteView
+        }
+    }
+    
+    /// 工具栏内容
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .automatic) {
+            newNoteButton
+        }
+        ToolbarSpacer()
+        ToolbarItemGroup(placement: .automatic) {
+            undoButton
+            redoButton
+        }
+        ToolbarSpacer(.fixed)
+        ToolbarItemGroup(placement: .automatic) {
+            formatMenu
+            checkboxButton
+            horizontalRuleButton
+            imageButton
+        }
+        ToolbarSpacer(.fixed)
+        ToolbarItemGroup(placement: .automatic) {
+            indentButtons
+            Spacer()
+            if let note = viewModel.selectedNote {
+                shareAndMoreButtons(for: note)
             }
         }
     }
@@ -347,6 +361,7 @@ struct NoteDetailView: View {
         Task { @MainActor in
             if let t = task { await t.value }
             await quickSwitchToNote(note)
+            
         }
     }
     
@@ -387,8 +402,6 @@ struct NoteDetailView: View {
                 Swift.print("[快速切换] 内存缓存命中 - ID: \(note.id.prefix(8))...")
                 await loadNoteContentFromCache(cachedNote)
                 
-                // 预加载相邻笔记
-                viewModel.preloadAdjacentNotes(currentNoteId: note.id, count: 2)
                 return
             } else {
                 Swift.print("[快速切换] ⚠️ 缓存笔记ID不匹配，忽略缓存 - 缓存ID: \(cachedNote.id.prefix(8))..., 期望ID: \(note.id.prefix(8))...")
@@ -406,17 +419,12 @@ struct NoteDetailView: View {
                 await loadFullContentAsync(for: note)
             }
             
-            // 预加载相邻笔记
-            viewModel.preloadAdjacentNotes(currentNoteId: note.id, count: 2)
             return
         }
         
         // 4. 从数据库加载完整内容
         Swift.print("[快速切换] 从数据库加载 - ID: \(note.id.prefix(8))...")
         await loadNoteContent(note)
-        
-        // 预加载相邻笔记
-        viewModel.preloadAdjacentNotes(currentNoteId: note.id, count: 2)
     }
     
     /// 从缓存加载笔记内容
@@ -558,6 +566,7 @@ struct NoteDetailView: View {
     @MainActor
     private func handleTitleChange(_ newValue: String) async {
         guard !isInitializing && newValue != originalTitle else { return }
+        
         originalTitle = newValue
         await performTitleChangeSave(newTitle: newValue)
     }
@@ -600,8 +609,13 @@ struct NoteDetailView: View {
                     self.lastSavedXMLContent = xmlContent
                     self.originalTitle = title
                     self.currentXMLContent = xmlContent
-                    // 使用新的updateNoteInList方法，preserveSelection设为false（标题变化需要更新selectedNote）
-                    self.viewModel.updateNoteInList(updated, preserveSelection: false)
+                    // 更新笔记列表和选中的笔记
+                    if let index = self.viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
+                        self.viewModel.notes[index] = updated
+                    }
+                    if self.viewModel.selectedNote?.id == updated.id {
+                        self.viewModel.selectedNote = updated
+                    }
                     self.scheduleCloudUpload(for: updated, xmlContent: xmlContent)
                     continuation.resume()
                 }
@@ -642,7 +656,9 @@ struct NoteDetailView: View {
         await MemoryCacheManager.shared.cacheNote(updated)
         
         // 更新viewModel.notes数组（不更新selectedNote，避免闪烁）
-        viewModel.updateNoteInList(updated, preserveSelection: true)
+        if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
+            viewModel.notes[index] = updated
+        }
         
         // 更新保存状态为"保存中"
         saveStatus = .saving
@@ -683,12 +699,12 @@ struct NoteDetailView: View {
                         return
                     }
                     
-                    // 更新视图模型中的HTML内容，但不更新selectedNote（避免闪烁）
-                    if let index = self.viewModel.notes.firstIndex(where: { $0.id == noteId }) {
-                        var updatedNote = self.viewModel.notes[index]
-                        updatedNote.htmlContent = html
-                        // 使用preserveSelection: true，不更新selectedNote
-                        self.viewModel.updateNoteInList(updatedNote, preserveSelection: true)
+                        // 更新视图模型中的HTML内容，但不更新selectedNote（避免闪烁）
+                        if let index = self.viewModel.notes.firstIndex(where: { $0.id == noteId }) {
+                            var updatedNote = self.viewModel.notes[index]
+                            updatedNote.htmlContent = html
+                            // 不更新selectedNote，避免闪烁
+                            self.viewModel.notes[index] = updatedNote
                         Swift.print("[保存流程] ✅ Tier 0 HTML缓存保存成功 - 笔记ID: \(noteId.prefix(8))..., HTML长度: \(html.count)")
                     }
                 }
@@ -790,7 +806,9 @@ struct NoteDetailView: View {
                         self.currentXMLContent = xmlContent
                         
                         // 更新视图模型，但不更新selectedNote（避免闪烁）
-                        self.viewModel.updateNoteInList(updated, preserveSelection: true)
+                        if let index = self.viewModel.notes.firstIndex(where: { $0.id == noteId }) {
+                            self.viewModel.notes[index] = updated
+                        }
                         
                         // 更新内存缓存
                         await MemoryCacheManager.shared.cacheNote(updated)
@@ -958,7 +976,12 @@ struct NoteDetailView: View {
     }
     
     private func updateViewModelDelayed(with updated: Note) {
-        viewModel.updateNoteInList(updated, preserveSelection: false)
+        if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
+            viewModel.notes[index] = updated
+        }
+        if viewModel.selectedNote?.id == updated.id {
+            viewModel.selectedNote = updated
+        }
     }
     
     private func hasContentChanged(xmlContent: String) -> Bool {

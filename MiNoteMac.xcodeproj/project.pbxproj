@@ -34,6 +34,7 @@
 		4819A522D039D6F700CED689 /* manager.js in Resources */ = {isa = PBXBuildFile; fileRef = E96848A89E889965E1FD0F45 /* manager.js */; };
 		49180BDC746E4820429FD773 /* Folder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2707995632193C250FB2E95 /* Folder.swift */; };
 		4F83BF03D00F6546DEFF8774 /* enter-handler.js in Resources */ = {isa = PBXBuildFile; fileRef = FD207EE8B8B6BA3F68642127 /* enter-handler.js */; };
+		54D0D41F656932E9F1BFCBB2 /* PrivateNotesVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 267049352DAE9188F208C3CD /* PrivateNotesVerificationView.swift */; };
 		595CD8D08A87782300E7850E /* test-cursor.html in Resources */ = {isa = PBXBuildFile; fileRef = CF861A44261EC4A460445881 /* test-cursor.html */; };
 		5BA06AC75EFE646E631E0A69 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABFACD279C6322F4D5D253AA /* UserProfile.swift */; };
 		615881628A721CC39363FC3B /* NewNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3119E8C539E7C9A6BA2EACC /* NewNoteView.swift */; };
@@ -116,6 +117,7 @@
 		1A7658B8BAA53B9D317693F7 /* editor-init.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "editor-init.js"; sourceTree = "<group>"; };
 		1B325C84FAE102FC3949E0D9 /* WebEditorContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebEditorContext.swift; sourceTree = "<group>"; };
 		21ABB7492D465FD413582C52 /* editor.html.backup */ = {isa = PBXFileReference; path = editor.html.backup; sourceTree = "<group>"; };
+		267049352DAE9188F208C3CD /* PrivateNotesVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateNotesVerificationView.swift; sourceTree = "<group>"; };
 		2D1BC66E825FCA59E6265BA0 /* logger.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = logger.js; sourceTree = "<group>"; };
 		3092A97CC0447E6037F29D7D /* format-commands.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "format-commands.js"; sourceTree = "<group>"; };
 		326B6CDEA90A138001CE28BE /* command.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = command.js; sourceTree = "<group>"; };
@@ -249,6 +251,7 @@
 				47D76C86E30A5062CAF94D0A /* NotesListView.swift */,
 				D985EA418D15EBCC4B8D3954 /* OfflineOperationsProgressView.swift */,
 				74F278F5BBD4B70EA041DA41 /* PrivateNotesPasswordInputDialogView.swift */,
+				267049352DAE9188F208C3CD /* PrivateNotesVerificationView.swift */,
 				97970D72282389A8D20C6FE6 /* SearchFilterMenuContent.swift */,
 				656CF1ABBE00D47C91C58825 /* SearchFilterPopoverView.swift */,
 				37620C953116D1808597F0E2 /* SettingsView.swift */,
@@ -561,6 +564,7 @@
 				139578205178D209C7B19D54 /* OfflineOperationsProgressView.swift in Sources */,
 				D45B1D189AB9CF4C5B54DF18 /* PrivateNotesPasswordInputDialogView.swift in Sources */,
 				1EF734C3CCAC409ED6D83B08 /* PrivateNotesPasswordManager.swift in Sources */,
+				54D0D41F656932E9F1BFCBB2 /* PrivateNotesVerificationView.swift in Sources */,
 				AF1776F02B8D6C2D5F5DCF08 /* SaveQueueManager.swift in Sources */,
 				F88CEF3DE968EF9C470B0DA7 /* SearchFilterMenuContent.swift in Sources */,
 				2E5AA27233094706C852A3EB /* SearchFilterPopoverView.swift in Sources */,

@@ -100,9 +100,7 @@ struct PrivateNotesPasswordInputDialogView: View {
         
         Task {
             do {
-                let success = try await passwordManager.authenticateWithTouchID(
-                    reason: "验证以访问私密笔记"
-                )
+                let success = try await passwordManager.authenticateWithTouchID()
                 
                 await MainActor.run {
                     isAuthenticating = false

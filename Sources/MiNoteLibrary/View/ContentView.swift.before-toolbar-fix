@@ -44,7 +44,16 @@ public struct ContentView: View {
     
     /// 是否显示离线操作处理进度视图
     @State private var showingOfflineOperationsProgress = false
-    
+
+    /// Web编辑器上下文 - 用于工具栏操作
+    @StateObject private var webEditorContext = WebEditorContext()
+
+    /// 是否显示格式菜单
+    @State private var showFormatMenu = false
+
+    /// 是否显示历史版本视图
+    @State private var showingHistoryView = false
+
     /// 当前窗口宽度 - 用于响应式布局计算
     @State private var windowWidth: CGFloat = 800
     
@@ -167,6 +176,9 @@ public struct ContentView: View {
         .sheet(isPresented: $showingOfflineOperationsProgress) {
             OfflineOperationsProgressView(processor: OfflineOperationProcessor.shared)
         }
+        .sheet(isPresented: $viewModel.showPrivateNotesPasswordDialog) {
+            PrivateNotesPasswordInputDialogView(viewModel: viewModel)
+        }
         .sheet(isPresented: $viewModel.showTrashView) {
             TrashView(viewModel: viewModel)
         }
@@ -231,6 +243,84 @@ public struct ContentView: View {
             detailContent
         }
         .navigationSplitViewStyle(.balanced)
+        .toolbar(id: "main-toolbar") {
+            // 左侧工具栏项 - 对应侧边栏区域
+            ToolbarItem(id: "new-note", placement: .automatic) {
+                Button {
+                    viewModel.createNewNote()
+                } label: { Label("新建笔记", systemImage: "square.and.pencil") }
+            }
+            .defaultCustomization(.visible)
+            
+        
+            // 中间工具栏项 - 对应笔记列表区域
+            // 使用单独的 ToolbarItem，但使用相同的 placement
+            ToolbarItem(id: "undo", placement: .secondaryAction) {
+                Button { webEditorContext.undo() } label: { Label("撤销", systemImage: "arrow.uturn.backward") }
+                    .help("撤销")
+            }
+            .defaultCustomization(.visible)
+            
+            ToolbarItem(id: "redo", placement: .secondaryAction) {
+                Button { webEditorContext.redo() } label: { Label("重做", systemImage: "arrow.uturn.forward") }
+                    .help("重做")
+            }
+            .defaultCustomization(.visible)
+            
+            ToolbarItem(id: "format", placement: .secondaryAction) {
+                Button { showFormatMenu.toggle() } label: { Label("格式", systemImage: "textformat") }
+                    .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
+                        WebFormatMenuView(context: webEditorContext) { _ in showFormatMenu = false }
+                    }
+                    .help("文本格式")
+            }
+            .defaultCustomization(.visible)
+            
+            // 添加灵活间距，分隔中间和右侧区域
+            ToolbarItem(id: "right-spacer", placement: .primaryAction) {
+                Spacer()
+            }
+            .defaultCustomization(.hidden)
+            
+            // 右侧工具栏项 - 对应编辑区域
+            ToolbarItem(id: "online-status", placement: .primaryAction) {
+                Menu {
+                    Button {
+                        Task {
+                            await viewModel.performFullSync()
+                        }
+                    } label: {
+                        Label("完整同步", systemImage: "arrow.down.circle")
+                    }
+                    .disabled(viewModel.isSyncing || !viewModel.isLoggedIn)
+                    
+                    if viewModel.isCookieExpired {
+                        Button {
+                            viewModel.showCookieRefreshView = true
+                        } label: {
+                            Label("刷新Cookie", systemImage: "arrow.clockwise")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        if viewModel.isSyncing {
+                            ProgressView()
+                                .scaleEffect(0.6)
+                                .frame(width: 8, height: 8)
+                        } else {
+                            Circle()
+                                .fill(statusColor)
+                                .frame(width: 8, height: 8)
+                        }
+                        Text(statusText)
+                            .font(.caption2)
+                            .foregroundColor(statusColor)
+                    }
+                }
+                .help(statusHelpTextWithOperations)
+            }
+            .defaultCustomization(.visible)
+        }
     }
     
     /// 侧边栏内容视图
@@ -284,16 +374,10 @@ public struct ContentView: View {
             ideal: notesListMaxWidth,
             max: notesListMaxWidth
         )
-        .searchable(text: $viewModel.searchText, placement: .toolbar, prompt: viewModel.filterTagsText.isEmpty ? "搜索笔记" : viewModel.filterTagsText)
+        .searchable(text: $viewModel.searchText, placement: .sidebar, prompt: viewModel.filterTagsText.isEmpty ? "搜索笔记" : viewModel.filterTagsText)
         .searchToolbarBehavior(.automatic)
         .searchSuggestions {
             SearchFilterMenuContent(viewModel: viewModel)
-        }
-        .toolbar {
-            // 自动位置：在线状态指示器（Cookie失效时可点击刷新）
-            ToolbarItem(placement: .automatic) {
-                onlineStatusIndicatorWithAction
-            }
         }
     }
     
@@ -305,11 +389,15 @@ public struct ContentView: View {
     /// - 最小：calculatedDetailMinWidth（动态计算）
     /// - 理想：calculatedDetailWidth.ideal（动态计算）
     private var detailContent: some View {
-        NoteDetailView(viewModel: viewModel)
-            .navigationSplitViewColumnWidth(
-                min: calculatedDetailMinWidth,
-                ideal: calculatedDetailWidth.ideal
-            )
+        NoteDetailView(
+            viewModel: viewModel,
+            webEditorContext: webEditorContext,
+            showingHistoryView: $showingHistoryView
+        )
+        .navigationSplitViewColumnWidth(
+            min: calculatedDetailMinWidth,
+            ideal: calculatedDetailWidth.ideal
+        )
     }
     
     // MARK: - 工具栏组件
@@ -811,10 +899,18 @@ public struct ContentView: View {
                 columnVisibility = shouldShowSidebar ? .all : .detailOnly
             }
         }
+        }
     }
-}
-
-// MARK: - 侧边栏视图
+    
+    /// 插入图片操作
+    private func insertImage() {
+        // 这里应该实现插入图片的逻辑
+        // 目前先打印日志，后续可以扩展为打开文件选择器
+        print("插入图片操作被调用")
+        // TODO: 实现图片插入逻辑
+    }
+    
+    // MARK: - 侧边栏视图
 
 /// 侧边栏视图 - 显示文件夹列表
 /// 

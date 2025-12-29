@@ -10,7 +10,15 @@ struct NotesListView: View {
     
     var body: some View {
         List(selection: $viewModel.selectedNote) {
-            if viewModel.filteredNotes.isEmpty {
+            // 检查是否是私密笔记文件夹且未解锁
+            if let folder = viewModel.selectedFolder, folder.id == "2", !viewModel.isPrivateNotesUnlocked {
+                // 私密笔记未解锁，显示锁定状态
+                ContentUnavailableView(
+                    "此备忘录已锁定",
+                    systemImage: "lock.fill",
+                    description: Text("使用触控 ID 或输入密码查看此备忘录")
+                )
+            } else if viewModel.filteredNotes.isEmpty {
                 emptyNotesView
             } else {
                 notesListContent
