@@ -271,3 +271,5 @@ swift package resolve
 ### v1.1.0
 
 - 优化刷新 cookie、登录、在线状态指示器
+
+test_git_main
