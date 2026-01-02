@@ -1,0 +1,88 @@
+//
+//  ToolbarIdentifiers.swift
+//  MiNoteLibrary
+//
+//  Created by Acckion on 2026/1/2.
+//  Copyright © 2026 Acckion. All rights reserved.
+//
+
+#if os(macOS)
+import AppKit
+
+/// 工具栏项标识符扩展
+/// 定义 MiNote 应用的所有工具栏项标识符
+extension NSToolbarItem.Identifier {
+    
+    // MARK: - 文件操作
+    
+    /// 新建笔记
+    static let newNote = NSToolbarItem.Identifier("newNote")
+    
+    /// 新建文件夹
+    static let newFolder = NSToolbarItem.Identifier("newFolder")
+    
+    // MARK: - 格式操作
+    
+    /// 粗体
+    static let bold = NSToolbarItem.Identifier("bold")
+    
+    /// 斜体
+    static let italic = NSToolbarItem.Identifier("italic")
+    
+    /// 下划线
+    static let underline = NSToolbarItem.Identifier("underline")
+    
+    /// 删除线
+    static let strikethrough = NSToolbarItem.Identifier("strikethrough")
+    
+    /// 代码
+    static let code = NSToolbarItem.Identifier("code")
+    
+    /// 链接
+    static let link = NSToolbarItem.Identifier("link")
+    
+    /// 格式菜单
+    static let formatMenu = NSToolbarItem.Identifier("formatMenu")
+    
+    // MARK: - 搜索
+    
+    /// 搜索
+    static let search = NSToolbarItem.Identifier("search")
+    
+    // MARK: - 同步和状态
+    
+    /// 同步
+    static let sync = NSToolbarItem.Identifier("sync")
+    
+    /// 在线状态指示器
+    static let onlineStatus = NSToolbarItem.Identifier("onlineStatus")
+    
+    // MARK: - 视图控制
+    
+    /// 切换侧边栏
+    static let toggleSidebar = NSToolbarItem.Identifier("toggleSidebar")
+    
+    /// 分享
+    static let share = NSToolbarItem.Identifier("share")
+    
+    /// 置顶/取消置顶
+    static let toggleStar = NSToolbarItem.Identifier("toggleStar")
+    
+    /// 删除
+    static let delete = NSToolbarItem.Identifier("delete")
+    
+    /// 恢复
+    static let restore = NSToolbarItem.Identifier("restore")
+    
+    // MARK: - 其他
+    
+    /// 灵活空间
+    static let flexibleSpace = NSToolbarItem.Identifier(NSToolbarItem.Identifier.flexibleSpace.rawValue)
+    
+    /// 固定空间
+    static let space = NSToolbarItem.Identifier(NSToolbarItem.Identifier.space.rawValue)
+    
+    /// 分隔线
+    static let separator = NSToolbarItem.Identifier(NSToolbarItem.Identifier.separator.rawValue)
+}
+#endif
