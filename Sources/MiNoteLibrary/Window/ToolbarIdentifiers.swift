@@ -74,15 +74,20 @@ extension NSToolbarItem.Identifier {
     /// 恢复
     static let restore = NSToolbarItem.Identifier("restore")
     
-    // MARK: - 其他
+    // MARK: - 跟踪分隔符
     
-    /// 灵活空间
-    static let flexibleSpace = NSToolbarItem.Identifier(NSToolbarItem.Identifier.flexibleSpace.rawValue)
+    /// 侧边栏跟踪分隔符 - 连接到分割视图的第一个分隔符
+    static let sidebarTrackingSeparator = NSToolbarItem.Identifier("sidebarTrackingSeparator")
     
-    /// 固定空间
-    static let space = NSToolbarItem.Identifier(NSToolbarItem.Identifier.space.rawValue)
+    /// 时间线跟踪分隔符 - 连接到分割视图的第二个分隔符
+    static let timelineTrackingSeparator = NSToolbarItem.Identifier("timelineTrackingSeparator")
     
-    /// 分隔线
-    static let separator = NSToolbarItem.Identifier(NSToolbarItem.Identifier.separator.rawValue)
+    // MARK: - 系统标识符
+    
+    // 注意：不要重新定义系统标识符，直接使用系统提供的：
+    // - .flexibleSpace
+    // - .space
+    // - .separator
+    // 这些标识符已经由系统提供，不需要重新定义
 }
 #endif

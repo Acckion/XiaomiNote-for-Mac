@@ -174,6 +174,20 @@ extension MainWindowController: NSToolbarDelegate {
         case .restore:
             return buildToolbarButton(.restore, "恢复", NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: nil)!, "restoreNote:")
             
+        case .sidebarTrackingSeparator:
+            // 侧边栏跟踪分隔符 - 连接到分割视图的第一个分隔符
+            if let splitViewController = window?.contentViewController as? NSSplitViewController {
+                return NSTrackingSeparatorToolbarItem(identifier: .sidebarTrackingSeparator, splitView: splitViewController.splitView, dividerIndex: 0)
+            }
+            return nil
+            
+        case .timelineTrackingSeparator:
+            // 时间线跟踪分隔符 - 连接到分割视图的第二个分隔符
+            if let splitViewController = window?.contentViewController as? NSSplitViewController {
+                return NSTrackingSeparatorToolbarItem(identifier: .timelineTrackingSeparator, splitView: splitViewController.splitView, dividerIndex: 1)
+            }
+            return nil
+            
         default:
             // 处理系统标识符
             if itemIdentifier == .flexibleSpace {
@@ -191,6 +205,7 @@ extension MainWindowController: NSToolbarDelegate {
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         return [
             .toggleSidebar,
+            .sidebarTrackingSeparator,
             .flexibleSpace,
             .newNote,
             .newFolder,
@@ -198,6 +213,7 @@ extension MainWindowController: NSToolbarDelegate {
             .search,
             .sync,
             .onlineStatus,
+            .timelineTrackingSeparator,
             .share,
             .toggleStar,
             .delete,
@@ -210,6 +226,7 @@ extension MainWindowController: NSToolbarDelegate {
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         return [
             .toggleSidebar,
+            .sidebarTrackingSeparator,
             .flexibleSpace,
             .newNote,
             .newFolder,
@@ -218,7 +235,7 @@ extension MainWindowController: NSToolbarDelegate {
             .search,
             .sync,
             .onlineStatus,
-            .flexibleSpace,
+            .timelineTrackingSeparator,
             .share,
             .toggleStar
         ]
