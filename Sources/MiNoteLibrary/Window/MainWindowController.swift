@@ -24,22 +24,34 @@ public class MainWindowController: NSWindowController {
     
     // MARK: - 初始化
     
-    /// 使用指定的窗口和视图模型初始化窗口控制器
-    /// - Parameters:
-    ///   - window: 窗口
-    ///   - viewModel: 笔记视图模型
-    public init(window: NSWindow, viewModel: NotesViewModel) {
+    /// 使用指定的视图模型初始化窗口控制器
+    /// - Parameter viewModel: 笔记视图模型
+    public init(viewModel: NotesViewModel) {
         self.viewModel = viewModel
+        
+        // 创建窗口
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        
         super.init(window: window)
         
-        // 设置窗口标题
+        // 设置窗口
         window.title = "备忘录"
+        window.titleVisibility = .visible
+        window.setFrameAutosaveName("MainWindow")
         
         // 设置窗口内容
         setupWindowContent()
         
         // 设置工具栏
         setupToolbar()
+        
+        // 设置窗口最小尺寸
+        window.minSize = NSSize(width: 800, height: 600)
     }
     
     required init?(coder: NSCoder) {
@@ -63,15 +75,29 @@ public class MainWindowController: NSWindowController {
     private func setupWindowContent() {
         guard let window = window, let viewModel = viewModel else { return }
         
-        // 创建 SwiftUI 内容视图
-        let contentView = ContentView(viewModel: viewModel)
-            .accentColor(.yellow)
+        // 创建分割视图控制器（三栏布局）
+        let splitViewController = NSSplitViewController()
         
-        // 将 SwiftUI 视图包装为 NSHostingController
-        let hostingController = NSHostingController(rootView: contentView)
+        // 第一栏：侧边栏
+        let sidebarSplitViewItem = NSSplitViewItem(sidebarWithViewController: SidebarViewController(viewModel: viewModel))
+        sidebarSplitViewItem.minimumThickness = 180
+        sidebarSplitViewItem.maximumThickness = 300
+        sidebarSplitViewItem.canCollapse = true
+        splitViewController.addSplitViewItem(sidebarSplitViewItem)
+        
+        // 第二栏：笔记列表
+        let notesListSplitViewItem = NSSplitViewItem(contentListWithViewController: NotesListViewController(viewModel: viewModel))
+        notesListSplitViewItem.minimumThickness = 200
+        notesListSplitViewItem.maximumThickness = 400
+        splitViewController.addSplitViewItem(notesListSplitViewItem)
+        
+        // 第三栏：笔记详情
+        let detailSplitViewItem = NSSplitViewItem(viewController: NoteDetailViewController(viewModel: viewModel))
+        detailSplitViewItem.minimumThickness = 300
+        splitViewController.addSplitViewItem(detailSplitViewItem)
         
         // 设置窗口内容
-        window.contentViewController = hostingController
+        window.contentViewController = splitViewController
     }
     
     /// 设置工具栏
@@ -152,9 +178,11 @@ extension MainWindowController: NSToolbarDelegate {
             toolbarItem.label = "状态"
             
             // 创建一个自定义视图来显示状态
-            let statusView = NSHostingView(rootView: OnlineStatusIndicator(viewModel: viewModel))
-            statusView.frame = NSRect(x: 0, y: 0, width: 80, height: 24)
-            toolbarItem.view = statusView
+            if let viewModel = viewModel {
+                let statusView = NSHostingView(rootView: OnlineStatusIndicator(viewModel: viewModel))
+                statusView.frame = NSRect(x: 0, y: 0, width: 80, height: 24)
+                toolbarItem.view = statusView
+            }
             
             return toolbarItem
             

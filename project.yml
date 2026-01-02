@@ -41,6 +41,8 @@ targets:
       - target: MiNoteLibrary
     sources:
       - path: Sources/MiNoteMac
+        excludes:
+          - "App.swift.backup"
     resources:
       - path: Sources/MiNoteMac/Resources
     settings:
@@ -65,8 +67,7 @@ targets:
         CFBundleShortVersionString: "1.0.0"
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: "Copyright © 2024"
-        NSPrincipalClass: NSApplication
-        NSMainStoryboardFile: ""
+        NSPrincipalClass: AppDelegate
         NSHighResolutionCapable: true
         NSAccentColorName: Yellow
 
@@ -79,4 +80,3 @@ schemes:
       config: Debug
     test:
       config: Debug
-
