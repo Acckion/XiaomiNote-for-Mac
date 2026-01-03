@@ -1,0 +1,306 @@
+import SwiftUI
+import Combine
+
+/// SwiftUI侧边栏视图
+/// 显示文件夹列表，包含两个Section：
+/// 1. "小米笔记" - 系统文件夹（所有笔记、置顶、私密笔记）
+/// 2. "我的文件夹" - 用户文件夹（未分类 + 数据库中的文件夹，置顶的在前）
+struct SidebarView: View {
+    @ObservedObject var viewModel: NotesViewModel
+    @State private var selectedFolderId: String?
+    @State private var showingRenameDialog = false
+    @State private var showingDeleteDialog = false
+    @State private var showingCreateFolderDialog = false
+    @State private var folderToRename: Folder?
+    @State private var folderToDelete: Folder?
+    @State private var newFolderName = ""
+    
+    /// 侧边栏项类型
+    enum SidebarItem: Identifiable {
+        case group(String)  // 分组："小米笔记" 或 "我的文件夹"
+        case folder(Folder) // 文件夹
+        
+        var id: String {
+            switch self {
+            case .group(let name):
+                return "group-\(name)"
+            case .folder(let folder):
+                return "folder-\(folder.id)"
+            }
+        }
+    }
+    
+    /// 系统文件夹（小米笔记部分）
+    private var systemFolders: [Folder] {
+        viewModel.folders.filter { $0.isSystem || $0.id == "uncategorized" }
+    }
+    
+    /// 用户文件夹（我的文件夹部分）
+    private var userFolders: [Folder] {
+        viewModel.folders.filter { !$0.isSystem && $0.id != "uncategorized" }
+    }
+    
+    /// 构建侧边栏项列表
+    private var sidebarItems: [SidebarItem] {
+        var items: [SidebarItem] = []
+        
+        // 添加"小米笔记"分组
+        items.append(.group("小米笔记"))
+        
+        // 添加系统文件夹（按照旧版顺序：所有笔记、置顶、私密笔记）
+        if let allNotesFolder = viewModel.folders.first(where: { $0.id == "0" }) {
+            items.append(.folder(allNotesFolder))
+        }
+        
+        if let starredFolder = viewModel.folders.first(where: { $0.id == "starred" }) {
+            items.append(.folder(starredFolder))
+        }
+        
+        if let privateNotesFolder = viewModel.folders.first(where: { $0.id == "2" }) {
+            items.append(.folder(privateNotesFolder))
+        }
+        
+        // 添加"我的文件夹"分组
+        items.append(.group("我的文件夹"))
+        
+        // 添加未分类文件夹
+        items.append(.folder(viewModel.uncategorizedFolder))
+        
+        // 添加用户文件夹（按置顶状态排序：置顶的在前）
+        let userFoldersSorted = userFolders.sorted { folder1, folder2 in
+            // 置顶的在前
+            if folder1.isPinned != folder2.isPinned {
+                return folder1.isPinned
+            }
+            // 否则按名称排序
+            return folder1.name < folder2.name
+        }
+        
+        for folder in userFoldersSorted {
+            items.append(.folder(folder))
+        }
+        
+        return items
+    }
+    
+    var body: some View {
+        List(selection: $selectedFolderId) {
+            ForEach(sidebarItems) { item in
+                switch item {
+                case .group(let groupName):
+                    // 分组项
+                    Text(groupName)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 8)
+                        .padding(.vertical, 4)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowBackground(Color.clear)
+                        .frame(height: 28)
+                        .disabled(true)
+                    
+                case .folder(let folder):
+                    // 文件夹项
+                    FolderRow(
+                        folder: folder,
+                        isSelected: selectedFolderId == folder.id,
+                        onSelect: {
+                            selectedFolderId = folder.id
+                            viewModel.selectedFolder = folder
+                        },
+                        onRename: {
+                            folderToRename = folder
+                            showingRenameDialog = true
+                        },
+                        onDelete: {
+                            folderToDelete = folder
+                            showingDeleteDialog = true
+                        },
+                        onTogglePin: {
+                            Task {
+                                do {
+                                    try await viewModel.toggleFolderPin(folder)
+                                } catch {
+                                    print("切换文件夹置顶状态失败: \(error)")
+                                }
+                            }
+                        }
+                    )
+                    .contextMenu {
+                        if folder.isSystem || folder.id == "uncategorized" {
+                            // 系统文件夹：只有新建文件夹选项
+                            Button("新建文件夹") {
+                                showingCreateFolderDialog = true
+                            }
+                        } else {
+                            // 用户文件夹：完整菜单
+                            Button("重命名文件夹") {
+                                folderToRename = folder
+                                showingRenameDialog = true
+                            }
+                            
+                            Button(folder.isPinned ? "取消置顶" : "置顶") {
+                                Task {
+                                    do {
+                                        try await viewModel.toggleFolderPin(folder)
+                                    } catch {
+                                        print("切换文件夹置顶状态失败: \(error)")
+                                    }
+                                }
+                            }
+                            
+                            Divider()
+                            
+                            Button("删除文件夹") {
+                                folderToDelete = folder
+                                showingDeleteDialog = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .listStyle(SidebarListStyle())
+        .background(Color(NSColor.windowBackgroundColor))
+        .onAppear {
+            // 初始化选中状态
+            if let selectedFolder = viewModel.selectedFolder {
+                selectedFolderId = selectedFolder.id
+            }
+        }
+        .onChange(of: viewModel.selectedFolder) { newFolder in
+            // 同步视图模型的选择
+            selectedFolderId = newFolder?.id
+        }
+        .alert("重命名文件夹", isPresented: $showingRenameDialog) {
+            TextField("文件夹名称", text: $newFolderName)
+            Button("确定") {
+                if let folder = folderToRename, !newFolderName.isEmpty, newFolderName != folder.name {
+                    Task {
+                        do {
+                            try await viewModel.renameFolder(folder, newName: newFolderName)
+                        } catch {
+                            print("重命名文件夹失败: \(error)")
+                        }
+                    }
+                }
+                newFolderName = ""
+                folderToRename = nil
+            }
+            Button("取消", role: .cancel) {
+                newFolderName = ""
+                folderToRename = nil
+            }
+        } message: {
+            Text("请输入新的文件夹名称：")
+        }
+        .alert("删除文件夹", isPresented: $showingDeleteDialog) {
+            Button("删除", role: .destructive) {
+                if let folder = folderToDelete {
+                    Task {
+                        do {
+                            try await viewModel.deleteFolder(folder)
+                        } catch {
+                            print("删除文件夹失败: \(error)")
+                        }
+                    }
+                }
+                folderToDelete = nil
+            }
+            Button("取消", role: .cancel) {
+                folderToDelete = nil
+            }
+        } message: {
+            if let folder = folderToDelete {
+                Text("确定要删除文件夹 \"\(folder.name)\" 吗？此操作无法撤销，并且文件夹内的所有笔记将移动到\"未分类\"。")
+            }
+        }
+        .alert("新建文件夹", isPresented: $showingCreateFolderDialog) {
+            TextField("文件夹名称", text: $newFolderName)
+            Button("确定") {
+                if !newFolderName.isEmpty {
+                    Task {
+                        do {
+                            try await viewModel.createFolder(name: newFolderName)
+                        } catch {
+                            print("创建文件夹失败: \(error)")
+                        }
+                    }
+                }
+                newFolderName = ""
+            }
+            Button("取消", role: .cancel) {
+                newFolderName = ""
+            }
+        } message: {
+            Text("请输入文件夹名称：")
+        }
+        .alert("提示", isPresented: .constant(folderToRename != nil && (folderToRename?.isSystem == true || folderToRename?.id == "uncategorized"))) {
+            Button("确定") {
+                folderToRename = nil
+            }
+        } message: {
+            if let folder = folderToRename {
+                Text("\"\(folder.name)\"是系统文件夹，不能重命名或删除。")
+            }
+        }
+    }
+}
+
+/// 文件夹行视图
+private struct FolderRow: View {
+    let folder: Folder
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onRename: () -> Void
+    let onDelete: () -> Void
+    let onTogglePin: () -> Void
+    
+    /// 获取文件夹图标名称
+    private var iconName: String {
+        if folder.id == "0" {
+            return "tray.full" // 所有笔记
+        } else if folder.id == "starred" {
+            return "pin.fill" // 置顶
+        } else if folder.id == "uncategorized" {
+            return "folder.badge.questionmark" // 未分类
+        } else if folder.id == "2" {
+            return "lock.fill" // 私密笔记
+        } else {
+            return folder.isPinned ? "pin.fill" : "folder" // 普通文件夹
+        }
+    }
+    
+    var body: some View {
+        HStack {
+            Image(systemName: iconName)
+                .foregroundColor(.white)
+                .frame(width: 16, height: 16)
+                .padding(.leading, 16) // 文件夹缩进更多
+            
+            Text(folder.name)
+                .font(.system(size: 13))
+                .lineLimit(1)
+            
+            Spacer()
+            
+            Text("\(folder.count)")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .padding(.trailing, 8)
+        }
+        .padding(.vertical, 4)
+        .frame(height: 32)
+        .background(isSelected ? Color.accentColor : Color.clear)
+        .cornerRadius(4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onSelect()
+        }
+    }
+}
+
+#Preview {
+    SidebarView(viewModel: NotesViewModel())
+        .frame(width: 250)
+}

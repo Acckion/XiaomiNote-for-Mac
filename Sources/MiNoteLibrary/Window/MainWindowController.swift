@@ -31,6 +31,9 @@ public class MainWindowController: NSWindowController {
     /// Combine订阅集合
     private var cancellables = Set<AnyCancellable>()
     
+    /// 格式菜单popover
+    private var formatMenuPopover: NSPopover?
+    
     // MARK: - 初始化
     
     /// 使用指定的视图模型初始化窗口控制器
@@ -90,15 +93,15 @@ public class MainWindowController: NSWindowController {
         // 创建分割视图控制器（三栏布局）
         let splitViewController = NSSplitViewController()
         
-        // 第一栏：侧边栏
-        let sidebarSplitViewItem = NSSplitViewItem(sidebarWithViewController: SidebarViewController(viewModel: viewModel))
+        // 第一栏：侧边栏（使用SwiftUI视图）
+        let sidebarSplitViewItem = NSSplitViewItem(sidebarWithViewController: SidebarHostingController(viewModel: viewModel))
         sidebarSplitViewItem.minimumThickness = 180
         sidebarSplitViewItem.maximumThickness = 300
         sidebarSplitViewItem.canCollapse = true
         splitViewController.addSplitViewItem(sidebarSplitViewItem)
         
-        // 第二栏：笔记列表
-        let notesListSplitViewItem = NSSplitViewItem(contentListWithViewController: NotesListViewController(viewModel: viewModel))
+        // 第二栏：笔记列表（使用SwiftUI视图）
+        let notesListSplitViewItem = NSSplitViewItem(contentListWithViewController: NotesListHostingController(viewModel: viewModel))
         notesListSplitViewItem.minimumThickness = 200
         notesListSplitViewItem.maximumThickness = 400
         splitViewController.addSplitViewItem(notesListSplitViewItem)
@@ -167,11 +170,20 @@ extension MainWindowController: NSToolbarDelegate {
             return buildToolbarButton(.link, "链接", NSImage(systemSymbolName: "link", accessibilityDescription: nil)!, "insertLink:")
             
         case .formatMenu:
-            let toolbarItem = NSMenuToolbarItem(itemIdentifier: .formatMenu)
-            toolbarItem.image = NSImage(systemSymbolName: "textformat", accessibilityDescription: nil)
+            // 创建自定义工具栏项，使用popover显示格式菜单
+            let toolbarItem = MiNoteToolbarItem(itemIdentifier: .formatMenu)
+            toolbarItem.autovalidates = true
+            
+            let button = NSButton()
+            button.bezelStyle = .texturedRounded
+            button.image = NSImage(systemSymbolName: "textformat", accessibilityDescription: nil)
+            button.imageScaling = .scaleProportionallyDown
+            button.action = #selector(showFormatMenu(_:))
+            button.target = self
+            
+            toolbarItem.view = button
             toolbarItem.toolTip = "格式"
             toolbarItem.label = "格式"
-            toolbarItem.menu = buildFormatMenu()
             return toolbarItem
             
         case .search:
@@ -537,11 +549,11 @@ extension MainWindowController: NSUserInterfaceValidations {
 
 extension MainWindowController {
     
-    @objc func createNewNote(_ sender: Any?) {
+    @objc public func createNewNote(_ sender: Any?) {
         viewModel?.createNewNote()
     }
     
-    @objc func createNewFolder(_ sender: Any?) {
+    @objc public func createNewFolder(_ sender: Any?) {
         // 显示新建文件夹对话框
         let alert = NSAlert()
         alert.messageText = "新建文件夹"
@@ -571,13 +583,13 @@ extension MainWindowController {
         }
     }
     
-    @objc func performSync(_ sender: Any?) {
+    @objc public func performSync(_ sender: Any?) {
         Task {
             await viewModel?.performFullSync()
         }
     }
     
-    @objc func shareNote(_ sender: Any?) {
+    @objc public func shareNote(_ sender: Any?) {
         // 分享选中的笔记
         guard let note = viewModel?.selectedNote else { return }
         
@@ -609,13 +621,8 @@ extension MainWindowController {
         
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
-            Task {
-                do {
-                    try await viewModel?.deleteNote(note)
-                } catch {
-                    print("删除备忘录失败: \(error)")
-                }
-            }
+            // 直接调用deleteNote方法，它内部会处理异步操作
+            viewModel?.deleteNote(note)
         }
     }
     
@@ -791,6 +798,61 @@ extension MainWindowController {
         alert.runModal()
     }
     
+    // MARK: - 格式菜单
+    
+    @objc func showFormatMenu(_ sender: Any?) {
+        // 显示格式菜单popover
+        print("显示格式菜单")
+        
+        // 如果popover已经显示，则关闭它
+        if let popover = formatMenuPopover, popover.isShown {
+            popover.performClose(sender)
+            formatMenuPopover = nil
+            return
+        }
+        
+        // 获取当前的WebEditorContext
+        guard let webEditorContext = getCurrentWebEditorContext() else {
+            print("无法获取WebEditorContext")
+            return
+        }
+        
+        // 创建SwiftUI格式菜单视图
+        let formatMenuView = WebFormatMenuView(context: webEditorContext) { [weak self] _ in
+            // 格式操作完成后关闭popover
+            self?.formatMenuPopover?.performClose(nil)
+            self?.formatMenuPopover = nil
+        }
+        
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: formatMenuView)
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 200, height: 400)
+        
+        // 创建popover
+        let popover = NSPopover()
+        popover.contentSize = NSSize(width: 200, height: 400)
+        popover.behavior = .transient
+        popover.animates = true
+        popover.contentViewController = hostingController
+        
+        // 存储popover引用
+        formatMenuPopover = popover
+        
+        // 显示popover
+        if let button = sender as? NSButton {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .maxY)
+        } else if let window = window, let contentView = window.contentView {
+            // 如果没有按钮，显示在窗口中央
+            popover.show(relativeTo: contentView.bounds, of: contentView, preferredEdge: .maxY)
+        }
+    }
+    
+    /// 获取当前的WebEditorContext
+    private func getCurrentWebEditorContext() -> WebEditorContext? {
+        // 直接从viewModel获取共享的WebEditorContext
+        return viewModel?.webEditorContext
+    }
+    
     // MARK: - 编辑菜单动作
     
     @objc public func undo(_ sender: Any?) {
@@ -913,6 +975,20 @@ extension MainWindowController {
         print("设置正文")
         // 这里应该调用编辑器API
         // 暂时使用控制台输出
+    }
+    
+    // MARK: - 新增的菜单动作方法
+    
+    @objc public func copyNote(_ sender: Any?) {
+        print("复制备忘录（从菜单调用）")
+        guard let note = viewModel?.selectedNote else { return }
+        
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        
+        // 复制标题和内容
+        let content = note.title.isEmpty ? note.content : "\(note.title)\n\n\(note.content)"
+        pasteboard.setString(content, forType: .string)
     }
     
     // MARK: - 状态监听

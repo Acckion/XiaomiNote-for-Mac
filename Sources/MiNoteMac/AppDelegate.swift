@@ -162,16 +162,83 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 清空现有菜单项（保留系统默认项）
         // 这里我们只添加自定义项，系统会自动添加其他项
         
+        // 添加新建备忘录菜单项（⌘N）
+        let newNoteItem = NSMenuItem()
+        newNoteItem.title = "新建备忘录"
+        newNoteItem.action = #selector(createNewNote(_:))
+        newNoteItem.target = self
+        newNoteItem.keyEquivalent = "n"
+        newNoteItem.keyEquivalentModifierMask = [.command]
+        fileMenu.insertItem(newNoteItem, at: 0)
+        
+        // 添加新建文件夹菜单项（⇧⌘N）
+        let newFolderItem = NSMenuItem()
+        newFolderItem.title = "新建文件夹"
+        newFolderItem.action = #selector(createNewFolder(_:))
+        newFolderItem.target = self
+        newFolderItem.keyEquivalent = "n"
+        newFolderItem.keyEquivalentModifierMask = [.command, .shift]
+        fileMenu.insertItem(newFolderItem, at: 1)
+        
         // 添加新建窗口菜单项
         let newWindowItem = NSMenuItem()
         newWindowItem.title = "新建窗口"
         newWindowItem.action = #selector(createNewWindow(_:))
         newWindowItem.target = self
         newWindowItem.keyEquivalent = "n"
-        newWindowItem.keyEquivalentModifierMask = [.command, .shift]
-        fileMenu.insertItem(newWindowItem, at: 0)
+        newWindowItem.keyEquivalentModifierMask = [.command, .option]
+        fileMenu.insertItem(newWindowItem, at: 2)
         
-        fileMenu.insertItem(NSMenuItem.separator(), at: 1)
+        fileMenu.insertItem(NSMenuItem.separator(), at: 3)
+        
+        // 添加共享菜单项（⇧⌘S）
+        let shareItem = NSMenuItem()
+        shareItem.title = "共享"
+        shareItem.action = #selector(shareNote(_:))
+        shareItem.target = self
+        shareItem.keyEquivalent = "s"
+        shareItem.keyEquivalentModifierMask = [.command, .shift]
+        fileMenu.insertItem(shareItem, at: 4)
+        
+        fileMenu.insertItem(NSMenuItem.separator(), at: 5)
+        
+        // 添加导入菜单项（⇧⌘I）
+        let importItem = NSMenuItem()
+        importItem.title = "导入"
+        importItem.action = #selector(importNotes(_:))
+        importItem.target = self
+        importItem.keyEquivalent = "i"
+        importItem.keyEquivalentModifierMask = [.command, .shift]
+        fileMenu.insertItem(importItem, at: 6)
+        
+        // 添加导出为...菜单项（⇧⌘E）
+        let exportItem = NSMenuItem()
+        exportItem.title = "导出为..."
+        exportItem.action = #selector(exportNote(_:))
+        exportItem.target = self
+        exportItem.keyEquivalent = "e"
+        exportItem.keyEquivalentModifierMask = [.command, .shift]
+        fileMenu.insertItem(exportItem, at: 7)
+        
+        fileMenu.insertItem(NSMenuItem.separator(), at: 8)
+        
+        // 添加置顶备忘录菜单项（⇧⌘P）
+        let toggleStarItem = NSMenuItem()
+        toggleStarItem.title = "置顶备忘录"
+        toggleStarItem.action = #selector(toggleStarNote(_:))
+        toggleStarItem.target = self
+        toggleStarItem.keyEquivalent = "p"
+        toggleStarItem.keyEquivalentModifierMask = [.command, .shift]
+        fileMenu.insertItem(toggleStarItem, at: 9)
+        
+        // 添加复制备忘录菜单项（⇧⌘C）
+        let copyNoteItem = NSMenuItem()
+        copyNoteItem.title = "复制备忘录"
+        copyNoteItem.action = #selector(copyNote(_:))
+        copyNoteItem.target = self
+        copyNoteItem.keyEquivalent = "c"
+        copyNoteItem.keyEquivalentModifierMask = [.command, .shift]
+        fileMenu.insertItem(copyNoteItem, at: 10)
     }
     
     /// 设置编辑菜单
@@ -739,6 +806,121 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("显示离线操作")
         // 这里可以打开离线操作窗口
         // 暂时使用控制台输出
+    }
+    
+    // MARK: - 文件菜单新增动作
+    
+    @objc func createNewNote(_ sender: Any?) {
+        print("创建新备忘录")
+        // 转发到主窗口控制器
+        mainWindowController?.createNewNote(sender)
+    }
+    
+    @objc func createNewFolder(_ sender: Any?) {
+        print("创建新文件夹")
+        // 转发到主窗口控制器
+        mainWindowController?.createNewFolder(sender)
+    }
+    
+    @objc func shareNote(_ sender: Any?) {
+        print("共享备忘录")
+        // 转发到主窗口控制器
+        mainWindowController?.shareNote(sender)
+    }
+    
+    @objc func importNotes(_ sender: Any?) {
+        print("导入笔记")
+        // 实现导入功能
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.text, .plainText, .rtf]
+        panel.message = "选择要导入的笔记文件"
+        
+        panel.begin { [weak self] response in
+            if response == .OK {
+                for url in panel.urls {
+                    Task {
+                        do {
+                            let content = try String(contentsOf: url, encoding: .utf8)
+                            let fileName = url.deletingPathExtension().lastPathComponent
+                            
+                            let newNote = Note(
+                                id: UUID().uuidString,
+                                title: fileName,
+                                content: content,
+                                folderId: self?.mainWindowController?.viewModel?.selectedFolder?.id ?? "0",
+                                isStarred: false,
+                                createdAt: Date(),
+                                updatedAt: Date()
+                            )
+                            
+                            try await self?.mainWindowController?.viewModel?.createNote(newNote)
+                        } catch {
+                            print("[AppDelegate] 导入笔记失败: \(error)")
+                            DispatchQueue.main.async {
+                                let errorAlert = NSAlert()
+                                errorAlert.messageText = "导入失败"
+                                errorAlert.informativeText = "无法导入文件: \(url.lastPathComponent)\n\(error.localizedDescription)"
+                                errorAlert.alertStyle = .warning
+                                errorAlert.runModal()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    @objc func exportNote(_ sender: Any?) {
+        print("导出笔记")
+        guard let note = mainWindowController?.viewModel?.selectedNote else {
+            let alert = NSAlert()
+            alert.messageText = "导出失败"
+            alert.informativeText = "请先选择一个要导出的备忘录"
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
+        
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.text]
+        panel.nameFieldStringValue = note.title.isEmpty ? "无标题" : note.title
+        panel.message = "导出笔记"
+        
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                do {
+                    try note.content.write(to: url, atomically: true, encoding: String.Encoding.utf8)
+                } catch {
+                    print("[AppDelegate] 导出笔记失败: \(error)")
+                    let errorAlert = NSAlert()
+                    errorAlert.messageText = "导出失败"
+                    errorAlert.informativeText = error.localizedDescription
+                    errorAlert.alertStyle = .warning
+                    errorAlert.runModal()
+                }
+            }
+        }
+    }
+    
+    @objc func toggleStarNote(_ sender: Any?) {
+        print("置顶/取消置顶备忘录")
+        guard let note = mainWindowController?.viewModel?.selectedNote else { return }
+        mainWindowController?.viewModel?.toggleStar(note)
+    }
+    
+    @objc func copyNote(_ sender: Any?) {
+        print("复制备忘录")
+        guard let note = mainWindowController?.viewModel?.selectedNote else { return }
+        
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        
+        // 复制标题和内容
+        let content = note.title.isEmpty ? note.content : "\(note.title)\n\n\(note.content)"
+        pasteboard.setString(content, forType: .string)
     }
 }
 
