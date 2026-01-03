@@ -75,4 +75,42 @@ class NoteDetailViewController: NSViewController {
             self.title = "无选中笔记"
         }
     }
+    
+    // MARK: - 窗口状态管理
+    
+    /// 获取可保存的窗口状态
+    /// - Returns: 笔记详情窗口状态对象
+    public func savableWindowState() -> NoteDetailWindowState {
+        // 获取编辑器内容（从WebEditorContext的content属性）
+        let editorContent = viewModel.webEditorContext.content
+        
+        // 滚动位置和光标位置暂时设为0，因为WebEditorContext没有这些属性
+        let scrollPosition = 0.0
+        let cursorPosition = 0
+        
+        let state = NoteDetailWindowState(
+            editorContent: editorContent,
+            scrollPosition: scrollPosition,
+            cursorPosition: cursorPosition
+        )
+        
+        print("[NoteDetailViewController] 笔记详情状态已保存: \(state)")
+        return state
+    }
+    
+    /// 恢复窗口状态
+    /// - Parameter state: 要恢复的笔记详情窗口状态
+    public func restoreWindowState(_ state: NoteDetailWindowState) {
+        print("[NoteDetailViewController] 恢复笔记详情状态: \(state)")
+        
+        // 恢复编辑器内容
+        if let editorContent = state.editorContent {
+            viewModel.webEditorContext.content = editorContent
+        }
+        
+        // 滚动位置和光标位置暂时无法恢复，因为WebEditorContext没有这些属性
+        // 如果需要这些功能，需要在WebEditorContext中添加相应支持
+        
+        print("[NoteDetailViewController] 笔记详情状态恢复完成")
+    }
 }

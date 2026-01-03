@@ -886,3 +886,51 @@ class NotesListRowView: NSTableRowView {
         set { super.isEmphasized = newValue }
     }
 }
+
+// MARK: - 窗口状态管理扩展
+
+extension NotesListViewController {
+    
+    // MARK: - 窗口状态管理
+    
+    /// 获取可保存的窗口状态
+    /// - Returns: 笔记列表窗口状态对象
+    public func savableWindowState() -> NotesListWindowState {
+        // 获取选中的笔记ID
+        let selectedNoteId = viewModel.selectedNote?.id
+        
+        // 获取滚动位置（如果有滚动视图）
+        let scrollPosition: Double
+        let clipView = scrollView.contentView
+        let visibleRect = clipView.documentVisibleRect
+        scrollPosition = Double(visibleRect.origin.y)
+        
+        let state = NotesListWindowState(
+            selectedNoteId: selectedNoteId,
+            scrollPosition: scrollPosition
+        )
+        
+        print("[NotesListViewController] 笔记列表状态已保存: \(state)")
+        return state
+    }
+    
+    /// 恢复窗口状态
+    /// - Parameter state: 要恢复的笔记列表窗口状态
+    public func restoreWindowState(_ state: NotesListWindowState) {
+        print("[NotesListViewController] 恢复笔记列表状态: \(state)")
+        
+        // 恢复选中的笔记
+        if let selectedNoteId = state.selectedNoteId,
+           let note = viewModel.notes.first(where: { $0.id == selectedNoteId }) {
+            viewModel.selectedNote = note
+        }
+        
+        // 恢复滚动位置
+        if state.scrollPosition > 0 {
+            let scrollPoint = NSPoint(x: 0, y: CGFloat(state.scrollPosition))
+            scrollView.contentView.scroll(to: scrollPoint)
+        }
+        
+        print("[NotesListViewController] 笔记列表状态恢复完成")
+    }
+}

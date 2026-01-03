@@ -14,6 +14,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// 应用程序启动完成时间戳
     private var launchTime: Date?
     
+    /// 窗口状态管理器
+    private let windowStateManager = MiNoteWindowStateManager()
+    
+    /// 活动窗口控制器列表
+    private var windowControllers: [MainWindowController] = []
+    
     // MARK: - NSApplicationDelegate
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -33,8 +39,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        // 当最后一个窗口关闭时终止应用程序
-        return true
+        // 当最后一个窗口关闭时不终止应用程序，符合 macOS 标准行为
+        // 用户可以通过菜单或 Dock 退出应用
+        return false
     }
     
     func applicationWillTerminate(_ notification: Notification) {
@@ -42,6 +49,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // 保存应用程序状态
         saveApplicationState()
+    }
+    
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        print("应用程序重新打开，是否有可见窗口: \(flag)")
+        
+        // 获取所有窗口（包括最小化的）
+        let allWindows = getAllWindows()
+        print("当前窗口总数: \(allWindows.count)")
+        
+        if allWindows.isEmpty {
+            // 如果没有任何窗口（包括最小化的），创建新的主窗口
+            print("没有窗口，创建新主窗口")
+            createMainWindow()
+        } else if !flag {
+            // 如果有窗口但不可见（可能被最小化），将它们前置显示
+            print("有窗口但不可见，前置显示所有窗口")
+            bringAllWindowsToFront()
+        } else {
+            // 如果有可见窗口，激活应用程序
+            print("已有可见窗口，激活应用程序")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        
+        return true
     }
     
     // MARK: - 窗口管理
@@ -55,6 +86,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // 创建主窗口控制器
         mainWindowController = MainWindowController(viewModel: viewModel)
+        
+        // 添加到窗口控制器列表
+        if let controller = mainWindowController {
+            windowControllers.append(controller)
+        }
+        
+        // 恢复窗口状态
+        restoreApplicationState()
+        
+        // 恢复窗口 frame
+        if let window = mainWindowController?.window {
+            restoreWindowFrame(window)
+        }
         
         // 显示窗口
         mainWindowController?.showWindow(nil)
@@ -73,11 +117,56 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 创建新的窗口控制器
         let newWindowController = MainWindowController(viewModel: viewModel)
         
+        // 添加到窗口控制器列表
+        windowControllers.append(newWindowController)
+        
+        // 为新窗口分配一个唯一的 ID
+        let windowId = "window_\(windowControllers.count - 1)"
+        
+        // 恢复新窗口的 frame（如果有保存的状态）
+        if let window = newWindowController.window {
+            restoreWindowFrame(window, windowId: windowId)
+        }
+        
         // 显示新窗口
         newWindowController.showWindow(nil)
         newWindowController.window?.makeKeyAndOrderFront(nil)
         
-        print("新窗口创建完成")
+        print("新窗口创建完成，窗口ID: \(windowId)")
+    }
+    
+    /// 移除窗口控制器
+    /// - Parameter windowController: 要移除的窗口控制器
+    func removeWindowController(_ windowController: MainWindowController) {
+        if let index = windowControllers.firstIndex(where: { $0 === windowController }) {
+            windowControllers.remove(at: index)
+            print("窗口控制器已移除，剩余窗口数: \(windowControllers.count)")
+        }
+    }
+    
+    /// 获取所有活动窗口
+    /// - Returns: 活动窗口数组
+    func getAllWindows() -> [NSWindow] {
+        var windows: [NSWindow] = []
+        
+        if let mainWindow = mainWindowController?.window {
+            windows.append(mainWindow)
+        }
+        
+        for controller in windowControllers {
+            if let window = controller.window {
+                windows.append(window)
+            }
+        }
+        
+        return windows
+    }
+    
+    /// 将所有窗口前置显示
+    func bringAllWindowsToFront() {
+        for window in getAllWindows() {
+            window.makeKeyAndOrderFront(nil)
+        }
     }
     
     // MARK: - 应用程序菜单设置
@@ -552,15 +641,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     /// 保存应用程序状态
     private func saveApplicationState() {
-        // 这里可以保存应用程序的偏好设置等
         print("保存应用程序状态...")
         
-        // 示例：保存窗口位置和大小
-        if let window = mainWindowController?.window {
-            UserDefaults.standard.set(window.frame.origin.x, forKey: "LastWindowX")
-            UserDefaults.standard.set(window.frame.origin.y, forKey: "LastWindowY")
-            UserDefaults.standard.set(window.frame.width, forKey: "LastWindowWidth")
-            UserDefaults.standard.set(window.frame.height, forKey: "LastWindowHeight")
+        // 迁移旧版窗口状态
+        windowStateManager.migrateLegacyWindowState()
+        
+        // 保存所有活动窗口的状态
+        for (index, windowController) in windowControllers.enumerated() {
+            if let windowState = windowController.savableWindowState() {
+                windowStateManager.saveWindowState(windowState, forWindowId: "window_\(index)")
+            }
+            
+            // 同时保存窗口 frame
+            if let window = windowController.window {
+                windowStateManager.saveWindowFrame(window.frame, forWindowId: "window_\(index)")
+            }
+        }
+        
+        // 保存主窗口状态
+        if let mainWindowController = mainWindowController {
+            if let windowState = mainWindowController.savableWindowState() {
+                windowStateManager.saveWindowState(windowState, forWindowId: "main")
+            }
+            
+            if let window = mainWindowController.window {
+                windowStateManager.saveWindowFrame(window.frame, forWindowId: "main")
+            }
         }
         
         print("应用程序状态保存完成")
@@ -568,23 +674,75 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     /// 恢复应用程序状态
     private func restoreApplicationState() {
-        // 这里可以恢复应用程序的偏好设置等
         print("恢复应用程序状态...")
         
-        // 示例：恢复窗口位置和大小
-        if let window = mainWindowController?.window {
-            let x = UserDefaults.standard.float(forKey: "LastWindowX")
-            let y = UserDefaults.standard.float(forKey: "LastWindowY")
-            let width = UserDefaults.standard.float(forKey: "LastWindowWidth")
-            let height = UserDefaults.standard.float(forKey: "LastWindowHeight")
-            
-            if x != 0 || y != 0 || width != 0 || height != 0 {
-                let frame = NSRect(x: CGFloat(x), y: CGFloat(y), width: CGFloat(width), height: CGFloat(height))
-                window.setFrame(frame, display: true)
-            }
+        // 迁移旧版窗口状态
+        windowStateManager.migrateLegacyWindowState()
+        
+        // 恢复主窗口状态
+        if let mainWindowController = mainWindowController,
+           let savedState = windowStateManager.getWindowState(forWindowId: "main") as? MainWindowState {
+            mainWindowController.restoreWindowState(savedState)
         }
         
         print("应用程序状态恢复完成")
+    }
+    
+    /// 恢复窗口 frame
+    /// - Parameters:
+    ///   - window: 要恢复的窗口
+    ///   - windowId: 窗口标识符
+    private func restoreWindowFrame(_ window: NSWindow, windowId: String = "main") {
+        if let savedFrame = windowStateManager.getWindowFrame(forWindowId: windowId) {
+            // 确保窗口在屏幕内
+            var newFrame = NSRect(origin: savedFrame.origin, size: savedFrame.size)
+            
+            // 简单的屏幕边界检查
+            if let screen = NSScreen.main {
+                let screenFrame = screen.visibleFrame
+                
+                // 确保窗口不会超出屏幕
+                if newFrame.maxX > screenFrame.maxX {
+                    newFrame.origin.x = screenFrame.maxX - newFrame.width
+                }
+                if newFrame.minX < screenFrame.minX {
+                    newFrame.origin.x = screenFrame.minX
+                }
+                if newFrame.maxY > screenFrame.maxY {
+                    newFrame.origin.y = screenFrame.maxY - newFrame.height
+                }
+                if newFrame.minY < screenFrame.minY {
+                    newFrame.origin.y = screenFrame.minY
+                }
+                
+                // 确保窗口大小合适
+                if newFrame.width > screenFrame.width {
+                    newFrame.size.width = screenFrame.width
+                }
+                if newFrame.height > screenFrame.height {
+                    newFrame.size.height = screenFrame.height
+                }
+                if newFrame.width < 800 {
+                    newFrame.size.width = 800
+                }
+                if newFrame.height < 600 {
+                    newFrame.size.height = 600
+                }
+            }
+            
+            window.setFrame(newFrame, display: true)
+        } else {
+            // 如果没有保存的状态，使用默认设置
+            if let screen = NSScreen.main {
+                let screenFrame = screen.visibleFrame
+                let defaultSize = NSSize(width: 1200, height: 800)
+                let defaultOrigin = NSPoint(
+                    x: screenFrame.midX - defaultSize.width / 2,
+                    y: screenFrame.midY - defaultSize.height / 2
+                )
+                window.setFrame(NSRect(origin: defaultOrigin, size: defaultSize), display: true)
+            }
+        }
     }
     
     // MARK: - 菜单动作
@@ -921,6 +1079,77 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 复制标题和内容
         let content = note.title.isEmpty ? note.content : "\(note.title)\n\n\(note.content)"
         pasteboard.setString(content, forType: .string)
+    }
+}
+
+// MARK: - 简单的窗口状态管理器
+
+/// 简单的窗口状态管理器，用于在 AppDelegate 中管理窗口状态
+class MiNoteWindowStateManager {
+    
+    private let userDefaults = UserDefaults.standard
+    
+    /// 保存窗口 frame
+    func saveWindowFrame(_ frame: CGRect, forWindowId windowId: String = "main") {
+        let frameDict: [String: CGFloat] = [
+            "x": frame.origin.x,
+            "y": frame.origin.y,
+            "width": frame.size.width,
+            "height": frame.size.height
+        ]
+        
+        var savedFrames = userDefaults.dictionary(forKey: "MiNoteWindowFrames") ?? [:]
+        savedFrames[windowId] = frameDict
+        
+        userDefaults.set(savedFrames, forKey: "MiNoteWindowFrames")
+        print("窗口 frame 保存成功: \(windowId)")
+    }
+    
+    /// 获取保存的窗口 frame
+    func getWindowFrame(forWindowId windowId: String = "main") -> CGRect? {
+        guard let savedFrames = userDefaults.dictionary(forKey: "MiNoteWindowFrames"),
+              let frameDict = savedFrames[windowId] as? [String: CGFloat],
+              let x = frameDict["x"],
+              let y = frameDict["y"],
+              let width = frameDict["width"],
+              let height = frameDict["height"] else {
+            return nil
+        }
+        
+        return CGRect(x: x, y: y, width: width, height: height)
+    }
+    
+    /// 迁移旧版窗口状态
+    func migrateLegacyWindowState() {
+        // 检查是否有旧版窗口状态
+        let legacyX = userDefaults.float(forKey: "LastWindowX")
+        let legacyY = userDefaults.float(forKey: "LastWindowY")
+        let legacyWidth = userDefaults.float(forKey: "LastWindowWidth")
+        let legacyHeight = userDefaults.float(forKey: "LastWindowHeight")
+        
+        if legacyX != 0 || legacyY != 0 || legacyWidth != 0 || legacyHeight != 0 {
+            // 创建新的窗口状态
+            let frame = CGRect(x: CGFloat(legacyX), y: CGFloat(legacyY), 
+                             width: CGFloat(legacyWidth), height: CGFloat(legacyHeight))
+            saveWindowFrame(frame)
+            
+            // 清除旧版数据
+            userDefaults.removeObject(forKey: "LastWindowX")
+            userDefaults.removeObject(forKey: "LastWindowY")
+            userDefaults.removeObject(forKey: "LastWindowWidth")
+            userDefaults.removeObject(forKey: "LastWindowHeight")
+            
+            print("旧版窗口状态迁移完成")
+        }
+    }
+    
+    // 为了兼容性，提供空的方法
+    func saveWindowState(_ windowState: Any, forWindowId windowId: String = "main") {
+        print("保存窗口状态（简化版）: \(windowId)")
+    }
+    
+    func getWindowState(forWindowId windowId: String = "main") -> Any? {
+        return nil
     }
 }
 

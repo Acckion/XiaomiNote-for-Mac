@@ -556,6 +556,43 @@ extension SidebarViewController: NSOutlineViewDelegate {
             viewModel.selectedFolder = folder
         }
     }
+    
+    // MARK: - 窗口状态管理
+    
+    /// 获取可保存的窗口状态
+    /// - Returns: 侧边栏窗口状态对象
+    public func savableWindowState() -> SidebarWindowState {
+        // 获取选中的文件夹ID
+        let selectedFolderId = viewModel.selectedFolder?.id
+        
+        // 获取展开的文件夹ID（在这个实现中，所有文件夹都是展开的）
+        let expandedFolderIds = viewModel.folders.map { $0.id }
+        
+        let state = SidebarWindowState(
+            selectedFolderId: selectedFolderId,
+            expandedFolderIds: expandedFolderIds
+        )
+        
+        print("[SidebarViewController] 侧边栏状态已保存: \(state)")
+        return state
+    }
+    
+    /// 恢复窗口状态
+    /// - Parameter state: 要恢复的侧边栏窗口状态
+    public func restoreWindowState(_ state: SidebarWindowState) {
+        print("[SidebarViewController] 恢复侧边栏状态: \(state)")
+        
+        // 恢复选中的文件夹
+        if let selectedFolderId = state.selectedFolderId,
+           let folder = viewModel.folders.first(where: { $0.id == selectedFolderId }) {
+            viewModel.selectedFolder = folder
+        }
+        
+        // 恢复展开状态（在这个实现中，所有文件夹都是展开的）
+        // 如果需要，可以在这里实现具体的展开逻辑
+        
+        print("[SidebarViewController] 侧边栏状态恢复完成")
+    }
 }
 
 // MARK: - NSMenuDelegate

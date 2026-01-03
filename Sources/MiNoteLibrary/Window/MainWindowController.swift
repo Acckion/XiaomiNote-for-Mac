@@ -69,7 +69,7 @@ public class MainWindowController: NSWindowController {
         setupToolbar()
         
         // 设置窗口最小尺寸
-        window.minSize = NSSize(width: 800, height: 600)
+        window.minSize = NSSize(width: 600, height: 400)
         
         // 设置状态监听
         setupStateObservers()
@@ -1333,6 +1333,119 @@ extension MainWindowController {
         // 复制标题和内容
         let content = note.title.isEmpty ? note.content : "\(note.title)\n\n\(note.content)"
         pasteboard.setString(content, forType: .string)
+    }
+    
+    // MARK: - 窗口状态管理
+    
+    /// 获取可保存的窗口状态
+    /// - Returns: 窗口状态对象，如果无法获取则返回nil
+    public func savableWindowState() -> MainWindowState? {
+        guard let window = window,
+              let splitViewController = window.contentViewController as? NSSplitViewController else {
+            print("[MainWindowController] 无法获取窗口状态：窗口或分割视图控制器不存在")
+            return nil
+        }
+        
+        // 获取分割视图宽度
+        let splitViewWidths = splitViewController.splitViewItems.map { item in
+            return Int(item.viewController.view.frame.width)
+        }
+        
+        // 检查侧边栏是否隐藏
+        let isSidebarHidden = splitViewController.splitViewItems.first?.isCollapsed ?? false
+        
+        // 获取各个视图控制器的状态
+        var sidebarWindowState: SidebarWindowState?
+        var notesListWindowState: NotesListWindowState?
+        var noteDetailWindowState: NoteDetailWindowState?
+        
+        // 获取侧边栏状态
+        if let sidebarViewController = splitViewController.splitViewItems.first?.viewController as? SidebarViewController {
+            sidebarWindowState = sidebarViewController.savableWindowState()
+        }
+        
+        // 获取笔记列表状态
+        if splitViewController.splitViewItems.count > 1,
+           let notesListViewController = splitViewController.splitViewItems[1].viewController as? NotesListViewController {
+            notesListWindowState = notesListViewController.savableWindowState()
+        }
+        
+        // 获取笔记详情状态
+        if splitViewController.splitViewItems.count > 2,
+           let noteDetailViewController = splitViewController.splitViewItems[2].viewController as? NoteDetailViewController {
+            noteDetailWindowState = noteDetailViewController.savableWindowState()
+        }
+        
+        // 获取窗口状态
+        let windowState = MainWindowState(
+            isFullScreen: window.styleMask.contains(.fullScreen),
+            splitViewWidths: splitViewWidths,
+            isSidebarHidden: isSidebarHidden,
+            sidebarWindowState: sidebarWindowState,
+            notesListWindowState: notesListWindowState,
+            noteDetailWindowState: noteDetailWindowState
+        )
+        
+        print("[MainWindowController] 窗口状态已保存: \(windowState)")
+        return windowState
+    }
+    
+    /// 恢复窗口状态
+    /// - Parameter state: 要恢复的窗口状态
+    public func restoreWindowState(_ state: MainWindowState) {
+        guard let window = window,
+              let splitViewController = window.contentViewController as? NSSplitViewController else {
+            print("[MainWindowController] 无法恢复窗口状态：窗口或分割视图控制器不存在")
+            return
+        }
+        
+        print("[MainWindowController] 恢复窗口状态: \(state)")
+        
+        // 恢复分割视图宽度
+        if state.splitViewWidths.count == splitViewController.splitViewItems.count {
+            for (index, width) in state.splitViewWidths.enumerated() {
+                if index < splitViewController.splitViewItems.count {
+                    let item = splitViewController.splitViewItems[index]
+                    let cgWidth = CGFloat(width)
+                    item.minimumThickness = cgWidth
+                    item.maximumThickness = cgWidth
+                    
+                    // 设置首选宽度
+                    let totalWidth = splitViewController.splitView.frame.width
+                    if totalWidth > 0 {
+                        item.preferredThicknessFraction = cgWidth / totalWidth
+                    }
+                }
+            }
+        }
+        
+        // 恢复侧边栏状态
+        if let sidebarItem = splitViewController.splitViewItems.first {
+            sidebarItem.isCollapsed = state.isSidebarHidden
+        }
+        
+        // 恢复各个视图控制器的状态
+        // 恢复侧边栏状态
+        if let sidebarWindowState = state.sidebarWindowState,
+           let sidebarViewController = splitViewController.splitViewItems.first?.viewController as? SidebarViewController {
+            sidebarViewController.restoreWindowState(sidebarWindowState)
+        }
+        
+        // 恢复笔记列表状态
+        if let notesListWindowState = state.notesListWindowState,
+           splitViewController.splitViewItems.count > 1,
+           let notesListViewController = splitViewController.splitViewItems[1].viewController as? NotesListViewController {
+            notesListViewController.restoreWindowState(notesListWindowState)
+        }
+        
+        // 恢复笔记详情状态
+        if let noteDetailWindowState = state.noteDetailWindowState,
+           splitViewController.splitViewItems.count > 2,
+           let noteDetailViewController = splitViewController.splitViewItems[2].viewController as? NoteDetailViewController {
+            noteDetailViewController.restoreWindowState(noteDetailWindowState)
+        }
+        
+        print("[MainWindowController] 窗口状态恢复完成")
     }
     
     // MARK: - 状态监听
