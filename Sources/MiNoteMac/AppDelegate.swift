@@ -200,14 +200,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupAppMenu(in mainMenu: NSMenu) {
         // 创建应用程序菜单项
         let appMenuItem = NSMenuItem()
-        appMenuItem.title = "备忘录"
-        let appMenu = NSMenu(title: "备忘录")
+        appMenuItem.title = "笔记"
+        let appMenu = NSMenu(title: "笔记")
         appMenuItem.submenu = appMenu
         mainMenu.addItem(appMenuItem)
         
         // 添加关于菜单项
         let aboutItem = NSMenuItem()
-        aboutItem.title = "关于备忘录"
+        aboutItem.title = "关于笔记"
         aboutItem.action = #selector(showAboutPanel(_:))
         aboutItem.target = self
         appMenu.addItem(aboutItem)
@@ -227,7 +227,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // 添加退出菜单项（系统会自动添加，但我们也可以手动添加）
         let quitItem = NSMenuItem()
-        quitItem.title = "退出备忘录"
+        quitItem.title = "退出笔记"
         quitItem.action = #selector(NSApplication.terminate(_:))
         quitItem.keyEquivalent = "q"
         quitItem.keyEquivalentModifierMask = [.command]
@@ -251,9 +251,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 清空现有菜单项（保留系统默认项）
         // 这里我们只添加自定义项，系统会自动添加其他项
         
-        // 添加新建备忘录菜单项（⌘N）
+        // 添加新建笔记菜单项（⌘N）
         let newNoteItem = NSMenuItem()
-        newNoteItem.title = "新建备忘录"
+        newNoteItem.title = "新建笔记"
         newNoteItem.action = #selector(createNewNote(_:))
         newNoteItem.target = self
         newNoteItem.keyEquivalent = "n"
@@ -311,18 +311,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         fileMenu.insertItem(NSMenuItem.separator(), at: 8)
         
-        // 添加置顶备忘录菜单项（⇧⌘P）
+        // 添加置顶笔记菜单项（⇧⌘P）
         let toggleStarItem = NSMenuItem()
-        toggleStarItem.title = "置顶备忘录"
+        toggleStarItem.title = "置顶笔记"
         toggleStarItem.action = #selector(toggleStarNote(_:))
         toggleStarItem.target = self
         toggleStarItem.keyEquivalent = "p"
         toggleStarItem.keyEquivalentModifierMask = [.command, .shift]
         fileMenu.insertItem(toggleStarItem, at: 9)
         
-        // 添加复制备忘录菜单项（⇧⌘C）
+        // 添加复制笔记菜单项（⇧⌘C）
         let copyNoteItem = NSMenuItem()
-        copyNoteItem.title = "复制备忘录"
+        copyNoteItem.title = "复制笔记"
         copyNoteItem.action = #selector(copyNote(_:))
         copyNoteItem.target = self
         copyNoteItem.keyEquivalent = "c"
@@ -631,7 +631,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // 添加帮助菜单项
         let helpItem = NSMenuItem()
-        helpItem.title = "备忘录帮助"
+        helpItem.title = "笔记帮助"
         helpItem.action = #selector(showHelp(_:))
         helpItem.target = self
         helpMenu.addItem(helpItem)
@@ -749,7 +749,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc func showAboutPanel(_ sender: Any?) {
         let alert = NSAlert()
-        alert.messageText = "备忘录"
+        alert.messageText = "笔记"
         alert.informativeText = "版本 1.0.0\n\n一个简洁的笔记应用程序，支持小米笔记同步。"
         alert.alertStyle = .informational
         alert.addButton(withTitle: "确定")
@@ -969,7 +969,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - 文件菜单新增动作
     
     @objc func createNewNote(_ sender: Any?) {
-        print("创建新备忘录")
+        print("创建新笔记")
         // 转发到主窗口控制器
         mainWindowController?.createNewNote(sender)
     }
@@ -981,7 +981,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func shareNote(_ sender: Any?) {
-        print("共享备忘录")
+        print("共享笔记")
         // 转发到主窗口控制器
         mainWindowController?.shareNote(sender)
     }
@@ -1036,7 +1036,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let note = mainWindowController?.viewModel?.selectedNote else {
             let alert = NSAlert()
             alert.messageText = "导出失败"
-            alert.informativeText = "请先选择一个要导出的备忘录"
+            alert.informativeText = "请先选择一个要导出的笔记"
             alert.alertStyle = .warning
             alert.runModal()
             return
@@ -1064,13 +1064,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func toggleStarNote(_ sender: Any?) {
-        print("置顶/取消置顶备忘录")
+        print("置顶/取消置顶笔记")
         guard let note = mainWindowController?.viewModel?.selectedNote else { return }
         mainWindowController?.viewModel?.toggleStar(note)
     }
     
     @objc func copyNote(_ sender: Any?) {
-        print("复制备忘录")
+        print("复制笔记")
         guard let note = mainWindowController?.viewModel?.selectedNote else { return }
         
         let pasteboard = NSPasteboard.general

@@ -14,9 +14,9 @@ struct NotesListView: View {
             if let folder = viewModel.selectedFolder, folder.id == "2", !viewModel.isPrivateNotesUnlocked {
                 // 私密笔记未解锁，显示锁定状态
                 ContentUnavailableView(
-                    "此备忘录已锁定",
+                    "此笔记已锁定",
                     systemImage: "lock.fill",
-                    description: Text("使用触控 ID 或输入密码查看此备忘录")
+                    description: Text("使用触控 ID 或输入密码查看此笔记")
                 )
             } else if viewModel.filteredNotes.isEmpty {
                 emptyNotesView
@@ -192,7 +192,7 @@ struct NotesListView: View {
             Button {
                 viewModel.toggleStar(note)
             } label: {
-                Label(note.isStarred ? "取消置顶" : "置顶备忘录", 
+                Label(note.isStarred ? "取消置顶" : "置顶笔记", 
                       systemImage: note.isStarred ? "pin.slash" : "pin")
             }
             .tint(.yellow)
@@ -226,62 +226,62 @@ struct NotesListView: View {
     
     @ViewBuilder
     private func noteContextMenu(for note: Note) -> some View {
-        // 在新窗口打开备忘录
+        // 在新窗口打开笔记
         Button {
             openNoteInNewWindow(note)
         } label: {
-            Label("在新窗口打开备忘录", systemImage: "square.on.square")
+            Label("在新窗口打开笔记", systemImage: "square.on.square")
         }
         
         Divider()
         
-        // 置顶备忘录
+        // 置顶笔记
         Button {
             viewModel.toggleStar(note)
         } label: {
-            Label(note.isStarred ? "取消置顶备忘录" : "置顶备忘录", 
+            Label(note.isStarred ? "取消置顶笔记" : "置顶笔记", 
                   systemImage: note.isStarred ? "pin.slash" : "pin")
         }
         
-        // 移动备忘录
+        // 移动笔记
         Button {
             noteToMove = note
             showingMoveNoteSheet = true
         } label: {
-            Label("移动备忘录", systemImage: "folder")
+            Label("移动笔记", systemImage: "folder")
         }
         
         Divider()
         
-        // 删除备忘录
+        // 删除笔记
         Button(role: .destructive) {
             noteToDelete = note
             showingDeleteAlert = true
         } label: {
-            Label("删除备忘录", systemImage: "trash")
+            Label("删除笔记", systemImage: "trash")
         }
         
-        // 复制备忘录
+        // 复制笔记
         Button {
             copyNote(note)
         } label: {
-            Label("复制备忘录", systemImage: "doc.on.doc")
+            Label("复制笔记", systemImage: "doc.on.doc")
         }
         
-        // 新建备忘录
+        // 新建笔记
         Button {
             viewModel.createNewNote()
         } label: {
-            Label("新建备忘录", systemImage: "square.and.pencil")
+            Label("新建笔记", systemImage: "square.and.pencil")
         }
         
         Divider()
         
-        // 共享备忘录
+        // 共享笔记
         Button {
             shareNote(note)
         } label: {
-            Label("共享备忘录", systemImage: "square.and.arrow.up")
+            Label("共享笔记", systemImage: "square.and.arrow.up")
         }
     }
     

@@ -5,7 +5,7 @@ options:
     macOS: "26.0"
   developmentLanguage: zh-Hans
   xcodeVersion: "15.0"
-  
+
 targets:
   MiNoteLibrary:
     type: framework
@@ -32,7 +32,7 @@ targets:
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
         Release:
           SWIFT_OPTIMIZATION_LEVEL: -O
-  
+
   MiNoteMac:
     type: application
     platform: macOS
@@ -61,7 +61,7 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleName: "备忘录"
+        CFBundleName: "笔记"
         CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
         CFBundleVersion: "1"
         CFBundleShortVersionString: "1.0.0"

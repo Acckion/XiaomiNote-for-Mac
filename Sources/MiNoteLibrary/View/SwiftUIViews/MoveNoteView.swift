@@ -9,7 +9,7 @@ struct MoveNoteSheetView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("移动备忘录")
+            Text("移动笔记")
                 .font(.headline)
                 .padding(.top)
             

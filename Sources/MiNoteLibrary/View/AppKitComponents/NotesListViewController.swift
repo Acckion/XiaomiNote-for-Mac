@@ -211,9 +211,9 @@ class NotesListViewController: NSViewController {
     private func createContextMenu() -> NSMenu {
         let menu = NSMenu()
         
-        // 在新窗口打开备忘录
+        // 在新窗口打开笔记
         let openInNewWindowItem = NSMenuItem(
-            title: "在新窗口打开备忘录",
+            title: "在新窗口打开笔记",
             action: #selector(openNoteInNewWindow(_:)),
             keyEquivalent: ""
         )
@@ -222,18 +222,18 @@ class NotesListViewController: NSViewController {
         
         menu.addItem(NSMenuItem.separator())
         
-        // 置顶备忘录
+        // 置顶笔记
         let toggleStarItem = NSMenuItem(
-            title: "置顶备忘录",
+            title: "置顶笔记",
             action: #selector(toggleStarNote(_:)),
             keyEquivalent: ""
         )
         toggleStarItem.target = self
         menu.addItem(toggleStarItem)
         
-        // 移动备忘录
+        // 移动笔记
         let moveNoteItem = NSMenuItem(
-            title: "移动备忘录",
+            title: "移动笔记",
             action: #selector(moveNote(_:)),
             keyEquivalent: ""
         )
@@ -242,27 +242,27 @@ class NotesListViewController: NSViewController {
         
         menu.addItem(NSMenuItem.separator())
         
-        // 删除备忘录
+        // 删除笔记
         let deleteNoteItem = NSMenuItem(
-            title: "删除备忘录",
+            title: "删除笔记",
             action: #selector(deleteNote(_:)),
             keyEquivalent: ""
         )
         deleteNoteItem.target = self
         menu.addItem(deleteNoteItem)
         
-        // 复制备忘录
+        // 复制笔记
         let copyNoteItem = NSMenuItem(
-            title: "复制备忘录",
+            title: "复制笔记",
             action: #selector(copyNote(_:)),
             keyEquivalent: ""
         )
         copyNoteItem.target = self
         menu.addItem(copyNoteItem)
         
-        // 新建备忘录
+        // 新建笔记
         let newNoteItem = NSMenuItem(
-            title: "新建备忘录",
+            title: "新建笔记",
             action: #selector(createNewNote(_:)),
             keyEquivalent: ""
         )
@@ -271,9 +271,9 @@ class NotesListViewController: NSViewController {
         
         menu.addItem(NSMenuItem.separator())
         
-        // 共享备忘录
+        // 共享笔记
         let shareNoteItem = NSMenuItem(
-            title: "共享备忘录",
+            title: "共享笔记",
             action: #selector(shareNote(_:)),
             keyEquivalent: ""
         )
@@ -339,8 +339,8 @@ class NotesListViewController: NSViewController {
     }
     
     @objc private func moveNote(_ sender: Any?) {
-        // TODO: 实现移动备忘录功能
-        print("移动备忘录")
+        // TODO: 实现移动笔记功能
+        print("移动笔记")
     }
     
     @objc private func deleteNote(_ sender: Any?) {
@@ -355,8 +355,8 @@ class NotesListViewController: NSViewController {
                     let note = notes[clickedRow - rowIndex]
                     
                     let alert = NSAlert()
-                    alert.messageText = "删除备忘录"
-                    alert.informativeText = "确定要删除备忘录 \"\(note.title)\" 吗？此操作无法撤销。"
+                    alert.messageText = "删除笔记"
+                    alert.informativeText = "确定要删除笔记 \"\(note.title)\" 吗？此操作无法撤销。"
                     alert.alertStyle = .warning
                     alert.addButton(withTitle: "删除")
                     alert.addButton(withTitle: "取消")

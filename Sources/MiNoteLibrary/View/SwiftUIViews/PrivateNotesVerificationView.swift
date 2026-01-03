@@ -34,13 +34,13 @@ struct PrivateNotesVerificationView: View {
             .padding(.bottom, 30)
             
             // 提示文字
-            Text("此备忘录已锁定。")
+            Text("此笔记已锁定。")
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.primary)
                 .padding(.bottom, 8)
             
             // 说明文字
-            Text("使用触控 ID 或输入为\"iCloud\"账户中备忘录创建的密码查看此备忘录。")
+            Text("使用触控 ID 或输入为\"iCloud\"账户中笔记创建的密码查看此笔记。")
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

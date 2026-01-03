@@ -276,7 +276,7 @@ public struct ContentView: View {
             }
         }
         .navigationTitle(viewModel.searchText.isEmpty && !viewModel.hasSearchFilters ? (viewModel.selectedFolder?.name ?? "所有笔记") : "搜索")
-        .navigationSubtitle(viewModel.searchText.isEmpty && !viewModel.hasSearchFilters ? "\(viewModel.filteredNotes.count) 个备忘录" : "找到 \(viewModel.filteredNotes.count) 个结果")
+        .navigationSubtitle(viewModel.searchText.isEmpty && !viewModel.hasSearchFilters ? "\(viewModel.filteredNotes.count) 个笔记" : "找到 \(viewModel.filteredNotes.count) 个结果")
         .navigationSplitViewColumnWidth(
             min: calculatedNotesListMinWidth,
             ideal: notesListMaxWidth,

@@ -64,7 +64,7 @@ public class MainWindowController: NSWindowController {
         super.init(window: window)
         
         // 设置窗口
-        window.title = "备忘录"
+        window.title = "笔记"
         window.titleVisibility = .visible
         window.setFrameAutosaveName("MainWindow")
         
@@ -348,9 +348,9 @@ extension MainWindowController: NSToolbarDelegate {
             findInNoteItem.isEnabled = false
             noteOperationsMenu.addItem(findInNoteItem)
             
-            // 最近备笔记（等待实现）
+            // 最近笔记（等待实现）
             let recentNotesItem = NSMenuItem()
-            recentNotesItem.title = "最近备笔记（等待实现）"
+            recentNotesItem.title = "最近笔记（等待实现）"
             recentNotesItem.isEnabled = false
             noteOperationsMenu.addItem(recentNotesItem)
             
@@ -993,8 +993,8 @@ extension MainWindowController {
         guard let note = viewModel?.selectedNote else { return }
         
         let alert = NSAlert()
-        alert.messageText = "删除备忘录"
-        alert.informativeText = "确定要删除备忘录 \"\(note.title)\" 吗？此操作无法撤销。"
+        alert.messageText = "删除笔记"
+        alert.informativeText = "确定要删除笔记 \"\(note.title)\" 吗？此操作无法撤销。"
         alert.alertStyle = .warning
         alert.addButton(withTitle: "删除")
         alert.addButton(withTitle: "取消")
@@ -1502,7 +1502,7 @@ extension MainWindowController {
     // MARK: - 新增的菜单动作方法
     
     @objc public func copyNote(_ sender: Any?) {
-        print("复制备忘录（从菜单调用）")
+        print("复制笔记（从菜单调用）")
         guard let note = viewModel?.selectedNote else { return }
         
         let pasteboard = NSPasteboard.general
@@ -1682,7 +1682,7 @@ extension MainWindowController {
         guard let window = window else { return }
         
         // 设置主标题为选中的文件夹名称
-        let folderName = folder?.name ?? "备忘录"
+        let folderName = folder?.name ?? "笔记"
         window.title = folderName
         
         // 计算当前文件夹中的笔记数量
