@@ -64,16 +64,19 @@ public class LoginWindowController: NSWindowController {
     
     /// 设置窗口内容
     private func setupWindowContent() {
-        guard let window = window, let viewModel = viewModel else { return }
+        guard let window = window else { return }
         
         // 创建SwiftUI登录视图
-        let loginView = LoginView(viewModel: viewModel)
+        let loginView = LoginView(viewModel: viewModel ?? NotesViewModel())
         
         // 使用NSHostingController包装SwiftUI视图
         let hostingController = NSHostingController(rootView: loginView)
         
         // 设置窗口内容
         window.contentViewController = hostingController
+        
+        // 确保窗口正确显示
+        window.center()
     }
 }
 

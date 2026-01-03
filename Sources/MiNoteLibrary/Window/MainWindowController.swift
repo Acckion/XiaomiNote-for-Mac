@@ -9,6 +9,7 @@
 #if os(macOS)
 import AppKit
 import SwiftUI
+import Combine
 
 /// 主窗口控制器
 /// 负责管理主窗口和工具栏
@@ -21,6 +22,14 @@ public class MainWindowController: NSWindowController {
     
     /// 当前搜索字段（用于工具栏搜索项）
     private var currentSearchField: NSSearchField?
+    
+    /// 窗口控制器引用（防止被释放）
+    private var loginWindowController: LoginWindowController?
+    private var cookieRefreshWindowController: CookieRefreshWindowController?
+    private var settingsWindowController: SettingsWindowController?
+    
+    /// Combine订阅集合
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - 初始化
     
@@ -52,6 +61,9 @@ public class MainWindowController: NSWindowController {
         
         // 设置窗口最小尺寸
         window.minSize = NSSize(width: 800, height: 600)
+        
+        // 设置状态监听
+        setupStateObservers()
     }
     
     required init?(coder: NSCoder) {
@@ -397,6 +409,27 @@ extension MainWindowController: NSToolbarDelegate {
     }
 }
 
+// MARK: - NSWindowDelegate
+
+extension MainWindowController: NSWindowDelegate {
+    
+    public func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        
+        // 清理窗口控制器引用
+        if window == loginWindowController?.window {
+            print("登录窗口即将关闭，清理引用")
+            loginWindowController = nil
+        } else if window == cookieRefreshWindowController?.window {
+            print("Cookie刷新窗口即将关闭，清理引用")
+            cookieRefreshWindowController = nil
+        } else if window == settingsWindowController?.window {
+            print("设置窗口即将关闭，清理引用")
+            settingsWindowController = nil
+        }
+    }
+}
+
 // MARK: - NSSearchFieldDelegate
 
 extension MainWindowController: NSSearchFieldDelegate {
@@ -477,15 +510,23 @@ extension MainWindowController: NSUserInterfaceValidations {
         }
         
         if item.action == #selector(showLogin(_:)) {
-            return !(viewModel?.isLoggedIn ?? false) // 只有未登录时才显示登录按钮
+            let isLoggedIn = viewModel?.isLoggedIn ?? false
+            let shouldShow = !isLoggedIn
+            print("[ToolbarValidation] 登录按钮验证: isLoggedIn=\(isLoggedIn), shouldShow=\(shouldShow)")
+            return shouldShow // 只有未登录时才显示登录按钮
         }
         
         if item.action == #selector(showCookieRefresh(_:)) {
-            return viewModel?.isCookieExpired ?? false // 只有Cookie失效时才显示刷新按钮
+            let isCookieExpired = viewModel?.isCookieExpired ?? false
+            print("[ToolbarValidation] Cookie刷新按钮验证: isCookieExpired=\(isCookieExpired)")
+            return isCookieExpired // 只有Cookie失效时才显示刷新按钮
         }
         
         if item.action == #selector(showOfflineOperations(_:)) {
-            return (viewModel?.pendingOperationsCount ?? 0) > 0 // 只有有待处理操作时才显示
+            let pendingCount = viewModel?.pendingOperationsCount ?? 0
+            let shouldShow = pendingCount > 0
+            print("[ToolbarValidation] 离线操作按钮验证: pendingCount=\(pendingCount), shouldShow=\(shouldShow)")
+            return shouldShow // 只有有待处理操作时才显示
         }
         
         return true
@@ -628,26 +669,104 @@ extension MainWindowController {
     
     @objc func showLogin(_ sender: Any?) {
         // 显示登录窗口
-        print("显示登录窗口")
+        print("显示登录窗口 - 开始")
         
-        // 创建登录窗口控制器
-        let loginWindowController = LoginWindowController(viewModel: viewModel)
+        // 如果窗口已经存在，则激活它
+        if let existingController = loginWindowController, let existingWindow = existingController.window {
+            if existingWindow.isVisible {
+                existingWindow.makeKeyAndOrderFront(sender)
+                NSApp.activate(ignoringOtherApps: true)
+                print("激活现有登录窗口")
+                return
+            } else {
+                // 窗口存在但不可见，重新显示
+                print("重新显示已存在的登录窗口")
+            }
+        }
         
-        // 显示窗口
-        loginWindowController.showWindow(nil)
-        loginWindowController.window?.makeKeyAndOrderFront(nil)
+        // 创建新的登录窗口控制器
+        let newLoginWindowController = LoginWindowController(viewModel: viewModel)
+        self.loginWindowController = newLoginWindowController
+        print("登录窗口控制器创建完成")
+        
+        // 确保窗口正确配置
+        if let window = newLoginWindowController.window {
+            // 设置窗口层级
+            window.level = .floating
+            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
+            
+            // 确保窗口在屏幕中央
+            window.center()
+            
+            // 显示窗口
+            newLoginWindowController.showWindow(sender)
+            print("showWindow调用完成")
+            
+            // 激活窗口
+            window.makeKeyAndOrderFront(sender)
+            print("makeKeyAndOrderFront调用完成")
+            
+            // 确保窗口获得焦点
+            NSApp.activate(ignoringOtherApps: true)
+            
+            // 添加窗口关闭时的清理
+            window.delegate = self
+        } else {
+            print("错误：登录窗口创建失败，window为nil")
+        }
+        
+        print("显示登录窗口 - 完成")
     }
     
     @objc func showCookieRefresh(_ sender: Any?) {
         // 显示Cookie刷新窗口
-        print("显示Cookie刷新窗口")
+        print("显示Cookie刷新窗口 - 开始")
         
-        // 创建Cookie刷新窗口控制器
-        let cookieRefreshWindowController = CookieRefreshWindowController(viewModel: viewModel)
+        // 如果窗口已经存在，则激活它
+        if let existingController = cookieRefreshWindowController, let existingWindow = existingController.window {
+            if existingWindow.isVisible {
+                existingWindow.makeKeyAndOrderFront(sender)
+                NSApp.activate(ignoringOtherApps: true)
+                print("激活现有Cookie刷新窗口")
+                return
+            } else {
+                // 窗口存在但不可见，重新显示
+                print("重新显示已存在的Cookie刷新窗口")
+            }
+        }
         
-        // 显示窗口
-        cookieRefreshWindowController.showWindow(sender)
-        cookieRefreshWindowController.window?.makeKeyAndOrderFront(sender)
+        // 创建新的Cookie刷新窗口控制器
+        let newCookieRefreshWindowController = CookieRefreshWindowController(viewModel: viewModel)
+        self.cookieRefreshWindowController = newCookieRefreshWindowController
+        print("Cookie刷新窗口控制器创建完成")
+        
+        // 确保窗口正确配置
+        if let window = newCookieRefreshWindowController.window {
+            // 设置窗口层级
+            window.level = .floating
+            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
+            
+            // 确保窗口在屏幕中央
+            window.center()
+            
+            // 显示窗口
+            newCookieRefreshWindowController.showWindow(sender)
+            print("showWindow调用完成")
+            
+            // 激活窗口
+            window.makeKeyAndOrderFront(sender)
+            print("makeKeyAndOrderFront调用完成")
+            
+            // 确保窗口获得焦点
+            NSApp.activate(ignoringOtherApps: true)
+            
+            // 添加窗口关闭时的清理
+            window.delegate = self
+        } else {
+            print("错误：Cookie刷新窗口创建失败，window为nil")
+        }
+        
+        print("显示Cookie刷新窗口 - 完成")
     }
     
     @objc func showOfflineOperations(_ sender: Any?) {
@@ -794,6 +913,41 @@ extension MainWindowController {
         print("设置正文")
         // 这里应该调用编辑器API
         // 暂时使用控制台输出
+    }
+    
+    // MARK: - 状态监听
+    
+    /// 设置状态监听器
+    private func setupStateObservers() {
+        guard let viewModel = viewModel else { return }
+        
+        // 监听登录视图显示状态
+        viewModel.$showLoginView
+            .receive(on: RunLoop.main)
+            .sink { [weak self] showLoginView in
+                if showLoginView {
+                    print("[MainWindowController] 检测到showLoginView变为true，显示登录窗口")
+                    self?.showLogin(nil)
+                    // 重置状态，避免重复触发
+                    viewModel.showLoginView = false
+                }
+            }
+            .store(in: &cancellables)
+        
+        // 监听Cookie刷新视图显示状态
+        viewModel.$showCookieRefreshView
+            .receive(on: RunLoop.main)
+            .sink { [weak self] showCookieRefreshView in
+                if showCookieRefreshView {
+                    print("[MainWindowController] 检测到showCookieRefreshView变为true，显示Cookie刷新窗口")
+                    self?.showCookieRefresh(nil)
+                    // 重置状态，避免重复触发
+                    viewModel.showCookieRefreshView = false
+                }
+            }
+            .store(in: &cancellables)
+        
+        print("[MainWindowController] 状态监听器已设置")
     }
 }
 
