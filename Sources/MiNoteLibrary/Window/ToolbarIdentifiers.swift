@@ -44,6 +44,27 @@ extension NSToolbarItem.Identifier {
     /// 格式菜单
     static let formatMenu = NSToolbarItem.Identifier("formatMenu")
     
+    /// 撤回
+    static let undo = NSToolbarItem.Identifier("undo")
+    
+    /// 重做
+    static let redo = NSToolbarItem.Identifier("redo")
+    
+    /// 勾选框（待办）
+    static let checkbox = NSToolbarItem.Identifier("checkbox")
+    
+    /// 插入分割线
+    static let horizontalRule = NSToolbarItem.Identifier("horizontalRule")
+    
+    /// 插入附件
+    static let attachment = NSToolbarItem.Identifier("attachment")
+    
+    /// 增加缩进
+    static let increaseIndent = NSToolbarItem.Identifier("increaseIndent")
+    
+    /// 减少缩进
+    static let decreaseIndent = NSToolbarItem.Identifier("decreaseIndent")
+    
     // MARK: - 搜索
     
     /// 搜索
@@ -74,6 +95,12 @@ extension NSToolbarItem.Identifier {
     /// 恢复
     static let restore = NSToolbarItem.Identifier("restore")
     
+    /// 历史记录
+    static let history = NSToolbarItem.Identifier("history")
+    
+    /// 回收站
+    static let trash = NSToolbarItem.Identifier("trash")
+    
     // MARK: - 设置和账户
     
     /// 设置
@@ -87,6 +114,9 @@ extension NSToolbarItem.Identifier {
     
     /// 离线操作处理
     static let offlineOperations = NSToolbarItem.Identifier("offlineOperations")
+    
+    /// 测试菜单
+    static let testMenu = NSToolbarItem.Identifier("testMenu")
     
     // MARK: - 跟踪分隔符
     

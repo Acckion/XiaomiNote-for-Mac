@@ -34,6 +34,12 @@ public class MainWindowController: NSWindowController {
     /// 格式菜单popover
     private var formatMenuPopover: NSPopover?
     
+    /// 在线状态菜单工具栏项
+    private var onlineStatusMenuToolbarItem: NSToolbarItem?
+    
+    /// 测试菜单工具栏项
+    private let testMenuToolbarItem = NSMenuToolbarItem(itemIdentifier: .testMenu)
+    
     // MARK: - 初始化
     
     /// 使用指定的视图模型初始化窗口控制器
@@ -186,6 +192,27 @@ extension MainWindowController: NSToolbarDelegate {
             toolbarItem.label = "格式"
             return toolbarItem
             
+        case .undo:
+            return buildToolbarButton(.undo, "撤回", NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: nil)!, "undo:")
+            
+        case .redo:
+            return buildToolbarButton(.redo, "重做", NSImage(systemSymbolName: "arrow.uturn.forward", accessibilityDescription: nil)!, "redo:")
+            
+        case .checkbox:
+            return buildToolbarButton(.checkbox, "待办", NSImage(systemSymbolName: "checkmark.square", accessibilityDescription: nil)!, "toggleCheckbox:")
+            
+        case .horizontalRule:
+            return buildToolbarButton(.horizontalRule, "分割线", NSImage(systemSymbolName: "minus", accessibilityDescription: nil)!, "insertHorizontalRule:")
+            
+        case .attachment:
+            return buildToolbarButton(.attachment, "附件", NSImage(systemSymbolName: "paperclip", accessibilityDescription: nil)!, "insertAttachment:")
+            
+        case .increaseIndent:
+            return buildToolbarButton(.increaseIndent, "增加缩进", NSImage(systemSymbolName: "increase.indent", accessibilityDescription: nil)!, "increaseIndent:")
+            
+        case .decreaseIndent:
+            return buildToolbarButton(.decreaseIndent, "减少缩进", NSImage(systemSymbolName: "decrease.indent", accessibilityDescription: nil)!, "decreaseIndent:")
+            
         case .search:
             let toolbarItem = NSSearchToolbarItem(itemIdentifier: .search)
             toolbarItem.toolTip = "搜索"
@@ -196,19 +223,126 @@ extension MainWindowController: NSToolbarDelegate {
             return buildToolbarButton(.sync, "同步", NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)!, "performSync:")
             
         case .onlineStatus:
-            let toolbarItem = MiNoteToolbarItem(itemIdentifier: .onlineStatus)
-            toolbarItem.autovalidates = true
+            // 使用NSMenuToolbarItem创建带菜单的工具栏项
+            let toolbarItem = NSMenuToolbarItem(itemIdentifier: .onlineStatus)
             toolbarItem.toolTip = "在线状态"
             toolbarItem.label = "状态"
             
-            // 创建一个自定义视图来显示状态
-            if let viewModel = viewModel {
-                let statusView = NSHostingView(rootView: OnlineStatusIndicator(viewModel: viewModel))
-                statusView.frame = NSRect(x: 0, y: 0, width: 80, height: 24)
-                toolbarItem.view = statusView
-            }
+            // 设置网络图标
+            toolbarItem.image = NSImage(systemSymbolName: "network", accessibilityDescription: nil)
+            
+            // 设置显示指示器（下拉箭头）
+            toolbarItem.showsIndicator = true
+            
+            // 创建菜单
+            let menu = NSMenu()
+            menu.delegate = self // 设置菜单代理以动态更新
+            
+            // 第一项：在线状态指示
+            let statusItem = NSMenuItem()
+            statusItem.title = "状态：加载中..."
+            statusItem.isEnabled = false // 不可点击，仅显示状态
+            statusItem.tag = 100 // 设置标签以便识别
+            menu.addItem(statusItem)
+            
+            menu.addItem(NSMenuItem.separator())
+            
+            // 完整同步
+            let fullSyncItem = NSMenuItem()
+            fullSyncItem.title = "完整同步"
+            fullSyncItem.action = #selector(performSync(_:))
+            fullSyncItem.target = self
+            menu.addItem(fullSyncItem)
+            
+            // 增量同步
+            let incrementalSyncItem = NSMenuItem()
+            incrementalSyncItem.title = "增量同步"
+            incrementalSyncItem.action = #selector(performIncrementalSync(_:))
+            incrementalSyncItem.target = self
+            menu.addItem(incrementalSyncItem)
+            
+            menu.addItem(NSMenuItem.separator())
+            
+            // 刷新Cookie
+            let refreshCookieItem = NSMenuItem()
+            refreshCookieItem.title = "刷新Cookie"
+            refreshCookieItem.action = #selector(showCookieRefresh(_:))
+            refreshCookieItem.target = self
+            menu.addItem(refreshCookieItem)
+            
+            menu.addItem(NSMenuItem.separator())
+            
+            // 重置同步状态
+            let resetSyncItem = NSMenuItem()
+            resetSyncItem.title = "重置同步状态"
+            resetSyncItem.action = #selector(resetSyncStatus(_:))
+            resetSyncItem.target = self
+            menu.addItem(resetSyncItem)
+            
+            menu.addItem(NSMenuItem.separator())
+            
+            // 同步状态
+            let syncStatusItem = NSMenuItem()
+            syncStatusItem.title = "同步状态"
+            syncStatusItem.action = #selector(showSyncStatus(_:))
+            syncStatusItem.target = self
+            menu.addItem(syncStatusItem)
+            
+            // 设置菜单
+            toolbarItem.menu = menu
+            
+            // 同时设置menuFormRepresentation以确保兼容性
+            let menuItem = NSMenuItem()
+            menuItem.title = "在线状态"
+            menuItem.submenu = menu
+            toolbarItem.menuFormRepresentation = menuItem
             
             return toolbarItem
+            
+        case .testMenu:
+            // 测试菜单工具栏项 - 纯AppKit实现
+            testMenuToolbarItem.toolTip = "测试菜单"
+            testMenuToolbarItem.label = "测试"
+            
+            // 设置图像
+            testMenuToolbarItem.image = NSImage(systemSymbolName: "gear", accessibilityDescription: nil)
+            
+            // 设置显示指示器（下拉箭头）
+            testMenuToolbarItem.showsIndicator = true
+            
+            // 创建测试菜单
+            let testMenu = NSMenu()
+            
+            let item1 = NSMenuItem()
+            item1.title = "测试项1"
+            item1.action = #selector(testMenuItem1(_:))
+            item1.target = self
+            testMenu.addItem(item1)
+            
+            let item2 = NSMenuItem()
+            item2.title = "测试项2"
+            item2.action = #selector(testMenuItem2(_:))
+            item2.target = self
+            testMenu.addItem(item2)
+            
+            testMenu.addItem(NSMenuItem.separator())
+            
+            let item3 = NSMenuItem()
+            item3.title = "测试项3"
+            item3.action = #selector(testMenuItem3(_:))
+            item3.target = self
+            testMenu.addItem(item3)
+            
+            // 设置菜单
+            testMenuToolbarItem.menu = testMenu
+            
+            // 同时设置menuFormRepresentation以确保兼容性
+            let menuItem = NSMenuItem()
+            menuItem.title = "测试菜单"
+            menuItem.submenu = testMenu
+            testMenuToolbarItem.menuFormRepresentation = menuItem
+            
+            return testMenuToolbarItem
             
         case .toggleSidebar:
             // 使用系统提供的切换侧边栏项
@@ -225,6 +359,12 @@ extension MainWindowController: NSToolbarDelegate {
             
         case .restore:
             return buildToolbarButton(.restore, "恢复", NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: nil)!, "restoreNote:")
+            
+        case .history:
+            return buildToolbarButton(.history, "历史记录", NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: nil)!, "showHistory:")
+            
+        case .trash:
+            return buildToolbarButton(.trash, "回收站", NSImage(systemSymbolName: "trash", accessibilityDescription: nil)!, "showTrash:")
             
         case .settings:
             return buildToolbarButton(.settings, "设置", NSImage(systemSymbolName: "gear", accessibilityDescription: nil)!, "showSettings:")
@@ -273,6 +413,8 @@ extension MainWindowController: NSToolbarDelegate {
             .flexibleSpace,
             .newNote,
             .newFolder,
+            .undo,
+            .redo,
             .bold,
             .italic,
             .underline,
@@ -280,6 +422,11 @@ extension MainWindowController: NSToolbarDelegate {
             .code,
             .link,
             .formatMenu,
+            .checkbox,
+            .horizontalRule,
+            .attachment,
+            .increaseIndent,
+            .decreaseIndent,
             .flexibleSpace,
             .search,
             .sync,
@@ -293,6 +440,9 @@ extension MainWindowController: NSToolbarDelegate {
             .toggleStar,
             .delete,
             .restore,
+            .history,
+            .trash,
+            .testMenu,
             .space,
             .separator
         ]
@@ -305,6 +455,8 @@ extension MainWindowController: NSToolbarDelegate {
             .flexibleSpace,
             .newNote,
             .newFolder,
+            .undo,
+            .redo,
             .formatMenu,
             .flexibleSpace,
             .search,
@@ -314,7 +466,11 @@ extension MainWindowController: NSToolbarDelegate {
             .login,
             .timelineTrackingSeparator,
             .share,
-            .toggleStar
+            .toggleStar,
+            .delete,
+            .history,
+            .trash,
+            .testMenu
         ]
     }
     
@@ -419,6 +575,63 @@ extension MainWindowController: NSToolbarDelegate {
         
         return menu
     }
+    
+    /// 获取在线状态标题
+    private func getOnlineStatusTitle() -> String {
+        guard let viewModel = viewModel else {
+            return "状态：未知"
+        }
+        
+        if viewModel.isLoggedIn {
+            if viewModel.isSyncing {
+                return "状态：同步中..."
+            } else if viewModel.isCookieExpired {
+                return "状态：Cookie已过期"
+            } else {
+                return "状态：在线"
+            }
+        } else {
+            return "状态：离线"
+        }
+    }
+    
+    /// 更新在线状态菜单
+    private func updateOnlineStatusMenu() {
+        // 如果需要动态更新菜单，可以在这里实现
+    }
+    
+    // MARK: - 测试菜单动作
+    
+    @objc func testMenuItem1(_ sender: Any?) {
+        print("测试菜单项1被点击")
+        let alert = NSAlert()
+        alert.messageText = "测试菜单"
+        alert.informativeText = "测试菜单项1被点击"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+    }
+    
+    @objc func testMenuItem2(_ sender: Any?) {
+        print("测试菜单项2被点击")
+        let alert = NSAlert()
+        alert.messageText = "测试菜单"
+        alert.informativeText = "测试菜单项2被点击"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+    }
+    
+    @objc func testMenuItem3(_ sender: Any?) {
+        print("测试菜单项3被点击")
+        let alert = NSAlert()
+        alert.messageText = "测试菜单"
+        alert.informativeText = "测试菜单项3被点击"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+    }
+    
 }
 
 // MARK: - NSWindowDelegate
@@ -461,6 +674,21 @@ extension MainWindowController: NSSearchFieldDelegate {
             return
         }
         viewModel?.searchText = sender.stringValue
+    }
+}
+
+// MARK: - NSMenuDelegate
+
+extension MainWindowController: NSMenuDelegate {
+    
+    public func menuNeedsUpdate(_ menu: NSMenu) {
+        // 更新在线状态菜单项
+        for item in menu.items {
+            if item.tag == 100 { // 在线状态项
+                item.title = getOnlineStatusTitle()
+                break
+            }
+        }
     }
 }
 
@@ -539,6 +767,39 @@ extension MainWindowController: NSUserInterfaceValidations {
             let shouldShow = pendingCount > 0
             print("[ToolbarValidation] 离线操作按钮验证: pendingCount=\(pendingCount), shouldShow=\(shouldShow)")
             return shouldShow // 只有有待处理操作时才显示
+        }
+        
+        // 验证新增的工具栏按钮
+        if item.action == #selector(toggleCheckbox(_:)) {
+            return viewModel?.selectedNote != nil // 只有选中笔记后才能插入待办
+        }
+        
+        if item.action == #selector(insertHorizontalRule(_:)) {
+            return viewModel?.selectedNote != nil // 只有选中笔记后才能插入分割线
+        }
+        
+        if item.action == #selector(insertAttachment(_:)) {
+            return viewModel?.selectedNote != nil // 只有选中笔记后才能插入附件
+        }
+        
+        if item.action == #selector(showHistory(_:)) {
+            return viewModel?.selectedNote != nil // 只有选中笔记后才能查看历史记录
+        }
+        
+        if item.action == #selector(showTrash(_:)) {
+            return true // 总是可以显示回收站
+        }
+        
+        if item.action == #selector(performIncrementalSync(_:)) {
+            return viewModel?.isLoggedIn ?? false // 只有登录后才能增量同步
+        }
+        
+        if item.action == #selector(resetSyncStatus(_:)) {
+            return true // 总是可以重置同步状态
+        }
+        
+        if item.action == #selector(showSyncStatus(_:)) {
+            return true // 总是可以显示同步状态
         }
         
         return true
@@ -796,6 +1057,89 @@ extension MainWindowController {
         alert.alertStyle = .informational
         alert.addButton(withTitle: "确定")
         alert.runModal()
+    }
+    
+    // MARK: - 新增工具栏按钮动作方法
+    
+    @objc func toggleCheckbox(_ sender: Any?) {
+        print("切换待办")
+        // 这里应该调用编辑器API
+    }
+    
+    @objc func insertHorizontalRule(_ sender: Any?) {
+        print("插入分割线")
+        // 这里应该调用编辑器API
+    }
+    
+    @objc func insertAttachment(_ sender: Any?) {
+        print("插入附件")
+        // 这里应该调用编辑器API
+    }
+    
+    @objc func showHistory(_ sender: Any?) {
+        print("显示历史记录")
+        // 显示笔记历史记录
+        guard let note = viewModel?.selectedNote else { return }
+        
+        let alert = NSAlert()
+        alert.messageText = "历史记录"
+        alert.informativeText = "笔记历史记录功能正在开发中..."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+    }
+    
+    @objc func showTrash(_ sender: Any?) {
+        print("显示回收站")
+        // 显示回收站视图
+        viewModel?.showTrashView = true
+    }
+    
+    @objc func showOnlineStatusMenu(_ sender: Any?) {
+        // 在线状态菜单按钮点击
+        print("显示在线状态菜单")
+    }
+    
+    @objc func performIncrementalSync(_ sender: Any?) {
+        print("执行增量同步")
+        Task {
+            await viewModel?.performIncrementalSync()
+        }
+    }
+    
+    @objc func resetSyncStatus(_ sender: Any?) {
+        print("重置同步状态")
+        viewModel?.resetSyncStatus()
+    }
+    
+    @objc func showSyncStatus(_ sender: Any?) {
+        print("显示同步状态")
+        // 显示同步状态信息
+        if let lastSync = viewModel?.lastSyncTime {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .short
+            formatter.timeStyle = .short
+            
+            let alert = NSAlert()
+            alert.messageText = "同步状态"
+            var infoText = "上次同步时间: \(formatter.string(from: lastSync))"
+            if let pendingCount = viewModel?.pendingOperationsCount, pendingCount > 0 {
+                infoText += "\n待处理操作: \(pendingCount) 个"
+            }
+            alert.informativeText = infoText
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+        } else {
+            let alert = NSAlert()
+            alert.messageText = "同步状态"
+            var infoText = "从未同步"
+            if let pendingCount = viewModel?.pendingOperationsCount, pendingCount > 0 {
+                infoText += "\n待处理操作: \(pendingCount) 个"
+            }
+            alert.informativeText = infoText
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+        }
     }
     
     // MARK: - 格式菜单
