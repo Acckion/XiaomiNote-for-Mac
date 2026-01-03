@@ -10,12 +10,15 @@
 import AppKit
 import SwiftUI
 import Combine
+import os
 
 /// 主窗口控制器
 /// 负责管理主窗口和工具栏
 public class MainWindowController: NSWindowController {
     
     // MARK: - 属性
+    
+    private let logger = Logger(subsystem: "com.minote.MiNoteMac", category: "MainWindowController")
     
     /// 内容视图模型
     public private(set) var viewModel: NotesViewModel?
@@ -709,23 +712,28 @@ extension MainWindowController: NSUserInterfaceValidations {
         }
         
         if item.action == #selector(performSync(_:)) {
-            return viewModel?.isLoggedIn ?? false // 只有登录后才能同步
+            let isLoggedIn = viewModel?.isLoggedIn ?? false
+            return isLoggedIn // 只有登录后才能同步
         }
         
         if item.action == #selector(shareNote(_:)) {
-            return viewModel?.selectedNote != nil // 只有选中笔记后才能分享
+            let hasSelectedNote = viewModel?.selectedNote != nil
+            return hasSelectedNote // 只有选中笔记后才能分享
         }
         
         if item.action == #selector(toggleStarNote(_:)) {
-            return viewModel?.selectedNote != nil // 只有选中笔记后才能置顶
+            let hasSelectedNote = viewModel?.selectedNote != nil
+            return hasSelectedNote // 只有选中笔记后才能置顶
         }
         
         if item.action == #selector(deleteNote(_:)) {
-            return viewModel?.selectedNote != nil // 只有选中笔记后才能删除
+            let hasSelectedNote = viewModel?.selectedNote != nil
+            return hasSelectedNote // 只有选中笔记后才能删除
         }
         
         if item.action == #selector(restoreNote(_:)) {
-            return false // 暂时不支持恢复
+            let hasSelectedNote = viewModel?.selectedNote != nil
+            return hasSelectedNote // 只有选中笔记后才能恢复
         }
         
         // 格式操作：只有在编辑模式下才可用
@@ -735,13 +743,18 @@ extension MainWindowController: NSUserInterfaceValidations {
             #selector(toggleUnderline(_:)),
             #selector(toggleStrikethrough(_:)),
             #selector(toggleCode(_:)),
-            #selector(insertLink(_:))
+            #selector(insertLink(_:)),
+            #selector(toggleCheckbox(_:)),
+            #selector(insertHorizontalRule(_:)),
+            #selector(insertAttachment(_:)),
+            #selector(increaseIndent(_:)),
+            #selector(decreaseIndent(_:))
         ]
         
         if formatActions.contains(item.action!) {
-            // 这里应该检查是否在编辑模式下
-            // 暂时返回 true，后续需要根据实际编辑状态调整
-            return true
+            // 检查是否在编辑模式下（有选中的笔记）
+            let hasSelectedNote = viewModel?.selectedNote != nil
+            return hasSelectedNote
         }
         
         // 验证新的按钮
@@ -752,38 +765,39 @@ extension MainWindowController: NSUserInterfaceValidations {
         if item.action == #selector(showLogin(_:)) {
             let isLoggedIn = viewModel?.isLoggedIn ?? false
             let shouldShow = !isLoggedIn
-            print("[ToolbarValidation] 登录按钮验证: isLoggedIn=\(isLoggedIn), shouldShow=\(shouldShow)")
             return shouldShow // 只有未登录时才显示登录按钮
         }
         
         if item.action == #selector(showCookieRefresh(_:)) {
             let isCookieExpired = viewModel?.isCookieExpired ?? false
-            print("[ToolbarValidation] Cookie刷新按钮验证: isCookieExpired=\(isCookieExpired)")
             return isCookieExpired // 只有Cookie失效时才显示刷新按钮
         }
         
         if item.action == #selector(showOfflineOperations(_:)) {
             let pendingCount = viewModel?.pendingOperationsCount ?? 0
             let shouldShow = pendingCount > 0
-            print("[ToolbarValidation] 离线操作按钮验证: pendingCount=\(pendingCount), shouldShow=\(shouldShow)")
             return shouldShow // 只有有待处理操作时才显示
         }
         
         // 验证新增的工具栏按钮
         if item.action == #selector(toggleCheckbox(_:)) {
-            return viewModel?.selectedNote != nil // 只有选中笔记后才能插入待办
+            let hasSelectedNote = viewModel?.selectedNote != nil
+            return hasSelectedNote // 只有选中笔记后才能插入待办
         }
         
         if item.action == #selector(insertHorizontalRule(_:)) {
-            return viewModel?.selectedNote != nil // 只有选中笔记后才能插入分割线
+            let hasSelectedNote = viewModel?.selectedNote != nil
+            return hasSelectedNote // 只有选中笔记后才能插入分割线
         }
         
         if item.action == #selector(insertAttachment(_:)) {
-            return viewModel?.selectedNote != nil // 只有选中笔记后才能插入附件
+            let hasSelectedNote = viewModel?.selectedNote != nil
+            return hasSelectedNote // 只有选中笔记后才能插入附件
         }
         
         if item.action == #selector(showHistory(_:)) {
-            return viewModel?.selectedNote != nil // 只有选中笔记后才能查看历史记录
+            let hasSelectedNote = viewModel?.selectedNote != nil
+            return hasSelectedNote // 只有选中笔记后才能查看历史记录
         }
         
         if item.action == #selector(showTrash(_:)) {
@@ -791,7 +805,8 @@ extension MainWindowController: NSUserInterfaceValidations {
         }
         
         if item.action == #selector(performIncrementalSync(_:)) {
-            return viewModel?.isLoggedIn ?? false // 只有登录后才能增量同步
+            let isLoggedIn = viewModel?.isLoggedIn ?? false
+            return isLoggedIn // 只有登录后才能增量同步
         }
         
         if item.action == #selector(resetSyncStatus(_:)) {
@@ -807,6 +822,25 @@ extension MainWindowController: NSUserInterfaceValidations {
             return true // 总是可以切换侧边栏
         }
         
+        // 验证撤销/重做按钮
+        if item.action == #selector(undo(_:)) || item.action == #selector(redo(_:)) {
+            let hasSelectedNote = viewModel?.selectedNote != nil
+            return hasSelectedNote // 只有选中笔记后才能撤销/重做
+        }
+        
+        // 验证搜索按钮
+        if item.action == #selector(performSearch(_:)) {
+            return true // 总是可以搜索
+        }
+        
+        // 验证测试菜单项
+        if item.action == #selector(testMenuItem1(_:)) ||
+           item.action == #selector(testMenuItem2(_:)) ||
+           item.action == #selector(testMenuItem3(_:)) {
+            return true // 测试菜单项总是可用
+        }
+        
+        // 默认返回true，确保所有按钮在溢出菜单中可用
         return true
     }
 }

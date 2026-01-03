@@ -8,19 +8,21 @@
 
 #if os(macOS)
 import AppKit
+import os
 
 /// 自定义工具栏项，继承自 NSToolbarItem
 /// 遵循 NetNewsWire 的 RSToolbarItem 模式，通过响应链验证工具栏项状态
 public class MiNoteToolbarItem: NSToolbarItem {
+    
+    private let logger = Logger(subsystem: "com.minote.MiNoteMac", category: "MiNoteToolbarItem")
 
     /// 验证工具栏项是否可用
     /// 通过响应链查找实现了 NSUserInterfaceValidations 的对象
     override public func validate() {
-        guard let view = view, let _ = view.window else {
-            isEnabled = false
-            return
-        }
-        isEnabled = isValidAsUserInterfaceItem()
+        // 即使没有视图或窗口，也尝试验证
+        // 被收纳的工具栏项可能没有有效的view或window
+        let isValid = isValidAsUserInterfaceItem()
+        isEnabled = isValid
     }
 }
 
@@ -31,22 +33,44 @@ private extension MiNoteToolbarItem {
     func isValidAsUserInterfaceItem() -> Bool {
         // 如果目标对象是响应者，首先尝试使用目标对象验证
         if let target = target as? NSResponder {
-            return validateWithResponder(target) ?? false
-        }
-
-        // 从第一响应者开始，沿着响应链向上查找
-        var responder = view?.window?.firstResponder
-        if responder == nil {
-            return false
-        }
-
-        while true {
-            if let validated = validateWithResponder(responder!) {
-                return validated
+            if let result = validateWithResponder(target) {
+                return result
             }
-            responder = responder?.nextResponder
+        }
+
+        // 尝试从视图的窗口获取第一响应者
+        var responder: NSResponder? = nil
+        
+        // 首先尝试从视图的窗口获取
+        if let view = view, let window = view.window {
+            responder = window.firstResponder
+        } else {
+            // 如果没有视图或窗口，尝试从主窗口获取
+            responder = NSApplication.shared.mainWindow?.firstResponder
             if responder == nil {
-                break
+                // 最后尝试应用的关键窗口
+                responder = NSApplication.shared.keyWindow?.firstResponder
+            }
+        }
+
+        // 如果找到了响应者，沿着响应链向上查找
+        if let currentResponder = responder {
+            var chainResponder: NSResponder? = currentResponder
+            
+            while let r = chainResponder {
+                if let validated = validateWithResponder(r) {
+                    return validated
+                }
+                chainResponder = r.nextResponder
+            }
+        }
+
+        // 尝试窗口控制器
+        if let window = view?.window ?? NSApplication.shared.mainWindow ?? NSApplication.shared.keyWindow {
+            if let windowController = window.windowController {
+                if let validated = validateWithResponder(windowController) {
+                    return validated
+                }
             }
         }
 
@@ -64,9 +88,18 @@ private extension MiNoteToolbarItem {
     /// - Parameter responder: 要验证的响应者对象
     /// - Returns: 如果响应者可以处理该动作并验证通过，返回 true；否则返回 nil
     func validateWithResponder(_ responder: NSObjectProtocol) -> Bool? {
-        guard responder.responds(to: action), let target = responder as? NSUserInterfaceValidations else {
+        guard let action = action else {
             return nil
         }
+        
+        guard responder.responds(to: action) else {
+            return nil
+        }
+        
+        guard let target = responder as? NSUserInterfaceValidations else {
+            return nil
+        }
+        
         return target.validateUserInterfaceItem(self)
     }
 }
