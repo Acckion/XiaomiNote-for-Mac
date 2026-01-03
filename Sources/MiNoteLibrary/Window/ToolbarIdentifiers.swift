@@ -74,6 +74,20 @@ extension NSToolbarItem.Identifier {
     /// 恢复
     static let restore = NSToolbarItem.Identifier("restore")
     
+    // MARK: - 设置和账户
+    
+    /// 设置
+    static let settings = NSToolbarItem.Identifier("settings")
+    
+    /// 登录
+    static let login = NSToolbarItem.Identifier("login")
+    
+    /// Cookie刷新
+    static let cookieRefresh = NSToolbarItem.Identifier("cookieRefresh")
+    
+    /// 离线操作处理
+    static let offlineOperations = NSToolbarItem.Identifier("offlineOperations")
+    
     // MARK: - 跟踪分隔符
     
     /// 侧边栏跟踪分隔符 - 连接到分割视图的第一个分隔符

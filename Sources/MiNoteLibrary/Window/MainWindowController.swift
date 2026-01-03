@@ -17,7 +17,7 @@ public class MainWindowController: NSWindowController {
     // MARK: - 属性
     
     /// 内容视图模型
-    private var viewModel: NotesViewModel?
+    public private(set) var viewModel: NotesViewModel?
     
     /// 当前搜索字段（用于工具栏搜索项）
     private var currentSearchField: NSSearchField?
@@ -202,6 +202,18 @@ extension MainWindowController: NSToolbarDelegate {
         case .restore:
             return buildToolbarButton(.restore, "恢复", NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: nil)!, "restoreNote:")
             
+        case .settings:
+            return buildToolbarButton(.settings, "设置", NSImage(systemSymbolName: "gear", accessibilityDescription: nil)!, "showSettings:")
+            
+        case .login:
+            return buildToolbarButton(.login, "登录", NSImage(systemSymbolName: "person.crop.circle", accessibilityDescription: nil)!, "showLogin:")
+            
+        case .cookieRefresh:
+            return buildToolbarButton(.cookieRefresh, "刷新Cookie", NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)!, "showCookieRefresh:")
+            
+        case .offlineOperations:
+            return buildToolbarButton(.offlineOperations, "离线操作", NSImage(systemSymbolName: "arrow.clockwise.circle", accessibilityDescription: nil)!, "showOfflineOperations:")
+            
         case .sidebarTrackingSeparator:
             // 侧边栏跟踪分隔符 - 连接到分割视图的第一个分隔符
             if let splitViewController = window?.contentViewController as? NSSplitViewController {
@@ -237,10 +249,21 @@ extension MainWindowController: NSToolbarDelegate {
             .flexibleSpace,
             .newNote,
             .newFolder,
+            .bold,
+            .italic,
+            .underline,
+            .strikethrough,
+            .code,
+            .link,
             .formatMenu,
+            .flexibleSpace,
             .search,
             .sync,
             .onlineStatus,
+            .settings,
+            .login,
+            .cookieRefresh,
+            .offlineOperations,
             .timelineTrackingSeparator,
             .share,
             .toggleStar,
@@ -263,6 +286,8 @@ extension MainWindowController: NSToolbarDelegate {
             .search,
             .sync,
             .onlineStatus,
+            .settings,
+            .login,
             .timelineTrackingSeparator,
             .share,
             .toggleStar
@@ -446,6 +471,23 @@ extension MainWindowController: NSUserInterfaceValidations {
             return true
         }
         
+        // 验证新的按钮
+        if item.action == #selector(showSettings(_:)) {
+            return true // 总是可以显示设置
+        }
+        
+        if item.action == #selector(showLogin(_:)) {
+            return !(viewModel?.isLoggedIn ?? false) // 只有未登录时才显示登录按钮
+        }
+        
+        if item.action == #selector(showCookieRefresh(_:)) {
+            return viewModel?.isCookieExpired ?? false // 只有Cookie失效时才显示刷新按钮
+        }
+        
+        if item.action == #selector(showOfflineOperations(_:)) {
+            return (viewModel?.pendingOperationsCount ?? 0) > 0 // 只有有待处理操作时才显示
+        }
+        
         return true
     }
 }
@@ -541,23 +583,23 @@ extension MainWindowController {
         print("恢复笔记")
     }
     
-    @objc func toggleBold(_ sender: Any?) {
+    @objc public func toggleBold(_ sender: Any?) {
         // 切换粗体
         print("切换粗体")
         // 这里应该调用编辑器API
     }
     
-    @objc func toggleItalic(_ sender: Any?) {
+    @objc public func toggleItalic(_ sender: Any?) {
         // 切换斜体
         print("切换斜体")
     }
     
-    @objc func toggleUnderline(_ sender: Any?) {
+    @objc public func toggleUnderline(_ sender: Any?) {
         // 切换下划线
         print("切换下划线")
     }
     
-    @objc func toggleStrikethrough(_ sender: Any?) {
+    @objc public func toggleStrikethrough(_ sender: Any?) {
         // 切换删除线
         print("切换删除线")
     }
@@ -570,6 +612,188 @@ extension MainWindowController {
     @objc func insertLink(_ sender: Any?) {
         // 插入链接
         print("插入链接")
+    }
+    
+    @objc func showSettings(_ sender: Any?) {
+        // 显示设置窗口
+        print("显示设置窗口")
+        
+        // 创建设置窗口控制器
+        let settingsWindowController = SettingsWindowController(viewModel: viewModel)
+        
+        // 显示窗口
+        settingsWindowController.showWindow(nil)
+        settingsWindowController.window?.makeKeyAndOrderFront(nil)
+    }
+    
+    @objc func showLogin(_ sender: Any?) {
+        // 显示登录窗口
+        print("显示登录窗口")
+        
+        // 创建登录窗口控制器
+        let loginWindowController = LoginWindowController(viewModel: viewModel)
+        
+        // 显示窗口
+        loginWindowController.showWindow(nil)
+        loginWindowController.window?.makeKeyAndOrderFront(nil)
+    }
+    
+    @objc func showCookieRefresh(_ sender: Any?) {
+        // 显示Cookie刷新窗口
+        print("显示Cookie刷新窗口")
+        
+        // 创建Cookie刷新窗口控制器
+        let cookieRefreshWindowController = CookieRefreshWindowController(viewModel: viewModel)
+        
+        // 显示窗口
+        cookieRefreshWindowController.showWindow(sender)
+        cookieRefreshWindowController.window?.makeKeyAndOrderFront(sender)
+    }
+    
+    @objc func showOfflineOperations(_ sender: Any?) {
+        // 显示离线操作处理窗口 - 使用简单的实现
+        print("显示离线操作处理窗口")
+        let alert = NSAlert()
+        alert.messageText = "离线操作"
+        alert.informativeText = "离线操作处理窗口功能正在开发中..."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+    }
+    
+    @objc func showDebugSettings(_ sender: Any?) {
+        // 显示调试设置窗口 - 使用简单的实现
+        print("显示调试设置窗口")
+        let alert = NSAlert()
+        alert.messageText = "调试设置"
+        alert.informativeText = "调试设置窗口功能正在开发中..."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+    }
+    
+    // MARK: - 编辑菜单动作
+    
+    @objc public func undo(_ sender: Any?) {
+        print("撤销")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func redo(_ sender: Any?) {
+        print("重做")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func cut(_ sender: Any?) {
+        print("剪切")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func copy(_ sender: Any?) {
+        print("复制")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func paste(_ sender: Any?) {
+        print("粘贴")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc override public func selectAll(_ sender: Any?) {
+        print("全选")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    // MARK: - 格式菜单动作
+    
+    @objc public func increaseFontSize(_ sender: Any?) {
+        print("增大字体")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func decreaseFontSize(_ sender: Any?) {
+        print("减小字体")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func increaseIndent(_ sender: Any?) {
+        print("增加缩进")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func decreaseIndent(_ sender: Any?) {
+        print("减少缩进")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func alignLeft(_ sender: Any?) {
+        print("居左对齐")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func alignCenter(_ sender: Any?) {
+        print("居中对齐")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func alignRight(_ sender: Any?) {
+        print("居右对齐")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func toggleBulletList(_ sender: Any?) {
+        print("切换无序列表")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func toggleNumberedList(_ sender: Any?) {
+        print("切换有序列表")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func toggleCheckboxList(_ sender: Any?) {
+        print("切换复选框列表")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func setHeading1(_ sender: Any?) {
+        print("设置大标题")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func setHeading2(_ sender: Any?) {
+        print("设置二级标题")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func setHeading3(_ sender: Any?) {
+        print("设置三级标题")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
+    }
+    
+    @objc public func setBodyText(_ sender: Any?) {
+        print("设置正文")
+        // 这里应该调用编辑器API
+        // 暂时使用控制台输出
     }
 }
 

@@ -1,10 +1,39 @@
 import AppKit
 import Combine
 
+/// 侧边栏分组类型
+enum SidebarGroup: String, CaseIterable {
+    case xiaomiNotes = "小米笔记"
+    case myFolders = "我的文件夹"
+    
+    var iconName: String {
+        switch self {
+        case .xiaomiNotes: return "note.text"
+        case .myFolders: return "folder"
+        }
+    }
+}
+
+/// 侧边栏项类型
+enum SidebarItem {
+    case group(SidebarGroup)
+    case folder(Folder)
+    
+    /// 比较两个侧边栏项是否相等
+    func isEqual(to other: SidebarItem) -> Bool {
+        switch (self, other) {
+        case (.group(let group1), .group(let group2)):
+            return group1 == group2
+        case (.folder(let folder1), .folder(let folder2)):
+            return folder1.id == folder2.id
+        default:
+            return false
+        }
+    }
+}
+
 /// 侧边栏视图控制器
-/// 显示文件夹列表，包含两个Section：
-/// 1. "小米笔记" - 系统文件夹（所有笔记、置顶、私密笔记）
-/// 2. "我的文件夹" - 用户文件夹（未分类 + 数据库中的文件夹，置顶的在前）
+/// 显示文件夹列表
 class SidebarViewController: NSViewController {
     
     // MARK: - 属性
@@ -17,26 +46,6 @@ class SidebarViewController: NSViewController {
     
     /// 侧边栏项数据
     private var sidebarItems: [SidebarItem] = []
-    
-    // MARK: - 侧边栏项类型
-    
-    /// 侧边栏项类型
-    enum SidebarItem {
-        case group(String)  // 分组："小米笔记" 或 "我的文件夹"
-        case folder(Folder) // 文件夹
-        
-        /// 比较两个侧边栏项是否相等
-        func isEqual(to other: SidebarItem) -> Bool {
-            switch (self, other) {
-            case (.group(let name1), .group(let name2)):
-                return name1 == name2
-            case (.folder(let folder1), .folder(let folder2)):
-                return folder1.id == folder2.id
-            default:
-                return false
-            }
-        }
-    }
     
     // MARK: - 计算属性
     
@@ -288,38 +297,18 @@ class SidebarViewController: NSViewController {
         sidebarItems.removeAll()
         
         // 添加"小米笔记"分组
-        sidebarItems.append(.group("小米笔记"))
+        sidebarItems.append(.group(.xiaomiNotes))
         
-        // 添加系统文件夹（按照旧版顺序：所有笔记、置顶、私密笔记）
-        if let allNotesFolder = viewModel.folders.first(where: { $0.id == "0" }) {
-            sidebarItems.append(.folder(allNotesFolder))
-        }
-        
-        if let starredFolder = viewModel.folders.first(where: { $0.id == "starred" }) {
-            sidebarItems.append(.folder(starredFolder))
-        }
-        
-        if let privateNotesFolder = viewModel.folders.first(where: { $0.id == "2" }) {
-            sidebarItems.append(.folder(privateNotesFolder))
+        // 添加系统文件夹
+        for folder in systemFolders {
+            sidebarItems.append(.folder(folder))
         }
         
         // 添加"我的文件夹"分组
-        sidebarItems.append(.group("我的文件夹"))
+        sidebarItems.append(.group(.myFolders))
         
-        // 添加未分类文件夹
-        sidebarItems.append(.folder(viewModel.uncategorizedFolder))
-        
-        // 添加用户文件夹（按置顶状态排序：置顶的在前）
-        let userFoldersSorted = userFolders.sorted { folder1, folder2 in
-            // 置顶的在前
-            if folder1.isPinned != folder2.isPinned {
-                return folder1.isPinned
-            }
-            // 否则按名称排序
-            return folder1.name < folder2.name
-        }
-        
-        for folder in userFoldersSorted {
+        // 添加用户文件夹
+        for folder in userFolders {
             sidebarItems.append(.folder(folder))
         }
     }
@@ -396,7 +385,7 @@ extension SidebarViewController: NSOutlineViewDelegate {
         switch item {
         case let sidebarItem as SidebarItem:
             switch sidebarItem {
-            case .group(let groupName):
+            case .group(let group):
                 identifier = NSUserInterfaceItemIdentifier("GroupCell")
                 cell = outlineView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView
                 
@@ -412,17 +401,33 @@ extension SidebarViewController: NSOutlineViewDelegate {
                     cell?.textField = textField
                     cell?.addSubview(textField)
                     
+                    let imageView = NSImageView()
+                    imageView.translatesAutoresizingMaskIntoConstraints = false
+                    cell?.imageView = imageView
+                    cell?.addSubview(imageView)
+                    
                     NSLayoutConstraint.activate([
-                        textField.leadingAnchor.constraint(equalTo: cell!.leadingAnchor, constant: 8),
+                        imageView.leadingAnchor.constraint(equalTo: cell!.leadingAnchor, constant: 8),
+                        imageView.centerYAnchor.constraint(equalTo: cell!.centerYAnchor),
+                        imageView.widthAnchor.constraint(equalToConstant: 16),
+                        imageView.heightAnchor.constraint(equalToConstant: 16),
+                        
+                        textField.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 8),
                         textField.trailingAnchor.constraint(equalTo: cell!.trailingAnchor, constant: -8),
                         textField.centerYAnchor.constraint(equalTo: cell!.centerYAnchor)
                     ])
                 }
                 
-                // 设置分组名称（只有文字，没有图标）
-                cell?.textField?.stringValue = groupName
+                // 设置分组名称
+                cell?.textField?.stringValue = group.rawValue
                 cell?.textField?.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
                 cell?.textField?.textColor = .secondaryLabelColor
+                
+                // 设置分组图标
+                if let image = NSImage(systemSymbolName: group.iconName, accessibilityDescription: nil) {
+                    cell?.imageView?.image = image
+                    cell?.imageView?.contentTintColor = .secondaryLabelColor
+                }
                 
             case .folder(let folder):
                 identifier = NSUserInterfaceItemIdentifier("FolderCell")
@@ -445,16 +450,6 @@ extension SidebarViewController: NSOutlineViewDelegate {
                     cell?.imageView = imageView
                     cell?.addSubview(imageView)
                     
-                    let countLabel = NSTextField()
-                    countLabel.isEditable = false
-                    countLabel.isBordered = false
-                    countLabel.drawsBackground = false
-                    countLabel.translatesAutoresizingMaskIntoConstraints = false
-                    countLabel.font = NSFont.systemFont(ofSize: 11)
-                    countLabel.textColor = .secondaryLabelColor
-                    countLabel.alignment = .right
-                    cell?.addSubview(countLabel)
-                    
                     NSLayoutConstraint.activate([
                         imageView.leadingAnchor.constraint(equalTo: cell!.leadingAnchor, constant: 16), // 文件夹缩进更多
                         imageView.centerYAnchor.constraint(equalTo: cell!.centerYAnchor),
@@ -462,23 +457,14 @@ extension SidebarViewController: NSOutlineViewDelegate {
                         imageView.heightAnchor.constraint(equalToConstant: 16),
                         
                         textField.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 8),
-                        textField.trailingAnchor.constraint(equalTo: countLabel.leadingAnchor, constant: -8),
-                        textField.centerYAnchor.constraint(equalTo: cell!.centerYAnchor),
-                        
-                        countLabel.trailingAnchor.constraint(equalTo: cell!.trailingAnchor, constant: -8),
-                        countLabel.centerYAnchor.constraint(equalTo: cell!.centerYAnchor),
-                        countLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 20)
+                        textField.trailingAnchor.constraint(equalTo: cell!.trailingAnchor, constant: -8),
+                        textField.centerYAnchor.constraint(equalTo: cell!.centerYAnchor)
                     ])
                 }
                 
-                // 设置文件夹名称
-                cell?.textField?.stringValue = folder.name
+                // 设置文件夹名称和笔记数量
+                cell?.textField?.stringValue = "\(folder.name) (\(folder.count))"
                 cell?.textField?.font = NSFont.systemFont(ofSize: 13)
-                
-                // 设置笔记数量（显示在最右侧，没有括号）
-                if let countLabel = cell?.subviews.last as? NSTextField {
-                    countLabel.stringValue = "\(folder.count)"
-                }
                 
                 // 设置图标
                 let imageName: String
@@ -496,8 +482,6 @@ extension SidebarViewController: NSOutlineViewDelegate {
                 
                 if let image = NSImage(systemSymbolName: imageName, accessibilityDescription: nil) {
                     cell?.imageView?.image = image
-                    // 使用白色图标（匹配旧版）
-                    cell?.imageView?.contentTintColor = .white
                 }
             }
             
@@ -508,53 +492,58 @@ extension SidebarViewController: NSOutlineViewDelegate {
         return cell
     }
     
-    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-        // 分组项不能选择
-        if let sidebarItem = item as? SidebarItem {
-            switch sidebarItem {
-            case .group:
-                return false
-            case .folder:
-                return true
-            }
-        }
-        return false
-    }
-    
-    func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
-        // 分组项显示为分组样式
-        if let sidebarItem = item as? SidebarItem {
-            switch sidebarItem {
-            case .group:
-                return true
-            case .folder:
-                return false
-            }
-        }
-        return false
-    }
-    
-    func outlineView(_ outlineView: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
-        // 分组项高度较小
-        if let sidebarItem = item as? SidebarItem {
-            switch sidebarItem {
-            case .group:
-                return 28
-            case .folder:
-                return 32
-            }
-        }
-        return 32
-    }
-    
     func outlineViewSelectionDidChange(_ notification: Notification) {
         let selectedRow = outlineView.selectedRow
-        guard selectedRow >= 0 && selectedRow < sidebarItems.count else { return }
-        
-        let item = sidebarItems[selectedRow]
-        if case .folder(let folder) = item {
-            viewModel.selectedFolder = folder
+        if selectedRow >= 0 {
+            let item = sidebarItems[selectedRow]
+            if case .folder(let folder) = item {
+                viewModel.selectFolder(folder)
+            } else {
+                // 如果选中的是分组，取消选择
+                outlineView.deselectRow(selectedRow)
+            }
         }
+    }
+    
+    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
+        // 只允许选择文件夹，不允许选择分组
+        if let sidebarItem = item as? SidebarItem {
+            if case .folder = sidebarItem {
+                return true
+            }
+        }
+        return false
+    }
+    
+    func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
+        return SidebarRowView()
+    }
+    
+    func outlineView(_ outlineView: NSOutlineView, heightOfRow row: Int) -> CGFloat {
+        let item = sidebarItems[row]
+        if case .group = item {
+            return 36 // 分组行更高一些
+        }
+        return 32 // 文件夹行
+    }
+}
+
+// MARK: - 自定义行视图
+
+class SidebarRowView: NSTableRowView {
+    
+    override func drawSelection(in dirtyRect: NSRect) {
+        if selectionHighlightStyle != .none {
+            let selectionRect = bounds.insetBy(dx: 4, dy: 2)
+            NSColor.selectedContentBackgroundColor.setFill()
+            let selectionPath = NSBezierPath(roundedRect: selectionRect, xRadius: 6, yRadius: 6)
+            selectionPath.fill()
+        }
+    }
+    
+    override var isEmphasized: Bool {
+        get { return true }
+        set { super.isEmphasized = newValue }
     }
 }
 
@@ -566,63 +555,43 @@ extension SidebarViewController: NSMenuDelegate {
         menu.removeAllItems()
         
         let clickedRow = outlineView.clickedRow
-        guard clickedRow >= 0 && clickedRow < sidebarItems.count else { return }
-        
+        guard clickedRow >= 0 else { return }
         let item = sidebarItems[clickedRow]
         
         switch item {
-        case .group(let groupName):
-            // 分组右键菜单
-            if groupName == "我的文件夹" {
-                let newFolderItem = NSMenuItem(
-                    title: "新建文件夹",
-                    action: #selector(createNewFolder(_:)),
-                    keyEquivalent: ""
-                )
+        case .group(let group):
+            // 分组菜单
+            if group == .myFolders {
+                let newFolderItem = NSMenuItem(title: "新建文件夹", action: #selector(createNewFolder(_:)), keyEquivalent: "")
                 newFolderItem.target = self
                 menu.addItem(newFolderItem)
             }
             
         case .folder(let folder):
-            // 文件夹右键菜单
-            if folder.isSystem || folder.id == "uncategorized" {
-                // 系统文件夹：只有新建文件夹选项
-                let newFolderItem = NSMenuItem(
-                    title: "新建文件夹",
-                    action: #selector(createNewFolder(_:)),
-                    keyEquivalent: ""
-                )
-                newFolderItem.target = self
-                menu.addItem(newFolderItem)
-            } else {
-                // 用户文件夹：完整菜单
-                let renameItem = NSMenuItem(
-                    title: "重命名文件夹",
-                    action: #selector(renameFolder(_:)),
-                    keyEquivalent: ""
-                )
-                renameItem.target = self
-                menu.addItem(renameItem)
-                
-                let pinTitle = folder.isPinned ? "取消置顶" : "置顶"
-                let pinItem = NSMenuItem(
-                    title: pinTitle,
-                    action: #selector(toggleFolderPin(_:)),
-                    keyEquivalent: ""
-                )
-                pinItem.target = self
-                menu.addItem(pinItem)
-                
-                menu.addItem(NSMenuItem.separator())
-                
-                let deleteItem = NSMenuItem(
-                    title: "删除文件夹",
-                    action: #selector(deleteFolder(_:)),
-                    keyEquivalent: ""
-                )
-                deleteItem.target = self
-                menu.addItem(deleteItem)
-            }
+            // 文件夹菜单
+            // 检查是否是系统文件夹
+            let isSystemFolder = folder.isSystem || folder.id == "uncategorized"
+            
+            // 重命名菜单项
+            let renameItem = NSMenuItem(title: "重命名", action: #selector(renameFolder(_:)), keyEquivalent: "")
+            renameItem.target = self
+            renameItem.isEnabled = !isSystemFolder
+            menu.addItem(renameItem)
+            
+            // 置顶/取消置顶菜单项
+            let pinTitle = folder.isPinned ? "取消置顶" : "置顶"
+            let pinItem = NSMenuItem(title: pinTitle, action: #selector(toggleFolderPin(_:)), keyEquivalent: "")
+            pinItem.target = self
+            pinItem.isEnabled = !isSystemFolder
+            menu.addItem(pinItem)
+            
+            menu.addItem(NSMenuItem.separator())
+            
+            // 删除菜单项
+            let deleteItem = NSMenuItem(title: "删除", action: #selector(deleteFolder(_:)), keyEquivalent: "")
+            deleteItem.target = self
+            deleteItem.isEnabled = !isSystemFolder
+            menu.addItem(deleteItem)
         }
     }
 }
