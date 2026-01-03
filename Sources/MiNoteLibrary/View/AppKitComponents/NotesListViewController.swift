@@ -43,6 +43,8 @@ class NotesListViewController: NSViewController {
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.backgroundColor = NSColor.windowBackgroundColor
+        scrollView.drawsBackground = true
         view.addSubview(scrollView)
         
         // 创建表格视图
@@ -53,7 +55,7 @@ class NotesListViewController: NSViewController {
         tableView.rowHeight = 60  // 增加行高以容纳更多内容
         tableView.intercellSpacing = NSSize(width: 0, height: 1)
         tableView.usesAlternatingRowBackgroundColors = false
-        tableView.backgroundColor = .clear
+        tableView.backgroundColor = NSColor.windowBackgroundColor
         
         // 创建列
         let contentColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("ContentColumn"))

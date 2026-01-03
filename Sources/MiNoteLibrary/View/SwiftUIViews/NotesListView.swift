@@ -26,6 +26,8 @@ struct NotesListView: View {
         }
         .listStyle(.sidebar)
         .accentColor(.yellow)  // 设置列表选择颜色为黄色
+        .scrollContentBackground(.hidden) // 隐藏默认的滚动内容背景
+        .background(Color(NSColor.windowBackgroundColor)) // 设置不透明背景色
         .alert("删除笔记", isPresented: $showingDeleteAlert, presenting: noteToDelete) { note in
             deleteAlertButtons(for: note)
         } message: { note in
