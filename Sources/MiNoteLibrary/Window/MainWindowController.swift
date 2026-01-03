@@ -345,8 +345,8 @@ extension MainWindowController: NSToolbarDelegate {
             return testMenuToolbarItem
             
         case .toggleSidebar:
-            // 使用系统提供的切换侧边栏项
-            return NSToolbarItem(itemIdentifier: .toggleSidebar)
+            // 创建自定义的切换侧边栏工具栏项
+            return buildToolbarButton(.toggleSidebar, "隐藏/显示侧边栏", NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: nil)!, "toggleSidebar:")
             
         case .share:
             return buildToolbarButton(.share, "分享", NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: nil)!, "shareNote:")
@@ -802,6 +802,11 @@ extension MainWindowController: NSUserInterfaceValidations {
             return true // 总是可以显示同步状态
         }
         
+        // 验证切换侧边栏按钮
+        if item.action == #selector(toggleSidebar(_:)) {
+            return true // 总是可以切换侧边栏
+        }
+        
         return true
     }
 }
@@ -1140,6 +1145,27 @@ extension MainWindowController {
             alert.addButton(withTitle: "确定")
             alert.runModal()
         }
+    }
+    
+    // MARK: - 侧边栏切换
+    
+    @objc func toggleSidebar(_ sender: Any?) {
+        print("切换侧边栏显示/隐藏")
+        
+        guard let window = window,
+              let splitViewController = window.contentViewController as? NSSplitViewController,
+              splitViewController.splitViewItems.count > 0 else {
+            print("无法获取分割视图控制器或侧边栏项")
+            return
+        }
+        
+        let sidebarItem = splitViewController.splitViewItems[0]
+        let isCurrentlyCollapsed = sidebarItem.isCollapsed
+        
+        // 切换侧边栏状态
+        sidebarItem.animator().isCollapsed = !isCurrentlyCollapsed
+        
+        print("侧边栏状态已切换: \(isCurrentlyCollapsed ? "显示" : "隐藏") -> \(!isCurrentlyCollapsed ? "显示" : "隐藏")")
     }
     
     // MARK: - 格式菜单
