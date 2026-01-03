@@ -115,7 +115,10 @@ extension NSToolbarItem.Identifier {
     /// 离线操作处理
     static let offlineOperations = NSToolbarItem.Identifier("offlineOperations")
     
-    /// 测试菜单
+    /// 笔记操作菜单
+    static let noteOperations = NSToolbarItem.Identifier("noteOperations")
+    
+    /// 测试菜单（已弃用，保留以保持兼容性）
     static let testMenu = NSToolbarItem.Identifier("testMenu")
     
     // MARK: - 跟踪分隔符

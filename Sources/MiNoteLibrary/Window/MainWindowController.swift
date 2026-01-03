@@ -40,7 +40,10 @@ public class MainWindowController: NSWindowController {
     /// 在线状态菜单工具栏项
     private var onlineStatusMenuToolbarItem: NSToolbarItem?
     
-    /// 测试菜单工具栏项
+    /// 笔记操作菜单工具栏项
+    private let noteOperationsToolbarItem = NSMenuToolbarItem(itemIdentifier: .noteOperations)
+    
+    /// 测试菜单工具栏项（已弃用，保留以保持兼容性）
     private let testMenuToolbarItem = NSMenuToolbarItem(itemIdentifier: .testMenu)
     
     // MARK: - 初始化
@@ -302,8 +305,84 @@ extension MainWindowController: NSToolbarDelegate {
             
             return toolbarItem
             
+        case .noteOperations:
+            // 笔记操作菜单工具栏项 - 纯AppKit实现
+            noteOperationsToolbarItem.toolTip = "笔记操作"
+            noteOperationsToolbarItem.label = "操作"
+            
+            // 设置图像 - 使用文档图标
+            noteOperationsToolbarItem.image = NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)
+            
+            // 设置显示指示器（下拉箭头）
+            noteOperationsToolbarItem.showsIndicator = true
+            
+            // 创建笔记操作菜单
+            let noteOperationsMenu = NSMenu()
+            
+            // 置顶笔记
+            let starNoteItem = NSMenuItem()
+            starNoteItem.title = "置顶笔记"
+            starNoteItem.action = #selector(toggleStarNote(_:))
+            starNoteItem.target = self
+            noteOperationsMenu.addItem(starNoteItem)
+            
+            // 添加到私密笔记
+            let addToPrivateItem = NSMenuItem()
+            addToPrivateItem.title = "添加到私密笔记"
+            addToPrivateItem.action = #selector(addToPrivateNotes(_:))
+            addToPrivateItem.target = self
+            noteOperationsMenu.addItem(addToPrivateItem)
+            
+            // 移到
+            let moveNoteItem = NSMenuItem()
+            moveNoteItem.title = "移到"
+            moveNoteItem.action = #selector(moveNote(_:))
+            moveNoteItem.target = self
+            noteOperationsMenu.addItem(moveNoteItem)
+            
+            noteOperationsMenu.addItem(NSMenuItem.separator())
+            
+            // 在笔记中查找（等待实现）
+            let findInNoteItem = NSMenuItem()
+            findInNoteItem.title = "在笔记中查找（等待实现）"
+            findInNoteItem.isEnabled = false
+            noteOperationsMenu.addItem(findInNoteItem)
+            
+            // 最近备笔记（等待实现）
+            let recentNotesItem = NSMenuItem()
+            recentNotesItem.title = "最近备笔记（等待实现）"
+            recentNotesItem.isEnabled = false
+            noteOperationsMenu.addItem(recentNotesItem)
+            
+            noteOperationsMenu.addItem(NSMenuItem.separator())
+            
+            // 删除笔记
+            let deleteNoteItem = NSMenuItem()
+            deleteNoteItem.title = "删除笔记"
+            deleteNoteItem.action = #selector(deleteNote(_:))
+            deleteNoteItem.target = self
+            noteOperationsMenu.addItem(deleteNoteItem)
+            
+            // 历史修改
+            let historyItem = NSMenuItem()
+            historyItem.title = "历史修改"
+            historyItem.action = #selector(showHistory(_:))
+            historyItem.target = self
+            noteOperationsMenu.addItem(historyItem)
+            
+            // 设置菜单
+            noteOperationsToolbarItem.menu = noteOperationsMenu
+            
+            // 同时设置menuFormRepresentation以确保兼容性
+            let menuItem = NSMenuItem()
+            menuItem.title = "笔记操作"
+            menuItem.submenu = noteOperationsMenu
+            noteOperationsToolbarItem.menuFormRepresentation = menuItem
+            
+            return noteOperationsToolbarItem
+            
         case .testMenu:
-            // 测试菜单工具栏项 - 纯AppKit实现
+            // 测试菜单工具栏项 - 纯AppKit实现（已弃用）
             testMenuToolbarItem.toolTip = "测试菜单"
             testMenuToolbarItem.label = "测试"
             
@@ -445,6 +524,7 @@ extension MainWindowController: NSToolbarDelegate {
             .restore,
             .history,
             .trash,
+            .noteOperations,
             .testMenu,
             .space,
             .separator
@@ -473,7 +553,7 @@ extension MainWindowController: NSToolbarDelegate {
             .delete,
             .history,
             .trash,
-            .testMenu
+            .noteOperations
         ]
     }
     
@@ -1132,6 +1212,44 @@ extension MainWindowController {
         print("显示回收站")
         // 显示回收站视图
         viewModel?.showTrashView = true
+    }
+    
+    // MARK: - 笔记操作菜单动作方法
+    
+    @objc func addToPrivateNotes(_ sender: Any?) {
+        print("添加到私密笔记")
+        guard let note = viewModel?.selectedNote else { return }
+        
+        let alert = NSAlert()
+        alert.messageText = "添加到私密笔记"
+        alert.informativeText = "确定要将笔记 \"\(note.title)\" 添加到私密笔记吗？"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.addButton(withTitle: "取消")
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            // 简化实现：显示成功消息
+            print("笔记已添加到私密笔记（功能正在开发中）")
+            let successAlert = NSAlert()
+            successAlert.messageText = "操作成功"
+            successAlert.informativeText = "笔记已添加到私密笔记（功能正在开发中）"
+            successAlert.alertStyle = .informational
+            successAlert.addButton(withTitle: "确定")
+            successAlert.runModal()
+        }
+    }
+    
+    @objc func moveNote(_ sender: Any?) {
+        print("移动笔记")
+        guard viewModel?.selectedNote != nil else { return }
+        
+        let alert = NSAlert()
+        alert.messageText = "移动笔记"
+        alert.informativeText = "移动笔记功能正在开发中..."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
     }
     
     @objc func showOnlineStatusMenu(_ sender: Any?) {
