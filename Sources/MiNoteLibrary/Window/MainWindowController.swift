@@ -1367,7 +1367,61 @@ extension MainWindowController {
             }
             .store(in: &cancellables)
         
+        // 监听选中的文件夹变化，更新窗口标题
+        viewModel.$selectedFolder
+            .receive(on: RunLoop.main)
+            .sink { [weak self] selectedFolder in
+                self?.updateWindowTitle(for: selectedFolder)
+            }
+            .store(in: &cancellables)
+        
+        // 监听笔记列表变化，更新窗口副标题
+        viewModel.$notes
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateWindowTitle(for: viewModel.selectedFolder)
+            }
+            .store(in: &cancellables)
+        
         print("[MainWindowController] 状态监听器已设置")
+    }
+    
+    /// 更新窗口标题和副标题
+    private func updateWindowTitle(for folder: Folder?) {
+        guard let window = window else { return }
+        
+        // 设置主标题为选中的文件夹名称
+        let folderName = folder?.name ?? "备忘录"
+        window.title = folderName
+        
+        // 计算当前文件夹中的笔记数量
+        let noteCount = getNoteCount(for: folder)
+        
+        // 设置副标题为笔记数量
+        window.subtitle = "\(noteCount)个笔记"
+    }
+    
+    /// 获取指定文件夹中的笔记数量
+    private func getNoteCount(for folder: Folder?) -> Int {
+        guard let viewModel = viewModel else { return 0 }
+        
+        if let folder = folder {
+            if folder.id == "starred" {
+                return viewModel.notes.filter { $0.isStarred }.count
+            } else if folder.id == "0" {
+                return viewModel.notes.count
+            } else if folder.id == "2" {
+                // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
+                return viewModel.notes.filter { $0.folderId == "2" }.count
+            } else if folder.id == "uncategorized" {
+                // 未分类文件夹：显示 folderId 为 "0" 或空的笔记
+                return viewModel.notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }.count
+            } else {
+                return viewModel.notes.filter { $0.folderId == folder.id }.count
+            }
+        } else {
+            return viewModel.notes.count
+        }
     }
 }
 
