@@ -92,7 +92,7 @@ struct MoveNoteSheetView: View {
                     folderId: selectedFolderId,
                     isStarred: note.isStarred,
                     createdAt: note.createdAt,
-                    updatedAt: Date()
+                    updatedAt: note.updatedAt // 保持原来的修改日期不变
                 )
                 try await viewModel.updateNote(updatedNote)
                 dismiss()
@@ -102,4 +102,3 @@ struct MoveNoteSheetView: View {
         }
     }
 }
-

@@ -11,6 +11,7 @@ import AppKit
 import SwiftUI
 import Combine
 import os
+import MiNoteLibrary
 
 /// 主窗口控制器
 /// 负责管理主窗口和工具栏
@@ -1242,14 +1243,70 @@ extension MainWindowController {
     
     @objc func moveNote(_ sender: Any?) {
         print("移动笔记")
-        guard viewModel?.selectedNote != nil else { return }
+        guard let note = viewModel?.selectedNote,
+              let viewModel = viewModel else { return }
         
-        let alert = NSAlert()
-        alert.messageText = "移动笔记"
-        alert.informativeText = "移动笔记功能正在开发中..."
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "确定")
-        alert.runModal()
+        // 创建菜单
+        let menu = NSMenu()
+        
+        // 未分类文件夹（folderId为"0"）
+        let uncategorizedMenuItem = NSMenuItem(title: "未分类", action: #selector(moveToUncategorized(_:)), keyEquivalent: "")
+        uncategorizedMenuItem.image = NSImage(systemSymbolName: "folder.badge.questionmark", accessibilityDescription: nil)
+        uncategorizedMenuItem.image?.size = NSSize(width: 16, height: 16)
+        menu.addItem(uncategorizedMenuItem)
+        
+        // 其他可用文件夹
+        let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+        
+        if !availableFolders.isEmpty {
+            menu.addItem(NSMenuItem.separator())
+            
+            for folder in availableFolders {
+                let menuItem = NSMenuItem(title: folder.name, action: #selector(moveNoteToFolder(_:)), keyEquivalent: "")
+                menuItem.representedObject = folder
+                menuItem.image = NSImage(systemSymbolName: folder.isPinned ? "pin.fill" : "folder", accessibilityDescription: nil)
+                menuItem.image?.size = NSSize(width: 16, height: 16)
+                menu.addItem(menuItem)
+            }
+        }
+        
+        // 显示菜单
+        if let button = sender as? NSView {
+            let location = NSPoint(x: 0, y: button.bounds.height)
+            menu.popUp(positioning: nil, at: location, in: button)
+        } else if let window = window {
+            let location = NSPoint(x: window.frame.midX, y: window.frame.midY)
+            menu.popUp(positioning: nil, at: location, in: nil)
+        }
+    }
+    
+    @objc func moveToUncategorized(_ sender: NSMenuItem) {
+        guard let note = viewModel?.selectedNote,
+              let viewModel = viewModel else { return }
+        
+        NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
+            switch result {
+            case .success:
+                print("[MainWindowController] 笔记移动到未分类成功: \(note.id)")
+            case .failure(let error):
+                print("[MainWindowController] 移动到未分类失败: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    @objc func moveNoteToFolder(_ sender: NSMenuItem) {
+        guard let folder = sender.representedObject as? Folder,
+              let note = viewModel?.selectedNote,
+              let viewModel = viewModel else { return }
+        
+        NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
+            switch result {
+            case .success:
+                print("[MainWindowController] 笔记移动成功: \(note.id) -> \(folder.name)")
+            case .failure(let error):
+                print("[MainWindowController] 移动笔记失败: \(error.localizedDescription)")
+            }
+        }
     }
     
     @objc func showOnlineStatusMenu(_ sender: Any?) {

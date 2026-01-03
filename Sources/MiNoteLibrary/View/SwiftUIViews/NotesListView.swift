@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import MiNoteLibrary
 
 struct NotesListView: View {
     @ObservedObject var viewModel: NotesViewModel
@@ -243,12 +244,36 @@ struct NotesListView: View {
                   systemImage: note.isStarred ? "pin.slash" : "pin")
         }
         
-        // 移动笔记
-        Button {
-            noteToMove = note
-            showingMoveNoteSheet = true
-        } label: {
-            Label("移动笔记", systemImage: "folder")
+        // 移动笔记（使用菜单）
+        Menu("移到") {
+            // 未分类文件夹（folderId为"0"）
+            Button {
+                NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
+                    switch result {
+                    case .success:
+                        print("[NotesListView] 笔记移动到未分类成功: \(note.id)")
+                    case .failure(let error):
+                        print("[NotesListView] 移动到未分类失败: \(error.localizedDescription)")
+                    }
+                }
+            } label: {
+                Label("未分类", systemImage: "folder.badge.questionmark")
+            }
+            
+            // 其他可用文件夹
+            let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+            
+            if !availableFolders.isEmpty {
+                Divider()
+                
+                ForEach(availableFolders, id: \.id) { folder in
+                    Button {
+                        moveNoteToFolder(note: note, folder: folder)
+                    } label: {
+                        Label(folder.name, systemImage: folder.isPinned ? "pin.fill" : "folder")
+                    }
+                }
+            }
         }
         
         Divider()
@@ -329,6 +354,19 @@ struct NotesListView: View {
         if let window = NSApplication.shared.keyWindow,
            let contentView = window.contentView {
             sharingService.show(relativeTo: .zero, of: contentView, preferredEdge: .minY)
+        }
+    }
+    
+    // MARK: - 移动笔记功能
+    
+    private func moveNoteToFolder(note: Note, folder: Folder) {
+        NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
+            switch result {
+            case .success:
+                print("[NotesListView] 笔记移动成功: \(note.id) -> \(folder.name)")
+            case .failure(let error):
+                print("[NotesListView] 移动笔记失败: \(error.localizedDescription)")
+            }
         }
     }
     
