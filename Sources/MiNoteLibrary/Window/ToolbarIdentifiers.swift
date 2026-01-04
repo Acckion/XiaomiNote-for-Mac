@@ -114,6 +114,17 @@ extension NSToolbarItem.Identifier {
     /// 锁定私密笔记
     static let lockPrivateNotes = NSToolbarItem.Identifier("lockPrivateNotes")
     
+    // MARK: - 其他功能
+    
+    /// 设置
+    static let settings = NSToolbarItem.Identifier("settings")
+    
+    /// 登录
+    static let login = NSToolbarItem.Identifier("login")
+    
+    /// 恢复
+    static let restore = NSToolbarItem.Identifier("restore")
+    
     // MARK: - 测试功能
     
     /// 测试按钮 - 带勾选框的菜单

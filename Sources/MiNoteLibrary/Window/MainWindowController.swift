@@ -40,6 +40,9 @@ public class MainWindowController: NSWindowController {
     /// 格式菜单popover
     private var formatMenuPopover: NSPopover?
     
+    /// 搜索筛选菜单popover
+    private var searchFilterMenuPopover: NSPopover?
+    
     /// 在线状态菜单工具栏项
     private var onlineStatusMenuToolbarItem: NSToolbarItem?
     
@@ -670,7 +673,7 @@ extension MainWindowController: NSToolbarDelegate {
         if item.itemIdentifier == .search, let searchItem = item as? NSSearchToolbarItem {
             searchItem.searchField.delegate = self
             searchItem.searchField.target = self
-            searchItem.searchField.action = #selector(performSearch(_:))
+            searchItem.searchField.action = #selector(showSearchFilterMenu(_:))
             currentSearchField = searchItem.searchField
             
             // 为搜索框添加下拉菜单
@@ -931,22 +934,11 @@ extension MainWindowController: NSMenuDelegate {
     public func menuNeedsUpdate(_ menu: NSMenu) {
         print("[MainWindowController] menuNeedsUpdate被调用，菜单标题: \(menu.title)，菜单项数量: \(menu.items.count)")
         
-        // 检查是否是搜索筛选菜单 - 通过菜单项标签来识别（更可靠）
-        let isSearchFilterMenu = menu.items.contains { item in
-            item.tag >= 1001 && item.tag <= 1006
-        }
-        
-        if isSearchFilterMenu {
-            print("[MainWindowController] 检测到搜索筛选菜单，更新菜单项状态")
-            // 更新搜索筛选菜单项状态
-            updateSearchFilterMenuItems(for: menu)
-        } else {
-            // 更新在线状态菜单项
-            for item in menu.items {
-                if item.tag == 100 { // 在线状态项
-                    item.title = getOnlineStatusTitle()
-                    break
-                }
+        // 更新在线状态菜单项
+        for item in menu.items {
+            if item.tag == 100 { // 在线状态项
+                item.title = getOnlineStatusTitle()
+                break
             }
         }
     }
@@ -2016,169 +2008,104 @@ extension MainWindowController {
     
     // MARK: - 搜索框菜单
     
-    /// 为搜索框设置下拉菜单
+    /// 为搜索框设置下拉菜单（使用SwiftUI popover）
     private func setupSearchFieldMenu(for searchField: NSSearchField) {
-        print("[MainWindowController] 设置搜索框菜单")
+        print("[MainWindowController] 设置搜索框菜单（SwiftUI popover）")
         
         // 设置搜索框属性以确保菜单正确工作
         searchField.sendsSearchStringImmediately = false
         searchField.sendsWholeSearchString = true
         
-        // 创建搜索筛选菜单
-        let menu = NSMenu()
-        menu.title = "搜索筛选菜单" // 设置菜单标题以便识别
-        menu.delegate = self // 设置菜单代理以动态更新菜单项状态
+        // 移除旧的NSMenu设置
+        searchField.menu = nil
         
-        // 创建菜单项
-        createSearchFilterMenuItems(for: menu)
-        
-        // 设置搜索框的菜单 - 只使用menu属性，不使用searchMenuTemplate
-        searchField.menu = menu
-        
-        // 设置搜索框的菜单模式为下拉菜单
-        searchField.menu?.showsStateColumn = true
+        // 设置搜索框的点击事件处理
+        searchField.target = self
+        searchField.action = #selector(showSearchFilterMenu(_:))
         
         // 重要：确保搜索框有正确的行为设置
         searchField.bezelStyle = .roundedBezel
         searchField.controlSize = .regular
         
-        print("[MainWindowController] 搜索框菜单已设置，菜单标题: \(menu.title)，菜单项数量: \(menu.items.count)")
+        print("[MainWindowController] 搜索框菜单已设置为使用SwiftUI popover")
     }
     
-    /// 创建搜索筛选菜单项
-    private func createSearchFilterMenuItems(for menu: NSMenu) {
-        guard let viewModel = viewModel else { return }
-        
-        print("[MainWindowController] 创建搜索筛选菜单项")
-        
-        // 含标签的笔记（待实现）
-        let tagsItem = NSMenuItem()
-        tagsItem.title = "含标签的笔记"
-        tagsItem.action = #selector(toggleSearchFilterHasTags(_:))
-        tagsItem.target = self
-        tagsItem.state = viewModel.searchFilterHasTags ? .on : .off
-        tagsItem.isEnabled = false // 待实现，暂时禁用
-        tagsItem.tag = 1001 // 设置标签以便识别
-        menu.addItem(tagsItem)
-        
-        // 含核对清单的笔记
-        let checklistItem = NSMenuItem()
-        checklistItem.title = "含核对清单的笔记"
-        checklistItem.action = #selector(toggleSearchFilterHasChecklist(_:))
-        checklistItem.target = self
-        checklistItem.state = viewModel.searchFilterHasChecklist ? .on : .off
-        checklistItem.tag = 1002 // 设置标签以便识别
-        menu.addItem(checklistItem)
-        
-        // 含图片的笔记
-        let imagesItem = NSMenuItem()
-        imagesItem.title = "含图片的笔记"
-        imagesItem.action = #selector(toggleSearchFilterHasImages(_:))
-        imagesItem.target = self
-        imagesItem.state = viewModel.searchFilterHasImages ? .on : .off
-        imagesItem.tag = 1003 // 设置标签以便识别
-        menu.addItem(imagesItem)
-        
-        // 含录音的笔记（待实现）
-        let audioItem = NSMenuItem()
-        audioItem.title = "含录音的笔记"
-        audioItem.action = #selector(toggleSearchFilterHasAudio(_:))
-        audioItem.target = self
-        audioItem.state = viewModel.searchFilterHasAudio ? .on : .off
-        audioItem.isEnabled = false // 待实现，暂时禁用
-        audioItem.tag = 1004 // 设置标签以便识别
-        menu.addItem(audioItem)
-        
-        // 私密笔记
-        let privateItem = NSMenuItem()
-        privateItem.title = "私密笔记"
-        privateItem.action = #selector(toggleSearchFilterIsPrivate(_:))
-        privateItem.target = self
-        privateItem.state = viewModel.searchFilterIsPrivate ? .on : .off
-        privateItem.tag = 1005 // 设置标签以便识别
-        menu.addItem(privateItem)
-        
-        // 清除所有筛选
-        let clearItem = NSMenuItem()
-        clearItem.title = "清除所有筛选"
-        clearItem.action = #selector(clearAllSearchFilters(_:))
-        clearItem.target = self
-        clearItem.isHidden = !hasAnySearchFilter() // 初始隐藏状态
-        clearItem.tag = 1006 // 设置标签以便识别
-        menu.addItem(clearItem)
-        
-        // 添加分隔符，使菜单更清晰
-        menu.addItem(NSMenuItem.separator())
-        
-        print("[MainWindowController] 菜单项创建完成，总数: \(menu.items.count)")
-    }
     
-    /// 更新搜索筛选菜单项状态
-    private func updateSearchFilterMenuItems(for menu: NSMenu) {
-        guard let viewModel = viewModel else { return }
-        
-        print("[MainWindowController] 更新搜索筛选菜单项状态，菜单标题: \(menu.title)")
-        
-        // 遍历所有菜单项，根据标签来识别并更新状态
-        for item in menu.items {
-            // 根据菜单项标签来识别对应的筛选选项
-            switch item.tag {
-            case 1001: // 含标签的笔记
-                item.state = viewModel.searchFilterHasTags ? .on : .off
-                print("[MainWindowController] 更新标签筛选状态: \(item.state == .on ? "开启" : "关闭")")
-            case 1002: // 含核对清单的笔记
-                item.state = viewModel.searchFilterHasChecklist ? .on : .off
-                print("[MainWindowController] 更新核对清单筛选状态: \(item.state == .on ? "开启" : "关闭")")
-            case 1003: // 含图片的笔记
-                item.state = viewModel.searchFilterHasImages ? .on : .off
-                print("[MainWindowController] 更新图片筛选状态: \(item.state == .on ? "开启" : "关闭")")
-            case 1004: // 含录音的笔记
-                item.state = viewModel.searchFilterHasAudio ? .on : .off
-                print("[MainWindowController] 更新录音筛选状态: \(item.state == .on ? "开启" : "关闭")")
-            case 1005: // 私密笔记
-                item.state = viewModel.searchFilterIsPrivate ? .on : .off
-                print("[MainWindowController] 更新私密笔记筛选状态: \(item.state == .on ? "开启" : "关闭")")
-            case 1006: // 清除所有筛选
-                // 清除筛选按钮只在有筛选时显示
-                item.isHidden = !hasAnySearchFilter()
-                print("[MainWindowController] 更新清除筛选按钮显示状态: \(item.isHidden ? "隐藏" : "显示")")
-            default:
-                // 如果不是筛选菜单项，跳过
-                break
-            }
-        }
-        
-        // 确保菜单正确显示
-        menu.update()
-    }
     
     // MARK: - 搜索筛选菜单动作
     
-    @objc func toggleSearchFilterHasTags(_ sender: Any?) {
-        viewModel?.searchFilterHasTags.toggle()
+    @objc func showSearchFilterMenu(_ sender: Any?) {
+        print("[MainWindowController] 显示搜索筛选菜单")
+        
+        // 如果popover已经显示，则关闭它
+        if let popover = searchFilterMenuPopover, popover.isShown {
+            popover.performClose(sender)
+            searchFilterMenuPopover = nil
+            return
+        }
+        
+        // 确保有viewModel
+        guard let viewModel = viewModel else {
+            print("[MainWindowController] 错误：viewModel不存在")
+            return
+        }
+        
+        // 创建SwiftUI搜索筛选菜单视图
+        let searchFilterMenuView = SearchFilterMenuContent(viewModel: viewModel)
+        
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: searchFilterMenuView)
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 220, height: 220)
+        
+        // 创建popover
+        let popover = NSPopover()
+        popover.contentSize = NSSize(width: 220, height: 220)
+        popover.behavior = .transient
+        popover.animates = true
+        popover.contentViewController = hostingController
+        
+        // 存储popover引用
+        searchFilterMenuPopover = popover
+        
+        // 显示popover
+        if let searchField = sender as? NSSearchField {
+            // 方法1：获取搜索框在窗口坐标系中的frame
+            guard let window = searchField.window else {
+                print("[MainWindowController] 错误：无法获取搜索框所在的窗口")
+                return
+            }
+            
+            // 将搜索框的bounds转换到窗口坐标系
+            let searchFieldBoundsInWindow = searchField.convert(searchField.bounds, to: nil)
+            print("[MainWindowController] 搜索框在窗口坐标系中的bounds: \(searchFieldBoundsInWindow)")
+            
+            // 方法2：或者使用搜索框的frame（在窗口坐标系中）
+            let searchFieldFrameInWindow = searchField.frame
+            print("[MainWindowController] 搜索框frame（在父视图坐标系中）: \(searchFieldFrameInWindow)")
+            
+            // 关键修改：使用搜索框在窗口坐标系中的位置
+            // 我们想要popover显示在搜索框正下方，紧贴搜索框
+            // 使用 .minY 让popover显示在矩形的下方
+let popoverRect = NSRect(
+    x: searchFieldBoundsInWindow.minX,
+    y: searchFieldBoundsInWindow.minY,
+    width: searchFieldBoundsInWindow.width,
+    height: searchFieldBoundsInWindow.height
+)
+            
+            print("[MainWindowController] 使用popoverRect: \(popoverRect)")
+            print("[MainWindowController] 使用窗口作为基准显示popover")
+            
+            // 使用窗口作为基准显示popover，preferredEdge改为.minY
+            popover.show(relativeTo: popoverRect, of: window.contentView!, preferredEdge: .minY)
+            
+        } else if let window = window, let contentView = window.contentView {
+            // 如果没有搜索框，显示在窗口中央
+            popover.show(relativeTo: contentView.bounds, of: contentView, preferredEdge: .maxY)
+        }
     }
     
-    @objc func toggleSearchFilterHasChecklist(_ sender: Any?) {
-        viewModel?.searchFilterHasChecklist.toggle()
-    }
-    
-    @objc func toggleSearchFilterHasImages(_ sender: Any?) {
-        viewModel?.searchFilterHasImages.toggle()
-    }
-    
-    @objc func toggleSearchFilterHasAudio(_ sender: Any?) {
-        viewModel?.searchFilterHasAudio.toggle()
-    }
-    
-    @objc func toggleSearchFilterIsPrivate(_ sender: Any?) {
-        viewModel?.searchFilterIsPrivate.toggle()
-    }
-    
-    @objc func clearAllSearchFilters(_ sender: Any?) {
-        clearAllSearchFilters()
-    }
-    
-    ///bh@ 检查是否有任何筛选选项被启用
+    /// 检查是否有任何筛选选项被启用
     private func hasAnySearchFilter() -> Bool {
         guard let viewModel = viewModel else { return false }
         

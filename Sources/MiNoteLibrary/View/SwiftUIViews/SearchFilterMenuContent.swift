@@ -5,42 +5,56 @@ struct SearchFilterMenuContent: View {
     @ObservedObject var viewModel: NotesViewModel
     
     var body: some View {
-        // 含标签的笔记（待实现）
-        Toggle(isOn: $viewModel.searchFilterHasTags) {
-            Label("含标签的笔记", systemImage: "tag")
-        }
-        .disabled(true) // 待实现，暂时禁用
-        
-        // 含核对清单的笔记
-        Toggle(isOn: $viewModel.searchFilterHasChecklist) {
-            Label("含核对清单的笔记", systemImage: "checklist")
-        }
-        
-        // 含图片的笔记
-        Toggle(isOn: $viewModel.searchFilterHasImages) {
-            Label("含图片的笔记", systemImage: "photo")
-        }
-        
-        // 含录音的笔记（待实现）
-        Toggle(isOn: $viewModel.searchFilterHasAudio) {
-            Label("含录音的笔记", systemImage: "mic")
-        }
-        .disabled(true) // 待实现，暂时禁用
-        
-        // 私密笔记
-        Toggle(isOn: $viewModel.searchFilterIsPrivate) {
-            Label("私密笔记", systemImage: "lock")
-        }
-        
-        // 清除所有筛选
-        if hasAnyFilter() {
-            Divider()
-            Button {
-                clearAllFilters()
-            } label: {
-                Label("清除所有筛选", systemImage: "xmark.circle")
+        VStack(alignment: .leading, spacing: 8) {
+            // 含标签的笔记（待实现）
+            Toggle(isOn: $viewModel.searchFilterHasTags) {
+                Label("含标签的笔记", systemImage: "tag")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .disabled(true) // 待实现，暂时禁用
+            
+            // 含核对清单的笔记
+            Toggle(isOn: $viewModel.searchFilterHasChecklist) {
+                Label("含核对清单的笔记", systemImage: "checklist")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            // 含图片的笔记
+            Toggle(isOn: $viewModel.searchFilterHasImages) {
+                Label("含图片的笔记", systemImage: "photo")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            // 含录音的笔记（待实现）
+            Toggle(isOn: $viewModel.searchFilterHasAudio) {
+                Label("含录音的笔记", systemImage: "mic")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .disabled(true) // 待实现，暂时禁用
+            
+            // 私密笔记
+            Toggle(isOn: $viewModel.searchFilterIsPrivate) {
+                Label("私密笔记", systemImage: "lock")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            // 清除所有筛选
+            if hasAnyFilter() {
+                Divider()
+                    .padding(.vertical, 4)
+                
+                Button {
+                    clearAllFilters()
+                } label: {
+                    Label("清除所有筛选", systemImage: "xmark.circle")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
             }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(minWidth: 200)
     }
     
     /// 检查是否有任何筛选选项被启用
