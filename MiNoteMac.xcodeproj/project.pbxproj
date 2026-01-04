@@ -82,7 +82,6 @@
 		B78FE8A0A0437EAD2E58CB2C /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE64CAF7AD43892DB9E8DB65 /* SidebarView.swift */; };
 		B91FEF55308BEE0A4750F388 /* MainWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3349561297E3C10B46705BF /* MainWindowState.swift */; };
 		B9F5E07B1D9B83652901C37E /* SearchFilterMenuContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD8C1001FB4FB23834805D0E /* SearchFilterMenuContent.swift */; };
-		BC6E26E46E3EBF43C498C26B /* SearchFilterPopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C28B3FC5950826666FAF442 /* SearchFilterPopoverView.swift */; };
 		C1B84C07AC8FBABB37CEE4C4 /* NSWindow+MiNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = A340F0BBAB9A14D831D150E3 /* NSWindow+MiNote.swift */; };
 		C2A0F6905AFAA72CCE05EC47 /* NetworkLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77AED5D148C784D8F4BD93FC /* NetworkLogView.swift */; };
 		C75CB329343269121A0FFDA6 /* PrivateNotesVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC2BEB9A968A92010516E864 /* PrivateNotesVerificationView.swift */; };
@@ -141,7 +140,6 @@
 		18E5BA8D52CF04BD393F0F82 /* WebFormatMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebFormatMenuView.swift; sourceTree = "<group>"; };
 		19CE08A1CDCF94C551D20E51 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		1A7658B8BAA53B9D317693F7 /* editor-init.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "editor-init.js"; sourceTree = "<group>"; };
-		1C28B3FC5950826666FAF442 /* SearchFilterPopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFilterPopoverView.swift; sourceTree = "<group>"; };
 		1C9C97959BDB8637573921CD /* SidebarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewController.swift; sourceTree = "<group>"; };
 		1DFA71C26665592AA8D75F7D /* SidebarWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWindowState.swift; sourceTree = "<group>"; };
 		21ABB7492D465FD413582C52 /* editor.html.backup */ = {isa = PBXFileReference; path = editor.html.backup; sourceTree = "<group>"; };
@@ -452,7 +450,6 @@
 				2D4B088A9F4B3C102F8F3399 /* PrivateNotesPasswordInputDialogView.swift */,
 				BC2BEB9A968A92010516E864 /* PrivateNotesVerificationView.swift */,
 				CD8C1001FB4FB23834805D0E /* SearchFilterMenuContent.swift */,
-				1C28B3FC5950826666FAF442 /* SearchFilterPopoverView.swift */,
 				51F48D25699308772079F041 /* SettingsView.swift */,
 				AE64CAF7AD43892DB9E8DB65 /* SidebarView.swift */,
 				B2A3E9E3573AFD9E5D4281F1 /* TitleEditorView.swift */,
@@ -715,7 +712,6 @@
 				C75CB329343269121A0FFDA6 /* PrivateNotesVerificationView.swift in Sources */,
 				AF1776F02B8D6C2D5F5DCF08 /* SaveQueueManager.swift in Sources */,
 				B9F5E07B1D9B83652901C37E /* SearchFilterMenuContent.swift in Sources */,
-				BC6E26E46E3EBF43C498C26B /* SearchFilterPopoverView.swift in Sources */,
 				3E8E6AEEE5DCC7DFAD1CCBD9 /* SettingsView.swift in Sources */,
 				9B39AA57D83C6845F2C865A7 /* SettingsWindowController.swift in Sources */,
 				36EDAD7FCB59ED5DE869B720 /* SidebarHostingController.swift in Sources */,

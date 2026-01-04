@@ -454,6 +454,72 @@ extension MainWindowController: NSToolbarDelegate {
             
             return testMenuToolbarItem
             
+        case .testCheckboxMenu:
+            // 测试按钮 - 带勾选框的菜单
+            let toolbarItem = NSMenuToolbarItem(itemIdentifier: .testCheckboxMenu)
+            toolbarItem.toolTip = "测试按钮"
+            toolbarItem.label = "测试"
+            
+            // 设置图像
+            toolbarItem.image = NSImage(systemSymbolName: "checkmark.square", accessibilityDescription: nil)
+            
+            // 设置显示指示器（下拉箭头）
+            toolbarItem.showsIndicator = true
+            
+            // 创建带勾选框的测试菜单
+            let testCheckboxMenu = NSMenu()
+            
+            // 选项1 - 带勾选框
+            let option1Item = NSMenuItem()
+            option1Item.title = "选项1"
+            option1Item.action = #selector(toggleTestOption1(_:))
+            option1Item.target = self
+            option1Item.state = .off
+            testCheckboxMenu.addItem(option1Item)
+            
+            // 选项2 - 带勾选框
+            let option2Item = NSMenuItem()
+            option2Item.title = "选项2"
+            option2Item.action = #selector(toggleTestOption2(_:))
+            option2Item.target = self
+            option2Item.state = .off
+            testCheckboxMenu.addItem(option2Item)
+            
+            // 选项3 - 带勾选框
+            let option3Item = NSMenuItem()
+            option3Item.title = "选项3"
+            option3Item.action = #selector(toggleTestOption3(_:))
+            option3Item.target = self
+            option3Item.state = .off
+            testCheckboxMenu.addItem(option3Item)
+            
+            testCheckboxMenu.addItem(NSMenuItem.separator())
+            
+            // 全选
+            let selectAllItem = NSMenuItem()
+            selectAllItem.title = "全选"
+            selectAllItem.action = #selector(selectAllTestOptions(_:))
+            selectAllItem.target = self
+            testCheckboxMenu.addItem(selectAllItem)
+            
+            // 取消全选
+            let deselectAllItem = NSMenuItem()
+            deselectAllItem.title = "取消全选"
+            deselectAllItem.action = #selector(deselectAllTestOptions(_:))
+            deselectAllItem.target = self
+            testCheckboxMenu.addItem(deselectAllItem)
+            
+            // 设置菜单
+            toolbarItem.menu = testCheckboxMenu
+            
+            // 同时设置menuFormRepresentation以确保兼容性
+            let menuItem = NSMenuItem()
+            menuItem.title = "测试菜单"
+            menuItem.submenu = testCheckboxMenu
+            toolbarItem.menuFormRepresentation = menuItem
+            
+            return toolbarItem
+            
         case .lockPrivateNotes:
             // 锁定私密笔记工具栏项
             return buildToolbarButton(.lockPrivateNotes, "锁定私密笔记", NSImage(systemSymbolName: "lock.fill", accessibilityDescription: nil)!, "lockPrivateNotes:")
@@ -471,20 +537,12 @@ extension MainWindowController: NSToolbarDelegate {
         case .delete:
             return buildToolbarButton(.delete, "删除", NSImage(systemSymbolName: "trash", accessibilityDescription: nil)!, "deleteNote:")
             
-        case .restore:
-            return buildToolbarButton(.restore, "恢复", NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: nil)!, "restoreNote:")
             
         case .history:
             return buildToolbarButton(.history, "历史记录", NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: nil)!, "showHistory:")
             
         case .trash:
             return buildToolbarButton(.trash, "回收站", NSImage(systemSymbolName: "trash", accessibilityDescription: nil)!, "showTrash:")
-            
-        case .settings:
-            return buildToolbarButton(.settings, "设置", NSImage(systemSymbolName: "gear", accessibilityDescription: nil)!, "showSettings:")
-            
-        case .login:
-            return buildToolbarButton(.login, "登录", NSImage(systemSymbolName: "person.crop.circle", accessibilityDescription: nil)!, "showLogin:")
             
         case .cookieRefresh:
             return buildToolbarButton(.cookieRefresh, "刷新Cookie", NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)!, "showCookieRefresh:")
@@ -558,6 +616,7 @@ extension MainWindowController: NSToolbarDelegate {
             NSToolbarItem.Identifier.trash,
             NSToolbarItem.Identifier.noteOperations,
             NSToolbarItem.Identifier.testMenu,
+            NSToolbarItem.Identifier.testCheckboxMenu,
             NSToolbarItem.Identifier.space,
             NSToolbarItem.Identifier.separator
         ]
@@ -613,6 +672,14 @@ extension MainWindowController: NSToolbarDelegate {
             searchItem.searchField.target = self
             searchItem.searchField.action = #selector(performSearch(_:))
             currentSearchField = searchItem.searchField
+            
+            // 为搜索框添加下拉菜单
+            setupSearchFieldMenu(for: searchItem.searchField)
+            
+            // 确保搜索框菜单正确显示
+            searchItem.searchField.sendsSearchStringImmediately = false
+            searchItem.searchField.sendsWholeSearchString = true
+            searchItem.searchField.maximumRecents = 10
         }
         
         if item.itemIdentifier == .share, let button = item.view as? NSButton {
@@ -761,6 +828,51 @@ extension MainWindowController: NSToolbarDelegate {
         alert.runModal()
     }
     
+    // MARK: - 测试按钮动作
+    
+    @objc func toggleTestOption1(_ sender: Any?) {
+        if let menuItem = sender as? NSMenuItem {
+            menuItem.state = menuItem.state == .on ? .off : .on
+            print("测试选项1状态: \(menuItem.state == .on ? "选中" : "未选中")")
+        }
+    }
+    
+    @objc func toggleTestOption2(_ sender: Any?) {
+        if let menuItem = sender as? NSMenuItem {
+            menuItem.state = menuItem.state == .on ? .off : .on
+            print("测试选项2状态: \(menuItem.state == .on ? "选中" : "未选中")")
+        }
+    }
+    
+    @objc func toggleTestOption3(_ sender: Any?) {
+        if let menuItem = sender as? NSMenuItem {
+            menuItem.state = menuItem.state == .on ? .off : .on
+            print("测试选项3状态: \(menuItem.state == .on ? "选中" : "未选中")")
+        }
+    }
+    
+    @objc func selectAllTestOptions(_ sender: Any?) {
+        print("全选测试选项")
+        // 这里应该更新菜单项状态，但由于菜单是动态创建的，需要其他方式处理
+        let alert = NSAlert()
+        alert.messageText = "测试功能"
+        alert.informativeText = "全选功能已触发（实际实现需要更新菜单项状态）"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+    }
+    
+    @objc func deselectAllTestOptions(_ sender: Any?) {
+        print("取消全选测试选项")
+        // 这里应该更新菜单项状态，但由于菜单是动态创建的，需要其他方式处理
+        let alert = NSAlert()
+        alert.messageText = "测试功能"
+        alert.informativeText = "取消全选功能已触发（实际实现需要更新菜单项状态）"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+    }
+    
 }
 
 // MARK: - NSWindowDelegate
@@ -817,14 +929,28 @@ extension MainWindowController: NSSearchFieldDelegate {
 extension MainWindowController: NSMenuDelegate {
     
     public func menuNeedsUpdate(_ menu: NSMenu) {
-        // 更新在线状态菜单项
-        for item in menu.items {
-            if item.tag == 100 { // 在线状态项
-                item.title = getOnlineStatusTitle()
-                break
+        print("[MainWindowController] menuNeedsUpdate被调用，菜单标题: \(menu.title)，菜单项数量: \(menu.items.count)")
+        
+        // 检查是否是搜索筛选菜单 - 通过菜单项标签来识别（更可靠）
+        let isSearchFilterMenu = menu.items.contains { item in
+            item.tag >= 1001 && item.tag <= 1006
+        }
+        
+        if isSearchFilterMenu {
+            print("[MainWindowController] 检测到搜索筛选菜单，更新菜单项状态")
+            // 更新搜索筛选菜单项状态
+            updateSearchFilterMenuItems(for: menu)
+        } else {
+            // 更新在线状态菜单项
+            for item in menu.items {
+                if item.tag == 100 { // 在线状态项
+                    item.title = getOnlineStatusTitle()
+                    break
+                }
             }
         }
     }
+    
 }
 
 // MARK: - NSUserInterfaceValidations
@@ -1887,6 +2013,191 @@ extension MainWindowController {
             return viewModel.notes.count
         }
     }
+    
+    // MARK: - 搜索框菜单
+    
+    /// 为搜索框设置下拉菜单
+    private func setupSearchFieldMenu(for searchField: NSSearchField) {
+        print("[MainWindowController] 设置搜索框菜单")
+        
+        // 设置搜索框属性以确保菜单正确工作
+        searchField.sendsSearchStringImmediately = false
+        searchField.sendsWholeSearchString = true
+        
+        // 创建搜索筛选菜单
+        let menu = NSMenu()
+        menu.title = "搜索筛选菜单" // 设置菜单标题以便识别
+        menu.delegate = self // 设置菜单代理以动态更新菜单项状态
+        
+        // 创建菜单项
+        createSearchFilterMenuItems(for: menu)
+        
+        // 设置搜索框的菜单 - 只使用menu属性，不使用searchMenuTemplate
+        searchField.menu = menu
+        
+        // 设置搜索框的菜单模式为下拉菜单
+        searchField.menu?.showsStateColumn = true
+        
+        // 重要：确保搜索框有正确的行为设置
+        searchField.bezelStyle = .roundedBezel
+        searchField.controlSize = .regular
+        
+        print("[MainWindowController] 搜索框菜单已设置，菜单标题: \(menu.title)，菜单项数量: \(menu.items.count)")
+    }
+    
+    /// 创建搜索筛选菜单项
+    private func createSearchFilterMenuItems(for menu: NSMenu) {
+        guard let viewModel = viewModel else { return }
+        
+        print("[MainWindowController] 创建搜索筛选菜单项")
+        
+        // 含标签的笔记（待实现）
+        let tagsItem = NSMenuItem()
+        tagsItem.title = "含标签的笔记"
+        tagsItem.action = #selector(toggleSearchFilterHasTags(_:))
+        tagsItem.target = self
+        tagsItem.state = viewModel.searchFilterHasTags ? .on : .off
+        tagsItem.isEnabled = false // 待实现，暂时禁用
+        tagsItem.tag = 1001 // 设置标签以便识别
+        menu.addItem(tagsItem)
+        
+        // 含核对清单的笔记
+        let checklistItem = NSMenuItem()
+        checklistItem.title = "含核对清单的笔记"
+        checklistItem.action = #selector(toggleSearchFilterHasChecklist(_:))
+        checklistItem.target = self
+        checklistItem.state = viewModel.searchFilterHasChecklist ? .on : .off
+        checklistItem.tag = 1002 // 设置标签以便识别
+        menu.addItem(checklistItem)
+        
+        // 含图片的笔记
+        let imagesItem = NSMenuItem()
+        imagesItem.title = "含图片的笔记"
+        imagesItem.action = #selector(toggleSearchFilterHasImages(_:))
+        imagesItem.target = self
+        imagesItem.state = viewModel.searchFilterHasImages ? .on : .off
+        imagesItem.tag = 1003 // 设置标签以便识别
+        menu.addItem(imagesItem)
+        
+        // 含录音的笔记（待实现）
+        let audioItem = NSMenuItem()
+        audioItem.title = "含录音的笔记"
+        audioItem.action = #selector(toggleSearchFilterHasAudio(_:))
+        audioItem.target = self
+        audioItem.state = viewModel.searchFilterHasAudio ? .on : .off
+        audioItem.isEnabled = false // 待实现，暂时禁用
+        audioItem.tag = 1004 // 设置标签以便识别
+        menu.addItem(audioItem)
+        
+        // 私密笔记
+        let privateItem = NSMenuItem()
+        privateItem.title = "私密笔记"
+        privateItem.action = #selector(toggleSearchFilterIsPrivate(_:))
+        privateItem.target = self
+        privateItem.state = viewModel.searchFilterIsPrivate ? .on : .off
+        privateItem.tag = 1005 // 设置标签以便识别
+        menu.addItem(privateItem)
+        
+        // 清除所有筛选
+        let clearItem = NSMenuItem()
+        clearItem.title = "清除所有筛选"
+        clearItem.action = #selector(clearAllSearchFilters(_:))
+        clearItem.target = self
+        clearItem.isHidden = !hasAnySearchFilter() // 初始隐藏状态
+        clearItem.tag = 1006 // 设置标签以便识别
+        menu.addItem(clearItem)
+        
+        // 添加分隔符，使菜单更清晰
+        menu.addItem(NSMenuItem.separator())
+        
+        print("[MainWindowController] 菜单项创建完成，总数: \(menu.items.count)")
+    }
+    
+    /// 更新搜索筛选菜单项状态
+    private func updateSearchFilterMenuItems(for menu: NSMenu) {
+        guard let viewModel = viewModel else { return }
+        
+        print("[MainWindowController] 更新搜索筛选菜单项状态，菜单标题: \(menu.title)")
+        
+        // 遍历所有菜单项，根据标签来识别并更新状态
+        for item in menu.items {
+            // 根据菜单项标签来识别对应的筛选选项
+            switch item.tag {
+            case 1001: // 含标签的笔记
+                item.state = viewModel.searchFilterHasTags ? .on : .off
+                print("[MainWindowController] 更新标签筛选状态: \(item.state == .on ? "开启" : "关闭")")
+            case 1002: // 含核对清单的笔记
+                item.state = viewModel.searchFilterHasChecklist ? .on : .off
+                print("[MainWindowController] 更新核对清单筛选状态: \(item.state == .on ? "开启" : "关闭")")
+            case 1003: // 含图片的笔记
+                item.state = viewModel.searchFilterHasImages ? .on : .off
+                print("[MainWindowController] 更新图片筛选状态: \(item.state == .on ? "开启" : "关闭")")
+            case 1004: // 含录音的笔记
+                item.state = viewModel.searchFilterHasAudio ? .on : .off
+                print("[MainWindowController] 更新录音筛选状态: \(item.state == .on ? "开启" : "关闭")")
+            case 1005: // 私密笔记
+                item.state = viewModel.searchFilterIsPrivate ? .on : .off
+                print("[MainWindowController] 更新私密笔记筛选状态: \(item.state == .on ? "开启" : "关闭")")
+            case 1006: // 清除所有筛选
+                // 清除筛选按钮只在有筛选时显示
+                item.isHidden = !hasAnySearchFilter()
+                print("[MainWindowController] 更新清除筛选按钮显示状态: \(item.isHidden ? "隐藏" : "显示")")
+            default:
+                // 如果不是筛选菜单项，跳过
+                break
+            }
+        }
+        
+        // 确保菜单正确显示
+        menu.update()
+    }
+    
+    // MARK: - 搜索筛选菜单动作
+    
+    @objc func toggleSearchFilterHasTags(_ sender: Any?) {
+        viewModel?.searchFilterHasTags.toggle()
+    }
+    
+    @objc func toggleSearchFilterHasChecklist(_ sender: Any?) {
+        viewModel?.searchFilterHasChecklist.toggle()
+    }
+    
+    @objc func toggleSearchFilterHasImages(_ sender: Any?) {
+        viewModel?.searchFilterHasImages.toggle()
+    }
+    
+    @objc func toggleSearchFilterHasAudio(_ sender: Any?) {
+        viewModel?.searchFilterHasAudio.toggle()
+    }
+    
+    @objc func toggleSearchFilterIsPrivate(_ sender: Any?) {
+        viewModel?.searchFilterIsPrivate.toggle()
+    }
+    
+    @objc func clearAllSearchFilters(_ sender: Any?) {
+        clearAllSearchFilters()
+    }
+    
+    ///bh@ 检查是否有任何筛选选项被启用
+    private func hasAnySearchFilter() -> Bool {
+        guard let viewModel = viewModel else { return false }
+        
+        return viewModel.searchFilterHasTags ||
+               viewModel.searchFilterHasChecklist ||
+               viewModel.searchFilterHasImages ||
+               viewModel.searchFilterHasAudio ||
+               viewModel.searchFilterIsPrivate
+    }
+    
+    /// 清除所有筛选选项
+    private func clearAllSearchFilters() {
+        viewModel?.searchFilterHasTags = false
+        viewModel?.searchFilterHasChecklist = false
+        viewModel?.searchFilterHasImages = false
+        viewModel?.searchFilterHasAudio = false
+        viewModel?.searchFilterIsPrivate = false
+    }
+    
 }
 
 #endif

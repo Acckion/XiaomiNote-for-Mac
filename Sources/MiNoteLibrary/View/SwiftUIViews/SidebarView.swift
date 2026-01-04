@@ -62,7 +62,6 @@ public struct SidebarView: View {
                         }
                     }
                 }
-            
             List(selection: $viewModel.selectedFolder) {
                 // MARK: 小米笔记 Section
                 Section {
@@ -270,7 +269,6 @@ public struct SidebarView: View {
                                 } label: {
                                     Label("排序方式", systemImage: "arrow.up.arrow.down")
                                 }
-                                
                                 Divider()
                                 
                                 // 重命名文件夹

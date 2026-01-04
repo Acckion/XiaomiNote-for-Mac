@@ -92,22 +92,12 @@ extension NSToolbarItem.Identifier {
     /// 删除
     static let delete = NSToolbarItem.Identifier("delete")
     
-    /// 恢复
-    static let restore = NSToolbarItem.Identifier("restore")
     
     /// 历史记录
     static let history = NSToolbarItem.Identifier("history")
     
     /// 回收站
     static let trash = NSToolbarItem.Identifier("trash")
-    
-    // MARK: - 设置和账户
-    
-    /// 设置
-    static let settings = NSToolbarItem.Identifier("settings")
-    
-    /// 登录
-    static let login = NSToolbarItem.Identifier("login")
     
     /// Cookie刷新
     static let cookieRefresh = NSToolbarItem.Identifier("cookieRefresh")
@@ -123,6 +113,11 @@ extension NSToolbarItem.Identifier {
     
     /// 锁定私密笔记
     static let lockPrivateNotes = NSToolbarItem.Identifier("lockPrivateNotes")
+    
+    // MARK: - 测试功能
+    
+    /// 测试按钮 - 带勾选框的菜单
+    static let testCheckboxMenu = NSToolbarItem.Identifier("testCheckboxMenu")
     
     // MARK: - 跟踪分隔符
     
