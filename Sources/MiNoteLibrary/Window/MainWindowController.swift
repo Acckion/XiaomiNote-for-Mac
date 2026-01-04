@@ -336,11 +336,36 @@ extension MainWindowController: NSToolbarDelegate {
             addToPrivateItem.target = self
             noteOperationsMenu.addItem(addToPrivateItem)
             
-            // 移到
+            // 移到（子菜单）
+            let moveNoteMenu = NSMenu()
+            moveNoteMenu.title = "移到"
+            
+            // 未分类文件夹（folderId为"0"）
+            let uncategorizedMenuItem = NSMenuItem(title: "未分类", action: #selector(moveToUncategorized(_:)), keyEquivalent: "")
+            uncategorizedMenuItem.image = NSImage(systemSymbolName: "folder.badge.questionmark", accessibilityDescription: nil)
+            uncategorizedMenuItem.image?.size = NSSize(width: 16, height: 16)
+            moveNoteMenu.addItem(uncategorizedMenuItem)
+            
+            // 其他可用文件夹（安全解包viewModel）
+            if let viewModel = viewModel {
+                let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+                
+                if !availableFolders.isEmpty {
+                    moveNoteMenu.addItem(NSMenuItem.separator())
+                    
+                    for folder in availableFolders {
+                        let menuItem = NSMenuItem(title: folder.name, action: #selector(moveNoteToFolder(_:)), keyEquivalent: "")
+                        menuItem.representedObject = folder
+                        menuItem.image = NSImage(systemSymbolName: folder.isPinned ? "pin.fill" : "folder", accessibilityDescription: nil)
+                        menuItem.image?.size = NSSize(width: 16, height: 16)
+                        moveNoteMenu.addItem(menuItem)
+                    }
+                }
+            }
+            
             let moveNoteItem = NSMenuItem()
             moveNoteItem.title = "移到"
-            moveNoteItem.action = #selector(moveNote(_:))
-            moveNoteItem.target = self
+            moveNoteItem.submenu = moveNoteMenu
             noteOperationsMenu.addItem(moveNoteItem)
             
             noteOperationsMenu.addItem(NSMenuItem.separator())
