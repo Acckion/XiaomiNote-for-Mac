@@ -18,6 +18,7 @@ public struct SettingsView: View {
     
     @State private var showLogoutAlert: Bool = false
     @State private var showClearCacheAlert: Bool = false
+    @State private var showAboutSheet: Bool = false
     
     public init(viewModel: NotesViewModel) {
         self.viewModel = viewModel
@@ -196,6 +197,22 @@ public struct SettingsView: View {
                         importNotes()
                     }
                 }
+                Section("关于") {
+                                    HStack {
+                                        Text("版本")
+                                        Spacer()
+                                        Text("1.0.0")
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    Button("检查更新") {
+                                        checkForUpdates()
+                                    }
+                                    
+                                    Button("关于小米笔记") {
+                                        showAboutSheet = true
+                                    }
+                                }
             }
             .formStyle(.grouped)
             .navigationTitle("设置")
@@ -214,6 +231,9 @@ public struct SettingsView: View {
                 Button("取消", role: .cancel) {}
             } message: {
                 Text("清除缓存将删除所有本地笔记数据，但不会影响云端数据。")
+            }
+            .sheet(isPresented: $showAboutSheet) {
+                    AboutView()
             }
         }
         .frame(width: 500, height: 600)
@@ -647,6 +667,46 @@ struct ChangePasswordDialogView: View {
         .frame(width: 400)
     }
 }
+
+// 关于视图
+struct AboutView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "note.text")
+                .font(.system(size: 64))
+                .foregroundColor(.blue)
+            
+            Text("小米笔记 for Mac")
+                .font(.title)
+                .fontWeight(.bold)
+            
+            Text("版本 1.0.0")
+                .foregroundColor(.secondary)
+            
+            Text("一个优雅的 macOS 客户端，用于同步和管理小米笔记")
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            
+            Divider()
+                .padding(.horizontal, 40)
+            
+            Text("基于 SwiftUI 和 macOS 26 设计标准构建")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            Button("关闭") {
+                NSApp.keyWindow?.close()
+            }
+            .buttonStyle(.bordered)
+            .padding(.bottom, 20)
+        }
+        .padding(40)
+        .frame(width: 400, height: 400)
+    }
+}
+
 
 
 #Preview {

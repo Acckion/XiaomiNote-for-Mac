@@ -55,23 +55,33 @@
 ## 技术栈
 
 - **语言**: Swift 6.0
-- **UI 框架**: SwiftUI
-- **富文本编辑**: RichTextKit 1.2
+- **UI 框架**: AppKit + SwiftUI 混合架构
+- **窗口管理**: NSWindowController, NSSplitViewController
+- **富文本编辑**: 自定义 Web 编辑器（基于 CKEditor 5 风格）
+- **数据存储**: SQLite 3
+- **网络请求**: URLSession
+- **架构模式**: MVVM (Model-View-ViewModel) + AppKit 控制器
+- **并发处理**: async/await, Task, Actor
 - **包管理**: Swift Package Manager (SPM)
 - **最低系统要求**: macOS 14.0+
-
 ## 项目结构
 
 ```
 SwiftUI-MiNote-for-Mac/
 ├── Sources/
 │   ├── MiNoteLibrary/          # 核心库
-│   │   ├── Helper/              # 辅助工具类
-│   │   ├── Model/               # 数据模型
-│   │   ├── Service/             # 业务服务层
-│   │   ├── View/                # UI视图组件
-│   │   └── ViewModel/           # 视图模型
-│   └── MiNoteMac/               # 应用程序入口
+│   │   ├── Model/              # 数据模型（Note, Folder 等）
+│   │   ├── Service/            # 业务服务层（API、数据库、同步等）
+│   │   ├── View/               # UI视图组件
+│   │   │   ├── AppKitComponents/    # AppKit 视图控制器
+│   │   │   ├── Bridge/              # SwiftUI-AppKit 桥接
+│   │   │   └── SwiftUIViews/        # SwiftUI 视图
+│   │   ├── ViewModel/          # 视图模型
+│   │   ├── Window/             # 窗口控制器
+│   │   ├── Extensions/         # 扩展
+│   │   ├── Helper/             # 辅助工具
+│   │   └── Web/                # Web 编辑器相关文件
+│   └── MiNoteMac/              # 应用程序入口（AppDelegate）
 ├── RichTextKit-1.2/             # 富文本编辑框架（本地依赖）
 ├── Obsidian-Plugin-ToReference/ # Obsidian插件参考（不参与git管理）
 ├── Package.swift                # Swift Package配置
@@ -79,7 +89,6 @@ SwiftUI-MiNote-for-Mac/
 ├── Makefile                     # 构建脚本
 └── build_release.sh             # Release版本构建脚本
 ```
-
 ## 快速开始
 
 ### 环境要求
@@ -193,18 +202,24 @@ swift package resolve
 ### 代码结构
 
 - **Model**: 数据模型定义（Note, Folder 等）
-- **Service**: 业务逻辑层（MiNoteService, DatabaseService, LocalStorageService）
+- **Service**: 业务逻辑层（MiNoteService, DatabaseService, LocalStorageService, SyncService 等）
 - **ViewModel**: 视图模型（NotesViewModel）
-- **View**: SwiftUI 视图组件
-- **Helper**: 辅助工具类（内容解析器、格式转换器等）
+- **View**: UI 视图组件（AppKit 控制器 + SwiftUI 视图）
+- **Window**: 窗口控制器（MainWindowController, LoginWindowController 等）
+- **Helper**: 辅助工具类
+- **Web**: Web 编辑器相关文件
 
 ### 关键文件
 
-- `MiNoteContentParser.swift`: 小米笔记格式解析器（XML ↔ NSAttributedString）
-- `AttributedStringConverter.swift`: AttributedString 转换工具
-- `NotesViewModel.swift`: 笔记列表和详情视图模型
+- `AppDelegate.swift`: AppKit 应用委托，管理应用程序生命周期和菜单系统
+- `MainWindowController.swift`: 主窗口控制器，管理窗口、工具栏和分割视图
+- `NotesViewModel.swift`: 主视图模型，管理应用状态和业务逻辑
 - `MiNoteService.swift`: 小米笔记 API 服务
-
+- `DatabaseService.swift`: SQLite 数据库服务
+- `SyncService.swift`: 同步服务
+- `NoteDetailViewController.swift`: 笔记详情 AppKit 视图控制器
+- `NotesListViewController.swift`: 笔记列表 AppKit 视图控制器
+- `SidebarViewController.swift`: 侧边栏 AppKit 视图控制器
 ### 调试
 
 项目使用统一的调试日志格式，所有调试信息以 `[[调试]]` 开头，方便在控制台中搜索和过滤。
@@ -215,10 +230,11 @@ swift package resolve
 
 ## 文档
 
+- [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md) - 详细的技术文档，包含架构设计、核心模块、API参考等
+- [DESIGN_GUIDELINES.md](./DESIGN_GUIDELINES.md) - 设计规范，包含文件结构、代码规范、开发流程等
 - [文本存储方式说明.md](./文本存储方式说明.md) - 详细的数据存储格式说明
 - [笔记保存和上传流程说明.md](./笔记保存和上传流程说明.md) - 完整的保存和同步流程
 - [小米笔记格式示例.txt](./小米笔记格式示例.txt) - 小米笔记 XML 格式示例
-
 ## 依赖说明
 
 ### RichTextKit 1.2
@@ -260,16 +276,34 @@ swift package resolve
 
 ## 更新日志
 
-### v1.0.0
-
-- 初始版本
+### v1.0.0 (初始版本)
 - 支持基本的笔记编辑和同步功能
-- 支持富文本格式
+- 支持富文本格式（加粗、斜体、下划线、删除线、高亮）
 - 支持文件夹管理
 - 支持图片上传
+- 纯 SwiftUI 架构
 
-### v1.1.0
+### v1.1.0 (架构迁移)
+- 从纯 SwiftUI 迁移到 AppKit+SwiftUI 混合架构
+- 实现完整的 macOS 菜单系统
+- 添加原生工具栏支持
+- 支持多窗口管理
+- 实现窗口状态保存和恢复
+- 优化刷新 Cookie、登录、在线状态指示器
+- 实现离线操作队列和处理器
+- 优化同步机制
+- 改进 UI 和用户体验
 
-- 优化刷新 cookie、登录、在线状态指示器
+### v1.2.0 (性能优化)
+- 实现内存缓存管理器 (`MemoryCacheManager`)
+- 实现保存队列管理器 (`SaveQueueManager`)
+- 优化笔记切换性能
+- 实现 HTML 内容缓存
+- 优化保存机制（四级保存策略）
+- 改进错误处理和恢复机制
+- 添加更多调试日志和性能监控
 
-test_git_main
+### 未来版本计划
+- **v1.3.0**: 功能增强（标签系统、高级搜索、导入导出）
+- **v1.4.0**: 协作功能（笔记分享、协作编辑）
+- **v2.0.0**: 架构重构（模块化、插件系统、跨平台支持）

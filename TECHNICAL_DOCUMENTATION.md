@@ -8,11 +8,13 @@
 4. [数据模型](#数据模型)
 5. [服务层](#服务层)
 6. [UI 层](#ui-层)
-7. [同步机制](#同步机制)
-8. [离线操作](#离线操作)
-9. [Web 编辑器](#web-编辑器)
-10. [开发指南](#开发指南)
-11. [API 参考](#api-参考)
+7. [窗口管理](#窗口管理)
+8. [同步机制](#同步机制)
+9. [离线操作](#离线操作)
+10. [Web 编辑器](#web-编辑器)
+11. [开发指南](#开发指南)
+12. [设计规范](#设计规范)
+13. [API 参考](#api-参考)
 
 ---
 
@@ -20,16 +22,25 @@
 
 ### 项目简介
 
-小米笔记 macOS 客户端是一个使用 SwiftUI 开发的原生 macOS 应用程序，通过调用小米笔记的 Web API 实现完整的笔记管理功能。
+小米笔记 macOS 客户端是一个使用 **AppKit + SwiftUI 混合架构** 开发的原生 macOS 应用程序，通过调用小米笔记的 Web API 实现完整的笔记管理功能。
+
+### 架构演进
+
+项目经历了从纯 SwiftUI 到 AppKit+SwiftUI 混合架构的演进：
+
+- **初始版本**: 纯 SwiftUI 架构，使用 SwiftUI 的 App 结构和 NavigationSplitView
+- **当前版本**: AppKit+SwiftUI 混合架构，使用 AppDelegate、NSWindowController 和原生菜单系统
+- **迁移原因**: 需要更好的窗口管理、原生工具栏、完整菜单系统、多窗口支持等 macOS 原生功能
 
 ### 技术栈
 
 - **开发语言**: Swift 6.0
-- **UI 框架**: SwiftUI (macOS 14.0+)
+- **UI 框架**: AppKit + SwiftUI 混合架构
+- **窗口管理**: NSWindowController, NSSplitViewController
 - **富文本编辑**: 自定义 Web 编辑器（基于 CKEditor 5）
 - **数据存储**: SQLite 3
 - **网络请求**: URLSession
-- **架构模式**: MVVM (Model-View-ViewModel)
+- **架构模式**: MVVM (Model-View-ViewModel) + AppKit 控制器
 - **并发处理**: async/await, Task, Actor
 
 ### 系统要求
@@ -59,22 +70,53 @@ SwiftUI-MiNote-for-Mac/
 │   │   │   ├── OfflineOperationProcessor.swift # 离线操作处理器
 │   │   │   ├── NetworkMonitor.swift        # 网络状态监控
 │   │   │   ├── AuthenticationStateManager.swift # 认证状态管理
-│   │   │   └── PrivateNotesPasswordManager.swift # 私密笔记密码管理
+│   │   │   ├── PrivateNotesPasswordManager.swift # 私密笔记密码管理
+│   │   │   ├── SaveQueueManager.swift      # 保存队列管理器
+│   │   │   └── MemoryCacheManager.swift    # 内存缓存管理器
 │   │   ├── View/                # UI 视图组件
-│   │   │   ├── ContentView.swift            # 主内容视图（三栏布局）
-│   │   │   ├── NotesListView.swift          # 笔记列表视图
-│   │   │   ├── NoteDetailView.swift         # 笔记详情/编辑视图
-│   │   │   ├── SidebarView.swift            # 侧边栏视图
-│   │   │   ├── WebEditorView.swift          # Web 编辑器视图
-│   │   │   └── ...
+│   │   │   ├── AppKitComponents/           # AppKit 视图控制器
+│   │   │   │   ├── NoteDetailViewController.swift
+│   │   │   │   ├── NotesListViewController.swift
+│   │   │   │   └── SidebarViewController.swift
+│   │   │   ├── Bridge/                     # SwiftUI-AppKit 桥接
+│   │   │   │   ├── NotesListHostingController.swift
+│   │   │   │   ├── SidebarHostingController.swift
+│   │   │   │   ├── WebEditorContext.swift
+│   │   │   │   ├── WebEditorWrapper.swift
+│   │   │   │   └── WebFormatMenuView.swift
+│   │   │   ├── Shared/                     # 共享视图组件
+│   │   │   │   └── OnlineStatusIndicator.swift
+│   │   │   ├── SwiftUIViews/               # SwiftUI 视图
+│   │   │   │   ├── ContentView.swift            # 主内容视图（三栏布局）
+│   │   │   │   ├── NotesListView.swift          # 笔记列表视图
+│   │   │   │   ├── NoteDetailView.swift         # 笔记详情/编辑视图
+│   │   │   │   ├── SidebarView.swift            # 侧边栏视图
+│   │   │   │   ├── WebEditorView.swift          # Web 编辑器视图
+│   │   │   │   └── ...
 │   │   ├── ViewModel/           # 视图模型
 │   │   │   └── NotesViewModel.swift        # 主视图模型
+│   │   ├── Window/              # 窗口控制器
+│   │   │   ├── MainWindowController.swift       # 主窗口控制器
+│   │   │   ├── LoginWindowController.swift      # 登录窗口控制器
+│   │   │   ├── SettingsWindowController.swift   # 设置窗口控制器
+│   │   │   ├── HistoryWindowController.swift    # 历史记录窗口控制器
+│   │   │   ├── TrashWindowController.swift      # 回收站窗口控制器
+│   │   │   ├── CookieRefreshWindowController.swift # Cookie刷新窗口控制器
+│   │   │   ├── DebugWindowController.swift      # 调试窗口控制器
+│   │   │   ├── WindowStateManager.swift         # 窗口状态管理器
+│   │   │   └── ...
+│   │   ├── Extensions/          # 扩展
+│   │   │   └── NSWindow+MiNote.swift
+│   │   ├── Helper/              # 辅助工具
+│   │   │   └── NoteMoveHelper.swift
 │   │   └── Web/                 # Web 编辑器相关文件
 │   │       ├── editor.html                  # 编辑器 HTML
 │   │       ├── xml-to-html.js               # XML 转 HTML 转换器
 │   │       └── html-to-xml.js               # HTML 转 XML 转换器
 │   └── MiNoteMac/               # 应用程序入口
-│       └── App.swift
+│       ├── AppDelegate.swift                # AppKit 应用委托
+│       ├── App.swift                        # SwiftUI App（已弃用）
+│       └── Resources/                       # 资源文件
 ├── build/                       # 构建产物
 ├── MiNoteMac.xcodeproj/        # Xcode 项目文件
 └── README.md                    # 项目说明
@@ -86,53 +128,105 @@ SwiftUI-MiNote-for-Mac/
 
 ### 架构模式
 
-项目采用 **MVVM (Model-View-ViewModel)** 架构模式：
+项目采用 **混合架构模式**，结合了 AppKit 的控制器模式和 SwiftUI 的声明式 UI：
 
 ```
-┌─────────────┐
-│    View     │  SwiftUI 视图层
-│  (SwiftUI)  │
-└──────┬──────┘
-       │ @ObservedObject
-       │ @Published
-       ▼
-┌─────────────┐
-│  ViewModel  │  业务逻辑层
-│ (Observable)│  状态管理
-└──────┬──────┘
-       │ 调用
-       ▼
-┌─────────────┐
-│   Service   │  服务层
-│   Layer     │  API、数据库、文件
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│    Model    │  数据模型层
-│  (Struct)   │
-└─────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    AppKit 控制器层                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+│  │ AppDelegate │  │ WindowCtrl  │  │ ViewCtrl    │    │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘    │
+│         │                │                 │           │
+│         ▼                ▼                 ▼           │
+└─────────────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│                 SwiftUI 视图层 (MVVM)                    │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+│  │    View     │◄─┤  ViewModel  │◄─┤   Service   │    │
+│  │  (SwiftUI)  │  │ (Observable)│  │   Layer     │    │
+│  └─────────────┘  └──────┬──────┘  └──────┬──────┘    │
+│         │                 │                 │           │
+│         ▼                 ▼                 ▼           │
+└─────────────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│                    数据模型层                            │
+│                  ┌─────────────┐                       │
+│                  │    Model    │                       │
+│                  │  (Struct)   │                       │
+│                  └─────────────┘                       │
+└─────────────────────────────────────────────────────────┘
 ```
+
+### 各层职责
+
+1. **AppKit 控制器层**:
+   - `AppDelegate`: 应用程序生命周期管理、菜单系统
+   - `WindowController`: 窗口管理、工具栏、窗口状态
+   - `ViewController`: 视图控制器，管理 SwiftUI 视图
+
+2. **SwiftUI 视图层 (MVVM)**:
+   - `View`: SwiftUI 声明式 UI
+   - `ViewModel`: 业务逻辑、状态管理
+   - `Service`: API 调用、数据库操作、文件存储
+
+3. **数据模型层**:
+   - `Model`: 数据结构定义
 
 ### 数据流
 
-1. **用户操作** → View 触发事件
-2. **ViewModel** 处理业务逻辑，更新 `@Published` 状态
-3. **Service** 执行具体操作（API 调用、数据库操作等）
-4. **Model** 数据更新
-5. **ViewModel** 状态变化触发 View 自动更新
+1. **用户操作** → AppKit 控制器接收事件
+2. **控制器** → 调用 ViewModel 方法
+3. **ViewModel** → 处理业务逻辑，更新 `@Published` 状态
+4. **Service** → 执行具体操作（API、数据库、文件）
+5. **Model** → 数据更新
+6. **ViewModel** → 状态变化触发 SwiftUI View 自动更新
 
 ### 线程模型
 
-- **主线程**: 所有 UI 更新和 ViewModel 操作（使用 `@MainActor`）
-- **后台线程**: 网络请求、数据库操作、文件 I/O
+- **主线程**: 所有 UI 更新、AppKit 操作、ViewModel 操作（使用 `@MainActor`）
+- **后台线程**: 网络请求、数据库操作、文件 I/O、离线操作处理
 - **并发处理**: 使用 `async/await` 和 `Task` 进行异步操作
+- **线程安全**: 数据库操作使用并发队列，网络请求使用异步任务
 
 ---
 
 ## 核心模块
 
-### 1. 数据模型层 (Model)
+### 1. 应用程序层 (AppKit)
+
+#### AppDelegate
+
+**职责**:
+- 应用程序生命周期管理
+- 菜单系统设置和管理
+- 多窗口管理
+- 应用程序状态保存和恢复
+
+**关键特性**:
+- 完整的 macOS 菜单系统（文件、编辑、格式、显示、窗口、帮助）
+- 多窗口支持（新建窗口、窗口状态恢复）
+- 应用程序状态持久化
+- 应用程序重新打开处理
+
+#### MainWindowController
+
+**职责**:
+- 主窗口管理和配置
+- 工具栏设置和验证
+- 窗口状态保存和恢复
+- 分割视图管理
+
+**关键特性**:
+- 三栏分割视图（侧边栏、笔记列表、笔记详情）
+- 完整的工具栏系统（新建、格式、搜索、同步等）
+- 窗口状态持久化
+- 工具栏项验证和状态管理
+
+### 2. 数据模型层 (Model)
 
 #### Note (笔记模型)
 
@@ -147,12 +241,14 @@ public struct Note: Identifiable, Codable, Hashable {
     public var updatedAt: Date
     public var tags: [String]
     public var rawData: [String: Any]?  // 原始 API 数据（包含 tag 等）
+    public var htmlContent: String?     // HTML 缓存内容
 }
 ```
 
 **关键特性**:
 - `content`: 存储为 XML 格式，兼容小米笔记服务器
 - `rawData`: 保存完整的 API 响应数据，包含 `tag`、`createDate` 等字段
+- `htmlContent`: HTML 格式缓存，用于快速显示
 - 实现 `Hashable` 和 `Equatable`，支持 SwiftUI 列表更新
 
 #### Folder (文件夹模型)
@@ -175,7 +271,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - `id = "2"`: 私密笔记
 - `id = "uncategorized"`: 未分类笔记
 
-### 2. 服务层 (Service)
+### 3. 服务层 (Service)
 
 #### MiNoteService (小米笔记 API 服务)
 
@@ -207,12 +303,13 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - 笔记和文件夹的 CRUD 操作
 - 离线操作队列管理
 - 同步状态管理
+- HTML 内容缓存管理
 
 **数据库表结构**:
 
 1. **notes 表**: 存储笔记数据
    - `id`, `title`, `content`, `folder_id`, `is_starred`
-   - `created_at`, `updated_at`, `tags`, `raw_data`
+   - `created_at`, `updated_at`, `tags`, `raw_data`, `html_content`
 
 2. **folders 表**: 存储文件夹数据
    - `id`, `name`, `count`, `is_system`, `is_pinned`, `created_at`, `raw_data`
@@ -230,6 +327,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 **线程安全**:
 - 使用并发队列 (`DispatchQueue`) 确保线程安全
 - 使用 `SQLITE_OPEN_FULLMUTEX` 标志支持多线程访问
+- 提供异步 API 避免阻塞主线程
 
 #### LocalStorageService (本地文件存储服务)
 
@@ -255,42 +353,31 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - **增量同步**: 使用 `syncTag` 获取自上次同步后的更改
 - **冲突解决**: 比较 `modifyDate`，保留最新的版本
 
-#### OfflineOperationQueue (离线操作队列)
+#### MemoryCacheManager (内存缓存管理器)
 
 **职责**:
-- 管理离线操作的存储和查询
-- 操作去重和合并
-- 操作优先级管理
+- 笔记对象的内存缓存
+- 快速切换笔记时的内容预加载
+- 缓存失效和更新管理
 
-**操作类型**:
-- `createNote`: 创建笔记
-- `updateNote`: 更新笔记
-- `deleteNote`: 删除笔记
-- `uploadImage`: 上传图片
-- `createFolder`: 创建文件夹
-- `renameFolder`: 重命名文件夹
-- `deleteFolder`: 删除文件夹
+**缓存策略**:
+- LRU（最近最少使用）缓存策略
+- 按需加载和缓存
+- 内存压力时自动清理
 
-**操作状态**:
-- `pending`: 待处理
-- `processing`: 处理中
-- `completed`: 已完成
-- `failed`: 失败
-
-#### OfflineOperationProcessor (离线操作处理器)
+#### SaveQueueManager (保存队列管理器)
 
 **职责**:
-- 执行离线操作
-- 实现智能重试机制（指数退避）
-- 并发处理多个操作
-- 错误处理和分类
+- 管理笔记保存任务的队列
+- 合并相同笔记的多次保存
+- 优先级管理（立即保存 vs 延迟保存）
 
-**配置参数**:
-- `maxConcurrentOperations`: 最大并发操作数（默认 3）
-- `maxRetryCount`: 最大重试次数（默认 3）
-- `retryDelay`: 重试延迟（默认 5 秒）
+**队列特性**:
+- 防抖机制减少不必要的保存
+- 优先级队列确保重要操作优先执行
+- 错误重试机制
 
-### 3. 视图模型层 (ViewModel)
+### 4. 视图模型层 (ViewModel)
 
 #### NotesViewModel
 
@@ -299,6 +386,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - 笔记和文件夹的数据管理
 - 同步操作协调
 - UI 状态管理（加载、错误、搜索等）
+- Web 编辑器上下文管理
 
 **主要状态**:
 - `notes: [Note]`: 笔记列表
@@ -307,6 +395,9 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - `selectedFolder: Folder?`: 当前选中的文件夹
 - `searchText: String`: 搜索文本
 - `isSyncing: Bool`: 是否正在同步
+- `isLoggedIn: Bool`: 是否已登录
+- `isCookieExpired: Bool`: Cookie 是否过期
+- `webEditorContext: WebEditorContext`: Web 编辑器上下文
 
 **主要方法**:
 - `loadNotes()`: 加载笔记列表
@@ -315,9 +406,11 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - `deleteNote(_:)`: 删除笔记
 - `syncNotes()`: 同步笔记
 - `processPendingOperations()`: 处理离线操作
+- `ensureNoteHasFullContent(_:)`: 确保笔记有完整内容
 
 **线程安全**:
 - 使用 `@MainActor` 确保所有操作在主线程执行
+- 使用 `@Published` 属性包装器实现响应式更新
 
 ---
 
@@ -426,6 +519,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - **文件夹操作**: `saveFolder()`, `loadFolder()`, `deleteFolder()`, `getAllFolders()`
 - **离线操作**: `addOfflineOperation()`, `getAllOfflineOperations()`, `deleteOfflineOperation()`
 - **同步状态**: `saveSyncStatus()`, `loadSyncStatus()`
+- **HTML 缓存**: `updateHTMLContentOnly()`, `getHTMLContent()`
 
 ### LocalStorageService 文件存储
 
@@ -446,77 +540,232 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - `deleteImage(fileId:fileType:)`: 删除图片
 - `deleteFolderImageDirectory(folderId:)`: 删除文件夹的所有图片
 
+### MemoryCacheManager 内存缓存
+
+#### 缓存策略
+
+- **缓存类型**: 笔记对象完整缓存
+- **缓存大小**: 动态调整，基于可用内存
+- **失效策略**: LRU（最近最少使用）
+- **更新机制**: 笔记保存时自动更新缓存
+
+#### 主要方法
+
+- `cacheNote(_:)`: 缓存笔记对象
+- `getNote(noteId:)`: 获取缓存的笔记
+- `clearCache()`: 清空缓存
+- `removeNote(noteId:)`: 移除特定笔记缓存
+
+### SaveQueueManager 保存队列
+
+#### 队列特性
+
+- **优先级管理**: 高优先级（立即保存）、普通优先级（防抖保存）
+- **防抖机制**: 相同笔记的多次保存合并为一次
+- **错误处理**: 保存失败时自动重试
+- **并发控制**: 控制同时进行的保存操作数量
+
+#### 主要方法
+
+- `enqueueSave(_:priority:)`: 加入保存队列
+- `processQueue()`: 处理队列中的保存任务
+- `cancelSave(forNoteId:)`: 取消特定笔记的保存任务
+
 ---
 
 ## UI 层
 
-### ContentView (主内容视图)
+### 混合架构 UI 设计
 
-**布局结构**:
-- 使用 `NavigationSplitView` 实现三栏布局
-- 左侧：侧边栏（文件夹列表）
-- 中间：笔记列表
-- 右侧：笔记编辑器
+项目采用 **AppKit 控制器 + SwiftUI 视图** 的混合架构：
 
-**响应式设计**:
-- 根据窗口大小动态调整各栏宽度
-- 最小窗口宽度：650px
-- 各栏有最小、理想、最大宽度限制
+#### AppKit 视图控制器
 
-**工具栏**:
-- 搜索框（支持文本搜索和筛选）
-- 同步按钮
-- 设置按钮
-- 新建笔记按钮
+1. **NoteDetailViewController**
+   - 管理笔记详情视图
+   - 托管 SwiftUI 的 NoteDetailView
+   - 处理窗口状态保存和恢复
 
-### NotesListView (笔记列表视图)
+2. **NotesListViewController** 
+   - 管理笔记列表视图
+   - 托管 SwiftUI 的 NotesListView
+   - 处理列表选择和搜索
 
-**功能特性**:
-- 按时间分组显示（今天、昨天、本周、本月、本年）
-- 支持搜索高亮
-- 显示笔记预览（标题、修改时间、内容预览、图片预览）
-- 文件夹信息显示（在特定条件下）
-- 支持滑动操作（删除、置顶）
+3. **SidebarViewController**
+   - 管理侧边栏视图
+   - 托管 SwiftUI 的 SidebarView
+   - 处理文件夹选择和导航
 
-**文件夹信息显示逻辑**:
-- 显示场景：
-  - 选中"所有笔记"文件夹
-  - 选中"置顶"文件夹
-  - 有搜索文本或筛选条件
-- 不显示场景：
-  - 选中"未分类"文件夹
-  - 选中其他具体文件夹
+#### SwiftUI 视图
 
-### NoteDetailView (笔记详情/编辑视图)
+1. **NoteDetailView** (笔记详情/编辑视图)
+   - 标题编辑和显示
+   - Web 编辑器集成
+   - 保存状态指示器
+   - 格式工具栏
 
-**功能特性**:
-- 标题编辑
-- 富文本内容编辑（使用 Web 编辑器）
-- 自动保存（本地立即保存，云端延迟上传）
-- 格式工具栏（加粗、斜体、下划线、删除线、高亮等）
-- 列表支持（有序列表、无序列表、复选框）
-- 图片插入和显示
-- 撤销/重做功能
+2. **NotesListView** (笔记列表视图)
+   - 按时间分组显示笔记
+   - 搜索高亮和筛选
+   - 笔记预览（标题、时间、内容片段）
+   - 滑动操作（删除、置顶）
 
-**保存机制**:
-- **本地保存**: 立即保存到数据库（防抖 500ms）
-- **云端上传**: 延迟上传（防抖 2 秒），离线时添加到离线队列
+3. **SidebarView** (侧边栏视图)
+   - 文件夹列表显示
+   - 系统文件夹（所有笔记、置顶、私密笔记、未分类）
+   - 自定义文件夹管理
+   - 文件夹计数显示
 
-### WebEditorView (Web 编辑器视图)
+4. **WebEditorView** (Web 编辑器视图)
+   - 富文本编辑功能
+   - 格式工具栏集成
+   - 图片插入和显示
+   - 撤销/重做支持
 
-**技术实现**:
-- 使用 `WKWebView` 加载 HTML 编辑器
-- JavaScript 桥接实现双向通信
-- XML ↔ HTML 格式转换
+### 视图桥接
 
-**编辑器功能**:
-- 富文本格式（加粗、斜体、下划线、删除线、高亮）
-- 标题（H1、H2、H3）
-- 列表（有序、无序、复选框）
-- 文本对齐（左、中、右）
-- 缩进
-- 图片插入
-- 撤销/重做
+#### NSHostingController 使用
+
+项目使用 `NSHostingController` 将 SwiftUI 视图嵌入到 AppKit 视图控制器中：
+
+```swift
+// 示例：在 AppKit 视图控制器中托管 SwiftUI 视图
+class NoteDetailViewController: NSViewController {
+    private var hostingController: NSHostingController<NoteDetailView>?
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        // 创建 SwiftUI 视图
+        let noteDetailView = NoteDetailView(viewModel: viewModel)
+        
+        // 创建托管控制器
+        hostingController = NSHostingController(rootView: noteDetailView)
+        
+        // 添加托管视图
+        if let hostingView = hostingController?.view {
+            hostingView.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(hostingView)
+            
+            // 设置约束
+            NSLayoutConstraint.activate([
+                hostingView.topAnchor.constraint(equalTo: view.topAnchor),
+                hostingView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                hostingView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                hostingView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            ])
+        }
+    }
+}
+```
+
+#### WebEditorContext 桥接
+
+`WebEditorContext` 作为 SwiftUI 和 Web 编辑器之间的桥梁：
+
+- **双向通信**: SwiftUI ↔ JavaScript
+- **状态管理**: 编辑器状态、内容、格式
+- **命令执行**: 格式命令、插入操作、撤销/重做
+
+---
+
+## 窗口管理
+
+### MainWindowController
+
+#### 窗口配置
+
+- **窗口样式**: 标题栏、关闭按钮、最小化按钮、缩放按钮、全尺寸内容视图
+- **工具栏**: 自定义工具栏，支持用户定制
+- **分割视图**: 三栏布局（侧边栏、笔记列表、笔记详情）
+- **最小尺寸**: 600×400 像素
+
+#### 工具栏系统
+
+**工具栏项类型**:
+1. **按钮项**: 新建笔记、新建文件夹、同步等
+2. **格式项**: 粗体、斜体、下划线、删除线等
+3. **菜单项**: 在线状态、笔记操作、测试菜单
+4. **搜索项**: 笔记搜索
+5. **分隔符**: 跟踪分隔符（连接到分割视图）
+6. **空间项**: 弹性空间、固定空间
+
+**工具栏标识符**:
+- `.newNote`, `.newFolder`: 新建操作
+- `.bold`, `.italic`, `.underline`: 格式操作
+- `.formatMenu`: 格式菜单
+- `.search`: 搜索框
+- `.sync`, `.onlineStatus`: 同步和状态
+- `.settings`, `.login`, `.cookieRefresh`: 设置和登录
+- `.noteOperations`, `.testMenu`: 菜单项
+- `.sidebarTrackingSeparator`, `.timelineTrackingSeparator`: 跟踪分隔符
+
+#### 窗口状态管理
+
+**状态保存**:
+- 窗口位置和大小
+- 分割视图各栏宽度
+- 侧边栏显示/隐藏状态
+- 各视图控制器的状态
+
+**状态恢复**:
+- 应用程序启动时恢复窗口状态
+- 新建窗口时应用默认或保存的状态
+- 窗口关闭时自动保存状态
+
+### 多窗口支持
+
+#### 窗口创建
+
+- **主窗口**: 应用程序启动时创建
+- **新建窗口**: 通过菜单或快捷键创建新窗口
+- **专用窗口**: 登录、设置、历史记录、回收站等专用窗口
+
+#### 窗口生命周期
+
+1. **创建**: 使用 `MainWindowController` 初始化窗口
+2. **配置**: 设置窗口属性、工具栏、内容视图
+3. **显示**: 显示窗口并置于前台
+4. **管理**: 跟踪窗口引用，防止内存泄漏
+5. **关闭**: 清理资源，保存状态
+
+#### 窗口控制器管理
+
+- **引用管理**: 保持窗口控制器引用，防止提前释放
+- **清理机制**: 窗口关闭时自动清理引用
+- **状态同步**: 多窗口间的状态同步（通过共享 ViewModel）
+
+### 专用窗口控制器
+
+#### LoginWindowController
+- 登录界面管理
+- Cookie 输入和处理
+- 登录状态反馈
+
+#### SettingsWindowController
+- 应用程序设置
+- 同步配置
+- 外观设置
+
+#### HistoryWindowController
+- 笔记历史版本查看
+- 版本对比和恢复
+- 历史记录管理
+
+#### TrashWindowController
+- 回收站管理
+- 删除笔记查看和恢复
+- 永久删除操作
+
+#### CookieRefreshWindowController
+- Cookie 刷新界面
+- 自动刷新机制
+- 刷新状态反馈
+
+#### DebugWindowController
+- 调试信息显示
+- 网络日志查看
+- 系统状态监控
 
 ---
 
@@ -769,6 +1018,9 @@ print("[ClassName] 日志内容")
 - `[VIEWMODEL]`: ViewModel 相关日志
 - `[MiNoteService]`: API 服务相关日志
 - `[Database]`: 数据库相关日志
+- `[保存流程]`: 笔记保存相关日志
+- `[快速切换]`: 笔记切换相关日志
+- `[窗口管理]`: 窗口状态相关日志
 
 #### 调试工具
 
@@ -776,6 +1028,7 @@ print("[ClassName] 日志内容")
 - **控制台日志**: 查看 `print` 输出
 - **网络日志**: `NetworkLogger` 记录所有网络请求
 - **数据库查看**: 使用 SQLite 工具查看数据库文件
+- **内存调试**: 使用 Instruments 分析内存使用
 
 ### 测试
 
@@ -795,6 +1048,7 @@ func testCreateNote() async throws {
 - 测试完整同步流程
 - 测试离线操作处理
 - 测试冲突解决
+- 测试窗口状态保存和恢复
 
 ### 常见问题
 
@@ -823,6 +1077,156 @@ func testCreateNote() async throws {
 - 检查 Cookie 是否有效
 - 查看错误日志确定具体原因
 
+#### 4. 窗口状态丢失
+
+**症状**: 应用程序重启后窗口位置和大小恢复不正确
+
+**解决**:
+- 检查窗口状态保存逻辑
+- 确保状态保存和恢复的时机正确
+- 验证状态数据的完整性
+
+---
+
+## 设计规范
+
+### 文件结构规范
+
+#### 目录结构
+
+```
+Sources/MiNoteLibrary/
+├── Model/              # 数据模型
+│   ├── Note.swift
+│   ├── Folder.swift
+│   └── ...
+├── Service/            # 服务层
+│   ├── MiNoteService.swift
+│   ├── DatabaseService.swift
+│   └── ...
+├── View/               # UI 视图
+│   ├── AppKitComponents/    # AppKit 视图控制器
+│   ├── Bridge/              # SwiftUI-AppKit 桥接
+│   ├── SwiftUIViews/        # SwiftUI 视图
+│   └── Shared/              # 共享视图组件
+├── ViewModel/          # 视图模型
+│   └── NotesViewModel.swift
+├── Window/             # 窗口控制器
+│   ├── MainWindowController.swift
+│   ├── LoginWindowController.swift
+│   └── ...
+├── Extensions/         # 扩展
+├── Helper/             # 辅助工具
+└── Web/                # Web 编辑器文件
+```
+
+#### 文件命名规范
+
+- **Swift 文件**: 使用 PascalCase，如 `NoteDetailViewController.swift`
+- **资源文件**: 使用 snake_case，如 `editor.html`
+- **配置文件**: 使用 kebab-case，如 `project.yml`
+
+### 代码组织规范
+
+#### 混合架构代码组织
+
+1. **AppKit 控制器**:
+   - 放置在 `Window/` 目录（窗口控制器）
+   - 放置在 `View/AppKitComponents/` 目录（视图控制器）
+   - 使用 `NSWindowController` 或 `NSViewController` 子类
+
+2. **SwiftUI 视图**:
+   - 放置在 `View/SwiftUIViews/` 目录
+   - 使用 `View` 协议实现
+   - 通过 `@ObservedObject` 绑定 ViewModel
+
+3. **桥接代码**:
+   - 放置在 `View/Bridge/` 目录
+   - 使用 `NSHostingController` 包装 SwiftUI 视图
+   - 实现 SwiftUI 和 AppKit 之间的数据传递
+
+#### 依赖关系
+
+- **上层依赖下层**: View → ViewModel → Service → Model
+- **避免循环依赖**: 使用协议和依赖注入
+- **模块化设计**: 各模块职责清晰，接口明确
+
+### 开发流程规范
+
+#### 新功能开发流程
+
+1. **需求分析**: 明确功能需求和界面设计
+2. **架构设计**: 确定使用 AppKit 还是 SwiftUI，或混合使用
+3. **数据模型**: 设计或扩展数据模型
+4. **服务层**: 实现业务逻辑和数据操作
+5. **ViewModel**: 实现状态管理和业务逻辑
+6. **UI 层**: 实现界面（AppKit 控制器或 SwiftUI 视图）
+7. **测试**: 单元测试和集成测试
+8. **文档**: 更新技术文档和 API 文档
+
+#### 代码审查要点
+
+- **架构一致性**: 符合混合架构设计原则
+- **代码质量**: 遵循代码规范，无警告和错误
+- **性能考虑**: 内存使用、响应速度、电池消耗
+- **安全性**: 数据加密、认证安全、输入验证
+- **可维护性**: 代码清晰、注释完整、易于修改
+
+### 窗口和视图管理规范
+
+#### 窗口创建和管理
+
+1. **主窗口**: 使用 `MainWindowController` 管理
+2. **模态窗口**: 使用 `NSWindowController` 子类
+3. **窗口状态**: 实现 `savableWindowState()` 和 `restoreWindowState(_:)`
+4. **窗口生命周期**: 正确处理创建、显示、隐藏、关闭
+
+#### 视图控制器使用
+
+1. **AppKit 视图控制器**: 管理特定区域的 UI
+2. **SwiftUI 托管**: 使用 `NSHostingController` 包装 SwiftUI 视图
+3. **状态传递**: 通过 ViewModel 在视图间传递状态
+4. **生命周期**: 正确处理 `viewDidLoad()`、`viewWillAppear()` 等
+
+### 性能优化规范
+
+#### 内存优化
+
+1. **缓存策略**: 合理使用内存缓存和磁盘缓存
+2. **图片优化**: 压缩图片，按需加载
+3. **对象生命周期**: 及时释放不再使用的对象
+4. **循环引用**: 避免强引用循环，使用 `weak` 或 `unowned`
+
+#### 响应速度优化
+
+1. **异步操作**: 使用 `async/await` 避免阻塞主线程
+2. **防抖机制**: 减少不必要的操作（如保存、搜索）
+3. **懒加载**: 按需加载数据和视图
+4. **预加载**: 预加载可能需要的资源
+
+#### 电池消耗优化
+
+1. **网络请求**: 合并请求，减少频率
+2. **定时任务**: 合理设置定时器间隔
+3. **后台任务**: 优化后台同步和处理
+4. **资源使用**: 减少不必要的 CPU 和内存使用
+
+### 错误处理规范
+
+#### 错误分类
+
+1. **用户错误**: 输入错误、操作错误
+2. **网络错误**: 连接失败、超时、服务器错误
+3. **数据错误**: 数据格式错误、数据不一致
+4. **系统错误**: 内存不足、磁盘空间不足、权限错误
+
+#### 错误处理策略
+
+1. **用户友好**: 显示清晰的错误信息，提供解决方案
+2. **自动恢复**: 尽可能自动恢复错误状态
+3. **错误日志**: 记录详细的错误信息，便于调试
+4. **错误上报**: 重要错误上报到服务器（可选）
+
 ---
 
 ## API 参考
@@ -838,6 +1242,11 @@ func testCreateNote() async throws {
 @Published var selectedFolder: Folder?
 @Published var searchText: String
 @Published var isSyncing: Bool
+@Published var isLoggedIn: Bool
+@Published var isCookieExpired: Bool
+@Published var showLoginView: Bool
+@Published var showCookieRefreshView: Bool
+@Published var showTrashView: Bool
 ```
 
 #### 主要方法
@@ -845,6 +1254,7 @@ func testCreateNote() async throws {
 ```swift
 // 笔记操作
 func createNote() async throws
+func createNewNote() -> Note
 func updateNote(_ note: Note) async throws
 func deleteNote(_ note: Note) async throws
 func toggleStar(_ note: Note)
@@ -856,10 +1266,21 @@ func deleteFolder(_ folder: Folder, purge: Bool) async throws
 
 // 同步操作
 func syncNotes() async throws
+func performFullSync() async
+func performIncrementalSync() async
 func processPendingOperations() async
+func resetSyncStatus()
 
 // 搜索和筛选
 var filteredNotes: [Note] { get }
+
+// 内容管理
+func ensureNoteHasFullContent(_ note: Note) async
+func uploadImageAndInsertToNote(imageURL: URL) async throws -> String
+
+// 状态管理
+var pendingOperationsCount: Int { get }
+var lastSyncTime: Date? { get }
 ```
 
 ### MiNoteService
@@ -870,6 +1291,7 @@ var filteredNotes: [Note] { get }
 // 认证
 func setCookie(_ cookie: String)
 func isAuthenticated() -> Bool
+func checkCookieExpiration() async -> Bool
 
 // 笔记操作
 func fetchNotes() async throws -> [Note]
@@ -884,6 +1306,10 @@ func deleteFolder(folderId: String, tag: String, purge: Bool) async throws
 
 // 文件操作
 func uploadImage(_ imageData: Data, fileName: String) async throws -> [String: Any]
+
+// 同步操作
+func performFullSync() async throws -> SyncResult
+func performIncrementalSync(syncTag: String) async throws -> SyncResult
 ```
 
 ### DatabaseService
@@ -893,6 +1319,7 @@ func uploadImage(_ imageData: Data, fileName: String) async throws -> [String: A
 ```swift
 // 笔记操作
 func saveNote(_ note: Note) throws
+func saveNoteAsync(_ note: Note, completion: @escaping (Error?) -> Void)
 func loadNote(noteId: String) throws -> Note?
 func deleteNote(noteId: String) throws
 func getAllNotes() throws -> [Note]
@@ -907,21 +1334,114 @@ func getAllFolders() throws -> [Folder]
 func addOfflineOperation(_ operation: OfflineOperation) throws
 func getAllOfflineOperations() throws -> [OfflineOperation]
 func deleteOfflineOperation(id: String) throws
+func updateOfflineOperationStatus(id: String, status: OfflineOperationStatus, lastError: String?) throws
+
+// 同步状态
+func saveSyncStatus(_ status: SyncStatus) throws
+func loadSyncStatus() throws -> SyncStatus?
+
+// HTML 缓存
+func updateHTMLContentOnly(noteId: String, htmlContent: String, completion: @escaping (Error?) -> Void)
+func getHTMLContent(noteId: String) throws -> String?
 ```
 
-### LocalStorageService
+### MainWindowController
 
 #### 主要方法
 
 ```swift
-// 图片操作
-func saveImage(fileId: String, fileType: String, data: Data) throws
-func loadImage(fileId: String, fileType: String) -> Data?
-func deleteImage(fileId: String, fileType: String) throws
+// 窗口管理
+func showWindow(_ sender: Any?)
+func close()
+func savableWindowState() -> MainWindowState?
+func restoreWindowState(_ state: MainWindowState)
 
-// 配置操作
-func saveFolders(_ folders: [Folder]) throws
-func loadFolders() throws -> [Folder]
+// 工具栏动作
+@objc func createNewNote(_ sender: Any?)
+@objc func createNewFolder(_ sender: Any?)
+@objc func performSync(_ sender: Any?)
+@objc func showSettings(_ sender: Any?)
+@objc func showLogin(_ sender: Any?)
+@objc func showCookieRefresh(_ sender: Any?)
+@objc func showHistory(_ sender: Any?)
+@objc func showTrash(_ sender: Any?)
+
+// 格式操作
+@objc func toggleBold(_ sender: Any?)
+@objc func toggleItalic(_ sender: Any?)
+@objc func toggleUnderline(_ sender: Any?)
+@objc func toggleStrikethrough(_ sender: Any?)
+@objc func showFormatMenu(_ sender: Any?)
+
+// 编辑操作
+@objc func undo(_ sender: Any?)
+@objc func redo(_ sender: Any?)
+@objc func cut(_ sender: Any?)
+@objc func copy(_ sender: Any?)
+@objc func paste(_ sender: Any?)
+@objc override func selectAll(_ sender: Any?)
+```
+
+### AppDelegate
+
+#### 主要方法
+
+```swift
+// 应用程序生命周期
+func applicationDidFinishLaunching(_ notification: Notification)
+func applicationWillTerminate(_ notification: Notification)
+func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool
+func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool
+
+// 窗口管理
+func createMainWindow()
+func createNewWindow()
+func removeWindowController(_ windowController: MainWindowController)
+func getAllWindows() -> [NSWindow]
+func bringAllWindowsToFront()
+
+// 菜单动作
+@objc func showAboutPanel(_ sender: Any?)
+@objc func showSettings(_ sender: Any?)
+@objc func createNewWindow(_ sender: Any?)
+@objc func showHelp(_ sender: Any?)
+
+// 文件菜单动作
+@objc func createNewNote(_ sender: Any?)
+@objc func createNewFolder(_ sender: Any?)
+@objc func shareNote(_ sender: Any?)
+@objc func importNotes(_ sender: Any?)
+@objc func exportNote(_ sender: Any?)
+@objc func toggleStarNote(_ sender: Any?)
+@objc func copyNote(_ sender: Any?)
+
+// 编辑菜单动作
+@objc func undo(_ sender: Any?)
+@objc func redo(_ sender: Any?)
+@objc func cut(_ sender: Any?)
+@objc func copy(_ sender: Any?)
+@objc func paste(_ sender: Any?)
+@objc func selectAll(_ sender: Any?)
+
+// 格式菜单动作
+@objc func toggleBold(_ sender: Any?)
+@objc func toggleItalic(_ sender: Any?)
+@objc func toggleUnderline(_ sender: Any?)
+@objc func toggleStrikethrough(_ sender: Any?)
+@objc func increaseFontSize(_ sender: Any?)
+@objc func decreaseFontSize(_ sender: Any?)
+@objc func increaseIndent(_ sender: Any?)
+@objc func decreaseIndent(_ sender: Any?)
+@objc func alignLeft(_ sender: Any?)
+@objc func alignCenter(_ sender: Any?)
+@objc func alignRight(_ sender: Any?)
+@objc func toggleBulletList(_ sender: Any?)
+@objc func toggleNumberedList(_ sender: Any?)
+@objc func toggleCheckboxList(_ sender: Any?)
+@objc func setHeading1(_ sender: Any?)
+@objc func setHeading2(_ sender: Any?)
+@objc func setHeading3(_ sender: Any?)
+@objc func setBodyText(_ sender: Any?)
 ```
 
 ---
@@ -942,7 +1462,8 @@ CREATE TABLE notes (
     created_at REAL NOT NULL,
     updated_at REAL NOT NULL,
     tags TEXT,
-    raw_data TEXT
+    raw_data TEXT,
+    html_content TEXT
 );
 ```
 
@@ -987,7 +1508,7 @@ CREATE TABLE offline_operations (
 #### 配置文件
 
 - **位置**: `UserDefaults`
-- **内容**: Cookie、同步状态、用户设置等
+- **内容**: Cookie、同步状态、用户设置、窗口状态等
 
 ---
 
@@ -1000,6 +1521,9 @@ CREATE TABLE offline_operations (
 3. **防抖处理**: 保存操作使用防抖，减少不必要的保存
 4. **并发处理**: 离线操作支持并发执行
 5. **增量同步**: 使用 `syncTag` 实现增量同步，减少数据传输
+6. **内存缓存**: 使用 `MemoryCacheManager` 缓存笔记对象
+7. **保存队列**: 使用 `SaveQueueManager` 管理保存任务
+8. **HTML 缓存**: 缓存 HTML 格式内容，快速显示笔记
 
 ### 未来优化方向
 
@@ -1007,6 +1531,8 @@ CREATE TABLE offline_operations (
 2. **批量操作**: 支持批量创建、更新、删除
 3. **懒加载**: 笔记列表实现懒加载，提高性能
 4. **缓存策略**: 实现更智能的缓存策略
+5. **预加载**: 预加载用户可能查看的笔记
+6. **性能监控**: 实现性能监控和报告
 
 ---
 
@@ -1017,12 +1543,21 @@ CREATE TABLE offline_operations (
 1. **Cookie 存储**: 使用 `UserDefaults` 存储，系统级加密
 2. **私密笔记**: 支持密码保护，本地加密存储
 3. **网络传输**: 使用 HTTPS 加密传输
+4. **本地数据**: 数据库文件使用系统保护
 
 ### 认证安全
 
 1. **Cookie 过期检测**: 自动检测并提示重新登录
 2. **ServiceToken 提取**: 从 Cookie 中安全提取认证令牌
 3. **错误处理**: 妥善处理认证错误，不泄露敏感信息
+4. **自动刷新**: Cookie 即将过期时自动刷新
+
+### 隐私保护
+
+1. **本地数据**: 用户数据存储在本地，不上传无关信息
+2. **图片缓存**: 图片缓存仅用于本地显示，不分享给第三方
+3. **日志信息**: 调试日志不包含敏感用户信息
+4. **权限控制**: 仅请求必要的系统权限
 
 ---
 
@@ -1033,29 +1568,77 @@ CREATE TABLE offline_operations (
 1. **图片预览刷新**: 某些情况下图片预览可能不会立即刷新
 2. **同步冲突**: 极端情况下可能出现数据不一致
 3. **离线操作**: 大量离线操作可能导致处理时间较长
+4. **窗口状态恢复**: 多显示器环境下窗口位置可能恢复不正确
+5. **内存使用**: 编辑大型笔记时内存使用可能较高
+6. **Web 编辑器性能**: 超大型文档编辑时可能出现性能问题
 
 ### 功能限制
 
 1. **不支持富文本格式**: 某些高级格式可能不支持
 2. **不支持协作**: 不支持多人协作编辑
 3. **不支持附件**: 不支持除图片外的其他附件类型
+4. **文件夹层级**: 不支持多级文件夹嵌套
+5. **标签系统**: 标签功能较为基础
+6. **搜索功能**: 仅支持文本搜索，不支持高级搜索语法
+
+### 平台限制
+
+1. **macOS 版本**: 需要 macOS 14.0 或更高版本
+2. **硬件要求**: 需要支持 Metal 的显卡
+3. **网络要求**: 需要稳定的网络连接进行同步
+4. **存储空间**: 需要足够的本地存储空间
 
 ---
 
 ## 更新日志
 
-### v1.0.0
-- 初始版本
+### v1.0.0 (初始版本)
 - 支持基本的笔记编辑和同步功能
-- 支持富文本格式
+- 支持富文本格式（加粗、斜体、下划线、删除线、高亮）
 - 支持文件夹管理
 - 支持图片上传
+- 纯 SwiftUI 架构
 
-### v1.1.0
+### v1.1.0 (架构迁移)
+- 从纯 SwiftUI 迁移到 AppKit+SwiftUI 混合架构
+- 实现完整的 macOS 菜单系统
+- 添加原生工具栏支持
+- 支持多窗口管理
+- 实现窗口状态保存和恢复
 - 优化刷新 Cookie、登录、在线状态指示器
 - 实现离线操作队列和处理器
 - 优化同步机制
 - 改进 UI 和用户体验
+
+### v1.2.0 (性能优化)
+- 实现内存缓存管理器 (`MemoryCacheManager`)
+- 实现保存队列管理器 (`SaveQueueManager`)
+- 优化笔记切换性能
+- 实现 HTML 内容缓存
+- 优化保存机制（四级保存策略）
+- 改进错误处理和恢复机制
+- 添加更多调试日志和性能监控
+
+### 未来版本计划
+
+#### v1.3.0 (功能增强)
+- 支持笔记标签系统
+- 支持高级搜索功能
+- 支持笔记导出为多种格式
+- 支持笔记导入从其他应用
+- 改进图片管理和压缩
+
+#### v1.4.0 (协作功能)
+- 支持笔记分享
+- 支持只读分享链接
+- 支持协作编辑（基础版）
+- 改进同步冲突解决
+
+#### v2.0.0 (架构重构)
+- 模块化架构重构
+- 支持插件系统
+- 支持主题系统
+- 跨平台支持（iOS、iPadOS）
 
 ---
 
@@ -1068,11 +1651,59 @@ CREATE TABLE offline_operations (
 3. 提交更改
 4. 创建 Pull Request
 
-### 代码审查
+### 代码审查要点
 
-- 确保代码符合项目规范
-- 添加必要的测试
-- 更新相关文档
+- **架构一致性**: 符合混合架构设计原则
+- **代码质量**: 遵循代码规范，无警告和错误
+- **测试覆盖**: 添加必要的单元测试和集成测试
+- **文档更新**: 更新相关文档（技术文档、API文档、注释）
+- **性能考虑**: 考虑内存使用、响应速度、电池消耗
+- **安全性**: 数据加密、认证安全、输入验证
+
+### 开发环境设置
+
+1. **克隆项目**:
+   ```bash
+   git clone https://github.com/your-username/SwiftUI-MiNote-for-Mac.git
+   cd SwiftUI-MiNote-for-Mac
+   ```
+
+2. **安装依赖**:
+   ```bash
+   # 使用 Swift Package Manager
+   swift package resolve
+   ```
+
+3. **生成 Xcode 项目**:
+   ```bash
+   # 如果已安装 xcodegen
+   xcodegen generate
+   ```
+
+4. **打开项目**:
+   ```bash
+   open MiNoteMac.xcodeproj
+   ```
+
+5. **构建和运行**:
+   - 在 Xcode 中选择目标设备
+   - 按 ⌘R 运行
+
+### 测试要求
+
+1. **单元测试**: 所有新功能需要添加单元测试
+2. **集成测试**: 涉及多个模块的功能需要集成测试
+3. **UI 测试**: 重要的用户交互需要 UI 测试
+4. **性能测试**: 性能敏感的功能需要性能测试
+5. **兼容性测试**: 需要测试不同 macOS 版本的兼容性
+
+### 文档要求
+
+1. **代码注释**: 所有公开的 API 需要文档注释
+2. **技术文档**: 架构变更需要更新技术文档
+3. **API 文档**: 新增的 API 需要更新 API 参考
+4. **用户文档**: 用户可见的功能需要更新用户文档
+5. **更新日志**: 所有变更需要记录在更新日志中
 
 ---
 
@@ -1080,17 +1711,86 @@ CREATE TABLE offline_operations (
 
 本项目仅供学习和研究使用。
 
-### 第三方依赖
+### 第三方依赖许可证
 
-- **RichTextKit 1.2**: MIT 许可证
+本项目使用了以下第三方开源库：
+
+- **RichTextKit 1.2** - MIT 许可证
+  - 版权: Copyright (c) 2022-2024 Daniel Saidi
+  - 许可证文件: [RichTextKit-1.2/LICENSE](./RichTextKit-1.2/LICENSE)
+
+### 使用限制
+
+- ✅ **仅用于个人学习和研究目的**
+- ✅ **仅访问自己的数据**
+- ✅ **不要用于商业用途**
+- ✅ **不要大规模自动化访问**
+- ✅ **妥善保管认证信息，不要分享给他人**
+
+### 免责声明
+
+**本项目仅供学习和研究使用，不提供任何商业支持或保证。**
+
+使用者需自行承担使用本项目的所有风险。作者不对因使用本项目而产生的任何损失、损害或法律后果承担责任。
 
 ---
 
 ## 联系方式
 
-如有问题或建议，请提交 Issue 或 Pull Request。
+如有问题或建议，请通过以下方式联系：
+
+- **GitHub Issues**: [项目 Issues 页面](https://github.com/your-username/SwiftUI-MiNote-for-Mac/issues)
+- **Pull Requests**: 欢迎提交改进和修复
+- **讨论区**: 项目 GitHub 讨论区
+
+### 问题报告指南
+
+报告问题时请提供以下信息：
+
+1. **问题描述**: 详细描述遇到的问题
+2. **重现步骤**: 如何重现问题的步骤
+3. **预期行为**: 期望的正常行为
+4. **实际行为**: 实际观察到的行为
+5. **环境信息**:
+   - macOS 版本
+   - 应用程序版本
+   - 硬件信息（可选）
+6. **日志信息**: 相关的错误日志或控制台输出
+7. **截图或视频**: 可视化的问题表现（可选）
+
+### 功能请求指南
+
+请求新功能时请提供以下信息：
+
+1. **功能描述**: 详细描述需要的功能
+2. **使用场景**: 功能的使用场景和目的
+3. **优先级**: 功能的优先级（高/中/低）
+4. **相关参考**: 类似功能的参考或示例
+5. **实现建议**: 对实现方式的建议（可选）
 
 ---
 
-**最后更新**: 2024年12月
+## 致谢
 
+感谢以下项目和贡献者：
+
+- **小米笔记团队**: 提供了优秀的笔记服务和 API
+- **SwiftUI 和 AppKit 团队**: 提供了强大的 UI 框架
+- **开源社区**: 提供了丰富的开源工具和库
+- **项目贡献者**: 所有为项目做出贡献的开发者
+
+特别感谢以下开源项目：
+
+- **RichTextKit**: 提供了优秀的富文本编辑基础
+- **Swift Package Manager**: 提供了优秀的依赖管理
+- **XcodeGen**: 提供了优秀的项目生成工具
+
+---
+
+**最后更新**: 2026年1月4日
+
+**文档版本**: 2.0.0 (对应应用程序版本 v1.2.0)
+
+**维护者**: 项目维护团队
+
+**状态**: 活跃开发中
