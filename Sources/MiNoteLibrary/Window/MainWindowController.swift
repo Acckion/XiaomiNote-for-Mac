@@ -673,7 +673,7 @@ extension MainWindowController: NSToolbarDelegate {
         if item.itemIdentifier == .search, let searchItem = item as? NSSearchToolbarItem {
             searchItem.searchField.delegate = self
             searchItem.searchField.target = self
-            searchItem.searchField.action = #selector(showSearchFilterMenu(_:))
+            searchItem.searchField.action = #selector(performSearch(_:))
             currentSearchField = searchItem.searchField
             
             // 为搜索框添加下拉菜单
@@ -920,10 +920,20 @@ extension MainWindowController: NSSearchFieldDelegate {
     }
     
     @objc func performSearch(_ sender: NSSearchField) {
-        if sender.stringValue.isEmpty {
-            return
-        }
+        // 无论搜索内容是否为空，都更新搜索文本
+        // 这样当用户清空搜索框并按Enter时，会结束搜索
         viewModel?.searchText = sender.stringValue
+    }
+    
+    public func controlTextDidBeginEditing(_ obj: Notification) {
+        // 当搜索框开始编辑（获得焦点）时，显示筛选菜单
+        if let searchField = obj.object as? NSSearchField,
+           searchField == currentSearchField {
+            // 延迟一小段时间，确保用户点击完成后再显示菜单
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.showSearchFilterMenu(searchField)
+            }
+        }
     }
 }
 
@@ -1959,6 +1969,21 @@ extension MainWindowController {
             }
             .store(in: &cancellables)
         
+        // 监听搜索文本变化，同步到搜索框UI并更新窗口标题
+        viewModel.$searchText
+            .receive(on: RunLoop.main)
+            .sink { [weak self] searchText in
+                // 当ViewModel的searchText变化时，更新搜索框的UI
+                if let searchField = self?.currentSearchField,
+                   searchField.stringValue != searchText {
+                    searchField.stringValue = searchText
+                }
+                
+                // 更新窗口标题和副标题
+                self?.updateWindowTitle(for: viewModel.selectedFolder)
+            }
+            .store(in: &cancellables)
+        
         print("[MainWindowController] 状态监听器已设置")
     }
     
@@ -1970,17 +1995,28 @@ extension MainWindowController {
     
     /// 更新窗口标题和副标题
     private func updateWindowTitle(for folder: Folder?) {
-        guard let window = window else { return }
+        guard let window = window, let viewModel = viewModel else { return }
         
-        // 设置主标题为选中的文件夹名称
-        let folderName = folder?.name ?? "笔记"
-        window.title = folderName
-        
-        // 计算当前文件夹中的笔记数量
-        let noteCount = getNoteCount(for: folder)
-        
-        // 设置副标题为笔记数量
-        window.subtitle = "\(noteCount)个笔记"
+        // 检查是否有搜索文本
+        if !viewModel.searchText.isEmpty {
+            // 搜索状态：取消选中文件夹，标题改为"搜索"
+            viewModel.selectedFolder = nil
+            window.title = "搜索"
+            
+            // 副标题显示找到的笔记数量
+            let foundCount = viewModel.filteredNotes.count
+            window.subtitle = "找到\(foundCount)个笔记"
+        } else {
+            // 正常状态：设置主标题为选中的文件夹名称
+            let folderName = folder?.name ?? "笔记"
+            window.title = folderName
+            
+            // 计算当前文件夹中的笔记数量
+            let noteCount = getNoteCount(for: folder)
+            
+            // 设置副标题为笔记数量
+            window.subtitle = "\(noteCount)个笔记"
+        }
     }
     
     /// 获取指定文件夹中的笔记数量
@@ -2019,9 +2055,9 @@ extension MainWindowController {
         // 移除旧的NSMenu设置
         searchField.menu = nil
         
-        // 设置搜索框的点击事件处理
+        // 设置搜索框的点击事件处理 - 按Enter时执行搜索，而不是弹出菜单
         searchField.target = self
-        searchField.action = #selector(showSearchFilterMenu(_:))
+        searchField.action = #selector(performSearch(_:))
         
         // 重要：确保搜索框有正确的行为设置
         searchField.bezelStyle = .roundedBezel
@@ -2056,6 +2092,7 @@ extension MainWindowController {
         // 创建托管控制器
         let hostingController = NSHostingController(rootView: searchFilterMenuView)
         hostingController.view.frame = NSRect(x: 0, y: 0, width: 220, height: 220)
+        
         
         // 创建popover
         let popover = NSPopover()

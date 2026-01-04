@@ -358,6 +358,16 @@ public struct SidebarView: View {
                 // 调用 selectFolder 方法来处理笔记选择逻辑
                 if newValue != oldValue {
                     viewModel.selectFolder(newValue)
+                    
+                    // 选中文件夹时，清除搜索状态
+                    // 1. 清除搜索文本
+                    viewModel.searchText = ""
+                    // 2. 清除所有筛选选项
+                    viewModel.searchFilterHasTags = false
+                    viewModel.searchFilterHasChecklist = false
+                    viewModel.searchFilterHasImages = false
+                    viewModel.searchFilterHasAudio = false
+                    viewModel.searchFilterIsPrivate = false
                 }
             }
         }
