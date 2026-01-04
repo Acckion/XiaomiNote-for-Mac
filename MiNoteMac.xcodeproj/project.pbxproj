@@ -90,6 +90,7 @@
 		DA77A42F8FDBD2DCB66D4E32 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF646372B5CED37C5970C887 /* Note.swift */; };
 		DAD3F0D38E114C0631F9F25B /* LocalStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59F444DD3ECD304A51795C2D /* LocalStorageService.swift */; };
 		DB086F9B62AFF69E903E0ED3 /* NewNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DA47D2142912B634F2DEA0B /* NewNoteView.swift */; };
+		DB310D92018CB1E65E24C22B /* TrashWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2776D82F00735192D160214 /* TrashWindowController.swift */; };
 		DFB32B97D350B9CC67FF4FD9 /* OfflineOperationsProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686D55EC73462EADF6D4DF2C /* OfflineOperationsProgressView.swift */; };
 		E2170B942DACD395A5AFC5F0 /* editor-core.js in Resources */ = {isa = PBXBuildFile; fileRef = 66D2F6355137DF2A36AB43A1 /* editor-core.js */; };
 		E32BB00C6556002C93504A3C /* editor.html.backup in Resources */ = {isa = PBXBuildFile; fileRef = 21ABB7492D465FD413582C52 /* editor.html.backup */; };
@@ -97,6 +98,7 @@
 		E9C17037119996030211EA52 /* selection.js in Resources */ = {isa = PBXBuildFile; fileRef = CA2495E26B536E5D534F7166 /* selection.js */; };
 		EAA410BF9B12066935AB9F60 /* editor-init.js in Resources */ = {isa = PBXBuildFile; fileRef = 1A7658B8BAA53B9D317693F7 /* editor-init.js */; };
 		EE8B5F488E3B2C6F7F8E28F1 /* NotesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11E9E567FC83AA6232834D9 /* NotesListView.swift */; };
+		F028C8E1CB3C454705D14BA9 /* HistoryWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A86A59ECC1CD234004D7F5 /* HistoryWindowController.swift */; };
 		F6443DE63F084A3D5C30E780 /* html-to-xml.js in Resources */ = {isa = PBXBuildFile; fileRef = F093E6D53768A49E34C7A67B /* html-to-xml.js */; };
 		F8EA05070C0710B43087DD7C /* MoveNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3149427E05D4A29EA327C62A /* MoveNoteView.swift */; };
 		FCBE7E18A4C05938D23B1568 /* MiNoteService+Encryption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 472605C7F497F10AA75729E8 /* MiNoteService+Encryption.swift */; };
@@ -153,6 +155,7 @@
 		330447DDB151694673431B9E /* MiNoteLibrary.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = MiNoteLibrary.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		36E1DCA83D1D4EDD382A1431 /* converter.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = converter.js; sourceTree = "<group>"; };
 		378E040925BFBEEC41D1F40A /* WebEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebEditorView.swift; sourceTree = "<group>"; };
+		37A86A59ECC1CD234004D7F5 /* HistoryWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWindowController.swift; sourceTree = "<group>"; };
 		3B00E144F0064250DE47B3E8 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		40CB54D01F28EE56BFD0AE3D /* CookieRefreshView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookieRefreshView.swift; sourceTree = "<group>"; };
 		411C0EC02942FC9B597446F5 /* WebEditorWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebEditorWrapper.swift; sourceTree = "<group>"; };
@@ -201,6 +204,7 @@
 		BC2BEB9A968A92010516E864 /* PrivateNotesVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateNotesVerificationView.swift; sourceTree = "<group>"; };
 		BD3B155FA9EC74C551C6CD7C /* MoveNoteMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveNoteMenuView.swift; sourceTree = "<group>"; };
 		C2707995632193C250FB2E95 /* Folder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Folder.swift; sourceTree = "<group>"; };
+		C2776D82F00735192D160214 /* TrashWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashWindowController.swift; sourceTree = "<group>"; };
 		C2A7E0D6082D1B95BF67884B /* dom-writer.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "dom-writer.js"; sourceTree = "<group>"; };
 		C32FB2CCABD4AFB6C6809328 /* SidebarHostingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarHostingController.swift; sourceTree = "<group>"; };
 		C3349561297E3C10B46705BF /* MainWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowState.swift; sourceTree = "<group>"; };
@@ -297,6 +301,7 @@
 			children = (
 				59DEC8D390B4867A2051FFFB /* CookieRefreshWindowController.swift */,
 				E407CC877E22C8B1EE63BCD4 /* DebugWindowController.swift */,
+				37A86A59ECC1CD234004D7F5 /* HistoryWindowController.swift */,
 				AC94F9E7A1AF6D0B9354251D /* LoginWindowController.swift */,
 				9F2C615735DE267A1EAE380A /* MainWindowController.swift */,
 				C3349561297E3C10B46705BF /* MainWindowState.swift */,
@@ -306,6 +311,7 @@
 				7954410E4D580211C1A7C342 /* SettingsWindowController.swift */,
 				1DFA71C26665592AA8D75F7D /* SidebarWindowState.swift */,
 				93F58175B8166C1178A6C65F /* ToolbarIdentifiers.swift */,
+				C2776D82F00735192D160214 /* TrashWindowController.swift */,
 				5F9B0050749A07540FD3BA85 /* WindowStateManager.swift */,
 			);
 			path = Window;
@@ -670,6 +676,7 @@
 				4A9DE57D1C6BA3512899D02A /* DebugWindowController.swift in Sources */,
 				04ABF34CEB3F37ED07884B72 /* DeletedNote.swift in Sources */,
 				49180BDC746E4820429FD773 /* Folder.swift in Sources */,
+				F028C8E1CB3C454705D14BA9 /* HistoryWindowController.swift in Sources */,
 				DAD3F0D38E114C0631F9F25B /* LocalStorageService.swift in Sources */,
 				13C2E29E1CC48D2A2CA9CA81 /* LoginView.swift in Sources */,
 				1EC5CBFDF94AA801A0A37B59 /* LoginWindowController.swift in Sources */,
@@ -720,6 +727,7 @@
 				1E0AEEBF6C9B4F916DC7F666 /* TitleEditorView.swift in Sources */,
 				69AC7E2D4C9A4F313C1AC785 /* ToolbarIdentifiers.swift in Sources */,
 				0AD3BDB2A8A42D35175B138F /* TrashView.swift in Sources */,
+				DB310D92018CB1E65E24C22B /* TrashWindowController.swift in Sources */,
 				5BA06AC75EFE646E631E0A69 /* UserProfile.swift in Sources */,
 				9899778F3BDE36406D940F18 /* WebEditorContext.swift in Sources */,
 				146478DA95EEA59DA6FE1F34 /* WebEditorView.swift in Sources */,

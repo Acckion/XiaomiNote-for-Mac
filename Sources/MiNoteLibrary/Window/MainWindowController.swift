@@ -31,6 +31,8 @@ public class MainWindowController: NSWindowController {
     private var loginWindowController: LoginWindowController?
     private var cookieRefreshWindowController: CookieRefreshWindowController?
     private var settingsWindowController: SettingsWindowController?
+    private var historyWindowController: HistoryWindowController?
+    private var trashWindowController: TrashWindowController?
     
     /// Combine订阅集合
     private var cancellables = Set<AnyCancellable>()
@@ -735,6 +737,12 @@ extension MainWindowController: NSWindowDelegate {
         } else if window == settingsWindowController?.window {
             print("设置窗口即将关闭，清理引用")
             settingsWindowController = nil
+        } else if window == historyWindowController?.window {
+            print("历史记录窗口即将关闭，清理引用")
+            historyWindowController = nil
+        } else if window == trashWindowController?.window {
+            print("回收站窗口即将关闭，清理引用")
+            trashWindowController = nil
         }
     }
 }
@@ -1197,22 +1205,114 @@ extension MainWindowController {
     }
     
     @objc func showHistory(_ sender: Any?) {
-        print("显示历史记录")
-        // 显示笔记历史记录
-        guard let note = viewModel?.selectedNote else { return }
+        print("显示历史记录 - 开始")
         
-        let alert = NSAlert()
-        alert.messageText = "历史记录"
-        alert.informativeText = "笔记历史记录功能正在开发中..."
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "确定")
-        alert.runModal()
+        // 检查是否有选中的笔记
+        guard let note = viewModel?.selectedNote else {
+            let alert = NSAlert()
+            alert.messageText = "历史记录"
+            alert.informativeText = "请先选择要查看历史记录的笔记"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+            return
+        }
+        
+        // 如果窗口已经存在，则激活它
+        if let existingController = historyWindowController, let existingWindow = existingController.window {
+            if existingWindow.isVisible {
+                existingWindow.makeKeyAndOrderFront(sender)
+                NSApp.activate(ignoringOtherApps: true)
+                print("激活现有历史记录窗口")
+                return
+            } else {
+                // 窗口存在但不可见，重新显示
+                print("重新显示已存在的历史记录窗口")
+            }
+        }
+        
+        // 创建新的历史记录窗口控制器
+        let newHistoryWindowController = HistoryWindowController(viewModel: viewModel!, noteId: note.id)
+        self.historyWindowController = newHistoryWindowController
+        print("历史记录窗口控制器创建完成")
+        
+        // 确保窗口正确配置
+        if let window = newHistoryWindowController.window {
+            // 设置窗口层级
+            window.level = .floating
+            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
+            
+            // 确保窗口在屏幕中央
+            window.center()
+            
+            // 显示窗口
+            newHistoryWindowController.showWindow(sender)
+            print("showWindow调用完成")
+            
+            // 激活窗口
+            window.makeKeyAndOrderFront(sender)
+            print("makeKeyAndOrderFront调用完成")
+            
+            // 确保窗口获得焦点
+            NSApp.activate(ignoringOtherApps: true)
+            
+            // 添加窗口关闭时的清理
+            window.delegate = self
+        } else {
+            print("错误：历史记录窗口创建失败，window为nil")
+        }
+        
+        print("显示历史记录 - 完成")
     }
     
     @objc func showTrash(_ sender: Any?) {
-        print("显示回收站")
-        // 显示回收站视图
-        viewModel?.showTrashView = true
+        print("显示回收站 - 开始")
+        
+        // 如果窗口已经存在，则激活它
+        if let existingController = trashWindowController, let existingWindow = existingController.window {
+            if existingWindow.isVisible {
+                existingWindow.makeKeyAndOrderFront(sender)
+                NSApp.activate(ignoringOtherApps: true)
+                print("激活现有回收站窗口")
+                return
+            } else {
+                // 窗口存在但不可见，重新显示
+                print("重新显示已存在的回收站窗口")
+            }
+        }
+        
+        // 创建新的回收站窗口控制器
+        let newTrashWindowController = TrashWindowController(viewModel: viewModel!)
+        self.trashWindowController = newTrashWindowController
+        print("回收站窗口控制器创建完成")
+        
+        // 确保窗口正确配置
+        if let window = newTrashWindowController.window {
+            // 设置窗口层级
+            window.level = .floating
+            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
+            
+            // 确保窗口在屏幕中央
+            window.center()
+            
+            // 显示窗口
+            newTrashWindowController.showWindow(sender)
+            print("showWindow调用完成")
+            
+            // 激活窗口
+            window.makeKeyAndOrderFront(sender)
+            print("makeKeyAndOrderFront调用完成")
+            
+            // 确保窗口获得焦点
+            NSApp.activate(ignoringOtherApps: true)
+            
+            // 添加窗口关闭时的清理
+            window.delegate = self
+        } else {
+            print("错误：回收站窗口创建失败，window为nil")
+        }
+        
+        print("显示回收站 - 完成")
     }
     
     // MARK: - 笔记操作菜单动作方法
