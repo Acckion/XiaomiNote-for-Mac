@@ -121,6 +121,9 @@ extension NSToolbarItem.Identifier {
     /// 测试菜单（已弃用，保留以保持兼容性）
     static let testMenu = NSToolbarItem.Identifier("testMenu")
     
+    /// 锁定私密笔记
+    static let lockPrivateNotes = NSToolbarItem.Identifier("lockPrivateNotes")
+    
     // MARK: - 跟踪分隔符
     
     /// 侧边栏跟踪分隔符 - 连接到分割视图的第一个分隔符

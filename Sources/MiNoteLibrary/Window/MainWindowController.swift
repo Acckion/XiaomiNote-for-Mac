@@ -429,6 +429,10 @@ extension MainWindowController: NSToolbarDelegate {
             
             return testMenuToolbarItem
             
+        case .lockPrivateNotes:
+            // 锁定私密笔记工具栏项
+            return buildToolbarButton(.lockPrivateNotes, "锁定私密笔记", NSImage(systemSymbolName: "lock.fill", accessibilityDescription: nil)!, "lockPrivateNotes:")
+            
         case .toggleSidebar:
             // 创建自定义的切换侧边栏工具栏项
             return buildToolbarButton(.toggleSidebar, "隐藏/显示侧边栏", NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: nil)!, "toggleSidebar:")
@@ -492,72 +496,86 @@ extension MainWindowController: NSToolbarDelegate {
     }
     
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return [
-            .toggleSidebar,
-            .sidebarTrackingSeparator,
-            .flexibleSpace,
-            .newNote,
-            .newFolder,
-            .undo,
-            .redo,
-            .bold,
-            .italic,
-            .underline,
-            .strikethrough,
-            .code,
-            .link,
-            .formatMenu,
-            .checkbox,
-            .horizontalRule,
-            .attachment,
-            .increaseIndent,
-            .decreaseIndent,
-            .flexibleSpace,
-            .search,
-            .sync,
-            .onlineStatus,
-            .settings,
-            .login,
-            .cookieRefresh,
-            .offlineOperations,
-            .timelineTrackingSeparator,
-            .share,
-            .toggleStar,
-            .delete,
-            .restore,
-            .history,
-            .trash,
-            .noteOperations,
-            .testMenu,
-            .space,
-            .separator
+        var identifiers = [
+            NSToolbarItem.Identifier.toggleSidebar,
+            NSToolbarItem.Identifier.sidebarTrackingSeparator,
+            NSToolbarItem.Identifier.flexibleSpace,
+            NSToolbarItem.Identifier.newNote,
+            NSToolbarItem.Identifier.newFolder,
+            NSToolbarItem.Identifier.undo,
+            NSToolbarItem.Identifier.redo,
+            NSToolbarItem.Identifier.bold,
+            NSToolbarItem.Identifier.italic,
+            NSToolbarItem.Identifier.underline,
+            NSToolbarItem.Identifier.strikethrough,
+            NSToolbarItem.Identifier.code,
+            NSToolbarItem.Identifier.link,
+            NSToolbarItem.Identifier.formatMenu,
+            NSToolbarItem.Identifier.checkbox,
+            NSToolbarItem.Identifier.horizontalRule,
+            NSToolbarItem.Identifier.attachment,
+            NSToolbarItem.Identifier.increaseIndent,
+            NSToolbarItem.Identifier.decreaseIndent,
+            NSToolbarItem.Identifier.flexibleSpace,
+            NSToolbarItem.Identifier.search,
+            NSToolbarItem.Identifier.sync,
+            NSToolbarItem.Identifier.onlineStatus,
+            NSToolbarItem.Identifier.settings,
+            NSToolbarItem.Identifier.login,
+            NSToolbarItem.Identifier.cookieRefresh,
+            NSToolbarItem.Identifier.offlineOperations,
+            NSToolbarItem.Identifier.timelineTrackingSeparator,
+            NSToolbarItem.Identifier.share,
+            NSToolbarItem.Identifier.toggleStar,
+            NSToolbarItem.Identifier.delete,
+            NSToolbarItem.Identifier.restore,
+            NSToolbarItem.Identifier.history,
+            NSToolbarItem.Identifier.trash,
+            NSToolbarItem.Identifier.noteOperations,
+            NSToolbarItem.Identifier.testMenu,
+            NSToolbarItem.Identifier.space,
+            NSToolbarItem.Identifier.separator
         ]
+        
+        // 锁图标工具栏项始终在允许的标识符列表中，但通过验证逻辑控制可见性
+        identifiers.append(NSToolbarItem.Identifier.lockPrivateNotes)
+        
+        return identifiers
     }
     
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return [
-            .toggleSidebar,
-            .sidebarTrackingSeparator,
-            .flexibleSpace,
-            .newNote,
-            .newFolder,
-            .undo,
-            .redo,
-            .formatMenu,
-            .flexibleSpace,
-            .search,
-            .sync,
-            .onlineStatus,
-            .settings,
-            .login,
-            .timelineTrackingSeparator,
-            .share,
-            .toggleStar,
-            .delete,
-            .history,
-            .trash,
-            .noteOperations
+        var identifiers: [NSToolbarItem.Identifier] = [
+            NSToolbarItem.Identifier.toggleSidebar,
+            NSToolbarItem.Identifier.sidebarTrackingSeparator,
+            NSToolbarItem.Identifier.flexibleSpace,
+            NSToolbarItem.Identifier.newNote,
+            NSToolbarItem.Identifier.newFolder,
+            NSToolbarItem.Identifier.undo,
+            NSToolbarItem.Identifier.redo,
+            NSToolbarItem.Identifier.formatMenu,
+            NSToolbarItem.Identifier.flexibleSpace,
+            NSToolbarItem.Identifier.search,
+            NSToolbarItem.Identifier.sync,
+            NSToolbarItem.Identifier.onlineStatus,
+            NSToolbarItem.Identifier.settings,
+            NSToolbarItem.Identifier.login,
+            NSToolbarItem.Identifier.timelineTrackingSeparator,
+            NSToolbarItem.Identifier.share,
+            NSToolbarItem.Identifier.toggleStar,
+            NSToolbarItem.Identifier.delete,
+            NSToolbarItem.Identifier.history,
+            NSToolbarItem.Identifier.trash,
+            NSToolbarItem.Identifier.noteOperations
         ]
+        
+        // 只有在选中私密笔记文件夹且已解锁时才添加锁图标
+        let isPrivateFolder = viewModel?.selectedFolder?.id == "2"
+        let isUnlocked = viewModel?.isPrivateNotesUnlocked ?? false
+        if isPrivateFolder && isUnlocked {
+            identifiers.append(NSToolbarItem.Identifier.lockPrivateNotes)
+        }
+        
+        return identifiers
     }
     
     public func toolbarWillAddItem(_ notification: Notification) {
@@ -927,6 +945,16 @@ extension MainWindowController: NSUserInterfaceValidations {
            item.action == #selector(testMenuItem2(_:)) ||
            item.action == #selector(testMenuItem3(_:)) {
             return true // 测试菜单项总是可用
+        }
+        
+        // 验证锁定私密笔记按钮
+        if item.action == #selector(lockPrivateNotes(_:)) {
+            // 只有在以下条件满足时才显示锁图标：
+            // 1. 当前选中的文件夹是私密笔记文件夹 (folderId == "2")
+            // 2. 私密笔记已解锁 (isPrivateNotesUnlocked == true)
+            let isPrivateFolder = viewModel?.selectedFolder?.id == "2"
+            let isUnlocked = viewModel?.isPrivateNotesUnlocked ?? false
+            return isPrivateFolder && isUnlocked
         }
         
         // 默认返回true，确保所有按钮在溢出菜单中可用
@@ -1372,6 +1400,29 @@ extension MainWindowController {
         }
     }
     
+    // MARK: - 锁定私密笔记动作
+    
+    @objc func lockPrivateNotes(_ sender: Any?) {
+        print("锁定私密笔记")
+        
+        // 锁定私密笔记
+        viewModel?.isPrivateNotesUnlocked = false
+        
+        // 可选：清空选中的笔记
+        viewModel?.selectedNote = nil
+        
+        // 显示提示信息
+        let alert = NSAlert()
+        alert.messageText = "私密笔记已锁定"
+        alert.informativeText = "私密笔记已锁定，需要重新输入密码才能访问。"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+        
+        // 刷新工具栏验证
+        makeToolbarValidate()
+    }
+    
     // MARK: - 侧边栏切换
     
     @objc func toggleSidebar(_ sender: Any?) {
@@ -1747,7 +1798,31 @@ extension MainWindowController {
             }
             .store(in: &cancellables)
         
+        // 监听选中文件夹变化，更新工具栏
+        viewModel.$selectedFolder
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                // 当选中文件夹变化时，重新配置工具栏以显示/隐藏锁图标
+                self?.reconfigureToolbar()
+            }
+            .store(in: &cancellables)
+        
+        // 监听私密笔记解锁状态变化，更新工具栏
+        viewModel.$isPrivateNotesUnlocked
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                // 当私密笔记解锁状态变化时，重新配置工具栏以显示/隐藏锁图标
+                self?.reconfigureToolbar()
+            }
+            .store(in: &cancellables)
+        
         print("[MainWindowController] 状态监听器已设置")
+    }
+    
+    /// 重新配置工具栏
+    private func reconfigureToolbar() {
+        // 简单的方法：只验证工具栏项，让工具栏根据toolbarDefaultItemIdentifiers动态更新
+        makeToolbarValidate()
     }
     
     /// 更新窗口标题和副标题
