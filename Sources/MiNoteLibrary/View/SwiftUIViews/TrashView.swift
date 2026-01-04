@@ -17,6 +17,20 @@ struct TrashView: View {
     // 日志记录器
     private let logger = Logger(subsystem: "com.xiaomi.minote.mac", category: "TrashView")
     
+    // 自定义关闭方法，用于AppKit环境
+    private func closeSheet() {
+        // 尝试使用dismiss环境变量
+        dismiss()
+        
+        // 如果dismiss无效，尝试通过NSApp关闭窗口
+        DispatchQueue.main.async {
+            if let window = NSApp.keyWindow,
+               let sheetParent = window.sheetParent {
+                sheetParent.endSheet(window)
+            }
+        }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // 顶部工具栏（与 NoteHistoryView 相同）
@@ -28,7 +42,7 @@ struct TrashView: View {
                 Spacer()
                 
                 Button("关闭") {
-                    dismiss()
+                    closeSheet()
                 }
                 .padding(.trailing, 16)
             }
@@ -56,7 +70,7 @@ struct TrashView: View {
             // 打开时自动获取回收站笔记
             await viewModel.fetchDeletedNotes()
         }
-        .frame(width: 1000, height: 700)
+        .frame(minWidth: 800, idealWidth: 1000, maxWidth: 1200, minHeight: 500, idealHeight: 700, maxHeight: 800)
     }
     
     // MARK: - 左侧面板
@@ -254,4 +268,3 @@ struct DeletedNoteRow: View {
         .cornerRadius(6)
     }
 }
-

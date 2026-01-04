@@ -1063,106 +1063,64 @@ extension MainWindowController {
         settingsWindowController.window?.makeKeyAndOrderFront(nil)
     }
     
-    @objc func showLogin(_ sender: Any?) {
-        // 显示登录窗口
-        print("显示登录窗口 - 开始")
+    @objc public func showLogin(_ sender: Any?) {
+        // 显示登录sheet
+        print("显示登录sheet - 开始")
         
-        // 如果窗口已经存在，则激活它
-        if let existingController = loginWindowController, let existingWindow = existingController.window {
-            if existingWindow.isVisible {
-                existingWindow.makeKeyAndOrderFront(sender)
-                NSApp.activate(ignoringOtherApps: true)
-                print("激活现有登录窗口")
-                return
-            } else {
-                // 窗口存在但不可见，重新显示
-                print("重新显示已存在的登录窗口")
-            }
+        guard let window = window else {
+            print("错误：主窗口不存在，无法显示登录sheet")
+            return
         }
         
-        // 创建新的登录窗口控制器
-        let newLoginWindowController = LoginWindowController(viewModel: viewModel)
-        self.loginWindowController = newLoginWindowController
-        print("登录窗口控制器创建完成")
+        // 创建登录视图
+        let loginView = LoginView(viewModel: viewModel ?? NotesViewModel())
         
-        // 确保窗口正确配置
-        if let window = newLoginWindowController.window {
-            // 设置窗口层级
-            window.level = .floating
-            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
-            
-            // 确保窗口在屏幕中央
-            window.center()
-            
-            // 显示窗口
-            newLoginWindowController.showWindow(sender)
-            print("showWindow调用完成")
-            
-            // 激活窗口
-            window.makeKeyAndOrderFront(sender)
-            print("makeKeyAndOrderFront调用完成")
-            
-            // 确保窗口获得焦点
-            NSApp.activate(ignoringOtherApps: true)
-            
-            // 添加窗口关闭时的清理
-            window.delegate = self
-        } else {
-            print("错误：登录窗口创建失败，window为nil")
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: loginView)
+        
+        // 创建sheet窗口
+        let sheetWindow = NSWindow(contentViewController: hostingController)
+        sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
+        sheetWindow.title = "登录"
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.titleVisibility = .hidden
+        
+        // 显示sheet
+        window.beginSheet(sheetWindow) { response in
+            print("登录sheet关闭，响应: \(response)")
         }
         
-        print("显示登录窗口 - 完成")
+        print("显示登录sheet - 完成")
     }
     
-    @objc func showCookieRefresh(_ sender: Any?) {
-        // 显示Cookie刷新窗口
-        print("显示Cookie刷新窗口 - 开始")
+    @objc public func showCookieRefresh(_ sender: Any?) {
+        // 显示Cookie刷新sheet
+        print("显示Cookie刷新sheet - 开始")
         
-        // 如果窗口已经存在，则激活它
-        if let existingController = cookieRefreshWindowController, let existingWindow = existingController.window {
-            if existingWindow.isVisible {
-                existingWindow.makeKeyAndOrderFront(sender)
-                NSApp.activate(ignoringOtherApps: true)
-                print("激活现有Cookie刷新窗口")
-                return
-            } else {
-                // 窗口存在但不可见，重新显示
-                print("重新显示已存在的Cookie刷新窗口")
-            }
+        guard let window = window else {
+            print("错误：主窗口不存在，无法显示Cookie刷新sheet")
+            return
         }
         
-        // 创建新的Cookie刷新窗口控制器
-        let newCookieRefreshWindowController = CookieRefreshWindowController(viewModel: viewModel)
-        self.cookieRefreshWindowController = newCookieRefreshWindowController
-        print("Cookie刷新窗口控制器创建完成")
+        // 创建Cookie刷新视图
+        let cookieRefreshView = CookieRefreshView(viewModel: viewModel ?? NotesViewModel())
         
-        // 确保窗口正确配置
-        if let window = newCookieRefreshWindowController.window {
-            // 设置窗口层级
-            window.level = .floating
-            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
-            
-            // 确保窗口在屏幕中央
-            window.center()
-            
-            // 显示窗口
-            newCookieRefreshWindowController.showWindow(sender)
-            print("showWindow调用完成")
-            
-            // 激活窗口
-            window.makeKeyAndOrderFront(sender)
-            print("makeKeyAndOrderFront调用完成")
-            
-            // 确保窗口获得焦点
-            NSApp.activate(ignoringOtherApps: true)
-            
-            // 添加窗口关闭时的清理
-            window.delegate = self
-        } else {
-            print("错误：Cookie刷新窗口创建失败，window为nil")
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: cookieRefreshView)
+        
+        // 创建sheet窗口
+        let sheetWindow = NSWindow(contentViewController: hostingController)
+        sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
+        sheetWindow.title = "刷新Cookie"
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.titleVisibility = .hidden
+        
+        // 显示sheet
+        window.beginSheet(sheetWindow) { response in
+            print("Cookie刷新sheet关闭，响应: \(response)")
         }
         
-        print("显示Cookie刷新窗口 - 完成")
+        print("显示Cookie刷新sheet - 完成")
     }
     
     @objc func showOfflineOperations(_ sender: Any?) {
@@ -1204,8 +1162,8 @@ extension MainWindowController {
         // 这里应该调用编辑器API
     }
     
-    @objc func showHistory(_ sender: Any?) {
-        print("显示历史记录 - 开始")
+    @objc public func showHistory(_ sender: Any?) {
+        print("显示历史记录sheet - 开始")
         
         // 检查是否有选中的笔记
         guard let note = viewModel?.selectedNote else {
@@ -1218,101 +1176,59 @@ extension MainWindowController {
             return
         }
         
-        // 如果窗口已经存在，则激活它
-        if let existingController = historyWindowController, let existingWindow = existingController.window {
-            if existingWindow.isVisible {
-                existingWindow.makeKeyAndOrderFront(sender)
-                NSApp.activate(ignoringOtherApps: true)
-                print("激活现有历史记录窗口")
-                return
-            } else {
-                // 窗口存在但不可见，重新显示
-                print("重新显示已存在的历史记录窗口")
-            }
+        guard let window = window else {
+            print("错误：主窗口不存在，无法显示历史记录sheet")
+            return
         }
         
-        // 创建新的历史记录窗口控制器
-        let newHistoryWindowController = HistoryWindowController(viewModel: viewModel!, noteId: note.id)
-        self.historyWindowController = newHistoryWindowController
-        print("历史记录窗口控制器创建完成")
+        // 创建历史记录视图
+        let historyView = NoteHistoryView(viewModel: viewModel ?? NotesViewModel(), noteId: note.id)
         
-        // 确保窗口正确配置
-        if let window = newHistoryWindowController.window {
-            // 设置窗口层级
-            window.level = .floating
-            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
-            
-            // 确保窗口在屏幕中央
-            window.center()
-            
-            // 显示窗口
-            newHistoryWindowController.showWindow(sender)
-            print("showWindow调用完成")
-            
-            // 激活窗口
-            window.makeKeyAndOrderFront(sender)
-            print("makeKeyAndOrderFront调用完成")
-            
-            // 确保窗口获得焦点
-            NSApp.activate(ignoringOtherApps: true)
-            
-            // 添加窗口关闭时的清理
-            window.delegate = self
-        } else {
-            print("错误：历史记录窗口创建失败，window为nil")
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: historyView)
+        
+        // 创建sheet窗口
+        let sheetWindow = NSWindow(contentViewController: hostingController)
+        sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
+        sheetWindow.title = "历史记录"
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.titleVisibility = .hidden
+        
+        // 显示sheet
+        window.beginSheet(sheetWindow) { response in
+            print("历史记录sheet关闭，响应: \(response)")
         }
         
-        print("显示历史记录 - 完成")
+        print("显示历史记录sheet - 完成")
     }
     
-    @objc func showTrash(_ sender: Any?) {
-        print("显示回收站 - 开始")
+    @objc public func showTrash(_ sender: Any?) {
+        print("显示回收站sheet - 开始")
         
-        // 如果窗口已经存在，则激活它
-        if let existingController = trashWindowController, let existingWindow = existingController.window {
-            if existingWindow.isVisible {
-                existingWindow.makeKeyAndOrderFront(sender)
-                NSApp.activate(ignoringOtherApps: true)
-                print("激活现有回收站窗口")
-                return
-            } else {
-                // 窗口存在但不可见，重新显示
-                print("重新显示已存在的回收站窗口")
-            }
+        guard let window = window else {
+            print("错误：主窗口不存在，无法显示回收站sheet")
+            return
         }
         
-        // 创建新的回收站窗口控制器
-        let newTrashWindowController = TrashWindowController(viewModel: viewModel!)
-        self.trashWindowController = newTrashWindowController
-        print("回收站窗口控制器创建完成")
+        // 创建回收站视图
+        let trashView = TrashView(viewModel: viewModel ?? NotesViewModel())
         
-        // 确保窗口正确配置
-        if let window = newTrashWindowController.window {
-            // 设置窗口层级
-            window.level = .floating
-            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
-            
-            // 确保窗口在屏幕中央
-            window.center()
-            
-            // 显示窗口
-            newTrashWindowController.showWindow(sender)
-            print("showWindow调用完成")
-            
-            // 激活窗口
-            window.makeKeyAndOrderFront(sender)
-            print("makeKeyAndOrderFront调用完成")
-            
-            // 确保窗口获得焦点
-            NSApp.activate(ignoringOtherApps: true)
-            
-            // 添加窗口关闭时的清理
-            window.delegate = self
-        } else {
-            print("错误：回收站窗口创建失败，window为nil")
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: trashView)
+        
+        // 创建sheet窗口
+        let sheetWindow = NSWindow(contentViewController: hostingController)
+        sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
+        sheetWindow.title = "回收站"
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.titleVisibility = .hidden
+        
+        // 显示sheet
+        window.beginSheet(sheetWindow) { response in
+            print("回收站sheet关闭，响应: \(response)")
         }
         
-        print("显示回收站 - 完成")
+        print("显示回收站sheet - 完成")
     }
     
     // MARK: - 笔记操作菜单动作方法

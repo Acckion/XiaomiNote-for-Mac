@@ -939,25 +939,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func showLogin(_ sender: Any?) {
-        print("显示登录窗口")
+        print("显示登录sheet")
         
-        // 创建登录窗口控制器
-        let loginWindowController = MiNoteLibrary.LoginWindowController(viewModel: mainWindowController?.viewModel)
-        
-        // 显示窗口
-        loginWindowController.showWindow(nil)
-        loginWindowController.window?.makeKeyAndOrderFront(nil)
+        // 通过主窗口控制器显示登录sheet
+        mainWindowController?.showLogin(sender)
     }
     
     @objc func showCookieRefresh(_ sender: Any?) {
-        print("显示Cookie刷新窗口")
+        print("显示Cookie刷新sheet")
         
-        // 创建Cookie刷新窗口控制器
-        let cookieRefreshWindowController = MiNoteLibrary.CookieRefreshWindowController(viewModel: mainWindowController?.viewModel)
-        
-        // 显示窗口
-        cookieRefreshWindowController.showWindow(nil)
-        cookieRefreshWindowController.window?.makeKeyAndOrderFront(nil)
+        // 通过主窗口控制器显示Cookie刷新sheet
+        mainWindowController?.showCookieRefresh(sender)
     }
     
     @objc func showOfflineOperations(_ sender: Any?) {
