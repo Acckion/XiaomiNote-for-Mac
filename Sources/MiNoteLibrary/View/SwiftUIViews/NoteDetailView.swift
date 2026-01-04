@@ -48,7 +48,10 @@ struct NoteDetailView: View {
     }
     
     @State private var showingHistoryView: Bool = false
-    @StateObject private var webEditorContext = WebEditorContext()
+    // 使用共享的WebEditorContext
+    private var webEditorContext: WebEditorContext {
+        viewModel.webEditorContext
+    }
     
     var body: some View {
         mainContentView

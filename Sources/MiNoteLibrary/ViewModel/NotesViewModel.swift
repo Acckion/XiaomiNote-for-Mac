@@ -92,6 +92,9 @@ public class NotesViewModel: ObservableObject {
     /// 是否显示回收站视图
     @Published var showTrashView: Bool = false
     
+    /// Web编辑器上下文（共享实例）
+    @Published var webEditorContext = WebEditorContext()
+    
     // MARK: - 设置
     
     /// 同步间隔（秒），默认5分钟

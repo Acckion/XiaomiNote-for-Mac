@@ -18,7 +18,6 @@ public struct SettingsView: View {
     
     @State private var showLogoutAlert: Bool = false
     @State private var showClearCacheAlert: Bool = false
-    @State private var showAboutSheet: Bool = false
     
     public init(viewModel: NotesViewModel) {
         self.viewModel = viewModel
@@ -40,8 +39,6 @@ public struct SettingsView: View {
                     
                     Toggle("离线模式", isOn: $offlineMode)
                         .help("离线模式下仅使用本地缓存，不进行网络同步")
-                    
-                    Divider()
                     
                     Toggle("自动刷新Cookie", isOn: $autoRefreshCookie)
                         .help("启用后，系统会自动定期刷新Cookie，避免Cookie过期导致同步失败")
@@ -66,22 +63,13 @@ public struct SettingsView: View {
                         Text("深色").tag("dark")
                     }
                     
-                    Divider()
-                    
                     VStack(alignment: .leading, spacing: 12) {
                         Text("编辑器显示")
                             .font(.headline)
                             .padding(.bottom, 4)
                         
                         // 字体大小设置
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("字体大小")
-                                Spacer()
-                                Text("\(Int(editorFontSize))px")
-                                    .foregroundColor(.secondary)
-                            }
-                            
+                        VStack(alignment: .leading, spacing: 8) {    
                             Slider(value: $editorFontSize, in: 12...24, step: 1) {
                                 Text("字体大小")
                             } minimumValueLabel: {
@@ -101,13 +89,6 @@ public struct SettingsView: View {
                         
                         // 行间距设置
                         VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("行间距")
-                                Spacer()
-                                Text(String(format: "%.1f", editorLineHeight))
-                                    .foregroundColor(.secondary)
-                            }
-                            
                             Slider(value: $editorLineHeight, in: 1.0...2.5, step: 0.1) {
                                 Text("行间距")
                             } minimumValueLabel: {
@@ -126,21 +107,14 @@ public struct SettingsView: View {
                         }
                         
                         // 预设按钮
-                        HStack {
+                        HStack {                    
+                            Spacer()
                             Button("重置为默认") {
                                 editorFontSize = 14.0
                                 editorLineHeight = 1.5
                                 applyEditorSettings()
                             }
                             .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            
-                            Spacer()
-                            
-                            Button("应用设置") {
-                                applyEditorSettings()
-                            }
-                            .buttonStyle(.borderedProminent)
                             .controlSize(.small)
                         }
                         .padding(.top, 8)
@@ -222,40 +196,9 @@ public struct SettingsView: View {
                         importNotes()
                     }
                 }
-                
-                Section("关于") {
-                    HStack {
-                        Text("版本")
-                        Spacer()
-                        Text("1.0.0")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Button("检查更新") {
-                        checkForUpdates()
-                    }
-                    
-                    Button("关于小米笔记") {
-                        showAboutSheet = true
-                    }
-                }
             }
             .formStyle(.grouped)
             .navigationTitle("设置")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") {
-                        saveSettings()
-                        dismiss()
-                    }
-                }
-            }
             .alert("退出登录", isPresented: $showLogoutAlert) {
                 Button("退出", role: .destructive) {
                     logout()
@@ -271,9 +214,6 @@ public struct SettingsView: View {
                 Button("取消", role: .cancel) {}
             } message: {
                 Text("清除缓存将删除所有本地笔记数据，但不会影响云端数据。")
-            }
-            .sheet(isPresented: $showAboutSheet) {
-                AboutView()
             }
         }
         .frame(width: 500, height: 600)
@@ -708,44 +648,6 @@ struct ChangePasswordDialogView: View {
     }
 }
 
-// 关于视图
-struct AboutView: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "note.text")
-                .font(.system(size: 64))
-                .foregroundColor(.blue)
-            
-            Text("小米笔记 for Mac")
-                .font(.title)
-                .fontWeight(.bold)
-            
-            Text("版本 1.0.0")
-                .foregroundColor(.secondary)
-            
-            Text("一个优雅的 macOS 客户端，用于同步和管理小米笔记")
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            
-            Divider()
-                .padding(.horizontal, 40)
-            
-            Text("基于 SwiftUI 和 macOS 26 设计标准构建")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            Spacer()
-            
-            Button("关闭") {
-                NSApp.keyWindow?.close()
-            }
-            .buttonStyle(.bordered)
-            .padding(.bottom, 20)
-        }
-        .padding(40)
-        .frame(width: 400, height: 400)
-    }
-}
 
 #Preview {
     SettingsView(viewModel: NotesViewModel())

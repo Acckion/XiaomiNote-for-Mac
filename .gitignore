@@ -1,6 +1,3 @@
-# Obsidian Plugin - 不跟踪此目录
-Obsidian-Plugin-ToReference/
-
 # macOS
 .DS_Store
 .AppleDouble
@@ -33,6 +30,6 @@ project.xcworkspace/xcuserdata/
 *.backup/
 *_副本/
 
-# kdeditor 目录
+# 参考目录
 References/
 

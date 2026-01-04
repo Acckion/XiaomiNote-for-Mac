@@ -9,7 +9,7 @@ struct MoveNoteSheetView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("移动备忘录")
+            Text("移动笔记")
                 .font(.headline)
                 .padding(.top)
             
@@ -92,7 +92,7 @@ struct MoveNoteSheetView: View {
                     folderId: selectedFolderId,
                     isStarred: note.isStarred,
                     createdAt: note.createdAt,
-                    updatedAt: Date()
+                    updatedAt: note.updatedAt // 保持原来的修改日期不变
                 )
                 try await viewModel.updateNote(updatedNote)
                 dismiss()
@@ -102,4 +102,3 @@ struct MoveNoteSheetView: View {
         }
     }
 }
-

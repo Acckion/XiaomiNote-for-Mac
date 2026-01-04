@@ -30,8 +30,8 @@ PROJECT_NAME="MiNoteMac"
 SCHEME="MiNoteMac"
 CONFIGURATION="Release"
 PLATFORM="macOS"
-DERIVED_DATA_PATH="build/DerivedData"
-OUTPUT_DIR="build/Release"
+DERIVED_DATA_PATH=".build/DerivedData"
+OUTPUT_DIR=".build/Release"
 
 # 创建构建目录
 mkdir -p "$DERIVED_DATA_PATH"
