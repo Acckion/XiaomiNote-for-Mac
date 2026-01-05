@@ -83,34 +83,21 @@ class BaseSheetToolbarDelegate: NSObject, NSToolbarDelegate {
     }
     
     // MARK: - 工具栏项构建方法
-    
     /// 构建关闭按钮
     private func buildCloseToolbarButton() -> NSToolbarItem {
-        print("[BaseSheetToolbarDelegate] 构建关闭工具栏按钮")
         let toolbarItem = NSToolbarItem(itemIdentifier: .close)
         toolbarItem.autovalidates = true
         
         let button = NSButton()
-        button.bezelStyle = .circular // 使用圆形样式，确保是正圆形
+        button.bezelStyle = .texturedRounded
         button.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
         button.imageScaling = .scaleProportionallyDown
         button.action = #selector(closeButtonClicked(_:))
         button.target = self
-        button.isEnabled = true // 确保按钮启用
-        
-        // 设置合适的frame，确保宽高相等
-        button.frame = NSRect(x: 0, y: 0, width: 32, height: 32)
-        
-        print("[BaseSheetToolbarDelegate] 按钮创建完成，target: \(String(describing: button.target))，action: \(String(describing: button.action))，bezelStyle: \(button.bezelStyle.rawValue)，isEnabled: \(button.isEnabled)，frame: \(button.frame)")
         
         toolbarItem.view = button
-        toolbarItem.toolTip = closeButtonTitle
-        toolbarItem.label = closeButtonTitle
-        
-        // 设置工具栏项的最小和最大尺寸，确保是正方形
-        toolbarItem.minSize = NSSize(width: 32, height: 32)
-        toolbarItem.maxSize = NSSize(width: 32, height: 32)
-        
+        toolbarItem.toolTip = "关闭"
+        toolbarItem.label = "关闭"
         return toolbarItem
     }
     
@@ -131,6 +118,7 @@ class BaseSheetToolbarDelegate: NSObject, NSToolbarDelegate {
         toolbarItem.label = saveButtonTitle
         return toolbarItem
     }
+    
     
     // MARK: - 动作方法
     
