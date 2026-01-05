@@ -247,9 +247,6 @@ struct WebFormatMenuView: View {
             .padding(.vertical, 8)
         }
         .frame(width: 200)
-        .background(.ultraThinMaterial)
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 4)
         .onChange(of: context.isBold) { oldValue, newValue in
             print("🔄 [WebFormatMenuView] 加粗状态变化: \(oldValue) -> \(newValue)")
         }
