@@ -40,7 +40,7 @@ public struct SidebarView: View {
         // 使用系统颜色，让图标看起来更原生
         switch folder.id {
         case "0": return .blue // 所有笔记使用蓝色
-        case "starred": return .yellow // 置顶使用黄色
+        case "starred": return .accentColor // 置顶使用强调色
         case "uncategorized": return .gray // 未分类使用灰色
         default: return .primary // 其他文件夹使用主要颜色
         }
@@ -325,7 +325,6 @@ public struct SidebarView: View {
                 }
             }
             .listStyle(.sidebar)
-            .accentColor(.yellow)  // 设置列表选择颜色为黄色
             .onKeyPress(.return) {
                 // 检查是否应该进入重命名模式
                 if let selectedFolder = viewModel.selectedFolder,
@@ -936,17 +935,17 @@ struct SidebarFolderRow: View {
     /// 
     /// 使用系统颜色，让图标看起来更原生：
     /// - "0" (所有笔记): .blue
-    /// - "starred" (置顶): .yellow
+    /// - "starred" (置顶): .accentColor
     /// - "uncategorized" (未分类): .gray
     /// - "new" (新建): .green
-    /// - 其他: .primary（如果置顶则使用 .yellow）
+    /// - 其他: .primary（如果置顶则使用 .accentColor）
     private var folderColor: Color {
         switch folder.id {
         case "0": return .blue
-        case "starred": return .yellow
+        case "starred": return .accentColor
         case "uncategorized": return .gray
         case "new": return .green
-        default: return folder.isPinned ? .yellow : .primary
+        default: return folder.isPinned ? .accentColor : .primary
         }
     }
 }
