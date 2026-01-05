@@ -750,7 +750,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showAboutPanel(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "小米笔记"
-        alert.informativeText = "版本 2.0.0\n\n一个简洁的笔记应用程序，支持小米笔记同步。"
+        alert.informativeText = "版本 2.1.0\n\n一个简洁的笔记应用程序，支持小米笔记同步。"
         alert.alertStyle = .informational
         alert.addButton(withTitle: "确定")
         alert.runModal()

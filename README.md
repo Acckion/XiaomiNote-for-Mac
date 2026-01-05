@@ -306,3 +306,6 @@ swift package resolve
 
 ### v2.0.0: 架构重构
 - 采用 AppKit+SwiftUI 混合架构
+
+#### v2.1.0: UI优化
+- 优化格式菜单、搜索筛选菜单、强调色
