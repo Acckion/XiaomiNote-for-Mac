@@ -17,7 +17,7 @@ targets:
           - "**/*.md"
           - "App/**"
     resources:
-      - path: Sources/MiNoteLibrary/Web
+      - path: Sources/Web
         type: folder
     settings:
       base:
