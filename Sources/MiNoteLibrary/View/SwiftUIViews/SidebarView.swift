@@ -941,11 +941,11 @@ struct SidebarFolderRow: View {
     /// - 其他: .primary（如果置顶则使用 .accentColor）
     private var folderColor: Color {
         switch folder.id {
-        case "0": return .blue
-        case "starred": return .accentColor
-        case "uncategorized": return .gray
-        case "new": return .green
-        default: return folder.isPinned ? .accentColor : .primary
+        case "0": return .primary
+        case "starred": return .primary
+        case "uncategorized": return .primary
+        case "new": return .primary
+        default: return .primary
         }
     }
 }
