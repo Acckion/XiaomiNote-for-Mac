@@ -300,6 +300,39 @@ extension MainWindowController: NSToolbarDelegate {
             syncStatusItem.target = self
             menu.addItem(syncStatusItem)
             
+            menu.addItem(NSMenuItem.separator())
+            
+            // 离线操作相关菜单项
+            // 离线操作状态（显示待处理操作数量）
+            let offlineOperationsStatusItem = NSMenuItem()
+            offlineOperationsStatusItem.title = "离线操作：0个待处理"
+            offlineOperationsStatusItem.isEnabled = false // 不可点击，仅显示状态
+            offlineOperationsStatusItem.tag = 200 // 设置标签以便识别
+            menu.addItem(offlineOperationsStatusItem)
+            
+            menu.addItem(NSMenuItem.separator())
+            
+            // 处理离线操作
+            let processOfflineOperationsItem = NSMenuItem()
+            processOfflineOperationsItem.title = "处理离线操作"
+            processOfflineOperationsItem.action = #selector(processOfflineOperations(_:))
+            processOfflineOperationsItem.target = self
+            menu.addItem(processOfflineOperationsItem)
+            
+            // 查看离线操作进度
+            let showOfflineOperationsProgressItem = NSMenuItem()
+            showOfflineOperationsProgressItem.title = "查看离线操作进度"
+            showOfflineOperationsProgressItem.action = #selector(showOfflineOperationsProgress(_:))
+            showOfflineOperationsProgressItem.target = self
+            menu.addItem(showOfflineOperationsProgressItem)
+            
+            // 重试失败的操作
+            let retryFailedOperationsItem = NSMenuItem()
+            retryFailedOperationsItem.title = "重试失败的操作"
+            retryFailedOperationsItem.action = #selector(retryFailedOperations(_:))
+            retryFailedOperationsItem.target = self
+            menu.addItem(retryFailedOperationsItem)
+            
             // 设置菜单
             toolbarItem.menu = menu
             
@@ -994,7 +1027,25 @@ extension MainWindowController: NSMenuDelegate {
         for item in menu.items {
             if item.tag == 100 { // 在线状态项
                 item.title = getOnlineStatusTitle()
-                break
+            } else if item.tag == 200 { // 离线操作状态项
+                // 更新离线操作状态
+                let offlineQueue = OfflineOperationQueue.shared
+                let pendingCount = offlineQueue.getPendingOperations().count
+                let failedCount = OfflineOperationProcessor.shared.failedOperations.count
+                
+                if pendingCount > 0 {
+                    if failedCount > 0 {
+                        item.title = "离线操作：\(pendingCount)个待处理 (\(failedCount)个失败)"
+                    } else {
+                        item.title = "离线操作：\(pendingCount)个待处理"
+                    }
+                } else {
+                    if failedCount > 0 {
+                        item.title = "离线操作：\(failedCount)个失败"
+                    } else {
+                        item.title = "离线操作：无待处理"
+                    }
+                }
             }
         }
     }
@@ -1596,6 +1647,120 @@ extension MainWindowController {
             alert.informativeText = infoText
             alert.addButton(withTitle: "确定")
             alert.runModal()
+        }
+    }
+    
+    // MARK: - 离线操作相关动作方法
+    
+    @objc func processOfflineOperations(_ sender: Any?) {
+        print("处理离线操作")
+        
+        // 检查是否有待处理的离线操作
+        let processor = OfflineOperationProcessor.shared
+        let offlineQueue = OfflineOperationQueue.shared
+        let pendingCount = processor.failedOperations.count + offlineQueue.getPendingOperations().count
+        
+        if pendingCount == 0 {
+            let alert = NSAlert()
+            alert.messageText = "离线操作"
+            alert.informativeText = "没有待处理的离线操作。"
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+            return
+        }
+        
+        // 询问用户是否要处理离线操作
+        let alert = NSAlert()
+        alert.messageText = "处理离线操作"
+        alert.informativeText = "确定要处理 \(pendingCount) 个待处理的离线操作吗？"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "处理")
+        alert.addButton(withTitle: "取消")
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            // 开始处理离线操作
+            Task {
+                await processor.processOperations()
+            }
+        }
+    }
+    
+    @objc func showOfflineOperationsProgress(_ sender: Any?) {
+        print("显示离线操作进度")
+        
+        // 检查是否有离线操作处理器
+        guard let viewModel = viewModel else {
+            let alert = NSAlert()
+            alert.messageText = "离线操作进度"
+            alert.informativeText = "视图模型未初始化。"
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+            return
+        }
+        
+        // 创建离线操作进度视图
+        let progressView = OfflineOperationsProgressView(processor: OfflineOperationProcessor.shared)
+        
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: progressView)
+        
+        // 创建sheet窗口
+        guard let window = window else {
+            print("错误：主窗口不存在，无法显示离线操作进度sheet")
+            return
+        }
+        
+        let sheetWindow = NSWindow(contentViewController: hostingController)
+        sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
+        sheetWindow.title = "离线操作进度"
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.titleVisibility = .hidden
+        
+        // 确保窗口有标准关闭按钮
+        sheetWindow.isReleasedWhenClosed = false
+        
+        // 显示sheet
+        window.beginSheet(sheetWindow) { response in
+            print("离线操作进度sheet关闭，响应: \(response)")
+            // 确保窗口被正确关闭
+            sheetWindow.close()
+        }
+    }
+    
+    @objc func retryFailedOperations(_ sender: Any?) {
+        print("重试失败的操作")
+        
+        // 检查是否有失败的离线操作
+        let processor = OfflineOperationProcessor.shared
+        let failedCount = processor.failedOperations.count
+        
+        if failedCount == 0 {
+            let alert = NSAlert()
+            alert.messageText = "重试失败的操作"
+            alert.informativeText = "没有失败的操作需要重试。"
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+            return
+        }
+        
+        // 询问用户是否要重试失败的操作
+        let alert = NSAlert()
+        alert.messageText = "重试失败的操作"
+        alert.informativeText = "确定要重试 \(failedCount) 个失败的操作吗？"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "重试")
+        alert.addButton(withTitle: "取消")
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            // 重试失败的操作
+            Task {
+                await processor.retryFailedOperations()
+            }
         }
     }
     
