@@ -58,6 +58,9 @@ public class MainWindowController: NSWindowController {
     /// 当前sheet窗口的工具栏代理引用
     private var currentSheetToolbarDelegate: OfflineOperationsProgressToolbarDelegate?
     
+    /// 工具栏代理
+    private var toolbarDelegate: MainWindowToolbarDelegate?
+    
     // MARK: - 初始化
     
     /// 使用指定的视图模型初始化窗口控制器
@@ -143,11 +146,14 @@ public class MainWindowController: NSWindowController {
     private func setupToolbar() {
         guard let window = window else { return }
         
+        // 创建工具栏代理
+        toolbarDelegate = MainWindowToolbarDelegate(viewModel: viewModel, windowController: self)
+        
         let toolbar = NSToolbar(identifier: "MainWindowToolbar")
         toolbar.allowsUserCustomization = true
         toolbar.autosavesConfiguration = true
         toolbar.displayMode = .iconOnly
-        toolbar.delegate = self
+        toolbar.delegate = toolbarDelegate
         
         window.toolbar = toolbar
         window.toolbarStyle = .unified

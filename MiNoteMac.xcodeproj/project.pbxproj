@@ -49,6 +49,7 @@
 		56205409C6CC29995B590BEB /* MiNoteToolbarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69CFDE04E9E0F11ADB6BA523 /* MiNoteToolbarItem.swift */; };
 		5BA06AC75EFE646E631E0A69 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABFACD279C6322F4D5D253AA /* UserProfile.swift */; };
 		5E4FCE7BBA3EC24826F55575 /* NotesListHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E21ED1C3A1288A9EE7D506A7 /* NotesListHostingController.swift */; };
+		6372A8A298C0FECF7C24ED09 /* ToolbarItemFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C850C13CD575EE0ADAAC6253 /* ToolbarItemFactory.swift */; };
 		67B51E3FF8FED57EB63E000F /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F5EDD8E69C0A0FFA4F2732 /* SyncService.swift */; };
 		69AC7E2D4C9A4F313C1AC785 /* ToolbarIdentifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F58175B8166C1178A6C65F /* ToolbarIdentifiers.swift */; };
 		6BF7B6CD18D808C726018E49 /* NotesListWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5AF40462266FD02BA46ED8 /* NotesListWindowState.swift */; };
@@ -57,6 +58,7 @@
 		86E3C186412052CE4FAACE6A /* MiNoteLibrary.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		87F4D57925A5A920320D773A /* MemoryCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72E5D90179534FDB1FCB4D3B /* MemoryCacheManager.swift */; };
 		8A2C981878DCE366A3D9C201 /* AuthenticationStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDFFDADBC26BAD5769E0663 /* AuthenticationStateManager.swift */; };
+		8A81C83C2A49E05051B27C67 /* MainWindowToolbarDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A24683EE72B0F65918EFF3 /* MainWindowToolbarDelegate.swift */; };
 		8BFCA449F00D63B7FAFE1597 /* NoteDetailWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFB3BE8553A017DB0E41EF5E /* NoteDetailWindowState.swift */; };
 		8C460A8A16B1460FA3980AE2 /* converter.js in Resources */ = {isa = PBXBuildFile; fileRef = 36E1DCA83D1D4EDD382A1431 /* converter.js */; };
 		8E224940EA8DAD943B779435 /* constants.js in Resources */ = {isa = PBXBuildFile; fileRef = 6853075177D064F22A52217D /* constants.js */; };
@@ -84,6 +86,7 @@
 		C1B84C07AC8FBABB37CEE4C4 /* NSWindow+MiNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = A340F0BBAB9A14D831D150E3 /* NSWindow+MiNote.swift */; };
 		C2A0F6905AFAA72CCE05EC47 /* NetworkLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77AED5D148C784D8F4BD93FC /* NetworkLogView.swift */; };
 		C75CB329343269121A0FFDA6 /* PrivateNotesVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC2BEB9A968A92010516E864 /* PrivateNotesVerificationView.swift */; };
+		D09917C0C25FB7A4604267E7 /* ToolbarItemProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00FC9BC90D049E3D23979DF5 /* ToolbarItemProtocol.swift */; };
 		D4C433F7392D5562CA17466D /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B00E144F0064250DE47B3E8 /* App.swift */; };
 		D8332BE87F7285062B6CA8F1 /* OfflineOperationsProgressToolbarDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C316AEB6C1DD924F0B29EBC4 /* OfflineOperationsProgressToolbarDelegate.swift */; };
 		DA77A42F8FDBD2DCB66D4E32 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF646372B5CED37C5970C887 /* Note.swift */; };
@@ -129,6 +132,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		00FC9BC90D049E3D23979DF5 /* ToolbarItemProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarItemProtocol.swift; sourceTree = "<group>"; };
 		019A488CCA2E1E21AF8361E0 /* NotesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesViewModel.swift; sourceTree = "<group>"; };
 		02B1D7E624DF253C07C01376 /* DatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseService.swift; sourceTree = "<group>"; };
 		05E7B38F6108DA4E6A03089C /* editor.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = editor.html; sourceTree = "<group>"; };
@@ -196,6 +200,7 @@
 		AE64CAF7AD43892DB9E8DB65 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		AF646372B5CED37C5970C887 /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
 		B2A3E9E3573AFD9E5D4281F1 /* TitleEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleEditorView.swift; sourceTree = "<group>"; };
+		B7A24683EE72B0F65918EFF3 /* MainWindowToolbarDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowToolbarDelegate.swift; sourceTree = "<group>"; };
 		BA74542228ED40BCAD96FA2C /* DebugSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSettingsView.swift; sourceTree = "<group>"; };
 		BC2BEB9A968A92010516E864 /* PrivateNotesVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateNotesVerificationView.swift; sourceTree = "<group>"; };
 		BD3B155FA9EC74C551C6CD7C /* MoveNoteMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveNoteMenuView.swift; sourceTree = "<group>"; };
@@ -206,6 +211,7 @@
 		C32FB2CCABD4AFB6C6809328 /* SidebarHostingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarHostingController.swift; sourceTree = "<group>"; };
 		C3349561297E3C10B46705BF /* MainWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowState.swift; sourceTree = "<group>"; };
 		C50C112F6B4452CE0180EB74 /* NetworkLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogger.swift; sourceTree = "<group>"; };
+		C850C13CD575EE0ADAAC6253 /* ToolbarItemFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarItemFactory.swift; sourceTree = "<group>"; };
 		CA2495E26B536E5D534F7166 /* selection.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = selection.js; sourceTree = "<group>"; };
 		CBBC020E25BCB11B9BAEA348 /* DeletedNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeletedNote.swift; sourceTree = "<group>"; };
 		CCDFFDADBC26BAD5769E0663 /* AuthenticationStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationStateManager.swift; sourceTree = "<group>"; };
@@ -349,6 +355,16 @@
 			path = AppKitComponents;
 			sourceTree = "<group>";
 		};
+		5D546C38AAE78892802B8294 /* ToolbarItem */ = {
+			isa = PBXGroup;
+			children = (
+				B7A24683EE72B0F65918EFF3 /* MainWindowToolbarDelegate.swift */,
+				C850C13CD575EE0ADAAC6253 /* ToolbarItemFactory.swift */,
+				00FC9BC90D049E3D23979DF5 /* ToolbarItemProtocol.swift */,
+			);
+			path = ToolbarItem;
+			sourceTree = "<group>";
+		};
 		66A903903A41DF1BFC935DA9 /* cursor */ = {
 			isa = PBXGroup;
 			children = (
@@ -385,6 +401,7 @@
 				E5559D52A488AE2BCE60F497 /* Helper */,
 				9D5FE6CE093AAAFE063E4951 /* Model */,
 				F0A3C84C8F6563BB0061A02C /* Service */,
+				5D546C38AAE78892802B8294 /* ToolbarItem */,
 				2D7704AE54BE01D728CA84E6 /* View */,
 				6E60B56FB0B1DD732948B741 /* ViewModel */,
 				2AAAC042B70044610BBABFC5 /* Web */,
@@ -674,6 +691,7 @@
 				1EC5CBFDF94AA801A0A37B59 /* LoginWindowController.swift in Sources */,
 				E85A359AAEEA6FDDBE598B6E /* MainWindowController.swift in Sources */,
 				B91FEF55308BEE0A4750F388 /* MainWindowState.swift in Sources */,
+				8A81C83C2A49E05051B27C67 /* MainWindowToolbarDelegate.swift in Sources */,
 				87F4D57925A5A920320D773A /* MemoryCacheManager.swift in Sources */,
 				FCBE7E18A4C05938D23B1568 /* MiNoteService+Encryption.swift in Sources */,
 				46146E87652EBF78CBD635C8 /* MiNoteService.swift in Sources */,
@@ -718,6 +736,8 @@
 				67B51E3FF8FED57EB63E000F /* SyncService.swift in Sources */,
 				1E0AEEBF6C9B4F916DC7F666 /* TitleEditorView.swift in Sources */,
 				69AC7E2D4C9A4F313C1AC785 /* ToolbarIdentifiers.swift in Sources */,
+				6372A8A298C0FECF7C24ED09 /* ToolbarItemFactory.swift in Sources */,
+				D09917C0C25FB7A4604267E7 /* ToolbarItemProtocol.swift in Sources */,
 				0AD3BDB2A8A42D35175B138F /* TrashView.swift in Sources */,
 				DB310D92018CB1E65E24C22B /* TrashWindowController.swift in Sources */,
 				5BA06AC75EFE646E631E0A69 /* UserProfile.swift in Sources */,
