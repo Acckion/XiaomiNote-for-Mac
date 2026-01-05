@@ -739,52 +739,65 @@ public struct DebugSettingsView: View {
             
             resultText += "✅ Cookie清除成功，开始静默刷新...\n\n"
             
-            // 发送静默刷新通知（这会触发NotesViewModel中的静默刷新逻辑）
-            resultText += "📢 发送静默刷新通知...\n"
-            NotificationCenter.default.post(name: Notification.Name("performSilentCookieRefresh"), object: nil)
+            // 直接调用 SilentCookieRefreshManager 进行刷新
+            resultText += "📢 调用 SilentCookieRefreshManager.shared.refresh()...\n"
             
-            // 等待一段时间让静默刷新完成
-            resultText += "⏳ 等待静默刷新完成（5秒）...\n"
-            
-            // 等待5秒
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            
-            // 检查刷新结果
-            let isAuthenticatedAfterRefresh = MiNoteService.shared.isAuthenticated()
-            let newCookie = UserDefaults.standard.string(forKey: "minote_cookie") ?? ""
-            
-            resultText += "\n📊 测试结果：\n"
-            resultText += "刷新后认证状态: \(isAuthenticatedAfterRefresh ? "已认证" : "未认证")\n"
-            resultText += "新Cookie长度: \(newCookie.count) 字符\n"
-            
-            if isAuthenticatedAfterRefresh && !newCookie.isEmpty {
-                resultText += "\n✅ 静默刷新成功！\n"
-                resultText += "系统已自动刷新Cookie并恢复认证状态\n\n"
+            do {
+                let success = try await SilentCookieRefreshManager.shared.refresh()
+                resultText += "⏳ 静默刷新完成，结果: \(success ? "成功" : "失败")\n"
                 
-                // 比较新旧Cookie
-                if newCookie != currentCookie {
-                    resultText += "📝 Cookie已更新：\n"
-                    resultText += "- 旧Cookie长度: \(currentCookie.count) 字符\n"
-                    resultText += "- 新Cookie长度: \(newCookie.count) 字符\n"
+                // 检查刷新结果
+                let isAuthenticatedAfterRefresh = MiNoteService.shared.isAuthenticated()
+                let newCookie = UserDefaults.standard.string(forKey: "minote_cookie") ?? ""
+                
+                resultText += "\n📊 测试结果：\n"
+                resultText += "刷新后认证状态: \(isAuthenticatedAfterRefresh ? "已认证" : "未认证")\n"
+                resultText += "新Cookie长度: \(newCookie.count) 字符\n"
+                
+                if success && isAuthenticatedAfterRefresh && !newCookie.isEmpty {
+                    resultText += "\n✅ 静默刷新成功！\n"
+                    resultText += "系统已自动刷新Cookie并恢复认证状态\n\n"
                     
-                    // 检查关键字段
-                    let hasServiceToken = newCookie.contains("serviceToken=")
-                    let hasUserId = newCookie.contains("userId=")
-                    
-                    resultText += "\n🔍 新Cookie验证：\n"
-                    resultText += "- 包含serviceToken: \(hasServiceToken ? "是" : "否")\n"
-                    resultText += "- 包含userId: \(hasUserId ? "是" : "否")\n"
-                    
-                    if hasServiceToken && hasUserId {
-                        resultText += "✅ 新Cookie格式正确\n"
+                    // 比较新旧Cookie
+                    if newCookie != currentCookie {
+                        resultText += "📝 Cookie已更新：\n"
+                        resultText += "- 旧Cookie长度: \(currentCookie.count) 字符\n"
+                        resultText += "- 新Cookie长度: \(newCookie.count) 字符\n"
+                        
+                        // 检查关键字段
+                        let hasServiceToken = newCookie.contains("serviceToken=")
+                        let hasUserId = newCookie.contains("userId=")
+                        
+                        resultText += "\n🔍 新Cookie验证：\n"
+                        resultText += "- 包含serviceToken: \(hasServiceToken ? "是" : "否")\n"
+                        resultText += "- 包含userId: \(hasUserId ? "是" : "否")\n"
+                        
+                        if hasServiceToken && hasUserId {
+                            resultText += "✅ 新Cookie格式正确\n"
+                        } else {
+                            resultText += "⚠️ 新Cookie可能缺少必要字段\n"
+                        }
                     } else {
-                        resultText += "⚠️ 新Cookie可能缺少必要字段\n"
+                        resultText += "📝 Cookie未变化（可能使用了相同的Cookie）\n"
                     }
                 } else {
-                    resultText += "📝 Cookie未变化（可能使用了相同的Cookie）\n"
+                    resultText += "\n❌ 静默刷新失败！\n"
+                    resultText += "系统未能自动刷新Cookie\n\n"
+                    
+                    // 恢复原始Cookie
+                    resultText += "🔄 恢复原始Cookie...\n"
+                    UserDefaults.standard.set(currentCookie, forKey: "minote_cookie")
+                    MiNoteService.shared.setCookie(currentCookie)
+                    
+                    resultText += "✅ 原始Cookie已恢复\n"
+                    resultText += "\n💡 可能的原因：\n"
+                    resultText += "1. 网络连接问题\n"
+                    resultText += "2. 小米登录页面结构变化\n"
+                    resultText += "3. 需要手动登录\n"
+                    resultText += "4. 静默刷新逻辑未正确实现\n"
                 }
-            } else {
-                resultText += "\n❌ 静默刷新失败！\n"
+            } catch {
+                resultText += "\n❌ 静默刷新失败，错误: \(error.localizedDescription)\n"
                 resultText += "系统未能自动刷新Cookie\n\n"
                 
                 // 恢复原始Cookie

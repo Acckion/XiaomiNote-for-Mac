@@ -324,13 +324,20 @@ class AuthenticationStateManager: ObservableObject {
                     print("[AuthenticationStateManager] ✅ 静默刷新成功")
                     success = true
                     
-                    // 恢复在线状态
+                    // 恢复在线状态 - 使用 restoreOnlineStatus() 确保正确计算在线状态
                     await MainActor.run {
                         print("[AuthenticationStateManager] 🔄 恢复在线状态前检查: hasValidCookie=\(MiNoteService.shared.hasValidCookie())")
+                        
+                        // 首先清除失效标志，这样定时器可以继续检查状态
                         isCookieExpired = false
-                        isOnline = true
                         cookieExpiredShown = false
-                        showCookieExpiredAlert = false
+                        shouldStayOffline = false  // 清除离线模式标志
+                        showCookieExpiredAlert = false  // 清除弹窗状态
+                        
+                        // 调用 restoreOnlineStatus() 来正确计算在线状态
+                        // 这会检查网络状态和Cookie有效性
+                        restoreOnlineStatus()
+                        
                         print("[AuthenticationStateManager] ✅ 状态已更新: isOnline=\(isOnline), isCookieExpired=\(isCookieExpired)")
                     }
                     
@@ -442,38 +449,48 @@ class AuthenticationStateManager: ObservableObject {
         // 记录开始时间
         let startTime = Date()
         
-        // 通知ViewModel执行静默刷新
-        NotificationCenter.default.post(name: Notification.Name("performSilentCookieRefresh"), object: nil)
-        
-        // 等待一段时间让静默刷新完成（10秒）
-        try? await Task.sleep(nanoseconds: 10_000_000_000)
-        
-        // 检查刷新结果
-        let hasValidCookie = service.hasValidCookie()
-        let elapsedTime = Date().timeIntervalSince(startTime)
-        
-        await MainActor.run {
-            if hasValidCookie {
-                NetworkLogger.shared.logResponse(
-                    url: "silent-cookie-refresh",
-                    method: "POST",
-                    statusCode: 200,
-                    headers: nil,
-                    response: "静默Cookie刷新成功，耗时\(String(format: "%.2f", elapsedTime))秒",
-                    error: nil
-                )
-                print("[AuthenticationStateManager] ✅ 静默Cookie刷新成功，耗时\(String(format: "%.2f", elapsedTime))秒")
-                // 恢复在线状态
-                restoreOnlineStatus()
-            } else {
+        // 直接调用 SilentCookieRefreshManager 进行刷新
+        do {
+            let success = try await SilentCookieRefreshManager.shared.refresh()
+            let elapsedTime = Date().timeIntervalSince(startTime)
+            
+            await MainActor.run {
+                if success {
+                    NetworkLogger.shared.logResponse(
+                        url: "silent-cookie-refresh",
+                        method: "POST",
+                        statusCode: 200,
+                        headers: nil,
+                        response: "静默Cookie刷新成功，耗时\(String(format: "%.2f", elapsedTime))秒",
+                        error: nil
+                    )
+                    print("[AuthenticationStateManager] ✅ 静默Cookie刷新成功，耗时\(String(format: "%.2f", elapsedTime))秒")
+                    // 恢复在线状态
+                    restoreOnlineStatus()
+                } else {
+                    NetworkLogger.shared.logError(
+                        url: "silent-cookie-refresh",
+                        method: "POST",
+                        error: NSError(domain: "AuthenticationStateManager", code: 401, userInfo: [
+                            NSLocalizedDescriptionKey: "静默Cookie刷新失败，耗时\(String(format: "%.2f", elapsedTime))秒"
+                        ])
+                    )
+                    print("[AuthenticationStateManager] ❌ 静默Cookie刷新失败，耗时\(String(format: "%.2f", elapsedTime))秒，显示弹窗要求手动刷新")
+                    // 显示弹窗要求用户手动刷新
+                    showCookieExpiredAlert = true
+                }
+            }
+        } catch {
+            let elapsedTime = Date().timeIntervalSince(startTime)
+            await MainActor.run {
                 NetworkLogger.shared.logError(
                     url: "silent-cookie-refresh",
                     method: "POST",
                     error: NSError(domain: "AuthenticationStateManager", code: 401, userInfo: [
-                        NSLocalizedDescriptionKey: "静默Cookie刷新失败，耗时\(String(format: "%.2f", elapsedTime))秒"
+                        NSLocalizedDescriptionKey: "静默Cookie刷新失败，耗时\(String(format: "%.2f", elapsedTime))秒，错误: \(error.localizedDescription)"
                     ])
                 )
-                print("[AuthenticationStateManager] ❌ 静默Cookie刷新失败，耗时\(String(format: "%.2f", elapsedTime))秒，显示弹窗要求手动刷新")
+                print("[AuthenticationStateManager] ❌ 静默Cookie刷新失败，耗时\(String(format: "%.2f", elapsedTime))秒，错误: \(error.localizedDescription)，显示弹窗要求手动刷新")
                 // 显示弹窗要求用户手动刷新
                 showCookieExpiredAlert = true
             }

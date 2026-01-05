@@ -1,5 +1,6 @@
 import Foundation
 import WebKit
+import CryptoKit
 
 /// 静默 Cookie 刷新管理器
 /// 
@@ -31,19 +32,30 @@ final class SilentCookieRefreshManager: NSObject {
         cookieExtracted = false
         hasLoadedProfile = false
         
-        defer {
-            isRefreshing = false
-            // 清理 webView，避免内存泄漏
-            webView?.stopLoading()
-            webView = nil
-        }
-        
         print("[SilentCookieRefreshManager] 🚀 开始静默 Cookie 刷新")
         
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
             self.startRefresh()
+            
+            // 设置超时：30秒
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 30_000_000_000) // 30秒
+                if self.isRefreshing {
+                    print("[SilentCookieRefreshManager] ⏰ 刷新超时（30秒）")
+                    self.completeWithError(NSError(domain: "SilentCookieRefreshManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "刷新超时"]))
+                }
+            }
         }
+    }
+    
+    /// 清理资源
+    private func cleanup() {
+        isRefreshing = false
+        // 清理 webView，避免内存泄漏
+        webView?.stopLoading()
+        webView = nil
+        continuation = nil
     }
     
     private func startRefresh() {
@@ -198,7 +210,7 @@ final class SilentCookieRefreshManager: NSObject {
                     
                     // 完成刷新
                     self.continuation?.resume(returning: true)
-                    self.continuation = nil
+                    self.cleanup()
                 } else {
                     print("[SilentCookieRefreshManager] ⚠️ Cookie 验证失败: hasServiceToken=\(hasServiceToken), hasUserId=\(hasUserId), cookieString长度=\(cookieString.count)")
                     // 继续等待或重试
@@ -210,13 +222,13 @@ final class SilentCookieRefreshManager: NSObject {
     private func completeWithError(_ error: Error) {
         print("[SilentCookieRefreshManager] ❌ 刷新失败: \(error)")
         continuation?.resume(throwing: error)
-        continuation = nil
+        cleanup()
     }
     
     private func completeWithSuccess() {
         print("[SilentCookieRefreshManager] ✅ 刷新成功")
         continuation?.resume(returning: true)
-        continuation = nil
+        cleanup()
     }
 }
 
