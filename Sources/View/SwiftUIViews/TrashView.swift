@@ -4,7 +4,7 @@ import OSLog
 
 /// 回收站视图
 /// 
-/// 显示已删除的笔记列表，使用与历史版本相同的UI布局
+/// 显示已删除的笔记列表，使用与历史记录相同的UI布局
 @available(macOS 14.0, *)
 struct TrashView: View {
     @ObservedObject var viewModel: NotesViewModel
@@ -33,28 +33,6 @@ struct TrashView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // 顶部工具栏（与 NoteHistoryView 相同）
-            HStack {
-                Text("回收站")
-                    .font(.headline)
-                    .padding(.leading, 16)
-                
-                Spacer()
-                
-                Button("关闭") {
-                    closeSheet()
-                }
-                .padding(.trailing, 16)
-            }
-            .padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
-            .overlay(
-                Rectangle()
-                    .frame(height: 0.5)
-                    .foregroundColor(Color(NSColor.separatorColor)),
-                alignment: .bottom
-            )
-            
             // 主内容区域（左右分栏）
             HSplitView {
                 // 左侧：回收站笔记列表

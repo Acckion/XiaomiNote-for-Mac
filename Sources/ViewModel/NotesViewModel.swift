@@ -3198,11 +3198,11 @@ public class NotesViewModel: ObservableObject {
         }
     }
     
-    // MARK: - 历史版本
+    // MARK: - 历史记录
     
-    /// 获取笔记历史版本列表
+    /// 获取笔记历史记录列表
     /// - Parameter noteId: 笔记ID
-    /// - Returns: 历史版本列表
+    /// - Returns: 历史记录列表
     func getNoteHistoryTimes(noteId: String) async throws -> [NoteHistoryVersion] {
         guard service.isAuthenticated() else {
             throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
@@ -3234,17 +3234,17 @@ public class NotesViewModel: ObservableObject {
             if let miNoteError = error as? MiNoteError {
                 handleMiNoteError(miNoteError)
             } else {
-                errorMessage = "获取历史版本失败: \(error.localizedDescription)"
+                errorMessage = "获取历史记录失败: \(error.localizedDescription)"
             }
             throw error
         }
     }
     
-    /// 获取笔记历史版本内容
+    /// 获取笔记历史记录内容
     /// - Parameters:
     ///   - noteId: 笔记ID
     ///   - version: 版本号
-    /// - Returns: 历史版本的笔记对象
+    /// - Returns: 历史记录的笔记对象
     func getNoteHistory(noteId: String, version: Int64) async throws -> Note {
         guard service.isAuthenticated() else {
             throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
@@ -3263,7 +3263,7 @@ public class NotesViewModel: ObservableObject {
                 throw MiNoteError.invalidResponse
             }
             
-            // 使用 Note.fromMinoteData 解析历史版本数据
+            // 使用 Note.fromMinoteData 解析历史记录数据
             guard var note = Note.fromMinoteData(entry) else {
                 throw MiNoteError.invalidResponse
             }
@@ -3276,13 +3276,13 @@ public class NotesViewModel: ObservableObject {
             if let miNoteError = error as? MiNoteError {
                 handleMiNoteError(miNoteError)
             } else {
-                errorMessage = "获取历史版本内容失败: \(error.localizedDescription)"
+                errorMessage = "获取历史记录内容失败: \(error.localizedDescription)"
             }
             throw error
         }
     }
     
-    /// 恢复笔记历史版本
+    /// 恢复笔记历史记录
     /// - Parameters:
     ///   - noteId: 笔记ID
     ///   - version: 要恢复的版本号
@@ -3315,7 +3315,7 @@ public class NotesViewModel: ObservableObject {
             if let miNoteError = error as? MiNoteError {
                 handleMiNoteError(miNoteError)
             } else {
-                errorMessage = "恢复历史版本失败: \(error.localizedDescription)"
+                errorMessage = "恢复历史记录失败: \(error.localizedDescription)"
             }
             throw error
         }

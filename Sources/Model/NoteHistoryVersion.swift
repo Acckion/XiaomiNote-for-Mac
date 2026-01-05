@@ -1,6 +1,6 @@
 import Foundation
 
-/// 笔记历史版本
+/// 笔记历史记录
 struct NoteHistoryVersion: Identifiable, Codable, Hashable, Equatable {
     /// 版本号（时间戳）
     let version: Int64

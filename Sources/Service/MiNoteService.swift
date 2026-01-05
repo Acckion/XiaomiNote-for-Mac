@@ -1923,12 +1923,12 @@ final class MiNoteService: @unchecked Sendable {
         }
     }
     
-    /// 获取笔记历史版本列表
+    /// 获取笔记历史记录列表
     /// 
     /// - Parameters:
     ///   - noteId: 笔记ID
     ///   - timestamp: 时间戳（毫秒），可选，默认为当前时间
-    /// - Returns: 包含历史版本列表的响应字典
+    /// - Returns: 包含历史记录列表的响应字典
     func fetchNoteHistoryVersions(noteId: String, timestamp: Int? = nil) async throws -> [String: Any] {
         let ts = timestamp ?? Int(Date().timeIntervalSince1970 * 1000)
         
@@ -1992,15 +1992,15 @@ final class MiNoteService: @unchecked Sendable {
             // 验证响应：检查 code 字段
             if let code = json["code"] as? Int {
                 if code != 0 {
-                    let message = json["description"] as? String ?? json["message"] as? String ?? "获取笔记历史版本失败"
-                    print("[MiNoteService] 获取笔记历史版本失败，code: \(code), message: \(message)")
+                    let message = json["description"] as? String ?? json["message"] as? String ?? "获取笔记历史记录失败"
+                    print("[MiNoteService] 获取笔记历史记录失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
                 } else {
-                    print("[MiNoteService] ✅ 获取笔记历史版本成功，code: \(code)")
+                    print("[MiNoteService] ✅ 获取笔记历史记录成功，code: \(code)")
                 }
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
-                print("[MiNoteService] ✅ 获取笔记历史版本成功（响应中没有 code 字段，但状态码为 200）")
+                print("[MiNoteService] ✅ 获取笔记历史记录成功（响应中没有 code 字段，但状态码为 200）")
             }
             
             return json
@@ -2020,13 +2020,13 @@ enum MiNoteError: Error {
     case invalidResponse
 }
 
-// MARK: - 历史版本相关方法
+// MARK: - 历史记录相关方法
 
 extension MiNoteService {
-    /// 获取笔记历史版本列表
+    /// 获取笔记历史记录列表
     /// 
     /// - Parameter noteId: 笔记ID
-    /// - Returns: 包含历史版本列表的响应字典，其中 data.tvList 是版本数组
+    /// - Returns: 包含历史记录列表的响应字典，其中 data.tvList 是版本数组
     /// - Throws: MiNoteError（网络错误、认证错误等）
     func getNoteHistoryTimes(noteId: String) async throws -> [String: Any] {
         let ts = Int(Date().timeIntervalSince1970 * 1000)
@@ -2078,7 +2078,7 @@ extension MiNoteService {
                 
                 if httpResponse.statusCode != 200 {
                     let errorMessage = responseString ?? "未知错误"
-                    print("[MiNoteService] 获取历史版本列表失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    print("[MiNoteService] 获取历史记录列表失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
                     throw MiNoteError.networkError(URLError(.badServerResponse))
                 }
             }
@@ -2091,12 +2091,12 @@ extension MiNoteService {
         }
     }
     
-    /// 获取笔记历史版本内容
+    /// 获取笔记历史记录内容
     /// 
     /// - Parameters:
     ///   - noteId: 笔记ID
     ///   - version: 版本号（时间戳）
-    /// - Returns: 包含历史版本笔记数据的响应字典，格式与普通笔记相同
+    /// - Returns: 包含历史记录笔记数据的响应字典，格式与普通笔记相同
     /// - Throws: MiNoteError（网络错误、认证错误等）
     func getNoteHistory(noteId: String, version: Int64) async throws -> [String: Any] {
         let ts = Int(Date().timeIntervalSince1970 * 1000)
@@ -2149,7 +2149,7 @@ extension MiNoteService {
                 
                 if httpResponse.statusCode != 200 {
                     let errorMessage = responseString ?? "未知错误"
-                    print("[MiNoteService] 获取历史版本内容失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    print("[MiNoteService] 获取历史记录内容失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
                     throw MiNoteError.networkError(URLError(.badServerResponse))
                 }
             }
@@ -2162,7 +2162,7 @@ extension MiNoteService {
         }
     }
     
-    /// 恢复笔记历史版本
+    /// 恢复笔记历史记录
     /// 
     /// - Parameters:
     ///   - noteId: 笔记ID
@@ -2215,7 +2215,7 @@ extension MiNoteService {
                 
                 if httpResponse.statusCode != 200 {
                     let errorMessage = responseString ?? "未知错误"
-                    print("[MiNoteService] 恢复历史版本失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    print("[MiNoteService] 恢复历史记录失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
                     throw MiNoteError.networkError(URLError(.badServerResponse))
                 }
             }

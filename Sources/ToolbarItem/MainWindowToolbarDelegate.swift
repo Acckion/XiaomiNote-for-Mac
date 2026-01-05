@@ -349,9 +349,9 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             deleteNoteItem.target = windowController
             noteOperationsMenu.addItem(deleteNoteItem)
             
-            // 历史修改
+            // 历史记录
             let historyItem = NSMenuItem()
-            historyItem.title = "历史修改"
+            historyItem.title = "历史记录"
             historyItem.action = #selector(MainWindowController.showHistory(_:))
             historyItem.target = windowController
             noteOperationsMenu.addItem(historyItem)

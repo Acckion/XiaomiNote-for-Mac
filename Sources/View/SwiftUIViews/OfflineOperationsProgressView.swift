@@ -10,17 +10,6 @@ struct OfflineOperationsProgressView: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // 标题
-            HStack {
-                Text("处理离线操作")
-                    .font(.headline)
-                Spacer()
-                if processor.isProcessing {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
-            }
-            
             Divider()
             
             // 进度信息
@@ -139,11 +128,6 @@ struct OfflineOperationsProgressView: View {
                         }
                         .keyboardShortcut(.defaultAction)
                     }
-                    
-                    Button("关闭") {
-                        onClose?()
-                    }
-                    .keyboardShortcut(.cancelAction)
                 }
             }
         }

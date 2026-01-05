@@ -26,37 +26,6 @@ struct LoginView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // 标题栏 - 适配sheet样式
-            HStack {
-                Text("登录小米账号")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .padding(.leading, 20)
-                
-                Spacer()
-                
-                Button(action: {
-                    closeSheet()
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.secondary)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.escape, modifiers: [])
-                .padding(.trailing, 16)
-                .help("关闭")
-            }
-            .padding(.vertical, 16)
-            .background(Color(NSColor.controlBackgroundColor))
-            .overlay(
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color(NSColor.separatorColor)),
-                alignment: .bottom
-            )
-            
             // 使用ZStack确保WebView始终被渲染
             ZStack {
                 // 主内容区域

@@ -346,7 +346,7 @@ struct NoteDetailView: View {
             }
         } label: { Label("分享", systemImage: "square.and.arrow.up") }
         
-        Button { showingHistoryView = true } label: { Label("历史版本", systemImage: "clock.arrow.circlepath") }
+        Button { showingHistoryView = true } label: { Label("历史记录", systemImage: "clock.arrow.circlepath") }
         
         Menu {
             Button { viewModel.toggleStar(note) } label: { Label(note.isStarred ? "取消置顶" : "置顶", systemImage: "pin") }

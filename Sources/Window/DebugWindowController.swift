@@ -19,6 +19,9 @@ public class DebugWindowController: NSWindowController {
     /// 视图模型
     private var viewModel: NotesViewModel?
     
+    /// 工具栏代理
+    private var toolbarDelegate: BaseSheetToolbarDelegate?
+    
     // MARK: - 初始化
     
     /// 使用指定的视图模型初始化窗口控制器
@@ -44,6 +47,9 @@ public class DebugWindowController: NSWindowController {
         // 设置窗口内容
         setupWindowContent()
         
+        // 设置工具栏
+        setupToolbar()
+        
         // 设置窗口最小尺寸
         window.minSize = NSSize(width: 600, height: 400)
     }
@@ -62,6 +68,23 @@ public class DebugWindowController: NSWindowController {
     
     // MARK: - 设置方法
     
+    /// 设置工具栏
+    private func setupToolbar() {
+        guard let window = window else { return }
+        
+        // 创建工具栏代理
+        toolbarDelegate = BaseSheetToolbarDelegate()
+        toolbarDelegate?.onClose = { [weak self] in
+            self?.closeWindow()
+        }
+        
+        let toolbar = NSToolbar(identifier: "DebugWindowToolbar")
+        toolbar.displayMode = .iconOnly
+        toolbar.delegate = toolbarDelegate
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
+    }
+    
     /// 设置窗口内容
     private func setupWindowContent() {
         guard let window = window else { return }
@@ -74,6 +97,13 @@ public class DebugWindowController: NSWindowController {
         
         // 设置窗口内容
         window.contentViewController = hostingController
+    }
+    
+    // MARK: - 窗口操作
+    
+    /// 关闭窗口
+    private func closeWindow() {
+        window?.close()
     }
 }
 

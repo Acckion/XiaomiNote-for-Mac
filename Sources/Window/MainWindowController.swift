@@ -55,7 +55,19 @@ public class MainWindowController: NSWindowController {
     private var currentSheetWindow: NSWindow?
     
     /// 当前sheet窗口的工具栏代理引用
-    private var currentSheetToolbarDelegate: OfflineOperationsProgressToolbarDelegate?
+    private var currentSheetToolbarDelegate: BaseSheetToolbarDelegate?
+    
+    /// 回收站sheet的工具栏代理引用
+    private var trashSheetToolbarDelegate: BaseSheetToolbarDelegate?
+    
+    /// 登录sheet的工具栏代理引用
+    private var loginSheetToolbarDelegate: BaseSheetToolbarDelegate?
+    
+    /// Cookie刷新sheet的工具栏代理引用
+    private var cookieRefreshSheetToolbarDelegate: BaseSheetToolbarDelegate?
+    
+    /// 历史记录sheet的工具栏代理引用
+    private var historySheetToolbarDelegate: BaseSheetToolbarDelegate?
     
     /// 工具栏代理
     private var toolbarDelegate: MainWindowToolbarDelegate?
@@ -436,9 +448,9 @@ extension MainWindowController: NSToolbarDelegate {
             deleteNoteItem.target = self
             noteOperationsMenu.addItem(deleteNoteItem)
             
-            // 历史修改
+            // 历史记录
             let historyItem = NSMenuItem()
-            historyItem.title = "历史修改"
+            historyItem.title = "历史记录"
             historyItem.action = #selector(showHistory(_:))
             historyItem.target = self
             noteOperationsMenu.addItem(historyItem)
@@ -1400,12 +1412,32 @@ extension MainWindowController {
         let sheetWindow = NSWindow(contentViewController: hostingController)
         sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
         sheetWindow.title = "登录"
-        sheetWindow.titlebarAppearsTransparent = true
-        sheetWindow.titleVisibility = .hidden
+        sheetWindow.titlebarAppearsTransparent = false // 显示标题栏
+        sheetWindow.titleVisibility = .visible // 显示标题
+        
+        // 为sheet窗口添加工具栏
+        let toolbarDelegate = BaseSheetToolbarDelegate()
+        toolbarDelegate.onClose = { [weak window, weak sheetWindow] in
+            // 关闭sheet - 使用弱引用捕获两个窗口
+            if let window = window, let sheetWindow = sheetWindow {
+                window.endSheet(sheetWindow)
+            }
+        }
+        
+        let toolbar = NSToolbar(identifier: "LoginSheetToolbar")
+        toolbar.displayMode = .iconOnly
+        toolbar.delegate = toolbarDelegate
+        sheetWindow.toolbar = toolbar
+        sheetWindow.toolbarStyle = .unified
+        
+        // 存储工具栏代理引用，防止被ARC释放
+        self.loginSheetToolbarDelegate = toolbarDelegate
         
         // 显示sheet
         window.beginSheet(sheetWindow) { response in
             print("登录sheet关闭，响应: \(response)")
+            // 清理工具栏代理引用
+            self.loginSheetToolbarDelegate = nil
         }
         
         print("显示登录sheet - 完成")
@@ -1430,12 +1462,30 @@ extension MainWindowController {
         let sheetWindow = NSWindow(contentViewController: hostingController)
         sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
         sheetWindow.title = "刷新Cookie"
-        sheetWindow.titlebarAppearsTransparent = true
-        sheetWindow.titleVisibility = .hidden
+        sheetWindow.titlebarAppearsTransparent = false // 显示标题栏
+        sheetWindow.titleVisibility = .visible // 显示标题
+        
+        // 为sheet窗口添加工具栏
+        let toolbarDelegate = BaseSheetToolbarDelegate()
+        toolbarDelegate.onClose = { [weak window] in
+            // 关闭sheet
+            window?.endSheet(sheetWindow)
+        }
+        
+        let toolbar = NSToolbar(identifier: "CookieRefreshSheetToolbar")
+        toolbar.displayMode = .iconOnly
+        toolbar.delegate = toolbarDelegate
+        sheetWindow.toolbar = toolbar
+        sheetWindow.toolbarStyle = .unified
+        
+        // 存储工具栏代理引用，防止被ARC释放
+        self.cookieRefreshSheetToolbarDelegate = toolbarDelegate
         
         // 显示sheet
         window.beginSheet(sheetWindow) { response in
             print("Cookie刷新sheet关闭，响应: \(response)")
+            // 清理工具栏代理引用
+            self.cookieRefreshSheetToolbarDelegate = nil
         }
         
         print("显示Cookie刷新sheet - 完成")
@@ -1509,22 +1559,40 @@ extension MainWindowController {
         let sheetWindow = NSWindow(contentViewController: hostingController)
         sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
         sheetWindow.title = "历史记录"
-        sheetWindow.titlebarAppearsTransparent = true
-        sheetWindow.titleVisibility = .hidden
+        sheetWindow.titlebarAppearsTransparent = false // 显示标题栏
+        sheetWindow.titleVisibility = .visible // 显示标题
+        
+        // 为sheet窗口添加工具栏
+        let toolbarDelegate = BaseSheetToolbarDelegate()
+        toolbarDelegate.onClose = { [weak window] in
+            // 关闭sheet
+            window?.endSheet(sheetWindow)
+        }
+        
+        let toolbar = NSToolbar(identifier: "HistorySheetToolbar")
+        toolbar.displayMode = .iconOnly
+        toolbar.delegate = toolbarDelegate
+        sheetWindow.toolbar = toolbar
+        sheetWindow.toolbarStyle = .unified
+        
+        // 存储工具栏代理引用，防止被ARC释放
+        self.historySheetToolbarDelegate = toolbarDelegate
         
         // 显示sheet
         window.beginSheet(sheetWindow) { response in
             print("历史记录sheet关闭，响应: \(response)")
+            // 清理工具栏代理引用
+            self.historySheetToolbarDelegate = nil
         }
         
         print("显示历史记录sheet - 完成")
     }
     
     @objc public func showTrash(_ sender: Any?) {
-        print("显示回收站sheet - 开始")
+        print("[MainWindowController] 显示回收站sheet - 开始")
         
         guard let window = window else {
-            print("错误：主窗口不存在，无法显示回收站sheet")
+            print("[MainWindowController] 错误：主窗口不存在，无法显示回收站sheet")
             return
         }
         
@@ -1536,17 +1604,45 @@ extension MainWindowController {
         
         // 创建sheet窗口
         let sheetWindow = NSWindow(contentViewController: hostingController)
-        sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
+        sheetWindow.styleMask = [.titled, .fullSizeContentView] // 移除.closable，隐藏右上角关闭按钮
         sheetWindow.title = "回收站"
-        sheetWindow.titlebarAppearsTransparent = true
-        sheetWindow.titleVisibility = .hidden
+        sheetWindow.titlebarAppearsTransparent = false // 显示标题栏
+        sheetWindow.titleVisibility = .visible // 显示标题
+        
+        print("[MainWindowController] sheet窗口已创建: \(sheetWindow)")
+        
+        // 为sheet窗口添加工具栏
+        let toolbarDelegate = BaseSheetToolbarDelegate()
+        toolbarDelegate.onClose = { [weak window] in
+            print("[MainWindowController] 工具栏关闭按钮回调被调用")
+            print("[MainWindowController] 主窗口: \(String(describing: window))")
+            print("[MainWindowController] sheet窗口: \(sheetWindow)")
+            // 关闭sheet - 使用弱引用捕获主窗口，直接使用sheetWindow变量
+            window?.endSheet(sheetWindow)
+        }
+        
+        let toolbar = NSToolbar(identifier: "TrashSheetToolbar")
+        toolbar.displayMode = .iconOnly
+        toolbar.delegate = toolbarDelegate
+        sheetWindow.toolbar = toolbar
+        sheetWindow.toolbarStyle = .unified
+        
+        // 设置窗口代理，以便正确处理窗口事件
+        sheetWindow.delegate = self
+        
+        // 存储工具栏代理引用，防止被ARC释放
+        self.trashSheetToolbarDelegate = toolbarDelegate
+        
+        print("[MainWindowController] 工具栏已设置，显示模式: \(toolbar.displayMode)")
         
         // 显示sheet
         window.beginSheet(sheetWindow) { response in
-            print("回收站sheet关闭，响应: \(response)")
+            print("[MainWindowController] 回收站sheet关闭，响应: \(response)")
+            // 清理工具栏代理引用
+            self.trashSheetToolbarDelegate = nil
         }
         
-        print("显示回收站sheet - 完成")
+        print("[MainWindowController] 显示回收站sheet - 完成")
     }
     
     // MARK: - 笔记操作菜单动作方法
@@ -1771,7 +1867,7 @@ extension MainWindowController {
         sheetWindow.delegate = self
         
         // 为sheet窗口添加独立的工具栏代理
-        let toolbarDelegate = OfflineOperationsProgressToolbarDelegate()
+        let toolbarDelegate = BaseSheetToolbarDelegate()
         toolbarDelegate.onClose = { [weak window, weak self] in
             // 关闭sheet
             if let sheetWindow = self?.currentSheetWindow {

@@ -37,56 +37,6 @@ struct CookieRefreshView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // 标题栏 - 适配sheet样式
-            VStack(spacing: 0) {
-                HStack {
-                    Text("刷新Cookie")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .padding(.leading, 20)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        closeSheet()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .keyboardShortcut(.escape, modifiers: [])
-                    .padding(.trailing, 16)
-                    .help("关闭")
-                }
-                .padding(.vertical, 16)
-                
-                HStack {
-                    Text("点击[使用小米账号登录]以刷新Cookie")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.leading, 20)
-                    Spacer()
-                    
-                    // 自动点击按钮
-                    Button("自动点击登录按钮") {
-                        autoClickLoginButton()
-                    }
-                    .buttonStyle(.bordered)
-                    .padding(.trailing, 16)
-                    .help("自动点击页面上的'使用小米账号登录'按钮")
-                }
-                .padding(.bottom, 12)
-            }
-            .background(Color(NSColor.controlBackgroundColor))
-            .overlay(
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color(NSColor.separatorColor)),
-                alignment: .bottom
-            )
-            
             // 使用ZStack确保WebView始终被渲染
             ZStack {
                 // 主内容区域

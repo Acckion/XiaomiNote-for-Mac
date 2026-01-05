@@ -481,6 +481,13 @@ class MenuManager {
         // 添加自定义工具栏菜单项
         // 注意：这个菜单项会在有工具栏的窗口激活时自动添加
         // 我们这里确保它存在
+        
+        // 添加"打开调试菜单"项
+        let debugMenuItem = NSMenuItem()
+        debugMenuItem.title = "打开调试菜单"
+        debugMenuItem.action = #selector(AppDelegate.showDebugSettings(_:))
+        debugMenuItem.target = appDelegate
+        viewMenu.addItem(debugMenuItem)
     }
     
     /// 设置窗口菜单

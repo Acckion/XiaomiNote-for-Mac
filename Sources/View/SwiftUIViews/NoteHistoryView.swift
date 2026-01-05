@@ -2,9 +2,9 @@ import SwiftUI
 import WebKit
 import OSLog
 
-/// 笔记历史版本视图
+/// 笔记历史记录视图
 /// 
-/// 显示笔记的历史版本列表，支持查看和恢复历史版本
+/// 显示笔记的历史记录列表，支持查看和恢复历史记录
 @available(macOS 14.0, *)
 struct NoteHistoryView: View {
     @ObservedObject var viewModel: NotesViewModel
@@ -39,31 +39,9 @@ struct NoteHistoryView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // 顶部工具栏
-            HStack {
-                Text("历史版本")
-                    .font(.headline)
-                    .padding(.leading, 16)
-                
-                Spacer()
-                
-                Button("关闭") {
-                    closeSheet()
-                }
-                .padding(.trailing, 16)
-            }
-            .padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
-            .overlay(
-                Rectangle()
-                    .frame(height: 0.5)
-                    .foregroundColor(Color(NSColor.separatorColor)),
-                alignment: .bottom
-            )
-            
             // 主内容区域
             HSplitView {
-                // 左侧：历史版本列表
+                // 左侧：历史记录列表
                 leftPanel
                     .frame(minWidth: 300, idealWidth: 350, maxWidth: 400)
                 
@@ -72,12 +50,12 @@ struct NoteHistoryView: View {
                     .frame(minWidth: 400)
             }
         }
-        .alert("恢复历史版本", isPresented: .constant(isRestoring && restoreError == nil)) {
+        .alert("恢复历史记录", isPresented: .constant(isRestoring && restoreError == nil)) {
             Button("取消", role: .cancel) {
                 isRestoring = false
             }
         } message: {
-            Text("正在恢复历史版本...")
+            Text("正在恢复历史记录...")
         }
         .alert("恢复失败", isPresented: .constant(restoreError != nil)) {
             Button("确定", role: .cancel) {
@@ -101,7 +79,7 @@ struct NoteHistoryView: View {
         Group {
             if isLoading {
                 VStack(spacing: 16) {
-                    ProgressView("加载历史版本...")
+                    ProgressView("加载历史记录...")
                     Text("正在加载...")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -130,7 +108,7 @@ struct NoteHistoryView: View {
                     Image(systemName: "clock")
                         .font(.system(size: 48))
                         .foregroundColor(.secondary)
-                    Text("暂无历史版本")
+                    Text("暂无历史记录")
                         .font(.headline)
                         .foregroundColor(.secondary)
                 }
@@ -177,7 +155,7 @@ struct NoteHistoryView: View {
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.system(size: 64))
                         .foregroundColor(.secondary)
-                    Text("选择一个历史版本查看内容")
+                    Text("选择一个历史记录查看内容")
                         .font(.headline)
                         .foregroundColor(.secondary)
                 }
@@ -215,7 +193,7 @@ struct NoteHistoryView: View {
     }
     
     private func loadHistoryVersions() {
-        logger.info("开始加载历史版本列表，noteId: \(self.noteId)")
+        logger.info("开始加载历史记录列表，noteId: \(self.noteId)")
         isLoading = true
         errorMessage = nil
         
@@ -225,20 +203,20 @@ struct NoteHistoryView: View {
                 await MainActor.run {
                     self.historyVersions = versions
                     self.isLoading = false
-                    self.logger.info("成功加载历史版本列表，共 \(versions.count) 个版本")
+                    self.logger.info("成功加载历史记录列表，共 \(versions.count) 个版本")
                 }
             } catch {
                 await MainActor.run {
                     self.errorMessage = error.localizedDescription
                     self.isLoading = false
-                    self.logger.error("加载历史版本列表失败: \(error.localizedDescription)")
+                    self.logger.error("加载历史记录列表失败: \(error.localizedDescription)")
                 }
             }
         }
     }
     
     private func viewVersion(_ version: NoteHistoryVersion) {
-        logger.info("开始加载历史版本内容，version: \(version.version), noteId: \(self.noteId)")
+        logger.info("开始加载历史记录内容，version: \(version.version), noteId: \(self.noteId)")
         isLoadingContent = true
         versionContent = nil
         
@@ -248,13 +226,13 @@ struct NoteHistoryView: View {
                 await MainActor.run {
                     self.versionContent = note
                     self.isLoadingContent = false
-                    self.logger.info("成功加载历史版本内容，标题: \(note.title), 内容长度: \(note.content.count) 字符")
+                    self.logger.info("成功加载历史记录内容，标题: \(note.title), 内容长度: \(note.content.count) 字符")
                 }
             } catch {
                 await MainActor.run {
                     self.errorMessage = "加载版本内容失败: \(error.localizedDescription)"
                     self.isLoadingContent = false
-                    self.logger.error("加载历史版本内容失败: \(error.localizedDescription)")
+                    self.logger.error("加载历史记录内容失败: \(error.localizedDescription)")
                 }
             }
         }
@@ -281,7 +259,7 @@ struct NoteHistoryView: View {
     }
 }
 
-/// 历史版本行视图
+/// 历史记录行视图
 @available(macOS 14.0, *)
 private struct HistoryVersionRow: View {
     let version: NoteHistoryVersion
@@ -372,7 +350,7 @@ private struct VersionPreviewView: View {
     }
 }
 
-/// 历史版本内容 WebView（只读）
+/// 历史记录内容 WebView（只读）
 @available(macOS 14.0, *)
 struct HistoryContentWebView: NSViewRepresentable {
     let content: String

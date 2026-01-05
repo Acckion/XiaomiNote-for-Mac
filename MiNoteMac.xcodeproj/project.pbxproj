@@ -21,7 +21,6 @@
 		24752713BABD19E2204E8ED6 /* MiNoteToolbarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D9E193F6285E5B73F3B182D /* MiNoteToolbarItem.swift */; };
 		2642B2A4870EF2A0993B041B /* WebFormatMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 474778FF86C3F41BD6A91DC7 /* WebFormatMenuView.swift */; };
 		2783F9F5184C74E72457221C /* html-to-xml.js in Resources */ = {isa = PBXBuildFile; fileRef = A80290BFA335F043C4FF0643 /* html-to-xml.js */; };
-		28265E47ADB1B599B40E5493 /* OfflineOperationsProgressToolbarDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2895200E3EE60F9FEEF654B3 /* OfflineOperationsProgressToolbarDelegate.swift */; };
 		2AE328670B888645754C3172 /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05AB0A488183D3EDA90BC250 /* SyncService.swift */; };
 		2AF59075572A5CC546F06E1D /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1642B61D573F8565B074377 /* TrashView.swift */; };
 		2B74B192C5F0ECF3B0CAF378 /* NotesListHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41D32DA81E0A2F6BE5BCFF0 /* NotesListHostingController.swift */; };
@@ -64,6 +63,7 @@
 		7C87882B34113556E821D1D6 /* DeletedNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0EE2EC0B53336F95BB9B10 /* DeletedNote.swift */; };
 		8078A0D5E94E341B88BE4BFB /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837D1A4BD47198D9037FB29C /* Note.swift */; };
 		81B82703FEAA34A5FE79F0DC /* NetworkLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 050F467F52491FCB8258B2E3 /* NetworkLogger.swift */; };
+		822C973D4E0654550CFB08DC /* BaseSheetToolbarDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7E91349165FC3156188B5A /* BaseSheetToolbarDelegate.swift */; };
 		82BBEF4C70273B0A254B4DA3 /* NotesListWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A721A421F7A06F601E6D482 /* NotesListWindowState.swift */; };
 		836F5B323145435805401DA0 /* CookieRefreshWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC9A166813D8CE5D10207A6A /* CookieRefreshWindowController.swift */; };
 		8694E617AB674C7C5CE65AF5 /* AuthenticationStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F967817C7015512F6FEF3B49 /* AuthenticationStateManager.swift */; };
@@ -152,7 +152,6 @@
 		1B1072B3B09DD3A8A4164FA6 /* manager.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = manager.js; sourceTree = "<group>"; };
 		2130327C29EDBCBFCA0592A0 /* WebEditorContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebEditorContext.swift; sourceTree = "<group>"; };
 		2635D6A224002DB3879ADFB1 /* TrashWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashWindowController.swift; sourceTree = "<group>"; };
-		2895200E3EE60F9FEEF654B3 /* OfflineOperationsProgressToolbarDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineOperationsProgressToolbarDelegate.swift; sourceTree = "<group>"; };
 		28FAA4982B15A440D56E5C45 /* AppStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateManager.swift; sourceTree = "<group>"; };
 		2B0575D6FB153DD6BEFFE531 /* DebugWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugWindowController.swift; sourceTree = "<group>"; };
 		2DE7C28181F4B23C2555F180 /* converter.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = converter.js; sourceTree = "<group>"; };
@@ -216,6 +215,7 @@
 		BAE588E09D4DDF707E819C56 /* WebEditorWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebEditorWrapper.swift; sourceTree = "<group>"; };
 		C083B5A026E4788F18F9E996 /* cursor.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = cursor.js; sourceTree = "<group>"; };
 		CAEF726E1B0B16672107891A /* SidebarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewController.swift; sourceTree = "<group>"; };
+		CD7E91349165FC3156188B5A /* BaseSheetToolbarDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseSheetToolbarDelegate.swift; sourceTree = "<group>"; };
 		D01B4C0BFBA584FBE85E91D8 /* MainWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowController.swift; sourceTree = "<group>"; };
 		D23D13110DA4C5BE6C6B8EB1 /* enter-handler.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "enter-handler.js"; sourceTree = "<group>"; };
 		D533A80FFB699C2736A139A7 /* NetworkLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogView.swift; sourceTree = "<group>"; };
@@ -464,6 +464,7 @@
 		ACD0ED03D7DD2EBCDDB9ECAB /* Window */ = {
 			isa = PBXGroup;
 			children = (
+				CD7E91349165FC3156188B5A /* BaseSheetToolbarDelegate.swift */,
 				DC9A166813D8CE5D10207A6A /* CookieRefreshWindowController.swift */,
 				A6CB2FACD08ECCDD97C85103 /* CustomSearchField.swift */,
 				2B0575D6FB153DD6BEFFE531 /* DebugWindowController.swift */,
@@ -474,7 +475,6 @@
 				4D9E193F6285E5B73F3B182D /* MiNoteToolbarItem.swift */,
 				9CDB97E03C65FB0F952C6EF8 /* NoteDetailWindowState.swift */,
 				9A721A421F7A06F601E6D482 /* NotesListWindowState.swift */,
-				2895200E3EE60F9FEEF654B3 /* OfflineOperationsProgressToolbarDelegate.swift */,
 				958EA73DCB9458E18B52EB9A /* SettingsWindowController.swift */,
 				6795062F89A49EB63F403680 /* SidebarWindowState.swift */,
 				3E674D3C681C4EC48790DE69 /* ToolbarIdentifiers.swift */,
@@ -683,6 +683,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8694E617AB674C7C5CE65AF5 /* AuthenticationStateManager.swift in Sources */,
+				822C973D4E0654550CFB08DC /* BaseSheetToolbarDelegate.swift in Sources */,
 				43D3B553C002AD1A274AA81E /* ContentView.swift in Sources */,
 				97C31DD623A48C31FA0ABA38 /* CookieRefreshView.swift in Sources */,
 				836F5B323145435805401DA0 /* CookieRefreshWindowController.swift in Sources */,
@@ -725,7 +726,6 @@
 				FA31A3C141A35190A53B00BC /* NotesViewModel.swift in Sources */,
 				F9601715FE4407C3A76061EF /* OfflineOperationProcessor.swift in Sources */,
 				0407219418B3F9CCE0807694 /* OfflineOperationQueue.swift in Sources */,
-				28265E47ADB1B599B40E5493 /* OfflineOperationsProgressToolbarDelegate.swift in Sources */,
 				CDD585FDDF9DF749104F8221 /* OfflineOperationsProgressView.swift in Sources */,
 				70CE5E9434D7A32E47DC7E4E /* OnlineStatusIndicator.swift in Sources */,
 				D3BCAFD9BCC13B838ADE143C /* PrivateNotesPasswordInputDialogView.swift in Sources */,
