@@ -253,15 +253,49 @@ extension MainWindowController: NSToolbarDelegate {
             let menu = NSMenu()
             menu.delegate = self // 设置菜单代理以动态更新
             
-            // 第一项：在线状态指示
+            // 第一项：在线状态指示（带颜色和大圆点）
             let statusItem = NSMenuItem()
-            statusItem.title = "状态：加载中..."
+            // 创建初始的富文本标题
+            let initialAttributedString = NSMutableAttributedString()
+            
+            // 添加大圆点（灰色，表示加载中）
+            let dotAttributes: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 20, weight: .bold), // 与getOnlineStatusAttributedTitle保持一致
+                .foregroundColor: NSColor.gray,
+                .baselineOffset: 0 // 与getOnlineStatusAttributedTitle保持一致
+            ]
+            initialAttributedString.append(NSAttributedString(string: "• ", attributes: dotAttributes))
+            
+            // 添加状态文本（使用相同的颜色）
+            let textAttributes: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 13),
+                .foregroundColor: NSColor.gray // 使用与圆点相同的颜色
+            ]
+            initialAttributedString.append(NSAttributedString(string: "加载中...", attributes: textAttributes))
+            
+            statusItem.attributedTitle = initialAttributedString
             statusItem.isEnabled = false // 不可点击，仅显示状态
             statusItem.tag = 100 // 设置标签以便识别
             menu.addItem(statusItem)
+
+            // 离线操作状态（显示待处理操作数量）
+            let offlineOperationsStatusItem = NSMenuItem()
+            offlineOperationsStatusItem.title = "离线操作：0个待处理"
+            offlineOperationsStatusItem.isEnabled = false // 不可点击，仅显示状态
+            offlineOperationsStatusItem.tag = 200 // 设置标签以便识别
+            menu.addItem(offlineOperationsStatusItem)
+            
             
             menu.addItem(NSMenuItem.separator())
+
+            // 刷新Cookie
+            let refreshCookieItem = NSMenuItem()
+            refreshCookieItem.title = "刷新Cookie"
+            refreshCookieItem.action = #selector(showCookieRefresh(_:))
+            refreshCookieItem.target = self
+            menu.addItem(refreshCookieItem)
             
+            menu.addItem(NSMenuItem.separator())
             // 完整同步
             let fullSyncItem = NSMenuItem()
             fullSyncItem.title = "完整同步"
@@ -278,42 +312,6 @@ extension MainWindowController: NSToolbarDelegate {
             
             menu.addItem(NSMenuItem.separator())
             
-            // 刷新Cookie
-            let refreshCookieItem = NSMenuItem()
-            refreshCookieItem.title = "刷新Cookie"
-            refreshCookieItem.action = #selector(showCookieRefresh(_:))
-            refreshCookieItem.target = self
-            menu.addItem(refreshCookieItem)
-            
-            menu.addItem(NSMenuItem.separator())
-            
-            // 重置同步状态
-            let resetSyncItem = NSMenuItem()
-            resetSyncItem.title = "重置同步状态"
-            resetSyncItem.action = #selector(resetSyncStatus(_:))
-            resetSyncItem.target = self
-            menu.addItem(resetSyncItem)
-            
-            menu.addItem(NSMenuItem.separator())
-            
-            // 同步状态
-            let syncStatusItem = NSMenuItem()
-            syncStatusItem.title = "同步状态"
-            syncStatusItem.action = #selector(showSyncStatus(_:))
-            syncStatusItem.target = self
-            menu.addItem(syncStatusItem)
-            
-            menu.addItem(NSMenuItem.separator())
-            
-            // 离线操作相关菜单项
-            // 离线操作状态（显示待处理操作数量）
-            let offlineOperationsStatusItem = NSMenuItem()
-            offlineOperationsStatusItem.title = "离线操作：0个待处理"
-            offlineOperationsStatusItem.isEnabled = false // 不可点击，仅显示状态
-            offlineOperationsStatusItem.tag = 200 // 设置标签以便识别
-            menu.addItem(offlineOperationsStatusItem)
-            
-            menu.addItem(NSMenuItem.separator())
             
             // 处理离线操作
             let processOfflineOperationsItem = NSMenuItem()
@@ -821,23 +819,51 @@ extension MainWindowController: NSToolbarDelegate {
         return menu
     }
     
-    /// 获取在线状态标题
-    private func getOnlineStatusTitle() -> String {
-        guard let viewModel = viewModel else {
-            return "状态：未知"
-        }
+    /// 获取在线状态标题（带颜色和大圆点）
+    private func getOnlineStatusAttributedTitle() -> NSAttributedString {
+        let statusText: String
+        let statusColor: NSColor
         
-        if viewModel.isLoggedIn {
-            if viewModel.isSyncing {
-                return "状态：同步中..."
-            } else if viewModel.isCookieExpired {
-                return "状态：Cookie已过期"
+        if let viewModel = viewModel {
+            if viewModel.isLoggedIn {
+                if viewModel.isSyncing {
+                    statusText = "同步中..."
+                    statusColor = .systemYellow
+                } else if viewModel.isCookieExpired {
+                    statusText = "Cookie已过期"
+                    statusColor = .systemRed
+                } else {
+                    statusText = "在线"
+                    statusColor = .systemGreen
+                }
             } else {
-                return "状态：在线"
+                statusText = "离线"
+                statusColor = .systemGray
             }
         } else {
-            return "状态：离线"
+            statusText = "未知"
+            statusColor = .gray
         }
+        
+        // 创建富文本字符串
+        let attributedString = NSMutableAttributedString()
+        
+        // 添加大圆点（更大，调整垂直位置）
+        let dotAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 20, weight: .bold), // 从16增加到20
+            .foregroundColor: statusColor,
+            .baselineOffset: -1 // 从-2改为0，让圆点居中
+        ]
+        attributedString.append(NSAttributedString(string: "• ", attributes: dotAttributes))
+        
+        // 添加状态文本（使用相同的颜色）
+        let textAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 13),
+            .foregroundColor: statusColor // 使用与圆点相同的颜色
+        ]
+        attributedString.append(NSAttributedString(string: statusText, attributes: textAttributes))
+        
+        return attributedString
     }
     
     /// 更新在线状态菜单
@@ -1029,7 +1055,7 @@ extension MainWindowController: NSMenuDelegate {
         // 更新在线状态菜单项
         for item in menu.items {
             if item.tag == 100 { // 在线状态项
-                item.title = getOnlineStatusTitle()
+                item.attributedTitle = getOnlineStatusAttributedTitle()
             } else if item.tag == 200 { // 离线操作状态项
                 // 更新离线操作状态
                 let offlineQueue = OfflineOperationQueue.shared
