@@ -926,13 +926,24 @@ extension MainWindowController: NSSearchFieldDelegate {
     }
     
     public func controlTextDidBeginEditing(_ obj: Notification) {
+        print("[MainWindowController] controlTextDidBeginEditing被调用")
+        
         // 当搜索框开始编辑（获得焦点）时，显示筛选菜单
-        if let searchField = obj.object as? NSSearchField,
-           searchField == currentSearchField {
-            // 延迟一小段时间，确保用户点击完成后再显示菜单
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.showSearchFilterMenu(searchField)
+        if let searchField = obj.object as? NSSearchField {
+            print("[MainWindowController] 搜索框开始编辑: \(searchField)")
+            
+            if searchField == currentSearchField {
+                print("[MainWindowController] 是当前搜索框，准备显示筛选菜单")
+                // 延迟一小段时间，确保用户点击完成后再显示菜单
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    print("[MainWindowController] 延迟后调用showSearchFilterMenu")
+                    self.showSearchFilterMenu(searchField)
+                }
+            } else {
+                print("[MainWindowController] 不是当前搜索框，忽略")
             }
+        } else {
+            print("[MainWindowController] 通知对象不是搜索框: \(obj.object ?? "nil")")
         }
     }
 }
@@ -2052,7 +2063,7 @@ extension MainWindowController {
         searchField.sendsSearchStringImmediately = false
         searchField.sendsWholeSearchString = true
         
-        // 移除旧的NSMenu设置
+        // 移除旧的NSMenu设置，因为我们使用popover
         searchField.menu = nil
         
         // 设置搜索框的点击事件处理 - 按Enter时执行搜索，而不是弹出菜单
@@ -2063,7 +2074,8 @@ extension MainWindowController {
         searchField.bezelStyle = .roundedBezel
         searchField.controlSize = .regular
         
-        print("[MainWindowController] 搜索框菜单已设置为使用SwiftUI popover")
+        // 添加调试日志
+        print("[MainWindowController] 搜索框菜单已设置为使用SwiftUI popover，搜索框: \(searchField)")
     }
     
     
@@ -2071,10 +2083,11 @@ extension MainWindowController {
     // MARK: - 搜索筛选菜单动作
     
     @objc func showSearchFilterMenu(_ sender: Any?) {
-        print("[MainWindowController] 显示搜索筛选菜单")
+        print("[MainWindowController] 显示搜索筛选菜单 - 开始")
         
         // 如果popover已经显示，则关闭它
         if let popover = searchFilterMenuPopover, popover.isShown {
+            print("[MainWindowController] popover已经显示，关闭它")
             popover.performClose(sender)
             searchFilterMenuPopover = nil
             return
@@ -2086,17 +2099,20 @@ extension MainWindowController {
             return
         }
         
+        print("[MainWindowController] 创建SwiftUI搜索筛选菜单视图")
+        
         // 创建SwiftUI搜索筛选菜单视图
         let searchFilterMenuView = SearchFilterMenuContent(viewModel: viewModel)
         
         // 创建托管控制器
         let hostingController = NSHostingController(rootView: searchFilterMenuView)
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 220, height: 220)
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 200, height: 190)
         
+        print("[MainWindowController] 创建popover")
         
         // 创建popover
         let popover = NSPopover()
-        popover.contentSize = NSSize(width: 220, height: 220)
+        popover.contentSize = NSSize(width: 200, height: 190)
         popover.behavior = .transient
         popover.animates = true
         popover.contentViewController = hostingController
@@ -2106,39 +2122,27 @@ extension MainWindowController {
         
         // 显示popover
         if let searchField = sender as? NSSearchField {
-            // 方法1：获取搜索框在窗口坐标系中的frame
-            guard let window = searchField.window else {
-                print("[MainWindowController] 错误：无法获取搜索框所在的窗口")
-                return
-            }
+            print("[MainWindowController] 显示popover在搜索框: \(searchField)")
             
-            // 将搜索框的bounds转换到窗口坐标系
-            let searchFieldBoundsInWindow = searchField.convert(searchField.bounds, to: nil)
-            print("[MainWindowController] 搜索框在窗口坐标系中的bounds: \(searchFieldBoundsInWindow)")
+            // 方案三：参考格式菜单的实现，使用.maxY并调整positioningRect
+            // 格式菜单使用.maxY显示在按钮上方，搜索框也应该类似
             
-            // 方法2：或者使用搜索框的frame（在窗口坐标系中）
-            let searchFieldFrameInWindow = searchField.frame
-            print("[MainWindowController] 搜索框frame（在父视图坐标系中）: \(searchFieldFrameInWindow)")
+            // 获取搜索框的bounds
+            let bounds = searchField.bounds
+            print("[MainWindowController] 搜索框bounds: \(bounds)")
             
-            // 关键修改：使用搜索框在窗口坐标系中的位置
-            // 我们想要popover显示在搜索框正下方，紧贴搜索框
-            // 使用 .minY 让popover显示在矩形的下方
-let popoverRect = NSRect(
-    x: searchFieldBoundsInWindow.minX,
-    y: searchFieldBoundsInWindow.minY,
-    width: searchFieldBoundsInWindow.width,
-    height: searchFieldBoundsInWindow.height
-)
+            // 创建一个positioningRect，使用搜索框的bounds
+            let positioningRect = NSRect(x: 0, y: 0, width: bounds.width, height: bounds.height)
             
-            print("[MainWindowController] 使用popoverRect: \(popoverRect)")
-            print("[MainWindowController] 使用窗口作为基准显示popover")
-            
-            // 使用窗口作为基准显示popover，preferredEdge改为.minY
-            popover.show(relativeTo: popoverRect, of: window.contentView!, preferredEdge: .minY)
-            
+            // 使用.maxY（显示在搜索框上方），与格式菜单保持一致
+            popover.show(relativeTo: positioningRect, of: searchField, preferredEdge: .maxY)
+            print("[MainWindowController] popover显示完成（使用.maxY边缘，与格式菜单一致）")
         } else if let window = window, let contentView = window.contentView {
+            print("[MainWindowController] 显示popover在窗口中央")
             // 如果没有搜索框，显示在窗口中央
             popover.show(relativeTo: contentView.bounds, of: contentView, preferredEdge: .maxY)
+        } else {
+            print("[MainWindowController] 错误：无法显示popover，没有搜索框或窗口")
         }
     }
     
@@ -2161,6 +2165,7 @@ let popoverRect = NSRect(
         viewModel?.searchFilterHasAudio = false
         viewModel?.searchFilterIsPrivate = false
     }
+    
     
 }
 

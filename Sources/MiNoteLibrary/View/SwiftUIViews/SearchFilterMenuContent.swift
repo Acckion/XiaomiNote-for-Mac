@@ -38,23 +38,24 @@ struct SearchFilterMenuContent: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             
-            // 清除所有筛选
-            if hasAnyFilter() {
-                Divider()
-                    .padding(.vertical, 4)
-                
-                Button {
-                    clearAllFilters()
-                } label: {
-                    Label("清除所有筛选", systemImage: "xmark.circle")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
+            // 分割线
+            Divider()
+                .padding(.vertical, 4)
+            
+            // 清除所有筛选（一直显示，无筛选时设为灰色）
+            Button {
+                clearAllFilters()
+            } label: {
+                Label("清除所有筛选", systemImage: "xmark.circle")
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .buttonStyle(.plain)
+            .disabled(!hasAnyFilter())
+            .foregroundColor(hasAnyFilter() ? .primary : .gray)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .frame(minWidth: 200)
+        .frame(minWidth: 200, minHeight: 190)
     }
     
     /// 检查是否有任何筛选选项被启用
