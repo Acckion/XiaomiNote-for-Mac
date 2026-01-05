@@ -55,6 +55,9 @@ public class MainWindowController: NSWindowController {
     /// 当前显示的sheet窗口引用
     private var currentSheetWindow: NSWindow?
     
+    /// 当前sheet窗口的工具栏代理引用
+    private var currentSheetToolbarDelegate: OfflineOperationsProgressToolbarDelegate?
+    
     // MARK: - 初始化
     
     /// 使用指定的视图模型初始化窗口控制器
@@ -973,6 +976,9 @@ extension MainWindowController: NSWindowDelegate {
         } else if window == trashWindowController?.window {
             print("回收站窗口即将关闭，清理引用")
             trashWindowController = nil
+        } else if window == currentSheetWindow {
+            print("离线操作进度sheet窗口即将关闭，清理引用")
+            currentSheetWindow = nil
         }
     }
 }
@@ -1751,24 +1757,39 @@ extension MainWindowController {
         let hostingController = NSHostingController(rootView: progressView)
         
         let sheetWindow = NSWindow(contentViewController: hostingController)
-        sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
+        sheetWindow.styleMask = [.titled, .fullSizeContentView] // 移除.closable，隐藏右上角关闭按钮
         sheetWindow.title = "离线操作进度"
-        sheetWindow.titlebarAppearsTransparent = true
-        sheetWindow.titleVisibility = .hidden
+        sheetWindow.titlebarAppearsTransparent = false // 显示标题栏
+        sheetWindow.titleVisibility = .visible // 显示标题
         
-        // 确保窗口有标准关闭按钮
-        sheetWindow.isReleasedWhenClosed = false
+        // 设置窗口代理，以便在用户点击关闭按钮时正确处理
+        sheetWindow.delegate = self
         
-        // 存储当前sheet窗口引用
+        // 为sheet窗口添加独立的工具栏代理
+        let toolbarDelegate = OfflineOperationsProgressToolbarDelegate()
+        toolbarDelegate.onClose = { [weak window, weak self] in
+            // 关闭sheet
+            if let sheetWindow = self?.currentSheetWindow {
+                window?.endSheet(sheetWindow)
+            }
+        }
+        
+        let toolbar = NSToolbar(identifier: "OfflineOperationsProgressToolbar")
+        toolbar.displayMode = .iconOnly
+        toolbar.delegate = toolbarDelegate
+        sheetWindow.toolbar = toolbar
+        sheetWindow.toolbarStyle = .unified
+        
+        // 存储当前sheet窗口引用和工具栏代理引用
         self.currentSheetWindow = sheetWindow
+        self.currentSheetToolbarDelegate = toolbarDelegate
         
         // 显示sheet
         window.beginSheet(sheetWindow) { response in
             print("离线操作进度sheet关闭，响应: \(response)")
-            // 清理sheet窗口引用
+            // 清理sheet窗口引用和工具栏代理引用
             self.currentSheetWindow = nil
-            // 确保窗口被正确关闭
-            sheetWindow.close()
+            self.currentSheetToolbarDelegate = nil
         }
     }
     

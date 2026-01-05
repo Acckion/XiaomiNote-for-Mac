@@ -85,6 +85,7 @@
 		C2A0F6905AFAA72CCE05EC47 /* NetworkLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77AED5D148C784D8F4BD93FC /* NetworkLogView.swift */; };
 		C75CB329343269121A0FFDA6 /* PrivateNotesVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC2BEB9A968A92010516E864 /* PrivateNotesVerificationView.swift */; };
 		D4C433F7392D5562CA17466D /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B00E144F0064250DE47B3E8 /* App.swift */; };
+		D8332BE87F7285062B6CA8F1 /* OfflineOperationsProgressToolbarDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C316AEB6C1DD924F0B29EBC4 /* OfflineOperationsProgressToolbarDelegate.swift */; };
 		DA77A42F8FDBD2DCB66D4E32 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF646372B5CED37C5970C887 /* Note.swift */; };
 		DAD3F0D38E114C0631F9F25B /* LocalStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59F444DD3ECD304A51795C2D /* LocalStorageService.swift */; };
 		DB086F9B62AFF69E903E0ED3 /* NewNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DA47D2142912B634F2DEA0B /* NewNoteView.swift */; };
@@ -201,6 +202,7 @@
 		C2707995632193C250FB2E95 /* Folder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Folder.swift; sourceTree = "<group>"; };
 		C2776D82F00735192D160214 /* TrashWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashWindowController.swift; sourceTree = "<group>"; };
 		C2A7E0D6082D1B95BF67884B /* dom-writer.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "dom-writer.js"; sourceTree = "<group>"; };
+		C316AEB6C1DD924F0B29EBC4 /* OfflineOperationsProgressToolbarDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineOperationsProgressToolbarDelegate.swift; sourceTree = "<group>"; };
 		C32FB2CCABD4AFB6C6809328 /* SidebarHostingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarHostingController.swift; sourceTree = "<group>"; };
 		C3349561297E3C10B46705BF /* MainWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowState.swift; sourceTree = "<group>"; };
 		C50C112F6B4452CE0180EB74 /* NetworkLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogger.swift; sourceTree = "<group>"; };
@@ -300,6 +302,7 @@
 				69CFDE04E9E0F11ADB6BA523 /* MiNoteToolbarItem.swift */,
 				FFB3BE8553A017DB0E41EF5E /* NoteDetailWindowState.swift */,
 				7E5AF40462266FD02BA46ED8 /* NotesListWindowState.swift */,
+				C316AEB6C1DD924F0B29EBC4 /* OfflineOperationsProgressToolbarDelegate.swift */,
 				7954410E4D580211C1A7C342 /* SettingsWindowController.swift */,
 				1DFA71C26665592AA8D75F7D /* SidebarWindowState.swift */,
 				93F58175B8166C1178A6C65F /* ToolbarIdentifiers.swift */,
@@ -697,6 +700,7 @@
 				A13B020ABBDB66D9C2EA0B9C /* NotesViewModel.swift in Sources */,
 				90091F8C80321F3D5A7D0F26 /* OfflineOperationProcessor.swift in Sources */,
 				18021F0E3CE77ABC9062D4DD /* OfflineOperationQueue.swift in Sources */,
+				D8332BE87F7285062B6CA8F1 /* OfflineOperationsProgressToolbarDelegate.swift in Sources */,
 				DFB32B97D350B9CC67FF4FD9 /* OfflineOperationsProgressView.swift in Sources */,
 				42604EB46E13790E52B59E24 /* OnlineStatusIndicator.swift in Sources */,
 				437B9BE1921575AA5B9CFB2A /* PrivateNotesPasswordInputDialogView.swift in Sources */,
