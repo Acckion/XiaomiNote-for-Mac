@@ -52,6 +52,9 @@ public class MainWindowController: NSWindowController {
     /// 测试菜单工具栏项（已弃用，保留以保持兼容性）
     private let testMenuToolbarItem = NSMenuToolbarItem(itemIdentifier: .testMenu)
     
+    /// 当前显示的sheet窗口引用
+    private var currentSheetWindow: NSWindow?
+    
     // MARK: - 初始化
     
     /// 使用指定的视图模型初始化窗口控制器
@@ -1701,17 +1704,25 @@ extension MainWindowController {
             return
         }
         
-        // 创建离线操作进度视图
-        let progressView = OfflineOperationsProgressView(processor: OfflineOperationProcessor.shared)
-        
-        // 创建托管控制器
-        let hostingController = NSHostingController(rootView: progressView)
-        
         // 创建sheet窗口
         guard let window = window else {
             print("错误：主窗口不存在，无法显示离线操作进度sheet")
             return
         }
+        
+        // 创建离线操作进度视图，传递关闭回调
+        let progressView = OfflineOperationsProgressView(
+            processor: OfflineOperationProcessor.shared,
+            onClose: { [weak window, weak self] in
+                // 关闭sheet
+                if let sheetWindow = self?.currentSheetWindow {
+                    window?.endSheet(sheetWindow)
+                }
+            }
+        )
+        
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: progressView)
         
         let sheetWindow = NSWindow(contentViewController: hostingController)
         sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
@@ -1722,9 +1733,14 @@ extension MainWindowController {
         // 确保窗口有标准关闭按钮
         sheetWindow.isReleasedWhenClosed = false
         
+        // 存储当前sheet窗口引用
+        self.currentSheetWindow = sheetWindow
+        
         // 显示sheet
         window.beginSheet(sheetWindow) { response in
             print("离线操作进度sheet关闭，响应: \(response)")
+            // 清理sheet窗口引用
+            self.currentSheetWindow = nil
             // 确保窗口被正确关闭
             sheetWindow.close()
         }

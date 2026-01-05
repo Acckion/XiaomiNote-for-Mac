@@ -6,7 +6,7 @@ import SwiftUI
 @available(macOS 14.0, *)
 struct OfflineOperationsProgressView: View {
     @ObservedObject var processor: OfflineOperationProcessor
-    @Environment(\.dismiss) private var dismiss
+    var onClose: (() -> Void)? = nil
     
     var body: some View {
         VStack(spacing: 16) {
@@ -127,7 +127,7 @@ struct OfflineOperationsProgressView: View {
                 if processor.isProcessing {
                     Button("取消") {
                         processor.cancelProcessing()
-                        dismiss()
+                        onClose?()
                     }
                     .disabled(!processor.isProcessing)
                 } else {
@@ -141,7 +141,7 @@ struct OfflineOperationsProgressView: View {
                     }
                     
                     Button("关闭") {
-                        dismiss()
+                        onClose?()
                     }
                     .keyboardShortcut(.cancelAction)
                 }
@@ -151,4 +151,3 @@ struct OfflineOperationsProgressView: View {
         .frame(width: 400, height: processor.failedOperations.isEmpty ? 200 : 400)
     }
 }
-
