@@ -25,7 +25,7 @@ public class MainWindowController: NSWindowController {
     public private(set) var viewModel: NotesViewModel?
     
     /// 当前搜索字段（用于工具栏搜索项）
-    private var currentSearchField: NSSearchField?
+    private var currentSearchField: CustomSearchField?
     
     /// 窗口控制器引用（防止被释放）
     private var loginWindowController: LoginWindowController?
@@ -671,18 +671,28 @@ extension MainWindowController: NSToolbarDelegate {
         }
         
         if item.itemIdentifier == .search, let searchItem = item as? NSSearchToolbarItem {
-            searchItem.searchField.delegate = self
-            searchItem.searchField.target = self
-            searchItem.searchField.action = #selector(performSearch(_:))
-            currentSearchField = searchItem.searchField
+            // 创建自定义搜索字段
+            let customSearchField = CustomSearchField(frame: searchItem.searchField.frame)
+            customSearchField.delegate = self
+            customSearchField.target = self
+            customSearchField.action = #selector(performSearch(_:))
+            
+            // 设置视图模型
+            if let viewModel = viewModel {
+                customSearchField.setViewModel(viewModel)
+            }
+            
+            // 替换搜索项中的搜索字段
+            searchItem.searchField = customSearchField
+            currentSearchField = customSearchField
             
             // 为搜索框添加下拉菜单
-            setupSearchFieldMenu(for: searchItem.searchField)
+            setupSearchFieldMenu(for: customSearchField)
             
             // 确保搜索框菜单正确显示
-            searchItem.searchField.sendsSearchStringImmediately = false
-            searchItem.searchField.sendsWholeSearchString = true
-            searchItem.searchField.maximumRecents = 10
+            customSearchField.sendsSearchStringImmediately = false
+            customSearchField.sendsWholeSearchString = true
+            customSearchField.maximumRecents = 10
         }
         
         if item.itemIdentifier == .share, let button = item.view as? NSButton {
@@ -933,17 +943,42 @@ extension MainWindowController: NSSearchFieldDelegate {
             print("[MainWindowController] 搜索框开始编辑: \(searchField)")
             
             if searchField == currentSearchField {
-                print("[MainWindowController] 是当前搜索框，准备显示筛选菜单")
-                // 延迟一小段时间，确保用户点击完成后再显示菜单
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    print("[MainWindowController] 延迟后调用showSearchFilterMenu")
-                    self.showSearchFilterMenu(searchField)
+                // 检查popover是否已经显示
+                if let popover = searchFilterMenuPopover, popover.isShown {
+                    print("[MainWindowController] popover已经显示，跳过重复调用")
+                    return
                 }
+                
+                print("[MainWindowController] 是当前搜索框，立即显示筛选菜单")
+                
+                // 只要光标在搜索框中就弹出菜单，不需要检查搜索框内容
+                print("[MainWindowController] 光标在搜索框中，立即显示筛选菜单")
+                self.showSearchFilterMenu(searchField)
             } else {
                 print("[MainWindowController] 不是当前搜索框，忽略")
             }
         } else {
             print("[MainWindowController] 通知对象不是搜索框: \(obj.object ?? "nil")")
+        }
+    }
+    
+    public func controlTextDidEndEditing(_ obj: Notification) {
+        print("[MainWindowController] controlTextDidEndEditing被调用")
+        
+        // 当搜索框结束编辑（失去焦点）时，收回筛选菜单
+        if let searchField = obj.object as? NSSearchField {
+            print("[MainWindowController] 搜索框结束编辑: \(searchField)")
+            
+            if searchField == currentSearchField {
+                print("[MainWindowController] 是当前搜索框，收回筛选菜单")
+                
+                // 如果popover正在显示，关闭它
+                if let popover = searchFilterMenuPopover, popover.isShown {
+                    print("[MainWindowController] popover正在显示，关闭它")
+                    popover.performClose(nil)
+                    searchFilterMenuPopover = nil
+                }
+            }
         }
     }
 }
@@ -2113,7 +2148,8 @@ extension MainWindowController {
         // 创建popover
         let popover = NSPopover()
         popover.contentSize = NSSize(width: 200, height: 190)
-        popover.behavior = .transient
+        // 使用.semitransient行为，这样用户与搜索框交互时不会自动关闭
+        popover.behavior = .semitransient
         popover.animates = true
         popover.contentViewController = hostingController
         

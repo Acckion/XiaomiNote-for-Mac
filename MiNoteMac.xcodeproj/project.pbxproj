@@ -18,6 +18,7 @@
 		13C2E29E1CC48D2A2CA9CA81 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91CC7BF442FCE072233B5AB0 /* LoginView.swift */; };
 		146478DA95EEA59DA6FE1F34 /* WebEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 378E040925BFBEEC41D1F40A /* WebEditorView.swift */; };
 		18021F0E3CE77ABC9062D4DD /* OfflineOperationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D1C6CACE3C147825607106 /* OfflineOperationQueue.swift */; };
+		1A473C53475065DFD3383109 /* CustomSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83AE8E2FE1FC6E3FC320F069 /* CustomSearchField.swift */; };
 		1B08E6568B52420DBD7DB1F6 /* xml-to-html.js in Resources */ = {isa = PBXBuildFile; fileRef = E53473BAEDF5B80BBCE0E138 /* xml-to-html.js */; };
 		1C98E4172C1080E1C40E176D /* DebugSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA74542228ED40BCAD96FA2C /* DebugSettingsView.swift */; };
 		1CC3DC97AB086F3C1CD942E6 /* WebEditorWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 411C0EC02942FC9B597446F5 /* WebEditorWrapper.swift */; };
@@ -181,6 +182,7 @@
 		7DA47D2142912B634F2DEA0B /* NewNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewNoteView.swift; sourceTree = "<group>"; };
 		7E5AF40462266FD02BA46ED8 /* NotesListWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListWindowState.swift; sourceTree = "<group>"; };
 		7E78992CF7765CE27B05A0BF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		83AE8E2FE1FC6E3FC320F069 /* CustomSearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSearchField.swift; sourceTree = "<group>"; };
 		88A1BF6A6690262DB8E159F5 /* NotesListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListViewController.swift; sourceTree = "<group>"; };
 		893322552395E9A65891443B /* NoteHistoryVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteHistoryVersion.swift; sourceTree = "<group>"; };
 		898C9309B77A6A5420C38CD3 /* SilentCookieRefreshManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilentCookieRefreshManager.swift; sourceTree = "<group>"; };
@@ -298,6 +300,7 @@
 			isa = PBXGroup;
 			children = (
 				59DEC8D390B4867A2051FFFB /* CookieRefreshWindowController.swift */,
+				83AE8E2FE1FC6E3FC320F069 /* CustomSearchField.swift */,
 				E407CC877E22C8B1EE63BCD4 /* DebugWindowController.swift */,
 				37A86A59ECC1CD234004D7F5 /* HistoryWindowController.swift */,
 				AC94F9E7A1AF6D0B9354251D /* LoginWindowController.swift */,
@@ -668,6 +671,7 @@
 				5281CCE87A993A67F39B2255 /* ContentView.swift in Sources */,
 				377E38858F86E35D9CE9C101 /* CookieRefreshView.swift in Sources */,
 				9F1AE4438B65F5750D73FF03 /* CookieRefreshWindowController.swift in Sources */,
+				1A473C53475065DFD3383109 /* CustomSearchField.swift in Sources */,
 				13A3D0BE46C8453AE5A5AC57 /* DatabaseService.swift in Sources */,
 				1C98E4172C1080E1C40E176D /* DebugSettingsView.swift in Sources */,
 				4A9DE57D1C6BA3512899D02A /* DebugWindowController.swift in Sources */,
