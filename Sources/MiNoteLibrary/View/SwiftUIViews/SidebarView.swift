@@ -40,7 +40,7 @@ public struct SidebarView: View {
         // 使用系统颜色，让图标看起来更原生
         switch folder.id {
         case "0": return .blue // 所有笔记使用蓝色
-        case "starred": return .yellow // 置顶使用黄色
+        case "starred": return .accentColor // 置顶使用强调色
         case "uncategorized": return .gray // 未分类使用灰色
         default: return .primary // 其他文件夹使用主要颜色
         }
@@ -62,7 +62,6 @@ public struct SidebarView: View {
                         }
                     }
                 }
-            
             List(selection: $viewModel.selectedFolder) {
                 // MARK: 小米笔记 Section
                 Section {
@@ -270,7 +269,6 @@ public struct SidebarView: View {
                                 } label: {
                                     Label("排序方式", systemImage: "arrow.up.arrow.down")
                                 }
-                                
                                 Divider()
                                 
                                 // 重命名文件夹
@@ -327,7 +325,6 @@ public struct SidebarView: View {
                 }
             }
             .listStyle(.sidebar)
-            .accentColor(.yellow)  // 设置列表选择颜色为黄色
             .onKeyPress(.return) {
                 // 检查是否应该进入重命名模式
                 if let selectedFolder = viewModel.selectedFolder,
@@ -360,6 +357,16 @@ public struct SidebarView: View {
                 // 调用 selectFolder 方法来处理笔记选择逻辑
                 if newValue != oldValue {
                     viewModel.selectFolder(newValue)
+                    
+                    // 选中文件夹时，清除搜索状态
+                    // 1. 清除搜索文本
+                    viewModel.searchText = ""
+                    // 2. 清除所有筛选选项
+                    viewModel.searchFilterHasTags = false
+                    viewModel.searchFilterHasChecklist = false
+                    viewModel.searchFilterHasImages = false
+                    viewModel.searchFilterHasAudio = false
+                    viewModel.searchFilterIsPrivate = false
                 }
             }
         }
@@ -928,17 +935,17 @@ struct SidebarFolderRow: View {
     /// 
     /// 使用系统颜色，让图标看起来更原生：
     /// - "0" (所有笔记): .blue
-    /// - "starred" (置顶): .yellow
+    /// - "starred" (置顶): .accentColor
     /// - "uncategorized" (未分类): .gray
     /// - "new" (新建): .green
-    /// - 其他: .primary（如果置顶则使用 .yellow）
+    /// - 其他: .primary（如果置顶则使用 .accentColor）
     private var folderColor: Color {
         switch folder.id {
-        case "0": return .blue
-        case "starred": return .yellow
-        case "uncategorized": return .gray
-        case "new": return .green
-        default: return folder.isPinned ? .yellow : .primary
+        case "0": return .primary
+        case "starred": return .primary
+        case "uncategorized": return .primary
+        case "new": return .primary
+        default: return .primary
         }
     }
 }

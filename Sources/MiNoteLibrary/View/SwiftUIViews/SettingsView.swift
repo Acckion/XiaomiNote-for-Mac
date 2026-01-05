@@ -712,3 +712,6 @@ struct AboutView: View {
 #Preview {
     SettingsView(viewModel: NotesViewModel())
 }
+#Preview {
+    SettingsView(viewModel: NotesViewModel())
+}

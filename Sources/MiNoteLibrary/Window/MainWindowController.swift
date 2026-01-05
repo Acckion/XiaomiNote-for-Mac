@@ -25,7 +25,7 @@ public class MainWindowController: NSWindowController {
     public private(set) var viewModel: NotesViewModel?
     
     /// 当前搜索字段（用于工具栏搜索项）
-    private var currentSearchField: NSSearchField?
+    private var currentSearchField: CustomSearchField?
     
     /// 窗口控制器引用（防止被释放）
     private var loginWindowController: LoginWindowController?
@@ -39,6 +39,9 @@ public class MainWindowController: NSWindowController {
     
     /// 格式菜单popover
     private var formatMenuPopover: NSPopover?
+    
+    /// 搜索筛选菜单popover
+    private var searchFilterMenuPopover: NSPopover?
     
     /// 在线状态菜单工具栏项
     private var onlineStatusMenuToolbarItem: NSToolbarItem?
@@ -336,11 +339,36 @@ extension MainWindowController: NSToolbarDelegate {
             addToPrivateItem.target = self
             noteOperationsMenu.addItem(addToPrivateItem)
             
-            // 移到
+            // 移到（子菜单）
+            let moveNoteMenu = NSMenu()
+            moveNoteMenu.title = "移到"
+            
+            // 未分类文件夹（folderId为"0"）
+            let uncategorizedMenuItem = NSMenuItem(title: "未分类", action: #selector(moveToUncategorized(_:)), keyEquivalent: "")
+            uncategorizedMenuItem.image = NSImage(systemSymbolName: "folder.badge.questionmark", accessibilityDescription: nil)
+            uncategorizedMenuItem.image?.size = NSSize(width: 16, height: 16)
+            moveNoteMenu.addItem(uncategorizedMenuItem)
+            
+            // 其他可用文件夹（安全解包viewModel）
+            if let viewModel = viewModel {
+                let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+                
+                if !availableFolders.isEmpty {
+                    moveNoteMenu.addItem(NSMenuItem.separator())
+                    
+                    for folder in availableFolders {
+                        let menuItem = NSMenuItem(title: folder.name, action: #selector(moveNoteToFolder(_:)), keyEquivalent: "")
+                        menuItem.representedObject = folder
+                        menuItem.image = NSImage(systemSymbolName: folder.isPinned ? "pin.fill" : "folder", accessibilityDescription: nil)
+                        menuItem.image?.size = NSSize(width: 16, height: 16)
+                        moveNoteMenu.addItem(menuItem)
+                    }
+                }
+            }
+            
             let moveNoteItem = NSMenuItem()
             moveNoteItem.title = "移到"
-            moveNoteItem.action = #selector(moveNote(_:))
-            moveNoteItem.target = self
+            moveNoteItem.submenu = moveNoteMenu
             noteOperationsMenu.addItem(moveNoteItem)
             
             noteOperationsMenu.addItem(NSMenuItem.separator())
@@ -429,6 +457,76 @@ extension MainWindowController: NSToolbarDelegate {
             
             return testMenuToolbarItem
             
+        case .testCheckboxMenu:
+            // 测试按钮 - 带勾选框的菜单
+            let toolbarItem = NSMenuToolbarItem(itemIdentifier: .testCheckboxMenu)
+            toolbarItem.toolTip = "测试按钮"
+            toolbarItem.label = "测试"
+            
+            // 设置图像
+            toolbarItem.image = NSImage(systemSymbolName: "checkmark.square", accessibilityDescription: nil)
+            
+            // 设置显示指示器（下拉箭头）
+            toolbarItem.showsIndicator = true
+            
+            // 创建带勾选框的测试菜单
+            let testCheckboxMenu = NSMenu()
+            
+            // 选项1 - 带勾选框
+            let option1Item = NSMenuItem()
+            option1Item.title = "选项1"
+            option1Item.action = #selector(toggleTestOption1(_:))
+            option1Item.target = self
+            option1Item.state = .off
+            testCheckboxMenu.addItem(option1Item)
+            
+            // 选项2 - 带勾选框
+            let option2Item = NSMenuItem()
+            option2Item.title = "选项2"
+            option2Item.action = #selector(toggleTestOption2(_:))
+            option2Item.target = self
+            option2Item.state = .off
+            testCheckboxMenu.addItem(option2Item)
+            
+            // 选项3 - 带勾选框
+            let option3Item = NSMenuItem()
+            option3Item.title = "选项3"
+            option3Item.action = #selector(toggleTestOption3(_:))
+            option3Item.target = self
+            option3Item.state = .off
+            testCheckboxMenu.addItem(option3Item)
+            
+            testCheckboxMenu.addItem(NSMenuItem.separator())
+            
+            // 全选
+            let selectAllItem = NSMenuItem()
+            selectAllItem.title = "全选"
+            selectAllItem.action = #selector(selectAllTestOptions(_:))
+            selectAllItem.target = self
+            testCheckboxMenu.addItem(selectAllItem)
+            
+            // 取消全选
+            let deselectAllItem = NSMenuItem()
+            deselectAllItem.title = "取消全选"
+            deselectAllItem.action = #selector(deselectAllTestOptions(_:))
+            deselectAllItem.target = self
+            testCheckboxMenu.addItem(deselectAllItem)
+            
+            // 设置菜单
+            toolbarItem.menu = testCheckboxMenu
+            
+            // 同时设置menuFormRepresentation以确保兼容性
+            let menuItem = NSMenuItem()
+            menuItem.title = "测试菜单"
+            menuItem.submenu = testCheckboxMenu
+            toolbarItem.menuFormRepresentation = menuItem
+            
+            return toolbarItem
+            
+        case .lockPrivateNotes:
+            // 锁定私密笔记工具栏项
+            return buildToolbarButton(.lockPrivateNotes, "锁定私密笔记", NSImage(systemSymbolName: "lock.fill", accessibilityDescription: nil)!, "lockPrivateNotes:")
+            
         case .toggleSidebar:
             // 创建自定义的切换侧边栏工具栏项
             return buildToolbarButton(.toggleSidebar, "隐藏/显示侧边栏", NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: nil)!, "toggleSidebar:")
@@ -442,20 +540,12 @@ extension MainWindowController: NSToolbarDelegate {
         case .delete:
             return buildToolbarButton(.delete, "删除", NSImage(systemSymbolName: "trash", accessibilityDescription: nil)!, "deleteNote:")
             
-        case .restore:
-            return buildToolbarButton(.restore, "恢复", NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: nil)!, "restoreNote:")
             
         case .history:
             return buildToolbarButton(.history, "历史记录", NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: nil)!, "showHistory:")
             
         case .trash:
             return buildToolbarButton(.trash, "回收站", NSImage(systemSymbolName: "trash", accessibilityDescription: nil)!, "showTrash:")
-            
-        case .settings:
-            return buildToolbarButton(.settings, "设置", NSImage(systemSymbolName: "gear", accessibilityDescription: nil)!, "showSettings:")
-            
-        case .login:
-            return buildToolbarButton(.login, "登录", NSImage(systemSymbolName: "person.crop.circle", accessibilityDescription: nil)!, "showLogin:")
             
         case .cookieRefresh:
             return buildToolbarButton(.cookieRefresh, "刷新Cookie", NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)!, "showCookieRefresh:")
@@ -492,72 +582,87 @@ extension MainWindowController: NSToolbarDelegate {
     }
     
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return [
-            .toggleSidebar,
-            .sidebarTrackingSeparator,
-            .flexibleSpace,
-            .newNote,
-            .newFolder,
-            .undo,
-            .redo,
-            .bold,
-            .italic,
-            .underline,
-            .strikethrough,
-            .code,
-            .link,
-            .formatMenu,
-            .checkbox,
-            .horizontalRule,
-            .attachment,
-            .increaseIndent,
-            .decreaseIndent,
-            .flexibleSpace,
-            .search,
-            .sync,
-            .onlineStatus,
-            .settings,
-            .login,
-            .cookieRefresh,
-            .offlineOperations,
-            .timelineTrackingSeparator,
-            .share,
-            .toggleStar,
-            .delete,
-            .restore,
-            .history,
-            .trash,
-            .noteOperations,
-            .testMenu,
-            .space,
-            .separator
+        var identifiers = [
+            NSToolbarItem.Identifier.toggleSidebar,
+            NSToolbarItem.Identifier.sidebarTrackingSeparator,
+            NSToolbarItem.Identifier.flexibleSpace,
+            NSToolbarItem.Identifier.newNote,
+            NSToolbarItem.Identifier.newFolder,
+            NSToolbarItem.Identifier.undo,
+            NSToolbarItem.Identifier.redo,
+            NSToolbarItem.Identifier.bold,
+            NSToolbarItem.Identifier.italic,
+            NSToolbarItem.Identifier.underline,
+            NSToolbarItem.Identifier.strikethrough,
+            NSToolbarItem.Identifier.code,
+            NSToolbarItem.Identifier.link,
+            NSToolbarItem.Identifier.formatMenu,
+            NSToolbarItem.Identifier.checkbox,
+            NSToolbarItem.Identifier.horizontalRule,
+            NSToolbarItem.Identifier.attachment,
+            NSToolbarItem.Identifier.increaseIndent,
+            NSToolbarItem.Identifier.decreaseIndent,
+            NSToolbarItem.Identifier.flexibleSpace,
+            NSToolbarItem.Identifier.search,
+            NSToolbarItem.Identifier.sync,
+            NSToolbarItem.Identifier.onlineStatus,
+            NSToolbarItem.Identifier.settings,
+            NSToolbarItem.Identifier.login,
+            NSToolbarItem.Identifier.cookieRefresh,
+            NSToolbarItem.Identifier.offlineOperations,
+            NSToolbarItem.Identifier.timelineTrackingSeparator,
+            NSToolbarItem.Identifier.share,
+            NSToolbarItem.Identifier.toggleStar,
+            NSToolbarItem.Identifier.delete,
+            NSToolbarItem.Identifier.restore,
+            NSToolbarItem.Identifier.history,
+            NSToolbarItem.Identifier.trash,
+            NSToolbarItem.Identifier.noteOperations,
+            NSToolbarItem.Identifier.testMenu,
+            NSToolbarItem.Identifier.testCheckboxMenu,
+            NSToolbarItem.Identifier.space,
+            NSToolbarItem.Identifier.separator
         ]
+        
+        // 锁图标工具栏项始终在允许的标识符列表中，但通过验证逻辑控制可见性
+        identifiers.append(NSToolbarItem.Identifier.lockPrivateNotes)
+        
+        return identifiers
     }
     
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        return [
-            .toggleSidebar,
-            .sidebarTrackingSeparator,
-            .flexibleSpace,
-            .newNote,
-            .newFolder,
-            .undo,
-            .redo,
-            .formatMenu,
-            .flexibleSpace,
-            .search,
-            .sync,
-            .onlineStatus,
-            .settings,
-            .login,
-            .timelineTrackingSeparator,
-            .share,
-            .toggleStar,
-            .delete,
-            .history,
-            .trash,
-            .noteOperations
+        var identifiers: [NSToolbarItem.Identifier] = [
+            NSToolbarItem.Identifier.toggleSidebar,
+            NSToolbarItem.Identifier.sidebarTrackingSeparator,
+            NSToolbarItem.Identifier.flexibleSpace,
+            NSToolbarItem.Identifier.newNote,
+            NSToolbarItem.Identifier.newFolder,
+            NSToolbarItem.Identifier.undo,
+            NSToolbarItem.Identifier.redo,
+            NSToolbarItem.Identifier.formatMenu,
+            NSToolbarItem.Identifier.flexibleSpace,
+            NSToolbarItem.Identifier.search,
+            NSToolbarItem.Identifier.sync,
+            NSToolbarItem.Identifier.onlineStatus,
+            NSToolbarItem.Identifier.settings,
+            NSToolbarItem.Identifier.login,
+            NSToolbarItem.Identifier.timelineTrackingSeparator,
+            NSToolbarItem.Identifier.share,
+            NSToolbarItem.Identifier.toggleStar,
+            NSToolbarItem.Identifier.delete,
+            NSToolbarItem.Identifier.history,
+            NSToolbarItem.Identifier.trash,
+            NSToolbarItem.Identifier.noteOperations
         ]
+        
+        // 只有在选中私密笔记文件夹且已解锁时才添加锁图标
+        let isPrivateFolder = viewModel?.selectedFolder?.id == "2"
+        let isUnlocked = viewModel?.isPrivateNotesUnlocked ?? false
+        if isPrivateFolder && isUnlocked {
+            identifiers.append(NSToolbarItem.Identifier.lockPrivateNotes)
+        }
+        
+        return identifiers
     }
     
     public func toolbarWillAddItem(_ notification: Notification) {
@@ -566,10 +671,28 @@ extension MainWindowController: NSToolbarDelegate {
         }
         
         if item.itemIdentifier == .search, let searchItem = item as? NSSearchToolbarItem {
-            searchItem.searchField.delegate = self
-            searchItem.searchField.target = self
-            searchItem.searchField.action = #selector(performSearch(_:))
-            currentSearchField = searchItem.searchField
+            // 创建自定义搜索字段
+            let customSearchField = CustomSearchField(frame: searchItem.searchField.frame)
+            customSearchField.delegate = self
+            customSearchField.target = self
+            customSearchField.action = #selector(performSearch(_:))
+            
+            // 设置视图模型
+            if let viewModel = viewModel {
+                customSearchField.setViewModel(viewModel)
+            }
+            
+            // 替换搜索项中的搜索字段
+            searchItem.searchField = customSearchField
+            currentSearchField = customSearchField
+            
+            // 为搜索框添加下拉菜单
+            setupSearchFieldMenu(for: customSearchField)
+            
+            // 确保搜索框菜单正确显示
+            customSearchField.sendsSearchStringImmediately = false
+            customSearchField.sendsWholeSearchString = true
+            customSearchField.maximumRecents = 10
         }
         
         if item.itemIdentifier == .share, let button = item.view as? NSButton {
@@ -718,6 +841,51 @@ extension MainWindowController: NSToolbarDelegate {
         alert.runModal()
     }
     
+    // MARK: - 测试按钮动作
+    
+    @objc func toggleTestOption1(_ sender: Any?) {
+        if let menuItem = sender as? NSMenuItem {
+            menuItem.state = menuItem.state == .on ? .off : .on
+            print("测试选项1状态: \(menuItem.state == .on ? "选中" : "未选中")")
+        }
+    }
+    
+    @objc func toggleTestOption2(_ sender: Any?) {
+        if let menuItem = sender as? NSMenuItem {
+            menuItem.state = menuItem.state == .on ? .off : .on
+            print("测试选项2状态: \(menuItem.state == .on ? "选中" : "未选中")")
+        }
+    }
+    
+    @objc func toggleTestOption3(_ sender: Any?) {
+        if let menuItem = sender as? NSMenuItem {
+            menuItem.state = menuItem.state == .on ? .off : .on
+            print("测试选项3状态: \(menuItem.state == .on ? "选中" : "未选中")")
+        }
+    }
+    
+    @objc func selectAllTestOptions(_ sender: Any?) {
+        print("全选测试选项")
+        // 这里应该更新菜单项状态，但由于菜单是动态创建的，需要其他方式处理
+        let alert = NSAlert()
+        alert.messageText = "测试功能"
+        alert.informativeText = "全选功能已触发（实际实现需要更新菜单项状态）"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+    }
+    
+    @objc func deselectAllTestOptions(_ sender: Any?) {
+        print("取消全选测试选项")
+        // 这里应该更新菜单项状态，但由于菜单是动态创建的，需要其他方式处理
+        let alert = NSAlert()
+        alert.messageText = "测试功能"
+        alert.informativeText = "取消全选功能已触发（实际实现需要更新菜单项状态）"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+    }
+    
 }
 
 // MARK: - NSWindowDelegate
@@ -762,10 +930,56 @@ extension MainWindowController: NSSearchFieldDelegate {
     }
     
     @objc func performSearch(_ sender: NSSearchField) {
-        if sender.stringValue.isEmpty {
-            return
-        }
+        // 无论搜索内容是否为空，都更新搜索文本
+        // 这样当用户清空搜索框并按Enter时，会结束搜索
         viewModel?.searchText = sender.stringValue
+    }
+    
+    public func controlTextDidBeginEditing(_ obj: Notification) {
+        print("[MainWindowController] controlTextDidBeginEditing被调用")
+        
+        // 当搜索框开始编辑（获得焦点）时，显示筛选菜单
+        if let searchField = obj.object as? NSSearchField {
+            print("[MainWindowController] 搜索框开始编辑: \(searchField)")
+            
+            if searchField == currentSearchField {
+                // 检查popover是否已经显示
+                if let popover = searchFilterMenuPopover, popover.isShown {
+                    print("[MainWindowController] popover已经显示，跳过重复调用")
+                    return
+                }
+                
+                print("[MainWindowController] 是当前搜索框，立即显示筛选菜单")
+                
+                // 只要光标在搜索框中就弹出菜单，不需要检查搜索框内容
+                print("[MainWindowController] 光标在搜索框中，立即显示筛选菜单")
+                self.showSearchFilterMenu(searchField)
+            } else {
+                print("[MainWindowController] 不是当前搜索框，忽略")
+            }
+        } else {
+            print("[MainWindowController] 通知对象不是搜索框: \(obj.object ?? "nil")")
+        }
+    }
+    
+    public func controlTextDidEndEditing(_ obj: Notification) {
+        print("[MainWindowController] controlTextDidEndEditing被调用")
+        
+        // 当搜索框结束编辑（失去焦点）时，收回筛选菜单
+        if let searchField = obj.object as? NSSearchField {
+            print("[MainWindowController] 搜索框结束编辑: \(searchField)")
+            
+            if searchField == currentSearchField {
+                print("[MainWindowController] 是当前搜索框，收回筛选菜单")
+                
+                // 如果popover正在显示，关闭它
+                if let popover = searchFilterMenuPopover, popover.isShown {
+                    print("[MainWindowController] popover正在显示，关闭它")
+                    popover.performClose(nil)
+                    searchFilterMenuPopover = nil
+                }
+            }
+        }
     }
 }
 
@@ -774,6 +988,8 @@ extension MainWindowController: NSSearchFieldDelegate {
 extension MainWindowController: NSMenuDelegate {
     
     public func menuNeedsUpdate(_ menu: NSMenu) {
+        print("[MainWindowController] menuNeedsUpdate被调用，菜单标题: \(menu.title)，菜单项数量: \(menu.items.count)")
+        
         // 更新在线状态菜单项
         for item in menu.items {
             if item.tag == 100 { // 在线状态项
@@ -782,6 +998,7 @@ extension MainWindowController: NSMenuDelegate {
             }
         }
     }
+    
 }
 
 // MARK: - NSUserInterfaceValidations
@@ -929,6 +1146,16 @@ extension MainWindowController: NSUserInterfaceValidations {
             return true // 测试菜单项总是可用
         }
         
+        // 验证锁定私密笔记按钮
+        if item.action == #selector(lockPrivateNotes(_:)) {
+            // 只有在以下条件满足时才显示锁图标：
+            // 1. 当前选中的文件夹是私密笔记文件夹 (folderId == "2")
+            // 2. 私密笔记已解锁 (isPrivateNotesUnlocked == true)
+            let isPrivateFolder = viewModel?.selectedFolder?.id == "2"
+            let isUnlocked = viewModel?.isPrivateNotesUnlocked ?? false
+            return isPrivateFolder && isUnlocked
+        }
+        
         // 默认返回true，确保所有按钮在溢出菜单中可用
         return true
     }
@@ -1063,106 +1290,64 @@ extension MainWindowController {
         settingsWindowController.window?.makeKeyAndOrderFront(nil)
     }
     
-    @objc func showLogin(_ sender: Any?) {
-        // 显示登录窗口
-        print("显示登录窗口 - 开始")
+    @objc public func showLogin(_ sender: Any?) {
+        // 显示登录sheet
+        print("显示登录sheet - 开始")
         
-        // 如果窗口已经存在，则激活它
-        if let existingController = loginWindowController, let existingWindow = existingController.window {
-            if existingWindow.isVisible {
-                existingWindow.makeKeyAndOrderFront(sender)
-                NSApp.activate(ignoringOtherApps: true)
-                print("激活现有登录窗口")
-                return
-            } else {
-                // 窗口存在但不可见，重新显示
-                print("重新显示已存在的登录窗口")
-            }
+        guard let window = window else {
+            print("错误：主窗口不存在，无法显示登录sheet")
+            return
         }
         
-        // 创建新的登录窗口控制器
-        let newLoginWindowController = LoginWindowController(viewModel: viewModel)
-        self.loginWindowController = newLoginWindowController
-        print("登录窗口控制器创建完成")
+        // 创建登录视图
+        let loginView = LoginView(viewModel: viewModel ?? NotesViewModel())
         
-        // 确保窗口正确配置
-        if let window = newLoginWindowController.window {
-            // 设置窗口层级
-            window.level = .floating
-            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
-            
-            // 确保窗口在屏幕中央
-            window.center()
-            
-            // 显示窗口
-            newLoginWindowController.showWindow(sender)
-            print("showWindow调用完成")
-            
-            // 激活窗口
-            window.makeKeyAndOrderFront(sender)
-            print("makeKeyAndOrderFront调用完成")
-            
-            // 确保窗口获得焦点
-            NSApp.activate(ignoringOtherApps: true)
-            
-            // 添加窗口关闭时的清理
-            window.delegate = self
-        } else {
-            print("错误：登录窗口创建失败，window为nil")
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: loginView)
+        
+        // 创建sheet窗口
+        let sheetWindow = NSWindow(contentViewController: hostingController)
+        sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
+        sheetWindow.title = "登录"
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.titleVisibility = .hidden
+        
+        // 显示sheet
+        window.beginSheet(sheetWindow) { response in
+            print("登录sheet关闭，响应: \(response)")
         }
         
-        print("显示登录窗口 - 完成")
+        print("显示登录sheet - 完成")
     }
     
-    @objc func showCookieRefresh(_ sender: Any?) {
-        // 显示Cookie刷新窗口
-        print("显示Cookie刷新窗口 - 开始")
+    @objc public func showCookieRefresh(_ sender: Any?) {
+        // 显示Cookie刷新sheet
+        print("显示Cookie刷新sheet - 开始")
         
-        // 如果窗口已经存在，则激活它
-        if let existingController = cookieRefreshWindowController, let existingWindow = existingController.window {
-            if existingWindow.isVisible {
-                existingWindow.makeKeyAndOrderFront(sender)
-                NSApp.activate(ignoringOtherApps: true)
-                print("激活现有Cookie刷新窗口")
-                return
-            } else {
-                // 窗口存在但不可见，重新显示
-                print("重新显示已存在的Cookie刷新窗口")
-            }
+        guard let window = window else {
+            print("错误：主窗口不存在，无法显示Cookie刷新sheet")
+            return
         }
         
-        // 创建新的Cookie刷新窗口控制器
-        let newCookieRefreshWindowController = CookieRefreshWindowController(viewModel: viewModel)
-        self.cookieRefreshWindowController = newCookieRefreshWindowController
-        print("Cookie刷新窗口控制器创建完成")
+        // 创建Cookie刷新视图
+        let cookieRefreshView = CookieRefreshView(viewModel: viewModel ?? NotesViewModel())
         
-        // 确保窗口正确配置
-        if let window = newCookieRefreshWindowController.window {
-            // 设置窗口层级
-            window.level = .floating
-            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
-            
-            // 确保窗口在屏幕中央
-            window.center()
-            
-            // 显示窗口
-            newCookieRefreshWindowController.showWindow(sender)
-            print("showWindow调用完成")
-            
-            // 激活窗口
-            window.makeKeyAndOrderFront(sender)
-            print("makeKeyAndOrderFront调用完成")
-            
-            // 确保窗口获得焦点
-            NSApp.activate(ignoringOtherApps: true)
-            
-            // 添加窗口关闭时的清理
-            window.delegate = self
-        } else {
-            print("错误：Cookie刷新窗口创建失败，window为nil")
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: cookieRefreshView)
+        
+        // 创建sheet窗口
+        let sheetWindow = NSWindow(contentViewController: hostingController)
+        sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
+        sheetWindow.title = "刷新Cookie"
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.titleVisibility = .hidden
+        
+        // 显示sheet
+        window.beginSheet(sheetWindow) { response in
+            print("Cookie刷新sheet关闭，响应: \(response)")
         }
         
-        print("显示Cookie刷新窗口 - 完成")
+        print("显示Cookie刷新sheet - 完成")
     }
     
     @objc func showOfflineOperations(_ sender: Any?) {
@@ -1204,8 +1389,8 @@ extension MainWindowController {
         // 这里应该调用编辑器API
     }
     
-    @objc func showHistory(_ sender: Any?) {
-        print("显示历史记录 - 开始")
+    @objc public func showHistory(_ sender: Any?) {
+        print("显示历史记录sheet - 开始")
         
         // 检查是否有选中的笔记
         guard let note = viewModel?.selectedNote else {
@@ -1218,101 +1403,59 @@ extension MainWindowController {
             return
         }
         
-        // 如果窗口已经存在，则激活它
-        if let existingController = historyWindowController, let existingWindow = existingController.window {
-            if existingWindow.isVisible {
-                existingWindow.makeKeyAndOrderFront(sender)
-                NSApp.activate(ignoringOtherApps: true)
-                print("激活现有历史记录窗口")
-                return
-            } else {
-                // 窗口存在但不可见，重新显示
-                print("重新显示已存在的历史记录窗口")
-            }
+        guard let window = window else {
+            print("错误：主窗口不存在，无法显示历史记录sheet")
+            return
         }
         
-        // 创建新的历史记录窗口控制器
-        let newHistoryWindowController = HistoryWindowController(viewModel: viewModel!, noteId: note.id)
-        self.historyWindowController = newHistoryWindowController
-        print("历史记录窗口控制器创建完成")
+        // 创建历史记录视图
+        let historyView = NoteHistoryView(viewModel: viewModel ?? NotesViewModel(), noteId: note.id)
         
-        // 确保窗口正确配置
-        if let window = newHistoryWindowController.window {
-            // 设置窗口层级
-            window.level = .floating
-            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
-            
-            // 确保窗口在屏幕中央
-            window.center()
-            
-            // 显示窗口
-            newHistoryWindowController.showWindow(sender)
-            print("showWindow调用完成")
-            
-            // 激活窗口
-            window.makeKeyAndOrderFront(sender)
-            print("makeKeyAndOrderFront调用完成")
-            
-            // 确保窗口获得焦点
-            NSApp.activate(ignoringOtherApps: true)
-            
-            // 添加窗口关闭时的清理
-            window.delegate = self
-        } else {
-            print("错误：历史记录窗口创建失败，window为nil")
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: historyView)
+        
+        // 创建sheet窗口
+        let sheetWindow = NSWindow(contentViewController: hostingController)
+        sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
+        sheetWindow.title = "历史记录"
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.titleVisibility = .hidden
+        
+        // 显示sheet
+        window.beginSheet(sheetWindow) { response in
+            print("历史记录sheet关闭，响应: \(response)")
         }
         
-        print("显示历史记录 - 完成")
+        print("显示历史记录sheet - 完成")
     }
     
-    @objc func showTrash(_ sender: Any?) {
-        print("显示回收站 - 开始")
+    @objc public func showTrash(_ sender: Any?) {
+        print("显示回收站sheet - 开始")
         
-        // 如果窗口已经存在，则激活它
-        if let existingController = trashWindowController, let existingWindow = existingController.window {
-            if existingWindow.isVisible {
-                existingWindow.makeKeyAndOrderFront(sender)
-                NSApp.activate(ignoringOtherApps: true)
-                print("激活现有回收站窗口")
-                return
-            } else {
-                // 窗口存在但不可见，重新显示
-                print("重新显示已存在的回收站窗口")
-            }
+        guard let window = window else {
+            print("错误：主窗口不存在，无法显示回收站sheet")
+            return
         }
         
-        // 创建新的回收站窗口控制器
-        let newTrashWindowController = TrashWindowController(viewModel: viewModel!)
-        self.trashWindowController = newTrashWindowController
-        print("回收站窗口控制器创建完成")
+        // 创建回收站视图
+        let trashView = TrashView(viewModel: viewModel ?? NotesViewModel())
         
-        // 确保窗口正确配置
-        if let window = newTrashWindowController.window {
-            // 设置窗口层级
-            window.level = .floating
-            window.collectionBehavior = [.managed, .fullScreenAuxiliary]
-            
-            // 确保窗口在屏幕中央
-            window.center()
-            
-            // 显示窗口
-            newTrashWindowController.showWindow(sender)
-            print("showWindow调用完成")
-            
-            // 激活窗口
-            window.makeKeyAndOrderFront(sender)
-            print("makeKeyAndOrderFront调用完成")
-            
-            // 确保窗口获得焦点
-            NSApp.activate(ignoringOtherApps: true)
-            
-            // 添加窗口关闭时的清理
-            window.delegate = self
-        } else {
-            print("错误：回收站窗口创建失败，window为nil")
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: trashView)
+        
+        // 创建sheet窗口
+        let sheetWindow = NSWindow(contentViewController: hostingController)
+        sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
+        sheetWindow.title = "回收站"
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.titleVisibility = .hidden
+        
+        // 显示sheet
+        window.beginSheet(sheetWindow) { response in
+            print("回收站sheet关闭，响应: \(response)")
         }
         
-        print("显示回收站 - 完成")
+        print("显示回收站sheet - 完成")
     }
     
     // MARK: - 笔记操作菜单动作方法
@@ -1454,6 +1597,29 @@ extension MainWindowController {
             alert.addButton(withTitle: "确定")
             alert.runModal()
         }
+    }
+    
+    // MARK: - 锁定私密笔记动作
+    
+    @objc func lockPrivateNotes(_ sender: Any?) {
+        print("锁定私密笔记")
+        
+        // 锁定私密笔记
+        viewModel?.isPrivateNotesUnlocked = false
+        
+        // 可选：清空选中的笔记
+        viewModel?.selectedNote = nil
+        
+        // 显示提示信息
+        let alert = NSAlert()
+        alert.messageText = "私密笔记已锁定"
+        alert.informativeText = "私密笔记已锁定，需要重新输入密码才能访问。"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+        
+        // 刷新工具栏验证
+        makeToolbarValidate()
     }
     
     // MARK: - 侧边栏切换
@@ -1831,22 +1997,72 @@ extension MainWindowController {
             }
             .store(in: &cancellables)
         
+        // 监听选中文件夹变化，更新工具栏
+        viewModel.$selectedFolder
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                // 当选中文件夹变化时，重新配置工具栏以显示/隐藏锁图标
+                self?.reconfigureToolbar()
+            }
+            .store(in: &cancellables)
+        
+        // 监听私密笔记解锁状态变化，更新工具栏
+        viewModel.$isPrivateNotesUnlocked
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                // 当私密笔记解锁状态变化时，重新配置工具栏以显示/隐藏锁图标
+                self?.reconfigureToolbar()
+            }
+            .store(in: &cancellables)
+        
+        // 监听搜索文本变化，同步到搜索框UI并更新窗口标题
+        viewModel.$searchText
+            .receive(on: RunLoop.main)
+            .sink { [weak self] searchText in
+                // 当ViewModel的searchText变化时，更新搜索框的UI
+                if let searchField = self?.currentSearchField,
+                   searchField.stringValue != searchText {
+                    searchField.stringValue = searchText
+                }
+                
+                // 更新窗口标题和副标题
+                self?.updateWindowTitle(for: viewModel.selectedFolder)
+            }
+            .store(in: &cancellables)
+        
         print("[MainWindowController] 状态监听器已设置")
+    }
+    
+    /// 重新配置工具栏
+    private func reconfigureToolbar() {
+        // 简单的方法：只验证工具栏项，让工具栏根据toolbarDefaultItemIdentifiers动态更新
+        makeToolbarValidate()
     }
     
     /// 更新窗口标题和副标题
     private func updateWindowTitle(for folder: Folder?) {
-        guard let window = window else { return }
+        guard let window = window, let viewModel = viewModel else { return }
         
-        // 设置主标题为选中的文件夹名称
-        let folderName = folder?.name ?? "笔记"
-        window.title = folderName
-        
-        // 计算当前文件夹中的笔记数量
-        let noteCount = getNoteCount(for: folder)
-        
-        // 设置副标题为笔记数量
-        window.subtitle = "\(noteCount)个笔记"
+        // 检查是否有搜索文本
+        if !viewModel.searchText.isEmpty {
+            // 搜索状态：取消选中文件夹，标题改为"搜索"
+            viewModel.selectedFolder = nil
+            window.title = "搜索"
+            
+            // 副标题显示找到的笔记数量
+            let foundCount = viewModel.filteredNotes.count
+            window.subtitle = "找到\(foundCount)个笔记"
+        } else {
+            // 正常状态：设置主标题为选中的文件夹名称
+            let folderName = folder?.name ?? "笔记"
+            window.title = folderName
+            
+            // 计算当前文件夹中的笔记数量
+            let noteCount = getNoteCount(for: folder)
+            
+            // 设置副标题为笔记数量
+            window.subtitle = "\(noteCount)个笔记"
+        }
     }
     
     /// 获取指定文件夹中的笔记数量
@@ -1871,6 +2087,122 @@ extension MainWindowController {
             return viewModel.notes.count
         }
     }
+    
+    // MARK: - 搜索框菜单
+    
+    /// 为搜索框设置下拉菜单（使用SwiftUI popover）
+    private func setupSearchFieldMenu(for searchField: NSSearchField) {
+        print("[MainWindowController] 设置搜索框菜单（SwiftUI popover）")
+        
+        // 设置搜索框属性以确保菜单正确工作
+        searchField.sendsSearchStringImmediately = false
+        searchField.sendsWholeSearchString = true
+        
+        // 移除旧的NSMenu设置，因为我们使用popover
+        searchField.menu = nil
+        
+        // 设置搜索框的点击事件处理 - 按Enter时执行搜索，而不是弹出菜单
+        searchField.target = self
+        searchField.action = #selector(performSearch(_:))
+        
+        // 重要：确保搜索框有正确的行为设置
+        searchField.bezelStyle = .roundedBezel
+        searchField.controlSize = .regular
+        
+        // 添加调试日志
+        print("[MainWindowController] 搜索框菜单已设置为使用SwiftUI popover，搜索框: \(searchField)")
+    }
+    
+    
+    
+    // MARK: - 搜索筛选菜单动作
+    
+    @objc func showSearchFilterMenu(_ sender: Any?) {
+        print("[MainWindowController] 显示搜索筛选菜单 - 开始")
+        
+        // 如果popover已经显示，则关闭它
+        if let popover = searchFilterMenuPopover, popover.isShown {
+            print("[MainWindowController] popover已经显示，关闭它")
+            popover.performClose(sender)
+            searchFilterMenuPopover = nil
+            return
+        }
+        
+        // 确保有viewModel
+        guard let viewModel = viewModel else {
+            print("[MainWindowController] 错误：viewModel不存在")
+            return
+        }
+        
+        print("[MainWindowController] 创建SwiftUI搜索筛选菜单视图")
+        
+        // 创建SwiftUI搜索筛选菜单视图
+        let searchFilterMenuView = SearchFilterMenuContent(viewModel: viewModel)
+        
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: searchFilterMenuView)
+        hostingController.view.frame = NSRect(x: 0, y: 0, width: 200, height: 190)
+        
+        print("[MainWindowController] 创建popover")
+        
+        // 创建popover
+        let popover = NSPopover()
+        popover.contentSize = NSSize(width: 200, height: 190)
+        // 使用.semitransient行为，这样用户与搜索框交互时不会自动关闭
+        popover.behavior = .semitransient
+        popover.animates = true
+        popover.contentViewController = hostingController
+        
+        // 存储popover引用
+        searchFilterMenuPopover = popover
+        
+        // 显示popover
+        if let searchField = sender as? NSSearchField {
+            print("[MainWindowController] 显示popover在搜索框: \(searchField)")
+            
+            // 方案三：参考格式菜单的实现，使用.maxY并调整positioningRect
+            // 格式菜单使用.maxY显示在按钮上方，搜索框也应该类似
+            
+            // 获取搜索框的bounds
+            let bounds = searchField.bounds
+            print("[MainWindowController] 搜索框bounds: \(bounds)")
+            
+            // 创建一个positioningRect，使用搜索框的bounds
+            let positioningRect = NSRect(x: 0, y: 0, width: bounds.width, height: bounds.height)
+            
+            // 使用.maxY（显示在搜索框上方），与格式菜单保持一致
+            popover.show(relativeTo: positioningRect, of: searchField, preferredEdge: .maxY)
+            print("[MainWindowController] popover显示完成（使用.maxY边缘，与格式菜单一致）")
+        } else if let window = window, let contentView = window.contentView {
+            print("[MainWindowController] 显示popover在窗口中央")
+            // 如果没有搜索框，显示在窗口中央
+            popover.show(relativeTo: contentView.bounds, of: contentView, preferredEdge: .maxY)
+        } else {
+            print("[MainWindowController] 错误：无法显示popover，没有搜索框或窗口")
+        }
+    }
+    
+    /// 检查是否有任何筛选选项被启用
+    private func hasAnySearchFilter() -> Bool {
+        guard let viewModel = viewModel else { return false }
+        
+        return viewModel.searchFilterHasTags ||
+               viewModel.searchFilterHasChecklist ||
+               viewModel.searchFilterHasImages ||
+               viewModel.searchFilterHasAudio ||
+               viewModel.searchFilterIsPrivate
+    }
+    
+    /// 清除所有筛选选项
+    private func clearAllSearchFilters() {
+        viewModel?.searchFilterHasTags = false
+        viewModel?.searchFilterHasChecklist = false
+        viewModel?.searchFilterHasImages = false
+        viewModel?.searchFilterHasAudio = false
+        viewModel?.searchFilterIsPrivate = false
+    }
+    
+    
 }
 
 #endif

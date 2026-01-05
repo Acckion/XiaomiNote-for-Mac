@@ -10,25 +10,52 @@ struct LoginView: View {
     @State private var showError: Bool = false
     @State private var errorMessage: String = ""
     
+    // 自定义关闭方法，用于AppKit环境
+    private func closeSheet() {
+        // 尝试使用dismiss环境变量
+        dismiss()
+        
+        // 如果dismiss无效，尝试通过NSApp关闭窗口
+        DispatchQueue.main.async {
+            if let window = NSApp.keyWindow,
+               let sheetParent = window.sheetParent {
+                sheetParent.endSheet(window)
+            }
+        }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
-            // 标题栏
+            // 标题栏 - 适配sheet样式
             HStack {
                 Text("登录小米账号")
                     .font(.headline)
-                    .padding(.leading, 16)
+                    .fontWeight(.semibold)
+                    .padding(.leading, 20)
                 
                 Spacer()
                 
-                Button("关闭") {
-                    dismiss()
+                Button(action: {
+                    closeSheet()
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 .keyboardShortcut(.escape, modifiers: [])
                 .padding(.trailing, 16)
+                .help("关闭")
             }
-            .padding(.vertical, 12)
-            .background(Color(NSColor.windowBackgroundColor))
-            .border(Color(NSColor.separatorColor), width: 0.5)
+            .padding(.vertical, 16)
+            .background(Color(NSColor.controlBackgroundColor))
+            .overlay(
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Color(NSColor.separatorColor)),
+                alignment: .bottom
+            )
             
             // 使用ZStack确保WebView始终被渲染
             ZStack {
@@ -64,7 +91,7 @@ struct LoginView: View {
                             .multilineTextAlignment(.center)
                         
                         Button("开始使用") {
-                            dismiss()
+                            closeSheet()
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
@@ -92,14 +119,15 @@ struct LoginView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 800, height: 600)
+        .frame(minWidth: 600, idealWidth: 700, maxWidth: 800, minHeight: 500, idealHeight: 550, maxHeight: 600)
+        .padding(.top, 1) // 避免标题栏下边框被裁剪
         .alert("登录失败", isPresented: $showError) {
             Button("重试") {
                 isLoading = true
                 isLoggedIn = false
             }
             Button("取消", role: .cancel) {
-                dismiss()
+                closeSheet()
             }
         } message: {
             Text(errorMessage)

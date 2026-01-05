@@ -18,6 +18,7 @@
 		13C2E29E1CC48D2A2CA9CA81 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91CC7BF442FCE072233B5AB0 /* LoginView.swift */; };
 		146478DA95EEA59DA6FE1F34 /* WebEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 378E040925BFBEEC41D1F40A /* WebEditorView.swift */; };
 		18021F0E3CE77ABC9062D4DD /* OfflineOperationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D1C6CACE3C147825607106 /* OfflineOperationQueue.swift */; };
+		1A473C53475065DFD3383109 /* CustomSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83AE8E2FE1FC6E3FC320F069 /* CustomSearchField.swift */; };
 		1B08E6568B52420DBD7DB1F6 /* xml-to-html.js in Resources */ = {isa = PBXBuildFile; fileRef = E53473BAEDF5B80BBCE0E138 /* xml-to-html.js */; };
 		1C98E4172C1080E1C40E176D /* DebugSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA74542228ED40BCAD96FA2C /* DebugSettingsView.swift */; };
 		1CC3DC97AB086F3C1CD942E6 /* WebEditorWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 411C0EC02942FC9B597446F5 /* WebEditorWrapper.swift */; };
@@ -82,7 +83,6 @@
 		B78FE8A0A0437EAD2E58CB2C /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE64CAF7AD43892DB9E8DB65 /* SidebarView.swift */; };
 		B91FEF55308BEE0A4750F388 /* MainWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3349561297E3C10B46705BF /* MainWindowState.swift */; };
 		B9F5E07B1D9B83652901C37E /* SearchFilterMenuContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD8C1001FB4FB23834805D0E /* SearchFilterMenuContent.swift */; };
-		BC6E26E46E3EBF43C498C26B /* SearchFilterPopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C28B3FC5950826666FAF442 /* SearchFilterPopoverView.swift */; };
 		C1B84C07AC8FBABB37CEE4C4 /* NSWindow+MiNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = A340F0BBAB9A14D831D150E3 /* NSWindow+MiNote.swift */; };
 		C2A0F6905AFAA72CCE05EC47 /* NetworkLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77AED5D148C784D8F4BD93FC /* NetworkLogView.swift */; };
 		C75CB329343269121A0FFDA6 /* PrivateNotesVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC2BEB9A968A92010516E864 /* PrivateNotesVerificationView.swift */; };
@@ -141,7 +141,6 @@
 		18E5BA8D52CF04BD393F0F82 /* WebFormatMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebFormatMenuView.swift; sourceTree = "<group>"; };
 		19CE08A1CDCF94C551D20E51 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		1A7658B8BAA53B9D317693F7 /* editor-init.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "editor-init.js"; sourceTree = "<group>"; };
-		1C28B3FC5950826666FAF442 /* SearchFilterPopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFilterPopoverView.swift; sourceTree = "<group>"; };
 		1C9C97959BDB8637573921CD /* SidebarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewController.swift; sourceTree = "<group>"; };
 		1DFA71C26665592AA8D75F7D /* SidebarWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWindowState.swift; sourceTree = "<group>"; };
 		21ABB7492D465FD413582C52 /* editor.html.backup */ = {isa = PBXFileReference; path = editor.html.backup; sourceTree = "<group>"; };
@@ -183,6 +182,7 @@
 		7DA47D2142912B634F2DEA0B /* NewNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewNoteView.swift; sourceTree = "<group>"; };
 		7E5AF40462266FD02BA46ED8 /* NotesListWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListWindowState.swift; sourceTree = "<group>"; };
 		7E78992CF7765CE27B05A0BF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		83AE8E2FE1FC6E3FC320F069 /* CustomSearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSearchField.swift; sourceTree = "<group>"; };
 		88A1BF6A6690262DB8E159F5 /* NotesListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListViewController.swift; sourceTree = "<group>"; };
 		893322552395E9A65891443B /* NoteHistoryVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteHistoryVersion.swift; sourceTree = "<group>"; };
 		898C9309B77A6A5420C38CD3 /* SilentCookieRefreshManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilentCookieRefreshManager.swift; sourceTree = "<group>"; };
@@ -300,6 +300,7 @@
 			isa = PBXGroup;
 			children = (
 				59DEC8D390B4867A2051FFFB /* CookieRefreshWindowController.swift */,
+				83AE8E2FE1FC6E3FC320F069 /* CustomSearchField.swift */,
 				E407CC877E22C8B1EE63BCD4 /* DebugWindowController.swift */,
 				37A86A59ECC1CD234004D7F5 /* HistoryWindowController.swift */,
 				AC94F9E7A1AF6D0B9354251D /* LoginWindowController.swift */,
@@ -452,7 +453,6 @@
 				2D4B088A9F4B3C102F8F3399 /* PrivateNotesPasswordInputDialogView.swift */,
 				BC2BEB9A968A92010516E864 /* PrivateNotesVerificationView.swift */,
 				CD8C1001FB4FB23834805D0E /* SearchFilterMenuContent.swift */,
-				1C28B3FC5950826666FAF442 /* SearchFilterPopoverView.swift */,
 				51F48D25699308772079F041 /* SettingsView.swift */,
 				AE64CAF7AD43892DB9E8DB65 /* SidebarView.swift */,
 				B2A3E9E3573AFD9E5D4281F1 /* TitleEditorView.swift */,
@@ -671,6 +671,7 @@
 				5281CCE87A993A67F39B2255 /* ContentView.swift in Sources */,
 				377E38858F86E35D9CE9C101 /* CookieRefreshView.swift in Sources */,
 				9F1AE4438B65F5750D73FF03 /* CookieRefreshWindowController.swift in Sources */,
+				1A473C53475065DFD3383109 /* CustomSearchField.swift in Sources */,
 				13A3D0BE46C8453AE5A5AC57 /* DatabaseService.swift in Sources */,
 				1C98E4172C1080E1C40E176D /* DebugSettingsView.swift in Sources */,
 				4A9DE57D1C6BA3512899D02A /* DebugWindowController.swift in Sources */,
@@ -715,7 +716,6 @@
 				C75CB329343269121A0FFDA6 /* PrivateNotesVerificationView.swift in Sources */,
 				AF1776F02B8D6C2D5F5DCF08 /* SaveQueueManager.swift in Sources */,
 				B9F5E07B1D9B83652901C37E /* SearchFilterMenuContent.swift in Sources */,
-				BC6E26E46E3EBF43C498C26B /* SearchFilterPopoverView.swift in Sources */,
 				3E8E6AEEE5DCC7DFAD1CCBD9 /* SettingsView.swift in Sources */,
 				9B39AA57D83C6845F2C865A7 /* SettingsWindowController.swift in Sources */,
 				36EDAD7FCB59ED5DE869B720 /* SidebarHostingController.swift in Sources */,
@@ -835,6 +835,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -945,6 +946,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_DEBUG_DYLIB = YES;

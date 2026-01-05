@@ -51,6 +51,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.minote.MiNoteMac
         MACOSX_DEPLOYMENT_TARGET: "26.0"
         SWIFT_VERSION: "6.0"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
       configs:
         Debug:
           SWIFT_OPTIMIZATION_LEVEL: -Onone
@@ -64,7 +65,7 @@ targets:
         CFBundleName: "小米笔记"
         CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
         CFBundleVersion: "1"
-        CFBundleShortVersionString: "2.0.0"
+        CFBundleShortVersionString: "2.1.0"
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: "Copyright © 2025"
         NSPrincipalClass: AppDelegate

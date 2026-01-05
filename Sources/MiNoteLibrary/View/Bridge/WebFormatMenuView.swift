@@ -35,8 +35,8 @@ struct WebFormatMenuView: View {
         case subtitle = "二级标题"      // <mid-size>
         case subheading = "三级标题"   // <h3-size>
         case body = "正文"              // 普通文本
-        case bulletList = "无序列表"    // <bullet>
-        case numberedList = "有序列表"  // <order>
+        case bulletList = "•  无序列表"    // <bullet>
+        case numberedList = "1. 有序列表"  // <order>
         
         var displayName: String {
             return rawValue
@@ -74,9 +74,8 @@ struct WebFormatMenuView: View {
                 Button(action: {
                     handleItalicToggle()
                 }) {
-                    Text("I")
-                        .font(.system(size: 14, weight: .regular))
-                        .italic()
+                    Image(systemName: "italic")
+                        .font(.system(size: 16))
                         .foregroundColor(context.isItalic ? .white : .primary)
                         .frame(width: 32, height: 32)
                         .background(context.isItalic ? Color.yellow : Color.clear)
@@ -152,7 +151,7 @@ struct WebFormatMenuView: View {
                             }
                             
                             Text(style.displayName)
-                                .font(.system(size: 13))
+                                .font(fontForStyle(style))
                                 .foregroundColor(.primary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -165,40 +164,42 @@ struct WebFormatMenuView: View {
                 }
             }
             
-            // 块引用上方的分割线
+            // 分割线（文本样式列表和引用块之间）
             Divider()
             
             // 引用块（可勾选）
             // 注意：需要添加 isInQuote 状态到 WebEditorContext
-            Button(action: {
-                handleBlockQuoteToggle()
-            }) {
-                HStack {
-                    // 勾选标记（根据编辑器状态动态显示）
-                    if context.isInQuote {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 12))
-                            .foregroundColor(.yellow)
-                            .frame(width: 20, alignment: .leading)
-                    } else {
-                        // 当未选中时显示空白占位符
-                        Color.clear
-                            .frame(width: 20, alignment: .leading)
+            VStack(spacing: 0) {
+                Button(action: {
+                    handleBlockQuoteToggle()
+                }) {
+                    HStack {
+                        // 勾选标记（根据编辑器状态动态显示）
+                        if context.isInQuote {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 12))
+                                .foregroundColor(.yellow)
+                                .frame(width: 20, alignment: .leading)
+                        } else {
+                            // 当未选中时显示空白占位符
+                            Color.clear
+                                .frame(width: 20, alignment: .leading)
+                        }
+                        
+                        Text("引用块")
+                            .font(.system(size: 13))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    
-                    Text("引用块")
-                        .font(.system(size: 13))
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 0)
+                    .background(context.isInQuote ? Color.yellow.opacity(0.1) : Color.clear)
+                    .contentShape(Rectangle())
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(context.isInQuote ? Color.yellow.opacity(0.1) : Color.clear)
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
             
-            // 块引用下方的分割线
+            // 分割线（引用块和对齐按钮组之间）
             Divider()
             
             // 对齐按钮组（居左、居中、居右）
@@ -246,9 +247,6 @@ struct WebFormatMenuView: View {
             .padding(.vertical, 8)
         }
         .frame(width: 200)
-        .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(8)
-        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         .onChange(of: context.isBold) { oldValue, newValue in
             print("🔄 [WebFormatMenuView] 加粗状态变化: \(oldValue) -> \(newValue)")
         }
@@ -369,6 +367,22 @@ struct WebFormatMenuView: View {
     private func handleHighlightToggle() {
         context.toggleHighlight()
         onFormatAction?(.highlight)
+    }
+    
+    /// 根据样式返回对应的字体
+    private func fontForStyle(_ style: TextStyle) -> Font {
+        switch style {
+        case .title:
+            return .system(size: 16, weight: .bold)
+        case .subtitle:
+            return .system(size: 14, weight: .semibold)
+        case .subheading:
+            return .system(size: 13, weight: .medium)
+        case .body:
+            return .system(size: 13)
+        case .bulletList, .numberedList:
+            return .system(size: 13)
+        }
     }
     
     #Preview {

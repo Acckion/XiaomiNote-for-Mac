@@ -21,31 +21,52 @@ struct CookieRefreshView: View {
     @State private var errorMessage: String = ""
     @State private var isCookieRefreshed: Bool = false
     
+    // 自定义关闭方法，用于AppKit环境
+    private func closeSheet() {
+        // 尝试使用dismiss环境变量
+        dismiss()
+        
+        // 如果dismiss无效，尝试通过NSApp关闭窗口
+        DispatchQueue.main.async {
+            if let window = NSApp.keyWindow,
+               let sheetParent = window.sheetParent {
+                sheetParent.endSheet(window)
+            }
+        }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
-
+            // 标题栏 - 适配sheet样式
             VStack(spacing: 0) {
-            HStack {
-                Text("刷新Cookie")
-                    .font(.headline)
-                    .padding(.leading, 16)
-                
-                Spacer()
-                
-                Button("关闭") {
-                    dismiss()
+                HStack {
+                    Text("刷新Cookie")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .padding(.leading, 20)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        closeSheet()
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut(.escape, modifiers: [])
+                    .padding(.trailing, 16)
+                    .help("关闭")
                 }
-                .keyboardShortcut(.escape, modifiers: [])
-                .padding(.trailing, 16)
-            }
-            .padding(.vertical, 12)
+                .padding(.vertical, 16)
                 
-
                 HStack {
                     Text("点击[使用小米账号登录]以刷新Cookie")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .padding(.leading, 16)
+                        .padding(.leading, 20)
                     Spacer()
                     
                     // 自动点击按钮
@@ -56,10 +77,15 @@ struct CookieRefreshView: View {
                     .padding(.trailing, 16)
                     .help("自动点击页面上的'使用小米账号登录'按钮")
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, 12)
             }
-            .background(Color(NSColor.windowBackgroundColor))
-            .border(Color(NSColor.separatorColor), width: 0.5)
+            .background(Color(NSColor.controlBackgroundColor))
+            .overlay(
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Color(NSColor.separatorColor)),
+                alignment: .bottom
+            )
             
             // 使用ZStack确保WebView始终被渲染
             ZStack {
@@ -92,7 +118,7 @@ struct CookieRefreshView: View {
                             .multilineTextAlignment(.center)
                         
                         Button("完成") {
-                            dismiss()
+                            closeSheet()
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
@@ -120,14 +146,15 @@ struct CookieRefreshView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 960, height: 540)
+        .frame(minWidth: 700, idealWidth: 800, maxWidth: 900, minHeight: 450, idealHeight: 500, maxHeight: 550)
+        .padding(.top, 1) // 避免标题栏下边框被裁剪
         .alert("刷新失败", isPresented: $showError) {
             Button("重试") {
                 isLoading = true
                 isCookieRefreshed = false
             }
             Button("取消", role: .cancel) {
-                dismiss()
+                closeSheet()
             }
         } message: {
             Text(errorMessage)
