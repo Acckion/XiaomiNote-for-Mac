@@ -9,10 +9,10 @@ class MenuManager {
     // MARK: - 属性
     
     /// 应用程序委托的弱引用（用于菜单动作的目标）
-    private weak var appDelegate: AppDelegate?
+    internal weak var appDelegate: AppDelegate?
     
     /// 主窗口控制器的弱引用
-    private weak var mainWindowController: MainWindowController?
+    internal weak var mainWindowController: MainWindowController?
     
     // MARK: - 初始化
     
@@ -33,13 +33,10 @@ class MenuManager {
     ///   - appDelegate: 应用程序委托
     ///   - mainWindowController: 主窗口控制器
     func updateReferences(appDelegate: AppDelegate?, mainWindowController: MainWindowController?) {
-        // 注意：由于 appDelegate 和 mainWindowController 是 weak 引用，
-        // 我们可以直接重新赋值
-        // 这里我们使用类型转换来访问私有属性
-        // 实际上，我们需要修改属性为 internal 或添加设置方法
-        // 为了简化，我们假设 MenuManager 在初始化后不需要更新这些引用
-        // 如果需要更新，应该重新创建 MenuManager 实例
-        print("菜单管理器引用更新（注意：当前实现不支持更新 weak 引用）")
+        // 更新弱引用
+        self.appDelegate = appDelegate
+        self.mainWindowController = mainWindowController
+        print("菜单管理器引用更新完成")
     }
     
     /// 设置应用程序菜单
