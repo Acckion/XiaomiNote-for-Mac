@@ -11,7 +11,6 @@ import AppKit
 import SwiftUI
 import Combine
 import os
-import MiNoteLibrary
 
 /// 主窗口控制器
 /// 负责管理主窗口和工具栏

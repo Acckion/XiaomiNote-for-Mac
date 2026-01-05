@@ -1,6 +1,5 @@
 import SwiftUI
 import AppKit
-import MiNoteLibrary
 
 struct NotesListView: View {
     @ObservedObject var viewModel: NotesViewModel

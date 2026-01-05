@@ -14,8 +14,8 @@ class WindowManager {
     /// 活动窗口控制器列表
     private var windowControllers: [MainWindowController] = []
     
-    /// 窗口状态管理器（使用简化的窗口状态管理器）
-    private let windowStateManager = MiNoteWindowStateManager()
+    /// 窗口状态管理器
+    private let windowStateManager = WindowStateManager()
     
     // MARK: - 初始化
     

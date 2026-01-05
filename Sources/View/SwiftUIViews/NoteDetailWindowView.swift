@@ -1,6 +1,5 @@
 import SwiftUI
 import AppKit
-import MiNoteLibrary
 
 /// 笔记详情窗口视图（用于在新窗口打开笔记）
 public struct NoteDetailWindowView: View {

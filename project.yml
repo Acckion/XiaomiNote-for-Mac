@@ -12,9 +12,10 @@ targets:
     platform: macOS
     deploymentTarget: "26.0"
     sources:
-      - path: Sources/MiNoteLibrary
+      - path: Sources
         excludes:
           - "**/*.md"
+          - "App/**"
     resources:
       - path: Sources/MiNoteLibrary/Web
         type: folder
@@ -40,11 +41,11 @@ targets:
     dependencies:
       - target: MiNoteLibrary
     sources:
-      - path: Sources/MiNoteMac
+      - path: Sources/App
         excludes:
           - "App.swift.backup"
     resources:
-      - path: Sources/MiNoteMac/Resources
+      - path: Sources/App/Assets.xcassets
     settings:
       base:
         PRODUCT_NAME: MiNoteMac

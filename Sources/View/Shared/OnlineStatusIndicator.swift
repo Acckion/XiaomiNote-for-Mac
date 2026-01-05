@@ -8,7 +8,6 @@
 
 #if os(macOS)
 import SwiftUI
-import MiNoteLibrary
 
 /// 在线状态指示器视图
 /// 用于在工具栏中显示当前网络连接状态

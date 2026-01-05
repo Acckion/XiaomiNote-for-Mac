@@ -51,7 +51,7 @@ class MenuActionHandler {
         print("显示设置窗口")
         
         // 创建设置窗口控制器
-        let settingsWindowController = MiNoteLibrary.SettingsWindowController(viewModel: mainWindowController?.viewModel)
+        let settingsWindowController = SettingsWindowController(viewModel: mainWindowController?.viewModel)
         
         // 显示窗口
         settingsWindowController.showWindow(nil)
@@ -251,7 +251,7 @@ class MenuActionHandler {
         print("显示调试设置窗口")
         
         // 创建调试窗口控制器
-        let debugWindowController = MiNoteLibrary.DebugWindowController(viewModel: mainWindowController?.viewModel)
+        let debugWindowController = DebugWindowController(viewModel: mainWindowController?.viewModel)
         
         // 显示窗口
         debugWindowController.showWindow(nil)

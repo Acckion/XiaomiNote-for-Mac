@@ -3,6 +3,10 @@ import Foundation
 /// 窗口状态管理器，负责保存和恢复窗口状态
 public class WindowStateManager {
     
+    // MARK: - Initialization
+    
+    public init() {}
+    
     // MARK: - Type Aliases
     
     // 这些类型别名确保我们可以引用状态类
