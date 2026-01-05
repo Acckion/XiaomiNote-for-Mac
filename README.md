@@ -69,25 +69,29 @@
 ```
 SwiftUI-MiNote-for-Mac/
 ├── Sources/
-│   ├── MiNoteLibrary/          # 核心库
-│   │   ├── Model/              # 数据模型（Note, Folder 等）
-│   │   ├── Service/            # 业务服务层（API、数据库、同步等）
+│   ├── MiNoteLibrary/          # 核心库（框架）
+│   │   ├── Model/              # 数据模型（Note, Folder, UserProfile 等）
+│   │   ├── Service/            # 业务服务层（API、数据库、同步、缓存等）
 │   │   ├── View/               # UI视图组件
 │   │   │   ├── AppKitComponents/    # AppKit 视图控制器
-│   │   │   ├── Bridge/              # SwiftUI-AppKit 桥接
+│   │   │   ├── Bridge/              # SwiftUI-AppKit 桥接控制器
+│   │   │   ├── Shared/              # 共享视图组件
 │   │   │   └── SwiftUIViews/        # SwiftUI 视图
 │   │   ├── ViewModel/          # 视图模型
-│   │   ├── Window/             # 窗口控制器
-│   │   ├── Extensions/         # 扩展
-│   │   ├── Helper/             # 辅助工具
-│   │   └── Web/                # Web 编辑器相关文件
+│   │   ├── Window/             # 窗口控制器和状态管理
+│   │   ├── Extensions/         # Swift 扩展
+│   │   ├── Helper/             # 辅助工具类
+│   │   └── Web/                # Web 编辑器相关文件（HTML/JS）
 │   └── MiNoteMac/              # 应用程序入口（AppDelegate）
-├── RichTextKit-1.2/             # 富文本编辑框架（本地依赖）
-├── Obsidian-Plugin-ToReference/ # Obsidian插件参考（不参与git管理）
-├── Package.swift                # Swift Package配置
-├── project.yml                  # XcodeGen配置文件
-├── Makefile                     # 构建脚本
-└── build_release.sh             # Release版本构建脚本
+├── References/                  # 参考文档和资源
+├── project.yml                  # XcodeGen 配置文件
+├── Info.plist                   # 应用程序信息配置
+├── Debug.xcconfig              # 调试配置
+├── build_release.sh            # Release版本构建脚本
+├── build_xcode_proj.sh         # Xcode项目构建脚本
+├── DESIGN_GUIDELINES.md        # 设计规范
+├── TECHNICAL_DOCUMENTATION.md  # 技术文档
+└── todo_list.md                # 待办事项
 ```
 ## 快速开始
 
@@ -102,7 +106,7 @@ SwiftUI-MiNote-for-Mac/
 项目使用 Swift Package Manager 管理依赖，所有依赖都是本地的：
 
 ```bash
-# 依赖会自动解析，RichTextKit位于 RichTextKit-1.2/ 目录
+# 依赖会自动解析
 swift package resolve
 ```
 
@@ -126,7 +130,7 @@ swift package resolve
 如果需要重新生成 Xcode 项目：
 
 ```bash
-./create_xcode_project.sh
+./build_xcode_proj.sh
 ```
 
 ## 功能特性
@@ -237,16 +241,16 @@ swift package resolve
 - [小米笔记格式示例.txt](./小米笔记格式示例.txt) - 小米笔记 XML 格式示例
 ## 依赖说明
 
-### RichTextKit 1.2
+本项目使用纯 Swift 实现，不依赖外部富文本编辑框架。编辑器基于自定义的 Web 编辑器实现，使用 HTML/JavaScript 技术栈。
 
-本项目使用本地版本的 RichTextKit 1.2 作为富文本编辑框架。该框架位于 `RichTextKit-1.2/` 目录中，是一个跨平台的富文本编辑框架。
+### 核心技术栈
 
-**许可证**: RichTextKit 使用 [MIT 许可证](https://opensource.org/licenses/MIT)，版权归 Daniel Saidi (2022-2024) 所有。
-
-完整的许可证信息请参考：
-
-- [RichTextKit-1.2/LICENSE](./RichTextKit-1.2/LICENSE)
-- [第三方许可证说明](./THIRD_PARTY_LICENSES.md)
+- **Swift 6.0**: 主要开发语言
+- **AppKit + SwiftUI**: 混合 UI 框架
+- **SQLite 3**: 本地数据存储
+- **WebKit**: 富文本编辑器核心
+- **URLSession**: 网络请求
+- **async/await**: 并发处理
 
 ## 法律声明
 
@@ -258,11 +262,7 @@ swift package resolve
 
 ### 第三方依赖许可证
 
-本项目使用了以下第三方开源库：
-
-- **RichTextKit 1.2** - MIT 许可证
-  - 版权: Copyright (c) 2022-2024 Daniel Saidi
-  - 许可证文件: [RichTextKit-1.2/LICENSE](./RichTextKit-1.2/LICENSE)
+本项目使用纯 Swift 实现，不依赖外部开源库。所有代码均为原创实现。
 
 ## 贡献
 
@@ -270,7 +270,6 @@ swift package resolve
 
 ## 注意事项
 
-- `Obsidian-Plugin-ToReference/` 目录不参与主项目的 git 版本管理
 - 构建产物（`build/` 目录）已添加到 `.gitignore`，不会提交到仓库
 - 备份目录和副本目录不应提交到仓库
 
@@ -306,6 +305,13 @@ swift package resolve
 
 ### v2.0.0: 架构重构
 - 采用 AppKit+SwiftUI 混合架构
+- 实现完整的 macOS 菜单系统
+- 支持多窗口管理
+- 优化窗口状态保存和恢复
 
-#### v2.1.0: UI优化
-- 优化格式菜单、搜索筛选菜单、强调色
+### v2.1.0: 架构优化和功能增强
+- 重构为框架+应用的双目标架构（MiNoteLibrary + MiNoteMac）
+- 优化颜色主题系统，使用系统强调色
+- 改进侧边栏图标颜色，移除硬编码黄色
+- 更新版本号到 2.1.0
+- 优化项目结构和构建配置
