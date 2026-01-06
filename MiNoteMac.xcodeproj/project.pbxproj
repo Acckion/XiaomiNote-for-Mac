@@ -27,6 +27,7 @@
 		2F480BA8CD2C0338CDEBAF4D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0976F09B46BB7103AF74C5 /* SettingsView.swift */; };
 		333F0FFC231A4E8D7EFFE291 /* NotesListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A3C89BCCABD0E45A3309D9 /* NotesListViewController.swift */; };
 		345A41D2D77465098CC68E07 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA4193B25283EC76AF010994 /* App.swift */; };
+		384CBC1874AD07D10BFB2E99 /* ScheduledTaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D205A44B105F87D39BCF525 /* ScheduledTaskManager.swift */; };
 		3AAD82D0A08D3C7A5702D587 /* PrivateNotesVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64A9912B6F9A94044B08078F /* PrivateNotesVerificationView.swift */; };
 		3CAAFAAA2D5F6F0447BCD4B0 /* NoteDetailWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0914C562D2039C1BA6874D35 /* NoteDetailWindowView.swift */; };
 		3DD9461C4D68A8A1BF042D09 /* WindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C380480EA9D221C0B453C4F /* WindowManager.swift */; };
@@ -181,6 +182,7 @@
 		7A74DF7460C3AD0DDBA0AAC0 /* NoteDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailViewController.swift; sourceTree = "<group>"; };
 		7AA4FEC057BFD616E7A6A6E1 /* format-commands.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "format-commands.js"; sourceTree = "<group>"; };
 		7D0976F09B46BB7103AF74C5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		7D205A44B105F87D39BCF525 /* ScheduledTaskManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledTaskManager.swift; sourceTree = "<group>"; };
 		7FE9E4F0E6001401DA22FF6A /* editor.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = editor.html; sourceTree = "<group>"; };
 		7FF4267799A9827F60A37B5A /* MiNoteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteService.swift; sourceTree = "<group>"; };
 		816B0C6CAD1403264F63C83E /* MainWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowState.swift; sourceTree = "<group>"; };
@@ -392,6 +394,7 @@
 				5199B7182751166E97133243 /* OfflineOperationQueue.swift */,
 				B535CC13281B6FBE6BC43DD1 /* PrivateNotesPasswordManager.swift */,
 				4F7C132A42AF140DA71A9675 /* SaveQueueManager.swift */,
+				7D205A44B105F87D39BCF525 /* ScheduledTaskManager.swift */,
 				F6FD7F32CC738A3192AD8A12 /* SilentCookieRefreshManager.swift */,
 				05AB0A488183D3EDA90BC250 /* SyncService.swift */,
 			);
@@ -732,6 +735,7 @@
 				AEA4766CEC1F55152FDF167E /* PrivateNotesPasswordManager.swift in Sources */,
 				3AAD82D0A08D3C7A5702D587 /* PrivateNotesVerificationView.swift in Sources */,
 				722113BD62965043633DB7FC /* SaveQueueManager.swift in Sources */,
+				384CBC1874AD07D10BFB2E99 /* ScheduledTaskManager.swift in Sources */,
 				FA06558EFBE534716B110D85 /* SearchFilterMenuContent.swift in Sources */,
 				2F480BA8CD2C0338CDEBAF4D /* SettingsView.swift in Sources */,
 				C8FA65D82648B4B2E879382E /* SettingsWindowController.swift in Sources */,

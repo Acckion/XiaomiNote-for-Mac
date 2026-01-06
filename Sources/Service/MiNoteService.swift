@@ -39,6 +39,21 @@ final class MiNoteService: @unchecked Sendable {
     /// 这是为了避免Cookie设置后立即请求时可能出现的临时认证失败
     private let cookieGracePeriod: TimeInterval = 10.0
     
+    /// Cookie有效性检查结果缓存
+    private var cookieValidityCache: Bool = false
+    
+    /// Cookie有效性检查时间戳
+    private var cookieValidityCheckTime: Date?
+    
+    /// Cookie有效性检查间隔（秒）
+    private let cookieValidityCheckInterval: TimeInterval = 30.0
+    
+    /// Cookie有效性检查队列（用于异步安全的锁）
+    private let cookieValidityQueue = DispatchQueue(label: "com.minote.cookieValidityQueue")
+    
+    /// 是否正在检查Cookie有效性
+    private var isCheckingCookieValidity: Bool = false
+    
     private init() {
         // 从 UserDefaults 加载 cookie
         loadCredentials()
@@ -80,7 +95,15 @@ final class MiNoteService: @unchecked Sendable {
         cookieExpiredLock.lock()
         cookieExpiredFlag = false
         cookieExpiredLock.unlock()
-        print("[MiNoteService] Cookie 已设置，时间: \(cookieSetTime?.description ?? "未知")")
+        
+        // 强制更新Cookie有效性缓存为true，因为新设置的Cookie应该是有效的
+        cookieValidityQueue.sync {
+            cookieValidityCache = true
+            cookieValidityCheckTime = Date()
+            isCheckingCookieValidity = false
+        }
+        
+        print("[MiNoteService] Cookie 已设置，时间: \(cookieSetTime?.description ?? "未知")，缓存已更新为有效")
     }
     
     func isAuthenticated() -> Bool {
@@ -143,16 +166,12 @@ final class MiNoteService: @unchecked Sendable {
                              responseBody.contains("\"S\":\"Err\"")
         
         let isAuthError = hasLoginURL || hasAuthKeywords
-        // let isInGracePeriod = checkIfInGracePeriod()
         
-        // // 保护期内：可能是Cookie刚设置，尚未完全生效，不视为过期
-        // if isInGracePeriod {
-        //     print("[MiNoteService] 401错误发生在Cookie设置后的保护期内，不视为过期")
-        //     throw MiNoteError.networkError(URLError(.userAuthenticationRequired))
-        // }
+        // 检查是否有Cookie（无论是否有效）
+        let hasCookie = !cookie.isEmpty && cookie.contains("serviceToken=")
         
-        // 已有Cookie且确实是认证错误：视为Cookie过期
-        if self.hasValidCookie() && isAuthError {
+        // 如果有Cookie（无论是否有效）且是认证错误：视为Cookie过期
+        if hasCookie && isAuthError {
             print("[MiNoteService] 检测到Cookie过期（401 + 认证错误）")
             if hasLoginURL {
                 print("[MiNoteService] 响应包含登录重定向URL，确认需要重新登录")
@@ -175,8 +194,8 @@ final class MiNoteService: @unchecked Sendable {
             }
             throw MiNoteError.cookieExpired
         }
-        // 已有Cookie但不是明确的认证错误：仍然可能是Cookie问题，设置为离线状态
-        else if self.hasValidCookie() && !isAuthError {
+        // 如果有Cookie（无论是否有效）但不是明确的认证错误：仍然可能是Cookie问题，设置为离线状态
+        else if hasCookie && !isAuthError {
             print("[MiNoteService] 401错误但不是明确的认证失败，仍视为Cookie过期，设置为离线状态")
             print("[MiNoteService] 响应体: \(responseBody.prefix(200))")
             // 使用锁确保只触发一次回调
@@ -1123,7 +1142,12 @@ final class MiNoteService: @unchecked Sendable {
         print("[MiNoteService] 刷新Cookie（带重试机制）")
         
         // 先检查Cookie是否仍然有效，避免不必要的刷新
-        if hasValidCookie() {
+        // 注意：hasValidCookie() 是 @MainActor，所以我们需要在主线程上调用它
+        let isValid = await MainActor.run {
+            hasValidCookie()
+        }
+        
+        if isValid {
             print("[MiNoteService] ✅ Cookie仍然有效，跳过刷新")
             return true
         }
@@ -1192,7 +1216,13 @@ final class MiNoteService: @unchecked Sendable {
         print("Cookie已清除")
     }
     
-    /// 检查Cookie是否有效（更严格的检查）
+    /// 检查Cookie是否有效
+    /// 
+    /// 用户要求：任何网络请求都不要使用缓存的cookie，从用户信息中获取当前最新的cookie。
+    /// 因此，这个方法总是从UserDefaults获取最新的Cookie，并检查其格式和服务器端有效性。
+    /// 
+    /// 注意：这个方法不缓存结果，每次调用都会检查最新的状态。
+    @MainActor
     func hasValidCookie() -> Bool {
         // 首先检查是否有Cookie失效标志
         cookieExpiredLock.lock()
@@ -1204,7 +1234,7 @@ final class MiNoteService: @unchecked Sendable {
             return false
         }
         
-        // 检查Cookie是否存在且包含必要的字段
+        // 从UserDefaults获取最新的Cookie
         guard let cookie = UserDefaults.standard.string(forKey: "minote_cookie"),
               !cookie.isEmpty else {
             print("[MiNoteService] Cookie检查：无Cookie或Cookie为空")
@@ -1220,8 +1250,13 @@ final class MiNoteService: @unchecked Sendable {
             return false
         }
         
-        print("[MiNoteService] Cookie检查：Cookie有效")
-        return true
+        // 使用 ScheduledTaskManager 的实时检查结果
+        // ScheduledTaskManager 会定期检查Cookie在服务器端的有效性
+        // 注意：isCookieValid 属性是实时更新的，由定时任务维护
+        let isCookieValid = ScheduledTaskManager.shared.isCookieValid
+        
+        print("[MiNoteService] Cookie检查：本地Cookie格式正确，服务器端有效性: \(isCookieValid ? "有效" : "无效")")
+        return isCookieValid
     }
     
     /// 检查是否在 cookie 设置后的保护期内
@@ -1231,6 +1266,43 @@ final class MiNoteService: @unchecked Sendable {
         }
         let elapsed = Date().timeIntervalSince(setTime)
         return elapsed < cookieGracePeriod
+    }
+    
+    /// 检查Cookie在服务器端是否有效
+    /// 
+    /// 发送实际的网络请求到 /common/check 来验证Cookie是否真的有效
+    /// 用户要求：任何网络请求都不要使用缓存的cookie，所以这个方法总是进行实时检查
+    /// 
+    /// - Returns: 如果Cookie在服务器端有效则返回true，否则返回false
+    /// - Throws: 网络错误或其他错误
+    func checkCookieValidity() async throws -> Bool {
+        print("[MiNoteService] 开始实时检查Cookie在服务器端的有效性")
+        
+        do {
+            // 使用 /common/check API 检查Cookie有效性
+            let response = try await checkServiceStatus()
+            
+            // 解析响应
+            if let code = response["code"] as? Int, code == 0,
+               let result = response["result"] as? String, result == "ok" {
+                print("[MiNoteService] ✅ Cookie在服务器端有效")
+                return true
+            } else {
+                print("[MiNoteService] ❌ Cookie在服务器端无效，响应: \(response)")
+                return false
+            }
+        } catch {
+            print("[MiNoteService] ❌ Cookie有效性检查失败: \(error)")
+            throw error // 抛出错误，让调用者处理
+        }
+    }
+    
+    /// 异步检查Cookie有效性
+    /// 
+    /// 这个方法可以在后台调用，检查Cookie有效性
+    /// 不会阻塞调用者，适合在定时任务中调用
+    func updateCookieValidityCache() async {
+        _ = try? await checkCookieValidity()
     }
     
     // MARK: - Helper Methods

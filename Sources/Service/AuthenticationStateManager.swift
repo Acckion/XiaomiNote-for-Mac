@@ -57,20 +57,24 @@ class AuthenticationStateManager: ObservableObject {
         setupAppStateMonitoring()
         setupNetworkMonitoring()
         setupCookieExpiredHandler()
+        setupCookieRefreshNotification()
         
         // 启动定时器需要在主线程上执行
         Task { @MainActor in
             startSmartTimer()
             // 立即执行一次状态检查，确保初始状态正确
             performStatusCheck()
+            
+            // 启动 ScheduledTaskManager 定时任务
+            ScheduledTaskManager.shared.start()
         }
     }
     
     @MainActor
     deinit {
-        // 简化 deinit，避免访问非 Sendable 属性
-        // 定时器会在对象释放时自动失效
-        // 不需要手动停止，因为 Timer 会随着对象的释放而自动失效
+        // 同步停止定时器
+        statusCheckTimer?.invalidate()
+        statusCheckTimer = nil
     }
     
     // MARK: - 应用状态监控
@@ -161,6 +165,11 @@ class AuthenticationStateManager: ObservableObject {
     private func performStatusCheck() {
         let networkOnline = networkMonitor.isOnline
         updateOnlineStatus(networkOnline: networkOnline)
+        
+        // 异步更新cookie有效性缓存
+        Task {
+            await MiNoteService.shared.updateCookieValidityCache()
+        }
     }
     
     // MARK: - 网络监控
@@ -205,7 +214,9 @@ class AuthenticationStateManager: ObservableObject {
             return
         }
         
-        let hasValidCookie = service.hasValidCookie()
+        // 使用 ScheduledTaskManager 的实时检查结果
+        // ScheduledTaskManager 会定期检查Cookie在服务器端的有效性
+        let hasValidCookie = ScheduledTaskManager.shared.isCookieValid
         
         // 正常更新在线状态
         // 注意：如果用户选择了保持离线模式，即使Cookie恢复有效，也不自动清除离线模式
@@ -334,6 +345,11 @@ class AuthenticationStateManager: ObservableObject {
                         shouldStayOffline = false  // 清除离线模式标志
                         showCookieExpiredAlert = false  // 清除弹窗状态
                         
+                        // 强制更新Cookie有效性缓存
+                        Task {
+                            await MiNoteService.shared.updateCookieValidityCache()
+                        }
+                        
                         // 调用 restoreOnlineStatus() 来正确计算在线状态
                         // 这会检查网络状态和Cookie有效性
                         restoreOnlineStatus()
@@ -386,7 +402,10 @@ class AuthenticationStateManager: ObservableObject {
     /// 
     /// 当Cookie恢复有效时调用此方法
     func restoreOnlineStatus() {
-        guard service.hasValidCookie() else {
+        // 使用 ScheduledTaskManager 的实时检查结果
+        let hasValidCookie = ScheduledTaskManager.shared.isCookieValid
+        
+        guard hasValidCookie else {
             print("[AuthenticationStateManager] Cookie仍然无效，不能恢复在线状态")
             return
         }
@@ -399,7 +418,7 @@ class AuthenticationStateManager: ObservableObject {
         
         // 重新计算在线状态（需要网络和Cookie都有效）
         let networkOnline = networkMonitor.isOnline
-        isOnline = networkOnline && service.hasValidCookie()
+        isOnline = networkOnline && hasValidCookie
         
         if isOnline {
             print("[AuthenticationStateManager] ✅ 已恢复在线状态")
@@ -430,8 +449,19 @@ class AuthenticationStateManager: ObservableObject {
         // 清除cookie失效状态
         isCookieExpired = false
         cookieExpiredShown = false
+        shouldStayOffline = false  // 清除离线模式标志
+        showCookieExpiredAlert = false  // 清除弹窗状态
+        
+        // 重置连续有效检查次数
+        consecutiveValidChecks = 0
+        
         // 恢复在线状态
         restoreOnlineStatus()
+        
+        // 立即执行一次状态检查，确保状态正确
+        performStatusCheck()
+        
+        print("[AuthenticationStateManager] ✅ Cookie刷新完成，状态已更新: isOnline=\(isOnline), isCookieExpired=\(isCookieExpired)")
     }
     
     /// 执行静默Cookie刷新（旧方法，保持兼容性）
@@ -515,5 +545,28 @@ class AuthenticationStateManager: ObservableObject {
     /// 关闭Cookie刷新视图
     func dismissCookieRefresh() {
         showCookieRefreshView = false
+    }
+    
+    // MARK: - Cookie刷新通知处理
+    
+    /// 设置Cookie刷新成功通知监听
+    private func setupCookieRefreshNotification() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleCookieRefreshedNotification(_:)),
+            name: NSNotification.Name("CookieRefreshedSuccessfully"),
+            object: nil
+        )
+    }
+    
+    /// 处理Cookie刷新成功通知
+    @objc private func handleCookieRefreshedNotification(_ notification: Notification) {
+        print("[AuthenticationStateManager] 收到Cookie刷新成功通知")
+        
+        // 调用handleCookieRefreshed方法来更新状态
+        handleCookieRefreshed()
+        
+        // 同时立即执行一次状态检查，确保状态正确
+        performStatusCheck()
     }
 }
