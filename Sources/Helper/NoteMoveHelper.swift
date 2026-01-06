@@ -35,7 +35,6 @@ public class NoteMoveHelper {
                     createdAt: note.createdAt,
                     updatedAt: note.updatedAt, // 保持原来的修改日期不变
                     tags: note.tags,
-                    htmlContent: note.htmlContent,
                     rawData: note.rawData
                 )
                 

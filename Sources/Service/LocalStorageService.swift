@@ -71,7 +71,6 @@ final class LocalStorageService: @unchecked Sendable {
         print("[LocalStorage] 💾 开始保存同步状态:")
         print("[LocalStorage]   - lastSyncTime: \(status.lastSyncTime?.description ?? "nil")")
         print("[LocalStorage]   - syncTag: \(status.syncTag ?? "nil")")
-        print("[LocalStorage]   - lastPageSyncTime: \(status.lastPageSyncTime?.description ?? "nil")")
         
         do {
             try database.saveSyncStatus(status)
@@ -91,7 +90,6 @@ final class LocalStorageService: @unchecked Sendable {
                 print("[LocalStorage] ✅ 成功加载同步状态:")
                 print("[LocalStorage]   - lastSyncTime: \(status.lastSyncTime?.description ?? "nil")")
                 print("[LocalStorage]   - syncTag: \(status.syncTag ?? "nil")")
-                print("[LocalStorage]   - lastPageSyncTime: \(status.lastPageSyncTime?.description ?? "nil")")
             } else {
                 print("[LocalStorage] ⚠️ 数据库返回nil同步状态（表可能为空）")
             }
@@ -461,12 +459,10 @@ final class LocalStorageService: @unchecked Sendable {
 struct SyncStatus: Codable {
     var lastSyncTime: Date?
     var syncTag: String?  // 笔记同步的syncTag
-    var lastPageSyncTime: Date?
     
-    init(lastSyncTime: Date? = nil, syncTag: String? = nil, lastPageSyncTime: Date? = nil) {
+    init(lastSyncTime: Date? = nil, syncTag: String? = nil) {
         self.lastSyncTime = lastSyncTime
         self.syncTag = syncTag
-        self.lastPageSyncTime = lastPageSyncTime
     }
 }
 

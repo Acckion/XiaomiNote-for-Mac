@@ -451,7 +451,7 @@ final class MiNoteService: @unchecked Sendable {
         }
     }
     
-    /// 获取笔记详情（完整内容）
+    /// MARK: 获取笔记详情（完整内容）
     /// 
     /// 笔记列表API只返回摘要（snippet），需要调用此方法获取完整内容
     /// 
@@ -2683,93 +2683,4 @@ extension MiNoteService {
         }
     }
     
-    /// 获取文件夹排序信息
-    /// 
-    /// 使用网页版的 `/todo/v1/user/records/0` API 获取文件夹排序信息
-    /// 这个API返回文件夹的排序顺序和同步状态
-    /// 
-    /// - Parameter ts: 时间戳（可选，如果不提供则使用当前时间）
-    /// - Returns: 包含文件夹排序信息的响应字典
-    /// - Throws: MiNoteError（网络错误、认证错误等）
-    func fetchFolderSortInfo(ts: Int64? = nil) async throws -> [String: Any] {
-        let timestamp = ts ?? Int64(Date().timeIntervalSince1970 * 1000)
-        
-        // 构建URL参数
-        var urlComponents = URLComponents(string: "\(baseURL)/todo/v1/user/records/0")
-        urlComponents?.queryItems = [
-            URLQueryItem(name: "ts", value: "\(timestamp)")
-        ]
-        
-        guard let urlString = urlComponents?.url?.absoluteString else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/todo/v1/user/records/0", method: "GET", error: URLError(.badURL))
-            throw URLError(.badURL)
-        }
-        
-        guard let url = URL(string: urlString) else {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
-            throw URLError(.badURL)
-        }
-        
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = getHeaders()
-        request.httpMethod = "GET"
-        
-        // 记录请求
-        NetworkLogger.shared.logRequest(
-            url: urlString,
-            method: "GET",
-            headers: getHeaders(),
-            body: nil
-        )
-        
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-            
-            let responseString = String(data: data, encoding: .utf8)
-            
-            // 记录响应
-            NetworkLogger.shared.logResponse(
-                url: urlString,
-                method: "GET",
-                statusCode: httpResponse.statusCode,
-                headers: httpResponse.allHeaderFields as? [String: String],
-                response: responseString,
-                error: nil
-            )
-            
-            // 处理401未授权错误
-            if httpResponse.statusCode == 401 {
-                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-            
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-            
-            // 验证响应：检查 code 字段
-            if let code = json["code"] as? Int {
-                if code != 0 {
-                    let message = json["description"] as? String ?? json["message"] as? String ?? "获取文件夹排序信息失败"
-                    print("[MiNoteService] 获取文件夹排序信息失败，code: \(code), message: \(message)")
-                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {
-                    print("[MiNoteService] ✅ 获取文件夹排序信息成功，code: \(code)")
-                }
-            } else {
-                // 如果没有 code 字段，但状态码是 200，也认为成功
-                print("[MiNoteService] ✅ 获取文件夹排序信息成功（响应中没有 code 字段，但状态码为 200）")
-            }
-            
-            return json
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
-            throw error
-        }
-    }
 }

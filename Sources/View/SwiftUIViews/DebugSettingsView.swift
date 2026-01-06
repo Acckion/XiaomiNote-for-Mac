@@ -372,12 +372,6 @@ public struct DebugSettingsView: View {
                     }
                     .disabled(isTestingSyncAPI)
                     .help("使用 /note/sync/full/ API，syncTag在data参数中")
-                    
-                    Button("测试文件夹排序信息API") {
-                        testFolderSortInfoAPI()
-                    }
-                    .disabled(isTestingSyncAPI)
-                    .help("使用 /todo/v1/user/records/0 API")
                 }
                 
                 if isTestingSyncAPI {
@@ -1244,81 +1238,6 @@ public struct DebugSettingsView: View {
         }
     }
     
-    /// 测试文件夹排序信息API
-    private func testFolderSortInfoAPI() {
-        syncTestType = "文件夹排序信息API"
-        isTestingSyncAPI = true
-        
-        Task {
-            var resultText = "🔧 测试文件夹排序信息API...\n\n"
-            
-            do {
-                let response = try await MiNoteService.shared.fetchFolderSortInfo()
-                
-                resultText += "✅ API调用成功！\n\n"
-                
-                // 解析响应
-                if let code = response["code"] as? Int {
-                    resultText += "响应代码 (code): \(code)\n"
-                }
-                
-                if let result = response["result"] as? String {
-                    resultText += "结果 (result): \(result)\n"
-                }
-                
-                // 解析文件夹排序信息
-                if let data = response["data"] as? [String: Any],
-                   let record = data["record"] as? [String: Any],
-                   let contentJson = record["contentJson"] as? [String: Any],
-                   let sort = contentJson["sort"] as? [String: Any] {
-                    
-                    resultText += "\n📊 文件夹排序信息：\n"
-                    
-                    if let eTag = sort["eTag"] as? String {
-                        resultText += "- ETag: \(eTag)\n"
-                    }
-                    
-                    if let orders = sort["orders"] as? [String] {
-                        resultText += "- 排序顺序 (\(orders.count) 个文件夹):\n"
-                        for (index, folderId) in orders.enumerated() {
-                            resultText += "  \(index + 1). \(folderId)\n"
-                        }
-                    }
-                    
-                    resultText += "\n📝 分析：\n"
-                    resultText += "此API返回文件夹的排序顺序和同步状态。\n"
-                    resultText += "ETag用于标识排序信息的版本，当排序变化时会更新。\n"
-                    resultText += "orders数组包含文件夹ID的排序顺序。\n"
-                } else {
-                    resultText += "\n⚠️ 无法解析文件夹排序信息\n"
-                }
-                
-                // 显示完整响应（前500字符）
-                if let jsonData = try? JSONSerialization.data(withJSONObject: response, options: .prettyPrinted),
-                   let jsonString = String(data: jsonData, encoding: .utf8) {
-                    resultText += "\n📋 完整响应（前500字符）：\n"
-                    resultText += String(jsonString.prefix(500))
-                    if jsonString.count > 500 {
-                        resultText += "\n... (已截断)"
-                    }
-                    
-                    // 自动将完整JSON复制到剪贴板
-                    copyToClipboard(jsonString)
-                    resultText += "\n📋 完整JSON响应已自动复制到剪贴板！"
-                }
-                
-            } catch {
-                resultText += "❌ API调用失败：\n\(error.localizedDescription)\n\n"
-                resultText += "错误详情：\(error)"
-            }
-            
-            await MainActor.run {
-                syncTestResult = resultText
-                showSyncTestAlert = true
-                isTestingSyncAPI = false
-            }
-        }
-    }
 }
 
 #Preview {

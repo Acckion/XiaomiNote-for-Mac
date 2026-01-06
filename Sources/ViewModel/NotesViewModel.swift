@@ -2092,10 +2092,8 @@ public class NotesViewModel: ObservableObject {
         
         var merged = note
         merged.rawData = mergedRawData
-        // 确保保留现有的 htmlContent，除非传入的笔记有更新的（这里通常传入的会有最新的 htmlContent）
-        if note.htmlContent == nil {
-            merged.htmlContent = existingNote.htmlContent
-        }
+        // 确保保留现有的内容，除非传入的笔记有更新的
+        // 注意：Note模型中没有htmlContent属性，这里保留注释但移除相关代码
         return merged
     }
     

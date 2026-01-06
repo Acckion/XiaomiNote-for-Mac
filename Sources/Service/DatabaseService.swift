@@ -90,7 +90,6 @@ final class DatabaseService: @unchecked Sendable {
             created_at REAL NOT NULL,
             updated_at REAL NOT NULL,
             tags TEXT, -- JSON 数组
-            html_content TEXT, -- HTML 缓存
             raw_data TEXT -- JSON 对象
         );
         """
@@ -143,8 +142,7 @@ final class DatabaseService: @unchecked Sendable {
         CREATE TABLE IF NOT EXISTS sync_status (
             id INTEGER PRIMARY KEY CHECK (id = 1),
             last_sync_time REAL,
-            sync_tag TEXT,
-            last_page_sync_time REAL
+            sync_tag TEXT
         );
         """
         executeSQL(createSyncStatusTable)
@@ -213,10 +211,6 @@ final class DatabaseService: @unchecked Sendable {
     private func migrateNotesTable() {
         print("[Database] 开始迁移 notes 表，检查字段兼容性")
         
-        // 添加 html_content 字段（如果不存在）
-        let addHtmlContentColumn = "ALTER TABLE notes ADD COLUMN html_content TEXT;"
-        executeSQL(addHtmlContentColumn, ignoreError: true)
-        
         // 1. 检查是否有 raw_data 字段为 NULL 的记录
         let checkNullSQL = "SELECT COUNT(*) FROM notes WHERE raw_data IS NULL;"
         var nullCount = 0
@@ -239,10 +233,6 @@ final class DatabaseService: @unchecked Sendable {
         // 2. 检查 raw_data 字段是否为有效的 JSON
         // 这里我们只是记录日志，不自动修复，因为修复可能破坏数据
         // 在实际加载时会使用更健壮的解析逻辑
-        
-        // 3. 添加一个备份列，用于存储原始 raw_data（如果需要）
-        let addBackupColumn = "ALTER TABLE notes ADD COLUMN raw_data_backup TEXT;"
-        executeSQL(addBackupColumn, ignoreError: true)
         
         print("[Database] notes 表迁移完成")
     }
@@ -291,8 +281,8 @@ final class DatabaseService: @unchecked Sendable {
         
         try dbQueue.sync(flags: .barrier) {
             let sql = """
-            INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, html_content, raw_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
             
             var statement: OpaquePointer?
@@ -322,20 +312,13 @@ final class DatabaseService: @unchecked Sendable {
             let tagsJSON = try JSONEncoder().encode(note.tags)
             sqlite3_bind_text(statement, 8, String(data: tagsJSON, encoding: .utf8), -1, nil)
             
-            // html_content
-            if let html = note.htmlContent {
-                sqlite3_bind_text(statement, 9, (html as NSString).utf8String, -1, nil)
-            } else {
-                sqlite3_bind_null(statement, 9)
-            }
-            
             // raw_data 作为 JSON
             var rawDataJSON: String? = nil
             if let rawData = note.rawData {
                 let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
                 rawDataJSON = String(data: jsonData, encoding: .utf8)
             }
-            sqlite3_bind_text(statement, 10, rawDataJSON, -1, nil)
+            sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
             
             print("![[debug]] ========== 数据流程节点DB4: 执行 SQL ==========")
             guard sqlite3_step(statement) == SQLITE_DONE else {
@@ -365,8 +348,8 @@ final class DatabaseService: @unchecked Sendable {
             
             do {
                 let sql = """
-                INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, html_content, raw_data)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """
                 
                 var statement: OpaquePointer?
@@ -394,20 +377,13 @@ final class DatabaseService: @unchecked Sendable {
                 let tagsJSON = try JSONEncoder().encode(note.tags)
                 sqlite3_bind_text(statement, 8, String(data: tagsJSON, encoding: .utf8), -1, nil)
                 
-                // html_content
-                if let html = note.htmlContent {
-                    sqlite3_bind_text(statement, 9, (html as NSString).utf8String, -1, nil)
-                } else {
-                    sqlite3_bind_null(statement, 9)
-                }
-                
                 // raw_data 作为 JSON
                 var rawDataJSON: String? = nil
                 if let rawData = note.rawData {
                     let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
                     rawDataJSON = String(data: jsonData, encoding: .utf8)
                 }
-                sqlite3_bind_text(statement, 10, rawDataJSON, -1, nil)
+                sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
                 
                 guard sqlite3_step(statement) == SQLITE_DONE else {
                     let errorMsg = String(cString: sqlite3_errmsg(self.db))
@@ -423,145 +399,10 @@ final class DatabaseService: @unchecked Sendable {
         }
     }
     
-    /// 快速获取HTML内容（仅查询html_content字段）
-    /// 
-    /// 用于快速加载笔记的HTML缓存，不加载完整笔记数据
-    /// 
-    /// - Parameter noteId: 笔记ID
-    /// - Returns: HTML内容，如果不存在则返回nil
-    /// - Throws: DatabaseError（数据库操作失败）
-    func getHTMLContent(noteId: String) throws -> String? {
-        return try dbQueue.sync {
-            let sql = "SELECT html_content FROM notes WHERE id = ?;"
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            sqlite3_bind_text(statement, 1, (noteId as NSString).utf8String, -1, nil)
-            
-            guard sqlite3_step(statement) == SQLITE_ROW else {
-                return nil
-            }
-            
-            // 读取html_content字段（索引0）
-            if let htmlText = sqlite3_column_text(statement, 0) {
-                return String(cString: htmlText)
-            }
-            
-            return nil
-        }
-    }
-    
-    /// 批量更新HTML缓存
-    /// 
-    /// 用于批量更新多条笔记的HTML内容，提高性能
-    /// 
-    /// - Parameter updates: 更新数组，每个元素包含noteId和html内容
-    /// - Throws: DatabaseError（数据库操作失败）
-    func batchUpdateHTMLContent(_ updates: [(noteId: String, html: String)]) throws {
-        guard !updates.isEmpty else { return }
-        
-        try dbQueue.sync(flags: .barrier) {
-            let sql = "UPDATE notes SET html_content = ? WHERE id = ?;"
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            // 开始事务
-            guard sqlite3_exec(db, "BEGIN TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
-                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            defer {
-                // 提交或回滚事务
-                if sqlite3_exec(db, "COMMIT;", nil, nil, nil) != SQLITE_OK {
-                    sqlite3_exec(db, "ROLLBACK;", nil, nil, nil)
-                }
-            }
-            
-            for (noteId, html) in updates {
-                sqlite3_reset(statement)
-                sqlite3_bind_text(statement, 1, (html as NSString).utf8String, -1, nil)
-                sqlite3_bind_text(statement, 2, (noteId as NSString).utf8String, -1, nil)
-                
-                guard sqlite3_step(statement) == SQLITE_DONE else {
-                    throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
-                }
-            }
-            
-            Swift.print("[Database] 批量更新HTML缓存完成 - 更新 \(updates.count) 条笔记")
-        }
-    }
-    
-    /// 快速更新笔记的HTML内容（仅更新html_content字段）
-    /// 
-    /// 用于Tier 0极速保存，仅更新HTML缓存，不更新其他字段
-    /// 
-    /// - Parameters:
-    ///   - noteId: 笔记ID
-    ///   - htmlContent: HTML内容
-    ///   - completion: 完成回调，参数为错误（如果有）
-    func updateHTMLContentOnly(noteId: String, htmlContent: String, completion: @escaping (Error?) -> Void) {
-        dbQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else {
-                completion(DatabaseError.connectionFailed("数据库连接已关闭"))
-                return
-            }
-            
-            do {
-                let sql = "UPDATE notes SET html_content = ? WHERE id = ?;"
-                
-                var statement: OpaquePointer?
-                defer {
-                    if statement != nil {
-                        sqlite3_finalize(statement)
-                    }
-                }
-                
-                guard sqlite3_prepare_v2(self.db, sql, -1, &statement, nil) == SQLITE_OK else {
-                    let errorMsg = String(cString: sqlite3_errmsg(self.db))
-                    throw DatabaseError.prepareFailed(errorMsg)
-                }
-                
-                sqlite3_bind_text(statement, 1, (htmlContent as NSString).utf8String, -1, nil)
-                sqlite3_bind_text(statement, 2, (noteId as NSString).utf8String, -1, nil)
-                
-                guard sqlite3_step(statement) == SQLITE_DONE else {
-                    let errorMsg = String(cString: sqlite3_errmsg(self.db))
-                    throw DatabaseError.executionFailed(errorMsg)
-                }
-                
-                // 检查是否有行被更新
-                if sqlite3_changes(self.db) == 0 {
-                    // 如果没有行被更新，说明笔记不存在，需要插入
-                    // 这种情况不应该发生，但为了健壮性，我们记录警告
-                    Swift.print("[保存流程] ⚠️ Tier 0 HTML更新：笔记不存在，ID: \(noteId.prefix(8))...")
-                }
-                
-                Swift.print("[保存流程] ✅ Tier 0 HTML缓存保存成功，ID: \(noteId.prefix(8))..., HTML长度: \(htmlContent.count)")
-                completion(nil)
-            } catch {
-                Swift.print("[保存流程] ❌ Tier 0 HTML缓存保存失败: \(error)")
-                completion(error)
-            }
-        }
-    }
+    // 注意：已移除与html_content相关的所有方法，包括：
+    // - getHTMLContent
+    // - batchUpdateHTMLContent
+    // - updateHTMLContentOnly
     
     /// 加载笔记
     /// 
@@ -570,7 +411,7 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func loadNote(noteId: String) throws -> Note? {
         return try dbQueue.sync {
-            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, html_content, raw_data FROM notes WHERE id = ?;"
+            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes WHERE id = ?;"
             
             var statement: OpaquePointer?
             defer {
@@ -605,7 +446,7 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func getAllNotes() throws -> [Note] {
         return try dbQueue.sync {
-            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, html_content, raw_data FROM notes ORDER BY updated_at DESC;"
+            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes ORDER BY updated_at DESC;"
             
             var statement: OpaquePointer?
             defer {
@@ -736,15 +577,9 @@ final class DatabaseService: @unchecked Sendable {
             print("[Database] parseNote: tags 字段为 NULL")
         }
         
-        // 解析 html_content
-        var htmlContent: String? = nil
-        if let htmlText = sqlite3_column_text(statement, 8) {
-            htmlContent = String(cString: htmlText)
-        }
-        
         // 解析 raw_data
         var rawData: [String: Any]? = nil
-        if let rawDataText = sqlite3_column_text(statement, 9) {
+        if let rawDataText = sqlite3_column_text(statement, 8) {
             let rawDataString = String(cString: rawDataText)
             let rawDataLength = rawDataString.count
             print("[Database] parseNote: raw_data 字段存在，长度=\(rawDataLength)")
@@ -776,7 +611,6 @@ final class DatabaseService: @unchecked Sendable {
             createdAt: createdAt,
             updatedAt: updatedAt,
             tags: tags,
-            htmlContent: htmlContent,
             rawData: rawData
         )
         
@@ -1223,11 +1057,11 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func saveSyncStatus(_ status: SyncStatus) throws {
         try dbQueue.sync(flags: .barrier) {
-            print("[Database] 🔄 开始保存同步状态: syncTag=\(status.syncTag ?? "nil"), lastPageSyncTime=\(status.lastPageSyncTime?.description ?? "nil")")
+            print("[Database] 🔄 开始保存同步状态: syncTag=\(status.syncTag ?? "nil")")
             
             let sql = """
-            INSERT OR REPLACE INTO sync_status (id, last_sync_time, sync_tag, last_page_sync_time)
-            VALUES (1, ?, ?, ?);
+            INSERT OR REPLACE INTO sync_status (id, last_sync_time, sync_tag)
+            VALUES (1, ?, ?);
             """
             
             var statement: OpaquePointer?
@@ -1259,14 +1093,6 @@ final class DatabaseService: @unchecked Sendable {
                 print("[Database] 绑定 syncTag: NULL")
             }
             
-            if let lastPageSyncTime = status.lastPageSyncTime {
-                sqlite3_bind_double(statement, 3, lastPageSyncTime.timeIntervalSince1970)
-                print("[Database] 绑定 lastPageSyncTime: \(lastPageSyncTime)")
-            } else {
-                sqlite3_bind_null(statement, 3)
-                print("[Database] 绑定 lastPageSyncTime: NULL")
-            }
-            
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
                 print("[Database] ❌ SQL执行失败: \(errorMsg)")
@@ -1283,7 +1109,7 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func loadSyncStatus() throws -> SyncStatus? {
         return try dbQueue.sync { () -> SyncStatus? in
-            let sql = "SELECT last_sync_time, sync_tag, last_page_sync_time FROM sync_status WHERE id = 1;"
+            let sql = "SELECT last_sync_time, sync_tag FROM sync_status WHERE id = 1;"
             
             var statement: OpaquePointer?
             defer {
@@ -1312,15 +1138,9 @@ final class DatabaseService: @unchecked Sendable {
                 }
             }
             
-            var lastPageSyncTime: Date? = nil
-            if sqlite3_column_type(statement, 2) != SQLITE_NULL {
-                lastPageSyncTime = Date(timeIntervalSince1970: sqlite3_column_double(statement, 2))
-            }
-            
             return SyncStatus(
                 lastSyncTime: lastSyncTime,
-                syncTag: syncTag,
-                lastPageSyncTime: lastPageSyncTime
+                syncTag: syncTag
             )
         }
     }

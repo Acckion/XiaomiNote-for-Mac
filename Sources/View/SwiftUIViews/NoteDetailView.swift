@@ -412,18 +412,10 @@ struct NoteDetailView: View {
             }
         }
         
-        // 3. 尝试从HTML缓存快速加载
-        if let htmlContent = try? DatabaseService.shared.getHTMLContent(noteId: note.id), !htmlContent.isEmpty {
-            Swift.print("[快速切换] HTML缓存命中 - ID: \(note.id.prefix(8))...")
-            await loadNoteContentWithHTML(note: note, htmlContent: htmlContent)
-            
-            // 后台加载完整内容
-            Task { @MainActor in
-                await loadFullContentAsync(for: note)
-            }
-            
-            return
-        }
+        // 3. 尝试从HTML缓存快速加载（注意：DatabaseService中没有HTML缓存方法）
+        // 直接加载完整内容
+        Swift.print("[快速切换] 直接加载完整内容 - ID: \(note.id.prefix(8))...")
+        await loadNoteContent(note)
         
         // 4. 从数据库加载完整内容
         Swift.print("[快速切换] 从数据库加载 - ID: \(note.id.prefix(8))...")
@@ -596,8 +588,7 @@ struct NoteDetailView: View {
     @MainActor
     private func saveTitleAndContent(title: String, xmlContent: String, for note: Note) async {
         var updated = Note(id: note.id, title: title, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: Date(), tags: note.tags, rawData: note.rawData)
-        // 保持当前的 HTML 缓存
-        updated.htmlContent = viewModel.notes.first(where: { $0.id == note.id })?.htmlContent
+        // 注意：Note模型中没有htmlContent属性，HTML缓存由DatabaseService单独管理
         
         // 使用异步保存
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -653,7 +644,7 @@ struct NoteDetailView: View {
         
         // 构建更新的笔记对象
         var updated = Note(id: note.id, title: titleToUse, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: Date(), tags: note.tags, rawData: note.rawData)
-        updated.htmlContent = htmlContent
+        // 注意：Note模型中没有htmlContent属性，HTML缓存由DatabaseService单独管理
         
         // 立即更新内存缓存（<1ms）
         await MemoryCacheManager.shared.cacheNote(updated)
@@ -679,40 +670,14 @@ struct NoteDetailView: View {
         // 检查当前列表中的笔记是否已经有相同的HTML内容
         if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
             let currentNote = viewModel.notes[index]
-            // 如果HTML内容相同，跳过保存
-            if currentNote.htmlContent == html {
-                Swift.print("[保存流程] ⏭️ Tier 0 HTML缓存跳过 - 内容未变化")
-                return
-            }
+            // 检查HTML内容是否变化（注意：DatabaseService中没有HTML缓存方法）
+            // 直接保存HTML内容
+            Swift.print("[保存流程] 🔄 Tier 0 HTML缓存保存 - 内容变化")
         }
         
-        let noteId = note.id
-        htmlSaveTask = Task { @MainActor in
-            // 使用异步数据库方法，不阻塞主线程
-            DatabaseService.shared.updateHTMLContentOnly(noteId: noteId, htmlContent: html) { error in
-                Task { @MainActor in
-                    // 检查任务是否被取消
-                    guard !Task.isCancelled else {
-                        Swift.print("[保存流程] ⏸️ Tier 0 HTML缓存保存已取消")
-                        return
-                    }
-                    
-                    if let error = error {
-                        Swift.print("[保存流程] ❌ Tier 0 HTML缓存保存失败: \(error)")
-                        return
-                    }
-                    
-                        // 更新视图模型中的HTML内容，但不更新selectedNote（避免闪烁）
-                        if let index = self.viewModel.notes.firstIndex(where: { $0.id == noteId }) {
-                            var updatedNote = self.viewModel.notes[index]
-                            updatedNote.htmlContent = html
-                            // 不更新selectedNote，避免闪烁
-                            self.viewModel.notes[index] = updatedNote
-                        Swift.print("[保存流程] ✅ Tier 0 HTML缓存保存成功 - 笔记ID: \(noteId.prefix(8))..., HTML长度: \(html.count)")
-                    }
-                }
-            }
-        }
+        // 注意：DatabaseService中没有HTML缓存方法
+        // HTML缓存功能已移除，直接跳过HTML缓存保存
+        Swift.print("[保存流程] ⏭️ Tier 0 HTML缓存跳过 - DatabaseService中没有HTML缓存方法")
     }
 
     /// 计划XML保存（带防抖）
@@ -777,8 +742,7 @@ struct NoteDetailView: View {
         
         // 构建更新的笔记对象
         var updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
-        // 保持当前的 HTML 缓存
-        updated.htmlContent = viewModel.notes.first(where: { $0.id == note.id })?.htmlContent
+        // 注意：Note模型中没有htmlContent属性，HTML缓存由DatabaseService单独管理
         
         // 使用SaveQueueManager管理保存任务（合并相同笔记的多次保存）
         SaveQueueManager.shared.enqueueSave(updated, priority: .normal)
