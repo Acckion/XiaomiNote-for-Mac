@@ -208,6 +208,13 @@ final class SilentCookieRefreshManager: NSObject {
                     // 更新 MiNoteService 的 cookie
                     MiNoteService.shared.setCookie(cookieString)
                     
+                    // 发送通知，告知Cookie已刷新成功
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("CookieRefreshedSuccessfully"),
+                        object: nil,
+                        userInfo: ["cookieString": cookieString]
+                    )
+                    
                     // 完成刷新
                     self.continuation?.resume(returning: true)
                     self.cleanup()
@@ -319,6 +326,14 @@ extension SilentCookieRefreshManager: WKNavigationDelegate {
             print("[SilentCookieRefreshManager] 🍪 从响应头获取到新Cookie")
             MiNoteService.shared.setCookie(newCookie)
             cookieExtracted = true
+            
+            // 发送通知，告知Cookie已刷新成功
+            NotificationCenter.default.post(
+                name: NSNotification.Name("CookieRefreshedSuccessfully"),
+                object: nil,
+                userInfo: ["cookieString": newCookie]
+            )
+            
             completeWithSuccess()
         }
         

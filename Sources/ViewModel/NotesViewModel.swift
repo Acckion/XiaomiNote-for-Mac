@@ -3294,8 +3294,12 @@ public class NotesViewModel: ObservableObject {
     private func handleMiNoteError(_ error: MiNoteError) {
         switch error {
         case .cookieExpired:
-            errorMessage = "Cookie已过期，请重新登录或刷新Cookie"
-            showLoginView = true
+            errorMessage = "Cookie已过期，正在尝试静默刷新..."
+            print("[VIEWMODEL] Cookie过期，尝试静默刷新...")
+            // 先尝试静默刷新，而不是直接显示登录界面
+            Task {
+                await handleCookieExpiredSilently()
+            }
         case .notAuthenticated:
             errorMessage = "未登录，请先登录小米账号"
             showLoginView = true
