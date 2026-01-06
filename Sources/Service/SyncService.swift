@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 /// 同步服务
 /// 
@@ -162,7 +163,6 @@ final class SyncService: @unchecked Sendable {
                     // 保存到本地
                     print("[SYNC] 保存笔记: \(updatedNote.id)")
                     try localStorage.saveNote(updatedNote)
-                        syncStatus.addSyncedNote(note.id)
                         syncedNotes += 1
                 }
                 
@@ -225,7 +225,6 @@ final class SyncService: @unchecked Sendable {
                     
                     print("[SYNC] 保存私密笔记: \(finalNote.id)")
                     try localStorage.saveNote(finalNote)
-                    syncStatus.addSyncedNote(finalNote.id)
                     syncedNotes += 1
                 }
             } catch {
@@ -240,10 +239,43 @@ final class SyncService: @unchecked Sendable {
                 print("[SYNC] 已保存 \(allCloudFolders.count) 个云端文件夹")
             }
             
-            // 更新同步状态
+            // 更新同步状态 - 确保保存正确的syncTag
             syncStatus.lastSyncTime = Date()
             syncStatus.lastPageSyncTime = Date()
+            
+            // 保存syncTag（即使为空也要保存，但记录警告）
+            if !syncTag.isEmpty {
+                syncStatus.syncTag = syncTag
+                print("[SYNC] 完整同步：保存syncTag: \(syncTag)")
+            } else {
+                print("[SYNC] ⚠️ 完整同步：syncTag为空，无法保存有效的syncTag")
+                // 尝试从最后一次API响应中提取syncTag
+                do {
+                    let lastPageResponse = try await miNoteService.fetchPage(syncTag: "")
+                    print("[SYNC] 完整同步：获取最后一次API响应成功")
+                    if let lastSyncTag = lastPageResponse["syncTag"] as? String,
+                       !lastSyncTag.isEmpty {
+                        syncStatus.syncTag = lastSyncTag
+                        print("[SYNC] 完整同步：从最后一次API响应中提取syncTag: \(lastSyncTag)")
+                    } else {
+                        // 尝试使用extractSyncTags方法提取
+                        if let extractedSyncTag = extractSyncTags(from: lastPageResponse) {
+                            syncStatus.syncTag = extractedSyncTag
+                            print("[SYNC] 完整同步：使用extractSyncTags提取syncTag: \(extractedSyncTag)")
+                        } else {
+                            print("[SYNC] ⚠️ 完整同步：无法从最后一次API响应中提取syncTag")
+                        }
+                    }
+                } catch {
+                    print("[SYNC] ⚠️ 完整同步：获取最后一次API响应失败: \(error)")
+                    // 即使失败也要保存同步状态，但syncTag可能为空
+                }
+            }
+            
+            // 确保保存同步状态，即使syncTag可能为空
+            print("[SYNC] 完整同步：保存同步状态 - lastSyncTime: \(Date()), syncTag: \(syncStatus.syncTag ?? "nil")")
             try localStorage.saveSyncStatus(syncStatus)
+            print("[SYNC] 完整同步：同步状态已保存")
             
             syncProgress = 1.0
             syncStatusMessage = "完整同步完成"
@@ -251,6 +283,16 @@ final class SyncService: @unchecked Sendable {
             result.totalNotes = totalNotes
             result.syncedNotes = syncedNotes
             result.lastSyncTime = Date()
+            
+            // 显示同步状态信息
+            print("[SYNC] 🔍 完整同步完成，显示同步状态信息:")
+            if let savedStatus = localStorage.loadSyncStatus() {
+                print("[SYNC]   - lastSyncTime: \(savedStatus.lastSyncTime?.description ?? "nil")")
+                print("[SYNC]   - syncTag: \(savedStatus.syncTag ?? "nil")")
+                print("[SYNC]   - lastPageSyncTime: \(savedStatus.lastPageSyncTime?.description ?? "nil")")
+            } else {
+                print("[SYNC]   ⚠️ 无法加载同步状态")
+            }
             
         } catch {
             syncStatusMessage = "同步失败: \(error.localizedDescription)"
@@ -265,10 +307,12 @@ final class SyncService: @unchecked Sendable {
     /// 执行增量同步
     /// 
     /// 增量同步会：
-    /// 1. 使用上次同步的syncTag获取自上次同步以来的更改
-    /// 2. 比较本地和云端的时间戳，决定使用哪个版本
-    /// 3. 处理冲突：本地较新则上传，云端较新则下载
-    /// 4. 处理离线操作队列中的操作
+    /// 1. 优先使用轻量级增量同步（只同步有修改的条目）
+    /// 2. 如果轻量级同步失败，回退到网页版增量同步
+    /// 3. 如果网页版增量同步失败，回退到旧API增量同步
+    /// 4. 比较本地和云端的时间戳，决定使用哪个版本
+    /// 5. 处理冲突：本地较新则上传，云端较新则下载
+    /// 6. 处理离线操作队列中的操作
     /// 
     /// **同步策略**：
     /// - 如果本地修改时间 > 云端修改时间：保留本地版本，上传到云端
@@ -308,32 +352,37 @@ final class SyncService: @unchecked Sendable {
         var result = SyncResult()
         
         do {
+            // 优先尝试轻量级增量同步
+            print("[SYNC] 优先尝试轻量级增量同步")
+            do {
+                result = try await performLightweightIncrementalSync()
+                print("[SYNC] 轻量级增量同步成功")
+                return result
+            } catch {
+                print("[SYNC] 轻量级增量同步失败，回退到网页版增量同步: \(error)")
+            }
             
+            // 如果轻量级同步失败，尝试网页版增量同步
+            print("[SYNC] 尝试网页版增量同步")
+            do {
+                result = try await performWebIncrementalSync()
+                print("[SYNC] 网页版增量同步成功")
+                return result
+            } catch {
+                print("[SYNC] 网页版增量同步失败，回退到旧API增量同步: \(error)")
+            }
+            
+            // 如果网页版增量同步也失败，使用旧API增量同步
+            print("[SYNC] 使用旧API增量同步")
             let lastSyncTag = syncStatus.syncTag ?? ""
             syncStatusMessage = "获取自上次同步以来的更改..."
             
-            // 获取自上次同步以来的更改
-            let pageResponse: [String: Any]
-            do {
-                pageResponse = try await miNoteService.fetchPage(syncTag: lastSyncTag)
-            } catch let error as MiNoteError {
-                switch error {
-                case .cookieExpired:
-                    throw SyncError.cookieExpired
-                case .notAuthenticated:
-                    throw SyncError.notAuthenticated
-                case .networkError(let underlyingError):
-                    throw SyncError.networkError(underlyingError)
-                case .invalidResponse:
-                    throw SyncError.networkError(error)
-                }
-            } catch {
-                throw SyncError.networkError(error)
-            }
+            let syncResponse = try await miNoteService.fetchPage(syncTag: lastSyncTag)
+            print("[SYNC] 旧API调用成功")
             
             // 解析笔记和文件夹
-            let notes = miNoteService.parseNotes(from: pageResponse)
-            let folders = miNoteService.parseFolders(from: pageResponse)
+            let notes = miNoteService.parseNotes(from: syncResponse)
+            let folders = miNoteService.parseFolders(from: syncResponse)
             
             var syncedNotes = 0
             var cloudNoteIds = Set<String>() // 收集云端笔记ID
@@ -368,11 +417,16 @@ final class SyncService: @unchecked Sendable {
             
             // 更新同步状态
             var updatedStatus = syncStatus
-            if let newSyncTag = pageResponse["syncTag"] as? String {
+            // 从响应中提取新的syncTag
+            if let newSyncTag = extractSyncTags(from: syncResponse) {
                 updatedStatus.syncTag = newSyncTag
+                print("[SYNC] 更新syncTag: \(newSyncTag)")
             }
             updatedStatus.lastSyncTime = Date()
             try localStorage.saveSyncStatus(updatedStatus)
+            
+            // 同步文件夹排序信息
+            try await syncFolderSortInfo()
             
             // 处理只有本地存在但云端不存在的笔记和文件夹
             syncStatusMessage = "检查本地独有的笔记和文件夹..."
@@ -388,12 +442,391 @@ final class SyncService: @unchecked Sendable {
             result.syncedNotes = syncedNotes
             result.lastSyncTime = Date()
             
+            // 显示同步状态信息
+            print("[SYNC] 🔍 增量同步完成，显示同步状态信息:")
+            if let savedStatus = localStorage.loadSyncStatus() {
+                print("[SYNC]   - lastSyncTime: \(savedStatus.lastSyncTime?.description ?? "nil")")
+                print("[SYNC]   - syncTag: \(savedStatus.syncTag ?? "nil")")
+                print("[SYNC]   - lastPageSyncTime: \(savedStatus.lastPageSyncTime?.description ?? "nil")")
+            } else {
+                print("[SYNC]   ⚠️ 无法加载同步状态")
+            }
+            
         } catch {
             syncStatusMessage = "增量同步失败: \(error.localizedDescription)"
             throw error
         }
         
         return result
+    }
+    
+    /// 执行网页版增量同步（使用新的API）
+    /// 
+    /// 使用网页版的 `/note/sync/full/` API 进行增量同步
+    /// 这个API比 `/note/full/page` 更高效，专门为增量同步设计
+    /// 
+    /// - Returns: 同步结果，包含同步的笔记数量等信息
+    /// - Throws: SyncError（同步错误、网络错误等）
+    func performWebIncrementalSync() async throws -> SyncResult {
+        print("[SYNC] 开始执行网页版增量同步")
+        guard !isSyncing else {
+            print("[SYNC] 错误：同步正在进行中")
+            throw SyncError.alreadySyncing
+        }
+        
+        guard miNoteService.isAuthenticated() else {
+            print("[SYNC] 错误：未认证")
+            throw SyncError.notAuthenticated
+        }
+        
+        // 加载现有的同步状态
+        guard let syncStatus = localStorage.loadSyncStatus() else {
+            // 如果没有同步状态，执行完整同步（在设置 isSyncing 之前检查）
+            print("[SYNC] 未找到同步记录，执行完整同步...")
+            return try await performFullSync()
+        }
+        
+        isSyncing = true
+        syncProgress = 0
+        syncStatusMessage = "开始网页版增量同步..."
+        
+        defer {
+            isSyncing = false
+            print("[SYNC] 网页版增量同步结束，isSyncing设置为false")
+        }
+        
+        var result = SyncResult()
+        
+        do {
+            let lastSyncTag = syncStatus.syncTag ?? ""
+            syncStatusMessage = "获取自上次同步以来的更改..."
+            
+            // 使用网页版增量同步API
+            let syncResponse = try await miNoteService.syncFull(syncTag: lastSyncTag)
+            print("[SYNC] 网页版增量同步API调用成功")
+            
+            // 解析笔记和文件夹
+            let notes = miNoteService.parseNotes(from: syncResponse)
+            let folders = miNoteService.parseFolders(from: syncResponse)
+            
+            var syncedNotes = 0
+            var cloudNoteIds = Set<String>() // 收集云端笔记ID
+            var cloudFolderIds = Set<String>() // 收集云端文件夹ID
+            
+            // 收集云端笔记和文件夹ID
+            for note in notes {
+                cloudNoteIds.insert(note.id)
+            }
+            for folder in folders {
+                if !folder.isSystem && folder.id != "0" && folder.id != "starred" {
+                    cloudFolderIds.insert(folder.id)
+                }
+            }
+            
+            // 处理文件夹（按照增量同步规则）
+            syncStatusMessage = "同步文件夹..."
+            try await syncFoldersIncremental(cloudFolders: folders, cloudFolderIds: cloudFolderIds)
+            
+            // 处理笔记（按照增量同步规则）
+            for (index, note) in notes.enumerated() {
+                syncProgress = Double(index) / Double(max(notes.count, 1))
+                syncStatusMessage = "正在同步笔记: \(note.title)"
+                
+                let noteResult = try await syncNoteIncremental(cloudNote: note)
+                result.addNoteResult(noteResult)
+                
+                if noteResult.success {
+                    syncedNotes += 1
+                }
+            }
+            
+            // 更新同步状态
+            var updatedStatus = syncStatus
+            // 从响应中提取新的syncTag
+            if let newSyncTag = extractSyncTags(from: syncResponse) {
+                updatedStatus.syncTag = newSyncTag
+                print("[SYNC] 更新syncTag: \(newSyncTag)")
+            }
+            updatedStatus.lastSyncTime = Date()
+            try localStorage.saveSyncStatus(updatedStatus)
+            
+            // 同步文件夹排序信息
+            try await syncFolderSortInfo()
+            
+            // 处理只有本地存在但云端不存在的笔记和文件夹
+            syncStatusMessage = "检查本地独有的笔记和文件夹..."
+            try await syncLocalOnlyItems(cloudNoteIds: cloudNoteIds, cloudFolderIds: cloudFolderIds)
+            
+            // 重试删除失败的笔记
+            try await retryPendingDeletions()
+            
+            syncProgress = 1.0
+            syncStatusMessage = "网页版增量同步完成"
+            
+            result.totalNotes = notes.count
+            result.syncedNotes = syncedNotes
+            result.lastSyncTime = Date()
+            
+            // 显示同步状态信息
+            print("[SYNC] 🔍 网页版增量同步完成，显示同步状态信息:")
+            if let savedStatus = localStorage.loadSyncStatus() {
+                print("[SYNC]   - lastSyncTime: \(savedStatus.lastSyncTime?.description ?? "nil")")
+                print("[SYNC]   - syncTag: \(savedStatus.syncTag ?? "nil")")
+                print("[SYNC]   - lastPageSyncTime: \(savedStatus.lastPageSyncTime?.description ?? "nil")")
+            } else {
+                print("[SYNC]   ⚠️ 无法加载同步状态")
+            }
+            
+        } catch {
+            syncStatusMessage = "网页版增量同步失败: \(error.localizedDescription)"
+            throw error
+        }
+        
+        return result
+    }
+    
+    /// MARK: 轻量级增量同步（优化版）
+    /// 
+    /// 使用网页版的 `/note/sync/full/` API 进行轻量级增量同步
+    /// 这个API只返回有修改的条目，然后程序依次请求这些文件夹和笔记的详细内容
+    /// 
+    /// 优势：
+    /// 1. 更高效：只同步有修改的条目，减少网络流量
+    /// 2. 实时性更好：基于syncTag的增量同步更准确
+    /// 3. 支持删除同步：可以同步服务器端的删除操作
+    /// 
+    /// - Returns: 同步结果，包含同步的笔记数量等信息
+    /// - Throws: SyncError（同步错误、网络错误等）
+    func performLightweightIncrementalSync() async throws -> SyncResult {
+        print("[SYNC] 开始执行轻量级增量同步")
+        guard !isSyncing else {
+            print("[SYNC] 错误：同步正在进行中")
+            throw SyncError.alreadySyncing
+        }
+        
+        guard miNoteService.isAuthenticated() else {
+            print("[SYNC] 错误：未认证")
+            throw SyncError.notAuthenticated
+        }
+        
+        // 加载现有的同步状态
+        guard let syncStatus = localStorage.loadSyncStatus() else {
+            // 如果没有同步状态，执行完整同步（在设置 isSyncing 之前检查）
+            print("[SYNC] 未找到同步记录，执行完整同步...")
+            return try await performFullSync()
+        }
+        
+        isSyncing = true
+        syncProgress = 0
+        syncStatusMessage = "开始轻量级增量同步..."
+        
+        defer {
+            isSyncing = false
+            print("[SYNC] 轻量级增量同步结束，isSyncing设置为false")
+        }
+        
+        var result = SyncResult()
+        
+        do {
+            let lastSyncTag = syncStatus.syncTag ?? ""
+            syncStatusMessage = "获取自上次同步以来的更改..."
+            
+            // 使用轻量级增量同步API
+            let syncResponse = try await miNoteService.syncFull(syncTag: lastSyncTag)
+            print("[SYNC] 轻量级增量同步API调用成功")
+            
+            // 解析响应，获取有修改的条目
+            let (modifiedNotes, modifiedFolders, newSyncTag) = try parseLightweightSyncResponse(syncResponse)
+            
+            print("[SYNC] 找到 \(modifiedNotes.count) 个有修改的笔记，\(modifiedFolders.count) 个有修改的文件夹")
+            
+            var syncedNotes = 0
+            var cloudNoteIds = Set<String>() // 收集云端笔记ID
+            var cloudFolderIds = Set<String>() // 收集云端文件夹ID
+            
+            // 收集云端笔记和文件夹ID
+            for note in modifiedNotes {
+                cloudNoteIds.insert(note.id)
+            }
+            for folder in modifiedFolders {
+                if !folder.isSystem && folder.id != "0" && folder.id != "starred" {
+                    cloudFolderIds.insert(folder.id)
+                }
+            }
+            
+            // 处理有修改的文件夹
+            syncStatusMessage = "同步有修改的文件夹..."
+            if !modifiedFolders.isEmpty {
+                for (index, folder) in modifiedFolders.enumerated() {
+                    syncProgress = Double(index) / Double(max(modifiedFolders.count + modifiedNotes.count, 1))
+                    syncStatusMessage = "正在同步文件夹: \(folder.name)"
+                    
+                    try await processModifiedFolder(folder)
+                }
+            }
+            
+            // 处理有修改的笔记
+            syncStatusMessage = "同步有修改的笔记..."
+            if !modifiedNotes.isEmpty {
+                for (index, note) in modifiedNotes.enumerated() {
+                    syncProgress = Double(modifiedFolders.count + index) / Double(max(modifiedFolders.count + modifiedNotes.count, 1))
+                    syncStatusMessage = "正在同步笔记: \(note.title)"
+                    
+                    let noteResult = try await processModifiedNote(note)
+                    result.addNoteResult(noteResult)
+                    
+                    if noteResult.success {
+                        syncedNotes += 1
+                    }
+                }
+            }
+            
+            // 更新同步状态
+            var updatedStatus = syncStatus
+            if !newSyncTag.isEmpty {
+                updatedStatus.syncTag = newSyncTag
+                print("[SYNC] 更新syncTag: \(newSyncTag)")
+            }
+            updatedStatus.lastSyncTime = Date()
+            try localStorage.saveSyncStatus(updatedStatus)
+            
+            // 同步文件夹排序信息
+            try await syncFolderSortInfo()
+            
+            // 处理只有本地存在但云端不存在的笔记和文件夹
+            syncStatusMessage = "检查本地独有的笔记和文件夹..."
+            try await syncLocalOnlyItems(cloudNoteIds: cloudNoteIds, cloudFolderIds: cloudFolderIds)
+            
+            // 重试删除失败的笔记
+            try await retryPendingDeletions()
+            
+            syncProgress = 1.0
+            syncStatusMessage = "轻量级增量同步完成"
+            
+            result.totalNotes = modifiedNotes.count
+            result.syncedNotes = syncedNotes
+            result.lastSyncTime = Date()
+            
+            // 显示同步状态信息
+            print("[SYNC] 🔍 轻量级增量同步完成，显示同步状态信息:")
+            if let savedStatus = localStorage.loadSyncStatus() {
+                print("[SYNC]   - lastSyncTime: \(savedStatus.lastSyncTime?.description ?? "nil")")
+                print("[SYNC]   - syncTag: \(savedStatus.syncTag ?? "nil")")
+                print("[SYNC]   - lastPageSyncTime: \(savedStatus.lastPageSyncTime?.description ?? "nil")")
+            } else {
+                print("[SYNC]   ⚠️ 无法加载同步状态")
+            }
+            
+        } catch {
+            syncStatusMessage = "轻量级增量同步失败: \(error.localizedDescription)"
+            throw error
+        }
+        
+        return result
+    }
+    
+    /// 同步文件夹排序信息
+    /// 
+    /// 使用网页版的 `/todo/v1/user/records/0` API 同步文件夹排序信息
+    /// 这个API返回文件夹的排序顺序和同步状态
+    /// 
+    /// - Throws: SyncError（同步错误、网络错误等）
+    func syncFolderSortInfo() async throws {
+        print("[SYNC] 开始同步文件夹排序信息")
+        
+        guard miNoteService.isAuthenticated() else {
+            print("[SYNC] 错误：未认证")
+            throw SyncError.notAuthenticated
+        }
+        
+        do {
+            syncStatusMessage = "获取文件夹排序信息..."
+            
+            // 获取文件夹排序信息
+            let sortInfoResponse = try await miNoteService.fetchFolderSortInfo()
+            print("[SYNC] 文件夹排序信息获取成功")
+            
+            // 解析排序信息
+            if let data = sortInfoResponse["data"] as? [String: Any],
+               let record = data["record"] as? [String: Any],
+               let contentJson = record["contentJson"] as? [String: Any],
+               let sort = contentJson["sort"] as? [String: Any],
+               let eTag = sort["eTag"] as? String,
+               let orders = sort["orders"] as? [String] {
+                
+                print("[SYNC] 文件夹排序信息: eTag=\(eTag), orders=\(orders)")
+                
+                // 保存排序信息到本地
+                try localStorage.saveFolderSortInfo(eTag: eTag, orders: orders)
+                print("[SYNC] 文件夹排序信息已保存到本地")
+                
+                syncStatusMessage = "文件夹排序信息同步完成"
+            } else {
+                print("[SYNC] 警告：无法解析文件夹排序信息")
+            }
+            
+        } catch {
+            print("[SYNC] 同步文件夹排序信息失败: \(error)")
+            // 不抛出错误，因为文件夹排序不是关键功能
+            syncStatusMessage = "文件夹排序信息同步失败，但继续其他同步"
+        }
+    }
+    
+    /// 从响应中提取syncTag
+    /// 
+    /// 支持两种响应格式：
+    /// 1. 旧API格式：直接返回syncTag字段
+    /// 2. 网页版API格式：嵌套在note_view.data.syncTag中
+    /// 
+    /// - Parameter response: API响应字典
+    /// - Returns: syncTag，如果找不到则返回nil
+    private func extractSyncTags(from response: [String: Any]) -> String? {
+        var syncTag: String? = nil
+        
+        print("[SYNC] 🔍 开始提取syncTag，响应键: \(response.keys)")
+        
+        // 尝试旧API格式
+        if let oldSyncTag = response["syncTag"] as? String {
+            syncTag = oldSyncTag
+            print("[SYNC] ✅ 从旧API格式提取syncTag: \(oldSyncTag)")
+        }
+        
+        // 尝试网页版API格式
+        if let data = response["data"] as? [String: Any] {
+            print("[SYNC] 🔍 找到data字段，键: \(data.keys)")
+            if let noteView = data["note_view"] as? [String: Any] {
+                print("[SYNC] 🔍 找到note_view字段，键: \(noteView.keys)")
+                if let noteViewData = noteView["data"] as? [String: Any] {
+                    print("[SYNC] 🔍 找到note_view.data字段，键: \(noteViewData.keys)")
+                    if let webSyncTag = noteViewData["syncTag"] as? String {
+                        syncTag = webSyncTag
+                        print("[SYNC] ✅ 从网页版API格式提取syncTag: \(webSyncTag)")
+                    }
+                }
+            }
+        }
+        
+        // 尝试另一种可能的格式
+        if let noteView = response["note_view"] as? [String: Any] {
+            print("[SYNC] 🔍 找到顶层note_view字段，键: \(noteView.keys)")
+            if let noteViewData = noteView["data"] as? [String: Any] {
+                print("[SYNC] 🔍 找到顶层note_view.data字段，键: \(noteViewData.keys)")
+                if let webSyncTag = noteViewData["syncTag"] as? String {
+                    syncTag = webSyncTag
+                    print("[SYNC] ✅ 从另一种格式提取syncTag: \(webSyncTag)")
+                }
+            }
+        }
+        
+        if syncTag == nil {
+            print("[SYNC] ⚠️ 警告：无法从响应中提取syncTag")
+            // 打印响应结构以便调试
+            print("[SYNC] 🔍 响应结构: \(response)")
+        } else {
+            print("[SYNC] ✅ 提取syncTag成功: \(syncTag!)")
+        }
+        
+        return syncTag
     }
     
     // MARK: - 增量同步辅助方法
@@ -1253,24 +1686,6 @@ final class SyncService: @unchecked Sendable {
         return settingData
     }
     
-    // MARK: - 清理已删除的笔记
-    
-    private func cleanupDeletedNotes(syncStatus: SyncStatus) async throws {
-        syncStatusMessage = "清理已删除的笔记..."
-        
-        // 获取所有本地笔记
-        let localNotes = try localStorage.getAllLocalNotes()
-        
-        // 检查哪些本地笔记不在同步状态中
-        for localNote in localNotes {
-            if !syncStatus.isNoteSynced(localNote.id) {
-                // 笔记不在同步列表中，可能已被删除
-                // 这里可以添加逻辑来确认笔记是否真的被删除
-                // 暂时只是记录
-                print("笔记可能已被删除: \(localNote.title) (\(localNote.id))")
-            }
-        }
-    }
     
     // MARK: - 手动同步单个笔记
     
@@ -1373,6 +1788,166 @@ final class SyncService: @unchecked Sendable {
         print("[SYNC] 重试删除完成")
     }
     
+    // MARK: - 轻量级增量同步辅助方法
+    
+    /// 解析轻量级同步响应
+    /// 
+    /// 解析网页版 `/note/sync/full/` API 的响应，提取：
+    /// 1. 有修改的笔记（包括删除的笔记）
+    /// 2. 有修改的文件夹（包括删除的文件夹）
+    /// 3. 新的 syncTag
+    /// 
+    /// - Parameter response: API响应字典
+    /// - Returns: 包含有修改的笔记、文件夹和新的syncTag的元组
+    /// - Throws: SyncError（如果响应格式无效）
+    private func parseLightweightSyncResponse(_ response: [String: Any]) throws -> (notes: [Note], folders: [Folder], syncTag: String) {
+        print("[SYNC] 解析轻量级同步响应")
+        
+        // 提取 syncTag
+        var syncTag = ""
+        if let data = response["data"] as? [String: Any],
+           let noteView = data["note_view"] as? [String: Any],
+           let noteViewData = noteView["data"] as? [String: Any],
+           let newSyncTag = noteViewData["syncTag"] as? String {
+            syncTag = newSyncTag
+        }
+        
+        // 提取有修改的条目
+        var modifiedNotes: [Note] = []
+        var modifiedFolders: [Folder] = []
+        
+        if let data = response["data"] as? [String: Any],
+           let noteView = data["note_view"] as? [String: Any],
+           let noteViewData = noteView["data"] as? [String: Any] {
+            
+            // 提取有修改的笔记
+            if let entries = noteViewData["entries"] as? [[String: Any]] {
+                for entry in entries {
+                    if let note = Note.fromMinoteData(entry) {
+                        modifiedNotes.append(note)
+                        print("[SYNC] 找到有修改的笔记: \(note.id), 状态: \(entry["status"] as? String ?? "normal")")
+                    }
+                }
+            }
+            
+            // 提取有修改的文件夹
+            if let folders = noteViewData["folders"] as? [[String: Any]] {
+                for folderEntry in folders {
+                    if let folder = Folder.fromMinoteData(folderEntry) {
+                        modifiedFolders.append(folder)
+                        print("[SYNC] 找到有修改的文件夹: \(folder.id), 状态: \(folderEntry["status"] as? String ?? "normal")")
+                    }
+                }
+            }
+        }
+        
+        print("[SYNC] 解析完成: \(modifiedNotes.count) 个笔记, \(modifiedFolders.count) 个文件夹, syncTag: \(syncTag)")
+        return (modifiedNotes, modifiedFolders, syncTag)
+    }
+    
+    /// 处理有修改的文件夹
+    /// 
+    /// 根据文件夹的状态进行处理：
+    /// - 如果状态为 "deleted": 从本地删除
+    /// - 如果状态为 "normal": 保存到本地
+    /// 
+    /// - Parameter folder: 有修改的文件夹
+    /// - Throws: SyncError（存储错误等）
+    private func processModifiedFolder(_ folder: Folder) async throws {
+        print("[SYNC] 处理有修改的文件夹: \(folder.id) - \(folder.name)")
+        
+        // 检查文件夹状态
+        if let rawData = folder.rawData,
+           let status = rawData["status"] as? String,
+           status == "deleted" {
+            // 文件夹已删除，从本地删除
+            print("[SYNC] 文件夹状态为 deleted，从本地删除: \(folder.id)")
+            try DatabaseService.shared.deleteFolder(folderId: folder.id)
+        } else {
+            // 文件夹正常，保存到本地
+            print("[SYNC] 文件夹状态正常，保存到本地: \(folder.id)")
+            try localStorage.saveFolders([folder])
+        }
+    }
+    
+    /// 处理有修改的笔记
+    /// 
+    /// 根据笔记的状态进行处理：
+    /// - 如果状态为 "deleted": 从本地删除
+    /// - 如果状态为 "normal": 获取完整内容并保存到本地
+    /// 
+    /// - Parameter note: 有修改的笔记
+    /// - Returns: 同步结果
+    /// - Throws: SyncError（网络错误、存储错误等）
+    private func processModifiedNote(_ note: Note) async throws -> NoteSyncResult {
+        print("[SYNC] 处理有修改的笔记: \(note.id) - \(note.title)")
+        var result = NoteSyncResult(noteId: note.id, noteTitle: note.title)
+        
+        // 检查笔记状态
+        if let rawData = note.rawData,
+           let status = rawData["status"] as? String,
+           status == "deleted" {
+            // 笔记已删除，从本地删除
+            print("[SYNC] 笔记状态为 deleted，从本地删除: \(note.id)")
+            try localStorage.deleteNote(noteId: note.id)
+            result.status = .skipped
+            result.message = "笔记已从云端删除"
+            result.success = true
+            return result
+        }
+        
+        // 笔记正常，获取完整内容并保存
+        do {
+            // 获取笔记详情
+            syncStatusMessage = "获取笔记详情: \(note.title)"
+            let noteDetails = try await miNoteService.fetchNoteDetails(noteId: note.id)
+            
+            // 更新笔记内容
+            var updatedNote = note
+            updatedNote.updateContent(from: noteDetails)
+            print("[SYNC] 更新笔记内容完成: \(note.id), 内容长度: \(updatedNote.content.count)")
+            
+            // 下载图片，并获取更新后的 setting.data
+            if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
+                // 更新笔记的 rawData 中的 setting.data
+                var rawData = updatedNote.rawData ?? [:]
+                var setting = rawData["setting"] as? [String: Any] ?? [:]
+                setting["data"] = updatedSettingData
+                rawData["setting"] = setting
+                updatedNote.rawData = rawData
+                print("[SYNC] 更新笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+            }
+            
+            // 保存到本地
+            print("[SYNC] 保存笔记到本地: \(updatedNote.id)")
+            try localStorage.saveNote(updatedNote)
+            
+            // 检查是更新还是创建
+            let existsLocally = localStorage.noteExistsLocally(noteId: note.id)
+            result.status = existsLocally ? .updated : .created
+            result.message = existsLocally ? "笔记已更新" : "新笔记已下载"
+            result.success = true
+            
+        } catch let error as MiNoteError {
+            print("[SYNC] 获取笔记详情失败 (MiNoteError): \(error)")
+            switch error {
+            case .cookieExpired:
+                throw SyncError.cookieExpired
+            case .notAuthenticated:
+                throw SyncError.notAuthenticated
+            case .networkError(let underlyingError):
+                throw SyncError.networkError(underlyingError)
+            case .invalidResponse:
+                throw SyncError.networkError(error)
+            }
+        } catch {
+            print("[SYNC] 获取笔记详情失败: \(error)")
+            throw SyncError.networkError(error)
+        }
+        
+        return result
+    }
+    
     // MARK: - 重置同步状态
     
     /// 重置同步状态
@@ -1382,6 +1957,7 @@ final class SyncService: @unchecked Sendable {
     func resetSyncStatus() throws {
         try localStorage.clearSyncStatus()
     }
+    
     
     // MARK: - 同步结果模型
     

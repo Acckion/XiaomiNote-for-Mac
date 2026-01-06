@@ -205,7 +205,7 @@ final class MiNoteService: @unchecked Sendable {
     
     // MARK: - API Methods
     
-    /// 删除笔记
+    // MARK: 删除笔记
     /// 
     /// - Parameters:
     ///   - noteId: 笔记ID
@@ -278,7 +278,7 @@ final class MiNoteService: @unchecked Sendable {
         }
     }
     
-    /// 获取私密笔记列表
+    /// MARK: 获取私密笔记列表
     /// 
     /// 获取指定文件夹（通常是私密笔记文件夹，folderId=2）的笔记列表
     /// 
@@ -369,9 +369,18 @@ final class MiNoteService: @unchecked Sendable {
         }
     }
     
-    /// 获取笔记列表（分页）
+    /// MARK: 获取笔记列表（分页）
     /// 
-    /// 用于同步功能，支持增量同步（通过syncTag）
+    /// 用于同步功能，支持完整同步和增量同步
+    /// 
+    /// 注意：完整同步和增量同步都使用此方法，但syncTag参数仅用于内部逻辑，
+    /// 不会作为查询参数发送到服务器。服务器无法解析syncTag查询参数。
+    /// 
+    /// 使用示例：
+    /// 1. 完整同步（第一次同步）：`fetchPage()` 不带syncTag参数
+    /// 2. 增量同步（通过修改时间判断）：`fetchPage()` 然后比较笔记的modifyDate
+    /// 
+    /// 响应格式：{"data": {"entries": [...], "folders": [...], "syncTag": "..."}}
     /// 
     /// - Parameter syncTag: 同步标签，用于增量同步。空字符串表示获取第一页
     /// - Returns: 包含笔记和文件夹列表的响应字典
@@ -379,11 +388,16 @@ final class MiNoteService: @unchecked Sendable {
     func fetchPage(syncTag: String = "") async throws -> [String: Any] {
         // 正确编码URL参数
         var urlComponents = URLComponents(string: "\(baseURL)/note/full/page")
-        urlComponents?.queryItems = [
+        
+        // 构建查询参数
+        // 注意：完整同步和增量同步在任何情况下都不要syncTag查询参数
+        // syncTag仅用于内部逻辑，不会发送到服务器
+        let queryItems = [
             URLQueryItem(name: "ts", value: "\(Int(Date().timeIntervalSince1970 * 1000))"),
-            URLQueryItem(name: "syncTag", value: syncTag.isEmpty ? nil : syncTag),
             URLQueryItem(name: "limit", value: "200")
         ]
+        
+        urlComponents?.queryItems = queryItems
         
         guard let urlString = urlComponents?.url?.absoluteString else {
             NetworkLogger.shared.logError(url: "\(baseURL)/note/full/page", method: "GET", error: URLError(.badURL))
@@ -1221,28 +1235,68 @@ final class MiNoteService: @unchecked Sendable {
     
     // MARK: - Helper Methods
     
-    func parseNotes(from response: [String: Any]) -> [Note] {
-        var notes: [Note] = []
+    /// 从响应中提取syncTag
+    /// 
+    /// 支持两种响应格式：
+    /// 1. 完整/增量同步：response["syncTag"] 或 response["data"]["syncTag"]
+    /// 2. 轻量级同步：response["data"]["note_view"]["data"]["syncTag"]
+    /// 
+    /// - Parameter response: API响应字典
+    /// - Returns: syncTag字符串，如果找不到则返回空字符串
+    func extractSyncTag(from response: [String: Any]) -> String {
+        // 首先尝试从响应顶层获取
+        if let syncTag = response["syncTag"] as? String {
+            return syncTag
+        }
         
-        // 小米笔记API返回格式: {"result":"ok","code":0,"data":{"entries":[...]}}
-        // 首先尝试从data字段获取entries
-        if let data = response["data"] as? [String: Any],
-           let entries = data["entries"] as? [[String: Any]] {
-            print("[MiNoteService] 从data字段找到 \(entries.count) 条笔记")
-            for entry in entries {
-                if let note = Note.fromMinoteData(entry) {
-                    notes.append(note)
-                }
+        // 尝试从data字段获取
+        if let data = response["data"] as? [String: Any] {
+            // 完整/增量同步格式：data.syncTag
+            if let syncTag = data["syncTag"] as? String {
+                return syncTag
+            }
+            
+            // 轻量级同步格式：data.note_view.data.syncTag
+            if let noteView = data["note_view"] as? [String: Any],
+               let noteViewData = noteView["data"] as? [String: Any],
+               let syncTag = noteViewData["syncTag"] as? String {
+                return syncTag
             }
         }
+        
+        return ""
+    }
+    
+    /// 解析笔记列表
+    /// 
+    /// 支持两种响应格式：
+    /// 1. 完整/增量同步：response["data"]["entries"]
+    /// 2. 轻量级同步：response["data"]["note_view"]["data"]["entries"]
+    /// 
+    /// - Parameter response: API响应字典
+    /// - Returns: 笔记对象数组
+    func parseNotes(from response: [String: Any]) -> [Note] {
+        var notes: [Note] = []
+        var entries: [[String: Any]] = []
+        
+        // 首先尝试完整/增量同步格式：data.entries
+        if let data = response["data"] as? [String: Any],
+           let dataEntries = data["entries"] as? [[String: Any]] {
+            entries = dataEntries
+            print("[MiNoteService] 从完整/增量同步格式找到 \(entries.count) 条笔记")
+        }
+        // 尝试轻量级同步格式：data.note_view.data.entries
+        else if let data = response["data"] as? [String: Any],
+                let noteView = data["note_view"] as? [String: Any],
+                let noteViewData = noteView["data"] as? [String: Any],
+                let noteViewEntries = noteViewData["entries"] as? [[String: Any]] {
+            entries = noteViewEntries
+            print("[MiNoteService] 从轻量级同步格式找到 \(entries.count) 条笔记")
+        }
         // 如果data字段没有，尝试直接从响应中获取（向后兼容）
-        else if let entries = response["entries"] as? [[String: Any]] {
+        else if let responseEntries = response["entries"] as? [[String: Any]] {
+            entries = responseEntries
             print("[MiNoteService] 从响应顶层找到 \(entries.count) 条笔记")
-            for entry in entries {
-                if let note = Note.fromMinoteData(entry) {
-                    notes.append(note)
-                }
-            }
         } else {
             print("[MiNoteService] 警告：未找到entries字段")
             print("[MiNoteService] 响应结构: \(response.keys)")
@@ -1251,41 +1305,45 @@ final class MiNoteService: @unchecked Sendable {
             }
         }
         
+        for entry in entries {
+            if let note = Note.fromMinoteData(entry) {
+                notes.append(note)
+            }
+        }
+        
         return notes
     }
     
+    /// 解析文件夹列表
+    /// 
+    /// 支持两种响应格式：
+    /// 1. 完整/增量同步：response["data"]["folders"]
+    /// 2. 轻量级同步：response["data"]["note_view"]["data"]["folders"]
+    /// 
+    /// - Parameter response: API响应字典
+    /// - Returns: 文件夹对象数组
     func parseFolders(from response: [String: Any]) -> [Folder] {
         var folders: [Folder] = []
+        var folderEntries: [[String: Any]] = []
         
-        // 小米笔记API返回格式: {"result":"ok","code":0,"data":{"folders":[...]}}
-        // 参考 Obsidian 插件：文件夹在 page.data.folders 中，使用 subject 字段作为名称
+        // 首先尝试完整/增量同步格式：data.folders
         if let data = response["data"] as? [String: Any],
-           let folderEntries = data["folders"] as? [[String: Any]] {
-            print("[MiNoteService] 从data字段找到 \(folderEntries.count) 个文件夹条目")
-            for folderEntry in folderEntries {
-                // 检查类型，只处理文件夹类型（参考 Obsidian 插件）
-                if let type = folderEntry["type"] as? String, type == "folder" {
-                if let folder = Folder.fromMinoteData(folderEntry) {
-                    folders.append(folder)
-                        print("[MiNoteService] 解析文件夹: id=\(folder.id), name=\(folder.name)")
-                    } else {
-                        print("[MiNoteService] 警告：无法解析文件夹条目: \(folderEntry)")
-                    }
-                } else {
-                    print("[MiNoteService] 跳过非文件夹条目，type=\(folderEntry["type"] ?? "未知")")
-                }
-            }
+           let dataFolders = data["folders"] as? [[String: Any]] {
+            folderEntries = dataFolders
+            print("[MiNoteService] 从完整/增量同步格式找到 \(folderEntries.count) 个文件夹条目")
+        }
+        // 尝试轻量级同步格式：data.note_view.data.folders
+        else if let data = response["data"] as? [String: Any],
+                let noteView = data["note_view"] as? [String: Any],
+                let noteViewData = noteView["data"] as? [String: Any],
+                let noteViewFolders = noteViewData["folders"] as? [[String: Any]] {
+            folderEntries = noteViewFolders
+            print("[MiNoteService] 从轻量级同步格式找到 \(folderEntries.count) 个文件夹条目")
         }
         // 如果data字段没有，尝试直接从响应中获取（向后兼容）
-        else if let folderEntries = response["folders"] as? [[String: Any]] {
+        else if let responseFolders = response["folders"] as? [[String: Any]] {
+            folderEntries = responseFolders
             print("[MiNoteService] 从响应顶层找到 \(folderEntries.count) 个文件夹")
-            for folderEntry in folderEntries {
-                if let type = folderEntry["type"] as? String, type == "folder" {
-                if let folder = Folder.fromMinoteData(folderEntry) {
-                    folders.append(folder)
-                    }
-                }
-            }
         } else {
             print("[MiNoteService] 警告：未找到folders字段")
             // 打印响应结构以便调试
@@ -1294,10 +1352,24 @@ final class MiNoteService: @unchecked Sendable {
             }
         }
         
+        for folderEntry in folderEntries {
+            // 检查类型，只处理文件夹类型（参考 Obsidian 插件）
+            if let type = folderEntry["type"] as? String, type == "folder" {
+                if let folder = Folder.fromMinoteData(folderEntry) {
+                    folders.append(folder)
+                    print("[MiNoteService] 解析文件夹: id=\(folder.id), name=\(folder.name)")
+                } else {
+                    print("[MiNoteService] 警告：无法解析文件夹条目: \(folderEntry)")
+                }
+            } else {
+                print("[MiNoteService] 跳过非文件夹条目，type=\(folderEntry["type"] ?? "未知")")
+            }
+        }
+        
         // 添加系统文件夹（参考 Obsidian 插件：默认文件夹 id='0', name='未分类'）
         // 但为了与UI一致，我们使用"所有笔记"和"收藏"
-        var hasAllNotes = folders.contains { $0.id == "0" }
-        var hasStarred = folders.contains { $0.id == "starred" }
+        let hasAllNotes = folders.contains { $0.id == "0" }
+        let hasStarred = folders.contains { $0.id == "starred" }
         
         if !hasAllNotes {
             folders.insert(Folder(id: "0", name: "所有笔记", count: 0, isSystem: true), at: 0)
@@ -2519,6 +2591,179 @@ extension MiNoteService {
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
                 print("[MiNoteService] ✅ 获取回收站笔记成功（响应中没有 code 字段，但状态码为 200）")
+            }
+            
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            throw error
+        }
+    }
+    
+    // MARK: - 网页版增量同步API
+    
+    /// 执行增量同步（网页版API）
+    /// 
+    /// 使用网页版的 `/note/sync/full/` API 进行增量同步
+    /// 这个API比 `/note/full/page` 更高效，专门为增量同步设计
+    /// 
+    /// 注意：第一次使用轻量级同步之前（即没有syncTag时），应该先使用一次完整同步来从响应中获取syncTag
+    /// 
+    /// - Parameters:
+    ///   - syncTag: 同步标签，用于增量同步。空字符串表示获取第一页
+    ///   - inactiveTime: 用户不活跃时间（秒），用于优化同步频率
+    /// - Returns: 包含笔记和文件夹列表的响应字典
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    func syncFull(syncTag: String = "", inactiveTime: Int = 10) async throws -> [String: Any] {
+        // 构建data参数：{"note_view":{"syncTag":"..."}}
+        // 当syncTag为空时，data参数应为{"note_view":{}}（空对象）
+        var dataDict: [String: Any] = ["note_view": [:]]
+        if !syncTag.isEmpty {
+            dataDict["note_view"] = ["syncTag": syncTag]
+        }
+
+        guard let dataJson = try? JSONSerialization.data(withJSONObject: dataDict, options: []),
+              let dataString = String(data: dataJson, encoding: .utf8) else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/note/sync/full/", method: "GET", error: URLError(.cannotParseResponse))
+            throw URLError(.cannotParseResponse)
+        }
+
+        // 使用 encodeURIComponent 对 data 参数进行编码（模拟 JavaScript 的 encodeURIComponent）
+        let dataEncoded = encodeURIComponent(dataString)
+        let ts = Int(Date().timeIntervalSince1970 * 1000)
+        
+        // 手动构建 URL 字符串，避免 URLComponents 的双重编码
+        // 格式：https://i.mi.com/note/sync/full/?ts=...&data=...&inactiveTime=...
+        let urlString = "\(baseURL)/note/sync/full/?ts=\(ts)&data=\(dataEncoded)&inactiveTime=\(inactiveTime)"
+
+        // 记录请求
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                let responseString = String(data: data, encoding: .utf8)
+
+                // 记录响应
+                NetworkLogger.shared.logResponse(
+                    url: urlString,
+                    method: "GET",
+                    statusCode: httpResponse.statusCode,
+                    headers: httpResponse.allHeaderFields as? [String: String],
+                    response: responseString,
+                    error: nil
+                )
+
+                // 检查401未授权错误
+                if httpResponse.statusCode == 401 {
+                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+                }
+            }
+
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            throw error
+        }
+    }
+    
+    /// 获取文件夹排序信息
+    /// 
+    /// 使用网页版的 `/todo/v1/user/records/0` API 获取文件夹排序信息
+    /// 这个API返回文件夹的排序顺序和同步状态
+    /// 
+    /// - Parameter ts: 时间戳（可选，如果不提供则使用当前时间）
+    /// - Returns: 包含文件夹排序信息的响应字典
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    func fetchFolderSortInfo(ts: Int64? = nil) async throws -> [String: Any] {
+        let timestamp = ts ?? Int64(Date().timeIntervalSince1970 * 1000)
+        
+        // 构建URL参数
+        var urlComponents = URLComponents(string: "\(baseURL)/todo/v1/user/records/0")
+        urlComponents?.queryItems = [
+            URLQueryItem(name: "ts", value: "\(timestamp)")
+        ]
+        
+        guard let urlString = urlComponents?.url?.absoluteString else {
+            NetworkLogger.shared.logError(url: "\(baseURL)/todo/v1/user/records/0", method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+        
+        // 记录请求
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let responseString = String(data: data, encoding: .utf8)
+            
+            // 记录响应
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "GET",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            // 处理401未授权错误
+            if httpResponse.statusCode == 401 {
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            
+            // 验证响应：检查 code 字段
+            if let code = json["code"] as? Int {
+                if code != 0 {
+                    let message = json["description"] as? String ?? json["message"] as? String ?? "获取文件夹排序信息失败"
+                    print("[MiNoteService] 获取文件夹排序信息失败，code: \(code), message: \(message)")
+                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+                } else {
+                    print("[MiNoteService] ✅ 获取文件夹排序信息成功，code: \(code)")
+                }
+            } else {
+                // 如果没有 code 字段，但状态码是 200，也认为成功
+                print("[MiNoteService] ✅ 获取文件夹排序信息成功（响应中没有 code 字段，但状态码为 200）")
             }
             
             return json

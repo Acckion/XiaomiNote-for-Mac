@@ -144,7 +144,6 @@ final class DatabaseService: @unchecked Sendable {
             id INTEGER PRIMARY KEY CHECK (id = 1),
             last_sync_time REAL,
             sync_tag TEXT,
-            synced_note_ids TEXT, -- JSON 数组
             last_page_sync_time REAL
         );
         """
@@ -1224,9 +1223,11 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func saveSyncStatus(_ status: SyncStatus) throws {
         try dbQueue.sync(flags: .barrier) {
+            print("[Database] 🔄 开始保存同步状态: syncTag=\(status.syncTag ?? "nil"), lastPageSyncTime=\(status.lastPageSyncTime?.description ?? "nil")")
+            
             let sql = """
-            INSERT OR REPLACE INTO sync_status (id, last_sync_time, sync_tag, synced_note_ids, last_page_sync_time)
-            VALUES (1, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO sync_status (id, last_sync_time, sync_tag, last_page_sync_time)
+            VALUES (1, ?, ?, ?);
             """
             
             var statement: OpaquePointer?
@@ -1237,36 +1238,42 @@ final class DatabaseService: @unchecked Sendable {
             }
             
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+                let errorMsg = String(cString: sqlite3_errmsg(db))
+                print("[Database] ❌ SQL准备失败: \(errorMsg)")
+                throw DatabaseError.prepareFailed(errorMsg)
             }
             
             if let lastSyncTime = status.lastSyncTime {
                 sqlite3_bind_double(statement, 1, lastSyncTime.timeIntervalSince1970)
+                print("[Database] 绑定 lastSyncTime: \(lastSyncTime)")
             } else {
                 sqlite3_bind_null(statement, 1)
+                print("[Database] 绑定 lastSyncTime: NULL")
             }
             
             if let syncTag = status.syncTag {
                 sqlite3_bind_text(statement, 2, (syncTag as NSString).utf8String, -1, nil)
+                print("[Database] 绑定 syncTag: \(syncTag)")
             } else {
                 sqlite3_bind_null(statement, 2)
+                print("[Database] 绑定 syncTag: NULL")
             }
             
-            // synced_note_ids 作为 JSON
-            let syncedNoteIdsJSON = try JSONEncoder().encode(status.syncedNoteIds)
-            sqlite3_bind_text(statement, 3, String(data: syncedNoteIdsJSON, encoding: .utf8), -1, nil)
-            
             if let lastPageSyncTime = status.lastPageSyncTime {
-                sqlite3_bind_double(statement, 4, lastPageSyncTime.timeIntervalSince1970)
+                sqlite3_bind_double(statement, 3, lastPageSyncTime.timeIntervalSince1970)
+                print("[Database] 绑定 lastPageSyncTime: \(lastPageSyncTime)")
             } else {
-                sqlite3_bind_null(statement, 4)
+                sqlite3_bind_null(statement, 3)
+                print("[Database] 绑定 lastPageSyncTime: NULL")
             }
             
             guard sqlite3_step(statement) == SQLITE_DONE else {
-                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+                let errorMsg = String(cString: sqlite3_errmsg(db))
+                print("[Database] ❌ SQL执行失败: \(errorMsg)")
+                throw DatabaseError.executionFailed(errorMsg)
             }
             
-            print("[Database] 保存同步状态")
+            print("[Database] ✅ 保存同步状态成功: syncTag=\(status.syncTag ?? "nil")")
         }
     }
     
@@ -1275,8 +1282,8 @@ final class DatabaseService: @unchecked Sendable {
     /// - Returns: 同步状态对象，如果不存在则返回nil
     /// - Throws: DatabaseError（数据库操作失败）
     func loadSyncStatus() throws -> SyncStatus? {
-        return try dbQueue.sync {
-            let sql = "SELECT last_sync_time, sync_tag, synced_note_ids, last_page_sync_time FROM sync_status WHERE id = 1;"
+        return try dbQueue.sync { () -> SyncStatus? in
+            let sql = "SELECT last_sync_time, sync_tag, last_page_sync_time FROM sync_status WHERE id = 1;"
             
             var statement: OpaquePointer?
             defer {
@@ -1305,25 +1312,14 @@ final class DatabaseService: @unchecked Sendable {
                 }
             }
             
-            var syncedNoteIds: [String] = []
-            if sqlite3_column_type(statement, 2) != SQLITE_NULL {
-                if let textPointer = sqlite3_column_text(statement, 2) {
-                    let syncedNoteIdsString = String(cString: textPointer)
-                    if let syncedNoteIdsData = syncedNoteIdsString.data(using: .utf8) {
-                        syncedNoteIds = try JSONDecoder().decode([String].self, from: syncedNoteIdsData)
-                    }
-                }
-            }
-            
             var lastPageSyncTime: Date? = nil
-            if sqlite3_column_type(statement, 3) != SQLITE_NULL {
-                lastPageSyncTime = Date(timeIntervalSince1970: sqlite3_column_double(statement, 3))
+            if sqlite3_column_type(statement, 2) != SQLITE_NULL {
+                lastPageSyncTime = Date(timeIntervalSince1970: sqlite3_column_double(statement, 2))
             }
             
             return SyncStatus(
                 lastSyncTime: lastSyncTime,
                 syncTag: syncTag,
-                syncedNoteIds: syncedNoteIds,
                 lastPageSyncTime: lastPageSyncTime
             )
         }
@@ -1425,6 +1421,136 @@ final class DatabaseService: @unchecked Sendable {
             }
             
             print("[Database] 删除待删除笔记: \(noteId)")
+        }
+    }
+    
+    // MARK: - 文件夹排序信息
+    
+    /// 保存文件夹排序信息
+    /// 
+    /// - Parameters:
+    ///   - eTag: 排序信息的ETag（用于增量同步）
+    ///   - orders: 文件夹ID的顺序数组
+    /// - Throws: DatabaseError（数据库操作失败）
+    func saveFolderSortInfo(eTag: String, orders: [String]) throws {
+        try dbQueue.sync(flags: .barrier) {
+            // 创建文件夹排序信息表（如果不存在）
+            let createTableSQL = """
+            CREATE TABLE IF NOT EXISTS folder_sort_info (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                e_tag TEXT NOT NULL,
+                orders TEXT NOT NULL, -- JSON 数组
+                updated_at REAL NOT NULL
+            );
+            """
+            executeSQL(createTableSQL)
+            
+            // 插入或更新排序信息
+            let sql = """
+            INSERT OR REPLACE INTO folder_sort_info (id, e_tag, orders, updated_at)
+            VALUES (1, ?, ?, ?);
+            """
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (eTag as NSString).utf8String, -1, nil)
+            
+            // orders 作为 JSON
+            let ordersJSON = try JSONEncoder().encode(orders)
+            sqlite3_bind_text(statement, 2, String(data: ordersJSON, encoding: .utf8), -1, nil)
+            
+            sqlite3_bind_double(statement, 3, Date().timeIntervalSince1970)
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            print("[Database] 保存文件夹排序信息: eTag=\(eTag), orders数量=\(orders.count)")
+        }
+    }
+    
+    /// 加载文件夹排序信息
+    /// 
+    /// - Returns: 包含eTag和orders的元组，如果不存在则返回nil
+    /// - Throws: DatabaseError（数据库操作失败）
+    func loadFolderSortInfo() throws -> (eTag: String, orders: [String])? {
+        return try dbQueue.sync {
+            // 检查表是否存在
+            let tableExistsSQL = "SELECT name FROM sqlite_master WHERE type='table' AND name='folder_sort_info';"
+            var tableExists = false
+            
+            var checkStatement: OpaquePointer?
+            defer {
+                if checkStatement != nil {
+                    sqlite3_finalize(checkStatement)
+                }
+            }
+            
+            if sqlite3_prepare_v2(db, tableExistsSQL, -1, &checkStatement, nil) == SQLITE_OK {
+                if sqlite3_step(checkStatement) == SQLITE_ROW {
+                    tableExists = true
+                }
+            }
+            
+            if !tableExists {
+                return nil
+            }
+            
+            let sql = "SELECT e_tag, orders FROM folder_sort_info WHERE id = 1;"
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            guard sqlite3_step(statement) == SQLITE_ROW else {
+                return nil
+            }
+            
+            guard let eTagText = sqlite3_column_text(statement, 0) else {
+                return nil
+            }
+            let eTag = String(cString: eTagText)
+            
+            guard let ordersText = sqlite3_column_text(statement, 1) else {
+                return nil
+            }
+            let ordersString = String(cString: ordersText)
+            
+            guard let ordersData = ordersString.data(using: .utf8) else {
+                return nil
+            }
+            
+            let orders = try JSONDecoder().decode([String].self, from: ordersData)
+            
+            print("[Database] 加载文件夹排序信息: eTag=\(eTag), orders数量=\(orders.count)")
+            return (eTag: eTag, orders: orders)
+        }
+    }
+    
+    /// 清除文件夹排序信息
+    /// 
+    /// - Throws: DatabaseError（数据库操作失败）
+    func clearFolderSortInfo() throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = "DELETE FROM folder_sort_info WHERE id = 1;"
+            executeSQL(sql)
+            print("[Database] 清除文件夹排序信息")
         }
     }
 }

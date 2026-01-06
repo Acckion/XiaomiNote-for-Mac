@@ -1,59 +1,31 @@
 import SwiftUI
 import AppKit
 
-public struct DebugSettingsView: View {
-    @Environment(\.dismiss) private var dismiss
+// MARK: - Alert Modifier
+
+struct AlertModifier: ViewModifier {
+    @Binding var showCopyAlert: Bool
+    let copyAlertMessage: String
+    @Binding var showClearAlert: Bool
+    @Binding var showNetworkTestAlert: Bool
+    let networkTestResult: String
+    @Binding var showExportLogsAlert: Bool
+    @Binding var showSaveAlert: Bool
+    let saveAlertMessage: String
+    @Binding var showPrivateNotesTestAlert: Bool
+    let privateNotesTestResult: String
+    @Binding var showEncryptionInfoTestAlert: Bool
+    let encryptionInfoTestResult: String
+    @Binding var showServiceStatusCheckAlert: Bool
+    let serviceStatusCheckResult: String
+    @Binding var showSilentRefreshAlert: Bool
+    let silentRefreshResult: String
+    @Binding var showSyncTestAlert: Bool
+    let syncTestResult: String
+    let clearCookie: () -> Void
     
-    @State private var cookieString: String = ""
-    @State private var serviceToken: String = ""
-    @State private var showCopyAlert: Bool = false
-    @State private var copyAlertMessage: String = ""
-    @State private var showClearAlert: Bool = false
-    @State private var showExportLogsAlert: Bool = false
-    @State private var showNetworkTestAlert: Bool = false
-    @State private var networkTestResult: String = ""
-    @State private var showSaveAlert: Bool = false
-    @State private var saveAlertMessage: String = ""
-    @State private var isEditingCookie: Bool = false
-    @State private var editedCookieString: String = ""
-    @State private var showPrivateNotesTestAlert: Bool = false
-    @State private var privateNotesTestResult: String = ""
-    @State private var isTestingPrivateNotes: Bool = false
-    @State private var showEncryptionInfoTestAlert: Bool = false
-    @State private var encryptionInfoTestResult: String = ""
-    @State private var isTestingEncryptionInfo: Bool = false
-    @State private var showServiceStatusCheckAlert: Bool = false
-    @State private var serviceStatusCheckResult: String = ""
-    @State private var isTestingServiceStatus: Bool = false
-    @State private var showSilentRefreshAlert: Bool = false
-    @State private var silentRefreshResult: String = ""
-    @State private var isTestingSilentRefresh: Bool = false
-    
-    public init() {}
-    
-    public var body: some View {
-        NavigationStack {
-            Form {
-                credentialsSection
-                debugToolsSection
-                apiInfoSection
-                systemInfoSection
-            }
-            .formStyle(.grouped)
-            .navigationTitle("调试设置")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("刷新") {
-                        loadCredentials()
-                    }
-                }
-            }
+    func body(content: Content) -> some View {
+        content
             .alert("复制成功", isPresented: $showCopyAlert) {
                 Button("确定", role: .cancel) {}
             } message: {
@@ -102,6 +74,96 @@ public struct DebugSettingsView: View {
             } message: {
                 Text(silentRefreshResult)
             }
+            .alert("同步API测试结果", isPresented: $showSyncTestAlert) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(syncTestResult)
+            }
+    }
+}
+
+public struct DebugSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var cookieString: String = ""
+    @State private var serviceToken: String = ""
+    @State private var showCopyAlert: Bool = false
+    @State private var copyAlertMessage: String = ""
+    @State private var showClearAlert: Bool = false
+    @State private var showExportLogsAlert: Bool = false
+    @State private var showNetworkTestAlert: Bool = false
+    @State private var networkTestResult: String = ""
+    @State private var showSaveAlert: Bool = false
+    @State private var saveAlertMessage: String = ""
+    @State private var isEditingCookie: Bool = false
+    @State private var editedCookieString: String = ""
+    @State private var showPrivateNotesTestAlert: Bool = false
+    @State private var privateNotesTestResult: String = ""
+    @State private var isTestingPrivateNotes: Bool = false
+    @State private var showEncryptionInfoTestAlert: Bool = false
+    @State private var encryptionInfoTestResult: String = ""
+    @State private var isTestingEncryptionInfo: Bool = false
+    @State private var showServiceStatusCheckAlert: Bool = false
+    @State private var serviceStatusCheckResult: String = ""
+    @State private var isTestingServiceStatus: Bool = false
+    @State private var showSilentRefreshAlert: Bool = false
+    @State private var silentRefreshResult: String = ""
+    @State private var isTestingSilentRefresh: Bool = false
+    
+    // 同步API测试相关状态
+    @State private var syncTagInput: String = ""
+    @State private var isTestingSyncAPI: Bool = false
+    @State private var showSyncTestAlert: Bool = false
+    @State private var syncTestResult: String = ""
+    @State private var syncTestType: String = ""
+    
+    public init() {}
+    
+    public var body: some View {
+        NavigationStack {
+            Form {
+                credentialsSection
+                debugToolsSection
+                syncAPITestSection
+                apiInfoSection
+                systemInfoSection
+            }
+            .formStyle(.grouped)
+            .navigationTitle("调试设置")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("刷新") {
+                        loadCredentials()
+                    }
+                }
+            }
+            .modifier(AlertModifier(
+                showCopyAlert: $showCopyAlert,
+                copyAlertMessage: copyAlertMessage,
+                showClearAlert: $showClearAlert,
+                showNetworkTestAlert: $showNetworkTestAlert,
+                networkTestResult: networkTestResult,
+                showExportLogsAlert: $showExportLogsAlert,
+                showSaveAlert: $showSaveAlert,
+                saveAlertMessage: saveAlertMessage,
+                showPrivateNotesTestAlert: $showPrivateNotesTestAlert,
+                privateNotesTestResult: privateNotesTestResult,
+                showEncryptionInfoTestAlert: $showEncryptionInfoTestAlert,
+                encryptionInfoTestResult: encryptionInfoTestResult,
+                showServiceStatusCheckAlert: $showServiceStatusCheckAlert,
+                serviceStatusCheckResult: serviceStatusCheckResult,
+                showSilentRefreshAlert: $showSilentRefreshAlert,
+                silentRefreshResult: silentRefreshResult,
+                showSyncTestAlert: $showSyncTestAlert,
+                syncTestResult: syncTestResult,
+                clearCookie: clearCookie
+            ))
             .onAppear {
                 loadCredentials()
             }
@@ -238,6 +300,95 @@ public struct DebugSettingsView: View {
             Button("重置应用程序") {
                 resetApplication()
             }
+        }
+    }
+    
+    @ViewBuilder
+    private var syncAPITestSection: some View {
+        Section("同步API测试") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("同步标签 (syncTag)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button("复制") {
+                        copyToClipboard(syncTagInput)
+                        copyAlertMessage = "syncTag已复制到剪贴板"
+                        showCopyAlert = true
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .disabled(syncTagInput.isEmpty)
+                    .help("复制syncTag到剪贴板")
+                }
+                
+                HStack {
+                    TextField("输入syncTag（留空表示第一页）", text: $syncTagInput)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
+                        .textSelection(.enabled) // 启用文本选择
+                    
+                    Button("粘贴") {
+                        if let pasteboardString = NSPasteboard.general.string(forType: .string) {
+                            syncTagInput = pasteboardString
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .help("从剪贴板粘贴")
+                    
+                    Button("清空") {
+                        syncTagInput = ""
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .disabled(syncTagInput.isEmpty)
+                    .help("清空输入框")
+                }
+                
+                Text("注意：完整同步和增量同步都使用相同的API，但syncTag仅用于内部逻辑，不会作为查询参数发送到服务器。")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+                    .padding(.vertical, 4)
+                
+                HStack {
+                    Button("测试完整同步API") {
+                        testFullSyncAPI()
+                    }
+                    .disabled(isTestingSyncAPI)
+                    .help("使用 /note/full/page API，不带syncTag查询参数")
+                    
+                    Button("测试增量同步API") {
+                        testIncrementalSyncAPI()
+                    }
+                    .disabled(isTestingSyncAPI)
+                    .help("使用 /note/full/page API，syncTag仅用于内部逻辑")
+                }
+                
+                HStack {
+                    Button("测试轻量级同步API") {
+                        testWebIncrementalSyncAPI()
+                    }
+                    .disabled(isTestingSyncAPI)
+                    .help("使用 /note/sync/full/ API，syncTag在data参数中")
+                    
+                    Button("测试文件夹排序信息API") {
+                        testFolderSortInfoAPI()
+                    }
+                    .disabled(isTestingSyncAPI)
+                    .help("使用 /todo/v1/user/records/0 API")
+                }
+                
+                if isTestingSyncAPI {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("正在测试 \(syncTestType)...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.vertical, 4)
         }
     }
     
@@ -665,7 +816,9 @@ public struct DebugSettingsView: View {
         sysctlbyname("hw.model", nil, &size, nil, 0)
         var model = [CChar](repeating: 0, count: size)
         sysctlbyname("hw.model", &model, &size, nil, 0)
-        return String(cString: model)
+        // 移除null终止符
+        let data = Data(bytes: model, count: size - 1)
+        return String(decoding: data, as: UTF8.self)
     }
     
     private func getMemoryUsage() -> String {
@@ -819,6 +972,350 @@ public struct DebugSettingsView: View {
                 silentRefreshResult = resultText
                 showSilentRefreshAlert = true
                 isTestingSilentRefresh = false
+            }
+        }
+    }
+    
+    // MARK: - 同步API测试方法
+    
+    /// 测试完整同步API
+    private func testFullSyncAPI() {
+        syncTestType = "完整同步API"
+        isTestingSyncAPI = true
+        
+        Task {
+            var resultText = "🔧 测试完整同步API...\n\n"
+            resultText += "使用的syncTag: \(syncTagInput.isEmpty ? "（空，表示第一页）" : syncTagInput)\n\n"
+            
+            do {
+                let response = try await MiNoteService.shared.fetchPage(syncTag: syncTagInput)
+                
+                resultText += "✅ API调用成功！\n\n"
+                
+                // 解析响应
+                if let code = response["code"] as? Int {
+                    resultText += "响应代码 (code): \(code)\n"
+                }
+                
+                if let result = response["result"] as? String {
+                    resultText += "结果 (result): \(result)\n"
+                }
+                
+                // 解析笔记和文件夹
+                let notes = MiNoteService.shared.parseNotes(from: response)
+                let folders = MiNoteService.shared.parseFolders(from: response)
+                
+                resultText += "\n📊 解析结果：\n"
+                resultText += "- 笔记数量: \(notes.count)\n"
+                resultText += "- 文件夹数量: \(folders.count)\n"
+                
+                // 显示前3条笔记的标题
+                if !notes.isEmpty {
+                    resultText += "\n📝 笔记列表（前3条）：\n"
+                    for (index, note) in notes.prefix(3).enumerated() {
+                        resultText += "\(index + 1). \(note.title)\n"
+                    }
+                    if notes.count > 3 {
+                        resultText += "... 还有 \(notes.count - 3) 条笔记\n"
+                    }
+                }
+                
+                // 显示文件夹列表
+                if !folders.isEmpty {
+                    resultText += "\n📁 文件夹列表：\n"
+                    for folder in folders {
+                        resultText += "- \(folder.name) (ID: \(folder.id))\n"
+                    }
+                }
+                
+                // 检查是否有下一页
+                if let nextSyncTag = response["syncTag"] as? String, !nextSyncTag.isEmpty {
+                    resultText += "\n📄 有下一页，syncTag: \(nextSyncTag)\n"
+                } else {
+                    resultText += "\n📄 这是最后一页\n"
+                }
+                
+                // 显示完整响应（前500字符）
+                if let jsonData = try? JSONSerialization.data(withJSONObject: response, options: .prettyPrinted),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    resultText += "\n📋 完整响应（前500字符）：\n"
+                    resultText += String(jsonString.prefix(500))
+                    if jsonString.count > 500 {
+                        resultText += "\n... (已截断)"
+                    }
+                    
+                    // 自动将完整JSON复制到剪贴板
+                    copyToClipboard(jsonString)
+                    resultText += "\n📋 完整JSON响应已自动复制到剪贴板！"
+                }
+                
+            } catch {
+                resultText += "❌ API调用失败：\n\(error.localizedDescription)\n\n"
+                resultText += "错误详情：\(error)"
+            }
+            
+            await MainActor.run {
+                syncTestResult = resultText
+                showSyncTestAlert = true
+                isTestingSyncAPI = false
+            }
+        }
+    }
+    
+    /// 测试增量同步API
+    private func testIncrementalSyncAPI() {
+        syncTestType = "增量同步API"
+        isTestingSyncAPI = true
+        
+        Task {
+            var resultText = "🔧 测试增量同步API...\n\n"
+            resultText += "使用的syncTag: \(syncTagInput.isEmpty ? "（空，表示第一页）" : syncTagInput)\n\n"
+            
+            do {
+                let response = try await MiNoteService.shared.fetchPage(syncTag: syncTagInput)
+                
+                resultText += "✅ API调用成功！\n\n"
+                
+                // 解析响应
+                if let code = response["code"] as? Int {
+                    resultText += "响应代码 (code): \(code)\n"
+                }
+                
+                if let result = response["result"] as? String {
+                    resultText += "结果 (result): \(result)\n"
+                }
+                
+                // 解析笔记和文件夹
+                let notes = MiNoteService.shared.parseNotes(from: response)
+                let folders = MiNoteService.shared.parseFolders(from: response)
+                
+                resultText += "\n📊 解析结果：\n"
+                resultText += "- 笔记数量: \(notes.count)\n"
+                resultText += "- 文件夹数量: \(folders.count)\n"
+                
+                // 显示前3条笔记的标题
+                if !notes.isEmpty {
+                    resultText += "\n📝 笔记列表（前3条）：\n"
+                    for (index, note) in notes.prefix(3).enumerated() {
+                        resultText += "\(index + 1). \(note.title)\n"
+                    }
+                    if notes.count > 3 {
+                        resultText += "... 还有 \(notes.count - 3) 条笔记\n"
+                    }
+                }
+                
+                // 显示文件夹列表
+                if !folders.isEmpty {
+                    resultText += "\n📁 文件夹列表：\n"
+                    for folder in folders {
+                        resultText += "- \(folder.name) (ID: \(folder.id))\n"
+                    }
+                }
+                
+                // 检查是否有下一页
+                if let nextSyncTag = response["syncTag"] as? String, !nextSyncTag.isEmpty {
+                    resultText += "\n📄 有下一页，syncTag: \(nextSyncTag)\n"
+                    resultText += "💡 提示：可以将此syncTag复制到输入框，测试下一页数据\n"
+                } else {
+                    resultText += "\n📄 这是最后一页\n"
+                }
+                
+                // 显示完整响应（前500字符）
+                if let jsonData = try? JSONSerialization.data(withJSONObject: response, options: .prettyPrinted),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    resultText += "\n📋 完整响应（前500字符）：\n"
+                    resultText += String(jsonString.prefix(500))
+                    if jsonString.count > 500 {
+                        resultText += "\n... (已截断)"
+                    }
+                    
+                    // 自动将完整JSON复制到剪贴板
+                    copyToClipboard(jsonString)
+                    resultText += "\n📋 完整JSON响应已自动复制到剪贴板！"
+                }
+                
+            } catch {
+                resultText += "❌ API调用失败：\n\(error.localizedDescription)\n\n"
+                resultText += "错误详情：\(error)"
+            }
+            
+            await MainActor.run {
+                syncTestResult = resultText
+                showSyncTestAlert = true
+                isTestingSyncAPI = false
+            }
+        }
+    }
+    
+    /// 测试网页版增量同步API
+    private func testWebIncrementalSyncAPI() {
+        syncTestType = "网页版增量同步API"
+        isTestingSyncAPI = true
+        
+        Task {
+            var resultText = "🔧 测试网页版增量同步API...\n\n"
+            resultText += "使用的syncTag: \(syncTagInput.isEmpty ? "（空，表示第一页）" : syncTagInput)\n\n"
+            
+            do {
+                let response = try await MiNoteService.shared.syncFull(syncTag: syncTagInput)
+                
+                resultText += "✅ API调用成功！\n\n"
+                
+                // 解析响应
+                if let code = response["code"] as? Int {
+                    resultText += "响应代码 (code): \(code)\n"
+                }
+                
+                if let result = response["result"] as? String {
+                    resultText += "结果 (result): \(result)\n"
+                }
+                
+                // 解析笔记和文件夹
+                let notes = MiNoteService.shared.parseNotes(from: response)
+                let folders = MiNoteService.shared.parseFolders(from: response)
+                
+                resultText += "\n📊 解析结果：\n"
+                resultText += "- 笔记数量: \(notes.count)\n"
+                resultText += "- 文件夹数量: \(folders.count)\n"
+                
+                // 显示前3条笔记的标题
+                if !notes.isEmpty {
+                    resultText += "\n📝 笔记列表（前3条）：\n"
+                    for (index, note) in notes.prefix(3).enumerated() {
+                        resultText += "\(index + 1). \(note.title)\n"
+                    }
+                    if notes.count > 3 {
+                        resultText += "... 还有 \(notes.count - 3) 条笔记\n"
+                    }
+                }
+                
+                // 显示文件夹列表
+                if !folders.isEmpty {
+                    resultText += "\n📁 文件夹列表：\n"
+                    for folder in folders {
+                        resultText += "- \(folder.name) (ID: \(folder.id))\n"
+                    }
+                }
+                
+                // 检查是否有下一页（网页版API的syncTag可能在note_view.data中）
+                var foundSyncTag: String? = nil
+                if let data = response["data"] as? [String: Any],
+                   let noteView = data["note_view"] as? [String: Any],
+                   let noteViewData = noteView["data"] as? [String: Any],
+                   let syncTag = noteViewData["syncTag"] as? String {
+                    foundSyncTag = syncTag
+                } else if let noteView = response["note_view"] as? [String: Any],
+                          let noteViewData = noteView["data"] as? [String: Any],
+                          let syncTag = noteViewData["syncTag"] as? String {
+                    foundSyncTag = syncTag
+                }
+                
+                if let syncTag = foundSyncTag, !syncTag.isEmpty {
+                    resultText += "\n📄 有下一页，syncTag: \(syncTag)\n"
+                    resultText += "💡 提示：可以将此syncTag复制到输入框，测试下一页数据\n"
+                } else {
+                    resultText += "\n📄 这是最后一页\n"
+                }
+                
+                // 显示完整响应（前500字符）
+                if let jsonData = try? JSONSerialization.data(withJSONObject: response, options: .prettyPrinted),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    resultText += "\n📋 完整响应（前500字符）：\n"
+                    resultText += String(jsonString.prefix(500))
+                    if jsonString.count > 500 {
+                        resultText += "\n... (已截断)"
+                    }
+                    
+                    // 自动将完整JSON复制到剪贴板
+                    copyToClipboard(jsonString)
+                    resultText += "\n📋 完整JSON响应已自动复制到剪贴板！"
+                }
+                
+            } catch {
+                resultText += "❌ API调用失败：\n\(error.localizedDescription)\n\n"
+                resultText += "错误详情：\(error)"
+            }
+            
+            await MainActor.run {
+                syncTestResult = resultText
+                showSyncTestAlert = true
+                isTestingSyncAPI = false
+            }
+        }
+    }
+    
+    /// 测试文件夹排序信息API
+    private func testFolderSortInfoAPI() {
+        syncTestType = "文件夹排序信息API"
+        isTestingSyncAPI = true
+        
+        Task {
+            var resultText = "🔧 测试文件夹排序信息API...\n\n"
+            
+            do {
+                let response = try await MiNoteService.shared.fetchFolderSortInfo()
+                
+                resultText += "✅ API调用成功！\n\n"
+                
+                // 解析响应
+                if let code = response["code"] as? Int {
+                    resultText += "响应代码 (code): \(code)\n"
+                }
+                
+                if let result = response["result"] as? String {
+                    resultText += "结果 (result): \(result)\n"
+                }
+                
+                // 解析文件夹排序信息
+                if let data = response["data"] as? [String: Any],
+                   let record = data["record"] as? [String: Any],
+                   let contentJson = record["contentJson"] as? [String: Any],
+                   let sort = contentJson["sort"] as? [String: Any] {
+                    
+                    resultText += "\n📊 文件夹排序信息：\n"
+                    
+                    if let eTag = sort["eTag"] as? String {
+                        resultText += "- ETag: \(eTag)\n"
+                    }
+                    
+                    if let orders = sort["orders"] as? [String] {
+                        resultText += "- 排序顺序 (\(orders.count) 个文件夹):\n"
+                        for (index, folderId) in orders.enumerated() {
+                            resultText += "  \(index + 1). \(folderId)\n"
+                        }
+                    }
+                    
+                    resultText += "\n📝 分析：\n"
+                    resultText += "此API返回文件夹的排序顺序和同步状态。\n"
+                    resultText += "ETag用于标识排序信息的版本，当排序变化时会更新。\n"
+                    resultText += "orders数组包含文件夹ID的排序顺序。\n"
+                } else {
+                    resultText += "\n⚠️ 无法解析文件夹排序信息\n"
+                }
+                
+                // 显示完整响应（前500字符）
+                if let jsonData = try? JSONSerialization.data(withJSONObject: response, options: .prettyPrinted),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    resultText += "\n📋 完整响应（前500字符）：\n"
+                    resultText += String(jsonString.prefix(500))
+                    if jsonString.count > 500 {
+                        resultText += "\n... (已截断)"
+                    }
+                    
+                    // 自动将完整JSON复制到剪贴板
+                    copyToClipboard(jsonString)
+                    resultText += "\n📋 完整JSON响应已自动复制到剪贴板！"
+                }
+                
+            } catch {
+                resultText += "❌ API调用失败：\n\(error.localizedDescription)\n\n"
+                resultText += "错误详情：\(error)"
+            }
+            
+            await MainActor.run {
+                syncTestResult = resultText
+                showSyncTestAlert = true
+                isTestingSyncAPI = false
             }
         }
     }

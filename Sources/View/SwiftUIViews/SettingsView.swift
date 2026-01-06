@@ -30,11 +30,16 @@ public struct SettingsView: View {
                     Toggle("自动保存", isOn: $autoSave)
                     
                     Picker("同步间隔", selection: $syncInterval) {
+                        Text("10秒").tag(10.0)
+                        Text("30秒").tag(30.0)
                         Text("1分钟").tag(60.0)
                         Text("5分钟").tag(300.0)
                         Text("15分钟").tag(900.0)
                         Text("30分钟").tag(1800.0)
                         Text("1小时").tag(3600.0)
+                    }
+                    .onChange(of: syncInterval) { newValue in
+                        viewModel.updateSyncInterval(newValue)
                     }
                     
                     Toggle("离线模式", isOn: $offlineMode)

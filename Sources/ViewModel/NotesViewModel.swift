@@ -191,6 +191,18 @@ public class NotesViewModel: ObservableObject {
     /// 自动刷新Cookie定时器
     private var autoRefreshCookieTimer: Timer?
     
+    /// 自动同步定时器
+    private var autoSyncTimer: Timer?
+    
+    /// 应用是否在前台
+    @Published var isAppActive: Bool = true
+    
+    /// 上次同步时间戳（用于避免频繁同步）
+    private var lastSyncTimestamp: Date = Date.distantPast
+    
+    /// 最小同步间隔（秒）
+    private let minSyncInterval: TimeInterval = 10.0
+    
     // MARK: - 计算属性
     
     /// 过滤后的笔记列表
@@ -377,6 +389,28 @@ public class NotesViewModel: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             self?.handleNetworkRestored()
+        }
+        
+        // 监听应用状态变化（前台/后台）
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleAppBecameActive()
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleAppResignedActive()
+        }
+        
+        // 启动自动同步定时器（如果应用在前台）
+        if isAppActive {
+            startAutoSyncTimer()
         }
     }
     
@@ -3503,5 +3537,116 @@ public class NotesViewModel: ObservableObject {
     func handleCookieExpiredSilently() async {
         print("[VIEWMODEL] 静默处理Cookie失效")
         await authStateManager.handleCookieExpiredSilently()
+    }
+    
+    // MARK: - 应用状态监听和自动同步
+    
+    /// 处理应用变为前台
+    private func handleAppBecameActive() {
+        print("[VIEWMODEL] 应用变为前台")
+        isAppActive = true
+        startAutoSyncTimer()
+    }
+    
+    /// 处理应用变为后台
+    private func handleAppResignedActive() {
+        print("[VIEWMODEL] 应用变为后台")
+        isAppActive = false
+        stopAutoSyncTimer()
+    }
+    
+    /// 启动自动同步定时器
+    private func startAutoSyncTimer() {
+        // 检查是否已登录
+        guard service.isAuthenticated() else {
+            print("[VIEWMODEL] 未登录，不启动自动同步定时器")
+            return
+        }
+        
+        // 检查是否已有定时器在运行
+        if autoSyncTimer != nil {
+            print("[VIEWMODEL] 自动同步定时器已在运行")
+            return
+        }
+        
+        // 确保同步间隔不小于最小间隔
+        let effectiveSyncInterval = max(syncInterval, minSyncInterval)
+        print("[VIEWMODEL] 启动自动同步定时器，间隔: \(effectiveSyncInterval)秒")
+        
+        // 创建定时器
+        autoSyncTimer = Timer.scheduledTimer(withTimeInterval: effectiveSyncInterval, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            Task { @MainActor in
+                print("[VIEWMODEL] 自动同步定时器触发")
+                await self.performAutoSync()
+            }
+        }
+    }
+    
+    /// 停止自动同步定时器
+    private func stopAutoSyncTimer() {
+        print("[VIEWMODEL] 停止自动同步定时器")
+        autoSyncTimer?.invalidate()
+        autoSyncTimer = nil
+    }
+    
+    /// 执行自动同步
+    private func performAutoSync() async {
+        // 检查是否在前台
+        guard isAppActive else {
+            print("[VIEWMODEL] 应用在后台，跳过自动同步")
+            return
+        }
+        
+        // 检查是否已登录
+        guard service.isAuthenticated() else {
+            print("[VIEWMODEL] 未登录，跳过自动同步")
+            return
+        }
+        
+        // 检查是否在线
+        guard isOnline else {
+            print("[VIEWMODEL] 离线状态，跳过自动同步")
+            return
+        }
+        
+        // 检查是否正在同步
+        guard !isSyncing else {
+            print("[VIEWMODEL] 同步正在进行中，跳过自动同步")
+            return
+        }
+        
+        // 检查是否超过最小同步间隔
+        let now = Date()
+        let timeSinceLastSync = now.timeIntervalSince(lastSyncTimestamp)
+        if timeSinceLastSync < minSyncInterval {
+            print("[VIEWMODEL] 距离上次同步仅 \(Int(timeSinceLastSync)) 秒，小于最小间隔 \(Int(minSyncInterval)) 秒，跳过自动同步")
+            return
+        }
+        
+        print("[VIEWMODEL] 开始执行自动同步")
+        lastSyncTimestamp = now
+        
+        // 执行增量同步
+        await performIncrementalSync()
+    }
+    
+    /// 更新同步间隔设置
+    func updateSyncInterval(_ newInterval: Double) {
+        // 确保不小于最小间隔
+        let effectiveInterval = max(newInterval, minSyncInterval)
+        syncInterval = effectiveInterval
+        
+        // 保存到UserDefaults
+        UserDefaults.standard.set(effectiveInterval, forKey: "syncInterval")
+        
+        // 如果应用在前台，重启定时器
+        if isAppActive {
+            stopAutoSyncTimer()
+            startAutoSyncTimer()
+        }
+        
+        print("[VIEWMODEL] 同步间隔已更新为 \(effectiveInterval) 秒")
     }
 }

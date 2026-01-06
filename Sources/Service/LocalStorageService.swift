@@ -68,12 +68,38 @@ final class LocalStorageService: @unchecked Sendable {
     
     /// 保存同步状态
     func saveSyncStatus(_ status: SyncStatus) throws {
-        try database.saveSyncStatus(status)
+        print("[LocalStorage] 💾 开始保存同步状态:")
+        print("[LocalStorage]   - lastSyncTime: \(status.lastSyncTime?.description ?? "nil")")
+        print("[LocalStorage]   - syncTag: \(status.syncTag ?? "nil")")
+        print("[LocalStorage]   - lastPageSyncTime: \(status.lastPageSyncTime?.description ?? "nil")")
+        
+        do {
+            try database.saveSyncStatus(status)
+            print("[LocalStorage] ✅ 同步状态保存成功")
+        } catch {
+            print("[LocalStorage] ❌ 同步状态保存失败: \(error)")
+            throw error
+        }
     }
     
     /// 加载同步状态
     func loadSyncStatus() -> SyncStatus? {
-        return try? database.loadSyncStatus()
+        print("[LocalStorage] 🔍 开始加载同步状态")
+        do {
+            let status = try database.loadSyncStatus()
+            if let status = status {
+                print("[LocalStorage] ✅ 成功加载同步状态:")
+                print("[LocalStorage]   - lastSyncTime: \(status.lastSyncTime?.description ?? "nil")")
+                print("[LocalStorage]   - syncTag: \(status.syncTag ?? "nil")")
+                print("[LocalStorage]   - lastPageSyncTime: \(status.lastPageSyncTime?.description ?? "nil")")
+            } else {
+                print("[LocalStorage] ⚠️ 数据库返回nil同步状态（表可能为空）")
+            }
+            return status
+        } catch {
+            print("[LocalStorage] ❌ 加载同步状态失败: \(error)")
+            return nil
+        }
     }
     
     /// 清除同步状态
@@ -399,35 +425,48 @@ final class LocalStorageService: @unchecked Sendable {
             return nil
         }
     }
+    
+    // MARK: - 文件夹排序信息
+    
+    /// 保存文件夹排序信息
+    /// 
+    /// - Parameters:
+    ///   - eTag: 排序信息的ETag（用于增量同步）
+    ///   - orders: 文件夹ID的顺序数组
+    /// - Throws: 数据库操作失败
+    func saveFolderSortInfo(eTag: String, orders: [String]) throws {
+        try database.saveFolderSortInfo(eTag: eTag, orders: orders)
+        print("[LocalStorage] 保存文件夹排序信息: eTag=\(eTag), orders数量=\(orders.count)")
+    }
+    
+    /// 加载文件夹排序信息
+    /// 
+    /// - Returns: 包含eTag和orders的元组，如果不存在则返回nil
+    /// - Throws: 数据库操作失败
+    func loadFolderSortInfo() throws -> (eTag: String, orders: [String])? {
+        return try database.loadFolderSortInfo()
+    }
+    
+    /// 清除文件夹排序信息
+    /// 
+    /// - Throws: 数据库操作失败
+    func clearFolderSortInfo() throws {
+        try database.clearFolderSortInfo()
+        print("[LocalStorage] 清除文件夹排序信息")
+    }
 }
 
 // MARK: - 同步状态模型
 
 struct SyncStatus: Codable {
     var lastSyncTime: Date?
-    var syncTag: String?
-    var syncedNoteIds: [String]
+    var syncTag: String?  // 笔记同步的syncTag
     var lastPageSyncTime: Date?
     
-    init(lastSyncTime: Date? = nil, syncTag: String? = nil, syncedNoteIds: [String] = [], lastPageSyncTime: Date? = nil) {
+    init(lastSyncTime: Date? = nil, syncTag: String? = nil, lastPageSyncTime: Date? = nil) {
         self.lastSyncTime = lastSyncTime
         self.syncTag = syncTag
-        self.syncedNoteIds = syncedNoteIds
         self.lastPageSyncTime = lastPageSyncTime
-    }
-    
-    mutating func addSyncedNote(_ noteId: String) {
-        if !syncedNoteIds.contains(noteId) {
-            syncedNoteIds.append(noteId)
-        }
-    }
-    
-    mutating func removeSyncedNote(_ noteId: String) {
-        syncedNoteIds.removeAll { $0 == noteId }
-    }
-    
-    func isNoteSynced(_ noteId: String) -> Bool {
-        return syncedNoteIds.contains(noteId)
     }
 }
 
