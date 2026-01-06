@@ -463,21 +463,16 @@ final class DatabaseService: @unchecked Sendable {
             var rowCount = 0
             while sqlite3_step(statement) == SQLITE_ROW {
                 rowCount += 1
-                print("[Database] getAllNotes: 处理第 \(rowCount) 行")
                 do {
                     if var note = try parseNote(from: statement) {
                         notes.append(note)
-                        print("[Database] getAllNotes: 成功解析并添加笔记 id=\(note.id)")
-                    } else {
-                        print("[Database] getAllNotes: ⚠️ parseNote 返回 nil，跳过该行")
                     }
                 } catch {
-                    print("[Database] getAllNotes: ⚠️ 解析笔记时出错: \(error)")
-                    print("[Database] getAllNotes: 错误详情: \(error.localizedDescription)")
+                    // 静默处理解析错误，继续处理下一行
                 }
             }
             
-            print("[Database] getAllNotes: 总共处理 \(rowCount) 行，成功解析 \(notes.count) 条笔记")
+            print("[Database] getAllNotes: 处理了 \(rowCount) 行，成功解析 \(notes.count) 条笔记")
             return notes
         }
     }
@@ -542,13 +537,10 @@ final class DatabaseService: @unchecked Sendable {
     
     private func parseNote(from statement: OpaquePointer?) throws -> Note? {
         guard let statement = statement else {
-            print("[Database] parseNote: statement 为 nil")
             return nil
         }
         
         let id = String(cString: sqlite3_column_text(statement, 0))
-        print("[Database] parseNote: 开始解析笔记 id=\(id)")
-        
         let title = String(cString: sqlite3_column_text(statement, 1))
         let content = String(cString: sqlite3_column_text(statement, 2))
         let folderId = String(cString: sqlite3_column_text(statement, 3))
@@ -556,53 +548,27 @@ final class DatabaseService: @unchecked Sendable {
         let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 5))
         let updatedAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 6))
         
-        print("[Database] parseNote: 基础字段解析完成 - title=\(title), content长度=\(content.count), folderId=\(folderId)")
-        
         // 解析 tags
         var tags: [String] = []
         if let tagsText = sqlite3_column_text(statement, 7) {
             let tagsString = String(cString: tagsText)
-            print("[Database] parseNote: tags 字段存在，长度=\(tagsString.count), 内容=\(tagsString.prefix(100))")
             if !tagsString.isEmpty, let tagsData = tagsString.data(using: .utf8) {
                 if let decodedTags = try? JSONDecoder().decode([String].self, from: tagsData) {
                     tags = decodedTags
-                    print("[Database] parseNote: tags 解析成功，数量=\(tags.count)")
-                } else {
-                    print("[Database] parseNote: ⚠️ tags JSON 解析失败，tagsString=\(tagsString)")
                 }
-            } else {
-                print("[Database] parseNote: tags 字段为空或无法转换为 Data")
             }
-        } else {
-            print("[Database] parseNote: tags 字段为 NULL")
         }
         
         // 解析 raw_data
         var rawData: [String: Any]? = nil
         if let rawDataText = sqlite3_column_text(statement, 8) {
             let rawDataString = String(cString: rawDataText)
-            let rawDataLength = rawDataString.count
-            print("[Database] parseNote: raw_data 字段存在，长度=\(rawDataLength)")
-            
             if !rawDataString.isEmpty, let rawDataData = rawDataString.data(using: .utf8) {
-                if let parsedRawData = try? JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any] {
-                    rawData = parsedRawData
-                    print("[Database] parseNote: raw_data JSON 解析成功，包含 \(parsedRawData.count) 个键")
-                } else {
-                    print("[Database] parseNote: ⚠️ raw_data JSON 解析失败")
-                    print("[Database] parseNote: raw_data 前200字符: \(rawDataString.prefix(200))")
-                    if rawDataLength > 200 {
-                        print("[Database] parseNote: raw_data 后200字符: \(rawDataString.suffix(200))")
-                    }
-                }
-            } else {
-                print("[Database] parseNote: raw_data 字段为空或无法转换为 Data")
+                rawData = try? JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
             }
-        } else {
-            print("[Database] parseNote: raw_data 字段为 NULL")
         }
         
-        let note = Note(
+        return Note(
             id: id,
             title: title,
             content: content,
@@ -613,9 +579,6 @@ final class DatabaseService: @unchecked Sendable {
             tags: tags,
             rawData: rawData
         )
-        
-        print("[Database] parseNote: 笔记解析完成 id=\(id), title=\(title)")
-        return note
     }
     
     // MARK: - 文件夹操作
@@ -703,20 +666,12 @@ final class DatabaseService: @unchecked Sendable {
             var rowCount = 0
             while sqlite3_step(statement) == SQLITE_ROW {
                 rowCount += 1
-                do {
                 if let folder = try parseFolder(from: statement) {
                     folders.append(folder)
-                        print("[Database] loadFolders: 成功解析文件夹 id=\(folder.id), name=\(folder.name), isSystem=\(folder.isSystem)")
-                    } else {
-                        print("[Database] loadFolders: ⚠️ parseFolder 返回 nil，跳过该行")
-                    }
-                } catch {
-                    print("[Database] loadFolders: ⚠️ 解析文件夹时出错: \(error)")
-                    // 继续处理下一行，不中断整个加载过程
                 }
             }
             
-            print("[Database] loadFolders: 总共处理 \(rowCount) 行，成功解析 \(folders.count) 个文件夹")
+            print("[Database] loadFolders: 处理了 \(rowCount) 行，成功解析 \(folders.count) 个文件夹")
             return folders
         }
     }

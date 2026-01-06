@@ -9,107 +9,134 @@ final class NetworkLogger: @unchecked Sendable {
     private let maxLogs = 1000 // 最多保存1000条日志
     private let queue = DispatchQueue(label: "com.xiaomi.minote.mac.networklogger", qos: .utility)
     
+    // 用于防止重复记录
+    private var lastLogMessage: String = ""
+    private var lastLogTime: Date = Date.distantPast
+    private let duplicateThreshold: TimeInterval = 0.1 // 100毫秒内相同的日志视为重复
+    
     private init() {}
     
     func logRequest(url: String, method: String, headers: [String: String]?, body: String?) {
-        let entry = NetworkLogEntry(
-            id: UUID(),
-            timestamp: Date(),
-            type: .request,
-            url: url,
-            method: method,
-            headers: headers,
-            body: body,
-            statusCode: nil,
-            response: nil,
-            error: nil
-        )
-        
-        addLog(entry)
-        
-        // 使用系统日志记录
-        var logMessage = "📤 请求: \(method) \(url)"
-        if let headers = headers, !headers.isEmpty {
-            logMessage += "\n请求头: \(headers)"
+        queue.sync {
+            // 检查是否重复记录
+            var logMessage = "📤 请求: \(method) \(url)"
+            if let headers = headers, !headers.isEmpty {
+                logMessage += "\n请求头: \(headers)"
+            }
+            if let body = body, !body.isEmpty {
+                logMessage += "\n请求体: \(body)"
+            }
+            
+            if shouldSkipLog(logMessage) {
+                return
+            }
+            
+            let entry = NetworkLogEntry(
+                id: UUID(),
+                timestamp: Date(),
+                type: .request,
+                url: url,
+                method: method,
+                headers: headers,
+                body: body,
+                statusCode: nil,
+                response: nil,
+                error: nil
+            )
+            
+            addLog(entry)
+            
+            // 使用系统日志记录
+            logger.info("\(logMessage)")
         }
-        if let body = body, !body.isEmpty {
-            logMessage += "\n请求体: \(body)"
-        }
-        logger.info("\(logMessage)")
-        
-        // 同时输出到控制台，便于Xcode调试
-        print("[NETWORK] \(logMessage)")
     }
     
     func logResponse(url: String, method: String, statusCode: Int, headers: [String: String]?, response: String?, error: Error?) {
-        let entry = NetworkLogEntry(
-            id: UUID(),
-            timestamp: Date(),
-            type: .response,
-            url: url,
-            method: method,
-            headers: headers,
-            body: nil,
-            statusCode: statusCode,
-            response: response,
-            error: error?.localizedDescription
-        )
-        
-        addLog(entry)
-        
-        // 使用系统日志记录
-        var logMessage = "📥 响应: \(method) \(url) - 状态码: \(statusCode)"
-        if let headers = headers, !headers.isEmpty {
-            logMessage += "\n响应头: \(headers)"
+        queue.sync {
+            // 检查是否重复记录
+            var logMessage = "📥 响应: \(method) \(url) - 状态码: \(statusCode)"
+            if let headers = headers, !headers.isEmpty {
+                logMessage += "\n响应头: \(headers)"
+            }
+            if let response = response, !response.isEmpty {
+                let preview = response.count > 500 ? String(response.prefix(500)) + "..." : response
+                logMessage += "\n响应体: \(preview)"
+            }
+            if let error = error {
+                logMessage += "\n错误: \(error.localizedDescription)"
+            }
+            
+            if shouldSkipLog(logMessage) {
+                return
+            }
+            
+            let entry = NetworkLogEntry(
+                id: UUID(),
+                timestamp: Date(),
+                type: .response,
+                url: url,
+                method: method,
+                headers: headers,
+                body: nil,
+                statusCode: statusCode,
+                response: response,
+                error: error?.localizedDescription
+            )
+            
+            addLog(entry)
+            
+            if statusCode >= 400 {
+                logger.error("\(logMessage)")
+            } else {
+                logger.info("\(logMessage)")
+            }
+            
         }
-        if let response = response, !response.isEmpty {
-            let preview = response.count > 500 ? String(response.prefix(500)) + "..." : response
-            logMessage += "\n响应体: \(preview)"
-        }
-        if let error = error {
-            logMessage += "\n错误: \(error.localizedDescription)"
-        }
-        
-        if statusCode >= 400 {
-            logger.error("\(logMessage)")
-        } else {
-            logger.info("\(logMessage)")
-        }
-        
-        // 同时输出到控制台，便于Xcode调试
-        print("[NETWORK] \(logMessage)")
     }
     
     func logError(url: String, method: String, error: Error) {
-        let entry = NetworkLogEntry(
-            id: UUID(),
-            timestamp: Date(),
-            type: .error,
-            url: url,
-            method: method,
-            headers: nil,
-            body: nil,
-            statusCode: nil,
-            response: nil,
-            error: error.localizedDescription
-        )
-        
-        addLog(entry)
-        
-        let logMessage = "❌ 错误: \(method) \(url) - \(error.localizedDescription)"
-        logger.error("\(logMessage)")
-        
-        // 同时输出到控制台，便于Xcode调试
-        print("[NETWORK] \(logMessage)")
+        queue.sync {
+            let logMessage = "❌ 错误: \(method) \(url) - \(error.localizedDescription)"
+            
+            if shouldSkipLog(logMessage) {
+                return
+            }
+            
+            let entry = NetworkLogEntry(
+                id: UUID(),
+                timestamp: Date(),
+                type: .error,
+                url: url,
+                method: method,
+                headers: nil,
+                body: nil,
+                statusCode: nil,
+                response: nil,
+                error: error.localizedDescription
+            )
+            
+            addLog(entry)
+            
+            logger.error("\(logMessage)")
+        }
     }
     
     private func addLog(_ entry: NetworkLogEntry) {
-        queue.sync {
-            logs.insert(entry, at: 0) // 最新的日志放在最前面
-            if logs.count > maxLogs {
-                logs.removeLast()
-            }
+        logs.insert(entry, at: 0) // 最新的日志放在最前面
+        if logs.count > maxLogs {
+            logs.removeLast()
         }
+    }
+    
+    private func shouldSkipLog(_ logMessage: String) -> Bool {
+        let now = Date()
+        // 如果相同的日志在短时间内被记录，跳过
+        if logMessage == lastLogMessage && now.timeIntervalSince(lastLogTime) < duplicateThreshold {
+            return true
+        }
+        lastLogMessage = logMessage
+        lastLogTime = now
+        return false
     }
     
     func addLogEntry(_ entry: NetworkLogEntry) {
