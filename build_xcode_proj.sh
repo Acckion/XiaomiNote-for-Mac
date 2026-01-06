@@ -21,16 +21,6 @@ if [ ! -f "project.yml" ]; then
     exit 1
 fi
 
-
-# 清理旧的 Xcode 项目（可选）
-if [ -d "MiNoteMac.xcodeproj" ]; then
-    echo "📦 备份现有项目..."
-    if [ -d "MiNoteMac.xcodeproj.backup" ]; then
-        rm -rf MiNoteMac.xcodeproj.backup
-    fi
-    mv MiNoteMac.xcodeproj MiNoteMac.xcodeproj.backup
-fi
-
 # 生成 Xcode 项目
 echo "🚀 使用 XcodeGen 生成项目..."
 xcodegen generate

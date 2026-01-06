@@ -69,20 +69,26 @@
 ```
 SwiftUI-MiNote-for-Mac/
 ├── Sources/
-│   ├── MiNoteLibrary/          # 核心库（框架）
-│   │   ├── Model/              # 数据模型（Note, Folder, UserProfile 等）
-│   │   ├── Service/            # 业务服务层（API、数据库、同步、缓存等）
-│   │   ├── View/               # UI视图组件
-│   │   │   ├── AppKitComponents/    # AppKit 视图控制器
-│   │   │   ├── Bridge/              # SwiftUI-AppKit 桥接控制器
-│   │   │   ├── Shared/              # 共享视图组件
-│   │   │   └── SwiftUIViews/        # SwiftUI 视图
-│   │   ├── ViewModel/          # 视图模型
-│   │   ├── Window/             # 窗口控制器和状态管理
-│   │   ├── Extensions/         # Swift 扩展
-│   │   ├── Helper/             # 辅助工具类
-│   │   └── Web/                # Web 编辑器相关文件（HTML/JS）
-│   └── MiNoteMac/              # 应用程序入口（AppDelegate）
+│   ├── App/                    # 应用程序入口（AppDelegate、菜单、窗口管理）
+│   │   ├── App.swift           # SwiftUI 应用入口
+│   │   ├── AppDelegate.swift   # AppKit 应用委托
+│   │   ├── AppStateManager.swift
+│   │   ├── MenuActionHandler.swift
+│   │   ├── MenuManager.swift
+│   │   ├── WindowManager.swift
+│   │   └── Assets.xcassets/    # 应用图标和颜色资源
+│   ├── Model/                  # 数据模型（Note, Folder, UserProfile 等）
+│   ├── Service/                # 业务服务层（API、数据库、同步、缓存等）
+│   ├── View/                   # UI视图组件
+│   │   ├── AppKitComponents/   # AppKit 视图控制器
+│   │   ├── Bridge/             # SwiftUI-AppKit 桥接控制器
+│   │   ├── Shared/             # 共享视图组件
+│   │   └── SwiftUIViews/       # SwiftUI 视图
+│   ├── ViewModel/              # 视图模型
+│   ├── Window/                 # 窗口控制器和状态管理
+│   ├── Extensions/             # Swift 扩展
+│   ├── Helper/                 # 辅助工具类
+│   └── Web/                    # Web 编辑器相关文件（HTML/JS）
 ├── References/                  # 参考文档和资源
 ├── project.yml                  # XcodeGen 配置文件
 ├── Info.plist                   # 应用程序信息配置
@@ -205,25 +211,28 @@ swift package resolve
 
 ### 代码结构
 
-- **Model**: 数据模型定义（Note, Folder 等）
+- **App**: 应用程序入口和系统集成（AppDelegate、菜单、窗口管理）
+- **Model**: 数据模型定义（Note, Folder, UserProfile 等）
 - **Service**: 业务逻辑层（MiNoteService, DatabaseService, LocalStorageService, SyncService 等）
 - **ViewModel**: 视图模型（NotesViewModel）
 - **View**: UI 视图组件（AppKit 控制器 + SwiftUI 视图）
-- **Window**: 窗口控制器（MainWindowController, LoginWindowController 等）
+- **Window**: 窗口控制器和状态管理（MainWindowController, LoginWindowController 等）
+- **Extensions**: Swift 扩展
 - **Helper**: 辅助工具类
 - **Web**: Web 编辑器相关文件
 
 ### 关键文件
 
-- `AppDelegate.swift`: AppKit 应用委托，管理应用程序生命周期和菜单系统
-- `MainWindowController.swift`: 主窗口控制器，管理窗口、工具栏和分割视图
-- `NotesViewModel.swift`: 主视图模型，管理应用状态和业务逻辑
-- `MiNoteService.swift`: 小米笔记 API 服务
-- `DatabaseService.swift`: SQLite 数据库服务
-- `SyncService.swift`: 同步服务
-- `NoteDetailViewController.swift`: 笔记详情 AppKit 视图控制器
-- `NotesListViewController.swift`: 笔记列表 AppKit 视图控制器
-- `SidebarViewController.swift`: 侧边栏 AppKit 视图控制器
+- `App/AppDelegate.swift`: AppKit 应用委托，管理应用程序生命周期和菜单系统
+- `App/App.swift`: SwiftUI 应用入口
+- `Window/MainWindowController.swift`: 主窗口控制器，管理窗口、工具栏和分割视图
+- `ViewModel/NotesViewModel.swift`: 主视图模型，管理应用状态和业务逻辑
+- `Service/MiNoteService.swift`: 小米笔记 API 服务
+- `Service/DatabaseService.swift`: SQLite 数据库服务
+- `Service/SyncService.swift`: 同步服务
+- `View/AppKitComponents/NoteDetailViewController.swift`: 笔记详情 AppKit 视图控制器
+- `View/AppKitComponents/NotesListViewController.swift`: 笔记列表 AppKit 视图控制器
+- `View/AppKitComponents/SidebarViewController.swift`: 侧边栏 AppKit 视图控制器
 ### 调试
 
 项目使用统一的调试日志格式，所有调试信息以 `[[调试]]` 开头，方便在控制台中搜索和过滤。

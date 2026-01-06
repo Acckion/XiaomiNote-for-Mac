@@ -164,11 +164,13 @@ SwiftUI-MiNote-for-Mac/
 ### 各层职责
 
 1. **AppKit 控制器层**:
+
    - `AppDelegate`: 应用程序生命周期管理、菜单系统
    - `WindowController`: 窗口管理、工具栏、窗口状态
    - `ViewController`: 视图控制器，管理 SwiftUI 视图
 
 2. **SwiftUI 视图层 (MVVM)**:
+
    - `View`: SwiftUI 声明式 UI
    - `ViewModel`: 业务逻辑、状态管理
    - `Service`: API 调用、数据库操作、文件存储
@@ -201,12 +203,14 @@ SwiftUI-MiNote-for-Mac/
 #### AppDelegate
 
 **职责**:
+
 - 应用程序生命周期管理
 - 菜单系统设置和管理
 - 多窗口管理
 - 应用程序状态保存和恢复
 
 **关键特性**:
+
 - 完整的 macOS 菜单系统（文件、编辑、格式、显示、窗口、帮助）
 - 多窗口支持（新建窗口、窗口状态恢复）
 - 应用程序状态持久化
@@ -215,12 +219,14 @@ SwiftUI-MiNote-for-Mac/
 #### MainWindowController
 
 **职责**:
+
 - 主窗口管理和配置
 - 工具栏设置和验证
 - 窗口状态保存和恢复
 - 分割视图管理
 
 **关键特性**:
+
 - 三栏分割视图（侧边栏、笔记列表、笔记详情）
 - 完整的工具栏系统（新建、格式、搜索、同步等）
 - 窗口状态持久化
@@ -246,6 +252,7 @@ public struct Note: Identifiable, Codable, Hashable {
 ```
 
 **关键特性**:
+
 - `content`: 存储为 XML 格式，兼容小米笔记服务器
 - `rawData`: 保存完整的 API 响应数据，包含 `tag`、`createDate` 等字段
 - `htmlContent`: HTML 格式缓存，用于快速显示
@@ -266,6 +273,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 ```
 
 **系统文件夹**:
+
 - `id = "0"`: 所有笔记
 - `id = "starred"`: 置顶笔记
 - `id = "2"`: 私密笔记
@@ -276,12 +284,14 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 #### MiNoteService (小米笔记 API 服务)
 
 **职责**:
+
 - 管理 Cookie 和 ServiceToken 认证
 - 实现所有小米笔记 API 调用
 - 处理 API 错误和重试逻辑
 - Cookie 过期检测和处理
 
 **主要方法**:
+
 - `fetchNotes()`: 获取笔记列表
 - `createNote(_:)`: 创建笔记
 - `updateNote(_:)`: 更新笔记
@@ -292,6 +302,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - `deleteFolder(_:)`: 删除文件夹
 
 **认证机制**:
+
 - 使用 Cookie 字符串进行认证
 - 从 Cookie 中提取 `serviceToken` 作为 API 参数
 - Cookie 过期时触发回调，显示登录界面
@@ -299,6 +310,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 #### DatabaseService (数据库服务)
 
 **职责**:
+
 - SQLite 数据库的初始化和连接管理
 - 笔记和文件夹的 CRUD 操作
 - 离线操作队列管理
@@ -308,23 +320,28 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 **数据库表结构**:
 
 1. **notes 表**: 存储笔记数据
+
    - `id`, `title`, `content`, `folder_id`, `is_starred`
    - `created_at`, `updated_at`, `tags`, `raw_data`, `html_content`
 
 2. **folders 表**: 存储文件夹数据
+
    - `id`, `name`, `count`, `is_system`, `is_pinned`, `created_at`, `raw_data`
 
 3. **offline_operations 表**: 存储离线操作
+
    - `id`, `type`, `note_id`, `data`, `created_at`
    - `priority`, `retry_count`, `last_error`, `status`
 
 4. **sync_status 表**: 存储同步状态（单行表）
+
    - `last_sync_time`, `sync_tag`, `last_full_sync_time`
 
 5. **pending_deletions 表**: 存储待删除的笔记
    - `note_id`, `deleted_at`
 
 **线程安全**:
+
 - 使用并发队列 (`DispatchQueue`) 确保线程安全
 - 使用 `SQLITE_OPEN_FULLMUTEX` 标志支持多线程访问
 - 提供异步 API 避免阻塞主线程
@@ -332,23 +349,27 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 #### LocalStorageService (本地文件存储服务)
 
 **职责**:
+
 - 图片文件的本地缓存管理
 - 文件夹配置的持久化存储
 - 用户设置的存储
 
 **存储位置**:
+
 - 图片: `~/Documents/MiNoteImages/{folderId}/{fileId}.{ext}`
 - 配置: `UserDefaults`
 
 #### SyncService (同步服务)
 
 **职责**:
+
 - 完整同步（清除本地数据，从云端拉取全部）
 - 增量同步（使用 `syncTag` 获取增量更改）
 - 冲突解决（基于时间戳比较）
 - 双向同步（上传本地更改，下载云端更改）
 
 **同步策略**:
+
 - **完整同步**: 首次同步或手动触发
 - **增量同步**: 使用 `syncTag` 获取自上次同步后的更改
 - **冲突解决**: 比较 `modifyDate`，保留最新的版本
@@ -356,11 +377,13 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 #### MemoryCacheManager (内存缓存管理器)
 
 **职责**:
+
 - 笔记对象的内存缓存
 - 快速切换笔记时的内容预加载
 - 缓存失效和更新管理
 
 **缓存策略**:
+
 - LRU（最近最少使用）缓存策略
 - 按需加载和缓存
 - 内存压力时自动清理
@@ -368,11 +391,13 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 #### SaveQueueManager (保存队列管理器)
 
 **职责**:
+
 - 管理笔记保存任务的队列
 - 合并相同笔记的多次保存
 - 优先级管理（立即保存 vs 延迟保存）
 
 **队列特性**:
+
 - 防抖机制减少不必要的保存
 - 优先级队列确保重要操作优先执行
 - 错误重试机制
@@ -382,6 +407,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 #### NotesViewModel
 
 **职责**:
+
 - 管理应用的主要业务逻辑和状态
 - 笔记和文件夹的数据管理
 - 同步操作协调
@@ -389,6 +415,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - Web 编辑器上下文管理
 
 **主要状态**:
+
 - `notes: [Note]`: 笔记列表
 - `folders: [Folder]`: 文件夹列表
 - `selectedNote: Note?`: 当前选中的笔记
@@ -400,6 +427,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - `webEditorContext: WebEditorContext`: Web 编辑器上下文
 
 **主要方法**:
+
 - `loadNotes()`: 加载笔记列表
 - `createNote()`: 创建新笔记
 - `updateNote(_:)`: 更新笔记
@@ -409,6 +437,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 - `ensureNoteHasFullContent(_:)`: 确保笔记有完整内容
 
 **线程安全**:
+
 - 使用 `@MainActor` 确保所有操作在主线程执行
 - 使用 `@Published` 属性包装器实现响应式更新
 
@@ -582,11 +611,13 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 #### AppKit 视图控制器
 
 1. **NoteDetailViewController**
+
    - 管理笔记详情视图
    - 托管 SwiftUI 的 NoteDetailView
    - 处理窗口状态保存和恢复
 
-2. **NotesListViewController** 
+2. **NotesListViewController**
+
    - 管理笔记列表视图
    - 托管 SwiftUI 的 NotesListView
    - 处理列表选择和搜索
@@ -599,18 +630,21 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 #### SwiftUI 视图
 
 1. **NoteDetailView** (笔记详情/编辑视图)
+
    - 标题编辑和显示
    - Web 编辑器集成
    - 保存状态指示器
    - 格式工具栏
 
 2. **NotesListView** (笔记列表视图)
+
    - 按时间分组显示笔记
    - 搜索高亮和筛选
    - 笔记预览（标题、时间、内容片段）
    - 滑动操作（删除、置顶）
 
 3. **SidebarView** (侧边栏视图)
+
    - 文件夹列表显示
    - 系统文件夹（所有笔记、置顶、私密笔记、未分类）
    - 自定义文件夹管理
@@ -632,21 +666,21 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
 // 示例：在 AppKit 视图控制器中托管 SwiftUI 视图
 class NoteDetailViewController: NSViewController {
     private var hostingController: NSHostingController<NoteDetailView>?
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+
         // 创建 SwiftUI 视图
         let noteDetailView = NoteDetailView(viewModel: viewModel)
-        
+
         // 创建托管控制器
         hostingController = NSHostingController(rootView: noteDetailView)
-        
+
         // 添加托管视图
         if let hostingView = hostingController?.view {
             hostingView.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(hostingView)
-            
+
             // 设置约束
             NSLayoutConstraint.activate([
                 hostingView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -683,6 +717,7 @@ class NoteDetailViewController: NSViewController {
 #### 工具栏系统
 
 **工具栏项类型**:
+
 1. **按钮项**: 新建笔记、新建文件夹、同步等
 2. **格式项**: 粗体、斜体、下划线、删除线等
 3. **菜单项**: 在线状态、笔记操作、测试菜单
@@ -691,6 +726,7 @@ class NoteDetailViewController: NSViewController {
 6. **空间项**: 弹性空间、固定空间
 
 **工具栏标识符**:
+
 - `.newNote`, `.newFolder`: 新建操作
 - `.bold`, `.italic`, `.underline`: 格式操作
 - `.formatMenu`: 格式菜单
@@ -703,12 +739,14 @@ class NoteDetailViewController: NSViewController {
 #### 窗口状态管理
 
 **状态保存**:
+
 - 窗口位置和大小
 - 分割视图各栏宽度
 - 侧边栏显示/隐藏状态
 - 各视图控制器的状态
 
 **状态恢复**:
+
 - 应用程序启动时恢复窗口状态
 - 新建窗口时应用默认或保存的状态
 - 窗口关闭时自动保存状态
@@ -738,31 +776,37 @@ class NoteDetailViewController: NSViewController {
 ### 专用窗口控制器
 
 #### LoginWindowController
+
 - 登录界面管理
 - Cookie 输入和处理
 - 登录状态反馈
 
 #### SettingsWindowController
+
 - 应用程序设置
 - 同步配置
 - 外观设置
 
 #### HistoryWindowController
-- 笔记历史版本查看
+
+- 笔记历史记录查看
 - 版本对比和恢复
 - 历史记录管理
 
 #### TrashWindowController
+
 - 回收站管理
 - 删除笔记查看和恢复
 - 永久删除操作
 
 #### CookieRefreshWindowController
+
 - Cookie 刷新界面
 - 自动刷新机制
 - 刷新状态反馈
 
 #### DebugWindowController
+
 - 调试信息显示
 - 网络日志查看
 - 系统状态监控
@@ -776,11 +820,13 @@ class NoteDetailViewController: NSViewController {
 #### 1. 完整同步
 
 **触发时机**:
+
 - 首次启动应用
 - 手动触发完整同步
 - 同步状态丢失或损坏
 
 **流程**:
+
 1. 清除本地所有笔记和文件夹
 2. 从云端获取所有数据
 3. 保存到本地数据库
@@ -789,11 +835,13 @@ class NoteDetailViewController: NSViewController {
 #### 2. 增量同步
 
 **触发时机**:
+
 - 定期自动同步（默认 5 分钟）
 - 网络恢复时
 - 手动触发同步
 
 **流程**:
+
 1. 获取本地 `syncTag`
 2. 调用增量同步 API，传入 `syncTag`
 3. 获取自上次同步后的更改
@@ -814,6 +862,7 @@ class NoteDetailViewController: NSViewController {
 **存储位置**: `sync_status` 表（单行表）
 
 **字段**:
+
 - `last_sync_time`: 上次同步时间
 - `sync_tag`: 同步标签（用于增量同步）
 - `last_full_sync_time`: 上次完整同步时间
@@ -827,6 +876,7 @@ class NoteDetailViewController: NSViewController {
 **存储**: SQLite 数据库 `offline_operations` 表
 
 **操作类型**:
+
 - `createNote`: 创建笔记
 - `updateNote`: 更新笔记
 - `deleteNote`: 删除笔记
@@ -838,6 +888,7 @@ class NoteDetailViewController: NSViewController {
 ### 操作去重和合并
 
 **去重规则**:
+
 - 同一笔记的多个 `updateNote` → 只保留最新的
 - `createNote + updateNote` → 合并为 `createNote`（使用最新内容）
 - `createNote + deleteNote` → 删除两个操作（无操作）
@@ -846,6 +897,7 @@ class NoteDetailViewController: NSViewController {
 ### 操作优先级
 
 **优先级计算**:
+
 - `createNote`: 优先级 10
 - `updateNote`: 优先级 5
 - `deleteNote`: 优先级 15（最高）
@@ -864,12 +916,14 @@ class NoteDetailViewController: NSViewController {
 - 最大重试次数: 3 次
 
 **错误分类**:
+
 - **可重试错误**: 网络错误、临时服务器错误
 - **不可重试错误**: 认证错误、数据格式错误
 
 ### 并发处理
 
 **配置**:
+
 - 默认最大并发数: 3
 - 可配置调整
 
@@ -882,6 +936,7 @@ class NoteDetailViewController: NSViewController {
 ### 架构设计
 
 **技术栈**:
+
 - HTML + JavaScript (CKEditor 5 风格)
 - `WKWebView` 加载编辑器
 - JavaScript 桥接实现双向通信
@@ -893,6 +948,7 @@ class NoteDetailViewController: NSViewController {
 **转换器**: `xml-to-html.js`
 
 **转换规则**:
+
 - `<p>` → `<p>`
 - `<strong>` → `<strong>`
 - `<em>` → `<em>`
@@ -908,27 +964,31 @@ class NoteDetailViewController: NSViewController {
 **转换器**: `html-to-xml.js`
 
 **转换规则**:
+
 - 反向转换，将 HTML 格式转换回小米笔记 XML 格式
 - 处理图片路径转换（本地路径 → fileId）
 
 ### 编辑器通信
 
 **Swift → JavaScript**:
+
 ```swift
 webView.evaluateJavaScript("editor.setContent('\(html)')")
 ```
 
 **JavaScript → Swift**:
+
 ```javascript
 webkit.messageHandlers.editor.postMessage({
-  type: 'contentChanged',
-  content: html
-})
+  type: "contentChanged",
+  content: html,
+});
 ```
 
 ### 编辑器功能
 
 **文本格式**:
+
 - 加粗 (`<strong>`)
 - 斜体 (`<em>`)
 - 下划线 (`<u>`)
@@ -936,16 +996,19 @@ webkit.messageHandlers.editor.postMessage({
 - 高亮 (`<mark>`)
 
 **标题**:
+
 - 大标题 (H1)
 - 二级标题 (H2)
 - 三级标题 (H3)
 
 **列表**:
+
 - 无序列表 (`<ul>`)
 - 有序列表 (`<ol>`)
 - 复选框列表 (`<input type="checkbox">`)
 
 **其他**:
+
 - 文本对齐（左、中、右）
 - 缩进（增加、减少）
 - 分割线 (`<hr>`)
@@ -1014,6 +1077,7 @@ print("[ClassName] 日志内容")
 ```
 
 **关键日志标记**:
+
 - `[[调试]]`: 重要调试信息
 - `[VIEWMODEL]`: ViewModel 相关日志
 - `[MiNoteService]`: API 服务相关日志
@@ -1056,7 +1120,8 @@ func testCreateNote() async throws {
 
 **症状**: API 调用返回 401 错误
 
-**解决**: 
+**解决**:
+
 - 自动显示登录界面
 - 用户重新登录后更新 Cookie
 
@@ -1065,6 +1130,7 @@ func testCreateNote() async throws {
 **症状**: 本地和云端数据不一致
 
 **解决**:
+
 - 基于时间戳自动解决冲突
 - 保留时间戳更新的版本
 
@@ -1073,6 +1139,7 @@ func testCreateNote() async throws {
 **症状**: 离线操作一直重试失败
 
 **解决**:
+
 - 检查网络连接
 - 检查 Cookie 是否有效
 - 查看错误日志确定具体原因
@@ -1082,6 +1149,7 @@ func testCreateNote() async throws {
 **症状**: 应用程序重启后窗口位置和大小恢复不正确
 
 **解决**:
+
 - 检查窗口状态保存逻辑
 - 确保状态保存和恢复的时机正确
 - 验证状态数据的完整性
@@ -1131,11 +1199,13 @@ Sources/MiNoteLibrary/
 #### 混合架构代码组织
 
 1. **AppKit 控制器**:
+
    - 放置在 `Window/` 目录（窗口控制器）
    - 放置在 `View/AppKitComponents/` 目录（视图控制器）
    - 使用 `NSWindowController` 或 `NSViewController` 子类
 
 2. **SwiftUI 视图**:
+
    - 放置在 `View/SwiftUIViews/` 目录
    - 使用 `View` 协议实现
    - 通过 `@ObservedObject` 绑定 ViewModel
@@ -1593,6 +1663,7 @@ CREATE TABLE offline_operations (
 ## 更新日志
 
 ### v1.0.0 (初始版本)
+
 - 支持基本的笔记编辑和同步功能
 - 支持富文本格式（加粗、斜体、下划线、删除线、高亮）
 - 支持文件夹管理
@@ -1600,6 +1671,7 @@ CREATE TABLE offline_operations (
 - 纯 SwiftUI 架构
 
 ### v1.1.0 (架构迁移)
+
 - 从纯 SwiftUI 迁移到 AppKit+SwiftUI 混合架构
 - 实现完整的 macOS 菜单系统
 - 添加原生工具栏支持
@@ -1611,6 +1683,7 @@ CREATE TABLE offline_operations (
 - 改进 UI 和用户体验
 
 ### v1.2.0 (性能优化)
+
 - 实现内存缓存管理器 (`MemoryCacheManager`)
 - 实现保存队列管理器 (`SaveQueueManager`)
 - 优化笔记切换性能
@@ -1622,6 +1695,7 @@ CREATE TABLE offline_operations (
 ### 未来版本计划
 
 #### v1.3.0 (功能增强)
+
 - 支持笔记标签系统
 - 支持高级搜索功能
 - 支持笔记导出为多种格式
@@ -1629,12 +1703,14 @@ CREATE TABLE offline_operations (
 - 改进图片管理和压缩
 
 #### v1.4.0 (协作功能)
+
 - 支持笔记分享
 - 支持只读分享链接
 - 支持协作编辑（基础版）
 - 改进同步冲突解决
 
 #### v2.0.0 (架构重构)
+
 - 模块化架构重构
 - 支持插件系统
 - 支持主题系统
@@ -1656,31 +1732,35 @@ CREATE TABLE offline_operations (
 - **架构一致性**: 符合混合架构设计原则
 - **代码质量**: 遵循代码规范，无警告和错误
 - **测试覆盖**: 添加必要的单元测试和集成测试
-- **文档更新**: 更新相关文档（技术文档、API文档、注释）
+- **文档更新**: 更新相关文档（技术文档、API 文档、注释）
 - **性能考虑**: 考虑内存使用、响应速度、电池消耗
 - **安全性**: 数据加密、认证安全、输入验证
 
 ### 开发环境设置
 
 1. **克隆项目**:
+
    ```bash
    git clone https://github.com/your-username/SwiftUI-MiNote-for-Mac.git
    cd SwiftUI-MiNote-for-Mac
    ```
 
 2. **安装依赖**:
+
    ```bash
    # 使用 Swift Package Manager
    swift package resolve
    ```
 
 3. **生成 Xcode 项目**:
+
    ```bash
    # 如果已安装 xcodegen
    xcodegen generate
    ```
 
 4. **打开项目**:
+
    ```bash
    open MiNoteMac.xcodeproj
    ```
@@ -1787,7 +1867,7 @@ CREATE TABLE offline_operations (
 
 ---
 
-**最后更新**: 2026年1月4日
+**最后更新**: 2026 年 1 月 4 日
 
 **文档版本**: 2.0.0 (对应应用程序版本 v1.2.0)
 
