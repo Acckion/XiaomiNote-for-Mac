@@ -130,19 +130,6 @@ public struct DebugSettingsView: View {
             }
             .formStyle(.grouped)
             .navigationTitle("调试设置")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("刷新") {
-                        loadCredentials()
-                    }
-                }
-            }
             .modifier(AlertModifier(
                 showCopyAlert: $showCopyAlert,
                 copyAlertMessage: copyAlertMessage,
