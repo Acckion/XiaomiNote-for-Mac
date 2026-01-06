@@ -1142,7 +1142,12 @@ final class MiNoteService: @unchecked Sendable {
         print("[MiNoteService] 刷新Cookie（带重试机制）")
         
         // 先检查Cookie是否仍然有效，避免不必要的刷新
-        if hasValidCookie() {
+        // 注意：hasValidCookie() 是 @MainActor，所以我们需要在主线程上调用它
+        let isValid = await MainActor.run {
+            hasValidCookie()
+        }
+        
+        if isValid {
             print("[MiNoteService] ✅ Cookie仍然有效，跳过刷新")
             return true
         }
@@ -1211,13 +1216,13 @@ final class MiNoteService: @unchecked Sendable {
         print("Cookie已清除")
     }
     
-    /// 检查Cookie是否有效（只检查本地格式，不检查服务器端有效性）
-    /// 
-    /// 注意：这个方法只检查本地Cookie是否存在且格式正确，不检查服务器端有效性。
-    /// 服务器端有效性检查由实际的网络请求来处理（当请求失败时，会触发401错误处理）。
+    /// 检查Cookie是否有效
     /// 
     /// 用户要求：任何网络请求都不要使用缓存的cookie，从用户信息中获取当前最新的cookie。
-    /// 因此，这个方法总是从UserDefaults获取最新的Cookie，不依赖任何缓存。
+    /// 因此，这个方法总是从UserDefaults获取最新的Cookie，并检查其格式和服务器端有效性。
+    /// 
+    /// 注意：这个方法不缓存结果，每次调用都会检查最新的状态。
+    @MainActor
     func hasValidCookie() -> Bool {
         // 首先检查是否有Cookie失效标志
         cookieExpiredLock.lock()
@@ -1229,7 +1234,7 @@ final class MiNoteService: @unchecked Sendable {
             return false
         }
         
-        // 从UserDefaults获取最新的Cookie（不使用任何缓存）
+        // 从UserDefaults获取最新的Cookie
         guard let cookie = UserDefaults.standard.string(forKey: "minote_cookie"),
               !cookie.isEmpty else {
             print("[MiNoteService] Cookie检查：无Cookie或Cookie为空")
@@ -1245,10 +1250,13 @@ final class MiNoteService: @unchecked Sendable {
             return false
         }
         
-        // 本地Cookie格式正确，返回true
-        // 注意：不检查服务器端有效性，服务器端有效性由实际的网络请求来验证
-        print("[MiNoteService] Cookie检查：本地Cookie格式正确，返回true（不检查服务器端有效性）")
-        return true
+        // 使用 ScheduledTaskManager 的实时检查结果
+        // ScheduledTaskManager 会定期检查Cookie在服务器端的有效性
+        // 注意：isCookieValid 属性是实时更新的，由定时任务维护
+        let isCookieValid = ScheduledTaskManager.shared.isCookieValid
+        
+        print("[MiNoteService] Cookie检查：本地Cookie格式正确，服务器端有效性: \(isCookieValid ? "有效" : "无效")")
+        return isCookieValid
     }
     
     /// 检查是否在 cookie 设置后的保护期内
@@ -1263,36 +1271,12 @@ final class MiNoteService: @unchecked Sendable {
     /// 检查Cookie在服务器端是否有效
     /// 
     /// 发送实际的网络请求到 /common/check 来验证Cookie是否真的有效
-    /// 使用缓存机制避免频繁的网络请求
+    /// 用户要求：任何网络请求都不要使用缓存的cookie，所以这个方法总是进行实时检查
     /// 
     /// - Returns: 如果Cookie在服务器端有效则返回true，否则返回false
-    func checkCookieValidity() async -> Bool {
-        // 使用DispatchQueue进行异步安全的锁操作
-        return await cookieValidityQueue.sync {
-            // 检查是否正在检查中，避免重复检查
-            if isCheckingCookieValidity {
-                print("[MiNoteService] Cookie有效性检查正在进行中，返回缓存结果: \(cookieValidityCache)")
-                return cookieValidityCache
-            }
-            
-            // 检查缓存是否仍然有效（30秒内检查过）
-            if let lastCheckTime = cookieValidityCheckTime {
-                let elapsed = Date().timeIntervalSince(lastCheckTime)
-                if elapsed < cookieValidityCheckInterval {
-                    print("[MiNoteService] Cookie有效性检查缓存有效（\(Int(elapsed))秒前），返回缓存结果: \(cookieValidityCache)")
-                    return cookieValidityCache
-                }
-            }
-            
-            // 标记为正在检查
-            isCheckingCookieValidity = true
-            return true // 返回true表示需要执行网络检查
-        }
-        
-        // 如果上面的sync返回true，表示需要执行网络检查
-        // 注意：我们需要在DispatchQueue之外执行网络请求，避免阻塞队列
-        
-        print("[MiNoteService] 开始检查Cookie在服务器端的有效性")
+    /// - Throws: 网络错误或其他错误
+    func checkCookieValidity() async throws -> Bool {
+        print("[MiNoteService] 开始实时检查Cookie在服务器端的有效性")
         
         do {
             // 使用 /common/check API 检查Cookie有效性
@@ -1301,45 +1285,24 @@ final class MiNoteService: @unchecked Sendable {
             // 解析响应
             if let code = response["code"] as? Int, code == 0,
                let result = response["result"] as? String, result == "ok" {
-                // Cookie有效
-                await cookieValidityQueue.sync {
-                    cookieValidityCache = true
-                    cookieValidityCheckTime = Date()
-                    isCheckingCookieValidity = false
-                }
-                
                 print("[MiNoteService] ✅ Cookie在服务器端有效")
                 return true
             } else {
-                // Cookie无效
-                await cookieValidityQueue.sync {
-                    cookieValidityCache = false
-                    cookieValidityCheckTime = Date()
-                    isCheckingCookieValidity = false
-                }
-                
                 print("[MiNoteService] ❌ Cookie在服务器端无效，响应: \(response)")
                 return false
             }
         } catch {
-            // 网络错误或其他错误
-            await cookieValidityQueue.sync {
-                cookieValidityCache = false
-                cookieValidityCheckTime = Date()
-                isCheckingCookieValidity = false
-            }
-            
             print("[MiNoteService] ❌ Cookie有效性检查失败: \(error)")
-            return false
+            throw error // 抛出错误，让调用者处理
         }
     }
     
-    /// 异步检查Cookie有效性并更新缓存
+    /// 异步检查Cookie有效性
     /// 
-    /// 这个方法可以在后台调用，更新Cookie有效性缓存
+    /// 这个方法可以在后台调用，检查Cookie有效性
     /// 不会阻塞调用者，适合在定时任务中调用
     func updateCookieValidityCache() async {
-        _ = await checkCookieValidity()
+        _ = try? await checkCookieValidity()
     }
     
     // MARK: - Helper Methods

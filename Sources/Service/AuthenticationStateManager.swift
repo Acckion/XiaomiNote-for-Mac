@@ -64,14 +64,17 @@ class AuthenticationStateManager: ObservableObject {
             startSmartTimer()
             // 立即执行一次状态检查，确保初始状态正确
             performStatusCheck()
+            
+            // 启动 ScheduledTaskManager 定时任务
+            ScheduledTaskManager.shared.start()
         }
     }
     
     @MainActor
     deinit {
-        // 简化 deinit，避免访问非 Sendable 属性
-        // 定时器会在对象释放时自动失效
-        // 不需要手动停止，因为 Timer 会随着对象的释放而自动失效
+        // 同步停止定时器
+        statusCheckTimer?.invalidate()
+        statusCheckTimer = nil
     }
     
     // MARK: - 应用状态监控
@@ -211,7 +214,9 @@ class AuthenticationStateManager: ObservableObject {
             return
         }
         
-        let hasValidCookie = service.hasValidCookie()
+        // 使用 ScheduledTaskManager 的实时检查结果
+        // ScheduledTaskManager 会定期检查Cookie在服务器端的有效性
+        let hasValidCookie = ScheduledTaskManager.shared.isCookieValid
         
         // 正常更新在线状态
         // 注意：如果用户选择了保持离线模式，即使Cookie恢复有效，也不自动清除离线模式
@@ -397,7 +402,10 @@ class AuthenticationStateManager: ObservableObject {
     /// 
     /// 当Cookie恢复有效时调用此方法
     func restoreOnlineStatus() {
-        guard service.hasValidCookie() else {
+        // 使用 ScheduledTaskManager 的实时检查结果
+        let hasValidCookie = ScheduledTaskManager.shared.isCookieValid
+        
+        guard hasValidCookie else {
             print("[AuthenticationStateManager] Cookie仍然无效，不能恢复在线状态")
             return
         }
@@ -410,7 +418,7 @@ class AuthenticationStateManager: ObservableObject {
         
         // 重新计算在线状态（需要网络和Cookie都有效）
         let networkOnline = networkMonitor.isOnline
-        isOnline = networkOnline && service.hasValidCookie()
+        isOnline = networkOnline && hasValidCookie
         
         if isOnline {
             print("[AuthenticationStateManager] ✅ 已恢复在线状态")
