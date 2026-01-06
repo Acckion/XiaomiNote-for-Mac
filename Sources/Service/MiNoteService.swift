@@ -17,6 +17,97 @@ final class MiNoteService: @unchecked Sendable {
     /// 小米笔记API基础URL
     internal let baseURL = "https://i.mi.com"
     
+    // MARK: - 网络请求管理器
+    
+    /// 网络请求管理器（可选，逐步迁移）
+    private var requestManager: NetworkRequestManager?
+
+
+    @MainActor
+    private func getRequestManager() ->     NetworkRequestManager {
+        return NetworkRequestManager.shared
+    }
+
+    
+    /// 使用 NetworkRequestManager 执行请求（辅助方法）
+    /// 
+    /// - Parameters:
+    ///   - url: 请求URL
+    ///   - method: HTTP方法
+    ///   - headers: 请求头
+    ///   - body: 请求体数据
+    ///   - priority: 请求优先级
+    ///   - cachePolicy: 缓存策略
+    /// - Returns: API响应字典
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    @MainActor
+    private func performRequest(
+        url: String,
+        method: String = "GET",
+        headers: [String: String]? = nil,
+        body: Data? = nil,
+        priority: RequestPriority = .normal,
+        cachePolicy: NetworkRequest.CachePolicy = .noCache
+    ) async throws -> [String: Any] {
+        // 记录请求
+        let bodyString = body != nil ? String(data: body!, encoding: .utf8) : nil
+        NetworkLogger.shared.logRequest(
+            url: url,
+            method: method,
+            headers: headers,
+            body: bodyString
+        )
+        
+        do {
+            // 使用 NetworkRequestManager 执行请求
+            let response = try await NetworkRequestManager.shared.request(
+                url: url,
+                method: method,
+                headers: headers,
+                body: body,
+                priority: priority,
+                cachePolicy: cachePolicy,
+                retryOnFailure: true
+            )
+
+
+            
+            let responseString = String(data: response.data, encoding: .utf8)
+            
+            // 记录响应
+            NetworkLogger.shared.logResponse(
+                url: url,
+                method: method,
+                statusCode: response.response.statusCode,
+                headers: response.response.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            // 处理401未授权错误
+            if response.response.statusCode == 401 {
+                try handle401Error(responseBody: responseString ?? "", urlString: url)
+            }
+            
+            // 检查状态码
+            if response.response.statusCode != 200 {
+                let errorMessage = responseString ?? "未知错误"
+                print("[MiNoteService] 请求失败，状态码: \(response.response.statusCode), 响应: \(errorMessage)")
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+            
+            // 解析JSON响应
+            let json = try JSONSerialization.jsonObject(with: response.data) as? [String: Any] ?? [:]
+            return json
+            
+        } catch {
+            NetworkLogger.shared.logError(url: url, method: method, error: error)
+            
+            // 重新抛出错误，让 NetworkRequestManager 处理重试
+            throw error
+        }
+    }
+    
     // MARK: - 认证状态
     
     /// Cookie字符串，用于API认证
@@ -56,9 +147,12 @@ final class MiNoteService: @unchecked Sendable {
     
     private init() {
         // 从 UserDefaults 加载 cookie
-        loadCredentials()
+        Task {
+            await loadCredentials()
+        }
     }
     
+    @MainActor
     private func loadCredentials() {
         if let savedCookie = UserDefaults.standard.string(forKey: "minote_cookie") {
             cookie = savedCookie
@@ -66,6 +160,7 @@ final class MiNoteService: @unchecked Sendable {
         }
     }
     
+    @MainActor
     private func saveCredentials() {
         UserDefaults.standard.set(cookie, forKey: "minote_cookie")
     }
@@ -88,7 +183,9 @@ final class MiNoteService: @unchecked Sendable {
     func setCookie(_ newCookie: String) {
         cookie = newCookie
         extractServiceToken()
-        saveCredentials()
+        Task {
+            await saveCredentials()
+        }
         // 记录 cookie 设置时间
         cookieSetTime = Date()
         // 清除cookie失效标志
