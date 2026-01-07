@@ -2317,7 +2317,7 @@ extension MainWindowController {
                 self?.updateWindowTitle(for: selectedFolder)
             }
             .store(in: &cancellables)
-        
+
         // 监听笔记列表变化，更新窗口副标题
         viewModel.$notes
             .receive(on: RunLoop.main)
@@ -2325,7 +2325,7 @@ extension MainWindowController {
                 self?.updateWindowTitle(for: viewModel.selectedFolder)
             }
             .store(in: &cancellables)
-        
+
         // 监听选中文件夹变化，更新工具栏
         viewModel.$selectedFolder
             .receive(on: RunLoop.main)
@@ -2334,7 +2334,7 @@ extension MainWindowController {
                 self?.reconfigureToolbar()
             }
             .store(in: &cancellables)
-        
+
         // 监听私密笔记解锁状态变化，更新工具栏
         viewModel.$isPrivateNotesUnlocked
             .receive(on: RunLoop.main)
@@ -2343,7 +2343,7 @@ extension MainWindowController {
                 self?.reconfigureToolbar()
             }
             .store(in: &cancellables)
-        
+
         // 监听搜索文本变化，同步到搜索框UI并更新窗口标题
         viewModel.$searchText
             .receive(on: RunLoop.main)
@@ -2353,11 +2353,30 @@ extension MainWindowController {
                    searchField.stringValue != searchText {
                     searchField.stringValue = searchText
                 }
-                
+
                 // 更新窗口标题和副标题
                 self?.updateWindowTitle(for: viewModel.selectedFolder)
             }
             .store(in: &cancellables)
+
+        // 监听来自设置视图的通知
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ShowLoginView"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("[MainWindowController] 收到ShowLoginView通知，显示登录窗口")
+            self?.showLogin(nil)
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ShowCookieRefreshView"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("[MainWindowController] 收到ShowCookieRefreshView通知，显示Cookie刷新窗口")
+            self?.showCookieRefresh(nil)
+        }
         
         print("[MainWindowController] 状态监听器已设置")
     }
