@@ -312,60 +312,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             return toolbarItem
             
         case .noteOperations:
-            // 笔记操作菜单工具栏项
-            let toolbarItem = NSMenuToolbarItem(itemIdentifier: .noteOperations)
-            toolbarItem.toolTip = "笔记操作"
-            toolbarItem.label = "操作"
-            
-            // 设置图像
-            toolbarItem.image = NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)
-            
-            // 设置显示指示器（下拉箭头）
-            toolbarItem.showsIndicator = true
-            
-            // 创建笔记操作菜单
-            let noteOperationsMenu = NSMenu()
-            
-            // 置顶笔记
-            let starNoteItem = NSMenuItem()
-            starNoteItem.title = "置顶笔记"
-            starNoteItem.action = #selector(MainWindowController.toggleStarNote(_:))
-            starNoteItem.target = windowController
-            noteOperationsMenu.addItem(starNoteItem)
-            
-            // 添加到私密笔记
-            let addToPrivateItem = NSMenuItem()
-            addToPrivateItem.title = "添加到私密笔记"
-            addToPrivateItem.action = #selector(MainWindowController.addToPrivateNotes(_:))
-            addToPrivateItem.target = windowController
-            noteOperationsMenu.addItem(addToPrivateItem)
-            
-            noteOperationsMenu.addItem(NSMenuItem.separator())
-            
-            // 删除笔记
-            let deleteNoteItem = NSMenuItem()
-            deleteNoteItem.title = "删除笔记"
-            deleteNoteItem.action = #selector(MainWindowController.deleteNote(_:))
-            deleteNoteItem.target = windowController
-            noteOperationsMenu.addItem(deleteNoteItem)
-            
-            // 历史记录
-            let historyItem = NSMenuItem()
-            historyItem.title = "历史记录"
-            historyItem.action = #selector(MainWindowController.showHistory(_:))
-            historyItem.target = windowController
-            noteOperationsMenu.addItem(historyItem)
-            
-            // 设置菜单
-            toolbarItem.menu = noteOperationsMenu
-            
-            // 同时设置menuFormRepresentation以确保兼容性
-            let menuItem = NSMenuItem()
-            menuItem.title = "笔记操作"
-            menuItem.submenu = noteOperationsMenu
-            toolbarItem.menuFormRepresentation = menuItem
-            
-            return toolbarItem
+            return buildToolbarButton(.noteOperations, "笔记操作", NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)!, "showNoteOperationsMenu:")
             
         case .toggleSidebar:
             return buildToolbarButton(.toggleSidebar, "隐藏/显示侧边栏", NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: nil)!, "toggleSidebar:")
@@ -482,27 +429,44 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
     
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         var identifiers: [NSToolbarItem.Identifier] = [
-            NSToolbarItem.Identifier.toggleSidebar,
-            NSToolbarItem.Identifier.sidebarTrackingSeparator,
             NSToolbarItem.Identifier.flexibleSpace,
-            NSToolbarItem.Identifier.newNote,
+            NSToolbarItem.Identifier.toggleSidebar,
             NSToolbarItem.Identifier.newFolder,
+
+            NSToolbarItem.Identifier.sidebarTrackingSeparator,
+
+            NSToolbarItem.Identifier.flexibleSpace,
+            NSToolbarItem.Identifier.onlineStatus,
+
+            NSToolbarItem.Identifier.timelineTrackingSeparator,
+
+            NSToolbarItem.Identifier.newNote,
+            NSToolbarItem.Identifier.flexibleSpace,
             NSToolbarItem.Identifier.undo,
             NSToolbarItem.Identifier.redo,
+            NSToolbarItem.Identifier.space,
             NSToolbarItem.Identifier.formatMenu,
+            NSToolbarItem.Identifier.checkbox,
+            NSToolbarItem.Identifier.horizontalRule,
+            NSToolbarItem.Identifier.attachment,
+            NSToolbarItem.Identifier.space,
+            NSToolbarItem.Identifier.increaseIndent,
+            NSToolbarItem.Identifier.decreaseIndent,
+
             NSToolbarItem.Identifier.flexibleSpace,
-            NSToolbarItem.Identifier.search,
+
             NSToolbarItem.Identifier.sync,
-            NSToolbarItem.Identifier.onlineStatus,
+
             NSToolbarItem.Identifier.settings,
             NSToolbarItem.Identifier.login,
-            NSToolbarItem.Identifier.timelineTrackingSeparator,
+
             NSToolbarItem.Identifier.share,
             NSToolbarItem.Identifier.toggleStar,
             NSToolbarItem.Identifier.delete,
             NSToolbarItem.Identifier.history,
             NSToolbarItem.Identifier.trash,
-            NSToolbarItem.Identifier.noteOperations
+            NSToolbarItem.Identifier.noteOperations,
+            NSToolbarItem.Identifier.search,
         ]
         
         // 只有在选中私密笔记文件夹且已解锁时才添加锁图标

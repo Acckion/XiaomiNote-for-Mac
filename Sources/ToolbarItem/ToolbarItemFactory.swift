@@ -531,60 +531,14 @@ public class ToolbarItemFactory {
     }
     
     private func createNoteOperationsToolbarItem(target: AnyObject?) -> NSToolbarItem {
-        // 笔记操作菜单工具栏项
-        let toolbarItem = NSMenuToolbarItem(itemIdentifier: .noteOperations)
-        toolbarItem.toolTip = "笔记操作"
-        toolbarItem.label = "操作"
-        
-        // 设置图像
-        toolbarItem.image = NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)
-        
-        // 设置显示指示器（下拉箭头）
-        toolbarItem.showsIndicator = true
-        
-        // 创建笔记操作菜单
-        let noteOperationsMenu = NSMenu()
-        
-        // 置顶笔记
-        let starNoteItem = NSMenuItem()
-        starNoteItem.title = "置顶笔记"
-        starNoteItem.action = #selector(MainWindowController.toggleStarNote(_:))
-        starNoteItem.target = target
-        noteOperationsMenu.addItem(starNoteItem)
-        
-        // 添加到私密笔记
-        let addToPrivateItem = NSMenuItem()
-        addToPrivateItem.title = "添加到私密笔记"
-        addToPrivateItem.action = #selector(MainWindowController.addToPrivateNotes(_:))
-        addToPrivateItem.target = target
-        noteOperationsMenu.addItem(addToPrivateItem)
-        
-        noteOperationsMenu.addItem(NSMenuItem.separator())
-        
-        // 删除笔记
-        let deleteNoteItem = NSMenuItem()
-        deleteNoteItem.title = "删除笔记"
-        deleteNoteItem.action = #selector(MainWindowController.deleteNote(_:))
-        deleteNoteItem.target = target
-        noteOperationsMenu.addItem(deleteNoteItem)
-        
-        // 历史记录
-        let historyItem = NSMenuItem()
-        historyItem.title = "历史记录"
-        historyItem.action = #selector(MainWindowController.showHistory(_:))
-        historyItem.target = target
-        noteOperationsMenu.addItem(historyItem)
-        
-        // 设置菜单
-        toolbarItem.menu = noteOperationsMenu
-        
-        // 同时设置menuFormRepresentation以确保兼容性
-        let menuItem = NSMenuItem()
-        menuItem.title = "笔记操作"
-        menuItem.submenu = noteOperationsMenu
-        toolbarItem.menuFormRepresentation = menuItem
-        
-        return toolbarItem
+        let item = BaseToolbarItem(
+            identifier: .noteOperations,
+            title: "笔记操作",
+            image: NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil),
+            action: #selector(MainWindowController.showNoteOperationsMenu(_:)),
+            toolTip: "笔记操作"
+        )
+        return item.createToolbarItem(target: target) ?? NSToolbarItem(itemIdentifier: .noteOperations)
     }
     
     private func createLockPrivateNotesToolbarItem(target: AnyObject?) -> NSToolbarItem {

@@ -45,11 +45,6 @@ public class MainWindowController: NSWindowController {
     /// 在线状态菜单工具栏项
     private var onlineStatusMenuToolbarItem: NSToolbarItem?
     
-    /// 笔记操作菜单工具栏项
-    private let noteOperationsToolbarItem = NSMenuToolbarItem(itemIdentifier: .noteOperations)
-    
-    /// 测试菜单工具栏项（已弃用，保留以保持兼容性）
-    private let testMenuToolbarItem = NSMenuToolbarItem(itemIdentifier: .testMenu)
     
     /// 当前显示的sheet窗口引用
     private var currentSheetWindow: NSWindow?
@@ -366,216 +361,8 @@ extension MainWindowController: NSToolbarDelegate {
             return toolbarItem
             
         case .noteOperations:
-            // 笔记操作菜单工具栏项 - 纯AppKit实现
-            noteOperationsToolbarItem.toolTip = "笔记操作"
-            noteOperationsToolbarItem.label = "操作"
+            return buildToolbarButton(.noteOperations, "笔记操作", NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)!, "showNoteOperationsMenu:")
             
-            // 设置图像 - 使用文档图标
-            noteOperationsToolbarItem.image = NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)
-            
-            // 设置显示指示器（下拉箭头）
-            noteOperationsToolbarItem.showsIndicator = true
-            
-            // 创建笔记操作菜单
-            let noteOperationsMenu = NSMenu()
-            
-            // 置顶笔记
-            let starNoteItem = NSMenuItem()
-            starNoteItem.title = "置顶笔记"
-            starNoteItem.action = #selector(toggleStarNote(_:))
-            starNoteItem.target = self
-            noteOperationsMenu.addItem(starNoteItem)
-            
-            // 添加到私密笔记
-            let addToPrivateItem = NSMenuItem()
-            addToPrivateItem.title = "添加到私密笔记"
-            addToPrivateItem.action = #selector(addToPrivateNotes(_:))
-            addToPrivateItem.target = self
-            noteOperationsMenu.addItem(addToPrivateItem)
-            
-            // 移到（子菜单）
-            let moveNoteMenu = NSMenu()
-            moveNoteMenu.title = "移到"
-            
-            // 未分类文件夹（folderId为"0"）
-            let uncategorizedMenuItem = NSMenuItem(title: "未分类", action: #selector(moveToUncategorized(_:)), keyEquivalent: "")
-            uncategorizedMenuItem.image = NSImage(systemSymbolName: "folder.badge.questionmark", accessibilityDescription: nil)
-            uncategorizedMenuItem.image?.size = NSSize(width: 16, height: 16)
-            moveNoteMenu.addItem(uncategorizedMenuItem)
-            
-            // 其他可用文件夹（安全解包viewModel）
-            if let viewModel = viewModel {
-                let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
-                
-                if !availableFolders.isEmpty {
-                    moveNoteMenu.addItem(NSMenuItem.separator())
-                    
-                    for folder in availableFolders {
-                        let menuItem = NSMenuItem(title: folder.name, action: #selector(moveNoteToFolder(_:)), keyEquivalent: "")
-                        menuItem.representedObject = folder
-                        menuItem.image = NSImage(systemSymbolName: folder.isPinned ? "pin.fill" : "folder", accessibilityDescription: nil)
-                        menuItem.image?.size = NSSize(width: 16, height: 16)
-                        moveNoteMenu.addItem(menuItem)
-                    }
-                }
-            }
-            
-            let moveNoteItem = NSMenuItem()
-            moveNoteItem.title = "移到"
-            moveNoteItem.submenu = moveNoteMenu
-            noteOperationsMenu.addItem(moveNoteItem)
-            
-            noteOperationsMenu.addItem(NSMenuItem.separator())
-            
-            // 在笔记中查找（等待实现）
-            let findInNoteItem = NSMenuItem()
-            findInNoteItem.title = "在笔记中查找（等待实现）"
-            findInNoteItem.isEnabled = false
-            noteOperationsMenu.addItem(findInNoteItem)
-            
-            // 最近笔记（等待实现）
-            let recentNotesItem = NSMenuItem()
-            recentNotesItem.title = "最近笔记（等待实现）"
-            recentNotesItem.isEnabled = false
-            noteOperationsMenu.addItem(recentNotesItem)
-            
-            noteOperationsMenu.addItem(NSMenuItem.separator())
-            
-            // 删除笔记
-            let deleteNoteItem = NSMenuItem()
-            deleteNoteItem.title = "删除笔记"
-            deleteNoteItem.action = #selector(deleteNote(_:))
-            deleteNoteItem.target = self
-            noteOperationsMenu.addItem(deleteNoteItem)
-            
-            // 历史记录
-            let historyItem = NSMenuItem()
-            historyItem.title = "历史记录"
-            historyItem.action = #selector(showHistory(_:))
-            historyItem.target = self
-            noteOperationsMenu.addItem(historyItem)
-            
-            // 设置菜单
-            noteOperationsToolbarItem.menu = noteOperationsMenu
-            
-            // 同时设置menuFormRepresentation以确保兼容性
-            let menuItem = NSMenuItem()
-            menuItem.title = "笔记操作"
-            menuItem.submenu = noteOperationsMenu
-            noteOperationsToolbarItem.menuFormRepresentation = menuItem
-            
-            return noteOperationsToolbarItem
-            
-        case .testMenu:
-            // 测试菜单工具栏项 - 纯AppKit实现（已弃用）
-            testMenuToolbarItem.toolTip = "测试菜单"
-            testMenuToolbarItem.label = "测试"
-            
-            // 设置图像
-            testMenuToolbarItem.image = NSImage(systemSymbolName: "gear", accessibilityDescription: nil)
-            
-            // 设置显示指示器（下拉箭头）
-            testMenuToolbarItem.showsIndicator = true
-            
-            // 创建测试菜单
-            let testMenu = NSMenu()
-            
-            let item1 = NSMenuItem()
-            item1.title = "测试项1"
-            item1.action = #selector(testMenuItem1(_:))
-            item1.target = self
-            testMenu.addItem(item1)
-            
-            let item2 = NSMenuItem()
-            item2.title = "测试项2"
-            item2.action = #selector(testMenuItem2(_:))
-            item2.target = self
-            testMenu.addItem(item2)
-            
-            testMenu.addItem(NSMenuItem.separator())
-            
-            let item3 = NSMenuItem()
-            item3.title = "测试项3"
-            item3.action = #selector(testMenuItem3(_:))
-            item3.target = self
-            testMenu.addItem(item3)
-            
-            // 设置菜单
-            testMenuToolbarItem.menu = testMenu
-            
-            // 同时设置menuFormRepresentation以确保兼容性
-            let menuItem = NSMenuItem()
-            menuItem.title = "测试菜单"
-            menuItem.submenu = testMenu
-            testMenuToolbarItem.menuFormRepresentation = menuItem
-            
-            return testMenuToolbarItem
-            
-        case .testCheckboxMenu:
-            // 测试按钮 - 带勾选框的菜单
-            let toolbarItem = NSMenuToolbarItem(itemIdentifier: .testCheckboxMenu)
-            toolbarItem.toolTip = "测试按钮"
-            toolbarItem.label = "测试"
-            
-            // 设置图像
-            toolbarItem.image = NSImage(systemSymbolName: "checkmark.square", accessibilityDescription: nil)
-            
-            // 设置显示指示器（下拉箭头）
-            toolbarItem.showsIndicator = true
-            
-            // 创建带勾选框的测试菜单
-            let testCheckboxMenu = NSMenu()
-            
-            // 选项1 - 带勾选框
-            let option1Item = NSMenuItem()
-            option1Item.title = "选项1"
-            option1Item.action = #selector(toggleTestOption1(_:))
-            option1Item.target = self
-            option1Item.state = .off
-            testCheckboxMenu.addItem(option1Item)
-            
-            // 选项2 - 带勾选框
-            let option2Item = NSMenuItem()
-            option2Item.title = "选项2"
-            option2Item.action = #selector(toggleTestOption2(_:))
-            option2Item.target = self
-            option2Item.state = .off
-            testCheckboxMenu.addItem(option2Item)
-            
-            // 选项3 - 带勾选框
-            let option3Item = NSMenuItem()
-            option3Item.title = "选项3"
-            option3Item.action = #selector(toggleTestOption3(_:))
-            option3Item.target = self
-            option3Item.state = .off
-            testCheckboxMenu.addItem(option3Item)
-            
-            testCheckboxMenu.addItem(NSMenuItem.separator())
-            
-            // 全选
-            let selectAllItem = NSMenuItem()
-            selectAllItem.title = "全选"
-            selectAllItem.action = #selector(selectAllTestOptions(_:))
-            selectAllItem.target = self
-            testCheckboxMenu.addItem(selectAllItem)
-            
-            // 取消全选
-            let deselectAllItem = NSMenuItem()
-            deselectAllItem.title = "取消全选"
-            deselectAllItem.action = #selector(deselectAllTestOptions(_:))
-            deselectAllItem.target = self
-            testCheckboxMenu.addItem(deselectAllItem)
-            
-            // 设置菜单
-            toolbarItem.menu = testCheckboxMenu
-            
-            // 同时设置menuFormRepresentation以确保兼容性
-            let menuItem = NSMenuItem()
-            menuItem.title = "测试菜单"
-            menuItem.submenu = testCheckboxMenu
-            toolbarItem.menuFormRepresentation = menuItem
-            
-            return toolbarItem
             
         case .lockPrivateNotes:
             // 锁定私密笔记工具栏项
@@ -672,8 +459,6 @@ extension MainWindowController: NSToolbarDelegate {
             NSToolbarItem.Identifier.history,
             NSToolbarItem.Identifier.trash,
             NSToolbarItem.Identifier.noteOperations,
-            NSToolbarItem.Identifier.testMenu,
-            NSToolbarItem.Identifier.testCheckboxMenu,
             NSToolbarItem.Identifier.space,
             NSToolbarItem.Identifier.separator
         ]
@@ -891,82 +676,6 @@ extension MainWindowController: NSToolbarDelegate {
         // 如果需要动态更新菜单，可以在这里实现
     }
     
-    // MARK: - 测试菜单动作
-    
-    @objc func testMenuItem1(_ sender: Any?) {
-        print("测试菜单项1被点击")
-        let alert = NSAlert()
-        alert.messageText = "测试菜单"
-        alert.informativeText = "测试菜单项1被点击"
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "确定")
-        alert.runModal()
-    }
-    
-    @objc func testMenuItem2(_ sender: Any?) {
-        print("测试菜单项2被点击")
-        let alert = NSAlert()
-        alert.messageText = "测试菜单"
-        alert.informativeText = "测试菜单项2被点击"
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "确定")
-        alert.runModal()
-    }
-    
-    @objc func testMenuItem3(_ sender: Any?) {
-        print("测试菜单项3被点击")
-        let alert = NSAlert()
-        alert.messageText = "测试菜单"
-        alert.informativeText = "测试菜单项3被点击"
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "确定")
-        alert.runModal()
-    }
-    
-    // MARK: - 测试按钮动作
-    
-    @objc func toggleTestOption1(_ sender: Any?) {
-        if let menuItem = sender as? NSMenuItem {
-            menuItem.state = menuItem.state == .on ? .off : .on
-            print("测试选项1状态: \(menuItem.state == .on ? "选中" : "未选中")")
-        }
-    }
-    
-    @objc func toggleTestOption2(_ sender: Any?) {
-        if let menuItem = sender as? NSMenuItem {
-            menuItem.state = menuItem.state == .on ? .off : .on
-            print("测试选项2状态: \(menuItem.state == .on ? "选中" : "未选中")")
-        }
-    }
-    
-    @objc func toggleTestOption3(_ sender: Any?) {
-        if let menuItem = sender as? NSMenuItem {
-            menuItem.state = menuItem.state == .on ? .off : .on
-            print("测试选项3状态: \(menuItem.state == .on ? "选中" : "未选中")")
-        }
-    }
-    
-    @objc func selectAllTestOptions(_ sender: Any?) {
-        print("全选测试选项")
-        // 这里应该更新菜单项状态，但由于菜单是动态创建的，需要其他方式处理
-        let alert = NSAlert()
-        alert.messageText = "测试功能"
-        alert.informativeText = "全选功能已触发（实际实现需要更新菜单项状态）"
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "确定")
-        alert.runModal()
-    }
-    
-    @objc func deselectAllTestOptions(_ sender: Any?) {
-        print("取消全选测试选项")
-        // 这里应该更新菜单项状态，但由于菜单是动态创建的，需要其他方式处理
-        let alert = NSAlert()
-        alert.messageText = "测试功能"
-        alert.informativeText = "取消全选功能已触发（实际实现需要更新菜单项状态）"
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "确定")
-        alert.runModal()
-    }
     
 }
 
@@ -1242,12 +951,6 @@ extension MainWindowController: NSUserInterfaceValidations {
             return true // 总是可以搜索
         }
         
-        // 验证测试菜单项
-        if item.action == #selector(testMenuItem1(_:)) ||
-           item.action == #selector(testMenuItem2(_:)) ||
-           item.action == #selector(testMenuItem3(_:)) {
-            return true // 测试菜单项总是可用
-        }
         
         // 验证锁定私密笔记按钮
         if item.action == #selector(lockPrivateNotes(_:)) {
@@ -1646,7 +1349,94 @@ extension MainWindowController {
     }
     
     // MARK: - 笔记操作菜单动作方法
-    
+
+    @objc func showNoteOperationsMenu(_ sender: Any?) {
+        guard let button = sender as? NSButton else { return }
+
+        // 创建笔记操作菜单
+        let menu = NSMenu()
+
+        // 置顶笔记
+        let starNoteItem = NSMenuItem()
+        starNoteItem.title = "置顶笔记"
+        starNoteItem.action = #selector(toggleStarNote(_:))
+        starNoteItem.target = self
+        menu.addItem(starNoteItem)
+
+        // 添加到私密笔记
+        let addToPrivateItem = NSMenuItem()
+        addToPrivateItem.title = "添加到私密笔记"
+        addToPrivateItem.action = #selector(addToPrivateNotes(_:))
+        addToPrivateItem.target = self
+        menu.addItem(addToPrivateItem)
+
+        // 移到（子菜单）
+        let moveNoteMenu = NSMenu()
+        moveNoteMenu.title = "移到"
+
+        // 未分类文件夹（folderId为"0"）
+        let uncategorizedMenuItem = NSMenuItem(title: "未分类", action: #selector(moveToUncategorized(_:)), keyEquivalent: "")
+        uncategorizedMenuItem.image = NSImage(systemSymbolName: "folder.badge.questionmark", accessibilityDescription: nil)
+        uncategorizedMenuItem.image?.size = NSSize(width: 16, height: 16)
+        moveNoteMenu.addItem(uncategorizedMenuItem)
+
+        // 其他可用文件夹（安全解包viewModel）
+        if let viewModel = viewModel {
+            let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+
+            if !availableFolders.isEmpty {
+                moveNoteMenu.addItem(NSMenuItem.separator())
+
+                for folder in availableFolders {
+                    let menuItem = NSMenuItem(title: folder.name, action: #selector(moveNoteToFolder(_:)), keyEquivalent: "")
+                    menuItem.representedObject = folder
+                    menuItem.image = NSImage(systemSymbolName: folder.isPinned ? "pin.fill" : "folder", accessibilityDescription: nil)
+                    menuItem.image?.size = NSSize(width: 16, height: 16)
+                    moveNoteMenu.addItem(menuItem)
+                }
+            }
+        }
+
+        let moveNoteItem = NSMenuItem()
+        moveNoteItem.title = "移到"
+        moveNoteItem.submenu = moveNoteMenu
+        menu.addItem(moveNoteItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // 在笔记中查找（等待实现）
+        let findInNoteItem = NSMenuItem()
+        findInNoteItem.title = "在笔记中查找（等待实现）"
+        findInNoteItem.isEnabled = false
+        menu.addItem(findInNoteItem)
+
+        // 最近笔记（等待实现）
+        let recentNotesItem = NSMenuItem()
+        recentNotesItem.title = "最近笔记（等待实现）"
+        recentNotesItem.isEnabled = false
+        menu.addItem(recentNotesItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // 删除笔记
+        let deleteNoteItem = NSMenuItem()
+        deleteNoteItem.title = "删除笔记"
+        deleteNoteItem.action = #selector(deleteNote(_:))
+        deleteNoteItem.target = self
+        menu.addItem(deleteNoteItem)
+
+        // 历史记录
+        let historyItem = NSMenuItem()
+        historyItem.title = "历史记录"
+        historyItem.action = #selector(showHistory(_:))
+        historyItem.target = self
+        menu.addItem(historyItem)
+
+        // 显示菜单
+        let location = NSPoint(x: 0, y: button.bounds.height)
+        menu.popUp(positioning: nil, at: location, in: button)
+    }
+
     @objc func addToPrivateNotes(_ sender: Any?) {
         print("添加到私密笔记")
         guard let note = viewModel?.selectedNote else { return }
