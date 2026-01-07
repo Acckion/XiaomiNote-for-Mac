@@ -360,8 +360,8 @@ extension MainWindowController: NSToolbarDelegate {
             
             return toolbarItem
             
-        case .noteOperations:
-            return buildToolbarButton(.noteOperations, "笔记操作", NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)!, "showNoteOperationsMenu:")
+        // 笔记操作按钮现在由MainWindowToolbarDelegate处理，不在这里实现
+        return nil
             
             
         case .lockPrivateNotes:
@@ -1350,91 +1350,23 @@ extension MainWindowController {
     
     // MARK: - 笔记操作菜单动作方法
 
-    @objc func showNoteOperationsMenu(_ sender: Any?) {
-        guard let button = sender as? NSButton else { return }
+    @objc func handleNoteOperationsClick(_ sender: Any) {
+        // 获取菜单
+        guard let toolbarDelegate = toolbarDelegate else { return }
 
-        // 创建笔记操作菜单
-        let menu = NSMenu()
+        // 在主线程上获取菜单（确保线程安全）
+        Task { @MainActor in
+            let menu = toolbarDelegate.actionMenu
 
-        // 置顶笔记
-        let starNoteItem = NSMenuItem()
-        starNoteItem.title = "置顶笔记"
-        starNoteItem.action = #selector(toggleStarNote(_:))
-        starNoteItem.target = self
-        menu.addItem(starNoteItem)
-
-        // 添加到私密笔记
-        let addToPrivateItem = NSMenuItem()
-        addToPrivateItem.title = "添加到私密笔记"
-        addToPrivateItem.action = #selector(addToPrivateNotes(_:))
-        addToPrivateItem.target = self
-        menu.addItem(addToPrivateItem)
-
-        // 移到（子菜单）
-        let moveNoteMenu = NSMenu()
-        moveNoteMenu.title = "移到"
-
-        // 未分类文件夹（folderId为"0"）
-        let uncategorizedMenuItem = NSMenuItem(title: "未分类", action: #selector(moveToUncategorized(_:)), keyEquivalent: "")
-        uncategorizedMenuItem.image = NSImage(systemSymbolName: "folder.badge.questionmark", accessibilityDescription: nil)
-        uncategorizedMenuItem.image?.size = NSSize(width: 16, height: 16)
-        moveNoteMenu.addItem(uncategorizedMenuItem)
-
-        // 其他可用文件夹（安全解包viewModel）
-        if let viewModel = viewModel {
-            let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
-
-            if !availableFolders.isEmpty {
-                moveNoteMenu.addItem(NSMenuItem.separator())
-
-                for folder in availableFolders {
-                    let menuItem = NSMenuItem(title: folder.name, action: #selector(moveNoteToFolder(_:)), keyEquivalent: "")
-                    menuItem.representedObject = folder
-                    menuItem.image = NSImage(systemSymbolName: folder.isPinned ? "pin.fill" : "folder", accessibilityDescription: nil)
-                    menuItem.image?.size = NSSize(width: 16, height: 16)
-                    moveNoteMenu.addItem(menuItem)
-                }
-            }
+            // 使用鼠标当前位置弹出菜单 - 最简单可靠的方法
+            let mouseLocation = NSEvent.mouseLocation
+            menu.popUp(positioning: nil, at: mouseLocation, in: nil)
         }
+    }
 
-        let moveNoteItem = NSMenuItem()
-        moveNoteItem.title = "移到"
-        moveNoteItem.submenu = moveNoteMenu
-        menu.addItem(moveNoteItem)
-
-        menu.addItem(NSMenuItem.separator())
-
-        // 在笔记中查找（等待实现）
-        let findInNoteItem = NSMenuItem()
-        findInNoteItem.title = "在笔记中查找（等待实现）"
-        findInNoteItem.isEnabled = false
-        menu.addItem(findInNoteItem)
-
-        // 最近笔记（等待实现）
-        let recentNotesItem = NSMenuItem()
-        recentNotesItem.title = "最近笔记（等待实现）"
-        recentNotesItem.isEnabled = false
-        menu.addItem(recentNotesItem)
-
-        menu.addItem(NSMenuItem.separator())
-
-        // 删除笔记
-        let deleteNoteItem = NSMenuItem()
-        deleteNoteItem.title = "删除笔记"
-        deleteNoteItem.action = #selector(deleteNote(_:))
-        deleteNoteItem.target = self
-        menu.addItem(deleteNoteItem)
-
-        // 历史记录
-        let historyItem = NSMenuItem()
-        historyItem.title = "历史记录"
-        historyItem.action = #selector(showHistory(_:))
-        historyItem.target = self
-        menu.addItem(historyItem)
-
-        // 显示菜单
-        let location = NSPoint(x: 0, y: button.bounds.height)
-        menu.popUp(positioning: nil, at: location, in: button)
+    @objc func showNoteOperationsMenu(_ sender: Any?) {
+        // 保留原方法以向后兼容，但重定向到新的方法
+        handleNoteOperationsClick(sender ?? self)
     }
 
     @objc func addToPrivateNotes(_ sender: Any?) {
