@@ -1352,15 +1352,17 @@ extension MainWindowController {
 
     @objc func handleNoteOperationsClick(_ sender: Any) {
         // 获取菜单
-        guard let toolbarDelegate = toolbarDelegate else { return }
+        guard let toolbarDelegate = toolbarDelegate,
+              let window = window else { return }
 
         // 在主线程上获取菜单（确保线程安全）
         Task { @MainActor in
             let menu = toolbarDelegate.actionMenu
 
-            // 使用鼠标当前位置弹出菜单 - 最简单可靠的方法
+            // 使用鼠标当前位置
             let mouseLocation = NSEvent.mouseLocation
             menu.popUp(positioning: nil, at: mouseLocation, in: nil)
+            
         }
     }
 
