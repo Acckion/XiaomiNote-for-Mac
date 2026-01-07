@@ -2,7 +2,7 @@
  * Converter 模块
  * 包装 XML/HTML 转换器，提供统一的转换接口
  * 依赖: logger (可选)
- * 注意: XMLToHTMLConverter 和 HTMLToXMLConverter 类在 xml-to-html.js 和 html-to-xml.js 中定义
+ * 注意: XMLToHTMLConverter 和 HTMLToXMLConverter 类在同目录的 xml-to-html.js 和 html-to-xml.js 中定义
  */
 
 (function() {
@@ -25,7 +25,7 @@
                 xmlToHtmlConverter = new XMLToHTMLConverter();
                 log.debug(LOG_MODULES.CONVERTER, 'XMLToHTMLConverter 初始化完成');
             } else {
-                log.error(LOG_MODULES.CONVERTER, 'XMLToHTMLConverter 类未定义，请确保 xml-to-html.js 已加载');
+                log.error(LOG_MODULES.CONVERTER, 'XMLToHTMLConverter 类未定义，请确保 modules/converter/xml-to-html.js 已加载');
             }
         }
 
@@ -34,7 +34,7 @@
                 htmlToXmlConverter = new HTMLToXMLConverter();
                 log.debug(LOG_MODULES.CONVERTER, 'HTMLToXMLConverter 初始化完成');
             } else {
-                log.error(LOG_MODULES.CONVERTER, 'HTMLToXMLConverter 类未定义，请确保 html-to-xml.js 已加载');
+                log.error(LOG_MODULES.CONVERTER, 'HTMLToXMLConverter 类未定义，请确保 modules/converter/html-to-xml.js 已加载');
             }
         }
     }

@@ -174,12 +174,15 @@ public struct SettingsView: View {
                     }
                     
                     Button("重新登录") {
-                        viewModel.showLoginView = true
+                        // 发送通知让主窗口控制器显示登录视图
+                        NotificationCenter.default.post(name: NSNotification.Name("ShowLoginView"), object: nil)
                         dismiss()
                     }
-                    
+
                     Button("刷新Cookie") {
-                        refreshCookie()
+                        // 发送通知让主窗口控制器显示Cookie刷新视图
+                        NotificationCenter.default.post(name: NSNotification.Name("ShowCookieRefreshView"), object: nil)
+                        dismiss()
                     }
                     .help("如果同步失败，尝试刷新Cookie")
                     
@@ -282,11 +285,7 @@ public struct SettingsView: View {
         dismiss()
     }
     
-    private func refreshCookie() {
-        // 参考 Obsidian 插件：打开Cookie刷新视图
-        // 显示Cookie刷新视图（而不是登录视图）
-        viewModel.showCookieRefreshView = true
-    }
+
     
     private func clearCache() {
         // 清除所有本地存储的数据

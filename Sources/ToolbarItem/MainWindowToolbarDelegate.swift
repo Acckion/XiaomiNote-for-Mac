@@ -15,20 +15,123 @@ import os
 /// 主窗口工具栏代理
 /// 负责处理主窗口的所有工具栏相关逻辑
 public class MainWindowToolbarDelegate: NSObject {
-    
+
     // MARK: - 属性
-    
+
     private let logger = Logger(subsystem: "com.minote.MiNoteMac", category: "MainWindowToolbarDelegate")
-    
+
     /// 视图模型引用
     public weak var viewModel: NotesViewModel?
-    
+
     /// 主窗口控制器引用
     public weak var windowController: MainWindowController?
-    
+
     /// 当前搜索字段（用于工具栏搜索项）
     private var currentSearchField: CustomSearchField?
+
+    // MARK: - 笔记操作菜单
+
+    /// 笔记操作菜单（用于双轨配置）
+    @MainActor
+    var actionMenu: NSMenu {
+        let menu = NSMenu()
+        menu.addItem(withTitle: "置顶笔记", action: #selector(MainWindowController.toggleStarNote(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "添加到私密笔记", action: #selector(MainWindowController.addToPrivateNotes(_:)), keyEquivalent: "")
+        menu.addItem(.separator())
+
+        // 移到（子菜单）
+        let moveNoteMenu = NSMenu()
+        moveNoteMenu.title = "移到"
+
+        // 未分类文件夹（folderId为"0"）
+        let uncategorizedMenuItem = NSMenuItem(title: "未分类", action: #selector(MainWindowController.moveToUncategorized(_:)), keyEquivalent: "")
+        uncategorizedMenuItem.image = NSImage(systemSymbolName: "folder.badge.questionmark", accessibilityDescription: nil)
+        uncategorizedMenuItem.image?.size = NSSize(width: 16, height: 16)
+        moveNoteMenu.addItem(uncategorizedMenuItem)
+
+        // 其他可用文件夹（安全解包viewModel）
+        if let viewModel = viewModel {
+            // 告诉编译器假设当前环境已经是 MainActor
+            let availableFolders = MainActor.assumeIsolated {
+                NoteMoveHelper.getAvailableFolders(for: viewModel)
+            }
+
+            if !availableFolders.isEmpty {
+                moveNoteMenu.addItem(NSMenuItem.separator())
+
+                for folder in availableFolders {
+                    let menuItem = NSMenuItem(title: folder.name, action: #selector(MainWindowController.moveNoteToFolder(_:)), keyEquivalent: "")
+                    menuItem.representedObject = folder
+                    menuItem.image = NSImage(systemSymbolName: folder.isPinned ? "pin.fill" : "folder", accessibilityDescription: nil)
+                    menuItem.image?.size = NSSize(width: 16, height: 16)
+                    moveNoteMenu.addItem(menuItem)
+                }
+            }
+        }
+
+        let moveNoteItem = NSMenuItem()
+        moveNoteItem.title = "移到"
+        moveNoteItem.submenu = moveNoteMenu
+        menu.addItem(moveNoteItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // 在笔记中查找（等待实现）
+        let findInNoteItem = NSMenuItem()
+        findInNoteItem.title = "在笔记中查找（等待实现）"
+        findInNoteItem.isEnabled = false
+        menu.addItem(findInNoteItem)
+
+        // 最近笔记（等待实现）
+        let recentNotesItem = NSMenuItem()
+        recentNotesItem.title = "最近笔记（等待实现）"
+        recentNotesItem.isEnabled = false
+        menu.addItem(recentNotesItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // 删除笔记
+        let deleteNoteItem = NSMenuItem()
+        deleteNoteItem.title = "删除笔记"
+        deleteNoteItem.action = #selector(MainWindowController.deleteNote(_:))
+        deleteNoteItem.target = windowController
+        menu.addItem(deleteNoteItem)
+
+        // 历史记录
+        let historyItem = NSMenuItem()
+        historyItem.title = "历史记录"
+        historyItem.action = #selector(MainWindowController.showHistory(_:))
+        historyItem.target = windowController
+        menu.addItem(historyItem)
+
+        // 设置所有菜单项的目标为windowController
+        for item in menu.items {
+            if item.target == nil {
+                item.target = windowController
+            }
+            // 为子菜单项也设置目标
+            if let submenu = item.submenu {
+                for subItem in submenu.items {
+                    if subItem.target == nil {
+                        subItem.target = windowController
+                    }
+                }
+            }
+        }
+
+        return menu
+    }
     
+    /// 创建笔记操作菜单的折叠表示
+    @MainActor
+    private func createNoteOperationsMenuFormRepresentation() -> NSMenuItem {
+        let overflowItem = NSMenuItem(title: "笔记操作", action: nil, keyEquivalent: "")
+        overflowItem.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: "笔记操作")
+        overflowItem.image?.size = NSSize(width: 16, height: 16)
+        overflowItem.submenu = actionMenu
+        return overflowItem
+    }
+
     /// 初始化工具栏代理
     /// - Parameters:
     ///   - viewModel: 笔记视图模型
@@ -312,59 +415,22 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             return toolbarItem
             
         case .noteOperations:
-            // 笔记操作菜单工具栏项
-            let toolbarItem = NSMenuToolbarItem(itemIdentifier: .noteOperations)
+            // 创建自定义工具栏项，实现双轨配置
+            let toolbarItem = MiNoteToolbarItem(itemIdentifier: .noteOperations)
+            toolbarItem.autovalidates = true
+
+            // --- 修改这里：不要使用 button，直接设置 image 和 action ---
+            toolbarItem.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: "笔记操作")
+            toolbarItem.label = "笔记操作"
             toolbarItem.toolTip = "笔记操作"
-            toolbarItem.label = "操作"
-            
-            // 设置图像
-            toolbarItem.image = NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)
-            
-            // 设置显示指示器（下拉箭头）
-            toolbarItem.showsIndicator = true
-            
-            // 创建笔记操作菜单
-            let noteOperationsMenu = NSMenu()
-            
-            // 置顶笔记
-            let starNoteItem = NSMenuItem()
-            starNoteItem.title = "置顶笔记"
-            starNoteItem.action = #selector(MainWindowController.toggleStarNote(_:))
-            starNoteItem.target = windowController
-            noteOperationsMenu.addItem(starNoteItem)
-            
-            // 添加到私密笔记
-            let addToPrivateItem = NSMenuItem()
-            addToPrivateItem.title = "添加到私密笔记"
-            addToPrivateItem.action = #selector(MainWindowController.addToPrivateNotes(_:))
-            addToPrivateItem.target = windowController
-            noteOperationsMenu.addItem(addToPrivateItem)
-            
-            noteOperationsMenu.addItem(NSMenuItem.separator())
-            
-            // 删除笔记
-            let deleteNoteItem = NSMenuItem()
-            deleteNoteItem.title = "删除笔记"
-            deleteNoteItem.action = #selector(MainWindowController.deleteNote(_:))
-            deleteNoteItem.target = windowController
-            noteOperationsMenu.addItem(deleteNoteItem)
-            
-            // 历史记录
-            let historyItem = NSMenuItem()
-            historyItem.title = "历史记录"
-            historyItem.action = #selector(MainWindowController.showHistory(_:))
-            historyItem.target = windowController
-            noteOperationsMenu.addItem(historyItem)
-            
-            // 设置菜单
-            toolbarItem.menu = noteOperationsMenu
-            
-            // 同时设置menuFormRepresentation以确保兼容性
-            let menuItem = NSMenuItem()
-            menuItem.title = "笔记操作"
-            menuItem.submenu = noteOperationsMenu
-            toolbarItem.menuFormRepresentation = menuItem
-            
+
+            // 确保 action 指向弹出逻辑
+            toolbarItem.target = windowController
+            toolbarItem.action = #selector(MainWindowController.handleNoteOperationsClick(_:))
+
+            // --- 折叠配置：延迟创建以避免线程问题 ---
+            toolbarItem.menuFormRepresentation = createNoteOperationsMenuFormRepresentation()
+
             return toolbarItem
             
         case .toggleSidebar:
@@ -482,27 +548,35 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
     
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         var identifiers: [NSToolbarItem.Identifier] = [
-            NSToolbarItem.Identifier.toggleSidebar,
-            NSToolbarItem.Identifier.sidebarTrackingSeparator,
             NSToolbarItem.Identifier.flexibleSpace,
-            NSToolbarItem.Identifier.newNote,
+            NSToolbarItem.Identifier.toggleSidebar,
             NSToolbarItem.Identifier.newFolder,
+
+            NSToolbarItem.Identifier.sidebarTrackingSeparator,
+
+            NSToolbarItem.Identifier.flexibleSpace,
+            NSToolbarItem.Identifier.onlineStatus,
+
+            NSToolbarItem.Identifier.timelineTrackingSeparator,
+
+            NSToolbarItem.Identifier.newNote,
+            NSToolbarItem.Identifier.flexibleSpace,
             NSToolbarItem.Identifier.undo,
             NSToolbarItem.Identifier.redo,
+            NSToolbarItem.Identifier.space,
             NSToolbarItem.Identifier.formatMenu,
+            NSToolbarItem.Identifier.checkbox,
+            NSToolbarItem.Identifier.horizontalRule,
+            NSToolbarItem.Identifier.attachment,
+            NSToolbarItem.Identifier.space,
+            NSToolbarItem.Identifier.increaseIndent,
+            NSToolbarItem.Identifier.decreaseIndent,
+
             NSToolbarItem.Identifier.flexibleSpace,
-            NSToolbarItem.Identifier.search,
-            NSToolbarItem.Identifier.sync,
-            NSToolbarItem.Identifier.onlineStatus,
-            NSToolbarItem.Identifier.settings,
-            NSToolbarItem.Identifier.login,
-            NSToolbarItem.Identifier.timelineTrackingSeparator,
+
             NSToolbarItem.Identifier.share,
-            NSToolbarItem.Identifier.toggleStar,
-            NSToolbarItem.Identifier.delete,
-            NSToolbarItem.Identifier.history,
-            NSToolbarItem.Identifier.trash,
-            NSToolbarItem.Identifier.noteOperations
+            NSToolbarItem.Identifier.noteOperations,
+            NSToolbarItem.Identifier.search,
         ]
         
         // 只有在选中私密笔记文件夹且已解锁时才添加锁图标

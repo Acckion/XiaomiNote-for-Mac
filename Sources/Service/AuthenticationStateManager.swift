@@ -4,13 +4,13 @@ import AppKit
 
 /// 认证状态管理器
 /// 
-/// 统一管理登录、Cookie刷新和在线状态的逻辑
-/// 负责协调网络监控、Cookie状态和用户选择的离线模式
+/// 统一管理登录、Cookie刷新和认证相关的UI状态
+/// 在线状态由 OnlineStateManager 统一管理，这里只负责同步和UI状态
 @MainActor
 class AuthenticationStateManager: ObservableObject {
     // MARK: - 状态属性
     
-    /// 是否在线（需要同时满足网络连接和Cookie有效）
+    /// 是否在线（从 OnlineStateManager 同步，但受用户选择的离线模式影响）
     @Published var isOnline: Bool = true
     
     /// Cookie是否失效
@@ -31,238 +31,98 @@ class AuthenticationStateManager: ObservableObject {
     /// 是否显示Cookie刷新视图
     @Published var showCookieRefreshView: Bool = false
     
-    // MARK: - 定时器状态
-    
-    /// 当前检查频率（秒）
-    private var currentCheckInterval: TimeInterval = 10.0
-    
-    /// 连续有效检查次数
-    private var consecutiveValidChecks: Int = 0
-    
-    /// 应用是否在前台活跃
-    private var isAppActive: Bool = true
-    
-    /// 当前定时器
-    private var statusCheckTimer: Timer?
-    
     // MARK: - 依赖服务
     
     private let service = MiNoteService.shared
-    private let networkMonitor = NetworkMonitor.shared
+    private let onlineStateManager = OnlineStateManager.shared
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - 初始化
     
     init() {
-        setupAppStateMonitoring()
-        setupNetworkMonitoring()
+        setupOnlineStateSync()
         setupCookieExpiredHandler()
         setupCookieRefreshNotification()
         
-        // 启动定时器需要在主线程上执行
+        // 启动 ScheduledTaskManager 定时任务
         Task { @MainActor in
-            startSmartTimer()
-            // 立即执行一次状态检查，确保初始状态正确
-            performStatusCheck()
-            
-            // 启动 ScheduledTaskManager 定时任务
             ScheduledTaskManager.shared.start()
+            // 立即刷新一次在线状态
+            onlineStateManager.refreshStatus()
         }
     }
     
-    @MainActor
-    deinit {
-        // 同步停止定时器
-        statusCheckTimer?.invalidate()
-        statusCheckTimer = nil
-    }
+    // MARK: - 在线状态同步
     
-    // MARK: - 应用状态监控
-    
-    private func setupAppStateMonitoring() {
-        // 监听应用状态变化
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(appDidBecomeActive),
-            name: NSApplication.didBecomeActiveNotification,
-            object: nil
-        )
-        
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(appDidResignActive),
-            name: NSApplication.didResignActiveNotification,
-            object: nil
-        )
-    }
-    
-    @objc private func appDidBecomeActive() {
-        print("[AuthenticationStateManager] 应用进入前台")
-        isAppActive = true
-        adjustCheckFrequency()
-    }
-    
-    @objc private func appDidResignActive() {
-        print("[AuthenticationStateManager] 应用进入后台")
-        isAppActive = false
-        adjustCheckFrequency()
-    }
-    
-    // MARK: - 智能定时器管理
-    
-    /// 启动智能定时器
-    private func startSmartTimer() {
-        stopTimer() // 确保没有重复的定时器
-        
-        print("[AuthenticationStateManager] 启动智能定时器，间隔: \(currentCheckInterval)秒")
-        
-        statusCheckTimer = Timer.scheduledTimer(withTimeInterval: currentCheckInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.performStatusCheck()
-            }
-        }
-    }
-    
-    /// 停止定时器
-    private func stopTimer() {
-        statusCheckTimer?.invalidate()
-        statusCheckTimer = nil
-    }
-    
-    /// 调整检查频率
-    private func adjustCheckFrequency() {
-        let oldInterval = currentCheckInterval
-        
-        if !networkMonitor.isOnline {
-            // 网络断开时暂停检查
-            currentCheckInterval = 60.0 // 每分钟检查一次
-            print("[AuthenticationStateManager] 网络断开，降低检查频率到60秒")
-        } else if !isAppActive {
-            // 应用在后台时降低频率
-            currentCheckInterval = 30.0 // 每30秒检查一次
-            print("[AuthenticationStateManager] 应用在后台，检查频率30秒")
-        } else if consecutiveValidChecks >= 6 { // 连续6次有效（约1分钟）
-            // Cookie长时间有效，降低频率
-            currentCheckInterval = 30.0 // 每30秒检查一次
-            print("[AuthenticationStateManager] Cookie长时间有效，检查频率30秒")
-        } else if consecutiveValidChecks >= 3 { // 连续3次有效（约30秒）
-            // Cookie稳定有效，中等频率
-            currentCheckInterval = 15.0 // 每15秒检查一次
-            print("[AuthenticationStateManager] Cookie稳定有效，检查频率15秒")
-        } else {
-            // 默认频率：前台活跃
-            currentCheckInterval = 10.0 // 每10秒检查一次
-            print("[AuthenticationStateManager] 前台活跃，检查频率10秒")
-        }
-        
-        // 如果频率发生变化，重启定时器
-        if oldInterval != currentCheckInterval {
-            startSmartTimer()
-        }
-    }
-    
-    /// 执行状态检查
-    private func performStatusCheck() {
-        let networkOnline = networkMonitor.isOnline
-        updateOnlineStatus(networkOnline: networkOnline)
-        
-        // 异步更新cookie有效性缓存
-        Task {
-            await MiNoteService.shared.updateCookieValidityCache()
-        }
-    }
-    
-    // MARK: - 网络监控
-    
-    private func setupNetworkMonitoring() {
-        // 计算在线状态：需要同时满足网络连接和cookie有效
-        // 区分三种状态：
-        // 1. 在线：网络正常且cookie有效
-        // 2. Cookie失效：网络正常但cookie失效
-        // 3. 离线：网络断开
-        
-        networkMonitor.$isOnline
-            .sink { [weak self] networkOnline in
+    /// 设置在线状态同步
+    /// 
+    /// 从 OnlineStateManager 同步在线状态，但需要考虑用户选择的离线模式
+    private func setupOnlineStateSync() {
+        // 监听 OnlineStateManager 的在线状态变化
+        onlineStateManager.$isOnline
+            .sink { [weak self] onlineStatus in
                 Task { @MainActor in
-                    // 网络状态变化时立即检查
-                    self?.updateOnlineStatus(networkOnline: networkOnline)
-                    // 调整检查频率
-                    self?.adjustCheckFrequency()
+                    self?.updateOnlineStatusFromManager(onlineStatus)
                 }
             }
             .store(in: &cancellables)
+        
+        // 监听 Cookie 有效性变化，更新 Cookie 失效状态
+        if let cookieTask = ScheduledTaskManager.shared.cookieValidityCheckTask {
+            cookieTask.$isCookieValid
+                .sink { [weak self] isValid in
+                    Task { @MainActor in
+                        self?.updateCookieExpiredStatus(isValid: isValid)
+                    }
+                }
+                .store(in: &cancellables)
+        }
     }
     
-    /// 更新在线状态
-    private func updateOnlineStatus(networkOnline: Bool) {
-        // 如果用户选择保持离线模式，不自动更新在线状态
+    /// 从 OnlineStateManager 更新在线状态
+    private func updateOnlineStatusFromManager(_ onlineStatus: Bool) {
+        // 如果用户选择保持离线模式，强制设置为离线
         if shouldStayOffline {
-            maintainOfflineState()
+            if isOnline {
+                isOnline = false
+            }
             return
         }
         
-        // 如果弹窗正在显示（等待用户选择），不自动更新在线状态
-        // 确保在弹窗显示期间状态保持为"Cookie失效"而不是"在线"
+        // 如果弹窗正在显示（等待用户选择），保持离线状态
         if cookieExpiredShown {
-            maintainCookieExpiredState()
+            if isOnline {
+                isOnline = false
+            }
             return
         }
         
-        // 如果Cookie已经失效，不再检查（失效的Cookie不会自动恢复）
-        if isCookieExpired {
-            print("[AuthenticationStateManager] Cookie已失效，跳过检查，等待用户处理")
+        // 正常同步在线状态
+        isOnline = onlineStatus
+    }
+    
+    /// 更新 Cookie 失效状态
+    private func updateCookieExpiredStatus(isValid: Bool) {
+        // 如果用户选择保持离线模式，不自动更新
+        if shouldStayOffline {
             return
         }
         
-        // 使用 ScheduledTaskManager 的实时检查结果
-        // ScheduledTaskManager 会定期检查Cookie在服务器端的有效性
-        let hasValidCookie = ScheduledTaskManager.shared.isCookieValid
+        // 如果弹窗正在显示，不自动更新
+        if cookieExpiredShown {
+            return
+        }
         
-        // 正常更新在线状态
-        // 注意：如果用户选择了保持离线模式，即使Cookie恢复有效，也不自动清除离线模式
-        // 用户需要手动刷新Cookie或重新登录才能恢复在线状态
-        
-        isOnline = networkOnline && hasValidCookie
-        
-        // 如果网络正常但cookie无效，标记为cookie失效
-        if networkOnline && !hasValidCookie {
+        // 更新 Cookie 失效状态
+        if !isValid {
             isCookieExpired = true
-            // Cookie失效时重置连续有效计数
-            consecutiveValidChecks = 0
             print("[AuthenticationStateManager] Cookie失效，标记为失效状态")
-        } else if hasValidCookie {
-            // Cookie有效时，清除失效状态
-            isCookieExpired = false
-            // 增加连续有效计数
-            consecutiveValidChecks += 1
-            print("[AuthenticationStateManager] Cookie有效，连续有效次数: \(consecutiveValidChecks)")
         } else {
-            // 网络断开时重置计数
-            consecutiveValidChecks = 0
-            print("[AuthenticationStateManager] 网络断开，重置连续有效计数")
-        }
-        
-        // 根据连续有效次数调整检查频率
-        adjustCheckFrequency()
-    }
-    
-    /// 保持离线状态
-    private func maintainOfflineState() {
-        if isOnline {
-            isOnline = false
-        }
-        if !isCookieExpired {
-            isCookieExpired = true
-        }
-    }
-    
-    /// 保持Cookie失效状态
-    private func maintainCookieExpiredState() {
-        if isOnline {
-            isOnline = false
-        }
-        if !isCookieExpired {
-            isCookieExpired = true
+            // Cookie 恢复有效时，清除失效状态
+            if isCookieExpired {
+                isCookieExpired = false
+                print("[AuthenticationStateManager] Cookie恢复有效，清除失效状态")
+            }
         }
     }
     
@@ -416,9 +276,8 @@ class AuthenticationStateManager: ObservableObject {
         shouldStayOffline = false  // 清除离线模式标志
         showCookieExpiredAlert = false  // 清除弹窗状态
         
-        // 重新计算在线状态（需要网络和Cookie都有效）
-        let networkOnline = networkMonitor.isOnline
-        isOnline = networkOnline && hasValidCookie
+        // 刷新 OnlineStateManager 的状态，然后同步
+        onlineStateManager.refreshStatus()
         
         if isOnline {
             print("[AuthenticationStateManager] ✅ 已恢复在线状态")
@@ -452,14 +311,8 @@ class AuthenticationStateManager: ObservableObject {
         shouldStayOffline = false  // 清除离线模式标志
         showCookieExpiredAlert = false  // 清除弹窗状态
         
-        // 重置连续有效检查次数
-        consecutiveValidChecks = 0
-        
         // 恢复在线状态
         restoreOnlineStatus()
-        
-        // 立即执行一次状态检查，确保状态正确
-        performStatusCheck()
         
         print("[AuthenticationStateManager] ✅ Cookie刷新完成，状态已更新: isOnline=\(isOnline), isCookieExpired=\(isCookieExpired)")
     }
@@ -566,7 +419,7 @@ class AuthenticationStateManager: ObservableObject {
         // 调用handleCookieRefreshed方法来更新状态
         handleCookieRefreshed()
         
-        // 同时立即执行一次状态检查，确保状态正确
-        performStatusCheck()
+        // 刷新 OnlineStateManager 的状态
+        onlineStateManager.refreshStatus()
     }
 }

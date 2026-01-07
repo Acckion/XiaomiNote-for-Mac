@@ -3,11 +3,14 @@ import Network
 import Combine
 
 /// 网络状态监控服务
+/// 
+/// 只负责监控网络连接状态，不涉及认证或Cookie有效性检查
+/// 在线状态的计算由 OnlineStateManager 统一管理
 @MainActor
 final class NetworkMonitor: ObservableObject, @unchecked Sendable {
     static let shared = NetworkMonitor()
     
-    @Published var isOnline: Bool = true
+    /// 网络是否连接（只检查网络连接，不检查认证）
     @Published var isConnected: Bool = true
     
     private let monitor = NWPathMonitor()
@@ -20,14 +23,13 @@ final class NetworkMonitor: ObservableObject, @unchecked Sendable {
     private func startMonitoring() {
         monitor.pathUpdateHandler = { [weak self] path in
             DispatchQueue.main.async {
-                let wasOnline = self?.isOnline ?? false
-                self?.isConnected = path.status == .satisfied
-                // 只有在有网络连接且已认证时才认为在线
-                self?.isOnline = path.status == .satisfied && MiNoteService.shared.isAuthenticated()
+                guard let self = self else { return }
+                let wasConnected = self.isConnected
+                self.isConnected = path.status == .satisfied
                 
-                if let isOnline = self?.isOnline, isOnline != wasOnline {
-                    print("[NetworkMonitor] 网络状态变化: \(isOnline ? "在线" : "离线")")
-                    if isOnline {
+                if wasConnected != self.isConnected {
+                    print("[NetworkMonitor] 网络连接状态变化: \(self.isConnected ? "已连接" : "已断开")")
+                    if self.isConnected {
                         // 网络恢复，通知需要同步
                         NotificationCenter.default.post(name: .networkDidBecomeAvailable, object: nil)
                     }
@@ -39,7 +41,6 @@ final class NetworkMonitor: ObservableObject, @unchecked Sendable {
         // 初始状态
         let currentPath = monitor.currentPath
         isConnected = currentPath.status == .satisfied
-        isOnline = currentPath.status == .satisfied && MiNoteService.shared.isAuthenticated()
     }
     
     deinit {

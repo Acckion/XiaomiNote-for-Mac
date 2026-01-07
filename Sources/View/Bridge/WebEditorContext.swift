@@ -28,6 +28,8 @@ class WebEditorContext: ObservableObject {
     var redoClosure: (() -> Void)?
     var openWebInspectorClosure: (() -> Void)?
     var highlightSearchTextClosure: ((String) -> Void)?
+    var findTextClosure: (([String: Any]) -> Void)?
+    var replaceTextClosure: (([String: Any]) -> Void)?
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -176,6 +178,16 @@ class WebEditorContext: ObservableObject {
     // 高亮搜索文本
     func highlightSearchText(_ searchText: String) {
         highlightSearchTextClosure?(searchText)
+    }
+
+    // 查找文本
+    func findText(_ options: [String: Any]) {
+        findTextClosure?(options)
+    }
+
+    // 替换文本
+    func replaceText(_ options: [String: Any]) {
+        replaceTextClosure?(options)
     }
 }
 

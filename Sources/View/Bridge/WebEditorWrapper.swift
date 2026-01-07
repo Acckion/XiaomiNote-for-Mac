@@ -36,7 +36,61 @@ struct WebEditorWrapper: View {
                     coordinator?.openWebInspector()
                 }
                 editorContext.highlightSearchTextClosure = coordinator.highlightSearchTextClosure
-                
+                editorContext.findTextClosure = { [weak coordinator] options in
+                    guard let coordinator = coordinator else {
+                        print("[WebEditorWrapper] findTextClosure: coordinator为nil")
+                        return
+                    }
+
+                    let searchText = options["text"] as? String ?? ""
+                    let direction = options["direction"] as? String ?? "next"
+                    let caseSensitive = options["caseSensitive"] as? Bool ?? false
+                    let wholeWord = options["wholeWord"] as? Bool ?? false
+                    let regex = options["regex"] as? Bool ?? false
+
+                    print("[WebEditorWrapper] === 调用Web编辑器查找API ===")
+                    print("[WebEditorWrapper] 查找文本: '\(searchText)'")
+                    print("[WebEditorWrapper] 查找方向: \(direction)")
+                    print("[WebEditorWrapper] 查找选项: 区分大小写=\(caseSensitive), 全字匹配=\(wholeWord), 正则表达式=\(regex)")
+
+                    let javascript = """
+                    window.MiNoteWebEditor.findText({
+                        text: '\(searchText)',
+                        direction: '\(direction)',
+                        caseSensitive: \(caseSensitive),
+                        wholeWord: \(wholeWord),
+                        regex: \(regex)
+                    })
+                    """
+                    print("[WebEditorWrapper] 执行JavaScript: \(javascript)")
+
+                    coordinator.webView?.evaluateJavaScript(javascript) { result, error in
+                        if let error = error {
+                            print("[WebEditorWrapper] findText执行失败: \(error)")
+                        } else {
+                            print("[WebEditorWrapper] findText执行成功, 返回结果: \(String(describing: result))")
+                        }
+                    }
+                }
+                editorContext.replaceTextClosure = { [weak coordinator] options in
+                    guard let coordinator = coordinator else { return }
+                    let javascript = """
+                    window.MiNoteWebEditor.replaceText({
+                        searchText: '\(options["searchText"] as? String ?? "")',
+                        replaceText: '\(options["replaceText"] as? String ?? "")',
+                        replaceAll: \(options["replaceAll"] as? Bool ?? false),
+                        caseSensitive: \(options["caseSensitive"] as? Bool ?? false),
+                        wholeWord: \(options["wholeWord"] as? Bool ?? false),
+                        regex: \(options["regex"] as? Bool ?? false)
+                    })
+                    """
+                    coordinator.webView?.evaluateJavaScript(javascript) { result, error in
+                        if let error = error {
+                            print("[WebEditorWrapper] replaceText执行失败: \(error)")
+                        }
+                    }
+                }
+
                 editorContext.editorReady()
                 print("Web编辑器已准备就绪")
             }

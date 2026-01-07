@@ -17,6 +17,11 @@ public final class OfflineOperationProcessor: ObservableObject {
     private let offlineQueue = OfflineOperationQueue.shared
     private let service = MiNoteService.shared
     private let localStorage = LocalStorageService.shared
+    private let onlineStateManager = OnlineStateManager.shared
+    
+    // MARK: - Combine订阅
+    
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - 配置
     
@@ -56,7 +61,44 @@ public final class OfflineOperationProcessor: ObservableObject {
     
     private var processingTask: Task<Void, Never>?
     
-    private init() {}
+    private init() {
+        setupOnlineStateMonitoring()
+    }
+    
+    // MARK: - 在线状态监控
+    
+    /// 设置在线状态监控，自动响应在线状态变化
+    private func setupOnlineStateMonitoring() {
+        // 监听在线状态变化
+        onlineStateManager.$isOnline
+            .sink { [weak self] isOnline in
+                Task { @MainActor in
+                    if isOnline {
+                        // 网络恢复，自动处理离线操作
+                        print("[OfflineProcessor] 检测到网络恢复，自动处理离线操作")
+                        await self?.processOperations()
+                    } else {
+                        // 网络断开，停止处理
+                        print("[OfflineProcessor] 检测到网络断开，停止处理离线操作")
+                        self?.cancelProcessing()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        
+        // 监听在线状态变化通知
+        NotificationCenter.default.publisher(for: .onlineStatusDidChange)
+            .sink { [weak self] notification in
+                Task { @MainActor in
+                    if let isOnline = notification.userInfo?["isOnline"] as? Bool, isOnline {
+                        // 延迟一下，确保网络完全恢复
+                        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒
+                        await self?.processOperations()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+    }
     
     // MARK: - 公共方法
     
@@ -70,8 +112,8 @@ public final class OfflineOperationProcessor: ObservableObject {
         }
         
         // 确保在线且已认证
-        guard service.isAuthenticated() else {
-            print("[OfflineProcessor] 未认证，跳过处理")
+        guard onlineStateManager.isOnline && service.isAuthenticated() else {
+            print("[OfflineProcessor] 不在线或未认证，跳过处理")
             return
         }
         

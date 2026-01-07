@@ -296,8 +296,8 @@ class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
     private func executeTask(_ task: ScheduledTask) async -> TaskResult {
         let taskId = task.id
         
-        // 检查网络要求
-        if task.requiresNetwork && !networkMonitor.isOnline {
+        // 检查网络要求（只检查网络连接，不检查认证状态）
+        if task.requiresNetwork && !networkMonitor.isConnected {
             print("[ScheduledTaskManager] 网络不可用，跳过任务: \(task.name)")
             
             // 更新任务状态
@@ -363,20 +363,20 @@ class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
     
     /// 设置网络监控
     private func setupNetworkMonitoring() {
-        networkMonitor.$isOnline
-            .sink { [weak self] isOnline in
+        networkMonitor.$isConnected
+            .sink { [weak self] isConnected in
                 Task { @MainActor in
                     guard let self = self else { return }
-                    self.handleNetworkChange(isOnline)
+                    self.handleNetworkChange(isConnected)
                 }
             }
             .store(in: &cancellables)
     }
     
     /// 处理网络变化
-    /// - Parameter isOnline: 是否在线
-    private func handleNetworkChange(_ isOnline: Bool) {
-        if isOnline {
+    /// - Parameter isConnected: 是否连接
+    private func handleNetworkChange(_ isConnected: Bool) {
+        if isConnected {
             print("[ScheduledTaskManager] 网络恢复，重新启动需要网络的任务")
             // 网络恢复时，重新启动需要网络的任务
             for task in tasks.values {

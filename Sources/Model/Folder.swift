@@ -1,12 +1,12 @@
 import Foundation
 
 /// 文件夹数据模型
-/// 
+///
 /// 表示一个文件夹，包括：
 /// - 基本信息：ID、名称、笔记数量
 /// - 系统属性：是否为系统文件夹、是否置顶
 /// - 原始数据：rawData存储从API获取的原始数据（包括tag等）
-/// 
+///
 /// **系统文件夹**：
 /// - id = "0": 所有笔记
 /// - id = "starred": 置顶笔记
@@ -18,7 +18,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
     public var isPinned: Bool = false  // 是否置顶
     public var createdAt: Date = Date()
     public var rawData: [String: Any]? = nil // 存储原始 API 数据（包括 tag 等）
-    
+
     enum CodingKeys: String, CodingKey {
         case id, name, count, isSystem, isPinned, createdAt
     }
@@ -92,7 +92,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
     }
     
     /// 转换为小米笔记API格式
-    /// 
+    ///
     /// - Returns: API格式的字典
     func toMinoteData() -> [String: Any] {
         return [
@@ -104,3 +104,5 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
         ]
     }
 }
+
+extension Folder: @unchecked Sendable {}

@@ -451,7 +451,11 @@ public class NotesViewModel: ObservableObject {
     @MainActor
     private func handleNetworkRestored() {
         print("[VIEWMODEL] 网络已恢复，开始处理待同步操作")
+        // 注意：OfflineOperationProcessor 现在会自动响应在线状态变化
+        // 这里可以保留作为备用触发方式，或者移除
         Task {
+            // 延迟一下，确保网络完全恢复
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒
             await processPendingOperations()
         }
     }
@@ -660,6 +664,7 @@ public class NotesViewModel: ObservableObject {
     /// 恢复在线状态
     /// 
     /// 当Cookie恢复有效时调用此方法
+    /// 注意：在线状态现在由 OnlineStateManager 统一管理，这里只需要刷新状态并处理待同步操作
     @MainActor
     private func restoreOnlineStatus() {
         guard service.hasValidCookie() else {
@@ -668,23 +673,24 @@ public class NotesViewModel: ObservableObject {
         }
         
         print("[OfflineStatus] 恢复在线状态")
-        isCookieExpired = false
-        cookieExpiredShown = false
-        shouldStayOffline = false  // 清除离线模式标志
-        showCookieExpiredAlert = false  // 清除弹窗状态
+        // 状态标志的清除由 AuthenticationStateManager 处理
+        // 这里只需要刷新 OnlineStateManager 的状态，然后检查是否需要处理待同步操作
         
-        // 重新计算在线状态（需要网络和Cookie都有效）
-        let networkOnline = networkMonitor.isOnline
-        isOnline = networkOnline && service.hasValidCookie()
+        // 刷新在线状态（会触发状态同步）
+        OnlineStateManager.shared.refreshStatus()
         
-        if isOnline {
-            print("[OfflineStatus] ✅ 已恢复在线状态，开始处理待同步操作")
-            // 触发离线队列处理
-            Task {
+        // 等待状态同步后检查是否在线
+        // 由于状态是响应式的，我们需要稍微延迟一下以确保状态已更新
+        Task {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+            
+            if isOnline {
+                print("[OfflineStatus] ✅ 已恢复在线状态，开始处理待同步操作")
+                // 触发离线队列处理
                 await processPendingOperations()
+            } else {
+                print("[OfflineStatus] ⚠️ Cookie已恢复，但网络未连接或状态未同步，仍保持离线状态")
             }
-        } else {
-            print("[OfflineStatus] ⚠️ Cookie已恢复，但网络未连接，仍保持离线状态")
         }
     }
     
