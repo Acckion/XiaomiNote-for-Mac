@@ -534,7 +534,7 @@ public class ToolbarItemFactory {
         let item = BaseToolbarItem(
             identifier: .noteOperations,
             title: "笔记操作",
-            image: NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil),
+            image: NSImage(systemSymbolName: "ellipsis", accessibilityDescription: nil),
             action: #selector(MainWindowController.showNoteOperationsMenu(_:)),
             toolTip: "笔记操作"
         )

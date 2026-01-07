@@ -312,7 +312,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             return toolbarItem
             
         case .noteOperations:
-            return buildToolbarButton(.noteOperations, "笔记操作", NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)!, "showNoteOperationsMenu:")
+            return buildToolbarButton(.noteOperations, "笔记操作", NSImage(systemSymbolName: "ellipsis", accessibilityDescription: nil)!, "showNoteOperationsMenu:")
             
         case .toggleSidebar:
             return buildToolbarButton(.toggleSidebar, "隐藏/显示侧边栏", NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: nil)!, "toggleSidebar:")
@@ -455,16 +455,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
 
             NSToolbarItem.Identifier.flexibleSpace,
 
-            NSToolbarItem.Identifier.sync,
-
-            NSToolbarItem.Identifier.settings,
-            NSToolbarItem.Identifier.login,
-
             NSToolbarItem.Identifier.share,
-            NSToolbarItem.Identifier.toggleStar,
-            NSToolbarItem.Identifier.delete,
-            NSToolbarItem.Identifier.history,
-            NSToolbarItem.Identifier.trash,
             NSToolbarItem.Identifier.noteOperations,
             NSToolbarItem.Identifier.search,
         ]
