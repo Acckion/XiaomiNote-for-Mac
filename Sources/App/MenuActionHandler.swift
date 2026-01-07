@@ -394,17 +394,49 @@ class MenuActionHandler {
     func copyNote(_ sender: Any?) {
         print("复制笔记")
         guard let note = mainWindowController?.viewModel?.selectedNote else { return }
-        
+
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        
+
         // 复制标题和内容
         let content = note.title.isEmpty ? note.content : "\(note.title)\n\n\(note.content)"
         pasteboard.setString(content, forType: .string)
     }
-    
+
+    // MARK: - 查找功能
+
+    /// 显示查找面板
+    func showFindPanel(_ sender: Any?) {
+        print("显示查找面板")
+        print("[DEBUG] MenuActionHandler - mainWindowController: \(mainWindowController != nil)")
+        if let controller = mainWindowController {
+            print("[DEBUG] MenuActionHandler - 调用主窗口控制器的showFindPanel")
+            controller.showFindPanel(sender)
+        } else {
+            print("[ERROR] MenuActionHandler - mainWindowController为nil")
+        }
+    }
+
+    /// 显示查找和替换面板
+    func showFindAndReplacePanel(_ sender: Any?) {
+        print("显示查找和替换面板")
+        mainWindowController?.showFindAndReplacePanel(sender)
+    }
+
+    /// 查找下一个
+    func findNext(_ sender: Any?) {
+        print("查找下一个")
+        mainWindowController?.findNext(sender)
+    }
+
+    /// 查找上一个
+    func findPrevious(_ sender: Any?) {
+        print("查找上一个")
+        mainWindowController?.findPrevious(sender)
+    }
+
     // MARK: - 清理
-    
+
     deinit {
         print("菜单动作处理器释放")
     }

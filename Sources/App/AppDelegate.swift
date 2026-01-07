@@ -49,6 +49,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         appStateManager.handleApplicationDidFinishLaunching()
+
+        // 应用程序启动完成后，更新MenuActionHandler的主窗口控制器引用
+        menuActionHandler.updateMainWindowController(windowManager.mainWindowController)
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -241,6 +244,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc func copyNote(_ sender: Any?) {
         menuActionHandler.copyNote(sender)
+    }
+
+    // MARK: - 查找功能
+
+    @objc func showFindPanel(_ sender: Any?) {
+        menuActionHandler.showFindPanel(sender)
+    }
+
+    @objc func showFindAndReplacePanel(_ sender: Any?) {
+        menuActionHandler.showFindAndReplacePanel(sender)
+    }
+
+    @objc func findNext(_ sender: Any?) {
+        menuActionHandler.findNext(sender)
+    }
+
+    @objc func findPrevious(_ sender: Any?) {
+        menuActionHandler.findPrevious(sender)
     }
     
     // MARK: - 清理

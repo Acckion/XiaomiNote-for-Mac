@@ -66,6 +66,9 @@ public class MainWindowController: NSWindowController {
     
     /// 工具栏代理
     private var toolbarDelegate: MainWindowToolbarDelegate?
+
+    /// 查找面板控制器
+    private var searchPanelController: SearchPanelController?
     
     // MARK: - 初始化
     
@@ -100,6 +103,9 @@ public class MainWindowController: NSWindowController {
         
         // 设置状态监听
         setupStateObservers()
+
+        // 初始化查找面板控制器
+        searchPanelController = SearchPanelController(mainWindowController: self)
     }
     
     required init?(coder: NSCoder) {
@@ -1876,17 +1882,39 @@ extension MainWindowController {
     }
     
     // MARK: - 新增的菜单动作方法
-    
+
     @objc public func copyNote(_ sender: Any?) {
         print("复制笔记（从菜单调用）")
         guard let note = viewModel?.selectedNote else { return }
-        
+
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        
+
         // 复制标题和内容
         let content = note.title.isEmpty ? note.content : "\(note.title)\n\n\(note.content)"
         pasteboard.setString(content, forType: .string)
+    }
+
+    // MARK: - 查找功能
+
+    /// 显示查找面板
+    @objc public func showFindPanel(_ sender: Any?) {
+        searchPanelController?.showSearchPanel()
+    }
+
+    /// 查找下一个匹配项
+    @objc public func findNext(_ sender: Any?) {
+        searchPanelController?.findNext()
+    }
+
+    /// 查找上一个匹配项
+    @objc public func findPrevious(_ sender: Any?) {
+        searchPanelController?.findPrevious()
+    }
+
+    /// 显示查找和替换面板
+    @objc public func showFindAndReplacePanel(_ sender: Any?) {
+        searchPanelController?.showSearchPanel()
     }
     
     // MARK: - 窗口状态管理

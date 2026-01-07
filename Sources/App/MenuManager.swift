@@ -271,6 +271,44 @@ class MenuManager {
         selectAllItem.keyEquivalent = "a"
         selectAllItem.keyEquivalentModifierMask = [.command]
         editMenu.insertItem(selectAllItem, at: 7)
+
+        editMenu.insertItem(NSMenuItem.separator(), at: 8)
+
+        // 添加查找菜单项（⌘F）
+        let findItem = NSMenuItem()
+        findItem.title = "查找"
+        findItem.action = #selector(AppDelegate.showFindPanel(_:))
+        findItem.target = appDelegate
+        findItem.keyEquivalent = "f"
+        findItem.keyEquivalentModifierMask = [.command]
+        editMenu.insertItem(findItem, at: 9)
+
+        // 添加查找和替换菜单项（⌥⌘F）
+        let findAndReplaceItem = NSMenuItem()
+        findAndReplaceItem.title = "查找和替换"
+        findAndReplaceItem.action = #selector(AppDelegate.showFindAndReplacePanel(_:))
+        findAndReplaceItem.target = appDelegate
+        findAndReplaceItem.keyEquivalent = "f"
+        findAndReplaceItem.keyEquivalentModifierMask = [.command, .option]
+        editMenu.insertItem(findAndReplaceItem, at: 10)
+
+        // 添加查找下一个菜单项（⌘G）
+        let findNextItem = NSMenuItem()
+        findNextItem.title = "查找下一个"
+        findNextItem.action = #selector(AppDelegate.findNext(_:))
+        findNextItem.target = appDelegate
+        findNextItem.keyEquivalent = "g"
+        findNextItem.keyEquivalentModifierMask = [.command]
+        editMenu.insertItem(findNextItem, at: 11)
+
+        // 添加查找上一个菜单项（⇧⌘G）
+        let findPreviousItem = NSMenuItem()
+        findPreviousItem.title = "查找上一个"
+        findPreviousItem.action = #selector(AppDelegate.findPrevious(_:))
+        findPreviousItem.target = appDelegate
+        findPreviousItem.keyEquivalent = "g"
+        findPreviousItem.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.insertItem(findPreviousItem, at: 12)
     }
     
     /// 设置格式菜单

@@ -106,8 +106,10 @@
 		DD77276A827A16995942864D /* cursor.js in Resources */ = {isa = PBXBuildFile; fileRef = C083B5A026E4788F18F9E996 /* cursor.js */; };
 		DE198D1C3ACD1B2E3743F993 /* editor-core.js in Resources */ = {isa = PBXBuildFile; fileRef = 58C67AE30081191D6CA6AB1A /* editor-core.js */; };
 		E0719E4B34DF64E9E3F8C7CA /* SidebarWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6795062F89A49EB63F403680 /* SidebarWindowState.swift */; };
+		EF9C56D1E0E7F7051F1EDD08 /* SearchPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06B62F80C5AAD00AE97467F /* SearchPanelView.swift */; };
 		F28FE4BBE79F11DB5D9FE9FD /* NoteHistoryVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37A7A4CBCA0AB8BDB7F6D8F /* NoteHistoryVersion.swift */; };
 		F3296E10A249F036F83F8998 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEF19FCB59B84D1474DA6684 /* UserProfile.swift */; };
+		F4E82621F84F1C477E562C72 /* SearchPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E4D2C069636C4716295D6CB /* SearchPanelController.swift */; };
 		F9601715FE4407C3A76061EF /* OfflineOperationProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB6E9CD901DF8526B12049EB /* OfflineOperationProcessor.swift */; };
 		FA06558EFBE534716B110D85 /* SearchFilterMenuContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEEC64EE7BF50B1B13F87BA7 /* SearchFilterMenuContent.swift */; };
 		FA31A3C141A35190A53B00BC /* NotesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86C1FFFB0DCECC7C50F99BD8 /* NotesViewModel.swift */; };
@@ -174,6 +176,7 @@
 		573FDE5520107215B8529339 /* constants.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = constants.js; sourceTree = "<group>"; };
 		57994F98553EE7B669CEFD7A /* index.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = index.js; sourceTree = "<group>"; };
 		58C67AE30081191D6CA6AB1A /* editor-core.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "editor-core.js"; sourceTree = "<group>"; };
+		5E4D2C069636C4716295D6CB /* SearchPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPanelController.swift; sourceTree = "<group>"; };
 		622815CF9655D322790278A7 /* MiNoteService+Encryption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MiNoteService+Encryption.swift"; sourceTree = "<group>"; };
 		64A9912B6F9A94044B08078F /* PrivateNotesVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateNotesVerificationView.swift; sourceTree = "<group>"; };
 		64D4981E33655736E3BA02FC /* xml-to-html.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "xml-to-html.js"; sourceTree = "<group>"; };
@@ -221,6 +224,7 @@
 		B5622B69AF87C36DE3D9D365 /* MainWindowToolbarDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowToolbarDelegate.swift; sourceTree = "<group>"; };
 		B779B8C5070B118D352AFCE1 /* LoginWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginWindowController.swift; sourceTree = "<group>"; };
 		BAE588E09D4DDF707E819C56 /* WebEditorWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebEditorWrapper.swift; sourceTree = "<group>"; };
+		C06B62F80C5AAD00AE97467F /* SearchPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPanelView.swift; sourceTree = "<group>"; };
 		C083B5A026E4788F18F9E996 /* cursor.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = cursor.js; sourceTree = "<group>"; };
 		CAEF726E1B0B16672107891A /* SidebarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewController.swift; sourceTree = "<group>"; };
 		CD7E91349165FC3156188B5A /* BaseSheetToolbarDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseSheetToolbarDelegate.swift; sourceTree = "<group>"; };
@@ -455,6 +459,7 @@
 				147B20C0A5A34095C6C6BDDE /* PrivateNotesPasswordInputDialogView.swift */,
 				64A9912B6F9A94044B08078F /* PrivateNotesVerificationView.swift */,
 				EEEC64EE7BF50B1B13F87BA7 /* SearchFilterMenuContent.swift */,
+				C06B62F80C5AAD00AE97467F /* SearchPanelView.swift */,
 				7D0976F09B46BB7103AF74C5 /* SettingsView.swift */,
 				E76FA0C405DED0974AFEC168 /* SidebarView.swift */,
 				54DEDF6ACABD807E6E5DC6B2 /* TitleEditorView.swift */,
@@ -487,6 +492,7 @@
 				4D9E193F6285E5B73F3B182D /* MiNoteToolbarItem.swift */,
 				9CDB97E03C65FB0F952C6EF8 /* NoteDetailWindowState.swift */,
 				9A721A421F7A06F601E6D482 /* NotesListWindowState.swift */,
+				5E4D2C069636C4716295D6CB /* SearchPanelController.swift */,
 				958EA73DCB9458E18B52EB9A /* SettingsWindowController.swift */,
 				6795062F89A49EB63F403680 /* SidebarWindowState.swift */,
 				3E674D3C681C4EC48790DE69 /* ToolbarIdentifiers.swift */,
@@ -749,6 +755,8 @@
 				722113BD62965043633DB7FC /* SaveQueueManager.swift in Sources */,
 				384CBC1874AD07D10BFB2E99 /* ScheduledTaskManager.swift in Sources */,
 				FA06558EFBE534716B110D85 /* SearchFilterMenuContent.swift in Sources */,
+				F4E82621F84F1C477E562C72 /* SearchPanelController.swift in Sources */,
+				EF9C56D1E0E7F7051F1EDD08 /* SearchPanelView.swift in Sources */,
 				2F480BA8CD2C0338CDEBAF4D /* SettingsView.swift in Sources */,
 				C8FA65D82648B4B2E879382E /* SettingsWindowController.swift in Sources */,
 				7320FED1FB9BD5418BCA67A7 /* SidebarHostingController.swift in Sources */,

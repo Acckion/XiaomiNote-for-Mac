@@ -1966,7 +1966,7 @@
             while (node) {
                 const text = node.textContent;
                 const textLower = text.toLowerCase();
-                
+
                 // 查找所有匹配位置（支持多个匹配）
                 let index = 0;
                 while ((index = textLower.indexOf(searchTextLower, index)) !== -1) {
@@ -1989,7 +1989,7 @@
             matches.reverse().forEach(match => {
                 const { node, start, end } = match;
                 const text = node.textContent;
-                
+
                 // 分割文本节点
                 const beforeText = text.substring(0, start);
                 const matchText = text.substring(start, end);
@@ -2017,20 +2017,395 @@
                 parent.removeChild(node);
             });
 
-            log.debug(LOG_MODULES.EDITOR, '搜索高亮完成', { 
-                searchText: searchText, 
-                matchCount: matches.length 
+            log.debug(LOG_MODULES.EDITOR, '搜索高亮完成', {
+                searchText: searchText,
+                matchCount: matches.length
             });
 
             return `已高亮 ${matches.length} 处匹配`;
+        },
+
+        /**
+         * 查找文本（支持查找下一个/上一个）
+         * @param {object} options - 查找选项
+         * @param {string} options.text - 要查找的文本
+         * @param {string} options.direction - 查找方向 ('next' 或 'previous')
+         * @param {boolean} options.caseSensitive - 是否区分大小写
+         * @param {boolean} options.wholeWord - 是否全字匹配
+         * @param {boolean} options.regex - 是否使用正则表达式
+         * @returns {string} 状态信息
+         */
+        findText: function(options) {
+            const editor = document.getElementById('editor-content');
+            if (!editor) {
+                console.log('[JS DEBUG] 无法找到编辑器元素');
+                log.error(LOG_MODULES.EDITOR, '无法找到编辑器元素');
+                return '编辑器元素不存在';
+            }
+
+            const { text, direction = 'next', caseSensitive = false, wholeWord = false, regex = false } = options;
+
+            console.log('[JS DEBUG] === Web编辑器执行查找 ===');
+            console.log('[JS DEBUG] 查找文本:', text);
+            console.log('[JS DEBUG] 查找方向:', direction);
+            console.log('[JS DEBUG] 查找选项:', { caseSensitive, wholeWord, regex });
+
+            if (!text || text.trim() === '') {
+                console.log('[JS DEBUG] 查找文本为空');
+                return '查找文本不能为空';
+            }
+
+            // 获取编辑器内容用于调试
+            const editorContent = editor.textContent || editor.innerText || '';
+            console.log('[JS DEBUG] 编辑器内容长度:', editorContent.length);
+            console.log('[JS DEBUG] 编辑器内容预览:', editorContent.substring(0, 200) + (editorContent.length > 200 ? '...' : ''));
+
+            // 获取当前选择
+            const selection = window.getSelection();
+            let startNode = null;
+            let startOffset = 0;
+
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                startNode = range.startContainer;
+                startOffset = range.startOffset;
+                console.log('[JS DEBUG] 当前选择位置:', startOffset, '在节点:', startNode.nodeType === Node.TEXT_NODE ? '文本节点' : '元素节点');
+            } else {
+                console.log('[JS DEBUG] 没有当前选择');
+            }
+
+            // 查找匹配项
+            const matches = this._findAllMatches(editor, text, { caseSensitive, wholeWord, regex });
+            console.log('[JS DEBUG] 找到匹配项数量:', matches.length);
+
+            if (matches.length === 0) {
+                console.log('[JS DEBUG] 未找到任何匹配项');
+                return '未找到匹配的文本';
+            }
+
+            // 显示前几个匹配项的详细信息
+            matches.slice(0, 5).forEach((match, index) => {
+                console.log(`[JS DEBUG] 匹配项 ${index + 1}: "${match.text}" 在位置 ${match.start}-${match.end}`);
+            });
+
+            if (matches.length > 5) {
+                console.log(`[JS DEBUG] ... 还有 ${matches.length - 5} 个匹配项`);
+            }
+
+            // 找到当前匹配项的位置
+            let currentIndex = -1;
+            if (startNode) {
+                currentIndex = this._findCurrentMatchIndex(matches, startNode, startOffset, direction);
+                console.log('[JS DEBUG] 当前匹配项索引:', currentIndex);
+            }
+
+            // 计算下一个匹配项的索引
+            let nextIndex;
+            if (direction === 'next') {
+                nextIndex = currentIndex + 1;
+                if (nextIndex >= matches.length) {
+                    nextIndex = 0; // 循环到开头
+                    console.log('[JS DEBUG] 循环到开头');
+                }
+            } else {
+                nextIndex = currentIndex - 1;
+                if (nextIndex < 0) {
+                    nextIndex = matches.length - 1; // 循环到结尾
+                    console.log('[JS DEBUG] 循环到结尾');
+                }
+            }
+
+            console.log('[JS DEBUG] 跳转到匹配项:', nextIndex + 1, '/', matches.length);
+
+            // 清除之前的所有高亮
+            this._clearAllHighlights(editor);
+            console.log('[JS DEBUG] 已清除之前的所有高亮');
+
+            // 选择下一个匹配项
+            const match = matches[nextIndex];
+            this._selectMatch(match);
+            console.log('[JS DEBUG] 已选择匹配项:', match.text);
+
+            log.debug(LOG_MODULES.EDITOR, '查找完成', {
+                text: text,
+                direction: direction,
+                currentIndex: nextIndex,
+                totalMatches: matches.length
+            });
+
+            const result = `找到匹配项 ${nextIndex + 1}/${matches.length}`;
+            console.log('[JS DEBUG] 查找结果:', result);
+            return result;
+        },
+
+        /**
+         * 替换文本
+         * @param {object} options - 替换选项
+         * @param {string} options.searchText - 要搜索的文本
+         * @param {string} options.replaceText - 替换为的文本
+         * @param {boolean} options.replaceAll - 是否替换所有
+         * @param {boolean} options.caseSensitive - 是否区分大小写
+         * @param {boolean} options.wholeWord - 是否全字匹配
+         * @param {boolean} options.regex - 是否使用正则表达式
+         * @returns {string} 状态信息
+         */
+        replaceText: function(options) {
+            const editor = document.getElementById('editor-content');
+            if (!editor) {
+                log.error(LOG_MODULES.EDITOR, '无法找到编辑器元素');
+                return '编辑器元素不存在';
+            }
+
+            const { searchText, replaceText, replaceAll = false, caseSensitive = false, wholeWord = false, regex = false } = options;
+
+            if (!searchText || searchText.trim() === '') {
+                return '搜索文本不能为空';
+            }
+
+            // 获取当前选择
+            const selection = window.getSelection();
+            if (selection.rangeCount === 0) {
+                return '请先选择要替换的内容';
+            }
+
+            const currentRange = selection.getRangeAt(0);
+            const selectedText = currentRange.toString();
+
+            // 检查当前选择是否匹配搜索文本
+            const searchTextToCompare = caseSensitive ? searchText : searchText.toLowerCase();
+            const selectedTextToCompare = caseSensitive ? selectedText : selectedText.toLowerCase();
+
+            if (searchTextToCompare !== selectedTextToCompare) {
+                return '当前选择的内容与搜索文本不匹配';
+            }
+
+            if (replaceAll) {
+                // 替换所有匹配项
+                const matches = this._findAllMatches(editor, searchText, { caseSensitive, wholeWord, regex });
+                let replaceCount = 0;
+
+                // 从后往前替换，避免索引变化
+                matches.reverse().forEach(match => {
+                    this._replaceMatch(match, replaceText);
+                    replaceCount++;
+                });
+
+                // 清除所有高亮
+                this._clearAllHighlights(editor);
+
+                log.debug(LOG_MODULES.EDITOR, '替换所有完成', {
+                    searchText: searchText,
+                    replaceText: replaceText,
+                    replaceCount: replaceCount
+                });
+
+                return `已替换 ${replaceCount} 处匹配`;
+            } else {
+                // 替换当前匹配项
+                const match = {
+                    node: currentRange.startContainer,
+                    start: currentRange.startOffset,
+                    end: currentRange.endOffset,
+                    text: selectedText
+                };
+
+                this._replaceMatch(match, replaceText);
+
+                // 查找下一个匹配项
+                const nextResult = this.findText({
+                    text: searchText,
+                    direction: 'next',
+                    caseSensitive: caseSensitive,
+                    wholeWord: wholeWord,
+                    regex: regex
+                });
+
+                log.debug(LOG_MODULES.EDITOR, '替换当前项完成', {
+                    searchText: searchText,
+                    replaceText: replaceText
+                });
+
+                return '已替换当前匹配项';
+            }
+        },
+
+        /**
+         * 查找所有匹配项
+         * @private
+         */
+        _findAllMatches: function(editor, searchText, options) {
+            const { caseSensitive = false, wholeWord = false, regex = false } = options;
+            const matches = [];
+
+            const walker = document.createTreeWalker(
+                editor,
+                NodeFilter.SHOW_TEXT,
+                null
+            );
+
+            const searchTextToCompare = caseSensitive ? searchText : searchText.toLowerCase();
+
+            let node = walker.nextNode();
+            while (node) {
+                const text = node.textContent;
+                const textToCompare = caseSensitive ? text : text.toLowerCase();
+
+                let index = 0;
+                while ((index = textToCompare.indexOf(searchTextToCompare, index)) !== -1) {
+                    const endIndex = index + searchText.length;
+
+                    // 检查是否为完整单词
+                    if (wholeWord) {
+                        const isStartOfWord = index === 0 || !/\w/.test(text.charAt(index - 1));
+                        const isEndOfWord = endIndex === text.length || !/\w/.test(text.charAt(endIndex));
+
+                        if (!isStartOfWord || !isEndOfWord) {
+                            index = endIndex;
+                            continue;
+                        }
+                    }
+
+                    matches.push({
+                        node: node,
+                        start: index,
+                        end: endIndex,
+                        text: text.substring(index, endIndex)
+                    });
+
+                    index = endIndex;
+                }
+
+                node = walker.nextNode();
+            }
+
+            return matches;
+        },
+
+        /**
+         * 查找当前匹配项的索引
+         * @private
+         */
+        _findCurrentMatchIndex: function(matches, startNode, startOffset, direction) {
+            for (let i = 0; i < matches.length; i++) {
+                const match = matches[i];
+                if (match.node === startNode) {
+                    // 检查光标是否在匹配项内或紧邻匹配项
+                    if (startOffset >= match.start && startOffset <= match.end) {
+                        return i;
+                    }
+                }
+            }
+            return -1; // 未找到当前匹配项
+        },
+
+        /**
+         * 选择匹配项
+         * @private
+         */
+        _selectMatch: function(match) {
+            const selection = window.getSelection();
+            const range = document.createRange();
+
+            // 创建一个只包含匹配文本的范围
+            const textNode = match.node;
+            range.setStart(textNode, match.start);
+            range.setEnd(textNode, match.end);
+
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            // 滚动到匹配项位置
+            const rect = range.getBoundingClientRect();
+            const editor = document.getElementById('editor-content');
+            if (editor && rect) {
+                editor.scrollTop += rect.top - editor.clientHeight / 2;
+            }
+        },
+
+        /**
+         * 高亮所有匹配项
+         * @private
+         */
+        _highlightAllMatches: function(editor, matches, currentIndex) {
+            // 清除之前的高亮
+            this._clearAllHighlights(editor);
+
+            // 高亮所有匹配项
+            matches.forEach((match, index) => {
+                const text = match.node.textContent;
+                const beforeText = text.substring(0, match.start);
+                const matchText = text.substring(match.start, match.end);
+                const afterText = text.substring(match.end);
+
+                // 创建高亮标记
+                const highlightSpan = document.createElement('span');
+                highlightSpan.className = 'mi-note-search-highlight';
+                if (index === currentIndex) {
+                    highlightSpan.classList.add('mi-note-search-current');
+                    highlightSpan.style.backgroundColor = 'rgba(0, 123, 255, 0.4)'; // 蓝色表示当前匹配项
+                } else {
+                    highlightSpan.style.backgroundColor = 'rgba(255, 235, 59, 0.4)'; // 黄色表示其他匹配项
+                }
+                highlightSpan.textContent = matchText;
+
+                // 替换文本节点
+                const parent = match.node.parentNode;
+                if (beforeText) {
+                    const beforeNode = document.createTextNode(beforeText);
+                    parent.insertBefore(beforeNode, match.node);
+                }
+                parent.insertBefore(highlightSpan, match.node);
+                if (afterText) {
+                    const afterNode = document.createTextNode(afterText);
+                    parent.insertBefore(afterNode, match.node);
+                }
+                parent.removeChild(match.node);
+            });
+        },
+
+        /**
+         * 替换匹配项
+         * @private
+         */
+        _replaceMatch: function(match, replaceText) {
+            const text = match.node.textContent;
+            const beforeText = text.substring(0, match.start);
+            const afterText = text.substring(match.end);
+            const newText = beforeText + replaceText + afterText;
+
+            // 替换整个文本节点的内容
+            match.node.textContent = newText;
+
+            // 更新选择到替换后的文本
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.setStart(match.node, match.start);
+            range.setEnd(match.node, match.start + replaceText.length);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        },
+
+        /**
+         * 清除所有高亮
+         * @private
+         */
+        _clearAllHighlights: function(editor) {
+            const existingHighlights = editor.querySelectorAll('.mi-note-search-highlight');
+            existingHighlights.forEach(highlight => {
+                const parent = highlight.parentNode;
+                while (highlight.firstChild) {
+                    parent.insertBefore(highlight.firstChild, highlight);
+                }
+                parent.removeChild(highlight);
+            });
         }
     }); // 结束 Object.assign
-    
+
     // 导出到全局命名空间
     // window.MiNoteWebEditor 已经在上面扩展
-    
+
     // 同时导出到 MiNoteEditor 命名空间
     window.MiNoteEditor = window.MiNoteEditor || {};
     window.MiNoteEditor.API = window.MiNoteWebEditor;
-    
+
 })();
