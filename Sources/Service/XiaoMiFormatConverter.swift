@@ -351,6 +351,7 @@ class XiaoMiFormatConverter {
         }
         
         // 应用富文本属性（跳过段落样式，稍后统一处理）
+        // 关键修复：对于字体属性，需要合并字体特性而不是直接覆盖
         for (range, attrs) in nsAttributes {
             // 确保范围有效
             guard range.location >= 0 && range.location + range.length <= processedText.count else {
@@ -362,6 +363,27 @@ class XiaoMiFormatConverter {
                 case .paragraphStyle:
                     // 跳过段落样式，稍后统一处理以保留对齐方式
                     break
+                case .font:
+                    // 字体属性需要特殊处理：合并字体特性而不是直接覆盖
+                    if let newFont = value as? NSFont {
+                        // 检查当前范围是否已有字体
+                        var existingFont: NSFont? = nil
+                        result.enumerateAttribute(.font, in: range, options: []) { existingValue, _, stop in
+                            if let font = existingValue as? NSFont {
+                                existingFont = font
+                                stop.pointee = true
+                            }
+                        }
+                        
+                        if let existing = existingFont {
+                            // 合并字体特性
+                            let mergedFont = mergeFontTraits(existing: existing, new: newFont)
+                            result.addAttribute(key, value: mergedFont, range: range)
+                        } else {
+                            // 没有现有字体，直接应用
+                            result.addAttribute(key, value: newFont, range: range)
+                        }
+                    }
                 default:
                     // 直接应用属性到 NSAttributedString
                     result.addAttribute(key, value: value, range: range)
@@ -1085,6 +1107,55 @@ class XiaoMiFormatConverter {
         }
         
         return processedText
+    }
+    
+    /// 合并字体特性
+    /// - Parameters:
+    ///   - existing: 现有字体
+    ///   - new: 新字体
+    /// - Returns: 合并后的字体
+    /// 
+    /// 这个方法用于处理同一范围内有多个字体属性的情况（如同时有粗体和斜体）
+    /// 它会保留现有字体的特性，并添加新字体的特性
+    private func mergeFontTraits(existing: NSFont, new: NSFont) -> NSFont {
+        let fontManager = NSFontManager.shared
+        
+        // 获取现有字体和新字体的特性
+        let existingTraits = existing.fontDescriptor.symbolicTraits
+        let newTraits = new.fontDescriptor.symbolicTraits
+        
+        // 使用较大的字体大小（通常标题字体会更大）
+        let fontSize = max(existing.pointSize, new.pointSize)
+        
+        // 从现有字体开始
+        var resultFont = existing
+        
+        // 如果字体大小不同，先调整大小
+        if existing.pointSize != fontSize {
+            resultFont = NSFont(descriptor: existing.fontDescriptor, size: fontSize) ?? existing
+        }
+        
+        // 如果新字体有粗体特性，添加粗体
+        if newTraits.contains(.bold) && !existingTraits.contains(.bold) {
+            resultFont = fontManager.convert(resultFont, toHaveTrait: .boldFontMask)
+        }
+        
+        // 如果新字体有斜体特性，添加斜体
+        if newTraits.contains(.italic) && !existingTraits.contains(.italic) {
+            resultFont = fontManager.convert(resultFont, toHaveTrait: .italicFontMask)
+        }
+        
+        // 如果现有字体有粗体特性，确保保留
+        if existingTraits.contains(.bold) && !resultFont.fontDescriptor.symbolicTraits.contains(.bold) {
+            resultFont = fontManager.convert(resultFont, toHaveTrait: .boldFontMask)
+        }
+        
+        // 如果现有字体有斜体特性，确保保留
+        if existingTraits.contains(.italic) && !resultFont.fontDescriptor.symbolicTraits.contains(.italic) {
+            resultFont = fontManager.convert(resultFont, toHaveTrait: .italicFontMask)
+        }
+        
+        return resultFont
     }
     
     /// 创建段落样式
