@@ -57,6 +57,13 @@ struct NativeFormatMenuView: View {
                 context.setEditorFocused(true)
             }
             
+            // 更新 EditorStateConsistencyChecker 的状态
+            // 因为格式菜单显示时，编辑器应该处于可编辑状态
+            if context.isEditorFocused && context.nsAttributedText.length > 0 {
+                print("🔧 [NativeFormatMenuView] 更新 EditorStateConsistencyChecker 状态为 editable")
+                stateChecker.updateState(.editable, reason: "格式菜单显示")
+            }
+            
             // 请求从 textView 同步内容
             context.requestContentSync()
             
@@ -72,6 +79,13 @@ struct NativeFormatMenuView: View {
         }
         .onChange(of: stateChecker.formatButtonsEnabled) { oldValue, newValue in
             print("🔄 [NativeFormatMenuView] 按钮启用状态变化: \(oldValue) -> \(newValue)")
+        }
+        .onChange(of: context.isEditorFocused) { oldValue, newValue in
+            print("🔄 [NativeFormatMenuView] 编辑器焦点状态变化: \(oldValue) -> \(newValue)")
+            // 当焦点状态变化时，更新 EditorStateConsistencyChecker 的状态
+            if newValue && context.nsAttributedText.length > 0 {
+                stateChecker.updateState(.editable, reason: "编辑器获得焦点")
+            }
         }
     }
     
