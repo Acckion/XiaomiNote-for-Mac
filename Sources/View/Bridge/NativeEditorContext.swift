@@ -826,29 +826,36 @@ class NativeEditorContext: ObservableObject {
         
         if isItalic {
             formats.insert(.italic)
-            print("[NativeEditorContext] detectFontFormats - 检测到斜体")
-        }
-        
-        // 标题检测 (需求 2.6)
-        let fontSize = font.pointSize
-        if fontSize >= 24 {
-            formats.insert(.heading1)
-            print("[NativeEditorContext] detectFontFormats - 检测到大标题 (fontSize: \(fontSize))")
-        } else if fontSize >= 20 {
-            formats.insert(.heading2)
-            print("[NativeEditorContext] detectFontFormats - 检测到二级标题 (fontSize: \(fontSize))")
-        } else if fontSize >= 16 && fontSize < 20 {
-            formats.insert(.heading3)
-            print("[NativeEditorContext] detectFontFormats - 检测到三级标题 (fontSize: \(fontSize))")
+            print("[NativeEditorContext] detectFontFormats - 检测到斜体（字体特性）")
         }
         
         return formats
     }
     
-    /// 检测文本装饰（下划线、删除线、高亮）
-    /// 需求: 2.3, 2.4, 2.5
+    /// 检测斜体格式（使用 obliqueness 属性）
+    /// 需求: 2.2 - 斜体检测
+    /// 
+    /// 由于中文字体（如苹方）通常没有真正的斜体变体，
+    /// 我们使用 obliqueness 属性来实现和检测斜体效果
+    private func detectItalicFromObliqueness(from attributes: [NSAttributedString.Key: Any]) -> Bool {
+        if let obliqueness = attributes[.obliqueness] as? Double, obliqueness > 0 {
+            print("[NativeEditorContext] detectItalicFromObliqueness - 检测到 obliqueness: \(obliqueness)")
+            return true
+        }
+        return false
+    }
+    
+    /// 检测文本装饰（下划线、删除线、高亮、斜体）
+    /// 需求: 2.2, 2.3, 2.4, 2.5
     private func detectTextDecorations(from attributes: [NSAttributedString.Key: Any]) -> Set<TextFormat> {
         var formats: Set<TextFormat> = []
+        
+        // 斜体检测 - 使用 obliqueness 属性
+        // 这是为了支持中文斜体，因为中文字体通常没有真正的斜体变体
+        if detectItalicFromObliqueness(from: attributes) {
+            formats.insert(.italic)
+            print("[NativeEditorContext] detectTextDecorations - 检测到斜体（obliqueness）")
+        }
         
         // 下划线检测 (需求 2.3)
         if let underlineStyle = attributes[.underlineStyle] as? Int, underlineStyle != 0 {

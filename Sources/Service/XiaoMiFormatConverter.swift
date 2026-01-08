@@ -983,17 +983,14 @@ class XiaoMiFormatConverter {
         processedText = try processTag(processedText, tag: "h3-size", attribute: .font, value: NSFont.systemFont(ofSize: 16, weight: .medium), attributes: &attributes)
         processedText = try processTag(processedText, tag: "b", attribute: .font, value: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize), attributes: &attributes)
         
-        // 斜体处理 - 添加详细日志
-        let italicFont = NSFont.systemFont(ofSize: NSFont.systemFontSize).italic()
-        let italicTraits = italicFont.fontDescriptor.symbolicTraits
-        print("[XiaoMiFormatConverter] 🔍 斜体字体创建:")
-        print("[XiaoMiFormatConverter]   - 字体名: \(italicFont.fontName)")
-        print("[XiaoMiFormatConverter]   - 字体大小: \(italicFont.pointSize)")
-        print("[XiaoMiFormatConverter]   - 是否斜体: \(italicTraits.contains(.italic))")
-        
+        // 斜体处理 - 使用 obliqueness 属性来实现斜体效果
+        // 这样即使字体被替换为中文字体（如苹方），斜体效果也能保留
+        // obliqueness 值为 0.2 是一个常用的斜体倾斜度
         let beforeItalicCount = attributes.count
-        processedText = try processTag(processedText, tag: "i", attribute: .font, value: italicFont, attributes: &attributes)
+        processedText = try processTag(processedText, tag: "i", attribute: .obliqueness, value: 0.2, attributes: &attributes)
         let afterItalicCount = attributes.count
+        print("[XiaoMiFormatConverter] 🔍 斜体处理:")
+        print("[XiaoMiFormatConverter]   - 使用 obliqueness 属性实现斜体效果")
         print("[XiaoMiFormatConverter]   - 斜体标签处理前属性数: \(beforeItalicCount), 处理后: \(afterItalicCount)")
         
         processedText = try processTag(processedText, tag: "u", attribute: .underlineStyle, value: NSUnderlineStyle.single.rawValue, attributes: &attributes)

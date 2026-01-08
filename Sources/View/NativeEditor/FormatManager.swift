@@ -83,12 +83,36 @@ class FormatManager {
     }
     
     /// 应用斜体格式 (需求 2.2)
+    /// 使用 obliqueness 属性来实现斜体效果，这样可以支持中文字体
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
     ///   - toggle: 是否切换
     func applyItalic(to textStorage: NSTextStorage, range: NSRange, toggle: Bool = true) {
-        applyFontTrait(.italic, to: textStorage, range: range, toggle: toggle)
+        guard range.length > 0 else { return }
+        
+        // 检查当前是否有斜体（通过 obliqueness 属性）
+        var hasItalic = false
+        textStorage.enumerateAttribute(.obliqueness, in: range, options: []) { value, _, stop in
+            if let obliqueness = value as? Double, obliqueness > 0 {
+                hasItalic = true
+                stop.pointee = true
+            }
+        }
+        
+        textStorage.beginEditing()
+        
+        if toggle && hasItalic {
+            // 移除斜体
+            textStorage.removeAttribute(.obliqueness, range: range)
+            print("[FormatManager] 移除斜体 (obliqueness)")
+        } else if !hasItalic {
+            // 添加斜体 - 使用 obliqueness 值 0.2
+            textStorage.addAttribute(.obliqueness, value: 0.2, range: range)
+            print("[FormatManager] 添加斜体 (obliqueness: 0.2)")
+        }
+        
+        textStorage.endEditing()
     }
     
     /// 应用下划线格式 (需求 2.3)
@@ -616,11 +640,22 @@ class FormatManager {
     }
     
     /// 检测指定位置是否有斜体格式
+    /// 使用 obliqueness 属性来检测斜体
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - position: 位置
     /// - Returns: 是否有斜体格式
     func isItalic(in textStorage: NSTextStorage, at position: Int) -> Bool {
+        guard position >= 0 && position < textStorage.length else { return false }
+        
+        let attributes = textStorage.attributes(at: position, effectiveRange: nil)
+        
+        // 检查 obliqueness 属性
+        if let obliqueness = attributes[.obliqueness] as? Double, obliqueness > 0 {
+            return true
+        }
+        
+        // 备用检测：检查字体特性
         return hasFontTrait(.italic, in: textStorage, at: position)
     }
     
