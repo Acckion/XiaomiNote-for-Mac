@@ -3,12 +3,39 @@
 //  MiNoteMac
 //
 //  原生编辑器格式菜单视图 - 提供富文本格式选项
-//  需求: 4.3 - 当编辑器处于不可编辑状态时，格式菜单应禁用所有格式按钮
+//  外观样式与 WebFormatMenuView 保持一致
 //
 
 import SwiftUI
 
+/// 文本样式枚举（对应小米笔记格式）
+enum NativeTextStyle: String, CaseIterable {
+    case title = "大标题"           // <size>
+    case subtitle = "二级标题"      // <mid-size>
+    case subheading = "三级标题"   // <h3-size>
+    case body = "正文"              // 普通文本
+    case bulletList = "•  无序列表"    // <bullet>
+    case numberedList = "1. 有序列表"  // <order>
+    
+    var displayName: String {
+        return rawValue
+    }
+    
+    /// 对应的 TextFormat
+    var textFormat: TextFormat? {
+        switch self {
+        case .title: return .heading1
+        case .subtitle: return .heading2
+        case .subheading: return .heading3
+        case .body: return nil
+        case .bulletList: return .bulletList
+        case .numberedList: return .numberedList
+        }
+    }
+}
+
 /// 原生编辑器格式菜单视图
+/// 外观样式与 WebFormatMenuView 保持一致
 struct NativeFormatMenuView: View {
     
     // MARK: - Properties
@@ -20,45 +47,227 @@ struct NativeFormatMenuView: View {
     // MARK: - Body
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(spacing: 0) {
             // 状态提示（当编辑器不可编辑时显示）
             if !stateChecker.formatButtonsEnabled {
                 stateWarningView
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                Divider()
             }
             
-            // 文本样式部分
-            textStyleSection
+            // 顶部格式化按钮组（加粗、斜体、下划线、删除线、高亮）
+            HStack(spacing: 8) {
+                // 加粗按钮
+                Button(action: {
+                    applyFormat(.bold)
+                }) {
+                    Text("B")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(context.isFormatActive(.bold) ? .white : .primary)
+                        .frame(width: 32, height: 32)
+                        .background(context.isFormatActive(.bold) ? Color.yellow : Color.clear)
+                        .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .disabled(!stateChecker.formatButtonsEnabled)
+                
+                // 斜体按钮
+                Button(action: {
+                    applyFormat(.italic)
+                }) {
+                    Image(systemName: "italic")
+                        .font(.system(size: 16))
+                        .foregroundColor(context.isFormatActive(.italic) ? .white : .primary)
+                        .frame(width: 32, height: 32)
+                        .background(context.isFormatActive(.italic) ? Color.yellow : Color.clear)
+                        .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .disabled(!stateChecker.formatButtonsEnabled)
+                
+                // 下划线按钮
+                Button(action: {
+                    applyFormat(.underline)
+                }) {
+                    Text("U")
+                        .font(.system(size: 14, weight: .regular))
+                        .underline()
+                        .foregroundColor(context.isFormatActive(.underline) ? .white : .primary)
+                        .frame(width: 32, height: 32)
+                        .background(context.isFormatActive(.underline) ? Color.yellow : Color.clear)
+                        .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .disabled(!stateChecker.formatButtonsEnabled)
+                
+                // 删除线按钮
+                Button(action: {
+                    applyFormat(.strikethrough)
+                }) {
+                    Text("S")
+                        .font(.system(size: 14, weight: .regular))
+                        .strikethrough()
+                        .foregroundColor(context.isFormatActive(.strikethrough) ? .white : .primary)
+                        .frame(width: 32, height: 32)
+                        .background(context.isFormatActive(.strikethrough) ? Color.yellow : Color.clear)
+                        .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .disabled(!stateChecker.formatButtonsEnabled)
+                
+                // 高亮按钮
+                Button(action: {
+                    applyFormat(.highlight)
+                }) {
+                    Image(systemName: "highlighter")
+                        .font(.system(size: 12))
+                        .foregroundColor(context.isFormatActive(.highlight) ? .white : .primary)
+                        .frame(width: 32, height: 32)
+                        .background(context.isFormatActive(.highlight) ? Color.yellow : Color.clear)
+                        .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .disabled(!stateChecker.formatButtonsEnabled)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             
+            // 分割线
             Divider()
             
-            // 段落样式部分
-            paragraphStyleSection
+            // 文本样式列表（单选：大标题、二级标题、三级标题、正文、无序列表、有序列表）
+            VStack(spacing: 0) {
+                ForEach(NativeTextStyle.allCases, id: \.self) { style in
+                    Button(action: {
+                        handleStyleSelection(style)
+                    }) {
+                        HStack {
+                            // 勾选标记（根据编辑器状态动态显示）
+                            if isStyleSelected(style) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.yellow)
+                                    .frame(width: 20, alignment: .leading)
+                            } else {
+                                // 当未选中时显示空白占位符
+                                Color.clear
+                                    .frame(width: 20, alignment: .leading)
+                            }
+                            
+                            Text(style.displayName)
+                                .font(fontForStyle(style))
+                                .foregroundColor(.primary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(isStyleSelected(style) ? Color.yellow.opacity(0.1) : Color.clear)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!stateChecker.formatButtonsEnabled)
+                }
+            }
             
+            // 分割线（文本样式列表和引用块之间）
             Divider()
             
-            // 列表样式部分
-            listStyleSection
+            // 引用块（可勾选）
+            VStack(spacing: 0) {
+                Button(action: {
+                    applyFormat(.quote)
+                }) {
+                    HStack {
+                        // 勾选标记（根据编辑器状态动态显示）
+                        if context.isFormatActive(.quote) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 12))
+                                .foregroundColor(.yellow)
+                                .frame(width: 20, alignment: .leading)
+                        } else {
+                            // 当未选中时显示空白占位符
+                            Color.clear
+                                .frame(width: 20, alignment: .leading)
+                        }
+                        
+                        Text("引用块")
+                            .font(.system(size: 13))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(context.isFormatActive(.quote) ? Color.yellow.opacity(0.1) : Color.clear)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!stateChecker.formatButtonsEnabled)
+            }
             
+            // 分割线（引用块和对齐按钮组之间）
             Divider()
             
-            // 特殊元素部分
-            specialElementSection
+            // 对齐按钮组（居左、居中、居右）
+            HStack(spacing: 8) {
+                // 居左按钮（默认状态，当没有居中和居右时为激活）
+                Button(action: {
+                    // 清除居中和居右格式，恢复默认左对齐
+                    clearAlignmentFormats()
+                }) {
+                    Image(systemName: "text.alignleft")
+                        .font(.system(size: 12))
+                        .foregroundColor(isLeftAlignmentActive() ? .white : .primary)
+                        .frame(width: 32, height: 32)
+                        .background(isLeftAlignmentActive() ? Color.yellow : Color.clear)
+                        .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .disabled(!stateChecker.formatButtonsEnabled)
+                
+                // 居中按钮
+                Button(action: {
+                    applyFormat(.alignCenter)
+                }) {
+                    Image(systemName: "text.aligncenter")
+                        .font(.system(size: 12))
+                        .foregroundColor(context.isFormatActive(.alignCenter) ? .white : .primary)
+                        .frame(width: 32, height: 32)
+                        .background(context.isFormatActive(.alignCenter) ? Color.yellow : Color.clear)
+                        .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .disabled(!stateChecker.formatButtonsEnabled)
+                
+                // 居右按钮
+                Button(action: {
+                    applyFormat(.alignRight)
+                }) {
+                    Image(systemName: "text.alignright")
+                        .font(.system(size: 12))
+                        .foregroundColor(context.isFormatActive(.alignRight) ? .white : .primary)
+                        .frame(width: 32, height: 32)
+                        .background(context.isFormatActive(.alignRight) ? Color.yellow : Color.clear)
+                        .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
+                .disabled(!stateChecker.formatButtonsEnabled)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
-        .padding(16)
-        .frame(width: 280)
+        .frame(width: 200)
         .onAppear {
             print("✅ [NativeFormatMenuView] onAppear 开始")
             logFormatState()
             
             // 格式菜单显示时，保持编辑器焦点状态为 true
-            // 因为用户仍然在编辑笔记，只是暂时与工具栏交互
             if !context.isEditorFocused {
                 print("🔧 [NativeFormatMenuView] 设置编辑器焦点状态为 true（格式菜单显示）")
                 context.setEditorFocused(true)
             }
             
             // 更新 EditorStateConsistencyChecker 的状态
-            // 因为格式菜单显示时，编辑器应该处于可编辑状态
             if context.isEditorFocused && context.nsAttributedText.length > 0 {
                 print("🔧 [NativeFormatMenuView] 更新 EditorStateConsistencyChecker 状态为 editable")
                 stateChecker.updateState(.editable, reason: "格式菜单显示")
@@ -82,7 +291,6 @@ struct NativeFormatMenuView: View {
         }
         .onChange(of: context.isEditorFocused) { oldValue, newValue in
             print("🔄 [NativeFormatMenuView] 编辑器焦点状态变化: \(oldValue) -> \(newValue)")
-            // 当焦点状态变化时，更新 EditorStateConsistencyChecker 的状态
             if newValue && context.nsAttributedText.length > 0 {
                 stateChecker.updateState(.editable, reason: "编辑器获得焦点")
             }
@@ -91,7 +299,7 @@ struct NativeFormatMenuView: View {
     
     // MARK: - State Warning View
     
-    /// 状态警告视图（需求 4.3）
+    /// 状态警告视图
     private var stateWarningView: some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -108,296 +316,90 @@ struct NativeFormatMenuView: View {
         )
     }
     
-    // MARK: - Text Style Section
-    
-    private var textStyleSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("文本样式")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            HStack(spacing: 8) {
-                FormatButton(
-                    title: "加粗",
-                    icon: "bold",
-                    isActive: context.isFormatActive(.bold),
-                    isEnabled: stateChecker.formatButtonsEnabled,
-                    shortcut: "⌘B"
-                ) {
-                    applyFormat(.bold)
-                }
-                
-                FormatButton(
-                    title: "斜体",
-                    icon: "italic",
-                    isActive: context.isFormatActive(.italic),
-                    isEnabled: stateChecker.formatButtonsEnabled,
-                    shortcut: "⌘I"
-                ) {
-                    applyFormat(.italic)
-                }
-                
-                FormatButton(
-                    title: "下划线",
-                    icon: "underline",
-                    isActive: context.isFormatActive(.underline),
-                    isEnabled: stateChecker.formatButtonsEnabled,
-                    shortcut: "⌘U"
-                ) {
-                    applyFormat(.underline)
-                }
-                
-                FormatButton(
-                    title: "删除线",
-                    icon: "strikethrough",
-                    isActive: context.isFormatActive(.strikethrough),
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    applyFormat(.strikethrough)
-                }
-                
-                FormatButton(
-                    title: "高亮",
-                    icon: "highlighter",
-                    isActive: context.isFormatActive(.highlight),
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    applyFormat(.highlight)
-                }
-            }
-        }
-    }
-    
-    // MARK: - Paragraph Style Section
-    
-    private var paragraphStyleSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("段落样式")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            // 标题样式
-            HStack(spacing: 8) {
-                FormatButton(
-                    title: "大标题",
-                    icon: "textformat.size.larger",
-                    isActive: context.isFormatActive(.heading1),
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    applyFormat(.heading1)
-                }
-                
-                FormatButton(
-                    title: "二级标题",
-                    icon: "textformat.size",
-                    isActive: context.isFormatActive(.heading2),
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    applyFormat(.heading2)
-                }
-                
-                FormatButton(
-                    title: "三级标题",
-                    icon: "textformat.size.smaller",
-                    isActive: context.isFormatActive(.heading3),
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    applyFormat(.heading3)
-                }
-            }
-            
-            // 对齐方式
-            HStack(spacing: 8) {
-                FormatButton(
-                    title: "居中",
-                    icon: "text.aligncenter",
-                    isActive: context.isFormatActive(.alignCenter),
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    applyFormat(.alignCenter)
-                }
-                
-                FormatButton(
-                    title: "右对齐",
-                    icon: "text.alignright",
-                    isActive: context.isFormatActive(.alignRight),
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    applyFormat(.alignRight)
-                }
-            }
-        }
-    }
-    
-    // MARK: - List Style Section
-    
-    private var listStyleSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("列表样式")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            HStack(spacing: 8) {
-                FormatButton(
-                    title: "无序列表",
-                    icon: "list.bullet",
-                    isActive: context.isFormatActive(.bulletList),
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    applyFormat(.bulletList)
-                }
-                
-                FormatButton(
-                    title: "有序列表",
-                    icon: "list.number",
-                    isActive: context.isFormatActive(.numberedList),
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    applyFormat(.numberedList)
-                }
-                
-                FormatButton(
-                    title: "复选框",
-                    icon: "checklist",
-                    isActive: context.isFormatActive(.checkbox),
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    applyFormat(.checkbox)
-                }
-            }
-        }
-    }
-    
-    // MARK: - Special Element Section
-    
-    private var specialElementSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("特殊元素")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            HStack(spacing: 8) {
-                FormatButton(
-                    title: "引用",
-                    icon: "text.quote",
-                    isActive: context.isFormatActive(.quote),
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    applyFormat(.quote)
-                }
-                
-                FormatButton(
-                    title: "分割线",
-                    icon: "minus",
-                    isActive: false,
-                    isEnabled: stateChecker.formatButtonsEnabled
-                ) {
-                    context.insertHorizontalRule()
-                    onFormatApplied?(.horizontalRule)
-                }
-            }
-        }
-    }
-    
     // MARK: - Helper Methods
     
+    /// 检查样式是否被选中
+    private func isStyleSelected(_ style: NativeTextStyle) -> Bool {
+        switch style {
+        case .title:
+            return context.isFormatActive(.heading1)
+        case .subtitle:
+            return context.isFormatActive(.heading2)
+        case .subheading:
+            return context.isFormatActive(.heading3)
+        case .body:
+            // 正文：没有标题格式且没有列表格式
+            return !context.isFormatActive(.heading1) &&
+                   !context.isFormatActive(.heading2) &&
+                   !context.isFormatActive(.heading3) &&
+                   !context.isFormatActive(.bulletList) &&
+                   !context.isFormatActive(.numberedList)
+        case .bulletList:
+            return context.isFormatActive(.bulletList)
+        case .numberedList:
+            return context.isFormatActive(.numberedList)
+        }
+    }
+    
+    /// 检查左对齐是否激活（默认状态）
+    private func isLeftAlignmentActive() -> Bool {
+        // 居左是默认状态，当没有居中和居右时为激活
+        return !context.isFormatActive(.alignCenter) && !context.isFormatActive(.alignRight)
+    }
+    
+    /// 清除对齐格式（恢复默认左对齐）
+    private func clearAlignmentFormats() {
+        context.clearAlignmentFormat()
+        onFormatApplied?(.alignCenter)
+    }
+    
+    /// 处理样式选择
+    private func handleStyleSelection(_ style: NativeTextStyle) {
+        switch style {
+        case .title:
+            applyFormat(.heading1)
+        case .subtitle:
+            applyFormat(.heading2)
+        case .subheading:
+            applyFormat(.heading3)
+        case .body:
+            // 正文：清除标题格式（应用 heading1 再取消，或者直接设置为普通段落）
+            // 这里需要一个清除标题格式的方法
+            context.clearHeadingFormat()
+            onFormatApplied?(.heading1)
+        case .bulletList:
+            applyFormat(.bulletList)
+        case .numberedList:
+            applyFormat(.numberedList)
+        }
+    }
+    
+    /// 根据样式返回对应的字体
+    private func fontForStyle(_ style: NativeTextStyle) -> Font {
+        switch style {
+        case .title:
+            return .system(size: 16, weight: .bold)
+        case .subtitle:
+            return .system(size: 14, weight: .semibold)
+        case .subheading:
+            return .system(size: 13, weight: .medium)
+        case .body:
+            return .system(size: 13)
+        case .bulletList, .numberedList:
+            return .system(size: 13)
+        }
+    }
+    
     private func applyFormat(_ format: TextFormat) {
-        // 需求 4.3: 验证格式操作是否允许
+        // 验证格式操作是否允许
         guard stateChecker.validateFormatOperation(format) else {
             print("⚠️ [NativeFormatMenuView] 格式操作被拒绝: \(format.displayName)")
             return
         }
         
-        // 需求 5.4: 使用菜单应用方式，确保一致性检查
+        // 使用菜单应用方式，确保一致性检查
         context.applyFormat(format, method: .menu)
         onFormatApplied?(format)
-    }
-}
-
-// MARK: - Format Button
-
-/// 格式按钮组件
-/// 需求: 4.3 - 支持禁用状态
-struct FormatButton: View {
-    let title: String
-    let icon: String
-    let isActive: Bool
-    var isEnabled: Bool = true
-    var shortcut: String? = nil
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 16))
-                    .foregroundColor(buttonForegroundColor)
-                
-                Text(title)
-                    .font(.caption2)
-                    .foregroundColor(buttonTextColor)
-                
-                if let shortcut = shortcut {
-                    Text(shortcut)
-                        .font(.system(size: 8))
-                        .foregroundColor(buttonShortcutColor)
-                }
-            }
-            .frame(width: 48, height: 52)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(buttonBackgroundColor)
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-        .help(helpText)
-    }
-    
-    // MARK: - Computed Properties
-    
-    /// 按钮前景色
-    private var buttonForegroundColor: Color {
-        if !isEnabled {
-            return .secondary.opacity(0.5)
-        }
-        return isActive ? .white : .primary
-    }
-    
-    /// 按钮文本颜色
-    private var buttonTextColor: Color {
-        if !isEnabled {
-            return .secondary.opacity(0.5)
-        }
-        return isActive ? .white : .secondary
-    }
-    
-    /// 快捷键颜色
-    private var buttonShortcutColor: Color {
-        if !isEnabled {
-            return .secondary.opacity(0.3)
-        }
-        return isActive ? .white.opacity(0.8) : .secondary.opacity(0.6)
-    }
-    
-    /// 按钮背景色
-    private var buttonBackgroundColor: Color {
-        if !isEnabled {
-            return Color.secondary.opacity(0.05)
-        }
-        return isActive ? Color.accentColor : Color.secondary.opacity(0.1)
-    }
-    
-    /// 帮助文本
-    private var helpText: String {
-        var text = title
-        if let shortcut = shortcut {
-            text += " (\(shortcut))"
-        }
-        if !isEnabled {
-            text += " - 不可用"
-        }
-        return text
     }
 }
 
@@ -419,7 +421,6 @@ extension NativeFormatMenuView {
         print("   - 右对齐: \(context.isFormatActive(.alignRight))")
         print("   - 无序列表: \(context.isFormatActive(.bulletList))")
         print("   - 有序列表: \(context.isFormatActive(.numberedList))")
-        print("   - 复选框: \(context.isFormatActive(.checkbox))")
         print("   - 引用: \(context.isFormatActive(.quote))")
         print("   - 当前格式集合: \(context.currentFormats)")
         print("   - 光标位置: \(context.cursorPosition)")
@@ -431,5 +432,5 @@ extension NativeFormatMenuView {
 
 #Preview {
     NativeFormatMenuView(context: NativeEditorContext())
-        .frame(width: 300, height: 400)
+        .frame(width: 220, height: 400)
 }

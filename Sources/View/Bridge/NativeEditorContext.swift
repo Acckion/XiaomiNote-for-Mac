@@ -371,6 +371,38 @@ class NativeEditorContext: ObservableObject {
         }
     }
     
+    /// 清除标题格式（将文本恢复为正文样式）
+    func clearHeadingFormat() {
+        // 移除所有标题格式
+        currentFormats.remove(.heading1)
+        currentFormats.remove(.heading2)
+        currentFormats.remove(.heading3)
+        toolbarButtonStates[.heading1] = false
+        toolbarButtonStates[.heading2] = false
+        toolbarButtonStates[.heading3] = false
+        
+        // 发布格式变化（使用 heading1 作为信号，表示标题格式变化）
+        formatChangeSubject.send(.heading1)
+        
+        // 标记有未保存的更改
+        hasUnsavedChanges = true
+    }
+    
+    /// 清除对齐格式（恢复默认左对齐）
+    func clearAlignmentFormat() {
+        // 移除居中和居右格式
+        currentFormats.remove(.alignCenter)
+        currentFormats.remove(.alignRight)
+        toolbarButtonStates[.alignCenter] = false
+        toolbarButtonStates[.alignRight] = false
+        
+        // 发布格式变化（使用 alignCenter 作为信号，表示对齐格式变化）
+        formatChangeSubject.send(.alignCenter)
+        
+        // 标记有未保存的更改
+        hasUnsavedChanges = true
+    }
+    
     /// 插入特殊元素
     /// - Parameter element: 要插入的特殊元素
     func insertSpecialElement(_ element: SpecialElement) {
