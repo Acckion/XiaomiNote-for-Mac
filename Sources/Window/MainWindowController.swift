@@ -1255,9 +1255,35 @@ extension MainWindowController {
         }
     }
     
+    /// 插入分割线
+    /// 需求: 4.1, 4.2, 4.4 - 根据编辑器类型调用对应的 insertHorizontalRule 方法
     @objc func insertHorizontalRule(_ sender: Any?) {
-        print("插入分割线")
-        // 这里应该调用编辑器API
+        print("[MainWindowController] 插入分割线")
+        
+        // 需求 4.4: 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法插入分割线")
+            return
+        }
+        
+        // 需求 4.1, 4.2: 根据编辑器类型调用对应的方法
+        if isUsingNativeEditor {
+            // 需求 4.1: 原生编辑器模式
+            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertHorizontalRule()")
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.insertHorizontalRule()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            // 需求 4.2: Web 编辑器模式
+            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertHorizontalRule()")
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.insertHorizontalRule()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
     }
     
     @objc func insertAttachment(_ sender: Any?) {
