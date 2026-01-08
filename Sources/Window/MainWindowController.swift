@@ -1757,6 +1757,21 @@ extension MainWindowController {
         return viewModel?.webEditorContext
     }
     
+    // MARK: - 编辑器类型检测和路由
+    
+    /// 是否正在使用原生编辑器
+    /// 需求: 7.1 - 通过 EditorPreferencesService.shared.selectedEditorType 判断
+    var isUsingNativeEditor: Bool {
+        return EditorPreferencesService.shared.selectedEditorType == .native
+    }
+    
+    /// 获取当前的 NativeEditorContext
+    /// 需求: 1.3, 7.2 - 从 viewModel 获取 nativeEditorContext
+    /// - Returns: 当前的 NativeEditorContext，如果 viewModel 不存在则返回 nil
+    func getCurrentNativeEditorContext() -> NativeEditorContext? {
+        return viewModel?.nativeEditorContext
+    }
+    
     // MARK: - 编辑菜单动作
     
     @objc public func undo(_ sender: Any?) {
