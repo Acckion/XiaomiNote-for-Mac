@@ -210,6 +210,14 @@ class NativeEditorContext: ObservableObject {
     /// 工具栏按钮状态
     @Published var toolbarButtonStates: [TextFormat: Bool] = [:]
     
+    /// 部分激活的格式集合（用于混合格式状态显示）
+    /// 需求: 6.1, 6.2
+    @Published var partiallyActiveFormats: Set<TextFormat> = []
+    
+    /// 格式激活比例（用于混合格式状态显示）
+    /// 需求: 6.2
+    @Published var formatActivationRatios: [TextFormat: Double] = [:]
+    
     // MARK: - Private Properties
     
     /// 格式变化发布者
@@ -577,6 +585,7 @@ class NativeEditorContext: ObservableObject {
     /// 根据当前光标位置更新格式状态 (需求 9.1)
     /// 增强版本 - 完善所有格式类型的状态检测
     /// 需求: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10
+    /// 混合格式需求: 6.1, 6.2
     /// 错误处理需求: 4.2 - 状态同步失败时重新检测格式状态并更新界面
     func updateCurrentFormats() {
         print("[NativeEditorContext] updateCurrentFormats 被调用")
@@ -590,6 +599,7 @@ class NativeEditorContext: ObservableObject {
         guard !nsAttributedText.string.isEmpty else {
             print("[NativeEditorContext]   - 文本为空，清除所有格式")
             clearAllFormats()
+            clearMixedFormatStates()
             return
         }
         
@@ -598,10 +608,20 @@ class NativeEditorContext: ObservableObject {
         guard position >= 0 else {
             print("[NativeEditorContext]   - 位置无效 (position: \(position))，清除所有格式")
             clearAllFormats()
+            clearMixedFormatStates()
             return
         }
         
         print("[NativeEditorContext]   - 有效位置: \(position)")
+        
+        // 需求 6.1, 6.2: 如果有选中范围，检测混合格式状态
+        if selectedRange.length > 0 {
+            print("[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: \(selectedRange.length))")
+            updateMixedFormatStates()
+        } else {
+            // 清除混合格式状态
+            clearMixedFormatStates()
+        }
         
         // 获取当前位置的属性
         let attributes = nsAttributedText.attributes(at: position, effectiveRange: nil)
@@ -635,10 +655,47 @@ class NativeEditorContext: ObservableObject {
         detectedFormats.formUnion(specialFormats)
         print("[NativeEditorContext]   - 特殊格式: \(specialFormats.map { $0.displayName })")
         
+        // 需求 6.1: 如果有选中范围，合并混合格式检测结果
+        if selectedRange.length > 0 {
+            let mixedHandler = MixedFormatStateHandler.shared
+            let activeFormats = mixedHandler.getActiveFormats(in: nsAttributedText, range: selectedRange)
+            detectedFormats.formUnion(activeFormats)
+            print("[NativeEditorContext]   - 混合格式检测结果: \(activeFormats.map { $0.displayName })")
+        }
+        
         print("[NativeEditorContext]   - 检测到的所有格式: \(detectedFormats.map { $0.displayName })")
         
         // 更新状态并验证
         updateFormatsWithValidation(detectedFormats)
+    }
+    
+    /// 更新混合格式状态
+    /// 需求: 6.1, 6.2
+    private func updateMixedFormatStates() {
+        let mixedHandler = MixedFormatStateHandler.shared
+        let states = mixedHandler.detectMixedFormatStates(in: nsAttributedText, range: selectedRange)
+        
+        // 更新部分激活格式集合
+        var newPartiallyActive: Set<TextFormat> = []
+        var newRatios: [TextFormat: Double] = [:]
+        
+        for (format, state) in states {
+            newRatios[format] = state.activationRatio
+            if state.isPartiallyActive {
+                newPartiallyActive.insert(format)
+            }
+        }
+        
+        partiallyActiveFormats = newPartiallyActive
+        formatActivationRatios = newRatios
+        
+        print("[NativeEditorContext]   - 部分激活格式: \(newPartiallyActive.map { $0.displayName })")
+    }
+    
+    /// 清除混合格式状态
+    private func clearMixedFormatStates() {
+        partiallyActiveFormats.removeAll()
+        formatActivationRatios.removeAll()
     }
     
     /// 检测字体格式（加粗、斜体、标题）
