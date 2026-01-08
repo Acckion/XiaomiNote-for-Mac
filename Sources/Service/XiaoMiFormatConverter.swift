@@ -321,10 +321,71 @@ class XiaoMiFormatConverter {
     }
     
     /// 处理 <text> 元素并返回 NSAttributedString
+    /// 
+    /// 关键修复：直接创建 NSAttributedString，而不是通过 AttributedString 中转
+    /// 这样可以正确保留字体特性（如粗体、斜体）
     private func processTextElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
-        // 复用现有逻辑，然后转换
-        let attributedString = try processTextElement(line)
-        return try NSAttributedString(attributedString, including: \.appKit)
+        // 提取 indent 属性
+        let indent = extractAttribute("indent", from: line) ?? "1"
+        
+        // 提取文本内容（会验证 XML 格式）
+        guard let content = try extractTextContent(from: line) else {
+            return NSAttributedString()
+        }
+        
+        // 处理富文本标签并获取属性化的文本
+        let (processedText, nsAttributes) = try processRichTextTags(content)
+        
+        // 直接创建 NSMutableAttributedString
+        let result = NSMutableAttributedString(string: processedText)
+        
+        // 检测是否有对齐属性（从 <center> 或 <right> 标签）
+        var detectedAlignment: NSTextAlignment = .left
+        for (_, attrs) in nsAttributes {
+            if let paragraphStyle = attrs[.paragraphStyle] as? NSParagraphStyle {
+                if paragraphStyle.alignment != .left {
+                    detectedAlignment = paragraphStyle.alignment
+                    break
+                }
+            }
+        }
+        
+        // 应用富文本属性（跳过段落样式，稍后统一处理）
+        for (range, attrs) in nsAttributes {
+            // 确保范围有效
+            guard range.location >= 0 && range.location + range.length <= processedText.count else {
+                continue
+            }
+            
+            for (key, value) in attrs {
+                switch key {
+                case .paragraphStyle:
+                    // 跳过段落样式，稍后统一处理以保留对齐方式
+                    break
+                default:
+                    // 直接应用属性到 NSAttributedString
+                    result.addAttribute(key, value: value, range: range)
+                }
+            }
+        }
+        
+        // 设置段落样式（包含缩进和对齐方式）
+        let paragraphStyle = createParagraphStyle(indent: Int(indent) ?? 1, alignment: detectedAlignment)
+        result.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: result.length))
+        
+        // 调试日志：验证字体属性是否正确保留
+        #if DEBUG
+        result.enumerateAttribute(.font, in: NSRange(location: 0, length: result.length), options: []) { value, range, _ in
+            if let font = value as? NSFont {
+                let traits = font.fontDescriptor.symbolicTraits
+                if traits.contains(.bold) || traits.contains(.italic) {
+                    print("[XiaoMiFormatConverter] ✅ 字体属性保留成功: \(font.fontName), traits: \(traits)")
+                }
+            }
+        }
+        #endif
+        
+        return result
     }
     
     /// 处理 <bullet> 元素并返回 NSAttributedString

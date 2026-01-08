@@ -638,13 +638,49 @@ class NativeEditorContext: ObservableObject {
         print("[NativeEditorContext] detectFontFormats - 字体特性: \(traits)")
         
         // 加粗检测 (需求 2.1)
-        if traits.contains(.bold) {
+        // 方法 1: 检查 symbolicTraits
+        var isBold = traits.contains(.bold)
+        
+        // 方法 2: 检查字体名称是否包含 "Bold"（备用检测）
+        if !isBold {
+            let fontName = font.fontName.lowercased()
+            isBold = fontName.contains("bold") || fontName.contains("-bold")
+            if isBold {
+                print("[NativeEditorContext] detectFontFormats - 通过字体名称检测到粗体: \(font.fontName)")
+            }
+        }
+        
+        // 方法 3: 检查字体 weight（备用检测）
+        if !isBold {
+            if let weightTrait = font.fontDescriptor.object(forKey: .traits) as? [NSFontDescriptor.TraitKey: Any],
+               let weight = weightTrait[.weight] as? CGFloat {
+                // NSFontWeight.bold 的值约为 0.4
+                isBold = weight >= 0.4
+                if isBold {
+                    print("[NativeEditorContext] detectFontFormats - 通过字体 weight 检测到粗体: weight=\(weight)")
+                }
+            }
+        }
+        
+        if isBold {
             formats.insert(.bold)
             print("[NativeEditorContext] detectFontFormats - 检测到粗体")
         }
         
         // 斜体检测 (需求 2.2)
-        if traits.contains(.italic) {
+        // 方法 1: 检查 symbolicTraits
+        var isItalic = traits.contains(.italic)
+        
+        // 方法 2: 检查字体名称是否包含 "Italic" 或 "Oblique"（备用检测）
+        if !isItalic {
+            let fontName = font.fontName.lowercased()
+            isItalic = fontName.contains("italic") || fontName.contains("oblique")
+            if isItalic {
+                print("[NativeEditorContext] detectFontFormats - 通过字体名称检测到斜体: \(font.fontName)")
+            }
+        }
+        
+        if isItalic {
             formats.insert(.italic)
             print("[NativeEditorContext] detectFontFormats - 检测到斜体")
         }
