@@ -73,6 +73,28 @@ targets:
         NSHighResolutionCapable: true
         NSAccentColorName: Yellow
 
+  MiNoteLibraryTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "26.0"
+    dependencies:
+      - target: MiNoteLibrary
+    sources:
+      - path: Tests/NativeEditorTests
+    settings:
+      base:
+        PRODUCT_NAME: MiNoteLibraryTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.minote.MiNoteLibraryTests
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
+      configs:
+        Debug:
+          SWIFT_OPTIMIZATION_LEVEL: -Onone
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+        Release:
+          SWIFT_OPTIMIZATION_LEVEL: -O
+
 schemes:
   MiNoteMac:
     build:
@@ -82,3 +104,5 @@ schemes:
       config: Debug
     test:
       config: Debug
+      targets:
+        - MiNoteLibraryTests

@@ -61,6 +61,15 @@ public struct SettingsView: View {
                         .help("启用后，当Cookie失效时会自动尝试静默刷新，刷新失败才会弹窗提示")
                 }
                 
+                Section("编辑器") {
+                    NavigationLink("编辑器设置") {
+                        // TODO: 实现编辑器设置视图
+                        Text("编辑器设置功能开发中...")
+                            .foregroundColor(.secondary)
+                    }
+                    .help("选择和配置编辑器类型")
+                }
+                
                 Section("外观") {
                     Picker("主题", selection: $theme) {
                         Text("跟随系统").tag("system")
