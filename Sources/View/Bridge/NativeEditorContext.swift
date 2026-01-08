@@ -600,7 +600,9 @@ class NativeEditorContext: ObservableObject {
     /// - Returns: 小米笔记 XML 格式内容
     func exportToXML() -> String {
         do {
-            return try formatConverter.attributedStringToXML(attributedText)
+            // 关键修复：使用 nsAttributedText 而不是 attributedText
+            // 因为 NativeEditorView 使用的是 nsAttributedText，编辑后的内容存储在这里
+            return try formatConverter.nsAttributedStringToXML(nsAttributedText)
         } catch {
             print("[NativeEditorContext] 导出 XML 失败: \(error)")
             return ""

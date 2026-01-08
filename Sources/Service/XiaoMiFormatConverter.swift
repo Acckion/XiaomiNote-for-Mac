@@ -172,6 +172,183 @@ class XiaoMiFormatConverter {
         return xmlElements.joined(separator: "\n")
     }
     
+    /// 将 NSAttributedString 转换为小米笔记 XML 格式
+    /// 
+    /// 关键方法：此方法直接处理 NSAttributedString，避免了 AttributedString 中转导致的属性丢失问题
+    /// 用于原生编辑器的内容导出保存
+    /// 
+    /// - Parameter nsAttributedString: 要转换的 NSAttributedString
+    /// - Returns: 小米笔记 XML 格式字符串
+    /// - Throws: ConversionError
+    func nsAttributedStringToXML(_ nsAttributedString: NSAttributedString) throws -> String {
+        var xmlElements: [String] = []
+        
+        let fullText = nsAttributedString.string
+        let lines = fullText.components(separatedBy: "\n")
+        
+        var currentLocation = 0
+        
+        for (lineIndex, lineText) in lines.enumerated() {
+            // 空行处理
+            guard !lineText.isEmpty else {
+                // 跳过换行符
+                if lineIndex < lines.count - 1 {
+                    currentLocation += 1
+                }
+                continue
+            }
+            
+            // 计算当前行的范围
+            let lineRange = NSRange(location: currentLocation, length: lineText.count)
+            
+            // 获取该行的子 NSAttributedString
+            let lineAttributedString = nsAttributedString.attributedSubstring(from: lineRange)
+            
+            // 转换该行
+            let xmlElement = try convertNSLineToXML(lineAttributedString)
+            xmlElements.append(xmlElement)
+            
+            // 更新位置，跳过当前行和换行符
+            currentLocation += lineText.count
+            if lineIndex < lines.count - 1 {
+                currentLocation += 1 // 跳过换行符
+            }
+        }
+        
+        return xmlElements.joined(separator: "\n")
+    }
+    
+    /// 将单行 NSAttributedString 转换为 XML
+    /// - Parameter lineAttributedString: 单行 NSAttributedString
+    /// - Returns: XML 字符串
+    /// - Throws: ConversionError
+    private func convertNSLineToXML(_ lineAttributedString: NSAttributedString) throws -> String {
+        var content = ""
+        var indent = 1
+        var alignment: NSTextAlignment = .left
+        
+        let fullRange = NSRange(location: 0, length: lineAttributedString.length)
+        
+        // 遍历该行的所有属性运行段
+        lineAttributedString.enumerateAttributes(in: fullRange, options: []) { attributes, range, _ in
+            // 检查是否是附件
+            if let attachment = attributes[.attachment] as? NSTextAttachment {
+                // 如果是附件，转换为 XML（会在后面处理）
+                do {
+                    content = try convertAttachmentToXML(attachment)
+                } catch {
+                    print("[XiaoMiFormatConverter] 附件转换失败: \(error)")
+                }
+                return
+            }
+            
+            // 获取文本内容
+            let text = (lineAttributedString.string as NSString).substring(with: range)
+            
+            // 处理富文本属性
+            let taggedText = processNSAttributesToXMLTags(text, attributes: attributes)
+            content += taggedText
+            
+            // 提取缩进级别和对齐方式（使用第一个运行段的值）
+            if let paragraphStyle = attributes[.paragraphStyle] as? NSParagraphStyle {
+                indent = Int(paragraphStyle.firstLineHeadIndent / 20) + 1
+                alignment = paragraphStyle.alignment
+            }
+        }
+        
+        // 检查是否整行是附件（如分割线、图片等）
+        if content.hasPrefix("<hr") || content.hasPrefix("<img") || 
+           content.hasPrefix("<input") || content.hasPrefix("<bullet") || 
+           content.hasPrefix("<order") {
+            return content
+        }
+        
+        // 处理对齐方式
+        switch alignment {
+        case .center:
+            content = "<center>\(content)</center>"
+        case .right:
+            content = "<right>\(content)</right>"
+        default:
+            break
+        }
+        
+        return "<text indent=\"\(indent)\">\(content)</text>"
+    }
+    
+    /// 处理 NSAttributedString 属性并生成 XML 标签
+    /// - Parameters:
+    ///   - text: 文本内容
+    ///   - attributes: NSAttributedString 属性字典
+    /// - Returns: 包含 XML 标签的文本
+    private func processNSAttributesToXMLTags(_ text: String, attributes: [NSAttributedString.Key: Any]) -> String {
+        var result = escapeXMLCharacters(text)
+        
+        // 处理字体样式
+        if let font = attributes[.font] as? NSFont {
+            let traits = font.fontDescriptor.symbolicTraits
+            
+            // 检查是否是粗体
+            if traits.contains(.bold) {
+                result = "<b>\(result)</b>"
+            }
+            
+            // 检查是否是斜体
+            if traits.contains(.italic) {
+                result = "<i>\(result)</i>"
+            }
+            
+            // 检查字体大小来确定标题级别
+            let fontSize = font.pointSize
+            if fontSize >= 24 {
+                result = "<size>\(result)</size>"
+            } else if fontSize >= 20 {
+                result = "<mid-size>\(result)</mid-size>"
+            } else if fontSize >= 16 && fontSize < 20 {
+                result = "<h3-size>\(result)</h3-size>"
+            }
+        }
+        
+        // 检查 obliqueness 属性（用于中文斜体）
+        if let obliqueness = attributes[.obliqueness] as? Double, obliqueness > 0 {
+            // 如果还没有斜体标签，添加斜体标签
+            if !result.hasPrefix("<i>") {
+                result = "<i>\(result)</i>"
+            }
+        }
+        
+        // 处理下划线
+        if let underlineStyle = attributes[.underlineStyle] as? Int, underlineStyle != 0 {
+            result = "<u>\(result)</u>"
+        }
+        
+        // 处理删除线
+        if let strikethroughStyle = attributes[.strikethroughStyle] as? Int, strikethroughStyle != 0 {
+            result = "<delete>\(result)</delete>"
+        }
+        
+        // 处理背景色（高亮）
+        if let backgroundColor = attributes[.backgroundColor] as? NSColor {
+            let hexColor = backgroundColor.toHexString()
+            result = "<background color=\"\(hexColor)\">\(result)</background>"
+        }
+        
+        return result
+    }
+    
+    /// 转义 XML 特殊字符
+    /// - Parameter text: 原始文本
+    /// - Returns: 转义后的文本
+    private func escapeXMLCharacters(_ text: String) -> String {
+        var result = text
+        result = result.replacingOccurrences(of: "&", with: "&amp;")
+        result = result.replacingOccurrences(of: "<", with: "&lt;")
+        result = result.replacingOccurrences(of: ">", with: "&gt;")
+        result = result.replacingOccurrences(of: "\"", with: "&quot;")
+        result = result.replacingOccurrences(of: "'", with: "&apos;")
+        return result
+    }
+    
     /// 将单行 AttributedString 转换为 XML
     /// - Parameter lineAttributedString: 单行 AttributedString
     /// - Returns: XML 字符串
