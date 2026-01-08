@@ -53,8 +53,11 @@ struct NoteDetailView: View {
         viewModel.webEditorContext
     }
     
-    // 原生编辑器上下文（用于原生编辑器）
-    @StateObject private var nativeEditorContext = NativeEditorContext()
+    // 使用共享的 NativeEditorContext（从 viewModel 获取）
+    // 需求: 1.2 - 确保 MainWindowController 和 NoteDetailView 使用同一个上下文
+    private var nativeEditorContext: NativeEditorContext {
+        viewModel.nativeEditorContext
+    }
     
     // 编辑器偏好设置服务 - 使用 @ObservedObject 因为是单例
     @ObservedObject private var editorPreferencesService = EditorPreferencesService.shared
