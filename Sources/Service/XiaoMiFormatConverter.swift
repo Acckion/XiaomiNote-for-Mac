@@ -109,6 +109,11 @@ class XiaoMiFormatConverter {
     
     private init() {}
     
+    // MARK: - Properties
+    
+    /// 当前有序列表编号（用于跟踪连续列表）
+    private var currentOrderedListNumber: Int = 1
+    
     // MARK: - Public Methods
     
     /// 将 AttributedString 转换为小米笔记 XML 格式
@@ -208,6 +213,9 @@ class XiaoMiFormatConverter {
         guard !xml.isEmpty else {
             return AttributedString()
         }
+        
+        // 重置列表状态
+        resetListState()
         
         var result = AttributedString()
         let lines = xml.components(separatedBy: .newlines)
@@ -373,14 +381,34 @@ class XiaoMiFormatConverter {
         let content = extractContentAfterElement(from: line, elementName: "order")
         
         // 根据 inputNumber 规则处理编号
-        // inputNumber 为 0 表示自动编号，非 0 表示指定编号
-        let number = Int(inputNumber) ?? 0
-        let displayNumber = number == 0 ? 1 : number + 1 // 简化处理，实际需要跟踪列表状态
+        // inputNumber 为 0 表示连续列表项（自动编号）
+        // inputNumber 非 0 表示新列表开始，值为起始编号 - 1
+        let inputNum = Int(inputNumber) ?? 0
+        let displayNumber: Int
+        
+        if inputNum == 0 {
+            // 连续列表项，使用跟踪的编号
+            displayNumber = currentOrderedListNumber
+            currentOrderedListNumber += 1
+        } else {
+            // 新列表开始
+            displayNumber = inputNum + 1
+            currentOrderedListNumber = displayNumber + 1
+        }
         
         var result = AttributedString("\(displayNumber). \(content)")
-        result.paragraphStyle = createParagraphStyle(indent: Int(indent) ?? 1)
+        
+        // 设置列表属性
+        var container = AttributeContainer()
+        container.appKit.paragraphStyle = createParagraphStyle(indent: Int(indent) ?? 1)
+        result.mergeAttributes(container)
         
         return result
+    }
+    
+    /// 重置列表状态（在开始新的转换时调用）
+    func resetListState() {
+        currentOrderedListNumber = 1
     }
     
     /// 处理 <input type="checkbox"> 元素
