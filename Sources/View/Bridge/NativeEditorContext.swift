@@ -667,7 +667,16 @@ class NativeEditorContext: ObservableObject {
         }
         
         // 获取当前位置的属性
-        let attributes = nsAttributedText.attributes(at: position, effectiveRange: nil)
+        // 关键修复：当没有选中文字时（光标模式），应该获取光标前一个字符的属性
+        // 因为光标实际上是在字符之间的，用户期望看到的是光标左侧文字的格式
+        var attributePosition = position
+        if selectedRange.length == 0 && position > 0 {
+            // 光标模式：获取光标前一个字符的属性
+            attributePosition = position - 1
+            print("[NativeEditorContext]   - 光标模式：使用前一个字符的属性位置: \(attributePosition)")
+        }
+        
+        let attributes = nsAttributedText.attributes(at: attributePosition, effectiveRange: nil)
         print("[NativeEditorContext]   - 属性数量: \(attributes.count)")
         
         // 检测所有格式类型
@@ -689,12 +698,12 @@ class NativeEditorContext: ObservableObject {
         print("[NativeEditorContext]   - 段落格式: \(paragraphFormats.map { $0.displayName })")
         
         // 4. 检测列表格式（无序、有序、复选框）
-        let listFormats = detectListFormats(at: position)
+        let listFormats = detectListFormats(at: attributePosition)
         detectedFormats.formUnion(listFormats)
         print("[NativeEditorContext]   - 列表格式: \(listFormats.map { $0.displayName })")
         
         // 5. 检测特殊元素格式（引用块、分割线）
-        let specialFormats = detectSpecialElementFormats(at: position)
+        let specialFormats = detectSpecialElementFormats(at: attributePosition)
         detectedFormats.formUnion(specialFormats)
         print("[NativeEditorContext]   - 特殊格式: \(specialFormats.map { $0.displayName })")
         
