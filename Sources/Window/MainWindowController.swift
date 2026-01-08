@@ -1224,9 +1224,35 @@ extension MainWindowController {
     
     // MARK: - 新增工具栏按钮动作方法
     
+    /// 切换待办（插入复选框）
+    /// 需求: 3.1, 3.2, 3.4 - 根据编辑器类型调用对应的 insertCheckbox 方法
     @objc func toggleCheckbox(_ sender: Any?) {
-        print("切换待办")
-        // 这里应该调用编辑器API
+        print("[MainWindowController] 切换待办")
+        
+        // 需求 3.4: 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法插入待办")
+            return
+        }
+        
+        // 需求 3.1, 3.2: 根据编辑器类型调用对应的方法
+        if isUsingNativeEditor {
+            // 需求 3.1: 原生编辑器模式
+            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertCheckbox()")
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.insertCheckbox()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            // 需求 3.2: Web 编辑器模式
+            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertCheckbox()")
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.insertCheckbox()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
     }
     
     @objc func insertHorizontalRule(_ sender: Any?) {
