@@ -802,6 +802,25 @@ class NativeEditorContext: ObservableObject {
         // 调试：打印所有属性键
         print("[NativeEditorContext] detectFontFormats - 属性键: \(attributes.keys.map { $0.rawValue })")
         
+        // 检测标题格式 - 使用 headingLevel 自定义属性
+        // 这是最可靠的标题检测方式，因为 headingLevel 是在应用标题格式时设置的
+        if let headingLevel = attributes[.headingLevel] as? Int {
+            print("[NativeEditorContext] detectFontFormats - 检测到 headingLevel: \(headingLevel)")
+            switch headingLevel {
+            case 1:
+                formats.insert(.heading1)
+                print("[NativeEditorContext] detectFontFormats - 检测到大标题 (heading1)")
+            case 2:
+                formats.insert(.heading2)
+                print("[NativeEditorContext] detectFontFormats - 检测到二级标题 (heading2)")
+            case 3:
+                formats.insert(.heading3)
+                print("[NativeEditorContext] detectFontFormats - 检测到三级标题 (heading3)")
+            default:
+                break
+            }
+        }
+        
         guard let font = attributes[.font] as? NSFont else {
             print("[NativeEditorContext] detectFontFormats - 没有找到 .font 属性")
             return formats
@@ -812,6 +831,22 @@ class NativeEditorContext: ObservableObject {
         // 检测字体特性
         let traits = font.fontDescriptor.symbolicTraits
         print("[NativeEditorContext] detectFontFormats - 字体特性: \(traits)")
+        
+        // 如果没有通过 headingLevel 检测到标题，尝试通过字体大小检测
+        // 这是备用检测方式，用于处理旧数据或手动设置的字体大小
+        if !formats.contains(.heading1) && !formats.contains(.heading2) && !formats.contains(.heading3) {
+            let fontSize = font.pointSize
+            if fontSize >= 20 {
+                formats.insert(.heading1)
+                print("[NativeEditorContext] detectFontFormats - 通过字体大小检测到大标题: \(fontSize)")
+            } else if fontSize >= 16 && fontSize < 20 {
+                formats.insert(.heading2)
+                print("[NativeEditorContext] detectFontFormats - 通过字体大小检测到二级标题: \(fontSize)")
+            } else if fontSize >= 14 && fontSize < 16 {
+                formats.insert(.heading3)
+                print("[NativeEditorContext] detectFontFormats - 通过字体大小检测到三级标题: \(fontSize)")
+            }
+        }
         
         // 加粗检测 (需求 2.1)
         // 方法 1: 检查 symbolicTraits
