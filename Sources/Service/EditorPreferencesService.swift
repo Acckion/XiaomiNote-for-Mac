@@ -40,19 +40,29 @@ class EditorPreferencesService: ObservableObject {
         let isNativeAvailable = EditorFactory.isEditorAvailable(.native)
         self.isNativeEditorAvailable = isNativeAvailable
         
+        print("[EditorPreferencesService] 初始化")
+        print("[EditorPreferencesService]   - isNativeAvailable: \(isNativeAvailable)")
+        
         // 初始化 selectedEditorType
         if let savedType = userDefaults.string(forKey: editorTypeKey),
            let editorType = EditorType(rawValue: savedType) {
+            print("[EditorPreferencesService]   - 从 UserDefaults 读取: \(savedType)")
             // 如果保存的是原生编辑器但不可用，则回退到 Web 编辑器
             if editorType == .native && !isNativeAvailable {
                 self.selectedEditorType = .web
+                print("[EditorPreferencesService]   - 原生编辑器不可用，回退到 Web 编辑器")
             } else {
                 self.selectedEditorType = editorType
+                print("[EditorPreferencesService]   - 使用保存的编辑器类型: \(editorType.displayName)")
             }
         } else {
             // 首次使用，根据系统版本设置默认编辑器
             self.selectedEditorType = isNativeAvailable ? .native : .web
+            print("[EditorPreferencesService]   - 首次使用，默认编辑器: \(self.selectedEditorType.displayName)")
         }
+        
+        print("[EditorPreferencesService]   - 最终 selectedEditorType: \(self.selectedEditorType.displayName)")
+        print("[EditorPreferencesService]   - 最终 isNativeEditorAvailable: \(self.isNativeEditorAvailable)")
         
         // 保存初始设置
         saveEditorPreference()

@@ -256,8 +256,13 @@ class EditorFactory {
         // 检查系统版本
         if #available(macOS 13.0, *) {
             // 检查必要的框架
-            return NSClassFromString("NSTextAttachment") != nil
+            let hasNSTextAttachment = NSClassFromString("NSTextAttachment") != nil
+            print("[EditorFactory] checkNativeEditorSupport:")
+            print("[EditorFactory]   - macOS 13.0+ 可用: true")
+            print("[EditorFactory]   - NSTextAttachment 可用: \(hasNSTextAttachment)")
+            return hasNSTextAttachment
         }
+        print("[EditorFactory] checkNativeEditorSupport: macOS 13.0+ 不可用")
         return false
     }
     

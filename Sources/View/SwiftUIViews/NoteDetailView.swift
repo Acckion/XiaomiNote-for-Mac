@@ -327,11 +327,11 @@ struct NoteDetailView: View {
     private var formatMenu: some View {
         Button { showFormatMenu.toggle() } label: { Label("格式", systemImage: "textformat") }
         .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
-            if isUsingNativeEditor {
-                NativeFormatMenuView(context: nativeEditorContext) { _ in showFormatMenu = false }
-            } else {
-                WebFormatMenuView(context: webEditorContext) { _ in showFormatMenu = false }
-            }
+            FormatMenuPopoverContent(
+                nativeEditorContext: nativeEditorContext,
+                webEditorContext: webEditorContext,
+                onDismiss: { showFormatMenu = false }
+            )
         }
     }
     
@@ -1074,5 +1074,64 @@ struct ImageInsertStatusView: View {
             Text(message).font(.body).foregroundColor(.secondary).multilineTextAlignment(.center).padding(.horizontal)
             if !isInserting { Button("确定") { onDismiss(); dismiss() }.buttonStyle(.borderedProminent) }
         }.padding(30).frame(width: 400)
+    }
+}
+
+
+// MARK: - 格式菜单弹出内容视图
+
+/// 格式菜单弹出内容视图
+/// 
+/// 这个视图在每次显示时会重新检查编辑器类型，
+/// 确保显示正确的格式菜单（原生或 Web）
+@available(macOS 14.0, *)
+struct FormatMenuPopoverContent: View {
+    
+    /// 原生编辑器上下文
+    @ObservedObject var nativeEditorContext: NativeEditorContext
+    
+    /// Web 编辑器上下文
+    @ObservedObject var webEditorContext: WebEditorContext
+    
+    /// 关闭回调
+    let onDismiss: () -> Void
+    
+    /// 编辑器偏好设置服务
+    @ObservedObject private var preferencesService = EditorPreferencesService.shared
+    
+    /// 当前是否使用原生编辑器
+    private var isUsingNativeEditor: Bool {
+        preferencesService.selectedEditorType == .native && preferencesService.isNativeEditorAvailable
+    }
+    
+    var body: some View {
+        Group {
+            // 添加调试日志
+            let _ = print("显示格式菜单")
+            let _ = print("  - isUsingNativeEditor: \(isUsingNativeEditor)")
+            let _ = print("  - selectedEditorType: \(preferencesService.selectedEditorType)")
+            let _ = print("  - isNativeEditorAvailable: \(preferencesService.isNativeEditorAvailable)")
+            
+            if isUsingNativeEditor {
+                NativeFormatMenuView(context: nativeEditorContext) { _ in onDismiss() }
+            } else {
+                WebFormatMenuView(context: webEditorContext) { _ in onDismiss() }
+            }
+        }
+        .onAppear {
+            print("[FormatMenuPopoverContent] onAppear")
+            print("  - selectedEditorType: \(preferencesService.selectedEditorType.rawValue)")
+            print("  - isNativeEditorAvailable: \(preferencesService.isNativeEditorAvailable)")
+            
+            // 如果使用原生编辑器，请求内容同步并更新格式状态
+            if isUsingNativeEditor {
+                print("  - 使用原生编辑器，请求内容同步")
+                nativeEditorContext.requestContentSync()
+                // 延迟一小段时间后强制更新格式状态
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    nativeEditorContext.forceUpdateFormats()
+                }
+            }
+        }
     }
 }

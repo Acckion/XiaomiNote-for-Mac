@@ -512,7 +512,18 @@ class NativeEditorContext: ObservableObject {
     /// 
     /// 在某些情况下（如用户点击格式按钮），我们需要立即更新状态
     func forceUpdateFormats() {
+        print("[NativeEditorContext] forceUpdateFormats 被调用")
         formatStateSynchronizer.performImmediateUpdate()
+    }
+    
+    /// 请求从外部源同步内容
+    /// 
+    /// 当需要确保 nsAttributedText 是最新的时候调用此方法
+    /// 这会发送一个通知，让 NativeEditorView 同步内容
+    func requestContentSync() {
+        print("[NativeEditorContext] requestContentSync 被调用")
+        // 发送通知请求同步
+        NotificationCenter.default.post(name: .nativeEditorRequestContentSync, object: self)
     }
     
     /// 获取格式状态同步器的性能统计信息
@@ -548,7 +559,13 @@ class NativeEditorContext: ObservableObject {
     /// 增强版本 - 完善所有格式类型的状态检测
     /// 需求: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10
     func updateCurrentFormats() {
+        print("[NativeEditorContext] updateCurrentFormats 被调用")
+        print("[NativeEditorContext]   - nsAttributedText.length: \(nsAttributedText.length)")
+        print("[NativeEditorContext]   - cursorPosition: \(cursorPosition)")
+        print("[NativeEditorContext]   - selectedRange: \(selectedRange)")
+        
         guard !nsAttributedText.string.isEmpty else {
+            print("[NativeEditorContext]   - 文本为空，清除所有格式")
             clearAllFormats()
             return
         }
@@ -556,30 +573,46 @@ class NativeEditorContext: ObservableObject {
         // 确保位置有效
         let position = min(cursorPosition, nsAttributedText.length - 1)
         guard position >= 0 else {
+            print("[NativeEditorContext]   - 位置无效 (position: \(position))，清除所有格式")
             clearAllFormats()
             return
         }
         
+        print("[NativeEditorContext]   - 有效位置: \(position)")
+        
         // 获取当前位置的属性
         let attributes = nsAttributedText.attributes(at: position, effectiveRange: nil)
+        print("[NativeEditorContext]   - 属性数量: \(attributes.count)")
         
         // 检测所有格式类型
         var detectedFormats: Set<TextFormat> = []
         
         // 1. 检测字体属性（加粗、斜体、标题）
-        detectedFormats.formUnion(detectFontFormats(from: attributes))
+        let fontFormats = detectFontFormats(from: attributes)
+        detectedFormats.formUnion(fontFormats)
+        print("[NativeEditorContext]   - 字体格式: \(fontFormats.map { $0.displayName })")
         
         // 2. 检测文本装饰（下划线、删除线、高亮）
-        detectedFormats.formUnion(detectTextDecorations(from: attributes))
+        let decorationFormats = detectTextDecorations(from: attributes)
+        detectedFormats.formUnion(decorationFormats)
+        print("[NativeEditorContext]   - 装饰格式: \(decorationFormats.map { $0.displayName })")
         
         // 3. 检测段落格式（对齐方式）
-        detectedFormats.formUnion(detectParagraphFormats(from: attributes))
+        let paragraphFormats = detectParagraphFormats(from: attributes)
+        detectedFormats.formUnion(paragraphFormats)
+        print("[NativeEditorContext]   - 段落格式: \(paragraphFormats.map { $0.displayName })")
         
         // 4. 检测列表格式（无序、有序、复选框）
-        detectedFormats.formUnion(detectListFormats(at: position))
+        let listFormats = detectListFormats(at: position)
+        detectedFormats.formUnion(listFormats)
+        print("[NativeEditorContext]   - 列表格式: \(listFormats.map { $0.displayName })")
         
         // 5. 检测特殊元素格式（引用块、分割线）
-        detectedFormats.formUnion(detectSpecialElementFormats(at: position))
+        let specialFormats = detectSpecialElementFormats(at: position)
+        detectedFormats.formUnion(specialFormats)
+        print("[NativeEditorContext]   - 特殊格式: \(specialFormats.map { $0.displayName })")
+        
+        print("[NativeEditorContext]   - 检测到的所有格式: \(detectedFormats.map { $0.displayName })")
         
         // 更新状态并验证
         updateFormatsWithValidation(detectedFormats)
@@ -590,31 +623,43 @@ class NativeEditorContext: ObservableObject {
     private func detectFontFormats(from attributes: [NSAttributedString.Key: Any]) -> Set<TextFormat> {
         var formats: Set<TextFormat> = []
         
+        // 调试：打印所有属性键
+        print("[NativeEditorContext] detectFontFormats - 属性键: \(attributes.keys.map { $0.rawValue })")
+        
         guard let font = attributes[.font] as? NSFont else {
+            print("[NativeEditorContext] detectFontFormats - 没有找到 .font 属性")
             return formats
         }
         
+        print("[NativeEditorContext] detectFontFormats - 字体: \(font.fontName), 大小: \(font.pointSize)")
+        
         // 检测字体特性
         let traits = font.fontDescriptor.symbolicTraits
+        print("[NativeEditorContext] detectFontFormats - 字体特性: \(traits)")
         
         // 加粗检测 (需求 2.1)
         if traits.contains(.bold) {
             formats.insert(.bold)
+            print("[NativeEditorContext] detectFontFormats - 检测到粗体")
         }
         
         // 斜体检测 (需求 2.2)
         if traits.contains(.italic) {
             formats.insert(.italic)
+            print("[NativeEditorContext] detectFontFormats - 检测到斜体")
         }
         
         // 标题检测 (需求 2.6)
         let fontSize = font.pointSize
         if fontSize >= 24 {
             formats.insert(.heading1)
+            print("[NativeEditorContext] detectFontFormats - 检测到大标题 (fontSize: \(fontSize))")
         } else if fontSize >= 20 {
             formats.insert(.heading2)
+            print("[NativeEditorContext] detectFontFormats - 检测到二级标题 (fontSize: \(fontSize))")
         } else if fontSize >= 16 && fontSize < 20 {
             formats.insert(.heading3)
+            print("[NativeEditorContext] detectFontFormats - 检测到三级标题 (fontSize: \(fontSize))")
         }
         
         return formats
