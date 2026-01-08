@@ -56,8 +56,8 @@ struct NoteDetailView: View {
     // 原生编辑器上下文（用于原生编辑器）
     @StateObject private var nativeEditorContext = NativeEditorContext()
     
-    // 编辑器偏好设置服务
-    @StateObject private var editorPreferencesService = EditorPreferencesService.shared
+    // 编辑器偏好设置服务 - 使用 @ObservedObject 因为是单例
+    @ObservedObject private var editorPreferencesService = EditorPreferencesService.shared
     
     /// 当前是否使用原生编辑器
     private var isUsingNativeEditor: Bool {
@@ -247,6 +247,7 @@ struct NoteDetailView: View {
                     content: $currentXMLContent,
                     isEditable: $isEditable,
                     webEditorContext: webEditorContext,
+                    nativeEditorContext: nativeEditorContext,
                     noteRawData: {
                         if let rawData = note.rawData, let jsonData = try? JSONSerialization.data(withJSONObject: rawData, options: []) {
                             return String(data: jsonData, encoding: .utf8)
@@ -453,19 +454,18 @@ struct NoteDetailView: View {
     /// - Parameter note: 笔记对象
     @MainActor
     private func quickSwitchToNote(_ note: Note) async {
+        // 关键修复：在最开始就更新 currentEditingNoteId，确保后续所有操作都针对正确的笔记
+        currentEditingNoteId = note.id
+        Swift.print("[快速切换] 🔄 开始切换到笔记 - ID: \(note.id.prefix(8))..., 标题: \(note.title)")
+        
         // 1. 立即显示占位符（<1ms）
         isInitializing = true
-        currentEditingNoteId = note.id
         
-        // 立即更新标题（显示占位符）
+        // 关键修复：立即更新标题，不要等待内容加载
         let title = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
         editedTitle = title
         originalTitle = title
-        
-        // 清空内容，显示加载状态
-        currentXMLContent = ""
-        lastSavedXMLContent = ""
-        originalXMLContent = ""
+        Swift.print("[快速切换] 📝 标题已更新: \(title)")
         
         // 取消之前的保存任务
         htmlSaveTask?.cancel()
@@ -475,14 +475,18 @@ struct NoteDetailView: View {
         xmlSaveTask = nil
         xmlSaveDebounceTask = nil
         
+        // 关键修复：清空内容前先记录，避免在加载过程中被覆盖
+        currentXMLContent = ""
+        lastSavedXMLContent = ""
+        originalXMLContent = ""
+        
         // 2. 尝试从内存缓存获取完整笔记
         let cachedNote = await MemoryCacheManager.shared.getNote(noteId: note.id)
         if let cachedNote = cachedNote {
             // 关键修复：验证缓存的笔记ID是否匹配
             if cachedNote.id == note.id {
-                Swift.print("[快速切换] 内存缓存命中 - ID: \(note.id.prefix(8))...")
+                Swift.print("[快速切换] ✅ 内存缓存命中 - ID: \(note.id.prefix(8))...")
                 await loadNoteContentFromCache(cachedNote)
-                
                 return
             } else {
                 Swift.print("[快速切换] ⚠️ 缓存笔记ID不匹配，忽略缓存 - 缓存ID: \(cachedNote.id.prefix(8))..., 期望ID: \(note.id.prefix(8))...")
@@ -490,28 +494,27 @@ struct NoteDetailView: View {
             }
         }
         
-        // 3. 尝试从HTML缓存快速加载（注意：DatabaseService中没有HTML缓存方法）
-        // 直接加载完整内容
-        Swift.print("[快速切换] 直接加载完整内容 - ID: \(note.id.prefix(8))...")
-        await loadNoteContent(note)
-        
-        // 4. 从数据库加载完整内容
-        Swift.print("[快速切换] 从数据库加载 - ID: \(note.id.prefix(8))...")
+        // 3. 从数据库加载完整内容
+        Swift.print("[快速切换] 📂 从数据库加载 - ID: \(note.id.prefix(8))...")
         await loadNoteContent(note)
     }
     
     /// 从缓存加载笔记内容
     @MainActor
     private func loadNoteContentFromCache(_ note: Note) async {
-        // 重置状态
-        currentXMLContent = ""
-        lastSavedXMLContent = ""
-        originalXMLContent = ""
+        // 关键修复：确保笔记ID匹配
+        guard note.id == currentEditingNoteId else {
+            Swift.print("[快速切换] ⚠️ loadNoteContentFromCache: 笔记ID不匹配，取消加载 - 传入ID: \(note.id.prefix(8))..., 当前编辑ID: \(currentEditingNoteId?.prefix(8) ?? "nil")")
+            return
+        }
         
-        // 加载标题
+        // 加载标题（不要重置，因为在 quickSwitchToNote 中已经设置）
         let title = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
-        editedTitle = title
-        originalTitle = title
+        if editedTitle != title {
+            editedTitle = title
+            originalTitle = title
+            Swift.print("[快速切换] 📝 从缓存更新标题: \(title)")
+        }
         
         // 加载内容
         currentXMLContent = note.primaryXMLContent
@@ -522,6 +525,13 @@ struct NoteDetailView: View {
         
         // 短暂延迟以确保编辑器正确初始化
         try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        
+        // 再次验证笔记ID（防止在延迟期间切换了笔记）
+        guard note.id == currentEditingNoteId else {
+            Swift.print("[快速切换] ⚠️ 延迟后笔记ID不匹配，取消显示 - 传入ID: \(note.id.prefix(8))..., 当前编辑ID: \(currentEditingNoteId?.prefix(8) ?? "nil")")
+            return
+        }
+        
         isInitializing = false
     }
     
@@ -577,6 +587,12 @@ struct NoteDetailView: View {
     
     @MainActor
     private func loadNoteContent(_ note: Note) async {
+        // 关键修复：确保笔记ID匹配
+        guard note.id == currentEditingNoteId else {
+            Swift.print("[笔记切换] ⚠️ loadNoteContent: 笔记ID不匹配，取消加载 - 传入ID: \(note.id.prefix(8))..., 当前编辑ID: \(currentEditingNoteId?.prefix(8) ?? "nil")")
+            return
+        }
+        
         // 防止内容污染：在加载新笔记前，确保所有状态正确重置
         isInitializing = true
         
@@ -588,28 +604,30 @@ struct NoteDetailView: View {
         xmlSaveTask = nil
         xmlSaveDebounceTask = nil
         
-        // 1. 首先重置所有内容相关的状态
-        currentXMLContent = ""
-        lastSavedXMLContent = ""
-        originalXMLContent = ""
-        
-        // 2. 更新当前编辑的笔记ID
-        currentEditingNoteId = note.id
-        
-        // 3. 加载标题
+        // 1. 加载标题（不要重置，因为在 quickSwitchToNote 中已经设置）
         let title = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
-        editedTitle = title
-        originalTitle = title
+        if editedTitle != title {
+            editedTitle = title
+            originalTitle = title
+            Swift.print("[笔记切换] 📝 更新标题: \(title)")
+        }
         
-        // 4. 加载内容
+        // 2. 加载内容
         currentXMLContent = note.primaryXMLContent
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
         
-        // 5. 如果内容为空，确保获取完整内容
+        // 3. 如果内容为空，确保获取完整内容
         if note.content.isEmpty {
             await viewModel.ensureNoteHasFullContent(note)
-            if let updated = viewModel.selectedNote {
+            
+            // 再次验证笔记ID
+            guard note.id == currentEditingNoteId else {
+                Swift.print("[笔记切换] ⚠️ 获取完整内容后笔记ID不匹配，取消更新 - 传入ID: \(note.id.prefix(8))..., 当前编辑ID: \(currentEditingNoteId?.prefix(8) ?? "nil")")
+                return
+            }
+            
+            if let updated = viewModel.selectedNote, updated.id == note.id {
                 currentXMLContent = updated.primaryXMLContent
                 lastSavedXMLContent = currentXMLContent
                 
@@ -621,11 +639,18 @@ struct NoteDetailView: View {
             await MemoryCacheManager.shared.cacheNote(note)
         }
         
-        // 6. 添加日志以便调试
+        // 4. 添加日志以便调试
         Swift.print("[笔记切换] ✅ 加载笔记内容 - ID: \(note.id.prefix(8))..., 标题: \(title), 内容长度: \(currentXMLContent.count)")
         
-        // 7. 短暂延迟以确保编辑器正确初始化
+        // 5. 短暂延迟以确保编辑器正确初始化
         try? await Task.sleep(nanoseconds: 100_000_000)
+        
+        // 再次验证笔记ID（防止在延迟期间切换了笔记）
+        guard note.id == currentEditingNoteId else {
+            Swift.print("[笔记切换] ⚠️ 延迟后笔记ID不匹配，取消显示 - 传入ID: \(note.id.prefix(8))..., 当前编辑ID: \(currentEditingNoteId?.prefix(8) ?? "nil")")
+            return
+        }
+        
         isInitializing = false
     }
     

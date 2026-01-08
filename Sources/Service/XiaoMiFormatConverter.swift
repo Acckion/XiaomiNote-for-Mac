@@ -114,6 +114,9 @@ class XiaoMiFormatConverter {
     /// 当前有序列表编号（用于跟踪连续列表）
     private var currentOrderedListNumber: Int = 1
     
+    /// 当前文件夹 ID（用于图片加载）
+    private var currentFolderId: String?
+    
     // MARK: - Public Methods
     
     /// 将 AttributedString 转换为小米笔记 XML 格式
@@ -206,13 +209,18 @@ class XiaoMiFormatConverter {
     }
     
     /// 将小米笔记 XML 转换为 AttributedString
-    /// - Parameter xml: 小米笔记 XML 格式字符串
+    /// - Parameters:
+    ///   - xml: 小米笔记 XML 格式字符串
+    ///   - folderId: 文件夹 ID（用于图片加载）
     /// - Returns: 转换后的 AttributedString
     /// - Throws: ConversionError
-    func xmlToAttributedString(_ xml: String) throws -> AttributedString {
+    func xmlToAttributedString(_ xml: String, folderId: String? = nil) throws -> AttributedString {
         guard !xml.isEmpty else {
             return AttributedString()
         }
+        
+        // 设置当前文件夹 ID
+        self.currentFolderId = folderId
         
         // 重置列表状态
         resetListState()
@@ -225,14 +233,181 @@ class XiaoMiFormatConverter {
             let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedLine.isEmpty else { continue }
             
+            let attributedFragment = try processXMLLine(trimmedLine)
+            
+            // 跳过空的片段（如 <new-format/> 标签）
+            guard !attributedFragment.characters.isEmpty else { continue }
+            
             // 在非第一行之前添加换行符
             if !isFirstLine {
                 result.append(AttributedString("\n"))
             }
             isFirstLine = false
             
-            let attributedFragment = try processXMLLine(trimmedLine)
             result.append(attributedFragment)
+        }
+        
+        return result
+    }
+    
+    /// 将小米笔记 XML 直接转换为 NSAttributedString
+    /// 此方法避免了 AttributedString 中转，可以正确保留自定义 NSTextAttachment 子类（如 ImageAttachment）
+    /// - Parameters:
+    ///   - xml: 小米笔记 XML 格式字符串
+    ///   - folderId: 文件夹 ID（用于图片加载）
+    /// - Returns: 转换后的 NSAttributedString
+    /// - Throws: ConversionError
+    func xmlToNSAttributedString(_ xml: String, folderId: String? = nil) throws -> NSAttributedString {
+        guard !xml.isEmpty else {
+            return NSAttributedString()
+        }
+        
+        // 设置当前文件夹 ID
+        self.currentFolderId = folderId
+        
+        // 重置列表状态
+        resetListState()
+        
+        let result = NSMutableAttributedString()
+        let lines = xml.components(separatedBy: .newlines)
+        var isFirstLine = true
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedLine.isEmpty else { continue }
+            
+            let nsAttributedFragment = try processXMLLineToNSAttributedString(trimmedLine)
+            
+            // 跳过空的片段（如 <new-format/> 标签）
+            guard nsAttributedFragment.length > 0 else { continue }
+            
+            // 在非第一行之前添加换行符
+            if !isFirstLine {
+                result.append(NSAttributedString(string: "\n"))
+            }
+            isFirstLine = false
+            
+            result.append(nsAttributedFragment)
+        }
+        
+        return result
+    }
+    
+    /// 处理单行 XML 并返回 NSAttributedString
+    /// - Parameter line: XML 行
+    /// - Returns: 对应的 NSAttributedString 片段
+    /// - Throws: ConversionError
+    private func processXMLLineToNSAttributedString(_ line: String) throws -> NSAttributedString {
+        // 忽略 <new-format/> 标签 - 这是小米笔记的格式标记，不需要渲染
+        if line.hasPrefix("<new-format") {
+            return NSAttributedString()
+        } else if line.hasPrefix("<text") {
+            return try processTextElementToNSAttributedString(line)
+        } else if line.hasPrefix("<bullet") {
+            return try processBulletElementToNSAttributedString(line)
+        } else if line.hasPrefix("<order") {
+            return try processOrderElementToNSAttributedString(line)
+        } else if line.hasPrefix("<input type=\"checkbox\"") {
+            return try processCheckboxElementToNSAttributedString(line)
+        } else if line.hasPrefix("<hr") {
+            return try processHRElementToNSAttributedString(line)
+        } else if line.hasPrefix("<quote>") {
+            return try processQuoteElementToNSAttributedString(line)
+        } else if line.hasPrefix("<img") {
+            return try processImageElementToNSAttributedString(line)
+        } else {
+            throw ConversionError.unsupportedElement(line)
+        }
+    }
+    
+    /// 处理 <text> 元素并返回 NSAttributedString
+    private func processTextElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
+        // 复用现有逻辑，然后转换
+        let attributedString = try processTextElement(line)
+        return try NSAttributedString(attributedString, including: \.appKit)
+    }
+    
+    /// 处理 <bullet> 元素并返回 NSAttributedString
+    private func processBulletElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
+        let attributedString = try processBulletElement(line)
+        return try NSAttributedString(attributedString, including: \.appKit)
+    }
+    
+    /// 处理 <order> 元素并返回 NSAttributedString
+    private func processOrderElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
+        let attributedString = try processOrderElement(line)
+        return try NSAttributedString(attributedString, including: \.appKit)
+    }
+    
+    /// 处理 <input type="checkbox"> 元素并返回 NSAttributedString
+    private func processCheckboxElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
+        let attributedString = try processCheckboxElement(line)
+        return try NSAttributedString(attributedString, including: \.appKit)
+    }
+    
+    /// 处理 <hr> 元素并返回 NSAttributedString（直接创建，不经过 AttributedString）
+    private func processHRElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
+        // 创建分割线附件
+        let attachment = CustomRenderer.shared.createHorizontalRuleAttachment()
+        
+        // 直接创建 NSAttributedString，不经过 AttributedString 转换
+        let result = NSMutableAttributedString(attachment: attachment)
+        result.append(NSAttributedString(string: "\n"))
+        
+        return result
+    }
+    
+    /// 处理 <quote> 元素并返回 NSAttributedString
+    private func processQuoteElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
+        let attributedString = try processQuoteElement(line)
+        return try NSAttributedString(attributedString, including: \.appKit)
+    }
+    
+    /// 处理 <img> 元素并返回 NSAttributedString（直接创建，不经过 AttributedString）
+    /// 这是关键方法 - 直接返回 NSAttributedString 以保留 ImageAttachment 类型
+    private func processImageElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
+        print("[XiaoMiFormatConverter] 🖼️ processImageElementToNSAttributedString 开始")
+        print("[XiaoMiFormatConverter] 🖼️ XML 行: \(line)")
+        
+        // 提取图片属性
+        let src = extractAttribute("src", from: line) ?? ""
+        let fileId = extractAttribute("fileid", from: line) ?? extractAttribute("fileId", from: line)
+        let folderId = extractAttribute("folderId", from: line) ?? currentFolderId
+        let width = extractAttribute("width", from: line)
+        let height = extractAttribute("height", from: line)
+        
+        print("[XiaoMiFormatConverter] 🖼️ 解析结果:")
+        print("[XiaoMiFormatConverter]   - src: '\(src)'")
+        print("[XiaoMiFormatConverter]   - fileId: '\(fileId ?? "nil")'")
+        print("[XiaoMiFormatConverter]   - folderId: '\(folderId ?? "nil")'")
+        
+        // 创建图片附件
+        let attachment = CustomRenderer.shared.createImageAttachment(
+            src: src.isEmpty ? nil : src,
+            fileId: fileId,
+            folderId: folderId
+        )
+        
+        // 如果有宽度和高度属性，设置显示尺寸
+        if let widthStr = width, let heightStr = height,
+           let w = Double(widthStr), let h = Double(heightStr) {
+            attachment.displaySize = NSSize(width: w, height: h)
+        }
+        
+        // 直接创建 NSAttributedString，不经过 AttributedString 转换
+        // 这样可以保留 ImageAttachment 的类型信息
+        let result = NSMutableAttributedString(attachment: attachment)
+        
+        print("[XiaoMiFormatConverter] 🖼️ NSAttributedString 创建完成")
+        print("[XiaoMiFormatConverter]   - result.length: \(result.length)")
+        
+        // 验证附件是否正确保留
+        result.enumerateAttribute(.attachment, in: NSRange(location: 0, length: result.length), options: []) { value, range, _ in
+            if let att = value as? ImageAttachment {
+                print("[XiaoMiFormatConverter] ✅ ImageAttachment 正确保留: fileId='\(att.fileId ?? "nil")', src='\(att.src ?? "nil")'")
+            } else if let att = value {
+                print("[XiaoMiFormatConverter] ⚠️ 附件类型: \(type(of: att))")
+            }
         }
         
         return result
@@ -258,7 +433,10 @@ class XiaoMiFormatConverter {
     /// - Returns: 对应的 AttributedString 片段
     /// - Throws: ConversionError
     private func processXMLLine(_ line: String) throws -> AttributedString {
-        if line.hasPrefix("<text") {
+        // 忽略 <new-format/> 标签 - 这是小米笔记的格式标记，不需要渲染
+        if line.hasPrefix("<new-format") {
+            return AttributedString()
+        } else if line.hasPrefix("<text") {
             return try processTextElement(line)
         } else if line.hasPrefix("<bullet") {
             return try processBulletElement(line)
@@ -296,7 +474,18 @@ class XiaoMiFormatConverter {
         // 创建 AttributedString
         var attributedString = AttributedString(processedText)
         
-        // 应用富文本属性 - 使用 AppKit 属性
+        // 检测是否有对齐属性（从 <center> 或 <right> 标签）
+        var detectedAlignment: NSTextAlignment = .left
+        for (_, attrs) in nsAttributes {
+            if let paragraphStyle = attrs[.paragraphStyle] as? NSParagraphStyle {
+                if paragraphStyle.alignment != .left {
+                    detectedAlignment = paragraphStyle.alignment
+                    break
+                }
+            }
+        }
+        
+        // 应用富文本属性 - 使用 AppKit 属性（跳过段落样式，稍后统一处理）
         for (range, attrs) in nsAttributes {
             // 确保范围有效
             guard range.location >= 0 && range.location + range.length <= processedText.count else {
@@ -333,9 +522,8 @@ class XiaoMiFormatConverter {
                         container.appKit.strikethroughStyle = NSUnderlineStyle(rawValue: style)
                     }
                 case .paragraphStyle:
-                    if let style = value as? NSParagraphStyle {
-                        container.appKit.paragraphStyle = style
-                    }
+                    // 跳过段落样式，稍后统一处理以保留对齐方式
+                    break
                 default:
                     break
                 }
@@ -344,9 +532,9 @@ class XiaoMiFormatConverter {
             attributedString[attributedRange].mergeAttributes(container)
         }
         
-        // 设置段落样式
+        // 设置段落样式（包含缩进和对齐方式）
         var paragraphContainer = AttributeContainer()
-        paragraphContainer.appKit.paragraphStyle = createParagraphStyle(indent: Int(indent) ?? 1)
+        paragraphContainer.appKit.paragraphStyle = createParagraphStyle(indent: Int(indent) ?? 1, alignment: detectedAlignment)
         attributedString.mergeAttributes(paragraphContainer)
         
         return attributedString
@@ -434,11 +622,15 @@ class XiaoMiFormatConverter {
     /// - Returns: AttributedString 片段
     /// - Throws: ConversionError
     private func processHRElement(_ line: String) throws -> AttributedString {
-        // 创建分割线的文本表示
-        var result = AttributedString("───────────────────────────────────────\n")
+        // 创建分割线附件
+        let attachment = CustomRenderer.shared.createHorizontalRuleAttachment()
         
-        // 设置分割线的样式
-        result.foregroundColor = .secondary
+        // 创建包含附件的 AttributedString
+        let attachmentString = NSAttributedString(attachment: attachment)
+        var result = AttributedString(attachmentString)
+        
+        // 添加换行符
+        result.append(AttributedString("\n"))
         
         return result
     }
@@ -474,30 +666,57 @@ class XiaoMiFormatConverter {
     /// - Returns: AttributedString 片段
     /// - Throws: ConversionError
     private func processImageElement(_ line: String) throws -> AttributedString {
+        print("[XiaoMiFormatConverter] 🖼️ 开始解析图片元素")
+        print("[XiaoMiFormatConverter] 🖼️ XML 行: \(line)")
+        
         // 提取图片属性
+        // 注意：小米笔记 XML 中使用 "fileid"（全小写），需要同时支持两种格式
         let src = extractAttribute("src", from: line) ?? ""
-        let fileId = extractAttribute("fileId", from: line)
-        let folderId = extractAttribute("folderId", from: line)
+        let fileId = extractAttribute("fileid", from: line) ?? extractAttribute("fileId", from: line)
+        let folderId = extractAttribute("folderId", from: line) ?? currentFolderId
         let width = extractAttribute("width", from: line)
         let height = extractAttribute("height", from: line)
         
+        // 提取小米笔记特有的属性
+        let imgshow = extractAttribute("imgshow", from: line)
+        let imgdes = extractAttribute("imgdes", from: line)
+        
+        print("[XiaoMiFormatConverter] 🖼️ 解析结果:")
+        print("[XiaoMiFormatConverter]   - src: '\(src)'")
+        print("[XiaoMiFormatConverter]   - fileId: '\(fileId ?? "nil")'")
+        print("[XiaoMiFormatConverter]   - folderId: '\(folderId ?? "nil")'")
+        print("[XiaoMiFormatConverter]   - currentFolderId: '\(currentFolderId ?? "nil")'")
+        print("[XiaoMiFormatConverter]   - width: '\(width ?? "nil")'")
+        print("[XiaoMiFormatConverter]   - height: '\(height ?? "nil")'")
+        print("[XiaoMiFormatConverter]   - imgshow: '\(imgshow ?? "nil")'")
+        print("[XiaoMiFormatConverter]   - imgdes: '\(imgdes ?? "nil")'")
+        
         // 创建图片附件
+        print("[XiaoMiFormatConverter] 🖼️ 创建图片附件，参数: src='\(src.isEmpty ? "nil" : src)', fileId='\(fileId ?? "nil")', folderId='\(folderId ?? "nil")'")
         let attachment = CustomRenderer.shared.createImageAttachment(
             src: src.isEmpty ? nil : src,
             fileId: fileId,
             folderId: folderId
         )
+        print("[XiaoMiFormatConverter] 🖼️ 图片附件创建完成，attachment.src='\(attachment.src ?? "nil")', attachment.fileId='\(attachment.fileId ?? "nil")'")
         
         // 如果有宽度和高度属性，设置显示尺寸
         if let widthStr = width, let heightStr = height,
            let w = Double(widthStr), let h = Double(heightStr) {
             attachment.displaySize = NSSize(width: w, height: h)
+            print("[XiaoMiFormatConverter] 🖼️ 设置显示尺寸: \(w) x \(h)")
         }
         
         // 创建包含附件的 AttributedString
         let attachmentString = NSAttributedString(attachment: attachment)
         var result = AttributedString(attachmentString)
         
+        print("[XiaoMiFormatConverter] 🖼️ NSAttributedString 创建完成")
+        print("[XiaoMiFormatConverter]   - attachmentString.length: \(attachmentString.length)")
+        print("[XiaoMiFormatConverter]   - attachmentString.string: '\(attachmentString.string)'")
+        print("[XiaoMiFormatConverter]   - result.characters.count: \(result.characters.count)")
+        
+        print("[XiaoMiFormatConverter] 🖼️ 图片元素解析完成")
         return result
     }
     
@@ -566,11 +785,11 @@ class XiaoMiFormatConverter {
         if let imageAttachment = attachment as? ImageAttachment {
             var xmlAttrs: [String] = []
             
-            if let src = imageAttachment.src {
+            if let src = imageAttachment.src, !src.isEmpty {
                 xmlAttrs.append("src=\"\(src)\"")
-            } else if let fileId = imageAttachment.fileId, let folderId = imageAttachment.folderId {
-                // 生成 minote:// URL
-                let minoteURL = ImageStorageManager.shared.generateMinoteURL(fileId: fileId, folderId: folderId)
+            } else if let fileId = imageAttachment.fileId {
+                // 生成 minote:// URL（统一格式，不需要 folderId）
+                let minoteURL = ImageStorageManager.shared.generateMinoteURL(fileId: fileId)
                 xmlAttrs.append("src=\"\(minoteURL)\"")
             }
             
@@ -587,9 +806,9 @@ class XiaoMiFormatConverter {
         // 默认情况，可能是普通图片或其他类型
         if let image = attachment.image {
             // 普通图片附件，尝试保存并生成 XML
-            let folderId = "default"
-            if let saveResult = ImageStorageManager.shared.saveImage(image, folderId: folderId) {
-                let minoteURL = ImageStorageManager.shared.generateMinoteURL(fileId: saveResult.fileId, folderId: folderId)
+            // 使用统一的 images/{imageId}.jpg 格式
+            if let saveResult = ImageStorageManager.shared.saveImage(image) {
+                let minoteURL = ImageStorageManager.shared.generateMinoteURL(fileId: saveResult.fileId)
                 return "<img src=\"\(minoteURL)\" width=\"\(Int(image.size.width))\" height=\"\(Int(image.size.height))\" />"
             }
         }
@@ -808,12 +1027,15 @@ class XiaoMiFormatConverter {
     }
     
     /// 创建段落样式
-    /// - Parameter indent: 缩进级别
+    /// - Parameters:
+    ///   - indent: 缩进级别
+    ///   - alignment: 对齐方式（默认为左对齐）
     /// - Returns: NSParagraphStyle
-    private func createParagraphStyle(indent: Int) -> NSParagraphStyle {
+    private func createParagraphStyle(indent: Int, alignment: NSTextAlignment = .left) -> NSParagraphStyle {
         let style = NSMutableParagraphStyle()
         style.firstLineHeadIndent = CGFloat((indent - 1) * 20)
         style.headIndent = CGFloat((indent - 1) * 20)
+        style.alignment = alignment
         return style
     }
     

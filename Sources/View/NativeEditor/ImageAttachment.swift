@@ -94,14 +94,39 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         calculateDisplaySize()
     }
     
-    /// 便捷初始化方法 - 从 URL 创建（延迟加载）
+    /// 便捷初始化方法 - 从 URL 创建（立即加载）
     convenience init(src: String, fileId: String? = nil, folderId: String? = nil) {
         self.init(data: nil, ofType: nil)
         self.src = src
         self.fileId = fileId
         self.folderId = folderId
         self.isLoading = true
+        print("[ImageAttachment] 🖼️ 初始化（立即加载）")
+        print("[ImageAttachment]   - src: '\(src)'")
+        print("[ImageAttachment]   - fileId: '\(fileId ?? "nil")'")
+        print("[ImageAttachment]   - folderId: '\(folderId ?? "nil")'")
+        print("[ImageAttachment]   - 附件对象地址: \(Unmanaged.passUnretained(self).toOpaque())")
         setupPlaceholder()
+        
+        // 立即开始加载图片，不等待 image(forBounds:) 被调用
+        startLoadingImage()
+    }
+    
+    /// 开始加载图片
+    private func startLoadingImage() {
+        print("[ImageAttachment] 🖼️ startLoadingImage 被调用")
+        
+        if let fileId = fileId {
+            print("[ImageAttachment] 🖼️ 使用 fileId 加载: \(fileId)")
+            loadImageFromLocalStorage(fileId: fileId, folderId: folderId ?? "0")
+        } else if let src = src {
+            print("[ImageAttachment] 🖼️ 使用 src 加载: \(src)")
+            loadImageFromSource(src)
+        } else {
+            print("[ImageAttachment] ❌ 无法加载：没有 fileId 也没有 src")
+            isLoading = false
+            loadFailed = true
+        }
     }
     
     private func setupAttachment() {
@@ -114,25 +139,44 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     override func image(forBounds imageBounds: CGRect,
                        textContainer: NSTextContainer?,
                        characterIndex charIndex: Int) -> NSImage? {
+        print("[ImageAttachment] 🖼️ image(forBounds:) 被调用")
+        print("[ImageAttachment]   - 附件对象地址: \(Unmanaged.passUnretained(self).toOpaque())")
+        print("[ImageAttachment]   - imageBounds: \(imageBounds)")
+        print("[ImageAttachment]   - characterIndex: \(charIndex)")
+        print("[ImageAttachment]   - fileId: '\(fileId ?? "nil")'")
+        print("[ImageAttachment]   - src: '\(src ?? "nil")'")
+        
         updateTheme()
         
         if let cached = cachedImage {
+            print("[ImageAttachment] 🖼️ image(forBounds:) - 返回缓存图片")
             return cached
         }
         
         if isLoading || loadFailed {
+            print("[ImageAttachment] 🖼️ image(forBounds:) - 返回占位符（isLoading=\(isLoading), loadFailed=\(loadFailed)）")
             return placeholderImage ?? createPlaceholderImage()
         }
         
         if let image = self.image {
+            print("[ImageAttachment] 🖼️ image(forBounds:) - 返回已加载的图片")
             cachedImage = image
             return image
         }
         
+        print("[ImageAttachment] 🖼️ image(forBounds:) - 开始加载图片")
+        print("[ImageAttachment]   - fileId: '\(fileId ?? "nil")'")
+        print("[ImageAttachment]   - folderId: '\(folderId ?? "nil")'")
+        print("[ImageAttachment]   - src: '\(src ?? "nil")'")
+        
         if let fileId = fileId, let folderId = folderId {
+            print("[ImageAttachment] 🖼️ 使用 fileId + folderId 加载")
             loadImageFromLocalStorage(fileId: fileId, folderId: folderId)
         } else if let src = src {
+            print("[ImageAttachment] 🖼️ 使用 src 加载: \(src)")
             loadImageFromSource(src)
+        } else {
+            print("[ImageAttachment] ❌ 无法加载：没有 fileId/folderId 也没有 src")
         }
         
         return placeholderImage ?? createPlaceholderImage()
@@ -171,26 +215,53 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - Image Loading
     
+    /// 从本地存储加载图片
+    /// 仅使用 images/{userId}.{fileId}.{format} 格式
     private func loadImageFromLocalStorage(fileId: String, folderId: String) {
         isLoading = true
+        print("[ImageAttachment] 🖼️ loadImageFromLocalStorage 开始")
+        print("[ImageAttachment]   - fileId: \(fileId)")
+        print("[ImageAttachment]   - folderId: \(folderId)（已废弃，不再使用）")
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let imageData = LocalStorageService.shared.getImage(imageId: fileId, folderId: folderId)
+            let localStorage = LocalStorageService.shared
+            
+            // 仅使用统一的 images/{userId}.{fileId}.{format} 格式加载
+            let result = localStorage.loadImageWithFullFormatAllFormats(fullFileId: fileId)
             
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 
-                if let data = imageData, let image = NSImage(data: data) {
-                    self.image = image
-                    self.originalSize = image.size
+                if let (data, format) = result, let loadedImage = NSImage(data: data) {
+                    print("[ImageAttachment] ✅ 图片加载成功: \(fileId).\(format), 尺寸: \(loadedImage.size)")
+                    self.originalSize = loadedImage.size
                     self.calculateDisplaySize()
-                    self.cachedImage = image
+                    self.cachedImage = loadedImage
                     self.isLoading = false
                     self.loadFailed = false
+                    
+                    // 关键：更新 self.image 以便 NSTextView 显示
+                    self.image = loadedImage
+                    print("[ImageAttachment] ✅ 已更新 self.image")
+                    
+                    // 通知需要刷新显示
                     self.onLoadComplete?(true)
+                    
+                    // 发送通知让 NSTextView 刷新
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("ImageAttachmentDidLoad"),
+                        object: self
+                    )
                 } else {
+                    print("[ImageAttachment] ❌ 无法加载图片: \(fileId)")
+                    print("[ImageAttachment] ❌ 仅尝试 images/\(fileId).{format} 格式，未找到图片文件")
                     self.isLoading = false
                     self.loadFailed = true
+                    
+                    // 更新占位符为错误状态
+                    self.placeholderImage = self.createPlaceholderImage()
+                    self.image = self.placeholderImage
+                    
                     self.onLoadComplete?(false)
                 }
             }
@@ -199,44 +270,77 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     private func loadImageFromSource(_ src: String) {
         isLoading = true
+        print("[ImageAttachment] 🖼️ loadImageFromSource: \(src)")
         
         if src.hasPrefix("minote://") {
+            print("[ImageAttachment] 🖼️ 检测到 minote:// URL，调用 loadFromMinoteURL")
             loadFromMinoteURL(src)
         } else if src.hasPrefix("http://") || src.hasPrefix("https://") {
+            print("[ImageAttachment] 🖼️ 检测到 http(s):// URL，调用 loadFromRemoteURL")
             loadFromRemoteURL(src)
         } else {
+            print("[ImageAttachment] 🖼️ 检测到本地路径，调用 loadFromLocalPath")
             loadFromLocalPath(src)
         }
     }
     
     private func loadFromMinoteURL(_ urlString: String) {
+        print("[ImageAttachment] 🖼️ loadFromMinoteURL: \(urlString)")
+        
         guard let url = URL(string: urlString) else {
+            print("[ImageAttachment] ❌ 无效的 URL: \(urlString)")
             loadFailed = true
             isLoading = false
             return
         }
         
         let pathComponents = url.pathComponents.filter { $0 != "/" }
+        print("[ImageAttachment] 🖼️ URL 路径组件: \(pathComponents)")
+        print("[ImageAttachment] 🖼️ URL host: \(url.host ?? "nil")")
         
+        // 格式1: minote://images/{folderId}/{fileName}
         if pathComponents.count >= 3 && pathComponents[0] == "images" {
             let folderId = pathComponents[1]
             let fileName = pathComponents[2]
             let fileId = (fileName as NSString).deletingPathExtension
             
+            print("[ImageAttachment] 🖼️ 格式1: minote://images/{folderId}/{fileName}")
+            print("[ImageAttachment]   - folderId: \(folderId)")
+            print("[ImageAttachment]   - fileId: \(fileId)")
+            
             self.folderId = folderId
             self.fileId = fileId
             
             loadImageFromLocalStorage(fileId: fileId, folderId: folderId)
-        } else if let host = url.host {
+        }
+        // 格式2: minote://image/{fileId} (Web 端生成的格式，没有 folderId)
+        else if pathComponents.count >= 2 && pathComponents[0] == "image" {
+            let fileId = pathComponents[1]
+            self.fileId = fileId
+            
+            // 使用已有的 folderId（可能是 "0" 代表未分类），或者使用 "0" 作为默认值
+            let effectiveFolderId = self.folderId ?? "0"
+            
+            print("[ImageAttachment] 🖼️ 格式2: minote://image/{fileId}")
+            print("[ImageAttachment]   - fileId: \(fileId)")
+            print("[ImageAttachment]   - effectiveFolderId: \(effectiveFolderId)")
+            
+            loadImageFromLocalStorage(fileId: fileId, folderId: effectiveFolderId)
+        }
+        // 格式3: minote://{fileId} (host 格式)
+        else if let host = url.host {
             self.fileId = host
             
-            if let folderId = self.folderId {
-                loadImageFromLocalStorage(fileId: host, folderId: folderId)
-            } else {
-                loadFailed = true
-                isLoading = false
-            }
+            // 使用已有的 folderId，或者使用 "0" 作为默认值
+            let effectiveFolderId = self.folderId ?? "0"
+            
+            print("[ImageAttachment] 🖼️ 格式3: minote://{fileId} (host)")
+            print("[ImageAttachment]   - fileId: \(host)")
+            print("[ImageAttachment]   - effectiveFolderId: \(effectiveFolderId)")
+            
+            loadImageFromLocalStorage(fileId: host, folderId: effectiveFolderId)
         } else {
+            print("[ImageAttachment] ❌ 无法解析 minote URL: \(urlString)")
             loadFailed = true
             isLoading = false
         }
@@ -328,6 +432,11 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         placeholderImage = createPlaceholderImage()
         displaySize = NSSize(width: 200, height: 150)
         self.bounds = CGRect(origin: .zero, size: displaySize)
+        // 设置 self.image 为占位符，这样 NSTextView 才能显示它
+        // 注意：设置 self.image 后，image(forBounds:) 不会被调用
+        // 所以我们需要在图片加载完成后更新 self.image
+        self.image = placeholderImage
+        print("[ImageAttachment] 🖼️ setupPlaceholder - 设置占位符图片")
     }
     
     private func createPlaceholderImage() -> NSImage {

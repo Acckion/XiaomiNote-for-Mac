@@ -869,28 +869,56 @@ class FormatManager {
     private func applyFontTrait(_ trait: NSFontDescriptor.SymbolicTraits, to textStorage: NSTextStorage, range: NSRange, toggle: Bool) {
         guard range.length > 0 else { return }
         
+        let fontManager = NSFontManager.shared
+        
         textStorage.beginEditing()
         
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
             let font = (value as? NSFont) ?? defaultFont
-            let descriptor = font.fontDescriptor
-            var newTraits = descriptor.symbolicTraits
+            let currentTraits = font.fontDescriptor.symbolicTraits
+            let hasTrait = currentTraits.contains(trait)
             
-            if toggle {
-                // 切换特性
-                if newTraits.contains(trait) {
-                    newTraits.remove(trait)
+            var newFont: NSFont?
+            
+            // 使用 NSFontManager 来正确处理字体特性转换
+            if trait == .italic {
+                if toggle && hasTrait {
+                    // 移除斜体
+                    newFont = fontManager.convert(font, toNotHaveTrait: .italicFontMask)
+                } else if !hasTrait {
+                    // 添加斜体
+                    newFont = fontManager.convert(font, toHaveTrait: .italicFontMask)
+                } else {
+                    newFont = font
+                }
+            } else if trait == .bold {
+                if toggle && hasTrait {
+                    // 移除粗体
+                    newFont = fontManager.convert(font, toNotHaveTrait: .boldFontMask)
+                } else if !hasTrait {
+                    // 添加粗体
+                    newFont = fontManager.convert(font, toHaveTrait: .boldFontMask)
+                } else {
+                    newFont = font
+                }
+            } else {
+                // 其他特性使用原来的方法
+                var newTraits = currentTraits
+                if toggle {
+                    if hasTrait {
+                        newTraits.remove(trait)
+                    } else {
+                        newTraits.insert(trait)
+                    }
                 } else {
                     newTraits.insert(trait)
                 }
-            } else {
-                // 强制应用
-                newTraits.insert(trait)
+                let newDescriptor = font.fontDescriptor.withSymbolicTraits(newTraits)
+                newFont = NSFont(descriptor: newDescriptor, size: font.pointSize)
             }
             
-            let newDescriptor = descriptor.withSymbolicTraits(newTraits)
-            if let newFont = NSFont(descriptor: newDescriptor, size: font.pointSize) {
-                textStorage.addAttribute(.font, value: newFont, range: attrRange)
+            if let finalFont = newFont {
+                textStorage.addAttribute(.font, value: finalFont, range: attrRange)
             }
         }
         

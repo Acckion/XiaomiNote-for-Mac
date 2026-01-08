@@ -356,16 +356,18 @@ final class SafeRenderer {
 extension XiaoMiFormatConverter {
     
     /// 安全转换 XML 到 AttributedString
-    /// - Parameter xml: XML 字符串
+    /// - Parameters:
+    ///   - xml: XML 字符串
+    ///   - folderId: 文件夹 ID（用于图片加载）
     /// - Returns: 转换结果
     @MainActor
-    func safeXMLToAttributedString(_ xml: String) -> Result<AttributedString, NativeEditorError> {
+    func safeXMLToAttributedString(_ xml: String, folderId: String? = nil) -> Result<AttributedString, NativeEditorError> {
         let startTime = CFAbsoluteTimeGetCurrent()
         let logger = NativeEditorLogger.shared
         let metrics = NativeEditorMetrics.shared
         
         do {
-            let result = try xmlToAttributedString(xml)
+            let result = try xmlToAttributedString(xml, folderId: folderId)
             
             let duration = CFAbsoluteTimeGetCurrent() - startTime
             metrics.recordFormatConversion("xmlToAttributedString", duration: duration, success: true)

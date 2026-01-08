@@ -472,17 +472,26 @@ extension CustomRenderer {
     ///   - folderId: 文件夹 ID
     /// - Returns: 图片附件
     func createImageAttachment(src: String?, fileId: String?, folderId: String?) -> ImageAttachment {
-        if let src = src {
+        print("[CustomRenderer] 🖼️ createImageAttachment 被调用")
+        print("[CustomRenderer]   - src: '\(src ?? "nil")'")
+        print("[CustomRenderer]   - fileId: '\(fileId ?? "nil")'")
+        print("[CustomRenderer]   - folderId: '\(folderId ?? "nil")'")
+        
+        if let src = src, !src.isEmpty {
+            // 有 src URL，使用延迟加载
+            print("[CustomRenderer] 🖼️ 使用 src URL 创建附件: \(src)")
             return ImageAttachment(src: src, fileId: fileId, folderId: folderId)
-        } else if let fileId = fileId, let folderId = folderId {
-            // 尝试从本地存储加载
-            if let image = ImageStorageManager.shared.loadImage(fileId: fileId, folderId: folderId) {
-                return ImageAttachment(image: image, fileId: fileId, folderId: folderId)
-            }
+        } else if let fileId = fileId {
+            // 没有 src，但有 fileId，创建一个延迟加载的附件
+            // 使用 minote:// URL 格式，让 ImageAttachment 自己处理加载逻辑
+            let minoteURL = "minote://image/\(fileId)"
+            print("[CustomRenderer] 🖼️ 生成 minote URL: \(minoteURL)")
+            return ImageAttachment(src: minoteURL, fileId: fileId, folderId: folderId)
         }
         
         // 创建占位符附件
-        let attachment = ImageAttachment(src: src ?? "", fileId: fileId, folderId: folderId)
+        print("[CustomRenderer] 🖼️ 创建占位符附件（加载失败）")
+        let attachment = ImageAttachment(src: "", fileId: fileId, folderId: folderId)
         attachment.loadFailed = true
         return attachment
     }

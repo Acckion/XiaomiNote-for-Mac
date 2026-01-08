@@ -408,17 +408,67 @@ class NativeEditorContext: ObservableObject {
     /// 从 XML 加载内容
     /// - Parameter xml: 小米笔记 XML 格式内容
     func loadFromXML(_ xml: String) {
+        // 关键修复：如果 XML 为空，清空编辑器
+        guard !xml.isEmpty else {
+            print("[NativeEditorContext] XML 为空，清空编辑器")
+            attributedText = AttributedString()
+            nsAttributedText = NSAttributedString()
+            hasUnsavedChanges = false
+            return
+        }
+        
         do {
-            let attributed = try formatConverter.xmlToAttributedString(xml)
-            attributedText = attributed
+            // 使用新的 xmlToNSAttributedString 方法直接获取 NSAttributedString
+            // 这样可以正确保留自定义的 NSTextAttachment 子类（如 ImageAttachment）
+            let nsAttributed = try formatConverter.xmlToNSAttributedString(xml, folderId: currentFolderId)
             
-            // 转换为 NSAttributedString
-            let nsAttributed = try NSAttributedString(attributed, including: \.appKit)
-            nsAttributedText = nsAttributed
+            print("[NativeEditorContext] 🖼️ NSAttributedString 转换完成（直接转换）")
+            print("[NativeEditorContext]   - nsAttributed.length: \(nsAttributed.length)")
+            print("[NativeEditorContext]   - nsAttributed.string: '\(nsAttributed.string)'")
+            
+            // 检查是否包含附件
+            var attachmentCount = 0
+            var imageAttachmentCount = 0
+            nsAttributed.enumerateAttribute(.attachment, in: NSRange(location: 0, length: nsAttributed.length), options: []) { value, range, _ in
+                if let attachment = value as? NSTextAttachment {
+                    attachmentCount += 1
+                    print("[NativeEditorContext] 🖼️ 发现附件 \(attachmentCount): \(type(of: attachment)) at range \(range)")
+                    if let imageAttachment = attachment as? ImageAttachment {
+                        imageAttachmentCount += 1
+                        print("[NativeEditorContext]   - ImageAttachment.fileId: '\(imageAttachment.fileId ?? "nil")'")
+                        print("[NativeEditorContext]   - ImageAttachment.src: '\(imageAttachment.src ?? "nil")'")
+                    }
+                }
+            }
+            print("[NativeEditorContext] 🖼️ 总共发现 \(attachmentCount) 个附件，其中 \(imageAttachmentCount) 个是 ImageAttachment")
+            
+            // 为没有设置前景色的文本添加默认颜色（适配深色模式）
+            let mutableAttributed = NSMutableAttributedString(attributedString: nsAttributed)
+            let fullRange = NSRange(location: 0, length: mutableAttributed.length)
+            
+            // 遍历所有范围，为没有前景色的文本设置 labelColor
+            mutableAttributed.enumerateAttribute(.foregroundColor, in: fullRange, options: []) { value, range, _ in
+                if value == nil {
+                    // 使用 labelColor，它会自动适配深色/浅色模式
+                    mutableAttributed.addAttribute(.foregroundColor, value: NSColor.labelColor, range: range)
+                }
+            }
+            
+            nsAttributedText = mutableAttributed
+            
+            // 同时更新 attributedText（用于导出）
+            if let attributed = try? AttributedString(mutableAttributed, including: \.appKit) {
+                attributedText = attributed
+            }
             
             hasUnsavedChanges = false
+            print("[NativeEditorContext] ✅ 加载 XML 成功 - 长度: \(xml.count), 转换后文本长度: \(mutableAttributed.length)")
         } catch {
-            print("[NativeEditorContext] 加载 XML 失败: \(error)")
+            print("[NativeEditorContext] ❌ 加载 XML 失败: \(error)")
+            // 关键修复：加载失败时清空编辑器，避免显示旧内容
+            attributedText = AttributedString()
+            nsAttributedText = NSAttributedString()
+            hasUnsavedChanges = false
         }
     }
     

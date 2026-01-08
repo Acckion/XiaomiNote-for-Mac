@@ -88,7 +88,7 @@ struct NativeEditorView: NSViewRepresentable {
         textView.backgroundColor = .clear
         textView.drawsBackground = false
         textView.font = NSFont.systemFont(ofSize: 15)
-        textView.textColor = .textColor
+        textView.textColor = .labelColor  // 使用 labelColor 自动适配深色模式
         
         // 设置内边距
         textView.textContainerInset = NSSize(width: 16, height: 16)
@@ -124,21 +124,33 @@ struct NativeEditorView: NSViewRepresentable {
         // 更新可编辑状态
         textView.isEditable = isEditable
         
+        // 确保文字颜色适配当前外观（深色/浅色模式）
+        textView.textColor = .labelColor
+        
         // 检查内容是否需要更新（避免循环更新）
         if !context.coordinator.isUpdatingFromTextView {
             let currentText = textView.attributedString()
-            if currentText != editorContext.nsAttributedText {
+            let newText = editorContext.nsAttributedText
+            
+            // 使用字符串内容比较，而不是 NSAttributedString 的完整比较
+            // 因为属性可能不同但内容相同
+            let contentChanged = currentText.string != newText.string
+            let lengthChanged = currentText.length != newText.length
+            
+            if contentChanged || lengthChanged {
+                print("[NativeEditorView] 更新内容 - 当前长度: \(currentText.length), 新长度: \(newText.length)")
+                
                 // 保存当前选择范围
                 let selectedRange = textView.selectedRange()
                 
                 // 更新内容
-                textView.textStorage?.setAttributedString(editorContext.nsAttributedText)
+                textView.textStorage?.setAttributedString(newText)
                 
                 // 恢复选择范围（如果有效）
                 if selectedRange.location <= textView.string.count {
                     let newRange = NSRange(
                         location: min(selectedRange.location, textView.string.count),
-                        length: min(selectedRange.length, textView.string.count - selectedRange.location)
+                        length: min(selectedRange.length, max(0, textView.string.count - selectedRange.location))
                     )
                     textView.setSelectedRange(newRange)
                 }
@@ -191,29 +203,30 @@ struct NativeEditorView: NSViewRepresentable {
             
             isUpdatingFromTextView = true
             
-            // 更新编辑器上下文
+            // 更新编辑器上下文 - 使用 Task 延迟执行，避免在视图更新中修改 @Published 属性
             let attributedString = textView.attributedString()
+            let contentChangeCallback = parent.onContentChange
+            
             Task { @MainActor in
-                parent.editorContext.updateNSContent(attributedString)
+                self.parent.editorContext.updateNSContent(attributedString)
+                // 调用回调
+                contentChangeCallback?(attributedString)
+                self.isUpdatingFromTextView = false
             }
-            
-            // 调用回调
-            parent.onContentChange?(attributedString)
-            
-            isUpdatingFromTextView = false
         }
         
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             
             let selectedRange = textView.selectedRange()
+            let selectionChangeCallback = parent.onSelectionChange
             
+            // 使用 Task 延迟执行，避免在视图更新中修改 @Published 属性
             Task { @MainActor in
-                parent.editorContext.updateSelectedRange(selectedRange)
+                self.parent.editorContext.updateSelectedRange(selectedRange)
+                // 调用回调
+                selectionChangeCallback?(selectedRange)
             }
-            
-            // 调用回调
-            parent.onSelectionChange?(selectedRange)
         }
         
         func textView(_ textView: NSTextView, clickedOn cell: NSTextAttachmentCellProtocol, in cellFrame: NSRect, at charIndex: Int) {
@@ -287,22 +300,47 @@ struct NativeEditorView: NSViewRepresentable {
         
         /// 应用字体特性
         private func applyFontTrait(_ trait: NSFontDescriptor.SymbolicTraits, to range: NSRange, in textStorage: NSTextStorage) {
+            let fontManager = NSFontManager.shared
+            
             textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
                 guard let font = value as? NSFont else { return }
                 
-                let descriptor = font.fontDescriptor
-                var newTraits = descriptor.symbolicTraits
+                let currentTraits = font.fontDescriptor.symbolicTraits
+                let hasTrait = currentTraits.contains(trait)
                 
-                // 切换特性
-                if newTraits.contains(trait) {
-                    newTraits.remove(trait)
+                var newFont: NSFont?
+                
+                // 使用 NSFontManager 来正确处理字体特性转换
+                if trait == .italic {
+                    if hasTrait {
+                        // 移除斜体
+                        newFont = fontManager.convert(font, toNotHaveTrait: .italicFontMask)
+                    } else {
+                        // 添加斜体
+                        newFont = fontManager.convert(font, toHaveTrait: .italicFontMask)
+                    }
+                } else if trait == .bold {
+                    if hasTrait {
+                        // 移除粗体
+                        newFont = fontManager.convert(font, toNotHaveTrait: .boldFontMask)
+                    } else {
+                        // 添加粗体
+                        newFont = fontManager.convert(font, toHaveTrait: .boldFontMask)
+                    }
                 } else {
-                    newTraits.insert(trait)
+                    // 其他特性使用原来的方法
+                    var newTraits = currentTraits
+                    if hasTrait {
+                        newTraits.remove(trait)
+                    } else {
+                        newTraits.insert(trait)
+                    }
+                    let newDescriptor = font.fontDescriptor.withSymbolicTraits(newTraits)
+                    newFont = NSFont(descriptor: newDescriptor, size: font.pointSize)
                 }
                 
-                let newDescriptor = descriptor.withSymbolicTraits(newTraits)
-                if let newFont = NSFont(descriptor: newDescriptor, size: font.pointSize) {
-                    textStorage.addAttribute(.font, value: newFont, range: attrRange)
+                if let finalFont = newFont {
+                    textStorage.addAttribute(.font, value: finalFont, range: attrRange)
                 }
             }
         }

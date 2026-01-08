@@ -80,6 +80,7 @@
 		778DF5E49FECB86BA93395F2 /* NativeEditorContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4FEF51DC935D9154870D5F /* NativeEditorContextTests.swift */; };
 		7845DF6A3650B525CD69A17C /* xml-to-html.js in Resources */ = {isa = PBXBuildFile; fileRef = C489901C950CFEF3A3BFC595 /* xml-to-html.js */; };
 		7C87882B34113556E821D1D6 /* DeletedNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0EE2EC0B53336F95BB9B10 /* DeletedNote.swift */; };
+		7F967201799172B4ABBE0AF6 /* ImageAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9983C16A45B3E9028DF76D6F /* ImageAttachment.swift */; };
 		8078A0D5E94E341B88BE4BFB /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837D1A4BD47198D9037FB29C /* Note.swift */; };
 		80FB4BD965C7F97233668680 /* EditorPreferencesServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C16859EEF1FE9BBFDCAAC99C /* EditorPreferencesServiceTests.swift */; };
 		81B82703FEAA34A5FE79F0DC /* NetworkLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 050F467F52491FCB8258B2E3 /* NetworkLogger.swift */; };
@@ -262,6 +263,7 @@
 		958EA73DCB9458E18B52EB9A /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		97FB01C97F8E250BD348CC35 /* NoteHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteHistoryView.swift; sourceTree = "<group>"; };
 		9886C11025C79168AAAFA938 /* WebEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebEditorView.swift; sourceTree = "<group>"; };
+		9983C16A45B3E9028DF76D6F /* ImageAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageAttachment.swift; sourceTree = "<group>"; };
 		9A721A421F7A06F601E6D482 /* NotesListWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListWindowState.swift; sourceTree = "<group>"; };
 		9C380480EA9D221C0B453C4F /* WindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManager.swift; sourceTree = "<group>"; };
 		9CDB97E03C65FB0F952C6EF8 /* NoteDetailWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailWindowState.swift; sourceTree = "<group>"; };
@@ -648,6 +650,7 @@
 				C979233971CFB29855D42E0C /* CustomAttachments.swift */,
 				9D8C690C719F5614EF401AE1 /* CustomRenderer.swift */,
 				D8AF370342B46B1FE052F793 /* FormatManager.swift */,
+				9983C16A45B3E9028DF76D6F /* ImageAttachment.swift */,
 				6EBC868F735AC4DAC09D0D45 /* ImageStorageManager.swift */,
 				CD7AF9B9DA3E4B8A71C87A3E /* NativeEditorDebugger.swift */,
 				6DEE36CF056D387493D4655E /* NativeEditorErrorHandler.swift */,
@@ -865,6 +868,7 @@
 				4C8F032FCAC2B617F227FDA1 /* Folder.swift in Sources */,
 				1FDB4C344FC494508A2651E4 /* FormatManager.swift in Sources */,
 				6B5A26CD6DCF6FD0278C283E /* HistoryWindowController.swift in Sources */,
+				7F967201799172B4ABBE0AF6 /* ImageAttachment.swift in Sources */,
 				83C2018013AA673D28CB3E78 /* ImageStorageManager.swift in Sources */,
 				97F9474456B45784B8A9EE75 /* LocalStorageService.swift in Sources */,
 				CA03D57B6D56482F846E616F /* LoginView.swift in Sources */,

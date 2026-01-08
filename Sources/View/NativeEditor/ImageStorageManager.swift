@@ -35,11 +35,10 @@ class ImageStorageManager {
     // MARK: - Public Methods
     
     /// 保存图片到本地存储
-    /// - Parameters:
-    ///   - image: 要保存的图片
-    ///   - folderId: 文件夹 ID
+    /// 统一使用 images/{imageId}.jpg 格式
+    /// - Parameter image: 要保存的图片
     /// - Returns: 保存结果，包含文件 ID 和 URL
-    func saveImage(_ image: NSImage, folderId: String) -> (fileId: String, url: URL)? {
+    func saveImage(_ image: NSImage) -> (fileId: String, url: URL)? {
         // 生成唯一的文件 ID
         let fileId = generateFileId()
         
@@ -50,14 +49,16 @@ class ImageStorageManager {
         }
         
         do {
-            // 保存到本地存储
-            let url = try localStorage.saveImage(imageData, imageId: fileId, folderId: folderId)
+            // 保存到本地存储（统一格式：images/{imageId}.jpg）
+            try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: "jpg")
+            
+            // 获取保存的 URL
+            let url = localStorage.getImageURL(fileId: fileId, fileType: "jpg")!
             
             // 添加到缓存
-            let cacheKey = "\(folderId)/\(fileId)"
-            addToCache(image, forKey: cacheKey)
+            addToCache(image, forKey: fileId)
             
-            print("[ImageStorageManager] 图片保存成功: \(fileId)")
+            print("[ImageStorageManager] 图片保存成功: \(fileId).jpg")
             return (fileId, url)
         } catch {
             print("[ImageStorageManager] 保存图片失败: \(error)")
@@ -65,24 +66,32 @@ class ImageStorageManager {
         }
     }
     
-    /// 保存图片数据到本地存储
+    /// 保存图片到本地存储（兼容旧接口）
     /// - Parameters:
-    ///   - imageData: 图片数据
-    ///   - folderId: 文件夹 ID
+    ///   - image: 要保存的图片
+    ///   - folderId: 文件夹 ID（已废弃，不再使用）
     /// - Returns: 保存结果，包含文件 ID 和 URL
-    func saveImageData(_ imageData: Data, folderId: String) -> (fileId: String, url: URL)? {
+    func saveImage(_ image: NSImage, folderId: String) -> (fileId: String, url: URL)? {
+        // 忽略 folderId，使用统一格式
+        return saveImage(image)
+    }
+    
+    /// 保存图片数据到本地存储
+    /// - Parameter imageData: 图片数据
+    /// - Returns: 保存结果，包含文件 ID 和 URL
+    func saveImageData(_ imageData: Data) -> (fileId: String, url: URL)? {
         let fileId = generateFileId()
         
         do {
-            let url = try localStorage.saveImage(imageData, imageId: fileId, folderId: folderId)
+            try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: "jpg")
+            let url = localStorage.getImageURL(fileId: fileId, fileType: "jpg")!
             
             // 尝试创建图片并添加到缓存
             if let image = NSImage(data: imageData) {
-                let cacheKey = "\(folderId)/\(fileId)"
-                addToCache(image, forKey: cacheKey)
+                addToCache(image, forKey: fileId)
             }
             
-            print("[ImageStorageManager] 图片数据保存成功: \(fileId)")
+            print("[ImageStorageManager] 图片数据保存成功: \(fileId).jpg")
             return (fileId, url)
         } catch {
             print("[ImageStorageManager] 保存图片数据失败: \(error)")
@@ -90,86 +99,134 @@ class ImageStorageManager {
         }
     }
     
-    /// 从本地存储加载图片
+    /// 保存图片数据到本地存储（兼容旧接口）
     /// - Parameters:
-    ///   - fileId: 文件 ID
-    ///   - folderId: 文件夹 ID
+    ///   - imageData: 图片数据
+    ///   - folderId: 文件夹 ID（已废弃，不再使用）
+    /// - Returns: 保存结果，包含文件 ID 和 URL
+    func saveImageData(_ imageData: Data, folderId: String) -> (fileId: String, url: URL)? {
+        // 忽略 folderId，使用统一格式
+        return saveImageData(imageData)
+    }
+    
+    /// 从本地存储加载图片
+    /// 仅使用 images/{userId}.{fileId}.{format} 格式
+    /// - Parameter fileId: 文件 ID（完整的 userId.fileId 格式）
     /// - Returns: 加载的图片，如果失败则返回 nil
-    func loadImage(fileId: String, folderId: String) -> NSImage? {
-        let cacheKey = "\(folderId)/\(fileId)"
-        
+    func loadImage(fileId: String) -> NSImage? {
         // 检查缓存
-        if let cached = imageCache[cacheKey] {
+        if let cached = imageCache[fileId] {
             return cached
         }
         
-        // 从本地存储加载
-        guard let imageData = localStorage.getImage(imageId: fileId, folderId: folderId) else {
-            print("[ImageStorageManager] 无法加载图片: \(fileId)")
-            return nil
+        // 仅使用统一的 images/{userId}.{fileId}.{format} 格式加载
+        if let (imageData, _) = localStorage.loadImageWithFullFormatAllFormats(fullFileId: fileId),
+           let image = NSImage(data: imageData) {
+            addToCache(image, forKey: fileId)
+            return image
         }
         
-        guard let image = NSImage(data: imageData) else {
-            print("[ImageStorageManager] 无法解析图片数据: \(fileId)")
-            return nil
-        }
-        
-        // 添加到缓存
-        addToCache(image, forKey: cacheKey)
-        
-        return image
+        print("[ImageStorageManager] 无法加载图片: \(fileId)")
+        return nil
+    }
+    
+    /// 从本地存储加载图片（兼容旧接口）
+    /// - Parameters:
+    ///   - fileId: 文件 ID
+    ///   - folderId: 文件夹 ID（已废弃，不再使用）
+    /// - Returns: 加载的图片，如果失败则返回 nil
+    func loadImage(fileId: String, folderId: String) -> NSImage? {
+        // 忽略 folderId，使用统一格式
+        return loadImage(fileId: fileId)
     }
     
     /// 异步加载图片
+    /// 仅使用 images/{userId}.{fileId}.{format} 格式
     /// - Parameters:
-    ///   - fileId: 文件 ID
-    ///   - folderId: 文件夹 ID
+    ///   - fileId: 文件 ID（完整的 userId.fileId 格式）
     ///   - completion: 完成回调
-    func loadImageAsync(fileId: String, folderId: String, completion: @escaping @Sendable (NSImage?) -> Void) {
-        let cacheKey = "\(folderId)/\(fileId)"
-        
+    func loadImageAsync(fileId: String, completion: @escaping @Sendable (NSImage?) -> Void) {
         // 检查缓存
-        if let cached = imageCache[cacheKey] {
+        if let cached = imageCache[fileId] {
             completion(cached)
             return
         }
         
         // 在后台线程加载
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let imageData = LocalStorageService.shared.getImage(imageId: fileId, folderId: folderId)
-            let image = imageData.flatMap { NSImage(data: $0) }
+            let localStorage = LocalStorageService.shared
+            
+            // 仅使用统一格式加载
+            var image: NSImage? = nil
+            if let (imageData, _) = localStorage.loadImageWithFullFormatAllFormats(fullFileId: fileId),
+               let loadedImage = NSImage(data: imageData) {
+                image = loadedImage
+            }
             
             DispatchQueue.main.async {
                 if let image = image {
-                    self?.addToCache(image, forKey: cacheKey)
+                    self?.addToCache(image, forKey: fileId)
                 }
                 completion(image)
             }
         }
     }
     
-    /// 检查图片是否存在
+    /// 异步加载图片（兼容旧接口）
     /// - Parameters:
     ///   - fileId: 文件 ID
-    ///   - folderId: 文件夹 ID
+    ///   - folderId: 文件夹 ID（已废弃，不再使用）
+    ///   - completion: 完成回调
+    func loadImageAsync(fileId: String, folderId: String, completion: @escaping @Sendable (NSImage?) -> Void) {
+        // 忽略 folderId，使用统一格式
+        loadImageAsync(fileId: fileId, completion: completion)
+    }
+    
+    /// 检查图片是否存在
+    /// - Parameter fileId: 文件 ID
+    /// - Returns: 是否存在
+    func imageExists(fileId: String) -> Bool {
+        let imageFormats = ["jpg", "jpeg", "png", "gif"]
+        for format in imageFormats {
+            if localStorage.imageExists(fileId: fileId, fileType: format) {
+                return true
+            }
+        }
+        return false
+    }
+    
+    /// 检查图片是否存在（兼容旧接口）
+    /// - Parameters:
+    ///   - fileId: 文件 ID
+    ///   - folderId: 文件夹 ID（已废弃，不再使用）
     /// - Returns: 是否存在
     func imageExists(fileId: String, folderId: String) -> Bool {
-        return localStorage.imageExists(imageId: fileId, folderId: folderId)
+        // 忽略 folderId，使用统一格式
+        return imageExists(fileId: fileId)
     }
     
     /// 生成 minote:// URL
+    /// 统一使用 minote://image/{fileId} 格式
+    /// - Parameter fileId: 文件 ID
+    /// - Returns: minote:// URL 字符串
+    func generateMinoteURL(fileId: String) -> String {
+        return "minote://image/\(fileId)"
+    }
+    
+    /// 生成 minote:// URL（兼容旧接口）
     /// - Parameters:
     ///   - fileId: 文件 ID
-    ///   - folderId: 文件夹 ID
+    ///   - folderId: 文件夹 ID（已废弃，不再使用）
     /// - Returns: minote:// URL 字符串
     func generateMinoteURL(fileId: String, folderId: String) -> String {
-        return "minote://images/\(folderId)/\(fileId).jpg"
+        // 忽略 folderId，使用统一格式
+        return generateMinoteURL(fileId: fileId)
     }
     
     /// 解析 minote:// URL
     /// - Parameter urlString: URL 字符串
-    /// - Returns: 解析结果，包含 fileId 和 folderId
-    func parseMinoteURL(_ urlString: String) -> (fileId: String, folderId: String)? {
+    /// - Returns: 文件 ID，如果解析失败则返回 nil
+    func parseMinoteURL(_ urlString: String) -> String? {
         guard urlString.hasPrefix("minote://") else {
             return nil
         }
@@ -180,11 +237,20 @@ class ImageStorageManager {
         
         let pathComponents = url.pathComponents.filter { $0 != "/" }
         
+        // 格式1: minote://image/{fileId}
+        if pathComponents.count >= 2 && pathComponents[0] == "image" {
+            return pathComponents[1]
+        }
+        
+        // 格式2: minote://images/{folderId}/{fileName}（兼容旧格式）
         if pathComponents.count >= 3 && pathComponents[0] == "images" {
-            let folderId = pathComponents[1]
             let fileName = pathComponents[2]
-            let fileId = (fileName as NSString).deletingPathExtension
-            return (fileId, folderId)
+            return (fileName as NSString).deletingPathExtension
+        }
+        
+        // 格式3: minote://{fileId}（host 格式）
+        if let host = url.host {
+            return host
         }
         
         return nil
