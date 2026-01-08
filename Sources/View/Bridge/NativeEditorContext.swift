@@ -536,6 +536,18 @@ class NativeEditorContext: ObservableObject {
             
             nsAttributedText = mutableAttributed
             
+            // 调试日志：检查斜体字体是否正确保留
+            print("[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:")
+            mutableAttributed.enumerateAttribute(.font, in: fullRange, options: []) { value, range, _ in
+                if let font = value as? NSFont {
+                    let traits = font.fontDescriptor.symbolicTraits
+                    let rangeText = (mutableAttributed.string as NSString).substring(with: range)
+                    print("[NativeEditorContext]   - 范围 \(range): '\(rangeText)'")
+                    print("[NativeEditorContext]     字体: \(font.fontName), 大小: \(font.pointSize)")
+                    print("[NativeEditorContext]     特性: bold=\(traits.contains(.bold)), italic=\(traits.contains(.italic))")
+                }
+            }
+            
             // 同时更新 attributedText（用于导出）
             if let attributed = try? AttributedString(mutableAttributed, including: \.appKit) {
                 attributedText = attributed

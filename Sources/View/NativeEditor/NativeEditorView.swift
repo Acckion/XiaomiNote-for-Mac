@@ -109,7 +109,28 @@ struct NativeEditorView: NSViewRepresentable {
         
         // 加载初始内容
         if !editorContext.nsAttributedText.string.isEmpty {
+            print("[NativeEditorView] 🔍 加载初始内容到 NSTextView")
+            print("[NativeEditorView]   - 内容长度: \(editorContext.nsAttributedText.length)")
+            
+            // 检查加载前的字体属性
+            editorContext.nsAttributedText.enumerateAttribute(.font, in: NSRange(location: 0, length: editorContext.nsAttributedText.length), options: []) { value, range, _ in
+                if let font = value as? NSFont {
+                    let traits = font.fontDescriptor.symbolicTraits
+                    print("[NativeEditorView]   - 加载前 范围 \(range): \(font.fontName), italic=\(traits.contains(.italic))")
+                }
+            }
+            
             textView.textStorage?.setAttributedString(editorContext.nsAttributedText)
+            
+            // 检查加载后的字体属性
+            if let textStorage = textView.textStorage {
+                textStorage.enumerateAttribute(.font, in: NSRange(location: 0, length: textStorage.length), options: []) { value, range, _ in
+                    if let font = value as? NSFont {
+                        let traits = font.fontDescriptor.symbolicTraits
+                        print("[NativeEditorView]   - 加载后 范围 \(range): \(font.fontName), italic=\(traits.contains(.italic))")
+                    }
+                }
+            }
         }
         
         // 预热渲染器缓存
