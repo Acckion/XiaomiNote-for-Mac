@@ -1835,6 +1835,7 @@ extension MainWindowController {
     @objc func showFormatMenu(_ sender: Any?) {
         // 显示格式菜单popover
         print("显示格式菜单")
+        print("  - isUsingNativeEditor: \(isUsingNativeEditor)")
         
         // 如果popover已经显示，则关闭它
         if let popover = formatMenuPopover, popover.isShown {
@@ -1843,26 +1844,56 @@ extension MainWindowController {
             return
         }
         
-        // 获取当前的WebEditorContext
-        guard let webEditorContext = getCurrentWebEditorContext() else {
-            print("无法获取WebEditorContext")
-            return
+        // 根据编辑器类型创建对应的格式菜单视图
+        // 需求: 2.1, 2.2 - 根据编辑器类型创建 NativeFormatMenuView 或 WebFormatMenuView
+        let hostingController: NSViewController
+        let contentSize: NSSize
+        
+        if isUsingNativeEditor {
+            // 使用原生编辑器时，显示 NativeFormatMenuView
+            guard let nativeEditorContext = getCurrentNativeEditorContext() else {
+                print("无法获取 NativeEditorContext")
+                return
+            }
+            
+            print("  - 使用原生编辑器格式菜单")
+            
+            // 请求内容同步并更新格式状态
+            nativeEditorContext.requestContentSync()
+            
+            let formatMenuView = NativeFormatMenuView(context: nativeEditorContext) { [weak self] _ in
+                // 格式操作完成后关闭popover
+                self?.formatMenuPopover?.performClose(nil)
+                self?.formatMenuPopover = nil
+            }
+            
+            hostingController = NSHostingController(rootView: AnyView(formatMenuView))
+            contentSize = NSSize(width: 280, height: 450)
+        } else {
+            // 使用 Web 编辑器时，显示 WebFormatMenuView
+            guard let webEditorContext = getCurrentWebEditorContext() else {
+                print("无法获取 WebEditorContext")
+                return
+            }
+            
+            print("  - 使用 Web 编辑器格式菜单")
+            
+            let formatMenuView = WebFormatMenuView(context: webEditorContext) { [weak self] _ in
+                // 格式操作完成后关闭popover
+                self?.formatMenuPopover?.performClose(nil)
+                self?.formatMenuPopover = nil
+            }
+            
+            hostingController = NSHostingController(rootView: AnyView(formatMenuView))
+            contentSize = NSSize(width: 200, height: 400)
         }
         
-        // 创建SwiftUI格式菜单视图
-        let formatMenuView = WebFormatMenuView(context: webEditorContext) { [weak self] _ in
-            // 格式操作完成后关闭popover
-            self?.formatMenuPopover?.performClose(nil)
-            self?.formatMenuPopover = nil
-        }
-        
-        // 创建托管控制器
-        let hostingController = NSHostingController(rootView: formatMenuView)
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 200, height: 400)
+        // 设置托管控制器的视图大小
+        hostingController.view.frame = NSRect(origin: .zero, size: contentSize)
         
         // 创建popover
         let popover = NSPopover()
-        popover.contentSize = NSSize(width: 200, height: 400)
+        popover.contentSize = contentSize
         popover.behavior = .transient
         popover.animates = true
         popover.contentViewController = hostingController
