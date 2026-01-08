@@ -1286,9 +1286,85 @@ extension MainWindowController {
         }
     }
     
+    /// 插入附件（图片）
+    /// 需求: 5.1, 5.2, 5.3, 5.5 - 显示文件选择对话框，根据编辑器类型调用对应的 insertImage 方法
     @objc func insertAttachment(_ sender: Any?) {
-        print("插入附件")
-        // 这里应该调用编辑器API
+        print("[MainWindowController] 插入附件")
+        
+        // 需求 5.5: 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法插入附件")
+            return
+        }
+        
+        // 需求 5.1: 显示文件选择对话框
+        let openPanel = NSOpenPanel()
+        openPanel.allowedContentTypes = [.image, .png, .jpeg, .gif]
+        openPanel.allowsMultipleSelection = false
+        openPanel.canChooseDirectories = false
+        openPanel.canChooseFiles = true
+        openPanel.message = "选择要插入的图片"
+        openPanel.prompt = "插入"
+        
+        openPanel.begin { [weak self] response in
+            guard let self = self else { return }
+            
+            if response == .OK, let url = openPanel.url {
+                // 需求 5.2, 5.3: 上传图片并插入到编辑器
+                Task { @MainActor in
+                    await self.insertImage(from: url)
+                }
+            }
+        }
+    }
+    
+    /// 从 URL 插入图片
+    /// 需求: 5.2, 5.3 - 上传图片并根据编辑器类型插入
+    @MainActor
+    private func insertImage(from url: URL) async {
+        guard let viewModel = viewModel else {
+            print("[MainWindowController] 错误：viewModel 不存在")
+            return
+        }
+        
+        guard viewModel.selectedNote != nil else {
+            print("[MainWindowController] 错误：没有选中笔记")
+            return
+        }
+        
+        do {
+            // 上传图片并获取 fileId
+            let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
+            print("[MainWindowController] 图片上传成功: fileId=\(fileId)")
+            
+            // 需求 5.2, 5.3: 根据编辑器类型调用对应的 insertImage 方法
+            if isUsingNativeEditor {
+                // 原生编辑器模式
+                print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertImage()")
+                if let nativeContext = getCurrentNativeEditorContext() {
+                    nativeContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
+                } else {
+                    print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                }
+            } else {
+                // Web 编辑器模式
+                print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertImage()")
+                if let webContext = getCurrentWebEditorContext() {
+                    webContext.insertImage("minote://image/\(fileId)", altText: url.lastPathComponent)
+                } else {
+                    print("[MainWindowController] 错误：无法获取 WebEditorContext")
+                }
+            }
+        } catch {
+            print("[MainWindowController] 插入图片失败: \(error.localizedDescription)")
+            // 显示错误提示
+            let alert = NSAlert()
+            alert.messageText = "插入图片失败"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+        }
     }
     
     @objc public func showHistory(_ sender: Any?) {
