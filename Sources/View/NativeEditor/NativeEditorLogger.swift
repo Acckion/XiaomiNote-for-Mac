@@ -3,7 +3,7 @@
 //  MiNoteMac
 //
 //  原生编辑器日志记录器 - 提供详细的日志记录功能
-//  需求: 13.1, 13.2, 13.3, 13.4, 13.5
+//  需求: 8.1, 8.2, 13.1, 13.2, 13.3, 13.4, 13.5
 //
 
 import Foundation
@@ -12,7 +12,8 @@ import os.log
 // MARK: - 日志级别
 
 /// 日志级别
-enum LogLevel: Int, Comparable {
+enum LogLevel: Int, Comparable, CaseIterable {
+    case trace = -1   // 最详细的跟踪日志
     case debug = 0
     case info = 1
     case warning = 2
@@ -21,6 +22,7 @@ enum LogLevel: Int, Comparable {
     
     var prefix: String {
         switch self {
+        case .trace: return "🔬 TRACE"
         case .debug: return "🔍 DEBUG"
         case .info: return "ℹ️ INFO"
         case .warning: return "⚠️ WARNING"
@@ -29,8 +31,20 @@ enum LogLevel: Int, Comparable {
         }
     }
     
+    var displayName: String {
+        switch self {
+        case .trace: return "跟踪"
+        case .debug: return "调试"
+        case .info: return "信息"
+        case .warning: return "警告"
+        case .error: return "错误"
+        case .critical: return "严重"
+        }
+    }
+    
     var osLogType: OSLogType {
         switch self {
+        case .trace: return .debug
         case .debug: return .debug
         case .info: return .info
         case .warning: return .default
@@ -41,6 +55,44 @@ enum LogLevel: Int, Comparable {
     
     static func < (lhs: LogLevel, rhs: LogLevel) -> Bool {
         return lhs.rawValue < rhs.rawValue
+    }
+}
+
+// MARK: - 日志类别
+
+/// 日志类别 - 用于分类和过滤日志
+/// 需求: 8.1 - 启用调试模式时输出格式状态变化的详细日志
+enum LogCategory: String, CaseIterable {
+    case general = "General"
+    case formatMenu = "FormatMenu"
+    case formatState = "FormatState"
+    case formatApplication = "FormatApplication"
+    case stateSynchronization = "StateSynchronization"
+    case stateDetection = "StateDetection"
+    case performance = "Performance"
+    case formatConversion = "FormatConversion"
+    case rendering = "Rendering"
+    case error = "Error"
+    case system = "System"
+    case userInteraction = "UserInteraction"
+    case diagnostics = "Diagnostics"
+    
+    var displayName: String {
+        switch self {
+        case .general: return "通用"
+        case .formatMenu: return "格式菜单"
+        case .formatState: return "格式状态"
+        case .formatApplication: return "格式应用"
+        case .stateSynchronization: return "状态同步"
+        case .stateDetection: return "状态检测"
+        case .performance: return "性能"
+        case .formatConversion: return "格式转换"
+        case .rendering: return "渲染"
+        case .error: return "错误"
+        case .system: return "系统"
+        case .userInteraction: return "用户交互"
+        case .diagnostics: return "诊断"
+        }
     }
 }
 
@@ -64,11 +116,22 @@ struct LogEntry: Identifiable {
         return formatter.string(from: timestamp)
     }
     
+    var shortTimestamp: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: timestamp)
+    }
+    
     var formattedMessage: String {
         var result = "[\(formattedTimestamp)] \(level.prefix) [\(category)] \(message)"
         if let info = additionalInfo, !info.isEmpty {
             result += " | \(info)"
         }
+        return result
+    }
+    
+    var compactMessage: String {
+        var result = "[\(shortTimestamp)] [\(category)] \(message)"
         return result
     }
     
@@ -78,16 +141,82 @@ struct LogEntry: Identifiable {
     }
 }
 
+// MARK: - 格式状态变化记录
+
+/// 格式状态变化记录
+/// 需求: 8.1 - 格式状态变化的详细日志
+struct FormatStateChangeRecord: Identifiable {
+    let id = UUID()
+    let timestamp: Date
+    let format: TextFormat
+    let previousState: Bool
+    let newState: Bool
+    let cursorPosition: Int
+    let selectedRange: NSRange
+    let trigger: FormatStateChangeTrigger
+    
+    var formattedTimestamp: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: timestamp)
+    }
+    
+    var summary: String {
+        let stateChange = previousState == newState ? "保持" : (newState ? "激活" : "取消")
+        return "[\(formattedTimestamp)] \(format.displayName): \(stateChange) (触发: \(trigger.displayName))"
+    }
+}
+
+/// 格式状态变化触发器
+enum FormatStateChangeTrigger: String {
+    case cursorMove = "光标移动"
+    case selectionChange = "选择变化"
+    case formatApplication = "格式应用"
+    case undoRedo = "撤销/重做"
+    case contentLoad = "内容加载"
+    case keyboardShortcut = "快捷键"
+    case menuClick = "菜单点击"
+    case external = "外部触发"
+    
+    var displayName: String {
+        return rawValue
+    }
+}
+
 // MARK: - 原生编辑器日志记录器
 
 /// 原生编辑器日志记录器
 /// 提供详细的日志记录、格式转换日志和性能日志
+/// 需求: 8.1 - 启用调试模式时输出格式状态变化的详细日志
 @MainActor
-final class NativeEditorLogger {
+final class NativeEditorLogger: ObservableObject {
     
     // MARK: - Singleton
     
     static let shared = NativeEditorLogger()
+    
+    // MARK: - Published Properties
+    
+    /// 是否启用调试模式
+    /// 需求: 8.1 - 创建调试模式的开关
+    @Published var isDebugModeEnabled: Bool = false {
+        didSet {
+            if isDebugModeEnabled != oldValue {
+                if isDebugModeEnabled {
+                    enableDebugModeInternal()
+                } else {
+                    disableDebugModeInternal()
+                }
+            }
+        }
+    }
+    
+    /// 当前日志级别
+    /// 需求: 8.1 - 实现可配置的日志级别
+    @Published var currentLogLevel: LogLevel = .info
+    
+    /// 启用的日志类别
+    @Published var enabledCategories: Set<LogCategory> = Set(LogCategory.allCases)
     
     // MARK: - Properties
     
@@ -97,8 +226,15 @@ final class NativeEditorLogger {
     /// 日志条目缓存
     private var logEntries: [LogEntry] = []
     
+    /// 格式状态变化记录
+    /// 需求: 8.1 - 添加格式状态变化的日志记录
+    private var formatStateChanges: [FormatStateChangeRecord] = []
+    
     /// 最大日志条目数
-    private let maxLogEntries = 1000
+    private let maxLogEntries = 2000
+    
+    /// 最大格式状态变化记录数
+    private let maxFormatStateChanges = 500
     
     /// 当前日志级别（低于此级别的日志不记录）
     var minimumLogLevel: LogLevel = .debug
@@ -123,6 +259,13 @@ final class NativeEditorLogger {
     
     /// 性能日志是否启用
     var enablePerformanceLogging: Bool = true
+    
+    /// 格式状态变化日志是否启用
+    /// 需求: 8.1 - 添加格式状态变化的日志记录
+    var enableFormatStateLogging: Bool = true
+    
+    /// 详细跟踪日志是否启用
+    var enableTraceLogging: Bool = false
     
     // MARK: - Initialization
     
@@ -241,6 +384,163 @@ final class NativeEditorLogger {
     
     // MARK: - Specialized Logging
     
+    /// 记录格式状态变化
+    /// 需求: 8.1 - 添加格式状态变化的日志记录
+    func logFormatStateChange(
+        format: TextFormat,
+        previousState: Bool,
+        newState: Bool,
+        cursorPosition: Int,
+        selectedRange: NSRange,
+        trigger: FormatStateChangeTrigger,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        guard enableFormatStateLogging else { return }
+        
+        // 创建格式状态变化记录
+        let record = FormatStateChangeRecord(
+            timestamp: Date(),
+            format: format,
+            previousState: previousState,
+            newState: newState,
+            cursorPosition: cursorPosition,
+            selectedRange: selectedRange,
+            trigger: trigger
+        )
+        
+        formatStateChanges.append(record)
+        if formatStateChanges.count > maxFormatStateChanges {
+            formatStateChanges.removeFirst(formatStateChanges.count - maxFormatStateChanges)
+        }
+        
+        // 记录日志
+        let stateChange = previousState == newState ? "保持" : (newState ? "激活" : "取消")
+        let info: [String: Any] = [
+            "format": format.displayName,
+            "previousState": previousState,
+            "newState": newState,
+            "cursorPosition": cursorPosition,
+            "selectedRange": NSStringFromRange(selectedRange),
+            "trigger": trigger.rawValue
+        ]
+        
+        let message = "格式状态变化: \(format.displayName) \(stateChange) (触发: \(trigger.displayName))"
+        
+        log(level: .debug, message: message, category: LogCategory.formatState.rawValue, additionalInfo: info, file: file, function: function, line: line)
+    }
+    
+    /// 记录格式应用操作
+    /// 需求: 8.1 - 添加格式状态变化的日志记录
+    func logFormatApplication(
+        format: TextFormat,
+        range: NSRange,
+        success: Bool,
+        duration: TimeInterval,
+        errorMessage: String? = nil,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        var info: [String: Any] = [
+            "format": format.displayName,
+            "range": NSStringFromRange(range),
+            "success": success,
+            "duration_ms": String(format: "%.2f", duration * 1000)
+        ]
+        
+        if let error = errorMessage {
+            info["error"] = error
+        }
+        
+        let level: LogLevel = success ? .debug : .warning
+        let message = "格式应用: \(format.displayName) - \(success ? "成功" : "失败") (\(String(format: "%.2f", duration * 1000))ms)"
+        
+        log(level: level, message: message, category: LogCategory.formatApplication.rawValue, additionalInfo: info, file: file, function: function, line: line)
+    }
+    
+    /// 记录状态同步操作
+    /// 需求: 8.1 - 添加格式状态变化的日志记录
+    func logStateSynchronization(
+        cursorPosition: Int,
+        detectedFormats: Set<TextFormat>,
+        duration: TimeInterval,
+        success: Bool,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        let formatNames = detectedFormats.map { $0.displayName }.joined(separator: ", ")
+        let info: [String: Any] = [
+            "cursorPosition": cursorPosition,
+            "detectedFormats": formatNames,
+            "formatCount": detectedFormats.count,
+            "duration_ms": String(format: "%.2f", duration * 1000),
+            "success": success
+        ]
+        
+        let level: LogLevel = success ? .debug : .warning
+        let message = "状态同步: 位置 \(cursorPosition), 检测到 \(detectedFormats.count) 个格式 (\(String(format: "%.2f", duration * 1000))ms)"
+        
+        log(level: level, message: message, category: LogCategory.stateSynchronization.rawValue, additionalInfo: info, file: file, function: function, line: line)
+    }
+    
+    /// 记录状态检测操作
+    /// 需求: 8.1 - 添加格式状态变化的日志记录
+    func logStateDetection(
+        format: TextFormat,
+        detected: Bool,
+        position: Int,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        guard enableTraceLogging else { return }
+        
+        let info: [String: Any] = [
+            "format": format.displayName,
+            "detected": detected,
+            "position": position
+        ]
+        
+        let message = "状态检测: \(format.displayName) - \(detected ? "激活" : "未激活") (位置: \(position))"
+        
+        log(level: .trace, message: message, category: LogCategory.stateDetection.rawValue, additionalInfo: info, file: file, function: function, line: line)
+    }
+    
+    /// 记录用户交互
+    func logUserInteraction(
+        action: String,
+        format: TextFormat? = nil,
+        details: [String: Any]? = nil,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        var info = details ?? [:]
+        if let format = format {
+            info["format"] = format.displayName
+        }
+        
+        let message = "用户交互: \(action)"
+        
+        log(level: .debug, message: message, category: LogCategory.userInteraction.rawValue, additionalInfo: info, file: file, function: function, line: line)
+    }
+    
+    /// 记录跟踪日志（最详细级别）
+    func logTrace(
+        _ message: String,
+        category: String = "General",
+        additionalInfo: [String: Any]? = nil,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        guard enableTraceLogging else { return }
+        log(level: .trace, message: message, category: category, additionalInfo: additionalInfo, file: file, function: function, line: line)
+    }
+    
     /// 记录格式转换日志
     func logFormatConversion(
         direction: String,
@@ -339,6 +639,9 @@ final class NativeEditorLogger {
         // 检查日志级别
         guard level >= minimumLogLevel else { return }
         
+        // 检查类别是否启用
+        guard isCategoryEnabled(category) else { return }
+        
         // 创建日志条目
         let entry = LogEntry(
             timestamp: Date(),
@@ -396,14 +699,46 @@ final class NativeEditorLogger {
         return logEntries.filter { $0.category == category }
     }
     
+    /// 获取指定类别的日志（使用枚举）
+    func getLogs(category: LogCategory) -> [LogEntry] {
+        return logEntries.filter { $0.category == category.rawValue }
+    }
+    
     /// 获取最近的日志
     func getRecentLogs(count: Int = 50) -> [LogEntry] {
         return Array(logEntries.suffix(count))
     }
     
+    /// 获取格式状态变化记录
+    /// 需求: 8.1 - 添加格式状态变化的日志记录
+    func getFormatStateChanges() -> [FormatStateChangeRecord] {
+        return formatStateChanges
+    }
+    
+    /// 获取指定格式的状态变化记录
+    func getFormatStateChanges(for format: TextFormat) -> [FormatStateChangeRecord] {
+        return formatStateChanges.filter { $0.format == format }
+    }
+    
+    /// 获取最近的格式状态变化记录
+    func getRecentFormatStateChanges(count: Int = 20) -> [FormatStateChangeRecord] {
+        return Array(formatStateChanges.suffix(count))
+    }
+    
     /// 清除所有日志
     func clearLogs() {
         logEntries.removeAll()
+    }
+    
+    /// 清除格式状态变化记录
+    func clearFormatStateChanges() {
+        formatStateChanges.removeAll()
+    }
+    
+    /// 清除所有记录
+    func clearAllRecords() {
+        logEntries.removeAll()
+        formatStateChanges.removeAll()
     }
     
     /// 导出日志到字符串
@@ -417,25 +752,151 @@ final class NativeEditorLogger {
         try content.write(to: url, atomically: true, encoding: .utf8)
     }
     
+    /// 导出格式状态变化记录
+    func exportFormatStateChanges() -> String {
+        return formatStateChanges.map { $0.summary }.joined(separator: "\n")
+    }
+    
+    /// 生成调试报告
+    /// 需求: 8.1 - 启用调试模式时输出格式状态变化的详细日志
+    func generateDebugReport() -> String {
+        var report = """
+        ========================================
+        原生编辑器调试报告
+        生成时间: \(ISO8601DateFormatter().string(from: Date()))
+        ========================================
+        
+        ## 调试模式状态
+        - 调试模式: \(isDebugModeEnabled ? "启用" : "禁用")
+        - 当前日志级别: \(currentLogLevel.displayName)
+        - 控制台输出: \(enableConsoleOutput ? "启用" : "禁用")
+        - 文件日志: \(enableFileLogging ? "启用" : "禁用")
+        - 格式状态日志: \(enableFormatStateLogging ? "启用" : "禁用")
+        - 跟踪日志: \(enableTraceLogging ? "启用" : "禁用")
+        
+        ## 日志统计
+        - 总日志条目: \(logEntries.count)
+        - 格式状态变化记录: \(formatStateChanges.count)
+        
+        """
+        
+        // 按级别统计
+        report += "\n## 按级别统计\n"
+        for level in LogLevel.allCases {
+            let count = logEntries.filter { $0.level == level }.count
+            report += "- \(level.displayName): \(count)\n"
+        }
+        
+        // 按类别统计
+        report += "\n## 按类别统计\n"
+        for category in LogCategory.allCases {
+            let count = logEntries.filter { $0.category == category.rawValue }.count
+            if count > 0 {
+                report += "- \(category.displayName): \(count)\n"
+            }
+        }
+        
+        // 最近的格式状态变化
+        let recentChanges = getRecentFormatStateChanges(count: 20)
+        if !recentChanges.isEmpty {
+            report += "\n## 最近的格式状态变化\n"
+            for change in recentChanges.reversed() {
+                report += "\(change.summary)\n"
+            }
+        }
+        
+        // 最近的错误日志
+        let errorLogs = logEntries.filter { $0.level >= .error }.suffix(10)
+        if !errorLogs.isEmpty {
+            report += "\n## 最近的错误日志\n"
+            for log in errorLogs.reversed() {
+                report += "\(log.compactMessage)\n"
+            }
+        }
+        
+        report += "\n========================================\n"
+        
+        return report
+    }
+    
     // MARK: - Debug Mode
     
     /// 启用调试模式
+    /// 需求: 8.1 - 创建调试模式的开关
     func enableDebugMode() {
+        isDebugModeEnabled = true
+    }
+    
+    /// 禁用调试模式
+    /// 需求: 8.1 - 创建调试模式的开关
+    func disableDebugMode() {
+        isDebugModeEnabled = false
+    }
+    
+    /// 内部启用调试模式
+    private func enableDebugModeInternal() {
         minimumLogLevel = .debug
+        currentLogLevel = .debug
         enableConsoleOutput = true
         enableFormatConversionLogging = true
         enableRenderingLogging = true
         enablePerformanceLogging = true
-        logInfo("调试模式已启用", category: "System")
+        enableFormatStateLogging = true
+        enableTraceLogging = false  // 跟踪日志默认关闭，太详细
+        enabledCategories = Set(LogCategory.allCases)
+        logInfo("调试模式已启用", category: LogCategory.system.rawValue)
     }
     
-    /// 禁用调试模式
-    func disableDebugMode() {
+    /// 内部禁用调试模式
+    private func disableDebugModeInternal() {
         minimumLogLevel = .warning
+        currentLogLevel = .warning
         enableConsoleOutput = false
         enableFormatConversionLogging = false
         enableRenderingLogging = false
         enablePerformanceLogging = false
-        logInfo("调试模式已禁用", category: "System")
+        enableFormatStateLogging = false
+        enableTraceLogging = false
+        logInfo("调试模式已禁用", category: LogCategory.system.rawValue)
+    }
+    
+    /// 启用详细跟踪模式（最详细的日志）
+    func enableTraceMode() {
+        enableDebugMode()
+        enableTraceLogging = true
+        minimumLogLevel = .trace
+        currentLogLevel = .trace
+        logInfo("跟踪模式已启用", category: LogCategory.system.rawValue)
+    }
+    
+    /// 设置日志级别
+    /// 需求: 8.1 - 实现可配置的日志级别
+    func setLogLevel(_ level: LogLevel) {
+        minimumLogLevel = level
+        currentLogLevel = level
+        logInfo("日志级别已设置为: \(level.displayName)", category: LogCategory.system.rawValue)
+    }
+    
+    /// 启用指定类别的日志
+    func enableCategory(_ category: LogCategory) {
+        enabledCategories.insert(category)
+    }
+    
+    /// 禁用指定类别的日志
+    func disableCategory(_ category: LogCategory) {
+        enabledCategories.remove(category)
+    }
+    
+    /// 检查类别是否启用
+    func isCategoryEnabled(_ category: LogCategory) -> Bool {
+        return enabledCategories.contains(category)
+    }
+    
+    /// 检查类别是否启用（字符串版本）
+    func isCategoryEnabled(_ categoryString: String) -> Bool {
+        guard let category = LogCategory(rawValue: categoryString) else {
+            return true  // 未知类别默认启用
+        }
+        return enabledCategories.contains(category)
     }
 }
