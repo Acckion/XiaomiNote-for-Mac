@@ -39,6 +39,23 @@ struct NativeFormatMenuView: View {
         }
         .padding(16)
         .frame(width: 280)
+        .onAppear {
+            print("✅ [NativeFormatMenuView] onAppear 开始")
+            logFormatState()
+            
+            // 请求从 textView 同步内容
+            context.requestContentSync()
+            
+            // 使用延迟确保同步完成后再更新格式状态
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                print("🔄 [NativeFormatMenuView] 延迟后更新格式状态")
+                context.forceUpdateFormats()
+                logFormatState()
+            }
+        }
+        .onChange(of: context.currentFormats) { oldValue, newValue in
+            print("🔄 [NativeFormatMenuView] 格式状态变化: \(oldValue.map { $0.displayName }) -> \(newValue.map { $0.displayName })")
+        }
     }
     
     // MARK: - Text Style Section
@@ -260,6 +277,32 @@ struct FormatButton: View {
         }
         .buttonStyle(.plain)
         .help(title + (shortcut != nil ? " (\(shortcut!))" : ""))
+    }
+}
+
+// MARK: - Debug Logging Extension
+
+extension NativeFormatMenuView {
+    /// 打印当前格式状态（调试用）
+    private func logFormatState() {
+        print("✅ [NativeFormatMenuView] 已显示，context: \(context)")
+        print("   - 加粗: \(context.isFormatActive(.bold))")
+        print("   - 斜体: \(context.isFormatActive(.italic))")
+        print("   - 下划线: \(context.isFormatActive(.underline))")
+        print("   - 删除线: \(context.isFormatActive(.strikethrough))")
+        print("   - 高亮: \(context.isFormatActive(.highlight))")
+        print("   - 大标题: \(context.isFormatActive(.heading1))")
+        print("   - 二级标题: \(context.isFormatActive(.heading2))")
+        print("   - 三级标题: \(context.isFormatActive(.heading3))")
+        print("   - 居中: \(context.isFormatActive(.alignCenter))")
+        print("   - 右对齐: \(context.isFormatActive(.alignRight))")
+        print("   - 无序列表: \(context.isFormatActive(.bulletList))")
+        print("   - 有序列表: \(context.isFormatActive(.numberedList))")
+        print("   - 复选框: \(context.isFormatActive(.checkbox))")
+        print("   - 引用: \(context.isFormatActive(.quote))")
+        print("   - 当前格式集合: \(context.currentFormats)")
+        print("   - 光标位置: \(context.cursorPosition)")
+        print("   - 选择范围: \(context.selectedRange)")
     }
 }
 

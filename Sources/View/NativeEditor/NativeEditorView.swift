@@ -194,6 +194,69 @@ struct NativeEditorView: NSViewRepresentable {
                     self?.insertSpecialElement(element)
                 }
                 .store(in: &cancellables)
+            
+            // 监听内容同步请求
+            NotificationCenter.default.publisher(for: .nativeEditorRequestContentSync)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] notification in
+                    guard let self = self,
+                          let context = notification.object as? NativeEditorContext,
+                          context === self.parent.editorContext else { return }
+                    
+                    self.syncContentToContext()
+                }
+                .store(in: &cancellables)
+        }
+        
+        /// 同步 textView 内容到 editorContext
+        private func syncContentToContext() {
+            guard let textView = textView else {
+                print("[NativeEditorView] syncContentToContext: textView 为 nil")
+                return
+            }
+            
+            guard let textStorage = textView.textStorage else {
+                print("[NativeEditorView] syncContentToContext: textStorage 为 nil")
+                return
+            }
+            
+            // 直接从 textStorage 获取内容（而不是 attributedString()）
+            let attributedString = NSAttributedString(attributedString: textStorage)
+            let selectedRange = textView.selectedRange()
+            
+            print("[NativeEditorView] syncContentToContext: 同步内容")
+            print("[NativeEditorView]   - textStorage.length: \(textStorage.length)")
+            print("[NativeEditorView]   - 选择范围: \(selectedRange)")
+            
+            // 打印位置 16 处的属性（用于调试）
+            if selectedRange.location < textStorage.length {
+                let attrs = textStorage.attributes(at: selectedRange.location, effectiveRange: nil)
+                print("[NativeEditorView]   - 位置 \(selectedRange.location) 的属性数量: \(attrs.count)")
+                for (key, value) in attrs {
+                    print("[NativeEditorView]     - \(key): \(value)")
+                }
+                
+                // 检查字体
+                if let font = attrs[.font] as? NSFont {
+                    let traits = font.fontDescriptor.symbolicTraits
+                    print("[NativeEditorView]     - 字体: \(font.fontName), 大小: \(font.pointSize)")
+                    print("[NativeEditorView]     - 是否粗体: \(traits.contains(.bold))")
+                    print("[NativeEditorView]     - 是否斜体: \(traits.contains(.italic))")
+                }
+            }
+            
+            Task { @MainActor in
+                // 关键修复：直接更新 nsAttributedText，不做字符串比较
+                // 因为字符串可能相同但属性不同
+                self.parent.editorContext.nsAttributedText = attributedString
+                print("[NativeEditorView] syncContentToContext: nsAttributedText 已更新 (长度: \(attributedString.length))")
+                
+                // 更新选择范围
+                self.parent.editorContext.updateSelectedRange(selectedRange)
+                
+                // 强制更新格式状态
+                self.parent.editorContext.updateCurrentFormats()
+            }
         }
         
         // MARK: - NSTextViewDelegate
@@ -217,12 +280,20 @@ struct NativeEditorView: NSViewRepresentable {
         
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
+            guard let textStorage = textView.textStorage else { return }
             
             let selectedRange = textView.selectedRange()
             let selectionChangeCallback = parent.onSelectionChange
             
+            // 直接从 textStorage 获取内容（保留所有属性）
+            let currentAttributedString = NSAttributedString(attributedString: textStorage)
+            
             // 使用 Task 延迟执行，避免在视图更新中修改 @Published 属性
             Task { @MainActor in
+                // 关键修复：始终同步 nsAttributedText，确保属性正确
+                // 不做字符串比较，因为字符串可能相同但属性不同
+                self.parent.editorContext.nsAttributedText = currentAttributedString
+                
                 self.parent.editorContext.updateSelectedRange(selectedRange)
                 // 调用回调
                 selectionChangeCallback?(selectedRange)
@@ -247,8 +318,10 @@ struct NativeEditorView: NSViewRepresentable {
         
         /// 应用格式到选中文本
         /// 需求: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8
+        /// 性能需求: 3.1 - 确保50ms内开始格式应用
         func applyFormat(_ format: TextFormat) {
-            print("[FormatApplicator] 开始应用格式: \(format.displayName)")
+            // 开始性能测量 - 需求 3.1
+            let performanceOptimizer = FormatApplicationPerformanceOptimizer.shared
             
             // 1. 预检查 - 验证编辑器状态
             guard let textView = textView,
@@ -258,6 +331,14 @@ struct NativeEditorView: NSViewRepresentable {
             }
             
             let selectedRange = textView.selectedRange()
+            
+            // 开始性能测量
+            let measurementContext = performanceOptimizer.beginMeasurement(
+                format: format,
+                selectedRange: selectedRange
+            )
+            
+            print("[FormatApplicator] 开始应用格式: \(format.displayName)")
             print("[FormatApplicator] 选择范围: location=\(selectedRange.location), length=\(selectedRange.length)")
             
             // 2. 处理空选择范围的情况
@@ -265,9 +346,7 @@ struct NativeEditorView: NSViewRepresentable {
             // 对于块级格式，即使没有选中文本也可以应用到当前行
             if selectedRange.length == 0 && format.isInlineFormat {
                 print("[FormatApplicator] ⚠️ 警告: 内联格式需要选中文本，当前未选中任何文本")
-                // 对于内联格式，我们可以应用到光标位置的单个字符（如果存在）
-                // 或者等待用户输入新文本时应用格式
-                // 这里我们选择不做任何操作，因为没有文本可以应用格式
+                performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: "内联格式需要选中文本")
                 return
             }
             
@@ -283,6 +362,7 @@ struct NativeEditorView: NSViewRepresentable {
             
             guard effectiveRange.location + effectiveRange.length <= textStorage.length else {
                 print("[FormatApplicator] ❌ 错误: 选择范围超出文本长度 (range: \(effectiveRange), textLength: \(textStorage.length))")
+                performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: "选择范围超出文本长度")
                 return
             }
             
@@ -298,11 +378,13 @@ struct NativeEditorView: NSViewRepresentable {
                 // 6. 通知内容变化
                 textDidChange(Notification(name: NSText.didChangeNotification, object: textView))
                 
-                // 7. 记录成功日志
+                // 7. 记录成功日志和性能数据
                 print("[FormatApplicator] ✅ 成功应用格式: \(format.displayName)")
+                performanceOptimizer.endMeasurement(measurementContext, success: true)
             } catch {
                 // 8. 错误处理
                 print("[FormatApplicator] ❌ 格式应用失败: \(error)")
+                performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: error.localizedDescription)
                 // 触发状态重新同步
                 parent.editorContext.updateCurrentFormats()
             }
@@ -1328,6 +1410,7 @@ class NativeTextView: NSTextView {
 
 extension Notification.Name {
     static let nativeEditorFormatCommand = Notification.Name("nativeEditorFormatCommand")
+    static let nativeEditorRequestContentSync = Notification.Name("nativeEditorRequestContentSync")
 }
 
 // MARK: - ListStateManager
