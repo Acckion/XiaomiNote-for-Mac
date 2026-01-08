@@ -976,36 +976,82 @@ class NativeEditorContext: ObservableObject {
     private func detectListFormats(at position: Int) -> Set<TextFormat> {
         var formats: Set<TextFormat> = []
         
-        // 检查当前位置是否有附件
-        let attributes = nsAttributedText.attributes(at: position, effectiveRange: nil)
+        // 获取当前行的范围
+        let lineRange = getLineRange(at: position)
+        guard lineRange.location < nsAttributedText.length else {
+            return formats
+        }
         
-        if let attachment = attributes[.attachment] as? NSTextAttachment {
-            // 检测复选框
-            if attachment is InteractiveCheckboxAttachment {
-                formats.insert(.checkbox)
-            }
-            // 检测无序列表
-            else if attachment is BulletAttachment {
-                formats.insert(.bulletList)
-            }
-            // 检测有序列表
-            else if attachment is OrderAttachment {
-                formats.insert(.numberedList)
+        // 检查当前行开头的属性
+        let lineAttributes = nsAttributedText.attributes(at: lineRange.location, effectiveRange: nil)
+        
+        // 方法 1: 检查 listType 自定义属性（最可靠的方式）
+        if let listType = lineAttributes[.listType] {
+            print("[NativeEditorContext] detectListFormats - 检测到 listType: \(listType)")
+            // listType 可能是 ListType 枚举或字符串
+            if let listTypeEnum = listType as? ListType {
+                switch listTypeEnum {
+                case .bullet:
+                    formats.insert(.bulletList)
+                    print("[NativeEditorContext] detectListFormats - 检测到无序列表 (ListType.bullet)")
+                case .ordered:
+                    formats.insert(.numberedList)
+                    print("[NativeEditorContext] detectListFormats - 检测到有序列表 (ListType.ordered)")
+                case .checkbox:
+                    formats.insert(.checkbox)
+                    print("[NativeEditorContext] detectListFormats - 检测到复选框 (ListType.checkbox)")
+                case .none:
+                    break
+                }
+            } else if let listTypeString = listType as? String {
+                if listTypeString == "bullet" {
+                    formats.insert(.bulletList)
+                    print("[NativeEditorContext] detectListFormats - 检测到无序列表 (string: bullet)")
+                } else if listTypeString == "ordered" || listTypeString == "order" {
+                    formats.insert(.numberedList)
+                    print("[NativeEditorContext] detectListFormats - 检测到有序列表 (string: \(listTypeString))")
+                } else if listTypeString == "checkbox" {
+                    formats.insert(.checkbox)
+                    print("[NativeEditorContext] detectListFormats - 检测到复选框 (string: checkbox)")
+                }
             }
         }
         
-        // 如果当前位置没有附件，检查当前行的开头
+        // 方法 2: 检查附件（备用方式）
         if formats.isEmpty {
-            let lineRange = getLineRange(at: position)
-            if lineRange.location < nsAttributedText.length {
-                let lineAttributes = nsAttributedText.attributes(at: lineRange.location, effectiveRange: nil)
+            // 检查当前位置是否有附件
+            let attributes = nsAttributedText.attributes(at: position, effectiveRange: nil)
+            
+            if let attachment = attributes[.attachment] as? NSTextAttachment {
+                // 检测复选框
+                if attachment is InteractiveCheckboxAttachment {
+                    formats.insert(.checkbox)
+                    print("[NativeEditorContext] detectListFormats - 检测到复选框 (当前位置附件)")
+                }
+                // 检测无序列表
+                else if attachment is BulletAttachment {
+                    formats.insert(.bulletList)
+                    print("[NativeEditorContext] detectListFormats - 检测到无序列表 (当前位置附件)")
+                }
+                // 检测有序列表
+                else if attachment is OrderAttachment {
+                    formats.insert(.numberedList)
+                    print("[NativeEditorContext] detectListFormats - 检测到有序列表 (当前位置附件)")
+                }
+            }
+            
+            // 如果当前位置没有附件，检查当前行的开头
+            if formats.isEmpty {
                 if let attachment = lineAttributes[.attachment] as? NSTextAttachment {
                     if attachment is InteractiveCheckboxAttachment {
                         formats.insert(.checkbox)
+                        print("[NativeEditorContext] detectListFormats - 检测到复选框 (行开头附件)")
                     } else if attachment is BulletAttachment {
                         formats.insert(.bulletList)
+                        print("[NativeEditorContext] detectListFormats - 检测到无序列表 (行开头附件)")
                     } else if attachment is OrderAttachment {
                         formats.insert(.numberedList)
+                        print("[NativeEditorContext] detectListFormats - 检测到有序列表 (行开头附件)")
                     }
                 }
             }
