@@ -287,7 +287,8 @@ struct NativeFormatMenuView: View {
             return
         }
         
-        context.applyFormat(format)
+        // 需求 5.4: 使用菜单应用方式，确保一致性检查
+        context.applyFormat(format, method: .menu)
         onFormatApplied?(format)
     }
 }

@@ -277,9 +277,25 @@ class NativeEditorContext: ObservableObject {
     
     // MARK: - Public Methods - 格式应用 (需求 9.3)
     
+    /// 当前格式应用方式（用于一致性检查）
+    /// 需求: 5.4 - 确保格式应用方式一致性
+    @Published var currentApplicationMethod: FormatApplicationMethod = .programmatic
+    
     /// 应用格式到选中文本
     /// - Parameter format: 要应用的格式
     func applyFormat(_ format: TextFormat) {
+        applyFormat(format, method: .programmatic)
+    }
+    
+    /// 应用格式到选中文本（带应用方式标识）
+    /// - Parameters:
+    ///   - format: 要应用的格式
+    ///   - method: 应用方式
+    /// 需求: 5.4 - 确保格式应用方式一致性
+    func applyFormat(_ format: TextFormat, method: FormatApplicationMethod) {
+        // 记录应用方式
+        currentApplicationMethod = method
+        
         // 切换格式状态
         if currentFormats.contains(format) {
             currentFormats.remove(format)
@@ -296,6 +312,9 @@ class NativeEditorContext: ObservableObject {
         
         // 标记有未保存的更改
         hasUnsavedChanges = true
+        
+        // 重置应用方式
+        currentApplicationMethod = .programmatic
     }
     
     /// 设置格式状态（不触发切换）

@@ -206,6 +206,82 @@ struct NativeEditorView: NSViewRepresentable {
                     self.syncContentToContext()
                 }
                 .store(in: &cancellables)
+            
+            // 需求 5.1, 5.2, 5.3: 监听快捷键格式命令
+            // 当用户使用 Cmd+B/I/U 快捷键时，确保格式菜单状态同步更新
+            NotificationCenter.default.publisher(for: .nativeEditorFormatCommand)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] notification in
+                    guard let self = self,
+                          let format = notification.object as? TextFormat else { return }
+                    
+                    print("[NativeEditorView] 收到快捷键格式命令: \(format.displayName)")
+                    self.handleKeyboardShortcutFormat(format)
+                }
+                .store(in: &cancellables)
+            
+            // 需求 5.5: 监听撤销/重做操作
+            // 当用户撤销或重做格式操作时，确保格式菜单状态正确更新
+            NotificationCenter.default.publisher(for: .NSUndoManagerDidUndoChange)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] notification in
+                    guard let self = self else { return }
+                    print("[NativeEditorView] 检测到撤销操作")
+                    self.handleUndoRedoOperation()
+                }
+                .store(in: &cancellables)
+            
+            NotificationCenter.default.publisher(for: .NSUndoManagerDidRedoChange)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] notification in
+                    guard let self = self else { return }
+                    print("[NativeEditorView] 检测到重做操作")
+                    self.handleUndoRedoOperation()
+                }
+                .store(in: &cancellables)
+        }
+        
+        // MARK: - 快捷键格式处理 (需求 5.1, 5.2, 5.3, 5.4)
+        
+        /// 处理快捷键格式命令
+        /// - Parameter format: 格式类型
+        /// 需求: 5.1, 5.2, 5.3 - 确保快捷键操作后菜单状态更新
+        /// 需求: 5.4 - 确保格式应用方式一致性
+        private func handleKeyboardShortcutFormat(_ format: TextFormat) {
+            print("[NativeEditorView] handleKeyboardShortcutFormat: \(format.displayName)")
+            
+            // 1. 应用格式（与菜单应用使用相同的方法，确保一致性）
+            applyFormatWithMethod(.keyboard, format: format)
+            
+            // 2. 同步内容到上下文
+            syncContentToContext()
+            
+            // 3. 强制更新格式状态，确保菜单状态同步
+            Task { @MainActor in
+                // 延迟一小段时间确保格式应用完成
+                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+                self.parent.editorContext.forceUpdateFormats()
+                print("[NativeEditorView] 快捷键格式应用完成，状态已更新")
+            }
+        }
+        
+        // MARK: - 撤销/重做处理 (需求 5.5)
+        
+        /// 处理撤销/重做操作
+        /// 需求: 5.5 - 确保撤销后状态正确更新
+        private func handleUndoRedoOperation() {
+            print("[NativeEditorView] handleUndoRedoOperation")
+            
+            // 1. 同步内容到上下文
+            syncContentToContext()
+            
+            // 2. 强制更新格式状态
+            Task { @MainActor in
+                // 延迟一小段时间确保撤销/重做操作完成
+                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+                self.parent.editorContext.forceUpdateFormats()
+                print("[NativeEditorView] 撤销/重做操作后状态已更新")
+            }
         }
         
         /// 同步 textView 内容到 editorContext
@@ -316,21 +392,68 @@ struct NativeEditorView: NSViewRepresentable {
         
         // MARK: - Format Application
         
+        /// 当前格式应用方式（临时存储）
+        private var currentApplicationMethod: FormatApplicationMethod?
+        
+        /// 应用格式（带应用方式标识）
+        /// - Parameters:
+        ///   - method: 应用方式
+        ///   - format: 格式类型
+        /// 需求: 5.4 - 确保格式应用方式一致性
+        func applyFormatWithMethod(_ method: FormatApplicationMethod, format: TextFormat) {
+            // 临时存储应用方式，供 applyFormat 使用
+            currentApplicationMethod = method
+            applyFormat(format)
+            currentApplicationMethod = nil
+        }
+        
         /// 应用格式到选中文本
         /// 需求: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8
         /// 性能需求: 3.1 - 确保50ms内开始格式应用
+        /// 错误处理需求: 4.1 - 格式应用失败时记录错误日志并保持界面状态一致
+        /// 一致性需求: 5.4 - 记录格式应用操作以进行一致性检查
         func applyFormat(_ format: TextFormat) {
             // 开始性能测量 - 需求 3.1
             let performanceOptimizer = FormatApplicationPerformanceOptimizer.shared
+            let errorHandler = FormatErrorHandler.shared
+            let consistencyChecker = FormatApplicationConsistencyChecker.shared
             
             // 1. 预检查 - 验证编辑器状态
-            guard let textView = textView,
-                  let textStorage = textView.textStorage else {
-                print("[FormatApplicator] ❌ 错误: textView 或 textStorage 为 nil")
+            guard let textView = textView else {
+                print("[FormatApplicator] ❌ 错误: textView 为 nil")
+                // 需求 4.1: 记录错误日志
+                let context = FormatErrorContext(
+                    operation: "applyFormat",
+                    format: format.displayName,
+                    selectedRange: nil,
+                    textLength: nil,
+                    cursorPosition: nil,
+                    additionalInfo: nil
+                )
+                errorHandler.handleError(.textViewUnavailable, context: context)
+                return
+            }
+            
+            guard let textStorage = textView.textStorage else {
+                print("[FormatApplicator] ❌ 错误: textStorage 为 nil")
+                // 需求 4.1: 记录错误日志
+                let context = FormatErrorContext(
+                    operation: "applyFormat",
+                    format: format.displayName,
+                    selectedRange: nil,
+                    textLength: nil,
+                    cursorPosition: nil,
+                    additionalInfo: nil
+                )
+                errorHandler.handleError(.textStorageUnavailable, context: context)
                 return
             }
             
             let selectedRange = textView.selectedRange()
+            let textLength = textStorage.length
+            
+            // 记录应用前的格式状态 - 需求 5.4
+            let beforeState = parent.editorContext.currentFormats
             
             // 开始性能测量
             let measurementContext = performanceOptimizer.beginMeasurement(
@@ -347,6 +470,16 @@ struct NativeEditorView: NSViewRepresentable {
             if selectedRange.length == 0 && format.isInlineFormat {
                 print("[FormatApplicator] ⚠️ 警告: 内联格式需要选中文本，当前未选中任何文本")
                 performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: "内联格式需要选中文本")
+                // 需求 4.1: 记录错误日志
+                let context = FormatErrorContext(
+                    operation: "applyFormat",
+                    format: format.displayName,
+                    selectedRange: selectedRange,
+                    textLength: textLength,
+                    cursorPosition: selectedRange.location,
+                    additionalInfo: nil
+                )
+                errorHandler.handleError(.emptySelectionForInlineFormat(format: format.displayName), context: context)
                 return
             }
             
@@ -360,9 +493,11 @@ struct NativeEditorView: NSViewRepresentable {
                 effectiveRange = lineRange
             }
             
-            guard effectiveRange.location + effectiveRange.length <= textStorage.length else {
-                print("[FormatApplicator] ❌ 错误: 选择范围超出文本长度 (range: \(effectiveRange), textLength: \(textStorage.length))")
+            guard effectiveRange.location + effectiveRange.length <= textLength else {
+                print("[FormatApplicator] ❌ 错误: 选择范围超出文本长度 (range: \(effectiveRange), textLength: \(textLength))")
                 performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: "选择范围超出文本长度")
+                // 需求 4.1: 记录错误日志
+                errorHandler.handleRangeError(range: effectiveRange, textLength: textLength)
                 return
             }
             
@@ -381,12 +516,84 @@ struct NativeEditorView: NSViewRepresentable {
                 // 7. 记录成功日志和性能数据
                 print("[FormatApplicator] ✅ 成功应用格式: \(format.displayName)")
                 performanceOptimizer.endMeasurement(measurementContext, success: true)
+                
+                // 8. 记录一致性检查数据 - 需求 5.4
+                let afterState = parent.editorContext.currentFormats
+                // 优先使用显式设置的方式，否则从 editorContext 获取
+                let applicationMethod = currentApplicationMethod ?? parent.editorContext.currentApplicationMethod
+                consistencyChecker.recordFormatApplication(
+                    method: applicationMethod,
+                    format: format,
+                    selectedRange: selectedRange,
+                    textLength: textLength,
+                    beforeState: beforeState,
+                    afterState: afterState,
+                    success: true
+                )
+                
+                // 9. 重置错误计数（成功后重置）
+                errorHandler.resetErrorCount()
             } catch {
-                // 8. 错误处理
+                // 9. 错误处理 - 需求 4.1
                 print("[FormatApplicator] ❌ 格式应用失败: \(error)")
                 performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: error.localizedDescription)
+                
+                // 记录一致性检查数据（失败情况）- 需求 5.4
+                let afterState = parent.editorContext.currentFormats
+                // 优先使用显式设置的方式，否则从 editorContext 获取
+                let applicationMethod = currentApplicationMethod ?? parent.editorContext.currentApplicationMethod
+                consistencyChecker.recordFormatApplication(
+                    method: applicationMethod,
+                    format: format,
+                    selectedRange: selectedRange,
+                    textLength: textLength,
+                    beforeState: beforeState,
+                    afterState: afterState,
+                    success: false,
+                    errorMessage: error.localizedDescription
+                )
+                
+                // 记录错误并尝试恢复
+                let result = errorHandler.handleFormatApplicationError(
+                    format: format,
+                    range: effectiveRange,
+                    textLength: textLength,
+                    underlyingError: error
+                )
+                
+                // 根据恢复操作执行相应处理
+                handleFormatErrorRecovery(result, format: format)
+                
                 // 触发状态重新同步
                 parent.editorContext.updateCurrentFormats()
+            }
+        }
+        
+        /// 处理格式错误恢复
+        /// - Parameters:
+        ///   - result: 错误处理结果
+        ///   - format: 格式类型
+        /// 需求: 4.1
+        private func handleFormatErrorRecovery(_ result: FormatErrorHandlingResult, format: TextFormat) {
+            switch result.recoveryAction {
+            case .retryWithFallback:
+                // 尝试使用回退方案
+                print("[FormatApplicator] 尝试使用回退方案重新应用格式: \(format.displayName)")
+                // 这里可以实现回退逻辑，例如使用更简单的格式应用方式
+                
+            case .forceStateUpdate:
+                // 强制更新状态
+                print("[FormatApplicator] 强制更新格式状态")
+                parent.editorContext.forceUpdateFormats()
+                
+            case .refreshEditor:
+                // 刷新编辑器
+                print("[FormatApplicator] 刷新编辑器")
+                NotificationCenter.default.post(name: .nativeEditorNeedsRefresh, object: nil)
+                
+            default:
+                // 其他情况不做额外处理
+                break
             }
         }
         
@@ -1411,6 +1618,7 @@ class NativeTextView: NSTextView {
 extension Notification.Name {
     static let nativeEditorFormatCommand = Notification.Name("nativeEditorFormatCommand")
     static let nativeEditorRequestContentSync = Notification.Name("nativeEditorRequestContentSync")
+    // nativeEditorNeedsRefresh 已在 NativeEditorErrorHandler.swift 中定义
 }
 
 // MARK: - ListStateManager
