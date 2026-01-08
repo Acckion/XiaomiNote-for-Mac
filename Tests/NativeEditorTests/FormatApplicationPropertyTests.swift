@@ -270,6 +270,172 @@ final class FormatApplicationPropertyTests: XCTestCase {
         print("[PropertyTest] ✅ 高亮格式应用一致性测试完成")
     }
     
+    // MARK: - 属性 2: 块级格式应用正确性
+    // 验证需求: 1.6, 1.7, 1.8
+    
+    /// 属性测试：标题格式应用正确性
+    /// 
+    /// **属性**: 对于任何光标位置或选中范围，点击标题格式按钮应该将相应的行设置为对应的标题格式
+    /// **验证需求**: 1.6
+    /// 
+    /// 测试策略：
+    /// 1. 生成随机多行文本
+    /// 2. 随机选择一行或多行
+    /// 3. 应用标题格式（H1, H2, H3）
+    /// 4. 验证选中行的字体大小和粗细符合标题格式
+    /// 5. 再次应用相同标题格式（切换）
+    /// 6. 验证标题格式已移除，恢复为正常文本
+    func testProperty2_HeadingFormatApplicationCorrectness() async throws {
+        let iterations = 100
+        print("\n[PropertyTest] 开始属性测试: 标题格式应用正确性 (迭代次数: \(iterations))")
+        
+        let headingLevels: [(level: HeadingLevel, size: CGFloat, name: String)] = [
+            (.h1, 24, "H1"),
+            (.h2, 20, "H2"),
+            (.h3, 16, "H3")
+        ]
+        
+        for iteration in 1...iterations {
+            // 1. 生成随机多行文本
+            let testText = generateRandomMultilineText(minLines: 3, maxLines: 10)
+            let range = generateRandomLineRange(in: testText)
+            
+            // 2. 设置初始文本
+            let attributedString = NSMutableAttributedString(string: testText)
+            attributedString.addAttribute(.font, value: NSFont.systemFont(ofSize: 15), range: NSRange(location: 0, length: testText.count))
+            textStorage.setAttributedString(attributedString)
+            textView.setSelectedRange(range)
+            
+            // 3. 随机选择一个标题级别
+            let headingInfo = headingLevels.randomElement()!
+            
+            print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 选择范围=\(range), 标题级别=\(headingInfo.name)")
+            
+            // 4. 应用标题格式
+            applyHeadingFormat(to: range, in: textStorage, level: headingInfo.level, size: headingInfo.size)
+            
+            // 5. 验证标题格式已应用
+            let hasHeadingAfterApply = verifyHeadingFormat(in: range, textStorage: textStorage, expectedSize: headingInfo.size)
+            XCTAssertTrue(hasHeadingAfterApply, 
+                         "迭代 \(iteration): 应用\(headingInfo.name)后，选中行应该具有标题格式")
+            
+            // 6. 再次应用标题格式（切换）
+            applyHeadingFormat(to: range, in: textStorage, level: headingInfo.level, size: headingInfo.size)
+            
+            // 7. 验证标题格式已移除
+            let hasHeadingAfterToggle = verifyHeadingFormat(in: range, textStorage: textStorage, expectedSize: 15)
+            XCTAssertTrue(hasHeadingAfterToggle, 
+                         "迭代 \(iteration): 再次应用\(headingInfo.name)后，选中行应该恢复为正常文本")
+        }
+        
+        print("[PropertyTest] ✅ 标题格式应用正确性测试完成")
+    }
+    
+    /// 属性测试：对齐格式应用正确性
+    /// 
+    /// **属性**: 对于任何光标位置或选中范围，点击对齐按钮应该设置当前段落的对齐方式
+    /// **验证需求**: 1.7
+    /// 
+    /// 测试策略：
+    /// 1. 生成随机多行文本
+    /// 2. 随机选择一行或多行
+    /// 3. 应用对齐格式（左对齐、居中、右对齐）
+    /// 4. 验证选中段落的对齐方式正确
+    func testProperty2_AlignmentFormatApplicationCorrectness() async throws {
+        let iterations = 100
+        print("\n[PropertyTest] 开始属性测试: 对齐格式应用正确性 (迭代次数: \(iterations))")
+        
+        let alignments: [(alignment: NSTextAlignment, name: String)] = [
+            (.left, "左对齐"),
+            (.center, "居中"),
+            (.right, "右对齐")
+        ]
+        
+        for iteration in 1...iterations {
+            // 1. 生成随机多行文本
+            let testText = generateRandomMultilineText(minLines: 3, maxLines: 10)
+            let range = generateRandomLineRange(in: testText)
+            
+            // 2. 设置初始文本
+            let attributedString = NSMutableAttributedString(string: testText)
+            attributedString.addAttribute(.font, value: NSFont.systemFont(ofSize: 15), range: NSRange(location: 0, length: testText.count))
+            textStorage.setAttributedString(attributedString)
+            textView.setSelectedRange(range)
+            
+            // 3. 随机选择一个对齐方式
+            let alignmentInfo = alignments.randomElement()!
+            
+            print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 选择范围=\(range), 对齐方式=\(alignmentInfo.name)")
+            
+            // 4. 应用对齐格式
+            applyAlignmentFormat(to: range, in: textStorage, alignment: alignmentInfo.alignment)
+            
+            // 5. 验证对齐格式已应用
+            let hasAlignmentAfterApply = verifyAlignmentFormat(in: range, textStorage: textStorage, expectedAlignment: alignmentInfo.alignment)
+            XCTAssertTrue(hasAlignmentAfterApply, 
+                         "迭代 \(iteration): 应用\(alignmentInfo.name)后，选中段落应该具有正确的对齐方式")
+        }
+        
+        print("[PropertyTest] ✅ 对齐格式应用正确性测试完成")
+    }
+    
+    /// 属性测试：列表格式应用正确性
+    /// 
+    /// **属性**: 对于任何光标位置或选中范围，点击列表按钮应该切换当前行的列表格式
+    /// **验证需求**: 1.8
+    /// 
+    /// 测试策略：
+    /// 1. 生成随机多行文本
+    /// 2. 随机选择一行或多行
+    /// 3. 应用列表格式（无序列表、有序列表）
+    /// 4. 验证选中行具有列表格式标记
+    /// 5. 再次应用相同列表格式（切换）
+    /// 6. 验证列表格式已移除
+    func testProperty2_ListFormatApplicationCorrectness() async throws {
+        let iterations = 100
+        print("\n[PropertyTest] 开始属性测试: 列表格式应用正确性 (迭代次数: \(iterations))")
+        
+        let listTypes: [(type: ListType, name: String)] = [
+            (.bullet, "无序列表"),
+            (.ordered, "有序列表")
+        ]
+        
+        for iteration in 1...iterations {
+            // 1. 生成随机多行文本
+            let testText = generateRandomMultilineText(minLines: 3, maxLines: 10)
+            let range = generateRandomLineRange(in: testText)
+            
+            // 2. 设置初始文本
+            let attributedString = NSMutableAttributedString(string: testText)
+            attributedString.addAttribute(.font, value: NSFont.systemFont(ofSize: 15), range: NSRange(location: 0, length: testText.count))
+            textStorage.setAttributedString(attributedString)
+            textView.setSelectedRange(range)
+            
+            // 3. 随机选择一个列表类型
+            let listInfo = listTypes.randomElement()!
+            
+            print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 选择范围=\(range), 列表类型=\(listInfo.name)")
+            
+            // 4. 应用列表格式
+            applyListFormat(to: range, in: textStorage, listType: listInfo.type)
+            
+            // 5. 验证列表格式已应用
+            let hasListAfterApply = verifyListFormat(in: range, textStorage: textStorage, expectedType: listInfo.type)
+            XCTAssertTrue(hasListAfterApply, 
+                         "迭代 \(iteration): 应用\(listInfo.name)后，选中行应该具有列表格式")
+            
+            // 6. 再次应用列表格式（切换）
+            applyListFormat(to: range, in: textStorage, listType: listInfo.type)
+            
+            // 7. 验证列表格式已移除
+            let hasListAfterToggle = verifyListFormat(in: range, textStorage: textStorage, expectedType: .none)
+            XCTAssertTrue(hasListAfterToggle, 
+                         "迭代 \(iteration): 再次应用\(listInfo.name)后，选中行应该移除列表格式")
+        }
+        
+        print("[PropertyTest] ✅ 列表格式应用正确性测试完成")
+    }
+    
     // MARK: - 辅助方法：随机数据生成
     
     /// 生成随机文本
@@ -295,6 +461,51 @@ final class FormatApplicationPropertyTests: XCTestCase {
         let rangeLength = Int.random(in: 1...min(maxLength, 20)) // 限制最大选择长度为 20
         
         return NSRange(location: location, length: rangeLength)
+    }
+    
+    /// 生成随机多行文本
+    /// - Parameters:
+    ///   - minLines: 最小行数
+    ///   - maxLines: 最大行数
+    /// - Returns: 随机多行文本
+    private func generateRandomMultilineText(minLines: Int, maxLines: Int) -> String {
+        let lineCount = Int.random(in: minLines...maxLines)
+        var lines: [String] = []
+        
+        for _ in 0..<lineCount {
+            let lineLength = Int.random(in: 10...50)
+            let line = generateRandomText(minLength: lineLength, maxLength: lineLength)
+            lines.append(line)
+        }
+        
+        return lines.joined(separator: "\n")
+    }
+    
+    /// 生成随机行范围（选择一行或多行）
+    /// - Parameter text: 文本
+    /// - Returns: 随机行范围
+    private func generateRandomLineRange(in text: String) -> NSRange {
+        let nsString = text as NSString
+        let length = text.count
+        guard length > 0 else { return NSRange(location: 0, length: 0) }
+        
+        // 随机选择一个位置
+        let location = Int.random(in: 0..<length)
+        
+        // 获取该位置所在行的范围
+        let lineRange = nsString.lineRange(for: NSRange(location: location, length: 0))
+        
+        // 随机决定是选择单行还是多行
+        if Bool.random() && lineRange.location + lineRange.length < length {
+            // 选择多行
+            let nextLineStart = lineRange.location + lineRange.length
+            let remainingLength = length - nextLineStart
+            let additionalLength = Int.random(in: 1...min(remainingLength, 100))
+            return NSRange(location: lineRange.location, length: lineRange.length + additionalLength)
+        } else {
+            // 选择单行
+            return lineRange
+        }
     }
     
     // MARK: - 辅助方法：格式应用
@@ -406,6 +617,93 @@ final class FormatApplicationPropertyTests: XCTestCase {
         }
     }
     
+    /// 应用标题格式
+    private func applyHeadingFormat(to range: NSRange, in textStorage: NSTextStorage, level: HeadingLevel, size: CGFloat) {
+        let nsString = textStorage.string as NSString
+        let lineRange = nsString.lineRange(for: range)
+        
+        textStorage.beginEditing()
+        defer { textStorage.endEditing() }
+        
+        // 检查是否已经是该级别的标题
+        var isAlreadyHeading = false
+        if let font = textStorage.attribute(.font, at: lineRange.location, effectiveRange: nil) as? NSFont {
+            if font.pointSize == size {
+                isAlreadyHeading = true
+            }
+        }
+        
+        if isAlreadyHeading {
+            // 移除标题格式，恢复为正常文本
+            let normalFont = NSFont.systemFont(ofSize: 15)
+            textStorage.addAttribute(.font, value: normalFont, range: lineRange)
+            textStorage.removeAttribute(.headingLevel, range: lineRange)
+        } else {
+            // 应用标题格式
+            let weight: NSFont.Weight = level == .h1 ? .bold : (level == .h2 ? .semibold : .medium)
+            let headingFont = NSFont.systemFont(ofSize: size, weight: weight)
+            textStorage.addAttribute(.font, value: headingFont, range: lineRange)
+            textStorage.addAttribute(.headingLevel, value: level.rawValue, range: lineRange)
+        }
+    }
+    
+    /// 应用对齐格式
+    private func applyAlignmentFormat(to range: NSRange, in textStorage: NSTextStorage, alignment: NSTextAlignment) {
+        let nsString = textStorage.string as NSString
+        let lineRange = nsString.lineRange(for: range)
+        
+        textStorage.beginEditing()
+        defer { textStorage.endEditing() }
+        
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = alignment
+        
+        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+    }
+    
+    /// 应用列表格式
+    private func applyListFormat(to range: NSRange, in textStorage: NSTextStorage, listType: ListType) {
+        let nsString = textStorage.string as NSString
+        let lineRange = nsString.lineRange(for: range)
+        
+        textStorage.beginEditing()
+        defer { textStorage.endEditing() }
+        
+        // 检查是否已经是该类型的列表
+        var isAlreadyList = false
+        if let currentType = textStorage.attribute(.listType, at: lineRange.location, effectiveRange: nil) as? ListType {
+            if currentType == listType {
+                isAlreadyList = true
+            }
+        }
+        
+        if isAlreadyList {
+            // 移除列表格式
+            textStorage.removeAttribute(.listType, range: lineRange)
+            textStorage.removeAttribute(.listIndent, range: lineRange)
+            textStorage.removeAttribute(.listNumber, range: lineRange)
+            
+            // 重置段落样式
+            let paragraphStyle = NSMutableParagraphStyle()
+            textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+        } else {
+            // 应用列表格式
+            textStorage.addAttribute(.listType, value: listType, range: lineRange)
+            textStorage.addAttribute(.listIndent, value: 1, range: lineRange)
+            
+            if listType == .ordered {
+                textStorage.addAttribute(.listNumber, value: 1, range: lineRange)
+            }
+            
+            // 设置段落样式
+            let paragraphStyle = NSMutableParagraphStyle()
+            let bulletWidth: CGFloat = listType == .ordered ? 28 : 24
+            paragraphStyle.firstLineHeadIndent = 0
+            paragraphStyle.headIndent = bulletWidth
+            textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+        }
+    }
+    
     // MARK: - 辅助方法：格式验证
     
     /// 验证加粗格式
@@ -494,6 +792,89 @@ final class FormatApplicationPropertyTests: XCTestCase {
         
         return allMatch
     }
+    
+    /// 验证标题格式
+    private func verifyHeadingFormat(in range: NSRange, textStorage: NSTextStorage, expectedSize: CGFloat) -> Bool {
+        let nsString = textStorage.string as NSString
+        let lineRange = nsString.lineRange(for: range)
+        
+        var allMatch = true
+        
+        // 检查行范围内的字体大小
+        if let font = textStorage.attribute(.font, at: lineRange.location, effectiveRange: nil) as? NSFont {
+            if abs(font.pointSize - expectedSize) > 0.1 {
+                allMatch = false
+            }
+        } else {
+            allMatch = false
+        }
+        
+        return allMatch
+    }
+    
+    /// 验证对齐格式
+    private func verifyAlignmentFormat(in range: NSRange, textStorage: NSTextStorage, expectedAlignment: NSTextAlignment) -> Bool {
+        let nsString = textStorage.string as NSString
+        let lineRange = nsString.lineRange(for: range)
+        
+        var allMatch = true
+        
+        // 检查行范围内的对齐方式
+        if let paragraphStyle = textStorage.attribute(.paragraphStyle, at: lineRange.location, effectiveRange: nil) as? NSParagraphStyle {
+            if paragraphStyle.alignment != expectedAlignment {
+                allMatch = false
+            }
+        } else {
+            // 没有段落样式，默认为左对齐
+            if expectedAlignment != .left {
+                allMatch = false
+            }
+        }
+        
+        return allMatch
+    }
+    
+    /// 验证列表格式
+    private func verifyListFormat(in range: NSRange, textStorage: NSTextStorage, expectedType: ListType) -> Bool {
+        let nsString = textStorage.string as NSString
+        let lineRange = nsString.lineRange(for: range)
+        
+        var allMatch = true
+        
+        // 检查行范围内的列表类型
+        if let listType = textStorage.attribute(.listType, at: lineRange.location, effectiveRange: nil) as? ListType {
+            if listType != expectedType {
+                allMatch = false
+            }
+        } else {
+            // 没有列表类型属性，应该是 .none
+            if expectedType != .none {
+                allMatch = false
+            }
+        }
+        
+        return allMatch
+    }
+}
+
+// MARK: - HeadingLevel Extension
+
+/// 标题级别枚举（用于测试）
+enum HeadingLevel: Int {
+    case none = 0
+    case h1 = 1
+    case h2 = 2
+    case h3 = 3
+}
+
+// MARK: - ListType Extension
+
+/// 列表类型枚举（用于测试）
+enum ListType: Equatable {
+    case bullet
+    case ordered
+    case checkbox
+    case none
 }
 
 // MARK: - NSColor Extension
@@ -527,4 +908,20 @@ extension NSColor {
         
         self.init(red: r, green: g, blue: b, alpha: a)
     }
+}
+
+// MARK: - NSAttributedString.Key Extension
+
+extension NSAttributedString.Key {
+    /// 列表类型属性键
+    static let listType = NSAttributedString.Key("listType")
+    
+    /// 列表缩进级别属性键
+    static let listIndent = NSAttributedString.Key("listIndent")
+    
+    /// 列表编号属性键
+    static let listNumber = NSAttributedString.Key("listNumber")
+    
+    /// 标题级别属性键
+    static let headingLevel = NSAttributedString.Key("headingLevel")
 }
