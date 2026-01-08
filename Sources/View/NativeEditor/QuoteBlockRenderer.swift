@@ -300,7 +300,9 @@ class QuoteBlockLayoutManager: NSLayoutManager {
     
     /// 更新主题
     private func updateTheme() {
-        let currentAppearance = NSApp.effectiveAppearance
+        guard let currentAppearance = NSApp?.effectiveAppearance else {
+            return
+        }
         let newIsDarkMode = currentAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         
         if isDarkMode != newIsDarkMode {
@@ -444,7 +446,9 @@ final class QuoteBlockAttachment: NSTextAttachment, ThemeAwareAttachment {
     // MARK: - ThemeAwareAttachment
     
     func updateTheme() {
-        let currentAppearance = NSApp.effectiveAppearance
+        guard let currentAppearance = NSApp?.effectiveAppearance else {
+            return
+        }
         let newIsDarkMode = currentAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         
         if isDarkMode != newIsDarkMode {

@@ -201,6 +201,9 @@ class NativeEditorContext: ObservableObject {
     /// 当前缩进级别
     @Published var currentIndentLevel: Int = 1
     
+    /// 当前文件夹 ID（用于图片存储）
+    @Published var currentFolderId: String? = nil
+    
     /// 是否有未保存的更改
     @Published var hasUnsavedChanges: Bool = false
     
@@ -332,6 +335,25 @@ class NativeEditorContext: ObservableObject {
     /// - Parameter content: 引用内容（默认为空）
     func insertQuote(content: String = "") {
         insertSpecialElement(.quote(content: content))
+    }
+    
+    /// 插入图片
+    /// - Parameters:
+    ///   - fileId: 文件 ID（可选）
+    ///   - src: 图片源 URL（可选）
+    func insertImage(fileId: String? = nil, src: String? = nil) {
+        insertSpecialElement(.image(fileId: fileId, src: src))
+    }
+    
+    /// 插入图片（从 NSImage）
+    /// - Parameter image: 要插入的图片
+    func insertImage(_ image: NSImage) {
+        // 保存图片到本地存储
+        let folderId = currentFolderId ?? "default"
+        
+        if let saveResult = ImageStorageManager.shared.saveImage(image, folderId: folderId) {
+            insertSpecialElement(.image(fileId: saveResult.fileId, src: nil))
+        }
     }
     
     // MARK: - Public Methods - 光标和选择管理 (需求 9.1, 9.2)
@@ -559,6 +581,11 @@ class NativeEditorContext: ObservableObject {
                     indent: orderAttachment.indent
                 )
                 toolbarButtonStates[.numberedList] = true
+            } else if let imageAttachment = attachment as? ImageAttachment {
+                currentSpecialElement = .image(
+                    fileId: imageAttachment.fileId,
+                    src: imageAttachment.src
+                )
             } else {
                 currentSpecialElement = nil
             }

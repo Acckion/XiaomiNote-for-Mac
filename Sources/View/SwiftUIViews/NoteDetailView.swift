@@ -53,6 +53,17 @@ struct NoteDetailView: View {
         viewModel.webEditorContext
     }
     
+    // 原生编辑器上下文（用于原生编辑器）
+    @StateObject private var nativeEditorContext = NativeEditorContext()
+    
+    // 编辑器偏好设置服务
+    @StateObject private var editorPreferencesService = EditorPreferencesService.shared
+    
+    /// 当前是否使用原生编辑器
+    private var isUsingNativeEditor: Bool {
+        editorPreferencesService.selectedEditorType == .native && editorPreferencesService.isNativeEditorAvailable
+    }
+    
     var body: some View {
         mainContentView
             .onChange(of: viewModel.selectedNote) { oldValue, newValue in
@@ -231,10 +242,11 @@ struct NoteDetailView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let note = viewModel.selectedNote {
-                WebEditorWrapper(
+                // 使用统一编辑器包装器，支持原生编辑器和 Web 编辑器切换
+                UnifiedEditorWrapper(
                     content: $currentXMLContent,
                     isEditable: $isEditable,
-                    editorContext: webEditorContext,
+                    webEditorContext: webEditorContext,
                     noteRawData: {
                         if let rawData = note.rawData, let jsonData = try? JSONSerialization.data(withJSONObject: rawData, options: []) {
                             return String(data: jsonData, encoding: .utf8)
@@ -242,6 +254,7 @@ struct NoteDetailView: View {
                         return nil
                     }(),
                     xmlContent: note.primaryXMLContent,
+                    folderId: note.folderId,
                     onContentChange: { newXML, newHTML in
                         guard !isInitializing else { return }
                         
@@ -285,25 +298,83 @@ struct NoteDetailView: View {
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    private var undoButton: some View { Button { webEditorContext.undo() } label: { Label("撤销", systemImage: "arrow.uturn.backward") } }
-    private var redoButton: some View { Button { webEditorContext.redo() } label: { Label("重做", systemImage: "arrow.uturn.forward") } }
+    // MARK: - 工具栏按钮（支持原生编辑器和 Web 编辑器）
+    
+    private var undoButton: some View {
+        Button {
+            if isUsingNativeEditor {
+                // 原生编辑器撤销（通过 NSTextView 的 undoManager）
+                NSApp.sendAction(#selector(UndoManager.undo), to: nil, from: nil)
+            } else {
+                webEditorContext.undo()
+            }
+        } label: { Label("撤销", systemImage: "arrow.uturn.backward") }
+    }
+    
+    private var redoButton: some View {
+        Button {
+            if isUsingNativeEditor {
+                // 原生编辑器重做（通过 NSTextView 的 undoManager）
+                NSApp.sendAction(#selector(UndoManager.redo), to: nil, from: nil)
+            } else {
+                webEditorContext.redo()
+            }
+        } label: { Label("重做", systemImage: "arrow.uturn.forward") }
+    }
     
     @State private var showFormatMenu: Bool = false
     private var formatMenu: some View {
         Button { showFormatMenu.toggle() } label: { Label("格式", systemImage: "textformat") }
         .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
-            WebFormatMenuView(context: webEditorContext) { _ in showFormatMenu = false }
+            if isUsingNativeEditor {
+                NativeFormatMenuView(context: nativeEditorContext) { _ in showFormatMenu = false }
+            } else {
+                WebFormatMenuView(context: webEditorContext) { _ in showFormatMenu = false }
+            }
         }
     }
     
-    private var checkboxButton: some View { Button { webEditorContext.insertCheckbox() } label: { Label("插入待办", systemImage: "checklist") } }
-    private var horizontalRuleButton: some View { Button { webEditorContext.insertHorizontalRule() } label: { Label("插入分割线", systemImage: "minus") } }
+    private var checkboxButton: some View {
+        Button {
+            if isUsingNativeEditor {
+                nativeEditorContext.insertCheckbox()
+            } else {
+                webEditorContext.insertCheckbox()
+            }
+        } label: { Label("插入待办", systemImage: "checklist") }
+    }
+    
+    private var horizontalRuleButton: some View {
+        Button {
+            if isUsingNativeEditor {
+                nativeEditorContext.insertHorizontalRule()
+            } else {
+                webEditorContext.insertHorizontalRule()
+            }
+        } label: { Label("插入分割线", systemImage: "minus") }
+    }
+    
     private var imageButton: some View { Button { insertImage() } label: { Label("插入图片", systemImage: "paperclip") } }
     
     @ViewBuilder
     private var indentButtons: some View {
-        Button { webEditorContext.increaseIndent() } label: { Label("增加缩进", systemImage: "increase.indent") }
-        Button { webEditorContext.decreaseIndent() } label: { Label("减少缩进", systemImage: "decrease.indent") }
+        Button {
+            if isUsingNativeEditor {
+                // 原生编辑器增加缩进
+                nativeEditorContext.applyFormat(.bulletList)
+            } else {
+                webEditorContext.increaseIndent()
+            }
+        } label: { Label("增加缩进", systemImage: "increase.indent") }
+        
+        Button {
+            if isUsingNativeEditor {
+                // 原生编辑器减少缩进
+                // TODO: 实现减少缩进功能
+            } else {
+                webEditorContext.decreaseIndent()
+            }
+        } label: { Label("减少缩进", systemImage: "decrease.indent") }
     }
     
     private func insertImage() {
@@ -325,7 +396,14 @@ struct NoteDetailView: View {
         showImageInsertAlert = true
         do {
             let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
-            webEditorContext.insertImage("minote://image/\(fileId)", altText: url.lastPathComponent)
+            
+            // 根据当前编辑器类型插入图片
+            if isUsingNativeEditor {
+                nativeEditorContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
+            } else {
+                webEditorContext.insertImage("minote://image/\(fileId)", altText: url.lastPathComponent)
+            }
+            
             imageInsertStatus = .success
             imageInsertMessage = "图片插入成功"
             isInsertingImage = false

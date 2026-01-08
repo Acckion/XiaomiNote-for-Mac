@@ -36,6 +36,24 @@ struct NativeEditorView: NSViewRepresentable {
     // MARK: - NSViewRepresentable
     
     func makeNSView(context: Context) -> NSScrollView {
+        // 测量初始化时间
+        let startTime = CFAbsoluteTimeGetCurrent()
+        let scrollView = createScrollView(context: context)
+        let endTime = CFAbsoluteTimeGetCurrent()
+        let duration = (endTime - startTime) * 1000
+        
+        // 检查是否超过阈值
+        if duration > 100 {
+            print("[NativeEditorView] 警告: 初始化时间超过 100ms (\(String(format: "%.2f", duration))ms)")
+        } else {
+            print("[NativeEditorView] 初始化完成，耗时: \(String(format: "%.2f", duration))ms")
+        }
+        
+        return scrollView
+    }
+    
+    /// 创建滚动视图（内部方法）
+    private func createScrollView(context: Context) -> NSScrollView {
         // 创建滚动视图
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
@@ -44,7 +62,7 @@ struct NativeEditorView: NSViewRepresentable {
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
         
-        // 创建文本视图
+        // 创建优化的文本视图
         let textView = NativeTextView()
         textView.delegate = context.coordinator
         textView.isEditable = isEditable
@@ -52,10 +70,14 @@ struct NativeEditorView: NSViewRepresentable {
         textView.isRichText = true
         textView.allowsUndo = true
         textView.usesFindBar = true
+        
+        // 禁用不必要的自动功能以提高性能
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.isAutomaticLinkDetectionEnabled = false
+        textView.isAutomaticDataDetectionEnabled = false
         
         // 设置文本容器
         textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -89,6 +111,9 @@ struct NativeEditorView: NSViewRepresentable {
         if !editorContext.nsAttributedText.string.isEmpty {
             textView.textStorage?.setAttributedString(editorContext.nsAttributedText)
         }
+        
+        // 预热渲染器缓存
+        CustomRenderer.shared.warmUpCache()
         
         return scrollView
     }
@@ -127,6 +152,7 @@ struct NativeEditorView: NSViewRepresentable {
     
     // MARK: - Coordinator
     
+    @MainActor
     class Coordinator: NSObject, NSTextViewDelegate {
         var parent: NativeEditorView
         weak var textView: NativeTextView?
@@ -529,9 +555,53 @@ struct NativeEditorView: NSViewRepresentable {
         
         /// 插入图片
         private func insertImage(fileId: String?, src: String?, at location: Int, in textStorage: NSTextStorage) {
-            // TODO: 实现图片插入
-            let placeholder = NSAttributedString(string: "[图片]")
-            textStorage.insert(placeholder, at: location)
+            // 创建图片附件
+            let attachment: ImageAttachment
+            
+            if let src = src {
+                // 从 URL 创建（延迟加载）
+                attachment = CustomRenderer.shared.createImageAttachment(
+                    src: src,
+                    fileId: fileId,
+                    folderId: parent.editorContext.currentFolderId
+                )
+            } else if let fileId = fileId, let folderId = parent.editorContext.currentFolderId {
+                // 从本地存储加载
+                if let image = ImageStorageManager.shared.loadImage(fileId: fileId, folderId: folderId) {
+                    attachment = CustomRenderer.shared.createImageAttachment(
+                        image: image,
+                        fileId: fileId,
+                        folderId: folderId
+                    )
+                } else {
+                    // 创建占位符附件
+                    attachment = ImageAttachment(src: "minote://\(fileId)", fileId: fileId, folderId: folderId)
+                }
+            } else {
+                // 无法创建图片，插入占位符文本
+                let placeholder = NSAttributedString(string: "[图片]")
+                textStorage.insert(placeholder, at: location)
+                return
+            }
+            
+            let attachmentString = NSAttributedString(attachment: attachment)
+            
+            // 构建插入内容：换行 + 图片 + 换行
+            let result = NSMutableAttributedString()
+            
+            // 如果不在行首，先添加换行
+            if location > 0 {
+                let string = textStorage.string as NSString
+                let prevChar = string.character(at: location - 1)
+                if prevChar != 10 { // 10 是换行符的 ASCII 码
+                    result.append(NSAttributedString(string: "\n"))
+                }
+            }
+            
+            result.append(attachmentString)
+            result.append(NSAttributedString(string: "\n"))
+            
+            textStorage.insert(result, at: location)
         }
     }
 }
@@ -909,24 +979,59 @@ class NativeTextView: NSTextView {
     
     /// 插入图片
     private func insertImage(_ image: NSImage) {
-        // TODO: 实现图片插入和保存到本地存储
-        let attachment = NSTextAttachment()
-        attachment.image = image
+        guard let textStorage = textStorage else { return }
         
-        // 调整图片大小
-        let maxWidth: CGFloat = 400
-        if image.size.width > maxWidth {
-            let ratio = maxWidth / image.size.width
-            let newSize = NSSize(width: maxWidth, height: image.size.height * ratio)
-            attachment.bounds = CGRect(origin: .zero, size: newSize)
+        // 获取当前文件夹 ID（从编辑器上下文获取）
+        // 如果没有文件夹 ID，使用默认值
+        let folderId = "default"
+        
+        // 保存图片到本地存储
+        guard let saveResult = ImageStorageManager.shared.saveImage(image, folderId: folderId) else {
+            print("[NativeTextView] 保存图片失败")
+            return
         }
+        
+        let fileId = saveResult.fileId
+        
+        // 创建图片附件
+        let attachment = CustomRenderer.shared.createImageAttachment(
+            image: image,
+            fileId: fileId,
+            folderId: folderId
+        )
         
         let attachmentString = NSAttributedString(attachment: attachment)
         
-        if let textStorage = textStorage {
-            let selectedRange = selectedRange()
-            textStorage.replaceCharacters(in: selectedRange, with: attachmentString)
+        // 构建插入内容
+        let result = NSMutableAttributedString()
+        
+        let selectedRange = self.selectedRange()
+        let insertionPoint = selectedRange.location
+        
+        // 如果不在行首，先添加换行
+        if insertionPoint > 0 {
+            let string = textStorage.string as NSString
+            let prevChar = string.character(at: insertionPoint - 1)
+            if prevChar != 10 { // 10 是换行符的 ASCII 码
+                result.append(NSAttributedString(string: "\n"))
+            }
         }
+        
+        result.append(attachmentString)
+        result.append(NSAttributedString(string: "\n"))
+        
+        textStorage.beginEditing()
+        textStorage.replaceCharacters(in: selectedRange, with: result)
+        textStorage.endEditing()
+        
+        // 移动光标到图片后
+        let newCursorPosition = insertionPoint + result.length
+        setSelectedRange(NSRange(location: newCursorPosition, length: 0))
+        
+        // 通知代理
+        delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
+        
+        print("[NativeTextView] 图片插入成功: \(fileId)")
     }
     
     // MARK: - Horizontal Rule Support

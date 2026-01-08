@@ -27,14 +27,26 @@ class CustomRenderer {
     /// 是否为深色模式
     private(set) var isDarkMode: Bool = false
     
-    /// 附件缓存
+    /// 附件缓存（使用优化的 LRU 策略）
     private var attachmentCache: [String: NSTextAttachment] = [:]
     
     /// 图像缓存
     private var imageCache: [String: NSImage] = [:]
     
     /// 缓存大小限制
-    private let maxCacheSize = 100
+    private let maxCacheSize = 200
+    
+    /// 缓存命中计数
+    private var cacheHitCount: Int = 0
+    
+    /// 缓存未命中计数
+    private var cacheMissCount: Int = 0
+    
+    /// 缓存命中率
+    var cacheHitRate: Double {
+        let total = cacheHitCount + cacheMissCount
+        return total > 0 ? Double(cacheHitCount) / Double(total) : 0
+    }
     
     // MARK: - Initialization
     
@@ -58,7 +70,10 @@ class CustomRenderer {
     
     /// 更新主题
     func updateTheme() {
-        let currentAppearance = NSApp.effectiveAppearance
+        // 安全获取当前外观，在测试环境中 NSApp 可能为 nil
+        guard let currentAppearance = NSApp?.effectiveAppearance else {
+            return
+        }
         let newIsDarkMode = currentAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         
         if isDarkMode != newIsDarkMode {
@@ -99,18 +114,24 @@ class CustomRenderer {
     ///   - indent: 缩进
     /// - Returns: 复选框附件
     func getCachedCheckboxAttachment(checked: Bool, level: Int, indent: Int) -> InteractiveCheckboxAttachment {
-        let key = "checkbox_\(checked)_\(level)_\(indent)"
+        let key = "checkbox_\(checked)_\(level)_\(indent)_\(isDarkMode)"
         
         if let cached = attachmentCache[key] as? InteractiveCheckboxAttachment {
             cached.isDarkMode = isDarkMode
+            cacheHitCount += 1
             return cached
         }
         
+        cacheMissCount += 1
         let attachment = createCheckboxAttachment(checked: checked, level: level, indent: indent)
         
-        // 管理缓存大小
+        // 管理缓存大小（使用 LRU 策略）
         if attachmentCache.count >= maxCacheSize {
-            attachmentCache.removeAll()
+            // 移除一半的缓存条目
+            let keysToRemove = Array(attachmentCache.keys.prefix(maxCacheSize / 2))
+            for keyToRemove in keysToRemove {
+                attachmentCache.removeValue(forKey: keyToRemove)
+            }
         }
         
         attachmentCache[key] = attachment
@@ -137,17 +158,22 @@ class CustomRenderer {
     /// - Parameter width: 宽度
     /// - Returns: 分割线附件
     func getCachedHorizontalRuleAttachment(width: CGFloat) -> HorizontalRuleAttachment {
-        let key = "hr_\(Int(width))"
+        let key = "hr_\(Int(width))_\(isDarkMode)"
         
         if let cached = attachmentCache[key] as? HorizontalRuleAttachment {
             cached.isDarkMode = isDarkMode
+            cacheHitCount += 1
             return cached
         }
         
+        cacheMissCount += 1
         let attachment = createHorizontalRuleAttachment(width: width)
         
         if attachmentCache.count >= maxCacheSize {
-            attachmentCache.removeAll()
+            let keysToRemove = Array(attachmentCache.keys.prefix(maxCacheSize / 2))
+            for keyToRemove in keysToRemove {
+                attachmentCache.removeValue(forKey: keyToRemove)
+            }
         }
         
         attachmentCache[key] = attachment
@@ -169,17 +195,22 @@ class CustomRenderer {
     /// - Parameter indent: 缩进级别
     /// - Returns: 项目符号附件
     func getCachedBulletAttachment(indent: Int) -> BulletAttachment {
-        let key = "bullet_\(indent)"
+        let key = "bullet_\(indent)_\(isDarkMode)"
         
         if let cached = attachmentCache[key] as? BulletAttachment {
             cached.isDarkMode = isDarkMode
+            cacheHitCount += 1
             return cached
         }
         
+        cacheMissCount += 1
         let attachment = createBulletAttachment(indent: indent)
         
         if attachmentCache.count >= maxCacheSize {
-            attachmentCache.removeAll()
+            let keysToRemove = Array(attachmentCache.keys.prefix(maxCacheSize / 2))
+            for keyToRemove in keysToRemove {
+                attachmentCache.removeValue(forKey: keyToRemove)
+            }
         }
         
         attachmentCache[key] = attachment
@@ -210,17 +241,22 @@ class CustomRenderer {
     ///   - indent: 缩进级别
     /// - Returns: 有序列表附件
     func getCachedOrderAttachment(number: Int, indent: Int) -> OrderAttachment {
-        let key = "order_\(number)_\(indent)"
+        let key = "order_\(number)_\(indent)_\(isDarkMode)"
         
         if let cached = attachmentCache[key] as? OrderAttachment {
             cached.isDarkMode = isDarkMode
+            cacheHitCount += 1
             return cached
         }
         
+        cacheMissCount += 1
         let attachment = createOrderAttachment(number: number, indent: indent)
         
         if attachmentCache.count >= maxCacheSize {
-            attachmentCache.removeAll()
+            let keysToRemove = Array(attachmentCache.keys.prefix(maxCacheSize / 2))
+            for keyToRemove in keysToRemove {
+                attachmentCache.removeValue(forKey: keyToRemove)
+            }
         }
         
         attachmentCache[key] = attachment
@@ -339,11 +375,43 @@ class CustomRenderer {
     func clearCache() {
         attachmentCache.removeAll()
         imageCache.removeAll()
+        cacheHitCount = 0
+        cacheMissCount = 0
     }
     
     /// 获取缓存统计信息
-    func getCacheStats() -> (attachments: Int, images: Int) {
-        return (attachmentCache.count, imageCache.count)
+    func getCacheStats() -> (attachments: Int, images: Int, hitRate: Double) {
+        return (attachmentCache.count, imageCache.count, cacheHitRate)
+    }
+    
+    /// 预热缓存 - 预先创建常用的附件
+    func warmUpCache() {
+        // 预创建常用的复选框附件
+        for checked in [true, false] {
+            for indent in 1...3 {
+                _ = getCachedCheckboxAttachment(checked: checked, level: 3, indent: indent)
+            }
+        }
+        
+        // 预创建常用的项目符号附件
+        for indent in 1...3 {
+            _ = getCachedBulletAttachment(indent: indent)
+        }
+        
+        // 预创建常用的有序列表附件
+        for number in 1...10 {
+            _ = getCachedOrderAttachment(number: number, indent: 1)
+        }
+        
+        print("[CustomRenderer] 缓存预热完成，当前缓存数量: \(attachmentCache.count)")
+    }
+    
+    /// 清除特定类型的缓存
+    func clearCacheForType(_ type: String) {
+        let keysToRemove = attachmentCache.keys.filter { $0.hasPrefix(type) }
+        for key in keysToRemove {
+            attachmentCache.removeValue(forKey: key)
+        }
     }
 }
 
@@ -383,8 +451,49 @@ extension CustomRenderer {
             // 注意：实际编号需要根据上下文计算
             return createOrderAttachment(number: inputNumber == 0 ? 1 : inputNumber + 1, inputNumber: inputNumber, indent: indent)
             
+        case "img":
+            // 图片
+            let src = attributes["src"]
+            let fileId = attributes["fileId"]
+            let folderId = attributes["folderId"]
+            return createImageAttachment(src: src, fileId: fileId, folderId: folderId)
+            
         default:
             return nil
         }
+    }
+    
+    // MARK: - Image Attachment Creation
+    
+    /// 创建图片附件
+    /// - Parameters:
+    ///   - src: 图片源 URL
+    ///   - fileId: 文件 ID
+    ///   - folderId: 文件夹 ID
+    /// - Returns: 图片附件
+    func createImageAttachment(src: String?, fileId: String?, folderId: String?) -> ImageAttachment {
+        if let src = src {
+            return ImageAttachment(src: src, fileId: fileId, folderId: folderId)
+        } else if let fileId = fileId, let folderId = folderId {
+            // 尝试从本地存储加载
+            if let image = ImageStorageManager.shared.loadImage(fileId: fileId, folderId: folderId) {
+                return ImageAttachment(image: image, fileId: fileId, folderId: folderId)
+            }
+        }
+        
+        // 创建占位符附件
+        let attachment = ImageAttachment(src: src ?? "", fileId: fileId, folderId: folderId)
+        attachment.loadFailed = true
+        return attachment
+    }
+    
+    /// 创建图片附件（从 NSImage）
+    /// - Parameters:
+    ///   - image: 图片
+    ///   - fileId: 文件 ID
+    ///   - folderId: 文件夹 ID
+    /// - Returns: 图片附件
+    func createImageAttachment(image: NSImage, fileId: String? = nil, folderId: String? = nil) -> ImageAttachment {
+        return ImageAttachment(image: image, fileId: fileId, folderId: folderId)
     }
 }

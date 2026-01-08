@@ -130,9 +130,8 @@ class EditorConfigurationManager: ObservableObject {
            let configuration = try? JSONDecoder().decode(EditorConfiguration.self, from: data) {
             self.currentConfiguration = configuration
         } else {
-            // 使用默认配置
-            let editorType = EditorPreferencesService.shared.getCurrentEditorType()
-            self.currentConfiguration = EditorConfiguration.defaultConfiguration(for: editorType)
+            // 使用默认配置 - 默认使用 web 编辑器配置，避免初始化时的循环依赖
+            self.currentConfiguration = EditorConfiguration.defaultConfiguration(for: .web)
         }
     }
     

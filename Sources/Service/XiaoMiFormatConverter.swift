@@ -476,12 +476,27 @@ class XiaoMiFormatConverter {
     private func processImageElement(_ line: String) throws -> AttributedString {
         // 提取图片属性
         let src = extractAttribute("src", from: line) ?? ""
-        let width = extractAttribute("width", from: line) ?? "100"
-        let height = extractAttribute("height", from: line) ?? "100"
+        let fileId = extractAttribute("fileId", from: line)
+        let folderId = extractAttribute("folderId", from: line)
+        let width = extractAttribute("width", from: line)
+        let height = extractAttribute("height", from: line)
         
-        // 创建图片占位符文本
-        var result = AttributedString("[图片: \(src)]")
-        result.foregroundColor = .secondary
+        // 创建图片附件
+        let attachment = CustomRenderer.shared.createImageAttachment(
+            src: src.isEmpty ? nil : src,
+            fileId: fileId,
+            folderId: folderId
+        )
+        
+        // 如果有宽度和高度属性，设置显示尺寸
+        if let widthStr = width, let heightStr = height,
+           let w = Double(widthStr), let h = Double(heightStr) {
+            attachment.displaySize = NSSize(width: w, height: h)
+        }
+        
+        // 创建包含附件的 AttributedString
+        let attachmentString = NSAttributedString(attachment: attachment)
+        var result = AttributedString(attachmentString)
         
         return result
     }
@@ -547,7 +562,38 @@ class XiaoMiFormatConverter {
             return "<order indent=\"1\" inputNumber=\"\(orderAttachment.inputNumber)\" />"
         }
         
-        // 默认情况，可能是图片或其他类型
+        // 检查是否是图片 attachment
+        if let imageAttachment = attachment as? ImageAttachment {
+            var xmlAttrs: [String] = []
+            
+            if let src = imageAttachment.src {
+                xmlAttrs.append("src=\"\(src)\"")
+            } else if let fileId = imageAttachment.fileId, let folderId = imageAttachment.folderId {
+                // 生成 minote:// URL
+                let minoteURL = ImageStorageManager.shared.generateMinoteURL(fileId: fileId, folderId: folderId)
+                xmlAttrs.append("src=\"\(minoteURL)\"")
+            }
+            
+            if imageAttachment.displaySize.width > 0 {
+                xmlAttrs.append("width=\"\(Int(imageAttachment.displaySize.width))\"")
+            }
+            if imageAttachment.displaySize.height > 0 {
+                xmlAttrs.append("height=\"\(Int(imageAttachment.displaySize.height))\"")
+            }
+            
+            return "<img \(xmlAttrs.joined(separator: " ")) />"
+        }
+        
+        // 默认情况，可能是普通图片或其他类型
+        if let image = attachment.image {
+            // 普通图片附件，尝试保存并生成 XML
+            let folderId = "default"
+            if let saveResult = ImageStorageManager.shared.saveImage(image, folderId: folderId) {
+                let minoteURL = ImageStorageManager.shared.generateMinoteURL(fileId: saveResult.fileId, folderId: folderId)
+                return "<img src=\"\(minoteURL)\" width=\"\(Int(image.size.width))\" height=\"\(Int(image.size.height))\" />"
+            }
+        }
+        
         return "<hr />" // 临时实现
     }
     

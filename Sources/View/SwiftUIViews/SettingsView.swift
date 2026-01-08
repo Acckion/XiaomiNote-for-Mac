@@ -63,11 +63,9 @@ public struct SettingsView: View {
                 
                 Section("编辑器") {
                     NavigationLink("编辑器设置") {
-                        // TODO: 实现编辑器设置视图
-                        Text("编辑器设置功能开发中...")
-                            .foregroundColor(.secondary)
+                        EditorSettingsView()
                     }
-                    .help("选择和配置编辑器类型")
+                    .help("选择和配置编辑器类型（原生编辑器或 Web 编辑器）")
                 }
                 
                 Section("外观") {

@@ -12,11 +12,14 @@ public struct EditorSettingsView: View {
     
     // MARK: - Properties
     
-    @StateObject private var preferencesService = EditorPreferencesService.shared
-    @StateObject private var configurationManager = EditorConfigurationManager.shared
+    // 使用 @ObservedObject 而不是 @StateObject，因为这些是单例
+    @ObservedObject private var preferencesService = EditorPreferencesService.shared
+    @ObservedObject private var configurationManager = EditorConfigurationManager.shared
     
     @State private var showCompatibilityInfo = false
     @State private var showFeatureComparison = false
+    
+    public init() {}
     
     // MARK: - Body
     
@@ -140,11 +143,14 @@ public struct EditorSettingsView: View {
     /// 选择编辑器
     /// - Parameter editorType: 编辑器类型
     private func selectEditor(_ editorType: EditorType) {
-        let success = preferencesService.setEditorType(editorType)
-        if success {
-            // 更新配置管理器的配置
-            let newConfig = EditorConfiguration.defaultConfiguration(for: editorType)
-            configurationManager.updateConfiguration(newConfig)
+        // 使用 Task 延迟执行，避免在视图更新期间修改状态
+        Task { @MainActor in
+            let success = preferencesService.setEditorType(editorType)
+            if success {
+                // 更新配置管理器的配置
+                let newConfig = EditorConfiguration.defaultConfiguration(for: editorType)
+                configurationManager.updateConfiguration(newConfig)
+            }
         }
     }
 }
