@@ -88,6 +88,7 @@
 		7284A266647758A65B813FFF /* WebEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9886C11025C79168AAAFA938 /* WebEditorView.swift */; };
 		7320FED1FB9BD5418BCA67A7 /* SidebarHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A132808FB8BD901AF2D9A566 /* SidebarHostingController.swift */; };
 		7416BF8F4AB2BD8E2D83DF93 /* MenuManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04AFAC98180E3C67C7B439DF /* MenuManager.swift */; };
+		7616922777B07CEEF612A3D2 /* UndoRedoStateHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4AB0DA4BED74AF88EB056E /* UndoRedoStateHandler.swift */; };
 		7704C887585615FAE4E57555 /* LoginWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B779B8C5070B118D352AFCE1 /* LoginWindowController.swift */; };
 		77853782C24D587E89E6A5FA /* FormatErrorHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 038D43B7F1908734B7B5C2AE /* FormatErrorHandler.swift */; };
 		778DF5E49FECB86BA93395F2 /* NativeEditorContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4FEF51DC935D9154870D5F /* NativeEditorContextTests.swift */; };
@@ -294,6 +295,7 @@
 		97FB01C97F8E250BD348CC35 /* NoteHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteHistoryView.swift; sourceTree = "<group>"; };
 		9886C11025C79168AAAFA938 /* WebEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebEditorView.swift; sourceTree = "<group>"; };
 		9983C16A45B3E9028DF76D6F /* ImageAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageAttachment.swift; sourceTree = "<group>"; };
+		9A4AB0DA4BED74AF88EB056E /* UndoRedoStateHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoRedoStateHandler.swift; sourceTree = "<group>"; };
 		9A721A421F7A06F601E6D482 /* NotesListWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListWindowState.swift; sourceTree = "<group>"; };
 		9C380480EA9D221C0B453C4F /* WindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManager.swift; sourceTree = "<group>"; };
 		9CDB97E03C65FB0F952C6EF8 /* NoteDetailWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailWindowState.swift; sourceTree = "<group>"; };
@@ -715,6 +717,7 @@
 				FED1F8002882D30CED5CBBFD /* PerformanceOptimizer.swift */,
 				53C3DF889F8AA1A3FA5BC305 /* QuoteBlockRenderer.swift */,
 				51E755B5984AB4A5CB8734C4 /* SafeRenderer.swift */,
+				9A4AB0DA4BED74AF88EB056E /* UndoRedoStateHandler.swift */,
 			);
 			path = NativeEditor;
 			sourceTree = "<group>";
@@ -1006,6 +1009,7 @@
 				4706A288EE19BA6F05FB3A74 /* ToolbarItemProtocol.swift in Sources */,
 				2AF59075572A5CC546F06E1D /* TrashView.swift in Sources */,
 				96441C544560EF64F5A3C768 /* TrashWindowController.swift in Sources */,
+				7616922777B07CEEF612A3D2 /* UndoRedoStateHandler.swift in Sources */,
 				5F7C34C98AAB9B255ABA1EF8 /* UnifiedEditorWrapper.swift in Sources */,
 				F3296E10A249F036F83F8998 /* UserProfile.swift in Sources */,
 				051BD8556C208048DEB0A4D9 /* WebEditorContext.swift in Sources */,

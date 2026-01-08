@@ -226,8 +226,18 @@ struct NativeEditorView: NSViewRepresentable {
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] notification in
                     guard let self = self else { return }
-                    print("[NativeEditorView] 检测到撤销操作")
-                    self.handleUndoRedoOperation()
+                    
+                    // 验证通知来源是否与当前编辑器相关
+                    if let undoManager = notification.object as? UndoManager,
+                       let textViewUndoManager = self.textView?.undoManager,
+                       undoManager === textViewUndoManager {
+                        print("[NativeEditorView] 检测到撤销操作（来自当前编辑器）")
+                        self.handleUndoOperation()
+                    } else {
+                        // 如果无法验证来源，仍然处理（兼容性）
+                        print("[NativeEditorView] 检测到撤销操作（来源未验证）")
+                        self.handleUndoOperation()
+                    }
                 }
                 .store(in: &cancellables)
             
@@ -235,8 +245,18 @@ struct NativeEditorView: NSViewRepresentable {
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] notification in
                     guard let self = self else { return }
-                    print("[NativeEditorView] 检测到重做操作")
-                    self.handleUndoRedoOperation()
+                    
+                    // 验证通知来源是否与当前编辑器相关
+                    if let undoManager = notification.object as? UndoManager,
+                       let textViewUndoManager = self.textView?.undoManager,
+                       undoManager === textViewUndoManager {
+                        print("[NativeEditorView] 检测到重做操作（来自当前编辑器）")
+                        self.handleRedoOperation()
+                    } else {
+                        // 如果无法验证来源，仍然处理（兼容性）
+                        print("[NativeEditorView] 检测到重做操作（来源未验证）")
+                        self.handleRedoOperation()
+                    }
                 }
                 .store(in: &cancellables)
         }
@@ -267,7 +287,96 @@ struct NativeEditorView: NSViewRepresentable {
         
         // MARK: - 撤销/重做处理 (需求 5.5)
         
-        /// 处理撤销/重做操作
+        /// 撤销/重做状态处理器
+        private let undoRedoHandler = UndoRedoStateHandler.shared
+        
+        /// 处理撤销操作
+        /// 需求: 5.5 - 确保撤销后状态正确更新
+        private func handleUndoOperation() {
+            print("[NativeEditorView] handleUndoOperation - 检测到撤销操作")
+            
+            // 记录撤销前的状态
+            let formatsBefore = parent.editorContext.currentFormats
+            let cursorPositionBefore = parent.editorContext.cursorPosition
+            
+            print("[NativeEditorView]   - 撤销前格式: \(formatsBefore.map { $0.displayName })")
+            print("[NativeEditorView]   - 撤销前光标位置: \(cursorPositionBefore)")
+            
+            // 使用 UndoRedoStateHandler 处理撤销操作
+            undoRedoHandler.setContentSyncCallback { [weak self] in
+                self?.syncContentToContext()
+            }
+            
+            undoRedoHandler.setStateUpdateCallback { [weak self] in
+                self?.parent.editorContext.forceUpdateFormats()
+            }
+            
+            undoRedoHandler.handleOperation(.undo)
+            
+            // 额外的状态同步（确保可靠性）
+            Task { @MainActor in
+                // 延迟一小段时间确保撤销操作完成
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                
+                // 再次同步内容和更新状态
+                self.syncContentToContext()
+                self.parent.editorContext.forceUpdateFormats()
+                
+                // 记录撤销后的状态
+                let formatsAfter = self.parent.editorContext.currentFormats
+                let cursorPositionAfter = self.parent.editorContext.cursorPosition
+                
+                print("[NativeEditorView] 撤销操作完成")
+                print("[NativeEditorView]   - 撤销后格式: \(formatsAfter.map { $0.displayName })")
+                print("[NativeEditorView]   - 撤销后光标位置: \(cursorPositionAfter)")
+                print("[NativeEditorView]   - 格式变化: \(formatsBefore != formatsAfter)")
+            }
+        }
+        
+        /// 处理重做操作
+        /// 需求: 5.5 - 确保重做后状态正确更新
+        private func handleRedoOperation() {
+            print("[NativeEditorView] handleRedoOperation - 检测到重做操作")
+            
+            // 记录重做前的状态
+            let formatsBefore = parent.editorContext.currentFormats
+            let cursorPositionBefore = parent.editorContext.cursorPosition
+            
+            print("[NativeEditorView]   - 重做前格式: \(formatsBefore.map { $0.displayName })")
+            print("[NativeEditorView]   - 重做前光标位置: \(cursorPositionBefore)")
+            
+            // 使用 UndoRedoStateHandler 处理重做操作
+            undoRedoHandler.setContentSyncCallback { [weak self] in
+                self?.syncContentToContext()
+            }
+            
+            undoRedoHandler.setStateUpdateCallback { [weak self] in
+                self?.parent.editorContext.forceUpdateFormats()
+            }
+            
+            undoRedoHandler.handleOperation(.redo)
+            
+            // 额外的状态同步（确保可靠性）
+            Task { @MainActor in
+                // 延迟一小段时间确保重做操作完成
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                
+                // 再次同步内容和更新状态
+                self.syncContentToContext()
+                self.parent.editorContext.forceUpdateFormats()
+                
+                // 记录重做后的状态
+                let formatsAfter = self.parent.editorContext.currentFormats
+                let cursorPositionAfter = self.parent.editorContext.cursorPosition
+                
+                print("[NativeEditorView] 重做操作完成")
+                print("[NativeEditorView]   - 重做后格式: \(formatsAfter.map { $0.displayName })")
+                print("[NativeEditorView]   - 重做后光标位置: \(cursorPositionAfter)")
+                print("[NativeEditorView]   - 格式变化: \(formatsBefore != formatsAfter)")
+            }
+        }
+        
+        /// 处理撤销/重做操作（兼容旧代码）
         /// 需求: 5.5 - 确保撤销后状态正确更新
         private func handleUndoRedoOperation() {
             print("[NativeEditorView] handleUndoRedoOperation")
