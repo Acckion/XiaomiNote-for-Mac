@@ -510,7 +510,7 @@ class NativeEditorContext: ObservableObject {
     }
     
     /// 根据当前光标位置更新格式状态 (需求 9.1)
-    private func updateCurrentFormats() {
+    func updateCurrentFormats() {
         guard !nsAttributedText.string.isEmpty else {
             clearAllFormats()
             return

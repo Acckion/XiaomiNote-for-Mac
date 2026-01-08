@@ -246,67 +246,154 @@ struct NativeEditorView: NSViewRepresentable {
         // MARK: - Format Application
         
         /// 应用格式到选中文本
+        /// 需求: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8
         func applyFormat(_ format: TextFormat) {
+            print("[FormatApplicator] 开始应用格式: \(format.displayName)")
+            
+            // 1. 预检查 - 验证编辑器状态
             guard let textView = textView,
-                  let textStorage = textView.textStorage else { return }
+                  let textStorage = textView.textStorage else {
+                print("[FormatApplicator] ❌ 错误: textView 或 textStorage 为 nil")
+                return
+            }
             
             let selectedRange = textView.selectedRange()
-            guard selectedRange.length > 0 || format.isBlockFormat else { return }
+            print("[FormatApplicator] 选择范围: location=\(selectedRange.location), length=\(selectedRange.length)")
             
+            // 2. 处理空选择范围的情况
+            // 对于内联格式，如果没有选中文本，则不应用格式
+            // 对于块级格式，即使没有选中文本也可以应用到当前行
+            if selectedRange.length == 0 && format.isInlineFormat {
+                print("[FormatApplicator] ⚠️ 警告: 内联格式需要选中文本，当前未选中任何文本")
+                // 对于内联格式，我们可以应用到光标位置的单个字符（如果存在）
+                // 或者等待用户输入新文本时应用格式
+                // 这里我们选择不做任何操作，因为没有文本可以应用格式
+                return
+            }
+            
+            // 3. 验证范围有效性
+            let effectiveRange: NSRange
+            if selectedRange.length > 0 {
+                effectiveRange = selectedRange
+            } else {
+                // 块级格式：使用当前行的范围
+                let lineRange = (textStorage.string as NSString).lineRange(for: selectedRange)
+                effectiveRange = lineRange
+            }
+            
+            guard effectiveRange.location + effectiveRange.length <= textStorage.length else {
+                print("[FormatApplicator] ❌ 错误: 选择范围超出文本长度 (range: \(effectiveRange), textLength: \(textStorage.length))")
+                return
+            }
+            
+            print("[FormatApplicator] 有效范围: location=\(effectiveRange.location), length=\(effectiveRange.length)")
+            
+            // 4. 应用格式
+            do {
+                try applyFormatSafely(format, to: effectiveRange, in: textStorage)
+                
+                // 5. 更新编辑器上下文状态
+                updateContextAfterFormatApplication(format)
+                
+                // 6. 通知内容变化
+                textDidChange(Notification(name: NSText.didChangeNotification, object: textView))
+                
+                // 7. 记录成功日志
+                print("[FormatApplicator] ✅ 成功应用格式: \(format.displayName)")
+            } catch {
+                // 8. 错误处理
+                print("[FormatApplicator] ❌ 格式应用失败: \(error)")
+                // 触发状态重新同步
+                parent.editorContext.updateCurrentFormats()
+            }
+        }
+        
+        /// 安全地应用格式（带错误处理）
+        /// - Parameters:
+        ///   - format: 格式类型
+        ///   - range: 应用范围
+        ///   - textStorage: 文本存储
+        /// - Throws: 格式应用错误
+        private func applyFormatSafely(_ format: TextFormat, to range: NSRange, in textStorage: NSTextStorage) throws {
             // 开始编辑
             textStorage.beginEditing()
             
-            switch format {
-            case .bold:
-                applyFontTrait(.bold, to: selectedRange, in: textStorage)
-            case .italic:
-                applyFontTrait(.italic, to: selectedRange, in: textStorage)
-            case .underline:
-                toggleAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: selectedRange, in: textStorage)
-            case .strikethrough:
-                toggleAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: selectedRange, in: textStorage)
-            case .highlight:
-                let highlightColor = NSColor(hex: "#9affe8af") ?? NSColor.systemYellow
-                toggleAttribute(.backgroundColor, value: highlightColor, range: selectedRange, in: textStorage)
-            case .heading1:
-                applyHeadingStyle(size: 24, weight: .bold, to: selectedRange, in: textStorage, level: .h1)
-            case .heading2:
-                applyHeadingStyle(size: 20, weight: .semibold, to: selectedRange, in: textStorage, level: .h2)
-            case .heading3:
-                applyHeadingStyle(size: 16, weight: .medium, to: selectedRange, in: textStorage, level: .h3)
-            case .alignCenter:
-                applyAlignment(.center, to: selectedRange, in: textStorage)
-            case .alignRight:
-                applyAlignment(.right, to: selectedRange, in: textStorage)
-            case .bulletList:
-                applyBulletList(to: selectedRange, in: textStorage)
-            case .numberedList:
-                applyOrderedList(to: selectedRange, in: textStorage)
-            case .checkbox:
-                applyCheckboxList(to: selectedRange, in: textStorage)
-            case .quote:
-                applyQuoteBlock(to: selectedRange, in: textStorage)
-            default:
-                break
+            defer {
+                // 确保无论如何都结束编辑
+                textStorage.endEditing()
             }
             
-            // 结束编辑
-            textStorage.endEditing()
-            
-            // 通知内容变化
-            textDidChange(Notification(name: NSText.didChangeNotification, object: textView))
+            // 根据格式类型应用相应的格式
+            switch format {
+            case .bold:
+                applyFontTrait(.bold, to: range, in: textStorage)
+            case .italic:
+                applyFontTrait(.italic, to: range, in: textStorage)
+            case .underline:
+                toggleAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: range, in: textStorage)
+            case .strikethrough:
+                toggleAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range, in: textStorage)
+            case .highlight:
+                let highlightColor = NSColor(hex: "#9affe8af") ?? NSColor.systemYellow
+                toggleAttribute(.backgroundColor, value: highlightColor, range: range, in: textStorage)
+            case .heading1:
+                applyHeadingStyle(size: 24, weight: .bold, to: range, in: textStorage, level: .h1)
+            case .heading2:
+                applyHeadingStyle(size: 20, weight: .semibold, to: range, in: textStorage, level: .h2)
+            case .heading3:
+                applyHeadingStyle(size: 16, weight: .medium, to: range, in: textStorage, level: .h3)
+            case .alignCenter:
+                applyAlignment(.center, to: range, in: textStorage)
+            case .alignRight:
+                applyAlignment(.right, to: range, in: textStorage)
+            case .bulletList:
+                applyBulletList(to: range, in: textStorage)
+            case .numberedList:
+                applyOrderedList(to: range, in: textStorage)
+            case .checkbox:
+                applyCheckboxList(to: range, in: textStorage)
+            case .quote:
+                applyQuoteBlock(to: range, in: textStorage)
+            case .horizontalRule:
+                // 分割线是特殊元素，不是格式
+                print("[FormatApplicator] ⚠️ 警告: 分割线应该通过 insertSpecialElement 插入，而不是 applyFormat")
+            }
+        }
+        
+        /// 更新编辑器上下文状态
+        /// - Parameter format: 应用的格式
+        private func updateContextAfterFormatApplication(_ format: TextFormat) {
+            // 延迟更新状态，避免在视图更新中修改 @Published 属性
+            Task { @MainActor in
+                self.parent.editorContext.updateCurrentFormats()
+            }
         }
 
         
         /// 应用字体特性
+        /// 需求: 1.1, 1.2
+        /// - Parameters:
+        ///   - trait: 字体特性
+        ///   - range: 应用范围
+        ///   - textStorage: 文本存储
         private func applyFontTrait(_ trait: NSFontDescriptor.SymbolicTraits, to range: NSRange, in textStorage: NSTextStorage) {
+            print("[FormatApplicator] 应用字体特性: \(trait), range: \(range)")
+            
             let fontManager = NSFontManager.shared
             
             textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
-                guard let font = value as? NSFont else { return }
+                guard let font = value as? NSFont else {
+                    print("[FormatApplicator] ⚠️ 警告: 在范围 \(attrRange) 没有找到字体，使用默认字体")
+                    // 使用默认字体
+                    let defaultFont = NSFont.systemFont(ofSize: 15)
+                    textStorage.addAttribute(.font, value: defaultFont, range: attrRange)
+                    return
+                }
                 
                 let currentTraits = font.fontDescriptor.symbolicTraits
                 let hasTrait = currentTraits.contains(trait)
+                
+                print("[FormatApplicator] 当前字体: \(font.fontName), 大小: \(font.pointSize), 已有特性: \(hasTrait)")
                 
                 var newFont: NSFont?
                 
@@ -315,17 +402,21 @@ struct NativeEditorView: NSViewRepresentable {
                     if hasTrait {
                         // 移除斜体
                         newFont = fontManager.convert(font, toNotHaveTrait: .italicFontMask)
+                        print("[FormatApplicator] 移除斜体特性")
                     } else {
                         // 添加斜体
                         newFont = fontManager.convert(font, toHaveTrait: .italicFontMask)
+                        print("[FormatApplicator] 添加斜体特性")
                     }
                 } else if trait == .bold {
                     if hasTrait {
                         // 移除粗体
                         newFont = fontManager.convert(font, toNotHaveTrait: .boldFontMask)
+                        print("[FormatApplicator] 移除粗体特性")
                     } else {
                         // 添加粗体
                         newFont = fontManager.convert(font, toHaveTrait: .boldFontMask)
+                        print("[FormatApplicator] 添加粗体特性")
                     }
                 } else {
                     // 其他特性使用原来的方法
@@ -339,28 +430,100 @@ struct NativeEditorView: NSViewRepresentable {
                     newFont = NSFont(descriptor: newDescriptor, size: font.pointSize)
                 }
                 
+                // 验证字体转换是否成功
                 if let finalFont = newFont {
-                    textStorage.addAttribute(.font, value: finalFont, range: attrRange)
+                    // 验证新字体是否真的具有或不具有目标特性
+                    let newTraits = finalFont.fontDescriptor.symbolicTraits
+                    let hasNewTrait = newTraits.contains(trait)
+                    
+                    if hasTrait && hasNewTrait {
+                        // 应该移除特性但还在，可能是字体不支持
+                        print("[FormatApplicator] ⚠️ 警告: 无法移除字体特性，字体可能不支持")
+                        // 尝试使用系统字体
+                        let systemFont = NSFont.systemFont(ofSize: font.pointSize)
+                        let convertedFont = hasTrait ? 
+                            fontManager.convert(systemFont, toNotHaveTrait: trait == .bold ? .boldFontMask : .italicFontMask) :
+                            fontManager.convert(systemFont, toHaveTrait: trait == .bold ? .boldFontMask : .italicFontMask)
+                        textStorage.addAttribute(.font, value: convertedFont, range: attrRange)
+                    } else if !hasTrait && !hasNewTrait {
+                        // 应该添加特性但没有，可能是字体不支持
+                        print("[FormatApplicator] ⚠️ 警告: 无法添加字体特性，字体可能不支持")
+                        // 尝试使用系统字体
+                        let systemFont = NSFont.systemFont(ofSize: font.pointSize)
+                        let convertedFont = fontManager.convert(systemFont, toHaveTrait: trait == .bold ? .boldFontMask : .italicFontMask)
+                        textStorage.addAttribute(.font, value: convertedFont, range: attrRange)
+                    } else {
+                        // 转换成功
+                        textStorage.addAttribute(.font, value: finalFont, range: attrRange)
+                        print("[FormatApplicator] ✅ 字体特性应用成功: \(finalFont.fontName)")
+                    }
+                } else {
+                    print("[FormatApplicator] ❌ 错误: 字体转换失败，保持原字体")
                 }
             }
         }
         
         /// 切换属性
+        /// 需求: 1.3, 1.4, 1.5
+        /// - Parameters:
+        ///   - key: 属性键
+        ///   - value: 属性值
+        ///   - range: 应用范围
+        ///   - textStorage: 文本存储
         private func toggleAttribute(_ key: NSAttributedString.Key, value: Any, range: NSRange, in textStorage: NSTextStorage) {
-            var hasAttribute = false
+            print("[FormatApplicator] 切换属性: \(key), range: \(range)")
             
-            // 检查是否已有该属性
-            textStorage.enumerateAttribute(key, in: range, options: []) { existingValue, _, stop in
+            var hasAttribute = false
+            var attributeRanges: [(NSRange, Any?)] = []
+            
+            // 检查范围内是否已有该属性
+            textStorage.enumerateAttribute(key, in: range, options: []) { existingValue, attrRange, _ in
+                attributeRanges.append((attrRange, existingValue))
                 if existingValue != nil {
                     hasAttribute = true
-                    stop.pointee = true
                 }
             }
             
+            print("[FormatApplicator] 属性检查结果: hasAttribute=\(hasAttribute), 范围数量=\(attributeRanges.count)")
+            
             if hasAttribute {
+                // 移除属性
+                print("[FormatApplicator] 移除属性: \(key)")
                 textStorage.removeAttribute(key, range: range)
+                
+                // 验证移除是否成功
+                var stillHasAttribute = false
+                textStorage.enumerateAttribute(key, in: range, options: []) { existingValue, _, stop in
+                    if existingValue != nil {
+                        stillHasAttribute = true
+                        stop.pointee = true
+                    }
+                }
+                
+                if stillHasAttribute {
+                    print("[FormatApplicator] ⚠️ 警告: 属性移除后仍然存在")
+                } else {
+                    print("[FormatApplicator] ✅ 属性移除成功")
+                }
             } else {
+                // 添加属性
+                print("[FormatApplicator] 添加属性: \(key), value: \(value)")
                 textStorage.addAttribute(key, value: value, range: range)
+                
+                // 验证添加是否成功
+                var attributeAdded = false
+                textStorage.enumerateAttribute(key, in: range, options: []) { existingValue, _, stop in
+                    if existingValue != nil {
+                        attributeAdded = true
+                        stop.pointee = true
+                    }
+                }
+                
+                if attributeAdded {
+                    print("[FormatApplicator] ✅ 属性添加成功")
+                } else {
+                    print("[FormatApplicator] ⚠️ 警告: 属性添加后未找到")
+                }
             }
         }
         
