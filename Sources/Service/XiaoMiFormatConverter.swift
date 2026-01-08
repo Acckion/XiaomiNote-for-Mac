@@ -54,10 +54,17 @@ extension NSColor {
 
 extension NSFont {
     /// 获取斜体版本
+    /// 使用 NSFontManager 来正确转换字体为斜体
     func italic() -> NSFont {
-        let fontDescriptor = self.fontDescriptor
-        let italicDescriptor = fontDescriptor.withSymbolicTraits(.italic)
-        return NSFont(descriptor: italicDescriptor, size: self.pointSize) ?? self
+        let fontManager = NSFontManager.shared
+        let italicFont = fontManager.convert(self, toHaveTrait: .italicFontMask)
+        
+        // 验证转换是否成功
+        let traits = italicFont.fontDescriptor.symbolicTraits
+        print("[NSFont.italic()] 原字体: \(self.fontName), 转换后: \(italicFont.fontName)")
+        print("[NSFont.italic()] 转换后是否斜体: \(traits.contains(.italic))")
+        
+        return italicFont
     }
 }
 
@@ -352,9 +359,11 @@ class XiaoMiFormatConverter {
         
         // 应用富文本属性（跳过段落样式，稍后统一处理）
         // 关键修复：对于字体属性，需要合并字体特性而不是直接覆盖
-        for (range, attrs) in nsAttributes {
+        print("[XiaoMiFormatConverter] 🔍 开始应用富文本属性，共 \(nsAttributes.count) 个属性")
+        for (index, (range, attrs)) in nsAttributes.enumerated() {
             // 确保范围有效
             guard range.location >= 0 && range.location + range.length <= processedText.count else {
+                print("[XiaoMiFormatConverter] ⚠️ 属性 \(index) 范围无效: \(range), 文本长度: \(processedText.count)")
                 continue
             }
             
@@ -366,6 +375,11 @@ class XiaoMiFormatConverter {
                 case .font:
                     // 字体属性需要特殊处理：合并字体特性而不是直接覆盖
                     if let newFont = value as? NSFont {
+                        let newTraits = newFont.fontDescriptor.symbolicTraits
+                        print("[XiaoMiFormatConverter] 🔍 属性 \(index): 字体属性，范围: \(range)")
+                        print("[XiaoMiFormatConverter]   - 新字体: \(newFont.fontName), 大小: \(newFont.pointSize)")
+                        print("[XiaoMiFormatConverter]   - 新字体特性: bold=\(newTraits.contains(.bold)), italic=\(newTraits.contains(.italic))")
+                        
                         // 检查当前范围是否已有字体
                         var existingFont: NSFont? = nil
                         result.enumerateAttribute(.font, in: range, options: []) { existingValue, _, stop in
@@ -376,10 +390,19 @@ class XiaoMiFormatConverter {
                         }
                         
                         if let existing = existingFont {
+                            let existingTraits = existing.fontDescriptor.symbolicTraits
+                            print("[XiaoMiFormatConverter]   - 现有字体: \(existing.fontName), 大小: \(existing.pointSize)")
+                            print("[XiaoMiFormatConverter]   - 现有字体特性: bold=\(existingTraits.contains(.bold)), italic=\(existingTraits.contains(.italic))")
+                            
                             // 合并字体特性
                             let mergedFont = mergeFontTraits(existing: existing, new: newFont)
+                            let mergedTraits = mergedFont.fontDescriptor.symbolicTraits
+                            print("[XiaoMiFormatConverter]   - 合并后字体: \(mergedFont.fontName), 大小: \(mergedFont.pointSize)")
+                            print("[XiaoMiFormatConverter]   - 合并后特性: bold=\(mergedTraits.contains(.bold)), italic=\(mergedTraits.contains(.italic))")
+                            
                             result.addAttribute(key, value: mergedFont, range: range)
                         } else {
+                            print("[XiaoMiFormatConverter]   - 没有现有字体，直接应用")
                             // 没有现有字体，直接应用
                             result.addAttribute(key, value: newFont, range: range)
                         }
@@ -949,12 +972,30 @@ class XiaoMiFormatConverter {
         var processedText = content
         var attributes: [(NSRange, [NSAttributedString.Key: Any])] = []
         
+        print("[XiaoMiFormatConverter] 🔍 processRichTextTags 开始处理")
+        print("[XiaoMiFormatConverter]   - 原始内容: '\(content)'")
+        print("[XiaoMiFormatConverter]   - 包含 <i> 标签: \(content.contains("<i>"))")
+        print("[XiaoMiFormatConverter]   - 包含 </i> 标签: \(content.contains("</i>"))")
+        
         // 处理各种富文本标签
         processedText = try processTag(processedText, tag: "size", attribute: .font, value: NSFont.systemFont(ofSize: 24, weight: .bold), attributes: &attributes)
         processedText = try processTag(processedText, tag: "mid-size", attribute: .font, value: NSFont.systemFont(ofSize: 20, weight: .semibold), attributes: &attributes)
         processedText = try processTag(processedText, tag: "h3-size", attribute: .font, value: NSFont.systemFont(ofSize: 16, weight: .medium), attributes: &attributes)
         processedText = try processTag(processedText, tag: "b", attribute: .font, value: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize), attributes: &attributes)
-        processedText = try processTag(processedText, tag: "i", attribute: .font, value: NSFont.systemFont(ofSize: NSFont.systemFontSize).italic(), attributes: &attributes)
+        
+        // 斜体处理 - 添加详细日志
+        let italicFont = NSFont.systemFont(ofSize: NSFont.systemFontSize).italic()
+        let italicTraits = italicFont.fontDescriptor.symbolicTraits
+        print("[XiaoMiFormatConverter] 🔍 斜体字体创建:")
+        print("[XiaoMiFormatConverter]   - 字体名: \(italicFont.fontName)")
+        print("[XiaoMiFormatConverter]   - 字体大小: \(italicFont.pointSize)")
+        print("[XiaoMiFormatConverter]   - 是否斜体: \(italicTraits.contains(.italic))")
+        
+        let beforeItalicCount = attributes.count
+        processedText = try processTag(processedText, tag: "i", attribute: .font, value: italicFont, attributes: &attributes)
+        let afterItalicCount = attributes.count
+        print("[XiaoMiFormatConverter]   - 斜体标签处理前属性数: \(beforeItalicCount), 处理后: \(afterItalicCount)")
+        
         processedText = try processTag(processedText, tag: "u", attribute: .underlineStyle, value: NSUnderlineStyle.single.rawValue, attributes: &attributes)
         processedText = try processTag(processedText, tag: "delete", attribute: .strikethroughStyle, value: NSUnderlineStyle.single.rawValue, attributes: &attributes)
         
@@ -963,6 +1004,8 @@ class XiaoMiFormatConverter {
         
         // 处理对齐标签
         processedText = try processAlignmentTags(processedText, attributes: &attributes)
+        
+        print("[XiaoMiFormatConverter] 🔍 processRichTextTags 完成，共 \(attributes.count) 个属性")
         
         return (processedText, attributes)
     }
