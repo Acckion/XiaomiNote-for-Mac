@@ -243,20 +243,26 @@ struct UnifiedEditorWrapper: View {
     private func handleNativeContentChange(_ attributedString: NSAttributedString) {
         guard !isUpdatingFromExternal else { return }
         
-        // 将 NSAttributedString 转换为 XML
-        let xmlContent = nativeEditorContext.exportToXML()
-        
-        // 更新绑定的内容
-        if xmlContent != content {
-            Task { @MainActor in
-                isUpdatingFromExternal = true
-                content = xmlContent
-                lastLoadedContent = xmlContent
-                isUpdatingFromExternal = false
-                
-                // 调用内容变化回调（原生编辑器不提供 HTML 缓存）
-                onContentChange(xmlContent, nil)
+        // 关键修复：直接使用传入的 attributedString 进行转换
+        // 而不是依赖 nativeEditorContext.nsAttributedText
+        // 因为 nsAttributedText 可能还没有被更新（异步更新）
+        do {
+            let xmlContent = try XiaoMiFormatConverter.shared.nsAttributedStringToXML(attributedString)
+            
+            // 更新绑定的内容
+            if xmlContent != content {
+                Task { @MainActor in
+                    isUpdatingFromExternal = true
+                    content = xmlContent
+                    lastLoadedContent = xmlContent
+                    isUpdatingFromExternal = false
+                    
+                    // 调用内容变化回调（原生编辑器不提供 HTML 缓存）
+                    onContentChange(xmlContent, nil)
+                }
             }
+        } catch {
+            print("[UnifiedEditorWrapper] 转换 XML 失败: \(error)")
         }
     }
     
