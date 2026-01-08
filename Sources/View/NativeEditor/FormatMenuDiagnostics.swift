@@ -21,6 +21,8 @@ enum DiagnosticInfoType: String {
     case attributes = "文本属性"
     case performance = "性能数据"
     case errorHistory = "错误历史"
+    case formatApplication = "格式应用"
+    case stateSynchronization = "状态同步"
 }
 
 // MARK: - 诊断快照

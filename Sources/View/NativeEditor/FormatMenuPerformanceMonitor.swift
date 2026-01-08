@@ -115,14 +115,7 @@ final class FormatMenuPerformanceMonitor {
         var success = true
         var errorMessage: String?
         
-        do {
-            let result = try block()
-            return result
-        } catch {
-            success = false
-            errorMessage = error.localizedDescription
-            throw error
-        } finally {
+        defer {
             let duration = CFAbsoluteTimeGetCurrent() - startTime
             
             // 记录性能数据
@@ -143,6 +136,15 @@ final class FormatMenuPerformanceMonitor {
                 )
             }
         }
+        
+        do {
+            let result = try block()
+            return result
+        } catch {
+            success = false
+            errorMessage = error.localizedDescription
+            throw error
+        }
     }
     
     /// 测量状态同步性能
@@ -162,13 +164,7 @@ final class FormatMenuPerformanceMonitor {
         var success = true
         var detectedFormats: Set<TextFormat> = []
         
-        do {
-            detectedFormats = try block()
-            return detectedFormats
-        } catch {
-            success = false
-            throw error
-        } finally {
+        defer {
             let duration = CFAbsoluteTimeGetCurrent() - startTime
             
             // 记录性能数据
@@ -186,6 +182,14 @@ final class FormatMenuPerformanceMonitor {
                     category: "FormatMenuPerformance"
                 )
             }
+        }
+        
+        do {
+            detectedFormats = try block()
+            return detectedFormats
+        } catch {
+            success = false
+            throw error
         }
     }
     
