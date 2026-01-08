@@ -558,11 +558,15 @@ class NativeEditorContext: ObservableObject {
     /// 根据当前光标位置更新格式状态 (需求 9.1)
     /// 增强版本 - 完善所有格式类型的状态检测
     /// 需求: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10
+    /// 错误处理需求: 4.2 - 状态同步失败时重新检测格式状态并更新界面
     func updateCurrentFormats() {
         print("[NativeEditorContext] updateCurrentFormats 被调用")
         print("[NativeEditorContext]   - nsAttributedText.length: \(nsAttributedText.length)")
         print("[NativeEditorContext]   - cursorPosition: \(cursorPosition)")
         print("[NativeEditorContext]   - selectedRange: \(selectedRange)")
+        
+        // 需求 4.2: 状态同步错误处理
+        let errorHandler = FormatErrorHandler.shared
         
         guard !nsAttributedText.string.isEmpty else {
             print("[NativeEditorContext]   - 文本为空，清除所有格式")
@@ -825,25 +829,80 @@ class NativeEditorContext: ObservableObject {
     }
     
     /// 更新格式状态并验证
+    /// 需求: 4.2 - 状态同步失败时重新检测格式状态并更新界面
     private func updateFormatsWithValidation(_ detectedFormats: Set<TextFormat>) {
-        // 验证互斥格式
-        let validatedFormats = validateMutuallyExclusiveFormats(detectedFormats)
+        let errorHandler = FormatErrorHandler.shared
         
-        // 更新当前格式
-        currentFormats = validatedFormats
-        
-        // 更新工具栏按钮状态
-        for format in TextFormat.allCases {
-            toolbarButtonStates[format] = validatedFormats.contains(format)
+        do {
+            // 验证互斥格式
+            let validatedFormats = validateMutuallyExclusiveFormats(detectedFormats)
+            
+            // 检查状态一致性
+            let previousFormats = currentFormats
+            
+            // 更新当前格式
+            currentFormats = validatedFormats
+            
+            // 更新工具栏按钮状态
+            for format in TextFormat.allCases {
+                toolbarButtonStates[format] = validatedFormats.contains(format)
+            }
+            
+            // 验证状态更新是否成功
+            if currentFormats != validatedFormats {
+                // 状态不一致，记录错误
+                let context = FormatErrorContext(
+                    operation: "updateFormatsWithValidation",
+                    format: nil,
+                    selectedRange: selectedRange,
+                    textLength: nsAttributedText.length,
+                    cursorPosition: cursorPosition,
+                    additionalInfo: [
+                        "previousFormats": previousFormats.map { $0.displayName },
+                        "expectedFormats": validatedFormats.map { $0.displayName },
+                        "actualFormats": currentFormats.map { $0.displayName }
+                    ]
+                )
+                errorHandler.handleError(
+                    .stateInconsistency(
+                        expected: validatedFormats.map { $0.displayName }.joined(separator: ", "),
+                        actual: currentFormats.map { $0.displayName }.joined(separator: ", ")
+                    ),
+                    context: context
+                )
+            }
+            
+            // 记录格式变化（调试用）
+            #if DEBUG
+            if !validatedFormats.isEmpty {
+                let formatNames = validatedFormats.map { $0.displayName }.joined(separator: ", ")
+                print("[NativeEditorContext] 检测到格式: \(formatNames)")
+            }
+            #endif
+            
+            // 成功后重置错误计数
+            errorHandler.resetErrorCount()
+        } catch {
+            // 需求 4.2: 状态同步失败时重新检测格式状态
+            let context = FormatErrorContext(
+                operation: "updateFormatsWithValidation",
+                format: nil,
+                selectedRange: selectedRange,
+                textLength: nsAttributedText.length,
+                cursorPosition: cursorPosition,
+                additionalInfo: nil
+            )
+            let result = errorHandler.handleError(
+                .stateSyncFailed(reason: error.localizedDescription),
+                context: context
+            )
+            
+            // 根据恢复操作执行相应处理
+            if result.recoveryAction == .forceStateUpdate {
+                // 清除所有格式并重新检测
+                clearAllFormats()
+            }
         }
-        
-        // 记录格式变化（调试用）
-        #if DEBUG
-        if !validatedFormats.isEmpty {
-            let formatNames = validatedFormats.map { $0.displayName }.joined(separator: ", ")
-            print("[NativeEditorContext] 检测到格式: \(formatNames)")
-        }
-        #endif
     }
     
     /// 验证互斥格式，确保只保留一个

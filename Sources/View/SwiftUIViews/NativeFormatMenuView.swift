@@ -3,6 +3,7 @@
 //  MiNoteMac
 //
 //  原生编辑器格式菜单视图 - 提供富文本格式选项
+//  需求: 4.3 - 当编辑器处于不可编辑状态时，格式菜单应禁用所有格式按钮
 //
 
 import SwiftUI
@@ -13,12 +14,18 @@ struct NativeFormatMenuView: View {
     // MARK: - Properties
     
     @ObservedObject var context: NativeEditorContext
+    @StateObject private var stateChecker = EditorStateConsistencyChecker.shared
     var onFormatApplied: ((TextFormat) -> Void)?
     
     // MARK: - Body
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // 状态提示（当编辑器不可编辑时显示）
+            if !stateChecker.formatButtonsEnabled {
+                stateWarningView
+            }
+            
             // 文本样式部分
             textStyleSection
             
@@ -56,6 +63,28 @@ struct NativeFormatMenuView: View {
         .onChange(of: context.currentFormats) { oldValue, newValue in
             print("🔄 [NativeFormatMenuView] 格式状态变化: \(oldValue.map { $0.displayName }) -> \(newValue.map { $0.displayName })")
         }
+        .onChange(of: stateChecker.formatButtonsEnabled) { oldValue, newValue in
+            print("🔄 [NativeFormatMenuView] 按钮启用状态变化: \(oldValue) -> \(newValue)")
+        }
+    }
+    
+    // MARK: - State Warning View
+    
+    /// 状态警告视图（需求 4.3）
+    private var stateWarningView: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+            
+            Text(stateChecker.currentState.userMessage ?? "格式操作不可用")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.orange.opacity(0.1))
+        )
     }
     
     // MARK: - Text Style Section
@@ -71,6 +100,7 @@ struct NativeFormatMenuView: View {
                     title: "加粗",
                     icon: "bold",
                     isActive: context.isFormatActive(.bold),
+                    isEnabled: stateChecker.formatButtonsEnabled,
                     shortcut: "⌘B"
                 ) {
                     applyFormat(.bold)
@@ -80,6 +110,7 @@ struct NativeFormatMenuView: View {
                     title: "斜体",
                     icon: "italic",
                     isActive: context.isFormatActive(.italic),
+                    isEnabled: stateChecker.formatButtonsEnabled,
                     shortcut: "⌘I"
                 ) {
                     applyFormat(.italic)
@@ -89,6 +120,7 @@ struct NativeFormatMenuView: View {
                     title: "下划线",
                     icon: "underline",
                     isActive: context.isFormatActive(.underline),
+                    isEnabled: stateChecker.formatButtonsEnabled,
                     shortcut: "⌘U"
                 ) {
                     applyFormat(.underline)
@@ -97,7 +129,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "删除线",
                     icon: "strikethrough",
-                    isActive: context.isFormatActive(.strikethrough)
+                    isActive: context.isFormatActive(.strikethrough),
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     applyFormat(.strikethrough)
                 }
@@ -105,7 +138,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "高亮",
                     icon: "highlighter",
-                    isActive: context.isFormatActive(.highlight)
+                    isActive: context.isFormatActive(.highlight),
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     applyFormat(.highlight)
                 }
@@ -126,7 +160,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "大标题",
                     icon: "textformat.size.larger",
-                    isActive: context.isFormatActive(.heading1)
+                    isActive: context.isFormatActive(.heading1),
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     applyFormat(.heading1)
                 }
@@ -134,7 +169,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "二级标题",
                     icon: "textformat.size",
-                    isActive: context.isFormatActive(.heading2)
+                    isActive: context.isFormatActive(.heading2),
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     applyFormat(.heading2)
                 }
@@ -142,7 +178,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "三级标题",
                     icon: "textformat.size.smaller",
-                    isActive: context.isFormatActive(.heading3)
+                    isActive: context.isFormatActive(.heading3),
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     applyFormat(.heading3)
                 }
@@ -153,7 +190,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "居中",
                     icon: "text.aligncenter",
-                    isActive: context.isFormatActive(.alignCenter)
+                    isActive: context.isFormatActive(.alignCenter),
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     applyFormat(.alignCenter)
                 }
@@ -161,7 +199,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "右对齐",
                     icon: "text.alignright",
-                    isActive: context.isFormatActive(.alignRight)
+                    isActive: context.isFormatActive(.alignRight),
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     applyFormat(.alignRight)
                 }
@@ -181,7 +220,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "无序列表",
                     icon: "list.bullet",
-                    isActive: context.isFormatActive(.bulletList)
+                    isActive: context.isFormatActive(.bulletList),
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     applyFormat(.bulletList)
                 }
@@ -189,7 +229,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "有序列表",
                     icon: "list.number",
-                    isActive: context.isFormatActive(.numberedList)
+                    isActive: context.isFormatActive(.numberedList),
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     applyFormat(.numberedList)
                 }
@@ -197,7 +238,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "复选框",
                     icon: "checklist",
-                    isActive: context.isFormatActive(.checkbox)
+                    isActive: context.isFormatActive(.checkbox),
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     applyFormat(.checkbox)
                 }
@@ -217,7 +259,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "引用",
                     icon: "text.quote",
-                    isActive: context.isFormatActive(.quote)
+                    isActive: context.isFormatActive(.quote),
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     applyFormat(.quote)
                 }
@@ -225,7 +268,8 @@ struct NativeFormatMenuView: View {
                 FormatButton(
                     title: "分割线",
                     icon: "minus",
-                    isActive: false
+                    isActive: false,
+                    isEnabled: stateChecker.formatButtonsEnabled
                 ) {
                     context.insertHorizontalRule()
                     onFormatApplied?(.horizontalRule)
@@ -237,6 +281,12 @@ struct NativeFormatMenuView: View {
     // MARK: - Helper Methods
     
     private func applyFormat(_ format: TextFormat) {
+        // 需求 4.3: 验证格式操作是否允许
+        guard stateChecker.validateFormatOperation(format) else {
+            print("⚠️ [NativeFormatMenuView] 格式操作被拒绝: \(format.displayName)")
+            return
+        }
+        
         context.applyFormat(format)
         onFormatApplied?(format)
     }
@@ -245,10 +295,12 @@ struct NativeFormatMenuView: View {
 // MARK: - Format Button
 
 /// 格式按钮组件
+/// 需求: 4.3 - 支持禁用状态
 struct FormatButton: View {
     let title: String
     let icon: String
     let isActive: Bool
+    var isEnabled: Bool = true
     var shortcut: String? = nil
     let action: () -> Void
     
@@ -257,26 +309,73 @@ struct FormatButton: View {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 16))
-                    .foregroundColor(isActive ? .white : .primary)
+                    .foregroundColor(buttonForegroundColor)
                 
                 Text(title)
                     .font(.caption2)
-                    .foregroundColor(isActive ? .white : .secondary)
+                    .foregroundColor(buttonTextColor)
                 
                 if let shortcut = shortcut {
                     Text(shortcut)
                         .font(.system(size: 8))
-                        .foregroundColor(isActive ? .white.opacity(0.8) : .secondary.opacity(0.6))
+                        .foregroundColor(buttonShortcutColor)
                 }
             }
             .frame(width: 48, height: 52)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isActive ? Color.accentColor : Color.secondary.opacity(0.1))
+                    .fill(buttonBackgroundColor)
             )
         }
         .buttonStyle(.plain)
-        .help(title + (shortcut != nil ? " (\(shortcut!))" : ""))
+        .disabled(!isEnabled)
+        .help(helpText)
+    }
+    
+    // MARK: - Computed Properties
+    
+    /// 按钮前景色
+    private var buttonForegroundColor: Color {
+        if !isEnabled {
+            return .secondary.opacity(0.5)
+        }
+        return isActive ? .white : .primary
+    }
+    
+    /// 按钮文本颜色
+    private var buttonTextColor: Color {
+        if !isEnabled {
+            return .secondary.opacity(0.5)
+        }
+        return isActive ? .white : .secondary
+    }
+    
+    /// 快捷键颜色
+    private var buttonShortcutColor: Color {
+        if !isEnabled {
+            return .secondary.opacity(0.3)
+        }
+        return isActive ? .white.opacity(0.8) : .secondary.opacity(0.6)
+    }
+    
+    /// 按钮背景色
+    private var buttonBackgroundColor: Color {
+        if !isEnabled {
+            return Color.secondary.opacity(0.05)
+        }
+        return isActive ? Color.accentColor : Color.secondary.opacity(0.1)
+    }
+    
+    /// 帮助文本
+    private var helpText: String {
+        var text = title
+        if let shortcut = shortcut {
+            text += " (\(shortcut))"
+        }
+        if !isEnabled {
+            text += " - 不可用"
+        }
+        return text
     }
 }
 
