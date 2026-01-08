@@ -68,6 +68,9 @@ class FormatManager {
     /// 有序列表编号宽度
     var orderNumberWidth: CGFloat = 28
     
+    /// 复选框宽度
+    var checkboxWidth: CGFloat = 24
+    
     // MARK: - Public Methods - 格式应用
     
     /// 应用加粗格式 (需求 2.1)
@@ -339,6 +342,182 @@ class FormatManager {
             let number = calculateListNumber(in: textStorage, at: range.location)
             applyOrderedList(to: textStorage, range: range, number: number)
         }
+    }
+    
+    // MARK: - Public Methods - 复选框列表格式 (需求 3.1, 3.2, 3.3, 3.6)
+    
+    /// 应用复选框列表格式
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    ///   - indent: 缩进级别（默认为 1）
+    ///   - level: 复选框级别（默认为 3，对应 XML 中的 level 属性）
+    func applyCheckboxList(to textStorage: NSTextStorage, range: NSRange, indent: Int = 1, level: Int = 3) {
+        let lineRange = (textStorage.string as NSString).lineRange(for: range)
+        
+        textStorage.beginEditing()
+        
+        // 设置列表类型属性
+        textStorage.addAttribute(.listType, value: ListType.checkbox, range: lineRange)
+        textStorage.addAttribute(.listIndent, value: indent, range: lineRange)
+        textStorage.addAttribute(.checkboxLevel, value: level, range: lineRange)
+        
+        // 设置段落样式
+        let paragraphStyle = createListParagraphStyle(indent: indent, bulletWidth: checkboxWidth)
+        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+        
+        textStorage.endEditing()
+    }
+    
+    /// 切换复选框列表格式
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    func toggleCheckboxList(to textStorage: NSTextStorage, range: NSRange) {
+        let currentListType = getListType(in: textStorage, at: range.location)
+        
+        if currentListType == .checkbox {
+            removeListFormat(from: textStorage, range: range)
+        } else {
+            // 如果是其他列表类型，先移除再应用
+            if currentListType != .none {
+                removeListFormat(from: textStorage, range: range)
+            }
+            applyCheckboxList(to: textStorage, range: range)
+        }
+    }
+    
+    /// 检测指定位置是否是复选框列表
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - position: 位置
+    /// - Returns: 是否是复选框列表
+    func isCheckboxList(in textStorage: NSTextStorage, at position: Int) -> Bool {
+        return getListType(in: textStorage, at: position) == .checkbox
+    }
+    
+    /// 获取指定位置的复选框级别
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - position: 位置
+    /// - Returns: 复选框级别（默认为 3）
+    func getCheckboxLevel(in textStorage: NSTextStorage, at position: Int) -> Int {
+        guard position < textStorage.length else { return 3 }
+        
+        if let level = textStorage.attribute(.checkboxLevel, at: position, effectiveRange: nil) as? Int {
+            return level
+        }
+        
+        return 3
+    }
+    
+    // MARK: - Public Methods - 引用块格式 (需求 5.1, 5.3, 5.4, 5.6)
+    
+    /// 应用引用块格式
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    ///   - indent: 缩进级别（默认为 1）
+    func applyQuoteBlock(to textStorage: NSTextStorage, range: NSRange, indent: Int = 1) {
+        let lineRange = (textStorage.string as NSString).lineRange(for: range)
+        
+        textStorage.beginEditing()
+        
+        // 标记为引用块
+        textStorage.addAttribute(.quoteBlock, value: true, range: lineRange)
+        textStorage.addAttribute(.quoteIndent, value: indent, range: lineRange)
+        
+        // 设置段落样式
+        let paragraphStyle = createQuoteParagraphStyle(indent: indent)
+        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+        
+        // 设置引用块背景色（可选，用于视觉提示）
+        let quoteBackgroundColor = NSColor.systemBlue.withAlphaComponent(0.05)
+        textStorage.addAttribute(.backgroundColor, value: quoteBackgroundColor, range: lineRange)
+        
+        textStorage.endEditing()
+    }
+    
+    /// 切换引用块格式
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    func toggleQuoteBlock(to textStorage: NSTextStorage, range: NSRange) {
+        let isQuote = isQuoteBlock(in: textStorage, at: range.location)
+        
+        if isQuote {
+            removeQuoteBlock(from: textStorage, range: range)
+        } else {
+            applyQuoteBlock(to: textStorage, range: range)
+        }
+    }
+    
+    /// 移除引用块格式
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    func removeQuoteBlock(from textStorage: NSTextStorage, range: NSRange) {
+        let lineRange = (textStorage.string as NSString).lineRange(for: range)
+        
+        textStorage.beginEditing()
+        
+        // 移除引用块属性
+        textStorage.removeAttribute(.quoteBlock, range: lineRange)
+        textStorage.removeAttribute(.quoteIndent, range: lineRange)
+        textStorage.removeAttribute(.backgroundColor, range: lineRange)
+        
+        // 重置段落样式
+        let paragraphStyle = NSMutableParagraphStyle()
+        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+        
+        textStorage.endEditing()
+    }
+    
+    /// 检测指定位置是否是引用块
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - position: 位置
+    /// - Returns: 是否是引用块
+    func isQuoteBlock(in textStorage: NSTextStorage, at position: Int) -> Bool {
+        guard position < textStorage.length else { return false }
+        
+        if let isQuote = textStorage.attribute(.quoteBlock, at: position, effectiveRange: nil) as? Bool {
+            return isQuote
+        }
+        
+        return false
+    }
+    
+    /// 获取指定位置的引用块缩进级别
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - position: 位置
+    /// - Returns: 缩进级别（默认为 1）
+    func getQuoteIndent(in textStorage: NSTextStorage, at position: Int) -> Int {
+        guard position < textStorage.length else { return 1 }
+        
+        if let indent = textStorage.attribute(.quoteIndent, at: position, effectiveRange: nil) as? Int {
+            return indent
+        }
+        
+        return 1
+    }
+    
+    /// 创建引用块段落样式
+    /// - Parameter indent: 缩进级别
+    /// - Returns: 段落样式
+    private func createQuoteParagraphStyle(indent: Int) -> NSParagraphStyle {
+        let style = NSMutableParagraphStyle()
+        let baseIndent = CGFloat(indent - 1) * indentUnit
+        
+        // 设置左侧边距（为引用块边框留出空间）
+        let quoteBorderWidth: CGFloat = 3
+        let quotePadding: CGFloat = 12
+        
+        style.firstLineHeadIndent = baseIndent + quoteBorderWidth + quotePadding
+        style.headIndent = baseIndent + quoteBorderWidth + quotePadding
+        
+        return style
     }
     
     /// 增加列表缩进
@@ -634,6 +813,10 @@ class FormatManager {
             toggleBulletList(to: textStorage, range: range)
         case .numberedList:
             toggleOrderedList(to: textStorage, range: range)
+        case .checkbox:
+            toggleCheckboxList(to: textStorage, range: range)
+        case .quote:
+            toggleQuoteBlock(to: textStorage, range: range)
         default:
             break
         }
@@ -671,6 +854,10 @@ class FormatManager {
             return isBulletList(in: textStorage, at: position)
         case .numberedList:
             return isOrderedList(in: textStorage, at: position)
+        case .checkbox:
+            return isCheckboxList(in: textStorage, at: position)
+        case .quote:
+            return isQuoteBlock(in: textStorage, at: position)
         default:
             return false
         }
@@ -948,4 +1135,10 @@ extension NSAttributedString.Key {
     
     /// 标题级别属性键
     static let headingLevel = NSAttributedString.Key("headingLevel")
+    
+    /// 复选框级别属性键（对应 XML 中的 level 属性）
+    static let checkboxLevel = NSAttributedString.Key("checkboxLevel")
+    
+    /// 复选框选中状态属性键（仅编辑器显示，不保存到 XML）
+    static let checkboxChecked = NSAttributedString.Key("checkboxChecked")
 }

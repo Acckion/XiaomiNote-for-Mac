@@ -315,6 +315,25 @@ class NativeEditorContext: ObservableObject {
         hasUnsavedChanges = true
     }
     
+    /// 插入分割线
+    func insertHorizontalRule() {
+        insertSpecialElement(.horizontalRule)
+    }
+    
+    /// 插入复选框
+    /// - Parameters:
+    ///   - checked: 是否选中（默认为 false）
+    ///   - level: 复选框级别（默认为 3）
+    func insertCheckbox(checked: Bool = false, level: Int = 3) {
+        insertSpecialElement(.checkbox(checked: checked, level: level))
+    }
+    
+    /// 插入引用块
+    /// - Parameter content: 引用内容（默认为空）
+    func insertQuote(content: String = "") {
+        insertSpecialElement(.quote(content: content))
+    }
+    
     // MARK: - Public Methods - 光标和选择管理 (需求 9.1, 9.2)
     
     /// 更新光标位置
@@ -491,7 +510,7 @@ class NativeEditorContext: ObservableObject {
         }
         
         // 检测引用块属性
-        if let isQuote = attributes[NSAttributedString.Key("isQuoteBlock")] as? Bool, isQuote {
+        if let isQuote = attributes[.quoteBlock] as? Bool, isQuote {
             detectedFormats.insert(.quote)
         }
         

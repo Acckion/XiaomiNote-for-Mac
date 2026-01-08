@@ -243,6 +243,10 @@ struct NativeEditorView: NSViewRepresentable {
                 applyBulletList(to: selectedRange, in: textStorage)
             case .numberedList:
                 applyOrderedList(to: selectedRange, in: textStorage)
+            case .checkbox:
+                applyCheckboxList(to: selectedRange, in: textStorage)
+            case .quote:
+                applyQuoteBlock(to: selectedRange, in: textStorage)
             default:
                 break
             }
@@ -374,6 +378,60 @@ struct NativeEditorView: NSViewRepresentable {
                     ])
                     textStorage.insert(orderString, at: lineRange.location)
                 }
+            }
+        }
+        
+        /// 应用复选框列表格式
+        private func applyCheckboxList(to range: NSRange, in textStorage: NSTextStorage) {
+            let lineRange = (textStorage.string as NSString).lineRange(for: range)
+            let currentListType = FormatManager.shared.getListType(in: textStorage, at: range.location)
+            
+            if currentListType == .checkbox {
+                // 已经是复选框列表，移除格式
+                FormatManager.shared.removeListFormat(from: textStorage, range: lineRange)
+                
+                // 移除复选框符号
+                let lineText = (textStorage.string as NSString).substring(with: lineRange)
+                if lineText.hasPrefix("☐ ") || lineText.hasPrefix("☑ ") {
+                    textStorage.deleteCharacters(in: NSRange(location: lineRange.location, length: 2))
+                }
+            } else {
+                // 如果是其他列表类型，先移除
+                if currentListType != .none {
+                    FormatManager.shared.removeListFormat(from: textStorage, range: lineRange)
+                }
+                
+                // 应用复选框列表格式
+                let indent = FormatManager.shared.getListIndent(in: textStorage, at: range.location)
+                FormatManager.shared.applyCheckboxList(to: textStorage, range: lineRange, indent: indent)
+                
+                // 在行首插入复选框（如果还没有）
+                let lineText = (textStorage.string as NSString).substring(with: lineRange)
+                if !lineText.hasPrefix("☐ ") && !lineText.hasPrefix("☑ ") {
+                    // 使用 InteractiveCheckboxAttachment 创建复选框
+                    let renderer = CustomRenderer.shared
+                    let attachment = renderer.createCheckboxAttachment(checked: false, level: 3, indent: indent)
+                    let attachmentString = NSAttributedString(attachment: attachment)
+                    
+                    let checkboxString = NSMutableAttributedString(attributedString: attachmentString)
+                    checkboxString.append(NSAttributedString(string: " "))
+                    
+                    textStorage.insert(checkboxString, at: lineRange.location)
+                }
+            }
+        }
+        
+        /// 应用引用块格式
+        private func applyQuoteBlock(to range: NSRange, in textStorage: NSTextStorage) {
+            let lineRange = (textStorage.string as NSString).lineRange(for: range)
+            let isQuote = FormatManager.shared.isQuoteBlock(in: textStorage, at: range.location)
+            
+            if isQuote {
+                // 已经是引用块，移除格式
+                FormatManager.shared.removeQuoteBlock(from: textStorage, range: lineRange)
+            } else {
+                // 应用引用块格式
+                FormatManager.shared.applyQuoteBlock(to: textStorage, range: lineRange)
             }
         }
         
@@ -551,6 +609,12 @@ class NativeTextView: NSTextView {
             default:
                 break
             }
+            
+            // Cmd+Shift+- : 插入分割线
+            if event.modifierFlags.contains(.shift) && event.charactersIgnoringModifiers == "-" {
+                insertHorizontalRuleAtCursor()
+                return
+            }
         }
         
         // 处理回车键 - 列表项创建
@@ -567,6 +631,13 @@ class NativeTextView: NSTextView {
             }
         }
         
+        // 处理删除键 - 删除分割线
+        if event.keyCode == 51 { // Delete key (Backspace)
+            if deleteSelectedHorizontalRule() {
+                return
+            }
+        }
+        
         super.keyDown(with: event)
     }
     
@@ -579,6 +650,11 @@ class NativeTextView: NSTextView {
         
         let selectedRange = self.selectedRange()
         let position = selectedRange.location
+        
+        // 首先检查是否在引用块中
+        if FormatManager.shared.isQuoteBlock(in: textStorage, at: position) {
+            return handleReturnKeyForQuote()
+        }
         
         // 检查当前行是否是列表项
         let listType = FormatManager.shared.getListType(in: textStorage, at: position)
@@ -675,6 +751,58 @@ class NativeTextView: NSTextView {
         return true
     }
     
+    /// 处理引用块中的回车键
+    /// - Returns: 是否处理了回车键
+    private func handleReturnKeyForQuote() -> Bool {
+        guard let textStorage = textStorage else { return false }
+        
+        let selectedRange = self.selectedRange()
+        let position = selectedRange.location
+        
+        let string = textStorage.string as NSString
+        let lineRange = string.lineRange(for: selectedRange)
+        let lineText = string.substring(with: lineRange).trimmingCharacters(in: .newlines)
+        
+        // 检查当前行是否为空（只有空白字符）
+        let isEmptyLine = lineText.trimmingCharacters(in: .whitespaces).isEmpty
+        
+        if isEmptyLine {
+            // 空行，退出引用块
+            textStorage.beginEditing()
+            FormatManager.shared.removeQuoteBlock(from: textStorage, range: lineRange)
+            textStorage.endEditing()
+            
+            // 通知内容变化
+            delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
+            return true
+        }
+        
+        // 非空行，继续引用格式
+        let indent = FormatManager.shared.getQuoteIndent(in: textStorage, at: position)
+        
+        textStorage.beginEditing()
+        
+        // 插入换行符
+        let insertionPoint = selectedRange.location
+        textStorage.replaceCharacters(in: selectedRange, with: "\n")
+        
+        // 在新行应用引用块格式
+        let newLineStart = insertionPoint + 1
+        let newLineRange = NSRange(location: newLineStart, length: 0)
+        
+        FormatManager.shared.applyQuoteBlock(to: textStorage, range: newLineRange, indent: indent)
+        
+        textStorage.endEditing()
+        
+        // 移动光标到新行
+        setSelectedRange(NSRange(location: newLineStart, length: 0))
+        
+        // 通知内容变化
+        delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
+        
+        return true
+    }
+    
     /// 检查列表项是否为空
     private func isListItemEmpty(lineText: String, listType: ListType) -> Bool {
         let trimmed = lineText.trimmingCharacters(in: .whitespaces)
@@ -688,8 +816,10 @@ class NativeTextView: NSTextView {
             let pattern = "^\\d+\\.$"
             return trimmed.range(of: pattern, options: .regularExpression) != nil || trimmed.isEmpty
         case .checkbox:
-            // 检查是否只有复选框
-            return trimmed == "☐" || trimmed == "☑" || trimmed.isEmpty
+            // 检查是否只有复选框（包括附件字符）
+            // 附件字符是 Unicode 对象替换字符 \u{FFFC}
+            let withoutAttachment = trimmed.replacingOccurrences(of: "\u{FFFC}", with: "")
+            return withoutAttachment.isEmpty || trimmed == "☐" || trimmed == "☑"
         case .none:
             return trimmed.isEmpty
         }
@@ -732,19 +862,19 @@ class NativeTextView: NSTextView {
     
     /// 创建复选框字符串
     private func createCheckboxString(indent: Int) -> NSAttributedString {
-        let checkbox = "☐ "
-        var attributes: [NSAttributedString.Key: Any] = [
+        // 使用 InteractiveCheckboxAttachment 创建可交互的复选框
+        let renderer = CustomRenderer.shared
+        let attachment = renderer.createCheckboxAttachment(checked: false, level: 3, indent: indent)
+        let attachmentString = NSAttributedString(attachment: attachment)
+        
+        let result = NSMutableAttributedString(attributedString: attachmentString)
+        result.append(NSAttributedString(string: " ", attributes: [
             .font: NSFont.systemFont(ofSize: 15),
             .listType: ListType.checkbox,
             .listIndent: indent
-        ]
+        ]))
         
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.firstLineHeadIndent = CGFloat(indent - 1) * 20
-        paragraphStyle.headIndent = CGFloat(indent - 1) * 20 + 24
-        attributes[.paragraphStyle] = paragraphStyle
-        
-        return NSAttributedString(string: checkbox, attributes: attributes)
+        return result
     }
     
     /// 获取列表前缀长度
@@ -755,7 +885,7 @@ class NativeTextView: NSTextView {
         case .ordered:
             return 3 // "1. " (假设单位数编号)
         case .checkbox:
-            return 2 // "☐ "
+            return 2 // 附件字符 + 空格
         case .none:
             return 0
         }
@@ -797,6 +927,94 @@ class NativeTextView: NSTextView {
             let selectedRange = selectedRange()
             textStorage.replaceCharacters(in: selectedRange, with: attachmentString)
         }
+    }
+    
+    // MARK: - Horizontal Rule Support
+    
+    /// 在光标位置插入分割线
+    func insertHorizontalRuleAtCursor() {
+        guard let textStorage = textStorage else { return }
+        
+        let selectedRange = self.selectedRange()
+        let insertionPoint = selectedRange.location
+        
+        textStorage.beginEditing()
+        
+        // 创建分割线附件
+        let renderer = CustomRenderer.shared
+        let attachment = renderer.createHorizontalRuleAttachment()
+        let attachmentString = NSAttributedString(attachment: attachment)
+        
+        // 构建插入内容：换行 + 分割线 + 换行
+        let result = NSMutableAttributedString()
+        
+        // 如果不在行首，先添加换行
+        if insertionPoint > 0 {
+            let string = textStorage.string as NSString
+            let prevChar = string.character(at: insertionPoint - 1)
+            if prevChar != 10 { // 10 是换行符的 ASCII 码
+                result.append(NSAttributedString(string: "\n"))
+            }
+        }
+        
+        result.append(attachmentString)
+        result.append(NSAttributedString(string: "\n"))
+        
+        // 删除选中内容并插入分割线
+        textStorage.replaceCharacters(in: selectedRange, with: result)
+        
+        textStorage.endEditing()
+        
+        // 移动光标到分割线后
+        let newCursorPosition = insertionPoint + result.length
+        setSelectedRange(NSRange(location: newCursorPosition, length: 0))
+        
+        // 通知代理
+        delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
+    }
+    
+    /// 删除选中的分割线
+    func deleteSelectedHorizontalRule() -> Bool {
+        guard let textStorage = textStorage else { return false }
+        
+        let selectedRange = self.selectedRange()
+        
+        // 检查选中位置是否是分割线
+        if selectedRange.location < textStorage.length {
+            if let attachment = textStorage.attribute(.attachment, at: selectedRange.location, effectiveRange: nil) as? HorizontalRuleAttachment {
+                textStorage.beginEditing()
+                
+                // 删除分割线（包括可能的换行符）
+                var deleteRange = NSRange(location: selectedRange.location, length: 1)
+                
+                // 检查前后是否有换行符需要一起删除
+                let string = textStorage.string as NSString
+                if deleteRange.location > 0 {
+                    let prevChar = string.character(at: deleteRange.location - 1)
+                    if prevChar == 10 {
+                        deleteRange.location -= 1
+                        deleteRange.length += 1
+                    }
+                }
+                if deleteRange.location + deleteRange.length < string.length {
+                    let nextChar = string.character(at: deleteRange.location + deleteRange.length)
+                    if nextChar == 10 {
+                        deleteRange.length += 1
+                    }
+                }
+                
+                textStorage.deleteCharacters(in: deleteRange)
+                
+                textStorage.endEditing()
+                
+                // 通知代理
+                delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
+                
+                return true
+            }
+        }
+        
+        return false
     }
 }
 
