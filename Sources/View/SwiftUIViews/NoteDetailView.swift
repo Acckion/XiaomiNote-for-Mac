@@ -365,7 +365,8 @@ struct NoteDetailView: View {
         Button {
             if isUsingNativeEditor {
                 // 原生编辑器增加缩进
-                nativeEditorContext.applyFormat(.bulletList)
+                // 需求: 6.1, 6.3 - 调用 NativeEditorContext.increaseIndent()
+                nativeEditorContext.increaseIndent()
             } else {
                 webEditorContext.increaseIndent()
             }
@@ -374,7 +375,8 @@ struct NoteDetailView: View {
         Button {
             if isUsingNativeEditor {
                 // 原生编辑器减少缩进
-                // TODO: 实现减少缩进功能
+                // 需求: 6.2, 6.4 - 调用 NativeEditorContext.decreaseIndent()
+                nativeEditorContext.decreaseIndent()
             } else {
                 webEditorContext.decreaseIndent()
             }

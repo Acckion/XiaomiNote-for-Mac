@@ -195,6 +195,15 @@ struct NativeEditorView: NSViewRepresentable {
                 }
                 .store(in: &cancellables)
             
+            // 监听缩进操作
+            // 需求: 6.1, 6.2, 6.3, 6.5 - 支持缩进操作
+            parent.editorContext.indentChangePublisher
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] operation in
+                    self?.applyIndentOperation(operation)
+                }
+                .store(in: &cancellables)
+            
             // 监听内容同步请求
             NotificationCenter.default.publisher(for: .nativeEditorRequestContentSync)
                 .receive(on: DispatchQueue.main)
@@ -1091,6 +1100,45 @@ struct NativeEditorView: NSViewRepresentable {
             
             // 通知内容变化
             textDidChange(Notification(name: NSText.didChangeNotification, object: textView))
+        }
+        
+        // MARK: - Indent Operations
+        
+        /// 应用缩进操作
+        /// 需求: 6.1, 6.2, 6.3, 6.5 - 支持增加和减少缩进
+        func applyIndentOperation(_ operation: IndentOperation) {
+            guard let textView = textView,
+                  let textStorage = textView.textStorage else {
+                print("[NativeEditorView] applyIndentOperation: textView 或 textStorage 为空")
+                return
+            }
+            
+            let selectedRange = textView.selectedRange()
+            print("[NativeEditorView] applyIndentOperation: \(operation.displayName), 选中范围: \(selectedRange)")
+            
+            textStorage.beginEditing()
+            
+            let formatManager = FormatManager.shared
+            
+            switch operation {
+            case .increase:
+                // 需求 6.1, 6.3: 增加缩进
+                formatManager.increaseIndent(to: textStorage, range: selectedRange)
+            case .decrease:
+                // 需求 6.2, 6.4: 减少缩进
+                formatManager.decreaseIndent(to: textStorage, range: selectedRange)
+            }
+            
+            textStorage.endEditing()
+            
+            // 更新缩进级别状态
+            let newIndentLevel = formatManager.getCurrentIndentLevel(in: textStorage, at: selectedRange.location)
+            parent.editorContext.currentIndentLevel = newIndentLevel
+            
+            // 通知内容变化
+            textDidChange(Notification(name: NSText.didChangeNotification, object: textView))
+            
+            print("[NativeEditorView] applyIndentOperation 完成，新缩进级别: \(newIndentLevel)")
         }
         
         /// 插入复选框

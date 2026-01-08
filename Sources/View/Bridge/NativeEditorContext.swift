@@ -106,6 +106,21 @@ enum SpecialElement: Equatable {
     }
 }
 
+/// 缩进操作类型枚举
+/// 需求: 6.1, 6.2, 6.3, 6.5 - 支持增加和减少缩进操作
+enum IndentOperation: Equatable {
+    case increase  // 增加缩进
+    case decrease  // 减少缩进
+    
+    /// 操作的显示名称
+    var displayName: String {
+        switch self {
+        case .increase: return "增加缩进"
+        case .decrease: return "减少缩进"
+        }
+    }
+}
+
 /// 编辑器类型枚举
 enum EditorType: String, CaseIterable, Identifiable, Codable {
     case native = "native"
@@ -232,6 +247,10 @@ class NativeEditorContext: ObservableObject {
     /// 选择变化发布者
     private let selectionChangeSubject = PassthroughSubject<NSRange, Never>()
     
+    /// 缩进操作发布者
+    /// 需求: 6.1, 6.2, 6.3, 6.5 - 支持缩进操作
+    private let indentChangeSubject = PassthroughSubject<IndentOperation, Never>()
+    
     /// 格式转换器
     private let formatConverter = XiaoMiFormatConverter.shared
     
@@ -264,6 +283,12 @@ class NativeEditorContext: ObservableObject {
     /// 选择变化发布者
     var selectionChangePublisher: AnyPublisher<NSRange, Never> {
         selectionChangeSubject.eraseToAnyPublisher()
+    }
+    
+    /// 缩进操作发布者
+    /// 需求: 6.1, 6.2, 6.3, 6.5 - 支持缩进操作
+    var indentChangePublisher: AnyPublisher<IndentOperation, Never> {
+        indentChangeSubject.eraseToAnyPublisher()
     }
     
     // MARK: - Initialization
@@ -389,6 +414,24 @@ class NativeEditorContext: ObservableObject {
         if let saveResult = ImageStorageManager.shared.saveImage(image, folderId: folderId) {
             insertSpecialElement(.image(fileId: saveResult.fileId, src: nil))
         }
+    }
+    
+    // MARK: - Public Methods - 缩进操作 (需求 6.1, 6.2, 6.3, 6.5)
+    
+    /// 增加缩进
+    /// 需求: 6.1, 6.3, 6.5 - 增加当前行或选中文本的缩进级别
+    func increaseIndent() {
+        print("[NativeEditorContext] 增加缩进")
+        indentChangeSubject.send(.increase)
+        hasUnsavedChanges = true
+    }
+    
+    /// 减少缩进
+    /// 需求: 6.2, 6.4, 6.5 - 减少当前行或选中文本的缩进级别
+    func decreaseIndent() {
+        print("[NativeEditorContext] 减少缩进")
+        indentChangeSubject.send(.decrease)
+        hasUnsavedChanges = true
     }
     
     // MARK: - Public Methods - 光标和选择管理 (需求 9.1, 9.2)

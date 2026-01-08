@@ -1984,15 +1984,61 @@ extension MainWindowController {
     }
     
     @objc public func increaseIndent(_ sender: Any?) {
-        print("增加缩进")
-        // 这里应该调用编辑器API
-        // 暂时使用控制台输出
+        print("[MainWindowController] 增加缩进")
+        
+        // 需求 6.5: 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法增加缩进")
+            return
+        }
+        
+        // 需求 6.1, 6.3: 根据编辑器类型调用对应的方法
+        if isUsingNativeEditor {
+            // 需求 6.1: 原生编辑器模式
+            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.increaseIndent()")
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.increaseIndent()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            // 需求 6.3: Web 编辑器模式
+            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.increaseIndent()")
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.increaseIndent()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
     }
     
     @objc public func decreaseIndent(_ sender: Any?) {
-        print("减少缩进")
-        // 这里应该调用编辑器API
-        // 暂时使用控制台输出
+        print("[MainWindowController] 减少缩进")
+        
+        // 需求 6.5: 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法减少缩进")
+            return
+        }
+        
+        // 需求 6.2, 6.4: 根据编辑器类型调用对应的方法
+        if isUsingNativeEditor {
+            // 需求 6.2: 原生编辑器模式
+            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.decreaseIndent()")
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.decreaseIndent()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            // 需求 6.4: Web 编辑器模式
+            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.decreaseIndent()")
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.decreaseIndent()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
     }
     
     @objc public func alignLeft(_ sender: Any?) {
