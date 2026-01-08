@@ -510,6 +510,8 @@ class NativeEditorContext: ObservableObject {
     }
     
     /// 根据当前光标位置更新格式状态 (需求 9.1)
+    /// 增强版本 - 完善所有格式类型的状态检测
+    /// 需求: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10
     func updateCurrentFormats() {
         guard !nsAttributedText.string.isEmpty else {
             clearAllFormats()
@@ -526,73 +528,243 @@ class NativeEditorContext: ObservableObject {
         // 获取当前位置的属性
         let attributes = nsAttributedText.attributes(at: position, effectiveRange: nil)
         
-        // 清除当前格式
+        // 检测所有格式类型
         var detectedFormats: Set<TextFormat> = []
         
-        // 检测字体属性
-        if let font = attributes[.font] as? NSFont {
-            let traits = font.fontDescriptor.symbolicTraits
-            
-            if traits.contains(.bold) {
-                detectedFormats.insert(.bold)
-            }
-            if traits.contains(.italic) {
-                detectedFormats.insert(.italic)
-            }
-            
-            // 检测标题大小
-            let fontSize = font.pointSize
-            if fontSize >= 24 {
-                detectedFormats.insert(.heading1)
-            } else if fontSize >= 20 {
-                detectedFormats.insert(.heading2)
-            } else if fontSize >= 16 && fontSize < 20 {
-                detectedFormats.insert(.heading3)
-            }
+        // 1. 检测字体属性（加粗、斜体、标题）
+        detectedFormats.formUnion(detectFontFormats(from: attributes))
+        
+        // 2. 检测文本装饰（下划线、删除线、高亮）
+        detectedFormats.formUnion(detectTextDecorations(from: attributes))
+        
+        // 3. 检测段落格式（对齐方式）
+        detectedFormats.formUnion(detectParagraphFormats(from: attributes))
+        
+        // 4. 检测列表格式（无序、有序、复选框）
+        detectedFormats.formUnion(detectListFormats(at: position))
+        
+        // 5. 检测特殊元素格式（引用块、分割线）
+        detectedFormats.formUnion(detectSpecialElementFormats(at: position))
+        
+        // 更新状态并验证
+        updateFormatsWithValidation(detectedFormats)
+    }
+    
+    /// 检测字体格式（加粗、斜体、标题）
+    /// 需求: 2.1, 2.2, 2.6
+    private func detectFontFormats(from attributes: [NSAttributedString.Key: Any]) -> Set<TextFormat> {
+        var formats: Set<TextFormat> = []
+        
+        guard let font = attributes[.font] as? NSFont else {
+            return formats
         }
         
-        // 检测下划线
+        // 检测字体特性
+        let traits = font.fontDescriptor.symbolicTraits
+        
+        // 加粗检测 (需求 2.1)
+        if traits.contains(.bold) {
+            formats.insert(.bold)
+        }
+        
+        // 斜体检测 (需求 2.2)
+        if traits.contains(.italic) {
+            formats.insert(.italic)
+        }
+        
+        // 标题检测 (需求 2.6)
+        let fontSize = font.pointSize
+        if fontSize >= 24 {
+            formats.insert(.heading1)
+        } else if fontSize >= 20 {
+            formats.insert(.heading2)
+        } else if fontSize >= 16 && fontSize < 20 {
+            formats.insert(.heading3)
+        }
+        
+        return formats
+    }
+    
+    /// 检测文本装饰（下划线、删除线、高亮）
+    /// 需求: 2.3, 2.4, 2.5
+    private func detectTextDecorations(from attributes: [NSAttributedString.Key: Any]) -> Set<TextFormat> {
+        var formats: Set<TextFormat> = []
+        
+        // 下划线检测 (需求 2.3)
         if let underlineStyle = attributes[.underlineStyle] as? Int, underlineStyle != 0 {
-            detectedFormats.insert(.underline)
+            formats.insert(.underline)
         }
         
-        // 检测删除线
+        // 删除线检测 (需求 2.4)
         if let strikethroughStyle = attributes[.strikethroughStyle] as? Int, strikethroughStyle != 0 {
-            detectedFormats.insert(.strikethrough)
+            formats.insert(.strikethrough)
         }
         
-        // 检测背景色（高亮）
-        if attributes[.backgroundColor] != nil {
-            detectedFormats.insert(.highlight)
-        }
-        
-        // 检测段落样式
-        if let paragraphStyle = attributes[.paragraphStyle] as? NSParagraphStyle {
-            switch paragraphStyle.alignment {
-            case .center:
-                detectedFormats.insert(.alignCenter)
-            case .right:
-                detectedFormats.insert(.alignRight)
-            default:
-                break
+        // 高亮检测 (需求 2.5)
+        // 检查背景色是否存在且不是默认颜色
+        if let backgroundColor = attributes[.backgroundColor] as? NSColor {
+            // 排除透明或白色背景
+            if backgroundColor.alphaComponent > 0.1 && backgroundColor != .clear && backgroundColor != .white {
+                formats.insert(.highlight)
             }
-            
-            // 更新缩进级别
-            currentIndentLevel = Int(paragraphStyle.firstLineHeadIndent / 20) + 1
         }
         
-        // 检测引用块属性
-        if let isQuote = attributes[.quoteBlock] as? Bool, isQuote {
-            detectedFormats.insert(.quote)
+        return formats
+    }
+    
+    /// 检测段落格式（对齐方式）
+    /// 需求: 2.7, 2.8
+    private func detectParagraphFormats(from attributes: [NSAttributedString.Key: Any]) -> Set<TextFormat> {
+        var formats: Set<TextFormat> = []
+        
+        guard let paragraphStyle = attributes[.paragraphStyle] as? NSParagraphStyle else {
+            return formats
         }
+        
+        // 对齐方式检测 (需求 2.7, 2.8)
+        switch paragraphStyle.alignment {
+        case .center:
+            formats.insert(.alignCenter)
+        case .right:
+            formats.insert(.alignRight)
+        default:
+            break
+        }
+        
+        // 更新缩进级别
+        currentIndentLevel = Int(paragraphStyle.firstLineHeadIndent / 20) + 1
+        
+        return formats
+    }
+    
+    /// 检测列表格式（无序、有序、复选框）
+    /// 需求: 2.9
+    private func detectListFormats(at position: Int) -> Set<TextFormat> {
+        var formats: Set<TextFormat> = []
+        
+        // 检查当前位置是否有附件
+        let attributes = nsAttributedText.attributes(at: position, effectiveRange: nil)
+        
+        if let attachment = attributes[.attachment] as? NSTextAttachment {
+            // 检测复选框
+            if attachment is InteractiveCheckboxAttachment {
+                formats.insert(.checkbox)
+            }
+            // 检测无序列表
+            else if attachment is BulletAttachment {
+                formats.insert(.bulletList)
+            }
+            // 检测有序列表
+            else if attachment is OrderAttachment {
+                formats.insert(.numberedList)
+            }
+        }
+        
+        // 如果当前位置没有附件，检查当前行的开头
+        if formats.isEmpty {
+            let lineRange = getLineRange(at: position)
+            if lineRange.location < nsAttributedText.length {
+                let lineAttributes = nsAttributedText.attributes(at: lineRange.location, effectiveRange: nil)
+                if let attachment = lineAttributes[.attachment] as? NSTextAttachment {
+                    if attachment is InteractiveCheckboxAttachment {
+                        formats.insert(.checkbox)
+                    } else if attachment is BulletAttachment {
+                        formats.insert(.bulletList)
+                    } else if attachment is OrderAttachment {
+                        formats.insert(.numberedList)
+                    }
+                }
+            }
+        }
+        
+        return formats
+    }
+    
+    /// 检测特殊元素格式（引用块、分割线）
+    /// 需求: 2.10, 7.1, 7.2, 7.3
+    private func detectSpecialElementFormats(at position: Int) -> Set<TextFormat> {
+        var formats: Set<TextFormat> = []
+        
+        let attributes = nsAttributedText.attributes(at: position, effectiveRange: nil)
+        
+        // 检测引用块 (需求 2.10)
+        if let isQuote = attributes[.quoteBlock] as? Bool, isQuote {
+            formats.insert(.quote)
+        }
+        
+        // 检测分割线 (需求 7.2)
+        if let attachment = attributes[.attachment] as? NSTextAttachment {
+            if attachment is HorizontalRuleAttachment {
+                formats.insert(.horizontalRule)
+            }
+        }
+        
+        return formats
+    }
+    
+    /// 获取指定位置所在行的范围
+    private func getLineRange(at position: Int) -> NSRange {
+        let string = nsAttributedText.string as NSString
+        return string.lineRange(for: NSRange(location: position, length: 0))
+    }
+    
+    /// 更新格式状态并验证
+    private func updateFormatsWithValidation(_ detectedFormats: Set<TextFormat>) {
+        // 验证互斥格式
+        let validatedFormats = validateMutuallyExclusiveFormats(detectedFormats)
         
         // 更新当前格式
-        currentFormats = detectedFormats
+        currentFormats = validatedFormats
         
         // 更新工具栏按钮状态
         for format in TextFormat.allCases {
-            toolbarButtonStates[format] = detectedFormats.contains(format)
+            toolbarButtonStates[format] = validatedFormats.contains(format)
         }
+        
+        // 记录格式变化（调试用）
+        #if DEBUG
+        if !validatedFormats.isEmpty {
+            let formatNames = validatedFormats.map { $0.displayName }.joined(separator: ", ")
+            print("[NativeEditorContext] 检测到格式: \(formatNames)")
+        }
+        #endif
+    }
+    
+    /// 验证互斥格式，确保只保留一个
+    private func validateMutuallyExclusiveFormats(_ formats: Set<TextFormat>) -> Set<TextFormat> {
+        var validated = formats
+        
+        // 标题格式互斥 - 优先保留最大的标题
+        let headings: [TextFormat] = [.heading1, .heading2, .heading3]
+        let detectedHeadings = headings.filter { formats.contains($0) }
+        if detectedHeadings.count > 1 {
+            // 保留第一个（最大的）标题
+            for heading in detectedHeadings.dropFirst() {
+                validated.remove(heading)
+            }
+        }
+        
+        // 对齐格式互斥 - 优先保留居中
+        let alignments: [TextFormat] = [.alignCenter, .alignRight]
+        let detectedAlignments = alignments.filter { formats.contains($0) }
+        if detectedAlignments.count > 1 {
+            // 保留第一个对齐方式
+            for alignment in detectedAlignments.dropFirst() {
+                validated.remove(alignment)
+            }
+        }
+        
+        // 列表格式互斥 - 优先保留复选框
+        let lists: [TextFormat] = [.checkbox, .bulletList, .numberedList]
+        let detectedLists = lists.filter { formats.contains($0) }
+        if detectedLists.count > 1 {
+            // 保留第一个列表类型
+            for list in detectedLists.dropFirst() {
+                validated.remove(list)
+            }
+        }
+        
+        return validated
     }
     
     /// 检测光标位置的特殊元素 (需求 9.2, 9.4)
