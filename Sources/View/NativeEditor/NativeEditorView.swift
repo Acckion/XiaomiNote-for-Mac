@@ -216,6 +216,23 @@ struct NativeEditorView: NSViewRepresentable {
                 }
                 .store(in: &cancellables)
             
+            // 监听编辑器焦点变化 - 当 textView 成为第一响应者时更新焦点状态
+            NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] notification in
+                    guard let self = self,
+                          let textView = self.textView,
+                          let window = notification.object as? NSWindow,
+                          textView.window === window else { return }
+                    
+                    // 检查 textView 是否是第一响应者
+                    if window.firstResponder === textView {
+                        print("[NativeEditorView] 窗口成为 key，textView 是第一响应者，设置焦点状态为 true")
+                        self.parent.editorContext.setEditorFocused(true)
+                    }
+                }
+                .store(in: &cancellables)
+            
             // 需求 5.1, 5.2, 5.3: 监听快捷键格式命令
             // 当用户使用 Cmd+B/I/U 快捷键时，确保格式菜单状态同步更新
             NotificationCenter.default.publisher(for: .nativeEditorFormatCommand)
@@ -487,6 +504,12 @@ struct NativeEditorView: NSViewRepresentable {
                 // 关键修复：始终同步 nsAttributedText，确保属性正确
                 // 不做字符串比较，因为字符串可能相同但属性不同
                 self.parent.editorContext.nsAttributedText = currentAttributedString
+                
+                // 当选择变化时，说明用户正在与编辑器交互，设置焦点状态为 true
+                if !self.parent.editorContext.isEditorFocused {
+                    print("[NativeEditorView] textViewDidChangeSelection: 设置焦点状态为 true")
+                    self.parent.editorContext.setEditorFocused(true)
+                }
                 
                 self.parent.editorContext.updateSelectedRange(selectedRange)
                 // 调用回调

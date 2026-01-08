@@ -352,21 +352,25 @@ final class EditorStateConsistencyChecker: ObservableObject {
             return .readOnly
         }
         
-        // 检查是否获得焦点
-        guard textView.window?.firstResponder === textView else {
-            return .unfocused
-        }
-        
         // 检查是否有内容
         guard let textStorage = textView.textStorage, textStorage.length > 0 else {
             return .empty
         }
         
-        // 检查上下文状态
+        // 检查上下文状态 - 优先使用 context.isEditorFocused
+        // 因为当用户点击工具栏按钮时，textView 会暂时失去焦点，
+        // 但 context.isEditorFocused 仍然为 true（表示用户仍在编辑笔记）
         if let context = context {
             if !context.isEditorFocused {
                 return .unfocused
             }
+            // 如果 context.isEditorFocused 为 true，则认为编辑器处于可编辑状态
+            return .editable
+        }
+        
+        // 如果没有 context，则检查 textView 是否获得焦点
+        guard textView.window?.firstResponder === textView else {
+            return .unfocused
         }
         
         return .editable

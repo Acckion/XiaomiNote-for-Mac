@@ -50,6 +50,13 @@ struct NativeFormatMenuView: View {
             print("✅ [NativeFormatMenuView] onAppear 开始")
             logFormatState()
             
+            // 格式菜单显示时，保持编辑器焦点状态为 true
+            // 因为用户仍然在编辑笔记，只是暂时与工具栏交互
+            if !context.isEditorFocused {
+                print("🔧 [NativeFormatMenuView] 设置编辑器焦点状态为 true（格式菜单显示）")
+                context.setEditorFocused(true)
+            }
+            
             // 请求从 textView 同步内容
             context.requestContentSync()
             
