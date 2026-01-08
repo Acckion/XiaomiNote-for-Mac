@@ -96,6 +96,10 @@ final class FormatStateDetectionPropertyTests: XCTestCase {
             // 4. 将光标移动到加粗文本中的随机位置
             let cursorPosition = boldRange.location + Int.random(in: 0..<max(1, boldRange.length))
             editorContext.updateCursorPosition(cursorPosition)
+            editorContext.forceUpdateFormats()
+            
+            // 立即强制更新格式状态（不使用防抖）
+            editorContext.forceUpdateFormats()
             
             print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 加粗范围=\(boldRange), 光标位置=\(cursorPosition)")
             
@@ -146,6 +150,7 @@ final class FormatStateDetectionPropertyTests: XCTestCase {
             // 4. 将光标移动到斜体文本中的随机位置
             let cursorPosition = italicRange.location + Int.random(in: 0..<max(1, italicRange.length))
             editorContext.updateCursorPosition(cursorPosition)
+            editorContext.forceUpdateFormats()
             
             print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 斜体范围=\(italicRange), 光标位置=\(cursorPosition)")
             
@@ -190,6 +195,7 @@ final class FormatStateDetectionPropertyTests: XCTestCase {
             // 4. 将光标移动到下划线文本中的随机位置
             let cursorPosition = underlineRange.location + Int.random(in: 0..<max(1, underlineRange.length))
             editorContext.updateCursorPosition(cursorPosition)
+            editorContext.forceUpdateFormats()
             
             print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 下划线范围=\(underlineRange), 光标位置=\(cursorPosition)")
             
@@ -234,6 +240,7 @@ final class FormatStateDetectionPropertyTests: XCTestCase {
             // 4. 将光标移动到删除线文本中的随机位置
             let cursorPosition = strikethroughRange.location + Int.random(in: 0..<max(1, strikethroughRange.length))
             editorContext.updateCursorPosition(cursorPosition)
+            editorContext.forceUpdateFormats()
             
             print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 删除线范围=\(strikethroughRange), 光标位置=\(cursorPosition)")
             
@@ -279,6 +286,7 @@ final class FormatStateDetectionPropertyTests: XCTestCase {
             // 4. 将光标移动到高亮文本中的随机位置
             let cursorPosition = highlightRange.location + Int.random(in: 0..<max(1, highlightRange.length))
             editorContext.updateCursorPosition(cursorPosition)
+            editorContext.forceUpdateFormats()
             
             print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 高亮范围=\(highlightRange), 光标位置=\(cursorPosition)")
             
@@ -371,6 +379,7 @@ final class FormatStateDetectionPropertyTests: XCTestCase {
             // 5. 将光标移动到格式化文本中的随机位置
             let cursorPosition = formatRange.location + Int.random(in: 0..<max(1, formatRange.length))
             editorContext.updateCursorPosition(cursorPosition)
+            editorContext.forceUpdateFormats()
             
             let formatNames = appliedFormats.map { $0.displayName }.joined(separator: ", ")
             print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 格式范围=\(formatRange), 光标位置=\(cursorPosition), 应用的格式=[\(formatNames)]")
@@ -465,6 +474,7 @@ final class FormatStateDetectionPropertyTests: XCTestCase {
             // 6. 将光标移动到标题行中的随机位置
             let cursorPosition = lineRange.location + Int.random(in: 0..<max(1, lineRange.length))
             editorContext.updateCursorPosition(cursorPosition)
+            editorContext.forceUpdateFormats()
             
             print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 标题行范围=\(lineRange), 光标位置=\(cursorPosition), 标题级别=\(headingInfo.name)")
             
@@ -519,6 +529,7 @@ final class FormatStateDetectionPropertyTests: XCTestCase {
             // 6. 将光标移动到对齐行中的随机位置
             let cursorPosition = lineRange.location + Int.random(in: 0..<max(1, lineRange.length))
             editorContext.updateCursorPosition(cursorPosition)
+            editorContext.forceUpdateFormats()
             
             print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 对齐行范围=\(lineRange), 光标位置=\(cursorPosition), 对齐方式=\(alignmentInfo.name)")
             
@@ -563,6 +574,7 @@ final class FormatStateDetectionPropertyTests: XCTestCase {
             // 5. 将光标移动到引用块中的随机位置
             let cursorPosition = lineRange.location + Int.random(in: 0..<max(1, lineRange.length))
             editorContext.updateCursorPosition(cursorPosition)
+            editorContext.forceUpdateFormats()
             
             print("[PropertyTest] 迭代 \(iteration): 文本长度=\(testText.count), 引用块范围=\(lineRange), 光标位置=\(cursorPosition)")
             

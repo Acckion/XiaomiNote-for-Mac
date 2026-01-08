@@ -230,6 +230,9 @@ class NativeEditorContext: ObservableObject {
     /// 自定义渲染器
     private let customRenderer = CustomRenderer.shared
     
+    /// 格式状态同步器
+    private let formatStateSynchronizer = FormatStateSynchronizer.createDefault()
+    
     /// 取消订阅集合
     private var cancellables = Set<AnyCancellable>()
     
@@ -265,6 +268,11 @@ class NativeEditorContext: ObservableObject {
         
         // 设置内部观察者
         setupInternalObservers()
+        
+        // 设置格式状态同步器的更新回调
+        formatStateSynchronizer.setUpdateCallback { [weak self] in
+            self?.updateCurrentFormats()
+        }
     }
     
     // MARK: - Public Methods - 格式应用 (需求 9.3)
@@ -362,7 +370,8 @@ class NativeEditorContext: ObservableObject {
     /// - Parameter position: 新的光标位置
     func updateCursorPosition(_ position: Int) {
         cursorPosition = position
-        updateCurrentFormats()
+        // 使用同步器调度状态更新（防抖）
+        formatStateSynchronizer.scheduleStateUpdate()
         detectSpecialElementAtCursor()
     }
     
@@ -371,7 +380,8 @@ class NativeEditorContext: ObservableObject {
     func updateSelectedRange(_ range: NSRange) {
         selectedRange = range
         cursorPosition = range.location
-        updateCurrentFormats()
+        // 使用同步器调度状态更新（防抖）
+        formatStateSynchronizer.scheduleStateUpdate()
         detectSpecialElementAtCursor()
         selectionChangeSubject.send(range)
     }
@@ -494,6 +504,31 @@ class NativeEditorContext: ObservableObject {
     /// - Returns: 块级格式，如果没有则返回 nil
     func getCurrentBlockFormat() -> TextFormat? {
         return currentFormats.first { $0.isBlockFormat }
+    }
+    
+    // MARK: - 格式状态同步器方法
+    
+    /// 立即更新格式状态（不使用防抖）
+    /// 
+    /// 在某些情况下（如用户点击格式按钮），我们需要立即更新状态
+    func forceUpdateFormats() {
+        formatStateSynchronizer.performImmediateUpdate()
+    }
+    
+    /// 获取格式状态同步器的性能统计信息
+    /// - Returns: 性能统计信息字典
+    func getFormatSyncPerformanceStats() -> [String: Any] {
+        return formatStateSynchronizer.getPerformanceStats()
+    }
+    
+    /// 重置格式状态同步器的性能统计信息
+    func resetFormatSyncPerformanceStats() {
+        formatStateSynchronizer.resetPerformanceStats()
+    }
+    
+    /// 打印格式状态同步器的性能统计信息
+    func printFormatSyncPerformanceStats() {
+        formatStateSynchronizer.printPerformanceStats()
     }
     
     // MARK: - Private Methods

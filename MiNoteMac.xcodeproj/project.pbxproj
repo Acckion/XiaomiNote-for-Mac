@@ -59,6 +59,7 @@
 		539D32D591754A7847CDB121 /* utils.js in Resources */ = {isa = PBXBuildFile; fileRef = 001537C6B9980FF4CB10E788 /* utils.js */; };
 		564AE97F243B2E6036607F90 /* NewNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDBA1BF9AB2A45C1D3311103 /* NewNoteView.swift */; };
 		57FA7B12C06D8963ECAAF50D /* DebugSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F94C6D987155886BBC4D0675 /* DebugSettingsView.swift */; };
+		593E11A64C8E1A80ABB3EBA7 /* FormatStateSynchronizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 853C0EDD72B87AADAB22CF96 /* FormatStateSynchronizer.swift */; };
 		5A8FADB056BEBF4570F3204C /* logger.js in Resources */ = {isa = PBXBuildFile; fileRef = 733063C80CEB46943A7BC5CF /* logger.js */; };
 		5C08272EF8CF55C28DAB06D7 /* editor-init.js in Resources */ = {isa = PBXBuildFile; fileRef = F340D6883CC2C085CD01394B /* editor-init.js */; };
 		5D710B8809DFE3C3EFE6D5C4 /* CustomAttachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = C979233971CFB29855D42E0C /* CustomAttachments.swift */; };
@@ -259,6 +260,7 @@
 		7FF4267799A9827F60A37B5A /* MiNoteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteService.swift; sourceTree = "<group>"; };
 		816B0C6CAD1403264F63C83E /* MainWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowState.swift; sourceTree = "<group>"; };
 		837D1A4BD47198D9037FB29C /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
+		853C0EDD72B87AADAB22CF96 /* FormatStateSynchronizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatStateSynchronizer.swift; sourceTree = "<group>"; };
 		86C1FFFB0DCECC7C50F99BD8 /* NotesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesViewModel.swift; sourceTree = "<group>"; };
 		87699BB3E310FB64801C5CB8 /* HistoryWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWindowController.swift; sourceTree = "<group>"; };
 		8996FB971F8481100292D094 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -665,6 +667,7 @@
 				33A2602F3EA9E1A7F23C5ED3 /* FormatMenuDebugger.swift */,
 				FBD570F9A1B2EBD3BF1161DE /* FormatMenuDiagnostics.swift */,
 				9098A6FAE614040C874C5140 /* FormatMenuPerformanceMonitor.swift */,
+				853C0EDD72B87AADAB22CF96 /* FormatStateSynchronizer.swift */,
 				9983C16A45B3E9028DF76D6F /* ImageAttachment.swift */,
 				6EBC868F735AC4DAC09D0D45 /* ImageStorageManager.swift */,
 				CD7AF9B9DA3E4B8A71C87A3E /* NativeEditorDebugger.swift */,
@@ -885,6 +888,7 @@
 				7243EAAA042D1D390DB6FB37 /* FormatMenuDebugger.swift in Sources */,
 				9EB13D9AE77C5C4F0CC04326 /* FormatMenuDiagnostics.swift in Sources */,
 				93B6425C2291C0DE1C0F90A8 /* FormatMenuPerformanceMonitor.swift in Sources */,
+				593E11A64C8E1A80ABB3EBA7 /* FormatStateSynchronizer.swift in Sources */,
 				6B5A26CD6DCF6FD0278C283E /* HistoryWindowController.swift in Sources */,
 				7F967201799172B4ABBE0AF6 /* ImageAttachment.swift in Sources */,
 				83C2018013AA673D28CB3E78 /* ImageStorageManager.swift in Sources */,
