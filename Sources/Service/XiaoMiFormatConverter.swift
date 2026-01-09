@@ -226,6 +226,9 @@ class XiaoMiFormatConverter {
         var content = ""
         var indent = 1
         var alignment: NSTextAlignment = .left
+        var isCheckboxLine = false
+        var checkboxXML = ""
+        var textAfterCheckbox = ""
         
         let fullRange = NSRange(location: 0, length: lineAttributedString.length)
         
@@ -233,7 +236,15 @@ class XiaoMiFormatConverter {
         lineAttributedString.enumerateAttributes(in: fullRange, options: []) { attributes, range, _ in
             // 检查是否是附件
             if let attachment = attributes[.attachment] as? NSTextAttachment {
-                // 如果是附件，转换为 XML（会在后面处理）
+                // 检查是否是复选框附件
+                if let checkboxAttachment = attachment as? InteractiveCheckboxAttachment {
+                    isCheckboxLine = true
+                    checkboxXML = "<input type=\"checkbox\" indent=\"\(checkboxAttachment.indent)\" level=\"\(checkboxAttachment.level)\" />"
+                    print("[XiaoMiFormatConverter] ☑️ 导出复选框: indent=\(checkboxAttachment.indent), level=\(checkboxAttachment.level)")
+                    return
+                }
+                
+                // 其他附件类型
                 do {
                     content = try convertAttachmentToXML(attachment)
                 } catch {
@@ -247,13 +258,26 @@ class XiaoMiFormatConverter {
             
             // 处理富文本属性
             let taggedText = processNSAttributesToXMLTags(text, attributes: attributes)
-            content += taggedText
+            
+            // 如果是复选框行，将文本追加到复选框后
+            if isCheckboxLine {
+                textAfterCheckbox += taggedText
+            } else {
+                content += taggedText
+            }
             
             // 提取缩进级别和对齐方式（使用第一个运行段的值）
             if let paragraphStyle = attributes[.paragraphStyle] as? NSParagraphStyle {
                 indent = Int(paragraphStyle.firstLineHeadIndent / 20) + 1
                 alignment = paragraphStyle.alignment
             }
+        }
+        
+        // 如果是复选框行，返回复选框格式（不使用 <text> 包裹）
+        if isCheckboxLine {
+            let result = checkboxXML + textAfterCheckbox
+            print("[XiaoMiFormatConverter] ☑️ 复选框导出结果: \(result)")
+            return result
         }
         
         // 检查是否整行是附件（如分割线、图片等）
@@ -623,9 +647,72 @@ class XiaoMiFormatConverter {
     }
     
     /// 处理 <input type="checkbox"> 元素并返回 NSAttributedString
+    /// 
+    /// 关键修复：直接创建 NSAttributedString 并使用 InteractiveCheckboxAttachment
+    /// 而不是使用 Unicode 字符，这样可以：
+    /// 1. 正确显示可交互的复选框图标
+    /// 2. 支持点击切换选中状态
+    /// 3. 正确导出为小米笔记 XML 格式
     private func processCheckboxElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
-        let attributedString = try processCheckboxElement(line)
-        return try NSAttributedString(attributedString, including: \.appKit)
+        // 1. 提取属性
+        let indent = Int(extractAttribute("indent", from: line) ?? "1") ?? 1
+        let level = Int(extractAttribute("level", from: line) ?? "3") ?? 3
+        
+        // 2. 提取复选框后的文本内容
+        let content = extractContentAfterElement(from: line, elementName: "input")
+        
+        print("[XiaoMiFormatConverter] ☑️ 解析复选框:")
+        print("[XiaoMiFormatConverter]   - indent: \(indent)")
+        print("[XiaoMiFormatConverter]   - level: \(level)")
+        print("[XiaoMiFormatConverter]   - content: '\(content)'")
+        
+        // 3. 创建复选框附件
+        let checkboxAttachment = CustomRenderer.shared.createCheckboxAttachment(
+            checked: false,  // XML 中不保存选中状态，默认未选中
+            level: level,
+            indent: indent
+        )
+        
+        // 4. 创建包含附件的 NSAttributedString
+        let result = NSMutableAttributedString(attachment: checkboxAttachment)
+        
+        // 5. 追加文本内容（如果有）
+        if !content.isEmpty {
+            // 处理文本内容中可能包含的富文本标签
+            let (processedText, nsAttributes) = try processRichTextTags(content)
+            
+            // 创建文本属性字符串
+            let textString = NSMutableAttributedString(string: processedText)
+            
+            // 应用富文本属性
+            for (range, attrs) in nsAttributes {
+                guard range.location >= 0 && range.location + range.length <= processedText.count else {
+                    continue
+                }
+                for (key, value) in attrs {
+                    textString.addAttribute(key, value: value, range: range)
+                }
+            }
+            
+            result.append(textString)
+        }
+        
+        // 6. 设置段落样式
+        let paragraphStyle = createParagraphStyle(indent: indent)
+        result.addAttribute(.paragraphStyle, value: paragraphStyle, 
+                           range: NSRange(location: 0, length: result.length))
+        
+        print("[XiaoMiFormatConverter] ☑️ 复选框 NSAttributedString 创建完成")
+        print("[XiaoMiFormatConverter]   - result.length: \(result.length)")
+        
+        // 验证附件是否正确保留
+        result.enumerateAttribute(.attachment, in: NSRange(location: 0, length: result.length), options: []) { value, range, _ in
+            if let att = value as? InteractiveCheckboxAttachment {
+                print("[XiaoMiFormatConverter] ✅ InteractiveCheckboxAttachment 正确保留: level=\(att.level), indent=\(att.indent)")
+            }
+        }
+        
+        return result
     }
     
     /// 处理 <hr> 元素并返回 NSAttributedString（直接创建，不经过 AttributedString）
@@ -887,17 +974,11 @@ class XiaoMiFormatConverter {
     /// - Returns: AttributedString 片段
     /// - Throws: ConversionError
     private func processCheckboxElement(_ line: String) throws -> AttributedString {
-        let indent = extractAttribute("indent", from: line) ?? "1"
-        let level = extractAttribute("level", from: line) ?? "3"
-        
-        // 提取内容
-        let content = extractContentAfterElement(from: line, elementName: "input")
-        
-        // 创建复选框符号 + 内容（未选中状态）
-        var result = AttributedString("☐ \(content)")
-        result.paragraphStyle = createParagraphStyle(indent: Int(indent) ?? 1)
-        
-        return result
+        // 调用 NSAttributedString 版本并转换
+        // 注意：AttributedString 转换可能会丢失自定义 NSTextAttachment 子类的类型信息
+        // 建议直接使用 processCheckboxElementToNSAttributedString 方法
+        let nsAttributedString = try processCheckboxElementToNSAttributedString(line)
+        return AttributedString(nsAttributedString)
     }
     
     /// 处理 <hr> 元素
