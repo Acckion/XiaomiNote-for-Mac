@@ -200,12 +200,13 @@ public struct ContentView: View {
             }
         }
         .onChange(of: viewModel.isLoggedIn) { oldValue, newValue in
-            if newValue {
-                // 登录成功后获取用户信息
+            if newValue && !oldValue {
+                // 登录成功后处理
+                // _Requirements: 5.1, 5.3, 5.4_
                 Task {
-                    await viewModel.fetchUserProfile()
+                    await viewModel.handleLoginSuccess()
                 }
-            } else {
+            } else if !newValue && oldValue {
                 // 登出后清空用户信息
                 viewModel.userProfile = nil
             }

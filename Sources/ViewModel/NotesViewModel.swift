@@ -221,6 +221,20 @@ public class NotesViewModel: ObservableObject {
     /// 最小同步间隔（秒）
     private let minSyncInterval: TimeInterval = 10.0
     
+    // MARK: - 启动序列管理
+    
+    /// 启动序列管理器
+    /// 
+    /// 负责协调应用启动时的各个步骤，确保按正确顺序执行
+    /// _Requirements: 2.1, 2.2, 2.3, 2.4_
+    private let startupManager = StartupSequenceManager()
+    
+    /// 是否为首次启动（本次会话）
+    /// 
+    /// 用于区分首次启动和后续的数据刷新
+    /// _Requirements: 1.1, 1.2_
+    private var isFirstLaunch: Bool = true
+    
     // MARK: - 计算属性
     
     /// 过滤后的笔记列表
@@ -363,14 +377,18 @@ public class NotesViewModel: ObservableObject {
     /// 初始化视图模型
     /// 
     /// 执行以下初始化操作：
-    /// 1. 加载本地数据
+    /// 1. 加载本地数据（根据登录状态决定加载本地数据还是示例数据）
     /// 2. 加载设置
     /// 3. 加载同步状态
     /// 4. 恢复上次选中的笔记
     /// 5. 设置Cookie过期处理器
     /// 6. 监听网络状态
+    /// 7. 如果已登录，执行启动序列（加载本地数据 → 处理离线队列 → 执行同步）
+    /// 
+    /// _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4_
     public init() {
-        // 加载本地数据
+        // 加载本地数据（根据登录状态决定加载本地数据还是示例数据）
+        // _Requirements: 1.1, 1.2, 1.3_
         loadLocalData()
         
         // 加载设置
@@ -382,10 +400,14 @@ public class NotesViewModel: ObservableObject {
         // 恢复上次选中的文件夹和笔记
         restoreLastSelectedState()
         
-        // 如果已登录，获取用户信息
+        // 如果已登录，获取用户信息并执行启动序列
+        // _Requirements: 2.1, 2.2, 2.3, 2.4_
         if isLoggedIn {
             Task {
                 await fetchUserProfile()
+                // 执行启动序列（处理离线队列 → 执行同步）
+                // 注意：本地数据已在 loadLocalData() 中加载
+                await executeStartupSequence()
             }
         }
         
@@ -426,9 +448,100 @@ public class NotesViewModel: ObservableObject {
             self?.handleAppResignedActive()
         }
         
+        // 监听启动序列完成通知
+        // _Requirements: 2.4_
+        NotificationCenter.default.addObserver(
+            forName: .startupSequenceCompleted,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            // 提取具体的值以避免跨隔离域传递字典
+            let success = notification.userInfo?["success"] as? Bool ?? false
+            let errors = notification.userInfo?["errors"] as? [String] ?? []
+            let duration = notification.userInfo?["duration"] as? TimeInterval ?? 0
+            Task { @MainActor in
+                self?.handleStartupSequenceCompletedWithValues(success: success, errors: errors, duration: duration)
+            }
+        }
+        
+        // 监听 Cookie 刷新成功通知
+        // _Requirements: 5.2_
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("CookieRefreshedSuccessfully"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                await self?.handleCookieRefreshSuccess()
+            }
+        }
+        
         // 启动自动同步定时器（如果应用在前台）
         if isAppActive {
             startAutoSyncTimer()
+        }
+    }
+    
+    /// 执行启动序列
+    /// 
+    /// 使用 StartupSequenceManager 执行启动序列：
+    /// 1. 处理离线队列（如果网络可用且Cookie有效）
+    /// 2. 执行完整同步（如果网络可用且Cookie有效）
+    /// 
+    /// 注意：本地数据已在 loadLocalData() 中加载，这里只执行后续步骤
+    /// 
+    /// _Requirements: 2.1, 2.2, 2.3_
+    private func executeStartupSequence() async {
+        guard isFirstLaunch else {
+            print("[NotesViewModel] 非首次启动，跳过启动序列")
+            return
+        }
+        
+        print("[NotesViewModel] 🚀 开始执行启动序列")
+        isFirstLaunch = false
+        
+        // 使用 StartupSequenceManager 执行启动序列
+        await startupManager.executeStartupSequence()
+        
+        // 启动序列完成后，重新加载本地数据以获取同步后的最新数据
+        await reloadDataAfterStartup()
+    }
+    
+    /// 启动序列完成后重新加载数据
+    /// 
+    /// _Requirements: 1.4, 4.4_
+    private func reloadDataAfterStartup() async {
+        print("[NotesViewModel] 启动序列完成，重新加载数据")
+        
+        // 重新加载本地数据
+        do {
+            let localNotes = try localStorage.getAllLocalNotes()
+            if !localNotes.isEmpty {
+                self.notes = localNotes
+                print("[NotesViewModel] 重新加载了 \(localNotes.count) 条笔记")
+            }
+            
+            // 重新加载文件夹
+            loadFolders()
+            updateFolderCounts()
+            
+            // 更新 UI
+            objectWillChange.send()
+        } catch {
+            print("[NotesViewModel] 重新加载数据失败: \(error)")
+        }
+    }
+    
+    /// 处理启动序列完成通知
+    /// 
+    /// _Requirements: 2.4_
+    private func handleStartupSequenceCompletedWithValues(success: Bool, errors: [String], duration: TimeInterval) {
+        print("[NotesViewModel] 📊 启动序列完成通知:")
+        print("[NotesViewModel]   - 成功: \(success)")
+        print("[NotesViewModel]   - 耗时: \(String(format: "%.2f", duration)) 秒")
+        
+        if !errors.isEmpty {
+            print("[NotesViewModel]   - 错误: \(errors.joined(separator: ", "))")
         }
     }
     
@@ -1287,24 +1400,51 @@ public class NotesViewModel: ObservableObject {
     }
     
     private func loadLocalData() {
+        // 根据登录状态决定数据加载策略
+        // _Requirements: 1.1, 1.2, 1.3_
+        
+        let isUserLoggedIn = service.isAuthenticated()
+        print("[NotesViewModel] loadLocalData - 登录状态: \(isUserLoggedIn)")
+        
         // 尝试从本地存储加载数据
         do {
             let localNotes = try localStorage.getAllLocalNotes()
             if !localNotes.isEmpty {
+                // 有本地数据，直接加载
+                // _Requirements: 1.1 - 登录状态下首先从本地数据库加载数据
                 self.notes = localNotes
-                print("从本地存储加载了 \(localNotes.count) 条笔记")
+                print("[NotesViewModel] 从本地存储加载了 \(localNotes.count) 条笔记")
+            } else if isUserLoggedIn {
+                // 登录状态下，本地数据库为空，显示空列表
+                // _Requirements: 1.2 - 登录状态下本地数据库为空时显示空列表而非示例数据
+                self.notes = []
+                print("[NotesViewModel] 登录状态下本地数据库为空，显示空列表")
             } else {
-                // 如果没有本地数据，加载示例数据
+                // 未登录状态下，加载示例数据
+                // _Requirements: 1.3 - 未登录状态下加载示例数据作为演示内容
                 loadSampleData()
+                print("[NotesViewModel] 未登录状态，加载示例数据")
             }
         } catch {
-            print("加载本地数据失败: \(error)")
-            // 加载示例数据作为后备
-            loadSampleData()
+            // _Requirements: 1.5 - 加载本地数据时发生错误，记录错误日志并显示空列表
+            print("[NotesViewModel] 加载本地数据失败: \(error)")
+            
+            if isUserLoggedIn {
+                // 登录状态下，加载失败显示空列表
+                self.notes = []
+                print("[NotesViewModel] 登录状态下加载失败，显示空列表")
+            } else {
+                // 未登录状态下，加载示例数据作为后备
+                loadSampleData()
+                print("[NotesViewModel] 未登录状态下加载失败，加载示例数据")
+            }
         }
         
         // 加载文件夹（优先从本地存储加载）
         loadFolders()
+        
+        // _Requirements: 1.4 - 加载完成后立即更新 UI
+        objectWillChange.send()
     }
     
     public func loadFolders() {
@@ -1605,6 +1745,143 @@ public class NotesViewModel: ObservableObject {
             return notes.filter { $0.folderId == "0" || $0.folderId.isEmpty }
         } else {
             return notes.filter { $0.folderId == folder.id }
+        }
+    }
+    
+    // MARK: - 登录和Cookie刷新成功处理
+    
+    /// 登录成功后的处理
+    /// 
+    /// 清除示例数据，执行完整同步
+    /// 
+    /// _Requirements: 5.1, 5.3, 5.4_
+    /// - 5.1: 用户成功登录后自动执行完整同步
+    /// - 5.3: 登录后同步失败时显示错误信息并保留本地数据
+    /// - 5.4: 登录后同步成功时清除示例数据并显示云端数据
+    public func handleLoginSuccess() async {
+        print("[NotesViewModel] 🎉 处理登录成功")
+        
+        // 清除示例数据（如果有）
+        // _Requirements: 5.4_
+        clearSampleDataIfNeeded()
+        
+        // 获取用户信息
+        await fetchUserProfile()
+        
+        // 执行完整同步
+        // _Requirements: 5.1_
+        do {
+            print("[NotesViewModel] 开始执行登录后完整同步...")
+            isSyncing = true
+            syncStatusMessage = "正在同步数据..."
+            
+            let result = try await syncService.performFullSync()
+            
+            // 同步成功，重新加载本地数据
+            // _Requirements: 5.4_
+            await reloadDataAfterSync()
+            
+            isSyncing = false
+            syncStatusMessage = "同步完成"
+            lastSyncTime = Date()
+            
+            print("[NotesViewModel] ✅ 登录后同步成功，同步了 \(result.syncedNotes) 条笔记")
+        } catch {
+            // _Requirements: 5.3_
+            isSyncing = false
+            syncStatusMessage = "同步失败"
+            errorMessage = "同步失败: \(error.localizedDescription)"
+            print("[NotesViewModel] ❌ 登录后同步失败: \(error)")
+        }
+    }
+    
+    /// Cookie刷新成功后的处理
+    /// 
+    /// 恢复在线状态，执行完整同步
+    /// 
+    /// _Requirements: 5.2, 5.3, 5.4_
+    /// - 5.2: 用户成功刷新Cookie后自动执行完整同步
+    /// - 5.3: 同步失败时显示错误信息并保留本地数据
+    /// - 5.4: 同步成功时更新本地数据
+    public func handleCookieRefreshSuccess() async {
+        print("[NotesViewModel] 🔄 处理Cookie刷新成功")
+        
+        // 恢复在线状态
+        restoreOnlineStatus()
+        
+        // 处理离线队列中的待处理操作
+        await processPendingOperations()
+        
+        // 执行完整同步
+        // _Requirements: 5.2_
+        do {
+            print("[NotesViewModel] 开始执行Cookie刷新后完整同步...")
+            isSyncing = true
+            syncStatusMessage = "正在同步数据..."
+            
+            let result = try await syncService.performFullSync()
+            
+            // 同步成功，重新加载本地数据
+            // _Requirements: 5.4_
+            await reloadDataAfterSync()
+            
+            isSyncing = false
+            syncStatusMessage = "同步完成"
+            lastSyncTime = Date()
+            
+            print("[NotesViewModel] ✅ Cookie刷新后同步成功，同步了 \(result.syncedNotes) 条笔记")
+        } catch {
+            // _Requirements: 5.3_
+            isSyncing = false
+            syncStatusMessage = "同步失败"
+            errorMessage = "同步失败: \(error.localizedDescription)"
+            print("[NotesViewModel] ❌ Cookie刷新后同步失败: \(error)")
+        }
+    }
+    
+    /// 清除示例数据（如果有）
+    /// 
+    /// 检查当前笔记是否为示例数据，如果是则清除
+    /// 
+    /// _Requirements: 5.4_
+    private func clearSampleDataIfNeeded() {
+        // 检查是否有示例数据（示例数据的ID以"sample-"开头）
+        let hasSampleData = notes.contains { $0.id.hasPrefix("sample-") }
+        
+        if hasSampleData {
+            print("[NotesViewModel] 清除示例数据")
+            // 移除所有示例数据
+            notes.removeAll { $0.id.hasPrefix("sample-") }
+            
+            // 如果当前选中的是示例笔记，清除选中状态
+            if let selectedNote = selectedNote, selectedNote.id.hasPrefix("sample-") {
+                self.selectedNote = nil
+            }
+            
+            // 更新文件夹计数
+            updateFolderCounts()
+        }
+    }
+    
+    /// 同步后重新加载数据
+    /// 
+    /// _Requirements: 5.4_
+    private func reloadDataAfterSync() async {
+        print("[NotesViewModel] 同步完成，重新加载数据")
+        
+        do {
+            let localNotes = try localStorage.getAllLocalNotes()
+            self.notes = localNotes
+            print("[NotesViewModel] 重新加载了 \(localNotes.count) 条笔记")
+            
+            // 重新加载文件夹
+            loadFolders()
+            updateFolderCounts()
+            
+            // 更新 UI
+            objectWillChange.send()
+        } catch {
+            print("[NotesViewModel] 重新加载数据失败: \(error)")
         }
     }
     

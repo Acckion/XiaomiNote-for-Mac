@@ -132,8 +132,8 @@
     - 保留 searchText 变化时的刷新
     - _Requirements: 3.1_
 
-- [ ] 10. 实现状态恢复逻辑
-  - [ ] 10.1 修改 ViewStateCoordinator 添加状态恢复
+- [x] 10. 实现状态恢复逻辑
+  - [x] 10.1 修改 ViewStateCoordinator 添加状态恢复
     - 在视图重建后恢复选择状态
     - 使用 UserDefaults 或内存缓存保存状态
     - _Requirements: 1.4_
