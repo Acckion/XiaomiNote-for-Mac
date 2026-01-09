@@ -120,6 +120,8 @@ struct NotesListView: View {
     @State private var noteToDelete: Note?
     @State private var showingMoveNoteSheet = false
     @State private var noteToMove: Note?
+    /// 列表标识符，用于在文件夹切换时强制重建列表（避免动画）
+    @State private var listId = UUID()
     
     var body: some View {
         List(selection: $viewModel.selectedNote) {
@@ -140,9 +142,16 @@ struct NotesListView: View {
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden) // 隐藏默认的滚动内容背景
         .background(Color(NSColor.windowBackgroundColor)) // 设置不透明背景色
+        // 使用 id 修饰符，在文件夹切换时强制重建列表（避免动画）
+        .id(listId)
         // 监听 filteredNotes 变化，触发列表移动动画
-        // _Requirements: 1.1, 1.2_
+        // _Requirements: 1.1, 1.2, 1.3_
         .animation(ListAnimationConfig.moveAnimation, value: viewModel.filteredNotes.map(\.id))
+        // 监听文件夹切换，更新 listId 强制重建列表
+        .onChange(of: viewModel.selectedFolder?.id) { oldValue, newValue in
+            // 文件夹切换时，更新 listId 强制重建列表，避免动画
+            listId = UUID()
+        }
         .alert("删除笔记", isPresented: $showingDeleteAlert, presenting: noteToDelete) { note in
             deleteAlertButtons(for: note)
         } message: { note in
