@@ -42,6 +42,10 @@ public class MainWindowController: NSWindowController {
     /// 搜索筛选菜单popover
     private var searchFilterMenuPopover: NSPopover?
     
+    /// 视图选项菜单popover
+    /// _Requirements: 1.2, 1.3, 1.4_
+    private var viewOptionsMenuPopover: NSPopover?
+    
     /// 在线状态菜单工具栏项
     private var onlineStatusMenuToolbarItem: NSToolbarItem?
     
@@ -790,8 +794,11 @@ extension MainWindowController: NSMenuDelegate {
     public func menuNeedsUpdate(_ menu: NSMenu) {
         print("[MainWindowController] menuNeedsUpdate被调用，菜单标题: \(menu.title)，菜单项数量: \(menu.items.count)")
         
-        // 更新在线状态菜单项
+        let optionsManager = ViewOptionsManager.shared
+        
+        // 更新菜单项状态
         for item in menu.items {
+            // 在线状态菜单项
             if item.tag == 100 { // 在线状态项
                 item.attributedTitle = getOnlineStatusAttributedTitle()
             } else if item.tag == 200 { // 离线操作状态项
@@ -813,6 +820,45 @@ extension MainWindowController: NSMenuDelegate {
                         item.title = "离线操作：无待处理"
                     }
                 }
+            }
+            
+            // 视图选项菜单的选中状态
+            // _Requirements: 2.4, 2.8, 3.5, 4.6_
+            
+            // 排序方式选中状态
+            if item.tag == 1 { // 编辑时间
+                item.state = optionsManager.sortOrder == .editDate ? .on : .off
+            } else if item.tag == 2 { // 创建时间
+                item.state = optionsManager.sortOrder == .createDate ? .on : .off
+            } else if item.tag == 3 { // 标题
+                item.state = optionsManager.sortOrder == .title ? .on : .off
+            }
+            
+            // 排序方向选中状态
+            if item.tag == 10 { // 降序
+                item.state = optionsManager.sortDirection == .descending ? .on : .off
+            } else if item.tag == 11 { // 升序
+                item.state = optionsManager.sortDirection == .ascending ? .on : .off
+            }
+            
+            // 日期分组选中状态
+            if item.tag == 20 { // 开
+                item.state = optionsManager.isDateGroupingEnabled ? .on : .off
+            } else if item.tag == 21 { // 关
+                item.state = !optionsManager.isDateGroupingEnabled ? .on : .off
+            }
+            
+            // 视图模式选中状态
+            if item.tag == 30 { // 列表视图
+                item.state = optionsManager.viewMode == .list ? .on : .off
+            } else if item.tag == 31 { // 画廊视图
+                item.state = optionsManager.viewMode == .gallery ? .on : .off
+            }
+            
+            // 按日期分组菜单项：当排序方式为标题时隐藏
+            // 因为按标题排序时，日期分组没有意义
+            if item.title == "按日期分组" {
+                item.isHidden = optionsManager.sortOrder == .title
             }
         }
     }
@@ -1908,6 +1954,92 @@ extension MainWindowController {
             // 如果没有按钮，显示在窗口中央
             popover.show(relativeTo: contentView.bounds, of: contentView, preferredEdge: .maxY)
         }
+    }
+    
+    // MARK: - 视图选项菜单
+    
+    /// 显示视图选项菜单（已弃用，改用原生 NSMenu）
+    /// _Requirements: 1.2, 1.3, 1.4_
+    @objc func showViewOptionsMenu(_ sender: Any?) {
+        print("显示视图选项菜单（已弃用）")
+        // 此方法已弃用，视图选项菜单现在使用原生 NSMenuToolbarItem
+    }
+    
+    // MARK: - 视图选项菜单操作
+    
+    /// 设置排序方式为编辑时间
+    /// _Requirements: 2.3_
+    @objc func setSortOrderEditDate(_ sender: Any?) {
+        ViewOptionsManager.shared.setSortOrder(.editDate)
+        viewModel?.setNotesListSortField(.editDate)
+    }
+    
+    /// 设置排序方式为创建时间
+    /// _Requirements: 2.3_
+    @objc func setSortOrderCreateDate(_ sender: Any?) {
+        ViewOptionsManager.shared.setSortOrder(.createDate)
+        viewModel?.setNotesListSortField(.createDate)
+    }
+    
+    /// 设置排序方式为标题
+    /// _Requirements: 2.3_
+    @objc func setSortOrderTitle(_ sender: Any?) {
+        ViewOptionsManager.shared.setSortOrder(.title)
+        viewModel?.setNotesListSortField(.title)
+        // 按标题排序时，自动关闭日期分组（因为日期分组对标题排序没有意义）
+        if ViewOptionsManager.shared.isDateGroupingEnabled {
+            ViewOptionsManager.shared.setDateGrouping(false)
+        }
+    }
+    
+    /// 设置排序方向为降序
+    /// _Requirements: 2.7_
+    @objc func setSortDirectionDescending(_ sender: Any?) {
+        ViewOptionsManager.shared.setSortDirection(.descending)
+        viewModel?.setNotesListSortDirection(.descending)
+    }
+    
+    /// 设置排序方向为升序
+    /// _Requirements: 2.7_
+    @objc func setSortDirectionAscending(_ sender: Any?) {
+        ViewOptionsManager.shared.setSortDirection(.ascending)
+        viewModel?.setNotesListSortDirection(.ascending)
+    }
+    
+    /// 切换日期分组（已弃用，改用 setDateGroupingOn/Off）
+    /// _Requirements: 3.3, 3.4_
+    @objc func toggleDateGrouping(_ sender: Any?) {
+        ViewOptionsManager.shared.toggleDateGrouping()
+    }
+    
+    /// 开启日期分组
+    /// _Requirements: 3.3_
+    @objc func setDateGroupingOn(_ sender: Any?) {
+        // 如果当前是按标题排序，自动切换到按编辑时间排序
+        // 因为按标题排序时日期分组没有意义
+        if ViewOptionsManager.shared.sortOrder == .title {
+            ViewOptionsManager.shared.setSortOrder(.editDate)
+            viewModel?.setNotesListSortField(.editDate)
+        }
+        ViewOptionsManager.shared.setDateGrouping(true)
+    }
+    
+    /// 关闭日期分组
+    /// _Requirements: 3.4_
+    @objc func setDateGroupingOff(_ sender: Any?) {
+        ViewOptionsManager.shared.setDateGrouping(false)
+    }
+    
+    /// 设置视图模式为列表视图
+    /// _Requirements: 4.3_
+    @objc func setViewModeList(_ sender: Any?) {
+        ViewOptionsManager.shared.setViewMode(.list)
+    }
+    
+    /// 设置视图模式为画廊视图
+    /// _Requirements: 4.3_
+    @objc func setViewModeGallery(_ sender: Any?) {
+        ViewOptionsManager.shared.setViewMode(.gallery)
     }
     
     /// 获取当前的WebEditorContext

@@ -138,6 +138,106 @@ public class NotesViewModel: ObservableObject {
     /// 同步结果
     @Published var syncResult: SyncService.SyncResult?
     
+    // MARK: - 数据加载状态指示
+    // _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+    
+    /// 是否正在加载本地数据
+    /// _Requirements: 7.1_
+    @Published var isLoadingLocalData: Bool = false
+    
+    /// 本地数据加载状态消息
+    /// _Requirements: 7.1_
+    @Published var localDataLoadingMessage: String = ""
+    
+    /// 是否正在处理离线队列（从 OfflineOperationProcessor 同步）
+    /// _Requirements: 7.2_
+    @Published var isProcessingOfflineQueue: Bool = false
+    
+    /// 离线队列处理进度（0.0 - 1.0）
+    /// _Requirements: 7.2_
+    @Published var offlineQueueProgress: Double = 0.0
+    
+    /// 离线队列处理状态消息
+    /// _Requirements: 7.2_
+    @Published var offlineQueueStatusMessage: String = ""
+    
+    /// 离线队列待处理操作数量
+    /// _Requirements: 7.2_
+    @Published var offlineQueuePendingCount: Int = 0
+    
+    /// 离线队列已处理操作数量
+    /// _Requirements: 7.2_
+    @Published var offlineQueueProcessedCount: Int = 0
+    
+    /// 离线队列失败操作数量
+    /// _Requirements: 7.2_
+    @Published var offlineQueueFailedCount: Int = 0
+    
+    /// 同步完成后的笔记数量
+    /// _Requirements: 7.4_
+    @Published var lastSyncedNotesCount: Int = 0
+    
+    /// 是否处于离线模式
+    /// _Requirements: 7.5_
+    @Published var isOfflineMode: Bool = false
+    
+    /// 离线模式原因
+    /// _Requirements: 7.5_
+    @Published var offlineModeReason: String = ""
+    
+    /// 启动序列当前阶段（从 StartupSequenceManager 同步）
+    /// _Requirements: 7.1, 7.2, 7.3_
+    @Published var startupPhase: StartupSequenceManager.StartupPhase = .idle
+    
+    /// 启动序列状态消息
+    /// _Requirements: 7.1, 7.2, 7.3_
+    @Published var startupStatusMessage: String = ""
+    
+    /// 综合状态消息（用于状态栏显示）
+    /// 
+    /// 根据当前状态返回最相关的状态消息
+    /// _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+    var currentStatusMessage: String {
+        // 优先显示离线模式
+        if isOfflineMode {
+            return "离线模式" + (offlineModeReason.isEmpty ? "" : "：\(offlineModeReason)")
+        }
+        
+        // 显示启动序列状态
+        if !startupStatusMessage.isEmpty && startupPhase != .completed && startupPhase != .idle {
+            return startupStatusMessage
+        }
+        
+        // 显示本地数据加载状态
+        if isLoadingLocalData {
+            return localDataLoadingMessage.isEmpty ? "正在加载本地数据..." : localDataLoadingMessage
+        }
+        
+        // 显示离线队列处理状态
+        if isProcessingOfflineQueue {
+            return offlineQueueStatusMessage.isEmpty ? "正在处理离线操作..." : offlineQueueStatusMessage
+        }
+        
+        // 显示同步状态
+        if isSyncing {
+            return syncStatusMessage.isEmpty ? "正在同步..." : syncStatusMessage
+        }
+        
+        // 显示同步结果
+        if let result = syncResult, lastSyncedNotesCount > 0 {
+            return "已同步 \(lastSyncedNotesCount) 条笔记"
+        }
+        
+        // 默认状态
+        return ""
+    }
+    
+    /// 是否有任何加载/处理操作正在进行
+    /// _Requirements: 7.1, 7.2, 7.3_
+    var isAnyOperationInProgress: Bool {
+        return isLoadingLocalData || isProcessingOfflineQueue || isSyncing || isLoading
+    }
+    
     // MARK: - 离线操作处理器
     
     /// 离线操作处理器（用于观察处理状态）
@@ -584,6 +684,104 @@ public class NotesViewModel: ObservableObject {
         // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
         // - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
         setupStateCoordinatorSync()
+        
+        // 同步数据加载状态指示
+        // **Requirements: 7.1, 7.2, 7.3, 7.4, 7.5**
+        setupDataLoadingStatusSync()
+    }
+    
+    /// 同步数据加载状态指示
+    /// 
+    /// 通过 Combine 将 OfflineOperationProcessor、StartupSequenceManager 和 OnlineStateManager 的状态同步到 ViewModel
+    /// 
+    /// **Requirements: 7.1, 7.2, 7.3, 7.4, 7.5**
+    /// - 7.1: 加载指示器状态
+    /// - 7.2: 离线队列处理进度状态
+    /// - 7.3: 同步进度和状态消息
+    /// - 7.4: 同步结果
+    /// - 7.5: 离线模式指示
+    private func setupDataLoadingStatusSync() {
+        // 同步 OfflineOperationProcessor 的状态（需求 7.2）
+        offlineProcessor.$isProcessing
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isProcessingOfflineQueue)
+        
+        offlineProcessor.$progress
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$offlineQueueProgress)
+        
+        offlineProcessor.$statusMessage
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$offlineQueueStatusMessage)
+        
+        offlineProcessor.$processedCount
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$offlineQueueProcessedCount)
+        
+        offlineProcessor.$totalCount
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$offlineQueuePendingCount)
+        
+        offlineProcessor.$failedOperations
+            .receive(on: DispatchQueue.main)
+            .map { $0.count }
+            .assign(to: &$offlineQueueFailedCount)
+        
+        // 同步 StartupSequenceManager 的状态（需求 7.1, 7.2, 7.3）
+        startupManager.$currentPhase
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] phase in
+                guard let self = self else { return }
+                self.startupPhase = phase
+                
+                // 根据阶段更新加载状态
+                switch phase {
+                case .loadingLocalData:
+                    self.isLoadingLocalData = true
+                    self.localDataLoadingMessage = "正在加载本地数据..."
+                case .processingOfflineQueue:
+                    self.isLoadingLocalData = false
+                    self.localDataLoadingMessage = ""
+                case .syncing:
+                    self.isLoadingLocalData = false
+                    self.localDataLoadingMessage = ""
+                case .completed, .failed:
+                    self.isLoadingLocalData = false
+                    self.localDataLoadingMessage = ""
+                case .idle:
+                    break
+                }
+            }
+            .store(in: &cancellables)
+        
+        startupManager.$statusMessage
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$startupStatusMessage)
+        
+        // 同步离线模式状态（需求 7.5）
+        // 监听 OnlineStateManager 的在线状态
+        OnlineStateManager.shared.$isOnline
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isOnline in
+                guard let self = self else { return }
+                self.isOfflineMode = !isOnline
+                
+                // 更新离线模式原因
+                if !isOnline {
+                    if !NetworkMonitor.shared.isConnected {
+                        self.offlineModeReason = "网络未连接"
+                    } else if !self.service.isAuthenticated() {
+                        self.offlineModeReason = "未登录"
+                    } else if self.isCookieExpired {
+                        self.offlineModeReason = "登录已过期"
+                    } else {
+                        self.offlineModeReason = ""
+                    }
+                } else {
+                    self.offlineModeReason = ""
+                }
+            }
+            .store(in: &cancellables)
     }
     
     /// 同步 ViewStateCoordinator 的状态到 ViewModel
@@ -749,38 +947,43 @@ public class NotesViewModel: ObservableObject {
     ) -> Bool {
         print("[OfflineQueue] 统一处理错误并添加到离线队列: \(operationType.rawValue), noteId: \(noteId), context: \(context)")
         
-        // 处理401 Cookie过期错误
-        if case MiNoteError.cookieExpired = error {
-            print("[OfflineQueue] 检测到Cookie过期错误，设置为离线状态")
-            setOfflineStatus(reason: "Cookie过期")
-            
-            // 添加到离线队列
-            if addOperationToOfflineQueue(type: operationType, noteId: noteId, data: operationData) {
-                print("[OfflineQueue] ✅ Cookie过期：操作已添加到离线队列: \(operationType.rawValue)")
-                return true
-            } else {
-                print("[OfflineQueue] ❌ Cookie过期：添加到离线队列失败")
-                return false
-            }
-        }
+        // 使用 ErrorRecoveryService 统一处理错误（需求 8.1, 8.7）
+        // 获取当前重试次数（从离线队列中查找）
+        let pendingOps = offlineQueue.getPendingOperations()
+        let existingOp = pendingOps.first { $0.noteId == noteId && $0.type == operationType }
+        let currentRetryCount = existingOp?.retryCount ?? 0
         
-        // 处理网络错误
-        if let urlError = error as? URLError {
-            print("[OfflineQueue] 检测到网络错误: \(urlError.localizedDescription)")
-            
-            // 添加到离线队列
-            if addOperationToOfflineQueue(type: operationType, noteId: noteId, data: operationData) {
-                print("[OfflineQueue] ✅ 网络错误：操作已添加到离线队列: \(operationType.rawValue)")
-                return true
-            } else {
-                print("[OfflineQueue] ❌ 网络错误：添加到离线队列失败")
-                return false
-            }
-        }
+        let result = ErrorRecoveryService.shared.handleNetworkError(
+            error,
+            operationType: operationType,
+            noteId: noteId,
+            operationData: operationData,
+            currentRetryCount: currentRetryCount
+        )
         
-        // 其他错误：不添加到队列
-        print("[OfflineQueue] ⚠️ 其他错误，不添加到离线队列: \(error.localizedDescription)")
-        return false
+        switch result {
+        case .addedToQueue(let message):
+            print("[OfflineQueue] ✅ \(message): \(operationType.rawValue)")
+            // 如果是 Cookie 过期，设置离线状态
+            if case MiNoteError.cookieExpired = error {
+                setOfflineStatus(reason: "Cookie过期")
+            }
+            return true
+            
+        case .noRetry(let message):
+            print("[OfflineQueue] ⚠️ 不重试: \(message)")
+            return false
+            
+        case .permanentlyFailed(let message):
+            print("[OfflineQueue] ❌ 永久失败: \(message)")
+            // 显示错误消息给用户
+            errorMessage = message
+            // 3秒后清除错误消息
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                self?.errorMessage = nil
+            }
+            return false
+        }
     }
     
     /// 将操作添加到离线队列（内部方法，统一编码逻辑）
@@ -1784,6 +1987,7 @@ public class NotesViewModel: ObservableObject {
             isSyncing = false
             syncStatusMessage = "同步完成"
             lastSyncTime = Date()
+            lastSyncedNotesCount = result.syncedNotes  // _Requirements: 7.4_
             
             print("[NotesViewModel] ✅ 登录后同步成功，同步了 \(result.syncedNotes) 条笔记")
         } catch {
@@ -1828,6 +2032,7 @@ public class NotesViewModel: ObservableObject {
             isSyncing = false
             syncStatusMessage = "同步完成"
             lastSyncTime = Date()
+            lastSyncedNotesCount = result.syncedNotes  // _Requirements: 7.4_
             
             print("[NotesViewModel] ✅ Cookie刷新后同步成功，同步了 \(result.syncedNotes) 条笔记")
         } catch {
@@ -1943,6 +2148,7 @@ public class NotesViewModel: ObservableObject {
             // 更新同步结果
             self.syncResult = result
             self.lastSyncTime = result.lastSyncTime
+            self.lastSyncedNotesCount = result.syncedNotes  // _Requirements: 7.4_
             
             // 重新加载本地数据
             print("[FolderRename] 同步完成，准备重新加载本地数据...")
@@ -1997,6 +2203,7 @@ public class NotesViewModel: ObservableObject {
             // 更新同步结果
             self.syncResult = result
             self.lastSyncTime = result.lastSyncTime
+            self.lastSyncedNotesCount = result.syncedNotes  // _Requirements: 7.4_
             
             // 重新加载本地数据
             await loadLocalDataAfterSync()
@@ -2571,41 +2778,40 @@ public class NotesViewModel: ObservableObject {
 
     /// 统一处理更新时的错误（内部方法）
     private func handleUpdateError(_ error: Error, for note: Note) {
-        // 网络错误或cookie失效：添加到离线队列，不显示弹窗
-        if let urlError = error as? URLError {
-            let operationData = try? JSONEncoder().encode([
-                "title": note.title,
-                "content": note.content,
-                "folderId": note.folderId
-            ])
-            if let operationData = operationData {
-                let operation = OfflineOperation(
-                    type: .updateNote,
-                    noteId: note.id,
-                    data: operationData
-                )
-                try? offlineQueue.addOperation(operation)
-                print("[VIEWMODEL] 网络错误，添加到离线队列，笔记ID: \(note.id), 错误: \(urlError.localizedDescription)")
+        // 使用 ErrorRecoveryService 统一处理错误（需求 8.1, 8.7）
+        let operationData: [String: Any] = [
+            "title": note.title,
+            "content": note.content,
+            "folderId": note.folderId,
+            "tag": note.rawData?["tag"] as? String ?? note.id
+        ]
+        
+        // 获取当前重试次数（从离线队列中查找）
+        let pendingOps = offlineQueue.getPendingOperations()
+        let existingOp = pendingOps.first { $0.noteId == note.id && $0.type == .updateNote }
+        let currentRetryCount = existingOp?.retryCount ?? 0
+        
+        let result = ErrorRecoveryService.shared.handleNetworkError(
+            error,
+            operationType: .updateNote,
+            noteId: note.id,
+            operationData: operationData,
+            currentRetryCount: currentRetryCount
+        )
+        
+        switch result {
+        case .addedToQueue(let message):
+            print("[VIEWMODEL] \(message)，笔记ID: \(note.id)")
+        case .noRetry(let message):
+            print("[VIEWMODEL] 更新失败（不重试）: \(message)，笔记ID: \(note.id)")
+        case .permanentlyFailed(let message):
+            print("[VIEWMODEL] ⚠️ 更新永久失败: \(message)，笔记ID: \(note.id)")
+            // 显示错误消息给用户
+            errorMessage = message
+            // 3秒后清除错误消息
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                self?.errorMessage = nil
             }
-        } else if case MiNoteError.cookieExpired = error {
-            // Cookie失效：保存到离线队列
-            let operationData = try? JSONEncoder().encode([
-                "title": note.title,
-                "content": note.content,
-                "folderId": note.folderId
-            ])
-            if let operationData = operationData {
-                let operation = OfflineOperation(
-                    type: .updateNote,
-                    noteId: note.id,
-                    data: operationData
-                )
-                try? offlineQueue.addOperation(operation)
-                print("[VIEWMODEL] Cookie失效，添加到离线队列，笔记ID: \(note.id)")
-            }
-        } else {
-            // 其他错误：静默处理，不显示弹窗
-            print("[VIEWMODEL] 更新本地成功但云端失败，笔记ID: \(note.id), 错误: \(error.localizedDescription)")
         }
     }
     
@@ -2719,10 +2925,40 @@ public class NotesViewModel: ObservableObject {
                 try? localStorage.removePendingDeletion(noteId: note.id)
                 
             } catch {
-                print("[VIEWMODEL] 云端删除失败: \(error)，保存到待删除列表")
+                print("[VIEWMODEL] 云端删除失败: \(error)，使用 ErrorRecoveryService 处理")
                 
-                // 删除失败，保存到待删除列表
+                // 使用 ErrorRecoveryService 统一处理错误（需求 8.1, 8.7）
                 let tag = note.rawData?["tag"] as? String ?? note.id
+                let operationData: [String: Any] = [
+                    "tag": tag,
+                    "purge": false
+                ]
+                
+                let result = ErrorRecoveryService.shared.handleNetworkError(
+                    error,
+                    operationType: .deleteNote,
+                    noteId: note.id,
+                    operationData: operationData,
+                    currentRetryCount: 0
+                )
+                
+                switch result {
+                case .addedToQueue(let message):
+                    print("[VIEWMODEL] \(message)，笔记ID: \(note.id)")
+                case .noRetry(let message):
+                    print("[VIEWMODEL] 删除失败（不重试）: \(message)，笔记ID: \(note.id)")
+                case .permanentlyFailed(let message):
+                    print("[VIEWMODEL] ⚠️ 删除永久失败: \(message)，笔记ID: \(note.id)")
+                    await MainActor.run {
+                        self.errorMessage = message
+                        // 3秒后清除错误消息
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                            self?.errorMessage = nil
+                        }
+                    }
+                }
+                
+                // 同时保存到待删除列表（兼容旧逻辑）
                 let pendingDeletion = PendingDeletion(noteId: note.id, tag: tag, purge: false)
                 do {
                     try localStorage.addPendingDeletion(pendingDeletion)

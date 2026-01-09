@@ -110,6 +110,9 @@ extension NSToolbarItem.Identifier {
     
     /// 锁定私密笔记
     static let lockPrivateNotes = NSToolbarItem.Identifier("lockPrivateNotes")
+    
+    /// 视图选项
+    static let viewOptions = NSToolbarItem.Identifier("viewOptions")
 
     // MARK: - 其他功能
 

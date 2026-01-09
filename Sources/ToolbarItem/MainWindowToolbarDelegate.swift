@@ -414,6 +414,30 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             
             return toolbarItem
             
+        case .viewOptions:
+            // 创建视图选项工具栏按钮（使用原生 NSMenu）
+            // _Requirements: 1.1, 1.2_
+            let toolbarItem = NSMenuToolbarItem(itemIdentifier: .viewOptions)
+            toolbarItem.image = NSImage(systemSymbolName: "list.bullet", accessibilityDescription: "视图选项")
+            toolbarItem.toolTip = "视图选项"
+            toolbarItem.label = "视图选项"
+            toolbarItem.showsIndicator = true
+            
+            // 创建视图选项菜单
+            let menu = createViewOptionsMenu()
+            toolbarItem.menu = menu
+            
+            // 设置菜单代理以动态更新选中状态
+            menu.delegate = windowController
+            
+            // 设置 menuFormRepresentation 以确保兼容性
+            let menuFormItem = NSMenuItem()
+            menuFormItem.title = "视图选项"
+            menuFormItem.submenu = menu
+            toolbarItem.menuFormRepresentation = menuFormItem
+            
+            return toolbarItem
+            
         case .noteOperations:
             // 创建自定义工具栏项，实现双轨配置
             let toolbarItem = MiNoteToolbarItem(itemIdentifier: .noteOperations)
@@ -524,6 +548,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.search,
             NSToolbarItem.Identifier.sync,
             NSToolbarItem.Identifier.onlineStatus,
+            NSToolbarItem.Identifier.viewOptions,
             NSToolbarItem.Identifier.settings,
             NSToolbarItem.Identifier.login,
             NSToolbarItem.Identifier.cookieRefresh,
@@ -554,6 +579,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
 
             NSToolbarItem.Identifier.sidebarTrackingSeparator,
 
+            NSToolbarItem.Identifier.viewOptions,
             NSToolbarItem.Identifier.flexibleSpace,
             NSToolbarItem.Identifier.onlineStatus,
 
@@ -660,6 +686,104 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
         searchField.controlSize = .regular
         
         logger.debug("搜索框菜单已设置")
+    }
+    
+    // MARK: - 视图选项菜单
+    
+    /// 创建视图选项菜单
+    /// _Requirements: 1.2, 2.1, 2.2, 2.6, 3.2, 4.2_
+    private func createViewOptionsMenu() -> NSMenu {
+        let menu = NSMenu()
+        
+        // 排序方式子菜单
+        let sortMenuItem = NSMenuItem()
+        sortMenuItem.title = "排序方式"
+        let sortSubmenu = NSMenu()
+        sortSubmenu.delegate = windowController
+        
+        // 排序字段选项
+        let editDateItem = NSMenuItem()
+        editDateItem.title = "编辑时间"
+        editDateItem.action = #selector(MainWindowController.setSortOrderEditDate(_:))
+        editDateItem.target = windowController
+        editDateItem.tag = 1
+        sortSubmenu.addItem(editDateItem)
+        
+        let createDateItem = NSMenuItem()
+        createDateItem.title = "创建时间"
+        createDateItem.action = #selector(MainWindowController.setSortOrderCreateDate(_:))
+        createDateItem.target = windowController
+        createDateItem.tag = 2
+        sortSubmenu.addItem(createDateItem)
+        
+        let titleItem = NSMenuItem()
+        titleItem.title = "标题"
+        titleItem.action = #selector(MainWindowController.setSortOrderTitle(_:))
+        titleItem.target = windowController
+        titleItem.tag = 3
+        sortSubmenu.addItem(titleItem)
+        
+        sortSubmenu.addItem(NSMenuItem.separator())
+        
+        // 排序方向选项
+        let descendingItem = NSMenuItem()
+        descendingItem.title = "降序"
+        descendingItem.action = #selector(MainWindowController.setSortDirectionDescending(_:))
+        descendingItem.target = windowController
+        descendingItem.tag = 10
+        sortSubmenu.addItem(descendingItem)
+        
+        let ascendingItem = NSMenuItem()
+        ascendingItem.title = "升序"
+        ascendingItem.action = #selector(MainWindowController.setSortDirectionAscending(_:))
+        ascendingItem.target = windowController
+        ascendingItem.tag = 11
+        sortSubmenu.addItem(ascendingItem)
+        
+        sortMenuItem.submenu = sortSubmenu
+        menu.addItem(sortMenuItem)
+        
+        // 按日期分组子菜单
+        let dateGroupingMenuItem = NSMenuItem()
+        dateGroupingMenuItem.title = "按日期分组"
+        let dateGroupingSubmenu = NSMenu()
+        dateGroupingSubmenu.delegate = windowController
+        
+        let dateGroupingOnItem = NSMenuItem()
+        dateGroupingOnItem.title = "开"
+        dateGroupingOnItem.action = #selector(MainWindowController.setDateGroupingOn(_:))
+        dateGroupingOnItem.target = windowController
+        dateGroupingOnItem.tag = 20
+        dateGroupingSubmenu.addItem(dateGroupingOnItem)
+        
+        let dateGroupingOffItem = NSMenuItem()
+        dateGroupingOffItem.title = "关"
+        dateGroupingOffItem.action = #selector(MainWindowController.setDateGroupingOff(_:))
+        dateGroupingOffItem.target = windowController
+        dateGroupingOffItem.tag = 21
+        dateGroupingSubmenu.addItem(dateGroupingOffItem)
+        
+        dateGroupingMenuItem.submenu = dateGroupingSubmenu
+        menu.addItem(dateGroupingMenuItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        // 视图模式选项
+        let listViewItem = NSMenuItem()
+        listViewItem.title = "列表视图"
+        listViewItem.action = #selector(MainWindowController.setViewModeList(_:))
+        listViewItem.target = windowController
+        listViewItem.tag = 30
+        menu.addItem(listViewItem)
+        
+        let galleryViewItem = NSMenuItem()
+        galleryViewItem.title = "画廊视图"
+        galleryViewItem.action = #selector(MainWindowController.setViewModeGallery(_:))
+        galleryViewItem.target = windowController
+        galleryViewItem.tag = 31
+        menu.addItem(galleryViewItem)
+        
+        return menu
     }
 }
 
