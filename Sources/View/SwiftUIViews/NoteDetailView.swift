@@ -916,25 +916,59 @@ struct NoteDetailView: View {
     }
     
     @State private var cloudUploadTask: Task<Void, Never>? = nil
-    @State private var lastUploadedContent: String = ""
+    /// 每个笔记的最后上传内容（按笔记 ID 存储）
+    @State private var lastUploadedContentByNoteId: [String: String] = [:]
     
     private func scheduleCloudUpload(for note: Note, xmlContent: String) {
-        guard viewModel.isOnline && viewModel.isLoggedIn && xmlContent != lastUploadedContent else { return }
+        guard viewModel.isOnline && viewModel.isLoggedIn else { return }
+        
+        // 关键修复：使用笔记 ID 作为 key 来存储每个笔记的最后上传内容
+        // 这样可以避免不同笔记之间的内容比较混淆
+        let lastUploadedForThisNote = lastUploadedContentByNoteId[note.id] ?? ""
+        guard xmlContent != lastUploadedForThisNote else {
+            Swift.print("[保存流程] ⏭️ Tier 2 跳过 - 内容与上次上传相同，笔记ID: \(note.id.prefix(8))...")
+            return
+        }
+        
         cloudUploadTask?.cancel()
         let noteId = note.id
+        
+        // 关键修复：在闭包中捕获 xmlContent，但在执行时使用 currentXMLContent
+        // 这样可以确保上传的是最新的内容
         cloudUploadTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             guard !Task.isCancelled && self.currentEditingNoteId == noteId else { return }
-            await performCloudUpload(for: note, xmlContent: xmlContent)
-            lastUploadedContent = xmlContent
+            
+            // 关键修复：使用当前最新的 XML 内容，而不是闭包捕获的旧内容
+            // 因为在 3 秒延迟期间，用户可能继续编辑了内容
+            let latestXMLContent = self.currentXMLContent.isEmpty ? xmlContent : self.currentXMLContent
+            
+            // 再次检查内容是否与上次上传相同
+            let lastUploaded = self.lastUploadedContentByNoteId[noteId] ?? ""
+            guard latestXMLContent != lastUploaded else {
+                Swift.print("[保存流程] ⏭️ Tier 2 跳过（延迟后检查）- 内容与上次上传相同，笔记ID: \(noteId.prefix(8))...")
+                return
+            }
+            
+            await performCloudUpload(for: note, xmlContent: latestXMLContent)
+            self.lastUploadedContentByNoteId[noteId] = latestXMLContent
         }
     }
     
     @MainActor
     private func performCloudUpload(for note: Note, xmlContent: String) async {
+        // 关键修复：确保使用传入的 xmlContent 构建笔记，而不是依赖 note.content
+        // 因为 note 对象可能是旧的（闭包捕获的）
         let updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
         isUploading = true
-        Swift.print("[保存流程] 🔄 Tier 2 开始云端同步 - 笔记ID: \(note.id.prefix(8))..., XML长度: \(xmlContent.count)")
+        
+        // 添加详细日志，帮助调试上传内容问题
+        Swift.print("[保存流程] 🔄 Tier 2 开始云端同步")
+        Swift.print("[保存流程]   - 笔记ID: \(note.id.prefix(8))...")
+        Swift.print("[保存流程]   - 标题: \(updated.title)")
+        Swift.print("[保存流程]   - XML长度: \(xmlContent.count)")
+        Swift.print("[保存流程]   - 内容预览: \(String(xmlContent.prefix(200)))...")
+        
         do {
             try await viewModel.updateNote(updated)
             withAnimation { showSaveSuccess = true; isUploading = false }
@@ -1031,9 +1065,24 @@ struct NoteDetailView: View {
     
     @MainActor
     private func getLatestContentFromEditor() async -> String {
-        if let content = await withCheckedContinuation({ (c: CheckedContinuation<String?, Never>) in webEditorContext.getCurrentContent { c.resume(returning: $0) } }) {
-            return content
+        // 关键修复：根据当前使用的编辑器类型获取内容
+        if isUsingNativeEditor {
+            // 原生编辑器：从 nativeEditorContext 导出 XML
+            let xmlContent = nativeEditorContext.exportToXML()
+            if !xmlContent.isEmpty {
+                Swift.print("[保存流程] 📝 从原生编辑器获取内容 - 长度: \(xmlContent.count)")
+                return xmlContent
+            }
+        } else {
+            // Web 编辑器：从 webEditorContext 获取内容
+            if let content = await withCheckedContinuation({ (c: CheckedContinuation<String?, Never>) in webEditorContext.getCurrentContent { c.resume(returning: $0) } }) {
+                Swift.print("[保存流程] 📝 从 Web 编辑器获取内容 - 长度: \(content.count)")
+                return content
+            }
         }
+        
+        // 回退到当前 XML 内容
+        Swift.print("[保存流程] 📝 使用 currentXMLContent - 长度: \(currentXMLContent.count)")
         return currentXMLContent
     }
     
