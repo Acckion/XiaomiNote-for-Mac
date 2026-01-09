@@ -105,6 +105,12 @@ class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
     /// 任务定时器
     private var timers: [String: Timer] = [:]
     
+    /// 暂停的任务集合
+    private var pausedTasks: Set<String> = []
+    
+    /// 任务恢复时间
+    private var taskResumeTime: [String: Date] = [:]
+    
     /// 网络监控器
     private let networkMonitor = NetworkMonitor.shared
     
@@ -228,6 +234,68 @@ class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
         }
         
         print("[ScheduledTaskManager] 更新任务: \(task.name), 启用: \(enabled)")
+    }
+    
+    // MARK: - 任务暂停/恢复
+    
+    /// 暂停任务
+    /// 
+    /// 暂停指定任务，停止其定时器但保留任务配置
+    /// - Parameter taskId: 任务ID
+    func pauseTask(_ taskId: String) {
+        guard let task = tasks[taskId] else {
+            print("[ScheduledTaskManager] 任务不存在: \(taskId)")
+            return
+        }
+        
+        pausedTasks.insert(taskId)
+        stopTask(taskId)
+        print("[ScheduledTaskManager] ⏸️ 暂停任务: \(task.name)")
+    }
+    
+    /// 恢复任务（支持宽限期）
+    /// 
+    /// 恢复之前暂停的任务，可选择设置宽限期
+    /// - Parameters:
+    ///   - taskId: 任务ID
+    ///   - gracePeriod: 宽限期（秒），在此时间后才恢复任务执行
+    func resumeTask(_ taskId: String, gracePeriod: TimeInterval = 0) {
+        guard pausedTasks.contains(taskId) else {
+            print("[ScheduledTaskManager] 任务未暂停: \(taskId)")
+            return
+        }
+        
+        pausedTasks.remove(taskId)
+        
+        if gracePeriod > 0 {
+            taskResumeTime[taskId] = Date().addingTimeInterval(gracePeriod)
+            print("[ScheduledTaskManager] ▶️ 任务 \(taskId) 将在 \(gracePeriod) 秒后恢复")
+            
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(gracePeriod * 1_000_000_000))
+                
+                // 检查任务是否仍然应该恢复（可能在等待期间被再次暂停）
+                if !self.pausedTasks.contains(taskId) {
+                    if let task = self.tasks[taskId], task.enabled {
+                        self.startTask(task)
+                        print("[ScheduledTaskManager] ▶️ 任务已恢复: \(task.name)")
+                    }
+                }
+                self.taskResumeTime.removeValue(forKey: taskId)
+            }
+        } else {
+            if let task = tasks[taskId], task.enabled {
+                startTask(task)
+                print("[ScheduledTaskManager] ▶️ 任务已恢复: \(task.name)")
+            }
+        }
+    }
+    
+    /// 检查任务是否暂停
+    /// - Parameter taskId: 任务ID
+    /// - Returns: 如果任务暂停返回 true，否则返回 false
+    func isTaskPaused(_ taskId: String) -> Bool {
+        return pausedTasks.contains(taskId)
     }
     
     // MARK: - 私有方法

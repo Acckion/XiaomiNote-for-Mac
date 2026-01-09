@@ -31,6 +31,17 @@ class AuthenticationStateManager: ObservableObject {
     /// 是否显示Cookie刷新视图
     @Published var showCookieRefreshView: Bool = false
     
+    // MARK: - 失败计数和防重入机制
+    
+    /// 连续刷新失败次数计数器
+    private var consecutiveFailures: Int = 0
+    
+    /// 最大连续失败次数限制
+    private let maxConsecutiveFailures: Int = 3
+    
+    /// 刷新周期标志，防止重入
+    private var isInRefreshCycle: Bool = false
+    
     // MARK: - 依赖服务
     
     private let service = MiNoteService.shared
@@ -172,88 +183,129 @@ class AuthenticationStateManager: ObservableObject {
         }
     }
     
-    /// 尝试静默刷新Cookie（最多3次）
+    /// 尝试静默刷新Cookie
+    /// 
+    /// 增强版本：添加防重入检查、暂停定时检查任务、同步等待验证完成
     private func attemptSilentRefresh() async {
+        // 防重入检查
+        guard !isInRefreshCycle else {
+            print("[AuthenticationStateManager] ⚠️ 已在刷新周期中，跳过重复请求")
+            return
+        }
+        
+        // 检查是否已达到最大失败次数
+        guard consecutiveFailures < maxConsecutiveFailures else {
+            print("[AuthenticationStateManager] ⚠️ 已达到最大失败次数 (\(maxConsecutiveFailures))，不再自动刷新")
+            showCookieExpiredAlert = true
+            return
+        }
+        
+        isInRefreshCycle = true
+        defer { isInRefreshCycle = false }
+        
         print("[AuthenticationStateManager] 🚀 开始静默刷新Cookie流程")
-        print("[AuthenticationStateManager] 📊 当前状态: isOnline=\(isOnline), isCookieExpired=\(isCookieExpired), cookieExpiredShown=\(cookieExpiredShown)")
+        print("[AuthenticationStateManager] 📊 当前状态: isOnline=\(isOnline), isCookieExpired=\(isCookieExpired), consecutiveFailures=\(consecutiveFailures)")
         
-        var attempt = 0
-        let maxAttempts = 3
-        var success = false
+        // 暂停定时检查任务，避免刷新期间触发检查
+        ScheduledTaskManager.shared.pauseTask("cookie_validity_check")
         
-        while attempt < maxAttempts && !success {
-            attempt += 1
-            print("[AuthenticationStateManager] 🔄 静默刷新尝试 \(attempt)/\(maxAttempts)")
+        do {
+            print("[AuthenticationStateManager] 📡 调用MiNoteService.refreshCookie()...")
+            // 尝试刷新Cookie
+            let refreshSuccess = try await MiNoteService.shared.refreshCookie()
+            print("[AuthenticationStateManager] 📡 refreshCookie()返回: \(refreshSuccess)")
             
-            do {
-                print("[AuthenticationStateManager] 📡 调用MiNoteService.refreshCookie()...")
-                // 尝试刷新Cookie
-                let refreshSuccess = try await MiNoteService.shared.refreshCookie()
-                print("[AuthenticationStateManager] 📡 refreshCookie()返回: \(refreshSuccess)")
+            if refreshSuccess {
+                print("[AuthenticationStateManager] ✅ 静默刷新成功，开始验证Cookie有效性...")
                 
-                if refreshSuccess {
-                    print("[AuthenticationStateManager] ✅ 静默刷新成功")
-                    success = true
-                    
-                    // 恢复在线状态 - 使用 restoreOnlineStatus() 确保正确计算在线状态
-                    await MainActor.run {
-                        print("[AuthenticationStateManager] 🔄 恢复在线状态前检查: hasValidCookie=\(MiNoteService.shared.hasValidCookie())")
-                        
-                        // 首先清除失效标志，这样定时器可以继续检查状态
-                        isCookieExpired = false
-                        cookieExpiredShown = false
-                        shouldStayOffline = false  // 清除离线模式标志
-                        showCookieExpiredAlert = false  // 清除弹窗状态
-                        
-                        // 强制更新Cookie有效性缓存
-                        Task {
-                            await MiNoteService.shared.updateCookieValidityCache()
-                        }
-                        
-                        // 调用 restoreOnlineStatus() 来正确计算在线状态
-                        // 这会检查网络状态和Cookie有效性
-                        restoreOnlineStatus()
-                        
-                        print("[AuthenticationStateManager] ✅ 状态已更新: isOnline=\(isOnline), isCookieExpired=\(isCookieExpired)")
-                    }
-                    
-                    // 通知ViewModel处理待同步操作
-                    // 注意：NotesViewModel 没有 shared 实例，这里需要其他方式通知
-                    // 暂时注释掉，因为静默刷新成功后，用户操作时会自动触发同步
-                    // await NotesViewModel.shared?.processPendingOperations()
-                    break
+                // 关键修复：同步等待验证完成
+                let isValid = try await MiNoteService.shared.checkCookieValidity()
+                print("[AuthenticationStateManager] 📡 checkCookieValidity()返回: \(isValid)")
+                
+                if isValid {
+                    // Cookie 确实有效，恢复在线状态
+                    consecutiveFailures = 0
+                    restoreOnlineStatusAfterValidation(isValid: true)
+                    print("[AuthenticationStateManager] ✅ Cookie 刷新并验证成功")
                 } else {
-                    print("[AuthenticationStateManager] ⚠️ refreshCookie()返回false，但未抛出错误")
+                    // 刷新成功但验证失败
+                    handleRefreshSuccessButValidationFailed()
                 }
-            } catch {
-                print("[AuthenticationStateManager] ❌ 静默刷新失败 (尝试 \(attempt)): \(error)")
+            } else {
+                // 刷新返回 false
+                handleRefreshFailure()
             }
-            
-            // 如果不是最后一次尝试，等待一段时间再重试
-            if attempt < maxAttempts {
-                let delaySeconds = TimeInterval(attempt * 5) // 指数退避：5, 10, 15秒
-                print("[AuthenticationStateManager] ⏳ 等待 \(delaySeconds) 秒后重试...")
-                try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
-            }
+        } catch {
+            print("[AuthenticationStateManager] ❌ 静默刷新失败: \(error)")
+            handleRefreshFailure()
         }
         
-        if !success {
-            print("[AuthenticationStateManager] ❌ 所有静默刷新尝试都失败，显示弹窗")
-            await MainActor.run {
-                showCookieExpiredAlert = true
-                isCookieExpired = true
-                isOnline = false
-                print("[AuthenticationStateManager] 🚨 显示弹窗，状态设置为离线")
-            }
-        } else {
-            print("[AuthenticationStateManager] 🎉 静默刷新流程完成，成功恢复在线状态")
-        }
+        // 恢复定时检查任务（带 30 秒宽限期）
+        ScheduledTaskManager.shared.resumeTask("cookie_validity_check", gracePeriod: 30.0)
     }
     
     /// 静默处理Cookie失效（由ContentView调用）
     func handleCookieExpiredSilently() async {
         print("[AuthenticationStateManager] 静默处理Cookie失效")
         await attemptSilentRefresh()
+    }
+    
+    // MARK: - 刷新失败处理
+    
+    /// 处理刷新成功但验证失败的情况
+    /// 
+    /// 当 Cookie 刷新成功但服务器端验证失败时调用
+    private func handleRefreshSuccessButValidationFailed() {
+        consecutiveFailures += 1
+        print("[AuthenticationStateManager] ⚠️ 刷新成功但验证失败，失败次数: \(consecutiveFailures)/\(maxConsecutiveFailures)")
+        
+        if consecutiveFailures >= maxConsecutiveFailures {
+            print("[AuthenticationStateManager] ❌ 达到最大失败次数，显示弹窗")
+            showCookieExpiredAlert = true
+            // 不清除 cookieExpiredShown，保持离线状态
+        }
+        // 注意：不打印"成功恢复在线状态"，因为验证失败
+    }
+    
+    /// 处理刷新失败
+    /// 
+    /// 当 Cookie 刷新本身失败时调用
+    private func handleRefreshFailure() {
+        consecutiveFailures += 1
+        print("[AuthenticationStateManager] ❌ 刷新失败，失败次数: \(consecutiveFailures)/\(maxConsecutiveFailures)")
+        
+        if consecutiveFailures >= maxConsecutiveFailures {
+            print("[AuthenticationStateManager] ❌ 达到最大失败次数，显示弹窗")
+            showCookieExpiredAlert = true
+            isCookieExpired = true
+            isOnline = false
+        }
+    }
+    
+    /// 验证后恢复在线状态
+    /// 
+    /// 只有当 Cookie 确实有效时才恢复在线状态
+    /// - Parameter isValid: Cookie 是否有效
+    private func restoreOnlineStatusAfterValidation(isValid: Bool) {
+        guard isValid else {
+            print("[AuthenticationStateManager] ⚠️ Cookie 无效，不恢复在线状态")
+            // 注意：不打印"成功恢复在线状态"
+            return
+        }
+        
+        print("[AuthenticationStateManager] ✅ Cookie 验证通过，恢复在线状态")
+        
+        // 只有 Cookie 有效时才清除这些标志
+        isCookieExpired = false
+        cookieExpiredShown = false
+        shouldStayOffline = false
+        showCookieExpiredAlert = false
+        isOnline = true
+        
+        // 刷新 OnlineStateManager 的状态
+        onlineStateManager.refreshStatus()
+        
+        print("[AuthenticationStateManager] ✅ 状态已更新: isOnline=\(isOnline), isCookieExpired=\(isCookieExpired)")
     }
     
     // MARK: - 公共方法
@@ -289,6 +341,21 @@ class AuthenticationStateManager: ObservableObject {
         print("[AuthenticationStateManager] 用户选择刷新Cookie")
         shouldStayOffline = false
         showCookieRefreshView = true
+        
+        // 手动刷新时重置计数器和冷却期
+        handleManualRefresh()
+    }
+    
+    /// 处理手动刷新
+    /// 
+    /// 当用户手动触发刷新时调用，重置失败计数器和冷却期
+    func handleManualRefresh() {
+        print("[AuthenticationStateManager] 🔄 手动刷新：重置失败计数器和冷却期")
+        consecutiveFailures = 0
+        SilentCookieRefreshManager.shared.resetCooldown()
+        
+        // 清除弹窗显示标志，允许重新触发刷新流程
+        cookieExpiredShown = false
     }
     
     /// 处理Cookie失效弹窗的"取消"选项
