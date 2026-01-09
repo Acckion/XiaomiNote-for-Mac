@@ -21,14 +21,38 @@ final class SyncService: @unchecked Sendable {
     
     // MARK: - 同步状态
     
-    /// 是否正在同步
-    private var isSyncing = false
+    /// 同步锁 - 使用 NSLock 确保线程安全
+    /// 遵循需求 6.1: 同步正在进行中时阻止新的同步请求
+    private let syncLock = NSLock()
+    
+    /// 是否正在同步（内部状态）
+    private var _isSyncing = false
+    
+    /// 是否正在同步（线程安全访问）
+    private var isSyncing: Bool {
+        get {
+            syncLock.lock()
+            defer { syncLock.unlock() }
+            return _isSyncing
+        }
+        set {
+            syncLock.lock()
+            defer { syncLock.unlock() }
+            _isSyncing = newValue
+        }
+    }
     
     /// 同步进度（0.0 - 1.0）
     private var syncProgress: Double = 0
     
     /// 同步状态消息（用于UI显示）
     private var syncStatusMessage: String = ""
+    
+    /// 上次同步时间（从 SyncStatus 加载）
+    private var _lastSyncTime: Date?
+    
+    /// 当前 syncTag（从 SyncStatus 加载）
+    private var _currentSyncTag: String?
     
     var isSyncingNow: Bool {
         return isSyncing
@@ -40,6 +64,73 @@ final class SyncService: @unchecked Sendable {
     
     var currentStatusMessage: String {
         return syncStatusMessage
+    }
+    
+    /// 获取上次同步时间
+    var lastSyncTime: Date? {
+        return _lastSyncTime ?? localStorage.loadSyncStatus()?.lastSyncTime
+    }
+    
+    /// 获取当前 syncTag
+    var currentSyncTag: String? {
+        return _currentSyncTag ?? localStorage.loadSyncStatus()?.syncTag
+    }
+    
+    /// 检查是否存在有效的同步状态
+    /// 遵循需求 6.3, 6.4: 根据 SyncStatus 决定使用增量同步还是完整同步
+    var hasValidSyncStatus: Bool {
+        guard let status = localStorage.loadSyncStatus() else {
+            return false
+        }
+        // 有效的同步状态需要有 lastSyncTime 和非空的 syncTag
+        return status.lastSyncTime != nil && status.syncTag != nil && !status.syncTag!.isEmpty
+    }
+    
+    // MARK: - 同步锁管理
+    
+    /// 尝试获取同步锁
+    /// 遵循需求 6.1: 同步正在进行中时阻止新的同步请求
+    /// - Returns: 是否成功获取锁
+    private func tryAcquireSyncLock() -> Bool {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        
+        if _isSyncing {
+            print("[SYNC] ⚠️ 同步锁获取失败：同步正在进行中")
+            return false
+        }
+        
+        _isSyncing = true
+        print("[SYNC] 🔒 同步锁已获取")
+        return true
+    }
+    
+    /// 释放同步锁
+    /// 遵循需求 6.2: 同步完成后更新状态
+    private func releaseSyncLock() {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        
+        _isSyncing = false
+        print("[SYNC] 🔓 同步锁已释放")
+    }
+    
+    /// 执行智能同步
+    /// 遵循需求 6.3, 6.4:
+    /// - 如果存在有效的 SyncStatus，使用增量同步
+    /// - 如果是首次登录或 SyncStatus 不存在，执行完整同步
+    /// - Returns: 同步结果
+    /// - Throws: SyncError
+    func performSmartSync() async throws -> SyncResult {
+        print("[SYNC] 🧠 开始智能同步...")
+        
+        if hasValidSyncStatus {
+            print("[SYNC] 存在有效的同步状态，执行增量同步（需求 6.3）")
+            return try await performIncrementalSync()
+        } else {
+            print("[SYNC] 不存在有效的同步状态，执行完整同步（需求 6.4）")
+            return try await performFullSync()
+        }
     }
     
     // MARK: - 完整同步
@@ -278,6 +369,11 @@ final class SyncService: @unchecked Sendable {
             // 确保保存同步状态，即使syncTag可能为空
             print("[SYNC] 完整同步：保存同步状态 - lastSyncTime: \(Date()), syncTag: \(syncStatus.syncTag ?? "nil")")
             try localStorage.saveSyncStatus(syncStatus)
+            
+            // 更新内部缓存（需求 6.2）
+            _lastSyncTime = syncStatus.lastSyncTime
+            _currentSyncTag = syncStatus.syncTag
+            
             print("[SYNC] 完整同步：同步状态已保存")
             
             syncProgress = 1.0
@@ -427,6 +523,10 @@ final class SyncService: @unchecked Sendable {
             updatedStatus.lastSyncTime = Date()
             try localStorage.saveSyncStatus(updatedStatus)
             
+            // 更新内部缓存（需求 6.2）
+            _lastSyncTime = updatedStatus.lastSyncTime
+            _currentSyncTag = updatedStatus.syncTag
+            
             // 处理只有本地存在但云端不存在的笔记和文件夹
             syncStatusMessage = "检查本地独有的笔记和文件夹..."
             try await syncLocalOnlyItems(cloudNoteIds: cloudNoteIds, cloudFolderIds: cloudFolderIds)
@@ -539,6 +639,10 @@ final class SyncService: @unchecked Sendable {
             }
             updatedStatus.lastSyncTime = Date()
             try localStorage.saveSyncStatus(updatedStatus)
+            
+            // 更新内部缓存（需求 6.2）
+            _lastSyncTime = updatedStatus.lastSyncTime
+            _currentSyncTag = updatedStatus.syncTag
             
             // 处理只有本地存在但云端不存在的笔记和文件夹
             syncStatusMessage = "检查本地独有的笔记和文件夹..."
@@ -667,6 +771,10 @@ final class SyncService: @unchecked Sendable {
             }
             updatedStatus.lastSyncTime = Date()
             try localStorage.saveSyncStatus(updatedStatus)
+            
+            // 更新内部缓存（需求 6.2）
+            _lastSyncTime = updatedStatus.lastSyncTime
+            _currentSyncTag = updatedStatus.syncTag
             
             // 注意：轻量级同步不调用 syncLocalOnlyItems，因为它只返回有修改的笔记
             // 未修改的笔记应该保持不变，删除操作通过笔记的"status"字段处理

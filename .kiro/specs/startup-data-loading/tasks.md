@@ -54,8 +54,8 @@
 - [x] 3. 检查点 - 确保所有测试通过
   - 确保所有测试通过，如有问题请询问用户
 
-- [ ] 4. 修改 AuthenticationStateManager 支持静默刷新状态
-  - [ ] 4.1 添加静默刷新状态属性
+- [x] 4. 修改 AuthenticationStateManager 支持静默刷新状态
+  - [x] 4.1 添加静默刷新状态属性
     - 添加 `@Published var isRefreshingCookie: Bool` 属性
     - 添加 `@Published var refreshStatusMessage: String` 属性
     - 实现 `attemptSilentRefreshWithStatus()` 方法
@@ -66,8 +66,8 @@
     - **Property 10: 静默刷新Cookie流程**
     - **Validates: Requirements 8.2, 8.4**
 
-- [ ] 5. 修改离线队列处理逻辑
-  - [ ] 5.1 优化 OfflineOperationProcessor 启动时处理
+- [x] 5. 修改离线队列处理逻辑
+  - [x] 5.1 优化 OfflineOperationProcessor 启动时处理
     - 确保只在网络可用且Cookie有效时处理队列
     - 确保处理失败的操作保留在队列中
     - 确保处理完成后更新本地数据库
@@ -78,8 +78,8 @@
     - **Property 5: 离线队列处理后数据一致性**
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
 
-- [ ] 6. 修改 SyncService 同步锁和状态管理
-  - [ ] 6.1 实现同步锁机制
+- [x] 6. 修改 SyncService 同步锁和状态管理
+  - [x] 6.1 实现同步锁机制
     - 添加同步进行中标志
     - 在同步进行中阻止新的同步请求
     - 同步完成后更新 lastSyncTime 和 syncTag
@@ -93,8 +93,8 @@
 - [ ] 7. 检查点 - 确保所有测试通过
   - 确保所有测试通过，如有问题请询问用户
 
-- [ ] 8. 实现错误恢复机制
-  - [ ] 8.1 实现网络错误时离线队列添加
+- [x] 8. 实现错误恢复机制
+  - [x] 8.1 实现网络错误时离线队列添加
     - 在网络请求失败时将操作添加到离线队列
     - 实现重试限制逻辑
     - 超过最大重试次数时标记为失败
@@ -105,7 +105,7 @@
     - **Property 12: 重试限制**
     - **Validates: Requirements 8.1, 8.7**
 
-  - [ ] 8.3 实现网络恢复后自动处理
+  - [x] 8.3 实现网络恢复后自动处理
     - 监听网络状态变化
     - 网络恢复时自动处理离线队列
     - _Requirements: 8.6_
@@ -114,8 +114,8 @@
     - **Property 11: 网络恢复后自动处理**
     - **Validates: Requirements 8.6**
 
-- [ ] 9. 实现数据加载状态指示
-  - [ ] 9.1 添加状态指示UI支持
+- [x] 9. 实现数据加载状态指示
+  - [x] 9.1 添加状态指示UI支持
     - 在 NotesViewModel 中添加状态指示属性
     - 添加加载指示器状态
     - 添加离线队列处理进度状态
@@ -123,8 +123,8 @@
     - 添加离线模式指示
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 10. 集成和连接
-  - [ ] 10.1 连接所有组件
+- [x] 10. 集成和连接
+  - [x] 10.1 连接所有组件
     - 在 AppDelegate 或 AppStateManager 中初始化 StartupSequenceManager
     - 连接 NotesViewModel 与 StartupSequenceManager
     - 连接 AuthenticationStateManager 的登录/刷新成功回调

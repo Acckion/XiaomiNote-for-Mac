@@ -8,6 +8,9 @@ import Combine
 /// - 智能重试机制（指数退避）
 /// - 错误分类和处理
 /// - 进度反馈
+/// - 启动时条件检查（网络可用且 Cookie 有效）
+/// 
+/// 遵循需求 3.1, 3.2, 3.3, 3.4, 3.5
 @MainActor
 public final class OfflineOperationProcessor: ObservableObject {
     public static let shared = OfflineOperationProcessor()
@@ -18,6 +21,7 @@ public final class OfflineOperationProcessor: ObservableObject {
     private let service = MiNoteService.shared
     private let localStorage = LocalStorageService.shared
     private let onlineStateManager = OnlineStateManager.shared
+    private let scheduledTaskManager = ScheduledTaskManager.shared
     
     // MARK: - Combine订阅
     
@@ -56,6 +60,20 @@ public final class OfflineOperationProcessor: ObservableObject {
     
     /// 处理状态消息
     @Published public var statusMessage: String = ""
+    
+    /// 最后一次跳过处理的原因
+    @Published public var lastSkipReason: SkipReason?
+    
+    // MARK: - 跳过原因枚举
+    
+    /// 跳过处理的原因
+    public enum SkipReason: String, Sendable {
+        case alreadyProcessing = "已在处理中"
+        case networkUnavailable = "网络不可用"
+        case cookieInvalid = "Cookie 无效"
+        case notAuthenticated = "未认证"
+        case emptyQueue = "队列为空"
+    }
     
     // MARK: - 私有状态
     
@@ -102,20 +120,131 @@ public final class OfflineOperationProcessor: ObservableObject {
     
     // MARK: - 公共方法
     
+    /// 检查是否可以处理离线队列
+    /// 
+    /// 检查条件：
+    /// 1. 网络可用
+    /// 2. 已认证（有 Cookie）
+    /// 3. Cookie 有效
+    /// 
+    /// 遵循需求 3.1, 3.2, 3.3
+    /// 
+    /// - Returns: 如果可以处理返回 (true, nil)，否则返回 (false, 跳过原因)
+    public func canProcessQueue() -> (canProcess: Bool, reason: SkipReason?) {
+        // 检查是否已在处理中
+        if isProcessing {
+            return (false, .alreadyProcessing)
+        }
+        
+        // 检查是否已认证（需求 3.3 - Cookie 过期时跳过）
+        guard service.isAuthenticated() else {
+            return (false, .notAuthenticated)
+        }
+        
+        // 检查在线状态（包含网络可用和 Cookie 有效性检查）
+        // OnlineStateManager.isOnline = 网络连接 && 已认证 && Cookie有效
+        guard onlineStateManager.isOnline else {
+            // 进一步判断具体原因
+            if !NetworkMonitor.shared.isConnected {
+                return (false, .networkUnavailable)
+            }
+            if !scheduledTaskManager.isCookieValid {
+                return (false, .cookieInvalid)
+            }
+            return (false, .networkUnavailable)
+        }
+        
+        // 检查队列是否为空
+        let pendingOperations = offlineQueue.getPendingOperations()
+        if pendingOperations.isEmpty {
+            return (false, .emptyQueue)
+        }
+        
+        return (true, nil)
+    }
+    
+    /// 启动时处理离线队列
+    /// 
+    /// 专门用于应用启动时的离线队列处理，严格检查条件：
+    /// - 只在网络可用且 Cookie 有效时处理队列（需求 3.1）
+    /// - 网络不可用时保留队列中的操作（需求 3.2）
+    /// - Cookie 过期时保留队列中的操作（需求 3.3）
+    /// - 处理完成后更新本地数据库（需求 3.4）
+    /// - 处理失败的操作保留在队列中（需求 3.5）
+    /// 
+    /// - Returns: 处理结果，包含处理的操作数量和跳过原因（如果有）
+    public func processOperationsAtStartup() async -> (processedCount: Int, skippedReason: SkipReason?) {
+        print("[OfflineProcessor] 🚀 启动时处理离线队列")
+        
+        // 检查是否可以处理
+        let (canProcess, reason) = canProcessQueue()
+        
+        if !canProcess {
+            if let reason = reason {
+                lastSkipReason = reason
+                print("[OfflineProcessor] ⏭️ 跳过处理: \(reason.rawValue)")
+                
+                // 如果是队列为空，不算跳过
+                if reason == .emptyQueue {
+                    return (0, nil)
+                }
+            }
+            return (0, reason)
+        }
+        
+        // 清除跳过原因
+        lastSkipReason = nil
+        
+        // 执行处理
+        await processOperations()
+        
+        // 返回处理结果
+        let successCount = processedCount - failedOperations.count
+        return (successCount, nil)
+    }
+    
     /// 处理所有待处理的操作
     /// 
     /// 并发处理多个操作，按优先级排序，支持智能重试
+    /// 
+    /// 遵循需求：
+    /// - 3.4: 处理完成后更新本地数据库
+    /// - 3.5: 处理失败的操作保留在队列中
     public func processOperations() async {
         guard !isProcessing else {
             print("[OfflineProcessor] 已在处理中，跳过")
+            lastSkipReason = .alreadyProcessing
             return
         }
         
-        // 确保在线且已认证
-        guard onlineStateManager.isOnline && service.isAuthenticated() else {
-            print("[OfflineProcessor] 不在线或未认证，跳过处理")
+        // 检查在线状态（包含网络和 Cookie 有效性）
+        guard onlineStateManager.isOnline else {
+            // 进一步判断具体原因
+            if !NetworkMonitor.shared.isConnected {
+                print("[OfflineProcessor] 网络不可用，跳过处理")
+                lastSkipReason = .networkUnavailable
+            } else if !scheduledTaskManager.isCookieValid {
+                print("[OfflineProcessor] Cookie 无效，跳过处理")
+                lastSkipReason = .cookieInvalid
+            } else if !service.isAuthenticated() {
+                print("[OfflineProcessor] 未认证，跳过处理")
+                lastSkipReason = .notAuthenticated
+            } else {
+                print("[OfflineProcessor] 不在线，跳过处理")
+                lastSkipReason = .networkUnavailable
+            }
             return
         }
+        
+        // 确保已认证
+        guard service.isAuthenticated() else {
+            print("[OfflineProcessor] 未认证，跳过处理")
+            lastSkipReason = .notAuthenticated
+            return
+        }
+        
+        // 清除跳过原因
+        lastSkipReason = nil
         
         isProcessing = true
         statusMessage = "开始处理离线操作..."
@@ -157,6 +286,13 @@ public final class OfflineOperationProcessor: ObservableObject {
                 await group.next()
                 activeTasks -= 1
                 
+                // 在启动新任务前检查在线状态
+                // 如果网络断开或 Cookie 失效，停止处理新任务
+                if !onlineStateManager.isOnline {
+                    print("[OfflineProcessor] ⚠️ 在线状态变化，停止处理新任务")
+                    break
+                }
+                
                 // 启动新任务
                 while activeTasks < maxConcurrentOperations && operationIndex < operations.count {
                     let operation = operations[operationIndex]
@@ -187,6 +323,17 @@ public final class OfflineOperationProcessor: ObservableObject {
         }
         
         print("[OfflineProcessor] 处理完成，成功: \(processedCount - failedOperations.count), 失败: \(failedOperations.count)")
+        
+        // 发送处理完成通知（需求 3.4 - 处理完成后更新本地数据库已在各操作中完成）
+        NotificationCenter.default.post(
+            name: .offlineQueueProcessingCompleted,
+            object: nil,
+            userInfo: [
+                "totalCount": totalCount,
+                "successCount": processedCount - failedOperations.count,
+                "failedCount": failedOperations.count
+            ]
+        )
     }
     
     /// 处理单个操作（带重试）
@@ -703,5 +850,12 @@ public final class OfflineOperationProcessor: ObservableObject {
     private func calculateRetryDelay(retryCount: Int) -> TimeInterval {
         return initialRetryDelay * pow(2.0, Double(retryCount))
     }
+}
+
+// MARK: - 通知扩展
+
+extension Notification.Name {
+    /// 离线队列处理完成通知
+    static let offlineQueueProcessingCompleted = Notification.Name("offlineQueueProcessingCompleted")
 }
 

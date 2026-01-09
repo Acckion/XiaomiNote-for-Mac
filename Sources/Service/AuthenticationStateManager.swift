@@ -31,6 +31,18 @@ class AuthenticationStateManager: ObservableObject {
     /// 是否显示Cookie刷新视图
     @Published var showCookieRefreshView: Bool = false
     
+    // MARK: - 静默刷新状态属性
+    
+    /// 是否正在刷新Cookie
+    /// 
+    /// 当静默刷新正在进行时为 true，用于 UI 显示刷新状态指示
+    @Published var isRefreshingCookie: Bool = false
+    
+    /// 刷新状态消息
+    /// 
+    /// 显示当前刷新操作的状态信息，如"正在刷新登录状态..."
+    @Published var refreshStatusMessage: String = ""
+    
     // MARK: - 失败计数和防重入机制
     
     /// 连续刷新失败次数计数器
@@ -248,6 +260,89 @@ class AuthenticationStateManager: ObservableObject {
     func handleCookieExpiredSilently() async {
         print("[AuthenticationStateManager] 静默处理Cookie失效")
         await attemptSilentRefresh()
+    }
+    
+    /// 尝试静默刷新Cookie（带状态更新）
+    /// 
+    /// 增强版本：在刷新过程中更新状态属性，显示"正在刷新登录状态"提示
+    /// 成功后自动恢复在线状态并继续之前的操作
+    /// 
+    /// - Returns: 刷新是否成功
+    func attemptSilentRefreshWithStatus() async -> Bool {
+        // 防重入检查
+        guard !isInRefreshCycle else {
+            print("[AuthenticationStateManager] ⚠️ 已在刷新周期中，跳过重复请求")
+            return false
+        }
+        
+        // 检查是否已达到最大失败次数
+        guard consecutiveFailures < maxConsecutiveFailures else {
+            print("[AuthenticationStateManager] ⚠️ 已达到最大失败次数 (\(maxConsecutiveFailures))，不再自动刷新")
+            showCookieExpiredAlert = true
+            return false
+        }
+        
+        isInRefreshCycle = true
+        
+        // 更新刷新状态
+        isRefreshingCookie = true
+        refreshStatusMessage = "正在刷新登录状态..."
+        
+        print("[AuthenticationStateManager] 🚀 开始静默刷新Cookie流程（带状态更新）")
+        print("[AuthenticationStateManager] 📊 当前状态: isOnline=\(isOnline), isCookieExpired=\(isCookieExpired), consecutiveFailures=\(consecutiveFailures)")
+        
+        // 暂停定时检查任务，避免刷新期间触发检查
+        ScheduledTaskManager.shared.pauseTask("cookie_validity_check")
+        
+        defer {
+            isInRefreshCycle = false
+            isRefreshingCookie = false
+            refreshStatusMessage = ""
+            // 恢复定时检查任务（带 30 秒宽限期）
+            ScheduledTaskManager.shared.resumeTask("cookie_validity_check", gracePeriod: 30.0)
+        }
+        
+        do {
+            refreshStatusMessage = "正在连接服务器..."
+            print("[AuthenticationStateManager] 📡 调用MiNoteService.refreshCookie()...")
+            
+            // 尝试刷新Cookie
+            let refreshSuccess = try await MiNoteService.shared.refreshCookie()
+            print("[AuthenticationStateManager] 📡 refreshCookie()返回: \(refreshSuccess)")
+            
+            if refreshSuccess {
+                refreshStatusMessage = "正在验证Cookie有效性..."
+                print("[AuthenticationStateManager] ✅ 静默刷新成功，开始验证Cookie有效性...")
+                
+                // 关键修复：同步等待验证完成
+                let isValid = try await MiNoteService.shared.checkCookieValidity()
+                print("[AuthenticationStateManager] 📡 checkCookieValidity()返回: \(isValid)")
+                
+                if isValid {
+                    // Cookie 确实有效，恢复在线状态
+                    consecutiveFailures = 0
+                    refreshStatusMessage = "登录状态已恢复"
+                    restoreOnlineStatusAfterValidation(isValid: true)
+                    print("[AuthenticationStateManager] ✅ Cookie 刷新并验证成功")
+                    return true
+                } else {
+                    // 刷新成功但验证失败
+                    refreshStatusMessage = "验证失败，请手动刷新"
+                    handleRefreshSuccessButValidationFailed()
+                    return false
+                }
+            } else {
+                // 刷新返回 false
+                refreshStatusMessage = "刷新失败，请手动刷新"
+                handleRefreshFailure()
+                return false
+            }
+        } catch {
+            print("[AuthenticationStateManager] ❌ 静默刷新失败: \(error)")
+            refreshStatusMessage = "刷新失败: \(error.localizedDescription)"
+            handleRefreshFailure()
+            return false
+        }
     }
     
     // MARK: - 刷新失败处理

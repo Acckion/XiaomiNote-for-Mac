@@ -298,6 +298,7 @@ final class StartupSequenceManager: ObservableObject {
     /// 处理离线队列
     ///
     /// 只在网络可用且 Cookie 有效时处理队列（需求 3.1, 3.2, 3.3）
+    /// 使用 OfflineOperationProcessor 的启动时专用方法
     private func processOfflineQueue() async throws {
         print("[StartupSequenceManager] 检查离线队列...")
         
@@ -311,25 +312,44 @@ final class StartupSequenceManager: ObservableObject {
         
         print("[StartupSequenceManager] 发现 \(pendingOperations.count) 个待处理操作")
         
-        // 检查网络和 Cookie 状态（需求 3.1, 3.2, 3.3）
-        guard onlineStateManager.isOnline else {
-            print("[StartupSequenceManager] 网络不可用或 Cookie 无效，保留队列中的操作")
+        // 使用 OfflineOperationProcessor 的启动时专用方法
+        // 该方法会严格检查网络和 Cookie 状态（需求 3.1, 3.2, 3.3）
+        let (processedCount, skippedReason) = await offlineProcessor.processOperationsAtStartup()
+        
+        if let reason = skippedReason {
+            print("[StartupSequenceManager] 离线队列处理被跳过: \(reason.rawValue)")
+            // 根据跳过原因决定是否记录错误
+            switch reason {
+            case .networkUnavailable:
+                print("[StartupSequenceManager] 网络不可用，保留队列中的操作（需求 3.2）")
+            case .cookieInvalid:
+                print("[StartupSequenceManager] Cookie 无效，保留队列中的操作（需求 3.3）")
+            case .notAuthenticated:
+                print("[StartupSequenceManager] 未认证，保留队列中的操作")
+            case .alreadyProcessing:
+                print("[StartupSequenceManager] 已在处理中，跳过")
+            case .emptyQueue:
+                print("[StartupSequenceManager] 队列为空")
+            }
             return
         }
         
-        // 处理离线队列
-        await offlineProcessor.processOperations()
-        
         // 更新处理数量
-        let remainingOperations = offlineQueue.getPendingOperations()
-        startupState.processedOfflineOperationsCount = pendingOperations.count - remainingOperations.count
+        startupState.processedOfflineOperationsCount = processedCount
         
-        print("[StartupSequenceManager] 处理了 \(startupState.processedOfflineOperationsCount) 个离线操作")
+        print("[StartupSequenceManager] 处理了 \(processedCount) 个离线操作")
+        
+        // 检查是否有失败的操作（需求 3.5 - 失败操作保留在队列中）
+        let remainingOperations = offlineQueue.getPendingOperations()
+        if !remainingOperations.isEmpty {
+            print("[StartupSequenceManager] 还有 \(remainingOperations.count) 个操作待处理（失败或未处理）")
+        }
     }
     
     /// 执行同步
     ///
     /// 只在网络可用且 Cookie 有效时执行同步（需求 4.1, 4.2, 4.3）
+    /// 根据 SyncStatus 决定使用增量同步还是完整同步（需求 6.3, 6.4）
     private func performSync() async throws {
         print("[StartupSequenceManager] 检查同步条件...")
         
@@ -345,9 +365,11 @@ final class StartupSequenceManager: ObservableObject {
             return
         }
         
-        // 执行完整同步（需求 4.1）
-        print("[StartupSequenceManager] 开始执行完整同步...")
-        let result = try await syncService.performFullSync()
+        // 使用智能同步（需求 6.3, 6.4）
+        // - 如果存在有效的 SyncStatus，使用增量同步
+        // - 如果是首次登录或 SyncStatus 不存在，执行完整同步
+        print("[StartupSequenceManager] 开始执行智能同步...")
+        let result = try await syncService.performSmartSync()
         
         startupState.syncedNotesCount = result.syncedNotes
         print("[StartupSequenceManager] 同步完成，同步了 \(result.syncedNotes) 条笔记")
@@ -356,7 +378,7 @@ final class StartupSequenceManager: ObservableObject {
 
 // MARK: - 通知扩展
 
-extension Notification.Name {
+public extension Notification.Name {
     /// 启动序列完成通知
     static let startupSequenceCompleted = Notification.Name("startupSequenceCompleted")
 }
