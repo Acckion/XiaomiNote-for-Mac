@@ -97,36 +97,41 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
     }
     
     // 自定义 Equatable 实现
+    // **Requirements: 1.1, 1.2** - 编辑笔记内容时保持选中状态不变
+    // 只比较 id，这样当笔记内容更新时，SwiftUI 的 List selection 不会因为
+    // updatedAt 等字段的变化而认为是不同的笔记，从而保持选择状态
     public static func == (lhs: Note, rhs: Note) -> Bool {
-        // 比较基本字段
-        guard lhs.id == rhs.id &&
-              lhs.title == rhs.title &&
-              lhs.content == rhs.content &&
-              lhs.folderId == rhs.folderId &&
-              lhs.isStarred == rhs.isStarred &&
-              lhs.createdAt == rhs.createdAt &&
-              lhs.updatedAt == rhs.updatedAt &&
-              lhs.tags == rhs.tags else {
-            return false
-        }
-        
-        // 比较 rawData，特别关注图片信息
-        return compareRawData(lhs.rawData, rhs.rawData)
+        // 只比较 id，确保选择状态在内容更新时保持不变
+        return lhs.id == rhs.id
     }
     
     // Hashable 实现
+    // **Requirements: 1.1, 1.2** - 与 Equatable 保持一致，只使用 id
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
-        hasher.combine(title)
-        hasher.combine(content)
-        hasher.combine(folderId)
-        hasher.combine(isStarred)
-        hasher.combine(createdAt)
-        hasher.combine(updatedAt)
-        hasher.combine(tags)
+    }
+    
+    /// 比较两个笔记的内容是否完全相同（包括所有字段）
+    /// 
+    /// 此方法用于需要完整比较的场景，如检测笔记是否有未保存的更改。
+    /// 与 `==` 运算符不同，此方法比较所有字段而不仅仅是 id。
+    /// 
+    /// - Parameter other: 要比较的另一个笔记
+    /// - Returns: 如果所有字段都相同则返回 true
+    public func contentEquals(_ other: Note) -> Bool {
+        guard self.id == other.id &&
+              self.title == other.title &&
+              self.content == other.content &&
+              self.folderId == other.folderId &&
+              self.isStarred == other.isStarred &&
+              self.createdAt == other.createdAt &&
+              self.updatedAt == other.updatedAt &&
+              self.tags == other.tags else {
+            return false
+        }
         
-        // 使用专门的 rawData 哈希方法
-        hashRawData(into: &hasher)
+        // 比较 rawData
+        return Note.compareRawData(self.rawData, other.rawData)
     }
     
     /// 比较两个 rawData 字典是否相等，特别关注图片信息

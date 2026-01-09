@@ -975,10 +975,26 @@ struct NoteDetailView: View {
                         self.lastSavedXMLContent = xmlContent
                         self.currentXMLContent = xmlContent
                         
-                        // 更新视图模型，但不更新selectedNote（避免闪烁）
+                        // 更新视图模型中的笔记
+                        // **Requirements: 1.1, 1.2** - 编辑笔记内容时保持选中状态不变
+                        // 由于 Note 的 Equatable 现在只比较 id，所以更新 notes 数组不会影响选择状态
+                        let oldSelectedNoteId = self.viewModel.selectedNote?.id
+                        Swift.print("[保存流程] 🔄 更新 notes 数组 - 笔记ID: \(noteId.prefix(8))..., 当前选中: \(oldSelectedNoteId?.prefix(8) ?? "nil")")
+                        
                         if let index = self.viewModel.notes.firstIndex(where: { $0.id == noteId }) {
                             self.viewModel.notes[index] = updated
+                            Swift.print("[保存流程] ✅ notes[\(index)] 已更新")
                         }
+                        
+                        // 同步更新 selectedNote（如果当前选中的是这个笔记）
+                        // 这确保 selectedNote 的内容与 notes 数组中的笔记保持一致
+                        if self.viewModel.selectedNote?.id == noteId {
+                            self.viewModel.selectedNote = updated
+                            Swift.print("[保存流程] ✅ selectedNote 已同步更新")
+                        }
+                        
+                        let newSelectedNoteId = self.viewModel.selectedNote?.id
+                        Swift.print("[保存流程] 📊 更新后选中状态: \(newSelectedNoteId?.prefix(8) ?? "nil")")
                         
                         // 更新内存缓存
                         await MemoryCacheManager.shared.cacheNote(updated)

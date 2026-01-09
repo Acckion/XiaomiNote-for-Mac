@@ -174,11 +174,19 @@ struct NotesListView: View {
         // - 1.1: 编辑笔记内容时保持选中状态不变
         // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
         .onChange(of: viewModel.selectedNote) { oldValue, newValue in
+            // 添加日志追踪选择状态变化
+            let oldId = oldValue?.id.prefix(8) ?? "nil"
+            let newId = newValue?.id.prefix(8) ?? "nil"
+            Swift.print("[NotesListView] 📊 selectedNote 变化: \(oldId) -> \(newId)")
+            
             // 只有当选择真正变化时才通知 coordinator
             if oldValue?.id != newValue?.id {
+                Swift.print("[NotesListView] 🔄 选择 ID 变化，通知 coordinator")
                 Task {
                     await viewModel.stateCoordinator.selectNote(newValue)
                 }
+            } else {
+                Swift.print("[NotesListView] ⏭️ 选择 ID 未变化，跳过 coordinator 通知")
             }
         }
     }
