@@ -239,8 +239,13 @@ class XiaoMiFormatConverter {
                 // 检查是否是复选框附件
                 if let checkboxAttachment = attachment as? InteractiveCheckboxAttachment {
                     isCheckboxLine = true
-                    checkboxXML = "<input type=\"checkbox\" indent=\"\(checkboxAttachment.indent)\" level=\"\(checkboxAttachment.level)\" />"
-                    print("[XiaoMiFormatConverter] ☑️ 导出复选框: indent=\(checkboxAttachment.indent), level=\(checkboxAttachment.level)")
+                    // 导出 checked 属性（仅当选中时添加）
+                    if checkboxAttachment.isChecked {
+                        checkboxXML = "<input type=\"checkbox\" indent=\"\(checkboxAttachment.indent)\" level=\"\(checkboxAttachment.level)\" checked=\"true\" />"
+                    } else {
+                        checkboxXML = "<input type=\"checkbox\" indent=\"\(checkboxAttachment.indent)\" level=\"\(checkboxAttachment.level)\" />"
+                    }
+                    print("[XiaoMiFormatConverter] ☑️ 导出复选框: indent=\(checkboxAttachment.indent), level=\(checkboxAttachment.level), checked=\(checkboxAttachment.isChecked)")
                     return
                 }
                 
@@ -653,22 +658,29 @@ class XiaoMiFormatConverter {
     /// 1. 正确显示可交互的复选框图标
     /// 2. 支持点击切换选中状态
     /// 3. 正确导出为小米笔记 XML 格式
+    /// 4. 正确解析和保存 checked 属性（勾选状态）
     private func processCheckboxElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
         // 1. 提取属性
         let indent = Int(extractAttribute("indent", from: line) ?? "1") ?? 1
         let level = Int(extractAttribute("level", from: line) ?? "3") ?? 3
         
-        // 2. 提取复选框后的文本内容
+        // 2. 提取 checked 属性（勾选状态）
+        // 小米笔记 XML 格式：<input type="checkbox" indent="1" level="3" checked="true" />
+        let checkedStr = extractAttribute("checked", from: line)
+        let isChecked = checkedStr?.lowercased() == "true"
+        
+        // 3. 提取复选框后的文本内容
         let content = extractContentAfterElement(from: line, elementName: "input")
         
         print("[XiaoMiFormatConverter] ☑️ 解析复选框:")
         print("[XiaoMiFormatConverter]   - indent: \(indent)")
         print("[XiaoMiFormatConverter]   - level: \(level)")
+        print("[XiaoMiFormatConverter]   - checked: \(isChecked)")
         print("[XiaoMiFormatConverter]   - content: '\(content)'")
         
-        // 3. 创建复选框附件
+        // 4. 创建复选框附件（传入勾选状态）
         let checkboxAttachment = CustomRenderer.shared.createCheckboxAttachment(
-            checked: false,  // XML 中不保存选中状态，默认未选中
+            checked: isChecked,
             level: level,
             indent: indent
         )
