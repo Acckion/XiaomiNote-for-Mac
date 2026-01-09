@@ -1,6 +1,110 @@
 import SwiftUI
 import AppKit
 
+// MARK: - NoteDisplayProperties
+
+/// 笔记显示属性（用于 Equatable 比较）
+/// 
+/// 只包含影响 NoteRow 显示的属性，用于优化视图重建逻辑。
+/// 当非显示属性（如 rawData 中的某些字段）变化时，不会触发 NoteRow 重建。
+/// 
+/// **包含的显示属性**：
+/// - id: 笔记唯一标识符
+/// - title: 笔记标题
+/// - content: 笔记内容（用于预览文本提取）
+/// - updatedAt: 更新时间（用于显示日期和排序）
+/// - isStarred: 置顶状态
+/// - folderId: 文件夹ID（用于显示文件夹名称）
+/// - isLocked: 锁定状态（用于显示锁图标）
+/// - imageInfoHash: 图片信息哈希（用于显示缩略图）
+/// 
+/// **不包含的非显示属性**：
+/// - createdAt: 创建时间（不在列表中显示）
+/// - tags: 标签（不在列表行中显示）
+/// - rawData 中的其他字段（如 extraInfo、setting 中的非图片数据等）
+/// 
+/// _Requirements: 5.3, 5.4_
+struct NoteDisplayProperties: Equatable, Hashable {
+    let id: String
+    let title: String
+    let contentPreview: String  // 预览文本，而非完整内容
+    let updatedAt: Date
+    let isStarred: Bool
+    let folderId: String
+    let isLocked: Bool
+    let imageInfoHash: String
+    
+    /// 从 Note 对象创建显示属性
+    /// - Parameter note: 笔记对象
+    init(from note: Note) {
+        self.id = note.id
+        self.title = note.title
+        self.contentPreview = NoteDisplayProperties.extractPreviewText(from: note.content)
+        self.updatedAt = note.updatedAt
+        self.isStarred = note.isStarred
+        self.folderId = note.folderId
+        self.isLocked = note.rawData?["isLocked"] as? Bool ?? false
+        self.imageInfoHash = NoteDisplayProperties.getImageInfoHash(from: note)
+    }
+    
+    /// 从 XML 内容中提取预览文本
+    /// - Parameter xmlContent: XML 格式的笔记内容
+    /// - Returns: 纯文本预览（最多50个字符）
+    private static func extractPreviewText(from xmlContent: String) -> String {
+        guard !xmlContent.isEmpty else {
+            return ""
+        }
+        
+        // 移除 XML 标签，提取纯文本
+        var text = xmlContent
+            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&apos;", with: "'")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 限制长度
+        let maxLength = 50
+        if text.count > maxLength {
+            text = String(text.prefix(maxLength)) + "..."
+        }
+        
+        return text
+    }
+    
+    /// 获取图片信息的哈希值
+    /// - Parameter note: 笔记对象
+    /// - Returns: 图片信息哈希字符串
+    private static func getImageInfoHash(from note: Note) -> String {
+        guard let rawData = note.rawData,
+              let setting = rawData["setting"] as? [String: Any],
+              let settingData = setting["data"] as? [[String: Any]] else {
+            return "no_images"
+        }
+        
+        // 提取所有图片信息并生成哈希
+        var imageInfos: [String] = []
+        for imgData in settingData {
+            if let fileId = imgData["fileId"] as? String,
+               let mimeType = imgData["mimeType"] as? String,
+               mimeType.hasPrefix("image/") {
+                imageInfos.append("\(fileId):\(mimeType)")
+            }
+        }
+        
+        if imageInfos.isEmpty {
+            return "no_images"
+        }
+        
+        // 排序以确保一致的哈希
+        return imageInfos.sorted().joined(separator: "|")
+    }
+}
+
+// MARK: - NotesListView
+
 struct NotesListView: View {
     @ObservedObject var viewModel: NotesViewModel
     @State private var showingDeleteAlert = false
@@ -382,6 +486,13 @@ struct NoteRow: View {
     @State private var thumbnailImage: NSImage? = nil
     @State private var currentImageFileId: String? = nil // 跟踪当前显示的图片ID
     
+    /// 用于比较的显示属性
+    /// 只有当这些属性变化时，才会触发视图重建
+    /// _Requirements: 5.3, 5.4_
+    private var displayProperties: NoteDisplayProperties {
+        NoteDisplayProperties(from: note)
+    }
+    
     init(note: Note, showDivider: Bool = false, viewModel: NotesViewModel) {
         self.note = note
         self.showDivider = showDivider
@@ -593,9 +704,10 @@ struct NoteRow: View {
             print("[NoteRow] onChange(noteImageHash): 图片信息哈希值变化 (\(oldValue) -> \(newValue))，更新缩略图")
             updateThumbnail()
         }
-        // 使用更稳定的标识符：笔记ID + 搜索文本（只在搜索文本变化时重建）
-        // 移除更新时间，避免每次保存都导致视图重建
-        .id("\(note.id)_\(viewModel.searchText)")
+        // 使用 displayProperties 的哈希值作为视图标识符
+        // 只有当显示属性变化时才触发重建，非显示属性（如 rawData 中的某些字段）变化不会触发重建
+        // _Requirements: 5.2, 5.4_
+        .id(displayProperties)
         // #region agent log
         .onAppear {
             let logPath = "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.cursor/debug.log"
