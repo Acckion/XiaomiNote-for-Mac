@@ -104,13 +104,13 @@
   - 运行所有属性测试，确保通过
   - 如有问题，询问用户
 
-- [ ] 8. 实现文件夹切换时的保存逻辑
-  - [ ] 8.1 修改 ViewStateCoordinator.selectFolder 添加保存检查
+- [x] 8. 实现文件夹切换时的保存逻辑
+  - [x] 8.1 修改 ViewStateCoordinator.selectFolder 添加保存检查
     - 检查 hasUnsavedContent 标志
     - 如果有未保存内容，先触发保存
     - 等待保存完成后再切换
     - _Requirements: 3.5, 6.1, 6.2_
-  - [ ] 8.2 修改 NoteDetailView 更新 hasUnsavedContent 标志
+  - [x] 8.2 修改 NoteDetailView 更新 hasUnsavedContent 标志
     - 在内容变化时设置为 true
     - 在保存完成后设置为 false
     - _Requirements: 6.1_

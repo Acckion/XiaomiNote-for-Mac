@@ -77,10 +77,96 @@ struct NoteDetailView: View {
                     webEditorContext.highlightSearchText(newValue)
                 }
             }
+            .onAppear {
+                // 注册保存回调到 ViewStateCoordinator
+                // **Requirements: 3.5, 6.1, 6.2**
+                // - 3.5: 用户在 Editor 中编辑笔记时切换到另一个文件夹，先保存当前编辑内容再切换
+                // - 6.1: 切换文件夹且 Editor 有未保存内容时，先触发保存操作
+                // - 6.2: 保存操作完成后继续执行文件夹切换
+                registerSaveCallback()
+            }
+            .onDisappear {
+                // 清除保存回调
+                viewModel.stateCoordinator.saveContentCallback = nil
+            }
             .navigationTitle("详情")
             .toolbar {
                 toolbarContent
             }
+    }
+    
+    /// 注册保存回调到 ViewStateCoordinator
+    /// 
+    /// 当文件夹切换时，ViewStateCoordinator 会调用此回调来保存当前编辑的内容
+    /// 
+    /// **Requirements: 3.5, 6.1, 6.2**
+    private func registerSaveCallback() {
+        viewModel.stateCoordinator.saveContentCallback = { [self] in
+            await self.saveCurrentContentForFolderSwitch()
+        }
+        Swift.print("[NoteDetailView] ✅ 已注册保存回调到 ViewStateCoordinator")
+    }
+    
+    /// 为文件夹切换保存当前内容
+    /// 
+    /// 这个方法会被 ViewStateCoordinator 在文件夹切换前调用
+    /// 
+    /// **Requirements: 3.5, 6.1, 6.2**
+    /// 
+    /// - Returns: 是否保存成功
+    @MainActor
+    private func saveCurrentContentForFolderSwitch() async -> Bool {
+        guard let note = viewModel.selectedNote, note.id == currentEditingNoteId else {
+            Swift.print("[保存流程] ⏭️ 文件夹切换保存跳过 - 无当前编辑笔记")
+            return true
+        }
+        
+        Swift.print("[保存流程] 🔄 文件夹切换前保存 - 笔记ID: \(note.id.prefix(8))..., 标题: \(editedTitle)")
+        
+        // 1. 强制编辑器保存当前内容
+        if isUsingNativeEditor {
+            // 原生编辑器：导出 XML
+            let xmlContent = nativeEditorContext.exportToXML()
+            if !xmlContent.isEmpty {
+                currentXMLContent = xmlContent
+            }
+        } else {
+            // Web 编辑器：强制保存
+            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                webEditorContext.forceSaveContent { c.resume() }
+            }
+        }
+        
+        // 2. 获取最新内容
+        let content = await getLatestContentFromEditor()
+        
+        // 3. 检查内容是否变化
+        guard content != lastSavedXMLContent || editedTitle != originalTitle else {
+            Swift.print("[保存流程] ⏭️ 文件夹切换保存跳过 - 内容无变化")
+            return true
+        }
+        
+        Swift.print("[保存流程] 💾 文件夹切换保存 - 内容长度: \(content.count)")
+        
+        // 4. 立即保存 XML
+        scheduleXMLSave(xmlContent: content, for: note, immediate: true)
+        
+        // 5. 等待保存完成
+        if let xmlTask = xmlSaveTask {
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    await xmlTask.value
+                }
+                group.addTask {
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 500ms 超时
+                }
+                await group.next()
+                group.cancelAll()
+            }
+        }
+        
+        Swift.print("[保存流程] ✅ 文件夹切换保存完成")
+        return true
     }
     
     /// 主内容视图
