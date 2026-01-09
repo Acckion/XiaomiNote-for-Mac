@@ -95,6 +95,10 @@ public class NotesViewModel: ObservableObject {
     /// Web编辑器上下文（共享实例）
     @Published var webEditorContext = WebEditorContext()
     
+    /// 原生编辑器上下文（共享实例）
+    /// 需求: 1.1, 1.3 - 在 MainWindowController 和 NoteDetailView 之间共享
+    @Published var nativeEditorContext = NativeEditorContext()
+    
     // MARK: - 设置
     
     /// 同步间隔（秒），默认5分钟

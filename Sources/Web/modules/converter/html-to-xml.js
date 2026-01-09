@@ -252,9 +252,10 @@ class HTMLToXMLConverter {
             this.orderListState.lastIndent = null;
             this.orderListState.lastNumber = null;
 
-            // 注意：XML 格式中没有 checked 属性，所以不保存选中状态
-            // 即使内容为空也返回，保持格式
-            return `<input type="checkbox" indent="${indent}" level="${level}" />${content}`;
+            // 导出 checked 属性（仅当选中时添加）
+            // 小米笔记 XML 格式：<input type="checkbox" indent="1" level="3" checked="true" />
+            const checkedAttr = checked ? ' checked="true"' : '';
+            return `<input type="checkbox" indent="${indent}" level="${level}"${checkedAttr} />${content}`;
         }
 
         // 处理水平分割线

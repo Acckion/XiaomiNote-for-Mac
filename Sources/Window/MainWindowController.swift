@@ -1224,19 +1224,147 @@ extension MainWindowController {
     
     // MARK: - 新增工具栏按钮动作方法
     
+    /// 切换待办（插入复选框）
+    /// 需求: 3.1, 3.2, 3.4 - 根据编辑器类型调用对应的 insertCheckbox 方法
     @objc func toggleCheckbox(_ sender: Any?) {
-        print("切换待办")
-        // 这里应该调用编辑器API
+        print("[MainWindowController] 切换待办")
+        
+        // 需求 3.4: 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法插入待办")
+            return
+        }
+        
+        // 需求 3.1, 3.2: 根据编辑器类型调用对应的方法
+        if isUsingNativeEditor {
+            // 需求 3.1: 原生编辑器模式
+            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertCheckbox()")
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.insertCheckbox()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            // 需求 3.2: Web 编辑器模式
+            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertCheckbox()")
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.insertCheckbox()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
     }
     
+    /// 插入分割线
+    /// 需求: 4.1, 4.2, 4.4 - 根据编辑器类型调用对应的 insertHorizontalRule 方法
     @objc func insertHorizontalRule(_ sender: Any?) {
-        print("插入分割线")
-        // 这里应该调用编辑器API
+        print("[MainWindowController] 插入分割线")
+        
+        // 需求 4.4: 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法插入分割线")
+            return
+        }
+        
+        // 需求 4.1, 4.2: 根据编辑器类型调用对应的方法
+        if isUsingNativeEditor {
+            // 需求 4.1: 原生编辑器模式
+            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertHorizontalRule()")
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.insertHorizontalRule()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            // 需求 4.2: Web 编辑器模式
+            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertHorizontalRule()")
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.insertHorizontalRule()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
     }
     
+    /// 插入附件（图片）
+    /// 需求: 5.1, 5.2, 5.3, 5.5 - 显示文件选择对话框，根据编辑器类型调用对应的 insertImage 方法
     @objc func insertAttachment(_ sender: Any?) {
-        print("插入附件")
-        // 这里应该调用编辑器API
+        print("[MainWindowController] 插入附件")
+        
+        // 需求 5.5: 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法插入附件")
+            return
+        }
+        
+        // 需求 5.1: 显示文件选择对话框
+        let openPanel = NSOpenPanel()
+        openPanel.allowedContentTypes = [.image, .png, .jpeg, .gif]
+        openPanel.allowsMultipleSelection = false
+        openPanel.canChooseDirectories = false
+        openPanel.canChooseFiles = true
+        openPanel.message = "选择要插入的图片"
+        openPanel.prompt = "插入"
+        
+        openPanel.begin { [weak self] response in
+            guard let self = self else { return }
+            
+            if response == .OK, let url = openPanel.url {
+                // 需求 5.2, 5.3: 上传图片并插入到编辑器
+                Task { @MainActor in
+                    await self.insertImage(from: url)
+                }
+            }
+        }
+    }
+    
+    /// 从 URL 插入图片
+    /// 需求: 5.2, 5.3 - 上传图片并根据编辑器类型插入
+    @MainActor
+    private func insertImage(from url: URL) async {
+        guard let viewModel = viewModel else {
+            print("[MainWindowController] 错误：viewModel 不存在")
+            return
+        }
+        
+        guard viewModel.selectedNote != nil else {
+            print("[MainWindowController] 错误：没有选中笔记")
+            return
+        }
+        
+        do {
+            // 上传图片并获取 fileId
+            let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
+            print("[MainWindowController] 图片上传成功: fileId=\(fileId)")
+            
+            // 需求 5.2, 5.3: 根据编辑器类型调用对应的 insertImage 方法
+            if isUsingNativeEditor {
+                // 原生编辑器模式
+                print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertImage()")
+                if let nativeContext = getCurrentNativeEditorContext() {
+                    nativeContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
+                } else {
+                    print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                }
+            } else {
+                // Web 编辑器模式
+                print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertImage()")
+                if let webContext = getCurrentWebEditorContext() {
+                    webContext.insertImage("minote://image/\(fileId)", altText: url.lastPathComponent)
+                } else {
+                    print("[MainWindowController] 错误：无法获取 WebEditorContext")
+                }
+            }
+        } catch {
+            print("[MainWindowController] 插入图片失败: \(error.localizedDescription)")
+            // 显示错误提示
+            let alert = NSAlert()
+            alert.messageText = "插入图片失败"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+        }
     }
     
     @objc public func showHistory(_ sender: Any?) {
@@ -1707,6 +1835,7 @@ extension MainWindowController {
     @objc func showFormatMenu(_ sender: Any?) {
         // 显示格式菜单popover
         print("显示格式菜单")
+        print("  - isUsingNativeEditor: \(isUsingNativeEditor)")
         
         // 如果popover已经显示，则关闭它
         if let popover = formatMenuPopover, popover.isShown {
@@ -1715,26 +1844,56 @@ extension MainWindowController {
             return
         }
         
-        // 获取当前的WebEditorContext
-        guard let webEditorContext = getCurrentWebEditorContext() else {
-            print("无法获取WebEditorContext")
-            return
+        // 根据编辑器类型创建对应的格式菜单视图
+        // 需求: 2.1, 2.2 - 根据编辑器类型创建 NativeFormatMenuView 或 WebFormatMenuView
+        let hostingController: NSViewController
+        let contentSize: NSSize
+        
+        if isUsingNativeEditor {
+            // 使用原生编辑器时，显示 NativeFormatMenuView
+            guard let nativeEditorContext = getCurrentNativeEditorContext() else {
+                print("无法获取 NativeEditorContext")
+                return
+            }
+            
+            print("  - 使用原生编辑器格式菜单")
+            
+            // 请求内容同步并更新格式状态
+            nativeEditorContext.requestContentSync()
+            
+            let formatMenuView = NativeFormatMenuView(context: nativeEditorContext) { [weak self] _ in
+                // 格式操作完成后关闭popover
+                self?.formatMenuPopover?.performClose(nil)
+                self?.formatMenuPopover = nil
+            }
+            
+            hostingController = NSHostingController(rootView: AnyView(formatMenuView))
+            contentSize = NSSize(width: 280, height: 450)
+        } else {
+            // 使用 Web 编辑器时，显示 WebFormatMenuView
+            guard let webEditorContext = getCurrentWebEditorContext() else {
+                print("无法获取 WebEditorContext")
+                return
+            }
+            
+            print("  - 使用 Web 编辑器格式菜单")
+            
+            let formatMenuView = WebFormatMenuView(context: webEditorContext) { [weak self] _ in
+                // 格式操作完成后关闭popover
+                self?.formatMenuPopover?.performClose(nil)
+                self?.formatMenuPopover = nil
+            }
+            
+            hostingController = NSHostingController(rootView: AnyView(formatMenuView))
+            contentSize = NSSize(width: 200, height: 400)
         }
         
-        // 创建SwiftUI格式菜单视图
-        let formatMenuView = WebFormatMenuView(context: webEditorContext) { [weak self] _ in
-            // 格式操作完成后关闭popover
-            self?.formatMenuPopover?.performClose(nil)
-            self?.formatMenuPopover = nil
-        }
-        
-        // 创建托管控制器
-        let hostingController = NSHostingController(rootView: formatMenuView)
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 200, height: 400)
+        // 设置托管控制器的视图大小
+        hostingController.view.frame = NSRect(origin: .zero, size: contentSize)
         
         // 创建popover
         let popover = NSPopover()
-        popover.contentSize = NSSize(width: 200, height: 400)
+        popover.contentSize = contentSize
         popover.behavior = .transient
         popover.animates = true
         popover.contentViewController = hostingController
@@ -1755,6 +1914,21 @@ extension MainWindowController {
     private func getCurrentWebEditorContext() -> WebEditorContext? {
         // 直接从viewModel获取共享的WebEditorContext
         return viewModel?.webEditorContext
+    }
+    
+    // MARK: - 编辑器类型检测和路由
+    
+    /// 是否正在使用原生编辑器
+    /// 需求: 7.1 - 通过 EditorPreferencesService.shared.selectedEditorType 判断
+    var isUsingNativeEditor: Bool {
+        return EditorPreferencesService.shared.selectedEditorType == .native
+    }
+    
+    /// 获取当前的 NativeEditorContext
+    /// 需求: 1.3, 7.2 - 从 viewModel 获取 nativeEditorContext
+    /// - Returns: 当前的 NativeEditorContext，如果 viewModel 不存在则返回 nil
+    func getCurrentNativeEditorContext() -> NativeEditorContext? {
+        return viewModel?.nativeEditorContext
     }
     
     // MARK: - 编辑菜单动作
@@ -1810,15 +1984,61 @@ extension MainWindowController {
     }
     
     @objc public func increaseIndent(_ sender: Any?) {
-        print("增加缩进")
-        // 这里应该调用编辑器API
-        // 暂时使用控制台输出
+        print("[MainWindowController] 增加缩进")
+        
+        // 需求 6.5: 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法增加缩进")
+            return
+        }
+        
+        // 需求 6.1, 6.3: 根据编辑器类型调用对应的方法
+        if isUsingNativeEditor {
+            // 需求 6.1: 原生编辑器模式
+            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.increaseIndent()")
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.increaseIndent()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            // 需求 6.3: Web 编辑器模式
+            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.increaseIndent()")
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.increaseIndent()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
     }
     
     @objc public func decreaseIndent(_ sender: Any?) {
-        print("减少缩进")
-        // 这里应该调用编辑器API
-        // 暂时使用控制台输出
+        print("[MainWindowController] 减少缩进")
+        
+        // 需求 6.5: 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法减少缩进")
+            return
+        }
+        
+        // 需求 6.2, 6.4: 根据编辑器类型调用对应的方法
+        if isUsingNativeEditor {
+            // 需求 6.2: 原生编辑器模式
+            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.decreaseIndent()")
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.decreaseIndent()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            // 需求 6.4: Web 编辑器模式
+            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.decreaseIndent()")
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.decreaseIndent()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
     }
     
     @objc public func alignLeft(_ sender: Any?) {

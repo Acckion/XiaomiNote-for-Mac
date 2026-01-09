@@ -329,7 +329,9 @@ final class LocalStorageService: @unchecked Sendable {
     func getImageURL(fileId: String, fileType: String) -> URL? {
         let fileName = "\(fileId).\(fileType)"
         let fileURL = imagesDirectory.appendingPathComponent(fileName)
-        return fileManager.fileExists(atPath: fileURL.path) ? fileURL : nil
+        let exists = fileManager.fileExists(atPath: fileURL.path)
+        print("[LocalStorage] 🖼️ getImageURL: \(fileURL.path) - \(exists ? "存在" : "不存在")")
+        return exists ? fileURL : nil
     }
     
     /// 加载图片数据
@@ -340,12 +342,49 @@ final class LocalStorageService: @unchecked Sendable {
         
         do {
             let data = try Data(contentsOf: fileURL)
-            print("[LocalStorage] 加载图片成功: \(fileId).\(fileType), 大小: \(data.count) 字节")
+            print("[LocalStorage] ✅ 加载图片成功: \(fileId).\(fileType), 大小: \(data.count) 字节")
             return data
         } catch {
-            print("[LocalStorage] 加载图片失败: \(fileId).\(fileType), 错误: \(error)")
+            print("[LocalStorage] ❌ 加载图片失败: \(fileId).\(fileType), 错误: \(error)")
             return nil
         }
+    }
+    
+    // MARK: - 统一图片加载（仅使用 images/{userId}.{fileId}.{format} 格式）
+    
+    /// 加载图片 - 仅使用 images/{userId}.{fileId}.{format} 格式
+    /// - Parameters:
+    ///   - fullFileId: 完整的 fileId，格式为 `{userId}.{fileId}`
+    ///   - fileType: 文件类型（如 "jpg", "png"）
+    /// - Returns: 图片数据，如果找不到则返回 nil
+    func loadImageWithFullFormat(fullFileId: String, fileType: String) -> Data? {
+        print("[LocalStorage] 🖼️ 加载图片（统一格式）:")
+        print("[LocalStorage]   - fullFileId: \(fullFileId)")
+        print("[LocalStorage]   - fileType: \(fileType)")
+        
+        // 直接使用完整的 fileId 作为文件名：images/{userId}.{fileId}.{extension}
+        if let data = loadImage(fileId: fullFileId, fileType: fileType) {
+            print("[LocalStorage] ✅ 加载成功: images/\(fullFileId).\(fileType)")
+            return data
+        }
+        
+        print("[LocalStorage] ❌ 加载失败: images/\(fullFileId).\(fileType)")
+        return nil
+    }
+    
+    /// 加载图片 - 自动尝试所有支持的图片格式
+    /// - Parameter fullFileId: 完整的 fileId，格式为 `{userId}.{fileId}`
+    /// - Returns: (图片数据, 文件类型) 元组，如果找不到则返回 nil
+    func loadImageWithFullFormatAllFormats(fullFileId: String) -> (data: Data, fileType: String)? {
+        let imageFormats = ["jpg", "jpeg", "png", "gif"]
+        
+        for format in imageFormats {
+            if let data = loadImageWithFullFormat(fullFileId: fullFileId, fileType: format) {
+                return (data, format)
+            }
+        }
+        
+        return nil
     }
     
     /// 验证图片文件是否有效

@@ -53,6 +53,20 @@ struct NoteDetailView: View {
         viewModel.webEditorContext
     }
     
+    // 使用共享的 NativeEditorContext（从 viewModel 获取）
+    // 需求: 1.2 - 确保 MainWindowController 和 NoteDetailView 使用同一个上下文
+    private var nativeEditorContext: NativeEditorContext {
+        viewModel.nativeEditorContext
+    }
+    
+    // 编辑器偏好设置服务 - 使用 @ObservedObject 因为是单例
+    @ObservedObject private var editorPreferencesService = EditorPreferencesService.shared
+    
+    /// 当前是否使用原生编辑器
+    private var isUsingNativeEditor: Bool {
+        editorPreferencesService.selectedEditorType == .native && editorPreferencesService.isNativeEditorAvailable
+    }
+    
     var body: some View {
         mainContentView
             .onChange(of: viewModel.selectedNote) { oldValue, newValue in
@@ -231,10 +245,12 @@ struct NoteDetailView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let note = viewModel.selectedNote {
-                WebEditorWrapper(
+                // 使用统一编辑器包装器，支持原生编辑器和 Web 编辑器切换
+                UnifiedEditorWrapper(
                     content: $currentXMLContent,
                     isEditable: $isEditable,
-                    editorContext: webEditorContext,
+                    webEditorContext: webEditorContext,
+                    nativeEditorContext: nativeEditorContext,
                     noteRawData: {
                         if let rawData = note.rawData, let jsonData = try? JSONSerialization.data(withJSONObject: rawData, options: []) {
                             return String(data: jsonData, encoding: .utf8)
@@ -242,6 +258,7 @@ struct NoteDetailView: View {
                         return nil
                     }(),
                     xmlContent: note.primaryXMLContent,
+                    folderId: note.folderId,
                     onContentChange: { newXML, newHTML in
                         guard !isInitializing else { return }
                         
@@ -285,25 +302,85 @@ struct NoteDetailView: View {
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    private var undoButton: some View { Button { webEditorContext.undo() } label: { Label("撤销", systemImage: "arrow.uturn.backward") } }
-    private var redoButton: some View { Button { webEditorContext.redo() } label: { Label("重做", systemImage: "arrow.uturn.forward") } }
+    // MARK: - 工具栏按钮（支持原生编辑器和 Web 编辑器）
+    
+    private var undoButton: some View {
+        Button {
+            if isUsingNativeEditor {
+                // 原生编辑器撤销（通过 NSTextView 的 undoManager）
+                NSApp.sendAction(#selector(UndoManager.undo), to: nil, from: nil)
+            } else {
+                webEditorContext.undo()
+            }
+        } label: { Label("撤销", systemImage: "arrow.uturn.backward") }
+    }
+    
+    private var redoButton: some View {
+        Button {
+            if isUsingNativeEditor {
+                // 原生编辑器重做（通过 NSTextView 的 undoManager）
+                NSApp.sendAction(#selector(UndoManager.redo), to: nil, from: nil)
+            } else {
+                webEditorContext.redo()
+            }
+        } label: { Label("重做", systemImage: "arrow.uturn.forward") }
+    }
     
     @State private var showFormatMenu: Bool = false
     private var formatMenu: some View {
         Button { showFormatMenu.toggle() } label: { Label("格式", systemImage: "textformat") }
         .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
-            WebFormatMenuView(context: webEditorContext) { _ in showFormatMenu = false }
+            FormatMenuPopoverContent(
+                nativeEditorContext: nativeEditorContext,
+                webEditorContext: webEditorContext,
+                onDismiss: { showFormatMenu = false }
+            )
         }
     }
     
-    private var checkboxButton: some View { Button { webEditorContext.insertCheckbox() } label: { Label("插入待办", systemImage: "checklist") } }
-    private var horizontalRuleButton: some View { Button { webEditorContext.insertHorizontalRule() } label: { Label("插入分割线", systemImage: "minus") } }
+    private var checkboxButton: some View {
+        Button {
+            if isUsingNativeEditor {
+                nativeEditorContext.insertCheckbox()
+            } else {
+                webEditorContext.insertCheckbox()
+            }
+        } label: { Label("插入待办", systemImage: "checklist") }
+    }
+    
+    private var horizontalRuleButton: some View {
+        Button {
+            if isUsingNativeEditor {
+                nativeEditorContext.insertHorizontalRule()
+            } else {
+                webEditorContext.insertHorizontalRule()
+            }
+        } label: { Label("插入分割线", systemImage: "minus") }
+    }
+    
     private var imageButton: some View { Button { insertImage() } label: { Label("插入图片", systemImage: "paperclip") } }
     
     @ViewBuilder
     private var indentButtons: some View {
-        Button { webEditorContext.increaseIndent() } label: { Label("增加缩进", systemImage: "increase.indent") }
-        Button { webEditorContext.decreaseIndent() } label: { Label("减少缩进", systemImage: "decrease.indent") }
+        Button {
+            if isUsingNativeEditor {
+                // 原生编辑器增加缩进
+                // 需求: 6.1, 6.3 - 调用 NativeEditorContext.increaseIndent()
+                nativeEditorContext.increaseIndent()
+            } else {
+                webEditorContext.increaseIndent()
+            }
+        } label: { Label("增加缩进", systemImage: "increase.indent") }
+        
+        Button {
+            if isUsingNativeEditor {
+                // 原生编辑器减少缩进
+                // 需求: 6.2, 6.4 - 调用 NativeEditorContext.decreaseIndent()
+                nativeEditorContext.decreaseIndent()
+            } else {
+                webEditorContext.decreaseIndent()
+            }
+        } label: { Label("减少缩进", systemImage: "decrease.indent") }
     }
     
     private func insertImage() {
@@ -325,7 +402,14 @@ struct NoteDetailView: View {
         showImageInsertAlert = true
         do {
             let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
-            webEditorContext.insertImage("minote://image/\(fileId)", altText: url.lastPathComponent)
+            
+            // 根据当前编辑器类型插入图片
+            if isUsingNativeEditor {
+                nativeEditorContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
+            } else {
+                webEditorContext.insertImage("minote://image/\(fileId)", altText: url.lastPathComponent)
+            }
+            
             imageInsertStatus = .success
             imageInsertMessage = "图片插入成功"
             isInsertingImage = false
@@ -375,19 +459,18 @@ struct NoteDetailView: View {
     /// - Parameter note: 笔记对象
     @MainActor
     private func quickSwitchToNote(_ note: Note) async {
+        // 关键修复：在最开始就更新 currentEditingNoteId，确保后续所有操作都针对正确的笔记
+        currentEditingNoteId = note.id
+        Swift.print("[快速切换] 🔄 开始切换到笔记 - ID: \(note.id.prefix(8))..., 标题: \(note.title)")
+        
         // 1. 立即显示占位符（<1ms）
         isInitializing = true
-        currentEditingNoteId = note.id
         
-        // 立即更新标题（显示占位符）
+        // 关键修复：立即更新标题，不要等待内容加载
         let title = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
         editedTitle = title
         originalTitle = title
-        
-        // 清空内容，显示加载状态
-        currentXMLContent = ""
-        lastSavedXMLContent = ""
-        originalXMLContent = ""
+        Swift.print("[快速切换] 📝 标题已更新: \(title)")
         
         // 取消之前的保存任务
         htmlSaveTask?.cancel()
@@ -397,14 +480,18 @@ struct NoteDetailView: View {
         xmlSaveTask = nil
         xmlSaveDebounceTask = nil
         
+        // 关键修复：清空内容前先记录，避免在加载过程中被覆盖
+        currentXMLContent = ""
+        lastSavedXMLContent = ""
+        originalXMLContent = ""
+        
         // 2. 尝试从内存缓存获取完整笔记
         let cachedNote = await MemoryCacheManager.shared.getNote(noteId: note.id)
         if let cachedNote = cachedNote {
             // 关键修复：验证缓存的笔记ID是否匹配
             if cachedNote.id == note.id {
-                Swift.print("[快速切换] 内存缓存命中 - ID: \(note.id.prefix(8))...")
+                Swift.print("[快速切换] ✅ 内存缓存命中 - ID: \(note.id.prefix(8))...")
                 await loadNoteContentFromCache(cachedNote)
-                
                 return
             } else {
                 Swift.print("[快速切换] ⚠️ 缓存笔记ID不匹配，忽略缓存 - 缓存ID: \(cachedNote.id.prefix(8))..., 期望ID: \(note.id.prefix(8))...")
@@ -412,28 +499,27 @@ struct NoteDetailView: View {
             }
         }
         
-        // 3. 尝试从HTML缓存快速加载（注意：DatabaseService中没有HTML缓存方法）
-        // 直接加载完整内容
-        Swift.print("[快速切换] 直接加载完整内容 - ID: \(note.id.prefix(8))...")
-        await loadNoteContent(note)
-        
-        // 4. 从数据库加载完整内容
-        Swift.print("[快速切换] 从数据库加载 - ID: \(note.id.prefix(8))...")
+        // 3. 从数据库加载完整内容
+        Swift.print("[快速切换] 📂 从数据库加载 - ID: \(note.id.prefix(8))...")
         await loadNoteContent(note)
     }
     
     /// 从缓存加载笔记内容
     @MainActor
     private func loadNoteContentFromCache(_ note: Note) async {
-        // 重置状态
-        currentXMLContent = ""
-        lastSavedXMLContent = ""
-        originalXMLContent = ""
+        // 关键修复：确保笔记ID匹配
+        guard note.id == currentEditingNoteId else {
+            Swift.print("[快速切换] ⚠️ loadNoteContentFromCache: 笔记ID不匹配，取消加载 - 传入ID: \(note.id.prefix(8))..., 当前编辑ID: \(currentEditingNoteId?.prefix(8) ?? "nil")")
+            return
+        }
         
-        // 加载标题
+        // 加载标题（不要重置，因为在 quickSwitchToNote 中已经设置）
         let title = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
-        editedTitle = title
-        originalTitle = title
+        if editedTitle != title {
+            editedTitle = title
+            originalTitle = title
+            Swift.print("[快速切换] 📝 从缓存更新标题: \(title)")
+        }
         
         // 加载内容
         currentXMLContent = note.primaryXMLContent
@@ -444,6 +530,13 @@ struct NoteDetailView: View {
         
         // 短暂延迟以确保编辑器正确初始化
         try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        
+        // 再次验证笔记ID（防止在延迟期间切换了笔记）
+        guard note.id == currentEditingNoteId else {
+            Swift.print("[快速切换] ⚠️ 延迟后笔记ID不匹配，取消显示 - 传入ID: \(note.id.prefix(8))..., 当前编辑ID: \(currentEditingNoteId?.prefix(8) ?? "nil")")
+            return
+        }
+        
         isInitializing = false
     }
     
@@ -499,6 +592,12 @@ struct NoteDetailView: View {
     
     @MainActor
     private func loadNoteContent(_ note: Note) async {
+        // 关键修复：确保笔记ID匹配
+        guard note.id == currentEditingNoteId else {
+            Swift.print("[笔记切换] ⚠️ loadNoteContent: 笔记ID不匹配，取消加载 - 传入ID: \(note.id.prefix(8))..., 当前编辑ID: \(currentEditingNoteId?.prefix(8) ?? "nil")")
+            return
+        }
+        
         // 防止内容污染：在加载新笔记前，确保所有状态正确重置
         isInitializing = true
         
@@ -510,28 +609,30 @@ struct NoteDetailView: View {
         xmlSaveTask = nil
         xmlSaveDebounceTask = nil
         
-        // 1. 首先重置所有内容相关的状态
-        currentXMLContent = ""
-        lastSavedXMLContent = ""
-        originalXMLContent = ""
-        
-        // 2. 更新当前编辑的笔记ID
-        currentEditingNoteId = note.id
-        
-        // 3. 加载标题
+        // 1. 加载标题（不要重置，因为在 quickSwitchToNote 中已经设置）
         let title = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
-        editedTitle = title
-        originalTitle = title
+        if editedTitle != title {
+            editedTitle = title
+            originalTitle = title
+            Swift.print("[笔记切换] 📝 更新标题: \(title)")
+        }
         
-        // 4. 加载内容
+        // 2. 加载内容
         currentXMLContent = note.primaryXMLContent
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
         
-        // 5. 如果内容为空，确保获取完整内容
+        // 3. 如果内容为空，确保获取完整内容
         if note.content.isEmpty {
             await viewModel.ensureNoteHasFullContent(note)
-            if let updated = viewModel.selectedNote {
+            
+            // 再次验证笔记ID
+            guard note.id == currentEditingNoteId else {
+                Swift.print("[笔记切换] ⚠️ 获取完整内容后笔记ID不匹配，取消更新 - 传入ID: \(note.id.prefix(8))..., 当前编辑ID: \(currentEditingNoteId?.prefix(8) ?? "nil")")
+                return
+            }
+            
+            if let updated = viewModel.selectedNote, updated.id == note.id {
                 currentXMLContent = updated.primaryXMLContent
                 lastSavedXMLContent = currentXMLContent
                 
@@ -543,11 +644,18 @@ struct NoteDetailView: View {
             await MemoryCacheManager.shared.cacheNote(note)
         }
         
-        // 6. 添加日志以便调试
+        // 4. 添加日志以便调试
         Swift.print("[笔记切换] ✅ 加载笔记内容 - ID: \(note.id.prefix(8))..., 标题: \(title), 内容长度: \(currentXMLContent.count)")
         
-        // 7. 短暂延迟以确保编辑器正确初始化
+        // 5. 短暂延迟以确保编辑器正确初始化
         try? await Task.sleep(nanoseconds: 100_000_000)
+        
+        // 再次验证笔记ID（防止在延迟期间切换了笔记）
+        guard note.id == currentEditingNoteId else {
+            Swift.print("[笔记切换] ⚠️ 延迟后笔记ID不匹配，取消显示 - 传入ID: \(note.id.prefix(8))..., 当前编辑ID: \(currentEditingNoteId?.prefix(8) ?? "nil")")
+            return
+        }
+        
         isInitializing = false
     }
     
@@ -808,25 +916,59 @@ struct NoteDetailView: View {
     }
     
     @State private var cloudUploadTask: Task<Void, Never>? = nil
-    @State private var lastUploadedContent: String = ""
+    /// 每个笔记的最后上传内容（按笔记 ID 存储）
+    @State private var lastUploadedContentByNoteId: [String: String] = [:]
     
     private func scheduleCloudUpload(for note: Note, xmlContent: String) {
-        guard viewModel.isOnline && viewModel.isLoggedIn && xmlContent != lastUploadedContent else { return }
+        guard viewModel.isOnline && viewModel.isLoggedIn else { return }
+        
+        // 关键修复：使用笔记 ID 作为 key 来存储每个笔记的最后上传内容
+        // 这样可以避免不同笔记之间的内容比较混淆
+        let lastUploadedForThisNote = lastUploadedContentByNoteId[note.id] ?? ""
+        guard xmlContent != lastUploadedForThisNote else {
+            Swift.print("[保存流程] ⏭️ Tier 2 跳过 - 内容与上次上传相同，笔记ID: \(note.id.prefix(8))...")
+            return
+        }
+        
         cloudUploadTask?.cancel()
         let noteId = note.id
+        
+        // 关键修复：在闭包中捕获 xmlContent，但在执行时使用 currentXMLContent
+        // 这样可以确保上传的是最新的内容
         cloudUploadTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             guard !Task.isCancelled && self.currentEditingNoteId == noteId else { return }
-            await performCloudUpload(for: note, xmlContent: xmlContent)
-            lastUploadedContent = xmlContent
+            
+            // 关键修复：使用当前最新的 XML 内容，而不是闭包捕获的旧内容
+            // 因为在 3 秒延迟期间，用户可能继续编辑了内容
+            let latestXMLContent = self.currentXMLContent.isEmpty ? xmlContent : self.currentXMLContent
+            
+            // 再次检查内容是否与上次上传相同
+            let lastUploaded = self.lastUploadedContentByNoteId[noteId] ?? ""
+            guard latestXMLContent != lastUploaded else {
+                Swift.print("[保存流程] ⏭️ Tier 2 跳过（延迟后检查）- 内容与上次上传相同，笔记ID: \(noteId.prefix(8))...")
+                return
+            }
+            
+            await performCloudUpload(for: note, xmlContent: latestXMLContent)
+            self.lastUploadedContentByNoteId[noteId] = latestXMLContent
         }
     }
     
     @MainActor
     private func performCloudUpload(for note: Note, xmlContent: String) async {
+        // 关键修复：确保使用传入的 xmlContent 构建笔记，而不是依赖 note.content
+        // 因为 note 对象可能是旧的（闭包捕获的）
         let updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
         isUploading = true
-        Swift.print("[保存流程] 🔄 Tier 2 开始云端同步 - 笔记ID: \(note.id.prefix(8))..., XML长度: \(xmlContent.count)")
+        
+        // 添加详细日志，帮助调试上传内容问题
+        Swift.print("[保存流程] 🔄 Tier 2 开始云端同步")
+        Swift.print("[保存流程]   - 笔记ID: \(note.id.prefix(8))...")
+        Swift.print("[保存流程]   - 标题: \(updated.title)")
+        Swift.print("[保存流程]   - XML长度: \(xmlContent.count)")
+        Swift.print("[保存流程]   - 内容预览: \(String(xmlContent.prefix(200)))...")
+        
         do {
             try await viewModel.updateNote(updated)
             withAnimation { showSaveSuccess = true; isUploading = false }
@@ -923,9 +1065,24 @@ struct NoteDetailView: View {
     
     @MainActor
     private func getLatestContentFromEditor() async -> String {
-        if let content = await withCheckedContinuation({ (c: CheckedContinuation<String?, Never>) in webEditorContext.getCurrentContent { c.resume(returning: $0) } }) {
-            return content
+        // 关键修复：根据当前使用的编辑器类型获取内容
+        if isUsingNativeEditor {
+            // 原生编辑器：从 nativeEditorContext 导出 XML
+            let xmlContent = nativeEditorContext.exportToXML()
+            if !xmlContent.isEmpty {
+                Swift.print("[保存流程] 📝 从原生编辑器获取内容 - 长度: \(xmlContent.count)")
+                return xmlContent
+            }
+        } else {
+            // Web 编辑器：从 webEditorContext 获取内容
+            if let content = await withCheckedContinuation({ (c: CheckedContinuation<String?, Never>) in webEditorContext.getCurrentContent { c.resume(returning: $0) } }) {
+                Swift.print("[保存流程] 📝 从 Web 编辑器获取内容 - 长度: \(content.count)")
+                return content
+            }
         }
+        
+        // 回退到当前 XML 内容
+        Swift.print("[保存流程] 📝 使用 currentXMLContent - 长度: \(currentXMLContent.count)")
         return currentXMLContent
     }
     
@@ -971,5 +1128,64 @@ struct ImageInsertStatusView: View {
             Text(message).font(.body).foregroundColor(.secondary).multilineTextAlignment(.center).padding(.horizontal)
             if !isInserting { Button("确定") { onDismiss(); dismiss() }.buttonStyle(.borderedProminent) }
         }.padding(30).frame(width: 400)
+    }
+}
+
+
+// MARK: - 格式菜单弹出内容视图
+
+/// 格式菜单弹出内容视图
+/// 
+/// 这个视图在每次显示时会重新检查编辑器类型，
+/// 确保显示正确的格式菜单（原生或 Web）
+@available(macOS 14.0, *)
+struct FormatMenuPopoverContent: View {
+    
+    /// 原生编辑器上下文
+    @ObservedObject var nativeEditorContext: NativeEditorContext
+    
+    /// Web 编辑器上下文
+    @ObservedObject var webEditorContext: WebEditorContext
+    
+    /// 关闭回调
+    let onDismiss: () -> Void
+    
+    /// 编辑器偏好设置服务
+    @ObservedObject private var preferencesService = EditorPreferencesService.shared
+    
+    /// 当前是否使用原生编辑器
+    private var isUsingNativeEditor: Bool {
+        preferencesService.selectedEditorType == .native && preferencesService.isNativeEditorAvailable
+    }
+    
+    var body: some View {
+        Group {
+            // 添加调试日志
+            let _ = print("显示格式菜单")
+            let _ = print("  - isUsingNativeEditor: \(isUsingNativeEditor)")
+            let _ = print("  - selectedEditorType: \(preferencesService.selectedEditorType)")
+            let _ = print("  - isNativeEditorAvailable: \(preferencesService.isNativeEditorAvailable)")
+            
+            if isUsingNativeEditor {
+                NativeFormatMenuView(context: nativeEditorContext) { _ in onDismiss() }
+            } else {
+                WebFormatMenuView(context: webEditorContext) { _ in onDismiss() }
+            }
+        }
+        .onAppear {
+            print("[FormatMenuPopoverContent] onAppear")
+            print("  - selectedEditorType: \(preferencesService.selectedEditorType.rawValue)")
+            print("  - isNativeEditorAvailable: \(preferencesService.isNativeEditorAvailable)")
+            
+            // 如果使用原生编辑器，请求内容同步并更新格式状态
+            if isUsingNativeEditor {
+                print("  - 使用原生编辑器，请求内容同步")
+                nativeEditorContext.requestContentSync()
+                // 延迟一小段时间后强制更新格式状态
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    nativeEditorContext.forceUpdateFormats()
+                }
+            }
+        }
     }
 }

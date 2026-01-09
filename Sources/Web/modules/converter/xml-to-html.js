@@ -330,6 +330,11 @@ class XMLToHTMLConverter {
         const levelMatch = line.match(/level="(\d+)"/);
         const level = levelMatch ? levelMatch[1] : '3';
 
+        // 提取 checked 属性（勾选状态）
+        // 小米笔记 XML 格式：<input type="checkbox" indent="1" level="3" checked="true" />
+        const checkedMatch = line.match(/checked="(true|false)"/i);
+        const isChecked = checkedMatch ? checkedMatch[1].toLowerCase() === 'true' : false;
+
         // 提取内容（<input ... /> 后面的文本）
         const contentMatch = line.match(/\/>(.*)$/);
         const content = contentMatch ? contentMatch[1].trim() : '';
@@ -337,9 +342,10 @@ class XMLToHTMLConverter {
         // 处理内容中的富文本格式
         const richContent = this.extractRichTextContent(content);
 
-        // 注意：XML 中没有 checked 属性，所以默认未选中
+        // 根据 checked 属性设置复选框状态
+        const checkedAttr = isChecked ? ' checked' : '';
         return `<div class="mi-note-checkbox" data-level="${level}" style="padding-left: ${(parseInt(indent) - 1) * 20}px;">
-            <input type="checkbox" />
+            <input type="checkbox"${checkedAttr} />
             <span>${richContent || '\u200B'}</span>
         </div>`;
     }

@@ -39,6 +39,17 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "8ACA2B5AF9B4BC8F6401E424"
+               BuildableName = "MiNoteLibraryTests.xctest"
+               BlueprintName = "MiNoteLibraryTests"
+               ReferencedContainer = "container:MiNoteMac.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>
