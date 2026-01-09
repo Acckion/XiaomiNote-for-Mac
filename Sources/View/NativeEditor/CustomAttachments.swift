@@ -45,6 +45,8 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
             cachedImage = nil
             cachedCheckedImage = nil
             cachedUncheckedImage = nil
+            // 更新附件的 image 属性
+            self.image = createCheckboxImage(checked: isChecked)
         }
     }
     
@@ -62,6 +64,8 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
         didSet {
             if oldValue != isDarkMode {
                 invalidateCache()
+                // 更新附件的 image 属性
+                self.image = createCheckboxImage(checked: isChecked)
             }
         }
     }
@@ -104,6 +108,10 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
     private func setupAttachment() {
         // 设置附件边界
         self.bounds = CGRect(x: 0, y: -3, width: checkboxSize, height: checkboxSize)
+        
+        // 预先创建图像，确保附件有默认图像
+        // 这对于某些 NSTextView 配置是必要的
+        self.image = createCheckboxImage(checked: isChecked)
     }
     
     // MARK: - NSTextAttachment Override
