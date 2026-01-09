@@ -121,13 +121,13 @@
     - **Property 8: 状态更新顺序正确**
     - **Validates: Requirements 4.2, 6.2**
 
-- [ ] 9. 修改 NotesListHostingController 优化刷新逻辑
-  - [ ] 9.1 移除不必要的强制刷新
+- [x] 9. 修改 NotesListHostingController 优化刷新逻辑
+  - [x] 9.1 移除不必要的强制刷新
     - 移除 selectedNote 变化时的强制刷新
     - 移除 notes 变化时的强制刷新
     - 依赖 SwiftUI 的自动更新机制
     - _Requirements: 5.2_
-  - [ ] 9.2 保留必要的刷新逻辑
+  - [x] 9.2 保留必要的刷新逻辑
     - 保留 selectedFolder 变化时的刷新
     - 保留 searchText 变化时的刷新
     - _Requirements: 3.1_
