@@ -1,6 +1,15 @@
 import SwiftUI
 import AppKit
 
+// MARK: - ListAnimationConfig
+
+/// 列表动画配置
+/// _Requirements: 1.2_
+enum ListAnimationConfig {
+    /// 列表项移动动画（300ms easeInOut）
+    static let moveAnimation: Animation = .easeInOut(duration: 0.3)
+}
+
 // MARK: - NoteDisplayProperties
 
 /// 笔记显示属性（用于 Equatable 比较）
@@ -131,6 +140,9 @@ struct NotesListView: View {
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden) // 隐藏默认的滚动内容背景
         .background(Color(NSColor.windowBackgroundColor)) // 设置不透明背景色
+        // 监听 filteredNotes 变化，触发列表移动动画
+        // _Requirements: 1.1, 1.2_
+        .animation(ListAnimationConfig.moveAnimation, value: viewModel.filteredNotes.map(\.id))
         .alert("删除笔记", isPresented: $showingDeleteAlert, presenting: noteToDelete) { note in
             deleteAlertButtons(for: note)
         } message: { note in
