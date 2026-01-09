@@ -760,10 +760,13 @@ struct NoteRow: View {
             print("[NoteRow] onChange(noteImageHash): 图片信息哈希值变化 (\(oldValue) -> \(newValue))，更新缩略图")
             updateThumbnail()
         }
-        // 使用 displayProperties 的哈希值作为视图标识符
-        // 只有当显示属性变化时才触发重建，非显示属性（如 rawData 中的某些字段）变化不会触发重建
-        // _Requirements: 5.2, 5.4_
-        .id(displayProperties)
+        // 使用笔记 ID 作为视图标识符（而非 displayProperties）
+        // 这样编辑笔记内容时不会改变视图标识，选择状态能够保持
+        // displayProperties 的变化通过 onChange 监听器处理，不影响视图标识
+        // _Requirements: 1.1, 1.2, 5.2_
+        // - 1.1: 编辑笔记内容时保持选中状态不变
+        // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
+        .id(note.id)
         // #region agent log
         .onAppear {
             let logPath = "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.cursor/debug.log"
