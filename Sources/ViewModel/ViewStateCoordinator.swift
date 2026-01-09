@@ -385,11 +385,16 @@ public class ViewStateCoordinator: ObservableObject {
         selectedFolder = folder
         log("已更新 selectedFolder: \(newFolderName)")
         
-        // 步骤3: 清除 selectedNote
+        // 步骤3: 选择新文件夹的第一个笔记
         // **Requirements: 3.2, 3.3**
-        // 根据需求 3.3，切换文件夹后应清除笔记选择
-        selectedNote = nil
-        log("已清除 selectedNote")
+        // 根据需求 3.2，切换文件夹后应显示该文件夹的第一篇笔记
+        if let firstNote = viewModel?.filteredNotes.first {
+            selectedNote = firstNote
+            log("已选择第一个笔记: \(firstNote.title)")
+        } else {
+            selectedNote = nil
+            log("文件夹为空，已清除 selectedNote")
+        }
         
         // 记录状态转换
         let newState = currentState

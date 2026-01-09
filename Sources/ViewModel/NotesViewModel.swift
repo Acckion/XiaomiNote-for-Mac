@@ -464,6 +464,50 @@ public class NotesViewModel: ObservableObject {
         // 同步 showCookieRefreshView
         authStateManager.$showCookieRefreshView
             .assign(to: &$showCookieRefreshView)
+        
+        // 同步 ViewStateCoordinator 的状态到 ViewModel
+        // **Requirements: 1.1, 1.2, 4.1**
+        // - 1.1: 编辑笔记内容时保持选中状态不变
+        // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
+        // - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
+        setupStateCoordinatorSync()
+    }
+    
+    /// 同步 ViewStateCoordinator 的状态到 ViewModel
+    /// 
+    /// 通过 Combine 将 ViewStateCoordinator 的 @Published 属性同步到 ViewModel 的 @Published 属性
+    /// 这样 ViewStateCoordinator 的状态变化会自动触发 ViewModel 的状态更新，进而触发 UI 更新
+    /// 
+    /// **Requirements: 1.1, 1.2, 4.1**
+    /// - 1.1: 编辑笔记内容时保持选中状态不变
+    /// - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
+    /// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
+    private func setupStateCoordinatorSync() {
+        // 同步 selectedFolder
+        stateCoordinator.$selectedFolder
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] folder in
+                guard let self = self else { return }
+                // 只有当状态真正变化时才更新，避免循环更新
+                if self.selectedFolder?.id != folder?.id {
+                    print("[NotesViewModel] 从 stateCoordinator 同步 selectedFolder: \(folder?.name ?? "nil")")
+                    self.selectedFolder = folder
+                }
+            }
+            .store(in: &cancellables)
+        
+        // 同步 selectedNote
+        stateCoordinator.$selectedNote
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] note in
+                guard let self = self else { return }
+                // 只有当状态真正变化时才更新，避免循环更新
+                if self.selectedNote?.id != note?.id {
+                    print("[NotesViewModel] 从 stateCoordinator 同步 selectedNote: \(note?.title ?? "nil")")
+                    self.selectedNote = note
+                }
+            }
+            .store(in: &cancellables)
     }
     
     @MainActor
