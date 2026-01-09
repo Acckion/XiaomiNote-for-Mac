@@ -361,6 +361,9 @@ public class ViewStateCoordinator: ObservableObject {
         let previousFolderName = selectedFolder?.name ?? "nil"
         let newFolderName = folder?.name ?? "nil"
         
+        // 保存当前选中的笔记，用于后续检查是否在新文件夹中
+        let currentSelectedNote = selectedNote
+        
         log("开始文件夹切换: \(previousFolderName) -> \(newFolderName)")
         
         // 步骤1: 检查并保存未保存的内容
@@ -385,15 +388,36 @@ public class ViewStateCoordinator: ObservableObject {
         selectedFolder = folder
         log("已更新 selectedFolder: \(newFolderName)")
         
-        // 步骤3: 选择新文件夹的第一个笔记
-        // **Requirements: 3.2, 3.3**
-        // 根据需求 3.2，切换文件夹后应显示该文件夹的第一篇笔记
-        if let firstNote = viewModel?.filteredNotes.first {
-            selectedNote = firstNote
-            log("已选择第一个笔记: \(firstNote.title)")
+        // 步骤3: 智能选择笔记
+        // **Requirements: 3.2**
+        // 优先保持当前笔记选中（如果它在新文件夹中），否则选择第一个笔记
+        if let currentNote = currentSelectedNote,
+           let folderId = folder?.id,
+           isNoteInFolder(note: currentNote, folderId: folderId) {
+            // 当前笔记在新文件夹中，保持选中
+            // 需要在 filteredNotes 中找到对应的笔记（因为可能是不同的实例）
+            if let noteInList = viewModel?.filteredNotes.first(where: { $0.id == currentNote.id }) {
+                selectedNote = noteInList
+                log("当前笔记在新文件夹中，保持选中: \(noteInList.title)")
+            } else {
+                // 笔记不在 filteredNotes 中（可能被过滤掉了），选择第一个
+                if let firstNote = viewModel?.filteredNotes.first {
+                    selectedNote = firstNote
+                    log("当前笔记不在过滤列表中，选择第一个笔记: \(firstNote.title)")
+                } else {
+                    selectedNote = nil
+                    log("文件夹为空，已清除 selectedNote")
+                }
+            }
         } else {
-            selectedNote = nil
-            log("文件夹为空，已清除 selectedNote")
+            // 当前笔记不在新文件夹中，选择第一个笔记
+            if let firstNote = viewModel?.filteredNotes.first {
+                selectedNote = firstNote
+                log("当前笔记不在新文件夹中，选择第一个笔记: \(firstNote.title)")
+            } else {
+                selectedNote = nil
+                log("文件夹为空，已清除 selectedNote")
+            }
         }
         
         // 记录状态转换
