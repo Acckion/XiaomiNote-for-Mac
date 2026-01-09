@@ -103,34 +103,6 @@ struct NoteDisplayProperties: Equatable, Hashable {
     }
 }
 
-// MARK: - 动画配置常量
-
-/// 列表动画配置
-/// _Requirements: 2.1, 2.4_
-private enum ListAnimationConfig {
-    /// 动画持续时间（300ms）
-    static let duration: Double = 0.3
-    
-    /// 动画曲线（easeInOut）
-    static var animation: Animation {
-        .easeInOut(duration: duration)
-    }
-    
-    /// 分组变化的过渡动画
-    /// _Requirements: 2.2_
-    static var sectionTransition: AnyTransition {
-        .opacity.combined(with: .scale(scale: 0.95))
-    }
-    
-    /// 列表项移动的过渡动画
-    static var itemTransition: AnyTransition {
-        .asymmetric(
-            insertion: .opacity.combined(with: .move(edge: .top)),
-            removal: .opacity
-        )
-    }
-}
-
 // MARK: - NotesListView
 
 struct NotesListView: View {
@@ -223,15 +195,9 @@ struct NotesListView: View {
                                 .contextMenu {
                                     noteContextMenu(for: note)
                                 }
-                                // 添加列表项移动过渡动画
-                                // _Requirements: 2.1_
-                                .transition(ListAnimationConfig.itemTransition)
                         }
                     } header: {
                         sectionHeader(title: sectionKey, isMajor: isMajor)
-                            // 添加分组变化过渡动画
-                            // _Requirements: 2.2_
-                            .transition(ListAnimationConfig.sectionTransition)
                     }
                 }
             }
@@ -254,23 +220,13 @@ struct NotesListView: View {
                                 .contextMenu {
                                     noteContextMenu(for: note)
                                 }
-                                // 添加列表项移动过渡动画
-                                // _Requirements: 2.1_
-                                .transition(ListAnimationConfig.itemTransition)
                         }
                     } header: {
                         sectionHeader(title: year, isMajor: isMajor)
-                            // 添加分组变化过渡动画
-                            // _Requirements: 2.2_
-                            .transition(ListAnimationConfig.sectionTransition)
                     }
                 }
             }
         }
-        // 添加列表动画，当 filteredNotes 的 id 列表变化时触发
-        // 使用 300ms 的 easeInOut 动画曲线
-        // _Requirements: 2.1, 2.4_
-        .animation(ListAnimationConfig.animation, value: viewModel.filteredNotes.map(\.id))
     }
     
     /// 自定义 Section Header，支持大字体和分割线
