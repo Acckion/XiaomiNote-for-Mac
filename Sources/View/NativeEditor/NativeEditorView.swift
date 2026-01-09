@@ -1315,12 +1315,13 @@ class NativeTextView: NSTextView {
         
         // 检查是否点击了附件
         if let layoutManager = layoutManager,
-           let textContainer = textContainer {
+           let textContainer = textContainer,
+           let textStorage = textStorage {
             let glyphIndex = layoutManager.glyphIndex(for: point, in: textContainer)
             let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
             
-            if charIndex < textStorage?.length ?? 0 {
-                if let attachment = textStorage?.attribute(.attachment, at: charIndex, effectiveRange: nil) as? InteractiveCheckboxAttachment {
+            if charIndex < textStorage.length {
+                if let attachment = textStorage.attribute(.attachment, at: charIndex, effectiveRange: nil) as? InteractiveCheckboxAttachment {
                     // 获取附件的边界
                     let glyphRange = NSRange(location: glyphIndex, length: 1)
                     let boundingRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
@@ -1329,7 +1330,16 @@ class NativeTextView: NSTextView {
                     let adjustedRect = boundingRect.offsetBy(dx: textContainerInset.width, dy: textContainerInset.height)
                     if adjustedRect.contains(point) {
                         // 切换复选框状态
-                        attachment.isChecked.toggle()
+                        let newCheckedState = !attachment.isChecked
+                        attachment.isChecked = newCheckedState
+                        
+                        print("[NativeTextView] ☑️ 复选框点击: charIndex=\(charIndex), newCheckedState=\(newCheckedState)")
+                        
+                        // 关键修复：强制标记 textStorage 为已修改
+                        // 通过重新设置附件属性来触发 textStorage 的变化通知
+                        textStorage.beginEditing()
+                        textStorage.addAttribute(.attachment, value: attachment, range: NSRange(location: charIndex, length: 1))
+                        textStorage.endEditing()
                         
                         // 刷新显示
                         layoutManager.invalidateDisplay(forCharacterRange: NSRange(location: charIndex, length: 1))
@@ -1337,8 +1347,10 @@ class NativeTextView: NSTextView {
                         // 触发回调
                         onCheckboxClick?(attachment, charIndex)
                         
-                        // 通知代理
+                        // 通知代理 - 内容已变化
                         delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
+                        
+                        print("[NativeTextView] ☑️ 复选框状态已更新，已通知代理")
                         
                         return
                     }
