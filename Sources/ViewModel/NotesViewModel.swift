@@ -2068,6 +2068,108 @@ public class NotesViewModel: ObservableObject {
         _ = addOperationToOfflineQueue(type: .updateNote, noteId: note.id, data: data)
     }
     
+    // MARK: - 精确更新方法（视图状态同步）
+    
+    /// 原地更新单个笔记（不替换整个数组）
+    /// 
+    /// 此方法只更新 notes 数组中对应笔记的属性，不会触发整个数组的重新发布。
+    /// 这样可以避免不必要的视图重建，保持选择状态不变。
+    /// 
+    /// - Parameter note: 更新后的笔记对象
+    /// - Returns: 是否成功更新（如果笔记不存在于数组中则返回 false）
+    /// 
+    /// **Requirements: 5.1** - 笔记内容更新时仅更新对应笔记的属性而非替换整个数组
+    @discardableResult
+    public func updateNoteInPlace(_ note: Note) -> Bool {
+        guard let index = notes.firstIndex(where: { $0.id == note.id }) else {
+            print("[VIEWMODEL] updateNoteInPlace: 笔记不存在于数组中, id=\(note.id)")
+            return false
+        }
+        
+        // 直接更新数组中的元素，不触发整个数组的重新发布
+        // 由于 @Published 的特性，单个元素的更新会触发最小化的 UI 更新
+        notes[index] = note
+        
+        // 如果当前选中的是这个笔记，同步更新 selectedNote
+        // 但不改变选择状态本身
+        if selectedNote?.id == note.id {
+            selectedNote = note
+        }
+        
+        print("[VIEWMODEL] updateNoteInPlace: 成功更新笔记, id=\(note.id), title=\(note.title)")
+        return true
+    }
+    
+    /// 批量更新笔记（带动画）
+    /// 
+    /// 支持批量更新多个笔记，使用 withAnimation 包装更新操作以提供平滑的动画效果。
+    /// 适用于笔记排序位置变化等需要动画过渡的场景。
+    /// 
+    /// - Parameter updates: 更新操作列表，每个元素包含笔记ID和更新闭包
+    /// 
+    /// **Requirements: 2.3** - 多个笔记同时更新位置时批量处理动画以避免视觉混乱
+    public func batchUpdateNotes(_ updates: [(noteId: String, update: (inout Note) -> Void)]) {
+        guard !updates.isEmpty else {
+            print("[VIEWMODEL] batchUpdateNotes: 没有需要更新的笔记")
+            return
+        }
+        
+        print("[VIEWMODEL] batchUpdateNotes: 开始批量更新 \(updates.count) 个笔记")
+        
+        // 使用 withAnimation 包装更新操作，提供 300ms 的 easeInOut 动画
+        // 这符合 Requirements 2.4 的动画持续时间要求
+        withAnimation(.easeInOut(duration: 0.3)) {
+            for (noteId, update) in updates {
+                if let index = notes.firstIndex(where: { $0.id == noteId }) {
+                    // 应用更新闭包
+                    update(&notes[index])
+                    
+                    // 如果当前选中的是这个笔记，同步更新 selectedNote
+                    if selectedNote?.id == noteId {
+                        selectedNote = notes[index]
+                    }
+                    
+                    print("[VIEWMODEL] batchUpdateNotes: 更新笔记 id=\(noteId)")
+                } else {
+                    print("[VIEWMODEL] batchUpdateNotes: 笔记不存在, id=\(noteId)")
+                }
+            }
+        }
+        
+        print("[VIEWMODEL] batchUpdateNotes: 批量更新完成")
+    }
+    
+    /// 更新笔记的时间戳（带动画）
+    /// 
+    /// 专门用于更新笔记的 updatedAt 时间戳，会触发列表重新排序动画。
+    /// 
+    /// - Parameters:
+    ///   - noteId: 要更新的笔记ID
+    ///   - timestamp: 新的时间戳
+    /// - Returns: 是否成功更新
+    /// 
+    /// **Requirements: 2.1** - 笔记的 updatedAt 时间戳变化导致排序位置改变时使用动画
+    @discardableResult
+    public func updateNoteTimestamp(_ noteId: String, timestamp: Date) -> Bool {
+        guard let index = notes.firstIndex(where: { $0.id == noteId }) else {
+            print("[VIEWMODEL] updateNoteTimestamp: 笔记不存在, id=\(noteId)")
+            return false
+        }
+        
+        // 使用动画更新时间戳
+        withAnimation(.easeInOut(duration: 0.3)) {
+            notes[index].updatedAt = timestamp
+            
+            // 如果当前选中的是这个笔记，同步更新 selectedNote
+            if selectedNote?.id == noteId {
+                selectedNote = notes[index]
+            }
+        }
+        
+        print("[VIEWMODEL] updateNoteTimestamp: 更新笔记时间戳, id=\(noteId), timestamp=\(timestamp)")
+        return true
+    }
+    
     private func performCloudUpdateWithRetry(_ note: Note, retryOnConflict: Bool = true) async throws {
         var existingTag = note.rawData?["tag"] as? String ?? ""
         let originalCreateDate = note.rawData?["createDate"] as? Int
