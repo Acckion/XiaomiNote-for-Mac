@@ -99,6 +99,20 @@ public class NotesViewModel: ObservableObject {
     /// 需求: 1.1, 1.3 - 在 MainWindowController 和 NoteDetailView 之间共享
     @Published var nativeEditorContext = NativeEditorContext()
     
+    // MARK: - 状态协调器
+    
+    /// 视图状态协调器
+    /// 
+    /// 负责协调侧边栏、笔记列表和编辑器之间的状态同步
+    /// 
+    /// **Requirements: 4.1, 4.2**
+    /// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
+    /// - 4.2: selectedFolder 变化时按顺序更新 Notes_List_View 和 Editor
+    public private(set) lazy var stateCoordinator: ViewStateCoordinator = {
+        let coordinator = ViewStateCoordinator(viewModel: self)
+        return coordinator
+    }()
+    
     // MARK: - 设置
     
     /// 同步间隔（秒），默认5分钟
@@ -2482,6 +2496,9 @@ public class NotesViewModel: ObservableObject {
         // 先设置选中的文件夹，这样验证界面才能显示
         selectedFolder = folder
         
+        // 同步更新 coordinator 的状态（不触发 coordinator 的选择逻辑，避免循环）
+        // coordinator 的状态会在下次调用 coordinator.selectFolder 时同步
+        
         // 如果切换到私密笔记文件夹，检查密码
         if let folder = folder, folder.id == "2" {
             // 检查是否已设置密码
@@ -2535,6 +2552,53 @@ public class NotesViewModel: ObservableObject {
         } else {
             // 当前没有选中的笔记，选择新文件夹的第一个笔记
             selectedNote = notesInNewFolder.first
+        }
+    }
+    
+    /// 通过状态协调器选择文件夹
+    /// 
+    /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
+    /// 
+    /// **Requirements: 4.1, 4.2**
+    /// - 4.1: 通过 coordinator 作为单一数据源管理状态
+    /// - 4.2: 按顺序更新 Notes_List_View 和 Editor
+    /// 
+    /// - Parameter folder: 要选择的文件夹
+    public func selectFolderWithCoordinator(_ folder: Folder?) {
+        Task {
+            await stateCoordinator.selectFolder(folder)
+            // 同步 coordinator 的状态到 ViewModel
+            syncStateFromCoordinator()
+        }
+    }
+    
+    /// 通过状态协调器选择笔记
+    /// 
+    /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
+    /// 
+    /// **Requirements: 4.3**
+    /// - 4.3: 验证笔记是否属于当前文件夹
+    /// 
+    /// - Parameter note: 要选择的笔记
+    public func selectNoteWithCoordinator(_ note: Note?) {
+        Task {
+            await stateCoordinator.selectNote(note)
+            // 同步 coordinator 的状态到 ViewModel
+            syncStateFromCoordinator()
+        }
+    }
+    
+    /// 从 coordinator 同步状态到 ViewModel
+    /// 
+    /// 将 ViewStateCoordinator 的选择状态同步到 ViewModel 的 @Published 属性
+    /// 这样可以触发 UI 更新
+    private func syncStateFromCoordinator() {
+        // 只有当状态真正变化时才更新，避免不必要的 UI 刷新
+        if selectedFolder?.id != stateCoordinator.selectedFolder?.id {
+            selectedFolder = stateCoordinator.selectedFolder
+        }
+        if selectedNote?.id != stateCoordinator.selectedNote?.id {
+            selectedNote = stateCoordinator.selectedNote
         }
     }
     

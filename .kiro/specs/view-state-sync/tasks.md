@@ -32,13 +32,13 @@
     - **Property 9: 笔记选择验证归属关系**
     - **Validates: Requirements 4.3**
 
-- [ ] 2. 扩展 NotesViewModel 支持精确更新
-  - [ ] 2.1 实现 updateNoteInPlace 方法
+- [x] 2. 扩展 NotesViewModel 支持精确更新
+  - [x] 2.1 实现 updateNoteInPlace 方法
     - 在 `Sources/ViewModel/NotesViewModel.swift` 中添加方法
     - 只更新 notes 数组中对应笔记的属性
     - 不触发整个数组的重新发布
     - _Requirements: 5.1_
-  - [ ] 2.2 实现 batchUpdateNotes 方法
+  - [x] 2.2 实现 batchUpdateNotes 方法
     - 支持批量更新笔记，带动画
     - 使用 withAnimation 包装更新操作
     - _Requirements: 2.3_
@@ -50,13 +50,13 @@
   - 运行所有属性测试，确保通过
   - 如有问题，询问用户
 
-- [ ] 4. 修改 NoteRow 视图优化重建逻辑
-  - [ ] 4.1 创建 NoteDisplayProperties 结构体
+- [x] 4. 修改 NoteRow 视图优化重建逻辑
+  - [x] 4.1 创建 NoteDisplayProperties 结构体
     - 在 `Sources/View/SwiftUIViews/NotesListView.swift` 中添加
     - 实现 Equatable 协议
     - 只包含影响显示的属性
     - _Requirements: 5.3, 5.4_
-  - [ ] 4.2 修改 NoteRow 使用 NoteDisplayProperties 进行比较
+  - [x] 4.2 修改 NoteRow 使用 NoteDisplayProperties 进行比较
     - 使用 equatable 修饰符优化重建
     - 移除不必要的 id 修饰符
     - _Requirements: 5.2, 5.4_
@@ -64,32 +64,32 @@
     - **Property 11: 非显示属性变化不触发重建**
     - **Validates: Requirements 5.4**
 
-- [ ] 5. 修改 NotesListView 添加动画支持
-  - [ ] 5.1 添加列表项移动动画
+- [x] 5. 修改 NotesListView 添加动画支持
+  - [x] 5.1 添加列表项移动动画
     - 使用 animation 修饰符
     - 设置 300ms 动画持续时间
     - 使用 easeInOut 动画曲线
     - _Requirements: 2.1, 2.4_
-  - [ ] 5.2 添加分组变化动画
+  - [x] 5.2 添加分组变化动画
     - 使用 transition 修饰符
     - 实现淡入淡出效果
     - _Requirements: 2.2_
 
-- [ ] 6. 集成 ViewStateCoordinator 到现有视图
-  - [ ] 6.1 修改 NotesViewModel 集成 ViewStateCoordinator
+- [x] 6. 集成 ViewStateCoordinator 到现有视图
+  - [x] 6.1 修改 NotesViewModel 集成 ViewStateCoordinator
     - 添加 coordinator 属性
     - 修改 selectedFolder 和 selectedNote 的 setter
     - 通过 coordinator 进行状态更新
     - _Requirements: 4.1, 4.2_
-  - [ ] 6.2 修改 SidebarView 使用 coordinator
+  - [x] 6.2 修改 SidebarView 使用 coordinator
     - 修改文件夹选择逻辑
     - 调用 coordinator.selectFolder
     - _Requirements: 3.1, 3.2, 3.3_
-  - [ ] 6.3 修改 NotesListView 使用 coordinator
+  - [x] 6.3 修改 NotesListView 使用 coordinator
     - 修改笔记选择逻辑
     - 调用 coordinator.selectNote
     - _Requirements: 1.1, 1.2_
-  - [ ] 6.4 修改 NoteDetailView 使用 coordinator
+  - [x] 6.4 修改 NoteDetailView 使用 coordinator
     - 修改内容更新逻辑
     - 调用 coordinator.updateNoteContent
     - _Requirements: 1.1, 1.2, 1.3_

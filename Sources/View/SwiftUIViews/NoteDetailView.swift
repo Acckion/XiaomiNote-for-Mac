@@ -717,6 +717,10 @@ struct NoteDetailView: View {
                     }
                     if self.viewModel.selectedNote?.id == updated.id {
                         self.viewModel.selectedNote = updated
+                        
+                        // 通过 coordinator 更新笔记内容，保持选择状态不变
+                        // **Requirements: 1.1, 1.2, 1.3**
+                        self.viewModel.stateCoordinator.updateNoteContent(updated)
                     }
                     self.scheduleCloudUpload(for: updated, xmlContent: xmlContent)
                     continuation.resume()
@@ -764,6 +768,11 @@ struct NoteDetailView: View {
         
         // 更新保存状态为"保存中"
         saveStatus = .saving
+        
+        // 标记 coordinator 有未保存的内容
+        // **Requirements: 6.1**
+        // - 6.1: 切换文件夹时检查是否有未保存内容
+        viewModel.stateCoordinator.hasUnsavedContent = true
         
         Swift.print("[保存流程] ✅ Tier 0 内存缓存更新 - 笔记ID: \(note.id.prefix(8))..., XML长度: \(xmlContent.count)")
     }
@@ -890,6 +899,10 @@ struct NoteDetailView: View {
                         
                         // 更新保存状态为"已保存"
                         self.saveStatus = .saved
+                        
+                        // 清除 coordinator 的未保存内容标志
+                        // **Requirements: 6.1**
+                        self.viewModel.stateCoordinator.hasUnsavedContent = false
                         
                         Swift.print("[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: \(noteId.prefix(8))..., 标题: \(self.editedTitle)")
                         continuation.resume()
@@ -1105,6 +1118,13 @@ struct NoteDetailView: View {
         }
         if viewModel.selectedNote?.id == updated.id {
             viewModel.selectedNote = updated
+            
+            // 通过 coordinator 更新笔记内容，保持选择状态不变
+            // **Requirements: 1.1, 1.2, 1.3**
+            // - 1.1: 编辑笔记内容时保持选中状态不变
+            // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
+            // - 1.3: 笔记的 updatedAt 时间戳变化时保持选中笔记的高亮状态
+            viewModel.stateCoordinator.updateNoteContent(updated)
         }
     }
     
