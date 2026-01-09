@@ -8,22 +8,42 @@ import Combine
 /// 
 /// 负责协调侧边栏、笔记列表和编辑器之间的状态同步，作为单一数据源管理选择状态
 /// 
-/// **Requirements: 4.1, 4.2, 4.3, 4.4, 4.5**
+/// **Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 1.4**
 /// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
 /// - 4.2: selectedFolder 变化时按顺序更新 Notes_List_View 和 Editor
 /// - 4.3: selectedNote 变化时验证该笔记是否属于当前 selectedFolder
 /// - 4.4: 如果 selectedNote 不属于当前 selectedFolder，自动更新或清除
 /// - 4.5: 提供状态变化的日志记录以便调试
+/// - 1.4: 视图重建后恢复选择状态
 @MainActor
 public class ViewStateCoordinator: ObservableObject {
+    
+    // MARK: - UserDefaults Keys
+    
+    /// UserDefaults 存储键
+    private enum StorageKeys {
+        static let selectedFolderId = "ViewStateCoordinator.selectedFolderId"
+        static let selectedNoteId = "ViewStateCoordinator.selectedNoteId"
+        static let stateTimestamp = "ViewStateCoordinator.stateTimestamp"
+    }
     
     // MARK: - Published Properties
     
     /// 当前选中的文件夹
-    @Published public private(set) var selectedFolder: Folder?
+    @Published public private(set) var selectedFolder: Folder? {
+        didSet {
+            // 状态变化时自动保存到 UserDefaults
+            saveStateToUserDefaults()
+        }
+    }
     
     /// 当前选中的笔记
-    @Published public private(set) var selectedNote: Note?
+    @Published public private(set) var selectedNote: Note? {
+        didSet {
+            // 状态变化时自动保存到 UserDefaults
+            saveStateToUserDefaults()
+        }
+    }
     
     /// 是否正在切换状态
     @Published public private(set) var isTransitioning: Bool = false
@@ -33,6 +53,9 @@ public class ViewStateCoordinator: ObservableObject {
     
     /// 最近的状态转换记录（用于调试）
     @Published public private(set) var lastTransition: StateTransition?
+    
+    /// 是否已从持久化存储恢复状态
+    @Published public private(set) var hasRestoredState: Bool = false
     
     // MARK: - Save Callback
     
@@ -61,6 +84,12 @@ public class ViewStateCoordinator: ObservableObject {
     /// 是否启用调试日志
     public var isDebugLoggingEnabled: Bool = true
     
+    /// 是否启用状态持久化
+    public var isStatePersistenceEnabled: Bool = true
+    
+    /// 内存缓存的状态（用于快速恢复）
+    private var cachedState: ViewState?
+    
     // MARK: - Initialization
     
     /// 初始化状态协调器
@@ -78,6 +107,223 @@ public class ViewStateCoordinator: ObservableObject {
     public func setViewModel(_ viewModel: NotesViewModel) {
         self.viewModel = viewModel
         log("已关联 NotesViewModel")
+        
+        // 关联 ViewModel 后，尝试恢复之前保存的状态
+        if isStatePersistenceEnabled && !hasRestoredState {
+            restoreStateFromUserDefaults()
+        }
+    }
+    
+    // MARK: - State Persistence
+    
+    /// 保存状态到 UserDefaults
+    /// 
+    /// 在状态变化时自动调用，将当前选择状态持久化
+    /// 
+    /// **Requirements: 1.4**
+    /// - 1.4: 视图重建后恢复选择状态
+    private func saveStateToUserDefaults() {
+        guard isStatePersistenceEnabled else { return }
+        
+        let defaults = UserDefaults.standard
+        
+        // 保存文件夹ID
+        if let folderId = selectedFolder?.id {
+            defaults.set(folderId, forKey: StorageKeys.selectedFolderId)
+        } else {
+            defaults.removeObject(forKey: StorageKeys.selectedFolderId)
+        }
+        
+        // 保存笔记ID
+        if let noteId = selectedNote?.id {
+            defaults.set(noteId, forKey: StorageKeys.selectedNoteId)
+        } else {
+            defaults.removeObject(forKey: StorageKeys.selectedNoteId)
+        }
+        
+        // 保存时间戳
+        defaults.set(Date().timeIntervalSince1970, forKey: StorageKeys.stateTimestamp)
+        
+        // 同时更新内存缓存
+        cachedState = currentState
+        
+        log("状态已保存到 UserDefaults: folder=\(selectedFolder?.id ?? "nil"), note=\(selectedNote?.id ?? "nil")")
+    }
+    
+    /// 从 UserDefaults 恢复状态
+    /// 
+    /// 在视图重建后调用，恢复之前保存的选择状态
+    /// 
+    /// **Requirements: 1.4**
+    /// - 1.4: 视图重建后恢复选择状态
+    private func restoreStateFromUserDefaults() {
+        guard let viewModel = viewModel else {
+            log("警告: ViewModel 未设置，无法恢复状态")
+            return
+        }
+        
+        let defaults = UserDefaults.standard
+        let previousState = currentState
+        
+        // 读取保存的状态
+        let savedFolderId = defaults.string(forKey: StorageKeys.selectedFolderId)
+        let savedNoteId = defaults.string(forKey: StorageKeys.selectedNoteId)
+        let savedTimestamp = defaults.double(forKey: StorageKeys.stateTimestamp)
+        
+        log("从 UserDefaults 读取状态: folder=\(savedFolderId ?? "nil"), note=\(savedNoteId ?? "nil")")
+        
+        // 检查保存的状态是否有效（24小时内）
+        let maxAge: TimeInterval = 24 * 60 * 60 // 24小时
+        let stateAge = Date().timeIntervalSince1970 - savedTimestamp
+        
+        if savedTimestamp > 0 && stateAge > maxAge {
+            log("保存的状态已过期（\(Int(stateAge / 3600))小时前），清除状态")
+            clearPersistedState()
+            hasRestoredState = true
+            return
+        }
+        
+        var stateRestored = false
+        
+        // 恢复文件夹选择
+        if let folderId = savedFolderId {
+            // 查找文件夹
+            if let folder = viewModel.folders.first(where: { $0.id == folderId }) {
+                selectedFolder = folder
+                stateRestored = true
+                log("恢复文件夹选择: \(folder.name)")
+            } else if folderId == "0" {
+                // "所有笔记"虚拟文件夹
+                selectedFolder = Folder(id: "0", name: "所有笔记", count: viewModel.notes.count, isSystem: true)
+                stateRestored = true
+                log("恢复文件夹选择: 所有笔记")
+            } else if folderId == "starred" {
+                // "置顶"虚拟文件夹
+                let starredCount = viewModel.notes.filter { $0.isStarred }.count
+                selectedFolder = Folder(id: "starred", name: "置顶", count: starredCount, isSystem: true)
+                stateRestored = true
+                log("恢复文件夹选择: 置顶")
+            } else {
+                log("文件夹 \(folderId) 不存在，跳过恢复")
+            }
+        }
+        
+        // 恢复笔记选择
+        if let noteId = savedNoteId {
+            // 查找笔记
+            if let note = viewModel.notes.first(where: { $0.id == noteId }) {
+                // 验证笔记是否属于当前文件夹
+                if let folderId = selectedFolder?.id {
+                    if isNoteInFolder(note: note, folderId: folderId) {
+                        selectedNote = note
+                        stateRestored = true
+                        log("恢复笔记选择: \(note.title)")
+                    } else {
+                        log("笔记 \(noteId) 不属于当前文件夹，跳过恢复")
+                    }
+                } else {
+                    // 没有选中文件夹，直接恢复笔记
+                    selectedNote = note
+                    stateRestored = true
+                    log("恢复笔记选择: \(note.title)")
+                }
+            } else {
+                log("笔记 \(noteId) 不存在，跳过恢复")
+            }
+        }
+        
+        hasRestoredState = true
+        
+        // 记录状态转换
+        if stateRestored {
+            let newState = currentState
+            recordTransition(from: previousState, to: newState, trigger: .viewRestore, additionalInfo: "从 UserDefaults 恢复")
+            log("✅ 状态恢复完成")
+        } else {
+            log("没有需要恢复的状态")
+        }
+    }
+    
+    /// 从内存缓存恢复状态
+    /// 
+    /// 用于快速恢复，优先于 UserDefaults
+    /// 
+    /// **Requirements: 1.4**
+    /// - 1.4: 视图重建后恢复选择状态
+    /// 
+    /// - Returns: 是否成功恢复
+    @discardableResult
+    public func restoreStateFromCache() -> Bool {
+        guard let cachedState = cachedState else {
+            log("没有缓存的状态")
+            return false
+        }
+        
+        restoreState(cachedState)
+        return true
+    }
+    
+    /// 清除持久化的状态
+    /// 
+    /// 在用户登出或需要重置状态时调用
+    public func clearPersistedState() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: StorageKeys.selectedFolderId)
+        defaults.removeObject(forKey: StorageKeys.selectedNoteId)
+        defaults.removeObject(forKey: StorageKeys.stateTimestamp)
+        
+        cachedState = nil
+        
+        log("已清除持久化状态")
+    }
+    
+    /// 获取持久化的状态（不恢复）
+    /// 
+    /// 用于检查是否有保存的状态
+    /// 
+    /// - Returns: 保存的状态，如果没有则返回 nil
+    public func getPersistedState() -> ViewState? {
+        let defaults = UserDefaults.standard
+        
+        let savedFolderId = defaults.string(forKey: StorageKeys.selectedFolderId)
+        let savedNoteId = defaults.string(forKey: StorageKeys.selectedNoteId)
+        let savedTimestamp = defaults.double(forKey: StorageKeys.stateTimestamp)
+        
+        // 如果没有保存的状态，返回 nil
+        if savedFolderId == nil && savedNoteId == nil {
+            return nil
+        }
+        
+        let timestamp = savedTimestamp > 0 ? Date(timeIntervalSince1970: savedTimestamp) : Date()
+        
+        return ViewState(
+            selectedFolderId: savedFolderId,
+            selectedNoteId: savedNoteId,
+            timestamp: timestamp
+        )
+    }
+    
+    /// 手动触发状态恢复
+    /// 
+    /// 在数据加载完成后调用，确保状态正确恢复
+    /// 
+    /// **Requirements: 1.4**
+    /// - 1.4: 视图重建后恢复选择状态
+    public func triggerStateRestoration() {
+        guard isStatePersistenceEnabled else {
+            log("状态持久化已禁用，跳过恢复")
+            return
+        }
+        
+        // 如果已经恢复过，先检查内存缓存
+        if hasRestoredState {
+            if restoreStateFromCache() {
+                return
+            }
+        }
+        
+        // 从 UserDefaults 恢复
+        restoreStateFromUserDefaults()
     }
     
     // MARK: - Public Methods
