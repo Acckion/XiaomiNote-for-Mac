@@ -491,9 +491,50 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
     /// 最后检查结果
     @Published private(set) var lastCheckResult: Bool = true
     
+    // MARK: - 刷新协调
+    
+    /// 检查是否应该跳过本次检查
+    /// 
+    /// 当 Cookie 刷新正在进行时，跳过定时检查以避免冲突
+    /// - Returns: 如果应该跳过返回 true，否则返回 false
+    private func shouldSkipCheck() async -> Bool {
+        // 检查 SilentCookieRefreshManager 是否正在刷新
+        let isRefreshing = await MainActor.run {
+            SilentCookieRefreshManager.shared.isRefreshing
+        }
+        
+        if isRefreshing {
+            print("[CookieValidityCheckTask] ⏭️ Cookie 刷新正在进行中，跳过本次检查")
+            return true
+        }
+        
+        // 检查任务是否被暂停
+        let isPaused = await MainActor.run {
+            ScheduledTaskManager.shared.isTaskPaused(self.id)
+        }
+        
+        if isPaused {
+            print("[CookieValidityCheckTask] ⏭️ 任务已暂停，跳过本次检查")
+            return true
+        }
+        
+        return false
+    }
+    
     // MARK: - 任务执行
     
     func execute() async -> TaskResult {
+        // 检查是否应该跳过本次检查
+        if await shouldSkipCheck() {
+            print("[CookieValidityCheckTask] 🔄 刷新进行中，跳过检查并返回成功")
+            return TaskResult(
+                taskId: id,
+                success: true,
+                data: ["skipped": true, "reason": "refresh_in_progress"],
+                error: nil
+            )
+        }
+        
         print("[CookieValidityCheckTask] 开始检查Cookie有效性")
         
         do {
@@ -511,7 +552,7 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
             return TaskResult(
                 taskId: id,
                 success: true,
-                data: ["isValid": isValid],
+                data: ["isValid": isValid, "skipped": false],
                 error: nil
             )
         } catch {
@@ -526,7 +567,7 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
             return TaskResult(
                 taskId: id,
                 success: false,
-                data: nil,
+                data: ["skipped": false],
                 error: error
             )
         }
