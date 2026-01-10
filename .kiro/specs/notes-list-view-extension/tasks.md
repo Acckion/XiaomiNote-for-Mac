@@ -73,8 +73,8 @@
     - **Property 1: 排序一致性**
     - **验证: 需求 2.3, 2.7**
 
-- [ ] 6. 实现笔记卡片视图
-  - [ ] 6.1 创建 NoteCardView 组件
+- [x] 6. 实现笔记卡片视图
+  - [x] 6.1 创建 NoteCardView 组件
     - 在 `Sources/View/SwiftUIViews/` 目录下创建 `NoteCardView.swift`
     - 实现标题、内容预览、日期显示
     - 实现缩略图加载和显示
@@ -86,8 +86,8 @@
     - **Property 4: 卡片内容完整性**
     - **验证: 需求 5.2**
 
-- [ ] 7. 实现画廊视图
-  - [ ] 7.1 创建 GalleryView 组件
+- [x] 7. 实现画廊视图
+  - [x] 7.1 创建 GalleryView 组件
     - 在 `Sources/View/SwiftUIViews/` 目录下创建 `GalleryView.swift`
     - 实现响应式网格布局
     - 实现平铺和分组两种显示模式
@@ -98,15 +98,15 @@
     - **Property 5: 视图状态一致性**
     - **验证: 需求 5.8, 8.1, 8.3, 8.4, 8.5**
 
-- [ ] 8. 实现展开笔记视图
-  - [ ] 8.1 创建 ExpandedNoteView 组件
+- [x] 8. 实现展开笔记视图
+  - [x] 8.1 创建 ExpandedNoteView 组件
     - 在 `Sources/View/SwiftUIViews/` 目录下创建 `ExpandedNoteView.swift`
     - 实现返回按钮
     - 集成 NoteDetailView
     - 实现 Escape 键返回
     - _Requirements: 6.2, 6.3, 7.5_
 
-  - [ ] 8.2 实现展开/收起动画
+  - [x] 8.2 实现展开/收起动画
     - 使用 matchedGeometryEffect 实现平滑过渡
     - 设置 easeInOut 动画时长 350ms
     - _Requirements: 6.1, 6.4, 6.5_
@@ -118,24 +118,24 @@
 - [ ] 9. 检查点 - 确保画廊视图功能正常
   - 确保所有测试通过，如有问题请询问用户
 
-- [ ] 10. 实现内容区域视图切换
-  - [ ] 10.1 创建 ContentAreaView 组件
+- [x] 10. 实现内容区域视图切换
+  - [x] 10.1 创建 ContentAreaView 组件
     - 在 `Sources/View/SwiftUIViews/` 目录下创建 `ContentAreaView.swift`
     - 根据 viewMode 切换列表模式和画廊模式
     - 管理 expandedNote 状态
     - _Requirements: 4.3, 4.4, 4.5_
 
-  - [ ] 10.2 更新 MainWindowController 集成 ContentAreaView
+  - [x] 10.2 更新 MainWindowController 集成 ContentAreaView
     - 修改 `setupWindowContent()` 方法
     - 将笔记列表和详情区域替换为 ContentAreaView
     - _Requirements: 4.3, 4.4, 4.5_
 
-- [ ] 11. 实现右键菜单和状态同步
-  - [ ] 11.1 为 NoteCardView 添加右键菜单
+- [x] 11. 实现右键菜单和状态同步
+  - [x] 11.1 为 NoteCardView 添加右键菜单
     - 复用 NotesListView 中的 noteContextMenu
     - _Requirements: 7.1_
 
-  - [ ] 11.2 实现状态同步
+  - [x] 11.2 实现状态同步
     - 确保文件夹切换时画廊视图更新
     - 确保搜索时画廊视图过滤
     - 确保笔记变更时画廊视图刷新
@@ -145,7 +145,7 @@
     - **Property 7: 数据变更反映**
     - **验证: 需求 8.2**
 
-- [ ] 12. 最终检查点 - 确保所有功能正常
+- [x] 12. 最终检查点 - 确保所有功能正常
   - 确保所有测试通过，如有问题请询问用户
 
 ## 备注

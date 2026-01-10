@@ -515,6 +515,11 @@ public class NotesViewModel: ObservableObject {
         // 这样 AuthenticationStateManager 的状态变化会触发 ViewModel 的 @Published 属性更新，进而触发 UI 更新
         setupAuthStateSync()
         
+        // 同步 ViewOptionsManager 的排序设置到 ViewModel
+        // 确保画廊视图和列表视图使用相同的排序设置
+        // _Requirements: 8.1, 8.3, 8.4, 8.5_
+        setupViewOptionsSync()
+        
         // 监听selectedNote和selectedFolder变化，保存状态
         Publishers.CombineLatest($selectedNote, $selectedFolder)
             .sink { [weak self] _, _ in
@@ -816,6 +821,38 @@ public class NotesViewModel: ObservableObject {
                 if self.selectedNote?.id != note?.id {
                     print("[NotesViewModel] 从 stateCoordinator 同步 selectedNote: \(note?.title ?? "nil")")
                     self.selectedNote = note
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    /// 同步 ViewOptionsManager 的排序设置到 ViewModel
+    /// 
+    /// 通过 Combine 将 ViewOptionsManager 的排序设置同步到 ViewModel 的排序属性
+    /// 确保画廊视图和列表视图使用相同的排序设置
+    /// 
+    /// **Requirements: 8.1, 8.3, 8.4, 8.5**
+    /// - 8.1: 文件夹切换时画廊视图更新
+    /// - 8.3: 搜索时画廊视图过滤
+    /// - 8.4: 画廊视图尊重所有搜索筛选选项
+    /// - 8.5: 切换视图模式时保持选中文件夹和搜索状态
+    private func setupViewOptionsSync() {
+        // 同步排序方式
+        ViewOptionsManager.shared.$state
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                guard let self = self else { return }
+                
+                // 同步排序方式
+                if self.notesListSortField != state.sortOrder {
+                    print("[NotesViewModel] 从 ViewOptionsManager 同步排序方式: \(state.sortOrder.displayName)")
+                    self.notesListSortField = state.sortOrder
+                }
+                
+                // 同步排序方向
+                if self.notesListSortDirection != state.sortDirection {
+                    print("[NotesViewModel] 从 ViewOptionsManager 同步排序方向: \(state.sortDirection.displayName)")
+                    self.notesListSortDirection = state.sortDirection
                 }
             }
             .store(in: &cancellables)

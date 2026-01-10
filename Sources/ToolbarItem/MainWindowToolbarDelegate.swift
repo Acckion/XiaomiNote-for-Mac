@@ -502,10 +502,20 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             return nil
             
         case .timelineTrackingSeparator:
-            // 时间线跟踪分隔符 - 连接到分割视图的第二个分隔符
+            // 时间线跟踪分隔符
+            // 注意：由于使用两栏布局（侧边栏 + 内容区域），只有一个分隔符
+            // 如果分割视图只有一个分隔符，返回普通分隔符
+            // _Requirements: 4.3, 4.4, 4.5_
             if let window = windowController?.window,
                let splitViewController = window.contentViewController as? NSSplitViewController {
-                return NSTrackingSeparatorToolbarItem(identifier: .timelineTrackingSeparator, splitView: splitViewController.splitView, dividerIndex: 1)
+                let dividerCount = splitViewController.splitView.subviews.count - 1
+                if dividerCount > 1 {
+                    // 三栏布局：使用第二个分隔符
+                    return NSTrackingSeparatorToolbarItem(identifier: .timelineTrackingSeparator, splitView: splitViewController.splitView, dividerIndex: 1)
+                } else {
+                    // 两栏布局：返回普通分隔符
+                    return NSToolbarItem(itemIdentifier: .separator)
+                }
             }
             return nil
             

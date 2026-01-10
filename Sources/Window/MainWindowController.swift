@@ -130,6 +130,10 @@ public class MainWindowController: NSWindowController {
     // MARK: - 设置方法
     
     /// 设置窗口内容
+    /// 
+    /// 使用三栏布局：侧边栏 + 笔记列表 + 编辑器
+    /// 在画廊模式下，笔记列表和编辑器区域会被 ContentAreaView 替换
+    /// _Requirements: 4.3, 4.4, 4.5_
     private func setupWindowContent() {
         guard let window = window, let viewModel = viewModel else { return }
         
@@ -144,18 +148,86 @@ public class MainWindowController: NSWindowController {
         splitViewController.addSplitViewItem(sidebarSplitViewItem)
         
         // 第二栏：笔记列表（使用SwiftUI视图）
-        let notesListSplitViewItem = NSSplitViewItem(contentListWithViewController: NotesListHostingController(viewModel: viewModel))
+        let notesListSplitViewItem = NSSplitViewItem(viewController: NotesListHostingController(viewModel: viewModel))
         notesListSplitViewItem.minimumThickness = 200
         notesListSplitViewItem.maximumThickness = 400
+        notesListSplitViewItem.canCollapse = false
         splitViewController.addSplitViewItem(notesListSplitViewItem)
         
-        // 第三栏：笔记详情
-        let detailSplitViewItem = NSSplitViewItem(viewController: NoteDetailViewController(viewModel: viewModel))
-        detailSplitViewItem.minimumThickness = 300
-        splitViewController.addSplitViewItem(detailSplitViewItem)
+        // 第三栏：笔记详情编辑器（使用SwiftUI视图）
+        let noteDetailSplitViewItem = NSSplitViewItem(viewController: NoteDetailHostingController(viewModel: viewModel))
+        noteDetailSplitViewItem.minimumThickness = 400
+        splitViewController.addSplitViewItem(noteDetailSplitViewItem)
         
         // 设置窗口内容
         window.contentViewController = splitViewController
+        
+        // 监听视图模式变化，动态切换布局
+        setupViewModeObserver(splitViewController: splitViewController)
+    }
+    
+    /// 设置视图模式监听
+    /// 在列表模式和画廊模式之间切换时，动态调整分割视图布局
+    /// _Requirements: 4.3, 4.4, 4.5_
+    private func setupViewModeObserver(splitViewController: NSSplitViewController) {
+        guard let viewModel = viewModel else { return }
+        
+        ViewOptionsManager.shared.$state
+            .map(\.viewMode)
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self, weak splitViewController] viewMode in
+                guard let self = self, let splitViewController = splitViewController else { return }
+                self.updateLayoutForViewMode(viewMode, splitViewController: splitViewController, viewModel: viewModel)
+            }
+            .store(in: &cancellables)
+        
+        // 初始化时根据当前视图模式设置布局
+        updateLayoutForViewMode(ViewOptionsManager.shared.viewMode, splitViewController: splitViewController, viewModel: viewModel)
+    }
+    
+    /// 根据视图模式更新布局
+    /// _Requirements: 4.3, 4.4, 4.5_
+    private func updateLayoutForViewMode(_ viewMode: ViewMode, splitViewController: NSSplitViewController, viewModel: NotesViewModel) {
+        let splitViewItems = splitViewController.splitViewItems
+        guard splitViewItems.count >= 2 else { return }
+        
+        switch viewMode {
+        case .list:
+            // 列表模式：显示三栏布局（侧边栏 + 笔记列表 + 编辑器）
+            if splitViewItems.count == 2 {
+                // 当前是两栏布局（画廊模式），需要恢复三栏布局
+                // 移除画廊视图
+                splitViewController.removeSplitViewItem(splitViewItems[1])
+                
+                // 添加笔记列表
+                let notesListSplitViewItem = NSSplitViewItem(viewController: NotesListHostingController(viewModel: viewModel))
+                notesListSplitViewItem.minimumThickness = 200
+                notesListSplitViewItem.maximumThickness = 400
+                notesListSplitViewItem.canCollapse = false
+                splitViewController.insertSplitViewItem(notesListSplitViewItem, at: 1)
+                
+                // 添加笔记详情编辑器
+                let noteDetailSplitViewItem = NSSplitViewItem(viewController: NoteDetailHostingController(viewModel: viewModel))
+                noteDetailSplitViewItem.minimumThickness = 400
+                splitViewController.addSplitViewItem(noteDetailSplitViewItem)
+            }
+            
+        case .gallery:
+            // 画廊模式：显示两栏布局（侧边栏 + 画廊视图）
+            if splitViewItems.count == 3 {
+                // 当前是三栏布局（列表模式），需要切换到两栏布局
+                // 移除笔记列表和编辑器
+                splitViewController.removeSplitViewItem(splitViewItems[2])
+                splitViewController.removeSplitViewItem(splitViewItems[1])
+                
+                // 添加画廊视图
+                let galleryHostingController = GalleryHostingController(viewModel: viewModel)
+                let gallerySplitViewItem = NSSplitViewItem(viewController: galleryHostingController)
+                gallerySplitViewItem.minimumThickness = 500
+                splitViewController.addSplitViewItem(gallerySplitViewItem)
+            }
+        }
     }
     
     /// 设置工具栏
@@ -412,9 +484,19 @@ extension MainWindowController: NSToolbarDelegate {
             return nil
             
         case .timelineTrackingSeparator:
-            // 时间线跟踪分隔符 - 连接到分割视图的第二个分隔符
+            // 时间线跟踪分隔符
+            // 注意：由于使用两栏布局（侧边栏 + 内容区域），只有一个分隔符
+            // 如果分割视图只有一个分隔符，返回普通分隔符
+            // _Requirements: 4.3, 4.4, 4.5_
             if let splitViewController = window?.contentViewController as? NSSplitViewController {
-                return NSTrackingSeparatorToolbarItem(identifier: .timelineTrackingSeparator, splitView: splitViewController.splitView, dividerIndex: 1)
+                let dividerCount = splitViewController.splitView.subviews.count - 1
+                if dividerCount > 1 {
+                    // 三栏布局：使用第二个分隔符
+                    return NSTrackingSeparatorToolbarItem(identifier: .timelineTrackingSeparator, splitView: splitViewController.splitView, dividerIndex: 1)
+                } else {
+                    // 两栏布局：返回普通分隔符
+                    return NSToolbarItem(itemIdentifier: .separator)
+                }
             }
             return nil
             
