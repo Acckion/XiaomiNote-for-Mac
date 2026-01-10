@@ -79,6 +79,12 @@ public class MainWindowController: NSWindowController {
     /// 查找面板控制器
     private var searchPanelController: SearchPanelController?
     
+    /// 保存的笔记列表宽度（用于视图模式切换时恢复）
+    private var savedNotesListWidth: CGFloat?
+    
+    /// 笔记列表宽度的 UserDefaults 键
+    private let notesListWidthKey = "NotesListWidth"
+    
     // MARK: - 初始化
     
     /// 使用指定的视图模型初始化窗口控制器
@@ -145,6 +151,9 @@ public class MainWindowController: NSWindowController {
         // 创建分割视图控制器（三栏布局）
         let splitViewController = NSSplitViewController()
         
+        // 设置分割视图的自动保存名称，用于记住分割位置
+        splitViewController.splitView.autosaveName = "MainWindowSplitView"
+        
         // 第一栏：侧边栏（使用SwiftUI视图）
         let sidebarSplitViewItem = NSSplitViewItem(sidebarWithViewController: SidebarHostingController(viewModel: viewModel))
         sidebarSplitViewItem.minimumThickness = 180
@@ -155,13 +164,17 @@ public class MainWindowController: NSWindowController {
         // 第二栏：笔记列表（使用SwiftUI视图）
         let notesListSplitViewItem = NSSplitViewItem(viewController: NotesListHostingController(viewModel: viewModel))
         notesListSplitViewItem.minimumThickness = 200
-        notesListSplitViewItem.maximumThickness = 400
+        notesListSplitViewItem.maximumThickness = 350
         notesListSplitViewItem.canCollapse = false
+        // 设置较高的 holdingPriority，窗口缩小时优先压缩编辑器
+        notesListSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(251)
         splitViewController.addSplitViewItem(notesListSplitViewItem)
         
         // 第三栏：笔记详情编辑器（使用SwiftUI视图）
         let noteDetailSplitViewItem = NSSplitViewItem(viewController: NoteDetailHostingController(viewModel: viewModel))
         noteDetailSplitViewItem.minimumThickness = 400
+        // 编辑器 holdingPriority 较低，窗口缩小时先压缩编辑器
+        noteDetailSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(250)
         splitViewController.addSplitViewItem(noteDetailSplitViewItem)
         
         // 设置窗口内容
@@ -208,19 +221,29 @@ public class MainWindowController: NSWindowController {
                 // 添加笔记列表
                 let notesListSplitViewItem = NSSplitViewItem(viewController: NotesListHostingController(viewModel: viewModel))
                 notesListSplitViewItem.minimumThickness = 200
-                notesListSplitViewItem.maximumThickness = 400
+                notesListSplitViewItem.maximumThickness = 350
                 notesListSplitViewItem.canCollapse = false
+                // 设置较高的 holdingPriority，窗口缩小时优先压缩编辑器
+                notesListSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(251)
                 splitViewController.insertSplitViewItem(notesListSplitViewItem, at: 1)
                 
                 // 添加笔记详情编辑器
                 let noteDetailSplitViewItem = NSSplitViewItem(viewController: NoteDetailHostingController(viewModel: viewModel))
                 noteDetailSplitViewItem.minimumThickness = 400
+                // 编辑器 holdingPriority 较低，窗口缩小时先压缩编辑器
+                noteDetailSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(250)
                 splitViewController.addSplitViewItem(noteDetailSplitViewItem)
+                
+                // 恢复保存的笔记列表宽度
+                restoreNotesListWidth(splitViewController: splitViewController)
             }
             
         case .gallery:
             // 画廊模式：显示两栏布局（侧边栏 + 画廊视图）
             if splitViewItems.count == 3 {
+                // 保存当前笔记列表宽度
+                saveNotesListWidth(splitViewController: splitViewController)
+                
                 // 当前是三栏布局（列表模式），需要切换到两栏布局
                 // 移除笔记列表和编辑器
                 splitViewController.removeSplitViewItem(splitViewItems[2])
@@ -230,8 +253,36 @@ public class MainWindowController: NSWindowController {
                 let galleryHostingController = GalleryHostingController(viewModel: viewModel)
                 let gallerySplitViewItem = NSSplitViewItem(viewController: galleryHostingController)
                 gallerySplitViewItem.minimumThickness = 500
+                // 画廊视图 holdingPriority 较低，窗口缩小时先压缩
+                gallerySplitViewItem.holdingPriority = NSLayoutConstraint.Priority(250)
                 splitViewController.addSplitViewItem(gallerySplitViewItem)
             }
+        }
+    }
+    
+    /// 保存笔记列表宽度
+    private func saveNotesListWidth(splitViewController: NSSplitViewController) {
+        guard splitViewController.splitViewItems.count >= 2 else { return }
+        let notesListView = splitViewController.splitView.subviews[1]
+        let width = notesListView.frame.width
+        savedNotesListWidth = width
+        UserDefaults.standard.set(width, forKey: notesListWidthKey)
+    }
+    
+    /// 恢复笔记列表宽度
+    private func restoreNotesListWidth(splitViewController: NSSplitViewController) {
+        // 优先使用内存中保存的宽度，否则从 UserDefaults 读取
+        let width = savedNotesListWidth ?? UserDefaults.standard.object(forKey: notesListWidthKey) as? CGFloat
+        
+        guard let targetWidth = width,
+              splitViewController.splitViewItems.count >= 2 else { return }
+        
+        // 延迟执行以确保视图已经添加完成
+        DispatchQueue.main.async {
+            splitViewController.splitView.setPosition(
+                splitViewController.splitView.subviews[0].frame.width + targetWidth,
+                ofDividerAt: 1
+            )
         }
     }
     
