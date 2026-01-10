@@ -173,6 +173,11 @@
     - 监听段落样式变化
     - 更新 MenuState 并触发菜单刷新
     - _Requirements: 14.5, 14.6_
+  - [x] 9.3 修复"正文"菜单项勾选状态不显示的问题 ✅ (Bug Fix)
+    - 在 `MenuActionHandler.validateMenuItem` 方法中添加 `bodyText` 标签的处理
+    - 之前只处理了 heading, subheading, subtitle, orderedList, unorderedList, blockquote
+    - 导致"正文"菜单项永远不会显示勾选状态
+    - _Requirements: 4.4, 4.7, 14.6_
 
 - [x] 10. 最终验证和清理
   - [ ]* 10.1 编写快捷键唯一性属性测试

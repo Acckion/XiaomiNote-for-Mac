@@ -71,7 +71,14 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         updateMenuItemCheckState(menuItem, for: tag)
         
         // 根据标签类型返回启用状态
-        return menuState.shouldEnableMenuItem(for: tag)
+        let shouldEnable = menuState.shouldEnableMenuItem(for: tag)
+        
+        // 添加日志用于调试段落样式菜单项
+        if tag.isParagraphStyle {
+            print("[MenuActionHandler] validateMenuItem - tag: \(tag), title: \(menuItem.title), shouldEnable: \(shouldEnable), state: \(menuItem.state == .on ? "✓" : "○"), isEditorFocused: \(menuState.isEditorFocused), currentParagraphStyle: \(menuState.currentParagraphStyle.displayName)")
+        }
+        
+        return shouldEnable
     }
     
     // MARK: - 私有方法 - 状态管理
@@ -217,20 +224,36 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 从当前上下文更新菜单状态
+    /// 
+    /// 从编辑器上下文获取当前的格式状态，并更新菜单状态
+    /// _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
     private func updateMenuStateFromContext() {
         var newState = menuState
         
         // 更新笔记选中状态
-        newState.hasSelectedNote = mainWindowController?.viewModel?.selectedNote != nil
+        let hasSelectedNote = mainWindowController?.viewModel?.selectedNote != nil
+        newState.hasSelectedNote = hasSelectedNote
+        print("[MenuActionHandler] updateMenuStateFromContext - hasSelectedNote: \(hasSelectedNote)")
         
         // 更新编辑器焦点状态
-        // 检查当前第一响应者是否是编辑器
+        // 检查当前第一响应者是否是编辑器（NSTextView 或其子类）
+        var isEditorFocused = false
         if let window = NSApp.mainWindow,
            let firstResponder = window.firstResponder {
-            newState.isEditorFocused = firstResponder is NSTextView
+            // 检查是否是 NSTextView 或其子类
+            isEditorFocused = firstResponder is NSTextView
+            print("[MenuActionHandler] updateMenuStateFromContext - firstResponder: \(type(of: firstResponder)), isEditorFocused: \(isEditorFocused)")
         } else {
-            newState.isEditorFocused = false
+            print("[MenuActionHandler] updateMenuStateFromContext - 无法获取 firstResponder")
         }
+        
+        // 如果有选中的笔记，即使编辑器没有焦点，也应该允许格式菜单操作
+        // 这样用户可以在点击菜单时应用格式
+        if hasSelectedNote {
+            isEditorFocused = true
+            print("[MenuActionHandler] updateMenuStateFromContext - 有选中笔记，强制启用编辑器焦点状态")
+        }
+        newState.isEditorFocused = isEditorFocused
         
         // 更新视图模式状态
         // 注意：ViewOptionsManager 使用的是 ViewOptionsState.ViewMode
@@ -256,6 +279,41 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         // _Requirements: 9.3_
         newState.isNoteCountVisible = ViewOptionsManager.shared.showNoteCount
         
+        // 更新段落样式状态（从编辑器上下文获取）
+        // _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
+        // 关键修复：检查当前使用的是哪种编辑器
+        let isUsingNativeEditor = mainWindowController?.isUsingNativeEditor ?? false
+        print("[MenuActionHandler] updateMenuStateFromContext - isUsingNativeEditor: \(isUsingNativeEditor)")
+        
+        if isUsingNativeEditor {
+            // 原生编辑器：从 NativeEditorContext 获取格式状态
+            if let nativeEditorContext = mainWindowController?.getCurrentNativeEditorContext() {
+                // 注意：不再调用 requestContentSync，因为它是异步的
+                // nsAttributedText 应该已经在 textViewDidChangeSelection 中同步更新了
+                // 如果需要确保内容是最新的，可以直接从 textView 获取
+                
+                // 强制更新格式状态
+                // 这与工具栏格式菜单（NativeFormatMenuView）的行为保持一致
+                print("[MenuActionHandler] updateMenuStateFromContext - 强制更新格式状态")
+                nativeEditorContext.forceUpdateFormats()
+                
+                let paragraphStyleString = nativeEditorContext.getCurrentParagraphStyleString()
+                print("[MenuActionHandler] updateMenuStateFromContext - 从原生编辑器获取段落样式: \(paragraphStyleString)")
+                if let paragraphStyle = ParagraphStyle(rawValue: paragraphStyleString) {
+                    newState.setParagraphStyle(paragraphStyle)
+                    print("[MenuActionHandler] updateMenuStateFromContext - 设置段落样式: \(paragraphStyle.displayName)")
+                }
+            } else {
+                print("[MenuActionHandler] updateMenuStateFromContext - 无法获取 NativeEditorContext")
+            }
+        } else {
+            // Web 编辑器：目前不支持从 Web 编辑器获取格式状态
+            // TODO: 未来可以通过 JavaScript 桥接获取 Web 编辑器的格式状态
+            print("[MenuActionHandler] updateMenuStateFromContext - 使用 Web 编辑器，格式状态检测暂不支持")
+            // 保持默认的正文样式
+            newState.setParagraphStyle(.body)
+        }
+        
         menuState = newState
     }
     
@@ -266,6 +324,11 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     private func updateMenuItemCheckState(_ menuItem: NSMenuItem, for tag: MenuItemTag) {
         let shouldCheck = menuState.shouldCheckMenuItem(for: tag)
         menuItem.state = shouldCheck ? .on : .off
+        
+        // 添加日志用于调试段落样式菜单项
+        if tag.isParagraphStyle {
+            print("[MenuActionHandler] updateMenuItemCheckState - tag: \(tag), title: \(menuItem.title), shouldCheck: \(shouldCheck), currentParagraphStyle: \(menuState.currentParagraphStyle.displayName)")
+        }
         
         // 更新动态标题
         // _Requirements: 9.2, 9.3_

@@ -537,6 +537,24 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             }
             return nil
             
+        case .editorSpace1, .editorSpace2:
+            // 编辑器区域的自定义间距项
+            // 使用固定间距，在画廊视图中随编辑器项一起隐藏
+            // 注意：必须设置 view 属性，否则 isHidden 不会生效
+            let spaceItem = NSToolbarItem(itemIdentifier: itemIdentifier)
+            spaceItem.label = ""
+            spaceItem.paletteLabel = "间距"
+            
+            // 创建一个空的 NSView 作为间距
+            // 这样 isHidden 属性才能正确工作
+            let spaceView = NSView(frame: NSRect(x: 0, y: 0, width: 8, height: 1))
+            spaceItem.view = spaceView
+            
+            // 设置为固定宽度的间距
+            spaceItem.minSize = NSSize(width: 8, height: 1)
+            spaceItem.maxSize = NSSize(width: 8, height: 1)
+            return spaceItem
+            
         default:
             // 处理系统标识符
             if itemIdentifier == .flexibleSpace {
@@ -558,6 +576,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.flexibleSpace,
             NSToolbarItem.Identifier.newNote,
             NSToolbarItem.Identifier.newFolder,
+            // 编辑器项
             NSToolbarItem.Identifier.undo,
             NSToolbarItem.Identifier.redo,
             NSToolbarItem.Identifier.bold,
@@ -572,6 +591,9 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.attachment,
             NSToolbarItem.Identifier.increaseIndent,
             NSToolbarItem.Identifier.decreaseIndent,
+            // 编辑器区域间距（可随编辑器项一起隐藏）
+            NSToolbarItem.Identifier.editorSpace1,
+            NSToolbarItem.Identifier.editorSpace2,
             NSToolbarItem.Identifier.flexibleSpace,
             NSToolbarItem.Identifier.search,
             NSToolbarItem.Identifier.sync,
@@ -621,12 +643,12 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.flexibleSpace,
             NSToolbarItem.Identifier.undo,
             NSToolbarItem.Identifier.redo,
-            NSToolbarItem.Identifier.space,
+            NSToolbarItem.Identifier.editorSpace1,  // 自定义间距，可随编辑器项隐藏
             NSToolbarItem.Identifier.formatMenu,
             NSToolbarItem.Identifier.checkbox,
             NSToolbarItem.Identifier.horizontalRule,
             NSToolbarItem.Identifier.attachment,
-            NSToolbarItem.Identifier.space,
+            NSToolbarItem.Identifier.editorSpace2,  // 自定义间距，可随编辑器项隐藏
             NSToolbarItem.Identifier.increaseIndent,
             NSToolbarItem.Identifier.decreaseIndent,
 
@@ -703,6 +725,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
     // MARK: - 搜索框菜单
     
     /// 为搜索框设置下拉菜单
+    @MainActor
     private func setupSearchFieldMenu(for searchField: NSSearchField) {
         logger.debug("设置搜索框菜单")
         

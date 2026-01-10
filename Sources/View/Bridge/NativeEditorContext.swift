@@ -189,7 +189,7 @@ enum EditorType: String, CaseIterable, Identifiable, Codable {
 /// 原生编辑器上下文 - 管理编辑器状态和操作
 /// 需求: 9.1, 9.2, 9.3, 9.4, 9.5
 @MainActor
-class NativeEditorContext: ObservableObject {
+public class NativeEditorContext: ObservableObject {
     // MARK: - Published Properties
     
     /// 当前应用的格式集合
@@ -651,7 +651,8 @@ class NativeEditorContext: ObservableObject {
     /// 立即更新格式状态（不使用防抖）
     /// 
     /// 在某些情况下（如用户点击格式按钮），我们需要立即更新状态
-    func forceUpdateFormats() {
+    /// 菜单栏格式菜单也需要调用此方法来获取当前格式状态
+    public func forceUpdateFormats() {
         print("[NativeEditorContext] forceUpdateFormats 被调用")
         formatStateSynchronizer.performImmediateUpdate()
     }
@@ -660,7 +661,8 @@ class NativeEditorContext: ObservableObject {
     /// 
     /// 当需要确保 nsAttributedText 是最新的时候调用此方法
     /// 这会发送一个通知，让 NativeEditorView 同步内容
-    func requestContentSync() {
+    /// 菜单栏格式菜单需要调用此方法来确保内容是最新的
+    public func requestContentSync() {
         print("[NativeEditorContext] requestContentSync 被调用")
         // 发送通知请求同步
         NotificationCenter.default.post(name: .nativeEditorRequestContentSync, object: self)
@@ -1203,6 +1205,21 @@ class NativeEditorContext: ObservableObject {
         }
     }
     
+    // MARK: - 公共方法 - 段落样式查询
+    
+    /// 获取当前段落样式字符串
+    /// 
+    /// 根据当前格式集合返回对应的段落样式字符串
+    /// 用于菜单栏勾选状态同步
+    /// 
+    /// _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
+    /// - Returns: 段落样式字符串（heading, subheading, subtitle, body, orderedList, unorderedList, blockQuote）
+    public func getCurrentParagraphStyleString() -> String {
+        let result = detectParagraphStyleFromFormats(currentFormats)
+        print("[NativeEditorContext] getCurrentParagraphStyleString - currentFormats: \(currentFormats.map { $0.displayName }), result: \(result)")
+        return result
+    }
+    
     /// 从格式集合中检测段落样式
     /// 
     /// 将 TextFormat 映射到段落样式字符串（用于菜单状态同步）
@@ -1219,6 +1236,8 @@ class NativeEditorContext: ObservableObject {
             return "orderedList"
         } else if formats.contains(.bulletList) {
             return "unorderedList"
+        } else if formats.contains(.quote) {
+            return "blockQuote"
         } else {
             return "body"
         }

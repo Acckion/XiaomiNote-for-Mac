@@ -116,6 +116,14 @@ extension NSToolbarItem.Identifier {
     
     /// 返回画廊视图
     static let backToGallery = NSToolbarItem.Identifier("backToGallery")
+    
+    // MARK: - 编辑器区域间距
+    
+    /// 编辑器区域间距1 - 可随编辑器项一起隐藏
+    static let editorSpace1 = NSToolbarItem.Identifier("editorSpace1")
+    
+    /// 编辑器区域间距2 - 可随编辑器项一起隐藏
+    static let editorSpace2 = NSToolbarItem.Identifier("editorSpace2")
 
     // MARK: - 其他功能
 

@@ -477,16 +477,16 @@ struct NativeEditorView: NSViewRepresentable {
                 }
             }
             
+            // 关键修复：同步更新 nsAttributedText，确保菜单栏验证时数据是最新的
+            // 之前使用 Task 异步更新，导致 validateMenuItem 调用时数据还没更新
+            self.parent.editorContext.nsAttributedText = attributedString
+            print("[NativeEditorView] syncContentToContext: nsAttributedText 已更新 (长度: \(attributedString.length))")
+            
+            // 更新选择范围
+            self.parent.editorContext.updateSelectedRange(selectedRange)
+            
+            // 异步更新格式状态，避免在视图更新中触发其他视图更新
             Task { @MainActor in
-                // 关键修复：直接更新 nsAttributedText，不做字符串比较
-                // 因为字符串可能相同但属性不同
-                self.parent.editorContext.nsAttributedText = attributedString
-                print("[NativeEditorView] syncContentToContext: nsAttributedText 已更新 (长度: \(attributedString.length))")
-                
-                // 更新选择范围
-                self.parent.editorContext.updateSelectedRange(selectedRange)
-                
-                // 强制更新格式状态
                 self.parent.editorContext.updateCurrentFormats()
             }
         }
@@ -520,20 +520,20 @@ struct NativeEditorView: NSViewRepresentable {
             // 直接从 textStorage 获取内容（保留所有属性）
             let currentAttributedString = NSAttributedString(attributedString: textStorage)
             
-            // 使用 Task 延迟执行，避免在视图更新中修改 @Published 属性
+            // 关键修复：同步更新 nsAttributedText，确保菜单栏验证时数据是最新的
+            // 这是为了解决菜单栏格式菜单勾选状态不正确的问题
+            // 之前使用 Task 异步更新，导致 validateMenuItem 调用时数据还没更新
+            self.parent.editorContext.nsAttributedText = currentAttributedString
+            self.parent.editorContext.updateSelectedRange(selectedRange)
+            
+            // 当选择变化时，说明用户正在与编辑器交互，设置焦点状态为 true
+            if !self.parent.editorContext.isEditorFocused {
+                print("[NativeEditorView] textViewDidChangeSelection: 设置焦点状态为 true")
+                self.parent.editorContext.setEditorFocused(true)
+            }
+            
+            // 异步调用回调，避免在视图更新中触发其他视图更新
             Task { @MainActor in
-                // 关键修复：始终同步 nsAttributedText，确保属性正确
-                // 不做字符串比较，因为字符串可能相同但属性不同
-                self.parent.editorContext.nsAttributedText = currentAttributedString
-                
-                // 当选择变化时，说明用户正在与编辑器交互，设置焦点状态为 true
-                if !self.parent.editorContext.isEditorFocused {
-                    print("[NativeEditorView] textViewDidChangeSelection: 设置焦点状态为 true")
-                    self.parent.editorContext.setEditorFocused(true)
-                }
-                
-                self.parent.editorContext.updateSelectedRange(selectedRange)
-                // 调用回调
                 selectionChangeCallback?(selectedRange)
             }
         }
