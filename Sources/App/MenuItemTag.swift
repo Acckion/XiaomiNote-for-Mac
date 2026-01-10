@@ -173,8 +173,18 @@ enum MenuItemTag: Int {
     
     // MARK: - 窗口操作（12001-12099）
     
+    /// 最小化
+    case minimize = 12001
+    /// 缩放
+    case zoom = 12002
+    /// 填充
+    case fill = 12003
+    /// 居中
+    case center = 12004
     /// 在新窗口中打开笔记
-    case openNoteInNewWindow = 12001
+    case openNoteInNewWindow = 12005
+    /// 前置全部窗口
+    case bringAllToFront = 12006
     
     // MARK: - 辅助方法
     

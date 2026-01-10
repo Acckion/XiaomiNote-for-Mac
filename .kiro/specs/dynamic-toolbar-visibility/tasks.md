@@ -45,8 +45,8 @@
     - 隐藏状态优先于启用状态
     - _Requirements: 2.2, 2.3_
 
-- [ ] 5. Checkpoint - 确保基础功能正常
-  - 编译项目，确保没有错误
+- [x] 5. Checkpoint - 确保基础功能正常
+  - [x] 编译项目，确保没有错误
   - 手动测试视图模式切换时工具栏项的显示/隐藏
   - 确保所有测试通过，如有问题请询问用户
 
@@ -67,6 +67,18 @@
   - [x] 确保所有测试通过
   - [x] 验证自定义工具栏界面中隐藏项显示为虚线框
   - [x] 如有问题请询问用户
+
+- [x] 8. 修复画廊视图中多个连续空白间距问题
+  - [x] 8.1 添加 editorItemGroup 工具栏标识符
+    - 在 ToolbarIdentifiers.swift 中添加 .editorItemGroup 标识符
+  - [x] 8.2 创建编辑器工具栏项组
+    - 在 MainWindowToolbarDelegate 中实现 createEditorItemGroup 方法
+    - 使用 NSToolbarItemGroup 将编辑器项组合在一起
+  - [x] 8.3 更新默认工具栏配置
+    - 修改 toolbarDefaultItemIdentifiers 使用 editorItemGroup 替代单独的编辑器项
+  - [x] 8.4 更新 ToolbarVisibilityManager
+    - 在 editorItemIdentifiers 中添加 .editorItemGroup
+  - _Requirements: 1.4（新增）- 编辑器项隐藏时不应出现多个连续空白间距_
 
 ## Notes
 

@@ -48,9 +48,9 @@ enum ParagraphStyle: String, CaseIterable {
     }
 }
 
-/// 视图模式枚举
-/// 用于表示笔记列表的显示模式
-enum ViewMode: String, CaseIterable {
+/// 菜单视图模式枚举
+/// 用于表示笔记列表的显示模式（菜单状态专用）
+enum MenuViewMode: String, CaseIterable {
     case list = "list"
     case gallery = "gallery"
     
@@ -63,7 +63,7 @@ enum ViewMode: String, CaseIterable {
     }
     
     /// 从菜单项标签创建视图模式
-    static func from(tag: MenuItemTag) -> ViewMode? {
+    static func from(tag: MenuItemTag) -> MenuViewMode? {
         switch tag {
         case .listView: return .list
         case .galleryView: return .gallery
@@ -96,7 +96,7 @@ struct MenuState: Equatable {
     // MARK: - 视图模式状态
     
     /// 当前视图模式
-    var currentViewMode: ViewMode = .list
+    var currentViewMode: MenuViewMode = .list
     
     // MARK: - 切换状态
     
@@ -159,7 +159,7 @@ struct MenuState: Equatable {
     init(
         currentParagraphStyle: ParagraphStyle = .body,
         isBlockQuoteEnabled: Bool = false,
-        currentViewMode: ViewMode = .list,
+        currentViewMode: MenuViewMode = .list,
         isLightBackgroundEnabled: Bool = false,
         isFolderHidden: Bool = false,
         isNoteCountVisible: Bool = true,
@@ -288,7 +288,7 @@ struct MenuState: Equatable {
     
     /// 设置视图模式
     /// - Parameter mode: 新的视图模式
-    mutating func setViewMode(_ mode: ViewMode) {
+    mutating func setViewMode(_ mode: MenuViewMode) {
         currentViewMode = mode
     }
     
@@ -341,3 +341,7 @@ extension MenuState {
         )
     }
 }
+
+// MARK: - 菜单状态同步通知
+// 注意：通知名称定义在 Sources/Extensions/Notification+MenuState.swift 中
+// 以便 MiNoteLibrary 和 MiNoteMac 两个 target 都可以访问

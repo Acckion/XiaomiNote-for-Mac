@@ -96,20 +96,20 @@
     - **Property 2: 段落样式互斥选择**
     - **Validates: Requirements 4.7, 14.6**
 
-- [x] 6. 实现显示菜单
-  - [x] 6.1 实现视图模式菜单项
+- [x] 6. 实现显示菜单 ✅ (已提交: 14d6636)
+  - [x] 6.1 实现视图模式菜单项 ✅
     - 添加"列表视图"、"画廊视图"（单选勾选）
     - 设置 MenuItemTag 标签
     - _Requirements: 8.1-8.5_
-  - [x] 6.2 实现文件夹和笔记数量控制
+  - [x] 6.2 实现文件夹和笔记数量控制 ✅
     - 添加"隐藏文件夹"、"显示笔记数量"（勾选状态）
     - 添加"附件视图"、"显示附件浏览器"、"在笔记中显示"（待实现标记）
     - _Requirements: 9.1-9.8_
-  - [x] 6.3 实现缩放和区域折叠控制
+  - [x] 6.3 实现缩放和区域折叠控制 ✅
     - 添加"放大"（⌘+）、"缩小"（⌘-）、"实际大小"（⌘0）
     - 添加"展开区域"、"展开所有区域"、"折叠区域"、"折叠所有区域"
     - _Requirements: 10.1-10.4, 11.1-11.5_
-  - [x] 6.4 实现工具栏控制（使用标准选择器）
+  - [x] 6.4 实现工具栏控制（使用标准选择器） ✅
     - 添加"隐藏工具栏"使用 `toggleToolbarShown:`
     - 添加"自定义工具栏..."使用 `runToolbarCustomizationPalette:`
     - 添加"进入全屏幕"（⌃⌘F）使用 `toggleFullScreen:`
@@ -118,41 +118,41 @@
     - **Property 3: 视图模式互斥选择**
     - **Validates: Requirements 8.3, 14.7**
 
-- [ ] 7. 实现窗口菜单（使用系统管理）
-  - [ ] 7.1 重写 setupWindowMenu 方法
+- [x] 7. 实现窗口菜单（使用系统管理）
+  - [x] 7.1 重写 setupWindowMenu 方法
     - 添加"最小化"（⌘M）使用 `performMiniaturize:`
     - 添加"缩放"使用 `performZoom:`
     - 添加"填充"、"居中"
     - 使用 `NSApp.windowsMenu = windowMenu` 注册系统窗口菜单
     - _Requirements: 13.1-13.6_
-  - [ ] 7.2 添加窗口布局和自定义操作
+  - [x] 7.2 添加窗口布局和自定义操作
     - 添加"移动与调整大小"、"全屏幕平铺"子菜单（系统标准）
     - 添加"在新窗口中打开笔记"
     - 添加"前置全部窗口"使用 `arrangeInFront:`
     - _Requirements: 13.7-13.14_
 
-- [ ] 8. 实现 MenuActionHandler 扩展
-  - [ ] 8.1 实现 NSMenuItemValidation 协议
+- [x] 8. 实现 MenuActionHandler 扩展
+  - [x] 8.1 实现 NSMenuItemValidation 协议
     - 添加 validateMenuItem 方法
     - 根据 MenuItemTag 和 MenuState 返回正确的启用状态
     - _Requirements: 14.1-14.8_
-  - [ ] 8.2 实现文件菜单动作
+  - [x] 8.2 实现文件菜单动作
     - 实现 createSmartFolder、importMarkdown、exportAsPDF、exportAsMarkdown、exportAsPlainText
     - 实现 addToPrivateNotes（待实现标记）、duplicateNote
     - _Requirements: 2.3, 2.10, 2.12-2.17_
-  - [ ] 8.3 实现格式菜单动作
+  - [x] 8.3 实现格式菜单动作
     - 实现 setHeading、setSubheading、setSubtitle、setBodyText
     - 实现 toggleOrderedList、toggleUnorderedList、toggleBlockQuote
     - 实现核对清单相关动作
     - 实现 toggleLightBackground、toggleHighlight
     - _Requirements: 4.1-4.9, 5.1-5.11, 6.1-6.9_
-  - [ ] 8.4 实现显示菜单动作
+  - [x] 8.4 实现显示菜单动作
     - 实现 setListView、setGalleryView
     - 实现 toggleFolderVisibility、toggleNoteCount
     - 实现 zoomIn、zoomOut、actualSize
     - 实现区域折叠相关动作
     - _Requirements: 8.1-8.5, 9.2-9.3, 10.2-10.4, 11.2-11.5_
-  - [ ] 8.5 实现窗口菜单动作
+  - [x] 8.5 实现窗口菜单动作
     - 实现 openNoteInNewWindow
     - _Requirements: 13.10_
   - [ ]* 8.6 编写笔记选中状态与菜单启用状态同步属性测试
@@ -162,27 +162,27 @@
     - **Property 4: 编辑器焦点与格式菜单启用状态同步**
     - **Validates: Requirements 14.5**
 
-- [ ] 9. 菜单状态同步集成
-  - [ ] 9.1 集成 MenuState 与 NotesViewModel
+- [x] 9. 菜单状态同步集成
+  - [x] 9.1 集成 MenuState 与 NotesViewModel
     - 监听笔记选中状态变化
     - 监听视图模式变化
     - 更新 MenuState 并触发菜单刷新
     - _Requirements: 14.4, 14.7_
-  - [ ] 9.2 集成 MenuState 与编辑器
+  - [x] 9.2 集成 MenuState 与编辑器
     - 监听编辑器焦点变化
     - 监听段落样式变化
     - 更新 MenuState 并触发菜单刷新
     - _Requirements: 14.5, 14.6_
 
-- [ ] 10. 最终验证和清理
+- [x] 10. 最终验证和清理
   - [ ]* 10.1 编写快捷键唯一性属性测试
     - **Property 5: 快捷键唯一性**
     - **Validates: Requirements 15.4**
-  - [ ] 10.2 清理旧的菜单代码
+  - [x] 10.2 清理旧的菜单代码
     - 移除不再使用的菜单动作
     - 更新 AppDelegate 中的菜单相关代码
     - _Requirements: 15.1-15.3_
-  - [ ] 10.3 Checkpoint - 确保所有测试通过
+  - [x] 10.3 Checkpoint - 确保所有测试通过
     - 运行所有单元测试和属性测试
     - 如有问题请询问用户
 

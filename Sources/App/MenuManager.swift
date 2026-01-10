@@ -91,7 +91,7 @@ class MenuManager {
     
     /// 更新视图模式
     /// - Parameter mode: 当前视图模式
-    func updateViewMode(_ mode: ViewMode) {
+    func updateViewMode(_ mode: MenuViewMode) {
         var newState = menuState
         newState.setViewMode(mode)
         updateMenuState(newState)
@@ -1525,8 +1525,217 @@ class MenuManager {
     }
     
     /// 设置窗口菜单
+    /// 按照 Apple Notes 标准实现完整的窗口菜单
+    /// 使用系统窗口菜单管理，让系统自动管理窗口列表
+    /// - Requirements: 13.1-13.14
     private func setupWindowMenu(in mainMenu: NSMenu) {
-        // 窗口菜单通常由系统提供，我们不需要修改
+        // 创建窗口菜单
+        let windowMenuItem = NSMenuItem()
+        windowMenuItem.title = "窗口"
+        let windowMenu = NSMenu(title: "窗口")
+        windowMenuItem.submenu = windowMenu
+        mainMenu.addItem(windowMenuItem)
+        
+        // 13.1 注册系统窗口菜单，让系统自动管理窗口列表
+        NSApp.windowsMenu = windowMenu
+        
+        // ========== 基础窗口控制部分（Requirements: 13.2-13.6）==========
+        
+        // 13.2 添加"最小化"菜单项（⌘M）
+        // 使用标准 NSWindow 选择器 performMiniaturize:
+        let minimizeItem = NSMenuItem(
+            title: "最小化",
+            action: #selector(NSWindow.performMiniaturize(_:)),
+            keyEquivalent: "m"
+        )
+        minimizeItem.keyEquivalentModifierMask = [.command]
+        minimizeItem.tag = MenuItemTag.minimize.rawValue
+        setMenuItemIcon(minimizeItem, symbolName: "minus.square")
+        windowMenu.addItem(minimizeItem)
+        
+        // 13.3 添加"缩放"菜单项
+        // 使用标准 NSWindow 选择器 performZoom:
+        let zoomItem = NSMenuItem(
+            title: "缩放",
+            action: #selector(NSWindow.performZoom(_:)),
+            keyEquivalent: ""
+        )
+        zoomItem.tag = MenuItemTag.zoom.rawValue
+        setMenuItemIcon(zoomItem, symbolName: "arrow.up.left.and.arrow.down.right")
+        windowMenu.addItem(zoomItem)
+        
+        // 13.4 添加"填充"菜单项
+        let fillItem = NSMenuItem(
+            title: "填充",
+            action: #selector(AppDelegate.fillWindow(_:)),
+            keyEquivalent: ""
+        )
+        fillItem.tag = MenuItemTag.fill.rawValue
+        setMenuItemIcon(fillItem, symbolName: "rectangle.expand.vertical")
+        windowMenu.addItem(fillItem)
+        
+        // 13.5 添加"居中"菜单项
+        // 使用标准 NSWindow 选择器 center
+        let centerItem = NSMenuItem(
+            title: "居中",
+            action: #selector(AppDelegate.centerWindow(_:)),
+            keyEquivalent: ""
+        )
+        centerItem.tag = MenuItemTag.center.rawValue
+        setMenuItemIcon(centerItem, symbolName: "rectangle.center.inset.filled")
+        windowMenu.addItem(centerItem)
+        
+        // 13.6 添加分隔线
+        windowMenu.addItem(NSMenuItem.separator())
+        
+        // ========== 窗口布局部分（Requirements: 13.7-13.9）==========
+        
+        // 13.7 添加"移动与调整大小"子菜单（系统标准）
+        let moveAndResizeMenuItem = NSMenuItem(
+            title: "移动与调整大小",
+            action: nil,
+            keyEquivalent: ""
+        )
+        moveAndResizeMenuItem.submenu = createMoveAndResizeSubmenu()
+        setMenuItemIcon(moveAndResizeMenuItem, symbolName: "arrow.up.and.down.and.arrow.left.and.right")
+        windowMenu.addItem(moveAndResizeMenuItem)
+        
+        // 13.8 添加"全屏幕平铺"子菜单（系统标准）
+        let fullScreenTileMenuItem = NSMenuItem(
+            title: "全屏幕平铺",
+            action: nil,
+            keyEquivalent: ""
+        )
+        fullScreenTileMenuItem.submenu = createFullScreenTileSubmenu()
+        setMenuItemIcon(fullScreenTileMenuItem, symbolName: "rectangle.split.2x1")
+        windowMenu.addItem(fullScreenTileMenuItem)
+        
+        // 13.9 添加分隔线
+        windowMenu.addItem(NSMenuItem.separator())
+        
+        // ========== 自定义窗口操作部分（Requirements: 13.10-13.11）==========
+        
+        // 13.10 添加"在新窗口中打开笔记"菜单项
+        let openInNewWindowItem = NSMenuItem(
+            title: "在新窗口中打开笔记",
+            action: #selector(AppDelegate.openNoteInNewWindow(_:)),
+            keyEquivalent: ""
+        )
+        openInNewWindowItem.tag = MenuItemTag.openNoteInNewWindow.rawValue
+        setMenuItemIcon(openInNewWindowItem, symbolName: "rectangle.on.rectangle")
+        windowMenu.addItem(openInNewWindowItem)
+        
+        // 13.11 添加分隔线
+        windowMenu.addItem(NSMenuItem.separator())
+        
+        // ========== 系统自动管理的窗口列表（Requirements: 13.12-13.13）==========
+        // 13.12 系统会自动在此处添加打开的窗口列表
+        // 13.13 系统会自动添加分隔线
+        
+        // ========== 前置全部窗口（Requirements: 13.14）==========
+        
+        // 13.14 添加"前置全部窗口"菜单项
+        // 使用标准 NSApplication 选择器 arrangeInFront:
+        let bringAllToFrontItem = NSMenuItem(
+            title: "前置全部窗口",
+            action: #selector(NSApplication.arrangeInFront(_:)),
+            keyEquivalent: ""
+        )
+        bringAllToFrontItem.tag = MenuItemTag.bringAllToFront.rawValue
+        setMenuItemIcon(bringAllToFrontItem, symbolName: "rectangle.stack")
+        windowMenu.addItem(bringAllToFrontItem)
+    }
+    
+    /// 创建"移动与调整大小"子菜单
+    /// - Requirements: 13.7
+    private func createMoveAndResizeSubmenu() -> NSMenu {
+        let moveAndResizeMenu = NSMenu(title: "移动与调整大小")
+        
+        // 移动到左半边
+        let moveToLeftItem = NSMenuItem(
+            title: "移动到屏幕左半边",
+            action: #selector(AppDelegate.moveWindowToLeftHalf(_:)),
+            keyEquivalent: ""
+        )
+        setMenuItemIcon(moveToLeftItem, symbolName: "rectangle.lefthalf.filled")
+        moveAndResizeMenu.addItem(moveToLeftItem)
+        
+        // 移动到右半边
+        let moveToRightItem = NSMenuItem(
+            title: "移动到屏幕右半边",
+            action: #selector(AppDelegate.moveWindowToRightHalf(_:)),
+            keyEquivalent: ""
+        )
+        setMenuItemIcon(moveToRightItem, symbolName: "rectangle.righthalf.filled")
+        moveAndResizeMenu.addItem(moveToRightItem)
+        
+        moveAndResizeMenu.addItem(NSMenuItem.separator())
+        
+        // 移动到上半边
+        let moveToTopItem = NSMenuItem(
+            title: "移动到屏幕上半边",
+            action: #selector(AppDelegate.moveWindowToTopHalf(_:)),
+            keyEquivalent: ""
+        )
+        setMenuItemIcon(moveToTopItem, symbolName: "rectangle.tophalf.filled")
+        moveAndResizeMenu.addItem(moveToTopItem)
+        
+        // 移动到下半边
+        let moveToBottomItem = NSMenuItem(
+            title: "移动到屏幕下半边",
+            action: #selector(AppDelegate.moveWindowToBottomHalf(_:)),
+            keyEquivalent: ""
+        )
+        setMenuItemIcon(moveToBottomItem, symbolName: "rectangle.bottomhalf.filled")
+        moveAndResizeMenu.addItem(moveToBottomItem)
+        
+        moveAndResizeMenu.addItem(NSMenuItem.separator())
+        
+        // 最大化
+        let maximizeItem = NSMenuItem(
+            title: "最大化",
+            action: #selector(AppDelegate.maximizeWindow(_:)),
+            keyEquivalent: ""
+        )
+        setMenuItemIcon(maximizeItem, symbolName: "arrow.up.left.and.arrow.down.right")
+        moveAndResizeMenu.addItem(maximizeItem)
+        
+        // 恢复
+        let restoreItem = NSMenuItem(
+            title: "恢复",
+            action: #selector(AppDelegate.restoreWindow(_:)),
+            keyEquivalent: ""
+        )
+        setMenuItemIcon(restoreItem, symbolName: "arrow.down.right.and.arrow.up.left")
+        moveAndResizeMenu.addItem(restoreItem)
+        
+        return moveAndResizeMenu
+    }
+    
+    /// 创建"全屏幕平铺"子菜单
+    /// - Requirements: 13.8
+    private func createFullScreenTileSubmenu() -> NSMenu {
+        let fullScreenTileMenu = NSMenu(title: "全屏幕平铺")
+        
+        // 平铺到屏幕左侧
+        let tileLeftItem = NSMenuItem(
+            title: "平铺到屏幕左侧",
+            action: #selector(AppDelegate.tileWindowToLeft(_:)),
+            keyEquivalent: ""
+        )
+        setMenuItemIcon(tileLeftItem, symbolName: "rectangle.split.2x1.fill")
+        fullScreenTileMenu.addItem(tileLeftItem)
+        
+        // 平铺到屏幕右侧
+        let tileRightItem = NSMenuItem(
+            title: "平铺到屏幕右侧",
+            action: #selector(AppDelegate.tileWindowToRight(_:)),
+            keyEquivalent: ""
+        )
+        setMenuItemIcon(tileRightItem, symbolName: "rectangle.split.2x1.fill")
+        fullScreenTileMenu.addItem(tileRightItem)
+        
+        return fullScreenTileMenu
     }
     
     /// 设置帮助菜单

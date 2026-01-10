@@ -825,9 +825,31 @@ public class NotesViewModel: ObservableObject {
                 if self.selectedNote?.id != note?.id {
                     print("[NotesViewModel] 从 stateCoordinator 同步 selectedNote: \(note?.title ?? "nil")")
                     self.selectedNote = note
+                    
+                    // 发送笔记选中状态变化通知
+                    // _Requirements: 14.4_
+                    self.postNoteSelectionNotification()
                 }
             }
             .store(in: &cancellables)
+    }
+    
+    /// 发送笔记选中状态变化通知
+    /// 
+    /// 当笔记选中状态变化时，发送通知以更新菜单状态
+    /// 
+    /// _Requirements: 14.4_
+    private func postNoteSelectionNotification() {
+        let hasSelectedNote = selectedNote != nil
+        NotificationCenter.default.post(
+            name: .noteSelectionDidChange,
+            object: self,
+            userInfo: [
+                "hasSelectedNote": hasSelectedNote,
+                "noteId": selectedNote?.id as Any
+            ]
+        )
+        print("[NotesViewModel] 发送笔记选中状态变化通知: hasSelectedNote=\(hasSelectedNote)")
     }
     
     /// 同步 ViewOptionsManager 的排序设置到 ViewModel

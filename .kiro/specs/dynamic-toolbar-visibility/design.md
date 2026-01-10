@@ -33,11 +33,35 @@
 
 ```swift
 enum ToolbarItemCategory {
-    case editor      // 编辑器相关：formatMenu, undo, redo, checkbox, horizontalRule, attachment, increaseIndent, decreaseIndent
+    case editor      // 编辑器相关：editorItemGroup（包含 formatMenu, undo, redo, checkbox, horizontalRule, attachment, increaseIndent, decreaseIndent）
     case noteAction  // 笔记操作：share, noteOperations
     case context     // 上下文相关：lockPrivateNotes
     case global      // 全局可用：newNote, newFolder, search, viewOptions, onlineStatus, toggleSidebar
 }
+```
+
+### 编辑器工具栏项组（NSToolbarItemGroup）
+
+为了解决画廊视图中隐藏编辑器项时出现多个连续空白间距的问题，使用 `NSToolbarItemGroup` 将所有编辑器相关的工具栏项组合在一起。
+
+**问题描述：**
+当编辑器相关的工具栏项被单独隐藏时，它们之间的 `flexibleSpace` 和 `space` 间距项仍然保留，导致工具栏出现多个连续的空白间距。
+
+**解决方案：**
+使用 `NSToolbarItemGroup` 将编辑器项组合成一个组，这样当组被隐藏时，组内的所有项都会一起隐藏，避免出现多个连续空白间距。
+
+```swift
+// 编辑器工具栏项组包含的子项
+editorItemGroup = [
+    undo,           // 撤回
+    redo,           // 重做
+    formatMenu,     // 格式菜单
+    checkbox,       // 待办
+    horizontalRule, // 分割线
+    attachment,     // 附件
+    increaseIndent, // 增加缩进
+    decreaseIndent  // 减少缩进
+]
 ```
 
 ## Components and Interfaces

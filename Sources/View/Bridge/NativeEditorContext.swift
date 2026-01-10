@@ -490,14 +490,38 @@ class NativeEditorContext: ObservableObject {
     
     /// 设置编辑器焦点状态 (需求 9.5)
     /// - Parameter focused: 是否获得焦点
+    /// 
+    /// 当焦点状态变化时，发送 `.editorFocusDidChange` 通知以更新菜单状态
+    /// _Requirements: 14.5_
     func setEditorFocused(_ focused: Bool) {
+        // 只有状态真正变化时才更新和发送通知
+        guard isEditorFocused != focused else { return }
+        
         isEditorFocused = focused
+        
+        // 发送编辑器焦点变化通知
+        // _Requirements: 14.5_
+        postEditorFocusNotification(focused)
         
         if focused {
             // 同步编辑器上下文状态
             updateCurrentFormats()
             detectSpecialElementAtCursor()
         }
+    }
+    
+    /// 发送编辑器焦点变化通知
+    /// 
+    /// 当编辑器焦点状态变化时，发送通知以更新菜单状态
+    /// 
+    /// _Requirements: 14.5_
+    private func postEditorFocusNotification(_ focused: Bool) {
+        NotificationCenter.default.post(
+            name: .editorFocusDidChange,
+            object: self,
+            userInfo: ["isEditorFocused": focused]
+        )
+        print("[NativeEditorContext] 发送编辑器焦点变化通知: isEditorFocused=\(focused)")
     }
     
     // MARK: - Public Methods - 内容管理
@@ -1092,6 +1116,7 @@ class NativeEditorContext: ObservableObject {
     
     /// 更新格式状态并验证
     /// 需求: 4.2 - 状态同步失败时重新检测格式状态并更新界面
+    /// 需求: 14.6 - 段落样式变化时发送通知更新菜单状态
     private func updateFormatsWithValidation(_ detectedFormats: Set<TextFormat>) {
         let errorHandler = FormatErrorHandler.shared
         
@@ -1102,12 +1127,23 @@ class NativeEditorContext: ObservableObject {
             // 检查状态一致性
             let previousFormats = currentFormats
             
+            // 检测段落样式变化（用于发送通知）
+            // _Requirements: 14.6_
+            let previousParagraphStyle = detectParagraphStyleFromFormats(previousFormats)
+            
             // 更新当前格式
             currentFormats = validatedFormats
             
             // 更新工具栏按钮状态
             for format in TextFormat.allCases {
                 toolbarButtonStates[format] = validatedFormats.contains(format)
+            }
+            
+            // 检测新的段落样式并发送通知（如果变化）
+            // _Requirements: 14.6_
+            let newParagraphStyle = detectParagraphStyleFromFormats(validatedFormats)
+            if previousParagraphStyle != newParagraphStyle {
+                postParagraphStyleNotification(newParagraphStyle)
             }
             
             // 验证状态更新是否成功
@@ -1165,6 +1201,41 @@ class NativeEditorContext: ObservableObject {
                 clearAllFormats()
             }
         }
+    }
+    
+    /// 从格式集合中检测段落样式
+    /// 
+    /// 将 TextFormat 映射到段落样式字符串（用于菜单状态同步）
+    /// 
+    /// _Requirements: 14.6_
+    private func detectParagraphStyleFromFormats(_ formats: Set<TextFormat>) -> String {
+        if formats.contains(.heading1) {
+            return "heading"
+        } else if formats.contains(.heading2) {
+            return "subheading"
+        } else if formats.contains(.heading3) {
+            return "subtitle"
+        } else if formats.contains(.numberedList) {
+            return "orderedList"
+        } else if formats.contains(.bulletList) {
+            return "unorderedList"
+        } else {
+            return "body"
+        }
+    }
+    
+    /// 发送段落样式变化通知
+    /// 
+    /// 当段落样式变化时，发送通知以更新菜单状态
+    /// 
+    /// _Requirements: 14.6_
+    private func postParagraphStyleNotification(_ paragraphStyleRaw: String) {
+        NotificationCenter.default.post(
+            name: .paragraphStyleDidChange,
+            object: self,
+            userInfo: ["paragraphStyle": paragraphStyleRaw]
+        )
+        print("[NativeEditorContext] 发送段落样式变化通知: paragraphStyle=\(paragraphStyleRaw)")
     }
     
     /// 验证互斥格式，确保只保留一个
