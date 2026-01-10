@@ -11,7 +11,7 @@ import Combine
 import AppKit
 
 /// 文本格式类型枚举
-enum TextFormat: CaseIterable, Hashable {
+public enum TextFormat: CaseIterable, Hashable, Sendable {
     case bold           // 加粗
     case italic         // 斜体
     case underline      // 下划线
@@ -122,11 +122,11 @@ enum IndentOperation: Equatable {
 }
 
 /// 编辑器类型枚举
-enum EditorType: String, CaseIterable, Identifiable, Codable {
+public enum EditorType: String, CaseIterable, Identifiable, Codable, Sendable {
     case native = "native"
     case web = "web"
     
-    var id: String { rawValue }
+    public var id: String { rawValue }
     
     var displayName: String {
         switch self {
@@ -263,6 +263,22 @@ public class NativeEditorContext: ObservableObject {
     /// 取消订阅集合
     private var cancellables = Set<AnyCancellable>()
     
+    // MARK: - 格式提供者
+    
+    /// 格式提供者（延迟初始化）
+    /// _Requirements: 3.1, 3.2, 3.3_
+    private var _formatProvider: NativeFormatProvider?
+    
+    /// 格式提供者（公开访问）
+    /// _Requirements: 3.1, 3.2, 3.3_
+    public var formatProvider: NativeFormatProvider {
+        if _formatProvider == nil {
+            _formatProvider = NativeFormatProvider(editorContext: self)
+            print("[NativeEditorContext] 创建 NativeFormatProvider")
+        }
+        return _formatProvider!
+    }
+    
     // MARK: - Public Publishers
     
     /// 格式变化发布者
@@ -305,6 +321,15 @@ public class NativeEditorContext: ObservableObject {
         // 设置格式状态同步器的更新回调
         formatStateSynchronizer.setUpdateCallback { [weak self] in
             self?.updateCurrentFormats()
+        }
+        
+        // 延迟注册格式提供者到 FormatStateManager
+        // 使用 Task 确保在主线程上执行
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            // 触发 formatProvider 的延迟初始化
+            _ = self.formatProvider
+            print("[NativeEditorContext] 初始化完成，formatProvider 已创建")
         }
     }
     
@@ -504,9 +529,17 @@ public class NativeEditorContext: ObservableObject {
         postEditorFocusNotification(focused)
         
         if focused {
+            // 注册格式提供者到 FormatStateManager
+            // _Requirements: 8.4_
+            FormatStateManager.shared.setActiveProvider(formatProvider)
+            
             // 同步编辑器上下文状态
             updateCurrentFormats()
             detectSpecialElementAtCursor()
+        } else {
+            // 编辑器失去焦点时，清除活动提供者
+            // 注意：这里不清除，因为用户可能只是临时切换焦点
+            // FormatStateManager.shared.clearActiveProvider()
         }
     }
     

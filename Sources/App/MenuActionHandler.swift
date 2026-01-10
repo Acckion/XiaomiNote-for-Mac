@@ -440,31 +440,59 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     // MARK: - 格式菜单动作
     
     /// 切换粗体
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func toggleBold(_ sender: Any?) {
-        print("切换粗体")
-        // 转发到主窗口控制器
-        mainWindowController?.toggleBold(sender)
+        print("[MenuActionHandler] 切换粗体")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.bold)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.toggleBold(sender)
+        }
     }
     
     /// 切换斜体
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func toggleItalic(_ sender: Any?) {
-        print("切换斜体")
-        // 转发到主窗口控制器
-        mainWindowController?.toggleItalic(sender)
+        print("[MenuActionHandler] 切换斜体")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.italic)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.toggleItalic(sender)
+        }
     }
     
     /// 切换下划线
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func toggleUnderline(_ sender: Any?) {
-        print("切换下划线")
-        // 转发到主窗口控制器
-        mainWindowController?.toggleUnderline(sender)
+        print("[MenuActionHandler] 切换下划线")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.underline)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.toggleUnderline(sender)
+        }
     }
     
     /// 切换删除线
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func toggleStrikethrough(_ sender: Any?) {
-        print("切换删除线")
-        // 转发到主窗口控制器
-        mainWindowController?.toggleStrikethrough(sender)
+        print("[MenuActionHandler] 切换删除线")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.strikethrough)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.toggleStrikethrough(sender)
+        }
     }
     
     /// 增大字体
@@ -496,126 +524,238 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 居左对齐
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func alignLeft(_ sender: Any?) {
-        print("居左对齐")
-        // 转发到主窗口控制器
-        mainWindowController?.alignLeft(sender)
+        print("[MenuActionHandler] 居左对齐")
+        // 优先使用 FormatStateManager 清除对齐格式（恢复左对齐）
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.clearAlignmentFormat()
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.alignLeft(sender)
+        }
     }
     
     /// 居中对齐
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func alignCenter(_ sender: Any?) {
-        print("居中对齐")
-        // 转发到主窗口控制器
-        mainWindowController?.alignCenter(sender)
+        print("[MenuActionHandler] 居中对齐")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.applyFormat(.alignCenter)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.alignCenter(sender)
+        }
     }
     
     /// 居右对齐
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func alignRight(_ sender: Any?) {
-        print("居右对齐")
-        // 转发到主窗口控制器
-        mainWindowController?.alignRight(sender)
+        print("[MenuActionHandler] 居右对齐")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.applyFormat(.alignRight)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.alignRight(sender)
+        }
     }
     
     /// 切换无序列表
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func toggleBulletList(_ sender: Any?) {
-        print("切换无序列表")
-        // 转发到主窗口控制器
-        mainWindowController?.toggleBulletList(sender)
+        print("[MenuActionHandler] 切换无序列表")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.bulletList)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.toggleBulletList(sender)
+        }
     }
     
     /// 切换有序列表
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func toggleNumberedList(_ sender: Any?) {
-        print("切换有序列表")
-        // 转发到主窗口控制器
-        mainWindowController?.toggleNumberedList(sender)
+        print("[MenuActionHandler] 切换有序列表")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.numberedList)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.toggleNumberedList(sender)
+        }
     }
     
     /// 切换复选框列表
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func toggleCheckboxList(_ sender: Any?) {
-        print("切换复选框列表")
-        // 转发到主窗口控制器
-        mainWindowController?.toggleCheckboxList(sender)
+        print("[MenuActionHandler] 切换复选框列表")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.checkbox)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.toggleCheckboxList(sender)
+        }
     }
     
     /// 设置大标题
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func setHeading1(_ sender: Any?) {
-        print("设置大标题")
-        // 转发到主窗口控制器
-        mainWindowController?.setHeading1(sender)
+        print("[MenuActionHandler] 设置大标题")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.applyFormat(.heading1)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.setHeading1(sender)
+        }
     }
     
     /// 设置二级标题
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func setHeading2(_ sender: Any?) {
-        print("设置二级标题")
-        // 转发到主窗口控制器
-        mainWindowController?.setHeading2(sender)
+        print("[MenuActionHandler] 设置二级标题")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.applyFormat(.heading2)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.setHeading2(sender)
+        }
     }
     
     /// 设置三级标题
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func setHeading3(_ sender: Any?) {
-        print("设置三级标题")
-        // 转发到主窗口控制器
-        mainWindowController?.setHeading3(sender)
+        print("[MenuActionHandler] 设置三级标题")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.applyFormat(.heading3)
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.setHeading3(sender)
+        }
     }
     
     /// 设置正文
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// _Requirements: 8.1, 8.2_
     func setBodyText(_ sender: Any?) {
-        print("设置正文")
-        // 转发到主窗口控制器
-        mainWindowController?.setBodyText(sender)
+        print("[MenuActionHandler] 设置正文")
+        // 优先使用 FormatStateManager 清除段落格式（恢复正文）
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.clearParagraphFormat()
+        } else {
+            // 回退到主窗口控制器
+            mainWindowController?.setBodyText(sender)
+        }
     }
     
     // MARK: - 格式菜单动作（Apple Notes 风格）
     
     /// 设置标题（Apple Notes 风格）
-    /// - Requirements: 4.1
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// - Requirements: 4.1, 8.1, 8.2
     @objc func setHeading(_ sender: Any?) {
-        print("设置标题")
-        mainWindowController?.setHeading1(sender)
+        print("[MenuActionHandler] 设置标题")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.applyFormat(.heading1)
+        } else {
+            mainWindowController?.setHeading1(sender)
+        }
     }
     
     /// 设置小标题
-    /// - Requirements: 4.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// - Requirements: 4.2, 8.1, 8.2
     @objc func setSubheading(_ sender: Any?) {
-        print("设置小标题")
-        mainWindowController?.setHeading2(sender)
+        print("[MenuActionHandler] 设置小标题")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.applyFormat(.heading2)
+        } else {
+            mainWindowController?.setHeading2(sender)
+        }
     }
     
     /// 设置副标题
-    /// - Requirements: 4.3
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// - Requirements: 4.3, 8.1, 8.2
     @objc func setSubtitle(_ sender: Any?) {
-        print("设置副标题")
-        mainWindowController?.setHeading3(sender)
+        print("[MenuActionHandler] 设置副标题")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.applyFormat(.heading3)
+        } else {
+            mainWindowController?.setHeading3(sender)
+        }
     }
     
     /// 切换有序列表
-    /// - Requirements: 4.5
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// - Requirements: 4.5, 8.1, 8.2
     @objc func toggleOrderedList(_ sender: Any?) {
-        print("切换有序列表")
-        mainWindowController?.toggleNumberedList(sender)
+        print("[MenuActionHandler] 切换有序列表")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.numberedList)
+        } else {
+            mainWindowController?.toggleNumberedList(sender)
+        }
     }
     
     /// 切换无序列表
-    /// - Requirements: 4.6
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// - Requirements: 4.6, 8.1, 8.2
     @objc func toggleUnorderedList(_ sender: Any?) {
-        print("切换无序列表")
-        mainWindowController?.toggleBulletList(sender)
+        print("[MenuActionHandler] 切换无序列表")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.bulletList)
+        } else {
+            mainWindowController?.toggleBulletList(sender)
+        }
     }
     
     /// 切换块引用
-    /// - Requirements: 4.9
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// - Requirements: 4.9, 8.1, 8.2
     @objc func toggleBlockQuote(_ sender: Any?) {
-        print("切换块引用")
-        mainWindowController?.toggleBlockQuote(sender)
+        print("[MenuActionHandler] 切换块引用")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.quote)
+        } else {
+            mainWindowController?.toggleBlockQuote(sender)
+        }
     }
     
     // MARK: - 核对清单动作
     
     /// 切换核对清单
-    /// - Requirements: 5.1
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// - Requirements: 5.1, 8.1, 8.2
     @objc func toggleChecklist(_ sender: Any?) {
-        print("切换核对清单")
-        mainWindowController?.toggleCheckboxList(sender)
+        print("[MenuActionHandler] 切换核对清单")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.checkbox)
+        } else {
+            mainWindowController?.toggleCheckboxList(sender)
+        }
     }
     
     /// 标记为已勾选
@@ -677,10 +817,16 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 切换高亮
-    /// - Requirements: 6.9
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
+    /// - Requirements: 6.9, 8.1, 8.2
     @objc func toggleHighlight(_ sender: Any?) {
-        print("切换高亮")
-        mainWindowController?.toggleHighlight(sender)
+        print("[MenuActionHandler] 切换高亮")
+        // 优先使用 FormatStateManager 应用格式
+        if FormatStateManager.shared.hasActiveEditor {
+            FormatStateManager.shared.toggleFormat(.highlight)
+        } else {
+            mainWindowController?.toggleHighlight(sender)
+        }
     }
     
     // MARK: - 其他菜单动作

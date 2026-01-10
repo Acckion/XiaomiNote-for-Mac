@@ -170,17 +170,7 @@ class FormatStateSynchronizer {
     
     /// 打印性能统计信息
     func printPerformanceStats() {
-        let stats = getPerformanceStats()
-        
-        print("[FormatStateSynchronizer] 性能统计:")
-        print("  - 更新次数: \(stats["updateCount"] ?? 0)")
-        print("  - 平均耗时: \(String(format: "%.2f", stats["averageTime"] as? Double ?? 0))ms")
-        print("  - 最大耗时: \(String(format: "%.2f", stats["maxTime"] as? Double ?? 0))ms")
-        print("  - 最小耗时: \(String(format: "%.2f", stats["minTime"] as? Double ?? 0))ms")
-        print("  - 总耗时: \(String(format: "%.2f", stats["totalTime"] as? Double ?? 0))ms")
-        print("  - 慢速更新次数: \(stats["slowUpdateCount"] ?? 0)")
-        print("  - 慢速更新比例: \(String(format: "%.1f", (stats["slowUpdateRatio"] as? Double ?? 0) * 100))%")
-        print("  - 性能阈值: \(stats["thresholdMs"] ?? 0)ms")
+        // 调试方法，保留但不自动输出
     }
     
     /// 获取最近的性能记录
@@ -277,7 +267,6 @@ class FormatStateSynchronizer {
     /// 执行状态更新
     private func performStateUpdate() {
         guard let callback = updateCallback else {
-            print("[FormatStateSynchronizer] 警告: 未设置更新回调")
             return
         }
         
@@ -314,12 +303,7 @@ class FormatStateSynchronizer {
             // 检查性能
             if exceededThreshold {
                 slowUpdateCount += 1
-                print("[FormatStateSynchronizer] ⚠️ 警告: 状态更新耗时 \(String(format: "%.2f", duration))ms，超过阈值 \(performanceThreshold)ms")
             }
-            
-            #if DEBUG
-            print("[FormatStateSynchronizer] 状态更新完成，耗时: \(String(format: "%.2f", duration))ms")
-            #endif
         } else {
             // 不监控性能，直接执行更新
             callback()

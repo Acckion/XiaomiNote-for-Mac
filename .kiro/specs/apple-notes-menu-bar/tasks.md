@@ -178,6 +178,11 @@
     - 之前只处理了 heading, subheading, subtitle, orderedList, unorderedList, blockquote
     - 导致"正文"菜单项永远不会显示勾选状态
     - _Requirements: 4.4, 4.7, 14.6_
+  - [x] 9.4 修复菜单栏格式菜单勾选状态同步问题 ✅ (Bug Fix)
+    - 移除 `updateMenuStateFromContext` 中的异步 `requestContentSync` 调用
+    - `nsAttributedText` 已在 `textViewDidChangeSelection` 中同步更新
+    - 问题原因：`requestContentSync` 发送异步通知，导致 `forceUpdateFormats` 使用旧数据
+    - _Requirements: 4.4, 4.7, 14.6_
 
 - [x] 10. 最终验证和清理
   - [ ]* 10.1 编写快捷键唯一性属性测试

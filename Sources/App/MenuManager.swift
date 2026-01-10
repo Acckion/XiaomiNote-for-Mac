@@ -26,6 +26,9 @@ class MenuManager {
     /// 状态变化观察者
     private var stateObserver: NSObjectProtocol?
     
+    /// 格式状态变化观察者
+    private var formatStateObserver: NSObjectProtocol?
+    
     // MARK: - 初始化
     
     /// 初始化菜单管理器
@@ -97,6 +100,209 @@ class MenuManager {
         updateMenuState(newState)
     }
     
+    // MARK: - 格式菜单状态更新
+    
+    /// 更新格式菜单状态
+    /// 根据 FormatState 更新菜单栏中格式菜单项的勾选状态
+    /// - Parameter state: 格式状态
+    /// _Requirements: 8.1, 8.2, 8.3_
+    func updateFormatMenuState(_ state: FormatState) {
+        print("[MenuManager] 更新格式菜单状态: \(state)")
+        
+        // 更新段落格式菜单项
+        updateParagraphFormatMenuItems(state.paragraphFormat)
+        
+        // 更新对齐格式菜单项
+        updateAlignmentMenuItems(state.alignment)
+        
+        // 更新字符格式菜单项
+        updateCharacterFormatMenuItems(state)
+        
+        // 更新引用块菜单项
+        updateQuoteMenuItem(state.isQuote)
+        
+        // 同步更新 MenuState
+        var newMenuState = menuState
+        newMenuState.currentParagraphStyle = convertToParagraphStyle(state.paragraphFormat)
+        newMenuState.isBold = state.isBold
+        newMenuState.isItalic = state.isItalic
+        newMenuState.isUnderline = state.isUnderline
+        newMenuState.isStrikethrough = state.isStrikethrough
+        newMenuState.isHighlight = state.isHighlight
+        newMenuState.isBlockQuoteEnabled = state.isQuote
+        newMenuState.textAlignment = convertToNSTextAlignment(state.alignment)
+        menuState = newMenuState
+    }
+    
+    /// 更新段落格式菜单项
+    /// - Parameter format: 当前段落格式
+    /// _Requirements: 8.1_
+    private func updateParagraphFormatMenuItems(_ format: ParagraphFormat) {
+        guard let mainMenu = NSApp.mainMenu,
+              let formatMenu = mainMenu.item(withTitle: "格式")?.submenu else {
+            print("[MenuManager] 无法找到格式菜单")
+            return
+        }
+        
+        // 遍历所有段落格式菜单项，设置勾选状态
+        for paragraphFormat in ParagraphFormat.allCases {
+            if let menuItem = findMenuItem(for: paragraphFormat, in: formatMenu) {
+                let shouldCheck = (paragraphFormat == format)
+                menuItem.state = shouldCheck ? .on : .off
+                print("[MenuManager] 段落格式菜单项 '\(paragraphFormat.displayName)' 状态: \(shouldCheck ? "✓" : "○")")
+            }
+        }
+    }
+    
+    /// 更新对齐格式菜单项
+    /// - Parameter alignment: 当前对齐格式
+    /// _Requirements: 8.1_
+    private func updateAlignmentMenuItems(_ alignment: AlignmentFormat) {
+        guard let mainMenu = NSApp.mainMenu,
+              let formatMenu = mainMenu.item(withTitle: "格式")?.submenu,
+              let textMenu = formatMenu.item(withTitle: "文本")?.submenu else {
+            print("[MenuManager] 无法找到文本对齐菜单")
+            return
+        }
+        
+        // 更新左对齐
+        if let alignLeftItem = textMenu.item(withTag: MenuItemTag.alignLeft.rawValue) {
+            alignLeftItem.state = (alignment == .left) ? .on : .off
+        }
+        
+        // 更新居中
+        if let alignCenterItem = textMenu.item(withTag: MenuItemTag.alignCenter.rawValue) {
+            alignCenterItem.state = (alignment == .center) ? .on : .off
+        }
+        
+        // 更新右对齐
+        if let alignRightItem = textMenu.item(withTag: MenuItemTag.alignRight.rawValue) {
+            alignRightItem.state = (alignment == .right) ? .on : .off
+        }
+        
+        print("[MenuManager] 对齐格式菜单项更新: \(alignment.displayName)")
+    }
+    
+    /// 更新字符格式菜单项
+    /// - Parameter state: 格式状态
+    /// _Requirements: 8.1_
+    private func updateCharacterFormatMenuItems(_ state: FormatState) {
+        guard let mainMenu = NSApp.mainMenu,
+              let formatMenu = mainMenu.item(withTitle: "格式")?.submenu,
+              let fontMenu = formatMenu.item(withTitle: "字体")?.submenu else {
+            print("[MenuManager] 无法找到字体菜单")
+            return
+        }
+        
+        // 更新粗体
+        if let boldItem = fontMenu.item(withTag: MenuItemTag.bold.rawValue) {
+            boldItem.state = state.isBold ? .on : .off
+        }
+        
+        // 更新斜体
+        if let italicItem = fontMenu.item(withTag: MenuItemTag.italic.rawValue) {
+            italicItem.state = state.isItalic ? .on : .off
+        }
+        
+        // 更新下划线
+        if let underlineItem = fontMenu.item(withTag: MenuItemTag.underline.rawValue) {
+            underlineItem.state = state.isUnderline ? .on : .off
+        }
+        
+        // 更新删除线
+        if let strikethroughItem = fontMenu.item(withTag: MenuItemTag.strikethrough.rawValue) {
+            strikethroughItem.state = state.isStrikethrough ? .on : .off
+        }
+        
+        // 更新高亮
+        if let highlightItem = fontMenu.item(withTag: MenuItemTag.highlight.rawValue) {
+            highlightItem.state = state.isHighlight ? .on : .off
+        }
+        
+        print("[MenuManager] 字符格式菜单项更新: 粗体=\(state.isBold), 斜体=\(state.isItalic), 下划线=\(state.isUnderline), 删除线=\(state.isStrikethrough), 高亮=\(state.isHighlight)")
+    }
+    
+    /// 更新引用块菜单项
+    /// - Parameter isQuote: 是否为引用块
+    /// _Requirements: 8.1_
+    private func updateQuoteMenuItem(_ isQuote: Bool) {
+        guard let mainMenu = NSApp.mainMenu,
+              let formatMenu = mainMenu.item(withTitle: "格式")?.submenu else {
+            print("[MenuManager] 无法找到格式菜单")
+            return
+        }
+        
+        // 更新块引用菜单项
+        if let blockQuoteItem = formatMenu.item(withTag: MenuItemTag.blockQuote.rawValue) {
+            blockQuoteItem.state = isQuote ? .on : .off
+            print("[MenuManager] 引用块菜单项状态: \(isQuote ? "✓" : "○")")
+        }
+    }
+    
+    // MARK: - 格式菜单辅助方法
+    
+    /// 查找段落格式对应的菜单项
+    /// - Parameters:
+    ///   - format: 段落格式
+    ///   - menu: 菜单
+    /// - Returns: 菜单项
+    private func findMenuItem(for format: ParagraphFormat, in menu: NSMenu) -> NSMenuItem? {
+        let tag: MenuItemTag
+        switch format {
+        case .heading1:
+            tag = .heading
+        case .heading2:
+            tag = .subheading
+        case .heading3:
+            tag = .subtitle
+        case .body:
+            tag = .bodyText
+        case .bulletList:
+            tag = .unorderedList
+        case .numberedList:
+            tag = .orderedList
+        case .checkbox:
+            tag = .checklist
+        }
+        return menu.item(withTag: tag.rawValue)
+    }
+    
+    /// 将 ParagraphFormat 转换为 ParagraphStyle
+    /// - Parameter format: 段落格式
+    /// - Returns: 段落样式
+    private func convertToParagraphStyle(_ format: ParagraphFormat) -> ParagraphStyle {
+        switch format {
+        case .heading1:
+            return .heading
+        case .heading2:
+            return .subheading
+        case .heading3:
+            return .subtitle
+        case .body:
+            return .body
+        case .bulletList:
+            return .unorderedList
+        case .numberedList:
+            return .orderedList
+        case .checkbox:
+            return .body  // 复选框在 MenuState 中没有对应项，使用正文
+        }
+    }
+    
+    /// 将 AlignmentFormat 转换为 NSTextAlignment
+    /// - Parameter alignment: 对齐格式
+    /// - Returns: NSTextAlignment
+    private func convertToNSTextAlignment(_ alignment: AlignmentFormat) -> NSTextAlignment {
+        switch alignment {
+        case .left:
+            return .left
+        case .center:
+            return .center
+        case .right:
+            return .right
+        }
+    }
+    
     // MARK: - 私有方法 - 图标设置
     
     /// 为菜单项设置 SF Symbols 图标
@@ -125,6 +331,22 @@ class MenuManager {
             }
             // 状态变化时可以在这里执行额外的处理
             print("菜单状态已更新: 选中笔记=\(state.hasSelectedNote), 编辑器焦点=\(state.isEditorFocused)")
+        }
+        
+        // 监听格式状态变化通知
+        // _Requirements: 8.1, 8.2, 8.3_
+        formatStateObserver = NotificationCenter.default.addObserver(
+            forName: .formatStateDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self else { return }
+            
+            // 从通知中提取格式状态
+            if let state = notification.userInfo?["state"] as? FormatState {
+                print("[MenuManager] 收到格式状态变化通知: \(state)")
+                self.updateFormatMenuState(state)
+            }
         }
     }
     
