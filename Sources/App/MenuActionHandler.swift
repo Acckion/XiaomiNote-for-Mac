@@ -58,14 +58,14 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// - Returns: 菜单项是否应该启用
     /// - Requirements: 14.1-14.8
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        // 更新菜单状态
-        updateMenuStateFromContext()
-        
         // 获取菜单项标签
         guard let tag = MenuItemTag(rawValue: menuItem.tag) else {
             // 未知标签的菜单项默认启用
             return true
         }
+        
+        // 更新菜单状态
+        updateMenuStateFromContext()
         
         // 更新菜单项的勾选状态
         updateMenuItemCheckState(menuItem, for: tag)
@@ -124,6 +124,15 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
             name: .folderVisibilityDidChange,
             object: nil
         )
+        
+        // 监听笔记数量显示变化
+        // _Requirements: 5.5_
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleNoteCountVisibilityChanged(_:)),
+            name: .noteCountVisibilityDidChange,
+            object: nil
+        )
     }
     
     /// 处理笔记选中状态变化
@@ -134,7 +143,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
             var newState = menuState
             newState.setNoteSelected(hasSelectedNote)
             menuState = newState
-            print("[MenuActionHandler] 笔记选中状态变化: hasSelectedNote=\(hasSelectedNote)")
         } else {
             // 如果通知中没有状态信息，从上下文更新
             updateMenuStateFromContext()
@@ -149,7 +157,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
             var newState = menuState
             newState.setEditorFocused(isEditorFocused)
             menuState = newState
-            print("[MenuActionHandler] 编辑器焦点状态变化: isEditorFocused=\(isEditorFocused)")
         } else {
             // 如果通知中没有状态信息，从上下文更新
             updateMenuStateFromContext()
@@ -170,7 +177,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                 newState.setViewMode(.gallery)
             }
             menuState = newState
-            print("[MenuActionHandler] 视图模式变化: viewMode=\(viewMode.displayName)")
         } else {
             // 如果通知中没有状态信息，从上下文更新
             updateMenuStateFromContext()
@@ -186,7 +192,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
             var newState = menuState
             newState.setParagraphStyle(paragraphStyle)
             menuState = newState
-            print("[MenuActionHandler] 段落样式变化: paragraphStyle=\(paragraphStyle.displayName)")
         }
     }
     
@@ -197,7 +202,17 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
             var newState = menuState
             newState.isFolderHidden = isFolderHidden
             menuState = newState
-            print("[MenuActionHandler] 文件夹可见性变化: isFolderHidden=\(isFolderHidden)")
+        }
+    }
+    
+    /// 处理笔记数量显示变化
+    /// _Requirements: 5.5_
+    @objc private func handleNoteCountVisibilityChanged(_ notification: Notification) {
+        // 从通知中获取笔记数量显示状态
+        if let isNoteCountVisible = notification.userInfo?["isNoteCountVisible"] as? Bool {
+            var newState = menuState
+            newState.isNoteCountVisible = isNoteCountVisible
+            menuState = newState
         }
     }
     
@@ -229,10 +244,12 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
         
         // 更新文件夹隐藏状态
+        // 从 UI 读取当前实际的折叠状态，确保菜单标题与实际状态一致
         if let window = NSApp.mainWindow,
            let splitViewController = window.contentViewController as? NSSplitViewController,
            splitViewController.splitViewItems.count > 0 {
-            newState.isFolderHidden = splitViewController.splitViewItems[0].isCollapsed
+            let uiCollapsedState = splitViewController.splitViewItems[0].isCollapsed
+            newState.isFolderHidden = uiCollapsedState
         }
         
         // 更新笔记数量显示状态
@@ -1053,24 +1070,13 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     // MARK: - 附件操作
     
     /// 附加文件
-    /// - Requirements: 3.12
+    /// 直接调用 MainWindowController.insertAttachment() 复用工具栏中已有的实现逻辑
+    /// - Requirements: 1.1, 1.2, 1.4
     @objc func attachFile(_ sender: Any?) {
-        print("附加文件")
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.message = "选择要附加的文件"
-        
-        panel.begin { [weak self] response in
-            if response == .OK {
-                for url in panel.urls {
-                    print("[MenuActionHandler] 附加文件: \(url.path)")
-                    // 将文件附加到当前笔记
-                    self?.mainWindowController?.attachFile(url)
-                }
-            }
-        }
+        print("[MenuActionHandler] 附加文件 - 转发到 MainWindowController.insertAttachment()")
+        // 直接调用 MainWindowController 的 insertAttachment 方法
+        // 复用工具栏中已有的实现逻辑（包括文件选择对话框和图片插入）
+        mainWindowController?.insertAttachment(sender)
     }
     
     /// 添加链接
@@ -1116,22 +1122,38 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 切换文件夹可见性
-    /// - Requirements: 9.2
+    /// - Requirements: 9.2, 4.4
     @objc func toggleFolderVisibility(_ sender: Any?) {
-        print("切换文件夹可见性")
         // 通过 MainWindowController 切换侧边栏
         if let window = NSApp.mainWindow,
            let splitViewController = window.contentViewController as? NSSplitViewController,
            splitViewController.splitViewItems.count > 0 {
             let sidebarItem = splitViewController.splitViewItems[0]
-            sidebarItem.animator().isCollapsed = !sidebarItem.isCollapsed
+            let currentCollapsedState = sidebarItem.isCollapsed
+            let newCollapsedState = !currentCollapsedState
+            
+            // 先更新菜单状态，确保状态一致性
+            // _Requirements: 4.4, 4.5_
+            var newState = menuState
+            newState.isFolderHidden = newCollapsedState
+            menuState = newState
+            
+            // 然后执行动画切换侧边栏
+            sidebarItem.animator().isCollapsed = newCollapsedState
+            
+            // 发送文件夹可见性变化通知
+            // _Requirements: 4.4_
+            NotificationCenter.default.post(
+                name: .folderVisibilityDidChange,
+                object: nil,
+                userInfo: ["isFolderHidden": newCollapsedState]
+            )
         }
     }
     
     /// 切换笔记数量显示
     /// - Requirements: 9.3
     @objc func toggleNoteCount(_ sender: Any?) {
-        print("切换笔记数量显示")
         // 通过 ViewOptionsManager 切换笔记数量显示
         ViewOptionsManager.shared.toggleNoteCount()
         

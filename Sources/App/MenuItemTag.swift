@@ -191,7 +191,7 @@ enum MenuItemTag: Int {
     /// 判断是否为段落样式标签
     var isParagraphStyle: Bool {
         switch self {
-        case .heading, .subheading, .subtitle, .bodyText, .orderedList, .unorderedList:
+        case .heading, .subheading, .subtitle, .bodyText, .orderedList, .unorderedList, .blockQuote:
             return true
         default:
             return false
@@ -247,7 +247,7 @@ enum MenuItemTag: Int {
     
     /// 获取所有段落样式标签
     static var allParagraphStyles: [MenuItemTag] {
-        [.heading, .subheading, .subtitle, .bodyText, .orderedList, .unorderedList]
+        [.heading, .subheading, .subtitle, .bodyText, .orderedList, .unorderedList, .blockQuote]
     }
     
     /// 获取所有视图模式标签

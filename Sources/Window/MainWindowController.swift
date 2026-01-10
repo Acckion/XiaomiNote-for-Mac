@@ -1479,7 +1479,7 @@ extension MainWindowController {
     
     /// 插入附件（图片）
     /// 需求: 5.1, 5.2, 5.3, 5.5 - 显示文件选择对话框，根据编辑器类型调用对应的 insertImage 方法
-    @objc func insertAttachment(_ sender: Any?) {
+    @objc public func insertAttachment(_ sender: Any?) {
         print("[MainWindowController] 插入附件")
         
         // 需求 5.5: 检查是否有选中笔记
@@ -2003,12 +2003,9 @@ extension MainWindowController {
     // MARK: - 侧边栏切换
     
     @objc func toggleSidebar(_ sender: Any?) {
-        print("切换侧边栏显示/隐藏")
-        
         guard let window = window,
               let splitViewController = window.contentViewController as? NSSplitViewController,
               splitViewController.splitViewItems.count > 0 else {
-            print("无法获取分割视图控制器或侧边栏项")
             return
         }
         
@@ -2017,8 +2014,6 @@ extension MainWindowController {
         
         // 切换侧边栏状态
         sidebarItem.animator().isCollapsed = !isCurrentlyCollapsed
-        
-        print("侧边栏状态已切换: \(isCurrentlyCollapsed ? "显示" : "隐藏") -> \(!isCurrentlyCollapsed ? "显示" : "隐藏")")
     }
     
     // MARK: - 格式菜单

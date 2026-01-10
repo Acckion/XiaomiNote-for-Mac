@@ -905,9 +905,9 @@ class MenuManager {
         
         // ========== 段落样式部分（Requirements: 4.1-4.9）==========
         
-        // 4.1 添加"标题"菜单项（支持单选勾选状态）
+        // 4.1 添加"大标题"菜单项（支持单选勾选状态）
         let headingItem = NSMenuItem(
-            title: "标题",
+            title: "大标题",
             action: #selector(AppDelegate.setHeading(_:)),
             keyEquivalent: ""
         )
@@ -915,9 +915,9 @@ class MenuManager {
         setMenuItemIcon(headingItem, symbolName: "textformat.size.larger")
         formatMenu.addItem(headingItem)
         
-        // 4.2 添加"小标题"菜单项（支持单选勾选状态）
+        // 4.2 添加"二级标题"菜单项（支持单选勾选状态）
         let subheadingItem = NSMenuItem(
-            title: "小标题",
+            title: "二级标题",
             action: #selector(AppDelegate.setSubheading(_:)),
             keyEquivalent: ""
         )
@@ -925,9 +925,9 @@ class MenuManager {
         setMenuItemIcon(subheadingItem, symbolName: "textformat.size")
         formatMenu.addItem(subheadingItem)
         
-        // 4.3 添加"副标题"菜单项（支持单选勾选状态）
+        // 4.3 添加"三级标题"菜单项（支持单选勾选状态）
         let subtitleItem = NSMenuItem(
-            title: "副标题",
+            title: "三级标题",
             action: #selector(AppDelegate.setSubtitle(_:)),
             keyEquivalent: ""
         )

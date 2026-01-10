@@ -5,7 +5,7 @@ import MiNoteLibrary
 /// 替代SwiftUI的App结构，采用纯AppKit架构
 /// 使用模块化设计，将功能分解到专门的类中
 @MainActor
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     
     // MARK: - 属性
     
@@ -495,6 +495,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// - Requirements: 13.10
     @objc func openNoteInNewWindow(_ sender: Any?) {
         menuActionHandler.openNoteInNewWindow(sender)
+    }
+    
+    // MARK: - NSMenuItemValidation
+    
+    /// 验证菜单项是否应该启用
+    /// 将验证委托给 MenuActionHandler
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        return menuActionHandler.validateMenuItem(menuItem)
     }
     
     // MARK: - 清理

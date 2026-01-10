@@ -9,6 +9,7 @@ enum ParagraphStyle: String, CaseIterable {
     case body = "body"
     case orderedList = "orderedList"
     case unorderedList = "unorderedList"
+    case blockQuote = "blockQuote"
     
     /// 获取对应的菜单项标签
     var menuItemTag: MenuItemTag {
@@ -19,6 +20,7 @@ enum ParagraphStyle: String, CaseIterable {
         case .body: return .bodyText
         case .orderedList: return .orderedList
         case .unorderedList: return .unorderedList
+        case .blockQuote: return .blockQuote
         }
     }
     
@@ -31,6 +33,7 @@ enum ParagraphStyle: String, CaseIterable {
         case .bodyText: return .body
         case .orderedList: return .orderedList
         case .unorderedList: return .unorderedList
+        case .blockQuote: return .blockQuote
         default: return nil
         }
     }
@@ -38,12 +41,13 @@ enum ParagraphStyle: String, CaseIterable {
     /// 显示名称
     var displayName: String {
         switch self {
-        case .heading: return "标题"
-        case .subheading: return "小标题"
-        case .subtitle: return "副标题"
+        case .heading: return "大标题"
+        case .subheading: return "二级标题"
+        case .subtitle: return "三级标题"
         case .body: return "正文"
         case .orderedList: return "有序列表"
         case .unorderedList: return "无序列表"
+        case .blockQuote: return "块引用"
         }
     }
 }
@@ -233,7 +237,7 @@ struct MenuState: Equatable {
         case .unorderedList:
             return currentParagraphStyle == .unorderedList
         case .blockQuote:
-            return isBlockQuoteEnabled
+            return currentParagraphStyle == .blockQuote
             
         // 视图模式（互斥选择）
         case .listView:
@@ -244,10 +248,11 @@ struct MenuState: Equatable {
         // 切换状态
         case .lightBackground:
             return isLightBackgroundEnabled
+        // 文件夹可见性和笔记数量显示：不使用勾选标记，只通过动态标题显示状态
         case .hideFolders:
-            return isFolderHidden
+            return false
         case .showNoteCount:
-            return isNoteCountVisible
+            return false
             
         // 字体样式
         case .bold:
