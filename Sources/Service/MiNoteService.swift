@@ -1671,6 +1671,264 @@ final class MiNoteService: @unchecked Sendable {
         ]
     }
     
+    // MARK: - 语音文件上传
+    
+    /// 上传语音文件到小米服务器
+    /// 
+    /// 语音文件上传流程与图片相同，使用 `note_img` 类型。
+    /// 完整流程分为三步：
+    /// 1. 请求上传（request_upload_file）- 获取 uploadId 和 KSS 信息
+    /// 2. 上传文件块（upload_block_chunk）- 上传实际文件数据
+    /// 3. 提交上传（commit）- 确认上传完成，获取 fileId
+    /// 
+    /// - Parameters:
+    ///   - audioData: 语音文件数据
+    ///   - fileName: 文件名（如 "recording.mp3"）
+    ///   - mimeType: MIME 类型，推荐使用 "audio/mpeg"
+    /// - Returns: 包含 fileId、digest、mimeType 的字典
+    /// - Throws: MiNoteError（未认证、网络错误、响应无效等）
+    func uploadAudio(audioData: Data, fileName: String, mimeType: String = "audio/mpeg") async throws -> [String: Any] {
+        guard isAuthenticated() else {
+            throw MiNoteError.notAuthenticated
+        }
+        
+        // 计算文件哈希值
+        let sha1 = sha1Hash(of: audioData)
+        let md5 = md5Hash(of: audioData)
+        let fileSize = audioData.count
+        
+        print("[MiNoteService] 开始上传语音文件: \(fileName), 大小: \(fileSize) 字节, SHA1: \(sha1)")
+        
+        // 第一步：请求上传
+        // 注意：语音文件必须使用 note_img 类型（与图片相同）
+        let requestUploadResponse = try await requestAudioUpload(
+            fileName: fileName,
+            fileSize: fileSize,
+            sha1: sha1,
+            md5: md5,
+            mimeType: mimeType
+        )
+        
+        // 检查文件是否已存在
+        var fileId: String? = nil
+        
+        // 情况1：服务器有缓存（文件已存在）
+        if let existingFileId = requestUploadResponse["fileId"] as? String {
+            fileId = existingFileId
+            print("[MiNoteService] ✅ 语音文件已存在，fileId: \(fileId!)")
+        }
+        // 情况2：服务器无缓存（需要实际上传）
+        else if let storage = requestUploadResponse["storage"] as? [String: Any] {
+            let exists = storage["exists"] as? Bool ?? false
+            
+            if exists {
+                if let existingFileId = storage["fileId"] as? String {
+                    fileId = existingFileId
+                    print("[MiNoteService] ✅ 语音文件已存在（备用路径），fileId: \(fileId!)")
+                } else {
+                    print("[MiNoteService] ⚠️ 语音文件已存在但没有 fileId")
+                    throw MiNoteError.invalidResponse
+                }
+            } else {
+                // 新文件，需要实际上传
+                print("[MiNoteService] ✅ 语音文件不存在，需要上传新文件")
+                
+                guard let uploadId = storage["uploadId"] as? String,
+                      let kss = storage["kss"] as? [String: Any],
+                      let blockMetas = kss["block_metas"] as? [[String: Any]],
+                      let firstBlockMeta = blockMetas.first,
+                      let blockMeta = firstBlockMeta["block_meta"] as? String,
+                      let fileMeta = kss["file_meta"] as? String,
+                      let nodeUrls = kss["node_urls"] as? [String],
+                      let nodeUrl = nodeUrls.first else {
+                    print("[MiNoteService] ❌ 无法解析上传响应中的必要字段")
+                    throw MiNoteError.invalidResponse
+                }
+                
+                print("[MiNoteService] 语音文件上传信息: uploadId=\(uploadId), nodeUrl=\(nodeUrl)")
+                
+                // 第二步：上传文件块
+                let commitMeta = try await uploadFileChunk(
+                    fileData: audioData,
+                    nodeUrl: nodeUrl,
+                    fileMeta: fileMeta,
+                    blockMeta: blockMeta,
+                    chunkPos: 0
+                )
+                
+                print("[MiNoteService] ✅ 语音文件块上传成功")
+                
+                // 第三步：提交上传
+                fileId = try await commitAudioUpload(
+                    uploadId: uploadId,
+                    fileSize: fileSize,
+                    sha1: sha1,
+                    fileMeta: fileMeta,
+                    commitMeta: commitMeta
+                )
+                
+                print("[MiNoteService] ✅ 语音文件提交成功，fileId: \(fileId!)")
+            }
+        }
+        
+        guard let finalFileId = fileId else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        print("[MiNoteService] 语音文件上传流程完成，fileId: \(finalFileId)")
+        
+        // 返回文件信息
+        return [
+            "fileId": finalFileId,
+            "digest": sha1,
+            "mimeType": mimeType
+        ]
+    }
+    
+    /// 请求语音文件上传（第一步）
+    /// 
+    /// 注意：语音文件必须使用 `note_img` 类型，与图片上传相同。
+    /// `note_sound`、`note_audio`、`note_recording` 等类型都是无效的。
+    private func requestAudioUpload(fileName: String, fileSize: Int, sha1: String, md5: String, mimeType: String) async throws -> [String: Any] {
+        let urlString = "\(baseURL)/file/v2/user/request_upload_file"
+        
+        // 手动构建 JSON 字符串，确保字段顺序与图片上传完全一致
+        // 字段顺序：type → storage → filename → size → sha1 → mimeType → kss → block_infos
+        let dataString = """
+        {"type":"note_img","storage":{"filename":"\(fileName)","size":\(fileSize),"sha1":"\(sha1)","mimeType":"\(mimeType)","kss":{"block_infos":[{"blob":{},"size":\(fileSize),"md5":"\(md5)","sha1":"\(sha1)"}]}}}
+        """
+        
+        let dataEncoded = encodeURIComponent(dataString)
+        let serviceTokenEncoded = encodeURIComponent(serviceToken)
+        let body = "data=\(dataEncoded)&serviceToken=\(serviceTokenEncoded)"
+        
+        let postHeaders = getPostHeaders()
+        
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "POST",
+            headers: postHeaders,
+            body: "data=\(dataString.prefix(200))...&serviceToken=..."
+        )
+        
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = postHeaders
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body.data(using: .utf8)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            let responseString = String(data: data, encoding: .utf8)
+            
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "POST",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            if httpResponse.statusCode == 401 {
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+        }
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        guard let code = json["code"] as? Int, code == 0,
+              let dataDict = json["data"] as? [String: Any] else {
+            let description = (json["description"] as? String) ?? "未知错误"
+            print("[MiNoteService] ❌ 语音文件上传请求失败: \(description)")
+            throw MiNoteError.invalidResponse
+        }
+        
+        return dataDict
+    }
+    
+    /// 提交语音文件上传（第三步）
+    private func commitAudioUpload(uploadId: String, fileSize: Int, sha1: String, fileMeta: String, commitMeta: String) async throws -> String {
+        let urlString = "\(baseURL)/file/v2/user/commit"
+        
+        // 手动构建 JSON 字符串，确保字段顺序正确
+        let commitDataString = """
+        {"storage":{"uploadId":"\(uploadId)","size":\(fileSize),"sha1":"\(sha1)","kss":{"file_meta":"\(fileMeta)","commit_metas":[{"commit_meta":"\(commitMeta)"}]}}}
+        """
+        
+        let commitEncoded = encodeURIComponent(commitDataString)
+        let serviceTokenEncoded = encodeURIComponent(serviceToken)
+        let body = "commit=\(commitEncoded)&serviceToken=\(serviceTokenEncoded)"
+        
+        let postHeaders = getPostHeaders()
+        
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "POST",
+            headers: postHeaders,
+            body: "commit=\(commitDataString.prefix(200))...&serviceToken=..."
+        )
+        
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = postHeaders
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body.data(using: .utf8)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            let responseString = String(data: data, encoding: .utf8)
+            
+            NetworkLogger.shared.logResponse(
+                url: urlString,
+                method: "POST",
+                statusCode: httpResponse.statusCode,
+                headers: httpResponse.allHeaderFields as? [String: String],
+                response: responseString,
+                error: nil
+            )
+            
+            if httpResponse.statusCode == 401 {
+                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw MiNoteError.networkError(URLError(.badServerResponse))
+            }
+        }
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw MiNoteError.invalidResponse
+        }
+        
+        guard let code = json["code"] as? Int, code == 0,
+              let dataDict = json["data"] as? [String: Any],
+              let fileId = dataDict["fileId"] as? String else {
+            let description = (json["description"] as? String) ?? "未知错误"
+            print("[MiNoteService] ❌ 语音文件提交失败: \(description)")
+            throw MiNoteError.invalidResponse
+        }
+        
+        print("[MiNoteService] ✅ 语音文件提交成功，fileId: \(fileId)")
+        return fileId
+    }
+    
     /// 请求图片上传（第一步）
     private func requestImageUpload(fileName: String, fileSize: Int, sha1: String, md5: String, mimeType: String) async throws -> [String: Any] {
         let urlString = "\(baseURL)/file/v2/user/request_upload_file"

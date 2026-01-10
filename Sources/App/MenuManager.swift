@@ -1744,6 +1744,14 @@ class MenuManager {
         debugMenuItem.target = appDelegate
         setMenuItemIcon(debugMenuItem, symbolName: "ladybug")
         viewMenu.addItem(debugMenuItem)
+        
+        // 添加"测试语音文件 API"项
+        let testAudioAPIItem = NSMenuItem()
+        testAudioAPIItem.title = "测试语音文件 API"
+        testAudioAPIItem.action = #selector(AppDelegate.testAudioFileAPI(_:))
+        testAudioAPIItem.target = appDelegate
+        setMenuItemIcon(testAudioAPIItem, symbolName: "waveform")
+        viewMenu.addItem(testAudioAPIItem)
     }
     
     /// 设置窗口菜单

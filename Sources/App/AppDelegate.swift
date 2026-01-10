@@ -289,6 +289,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         menuActionHandler.showDebugSettings(sender)
     }
     
+    @objc func testAudioFileAPI(_ sender: Any?) {
+        menuActionHandler.testAudioFileAPI(sender)
+    }
+    
     @objc func showLogin(_ sender: Any?) {
         menuActionHandler.showLogin(sender)
     }

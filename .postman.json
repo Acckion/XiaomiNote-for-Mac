@@ -1,0 +1,41 @@
+{
+  "name": "小米笔记语音文件支持",
+  "description": "语音文件解析和上传功能的 Postman 测试配置",
+  "collections": [
+    {
+      "name": "audio-file-support-collection",
+      "path": ".postman/audio-file-support-collection.json",
+      "description": "语音文件支持测试集合"
+    }
+  ],
+  "environments": [
+    {
+      "name": "audio-file-support-env",
+      "path": ".postman/audio-file-support-environment.json",
+      "description": "语音文件测试环境"
+    }
+  ],
+  "testData": {
+    "noteId": "48926433520534752",
+    "soundFileId": "1315204657.jgHyouv563iSF_XCE4jhAg",
+    "soundDigest": "8a41074a7bf788cf921a32a781e7b676f3103968.mp3",
+    "soundMimeType": "audio/mpeg"
+  },
+  "mimeTypeNotes": {
+    "audio/mp3": "❌ 非标准 MIME 类型（不推荐使用）",
+    "audio/mpeg": "✅ 标准 MIME 类型（推荐使用，已在代码中更新）"
+  },
+  "apiEndpoints": {
+    "getNote": "GET /note/note/{noteId}/?ts={timestamp}",
+    "requestUpload": "POST /file/v2/user/request_upload_file",
+    "commitUpload": "POST /file/v2/user/commit"
+  },
+  "uploadTypeNotes": {
+    "note_sound": "❌ 无效的 type 值（已测试）",
+    "note_audio": "❌ 无效的 type 值（已测试）",
+    "note_recording": "❌ 无效的 type 值（已测试）",
+    "note_file": "❌ 无效的 type 值（2026-01-11 测试）",
+    "note_img": "✅ 推荐使用（与图片上传相同的类型，已验证成功）",
+    "note": "语音文件上传应使用 note_img 类型，不使用 sortedKeys 选项"
+  }
+}

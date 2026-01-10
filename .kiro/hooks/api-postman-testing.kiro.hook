@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "name": "API Postman Testing",
+  "description": "监控 API 源代码变更，自动运行 Postman 集合测试验证功能",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "Sources/Service/*.swift",
+      "Sources/Model/*.swift",
+      "Sources/Web/**/*.js",
+      "*.swift",
+      "openapi.yaml",
+      "openapi.yml",
+      "swagger.yaml",
+      "swagger.yml",
+      "api.yaml",
+      "api.yml"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "API 源代码或配置已修改。请读取 .postman.json 文件内容。如果文件不存在或为空，为 API 创建 Postman 集合。如果存在，获取集合 ID 并运行集合，显示结果并为发现的错误提出修复建议。"
+  }
+}

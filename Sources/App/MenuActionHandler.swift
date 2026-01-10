@@ -1,5 +1,6 @@
 import AppKit
 import MiNoteLibrary
+import CommonCrypto
 
 /// 菜单动作处理器
 /// 负责处理应用程序菜单的各种动作
@@ -1587,6 +1588,208 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
 
+    // MARK: - 调试测试方法
+    
+    /// 测试语音文件 API（解析 + 上传）
+    /// 1. 获取包含语音的笔记，验证 sound 标签和 setting.data 元数据解析
+    /// 2. 测试语音文件上传 API（使用模拟数据）
+    @objc func testAudioFileAPI(_ sender: Any?) {
+        print("\n========== 语音文件 API 测试开始 ==========")
+        
+        Task {
+            do {
+                // 从 UserDefaults 获取 Cookie
+                guard let cookie = UserDefaults.standard.string(forKey: "minote_cookie"), !cookie.isEmpty else {
+                    print("[AudioTest] ❌ 未找到 Cookie，请先登录")
+                    await self.showTestResult(success: false, message: "未找到 Cookie，请先登录")
+                    return
+                }
+                
+                // 从 Cookie 中提取 serviceToken
+                guard let serviceToken = self.extractServiceToken(from: cookie) else {
+                    print("[AudioTest] ❌ 无法从 Cookie 中提取 serviceToken")
+                    await self.showTestResult(success: false, message: "无法从 Cookie 中提取 serviceToken")
+                    return
+                }
+                
+                // ========== 第一部分：解析测试 ==========
+                print("\n---------- 第一部分：解析测试 ----------")
+                
+                let testNoteId = "48926433520534752"
+                print("[AudioTest] 正在获取笔记: \(testNoteId)")
+                
+                let ts = Int(Date().timeIntervalSince1970 * 1000)
+                let urlString = "https://i.mi.com/note/note/\(testNoteId)/?ts=\(ts)"
+                
+                guard let url = URL(string: urlString) else {
+                    print("[AudioTest] ❌ URL 无效")
+                    await self.showTestResult(success: false, message: "URL 无效")
+                    return
+                }
+                
+                var request = URLRequest(url: url)
+                request.httpMethod = "GET"
+                request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36", forHTTPHeaderField: "User-Agent")
+                request.setValue(cookie, forHTTPHeaderField: "Cookie")
+                
+                let (data, httpResponse) = try await URLSession.shared.data(for: request)
+                
+                guard let response = httpResponse as? HTTPURLResponse else {
+                    print("[AudioTest] ❌ 无效的响应")
+                    await self.showTestResult(success: false, message: "无效的响应")
+                    return
+                }
+                
+                print("[AudioTest] HTTP 状态码: \(response.statusCode)")
+                
+                guard response.statusCode == 200 else {
+                    print("[AudioTest] ❌ 请求失败，状态码: \(response.statusCode)")
+                    await self.showTestResult(success: false, message: "请求失败，状态码: \(response.statusCode)")
+                    return
+                }
+                
+                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    print("[AudioTest] ❌ JSON 解析失败")
+                    await self.showTestResult(success: false, message: "JSON 解析失败")
+                    return
+                }
+                
+                guard let code = json["code"] as? Int, code == 0 else {
+                    let description = json["description"] as? String ?? "未知错误"
+                    print("[AudioTest] ❌ API 请求失败: \(description)")
+                    await self.showTestResult(success: false, message: "API 请求失败: \(description)")
+                    return
+                }
+                
+                guard let responseData = json["data"] as? [String: Any],
+                      let entry = responseData["entry"] as? [String: Any] else {
+                    print("[AudioTest] ❌ 响应格式错误：无法解析 data.entry")
+                    await self.showTestResult(success: false, message: "响应格式错误")
+                    return
+                }
+                
+                print("[AudioTest] ✅ 成功获取笔记数据")
+                
+                // 解析 content 中的 sound 标签
+                if let content = entry["content"] as? String {
+                    print("[AudioTest] 笔记内容: \(content)")
+                    
+                    let soundPattern = #"<sound\s+fileid=\"([^\"]+)\"\s*/>"#
+                    if let regex = try? NSRegularExpression(pattern: soundPattern),
+                       let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+                       let fileIdRange = Range(match.range(at: 1), in: content) {
+                        let fileId = String(content[fileIdRange])
+                        print("[AudioTest] ✅ 解析到 sound 标签，fileId: \(fileId)")
+                    } else {
+                        print("[AudioTest] ⚠️ 未找到 sound 标签")
+                    }
+                }
+                
+                // 解析 setting.data 元数据
+                if let setting = entry["setting"] as? [String: Any],
+                   let dataArray = setting["data"] as? [[String: Any]] {
+                    print("[AudioTest] ✅ 找到 setting.data 元数据，共 \(dataArray.count) 个文件")
+                    
+                    for (index, fileInfo) in dataArray.enumerated() {
+                        let fileId = fileInfo["fileId"] as? String ?? "未知"
+                        let digest = fileInfo["digest"] as? String ?? "未知"
+                        let mimeType = fileInfo["mimeType"] as? String ?? "未知"
+                        
+                        print("[AudioTest] 文件 \(index + 1):")
+                        print("  - fileId: \(fileId)")
+                        print("  - digest: \(digest)")
+                        print("  - mimeType: \(mimeType)")
+                        
+                        if mimeType.hasPrefix("audio/") {
+                            print("  - ✅ 确认为音频文件")
+                        }
+                    }
+                } else {
+                    print("[AudioTest] ⚠️ 未找到 setting.data 元数据")
+                }
+                
+                // 解析 extraInfo
+                if let extraInfoString = entry["extraInfo"] as? String,
+                   let extraInfoData = extraInfoString.data(using: .utf8),
+                   let extraInfo = try? JSONSerialization.jsonObject(with: extraInfoData) as? [String: Any] {
+                    let title = extraInfo["title"] as? String ?? "无标题"
+                    print("[AudioTest] 笔记标题: \(title)")
+                }
+                
+                print("[AudioTest] ✅ 解析测试完成")
+                
+                // ========== 第二部分：上传测试 ==========
+                print("\n---------- 第二部分：上传测试（使用 MiNoteService.uploadAudio）----------")
+                
+                // 创建模拟音频数据（一个简单的测试文件）
+                let testAudioData = "Test audio file content for API testing".data(using: .utf8)!
+                let testFileName = "test_audio_\(Int(Date().timeIntervalSince1970)).mp3"
+                let testMimeType = "audio/mpeg"
+                
+                print("[AudioTest] 测试文件: \(testFileName)")
+                print("[AudioTest] 文件大小: \(testAudioData.count) 字节")
+                print("[AudioTest] MIME 类型: \(testMimeType)")
+                
+                // 使用 MiNoteService.uploadAudio 方法上传
+                print("[AudioTest] 正在调用 MiNoteService.uploadAudio...")
+                
+                let uploadResult = try await MiNoteService.shared.uploadAudio(
+                    audioData: testAudioData,
+                    fileName: testFileName,
+                    mimeType: testMimeType
+                )
+                
+                // 解析上传结果
+                guard let fileId = uploadResult["fileId"] as? String else {
+                    print("[AudioTest] ❌ 上传成功但未返回 fileId")
+                    await self.showTestResult(success: false, message: "上传成功但未返回 fileId")
+                    return
+                }
+                
+                let digest = uploadResult["digest"] as? String ?? "未知"
+                let mimeType = uploadResult["mimeType"] as? String ?? "未知"
+                
+                print("[AudioTest] ✅ 上传成功！")
+                print("[AudioTest] fileId: \(fileId)")
+                print("[AudioTest] digest: \(digest)")
+                print("[AudioTest] mimeType: \(mimeType)")
+                
+                print("\n========== 语音文件 API 测试完成 ==========")
+                await self.showTestResult(success: true, message: "语音文件 API 测试完成！\n\n包含：\n1. 解析测试 ✅\n2. 上传测试 ✅\n\n上传结果：\nfileId: \(fileId)\ndigest: \(digest)")
+                
+            } catch {
+                print("[AudioTest] ❌ 测试失败: \(error)")
+                await self.showTestResult(success: false, message: "测试失败: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    // MARK: - 辅助方法（语音文件测试）
+    
+    /// 从 Cookie 中提取 serviceToken（用于解析测试）
+    private func extractServiceToken(from cookie: String) -> String? {
+        let pattern = "serviceToken=([^;]+)"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        
+        let range = NSRange(location: 0, length: cookie.utf16.count)
+        if let match = regex.firstMatch(in: cookie, options: [], range: range),
+           let tokenRange = Range(match.range(at: 1), in: cookie) {
+            return String(cookie[tokenRange])
+        }
+        return nil
+    }
+    
+    /// 显示测试结果弹窗
+    @MainActor
+    private func showTestResult(success: Bool, message: String) {
+        let alert = NSAlert()
+        alert.messageText = success ? "测试成功" : "测试失败"
+        alert.informativeText = message
+        alert.alertStyle = success ? .informational : .warning
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
+    }
+    
     // MARK: - 清理
 
     deinit {
