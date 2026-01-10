@@ -2335,6 +2335,82 @@ extension MainWindowController {
         // 暂时使用控制台输出
     }
     
+    // MARK: - 格式菜单动作（Apple Notes 风格）
+    
+    /// 切换块引用
+    /// - Requirements: 4.9
+    @objc public func toggleBlockQuote(_ sender: Any?) {
+        print("切换块引用")
+        // TODO: 实现块引用切换功能
+    }
+    
+    // MARK: - 核对清单动作
+    
+    /// 标记为已勾选
+    /// - Requirements: 5.2
+    @objc public func markAsChecked(_ sender: Any?) {
+        print("标记为已勾选")
+        // TODO: 实现标记为已勾选功能
+    }
+    
+    /// 全部勾选
+    /// - Requirements: 5.4
+    @objc public func checkAll(_ sender: Any?) {
+        print("全部勾选")
+        // TODO: 实现全部勾选功能
+    }
+    
+    /// 全部取消勾选
+    /// - Requirements: 5.5
+    @objc public func uncheckAll(_ sender: Any?) {
+        print("全部取消勾选")
+        // TODO: 实现全部取消勾选功能
+    }
+    
+    /// 将勾选的项目移到底部
+    /// - Requirements: 5.6
+    @objc public func moveCheckedToBottom(_ sender: Any?) {
+        print("将勾选的项目移到底部")
+        // TODO: 实现将勾选的项目移到底部功能
+    }
+    
+    /// 删除已勾选项目
+    /// - Requirements: 5.7
+    @objc public func deleteCheckedItems(_ sender: Any?) {
+        print("删除已勾选项目")
+        // TODO: 实现删除已勾选项目功能
+    }
+    
+    /// 向上移动项目
+    /// - Requirements: 5.10
+    @objc public func moveItemUp(_ sender: Any?) {
+        print("向上移动项目")
+        // TODO: 实现向上移动项目功能
+    }
+    
+    /// 向下移动项目
+    /// - Requirements: 5.11
+    @objc public func moveItemDown(_ sender: Any?) {
+        print("向下移动项目")
+        // TODO: 实现向下移动项目功能
+    }
+    
+    // MARK: - 外观动作
+    
+    /// 切换浅色背景
+    /// - Requirements: 6.2
+    @objc public func toggleLightBackground(_ sender: Any?) {
+        print("切换浅色背景")
+        // TODO: 实现切换浅色背景功能
+    }
+    
+    /// 切换高亮
+    /// - Requirements: 6.9
+    @objc public func toggleHighlight(_ sender: Any?) {
+        print("切换高亮")
+        // TODO: 实现切换高亮功能
+    }
+    
     // MARK: - 新增的菜单动作方法
 
     @objc public func copyNote(_ sender: Any?) {
@@ -2369,6 +2445,75 @@ extension MainWindowController {
     /// 显示查找和替换面板
     @objc public func showFindAndReplacePanel(_ sender: Any?) {
         searchPanelController?.showSearchPanel()
+    }
+    
+    // MARK: - 附件操作
+    
+    /// 附加文件到当前笔记
+    /// - Requirements: 3.12
+    /// - Parameter url: 文件 URL
+    @objc public func attachFile(_ url: URL) {
+        print("[MainWindowController] 附加文件: \(url.path)")
+        
+        // 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法附加文件")
+            return
+        }
+        
+        // 根据文件类型处理
+        let fileExtension = url.pathExtension.lowercased()
+        let imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "webp"]
+        
+        if imageExtensions.contains(fileExtension) {
+            // 图片文件：使用现有的图片插入功能
+            Task { @MainActor in
+                await self.insertImage(from: url)
+            }
+        } else {
+            // 其他文件：显示提示（功能待实现）
+            let alert = NSAlert()
+            alert.messageText = "功能开发中"
+            alert.informativeText = "非图片文件的附件功能正在开发中，敬请期待。"
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+        }
+    }
+    
+    /// 添加链接到当前笔记
+    /// - Requirements: 3.13
+    /// - Parameter urlString: 链接地址
+    @objc public func addLink(_ urlString: String) {
+        print("[MainWindowController] 添加链接: \(urlString)")
+        
+        // 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法添加链接")
+            return
+        }
+        
+        // 验证 URL 格式
+        guard let url = URL(string: urlString), url.scheme != nil else {
+            let alert = NSAlert()
+            alert.messageText = "无效的链接"
+            alert.informativeText = "请输入有效的链接地址（例如：https://example.com）"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+            return
+        }
+        
+        // 链接插入功能待实现
+        // TODO: 根据编辑器类型插入链接
+        print("[MainWindowController] 链接插入功能待实现: \(urlString)")
+        
+        let alert = NSAlert()
+        alert.messageText = "功能开发中"
+        alert.informativeText = "链接插入功能正在开发中，敬请期待。\n\n链接地址：\(urlString)"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
     }
     
     // MARK: - 窗口状态管理
@@ -2754,6 +2899,103 @@ extension MainWindowController {
         viewModel?.searchFilterHasImages = false
         viewModel?.searchFilterHasAudio = false
         viewModel?.searchFilterIsPrivate = false
+    }
+    
+    // MARK: - 显示菜单动作（Requirements: 10.1-10.4, 11.1-11.5）
+    
+    /// 放大
+    /// - Requirements: 10.2
+    @objc public func zoomIn(_ sender: Any?) {
+        print("[MainWindowController] 放大")
+        
+        // 根据编辑器类型调用对应的缩放方法
+        if isUsingNativeEditor {
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.zoomIn()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.zoomIn()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
+    }
+    
+    /// 缩小
+    /// - Requirements: 10.3
+    @objc public func zoomOut(_ sender: Any?) {
+        print("[MainWindowController] 缩小")
+        
+        // 根据编辑器类型调用对应的缩放方法
+        if isUsingNativeEditor {
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.zoomOut()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.zoomOut()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
+    }
+    
+    /// 实际大小
+    /// - Requirements: 10.4
+    @objc public func actualSize(_ sender: Any?) {
+        print("[MainWindowController] 实际大小")
+        
+        // 根据编辑器类型调用对应的重置缩放方法
+        if isUsingNativeEditor {
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.resetZoom()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.resetZoom()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
+    }
+    
+    /// 展开区域
+    /// - Requirements: 11.2
+    @objc public func expandSection(_ sender: Any?) {
+        print("[MainWindowController] 展开区域")
+        // TODO: 实现展开当前区域功能
+        // 这需要与编辑器集成，展开当前光标所在的折叠区域
+    }
+    
+    /// 展开所有区域
+    /// - Requirements: 11.3
+    @objc public func expandAllSections(_ sender: Any?) {
+        print("[MainWindowController] 展开所有区域")
+        // TODO: 实现展开所有区域功能
+        // 这需要与编辑器集成，展开所有折叠的区域
+    }
+    
+    /// 折叠区域
+    /// - Requirements: 11.4
+    @objc public func collapseSection(_ sender: Any?) {
+        print("[MainWindowController] 折叠区域")
+        // TODO: 实现折叠当前区域功能
+        // 这需要与编辑器集成，折叠当前光标所在的区域
+    }
+    
+    /// 折叠所有区域
+    /// - Requirements: 11.5
+    @objc public func collapseAllSections(_ sender: Any?) {
+        print("[MainWindowController] 折叠所有区域")
+        // TODO: 实现折叠所有区域功能
+        // 这需要与编辑器集成，折叠所有可折叠的区域
     }
     
     

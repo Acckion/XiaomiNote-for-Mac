@@ -202,6 +202,76 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menuActionHandler.setBodyText(sender)
     }
     
+    // MARK: - 格式菜单动作（Apple Notes 风格）
+    
+    @objc func setHeading(_ sender: Any?) {
+        menuActionHandler.setHeading(sender)
+    }
+    
+    @objc func setSubheading(_ sender: Any?) {
+        menuActionHandler.setSubheading(sender)
+    }
+    
+    @objc func setSubtitle(_ sender: Any?) {
+        menuActionHandler.setSubtitle(sender)
+    }
+    
+    @objc func toggleOrderedList(_ sender: Any?) {
+        menuActionHandler.toggleOrderedList(sender)
+    }
+    
+    @objc func toggleUnorderedList(_ sender: Any?) {
+        menuActionHandler.toggleUnorderedList(sender)
+    }
+    
+    @objc func toggleBlockQuote(_ sender: Any?) {
+        menuActionHandler.toggleBlockQuote(sender)
+    }
+    
+    // MARK: - 核对清单动作
+    
+    @objc func toggleChecklist(_ sender: Any?) {
+        menuActionHandler.toggleChecklist(sender)
+    }
+    
+    @objc func markAsChecked(_ sender: Any?) {
+        menuActionHandler.markAsChecked(sender)
+    }
+    
+    @objc func checkAll(_ sender: Any?) {
+        menuActionHandler.checkAll(sender)
+    }
+    
+    @objc func uncheckAll(_ sender: Any?) {
+        menuActionHandler.uncheckAll(sender)
+    }
+    
+    @objc func moveCheckedToBottom(_ sender: Any?) {
+        menuActionHandler.moveCheckedToBottom(sender)
+    }
+    
+    @objc func deleteCheckedItems(_ sender: Any?) {
+        menuActionHandler.deleteCheckedItems(sender)
+    }
+    
+    @objc func moveItemUp(_ sender: Any?) {
+        menuActionHandler.moveItemUp(sender)
+    }
+    
+    @objc func moveItemDown(_ sender: Any?) {
+        menuActionHandler.moveItemDown(sender)
+    }
+    
+    // MARK: - 外观动作
+    
+    @objc func toggleLightBackground(_ sender: Any?) {
+        menuActionHandler.toggleLightBackground(sender)
+    }
+    
+    @objc func toggleHighlight(_ sender: Any?) {
+        menuActionHandler.toggleHighlight(sender)
+    }
+    
     @objc func showDebugSettings(_ sender: Any?) {
         menuActionHandler.showDebugSettings(sender)
     }
@@ -245,6 +315,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func copyNote(_ sender: Any?) {
         menuActionHandler.copyNote(sender)
     }
+    
+    // MARK: - 文件菜单新增动作
+    
+    @objc func createSmartFolder(_ sender: Any?) {
+        menuActionHandler.createSmartFolder(sender)
+    }
+    
+    @objc func importMarkdown(_ sender: Any?) {
+        menuActionHandler.importMarkdown(sender)
+    }
+    
+    @objc func exportAsPDF(_ sender: Any?) {
+        menuActionHandler.exportAsPDF(sender)
+    }
+    
+    @objc func exportAsMarkdown(_ sender: Any?) {
+        menuActionHandler.exportAsMarkdown(sender)
+    }
+    
+    @objc func exportAsPlainText(_ sender: Any?) {
+        menuActionHandler.exportAsPlainText(sender)
+    }
+    
+    @objc func addToPrivateNotes(_ sender: Any?) {
+        menuActionHandler.addToPrivateNotes(sender)
+    }
+    
+    @objc func duplicateNote(_ sender: Any?) {
+        menuActionHandler.duplicateNote(sender)
+    }
 
     // MARK: - 查找功能
 
@@ -262,6 +362,52 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func findPrevious(_ sender: Any?) {
         menuActionHandler.findPrevious(sender)
+    }
+    
+    // MARK: - 显示菜单动作
+    
+    @objc func setListView(_ sender: Any?) {
+        menuActionHandler.setListView(sender)
+    }
+    
+    @objc func setGalleryView(_ sender: Any?) {
+        menuActionHandler.setGalleryView(sender)
+    }
+    
+    @objc func toggleFolderVisibility(_ sender: Any?) {
+        menuActionHandler.toggleFolderVisibility(sender)
+    }
+    
+    @objc func toggleNoteCount(_ sender: Any?) {
+        menuActionHandler.toggleNoteCount(sender)
+    }
+    
+    @objc func zoomIn(_ sender: Any?) {
+        menuActionHandler.zoomIn(sender)
+    }
+    
+    @objc func zoomOut(_ sender: Any?) {
+        menuActionHandler.zoomOut(sender)
+    }
+    
+    @objc func actualSize(_ sender: Any?) {
+        menuActionHandler.actualSize(sender)
+    }
+    
+    @objc func expandSection(_ sender: Any?) {
+        menuActionHandler.expandSection(sender)
+    }
+    
+    @objc func expandAllSections(_ sender: Any?) {
+        menuActionHandler.expandAllSections(sender)
+    }
+    
+    @objc func collapseSection(_ sender: Any?) {
+        menuActionHandler.collapseSection(sender)
+    }
+    
+    @objc func collapseAllSections(_ sender: Any?) {
+        menuActionHandler.collapseAllSections(sender)
     }
     
     // MARK: - 清理

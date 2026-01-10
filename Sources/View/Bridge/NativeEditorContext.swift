@@ -1288,4 +1288,41 @@ class NativeEditorContext: ObservableObject {
             toolbarButtonStates[.checkbox] = false
         }
     }
+    
+    // MARK: - Public Methods - 缩放操作 (Requirements: 10.2, 10.3, 10.4)
+    
+    /// 放大
+    /// - Requirements: 10.2
+    func zoomIn() {
+        print("[NativeEditorContext] 放大")
+        // 发送缩放通知，让编辑器视图处理
+        NotificationCenter.default.post(name: .editorZoomIn, object: nil)
+    }
+    
+    /// 缩小
+    /// - Requirements: 10.3
+    func zoomOut() {
+        print("[NativeEditorContext] 缩小")
+        // 发送缩放通知，让编辑器视图处理
+        NotificationCenter.default.post(name: .editorZoomOut, object: nil)
+    }
+    
+    /// 重置缩放
+    /// - Requirements: 10.4
+    func resetZoom() {
+        print("[NativeEditorContext] 重置缩放")
+        // 发送重置缩放通知，让编辑器视图处理
+        NotificationCenter.default.post(name: .editorResetZoom, object: nil)
+    }
+}
+
+// MARK: - 缩放通知扩展
+
+extension Notification.Name {
+    /// 编辑器放大通知
+    static let editorZoomIn = Notification.Name("editorZoomIn")
+    /// 编辑器缩小通知
+    static let editorZoomOut = Notification.Name("editorZoomOut")
+    /// 编辑器重置缩放通知
+    static let editorResetZoom = Notification.Name("editorResetZoom")
 }

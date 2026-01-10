@@ -189,6 +189,29 @@ class WebEditorContext: ObservableObject {
     func replaceText(_ options: [String: Any]) {
         replaceTextClosure?(options)
     }
+    
+    // MARK: - 缩放操作 (Requirements: 10.2, 10.3, 10.4)
+    
+    /// 放大
+    /// - Requirements: 10.2
+    func zoomIn() {
+        print("[WebEditorContext] 放大")
+        executeFormatActionClosure?("zoomIn", nil)
+    }
+    
+    /// 缩小
+    /// - Requirements: 10.3
+    func zoomOut() {
+        print("[WebEditorContext] 缩小")
+        executeFormatActionClosure?("zoomOut", nil)
+    }
+    
+    /// 重置缩放
+    /// - Requirements: 10.4
+    func resetZoom() {
+        print("[WebEditorContext] 重置缩放")
+        executeFormatActionClosure?("resetZoom", nil)
+    }
 }
 
 // 扩展TextAlignment以便与字符串转换
