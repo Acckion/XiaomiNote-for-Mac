@@ -23,7 +23,7 @@ public enum ViewMode: String, Codable, CaseIterable {
 
 // MARK: - ViewMode 扩展
 
-extension ViewMode {
+public extension ViewMode {
     /// 显示名称
     var displayName: String {
         switch self {
@@ -64,22 +64,29 @@ public struct ViewOptionsState: Codable, Equatable {
     /// 视图模式
     public var viewMode: ViewMode
     
+    /// 是否显示笔记数量
+    /// _Requirements: 9.3_
+    public var showNoteCount: Bool
+    
     /// 初始化方法
     /// - Parameters:
     ///   - sortOrder: 排序方式，默认为编辑时间
     ///   - sortDirection: 排序方向，默认为降序
     ///   - isDateGroupingEnabled: 是否启用日期分组，默认为 true
     ///   - viewMode: 视图模式，默认为列表视图
+    ///   - showNoteCount: 是否显示笔记数量，默认为 true
     public init(
         sortOrder: NoteSortOrder = .editDate,
         sortDirection: SortDirection = .descending,
         isDateGroupingEnabled: Bool = true,
-        viewMode: ViewMode = .list
+        viewMode: ViewMode = .list,
+        showNoteCount: Bool = true
     ) {
         self.sortOrder = sortOrder
         self.sortDirection = sortDirection
         self.isDateGroupingEnabled = isDateGroupingEnabled
         self.viewMode = viewMode
+        self.showNoteCount = showNoteCount
     }
     
     /// 默认值
@@ -88,7 +95,8 @@ public struct ViewOptionsState: Codable, Equatable {
             sortOrder: .editDate,
             sortDirection: .descending,
             isDateGroupingEnabled: true,
-            viewMode: .list
+            viewMode: .list,
+            showNoteCount: true
         )
     }
 }

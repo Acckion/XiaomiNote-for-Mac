@@ -797,7 +797,7 @@ public struct SidebarView: View {
 /// 显示单个文件夹的信息：
 /// - 文件夹图标（根据文件夹类型显示不同图标和颜色）
 /// - 文件夹名称（支持编辑模式）
-/// - 笔记数量
+/// - 笔记数量（可通过菜单切换显示/隐藏）
 struct SidebarFolderRow: View {
     /// 文件夹数据
     let folder: Folder
@@ -822,6 +822,10 @@ struct SidebarFolderRow: View {
     
     /// 鼠标是否悬停在该行上
     @State private var isHovering: Bool = false
+    
+    /// 视图选项管理器（用于获取笔记数量显示状态）
+    /// _Requirements: 9.3_
+    @ObservedObject private var viewOptionsManager = ViewOptionsManager.shared
     
     /// 初始化器 - 用于正常模式（非编辑模式）
     init(folder: Folder, prefix: String = "") {
@@ -907,8 +911,9 @@ struct SidebarFolderRow: View {
             
             Spacer()
             
-            // 笔记数量（编辑模式下不显示）
-            if !isEditing {
+            // 笔记数量（编辑模式下不显示，根据设置可隐藏）
+            // _Requirements: 9.3_
+            if !isEditing && viewOptionsManager.showNoteCount {
                 Text("\(folder.count)")
                     .font(.caption)
                     .foregroundColor(.secondary)

@@ -3,8 +3,10 @@ import MiNoteLibrary
 
 /// 菜单动作处理器
 /// 负责处理应用程序菜单的各种动作
+/// 实现 NSMenuItemValidation 协议以管理菜单项的启用/禁用状态
+/// - Requirements: 14.1-14.8
 @MainActor
-class MenuActionHandler {
+class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     // MARK: - 属性
     
@@ -13,6 +15,10 @@ class MenuActionHandler {
     
     /// 窗口管理器
     private let windowManager: WindowManager
+    
+    /// 菜单状态
+    /// 用于管理菜单项的启用/禁用和勾选状态
+    private(set) var menuState: MenuState = MenuState()
     
     // MARK: - 初始化
     
@@ -23,6 +29,8 @@ class MenuActionHandler {
     init(mainWindowController: MainWindowController? = nil, windowManager: WindowManager) {
         self.mainWindowController = mainWindowController
         self.windowManager = windowManager
+        super.init()
+        setupStateObservers()
         print("菜单动作处理器初始化")
     }
     
@@ -32,6 +40,239 @@ class MenuActionHandler {
     /// - Parameter controller: 主窗口控制器
     func updateMainWindowController(_ controller: MainWindowController?) {
         self.mainWindowController = controller
+        // 更新菜单状态
+        updateMenuStateFromContext()
+    }
+    
+    /// 更新菜单状态
+    /// - Parameter newState: 新的菜单状态
+    func updateMenuState(_ newState: MenuState) {
+        menuState = newState
+    }
+    
+    // MARK: - NSMenuItemValidation
+    
+    /// 验证菜单项是否应该启用
+    /// 根据 MenuItemTag 和 MenuState 返回正确的启用状态
+    /// - Parameter menuItem: 要验证的菜单项
+    /// - Returns: 菜单项是否应该启用
+    /// - Requirements: 14.1-14.8
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        // 更新菜单状态
+        updateMenuStateFromContext()
+        
+        // 获取菜单项标签
+        guard let tag = MenuItemTag(rawValue: menuItem.tag) else {
+            // 未知标签的菜单项默认启用
+            return true
+        }
+        
+        // 更新菜单项的勾选状态
+        updateMenuItemCheckState(menuItem, for: tag)
+        
+        // 根据标签类型返回启用状态
+        return menuState.shouldEnableMenuItem(for: tag)
+    }
+    
+    // MARK: - 私有方法 - 状态管理
+    
+    /// 设置状态观察者
+    /// 
+    /// 监听各种状态变化通知，更新菜单状态
+    /// _Requirements: 14.4, 14.5, 14.6, 14.7_
+    private func setupStateObservers() {
+        // 监听笔记选中状态变化
+        // _Requirements: 14.4_
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleNoteSelectionChanged(_:)),
+            name: .noteSelectionDidChange,
+            object: nil
+        )
+        
+        // 监听编辑器焦点变化
+        // _Requirements: 14.5_
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleEditorFocusChanged(_:)),
+            name: .editorFocusDidChange,
+            object: nil
+        )
+        
+        // 监听视图模式变化
+        // _Requirements: 14.7_
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleViewModeChanged(_:)),
+            name: .viewModeDidChange,
+            object: nil
+        )
+        
+        // 监听段落样式变化
+        // _Requirements: 14.6_
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleParagraphStyleChanged(_:)),
+            name: .paragraphStyleDidChange,
+            object: nil
+        )
+        
+        // 监听文件夹可见性变化
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleFolderVisibilityChanged(_:)),
+            name: .folderVisibilityDidChange,
+            object: nil
+        )
+    }
+    
+    /// 处理笔记选中状态变化
+    /// _Requirements: 14.4_
+    @objc private func handleNoteSelectionChanged(_ notification: Notification) {
+        // 从通知中获取选中状态
+        if let hasSelectedNote = notification.userInfo?["hasSelectedNote"] as? Bool {
+            var newState = menuState
+            newState.setNoteSelected(hasSelectedNote)
+            menuState = newState
+            print("[MenuActionHandler] 笔记选中状态变化: hasSelectedNote=\(hasSelectedNote)")
+        } else {
+            // 如果通知中没有状态信息，从上下文更新
+            updateMenuStateFromContext()
+        }
+    }
+    
+    /// 处理编辑器焦点变化
+    /// _Requirements: 14.5_
+    @objc private func handleEditorFocusChanged(_ notification: Notification) {
+        // 从通知中获取焦点状态
+        if let isEditorFocused = notification.userInfo?["isEditorFocused"] as? Bool {
+            var newState = menuState
+            newState.setEditorFocused(isEditorFocused)
+            menuState = newState
+            print("[MenuActionHandler] 编辑器焦点状态变化: isEditorFocused=\(isEditorFocused)")
+        } else {
+            // 如果通知中没有状态信息，从上下文更新
+            updateMenuStateFromContext()
+        }
+    }
+    
+    /// 处理视图模式变化
+    /// _Requirements: 14.7_
+    @objc private func handleViewModeChanged(_ notification: Notification) {
+        // 从通知中获取视图模式
+        if let viewModeRaw = notification.userInfo?["viewMode"] as? String,
+           let viewMode = ViewMode(rawValue: viewModeRaw) {
+            var newState = menuState
+            switch viewMode {
+            case .list:
+                newState.setViewMode(.list)
+            case .gallery:
+                newState.setViewMode(.gallery)
+            }
+            menuState = newState
+            print("[MenuActionHandler] 视图模式变化: viewMode=\(viewMode.displayName)")
+        } else {
+            // 如果通知中没有状态信息，从上下文更新
+            updateMenuStateFromContext()
+        }
+    }
+    
+    /// 处理段落样式变化
+    /// _Requirements: 14.6_
+    @objc private func handleParagraphStyleChanged(_ notification: Notification) {
+        // 从通知中获取段落样式
+        if let paragraphStyleRaw = notification.userInfo?["paragraphStyle"] as? String,
+           let paragraphStyle = ParagraphStyle(rawValue: paragraphStyleRaw) {
+            var newState = menuState
+            newState.setParagraphStyle(paragraphStyle)
+            menuState = newState
+            print("[MenuActionHandler] 段落样式变化: paragraphStyle=\(paragraphStyle.displayName)")
+        }
+    }
+    
+    /// 处理文件夹可见性变化
+    @objc private func handleFolderVisibilityChanged(_ notification: Notification) {
+        // 从通知中获取文件夹隐藏状态
+        if let isFolderHidden = notification.userInfo?["isFolderHidden"] as? Bool {
+            var newState = menuState
+            newState.isFolderHidden = isFolderHidden
+            menuState = newState
+            print("[MenuActionHandler] 文件夹可见性变化: isFolderHidden=\(isFolderHidden)")
+        }
+    }
+    
+    /// 从当前上下文更新菜单状态
+    private func updateMenuStateFromContext() {
+        var newState = menuState
+        
+        // 更新笔记选中状态
+        newState.hasSelectedNote = mainWindowController?.viewModel?.selectedNote != nil
+        
+        // 更新编辑器焦点状态
+        // 检查当前第一响应者是否是编辑器
+        if let window = NSApp.mainWindow,
+           let firstResponder = window.firstResponder {
+            newState.isEditorFocused = firstResponder is NSTextView
+        } else {
+            newState.isEditorFocused = false
+        }
+        
+        // 更新视图模式状态
+        // 注意：ViewOptionsManager 使用的是 ViewOptionsState.ViewMode
+        // 而 MenuState 使用的是 MenuViewMode
+        let currentViewMode = ViewOptionsManager.shared.viewMode
+        switch currentViewMode {
+        case .list:
+            newState.currentViewMode = .list
+        case .gallery:
+            newState.currentViewMode = .gallery
+        }
+        
+        // 更新文件夹隐藏状态
+        if let window = NSApp.mainWindow,
+           let splitViewController = window.contentViewController as? NSSplitViewController,
+           splitViewController.splitViewItems.count > 0 {
+            newState.isFolderHidden = splitViewController.splitViewItems[0].isCollapsed
+        }
+        
+        // 更新笔记数量显示状态
+        // _Requirements: 9.3_
+        newState.isNoteCountVisible = ViewOptionsManager.shared.showNoteCount
+        
+        menuState = newState
+    }
+    
+    /// 更新菜单项的勾选状态
+    /// - Parameters:
+    ///   - menuItem: 菜单项
+    ///   - tag: 菜单项标签
+    private func updateMenuItemCheckState(_ menuItem: NSMenuItem, for tag: MenuItemTag) {
+        let shouldCheck = menuState.shouldCheckMenuItem(for: tag)
+        menuItem.state = shouldCheck ? .on : .off
+        
+        // 更新动态标题
+        // _Requirements: 9.2, 9.3_
+        updateMenuItemDynamicTitle(menuItem, for: tag)
+    }
+    
+    /// 更新菜单项的动态标题
+    /// 
+    /// 根据当前状态更新菜单项标题（如"隐藏文件夹"/"显示文件夹"）
+    /// - Parameters:
+    ///   - menuItem: 菜单项
+    ///   - tag: 菜单项标签
+    /// _Requirements: 9.2, 9.3_
+    private func updateMenuItemDynamicTitle(_ menuItem: NSMenuItem, for tag: MenuItemTag) {
+        switch tag {
+        case .hideFolders:
+            // 根据文件夹隐藏状态更新标题
+            menuItem.title = menuState.isFolderHidden ? "显示文件夹" : "隐藏文件夹"
+        case .showNoteCount:
+            // 根据笔记数量显示状态更新标题
+            menuItem.title = menuState.isNoteCountVisible ? "隐藏笔记数量" : "显示笔记数量"
+        default:
+            break
+        }
     }
     
     // MARK: - 应用程序菜单动作
@@ -891,8 +1132,13 @@ class MenuActionHandler {
     /// - Requirements: 9.3
     @objc func toggleNoteCount(_ sender: Any?) {
         print("切换笔记数量显示")
-        // TODO: 实现笔记数量显示切换功能
-        // 这需要在 ViewOptionsManager 中添加相应的状态和方法
+        // 通过 ViewOptionsManager 切换笔记数量显示
+        ViewOptionsManager.shared.toggleNoteCount()
+        
+        // 更新菜单状态
+        var newState = menuState
+        newState.isNoteCountVisible = ViewOptionsManager.shared.showNoteCount
+        menuState = newState
     }
     
     /// 放大
@@ -942,6 +1188,172 @@ class MenuActionHandler {
     @objc func collapseAllSections(_ sender: Any?) {
         print("折叠所有区域")
         mainWindowController?.collapseAllSections(sender)
+    }
+    
+    // MARK: - 窗口菜单动作（Requirements: 13.1-13.14）
+    
+    /// 填充窗口到屏幕
+    /// - Requirements: 13.4
+    @objc func fillWindow(_ sender: Any?) {
+        print("填充窗口")
+        guard let window = NSApp.mainWindow,
+              let screen = window.screen else { return }
+        
+        // 获取屏幕可用区域（排除菜单栏和 Dock）
+        let visibleFrame = screen.visibleFrame
+        
+        // 设置窗口大小为屏幕可用区域
+        window.setFrame(visibleFrame, display: true, animate: true)
+    }
+    
+    /// 居中窗口
+    /// - Requirements: 13.5
+    @objc func centerWindow(_ sender: Any?) {
+        print("居中窗口")
+        guard let window = NSApp.mainWindow else { return }
+        window.center()
+    }
+    
+    /// 移动窗口到屏幕左半边
+    /// - Requirements: 13.7
+    @objc func moveWindowToLeftHalf(_ sender: Any?) {
+        print("移动窗口到屏幕左半边")
+        guard let window = NSApp.mainWindow,
+              let screen = window.screen else { return }
+        
+        let visibleFrame = screen.visibleFrame
+        let newFrame = NSRect(
+            x: visibleFrame.origin.x,
+            y: visibleFrame.origin.y,
+            width: visibleFrame.width / 2,
+            height: visibleFrame.height
+        )
+        window.setFrame(newFrame, display: true, animate: true)
+    }
+    
+    /// 移动窗口到屏幕右半边
+    /// - Requirements: 13.7
+    @objc func moveWindowToRightHalf(_ sender: Any?) {
+        print("移动窗口到屏幕右半边")
+        guard let window = NSApp.mainWindow,
+              let screen = window.screen else { return }
+        
+        let visibleFrame = screen.visibleFrame
+        let newFrame = NSRect(
+            x: visibleFrame.origin.x + visibleFrame.width / 2,
+            y: visibleFrame.origin.y,
+            width: visibleFrame.width / 2,
+            height: visibleFrame.height
+        )
+        window.setFrame(newFrame, display: true, animate: true)
+    }
+    
+    /// 移动窗口到屏幕上半边
+    /// - Requirements: 13.7
+    @objc func moveWindowToTopHalf(_ sender: Any?) {
+        print("移动窗口到屏幕上半边")
+        guard let window = NSApp.mainWindow,
+              let screen = window.screen else { return }
+        
+        let visibleFrame = screen.visibleFrame
+        let newFrame = NSRect(
+            x: visibleFrame.origin.x,
+            y: visibleFrame.origin.y + visibleFrame.height / 2,
+            width: visibleFrame.width,
+            height: visibleFrame.height / 2
+        )
+        window.setFrame(newFrame, display: true, animate: true)
+    }
+    
+    /// 移动窗口到屏幕下半边
+    /// - Requirements: 13.7
+    @objc func moveWindowToBottomHalf(_ sender: Any?) {
+        print("移动窗口到屏幕下半边")
+        guard let window = NSApp.mainWindow,
+              let screen = window.screen else { return }
+        
+        let visibleFrame = screen.visibleFrame
+        let newFrame = NSRect(
+            x: visibleFrame.origin.x,
+            y: visibleFrame.origin.y,
+            width: visibleFrame.width,
+            height: visibleFrame.height / 2
+        )
+        window.setFrame(newFrame, display: true, animate: true)
+    }
+    
+    /// 最大化窗口
+    /// - Requirements: 13.7
+    @objc func maximizeWindow(_ sender: Any?) {
+        print("最大化窗口")
+        guard let window = NSApp.mainWindow else { return }
+        window.performZoom(sender)
+    }
+    
+    /// 恢复窗口
+    /// - Requirements: 13.7
+    @objc func restoreWindow(_ sender: Any?) {
+        print("恢复窗口")
+        guard let window = NSApp.mainWindow else { return }
+        
+        // 如果窗口处于缩放状态，则恢复到之前的大小
+        if window.isZoomed {
+            window.performZoom(sender)
+        }
+    }
+    
+    /// 平铺窗口到屏幕左侧（全屏幕平铺）
+    /// - Requirements: 13.8
+    @objc func tileWindowToLeft(_ sender: Any?) {
+        print("平铺窗口到屏幕左侧")
+        guard NSApp.mainWindow != nil else { return }
+        
+        // 使用系统的全屏幕平铺功能
+        // 注意：这需要 macOS 10.15+ 的 API
+        if #available(macOS 10.15, *) {
+            // 尝试进入全屏幕平铺模式
+            // 由于 macOS 没有直接的 API 来实现全屏幕平铺，
+            // 我们使用移动到左半边作为替代
+            moveWindowToLeftHalf(sender)
+        }
+    }
+    
+    /// 平铺窗口到屏幕右侧（全屏幕平铺）
+    /// - Requirements: 13.8
+    @objc func tileWindowToRight(_ sender: Any?) {
+        print("平铺窗口到屏幕右侧")
+        guard NSApp.mainWindow != nil else { return }
+        
+        // 使用系统的全屏幕平铺功能
+        if #available(macOS 10.15, *) {
+            // 尝试进入全屏幕平铺模式
+            // 由于 macOS 没有直接的 API 来实现全屏幕平铺，
+            // 我们使用移动到右半边作为替代
+            moveWindowToRightHalf(sender)
+        }
+    }
+    
+    /// 在新窗口中打开笔记
+    /// - Requirements: 13.10
+    @objc func openNoteInNewWindow(_ sender: Any?) {
+        print("在新窗口中打开笔记")
+        guard let note = mainWindowController?.viewModel?.selectedNote else {
+            let alert = NSAlert()
+            alert.messageText = "操作失败"
+            alert.informativeText = "请先选择一个笔记"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+            return
+        }
+        
+        // 创建新窗口并显示选中的笔记
+        windowManager.createNewWindow()
+        
+        // 在新窗口中选中相同的笔记
+        if let newWindowController = windowManager.mainWindowController {
+            newWindowController.viewModel?.selectNoteWithCoordinator(note)
+        }
     }
 
     // MARK: - 清理

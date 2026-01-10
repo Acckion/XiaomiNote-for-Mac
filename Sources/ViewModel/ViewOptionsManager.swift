@@ -89,6 +89,60 @@ public class ViewOptionsManager: ObservableObject {
         guard state.viewMode != mode else { return }
         state.viewMode = mode
         saveState()
+        
+        // 发送视图模式变化通知
+        // _Requirements: 14.7_
+        postViewModeNotification(mode)
+    }
+    
+    /// 发送视图模式变化通知
+    /// 
+    /// 当视图模式变化时，发送通知以更新菜单状态
+    /// 
+    /// _Requirements: 14.7_
+    private func postViewModeNotification(_ mode: ViewMode) {
+        NotificationCenter.default.post(
+            name: .viewModeDidChange,
+            object: self,
+            userInfo: ["viewMode": mode.rawValue]
+        )
+        print("[ViewOptionsManager] 发送视图模式变化通知: \(mode.displayName)")
+    }
+    
+    /// 切换笔记数量显示
+    /// _Requirements: 9.3_
+    public func toggleNoteCount() {
+        state.showNoteCount.toggle()
+        saveState()
+        
+        // 发送笔记数量显示变化通知
+        postNoteCountVisibilityNotification(state.showNoteCount)
+    }
+    
+    /// 设置笔记数量显示状态
+    /// _Requirements: 9.3_
+    /// - Parameter show: 是否显示笔记数量
+    public func setShowNoteCount(_ show: Bool) {
+        guard state.showNoteCount != show else { return }
+        state.showNoteCount = show
+        saveState()
+        
+        // 发送笔记数量显示变化通知
+        postNoteCountVisibilityNotification(show)
+    }
+    
+    /// 发送笔记数量显示变化通知
+    /// 
+    /// 当笔记数量显示状态变化时，发送通知以更新菜单状态和侧边栏
+    /// 
+    /// _Requirements: 9.3_
+    private func postNoteCountVisibilityNotification(_ isVisible: Bool) {
+        NotificationCenter.default.post(
+            name: .noteCountVisibilityDidChange,
+            object: self,
+            userInfo: ["isNoteCountVisible": isVisible]
+        )
+        print("[ViewOptionsManager] 发送笔记数量显示变化通知: \(isVisible ? "显示" : "隐藏")")
     }
     
     /// 重置为默认设置
@@ -166,5 +220,10 @@ extension ViewOptionsManager {
     /// 是否为画廊视图
     public var isGalleryView: Bool {
         state.viewMode == .gallery
+    }
+    
+    /// 是否显示笔记数量
+    public var showNoteCount: Bool {
+        state.showNoteCount
     }
 }
