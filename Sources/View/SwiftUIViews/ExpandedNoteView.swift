@@ -12,9 +12,10 @@ import AppKit
 
 /// 展开笔记视图
 /// 
-/// 从画廊视图点击笔记后的全屏编辑模式，包含返回按钮和笔记编辑器
+/// 从画廊视图点击笔记后的全屏编辑模式
+/// 导航功能已移至工具栏的返回按钮
 /// 支持 Escape 键返回画廊视图
-/// _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 7.5_
+/// _Requirements: 6.1, 6.2, 6.4, 6.5, 7.5_
 @available(macOS 14.0, *)
 struct ExpandedNoteView: View {
     
@@ -37,65 +38,19 @@ struct ExpandedNoteView: View {
     // MARK: - 视图
     
     var body: some View {
-        VStack(spacing: 0) {
-            // 顶部工具栏
-            topToolbar
-            
-            Divider()
-            
-            // 笔记编辑器
-            editorContent
-        }
-        .background(Color(NSColor.windowBackgroundColor))
-        // Escape 键返回画廊视图
-        // _Requirements: 7.5_
-        .onKeyPress(.escape) {
-            collapseToGallery()
-            return .handled
-        }
+        // 直接显示笔记编辑器，不需要额外的包装层
+        // 导航功能已移至工具栏的返回按钮
+        editorContent
+            .background(Color(NSColor.windowBackgroundColor))
+            // Escape 键返回画廊视图
+            // _Requirements: 7.5_
+            .onKeyPress(.escape) {
+                collapseToGallery()
+                return .handled
+            }
     }
     
     // MARK: - 子视图
-    
-    /// 顶部工具栏
-    /// _Requirements: 6.3_
-    private var topToolbar: some View {
-        HStack(spacing: 12) {
-            // 返回按钮
-            Button(action: {
-                collapseToGallery()
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .medium))
-                    Text("返回")
-                        .font(.system(size: 14))
-                }
-                .foregroundColor(.accentColor)
-            }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            
-            Spacer()
-            
-            // 笔记标题（可选显示）
-            if let note = expandedNote {
-                Text(note.title.isEmpty ? "无标题" : note.title)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-            }
-            
-            Spacer()
-            
-            // 占位符，保持布局平衡
-            Color.clear
-                .frame(width: 60)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color(NSColor.windowBackgroundColor))
-    }
     
     /// 编辑器内容
     /// _Requirements: 6.2_

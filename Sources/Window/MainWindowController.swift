@@ -70,6 +70,11 @@ public class MainWindowController: NSWindowController {
     
     /// 工具栏代理
     private var toolbarDelegate: MainWindowToolbarDelegate?
+    
+    /// 工具栏可见性管理器
+    /// 负责根据应用状态动态更新工具栏项的可见性
+    /// **Requirements: 5.4**
+    private var visibilityManager: ToolbarVisibilityManager?
 
     /// 查找面板控制器
     private var searchPanelController: SearchPanelController?
@@ -245,6 +250,13 @@ public class MainWindowController: NSWindowController {
         
         window.toolbar = toolbar
         window.toolbarStyle = .unified
+        
+        // 创建工具栏可见性管理器
+        // **Requirements: 5.4**
+        visibilityManager = ToolbarVisibilityManager(toolbar: toolbar, viewModel: viewModel)
+        
+        // 将可见性管理器传递给工具栏代理
+        toolbarDelegate?.visibilityManager = visibilityManager
     }
     
     // MARK: - 工具栏验证
@@ -2122,6 +2134,14 @@ extension MainWindowController {
     /// _Requirements: 4.3_
     @objc func setViewModeGallery(_ sender: Any?) {
         ViewOptionsManager.shared.setViewMode(.gallery)
+    }
+    
+    /// 返回画廊视图
+    /// 从画廊视图的笔记编辑模式返回到画廊网格视图
+    @objc func backToGallery(_ sender: Any?) {
+        print("[MainWindowController] 返回画廊视图")
+        // 发送通知让 SwiftUI 视图收起展开的笔记
+        NotificationCenter.default.post(name: .backToGalleryRequested, object: nil)
     }
     
     /// 获取当前的WebEditorContext

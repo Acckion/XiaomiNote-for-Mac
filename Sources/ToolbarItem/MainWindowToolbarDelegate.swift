@@ -25,6 +25,11 @@ public class MainWindowToolbarDelegate: NSObject {
 
     /// 主窗口控制器引用
     public weak var windowController: MainWindowController?
+    
+    /// 工具栏可见性管理器引用
+    /// 用于在工具栏项添加时设置初始可见性
+    /// **Requirements: 6.3**
+    public var visibilityManager: ToolbarVisibilityManager?
 
     /// 当前搜索字段（用于工具栏搜索项）
     private var currentSearchField: CustomSearchField?
@@ -493,6 +498,19 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
         case .restore:
             return buildToolbarButton(.restore, "恢复", NSImage(systemSymbolName: "arrow.uturn.backward.circle", accessibilityDescription: nil)!, "restoreNote:")
             
+        case .backToGallery:
+            // 返回画廊按钮 - 使用导航样式，不可自定义
+            // 仅在画廊视图展开编辑笔记时显示
+            let toolbarItem = NSToolbarItem(itemIdentifier: .backToGallery)
+            toolbarItem.image = NSImage(systemSymbolName: "chevron.backward", accessibilityDescription: "返回画廊")
+            toolbarItem.label = "返回"
+            toolbarItem.toolTip = "返回画廊视图"
+            toolbarItem.action = #selector(MainWindowController.backToGallery(_:))
+            toolbarItem.target = windowController
+            // 设置为导航样式，不可自定义
+            toolbarItem.isNavigational = true
+            return toolbarItem
+            
         case .sidebarTrackingSeparator:
             // 侧边栏跟踪分隔符 - 连接到分割视图的第一个分隔符
             if let window = windowController?.window,
@@ -571,6 +589,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.history,
             NSToolbarItem.Identifier.trash,
             NSToolbarItem.Identifier.noteOperations,
+            NSToolbarItem.Identifier.backToGallery,
             NSToolbarItem.Identifier.space,
             NSToolbarItem.Identifier.separator
         ]
@@ -588,6 +607,9 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.newFolder,
 
             NSToolbarItem.Identifier.sidebarTrackingSeparator,
+            
+            // 返回画廊按钮（导航样式，仅在画廊视图展开编辑时显示）
+            NSToolbarItem.Identifier.backToGallery,
 
             NSToolbarItem.Identifier.viewOptions,
             NSToolbarItem.Identifier.flexibleSpace,
@@ -629,6 +651,10 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
         guard let item = notification.userInfo?["item"] as? NSToolbarItem else {
             return
         }
+        
+        // 设置新添加工具栏项的初始可见性
+        // **Requirements: 6.3**
+        visibilityManager?.updateItemVisibility(item)
         
         if item.itemIdentifier == .search, let searchItem = item as? NSSearchToolbarItem {
             // 创建自定义搜索字段

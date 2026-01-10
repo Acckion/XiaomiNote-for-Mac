@@ -99,6 +99,10 @@ public class NotesViewModel: ObservableObject {
     /// 需求: 1.1, 1.3 - 在 MainWindowController 和 NoteDetailView 之间共享
     @Published var nativeEditorContext = NativeEditorContext()
     
+    /// 画廊视图是否展开（正在编辑笔记）
+    /// 用于工具栏可见性管理，在画廊视图展开时显示返回按钮和编辑器工具栏项
+    @Published public var isGalleryExpanded: Bool = false
+    
     // MARK: - 状态协调器
     
     /// 视图状态协调器

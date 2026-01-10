@@ -189,19 +189,16 @@ struct NoteDetailView: View {
         ToolbarItemGroup(placement: .automatic) {
             newNoteButton
         }
-        ToolbarSpacer()
         ToolbarItemGroup(placement: .automatic) {
             undoButton
             redoButton
         }
-        ToolbarSpacer(.fixed)
         ToolbarItemGroup(placement: .automatic) {
             formatMenu
             checkboxButton
             horizontalRuleButton
             imageButton
         }
-        ToolbarSpacer(.fixed)
         ToolbarItemGroup(placement: .automatic) {
             indentButtons
             Spacer()

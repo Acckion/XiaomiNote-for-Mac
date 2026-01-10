@@ -284,7 +284,6 @@ public struct ContentView: View {
             max: notesListMaxWidth
         )
         .searchable(text: $viewModel.searchText, placement: .toolbar, prompt: viewModel.filterTagsText.isEmpty ? "搜索笔记" : viewModel.filterTagsText)
-        .searchToolbarBehavior(.automatic)
         .searchSuggestions {
             SearchFilterMenuContent(viewModel: viewModel)
         }

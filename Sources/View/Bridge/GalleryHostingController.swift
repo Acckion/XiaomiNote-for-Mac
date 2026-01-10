@@ -172,6 +172,23 @@ struct GalleryContainerView: View {
         // _Requirements: 6.5_
         .animation(.easeInOut(duration: 0.35), value: expandedNote?.id)
         .background(Color(NSColor.windowBackgroundColor))
+        // 同步 expandedNote 状态到 viewModel，用于工具栏可见性管理
+        .onChange(of: expandedNote?.id) { _, newValue in
+            viewModel.isGalleryExpanded = (newValue != nil)
+        }
+        // 视图模式切换时重置展开状态
+        .onChange(of: optionsManager.viewMode) { _, newMode in
+            if newMode == .list {
+                expandedNote = nil
+                viewModel.isGalleryExpanded = false
+            }
+        }
+        // 监听返回画廊视图的通知
+        .onReceive(NotificationCenter.default.publisher(for: .backToGalleryRequested)) { _ in
+            withAnimation(.easeInOut(duration: 0.35)) {
+                expandedNote = nil
+            }
+        }
     }
     
     /// 展开视图的过渡动画

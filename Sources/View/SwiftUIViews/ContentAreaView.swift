@@ -8,6 +8,13 @@
 import SwiftUI
 import AppKit
 
+// MARK: - 通知名称扩展
+
+extension Notification.Name {
+    /// 返回画廊视图请求通知
+    static let backToGalleryRequested = Notification.Name("backToGalleryRequested")
+}
+
 // MARK: - ContentAreaView
 
 /// 内容区域视图
@@ -54,6 +61,23 @@ struct ContentAreaView: View {
         // 动画配置：easeInOut，时长 350ms
         // _Requirements: 6.5_
         .animation(.easeInOut(duration: 0.35), value: expandedNote?.id)
+        // 同步 expandedNote 状态到 viewModel，用于工具栏可见性管理
+        .onChange(of: expandedNote?.id) { _, newValue in
+            viewModel.isGalleryExpanded = (newValue != nil)
+        }
+        // 视图模式切换时重置展开状态
+        .onChange(of: optionsManager.viewMode) { _, newMode in
+            if newMode == .list {
+                expandedNote = nil
+                viewModel.isGalleryExpanded = false
+            }
+        }
+        // 监听返回画廊视图的通知
+        .onReceive(NotificationCenter.default.publisher(for: .backToGalleryRequested)) { _ in
+            withAnimation(.easeInOut(duration: 0.35)) {
+                expandedNote = nil
+            }
+        }
     }
     
     // MARK: - 子视图

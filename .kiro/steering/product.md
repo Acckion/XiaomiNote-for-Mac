@@ -18,6 +18,6 @@
 
 ### 系统要求
 
-- macOS 14.0+
+- macOS 15.0+
 - Xcode 15.0+
 - Swift 6.0

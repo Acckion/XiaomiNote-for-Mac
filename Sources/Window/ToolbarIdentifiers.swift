@@ -113,6 +113,9 @@ extension NSToolbarItem.Identifier {
     
     /// 视图选项
     static let viewOptions = NSToolbarItem.Identifier("viewOptions")
+    
+    /// 返回画廊视图
+    static let backToGallery = NSToolbarItem.Identifier("backToGallery")
 
     // MARK: - 其他功能
 

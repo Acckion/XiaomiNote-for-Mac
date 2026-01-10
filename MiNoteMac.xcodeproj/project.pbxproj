@@ -87,6 +87,7 @@
 		6A12AAFD369114B190A33BD3 /* NoteDetailHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88083B427871B6F24E50522 /* NoteDetailHostingController.swift */; };
 		6A57A417B0962BC847F7C157 /* ErrorHandlingPropertyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80646CFD462DC289C0111F66 /* ErrorHandlingPropertyTests.swift */; };
 		6B5A26CD6DCF6FD0278C283E /* HistoryWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87699BB3E310FB64801C5CB8 /* HistoryWindowController.swift */; };
+		6C08F0CD7D52038FA68F3AAE /* ToolbarVisibilityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44DCA8EF4946B8FDE81DD270 /* ToolbarVisibilityManager.swift */; };
 		702A9F1161B003A259DE3744 /* QuoteBlockRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C3DF889F8AA1A3FA5BC305 /* QuoteBlockRenderer.swift */; };
 		702BCFECDCFED952E08BBCB1 /* FormatError.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD2509772598F2681CDF137E /* FormatError.swift */; };
 		706A98E82FE32FBE274F0E84 /* dom-writer.js in Resources */ = {isa = PBXBuildFile; fileRef = A79A8D19708C80CFF15E61C1 /* dom-writer.js */; };
@@ -273,6 +274,7 @@
 		43090C7E1B9EB915805CD613 /* NoteEditorCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorCoordinator.swift; sourceTree = "<group>"; };
 		4412C82EA1558B82AE40CD1C /* ViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewState.swift; sourceTree = "<group>"; };
 		443A8DCF17818ABBAD73984B /* CookieRefreshView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookieRefreshView.swift; sourceTree = "<group>"; };
+		44DCA8EF4946B8FDE81DD270 /* ToolbarVisibilityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarVisibilityManager.swift; sourceTree = "<group>"; };
 		474778FF86C3F41BD6A91DC7 /* WebFormatMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebFormatMenuView.swift; sourceTree = "<group>"; };
 		47BDCC1B538BFEEC89EAC024 /* schema.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = schema.js; sourceTree = "<group>"; };
 		496BB35567222A22BEFC2777 /* NoteCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteCardView.swift; sourceTree = "<group>"; };
@@ -615,6 +617,7 @@
 				B5622B69AF87C36DE3D9D365 /* MainWindowToolbarDelegate.swift */,
 				A74C1A54F67378DDA7001B70 /* ToolbarItemFactory.swift */,
 				78A0F747E4A33E4C13B0066E /* ToolbarItemProtocol.swift */,
+				44DCA8EF4946B8FDE81DD270 /* ToolbarVisibilityManager.swift */,
 			);
 			path = ToolbarItem;
 			sourceTree = "<group>";
@@ -1091,6 +1094,7 @@
 				3E7AC791A98EB566D6AB09BE /* ToolbarIdentifiers.swift in Sources */,
 				67CAF4F592FBE5C00C21D296 /* ToolbarItemFactory.swift in Sources */,
 				4706A288EE19BA6F05FB3A74 /* ToolbarItemProtocol.swift in Sources */,
+				6C08F0CD7D52038FA68F3AAE /* ToolbarVisibilityManager.swift in Sources */,
 				2AF59075572A5CC546F06E1D /* TrashView.swift in Sources */,
 				96441C544560EF64F5A3C768 /* TrashWindowController.swift in Sources */,
 				7616922777B07CEEF612A3D2 /* UndoRedoStateHandler.swift in Sources */,
@@ -1192,7 +1196,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1219,7 +1223,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteLibrary;
 				PRODUCT_NAME = MiNoteLibrary;
 				SDKROOT = macosx;
@@ -1241,7 +1245,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteLibraryTests;
 				PRODUCT_NAME = MiNoteLibraryTests;
 				SDKROOT = macosx;
@@ -1261,7 +1265,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteMac;
 				PRODUCT_NAME = MiNoteMac;
 				SDKROOT = macosx;
@@ -1282,7 +1286,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteLibraryTests;
 				PRODUCT_NAME = MiNoteLibraryTests;
 				SDKROOT = macosx;
@@ -1308,7 +1312,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteLibrary;
 				PRODUCT_NAME = MiNoteLibrary;
 				SDKROOT = macosx;
@@ -1370,7 +1374,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -1395,7 +1399,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteMac;
 				PRODUCT_NAME = MiNoteMac;
 				SDKROOT = macosx;
