@@ -28,5 +28,7 @@
 	<string>Copyright © 2025</string>
 	<key>NSPrincipalClass</key>
 	<string>AppDelegate</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>小米笔记需要访问麦克风以录制语音笔记</string>
 </dict>
 </plist>

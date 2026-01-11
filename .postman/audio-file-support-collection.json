@@ -231,10 +231,148 @@
       ]
     },
     {
+      "name": "语音文件下载",
+      "item": [
+        {
+          "name": "获取语音文件下载 URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{cookies}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/file/full/v2?ts={{$timestamp}}&type=note_img&fileid={{sound_file_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["file", "full", "v2"],
+              "query": [
+                {
+                  "key": "ts",
+                  "value": "{{$timestamp}}"
+                },
+                {
+                  "key": "type",
+                  "value": "note_img"
+                },
+                {
+                  "key": "fileid",
+                  "value": "{{sound_file_id}}"
+                }
+              ]
+            },
+            "description": "获取语音文件的下载 URL\n\n使用 /file/full/v2 API 获取下载 URL。\n注意：type 参数使用 note_img（与上传时相同）。\n\n响应格式可能是两种：\n1. 简单格式：{\"data\": {\"url\": \"https://...\"}}\n2. KSS 格式：{\"data\": {\"kss\": {\"blocks\": [{\"urls\": [\"http://...\"]}]}}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// 测试响应状态",
+                  "pm.test('响应状态码为 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// 测试响应结构",
+                  "pm.test('响应包含正确的结构', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql(0);",
+                  "    pm.expect(jsonData.data).to.exist;",
+                  "});",
+                  "",
+                  "// 测试下载 URL（支持两种格式）",
+                  "pm.test('响应包含下载 URL（简单格式或 KSS 格式）', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    let downloadUrl = null;",
+                  "    let formatType = '';",
+                  "    ",
+                  "    // 尝试简单格式：{\"data\": {\"url\": \"https://...\"}}",
+                  "    if (jsonData.data.url) {",
+                  "        downloadUrl = jsonData.data.url;",
+                  "        formatType = '简单格式';",
+                  "    }",
+                  "    // 尝试 KSS 格式：{\"data\": {\"kss\": {\"blocks\": [{\"urls\": [\"http://...\"]}]}}}",
+                  "    else if (jsonData.data.kss && ",
+                  "             jsonData.data.kss.blocks && ",
+                  "             jsonData.data.kss.blocks.length > 0 &&",
+                  "             jsonData.data.kss.blocks[0].urls &&",
+                  "             jsonData.data.kss.blocks[0].urls.length > 0) {",
+                  "        downloadUrl = jsonData.data.kss.blocks[0].urls[0];",
+                  "        formatType = 'KSS 格式';",
+                  "    }",
+                  "    ",
+                  "    pm.expect(downloadUrl).to.not.be.null;",
+                  "    pm.expect(downloadUrl).to.include('http');",
+                  "    ",
+                  "    // 保存下载 URL 供后续测试使用",
+                  "    pm.environment.set('audio_download_url', downloadUrl);",
+                  "    console.log('响应格式: ' + formatType);",
+                  "    console.log('下载 URL: ' + downloadUrl.substring(0, 100) + '...');",
+                  "});",
+                  "",
+                  "// 记录完整响应结构（调试用）",
+                  "pm.test('记录响应结构', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    console.log('完整响应: ' + JSON.stringify(jsonData, null, 2).substring(0, 500));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "下载语音文件",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{audio_download_url}}",
+              "host": ["{{audio_download_url}}"]
+            },
+            "description": "使用获取到的下载 URL 下载实际的音频文件\n\n注意：下载请求不需要认证头，因为 URL 已经包含了认证信息。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// 测试响应状态",
+                  "pm.test('响应状态码为 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// 测试响应内容类型",
+                  "pm.test('响应内容类型为音频', function () {",
+                  "    const contentType = pm.response.headers.get('Content-Type');",
+                  "    console.log('Content-Type: ' + contentType);",
+                  "    // 可能是 audio/mpeg, audio/mp3, application/octet-stream 等",
+                  "    pm.expect(contentType).to.exist;",
+                  "});",
+                  "",
+                  "// 测试响应大小",
+                  "pm.test('响应包含音频数据', function () {",
+                  "    const responseSize = pm.response.responseSize;",
+                  "    console.log('响应大小: ' + responseSize + ' 字节');",
+                  "    pm.expect(responseSize).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "语音文件上传（推断）",
       "item": [
         {
-          "name": "请求上传语音文件 (type=note_sound)",
+          "name": "请求上传语音文件 (type=note_sound - 已确认无效)",
           "request": {
             "method": "POST",
             "header": [
@@ -266,7 +404,7 @@
                   "key": "data",
                   "value": "{\"type\":\"note_sound\",\"storage\":{\"filename\":\"recording.mp3\",\"size\":{{file_size}},\"sha1\":\"{{file_sha1}}\",\"mimeType\":\"audio/mpeg\",\"kss\":{\"block_infos\":[{\"blob\":{},\"size\":{{file_size}},\"md5\":\"{{file_md5}}\",\"sha1\":\"{{file_sha1}}\"}]}}}",
                   "type": "text",
-                  "description": "上传请求数据（推断格式，type=note_sound，使用标准 MIME 类型 audio/mpeg）"
+                  "description": "上传请求数据（type=note_sound，已确认无效）"
                 },
                 {
                   "key": "serviceToken",
@@ -280,7 +418,7 @@
               "host": ["{{base_url}}"],
               "path": ["file", "v2", "user", "request_upload_file"]
             },
-            "description": "请求上传语音文件（第一步）\n\n推断 type 参数为 'note_sound'，参考图片上传使用 'note_img'"
+            "description": "请求上传语音文件（type=note_sound）\n\n⚠️ 已确认无效：2026-01-11 测试结果显示 note_sound 不是有效的 type 值，会返回 'wrong type value' 错误。"
           },
           "response": [],
           "event": [
@@ -293,22 +431,16 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "// 测试响应结构",
-                  "pm.test('响应包含正确的结构', function () {",
+                  "// 测试响应结构 - 预期失败",
+                  "pm.test('type=note_sound 应该返回错误', function () {",
                   "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.code).to.eql(0);",
-                  "    pm.expect(jsonData.data).to.exist;",
-                  "});",
-                  "",
-                  "// 保存上传信息",
-                  "pm.test('保存上传信息', function () {",
-                  "    const jsonData = pm.response.json();",
-                  "    if (jsonData.data.fileId) {",
-                  "        pm.environment.set('uploaded_sound_file_id', jsonData.data.fileId);",
-                  "        console.log('文件已存在，fileId: ' + jsonData.data.fileId);",
-                  "    } else if (jsonData.data.storage && jsonData.data.storage.uploadId) {",
-                  "        pm.environment.set('upload_id', jsonData.data.storage.uploadId);",
-                  "        console.log('需要上传，uploadId: ' + jsonData.data.storage.uploadId);",
+                  "    console.log('响应: ' + JSON.stringify(jsonData));",
+                  "    // 预期失败，因为 note_sound 不是有效的 type",
+                  "    if (jsonData.code !== 0) {",
+                  "        console.log('✅ 预期行为：type=note_sound 无效，错误码: ' + jsonData.code);",
+                  "        pm.expect(jsonData.code).to.not.eql(0);",
+                  "    } else {",
+                  "        console.log('⚠️ 意外成功，需要进一步验证');",
                   "    }",
                   "});"
                 ],
@@ -318,7 +450,7 @@
           ]
         },
         {
-          "name": "请求上传语音文件 (type=note_audio)",
+          "name": "请求上传语音文件 (type=note_audio - 已确认无效)",
           "request": {
             "method": "POST",
             "header": [
@@ -350,7 +482,7 @@
                   "key": "data",
                   "value": "{\"type\":\"note_audio\",\"storage\":{\"filename\":\"recording.mp3\",\"size\":{{file_size}},\"sha1\":\"{{file_sha1}}\",\"mimeType\":\"audio/mpeg\",\"kss\":{\"block_infos\":[{\"blob\":{},\"size\":{{file_size}},\"md5\":\"{{file_md5}}\",\"sha1\":\"{{file_sha1}}\"}]}}}",
                   "type": "text",
-                  "description": "上传请求数据（备选格式，type=note_audio，使用标准 MIME 类型 audio/mpeg）"
+                  "description": "上传请求数据（type=note_audio，已确认无效）"
                 },
                 {
                   "key": "serviceToken",
@@ -364,7 +496,7 @@
               "host": ["{{base_url}}"],
               "path": ["file", "v2", "user", "request_upload_file"]
             },
-            "description": "请求上传语音文件（备选 type=note_audio）"
+            "description": "请求上传语音文件（type=note_audio）\n\n⚠️ 已确认无效：2026-01-11 测试结果显示 note_audio 不是有效的 type 值，会返回 'wrong type value' 错误。"
           },
           "response": [],
           "event": [
@@ -377,11 +509,17 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "// 测试响应结构",
-                  "pm.test('响应包含正确的结构', function () {",
+                  "// 测试响应结构 - 预期失败",
+                  "pm.test('type=note_audio 应该返回错误', function () {",
                   "    const jsonData = pm.response.json();",
                   "    console.log('响应: ' + JSON.stringify(jsonData));",
-                  "    pm.expect(jsonData.code).to.eql(0);",
+                  "    // 预期失败，因为 note_audio 不是有效的 type",
+                  "    if (jsonData.code !== 0) {",
+                  "        console.log('✅ 预期行为：type=note_audio 无效，错误码: ' + jsonData.code);",
+                  "        pm.expect(jsonData.code).to.not.eql(0);",
+                  "    } else {",
+                  "        console.log('⚠️ 意外成功，需要进一步验证');",
+                  "    }",
                   "});"
                 ],
                 "type": "text/javascript"

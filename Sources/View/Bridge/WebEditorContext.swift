@@ -158,6 +158,61 @@ class WebEditorContext: ObservableObject {
         insertImageClosure?(imageUrl, altText)
     }
     
+    // MARK: - 语音操作 (Requirements: 12.1, 12.2, 12.3)
+    
+    /// 插入语音录音闭包
+    var insertAudioClosure: ((String, String?, String?) -> Void)?
+    
+    /// 在 Web 编辑器中插入语音录音
+    /// - Parameters:
+    ///   - fileId: 语音文件 ID
+    ///   - digest: 文件摘要（可选）
+    ///   - mimeType: MIME 类型（可选，默认 audio/mpeg）
+    /// - Requirements: 12.1, 12.2, 12.3
+    func insertAudio(fileId: String, digest: String? = nil, mimeType: String? = nil) {
+        print("[WebEditorContext] 插入语音录音: fileId=\(fileId)")
+        insertAudioClosure?(fileId, digest, mimeType)
+    }
+    
+    // MARK: - 语音播放控制 (Requirements: 13.2, 13.3)
+    
+    /// 播放语音闭包
+    var playAudioClosure: ((String) -> Void)?
+    
+    /// 暂停语音闭包
+    var pauseAudioClosure: ((String) -> Void)?
+    
+    /// 更新播放状态闭包
+    var updateAudioPlaybackStateClosure: ((String, Bool, Bool, String?) -> Void)?
+    
+    /// 播放 Web 编辑器中的语音
+    /// - Parameter fileId: 语音文件 ID
+    /// - Requirements: 13.2, 13.3
+    func playAudio(fileId: String) {
+        print("[WebEditorContext] 播放语音: fileId=\(fileId)")
+        playAudioClosure?(fileId)
+    }
+    
+    /// 暂停语音播放
+    /// - Parameter fileId: 语音文件 ID
+    /// - Requirements: 13.2
+    func pauseAudio(fileId: String) {
+        print("[WebEditorContext] 暂停语音: fileId=\(fileId)")
+        pauseAudioClosure?(fileId)
+    }
+    
+    /// 更新 Web 编辑器中的播放状态
+    /// - Parameters:
+    ///   - fileId: 语音文件 ID
+    ///   - isPlaying: 是否正在播放
+    ///   - isLoading: 是否正在加载
+    ///   - error: 错误信息（可选）
+    /// - Requirements: 13.4
+    func updateAudioPlaybackState(fileId: String, isPlaying: Bool, isLoading: Bool = false, error: String? = nil) {
+        print("[WebEditorContext] 更新播放状态: fileId=\(fileId), isPlaying=\(isPlaying), isLoading=\(isLoading)")
+        updateAudioPlaybackStateClosure?(fileId, isPlaying, isLoading, error)
+    }
+    
     // 获取当前内容
     func getCurrentContent(completion: @escaping (String) -> Void) {
         getCurrentContentClosure?(completion)

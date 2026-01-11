@@ -47,6 +47,7 @@ public class ToolbarVisibilityManager {
         .checkbox,
         .horizontalRule,
         .attachment,
+        .audioRecording,
         .increaseIndent,
         .decreaseIndent
     ]

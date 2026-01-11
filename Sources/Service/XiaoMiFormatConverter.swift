@@ -285,10 +285,10 @@ class XiaoMiFormatConverter {
             return result
         }
         
-        // 检查是否整行是附件（如分割线、图片等）
+        // 检查是否整行是附件（如分割线、图片、语音等）
         if content.hasPrefix("<hr") || content.hasPrefix("<img") || 
            content.hasPrefix("<input") || content.hasPrefix("<bullet") || 
-           content.hasPrefix("<order") {
+           content.hasPrefix("<order") || content.hasPrefix("<sound") {
             return content
         }
         
@@ -1220,6 +1220,18 @@ class XiaoMiFormatConverter {
         // 检查是否是有序列表 attachment
         if let orderAttachment = attachment as? OrderAttachment {
             return "<order indent=\"1\" inputNumber=\"\(orderAttachment.inputNumber)\" />"
+        }
+        
+        // 检查是否是语音文件 attachment
+        // Requirements: 5.1, 5.2 - 将 AudioAttachment 转换为 <sound fileid="xxx" /> 格式
+        if let audioAttachment = attachment as? AudioAttachment {
+            if let fileId = audioAttachment.fileId, !fileId.isEmpty {
+                print("[XiaoMiFormatConverter] 🎤 导出语音附件: fileId=\(fileId)")
+                return "<sound fileid=\"\(fileId)\" />"
+            } else {
+                print("[XiaoMiFormatConverter] ⚠️ 语音附件缺少 fileId，跳过导出")
+                return ""
+            }
         }
         
         // 检查是否是图片 attachment

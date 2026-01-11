@@ -1764,6 +1764,86 @@
         },
         
         /**
+         * 插入语音录音
+         * 在当前光标位置插入语音占位符
+         * @param {string} fileId - 语音文件 ID
+         * @param {string} digest - 文件摘要（可选）
+         * @param {string} mimeType - MIME 类型（可选，默认 audio/mpeg）
+         * @returns {string} 状态信息
+         * Requirements: 12.1, 12.2, 12.3
+         */
+        insertAudio: function(fileId, digest, mimeType) {
+            if (!FormatManager) {
+                return '格式管理器未初始化';
+            }
+            return FormatManager.insertAudio(fileId, digest, mimeType);
+        },
+        
+        /**
+         * 更新语音占位符的播放状态
+         * @param {string} fileId - 语音文件 ID
+         * @param {boolean} isPlaying - 是否正在播放
+         * @param {boolean} isLoading - 是否正在加载
+         * @param {string|null} error - 错误信息（可选）
+         * @returns {string} 状态信息
+         * Requirements: 13.4
+         */
+        updateAudioPlaybackState: function(fileId, isPlaying, isLoading, error) {
+            log.debug(LOG_MODULES.EDITOR, '更新语音播放状态', { fileId, isPlaying, isLoading, error });
+            
+            // 查找对应的语音占位符元素
+            const soundElement = document.querySelector(`.mi-note-sound[data-fileid="${fileId}"]`);
+            if (!soundElement) {
+                log.warn(LOG_MODULES.EDITOR, '未找到语音占位符元素', { fileId });
+                return '未找到语音占位符元素';
+            }
+            
+            // 移除所有状态类
+            soundElement.classList.remove('playing', 'loading', 'error');
+            
+            // 获取或创建图标元素
+            let iconSpan = soundElement.querySelector('.mi-note-sound-icon');
+            if (!iconSpan) {
+                iconSpan = document.createElement('span');
+                iconSpan.className = 'mi-note-sound-icon';
+                soundElement.insertBefore(iconSpan, soundElement.firstChild);
+            }
+            
+            // 获取或创建标签元素
+            let labelSpan = soundElement.querySelector('.mi-note-sound-label');
+            if (!labelSpan) {
+                labelSpan = document.createElement('span');
+                labelSpan.className = 'mi-note-sound-label';
+                soundElement.appendChild(labelSpan);
+            }
+            
+            // 根据状态更新样式和图标
+            if (error) {
+                soundElement.classList.add('error');
+                iconSpan.textContent = '⚠️';
+                labelSpan.textContent = '播放失败';
+                soundElement.setAttribute('title', error);
+            } else if (isLoading) {
+                soundElement.classList.add('loading');
+                iconSpan.textContent = '⏳';
+                labelSpan.textContent = '加载中...';
+                soundElement.removeAttribute('title');
+            } else if (isPlaying) {
+                soundElement.classList.add('playing');
+                iconSpan.textContent = '⏸️';
+                labelSpan.textContent = '正在播放';
+                soundElement.removeAttribute('title');
+            } else {
+                // 空闲状态
+                iconSpan.textContent = '🎤';
+                labelSpan.textContent = '语音录音';
+                soundElement.removeAttribute('title');
+            }
+            
+            return '播放状态已更新';
+        },
+        
+        /**
          * 增加缩进（已移至 Format 模块，保留此方法以向后兼容）
          * @returns {string} 状态信息
          */

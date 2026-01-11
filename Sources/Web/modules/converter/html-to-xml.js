@@ -71,6 +71,8 @@ class HTMLToXMLConverter {
                 className.includes('mi-note-quote') ||
                 className.includes('mi-note-image') ||
                 className.includes('mi-note-image-container') ||
+                className.includes('mi-note-sound') ||
+                className.includes('mi-note-sound-container') ||
                 tagName === 'hr' ||
                 tagName === 'blockquote' ||
                 tagName === 'img';
@@ -80,7 +82,7 @@ class HTMLToXMLConverter {
             } else if (className.includes('mi-note-text') || tagName === 'div' || tagName === 'p') {
                 // 处理文本元素，检查是否包含嵌套的特殊元素
                 const hasSpecialChildren = node.querySelector(
-                    '.mi-note-bullet, .mi-note-order, .mi-note-checkbox, .mi-note-hr, .mi-note-quote, .mi-note-image, .mi-note-image-container, hr, blockquote, img'
+                    '.mi-note-bullet, .mi-note-order, .mi-note-checkbox, .mi-note-hr, .mi-note-quote, .mi-note-image, .mi-note-image-container, .mi-note-sound, .mi-note-sound-container, hr, blockquote, img'
                 );
 
                 if (hasSpecialChildren) {
@@ -308,6 +310,37 @@ class HTMLToXMLConverter {
                 return this.convertNodeToXML(img);
             }
             return null;
+        }
+
+        // 处理语音容器
+        if (className.includes('mi-note-sound-container')) {
+            // 从容器中查找 .mi-note-sound 元素
+            const soundElement = node.querySelector('.mi-note-sound');
+            if (soundElement) {
+                // 递归处理语音元素
+                return this.convertNodeToXML(soundElement);
+            }
+            return null;
+        }
+
+        // 处理语音占位符
+        if (className.includes('mi-note-sound')) {
+            // 提取 data-fileid 属性
+            const fileId = node.getAttribute('data-fileid') || '';
+
+            // 文本元素会中断有序列表的连续性
+            this.orderListState.isInContinuousList = false;
+            this.orderListState.lastIndent = null;
+            this.orderListState.lastNumber = null;
+
+            // 如果没有 fileId，记录警告并返回空
+            if (!fileId) {
+                console.warn('[html-to-xml] ⚠️ Sound element missing data-fileid attribute');
+                return '';
+            }
+
+            // 生成 <sound fileid="xxx" /> XML 标签
+            return `<sound fileid="${fileId}" />`;
         }
 
         // 处理图片

@@ -59,6 +59,9 @@ extension NSToolbarItem.Identifier {
     /// 插入附件
     static let attachment = NSToolbarItem.Identifier("attachment")
     
+    /// 录制语音
+    static let audioRecording = NSToolbarItem.Identifier("audioRecording")
+    
     /// 增加缩进
     static let increaseIndent = NSToolbarItem.Identifier("increaseIndent")
     

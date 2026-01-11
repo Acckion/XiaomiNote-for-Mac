@@ -315,6 +315,9 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
         case .attachment:
             return buildToolbarButton(.attachment, "附件", NSImage(systemSymbolName: "paperclip", accessibilityDescription: nil)!, "insertAttachment:")
             
+        case .audioRecording:
+            return buildToolbarButton(.audioRecording, "录音", NSImage(systemSymbolName: "mic.fill", accessibilityDescription: nil)!, "insertAudioRecording:")
+            
         case .increaseIndent:
             return buildToolbarButton(.increaseIndent, "增加缩进", NSImage(systemSymbolName: "increase.indent", accessibilityDescription: nil)!, "increaseIndent:")
             
@@ -589,6 +592,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.checkbox,
             NSToolbarItem.Identifier.horizontalRule,
             NSToolbarItem.Identifier.attachment,
+            NSToolbarItem.Identifier.audioRecording,
             NSToolbarItem.Identifier.increaseIndent,
             NSToolbarItem.Identifier.decreaseIndent,
             // 编辑器区域间距（可随编辑器项一起隐藏）
@@ -648,6 +652,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.checkbox,
             NSToolbarItem.Identifier.horizontalRule,
             NSToolbarItem.Identifier.attachment,
+            NSToolbarItem.Identifier.audioRecording,
             NSToolbarItem.Identifier.editorSpace2,  // 自定义间距，可随编辑器项隐藏
             NSToolbarItem.Identifier.increaseIndent,
             NSToolbarItem.Identifier.decreaseIndent,

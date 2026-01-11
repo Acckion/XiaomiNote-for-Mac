@@ -340,10 +340,165 @@ commit={JSON数据}&serviceToken={token}
 - 语音 digest：`8a41074a7bf788cf921a32a781e7b676f3103968.mp3`
 - 语音 mimeType：`audio/mp3`
 
-## 7. 后续工作
+## 6. 语音文件下载 API
+
+### 获取下载 URL
+
+```
+GET https://i.mi.com/file/full/v2?ts={timestamp}&type=note_img&fileid={fileId}
+```
+
+### 参数
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| ts | number | 时间戳（毫秒） |
+| type | string | 文件类型，必须使用 `note_img` |
+| fileid | string | 文件 ID（如 `1315204657.jgHyouv563iSF_XCE4jhAg`） |
+
+### 请求头
+
+| 头部 | 值 |
+|------|------|
+| Cookie | (包含 serviceToken 等认证信息) |
+
+### 响应格式
+
+API 返回两种可能的响应格式：
+
+#### 格式 1：简单格式（直接 URL）
+
+```json
+{
+  "result": "ok",
+  "code": 0,
+  "data": {
+    "url": "https://xxx.xmssdn.micloud.mi.com/xxx?..."
+  }
+}
+```
+
+#### 格式 2：KSS 格式（分块下载，可能包含解密密钥）
+
+```json
+{
+  "result": "ok",
+  "code": 0,
+  "data": {
+    "kss": {
+      "blocks": [
+        {
+          "urls": ["http://xxx.xmssdn.micloud.mi.com/xxx?..."]
+        }
+      ],
+      "secure_key": "base64_encoded_aes_key"
+    }
+  }
+}
+```
+
+### secure_key 解密密钥
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| secure_key | string | Base64 编码的 AES 解密密钥（可选） |
+
+**重要说明**：
+- `secure_key` 字段可能存在于 KSS 格式的响应中
+- 如果存在 `secure_key`，表示下载的音频文件是加密的，需要使用该密钥进行 AES 解密
+- 如果不存在 `secure_key`，表示音频文件未加密，可以直接播放
+
+### 下载音频文件
+
+获取到下载 URL 后，直接使用 GET 请求下载音频数据：
+
+```
+GET {download_url}
+```
+
+注意：下载请求不需要认证头，因为 URL 已经包含了认证信息（签名参数）。
+
+### 重要发现
+
+1. **type 参数**: 下载时也必须使用 `note_img` 类型（与上传时相同）
+2. **URL 有效期**: 下载 URL 是临时的，有一定的有效期
+3. **无需认证**: 下载 URL 本身包含认证信息，不需要额外的 Cookie
+4. **响应格式**: API 可能返回简单格式或 KSS 格式，代码需要同时支持两种格式
+5. **加密文件**: KSS 格式响应可能包含 `secure_key` 字段，表示文件已加密，需要 AES 解密
+
+## 7. 音频文件解密
+
+### 解密服务
+
+小米云服务返回的音频文件可能是加密的，需要使用 `secure_key` 进行解密。
+
+**服务位置**: `Sources/Service/AudioDecryptService.swift`
+
+### 支持的解密算法
+
+| 算法 | 优先级 | 说明 |
+|------|--------|------|
+| RC4 变体 (1024轮预热) | 1 | 小米云服务常用，在标准 RC4 基础上增加 1024 轮预热 |
+| 标准 RC4 | 2 | 标准 RC4 流密码算法 |
+| 简单 XOR | 3 | 简单的 XOR 加密 |
+
+### 密钥格式
+
+- **类型**: 十六进制字符串
+- **示例**: `22eaa6338446d728`
+- **来源**: KSS 响应的 `secure_key` 字段
+
+### 支持的音频格式检测
+
+| 格式 | 魔数 (Magic Bytes) | 说明 |
+|------|-------------------|------|
+| MP3 (ID3) | `49 44 33` | ID3 标签开头 |
+| MP3 (帧同步) | `FF FB/FA/F3/F2` | MP3 帧同步字 |
+| AAC (ADTS) | `FF F0/F1` | AAC ADTS 同步字 |
+| M4A/MP4 | `xx xx xx xx 66 74 79 70` | ftyp 标识 |
+| WAV | `52 49 46 46 ... 57 41 56 45` | RIFF...WAVE |
+| OGG | `4F 67 67 53` | OggS 标识 |
+| FLAC | `66 4C 61 43` | fLaC 标识 |
+
+### 解密流程
+
+```
+1. 调用 getAudioDownloadInfo 获取下载 URL 和 secure_key
+2. 下载加密的音频数据
+3. 如果存在 secure_key，调用 AudioDecryptService.decrypt()
+4. 解密服务自动尝试多种算法，返回第一个成功的结果
+5. 通过检查音频文件头部魔数验证解密是否成功
+6. 如果所有解密方法都失败，返回原始数据（可能本身未加密）
+```
+
+### 代码示例
+
+```swift
+// 获取下载信息
+let downloadInfo = try await MiNoteService.shared.getAudioDownloadInfo(fileId: fileId)
+let downloadURL = downloadInfo.url
+let secureKey = downloadInfo.secureKey
+
+// 下载音频数据
+let audioData = try await downloadAudioData(from: downloadURL)
+
+// 解密（如果需要）
+let decryptedData: Data
+if let key = secureKey {
+    decryptedData = AudioDecryptService.shared.decrypt(data: audioData, secureKey: key)
+} else {
+    decryptedData = audioData
+}
+
+// 播放解密后的音频
+try AudioPlayerService.shared.play(data: decryptedData)
+```
+
+## 8. 后续工作
 
 1. ✅ 验证语音上传 API 的 type 参数 - **必须使用 `note_img`**
 2. ✅ 完整上传流程测试（request_upload_file → upload_block_chunk → commit）
-3. 测试语音文件的下载/播放 URL
-4. 验证删除语音后的 XML 导出
-5. 实现 AudioFileService 服务类
+3. ✅ 测试语音文件的下载/播放 URL - **使用 `/file/full/v2` API**
+4. ✅ 实现音频解密服务 - **AudioDecryptService 支持 RC4 变体/标准 RC4/XOR**
+5. 验证删除语音后的 XML 导出
+6. 集成解密服务到 AudioAttachment 播放流程

@@ -92,6 +92,7 @@ enum SpecialElement: Equatable {
     case numberedItem(number: Int, indent: Int)
     case quote(content: String)
     case image(fileId: String?, src: String?)
+    case audio(fileId: String, digest: String?, mimeType: String?)
     
     /// 元素的显示名称
     var displayName: String {
@@ -102,6 +103,7 @@ enum SpecialElement: Equatable {
         case .numberedItem: return "编号列表"
         case .quote: return "引用块"
         case .image: return "图片"
+        case .audio: return "语音录音"
         }
     }
 }
@@ -471,6 +473,17 @@ public class NativeEditorContext: ObservableObject {
         if let saveResult = ImageStorageManager.shared.saveImage(image, folderId: folderId) {
             insertSpecialElement(.image(fileId: saveResult.fileId, src: nil))
         }
+    }
+    
+    /// 插入语音录音
+    /// - Parameters:
+    ///   - fileId: 语音文件 ID
+    ///   - digest: 文件摘要（可选）
+    ///   - mimeType: MIME 类型（可选）
+    /// - Requirements: 9.4, 9.5
+    func insertAudio(fileId: String, digest: String? = nil, mimeType: String? = nil) {
+        print("[NativeEditorContext] 插入语音录音: fileId=\(fileId)")
+        insertSpecialElement(.audio(fileId: fileId, digest: digest, mimeType: mimeType))
     }
     
     // MARK: - Public Methods - 缩进操作 (需求 6.1, 6.2, 6.3, 6.5)

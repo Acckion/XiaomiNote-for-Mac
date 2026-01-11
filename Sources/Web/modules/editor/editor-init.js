@@ -316,6 +316,43 @@
             attributes: false     // 不监听属性变化（避免频繁触发）
         });
 
+        // 语音占位符点击事件处理
+        // Requirements: 13.1 - 点击语音占位符时通知 Swift 进行播放
+        editor.addEventListener('click', function(e) {
+            // 查找点击的语音占位符元素
+            let target = e.target;
+            let soundElement = null;
+            
+            // 向上查找 .mi-note-sound 元素
+            while (target && target !== editor) {
+                if (target.classList && target.classList.contains('mi-note-sound')) {
+                    soundElement = target;
+                    break;
+                }
+                target = target.parentElement;
+            }
+            
+            if (soundElement) {
+                const fileId = soundElement.getAttribute('data-fileid');
+                if (fileId) {
+                    log.debug(LOG_MODULES.EDITOR, '点击语音占位符', { fileId });
+                    
+                    // 通过 WebKit 消息处理器通知 Swift
+                    // Requirements: 13.1
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.editorBridge) {
+                        window.webkit.messageHandlers.editorBridge.postMessage({
+                            type: 'playAudio',
+                            fileId: fileId
+                        });
+                    }
+                    
+                    // 阻止事件冒泡，避免触发其他点击处理
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }
+        });
+
         // 初始化完成
         window.isInitialized = true;
         log.info(LOG_MODULES.EDITOR, '编辑器初始化完成');

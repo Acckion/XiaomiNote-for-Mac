@@ -1138,6 +1138,8 @@ struct NativeEditorView: NSViewRepresentable {
                 insertQuote(content: content, at: insertionPoint, in: textStorage)
             case .image(let fileId, let src):
                 insertImage(fileId: fileId, src: src, at: insertionPoint, in: textStorage)
+            case .audio(let fileId, let digest, let mimeType):
+                insertAudio(fileId: fileId, digest: digest, mimeType: mimeType, at: insertionPoint, in: textStorage)
             }
             
             textStorage.endEditing()
@@ -1294,6 +1296,52 @@ struct NativeEditorView: NSViewRepresentable {
             
             textStorage.insert(result, at: location)
         }
+        
+        /// 插入语音录音
+        /// - Parameters:
+        ///   - fileId: 语音文件 ID
+        ///   - digest: 文件摘要（可选）
+        ///   - mimeType: MIME 类型（可选）
+        ///   - location: 插入位置
+        ///   - textStorage: 文本存储
+        /// - Requirements: 9.4, 9.5
+        private func insertAudio(fileId: String, digest: String?, mimeType: String?, at location: Int, in textStorage: NSTextStorage) {
+            print("[NativeEditorView] 插入语音录音: fileId=\(fileId)")
+            
+            // 创建音频附件
+            let attachment = AudioAttachment(fileId: fileId, digest: digest, mimeType: mimeType)
+            let attachmentString = NSAttributedString(attachment: attachment)
+            
+            // 构建插入内容：换行 + 音频 + 换行
+            let result = NSMutableAttributedString()
+            
+            // 如果不在行首，先添加换行
+            if location > 0 {
+                let string = textStorage.string as NSString
+                let prevChar = string.character(at: location - 1)
+                if prevChar != 10 { // 10 是换行符的 ASCII 码
+                    result.append(NSAttributedString(string: "\n"))
+                }
+            }
+            
+            result.append(attachmentString)
+            result.append(NSAttributedString(string: "\n"))
+            
+            textStorage.insert(result, at: location)
+            
+            // 刷新布局以确保附件正确显示
+            if let layoutManager = textView?.layoutManager {
+                let insertedRange = NSRange(location: location, length: result.length)
+                layoutManager.invalidateLayout(forCharacterRange: insertedRange, actualCharacterRange: nil)
+                layoutManager.invalidateDisplay(forCharacterRange: insertedRange)
+            }
+            
+            // 将光标移动到插入内容之后
+            let newCursorPosition = location + result.length
+            textView?.setSelectedRange(NSRange(location: newCursorPosition, length: 0))
+            
+            print("[NativeEditorView] ✅ 语音录音插入完成，新光标位置: \(newCursorPosition)")
+        }
     }
 }
 
@@ -1321,6 +1369,7 @@ class NativeTextView: NSTextView {
             let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
             
             if charIndex < textStorage.length {
+                // 检查是否点击了复选框附件
                 if let attachment = textStorage.attribute(.attachment, at: charIndex, effectiveRange: nil) as? InteractiveCheckboxAttachment {
                     // 获取附件的边界
                     let glyphRange = NSRange(location: glyphIndex, length: 1)
@@ -1353,6 +1402,64 @@ class NativeTextView: NSTextView {
                         print("[NativeTextView] ☑️ 复选框状态已更新，已通知代理")
                         
                         return
+                    }
+                }
+                
+                // 检查是否点击了音频附件
+                if let audioAttachment = textStorage.attribute(.attachment, at: charIndex, effectiveRange: nil) as? AudioAttachment {
+                    // 获取附件的边界
+                    let glyphRange = NSRange(location: glyphIndex, length: 1)
+                    let boundingRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+                    
+                    // 检查点击是否在附件区域内
+                    let adjustedRect = boundingRect.offsetBy(dx: textContainerInset.width, dy: textContainerInset.height)
+                    if adjustedRect.contains(point) {
+                        // 计算点击位置相对于附件的位置
+                        let relativeX = point.x - adjustedRect.origin.x
+                        
+                        // 播放按钮区域（左侧 40 像素）
+                        let playButtonWidth: CGFloat = 40
+                        
+                        if relativeX < playButtonWidth {
+                            // 点击了播放按钮区域
+                            print("[NativeTextView] 🎤 音频附件播放按钮点击: charIndex=\(charIndex), fileId=\(audioAttachment.fileId ?? "nil")")
+                            
+                            // 异步切换播放状态
+                            Task { @MainActor in
+                                do {
+                                    try await audioAttachment.togglePlayPause()
+                                    
+                                    // 刷新显示
+                                    layoutManager.invalidateDisplay(forCharacterRange: NSRange(location: charIndex, length: 1))
+                                    
+                                    print("[NativeTextView] 🎤 音频播放状态已切换")
+                                } catch {
+                                    print("[NativeTextView] 🎤 音频播放失败: \(error.localizedDescription)")
+                                }
+                            }
+                            
+                            return
+                        } else {
+                            // 点击了进度条区域，计算跳转位置
+                            let progressBarStartX: CGFloat = playButtonWidth + 10
+                            let progressBarEndX = adjustedRect.width - 60 // 留出时间显示空间
+                            let progressBarWidth = progressBarEndX - progressBarStartX
+                            
+                            if relativeX >= progressBarStartX && relativeX <= progressBarEndX && progressBarWidth > 0 {
+                                let progress = (relativeX - progressBarStartX) / progressBarWidth
+                                let clampedProgress = max(0, min(1, Double(progress)))
+                                
+                                print("[NativeTextView] 🎤 音频进度条点击: progress=\(Int(clampedProgress * 100))%")
+                                
+                                // 跳转到指定位置
+                                audioAttachment.seek(to: clampedProgress)
+                                
+                                // 刷新显示
+                                layoutManager.invalidateDisplay(forCharacterRange: NSRange(location: charIndex, length: 1))
+                                
+                                return
+                            }
+                        }
                     }
                 }
             }

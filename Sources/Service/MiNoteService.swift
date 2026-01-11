@@ -9,8 +9,8 @@ import CryptoKit
 /// - 文件夹管理
 /// - 文件上传/下载
 /// - 错误处理和重试逻辑
-final class MiNoteService: @unchecked Sendable {
-    static let shared = MiNoteService()
+public final class MiNoteService: @unchecked Sendable {
+    public static let shared = MiNoteService()
     
     // MARK: - 配置常量
     
@@ -203,7 +203,7 @@ final class MiNoteService: @unchecked Sendable {
         print("[MiNoteService] Cookie 已设置，时间: \(cookieSetTime?.description ?? "未知")，缓存已更新为有效")
     }
     
-    func isAuthenticated() -> Bool {
+    public func isAuthenticated() -> Bool {
         return !cookie.isEmpty && !serviceToken.isEmpty
     }
     
@@ -1687,7 +1687,7 @@ final class MiNoteService: @unchecked Sendable {
     ///   - mimeType: MIME 类型，推荐使用 "audio/mpeg"
     /// - Returns: 包含 fileId、digest、mimeType 的字典
     /// - Throws: MiNoteError（未认证、网络错误、响应无效等）
-    func uploadAudio(audioData: Data, fileName: String, mimeType: String = "audio/mpeg") async throws -> [String: Any] {
+    public func uploadAudio(audioData: Data, fileName: String, mimeType: String = "audio/mpeg") async throws -> [String: Any] {
         guard isAuthenticated() else {
             throw MiNoteError.notAuthenticated
         }
@@ -3108,6 +3108,257 @@ extension MiNoteService {
             NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
             throw error
         }
+    }
+    
+    // MARK: - 语音文件下载
+    
+    /// 音频下载信息（包含 URL 和解密密钥）
+    struct AudioDownloadInfo {
+        let url: URL
+        let secureKey: String?
+    }
+    
+    /// 获取语音文件下载 URL 和解密密钥
+    /// 
+    /// 使用 `/file/full/v2` API 获取语音文件的下载 URL。
+    /// 该 API 返回 KSS 格式的响应，包含分块下载 URL 和解密密钥。
+    /// 
+    /// - Parameter fileId: 语音文件 ID（如 `1315204657.jgHyouv563iSF_XCE4jhAg`）
+    /// - Returns: 下载信息（URL 和解密密钥）
+    /// - Throws: MiNoteError（未认证、网络错误、响应无效等）
+    func getAudioDownloadInfo(fileId: String) async throws -> AudioDownloadInfo {
+        guard isAuthenticated() else {
+            throw MiNoteError.notAuthenticated
+        }
+        
+        let ts = Int(Date().timeIntervalSince1970 * 1000)
+        // 使用 note_img 类型（与上传时相同）
+        let urlString = "\(baseURL)/file/full/v2?ts=\(ts)&type=note_img&fileid=\(encodeURIComponent(fileId))"
+        
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "GET",
+            headers: getHeaders(),
+            body: nil
+        )
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        request.httpMethod = "GET"
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                let responseString = String(data: data, encoding: .utf8)
+                
+                NetworkLogger.shared.logResponse(
+                    url: urlString,
+                    method: "GET",
+                    statusCode: httpResponse.statusCode,
+                    headers: httpResponse.allHeaderFields as? [String: String],
+                    response: responseString,
+                    error: nil
+                )
+                
+                // 处理 401 未授权错误
+                if httpResponse.statusCode == 401 {
+                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+                }
+                
+                guard httpResponse.statusCode == 200 else {
+                    print("[MiNoteService] ❌ 获取语音下载 URL 失败，状态码: \(httpResponse.statusCode)")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                }
+            }
+            
+            // 解析响应
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                print("[MiNoteService] ❌ 无法解析语音下载 URL 响应")
+                throw MiNoteError.invalidResponse
+            }
+            
+            // 检查响应码
+            guard let code = json["code"] as? Int, code == 0 else {
+                let description = (json["description"] as? String) ?? "未知错误"
+                print("[MiNoteService] ❌ 获取语音下载 URL 失败: \(description)")
+                throw MiNoteError.invalidResponse
+            }
+            
+            // 提取下载 URL
+            // 响应格式可能是两种：
+            // 1. 简单格式：{"code": 0, "data": {"url": "https://..."}}
+            // 2. KSS 格式：{"code": 0, "data": {"kss": {"blocks": [{"urls": ["http://..."]}], "secure_key": "..."}}}
+            
+            guard let dataDict = json["data"] as? [String: Any] else {
+                print("[MiNoteService] ❌ 响应中缺少 data 字段")
+                throw MiNoteError.invalidResponse
+            }
+            
+            // 尝试简单格式
+            if let downloadURLString = dataDict["url"] as? String,
+               let downloadURL = URL(string: downloadURLString) {
+                print("[MiNoteService] ✅ 获取语音下载 URL 成功（简单格式）: \(downloadURLString.prefix(100))...")
+                return AudioDownloadInfo(url: downloadURL, secureKey: nil)
+            }
+            
+            // 尝试 KSS 格式
+            if let kss = dataDict["kss"] as? [String: Any],
+               let blocks = kss["blocks"] as? [[String: Any]],
+               let firstBlock = blocks.first,
+               let urls = firstBlock["urls"] as? [String],
+               let firstURLString = urls.first {
+                // 将 http:// 转换为 https://，避免 ATS 安全策略阻止
+                let secureURLString = firstURLString.hasPrefix("http://") 
+                    ? firstURLString.replacingOccurrences(of: "http://", with: "https://")
+                    : firstURLString
+                
+                // 提取解密密钥
+                let secureKey = kss["secure_key"] as? String
+                if let key = secureKey {
+                    print("[MiNoteService] ✅ 获取到解密密钥: \(key)")
+                }
+                
+                if let downloadURL = URL(string: secureURLString) {
+                    print("[MiNoteService] ✅ 获取语音下载 URL 成功（KSS 格式）: \(secureURLString.prefix(100))...")
+                    return AudioDownloadInfo(url: downloadURL, secureKey: secureKey)
+                }
+            }
+            
+            print("[MiNoteService] ❌ 响应中缺少下载 URL")
+            print("[MiNoteService] 响应内容: \(json)")
+            throw MiNoteError.invalidResponse
+            
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
+            throw error
+        }
+    }
+    
+    /// 获取语音文件下载 URL（兼容旧接口）
+    /// 
+    /// - Parameter fileId: 语音文件 ID
+    /// - Returns: 下载 URL
+    /// - Throws: MiNoteError
+    public func getAudioDownloadURL(fileId: String) async throws -> URL {
+        let info = try await getAudioDownloadInfo(fileId: fileId)
+        return info.url
+    }
+    
+    /// 下载语音文件
+    /// 
+    /// 下载指定 fileId 的语音文件数据。
+    /// 该方法会先获取下载 URL 和解密密钥，然后下载实际的音频数据，
+    /// 最后使用密钥解密数据。
+    /// 
+    /// - Parameters:
+    ///   - fileId: 语音文件 ID
+    ///   - progressHandler: 下载进度回调（可选），参数为已下载字节数和总字节数
+    /// - Returns: 解密后的音频文件数据
+    /// - Throws: MiNoteError（未认证、网络错误、下载失败等）
+    public func downloadAudio(fileId: String, progressHandler: ((Int64, Int64) -> Void)? = nil) async throws -> Data {
+        guard isAuthenticated() else {
+            throw MiNoteError.notAuthenticated
+        }
+        
+        print("[MiNoteService] 开始下载语音文件: \(fileId)")
+        
+        // 第一步：获取下载 URL 和解密密钥
+        let downloadInfo = try await getAudioDownloadInfo(fileId: fileId)
+        
+        // 第二步：下载音频数据
+        print("[MiNoteService] 开始下载音频数据...")
+        
+        var request = URLRequest(url: downloadInfo.url)
+        request.httpMethod = "GET"
+        // 下载请求不需要认证头，因为 URL 已经包含了认证信息
+        
+        NetworkLogger.shared.logRequest(
+            url: downloadInfo.url.absoluteString,
+            method: "GET",
+            headers: nil,
+            body: nil
+        )
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                NetworkLogger.shared.logResponse(
+                    url: downloadInfo.url.absoluteString,
+                    method: "GET",
+                    statusCode: httpResponse.statusCode,
+                    headers: httpResponse.allHeaderFields as? [String: String],
+                    response: "[音频数据: \(data.count) 字节]",
+                    error: nil
+                )
+                
+                guard httpResponse.statusCode == 200 else {
+                    print("[MiNoteService] ❌ 下载语音文件失败，状态码: \(httpResponse.statusCode)")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                }
+            }
+            
+            // 验证数据
+            guard !data.isEmpty else {
+                print("[MiNoteService] ❌ 下载的语音文件数据为空")
+                throw MiNoteError.invalidResponse
+            }
+            
+            print("[MiNoteService] ✅ 语音文件下载成功: \(fileId), 大小: \(data.count) 字节")
+            
+            // 第三步：解密数据（如果有密钥）
+            var audioData = data
+            if let secureKey = downloadInfo.secureKey, !secureKey.isEmpty {
+                print("[MiNoteService] 开始解密音频数据，密钥: \(secureKey)")
+                audioData = AudioDecryptService.shared.decrypt(data: data, secureKey: secureKey)
+                print("[MiNoteService] 解密完成，数据大小: \(audioData.count) 字节")
+            } else {
+                print("[MiNoteService] 无解密密钥，使用原始数据")
+            }
+            
+            // 调用进度回调（下载完成）
+            progressHandler?(Int64(audioData.count), Int64(audioData.count))
+            
+            return audioData
+            
+        } catch {
+            NetworkLogger.shared.logError(url: downloadInfo.url.absoluteString, method: "GET", error: error)
+            print("[MiNoteService] ❌ 下载语音文件失败: \(error)")
+            throw error
+        }
+    }
+    
+    /// 下载语音文件并缓存
+    /// 
+    /// 下载语音文件并自动缓存到本地。如果文件已缓存，直接返回缓存路径。
+    /// 
+    /// - Parameters:
+    ///   - fileId: 语音文件 ID
+    ///   - mimeType: MIME 类型（默认 "audio/mpeg"）
+    ///   - progressHandler: 下载进度回调（可选）
+    /// - Returns: 本地缓存文件 URL
+    /// - Throws: MiNoteError（未认证、网络错误、缓存失败等）
+    public func downloadAndCacheAudio(fileId: String, mimeType: String = "audio/mpeg", progressHandler: ((Int64, Int64) -> Void)? = nil) async throws -> URL {
+        // 检查缓存
+        if let cachedURL = AudioCacheService.shared.getCachedFile(for: fileId) {
+            print("[MiNoteService] ✅ 使用缓存的语音文件: \(fileId)")
+            return cachedURL
+        }
+        
+        // 下载文件
+        let audioData = try await downloadAudio(fileId: fileId, progressHandler: progressHandler)
+        
+        // 缓存文件
+        let cachedURL = try AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
+        
+        print("[MiNoteService] ✅ 语音文件已下载并缓存: \(fileId)")
+        return cachedURL
     }
     
 }

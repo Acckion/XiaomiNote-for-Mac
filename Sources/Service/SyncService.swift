@@ -1620,19 +1620,19 @@ final class SyncService: @unchecked Sendable {
         }
     }
     
-    // MARK: - 图片处理
+    // MARK: - 附件处理（图片和音频）
     
-    /// 下载笔记中的图片
+    /// 下载笔记中的附件（图片和音频）
     /// 
-    /// 从笔记的setting.data字段中提取图片信息，并下载到本地
-    /// 图片信息包括：fileId、mimeType等
+    /// 从笔记的setting.data字段中提取附件信息，并下载到本地
+    /// 附件信息包括：fileId、mimeType等
     /// 
     /// - Parameters:
     ///   - noteDetails: 笔记详情响应（包含setting.data字段）
     ///   - noteId: 笔记ID（用于日志和错误处理）
-    /// - Returns: 更新后的setting.data数组，包含图片下载状态信息
+    /// - Returns: 更新后的setting.data数组，包含附件下载状态信息
     private func downloadNoteImages(from noteDetails: [String: Any], noteId: String) async throws -> [[String: Any]]? {
-        print("[SYNC] 开始下载笔记图片: \(noteId)")
+        print("[SYNC] 开始下载笔记附件: \(noteId)")
         print("[SYNC] noteDetails 键: \(noteDetails.keys)")
         
         // 提取 entry 对象
@@ -1652,13 +1652,13 @@ final class SyncService: @unchecked Sendable {
         }
         
         guard let entry = entry else {
-            print("[SYNC] 无法提取 entry，跳过图片下载: \(noteId)")
+            print("[SYNC] 无法提取 entry，跳过附件下载: \(noteId)")
             return nil
         }
         
-        // 从 setting.data 中提取图片信息
+        // 从 setting.data 中提取附件信息
         guard let setting = entry["setting"] as? [String: Any] else {
-            print("[SYNC] entry 中没有 setting 字段，跳过图片下载: \(noteId)")
+            print("[SYNC] entry 中没有 setting 字段，跳过附件下载: \(noteId)")
             print("[SYNC] entry 包含的键: \(entry.keys)")
             return nil
         }
@@ -1666,66 +1666,95 @@ final class SyncService: @unchecked Sendable {
         print("[SYNC] 找到 setting 字段，包含键: \(setting.keys)")
         
         guard var settingData = setting["data"] as? [[String: Any]] else {
-            print("[SYNC] setting 中没有 data 字段或 data 不是数组，跳过图片下载: \(noteId)")
+            print("[SYNC] setting 中没有 data 字段或 data 不是数组，跳过附件下载: \(noteId)")
             return nil
         }
         
-        print("[SYNC] 找到 \(settingData.count) 个图片条目")
+        print("[SYNC] 找到 \(settingData.count) 个附件条目")
         
         // 使用简单的异步循环，避免复杂的并发问题
         for index in 0..<settingData.count {
-            let imgData = settingData[index]
-            print("[SYNC] 处理图片条目 \(index + 1)/\(settingData.count): \(imgData.keys)")
+            let attachmentData = settingData[index]
+            print("[SYNC] 处理附件条目 \(index + 1)/\(settingData.count): \(attachmentData.keys)")
             
-            guard let fileId = imgData["fileId"] as? String else {
-                print("[SYNC] 图片条目 \(index + 1) 没有 fileId，跳过")
+            guard let fileId = attachmentData["fileId"] as? String else {
+                print("[SYNC] 附件条目 \(index + 1) 没有 fileId，跳过")
                 continue
             }
             
-            guard let mimeType = imgData["mimeType"] as? String else {
-                print("[SYNC] 图片条目 \(index + 1) 没有 mimeType，跳过")
+            guard let mimeType = attachmentData["mimeType"] as? String else {
+                print("[SYNC] 附件条目 \(index + 1) 没有 mimeType，跳过")
                 continue
             }
             
-            guard mimeType.hasPrefix("image/") else {
-                print("[SYNC] 图片条目 \(index + 1) mimeType 不是图片类型: \(mimeType)，跳过")
-                continue
-            }
-            
-            // 提取文件类型（如 "jpeg", "png"）
-            let fileType = String(mimeType.dropFirst("image/".count))
-            print("[SYNC] 找到图片: fileId=\(fileId), fileType=\(fileType)")
-            
-            // 检查图片是否已存在
-            if localStorage.imageExists(fileId: fileId, fileType: fileType) {
-                print("[SYNC] 图片已存在，跳过下载: \(fileId).\(fileType)")
-                // 更新 settingData 条目，添加本地存在标志
-                var updatedImgData = imgData
-                updatedImgData["localExists"] = true
-                settingData[index] = updatedImgData
-                continue
-            }
-            
-            // 下载图片
-            do {
-                print("[SYNC] 开始下载图片: \(fileId).\(fileType)")
-                let imageData = try await miNoteService.downloadFile(fileId: fileId, type: "note_img")
-                print("[SYNC] 图片下载完成，大小: \(imageData.count) 字节")
-                try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
-                print("[SYNC] 图片保存成功: \(fileId).\(fileType)")
+            // 根据 MIME 类型处理不同类型的附件
+            if mimeType.hasPrefix("image/") {
+                // 处理图片
+                let fileType = String(mimeType.dropFirst("image/".count))
+                print("[SYNC] 找到图片: fileId=\(fileId), fileType=\(fileType)")
                 
-                // 更新 settingData 条目，添加下载成功标志
-                var updatedImgData = imgData
-                updatedImgData["localExists"] = true
-                updatedImgData["downloaded"] = true
-                settingData[index] = updatedImgData
-            } catch {
-                print("[SYNC] 图片下载失败: \(fileId).\(fileType), 错误: \(error.localizedDescription)")
-                // 下载失败，不更新 settingData
+                // 检查图片是否已存在
+                if localStorage.imageExists(fileId: fileId, fileType: fileType) {
+                    print("[SYNC] 图片已存在，跳过下载: \(fileId).\(fileType)")
+                    var updatedData = attachmentData
+                    updatedData["localExists"] = true
+                    settingData[index] = updatedData
+                    continue
+                }
+                
+                // 下载图片
+                do {
+                    print("[SYNC] 开始下载图片: \(fileId).\(fileType)")
+                    let imageData = try await miNoteService.downloadFile(fileId: fileId, type: "note_img")
+                    print("[SYNC] 图片下载完成，大小: \(imageData.count) 字节")
+                    try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
+                    print("[SYNC] 图片保存成功: \(fileId).\(fileType)")
+                    
+                    var updatedData = attachmentData
+                    updatedData["localExists"] = true
+                    updatedData["downloaded"] = true
+                    settingData[index] = updatedData
+                } catch {
+                    print("[SYNC] 图片下载失败: \(fileId).\(fileType), 错误: \(error.localizedDescription)")
+                }
+                
+            } else if mimeType.hasPrefix("audio/") {
+                // 处理音频文件
+                print("[SYNC] 找到音频: fileId=\(fileId), mimeType=\(mimeType)")
+                
+                // 检查音频是否已缓存
+                if AudioCacheService.shared.isCached(fileId: fileId) {
+                    print("[SYNC] 音频已缓存，跳过下载: \(fileId)")
+                    var updatedData = attachmentData
+                    updatedData["localExists"] = true
+                    settingData[index] = updatedData
+                    continue
+                }
+                
+                // 下载音频文件
+                do {
+                    print("[SYNC] 开始下载音频: \(fileId)")
+                    let audioData = try await miNoteService.downloadAudio(fileId: fileId)
+                    print("[SYNC] 音频下载完成，大小: \(audioData.count) 字节")
+                    
+                    // 缓存音频文件
+                    try AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
+                    print("[SYNC] 音频缓存成功: \(fileId)")
+                    
+                    var updatedData = attachmentData
+                    updatedData["localExists"] = true
+                    updatedData["downloaded"] = true
+                    settingData[index] = updatedData
+                } catch {
+                    print("[SYNC] 音频下载失败: \(fileId), 错误: \(error.localizedDescription)")
+                }
+                
+            } else {
+                print("[SYNC] 附件条目 \(index + 1) 未知类型: \(mimeType)，跳过")
             }
         }
         
-        print("[SYNC] 所有图片处理完成，共处理 \(settingData.count) 个条目")
+        print("[SYNC] 所有附件处理完成，共处理 \(settingData.count) 个条目")
         return settingData
     }
     

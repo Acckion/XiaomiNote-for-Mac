@@ -72,6 +72,7 @@ targets:
         NSPrincipalClass: AppDelegate
         NSHighResolutionCapable: true
         NSAccentColorName: Yellow
+        NSMicrophoneUsageDescription: "小米笔记需要访问麦克风以录制语音笔记"
 
   MiNoteLibraryTests:
     type: bundle.unit-test

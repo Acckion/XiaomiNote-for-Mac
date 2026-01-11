@@ -1558,6 +1558,81 @@ extension MainWindowController {
         }
     }
     
+    /// 插入语音录音
+    /// 需求: 9.1, 9.4, 9.5, 12.1 - 显示录音界面，录制完成后上传并插入到编辑器
+    @objc public func insertAudioRecording(_ sender: Any?) {
+        print("[MainWindowController] 插入语音录音")
+        
+        // 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法插入语音")
+            return
+        }
+        
+        guard let window = window else {
+            print("[MainWindowController] 错误：主窗口不存在")
+            return
+        }
+        
+        // 创建录音上传视图
+        let recorderView = AudioRecorderUploadView(
+            onUploadComplete: { [weak self] fileId, digest, mimeType in
+                guard let self = self else { return }
+                
+                print("[MainWindowController] 语音上传成功: fileId=\(fileId)")
+                
+                // 根据编辑器类型插入语音
+                if self.isUsingNativeEditor {
+                    // 原生编辑器模式
+                    print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertAudio()")
+                    if let nativeContext = self.getCurrentNativeEditorContext() {
+                        nativeContext.insertAudio(fileId: fileId, digest: digest, mimeType: mimeType)
+                    } else {
+                        print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                    }
+                } else {
+                    // Web 编辑器模式
+                    // Requirements: 12.1
+                    print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertAudio()")
+                    if let webContext = self.getCurrentWebEditorContext() {
+                        webContext.insertAudio(fileId: fileId, digest: digest, mimeType: mimeType)
+                    } else {
+                        print("[MainWindowController] 错误：无法获取 WebEditorContext")
+                    }
+                }
+                
+                // 关闭 sheet
+                if let sheetWindow = window.attachedSheet {
+                    window.endSheet(sheetWindow)
+                }
+            },
+            onCancel: { [weak window] in
+                // 关闭 sheet
+                if let sheetWindow = window?.attachedSheet {
+                    window?.endSheet(sheetWindow)
+                }
+            }
+        )
+        
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: recorderView)
+        
+        // 创建 sheet 窗口
+        let sheetWindow = NSWindow(contentViewController: hostingController)
+        sheetWindow.styleMask = [.titled, .closable]
+        sheetWindow.title = "录制语音"
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.titleVisibility = .hidden
+        
+        // 设置窗口大小
+        sheetWindow.setContentSize(NSSize(width: 340, height: 280))
+        
+        // 显示 sheet
+        window.beginSheet(sheetWindow) { response in
+            print("[MainWindowController] 录音 sheet 关闭，响应: \(response)")
+        }
+    }
+    
     @objc public func showHistory(_ sender: Any?) {
         print("显示历史记录sheet - 开始")
         
