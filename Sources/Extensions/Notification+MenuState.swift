@@ -59,4 +59,12 @@ public extension Notification.Name {
     /// 
     /// _Requirements: 9.3_
     static let noteCountVisibilityDidChange = Notification.Name("NoteCountVisibilityDidChange")
+    
+    /// XML 调试模式切换通知
+    /// 
+    /// 当用户点击工具栏的调试模式按钮或使用快捷键 Cmd+Shift+D 时发送此通知
+    /// NoteDetailView 监听此通知并切换调试模式
+    /// 
+    /// _Requirements: 1.1, 1.2, 5.2, 6.1_
+    static let toggleDebugMode = Notification.Name("ToggleDebugMode")
 }

@@ -14,6 +14,7 @@
 		05BF4BFA74B6FA06A3946F75 /* NativeEditorInitializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED572B44DBBA27AC76BCEE40 /* NativeEditorInitializer.swift */; };
 		05F8C026F8B47411FE4A0EEA /* NoteDetailWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CDB97E03C65FB0F952C6EF8 /* NoteDetailWindowState.swift */; };
 		06DA01E6B9948CB75E57DF17 /* CrossParagraphFormatHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC5CDFDF74B94004795F6D16 /* CrossParagraphFormatHandler.swift */; };
+		06DE346EE26FC67F6009685B /* XMLDebugEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 675195997C95420B10068B7E /* XMLDebugEditorView.swift */; };
 		07B99D0DA78B66169D27FF5D /* editor-api.js in Resources */ = {isa = PBXBuildFile; fileRef = 1797B73354C97433D32A2F3C /* editor-api.js */; };
 		094A591B1EE356B2409D6435 /* AudioPlayerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33AB8348FDCEF504ED66610D /* AudioPlayerService.swift */; };
 		0B77F2F250BFBCE79BF81962 /* EditorIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A34AE11924CF938B863454B /* EditorIntegrationTests.swift */; };
@@ -325,6 +326,7 @@
 		64A9912B6F9A94044B08078F /* PrivateNotesVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateNotesVerificationView.swift; sourceTree = "<group>"; };
 		64E0579D0503AE82E57F64AE /* post-fixer.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "post-fixer.js"; sourceTree = "<group>"; };
 		6587A9AE3B1D2DA03DBF87F5 /* AudioAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAttachment.swift; sourceTree = "<group>"; };
+		675195997C95420B10068B7E /* XMLDebugEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLDebugEditorView.swift; sourceTree = "<group>"; };
 		6795062F89A49EB63F403680 /* SidebarWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWindowState.swift; sourceTree = "<group>"; };
 		67B573FD81004E9972331426 /* FormatApplicationConsistencyChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatApplicationConsistencyChecker.swift; sourceTree = "<group>"; };
 		685FEDE9207773081854F9F4 /* MenuActionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuActionHandler.swift; sourceTree = "<group>"; };
@@ -717,6 +719,7 @@
 				B1642B61D573F8565B074377 /* TrashView.swift */,
 				0B15F949F8E303EFD78F7CA4 /* ViewOptionsMenuView.swift */,
 				9886C11025C79168AAAFA938 /* WebEditorView.swift */,
+				675195997C95420B10068B7E /* XMLDebugEditorView.swift */,
 			);
 			path = SwiftUIViews;
 			sourceTree = "<group>";
@@ -1186,6 +1189,7 @@
 				2642B2A4870EF2A0993B041B /* WebFormatMenuView.swift in Sources */,
 				FE1026280E17FDEC11CF274C /* WebFormatProvider.swift in Sources */,
 				435A7F68C60A42C89F85DC5B /* WindowStateManager.swift in Sources */,
+				06DE346EE26FC67F6009685B /* XMLDebugEditorView.swift in Sources */,
 				326FA5200306AE13233259B3 /* XiaoMiFormatConverter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

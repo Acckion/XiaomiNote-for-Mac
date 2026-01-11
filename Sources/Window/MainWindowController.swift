@@ -1413,6 +1413,24 @@ extension MainWindowController {
         alert.runModal()
     }
     
+    /// 切换 XML 调试模式
+    /// 
+    /// 通过发送通知来切换调试模式，NoteDetailView 会监听此通知并切换显示模式
+    /// 
+    /// _Requirements: 1.1, 1.2, 5.2, 6.1_
+    @objc func toggleDebugMode(_ sender: Any?) {
+        print("[MainWindowController] 切换 XML 调试模式")
+        
+        // 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法切换调试模式")
+            return
+        }
+        
+        // 发送通知切换调试模式
+        NotificationCenter.default.post(name: .toggleDebugMode, object: nil)
+    }
+    
     // MARK: - 新增工具栏按钮动作方法
     
     /// 切换待办（插入复选框）

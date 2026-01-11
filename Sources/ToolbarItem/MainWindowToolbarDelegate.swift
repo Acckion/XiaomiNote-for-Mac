@@ -514,6 +514,11 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             toolbarItem.isNavigational = true
             return toolbarItem
             
+        case .debugMode:
+            // XML 调试模式按钮
+            // _Requirements: 1.1, 1.2, 5.2, 6.1_
+            return buildToolbarButton(.debugMode, "调试模式", NSImage(systemSymbolName: "chevron.left.forwardslash.chevron.right", accessibilityDescription: nil)!, "toggleDebugMode:")
+            
         case .sidebarTrackingSeparator:
             // 侧边栏跟踪分隔符 - 连接到分割视图的第一个分隔符
             if let window = windowController?.window,
@@ -616,6 +621,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.trash,
             NSToolbarItem.Identifier.noteOperations,
             NSToolbarItem.Identifier.backToGallery,
+            NSToolbarItem.Identifier.debugMode,
             NSToolbarItem.Identifier.space,
             NSToolbarItem.Identifier.separator
         ]
@@ -659,6 +665,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
 
             NSToolbarItem.Identifier.flexibleSpace,
 
+            NSToolbarItem.Identifier.debugMode,
             NSToolbarItem.Identifier.share,
             NSToolbarItem.Identifier.noteOperations,
             NSToolbarItem.Identifier.search,
