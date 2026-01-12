@@ -83,6 +83,10 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     /// MIME 类型
     var mimeType: String?
     
+    /// 是否为临时占位符（录音中）
+    /// 临时占位符的 fileId 以 "temp_" 开头，导出时会添加 des="temp" 属性
+    var isTemporaryPlaceholder: Bool = false
+    
     /// 是否为深色模式
     var isDarkMode: Bool = false {
         didSet {

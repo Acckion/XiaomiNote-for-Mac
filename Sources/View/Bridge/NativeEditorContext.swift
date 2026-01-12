@@ -490,46 +490,55 @@ public class NativeEditorContext: ObservableObject {
     
     /// 插入录音模板占位符
     /// 
-    /// 在原生编辑器中插入XML格式的录音模板占位符，与Web编辑器保持一致
+    /// 在原生编辑器中插入 AudioAttachment 作为录音模板占位符
+    /// 占位符使用 `temp_[templateId]` 作为 fileId，并设置 `isTemporaryPlaceholder = true`
+    /// 导出 XML 时会生成 `<sound fileid="temp_xxx" des="temp"/>` 格式
     /// 
     /// - Parameter templateId: 模板唯一标识符
     /// - Requirements: 4.2
     func insertRecordingTemplate(templateId: String) {
         print("[NativeEditorContext] 插入录音模板: templateId=\(templateId)")
         
-        // 创建XML格式的占位符文本：<sound fileid="temp_[templateId]" des="temp"/>
-        let xmlPlaceholder = "<sound fileid=\"temp_\(templateId)\" des=\"temp\"/>"
+        // 创建临时 fileId
+        let tempFileId = "temp_\(templateId)"
         
-        // 创建带样式的占位符文本用于显示
-        let displayText = "🎤 正在录制..."
-        let attributedPlaceholder = NSMutableAttributedString(string: displayText)
+        // 创建 AudioAttachment 作为占位符
+        let audioAttachment = customRenderer.createAudioAttachment(
+            fileId: tempFileId,
+            digest: nil,
+            mimeType: nil
+        )
+        // 标记为临时占位符
+        audioAttachment.isTemporaryPlaceholder = true
         
-        // 添加样式：蓝色背景，圆角边框
-        let range = NSRange(location: 0, length: displayText.count)
-        attributedPlaceholder.addAttribute(.backgroundColor, value: NSColor.systemBlue.withAlphaComponent(0.1), range: range)
-        attributedPlaceholder.addAttribute(.foregroundColor, value: NSColor.systemBlue, range: range)
+        // 创建包含附件的 NSAttributedString
+        let attachmentString = NSMutableAttributedString(attachment: audioAttachment)
         
-        // 添加自定义属性标记这是录音模板
-        attributedPlaceholder.addAttribute(NSAttributedString.Key("RecordingTemplate"), value: templateId, range: range)
-        attributedPlaceholder.addAttribute(NSAttributedString.Key("XMLContent"), value: xmlPlaceholder, range: range)
+        // 添加自定义属性标记这是录音模板（用于后续查找和替换）
+        let range = NSRange(location: 0, length: attachmentString.length)
+        attachmentString.addAttribute(NSAttributedString.Key("RecordingTemplate"), value: templateId, range: range)
         
         // 将占位符插入到当前文本的光标位置
         let currentText = nsAttributedText.mutableCopy() as! NSMutableAttributedString
         let insertionPoint = min(cursorPosition, currentText.length)
-        currentText.insert(attributedPlaceholder, at: insertionPoint)
+        currentText.insert(attachmentString, at: insertionPoint)
         
         // 更新编辑器内容
         updateNSContent(currentText)
         
-        // 更新光标位置到插入文本之后
-        updateCursorPosition(insertionPoint + displayText.count)
+        // 更新光标位置到插入附件之后
+        updateCursorPosition(insertionPoint + 1)
         
         hasUnsavedChanges = true
+        
+        print("[NativeEditorContext] ✅ 录音模板占位符已插入（使用 AudioAttachment）")
     }
     
     /// 更新录音模板为音频附件
     /// 
     /// 将临时的录音模板占位符更新为实际的音频附件
+    /// 查找带有 `RecordingTemplate` 属性的 AudioAttachment，替换为新的 AudioAttachment
+    /// 新附件使用真实的 fileId，且 `isTemporaryPlaceholder = false`
     /// 
     /// - Parameters:
     ///   - templateId: 模板唯一标识符
@@ -545,44 +554,38 @@ public class NativeEditorContext: ObservableObject {
         let fullRange = NSRange(location: 0, length: currentText.length)
         
         var templateFound = false
+        var foundRange: NSRange?
         
         // 遍历文本，查找带有指定 templateId 的录音模板
         currentText.enumerateAttribute(NSAttributedString.Key("RecordingTemplate"), in: fullRange, options: []) { value, range, stop in
             if let templateValue = value as? String, templateValue == templateId {
-                // 找到对应的模板，更新为音频附件
-                let audioText = "🎤 语音录音"
-                let audioAttributedString = NSMutableAttributedString(string: audioText)
-                
-                // 添加音频附件的样式
-                let audioRange = NSRange(location: 0, length: audioText.count)
-                audioAttributedString.addAttribute(.backgroundColor, value: NSColor.systemGreen.withAlphaComponent(0.1), range: audioRange)
-                audioAttributedString.addAttribute(.foregroundColor, value: NSColor.systemGreen, range: audioRange)
-                
-                // 添加音频附件的XML内容
-                let finalXML = "<sound fileid=\"\(fileId)\"/>"
-                audioAttributedString.addAttribute(NSAttributedString.Key("XMLContent"), value: finalXML, range: audioRange)
-                audioAttributedString.addAttribute(NSAttributedString.Key("AudioFileId"), value: fileId, range: audioRange)
-                
-                if let digest = digest {
-                    audioAttributedString.addAttribute(NSAttributedString.Key("AudioDigest"), value: digest, range: audioRange)
-                }
-                if let mimeType = mimeType {
-                    audioAttributedString.addAttribute(NSAttributedString.Key("AudioMimeType"), value: mimeType, range: audioRange)
-                }
-                
-                // 替换模板文本
-                currentText.replaceCharacters(in: range, with: audioAttributedString)
+                foundRange = range
                 templateFound = true
                 stop.pointee = true
             }
         }
         
-        if templateFound {
+        if templateFound, let range = foundRange {
+            // 创建新的 AudioAttachment（非临时）
+            let audioAttachment = customRenderer.createAudioAttachment(
+                fileId: fileId,
+                digest: digest,
+                mimeType: mimeType
+            )
+            // 确保不是临时占位符
+            audioAttachment.isTemporaryPlaceholder = false
+            
+            // 创建包含附件的 NSAttributedString
+            let attachmentString = NSAttributedString(attachment: audioAttachment)
+            
+            // 替换模板
+            currentText.replaceCharacters(in: range, with: attachmentString)
+            
             // 更新编辑器内容
             updateNSContent(currentText)
             hasUnsavedChanges = true
             
-            print("[NativeEditorContext] ✅ 录音模板已更新为音频附件")
+            print("[NativeEditorContext] ✅ 录音模板已更新为音频附件（使用 AudioAttachment）")
         } else {
             print("[NativeEditorContext] ⚠️ 未找到对应的录音模板: templateId=\(templateId)")
         }

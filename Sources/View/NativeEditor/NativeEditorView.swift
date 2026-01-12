@@ -231,6 +231,17 @@ struct NativeEditorView: NSViewRepresentable {
                 }
                 .store(in: &cancellables)
             
+            // 监听内容变化（用于录音模板插入等外部内容更新）
+            // 当 NativeEditorContext.updateNSContent 被调用时，直接更新 textView
+            // 这解决了 SwiftUI 无法检测 NSAttributedString 内容变化的问题
+            // Requirements: 4.2, 4.3 - 录音模板插入和更新
+            parent.editorContext.contentChangePublisher
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] newContent in
+                    self?.handleExternalContentUpdate(newContent)
+                }
+                .store(in: &cancellables)
+            
             // 监听内容同步请求
             NotificationCenter.default.publisher(for: .nativeEditorRequestContentSync)
                 .receive(on: DispatchQueue.main)
@@ -444,6 +455,93 @@ struct NativeEditorView: NSViewRepresentable {
                 self.parent.editorContext.forceUpdateFormats()
                 print("[NativeEditorView] 撤销/重做操作后状态已更新")
             }
+        }
+        
+        // MARK: - 外部内容更新处理
+        
+        /// 处理外部内容更新（如录音模板插入）
+        /// 
+        /// 当 NativeEditorContext.updateNSContent 被调用时，此方法会被触发
+        /// 直接更新 textView 的内容，解决 SwiftUI 无法检测 NSAttributedString 变化的问题
+        /// 
+        /// - Parameter newContent: 新的内容
+        /// - Requirements: 4.2, 4.3 - 录音模板插入和更新
+        private func handleExternalContentUpdate(_ newContent: NSAttributedString) {
+            guard let textView = textView else {
+                print("[NativeEditorView] handleExternalContentUpdate: textView 为 nil")
+                return
+            }
+            
+            guard let textStorage = textView.textStorage else {
+                print("[NativeEditorView] handleExternalContentUpdate: textStorage 为 nil")
+                return
+            }
+            
+            // 检查是否是从 textView 触发的更新（避免循环）
+            guard !isUpdatingFromTextView else {
+                print("[NativeEditorView] handleExternalContentUpdate: 跳过（来自 textView 的更新）")
+                return
+            }
+            
+            // 比较内容是否真的变化了
+            let currentContent = NSAttributedString(attributedString: textStorage)
+            
+            // 使用长度和字符串内容比较
+            let contentChanged = currentContent.string != newContent.string
+            let lengthChanged = currentContent.length != newContent.length
+            
+            // 额外检查：比较附件数量（用于检测录音模板插入）
+            let currentAttachmentCount = countAttachments(in: currentContent)
+            let newAttachmentCount = countAttachments(in: newContent)
+            let attachmentCountChanged = currentAttachmentCount != newAttachmentCount
+            
+            if contentChanged || lengthChanged || attachmentCountChanged {
+                print("[NativeEditorView] handleExternalContentUpdate: 更新内容")
+                print("[NativeEditorView]   - 当前长度: \(currentContent.length), 新长度: \(newContent.length)")
+                print("[NativeEditorView]   - 当前附件数: \(currentAttachmentCount), 新附件数: \(newAttachmentCount)")
+                
+                // 保存当前选择范围
+                let selectedRange = textView.selectedRange()
+                
+                // 标记正在更新，避免触发 textDidChange
+                isUpdatingFromTextView = true
+                
+                // 更新内容
+                textStorage.setAttributedString(newContent)
+                
+                // 更新音频附件集合（用于删除检测）
+                previousAudioFileIds = extractAudioFileIds(from: newContent)
+                
+                // 恢复选择范围（如果有效）
+                let newLength = textStorage.length
+                if selectedRange.location <= newLength {
+                    let newRange = NSRange(
+                        location: min(selectedRange.location, newLength),
+                        length: min(selectedRange.length, max(0, newLength - selectedRange.location))
+                    )
+                    textView.setSelectedRange(newRange)
+                }
+                
+                // 重置标记
+                isUpdatingFromTextView = false
+                
+                print("[NativeEditorView] handleExternalContentUpdate: ✅ 内容已更新")
+            } else {
+                print("[NativeEditorView] handleExternalContentUpdate: 内容未变化，跳过更新")
+            }
+        }
+        
+        /// 统计 NSAttributedString 中的附件数量
+        /// - Parameter attributedString: 要检查的富文本
+        /// - Returns: 附件数量
+        private func countAttachments(in attributedString: NSAttributedString) -> Int {
+            var count = 0
+            attributedString.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attributedString.length)) { value, _, _ in
+                if value != nil {
+                    count += 1
+                }
+            }
+            return count
         }
         
         /// 同步 textView 内容到 editorContext

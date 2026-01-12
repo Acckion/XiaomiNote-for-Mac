@@ -57,14 +57,7 @@ extension NSFont {
     /// 使用 NSFontManager 来正确转换字体为斜体
     func italic() -> NSFont {
         let fontManager = NSFontManager.shared
-        let italicFont = fontManager.convert(self, toHaveTrait: .italicFontMask)
-        
-        // 验证转换是否成功
-        let traits = italicFont.fontDescriptor.symbolicTraits
-        print("[NSFont.italic()] 原字体: \(self.fontName), 转换后: \(italicFont.fontName)")
-        print("[NSFont.italic()] 转换后是否斜体: \(traits.contains(.italic))")
-        
-        return italicFont
+        return fontManager.convert(self, toHaveTrait: .italicFontMask)
     }
 }
 
@@ -232,21 +225,11 @@ class XiaoMiFormatConverter {
         
         let fullRange = NSRange(location: 0, length: lineAttributedString.length)
         
-        // 调试日志：显示行内容
-        let lineText = lineAttributedString.string
-        print("[XiaoMiFormatConverter] 📝 convertNSLineToXML: '\(lineText)' (长度: \(lineAttributedString.length))")
-        
         // 遍历该行的所有属性运行段
         lineAttributedString.enumerateAttributes(in: fullRange, options: []) { attributes, range, _ in
-            // 调试日志：显示当前运行段的所有属性键
-            let rangeText = (lineAttributedString.string as NSString).substring(with: range)
-            print("[XiaoMiFormatConverter]   - 运行段 \(range): '\(rangeText)'")
-            print("[XiaoMiFormatConverter]     属性键: \(attributes.keys.map { $0.rawValue })")
-            
-            // 关键修复：首先检查是否有 XMLContent 自定义属性
+            // 首先检查是否有 XMLContent 自定义属性
             // 这用于录音模板等需要直接输出 XML 的元素
             if let xmlContent = attributes[NSAttributedString.Key("XMLContent")] as? String {
-                print("[XiaoMiFormatConverter] 🎤 发现 XMLContent 属性，直接使用: \(xmlContent)")
                 content += xmlContent
                 return
             }
@@ -262,7 +245,6 @@ class XiaoMiFormatConverter {
                     } else {
                         checkboxXML = "<input type=\"checkbox\" indent=\"\(checkboxAttachment.indent)\" level=\"\(checkboxAttachment.level)\" />"
                     }
-                    print("[XiaoMiFormatConverter] ☑️ 导出复选框: indent=\(checkboxAttachment.indent), level=\(checkboxAttachment.level), checked=\(checkboxAttachment.isChecked)")
                     return
                 }
                 
@@ -297,9 +279,7 @@ class XiaoMiFormatConverter {
         
         // 如果是复选框行，返回复选框格式（不使用 <text> 包裹）
         if isCheckboxLine {
-            let result = checkboxXML + textAfterCheckbox
-            print("[XiaoMiFormatConverter] ☑️ 复选框导出结果: \(result)")
-            return result
+            return checkboxXML + textAfterCheckbox
         }
         
         // 检查是否整行是附件（如分割线、图片、语音等）
@@ -583,12 +563,10 @@ class XiaoMiFormatConverter {
         }
         
         // 应用富文本属性（跳过段落样式，稍后统一处理）
-        // 关键修复：对于字体属性，需要合并字体特性而不是直接覆盖
-        print("[XiaoMiFormatConverter] 🔍 开始应用富文本属性，共 \(nsAttributes.count) 个属性")
-        for (index, (range, attrs)) in nsAttributes.enumerated() {
+        // 对于字体属性，需要合并字体特性而不是直接覆盖
+        for (_, (range, attrs)) in nsAttributes.enumerated() {
             // 确保范围有效
             guard range.location >= 0 && range.location + range.length <= processedText.count else {
-                print("[XiaoMiFormatConverter] ⚠️ 属性 \(index) 范围无效: \(range), 文本长度: \(processedText.count)")
                 continue
             }
             
@@ -600,11 +578,6 @@ class XiaoMiFormatConverter {
                 case .font:
                     // 字体属性需要特殊处理：合并字体特性而不是直接覆盖
                     if let newFont = value as? NSFont {
-                        let newTraits = newFont.fontDescriptor.symbolicTraits
-                        print("[XiaoMiFormatConverter] 🔍 属性 \(index): 字体属性，范围: \(range)")
-                        print("[XiaoMiFormatConverter]   - 新字体: \(newFont.fontName), 大小: \(newFont.pointSize)")
-                        print("[XiaoMiFormatConverter]   - 新字体特性: bold=\(newTraits.contains(.bold)), italic=\(newTraits.contains(.italic))")
-                        
                         // 检查当前范围是否已有字体
                         var existingFont: NSFont? = nil
                         result.enumerateAttribute(.font, in: range, options: []) { existingValue, _, stop in
@@ -615,19 +588,10 @@ class XiaoMiFormatConverter {
                         }
                         
                         if let existing = existingFont {
-                            let existingTraits = existing.fontDescriptor.symbolicTraits
-                            print("[XiaoMiFormatConverter]   - 现有字体: \(existing.fontName), 大小: \(existing.pointSize)")
-                            print("[XiaoMiFormatConverter]   - 现有字体特性: bold=\(existingTraits.contains(.bold)), italic=\(existingTraits.contains(.italic))")
-                            
                             // 合并字体特性
                             let mergedFont = mergeFontTraits(existing: existing, new: newFont)
-                            let mergedTraits = mergedFont.fontDescriptor.symbolicTraits
-                            print("[XiaoMiFormatConverter]   - 合并后字体: \(mergedFont.fontName), 大小: \(mergedFont.pointSize)")
-                            print("[XiaoMiFormatConverter]   - 合并后特性: bold=\(mergedTraits.contains(.bold)), italic=\(mergedTraits.contains(.italic))")
-                            
                             result.addAttribute(key, value: mergedFont, range: range)
                         } else {
-                            print("[XiaoMiFormatConverter]   - 没有现有字体，直接应用")
                             // 没有现有字体，直接应用
                             result.addAttribute(key, value: newFont, range: range)
                         }
@@ -642,18 +606,6 @@ class XiaoMiFormatConverter {
         // 设置段落样式（包含缩进和对齐方式）
         let paragraphStyle = createParagraphStyle(indent: Int(indent) ?? 1, alignment: detectedAlignment)
         result.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: result.length))
-        
-        // 调试日志：验证字体属性是否正确保留
-        #if DEBUG
-        result.enumerateAttribute(.font, in: NSRange(location: 0, length: result.length), options: []) { value, range, _ in
-            if let font = value as? NSFont {
-                let traits = font.fontDescriptor.symbolicTraits
-                if traits.contains(.bold) || traits.contains(.italic) {
-                    print("[XiaoMiFormatConverter] ✅ 字体属性保留成功: \(font.fontName), traits: \(traits)")
-                }
-            }
-        }
-        #endif
         
         return result
     }
@@ -691,12 +643,6 @@ class XiaoMiFormatConverter {
         // 3. 提取复选框后的文本内容
         let content = extractContentAfterElement(from: line, elementName: "input")
         
-        print("[XiaoMiFormatConverter] ☑️ 解析复选框:")
-        print("[XiaoMiFormatConverter]   - indent: \(indent)")
-        print("[XiaoMiFormatConverter]   - level: \(level)")
-        print("[XiaoMiFormatConverter]   - checked: \(isChecked)")
-        print("[XiaoMiFormatConverter]   - content: '\(content)'")
-        
         // 4. 创建复选框附件（传入勾选状态）
         let checkboxAttachment = CustomRenderer.shared.createCheckboxAttachment(
             checked: isChecked,
@@ -704,10 +650,10 @@ class XiaoMiFormatConverter {
             indent: indent
         )
         
-        // 4. 创建包含附件的 NSAttributedString
+        // 5. 创建包含附件的 NSAttributedString
         let result = NSMutableAttributedString(attachment: checkboxAttachment)
         
-        // 5. 追加文本内容（如果有）
+        // 6. 追加文本内容（如果有）
         if !content.isEmpty {
             // 处理文本内容中可能包含的富文本标签
             let (processedText, nsAttributes) = try processRichTextTags(content)
@@ -728,20 +674,10 @@ class XiaoMiFormatConverter {
             result.append(textString)
         }
         
-        // 6. 设置段落样式
+        // 7. 设置段落样式
         let paragraphStyle = createParagraphStyle(indent: indent)
         result.addAttribute(.paragraphStyle, value: paragraphStyle, 
                            range: NSRange(location: 0, length: result.length))
-        
-        print("[XiaoMiFormatConverter] ☑️ 复选框 NSAttributedString 创建完成")
-        print("[XiaoMiFormatConverter]   - result.length: \(result.length)")
-        
-        // 验证附件是否正确保留
-        result.enumerateAttribute(.attachment, in: NSRange(location: 0, length: result.length), options: []) { value, range, _ in
-            if let att = value as? InteractiveCheckboxAttachment {
-                print("[XiaoMiFormatConverter] ✅ InteractiveCheckboxAttachment 正确保留: level=\(att.level), indent=\(att.indent)")
-            }
-        }
         
         return result
     }
@@ -767,20 +703,12 @@ class XiaoMiFormatConverter {
     /// 处理 <img> 元素并返回 NSAttributedString（直接创建，不经过 AttributedString）
     /// 这是关键方法 - 直接返回 NSAttributedString 以保留 ImageAttachment 类型
     private func processImageElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
-        print("[XiaoMiFormatConverter] 🖼️ processImageElementToNSAttributedString 开始")
-        print("[XiaoMiFormatConverter] 🖼️ XML 行: \(line)")
-        
         // 提取图片属性
         let src = extractAttribute("src", from: line) ?? ""
         let fileId = extractAttribute("fileid", from: line) ?? extractAttribute("fileId", from: line)
         let folderId = extractAttribute("folderId", from: line) ?? currentFolderId
         let width = extractAttribute("width", from: line)
         let height = extractAttribute("height", from: line)
-        
-        print("[XiaoMiFormatConverter] 🖼️ 解析结果:")
-        print("[XiaoMiFormatConverter]   - src: '\(src)'")
-        print("[XiaoMiFormatConverter]   - fileId: '\(fileId ?? "nil")'")
-        print("[XiaoMiFormatConverter]   - folderId: '\(folderId ?? "nil")'")
         
         // 创建图片附件
         let attachment = CustomRenderer.shared.createImageAttachment(
@@ -799,64 +727,41 @@ class XiaoMiFormatConverter {
         // 这样可以保留 ImageAttachment 的类型信息
         let result = NSMutableAttributedString(attachment: attachment)
         
-        print("[XiaoMiFormatConverter] 🖼️ NSAttributedString 创建完成")
-        print("[XiaoMiFormatConverter]   - result.length: \(result.length)")
-        
-        // 验证附件是否正确保留
-        result.enumerateAttribute(.attachment, in: NSRange(location: 0, length: result.length), options: []) { value, range, _ in
-            if let att = value as? ImageAttachment {
-                print("[XiaoMiFormatConverter] ✅ ImageAttachment 正确保留: fileId='\(att.fileId ?? "nil")', src='\(att.src ?? "nil")'")
-            } else if let att = value {
-                print("[XiaoMiFormatConverter] ⚠️ 附件类型: \(type(of: att))")
-            }
-        }
-        
         return result
     }
     
     /// 处理 <sound> 元素并返回 NSAttributedString
     /// 
     /// 解析语音文件标签 `<sound fileid="xxx" />` 并创建 AudioAttachment
+    /// 如果包含 `des="temp"` 属性，则标记为临时占位符
     /// 
     /// - Parameter line: XML 行
     /// - Returns: 包含 AudioAttachment 的 NSAttributedString
     /// - Throws: ConversionError
     /// - Requirements: 1.1, 1.2
     private func processSoundElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
-        print("[XiaoMiFormatConverter] 🎤 processSoundElementToNSAttributedString 开始")
-        print("[XiaoMiFormatConverter] 🎤 XML 行: \(line)")
-        
         // 1. 提取 fileid 属性（小米笔记 XML 中使用全小写的 fileid）
         guard let fileId = extractAttribute("fileid", from: line), !fileId.isEmpty else {
-            // 如果缺少 fileid 属性，记录警告并返回空字符串
-            print("[XiaoMiFormatConverter] ⚠️ sound 元素缺少 fileid 属性，跳过该元素")
+            // 如果缺少 fileid 属性，跳过该元素
             return NSAttributedString()
         }
         
-        print("[XiaoMiFormatConverter] 🎤 解析结果:")
-        print("[XiaoMiFormatConverter]   - fileId: '\(fileId)'")
+        // 2. 检查是否是临时占位符（des="temp"）
+        let desAttribute = extractAttribute("des", from: line)
+        let isTemporary = desAttribute?.lowercased() == "temp"
         
-        // 2. 创建音频附件
+        // 3. 创建音频附件
         let attachment = CustomRenderer.shared.createAudioAttachment(
             fileId: fileId,
             digest: nil,
             mimeType: nil
         )
         
-        // 3. 创建包含附件的 NSAttributedString
+        // 4. 设置临时占位符标记
+        attachment.isTemporaryPlaceholder = isTemporary
+        
+        // 5. 创建包含附件的 NSAttributedString
         let result = NSMutableAttributedString(attachment: attachment)
-        
-        print("[XiaoMiFormatConverter] 🎤 NSAttributedString 创建完成")
-        print("[XiaoMiFormatConverter]   - result.length: \(result.length)")
-        
-        // 验证附件是否正确保留
-        result.enumerateAttribute(.attachment, in: NSRange(location: 0, length: result.length), options: []) { value, range, _ in
-            if let att = value as? AudioAttachment {
-                print("[XiaoMiFormatConverter] ✅ AudioAttachment 正确保留: fileId='\(att.fileId ?? "nil")'")
-            } else if let att = value {
-                print("[XiaoMiFormatConverter] ⚠️ 附件类型: \(type(of: att))")
-            }
-        }
         
         return result
     }
@@ -1110,9 +1015,6 @@ class XiaoMiFormatConverter {
     /// - Returns: AttributedString 片段
     /// - Throws: ConversionError
     private func processImageElement(_ line: String) throws -> AttributedString {
-        print("[XiaoMiFormatConverter] 🖼️ 开始解析图片元素")
-        print("[XiaoMiFormatConverter] 🖼️ XML 行: \(line)")
-        
         // 提取图片属性
         // 注意：小米笔记 XML 中使用 "fileid"（全小写），需要同时支持两种格式
         let src = extractAttribute("src", from: line) ?? ""
@@ -1121,46 +1023,23 @@ class XiaoMiFormatConverter {
         let width = extractAttribute("width", from: line)
         let height = extractAttribute("height", from: line)
         
-        // 提取小米笔记特有的属性
-        let imgshow = extractAttribute("imgshow", from: line)
-        let imgdes = extractAttribute("imgdes", from: line)
-        
-        print("[XiaoMiFormatConverter] 🖼️ 解析结果:")
-        print("[XiaoMiFormatConverter]   - src: '\(src)'")
-        print("[XiaoMiFormatConverter]   - fileId: '\(fileId ?? "nil")'")
-        print("[XiaoMiFormatConverter]   - folderId: '\(folderId ?? "nil")'")
-        print("[XiaoMiFormatConverter]   - currentFolderId: '\(currentFolderId ?? "nil")'")
-        print("[XiaoMiFormatConverter]   - width: '\(width ?? "nil")'")
-        print("[XiaoMiFormatConverter]   - height: '\(height ?? "nil")'")
-        print("[XiaoMiFormatConverter]   - imgshow: '\(imgshow ?? "nil")'")
-        print("[XiaoMiFormatConverter]   - imgdes: '\(imgdes ?? "nil")'")
-        
         // 创建图片附件
-        print("[XiaoMiFormatConverter] 🖼️ 创建图片附件，参数: src='\(src.isEmpty ? "nil" : src)', fileId='\(fileId ?? "nil")', folderId='\(folderId ?? "nil")'")
         let attachment = CustomRenderer.shared.createImageAttachment(
             src: src.isEmpty ? nil : src,
             fileId: fileId,
             folderId: folderId
         )
-        print("[XiaoMiFormatConverter] 🖼️ 图片附件创建完成，attachment.src='\(attachment.src ?? "nil")', attachment.fileId='\(attachment.fileId ?? "nil")'")
         
         // 如果有宽度和高度属性，设置显示尺寸
         if let widthStr = width, let heightStr = height,
            let w = Double(widthStr), let h = Double(heightStr) {
             attachment.displaySize = NSSize(width: w, height: h)
-            print("[XiaoMiFormatConverter] 🖼️ 设置显示尺寸: \(w) x \(h)")
         }
         
         // 创建包含附件的 AttributedString
         let attachmentString = NSAttributedString(attachment: attachment)
-        var result = AttributedString(attachmentString)
+        let result = AttributedString(attachmentString)
         
-        print("[XiaoMiFormatConverter] 🖼️ NSAttributedString 创建完成")
-        print("[XiaoMiFormatConverter]   - attachmentString.length: \(attachmentString.length)")
-        print("[XiaoMiFormatConverter]   - attachmentString.string: '\(attachmentString.string)'")
-        print("[XiaoMiFormatConverter]   - result.characters.count: \(result.characters.count)")
-        
-        print("[XiaoMiFormatConverter] 🖼️ 图片元素解析完成")
         return result
     }
     
@@ -1243,10 +1122,13 @@ class XiaoMiFormatConverter {
         // Requirements: 5.1, 5.2 - 将 AudioAttachment 转换为 <sound fileid="xxx" /> 格式
         if let audioAttachment = attachment as? AudioAttachment {
             if let fileId = audioAttachment.fileId, !fileId.isEmpty {
-                print("[XiaoMiFormatConverter] 🎤 导出语音附件: fileId=\(fileId)")
-                return "<sound fileid=\"\(fileId)\" />"
+                // 如果是临时占位符，添加 des="temp" 属性
+                if audioAttachment.isTemporaryPlaceholder {
+                    return "<sound fileid=\"\(fileId)\" des=\"temp\"/>"
+                } else {
+                    return "<sound fileid=\"\(fileId)\"/>"
+                }
             } else {
-                print("[XiaoMiFormatConverter] ⚠️ 语音附件缺少 fileId，跳过导出")
                 return ""
             }
         }
@@ -1336,11 +1218,6 @@ class XiaoMiFormatConverter {
         var processedText = content
         var attributes: [(NSRange, [NSAttributedString.Key: Any])] = []
         
-        print("[XiaoMiFormatConverter] 🔍 processRichTextTags 开始处理")
-        print("[XiaoMiFormatConverter]   - 原始内容: '\(content)'")
-        print("[XiaoMiFormatConverter]   - 包含 <i> 标签: \(content.contains("<i>"))")
-        print("[XiaoMiFormatConverter]   - 包含 </i> 标签: \(content.contains("</i>"))")
-        
         // 处理各种富文本标签
         processedText = try processTag(processedText, tag: "size", attribute: .font, value: NSFont.systemFont(ofSize: 24, weight: .bold), attributes: &attributes)
         processedText = try processTag(processedText, tag: "mid-size", attribute: .font, value: NSFont.systemFont(ofSize: 20, weight: .semibold), attributes: &attributes)
@@ -1350,12 +1227,7 @@ class XiaoMiFormatConverter {
         // 斜体处理 - 使用 obliqueness 属性来实现斜体效果
         // 这样即使字体被替换为中文字体（如苹方），斜体效果也能保留
         // obliqueness 值为 0.2 是一个常用的斜体倾斜度
-        let beforeItalicCount = attributes.count
         processedText = try processTag(processedText, tag: "i", attribute: .obliqueness, value: 0.2, attributes: &attributes)
-        let afterItalicCount = attributes.count
-        print("[XiaoMiFormatConverter] 🔍 斜体处理:")
-        print("[XiaoMiFormatConverter]   - 使用 obliqueness 属性实现斜体效果")
-        print("[XiaoMiFormatConverter]   - 斜体标签处理前属性数: \(beforeItalicCount), 处理后: \(afterItalicCount)")
         
         processedText = try processTag(processedText, tag: "u", attribute: .underlineStyle, value: NSUnderlineStyle.single.rawValue, attributes: &attributes)
         processedText = try processTag(processedText, tag: "delete", attribute: .strikethroughStyle, value: NSUnderlineStyle.single.rawValue, attributes: &attributes)
@@ -1365,8 +1237,6 @@ class XiaoMiFormatConverter {
         
         // 处理对齐标签
         processedText = try processAlignmentTags(processedText, attributes: &attributes)
-        
-        print("[XiaoMiFormatConverter] 🔍 processRichTextTags 完成，共 \(attributes.count) 个属性")
         
         return (processedText, attributes)
     }
