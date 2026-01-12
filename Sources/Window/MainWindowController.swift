@@ -1597,7 +1597,40 @@ extension MainWindowController {
             onUploadComplete: { [weak self] fileId, digest, mimeType in
                 guard let self = self else { return }
                 
-                print("[MainWindowController] 语音上传成功: fileId=\(fileId)")
+                print("[MainWindowController] 语音上传成功: fileId=\(fileId), digest=\(digest ?? "nil"), mimeType=\(mimeType ?? "nil")")
+                
+                // 更新笔记的 setting.data，添加音频信息
+                // 这是小米笔记服务器识别音频文件的关键
+                if let viewModel = self.viewModel, var note = viewModel.selectedNote {
+                    var rawData = note.rawData ?? [:]
+                    var setting = rawData["setting"] as? [String: Any] ?? [
+                        "themeId": 0,
+                        "stickyTime": 0,
+                        "version": 0
+                    ]
+                    
+                    var settingData = setting["data"] as? [[String: Any]] ?? []
+                    
+                    // 构建音频元数据（与图片格式一致）
+                    // digest 格式：{sha1}.mp3
+                    let audioInfo: [String: Any] = [
+                        "fileId": fileId,
+                        "mimeType": mimeType ?? "audio/mpeg",
+                        "digest": (digest ?? fileId) + ".mp3"
+                    ]
+                    settingData.append(audioInfo)
+                    setting["data"] = settingData
+                    rawData["setting"] = setting
+                    note.rawData = rawData
+                    
+                    print("[MainWindowController] 已更新笔记 setting.data，添加音频: \(audioInfo)")
+                    
+                    // 更新 viewModel 中的笔记
+                    viewModel.selectedNote = note
+                    if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
+                        viewModel.notes[index] = note
+                    }
+                }
                 
                 // 根据编辑器类型插入语音
                 if self.isUsingNativeEditor {

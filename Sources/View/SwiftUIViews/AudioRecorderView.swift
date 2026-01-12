@@ -500,25 +500,42 @@ struct AudioRecorderView: View {
     }
     
     /// 加载音频用于预览
+    /// 不再自动播放然后暂停，只验证文件可以被加载
+    /// Requirements: 1.1
     private func loadAudioForPreview(_ url: URL) {
-        do {
-            try playerService.play(url: url)
-            playerService.pause()
-        } catch {
-            print("[AudioRecorderView] 加载预览音频失败: \(error)")
+        // 只验证文件可以被加载，不自动播放
+        if let duration = playerService.getDuration(for: url) {
+            print("[AudioRecorderView] ✅ 预览音频加载成功，时长: \(formatTime(duration))")
+        } else {
+            print("[AudioRecorderView] ⚠️ 无法获取音频时长，文件可能无法播放")
         }
     }
     
     /// 切换预览播放
-    /// Requirements: 8.7
+    /// 确保从头开始播放时正确初始化
+    /// Requirements: 1.2
     private func togglePreviewPlayback() {
         if playerService.isPlaying {
+            // 正在播放，暂停
             playerService.pause()
         } else if let url = recordedFileURL {
-            do {
-                try playerService.play(url: url)
-            } catch {
-                print("[AudioRecorderView] 播放预览失败: \(error)")
+            // 没有在播放，开始播放
+            // 如果当前播放的不是预览文件，或者播放器处于空闲状态，需要重新加载
+            if playerService.currentURL != url || playerService.playbackState == .idle {
+                do {
+                    try playerService.play(url: url)
+                    print("[AudioRecorderView] ✅ 开始预览播放")
+                } catch {
+                    print("[AudioRecorderView] ❌ 播放预览失败: \(error)")
+                }
+            } else {
+                // 已经加载了同一个文件，继续播放
+                do {
+                    try playerService.play(url: url)
+                    print("[AudioRecorderView] ✅ 继续预览播放")
+                } catch {
+                    print("[AudioRecorderView] ❌ 继续播放失败: \(error)")
+                }
             }
         }
     }
@@ -543,11 +560,14 @@ struct AudioRecorderView: View {
     /// 确认录制
     /// Requirements: 8.7
     private func confirmRecording() {
+        print("[AudioRecorderView] 确认录制，准备停止播放并回调")
+        
         // 停止播放
         playerService.stop()
         
         // 调用完成回调
         if let url = recordedFileURL {
+            print("[AudioRecorderView] 调用完成回调: \(url.lastPathComponent)")
             onComplete(url)
         }
     }
@@ -570,6 +590,7 @@ struct AudioRecorderView: View {
     
     /// 清理资源
     private func cleanup() {
+        print("[AudioRecorderView] cleanup() 被调用，停止播放")
         playerService.stop()
         
         // 如果还在录制中，取消录制

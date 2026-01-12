@@ -3322,6 +3322,17 @@ extension MiNoteService {
                 print("[MiNoteService] 无解密密钥，使用原始数据")
             }
             
+            // 验证下载的音频数据
+            let format = AudioConverterService.shared.getAudioFormat(audioData)
+            print("[MiNoteService] 下载的音频格式: \(format)")
+            
+            // 使用 ffprobe 检查下载的音频
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("downloaded_audio_check.mp3")
+            try? audioData.write(to: tempURL)
+            let probeResult = AudioConverterService.shared.probeAudioFileDetailed(tempURL)
+            print("[MiNoteService] 下载的音频详细信息:\n\(probeResult)")
+            try? FileManager.default.removeItem(at: tempURL)
+            
             // 调用进度回调（下载完成）
             progressHandler?(Int64(audioData.count), Int64(audioData.count))
             

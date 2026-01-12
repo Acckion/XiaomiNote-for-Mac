@@ -156,9 +156,33 @@ final class AudioUploadService: ObservableObject, @unchecked Sendable {
                     uploadFileURL = try await AudioConverterService.shared.convertM4AToMP3(inputURL: fileURL)
                     let convertedFormat = AudioConverterService.shared.getAudioFormat(uploadFileURL)
                     print("[AudioUploadService] 转换后文件格式: \(convertedFormat)")
+                } catch AudioConverterService.ConversionError.ffmpegNotInstalled {
+                    // 特殊处理 ffmpeg 未安装的情况
+                    let errorMsg = "需要安装 ffmpeg 才能上传语音。\n\n请在终端运行以下命令安装：\nbrew install ffmpeg"
+                    print("[AudioUploadService] ❌ ffmpeg 未安装")
+                    state = .failed(errorMsg)
+                    errorMessage = errorMsg
+                    postStateNotification(oldState: .uploading, newState: .failed(errorMsg))
+                    postFailNotification(error: errorMsg)
+                    throw UploadError.conversionFailed(errorMsg)
+                } catch AudioConverterService.ConversionError.invalidOutputFormat(let format) {
+                    // 处理转换后格式无效的情况
+                    let errorMsg = "音频格式转换失败：输出格式无效 (\(format))"
+                    print("[AudioUploadService] ❌ 转换后格式无效: \(format)")
+                    state = .failed(errorMsg)
+                    errorMessage = errorMsg
+                    postStateNotification(oldState: .uploading, newState: .failed(errorMsg))
+                    postFailNotification(error: errorMsg)
+                    throw UploadError.conversionFailed(errorMsg)
                 } catch {
-                    print("[AudioUploadService] ⚠️ MP3 转换失败: \(error.localizedDescription)，使用原始文件")
-                    // 转换失败时继续使用原始文件
+                    // 其他转换错误
+                    let errorMsg = "音频格式转换失败：\(error.localizedDescription)"
+                    print("[AudioUploadService] ❌ MP3 转换失败: \(error.localizedDescription)")
+                    state = .failed(errorMsg)
+                    errorMessage = errorMsg
+                    postStateNotification(oldState: .uploading, newState: .failed(errorMsg))
+                    postFailNotification(error: errorMsg)
+                    throw UploadError.conversionFailed(errorMsg)
                 }
             }
             
@@ -364,10 +388,11 @@ extension AudioUploadService {
     
     /// 上传错误
     enum UploadError: LocalizedError {
-        case fileNotFound       // 文件未找到
-        case invalidResponse    // 响应无效
-        case uploadFailed       // 上传失败
-        case cancelled          // 已取消
+        case fileNotFound           // 文件未找到
+        case invalidResponse        // 响应无效
+        case uploadFailed           // 上传失败
+        case cancelled              // 已取消
+        case conversionFailed(String)  // 格式转换失败
         
         var errorDescription: String? {
             switch self {
@@ -379,6 +404,8 @@ extension AudioUploadService {
                 return "上传失败，请重试"
             case .cancelled:
                 return "上传已取消"
+            case .conversionFailed(let message):
+                return message
             }
         }
     }

@@ -131,6 +131,66 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         AVEncoderBitRateKey: 128000
     ]
     
+    // MARK: - 音频输入设备诊断
+    
+    /// 获取当前音频输入设备信息
+    func getAudioInputDeviceInfo() -> String {
+        var result = "音频输入设备信息:\n"
+        
+        // 获取所有音频输入设备
+        let discoverySession = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.microphone, .builtInMicrophone, .externalUnknown],
+            mediaType: .audio,
+            position: .unspecified
+        )
+        
+        let devices = discoverySession.devices
+        result += "  - 发现 \(devices.count) 个音频输入设备\n"
+        
+        for (index, device) in devices.enumerated() {
+            result += "  [\(index + 1)] \(device.localizedName)\n"
+            result += "      - 唯一标识: \(device.uniqueID)\n"
+            result += "      - 型号: \(device.modelID)\n"
+            result += "      - 已连接: \(device.isConnected)\n"
+            result += "      - 已暂停: \(device.isSuspended)\n"
+        }
+        
+        // 获取默认音频输入设备
+        if let defaultDevice = AVCaptureDevice.default(for: .audio) {
+            result += "  默认设备: \(defaultDevice.localizedName)\n"
+        } else {
+            result += "  ⚠️ 没有默认音频输入设备\n"
+        }
+        
+        return result
+    }
+    
+    /// 检查音频输入是否正常工作
+    func checkAudioInputHealth() -> (isHealthy: Bool, message: String) {
+        // 检查权限
+        let permissionStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        guard permissionStatus == .authorized else {
+            return (false, "麦克风权限未授权")
+        }
+        
+        // 检查是否有音频输入设备
+        guard let defaultDevice = AVCaptureDevice.default(for: .audio) else {
+            return (false, "没有可用的音频输入设备")
+        }
+        
+        // 检查设备是否已连接
+        guard defaultDevice.isConnected else {
+            return (false, "音频输入设备未连接")
+        }
+        
+        // 检查设备是否被暂停
+        if defaultDevice.isSuspended {
+            return (false, "音频输入设备已暂停")
+        }
+        
+        return (true, "音频输入设备正常: \(defaultDevice.localizedName)")
+    }
+    
     // MARK: - 通知名称
     
     /// 录制状态变化通知
@@ -316,6 +376,16 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
             throw RecordingError.permissionDenied
         }
         
+        // 检查音频输入设备健康状态
+        let healthCheck = checkAudioInputHealth()
+        print("[AudioRecorder] 音频输入检查: \(healthCheck.message)")
+        if !healthCheck.isHealthy {
+            print("[AudioRecorder] ⚠️ 音频输入可能有问题")
+        }
+        
+        // 打印音频输入设备信息
+        print("[AudioRecorder] \(getAudioInputDeviceInfo())")
+        
         // 如果已经在录制，先停止
         if audioRecorder?.isRecording == true {
             audioRecorder?.stop()
@@ -332,12 +402,28 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         let fileURL = tempDirectory.appendingPathComponent(fileName)
         recordedFileURL = fileURL
         
+        // 打印录制设置
+        print("[AudioRecorder] 录制设置:")
+        print("[AudioRecorder]   - 格式: AAC (kAudioFormatMPEG4AAC)")
+        print("[AudioRecorder]   - 采样率: 44100 Hz")
+        print("[AudioRecorder]   - 声道数: 1 (单声道)")
+        print("[AudioRecorder]   - 比特率: 128000 bps")
+        print("[AudioRecorder]   - 质量: High")
+        print("[AudioRecorder]   - 输出文件: \(fileURL.path)")
+        
         // 创建录制器
         do {
             audioRecorder = try AVAudioRecorder(url: fileURL, settings: recordingSettings)
             audioRecorder?.delegate = self
             audioRecorder?.isMeteringEnabled = true // 启用音量监控
             audioRecorder?.prepareToRecord()
+            
+            // 打印录制器信息
+            if let recorder = audioRecorder {
+                print("[AudioRecorder] 录制器创建成功:")
+                print("[AudioRecorder]   - 格式: \(recorder.format)")
+                print("[AudioRecorder]   - 设备当前时间: \(recorder.deviceCurrentTime)")
+            }
             
             // 开始录制
             let success = audioRecorder?.record() ?? false
@@ -347,6 +433,8 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
                 updateStateInternal(.recording)
                 startTimers()
                 print("[AudioRecorder] ✅ 录制开始: \(fileURL.lastPathComponent)")
+                print("[AudioRecorder] 💡 提示：请对着麦克风说话，确保有声音输入")
+                print("[AudioRecorder] 💡 录制过程中请观察音量指示器是否有变化")
             } else {
                 let errorMsg = "录制启动失败"
                 print("[AudioRecorder] ❌ \(errorMsg)")
@@ -454,6 +542,23 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         print("[AudioRecorder] ✅ 录制完成")
         print("[AudioRecorder]   - 文件: \(fileURL?.lastPathComponent ?? "无")")
         print("[AudioRecorder]   - 时长: \(formatTime(finalDuration))")
+        
+        // 打印详细的文件信息
+        if let url = fileURL {
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+               let size = attrs[.size] as? Int64 {
+                print("[AudioRecorder]   - 文件大小: \(size) 字节")
+                
+                // 检查文件是否太小（可能没有录到声音）
+                if size < 1000 {
+                    print("[AudioRecorder] ⚠️ 警告：文件太小，可能没有录到声音")
+                }
+            }
+            
+            // 使用 AudioConverterService 检查文件详细信息
+            let probeResult = AudioConverterService.shared.probeAudioFileDetailed(url)
+            print("[AudioRecorder]   - 音频信息:\n\(probeResult)")
+        }
         
         // 发送完成通知
         postFinishNotification()
@@ -604,6 +709,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         
         // 获取平均音量（dB）
         let averagePower = recorder.averagePower(forChannel: 0)
+        let peakPower = recorder.peakPower(forChannel: 0)
         
         // 将 dB 值转换为 0.0 - 1.0 的线性值
         // AVAudioRecorder 的 averagePower 范围通常是 -160 到 0 dB
@@ -622,7 +728,18 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         
         // 平滑处理，避免跳动太大
         let smoothingFactor: Float = 0.3
-        audioLevel = audioLevel * (1 - smoothingFactor) + normalizedLevel * smoothingFactor
+        let newLevel = audioLevel * (1 - smoothingFactor) + normalizedLevel * smoothingFactor
+        
+        // 如果音量一直很低，打印警告
+        if newLevel < 0.01 && recordingDuration > 1.0 {
+            // 每 5 秒打印一次警告
+            let seconds = Int(recordingDuration)
+            if seconds % 5 == 0 && seconds > 0 {
+                print("[AudioRecorder] ⚠️ 音量很低 (avg: \(averagePower) dB, peak: \(peakPower) dB)，请检查麦克风是否正常工作")
+            }
+        }
+        
+        audioLevel = newLevel
     }
     
     // MARK: - 通知发送

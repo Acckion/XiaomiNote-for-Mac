@@ -128,10 +128,16 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
         // 如果正在播放同一个文件，继续播放
         if let currentURL = currentURL, currentURL == url, let player = audioPlayer {
             if !player.isPlaying {
-                player.play()
-                updateState(.playing)
-                startProgressTimer()
-                print("[AudioPlayer] 继续播放")
+                let success = player.play()
+                if success {
+                    updateState(.playing)
+                    startProgressTimer()
+                    print("[AudioPlayer] 继续播放成功")
+                } else {
+                    print("[AudioPlayer] ❌ 继续播放失败")
+                }
+            } else {
+                print("[AudioPlayer] 已经在播放中")
             }
             return
         }
@@ -145,18 +151,29 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
             audioPlayer?.delegate = self
             audioPlayer?.prepareToPlay()
             
+            // 设置音量为最大
+            audioPlayer?.volume = 1.0
+            
             // 更新状态
             self.currentURL = url
             self.duration = audioPlayer?.duration ?? 0
             self.currentTime = 0
             self.errorMessage = nil
             
-            // 开始播放
-            audioPlayer?.play()
-            updateState(.playing)
-            startProgressTimer()
+            print("[AudioPlayer] 播放器创建成功，时长: \(formatTime(duration))，音量: \(audioPlayer?.volume ?? 0)")
             
-            print("[AudioPlayer] ✅ 播放开始，时长: \(formatTime(duration))")
+            // 开始播放
+            let playSuccess = audioPlayer?.play() ?? false
+            if playSuccess {
+                updateState(.playing)
+                startProgressTimer()
+                print("[AudioPlayer] ✅ 播放开始，时长: \(formatTime(duration))")
+            } else {
+                let errorMsg = "播放启动失败"
+                print("[AudioPlayer] ❌ \(errorMsg)")
+                updateState(.error(errorMsg))
+                throw NSError(domain: "AudioPlayerService", code: -1, userInfo: [NSLocalizedDescriptionKey: errorMsg])
+            }
             
         } catch {
             let errorMsg = "播放失败: \(error.localizedDescription)"
@@ -204,7 +221,10 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
         defer { stateLock.unlock() }
         
         stopInternal()
-        print("[AudioPlayer] 停止播放")
+        
+        // 打印调用栈以帮助调试
+        let callStack = Thread.callStackSymbols.prefix(5).joined(separator: "\n")
+        print("[AudioPlayer] 停止播放，调用栈:\n\(callStack)")
     }
     
     /// 内部停止方法（不加锁）

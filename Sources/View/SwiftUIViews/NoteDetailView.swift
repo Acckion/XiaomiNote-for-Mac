@@ -1501,7 +1501,19 @@ struct NoteDetailView: View {
             titleToUse = note.title
         }
         
-        return Note(id: note.id, title: titleToUse, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: Date(), tags: note.tags, rawData: note.rawData)
+        // 关键修复：合并 rawData，确保包含最新的 setting.data（音频/图片元数据）
+        // 从 viewModel.selectedNote 获取最新的 rawData，因为音频上传后会更新 setting.data
+        var mergedRawData = note.rawData ?? [:]
+        if let latestNote = viewModel.selectedNote, latestNote.id == note.id {
+            if let latestRawData = latestNote.rawData {
+                // 合并 setting.data
+                if let latestSetting = latestRawData["setting"] as? [String: Any] {
+                    mergedRawData["setting"] = latestSetting
+                }
+            }
+        }
+        
+        return Note(id: note.id, title: titleToUse, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: Date(), tags: note.tags, rawData: mergedRawData)
     }
     
     private func updateViewModelDelayed(with updated: Note) {

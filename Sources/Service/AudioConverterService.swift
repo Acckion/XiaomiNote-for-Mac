@@ -25,6 +25,8 @@ final class AudioConverterService: @unchecked Sendable {
         case conversionFailed(String)
         case outputFileNotFound
         case afconvertNotAvailable
+        case ffmpegNotInstalled
+        case invalidOutputFormat(String)
         
         var errorDescription: String? {
             switch self {
@@ -36,6 +38,10 @@ final class AudioConverterService: @unchecked Sendable {
                 return "转换后的文件不存在"
             case .afconvertNotAvailable:
                 return "系统音频转换工具不可用"
+            case .ffmpegNotInstalled:
+                return "需要安装 ffmpeg 才能上传语音。\n\n请在终端运行以下命令安装：\nbrew install ffmpeg"
+            case .invalidOutputFormat(let format):
+                return "转换后的文件格式无效: \(format)，期望 MP3 格式"
             }
         }
     }
@@ -66,6 +72,13 @@ final class AudioConverterService: @unchecked Sendable {
     
     // MARK: - 公共方法
     
+    /// 检查 ffmpeg 是否已安装
+    ///
+    /// - Returns: 如果 ffmpeg 已安装返回 true，否则返回 false
+    func isFFmpegInstalled() -> Bool {
+        return findFFmpeg() != nil
+    }
+    
     /// 将 M4A (AAC) 文件转换为 MP3 格式
     ///
     /// - Parameter inputURL: 输入的 M4A 文件 URL
@@ -80,6 +93,37 @@ final class AudioConverterService: @unchecked Sendable {
             throw ConversionError.inputFileNotFound
         }
         
+        // 打印输入文件信息
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: inputURL.path),
+           let size = attrs[.size] as? Int64 {
+            print("[AudioConverter] 输入文件大小: \(size) 字节")
+            
+            // 检查文件是否太小（可能没有录到声音）
+            if size < 5000 {
+                print("[AudioConverter] ⚠️ 警告：输入文件太小（\(size) 字节），可能没有录到声音")
+            }
+        }
+        
+        // 使用 ffprobe 检查输入文件的详细信息
+        let probeResult = probeAudioFileDetailed(inputURL)
+        print("[AudioConverter] 输入文件详细信息:\n\(probeResult)")
+        
+        // 缓存原始 M4A 文件（用于调试和预览播放）
+        do {
+            let cachedM4A = try cacheM4AFile(inputURL: inputURL)
+            print("[AudioConverter] ✅ 已缓存原始 M4A 文件: \(cachedM4A.lastPathComponent)")
+        } catch {
+            print("[AudioConverter] ⚠️ 缓存 M4A 文件失败: \(error.localizedDescription)")
+        }
+        
+        // 检查 ffmpeg 是否可用
+        guard let ffmpegPath = findFFmpeg() else {
+            print("[AudioConverter] ❌ ffmpeg 未安装")
+            throw ConversionError.ffmpegNotInstalled
+        }
+        
+        print("[AudioConverter] 检测到 ffmpeg: \(ffmpegPath)")
+        
         // 生成输出文件路径
         let outputFileName = inputURL.deletingPathExtension().lastPathComponent + ".mp3"
         let outputURL = tempDirectory.appendingPathComponent(outputFileName)
@@ -89,37 +133,36 @@ final class AudioConverterService: @unchecked Sendable {
             try? FileManager.default.removeItem(at: outputURL)
         }
         
-        // 优先尝试使用 ffmpeg（如果已安装）
-        if let ffmpegPath = findFFmpeg() {
-            print("[AudioConverter] 检测到 ffmpeg: \(ffmpegPath)")
-            let ffmpegResult = try await runFFmpeg(
-                ffmpegPath: ffmpegPath,
-                inputPath: inputURL.path,
-                outputPath: outputURL.path
-            )
-            
-            if ffmpegResult.success {
-                print("[AudioConverter] ✅ ffmpeg MP3 转换成功: \(outputURL.lastPathComponent)")
-                let format = getAudioFormat(outputURL)
-                print("[AudioConverter] 输出文件格式: \(format)")
-                return outputURL
-            } else {
-                print("[AudioConverter] ⚠️ ffmpeg 转换失败: \(ffmpegResult.error)")
-            }
-        } else {
-            print("[AudioConverter] ffmpeg 未安装，尝试其他方法")
-        }
+        // 使用 ffmpeg 进行转换
+        let ffmpegResult = try await runFFmpeg(
+            ffmpegPath: ffmpegPath,
+            inputPath: inputURL.path,
+            outputPath: outputURL.path
+        )
         
-        // 回退方案：直接使用原始 AAC 文件
-        // 小米服务器实际上可以处理 AAC 格式的音频（即使扩展名是 .mp3）
-        print("[AudioConverter] 使用回退方案：直接复制文件")
-        do {
-            try FileManager.default.copyItem(at: inputURL, to: outputURL)
-            print("[AudioConverter] ✅ 文件复制成功（保持 AAC 编码，扩展名为 .mp3）")
-            print("[AudioConverter] ⚠️ 注意：文件内容仍为 AAC 格式，可能影响某些播放器的兼容性")
+        if ffmpegResult.success {
+            // 验证输出文件格式
+            let format = getAudioFormat(outputURL)
+            print("[AudioConverter] 输出文件格式: \(format)")
+            
+            // 使用 ffprobe 检查输出文件
+            let outputProbeResult = probeAudioFileDetailed(outputURL)
+            print("[AudioConverter] 输出文件详细信息:\n\(outputProbeResult)")
+            
+            // 检查是否为有效的 MP3 格式
+            // 注意：没有 ID3 标签的 MP3 文件以帧同步 (0xFF 0xFB/FA/F3/F2) 开头
+            guard format.contains("MP3") else {
+                print("[AudioConverter] ❌ 转换后的文件不是有效的 MP3 格式: \(format)")
+                // 删除无效的输出文件
+                try? FileManager.default.removeItem(at: outputURL)
+                throw ConversionError.invalidOutputFormat(format)
+            }
+            
+            print("[AudioConverter] ✅ ffmpeg MP3 转换成功: \(outputURL.lastPathComponent)")
             return outputURL
-        } catch {
-            throw ConversionError.conversionFailed("文件复制失败: \(error.localizedDescription)")
+        } else {
+            print("[AudioConverter] ❌ ffmpeg 转换失败: \(ffmpegResult.error)")
+            throw ConversionError.conversionFailed(ffmpegResult.error)
         }
     }
     
@@ -173,17 +216,32 @@ final class AudioConverterService: @unchecked Sendable {
         return await withCheckedContinuation { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: ffmpegPath)
+            
+            // 使用与小米手机 App 相同的音频参数
+            // 小米手机录制的音频格式：
+            // - 采样率：16000 Hz
+            // - 比特率：24 kbps
+            // - 声道：单声道
+            // - 无 ID3 标签
+            // - 无 Xing 头
             process.arguments = [
-                "-i", inputPath,           // 输入文件
-                "-codec:a", "libmp3lame",  // 使用 LAME MP3 编码器
-                "-qscale:a", "2",          // 高质量 VBR（0-9，越小越好）
-                "-y",                       // 覆盖输出文件
+                "-i", inputPath,
+                "-acodec", "libmp3lame",
+                "-b:a", "24k",           // 比特率 24kbps（与小米手机一致）
+                "-ar", "16000",          // 采样率 16000Hz（与小米手机一致）
+                "-ac", "1",              // 单声道
+                "-write_xing", "0",      // 不写入 Xing 头
+                "-id3v2_version", "0",   // 不写入 ID3v2 标签
+                "-y",
                 outputPath
             ]
             
+            print("[AudioConverter] ffmpeg 命令: \(ffmpegPath) \(process.arguments?.joined(separator: " ") ?? "")")
+            
             let errorPipe = Pipe()
+            let outputPipe = Pipe()
             process.standardError = errorPipe
-            process.standardOutput = FileHandle.nullDevice
+            process.standardOutput = outputPipe
             
             do {
                 try process.run()
@@ -192,7 +250,19 @@ final class AudioConverterService: @unchecked Sendable {
                 let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
                 let errorString = String(data: errorData, encoding: .utf8) ?? ""
                 
+                // ffmpeg 输出信息到 stderr，即使成功也会有输出
+                print("[AudioConverter] ffmpeg 输出:\n\(errorString.prefix(500))")
+                
                 if process.terminationStatus == 0 && FileManager.default.fileExists(atPath: outputPath) {
+                    // 检查输出文件大小
+                    if let attrs = try? FileManager.default.attributesOfItem(atPath: outputPath),
+                       let size = attrs[.size] as? Int64 {
+                        print("[AudioConverter] 输出文件大小: \(size) 字节")
+                        if size < 100 {
+                            continuation.resume(returning: (false, "输出文件太小，可能转换失败"))
+                            return
+                        }
+                    }
                     continuation.resume(returning: (true, ""))
                 } else {
                     continuation.resume(returning: (false, errorString.isEmpty ? "退出码: \(process.terminationStatus)" : errorString))
@@ -201,6 +271,171 @@ final class AudioConverterService: @unchecked Sendable {
                 continuation.resume(returning: (false, error.localizedDescription))
             }
         }
+    }
+    
+    /// 缓存原始 M4A 文件到临时目录
+    ///
+    /// - Parameter inputURL: 原始 M4A 文件 URL
+    /// - Returns: 缓存后的文件 URL
+    func cacheM4AFile(inputURL: URL) throws -> URL {
+        let fileName = inputURL.lastPathComponent
+        let cachedURL = tempDirectory.appendingPathComponent(fileName)
+        
+        // 如果已经存在，先删除
+        if FileManager.default.fileExists(atPath: cachedURL.path) {
+            try FileManager.default.removeItem(at: cachedURL)
+        }
+        
+        // 复制文件
+        try FileManager.default.copyItem(at: inputURL, to: cachedURL)
+        
+        // 打印文件信息
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: cachedURL.path),
+           let size = attrs[.size] as? Int64 {
+            print("[AudioConverter] ✅ 缓存 M4A 文件: \(cachedURL.lastPathComponent), 大小: \(size) 字节")
+        }
+        
+        return cachedURL
+    }
+    
+    /// 获取临时目录路径
+    func getTempDirectory() -> URL {
+        return tempDirectory
+    }
+    
+    /// 使用 ffprobe 检查音频文件信息
+    func probeAudioFile(_ url: URL) -> String {
+        // 查找 ffprobe
+        let possiblePaths = [
+            "/usr/local/bin/ffprobe",
+            "/opt/homebrew/bin/ffprobe",
+            "/usr/bin/ffprobe"
+        ]
+        
+        var ffprobePath: String?
+        for path in possiblePaths {
+            if FileManager.default.fileExists(atPath: path) {
+                ffprobePath = path
+                break
+            }
+        }
+        
+        guard let probePath = ffprobePath else {
+            return "ffprobe 未安装"
+        }
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: probePath)
+        process.arguments = [
+            "-v", "error",
+            "-show_entries", "stream=codec_name,sample_rate,channels,duration",
+            "-of", "default=noprint_wrappers=1",
+            url.path
+        ]
+        
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return String(data: data, encoding: .utf8) ?? "无法读取输出"
+        } catch {
+            return "执行失败: \(error.localizedDescription)"
+        }
+    }
+    
+    /// 使用 ffprobe 检查音频文件的详细信息（包括音量信息）
+    func probeAudioFileDetailed(_ url: URL) -> String {
+        // 查找 ffprobe
+        let possiblePaths = [
+            "/usr/local/bin/ffprobe",
+            "/opt/homebrew/bin/ffprobe",
+            "/usr/bin/ffprobe"
+        ]
+        
+        var ffprobePath: String?
+        for path in possiblePaths {
+            if FileManager.default.fileExists(atPath: path) {
+                ffprobePath = path
+                break
+            }
+        }
+        
+        guard let probePath = ffprobePath else {
+            return "ffprobe 未安装"
+        }
+        
+        // 获取基本流信息
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: probePath)
+        process.arguments = [
+            "-v", "error",
+            "-show_entries", "stream=codec_name,codec_type,sample_rate,channels,bit_rate,duration",
+            "-show_entries", "format=duration,size,bit_rate",
+            "-of", "default=noprint_wrappers=1",
+            url.path
+        ]
+        
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        
+        var result = ""
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            result = String(data: data, encoding: .utf8) ?? "无法读取输出"
+        } catch {
+            result = "执行失败: \(error.localizedDescription)"
+        }
+        
+        // 检查音频是否有实际内容（使用 volumedetect 滤镜）
+        let volumeProcess = Process()
+        volumeProcess.executableURL = URL(fileURLWithPath: findFFmpeg() ?? "/opt/homebrew/bin/ffmpeg")
+        volumeProcess.arguments = [
+            "-i", url.path,
+            "-af", "volumedetect",
+            "-f", "null",
+            "-"
+        ]
+        
+        let volumePipe = Pipe()
+        volumeProcess.standardError = volumePipe
+        volumeProcess.standardOutput = FileHandle.nullDevice
+        
+        do {
+            try volumeProcess.run()
+            volumeProcess.waitUntilExit()
+            
+            let volumeData = volumePipe.fileHandleForReading.readDataToEndOfFile()
+            let volumeOutput = String(data: volumeData, encoding: .utf8) ?? ""
+            
+            // 提取音量信息
+            if let meanVolumeRange = volumeOutput.range(of: "mean_volume:.*dB", options: .regularExpression) {
+                let meanVolume = String(volumeOutput[meanVolumeRange])
+                result += "\n音量检测: \(meanVolume)"
+            }
+            if let maxVolumeRange = volumeOutput.range(of: "max_volume:.*dB", options: .regularExpression) {
+                let maxVolume = String(volumeOutput[maxVolumeRange])
+                result += "\n\(maxVolume)"
+            }
+            
+            // 检查是否是静音
+            if volumeOutput.contains("mean_volume: -91") || volumeOutput.contains("mean_volume: -inf") {
+                result += "\n⚠️ 警告：音频可能是静音的！"
+            }
+        } catch {
+            result += "\n音量检测失败: \(error.localizedDescription)"
+        }
+        
+        return result
     }
     
     /// 将 M4A 文件转换为 ADTS AAC 格式（更通用的 AAC 格式）
@@ -294,34 +529,42 @@ final class AudioConverterService: @unchecked Sendable {
         
         do {
             let data = try Data(contentsOf: url, options: .mappedIfSafe)
-            guard data.count > 12 else { return "文件太小" }
-            
-            let header = [UInt8](data.prefix(12))
-            
-            // MP3 (ID3)
-            if header[0] == 0x49 && header[1] == 0x44 && header[2] == 0x33 {
-                return "MP3 (ID3)"
-            }
-            
-            // MP3 (帧同步)
-            if header[0] == 0xFF && (header[1] & 0xE0) == 0xE0 {
-                return "MP3"
-            }
-            
-            // AAC (ADTS)
-            if header[0] == 0xFF && (header[1] & 0xF0) == 0xF0 {
-                return "AAC (ADTS)"
-            }
-            
-            // M4A/MP4
-            if header[4] == 0x66 && header[5] == 0x74 && header[6] == 0x79 && header[7] == 0x70 {
-                return "M4A/MP4 (AAC)"
-            }
-            
-            return "未知格式"
+            return getAudioFormat(data)
         } catch {
             return "读取失败"
         }
+    }
+    
+    /// 获取音频数据的格式信息
+    ///
+    /// - Parameter data: 音频数据
+    /// - Returns: 格式描述字符串
+    func getAudioFormat(_ data: Data) -> String {
+        guard data.count > 12 else { return "数据太小" }
+        
+        let header = [UInt8](data.prefix(12))
+        
+        // MP3 (ID3)
+        if header[0] == 0x49 && header[1] == 0x44 && header[2] == 0x33 {
+            return "MP3 (ID3)"
+        }
+        
+        // MP3 (帧同步)
+        if header[0] == 0xFF && (header[1] & 0xE0) == 0xE0 {
+            return "MP3"
+        }
+        
+        // AAC (ADTS)
+        if header[0] == 0xFF && (header[1] & 0xF0) == 0xF0 {
+            return "AAC (ADTS)"
+        }
+        
+        // M4A/MP4
+        if header[4] == 0x66 && header[5] == 0x74 && header[6] == 0x79 && header[7] == 0x70 {
+            return "M4A/MP4 (AAC)"
+        }
+        
+        return "未知格式 (头部: \(header.prefix(8).map { String(format: "%02x", $0) }.joined(separator: " ")))"
     }
     
     /// 清理临时文件
