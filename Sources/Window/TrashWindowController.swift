@@ -62,8 +62,6 @@ public class TrashWindowController: NSWindowController {
     
     public override func windowDidLoad() {
         super.windowDidLoad()
-        
-        print("回收站窗口控制器已加载")
     }
     
     // MARK: - 设置方法

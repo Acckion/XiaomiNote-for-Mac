@@ -56,8 +56,6 @@ public class SettingsWindowController: NSWindowController {
     
     public override func windowDidLoad() {
         super.windowDidLoad()
-        
-        print("设置窗口控制器已加载")
     }
     
     // MARK: - 设置方法

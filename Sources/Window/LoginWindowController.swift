@@ -62,8 +62,6 @@ public class LoginWindowController: NSWindowController {
     
     public override func windowDidLoad() {
         super.windowDidLoad()
-        
-        print("登录窗口控制器已加载")
     }
     
     // MARK: - 设置方法

@@ -68,8 +68,6 @@ public class HistoryWindowController: NSWindowController {
     
     public override func windowDidLoad() {
         super.windowDidLoad()
-        
-        print("历史记录窗口控制器已加载")
     }
     
     // MARK: - 设置方法

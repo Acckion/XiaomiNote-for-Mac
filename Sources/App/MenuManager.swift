@@ -39,7 +39,6 @@ class MenuManager {
         self.appDelegate = appDelegate
         self.mainWindowController = mainWindowController
         setupStateObserver()
-        print("菜单管理器初始化")
     }
     
     // MARK: - 公共方法
@@ -52,7 +51,6 @@ class MenuManager {
         // 更新弱引用
         self.appDelegate = appDelegate
         self.mainWindowController = mainWindowController
-        print("菜单管理器引用更新完成")
     }
     
     /// 更新菜单状态
@@ -107,8 +105,6 @@ class MenuManager {
     /// - Parameter state: 格式状态
     /// _Requirements: 8.1, 8.2, 8.3_
     func updateFormatMenuState(_ state: FormatState) {
-        print("[MenuManager] 更新格式菜单状态: \(state)")
-        
         // 更新段落格式菜单项
         updateParagraphFormatMenuItems(state.paragraphFormat)
         
@@ -140,7 +136,6 @@ class MenuManager {
     private func updateParagraphFormatMenuItems(_ format: ParagraphFormat) {
         guard let mainMenu = NSApp.mainMenu,
               let formatMenu = mainMenu.item(withTitle: "格式")?.submenu else {
-            print("[MenuManager] 无法找到格式菜单")
             return
         }
         
@@ -149,7 +144,6 @@ class MenuManager {
             if let menuItem = findMenuItem(for: paragraphFormat, in: formatMenu) {
                 let shouldCheck = (paragraphFormat == format)
                 menuItem.state = shouldCheck ? .on : .off
-                print("[MenuManager] 段落格式菜单项 '\(paragraphFormat.displayName)' 状态: \(shouldCheck ? "✓" : "○")")
             }
         }
     }
@@ -161,7 +155,6 @@ class MenuManager {
         guard let mainMenu = NSApp.mainMenu,
               let formatMenu = mainMenu.item(withTitle: "格式")?.submenu,
               let textMenu = formatMenu.item(withTitle: "文本")?.submenu else {
-            print("[MenuManager] 无法找到文本对齐菜单")
             return
         }
         
@@ -179,8 +172,6 @@ class MenuManager {
         if let alignRightItem = textMenu.item(withTag: MenuItemTag.alignRight.rawValue) {
             alignRightItem.state = (alignment == .right) ? .on : .off
         }
-        
-        print("[MenuManager] 对齐格式菜单项更新: \(alignment.displayName)")
     }
     
     /// 更新字符格式菜单项
@@ -190,7 +181,6 @@ class MenuManager {
         guard let mainMenu = NSApp.mainMenu,
               let formatMenu = mainMenu.item(withTitle: "格式")?.submenu,
               let fontMenu = formatMenu.item(withTitle: "字体")?.submenu else {
-            print("[MenuManager] 无法找到字体菜单")
             return
         }
         
@@ -218,8 +208,6 @@ class MenuManager {
         if let highlightItem = fontMenu.item(withTag: MenuItemTag.highlight.rawValue) {
             highlightItem.state = state.isHighlight ? .on : .off
         }
-        
-        print("[MenuManager] 字符格式菜单项更新: 粗体=\(state.isBold), 斜体=\(state.isItalic), 下划线=\(state.isUnderline), 删除线=\(state.isStrikethrough), 高亮=\(state.isHighlight)")
     }
     
     /// 更新引用块菜单项
@@ -228,14 +216,12 @@ class MenuManager {
     private func updateQuoteMenuItem(_ isQuote: Bool) {
         guard let mainMenu = NSApp.mainMenu,
               let formatMenu = mainMenu.item(withTitle: "格式")?.submenu else {
-            print("[MenuManager] 无法找到格式菜单")
             return
         }
         
         // 更新块引用菜单项
         if let blockQuoteItem = formatMenu.item(withTag: MenuItemTag.blockQuote.rawValue) {
             blockQuoteItem.state = isQuote ? .on : .off
-            print("[MenuManager] 引用块菜单项状态: \(isQuote ? "✓" : "○")")
         }
     }
     
@@ -330,7 +316,7 @@ class MenuManager {
                 return
             }
             // 状态变化时可以在这里执行额外的处理
-            print("菜单状态已更新: 选中笔记=\(state.hasSelectedNote), 编辑器焦点=\(state.isEditorFocused)")
+            _ = state
         }
         
         // 监听格式状态变化通知
@@ -344,7 +330,6 @@ class MenuManager {
             
             // 从通知中提取格式状态
             if let state = notification.userInfo?["state"] as? FormatState {
-                print("[MenuManager] 收到格式状态变化通知: \(state)")
                 self.updateFormatMenuState(state)
             }
         }
@@ -354,7 +339,6 @@ class MenuManager {
     func setupApplicationMenu() {
         // 获取主菜单
         guard let mainMenu = NSApp.mainMenu else {
-            print("警告：无法获取主菜单")
             return
         }
         
@@ -371,8 +355,6 @@ class MenuManager {
         setupViewMenu(in: mainMenu)
         setupWindowMenu(in: mainMenu)
         setupHelpMenu(in: mainMenu)
-        
-        print("应用程序菜单设置完成")
     }
     
     // MARK: - 私有方法
@@ -2003,6 +1985,6 @@ class MenuManager {
     }
     
     deinit {
-        print("菜单管理器释放")
+        // 菜单管理器释放
     }
 }

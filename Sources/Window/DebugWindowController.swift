@@ -56,8 +56,6 @@ public class DebugWindowController: NSWindowController {
     
     public override func windowDidLoad() {
         super.windowDidLoad()
-        
-        print("调试窗口控制器已加载")
     }
     
     // MARK: - 设置方法
