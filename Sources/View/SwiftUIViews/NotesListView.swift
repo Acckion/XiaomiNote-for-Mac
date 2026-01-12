@@ -112,6 +112,81 @@ struct NoteDisplayProperties: Equatable, Hashable {
     }
 }
 
+// MARK: - PinnedNoteRowContent
+
+/// 固定分组标题列表中的笔记行内容视图
+/// 
+/// 这是一个独立的子视图，用于正确追踪 `selectedNote` 的变化。
+/// 通过将选择状态逻辑封装在独立视图中，确保 SwiftUI 能正确检测依赖变化并更新 UI。
+/// 
+/// **问题背景**：
+/// 在 `LazyVStack` 中，闭包捕获的值可能不会随着 `@Published` 属性的变化而更新，
+/// 导致选择状态（高亮）显示不正确。
+/// 
+/// **解决方案**：
+/// 使用独立的 `@ObservedObject` 视图来观察 `viewModel`，确保当 `selectedNote` 变化时，
+/// 视图能正确重新计算 `isSelected` 并更新高亮状态。
+/// 
+/// _Requirements: 2.1, 2.2, 2.3_
+struct PinnedNoteRowContent<ContextMenu: View>: View {
+    let note: Note
+    let showDivider: Bool
+    @ObservedObject var viewModel: NotesViewModel
+    @Binding var isSelectingNote: Bool
+    let contextMenuBuilder: () -> ContextMenu
+    
+    /// 计算当前笔记是否被选中
+    /// 每次视图重新评估时都会重新计算
+    private var isSelected: Bool {
+        viewModel.selectedNote?.id == note.id
+    }
+    
+    var body: some View {
+        NoteRow(note: note, showDivider: showDivider, viewModel: viewModel)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isSelected 
+                          ? Color.accentColor.opacity(0.2) 
+                          : Color.clear)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                handleTap()
+            }
+            .contextMenu {
+                contextMenuBuilder()
+            }
+            // 使用 note.id 作为视图标识，确保视图稳定性
+            // 选择状态通过 @ObservedObject 自动更新，不需要在 id 中包含 isSelected
+            .id(note.id)
+    }
+    
+    /// 处理点击事件
+    private func handleTap() {
+        let currentSelectedId = viewModel.selectedNote?.id
+        Swift.print("[PinnedNoteRowContent] 点击笔记 - ID: \(note.id.prefix(8))..., 当前选中: \(currentSelectedId?.prefix(8) ?? "nil"), isSelected: \(isSelected)")
+        
+        // 如果点击的是已选中的笔记，不需要做任何事情
+        // _Requirements: 2.3_
+        if currentSelectedId == note.id {
+            Swift.print("[PinnedNoteRowContent] 点击已选中的笔记，无需操作")
+            return
+        }
+        
+        // 设置选择标志，禁用选择期间的动画
+        // _Requirements: 2.1, 2.2, 2.3_
+        isSelectingNote = true
+        viewModel.selectedNote = note
+        Swift.print("[PinnedNoteRowContent] 设置 selectedNote 为 \(note.id.prefix(8))...")
+        
+        // 延迟重置选择标志，确保动画禁用生效
+        // 延长到 1.5 秒以覆盖 ensureNoteHasFullContent 等异步操作
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            isSelectingNote = false
+        }
+    }
+}
+
 // MARK: - NotesListView
 
 struct NotesListView: View {
@@ -125,6 +200,9 @@ struct NotesListView: View {
     @State private var noteToMove: Note?
     /// 列表标识符，用于在文件夹切换时强制重建列表（避免动画）
     @State private var listId = UUID()
+    /// 是否正在进行选择操作，用于禁用选择期间的动画
+    /// _Requirements: 2.1, 2.2, 2.3_
+    @State private var isSelectingNote = false
     
     var body: some View {
         Group {
@@ -158,8 +236,9 @@ struct NotesListView: View {
         // 使用 id 修饰符，在文件夹切换时强制重建列表（避免动画）
         .id(listId)
         // 监听 filteredNotes 变化，触发列表移动动画
-        // _Requirements: 1.1, 1.2, 1.3_
-        .animation(ListAnimationConfig.moveAnimation, value: viewModel.filteredNotes.map(\.id))
+        // 只有在非选择操作时才触发动画，避免选择笔记时的错误移动
+        // _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3_
+        .animation(isSelectingNote ? nil : ListAnimationConfig.moveAnimation, value: viewModel.filteredNotes.map(\.id))
         // 监听日期分组状态变化，触发过渡动画
         // _Requirements: 3.7_
         .animation(.easeInOut(duration: 0.3), value: optionsManager.isDateGroupingEnabled)
@@ -243,24 +322,24 @@ struct NotesListView: View {
             .padding(.horizontal, 10)
         }
         .background(Color(NSColor.windowBackgroundColor))
+        // 注意：不再使用 .id() 强制重建整个 ScrollView
+        // 选择状态通过 PinnedNoteRowContent 子视图的 @ObservedObject 自动更新
+        // 这样可以保持滚动位置，同时正确更新高亮状态
+        // _Requirements: 2.2, 2.3_
     }
     
     /// 固定分组标题的笔记行
+    /// _Requirements: 2.1, 2.2, 2.3_
+    @ViewBuilder
     private func pinnedNoteRow(note: Note, showDivider: Bool) -> some View {
-        NoteRow(note: note, showDivider: showDivider, viewModel: viewModel)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(viewModel.selectedNote?.id == note.id 
-                          ? Color.accentColor.opacity(0.2) 
-                          : Color.clear)
-            )
-            .contentShape(Rectangle())
-            .onTapGesture {
-                viewModel.selectedNote = note
-            }
-            .contextMenu {
-                noteContextMenu(for: note)
-            }
+        // 使用独立的子视图来处理选择状态，确保 SwiftUI 能正确追踪依赖
+        PinnedNoteRowContent(
+            note: note,
+            showDivider: showDivider,
+            viewModel: viewModel,
+            isSelectingNote: $isSelectingNote,
+            contextMenuBuilder: { noteContextMenu(for: note) }
+        )
     }
     
     /// 固定分组标题样式
@@ -287,8 +366,22 @@ struct NotesListView: View {
     // MARK: - 标准列表内容（平铺模式）
     
     /// 标准 List 视图，用于平铺模式（不分组）
+    /// _Requirements: 2.1, 2.2, 2.3_
     private var standardListContent: some View {
-        List(selection: $viewModel.selectedNote) {
+        List(selection: Binding(
+            get: { viewModel.selectedNote },
+            set: { newValue in
+                // 设置选择标志，禁用选择期间的动画
+                // _Requirements: 2.1, 2.2, 2.3_
+                isSelectingNote = true
+                viewModel.selectedNote = newValue
+                // 延迟重置选择标志，确保动画禁用生效
+                // 延长到 1.5 秒以覆盖 ensureNoteHasFullContent 等异步操作
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    isSelectingNote = false
+                }
+            }
+        )) {
             flatNotesContent
         }
         .listStyle(.sidebar)
@@ -333,10 +426,13 @@ struct NotesListView: View {
         
         // 处理置顶笔记
         if !pinnedNotes.isEmpty {
-            // 置顶笔记也按选定的日期字段排序
+            // 置顶笔记也按选定的日期字段排序（使用稳定排序）
             grouped["置顶"] = pinnedNotes.sorted { 
                 let date1 = useCreateDate ? $0.createdAt : $0.updatedAt
                 let date2 = useCreateDate ? $1.createdAt : $1.updatedAt
+                if date1 == date2 {
+                    return $0.id > $1.id  // 降序排列时，id 也降序
+                }
                 return date1 > date2
             }
         }
@@ -372,11 +468,14 @@ struct NotesListView: View {
             grouped[key]?.append(note)
         }
         
-        // 对每个分组内的笔记按选定的日期字段降序排序
+        // 对每个分组内的笔记按选定的日期字段降序排序（使用稳定排序）
         for key in grouped.keys {
             grouped[key] = grouped[key]?.sorted { 
                 let date1 = useCreateDate ? $0.createdAt : $0.updatedAt
                 let date2 = useCreateDate ? $1.createdAt : $1.updatedAt
+                if date1 == date2 {
+                    return $0.id > $1.id  // 降序排列时，id 也降序
+                }
                 return date1 > date2
             }
         }
@@ -584,6 +683,7 @@ struct NoteRow: View {
     let note: Note
     let showDivider: Bool
     @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var optionsManager: ViewOptionsManager = .shared
     @State private var thumbnailImage: NSImage? = nil
     @State private var currentImageFileId: String? = nil // 跟踪当前显示的图片ID
     
@@ -592,6 +692,17 @@ struct NoteRow: View {
     /// _Requirements: 5.3, 5.4_
     private var displayProperties: NoteDisplayProperties {
         NoteDisplayProperties(from: note)
+    }
+    
+    /// 根据排序方式获取要显示的日期
+    /// _Requirements: 1.1, 1.2, 1.3_
+    private var displayDate: Date {
+        switch optionsManager.sortOrder {
+        case .createDate:
+            return note.createdAt
+        case .editDate, .title:
+            return note.updatedAt
+        }
     }
     
     init(note: Note, showDivider: Bool = false, viewModel: NotesViewModel) {
@@ -666,8 +777,9 @@ struct NoteRow: View {
                         .foregroundColor(hasRealTitle() ? .primary : .secondary)
                     
                     HStack(spacing: 4) {
-                        // 时间 - 加粗，与标题同色
-                        Text(formatDate(note.updatedAt))
+                        // 时间 - 加粗，与标题同色，根据排序方式显示创建时间或修改时间
+                        // _Requirements: 1.1, 1.2, 1.3, 1.4_
+                        Text(formatDate(displayDate))
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(.primary)
                         
