@@ -1976,6 +1976,181 @@
             }
             return '语音已插入';
         },
+
+        /**
+         * 插入录音模板占位符
+         * 在光标位置插入一个录音模板，用于后续更新为实际的音频附件
+         * @param {string} templateId - 模板唯一标识符
+         * @returns {string} 状态信息
+         */
+        insertRecordingTemplate: function(templateId) {
+            const editor = document.getElementById('editor-content');
+            if (!editor) {
+                return '编辑器元素不存在';
+            }
+
+            if (!templateId) {
+                return '模板 ID 不能为空';
+            }
+
+            const selection = window.getSelection();
+            let range = null;
+
+            if (selection.rangeCount > 0) {
+                range = selection.getRangeAt(0);
+            } else {
+                range = document.createRange();
+                if (editor.childNodes.length === 0 || 
+                    (editor.childNodes.length === 1 && editor.childNodes[0].classList && 
+                     editor.childNodes[0].classList.contains('placeholder'))) {
+                    editor.innerHTML = '';
+                }
+                range.selectNodeContents(editor);
+                range.collapse(false);
+            }
+
+            // 检查光标是否在列表项或待办项中
+            let container = range.commonAncestorContainer;
+            if (container.nodeType === Node.TEXT_NODE) {
+                container = container.parentElement;
+            }
+            
+            let listItem = null;
+            let currentNode = container;
+            while (currentNode && currentNode !== editor) {
+                if (currentNode.classList) {
+                    if (currentNode.classList.contains('mi-note-bullet') ||
+                        currentNode.classList.contains('mi-note-order') ||
+                        currentNode.classList.contains('mi-note-checkbox')) {
+                        listItem = currentNode;
+                        break;
+                    }
+                }
+                currentNode = currentNode.parentElement;
+            }
+
+            // 如果在列表项或待办项中，在其后插入
+            if (listItem) {
+                let newRange = document.createRange();
+                if (listItem.nextSibling) {
+                    newRange.setStartBefore(listItem.nextSibling);
+                    newRange.collapse(true);
+                    range = newRange;
+                } else if (listItem.parentNode) {
+                    newRange.setStartAfter(listItem);
+                    newRange.collapse(true);
+                    range = newRange;
+                }
+            }
+
+            // 创建XML格式的录音模板占位符
+            // 使用小米笔记标准格式：<sound fileid="temp_[templateId]" des="temp"/>
+            const soundElement = document.createElement('sound');
+            soundElement.setAttribute('fileid', `temp_${templateId}`);
+            soundElement.setAttribute('des', 'temp');
+            soundElement.setAttribute('contenteditable', 'false');
+            
+            // 为了在编辑器中可视化显示，添加样式和内容
+            soundElement.style.display = 'inline-block';
+            soundElement.style.margin = '4px 8px';
+            soundElement.style.padding = '4px 8px';
+            soundElement.style.backgroundColor = '#f0f8ff';
+            soundElement.style.border = '1px dashed #4a90e2';
+            soundElement.style.borderRadius = '4px';
+            soundElement.style.fontSize = '12px';
+            soundElement.style.color = '#4a90e2';
+            soundElement.textContent = '🎤 正在录制...';
+
+            // 插入录音模板占位符
+            range.insertNode(soundElement);
+
+            // 在模板后插入空格，确保可以继续输入
+            const textNode = document.createTextNode(' ');
+            range.setStartAfter(soundElement);
+            range.insertNode(textNode);
+
+            // 移动光标到模板后
+            range.setStartAfter(textNode);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            log.debug(LOG_MODULES.FORMAT, '插入XML格式录音模板', { 
+                templateId, 
+                xmlFormat: `<sound fileid="temp_${templateId}" des="temp"/>` 
+            });
+
+            const notifyContentChanged = getNotifyContentChanged();
+            if (notifyContentChanged) {
+                notifyContentChanged();
+            }
+            return '录音模板已插入';
+        },
+
+        /**
+         * 更新录音模板为实际的音频附件
+         * @param {string} templateId - 模板唯一标识符
+         * @param {string} fileId - 音频文件 ID
+         * @param {string} digest - 文件摘要（可选）
+         * @param {string} mimeType - MIME 类型（可选）
+         * @returns {string} 状态信息
+         */
+        updateRecordingTemplate: function(templateId, fileId, digest, mimeType) {
+            const editor = document.getElementById('editor-content');
+            if (!editor) {
+                return '编辑器元素不存在';
+            }
+
+            if (!templateId || !fileId) {
+                return '模板 ID 和文件 ID 不能为空';
+            }
+
+            // 查找对应的XML格式录音模板
+            // 查找 <sound fileid="temp_[templateId]" des="temp"/>
+            const template = editor.querySelector(`sound[fileid="temp_${templateId}"][des="temp"]`);
+            if (!template) {
+                log.warn(LOG_MODULES.FORMAT, '未找到对应的XML录音模板', { 
+                    templateId, 
+                    expectedSelector: `sound[fileid="temp_${templateId}"][des="temp"]` 
+                });
+                return '未找到对应的录音模板';
+            }
+
+            // 更新为最终的XML格式：<sound fileid="[fileId]"/>
+            // 移除 des 属性，更新 fileid 为实际的文件ID
+            template.setAttribute('fileid', fileId);
+            template.removeAttribute('des');
+            
+            // 可选：添加其他属性
+            if (digest) {
+                template.setAttribute('digest', digest);
+            }
+            if (mimeType) {
+                template.setAttribute('mimetype', mimeType);
+            }
+            
+            // 更新显示内容
+            template.textContent = '🎤 语音录音';
+            template.style.backgroundColor = '#e8f5e8';
+            template.style.borderColor = '#4caf50';
+            template.style.color = '#2e7d32';
+            
+            log.debug(LOG_MODULES.FORMAT, '更新XML格式录音模板', { 
+                templateId, 
+                fileId, 
+                digest, 
+                mimeType,
+                finalXmlFormat: `<sound fileid="${fileId}"/>`
+            });
+
+            // 立即触发内容变化通知，确保保存
+            const notifyContentChanged = getNotifyContentChanged();
+            if (notifyContentChanged) {
+                notifyContentChanged();
+            }
+            
+            return '录音模板已更新为音频附件';
+        },
         
         /**
          * 增加缩进

@@ -30,6 +30,10 @@ struct NoteCardView: View {
     /// 视图模型（用于获取文件夹信息）
     @ObservedObject var viewModel: NotesViewModel
     
+    /// 视图选项管理器（用于获取排序方式）
+    /// _Requirements: 1.5_
+    @ObservedObject var optionsManager: ViewOptionsManager = .shared
+    
     // MARK: - 状态
     
     /// 是否悬停
@@ -146,9 +150,9 @@ struct NoteCardView: View {
     }
     
     /// 日期区域
-    /// _Requirements: 5.2_
+    /// _Requirements: 1.5, 5.2_
     private var dateSection: some View {
-        Text(formatDate(note.updatedAt))
+        Text(formatDate(displayDate))
             .font(.caption)
             .foregroundColor(.secondary)
     }
@@ -169,6 +173,19 @@ struct NoteCardView: View {
     }
     
     // MARK: - 辅助属性
+    
+    /// 根据排序方式获取要显示的日期
+    /// 
+    /// 当排序方式为创建时间时，显示创建时间；否则显示修改时间
+    /// _Requirements: 1.5_
+    private var displayDate: Date {
+        switch optionsManager.sortOrder {
+        case .createDate:
+            return note.createdAt
+        case .editDate, .title:
+            return note.updatedAt
+        }
+    }
     
     /// 是否有图片缩略图
     private var hasImageThumbnail: Bool {

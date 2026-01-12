@@ -486,6 +486,157 @@ public class NativeEditorContext: ObservableObject {
         insertSpecialElement(.audio(fileId: fileId, digest: digest, mimeType: mimeType))
     }
     
+    // MARK: - Public Methods - 录音模板操作 (需求 4.2, 4.3)
+    
+    /// 插入录音模板占位符
+    /// 
+    /// 在原生编辑器中插入XML格式的录音模板占位符，与Web编辑器保持一致
+    /// 
+    /// - Parameter templateId: 模板唯一标识符
+    /// - Requirements: 4.2
+    func insertRecordingTemplate(templateId: String) {
+        print("[NativeEditorContext] 插入录音模板: templateId=\(templateId)")
+        
+        // 创建XML格式的占位符文本：<sound fileid="temp_[templateId]" des="temp"/>
+        let xmlPlaceholder = "<sound fileid=\"temp_\(templateId)\" des=\"temp\"/>"
+        
+        // 创建带样式的占位符文本用于显示
+        let displayText = "🎤 正在录制..."
+        let attributedPlaceholder = NSMutableAttributedString(string: displayText)
+        
+        // 添加样式：蓝色背景，圆角边框
+        let range = NSRange(location: 0, length: displayText.count)
+        attributedPlaceholder.addAttribute(.backgroundColor, value: NSColor.systemBlue.withAlphaComponent(0.1), range: range)
+        attributedPlaceholder.addAttribute(.foregroundColor, value: NSColor.systemBlue, range: range)
+        
+        // 添加自定义属性标记这是录音模板
+        attributedPlaceholder.addAttribute(NSAttributedString.Key("RecordingTemplate"), value: templateId, range: range)
+        attributedPlaceholder.addAttribute(NSAttributedString.Key("XMLContent"), value: xmlPlaceholder, range: range)
+        
+        // 将占位符插入到当前文本的光标位置
+        let currentText = nsAttributedText.mutableCopy() as! NSMutableAttributedString
+        let insertionPoint = min(cursorPosition, currentText.length)
+        currentText.insert(attributedPlaceholder, at: insertionPoint)
+        
+        // 更新编辑器内容
+        updateNSContent(currentText)
+        
+        // 更新光标位置到插入文本之后
+        updateCursorPosition(insertionPoint + displayText.count)
+        
+        hasUnsavedChanges = true
+    }
+    
+    /// 更新录音模板为音频附件
+    /// 
+    /// 将临时的录音模板占位符更新为实际的音频附件
+    /// 
+    /// - Parameters:
+    ///   - templateId: 模板唯一标识符
+    ///   - fileId: 音频文件 ID
+    ///   - digest: 文件摘要（可选）
+    ///   - mimeType: MIME 类型（可选）
+    /// - Requirements: 4.3
+    func updateRecordingTemplate(templateId: String, fileId: String, digest: String? = nil, mimeType: String? = nil) {
+        print("[NativeEditorContext] 更新录音模板: templateId=\(templateId), fileId=\(fileId)")
+        
+        // 在当前文本中查找对应的录音模板
+        let currentText = nsAttributedText.mutableCopy() as! NSMutableAttributedString
+        let fullRange = NSRange(location: 0, length: currentText.length)
+        
+        var templateFound = false
+        
+        // 遍历文本，查找带有指定 templateId 的录音模板
+        currentText.enumerateAttribute(NSAttributedString.Key("RecordingTemplate"), in: fullRange, options: []) { value, range, stop in
+            if let templateValue = value as? String, templateValue == templateId {
+                // 找到对应的模板，更新为音频附件
+                let audioText = "🎤 语音录音"
+                let audioAttributedString = NSMutableAttributedString(string: audioText)
+                
+                // 添加音频附件的样式
+                let audioRange = NSRange(location: 0, length: audioText.count)
+                audioAttributedString.addAttribute(.backgroundColor, value: NSColor.systemGreen.withAlphaComponent(0.1), range: audioRange)
+                audioAttributedString.addAttribute(.foregroundColor, value: NSColor.systemGreen, range: audioRange)
+                
+                // 添加音频附件的XML内容
+                let finalXML = "<sound fileid=\"\(fileId)\"/>"
+                audioAttributedString.addAttribute(NSAttributedString.Key("XMLContent"), value: finalXML, range: audioRange)
+                audioAttributedString.addAttribute(NSAttributedString.Key("AudioFileId"), value: fileId, range: audioRange)
+                
+                if let digest = digest {
+                    audioAttributedString.addAttribute(NSAttributedString.Key("AudioDigest"), value: digest, range: audioRange)
+                }
+                if let mimeType = mimeType {
+                    audioAttributedString.addAttribute(NSAttributedString.Key("AudioMimeType"), value: mimeType, range: audioRange)
+                }
+                
+                // 替换模板文本
+                currentText.replaceCharacters(in: range, with: audioAttributedString)
+                templateFound = true
+                stop.pointee = true
+            }
+        }
+        
+        if templateFound {
+            // 更新编辑器内容
+            updateNSContent(currentText)
+            hasUnsavedChanges = true
+            
+            print("[NativeEditorContext] ✅ 录音模板已更新为音频附件")
+        } else {
+            print("[NativeEditorContext] ⚠️ 未找到对应的录音模板: templateId=\(templateId)")
+        }
+    }
+    
+    /// 更新录音模板并强制保存
+    /// 
+    /// 更新录音模板为音频附件后立即强制保存，确保内容持久化
+    /// 与Web编辑器保持相同的保存逻辑
+    /// 
+    /// - Parameters:
+    ///   - templateId: 模板唯一标识符
+    ///   - fileId: 音频文件 ID
+    ///   - digest: 文件摘要（可选）
+    ///   - mimeType: MIME 类型（可选）
+    /// - Requirements: 1.1, 2.1
+    func updateRecordingTemplateAndSave(templateId: String, fileId: String, digest: String? = nil, mimeType: String? = nil) async throws {
+        print("[NativeEditorContext] 更新录音模板并强制保存: templateId=\(templateId), fileId=\(fileId)")
+        
+        // 1. 更新录音模板
+        updateRecordingTemplate(templateId: templateId, fileId: fileId, digest: digest, mimeType: mimeType)
+        
+        // 2. 强制保存内容
+        // 原生编辑器的保存通过 contentChangeSubject 触发
+        // 发送内容变化信号，确保立即保存
+        contentChangeSubject.send(nsAttributedText)
+        
+        print("[NativeEditorContext] ✅ 录音模板更新和保存完成")
+    }
+    
+    /// 验证内容持久化
+    /// 
+    /// 验证保存后的内容是否包含预期的音频附件，确保持久化成功
+    /// 
+    /// - Parameter expectedContent: 预期的内容（包含音频附件的XML）
+    /// - Returns: 是否验证成功
+    /// - Requirements: 1.3, 3.4
+    func verifyContentPersistence(expectedContent: String) async -> Bool {
+        print("[NativeEditorContext] 验证内容持久化，预期内容长度: \(expectedContent.count)")
+        
+        // 导出当前内容为XML格式
+        let currentXML = exportToXML()
+        
+        // 验证XML内容是否包含音频附件且不包含临时模板
+        let isValid = currentXML.contains("<sound fileid=") && 
+                     !currentXML.contains("des=\"temp\"") && 
+                     currentXML.count > 0
+        
+        print("[NativeEditorContext] 内容持久化验证结果: \(isValid ? "成功" : "失败")")
+        print("[NativeEditorContext] 当前XML长度: \(currentXML.count)")
+        
+        return isValid
+    }
+    
     // MARK: - Public Methods - 缩进操作 (需求 6.1, 6.2, 6.3, 6.5)
     
     /// 增加缩进

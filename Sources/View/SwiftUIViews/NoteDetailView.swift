@@ -896,6 +896,10 @@ struct NoteDetailView: View {
         
         Swift.print("[快速切换] ✅ 从缓存加载完成 - ID: \(note.id.prefix(8))..., 标题: \(title), 内容长度: \(currentXMLContent.count)")
         
+        // 验证内容持久化 - 检查是否包含音频附件
+        // Requirements: 1.3
+        await verifyAudioAttachmentPersistence(note: note)
+        
         // 短暂延迟以确保编辑器正确初始化
         try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
         
@@ -906,6 +910,43 @@ struct NoteDetailView: View {
         }
         
         isInitializing = false
+    }
+    
+    /// 验证音频附件持久化
+    /// 
+    /// 检查加载的笔记内容是否包含预期的音频附件，确保持久化成功
+    /// 
+    /// - Parameter note: 要验证的笔记
+    /// - Requirements: 1.3
+    @MainActor
+    private func verifyAudioAttachmentPersistence(note: Note) async {
+        Swift.print("[持久化验证] 🔍 开始验证音频附件 - 笔记ID: \(note.id.prefix(8))...")
+        
+        let contentToVerify = currentXMLContent.isEmpty ? note.primaryXMLContent : currentXMLContent
+        
+        // 检查是否包含音频附件
+        let hasAudioAttachments = contentToVerify.contains("<sound fileid=")
+        let hasTemporaryTemplates = contentToVerify.contains("des=\"temp\"")
+        
+        if hasAudioAttachments {
+            if hasTemporaryTemplates {
+                Swift.print("[持久化验证] ⚠️ 发现临时录音模板未更新 - 笔记ID: \(note.id.prefix(8))...")
+                Swift.print("[持久化验证] 内容片段: \(String(contentToVerify.prefix(200)))...")
+            } else {
+                Swift.print("[持久化验证] ✅ 音频附件持久化正常 - 笔记ID: \(note.id.prefix(8))...")
+            }
+        } else {
+            Swift.print("[持久化验证] ℹ️ 无音频附件 - 笔记ID: \(note.id.prefix(8))...")
+        }
+        
+        // 如果使用编辑器上下文，也进行验证
+        if isUsingNativeEditor {
+            let isValid = await nativeEditorContext.verifyContentPersistence(expectedContent: contentToVerify)
+            Swift.print("[持久化验证] 原生编辑器验证结果: \(isValid ? "通过" : "失败")")
+        } else {
+            let isValid = await webEditorContext.verifyContentPersistence(expectedContent: contentToVerify)
+            Swift.print("[持久化验证] Web编辑器验证结果: \(isValid ? "通过" : "失败")")
+        }
     }
     
     /// 使用HTML缓存快速加载笔记

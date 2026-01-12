@@ -421,14 +421,27 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         }
         
         // 更新其他字段
+        // 只有当服务器返回的时间戳与本地不同时才更新，避免不必要的排序变化
         if let modifyDate = entry["modifyDate"] as? TimeInterval {
-            self.updatedAt = Date(timeIntervalSince1970: modifyDate / 1000)
-            print("[NOTE] 更新修改时间: \(self.updatedAt)")
+            let serverUpdatedAt = Date(timeIntervalSince1970: modifyDate / 1000)
+            // 只有当时间差超过 1 秒时才更新，避免因为毫秒级差异导致的排序变化
+            if abs(serverUpdatedAt.timeIntervalSince(self.updatedAt)) > 1.0 {
+                self.updatedAt = serverUpdatedAt
+                print("[NOTE] 更新修改时间: \(self.updatedAt)")
+            } else {
+                print("[NOTE] 修改时间差异小于1秒，保持本地时间: \(self.updatedAt)")
+            }
         }
         
         if let createDate = entry["createDate"] as? TimeInterval {
-            self.createdAt = Date(timeIntervalSince1970: createDate / 1000)
-            print("[NOTE] 更新创建时间: \(self.createdAt)")
+            let serverCreatedAt = Date(timeIntervalSince1970: createDate / 1000)
+            // 只有当时间差超过 1 秒时才更新
+            if abs(serverCreatedAt.timeIntervalSince(self.createdAt)) > 1.0 {
+                self.createdAt = serverCreatedAt
+                print("[NOTE] 更新创建时间: \(self.createdAt)")
+            } else {
+                print("[NOTE] 创建时间差异小于1秒，保持本地时间: \(self.createdAt)")
+            }
         }
         
         if let folderId = entry["folderId"] as? String {

@@ -1778,6 +1778,34 @@
             }
             return FormatManager.insertAudio(fileId, digest, mimeType);
         },
+
+        /**
+         * 插入录音模板占位符
+         * @param {string} templateId - 模板唯一标识符
+         * @returns {string} 状态信息
+         */
+        insertRecordingTemplate: function(templateId) {
+            if (!FormatManager) {
+                return '格式管理器未初始化';
+            }
+            return FormatManager.insertRecordingTemplate(templateId);
+        },
+
+        /**
+         * 更新录音模板为实际的音频附件
+         * @param {string} templateId - 模板唯一标识符
+         * @param {string} fileId - 音频文件 ID
+         * @param {string} digest - 文件摘要（可选）
+         * @param {string} mimeType - MIME 类型（可选）
+         * @returns {string} 状态信息
+         */
+        updateRecordingTemplate: function(templateId, fileId, digest, mimeType) {
+            if (!FormatManager) {
+                return '格式管理器未初始化';
+            }
+            return FormatManager.updateRecordingTemplate(templateId, fileId, digest, mimeType);
+        },
+        
         
         /**
          * 更新语音占位符的播放状态

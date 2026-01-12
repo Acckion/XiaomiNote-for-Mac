@@ -232,8 +232,25 @@ class XiaoMiFormatConverter {
         
         let fullRange = NSRange(location: 0, length: lineAttributedString.length)
         
+        // 调试日志：显示行内容
+        let lineText = lineAttributedString.string
+        print("[XiaoMiFormatConverter] 📝 convertNSLineToXML: '\(lineText)' (长度: \(lineAttributedString.length))")
+        
         // 遍历该行的所有属性运行段
         lineAttributedString.enumerateAttributes(in: fullRange, options: []) { attributes, range, _ in
+            // 调试日志：显示当前运行段的所有属性键
+            let rangeText = (lineAttributedString.string as NSString).substring(with: range)
+            print("[XiaoMiFormatConverter]   - 运行段 \(range): '\(rangeText)'")
+            print("[XiaoMiFormatConverter]     属性键: \(attributes.keys.map { $0.rawValue })")
+            
+            // 关键修复：首先检查是否有 XMLContent 自定义属性
+            // 这用于录音模板等需要直接输出 XML 的元素
+            if let xmlContent = attributes[NSAttributedString.Key("XMLContent")] as? String {
+                print("[XiaoMiFormatConverter] 🎤 发现 XMLContent 属性，直接使用: \(xmlContent)")
+                content += xmlContent
+                return
+            }
+            
             // 检查是否是附件
             if let attachment = attributes[.attachment] as? NSTextAttachment {
                 // 检查是否是复选框附件

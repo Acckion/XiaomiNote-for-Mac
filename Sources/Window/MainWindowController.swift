@@ -85,6 +85,17 @@ public class MainWindowController: NSWindowController {
     /// 笔记列表宽度的 UserDefaults 键
     private let notesListWidthKey = "NotesListWidth"
     
+    // MARK: - 音频面板属性
+    // Requirements: 1.1
+    
+    /// 音频面板状态管理器
+    /// 负责管理音频面板的显示状态、模式和与其他组件的协调
+    private let audioPanelStateManager = AudioPanelStateManager.shared
+    
+    /// 音频面板托管控制器
+    /// 用于将 AudioPanelView 嵌入 NSSplitViewController 作为第四栏
+    private var audioPanelHostingController: AudioPanelHostingController?
+    
     // MARK: - 初始化
     
     /// 使用指定的视图模型初始化窗口控制器
@@ -1577,111 +1588,51 @@ extension MainWindowController {
     }
     
     /// 插入语音录音
-    /// 需求: 9.1, 9.4, 9.5, 12.1 - 显示录音界面，录制完成后上传并插入到编辑器
+    /// 
+    /// 点击工具栏录音按钮时调用，先在光标位置插入录音模板占位符，
+    /// 然后显示音频面板进入录制模式。录制完成后，更新之前插入的模板。
+    /// 
+    /// Requirements: 2.1 - 点击工具栏录音按钮显示音频面板并进入录制准备状态
     @objc public func insertAudioRecording(_ sender: Any?) {
-        print("[MainWindowController] 插入语音录音")
+        print("[MainWindowController] 插入语音录音 - 先插入模板再显示音频面板")
         
-        // 检查是否有选中笔记
-        guard viewModel?.selectedNote != nil else {
-            print("[MainWindowController] 没有选中笔记，无法插入语音")
+        guard let viewModel = viewModel,
+              let selectedNote = viewModel.selectedNote else {
+            print("[MainWindowController] ❌ 无法插入录音：没有选中的笔记")
             return
         }
         
-        guard let window = window else {
-            print("[MainWindowController] 错误：主窗口不存在")
-            return
-        }
+        // 生成唯一的模板 ID
+        let templateId = "recording_template_\(UUID().uuidString)"
         
-        // 创建录音上传视图
-        let recorderView = AudioRecorderUploadView(
-            onUploadComplete: { [weak self] fileId, digest, mimeType in
-                guard let self = self else { return }
-                
-                print("[MainWindowController] 语音上传成功: fileId=\(fileId), digest=\(digest ?? "nil"), mimeType=\(mimeType ?? "nil")")
-                
-                // 更新笔记的 setting.data，添加音频信息
-                // 这是小米笔记服务器识别音频文件的关键
-                if let viewModel = self.viewModel, var note = viewModel.selectedNote {
-                    var rawData = note.rawData ?? [:]
-                    var setting = rawData["setting"] as? [String: Any] ?? [
-                        "themeId": 0,
-                        "stickyTime": 0,
-                        "version": 0
-                    ]
-                    
-                    var settingData = setting["data"] as? [[String: Any]] ?? []
-                    
-                    // 构建音频元数据（与图片格式一致）
-                    // digest 格式：{sha1}.mp3
-                    let audioInfo: [String: Any] = [
-                        "fileId": fileId,
-                        "mimeType": mimeType ?? "audio/mpeg",
-                        "digest": (digest ?? fileId) + ".mp3"
-                    ]
-                    settingData.append(audioInfo)
-                    setting["data"] = settingData
-                    rawData["setting"] = setting
-                    note.rawData = rawData
-                    
-                    print("[MainWindowController] 已更新笔记 setting.data，添加音频: \(audioInfo)")
-                    
-                    // 更新 viewModel 中的笔记
-                    viewModel.selectedNote = note
-                    if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
-                        viewModel.notes[index] = note
-                    }
-                }
-                
-                // 根据编辑器类型插入语音
-                if self.isUsingNativeEditor {
-                    // 原生编辑器模式
-                    print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertAudio()")
-                    if let nativeContext = self.getCurrentNativeEditorContext() {
-                        nativeContext.insertAudio(fileId: fileId, digest: digest, mimeType: mimeType)
-                    } else {
-                        print("[MainWindowController] 错误：无法获取 NativeEditorContext")
-                    }
-                } else {
-                    // Web 编辑器模式
-                    // Requirements: 12.1
-                    print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertAudio()")
-                    if let webContext = self.getCurrentWebEditorContext() {
-                        webContext.insertAudio(fileId: fileId, digest: digest, mimeType: mimeType)
-                    } else {
-                        print("[MainWindowController] 错误：无法获取 WebEditorContext")
-                    }
-                }
-                
-                // 关闭 sheet
-                if let sheetWindow = window.attachedSheet {
-                    window.endSheet(sheetWindow)
-                }
-            },
-            onCancel: { [weak window] in
-                // 关闭 sheet
-                if let sheetWindow = window?.attachedSheet {
-                    window?.endSheet(sheetWindow)
-                }
+        // 1. 先在编辑器光标位置插入录音模板占位符
+        // 关键修复：根据当前编辑器类型选择正确的上下文
+        // _Requirements: 4.1, 4.2_
+        if isUsingNativeEditor {
+            // 原生编辑器：插入录音模板
+            if let nativeEditorContext = getCurrentNativeEditorContext() {
+                nativeEditorContext.insertRecordingTemplate(templateId: templateId)
+                print("[MainWindowController] ✅ 已在原生编辑器中插入录音模板: \(templateId)")
+            } else {
+                print("[MainWindowController] ❌ 无法获取原生编辑器上下文")
+                return
             }
-        )
-        
-        // 创建托管控制器
-        let hostingController = NSHostingController(rootView: recorderView)
-        
-        // 创建 sheet 窗口
-        let sheetWindow = NSWindow(contentViewController: hostingController)
-        sheetWindow.styleMask = [.titled, .closable]
-        sheetWindow.title = "录制语音"
-        sheetWindow.titlebarAppearsTransparent = true
-        sheetWindow.titleVisibility = .hidden
-        
-        // 设置窗口大小
-        sheetWindow.setContentSize(NSSize(width: 340, height: 280))
-        
-        // 显示 sheet
-        window.beginSheet(sheetWindow) { response in
-            print("[MainWindowController] 录音 sheet 关闭，响应: \(response)")
+        } else {
+            // Web 编辑器：插入录音模板
+            if let webEditorContext = getCurrentWebEditorContext() {
+                webEditorContext.insertRecordingTemplate(templateId: templateId)
+                print("[MainWindowController] ✅ 已在 Web 编辑器中插入录音模板: \(templateId)")
+            } else {
+                print("[MainWindowController] ❌ 无法获取 Web 编辑器上下文")
+                return
+            }
         }
+        
+        // 2. 保存模板 ID 到状态管理器，用于后续更新
+        audioPanelStateManager.currentRecordingTemplateId = templateId
+        
+        // 3. 显示音频面板进入录制模式
+        showAudioPanelForRecording()
     }
     
     @objc public func showHistory(_ sender: Any?) {
@@ -2901,6 +2852,48 @@ extension MainWindowController {
             self?.showCookieRefresh(nil)
         }
         
+        // 监听音频面板可见性变化
+        // Requirements: 1.1, 1.3
+        NotificationCenter.default.addObserver(
+            forName: AudioPanelStateManager.visibilityDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let visible = notification.userInfo?["visible"] as? Bool else { return }
+            print("[MainWindowController] 收到音频面板可见性变化通知: \(visible)")
+            if visible {
+                self?.showAudioPanel()
+            } else {
+                self?.hideAudioPanel()
+            }
+        }
+        
+        // 监听音频面板需要确认对话框通知
+        // Requirements: 2.5, 5.2
+        NotificationCenter.default.addObserver(
+            forName: AudioPanelStateManager.needsConfirmationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("[MainWindowController] 收到音频面板需要确认通知")
+            self?.showAudioPanelCloseConfirmation()
+        }
+        
+        // 监听音频附件点击通知
+        // Requirements: 2.2
+        NotificationCenter.default.addObserver(
+            forName: .audioAttachmentClicked,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let fileId = NotificationCenter.extractAudioFileId(from: notification) else {
+                print("[MainWindowController] ❌ 收到音频附件点击通知但缺少 fileId")
+                return
+            }
+            print("[MainWindowController] 收到音频附件点击通知: fileId=\(fileId)")
+            self?.showAudioPanelForPlayback(fileId: fileId)
+        }
+        
         print("[MainWindowController] 状态监听器已设置")
     }
     
@@ -3168,6 +3161,357 @@ extension MainWindowController {
         print("[MainWindowController] 折叠所有区域")
         // TODO: 实现折叠所有区域功能
         // 这需要与编辑器集成，折叠所有可折叠的区域
+    }
+    
+    // MARK: - 音频面板方法
+    // Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.3, 2.5
+    
+    /// 显示音频面板
+    ///
+    /// 在主窗口右侧添加第四栏显示音频面板。
+    /// 如果当前是画廊模式，则不显示音频面板。
+    ///
+    /// Requirements: 1.1, 1.2, 1.4, 1.5
+    private func showAudioPanel() {
+        guard let window = window,
+              let splitViewController = window.contentViewController as? NSSplitViewController,
+              let viewModel = viewModel else {
+            print("[MainWindowController] ❌ 无法显示音频面板：窗口或分割视图控制器不存在")
+            return
+        }
+        
+        // 检查是否是画廊模式，画廊模式下不支持音频面板
+        if ViewOptionsManager.shared.viewMode == .gallery {
+            print("[MainWindowController] ⚠️ 画廊模式下不支持音频面板")
+            return
+        }
+        
+        // 检查是否已经显示了音频面板（四栏布局）
+        if splitViewController.splitViewItems.count >= 4 {
+            print("[MainWindowController] ⚠️ 音频面板已经显示")
+            return
+        }
+        
+        // 确保当前是三栏布局
+        guard splitViewController.splitViewItems.count == 3 else {
+            print("[MainWindowController] ❌ 当前不是三栏布局，无法添加音频面板")
+            return
+        }
+        
+        print("[MainWindowController] 显示音频面板")
+        
+        // 创建音频面板托管控制器
+        let audioPanelController = AudioPanelHostingController(
+            stateManager: audioPanelStateManager,
+            viewModel: viewModel
+        )
+        
+        // 设置录制完成回调
+        audioPanelController.onRecordingComplete = { [weak self] url in
+            self?.handleAudioRecordingComplete(url: url)
+        }
+        
+        // 设置关闭回调
+        audioPanelController.onClose = { [weak self] in
+            self?.audioPanelStateManager.hide()
+        }
+        
+        // 保存引用
+        self.audioPanelHostingController = audioPanelController
+        
+        // 创建分割视图项
+        // Requirements: 1.4 - 最小宽度 280 像素，最大宽度 400 像素
+        let audioPanelSplitViewItem = NSSplitViewItem(viewController: audioPanelController)
+        audioPanelSplitViewItem.minimumThickness = 280
+        audioPanelSplitViewItem.maximumThickness = 400
+        audioPanelSplitViewItem.canCollapse = false
+        
+        // Requirements: 1.5 - 设置 holdingPriority 确保优先压缩编辑器
+        // 音频面板的 holdingPriority 设置为 252，高于编辑器的 250
+        // 这样窗口缩小时会优先压缩编辑器而非音频面板
+        audioPanelSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(252)
+        
+        // 添加到分割视图控制器作为第四栏
+        splitViewController.addSplitViewItem(audioPanelSplitViewItem)
+        
+        // 让音频面板成为第一响应者，以便接收键盘事件（如 Escape 键）
+        // Requirements: 2.4
+        DispatchQueue.main.async {
+            window.makeFirstResponder(audioPanelController)
+        }
+        
+        print("[MainWindowController] ✅ 音频面板已添加，当前栏数: \(splitViewController.splitViewItems.count)")
+    }
+    
+    /// 隐藏音频面板
+    ///
+    /// 从主窗口移除第四栏，恢复三栏布局。
+    ///
+    /// Requirements: 1.3, 2.3
+    private func hideAudioPanel() {
+        guard let window = window,
+              let splitViewController = window.contentViewController as? NSSplitViewController else {
+            print("[MainWindowController] ❌ 无法隐藏音频面板：窗口或分割视图控制器不存在")
+            return
+        }
+        
+        // 检查是否有第四栏（音频面板）
+        guard splitViewController.splitViewItems.count >= 4 else {
+            print("[MainWindowController] ⚠️ 音频面板未显示，无需隐藏")
+            return
+        }
+        
+        print("[MainWindowController] 隐藏音频面板")
+        
+        // 移除第四栏（音频面板）
+        let audioPanelItem = splitViewController.splitViewItems[3]
+        splitViewController.removeSplitViewItem(audioPanelItem)
+        
+        // 清除引用
+        audioPanelHostingController = nil
+        
+        print("[MainWindowController] ✅ 音频面板已移除，当前栏数: \(splitViewController.splitViewItems.count)")
+    }
+    
+    /// 显示音频面板关闭确认对话框
+    ///
+    /// 当用户在录制过程中尝试关闭面板时显示确认对话框。
+    ///
+    /// Requirements: 2.5, 5.2
+    private func showAudioPanelCloseConfirmation() {
+        guard let window = window else { return }
+        
+        let alert = NSAlert()
+        alert.messageText = "正在录制中"
+        alert.informativeText = "您正在录制语音，是否要保存当前录制内容？"
+        alert.alertStyle = .warning
+        
+        // 添加按钮
+        alert.addButton(withTitle: "保存并关闭")
+        alert.addButton(withTitle: "放弃录制")
+        alert.addButton(withTitle: "取消")
+        
+        alert.beginSheetModal(for: window) { [weak self] response in
+            switch response {
+            case .alertFirstButtonReturn:
+                // 保存并关闭
+                print("[MainWindowController] 用户选择保存并关闭")
+                // 停止录制并保存
+                if let url = AudioRecorderService.shared.stopRecording() {
+                    self?.handleAudioRecordingComplete(url: url)
+                }
+                self?.audioPanelStateManager.forceHide()
+                
+            case .alertSecondButtonReturn:
+                // 放弃录制
+                print("[MainWindowController] 用户选择放弃录制")
+                AudioRecorderService.shared.cancelRecording()
+                self?.audioPanelStateManager.forceHide()
+                
+            default:
+                // 取消，不做任何操作
+                print("[MainWindowController] 用户取消关闭操作")
+            }
+        }
+    }
+    
+    /// 处理音频录制完成
+    ///
+    /// 上传音频文件并更新之前插入的录音模板为实际的音频附件。
+    ///
+    /// Requirements: 3.5, 5.3
+    private func handleAudioRecordingComplete(url: URL) {
+        print("[MainWindowController] 处理录制完成: \(url)")
+        
+        guard let viewModel = viewModel,
+              let selectedNote = viewModel.selectedNote else {
+            print("[MainWindowController] ❌ 无法处理录制完成：没有选中的笔记")
+            return
+        }
+        
+        // 获取模板 ID
+        let templateId = audioPanelStateManager.currentRecordingTemplateId
+        
+        // 异步上传音频文件
+        Task { @MainActor in
+            do {
+                print("[MainWindowController] 🎤 开始上传音频文件...")
+                
+                // 更新模板状态为上传中
+                if let templateId = templateId {
+                    audioPanelStateManager.setTemplateUploading(templateId: templateId)
+                }
+                
+                // 1. 上传音频文件到服务器
+                let uploadResult = try await AudioUploadService.shared.uploadAudio(fileURL: url)
+                
+                print("[MainWindowController] ✅ 音频上传成功: fileId=\(uploadResult.fileId), digest=\(uploadResult.digest ?? "nil"), mimeType=\(uploadResult.mimeType ?? "nil")")
+                
+                // 1.5. 更新笔记的 setting.data，添加音频信息
+                // 这是小米笔记服务器识别音频文件的关键
+                if var note = viewModel.selectedNote {
+                    var rawData = note.rawData ?? [:]
+                    var setting = rawData["setting"] as? [String: Any] ?? [
+                        "themeId": 0,
+                        "stickyTime": 0,
+                        "version": 0
+                    ]
+                    
+                    var settingData = setting["data"] as? [[String: Any]] ?? []
+                    
+                    // 构建音频元数据（与图片格式一致）
+                    // digest 格式：{sha1}.mp3
+                    let audioInfo: [String: Any] = [
+                        "fileId": uploadResult.fileId,
+                        "mimeType": uploadResult.mimeType ?? "audio/mpeg",
+                        "digest": (uploadResult.digest ?? uploadResult.fileId) + ".mp3"
+                    ]
+                    settingData.append(audioInfo)
+                    setting["data"] = settingData
+                    rawData["setting"] = setting
+                    note.rawData = rawData
+                    
+                    print("[MainWindowController] 已更新笔记 setting.data，添加音频: \(audioInfo)")
+                    
+                    // 更新 viewModel 中的笔记
+                    viewModel.selectedNote = note
+                    if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
+                        viewModel.notes[index] = note
+                    }
+                }
+                
+                // 2. 检查是否有录音模板需要更新
+                if let templateId = templateId {
+                    // 更新模板状态为更新中
+                    audioPanelStateManager.setTemplateUpdating(templateId: templateId, fileId: uploadResult.fileId)
+                    
+                    // 有录音模板：根据编辑器类型更新模板并强制保存
+                    // 关键修复：根据当前编辑器类型选择正确的上下文
+                    // _Requirements: 4.3_
+                    if self.isUsingNativeEditor {
+                        // 原生编辑器：使用强制保存方法
+                        if let nativeEditorContext = self.getCurrentNativeEditorContext() {
+                            try await nativeEditorContext.updateRecordingTemplateAndSave(
+                                templateId: templateId,
+                                fileId: uploadResult.fileId,
+                                digest: uploadResult.digest,
+                                mimeType: uploadResult.mimeType
+                            )
+                            print("[MainWindowController] ✅ 原生编辑器录音模板已更新并保存: \(templateId) -> \(uploadResult.fileId)")
+                        } else {
+                            print("[MainWindowController] ⚠️ 无法获取原生编辑器上下文，录音模板未更新")
+                            self.audioPanelStateManager.setTemplateFailed(templateId: templateId, error: "无法获取原生编辑器上下文")
+                        }
+                    } else {
+                        // Web 编辑器：使用强制保存方法
+                        if let webEditorContext = self.getCurrentWebEditorContext() {
+                            try await webEditorContext.updateRecordingTemplateAndSave(
+                                templateId: templateId,
+                                fileId: uploadResult.fileId,
+                                digest: uploadResult.digest,
+                                mimeType: uploadResult.mimeType
+                            )
+                            print("[MainWindowController] ✅ Web编辑器录音模板已更新并保存: \(templateId) -> \(uploadResult.fileId)")
+                        } else {
+                            print("[MainWindowController] ⚠️ 无法获取 Web 编辑器上下文，录音模板未更新")
+                            self.audioPanelStateManager.setTemplateFailed(templateId: templateId, error: "无法获取 Web 编辑器上下文")
+                        }
+                    }
+                    
+                    // 更新模板状态为完成
+                    audioPanelStateManager.setTemplateCompleted(templateId: templateId, fileId: uploadResult.fileId)
+                } else {
+                    // 没有录音模板：使用传统方式插入音频附件
+                    // 关键修复：根据当前编辑器类型选择正确的上下文
+                    if self.isUsingNativeEditor {
+                        if let nativeEditorContext = self.getCurrentNativeEditorContext() {
+                            nativeEditorContext.insertAudio(
+                                fileId: uploadResult.fileId,
+                                digest: uploadResult.digest,
+                                mimeType: uploadResult.mimeType
+                            )
+                            print("[MainWindowController] ✅ 音频附件已插入到原生编辑器")
+                        } else {
+                            print("[MainWindowController] ⚠️ 无法获取原生编辑器上下文，音频附件未插入")
+                        }
+                    } else {
+                        if let webEditorContext = self.getCurrentWebEditorContext() {
+                            webEditorContext.insertAudio(
+                                fileId: uploadResult.fileId,
+                                digest: uploadResult.digest,
+                                mimeType: uploadResult.mimeType
+                            )
+                            print("[MainWindowController] ✅ 音频附件已插入到Web编辑器")
+                        } else {
+                            print("[MainWindowController] ⚠️ 无法获取 Web 编辑器上下文，音频附件未插入")
+                        }
+                    }
+                }
+                
+                // 3. 关闭音频面板
+                audioPanelStateManager.forceHide()
+                
+                // 4. 删除临时文件
+                try? FileManager.default.removeItem(at: url)
+                print("[MainWindowController] 🗑️ 临时文件已删除")
+                
+            } catch {
+                print("[MainWindowController] ❌ 音频上传失败: \(error.localizedDescription)")
+                
+                // 更新模板状态为失败
+                if let templateId = templateId {
+                    audioPanelStateManager.setTemplateFailed(templateId: templateId, error: error.localizedDescription)
+                }
+                
+                // 显示错误提示
+                await showAudioUploadErrorAlert(error: error)
+            }
+        }
+    }
+    
+    /// 显示音频上传错误提示
+    ///
+    /// - Parameter error: 上传错误
+    private func showAudioUploadErrorAlert(error: Error) async {
+        guard let window = window else { return }
+        
+        let alert = NSAlert()
+        alert.messageText = "音频上传失败"
+        alert.informativeText = error.localizedDescription
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "确定")
+        
+        alert.beginSheetModal(for: window) { _ in }
+    }
+    
+    /// 公开方法：显示音频面板进入录制模式
+    ///
+    /// 供工具栏按钮调用，显示音频面板并进入录制模式。
+    ///
+    /// Requirements: 2.1
+    public func showAudioPanelForRecording() {
+        guard let viewModel = viewModel,
+              let selectedNote = viewModel.selectedNote else {
+            print("[MainWindowController] ❌ 无法显示录制面板：没有选中的笔记")
+            return
+        }
+        
+        audioPanelStateManager.showForRecording(noteId: selectedNote.id)
+    }
+    
+    /// 公开方法：显示音频面板进入播放模式
+    ///
+    /// 供音频附件点击调用，显示音频面板并播放指定音频。
+    ///
+    /// Requirements: 2.2
+    public func showAudioPanelForPlayback(fileId: String) {
+        guard let viewModel = viewModel,
+              let selectedNote = viewModel.selectedNote else {
+            print("[MainWindowController] ❌ 无法显示播放面板：没有选中的笔记")
+            return
+        }
+        
+        audioPanelStateManager.showForPlayback(fileId: fileId, noteId: selectedNote.id)
     }
     
     

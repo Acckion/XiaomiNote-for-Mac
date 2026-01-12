@@ -425,6 +425,8 @@ struct WebEditorView: NSViewRepresentable {
         var executeFormatActionClosure: ((String, String?) -> Void)?
         var insertImageClosure: ((String, String) -> Void)?
         var insertAudioClosure: ((String, String?, String?) -> Void)?
+        var insertRecordingTemplateClosure: ((String) -> Void)?
+        var updateRecordingTemplateClosure: ((String, String, String?, String?) -> Void)?
         var getCurrentContentClosure: ((@escaping (String) -> Void) -> Void)?
         var forceSaveContentClosure: ((@escaping () -> Void) -> Void)?
         var undoClosure: (() -> Void)?
@@ -713,6 +715,39 @@ struct WebEditorView: NSViewRepresentable {
                         print("[WebEditorView] 插入语音失败: \(error)")
                     } else {
                         print("[WebEditorView] 插入语音成功")
+                    }
+                }
+            }
+            
+            // 插入录音模板闭包
+            insertRecordingTemplateClosure = { [weak self] templateId in
+                guard let webView = self?.webView else { return }
+                let escapedTemplateId = templateId.replacingOccurrences(of: "'", with: "\\'")
+                let javascript = "window.MiNoteWebEditor.insertRecordingTemplate('\(escapedTemplateId)')"
+                print("[WebEditorView] 执行 JavaScript: \(javascript)")
+                webView.evaluateJavaScript(javascript) { result, error in
+                    if let error = error {
+                        print("[WebEditorView] 插入录音模板失败: \(error)")
+                    } else {
+                        print("[WebEditorView] 插入录音模板成功")
+                    }
+                }
+            }
+            
+            // 更新录音模板闭包
+            updateRecordingTemplateClosure = { [weak self] templateId, fileId, digest, mimeType in
+                guard let webView = self?.webView else { return }
+                let escapedTemplateId = templateId.replacingOccurrences(of: "'", with: "\\'")
+                let escapedFileId = fileId.replacingOccurrences(of: "'", with: "\\'")
+                let escapedDigest = (digest ?? "").replacingOccurrences(of: "'", with: "\\'")
+                let escapedMimeType = (mimeType ?? "audio/mpeg").replacingOccurrences(of: "'", with: "\\'")
+                let javascript = "window.MiNoteWebEditor.updateRecordingTemplate('\(escapedTemplateId)', '\(escapedFileId)', '\(escapedDigest)', '\(escapedMimeType)')"
+                print("[WebEditorView] 执行 JavaScript: \(javascript)")
+                webView.evaluateJavaScript(javascript) { result, error in
+                    if let error = error {
+                        print("[WebEditorView] 更新录音模板失败: \(error)")
+                    } else {
+                        print("[WebEditorView] 更新录音模板成功")
                     }
                 }
             }

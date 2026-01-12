@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 
 /// Web编辑器上下文，管理编辑器状态和格式操作
+@MainActor
 class WebEditorContext: ObservableObject {
     @Published var content: String = ""
     @Published var isEditorReady: Bool = false
@@ -63,11 +64,78 @@ class WebEditorContext: ObservableObject {
             .store(in: &cancellables)
     }
     
+    /// 上一次的音频附件文件 ID 集合（用于检测删除）
+    private var previousAudioFileIds: Set<String> = []
+    
+    /// 是否是第一次设置内容（用于区分初始化和用户编辑）
+    private var isFirstContentSet = true
+    
     // 处理内容变化
     private func handleContentChanged(_ content: String) {
+        let currentAudioFileIds = extractAudioFileIds(from: content)
+        
+        if isFirstContentSet {
+            // 第一次设置内容，只初始化音频附件集合，不检测删除
+            previousAudioFileIds = currentAudioFileIds
+            isFirstContentSet = false
+            print("[WebEditorContext] 初始化音频附件集合，数量: \(currentAudioFileIds.count)")
+        } else {
+            // 后续内容变化，检测音频附件删除
+            detectAndHandleAudioAttachmentDeletion(htmlContent: content)
+        }
+        
         // 这里可以添加内容变化后的处理逻辑
         // 例如自动保存、同步等
         print("内容已更新，长度: \(content.count)")
+    }
+    
+    /// 提取 HTML 内容中的音频附件文件 ID
+    /// - Parameter htmlContent: HTML 内容
+    /// - Returns: 音频附件文件 ID 集合
+    private func extractAudioFileIds(from htmlContent: String) -> Set<String> {
+        var fileIds: Set<String> = []
+        
+        // 使用正则表达式匹配音频附件
+        // 音频附件的 HTML 格式类似：<div class="mi-note-sound-container" data-fileid="xxx">
+        let pattern = #"<div[^>]*class="mi-note-sound-container"[^>]*data-fileid="([^"]+)""#
+        
+        do {
+            let regex = try NSRegularExpression(pattern: pattern, options: [])
+            let matches = regex.matches(in: htmlContent, options: [], range: NSRange(location: 0, length: htmlContent.count))
+            
+            for match in matches {
+                if match.numberOfRanges > 1 {
+                    let fileIdRange = match.range(at: 1)
+                    if let range = Range(fileIdRange, in: htmlContent) {
+                        let fileId = String(htmlContent[range])
+                        fileIds.insert(fileId)
+                    }
+                }
+            }
+        } catch {
+            print("[WebEditorContext] 解析音频附件时出错: \(error)")
+        }
+        
+        return fileIds
+    }
+    
+    /// 检测并处理音频附件删除
+    /// - Parameter htmlContent: 当前的 HTML 内容
+    @MainActor
+    private func detectAndHandleAudioAttachmentDeletion(htmlContent: String) {
+        let currentAudioFileIds = extractAudioFileIds(from: htmlContent)
+        
+        // 找出被删除的音频附件
+        let deletedFileIds = previousAudioFileIds.subtracting(currentAudioFileIds)
+        
+        // 处理每个被删除的音频附件
+        for fileId in deletedFileIds {
+            print("[WebEditorContext] 检测到音频附件删除: \(fileId)")
+            AudioPanelStateManager.shared.handleAudioAttachmentDeleted(fileId: fileId)
+        }
+        
+        // 更新记录的音频附件集合
+        previousAudioFileIds = currentAudioFileIds
     }
     
     // 格式操作（参考 CKEditor 5：不手动切换状态，状态由编辑器同步）
@@ -163,6 +231,12 @@ class WebEditorContext: ObservableObject {
     /// 插入语音录音闭包
     var insertAudioClosure: ((String, String?, String?) -> Void)?
     
+    /// 插入录音模板闭包
+    var insertRecordingTemplateClosure: ((String) -> Void)?
+    
+    /// 更新录音模板闭包
+    var updateRecordingTemplateClosure: ((String, String, String?, String?) -> Void)?
+    
     /// 在 Web 编辑器中插入语音录音
     /// - Parameters:
     ///   - fileId: 语音文件 ID
@@ -172,6 +246,79 @@ class WebEditorContext: ObservableObject {
     func insertAudio(fileId: String, digest: String? = nil, mimeType: String? = nil) {
         print("[WebEditorContext] 插入语音录音: fileId=\(fileId)")
         insertAudioClosure?(fileId, digest, mimeType)
+    }
+    
+    /// 在 Web 编辑器中插入录音模板占位符
+    /// - Parameter templateId: 模板唯一标识符
+    func insertRecordingTemplate(templateId: String) {
+        print("[WebEditorContext] 插入录音模板: templateId=\(templateId)")
+        insertRecordingTemplateClosure?(templateId)
+    }
+    
+    /// 更新录音模板为实际的音频附件
+    /// - Parameters:
+    ///   - templateId: 模板唯一标识符
+    ///   - fileId: 音频文件 ID
+    ///   - digest: 文件摘要（可选）
+    ///   - mimeType: MIME 类型（可选）
+    func updateRecordingTemplate(templateId: String, fileId: String, digest: String? = nil, mimeType: String? = nil) {
+        print("[WebEditorContext] 更新录音模板: templateId=\(templateId), fileId=\(fileId)")
+        updateRecordingTemplateClosure?(templateId, fileId, digest, mimeType)
+    }
+    
+    /// 更新录音模板并强制保存
+    /// 
+    /// 更新录音模板为音频附件后立即强制保存，确保内容持久化
+    /// 不依赖防抖机制，立即触发保存操作
+    /// 
+    /// - Parameters:
+    ///   - templateId: 模板唯一标识符
+    ///   - fileId: 音频文件 ID
+    ///   - digest: 文件摘要（可选）
+    ///   - mimeType: MIME 类型（可选）
+    /// - Requirements: 1.1, 2.1
+    func updateRecordingTemplateAndSave(templateId: String, fileId: String, digest: String? = nil, mimeType: String? = nil) async throws {
+        print("[WebEditorContext] 更新录音模板并强制保存: templateId=\(templateId), fileId=\(fileId)")
+        
+        // 1. 更新录音模板
+        updateRecordingTemplate(templateId: templateId, fileId: fileId, digest: digest, mimeType: mimeType)
+        
+        // 2. 强制保存内容，不依赖防抖机制
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            forceSaveContent {
+                continuation.resume()
+            }
+        }
+        
+        print("[WebEditorContext] ✅ 录音模板更新和保存完成")
+    }
+    
+    /// 验证内容持久化
+    /// 
+    /// 验证保存后的内容是否包含预期的音频附件，确保持久化成功
+    /// 
+    /// - Parameter expectedContent: 预期的内容（包含音频附件的XML）
+    /// - Returns: 是否验证成功
+    /// - Requirements: 1.3, 3.4
+    func verifyContentPersistence(expectedContent: String) async -> Bool {
+        print("[WebEditorContext] 验证内容持久化，预期内容长度: \(expectedContent.count)")
+        
+        // 获取当前编辑器内容
+        let currentContent = await withCheckedContinuation { (continuation: CheckedContinuation<String, Never>) in
+            getCurrentContent { content in
+                continuation.resume(returning: content)
+            }
+        }
+        
+        // 简单的内容比较验证
+        let isValid = currentContent.contains("<sound fileid=") && 
+                     !currentContent.contains("des=\"temp\"") && 
+                     currentContent.count > 0
+        
+        print("[WebEditorContext] 内容持久化验证结果: \(isValid ? "成功" : "失败")")
+        print("[WebEditorContext] 当前内容长度: \(currentContent.count)")
+        
+        return isValid
     }
     
     // MARK: - 语音播放控制 (Requirements: 13.2, 13.3)

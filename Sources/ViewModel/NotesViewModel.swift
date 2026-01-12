@@ -448,15 +448,37 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 根据排序方式和方向对笔记进行排序
+    /// 
+    /// 使用稳定排序：当主排序键相同时，使用 id 作为次要排序键，
+    /// 确保排序结果的一致性，避免不必要的列表重排和动画。
     private func sortNotes(_ notes: [Note], by sortOrder: NoteSortOrder, direction: SortDirection) -> [Note] {
         let sorted: [Note]
         switch sortOrder {
         case .editDate:
-            sorted = notes.sorted { $0.updatedAt < $1.updatedAt }
+            // 使用稳定排序：先按 updatedAt 排序，相同时按 id 排序
+            sorted = notes.sorted { 
+                if $0.updatedAt == $1.updatedAt {
+                    return $0.id < $1.id
+                }
+                return $0.updatedAt < $1.updatedAt 
+            }
         case .createDate:
-            sorted = notes.sorted { $0.createdAt < $1.createdAt }
+            // 使用稳定排序：先按 createdAt 排序，相同时按 id 排序
+            sorted = notes.sorted { 
+                if $0.createdAt == $1.createdAt {
+                    return $0.id < $1.id
+                }
+                return $0.createdAt < $1.createdAt 
+            }
         case .title:
-            sorted = notes.sorted { $0.title.localizedCompare($1.title) == .orderedAscending }
+            // 使用稳定排序：先按 title 排序，相同时按 id 排序
+            sorted = notes.sorted { 
+                let comparison = $0.title.localizedCompare($1.title)
+                if comparison == .orderedSame {
+                    return $0.id < $1.id
+                }
+                return comparison == .orderedAscending
+            }
         }
         
         // 根据排序方向决定是否反转
@@ -526,8 +548,14 @@ public class NotesViewModel: ObservableObject {
         
         // 监听selectedNote和selectedFolder变化，保存状态
         Publishers.CombineLatest($selectedNote, $selectedFolder)
-            .sink { [weak self] _, _ in
+            .sink { [weak self] selectedNote, _ in
                 self?.saveLastSelectedState()
+                
+                // 处理笔记切换时的音频面板状态同步
+                // Requirements: 5.1, 5.2 - 笔记切换状态同步
+                if let newNoteId = selectedNote?.id {
+                    self?.handleNoteSwitch(to: newNoteId)
+                }
             }
             .store(in: &cancellables)
         
@@ -2884,6 +2912,9 @@ public class NotesViewModel: ObservableObject {
     /// 用于延迟加载，提高列表加载速度
     /// 
     /// - Parameter note: 要检查的笔记对象
+    /// 
+    /// **注意**：此方法在更新笔记时会尽量避免触发不必要的排序变化，
+    /// 以防止笔记在列表中错误移动。
     func ensureNoteHasFullContent(_ note: Note) async {
         // 如果笔记已经有完整内容，不需要获取
         if !note.content.isEmpty {
@@ -2904,6 +2935,10 @@ public class NotesViewModel: ObservableObject {
             // 更新笔记内容
             if let index = notes.firstIndex(where: { $0.id == note.id }) {
                 var updatedNote = notes[index]
+                
+                // 保存原始的 updatedAt，用于后续比较
+                let originalUpdatedAt = updatedNote.updatedAt
+                
                 updatedNote.updateContent(from: noteDetails)
                 print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent更新完成")
                 
@@ -2911,7 +2946,13 @@ public class NotesViewModel: ObservableObject {
                 print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent保存到本地")
                 try localStorage.saveNote(updatedNote)
                 
+                // 检查 updatedAt 是否真正变化
+                // 如果没有变化，说明只是加载了内容，不应该触发排序变化
+                let updatedAtChanged = abs(updatedNote.updatedAt.timeIntervalSince(originalUpdatedAt)) > 1.0
+                
                 // 更新列表中的笔记
+                // 注意：即使 updatedAt 没有变化，我们仍然需要更新 notes 数组以反映新的内容
+                // 但由于 Note 的 Equatable 只比较 id，这不会导致 SwiftUI 认为笔记发生了变化
                 notes[index] = updatedNote
                 
                 // 如果这是当前选中的笔记，更新选中状态
@@ -2919,7 +2960,7 @@ public class NotesViewModel: ObservableObject {
                     selectedNote = updatedNote
                 }
                 
-                print("[VIEWMODEL] 已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count)")
+                print("[VIEWMODEL] 已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count), updatedAt变化: \(updatedAtChanged)")
             }
         } catch {
             print("[VIEWMODEL] 获取笔记完整内容失败: \(error.localizedDescription)")
@@ -4382,5 +4423,28 @@ public class NotesViewModel: ObservableObject {
         }
         
         print("[VIEWMODEL] 同步间隔已更新为 \(effectiveInterval) 秒")
+    }
+    
+    // MARK: - 音频面板状态同步
+    // Requirements: 5.1, 5.2
+    
+    /// 处理笔记切换时的音频面板状态同步
+    ///
+    /// 当用户切换到其他笔记时，检查音频面板的状态：
+    /// - 如果正在播放，停止播放并关闭面板
+    /// - 如果正在录制，显示确认对话框
+    ///
+    /// - Parameter newNoteId: 新选中的笔记 ID
+    /// Requirements: 5.1, 5.2
+    private func handleNoteSwitch(to newNoteId: String) {
+        // 调用 AudioPanelStateManager 的 handleNoteSwitch 方法
+        // 该方法会根据当前状态决定是否需要确认对话框
+        let canSwitch = AudioPanelStateManager.shared.handleNoteSwitch(to: newNoteId)
+        
+        if !canSwitch {
+            // 如果不能切换（正在录制中），AudioPanelStateManager 会发送确认通知
+            // MainWindowController 会监听该通知并显示确认对话框
+            print("[NotesViewModel] 笔记切换被阻止，等待用户确认")
+        }
     }
 }

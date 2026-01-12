@@ -29,6 +29,8 @@ struct WebEditorWrapper: View {
                 editorContext.executeFormatActionClosure = coordinator.executeFormatActionClosure
                 editorContext.insertImageClosure = coordinator.insertImageClosure
                 editorContext.insertAudioClosure = coordinator.insertAudioClosure
+                editorContext.insertRecordingTemplateClosure = coordinator.insertRecordingTemplateClosure
+                editorContext.updateRecordingTemplateClosure = coordinator.updateRecordingTemplateClosure
                 editorContext.getCurrentContentClosure = coordinator.getCurrentContentClosure
                 editorContext.forceSaveContentClosure = coordinator.forceSaveContentClosure
                 editorContext.undoClosure = coordinator.undoClosure

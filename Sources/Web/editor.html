@@ -264,6 +264,55 @@
             border-color: rgba(255, 59, 48, 0.5);
         }
         
+        /* 录音模板样式 */
+        .mi-note-recording-template {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background-color: #f5f5f5;
+            border: 1px dashed #ccc;
+            border-radius: 4px;
+            cursor: default;
+        }
+        
+        /* 深色模式下的录音模板样式 */
+        html[data-color-scheme="dark"] .mi-note-recording-template,
+        :root[data-color-scheme="dark"] .mi-note-recording-template {
+            background-color: #2a2a2a;
+            border-color: #555;
+        }
+        
+        .mi-note-recording-icon {
+            font-size: 16px;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .mi-note-recording-label {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        /* 深色模式下的录音标签颜色 */
+        html[data-color-scheme="dark"] .mi-note-recording-label,
+        :root[data-color-scheme="dark"] .mi-note-recording-label {
+            color: #999;
+        }
+        
+        /* 脉冲动画 */
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
         /* 深色模式下的播放状态样式 */
         html[data-color-scheme="dark"] .mi-note-sound.playing,
         :root[data-color-scheme="dark"] .mi-note-sound.playing {

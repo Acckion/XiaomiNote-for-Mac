@@ -167,6 +167,9 @@ struct NativeEditorView: NSViewRepresentable {
                 // 更新内容
                 textView.textStorage?.setAttributedString(newText)
                 
+                // 初始化音频附件集合（用于删除检测）
+                context.coordinator.previousAudioFileIds = context.coordinator.extractAudioFileIds(from: newText)
+                
                 // 恢复选择范围（如果有效）
                 if selectedRange.location <= textView.string.count {
                     let newRange = NSRange(
@@ -192,6 +195,9 @@ struct NativeEditorView: NSViewRepresentable {
         weak var scrollView: NSScrollView?
         var isUpdatingFromTextView = false
         private var cancellables = Set<AnyCancellable>()
+        
+        /// 上一次的音频附件文件 ID 集合（用于检测删除）
+        var previousAudioFileIds: Set<String> = []
         
         init(_ parent: NativeEditorView) {
             self.parent = parent
@@ -491,16 +497,58 @@ struct NativeEditorView: NSViewRepresentable {
             }
         }
         
+        // MARK: - 音频附件删除检测
+        
+        /// 提取 NSAttributedString 中的音频附件文件 ID
+        /// - Parameter attributedString: 要检查的富文本
+        /// - Returns: 音频附件文件 ID 集合
+        func extractAudioFileIds(from attributedString: NSAttributedString) -> Set<String> {
+            var fileIds: Set<String> = []
+            
+            attributedString.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attributedString.length)) { value, range, stop in
+                if let audioAttachment = value as? AudioAttachment,
+                   let fileId = audioAttachment.fileId {
+                    fileIds.insert(fileId)
+                }
+            }
+            
+            return fileIds
+        }
+        
+        /// 检测并处理音频附件删除
+        /// - Parameter currentAttributedString: 当前的富文本内容
+        private func detectAndHandleAudioAttachmentDeletion(currentAttributedString: NSAttributedString) {
+            let currentAudioFileIds = extractAudioFileIds(from: currentAttributedString)
+            
+            // 找出被删除的音频附件
+            let deletedFileIds = previousAudioFileIds.subtracting(currentAudioFileIds)
+            
+            // 处理每个被删除的音频附件
+            for fileId in deletedFileIds {
+                print("[NativeEditorView] 检测到音频附件删除: \(fileId)")
+                AudioPanelStateManager.shared.handleAudioAttachmentDeleted(fileId: fileId)
+            }
+            
+            // 更新记录的音频附件集合
+            previousAudioFileIds = currentAudioFileIds
+        }
+        
         // MARK: - NSTextViewDelegate
         
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
+            guard let textStorage = textView.textStorage else { return }
             
             isUpdatingFromTextView = true
             
-            // 更新编辑器上下文 - 使用 Task 延迟执行，避免在视图更新中修改 @Published 属性
-            let attributedString = textView.attributedString()
+            // 关键修复：使用 NSAttributedString(attributedString: textStorage) 而不是 textView.attributedString()
+            // textView.attributedString() 可能不会保留自定义属性（如 XMLContent、RecordingTemplate 等）
+            // 而直接从 textStorage 创建 NSAttributedString 会保留所有属性
+            let attributedString = NSAttributedString(attributedString: textStorage)
             let contentChangeCallback = parent.onContentChange
+            
+            // 检测音频附件删除
+            detectAndHandleAudioAttachmentDeletion(currentAttributedString: attributedString)
             
             Task { @MainActor in
                 self.parent.editorContext.updateNSContent(attributedString)
@@ -1414,52 +1462,19 @@ class NativeTextView: NSTextView {
                     // 检查点击是否在附件区域内
                     let adjustedRect = boundingRect.offsetBy(dx: textContainerInset.width, dy: textContainerInset.height)
                     if adjustedRect.contains(point) {
-                        // 计算点击位置相对于附件的位置
-                        let relativeX = point.x - adjustedRect.origin.x
-                        
-                        // 播放按钮区域（左侧 40 像素）
-                        let playButtonWidth: CGFloat = 40
-                        
-                        if relativeX < playButtonWidth {
-                            // 点击了播放按钮区域
-                            print("[NativeTextView] 🎤 音频附件播放按钮点击: charIndex=\(charIndex), fileId=\(audioAttachment.fileId ?? "nil")")
-                            
-                            // 异步切换播放状态
-                            Task { @MainActor in
-                                do {
-                                    try await audioAttachment.togglePlayPause()
-                                    
-                                    // 刷新显示
-                                    layoutManager.invalidateDisplay(forCharacterRange: NSRange(location: charIndex, length: 1))
-                                    
-                                    print("[NativeTextView] 🎤 音频播放状态已切换")
-                                } catch {
-                                    print("[NativeTextView] 🎤 音频播放失败: \(error.localizedDescription)")
-                                }
-                            }
-                            
+                        // 获取文件 ID
+                        guard let fileId = audioAttachment.fileId, !fileId.isEmpty else {
+                            print("[NativeTextView] 🎤 音频附件点击但缺少 fileId")
                             return
-                        } else {
-                            // 点击了进度条区域，计算跳转位置
-                            let progressBarStartX: CGFloat = playButtonWidth + 10
-                            let progressBarEndX = adjustedRect.width - 60 // 留出时间显示空间
-                            let progressBarWidth = progressBarEndX - progressBarStartX
-                            
-                            if relativeX >= progressBarStartX && relativeX <= progressBarEndX && progressBarWidth > 0 {
-                                let progress = (relativeX - progressBarStartX) / progressBarWidth
-                                let clampedProgress = max(0, min(1, Double(progress)))
-                                
-                                print("[NativeTextView] 🎤 音频进度条点击: progress=\(Int(clampedProgress * 100))%")
-                                
-                                // 跳转到指定位置
-                                audioAttachment.seek(to: clampedProgress)
-                                
-                                // 刷新显示
-                                layoutManager.invalidateDisplay(forCharacterRange: NSRange(location: charIndex, length: 1))
-                                
-                                return
-                            }
                         }
+                        
+                        print("[NativeTextView] 🎤 音频附件点击: charIndex=\(charIndex), fileId=\(fileId)")
+                        
+                        // 发送通知，让音频面板处理播放
+                        // Requirements: 2.2
+                        NotificationCenter.default.postAudioAttachmentClicked(fileId: fileId)
+                        
+                        return
                     }
                 }
             }

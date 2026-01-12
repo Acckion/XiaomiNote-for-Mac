@@ -75,14 +75,15 @@ class HTMLToXMLConverter {
                 className.includes('mi-note-sound-container') ||
                 tagName === 'hr' ||
                 tagName === 'blockquote' ||
-                tagName === 'img';
+                tagName === 'img' ||
+                tagName === 'sound';  // 添加对原生 <sound> 标签的支持
 
             if (isSpecialElement) {
                 return this.convertNodeToXML(node);
             } else if (className.includes('mi-note-text') || tagName === 'div' || tagName === 'p') {
                 // 处理文本元素，检查是否包含嵌套的特殊元素
                 const hasSpecialChildren = node.querySelector(
-                    '.mi-note-bullet, .mi-note-order, .mi-note-checkbox, .mi-note-hr, .mi-note-quote, .mi-note-image, .mi-note-image-container, .mi-note-sound, .mi-note-sound-container, hr, blockquote, img'
+                    '.mi-note-bullet, .mi-note-order, .mi-note-checkbox, .mi-note-hr, .mi-note-quote, .mi-note-image, .mi-note-image-container, .mi-note-sound, .mi-note-sound-container, hr, blockquote, img, sound'
                 );
 
                 if (hasSpecialChildren) {
@@ -341,6 +342,31 @@ class HTMLToXMLConverter {
 
             // 生成 <sound fileid="xxx" /> XML 标签
             return `<sound fileid="${fileId}" />`;
+        }
+
+        // 处理原生 <sound> 标签（录音模板使用）
+        // 这是 insertRecordingTemplate 创建的 XML 格式元素
+        if (tagName === 'sound') {
+            // 提取 fileid 属性（注意：不是 data-fileid）
+            const fileId = node.getAttribute('fileid') || '';
+            const des = node.getAttribute('des') || '';
+
+            // 文本元素会中断有序列表的连续性
+            this.orderListState.isInContinuousList = false;
+            this.orderListState.lastIndent = null;
+            this.orderListState.lastNumber = null;
+
+            // 如果没有 fileId，记录警告并返回空
+            if (!fileId) {
+                console.warn('[html-to-xml] ⚠️ Native sound element missing fileid attribute');
+                return '';
+            }
+
+            // 生成 <sound fileid="xxx" /> 或 <sound fileid="xxx" des="temp"/> XML 标签
+            if (des) {
+                return `<sound fileid="${fileId}" des="${des}"/>`;
+            }
+            return `<sound fileid="${fileId}"/>`;
         }
 
         // 处理图片
