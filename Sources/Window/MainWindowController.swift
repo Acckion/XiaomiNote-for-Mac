@@ -2464,7 +2464,8 @@ extension MainWindowController {
     /// - Requirements: 4.9
     @objc public func toggleBlockQuote(_ sender: Any?) {
         print("切换块引用")
-        // TODO: 实现块引用切换功能
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "块引用")
     }
     
     // MARK: - 核对清单动作
@@ -2473,49 +2474,56 @@ extension MainWindowController {
     /// - Requirements: 5.2
     @objc public func markAsChecked(_ sender: Any?) {
         print("标记为已勾选")
-        // TODO: 实现标记为已勾选功能
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "标记为已勾选")
     }
     
     /// 全部勾选
     /// - Requirements: 5.4
     @objc public func checkAll(_ sender: Any?) {
         print("全部勾选")
-        // TODO: 实现全部勾选功能
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "全部勾选")
     }
     
     /// 全部取消勾选
     /// - Requirements: 5.5
     @objc public func uncheckAll(_ sender: Any?) {
         print("全部取消勾选")
-        // TODO: 实现全部取消勾选功能
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "全部取消勾选")
     }
     
     /// 将勾选的项目移到底部
     /// - Requirements: 5.6
     @objc public func moveCheckedToBottom(_ sender: Any?) {
         print("将勾选的项目移到底部")
-        // TODO: 实现将勾选的项目移到底部功能
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "将勾选的项目移到底部")
     }
     
     /// 删除已勾选项目
     /// - Requirements: 5.7
     @objc public func deleteCheckedItems(_ sender: Any?) {
         print("删除已勾选项目")
-        // TODO: 实现删除已勾选项目功能
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "删除已勾选项目")
     }
     
     /// 向上移动项目
     /// - Requirements: 5.10
     @objc public func moveItemUp(_ sender: Any?) {
         print("向上移动项目")
-        // TODO: 实现向上移动项目功能
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "向上移动项目")
     }
     
     /// 向下移动项目
     /// - Requirements: 5.11
     @objc public func moveItemDown(_ sender: Any?) {
         print("向下移动项目")
-        // TODO: 实现向下移动项目功能
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "向下移动项目")
     }
     
     // MARK: - 外观动作
@@ -2524,14 +2532,16 @@ extension MainWindowController {
     /// - Requirements: 6.2
     @objc public func toggleLightBackground(_ sender: Any?) {
         print("切换浅色背景")
-        // TODO: 实现切换浅色背景功能
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "浅色背景")
     }
     
     /// 切换高亮
     /// - Requirements: 6.9
     @objc public func toggleHighlight(_ sender: Any?) {
         print("切换高亮")
-        // TODO: 实现切换高亮功能
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "高亮")
     }
     
     // MARK: - 新增的菜单动作方法
@@ -3135,32 +3145,32 @@ extension MainWindowController {
     /// - Requirements: 11.2
     @objc public func expandSection(_ sender: Any?) {
         print("[MainWindowController] 展开区域")
-        // TODO: 实现展开当前区域功能
-        // 这需要与编辑器集成，展开当前光标所在的折叠区域
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "展开区域")
     }
     
     /// 展开所有区域
     /// - Requirements: 11.3
     @objc public func expandAllSections(_ sender: Any?) {
         print("[MainWindowController] 展开所有区域")
-        // TODO: 实现展开所有区域功能
-        // 这需要与编辑器集成，展开所有折叠的区域
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "展开所有区域")
     }
     
     /// 折叠区域
     /// - Requirements: 11.4
     @objc public func collapseSection(_ sender: Any?) {
         print("[MainWindowController] 折叠区域")
-        // TODO: 实现折叠当前区域功能
-        // 这需要与编辑器集成，折叠当前光标所在的区域
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "折叠区域")
     }
     
     /// 折叠所有区域
     /// - Requirements: 11.5
     @objc public func collapseAllSections(_ sender: Any?) {
         print("[MainWindowController] 折叠所有区域")
-        // TODO: 实现折叠所有区域功能
-        // 这需要与编辑器集成，折叠所有可折叠的区域
+        // 功能尚未实现，显示提示
+        showFeatureNotImplementedAlert(featureName: "折叠所有区域")
     }
     
     // MARK: - 音频面板方法
@@ -3467,6 +3477,23 @@ extension MainWindowController {
                 await showAudioUploadErrorAlert(error: error)
             }
         }
+    }
+    
+    /// 显示功能尚未实现的提示
+    ///
+    /// 用于未实现的菜单功能，向用户显示友好的提示信息
+    ///
+    /// - Parameter featureName: 功能名称
+    private func showFeatureNotImplementedAlert(featureName: String) {
+        guard let window = window else { return }
+        
+        let alert = NSAlert()
+        alert.messageText = "功能尚未实现"
+        alert.informativeText = "「\(featureName)」功能正在开发中，敬请期待。"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        
+        alert.beginSheetModal(for: window) { _ in }
     }
     
     /// 显示音频上传错误提示

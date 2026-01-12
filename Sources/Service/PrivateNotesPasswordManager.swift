@@ -302,53 +302,6 @@ public final class PrivateNotesPasswordManager: @unchecked Sendable {
             throw PasswordError.biometricNotAvailable(error.localizedDescription)
         }
     }
-    
-    /// 使用 Touch ID 验证（旧方法，保留用于兼容性，会弹出系统对话框）
-    /// 
-    /// - Parameter reason: 验证原因说明
-    /// - Returns: 如果验证成功返回 true，否则返回 false
-    /// - Throws: 如果验证过程中出现错误
-    @available(*, deprecated, message: "使用authenticateWithTouchID()代替，该方法会弹出系统对话框")
-    public func authenticateWithTouchIDWithDialog(reason: String = "验证以访问私密笔记") async throws -> Bool {
-        let context = LAContext()
-        var error: NSError?
-        
-        // 检查是否支持生物识别
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-            if let error = error {
-                throw PasswordError.biometricNotAvailable(error.localizedDescription)
-            }
-            throw PasswordError.biometricNotAvailable("设备不支持生物识别")
-        }
-        
-        // 执行生物识别验证
-        do {
-            let success = try await context.evaluatePolicy(
-                .deviceOwnerAuthenticationWithBiometrics,
-                localizedReason: reason
-            )
-            return success
-        } catch {
-            // 处理各种错误情况
-            if let laError = error as? LAError {
-                switch laError.code {
-                case .userCancel:
-                    throw PasswordError.biometricCancelled
-                case .userFallback:
-                    throw PasswordError.biometricFallback
-                case .biometryNotAvailable:
-                    throw PasswordError.biometricNotAvailable("生物识别不可用")
-                case .biometryNotEnrolled:
-                    throw PasswordError.biometricNotAvailable("未设置生物识别")
-                case .biometryLockout:
-                    throw PasswordError.biometricNotAvailable("生物识别已锁定，请稍后再试")
-                default:
-                    throw PasswordError.biometricNotAvailable(laError.localizedDescription)
-                }
-            }
-            throw PasswordError.biometricNotAvailable(error.localizedDescription)
-        }
-    }
 }
 
 /// 密码错误类型

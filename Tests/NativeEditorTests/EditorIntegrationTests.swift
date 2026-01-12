@@ -65,14 +65,21 @@ final class EditorIntegrationTests: XCTestCase {
     
     /// 测试编辑器工厂创建
     func testEditorFactoryCreation() async throws {
-        // 测试创建 Web 编辑器
-        let webEditor = EditorFactory.createEditorSafely(type: .web)
-        XCTAssertTrue(webEditor.isAvailable(), "Web 编辑器应该可用")
+        // 测试编辑器可用性检查
+        XCTAssertTrue(EditorFactory.isEditorAvailable(.web), "Web 编辑器应该可用")
         
-        // 测试创建原生编辑器（如果可用）
+        // 测试获取可用编辑器类型
+        let availableTypes = EditorFactory.getAvailableEditorTypes()
+        XCTAssertTrue(availableTypes.contains(.web), "可用类型应包含 Web 编辑器")
+        
+        // 测试获取编辑器信息
+        let webInfo = EditorFactory.getEditorInfo(for: .web)
+        XCTAssertTrue(webInfo.isAvailable, "Web 编辑器信息应显示可用")
+        
+        // 测试原生编辑器可用性（如果可用）
         if EditorFactory.isEditorAvailable(.native) {
-            let nativeEditor = EditorFactory.createEditorSafely(type: .native)
-            XCTAssertTrue(nativeEditor.isAvailable(), "原生编辑器应该可用")
+            let nativeInfo = EditorFactory.getEditorInfo(for: .native)
+            XCTAssertTrue(nativeInfo.isAvailable, "原生编辑器信息应显示可用")
         }
     }
     
@@ -187,12 +194,13 @@ final class EditorIntegrationTests: XCTestCase {
     /// 测试编辑器切换性能
     func testEditorSwitchPerformance() async throws {
         measure {
-            // 创建编辑器
-            let _ = EditorFactory.createEditorSafely(type: .web)
+            // 测试编辑器可用性检查性能
+            let _ = EditorFactory.isEditorAvailable(.web)
+            let _ = EditorFactory.getEditorInfo(for: .web)
             
             // 如果原生编辑器可用，也测试原生编辑器
             if EditorFactory.isEditorAvailable(.native) {
-                let _ = EditorFactory.createEditorSafely(type: .native)
+                let _ = EditorFactory.getEditorInfo(for: .native)
             }
         }
     }

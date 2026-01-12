@@ -158,7 +158,6 @@
 		B742021BAE96DDF7FEC45927 /* editor.html in Resources */ = {isa = PBXBuildFile; fileRef = 7FE9E4F0E6001401DA22FF6A /* editor.html */; };
 		B7500D960A43B07C5C9A666D /* MiNoteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FF4267799A9827F60A37B5A /* MiNoteService.swift */; };
 		B92565C92C3EFCB9A825575C /* NetworkRecoveryHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C890B96BBA23B68CE4B0D0A0 /* NetworkRecoveryHandler.swift */; };
-		BA094D4228D10FBE9D8C4B73 /* NoteEditorCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43090C7E1B9EB915805CD613 /* NoteEditorCoordinator.swift */; };
 		BA0D86C1C88519A546EF547B /* format.js in Resources */ = {isa = PBXBuildFile; fileRef = 8D5462074B1A9758CB992784 /* format.js */; };
 		BA19A533ABB0254211C95246 /* MixedFormatApplicationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF0B87D4E269FC3CB7D0C23 /* MixedFormatApplicationHandler.swift */; };
 		BA9B1834ECE1A4E3F12E9712 /* ViewOptionsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 284BE62A95857AFA64A4A7FC /* ViewOptionsManager.swift */; };
@@ -306,7 +305,6 @@
 		3E674D3C681C4EC48790DE69 /* ToolbarIdentifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarIdentifiers.swift; sourceTree = "<group>"; };
 		40662D88848F4444DD97DCB1 /* NoteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailView.swift; sourceTree = "<group>"; };
 		40BE8FC001FAC9964F64ED89 /* NativeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorView.swift; sourceTree = "<group>"; };
-		43090C7E1B9EB915805CD613 /* NoteEditorCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorCoordinator.swift; sourceTree = "<group>"; };
 		4412C82EA1558B82AE40CD1C /* ViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewState.swift; sourceTree = "<group>"; };
 		443A8DCF17818ABBAD73984B /* CookieRefreshView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookieRefreshView.swift; sourceTree = "<group>"; };
 		44DCA8EF4946B8FDE81DD270 /* ToolbarVisibilityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarVisibilityManager.swift; sourceTree = "<group>"; };
@@ -532,7 +530,6 @@
 				DB8443B36E7272469F67E446 /* GalleryHostingController.swift */,
 				D9A3E318377C517D3F7C3F57 /* NativeEditorContext.swift */,
 				C88083B427871B6F24E50522 /* NoteDetailHostingController.swift */,
-				43090C7E1B9EB915805CD613 /* NoteEditorCoordinator.swift */,
 				A41D32DA81E0A2F6BE5BCFF0 /* NotesListHostingController.swift */,
 				A132808FB8BD901AF2D9A566 /* SidebarHostingController.swift */,
 				2B786CE6C44F733E90A4EB13 /* UnifiedEditorWrapper.swift */,
@@ -1148,7 +1145,6 @@
 				64ED84CA0BC4A8B29D88F30B /* NoteDetailViewController.swift in Sources */,
 				05F8C026F8B47411FE4A0EEA /* NoteDetailWindowState.swift in Sources */,
 				3CAAFAAA2D5F6F0447BCD4B0 /* NoteDetailWindowView.swift in Sources */,
-				BA094D4228D10FBE9D8C4B73 /* NoteEditorCoordinator.swift in Sources */,
 				F28FE4BBE79F11DB5D9FE9FD /* NoteHistoryVersion.swift in Sources */,
 				D380F0AA898B993AE6A0338E /* NoteHistoryView.swift in Sources */,
 				CACAC867821E5C44BE3A905A /* NoteMoveHelper.swift in Sources */,
