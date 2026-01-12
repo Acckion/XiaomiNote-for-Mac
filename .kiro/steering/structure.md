@@ -18,38 +18,83 @@ Sources/
 │   ├── NoteHistoryVersion.swift
 │   └── UserProfile.swift
 │
-├── Service/                # 业务服务层
-│   ├── MiNoteService.swift         # 小米笔记 API
-│   ├── DatabaseService.swift       # SQLite 数据库
-│   ├── SyncService.swift           # 同步服务
-│   ├── LocalStorageService.swift   # 本地文件存储
-│   ├── MemoryCacheManager.swift    # 内存缓存
-│   ├── SaveQueueManager.swift      # 保存队列
-│   ├── OfflineOperationQueue.swift # 离线操作队列
-│   ├── NetworkMonitor.swift        # 网络状态监控
-│   └── ...
+├── Service/                # 业务服务层（模块化）
+│   ├── Audio/              # 音频服务
+│   │   ├── AudioCacheService.swift
+│   │   ├── AudioConverterService.swift
+│   │   ├── AudioDecryptService.swift
+│   │   ├── AudioPlayerService.swift
+│   │   ├── AudioRecorderService.swift
+│   │   ├── AudioUploadService.swift
+│   │   └── AudioPanelStateManager.swift
+│   ├── Network/            # 网络服务
+│   │   ├── MiNoteService.swift
+│   │   ├── MiNoteService+Encryption.swift
+│   │   ├── NetworkErrorHandler.swift
+│   │   ├── NetworkLogger.swift
+│   │   ├── NetworkMonitor.swift
+│   │   ├── NetworkRecoveryHandler.swift
+│   │   └── NetworkRequestManager.swift
+│   ├── Sync/               # 同步服务
+│   │   ├── SyncService.swift
+│   │   ├── OfflineOperationQueue.swift
+│   │   ├── OfflineOperationProcessor.swift
+│   │   ├── OnlineStateManager.swift
+│   │   └── SaveQueueManager.swift
+│   ├── Storage/            # 存储服务
+│   │   ├── DatabaseService.swift
+│   │   ├── LocalStorageService.swift
+│   │   └── MemoryCacheManager.swift
+│   ├── Editor/             # 编辑器服务
+│   │   ├── EditorConfiguration.swift
+│   │   ├── EditorPreferencesService.swift
+│   │   └── XiaoMiFormatConverter.swift
+│   └── Core/               # 核心服务
+│       ├── AuthenticationStateManager.swift
+│       ├── StartupSequenceManager.swift
+│       ├── ScheduledTaskManager.swift
+│       ├── ErrorRecoveryService.swift
+│       └── PrivateNotesPasswordManager.swift
 │
 ├── ViewModel/              # 视图模型
 │   ├── NotesViewModel.swift        # 主视图模型
+│   ├── NoteMoveHelper.swift        # 笔记移动辅助
 │   ├── ViewState.swift
 │   └── ViewStateCoordinator.swift
 │
 ├── View/                   # UI 视图组件
 │   ├── AppKitComponents/   # AppKit 视图控制器
 │   ├── Bridge/             # SwiftUI-AppKit 桥接
-│   ├── NativeEditor/       # 原生富文本编辑器
-│   ├── SwiftUIViews/       # SwiftUI 视图
+│   ├── NativeEditor/       # 原生富文本编辑器（模块化）
+│   │   ├── Core/           # 核心编辑器组件
+│   │   ├── Format/         # 格式化处理
+│   │   ├── Attachment/     # 附件处理
+│   │   ├── Debug/          # 调试工具
+│   │   └── Performance/    # 性能优化
+│   ├── SwiftUIViews/       # SwiftUI 视图（模块化）
+│   │   ├── Audio/          # 音频相关视图
+│   │   ├── Note/           # 笔记相关视图
+│   │   ├── Settings/       # 设置相关视图
+│   │   ├── Auth/           # 认证相关视图
+│   │   ├── Search/         # 搜索相关视图
+│   │   └── Common/         # 通用视图组件
 │   └── Shared/             # 共享组件
 │
-├── Window/                 # 窗口控制器
-│   ├── MainWindowController.swift
-│   ├── LoginWindowController.swift
-│   ├── SettingsWindowController.swift
-│   └── ...
+├── Window/                 # 窗口管理（模块化）
+│   ├── Controllers/        # 窗口控制器
+│   │   ├── MainWindowController.swift
+│   │   ├── LoginWindowController.swift
+│   │   ├── SettingsWindowController.swift
+│   │   └── ...
+│   ├── State/              # 窗口状态
+│   │   ├── WindowStateManager.swift
+│   │   ├── MainWindowState.swift
+│   │   └── ...
+│   ├── ToolbarIdentifiers.swift
+│   └── MiNoteToolbarItem.swift
 │
 ├── ToolbarItem/            # 工具栏组件
 ├── Extensions/             # Swift 扩展
-├── Helper/                 # 辅助工具
 │
 └── Web/                    # Web 编辑器
     ├── editor.html

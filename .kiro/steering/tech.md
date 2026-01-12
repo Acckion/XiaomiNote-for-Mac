@@ -22,10 +22,13 @@
 # 生成 Xcode 项目
 xcodegen generate
 # 或使用脚本
-./build_xcode_proj.sh
+./scripts/build_xcode_proj.sh
 
 # 构建 Release 版本
-./build_release.sh
+./scripts/build_release.sh
+
+# 统计代码行数
+./scripts/count_lines.sh
 
 # 构建项目
 xcodebuild -project MiNoteMac.xcodeproj -scheme MiNoteMac -configuration Debug
