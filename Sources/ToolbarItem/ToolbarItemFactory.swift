@@ -64,6 +64,8 @@ public class ToolbarItemFactory {
             return createHorizontalRuleToolbarItem(target: target)
         case .attachment:
             return createAttachmentToolbarItem(target: target)
+        case .audioRecording:
+            return createAudioRecordingToolbarItem(target: target)
         case .increaseIndent:
             return createIncreaseIndentToolbarItem(target: target)
         case .decreaseIndent:
@@ -293,6 +295,17 @@ public class ToolbarItemFactory {
             toolTip: "附件"
         )
         return item.createToolbarItem(target: target) ?? NSToolbarItem(itemIdentifier: .attachment)
+    }
+    
+    private func createAudioRecordingToolbarItem(target: AnyObject?) -> NSToolbarItem {
+        let item = BaseToolbarItem(
+            identifier: .audioRecording,
+            title: "录音",
+            image: NSImage(systemSymbolName: "mic.fill", accessibilityDescription: nil),
+            action: #selector(MainWindowController.insertAudioRecording(_:)),
+            toolTip: "录制语音"
+        )
+        return item.createToolbarItem(target: target) ?? NSToolbarItem(itemIdentifier: .audioRecording)
     }
     
     private func createIncreaseIndentToolbarItem(target: AnyObject?) -> NSToolbarItem {

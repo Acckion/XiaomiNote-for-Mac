@@ -108,6 +108,11 @@ class XMLToHTMLConverter {
                 this.orderListState.currentNumber = 1;
                 this.orderListState.lastIndent = null;
                 this.orderListState.lastNumber = null;
+            } else if (trimmedLine.startsWith('<sound')) {
+                html += this.parseSoundElement(trimmedLine);
+                this.orderListState.currentNumber = 1;
+                this.orderListState.lastIndent = null;
+                this.orderListState.lastNumber = null;
             }
         }
 
@@ -357,6 +362,32 @@ class XMLToHTMLConverter {
      */
     parseHRElement(line) {
         return '<hr class="mi-note-hr" />';
+    }
+
+    /**
+     * 解析 <sound> 元素（语音文件）
+     * @param {string} line - XML 行
+     * @returns {string} HTML
+     */
+    parseSoundElement(line) {
+        // 提取 fileid 属性
+        const fileIdMatch = line.match(/fileid="([^"]+)"/);
+        const fileId = fileIdMatch ? fileIdMatch[1] : '';
+
+        // 如果没有 fileid，记录警告并返回空
+        if (!fileId) {
+            console.warn('[XMLToHTMLConverter] Sound element missing fileid attribute:', line);
+            return '';
+        }
+
+        // 生成包含音频图标和标签的 HTML
+        // 使用与图片占位符一致的样式风格
+        return `<div class="mi-note-sound-container">
+            <div class="mi-note-sound" data-fileid="${fileId}">
+                <span class="mi-note-sound-icon">🎤</span>
+                <span class="mi-note-sound-label">语音录音</span>
+            </div>
+        </div>`;
     }
 
     /**

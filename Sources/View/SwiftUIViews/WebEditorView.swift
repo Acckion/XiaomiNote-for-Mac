@@ -424,6 +424,7 @@ struct WebEditorView: NSViewRepresentable {
         // 操作闭包，用于从外部执行操作
         var executeFormatActionClosure: ((String, String?) -> Void)?
         var insertImageClosure: ((String, String) -> Void)?
+        var insertAudioClosure: ((String, String?, String?) -> Void)?
         var getCurrentContentClosure: ((@escaping (String) -> Void) -> Void)?
         var forceSaveContentClosure: ((@escaping () -> Void) -> Void)?
         var undoClosure: (() -> Void)?
@@ -544,6 +545,131 @@ struct WebEditorView: NSViewRepresentable {
             print("[WebEditorView] ⚠️ 未找到 Inspector 窗口")
         }
         
+        /// 处理语音播放请求
+        /// Requirements: 13.1, 13.2, 13.3
+        /// - Parameter fileId: 语音文件 ID
+        func handlePlayAudioRequest(fileId: String) {
+            print("[WebEditorView] 处理语音播放请求: fileId=\(fileId)")
+            
+            // 使用 Task 进行异步操作
+            Task { @MainActor in
+                do {
+                    // 检查是否正在播放同一个文件
+                    let playerService = AudioPlayerService.shared
+                    if playerService.isPlaying(fileId: fileId) {
+                        // 如果正在播放，则暂停
+                        playerService.pause()
+                        updateAudioPlaybackState(fileId: fileId, isPlaying: false)
+                        print("[WebEditorView] 暂停播放: fileId=\(fileId)")
+                        return
+                    }
+                    
+                    // 如果已加载但暂停，则继续播放
+                    if playerService.isLoaded(fileId: fileId) && !playerService.isPlaying {
+                        if let url = playerService.currentURL {
+                            try playerService.play(url: url, fileId: fileId)
+                            updateAudioPlaybackState(fileId: fileId, isPlaying: true)
+                            print("[WebEditorView] 继续播放: fileId=\(fileId)")
+                            return
+                        }
+                    }
+                    
+                    // 需要下载并播放
+                    // 先检查缓存
+                    let cacheService = AudioCacheService.shared
+                    var audioURL: URL?
+                    
+                    if let cachedURL = cacheService.getCachedFile(for: fileId) {
+                        audioURL = cachedURL
+                        print("[WebEditorView] 使用缓存文件: \(cachedURL.path)")
+                    } else {
+                        // 下载音频文件
+                        print("[WebEditorView] 开始下载音频文件: fileId=\(fileId)")
+                        updateAudioPlaybackState(fileId: fileId, isPlaying: false, isLoading: true)
+                        
+                        let audioData = try await MiNoteService.shared.downloadAudio(fileId: fileId)
+                        audioURL = try cacheService.cacheFile(data: audioData, fileId: fileId, mimeType: "audio/mpeg")
+                        print("[WebEditorView] 音频文件已下载并缓存: \(audioURL?.path ?? "nil")")
+                    }
+                    
+                    // 播放音频
+                    if let url = audioURL {
+                        try playerService.play(url: url, fileId: fileId)
+                        updateAudioPlaybackState(fileId: fileId, isPlaying: true)
+                        print("[WebEditorView] 开始播放: fileId=\(fileId)")
+                        
+                        // 监听播放完成通知
+                        setupPlaybackObservers(for: fileId)
+                    }
+                } catch {
+                    print("[WebEditorView] 播放语音失败: \(error.localizedDescription)")
+                    updateAudioPlaybackState(fileId: fileId, isPlaying: false, error: error.localizedDescription)
+                }
+            }
+        }
+        
+        /// 设置播放状态观察者
+        /// Requirements: 13.4
+        private func setupPlaybackObservers(for fileId: String) {
+            // 监听播放完成通知
+            NotificationCenter.default.addObserver(
+                forName: AudioPlayerService.playbackDidFinishNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                if let notificationFileId = notification.userInfo?["fileId"] as? String,
+                   notificationFileId == fileId {
+                    self?.updateAudioPlaybackState(fileId: fileId, isPlaying: false)
+                }
+            }
+            
+            // 监听播放状态变化通知
+            NotificationCenter.default.addObserver(
+                forName: AudioPlayerService.playbackStateDidChangeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                if let notificationFileId = notification.userInfo?["fileId"] as? String,
+                   notificationFileId == fileId,
+                   let newState = notification.userInfo?["newState"] as? AudioPlayerService.PlaybackState {
+                    switch newState {
+                    case .playing:
+                        self?.updateAudioPlaybackState(fileId: fileId, isPlaying: true)
+                    case .paused, .idle:
+                        self?.updateAudioPlaybackState(fileId: fileId, isPlaying: false)
+                    case .error(let message):
+                        self?.updateAudioPlaybackState(fileId: fileId, isPlaying: false, error: message)
+                    case .loading:
+                        self?.updateAudioPlaybackState(fileId: fileId, isPlaying: false, isLoading: true)
+                    }
+                }
+            }
+        }
+        
+        /// 更新 Web 编辑器中的播放状态
+        /// Requirements: 13.4
+        private func updateAudioPlaybackState(fileId: String, isPlaying: Bool, isLoading: Bool = false, error: String? = nil) {
+            guard let webView = webView else { return }
+            
+            let escapedFileId = fileId.replacingOccurrences(of: "'", with: "\\'")
+            let javascript: String
+            
+            if let error = error {
+                let escapedError = error.replacingOccurrences(of: "'", with: "\\'")
+                javascript = "window.MiNoteWebEditor.updateAudioPlaybackState('\(escapedFileId)', false, false, '\(escapedError)')"
+            } else if isLoading {
+                javascript = "window.MiNoteWebEditor.updateAudioPlaybackState('\(escapedFileId)', false, true, null)"
+            } else {
+                javascript = "window.MiNoteWebEditor.updateAudioPlaybackState('\(escapedFileId)', \(isPlaying), false, null)"
+            }
+            
+            print("[WebEditorView] 更新播放状态: \(javascript)")
+            webView.evaluateJavaScript(javascript) { result, error in
+                if let error = error {
+                    print("[WebEditorView] 更新播放状态失败: \(error)")
+                }
+            }
+        }
         
         // 设置操作闭包
         func setupActionClosures() {
@@ -568,6 +694,25 @@ struct WebEditorView: NSViewRepresentable {
                 webView.evaluateJavaScript(javascript) { result, error in
                     if let error = error {
                         print("插入图片失败: \(error)")
+                    }
+                }
+            }
+            
+            // 插入语音录音闭包
+            // Requirements: 12.1, 12.2, 12.3
+            insertAudioClosure = { [weak self] fileId, digest, mimeType in
+                guard let webView = self?.webView else { return }
+                // 转义参数，防止 JavaScript 注入
+                let escapedFileId = fileId.replacingOccurrences(of: "'", with: "\\'")
+                let escapedDigest = (digest ?? "").replacingOccurrences(of: "'", with: "\\'")
+                let escapedMimeType = (mimeType ?? "audio/mpeg").replacingOccurrences(of: "'", with: "\\'")
+                let javascript = "window.MiNoteWebEditor.insertAudio('\(escapedFileId)', '\(escapedDigest)', '\(escapedMimeType)')"
+                print("[WebEditorView] 执行 JavaScript: \(javascript)")
+                webView.evaluateJavaScript(javascript) { result, error in
+                    if let error = error {
+                        print("[WebEditorView] 插入语音失败: \(error)")
+                    } else {
+                        print("[WebEditorView] 插入语音成功")
                     }
                 }
             }
@@ -660,6 +805,24 @@ struct WebEditorView: NSViewRepresentable {
             // 设置 WebEditorContext 的闭包（如果存在）
             if let webEditorContext = self.webEditorContext {
                 webEditorContext.highlightSearchTextClosure = self.highlightSearchTextClosure
+                
+                // 设置语音播放控制闭包
+                // Requirements: 13.2, 13.3
+                webEditorContext.playAudioClosure = { [weak self] fileId in
+                    self?.handlePlayAudioRequest(fileId: fileId)
+                }
+                
+                webEditorContext.pauseAudioClosure = { [weak self] fileId in
+                    let playerService = AudioPlayerService.shared
+                    if playerService.isPlaying(fileId: fileId) {
+                        playerService.pause()
+                        self?.updateAudioPlaybackState(fileId: fileId, isPlaying: false)
+                    }
+                }
+                
+                webEditorContext.updateAudioPlaybackStateClosure = { [weak self] fileId, isPlaying, isLoading, error in
+                    self?.updateAudioPlaybackState(fileId: fileId, isPlaying: isPlaying, isLoading: isLoading, error: error)
+                }
             }
             
             // 通知外部编辑器已准备好，传递 coordinator
@@ -913,6 +1076,16 @@ struct WebEditorView: NSViewRepresentable {
                    let level = body["level"] as? String {
                     let prefix = level == "error" ? "🔴" : (level == "warn" ? "⚠️" : "📝")
                     print("[JS] \(prefix) \(message)")
+                }
+                
+            case "playAudio":
+                // 处理语音播放请求
+                // Requirements: 13.1, 13.2
+                if let fileId = body["fileId"] as? String {
+                    print("[WebEditorView] 收到播放语音请求: fileId=\(fileId)")
+                    DispatchQueue.main.async { [weak self] in
+                        self?.coordinator?.handlePlayAudioRequest(fileId: fileId)
+                    }
                 }
                 
                 

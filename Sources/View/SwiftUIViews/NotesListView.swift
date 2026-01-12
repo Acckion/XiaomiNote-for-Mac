@@ -1,32 +1,173 @@
 import SwiftUI
 import AppKit
 
+// MARK: - ListAnimationConfig
+
+/// 列表动画配置
+/// _Requirements: 1.2_
+enum ListAnimationConfig {
+    /// 列表项移动动画（300ms easeInOut）
+    static let moveAnimation: Animation = .easeInOut(duration: 0.3)
+}
+
+// MARK: - NoteDisplayProperties
+
+/// 笔记显示属性（用于 Equatable 比较）
+/// 
+/// 只包含影响 NoteRow 显示的属性，用于优化视图重建逻辑。
+/// 当非显示属性（如 rawData 中的某些字段）变化时，不会触发 NoteRow 重建。
+/// 
+/// **包含的显示属性**：
+/// - id: 笔记唯一标识符
+/// - title: 笔记标题
+/// - content: 笔记内容（用于预览文本提取）
+/// - updatedAt: 更新时间（用于显示日期和排序）
+/// - isStarred: 置顶状态
+/// - folderId: 文件夹ID（用于显示文件夹名称）
+/// - isLocked: 锁定状态（用于显示锁图标）
+/// - imageInfoHash: 图片信息哈希（用于显示缩略图）
+/// 
+/// **不包含的非显示属性**：
+/// - createdAt: 创建时间（不在列表中显示）
+/// - tags: 标签（不在列表行中显示）
+/// - rawData 中的其他字段（如 extraInfo、setting 中的非图片数据等）
+/// 
+/// _Requirements: 5.3, 5.4_
+struct NoteDisplayProperties: Equatable, Hashable {
+    let id: String
+    let title: String
+    let contentPreview: String  // 预览文本，而非完整内容
+    let updatedAt: Date
+    let isStarred: Bool
+    let folderId: String
+    let isLocked: Bool
+    let imageInfoHash: String
+    
+    /// 从 Note 对象创建显示属性
+    /// - Parameter note: 笔记对象
+    init(from note: Note) {
+        self.id = note.id
+        self.title = note.title
+        self.contentPreview = NoteDisplayProperties.extractPreviewText(from: note.content)
+        self.updatedAt = note.updatedAt
+        self.isStarred = note.isStarred
+        self.folderId = note.folderId
+        self.isLocked = note.rawData?["isLocked"] as? Bool ?? false
+        self.imageInfoHash = NoteDisplayProperties.getImageInfoHash(from: note)
+    }
+    
+    /// 从 XML 内容中提取预览文本
+    /// - Parameter xmlContent: XML 格式的笔记内容
+    /// - Returns: 纯文本预览（最多50个字符）
+    private static func extractPreviewText(from xmlContent: String) -> String {
+        guard !xmlContent.isEmpty else {
+            return ""
+        }
+        
+        // 移除 XML 标签，提取纯文本
+        var text = xmlContent
+            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&apos;", with: "'")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 限制长度
+        let maxLength = 50
+        if text.count > maxLength {
+            text = String(text.prefix(maxLength)) + "..."
+        }
+        
+        return text
+    }
+    
+    /// 获取图片信息的哈希值
+    /// - Parameter note: 笔记对象
+    /// - Returns: 图片信息哈希字符串
+    private static func getImageInfoHash(from note: Note) -> String {
+        guard let rawData = note.rawData,
+              let setting = rawData["setting"] as? [String: Any],
+              let settingData = setting["data"] as? [[String: Any]] else {
+            return "no_images"
+        }
+        
+        // 提取所有图片信息并生成哈希
+        var imageInfos: [String] = []
+        for imgData in settingData {
+            if let fileId = imgData["fileId"] as? String,
+               let mimeType = imgData["mimeType"] as? String,
+               mimeType.hasPrefix("image/") {
+                imageInfos.append("\(fileId):\(mimeType)")
+            }
+        }
+        
+        if imageInfos.isEmpty {
+            return "no_images"
+        }
+        
+        // 排序以确保一致的哈希
+        return imageInfos.sorted().joined(separator: "|")
+    }
+}
+
+// MARK: - NotesListView
+
 struct NotesListView: View {
     @ObservedObject var viewModel: NotesViewModel
+    /// 视图选项管理器，用于控制日期分组开关
+    /// _Requirements: 3.3, 3.4_
+    @ObservedObject var optionsManager: ViewOptionsManager = .shared
     @State private var showingDeleteAlert = false
     @State private var noteToDelete: Note?
     @State private var showingMoveNoteSheet = false
     @State private var noteToMove: Note?
+    /// 列表标识符，用于在文件夹切换时强制重建列表（避免动画）
+    @State private var listId = UUID()
     
     var body: some View {
-        List(selection: $viewModel.selectedNote) {
+        Group {
             // 检查是否是私密笔记文件夹且未解锁
             if let folder = viewModel.selectedFolder, folder.id == "2", !viewModel.isPrivateNotesUnlocked {
                 // 私密笔记未解锁，显示锁定状态
-                ContentUnavailableView(
-                    "此笔记已锁定",
-                    systemImage: "lock.fill",
-                    description: Text("使用触控 ID 或输入密码查看此笔记")
-                )
+                List {
+                    ContentUnavailableView(
+                        "此笔记已锁定",
+                        systemImage: "lock.fill",
+                        description: Text("使用触控 ID 或输入密码查看此笔记")
+                    )
+                }
+                .listStyle(.sidebar)
             } else if viewModel.filteredNotes.isEmpty {
-                emptyNotesView
+                List {
+                    emptyNotesView
+                }
+                .listStyle(.sidebar)
+            } else if optionsManager.isDateGroupingEnabled {
+                // 分组模式：使用 ScrollView + LazyVStack 实现固定分组标题
+                // _Requirements: 3.3, 固定分组标题_
+                pinnedHeadersListContent
             } else {
-                notesListContent
+                // 平铺模式：使用标准 List
+                standardListContent
             }
         }
-        .listStyle(.sidebar)
         .scrollContentBackground(.hidden) // 隐藏默认的滚动内容背景
         .background(Color(NSColor.windowBackgroundColor)) // 设置不透明背景色
+        // 使用 id 修饰符，在文件夹切换时强制重建列表（避免动画）
+        .id(listId)
+        // 监听 filteredNotes 变化，触发列表移动动画
+        // _Requirements: 1.1, 1.2, 1.3_
+        .animation(ListAnimationConfig.moveAnimation, value: viewModel.filteredNotes.map(\.id))
+        // 监听日期分组状态变化，触发过渡动画
+        // _Requirements: 3.7_
+        .animation(.easeInOut(duration: 0.3), value: optionsManager.isDateGroupingEnabled)
+        // 监听文件夹切换，更新 listId 强制重建列表
+        .onChange(of: viewModel.selectedFolder?.id) { oldValue, newValue in
+            // 文件夹切换时，更新 listId 强制重建列表，避免动画
+            listId = UUID()
+        }
         .alert("删除笔记", isPresented: $showingDeleteAlert, presenting: noteToDelete) { note in
             deleteAlertButtons(for: note)
         } message: { note in
@@ -37,6 +178,120 @@ struct NotesListView: View {
                 moveNoteSheetView(for: note)
             }
         }
+        // 监听笔记选择变化，通过 coordinator 进行状态管理
+        // **Requirements: 1.1, 1.2**
+        // - 1.1: 编辑笔记内容时保持选中状态不变
+        // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
+        .onChange(of: viewModel.selectedNote) { oldValue, newValue in
+            // 添加日志追踪选择状态变化
+            let oldId = oldValue?.id.prefix(8) ?? "nil"
+            let newId = newValue?.id.prefix(8) ?? "nil"
+            Swift.print("[NotesListView] 📊 selectedNote 变化: \(oldId) -> \(newId)")
+            
+            // 只有当选择真正变化时才通知 coordinator
+            if oldValue?.id != newValue?.id {
+                Swift.print("[NotesListView] 🔄 选择 ID 变化，通知 coordinator")
+                Task {
+                    await viewModel.stateCoordinator.selectNote(newValue)
+                }
+            } else {
+                Swift.print("[NotesListView] ⏭️ 选择 ID 未变化，跳过 coordinator 通知")
+            }
+        }
+    }
+    
+    // MARK: - 固定分组标题的列表内容
+    
+    /// 使用 ScrollView + LazyVStack 实现固定分组标题
+    /// 当开启日期分组时使用此视图，分组标题会在滚动时固定在顶部
+    /// _Requirements: 3.3, 固定分组标题_
+    private var pinnedHeadersListContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                let groupedNotes = groupNotesByDate(viewModel.filteredNotes)
+                
+                // 定义分组显示顺序
+                let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
+                
+                // 先显示固定顺序的分组
+                ForEach(sectionOrder, id: \.self) { sectionKey in
+                    if let notes = groupedNotes[sectionKey], !notes.isEmpty {
+                        Section {
+                            ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
+                                pinnedNoteRow(note: note, showDivider: index < notes.count - 1)
+                            }
+                        } header: {
+                            pinnedSectionHeader(title: sectionKey)
+                        }
+                    }
+                }
+                
+                // 然后按年份分组其他笔记（降序排列）
+                let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
+                ForEach(yearGroups.keys.sorted(by: >), id: \.self) { year in
+                    if let notes = yearGroups[year], !notes.isEmpty {
+                        Section {
+                            ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
+                                pinnedNoteRow(note: note, showDivider: index < notes.count - 1)
+                            }
+                        } header: {
+                            pinnedSectionHeader(title: year)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+        }
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+    
+    /// 固定分组标题的笔记行
+    private func pinnedNoteRow(note: Note, showDivider: Bool) -> some View {
+        NoteRow(note: note, showDivider: showDivider, viewModel: viewModel)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(viewModel.selectedNote?.id == note.id 
+                          ? Color.accentColor.opacity(0.2) 
+                          : Color.clear)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                viewModel.selectedNote = note
+            }
+            .contextMenu {
+                noteContextMenu(for: note)
+            }
+    }
+    
+    /// 固定分组标题样式
+    /// 使用不透明背景确保滚动时内容不会透过标题显示
+    private func pinnedSectionHeader(title: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.primary)
+                .padding(.bottom, 10)
+            
+            Rectangle()
+                .fill(Color(NSColor.separatorColor))
+                .frame(height: 1)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, -10)  // 负的水平 padding，使分割线向左右两侧延伸到边缘
+                .padding(.bottom, 8)
+        }
+        .padding(.top, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(NSColor.windowBackgroundColor)) // 不透明背景，确保固定时遮挡下方内容
+    }
+    
+    // MARK: - 标准列表内容（平铺模式）
+    
+    /// 标准 List 视图，用于平铺模式（不分组）
+    private var standardListContent: some View {
+        List(selection: $viewModel.selectedNote) {
+            flatNotesContent
+        }
+        .listStyle(.sidebar)
     }
     
     private var emptyNotesView: some View {
@@ -47,84 +302,20 @@ struct NotesListView: View {
         )
     }
     
-    private var notesListContent: some View {
-        Group {
-            let groupedNotes = groupNotesByDate(viewModel.filteredNotes)
-            
-            // 定义分组显示顺序
-            let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
-            
-            // 先显示固定顺序的分组
-            ForEach(sectionOrder, id: \.self) { sectionKey in
-                if let notes = groupedNotes[sectionKey], !notes.isEmpty {
-                    // 所有时间分组都使用主要样式（大字体和长分割线）
-                    let isMajor = true
-                    
-                    Section {
-                        ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
-                            NoteRow(note: note, showDivider: index < notes.count - 1, viewModel: viewModel)
-                                .tag(note)
-                                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    swipeActions(for: note)
-                                }
-                                .contextMenu {
-                                    noteContextMenu(for: note)
-                                }
-                        }
-                    } header: {
-                        sectionHeader(title: sectionKey, isMajor: isMajor)
-                    }
+    /// 平铺显示的笔记内容（不带分组头）
+    /// _Requirements: 3.4_
+    private var flatNotesContent: some View {
+        ForEach(Array(viewModel.filteredNotes.enumerated()), id: \.element.id) { index, note in
+            NoteRow(note: note, showDivider: index < viewModel.filteredNotes.count - 1, viewModel: viewModel)
+                .tag(note)
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    swipeActions(for: note)
                 }
-            }
-            
-            // 然后按年份分组其他笔记（降序排列）
-            let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
-            ForEach(yearGroups.keys.sorted(by: >), id: \.self) { year in
-                if let notes = yearGroups[year], !notes.isEmpty {
-                    // 年份分组也使用主要样式（大字体和长分割线）
-                    let isMajor = true
-                    
-                    Section {
-                        ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
-                            NoteRow(note: note, showDivider: index < notes.count - 1, viewModel: viewModel)
-                                .tag(note)
-                                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    swipeActions(for: note)
-                                }
-                                .contextMenu {
-                                    noteContextMenu(for: note)
-                                }
-                        }
-                    } header: {
-                        sectionHeader(title: year, isMajor: isMajor)
-                    }
+                .contextMenu {
+                    noteContextMenu(for: note)
                 }
-            }
         }
-    }
-    
-    /// 自定义 Section Header，支持大字体和分割线
-    private func sectionHeader(title: String, isMajor: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(title)
-                .font(.system(size: isMajor ? 16 : 14, weight: .semibold))
-                .foregroundColor(.primary)
-                .padding(.bottom, isMajor ? 10 : 6)
-            
-            // 主要分组（置顶、今天等）使用延伸到边缘的长分割线
-            if isMajor {
-                Rectangle()
-                    .fill(Color(NSColor.separatorColor))
-                    .frame(height: 1)
-                    .frame(maxWidth: .infinity)
-                    .padding(.leading, -20)  // 负的 leading padding，使分割线延伸到列表窗口最左侧
-                    .padding(.bottom, 8)  // 分割线下方留空白
-            }
-        }
-        .padding(.top, isMajor ? 12 : 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     private func groupNotesByDate(_ notes: [Note]) -> [String: [Note]] {
@@ -132,18 +323,28 @@ struct NotesListView: View {
         let calendar = Calendar.current
         let now = Date()
         
+        // 根据排序方式决定使用哪个日期字段
+        // _Requirements: 2.3, 3.3_
+        let useCreateDate = optionsManager.sortOrder == .createDate
+        
         // 先分离置顶笔记
         let pinnedNotes = notes.filter { $0.isStarred }
         let unpinnedNotes = notes.filter { !$0.isStarred }
         
         // 处理置顶笔记
         if !pinnedNotes.isEmpty {
-            grouped["置顶"] = pinnedNotes.sorted { $0.updatedAt > $1.updatedAt }
+            // 置顶笔记也按选定的日期字段排序
+            grouped["置顶"] = pinnedNotes.sorted { 
+                let date1 = useCreateDate ? $0.createdAt : $0.updatedAt
+                let date2 = useCreateDate ? $1.createdAt : $1.updatedAt
+                return date1 > date2
+            }
         }
         
         // 处理非置顶笔记
         for note in unpinnedNotes {
-            let date = note.updatedAt
+            // 根据排序方式选择日期字段
+            let date = useCreateDate ? note.createdAt : note.updatedAt
             let key: String
             
             if calendar.isDateInToday(date) {
@@ -171,9 +372,13 @@ struct NotesListView: View {
             grouped[key]?.append(note)
         }
         
-        // 对每个分组内的笔记按更新时间降序排序
+        // 对每个分组内的笔记按选定的日期字段降序排序
         for key in grouped.keys {
-            grouped[key] = grouped[key]?.sorted { $0.updatedAt > $1.updatedAt }
+            grouped[key] = grouped[key]?.sorted { 
+                let date1 = useCreateDate ? $0.createdAt : $0.updatedAt
+                let date2 = useCreateDate ? $1.createdAt : $1.updatedAt
+                return date1 > date2
+            }
         }
         
         return grouped
@@ -382,6 +587,13 @@ struct NoteRow: View {
     @State private var thumbnailImage: NSImage? = nil
     @State private var currentImageFileId: String? = nil // 跟踪当前显示的图片ID
     
+    /// 用于比较的显示属性
+    /// 只有当这些属性变化时，才会触发视图重建
+    /// _Requirements: 5.3, 5.4_
+    private var displayProperties: NoteDisplayProperties {
+        NoteDisplayProperties(from: note)
+    }
+    
     init(note: Note, showDivider: Bool = false, viewModel: NotesViewModel) {
         self.note = note
         self.showDivider = showDivider
@@ -447,16 +659,17 @@ struct NoteRow: View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
-                    // 标题（支持搜索高亮）
+                    // 标题（支持搜索高亮）- 加粗显示
                     highlightText(hasRealTitle() ? note.title : "无标题", searchText: viewModel.searchText)
-                        .font(.system(size: 14))
+                        .font(.system(size: 14, weight: .semibold))
                         .lineLimit(1)
                         .foregroundColor(hasRealTitle() ? .primary : .secondary)
                     
                     HStack(spacing: 4) {
+                        // 时间 - 加粗，与标题同色
                         Text(formatDate(note.updatedAt))
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.primary)
                         
                         // 预览文本（支持搜索高亮）
                         highlightText(extractPreviewText(from: note.content), searchText: viewModel.searchText)
@@ -465,18 +678,17 @@ struct NoteRow: View {
                             .lineLimit(1)
                     }
                     
-                    // 文件夹信息（在特定条件下显示）
+                    // 文件夹信息（在特定条件下显示）- 调整大小与时间、正文预览一致，行距与其他行保持一致
                     if shouldShowFolderInfo {
                         HStack(spacing: 4) {
                             Image(systemName: "folder")
-                                .font(.system(size: 9))
+                                .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                             Text(getFolderName(for: note.folderId))
-                                .font(.system(size: 10))
+                                .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                                 .lineLimit(1)
                         }
-                        .padding(.top, 2)
                     }
                 }
                 
@@ -593,9 +805,13 @@ struct NoteRow: View {
             print("[NoteRow] onChange(noteImageHash): 图片信息哈希值变化 (\(oldValue) -> \(newValue))，更新缩略图")
             updateThumbnail()
         }
-        // 使用更稳定的标识符：笔记ID + 搜索文本（只在搜索文本变化时重建）
-        // 移除更新时间，避免每次保存都导致视图重建
-        .id("\(note.id)_\(viewModel.searchText)")
+        // 使用笔记 ID 作为视图标识符（而非 displayProperties）
+        // 这样编辑笔记内容时不会改变视图标识，选择状态能够保持
+        // displayProperties 的变化通过 onChange 监听器处理，不影响视图标识
+        // _Requirements: 1.1, 1.2, 5.2_
+        // - 1.1: 编辑笔记内容时保持选中状态不变
+        // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
+        .id(note.id)
         // #region agent log
         .onAppear {
             let logPath = "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.cursor/debug.log"

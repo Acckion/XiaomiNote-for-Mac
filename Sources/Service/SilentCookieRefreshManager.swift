@@ -12,46 +12,182 @@ final class SilentCookieRefreshManager: NSObject {
     
     private var webView: WKWebView?
     private var continuation: CheckedContinuation<Bool, Error>?
-    private var isRefreshing = false
+    private var _isRefreshing = false
     private var cookieExtracted = false
     private var hasLoadedProfile = false
+    
+    // MARK: - 冷却期相关属性
+    
+    /// 上次刷新完成的时间戳
+    private var lastRefreshTime: Date?
+    
+    /// 上次刷新的结果
+    private var lastRefreshResult: Bool?
+    
+    /// 冷却期时长（秒），两次刷新之间的最小间隔
+    private let cooldownPeriod: TimeInterval = 60.0
+    
+    /// 公开的刷新状态属性，供其他组件查询
+    var isRefreshing: Bool {
+        return _isRefreshing
+    }
     
     private override init() {
         super.init()
     }
     
+    // MARK: - 冷却期方法
+    
+    /// 检查是否在冷却期内
+    /// - Returns: 如果在冷却期内返回 true，否则返回 false
+    func isInCooldownPeriod() -> Bool {
+        guard let lastTime = lastRefreshTime else { return false }
+        let elapsed = Date().timeIntervalSince(lastTime)
+        let inCooldown = elapsed < cooldownPeriod
+        if inCooldown {
+            print("[SilentCookieRefreshManager] 在冷却期内，已过 \(String(format: "%.1f", elapsed)) 秒，需等待 \(String(format: "%.1f", cooldownPeriod - elapsed)) 秒")
+        }
+        return inCooldown
+    }
+    
+    /// 获取冷却期剩余时间
+    /// - Returns: 剩余秒数，如果不在冷却期内返回 0
+    func remainingCooldownTime() -> TimeInterval {
+        guard let lastTime = lastRefreshTime else { return 0 }
+        let elapsed = Date().timeIntervalSince(lastTime)
+        return max(0, cooldownPeriod - elapsed)
+    }
+    
+    /// 重置冷却期（用于手动刷新时）
+    func resetCooldown() {
+        print("[SilentCookieRefreshManager] 重置冷却期")
+        lastRefreshTime = nil
+        lastRefreshResult = nil
+    }
+    
+    // MARK: - Cookie 同步验证方法
+    
+    /// 从 Cookie 数组中提取 serviceToken
+    /// - Parameter cookies: Cookie 数组
+    /// - Returns: serviceToken 值，如果不存在返回空字符串
+    private func extractServiceToken(from cookies: [HTTPCookie]) -> String {
+        for cookie in cookies {
+            if cookie.name == "serviceToken" {
+                return cookie.value
+            }
+        }
+        return ""
+    }
+    
+    /// 从 HTTPCookieStorage 中提取 serviceToken
+    /// - Returns: serviceToken 值，如果不存在返回空字符串
+    private func extractServiceTokenFromHTTPStorage() -> String {
+        guard let cookies = HTTPCookieStorage.shared.cookies else { return "" }
+        for cookie in cookies {
+            if cookie.name == "serviceToken" {
+                return cookie.value
+            }
+        }
+        return ""
+    }
+    
+    /// 同步 Cookie 到 HTTPCookieStorage 并验证一致性
+    /// - Parameter cookies: 从 WKWebView 提取的 Cookie 数组
+    /// - Returns: 同步是否成功（包括验证 serviceToken 一致性）
+    private func synchronizeCookiesAndVerify(cookies: [HTTPCookie]) -> Bool {
+        print("[SilentCookieRefreshManager] 🔄 开始同步 Cookie 到 HTTPCookieStorage")
+        
+        // 获取 WKWebView 中的 serviceToken
+        let webViewServiceToken = extractServiceToken(from: cookies)
+        
+        if webViewServiceToken.isEmpty {
+            print("[SilentCookieRefreshManager] ❌ WKWebView 中未找到 serviceToken")
+            return false
+        }
+        
+        // 同步到 HTTPCookieStorage
+        let cookieStore = HTTPCookieStorage.shared
+        cookieStore.cookieAcceptPolicy = .always
+        
+        // 清除旧的 cookie
+        if let oldCookies = cookieStore.cookies {
+            for oldCookie in oldCookies {
+                cookieStore.deleteCookie(oldCookie)
+            }
+        }
+        
+        // 添加新的 cookie
+        for cookie in cookies {
+            cookieStore.setCookie(cookie)
+        }
+        
+        // 验证 serviceToken 一致性
+        let httpStorageServiceToken = extractServiceTokenFromHTTPStorage()
+        
+        let isConsistent = webViewServiceToken == httpStorageServiceToken && !webViewServiceToken.isEmpty
+        
+        if isConsistent {
+            print("[SilentCookieRefreshManager] ✅ Cookie 同步成功，serviceToken 一致性验证通过")
+        } else {
+            print("[SilentCookieRefreshManager] ❌ Cookie 同步失败: WKWebView serviceToken=\(webViewServiceToken.prefix(20))..., HTTPStorage serviceToken=\(httpStorageServiceToken.prefix(20))...")
+        }
+        
+        return isConsistent
+    }
+    
     /// 执行静默 Cookie 刷新
     /// - Returns: 是否成功刷新
     func refresh() async throws -> Bool {
-        guard !isRefreshing else {
+        // 冷却期检查：如果在冷却期内，返回上次结果
+        if isInCooldownPeriod() {
+            print("[SilentCookieRefreshManager] ⏳ 在冷却期内，返回上次结果: \(lastRefreshResult ?? false)")
+            return lastRefreshResult ?? false
+        }
+        
+        guard !_isRefreshing else {
             print("[SilentCookieRefreshManager] 刷新正在进行中，忽略重复请求")
             return false
         }
         
-        isRefreshing = true
+        _isRefreshing = true
         cookieExtracted = false
         hasLoadedProfile = false
         
         print("[SilentCookieRefreshManager] 🚀 开始静默 Cookie 刷新")
         
-        return try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
-            self.startRefresh()
-            
-            // 设置超时：30秒
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 30_000_000_000) // 30秒
-                if self.isRefreshing {
-                    print("[SilentCookieRefreshManager] ⏰ 刷新超时（30秒）")
-                    self.completeWithError(NSError(domain: "SilentCookieRefreshManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "刷新超时"]))
+        do {
+            let result = try await withCheckedThrowingContinuation { continuation in
+                self.continuation = continuation
+                self.startRefresh()
+                
+                // 设置超时：30秒
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 30_000_000_000) // 30秒
+                    if self._isRefreshing {
+                        print("[SilentCookieRefreshManager] ⏰ 刷新超时（30秒）")
+                        self.completeWithError(NSError(domain: "SilentCookieRefreshManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "刷新超时"]))
+                    }
                 }
             }
+            
+            // 记录刷新完成时间和结果
+            lastRefreshTime = Date()
+            lastRefreshResult = result
+            print("[SilentCookieRefreshManager] 📝 记录刷新结果: \(result)，时间: \(lastRefreshTime!)")
+            
+            return result
+        } catch {
+            // 刷新失败也记录时间和结果
+            lastRefreshTime = Date()
+            lastRefreshResult = false
+            print("[SilentCookieRefreshManager] 📝 记录刷新失败，时间: \(lastRefreshTime!)")
+            throw error
         }
     }
     
     /// 清理资源
     private func cleanup() {
-        isRefreshing = false
+        _isRefreshing = false
         // 清理 webView，避免内存泄漏
         webView?.stopLoading()
         webView = nil
@@ -176,22 +312,6 @@ final class SilentCookieRefreshManager: NSObject {
                 
                 print("[SilentCookieRefreshManager] 从 WKWebView 获取到 \(cookies.count) 个 cookie")
                 
-                // 复制到 URLSession 的 cookie 存储
-                let cookieStore = HTTPCookieStorage.shared
-                cookieStore.cookieAcceptPolicy = .always
-                
-                // 清除旧的 cookie
-                if let oldCookies = cookieStore.cookies {
-                    for oldCookie in oldCookies {
-                        cookieStore.deleteCookie(oldCookie)
-                    }
-                }
-                
-                // 添加新的 cookie
-                for cookie in cookies {
-                    cookieStore.setCookie(cookie)
-                }
-                
                 // 构建完整的 Cookie 字符串
                 let cookieString = cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
                 
@@ -202,22 +322,32 @@ final class SilentCookieRefreshManager: NSObject {
                 let hasUserId = cookieString.contains("userId=")
                 
                 if hasServiceToken && hasUserId && !cookieString.isEmpty {
-                    print("[SilentCookieRefreshManager] ✅ Cookie 验证通过，提取成功")
-                    self.cookieExtracted = true
+                    // 使用新的同步验证方法
+                    let syncSuccess = self.synchronizeCookiesAndVerify(cookies: cookies)
                     
-                    // 更新 MiNoteService 的 cookie
-                    MiNoteService.shared.setCookie(cookieString)
-                    
-                    // 发送通知，告知Cookie已刷新成功
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("CookieRefreshedSuccessfully"),
-                        object: nil,
-                        userInfo: ["cookieString": cookieString]
-                    )
-                    
-                    // 完成刷新
-                    self.continuation?.resume(returning: true)
-                    self.cleanup()
+                    if syncSuccess {
+                        print("[SilentCookieRefreshManager] ✅ Cookie 验证通过，同步成功")
+                        self.cookieExtracted = true
+                        
+                        // 更新 MiNoteService 的 cookie
+                        MiNoteService.shared.setCookie(cookieString)
+                        
+                        // 发送通知，告知Cookie已刷新成功
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("CookieRefreshedSuccessfully"),
+                            object: nil,
+                            userInfo: ["cookieString": cookieString]
+                        )
+                        
+                        // 完成刷新
+                        self.continuation?.resume(returning: true)
+                        self.cleanup()
+                    } else {
+                        print("[SilentCookieRefreshManager] ❌ Cookie 同步验证失败，刷新失败")
+                        self.cookieExtracted = true // 防止重复尝试
+                        self.continuation?.resume(returning: false)
+                        self.cleanup()
+                    }
                 } else {
                     print("[SilentCookieRefreshManager] ⚠️ Cookie 验证失败: hasServiceToken=\(hasServiceToken), hasUserId=\(hasUserId), cookieString长度=\(cookieString.count)")
                     // 继续等待或重试

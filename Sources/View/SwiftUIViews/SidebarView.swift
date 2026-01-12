@@ -354,8 +354,19 @@ public struct SidebarView: View {
                 }
                 
                 // 确保切换文件夹时，编辑视图跟随更新
-                // 调用 selectFolder 方法来处理笔记选择逻辑
+                // 使用 coordinator 进行状态管理，确保三个视图之间的状态同步
+                // **Requirements: 3.1, 3.2, 3.3**
+                // - 3.1: 选择新文件夹时立即显示该文件夹下的笔记列表
+                // - 3.2: 选择新文件夹时清空编辑器或显示第一篇笔记
+                // - 3.3: 选择新文件夹时清除之前的笔记选择状态
                 if newValue != oldValue {
+                    // 通过 coordinator 进行文件夹选择
+                    // coordinator 会处理保存检查、状态更新和笔记选择清除
+                    Task {
+                        await viewModel.stateCoordinator.selectFolder(newValue)
+                    }
+                    
+                    // 调用原有的 selectFolder 方法处理私密笔记等特殊逻辑
                     viewModel.selectFolder(newValue)
                     
                     // 选中文件夹时，清除搜索状态
@@ -786,7 +797,7 @@ public struct SidebarView: View {
 /// 显示单个文件夹的信息：
 /// - 文件夹图标（根据文件夹类型显示不同图标和颜色）
 /// - 文件夹名称（支持编辑模式）
-/// - 笔记数量
+/// - 笔记数量（可通过菜单切换显示/隐藏）
 struct SidebarFolderRow: View {
     /// 文件夹数据
     let folder: Folder
@@ -811,6 +822,10 @@ struct SidebarFolderRow: View {
     
     /// 鼠标是否悬停在该行上
     @State private var isHovering: Bool = false
+    
+    /// 视图选项管理器（用于获取笔记数量显示状态）
+    /// _Requirements: 9.3_
+    @ObservedObject private var viewOptionsManager = ViewOptionsManager.shared
     
     /// 初始化器 - 用于正常模式（非编辑模式）
     init(folder: Folder, prefix: String = "") {
@@ -896,8 +911,9 @@ struct SidebarFolderRow: View {
             
             Spacer()
             
-            // 笔记数量（编辑模式下不显示）
-            if !isEditing {
+            // 笔记数量（编辑模式下不显示，根据设置可隐藏）
+            // _Requirements: 9.3_
+            if !isEditing && viewOptionsManager.showNoteCount {
                 Text("\(folder.count)")
                     .font(.caption)
                     .foregroundColor(.secondary)

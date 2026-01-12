@@ -25,6 +25,11 @@ public class MainWindowToolbarDelegate: NSObject {
 
     /// 主窗口控制器引用
     public weak var windowController: MainWindowController?
+    
+    /// 工具栏可见性管理器引用
+    /// 用于在工具栏项添加时设置初始可见性
+    /// **Requirements: 6.3**
+    public var visibilityManager: ToolbarVisibilityManager?
 
     /// 当前搜索字段（用于工具栏搜索项）
     private var currentSearchField: CustomSearchField?
@@ -310,6 +315,9 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
         case .attachment:
             return buildToolbarButton(.attachment, "附件", NSImage(systemSymbolName: "paperclip", accessibilityDescription: nil)!, "insertAttachment:")
             
+        case .audioRecording:
+            return buildToolbarButton(.audioRecording, "录音", NSImage(systemSymbolName: "mic.fill", accessibilityDescription: nil)!, "insertAudioRecording:")
+            
         case .increaseIndent:
             return buildToolbarButton(.increaseIndent, "增加缩进", NSImage(systemSymbolName: "increase.indent", accessibilityDescription: nil)!, "increaseIndent:")
             
@@ -414,6 +422,30 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             
             return toolbarItem
             
+        case .viewOptions:
+            // 创建视图选项工具栏按钮（使用原生 NSMenu）
+            // _Requirements: 1.1, 1.2_
+            let toolbarItem = NSMenuToolbarItem(itemIdentifier: .viewOptions)
+            toolbarItem.image = NSImage(systemSymbolName: "list.bullet", accessibilityDescription: "视图选项")
+            toolbarItem.toolTip = "视图选项"
+            toolbarItem.label = "视图选项"
+            toolbarItem.showsIndicator = true
+            
+            // 创建视图选项菜单
+            let menu = createViewOptionsMenu()
+            toolbarItem.menu = menu
+            
+            // 设置菜单代理以动态更新选中状态
+            menu.delegate = windowController
+            
+            // 设置 menuFormRepresentation 以确保兼容性
+            let menuFormItem = NSMenuItem()
+            menuFormItem.title = "视图选项"
+            menuFormItem.submenu = menu
+            toolbarItem.menuFormRepresentation = menuFormItem
+            
+            return toolbarItem
+            
         case .noteOperations:
             // 创建自定义工具栏项，实现双轨配置
             let toolbarItem = MiNoteToolbarItem(itemIdentifier: .noteOperations)
@@ -469,6 +501,24 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
         case .restore:
             return buildToolbarButton(.restore, "恢复", NSImage(systemSymbolName: "arrow.uturn.backward.circle", accessibilityDescription: nil)!, "restoreNote:")
             
+        case .backToGallery:
+            // 返回画廊按钮 - 使用导航样式，不可自定义
+            // 仅在画廊视图展开编辑笔记时显示
+            let toolbarItem = NSToolbarItem(itemIdentifier: .backToGallery)
+            toolbarItem.image = NSImage(systemSymbolName: "chevron.backward", accessibilityDescription: "返回画廊")
+            toolbarItem.label = "返回"
+            toolbarItem.toolTip = "返回画廊视图"
+            toolbarItem.action = #selector(MainWindowController.backToGallery(_:))
+            toolbarItem.target = windowController
+            // 设置为导航样式，不可自定义
+            toolbarItem.isNavigational = true
+            return toolbarItem
+            
+        case .debugMode:
+            // XML 调试模式按钮
+            // _Requirements: 1.1, 1.2, 5.2, 6.1_
+            return buildToolbarButton(.debugMode, "调试模式", NSImage(systemSymbolName: "chevron.left.forwardslash.chevron.right", accessibilityDescription: nil)!, "toggleDebugMode:")
+            
         case .sidebarTrackingSeparator:
             // 侧边栏跟踪分隔符 - 连接到分割视图的第一个分隔符
             if let window = windowController?.window,
@@ -478,12 +528,40 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             return nil
             
         case .timelineTrackingSeparator:
-            // 时间线跟踪分隔符 - 连接到分割视图的第二个分隔符
+            // 时间线跟踪分隔符
+            // 注意：由于使用两栏布局（侧边栏 + 内容区域），只有一个分隔符
+            // 如果分割视图只有一个分隔符，返回普通分隔符
+            // _Requirements: 4.3, 4.4, 4.5_
             if let window = windowController?.window,
                let splitViewController = window.contentViewController as? NSSplitViewController {
-                return NSTrackingSeparatorToolbarItem(identifier: .timelineTrackingSeparator, splitView: splitViewController.splitView, dividerIndex: 1)
+                let dividerCount = splitViewController.splitView.subviews.count - 1
+                if dividerCount > 1 {
+                    // 三栏布局：使用第二个分隔符
+                    return NSTrackingSeparatorToolbarItem(identifier: .timelineTrackingSeparator, splitView: splitViewController.splitView, dividerIndex: 1)
+                } else {
+                    // 两栏布局：返回普通分隔符
+                    return NSToolbarItem(itemIdentifier: .separator)
+                }
             }
             return nil
+            
+        case .editorSpace1, .editorSpace2:
+            // 编辑器区域的自定义间距项
+            // 使用固定间距，在画廊视图中随编辑器项一起隐藏
+            // 注意：必须设置 view 属性，否则 isHidden 不会生效
+            let spaceItem = NSToolbarItem(itemIdentifier: itemIdentifier)
+            spaceItem.label = ""
+            spaceItem.paletteLabel = "间距"
+            
+            // 创建一个空的 NSView 作为间距
+            // 这样 isHidden 属性才能正确工作
+            let spaceView = NSView(frame: NSRect(x: 0, y: 0, width: 8, height: 1))
+            spaceItem.view = spaceView
+            
+            // 设置为固定宽度的间距
+            spaceItem.minSize = NSSize(width: 8, height: 1)
+            spaceItem.maxSize = NSSize(width: 8, height: 1)
+            return spaceItem
             
         default:
             // 处理系统标识符
@@ -506,6 +584,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.flexibleSpace,
             NSToolbarItem.Identifier.newNote,
             NSToolbarItem.Identifier.newFolder,
+            // 编辑器项
             NSToolbarItem.Identifier.undo,
             NSToolbarItem.Identifier.redo,
             NSToolbarItem.Identifier.bold,
@@ -518,12 +597,17 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.checkbox,
             NSToolbarItem.Identifier.horizontalRule,
             NSToolbarItem.Identifier.attachment,
+            NSToolbarItem.Identifier.audioRecording,
             NSToolbarItem.Identifier.increaseIndent,
             NSToolbarItem.Identifier.decreaseIndent,
+            // 编辑器区域间距（可随编辑器项一起隐藏）
+            NSToolbarItem.Identifier.editorSpace1,
+            NSToolbarItem.Identifier.editorSpace2,
             NSToolbarItem.Identifier.flexibleSpace,
             NSToolbarItem.Identifier.search,
             NSToolbarItem.Identifier.sync,
             NSToolbarItem.Identifier.onlineStatus,
+            NSToolbarItem.Identifier.viewOptions,
             NSToolbarItem.Identifier.settings,
             NSToolbarItem.Identifier.login,
             NSToolbarItem.Identifier.cookieRefresh,
@@ -536,6 +620,8 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.history,
             NSToolbarItem.Identifier.trash,
             NSToolbarItem.Identifier.noteOperations,
+            NSToolbarItem.Identifier.backToGallery,
+            NSToolbarItem.Identifier.debugMode,
             NSToolbarItem.Identifier.space,
             NSToolbarItem.Identifier.separator
         ]
@@ -553,7 +639,11 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.newFolder,
 
             NSToolbarItem.Identifier.sidebarTrackingSeparator,
+            
+            // 返回画廊按钮（导航样式，仅在画廊视图展开编辑时显示）
+            NSToolbarItem.Identifier.backToGallery,
 
+            NSToolbarItem.Identifier.viewOptions,
             NSToolbarItem.Identifier.flexibleSpace,
             NSToolbarItem.Identifier.onlineStatus,
 
@@ -563,17 +653,19 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             NSToolbarItem.Identifier.flexibleSpace,
             NSToolbarItem.Identifier.undo,
             NSToolbarItem.Identifier.redo,
-            NSToolbarItem.Identifier.space,
+            NSToolbarItem.Identifier.editorSpace1,  // 自定义间距，可随编辑器项隐藏
             NSToolbarItem.Identifier.formatMenu,
             NSToolbarItem.Identifier.checkbox,
             NSToolbarItem.Identifier.horizontalRule,
             NSToolbarItem.Identifier.attachment,
-            NSToolbarItem.Identifier.space,
+            NSToolbarItem.Identifier.audioRecording,
+            NSToolbarItem.Identifier.editorSpace2,  // 自定义间距，可随编辑器项隐藏
             NSToolbarItem.Identifier.increaseIndent,
             NSToolbarItem.Identifier.decreaseIndent,
 
             NSToolbarItem.Identifier.flexibleSpace,
 
+            NSToolbarItem.Identifier.debugMode,
             NSToolbarItem.Identifier.share,
             NSToolbarItem.Identifier.noteOperations,
             NSToolbarItem.Identifier.search,
@@ -593,6 +685,10 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
         guard let item = notification.userInfo?["item"] as? NSToolbarItem else {
             return
         }
+        
+        // 设置新添加工具栏项的初始可见性
+        // **Requirements: 6.3**
+        visibilityManager?.updateItemVisibility(item)
         
         if item.itemIdentifier == .search, let searchItem = item as? NSSearchToolbarItem {
             // 创建自定义搜索字段
@@ -641,6 +737,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
     // MARK: - 搜索框菜单
     
     /// 为搜索框设置下拉菜单
+    @MainActor
     private func setupSearchFieldMenu(for searchField: NSSearchField) {
         logger.debug("设置搜索框菜单")
         
@@ -660,6 +757,104 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
         searchField.controlSize = .regular
         
         logger.debug("搜索框菜单已设置")
+    }
+    
+    // MARK: - 视图选项菜单
+    
+    /// 创建视图选项菜单
+    /// _Requirements: 1.2, 2.1, 2.2, 2.6, 3.2, 4.2_
+    private func createViewOptionsMenu() -> NSMenu {
+        let menu = NSMenu()
+        
+        // 排序方式子菜单
+        let sortMenuItem = NSMenuItem()
+        sortMenuItem.title = "排序方式"
+        let sortSubmenu = NSMenu()
+        sortSubmenu.delegate = windowController
+        
+        // 排序字段选项
+        let editDateItem = NSMenuItem()
+        editDateItem.title = "编辑时间"
+        editDateItem.action = #selector(MainWindowController.setSortOrderEditDate(_:))
+        editDateItem.target = windowController
+        editDateItem.tag = 1
+        sortSubmenu.addItem(editDateItem)
+        
+        let createDateItem = NSMenuItem()
+        createDateItem.title = "创建时间"
+        createDateItem.action = #selector(MainWindowController.setSortOrderCreateDate(_:))
+        createDateItem.target = windowController
+        createDateItem.tag = 2
+        sortSubmenu.addItem(createDateItem)
+        
+        let titleItem = NSMenuItem()
+        titleItem.title = "标题"
+        titleItem.action = #selector(MainWindowController.setSortOrderTitle(_:))
+        titleItem.target = windowController
+        titleItem.tag = 3
+        sortSubmenu.addItem(titleItem)
+        
+        sortSubmenu.addItem(NSMenuItem.separator())
+        
+        // 排序方向选项
+        let descendingItem = NSMenuItem()
+        descendingItem.title = "降序"
+        descendingItem.action = #selector(MainWindowController.setSortDirectionDescending(_:))
+        descendingItem.target = windowController
+        descendingItem.tag = 10
+        sortSubmenu.addItem(descendingItem)
+        
+        let ascendingItem = NSMenuItem()
+        ascendingItem.title = "升序"
+        ascendingItem.action = #selector(MainWindowController.setSortDirectionAscending(_:))
+        ascendingItem.target = windowController
+        ascendingItem.tag = 11
+        sortSubmenu.addItem(ascendingItem)
+        
+        sortMenuItem.submenu = sortSubmenu
+        menu.addItem(sortMenuItem)
+        
+        // 按日期分组子菜单
+        let dateGroupingMenuItem = NSMenuItem()
+        dateGroupingMenuItem.title = "按日期分组"
+        let dateGroupingSubmenu = NSMenu()
+        dateGroupingSubmenu.delegate = windowController
+        
+        let dateGroupingOnItem = NSMenuItem()
+        dateGroupingOnItem.title = "开"
+        dateGroupingOnItem.action = #selector(MainWindowController.setDateGroupingOn(_:))
+        dateGroupingOnItem.target = windowController
+        dateGroupingOnItem.tag = 20
+        dateGroupingSubmenu.addItem(dateGroupingOnItem)
+        
+        let dateGroupingOffItem = NSMenuItem()
+        dateGroupingOffItem.title = "关"
+        dateGroupingOffItem.action = #selector(MainWindowController.setDateGroupingOff(_:))
+        dateGroupingOffItem.target = windowController
+        dateGroupingOffItem.tag = 21
+        dateGroupingSubmenu.addItem(dateGroupingOffItem)
+        
+        dateGroupingMenuItem.submenu = dateGroupingSubmenu
+        menu.addItem(dateGroupingMenuItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        // 视图模式选项
+        let listViewItem = NSMenuItem()
+        listViewItem.title = "列表视图"
+        listViewItem.action = #selector(MainWindowController.setViewModeList(_:))
+        listViewItem.target = windowController
+        listViewItem.tag = 30
+        menu.addItem(listViewItem)
+        
+        let galleryViewItem = NSMenuItem()
+        galleryViewItem.title = "画廊视图"
+        galleryViewItem.action = #selector(MainWindowController.setViewModeGallery(_:))
+        galleryViewItem.target = windowController
+        galleryViewItem.tag = 31
+        menu.addItem(galleryViewItem)
+        
+        return menu
     }
 }
 

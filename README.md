@@ -63,7 +63,7 @@
 - **架构模式**: MVVM (Model-View-ViewModel) + AppKit 控制器
 - **并发处理**: async/await, Task, Actor
 - **包管理**: Swift Package Manager (SPM)
-- **最低系统要求**: macOS 14.0+
+- **最低系统要求**: macOS 15.0+
 ## 项目结构
 
 ```
@@ -103,7 +103,7 @@ SwiftUI-MiNote-for-Mac/
 
 ### 环境要求
 
-- macOS 14.0 或更高版本
+- macOS 15.0 或更高版本
 - Xcode 15.0 或更高版本
 - Swift 6.0
 

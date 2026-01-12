@@ -292,10 +292,17 @@ struct UnifiedEditorWrapper: View {
                 lastLoadedContent = currentContent
             }
             
-            // 如果切换到原生编辑器，加载内容
+            // 如果切换到原生编辑器，加载内容并注册格式提供者
             if newType == .native && preferencesService.isNativeEditorAvailable {
                 nativeEditorContext.currentFolderId = folderId
                 nativeEditorContext.loadFromXML(currentContent)
+                // 注册原生编辑器的格式提供者
+                nativeEditorContext.setEditorFocused(true)
+                print("[UnifiedEditorWrapper] 已注册 NativeFormatProvider")
+            } else {
+                // 切换到 Web 编辑器，注册 Web 编辑器的格式提供者
+                webEditorContext.setEditorFocused(true)
+                print("[UnifiedEditorWrapper] 已注册 WebFormatProvider")
             }
             
             isUpdatingFromExternal = false

@@ -42,6 +42,10 @@ public class MainWindowController: NSWindowController {
     /// 搜索筛选菜单popover
     private var searchFilterMenuPopover: NSPopover?
     
+    /// 视图选项菜单popover
+    /// _Requirements: 1.2, 1.3, 1.4_
+    private var viewOptionsMenuPopover: NSPopover?
+    
     /// 在线状态菜单工具栏项
     private var onlineStatusMenuToolbarItem: NSToolbarItem?
     
@@ -66,9 +70,20 @@ public class MainWindowController: NSWindowController {
     
     /// 工具栏代理
     private var toolbarDelegate: MainWindowToolbarDelegate?
+    
+    /// 工具栏可见性管理器
+    /// 负责根据应用状态动态更新工具栏项的可见性
+    /// **Requirements: 5.4**
+    private var visibilityManager: ToolbarVisibilityManager?
 
     /// 查找面板控制器
     private var searchPanelController: SearchPanelController?
+    
+    /// 保存的笔记列表宽度（用于视图模式切换时恢复）
+    private var savedNotesListWidth: CGFloat?
+    
+    /// 笔记列表宽度的 UserDefaults 键
+    private let notesListWidthKey = "NotesListWidth"
     
     // MARK: - 初始化
     
@@ -126,11 +141,18 @@ public class MainWindowController: NSWindowController {
     // MARK: - 设置方法
     
     /// 设置窗口内容
+    /// 
+    /// 使用三栏布局：侧边栏 + 笔记列表 + 编辑器
+    /// 在画廊模式下，笔记列表和编辑器区域会被 ContentAreaView 替换
+    /// _Requirements: 4.3, 4.4, 4.5_
     private func setupWindowContent() {
         guard let window = window, let viewModel = viewModel else { return }
         
         // 创建分割视图控制器（三栏布局）
         let splitViewController = NSSplitViewController()
+        
+        // 设置分割视图的自动保存名称，用于记住分割位置
+        splitViewController.splitView.autosaveName = "MainWindowSplitView"
         
         // 第一栏：侧边栏（使用SwiftUI视图）
         let sidebarSplitViewItem = NSSplitViewItem(sidebarWithViewController: SidebarHostingController(viewModel: viewModel))
@@ -140,18 +162,128 @@ public class MainWindowController: NSWindowController {
         splitViewController.addSplitViewItem(sidebarSplitViewItem)
         
         // 第二栏：笔记列表（使用SwiftUI视图）
-        let notesListSplitViewItem = NSSplitViewItem(contentListWithViewController: NotesListHostingController(viewModel: viewModel))
+        let notesListSplitViewItem = NSSplitViewItem(viewController: NotesListHostingController(viewModel: viewModel))
         notesListSplitViewItem.minimumThickness = 200
-        notesListSplitViewItem.maximumThickness = 400
+        notesListSplitViewItem.maximumThickness = 350
+        notesListSplitViewItem.canCollapse = false
+        // 设置较高的 holdingPriority，窗口缩小时优先压缩编辑器
+        notesListSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(251)
         splitViewController.addSplitViewItem(notesListSplitViewItem)
         
-        // 第三栏：笔记详情
-        let detailSplitViewItem = NSSplitViewItem(viewController: NoteDetailViewController(viewModel: viewModel))
-        detailSplitViewItem.minimumThickness = 300
-        splitViewController.addSplitViewItem(detailSplitViewItem)
+        // 第三栏：笔记详情编辑器（使用SwiftUI视图）
+        let noteDetailSplitViewItem = NSSplitViewItem(viewController: NoteDetailHostingController(viewModel: viewModel))
+        noteDetailSplitViewItem.minimumThickness = 400
+        // 编辑器 holdingPriority 较低，窗口缩小时先压缩编辑器
+        noteDetailSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(250)
+        splitViewController.addSplitViewItem(noteDetailSplitViewItem)
         
         // 设置窗口内容
         window.contentViewController = splitViewController
+        
+        // 监听视图模式变化，动态切换布局
+        setupViewModeObserver(splitViewController: splitViewController)
+    }
+    
+    /// 设置视图模式监听
+    /// 在列表模式和画廊模式之间切换时，动态调整分割视图布局
+    /// _Requirements: 4.3, 4.4, 4.5_
+    private func setupViewModeObserver(splitViewController: NSSplitViewController) {
+        guard let viewModel = viewModel else { return }
+        
+        ViewOptionsManager.shared.$state
+            .map(\.viewMode)
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self, weak splitViewController] viewMode in
+                guard let self = self, let splitViewController = splitViewController else { return }
+                self.updateLayoutForViewMode(viewMode, splitViewController: splitViewController, viewModel: viewModel)
+            }
+            .store(in: &cancellables)
+        
+        // 初始化时根据当前视图模式设置布局
+        updateLayoutForViewMode(ViewOptionsManager.shared.viewMode, splitViewController: splitViewController, viewModel: viewModel)
+    }
+    
+    /// 根据视图模式更新布局
+    /// _Requirements: 4.3, 4.4, 4.5_
+    private func updateLayoutForViewMode(_ viewMode: ViewMode, splitViewController: NSSplitViewController, viewModel: NotesViewModel) {
+        let splitViewItems = splitViewController.splitViewItems
+        guard splitViewItems.count >= 2 else { return }
+        
+        switch viewMode {
+        case .list:
+            // 列表模式：显示三栏布局（侧边栏 + 笔记列表 + 编辑器）
+            if splitViewItems.count == 2 {
+                // 当前是两栏布局（画廊模式），需要恢复三栏布局
+                // 移除画廊视图
+                splitViewController.removeSplitViewItem(splitViewItems[1])
+                
+                // 添加笔记列表
+                let notesListSplitViewItem = NSSplitViewItem(viewController: NotesListHostingController(viewModel: viewModel))
+                notesListSplitViewItem.minimumThickness = 200
+                notesListSplitViewItem.maximumThickness = 350
+                notesListSplitViewItem.canCollapse = false
+                // 设置较高的 holdingPriority，窗口缩小时优先压缩编辑器
+                notesListSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(251)
+                splitViewController.insertSplitViewItem(notesListSplitViewItem, at: 1)
+                
+                // 添加笔记详情编辑器
+                let noteDetailSplitViewItem = NSSplitViewItem(viewController: NoteDetailHostingController(viewModel: viewModel))
+                noteDetailSplitViewItem.minimumThickness = 400
+                // 编辑器 holdingPriority 较低，窗口缩小时先压缩编辑器
+                noteDetailSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(250)
+                splitViewController.addSplitViewItem(noteDetailSplitViewItem)
+                
+                // 恢复保存的笔记列表宽度
+                restoreNotesListWidth(splitViewController: splitViewController)
+            }
+            
+        case .gallery:
+            // 画廊模式：显示两栏布局（侧边栏 + 画廊视图）
+            if splitViewItems.count == 3 {
+                // 保存当前笔记列表宽度
+                saveNotesListWidth(splitViewController: splitViewController)
+                
+                // 当前是三栏布局（列表模式），需要切换到两栏布局
+                // 移除笔记列表和编辑器
+                splitViewController.removeSplitViewItem(splitViewItems[2])
+                splitViewController.removeSplitViewItem(splitViewItems[1])
+                
+                // 添加画廊视图
+                let galleryHostingController = GalleryHostingController(viewModel: viewModel)
+                let gallerySplitViewItem = NSSplitViewItem(viewController: galleryHostingController)
+                gallerySplitViewItem.minimumThickness = 500
+                // 画廊视图 holdingPriority 较低，窗口缩小时先压缩
+                gallerySplitViewItem.holdingPriority = NSLayoutConstraint.Priority(250)
+                splitViewController.addSplitViewItem(gallerySplitViewItem)
+            }
+        }
+    }
+    
+    /// 保存笔记列表宽度
+    private func saveNotesListWidth(splitViewController: NSSplitViewController) {
+        guard splitViewController.splitViewItems.count >= 2 else { return }
+        let notesListView = splitViewController.splitView.subviews[1]
+        let width = notesListView.frame.width
+        savedNotesListWidth = width
+        UserDefaults.standard.set(width, forKey: notesListWidthKey)
+    }
+    
+    /// 恢复笔记列表宽度
+    private func restoreNotesListWidth(splitViewController: NSSplitViewController) {
+        // 优先使用内存中保存的宽度，否则从 UserDefaults 读取
+        let width = savedNotesListWidth ?? UserDefaults.standard.object(forKey: notesListWidthKey) as? CGFloat
+        
+        guard let targetWidth = width,
+              splitViewController.splitViewItems.count >= 2 else { return }
+        
+        // 延迟执行以确保视图已经添加完成
+        DispatchQueue.main.async {
+            splitViewController.splitView.setPosition(
+                splitViewController.splitView.subviews[0].frame.width + targetWidth,
+                ofDividerAt: 1
+            )
+        }
     }
     
     /// 设置工具栏
@@ -169,6 +301,13 @@ public class MainWindowController: NSWindowController {
         
         window.toolbar = toolbar
         window.toolbarStyle = .unified
+        
+        // 创建工具栏可见性管理器
+        // **Requirements: 5.4**
+        visibilityManager = ToolbarVisibilityManager(toolbar: toolbar, viewModel: viewModel)
+        
+        // 将可见性管理器传递给工具栏代理
+        toolbarDelegate?.visibilityManager = visibilityManager
     }
     
     // MARK: - 工具栏验证
@@ -408,9 +547,19 @@ extension MainWindowController: NSToolbarDelegate {
             return nil
             
         case .timelineTrackingSeparator:
-            // 时间线跟踪分隔符 - 连接到分割视图的第二个分隔符
+            // 时间线跟踪分隔符
+            // 注意：由于使用两栏布局（侧边栏 + 内容区域），只有一个分隔符
+            // 如果分割视图只有一个分隔符，返回普通分隔符
+            // _Requirements: 4.3, 4.4, 4.5_
             if let splitViewController = window?.contentViewController as? NSSplitViewController {
-                return NSTrackingSeparatorToolbarItem(identifier: .timelineTrackingSeparator, splitView: splitViewController.splitView, dividerIndex: 1)
+                let dividerCount = splitViewController.splitView.subviews.count - 1
+                if dividerCount > 1 {
+                    // 三栏布局：使用第二个分隔符
+                    return NSTrackingSeparatorToolbarItem(identifier: .timelineTrackingSeparator, splitView: splitViewController.splitView, dividerIndex: 1)
+                } else {
+                    // 两栏布局：返回普通分隔符
+                    return NSToolbarItem(itemIdentifier: .separator)
+                }
             }
             return nil
             
@@ -790,8 +939,11 @@ extension MainWindowController: NSMenuDelegate {
     public func menuNeedsUpdate(_ menu: NSMenu) {
         print("[MainWindowController] menuNeedsUpdate被调用，菜单标题: \(menu.title)，菜单项数量: \(menu.items.count)")
         
-        // 更新在线状态菜单项
+        let optionsManager = ViewOptionsManager.shared
+        
+        // 更新菜单项状态
         for item in menu.items {
+            // 在线状态菜单项
             if item.tag == 100 { // 在线状态项
                 item.attributedTitle = getOnlineStatusAttributedTitle()
             } else if item.tag == 200 { // 离线操作状态项
@@ -813,6 +965,45 @@ extension MainWindowController: NSMenuDelegate {
                         item.title = "离线操作：无待处理"
                     }
                 }
+            }
+            
+            // 视图选项菜单的选中状态
+            // _Requirements: 2.4, 2.8, 3.5, 4.6_
+            
+            // 排序方式选中状态
+            if item.tag == 1 { // 编辑时间
+                item.state = optionsManager.sortOrder == .editDate ? .on : .off
+            } else if item.tag == 2 { // 创建时间
+                item.state = optionsManager.sortOrder == .createDate ? .on : .off
+            } else if item.tag == 3 { // 标题
+                item.state = optionsManager.sortOrder == .title ? .on : .off
+            }
+            
+            // 排序方向选中状态
+            if item.tag == 10 { // 降序
+                item.state = optionsManager.sortDirection == .descending ? .on : .off
+            } else if item.tag == 11 { // 升序
+                item.state = optionsManager.sortDirection == .ascending ? .on : .off
+            }
+            
+            // 日期分组选中状态
+            if item.tag == 20 { // 开
+                item.state = optionsManager.isDateGroupingEnabled ? .on : .off
+            } else if item.tag == 21 { // 关
+                item.state = !optionsManager.isDateGroupingEnabled ? .on : .off
+            }
+            
+            // 视图模式选中状态
+            if item.tag == 30 { // 列表视图
+                item.state = optionsManager.viewMode == .list ? .on : .off
+            } else if item.tag == 31 { // 画廊视图
+                item.state = optionsManager.viewMode == .gallery ? .on : .off
+            }
+            
+            // 按日期分组菜单项：当排序方式为标题时隐藏
+            // 因为按标题排序时，日期分组没有意义
+            if item.title == "按日期分组" {
+                item.isHidden = optionsManager.sortOrder == .title
             }
         }
     }
@@ -1222,6 +1413,24 @@ extension MainWindowController {
         alert.runModal()
     }
     
+    /// 切换 XML 调试模式
+    /// 
+    /// 通过发送通知来切换调试模式，NoteDetailView 会监听此通知并切换显示模式
+    /// 
+    /// _Requirements: 1.1, 1.2, 5.2, 6.1_
+    @objc func toggleDebugMode(_ sender: Any?) {
+        print("[MainWindowController] 切换 XML 调试模式")
+        
+        // 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法切换调试模式")
+            return
+        }
+        
+        // 发送通知切换调试模式
+        NotificationCenter.default.post(name: .toggleDebugMode, object: nil)
+    }
+    
     // MARK: - 新增工具栏按钮动作方法
     
     /// 切换待办（插入复选框）
@@ -1288,7 +1497,7 @@ extension MainWindowController {
     
     /// 插入附件（图片）
     /// 需求: 5.1, 5.2, 5.3, 5.5 - 显示文件选择对话框，根据编辑器类型调用对应的 insertImage 方法
-    @objc func insertAttachment(_ sender: Any?) {
+    @objc public func insertAttachment(_ sender: Any?) {
         print("[MainWindowController] 插入附件")
         
         // 需求 5.5: 检查是否有选中笔记
@@ -1364,6 +1573,114 @@ extension MainWindowController {
             alert.alertStyle = .warning
             alert.addButton(withTitle: "确定")
             alert.runModal()
+        }
+    }
+    
+    /// 插入语音录音
+    /// 需求: 9.1, 9.4, 9.5, 12.1 - 显示录音界面，录制完成后上传并插入到编辑器
+    @objc public func insertAudioRecording(_ sender: Any?) {
+        print("[MainWindowController] 插入语音录音")
+        
+        // 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法插入语音")
+            return
+        }
+        
+        guard let window = window else {
+            print("[MainWindowController] 错误：主窗口不存在")
+            return
+        }
+        
+        // 创建录音上传视图
+        let recorderView = AudioRecorderUploadView(
+            onUploadComplete: { [weak self] fileId, digest, mimeType in
+                guard let self = self else { return }
+                
+                print("[MainWindowController] 语音上传成功: fileId=\(fileId), digest=\(digest ?? "nil"), mimeType=\(mimeType ?? "nil")")
+                
+                // 更新笔记的 setting.data，添加音频信息
+                // 这是小米笔记服务器识别音频文件的关键
+                if let viewModel = self.viewModel, var note = viewModel.selectedNote {
+                    var rawData = note.rawData ?? [:]
+                    var setting = rawData["setting"] as? [String: Any] ?? [
+                        "themeId": 0,
+                        "stickyTime": 0,
+                        "version": 0
+                    ]
+                    
+                    var settingData = setting["data"] as? [[String: Any]] ?? []
+                    
+                    // 构建音频元数据（与图片格式一致）
+                    // digest 格式：{sha1}.mp3
+                    let audioInfo: [String: Any] = [
+                        "fileId": fileId,
+                        "mimeType": mimeType ?? "audio/mpeg",
+                        "digest": (digest ?? fileId) + ".mp3"
+                    ]
+                    settingData.append(audioInfo)
+                    setting["data"] = settingData
+                    rawData["setting"] = setting
+                    note.rawData = rawData
+                    
+                    print("[MainWindowController] 已更新笔记 setting.data，添加音频: \(audioInfo)")
+                    
+                    // 更新 viewModel 中的笔记
+                    viewModel.selectedNote = note
+                    if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
+                        viewModel.notes[index] = note
+                    }
+                }
+                
+                // 根据编辑器类型插入语音
+                if self.isUsingNativeEditor {
+                    // 原生编辑器模式
+                    print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertAudio()")
+                    if let nativeContext = self.getCurrentNativeEditorContext() {
+                        nativeContext.insertAudio(fileId: fileId, digest: digest, mimeType: mimeType)
+                    } else {
+                        print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                    }
+                } else {
+                    // Web 编辑器模式
+                    // Requirements: 12.1
+                    print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertAudio()")
+                    if let webContext = self.getCurrentWebEditorContext() {
+                        webContext.insertAudio(fileId: fileId, digest: digest, mimeType: mimeType)
+                    } else {
+                        print("[MainWindowController] 错误：无法获取 WebEditorContext")
+                    }
+                }
+                
+                // 关闭 sheet
+                if let sheetWindow = window.attachedSheet {
+                    window.endSheet(sheetWindow)
+                }
+            },
+            onCancel: { [weak window] in
+                // 关闭 sheet
+                if let sheetWindow = window?.attachedSheet {
+                    window?.endSheet(sheetWindow)
+                }
+            }
+        )
+        
+        // 创建托管控制器
+        let hostingController = NSHostingController(rootView: recorderView)
+        
+        // 创建 sheet 窗口
+        let sheetWindow = NSWindow(contentViewController: hostingController)
+        sheetWindow.styleMask = [.titled, .closable]
+        sheetWindow.title = "录制语音"
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.titleVisibility = .hidden
+        
+        // 设置窗口大小
+        sheetWindow.setContentSize(NSSize(width: 340, height: 280))
+        
+        // 显示 sheet
+        window.beginSheet(sheetWindow) { response in
+            print("[MainWindowController] 录音 sheet 关闭，响应: \(response)")
         }
     }
     
@@ -1812,12 +2129,9 @@ extension MainWindowController {
     // MARK: - 侧边栏切换
     
     @objc func toggleSidebar(_ sender: Any?) {
-        print("切换侧边栏显示/隐藏")
-        
         guard let window = window,
               let splitViewController = window.contentViewController as? NSSplitViewController,
               splitViewController.splitViewItems.count > 0 else {
-            print("无法获取分割视图控制器或侧边栏项")
             return
         }
         
@@ -1826,8 +2140,6 @@ extension MainWindowController {
         
         // 切换侧边栏状态
         sidebarItem.animator().isCollapsed = !isCurrentlyCollapsed
-        
-        print("侧边栏状态已切换: \(isCurrentlyCollapsed ? "显示" : "隐藏") -> \(!isCurrentlyCollapsed ? "显示" : "隐藏")")
     }
     
     // MARK: - 格式菜单
@@ -1910,6 +2222,100 @@ extension MainWindowController {
         }
     }
     
+    // MARK: - 视图选项菜单
+    
+    /// 显示视图选项菜单（已弃用，改用原生 NSMenu）
+    /// _Requirements: 1.2, 1.3, 1.4_
+    @objc func showViewOptionsMenu(_ sender: Any?) {
+        print("显示视图选项菜单（已弃用）")
+        // 此方法已弃用，视图选项菜单现在使用原生 NSMenuToolbarItem
+    }
+    
+    // MARK: - 视图选项菜单操作
+    
+    /// 设置排序方式为编辑时间
+    /// _Requirements: 2.3_
+    @objc func setSortOrderEditDate(_ sender: Any?) {
+        ViewOptionsManager.shared.setSortOrder(.editDate)
+        viewModel?.setNotesListSortField(.editDate)
+    }
+    
+    /// 设置排序方式为创建时间
+    /// _Requirements: 2.3_
+    @objc func setSortOrderCreateDate(_ sender: Any?) {
+        ViewOptionsManager.shared.setSortOrder(.createDate)
+        viewModel?.setNotesListSortField(.createDate)
+    }
+    
+    /// 设置排序方式为标题
+    /// _Requirements: 2.3_
+    @objc func setSortOrderTitle(_ sender: Any?) {
+        ViewOptionsManager.shared.setSortOrder(.title)
+        viewModel?.setNotesListSortField(.title)
+        // 按标题排序时，自动关闭日期分组（因为日期分组对标题排序没有意义）
+        if ViewOptionsManager.shared.isDateGroupingEnabled {
+            ViewOptionsManager.shared.setDateGrouping(false)
+        }
+    }
+    
+    /// 设置排序方向为降序
+    /// _Requirements: 2.7_
+    @objc func setSortDirectionDescending(_ sender: Any?) {
+        ViewOptionsManager.shared.setSortDirection(.descending)
+        viewModel?.setNotesListSortDirection(.descending)
+    }
+    
+    /// 设置排序方向为升序
+    /// _Requirements: 2.7_
+    @objc func setSortDirectionAscending(_ sender: Any?) {
+        ViewOptionsManager.shared.setSortDirection(.ascending)
+        viewModel?.setNotesListSortDirection(.ascending)
+    }
+    
+    /// 切换日期分组（已弃用，改用 setDateGroupingOn/Off）
+    /// _Requirements: 3.3, 3.4_
+    @objc func toggleDateGrouping(_ sender: Any?) {
+        ViewOptionsManager.shared.toggleDateGrouping()
+    }
+    
+    /// 开启日期分组
+    /// _Requirements: 3.3_
+    @objc func setDateGroupingOn(_ sender: Any?) {
+        // 如果当前是按标题排序，自动切换到按编辑时间排序
+        // 因为按标题排序时日期分组没有意义
+        if ViewOptionsManager.shared.sortOrder == .title {
+            ViewOptionsManager.shared.setSortOrder(.editDate)
+            viewModel?.setNotesListSortField(.editDate)
+        }
+        ViewOptionsManager.shared.setDateGrouping(true)
+    }
+    
+    /// 关闭日期分组
+    /// _Requirements: 3.4_
+    @objc func setDateGroupingOff(_ sender: Any?) {
+        ViewOptionsManager.shared.setDateGrouping(false)
+    }
+    
+    /// 设置视图模式为列表视图
+    /// _Requirements: 4.3_
+    @objc func setViewModeList(_ sender: Any?) {
+        ViewOptionsManager.shared.setViewMode(.list)
+    }
+    
+    /// 设置视图模式为画廊视图
+    /// _Requirements: 4.3_
+    @objc func setViewModeGallery(_ sender: Any?) {
+        ViewOptionsManager.shared.setViewMode(.gallery)
+    }
+    
+    /// 返回画廊视图
+    /// 从画廊视图的笔记编辑模式返回到画廊网格视图
+    @objc func backToGallery(_ sender: Any?) {
+        print("[MainWindowController] 返回画廊视图")
+        // 发送通知让 SwiftUI 视图收起展开的笔记
+        NotificationCenter.default.post(name: .backToGalleryRequested, object: nil)
+    }
+    
     /// 获取当前的WebEditorContext
     private func getCurrentWebEditorContext() -> WebEditorContext? {
         // 直接从viewModel获取共享的WebEditorContext
@@ -1920,14 +2326,14 @@ extension MainWindowController {
     
     /// 是否正在使用原生编辑器
     /// 需求: 7.1 - 通过 EditorPreferencesService.shared.selectedEditorType 判断
-    var isUsingNativeEditor: Bool {
+    public var isUsingNativeEditor: Bool {
         return EditorPreferencesService.shared.selectedEditorType == .native
     }
     
     /// 获取当前的 NativeEditorContext
     /// 需求: 1.3, 7.2 - 从 viewModel 获取 nativeEditorContext
     /// - Returns: 当前的 NativeEditorContext，如果 viewModel 不存在则返回 nil
-    func getCurrentNativeEditorContext() -> NativeEditorContext? {
+    public func getCurrentNativeEditorContext() -> NativeEditorContext? {
         return viewModel?.nativeEditorContext
     }
     
@@ -2101,6 +2507,82 @@ extension MainWindowController {
         // 暂时使用控制台输出
     }
     
+    // MARK: - 格式菜单动作（Apple Notes 风格）
+    
+    /// 切换块引用
+    /// - Requirements: 4.9
+    @objc public func toggleBlockQuote(_ sender: Any?) {
+        print("切换块引用")
+        // TODO: 实现块引用切换功能
+    }
+    
+    // MARK: - 核对清单动作
+    
+    /// 标记为已勾选
+    /// - Requirements: 5.2
+    @objc public func markAsChecked(_ sender: Any?) {
+        print("标记为已勾选")
+        // TODO: 实现标记为已勾选功能
+    }
+    
+    /// 全部勾选
+    /// - Requirements: 5.4
+    @objc public func checkAll(_ sender: Any?) {
+        print("全部勾选")
+        // TODO: 实现全部勾选功能
+    }
+    
+    /// 全部取消勾选
+    /// - Requirements: 5.5
+    @objc public func uncheckAll(_ sender: Any?) {
+        print("全部取消勾选")
+        // TODO: 实现全部取消勾选功能
+    }
+    
+    /// 将勾选的项目移到底部
+    /// - Requirements: 5.6
+    @objc public func moveCheckedToBottom(_ sender: Any?) {
+        print("将勾选的项目移到底部")
+        // TODO: 实现将勾选的项目移到底部功能
+    }
+    
+    /// 删除已勾选项目
+    /// - Requirements: 5.7
+    @objc public func deleteCheckedItems(_ sender: Any?) {
+        print("删除已勾选项目")
+        // TODO: 实现删除已勾选项目功能
+    }
+    
+    /// 向上移动项目
+    /// - Requirements: 5.10
+    @objc public func moveItemUp(_ sender: Any?) {
+        print("向上移动项目")
+        // TODO: 实现向上移动项目功能
+    }
+    
+    /// 向下移动项目
+    /// - Requirements: 5.11
+    @objc public func moveItemDown(_ sender: Any?) {
+        print("向下移动项目")
+        // TODO: 实现向下移动项目功能
+    }
+    
+    // MARK: - 外观动作
+    
+    /// 切换浅色背景
+    /// - Requirements: 6.2
+    @objc public func toggleLightBackground(_ sender: Any?) {
+        print("切换浅色背景")
+        // TODO: 实现切换浅色背景功能
+    }
+    
+    /// 切换高亮
+    /// - Requirements: 6.9
+    @objc public func toggleHighlight(_ sender: Any?) {
+        print("切换高亮")
+        // TODO: 实现切换高亮功能
+    }
+    
     // MARK: - 新增的菜单动作方法
 
     @objc public func copyNote(_ sender: Any?) {
@@ -2135,6 +2617,75 @@ extension MainWindowController {
     /// 显示查找和替换面板
     @objc public func showFindAndReplacePanel(_ sender: Any?) {
         searchPanelController?.showSearchPanel()
+    }
+    
+    // MARK: - 附件操作
+    
+    /// 附加文件到当前笔记
+    /// - Requirements: 3.12
+    /// - Parameter url: 文件 URL
+    @objc public func attachFile(_ url: URL) {
+        print("[MainWindowController] 附加文件: \(url.path)")
+        
+        // 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法附加文件")
+            return
+        }
+        
+        // 根据文件类型处理
+        let fileExtension = url.pathExtension.lowercased()
+        let imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "webp"]
+        
+        if imageExtensions.contains(fileExtension) {
+            // 图片文件：使用现有的图片插入功能
+            Task { @MainActor in
+                await self.insertImage(from: url)
+            }
+        } else {
+            // 其他文件：显示提示（功能待实现）
+            let alert = NSAlert()
+            alert.messageText = "功能开发中"
+            alert.informativeText = "非图片文件的附件功能正在开发中，敬请期待。"
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+        }
+    }
+    
+    /// 添加链接到当前笔记
+    /// - Requirements: 3.13
+    /// - Parameter urlString: 链接地址
+    @objc public func addLink(_ urlString: String) {
+        print("[MainWindowController] 添加链接: \(urlString)")
+        
+        // 检查是否有选中笔记
+        guard viewModel?.selectedNote != nil else {
+            print("[MainWindowController] 没有选中笔记，无法添加链接")
+            return
+        }
+        
+        // 验证 URL 格式
+        guard let url = URL(string: urlString), url.scheme != nil else {
+            let alert = NSAlert()
+            alert.messageText = "无效的链接"
+            alert.informativeText = "请输入有效的链接地址（例如：https://example.com）"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+            return
+        }
+        
+        // 链接插入功能待实现
+        // TODO: 根据编辑器类型插入链接
+        print("[MainWindowController] 链接插入功能待实现: \(urlString)")
+        
+        let alert = NSAlert()
+        alert.messageText = "功能开发中"
+        alert.informativeText = "链接插入功能正在开发中，敬请期待。\n\n链接地址：\(urlString)"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.runModal()
     }
     
     // MARK: - 窗口状态管理
@@ -2520,6 +3071,103 @@ extension MainWindowController {
         viewModel?.searchFilterHasImages = false
         viewModel?.searchFilterHasAudio = false
         viewModel?.searchFilterIsPrivate = false
+    }
+    
+    // MARK: - 显示菜单动作（Requirements: 10.1-10.4, 11.1-11.5）
+    
+    /// 放大
+    /// - Requirements: 10.2
+    @objc public func zoomIn(_ sender: Any?) {
+        print("[MainWindowController] 放大")
+        
+        // 根据编辑器类型调用对应的缩放方法
+        if isUsingNativeEditor {
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.zoomIn()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.zoomIn()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
+    }
+    
+    /// 缩小
+    /// - Requirements: 10.3
+    @objc public func zoomOut(_ sender: Any?) {
+        print("[MainWindowController] 缩小")
+        
+        // 根据编辑器类型调用对应的缩放方法
+        if isUsingNativeEditor {
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.zoomOut()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.zoomOut()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
+    }
+    
+    /// 实际大小
+    /// - Requirements: 10.4
+    @objc public func actualSize(_ sender: Any?) {
+        print("[MainWindowController] 实际大小")
+        
+        // 根据编辑器类型调用对应的重置缩放方法
+        if isUsingNativeEditor {
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.resetZoom()
+            } else {
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+            }
+        } else {
+            if let webContext = getCurrentWebEditorContext() {
+                webContext.resetZoom()
+            } else {
+                print("[MainWindowController] 错误：无法获取 WebEditorContext")
+            }
+        }
+    }
+    
+    /// 展开区域
+    /// - Requirements: 11.2
+    @objc public func expandSection(_ sender: Any?) {
+        print("[MainWindowController] 展开区域")
+        // TODO: 实现展开当前区域功能
+        // 这需要与编辑器集成，展开当前光标所在的折叠区域
+    }
+    
+    /// 展开所有区域
+    /// - Requirements: 11.3
+    @objc public func expandAllSections(_ sender: Any?) {
+        print("[MainWindowController] 展开所有区域")
+        // TODO: 实现展开所有区域功能
+        // 这需要与编辑器集成，展开所有折叠的区域
+    }
+    
+    /// 折叠区域
+    /// - Requirements: 11.4
+    @objc public func collapseSection(_ sender: Any?) {
+        print("[MainWindowController] 折叠区域")
+        // TODO: 实现折叠当前区域功能
+        // 这需要与编辑器集成，折叠当前光标所在的区域
+    }
+    
+    /// 折叠所有区域
+    /// - Requirements: 11.5
+    @objc public func collapseAllSections(_ sender: Any?) {
+        print("[MainWindowController] 折叠所有区域")
+        // TODO: 实现折叠所有区域功能
+        // 这需要与编辑器集成，折叠所有可折叠的区域
     }
     
     

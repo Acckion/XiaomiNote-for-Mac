@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 
 /// 笔记详情视图
 @available(macOS 14.0, *)
@@ -19,6 +20,22 @@ struct NoteDetailView: View {
         case error(String) // 保存失败（红色，带错误信息）
     }
     @State private var saveStatus: SaveStatus = .saved
+    
+    // MARK: - 调试模式状态
+    // _Requirements: 1.1, 1.2_
+    
+    /// 是否处于调试模式
+    /// 
+    /// 当为 true 时，显示 XML 调试编辑器；当为 false 时，显示普通编辑器
+    @State private var isDebugMode: Bool = false
+    
+    /// 调试模式下的 XML 内容
+    /// 
+    /// 用于在调试模式下编辑的 XML 内容，切换模式时与 currentXMLContent 同步
+    @State private var debugXMLContent: String = ""
+    
+    /// 调试模式下的保存状态
+    @State private var debugSaveStatus: DebugSaveStatus = .saved
     @State private var showSaveErrorAlert: Bool = false
     @State private var saveErrorMessage: String = ""
     @State private var isEditable: Bool = true
@@ -77,10 +94,101 @@ struct NoteDetailView: View {
                     webEditorContext.highlightSearchText(newValue)
                 }
             }
+            .onAppear {
+                // 注册保存回调到 ViewStateCoordinator
+                // **Requirements: 3.5, 6.1, 6.2**
+                // - 3.5: 用户在 Editor 中编辑笔记时切换到另一个文件夹，先保存当前编辑内容再切换
+                // - 6.1: 切换文件夹且 Editor 有未保存内容时，先触发保存操作
+                // - 6.2: 保存操作完成后继续执行文件夹切换
+                registerSaveCallback()
+            }
+            .onDisappear {
+                // 清除保存回调
+                viewModel.stateCoordinator.saveContentCallback = nil
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .toggleDebugMode)) { _ in
+                // 监听调试模式切换通知
+                // _Requirements: 1.1, 1.2, 5.2, 6.1_
+                toggleDebugMode()
+            }
             .navigationTitle("详情")
             .toolbar {
                 toolbarContent
             }
+    }
+    
+    /// 注册保存回调到 ViewStateCoordinator
+    /// 
+    /// 当文件夹切换时，ViewStateCoordinator 会调用此回调来保存当前编辑的内容
+    /// 
+    /// **Requirements: 3.5, 6.1, 6.2**
+    private func registerSaveCallback() {
+        viewModel.stateCoordinator.saveContentCallback = { [self] in
+            await self.saveCurrentContentForFolderSwitch()
+        }
+        Swift.print("[NoteDetailView] ✅ 已注册保存回调到 ViewStateCoordinator")
+    }
+    
+    /// 为文件夹切换保存当前内容
+    /// 
+    /// 这个方法会被 ViewStateCoordinator 在文件夹切换前调用
+    /// 
+    /// **Requirements: 3.5, 6.1, 6.2**
+    /// 
+    /// - Returns: 是否保存成功
+    @MainActor
+    private func saveCurrentContentForFolderSwitch() async -> Bool {
+        guard let note = viewModel.selectedNote, note.id == currentEditingNoteId else {
+            Swift.print("[保存流程] ⏭️ 文件夹切换保存跳过 - 无当前编辑笔记")
+            return true
+        }
+        
+        Swift.print("[保存流程] 🔄 文件夹切换前保存 - 笔记ID: \(note.id.prefix(8))..., 标题: \(editedTitle)")
+        
+        // 1. 强制编辑器保存当前内容
+        if isUsingNativeEditor {
+            // 原生编辑器：导出 XML
+            let xmlContent = nativeEditorContext.exportToXML()
+            if !xmlContent.isEmpty {
+                currentXMLContent = xmlContent
+            }
+        } else {
+            // Web 编辑器：强制保存
+            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                webEditorContext.forceSaveContent { c.resume() }
+            }
+        }
+        
+        // 2. 获取最新内容
+        let content = await getLatestContentFromEditor()
+        
+        // 3. 检查内容是否变化
+        guard content != lastSavedXMLContent || editedTitle != originalTitle else {
+            Swift.print("[保存流程] ⏭️ 文件夹切换保存跳过 - 内容无变化")
+            return true
+        }
+        
+        Swift.print("[保存流程] 💾 文件夹切换保存 - 内容长度: \(content.count)")
+        
+        // 4. 立即保存 XML
+        scheduleXMLSave(xmlContent: content, for: note, immediate: true)
+        
+        // 5. 等待保存完成
+        if let xmlTask = xmlSaveTask {
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    await xmlTask.value
+                }
+                group.addTask {
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 500ms 超时
+                }
+                await group.next()
+                group.cancelAll()
+            }
+        }
+        
+        Swift.print("[保存流程] ✅ 文件夹切换保存完成")
+        return true
     }
     
     /// 主内容视图
@@ -103,26 +211,43 @@ struct NoteDetailView: View {
         ToolbarItemGroup(placement: .automatic) {
             newNoteButton
         }
-        ToolbarSpacer()
         ToolbarItemGroup(placement: .automatic) {
             undoButton
             redoButton
         }
-        ToolbarSpacer(.fixed)
         ToolbarItemGroup(placement: .automatic) {
             formatMenu
             checkboxButton
             horizontalRuleButton
             imageButton
         }
-        ToolbarSpacer(.fixed)
         ToolbarItemGroup(placement: .automatic) {
             indentButtons
             Spacer()
+            // 调试模式切换按钮
+            // _Requirements: 1.3, 1.5, 6.1_
+            debugModeToggleButton
             if let note = viewModel.selectedNote {
                 shareAndMoreButtons(for: note)
             }
         }
+    }
+    
+    /// 调试模式切换按钮
+    /// 
+    /// _Requirements: 1.1, 1.2, 1.3, 1.5, 5.2, 6.1_
+    private var debugModeToggleButton: some View {
+        Button {
+            toggleDebugMode()
+        } label: {
+            Label(
+                isDebugMode ? "退出调试" : "调试模式",
+                systemImage: isDebugMode ? "xmark.circle" : "chevron.left.forwardslash.chevron.right"
+            )
+        }
+        .keyboardShortcut("d", modifiers: [.command, .shift])
+        .disabled(viewModel.selectedNote == nil)
+        .help(isDebugMode ? "退出 XML 调试模式 (⌘⇧D)" : "进入 XML 调试模式 (⌘⇧D)")
     }
     
     @ViewBuilder
@@ -186,8 +311,65 @@ struct NoteDetailView: View {
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
             
-            // 保存状态指示器
-            saveStatusIndicator
+            // 调试模式指示器
+            // _Requirements: 1.3_
+            if isDebugMode {
+                debugModeIndicator
+            }
+            
+            // 保存状态指示器（根据模式显示不同状态）
+            if isDebugMode {
+                debugSaveStatusIndicator
+            } else {
+                saveStatusIndicator
+            }
+        }
+    }
+    
+    /// 调试模式指示器
+    /// 
+    /// _Requirements: 1.3_
+    private var debugModeIndicator: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "chevron.left.forwardslash.chevron.right")
+                .font(.system(size: 8))
+            Text("调试模式")
+                .font(.system(size: 10, weight: .medium))
+        }
+        .foregroundColor(.orange)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Color.orange.opacity(0.15))
+        .cornerRadius(4)
+    }
+    
+    /// 调试模式保存状态指示器
+    /// 
+    /// _Requirements: 4.5, 4.6, 4.7_
+    private var debugSaveStatusIndicator: some View {
+        Group {
+            switch debugSaveStatus {
+            case .saved:
+                Text("已保存")
+                    .font(.system(size: 10))
+                    .foregroundColor(.green)
+            case .saving:
+                Text("保存中...")
+                    .font(.system(size: 10))
+                    .foregroundColor(.orange)
+            case .unsaved:
+                Text("未保存")
+                    .font(.system(size: 10))
+                    .foregroundColor(.red)
+            case .error(let message):
+                Text("保存失败")
+                    .font(.system(size: 10))
+                    .foregroundColor(.red)
+                    .onTapGesture {
+                        saveErrorMessage = message
+                        showSaveErrorAlert = true
+                    }
+            }
         }
     }
     
@@ -245,51 +427,209 @@ struct NoteDetailView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let note = viewModel.selectedNote {
-                // 使用统一编辑器包装器，支持原生编辑器和 Web 编辑器切换
-                UnifiedEditorWrapper(
-                    content: $currentXMLContent,
-                    isEditable: $isEditable,
-                    webEditorContext: webEditorContext,
-                    nativeEditorContext: nativeEditorContext,
-                    noteRawData: {
-                        if let rawData = note.rawData, let jsonData = try? JSONSerialization.data(withJSONObject: rawData, options: []) {
-                            return String(data: jsonData, encoding: .utf8)
+                // 根据调试模式显示不同编辑器
+                // _Requirements: 1.1, 1.2, 1.4, 6.2_
+                if isDebugMode {
+                    // 调试模式：显示 XML 调试编辑器
+                    // _Requirements: 1.1, 2.1, 6.2_
+                    XMLDebugEditorView(
+                        xmlContent: $debugXMLContent,
+                        isEditable: $isEditable,
+                        saveStatus: $debugSaveStatus,
+                        onSave: {
+                            // 保存调试编辑器中的内容
+                            Task { @MainActor in
+                                await saveDebugContent()
+                            }
+                        },
+                        onContentChange: { newContent in
+                            // 调试模式下的内容变化处理
+                            handleDebugContentChange(newContent)
                         }
-                        return nil
-                    }(),
-                    xmlContent: note.primaryXMLContent,
-                    folderId: note.folderId,
-                    onContentChange: { newXML, newHTML in
-                        guard !isInitializing else { return }
-                        
-                        // 关键修复：始终使用当前的selectedNote，而不是捕获的note
-                        // 这确保切换笔记后，内容变化不会应用到错误的笔记
-                        guard let currentNote = viewModel.selectedNote,
-                              currentNote.id == currentEditingNoteId else {
-                            Swift.print("[保存流程] ⚠️ 内容变化时笔记已切换，忽略此次保存")
-                            return
-                        }
-                        
-                        Task { @MainActor in
-                            // 更新当前内容状态
-                            self.currentXMLContent = newXML
+                    )
+                } else {
+                    // 普通模式：使用统一编辑器包装器，支持原生编辑器和 Web 编辑器切换
+                    UnifiedEditorWrapper(
+                        content: $currentXMLContent,
+                        isEditable: $isEditable,
+                        webEditorContext: webEditorContext,
+                        nativeEditorContext: nativeEditorContext,
+                        noteRawData: {
+                            if let rawData = note.rawData, let jsonData = try? JSONSerialization.data(withJSONObject: rawData, options: []) {
+                                return String(data: jsonData, encoding: .utf8)
+                            }
+                            return nil
+                        }(),
+                        xmlContent: note.primaryXMLContent,
+                        folderId: note.folderId,
+                        onContentChange: { newXML, newHTML in
+                            guard !isInitializing else { return }
                             
-                            // [Tier 0] 立即更新内存缓存（<1ms，无延迟）
-                            await self.updateMemoryCache(xmlContent: newXML, htmlContent: newHTML, for: currentNote)
-                            
-                            // [Tier 1] 异步保存 HTML 缓存（后台，<10ms）
-                            if let html = newHTML {
-                                self.flashSaveHTML(html, for: currentNote)
+                            // 关键修复：始终使用当前的selectedNote，而不是捕获的note
+                            // 这确保切换笔记后，内容变化不会应用到错误的笔记
+                            guard let currentNote = viewModel.selectedNote,
+                                  currentNote.id == currentEditingNoteId else {
+                                Swift.print("[保存流程] ⚠️ 内容变化时笔记已切换，忽略此次保存")
+                                return
                             }
                             
-                            // [Tier 2] 异步保存 XML（后台，<50ms，防抖300ms）
-                            self.scheduleXMLSave(xmlContent: newXML, for: currentNote, immediate: false)
-                            
-                            // [Tier 3] 计划同步云端（延迟3秒）
-                            self.scheduleCloudUpload(for: currentNote, xmlContent: newXML)
+                            Task { @MainActor in
+                                // 更新当前内容状态
+                                self.currentXMLContent = newXML
+                                
+                                // [Tier 0] 立即更新内存缓存（<1ms，无延迟）
+                                await self.updateMemoryCache(xmlContent: newXML, htmlContent: newHTML, for: currentNote)
+                                
+                                // [Tier 1] 异步保存 HTML 缓存（后台，<10ms）
+                                if let html = newHTML {
+                                    self.flashSaveHTML(html, for: currentNote)
+                                }
+                                
+                                // [Tier 2] 异步保存 XML（后台，<50ms，防抖300ms）
+                                self.scheduleXMLSave(xmlContent: newXML, for: currentNote, immediate: false)
+                                
+                                // [Tier 3] 计划同步云端（延迟3秒）
+                                self.scheduleCloudUpload(for: currentNote, xmlContent: newXML)
+                            }
                         }
-                    }
-                )
+                    )
+                }
+            }
+        }
+    }
+    
+    // MARK: - 调试模式方法
+    
+    /// 切换调试模式
+    /// 
+    /// _Requirements: 1.1, 1.2, 1.4_
+    private func toggleDebugMode() {
+        if isDebugMode {
+            // 从调试模式切换到普通模式
+            // _Requirements: 1.2, 1.4_
+            // 保留调试模式下编辑的内容
+            if debugXMLContent != currentXMLContent {
+                currentXMLContent = debugXMLContent
+                // 标记内容已修改，触发保存
+                if let note = viewModel.selectedNote {
+                    scheduleXMLSave(xmlContent: debugXMLContent, for: note, immediate: false)
+                }
+            }
+            isDebugMode = false
+            Swift.print("[调试模式] 🔄 退出调试模式")
+        } else {
+            // 从普通模式切换到调试模式
+            // _Requirements: 1.1_
+            // 同步当前内容到调试编辑器
+            if let note = viewModel.selectedNote {
+                // 优先使用当前编辑的内容，如果为空则使用笔记的原始内容
+                debugXMLContent = currentXMLContent.isEmpty ? note.primaryXMLContent : currentXMLContent
+            }
+            debugSaveStatus = DebugSaveStatus.saved
+            isDebugMode = true
+            Swift.print("[调试模式] 🔄 进入调试模式 - 内容长度: \(debugXMLContent.count)")
+        }
+    }
+    
+    /// 处理调试模式下的内容变化
+    /// 
+    /// _Requirements: 3.1, 3.3_
+    private func handleDebugContentChange(_ newContent: String) {
+        guard !isInitializing else { return }
+        
+        // 标记为未保存
+        if debugSaveStatus != .saving {
+            debugSaveStatus = DebugSaveStatus.unsaved
+        }
+        
+        Swift.print("[调试模式] 📝 内容变化 - 长度: \(newContent.count)")
+    }
+    
+    /// 保存调试编辑器中的内容
+    /// 
+    /// 实现完整的保存流程：
+    /// 1. 更新 Note.content 为编辑后的 XML 内容
+    /// 2. 触发本地数据库保存
+    /// 3. 调度云端同步
+    /// 
+    /// _Requirements: 4.1, 4.2, 4.3, 4.4_
+    @MainActor
+    private func saveDebugContent() async {
+        guard let note = viewModel.selectedNote, note.id == currentEditingNoteId else {
+            Swift.print("[调试模式] ⚠️ 保存失败 - 无当前编辑笔记")
+            debugSaveStatus = .error("无法保存：未选择笔记")
+            return
+        }
+        
+        // 检查内容是否有变化
+        let hasChanges = debugXMLContent != lastSavedXMLContent || editedTitle != originalTitle
+        guard hasChanges else {
+            Swift.print("[调试模式] ⏭️ 保存跳过 - 内容无变化")
+            debugSaveStatus = .saved
+            return
+        }
+        
+        // _Requirements: 4.5_ - 显示 "保存中..." 状态
+        debugSaveStatus = .saving
+        
+        // 同步内容到 currentXMLContent
+        // _Requirements: 4.1, 4.2_ - 更新 Note.content
+        currentXMLContent = debugXMLContent
+        
+        Swift.print("[调试模式] 💾 开始保存 - 笔记ID: \(note.id.prefix(8))..., 内容长度: \(debugXMLContent.count)")
+        
+        // 构建更新的笔记对象
+        let updated = buildUpdatedNote(from: note, xmlContent: debugXMLContent)
+        
+        // _Requirements: 4.3_ - 触发本地数据库保存
+        do {
+            try await saveDebugContentToDatabase(updated)
+            
+            // _Requirements: 4.6_ - 显示 "已保存" 状态
+            debugSaveStatus = .saved
+            lastSavedXMLContent = debugXMLContent
+            
+            // 更新内存缓存
+            await MemoryCacheManager.shared.cacheNote(updated)
+            
+            // 更新视图模型中的笔记
+            if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
+                viewModel.notes[index] = updated
+            }
+            if viewModel.selectedNote?.id == updated.id {
+                viewModel.selectedNote = updated
+                viewModel.stateCoordinator.updateNoteContent(updated)
+            }
+            
+            // 清除未保存内容标志
+            viewModel.stateCoordinator.hasUnsavedContent = false
+            
+            Swift.print("[调试模式] ✅ 本地保存成功")
+            
+            // _Requirements: 4.4_ - 调度云端同步
+            scheduleCloudUpload(for: updated, xmlContent: debugXMLContent)
+            
+        } catch {
+            // _Requirements: 4.7_ - 显示错误信息并保留编辑内容
+            let errorMessage = "保存失败: \(error.localizedDescription)"
+            debugSaveStatus = .error(errorMessage)
+            Swift.print("[调试模式] ❌ 保存失败: \(error)")
+            // 不清空 debugXMLContent，保留用户编辑的内容
+        }
+    }
+    
+    /// 将调试内容保存到数据库
+    /// 
+    /// _Requirements: 4.3_
+    @MainActor
+    private func saveDebugContentToDatabase(_ note: Note) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            DatabaseService.shared.saveNoteAsync(note) { error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
             }
         }
     }
@@ -485,6 +825,26 @@ struct NoteDetailView: View {
         lastSavedXMLContent = ""
         originalXMLContent = ""
         
+        // 调试模式：处理笔记切换时的内容加载
+        // _Requirements: 6.4_ - 切换笔记时加载新笔记的 XML 内容，保持调试模式状态
+        // 优化：先尝试从新笔记获取内容，避免显示空内容占位符
+        if isDebugMode {
+            // 优先使用新笔记的 primaryXMLContent，如果为空则暂时保持空状态
+            // 后续在 loadNoteContentFromCache 或 loadNoteContent 中会更新
+            let newNoteContent = note.primaryXMLContent
+            if !newNoteContent.isEmpty {
+                debugXMLContent = newNoteContent
+                Swift.print("[快速切换] 🔧 调试模式预加载内容 - 长度: \(debugXMLContent.count)")
+            } else {
+                debugXMLContent = ""
+            }
+            debugSaveStatus = DebugSaveStatus.saved
+        } else {
+            // 非调试模式：清空调试内容
+            debugXMLContent = ""
+            debugSaveStatus = DebugSaveStatus.saved
+        }
+        
         // 2. 尝试从内存缓存获取完整笔记
         let cachedNote = await MemoryCacheManager.shared.getNote(noteId: note.id)
         if let cachedNote = cachedNote {
@@ -525,6 +885,14 @@ struct NoteDetailView: View {
         currentXMLContent = note.primaryXMLContent
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
+        
+        // 调试模式：同步内容到调试编辑器
+        // _Requirements: 6.4_
+        if isDebugMode {
+            debugXMLContent = currentXMLContent
+            debugSaveStatus = DebugSaveStatus.saved
+            Swift.print("[快速切换] 🔧 调试模式内容已同步 - 长度: \(debugXMLContent.count)")
+        }
         
         Swift.print("[快速切换] ✅ 从缓存加载完成 - ID: \(note.id.prefix(8))..., 标题: \(title), 内容长度: \(currentXMLContent.count)")
         
@@ -644,6 +1012,14 @@ struct NoteDetailView: View {
             await MemoryCacheManager.shared.cacheNote(note)
         }
         
+        // 调试模式：同步内容到调试编辑器
+        // _Requirements: 6.4_
+        if isDebugMode {
+            debugXMLContent = currentXMLContent
+            debugSaveStatus = DebugSaveStatus.saved
+            Swift.print("[笔记切换] 🔧 调试模式内容已同步 - 长度: \(debugXMLContent.count)")
+        }
+        
         // 4. 添加日志以便调试
         Swift.print("[笔记切换] ✅ 加载笔记内容 - ID: \(note.id.prefix(8))..., 标题: \(title), 内容长度: \(currentXMLContent.count)")
         
@@ -717,6 +1093,10 @@ struct NoteDetailView: View {
                     }
                     if self.viewModel.selectedNote?.id == updated.id {
                         self.viewModel.selectedNote = updated
+                        
+                        // 通过 coordinator 更新笔记内容，保持选择状态不变
+                        // **Requirements: 1.1, 1.2, 1.3**
+                        self.viewModel.stateCoordinator.updateNoteContent(updated)
                     }
                     self.scheduleCloudUpload(for: updated, xmlContent: xmlContent)
                     continuation.resume()
@@ -764,6 +1144,11 @@ struct NoteDetailView: View {
         
         // 更新保存状态为"保存中"
         saveStatus = .saving
+        
+        // 标记 coordinator 有未保存的内容
+        // **Requirements: 6.1**
+        // - 6.1: 切换文件夹时检查是否有未保存内容
+        viewModel.stateCoordinator.hasUnsavedContent = true
         
         Swift.print("[保存流程] ✅ Tier 0 内存缓存更新 - 笔记ID: \(note.id.prefix(8))..., XML长度: \(xmlContent.count)")
     }
@@ -880,16 +1265,36 @@ struct NoteDetailView: View {
                         self.lastSavedXMLContent = xmlContent
                         self.currentXMLContent = xmlContent
                         
-                        // 更新视图模型，但不更新selectedNote（避免闪烁）
+                        // 更新视图模型中的笔记
+                        // **Requirements: 1.1, 1.2** - 编辑笔记内容时保持选中状态不变
+                        // 由于 Note 的 Equatable 现在只比较 id，所以更新 notes 数组不会影响选择状态
+                        let oldSelectedNoteId = self.viewModel.selectedNote?.id
+                        Swift.print("[保存流程] 🔄 更新 notes 数组 - 笔记ID: \(noteId.prefix(8))..., 当前选中: \(oldSelectedNoteId?.prefix(8) ?? "nil")")
+                        
                         if let index = self.viewModel.notes.firstIndex(where: { $0.id == noteId }) {
                             self.viewModel.notes[index] = updated
+                            Swift.print("[保存流程] ✅ notes[\(index)] 已更新")
                         }
+                        
+                        // 同步更新 selectedNote（如果当前选中的是这个笔记）
+                        // 这确保 selectedNote 的内容与 notes 数组中的笔记保持一致
+                        if self.viewModel.selectedNote?.id == noteId {
+                            self.viewModel.selectedNote = updated
+                            Swift.print("[保存流程] ✅ selectedNote 已同步更新")
+                        }
+                        
+                        let newSelectedNoteId = self.viewModel.selectedNote?.id
+                        Swift.print("[保存流程] 📊 更新后选中状态: \(newSelectedNoteId?.prefix(8) ?? "nil")")
                         
                         // 更新内存缓存
                         await MemoryCacheManager.shared.cacheNote(updated)
                         
                         // 更新保存状态为"已保存"
                         self.saveStatus = .saved
+                        
+                        // 清除 coordinator 的未保存内容标志
+                        // **Requirements: 6.1**
+                        self.viewModel.stateCoordinator.hasUnsavedContent = false
                         
                         Swift.print("[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: \(noteId.prefix(8))..., 标题: \(self.editedTitle)")
                         continuation.resume()
@@ -1096,7 +1501,19 @@ struct NoteDetailView: View {
             titleToUse = note.title
         }
         
-        return Note(id: note.id, title: titleToUse, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: Date(), tags: note.tags, rawData: note.rawData)
+        // 关键修复：合并 rawData，确保包含最新的 setting.data（音频/图片元数据）
+        // 从 viewModel.selectedNote 获取最新的 rawData，因为音频上传后会更新 setting.data
+        var mergedRawData = note.rawData ?? [:]
+        if let latestNote = viewModel.selectedNote, latestNote.id == note.id {
+            if let latestRawData = latestNote.rawData {
+                // 合并 setting.data
+                if let latestSetting = latestRawData["setting"] as? [String: Any] {
+                    mergedRawData["setting"] = latestSetting
+                }
+            }
+        }
+        
+        return Note(id: note.id, title: titleToUse, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: Date(), tags: note.tags, rawData: mergedRawData)
     }
     
     private func updateViewModelDelayed(with updated: Note) {
@@ -1105,6 +1522,13 @@ struct NoteDetailView: View {
         }
         if viewModel.selectedNote?.id == updated.id {
             viewModel.selectedNote = updated
+            
+            // 通过 coordinator 更新笔记内容，保持选择状态不变
+            // **Requirements: 1.1, 1.2, 1.3**
+            // - 1.1: 编辑笔记内容时保持选中状态不变
+            // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
+            // - 1.3: 笔记的 updatedAt 时间戳变化时保持选中笔记的高亮状态
+            viewModel.stateCoordinator.updateNoteContent(updated)
         }
     }
     

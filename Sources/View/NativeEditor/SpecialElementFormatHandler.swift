@@ -139,6 +139,10 @@ class SpecialElementFormatHandler {
             // 图片：禁止应用文本格式
             return .deny
             
+        case .audio:
+            // 语音录音：禁止应用文本格式
+            return .deny
+            
         case .bulletPoint, .numberedItem:
             // 列表项：允许应用内联格式到列表项后的文本
             return format.isInlineFormat ? .skipElement : .deny
@@ -239,6 +243,10 @@ class SpecialElementFormatHandler {
             
         case .image:
             // 图片附近禁用所有文本格式
+            return TextFormat.allCases.filter { $0.isInlineFormat }
+            
+        case .audio:
+            // 语音录音附近禁用所有文本格式
             return TextFormat.allCases.filter { $0.isInlineFormat }
             
         case .checkbox, .bulletPoint, .numberedItem:

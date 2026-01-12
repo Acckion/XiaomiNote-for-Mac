@@ -11,7 +11,7 @@ import Combine
 import AppKit
 
 /// 文本格式类型枚举
-enum TextFormat: CaseIterable, Hashable {
+public enum TextFormat: CaseIterable, Hashable, Sendable {
     case bold           // 加粗
     case italic         // 斜体
     case underline      // 下划线
@@ -92,6 +92,7 @@ enum SpecialElement: Equatable {
     case numberedItem(number: Int, indent: Int)
     case quote(content: String)
     case image(fileId: String?, src: String?)
+    case audio(fileId: String, digest: String?, mimeType: String?)
     
     /// 元素的显示名称
     var displayName: String {
@@ -102,6 +103,7 @@ enum SpecialElement: Equatable {
         case .numberedItem: return "编号列表"
         case .quote: return "引用块"
         case .image: return "图片"
+        case .audio: return "语音录音"
         }
     }
 }
@@ -122,11 +124,11 @@ enum IndentOperation: Equatable {
 }
 
 /// 编辑器类型枚举
-enum EditorType: String, CaseIterable, Identifiable, Codable {
+public enum EditorType: String, CaseIterable, Identifiable, Codable, Sendable {
     case native = "native"
     case web = "web"
     
-    var id: String { rawValue }
+    public var id: String { rawValue }
     
     var displayName: String {
         switch self {
@@ -189,7 +191,7 @@ enum EditorType: String, CaseIterable, Identifiable, Codable {
 /// 原生编辑器上下文 - 管理编辑器状态和操作
 /// 需求: 9.1, 9.2, 9.3, 9.4, 9.5
 @MainActor
-class NativeEditorContext: ObservableObject {
+public class NativeEditorContext: ObservableObject {
     // MARK: - Published Properties
     
     /// 当前应用的格式集合
@@ -263,6 +265,22 @@ class NativeEditorContext: ObservableObject {
     /// 取消订阅集合
     private var cancellables = Set<AnyCancellable>()
     
+    // MARK: - 格式提供者
+    
+    /// 格式提供者（延迟初始化）
+    /// _Requirements: 3.1, 3.2, 3.3_
+    private var _formatProvider: NativeFormatProvider?
+    
+    /// 格式提供者（公开访问）
+    /// _Requirements: 3.1, 3.2, 3.3_
+    public var formatProvider: NativeFormatProvider {
+        if _formatProvider == nil {
+            _formatProvider = NativeFormatProvider(editorContext: self)
+            print("[NativeEditorContext] 创建 NativeFormatProvider")
+        }
+        return _formatProvider!
+    }
+    
     // MARK: - Public Publishers
     
     /// 格式变化发布者
@@ -305,6 +323,15 @@ class NativeEditorContext: ObservableObject {
         // 设置格式状态同步器的更新回调
         formatStateSynchronizer.setUpdateCallback { [weak self] in
             self?.updateCurrentFormats()
+        }
+        
+        // 延迟注册格式提供者到 FormatStateManager
+        // 使用 Task 确保在主线程上执行
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            // 触发 formatProvider 的延迟初始化
+            _ = self.formatProvider
+            print("[NativeEditorContext] 初始化完成，formatProvider 已创建")
         }
     }
     
@@ -448,6 +475,17 @@ class NativeEditorContext: ObservableObject {
         }
     }
     
+    /// 插入语音录音
+    /// - Parameters:
+    ///   - fileId: 语音文件 ID
+    ///   - digest: 文件摘要（可选）
+    ///   - mimeType: MIME 类型（可选）
+    /// - Requirements: 9.4, 9.5
+    func insertAudio(fileId: String, digest: String? = nil, mimeType: String? = nil) {
+        print("[NativeEditorContext] 插入语音录音: fileId=\(fileId)")
+        insertSpecialElement(.audio(fileId: fileId, digest: digest, mimeType: mimeType))
+    }
+    
     // MARK: - Public Methods - 缩进操作 (需求 6.1, 6.2, 6.3, 6.5)
     
     /// 增加缩进
@@ -490,14 +528,46 @@ class NativeEditorContext: ObservableObject {
     
     /// 设置编辑器焦点状态 (需求 9.5)
     /// - Parameter focused: 是否获得焦点
+    /// 
+    /// 当焦点状态变化时，发送 `.editorFocusDidChange` 通知以更新菜单状态
+    /// _Requirements: 14.5_
     func setEditorFocused(_ focused: Bool) {
+        // 只有状态真正变化时才更新和发送通知
+        guard isEditorFocused != focused else { return }
+        
         isEditorFocused = focused
         
+        // 发送编辑器焦点变化通知
+        // _Requirements: 14.5_
+        postEditorFocusNotification(focused)
+        
         if focused {
+            // 注册格式提供者到 FormatStateManager
+            // _Requirements: 8.4_
+            FormatStateManager.shared.setActiveProvider(formatProvider)
+            
             // 同步编辑器上下文状态
             updateCurrentFormats()
             detectSpecialElementAtCursor()
+        } else {
+            // 编辑器失去焦点时，清除活动提供者
+            // 注意：这里不清除，因为用户可能只是临时切换焦点
+            // FormatStateManager.shared.clearActiveProvider()
         }
+    }
+    
+    /// 发送编辑器焦点变化通知
+    /// 
+    /// 当编辑器焦点状态变化时，发送通知以更新菜单状态
+    /// 
+    /// _Requirements: 14.5_
+    private func postEditorFocusNotification(_ focused: Bool) {
+        NotificationCenter.default.post(
+            name: .editorFocusDidChange,
+            object: self,
+            userInfo: ["isEditorFocused": focused]
+        )
+        print("[NativeEditorContext] 发送编辑器焦点变化通知: isEditorFocused=\(focused)")
     }
     
     // MARK: - Public Methods - 内容管理
@@ -627,7 +697,8 @@ class NativeEditorContext: ObservableObject {
     /// 立即更新格式状态（不使用防抖）
     /// 
     /// 在某些情况下（如用户点击格式按钮），我们需要立即更新状态
-    func forceUpdateFormats() {
+    /// 菜单栏格式菜单也需要调用此方法来获取当前格式状态
+    public func forceUpdateFormats() {
         print("[NativeEditorContext] forceUpdateFormats 被调用")
         formatStateSynchronizer.performImmediateUpdate()
     }
@@ -636,7 +707,8 @@ class NativeEditorContext: ObservableObject {
     /// 
     /// 当需要确保 nsAttributedText 是最新的时候调用此方法
     /// 这会发送一个通知，让 NativeEditorView 同步内容
-    func requestContentSync() {
+    /// 菜单栏格式菜单需要调用此方法来确保内容是最新的
+    public func requestContentSync() {
         print("[NativeEditorContext] requestContentSync 被调用")
         // 发送通知请求同步
         NotificationCenter.default.post(name: .nativeEditorRequestContentSync, object: self)
@@ -1092,6 +1164,7 @@ class NativeEditorContext: ObservableObject {
     
     /// 更新格式状态并验证
     /// 需求: 4.2 - 状态同步失败时重新检测格式状态并更新界面
+    /// 需求: 14.6 - 段落样式变化时发送通知更新菜单状态
     private func updateFormatsWithValidation(_ detectedFormats: Set<TextFormat>) {
         let errorHandler = FormatErrorHandler.shared
         
@@ -1102,12 +1175,23 @@ class NativeEditorContext: ObservableObject {
             // 检查状态一致性
             let previousFormats = currentFormats
             
+            // 检测段落样式变化（用于发送通知）
+            // _Requirements: 14.6_
+            let previousParagraphStyle = detectParagraphStyleFromFormats(previousFormats)
+            
             // 更新当前格式
             currentFormats = validatedFormats
             
             // 更新工具栏按钮状态
             for format in TextFormat.allCases {
                 toolbarButtonStates[format] = validatedFormats.contains(format)
+            }
+            
+            // 检测新的段落样式并发送通知（如果变化）
+            // _Requirements: 14.6_
+            let newParagraphStyle = detectParagraphStyleFromFormats(validatedFormats)
+            if previousParagraphStyle != newParagraphStyle {
+                postParagraphStyleNotification(newParagraphStyle)
             }
             
             // 验证状态更新是否成功
@@ -1165,6 +1249,58 @@ class NativeEditorContext: ObservableObject {
                 clearAllFormats()
             }
         }
+    }
+    
+    // MARK: - 公共方法 - 段落样式查询
+    
+    /// 获取当前段落样式字符串
+    /// 
+    /// 根据当前格式集合返回对应的段落样式字符串
+    /// 用于菜单栏勾选状态同步
+    /// 
+    /// _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
+    /// - Returns: 段落样式字符串（heading, subheading, subtitle, body, orderedList, unorderedList, blockQuote）
+    public func getCurrentParagraphStyleString() -> String {
+        let result = detectParagraphStyleFromFormats(currentFormats)
+        print("[NativeEditorContext] getCurrentParagraphStyleString - currentFormats: \(currentFormats.map { $0.displayName }), result: \(result)")
+        return result
+    }
+    
+    /// 从格式集合中检测段落样式
+    /// 
+    /// 将 TextFormat 映射到段落样式字符串（用于菜单状态同步）
+    /// 
+    /// _Requirements: 14.6_
+    private func detectParagraphStyleFromFormats(_ formats: Set<TextFormat>) -> String {
+        if formats.contains(.heading1) {
+            return "heading"
+        } else if formats.contains(.heading2) {
+            return "subheading"
+        } else if formats.contains(.heading3) {
+            return "subtitle"
+        } else if formats.contains(.numberedList) {
+            return "orderedList"
+        } else if formats.contains(.bulletList) {
+            return "unorderedList"
+        } else if formats.contains(.quote) {
+            return "blockQuote"
+        } else {
+            return "body"
+        }
+    }
+    
+    /// 发送段落样式变化通知
+    /// 
+    /// 当段落样式变化时，发送通知以更新菜单状态
+    /// 
+    /// _Requirements: 14.6_
+    private func postParagraphStyleNotification(_ paragraphStyleRaw: String) {
+        NotificationCenter.default.post(
+            name: .paragraphStyleDidChange,
+            object: self,
+            userInfo: ["paragraphStyle": paragraphStyleRaw]
+        )
+        print("[NativeEditorContext] 发送段落样式变化通知: paragraphStyle=\(paragraphStyleRaw)")
     }
     
     /// 验证互斥格式，确保只保留一个
@@ -1288,4 +1424,41 @@ class NativeEditorContext: ObservableObject {
             toolbarButtonStates[.checkbox] = false
         }
     }
+    
+    // MARK: - Public Methods - 缩放操作 (Requirements: 10.2, 10.3, 10.4)
+    
+    /// 放大
+    /// - Requirements: 10.2
+    func zoomIn() {
+        print("[NativeEditorContext] 放大")
+        // 发送缩放通知，让编辑器视图处理
+        NotificationCenter.default.post(name: .editorZoomIn, object: nil)
+    }
+    
+    /// 缩小
+    /// - Requirements: 10.3
+    func zoomOut() {
+        print("[NativeEditorContext] 缩小")
+        // 发送缩放通知，让编辑器视图处理
+        NotificationCenter.default.post(name: .editorZoomOut, object: nil)
+    }
+    
+    /// 重置缩放
+    /// - Requirements: 10.4
+    func resetZoom() {
+        print("[NativeEditorContext] 重置缩放")
+        // 发送重置缩放通知，让编辑器视图处理
+        NotificationCenter.default.post(name: .editorResetZoom, object: nil)
+    }
+}
+
+// MARK: - 缩放通知扩展
+
+extension Notification.Name {
+    /// 编辑器放大通知
+    static let editorZoomIn = Notification.Name("editorZoomIn")
+    /// 编辑器缩小通知
+    static let editorZoomOut = Notification.Name("editorZoomOut")
+    /// 编辑器重置缩放通知
+    static let editorResetZoom = Notification.Name("editorResetZoom")
 }

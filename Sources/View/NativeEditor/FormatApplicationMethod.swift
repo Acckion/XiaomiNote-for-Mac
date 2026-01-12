@@ -15,6 +15,7 @@ enum FormatApplicationMethod: String, CaseIterable, Sendable {
     case menu = "menu"           // 通过格式菜单应用
     case keyboard = "keyboard"   // 通过快捷键应用
     case programmatic = "programmatic" // 通过程序调用应用
+    case toolbar = "toolbar"     // 通过工具栏应用
     
     /// 显示名称
     var displayName: String {
@@ -22,6 +23,7 @@ enum FormatApplicationMethod: String, CaseIterable, Sendable {
         case .menu: return "格式菜单"
         case .keyboard: return "快捷键"
         case .programmatic: return "程序调用"
+        case .toolbar: return "工具栏"
         }
     }
 }

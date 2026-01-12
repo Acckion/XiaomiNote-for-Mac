@@ -248,41 +248,26 @@ struct WebFormatMenuView: View {
         }
         .frame(width: 200)
         .onChange(of: context.isBold) { oldValue, newValue in
-            print("🔄 [WebFormatMenuView] 加粗状态变化: \(oldValue) -> \(newValue)")
         }
         .onChange(of: context.isItalic) { oldValue, newValue in
-            print("🔄 [WebFormatMenuView] 斜体状态变化: \(oldValue) -> \(newValue)")
         }
         .onChange(of: context.isUnderline) { oldValue, newValue in
-            print("🔄 [WebFormatMenuView] 下划线状态变化: \(oldValue) -> \(newValue)")
         }
         .onChange(of: context.isStrikethrough) { oldValue, newValue in
-            print("🔄 [WebFormatMenuView] 删除线状态变化: \(oldValue) -> \(newValue)")
         }
         .onChange(of: context.textAlignment) { oldValue, newValue in
-            print("🔄 [WebFormatMenuView] 对齐方式变化: \(oldValue) -> \(newValue)")
         }
         .onChange(of: context.headingLevel) { oldValue, newValue in
-            print("🔄 [WebFormatMenuView] 标题级别变化: \(String(describing: oldValue)) -> \(String(describing: newValue))")
             // 状态已由编辑器同步，不需要手动更新 currentStyle
             // currentStyle 会通过 isStyleSelected 方法动态计算
         }
         .onChange(of: context.listType) { oldValue, newValue in
-            print("🔄 [WebFormatMenuView] 列表类型变化: \(String(describing: oldValue)) -> \(String(describing: newValue))")
             // 状态已由编辑器同步
         }
         .onChange(of: context.isInQuote) { oldValue, newValue in
-            print("🔄 [WebFormatMenuView] 引用块状态变化: \(oldValue) -> \(newValue)")
             // 状态已由编辑器同步
         }
         .onAppear {
-            print("✅ [WebFormatMenuView] 已显示，context: \(context)")
-            print("   - 加粗: \(context.isBold)")
-            print("   - 斜体: \(context.isItalic)")
-            print("   - 下划线: \(context.isUnderline)")
-            print("   - 删除线: \(context.isStrikethrough)")
-            print("   - 对齐方式: \(context.textAlignment)")
-            print("   - 标题级别: \(String(describing: context.headingLevel))")
         }
     }
     

@@ -19,6 +19,10 @@ class WebEditorContext: ObservableObject {
     @Published var listType: String? = nil  // 'bullet' 或 'order' 或 nil
     @Published var isInQuote: Bool = false  // 是否在引用块中
     
+    /// 编辑器是否获得焦点
+    /// _Requirements: 8.4_
+    @Published var isEditorFocused: Bool = false
+    
     // 操作闭包，用于执行编辑器操作
     var executeFormatActionClosure: ((String, String?) -> Void)?
     var insertImageClosure: ((String, String) -> Void)?
@@ -32,6 +36,22 @@ class WebEditorContext: ObservableObject {
     var replaceTextClosure: (([String: Any]) -> Void)?
     
     private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - 格式提供者
+    
+    /// 格式提供者（延迟初始化）
+    /// _Requirements: 3.1, 3.2, 3.3_
+    private var _formatProvider: WebFormatProvider?
+    
+    /// 格式提供者（公开访问）
+    /// _Requirements: 3.1, 3.2, 3.3_
+    @MainActor
+    public var formatProvider: WebFormatProvider {
+        if _formatProvider == nil {
+            _formatProvider = WebFormatProvider(webEditorContext: self)
+        }
+        return _formatProvider!
+    }
     
     init() {
         // 监听内容变化
@@ -138,6 +158,61 @@ class WebEditorContext: ObservableObject {
         insertImageClosure?(imageUrl, altText)
     }
     
+    // MARK: - 语音操作 (Requirements: 12.1, 12.2, 12.3)
+    
+    /// 插入语音录音闭包
+    var insertAudioClosure: ((String, String?, String?) -> Void)?
+    
+    /// 在 Web 编辑器中插入语音录音
+    /// - Parameters:
+    ///   - fileId: 语音文件 ID
+    ///   - digest: 文件摘要（可选）
+    ///   - mimeType: MIME 类型（可选，默认 audio/mpeg）
+    /// - Requirements: 12.1, 12.2, 12.3
+    func insertAudio(fileId: String, digest: String? = nil, mimeType: String? = nil) {
+        print("[WebEditorContext] 插入语音录音: fileId=\(fileId)")
+        insertAudioClosure?(fileId, digest, mimeType)
+    }
+    
+    // MARK: - 语音播放控制 (Requirements: 13.2, 13.3)
+    
+    /// 播放语音闭包
+    var playAudioClosure: ((String) -> Void)?
+    
+    /// 暂停语音闭包
+    var pauseAudioClosure: ((String) -> Void)?
+    
+    /// 更新播放状态闭包
+    var updateAudioPlaybackStateClosure: ((String, Bool, Bool, String?) -> Void)?
+    
+    /// 播放 Web 编辑器中的语音
+    /// - Parameter fileId: 语音文件 ID
+    /// - Requirements: 13.2, 13.3
+    func playAudio(fileId: String) {
+        print("[WebEditorContext] 播放语音: fileId=\(fileId)")
+        playAudioClosure?(fileId)
+    }
+    
+    /// 暂停语音播放
+    /// - Parameter fileId: 语音文件 ID
+    /// - Requirements: 13.2
+    func pauseAudio(fileId: String) {
+        print("[WebEditorContext] 暂停语音: fileId=\(fileId)")
+        pauseAudioClosure?(fileId)
+    }
+    
+    /// 更新 Web 编辑器中的播放状态
+    /// - Parameters:
+    ///   - fileId: 语音文件 ID
+    ///   - isPlaying: 是否正在播放
+    ///   - isLoading: 是否正在加载
+    ///   - error: 错误信息（可选）
+    /// - Requirements: 13.4
+    func updateAudioPlaybackState(fileId: String, isPlaying: Bool, isLoading: Bool = false, error: String? = nil) {
+        print("[WebEditorContext] 更新播放状态: fileId=\(fileId), isPlaying=\(isPlaying), isLoading=\(isLoading)")
+        updateAudioPlaybackStateClosure?(fileId, isPlaying, isLoading, error)
+    }
+    
     // 获取当前内容
     func getCurrentContent(completion: @escaping (String) -> Void) {
         getCurrentContentClosure?(completion)
@@ -159,9 +234,46 @@ class WebEditorContext: ObservableObject {
     }
     
     // 编辑器准备就绪
+    @MainActor
     func editorReady() {
         isEditorReady = true
-        print("Web编辑器上下文：编辑器已准备就绪")
+        isEditorFocused = true
+        
+        // 注册格式提供者到 FormatStateManager
+        // _Requirements: 8.4_
+        FormatStateManager.shared.setActiveProvider(formatProvider)
+        
+        // 发送编辑器焦点变化通知
+        postEditorFocusNotification(true)
+    }
+    
+    /// 设置编辑器焦点状态
+    /// _Requirements: 8.4_
+    @MainActor
+    func setEditorFocused(_ focused: Bool) {
+        // 只有状态真正变化时才更新和发送通知
+        guard isEditorFocused != focused else { return }
+        
+        isEditorFocused = focused
+        
+        // 发送编辑器焦点变化通知
+        postEditorFocusNotification(focused)
+        
+        if focused {
+            // 注册格式提供者到 FormatStateManager
+            // _Requirements: 8.4_
+            FormatStateManager.shared.setActiveProvider(formatProvider)
+        }
+    }
+    
+    /// 发送编辑器焦点变化通知
+    /// _Requirements: 8.4_
+    private func postEditorFocusNotification(_ focused: Bool) {
+        NotificationCenter.default.post(
+            name: .editorFocusDidChange,
+            object: self,
+            userInfo: ["isEditorFocused": focused]
+        )
     }
     
     // 更新选择状态
@@ -188,6 +300,26 @@ class WebEditorContext: ObservableObject {
     // 替换文本
     func replaceText(_ options: [String: Any]) {
         replaceTextClosure?(options)
+    }
+    
+    // MARK: - 缩放操作 (Requirements: 10.2, 10.3, 10.4)
+    
+    /// 放大
+    /// - Requirements: 10.2
+    func zoomIn() {
+        executeFormatActionClosure?("zoomIn", nil)
+    }
+    
+    /// 缩小
+    /// - Requirements: 10.3
+    func zoomOut() {
+        executeFormatActionClosure?("zoomOut", nil)
+    }
+    
+    /// 重置缩放
+    /// - Requirements: 10.4
+    func resetZoom() {
+        executeFormatActionClosure?("resetZoom", nil)
     }
 }
 

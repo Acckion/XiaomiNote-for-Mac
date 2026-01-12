@@ -285,10 +285,10 @@ class XiaoMiFormatConverter {
             return result
         }
         
-        // 检查是否整行是附件（如分割线、图片等）
+        // 检查是否整行是附件（如分割线、图片、语音等）
         if content.hasPrefix("<hr") || content.hasPrefix("<img") || 
            content.hasPrefix("<input") || content.hasPrefix("<bullet") || 
-           content.hasPrefix("<order") {
+           content.hasPrefix("<order") || content.hasPrefix("<sound") {
             return content
         }
         
@@ -528,6 +528,8 @@ class XiaoMiFormatConverter {
             return try processQuoteElementToNSAttributedString(line)
         } else if line.hasPrefix("<img") {
             return try processImageElementToNSAttributedString(line)
+        } else if line.hasPrefix("<sound") {
+            return try processSoundElementToNSAttributedString(line)
         } else {
             throw ConversionError.unsupportedElement(line)
         }
@@ -795,6 +797,53 @@ class XiaoMiFormatConverter {
         return result
     }
     
+    /// 处理 <sound> 元素并返回 NSAttributedString
+    /// 
+    /// 解析语音文件标签 `<sound fileid="xxx" />` 并创建 AudioAttachment
+    /// 
+    /// - Parameter line: XML 行
+    /// - Returns: 包含 AudioAttachment 的 NSAttributedString
+    /// - Throws: ConversionError
+    /// - Requirements: 1.1, 1.2
+    private func processSoundElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
+        print("[XiaoMiFormatConverter] 🎤 processSoundElementToNSAttributedString 开始")
+        print("[XiaoMiFormatConverter] 🎤 XML 行: \(line)")
+        
+        // 1. 提取 fileid 属性（小米笔记 XML 中使用全小写的 fileid）
+        guard let fileId = extractAttribute("fileid", from: line), !fileId.isEmpty else {
+            // 如果缺少 fileid 属性，记录警告并返回空字符串
+            print("[XiaoMiFormatConverter] ⚠️ sound 元素缺少 fileid 属性，跳过该元素")
+            return NSAttributedString()
+        }
+        
+        print("[XiaoMiFormatConverter] 🎤 解析结果:")
+        print("[XiaoMiFormatConverter]   - fileId: '\(fileId)'")
+        
+        // 2. 创建音频附件
+        let attachment = CustomRenderer.shared.createAudioAttachment(
+            fileId: fileId,
+            digest: nil,
+            mimeType: nil
+        )
+        
+        // 3. 创建包含附件的 NSAttributedString
+        let result = NSMutableAttributedString(attachment: attachment)
+        
+        print("[XiaoMiFormatConverter] 🎤 NSAttributedString 创建完成")
+        print("[XiaoMiFormatConverter]   - result.length: \(result.length)")
+        
+        // 验证附件是否正确保留
+        result.enumerateAttribute(.attachment, in: NSRange(location: 0, length: result.length), options: []) { value, range, _ in
+            if let att = value as? AudioAttachment {
+                print("[XiaoMiFormatConverter] ✅ AudioAttachment 正确保留: fileId='\(att.fileId ?? "nil")'")
+            } else if let att = value {
+                print("[XiaoMiFormatConverter] ⚠️ 附件类型: \(type(of: att))")
+            }
+        }
+        
+        return result
+    }
+    
     /// 验证转换的一致性（往返转换测试）
     /// - Parameter xml: 原始 XML
     /// - Returns: 是否一致
@@ -832,6 +881,8 @@ class XiaoMiFormatConverter {
             return try processQuoteElement(line)
         } else if line.hasPrefix("<img") {
             return try processImageElement(line)
+        } else if line.hasPrefix("<sound") {
+            return try processSoundElement(line)
         } else {
             throw ConversionError.unsupportedElement(line)
         }
@@ -1096,6 +1147,20 @@ class XiaoMiFormatConverter {
         return result
     }
     
+    /// 处理 <sound> 元素
+    /// 
+    /// 解析语音文件标签 `<sound fileid="xxx" />` 并创建 AudioAttachment
+    /// 
+    /// - Parameter line: XML 行
+    /// - Returns: AttributedString 片段
+    /// - Throws: ConversionError
+    /// - Requirements: 1.1, 1.2
+    private func processSoundElement(_ line: String) throws -> AttributedString {
+        // 调用 NSAttributedString 版本并转换
+        let nsAttributedString = try processSoundElementToNSAttributedString(line)
+        return AttributedString(nsAttributedString)
+    }
+    
     // MARK: - Private Methods - AttributedString to XML
     
     /// 将文本运行段转换为 XML
@@ -1155,6 +1220,18 @@ class XiaoMiFormatConverter {
         // 检查是否是有序列表 attachment
         if let orderAttachment = attachment as? OrderAttachment {
             return "<order indent=\"1\" inputNumber=\"\(orderAttachment.inputNumber)\" />"
+        }
+        
+        // 检查是否是语音文件 attachment
+        // Requirements: 5.1, 5.2 - 将 AudioAttachment 转换为 <sound fileid="xxx" /> 格式
+        if let audioAttachment = attachment as? AudioAttachment {
+            if let fileId = audioAttachment.fileId, !fileId.isEmpty {
+                print("[XiaoMiFormatConverter] 🎤 导出语音附件: fileId=\(fileId)")
+                return "<sound fileid=\"\(fileId)\" />"
+            } else {
+                print("[XiaoMiFormatConverter] ⚠️ 语音附件缺少 fileId，跳过导出")
+                return ""
+            }
         }
         
         // 检查是否是图片 attachment

@@ -59,6 +59,9 @@ extension NSToolbarItem.Identifier {
     /// 插入附件
     static let attachment = NSToolbarItem.Identifier("attachment")
     
+    /// 录制语音
+    static let audioRecording = NSToolbarItem.Identifier("audioRecording")
+    
     /// 增加缩进
     static let increaseIndent = NSToolbarItem.Identifier("increaseIndent")
     
@@ -110,6 +113,24 @@ extension NSToolbarItem.Identifier {
     
     /// 锁定私密笔记
     static let lockPrivateNotes = NSToolbarItem.Identifier("lockPrivateNotes")
+    
+    /// 视图选项
+    static let viewOptions = NSToolbarItem.Identifier("viewOptions")
+    
+    /// 返回画廊视图
+    static let backToGallery = NSToolbarItem.Identifier("backToGallery")
+    
+    /// XML 调试模式
+    /// _Requirements: 1.1, 1.2, 5.2, 6.1_
+    static let debugMode = NSToolbarItem.Identifier("debugMode")
+    
+    // MARK: - 编辑器区域间距
+    
+    /// 编辑器区域间距1 - 可随编辑器项一起隐藏
+    static let editorSpace1 = NSToolbarItem.Identifier("editorSpace1")
+    
+    /// 编辑器区域间距2 - 可随编辑器项一起隐藏
+    static let editorSpace2 = NSToolbarItem.Identifier("editorSpace2")
 
     // MARK: - 其他功能
 

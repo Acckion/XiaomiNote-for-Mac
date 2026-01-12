@@ -1853,6 +1853,131 @@
         },
         
         /**
+         * 插入语音录音
+         * 在当前光标位置插入语音占位符
+         * @param {string} fileId - 语音文件 ID
+         * @param {string} digest - 文件摘要（可选）
+         * @param {string} mimeType - MIME 类型（可选，默认 audio/mpeg）
+         * @returns {string} 状态信息
+         * Requirements: 12.1, 12.2, 12.3
+         */
+        insertAudio: function(fileId, digest, mimeType) {
+            const editor = document.getElementById('editor-content');
+            if (!editor) {
+                return '编辑器元素不存在';
+            }
+
+            if (!fileId) {
+                return '语音文件 ID 不能为空';
+            }
+
+            const selection = window.getSelection();
+            let range = null;
+
+            if (selection.rangeCount > 0) {
+                range = selection.getRangeAt(0);
+            } else {
+                range = document.createRange();
+                if (editor.childNodes.length === 0 || 
+                    (editor.childNodes.length === 1 && editor.childNodes[0].classList && 
+                     editor.childNodes[0].classList.contains('placeholder'))) {
+                    editor.innerHTML = '';
+                }
+                range.selectNodeContents(editor);
+                range.collapse(false);
+            }
+
+            // 检查光标是否在列表项或待办项中
+            let container = range.commonAncestorContainer;
+            if (container.nodeType === Node.TEXT_NODE) {
+                container = container.parentElement;
+            }
+            
+            let listItem = null;
+            let currentNode = container;
+            while (currentNode && currentNode !== editor) {
+                if (currentNode.classList) {
+                    if (currentNode.classList.contains('mi-note-bullet') ||
+                        currentNode.classList.contains('mi-note-order') ||
+                        currentNode.classList.contains('mi-note-checkbox')) {
+                        listItem = currentNode;
+                        break;
+                    }
+                }
+                currentNode = currentNode.parentElement;
+            }
+
+            // 如果在列表项或待办项中，在其后插入
+            if (listItem) {
+                let newRange = document.createRange();
+                if (listItem.nextSibling) {
+                    newRange.setStartBefore(listItem.nextSibling);
+                    newRange.collapse(true);
+                    range = newRange;
+                } else if (listItem.parentNode) {
+                    newRange.setStartAfter(listItem);
+                    newRange.collapse(true);
+                    range = newRange;
+                }
+            }
+
+            // 创建语音容器
+            const soundContainer = document.createElement('div');
+            soundContainer.className = 'mi-note-sound-container';
+            soundContainer.style.margin = '8px 0';
+
+            // 创建语音占位符元素
+            const soundElement = document.createElement('div');
+            soundElement.className = 'mi-note-sound';
+            soundElement.setAttribute('data-fileid', fileId);
+            if (digest) {
+                soundElement.setAttribute('data-digest', digest);
+            }
+            if (mimeType) {
+                soundElement.setAttribute('data-mimetype', mimeType);
+            } else {
+                soundElement.setAttribute('data-mimetype', 'audio/mpeg');
+            }
+            soundElement.setAttribute('contenteditable', 'false');
+
+            // 创建图标
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'mi-note-sound-icon';
+            iconSpan.textContent = '🎤';
+
+            // 创建标签
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'mi-note-sound-label';
+            labelSpan.textContent = '语音录音';
+
+            soundElement.appendChild(iconSpan);
+            soundElement.appendChild(labelSpan);
+            soundContainer.appendChild(soundElement);
+
+            // 插入语音容器
+            range.insertNode(soundContainer);
+
+            // 在语音后插入换行，确保可以继续输入
+            const br = document.createElement('br');
+            range.setStartAfter(soundContainer);
+            range.insertNode(br);
+
+            // 移动光标到语音后
+            range.setStartAfter(br);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            log.debug(LOG_MODULES.FORMAT, '插入语音录音', { fileId, digest, mimeType });
+
+            const notifyContentChanged = getNotifyContentChanged();
+            if (notifyContentChanged) {
+                notifyContentChanged();
+            }
+            return '语音已插入';
+        },
+        
+        /**
          * 增加缩进
          * @returns {string} 状态信息
          */

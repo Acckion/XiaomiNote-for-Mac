@@ -218,6 +218,71 @@
             margin: 8px 0;
         }
         
+        /* 语音文件样式 */
+        .mi-note-sound-container {
+            margin: 8px 0;
+        }
+        
+        .mi-note-sound {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--quote-border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        
+        .mi-note-sound:hover {
+            background-color: var(--hr-color);
+        }
+        
+        .mi-note-sound-icon {
+            font-size: 20px;
+            margin-right: 8px;
+        }
+        
+        .mi-note-sound-label {
+            font-size: var(--editor-font-size);
+            color: var(--text-color);
+        }
+        
+        /* 语音播放状态样式 */
+        .mi-note-sound.playing {
+            background-color: rgba(52, 199, 89, 0.2);
+            border-color: rgba(52, 199, 89, 0.5);
+        }
+        
+        .mi-note-sound.loading {
+            background-color: rgba(255, 204, 0, 0.2);
+            border-color: rgba(255, 204, 0, 0.5);
+        }
+        
+        .mi-note-sound.error {
+            background-color: rgba(255, 59, 48, 0.2);
+            border-color: rgba(255, 59, 48, 0.5);
+        }
+        
+        /* 深色模式下的播放状态样式 */
+        html[data-color-scheme="dark"] .mi-note-sound.playing,
+        :root[data-color-scheme="dark"] .mi-note-sound.playing {
+            background-color: rgba(52, 199, 89, 0.3);
+            border-color: rgba(52, 199, 89, 0.6);
+        }
+        
+        html[data-color-scheme="dark"] .mi-note-sound.loading,
+        :root[data-color-scheme="dark"] .mi-note-sound.loading {
+            background-color: rgba(255, 204, 0, 0.3);
+            border-color: rgba(255, 204, 0, 0.6);
+        }
+        
+        html[data-color-scheme="dark"] .mi-note-sound.error,
+        :root[data-color-scheme="dark"] .mi-note-sound.error {
+            background-color: rgba(255, 59, 48, 0.3);
+            border-color: rgba(255, 59, 48, 0.6);
+        }
+        
         /* 占位符 */
         .placeholder {
             color: var(--placeholder-color);

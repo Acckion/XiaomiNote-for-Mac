@@ -99,6 +99,24 @@ public class NotesViewModel: ObservableObject {
     /// 需求: 1.1, 1.3 - 在 MainWindowController 和 NoteDetailView 之间共享
     @Published var nativeEditorContext = NativeEditorContext()
     
+    /// 画廊视图是否展开（正在编辑笔记）
+    /// 用于工具栏可见性管理，在画廊视图展开时显示返回按钮和编辑器工具栏项
+    @Published public var isGalleryExpanded: Bool = false
+    
+    // MARK: - 状态协调器
+    
+    /// 视图状态协调器
+    /// 
+    /// 负责协调侧边栏、笔记列表和编辑器之间的状态同步
+    /// 
+    /// **Requirements: 4.1, 4.2**
+    /// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
+    /// - 4.2: selectedFolder 变化时按顺序更新 Notes_List_View 和 Editor
+    public private(set) lazy var stateCoordinator: ViewStateCoordinator = {
+        let coordinator = ViewStateCoordinator(viewModel: self)
+        return coordinator
+    }()
+    
     // MARK: - 设置
     
     /// 同步间隔（秒），默认5分钟
@@ -123,6 +141,106 @@ public class NotesViewModel: ObservableObject {
     
     /// 同步结果
     @Published var syncResult: SyncService.SyncResult?
+    
+    // MARK: - 数据加载状态指示
+    // _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+    
+    /// 是否正在加载本地数据
+    /// _Requirements: 7.1_
+    @Published var isLoadingLocalData: Bool = false
+    
+    /// 本地数据加载状态消息
+    /// _Requirements: 7.1_
+    @Published var localDataLoadingMessage: String = ""
+    
+    /// 是否正在处理离线队列（从 OfflineOperationProcessor 同步）
+    /// _Requirements: 7.2_
+    @Published var isProcessingOfflineQueue: Bool = false
+    
+    /// 离线队列处理进度（0.0 - 1.0）
+    /// _Requirements: 7.2_
+    @Published var offlineQueueProgress: Double = 0.0
+    
+    /// 离线队列处理状态消息
+    /// _Requirements: 7.2_
+    @Published var offlineQueueStatusMessage: String = ""
+    
+    /// 离线队列待处理操作数量
+    /// _Requirements: 7.2_
+    @Published var offlineQueuePendingCount: Int = 0
+    
+    /// 离线队列已处理操作数量
+    /// _Requirements: 7.2_
+    @Published var offlineQueueProcessedCount: Int = 0
+    
+    /// 离线队列失败操作数量
+    /// _Requirements: 7.2_
+    @Published var offlineQueueFailedCount: Int = 0
+    
+    /// 同步完成后的笔记数量
+    /// _Requirements: 7.4_
+    @Published var lastSyncedNotesCount: Int = 0
+    
+    /// 是否处于离线模式
+    /// _Requirements: 7.5_
+    @Published var isOfflineMode: Bool = false
+    
+    /// 离线模式原因
+    /// _Requirements: 7.5_
+    @Published var offlineModeReason: String = ""
+    
+    /// 启动序列当前阶段（从 StartupSequenceManager 同步）
+    /// _Requirements: 7.1, 7.2, 7.3_
+    @Published var startupPhase: StartupSequenceManager.StartupPhase = .idle
+    
+    /// 启动序列状态消息
+    /// _Requirements: 7.1, 7.2, 7.3_
+    @Published var startupStatusMessage: String = ""
+    
+    /// 综合状态消息（用于状态栏显示）
+    /// 
+    /// 根据当前状态返回最相关的状态消息
+    /// _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+    var currentStatusMessage: String {
+        // 优先显示离线模式
+        if isOfflineMode {
+            return "离线模式" + (offlineModeReason.isEmpty ? "" : "：\(offlineModeReason)")
+        }
+        
+        // 显示启动序列状态
+        if !startupStatusMessage.isEmpty && startupPhase != .completed && startupPhase != .idle {
+            return startupStatusMessage
+        }
+        
+        // 显示本地数据加载状态
+        if isLoadingLocalData {
+            return localDataLoadingMessage.isEmpty ? "正在加载本地数据..." : localDataLoadingMessage
+        }
+        
+        // 显示离线队列处理状态
+        if isProcessingOfflineQueue {
+            return offlineQueueStatusMessage.isEmpty ? "正在处理离线操作..." : offlineQueueStatusMessage
+        }
+        
+        // 显示同步状态
+        if isSyncing {
+            return syncStatusMessage.isEmpty ? "正在同步..." : syncStatusMessage
+        }
+        
+        // 显示同步结果
+        if let result = syncResult, lastSyncedNotesCount > 0 {
+            return "已同步 \(lastSyncedNotesCount) 条笔记"
+        }
+        
+        // 默认状态
+        return ""
+    }
+    
+    /// 是否有任何加载/处理操作正在进行
+    /// _Requirements: 7.1, 7.2, 7.3_
+    var isAnyOperationInProgress: Bool {
+        return isLoadingLocalData || isProcessingOfflineQueue || isSyncing || isLoading
+    }
     
     // MARK: - 离线操作处理器
     
@@ -206,6 +324,20 @@ public class NotesViewModel: ObservableObject {
     
     /// 最小同步间隔（秒）
     private let minSyncInterval: TimeInterval = 10.0
+    
+    // MARK: - 启动序列管理
+    
+    /// 启动序列管理器
+    /// 
+    /// 负责协调应用启动时的各个步骤，确保按正确顺序执行
+    /// _Requirements: 2.1, 2.2, 2.3, 2.4_
+    private let startupManager = StartupSequenceManager()
+    
+    /// 是否为首次启动（本次会话）
+    /// 
+    /// 用于区分首次启动和后续的数据刷新
+    /// _Requirements: 1.1, 1.2_
+    private var isFirstLaunch: Bool = true
     
     // MARK: - 计算属性
     
@@ -349,14 +481,18 @@ public class NotesViewModel: ObservableObject {
     /// 初始化视图模型
     /// 
     /// 执行以下初始化操作：
-    /// 1. 加载本地数据
+    /// 1. 加载本地数据（根据登录状态决定加载本地数据还是示例数据）
     /// 2. 加载设置
     /// 3. 加载同步状态
     /// 4. 恢复上次选中的笔记
     /// 5. 设置Cookie过期处理器
     /// 6. 监听网络状态
+    /// 7. 如果已登录，执行启动序列（加载本地数据 → 处理离线队列 → 执行同步）
+    /// 
+    /// _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4_
     public init() {
-        // 加载本地数据
+        // 加载本地数据（根据登录状态决定加载本地数据还是示例数据）
+        // _Requirements: 1.1, 1.2, 1.3_
         loadLocalData()
         
         // 加载设置
@@ -368,16 +504,25 @@ public class NotesViewModel: ObservableObject {
         // 恢复上次选中的文件夹和笔记
         restoreLastSelectedState()
         
-        // 如果已登录，获取用户信息
+        // 如果已登录，获取用户信息并执行启动序列
+        // _Requirements: 2.1, 2.2, 2.3, 2.4_
         if isLoggedIn {
             Task {
                 await fetchUserProfile()
+                // 执行启动序列（处理离线队列 → 执行同步）
+                // 注意：本地数据已在 loadLocalData() 中加载
+                await executeStartupSequence()
             }
         }
         
         // 同步 AuthenticationStateManager 的状态到 ViewModel
         // 这样 AuthenticationStateManager 的状态变化会触发 ViewModel 的 @Published 属性更新，进而触发 UI 更新
         setupAuthStateSync()
+        
+        // 同步 ViewOptionsManager 的排序设置到 ViewModel
+        // 确保画廊视图和列表视图使用相同的排序设置
+        // _Requirements: 8.1, 8.3, 8.4, 8.5_
+        setupViewOptionsSync()
         
         // 监听selectedNote和selectedFolder变化，保存状态
         Publishers.CombineLatest($selectedNote, $selectedFolder)
@@ -412,9 +557,100 @@ public class NotesViewModel: ObservableObject {
             self?.handleAppResignedActive()
         }
         
+        // 监听启动序列完成通知
+        // _Requirements: 2.4_
+        NotificationCenter.default.addObserver(
+            forName: .startupSequenceCompleted,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            // 提取具体的值以避免跨隔离域传递字典
+            let success = notification.userInfo?["success"] as? Bool ?? false
+            let errors = notification.userInfo?["errors"] as? [String] ?? []
+            let duration = notification.userInfo?["duration"] as? TimeInterval ?? 0
+            Task { @MainActor in
+                self?.handleStartupSequenceCompletedWithValues(success: success, errors: errors, duration: duration)
+            }
+        }
+        
+        // 监听 Cookie 刷新成功通知
+        // _Requirements: 5.2_
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("CookieRefreshedSuccessfully"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                await self?.handleCookieRefreshSuccess()
+            }
+        }
+        
         // 启动自动同步定时器（如果应用在前台）
         if isAppActive {
             startAutoSyncTimer()
+        }
+    }
+    
+    /// 执行启动序列
+    /// 
+    /// 使用 StartupSequenceManager 执行启动序列：
+    /// 1. 处理离线队列（如果网络可用且Cookie有效）
+    /// 2. 执行完整同步（如果网络可用且Cookie有效）
+    /// 
+    /// 注意：本地数据已在 loadLocalData() 中加载，这里只执行后续步骤
+    /// 
+    /// _Requirements: 2.1, 2.2, 2.3_
+    private func executeStartupSequence() async {
+        guard isFirstLaunch else {
+            print("[NotesViewModel] 非首次启动，跳过启动序列")
+            return
+        }
+        
+        print("[NotesViewModel] 🚀 开始执行启动序列")
+        isFirstLaunch = false
+        
+        // 使用 StartupSequenceManager 执行启动序列
+        await startupManager.executeStartupSequence()
+        
+        // 启动序列完成后，重新加载本地数据以获取同步后的最新数据
+        await reloadDataAfterStartup()
+    }
+    
+    /// 启动序列完成后重新加载数据
+    /// 
+    /// _Requirements: 1.4, 4.4_
+    private func reloadDataAfterStartup() async {
+        print("[NotesViewModel] 启动序列完成，重新加载数据")
+        
+        // 重新加载本地数据
+        do {
+            let localNotes = try localStorage.getAllLocalNotes()
+            if !localNotes.isEmpty {
+                self.notes = localNotes
+                print("[NotesViewModel] 重新加载了 \(localNotes.count) 条笔记")
+            }
+            
+            // 重新加载文件夹
+            loadFolders()
+            updateFolderCounts()
+            
+            // 更新 UI
+            objectWillChange.send()
+        } catch {
+            print("[NotesViewModel] 重新加载数据失败: \(error)")
+        }
+    }
+    
+    /// 处理启动序列完成通知
+    /// 
+    /// _Requirements: 2.4_
+    private func handleStartupSequenceCompletedWithValues(success: Bool, errors: [String], duration: TimeInterval) {
+        print("[NotesViewModel] 📊 启动序列完成通知:")
+        print("[NotesViewModel]   - 成功: \(success)")
+        print("[NotesViewModel]   - 耗时: \(String(format: "%.2f", duration)) 秒")
+        
+        if !errors.isEmpty {
+            print("[NotesViewModel]   - 错误: \(errors.joined(separator: ", "))")
         }
     }
     
@@ -450,6 +686,202 @@ public class NotesViewModel: ObservableObject {
         // 同步 showCookieRefreshView
         authStateManager.$showCookieRefreshView
             .assign(to: &$showCookieRefreshView)
+        
+        // 同步 ViewStateCoordinator 的状态到 ViewModel
+        // **Requirements: 1.1, 1.2, 4.1**
+        // - 1.1: 编辑笔记内容时保持选中状态不变
+        // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
+        // - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
+        setupStateCoordinatorSync()
+        
+        // 同步数据加载状态指示
+        // **Requirements: 7.1, 7.2, 7.3, 7.4, 7.5**
+        setupDataLoadingStatusSync()
+    }
+    
+    /// 同步数据加载状态指示
+    /// 
+    /// 通过 Combine 将 OfflineOperationProcessor、StartupSequenceManager 和 OnlineStateManager 的状态同步到 ViewModel
+    /// 
+    /// **Requirements: 7.1, 7.2, 7.3, 7.4, 7.5**
+    /// - 7.1: 加载指示器状态
+    /// - 7.2: 离线队列处理进度状态
+    /// - 7.3: 同步进度和状态消息
+    /// - 7.4: 同步结果
+    /// - 7.5: 离线模式指示
+    private func setupDataLoadingStatusSync() {
+        // 同步 OfflineOperationProcessor 的状态（需求 7.2）
+        offlineProcessor.$isProcessing
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isProcessingOfflineQueue)
+        
+        offlineProcessor.$progress
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$offlineQueueProgress)
+        
+        offlineProcessor.$statusMessage
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$offlineQueueStatusMessage)
+        
+        offlineProcessor.$processedCount
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$offlineQueueProcessedCount)
+        
+        offlineProcessor.$totalCount
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$offlineQueuePendingCount)
+        
+        offlineProcessor.$failedOperations
+            .receive(on: DispatchQueue.main)
+            .map { $0.count }
+            .assign(to: &$offlineQueueFailedCount)
+        
+        // 同步 StartupSequenceManager 的状态（需求 7.1, 7.2, 7.3）
+        startupManager.$currentPhase
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] phase in
+                guard let self = self else { return }
+                self.startupPhase = phase
+                
+                // 根据阶段更新加载状态
+                switch phase {
+                case .loadingLocalData:
+                    self.isLoadingLocalData = true
+                    self.localDataLoadingMessage = "正在加载本地数据..."
+                case .processingOfflineQueue:
+                    self.isLoadingLocalData = false
+                    self.localDataLoadingMessage = ""
+                case .syncing:
+                    self.isLoadingLocalData = false
+                    self.localDataLoadingMessage = ""
+                case .completed, .failed:
+                    self.isLoadingLocalData = false
+                    self.localDataLoadingMessage = ""
+                case .idle:
+                    break
+                }
+            }
+            .store(in: &cancellables)
+        
+        startupManager.$statusMessage
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$startupStatusMessage)
+        
+        // 同步离线模式状态（需求 7.5）
+        // 监听 OnlineStateManager 的在线状态
+        OnlineStateManager.shared.$isOnline
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isOnline in
+                guard let self = self else { return }
+                self.isOfflineMode = !isOnline
+                
+                // 更新离线模式原因
+                if !isOnline {
+                    if !NetworkMonitor.shared.isConnected {
+                        self.offlineModeReason = "网络未连接"
+                    } else if !self.service.isAuthenticated() {
+                        self.offlineModeReason = "未登录"
+                    } else if self.isCookieExpired {
+                        self.offlineModeReason = "登录已过期"
+                    } else {
+                        self.offlineModeReason = ""
+                    }
+                } else {
+                    self.offlineModeReason = ""
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    /// 同步 ViewStateCoordinator 的状态到 ViewModel
+    /// 
+    /// 通过 Combine 将 ViewStateCoordinator 的 @Published 属性同步到 ViewModel 的 @Published 属性
+    /// 这样 ViewStateCoordinator 的状态变化会自动触发 ViewModel 的状态更新，进而触发 UI 更新
+    /// 
+    /// **Requirements: 1.1, 1.2, 4.1**
+    /// - 1.1: 编辑笔记内容时保持选中状态不变
+    /// - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
+    /// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
+    private func setupStateCoordinatorSync() {
+        // 同步 selectedFolder
+        stateCoordinator.$selectedFolder
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] folder in
+                guard let self = self else { return }
+                // 只有当状态真正变化时才更新，避免循环更新
+                if self.selectedFolder?.id != folder?.id {
+                    print("[NotesViewModel] 从 stateCoordinator 同步 selectedFolder: \(folder?.name ?? "nil")")
+                    self.selectedFolder = folder
+                }
+            }
+            .store(in: &cancellables)
+        
+        // 同步 selectedNote
+        stateCoordinator.$selectedNote
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] note in
+                guard let self = self else { return }
+                // 只有当状态真正变化时才更新，避免循环更新
+                if self.selectedNote?.id != note?.id {
+                    print("[NotesViewModel] 从 stateCoordinator 同步 selectedNote: \(note?.title ?? "nil")")
+                    self.selectedNote = note
+                    
+                    // 发送笔记选中状态变化通知
+                    // _Requirements: 14.4_
+                    self.postNoteSelectionNotification()
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    /// 发送笔记选中状态变化通知
+    /// 
+    /// 当笔记选中状态变化时，发送通知以更新菜单状态
+    /// 
+    /// _Requirements: 14.4_
+    private func postNoteSelectionNotification() {
+        let hasSelectedNote = selectedNote != nil
+        NotificationCenter.default.post(
+            name: .noteSelectionDidChange,
+            object: self,
+            userInfo: [
+                "hasSelectedNote": hasSelectedNote,
+                "noteId": selectedNote?.id as Any
+            ]
+        )
+        print("[NotesViewModel] 发送笔记选中状态变化通知: hasSelectedNote=\(hasSelectedNote)")
+    }
+    
+    /// 同步 ViewOptionsManager 的排序设置到 ViewModel
+    /// 
+    /// 通过 Combine 将 ViewOptionsManager 的排序设置同步到 ViewModel 的排序属性
+    /// 确保画廊视图和列表视图使用相同的排序设置
+    /// 
+    /// **Requirements: 8.1, 8.3, 8.4, 8.5**
+    /// - 8.1: 文件夹切换时画廊视图更新
+    /// - 8.3: 搜索时画廊视图过滤
+    /// - 8.4: 画廊视图尊重所有搜索筛选选项
+    /// - 8.5: 切换视图模式时保持选中文件夹和搜索状态
+    private func setupViewOptionsSync() {
+        // 同步排序方式
+        ViewOptionsManager.shared.$state
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                guard let self = self else { return }
+                
+                // 同步排序方式
+                if self.notesListSortField != state.sortOrder {
+                    print("[NotesViewModel] 从 ViewOptionsManager 同步排序方式: \(state.sortOrder.displayName)")
+                    self.notesListSortField = state.sortOrder
+                }
+                
+                // 同步排序方向
+                if self.notesListSortDirection != state.sortDirection {
+                    print("[NotesViewModel] 从 ViewOptionsManager 同步排序方向: \(state.sortDirection.displayName)")
+                    self.notesListSortDirection = state.sortDirection
+                }
+            }
+            .store(in: &cancellables)
     }
     
     @MainActor
@@ -578,38 +1010,43 @@ public class NotesViewModel: ObservableObject {
     ) -> Bool {
         print("[OfflineQueue] 统一处理错误并添加到离线队列: \(operationType.rawValue), noteId: \(noteId), context: \(context)")
         
-        // 处理401 Cookie过期错误
-        if case MiNoteError.cookieExpired = error {
-            print("[OfflineQueue] 检测到Cookie过期错误，设置为离线状态")
-            setOfflineStatus(reason: "Cookie过期")
-            
-            // 添加到离线队列
-            if addOperationToOfflineQueue(type: operationType, noteId: noteId, data: operationData) {
-                print("[OfflineQueue] ✅ Cookie过期：操作已添加到离线队列: \(operationType.rawValue)")
-                return true
-            } else {
-                print("[OfflineQueue] ❌ Cookie过期：添加到离线队列失败")
-                return false
-            }
-        }
+        // 使用 ErrorRecoveryService 统一处理错误（需求 8.1, 8.7）
+        // 获取当前重试次数（从离线队列中查找）
+        let pendingOps = offlineQueue.getPendingOperations()
+        let existingOp = pendingOps.first { $0.noteId == noteId && $0.type == operationType }
+        let currentRetryCount = existingOp?.retryCount ?? 0
         
-        // 处理网络错误
-        if let urlError = error as? URLError {
-            print("[OfflineQueue] 检测到网络错误: \(urlError.localizedDescription)")
-            
-            // 添加到离线队列
-            if addOperationToOfflineQueue(type: operationType, noteId: noteId, data: operationData) {
-                print("[OfflineQueue] ✅ 网络错误：操作已添加到离线队列: \(operationType.rawValue)")
-                return true
-            } else {
-                print("[OfflineQueue] ❌ 网络错误：添加到离线队列失败")
-                return false
-            }
-        }
+        let result = ErrorRecoveryService.shared.handleNetworkError(
+            error,
+            operationType: operationType,
+            noteId: noteId,
+            operationData: operationData,
+            currentRetryCount: currentRetryCount
+        )
         
-        // 其他错误：不添加到队列
-        print("[OfflineQueue] ⚠️ 其他错误，不添加到离线队列: \(error.localizedDescription)")
-        return false
+        switch result {
+        case .addedToQueue(let message):
+            print("[OfflineQueue] ✅ \(message): \(operationType.rawValue)")
+            // 如果是 Cookie 过期，设置离线状态
+            if case MiNoteError.cookieExpired = error {
+                setOfflineStatus(reason: "Cookie过期")
+            }
+            return true
+            
+        case .noRetry(let message):
+            print("[OfflineQueue] ⚠️ 不重试: \(message)")
+            return false
+            
+        case .permanentlyFailed(let message):
+            print("[OfflineQueue] ❌ 永久失败: \(message)")
+            // 显示错误消息给用户
+            errorMessage = message
+            // 3秒后清除错误消息
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                self?.errorMessage = nil
+            }
+            return false
+        }
     }
     
     /// 将操作添加到离线队列（内部方法，统一编码逻辑）
@@ -1229,24 +1666,51 @@ public class NotesViewModel: ObservableObject {
     }
     
     private func loadLocalData() {
+        // 根据登录状态决定数据加载策略
+        // _Requirements: 1.1, 1.2, 1.3_
+        
+        let isUserLoggedIn = service.isAuthenticated()
+        print("[NotesViewModel] loadLocalData - 登录状态: \(isUserLoggedIn)")
+        
         // 尝试从本地存储加载数据
         do {
             let localNotes = try localStorage.getAllLocalNotes()
             if !localNotes.isEmpty {
+                // 有本地数据，直接加载
+                // _Requirements: 1.1 - 登录状态下首先从本地数据库加载数据
                 self.notes = localNotes
-                print("从本地存储加载了 \(localNotes.count) 条笔记")
+                print("[NotesViewModel] 从本地存储加载了 \(localNotes.count) 条笔记")
+            } else if isUserLoggedIn {
+                // 登录状态下，本地数据库为空，显示空列表
+                // _Requirements: 1.2 - 登录状态下本地数据库为空时显示空列表而非示例数据
+                self.notes = []
+                print("[NotesViewModel] 登录状态下本地数据库为空，显示空列表")
             } else {
-                // 如果没有本地数据，加载示例数据
+                // 未登录状态下，加载示例数据
+                // _Requirements: 1.3 - 未登录状态下加载示例数据作为演示内容
                 loadSampleData()
+                print("[NotesViewModel] 未登录状态，加载示例数据")
             }
         } catch {
-            print("加载本地数据失败: \(error)")
-            // 加载示例数据作为后备
-            loadSampleData()
+            // _Requirements: 1.5 - 加载本地数据时发生错误，记录错误日志并显示空列表
+            print("[NotesViewModel] 加载本地数据失败: \(error)")
+            
+            if isUserLoggedIn {
+                // 登录状态下，加载失败显示空列表
+                self.notes = []
+                print("[NotesViewModel] 登录状态下加载失败，显示空列表")
+            } else {
+                // 未登录状态下，加载示例数据作为后备
+                loadSampleData()
+                print("[NotesViewModel] 未登录状态下加载失败，加载示例数据")
+            }
         }
         
         // 加载文件夹（优先从本地存储加载）
         loadFolders()
+        
+        // _Requirements: 1.4 - 加载完成后立即更新 UI
+        objectWillChange.send()
     }
     
     public func loadFolders() {
@@ -1550,6 +2014,145 @@ public class NotesViewModel: ObservableObject {
         }
     }
     
+    // MARK: - 登录和Cookie刷新成功处理
+    
+    /// 登录成功后的处理
+    /// 
+    /// 清除示例数据，执行完整同步
+    /// 
+    /// _Requirements: 5.1, 5.3, 5.4_
+    /// - 5.1: 用户成功登录后自动执行完整同步
+    /// - 5.3: 登录后同步失败时显示错误信息并保留本地数据
+    /// - 5.4: 登录后同步成功时清除示例数据并显示云端数据
+    public func handleLoginSuccess() async {
+        print("[NotesViewModel] 🎉 处理登录成功")
+        
+        // 清除示例数据（如果有）
+        // _Requirements: 5.4_
+        clearSampleDataIfNeeded()
+        
+        // 获取用户信息
+        await fetchUserProfile()
+        
+        // 执行完整同步
+        // _Requirements: 5.1_
+        do {
+            print("[NotesViewModel] 开始执行登录后完整同步...")
+            isSyncing = true
+            syncStatusMessage = "正在同步数据..."
+            
+            let result = try await syncService.performFullSync()
+            
+            // 同步成功，重新加载本地数据
+            // _Requirements: 5.4_
+            await reloadDataAfterSync()
+            
+            isSyncing = false
+            syncStatusMessage = "同步完成"
+            lastSyncTime = Date()
+            lastSyncedNotesCount = result.syncedNotes  // _Requirements: 7.4_
+            
+            print("[NotesViewModel] ✅ 登录后同步成功，同步了 \(result.syncedNotes) 条笔记")
+        } catch {
+            // _Requirements: 5.3_
+            isSyncing = false
+            syncStatusMessage = "同步失败"
+            errorMessage = "同步失败: \(error.localizedDescription)"
+            print("[NotesViewModel] ❌ 登录后同步失败: \(error)")
+        }
+    }
+    
+    /// Cookie刷新成功后的处理
+    /// 
+    /// 恢复在线状态，执行完整同步
+    /// 
+    /// _Requirements: 5.2, 5.3, 5.4_
+    /// - 5.2: 用户成功刷新Cookie后自动执行完整同步
+    /// - 5.3: 同步失败时显示错误信息并保留本地数据
+    /// - 5.4: 同步成功时更新本地数据
+    public func handleCookieRefreshSuccess() async {
+        print("[NotesViewModel] 🔄 处理Cookie刷新成功")
+        
+        // 恢复在线状态
+        restoreOnlineStatus()
+        
+        // 处理离线队列中的待处理操作
+        await processPendingOperations()
+        
+        // 执行完整同步
+        // _Requirements: 5.2_
+        do {
+            print("[NotesViewModel] 开始执行Cookie刷新后完整同步...")
+            isSyncing = true
+            syncStatusMessage = "正在同步数据..."
+            
+            let result = try await syncService.performFullSync()
+            
+            // 同步成功，重新加载本地数据
+            // _Requirements: 5.4_
+            await reloadDataAfterSync()
+            
+            isSyncing = false
+            syncStatusMessage = "同步完成"
+            lastSyncTime = Date()
+            lastSyncedNotesCount = result.syncedNotes  // _Requirements: 7.4_
+            
+            print("[NotesViewModel] ✅ Cookie刷新后同步成功，同步了 \(result.syncedNotes) 条笔记")
+        } catch {
+            // _Requirements: 5.3_
+            isSyncing = false
+            syncStatusMessage = "同步失败"
+            errorMessage = "同步失败: \(error.localizedDescription)"
+            print("[NotesViewModel] ❌ Cookie刷新后同步失败: \(error)")
+        }
+    }
+    
+    /// 清除示例数据（如果有）
+    /// 
+    /// 检查当前笔记是否为示例数据，如果是则清除
+    /// 
+    /// _Requirements: 5.4_
+    private func clearSampleDataIfNeeded() {
+        // 检查是否有示例数据（示例数据的ID以"sample-"开头）
+        let hasSampleData = notes.contains { $0.id.hasPrefix("sample-") }
+        
+        if hasSampleData {
+            print("[NotesViewModel] 清除示例数据")
+            // 移除所有示例数据
+            notes.removeAll { $0.id.hasPrefix("sample-") }
+            
+            // 如果当前选中的是示例笔记，清除选中状态
+            if let selectedNote = selectedNote, selectedNote.id.hasPrefix("sample-") {
+                self.selectedNote = nil
+            }
+            
+            // 更新文件夹计数
+            updateFolderCounts()
+        }
+    }
+    
+    /// 同步后重新加载数据
+    /// 
+    /// _Requirements: 5.4_
+    private func reloadDataAfterSync() async {
+        print("[NotesViewModel] 同步完成，重新加载数据")
+        
+        do {
+            let localNotes = try localStorage.getAllLocalNotes()
+            self.notes = localNotes
+            print("[NotesViewModel] 重新加载了 \(localNotes.count) 条笔记")
+            
+            // 重新加载文件夹
+            loadFolders()
+            updateFolderCounts()
+            
+            // 更新 UI
+            objectWillChange.send()
+        } catch {
+            print("[NotesViewModel] 重新加载数据失败: \(error)")
+        }
+    }
+    
     // MARK: - 同步功能
     
     /// 执行完整同步
@@ -1608,6 +2211,7 @@ public class NotesViewModel: ObservableObject {
             // 更新同步结果
             self.syncResult = result
             self.lastSyncTime = result.lastSyncTime
+            self.lastSyncedNotesCount = result.syncedNotes  // _Requirements: 7.4_
             
             // 重新加载本地数据
             print("[FolderRename] 同步完成，准备重新加载本地数据...")
@@ -1662,6 +2266,7 @@ public class NotesViewModel: ObservableObject {
             // 更新同步结果
             self.syncResult = result
             self.lastSyncTime = result.lastSyncTime
+            self.lastSyncedNotesCount = result.syncedNotes  // _Requirements: 7.4_
             
             // 重新加载本地数据
             await loadLocalDataAfterSync()
@@ -2068,6 +2673,108 @@ public class NotesViewModel: ObservableObject {
         _ = addOperationToOfflineQueue(type: .updateNote, noteId: note.id, data: data)
     }
     
+    // MARK: - 精确更新方法（视图状态同步）
+    
+    /// 原地更新单个笔记（不替换整个数组）
+    /// 
+    /// 此方法只更新 notes 数组中对应笔记的属性，不会触发整个数组的重新发布。
+    /// 这样可以避免不必要的视图重建，保持选择状态不变。
+    /// 
+    /// - Parameter note: 更新后的笔记对象
+    /// - Returns: 是否成功更新（如果笔记不存在于数组中则返回 false）
+    /// 
+    /// **Requirements: 5.1** - 笔记内容更新时仅更新对应笔记的属性而非替换整个数组
+    @discardableResult
+    public func updateNoteInPlace(_ note: Note) -> Bool {
+        guard let index = notes.firstIndex(where: { $0.id == note.id }) else {
+            print("[VIEWMODEL] updateNoteInPlace: 笔记不存在于数组中, id=\(note.id)")
+            return false
+        }
+        
+        // 直接更新数组中的元素，不触发整个数组的重新发布
+        // 由于 @Published 的特性，单个元素的更新会触发最小化的 UI 更新
+        notes[index] = note
+        
+        // 如果当前选中的是这个笔记，同步更新 selectedNote
+        // 但不改变选择状态本身
+        if selectedNote?.id == note.id {
+            selectedNote = note
+        }
+        
+        print("[VIEWMODEL] updateNoteInPlace: 成功更新笔记, id=\(note.id), title=\(note.title)")
+        return true
+    }
+    
+    /// 批量更新笔记（带动画）
+    /// 
+    /// 支持批量更新多个笔记，使用 withAnimation 包装更新操作以提供平滑的动画效果。
+    /// 适用于笔记排序位置变化等需要动画过渡的场景。
+    /// 
+    /// - Parameter updates: 更新操作列表，每个元素包含笔记ID和更新闭包
+    /// 
+    /// **Requirements: 2.3** - 多个笔记同时更新位置时批量处理动画以避免视觉混乱
+    public func batchUpdateNotes(_ updates: [(noteId: String, update: (inout Note) -> Void)]) {
+        guard !updates.isEmpty else {
+            print("[VIEWMODEL] batchUpdateNotes: 没有需要更新的笔记")
+            return
+        }
+        
+        print("[VIEWMODEL] batchUpdateNotes: 开始批量更新 \(updates.count) 个笔记")
+        
+        // 使用 withAnimation 包装更新操作，提供 300ms 的 easeInOut 动画
+        // 这符合 Requirements 2.4 的动画持续时间要求
+        withAnimation(.easeInOut(duration: 0.3)) {
+            for (noteId, update) in updates {
+                if let index = notes.firstIndex(where: { $0.id == noteId }) {
+                    // 应用更新闭包
+                    update(&notes[index])
+                    
+                    // 如果当前选中的是这个笔记，同步更新 selectedNote
+                    if selectedNote?.id == noteId {
+                        selectedNote = notes[index]
+                    }
+                    
+                    print("[VIEWMODEL] batchUpdateNotes: 更新笔记 id=\(noteId)")
+                } else {
+                    print("[VIEWMODEL] batchUpdateNotes: 笔记不存在, id=\(noteId)")
+                }
+            }
+        }
+        
+        print("[VIEWMODEL] batchUpdateNotes: 批量更新完成")
+    }
+    
+    /// 更新笔记的时间戳（带动画）
+    /// 
+    /// 专门用于更新笔记的 updatedAt 时间戳，会触发列表重新排序动画。
+    /// 
+    /// - Parameters:
+    ///   - noteId: 要更新的笔记ID
+    ///   - timestamp: 新的时间戳
+    /// - Returns: 是否成功更新
+    /// 
+    /// **Requirements: 2.1** - 笔记的 updatedAt 时间戳变化导致排序位置改变时使用动画
+    @discardableResult
+    public func updateNoteTimestamp(_ noteId: String, timestamp: Date) -> Bool {
+        guard let index = notes.firstIndex(where: { $0.id == noteId }) else {
+            print("[VIEWMODEL] updateNoteTimestamp: 笔记不存在, id=\(noteId)")
+            return false
+        }
+        
+        // 使用动画更新时间戳
+        withAnimation(.easeInOut(duration: 0.3)) {
+            notes[index].updatedAt = timestamp
+            
+            // 如果当前选中的是这个笔记，同步更新 selectedNote
+            if selectedNote?.id == noteId {
+                selectedNote = notes[index]
+            }
+        }
+        
+        print("[VIEWMODEL] updateNoteTimestamp: 更新笔记时间戳, id=\(noteId), timestamp=\(timestamp)")
+        return true
+    }
+    
     private func performCloudUpdateWithRetry(_ note: Note, retryOnConflict: Bool = true) async throws {
         var existingTag = note.rawData?["tag"] as? String ?? ""
         let originalCreateDate = note.rawData?["createDate"] as? Int
@@ -2134,41 +2841,40 @@ public class NotesViewModel: ObservableObject {
 
     /// 统一处理更新时的错误（内部方法）
     private func handleUpdateError(_ error: Error, for note: Note) {
-        // 网络错误或cookie失效：添加到离线队列，不显示弹窗
-        if let urlError = error as? URLError {
-            let operationData = try? JSONEncoder().encode([
-                "title": note.title,
-                "content": note.content,
-                "folderId": note.folderId
-            ])
-            if let operationData = operationData {
-                let operation = OfflineOperation(
-                    type: .updateNote,
-                    noteId: note.id,
-                    data: operationData
-                )
-                try? offlineQueue.addOperation(operation)
-                print("[VIEWMODEL] 网络错误，添加到离线队列，笔记ID: \(note.id), 错误: \(urlError.localizedDescription)")
+        // 使用 ErrorRecoveryService 统一处理错误（需求 8.1, 8.7）
+        let operationData: [String: Any] = [
+            "title": note.title,
+            "content": note.content,
+            "folderId": note.folderId,
+            "tag": note.rawData?["tag"] as? String ?? note.id
+        ]
+        
+        // 获取当前重试次数（从离线队列中查找）
+        let pendingOps = offlineQueue.getPendingOperations()
+        let existingOp = pendingOps.first { $0.noteId == note.id && $0.type == .updateNote }
+        let currentRetryCount = existingOp?.retryCount ?? 0
+        
+        let result = ErrorRecoveryService.shared.handleNetworkError(
+            error,
+            operationType: .updateNote,
+            noteId: note.id,
+            operationData: operationData,
+            currentRetryCount: currentRetryCount
+        )
+        
+        switch result {
+        case .addedToQueue(let message):
+            print("[VIEWMODEL] \(message)，笔记ID: \(note.id)")
+        case .noRetry(let message):
+            print("[VIEWMODEL] 更新失败（不重试）: \(message)，笔记ID: \(note.id)")
+        case .permanentlyFailed(let message):
+            print("[VIEWMODEL] ⚠️ 更新永久失败: \(message)，笔记ID: \(note.id)")
+            // 显示错误消息给用户
+            errorMessage = message
+            // 3秒后清除错误消息
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                self?.errorMessage = nil
             }
-        } else if case MiNoteError.cookieExpired = error {
-            // Cookie失效：保存到离线队列
-            let operationData = try? JSONEncoder().encode([
-                "title": note.title,
-                "content": note.content,
-                "folderId": note.folderId
-            ])
-            if let operationData = operationData {
-                let operation = OfflineOperation(
-                    type: .updateNote,
-                    noteId: note.id,
-                    data: operationData
-                )
-                try? offlineQueue.addOperation(operation)
-                print("[VIEWMODEL] Cookie失效，添加到离线队列，笔记ID: \(note.id)")
-            }
-        } else {
-            // 其他错误：静默处理，不显示弹窗
-            print("[VIEWMODEL] 更新本地成功但云端失败，笔记ID: \(note.id), 错误: \(error.localizedDescription)")
         }
     }
     
@@ -2282,10 +2988,40 @@ public class NotesViewModel: ObservableObject {
                 try? localStorage.removePendingDeletion(noteId: note.id)
                 
             } catch {
-                print("[VIEWMODEL] 云端删除失败: \(error)，保存到待删除列表")
+                print("[VIEWMODEL] 云端删除失败: \(error)，使用 ErrorRecoveryService 处理")
                 
-                // 删除失败，保存到待删除列表
+                // 使用 ErrorRecoveryService 统一处理错误（需求 8.1, 8.7）
                 let tag = note.rawData?["tag"] as? String ?? note.id
+                let operationData: [String: Any] = [
+                    "tag": tag,
+                    "purge": false
+                ]
+                
+                let result = ErrorRecoveryService.shared.handleNetworkError(
+                    error,
+                    operationType: .deleteNote,
+                    noteId: note.id,
+                    operationData: operationData,
+                    currentRetryCount: 0
+                )
+                
+                switch result {
+                case .addedToQueue(let message):
+                    print("[VIEWMODEL] \(message)，笔记ID: \(note.id)")
+                case .noRetry(let message):
+                    print("[VIEWMODEL] 删除失败（不重试）: \(message)，笔记ID: \(note.id)")
+                case .permanentlyFailed(let message):
+                    print("[VIEWMODEL] ⚠️ 删除永久失败: \(message)，笔记ID: \(note.id)")
+                    await MainActor.run {
+                        self.errorMessage = message
+                        // 3秒后清除错误消息
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                            self?.errorMessage = nil
+                        }
+                    }
+                }
+                
+                // 同时保存到待删除列表（兼容旧逻辑）
                 let pendingDeletion = PendingDeletion(noteId: note.id, tag: tag, purge: false)
                 do {
                     try localStorage.addPendingDeletion(pendingDeletion)
@@ -2380,6 +3116,9 @@ public class NotesViewModel: ObservableObject {
         // 先设置选中的文件夹，这样验证界面才能显示
         selectedFolder = folder
         
+        // 同步更新 coordinator 的状态（不触发 coordinator 的选择逻辑，避免循环）
+        // coordinator 的状态会在下次调用 coordinator.selectFolder 时同步
+        
         // 如果切换到私密笔记文件夹，检查密码
         if let folder = folder, folder.id == "2" {
             // 检查是否已设置密码
@@ -2433,6 +3172,53 @@ public class NotesViewModel: ObservableObject {
         } else {
             // 当前没有选中的笔记，选择新文件夹的第一个笔记
             selectedNote = notesInNewFolder.first
+        }
+    }
+    
+    /// 通过状态协调器选择文件夹
+    /// 
+    /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
+    /// 
+    /// **Requirements: 4.1, 4.2**
+    /// - 4.1: 通过 coordinator 作为单一数据源管理状态
+    /// - 4.2: 按顺序更新 Notes_List_View 和 Editor
+    /// 
+    /// - Parameter folder: 要选择的文件夹
+    public func selectFolderWithCoordinator(_ folder: Folder?) {
+        Task {
+            await stateCoordinator.selectFolder(folder)
+            // 同步 coordinator 的状态到 ViewModel
+            syncStateFromCoordinator()
+        }
+    }
+    
+    /// 通过状态协调器选择笔记
+    /// 
+    /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
+    /// 
+    /// **Requirements: 4.3**
+    /// - 4.3: 验证笔记是否属于当前文件夹
+    /// 
+    /// - Parameter note: 要选择的笔记
+    public func selectNoteWithCoordinator(_ note: Note?) {
+        Task {
+            await stateCoordinator.selectNote(note)
+            // 同步 coordinator 的状态到 ViewModel
+            syncStateFromCoordinator()
+        }
+    }
+    
+    /// 从 coordinator 同步状态到 ViewModel
+    /// 
+    /// 将 ViewStateCoordinator 的选择状态同步到 ViewModel 的 @Published 属性
+    /// 这样可以触发 UI 更新
+    private func syncStateFromCoordinator() {
+        // 只有当状态真正变化时才更新，避免不必要的 UI 刷新
+        if selectedFolder?.id != stateCoordinator.selectedFolder?.id {
+            selectedFolder = stateCoordinator.selectedFolder
+        }
+        if selectedNote?.id != stateCoordinator.selectedNote?.id {
+            selectedNote = stateCoordinator.selectedNote
         }
     }
     

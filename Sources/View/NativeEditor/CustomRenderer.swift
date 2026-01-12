@@ -369,6 +369,73 @@ class CustomRenderer {
         return result
     }
     
+    // MARK: - Audio Attachment Creation
+    
+    /// 创建音频附件
+    /// - Parameters:
+    ///   - fileId: 语音文件 ID
+    ///   - digest: 文件摘要（可选）
+    ///   - mimeType: MIME 类型（可选）
+    /// - Returns: 音频附件
+    func createAudioAttachment(
+        fileId: String,
+        digest: String? = nil,
+        mimeType: String? = nil
+    ) -> AudioAttachment {
+        let attachment = AudioAttachment(fileId: fileId, digest: digest, mimeType: mimeType)
+        attachment.isDarkMode = isDarkMode
+        return attachment
+    }
+    
+    /// 从缓存获取或创建音频附件
+    /// - Parameters:
+    ///   - fileId: 语音文件 ID
+    ///   - digest: 文件摘要（可选）
+    ///   - mimeType: MIME 类型（可选）
+    /// - Returns: 音频附件
+    func getCachedAudioAttachment(
+        fileId: String,
+        digest: String? = nil,
+        mimeType: String? = nil
+    ) -> AudioAttachment {
+        let key = "audio_\(fileId)_\(isDarkMode)"
+        
+        if let cached = attachmentCache[key] as? AudioAttachment {
+            cached.isDarkMode = isDarkMode
+            cacheHitCount += 1
+            return cached
+        }
+        
+        cacheMissCount += 1
+        let attachment = createAudioAttachment(fileId: fileId, digest: digest, mimeType: mimeType)
+        
+        // 管理缓存大小（使用 LRU 策略）
+        if attachmentCache.count >= maxCacheSize {
+            let keysToRemove = Array(attachmentCache.keys.prefix(maxCacheSize / 2))
+            for keyToRemove in keysToRemove {
+                attachmentCache.removeValue(forKey: keyToRemove)
+            }
+        }
+        
+        attachmentCache[key] = attachment
+        return attachment
+    }
+    
+    /// 创建包含音频附件的 AttributedString
+    /// - Parameters:
+    ///   - fileId: 语音文件 ID
+    ///   - digest: 文件摘要（可选）
+    ///   - mimeType: MIME 类型（可选）
+    /// - Returns: AttributedString
+    func createAudioAttributedString(
+        fileId: String,
+        digest: String? = nil,
+        mimeType: String? = nil
+    ) -> NSAttributedString {
+        let attachment = createAudioAttachment(fileId: fileId, digest: digest, mimeType: mimeType)
+        return NSAttributedString(attachment: attachment)
+    }
+    
     // MARK: - Cache Management
     
     /// 清除所有缓存
@@ -457,6 +524,16 @@ extension CustomRenderer {
             let fileId = attributes["fileId"]
             let folderId = attributes["folderId"]
             return createImageAttachment(src: src, fileId: fileId, folderId: folderId)
+            
+        case "sound":
+            // 语音文件
+            guard let fileId = attributes["fileid"], !fileId.isEmpty else {
+                print("[CustomRenderer] ⚠️ sound 元素缺少 fileid 属性")
+                return nil
+            }
+            let digest = attributes["digest"]
+            let mimeType = attributes["mimeType"]
+            return createAudioAttachment(fileId: fileId, digest: digest, mimeType: mimeType)
             
         default:
             return nil

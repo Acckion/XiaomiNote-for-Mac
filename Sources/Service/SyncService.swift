@@ -21,14 +21,38 @@ final class SyncService: @unchecked Sendable {
     
     // MARK: - 同步状态
     
-    /// 是否正在同步
-    private var isSyncing = false
+    /// 同步锁 - 使用 NSLock 确保线程安全
+    /// 遵循需求 6.1: 同步正在进行中时阻止新的同步请求
+    private let syncLock = NSLock()
+    
+    /// 是否正在同步（内部状态）
+    private var _isSyncing = false
+    
+    /// 是否正在同步（线程安全访问）
+    private var isSyncing: Bool {
+        get {
+            syncLock.lock()
+            defer { syncLock.unlock() }
+            return _isSyncing
+        }
+        set {
+            syncLock.lock()
+            defer { syncLock.unlock() }
+            _isSyncing = newValue
+        }
+    }
     
     /// 同步进度（0.0 - 1.0）
     private var syncProgress: Double = 0
     
     /// 同步状态消息（用于UI显示）
     private var syncStatusMessage: String = ""
+    
+    /// 上次同步时间（从 SyncStatus 加载）
+    private var _lastSyncTime: Date?
+    
+    /// 当前 syncTag（从 SyncStatus 加载）
+    private var _currentSyncTag: String?
     
     var isSyncingNow: Bool {
         return isSyncing
@@ -40,6 +64,73 @@ final class SyncService: @unchecked Sendable {
     
     var currentStatusMessage: String {
         return syncStatusMessage
+    }
+    
+    /// 获取上次同步时间
+    var lastSyncTime: Date? {
+        return _lastSyncTime ?? localStorage.loadSyncStatus()?.lastSyncTime
+    }
+    
+    /// 获取当前 syncTag
+    var currentSyncTag: String? {
+        return _currentSyncTag ?? localStorage.loadSyncStatus()?.syncTag
+    }
+    
+    /// 检查是否存在有效的同步状态
+    /// 遵循需求 6.3, 6.4: 根据 SyncStatus 决定使用增量同步还是完整同步
+    var hasValidSyncStatus: Bool {
+        guard let status = localStorage.loadSyncStatus() else {
+            return false
+        }
+        // 有效的同步状态需要有 lastSyncTime 和非空的 syncTag
+        return status.lastSyncTime != nil && status.syncTag != nil && !status.syncTag!.isEmpty
+    }
+    
+    // MARK: - 同步锁管理
+    
+    /// 尝试获取同步锁
+    /// 遵循需求 6.1: 同步正在进行中时阻止新的同步请求
+    /// - Returns: 是否成功获取锁
+    private func tryAcquireSyncLock() -> Bool {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        
+        if _isSyncing {
+            print("[SYNC] ⚠️ 同步锁获取失败：同步正在进行中")
+            return false
+        }
+        
+        _isSyncing = true
+        print("[SYNC] 🔒 同步锁已获取")
+        return true
+    }
+    
+    /// 释放同步锁
+    /// 遵循需求 6.2: 同步完成后更新状态
+    private func releaseSyncLock() {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        
+        _isSyncing = false
+        print("[SYNC] 🔓 同步锁已释放")
+    }
+    
+    /// 执行智能同步
+    /// 遵循需求 6.3, 6.4:
+    /// - 如果存在有效的 SyncStatus，使用增量同步
+    /// - 如果是首次登录或 SyncStatus 不存在，执行完整同步
+    /// - Returns: 同步结果
+    /// - Throws: SyncError
+    func performSmartSync() async throws -> SyncResult {
+        print("[SYNC] 🧠 开始智能同步...")
+        
+        if hasValidSyncStatus {
+            print("[SYNC] 存在有效的同步状态，执行增量同步（需求 6.3）")
+            return try await performIncrementalSync()
+        } else {
+            print("[SYNC] 不存在有效的同步状态，执行完整同步（需求 6.4）")
+            return try await performFullSync()
+        }
     }
     
     // MARK: - 完整同步
@@ -278,6 +369,11 @@ final class SyncService: @unchecked Sendable {
             // 确保保存同步状态，即使syncTag可能为空
             print("[SYNC] 完整同步：保存同步状态 - lastSyncTime: \(Date()), syncTag: \(syncStatus.syncTag ?? "nil")")
             try localStorage.saveSyncStatus(syncStatus)
+            
+            // 更新内部缓存（需求 6.2）
+            _lastSyncTime = syncStatus.lastSyncTime
+            _currentSyncTag = syncStatus.syncTag
+            
             print("[SYNC] 完整同步：同步状态已保存")
             
             syncProgress = 1.0
@@ -427,6 +523,10 @@ final class SyncService: @unchecked Sendable {
             updatedStatus.lastSyncTime = Date()
             try localStorage.saveSyncStatus(updatedStatus)
             
+            // 更新内部缓存（需求 6.2）
+            _lastSyncTime = updatedStatus.lastSyncTime
+            _currentSyncTag = updatedStatus.syncTag
+            
             // 处理只有本地存在但云端不存在的笔记和文件夹
             syncStatusMessage = "检查本地独有的笔记和文件夹..."
             try await syncLocalOnlyItems(cloudNoteIds: cloudNoteIds, cloudFolderIds: cloudFolderIds)
@@ -539,6 +639,10 @@ final class SyncService: @unchecked Sendable {
             }
             updatedStatus.lastSyncTime = Date()
             try localStorage.saveSyncStatus(updatedStatus)
+            
+            // 更新内部缓存（需求 6.2）
+            _lastSyncTime = updatedStatus.lastSyncTime
+            _currentSyncTag = updatedStatus.syncTag
             
             // 处理只有本地存在但云端不存在的笔记和文件夹
             syncStatusMessage = "检查本地独有的笔记和文件夹..."
@@ -667,6 +771,10 @@ final class SyncService: @unchecked Sendable {
             }
             updatedStatus.lastSyncTime = Date()
             try localStorage.saveSyncStatus(updatedStatus)
+            
+            // 更新内部缓存（需求 6.2）
+            _lastSyncTime = updatedStatus.lastSyncTime
+            _currentSyncTag = updatedStatus.syncTag
             
             // 注意：轻量级同步不调用 syncLocalOnlyItems，因为它只返回有修改的笔记
             // 未修改的笔记应该保持不变，删除操作通过笔记的"status"字段处理
@@ -1512,19 +1620,19 @@ final class SyncService: @unchecked Sendable {
         }
     }
     
-    // MARK: - 图片处理
+    // MARK: - 附件处理（图片和音频）
     
-    /// 下载笔记中的图片
+    /// 下载笔记中的附件（图片和音频）
     /// 
-    /// 从笔记的setting.data字段中提取图片信息，并下载到本地
-    /// 图片信息包括：fileId、mimeType等
+    /// 从笔记的setting.data字段中提取附件信息，并下载到本地
+    /// 附件信息包括：fileId、mimeType等
     /// 
     /// - Parameters:
     ///   - noteDetails: 笔记详情响应（包含setting.data字段）
     ///   - noteId: 笔记ID（用于日志和错误处理）
-    /// - Returns: 更新后的setting.data数组，包含图片下载状态信息
+    /// - Returns: 更新后的setting.data数组，包含附件下载状态信息
     private func downloadNoteImages(from noteDetails: [String: Any], noteId: String) async throws -> [[String: Any]]? {
-        print("[SYNC] 开始下载笔记图片: \(noteId)")
+        print("[SYNC] 开始下载笔记附件: \(noteId)")
         print("[SYNC] noteDetails 键: \(noteDetails.keys)")
         
         // 提取 entry 对象
@@ -1544,13 +1652,13 @@ final class SyncService: @unchecked Sendable {
         }
         
         guard let entry = entry else {
-            print("[SYNC] 无法提取 entry，跳过图片下载: \(noteId)")
+            print("[SYNC] 无法提取 entry，跳过附件下载: \(noteId)")
             return nil
         }
         
-        // 从 setting.data 中提取图片信息
+        // 从 setting.data 中提取附件信息
         guard let setting = entry["setting"] as? [String: Any] else {
-            print("[SYNC] entry 中没有 setting 字段，跳过图片下载: \(noteId)")
+            print("[SYNC] entry 中没有 setting 字段，跳过附件下载: \(noteId)")
             print("[SYNC] entry 包含的键: \(entry.keys)")
             return nil
         }
@@ -1558,66 +1666,95 @@ final class SyncService: @unchecked Sendable {
         print("[SYNC] 找到 setting 字段，包含键: \(setting.keys)")
         
         guard var settingData = setting["data"] as? [[String: Any]] else {
-            print("[SYNC] setting 中没有 data 字段或 data 不是数组，跳过图片下载: \(noteId)")
+            print("[SYNC] setting 中没有 data 字段或 data 不是数组，跳过附件下载: \(noteId)")
             return nil
         }
         
-        print("[SYNC] 找到 \(settingData.count) 个图片条目")
+        print("[SYNC] 找到 \(settingData.count) 个附件条目")
         
         // 使用简单的异步循环，避免复杂的并发问题
         for index in 0..<settingData.count {
-            let imgData = settingData[index]
-            print("[SYNC] 处理图片条目 \(index + 1)/\(settingData.count): \(imgData.keys)")
+            let attachmentData = settingData[index]
+            print("[SYNC] 处理附件条目 \(index + 1)/\(settingData.count): \(attachmentData.keys)")
             
-            guard let fileId = imgData["fileId"] as? String else {
-                print("[SYNC] 图片条目 \(index + 1) 没有 fileId，跳过")
+            guard let fileId = attachmentData["fileId"] as? String else {
+                print("[SYNC] 附件条目 \(index + 1) 没有 fileId，跳过")
                 continue
             }
             
-            guard let mimeType = imgData["mimeType"] as? String else {
-                print("[SYNC] 图片条目 \(index + 1) 没有 mimeType，跳过")
+            guard let mimeType = attachmentData["mimeType"] as? String else {
+                print("[SYNC] 附件条目 \(index + 1) 没有 mimeType，跳过")
                 continue
             }
             
-            guard mimeType.hasPrefix("image/") else {
-                print("[SYNC] 图片条目 \(index + 1) mimeType 不是图片类型: \(mimeType)，跳过")
-                continue
-            }
-            
-            // 提取文件类型（如 "jpeg", "png"）
-            let fileType = String(mimeType.dropFirst("image/".count))
-            print("[SYNC] 找到图片: fileId=\(fileId), fileType=\(fileType)")
-            
-            // 检查图片是否已存在
-            if localStorage.imageExists(fileId: fileId, fileType: fileType) {
-                print("[SYNC] 图片已存在，跳过下载: \(fileId).\(fileType)")
-                // 更新 settingData 条目，添加本地存在标志
-                var updatedImgData = imgData
-                updatedImgData["localExists"] = true
-                settingData[index] = updatedImgData
-                continue
-            }
-            
-            // 下载图片
-            do {
-                print("[SYNC] 开始下载图片: \(fileId).\(fileType)")
-                let imageData = try await miNoteService.downloadFile(fileId: fileId, type: "note_img")
-                print("[SYNC] 图片下载完成，大小: \(imageData.count) 字节")
-                try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
-                print("[SYNC] 图片保存成功: \(fileId).\(fileType)")
+            // 根据 MIME 类型处理不同类型的附件
+            if mimeType.hasPrefix("image/") {
+                // 处理图片
+                let fileType = String(mimeType.dropFirst("image/".count))
+                print("[SYNC] 找到图片: fileId=\(fileId), fileType=\(fileType)")
                 
-                // 更新 settingData 条目，添加下载成功标志
-                var updatedImgData = imgData
-                updatedImgData["localExists"] = true
-                updatedImgData["downloaded"] = true
-                settingData[index] = updatedImgData
-            } catch {
-                print("[SYNC] 图片下载失败: \(fileId).\(fileType), 错误: \(error.localizedDescription)")
-                // 下载失败，不更新 settingData
+                // 检查图片是否已存在
+                if localStorage.imageExists(fileId: fileId, fileType: fileType) {
+                    print("[SYNC] 图片已存在，跳过下载: \(fileId).\(fileType)")
+                    var updatedData = attachmentData
+                    updatedData["localExists"] = true
+                    settingData[index] = updatedData
+                    continue
+                }
+                
+                // 下载图片
+                do {
+                    print("[SYNC] 开始下载图片: \(fileId).\(fileType)")
+                    let imageData = try await miNoteService.downloadFile(fileId: fileId, type: "note_img")
+                    print("[SYNC] 图片下载完成，大小: \(imageData.count) 字节")
+                    try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
+                    print("[SYNC] 图片保存成功: \(fileId).\(fileType)")
+                    
+                    var updatedData = attachmentData
+                    updatedData["localExists"] = true
+                    updatedData["downloaded"] = true
+                    settingData[index] = updatedData
+                } catch {
+                    print("[SYNC] 图片下载失败: \(fileId).\(fileType), 错误: \(error.localizedDescription)")
+                }
+                
+            } else if mimeType.hasPrefix("audio/") {
+                // 处理音频文件
+                print("[SYNC] 找到音频: fileId=\(fileId), mimeType=\(mimeType)")
+                
+                // 检查音频是否已缓存
+                if AudioCacheService.shared.isCached(fileId: fileId) {
+                    print("[SYNC] 音频已缓存，跳过下载: \(fileId)")
+                    var updatedData = attachmentData
+                    updatedData["localExists"] = true
+                    settingData[index] = updatedData
+                    continue
+                }
+                
+                // 下载音频文件
+                do {
+                    print("[SYNC] 开始下载音频: \(fileId)")
+                    let audioData = try await miNoteService.downloadAudio(fileId: fileId)
+                    print("[SYNC] 音频下载完成，大小: \(audioData.count) 字节")
+                    
+                    // 缓存音频文件
+                    try AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
+                    print("[SYNC] 音频缓存成功: \(fileId)")
+                    
+                    var updatedData = attachmentData
+                    updatedData["localExists"] = true
+                    updatedData["downloaded"] = true
+                    settingData[index] = updatedData
+                } catch {
+                    print("[SYNC] 音频下载失败: \(fileId), 错误: \(error.localizedDescription)")
+                }
+                
+            } else {
+                print("[SYNC] 附件条目 \(index + 1) 未知类型: \(mimeType)，跳过")
             }
         }
         
-        print("[SYNC] 所有图片处理完成，共处理 \(settingData.count) 个条目")
+        print("[SYNC] 所有附件处理完成，共处理 \(settingData.count) 个条目")
         return settingData
     }
     
