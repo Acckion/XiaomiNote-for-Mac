@@ -739,6 +739,12 @@ public final class UnifiedFormatManager {
         if position > 0 && position <= textStorage.length {
             // 使用前一个字符的属性
             attrs = textStorage.attributes(at: position - 1, effectiveRange: nil)
+            
+            // 调试：打印获取到的属性
+            print("[UnifiedFormatManager] 从 textStorage 获取属性 at position \(position - 1):")
+            for (key, value) in attrs {
+                print("  - \(key.rawValue): \(value)")
+            }
         } else if position < textStorage.length {
             // 使用当前位置的属性
             attrs = textStorage.attributes(at: position, effectiveRange: nil)
@@ -748,7 +754,13 @@ public final class UnifiedFormatManager {
         }
         
         textView.typingAttributes = attrs
+        
+        // 调试：打印设置后的 typingAttributes
         print("[UnifiedFormatManager] 光标位置同步 typingAttributes - position: \(position)")
+        print("[UnifiedFormatManager] 设置后的 typingAttributes:")
+        for (key, value) in textView.typingAttributes {
+            print("  - \(key.rawValue): \(value)")
+        }
     }
     
     // MARK: - 辅助方法
