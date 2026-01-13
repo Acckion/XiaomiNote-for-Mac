@@ -1,0 +1,1727 @@
+
+[VIEWMODEL] 自动同步定时器触发
+[VIEWMODEL] 距离上次同步仅 9 秒，小于最小间隔 10 秒，跳过自动同步
+[保存状态] 📝 内容变化 - 设置为未保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[CursorFormatManager] 执行更新 - range: {104, 15}
+[UnifiedFormatManager] detectFormatState(range) - range: {104, 15}, state: FormatState(段落: 正文, 对齐: 左对齐, 选择: 15字符)
+[CursorFormatManager] 使用 UnifiedFormatManager 检测选择范围格式状态
+[CursorFormatManager] 更新工具栏状态
+[CursorFormatManager] 工具栏状态已更新，激活格式: []
+[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 正文, 对齐: 左对齐, 选择: 15字符)
+[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
+[CursorFormatManager] 选择模式更新完成 - range: {104, 15}, state: FormatState(段落: 正文, 对齐: 左对齐, 选择: 15字符)
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSFont", "NSParagraphStyle", "NSColor"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483648)
+[NativeEditorContext]   - 字体格式: []
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: []
+[NativeEditorContext]   - 检测到的所有格式: []
+显示格式菜单
+  - isUsingNativeEditor: true
+  - 使用原生编辑器格式菜单
+[NativeEditorContext] requestContentSync 被调用
+[2026-01-13 22:49:52.491] ℹ️ INFO [EditorState] [EditorStateConsistencyChecker] 状态变化: 可编辑 -> 可编辑, 原因: 格式菜单显示
+[2026-01-13 22:49:52.491] ℹ️ INFO [EditorState] [EditorStateConsistencyChecker] 状态变化: 可编辑 -> 可编辑, 原因: 格式菜单显示
+[NativeEditorContext] requestContentSync 被调用
+[NativeEditorView] syncContentToContext: 同步内容
+[NativeEditorView]   - textStorage.length: 119
+[NativeEditorView]   - 选择范围: {104, 15}
+[NativeEditorView]   - 位置 104 的属性数量: 3
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSParagraphStyle): Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSFont): "Helvetica 12.00 pt. P [] (0xc28ad5180) fobj=0xc27b4c280, spc=3.33"
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSColor): Catalog color: System labelColor
+[NativeEditorView]     - 字体: Helvetica, 大小: 12.0
+[NativeEditorView]     - 是否粗体: false
+[NativeEditorView]     - 是否斜体: false
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[NativeEditorView] syncContentToContext: nsAttributedText 已更新 (长度: 119)
+[NativeEditorView] syncContentToContext: 同步内容
+[NativeEditorView]   - textStorage.length: 119
+[NativeEditorView]   - 选择范围: {104, 15}
+[NativeEditorView]   - 位置 104 的属性数量: 3
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSParagraphStyle): Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSFont): "Helvetica 12.00 pt. P [] (0xc28ad5180) fobj=0xc27b4c280, spc=3.33"
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSColor): Catalog color: System labelColor
+[NativeEditorView]     - 字体: Helvetica, 大小: 12.0
+[NativeEditorView]     - 是否粗体: false
+[NativeEditorView]     - 是否斜体: false
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[NativeEditorView] syncContentToContext: nsAttributedText 已更新 (长度: 119)
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSParagraphStyle", "NSFont", "NSColor"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483648)
+[NativeEditorContext]   - 字体格式: []
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: []
+[NativeEditorContext]   - 检测到的所有格式: []
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSParagraphStyle", "NSFont", "NSColor"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483648)
+[NativeEditorContext]   - 字体格式: []
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: []
+[NativeEditorContext]   - 检测到的所有格式: []
+[NativeEditorContext] forceUpdateFormats 被调用
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSParagraphStyle", "NSFont", "NSColor"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483648)
+[NativeEditorContext]   - 字体格式: []
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: []
+[NativeEditorContext]   - 检测到的所有格式: []
+[CursorFormatManager] 处理工具栏格式切换: 加粗
+[CursorFormatManager] 加粗状态切换为: true
+[CursorFormatManager] 同步 typingAttributes
+[CursorFormatManager] 使用 UnifiedFormatManager 同步 typingAttributes
+[CursorFormatManager] 更新工具栏状态
+[CursorFormatManager] 工具栏状态已更新，激活格式: ["加粗"]
+[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 正文, 对齐: 左对齐, 字符: 加粗, 选择: 15字符)
+[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
+[CursorFormatManager] 工具栏格式切换处理完成
+[FormatApplicator] 开始应用格式: 加粗
+[FormatApplicator] 选择范围: location=104, length=15
+[FormatApplicator] 有效范围: location=104, length=15
+[FormatApplicator] 使用 UnifiedFormatManager 应用格式: 加粗
+[FormatApplicator] ✅ 成功应用格式: 加粗
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSFont", "NSColor", "NSParagraphStyle"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483648)
+[NativeEditorContext]   - 字体格式: []
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: []
+[NativeEditorContext]   - 检测到的所有格式: []
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[NativeEditorView] handleExternalContentUpdate: 内容未变化，跳过更新
+[UnifiedEditorWrapper] performContentChange: XML 转换成功 - 长度: 353
+[UnifiedEditorWrapper] performContentChange: 已触发保存回调 - contentChanged: true, hasUnsavedChanges: true
+[MemoryCache] 更新缓存 - ID: 48958524..., 标题: 新笔记
+[保存状态] 📝 内容变化 - 设置为未保存
+[保存流程] ✅ Tier 0 内存缓存更新 - 笔记ID: 48958524..., XML长度: 353
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 353
+[保存流程] 📝 使用原生编辑器最新内容 - 长度: 353
+[内容检测] ═══════════════════════════════════════
+[内容检测] 📊 检测结果: 内容变化=true, 标题变化=false
+[内容检测] 📏 内容长度: 当前=353, 保存=346
+[内容检测] ⏱️ 检测耗时: 0.01ms
+[内容检测] 📝 内容长度差异: 7 字符
+[内容检测] ℹ️ 内容长度差异较小，可能是格式化差异
+[内容检测] 🔍 当前内容预览: <text indent="1"><i>1</i><delete>212121212121212121212121212</delete></text>
+<text indent="1">安德<b>森
+[内容检测] 🔍 保存内容预览: <text indent="1"><i>1</i><delete>212121212121212121212121212</delete></text>
+<text indent="1">安德<b>森
+[内容检测] ✅ 标题无变化
+[内容检测] 🕐 时间戳决策: 需要更新
+[内容检测] ═══════════════════════════════════════
+[保存流程] 🔄 Tier 1 防抖保存触发 - 笔记ID: 48958524..., XML长度: 353
+[保存状态] ⏳ 开始保存 - 设置为保存中
+[NativeEditorContext] 📦 内容已备份 - 长度: 119
+[buildUpdatedNote] ═══════════════════════════════════════
+[buildUpdatedNote] 📝 笔记ID: 48958524...
+[buildUpdatedNote] 📝 标题: 新笔记
+[buildUpdatedNote] 📏 内容长度: 353
+[buildUpdatedNote] 🕐 shouldUpdateTimestamp: true
+[buildUpdatedNote] 🕐 原始时间戳: 2026-01-13 14:49:48 +0000
+[buildUpdatedNote] 🕐 新时间戳: 2026-01-13 14:49:55 +0000
+[buildUpdatedNote] 🕐 时间戳决策: 更新为当前时间
+[buildUpdatedNote] ═══════════════════════════════════════
+[SaveQueue] 添加保存任务 - ID: 48958524..., 优先级: normal, 队列长度: 1
+[保存流程] ✅ Tier 1 异步保存笔记到数据库成功，ID: 48958524..., 标题: 新笔记
+[SaveQueue] 保存成功 - ID: 48958524..., 队列剩余: 0
+[保存流程] ✅ Tier 1 异步保存笔记到数据库成功，ID: 48958524..., 标题: 新笔记
+[保存流程] 📝 XML保存成功，lastSavedXMLContent 已同步 - 长度: 353
+[保存流程] 🔄 更新 notes 数组 - 笔记ID: 48958524..., 当前选中: 48958524
+[保存流程] ✅ notes[0] 已更新
+[AudioPanelState] 处理笔记切换: nil -> 48958524961736224
+[保存流程] ✅ selectedNote 已同步更新
+[保存流程] 📊 更新后选中状态: 48958524
+[MemoryCache] 更新缓存 - ID: 48958524..., 标题: 新笔记
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 353
+[UnifiedEditorWrapper] xmlContent 变化但与编辑器内容相同，跳过重新加载
+[保存状态] ✅ 保存完成 - 设置为已保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] 🧹 保存错误状态已清除
+[NativeEditorContext] 内容已标记为已保存
+[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: 48958524..., 标题: 新笔记
+显示格式菜单
+  - isUsingNativeEditor: true
+  - 使用原生编辑器格式菜单
+[NativeEditorContext] requestContentSync 被调用
+[2026-01-13 22:49:55.339] ℹ️ INFO [EditorState] [EditorStateConsistencyChecker] 状态变化: 可编辑 -> 可编辑, 原因: 格式菜单显示
+[2026-01-13 22:49:55.339] ℹ️ INFO [EditorState] [EditorStateConsistencyChecker] 状态变化: 可编辑 -> 可编辑, 原因: 格式菜单显示
+[NativeEditorContext] requestContentSync 被调用
+[NativeEditorView] syncContentToContext: 同步内容
+[NativeEditorView]   - textStorage.length: 119
+[NativeEditorView]   - 选择范围: {104, 15}
+[NativeEditorView]   - 位置 104 的属性数量: 3
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSFont): "Helvetica-Bold 12.00 pt. P [] (0xc28ad6580) fobj=0xc28228500, spc=3.33"
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSParagraphStyle): Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSColor): Catalog color: System labelColor
+[NativeEditorView]     - 字体: Helvetica-Bold, 大小: 12.0
+[NativeEditorView]     - 是否粗体: true
+[NativeEditorView]     - 是否斜体: false
+[保存状态] 📝 内容变化 - 设置为未保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[NativeEditorView] syncContentToContext: nsAttributedText 已更新 (长度: 119)
+[NativeEditorView] syncContentToContext: 同步内容
+[NativeEditorView]   - textStorage.length: 119
+[NativeEditorView]   - 选择范围: {104, 15}
+[NativeEditorView]   - 位置 104 的属性数量: 3
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSFont): "Helvetica-Bold 12.00 pt. P [] (0xc28ad6580) fobj=0xc28228500, spc=3.33"
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSParagraphStyle): Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSColor): Catalog color: System labelColor
+[NativeEditorView]     - 字体: Helvetica-Bold, 大小: 12.0
+[NativeEditorView]     - 是否粗体: true
+[NativeEditorView]     - 是否斜体: false
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[NativeEditorView] syncContentToContext: nsAttributedText 已更新 (长度: 119)
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSParagraphStyle", "NSFont", "NSColor"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica-Bold, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483650)
+[NativeEditorContext] detectFontFormats - 检测到粗体
+[NativeEditorContext]   - 字体格式: ["加粗"]
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: ["加粗"]
+[NativeEditorContext]   - 检测到的所有格式: ["加粗"]
+[NativeEditorContext] 检测到格式: 加粗
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSParagraphStyle", "NSFont", "NSColor"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica-Bold, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483650)
+[NativeEditorContext] detectFontFormats - 检测到粗体
+[NativeEditorContext]   - 字体格式: ["加粗"]
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: ["加粗"]
+[NativeEditorContext]   - 检测到的所有格式: ["加粗"]
+[NativeEditorContext] 检测到格式: 加粗
+[NativeEditorContext] forceUpdateFormats 被调用
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSParagraphStyle", "NSFont", "NSColor"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica-Bold, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483650)
+[NativeEditorContext] detectFontFormats - 检测到粗体
+[NativeEditorContext]   - 字体格式: ["加粗"]
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: ["加粗"]
+[NativeEditorContext]   - 检测到的所有格式: ["加粗"]
+[NativeEditorContext] 检测到格式: 加粗
+[CursorFormatManager] 处理工具栏格式切换: 斜体
+[CursorFormatManager] 斜体状态切换为: true
+[CursorFormatManager] 同步 typingAttributes
+[CursorFormatManager] 使用 UnifiedFormatManager 同步 typingAttributes
+[CursorFormatManager] 更新工具栏状态
+[CursorFormatManager] 工具栏状态已更新，激活格式: ["加粗", "斜体"]
+[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 正文, 对齐: 左对齐, 字符: 加粗, 斜体, 选择: 15字符)
+[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
+[CursorFormatManager] 工具栏格式切换处理完成
+[FormatApplicator] 开始应用格式: 斜体
+[FormatApplicator] 选择范围: location=104, length=15
+[FormatApplicator] 有效范围: location=104, length=15
+[InlineFormatHandler] 添加斜体（字体特性）
+[FormatApplicator] 使用 UnifiedFormatManager 应用格式: 斜体
+[FormatApplicator] ✅ 成功应用格式: 斜体
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSColor", "NSFont", "NSParagraphStyle"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica-Bold, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483650)
+[NativeEditorContext] detectFontFormats - 检测到粗体
+[NativeEditorContext]   - 字体格式: ["加粗"]
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: ["加粗"]
+[NativeEditorContext]   - 检测到的所有格式: ["加粗"]
+[NativeEditorContext] 检测到格式: 加粗
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[NativeEditorView] handleExternalContentUpdate: 内容未变化，跳过更新
+[UnifiedEditorWrapper] performContentChange: XML 转换成功 - 长度: 360
+[UnifiedEditorWrapper] performContentChange: 已触发保存回调 - contentChanged: true, hasUnsavedChanges: true
+[MemoryCache] 更新缓存 - ID: 48958524..., 标题: 新笔记
+[保存状态] 📝 内容变化 - 设置为未保存
+[保存流程] ✅ Tier 0 内存缓存更新 - 笔记ID: 48958524..., XML长度: 360
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 360
+[保存流程] 📝 使用原生编辑器最新内容 - 长度: 360
+[内容检测] ═══════════════════════════════════════
+[内容检测] 📊 检测结果: 内容变化=true, 标题变化=false
+[内容检测] 📏 内容长度: 当前=360, 保存=353
+[内容检测] ⏱️ 检测耗时: 0.00ms
+[内容检测] 📝 内容长度差异: 7 字符
+[内容检测] ℹ️ 内容长度差异较小，可能是格式化差异
+[内容检测] 🔍 当前内容预览: <text indent="1"><i>1</i><delete>212121212121212121212121212</delete></text>
+<text indent="1">安德<b>森
+[内容检测] 🔍 保存内容预览: <text indent="1"><i>1</i><delete>212121212121212121212121212</delete></text>
+<text indent="1">安德<b>森
+[内容检测] ✅ 标题无变化
+[内容检测] 🕐 时间戳决策: 需要更新
+[内容检测] ═══════════════════════════════════════
+[保存流程] 🔄 Tier 1 防抖保存触发 - 笔记ID: 48958524..., XML长度: 360
+[保存状态] ⏳ 开始保存 - 设置为保存中
+[NativeEditorContext] 📦 内容已备份 - 长度: 119
+[buildUpdatedNote] ═══════════════════════════════════════
+[buildUpdatedNote] 📝 笔记ID: 48958524...
+[buildUpdatedNote] 📝 标题: 新笔记
+[buildUpdatedNote] 📏 内容长度: 360
+[buildUpdatedNote] 🕐 shouldUpdateTimestamp: true
+[buildUpdatedNote] 🕐 原始时间戳: 2026-01-13 14:49:55 +0000
+[buildUpdatedNote] 🕐 新时间戳: 2026-01-13 14:49:57 +0000
+[buildUpdatedNote] 🕐 时间戳决策: 更新为当前时间
+[buildUpdatedNote] ═══════════════════════════════════════
+[SaveQueue] 添加保存任务 - ID: 48958524..., 优先级: normal, 队列长度: 1
+[保存流程] ✅ Tier 1 异步保存笔记到数据库成功，ID: 48958524..., 标题: 新笔记
+[SaveQueue] 保存成功 - ID: 48958524..., 队列剩余: 0
+[保存流程] ✅ Tier 1 异步保存笔记到数据库成功，ID: 48958524..., 标题: 新笔记
+[保存流程] 📝 XML保存成功，lastSavedXMLContent 已同步 - 长度: 360
+[保存流程] 🔄 更新 notes 数组 - 笔记ID: 48958524..., 当前选中: 48958524
+[保存流程] ✅ notes[0] 已更新
+[AudioPanelState] 处理笔记切换: nil -> 48958524961736224
+[保存流程] ✅ selectedNote 已同步更新
+[保存流程] 📊 更新后选中状态: 48958524
+[MemoryCache] 更新缓存 - ID: 48958524..., 标题: 新笔记
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 360
+[UnifiedEditorWrapper] xmlContent 变化但与编辑器内容相同，跳过重新加载
+显示格式菜单
+  - isUsingNativeEditor: true
+  - 使用原生编辑器格式菜单
+[NativeEditorContext] requestContentSync 被调用
+[2026-01-13 22:49:57.290] ℹ️ INFO [EditorState] [EditorStateConsistencyChecker] 状态变化: 可编辑 -> 可编辑, 原因: 格式菜单显示
+[2026-01-13 22:49:57.290] ℹ️ INFO [EditorState] [EditorStateConsistencyChecker] 状态变化: 可编辑 -> 可编辑, 原因: 格式菜单显示
+[NativeEditorContext] requestContentSync 被调用
+[保存状态] ✅ 保存完成 - 设置为已保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] 🧹 保存错误状态已清除
+[NativeEditorContext] 内容已标记为已保存
+[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: 48958524..., 标题: 新笔记
+[NativeEditorView] syncContentToContext: 同步内容
+[NativeEditorView]   - textStorage.length: 119
+[NativeEditorView]   - 选择范围: {104, 15}
+[NativeEditorView]   - 位置 104 的属性数量: 3
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSColor): Catalog color: System labelColor
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSParagraphStyle): Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSFont): "Helvetica-BoldOblique 12.00 pt. P [] (0xc285d3700) fobj=0xc2822aa80, spc=3.33"
+[NativeEditorView]     - 字体: Helvetica-BoldOblique, 大小: 12.0
+[NativeEditorView]     - 是否粗体: true
+[NativeEditorView]     - 是否斜体: true
+[保存状态] 📝 内容变化 - 设置为未保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[NativeEditorView] syncContentToContext: nsAttributedText 已更新 (长度: 119)
+[NativeEditorView] syncContentToContext: 同步内容
+[NativeEditorView]   - textStorage.length: 119
+[NativeEditorView]   - 选择范围: {104, 15}
+[NativeEditorView]   - 位置 104 的属性数量: 3
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSColor): Catalog color: System labelColor
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSParagraphStyle): Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+[NativeEditorView]     - NSAttributedStringKey(_rawValue: NSFont): "Helvetica-BoldOblique 12.00 pt. P [] (0xc285d3700) fobj=0xc2822aa80, spc=3.33"
+[NativeEditorView]     - 字体: Helvetica-BoldOblique, 大小: 12.0
+[NativeEditorView]     - 是否粗体: true
+[NativeEditorView]     - 是否斜体: true
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[NativeEditorView] syncContentToContext: nsAttributedText 已更新 (长度: 119)
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSFont", "NSParagraphStyle", "NSColor"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica-BoldOblique, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483651)
+[NativeEditorContext] detectFontFormats - 检测到粗体
+[NativeEditorContext] detectFontFormats - 检测到斜体（字体特性）
+[NativeEditorContext]   - 字体格式: ["加粗", "斜体"]
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: ["加粗", "斜体"]
+[NativeEditorContext]   - 检测到的所有格式: ["加粗", "斜体"]
+[NativeEditorContext] 检测到格式: 加粗, 斜体
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSFont", "NSParagraphStyle", "NSColor"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica-BoldOblique, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483651)
+[NativeEditorContext] detectFontFormats - 检测到粗体
+[NativeEditorContext] detectFontFormats - 检测到斜体（字体特性）
+[NativeEditorContext]   - 字体格式: ["加粗", "斜体"]
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: ["加粗", "斜体"]
+[NativeEditorContext]   - 检测到的所有格式: ["斜体", "加粗"]
+[NativeEditorContext] 检测到格式: 斜体, 加粗
+[NativeEditorContext] forceUpdateFormats 被调用
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSFont", "NSParagraphStyle", "NSColor"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica-BoldOblique, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483651)
+[NativeEditorContext] detectFontFormats - 检测到粗体
+[NativeEditorContext] detectFontFormats - 检测到斜体（字体特性）
+[NativeEditorContext]   - 字体格式: ["加粗", "斜体"]
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: ["加粗", "斜体"]
+[NativeEditorContext]   - 检测到的所有格式: ["加粗", "斜体"]
+[NativeEditorContext] 检测到格式: 加粗, 斜体
+[CursorFormatManager] 处理工具栏格式切换: 下划线
+[CursorFormatManager] 下划线状态切换为: true
+[CursorFormatManager] 同步 typingAttributes
+[CursorFormatManager] 使用 UnifiedFormatManager 同步 typingAttributes
+[CursorFormatManager] 更新工具栏状态
+[CursorFormatManager] 工具栏状态已更新，激活格式: ["斜体", "下划线", "加粗"]
+[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 正文, 对齐: 左对齐, 字符: 加粗, 斜体, 下划线, 选择: 15字符)
+[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
+[CursorFormatManager] 工具栏格式切换处理完成
+[FormatApplicator] 开始应用格式: 下划线
+[FormatApplicator] 选择范围: location=104, length=15
+[FormatApplicator] 有效范围: location=104, length=15
+[FormatApplicator] 使用 UnifiedFormatManager 应用格式: 下划线
+[FormatApplicator] ✅ 成功应用格式: 下划线
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 104
+[NativeEditorContext]   - selectedRange: {104, 15}
+[NativeEditorContext]   - 有效位置: 104
+[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: 15)
+[NativeEditorContext]   - 部分激活格式: []
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSFont", "NSColor", "NSParagraphStyle"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica-BoldOblique, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483651)
+[NativeEditorContext] detectFontFormats - 检测到粗体
+[NativeEditorContext] detectFontFormats - 检测到斜体（字体特性）
+[NativeEditorContext]   - 字体格式: ["加粗", "斜体"]
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 混合格式检测结果: ["斜体", "加粗"]
+[NativeEditorContext]   - 检测到的所有格式: ["加粗", "斜体"]
+[NativeEditorContext] 检测到格式: 加粗, 斜体
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[NativeEditorView] handleExternalContentUpdate: 内容未变化，跳过更新
+[UnifiedEditorWrapper] performContentChange: XML 转换成功 - 长度: 367
+[UnifiedEditorWrapper] performContentChange: 已触发保存回调 - contentChanged: true, hasUnsavedChanges: true
+[MemoryCache] 更新缓存 - ID: 48958524..., 标题: 新笔记
+[保存状态] 📝 内容变化 - 设置为未保存
+[保存流程] ✅ Tier 0 内存缓存更新 - 笔记ID: 48958524..., XML长度: 367
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 367
+[保存流程] 📝 使用原生编辑器最新内容 - 长度: 367
+[内容检测] ═══════════════════════════════════════
+[内容检测] 📊 检测结果: 内容变化=true, 标题变化=false
+[内容检测] 📏 内容长度: 当前=367, 保存=360
+[内容检测] ⏱️ 检测耗时: 0.00ms
+[内容检测] 📝 内容长度差异: 7 字符
+[内容检测] ℹ️ 内容长度差异较小，可能是格式化差异
+[内容检测] 🔍 当前内容预览: <text indent="1"><i>1</i><delete>212121212121212121212121212</delete></text>
+<text indent="1">安德<b>森
+[内容检测] 🔍 保存内容预览: <text indent="1"><i>1</i><delete>212121212121212121212121212</delete></text>
+<text indent="1">安德<b>森
+[内容检测] ✅ 标题无变化
+[内容检测] 🕐 时间戳决策: 需要更新
+[内容检测] ═══════════════════════════════════════
+[保存流程] 🔄 Tier 1 防抖保存触发 - 笔记ID: 48958524..., XML长度: 367
+[保存状态] ⏳ 开始保存 - 设置为保存中
+[NativeEditorContext] 📦 内容已备份 - 长度: 119
+[buildUpdatedNote] ═══════════════════════════════════════
+[buildUpdatedNote] 📝 笔记ID: 48958524...
+[buildUpdatedNote] 📝 标题: 新笔记
+[buildUpdatedNote] 📏 内容长度: 367
+[buildUpdatedNote] 🕐 shouldUpdateTimestamp: true
+[buildUpdatedNote] 🕐 原始时间戳: 2026-01-13 14:49:57 +0000
+[buildUpdatedNote] 🕐 新时间戳: 2026-01-13 14:49:59 +0000
+[buildUpdatedNote] 🕐 时间戳决策: 更新为当前时间
+[buildUpdatedNote] ═══════════════════════════════════════
+[SaveQueue] 添加保存任务 - ID: 48958524..., 优先级: normal, 队列长度: 1
+[保存流程] ✅ Tier 1 异步保存笔记到数据库成功，ID: 48958524..., 标题: 新笔记
+[SaveQueue] 保存成功 - ID: 48958524..., 队列剩余: 0
+[保存流程] ✅ Tier 1 异步保存笔记到数据库成功，ID: 48958524..., 标题: 新笔记
+[保存流程] 📝 XML保存成功，lastSavedXMLContent 已同步 - 长度: 367
+[保存流程] 🔄 更新 notes 数组 - 笔记ID: 48958524..., 当前选中: 48958524
+[保存流程] ✅ notes[0] 已更新
+[AudioPanelState] 处理笔记切换: nil -> 48958524961736224
+[保存流程] ✅ selectedNote 已同步更新
+[保存流程] 📊 更新后选中状态: 48958524
+[MemoryCache] 更新缓存 - ID: 48958524..., 标题: 新笔记
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 367
+[UnifiedEditorWrapper] xmlContent 变化但与编辑器内容相同，跳过重新加载
+[保存状态] ✅ 保存完成 - 设置为已保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] 🧹 保存错误状态已清除
+[NativeEditorContext] 内容已标记为已保存
+[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: 48958524..., 标题: 新笔记
+[MemoryCache] 更新缓存 - ID: 48958526..., 标题: 新笔记
+[VIEWMODEL] 自动同步定时器触发
+[VIEWMODEL] 开始执行自动同步
+[SYNC] 开始执行增量同步
+[LocalStorage] 🔍 开始加载同步状态
+[LocalStorage] ✅ 成功加载同步状态:
+[LocalStorage]   - lastSyncTime: 2026-01-13 14:49:40 +0000
+[LocalStorage]   - syncTag: 48958977581793312
+[SYNC] 优先尝试轻量级增量同步
+[SYNC] 开始执行轻量级增量同步
+[LocalStorage] 🔍 开始加载同步状态
+[LocalStorage] ✅ 成功加载同步状态:
+[LocalStorage]   - lastSyncTime: 2026-01-13 14:49:40 +0000
+[LocalStorage]   - syncTag: 48958977581793312
+📤 请求: GET https://i.mi.com/note/sync/full/?ts=1768315800640&data=%7B%22note_view%22%3A%7B%22syncTag%22%3A%2248958977581793312%22%7D%7D&inactiveTime=10
+请求头: ["Cookie": "deviceId=wb_297fb161-3f7a-4ee8-a774-a92978565263; pass_ua=web; passToken=V1:pwROAesIuzMBPe5slLSsQgKGjvXBuX15UGUYlYqW/WD79Eg4aFbK2DmqpNS4WL1zBUXirKFQjL+ArbrzOEUaUic0gXSsgCcxtqI5RDtZ8j5UZ8WAMddCcvMfIt5v6dqdJOYq3r4pKK6wHJDhQhnttZpDIqklBZrpuHf5SS6/7Y7+bPCqX8w2I7bgMGLqJOTndl8dbsDKEqNxNxoTMoum75un1sS26GAzNmTFLxqEB5l0eVWeFlV/O+W/siN/imbHyIT2NRNBxBxwkp28UrGNlkistbD+p0CuiXlkyiHZhpIM5tQH/PuGQ9sdv6ybJdwpv0CC5poT2YdPOHFtRiBmgm45gi3+piXUpxtFP71N78M=; userId=1315204657; cUserId=I0PgvZ_zZoxiWbsmMZpt9OiFkhE; passInfo=login-end; uLocale=zh_CN; cUserId=I0PgvZ_zZoxiWbsmMZpt9OiFkhE; uLocale=zh_CN; i.mi.com_isvalid_servicetoken=true; iplocale=zh_CN; userId=1315204657; i.mi.com_istrudev=true; serviceToken=U7s/v0q0JE/UQMNZhVxzLeOktqG4Qz13woP/80HpIvVY2dK8xLxEXCrhtt80BPc4u1FUfd0MAkS1ihlTjRbFwu3cOujdykqotf2nz2J72FFnubv0sqv0j4danVlHBEqU867CL3TT47thke9W2Ia0medhK/VXoSzR93/Oxy2I4Tk2K7WRWam+DbI1tI/W5l6QO4X7HBp4zVK29zsa/QvY/6QS5KPK+iGnh2gy3tYX5EHuw1Zj7fywK5HldKmejG/QkgCC6nC4Fwb0dQL1XAsQ2SKMT5nU11pclQBdG0pdWnrCVXzkdtxgy4ynJUZUmTHUNO65NdAwePsAJvKhhvp++gMpItUYkMmxnIYbZVhhEcQ=; i.mi.com_slh=GaIkx+QdjNl8TP9p4z7lkjjX0XE=; i.mi.com_ph=Xqf7j38sSQOKcJ3KYbyz3Q==", "Accept-Encoding": "gzip, deflate, br", "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"]
+📥 响应: GET https://i.mi.com/note/sync/full/?ts=1768315800640&data=%7B%22note_view%22%3A%7B%22syncTag%22%3A%2248958977581793312%22%7D%7D&inactiveTime=10 - 状态码: 200
+响应头: ["Server": "Tengine", "Set-Cookie": "serviceToken=U7s/v0q0JE/UQMNZhVxzLeOktqG4Qz13woP/80HpIvVY2dK8xLxEXCrhtt80BPc4u1FUfd0MAkS1ihlTjRbFwu3cOujdykqotf2nz2J72FFnubv0sqv0j4danVlHBEqU867CL3TT47thke9W2Ia0medhK/VXoSzR93/Oxy2I4Tk2K7WRWam+DbI1tI/W5l6QO4X7HBp4zVK29zsa/QvY/6QS5KPK+iGnh2gy3tYX5EHuw1Zj7fywK5HldKmejG/QkgCC6nC4Fwb0dQL1XAsQ2SKMT5nU11pclQBdG0pdWnrCVXzkdtxgy4ynJUZUmTHUNO65NdAwePsAJvKhhvp++lhQ3pDp+nYFKRKY2sz/f0r5t9U6Q0cfO7tkDptZ5YmC6Whtlvm6T7LgUTTp9InfJA==; Domain=.i.mi.com; Path=/, userId=1315204657; Domain=.mi.com; Path=/, i.mi.com_slh=9WEIds2zgSrsMZVQcjPjcx0Dvto=; Domain=.i.mi.com; Path=/, i.mi.com_slh=; domain=.mi.com; path=/; expires=Thu, 01-Dec-1994 16:00:00 GMT", "Content-Encoding": "gzip", "Date": "Tue, 13 Jan 2026 14:50:00 GMT", "Content-Type": "application/json"]
+响应体: {"result":"ok","retriable":false,"code":0,"data":{"note_view":{"result":"ok","retriable":false,"code":0,"data":{"entries":[{"snippet":"<text indent=\"1\"><i>1<\/i><delete>212121212121212121212121212<\/delete><\/text>\n<text indent=\"1\">安德<b>森<\/b><b>afdsad<\/b><\/text>\n<text indent=\"1\">ijiijo<\/text>\n<text indent=\"1\"><i>iiiooiii1212<\/i><\/text>\n<text indent=\"1\"><b>2131312131232<\/b><\/text>\n<text indent=\"1\"><u>21313213221311231232131231<\/u><\/text>\n<text indent=\"1\">122132143124...
+[SYNC] 轻量级增量同步API调用成功
+[SYNC] 解析轻量级同步响应
+[SYNC] 找到有修改的笔记: 48958524961736224, 状态: normal
+[SYNC] 解析完成: 1 个笔记, 0 个文件夹, syncTag: 48958994412093440
+[SYNC] 找到 1 个有修改的笔记，0 个有修改的文件夹
+[SYNC] 处理有修改的笔记: 48958524961736224 - 新笔记
+📤 请求: GET https://i.mi.com/note/note/48958524961736224/?ts=1768315800702
+请求头: ["Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8", "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Cookie": "deviceId=wb_297fb161-3f7a-4ee8-a774-a92978565263; pass_ua=web; passToken=V1:pwROAesIuzMBPe5slLSsQgKGjvXBuX15UGUYlYqW/WD79Eg4aFbK2DmqpNS4WL1zBUXirKFQjL+ArbrzOEUaUic0gXSsgCcxtqI5RDtZ8j5UZ8WAMddCcvMfIt5v6dqdJOYq3r4pKK6wHJDhQhnttZpDIqklBZrpuHf5SS6/7Y7+bPCqX8w2I7bgMGLqJOTndl8dbsDKEqNxNxoTMoum75un1sS26GAzNmTFLxqEB5l0eVWeFlV/O+W/siN/imbHyIT2NRNBxBxwkp28UrGNlkistbD+p0CuiXlkyiHZhpIM5tQH/PuGQ9sdv6ybJdwpv0CC5poT2YdPOHFtRiBmgm45gi3+piXUpxtFP71N78M=; userId=1315204657; cUserId=I0PgvZ_zZoxiWbsmMZpt9OiFkhE; passInfo=login-end; uLocale=zh_CN; cUserId=I0PgvZ_zZoxiWbsmMZpt9OiFkhE; uLocale=zh_CN; i.mi.com_isvalid_servicetoken=true; iplocale=zh_CN; userId=1315204657; i.mi.com_istrudev=true; serviceToken=U7s/v0q0JE/UQMNZhVxzLeOktqG4Qz13woP/80HpIvVY2dK8xLxEXCrhtt80BPc4u1FUfd0MAkS1ihlTjRbFwu3cOujdykqotf2nz2J72FFnubv0sqv0j4danVlHBEqU867CL3TT47thke9W2Ia0medhK/VXoSzR93/Oxy2I4Tk2K7WRWam+DbI1tI/W5l6QO4X7HBp4zVK29zsa/QvY/6QS5KPK+iGnh2gy3tYX5EHuw1Zj7fywK5HldKmejG/QkgCC6nC4Fwb0dQL1XAsQ2SKMT5nU11pclQBdG0pdWnrCVXzkdtxgy4ynJUZUmTHUNO65NdAwePsAJvKhhvp++gMpItUYkMmxnIYbZVhhEcQ=; i.mi.com_slh=GaIkx+QdjNl8TP9p4z7lkjjX0XE=; i.mi.com_ph=Xqf7j38sSQOKcJ3KYbyz3Q==", "Accept-Encoding": "gzip, deflate, br"]
+📥 响应: GET https://i.mi.com/note/note/48958524961736224/?ts=1768315800702 - 状态码: 200
+响应头: ["Content-Encoding": "gzip", "Server": "Tengine", "Content-Type": "application/json", "Date": "Tue, 13 Jan 2026 14:50:00 GMT"]
+响应体: {"result":"ok","retriable":false,"code":0,"data":{"entry":{"snippet":"<text indent=\"1\"><i>1<\/i><delete>212121212121212121212121212<\/delete><\/text>\n<text indent=\"1\">安德<b>森<\/b><b>afdsad<\/b><\/text>\n<text indent=\"1\">ijiijo<\/text>\n<text indent=\"1\"><i>iiiooiii1212<\/i><\/text>\n<text indent=\"1\"><b>2131312131232<\/b><\/text>\n<text indent=\"1\"><u>21313213221311231232131231<\/u><\/text>\n<text indent=\"1\">1221321431241333333<\/text>","modifyDate":1768315788392,"colorId":0,"subject"...
+[NOTE] 开始更新内容，响应结构: ["result", "data", "ts", "description", "code", "retriable"]
+[NOTE] 使用格式1: data->entry
+[NOTE] 找到entry，包含字段: ["snippet", "modifyDate", "tag", "alertDate", "id", "extraInfo", "subject", "type", "folderId", "content", "setting", "createDate", "status", "colorId"]
+[NOTE] 更新内容，长度: 346
+[NOTE] 找到extraInfo: {"note_content_type":"common","web_images":"","mind_content_plain_text":"","title":"新笔记","mind_conte...
+[NOTE] 从extraInfo获取标题: 新笔记
+[NOTE] 最终标题: 新笔记
+[NOTE] 修改时间差异小于1秒，保持本地时间: 2026-01-13 14:49:48 +0000
+[NOTE] 创建时间差异小于1秒，保持本地时间: 2026-01-13 14:47:40 +0000
+[NOTE] 更新文件夹ID: 0
+[SYNC] 更新笔记内容完成: 48958524961736224, 内容长度: 346
+[SYNC] 开始下载笔记附件: 48958524961736224
+[SYNC] noteDetails 键: ["result", "data", "ts", "description", "code", "retriable"]
+[SYNC] 找到 data 字段，包含键: ["entry"]
+[SYNC] 从 data.entry 提取到 entry，包含键: ["snippet", "modifyDate", "tag", "alertDate", "id", "extraInfo", "subject", "type", "folderId", "content", "setting", "createDate", "status", "colorId"]
+[SYNC] 找到 setting 字段，包含键: ["themeId", "stickyTime", "version"]
+[SYNC] setting 中没有 data 字段或 data 不是数组，跳过附件下载: 48958524961736224
+[SYNC] 保存笔记到本地: 48958524961736224
+![[debug]] [Database] 保存笔记，ID: 48958524961736224, 标题: 新笔记, content长度: 346
+![[debug]] ========== 数据流程节点DB2: 绑定参数 ==========
+![[debug]] ========== 数据流程节点DB4: 执行 SQL ==========
+![[debug]] ========== 数据流程节点DB5: 数据库保存成功 ==========
+![[debug]] [Database] ✅ 保存笔记到数据库成功，ID: 48958524961736224, 标题: 新笔记, content长度: 346
+[SYNC] 更新syncTag: 48958994412093440
+[LocalStorage] 💾 开始保存同步状态:
+[LocalStorage]   - lastSyncTime: 2026-01-13 14:50:00 +0000
+[LocalStorage]   - syncTag: 48958994412093440
+[Database] 🔄 开始保存同步状态: syncTag=48958994412093440
+[Database] 绑定 lastSyncTime: 2026-01-13 14:50:00 +0000
+[Database] 绑定 syncTag: 48958994412093440
+[Database] ✅ 保存同步状态成功: syncTag=48958994412093440
+[LocalStorage] ✅ 同步状态保存成功
+加载了 0 个待删除笔记
+[SYNC] 🔍 轻量级增量同步完成，显示同步状态信息:
+[LocalStorage] 🔍 开始加载同步状态
+[LocalStorage] ✅ 成功加载同步状态:
+[LocalStorage]   - lastSyncTime: 2026-01-13 14:50:00 +0000
+[LocalStorage]   - syncTag: 48958994412093440
+[SYNC]   - lastSyncTime: 2026-01-13 14:50:00 +0000
+[SYNC]   - syncTag: 48958994412093440
+[SYNC] 轻量级增量同步成功
+[SYNC] 增量同步结束，isSyncing设置为false
+[FolderRename] ========== loadLocalDataAfterSync() 开始 ==========
+[FolderRename] 同步前 folders 数组数量: 7
+[FolderRename] 同步前 folders 数组内容: 0:'所有笔记', starred:'置顶', 2:'私密笔记', 48869084024554528:'1', 48673089695270400:'111有用11', 48869837922911808:'2', 48897994312795552:'测试专用'
+[Database] getAllNotes: 处理了 32 行，成功解析 32 条笔记
+[FolderRename] 调用 loadFolders() 重新加载文件夹列表
+[FolderRename] 开始加载文件夹列表
+[Database] loadFolders: 处理了 4 行，成功解析 4 个文件夹
+从本地加载文件夹列表: 4 个文件夹
+[FolderRename] 同步后 folders 数组数量: 7
+[FolderRename] 同步后 folders 数组内容: 0:'所有笔记', starred:'置顶', 2:'私密笔记', 48869084024554528:'1', 48673089695270400:'111有用11', 48869837922911808:'2', 48897994312795552:'测试专用'
+[AudioPanelState] 处理笔记切换: nil -> 48958524961736224
+[VIEWMODEL] 同步后更新选中笔记: 48958524961736224
+[FolderRename] ========== loadLocalDataAfterSync() 完成 ==========
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 367
+[UnifiedEditorWrapper] xmlContent 变化（切换笔记）- 从长度 367 到 346
+[NativeEditorContext] 🖼️ NSAttributedString 转换完成（直接转换）
+[NativeEditorContext]   - nsAttributed.length: 119
+[NativeEditorContext]   - nsAttributed.string: '1212121212121212121212121212
+安德森afdsad
+ijiijo
+iiiooiii1212
+2131312131232
+21313213221311231232131231
+1221321431241333333'
+[NativeEditorContext] 🖼️ 总共发现 0 个附件，其中 0 个是 ImageAttachment
+[保存状态] 📝 内容变化 - 设置为未保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:
+[NativeEditorContext]   - 范围 {31, 7}: '森afdsad'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 13.0
+[NativeEditorContext]     特性: bold=true, italic=false
+[NativeEditorContext]   - 范围 {59, 13}: '2131312131232'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 13.0
+[NativeEditorContext]     特性: bold=true, italic=false
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] ✅ 加载 XML 成功 - 长度: 346, 转换后文本长度: 119
+[UnifiedEditorWrapper] 原生编辑器重新加载内容 - 长度: 346
+[保存状态] 📝 内容变化 - 设置为未保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 119, hasUnsavedChanges: true
+[CursorFormatManager] 执行更新 - range: {119, 0}
+[UnifiedFormatManager] detectFormatState - position: 119, state: FormatState(段落: 正文, 对齐: 左对齐, 字符: 加粗, 斜体, 下划线)
+[CursorFormatManager] 使用 UnifiedFormatManager 检测格式状态
+[CursorFormatManager] 同步 typingAttributes
+[UnifiedFormatManager] 从 textStorage 获取属性 at position 118:
+  - NSUnderline: 1
+  - NSColor: Catalog color: System labelColor
+  - NSFont: "Helvetica-BoldOblique 12.00 pt. P [] (0xc27214780) fobj=0xc2822aa80, spc=3.33"
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+[UnifiedFormatManager] 光标位置同步 typingAttributes - position: 119
+[UnifiedFormatManager] 设置后的 typingAttributes:
+  - NSUnderline: 1
+  - NSColor: Catalog color: System labelColor
+  - NSFont: "Helvetica-BoldOblique 12.00 pt. P [] (0xc27214780) fobj=0xc2822aa80, spc=3.33"
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+[CursorFormatManager] 使用 UnifiedFormatManager 同步 typingAttributes
+[CursorFormatManager] 更新工具栏状态
+[CursorFormatManager] 工具栏状态已更新，激活格式: ["下划线", "加粗", "斜体"]
+[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 正文, 对齐: 左对齐, 字符: 加粗, 斜体, 下划线)
+[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
+[CursorFormatManager] 光标模式更新完成 - position: 119, state: FormatState(段落: 正文, 对齐: 左对齐, 字符: 加粗, 斜体, 下划线)
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 119
+[NativeEditorContext]   - cursorPosition: 119
+[NativeEditorContext]   - selectedRange: {119, 0}
+[NativeEditorContext]   - 有效位置: 118
+[NativeEditorContext]   - 光标模式：使用前一个字符的属性位置: 117
+[NativeEditorContext]   - 属性数量: 4
+[NativeEditorContext] detectFontFormats - 属性键: ["NSUnderline", "NSColor", "NSFont", "NSParagraphStyle"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica-BoldOblique, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483651)
+[NativeEditorContext] detectFontFormats - 检测到粗体
+[NativeEditorContext] detectFontFormats - 检测到斜体（字体特性）
+[NativeEditorContext]   - 字体格式: ["斜体", "加粗"]
+[NativeEditorContext]   - 装饰格式: ["下划线"]
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 检测到的所有格式: ["斜体", "加粗", "下划线"]
+[NativeEditorContext] 检测到格式: 斜体, 加粗, 下划线
+[UnifiedFormatManager] handleNewLine - 块级格式: 无, 对齐: 0, 空列表项: false
+[NewLineHandler] 处理普通文本换行
+[NativeEditorContext] 内容变化检测 - 长度: 120, hasUnsavedChanges: true
+[NativeEditorContext] 内容变化检测 - 长度: 120, hasUnsavedChanges: true
+[NewLineHandler] 普通文本换行完成，已清除内联格式
+[NativeEditorContext] 内容变化检测 - 长度: 120, hasUnsavedChanges: true
+[NativeEditorView] handleExternalContentUpdate: 内容未变化，跳过更新
+[CursorFormatManager] 执行更新 - range: {120, 0}
+[UnifiedFormatManager] detectFormatState - position: 120, state: FormatState(段落: 正文, 对齐: 左对齐)
+[CursorFormatManager] 使用 UnifiedFormatManager 检测格式状态
+[CursorFormatManager] 同步 typingAttributes
+[UnifiedFormatManager] 从 textStorage 获取属性 at position 119:
+  - NSFont: ".AppleSystemUIFont 15.00 pt. P [] (0xc285d1680) fobj=0xc285d1680, spc=3.98"
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+  - NSColor: Catalog color: System labelColor
+[UnifiedFormatManager] 光标位置同步 typingAttributes - position: 120
+[UnifiedFormatManager] 设置后的 typingAttributes:
+  - NSFont: ".AppleSystemUIFont 15.00 pt. P [] (0xc285d1680) fobj=0xc285d1680, spc=3.98"
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+  - NSColor: Catalog color: System labelColor
+[CursorFormatManager] 使用 UnifiedFormatManager 同步 typingAttributes
+[CursorFormatManager] 更新工具栏状态
+[CursorFormatManager] 工具栏状态已更新，激活格式: []
+[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 正文, 对齐: 左对齐)
+[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
+[CursorFormatManager] 光标模式更新完成 - position: 120, state: FormatState(段落: 正文, 对齐: 左对齐)
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 120
+[NativeEditorContext]   - cursorPosition: 120
+[NativeEditorContext]   - selectedRange: {120, 0}
+[NativeEditorContext]   - 有效位置: 119
+[NativeEditorContext]   - 光标模式：使用前一个字符的属性位置: 118
+[NativeEditorContext]   - 属性数量: 4
+[NativeEditorContext] detectFontFormats - 属性键: ["NSUnderline", "NSColor", "NSFont", "NSParagraphStyle"]
+[NativeEditorContext] detectFontFormats - 字体: Helvetica-BoldOblique, 大小: 12.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 2147483651)
+[NativeEditorContext] detectFontFormats - 检测到粗体
+[NativeEditorContext] detectFontFormats - 检测到斜体（字体特性）
+[NativeEditorContext]   - 字体格式: ["斜体", "加粗"]
+[NativeEditorContext]   - 装饰格式: ["下划线"]
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 检测到的所有格式: ["斜体", "加粗", "下划线"]
+[NativeEditorContext] 检测到格式: 斜体, 加粗, 下划线
+[UnifiedEditorWrapper] performContentChange: XML 转换成功 - 长度: 367
+[UnifiedEditorWrapper] performContentChange: 已触发保存回调 - contentChanged: false, hasUnsavedChanges: true
+[MemoryCache] 更新缓存 - ID: 48958524..., 标题: 新笔记
+[保存状态] 📝 内容变化 - 设置为未保存
+[保存流程] ✅ Tier 0 内存缓存更新 - 笔记ID: 48958524..., XML长度: 367
+[NativeEditorContext] 内容变化检测 - 长度: 121, hasUnsavedChanges: true
+[NativeEditorContext] 内容变化检测 - 长度: 121, hasUnsavedChanges: true
+[NativeEditorView] handleExternalContentUpdate: 内容未变化，跳过更新
+[NativeEditorContext] 内容变化检测 - 长度: 122, hasUnsavedChanges: true
+[NativeEditorContext] 内容变化检测 - 长度: 122, hasUnsavedChanges: true
+[NativeEditorView] handleExternalContentUpdate: 内容未变化，跳过更新
+[UnifiedEditorWrapper] handleNativeContentChange: 防抖任务被取消
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 394
+[保存流程] 📝 使用原生编辑器最新内容 - 长度: 394
+[内容检测] ═══════════════════════════════════════
+[内容检测] 📊 检测结果: 内容变化=true, 标题变化=false
+[内容检测] 📏 内容长度: 当前=394, 保存=367
+[内容检测] ⏱️ 检测耗时: 0.00ms
+[内容检测] 📝 内容长度差异: 27 字符
+[内容检测] ⚠️ 内容长度差异较大，可能是实际编辑
+[内容检测] 🔍 当前内容预览: <text indent="1"><i>1</i><delete>212121212121212121212121212</delete></text>
+<text indent="1">安德<b>森
+[内容检测] 🔍 保存内容预览: <text indent="1"><i>1</i><delete>212121212121212121212121212</delete></text>
+<text indent="1">安德<b>森
+[内容检测] ✅ 标题无变化
+[内容检测] 🕐 时间戳决策: 需要更新
+[内容检测] ═══════════════════════════════════════
+[保存流程] 🔄 Tier 1 防抖保存触发 - 笔记ID: 48958524..., XML长度: 394
+[保存状态] ⏳ 开始保存 - 设置为保存中
+[NativeEditorContext] 📦 内容已备份 - 长度: 122
+[buildUpdatedNote] ═══════════════════════════════════════
+[buildUpdatedNote] 📝 笔记ID: 48958524...
+[buildUpdatedNote] 📝 标题: 新笔记
+[buildUpdatedNote] 📏 内容长度: 394
+[buildUpdatedNote] 🕐 shouldUpdateTimestamp: true
+[buildUpdatedNote] 🕐 原始时间戳: 2026-01-13 14:49:48 +0000
+[buildUpdatedNote] 🕐 新时间戳: 2026-01-13 14:50:02 +0000
+[buildUpdatedNote] 🕐 时间戳决策: 更新为当前时间
+[buildUpdatedNote] ═══════════════════════════════════════
+[SaveQueue] 添加保存任务 - ID: 48958524..., 优先级: normal, 队列长度: 1
+[保存流程] ✅ Tier 1 异步保存笔记到数据库成功，ID: 48958524..., 标题: 新笔记
+[SaveQueue] 保存成功 - ID: 48958524..., 队列剩余: 0
+[保存流程] ✅ Tier 1 异步保存笔记到数据库成功，ID: 48958524..., 标题: 新笔记
+[保存流程] 📝 XML保存成功，lastSavedXMLContent 已同步 - 长度: 394
+[保存流程] 🔄 更新 notes 数组 - 笔记ID: 48958524..., 当前选中: 48958524
+[保存流程] ✅ notes[0] 已更新
+[AudioPanelState] 处理笔记切换: nil -> 48958524961736224
+[保存流程] ✅ selectedNote 已同步更新
+[保存流程] 📊 更新后选中状态: 48958524
+[MemoryCache] 更新缓存 - ID: 48958524..., 标题: 新笔记
+[UnifiedEditorWrapper] content 变化 - 从长度 367 到 394, lastLoaded: 367
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 394
+[UnifiedEditorWrapper] xmlContent 变化但与编辑器内容相同，跳过重新加载
+[保存状态] ✅ 保存完成 - 设置为已保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] 🧹 保存错误状态已清除
+[NativeEditorContext] 内容已标记为已保存
+[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: 48958524..., 标题: 新笔记
+[NativeEditorContext] 🖼️ NSAttributedString 转换完成（直接转换）
+[NativeEditorContext]   - nsAttributed.length: 122
+[NativeEditorContext]   - nsAttributed.string: '1212121212121212121212121212
+安德森afdsad
+ijiijo
+iiiooiii1212
+2131312131232
+21313213221311231232131231
+1221321431241333333
+12'
+[NativeEditorContext] 🖼️ 总共发现 0 个附件，其中 0 个是 ImageAttachment
+[保存状态] 📝 内容变化 - 设置为未保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 122, hasUnsavedChanges: true
+[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:
+[NativeEditorContext]   - 范围 {31, 7}: '森afdsad'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 13.0
+[NativeEditorContext]     特性: bold=true, italic=false
+[NativeEditorContext]   - 范围 {59, 13}: '2131312131232'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 13.0
+[NativeEditorContext]     特性: bold=true, italic=false
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] ✅ 加载 XML 成功 - 长度: 394, 转换后文本长度: 122
+[UnifiedEditorWrapper] 原生编辑器从 content 绑定加载内容 - 长度: 394
+[CursorFormatManager] 执行更新 - range: {122, 0}
+[UnifiedFormatManager] detectFormatState - position: 122, state: FormatState(段落: 正文, 对齐: 左对齐)
+[CursorFormatManager] 使用 UnifiedFormatManager 检测格式状态
+[CursorFormatManager] 同步 typingAttributes
+[UnifiedFormatManager] 从 textStorage 获取属性 at position 121:
+  - NSColor: Catalog color: System labelColor
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+  - NSFont: ".AppleSystemUIFont 15.00 pt. P [] (0xc285d1680) fobj=0xc285d1680, spc=3.98"
+[UnifiedFormatManager] 光标位置同步 typingAttributes - position: 122
+[UnifiedFormatManager] 设置后的 typingAttributes:
+  - NSColor: Catalog color: System labelColor
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+  - NSFont: ".AppleSystemUIFont 15.00 pt. P [] (0xc285d1680) fobj=0xc285d1680, spc=3.98"
+[CursorFormatManager] 使用 UnifiedFormatManager 同步 typingAttributes
+[CursorFormatManager] 更新工具栏状态
+[CursorFormatManager] 工具栏状态已更新，激活格式: []
+[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 正文, 对齐: 左对齐)
+[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
+[CursorFormatManager] 光标模式更新完成 - position: 122, state: FormatState(段落: 正文, 对齐: 左对齐)
+[保存状态] 📝 内容变化 - 设置为未保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 123, hasUnsavedChanges: true
+[NativeEditorContext] 内容变化检测 - 长度: 123, hasUnsavedChanges: true
+[NativeEditorView] handleExternalContentUpdate: 内容未变化，跳过更新
+[UnifiedEditorWrapper] handleNativeContentChange: 防抖任务被取消
+[CursorFormatManager] 执行更新 - range: {123, 0}
+[UnifiedFormatManager] detectFormatState - position: 123, state: FormatState(段落: 正文, 对齐: 左对齐)
+[CursorFormatManager] 使用 UnifiedFormatManager 检测格式状态
+[CursorFormatManager] 同步 typingAttributes
+[UnifiedFormatManager] 从 textStorage 获取属性 at position 122:
+  - NSColor: Catalog color: System labelColor
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+  - NSFont: ".AppleSystemUIFont 15.00 pt. P [] (0xc285d1680) fobj=0xc285d1680, spc=3.98"
+[UnifiedFormatManager] 光标位置同步 typingAttributes - position: 123
+[UnifiedFormatManager] 设置后的 typingAttributes:
+  - NSColor: Catalog color: System labelColor
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+  - NSFont: ".AppleSystemUIFont 15.00 pt. P [] (0xc285d1680) fobj=0xc285d1680, spc=3.98"
+[CursorFormatManager] 使用 UnifiedFormatManager 同步 typingAttributes
+[CursorFormatManager] 更新工具栏状态
+[CursorFormatManager] 工具栏状态已更新，激活格式: []
+[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 正文, 对齐: 左对齐)
+[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
+[CursorFormatManager] 光标模式更新完成 - position: 123, state: FormatState(段落: 正文, 对齐: 左对齐)
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 123
+[NativeEditorContext]   - cursorPosition: 123
+[NativeEditorContext]   - selectedRange: {123, 0}
+[NativeEditorContext]   - 有效位置: 122
+[NativeEditorContext]   - 光标模式：使用前一个字符的属性位置: 121
+[NativeEditorContext]   - 属性数量: 3
+[NativeEditorContext] detectFontFormats - 属性键: ["NSColor", "NSParagraphStyle", "NSFont"]
+[NativeEditorContext] detectFontFormats - 字体: .AppleSystemUIFont, 大小: 15.0
+[NativeEditorContext] detectFontFormats - 字体特性: NSFontDescriptorSymbolicTraits(rawValue: 0)
+[NativeEditorContext] detectFontFormats - 通过字体大小检测到三级标题: 15.0
+[NativeEditorContext]   - 字体格式: ["三级标题"]
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 检测到的所有格式: ["三级标题"]
+[NativeEditorContext] 发送段落样式变化通知: paragraphStyle=subtitle
+[NativeEditorContext] 检测到格式: 三级标题
+[UnifiedEditorWrapper] performContentChange: XML 转换成功 - 长度: 395
+[UnifiedEditorWrapper] performContentChange: 已触发保存回调 - contentChanged: true, hasUnsavedChanges: true
+[MemoryCache] 更新缓存 - ID: 48958524..., 标题: 新笔记
+[保存状态] 📝 内容变化 - 设置为未保存
+[保存流程] ✅ Tier 0 内存缓存更新 - 笔记ID: 48958524..., XML长度: 395
+[MemoryCache] 更新缓存 - ID: 48958517..., 标题: 新笔记
+[MemoryCache] 更新缓存 - ID: 48958526..., 标题: 新笔记
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 395
+[保存流程] 📝 使用原生编辑器最新内容 - 长度: 395
+[内容检测] ═══════════════════════════════════════
+[内容检测] 📊 检测结果: 内容变化=true, 标题变化=false
+[内容检测] 📏 内容长度: 当前=395, 保存=394
+[内容检测] ⏱️ 检测耗时: 0.00ms
+[内容检测] 📝 内容长度差异: 1 字符
+[内容检测] ℹ️ 内容长度差异较小，可能是格式化差异
+[内容检测] 🔍 当前内容预览: <text indent="1"><i>1</i><delete>212121212121212121212121212</delete></text>
+<text indent="1">安德<b>森
+[内容检测] 🔍 保存内容预览: <text indent="1"><i>1</i><delete>212121212121212121212121212</delete></text>
+<text indent="1">安德<b>森
+[内容检测] ✅ 标题无变化
+[内容检测] 🕐 时间戳决策: 需要更新
+[内容检测] ═══════════════════════════════════════
+[保存流程] 🔄 Tier 1 防抖保存触发 - 笔记ID: 48958524..., XML长度: 395
+[保存状态] ⏳ 开始保存 - 设置为保存中
+[NativeEditorContext] 📦 内容已备份 - 长度: 123
+[buildUpdatedNote] ═══════════════════════════════════════
+[buildUpdatedNote] 📝 笔记ID: 48958524...
+[buildUpdatedNote] 📝 标题: 新笔记
+[buildUpdatedNote] 📏 内容长度: 395
+[buildUpdatedNote] 🕐 shouldUpdateTimestamp: true
+[buildUpdatedNote] 🕐 原始时间戳: 2026-01-13 14:50:02 +0000
+[buildUpdatedNote] 🕐 新时间戳: 2026-01-13 14:50:03 +0000
+[buildUpdatedNote] 🕐 时间戳决策: 更新为当前时间
+[buildUpdatedNote] ═══════════════════════════════════════
+[SaveQueue] 添加保存任务 - ID: 48958524..., 优先级: normal, 队列长度: 1
+[保存流程] ✅ Tier 1 异步保存笔记到数据库成功，ID: 48958524..., 标题: 新笔记
+[SaveQueue] 保存成功 - ID: 48958524..., 队列剩余: 0
+[保存流程] ✅ Tier 1 异步保存笔记到数据库成功，ID: 48958524..., 标题: 新笔记
+[保存流程] 📝 XML保存成功，lastSavedXMLContent 已同步 - 长度: 395
+[保存流程] 🔄 更新 notes 数组 - 笔记ID: 48958524..., 当前选中: 48958524
+[保存流程] ✅ notes[0] 已更新
+[AudioPanelState] 处理笔记切换: nil -> 48958524961736224
+[保存流程] ✅ selectedNote 已同步更新
+[保存流程] 📊 更新后选中状态: 48958524
+[MemoryCache] 更新缓存 - ID: 48958524..., 标题: 新笔记
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 395
+[UnifiedEditorWrapper] xmlContent 变化但与编辑器内容相同，跳过重新加载
+[保存状态] ✅ 保存完成 - 设置为已保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] 🧹 保存错误状态已清除
+[NativeEditorContext] 内容已标记为已保存
+[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: 48958524..., 标题: 新笔记
+[PinnedNoteRowContent] 点击笔记 - ID: 48958526..., 当前选中: 48958524, isSelected: false
+[AudioPanelState] 处理笔记切换: nil -> 48958526757028512
+[PinnedNoteRowContent] 设置 selectedNote 为 48958526...
+[NotesListView] 📊 selectedNote 变化: 48958524 -> 48958526
+[NotesListView] 🔄 选择 ID 变化，通知 coordinator
+[笔记切换] 💾 保存当前笔记 - ID: 48958524..., 标题: 新笔记
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 395
+[笔记切换] 📝 立即捕获原生编辑器内容 - 长度: 395
+[笔记切换] ═══════════════════════════════════════
+[笔记切换] 🔄 开始保存当前笔记
+[笔记切换] 📝 从笔记ID: 48958524... 切换到: 48958526...
+[笔记切换] 📝 捕获的标题: 新笔记
+[笔记切换] 📝 原始标题: 新笔记
+[笔记切换] 📏 捕获的内容长度: 395
+[笔记切换] 📏 lastSavedXMLContent 长度: 395
+[笔记切换] ═══════════════════════════════════════
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 395
+[UnifiedEditorWrapper] xmlContent 变化（切换笔记）- 从长度 395 到 59
+[ViewStateCoordinator] 状态已保存到 UserDefaults: folder=0, note=48958526757028512
+[StateTransition] noteSelection: folder(0 -> 0), note(48958524961736224 -> 48958526757028512)
+[ViewStateCoordinator] 笔记选择完成: 新笔记
+[笔记切换] 📝 后台保存内容 - 长度: 395
+[内容检测] ═══════════════════════════════════════
+[内容检测] 📊 检测结果: 内容变化=false, 标题变化=false
+[内容检测] 📏 内容长度: 当前=395, 保存=395
+[内容检测] ⏱️ 检测耗时: 0.00ms
+[内容检测] ✅ 内容无变化
+[内容检测] ✅ 标题无变化
+[内容检测] 🕐 时间戳决策: 保持不变
+[内容检测] ═══════════════════════════════════════
+[笔记切换] ⏭️ 内容无实际变化，跳过保存
+[性能监控] ═══════════════════════════════════════
+[性能监控] ⏱️ 笔记切换后台保存总耗时: 0.03ms
+[性能监控] 📊 保存决策: 跳过保存
+[性能监控] ✅ 后台保存性能正常
+[性能监控] ═══════════════════════════════════════
+[快速切换] 🔄 开始切换到笔记 - ID: 48958526..., 标题: 新笔记
+[保存状态] 🔄 笔记切换 - 重置为已保存
+[快速切换] 📝 标题已更新: 新笔记
+[快速切换] 📝 重置内容状态，lastSavedXMLContent 已清空
+[笔记切换] ⏭️ 无需保存 - 无当前编辑笔记或笔记ID相同
+[快速切换] 🔄 开始切换到笔记 - ID: 48958526..., 标题: 新笔记
+[保存状态] 🔄 笔记切换 - 重置为已保存
+[快速切换] 📝 标题已更新: 新笔记
+[MemoryCache] 缓存命中 - ID: 48958526..., 标题: 新笔记
+[快速切换] 📝 重置内容状态，lastSavedXMLContent 已清空
+[MemoryCache] 缓存命中 - ID: 48958526..., 标题: 新笔记
+[NativeEditorContext] 🖼️ NSAttributedString 转换完成（直接转换）
+[NativeEditorContext]   - nsAttributed.length: 28
+[NativeEditorContext]   - nsAttributed.string: '12121212121212121212你是猪一致你是猪'
+[NativeEditorContext] 🖼️ 总共发现 0 个附件，其中 0 个是 ImageAttachment
+[保存状态] 📝 内容变化 - 设置为未保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 28, hasUnsavedChanges: true
+[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] ✅ 加载 XML 成功 - 长度: 59, 转换后文本长度: 28
+[UnifiedEditorWrapper] 原生编辑器重新加载内容 - 长度: 59
+[NativeEditorView] 更新内容 - 当前长度: 123, 新长度: 28
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 28, hasUnsavedChanges: true
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[保存状态] 📝 内容变化 - 设置为未保存
+[CursorFormatManager] 取消注册
+[NativeEditorView] CursorFormatManager 已取消注册
+[UnifiedFormatManager] 取消注册
+[NativeEditorView] UnifiedFormatManager 已取消注册
+<_TtGC7SwiftUI22AppKitPlatformViewHostGVS_P10$1c4f6e95432PlatformViewRepresentableAdaptorVS_18AppKitProgressView__: 0xc27fa9f80> has an maximum length (32.083333) that doesn't satisfy min (32.083333) <= max (32.083333).
+[快速切换] ✅ 内存缓存命中 - ID: 48958526...
+[快速切换] 📝 从缓存加载内容，lastSavedXMLContent 已同步 - 长度: 59
+[快速切换] ✅ 从缓存加载完成 - ID: 48958526..., 标题: 新笔记, 内容长度: 59
+[持久化验证] 🔍 开始验证音频附件 - 笔记ID: 48958526...
+[持久化验证] ℹ️ 无音频附件 - 笔记ID: 48958526...
+[NativeEditorContext] 验证内容持久化，预期内容长度: 59
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 59
+[NativeEditorContext] 内容持久化验证结果: 失败
+[NativeEditorContext] 当前XML长度: 59
+[持久化验证] 原生编辑器验证结果: 失败
+[快速切换] ✅ 内存缓存命中 - ID: 48958526...
+[快速切换] 📝 从缓存加载内容，lastSavedXMLContent 已同步 - 长度: 59
+[快速切换] ✅ 从缓存加载完成 - ID: 48958526..., 标题: 新笔记, 内容长度: 59
+[持久化验证] 🔍 开始验证音频附件 - 笔记ID: 48958526...
+[持久化验证] ℹ️ 无音频附件 - 笔记ID: 48958526...
+[NativeEditorContext] 验证内容持久化，预期内容长度: 59
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 59
+[NativeEditorContext] 内容持久化验证结果: 失败
+[NativeEditorContext] 当前XML长度: 59
+[持久化验证] 原生编辑器验证结果: 失败
+[NativeEditorView] 🔍 加载初始内容到 NSTextView
+[NativeEditorView]   - 内容长度: 28
+[NativeEditorView]   - 加载前 范围 {0, 20}: Helvetica, italic=false
+[NativeEditorView]   - 加载前 范围 {20, 8}: PingFangSC-Regular, italic=false
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorContext] 内容变化检测 - 长度: 28, hasUnsavedChanges: true
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorView]   - 加载后 范围 {0, 20}: Helvetica, italic=false
+[NativeEditorView]   - 加载后 范围 {20, 8}: PingFangSC-Regular, italic=false
+[CustomRenderer] 缓存预热完成，当前缓存数量: 19
+[CursorFormatManager] 注册编辑器组件
+[NativeEditorView] CursorFormatManager 已注册
+[UnifiedFormatManager] 注册编辑器组件
+[NativeEditorView] UnifiedFormatManager 已注册
+[NativeEditorView] 初始化完成，耗时: 1.38ms
+[NativeEditorContext] 🖼️ NSAttributedString 转换完成（直接转换）
+[NativeEditorContext]   - nsAttributed.length: 28
+[NativeEditorContext]   - nsAttributed.string: '12121212121212121212你是猪一致你是猪'
+[NativeEditorContext] 🖼️ 总共发现 0 个附件，其中 0 个是 ImageAttachment
+[NativeEditorContext] 内容变化检测 - 长度: 28, hasUnsavedChanges: true
+[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] ✅ 加载 XML 成功 - 长度: 59, 转换后文本长度: 28
+[UnifiedEditorWrapper] 原生编辑器加载内容 - 长度: 59
+[NativeEditorContext] 🖼️ NSAttributedString 转换完成（直接转换）
+[NativeEditorContext]   - nsAttributed.length: 28
+[NativeEditorContext]   - nsAttributed.string: '12121212121212121212你是猪一致你是猪'
+[NativeEditorContext] 🖼️ 总共发现 0 个附件，其中 0 个是 ImageAttachment
+[保存状态] 📝 内容变化 - 设置为未保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 28, hasUnsavedChanges: true
+[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] ✅ 加载 XML 成功 - 长度: 59, 转换后文本长度: 28
+[UnifiedEditorWrapper] 原生编辑器加载内容 - 长度: 59
+[UnifiedEditorWrapper] 初始加载内容 - 长度: 59
+[CursorFormatManager] 执行更新 - range: {28, 0}
+[UnifiedFormatManager] detectFormatState - position: 28, state: FormatState(段落: 正文, 对齐: 左对齐)
+[CursorFormatManager] 使用 UnifiedFormatManager 检测格式状态
+[CursorFormatManager] 同步 typingAttributes
+[UnifiedFormatManager] 从 textStorage 获取属性 at position 27:
+  - NSColor: Catalog color: System labelColor
+  - NSOriginalFont: "Helvetica 12.00 pt. P [] (0xc28ad5b80) fobj=0xc27b4c280, spc=3.33"
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+  - NSFont: "PingFangSC-Regular 12.00 pt. P [] (0xc27214a00) fobj=0xc27214a00, spc=4.00"
+[UnifiedFormatManager] 光标位置同步 typingAttributes - position: 28
+[UnifiedFormatManager] 设置后的 typingAttributes:
+  - NSColor: Catalog color: System labelColor
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+  - NSFont: "Helvetica 12.00 pt. P [] (0xc28ad5b80) fobj=0xc27b4c280, spc=3.33"
+[CursorFormatManager] 使用 UnifiedFormatManager 同步 typingAttributes
+[CursorFormatManager] 更新工具栏状态
+[CursorFormatManager] 工具栏状态已更新，激活格式: []
+[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 正文, 对齐: 左对齐)
+[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
+[CursorFormatManager] 光标模式更新完成 - position: 28, state: FormatState(段落: 正文, 对齐: 左对齐)
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 28
+[NativeEditorContext]   - cursorPosition: 28
+[NativeEditorContext]   - selectedRange: {28, 0}
+[NativeEditorContext]   - 有效位置: 27
+[NativeEditorContext]   - 光标模式：使用前一个字符的属性位置: 26
+[NativeEditorContext]   - 属性数量: 2
+[NativeEditorContext] detectFontFormats - 属性键: ["NSColor", "NSParagraphStyle"]
+[NativeEditorContext] detectFontFormats - 没有找到 .font 属性
+[NativeEditorContext]   - 字体格式: []
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 检测到的所有格式: []
+[MemoryCache] 更新缓存 - ID: 48958524..., 标题: 新笔记
+[PinnedNoteRowContent] 点击笔记 - ID: 48958524..., 当前选中: 48958526, isSelected: false
+[AudioPanelState] 处理笔记切换: nil -> 48958524961736224
+[PinnedNoteRowContent] 设置 selectedNote 为 48958524...
+[NotesListView] 📊 selectedNote 变化: 48958526 -> 48958524
+[NotesListView] 🔄 选择 ID 变化，通知 coordinator
+[笔记切换] 💾 保存当前笔记 - ID: 48958526..., 标题: 新笔记
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 59
+[笔记切换] 📝 立即捕获原生编辑器内容 - 长度: 59
+[笔记切换] ═══════════════════════════════════════
+[笔记切换] 🔄 开始保存当前笔记
+[笔记切换] 📝 从笔记ID: 48958526... 切换到: 48958524...
+[笔记切换] 📝 捕获的标题: 新笔记
+[笔记切换] 📝 原始标题: 新笔记
+[笔记切换] 📏 捕获的内容长度: 59
+[笔记切换] 📏 lastSavedXMLContent 长度: 59
+[笔记切换] ═══════════════════════════════════════
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 59
+[UnifiedEditorWrapper] xmlContent 变化（切换笔记）- 从长度 59 到 395
+[ViewStateCoordinator] 状态已保存到 UserDefaults: folder=0, note=48958524961736224
+[StateTransition] noteSelection: folder(0 -> 0), note(48958526757028512 -> 48958524961736224)
+[ViewStateCoordinator] 笔记选择完成: 新笔记
+[笔记切换] 📝 后台保存内容 - 长度: 59
+[内容检测] ═══════════════════════════════════════
+[内容检测] 📊 检测结果: 内容变化=false, 标题变化=false
+[内容检测] 📏 内容长度: 当前=59, 保存=59
+[内容检测] ⏱️ 检测耗时: 0.00ms
+[内容检测] ✅ 内容无变化
+[内容检测] ✅ 标题无变化
+[内容检测] 🕐 时间戳决策: 保持不变
+[内容检测] ═══════════════════════════════════════
+[笔记切换] ⏭️ 内容无实际变化，跳过保存
+[性能监控] ═══════════════════════════════════════
+[性能监控] ⏱️ 笔记切换后台保存总耗时: 0.03ms
+[性能监控] 📊 保存决策: 跳过保存
+[性能监控] ✅ 后台保存性能正常
+[性能监控] ═══════════════════════════════════════
+[快速切换] 🔄 开始切换到笔记 - ID: 48958524..., 标题: 新笔记
+[保存状态] 🔄 笔记切换 - 重置为已保存
+[快速切换] 📝 标题已更新: 新笔记
+[快速切换] 📝 重置内容状态，lastSavedXMLContent 已清空
+[笔记切换] ⏭️ 无需保存 - 无当前编辑笔记或笔记ID相同
+[快速切换] 🔄 开始切换到笔记 - ID: 48958524..., 标题: 新笔记
+[保存状态] 🔄 笔记切换 - 重置为已保存
+[快速切换] 📝 标题已更新: 新笔记
+[快速切换] 📝 重置内容状态，lastSavedXMLContent 已清空
+[MemoryCache] 缓存命中 - ID: 48958524..., 标题: 新笔记
+[MemoryCache] 缓存命中 - ID: 48958524..., 标题: 新笔记
+[NativeEditorContext] 🖼️ NSAttributedString 转换完成（直接转换）
+[NativeEditorContext]   - nsAttributed.length: 123
+[NativeEditorContext]   - nsAttributed.string: '1212121212121212121212121212
+安德森afdsad
+ijiijo
+iiiooiii1212
+2131312131232
+21313213221311231232131231
+1221321431241333333
+123'
+[NativeEditorContext] 🖼️ 总共发现 0 个附件，其中 0 个是 ImageAttachment
+[保存状态] 📝 内容变化 - 设置为未保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 123, hasUnsavedChanges: true
+[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:
+[NativeEditorContext]   - 范围 {31, 7}: '森afdsad'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 13.0
+[NativeEditorContext]     特性: bold=true, italic=false
+[NativeEditorContext]   - 范围 {59, 13}: '2131312131232'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 13.0
+[NativeEditorContext]     特性: bold=true, italic=false
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] ✅ 加载 XML 成功 - 长度: 395, 转换后文本长度: 123
+[UnifiedEditorWrapper] 原生编辑器重新加载内容 - 长度: 395
+[NativeEditorView] 更新内容 - 当前长度: 28, 新长度: 123
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 123, hasUnsavedChanges: true
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorContext] 内容变化检测 - 长度: 123, hasUnsavedChanges: true
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[保存状态] 📝 内容变化 - 设置为未保存
+[CursorFormatManager] 取消注册
+[NativeEditorView] CursorFormatManager 已取消注册
+[UnifiedFormatManager] 取消注册
+[NativeEditorView] UnifiedFormatManager 已取消注册
+[快速切换] ✅ 内存缓存命中 - ID: 48958524...
+[快速切换] 📝 从缓存加载内容，lastSavedXMLContent 已同步 - 长度: 395
+[快速切换] ✅ 从缓存加载完成 - ID: 48958524..., 标题: 新笔记, 内容长度: 395
+[持久化验证] 🔍 开始验证音频附件 - 笔记ID: 48958524...
+[持久化验证] ℹ️ 无音频附件 - 笔记ID: 48958524...
+[NativeEditorContext] 验证内容持久化，预期内容长度: 395
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 374
+[NativeEditorContext] 内容持久化验证结果: 失败
+[NativeEditorContext] 当前XML长度: 374
+[持久化验证] 原生编辑器验证结果: 失败
+[快速切换] ✅ 内存缓存命中 - ID: 48958524...
+[快速切换] 📝 从缓存加载内容，lastSavedXMLContent 已同步 - 长度: 395
+[快速切换] ✅ 从缓存加载完成 - ID: 48958524..., 标题: 新笔记, 内容长度: 395
+[持久化验证] 🔍 开始验证音频附件 - 笔记ID: 48958524...
+[持久化验证] ℹ️ 无音频附件 - 笔记ID: 48958524...
+[NativeEditorContext] 验证内容持久化，预期内容长度: 395
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 374
+[NativeEditorContext] 内容持久化验证结果: 失败
+[NativeEditorContext] 当前XML长度: 374
+[持久化验证] 原生编辑器验证结果: 失败
+<_TtGC7SwiftUI22AppKitPlatformViewHostGVS_P10$1c4f6e95432PlatformViewRepresentableAdaptorVS_18AppKitProgressView__: 0xc27fa9f80> has an maximum length (32.083333) that doesn't satisfy min (32.083333) <= max (32.083333).
+[NativeEditorView] 🔍 加载初始内容到 NSTextView
+[NativeEditorView]   - 内容长度: 123
+[NativeEditorView]   - 加载前 范围 {31, 7}: .AppleSystemUIFontBold, italic=false
+[NativeEditorView]   - 加载前 范围 {59, 13}: .AppleSystemUIFontBold, italic=false
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorContext] 内容变化检测 - 长度: 123, hasUnsavedChanges: true
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorView]   - 加载后 范围 {31, 7}: .AppleSystemUIFontBold, italic=false
+[NativeEditorView]   - 加载后 范围 {59, 13}: .AppleSystemUIFontBold, italic=false
+[CustomRenderer] 缓存预热完成，当前缓存数量: 19
+[CursorFormatManager] 注册编辑器组件
+[NativeEditorView] CursorFormatManager 已注册
+[UnifiedFormatManager] 注册编辑器组件
+[NativeEditorView] UnifiedFormatManager 已注册
+[NativeEditorView] 初始化完成，耗时: 2.20ms
+[NativeEditorContext] 🖼️ NSAttributedString 转换完成（直接转换）
+[NativeEditorContext]   - nsAttributed.length: 123
+[NativeEditorContext]   - nsAttributed.string: '1212121212121212121212121212
+安德森afdsad
+ijiijo
+iiiooiii1212
+2131312131232
+21313213221311231232131231
+1221321431241333333
+123'
+[NativeEditorContext] 🖼️ 总共发现 0 个附件，其中 0 个是 ImageAttachment
+[NativeEditorContext] 内容变化检测 - 长度: 123, hasUnsavedChanges: true
+[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:
+[NativeEditorContext]   - 范围 {31, 7}: '森afdsad'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 13.0
+[NativeEditorContext]     特性: bold=true, italic=false
+[NativeEditorContext]   - 范围 {59, 13}: '2131312131232'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 13.0
+[NativeEditorContext]     特性: bold=true, italic=false
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] ✅ 加载 XML 成功 - 长度: 395, 转换后文本长度: 123
+[UnifiedEditorWrapper] 原生编辑器加载内容 - 长度: 395
+[NativeEditorContext] 🖼️ NSAttributedString 转换完成（直接转换）
+[NativeEditorContext]   - nsAttributed.length: 123
+[NativeEditorContext]   - nsAttributed.string: '1212121212121212121212121212
+安德森afdsad
+ijiijo
+iiiooiii1212
+2131312131232
+21313213221311231232131231
+1221321431241333333
+123'
+[NativeEditorContext] 🖼️ 总共发现 0 个附件，其中 0 个是 ImageAttachment
+[保存状态] 📝 内容变化 - 设置为未保存
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = true
+[NativeEditorContext] 内容变化检测 - 长度: 123, hasUnsavedChanges: true
+[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:
+[NativeEditorContext]   - 范围 {31, 7}: '森afdsad'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 13.0
+[NativeEditorContext]     特性: bold=true, italic=false
+[NativeEditorContext]   - 范围 {59, 13}: '2131312131232'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 13.0
+[NativeEditorContext]     特性: bold=true, italic=false
+[NativeEditorContext] 保存状态变化: hasUnsavedChanges = false
+[NativeEditorContext] ✅ 加载 XML 成功 - 长度: 395, 转换后文本长度: 123
+[UnifiedEditorWrapper] 原生编辑器加载内容 - 长度: 395
+[UnifiedEditorWrapper] 初始加载内容 - 长度: 395
+[CursorFormatManager] 执行更新 - range: {123, 0}
+[UnifiedFormatManager] detectFormatState - position: 123, state: FormatState(段落: 正文, 对齐: 左对齐)
+[CursorFormatManager] 使用 UnifiedFormatManager 检测格式状态
+[CursorFormatManager] 同步 typingAttributes
+[UnifiedFormatManager] 从 textStorage 获取属性 at position 122:
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+  - NSColor: Catalog color: System labelColor
+[UnifiedFormatManager] 光标位置同步 typingAttributes - position: 123
+[UnifiedFormatManager] 设置后的 typingAttributes:
+  - NSParagraphStyle: Alignment Left, LineSpacing 0, ParagraphSpacing 0, ParagraphSpacingBefore 0, HeadIndent 0, TailIndent 0, FirstLineHeadIndent 0, LineHeight 0/0, LineHeightMultiple 0 LineBreakMode WordWrapping, Tabs (
+    28L,
+    56L,
+    84L,
+    112L,
+    140L,
+    168L,
+    196L,
+    224L,
+    252L,
+    280L,
+    308L,
+    336L
+), DefaultTabInterval 0, Blocks (
+), Lists (
+), BaseWritingDirection Natural, HyphenationFactor 0, TighteningForTruncation YES, HeaderLevel 0 LineBreakStrategy 0 PresentationIntents (
+) ListIntentOrdinal 0 CodeBlockIntentLanguageHint ''
+  - NSColor: Catalog color: System labelColor
+[CursorFormatManager] 使用 UnifiedFormatManager 同步 typingAttributes
+[CursorFormatManager] 更新工具栏状态
+[CursorFormatManager] 工具栏状态已更新，激活格式: []
+[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 正文, 对齐: 左对齐)
+[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
+[CursorFormatManager] 光标模式更新完成 - position: 123, state: FormatState(段落: 正文, 对齐: 左对齐)
+[NativeEditorContext] updateCurrentFormats 被调用
+[NativeEditorContext]   - nsAttributedText.length: 123
+[NativeEditorContext]   - cursorPosition: 123
+[NativeEditorContext]   - selectedRange: {123, 0}
+[NativeEditorContext]   - 有效位置: 122
+[NativeEditorContext]   - 光标模式：使用前一个字符的属性位置: 121
+[NativeEditorContext]   - 属性数量: 2
+[NativeEditorContext] detectFontFormats - 属性键: ["NSParagraphStyle", "NSColor"]
+[NativeEditorContext] detectFontFormats - 没有找到 .font 属性
+[NativeEditorContext]   - 字体格式: []
+[NativeEditorContext]   - 装饰格式: []
+[NativeEditorContext]   - 段落格式: []
+[NativeEditorContext]   - 列表格式: []
+[NativeEditorContext]   - 特殊格式: []
+[NativeEditorContext]   - 检测到的所有格式: []
+[buildUpdatedNote] ═══════════════════════════════════════
+[buildUpdatedNote] 📝 笔记ID: 48958524...
+[buildUpdatedNote] 📝 标题: 新笔记
+[buildUpdatedNote] 📏 内容长度: 395
+[buildUpdatedNote] 🕐 shouldUpdateTimestamp: true
+[buildUpdatedNote] 🕐 原始时间戳: 2026-01-13 14:50:02 +0000
+[buildUpdatedNote] 🕐 新时间戳: 2026-01-13 14:50:05 +0000
+[buildUpdatedNote] 🕐 时间戳决策: 更新为当前时间
+[buildUpdatedNote] ═══════════════════════════════════════
+[保存流程] 🔄 Tier 2 开始云端同步
+[保存流程]   - 笔记ID: 48958524...
+[保存流程]   - 标题: 新笔记
+[保存流程]   - XML长度: 395
+[保存流程]   - 内容预览: <text indent="1"><i>1</i><delete>212121212121212121212121212</delete></text>
+<text indent="1">安德<b>森</b><b>afdsad</b></text>
+<text indent="1">ijiijo</text>
+<text indent="1"><i>iiiooiii1212</i></text>
+...
+[VIEWMODEL] updateNote: 48958524961736224, title: 新笔记
+![[debug]] [Database] 保存笔记，ID: 48958524961736224, 标题: 新笔记, content长度: 395
+![[debug]] ========== 数据流程节点DB2: 绑定参数 ==========
+![[debug]] ========== 数据流程节点DB4: 执行 SQL ==========
+![[debug]] ========== 数据流程节点DB5: 数据库保存成功 ==========
+![[debug]] [Database] ✅ 保存笔记到数据库成功，ID: 48958524961736224, 标题: 新笔记, content长度: 395
+[AudioPanelState] 处理笔记切换: nil -> 48958524961736224
+[[调试]]步骤34 [MiNoteService] 进入updateNote服务方法，noteId: 48958524961736224, title: 新笔记, content长度: 395
+[[调试]]步骤35 [MiNoteService] 构建extraInfo，title: 新笔记
+[[调试]]步骤36 [MiNoteService] 清理content，原始长度: 395, 清理后长度: 395
+[[调试]]步骤37 [MiNoteService] 构建setting对象，包含图片数据: false
+[[调试]]步骤38 [MiNoteService] 构建entry对象，id: 48958524961736224, tag: 48958994412093440, content长度: 395
+[[调试]]步骤39 [MiNoteService] 序列化entry为JSON，JSON长度: 807
+[[调试]]步骤40 [MiNoteService] URL编码完成，entry编码后长度: 1423
+[[调试]]步骤41 [MiNoteService] 构建请求体，body长度: 1835
+📤 请求: POST https://i.mi.com/note/note/48958524961736224
+请求头: ["origin": "https://i.mi.com", "referer": "https://i.mi.com/note/h5", "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8", "Cookie": "deviceId=wb_297fb161-3f7a-4ee8-a774-a92978565263; pass_ua=web; passToken=V1:pwROAesIuzMBPe5slLSsQgKGjvXBuX15UGUYlYqW/WD79Eg4aFbK2DmqpNS4WL1zBUXirKFQjL+ArbrzOEUaUic0gXSsgCcxtqI5RDtZ8j5UZ8WAMddCcvMfIt5v6dqdJOYq3r4pKK6wHJDhQhnttZpDIqklBZrpuHf5SS6/7Y7+bPCqX8w2I7bgMGLqJOTndl8dbsDKEqNxNxoTMoum75un1sS26GAzNmTFLxqEB5l0eVWeFlV/O+W/siN/imbHyIT2NRNBxBxwkp28UrGNlkistbD+p0CuiXlkyiHZhpIM5tQH/PuGQ9sdv6ybJdwpv0CC5poT2YdPOHFtRiBmgm45gi3+piXUpxtFP71N78M=; userId=1315204657; cUserId=I0PgvZ_zZoxiWbsmMZpt9OiFkhE; passInfo=login-end; uLocale=zh_CN; cUserId=I0PgvZ_zZoxiWbsmMZpt9OiFkhE; uLocale=zh_CN; i.mi.com_isvalid_servicetoken=true; iplocale=zh_CN; userId=1315204657; i.mi.com_istrudev=true; serviceToken=U7s/v0q0JE/UQMNZhVxzLeOktqG4Qz13woP/80HpIvVY2dK8xLxEXCrhtt80BPc4u1FUfd0MAkS1ihlTjRbFwu3cOujdykqotf2nz2J72FFnubv0sqv0j4danVlHBEqU867CL3TT47thke9W2Ia0medhK/VXoSzR93/Oxy2I4Tk2K7WRWam+DbI1tI/W5l6QO4X7HBp4zVK29zsa/QvY/6QS5KPK+iGnh2gy3tYX5EHuw1Zj7fywK5HldKmejG/QkgCC6nC4Fwb0dQL1XAsQ2SKMT5nU11pclQBdG0pdWnrCVXzkdtxgy4ynJUZUmTHUNO65NdAwePsAJvKhhvp++gMpItUYkMmxnIYbZVhhEcQ=; i.mi.com_slh=GaIkx+QdjNl8TP9p4z7lkjjX0XE=; i.mi.com_ph=Xqf7j38sSQOKcJ3KYbyz3Q==", "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Encoding": "gzip, deflate, br"]
+请求体: entry=%7B%22alertDate%22%3A0%2C%22colorId%22%3A0%2C%22content%22%3A%22%3Ctext%20indent%3D%5C%221%5C%22%3E%3Ci%3E1%3C%5C%2Fi%3E%3Cdelete%3E212121212121212121212121212%3C%5C%2Fdelete%3E%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3E%E5%AE%89%E5%BE%B7%3Cb%3E%E6%A3%AE%3C%5C%2Fb%3E%3Cb%3Eafdsad%3C%5C%2Fb%3E%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3Eijiijo%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3E%3Ci%3Eiiiooiii1212%3C%5C%2Fi%3E%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3E%3Cb%3E2131312131232%3C%5C%2Fb%3E%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3E%3Cu%3E21313213221311231232131231%3C%5C%2Fu%3E%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3E1221%3Cu%3E%3Ci%3E%3Cb%3E321431241333333%3C%5C%2Fb%3E%3C%5C%2Fi%3E%3C%5C%2Fu%3E%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3E123%3C%5C%2Ftext%3E%22%2C%22createDate%22%3A1768315660065%2C%22extraInfo%22%3A%22%7B%5C%22web_images%5C%22%3A%5C%22%5C%22%2C%5C%22title%5C%22%3A%5C%22%E6%96%B0%E7%AC%94%E8%AE%B0%5C%22%2C%5C%22mind_content%5C%22%3A%5C%22%5C%22%2C%5C%22mind_content_plain_text%5C%22%3A%5C%22%5C%22%2C%5C%22note_content_type%5C%22%3A%5C%22common%5C%22%7D%22%2C%22folderId%22%3A%220%22%2C%22id%22%3A%2248958524961736224%22%2C%22modifyDate%22%3A1768315805740%2C%22setting%22%3A%7B%22stickyTime%22%3A0%2C%22themeId%22%3A0%2C%22version%22%3A0%7D%2C%22status%22%3A%22normal%22%2C%22tag%22%3A%2248958994412093440%22%7D&serviceToken=U7s%2Fv0q0JE%2FUQMNZhVxzLeOktqG4Qz13woP%2F80HpIvVY2dK8xLxEXCrhtt80BPc4u1FUfd0MAkS1ihlTjRbFwu3cOujdykqotf2nz2J72FFnubv0sqv0j4danVlHBEqU867CL3TT47thke9W2Ia0medhK%2FVXoSzR93%2FOxy2I4Tk2K7WRWam%2BDbI1tI%2FW5l6QO4X7HBp4zVK29zsa%2FQvY%2F6QS5KPK%2BiGnh2gy3tYX5EHuw1Zj7fywK5HldKmejG%2FQkgCC6nC4Fwb0dQL1XAsQ2SKMT5nU11pclQBdG0pdWnrCVXzkdtxgy4ynJUZUmTHUNO65NdAwePsAJvKhhvp%2B%2BgMpItUYkMmxnIYbZVhhEcQ%3D
+[[调试]]步骤42 [MiNoteService] 创建HTTP请求，URL: https://i.mi.com/note/note/48958524961736224, method: POST
+[[调试]]步骤43 [MiNoteService] 发送网络请求，笔记ID: 48958524961736224
+[[调试]]步骤44 [MiNoteService] 接收HTTP响应，状态码: 200
+📥 响应: POST https://i.mi.com/note/note/48958524961736224 - 状态码: 200
+响应头: ["Content-Encoding": "gzip", "Content-Type": "application/json", "Date": "Tue, 13 Jan 2026 14:50:05 GMT", "Server": "Tengine"]
+响应体: {"result":"ok","retriable":false,"code":0,"data":{"modifyDate":1768315805740,"id":"48958524961736224","tag":"48958996680164577","conflict":false},"description":"成功","ts":1768315805823}
+[[调试]]步骤46 [MiNoteService] 解析响应JSON，响应长度: 188
+[[调试]]步骤47 [MiNoteService] 返回响应，code: 0
+[保存流程] ✅ Tier 2 云端同步成功 - 笔记ID: 48958524..., 标题: 新笔记
+[VIEWMODEL] 应用变为后台
+[VIEWMODEL] 停止自动同步定时器

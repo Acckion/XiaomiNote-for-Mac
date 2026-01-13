@@ -158,6 +158,16 @@ final class DatabaseService: @unchecked Sendable {
         """
         executeSQL(createPendingDeletionsTable)
         
+        // 创建 pending_uploads 表（待上传注册表）
+        let createPendingUploadsTable = """
+        CREATE TABLE IF NOT EXISTS pending_uploads (
+            note_id TEXT PRIMARY KEY,
+            local_save_timestamp REAL NOT NULL,
+            registered_at REAL NOT NULL
+        );
+        """
+        executeSQL(createPendingUploadsTable)
+        
         // 创建索引
         createIndexes()
     }
@@ -1326,6 +1336,115 @@ final class DatabaseService: @unchecked Sendable {
             let sql = "DELETE FROM folder_sort_info WHERE id = 1;"
             executeSQL(sql)
             print("[Database] 清除文件夹排序信息")
+        }
+    }
+    
+    // MARK: - 待上传注册表操作
+    
+    /// 保存待上传条目
+    /// 
+    /// - Parameter entry: 待上传条目
+    /// - Throws: DatabaseError（数据库操作失败）
+    func savePendingUpload(_ entry: PendingUploadEntry) throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = """
+            INSERT OR REPLACE INTO pending_uploads (note_id, local_save_timestamp, registered_at)
+            VALUES (?, ?, ?);
+            """
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (entry.noteId as NSString).utf8String, -1, nil)
+            sqlite3_bind_double(statement, 2, entry.localSaveTimestamp.timeIntervalSince1970)
+            sqlite3_bind_double(statement, 3, entry.registeredAt.timeIntervalSince1970)
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+        }
+    }
+    
+    /// 删除待上传条目
+    /// 
+    /// - Parameter noteId: 笔记 ID
+    /// - Throws: DatabaseError（数据库操作失败）
+    func deletePendingUpload(noteId: String) throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = "DELETE FROM pending_uploads WHERE note_id = ?;"
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (noteId as NSString).utf8String, -1, nil)
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+        }
+    }
+    
+    /// 获取所有待上传条目
+    /// 
+    /// - Returns: 待上传条目数组
+    /// - Throws: DatabaseError（数据库操作失败）
+    func getAllPendingUploads() throws -> [PendingUploadEntry] {
+        return try dbQueue.sync {
+            let sql = "SELECT note_id, local_save_timestamp, registered_at FROM pending_uploads;"
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            var entries: [PendingUploadEntry] = []
+            
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let noteId = String(cString: sqlite3_column_text(statement, 0))
+                let localSaveTimestamp = Date(timeIntervalSince1970: sqlite3_column_double(statement, 1))
+                let registeredAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 2))
+                
+                let entry = PendingUploadEntry(
+                    noteId: noteId,
+                    localSaveTimestamp: localSaveTimestamp,
+                    registeredAt: registeredAt
+                )
+                entries.append(entry)
+            }
+            
+            return entries
+        }
+    }
+    
+    /// 清空所有待上传条目
+    /// 
+    /// - Throws: DatabaseError（数据库操作失败）
+    func clearAllPendingUploads() throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = "DELETE FROM pending_uploads;"
+            executeSQL(sql)
         }
     }
 }

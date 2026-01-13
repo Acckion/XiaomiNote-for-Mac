@@ -8,6 +8,7 @@ import AppKit
 /// - 增量同步：只同步自上次同步以来的更改
 /// - 冲突解决：处理本地和云端同时修改的情况
 /// - 离线操作队列：管理网络断开时的操作
+/// - 同步保护：防止覆盖正在编辑或待上传的笔记
 final class SyncService: @unchecked Sendable {
     static let shared = SyncService()
     
@@ -19,6 +20,10 @@ final class SyncService: @unchecked Sendable {
     /// 本地存储服务
     private let localStorage = LocalStorageService.shared
     
+    /// 同步保护过滤器
+    /// 用于检查笔记是否应该被同步跳过（正在编辑或待上传）
+    private let syncProtectionFilter = SyncProtectionFilter()
+    
     // MARK: - 同步状态
     
     /// 同步锁 - 使用 NSLock 确保线程安全
@@ -27,6 +32,7 @@ final class SyncService: @unchecked Sendable {
     
     /// 是否正在同步（内部状态）
     private var _isSyncing = false
+
     
     /// 是否正在同步（线程安全访问）
     private var isSyncing: Bool {
@@ -969,6 +975,25 @@ final class SyncService: @unchecked Sendable {
         var result = NoteSyncResult(noteId: cloudNote.id, noteTitle: cloudNote.title)
         let offlineQueue = OfflineOperationQueue.shared
         let pendingOps = offlineQueue.getPendingOperations()
+        
+        // 🛡️ 同步保护检查：检查笔记是否应该被跳过
+        let shouldSkip = await syncProtectionFilter.shouldSkipSync(
+            noteId: cloudNote.id,
+            cloudTimestamp: cloudNote.updatedAt
+        )
+        if shouldSkip {
+            // 获取跳过原因用于日志
+            if let skipReason = await syncProtectionFilter.getSkipReason(
+                noteId: cloudNote.id,
+                cloudTimestamp: cloudNote.updatedAt
+            ) {
+                print("[SYNC] 🛡️ 同步保护：跳过笔记 \(cloudNote.id.prefix(8))... - \(skipReason.description)")
+            }
+            result.status = .skipped
+            result.message = "同步保护：笔记正在编辑或待上传"
+            result.success = true
+            return result
+        }
         
         if let localNote = try localStorage.loadNote(noteId: cloudNote.id) {
             // 情况1：云端和本地都存在
@@ -1954,6 +1979,25 @@ final class SyncService: @unchecked Sendable {
     private func processModifiedNote(_ note: Note) async throws -> NoteSyncResult {
         print("[SYNC] 处理有修改的笔记: \(note.id) - \(note.title)")
         var result = NoteSyncResult(noteId: note.id, noteTitle: note.title)
+        
+        // 🛡️ 同步保护检查：检查笔记是否应该被跳过
+        let shouldSkip = await syncProtectionFilter.shouldSkipSync(
+            noteId: note.id,
+            cloudTimestamp: note.updatedAt
+        )
+        if shouldSkip {
+            // 获取跳过原因用于日志
+            if let skipReason = await syncProtectionFilter.getSkipReason(
+                noteId: note.id,
+                cloudTimestamp: note.updatedAt
+            ) {
+                print("[SYNC] 🛡️ 同步保护：跳过笔记 \(note.id.prefix(8))... - \(skipReason.description)")
+            }
+            result.status = .skipped
+            result.message = "同步保护：笔记正在编辑或待上传"
+            result.success = true
+            return result
+        }
         
         // 检查笔记状态
         if let rawData = note.rawData,

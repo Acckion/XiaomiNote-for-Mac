@@ -2312,6 +2312,12 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 同步后重新加载本地数据
+    /// 
+    /// **关键修复**：如果用户正在编辑笔记且有未保存的更改，不更新 selectedNote 的内容
+    /// 这样可以防止云端同步覆盖用户正在编辑的内容
+    /// 
+    /// **Requirements: Property 7** - 冲突解决策略：本地编辑优先
+    /// **统一操作队列集成**：使用 NoteOperationCoordinator 检查活跃编辑状态
     private func loadLocalDataAfterSync() async {
         print("[FolderRename] ========== loadLocalDataAfterSync() 开始 ==========")
         print("[FolderRename] 同步前 folders 数组数量: \(folders.count)")
@@ -2320,6 +2326,26 @@ public class NotesViewModel: ObservableObject {
         do {
             // 保存当前选中的笔记ID
             let currentSelectedNoteId = selectedNote?.id
+            
+            // 关键修复：检查原生编辑器是否有未保存的更改
+            // 如果有未保存的更改，不应该用云端数据覆盖用户正在编辑的内容
+            let hasUnsavedChanges = nativeEditorContext.hasUnsavedChanges
+            
+            // 🛡️ 统一操作队列集成：检查笔记是否正在活跃编辑
+            let isActivelyEditing: Bool
+            if let noteId = currentSelectedNoteId {
+                isActivelyEditing = await NoteOperationCoordinator.shared.isNoteActivelyEditing(noteId)
+            } else {
+                isActivelyEditing = false
+            }
+            
+            // 🛡️ 统一操作队列集成：检查笔记是否在待上传列表中
+            let isPendingUpload: Bool
+            if let noteId = currentSelectedNoteId {
+                isPendingUpload = PendingUploadRegistry.shared.isRegistered(noteId)
+            } else {
+                isPendingUpload = false
+            }
             
             let localNotes = try localStorage.getAllLocalNotes()
             self.notes = localNotes
@@ -2334,10 +2360,26 @@ public class NotesViewModel: ObservableObject {
             // 如果之前有选中的笔记，更新为重新加载的版本（确保内容是最新的）
             if let noteId = currentSelectedNoteId,
                let updatedNote = localNotes.first(where: { $0.id == noteId }) {
-                // 更新选中的笔记，这会触发 NoteDetailView 的 onChange
-                await MainActor.run {
-                    self.selectedNote = updatedNote
-                    print("[VIEWMODEL] 同步后更新选中笔记: \(noteId)")
+                
+                // 关键修复：如果用户正在编辑且有未保存的更改，跳过更新 selectedNote
+                // 这样可以防止云端同步覆盖用户正在编辑的内容
+                // **Requirements: Property 7** - 冲突解决策略
+                // 🛡️ 统一操作队列集成：增加活跃编辑和待上传检查
+                let shouldSkipUpdate = hasUnsavedChanges || isActivelyEditing || isPendingUpload
+                
+                if shouldSkipUpdate {
+                    print("[VIEWMODEL] ⚠️ 同步后跳过更新选中笔记 - 同步保护生效")
+                    print("[VIEWMODEL]   - 笔记ID: \(noteId)")
+                    print("[VIEWMODEL]   - hasUnsavedChanges: \(hasUnsavedChanges)")
+                    print("[VIEWMODEL]   - isActivelyEditing: \(isActivelyEditing)")
+                    print("[VIEWMODEL]   - isPendingUpload: \(isPendingUpload)")
+                    // 不更新 selectedNote，保留用户正在编辑的内容
+                } else {
+                    // 没有未保存的更改，可以安全地更新 selectedNote
+                    await MainActor.run {
+                        self.selectedNote = updatedNote
+                        print("[VIEWMODEL] 同步后更新选中笔记: \(noteId)")
+                    }
                 }
             } else {
                 // 如果没有选中的笔记，尝试恢复上次选中的状态
@@ -2622,6 +2664,11 @@ public class NotesViewModel: ObservableObject {
     /// - 自动获取最新tag：更新前会从服务器获取最新的tag，避免并发冲突
     /// - 自动更新UI：更新后会自动更新笔记列表
     /// 
+    /// **统一操作队列集成**：
+    /// - 使用 NoteOperationCoordinator 进行保存
+    /// - 自动注册到 PendingUploadRegistry
+    /// - 防抖上传机制
+    /// 
     /// - Parameter note: 要更新的笔记对象
     /// - Throws: 更新失败时抛出错误（网络错误、认证错误等）
     func updateNote(_ note: Note) async throws {
@@ -2629,21 +2676,32 @@ public class NotesViewModel: ObservableObject {
         
         // 1. 合并并本地持久化
         let noteToSave = mergeWithLocalData(note)
-        try await applyLocalUpdate(noteToSave)
         
-        // 2. 检查同步状态
-        guard isOnline && service.isAuthenticated() else {
-            queueOfflineUpdate(noteToSave)
-            return
+        // 🛡️ 统一操作队列集成：使用 NoteOperationCoordinator 进行保存
+        // 这会自动注册到 PendingUploadRegistry 并触发防抖上传
+        let saveResult = await NoteOperationCoordinator.shared.saveNote(noteToSave)
+        
+        switch saveResult {
+        case .success:
+            print("[VIEWMODEL] ✅ 通过 NoteOperationCoordinator 保存成功: \(note.id.prefix(8))...")
+            // 更新内存列表
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                notes[index] = noteToSave
+            }
+            // 更新 selectedNote
+            if selectedNote?.id == note.id {
+                selectedNote = noteToSave
+            }
+        case .failure(let error):
+            print("[VIEWMODEL] ❌ 通过 NoteOperationCoordinator 保存失败: \(error)")
+            throw error
         }
         
-        isLoading = true
-        defer { isLoading = false }
-        
-        do {
-            try await performCloudUpdateWithRetry(noteToSave)
-        } catch {
-            handleUpdateError(error, for: noteToSave)
+        // 2. 检查同步状态（云端上传由 NoteOperationCoordinator 的防抖机制处理）
+        // 如果离线，操作已经被添加到离线队列
+        guard isOnline && service.isAuthenticated() else {
+            print("[VIEWMODEL] 📴 离线模式，等待网络恢复后上传")
+            return
         }
     }
     
@@ -3366,9 +3424,31 @@ public class NotesViewModel: ObservableObject {
     /// **Requirements: 4.3**
     /// - 4.3: 验证笔记是否属于当前文件夹
     /// 
+    /// **统一操作队列集成**：
+    /// - 切换笔记时设置活跃编辑状态
+    /// - 切换前保存当前笔记（如果有未保存的更改）
+    /// 
     /// - Parameter note: 要选择的笔记
     public func selectNoteWithCoordinator(_ note: Note?) {
         Task {
+            // 🛡️ 统一操作队列集成：切换笔记前的处理
+            let previousNoteId = selectedNote?.id
+            
+            // 如果有之前选中的笔记且有未保存的更改，先保存
+            if let prevId = previousNoteId,
+               let prevNote = notes.first(where: { $0.id == prevId }),
+               nativeEditorContext.hasUnsavedChanges {
+                print("[VIEWMODEL] 🛡️ 切换笔记前保存: \(prevId.prefix(8))...")
+                do {
+                    try await NoteOperationCoordinator.shared.saveNoteImmediately(prevNote)
+                } catch {
+                    print("[VIEWMODEL] ⚠️ 切换笔记前保存失败: \(error)")
+                }
+            }
+            
+            // 🛡️ 统一操作队列集成：设置新的活跃编辑笔记
+            await NoteOperationCoordinator.shared.setActiveEditingNote(note?.id)
+            
             await stateCoordinator.selectNote(note)
             // 同步 coordinator 的状态到 ViewModel
             syncStateFromCoordinator()
