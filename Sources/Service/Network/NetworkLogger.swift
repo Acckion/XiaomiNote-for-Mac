@@ -20,9 +20,10 @@ final class NetworkLogger: @unchecked Sendable {
         queue.sync {
             // 检查是否重复记录
             var logMessage = "📤 请求: \(method) \(url)"
-            if let headers = headers, !headers.isEmpty {
-                logMessage += "\n请求头: \(headers)"
-            }
+            // 注释掉请求头输出，使日志更简洁
+            // if let headers = headers, !headers.isEmpty {
+            //     logMessage += "\n请求头: \(headers)"
+            // }
             if let body = body, !body.isEmpty {
                 logMessage += "\n请求体: \(body)"
             }
@@ -55,9 +56,10 @@ final class NetworkLogger: @unchecked Sendable {
         queue.sync {
             // 检查是否重复记录
             var logMessage = "📥 响应: \(method) \(url) - 状态码: \(statusCode)"
-            if let headers = headers, !headers.isEmpty {
-                logMessage += "\n响应头: \(headers)"
-            }
+            // 注释掉响应头输出，使日志更简洁
+            // if let headers = headers, !headers.isEmpty {
+            //     logMessage += "\n响应头: \(headers)"
+            // }
             if let response = response, !response.isEmpty {
                 let preview = response.count > 500 ? String(response.prefix(500)) + "..." : response
                 logMessage += "\n响应体: \(preview)"
@@ -214,9 +216,10 @@ struct NetworkLogEntry: Identifiable {
             desc += "\n状态码: \(statusCode)"
         }
         
-        if let headers = headers, !headers.isEmpty {
-            desc += "\n请求头: \(headers)"
-        }
+        // 注释掉请求头输出，使日志更简洁
+        // if let headers = headers, !headers.isEmpty {
+        //     desc += "\n请求头: \(headers)"
+        // }
         
         if let body = body, !body.isEmpty {
             let bodyPreview = body.count > 500 ? String(body.prefix(500)) + "..." : body
