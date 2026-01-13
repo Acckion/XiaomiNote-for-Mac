@@ -44,6 +44,17 @@ public extension Notification.Name {
     /// _Requirements: 2.2_
     static let audioAttachmentClicked = Notification.Name("AudioAttachmentClicked")
     
+    /// 原生编辑器保存状态变化通知
+    /// 
+    /// 当原生编辑器的保存状态发生变化时发送此通知
+    /// 用于更新 UI 中的保存状态指示器
+    /// 
+    /// userInfo:
+    /// - "hasUnsavedChanges": Bool - 是否有未保存的更改
+    /// 
+    /// _Requirements: 6.1, 6.2, 6.3, 6.4_
+    static let nativeEditorSaveStatusDidChange = Notification.Name("NativeEditorSaveStatusDidChange")
+    
     // 注意：nativeEditorRequestContentSync 已在 NativeEditorView.swift 中定义
 }
 

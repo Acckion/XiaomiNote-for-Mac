@@ -205,9 +205,10 @@ public final class OfflineOperationProcessor: ObservableObject {
     
     /// 处理所有待处理的操作
     /// 
-    /// 并发处理多个操作，按优先级排序，支持智能重试
+    /// 按顺序处理操作（按优先级和时间戳排序），支持智能重试
     /// 
     /// 遵循需求：
+    /// - 4.3: 按顺序处理离线队列中的操作
     /// - 3.4: 处理完成后更新本地数据库
     /// - 3.5: 处理失败的操作保留在队列中
     public func processOperations() async {
@@ -249,6 +250,7 @@ public final class OfflineOperationProcessor: ObservableObject {
         isProcessing = true
         statusMessage = "开始处理离线操作..."
         
+        // 获取待处理的操作（已按优先级和时间戳排序）
         let operations = offlineQueue.getPendingOperations()
         guard !operations.isEmpty else {
             print("[OfflineProcessor] 没有待处理的操作")
@@ -261,50 +263,19 @@ public final class OfflineOperationProcessor: ObservableObject {
         failedOperations = []
         progress = 0.0
         
-        print("[OfflineProcessor] 开始处理 \(totalCount) 个操作，最大并发数: \(maxConcurrentOperations)")
+        print("[OfflineProcessor] 开始按顺序处理 \(totalCount) 个操作")
         
-        // 使用 TaskGroup 并发处理
-        await withTaskGroup(of: Void.self) { group in
-            var activeTasks = 0
-            var operationIndex = 0
-            
-            // 启动初始批次的任务
-            while activeTasks < maxConcurrentOperations && operationIndex < operations.count {
-                let operation = operations[operationIndex]
-                operationIndex += 1
-                activeTasks += 1
-                
-                group.addTask { [weak self] in
-                    // 由于 processOperationWithRetry 是 @MainActor 隔离的，直接调用即可
-                    await self?.processOperationWithRetry(operation)
-                }
+        // _Requirements: 4.3_ - 按顺序处理离线队列中的操作
+        // 使用顺序处理而非并发处理，确保操作按添加顺序执行
+        for operation in operations {
+            // 在处理每个操作前检查在线状态
+            // 如果网络断开或 Cookie 失效，停止处理
+            guard onlineStateManager.isOnline else {
+                print("[OfflineProcessor] ⚠️ 在线状态变化，停止处理")
+                break
             }
             
-            // 等待任务完成并启动新任务
-            while activeTasks > 0 || operationIndex < operations.count {
-                // 等待一个任务完成
-                await group.next()
-                activeTasks -= 1
-                
-                // 在启动新任务前检查在线状态
-                // 如果网络断开或 Cookie 失效，停止处理新任务
-                if !onlineStateManager.isOnline {
-                    print("[OfflineProcessor] ⚠️ 在线状态变化，停止处理新任务")
-                    break
-                }
-                
-                // 启动新任务
-                while activeTasks < maxConcurrentOperations && operationIndex < operations.count {
-                    let operation = operations[operationIndex]
-                    operationIndex += 1
-                    activeTasks += 1
-                    
-                    group.addTask { [weak self] in
-                        // 由于 processOperationWithRetry 是 @MainActor 隔离的，直接调用即可
-                        await self?.processOperationWithRetry(operation)
-                    }
-                }
-            }
+            await processOperationWithRetry(operation)
         }
         
         currentOperation = nil
@@ -558,12 +529,128 @@ public final class OfflineOperationProcessor: ObservableObject {
     }
     
     /// 处理更新笔记操作
+    /// 
+    /// _Requirements: 4.4_ - 使用时间戳比较策略解决冲突
     private func processUpdateNoteOperation(_ operation: OfflineOperation) async throws {
-        guard let note = try? localStorage.loadNote(noteId: operation.noteId) else {
+        guard let localNote = try? localStorage.loadNote(noteId: operation.noteId) else {
             throw NSError(domain: "OfflineProcessor", code: 404, userInfo: [NSLocalizedDescriptionKey: "笔记不存在"])
         }
         
-        // 更新笔记到云端
+        // 从操作数据中获取本地修改时间戳
+        var localTimestamp: Date = localNote.updatedAt
+        if let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
+           let timestamp = operationData["timestamp"] as? TimeInterval {
+            localTimestamp = Date(timeIntervalSince1970: timestamp)
+        }
+        
+        // _Requirements: 4.4_ - 获取云端笔记的最新版本进行冲突检测
+        do {
+            let cloudNoteDetails = try await service.fetchNoteDetails(noteId: localNote.id)
+            
+            // 解析云端笔记的修改时间
+            if let cloudTimestamp = extractCloudTimestamp(from: cloudNoteDetails) {
+                // 比较时间戳
+                let conflictResolution = resolveConflict(
+                    localTimestamp: localTimestamp,
+                    cloudTimestamp: cloudTimestamp,
+                    operationTimestamp: operation.timestamp
+                )
+                
+                switch conflictResolution {
+                case .useLocal:
+                    // 本地版本较新，上传到云端
+                    print("[OfflineProcessor] 🔄 冲突解决：使用本地版本（本地: \(localTimestamp), 云端: \(cloudTimestamp)）")
+                    try await uploadLocalNote(localNote)
+                    
+                case .useCloud:
+                    // 云端版本较新，下载云端版本覆盖本地
+                    print("[OfflineProcessor] 🔄 冲突解决：使用云端版本（本地: \(localTimestamp), 云端: \(cloudTimestamp)）")
+                    try await downloadAndSaveCloudNote(cloudNoteDetails, noteId: localNote.id)
+                    
+                case .noConflict:
+                    // 没有冲突，正常上传
+                    print("[OfflineProcessor] ✅ 无冲突，正常上传")
+                    try await uploadLocalNote(localNote)
+                }
+            } else {
+                // 无法获取云端时间戳，直接上传本地版本
+                print("[OfflineProcessor] ⚠️ 无法获取云端时间戳，直接上传本地版本")
+                try await uploadLocalNote(localNote)
+            }
+        } catch {
+            // 获取云端笔记失败（可能是新笔记或网络问题），直接上传本地版本
+            print("[OfflineProcessor] ⚠️ 获取云端笔记失败: \(error)，直接上传本地版本")
+            try await uploadLocalNote(localNote)
+        }
+        
+        print("[OfflineProcessor] ✅ 成功更新笔记: \(operation.noteId)")
+    }
+    
+    /// 冲突解决结果
+    private enum ConflictResolution {
+        case useLocal   // 使用本地版本
+        case useCloud   // 使用云端版本
+        case noConflict // 没有冲突
+    }
+    
+    /// 解决冲突
+    /// 
+    /// _Requirements: 4.4_ - 使用时间戳比较策略解决冲突
+    /// 
+    /// - Parameters:
+    ///   - localTimestamp: 本地笔记的修改时间
+    ///   - cloudTimestamp: 云端笔记的修改时间
+    ///   - operationTimestamp: 离线操作的创建时间
+    /// - Returns: 冲突解决结果
+    private func resolveConflict(
+        localTimestamp: Date,
+        cloudTimestamp: Date,
+        operationTimestamp: Date
+    ) -> ConflictResolution {
+        // 如果云端时间戳早于操作创建时间，说明云端没有更新，没有冲突
+        if cloudTimestamp < operationTimestamp {
+            return .noConflict
+        }
+        
+        // 如果云端时间戳晚于操作创建时间，说明云端有更新
+        // 比较本地和云端的时间戳
+        if localTimestamp > cloudTimestamp {
+            // 本地版本较新
+            return .useLocal
+        } else if cloudTimestamp > localTimestamp {
+            // 云端版本较新
+            return .useCloud
+        } else {
+            // 时间戳相同，以云端为准（保守策略）
+            return .useCloud
+        }
+    }
+    
+    /// 从云端响应中提取时间戳
+    private func extractCloudTimestamp(from response: [String: Any]) -> Date? {
+        // 尝试从 modifyDate 字段获取
+        if let modifyDate = response["modifyDate"] as? Int {
+            return Date(timeIntervalSince1970: TimeInterval(modifyDate) / 1000.0)
+        }
+        
+        // 尝试从 entry.modifyDate 获取
+        if let entry = response["entry"] as? [String: Any],
+           let modifyDate = entry["modifyDate"] as? Int {
+            return Date(timeIntervalSince1970: TimeInterval(modifyDate) / 1000.0)
+        }
+        
+        // 尝试从 data.entry.modifyDate 获取
+        if let data = response["data"] as? [String: Any],
+           let entry = data["entry"] as? [String: Any],
+           let modifyDate = entry["modifyDate"] as? Int {
+            return Date(timeIntervalSince1970: TimeInterval(modifyDate) / 1000.0)
+        }
+        
+        return nil
+    }
+    
+    /// 上传本地笔记到云端
+    private func uploadLocalNote(_ note: Note) async throws {
         try await service.updateNote(
             noteId: note.id,
             title: note.title,
@@ -571,8 +658,77 @@ public final class OfflineOperationProcessor: ObservableObject {
             folderId: note.folderId,
             existingTag: note.rawData?["tag"] as? String ?? note.id
         )
+    }
+    
+    /// 下载云端笔记并保存到本地
+    private func downloadAndSaveCloudNote(_ cloudNoteDetails: [String: Any], noteId: String) async throws {
+        // 解析云端笔记内容
+        guard let entry = extractEntry(from: cloudNoteDetails) ?? cloudNoteDetails["entry"] as? [String: Any] else {
+            throw NSError(domain: "OfflineProcessor", code: 500, userInfo: [NSLocalizedDescriptionKey: "无法解析云端笔记"])
+        }
         
-        print("[OfflineProcessor] ✅ 成功更新笔记: \(operation.noteId)")
+        // 获取笔记内容
+        let content: String
+        if let snippet = entry["snippet"] as? String {
+            content = snippet
+        } else if let setting = entry["setting"] as? [String: Any],
+                  let settingContent = setting["content"] as? String {
+            content = settingContent
+        } else {
+            content = ""
+        }
+        
+        // 获取标题
+        let title = entry["subject"] as? String ?? ""
+        
+        // 获取文件夹ID
+        let folderId: String
+        if let folderIdInt = entry["folderId"] as? Int {
+            folderId = String(folderIdInt)
+        } else if let folderIdStr = entry["folderId"] as? String {
+            folderId = folderIdStr
+        } else {
+            folderId = "0"
+        }
+        
+        // 获取时间戳
+        let updatedAt: Date
+        if let modifyDate = entry["modifyDate"] as? Int {
+            updatedAt = Date(timeIntervalSince1970: TimeInterval(modifyDate) / 1000.0)
+        } else {
+            updatedAt = Date()
+        }
+        
+        let createdAt: Date
+        if let createDate = entry["createDate"] as? Int {
+            createdAt = Date(timeIntervalSince1970: TimeInterval(createDate) / 1000.0)
+        } else {
+            createdAt = updatedAt
+        }
+        
+        // 获取收藏状态
+        let isStarred = (entry["colorId"] as? Int ?? 0) > 0
+        
+        // 构建更新后的笔记
+        let updatedNote = Note(
+            id: noteId,
+            title: title,
+            content: content,
+            folderId: folderId,
+            isStarred: isStarred,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            tags: [],
+            rawData: entry
+        )
+        
+        // 保存到本地
+        try localStorage.saveNote(updatedNote)
+        
+        // 更新内存缓存
+        await MemoryCacheManager.shared.cacheNote(updatedNote)
+        
+        print("[OfflineProcessor] ✅ 已下载并保存云端笔记: \(noteId)")
     }
     
     /// 处理删除笔记操作

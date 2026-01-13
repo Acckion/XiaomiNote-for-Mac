@@ -173,6 +173,8 @@ class XiaoMiFormatConverter {
     /// - Parameter nsAttributedString: 要转换的 NSAttributedString
     /// - Returns: 小米笔记 XML 格式字符串
     /// - Throws: ConversionError
+    /// 
+    /// _Requirements: 9.3_ - 格式转换失败时记录日志并尝试使用原始内容
     func nsAttributedStringToXML(_ nsAttributedString: NSAttributedString) throws -> String {
         var xmlElements: [String] = []
         
@@ -180,6 +182,7 @@ class XiaoMiFormatConverter {
         let lines = fullText.components(separatedBy: "\n")
         
         var currentLocation = 0
+        var conversionErrors: [String] = []
         
         for (lineIndex, lineText) in lines.enumerated() {
             // 空行处理
@@ -197,9 +200,24 @@ class XiaoMiFormatConverter {
             // 获取该行的子 NSAttributedString
             let lineAttributedString = nsAttributedString.attributedSubstring(from: lineRange)
             
-            // 转换该行
-            let xmlElement = try convertNSLineToXML(lineAttributedString)
-            xmlElements.append(xmlElement)
+            // 转换该行，带错误回退
+            // _Requirements: 9.3_ - 转换失败时记录日志并尝试使用原始内容
+            do {
+                let xmlElement = try convertNSLineToXML(lineAttributedString)
+                xmlElements.append(xmlElement)
+            } catch {
+                // 记录错误日志
+                let errorMessage = "行 \(lineIndex + 1) 转换失败: \(error.localizedDescription)"
+                conversionErrors.append(errorMessage)
+                print("[XiaoMiFormatConverter] ⚠️ \(errorMessage)")
+                
+                // 回退逻辑：使用纯文本作为回退内容
+                // _Requirements: 9.3_
+                let fallbackText = escapeXMLCharacters(lineText)
+                let fallbackXML = "<text indent=\"1\">\(fallbackText)</text>"
+                xmlElements.append(fallbackXML)
+                print("[XiaoMiFormatConverter] 📝 使用回退内容: \(fallbackXML.prefix(100))...")
+            }
             
             // 更新位置，跳过当前行和换行符
             currentLocation += lineText.count
@@ -208,7 +226,50 @@ class XiaoMiFormatConverter {
             }
         }
         
+        // 如果有转换错误，记录汇总日志
+        if !conversionErrors.isEmpty {
+            print("[XiaoMiFormatConverter] ⚠️ 转换完成，但有 \(conversionErrors.count) 个错误:")
+            for error in conversionErrors {
+                print("[XiaoMiFormatConverter]   - \(error)")
+            }
+        }
+        
         return xmlElements.joined(separator: "\n")
+    }
+    
+    /// 安全转换 NSAttributedString 到 XML（带完整错误处理）
+    /// 
+    /// 此方法提供更完善的错误处理，即使转换完全失败也会返回纯文本内容
+    /// 
+    /// - Parameter nsAttributedString: 要转换的 NSAttributedString
+    /// - Returns: 小米笔记 XML 格式字符串（保证不为空，除非输入为空）
+    /// 
+    /// _Requirements: 9.3_ - 格式转换失败时记录日志并尝试使用原始内容
+    func safeNSAttributedStringToXML(_ nsAttributedString: NSAttributedString) -> String {
+        // 处理空内容
+        guard nsAttributedString.length > 0 else {
+            return ""
+        }
+        
+        do {
+            return try nsAttributedStringToXML(nsAttributedString)
+        } catch {
+            // 完全失败时的回退：返回纯文本内容
+            print("[XiaoMiFormatConverter] ❌ 转换完全失败: \(error.localizedDescription)")
+            print("[XiaoMiFormatConverter] 📝 使用纯文本回退")
+            
+            let plainText = nsAttributedString.string
+            let lines = plainText.components(separatedBy: "\n")
+            var xmlElements: [String] = []
+            
+            for line in lines {
+                guard !line.isEmpty else { continue }
+                let escapedText = escapeXMLCharacters(line)
+                xmlElements.append("<text indent=\"1\">\(escapedText)</text>")
+            }
+            
+            return xmlElements.joined(separator: "\n")
+        }
     }
     
     /// 将单行 NSAttributedString 转换为 XML
@@ -237,9 +298,11 @@ class XiaoMiFormatConverter {
             // 检查是否是附件
             if let attachment = attributes[.attachment] as? NSTextAttachment {
                 // 检查是否是复选框附件
+                // _Requirements: 5.8_ - 导出时保留 checked 属性
                 if let checkboxAttachment = attachment as? InteractiveCheckboxAttachment {
                     isCheckboxLine = true
-                    // 导出 checked 属性（仅当选中时添加）
+                    // 导出 checked 属性：选中时添加 checked="true"，未选中时不添加该属性
+                    // 这与小米笔记 XML 格式保持一致
                     if checkboxAttachment.isChecked {
                         checkboxXML = "<input type=\"checkbox\" indent=\"\(checkboxAttachment.indent)\" level=\"\(checkboxAttachment.level)\" checked=\"true\" />"
                     } else {
@@ -303,12 +366,30 @@ class XiaoMiFormatConverter {
     }
     
     /// 处理 NSAttributedString 属性并生成 XML 标签
+    /// 
+    /// 格式标签的嵌套顺序（从外到内）：
+    /// 1. 标题标签（size, mid-size, h3-size）
+    /// 2. 背景色标签（background）
+    /// 3. 删除线标签（delete）
+    /// 4. 下划线标签（u）
+    /// 5. 斜体标签（i）
+    /// 6. 粗体标签（b）
+    /// 
     /// - Parameters:
     ///   - text: 文本内容
     ///   - attributes: NSAttributedString 属性字典
     /// - Returns: 包含 XML 标签的文本
+    /// - Requirements: 5.2, 5.3, 5.4, 5.5, 5.6
     private func processNSAttributesToXMLTags(_ text: String, attributes: [NSAttributedString.Key: Any]) -> String {
         var result = escapeXMLCharacters(text)
+        
+        // 收集所有需要应用的格式
+        var hasBold = false
+        var hasItalic = false
+        var hasUnderline = false
+        var hasStrikethrough = false
+        var backgroundColor: NSColor? = nil
+        var headingTag: String? = nil
         
         // 处理字体样式
         if let font = attributes[.font] as? NSFont {
@@ -316,47 +397,78 @@ class XiaoMiFormatConverter {
             
             // 检查是否是粗体
             if traits.contains(.bold) {
-                result = "<b>\(result)</b>"
+                hasBold = true
             }
             
             // 检查是否是斜体
             if traits.contains(.italic) {
-                result = "<i>\(result)</i>"
+                hasItalic = true
             }
             
             // 检查字体大小来确定标题级别
             let fontSize = font.pointSize
             if fontSize >= 24 {
-                result = "<size>\(result)</size>"
+                headingTag = "size"
             } else if fontSize >= 20 {
-                result = "<mid-size>\(result)</mid-size>"
+                headingTag = "mid-size"
             } else if fontSize >= 16 && fontSize < 20 {
-                result = "<h3-size>\(result)</h3-size>"
+                headingTag = "h3-size"
             }
         }
         
         // 检查 obliqueness 属性（用于中文斜体）
+        // 中文字体通常没有真正的斜体变体，所以使用 obliqueness 来模拟
         if let obliqueness = attributes[.obliqueness] as? Double, obliqueness > 0 {
-            // 如果还没有斜体标签，添加斜体标签
-            if !result.hasPrefix("<i>") {
-                result = "<i>\(result)</i>"
-            }
+            hasItalic = true
         }
         
         // 处理下划线
         if let underlineStyle = attributes[.underlineStyle] as? Int, underlineStyle != 0 {
-            result = "<u>\(result)</u>"
+            hasUnderline = true
         }
         
         // 处理删除线
         if let strikethroughStyle = attributes[.strikethroughStyle] as? Int, strikethroughStyle != 0 {
-            result = "<delete>\(result)</delete>"
+            hasStrikethrough = true
         }
         
         // 处理背景色（高亮）
-        if let backgroundColor = attributes[.backgroundColor] as? NSColor {
-            let hexColor = backgroundColor.toHexString()
+        if let bgColor = attributes[.backgroundColor] as? NSColor {
+            backgroundColor = bgColor
+        }
+        
+        // 按照正确的嵌套顺序应用标签（从内到外）
+        // 最内层的标签最先应用
+        
+        // 6. 粗体标签（最内层）
+        if hasBold {
+            result = "<b>\(result)</b>"
+        }
+        
+        // 5. 斜体标签
+        if hasItalic {
+            result = "<i>\(result)</i>"
+        }
+        
+        // 4. 下划线标签
+        if hasUnderline {
+            result = "<u>\(result)</u>"
+        }
+        
+        // 3. 删除线标签
+        if hasStrikethrough {
+            result = "<delete>\(result)</delete>"
+        }
+        
+        // 2. 背景色标签
+        if let bgColor = backgroundColor {
+            let hexColor = bgColor.toHexString()
             result = "<background color=\"\(hexColor)\">\(result)</background>"
+        }
+        
+        // 1. 标题标签（最外层）
+        if let tag = headingTag {
+            result = "<\(tag)>\(result)</\(tag)>"
         }
         
         return result
@@ -630,6 +742,8 @@ class XiaoMiFormatConverter {
     /// 2. 支持点击切换选中状态
     /// 3. 正确导出为小米笔记 XML 格式
     /// 4. 正确解析和保存 checked 属性（勾选状态）
+    /// 
+    /// _Requirements: 1.4, 5.8_
     private func processCheckboxElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
         // 1. 提取属性
         let indent = Int(extractAttribute("indent", from: line) ?? "1") ?? 1
@@ -637,6 +751,7 @@ class XiaoMiFormatConverter {
         
         // 2. 提取 checked 属性（勾选状态）
         // 小米笔记 XML 格式：<input type="checkbox" indent="1" level="3" checked="true" />
+        // _Requirements: 1.4_ - 正确渲染可交互的复选框并保留勾选状态
         let checkedStr = extractAttribute("checked", from: line)
         let isChecked = checkedStr?.lowercased() == "true"
         
@@ -644,6 +759,7 @@ class XiaoMiFormatConverter {
         let content = extractContentAfterElement(from: line, elementName: "input")
         
         // 4. 创建复选框附件（传入勾选状态）
+        // _Requirements: 5.8_ - 创建 InteractiveCheckboxAttachment 时传入正确的状态
         let checkboxAttachment = CustomRenderer.shared.createCheckboxAttachment(
             checked: isChecked,
             level: level,
@@ -1091,16 +1207,38 @@ class XiaoMiFormatConverter {
     }
     
     /// 将 NSTextAttachment 转换为 XML
+    /// 
+    /// 支持的附件类型：
+    /// - InteractiveCheckboxAttachment: 转换为 <input type="checkbox" indent="x" level="y" checked="true/false" />
+    /// - HorizontalRuleAttachment: 转换为 <hr />
+    /// - BulletAttachment: 转换为 <bullet indent="x" />
+    /// - OrderAttachment: 转换为 <order indent="x" inputNumber="y" />
+    /// - AudioAttachment: 转换为 <sound fileid="xxx" />
+    /// - ImageAttachment: 转换为 <img src="xxx" width="y" height="z" />
+    /// 
     /// - Parameter attachment: NSTextAttachment
     /// - Returns: XML 字符串
     /// - Throws: ConversionError
+    /// - Requirements: 5.8, 5.9, 5.10
     private func convertAttachmentToXML(_ attachment: NSTextAttachment) throws -> String {
         // 根据 attachment 的类型生成对应的 XML
         // 这里需要识别不同类型的自定义 attachment
         
         // 检查是否是复选框 attachment
+        // Requirements: 5.8 - 保留 checked 属性
         if let checkboxAttachment = attachment as? InteractiveCheckboxAttachment {
-            return "<input type=\"checkbox\" indent=\"1\" level=\"\(checkboxAttachment.level)\" />"
+            var xmlAttrs: [String] = [
+                "type=\"checkbox\"",
+                "indent=\"\(checkboxAttachment.indent)\"",
+                "level=\"\(checkboxAttachment.level)\""
+            ]
+            
+            // 只有当选中时才添加 checked 属性
+            if checkboxAttachment.isChecked {
+                xmlAttrs.append("checked=\"true\"")
+            }
+            
+            return "<input \(xmlAttrs.joined(separator: " ")) />"
         }
         
         // 检查是否是分割线 attachment
@@ -1109,17 +1247,17 @@ class XiaoMiFormatConverter {
         }
         
         // 检查是否是项目符号 attachment
-        if attachment is BulletAttachment {
-            return "<bullet indent=\"1\" />"
+        if let bulletAttachment = attachment as? BulletAttachment {
+            return "<bullet indent=\"\(bulletAttachment.indent)\" />"
         }
         
         // 检查是否是有序列表 attachment
         if let orderAttachment = attachment as? OrderAttachment {
-            return "<order indent=\"1\" inputNumber=\"\(orderAttachment.inputNumber)\" />"
+            return "<order indent=\"\(orderAttachment.indent)\" inputNumber=\"\(orderAttachment.inputNumber)\" />"
         }
         
         // 检查是否是语音文件 attachment
-        // Requirements: 5.1, 5.2 - 将 AudioAttachment 转换为 <sound fileid="xxx" /> 格式
+        // Requirements: 5.10 - 将 AudioAttachment 转换为 <sound fileid="xxx" /> 格式
         if let audioAttachment = attachment as? AudioAttachment {
             if let fileId = audioAttachment.fileId, !fileId.isEmpty {
                 // 如果是临时占位符，添加 des="temp" 属性
@@ -1134,15 +1272,21 @@ class XiaoMiFormatConverter {
         }
         
         // 检查是否是图片 attachment
+        // Requirements: 5.9 - 保留 fileId 属性
         if let imageAttachment = attachment as? ImageAttachment {
             var xmlAttrs: [String] = []
             
             if let src = imageAttachment.src, !src.isEmpty {
-                xmlAttrs.append("src=\"\(src)\"")
+                xmlAttrs.append("src=\"\(escapeXMLAttributeValue(src))\"")
             } else if let fileId = imageAttachment.fileId {
                 // 生成 minote:// URL（统一格式，不需要 folderId）
                 let minoteURL = ImageStorageManager.shared.generateMinoteURL(fileId: fileId)
-                xmlAttrs.append("src=\"\(minoteURL)\"")
+                xmlAttrs.append("src=\"\(escapeXMLAttributeValue(minoteURL))\"")
+            }
+            
+            // 保留 fileId 属性（用于云端同步）
+            if let fileId = imageAttachment.fileId, !fileId.isEmpty {
+                xmlAttrs.append("fileid=\"\(escapeXMLAttributeValue(fileId))\"")
             }
             
             if imageAttachment.displaySize.width > 0 {
@@ -1161,11 +1305,23 @@ class XiaoMiFormatConverter {
             // 使用统一的 images/{imageId}.jpg 格式
             if let saveResult = ImageStorageManager.shared.saveImage(image) {
                 let minoteURL = ImageStorageManager.shared.generateMinoteURL(fileId: saveResult.fileId)
-                return "<img src=\"\(minoteURL)\" width=\"\(Int(image.size.width))\" height=\"\(Int(image.size.height))\" />"
+                return "<img src=\"\(escapeXMLAttributeValue(minoteURL))\" fileid=\"\(escapeXMLAttributeValue(saveResult.fileId))\" width=\"\(Int(image.size.width))\" height=\"\(Int(image.size.height))\" />"
             }
         }
         
         return "<hr />" // 临时实现
+    }
+    
+    /// 转义 XML 属性值中的特殊字符
+    /// - Parameter value: 原始属性值
+    /// - Returns: 转义后的属性值
+    private func escapeXMLAttributeValue(_ value: String) -> String {
+        var result = value
+        result = result.replacingOccurrences(of: "&", with: "&amp;")
+        result = result.replacingOccurrences(of: "<", with: "&lt;")
+        result = result.replacingOccurrences(of: ">", with: "&gt;")
+        result = result.replacingOccurrences(of: "\"", with: "&quot;")
+        return result
     }
     
     // MARK: - Helper Methods
@@ -1461,12 +1617,30 @@ class XiaoMiFormatConverter {
     }
     
     /// 处理富文本属性到 XML 标签的转换
+    /// 
+    /// 格式标签的嵌套顺序（从外到内）：
+    /// 1. 标题标签（size, mid-size, h3-size）
+    /// 2. 背景色标签（background）
+    /// 3. 删除线标签（delete）
+    /// 4. 下划线标签（u）
+    /// 5. 斜体标签（i）
+    /// 6. 粗体标签（b）
+    /// 
     /// - Parameters:
     ///   - text: 文本内容
     ///   - run: AttributedString 运行段
     /// - Returns: 包含 XML 标签的文本
+    /// - Requirements: 5.2, 5.3, 5.4, 5.5, 5.6, 5.7
     private func processAttributesToXMLTags(_ text: String, run: AttributedString.Runs.Run) -> String {
         var result = text
+        
+        // 收集所有需要应用的格式
+        var hasBold = false
+        var hasItalic = false
+        var hasUnderline = false
+        var hasStrikethrough = false
+        var backgroundColor: Color? = nil
+        var headingTag: String? = nil
         
         // 处理字体样式 - 检查 AppKit 字体属性
         if let font = run.appKit.font {
@@ -1474,39 +1648,72 @@ class XiaoMiFormatConverter {
             
             // 检查是否是粗体
             if traits.contains(.bold) {
-                result = "<b>\(result)</b>"
+                hasBold = true
             }
             
             // 检查是否是斜体
             if traits.contains(.italic) {
-                result = "<i>\(result)</i>"
+                hasItalic = true
             }
             
             // 检查字体大小来确定标题级别
             let fontSize = font.pointSize
             if fontSize >= 24 {
-                result = "<size>\(result)</size>"
+                headingTag = "size"
             } else if fontSize >= 20 {
-                result = "<mid-size>\(result)</mid-size>"
+                headingTag = "mid-size"
             } else if fontSize >= 16 && fontSize < 20 {
-                result = "<h3-size>\(result)</h3-size>"
+                headingTag = "h3-size"
             }
         }
         
         // 处理下划线 - 检查是否存在下划线样式
         if run.underlineStyle != nil {
-            result = "<u>\(result)</u>"
+            hasUnderline = true
         }
         
         // 处理删除线 - 检查是否存在删除线样式
         if run.strikethroughStyle != nil {
-            result = "<delete>\(result)</delete>"
+            hasStrikethrough = true
         }
         
         // 处理背景色
-        if let backgroundColor = run.backgroundColor {
-            let hexColor = backgroundColor.toHexString()
+        if let bgColor = run.backgroundColor {
+            backgroundColor = bgColor
+        }
+        
+        // 按照正确的嵌套顺序应用标签（从内到外）
+        // 最内层的标签最先应用
+        
+        // 6. 粗体标签（最内层）
+        if hasBold {
+            result = "<b>\(result)</b>"
+        }
+        
+        // 5. 斜体标签
+        if hasItalic {
+            result = "<i>\(result)</i>"
+        }
+        
+        // 4. 下划线标签
+        if hasUnderline {
+            result = "<u>\(result)</u>"
+        }
+        
+        // 3. 删除线标签
+        if hasStrikethrough {
+            result = "<delete>\(result)</delete>"
+        }
+        
+        // 2. 背景色标签
+        if let bgColor = backgroundColor {
+            let hexColor = bgColor.toHexString()
             result = "<background color=\"\(hexColor)\">\(result)</background>"
+        }
+        
+        // 1. 标题标签（最外层）
+        if let tag = headingTag {
+            result = "<\(tag)>\(result)</\(tag)>"
         }
         
         return result

@@ -38,7 +38,9 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
     
     // MARK: - Properties
     
-    /// 复选框是否选中（仅在编辑器中显示，不保存到 XML）
+    /// 复选框是否选中
+    /// 此属性会被保存到 XML 中（checked="true"）
+    /// _Requirements: 1.4, 5.8_
     var isChecked: Bool = false {
         didSet {
             // 清除缓存的图像，强制重新渲染

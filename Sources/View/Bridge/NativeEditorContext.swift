@@ -227,6 +227,27 @@ public class NativeEditorContext: ObservableObject {
     /// 工具栏按钮状态
     @Published var toolbarButtonStates: [TextFormat: Bool] = [:]
     
+    // MARK: - 内容保护属性
+    // _Requirements: 2.5, 9.1_ - 保存失败时的内容保护
+    
+    /// 保存失败时的备份内容
+    /// 
+    /// 当保存操作失败时，将当前编辑内容备份到此属性
+    /// 用于后续重试保存或恢复内容
+    /// 
+    /// _Requirements: 2.5, 9.1_
+    @Published var backupContent: NSAttributedString? = nil
+    
+    /// 最后一次保存失败的错误信息
+    /// 
+    /// _Requirements: 9.1_
+    @Published var lastSaveError: String? = nil
+    
+    /// 是否有待重试的保存操作
+    /// 
+    /// _Requirements: 9.1_
+    @Published var hasPendingRetry: Bool = false
+    
     /// 部分激活的格式集合（用于混合格式状态显示）
     /// 需求: 6.1, 6.2
     @Published var partiallyActiveFormats: Set<TextFormat> = []
@@ -821,14 +842,42 @@ public class NativeEditorContext: ObservableObject {
     }
     
     /// 导出为 XML
+    /// 
+    /// 将当前编辑器内容（nsAttributedText）转换为小米笔记 XML 格式
+    /// 
     /// - Returns: 小米笔记 XML 格式内容
+    /// - Note: 
+    ///   - 使用 nsAttributedText 而不是 attributedText，因为 NativeEditorView 使用的是 nsAttributedText
+    ///   - 空内容返回空字符串
+    ///   - 转换失败时记录错误并返回空字符串
+    /// 
+    /// _Requirements: 2.1, 5.1_
     func exportToXML() -> String {
+        // 处理空内容的情况
+        // _Requirements: 5.1_
+        guard nsAttributedText.length > 0 else {
+            print("[NativeEditorContext] exportToXML: 内容为空，返回空字符串")
+            return ""
+        }
+        
+        // 检查是否只包含空白字符
+        let trimmedString = nsAttributedText.string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedString.isEmpty {
+            print("[NativeEditorContext] exportToXML: 内容仅包含空白字符，返回空字符串")
+            return ""
+        }
+        
         do {
             // 关键修复：使用 nsAttributedText 而不是 attributedText
             // 因为 NativeEditorView 使用的是 nsAttributedText，编辑后的内容存储在这里
-            return try formatConverter.nsAttributedStringToXML(nsAttributedText)
+            // _Requirements: 2.1_
+            let xmlContent = try formatConverter.nsAttributedStringToXML(nsAttributedText)
+            
+            print("[NativeEditorContext] exportToXML: 成功导出 XML - 长度: \(xmlContent.count)")
+            return xmlContent
         } catch {
-            print("[NativeEditorContext] 导出 XML 失败: \(error)")
+            // _Requirements: 9.3_ - 格式转换失败时记录错误日志
+            print("[NativeEditorContext] exportToXML: 导出 XML 失败 - \(error)")
             return ""
         }
     }
@@ -887,14 +936,156 @@ public class NativeEditorContext: ObservableObject {
     // MARK: - Private Methods
     
     /// 设置内部观察者
+    /// 
+    /// 配置内容变化监听，确保：
+    /// 1. 通过 contentChangeSubject 发布内容变化
+    /// 2. hasUnsavedChanges 正确更新
+    /// 
+    /// _Requirements: 2.1, 6.1_
     private func setupInternalObservers() {
-        // 监听内容变化
+        // 监听 nsAttributedText 变化
+        // 当内容变化时，更新 hasUnsavedChanges 状态
+        // _Requirements: 6.1_ - 内容未保存时显示"未保存"状态
         $nsAttributedText
             .dropFirst()
-            .sink { [weak self] _ in
-                self?.hasUnsavedChanges = true
+            .sink { [weak self] newContent in
+                guard let self = self else { return }
+                
+                // 更新未保存状态
+                // _Requirements: 6.1_
+                self.hasUnsavedChanges = true
+                
+                // 发布内容变化通知
+                // _Requirements: 2.1_ - 内容变化时触发保存流程
+                // 注意：这里不直接发送 contentChangeSubject，因为 updateNSContent 方法已经会发送
+                // 这里只处理通过 @Published 属性直接修改的情况
+                print("[NativeEditorContext] 内容变化检测 - 长度: \(newContent.length), hasUnsavedChanges: true")
             }
             .store(in: &cancellables)
+        
+        // 监听 hasUnsavedChanges 变化，用于调试和状态同步
+        // _Requirements: 6.1, 6.2, 6.3, 6.4_
+        $hasUnsavedChanges
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] hasChanges in
+                guard let self = self else { return }
+                
+                // 发送保存状态变化通知
+                // _Requirements: 6.1, 6.2, 6.3, 6.4_
+                NotificationCenter.default.post(
+                    name: .nativeEditorSaveStatusDidChange,
+                    object: self,
+                    userInfo: ["hasUnsavedChanges": hasChanges]
+                )
+                
+                print("[NativeEditorContext] 保存状态变化: hasUnsavedChanges = \(hasChanges)")
+            }
+            .store(in: &cancellables)
+    }
+    
+    /// 标记内容已保存
+    /// 
+    /// 当内容成功保存后调用此方法，重置 hasUnsavedChanges 状态
+    /// 
+    /// _Requirements: 6.3_ - 保存完成时显示"已保存"状态
+    public func markContentSaved() {
+        hasUnsavedChanges = false
+        // 清除备份内容和错误状态
+        clearSaveErrorState()
+        print("[NativeEditorContext] 内容已标记为已保存")
+    }
+    
+    // MARK: - 内容保护方法
+    // _Requirements: 2.5, 9.1_ - 保存失败时的内容保护
+    
+    /// 备份当前内容
+    /// 
+    /// 在保存操作开始前调用，备份当前编辑内容
+    /// 如果保存失败，可以使用备份内容进行恢复或重试
+    /// 
+    /// _Requirements: 2.5, 9.1_
+    public func backupCurrentContent() {
+        backupContent = nsAttributedText.copy() as? NSAttributedString
+        print("[NativeEditorContext] 📦 内容已备份 - 长度: \(nsAttributedText.length)")
+    }
+    
+    /// 标记保存失败
+    /// 
+    /// 当保存操作失败时调用此方法，记录错误信息并保留编辑内容
+    /// 
+    /// - Parameter error: 错误信息
+    /// 
+    /// _Requirements: 2.5, 9.1_
+    public func markSaveFailed(error: String) {
+        lastSaveError = error
+        hasPendingRetry = true
+        // 确保内容已备份
+        if backupContent == nil {
+            backupCurrentContent()
+        }
+        print("[NativeEditorContext] ❌ 保存失败已标记 - 错误: \(error)")
+        print("[NativeEditorContext]   - 备份内容长度: \(backupContent?.length ?? 0)")
+        print("[NativeEditorContext]   - hasPendingRetry: \(hasPendingRetry)")
+    }
+    
+    /// 清除保存错误状态
+    /// 
+    /// 当保存成功或用户取消重试时调用
+    /// 
+    /// _Requirements: 9.1_
+    public func clearSaveErrorState() {
+        backupContent = nil
+        lastSaveError = nil
+        hasPendingRetry = false
+        print("[NativeEditorContext] 🧹 保存错误状态已清除")
+    }
+    
+    /// 获取待保存的内容
+    /// 
+    /// 优先返回备份内容（如果有），否则返回当前内容
+    /// 用于重试保存操作
+    /// 
+    /// - Returns: 待保存的 NSAttributedString
+    /// 
+    /// _Requirements: 9.1_
+    public func getContentForRetry() -> NSAttributedString {
+        if let backup = backupContent {
+            print("[NativeEditorContext] 📤 使用备份内容进行重试 - 长度: \(backup.length)")
+            return backup
+        }
+        print("[NativeEditorContext] 📤 使用当前内容进行重试 - 长度: \(nsAttributedText.length)")
+        return nsAttributedText
+    }
+    
+    /// 从备份恢复内容
+    /// 
+    /// 如果有备份内容，将其恢复到编辑器
+    /// 
+    /// - Returns: 是否成功恢复
+    /// 
+    /// _Requirements: 9.1_
+    @discardableResult
+    public func restoreFromBackup() -> Bool {
+        guard let backup = backupContent else {
+            print("[NativeEditorContext] ⚠️ 无备份内容可恢复")
+            return false
+        }
+        nsAttributedText = backup
+        hasUnsavedChanges = true
+        print("[NativeEditorContext] ✅ 内容已从备份恢复 - 长度: \(backup.length)")
+        return true
+    }
+    
+    /// 通知内容变化
+    /// 
+    /// 手动触发内容变化通知，用于需要强制触发保存流程的场景
+    /// 
+    /// _Requirements: 2.1_ - 触发保存流程
+    public func notifyContentChange() {
+        contentChangeSubject.send(nsAttributedText)
+        hasUnsavedChanges = true
+        print("[NativeEditorContext] 手动触发内容变化通知")
     }
     
     /// 根据当前光标位置更新格式状态 (需求 9.1)

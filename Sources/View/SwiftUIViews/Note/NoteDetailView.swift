@@ -13,11 +13,28 @@ struct NoteDetailView: View {
     @State private var showSaveSuccess: Bool = false
     
     // 保存状态
-    enum SaveStatus {
+    /// 保存状态枚举
+    /// 
+    /// 用于显示当前笔记的保存状态
+    /// 
+    /// _Requirements: 6.1, 6.2, 6.3, 6.4_
+    enum SaveStatus: Equatable {
         case saved        // 已保存（绿色）
         case saving       // 保存中（黄色）
         case unsaved      // 未保存（红色）
         case error(String) // 保存失败（红色，带错误信息）
+        
+        /// 实现 Equatable 协议
+        static func == (lhs: SaveStatus, rhs: SaveStatus) -> Bool {
+            switch (lhs, rhs) {
+            case (.saved, .saved), (.saving, .saving), (.unsaved, .unsaved):
+                return true
+            case (.error(let lhsMessage), .error(let rhsMessage)):
+                return lhsMessage == rhsMessage
+            default:
+                return false
+            }
+        }
     }
     @State private var saveStatus: SaveStatus = .saved
     
@@ -54,6 +71,18 @@ struct NoteDetailView: View {
     
     // XML保存防抖延迟（毫秒）
     private let xmlSaveDebounceDelay: UInt64 = 300_000_000 // 300ms
+    
+    // MARK: - 保存重试状态
+    // _Requirements: 2.5, 9.1_ - 保存失败时的内容保护和重试
+    
+    /// 待重试保存的 XML 内容
+    @State private var pendingRetryXMLContent: String? = nil
+    
+    /// 待重试保存的笔记对象
+    @State private var pendingRetryNote: Note? = nil
+    
+    /// 是否显示重试保存确认对话框
+    @State private var showRetrySaveAlert: Bool = false
     
     @State private var showImageInsertAlert: Bool = false
     @State private var imageInsertMessage: String = ""
@@ -111,10 +140,48 @@ struct NoteDetailView: View {
                 // _Requirements: 1.1, 1.2, 5.2, 6.1_
                 toggleDebugMode()
             }
+            // 监听原生编辑器保存状态变化通知
+            // _Requirements: 6.1, 6.2, 6.3, 6.4_
+            .onReceive(NotificationCenter.default.publisher(for: .nativeEditorSaveStatusDidChange)) { notification in
+                handleNativeEditorSaveStatusChange(notification)
+            }
             .navigationTitle("详情")
             .toolbar {
                 toolbarContent
             }
+    }
+    
+    /// 处理原生编辑器保存状态变化通知
+    /// 
+    /// 当原生编辑器的 hasUnsavedChanges 状态变化时，更新保存状态指示器
+    /// 
+    /// _Requirements: 6.1, 6.2, 6.3, 6.4_
+    private func handleNativeEditorSaveStatusChange(_ notification: Notification) {
+        // 只在使用原生编辑器时处理
+        guard isUsingNativeEditor else { return }
+        
+        // 只在非调试模式下处理
+        guard !isDebugMode else { return }
+        
+        // 获取 hasUnsavedChanges 状态
+        guard let userInfo = notification.userInfo,
+              let hasUnsavedChanges = userInfo["hasUnsavedChanges"] as? Bool else {
+            return
+        }
+        
+        // 更新保存状态
+        // _Requirements: 6.1_ - 内容未保存时显示"未保存"状态
+        if hasUnsavedChanges {
+            // 只有在当前状态不是 saving 时才更新为 unsaved
+            // 避免在保存过程中被覆盖
+            if case .saving = saveStatus {
+                // 保持 saving 状态
+            } else {
+                saveStatus = .unsaved
+                Swift.print("[保存状态] 📝 内容变化 - 设置为未保存")
+            }
+        }
+        // 注意：saved 状态由保存完成后的回调设置，不在这里处理
     }
     
     /// 注册保存回调到 ViewStateCoordinator
@@ -132,10 +199,11 @@ struct NoteDetailView: View {
     /// 为文件夹切换保存当前内容
     /// 
     /// 这个方法会被 ViewStateCoordinator 在文件夹切换前调用
+    /// 后台异步保存，不阻塞界面切换
     /// 
     /// **Requirements: 3.5, 6.1, 6.2**
     /// 
-    /// - Returns: 是否保存成功
+    /// - Returns: 是否保存成功（立即返回 true，保存在后台进行）
     @MainActor
     private func saveCurrentContentForFolderSwitch() async -> Bool {
         guard let note = viewModel.selectedNote, note.id == currentEditingNoteId else {
@@ -143,51 +211,96 @@ struct NoteDetailView: View {
             return true
         }
         
-        Swift.print("[保存流程] 🔄 文件夹切换前保存 - 笔记ID: \(note.id.prefix(8))..., 标题: \(editedTitle)")
+        // 关键修复：在切换前立即捕获当前编辑的标题和内容
+        let capturedTitle = editedTitle
+        let capturedOriginalTitle = originalTitle
+        let capturedLastSavedXMLContent = lastSavedXMLContent
+        let capturedNote = note
         
-        // 1. 强制编辑器保存当前内容
+        // 关键修复：立即获取原生编辑器的内容（在切换前）
+        var capturedContent: String = ""
         if isUsingNativeEditor {
-            // 原生编辑器：导出 XML
-            let xmlContent = nativeEditorContext.exportToXML()
-            if !xmlContent.isEmpty {
-                currentXMLContent = xmlContent
-            }
-        } else {
-            // Web 编辑器：强制保存
-            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
-                webEditorContext.forceSaveContent { c.resume() }
+            capturedContent = nativeEditorContext.exportToXML()
+            Swift.print("[保存流程] 📝 立即捕获原生编辑器内容 - 长度: \(capturedContent.count)")
+            
+            // 如果导出为空，使用 currentXMLContent
+            if capturedContent.isEmpty && !currentXMLContent.isEmpty {
+                capturedContent = currentXMLContent
+                Swift.print("[保存流程] 📝 使用 currentXMLContent - 长度: \(capturedContent.count)")
             }
         }
         
-        // 2. 获取最新内容
-        let content = await getLatestContentFromEditor()
+        Swift.print("[保存流程] 🔄 文件夹切换前保存 - 笔记ID: \(note.id.prefix(8))..., 标题: \(capturedTitle)")
         
-        // 3. 检查内容是否变化
-        guard content != lastSavedXMLContent || editedTitle != originalTitle else {
-            Swift.print("[保存流程] ⏭️ 文件夹切换保存跳过 - 内容无变化")
-            return true
-        }
-        
-        Swift.print("[保存流程] 💾 文件夹切换保存 - 内容长度: \(content.count)")
-        
-        // 4. 立即保存 XML
-        scheduleXMLSave(xmlContent: content, for: note, immediate: true)
-        
-        // 5. 等待保存完成
-        if let xmlTask = xmlSaveTask {
-            await withTaskGroup(of: Void.self) { group in
-                group.addTask {
-                    await xmlTask.value
+        // 后台异步保存，不阻塞界面切换
+        Task { @MainActor in
+            // 1. 根据编辑器类型获取内容
+            var content: String = capturedContent
+            
+            if !self.isUsingNativeEditor {
+                // Web 编辑器：强制保存并获取内容
+                await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                    self.webEditorContext.forceSaveContent { c.resume() }
                 }
-                group.addTask {
-                    try? await Task.sleep(nanoseconds: 500_000_000) // 500ms 超时
+                
+                // 获取最新内容
+                if let webContent = await withCheckedContinuation({ (c: CheckedContinuation<String?, Never>) in 
+                    self.webEditorContext.getCurrentContent { c.resume(returning: $0) } 
+                }) {
+                    content = webContent
                 }
-                await group.next()
-                group.cancelAll()
+            }
+            
+            // 2. 检查内容是否变化
+            let hasContentChange = content != capturedLastSavedXMLContent
+            let hasTitleChange = capturedTitle != capturedOriginalTitle
+            
+            guard hasContentChange || hasTitleChange else {
+                Swift.print("[保存流程] ⏭️ 文件夹切换保存跳过 - 内容无变化")
+                return
+            }
+            
+            Swift.print("[保存流程] 💾 后台保存 - 内容长度: \(content.count)")
+            Swift.print("[保存流程]   - 内容变化: \(hasContentChange)")
+            Swift.print("[保存流程]   - 标题变化: \(hasTitleChange)")
+            
+            // 3. 构建更新的笔记对象
+            let updated = Note(
+                id: capturedNote.id,
+                title: capturedTitle,
+                content: content,
+                folderId: capturedNote.folderId,
+                isStarred: capturedNote.isStarred,
+                createdAt: capturedNote.createdAt,
+                updatedAt: Date(),
+                tags: capturedNote.tags,
+                rawData: capturedNote.rawData
+            )
+            
+            // 立即更新内存缓存（不阻塞）
+            await MemoryCacheManager.shared.cacheNote(updated)
+            
+            // 更新视图模型中的笔记（不阻塞）
+            if let index = self.viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
+                self.viewModel.notes[index] = updated
+            }
+            
+            // 4. 后台异步保存到数据库
+            DatabaseService.shared.saveNoteAsync(updated) { error in
+                Task { @MainActor in
+                    if let error = error {
+                        Swift.print("[保存流程] ❌ 文件夹切换后台保存失败: \(error)")
+                    } else {
+                        Swift.print("[保存流程] ✅ 文件夹切换后台保存完成")
+                        
+                        // 调度云端同步（后台执行）
+                        self.scheduleCloudUpload(for: updated, xmlContent: content)
+                    }
+                }
             }
         }
         
-        Swift.print("[保存流程] ✅ 文件夹切换保存完成")
+        // 立即返回 true，不阻塞界面切换
         return true
     }
     
@@ -373,29 +486,79 @@ struct NoteDetailView: View {
         }
     }
     
+    /// 保存状态指示器
+    /// 
+    /// 显示当前保存状态：已保存（绿色）、保存中（黄色）、未保存（红色）、保存失败（红色，可点击查看详情和重试）
+    /// 
+    /// _Requirements: 6.1, 6.2, 6.3, 6.4, 2.5, 9.1_
     private var saveStatusIndicator: some View {
         Group {
             switch saveStatus {
             case .saved:
-                Text("已保存")
-                    .font(.system(size: 10))
-                    .foregroundColor(.green)
+                // _Requirements: 6.3_ - 保存完成显示"已保存"状态（绿色）
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 8))
+                    Text("已保存")
+                        .font(.system(size: 10))
+                }
+                .foregroundColor(.green)
             case .saving:
-                Text("保存中...")
-                    .font(.system(size: 10))
-                    .foregroundColor(.orange)
+                // _Requirements: 6.2_ - 保存中显示"保存中..."状态（黄色）
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .scaleEffect(0.5)
+                        .frame(width: 10, height: 10)
+                    Text("保存中...")
+                        .font(.system(size: 10))
+                }
+                .foregroundColor(.orange)
             case .unsaved:
-                Text("未保存")
-                    .font(.system(size: 10))
-                    .foregroundColor(.red)
+                // _Requirements: 6.1_ - 内容未保存显示"未保存"状态（红色）
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 8))
+                    Text("未保存")
+                        .font(.system(size: 10))
+                }
+                .foregroundColor(.red)
             case .error(let message):
-                Text("保存失败")
-                    .font(.system(size: 10))
+                // _Requirements: 6.4, 2.5, 9.1_ - 保存失败显示"保存失败"状态（红色，可点击查看详情和重试）
+                HStack(spacing: 6) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 8))
+                        Text("保存失败")
+                            .font(.system(size: 10))
+                    }
                     .foregroundColor(.red)
                     .onTapGesture {
+                        // 点击显示错误详情
                         saveErrorMessage = message
                         showSaveErrorAlert = true
                     }
+                    
+                    // _Requirements: 9.1_ - 提供重试选项
+                    if pendingRetryXMLContent != nil {
+                        Button(action: {
+                            retrySave()
+                        }) {
+                            HStack(spacing: 2) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 8))
+                                Text("重试")
+                                    .font(.system(size: 10))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(.blue)
+                    }
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(4)
+                .help("点击查看错误详情，或点击重试按钮重新保存")
             }
         }
     }
@@ -806,6 +969,11 @@ struct NoteDetailView: View {
         // 1. 立即显示占位符（<1ms）
         isInitializing = true
         
+        // 重置保存状态为已保存（新笔记加载时默认为已保存状态）
+        // _Requirements: 6.3_
+        saveStatus = .saved
+        Swift.print("[保存状态] 🔄 笔记切换 - 重置为已保存")
+        
         // 关键修复：立即更新标题，不要等待内容加载
         let title = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
         editedTitle = title
@@ -1154,6 +1322,8 @@ struct NoteDetailView: View {
     ///   - xmlContent: XML内容
     ///   - htmlContent: HTML内容
     ///   - note: 笔记对象
+    /// 
+    /// _Requirements: 6.1_ - 内容变化时设置为 unsaved 状态
     @MainActor
     private func updateMemoryCache(xmlContent: String, htmlContent: String?, for note: Note) async {
         // 关键修复：确保只有当前编辑的笔记才会被更新
@@ -1183,8 +1353,15 @@ struct NoteDetailView: View {
             viewModel.notes[index] = updated
         }
         
-        // 更新保存状态为"保存中"
-        saveStatus = .saving
+        // _Requirements: 6.1_ - 内容变化时设置为 unsaved 状态
+        // 只有在当前状态不是 saving 时才更新为 unsaved
+        if case .saving = saveStatus {
+            // 保持 saving 状态，不覆盖
+            Swift.print("[保存状态] ⏳ 保持保存中状态")
+        } else {
+            saveStatus = .unsaved
+            Swift.print("[保存状态] 📝 内容变化 - 设置为未保存")
+        }
         
         // 标记 coordinator 有未保存的内容
         // **Requirements: 6.1**
@@ -1220,17 +1397,13 @@ struct NoteDetailView: View {
     ///   - xmlContent: XML内容
     ///   - note: 笔记对象
     ///   - immediate: 是否立即保存（切换笔记时使用），默认false（防抖保存）
+    /// 
+    /// _Requirements: 6.2_ - 保存中显示"保存中..."状态
     @MainActor
     private func scheduleXMLSave(xmlContent: String, for note: Note, immediate: Bool = false) {
         // 检查是否是当前编辑的笔记
         guard note.id == currentEditingNoteId else {
             Swift.print("[保存流程] ⏭️ Tier 1 跳过 - 不是当前编辑笔记，ID: \(note.id.prefix(8))..., currentEditingNoteId: \(currentEditingNoteId?.prefix(8) ?? "nil")")
-            return
-        }
-        
-        // 检查内容是否变化
-        guard xmlContent != lastSavedXMLContent || editedTitle != originalTitle else {
-            Swift.print("[保存流程] ⏭️ Tier 1 跳过 - 内容未变化，XML长度: \(xmlContent.count), lastSaved: \(lastSavedXMLContent.count)")
             return
         }
         
@@ -1241,10 +1414,26 @@ struct NoteDetailView: View {
         
         if immediate {
             // 立即保存（切换笔记时）
+            // 检查内容是否变化
+            guard xmlContent != lastSavedXMLContent || editedTitle != originalTitle else {
+                Swift.print("[保存流程] ⏭️ Tier 1 立即保存跳过 - 内容未变化")
+                if case .unsaved = saveStatus {
+                    saveStatus = .saved
+                }
+                return
+            }
             Swift.print("[保存流程] 🔄 Tier 1 立即保存 - 笔记ID: \(noteId.prefix(8))..., XML长度: \(xmlContent.count)")
             performXMLSave(xmlContent: xmlContent, for: note)
         } else {
             // 防抖保存（正常编辑时）
+            // _Requirements: 6.1_ - 内容未保存时显示"未保存"状态
+            // 关键修复：在防抖期间显示"未保存"状态，而不是"保存中"
+            // 这样用户知道内容还没有被保存
+            if case .saved = saveStatus {
+                saveStatus = .unsaved
+                Swift.print("[保存状态] 📝 内容变化 - 设置为未保存")
+            }
+            
             xmlSaveDebounceTask = Task { @MainActor in
                 try? await Task.sleep(nanoseconds: xmlSaveDebounceDelay)
                 
@@ -1254,25 +1443,59 @@ struct NoteDetailView: View {
                     return
                 }
                 
-                // 再次检查内容是否变化（可能在防抖期间又变化了）
-                guard xmlContent != self.lastSavedXMLContent || self.editedTitle != self.originalTitle else {
+                // 关键修复：获取最新的内容进行保存
+                // 而不是使用防抖任务创建时捕获的旧内容
+                var latestXMLContent = xmlContent
+                
+                // 如果使用原生编辑器，从 nativeEditorContext 获取最新内容
+                if self.isUsingNativeEditor {
+                    let exportedXML = self.nativeEditorContext.exportToXML()
+                    if !exportedXML.isEmpty {
+                        latestXMLContent = exportedXML
+                        Swift.print("[保存流程] 📝 使用原生编辑器最新内容 - 长度: \(latestXMLContent.count)")
+                    }
+                } else {
+                    // Web 编辑器：使用 currentXMLContent（已经是最新的）
+                    if !self.currentXMLContent.isEmpty {
+                        latestXMLContent = self.currentXMLContent
+                    }
+                }
+                
+                // 检查内容是否变化
+                guard latestXMLContent != self.lastSavedXMLContent || self.editedTitle != self.originalTitle else {
                     Swift.print("[保存流程] ⏭️ Tier 1 防抖保存跳过 - 内容已同步")
+                    // 如果内容已同步，设置为已保存
+                    self.saveStatus = .saved
                     return
                 }
                 
-                Swift.print("[保存流程] 🔄 Tier 1 防抖保存触发 - 笔记ID: \(noteId.prefix(8))..., XML长度: \(xmlContent.count)")
-                self.performXMLSave(xmlContent: xmlContent, for: note)
+                Swift.print("[保存流程] 🔄 Tier 1 防抖保存触发 - 笔记ID: \(noteId.prefix(8))..., XML长度: \(latestXMLContent.count)")
+                self.performXMLSave(xmlContent: latestXMLContent, for: note)
             }
         }
     }
     
     /// 执行XML保存
+    /// 
+    /// _Requirements: 6.2_ - 保存中显示"保存中..."状态
+    /// _Requirements: 6.3_ - 保存完成显示"已保存"状态
+    /// _Requirements: 6.4_ - 保存失败显示"保存失败"状态
+    /// _Requirements: 2.5, 9.1_ - 保存失败时保留编辑内容在内存中
     @MainActor
     private func performXMLSave(xmlContent: String, for note: Note) {
         // 取消之前的保存任务
         xmlSaveTask?.cancel()
         
         let noteId = note.id
+        
+        // _Requirements: 6.2_ - 保存中显示"保存中..."状态
+        saveStatus = .saving
+        Swift.print("[保存状态] ⏳ 开始保存 - 设置为保存中")
+        
+        // _Requirements: 2.5, 9.1_ - 保存前备份内容
+        if isUsingNativeEditor {
+            nativeEditorContext.backupCurrentContent()
+        }
         
         // 构建更新的笔记对象
         var updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
@@ -1295,9 +1518,20 @@ struct NoteDetailView: View {
                         
                         if let error = error {
                             Swift.print("[保存流程] ❌ Tier 1 本地保存失败: \(error)")
-                            // 更新保存状态为"错误"（保存失败）
+                            // _Requirements: 6.4_ - 保存失败显示"保存失败"状态
                             let errorMessage = "保存笔记失败: \(error.localizedDescription)"
                             self.saveStatus = .error(errorMessage)
+                            Swift.print("[保存状态] ❌ 保存失败 - 设置为错误状态")
+                            
+                            // _Requirements: 2.5, 9.1_ - 保存失败时保留编辑内容
+                            // 标记保存失败，保留内容在内存中
+                            if self.isUsingNativeEditor {
+                                self.nativeEditorContext.markSaveFailed(error: errorMessage)
+                            }
+                            // 保存失败的 XML 内容到状态变量，用于重试
+                            self.pendingRetryXMLContent = xmlContent
+                            self.pendingRetryNote = note
+                            
                             continuation.resume()
                             return
                         }
@@ -1305,6 +1539,10 @@ struct NoteDetailView: View {
                         // 保存成功后更新状态
                         self.lastSavedXMLContent = xmlContent
                         self.currentXMLContent = xmlContent
+                        
+                        // 清除重试状态
+                        self.pendingRetryXMLContent = nil
+                        self.pendingRetryNote = nil
                         
                         // 更新视图模型中的笔记
                         // **Requirements: 1.1, 1.2** - 编辑笔记内容时保持选中状态不变
@@ -1330,12 +1568,18 @@ struct NoteDetailView: View {
                         // 更新内存缓存
                         await MemoryCacheManager.shared.cacheNote(updated)
                         
-                        // 更新保存状态为"已保存"
+                        // _Requirements: 6.3_ - 保存完成显示"已保存"状态
                         self.saveStatus = .saved
+                        Swift.print("[保存状态] ✅ 保存完成 - 设置为已保存")
                         
                         // 清除 coordinator 的未保存内容标志
                         // **Requirements: 6.1**
                         self.viewModel.stateCoordinator.hasUnsavedContent = false
+                        
+                        // 通知原生编辑器内容已保存
+                        if self.isUsingNativeEditor {
+                            self.nativeEditorContext.markContentSaved()
+                        }
                         
                         Swift.print("[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: \(noteId.prefix(8))..., 标题: \(self.editedTitle)")
                         continuation.resume()
@@ -1343,6 +1587,39 @@ struct NoteDetailView: View {
                 }
             }
         }
+    }
+    
+    /// 重试保存操作
+    /// 
+    /// 当保存失败后，用户可以点击重试按钮重新尝试保存
+    /// 
+    /// _Requirements: 2.5, 9.1_ - 提供重试选项
+    @MainActor
+    private func retrySave() {
+        Swift.print("[保存流程] 🔄 用户触发重试保存")
+        
+        // 获取待重试的内容和笔记
+        guard let xmlContent = pendingRetryXMLContent,
+              let note = pendingRetryNote ?? viewModel.selectedNote else {
+            Swift.print("[保存流程] ⚠️ 重试失败 - 无待重试内容或笔记")
+            return
+        }
+        
+        // 如果使用原生编辑器，尝试从备份获取内容
+        var contentToSave = xmlContent
+        if isUsingNativeEditor {
+            let backupContent = nativeEditorContext.getContentForRetry()
+            if backupContent.length > 0 {
+                // 使用安全转换方法，确保即使转换失败也能保存纯文本
+                contentToSave = XiaoMiFormatConverter.shared.safeNSAttributedStringToXML(backupContent)
+                Swift.print("[保存流程] 📝 使用备份内容进行重试 - 长度: \(contentToSave.count)")
+            }
+        }
+        
+        Swift.print("[保存流程] 🔄 开始重试保存 - 笔记ID: \(note.id.prefix(8))..., 内容长度: \(contentToSave.count)")
+        
+        // 执行保存
+        performXMLSave(xmlContent: contentToSave, for: note)
     }
     
     /// 保存XML内容（兼容旧接口）
@@ -1366,7 +1643,12 @@ struct NoteDetailView: View {
     @State private var lastUploadedContentByNoteId: [String: String] = [:]
     
     private func scheduleCloudUpload(for note: Note, xmlContent: String) {
-        guard viewModel.isOnline && viewModel.isLoggedIn else { return }
+        // _Requirements: 4.1_ - 网络不可用时将编辑操作加入离线队列
+        guard viewModel.isOnline && viewModel.isLoggedIn else {
+            // 网络不可用或未登录时，将操作添加到离线队列
+            queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
+            return
+        }
         
         // 关键修复：使用笔记 ID 作为 key 来存储每个笔记的最后上传内容
         // 这样可以避免不同笔记之间的内容比较混淆
@@ -1396,8 +1678,53 @@ struct NoteDetailView: View {
                 return
             }
             
+            // 再次检查网络状态（3秒延迟期间可能变化）
+            // _Requirements: 4.1_ - 网络不可用时将编辑操作加入离线队列
+            guard self.viewModel.isOnline && self.viewModel.isLoggedIn else {
+                self.queueOfflineUpdateOperation(for: note, xmlContent: latestXMLContent)
+                return
+            }
+            
             await performCloudUpload(for: note, xmlContent: latestXMLContent)
             self.lastUploadedContentByNoteId[noteId] = latestXMLContent
+        }
+    }
+    
+    /// 将更新操作添加到离线队列
+    /// 
+    /// 当网络不可用时，将编辑操作保存到离线队列，等待网络恢复后同步
+    /// 
+    /// _Requirements: 4.1_ - 网络不可用时将编辑操作加入离线队列
+    /// _Requirements: 4.2_ - 离线队列中有待处理操作时在 UI 中显示待同步状态
+    @MainActor
+    private func queueOfflineUpdateOperation(for note: Note, xmlContent: String) {
+        Swift.print("[离线队列] 📥 网络不可用，将操作添加到离线队列 - 笔记ID: \(note.id.prefix(8))...")
+        
+        // 构建操作数据
+        let data: [String: Any] = [
+            "title": editedTitle.isEmpty ? note.title : editedTitle,
+            "content": xmlContent,
+            "folderId": note.folderId,
+            "timestamp": Date().timeIntervalSince1970
+        ]
+        
+        do {
+            // 使用 JSONSerialization 编码数据
+            let operationData = try JSONSerialization.data(withJSONObject: data, options: [])
+            let operation = OfflineOperation(
+                type: .updateNote,
+                noteId: note.id,
+                data: operationData,
+                priority: OfflineOperation.calculatePriority(for: .updateNote)
+            )
+            try OfflineOperationQueue.shared.addOperation(operation)
+            Swift.print("[离线队列] ✅ 操作已添加到离线队列 - 笔记ID: \(note.id.prefix(8))...")
+            
+            // 更新最后上传内容记录（避免重复添加）
+            lastUploadedContentByNoteId[note.id] = xmlContent
+            
+        } catch {
+            Swift.print("[离线队列] ❌ 添加操作到离线队列失败: \(error)")
         }
     }
     
@@ -1423,7 +1750,44 @@ struct NoteDetailView: View {
         } catch { 
             isUploading = false
             Swift.print("[保存流程] ❌ Tier 2 云端同步失败: \(error)")
+            
+            // _Requirements: 3.4, 4.1_ - 云端同步失败时将操作加入离线队列
+            // 检查是否是网络相关错误
+            if isNetworkRelatedError(error) {
+                queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
+            }
         }
+    }
+    
+    /// 判断错误是否是网络相关错误
+    /// 
+    /// 用于决定是否将失败的操作添加到离线队列
+    private func isNetworkRelatedError(_ error: Error) -> Bool {
+        // 检查 MiNoteError
+        if let miNoteError = error as? MiNoteError {
+            switch miNoteError {
+            case .networkError:
+                return true
+            case .cookieExpired, .notAuthenticated:
+                return true // Cookie 过期也视为需要离线处理
+            case .invalidResponse:
+                return false // 无效响应可能是服务器问题，不一定需要离线处理
+            }
+        }
+        
+        // 检查 NSError
+        if let nsError = error as NSError? {
+            // 网络相关错误域
+            if nsError.domain == NSURLErrorDomain {
+                return true
+            }
+            // 服务器错误（5xx）
+            if nsError.code >= 500 && nsError.code < 600 {
+                return true
+            }
+        }
+        
+        return false
     }
     
     private func saveCurrentNoteBeforeSwitching(newNoteId: String) -> Task<Void, Never>? {
@@ -1439,63 +1803,103 @@ struct NoteDetailView: View {
             return nil
         }
         
+        // 关键修复：在切换前立即捕获当前编辑的标题和内容
+        // 这样即使后续状态变化，我们仍然有正确的数据
+        let capturedTitle = editedTitle
+        let capturedOriginalTitle = originalTitle
+        let capturedLastSavedXMLContent = lastSavedXMLContent
+        
+        // 关键修复：立即获取原生编辑器的内容（在切换前）
+        // 这是同步操作，确保在切换笔记前捕获到最新内容
+        var capturedContent: String = ""
+        if isUsingNativeEditor {
+            capturedContent = nativeEditorContext.exportToXML()
+            Swift.print("[笔记切换] 📝 立即捕获原生编辑器内容 - 长度: \(capturedContent.count)")
+            
+            // 如果导出为空，使用 currentXMLContent
+            if capturedContent.isEmpty && !currentXMLContent.isEmpty {
+                capturedContent = currentXMLContent
+                Swift.print("[笔记切换] 📝 使用 currentXMLContent - 长度: \(capturedContent.count)")
+            }
+        }
+        
         Swift.print("[笔记切换] 🔄 开始保存当前笔记 - 从ID: \(currentId.prefix(8))... 切换到ID: \(newNoteId.prefix(8))...")
+        Swift.print("[笔记切换] 📝 捕获的标题: \(capturedTitle), 原始标题: \(capturedOriginalTitle)")
         isSavingBeforeSwitch = true
         
-        return Task { @MainActor in
+        // 关键修复：不等待保存完成，立即返回 nil 让界面切换
+        // 保存在后台异步进行
+        Task { @MainActor in
             defer { isSavingBeforeSwitch = false }
             
-            // 再次验证：确保当前编辑的笔记ID没有变化
-            guard self.currentEditingNoteId == currentId else {
-                Swift.print("[笔记切换] ⚠️ 笔记已切换，取消保存 - 当前ID: \(self.currentEditingNoteId?.prefix(8) ?? "nil"), 期望ID: \(currentId.prefix(8))...")
-                return
-            }
+            // 1. 根据编辑器类型获取内容
+            var content: String = capturedContent
             
-            // 1. 强制编辑器保存当前内容
-            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in 
-                webEditorContext.forceSaveContent { c.resume() } 
-            }
-            
-            // 2. 获取最新内容
-            let content = await getLatestContentFromEditor()
-            Swift.print("[笔记切换] 📝 获取编辑器内容 - 长度: \(content.count)")
-            
-            // 再次验证：确保笔记ID仍然匹配
-            guard self.currentEditingNoteId == currentId else {
-                Swift.print("[笔记切换] ⚠️ 笔记已切换，取消保存 - 当前ID: \(self.currentEditingNoteId?.prefix(8) ?? "nil"), 期望ID: \(currentId.prefix(8))...")
-                return
-            }
-            
-            // 3. 检查内容是否变化，如果有变化则立即保存XML（不等待HTML）
-            if content != lastSavedXMLContent || editedTitle != originalTitle {
-                Swift.print("[笔记切换] 💾 内容有变化，立即保存XML - 内容长度: \(content.count), 已保存: \(lastSavedXMLContent.count)")
+            if !isUsingNativeEditor {
+                // Web 编辑器：强制保存并获取内容
+                await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in 
+                    webEditorContext.forceSaveContent { c.resume() } 
+                }
                 
-                // 立即保存XML（关键数据），不等待HTML缓存
-                // 使用保存的currentNote，而不是viewModel.selectedNote
-                scheduleXMLSave(xmlContent: content, for: currentNote, immediate: true)
+                // 获取最新内容
+                if let webContent = await withCheckedContinuation({ (c: CheckedContinuation<String?, Never>) in 
+                    webEditorContext.getCurrentContent { c.resume(returning: $0) } 
+                }) {
+                    content = webContent
+                }
+            }
+            
+            Swift.print("[笔记切换] 📝 后台保存内容 - 长度: \(content.count)")
+            
+            // 2. 检查内容是否变化
+            let hasContentChange = content != capturedLastSavedXMLContent
+            let hasTitleChange = capturedTitle != capturedOriginalTitle
+            
+            if hasContentChange || hasTitleChange {
+                Swift.print("[笔记切换] 💾 后台保存 - 内容变化: \(hasContentChange), 标题变化: \(hasTitleChange)")
                 
-                // 只等待XML保存完成（关键数据），不等待HTML缓存（后台继续）
-                if let xmlTask = xmlSaveTask {
-                    // 使用超时机制，避免无限等待
-                    await withTaskGroup(of: Void.self) { group in
-                        group.addTask {
-                            await xmlTask.value
+                // 构建更新的笔记对象
+                let updated = Note(
+                    id: currentNote.id,
+                    title: capturedTitle,
+                    content: content,
+                    folderId: currentNote.folderId,
+                    isStarred: currentNote.isStarred,
+                    createdAt: currentNote.createdAt,
+                    updatedAt: Date(),
+                    tags: currentNote.tags,
+                    rawData: currentNote.rawData
+                )
+                
+                // 立即更新内存缓存（不阻塞）
+                await MemoryCacheManager.shared.cacheNote(updated)
+                
+                // 更新视图模型中的笔记（不阻塞）
+                if let index = self.viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
+                    self.viewModel.notes[index] = updated
+                }
+                
+                // 后台异步保存到数据库
+                DatabaseService.shared.saveNoteAsync(updated) { error in
+                    Task { @MainActor in
+                        if let error = error {
+                            Swift.print("[笔记切换] ❌ 后台保存失败: \(error)")
+                        } else {
+                            Swift.print("[笔记切换] ✅ 后台保存成功 - 笔记ID: \(currentId.prefix(8))...")
+                            
+                            // 调度云端同步（后台执行）
+                            self.scheduleCloudUpload(for: updated, xmlContent: content)
                         }
-                        group.addTask {
-                            try? await Task.sleep(nanoseconds: 200_000_000) // 200ms超时
-                        }
-                        await group.next()
-                        group.cancelAll()
                     }
                 }
             } else {
                 Swift.print("[笔记切换] ⏭️ 内容无变化，跳过保存")
             }
-            
-            // HTML保存任务在后台继续，不阻塞切换
-            
-            Swift.print("[笔记切换] ✅ 保存完成，准备切换到新笔记")
         }
+        
+        // 关键修复：返回 nil，不阻塞界面切换
+        // 保存在后台异步进行
+        return nil
     }
     
     private func handleSelectedNoteChange(oldValue: Note?, newValue: Note?) {

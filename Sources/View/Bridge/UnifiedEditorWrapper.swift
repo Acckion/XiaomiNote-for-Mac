@@ -57,6 +57,14 @@ struct UnifiedEditorWrapper: View {
     /// 是否正在从外部更新内容（防止循环更新）
     @State private var isUpdatingFromExternal: Bool = false
     
+    /// 内容变化防抖任务
+    /// _Requirements: 2.3_ - 实现 300ms 防抖，避免频繁保存
+    @State private var debounceTask: Task<Void, Never>? = nil
+    
+    /// 防抖延迟时间（毫秒）
+    /// _Requirements: 2.3_
+    private let debounceDelayMs: UInt64 = 300
+    
     // MARK: - Body
     
     var body: some View {
@@ -176,6 +184,19 @@ struct UnifiedEditorWrapper: View {
             return
         }
         
+        // 关键修复：检查是否是保存后的内容更新（而不是笔记切换）
+        // 如果新内容与当前编辑器中的内容相同（或非常接近），说明这是保存后的更新
+        // 不需要重新加载，避免触发 hasUnsavedChanges = true
+        if preferencesService.selectedEditorType == .native && preferencesService.isNativeEditorAvailable {
+            let currentEditorXML = nativeEditorContext.exportToXML()
+            if !currentEditorXML.isEmpty && currentEditorXML == newContent {
+                print("[UnifiedEditorWrapper] xmlContent 变化但与编辑器内容相同，跳过重新加载")
+                // 更新 lastLoadedContent 以保持同步
+                lastLoadedContent = newContent
+                return
+            }
+        }
+        
         print("[UnifiedEditorWrapper] xmlContent 变化（切换笔记）- 从长度 \(oldValue?.count ?? 0) 到 \(newContent.count)")
         
         Task { @MainActor in
@@ -240,29 +261,91 @@ struct UnifiedEditorWrapper: View {
     }
     
     /// 处理原生编辑器内容变化
+    /// _Requirements: 2.1_ - 确保 NSAttributedString 正确转换为 XML 并调用回调
+    /// _Requirements: 2.3_ - 实现 300ms 防抖，避免频繁保存
     private func handleNativeContentChange(_ attributedString: NSAttributedString) {
-        guard !isUpdatingFromExternal else { return }
+        // 如果正在从外部更新内容，跳过处理
+        guard !isUpdatingFromExternal else {
+            print("[UnifiedEditorWrapper] handleNativeContentChange: 跳过（正在从外部更新）")
+            return
+        }
         
+        // 关键修复：立即标记有未保存的更改
+        // 这确保用户在输入时能看到"未保存"状态
+        nativeEditorContext.hasUnsavedChanges = true
+        
+        // 取消之前的防抖任务
+        debounceTask?.cancel()
+        
+        // 创建新的防抖任务
+        // _Requirements: 2.3_ - 300ms 防抖
+        debounceTask = Task { @MainActor in
+            do {
+                // 等待防抖延迟
+                try await Task.sleep(nanoseconds: debounceDelayMs * 1_000_000)
+                
+                // 检查任务是否被取消
+                try Task.checkCancellation()
+                
+                // 关键修复：使用 nativeEditorContext.nsAttributedText 获取最新内容
+                // 而不是使用防抖任务创建时捕获的旧内容
+                // 这确保保存的是用户最新输入的内容
+                let latestContent = nativeEditorContext.nsAttributedText
+                
+                // 执行实际的内容变化处理
+                await performContentChange(latestContent)
+            } catch is CancellationError {
+                // 任务被取消，这是正常的防抖行为
+                print("[UnifiedEditorWrapper] handleNativeContentChange: 防抖任务被取消")
+            } catch {
+                print("[UnifiedEditorWrapper] handleNativeContentChange: 错误 - \(error)")
+            }
+        }
+    }
+    
+    /// 执行实际的内容变化处理
+    /// _Requirements: 2.1_ - 将 NSAttributedString 转换为 XML 格式并触发保存流程
+    /// _Requirements: 9.3_ - 格式转换失败时记录日志并尝试使用原始内容
+    private func performContentChange(_ attributedString: NSAttributedString) async {
         // 关键修复：直接使用传入的 attributedString 进行转换
         // 而不是依赖 nativeEditorContext.nsAttributedText
         // 因为 nsAttributedText 可能还没有被更新（异步更新）
-        do {
-            let xmlContent = try XiaoMiFormatConverter.shared.nsAttributedStringToXML(attributedString)
+        
+        // _Requirements: 9.3_ - 使用安全转换方法，确保即使转换失败也能保存内容
+        let xmlContent = XiaoMiFormatConverter.shared.safeNSAttributedStringToXML(attributedString)
+        
+        // 检查转换结果
+        if xmlContent.isEmpty && attributedString.length > 0 {
+            print("[UnifiedEditorWrapper] performContentChange: ⚠️ 转换结果为空，但原始内容不为空")
+            print("[UnifiedEditorWrapper]   - 原始内容长度: \(attributedString.length)")
+            print("[UnifiedEditorWrapper]   - 原始内容预览: \(attributedString.string.prefix(100))...")
+            // 不触发保存，保留用户编辑的内容在内存中
+            return
+        }
+        
+        print("[UnifiedEditorWrapper] performContentChange: XML 转换成功 - 长度: \(xmlContent.count)")
+        
+        // 关键修复：即使 XML 内容相同，也要检查是否需要触发保存
+        // 因为格式变化可能不会改变 XML 字符串，但仍需要保存
+        let contentChanged = xmlContent != content
+        let hasUnsavedChanges = nativeEditorContext.hasUnsavedChanges
+        
+        if contentChanged || hasUnsavedChanges {
+            isUpdatingFromExternal = true
             
             // 更新绑定的内容
-            if xmlContent != content {
-                Task { @MainActor in
-                    isUpdatingFromExternal = true
-                    content = xmlContent
-                    lastLoadedContent = xmlContent
-                    isUpdatingFromExternal = false
-                    
-                    // 调用内容变化回调（原生编辑器不提供 HTML 缓存）
-                    onContentChange(xmlContent, nil)
-                }
-            }
-        } catch {
-            print("[UnifiedEditorWrapper] 转换 XML 失败: \(error)")
+            content = xmlContent
+            lastLoadedContent = xmlContent
+            
+            isUpdatingFromExternal = false
+            
+            // 调用内容变化回调（原生编辑器不提供 HTML 缓存）
+            // _Requirements: 2.1_ - 触发保存流程
+            onContentChange(xmlContent, nil)
+            
+            print("[UnifiedEditorWrapper] performContentChange: 已触发保存回调 - contentChanged: \(contentChanged), hasUnsavedChanges: \(hasUnsavedChanges)")
+        } else {
+            print("[UnifiedEditorWrapper] performContentChange: 内容未变化，跳过保存")
         }
     }
     

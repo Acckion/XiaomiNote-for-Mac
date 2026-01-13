@@ -198,4 +198,90 @@ final class XiaoMiFormatConverterTests: XCTestCase {
             XCTAssertTrue(converter.validateConversion(xml), "往返转换验证应该成功")
         }
     }
+    
+    // MARK: - 复选框状态保留测试
+    
+    /// 测试未选中复选框的解析和导出
+    /// _Requirements: 1.4, 5.8_
+    func testUncheckedCheckboxParsing() throws {
+        let xml = "<input type=\"checkbox\" indent=\"1\" level=\"3\" />待办事项"
+        
+        // 解析 XML
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 验证文本内容
+        XCTAssertTrue(nsAttributedString.string.contains("待办事项"), "应该包含待办事项文本")
+        
+        // 验证复选框附件
+        var foundCheckbox = false
+        nsAttributedString.enumerateAttribute(.attachment, in: NSRange(location: 0, length: nsAttributedString.length)) { value, _, _ in
+            if let checkbox = value as? InteractiveCheckboxAttachment {
+                foundCheckbox = true
+                XCTAssertFalse(checkbox.isChecked, "复选框应该是未选中状态")
+                XCTAssertEqual(checkbox.indent, 1, "缩进应该是 1")
+                XCTAssertEqual(checkbox.level, 3, "级别应该是 3")
+            }
+        }
+        XCTAssertTrue(foundCheckbox, "应该找到复选框附件")
+    }
+    
+    /// 测试选中复选框的解析和导出
+    /// _Requirements: 1.4, 5.8_
+    func testCheckedCheckboxParsing() throws {
+        let xml = "<input type=\"checkbox\" indent=\"2\" level=\"3\" checked=\"true\" />已完成事项"
+        
+        // 解析 XML
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 验证文本内容
+        XCTAssertTrue(nsAttributedString.string.contains("已完成事项"), "应该包含已完成事项文本")
+        
+        // 验证复选框附件
+        var foundCheckbox = false
+        nsAttributedString.enumerateAttribute(.attachment, in: NSRange(location: 0, length: nsAttributedString.length)) { value, _, _ in
+            if let checkbox = value as? InteractiveCheckboxAttachment {
+                foundCheckbox = true
+                XCTAssertTrue(checkbox.isChecked, "复选框应该是选中状态")
+                XCTAssertEqual(checkbox.indent, 2, "缩进应该是 2")
+                XCTAssertEqual(checkbox.level, 3, "级别应该是 3")
+            }
+        }
+        XCTAssertTrue(foundCheckbox, "应该找到复选框附件")
+    }
+    
+    /// 测试复选框状态往返一致性
+    /// _Requirements: 1.4, 5.8_
+    func testCheckboxStateRoundTrip() throws {
+        // 测试选中状态
+        let checkedXML = "<input type=\"checkbox\" indent=\"1\" level=\"3\" checked=\"true\" />选中的复选框"
+        let checkedNS = try converter.xmlToNSAttributedString(checkedXML)
+        let exportedCheckedXML = try converter.nsAttributedStringToXML(checkedNS)
+        
+        XCTAssertTrue(exportedCheckedXML.contains("checked=\"true\""), "导出的 XML 应该包含 checked=\"true\"")
+        
+        // 测试未选中状态
+        let uncheckedXML = "<input type=\"checkbox\" indent=\"1\" level=\"3\" />未选中的复选框"
+        let uncheckedNS = try converter.xmlToNSAttributedString(uncheckedXML)
+        let exportedUncheckedXML = try converter.nsAttributedStringToXML(uncheckedNS)
+        
+        XCTAssertFalse(exportedUncheckedXML.contains("checked=\"true\""), "导出的 XML 不应该包含 checked=\"true\"")
+        XCTAssertTrue(exportedUncheckedXML.contains("<input type=\"checkbox\""), "导出的 XML 应该包含复选框标签")
+    }
+    
+    /// 测试复选框属性保留
+    /// _Requirements: 5.8_
+    func testCheckboxAttributesPreservation() throws {
+        let xml = "<input type=\"checkbox\" indent=\"3\" level=\"5\" checked=\"true\" />带属性的复选框"
+        
+        // 解析 XML
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 导出 XML
+        let exportedXML = try converter.nsAttributedStringToXML(nsAttributedString)
+        
+        // 验证属性保留
+        XCTAssertTrue(exportedXML.contains("indent=\"3\""), "应该保留 indent 属性")
+        XCTAssertTrue(exportedXML.contains("level=\"5\""), "应该保留 level 属性")
+        XCTAssertTrue(exportedXML.contains("checked=\"true\""), "应该保留 checked 属性")
+    }
 }
