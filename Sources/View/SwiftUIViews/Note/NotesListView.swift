@@ -146,7 +146,7 @@ struct PinnedNoteRowContent<ContextMenu: View>: View {
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(isSelected 
-                          ? Color.accentColor.opacity(0.2) 
+                          ? Color.accentColor.opacity(0.65) 
                           : Color.clear)
             )
             .contentShape(Rectangle())
@@ -320,6 +320,7 @@ struct NotesListView: View {
                 }
             }
             .padding(.horizontal, 10)
+            .padding(.bottom, 8) // 增加底部边距，避免最后一个笔记与底部距离太近
         }
         .background(Color(NSColor.windowBackgroundColor))
         // 注意：不再使用 .id() 强制重建整个 ScrollView
