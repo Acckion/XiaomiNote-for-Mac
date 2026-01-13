@@ -2915,14 +2915,24 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// **注意**：此方法在更新笔记时会尽量避免触发不必要的排序变化，
     /// 以防止笔记在列表中错误移动。
+    /// 
+    /// _需求: 3.5_
     func ensureNoteHasFullContent(_ note: Note) async {
+        // 性能监控：记录开始时间
+        // _需求: 3.5_
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
         // 如果笔记已经有完整内容，不需要获取
         if !note.content.isEmpty {
+            let skipDuration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+            print("[性能监控] ⏱️ ensureNoteHasFullContent 跳过（已有内容）耗时: \(String(format: "%.2f", skipDuration))ms")
             return
         }
         
         // 如果连 snippet 都没有，可能笔记不存在，不需要获取
         if note.rawData?["snippet"] == nil {
+            let skipDuration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+            print("[性能监控] ⏱️ ensureNoteHasFullContent 跳过（无 snippet）耗时: \(String(format: "%.2f", skipDuration))ms")
             return
         }
         
@@ -2936,19 +2946,47 @@ public class NotesViewModel: ObservableObject {
             if let index = notes.firstIndex(where: { $0.id == note.id }) {
                 var updatedNote = notes[index]
                 
-                // 保存原始的 updatedAt，用于后续比较
+                // 4.1 保存原始时间戳
                 let originalUpdatedAt = updatedNote.updatedAt
+                let originalContent = updatedNote.content
+                let originalTitle = updatedNote.title
+                
+                // 增强日志：记录 ensureNoteHasFullContent 的详细信息
+                // _需求: 3.3_
+                print("[VIEWMODEL] [ensureNoteHasFullContent] ═══════════════════════════════════════")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 📝 笔记ID: \(note.id.prefix(8))...")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 🕐 原始时间戳: \(originalUpdatedAt)")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 📏 原始内容长度: \(originalContent.count)")
                 
                 updatedNote.updateContent(from: noteDetails)
-                print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent更新完成")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] ✅ 内容更新完成")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 📏 新内容长度: \(updatedNote.content.count)")
+                
+                // 4.2 检测内容实际变化
+                let contentActuallyChanged = hasContentActuallyChanged(
+                    currentContent: updatedNote.content,
+                    savedContent: originalContent,
+                    currentTitle: updatedNote.title,
+                    originalTitle: originalTitle
+                )
+                
+                // 4.3 添加调试日志
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 📊 内容变化检测结果: \(contentActuallyChanged)")
+                
+                // 如果内容无实际变化，恢复原始时间戳
+                if !contentActuallyChanged {
+                    updatedNote.updatedAt = originalUpdatedAt
+                    print("[VIEWMODEL] [ensureNoteHasFullContent] 🕐 内容无实际变化，恢复原始时间戳: \(originalUpdatedAt)")
+                    print("[VIEWMODEL] [ensureNoteHasFullContent] ✅ 时间戳决策: 保持不变")
+                } else {
+                    print("[VIEWMODEL] [ensureNoteHasFullContent] 🕐 内容有实际变化，保持新时间戳: \(updatedNote.updatedAt)")
+                    print("[VIEWMODEL] [ensureNoteHasFullContent] ✅ 时间戳决策: 更新")
+                }
+                print("[VIEWMODEL] [ensureNoteHasFullContent] ═══════════════════════════════════════")
                 
                 // 保存到本地
-                print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent保存到本地")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 💾 保存到本地数据库")
                 try localStorage.saveNote(updatedNote)
-                
-                // 检查 updatedAt 是否真正变化
-                // 如果没有变化，说明只是加载了内容，不应该触发排序变化
-                let updatedAtChanged = abs(updatedNote.updatedAt.timeIntervalSince(originalUpdatedAt)) > 1.0
                 
                 // 更新列表中的笔记
                 // 注意：即使 updatedAt 没有变化，我们仍然需要更新 notes 数组以反映新的内容
@@ -2960,12 +2998,100 @@ public class NotesViewModel: ObservableObject {
                     selectedNote = updatedNote
                 }
                 
-                print("[VIEWMODEL] 已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count), updatedAt变化: \(updatedAtChanged)")
+                // 性能监控：记录完成时间
+                // _需求: 3.5_
+                let totalDuration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+                print("[性能监控] ═══════════════════════════════════════")
+                print("[性能监控] ⏱️ ensureNoteHasFullContent 总耗时: \(String(format: "%.2f", totalDuration))ms")
+                print("[性能监控] 📏 内容长度: \(updatedNote.content.count)")
+                print("[性能监控] 🕐 时间戳决策: \(contentActuallyChanged ? "更新" : "保持")")
+                if totalDuration > 200 {
+                    print("[性能监控] ⚠️ 警告: 内容获取耗时超过 200ms，可能影响用户体验")
+                } else {
+                    print("[性能监控] ✅ 内容获取性能正常")
+                }
+                print("[性能监控] ═══════════════════════════════════════")
+                
+                print("[VIEWMODEL] 已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count), 时间戳决策: \(contentActuallyChanged ? "更新" : "保持")")
             }
         } catch {
+            // 性能监控：记录失败时的耗时
+            // _需求: 3.5_
+            let errorDuration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+            print("[性能监控] ⏱️ ensureNoteHasFullContent 失败耗时: \(String(format: "%.2f", errorDuration))ms")
             print("[VIEWMODEL] 获取笔记完整内容失败: \(error.localizedDescription)")
             // 不显示错误，因为可能只是网络问题，用户仍然可以查看 snippet
         }
+    }
+    
+    /// 检查内容是否真正发生变化
+    /// 
+    /// 通过标准化内容比较（去除空白字符差异）来准确判断内容是否真正变化
+    /// 
+    /// - Parameters:
+    ///   - currentContent: 当前内容
+    ///   - savedContent: 保存的内容
+    ///   - currentTitle: 当前标题
+    ///   - originalTitle: 原始标题
+    /// - Returns: 如果内容或标题发生实际变化返回 true，否则返回 false
+    /// 
+    /// _需求: 2.1, 2.2, 3.3_
+    private func hasContentActuallyChanged(currentContent: String, savedContent: String, currentTitle: String, originalTitle: String) -> Bool {
+        // 记录检测开始时间（用于性能监控）
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        // 标准化内容比较（去除空白字符差异）
+        let normalizedCurrent = currentContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedSaved = savedContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        let contentChanged = normalizedCurrent != normalizedSaved
+        let titleChanged = currentTitle != originalTitle
+        
+        // 计算检测耗时
+        let elapsedTime = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+        
+        // 增强日志：记录详细的内容变化检测信息
+        // _需求: 3.3_
+        print("[VIEWMODEL] [内容检测] ═══════════════════════════════════════")
+        print("[VIEWMODEL] [内容检测] 📊 检测结果: 内容变化=\(contentChanged), 标题变化=\(titleChanged)")
+        print("[VIEWMODEL] [内容检测] 📏 内容长度: 当前=\(normalizedCurrent.count), 保存=\(normalizedSaved.count)")
+        print("[VIEWMODEL] [内容检测] ⏱️ 检测耗时: \(String(format: "%.2f", elapsedTime))ms")
+        
+        if contentChanged {
+            // 如果内容长度差异较大，记录更详细的信息
+            let lengthDiff = abs(normalizedCurrent.count - normalizedSaved.count)
+            print("[VIEWMODEL] [内容检测] 📝 内容长度差异: \(lengthDiff) 字符")
+            
+            if lengthDiff > 10 {
+                print("[VIEWMODEL] [内容检测] ⚠️ 内容长度差异较大，可能是实际编辑")
+            } else {
+                print("[VIEWMODEL] [内容检测] ℹ️ 内容长度差异较小，可能是格式化差异")
+            }
+            
+            // 如果内容变化较小，记录前后内容的前100个字符用于调试
+            if lengthDiff <= 50 {
+                let currentPreview = String(normalizedCurrent.prefix(100))
+                let savedPreview = String(normalizedSaved.prefix(100))
+                print("[VIEWMODEL] [内容检测] 🔍 当前内容预览: \(currentPreview)")
+                print("[VIEWMODEL] [内容检测] 🔍 保存内容预览: \(savedPreview)")
+            }
+        } else {
+            print("[VIEWMODEL] [内容检测] ✅ 内容无变化")
+        }
+        
+        if titleChanged {
+            print("[VIEWMODEL] [内容检测] 📝 标题变化: '\(originalTitle)' -> '\(currentTitle)'")
+        } else {
+            print("[VIEWMODEL] [内容检测] ✅ 标题无变化")
+        }
+        
+        // 记录时间戳更新决策
+        // _需求: 3.3_
+        let shouldUpdateTimestamp = contentChanged || titleChanged
+        print("[VIEWMODEL] [内容检测] 🕐 时间戳决策: \(shouldUpdateTimestamp ? "需要更新" : "保持不变")")
+        print("[VIEWMODEL] [内容检测] ═══════════════════════════════════════")
+        
+        return contentChanged || titleChanged
     }
     
     func deleteNote(_ note: Note) {

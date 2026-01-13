@@ -750,7 +750,10 @@ struct NoteDetailView: View {
             
             // _Requirements: 4.6_ - 显示 "已保存" 状态
             debugSaveStatus = .saved
+            // 关键修复：确保 lastSavedXMLContent 与 debugXMLContent 同步
+            // _需求: 2.2_
             lastSavedXMLContent = debugXMLContent
+            Swift.print("[调试模式] 📝 保存成功，lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
             
             // 更新内存缓存
             await MemoryCacheManager.shared.cacheNote(updated)
@@ -989,9 +992,11 @@ struct NoteDetailView: View {
         xmlSaveDebounceTask = nil
         
         // 关键修复：清空内容前先记录，避免在加载过程中被覆盖
+        // _需求: 2.2_ - 确保 lastSavedXMLContent 与 currentXMLContent 同步
         currentXMLContent = ""
         lastSavedXMLContent = ""
         originalXMLContent = ""
+        Swift.print("[快速切换] 📝 重置内容状态，lastSavedXMLContent 已清空")
         
         // 调试模式：处理笔记切换时的内容加载
         // _Requirements: 6.4_ - 切换笔记时加载新笔记的 XML 内容，保持调试模式状态
@@ -1051,8 +1056,11 @@ struct NoteDetailView: View {
         
         // 加载内容
         currentXMLContent = note.primaryXMLContent
+        // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+        // _需求: 2.2_
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
+        Swift.print("[快速切换] 📝 从缓存加载内容，lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
         
         // 调试模式：同步内容到调试编辑器
         // _Requirements: 6.4_
@@ -1134,8 +1142,11 @@ struct NoteDetailView: View {
         // 注意：这里我们需要将HTML转换为XML，或者让编辑器直接使用HTML
         // 暂时使用primaryXMLContent，后台会加载完整内容
         currentXMLContent = note.primaryXMLContent
+        // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+        // _需求: 2.2_
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
+        Swift.print("[快速切换] 📝 从HTML缓存加载内容，lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
         
         Swift.print("[快速切换] ✅ 从HTML缓存加载完成 - ID: \(note.id.prefix(8))..., 标题: \(title)")
         
@@ -1156,12 +1167,18 @@ struct NoteDetailView: View {
                 
                 // 更新内容
                 currentXMLContent = updated.primaryXMLContent
+                // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+                // _需求: 2.2_
                 lastSavedXMLContent = currentXMLContent
                 originalXMLContent = currentXMLContent
+                Swift.print("[快速切换] 📝 异步加载完整内容，lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
                 
                 Swift.print("[快速切换] ✅ 完整内容加载完成 - ID: \(note.id.prefix(8))...")
             }
         } else {
+            // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+            // _需求: 2.2_
+            Swift.print("[快速切换] 📝 内容已存在，lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
             // 更新缓存
             await MemoryCacheManager.shared.cacheNote(note)
         }
@@ -1196,11 +1213,16 @@ struct NoteDetailView: View {
         
         // 2. 加载内容
         currentXMLContent = note.primaryXMLContent
+        // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+        // _需求: 2.2_
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
+        Swift.print("[笔记切换] 📝 初始加载内容，lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
         
         // 3. 如果内容为空，确保获取完整内容
         if note.content.isEmpty {
+            Swift.print("[笔记切换] ⚠️ 笔记内容为空，需要获取完整内容")
+            
             await viewModel.ensureNoteHasFullContent(note)
             
             // 再次验证笔记ID
@@ -1210,13 +1232,25 @@ struct NoteDetailView: View {
             }
             
             if let updated = viewModel.selectedNote, updated.id == note.id {
+                Swift.print("[笔记切换] ✅ 获取完整内容后更新 - 内容长度: \(updated.content.count)")
+                
                 currentXMLContent = updated.primaryXMLContent
+                // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+                // _需求: 2.2_
                 lastSavedXMLContent = currentXMLContent
+                Swift.print("[笔记切换] 📝 ensureNoteHasFullContent 后同步 lastSavedXMLContent - 长度: \(lastSavedXMLContent.count)")
                 
                 // 更新缓存
                 await MemoryCacheManager.shared.cacheNote(updated)
+            } else {
+                // 关键修复：即使 selectedNote 不匹配，也要确保 lastSavedXMLContent 与 currentXMLContent 同步
+                // _需求: 2.2_
+                Swift.print("[笔记切换] ⚠️ selectedNote 不匹配，但保持 lastSavedXMLContent 同步 - 长度: \(lastSavedXMLContent.count)")
             }
         } else {
+            // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+            // _需求: 2.2_
+            Swift.print("[笔记切换] 📝 内容已存在，lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
             // 更新缓存
             await MemoryCacheManager.shared.cacheNote(note)
         }
@@ -1280,7 +1314,27 @@ struct NoteDetailView: View {
     
     @MainActor
     private func saveTitleAndContent(title: String, xmlContent: String, for note: Note) async {
-        var updated = Note(id: note.id, title: title, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: Date(), tags: note.tags, rawData: note.rawData)
+        // 使用改进的内容变化检测
+        // _需求: 1.3, 2.4_
+        let hasActualChange = hasContentActuallyChanged(
+            currentContent: xmlContent,
+            savedContent: lastSavedXMLContent,
+            currentTitle: title,
+            originalTitle: originalTitle
+        )
+        
+        // 只有在内容或标题真正变化时才更新时间戳
+        let shouldUpdateTimestamp = hasActualChange
+        
+        // 使用 buildUpdatedNote 方法构建更新的笔记对象
+        // 临时设置 editedTitle 以便 buildUpdatedNote 使用正确的标题
+        let previousEditedTitle = editedTitle
+        editedTitle = title
+        var updated = buildUpdatedNote(from: note, xmlContent: xmlContent, shouldUpdateTimestamp: shouldUpdateTimestamp)
+        editedTitle = previousEditedTitle
+        
+        Swift.print("[保存流程] 📝 saveTitleAndContent - 内容变化: \(hasActualChange), 更新时间戳: \(shouldUpdateTimestamp)")
+        
         // 注意：Note模型中没有htmlContent属性，HTML缓存由DatabaseService单独管理
         
         // 使用异步保存
@@ -1293,9 +1347,12 @@ struct NoteDetailView: View {
                         return
                     }
                     
+                    // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+                    // _需求: 2.2_
                     self.lastSavedXMLContent = xmlContent
                     self.originalTitle = title
                     self.currentXMLContent = xmlContent
+                    Swift.print("[保存流程] 📝 标题和内容保存成功，lastSavedXMLContent 已同步 - 长度: \(self.lastSavedXMLContent.count)")
                     // 更新笔记列表和选中的笔记
                     if let index = self.viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
                         self.viewModel.notes[index] = updated
@@ -1414,9 +1471,16 @@ struct NoteDetailView: View {
         
         if immediate {
             // 立即保存（切换笔记时）
-            // 检查内容是否变化
-            guard xmlContent != lastSavedXMLContent || editedTitle != originalTitle else {
-                Swift.print("[保存流程] ⏭️ Tier 1 立即保存跳过 - 内容未变化")
+            // 使用改进的内容变化检测
+            // _需求: 1.3, 2.4_
+            let hasActualChange = hasContentActuallyChanged(
+                currentContent: xmlContent,
+                savedContent: lastSavedXMLContent,
+                currentTitle: editedTitle,
+                originalTitle: originalTitle
+            )
+            guard hasActualChange else {
+                Swift.print("[保存流程] ⏭️ Tier 1 立即保存跳过 - 内容无实际变化")
                 if case .unsaved = saveStatus {
                     saveStatus = .saved
                 }
@@ -1461,10 +1525,17 @@ struct NoteDetailView: View {
                     }
                 }
                 
-                // 检查内容是否变化
-                guard latestXMLContent != self.lastSavedXMLContent || self.editedTitle != self.originalTitle else {
-                    Swift.print("[保存流程] ⏭️ Tier 1 防抖保存跳过 - 内容已同步")
-                    // 如果内容已同步，设置为已保存
+                // 使用改进的内容变化检测
+                // _需求: 1.3, 2.4_
+                let hasActualChange = self.hasContentActuallyChanged(
+                    currentContent: latestXMLContent,
+                    savedContent: self.lastSavedXMLContent,
+                    currentTitle: self.editedTitle,
+                    originalTitle: self.originalTitle
+                )
+                guard hasActualChange else {
+                    Swift.print("[保存流程] ⏭️ Tier 1 防抖保存跳过 - 内容无实际变化")
+                    // 如果内容无实际变化，设置为已保存
                     self.saveStatus = .saved
                     return
                 }
@@ -1537,8 +1608,11 @@ struct NoteDetailView: View {
                         }
                         
                         // 保存成功后更新状态
+                        // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+                        // _需求: 2.2_
                         self.lastSavedXMLContent = xmlContent
                         self.currentXMLContent = xmlContent
+                        Swift.print("[保存流程] 📝 XML保存成功，lastSavedXMLContent 已同步 - 长度: \(self.lastSavedXMLContent.count)")
                         
                         // 清除重试状态
                         self.pendingRetryXMLContent = nil
@@ -1790,6 +1864,7 @@ struct NoteDetailView: View {
         return false
     }
     
+    /// _需求: 3.5_
     private func saveCurrentNoteBeforeSwitching(newNoteId: String) -> Task<Void, Never>? {
         guard let currentId = currentEditingNoteId, currentId != newNoteId else { 
             Swift.print("[笔记切换] ⏭️ 无需保存 - 无当前编辑笔记或笔记ID相同")
@@ -1802,6 +1877,8 @@ struct NoteDetailView: View {
             Swift.print("[笔记切换] ⚠️ 无法找到当前编辑的笔记 - ID: \(currentId.prefix(8))...")
             return nil
         }
+        
+        Swift.print("[笔记切换] 💾 保存当前笔记 - ID: \(currentId.prefix(8))..., 标题: \(currentNote.title)")
         
         // 关键修复：在切换前立即捕获当前编辑的标题和内容
         // 这样即使后续状态变化，我们仍然有正确的数据
@@ -1823,13 +1900,25 @@ struct NoteDetailView: View {
             }
         }
         
-        Swift.print("[笔记切换] 🔄 开始保存当前笔记 - 从ID: \(currentId.prefix(8))... 切换到ID: \(newNoteId.prefix(8))...")
-        Swift.print("[笔记切换] 📝 捕获的标题: \(capturedTitle), 原始标题: \(capturedOriginalTitle)")
+        // 增强日志：记录笔记切换保存的详细信息
+        // _需求: 3.3_
+        Swift.print("[笔记切换] ═══════════════════════════════════════")
+        Swift.print("[笔记切换] 🔄 开始保存当前笔记")
+        Swift.print("[笔记切换] 📝 从笔记ID: \(currentId.prefix(8))... 切换到: \(newNoteId.prefix(8))...")
+        Swift.print("[笔记切换] 📝 捕获的标题: \(capturedTitle)")
+        Swift.print("[笔记切换] 📝 原始标题: \(capturedOriginalTitle)")
+        Swift.print("[笔记切换] 📏 捕获的内容长度: \(capturedContent.count)")
+        Swift.print("[笔记切换] 📏 lastSavedXMLContent 长度: \(capturedLastSavedXMLContent.count)")
+        Swift.print("[笔记切换] ═══════════════════════════════════════")
         isSavingBeforeSwitch = true
         
         // 关键修复：不等待保存完成，立即返回 nil 让界面切换
         // 保存在后台异步进行
         Task { @MainActor in
+            // 性能监控：记录后台保存开始时间
+            // _需求: 3.5_
+            let taskStartTime = CFAbsoluteTimeGetCurrent()
+            
             defer { isSavingBeforeSwitch = false }
             
             // 1. 根据编辑器类型获取内容
@@ -1851,25 +1940,21 @@ struct NoteDetailView: View {
             
             Swift.print("[笔记切换] 📝 后台保存内容 - 长度: \(content.count)")
             
-            // 2. 检查内容是否变化
-            let hasContentChange = content != capturedLastSavedXMLContent
-            let hasTitleChange = capturedTitle != capturedOriginalTitle
+            // 2. 使用改进的内容变化检测
+            // _需求: 3.1, 3.2_
+            let hasActualChange = hasContentActuallyChanged(
+                currentContent: content,
+                savedContent: capturedLastSavedXMLContent,
+                currentTitle: capturedTitle,
+                originalTitle: capturedOriginalTitle
+            )
             
-            if hasContentChange || hasTitleChange {
-                Swift.print("[笔记切换] 💾 后台保存 - 内容变化: \(hasContentChange), 标题变化: \(hasTitleChange)")
+            if hasActualChange {
+                Swift.print("[笔记切换] 💾 后台保存 - 检测到实际内容变化")
                 
-                // 构建更新的笔记对象
-                let updated = Note(
-                    id: currentNote.id,
-                    title: capturedTitle,
-                    content: content,
-                    folderId: currentNote.folderId,
-                    isStarred: currentNote.isStarred,
-                    createdAt: currentNote.createdAt,
-                    updatedAt: Date(),
-                    tags: currentNote.tags,
-                    rawData: currentNote.rawData
-                )
+                // 构建更新的笔记对象，更新时间戳
+                // _需求: 3.3, 3.4_
+                let updated = buildUpdatedNote(from: currentNote, xmlContent: content, shouldUpdateTimestamp: true)
                 
                 // 立即更新内存缓存（不阻塞）
                 await MemoryCacheManager.shared.cacheNote(updated)
@@ -1893,8 +1978,21 @@ struct NoteDetailView: View {
                     }
                 }
             } else {
-                Swift.print("[笔记切换] ⏭️ 内容无变化，跳过保存")
+                Swift.print("[笔记切换] ⏭️ 内容无实际变化，跳过保存")
             }
+            
+            // 性能监控：记录后台保存完成时间
+            // _需求: 3.5_
+            let totalDuration = (CFAbsoluteTimeGetCurrent() - taskStartTime) * 1000
+            Swift.print("[性能监控] ═══════════════════════════════════════")
+            Swift.print("[性能监控] ⏱️ 笔记切换后台保存总耗时: \(String(format: "%.2f", totalDuration))ms")
+            Swift.print("[性能监控] 📊 保存决策: \(hasActualChange ? "执行保存" : "跳过保存")")
+            if totalDuration > 100 {
+                Swift.print("[性能监控] ⚠️ 警告: 后台保存耗时超过 100ms，可能影响用户体验")
+            } else {
+                Swift.print("[性能监控] ✅ 后台保存性能正常")
+            }
+            Swift.print("[性能监控] ═══════════════════════════════════════")
         }
         
         // 关键修复：返回 nil，不阻塞界面切换
@@ -1936,7 +2034,8 @@ struct NoteDetailView: View {
         return currentXMLContent
     }
     
-    private func buildUpdatedNote(from note: Note, xmlContent: String) -> Note {
+    /// _需求: 1.5, 3.3_
+    private func buildUpdatedNote(from note: Note, xmlContent: String, shouldUpdateTimestamp: Bool = true) -> Note {
         // 关键修复：确保使用传入的note的标题，而不是editedTitle（editedTitle可能在切换笔记后已改变）
         // 只有在当前编辑的笔记才使用editedTitle
         let titleToUse: String
@@ -1958,7 +2057,22 @@ struct NoteDetailView: View {
             }
         }
         
-        return Note(id: note.id, title: titleToUse, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: Date(), tags: note.tags, rawData: mergedRawData)
+        // 根据参数决定是否更新时间戳
+        let updatedAt = shouldUpdateTimestamp ? Date() : note.updatedAt
+        
+        // 增强日志：记录时间戳更新决策过程
+        // _需求: 3.3_
+        Swift.print("[buildUpdatedNote] ═══════════════════════════════════════")
+        Swift.print("[buildUpdatedNote] 📝 笔记ID: \(note.id.prefix(8))...")
+        Swift.print("[buildUpdatedNote] 📝 标题: \(titleToUse)")
+        Swift.print("[buildUpdatedNote] 📏 内容长度: \(xmlContent.count)")
+        Swift.print("[buildUpdatedNote] 🕐 shouldUpdateTimestamp: \(shouldUpdateTimestamp)")
+        Swift.print("[buildUpdatedNote] 🕐 原始时间戳: \(note.updatedAt)")
+        Swift.print("[buildUpdatedNote] 🕐 新时间戳: \(updatedAt)")
+        Swift.print("[buildUpdatedNote] 🕐 时间戳决策: \(shouldUpdateTimestamp ? "更新为当前时间" : "保持原始时间戳")")
+        Swift.print("[buildUpdatedNote] ═══════════════════════════════════════")
+        
+        return Note(id: note.id, title: titleToUse, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: updatedAt, tags: note.tags, rawData: mergedRawData)
     }
     
     private func updateViewModelDelayed(with updated: Note) {
@@ -1979,6 +2093,76 @@ struct NoteDetailView: View {
     
     private func hasContentChanged(xmlContent: String) -> Bool {
         lastSavedXMLContent != xmlContent || editedTitle != originalTitle
+    }
+    
+    /// 改进的内容变化检测方法
+    /// 
+    /// 使用标准化的内容比较方法，准确识别内容是否真正发生了变化
+    /// 
+    /// - Parameters:
+    ///   - currentContent: 当前的 XML 内容
+    ///   - savedContent: 上次保存的 XML 内容
+    ///   - currentTitle: 当前编辑的标题
+    ///   - originalTitle: 原始标题
+    /// - Returns: 如果内容或标题发生实际变化则返回 true
+    /// 
+    /// _需求: 2.1, 2.2, 3.3_
+    private func hasContentActuallyChanged(currentContent: String, savedContent: String, currentTitle: String, originalTitle: String) -> Bool {
+        // 记录检测开始时间（用于性能监控）
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        // 标准化内容比较（去除空白字符差异）
+        let normalizedCurrent = currentContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedSaved = savedContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        let contentChanged = normalizedCurrent != normalizedSaved
+        let titleChanged = currentTitle != originalTitle
+        
+        // 计算检测耗时
+        let elapsedTime = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+        
+        // 增强日志：记录详细的内容变化检测信息
+        // _需求: 3.3_
+        Swift.print("[内容检测] ═══════════════════════════════════════")
+        Swift.print("[内容检测] 📊 检测结果: 内容变化=\(contentChanged), 标题变化=\(titleChanged)")
+        Swift.print("[内容检测] 📏 内容长度: 当前=\(normalizedCurrent.count), 保存=\(normalizedSaved.count)")
+        Swift.print("[内容检测] ⏱️ 检测耗时: \(String(format: "%.2f", elapsedTime))ms")
+        
+        if contentChanged {
+            // 如果内容长度差异较大，记录更详细的信息
+            let lengthDiff = abs(normalizedCurrent.count - normalizedSaved.count)
+            Swift.print("[内容检测] 📝 内容长度差异: \(lengthDiff) 字符")
+            
+            if lengthDiff > 10 {
+                Swift.print("[内容检测] ⚠️ 内容长度差异较大，可能是实际编辑")
+            } else {
+                Swift.print("[内容检测] ℹ️ 内容长度差异较小，可能是格式化差异")
+            }
+            
+            // 如果内容变化较小，记录前后内容的前100个字符用于调试
+            if lengthDiff <= 50 {
+                let currentPreview = String(normalizedCurrent.prefix(100))
+                let savedPreview = String(normalizedSaved.prefix(100))
+                Swift.print("[内容检测] 🔍 当前内容预览: \(currentPreview)")
+                Swift.print("[内容检测] 🔍 保存内容预览: \(savedPreview)")
+            }
+        } else {
+            Swift.print("[内容检测] ✅ 内容无变化")
+        }
+        
+        if titleChanged {
+            Swift.print("[内容检测] 📝 标题变化: '\(originalTitle)' -> '\(currentTitle)'")
+        } else {
+            Swift.print("[内容检测] ✅ 标题无变化")
+        }
+        
+        // 记录时间戳更新决策
+        // _需求: 3.3_
+        let shouldUpdateTimestamp = contentChanged || titleChanged
+        Swift.print("[内容检测] 🕐 时间戳决策: \(shouldUpdateTimestamp ? "需要更新" : "保持不变")")
+        Swift.print("[内容检测] ═══════════════════════════════════════")
+        
+        return contentChanged || titleChanged
     }
 }
 
