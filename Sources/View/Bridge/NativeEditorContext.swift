@@ -391,6 +391,10 @@ public class NativeEditorContext: ObservableObject {
         // 发布格式变化
         formatChangeSubject.send(format)
         
+        // 使用 CursorFormatManager 处理工具栏格式切换
+        // _Requirements: 6.3 - 同步更新 Format_State 和 Typing_Attributes
+        CursorFormatManager.shared.handleToolbarFormatToggle(format)
+        
         // 标记有未保存的更改
         hasUnsavedChanges = true
         
