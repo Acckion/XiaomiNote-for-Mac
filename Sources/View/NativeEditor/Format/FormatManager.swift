@@ -42,7 +42,9 @@ class FormatManager {
     // MARK: - Properties
     
     /// 默认字体
-    var defaultFont: NSFont = NSFont.systemFont(ofSize: 15)
+    /// 修复：使用 13pt（正文字体大小），与 FormatAttributesBuilder.bodyFontSize 保持一致
+    /// _Requirements: 1.6, 1.7_
+    var defaultFont: NSFont = NSFont.systemFont(ofSize: 13)
     
     /// 默认文本颜色
     var defaultTextColor: NSColor = .textColor

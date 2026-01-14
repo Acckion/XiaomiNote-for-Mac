@@ -433,6 +433,8 @@ public class NativeEditorContext: ObservableObject {
     
     /// 清除标题格式（将文本恢复为正文样式）
     func clearHeadingFormat() {
+        print("[NativeEditorContext] 清除标题格式，恢复为正文样式")
+        
         // 移除所有标题格式
         currentFormats.remove(.heading1)
         currentFormats.remove(.heading2)
@@ -441,26 +443,101 @@ public class NativeEditorContext: ObservableObject {
         toolbarButtonStates[.heading2] = false
         toolbarButtonStates[.heading3] = false
         
-        // 发布格式变化（使用 heading1 作为信号，表示标题格式变化）
-        formatChangeSubject.send(.heading1)
+        // 重置字体大小为正文大小（13pt）
+        // _需求: 1.6, 1.7, 5.1, 5.4, 5.5_
+        resetFontSizeToBody()
+        
+        // 注意：不要调用 formatChangeSubject.send(.heading1)！
+        // 因为这会触发 NativeEditorView.Coordinator 中的 applyFormat(.heading1)
+        // 导致大标题格式被错误地应用
+        // _修复: heading2/heading3 转正文时错误应用大标题格式_
         
         // 标记有未保存的更改
         hasUnsavedChanges = true
+        
+        // 强制更新格式状态，确保 UI 同步
+        updateCurrentFormats()
+        
+        print("[NativeEditorContext] ✅ 标题格式已清除，字体大小已重置为 13pt")
+    }
+    
+    /// 重置字体大小为正文大小（13pt）
+    /// 
+    /// 将选中文本的字体大小重置为正文大小（13pt），同时保留字体特性（加粗、斜体等）
+    /// 用于将标题转换为正文时，确保字体大小正确重置
+    /// 
+    /// _需求: 1.6, 1.7, 4.7_
+    private func resetFontSizeToBody() {
+        print("[NativeEditorContext] 开始重置字体大小为正文大小（13pt）")
+        
+        // 获取选中范围或光标位置
+        let range = selectedRange.length > 0 ? selectedRange : NSRange(location: cursorPosition, length: 0)
+        
+        // 如果没有选中文本，不需要重置字体大小
+        guard range.length > 0 else {
+            print("[NativeEditorContext]   ⚠️ 没有选中文本，跳过字体大小重置")
+            return
+        }
+        
+        print("[NativeEditorContext]   - 选中范围: location=\(range.location), length=\(range.length)")
+        
+        // 创建可变副本
+        let mutableText = nsAttributedText.mutableCopy() as! NSMutableAttributedString
+        
+        // 遍历选中范围，重置字体大小
+        mutableText.enumerateAttribute(.font, in: range, options: []) { value, subRange, _ in
+            if let font = value as? NSFont {
+                print("[NativeEditorContext]   - 处理子范围: location=\(subRange.location), length=\(subRange.length)")
+                print("[NativeEditorContext]     原字体: \(font.fontName), 大小: \(font.pointSize)pt")
+                
+                // 创建新字体，保留字体特性（加粗、斜体），但使用正文字体大小（13pt）
+                let traits = font.fontDescriptor.symbolicTraits
+                let newFont: NSFont
+                
+                if traits.isEmpty {
+                    // 没有特殊特性，使用默认系统字体
+                    newFont = NSFont.systemFont(ofSize: 13)
+                    print("[NativeEditorContext]     新字体: 系统字体, 大小: 13pt（无特性）")
+                } else {
+                    // 有特殊特性（加粗、斜体等），保留这些特性
+                    let descriptor = NSFont.systemFont(ofSize: 13).fontDescriptor.withSymbolicTraits(traits)
+                    newFont = NSFont(descriptor: descriptor, size: 13) ?? NSFont.systemFont(ofSize: 13)
+                    print("[NativeEditorContext]     新字体: \(newFont.fontName), 大小: 13pt（保留特性: bold=\(traits.contains(.bold)), italic=\(traits.contains(.italic))）")
+                }
+                
+                // 应用新字体
+                mutableText.addAttribute(.font, value: newFont, range: subRange)
+            }
+        }
+        
+        // 更新编辑器内容
+        updateNSContent(mutableText)
+        
+        print("[NativeEditorContext] ✅ 字体大小重置完成")
     }
     
     /// 清除对齐格式（恢复默认左对齐）
     func clearAlignmentFormat() {
+        print("[NativeEditorContext] 清除对齐格式，恢复为左对齐")
+        
         // 移除居中和居右格式
         currentFormats.remove(.alignCenter)
         currentFormats.remove(.alignRight)
         toolbarButtonStates[.alignCenter] = false
         toolbarButtonStates[.alignRight] = false
         
-        // 发布格式变化（使用 alignCenter 作为信号，表示对齐格式变化）
-        formatChangeSubject.send(.alignCenter)
+        // 注意：不要调用 formatChangeSubject.send(.alignCenter)！
+        // 因为这会触发 NativeEditorView.Coordinator 中的 applyFormat(.alignCenter)
+        // 导致居中对齐格式被错误地应用
+        // _修复: 与 clearHeadingFormat 保持一致_
         
         // 标记有未保存的更改
         hasUnsavedChanges = true
+        
+        // 强制更新格式状态，确保 UI 同步
+        updateCurrentFormats()
+        
+        print("[NativeEditorContext] ✅ 对齐格式已清除")
     }
     
     /// 插入特殊元素
@@ -1114,37 +1191,42 @@ public class NativeEditorContext: ObservableObject {
     /// 混合格式需求: 6.1, 6.2
     /// 错误处理需求: 4.2 - 状态同步失败时重新检测格式状态并更新界面
     func updateCurrentFormats() {
-        print("[NativeEditorContext] updateCurrentFormats 被调用")
-        print("[NativeEditorContext]   - nsAttributedText.length: \(nsAttributedText.length)")
-        print("[NativeEditorContext]   - cursorPosition: \(cursorPosition)")
-        print("[NativeEditorContext]   - selectedRange: \(selectedRange)")
+        print("[NativeEditorContext] ========================================")
+        print("[NativeEditorContext] 🔄 开始更新当前格式状态")
+        print("[NativeEditorContext] ========================================")
+        print("[NativeEditorContext]   - 文本长度: \(nsAttributedText.length)")
+        print("[NativeEditorContext]   - 光标位置: \(cursorPosition)")
+        print("[NativeEditorContext]   - 选中范围: location=\(selectedRange.location), length=\(selectedRange.length)")
         
         // 需求 4.2: 状态同步错误处理
         let errorHandler = FormatErrorHandler.shared
         
         guard !nsAttributedText.string.isEmpty else {
-            print("[NativeEditorContext]   - 文本为空，清除所有格式")
+            print("[NativeEditorContext]   ⚠️ 文本为空，清除所有格式")
             clearAllFormats()
             clearMixedFormatStates()
+            print("[NativeEditorContext] ========================================")
             return
         }
         
         // 确保位置有效
         let position = min(cursorPosition, nsAttributedText.length - 1)
         guard position >= 0 else {
-            print("[NativeEditorContext]   - 位置无效 (position: \(position))，清除所有格式")
+            print("[NativeEditorContext]   ❌ 位置无效 (position: \(position))，清除所有格式")
             clearAllFormats()
             clearMixedFormatStates()
+            print("[NativeEditorContext] ========================================")
             return
         }
         
-        print("[NativeEditorContext]   - 有效位置: \(position)")
+        print("[NativeEditorContext]   ✅ 有效位置: \(position)")
         
         // 需求 6.1, 6.2: 如果有选中范围，检测混合格式状态
         if selectedRange.length > 0 {
-            print("[NativeEditorContext]   - 检测混合格式状态 (选中范围长度: \(selectedRange.length))")
+            print("[NativeEditorContext]   📝 选中了文本，检测混合格式状态 (选中长度: \(selectedRange.length))")
             updateMixedFormatStates()
         } else {
+            print("[NativeEditorContext]   📍 光标模式（未选中文本）")
             // 清除混合格式状态
             clearMixedFormatStates()
         }
@@ -1156,52 +1238,62 @@ public class NativeEditorContext: ObservableObject {
         if selectedRange.length == 0 && position > 0 {
             // 光标模式：获取光标前一个字符的属性
             attributePosition = position - 1
-            print("[NativeEditorContext]   - 光标模式：使用前一个字符的属性位置: \(attributePosition)")
+            print("[NativeEditorContext]   💡 光标模式：使用前一个字符的属性位置: \(attributePosition)")
         }
         
         let attributes = nsAttributedText.attributes(at: attributePosition, effectiveRange: nil)
-        print("[NativeEditorContext]   - 属性数量: \(attributes.count)")
+        print("[NativeEditorContext]   📦 获取到 \(attributes.count) 个属性")
         
         // 检测所有格式类型
         var detectedFormats: Set<TextFormat> = []
         
+        print("[NativeEditorContext] ----------------------------------------")
+        print("[NativeEditorContext] 🔍 开始检测各类格式...")
+        print("[NativeEditorContext] ----------------------------------------")
+        
         // 1. 检测字体属性（加粗、斜体、标题）
         let fontFormats = detectFontFormats(from: attributes)
         detectedFormats.formUnion(fontFormats)
-        print("[NativeEditorContext]   - 字体格式: \(fontFormats.map { $0.displayName })")
+        print("[NativeEditorContext]   ✅ 字体格式检测完成: \(fontFormats.map { $0.displayName })")
         
         // 2. 检测文本装饰（下划线、删除线、高亮）
         let decorationFormats = detectTextDecorations(from: attributes)
         detectedFormats.formUnion(decorationFormats)
-        print("[NativeEditorContext]   - 装饰格式: \(decorationFormats.map { $0.displayName })")
+        print("[NativeEditorContext]   ✅ 装饰格式检测完成: \(decorationFormats.map { $0.displayName })")
         
         // 3. 检测段落格式（对齐方式）
         let paragraphFormats = detectParagraphFormats(from: attributes)
         detectedFormats.formUnion(paragraphFormats)
-        print("[NativeEditorContext]   - 段落格式: \(paragraphFormats.map { $0.displayName })")
+        print("[NativeEditorContext]   ✅ 段落格式检测完成: \(paragraphFormats.map { $0.displayName })")
         
         // 4. 检测列表格式（无序、有序、复选框）
         let listFormats = detectListFormats(at: attributePosition)
         detectedFormats.formUnion(listFormats)
-        print("[NativeEditorContext]   - 列表格式: \(listFormats.map { $0.displayName })")
+        print("[NativeEditorContext]   ✅ 列表格式检测完成: \(listFormats.map { $0.displayName })")
         
         // 5. 检测特殊元素格式（引用块、分割线）
         let specialFormats = detectSpecialElementFormats(at: attributePosition)
         detectedFormats.formUnion(specialFormats)
-        print("[NativeEditorContext]   - 特殊格式: \(specialFormats.map { $0.displayName })")
+        print("[NativeEditorContext]   ✅ 特殊格式检测完成: \(specialFormats.map { $0.displayName })")
         
         // 需求 6.1: 如果有选中范围，合并混合格式检测结果
         if selectedRange.length > 0 {
             let mixedHandler = MixedFormatStateHandler.shared
             let activeFormats = mixedHandler.getActiveFormats(in: nsAttributedText, range: selectedRange)
             detectedFormats.formUnion(activeFormats)
-            print("[NativeEditorContext]   - 混合格式检测结果: \(activeFormats.map { $0.displayName })")
+            print("[NativeEditorContext]   ✅ 混合格式检测完成: \(activeFormats.map { $0.displayName })")
         }
         
-        print("[NativeEditorContext]   - 检测到的所有格式: \(detectedFormats.map { $0.displayName })")
+        print("[NativeEditorContext] ----------------------------------------")
+        print("[NativeEditorContext] 📊 最终检测到的所有格式: \(detectedFormats.map { $0.displayName })")
+        print("[NativeEditorContext] ----------------------------------------")
         
         // 更新状态并验证
         updateFormatsWithValidation(detectedFormats)
+        
+        print("[NativeEditorContext] ========================================")
+        print("[NativeEditorContext] ✅ 格式状态更新完成")
+        print("[NativeEditorContext] ========================================")
     }
     
     /// 更新混合格式状态
@@ -1238,53 +1330,73 @@ public class NativeEditorContext: ObservableObject {
     private func detectFontFormats(from attributes: [NSAttributedString.Key: Any]) -> Set<TextFormat> {
         var formats: Set<TextFormat> = []
         
+        print("[NativeEditorContext] ========== 开始检测字体格式 ==========")
         // 调试：打印所有属性键
         print("[NativeEditorContext] detectFontFormats - 属性键: \(attributes.keys.map { $0.rawValue })")
         
         // 检测标题格式 - 使用 headingLevel 自定义属性
         // 这是最可靠的标题检测方式，因为 headingLevel 是在应用标题格式时设置的
+        // _需求: 2.1, 2.2, 2.3, 4.5_ - 优先使用 headingLevel 属性
+        print("[NativeEditorContext] 🔍 优先级检测步骤 1: 检查 headingLevel 自定义属性")
         if let headingLevel = attributes[.headingLevel] as? Int {
-            print("[NativeEditorContext] detectFontFormats - 检测到 headingLevel: \(headingLevel)")
+            print("[NativeEditorContext] ✅ 检测到 headingLevel 属性: \(headingLevel)")
+            print("[NativeEditorContext] 📌 优先级选择: 使用 headingLevel 属性（最高优先级）")
             switch headingLevel {
             case 1:
                 formats.insert(.heading1)
-                print("[NativeEditorContext] detectFontFormats - 检测到大标题 (heading1)")
+                print("[NativeEditorContext] ✅ 根据 headingLevel=1 识别为【大标题】")
             case 2:
                 formats.insert(.heading2)
-                print("[NativeEditorContext] detectFontFormats - 检测到二级标题 (heading2)")
+                print("[NativeEditorContext] ✅ 根据 headingLevel=2 识别为【二级标题】")
             case 3:
                 formats.insert(.heading3)
-                print("[NativeEditorContext] detectFontFormats - 检测到三级标题 (heading3)")
+                print("[NativeEditorContext] ✅ 根据 headingLevel=3 识别为【三级标题】")
             default:
+                print("[NativeEditorContext] ⚠️ headingLevel=\(headingLevel) 不是有效的标题级别")
                 break
             }
+        } else {
+            print("[NativeEditorContext] ℹ️ 没有检测到 headingLevel 属性")
+            print("[NativeEditorContext] 📌 优先级选择: 将使用字体大小判断（备用方式）")
         }
         
         guard let font = attributes[.font] as? NSFont else {
-            print("[NativeEditorContext] detectFontFormats - 没有找到 .font 属性")
+            print("[NativeEditorContext] ❌ 没有找到 .font 属性，无法继续检测")
+            print("[NativeEditorContext] ========== 检测结束（无字体） ==========")
             return formats
         }
         
-        print("[NativeEditorContext] detectFontFormats - 字体: \(font.fontName), 大小: \(font.pointSize)")
+        let fontSize = font.pointSize
+        print("[NativeEditorContext] 📏 字体信息:")
+        print("[NativeEditorContext]   - 字体名称: \(font.fontName)")
+        print("[NativeEditorContext]   - 字体大小: \(fontSize)pt")
         
         // 检测字体特性
         let traits = font.fontDescriptor.symbolicTraits
-        print("[NativeEditorContext] detectFontFormats - 字体特性: \(traits)")
+        print("[NativeEditorContext]   - 字体特性: bold=\(traits.contains(.bold)), italic=\(traits.contains(.italic))")
         
         // 如果没有通过 headingLevel 检测到标题，尝试通过字体大小检测
         // 这是备用检测方式，用于处理旧数据或手动设置的字体大小
+        // _需求: 2.1, 2.2, 2.3, 4.5_ - 当 headingLevel 存在时，忽略字体大小检测
         if !formats.contains(.heading1) && !formats.contains(.heading2) && !formats.contains(.heading3) {
-            let fontSize = font.pointSize
+            print("[NativeEditorContext] 🔍 优先级检测步骤 2: 通过字体大小判断标题类型")
+            print("[NativeEditorContext]   当前阈值: 大标题>=20pt, 二级标题>=17pt, 三级标题>=15pt")
+            
             if fontSize >= 20 {
                 formats.insert(.heading1)
-                print("[NativeEditorContext] detectFontFormats - 通过字体大小检测到大标题: \(fontSize)")
-            } else if fontSize >= 16 && fontSize < 20 {
+                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt >= 20pt，识别为【大标题】")
+            } else if fontSize >= 17 && fontSize < 20 {
                 formats.insert(.heading2)
-                print("[NativeEditorContext] detectFontFormats - 通过字体大小检测到二级标题: \(fontSize)")
-            } else if fontSize >= 14 && fontSize < 16 {
+                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [17, 20) 范围内，识别为【二级标题】")
+            } else if fontSize >= 15 && fontSize < 17 {
                 formats.insert(.heading3)
-                print("[NativeEditorContext] detectFontFormats - 通过字体大小检测到三级标题: \(fontSize)")
+                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [15, 17) 范围内，识别为【三级标题】")
+            } else {
+                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt < 15pt，识别为【正文】（不添加标题格式）")
             }
+        } else {
+            print("[NativeEditorContext] ℹ️ 已通过 headingLevel 属性确定标题类型")
+            print("[NativeEditorContext] 📌 优先级选择结果: 忽略字体大小检测（headingLevel 优先级更高）")
         }
         
         // 加粗检测 (需求 2.1)
@@ -1335,6 +1447,7 @@ public class NativeEditorContext: ObservableObject {
             print("[NativeEditorContext] detectFontFormats - 检测到斜体（字体特性）")
         }
         
+        print("[NativeEditorContext] ========== 检测结束，最终格式: \(formats.map { $0.displayName }) ==========")
         return formats
     }
     
@@ -1637,21 +1750,36 @@ public class NativeEditorContext: ObservableObject {
     /// 
     /// _Requirements: 14.6_
     private func detectParagraphStyleFromFormats(_ formats: Set<TextFormat>) -> String {
+        print("[NativeEditorContext] ========== 开始转换格式为段落样式 ==========")
+        print("[NativeEditorContext] 输入格式集合: \(formats.map { $0.displayName })")
+        
+        let paragraphStyle: String
+        
         if formats.contains(.heading1) {
-            return "heading"
+            paragraphStyle = "heading"
+            print("[NativeEditorContext] ✅ 检测到 heading1 格式，返回段落样式: 【heading】(大标题)")
         } else if formats.contains(.heading2) {
-            return "subheading"
+            paragraphStyle = "subheading"
+            print("[NativeEditorContext] ✅ 检测到 heading2 格式，返回段落样式: 【subheading】(二级标题)")
         } else if formats.contains(.heading3) {
-            return "subtitle"
+            paragraphStyle = "subtitle"
+            print("[NativeEditorContext] ✅ 检测到 heading3 格式，返回段落样式: 【subtitle】(三级标题)")
         } else if formats.contains(.numberedList) {
-            return "orderedList"
+            paragraphStyle = "orderedList"
+            print("[NativeEditorContext] ✅ 检测到 numberedList 格式，返回段落样式: 【orderedList】(有序列表)")
         } else if formats.contains(.bulletList) {
-            return "unorderedList"
+            paragraphStyle = "unorderedList"
+            print("[NativeEditorContext] ✅ 检测到 bulletList 格式，返回段落样式: 【unorderedList】(无序列表)")
         } else if formats.contains(.quote) {
-            return "blockQuote"
+            paragraphStyle = "blockQuote"
+            print("[NativeEditorContext] ✅ 检测到 quote 格式，返回段落样式: 【blockQuote】(引用)")
         } else {
-            return "body"
+            paragraphStyle = "body"
+            print("[NativeEditorContext] ✅ 没有检测到任何块级格式，返回默认段落样式: 【body】(正文)")
         }
+        
+        print("[NativeEditorContext] ========== 段落样式转换完成: \(paragraphStyle) ==========")
+        return paragraphStyle
     }
     
     /// 发送段落样式变化通知

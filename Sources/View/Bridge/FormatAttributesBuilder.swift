@@ -23,7 +23,7 @@ public struct FormatAttributesBuilder {
     
     /// 默认字体
     /// _Requirements: 3.2, 3.3_
-    public static let defaultFont = NSFont.systemFont(ofSize: 15)
+    public static let defaultFont = NSFont.systemFont(ofSize: 13)
     
     /// 默认文本颜色
     public static let defaultTextColor = NSColor.labelColor
@@ -35,8 +35,8 @@ public struct FormatAttributesBuilder {
     /// 标题字体大小
     private static let heading1FontSize: CGFloat = 22
     private static let heading2FontSize: CGFloat = 18
-    private static let heading3FontSize: CGFloat = 15
-    private static let bodyFontSize: CGFloat = 15
+    private static let heading3FontSize: CGFloat = 16
+    private static let bodyFontSize: CGFloat = 13
     
     // MARK: - 主要构建方法
     

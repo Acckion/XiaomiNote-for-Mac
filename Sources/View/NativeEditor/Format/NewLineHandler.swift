@@ -22,7 +22,9 @@ public struct NewLineHandler {
     
     /// 默认字体
     /// 注意：使用 nonisolated(unsafe) 因为 NSFont 不是 Sendable，但这里是只读常量
-    nonisolated(unsafe) public static let defaultFont: NSFont = NSFont.systemFont(ofSize: 15)
+    /// 修复：使用 13pt（正文字体大小），与 FormatAttributesBuilder.bodyFontSize 保持一致
+    /// _Requirements: 1.6, 1.7_
+    nonisolated(unsafe) public static let defaultFont: NSFont = NSFont.systemFont(ofSize: 13)
     
     // MARK: - 主要方法
     

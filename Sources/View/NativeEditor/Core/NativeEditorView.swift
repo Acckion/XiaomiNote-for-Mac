@@ -87,7 +87,9 @@ struct NativeEditorView: NSViewRepresentable {
         // 设置外观
         textView.backgroundColor = .clear
         textView.drawsBackground = false
-        textView.font = NSFont.systemFont(ofSize: 15)
+        // 修复：使用 13pt（正文字体大小），与 FormatAttributesBuilder.bodyFontSize 保持一致
+        // _Requirements: 1.6, 1.7_
+        textView.font = NSFont.systemFont(ofSize: 13)
         textView.textColor = .labelColor  // 使用 labelColor 自动适配深色模式
         
         // 设置内边距

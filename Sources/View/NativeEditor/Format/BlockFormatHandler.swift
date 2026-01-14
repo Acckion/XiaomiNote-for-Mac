@@ -47,9 +47,17 @@ public struct BlockFormatHandler {
     /// 引用块内边距
     public static let quotePadding: CGFloat = 12
     
+    /// 正文字体大小
+    /// 与 FormatAttributesBuilder.bodyFontSize 保持一致
+    /// _Requirements: 1.6, 1.7_
+    public static let bodyFontSize: CGFloat = 13
+    
     /// 默认字体
     /// 注意：使用 nonisolated(unsafe) 因为 NSFont 不是 Sendable，但这里是只读常量
-    nonisolated(unsafe) public static let defaultFont: NSFont = NSFont.systemFont(ofSize: 15)
+    /// 修复：使用 13pt（正文字体大小），而不是 15pt
+    /// 15pt 会被误识别为三级标题（阈值 >=15pt）
+    /// _Requirements: 1.6, 1.7_
+    nonisolated(unsafe) public static let defaultFont: NSFont = NSFont.systemFont(ofSize: bodyFontSize)
     
     // MARK: - 格式应用
     

@@ -360,7 +360,7 @@ final class FormatAttributesBuilderTests: XCTestCase {
         let state = FormatState()
         let font = FormatAttributesBuilder.buildFont(from: state)
         
-        XCTAssertEqual(font.pointSize, 15, "默认字体大小应该是 15")
+        XCTAssertEqual(font.pointSize, 13, "默认字体大小应该是 13")
     }
     
     func testBuildFontBold() {
@@ -372,5 +372,49 @@ final class FormatAttributesBuilderTests: XCTestCase {
         let traits = font.fontDescriptor.symbolicTraits
         
         XCTAssertTrue(traits.contains(.bold), "字体应该包含加粗特性")
+    }
+    
+    // MARK: - 字体大小常量测试
+    // 任务 1.1: 编写字体大小常量的单元测试
+    // _需求: 1.6, 1.7, 4.6, 4.7_
+    
+    func testDetermineFontSizeForBody() {
+        // 测试正文字体大小应该是 13pt
+        var state = FormatState()
+        state.paragraphFormat = .body
+        
+        let font = FormatAttributesBuilder.buildFont(from: state)
+        
+        XCTAssertEqual(font.pointSize, 13, "正文字体大小应该是 13pt")
+    }
+    
+    func testDetermineFontSizeForHeading3() {
+        // 测试三级标题字体大小应该是 16pt
+        var state = FormatState()
+        state.paragraphFormat = .heading3
+        
+        let font = FormatAttributesBuilder.buildFont(from: state)
+        
+        XCTAssertEqual(font.pointSize, 16, "三级标题字体大小应该是 16pt")
+    }
+    
+    func testDetermineFontSizeForHeading2() {
+        // 测试二级标题字体大小应该是 18pt
+        var state = FormatState()
+        state.paragraphFormat = .heading2
+        
+        let font = FormatAttributesBuilder.buildFont(from: state)
+        
+        XCTAssertEqual(font.pointSize, 18, "二级标题字体大小应该是 18pt")
+    }
+    
+    func testDetermineFontSizeForHeading1() {
+        // 测试大标题字体大小应该是 22pt
+        var state = FormatState()
+        state.paragraphFormat = .heading1
+        
+        let font = FormatAttributesBuilder.buildFont(from: state)
+        
+        XCTAssertEqual(font.pointSize, 22, "大标题字体大小应该是 22pt")
     }
 }

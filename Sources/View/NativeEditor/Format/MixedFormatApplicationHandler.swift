@@ -187,7 +187,8 @@ class MixedFormatApplicationHandler {
         let fontManager = NSFontManager.shared
         
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
-            let font = (value as? NSFont) ?? NSFont.systemFont(ofSize: 15)
+            // 修复：使用 13pt（正文字体大小），与 FormatAttributesBuilder.bodyFontSize 保持一致
+            let font = (value as? NSFont) ?? NSFont.systemFont(ofSize: 13)
             let traits = font.fontDescriptor.symbolicTraits
             
             // 如果还没有加粗，则添加
@@ -219,7 +220,8 @@ class MixedFormatApplicationHandler {
         let fontManager = NSFontManager.shared
         
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
-            let font = (value as? NSFont) ?? NSFont.systemFont(ofSize: 15)
+            // 修复：使用 13pt（正文字体大小），与 FormatAttributesBuilder.bodyFontSize 保持一致
+            let font = (value as? NSFont) ?? NSFont.systemFont(ofSize: 13)
             let traits = font.fontDescriptor.symbolicTraits
             
             // 如果还没有斜体，则添加
