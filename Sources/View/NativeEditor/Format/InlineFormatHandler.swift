@@ -180,9 +180,12 @@ public struct InlineFormatHandler {
     
     /// 构建不包含内联格式的 typingAttributes
     /// 
-    /// 用于换行后清除内联格式，保留基础属性（字体、颜色等）
+    /// 用于换行后清除内联格式，重置为默认正文样式
     /// 
-    /// - Parameter baseAttributes: 基础属性（可选）
+    /// 关键修复：换行后始终使用默认字体大小（15pt），不继承前一行的字体大小
+    /// 这修复了从标题行换行后新行变成三级标题样式的问题
+    /// 
+    /// - Parameter baseAttributes: 基础属性（可选，仅用于保留段落样式如对齐方式）
     /// - Returns: 清除内联格式后的属性字典
     /// _Requirements: 2.1-2.6_
     public static func buildCleanTypingAttributes(
@@ -190,20 +193,15 @@ public struct InlineFormatHandler {
     ) -> [NSAttributedString.Key: Any] {
         var attributes: [NSAttributedString.Key: Any] = [:]
         
-        // 设置默认字体
-        var font = defaultFont
-        
-        // 如果有基础属性，保留字体大小但移除加粗/斜体特性
-        if let baseFont = baseAttributes?[.font] as? NSFont {
-            // 创建不带加粗/斜体特性的字体
-            font = removeInlineTraitsFromFont(baseFont)
-        }
-        attributes[.font] = font
+        // 关键修复：始终使用默认字体（15pt），不继承前一行的字体大小
+        // 之前的实现会保留 baseFont 的字体大小，导致从标题行换行后
+        // 新行继承了标题的字体大小（如 16pt、20pt、24pt），显示为三级标题样式
+        attributes[.font] = defaultFont
         
         // 设置默认文本颜色
         attributes[.foregroundColor] = NSColor.labelColor
         
-        // 保留段落样式（如果有）
+        // 保留段落样式（如果有）- 主要用于继承对齐方式
         if let paragraphStyle = baseAttributes?[.paragraphStyle] {
             attributes[.paragraphStyle] = paragraphStyle
         }

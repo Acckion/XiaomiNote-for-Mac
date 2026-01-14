@@ -227,6 +227,14 @@ public class NativeEditorContext: ObservableObject {
     /// 工具栏按钮状态
     @Published var toolbarButtonStates: [TextFormat: Bool] = [:]
     
+    /// 内容版本号，用于强制触发视图更新
+    /// 
+    /// 当笔记切换时，SwiftUI 可能无法正确检测 NSAttributedString 的属性变化
+    /// 通过递增版本号，可以强制触发 NativeEditorView 的 updateNSView 方法
+    /// 
+    /// _Requirements: 3.1_
+    @Published var contentVersion: Int = 0
+    
     // MARK: - 内容保护属性
     // _Requirements: 2.5, 9.1_ - 保存失败时的内容保护
     
@@ -816,6 +824,14 @@ public class NativeEditorContext: ObservableObject {
             }
             
             nsAttributedText = mutableAttributed
+            
+            // 新增：递增版本号，强制触发视图更新
+            // _Requirements: 3.1_
+            contentVersion += 1
+            
+            // 新增：发送内容变化通知，确保 Coordinator 收到更新
+            // _Requirements: 2.1, 2.2, 2.3_
+            contentChangeSubject.send(mutableAttributed)
             
             // 调试日志：检查斜体字体是否正确保留
             print("[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:")

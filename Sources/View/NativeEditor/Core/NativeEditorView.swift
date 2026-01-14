@@ -173,19 +173,29 @@ struct NativeEditorView: NSViewRepresentable {
             let currentText = textView.attributedString()
             let newText = editorContext.nsAttributedText
             
-            // 使用字符串内容比较，而不是 NSAttributedString 的完整比较
-            // 因为属性可能不同但内容相同
+            // 修改：增加版本号比较，确保内容变化时强制更新
+            // 当笔记切换时，即使字符串内容相同但格式不同，也需要更新
+            // _Requirements: 3.1, 3.2, 3.3_
+            let versionChanged = context.coordinator.lastContentVersion != editorContext.contentVersion
             let contentChanged = currentText.string != newText.string
             let lengthChanged = currentText.length != newText.length
             
-            if contentChanged || lengthChanged {
-                print("[NativeEditorView] 更新内容 - 当前长度: \(currentText.length), 新长度: \(newText.length)")
+            if versionChanged || contentChanged || lengthChanged {
+                print("[NativeEditorView] 更新内容 - 当前长度: \(currentText.length), 新长度: \(newText.length), 版本变化: \(versionChanged)")
+                
+                // 更新版本号
+                // _Requirements: 3.1, 3.2_
+                context.coordinator.lastContentVersion = editorContext.contentVersion
                 
                 // 保存当前选择范围
                 let selectedRange = textView.selectedRange()
                 
                 // 更新内容
                 textView.textStorage?.setAttributedString(newText)
+                
+                // 新增：强制刷新显示，确保格式正确渲染
+                // _Requirements: 1.1, 1.3_
+                textView.needsDisplay = true
                 
                 // 初始化音频附件集合（用于删除检测）
                 context.coordinator.previousAudioFileIds = context.coordinator.extractAudioFileIds(from: newText)
@@ -218,6 +228,10 @@ struct NativeEditorView: NSViewRepresentable {
         
         /// 上一次的音频附件文件 ID 集合（用于检测删除）
         var previousAudioFileIds: Set<String> = []
+        
+        /// 上一次的内容版本号（用于检测内容变化）
+        /// _Requirements: 3.1, 3.2 - 确保视图更新机制能够可靠地检测内容和格式变化
+        var lastContentVersion: Int = 0
         
         init(_ parent: NativeEditorView) {
             self.parent = parent
@@ -479,13 +493,13 @@ struct NativeEditorView: NSViewRepresentable {
         
         // MARK: - 外部内容更新处理
         
-        /// 处理外部内容更新（如录音模板插入）
+        /// 处理外部内容更新（如录音模板插入、笔记切换）
         /// 
-        /// 当 NativeEditorContext.updateNSContent 被调用时，此方法会被触发
+        /// 当 NativeEditorContext.updateNSContent 或 loadFromXML 被调用时，此方法会被触发
         /// 直接更新 textView 的内容，解决 SwiftUI 无法检测 NSAttributedString 变化的问题
         /// 
         /// - Parameter newContent: 新的内容
-        /// - Requirements: 4.2, 4.3 - 录音模板插入和更新
+        /// - Requirements: 1.1, 1.3, 2.3, 4.2, 4.3 - 笔记切换时立即显示格式、录音模板插入和更新
         private func handleExternalContentUpdate(_ newContent: NSAttributedString) {
             guard let textView = textView else {
                 print("[NativeEditorView] handleExternalContentUpdate: textView 为 nil")
@@ -503,52 +517,44 @@ struct NativeEditorView: NSViewRepresentable {
                 return
             }
             
-            // 比较内容是否真的变化了
-            let currentContent = NSAttributedString(attributedString: textStorage)
+            // 修改：移除不必要的内容比较逻辑
+            // 因为 loadFromXML 已经确保只在内容真正变化时才发送通知
+            // 直接更新内容，确保格式正确显示
+            // _Requirements: 1.1, 1.3, 2.3 - 笔记切换时立即显示格式
             
-            // 使用长度和字符串内容比较
-            let contentChanged = currentContent.string != newContent.string
-            let lengthChanged = currentContent.length != newContent.length
+            print("[NativeEditorView] handleExternalContentUpdate: 更新内容")
+            print("[NativeEditorView]   - 新内容长度: \(newContent.length)")
             
-            // 额外检查：比较附件数量（用于检测录音模板插入）
-            let currentAttachmentCount = countAttachments(in: currentContent)
-            let newAttachmentCount = countAttachments(in: newContent)
-            let attachmentCountChanged = currentAttachmentCount != newAttachmentCount
+            // 保存当前选择范围
+            let selectedRange = textView.selectedRange()
             
-            if contentChanged || lengthChanged || attachmentCountChanged {
-                print("[NativeEditorView] handleExternalContentUpdate: 更新内容")
-                print("[NativeEditorView]   - 当前长度: \(currentContent.length), 新长度: \(newContent.length)")
-                print("[NativeEditorView]   - 当前附件数: \(currentAttachmentCount), 新附件数: \(newAttachmentCount)")
-                
-                // 保存当前选择范围
-                let selectedRange = textView.selectedRange()
-                
-                // 标记正在更新，避免触发 textDidChange
-                isUpdatingFromTextView = true
-                
-                // 更新内容
-                textStorage.setAttributedString(newContent)
-                
-                // 更新音频附件集合（用于删除检测）
-                previousAudioFileIds = extractAudioFileIds(from: newContent)
-                
-                // 恢复选择范围（如果有效）
-                let newLength = textStorage.length
-                if selectedRange.location <= newLength {
-                    let newRange = NSRange(
-                        location: min(selectedRange.location, newLength),
-                        length: min(selectedRange.length, max(0, newLength - selectedRange.location))
-                    )
-                    textView.setSelectedRange(newRange)
-                }
-                
-                // 重置标记
-                isUpdatingFromTextView = false
-                
-                print("[NativeEditorView] handleExternalContentUpdate: ✅ 内容已更新")
-            } else {
-                print("[NativeEditorView] handleExternalContentUpdate: 内容未变化，跳过更新")
+            // 标记正在更新，避免触发 textDidChange
+            isUpdatingFromTextView = true
+            
+            // 更新内容
+            textStorage.setAttributedString(newContent)
+            
+            // 新增：强制刷新显示，确保格式正确渲染
+            // _Requirements: 1.1, 1.3 - 笔记切换时立即显示格式，不需要用户交互
+            textView.needsDisplay = true
+            
+            // 更新音频附件集合（用于删除检测）
+            previousAudioFileIds = extractAudioFileIds(from: newContent)
+            
+            // 恢复选择范围（如果有效）
+            let newLength = textStorage.length
+            if selectedRange.location <= newLength {
+                let newRange = NSRange(
+                    location: min(selectedRange.location, newLength),
+                    length: min(selectedRange.length, max(0, newLength - selectedRange.location))
+                )
+                textView.setSelectedRange(newRange)
             }
+            
+            // 重置标记
+            isUpdatingFromTextView = false
+            
+            print("[NativeEditorView] handleExternalContentUpdate: ✅ 内容已更新，已强制刷新显示")
         }
         
         /// 统计 NSAttributedString 中的附件数量
