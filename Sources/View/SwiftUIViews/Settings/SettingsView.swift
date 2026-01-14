@@ -68,6 +68,18 @@ public struct SettingsView: View {
                     .help("选择和配置编辑器类型（原生编辑器或 Web 编辑器）")
                 }
                 
+                Section("调试") {
+                    NavigationLink("操作队列调试") {
+                        OperationQueueDebugView()
+                    }
+                    .help("查看和管理待上传注册表、离线操作队列等")
+                    
+                    NavigationLink("调试设置") {
+                        DebugSettingsView()
+                    }
+                    .help("Cookie 管理、API 测试等调试功能")
+                }
+                
                 Section("外观") {
                     Picker("主题", selection: $theme) {
                         Text("跟随系统").tag("system")
@@ -231,7 +243,7 @@ public struct SettingsView: View {
                 Text("清除缓存将删除所有本地笔记数据，但不会影响云端数据。")
             }
         }
-        .frame(width: 500, height: 600)
+        .frame(minWidth: 500, idealWidth: 600, minHeight: 500, idealHeight: 600)
     }
     
     private func saveSettings() {

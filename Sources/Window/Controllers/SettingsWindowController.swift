@@ -26,9 +26,9 @@ public class SettingsWindowController: NSWindowController {
     public init(viewModel: NotesViewModel? = nil) {
         self.viewModel = viewModel
         
-        // 创建窗口
+        // 创建窗口 - 使用更大的尺寸以适应 macOS 26 样式
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
+            contentRect: NSRect(x: 0, y: 0, width: 650, height: 550),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
@@ -45,7 +45,7 @@ public class SettingsWindowController: NSWindowController {
         setupWindowContent()
         
         // 设置窗口最小尺寸
-        window.minSize = NSSize(width: 400, height: 300)
+        window.minSize = NSSize(width: 500, height: 400)
     }
     
     required init?(coder: NSCoder) {
