@@ -473,6 +473,13 @@ class AuthenticationStateManager: ObservableObject {
         shouldStayOffline = false  // 清除离线模式标志
         showCookieExpiredAlert = false  // 清除弹窗状态
         
+        // 重置失败计数器
+        consecutiveFailures = 0
+        
+        // 立即更新 ScheduledTaskManager 的 Cookie 有效性状态
+        // 这样 restoreOnlineStatus() 才能正确判断
+        ScheduledTaskManager.shared.setCookieValid(true)
+        
         // 恢复在线状态
         restoreOnlineStatus()
         

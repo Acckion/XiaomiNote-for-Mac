@@ -521,6 +521,19 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
         return false
     }
     
+    // MARK: - 公开方法
+    
+    /// 手动设置 Cookie 有效性状态
+    /// 
+    /// 当 Cookie 刷新成功后调用此方法，立即更新状态而不等待下次定时检查
+    /// - Parameter isValid: Cookie 是否有效
+    func setCookieValid(_ isValid: Bool) {
+        self.isCookieValid = isValid
+        self.lastCheckTime = Date()
+        self.lastCheckResult = isValid
+        print("[CookieValidityCheckTask] 手动设置Cookie有效性: \(isValid ? "有效" : "无效")")
+    }
+    
     // MARK: - 任务执行
     
     func execute() async -> TaskResult {
@@ -585,5 +598,13 @@ extension ScheduledTaskManager {
     /// 获取当前Cookie是否有效（同步）
     var isCookieValid: Bool {
         return cookieValidityCheckTask?.isCookieValid ?? true
+    }
+    
+    /// 手动设置 Cookie 有效性状态
+    /// 
+    /// 当 Cookie 刷新成功后调用此方法，立即更新状态
+    /// - Parameter isValid: Cookie 是否有效
+    func setCookieValid(_ isValid: Bool) {
+        cookieValidityCheckTask?.setCookieValid(isValid)
     }
 }
