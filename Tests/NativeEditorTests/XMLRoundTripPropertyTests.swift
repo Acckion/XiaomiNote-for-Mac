@@ -43,13 +43,13 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             let originalXML = "<text indent=\"\(indent)\">\(XMLEntityCodec.encode(textContent))</text>"
             
             // 解析
-            let document = try parser.parse(originalXML)
+            let document = try parser.parse(originalXML).value
             
             // 生成
             let generatedXML = generator.generate(document)
             
             // 再次解析生成的 XML
-            let document2 = try parser.parse(generatedXML)
+            let document2 = try parser.parse(generatedXML).value
             
             // 验证语义等价
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
@@ -73,9 +73,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             let textContent = generateRandomText()
             let originalXML = "<bullet indent=\"\(indent)\" />\(XMLEntityCodec.encode(textContent))"
             
-            let document = try parser.parse(originalXML + "\n")
+            let document = try parser.parse(originalXML + "\n").value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML + "\n")
+            let document2 = try parser.parse(generatedXML + "\n").value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价")
@@ -98,9 +98,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             let textContent = generateRandomText()
             let originalXML = "<order indent=\"\(indent)\" inputNumber=\"\(inputNumber)\" />\(XMLEntityCodec.encode(textContent))"
             
-            let document = try parser.parse(originalXML + "\n")
+            let document = try parser.parse(originalXML + "\n").value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML + "\n")
+            let document2 = try parser.parse(generatedXML + "\n").value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价")
@@ -130,9 +130,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             }
             originalXML += " />\(XMLEntityCodec.encode(textContent))"
             
-            let document = try parser.parse(originalXML + "\n")
+            let document = try parser.parse(originalXML + "\n").value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML + "\n")
+            let document2 = try parser.parse(generatedXML + "\n").value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价")
@@ -153,9 +153,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
     func testProperty1_HorizontalRuleRoundTrip() throws {
         let originalXML = "<hr />"
         
-        let document = try parser.parse(originalXML)
+        let document = try parser.parse(originalXML).value
         let generatedXML = generator.generate(document)
-        let document2 = try parser.parse(generatedXML)
+        let document2 = try parser.parse(generatedXML).value
         
         XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                      "往返后文档应该语义等价")
@@ -172,9 +172,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             
             let originalXML = "<img fileid=\"\(fileId)\" width=\"\(width)\" height=\"\(height)\" />"
             
-            let document = try parser.parse(originalXML)
+            let document = try parser.parse(originalXML).value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML)
+            let document2 = try parser.parse(generatedXML).value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价")
@@ -202,9 +202,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             }
             originalXML += " />"
             
-            let document = try parser.parse(originalXML)
+            let document = try parser.parse(originalXML).value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML)
+            let document2 = try parser.parse(generatedXML).value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价")
@@ -234,9 +234,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             
             let originalXML = "<quote>\(innerXML)</quote>"
             
-            let document = try parser.parse(originalXML)
+            let document = try parser.parse(originalXML).value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML)
+            let document2 = try parser.parse(generatedXML).value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价")
@@ -266,9 +266,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             let textContent = generateRandomText()
             let originalXML = "<text indent=\"1\"><\(tag)>\(XMLEntityCodec.encode(textContent))</\(tag)></text>"
             
-            let document = try parser.parse(originalXML)
+            let document = try parser.parse(originalXML).value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML)
+            let document2 = try parser.parse(generatedXML).value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价\n原始: \(originalXML)\n生成: \(generatedXML)")
@@ -291,9 +291,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             let textContent = generateRandomText()
             let originalXML = "<text indent=\"1\"><background color=\"\(color)\">\(XMLEntityCodec.encode(textContent))</background></text>"
             
-            let document = try parser.parse(originalXML)
+            let document = try parser.parse(originalXML).value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML)
+            let document2 = try parser.parse(generatedXML).value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价")
@@ -326,9 +326,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             let textContent = generateRandomText()
             let originalXML = "<text indent=\"1\"><\(outerTag)><\(innerTag)>\(XMLEntityCodec.encode(textContent))</\(innerTag)></\(outerTag)></text>"
             
-            let document = try parser.parse(originalXML)
+            let document = try parser.parse(originalXML).value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML)
+            let document2 = try parser.parse(generatedXML).value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价\n原始: \(originalXML)\n生成: \(generatedXML)")
@@ -342,9 +342,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             let textContent = generateRandomTextWithSpecialChars()
             let originalXML = "<text indent=\"1\">\(XMLEntityCodec.encode(textContent))</text>"
             
-            let document = try parser.parse(originalXML)
+            let document = try parser.parse(originalXML).value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML)
+            let document2 = try parser.parse(generatedXML).value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价")
@@ -374,9 +374,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             
             let originalXML = lines.joined(separator: "\n")
             
-            let document = try parser.parse(originalXML)
+            let document = try parser.parse(originalXML).value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML)
+            let document2 = try parser.parse(generatedXML).value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价")
@@ -421,9 +421,9 @@ final class XMLRoundTripPropertyTests: XCTestCase {
             
             let originalXML = lines.joined(separator: "\n")
             
-            let document = try parser.parse(originalXML)
+            let document = try parser.parse(originalXML).value
             let generatedXML = generator.generate(document)
-            let document2 = try parser.parse(generatedXML)
+            let document2 = try parser.parse(generatedXML).value
             
             XCTAssertTrue(areDocumentsSemanticEqual(document, document2),
                          "往返后文档应该语义等价")

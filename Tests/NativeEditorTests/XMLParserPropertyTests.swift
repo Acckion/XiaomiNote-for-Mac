@@ -40,7 +40,8 @@ final class XMLParserPropertyTests: XCTestCase {
             let textContent = generateRandomText()
             let xml = "<text indent=\"\(indent)\">\(XMLEntityCodec.encode(textContent))</text>"
             
-            let document = try parser.parse(xml)
+            let result = try parser.parse(xml)
+            let document = result.value
             
             XCTAssertEqual(document.blocks.count, 1, "应该解析出一个块级节点")
             
@@ -63,7 +64,7 @@ final class XMLParserPropertyTests: XCTestCase {
             let textContent = generateRandomText()
             let xml = "<bullet indent=\"\(indent)\" />\(XMLEntityCodec.encode(textContent))\n"
             
-            let document = try parser.parse(xml)
+            let document = try parser.parse(xml).value
             
             XCTAssertEqual(document.blocks.count, 1, "应该解析出一个块级节点")
             
@@ -87,7 +88,7 @@ final class XMLParserPropertyTests: XCTestCase {
             let textContent = generateRandomText()
             let xml = "<order indent=\"\(indent)\" inputNumber=\"\(inputNumber)\" />\(XMLEntityCodec.encode(textContent))\n"
             
-            let document = try parser.parse(xml)
+            let document = try parser.parse(xml).value
             
             XCTAssertEqual(document.blocks.count, 1, "应该解析出一个块级节点")
             
@@ -118,7 +119,7 @@ final class XMLParserPropertyTests: XCTestCase {
             }
             xml += " />\(XMLEntityCodec.encode(textContent))\n"
             
-            let document = try parser.parse(xml)
+            let document = try parser.parse(xml).value
             
             XCTAssertEqual(document.blocks.count, 1, "应该解析出一个块级节点")
             
@@ -139,7 +140,7 @@ final class XMLParserPropertyTests: XCTestCase {
     func testProperty7_HorizontalRuleParsing() throws {
         let xml = "<hr />"
         
-        let document = try parser.parse(xml)
+        let document = try parser.parse(xml).value
         
         XCTAssertEqual(document.blocks.count, 1, "应该解析出一个块级节点")
         XCTAssertTrue(document.blocks.first is HorizontalRuleNode, "应该是 HorizontalRuleNode 类型")
@@ -156,7 +157,7 @@ final class XMLParserPropertyTests: XCTestCase {
             
             let xml = "<img fileid=\"\(fileId)\" width=\"\(width)\" height=\"\(height)\" />"
             
-            let document = try parser.parse(xml)
+            let document = try parser.parse(xml).value
             
             XCTAssertEqual(document.blocks.count, 1, "应该解析出一个块级节点")
             
@@ -185,7 +186,7 @@ final class XMLParserPropertyTests: XCTestCase {
             }
             xml += " />"
             
-            let document = try parser.parse(xml)
+            let document = try parser.parse(xml).value
             
             XCTAssertEqual(document.blocks.count, 1, "应该解析出一个块级节点")
             
@@ -216,7 +217,7 @@ final class XMLParserPropertyTests: XCTestCase {
             
             let xml = "<quote>\(innerXML)</quote>"
             
-            let document = try parser.parse(xml)
+            let document = try parser.parse(xml).value
             
             XCTAssertEqual(document.blocks.count, 1, "应该解析出一个块级节点")
             
@@ -397,7 +398,7 @@ final class NestedFormatParsingPropertyTests: XCTestCase {
                 let textContent = "测试文本"
                 let xml = "<text indent=\"1\"><\(outerTag)><\(innerTag)>\(textContent)</\(innerTag)></\(outerTag)></text>"
                 
-                let document = try parser.parse(xml)
+                let document = try parser.parse(xml).value
                 
                 XCTAssertEqual(document.blocks.count, 1, "应该解析出一个块级节点")
                 
@@ -463,7 +464,7 @@ final class NestedFormatParsingPropertyTests: XCTestCase {
                     let textContent = "嵌套文本"
                     let xml = "<text indent=\"1\"><\(outerTag)><\(middleTag)><\(innerTag)>\(textContent)</\(innerTag)></\(middleTag)></\(outerTag)></text>"
                     
-                    let document = try parser.parse(xml)
+                    let document = try parser.parse(xml).value
                     
                     guard let textBlock = document.blocks.first as? TextBlockNode,
                           let outerNode = textBlock.content.first as? FormattedNode,
@@ -493,7 +494,7 @@ final class NestedFormatParsingPropertyTests: XCTestCase {
             
             // 测试 <b><background color="...">文本</background></b>
             let xml1 = "<text indent=\"1\"><b><background color=\"\(color)\">\(XMLEntityCodec.encode(textContent))</background></b></text>"
-            let document1 = try parser.parse(xml1)
+            let document1 = try parser.parse(xml1).value
             
             guard let textBlock1 = document1.blocks.first as? TextBlockNode,
                   let boldNode = textBlock1.content.first as? FormattedNode,
@@ -508,7 +509,7 @@ final class NestedFormatParsingPropertyTests: XCTestCase {
             
             // 测试 <background color="..."><i>文本</i></background>
             let xml2 = "<text indent=\"1\"><background color=\"\(color)\"><i>\(XMLEntityCodec.encode(textContent))</i></background></text>"
-            let document2 = try parser.parse(xml2)
+            let document2 = try parser.parse(xml2).value
             
             guard let textBlock2 = document2.blocks.first as? TextBlockNode,
                   let highlightNode2 = textBlock2.content.first as? FormattedNode,
@@ -535,7 +536,7 @@ final class NestedFormatParsingPropertyTests: XCTestCase {
             // 测试 <b>文本1</b>普通文本<i>文本2</i>
             let xml = "<text indent=\"1\"><b>\(XMLEntityCodec.encode(text1))</b>\(XMLEntityCodec.encode(text2))<i>\(XMLEntityCodec.encode(text3))</i></text>"
             
-            let document = try parser.parse(xml)
+            let document = try parser.parse(xml).value
             
             guard let textBlock = document.blocks.first as? TextBlockNode else {
                 XCTFail("应该是 TextBlockNode 类型")
@@ -599,7 +600,7 @@ final class NestedFormatParsingPropertyTests: XCTestCase {
             
             let xml = "<text indent=\"1\">\(openTags)\(textContent)\(closeTags)</text>"
             
-            let document = try parser.parse(xml)
+            let document = try parser.parse(xml).value
             
             guard let textBlock = document.blocks.first as? TextBlockNode else {
                 XCTFail("应该是 TextBlockNode 类型")

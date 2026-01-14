@@ -120,9 +120,14 @@ class XiaoMiFormatConverter {
     // MARK: - Public Methods
     
     /// 将 AttributedString 转换为小米笔记 XML 格式
+    /// 
+    /// 注意：此方法已弃用，建议使用 nsAttributedStringToXML 方法
+    /// 因为 NSAttributedString 可以正确保留自定义附件类型
+    /// 
     /// - Parameter attributedString: 要转换的 AttributedString
     /// - Returns: 小米笔记 XML 格式字符串
     /// - Throws: ConversionError
+    @available(*, deprecated, message: "使用 nsAttributedStringToXML 代替，以正确保留自定义附件类型")
     func attributedStringToXML(_ attributedString: AttributedString) throws -> String {
         var xmlElements: [String] = []
         
@@ -167,6 +172,30 @@ class XiaoMiFormatConverter {
     
     /// 将 NSAttributedString 转换为小米笔记 XML 格式
     /// 
+    /// 使用新的 AST 转换器实现：
+    /// 1. NSAttributedString → AST（使用 AttributedStringToASTConverter）
+    /// 2. AST → XML（使用 XMLGenerator）
+    /// 
+    /// 关键方法：此方法直接处理 NSAttributedString，避免了 AttributedString 中转导致的属性丢失问题
+    /// 用于原生编辑器的内容导出保存
+    /// 
+    /// - Parameter nsAttributedString: 要转换的 NSAttributedString
+    /// - Returns: 小米笔记 XML 格式字符串
+    /// - Throws: ConversionError
+    /// 
+    /// _Requirements: 所有_ - 使用新的 AST 转换器实现完整的转换流程
+    func nsAttributedStringToXML(_ nsAttributedString: NSAttributedString) throws -> String {
+        // 使用新的 AST 转换器
+        let astConverter = AttributedStringToASTConverter()
+        let document = astConverter.convert(nsAttributedString)
+        
+        // 使用 XML 生成器
+        let xmlGenerator = XMLGenerator()
+        return xmlGenerator.generate(document)
+    }
+    
+    /// 将 NSAttributedString 转换为小米笔记 XML 格式（旧实现，保留作为后备）
+    /// 
     /// 关键方法：此方法直接处理 NSAttributedString，避免了 AttributedString 中转导致的属性丢失问题
     /// 用于原生编辑器的内容导出保存
     /// 
@@ -175,7 +204,8 @@ class XiaoMiFormatConverter {
     /// - Throws: ConversionError
     /// 
     /// _Requirements: 9.3_ - 格式转换失败时记录日志并尝试使用原始内容
-    func nsAttributedStringToXML(_ nsAttributedString: NSAttributedString) throws -> String {
+    @available(*, deprecated, message: "使用新的 AST 转换器实现")
+    func nsAttributedStringToXMLLegacy(_ nsAttributedString: NSAttributedString) throws -> String {
         var xmlElements: [String] = []
         
         let fullText = nsAttributedString.string
@@ -531,11 +561,16 @@ class XiaoMiFormatConverter {
     }
     
     /// 将小米笔记 XML 转换为 AttributedString
+    /// 
+    /// 注意：此方法已弃用，建议使用 xmlToNSAttributedString 方法
+    /// 因为 NSAttributedString 可以正确保留自定义附件类型
+    /// 
     /// - Parameters:
     ///   - xml: 小米笔记 XML 格式字符串
     ///   - folderId: 文件夹 ID（用于图片加载）
     /// - Returns: 转换后的 AttributedString
     /// - Throws: ConversionError
+    @available(*, deprecated, message: "使用 xmlToNSAttributedString 代替，以正确保留自定义附件类型")
     func xmlToAttributedString(_ xml: String, folderId: String? = nil) throws -> AttributedString {
         guard !xml.isEmpty else {
             return AttributedString()
@@ -573,13 +608,53 @@ class XiaoMiFormatConverter {
     }
     
     /// 将小米笔记 XML 直接转换为 NSAttributedString
+    /// 
+    /// 使用新的 AST 转换器实现：
+    /// 1. XML → AST（使用 MiNoteXMLParser）
+    /// 2. AST → NSAttributedString（使用 ASTToAttributedStringConverter）
+    /// 
     /// 此方法避免了 AttributedString 中转，可以正确保留自定义 NSTextAttachment 子类（如 ImageAttachment）
     /// - Parameters:
     ///   - xml: 小米笔记 XML 格式字符串
     ///   - folderId: 文件夹 ID（用于图片加载）
     /// - Returns: 转换后的 NSAttributedString
     /// - Throws: ConversionError
+    /// 
+    /// _Requirements: 所有_ - 使用新的 AST 转换器实现完整的转换流程
     func xmlToNSAttributedString(_ xml: String, folderId: String? = nil) throws -> NSAttributedString {
+        guard !xml.isEmpty else {
+            return NSAttributedString()
+        }
+        
+        // 设置当前文件夹 ID
+        self.currentFolderId = folderId
+        
+        // 重置列表状态
+        resetListState()
+        
+        // 使用新的 XML 解析器
+        let parser = MiNoteXMLParser()
+        let parseResult = try parser.parse(xml)
+        
+        // 记录解析警告
+        for warning in parseResult.warnings {
+            print("[XiaoMiFormatConverter] ⚠️ 解析警告: \(warning.message)")
+        }
+        
+        // 使用 AST 到 NSAttributedString 转换器
+        let astConverter = ASTToAttributedStringConverter(folderId: folderId)
+        return astConverter.convert(parseResult.value)
+    }
+    
+    /// 将小米笔记 XML 直接转换为 NSAttributedString（旧实现，保留作为后备）
+    /// 此方法避免了 AttributedString 中转，可以正确保留自定义 NSTextAttachment 子类（如 ImageAttachment）
+    /// - Parameters:
+    ///   - xml: 小米笔记 XML 格式字符串
+    ///   - folderId: 文件夹 ID（用于图片加载）
+    /// - Returns: 转换后的 NSAttributedString
+    /// - Throws: ConversionError
+    @available(*, deprecated, message: "使用新的 AST 转换器实现")
+    func xmlToNSAttributedStringLegacy(_ xml: String, folderId: String? = nil) throws -> NSAttributedString {
         guard !xml.isEmpty else {
             return NSAttributedString()
         }
@@ -883,14 +958,20 @@ class XiaoMiFormatConverter {
     }
     
     /// 验证转换的一致性（往返转换测试）
+    /// 使用新的 AST 转换器进行往返测试
     /// - Parameter xml: 原始 XML
     /// - Returns: 是否一致
     func validateConversion(_ xml: String) -> Bool {
         do {
-            let attributedString = try xmlToAttributedString(xml)
-            let backConverted = try attributedStringToXML(attributedString)
+            // XML → NSAttributedString
+            let nsAttributedString = try xmlToNSAttributedString(xml)
+            
+            // NSAttributedString → XML
+            let backConverted = try nsAttributedStringToXML(nsAttributedString)
+            
             return isEquivalent(original: xml, converted: backConverted)
         } catch {
+            print("[XiaoMiFormatConverter] 验证转换失败: \(error)")
             return false
         }
     }

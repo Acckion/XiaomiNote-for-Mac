@@ -397,3 +397,76 @@ enum NoteOperationError: Error {
 1. **保存-同步竞态测试**：模拟用户编辑 → 保存 → 定时同步场景
 2. **网络恢复测试**：模拟离线编辑 → 网络恢复 → 上传场景
 3. **应用重启测试**：模拟应用重启后 Pending_Upload_Registry 恢复
+
+## 用户体验优化
+
+### 输入法组合状态处理
+
+为了支持中文等需要组合输入的语言，编辑器实现了智能的输入法状态检测：
+
+#### 问题描述
+
+在输入中文拼音时（如 "ni hao"），如果编辑器立即触发保存，会中断输入法的候选词选择流程，导致用户无法选择"你好"等候选词。
+
+#### 解决方案
+
+在 `NativeEditorView.textDidChange` 方法中实现两级检查：
+
+1. **即时检查**：检测 `hasMarkedText()` 状态，如果为 `true`（正在输入拼音），立即跳过内容更新
+2. **延迟检查**：等待 50ms 后再次检查 `hasMarkedText()` 状态，确保输入法组合真正完成
+
+```swift
+func textDidChange(_ notification: Notification) {
+    // 第一级检查：即时检测输入法组合状态
+    if textView.hasMarkedText() {
+        print("[NativeEditorView] 检测到输入法组合状态，跳过内容更新")
+        return
+    }
+    
+    // 延迟 50ms 再次检查
+    Task { @MainActor in
+        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        
+        // 第二级检查：确保输入法状态稳定
+        if textView.hasMarkedText() {
+            print("[NativeEditorView] 延迟检查：仍在输入法组合状态，跳过内容更新")
+            return
+        }
+        
+        // 输入法组合完成，触发内容更新和保存
+        self.parent.editorContext.updateNSContent(attributedString)
+        contentChangeCallback?(attributedString)
+    }
+}
+```
+
+#### 时序说明
+
+```
+用户输入 "ni hao"
+    ↓
+hasMarkedText() = true → 跳过保存 ✅
+    ↓
+用户选择候选词"你好"
+    ↓
+输入法提交文本
+    ↓
+hasMarkedText() = false → 触发 textDidChange
+    ↓
+延迟 50ms
+    ↓
+再次检查 hasMarkedText() = false → 触发保存 ✅
+```
+
+#### 性能影响
+
+- 50ms 延迟对用户来说几乎无感知
+- 不影响正常的英文输入（因为英文输入不会触发 `hasMarkedText()`）
+- 与现有的 300ms 防抖机制配合，确保不会频繁保存
+
+#### 测试建议
+
+1. **中文输入测试**：输入 "ni hao" → 选择"你好" → 验证候选词正常显示
+2. **连续输入测试**：连续输入多个拼音 → 验证不会中断输入流程
+3. **英文输入测试**：输入英文 → 验证保存正常触发
+4. **混合输入测试**：中英文混合输入 → 验证两种模式都正常工作

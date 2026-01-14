@@ -8,46 +8,6 @@
 
 import Foundation
 
-// MARK: - ParseError
-
-/// 解析错误类型
-public enum ParseError: Error, LocalizedError, Sendable {
-    /// XML 格式无效
-    case invalidXML(String)
-    
-    /// 意外的输入结束
-    case unexpectedEndOfInput
-    
-    /// 标签不匹配
-    case unmatchedTag(expected: String, found: String)
-    
-    /// 不支持的元素
-    case unsupportedElement(String)
-    
-    /// 意外的 Token
-    case unexpectedToken(XMLToken)
-    
-    /// 缺少必需的属性
-    case missingAttribute(tag: String, attribute: String)
-    
-    public var errorDescription: String? {
-        switch self {
-        case .invalidXML(let message):
-            return "无效的 XML 格式: \(message)"
-        case .unexpectedEndOfInput:
-            return "意外的输入结束"
-        case .unmatchedTag(let expected, let found):
-            return "标签不匹配: 期望 </\(expected)>，找到 </\(found)>"
-        case .unsupportedElement(let element):
-            return "不支持的元素: \(element)"
-        case .unexpectedToken(let token):
-            return "意外的 Token: \(token)"
-        case .missingAttribute(let tag, let attribute):
-            return "标签 <\(tag)> 缺少必需的属性: \(attribute)"
-        }
-    }
-}
-
 // MARK: - MiNoteXMLParser
 
 /// 小米笔记 XML 解析器
@@ -74,26 +34,56 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     }
     
     /// 解析警告（用于记录跳过的不支持元素）
-    public private(set) var warnings: [String] = []
+    public private(set) var warnings: [ParseWarning] = []
+    
+    /// 错误日志记录器
+    private let errorLogger: ErrorLogger
+    
+    /// 错误恢复处理器
+    private let errorRecoveryHandler: ErrorRecoveryHandler
+    
+    /// 是否启用错误恢复（默认启用）
+    public var enableErrorRecovery: Bool = true
     
     // MARK: - 初始化
     
-    public init() {}
+    public init(
+        errorLogger: ErrorLogger = ConsoleErrorLogger(),
+        errorRecoveryHandler: ErrorRecoveryHandler = DefaultErrorRecoveryHandler()
+    ) {
+        self.errorLogger = errorLogger
+        self.errorRecoveryHandler = errorRecoveryHandler
+    }
     
     // MARK: - 公共方法
     
     /// 解析 XML 字符串为文档 AST
     /// - Parameter xml: 小米笔记 XML 字符串
-    /// - Returns: 文档 AST 节点
-    /// - Throws: ParseError
-    public func parse(_ xml: String) throws -> DocumentNode {
+    /// - Returns: 解析结果（包含文档 AST 和警告）
+    /// - Throws: ParseError（仅在无法恢复时抛出）
+    public func parse(_ xml: String) throws -> ParseResult<DocumentNode> {
         // 重置状态
         warnings = []
         currentIndex = 0
         
         // 词法分析
-        let tokenizer = XMLTokenizer(input: xml)
-        tokens = try tokenizer.tokenize()
+        do {
+            let tokenizer = XMLTokenizer(input: xml)
+            tokens = try tokenizer.tokenize()
+        } catch {
+            // 词法分析失败，尝试纯文本回退
+            if enableErrorRecovery {
+                errorLogger.logError(error, context: ["phase": "tokenization"])
+                let fallbackNode = createFallbackDocument(xml)
+                let warning = ParseWarning(
+                    message: "词法分析失败，使用纯文本回退: \(error.localizedDescription)",
+                    type: .other
+                )
+                return ParseResult(value: fallbackNode, warnings: [warning])
+            } else {
+                throw error
+            }
+        }
         
         // 语法分析
         var blocks: [any BlockNode] = []
@@ -106,12 +96,113 @@ public final class MiNoteXMLParser: @unchecked Sendable {
             }
             
             // 解析块级元素
-            if let block = try parseBlock() {
-                blocks.append(block)
+            do {
+                if let block = try parseBlock() {
+                    blocks.append(block)
+                }
+            } catch let error as ParseError {
+                // 处理解析错误
+                if enableErrorRecovery {
+                    let context = ErrorContext(
+                        elementName: extractElementName(from: currentToken),
+                        content: extractContent(from: currentToken),
+                        position: currentIndex
+                    )
+                    
+                    let strategy = errorRecoveryHandler.handleError(error, context: context)
+                    
+                    switch strategy {
+                    case .skipElement:
+                        // 跳过当前元素，继续处理
+                        let warning = ParseWarning(
+                            message: "跳过错误元素: \(error.localizedDescription)",
+                            location: "位置 \(currentIndex)",
+                            type: .unsupportedElement
+                        )
+                        warnings.append(warning)
+                        errorLogger.logWarning(warning)
+                        
+                        // 尝试跳到下一个块级元素
+                        skipToNextBlock()
+                        
+                    case .fallbackToPlainText:
+                        // 将当前内容作为纯文本处理
+                        if let content = context.content {
+                            let textBlock = TextBlockNode(indent: 1, content: [TextNode(text: content)])
+                            blocks.append(textBlock)
+                        }
+                        advance()
+                        
+                    case .useDefaultValue:
+                        // 使用默认值（已在具体解析方法中处理）
+                        advance()
+                        
+                    case .abort:
+                        // 终止解析
+                        throw error
+                    }
+                } else {
+                    throw error
+                }
             }
         }
         
+        return ParseResult(value: DocumentNode(blocks: blocks), warnings: warnings)
+    }
+    
+    /// 创建纯文本回退文档
+    private func createFallbackDocument(_ text: String) -> DocumentNode {
+        let lines = text.components(separatedBy: .newlines)
+        let blocks: [any BlockNode] = lines.map { line in
+            TextBlockNode(indent: 1, content: [TextNode(text: line)])
+        }
         return DocumentNode(blocks: blocks)
+    }
+    
+    /// 从 Token 中提取元素名称
+    private func extractElementName(from token: XMLToken?) -> String? {
+        guard let token = token else { return nil }
+        switch token {
+        case .startTag(let name, _, _):
+            return name
+        case .endTag(let name):
+            return name
+        default:
+            return nil
+        }
+    }
+    
+    /// 从 Token 中提取内容
+    private func extractContent(from token: XMLToken?) -> String? {
+        guard let token = token else { return nil }
+        switch token {
+        case .text(let text):
+            return text
+        default:
+            return nil
+        }
+    }
+    
+    /// 跳到下一个块级元素
+    private func skipToNextBlock() {
+        while !isAtEnd {
+            guard let token = currentToken else { break }
+            
+            switch token {
+            case .newline:
+                advance()
+                return
+                
+            case .startTag(let name, _, _):
+                if isBlockLevelTag(name) {
+                    return
+                }
+                advance()
+                
+            default:
+                advance()
+            }
+        }
     }
     
     // MARK: - 块级元素解析
@@ -174,7 +265,14 @@ public final class MiNoteXMLParser: @unchecked Sendable {
             
         default:
             // 不支持的元素，记录警告并跳过
-            warnings.append("跳过不支持的元素: <\(name)>")
+            let warning = ParseWarning(
+                message: "跳过不支持的元素: <\(name)>",
+                location: "位置 \(currentIndex)",
+                type: .unsupportedElement
+            )
+            warnings.append(warning)
+            errorLogger.logWarning(warning)
+            
             advance()
             if !selfClosing {
                 try skipUntilEndTag(name)
@@ -334,7 +432,14 @@ public final class MiNoteXMLParser: @unchecked Sendable {
                     textBlocks.append(textBlock)
                 } else {
                     // 跳过其他元素
-                    warnings.append("引用块内跳过不支持的元素: <\(name)>")
+                    let warning = ParseWarning(
+                        message: "引用块内跳过不支持的元素: <\(name)>",
+                        location: "位置 \(currentIndex)",
+                        type: .unsupportedElement
+                    )
+                    warnings.append(warning)
+                    errorLogger.logWarning(warning)
+                    
                     advance()
                     if !selfClosing {
                         try skipUntilEndTag(name)
@@ -434,7 +539,14 @@ public final class MiNoteXMLParser: @unchecked Sendable {
         // 获取对应的节点类型
         guard let nodeType = inlineTagToNodeType(name) else {
             // 不支持的行内元素，记录警告并跳过
-            warnings.append("跳过不支持的行内元素: <\(name)>")
+            let warning = ParseWarning(
+                message: "跳过不支持的行内元素: <\(name)>",
+                location: "位置 \(currentIndex)",
+                type: .unsupportedElement
+            )
+            warnings.append(warning)
+            errorLogger.logWarning(warning)
+            
             advance()
             if !selfClosing {
                 try skipUntilEndTag(name)

@@ -682,7 +682,21 @@ struct NativeEditorView: NSViewRepresentable {
             // 检测音频附件删除
             detectAndHandleAudioAttachmentDeletion(currentAttributedString: attributedString)
             
+            // 优化：延迟 50ms 再检查输入法状态，确保组合输入真正完成
+            // 这样可以避免在用户选择候选词的瞬间触发保存
+            // 50ms 的延迟对用户来说几乎无感知，但足以让输入法完成候选词选择
             Task { @MainActor in
+                // 短暂延迟，等待输入法状态稳定
+                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+                
+                // 再次检查输入法状态
+                // 如果用户仍在输入（例如连续输入多个拼音），则跳过此次更新
+                if textView.hasMarkedText() {
+                    print("[NativeEditorView] 延迟检查：仍在输入法组合状态，跳过内容更新")
+                    self.isUpdatingFromTextView = false
+                    return
+                }
+                
                 self.parent.editorContext.updateNSContent(attributedString)
                 // 调用回调
                 contentChangeCallback?(attributedString)
