@@ -250,3 +250,75 @@ extension NoteOperation: Hashable {
         hasher.combine(id)
     }
 }
+
+// MARK: - 操作历史记录
+
+/// 操作历史记录
+///
+/// 记录已完成的操作，用于调试和审计
+public struct OperationHistoryEntry: Codable, Identifiable, Sendable {
+    /// 操作 ID
+    public let id: String
+    
+    /// 操作类型
+    public let type: OperationType
+    
+    /// 笔记 ID
+    public let noteId: String
+    
+    /// 操作数据
+    public let data: Data
+    
+    /// 创建时间
+    public let createdAt: Date
+    
+    /// 完成时间
+    public let completedAt: Date
+    
+    /// 最终状态
+    public let status: OperationStatus
+    
+    /// 重试次数
+    public let retryCount: Int
+    
+    /// 最后错误信息（如果有）
+    public let lastError: String?
+    
+    /// 错误类型（如果有）
+    public let errorType: OperationErrorType?
+    
+    /// 初始化
+    public init(
+        id: String,
+        type: OperationType,
+        noteId: String,
+        data: Data,
+        createdAt: Date,
+        completedAt: Date,
+        status: OperationStatus,
+        retryCount: Int,
+        lastError: String? = nil,
+        errorType: OperationErrorType? = nil
+    ) {
+        self.id = id
+        self.type = type
+        self.noteId = noteId
+        self.data = data
+        self.createdAt = createdAt
+        self.completedAt = completedAt
+        self.status = status
+        self.retryCount = retryCount
+        self.lastError = lastError
+        self.errorType = errorType
+    }
+    
+    /// 操作是否成功
+    public var isSuccess: Bool {
+        return status == .completed
+    }
+    
+    /// 操作耗时（秒）
+    public var duration: TimeInterval {
+        return completedAt.timeIntervalSince(createdAt)
+    }
+}

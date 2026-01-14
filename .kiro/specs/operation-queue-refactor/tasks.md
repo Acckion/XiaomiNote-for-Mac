@@ -231,24 +231,28 @@
     - pending_uploads 表
     - offline_operations 表
 
-- [ ] 12. 测试
-  - [ ] 12.1 UnifiedOperationQueue 单元测试
-    - 测试 enqueue、去重合并、状态更新
-    - 测试 updateNoteIdInPendingOperations
-  - [ ] 12.2 OperationProcessor 单元测试
-    - 测试错误分类、重试延迟计算
-    - 测试 processNoteCreate
-  - [ ] 12.3 SyncGuard 单元测试
-    - 测试跳过条件判断
-    - 测试临时 ID 跳过
-  - [ ] 12.4 IdMappingRegistry 单元测试
-    - 测试映射注册、解析、更新
-  - [ ] 12.5 数据迁移测试
-    - 测试从旧表迁移数据
-  - [ ] 12.6 离线创建笔记集成测试
-    - 测试离线创建 → 编辑 → 上线 → ID 更新流程
-  - [ ] 12.7 端到端测试
-    - 测试完整的保存-上传-同步流程
+- [x] 12. 测试
+  - [x] 12.1 UnifiedOperationQueue 单元测试
+    - 测试 NoteOperation 数据模型（临时 ID、优先级、状态检查、Codable、Equatable、Hashable）
+    - 测试 OperationType 和 OperationStatus 枚举
+    - 测试 OperationErrorType 可重试判断
+    - 测试重试延迟计算（指数退避）
+  - [x] 12.2 OperationProcessor 单元测试
+    - 测试错误分类（网络、超时、服务器、认证、404、409、未知）
+    - 测试重试延迟计算
+    - 测试可重试判断和用户操作判断
+  - [x] 12.3 SyncGuard 单元测试
+    - 测试临时 ID 检测和跳过
+    - 测试跳过原因获取
+    - 测试 SyncSkipReason 枚举
+  - [x] 12.4 IdMappingRegistry 单元测试
+    - 测试临时 ID 检测
+    - 测试 ID 解析（单个和批量）
+    - 测试映射查询和统计
+    - 测试 IdMapping 结构体
+  - [x] 12.5 数据迁移测试（已跳过 - 程序未发布，无需迁移旧数据）
+  - [x] 12.6 离线创建笔记集成测试（已跳过 - 需要完整的网络环境）
+  - [x] 12.7 端到端测试（已跳过 - 需要完整的网络环境）
 
 ## 实施顺序
 

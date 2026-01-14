@@ -323,7 +323,7 @@ extension UnifiedOperationQueue {
     
     /// 标记操作完成
     ///
-    /// 完成的操作会从队列中移除。
+    /// 完成的操作会从队列中移除，并保存到历史记录。
     ///
     /// - Parameter operationId: 操作 ID
     /// - Throws: DatabaseError（数据库操作失败）
@@ -337,6 +337,14 @@ extension UnifiedOperationQueue {
             print("[UnifiedOperationQueue] 操作不存在: \(operationId)")
             return
         }
+        
+        // 保存到历史记录
+        var completedOperation = operation
+        completedOperation.status = .completed
+        try databaseService.saveOperationHistory(completedOperation, completedAt: Date())
+        
+        // 清理旧的历史记录（保留最近 100 条）
+        try? databaseService.cleanupOldHistory(keepCount: 100)
         
         // 从数据库和缓存中移除
         try databaseService.deleteUnifiedOperation(operationId: operationId)
@@ -918,5 +926,60 @@ extension UnifiedOperationQueue {
     /// 从数据库重新加载所有操作。
     public func reload() {
         loadFromDatabase()
+    }
+}
+
+// MARK: - 历史记录
+
+extension UnifiedOperationQueue {
+    
+    /// 获取操作历史记录
+    ///
+    /// - Parameter limit: 最大返回数量，默认 100
+    /// - Returns: 历史操作数组（按完成时间降序）
+    public func getOperationHistory(limit: Int = 100) -> [OperationHistoryEntry] {
+        do {
+            return try databaseService.getOperationHistory(limit: limit)
+        } catch {
+            print("[UnifiedOperationQueue] 获取历史记录失败: \(error)")
+            return []
+        }
+    }
+    
+    /// 清空历史记录
+    ///
+    /// - Throws: DatabaseError（数据库操作失败）
+    public func clearHistory() throws {
+        try databaseService.clearOperationHistory()
+        print("[UnifiedOperationQueue] 清空历史记录")
+    }
+    
+    /// 获取历史记录统计
+    ///
+    /// - Returns: 统计信息字典
+    public func getHistoryStatistics() -> [String: Int] {
+        let history = getOperationHistory(limit: 1000)
+        
+        var stats: [String: Int] = [
+            "total": history.count,
+            "success": 0,
+            "failed": 0
+        ]
+        
+        for entry in history {
+            if entry.isSuccess {
+                stats["success", default: 0] += 1
+            } else {
+                stats["failed", default: 0] += 1
+            }
+        }
+        
+        // 按类型统计
+        for type in OperationType.allCases {
+            let count = history.filter { $0.type == type }.count
+            stats[type.rawValue] = count
+        }
+        
+        return stats
     }
 }

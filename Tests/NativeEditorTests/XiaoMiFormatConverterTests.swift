@@ -284,4 +284,127 @@ final class XiaoMiFormatConverterTests: XCTestCase {
         XCTAssertTrue(exportedXML.contains("level=\"5\""), "应该保留 level 属性")
         XCTAssertTrue(exportedXML.contains("checked=\"true\""), "应该保留 checked 属性")
     }
+    
+    // MARK: - 嵌套格式测试
+    
+    /// 测试粗体+斜体嵌套格式（斜体在外，粗体在内）
+    /// 这是用户报告的 bug：设置粗体+斜体后，切换笔记再切回来，粗体丢失
+    func testNestedBoldItalicFormat_ItalicOuterBoldInner() throws {
+        // XML 格式：<i><b>你好</b></i>
+        let xml = "<text indent=\"1\"><i><b>你好</b></i></text>"
+        
+        // 解析 XML 到 NSAttributedString
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 验证文本内容
+        XCTAssertEqual(nsAttributedString.string, "你好", "文本内容应该正确")
+        
+        // 验证粗体属性
+        var hasBold = false
+        var hasItalic = false
+        
+        nsAttributedString.enumerateAttributes(in: NSRange(location: 0, length: nsAttributedString.length), options: []) { attrs, _, _ in
+            // 检查字体是否有粗体特性
+            if let font = attrs[.font] as? NSFont {
+                let traits = font.fontDescriptor.symbolicTraits
+                if traits.contains(.bold) {
+                    hasBold = true
+                }
+            }
+            
+            // 检查是否有斜体（通过 obliqueness 属性）
+            if let obliqueness = attrs[.obliqueness] as? Double, obliqueness > 0 {
+                hasItalic = true
+            }
+        }
+        
+        XCTAssertTrue(hasBold, "应该检测到粗体格式")
+        XCTAssertTrue(hasItalic, "应该检测到斜体格式")
+    }
+    
+    /// 测试粗体+斜体嵌套格式（粗体在外，斜体在内）
+    func testNestedBoldItalicFormat_BoldOuterItalicInner() throws {
+        // XML 格式：<b><i>你好</i></b>
+        let xml = "<text indent=\"1\"><b><i>你好</i></b></text>"
+        
+        // 解析 XML 到 NSAttributedString
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 验证文本内容
+        XCTAssertEqual(nsAttributedString.string, "你好", "文本内容应该正确")
+        
+        // 验证粗体和斜体属性
+        var hasBold = false
+        var hasItalic = false
+        
+        nsAttributedString.enumerateAttributes(in: NSRange(location: 0, length: nsAttributedString.length), options: []) { attrs, _, _ in
+            if let font = attrs[.font] as? NSFont {
+                let traits = font.fontDescriptor.symbolicTraits
+                if traits.contains(.bold) {
+                    hasBold = true
+                }
+            }
+            
+            if let obliqueness = attrs[.obliqueness] as? Double, obliqueness > 0 {
+                hasItalic = true
+            }
+        }
+        
+        XCTAssertTrue(hasBold, "应该检测到粗体格式")
+        XCTAssertTrue(hasItalic, "应该检测到斜体格式")
+    }
+    
+    /// 测试粗体+斜体往返转换
+    func testNestedBoldItalicRoundTrip() throws {
+        let originalXML = "<text indent=\"1\"><i><b>你好</b></i></text>"
+        
+        // XML -> NSAttributedString
+        let nsAttributedString = try converter.xmlToNSAttributedString(originalXML)
+        
+        // NSAttributedString -> XML
+        let exportedXML = try converter.nsAttributedStringToXML(nsAttributedString)
+        
+        // 验证导出的 XML 包含粗体和斜体标签
+        XCTAssertTrue(exportedXML.contains("<b>"), "导出的 XML 应该包含粗体标签")
+        XCTAssertTrue(exportedXML.contains("<i>"), "导出的 XML 应该包含斜体标签")
+        XCTAssertTrue(exportedXML.contains("你好"), "导出的 XML 应该包含文本内容")
+    }
+    
+    /// 测试标题+粗体+斜体三层嵌套
+    func testTripleNestedFormat() throws {
+        // XML 格式：<size><b><i>标题粗斜体</i></b></size>
+        let xml = "<text indent=\"1\"><size><b><i>标题粗斜体</i></b></size></text>"
+        
+        // 解析 XML 到 NSAttributedString
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 验证文本内容
+        XCTAssertEqual(nsAttributedString.string, "标题粗斜体", "文本内容应该正确")
+        
+        // 验证所有格式属性
+        var hasBold = false
+        var hasItalic = false
+        var hasLargeFont = false
+        
+        nsAttributedString.enumerateAttributes(in: NSRange(location: 0, length: nsAttributedString.length), options: []) { attrs, _, _ in
+            if let font = attrs[.font] as? NSFont {
+                let traits = font.fontDescriptor.symbolicTraits
+                if traits.contains(.bold) {
+                    hasBold = true
+                }
+                // 一级标题字体大小应该是 24
+                if font.pointSize >= 24 {
+                    hasLargeFont = true
+                }
+            }
+            
+            if let obliqueness = attrs[.obliqueness] as? Double, obliqueness > 0 {
+                hasItalic = true
+            }
+        }
+        
+        XCTAssertTrue(hasBold, "应该检测到粗体格式")
+        XCTAssertTrue(hasItalic, "应该检测到斜体格式")
+        XCTAssertTrue(hasLargeFont, "应该检测到大字体（一级标题）")
+    }
 }

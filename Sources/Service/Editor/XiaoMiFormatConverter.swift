@@ -1370,23 +1370,143 @@ class XiaoMiFormatConverter {
     /// - Parameter content: 包含富文本标签的内容
     /// - Returns: 处理后的纯文本和属性映射
     /// - Throws: ConversionError
+    /// 
+    /// 修复：使用递归方式处理嵌套标签，确保属性范围正确计算
     private func processRichTextTags(_ content: String) throws -> (String, [(NSRange, [NSAttributedString.Key: Any])]) {
-        var processedText = content
         var attributes: [(NSRange, [NSAttributedString.Key: Any])] = []
         
-        // 处理各种富文本标签
-        processedText = try processTag(processedText, tag: "size", attribute: .font, value: NSFont.systemFont(ofSize: 24, weight: .bold), attributes: &attributes)
-        processedText = try processTag(processedText, tag: "mid-size", attribute: .font, value: NSFont.systemFont(ofSize: 20, weight: .semibold), attributes: &attributes)
-        processedText = try processTag(processedText, tag: "h3-size", attribute: .font, value: NSFont.systemFont(ofSize: 16, weight: .medium), attributes: &attributes)
-        processedText = try processTag(processedText, tag: "b", attribute: .font, value: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize), attributes: &attributes)
+        // 使用递归方式处理所有标签
+        let processedText = try processNestedTags(content, attributes: &attributes)
         
-        // 斜体处理 - 使用 obliqueness 属性来实现斜体效果
-        // 这样即使字体被替换为中文字体（如苹方），斜体效果也能保留
-        // obliqueness 值为 0.2 是一个常用的斜体倾斜度
-        processedText = try processTag(processedText, tag: "i", attribute: .obliqueness, value: 0.2, attributes: &attributes)
+        return (processedText, attributes)
+    }
+    
+    /// 递归处理嵌套标签
+    /// - Parameters:
+    ///   - text: 文本内容
+    ///   - attributes: 属性数组（引用传递）
+    /// - Returns: 处理后的纯文本
+    /// - Throws: ConversionError
+    /// 
+    /// 修复：使用最外层优先的策略处理嵌套标签
+    /// 对于 `<i><b>你好</b></i>`，先处理 `<i>` 标签，再递归处理内部的 `<b>` 标签
+    private func processNestedTags(_ text: String, attributes: inout [(NSRange, [NSAttributedString.Key: Any])]) throws -> String {
+        // 定义所有支持的标签及其对应的属性
+        let tagMappings: [(tag: String, attribute: NSAttributedString.Key, value: Any)] = [
+            ("size", .font, NSFont.systemFont(ofSize: 24, weight: .bold)),
+            ("mid-size", .font, NSFont.systemFont(ofSize: 20, weight: .semibold)),
+            ("h3-size", .font, NSFont.systemFont(ofSize: 16, weight: .medium)),
+            ("b", .font, NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)),
+            ("i", .obliqueness, 0.2),
+            ("u", .underlineStyle, NSUnderlineStyle.single.rawValue),
+            ("delete", .strikethroughStyle, NSUnderlineStyle.single.rawValue)
+        ]
         
-        processedText = try processTag(processedText, tag: "u", attribute: .underlineStyle, value: NSUnderlineStyle.single.rawValue, attributes: &attributes)
-        processedText = try processTag(processedText, tag: "delete", attribute: .strikethroughStyle, value: NSUnderlineStyle.single.rawValue, attributes: &attributes)
+        var processedText = text
+        
+        // 循环处理，直到没有更多标签
+        var foundTag = true
+        while foundTag {
+            foundTag = false
+            
+            // 找到最外层的标签（位置最靠前的开始标签）
+            var earliestMatch: (tag: String, attribute: NSAttributedString.Key, value: Any, match: NSTextCheckingResult)? = nil
+            
+            for (tag, attribute, value) in tagMappings {
+                // 使用贪婪匹配来找到完整的标签对（包括嵌套的同类标签）
+                let pattern = "<\(tag)>(.*)</\(tag)>"
+                let regex = try NSRegularExpression(pattern: pattern, options: .dotMatchesLineSeparators)
+                let range = NSRange(location: 0, length: processedText.utf16.count)
+                
+                if let match = regex.firstMatch(in: processedText, range: range) {
+                    // 检查这个匹配是否比当前最早的匹配更靠前
+                    if earliestMatch == nil || match.range.location < earliestMatch!.match.range.location {
+                        earliestMatch = (tag, attribute, value, match)
+                    }
+                }
+            }
+            
+            // 如果找到了最外层标签，处理它
+            if let (tag, attribute, value, match) = earliestMatch {
+                foundTag = true
+                
+                let contentRange = match.range(at: 1)
+                guard let contentSwiftRange = Range(contentRange, in: processedText) else {
+                    continue
+                }
+                
+                // 提取内容（可能包含其他嵌套标签）
+                var innerContent = String(processedText[contentSwiftRange])
+                
+                // 检查内容中是否有未配对的同类标签，如果有，需要使用非贪婪匹配
+                // 例如：<b>粗体1</b>普通<b>粗体2</b> 应该分别处理两个 <b> 标签
+                let openTagCount = innerContent.components(separatedBy: "<\(tag)>").count - 1
+                let closeTagCount = innerContent.components(separatedBy: "</\(tag)>").count - 1
+                
+                if openTagCount != closeTagCount {
+                    // 内容中有未配对的标签，使用非贪婪匹配
+                    let nonGreedyPattern = "<\(tag)>(.*?)</\(tag)>"
+                    let nonGreedyRegex = try NSRegularExpression(pattern: nonGreedyPattern, options: .dotMatchesLineSeparators)
+                    let range = NSRange(location: 0, length: processedText.utf16.count)
+                    
+                    if let nonGreedyMatch = nonGreedyRegex.firstMatch(in: processedText, range: range) {
+                        let nonGreedyContentRange = nonGreedyMatch.range(at: 1)
+                        guard let nonGreedyContentSwiftRange = Range(nonGreedyContentRange, in: processedText) else {
+                            continue
+                        }
+                        innerContent = String(processedText[nonGreedyContentSwiftRange])
+                        
+                        // 递归处理内部内容
+                        var innerAttributes: [(NSRange, [NSAttributedString.Key: Any])] = []
+                        let processedInnerContent = try processNestedTags(innerContent, attributes: &innerAttributes)
+                        
+                        // 计算当前标签在最终文本中的位置
+                        let matchLocation = nonGreedyMatch.range.location
+                        
+                        // 替换标签为处理后的内容
+                        guard let fullMatchSwiftRange = Range(nonGreedyMatch.range, in: processedText) else {
+                            continue
+                        }
+                        processedText.replaceSubrange(fullMatchSwiftRange, with: processedInnerContent)
+                        
+                        // 添加当前标签的属性
+                        let finalRange = NSRange(location: matchLocation, length: processedInnerContent.utf16.count)
+                        attributes.append((finalRange, [attribute: value]))
+                        
+                        // 调整内部属性的位置
+                        for (innerRange, innerAttrs) in innerAttributes {
+                            let adjustedRange = NSRange(location: matchLocation + innerRange.location, length: innerRange.length)
+                            attributes.append((adjustedRange, innerAttrs))
+                        }
+                        
+                        continue
+                    }
+                }
+                
+                // 递归处理内部内容
+                var innerAttributes: [(NSRange, [NSAttributedString.Key: Any])] = []
+                let processedInnerContent = try processNestedTags(innerContent, attributes: &innerAttributes)
+                
+                // 计算当前标签在最终文本中的位置
+                let matchLocation = match.range.location
+                
+                // 替换标签为处理后的内容
+                guard let fullMatchSwiftRange = Range(match.range, in: processedText) else {
+                    continue
+                }
+                processedText.replaceSubrange(fullMatchSwiftRange, with: processedInnerContent)
+                
+                // 添加当前标签的属性（范围是处理后内容的位置）
+                let finalRange = NSRange(location: matchLocation, length: processedInnerContent.utf16.count)
+                attributes.append((finalRange, [attribute: value]))
+                
+                // 调整内部属性的位置（加上当前标签的起始位置）
+                for (innerRange, innerAttrs) in innerAttributes {
+                    let adjustedRange = NSRange(location: matchLocation + innerRange.location, length: innerRange.length)
+                    attributes.append((adjustedRange, innerAttrs))
+                }
+            }
+        }
         
         // 处理背景色标签
         processedText = try processBackgroundTag(processedText, attributes: &attributes)
@@ -1394,10 +1514,10 @@ class XiaoMiFormatConverter {
         // 处理对齐标签
         processedText = try processAlignmentTags(processedText, attributes: &attributes)
         
-        return (processedText, attributes)
+        return processedText
     }
     
-    /// 处理单个标签
+    /// 处理单个标签（保留用于兼容性，但不再使用）
     /// - Parameters:
     ///   - text: 文本内容
     ///   - tag: 标签名
@@ -1406,36 +1526,49 @@ class XiaoMiFormatConverter {
     ///   - attributes: 属性数组（引用传递）
     /// - Returns: 处理后的文本
     /// - Throws: ConversionError
+    @available(*, deprecated, message: "使用 processNestedTags 代替")
     private func processTag(_ text: String, tag: String, attribute: NSAttributedString.Key, value: Any, attributes: inout [(NSRange, [NSAttributedString.Key: Any])]) throws -> String {
         let pattern = "<\(tag)>(.*?)</\(tag)>"
         let regex = try NSRegularExpression(pattern: pattern, options: .dotMatchesLineSeparators)
-        let range = NSRange(location: 0, length: text.utf16.count)
         
         var processedText = text
-        var offset = 0
+        var totalOffset = 0
         let openTagLength = tag.count + 2  // "<tag>" 的长度
         let closeTagLength = tag.count + 3 // "</tag>" 的长度
         
-        regex.enumerateMatches(in: text, range: range) { match, _, _ in
-            guard let match = match else { return }
+        // 循环处理所有匹配，每次处理后重新搜索
+        // 这样可以正确处理嵌套标签，因为每次都在更新后的文本上搜索
+        while true {
+            let currentRange = NSRange(location: 0, length: processedText.utf16.count)
+            guard let match = regex.firstMatch(in: processedText, range: currentRange) else {
+                break
+            }
             
             let contentRange = match.range(at: 1)
             
-            // 计算在处理后文本中的位置
-            // 原始位置 - 已移除的字符数 - 开始标签长度
-            let adjustedLocation = match.range.location - offset
-            let adjustedRange = NSRange(location: adjustedLocation, length: contentRange.length)
+            // 在当前处理后的文本中，内容的位置就是 contentRange.location - openTagLength
+            // 因为我们要移除开始标签
+            let adjustedLocation = match.range.location
             
-            attributes.append((adjustedRange, [attribute: value]))
+            // 提取内容
+            guard let contentSwiftRange = Range(contentRange, in: processedText) else {
+                break
+            }
+            let content = String(processedText[contentSwiftRange])
+            
+            // 计算最终范围（在移除标签后的文本中的位置）
+            // adjustedLocation 是当前匹配的起始位置，移除开始标签后内容就在这个位置
+            let finalRange = NSRange(location: adjustedLocation, length: content.utf16.count)
+            
+            // 记录属性
+            attributes.append((finalRange, [attribute: value]))
             
             // 移除标签，保留内容
-            let fullMatchRange = NSRange(location: match.range.location - offset, length: match.range.length)
-            if let swiftRange = Range(fullMatchRange, in: processedText),
-               let contentSwiftRange = Range(contentRange, in: text) {
-                let content = String(text[contentSwiftRange])
-                processedText.replaceSubrange(swiftRange, with: content)
-                offset += openTagLength + closeTagLength
+            guard let fullMatchSwiftRange = Range(match.range, in: processedText) else {
+                break
             }
+            processedText.replaceSubrange(fullMatchSwiftRange, with: content)
+            totalOffset += openTagLength + closeTagLength
         }
         
         return processedText

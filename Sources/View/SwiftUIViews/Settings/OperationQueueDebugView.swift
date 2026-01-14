@@ -43,6 +43,11 @@ public struct OperationQueueDebugView: View {
     /// 最后刷新时间
     @State private var lastRefreshTime: Date?
     
+    // 历史记录
+    @State private var operationHistory: [OperationHistoryEntry] = []
+    @State private var historyStatistics: [String: Int] = [:]
+    @State private var showHistory = true
+    
     // 过滤和排序
     @State private var operationFilter: UnifiedOperationFilterType = .all
     @State private var searchText = ""
@@ -50,6 +55,7 @@ public struct OperationQueueDebugView: View {
     // 操作确认
     @State private var showClearConfirmation = false
     @State private var showRetryConfirmation = false
+    @State private var showClearHistoryConfirmation = false
     
     public init() {}
     
@@ -75,6 +81,9 @@ public struct OperationQueueDebugView: View {
                 
                 // 统一操作队列
                 unifiedOperationsSection
+                
+                // 历史操作记录
+                operationHistorySection
             }
             .padding(12)
         }
@@ -94,6 +103,12 @@ public struct OperationQueueDebugView: View {
             Button("重试", role: .none) { retryFailedOperations() }
         } message: {
             Text("确定要重试所有失败的操作吗？")
+        }
+        .alert("清空历史记录", isPresented: $showClearHistoryConfirmation) {
+            Button("取消", role: .cancel) {}
+            Button("清空", role: .destructive) { clearHistory() }
+        } message: {
+            Text("确定要清空所有历史记录吗？此操作不可撤销。")
         }
     }
     
@@ -528,6 +543,82 @@ public struct OperationQueueDebugView: View {
         return operations
     }
     
+    // MARK: - Operation History Section
+    
+    /// 历史操作记录区域
+    private var operationHistorySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Button(action: { withAnimation { showHistory.toggle() } }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: showHistory ? "chevron.down" : "chevron.right")
+                            .font(.caption)
+                        Text("历史记录")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                }
+                .buttonStyle(.plain)
+                
+                Text("(\(operationHistory.count))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                // 历史统计
+                if showHistory {
+                    HStack(spacing: 8) {
+                        HStack(spacing: 2) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.caption2)
+                            Text("\(historyStatistics["success"] ?? 0)")
+                                .font(.caption2)
+                        }
+                        
+                        HStack(spacing: 2) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.red)
+                                .font(.caption2)
+                            Text("\(historyStatistics["failed"] ?? 0)")
+                                .font(.caption2)
+                        }
+                    }
+                    
+                    if !operationHistory.isEmpty {
+                        Button("清空") {
+                            showClearHistoryConfirmation = true
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+                    }
+                }
+            }
+            
+            if showHistory {
+                if operationHistory.isEmpty {
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                        Text("暂无历史记录")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(6)
+                } else {
+                    ForEach(operationHistory) { entry in
+                        OperationHistoryRow(entry: entry)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(8)
+    }
+    
     // MARK: - Data Operations
     
     private func refreshData() {
@@ -540,6 +631,10 @@ public struct OperationQueueDebugView: View {
             let stats = queue.getStatistics()
             let tempCount = queue.getTemporaryIdNoteCount()
             let tempIds = queue.getAllTemporaryNoteIds()
+            
+            // 获取历史记录
+            let history = queue.getOperationHistory(limit: 50)
+            let historyStats = queue.getHistoryStatistics()
             
             // 获取 ID 映射统计
             let mappingRegistry = IdMappingRegistry.shared
@@ -554,6 +649,8 @@ public struct OperationQueueDebugView: View {
                 self.queueStatistics = stats
                 self.temporaryIdNoteCount = tempCount
                 self.temporaryNoteIds = tempIds
+                self.operationHistory = history
+                self.historyStatistics = historyStats
                 self.idMappingStats = mappingStats
                 self.activeEditingNoteId = activeNoteId
                 self.lastRefreshTime = Date()
@@ -593,6 +690,11 @@ public struct OperationQueueDebugView: View {
                 refreshData()
             }
         }
+    }
+    
+    private func clearHistory() {
+        try? UnifiedOperationQueue.shared.clearHistory()
+        refreshData()
     }
 }
 
@@ -834,6 +936,88 @@ extension OperationStatus {
         case .failed: return "失败"
         case .authFailed: return "认证失败"
         case .maxRetryExceeded: return "超过重试"
+        }
+    }
+}
+
+/// 历史操作行
+struct OperationHistoryRow: View {
+    let entry: OperationHistoryEntry
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            // 状态图标
+            Image(systemName: entry.isSuccess ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundColor(entry.isSuccess ? .green : .red)
+                .font(.caption)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(entry.type.displayName)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    
+                    Text(entry.noteId)
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                
+                HStack(spacing: 6) {
+                    // 完成时间
+                    Text(entry.completedAt, style: .relative)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    // 耗时
+                    Text("耗时: \(formatDuration(entry.duration))")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    // 重试次数
+                    if entry.retryCount > 0 {
+                        Text("重试:\(entry.retryCount)")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
+                }
+                
+                // 错误信息
+                if let error = entry.lastError {
+                    Text(error)
+                        .font(.caption2)
+                        .foregroundColor(.red)
+                        .lineLimit(1)
+                }
+            }
+            
+            Spacer()
+            
+            // 状态标签
+            Text(entry.isSuccess ? "成功" : "失败")
+                .font(.caption2)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background((entry.isSuccess ? Color.green : Color.red).opacity(0.2))
+                .foregroundColor(entry.isSuccess ? .green : .red)
+                .cornerRadius(4)
+        }
+        .padding(6)
+        .background((entry.isSuccess ? Color.green : Color.red).opacity(0.03))
+        .cornerRadius(6)
+    }
+    
+    /// 格式化耗时
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        if duration < 1 {
+            return String(format: "%.0fms", duration * 1000)
+        } else if duration < 60 {
+            return String(format: "%.1fs", duration)
+        } else {
+            let minutes = Int(duration / 60)
+            let seconds = Int(duration.truncatingRemainder(dividingBy: 60))
+            return "\(minutes)m\(seconds)s"
         }
     }
 }

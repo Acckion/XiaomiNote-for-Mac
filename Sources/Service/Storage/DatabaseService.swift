@@ -204,6 +204,23 @@ final class DatabaseService: @unchecked Sendable {
         """
         executeSQL(createIdMappingsTable)
         
+        // 创建 operation_history 表（历史操作记录）
+        let createOperationHistoryTable = """
+        CREATE TABLE IF NOT EXISTS operation_history (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            note_id TEXT NOT NULL,
+            data BLOB NOT NULL,
+            created_at INTEGER NOT NULL,
+            completed_at INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            retry_count INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT,
+            error_type TEXT
+        );
+        """
+        executeSQL(createOperationHistoryTable)
+        
         // 创建索引
         createIndexes()
     }
@@ -226,6 +243,10 @@ final class DatabaseService: @unchecked Sendable {
         
         // id_mappings 表索引
         executeSQL("CREATE INDEX IF NOT EXISTS idx_id_mappings_server_id ON id_mappings(server_id);")
+        
+        // operation_history 表索引
+        executeSQL("CREATE INDEX IF NOT EXISTS idx_operation_history_completed_at ON operation_history(completed_at DESC);")
+        executeSQL("CREATE INDEX IF NOT EXISTS idx_operation_history_note_id ON operation_history(note_id);")
     }
     
     /// 迁移 offline_operations 表，添加新字段
@@ -1916,6 +1937,201 @@ final class DatabaseService: @unchecked Sendable {
             lastError: lastError,
             errorType: errorType,
             isLocalId: isLocalId
+        )
+    }
+    
+    // MARK: - 操作历史（OperationHistory）
+    
+    /// 保存操作到历史记录
+    ///
+    /// - Parameters:
+    ///   - operation: 笔记操作
+    ///   - completedAt: 完成时间
+    /// - Throws: DatabaseError（数据库操作失败）
+    func saveOperationHistory(_ operation: NoteOperation, completedAt: Date) throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = """
+            INSERT OR REPLACE INTO operation_history (
+                id, type, note_id, data, created_at, completed_at,
+                status, retry_count, last_error, error_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (operation.id as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 2, (operation.type.rawValue as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 3, (operation.noteId as NSString).utf8String, -1, nil)
+            sqlite3_bind_blob(statement, 4, (operation.data as NSData).bytes, Int32(operation.data.count), nil)
+            sqlite3_bind_int64(statement, 5, Int64(operation.createdAt.timeIntervalSince1970))
+            sqlite3_bind_int64(statement, 6, Int64(completedAt.timeIntervalSince1970))
+            sqlite3_bind_text(statement, 7, (operation.status.rawValue as NSString).utf8String, -1, nil)
+            sqlite3_bind_int(statement, 8, Int32(operation.retryCount))
+            
+            if let lastError = operation.lastError {
+                sqlite3_bind_text(statement, 9, (lastError as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(statement, 9)
+            }
+            
+            if let errorType = operation.errorType {
+                sqlite3_bind_text(statement, 10, (errorType.rawValue as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(statement, 10)
+            }
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+        }
+    }
+    
+    /// 获取历史操作记录
+    ///
+    /// - Parameter limit: 最大返回数量
+    /// - Returns: 历史操作数组（按完成时间降序）
+    /// - Throws: DatabaseError（数据库操作失败）
+    func getOperationHistory(limit: Int = 100) throws -> [OperationHistoryEntry] {
+        return try dbQueue.sync {
+            let sql = """
+            SELECT id, type, note_id, data, created_at, completed_at,
+                   status, retry_count, last_error, error_type
+            FROM operation_history
+            ORDER BY completed_at DESC
+            LIMIT ?;
+            """
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_int(statement, 1, Int32(limit))
+            
+            var entries: [OperationHistoryEntry] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                if let entry = parseOperationHistory(from: statement) {
+                    entries.append(entry)
+                }
+            }
+            
+            return entries
+        }
+    }
+    
+    /// 清空历史操作记录
+    ///
+    /// - Throws: DatabaseError（数据库操作失败）
+    func clearOperationHistory() throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = "DELETE FROM operation_history;"
+            executeSQL(sql)
+            print("[Database] 清空操作历史记录")
+        }
+    }
+    
+    /// 清理旧的历史记录（保留最近 N 条）
+    ///
+    /// - Parameter keepCount: 保留的记录数量
+    /// - Throws: DatabaseError（数据库操作失败）
+    func cleanupOldHistory(keepCount: Int = 100) throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = """
+            DELETE FROM operation_history
+            WHERE id NOT IN (
+                SELECT id FROM operation_history
+                ORDER BY completed_at DESC
+                LIMIT ?
+            );
+            """
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_int(statement, 1, Int32(keepCount))
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            let changes = sqlite3_changes(db)
+            if changes > 0 {
+                print("[Database] 清理了 \(changes) 条旧的历史记录")
+            }
+        }
+    }
+    
+    /// 解析历史操作记录
+    private func parseOperationHistory(from statement: OpaquePointer?) -> OperationHistoryEntry? {
+        guard let statement = statement else { return nil }
+        
+        let id = String(cString: sqlite3_column_text(statement, 0))
+        let typeString = String(cString: sqlite3_column_text(statement, 1))
+        guard let type = OperationType(rawValue: typeString) else { return nil }
+        
+        let noteId = String(cString: sqlite3_column_text(statement, 2))
+        
+        // 获取 BLOB 数据
+        let dataLength = sqlite3_column_bytes(statement, 3)
+        guard let dataPointer = sqlite3_column_blob(statement, 3) else { return nil }
+        let data = Data(bytes: dataPointer, count: Int(dataLength))
+        
+        let createdAt = Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(statement, 4)))
+        let completedAt = Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(statement, 5)))
+        
+        let statusString = String(cString: sqlite3_column_text(statement, 6))
+        let status = OperationStatus(rawValue: statusString) ?? .completed
+        
+        let retryCount = Int(sqlite3_column_int(statement, 7))
+        
+        var lastError: String? = nil
+        if sqlite3_column_type(statement, 8) != SQLITE_NULL {
+            if let errorText = sqlite3_column_text(statement, 8) {
+                lastError = String(cString: errorText)
+            }
+        }
+        
+        var errorType: OperationErrorType? = nil
+        if sqlite3_column_type(statement, 9) != SQLITE_NULL {
+            if let errorTypeText = sqlite3_column_text(statement, 9) {
+                errorType = OperationErrorType(rawValue: String(cString: errorTypeText))
+            }
+        }
+        
+        return OperationHistoryEntry(
+            id: id,
+            type: type,
+            noteId: noteId,
+            data: data,
+            createdAt: createdAt,
+            completedAt: completedAt,
+            status: status,
+            retryCount: retryCount,
+            lastError: lastError,
+            errorType: errorType
         )
     }
     
