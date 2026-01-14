@@ -616,21 +616,12 @@ extension CursorFormatManager {
         
         print("[CursorFormatManager] 同步 typingAttributes")
         
-        // 优先使用 UnifiedFormatManager 同步 typingAttributes
-        // _Requirements: 10.3 - 格式切换时调用 UnifiedFormatManager.syncTypingAttributes
-        if UnifiedFormatManager.shared.isRegistered {
-            UnifiedFormatManager.shared.syncTypingAttributes()
-            print("[CursorFormatManager] 使用 UnifiedFormatManager 同步 typingAttributes")
-        } else {
-            // 回退到原有逻辑
-            // 构建属性字典
-            let attributes = FormatAttributesBuilder.build(from: state)
-            
-            // 更新 typingAttributes
-            textView.typingAttributes = attributes
-            
-            print("[CursorFormatManager] typingAttributes 已更新，属性数量: \(attributes.count)")
-        }
+        // 直接使用传入的 state 构建 typingAttributes
+        // 不从 textStorage 读取，确保工具栏切换后的格式状态能正确应用到后续输入
+        let attributes = FormatAttributesBuilder.build(from: state)
+        textView.typingAttributes = attributes
+        
+        print("[CursorFormatManager] typingAttributes 已更新，属性数量: \(attributes.count)")
     }
     
     /// 更新工具栏状态

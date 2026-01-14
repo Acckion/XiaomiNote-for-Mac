@@ -84,7 +84,8 @@ public struct FormatAttributesBuilder {
     
     /// 构建字体
     /// 
-    /// 根据格式状态构建字体，处理加粗和斜体
+    /// 根据格式状态构建字体，只处理加粗
+    /// 斜体统一使用 obliqueness 属性实现，不依赖字体特性
     /// 
     /// - Parameter state: 格式状态
     /// - Returns: 字体
@@ -93,7 +94,7 @@ public struct FormatAttributesBuilder {
         // 确定字体大小（根据段落格式）
         let fontSize = determineFontSize(for: state.paragraphFormat)
         
-        // 构建字体描述符特性
+        // 构建字体描述符特性（只处理加粗，斜体使用 obliqueness）
         var traits: NSFontDescriptor.SymbolicTraits = []
         
         // 加粗
@@ -102,11 +103,8 @@ public struct FormatAttributesBuilder {
             traits.insert(.bold)
         }
         
-        // 斜体
-        // _Requirements: 2.2_
-        if state.isItalic {
-            traits.insert(.italic)
-        }
+        // 注意：斜体不再使用字体特性，统一使用 obliqueness 属性
+        // 这样可以确保中英文斜体行为一致
         
         // 创建基础字体
         let baseFont = NSFont.systemFont(ofSize: fontSize)
@@ -122,8 +120,7 @@ public struct FormatAttributesBuilder {
             return font
         }
         
-        // 如果无法应用特性（例如某些字体不支持斜体），返回基础字体
-        // 斜体将通过 obliqueness 属性实现
+        // 如果无法应用特性，返回基础字体
         return baseFont
     }
     
@@ -192,22 +189,19 @@ public struct FormatAttributesBuilder {
     
     /// 添加斜体 obliqueness 属性
     /// 
-    /// 对于不支持斜体的字体（如中文字体），使用 obliqueness 属性实现斜体效果
+    /// 统一使用 obliqueness 属性实现斜体效果
+    /// 不依赖字体的 .italic 特性，确保中英文斜体行为一致
     /// 
     /// - Parameters:
     ///   - attributes: 属性字典（inout）
-    ///   - font: 当前字体
+    ///   - font: 当前字体（未使用，保留参数以保持 API 兼容）
     ///   - state: 格式状态
     /// _Requirements: 2.2_
     private static func addItalicObliqueness(to attributes: inout [NSAttributedString.Key: Any], font: NSFont, state: FormatState) {
         if state.isItalic {
-            // 检查字体是否已经是斜体
-            let traits = font.fontDescriptor.symbolicTraits
-            if !traits.contains(.italic) {
-                // 如果字体不支持斜体，使用 obliqueness 实现
-                // 0.2 是一个适中的斜体角度
-                attributes[.obliqueness] = 0.2
-            }
+            // 统一使用 obliqueness 实现斜体，不依赖字体特性
+            // 0.2 是一个适中的斜体角度
+            attributes[.obliqueness] = 0.2
         }
     }
     

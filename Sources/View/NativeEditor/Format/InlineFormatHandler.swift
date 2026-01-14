@@ -264,7 +264,8 @@ public struct InlineFormatHandler {
     
     /// 应用斜体格式
     /// 
-    /// 优先使用字体特性，如果字体不支持斜体则使用 obliqueness 属性
+    /// 统一使用 obliqueness 属性实现斜体，不依赖字体特性
+    /// 这样可以确保中英文斜体行为一致
     /// 
     /// _Requirements: 1.2, 1.5_
     private static func applyItalic(
@@ -275,19 +276,15 @@ public struct InlineFormatHandler {
         textStorage.beginEditing()
         
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
-            let font = (value as? NSFont) ?? defaultFont
-            
-            // 检查当前是否有斜体
-            let hasItalicTrait = font.fontDescriptor.symbolicTraits.contains(.italic)
+            // 检查当前是否有斜体（只检查 obliqueness）
             let hasObliqueness = (textStorage.attribute(.obliqueness, at: attrRange.location, effectiveRange: nil) as? Double ?? 0) > 0
-            let hasItalic = hasItalicTrait || hasObliqueness
             
-            if toggle && hasItalic {
+            if toggle && hasObliqueness {
                 // 移除斜体
-                removeItalic(from: attrRange, in: textStorage, font: font)
-            } else if !hasItalic {
+                removeItalic(from: attrRange, in: textStorage)
+            } else if !hasObliqueness {
                 // 添加斜体
-                addItalic(to: attrRange, in: textStorage, font: font)
+                addItalic(to: attrRange, in: textStorage)
             }
         }
         
@@ -295,44 +292,23 @@ public struct InlineFormatHandler {
     }
     
     /// 添加斜体效果
+    /// 统一使用 obliqueness 属性实现斜体
     /// _Requirements: 1.5_
     private static func addItalic(
         to range: NSRange,
-        in textStorage: NSTextStorage,
-        font: NSFont
+        in textStorage: NSTextStorage
     ) {
-        // 尝试使用字体特性
-        let fontManager = NSFontManager.shared
-        let italicFont = fontManager.convert(font, toHaveTrait: .italicFontMask)
-        
-        // 检查是否成功获取斜体字体
-        if italicFont.fontDescriptor.symbolicTraits.contains(.italic) {
-            // 字体支持斜体，使用字体特性
-            textStorage.addAttribute(.font, value: italicFont, range: range)
-            // 确保移除 obliqueness（如果之前有的话）
-            textStorage.removeAttribute(.obliqueness, range: range)
-            print("[InlineFormatHandler] 添加斜体（字体特性）")
-        } else {
-            // 字体不支持斜体，使用 obliqueness 后备方案
-            textStorage.addAttribute(.obliqueness, value: italicObliquenessValue, range: range)
-            print("[InlineFormatHandler] 添加斜体（obliqueness 后备方案）")
-        }
+        // 统一使用 obliqueness 实现斜体，不依赖字体特性
+        textStorage.addAttribute(.obliqueness, value: italicObliquenessValue, range: range)
+        print("[InlineFormatHandler] 添加斜体（obliqueness）")
     }
     
     /// 移除斜体效果
     /// _Requirements: 1.5_
     private static func removeItalic(
         from range: NSRange,
-        in textStorage: NSTextStorage,
-        font: NSFont
+        in textStorage: NSTextStorage
     ) {
-        // 移除字体斜体特性
-        if font.fontDescriptor.symbolicTraits.contains(.italic) {
-            let fontManager = NSFontManager.shared
-            let regularFont = fontManager.convert(font, toNotHaveTrait: .italicFontMask)
-            textStorage.addAttribute(.font, value: regularFont, range: range)
-        }
-        
         // 移除 obliqueness 属性
         textStorage.removeAttribute(.obliqueness, range: range)
         print("[InlineFormatHandler] 移除斜体")
@@ -397,19 +373,13 @@ public struct InlineFormatHandler {
     }
     
     /// 检测属性中是否有斜体
-    /// 同时检查字体特性和 obliqueness 属性
+    /// 只检查 obliqueness 属性（统一使用 obliqueness 实现斜体）
     /// _Requirements: 1.5_
     private static func isItalicInAttributes(_ attributes: [NSAttributedString.Key: Any]) -> Bool {
-        // 检查 obliqueness 属性
+        // 只检查 obliqueness 属性
         if let obliqueness = attributes[.obliqueness] as? Double, obliqueness > 0 {
             return true
         }
-        
-        // 检查字体特性
-        if let font = attributes[.font] as? NSFont {
-            return font.fontDescriptor.symbolicTraits.contains(.italic)
-        }
-        
         return false
     }
     
@@ -508,7 +478,7 @@ public struct InlineFormatHandler {
         textStorage.endEditing()
     }
     
-    /// 从字体中移除内联特性（加粗、斜体）
+    /// 从字体中移除内联特性（只处理加粗，斜体使用 obliqueness）
     /// _Requirements: 2.1-2.6_
     private static func removeInlineTraitsFromFont(_ font: NSFont) -> NSFont {
         let fontManager = NSFontManager.shared
@@ -519,10 +489,7 @@ public struct InlineFormatHandler {
             resultFont = fontManager.convert(resultFont, toNotHaveTrait: .boldFontMask)
         }
         
-        // 移除斜体
-        if font.fontDescriptor.symbolicTraits.contains(.italic) {
-            resultFont = fontManager.convert(resultFont, toNotHaveTrait: .italicFontMask)
-        }
+        // 注意：斜体统一使用 obliqueness 属性，不需要在这里处理字体特性
         
         return resultFont
     }
