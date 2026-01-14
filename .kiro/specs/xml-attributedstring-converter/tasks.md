@@ -140,32 +140,30 @@
     - **测试状态**: ✅ 4/4 通过（100 次迭代）
     - **测试内容**: 编解码往返一致性、编码后不包含特殊字符、解码命名实体、解码数字实体
 
-- [ ] 9. 实现错误处理
-  - [ ] 9.1 实现解析错误类型和错误恢复
+- [x] 9. 实现错误处理
+  - [x] 9.1 实现解析错误类型和错误恢复
     - 创建 `Sources/Service/Editor/Parser/ParseError.swift`
     - 实现错误类型枚举
     - 实现跳过不支持元素的逻辑
     - 实现纯文本回退逻辑
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-  - [ ] 9.2 编写错误容错性属性测试
+  - [x] 9.2 编写错误容错性属性测试
     - **Property 8: 错误容错性**
     - **Validates: Requirements 7.1**
 
-- [ ] 10. 集成到现有转换器
-  - [ ] 10.1 更新 XiaoMiFormatConverter
+- [x] 10. 集成到现有转换器
+  - [x] 10.1 更新 XiaoMiFormatConverter
     - 修改 `Sources/Service/Editor/XiaoMiFormatConverter.swift`
     - 将 `xmlToNSAttributedString` 方法改为使用新的 AST 解析器
     - 将 `nsAttributedStringToXML` 方法改为使用新的 AST 生成器
-    - 保留原有方法作为回退
     - _Requirements: 所有_
 
-  - [ ] 10.2 添加功能开关
-    - 添加配置项控制是否使用新转换器
-    - 便于逐步迁移和回退
+  - [x] 10.2 移除旧的转换器
+ 
     - _Requirements: 7.3, 7.4_
 
-- [ ] 11. Final Checkpoint - 确保所有测试通过
+- [x] 11. Final Checkpoint - 确保所有测试通过
   - 确保所有测试通过，如有问题请询问用户
 
 ## Notes

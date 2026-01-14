@@ -663,6 +663,14 @@ struct NativeEditorView: NSViewRepresentable {
             guard let textView = notification.object as? NSTextView else { return }
             guard let textStorage = textView.textStorage else { return }
             
+            // 检查是否处于输入法组合状态（如中文拼音输入）
+            // 如果有 markedText，说明用户正在输入拼音但还未选择候选词
+            // 此时不应该触发保存，否则会中断输入法的候选词选择
+            if textView.hasMarkedText() {
+                print("[NativeEditorView] 检测到输入法组合状态，跳过内容更新")
+                return
+            }
+            
             isUpdatingFromTextView = true
             
             // 关键修复：使用 NSAttributedString(attributedString: textStorage) 而不是 textView.attributedString()
