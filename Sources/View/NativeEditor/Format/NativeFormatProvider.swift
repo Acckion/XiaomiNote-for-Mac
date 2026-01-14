@@ -693,23 +693,17 @@ public final class NativeFormatProvider: FormatMenuProvider {
     ///   - textStorage: 文本存储
     ///   - position: 位置
     /// - Returns: 段落格式
+    /// 
+    /// 标题检测完全基于字体大小，因为在小米笔记中字体大小和标题类型是一一对应的
+    /// 
     /// _Requirements: 3.1, 3.2, 3.3, 3.4_
     private func detectParagraphFormat(
         from attributes: [NSAttributedString.Key: Any],
         textStorage: NSAttributedString,
         position: Int
     ) -> ParagraphFormat {
-        // 方法 1: 检查 headingLevel 自定义属性
-        if let headingLevel = attributes[.headingLevel] as? Int {
-            switch headingLevel {
-            case 1: return .heading1
-            case 2: return .heading2
-            case 3: return .heading3
-            default: break
-            }
-        }
-        
-        // 方法 2: 使用 FontSizeManager 检查字体大小
+        // 使用 FontSizeManager 检查字体大小来检测标题格式
+        // 在小米笔记中，字体大小和标题类型是一一对应的
         // _Requirements: 3.1, 3.2, 3.3, 3.4_ - 使用统一的检测逻辑
         if let font = attributes[.font] as? NSFont {
             let fontSize = font.pointSize
@@ -719,7 +713,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
             }
         }
         
-        // 方法 3: 检查列表类型
+        // 检查列表类型
         // 获取当前行的范围
         let string = textStorage.string as NSString
         let lineRange = string.lineRange(for: NSRange(location: position, length: 0))

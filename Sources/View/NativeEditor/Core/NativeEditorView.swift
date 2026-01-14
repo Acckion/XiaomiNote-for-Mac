@@ -1037,11 +1037,7 @@ struct NativeEditorView: NSViewRepresentable {
             let lineRange = (textStorage.string as NSString).lineRange(for: range)
             
             textStorage.addAttribute(.font, value: font, range: lineRange)
-            
-            // 设置标题级别属性
-            if level != .none {
-                textStorage.addAttribute(.headingLevel, value: level.rawValue, range: lineRange)
-            }
+            // 不再设置 headingLevel 属性，标题格式完全通过字体大小来标识
         }
         
         /// 应用对齐方式

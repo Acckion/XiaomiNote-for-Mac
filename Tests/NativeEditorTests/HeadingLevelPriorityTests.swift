@@ -2,8 +2,8 @@
 //  HeadingLevelPriorityTests.swift
 //  MiNoteMac
 //
-//  headingLevel 属性优先级验证测试
-//  验证格式检测时优先使用 headingLevel 属性，忽略字体大小
+//  字体大小标题检测测试
+//  验证格式检测完全基于字体大小，因为在小米笔记中字体大小和标题类型是一一对应的
 //
 //  _需求: 2.1, 2.2, 2.3, 4.5_
 //
@@ -27,194 +27,178 @@ final class HeadingLevelPriorityTests: XCTestCase {
         try await super.tearDown()
     }
     
-    // MARK: - headingLevel 属性优先级测试
+    // MARK: - 字体大小标题检测测试
     
-    /// 测试当 headingLevel=1 且字体大小为 13pt 时，应该识别为大标题
-    /// _需求: 2.1, 2.2, 4.5_
-    func testHeadingLevel1WithSmallFontSize() {
-        // 创建一个带有 headingLevel=1 但字体大小为 13pt 的文本
+    /// 测试 23pt 字体应该识别为大标题
+    /// _需求: 2.1, 4.5_
+    func testFontSize23ptIsHeading1() {
         let text = NSMutableAttributedString(string: "测试标题")
-        let font = NSFont.systemFont(ofSize: 13)  // 正文字体大小
-        
-        // 添加字体属性
+        let font = NSFont.systemFont(ofSize: 23)
         text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
         
-        // 添加 headingLevel 自定义属性
-        text.addAttribute(.headingLevel, value: 1, range: NSRange(location: 0, length: text.length))
-        
-        // 加载到编辑器
         editorContext.updateNSContent(text)
         editorContext.updateCursorPosition(0)
         
-        // 等待格式检测完成
         let expectation = XCTestExpectation(description: "格式检测完成")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             expectation.fulfill()
         }
         wait(for: [expectation], timeout: 1.0)
         
-        // 验证：应该识别为大标题（headingLevel 优先级高于字体大小）
         XCTAssertTrue(editorContext.currentFormats.contains(.heading1), 
-                     "当 headingLevel=1 时，即使字体大小为 13pt，也应该识别为大标题")
-        XCTAssertFalse(editorContext.currentFormats.contains(.heading2), 
-                      "不应该识别为二级标题")
-        XCTAssertFalse(editorContext.currentFormats.contains(.heading3), 
-                      "不应该识别为三级标题")
+                     "23pt 字体应该识别为大标题")
     }
     
-    /// 测试当 headingLevel=2 且字体大小为 13pt 时，应该识别为二级标题
-    /// _需求: 2.1, 2.2, 4.5_
-    func testHeadingLevel2WithSmallFontSize() {
-        // 创建一个带有 headingLevel=2 但字体大小为 13pt 的文本
+    /// 测试 20pt 字体应该识别为二级标题
+    /// _需求: 2.2, 4.5_
+    func testFontSize20ptIsHeading2() {
         let text = NSMutableAttributedString(string: "测试标题")
-        let font = NSFont.systemFont(ofSize: 13)  // 正文字体大小
-        
-        // 添加字体属性
+        let font = NSFont.systemFont(ofSize: 20)
         text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
         
-        // 添加 headingLevel 自定义属性
-        text.addAttribute(.headingLevel, value: 2, range: NSRange(location: 0, length: text.length))
-        
-        // 加载到编辑器
         editorContext.updateNSContent(text)
         editorContext.updateCursorPosition(0)
         
-        // 等待格式检测完成
         let expectation = XCTestExpectation(description: "格式检测完成")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             expectation.fulfill()
         }
         wait(for: [expectation], timeout: 1.0)
         
-        // 验证：应该识别为二级标题（headingLevel 优先级高于字体大小）
         XCTAssertTrue(editorContext.currentFormats.contains(.heading2), 
-                     "当 headingLevel=2 时，即使字体大小为 13pt，也应该识别为二级标题")
-        XCTAssertFalse(editorContext.currentFormats.contains(.heading1), 
-                      "不应该识别为大标题")
-        XCTAssertFalse(editorContext.currentFormats.contains(.heading3), 
-                      "不应该识别为三级标题")
+                     "20pt 字体应该识别为二级标题")
     }
     
-    /// 测试当 headingLevel=3 且字体大小为 13pt 时，应该识别为三级标题
-    /// _需求: 2.1, 2.2, 4.5_
-    func testHeadingLevel3WithSmallFontSize() {
-        // 创建一个带有 headingLevel=3 但字体大小为 13pt 的文本
+    /// 测试 17pt 字体应该识别为三级标题
+    /// _需求: 2.3, 4.5_
+    func testFontSize17ptIsHeading3() {
         let text = NSMutableAttributedString(string: "测试标题")
-        let font = NSFont.systemFont(ofSize: 13)  // 正文字体大小
-        
-        // 添加字体属性
+        let font = NSFont.systemFont(ofSize: 17)
         text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
         
-        // 添加 headingLevel 自定义属性
-        text.addAttribute(.headingLevel, value: 3, range: NSRange(location: 0, length: text.length))
-        
-        // 加载到编辑器
         editorContext.updateNSContent(text)
         editorContext.updateCursorPosition(0)
         
-        // 等待格式检测完成
         let expectation = XCTestExpectation(description: "格式检测完成")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             expectation.fulfill()
         }
         wait(for: [expectation], timeout: 1.0)
         
-        // 验证：应该识别为三级标题（headingLevel 优先级高于字体大小）
         XCTAssertTrue(editorContext.currentFormats.contains(.heading3), 
-                     "当 headingLevel=3 时，即使字体大小为 13pt，也应该识别为三级标题")
+                     "17pt 字体应该识别为三级标题")
+    }
+    
+    /// 测试 14pt 字体应该识别为正文（不是标题）
+    /// _需求: 4.5_
+    func testFontSize14ptIsBody() {
+        let text = NSMutableAttributedString(string: "测试正文")
+        let font = NSFont.systemFont(ofSize: 14)
+        text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
+        
+        editorContext.updateNSContent(text)
+        editorContext.updateCursorPosition(0)
+        
+        let expectation = XCTestExpectation(description: "格式检测完成")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 1.0)
+        
         XCTAssertFalse(editorContext.currentFormats.contains(.heading1), 
-                      "不应该识别为大标题")
+                      "14pt 字体不应该识别为大标题")
         XCTAssertFalse(editorContext.currentFormats.contains(.heading2), 
-                      "不应该识别为二级标题")
+                      "14pt 字体不应该识别为二级标题")
+        XCTAssertFalse(editorContext.currentFormats.contains(.heading3), 
+                      "14pt 字体不应该识别为三级标题")
     }
     
-    /// 测试当没有 headingLevel 且字体大小为 20pt 时，应该识别为大标题
-    /// _需求: 2.1, 2.2, 4.5_
-    func testNoHeadingLevelWithLargeFontSize() {
-        // 创建一个没有 headingLevel 但字体大小为 20pt 的文本
-        let text = NSMutableAttributedString(string: "测试标题")
-        let font = NSFont.systemFont(ofSize: 20)  // 大标题字体大小
-        
-        // 添加字体属性
+    /// 测试 13pt 字体应该识别为正文（不是标题）
+    /// _需求: 4.5_
+    func testFontSize13ptIsBody() {
+        let text = NSMutableAttributedString(string: "测试正文")
+        let font = NSFont.systemFont(ofSize: 13)
         text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
         
-        // 不添加 headingLevel 属性
-        
-        // 加载到编辑器
         editorContext.updateNSContent(text)
         editorContext.updateCursorPosition(0)
         
-        // 等待格式检测完成
         let expectation = XCTestExpectation(description: "格式检测完成")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             expectation.fulfill()
         }
         wait(for: [expectation], timeout: 1.0)
         
-        // 验证：应该通过字体大小识别为大标题
-        XCTAssertTrue(editorContext.currentFormats.contains(.heading1), 
-                     "当没有 headingLevel 且字体大小为 20pt 时，应该识别为大标题")
-    }
-    
-    /// 测试当 headingLevel=1 且字体大小为 20pt 时，应该识别为大标题
-    /// 验证 headingLevel 和字体大小一致时的行为
-    /// _需求: 2.1, 2.2, 4.5_
-    func testHeadingLevel1WithMatchingFontSize() {
-        // 创建一个带有 headingLevel=1 且字体大小为 20pt 的文本
-        let text = NSMutableAttributedString(string: "测试标题")
-        let font = NSFont.systemFont(ofSize: 20)  // 大标题字体大小
-        
-        // 添加字体属性
-        text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
-        
-        // 添加 headingLevel 自定义属性
-        text.addAttribute(.headingLevel, value: 1, range: NSRange(location: 0, length: text.length))
-        
-        // 加载到编辑器
-        editorContext.updateNSContent(text)
-        editorContext.updateCursorPosition(0)
-        
-        // 等待格式检测完成
-        let expectation = XCTestExpectation(description: "格式检测完成")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 1.0)
-        
-        // 验证：应该识别为大标题
-        XCTAssertTrue(editorContext.currentFormats.contains(.heading1), 
-                     "当 headingLevel=1 且字体大小为 20pt 时，应该识别为大标题")
-    }
-    
-    /// 测试当 headingLevel=3 且字体大小为 20pt 时，应该识别为三级标题
-    /// 验证 headingLevel 优先级高于字体大小（即使字体大小更大）
-    /// _需求: 2.1, 2.2, 4.5_
-    func testHeadingLevel3WithLargeFontSize() {
-        // 创建一个带有 headingLevel=3 但字体大小为 20pt 的文本
-        let text = NSMutableAttributedString(string: "测试标题")
-        let font = NSFont.systemFont(ofSize: 20)  // 大标题字体大小
-        
-        // 添加字体属性
-        text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
-        
-        // 添加 headingLevel 自定义属性（与字体大小不匹配）
-        text.addAttribute(.headingLevel, value: 3, range: NSRange(location: 0, length: text.length))
-        
-        // 加载到编辑器
-        editorContext.updateNSContent(text)
-        editorContext.updateCursorPosition(0)
-        
-        // 等待格式检测完成
-        let expectation = XCTestExpectation(description: "格式检测完成")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 1.0)
-        
-        // 验证：应该识别为三级标题（headingLevel 优先级高于字体大小）
-        XCTAssertTrue(editorContext.currentFormats.contains(.heading3), 
-                     "当 headingLevel=3 时，即使字体大小为 20pt，也应该识别为三级标题（headingLevel 优先）")
         XCTAssertFalse(editorContext.currentFormats.contains(.heading1), 
-                      "不应该识别为大标题（即使字体大小符合大标题）")
+                      "13pt 字体不应该识别为大标题")
+        XCTAssertFalse(editorContext.currentFormats.contains(.heading2), 
+                      "13pt 字体不应该识别为二级标题")
+        XCTAssertFalse(editorContext.currentFormats.contains(.heading3), 
+                      "13pt 字体不应该识别为三级标题")
+    }
+    
+    /// 测试边界值：22pt 应该识别为二级标题（小于 23pt 阈值）
+    func testFontSize22ptIsHeading2() {
+        let text = NSMutableAttributedString(string: "测试标题")
+        let font = NSFont.systemFont(ofSize: 22)
+        text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
+        
+        editorContext.updateNSContent(text)
+        editorContext.updateCursorPosition(0)
+        
+        let expectation = XCTestExpectation(description: "格式检测完成")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 1.0)
+        
+        XCTAssertTrue(editorContext.currentFormats.contains(.heading2), 
+                     "22pt 字体应该识别为二级标题（小于 23pt 阈值）")
+        XCTAssertFalse(editorContext.currentFormats.contains(.heading1), 
+                      "22pt 字体不应该识别为大标题")
+    }
+    
+    /// 测试边界值：19pt 应该识别为三级标题（小于 20pt 阈值）
+    func testFontSize19ptIsHeading3() {
+        let text = NSMutableAttributedString(string: "测试标题")
+        let font = NSFont.systemFont(ofSize: 19)
+        text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
+        
+        editorContext.updateNSContent(text)
+        editorContext.updateCursorPosition(0)
+        
+        let expectation = XCTestExpectation(description: "格式检测完成")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 1.0)
+        
+        XCTAssertTrue(editorContext.currentFormats.contains(.heading3), 
+                     "19pt 字体应该识别为三级标题（小于 20pt 阈值）")
+        XCTAssertFalse(editorContext.currentFormats.contains(.heading2), 
+                      "19pt 字体不应该识别为二级标题")
+    }
+    
+    /// 测试边界值：16pt 应该识别为正文（小于 17pt 阈值）
+    func testFontSize16ptIsBody() {
+        let text = NSMutableAttributedString(string: "测试正文")
+        let font = NSFont.systemFont(ofSize: 16)
+        text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
+        
+        editorContext.updateNSContent(text)
+        editorContext.updateCursorPosition(0)
+        
+        let expectation = XCTestExpectation(description: "格式检测完成")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 1.0)
+        
+        XCTAssertFalse(editorContext.currentFormats.contains(.heading3), 
+                      "16pt 字体不应该识别为三级标题（小于 17pt 阈值）")
+        XCTAssertFalse(editorContext.currentFormats.contains(.heading2), 
+                      "16pt 字体不应该识别为二级标题")
+        XCTAssertFalse(editorContext.currentFormats.contains(.heading1), 
+                      "16pt 字体不应该识别为大标题")
     }
 }

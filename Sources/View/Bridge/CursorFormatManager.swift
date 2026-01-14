@@ -370,21 +370,12 @@ extension CursorFormatManager {
                 }
             }
             
-            // 检测标题格式
-            if let headingLevel = attributes[.headingLevel] as? Int {
-                switch headingLevel {
-                case 1:
-                    state.paragraphFormat = .heading1
-                    print("[CursorFormatManager] 检测到大标题")
-                case 2:
-                    state.paragraphFormat = .heading2
-                    print("[CursorFormatManager] 检测到二级标题")
-                case 3:
-                    state.paragraphFormat = .heading3
-                    print("[CursorFormatManager] 检测到三级标题")
-                default:
-                    break
-                }
+            // 检测标题格式 - 完全基于字体大小
+            // 在小米笔记中，字体大小和标题类型是一一对应的
+            let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: font.pointSize)
+            if detectedFormat != .body {
+                state.paragraphFormat = detectedFormat
+                print("[CursorFormatManager] 通过字体大小检测到标题: \(detectedFormat)")
             }
         }
         

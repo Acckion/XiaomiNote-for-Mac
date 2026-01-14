@@ -95,10 +95,15 @@
     - 修改默认字体设置为 14pt
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 6. Checkpoint - 编译验证
-  - 确保所有修改后项目可以正常编译
-  - 检查是否有遗漏的字体大小硬编码
-  - 如有问题请询问用户
+- [x] 6. Checkpoint - 编译验证
+  - [x] 确保所有修改后项目可以正常编译
+  - [x] 检查是否有遗漏的字体大小硬编码
+  - [x] 移除 Native Editor 中的 headingLevel 属性依赖
+    - NativeEditorContext.detectFontFormats() 现在只使用 FontSizeManager 检测
+    - FormatManager.applyHeadingStyle() 不再设置 headingLevel 属性
+    - BlockFormatHandler.detectHeadingLevel() 只使用字体大小检测
+    - CursorFormatManager 使用 FontSizeManager.detectParagraphFormat()
+  - [x] Web Editor 的 headingLevel 保持不变（JavaScript 编辑器的正常工作方式）
 
 - [ ]* 7. 编写单元测试
   - [ ]* 7.1 创建 `FontSizeManagerTests.swift`

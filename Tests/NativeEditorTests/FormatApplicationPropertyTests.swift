@@ -618,6 +618,7 @@ final class FormatApplicationPropertyTests: XCTestCase {
     }
     
     /// 应用标题格式
+    /// 标题格式完全通过字体大小来标识，不再使用 headingLevel 属性
     private func applyHeadingFormat(to range: NSRange, in textStorage: NSTextStorage, level: HeadingLevel, size: CGFloat) {
         let nsString = textStorage.string as NSString
         let lineRange = nsString.lineRange(for: range)
@@ -637,13 +638,10 @@ final class FormatApplicationPropertyTests: XCTestCase {
             // 移除标题格式，恢复为正常文本
             let normalFont = NSFont.systemFont(ofSize: 15)
             textStorage.addAttribute(.font, value: normalFont, range: lineRange)
-            textStorage.removeAttribute(.headingLevel, range: lineRange)
         } else {
-            // 应用标题格式
-            let weight: NSFont.Weight = level == .h1 ? .bold : (level == .h2 ? .semibold : .medium)
-            let headingFont = NSFont.systemFont(ofSize: size, weight: weight)
+            // 应用标题格式（使用常规字重）
+            let headingFont = NSFont.systemFont(ofSize: size, weight: .regular)
             textStorage.addAttribute(.font, value: headingFont, range: lineRange)
-            textStorage.addAttribute(.headingLevel, value: level.rawValue, range: lineRange)
         }
     }
     

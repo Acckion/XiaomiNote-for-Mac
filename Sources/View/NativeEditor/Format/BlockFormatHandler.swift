@@ -223,8 +223,7 @@ public struct BlockFormatHandler {
         
         textStorage.beginEditing()
         
-        // 移除标题格式
-        textStorage.removeAttribute(.headingLevel, range: lineRange)
+        // 移除标题格式（通过设置正文字体大小）
         textStorage.addAttribute(.font, value: defaultFont, range: lineRange)
         
         // 移除列表格式
@@ -384,6 +383,9 @@ public struct BlockFormatHandler {
     
     /// 应用标题格式
     /// 使用常规字重（.regular），不默认加粗
+    /// 
+    /// 标题格式完全通过字体大小来标识，不再使用 headingLevel 属性
+    /// 
     /// - Parameters:
     ///   - level: 标题级别（1-3）
     ///   - range: 应用范围
@@ -408,22 +410,16 @@ public struct BlockFormatHandler {
         
         textStorage.beginEditing()
         textStorage.addAttribute(.font, value: font, range: range)
-        textStorage.addAttribute(.headingLevel, value: level, range: range)
         textStorage.endEditing()
     }
     
     /// 从属性中检测标题级别
-    /// 使用 FontSizeManager 统一的检测逻辑
+    /// 完全基于字体大小检测，因为在小米笔记中字体大小和标题类型是一一对应的
     /// - Parameter attributes: 属性字典
     /// - Returns: 标题级别（1-3），如果不是标题则返回 nil
     /// _Requirements: 3.1, 3.2, 3.3, 3.4_
     private static func detectHeadingLevel(from attributes: [NSAttributedString.Key: Any]) -> Int? {
-        // 优先检查 headingLevel 属性
-        if let level = attributes[.headingLevel] as? Int, level > 0 {
-            return level
-        }
-        
-        // 备用检测：通过字体大小判断，使用 FontSizeManager 的检测逻辑
+        // 通过字体大小判断，使用 FontSizeManager 的检测逻辑
         if let font = attributes[.font] as? NSFont {
             let level = FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize)
             return level > 0 ? level : nil

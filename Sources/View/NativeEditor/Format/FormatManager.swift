@@ -273,7 +273,6 @@ class FormatManager {
         
         textStorage.beginEditing()
         textStorage.addAttribute(.font, value: defaultFont, range: lineRange)
-        textStorage.removeAttribute(.headingLevel, range: lineRange)
         textStorage.endEditing()
     }
     
@@ -1009,6 +1008,10 @@ class FormatManager {
     
     /// 应用标题样式
     /// 使用常规字重（.regular），不默认加粗
+    /// 
+    /// 标题格式完全通过字体大小来标识，不再使用 headingLevel 属性
+    /// 因为在小米笔记中，字体大小和标题类型是一一对应的
+    /// 
     /// _Requirements: 2.1, 2.2, 2.3_
     private func applyHeadingStyle(to textStorage: NSTextStorage, range: NSRange, size: CGFloat, level: HeadingLevel = .none) {
         let lineRange = (textStorage.string as NSString).lineRange(for: range)
@@ -1017,12 +1020,6 @@ class FormatManager {
         
         textStorage.beginEditing()
         textStorage.addAttribute(.font, value: font, range: lineRange)
-        
-        // 设置标题级别属性
-        if level != .none {
-            textStorage.addAttribute(.headingLevel, value: level.rawValue, range: lineRange)
-        }
-        
         textStorage.endEditing()
     }
     

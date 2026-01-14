@@ -463,8 +463,11 @@ public class NativeEditorContext: ObservableObject {
     
     /// 重置字体大小为正文大小
     /// 
-    /// 将选中文本的字体大小重置为正文大小，同时保留字体特性（加粗、斜体等）
+    /// 将选中文本或当前行的字体大小重置为正文大小，同时保留字体特性（加粗、斜体等）
     /// 用于将标题转换为正文时，确保字体大小正确重置
+    /// 
+    /// - 选择模式：重置选中文本的字体大小
+    /// - 光标模式：重置当前行的字体大小
     /// 
     /// _需求: 1.6, 1.7, 4.7_
     /// _Requirements: 3.1, 3.2, 3.3, 3.4, 6.2, 6.3, 6.4, 6.5_
@@ -473,21 +476,32 @@ public class NativeEditorContext: ObservableObject {
         let bodySize = FontSizeManager.shared.bodySize
         print("[NativeEditorContext] 开始重置字体大小为正文大小（\(bodySize)pt）")
         
-        // 获取选中范围或光标位置
-        let range = selectedRange.length > 0 ? selectedRange : NSRange(location: cursorPosition, length: 0)
+        // 确定要处理的范围
+        let range: NSRange
+        if selectedRange.length > 0 {
+            // 选择模式：使用选中范围
+            range = selectedRange
+            print("[NativeEditorContext]   📝 选择模式：使用选中范围")
+        } else {
+            // 光标模式：获取当前行的范围
+            let string = nsAttributedText.string as NSString
+            let lineRange = string.lineRange(for: NSRange(location: cursorPosition, length: 0))
+            range = lineRange
+            print("[NativeEditorContext]   📍 光标模式：使用当前行范围")
+        }
         
-        // 如果没有选中文本，不需要重置字体大小
+        // 检查范围是否有效
         guard range.length > 0 else {
-            print("[NativeEditorContext]   ⚠️ 没有选中文本，跳过字体大小重置")
+            print("[NativeEditorContext]   ⚠️ 范围长度为0，跳过字体大小重置")
             return
         }
         
-        print("[NativeEditorContext]   - 选中范围: location=\(range.location), length=\(range.length)")
+        print("[NativeEditorContext]   - 处理范围: location=\(range.location), length=\(range.length)")
         
         // 创建可变副本
         let mutableText = nsAttributedText.mutableCopy() as! NSMutableAttributedString
         
-        // 遍历选中范围，重置字体大小
+        // 遍历范围，重置字体大小
         mutableText.enumerateAttribute(.font, in: range, options: []) { value, subRange, _ in
             if let font = value as? NSFont {
                 print("[NativeEditorContext]   - 处理子范围: location=\(subRange.location), length=\(subRange.length)")
@@ -1320,38 +1334,20 @@ public class NativeEditorContext: ObservableObject {
     
     /// 检测字体格式（加粗、斜体、标题）
     /// 需求: 2.1, 2.2, 2.6
+    /// 
+    /// 标题检测完全基于字体大小，因为在小米笔记中字体大小和标题类型是一一对应的：
+    /// - 23pt = 大标题
+    /// - 20pt = 二级标题
+    /// - 17pt = 三级标题
+    /// - 14pt = 正文
+    /// 
+    /// _Requirements: 3.1, 3.2, 3.3, 3.4, 6.2, 6.3, 6.4, 6.5_ - 使用 FontSizeManager 统一检测逻辑
     private func detectFontFormats(from attributes: [NSAttributedString.Key: Any]) -> Set<TextFormat> {
         var formats: Set<TextFormat> = []
         
         print("[NativeEditorContext] ========== 开始检测字体格式 ==========")
         // 调试：打印所有属性键
         print("[NativeEditorContext] detectFontFormats - 属性键: \(attributes.keys.map { $0.rawValue })")
-        
-        // 检测标题格式 - 使用 headingLevel 自定义属性
-        // 这是最可靠的标题检测方式，因为 headingLevel 是在应用标题格式时设置的
-        // _需求: 2.1, 2.2, 2.3, 4.5_ - 优先使用 headingLevel 属性
-        print("[NativeEditorContext] 🔍 优先级检测步骤 1: 检查 headingLevel 自定义属性")
-        if let headingLevel = attributes[.headingLevel] as? Int {
-            print("[NativeEditorContext] ✅ 检测到 headingLevel 属性: \(headingLevel)")
-            print("[NativeEditorContext] 📌 优先级选择: 使用 headingLevel 属性（最高优先级）")
-            switch headingLevel {
-            case 1:
-                formats.insert(.heading1)
-                print("[NativeEditorContext] ✅ 根据 headingLevel=1 识别为【大标题】")
-            case 2:
-                formats.insert(.heading2)
-                print("[NativeEditorContext] ✅ 根据 headingLevel=2 识别为【二级标题】")
-            case 3:
-                formats.insert(.heading3)
-                print("[NativeEditorContext] ✅ 根据 headingLevel=3 识别为【三级标题】")
-            default:
-                print("[NativeEditorContext] ⚠️ headingLevel=\(headingLevel) 不是有效的标题级别")
-                break
-            }
-        } else {
-            print("[NativeEditorContext] ℹ️ 没有检测到 headingLevel 属性")
-            print("[NativeEditorContext] 📌 优先级选择: 将使用字体大小判断（备用方式）")
-        }
         
         guard let font = attributes[.font] as? NSFont else {
             print("[NativeEditorContext] ❌ 没有找到 .font 属性，无法继续检测")
@@ -1368,32 +1364,25 @@ public class NativeEditorContext: ObservableObject {
         let traits = font.fontDescriptor.symbolicTraits
         print("[NativeEditorContext]   - 字体特性: bold=\(traits.contains(.bold)), italic=\(traits.contains(.italic))")
         
-        // 如果没有通过 headingLevel 检测到标题，尝试通过字体大小检测
-        // 这是备用检测方式，用于处理旧数据或手动设置的字体大小
-        // _需求: 2.1, 2.2, 2.3, 4.5_ - 当 headingLevel 存在时，忽略字体大小检测
-        // _Requirements: 3.1, 3.2, 3.3, 3.4, 6.2, 6.3, 6.4, 6.5_ - 使用 FontSizeManager 统一检测逻辑
-        if !formats.contains(.heading1) && !formats.contains(.heading2) && !formats.contains(.heading3) {
-            print("[NativeEditorContext] 🔍 优先级检测步骤 2: 通过字体大小判断标题类型")
-            print("[NativeEditorContext]   当前阈值: 大标题>=\(FontSizeManager.shared.heading1Threshold)pt, 二级标题>=\(FontSizeManager.shared.heading2Threshold)pt, 三级标题>=\(FontSizeManager.shared.heading3Threshold)pt")
-            
-            // 使用 FontSizeManager 的统一检测逻辑
-            let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
-            switch detectedFormat {
-            case .heading1:
-                formats.insert(.heading1)
-                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt >= \(FontSizeManager.shared.heading1Threshold)pt，识别为【大标题】")
-            case .heading2:
-                formats.insert(.heading2)
-                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [\(FontSizeManager.shared.heading2Threshold), \(FontSizeManager.shared.heading1Threshold)) 范围内，识别为【二级标题】")
-            case .heading3:
-                formats.insert(.heading3)
-                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [\(FontSizeManager.shared.heading3Threshold), \(FontSizeManager.shared.heading2Threshold)) 范围内，识别为【三级标题】")
-            default:
-                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt < \(FontSizeManager.shared.heading3Threshold)pt，识别为【正文】（不添加标题格式）")
-            }
-        } else {
-            print("[NativeEditorContext] ℹ️ 已通过 headingLevel 属性确定标题类型")
-            print("[NativeEditorContext] 📌 优先级选择结果: 忽略字体大小检测（headingLevel 优先级更高）")
+        // 通过字体大小检测标题格式
+        // 在小米笔记中，字体大小和标题类型是一一对应的，不需要额外的 headingLevel 属性
+        print("[NativeEditorContext] 🔍 通过字体大小判断标题类型")
+        print("[NativeEditorContext]   当前阈值: 大标题>=\(FontSizeManager.shared.heading1Threshold)pt, 二级标题>=\(FontSizeManager.shared.heading2Threshold)pt, 三级标题>=\(FontSizeManager.shared.heading3Threshold)pt")
+        
+        // 使用 FontSizeManager 的统一检测逻辑
+        let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
+        switch detectedFormat {
+        case .heading1:
+            formats.insert(.heading1)
+            print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt >= \(FontSizeManager.shared.heading1Threshold)pt，识别为【大标题】")
+        case .heading2:
+            formats.insert(.heading2)
+            print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [\(FontSizeManager.shared.heading2Threshold), \(FontSizeManager.shared.heading1Threshold)) 范围内，识别为【二级标题】")
+        case .heading3:
+            formats.insert(.heading3)
+            print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [\(FontSizeManager.shared.heading3Threshold), \(FontSizeManager.shared.heading2Threshold)) 范围内，识别为【三级标题】")
+        default:
+            print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt < \(FontSizeManager.shared.heading3Threshold)pt，识别为【正文】（不添加标题格式）")
         }
         
         // 加粗检测 (需求 2.1)
