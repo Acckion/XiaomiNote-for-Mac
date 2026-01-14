@@ -87,9 +87,9 @@ struct NativeEditorView: NSViewRepresentable {
         // 设置外观
         textView.backgroundColor = .clear
         textView.drawsBackground = false
-        // 修复：使用 13pt（正文字体大小），与 FormatAttributesBuilder.bodyFontSize 保持一致
-        // _Requirements: 1.6, 1.7_
-        textView.font = NSFont.systemFont(ofSize: 13)
+        // 使用 FontSizeManager 统一管理默认字体 (14pt)
+        // _Requirements: 5.1, 5.2_
+        textView.font = FontSizeManager.shared.defaultFont
         textView.textColor = .labelColor  // 使用 labelColor 自动适配深色模式
         
         // 设置内边距
@@ -1075,7 +1075,7 @@ struct NativeEditorView: NSViewRepresentable {
                 let lineText = (textStorage.string as NSString).substring(with: lineRange)
                 if !lineText.hasPrefix("• ") {
                     let bulletString = NSAttributedString(string: "• ", attributes: [
-                        .font: NSFont.systemFont(ofSize: 15),
+                        .font: FontSizeManager.shared.defaultFont,
                         .listType: ListType.bullet,
                         .listIndent: 1
                     ])
@@ -1106,7 +1106,7 @@ struct NativeEditorView: NSViewRepresentable {
                 let pattern = "^\\d+\\. "
                 if lineText.range(of: pattern, options: .regularExpression) == nil {
                     let orderString = NSAttributedString(string: "\(number). ", attributes: [
-                        .font: NSFont.systemFont(ofSize: 15),
+                        .font: FontSizeManager.shared.defaultFont,
                         .listType: ListType.ordered,
                         .listIndent: 1,
                         .listNumber: number
@@ -1752,7 +1752,7 @@ class NativeTextView: NSTextView {
     private func createBulletString(indent: Int) -> NSAttributedString {
         let bullet = "• "
         var attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 15),
+            .font: FontSizeManager.shared.defaultFont,
             .listType: ListType.bullet,
             .listIndent: indent
         ]
@@ -1769,7 +1769,7 @@ class NativeTextView: NSTextView {
     private func createOrderString(number: Int, indent: Int) -> NSAttributedString {
         let orderText = "\(number). "
         var attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 15),
+            .font: FontSizeManager.shared.defaultFont,
             .listType: ListType.ordered,
             .listIndent: indent,
             .listNumber: number
@@ -1792,7 +1792,7 @@ class NativeTextView: NSTextView {
         
         let result = NSMutableAttributedString(attributedString: attachmentString)
         result.append(NSAttributedString(string: " ", attributes: [
-            .font: NSFont.systemFont(ofSize: 15),
+            .font: FontSizeManager.shared.defaultFont,
             .listType: ListType.checkbox,
             .listIndent: indent
         ]))

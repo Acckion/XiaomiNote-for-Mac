@@ -318,19 +318,30 @@ public final class FontSizeManager {
 
 修改现有的 FormatManager，使用 FontSizeManager 获取字体大小。
 
+**文件位置**: `Sources/View/NativeEditor/Format/FormatManager.swift`
+
+**修改内容**:
+
 ```swift
 // 修改前
 var heading1Size: CGFloat = 24
 var heading2Size: CGFloat = 20
 var heading3Size: CGFloat = 16
+var defaultFont: NSFont = NSFont.systemFont(ofSize: 13)
 
-// 修改后
-var heading1Size: CGFloat { FontSizeManager.shared.heading1Size }
-var heading2Size: CGFloat { FontSizeManager.shared.heading2Size }
-var heading3Size: CGFloat { FontSizeManager.shared.heading3Size }
+// 修改后 - 使用计算属性从 FontSizeManager 获取
+var heading1Size: CGFloat { FontSizeManager.shared.heading1Size }  // 23
+var heading2Size: CGFloat { FontSizeManager.shared.heading2Size }  // 20
+var heading3Size: CGFloat { FontSizeManager.shared.heading3Size }  // 17
+var defaultFont: NSFont { FontSizeManager.shared.defaultFont }     // 14pt
 
 // 修改 applyHeadingStyle 方法，使用常规字重
-private func applyHeadingStyle(to textStorage: NSTextStorage, range: NSRange, size: CGFloat, level: HeadingLevel = .none) {
+private func applyHeadingStyle(
+    to textStorage: NSTextStorage,
+    range: NSRange,
+    size: CGFloat,
+    level: HeadingLevel = .none
+) {
     let lineRange = (textStorage.string as NSString).lineRange(for: range)
     // 使用常规字重，不再使用 .bold/.semibold/.medium
     let font = NSFont.systemFont(ofSize: size, weight: .regular)
@@ -344,11 +355,37 @@ private func applyHeadingStyle(to textStorage: NSTextStorage, range: NSRange, si
     
     textStorage.endEditing()
 }
+
+// 修改 applyHeading1/2/3 方法，移除 weight 参数
+func applyHeading1(to textStorage: NSTextStorage, range: NSRange) {
+    applyHeadingStyle(to: textStorage, range: range, size: heading1Size, level: .h1)
+}
+
+func applyHeading2(to textStorage: NSTextStorage, range: NSRange) {
+    applyHeadingStyle(to: textStorage, range: range, size: heading2Size, level: .h2)
+}
+
+func applyHeading3(to textStorage: NSTextStorage, range: NSRange) {
+    applyHeadingStyle(to: textStorage, range: range, size: heading3Size, level: .h3)
+}
+
+// 修改 getHeadingLevel 方法，使用 FontSizeManager 的检测逻辑
+func getHeadingLevel(in textStorage: NSTextStorage, at position: Int) -> Int {
+    guard position < textStorage.length else { return 0 }
+    
+    if let font = textStorage.attribute(.font, at: position, effectiveRange: nil) as? NSFont {
+        return FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize)
+    }
+    
+    return 0
+}
 ```
 
 ### FormatAttributesBuilder 修改
 
-修改现有的 FormatAttributesBuilder，使用 FontSizeManager 获取字体大小。
+**文件位置**: `Sources/View/Bridge/FormatAttributesBuilder.swift`
+
+**修改内容**:
 
 ```swift
 // 修改前
@@ -356,19 +393,77 @@ private static let heading1FontSize: CGFloat = 22
 private static let heading2FontSize: CGFloat = 18
 private static let heading3FontSize: CGFloat = 16
 private static let bodyFontSize: CGFloat = 13
+public static let defaultFont = NSFont.systemFont(ofSize: 13)
 
-// 修改后
-private static var heading1FontSize: CGFloat { FontSizeManager.shared.heading1Size }
-private static var heading2FontSize: CGFloat { FontSizeManager.shared.heading2Size }
-private static var heading3FontSize: CGFloat { FontSizeManager.shared.heading3Size }
-private static var bodyFontSize: CGFloat { FontSizeManager.shared.bodySize }
+// 修改后 - 使用计算属性从 FontSizeManager 获取
+private static var heading1FontSize: CGFloat { FontSizeManager.shared.heading1Size }  // 23
+private static var heading2FontSize: CGFloat { FontSizeManager.shared.heading2Size }  // 20
+private static var heading3FontSize: CGFloat { FontSizeManager.shared.heading3Size }  // 17
+private static var bodyFontSize: CGFloat { FontSizeManager.shared.bodySize }          // 14
+public static var defaultFont: NSFont { FontSizeManager.shared.defaultFont }          // 14pt
+```
+
+### BlockFormatHandler 修改
+
+**文件位置**: `Sources/View/NativeEditor/Format/BlockFormatHandler.swift`
+
+**修改内容**:
+
+```swift
+// 修改前
+public static let heading1Size: CGFloat = 24
+public static let heading2Size: CGFloat = 20
+public static let heading3Size: CGFloat = 16
+public static let bodyFontSize: CGFloat = 13
+nonisolated(unsafe) public static let defaultFont: NSFont = NSFont.systemFont(ofSize: bodyFontSize)
+
+// 修改后 - 使用计算属性从 FontSizeManager 获取
+public static var heading1Size: CGFloat { FontSizeManager.shared.heading1Size }  // 23
+public static var heading2Size: CGFloat { FontSizeManager.shared.heading2Size }  // 20
+public static var heading3Size: CGFloat { FontSizeManager.shared.heading3Size }  // 17
+public static var bodyFontSize: CGFloat { FontSizeManager.shared.bodySize }      // 14
+
+// 注意：defaultFont 需要特殊处理，因为 FontSizeManager 是 MainActor 隔离的
+// 使用 nonisolated(unsafe) 保持兼容性
+nonisolated(unsafe) public static var defaultFont: NSFont = NSFont.systemFont(ofSize: 14)
+
+// 修改 applyHeadingFormat 方法，使用常规字重
+private static func applyHeadingFormat(
+    level: Int,
+    to lineRange: NSRange,
+    in textStorage: NSTextStorage
+) {
+    let fontSize = FontSizeManager.shared.fontSize(for: level)
+    // 使用常规字重，不再使用 .bold/.semibold/.medium
+    let font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
+    
+    textStorage.addAttribute(.font, value: font, range: lineRange)
+    textStorage.addAttribute(.headingLevel, value: level, range: lineRange)
+}
 ```
 
 ### NativeEditorContext 修改
 
-修改字体大小检测逻辑，使用 FontSizeManager 的统一阈值。
+**文件位置**: `Sources/View/Bridge/NativeEditorContext.swift`
+
+**修改内容**:
 
 ```swift
+// 修改 resetFontSizeToBody 方法，使用 FontSizeManager
+private func resetFontSizeToBody() {
+    let bodySize = FontSizeManager.shared.bodySize  // 14pt
+    
+    // ... 遍历选中范围，重置字体大小
+    mutableText.enumerateAttribute(.font, in: range, options: []) { value, subRange, _ in
+        if let font = value as? NSFont {
+            let traits = font.fontDescriptor.symbolicTraits
+            let newFont = FontSizeManager.shared.createFont(ofSize: bodySize, traits: traits)
+            mutableText.addAttribute(.font, value: newFont, range: subRange)
+        }
+    }
+}
+
+// 修改 detectFontFormats 方法，使用 FontSizeManager 的检测逻辑
 // 修改前
 if fontSize >= 20 {
     formats.insert(.heading1)
@@ -392,43 +487,280 @@ default:
 }
 ```
 
-### XiaoMiFormatConverter 修改
+### NativeFormatProvider 修改
 
-修改 XML 转换逻辑，使用 FontSizeManager 的统一字体大小。
+**文件位置**: `Sources/View/NativeEditor/Format/NativeFormatProvider.swift`
+
+**修改内容**:
 
 ```swift
-// XML 解析时应用字体大小
-private func applyHeadingTag(_ tag: String, to result: NSMutableAttributedString, range: NSRange) {
-    let fontSize: CGFloat
-    switch tag {
-    case "size":
-        fontSize = FontSizeManager.shared.heading1Size  // 23pt
-    case "mid-size":
-        fontSize = FontSizeManager.shared.heading2Size  // 20pt
-    case "h3-size":
-        fontSize = FontSizeManager.shared.heading3Size  // 17pt
-    default:
-        return
+// 修改 detectParagraphFormat 方法
+private func detectParagraphFormat(
+    from attributes: [NSAttributedString.Key: Any],
+    textStorage: NSAttributedString,
+    position: Int
+) -> ParagraphFormat {
+    // ... 其他检测逻辑 ...
+    
+    // 修改字体大小检测
+    if let font = attributes[.font] as? NSFont {
+        return FontSizeManager.shared.detectParagraphFormat(fontSize: font.pointSize)
     }
     
-    let font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
-    result.addAttribute(.font, value: font, range: range)
+    return .body
 }
+```
 
-// XML 生成时检测标题标签
-private func detectHeadingTag(fontSize: CGFloat) -> String? {
-    let format = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
-    switch format {
+### MixedFormatStateHandler 修改
+
+**文件位置**: `Sources/View/NativeEditor/Format/MixedFormatStateHandler.swift`
+
+**修改内容**:
+
+```swift
+// 修改字体大小检测逻辑
+if let font = attributes[.font] as? NSFont {
+    let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: font.pointSize)
+    switch detectedFormat {
     case .heading1:
-        return "size"
+        currentFormats.insert(.heading1)
+        toolbarButtonStates[.heading1] = true
     case .heading2:
-        return "mid-size"
+        currentFormats.insert(.heading2)
+        toolbarButtonStates[.heading2] = true
     case .heading3:
-        return "h3-size"
+        currentFormats.insert(.heading3)
+        toolbarButtonStates[.heading3] = true
     default:
-        return nil
+        break
     }
 }
+```
+
+### CrossParagraphFormatHandler 修改
+
+**文件位置**: `Sources/View/NativeEditor/Format/CrossParagraphFormatHandler.swift`
+
+**修改内容**:
+
+```swift
+// 修改前
+let fontSize: CGFloat
+switch level {
+case 1: fontSize = 24
+case 2: fontSize = 20
+case 3: fontSize = 17
+default: fontSize = 15
+}
+
+// 修改后
+let fontSize = FontSizeManager.shared.fontSize(for: level)
+```
+
+### XiaoMiFormatConverter 修改
+
+**文件位置**: `Sources/Service/Editor/XiaoMiFormatConverter.swift`
+
+**修改内容**:
+
+```swift
+// 修改 processRichTextTags 中的标签映射
+// 修改前
+let tagMappings: [(tag: String, attribute: NSAttributedString.Key, value: Any)] = [
+    ("size", .font, NSFont.systemFont(ofSize: 24, weight: .bold)),
+    ("mid-size", .font, NSFont.systemFont(ofSize: 20, weight: .semibold)),
+    ("h3-size", .font, NSFont.systemFont(ofSize: 16, weight: .medium)),
+    // ...
+]
+
+// 修改后 - 使用 FontSizeManager 并移除加粗
+let tagMappings: [(tag: String, attribute: NSAttributedString.Key, value: Any)] = [
+    ("size", .font, FontSizeManager.shared.createFont(for: .heading1)),      // 23pt, regular
+    ("mid-size", .font, FontSizeManager.shared.createFont(for: .heading2)),  // 20pt, regular
+    ("h3-size", .font, FontSizeManager.shared.createFont(for: .heading3)),   // 17pt, regular
+    // ...
+]
+
+// 修改 processNSAttributesToXMLTags 中的标题检测
+// 修改前
+if fontSize >= 24 {
+    headingTag = "size"
+} else if fontSize >= 20 {
+    headingTag = "mid-size"
+} else if fontSize >= 16 && fontSize < 20 {
+    headingTag = "h3-size"
+}
+
+// 修改后
+let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
+switch detectedFormat {
+case .heading1:
+    headingTag = "size"
+case .heading2:
+    headingTag = "mid-size"
+case .heading3:
+    headingTag = "h3-size"
+default:
+    break
+}
+```
+
+### ASTToAttributedStringConverter 修改
+
+**文件位置**: `Sources/Service/Editor/Converter/ASTToAttributedStringConverter.swift`
+
+**修改内容**:
+
+```swift
+// 修改初始化中的默认字体
+// 修改前
+self.defaultFont = NSFont.systemFont(ofSize: 14)
+
+// 修改后
+self.defaultFont = FontSizeManager.shared.defaultFont  // 14pt
+
+// 修改 attributesForFormat 方法
+// 修改前
+case .heading1:
+    attributes[.fontSize] = 24.0
+    attributes[.fontWeight] = NSFont.Weight.bold
+    
+case .heading2:
+    attributes[.fontSize] = 20.0
+    attributes[.fontWeight] = NSFont.Weight.semibold
+    
+case .heading3:
+    attributes[.fontSize] = 16.0
+    attributes[.fontWeight] = NSFont.Weight.medium
+
+// 修改后 - 使用 FontSizeManager 并移除加粗
+case .heading1:
+    attributes[.fontSize] = FontSizeManager.shared.heading1Size  // 23
+    // 不设置 fontWeight，使用默认的 regular
+    
+case .heading2:
+    attributes[.fontSize] = FontSizeManager.shared.heading2Size  // 20
+    
+case .heading3:
+    attributes[.fontSize] = FontSizeManager.shared.heading3Size  // 17
+```
+
+### AttributedStringToASTConverter 修改
+
+**文件位置**: `Sources/Service/Editor/Converter/AttributedStringToASTConverter.swift`
+
+**修改内容**:
+
+```swift
+// 修改标题检测逻辑
+// 修改前
+let isHeading = fontSize >= 15.5
+if fontSize >= 23.5 && fontSize <= 24.5 {
+    formats.insert(.heading1)
+} else if fontSize >= 19.5 && fontSize <= 20.5 {
+    formats.insert(.heading2)
+} else if fontSize >= 15.5 && fontSize <= 16.5 {
+    formats.insert(.heading3)
+}
+
+// 修改后 - 使用 FontSizeManager 的检测逻辑
+let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
+let isHeading = detectedFormat.isHeading
+
+switch detectedFormat {
+case .heading1:
+    formats.insert(.heading1)
+case .heading2:
+    formats.insert(.heading2)
+case .heading3:
+    formats.insert(.heading3)
+default:
+    break
+}
+```
+
+### 其他组件修改
+
+#### NewLineHandler 修改
+
+**文件位置**: `Sources/View/NativeEditor/Format/NewLineHandler.swift`
+
+```swift
+// 修改前
+nonisolated(unsafe) public static let defaultFont: NSFont = NSFont.systemFont(ofSize: 13)
+
+// 修改后
+nonisolated(unsafe) public static var defaultFont: NSFont = NSFont.systemFont(ofSize: 14)
+```
+
+#### InlineFormatHandler 修改
+
+**文件位置**: `Sources/View/NativeEditor/Format/InlineFormatHandler.swift`
+
+```swift
+// 修改前
+nonisolated(unsafe) public static let defaultFont: NSFont = NSFont.systemFont(ofSize: 13)
+
+// 修改后
+nonisolated(unsafe) public static var defaultFont: NSFont = NSFont.systemFont(ofSize: 14)
+```
+
+#### MixedFormatApplicationHandler 修改
+
+**文件位置**: `Sources/View/NativeEditor/Format/MixedFormatApplicationHandler.swift`
+
+```swift
+// 修改前
+let font = (value as? NSFont) ?? NSFont.systemFont(ofSize: 13)
+
+// 修改后
+let font = (value as? NSFont) ?? FontSizeManager.shared.defaultFont
+```
+
+#### NativeEditorView 修改
+
+**文件位置**: `Sources/View/NativeEditor/Core/NativeEditorView.swift`
+
+```swift
+// 修改默认字体
+// 修改前
+textView.font = NSFont.systemFont(ofSize: 13)
+
+// 修改后
+textView.font = FontSizeManager.shared.defaultFont  // 14pt
+
+// 修改列表项字体大小
+// 修改前
+.font: NSFont.systemFont(ofSize: 15)
+
+// 修改后
+.font: FontSizeManager.shared.defaultFont  // 14pt
+```
+
+#### PerformanceOptimizer 修改
+
+**文件位置**: `Sources/View/NativeEditor/Performance/PerformanceOptimizer.swift`
+
+```swift
+// 修改预加载字体
+// 修改前
+_ = NSFont.systemFont(ofSize: 13)
+_ = NSFont.systemFont(ofSize: 24, weight: .bold)
+_ = NSFont.systemFont(ofSize: 20, weight: .semibold)
+_ = NSFont.systemFont(ofSize: 16, weight: .medium)
+
+// 修改后
+_ = FontSizeManager.shared.createFont(for: .body)
+_ = FontSizeManager.shared.createFont(for: .heading1)
+_ = FontSizeManager.shared.createFont(for: .heading2)
+_ = FontSizeManager.shared.createFont(for: .heading3)
+
+// 修改默认字体设置
+// 修改前
+textView.font = NSFont.systemFont(ofSize: 13)
+
+// 修改后
+textView.font = FontSizeManager.shared.defaultFont
 ```
 
 ## Data Models

@@ -42,11 +42,13 @@ public final class ASTToAttributedStringConverter {
     
     /// 创建转换器
     /// - Parameter folderId: 文件夹 ID（用于图片加载）
+    /// _Requirements: 7.4, 7.5, 7.6_ - 使用 FontSizeConstants 统一字体大小
     public init(folderId: String? = nil) {
         self.folderId = folderId
         
-        // 设置默认字体
-        self.defaultFont = NSFont.systemFont(ofSize: 14)
+        // 使用 FontSizeConstants 获取默认字体大小
+        // _Requirements: 7.4, 7.5, 7.6_
+        self.defaultFont = NSFont.systemFont(ofSize: FontSizeConstants.body)
         
         // 设置默认段落样式
         let paragraphStyle = NSMutableParagraphStyle()
@@ -376,7 +378,7 @@ public final class ASTToAttributedStringConverter {
     ///
     /// - Parameter node: 格式化节点
     /// - Returns: 属性字典
-    /// - Requirements: 4.2
+    /// - Requirements: 4.2, 7.4, 7.5, 7.6
     private func attributesForFormat(_ node: FormattedNode) -> [NSAttributedString.Key: Any] {
         var attributes: [NSAttributedString.Key: Any] = [:]
         
@@ -405,19 +407,22 @@ public final class ASTToAttributedStringConverter {
             }
             
         case .heading1:
-            // 大标题：24pt, bold
-            attributes[.fontSize] = 24.0
-            attributes[.fontWeight] = NSFont.Weight.bold
+            // 大标题：使用 FontSizeConstants，常规字重（不加粗）
+            // _Requirements: 7.4_
+            attributes[.fontSize] = FontSizeConstants.heading1  // 23pt
+            // 不设置 fontWeight，使用默认的 regular
             
         case .heading2:
-            // 二级标题：20pt, semibold
-            attributes[.fontSize] = 20.0
-            attributes[.fontWeight] = NSFont.Weight.semibold
+            // 二级标题：使用 FontSizeConstants，常规字重（不加粗）
+            // _Requirements: 7.5_
+            attributes[.fontSize] = FontSizeConstants.heading2  // 20pt
+            // 不设置 fontWeight，使用默认的 regular
             
         case .heading3:
-            // 三级标题：16pt, medium
-            attributes[.fontSize] = 16.0
-            attributes[.fontWeight] = NSFont.Weight.medium
+            // 三级标题：使用 FontSizeConstants，常规字重（不加粗）
+            // _Requirements: 7.6_
+            attributes[.fontSize] = FontSizeConstants.heading3  // 17pt
+            // 不设置 fontWeight，使用默认的 regular
             
         case .centerAlign:
             // 居中对齐
@@ -526,7 +531,7 @@ public final class ASTToAttributedStringConverter {
     ///
     /// - Parameter attributes: 属性字典
     /// - Returns: 解析后的属性字典
-    /// - Requirements: 4.2
+    /// - Requirements: 4.2, 7.4, 7.5, 7.6
     private func resolveFontAttributes(_ attributes: [NSAttributedString.Key: Any]) -> [NSAttributedString.Key: Any] {
         var result = attributes
         
@@ -547,7 +552,11 @@ public final class ASTToAttributedStringConverter {
         
         // 如果有字体相关的自定义属性，构建新字体
         if isBold || fontSize != nil || fontWeight != nil {
-            let size = fontSize ?? 14.0
+            // 使用 FontSizeConstants 的默认字体大小
+            let size = fontSize ?? FontSizeConstants.body
+            // 只有明确设置了 fontWeight 或 isBold 时才使用粗体
+            // 标题格式不再默认加粗
+            // _Requirements: 7.4, 7.5, 7.6_
             let weight = fontWeight ?? (isBold ? .bold : .regular)
             
             let font = NSFont.systemFont(ofSize: size, weight: weight)

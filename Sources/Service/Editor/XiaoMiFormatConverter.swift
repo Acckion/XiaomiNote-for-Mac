@@ -409,7 +409,7 @@ class XiaoMiFormatConverter {
     ///   - text: 文本内容
     ///   - attributes: NSAttributedString 属性字典
     /// - Returns: 包含 XML 标签的文本
-    /// - Requirements: 5.2, 5.3, 5.4, 5.5, 5.6
+    /// - Requirements: 5.2, 5.3, 5.4, 5.5, 5.6, 7.1, 7.2, 7.3
     private func processNSAttributesToXMLTags(_ text: String, attributes: [NSAttributedString.Key: Any]) -> String {
         var result = escapeXMLCharacters(text)
         
@@ -435,14 +435,19 @@ class XiaoMiFormatConverter {
                 hasItalic = true
             }
             
-            // 检查字体大小来确定标题级别
+            // 使用 FontSizeManager 检测标题级别
+            // _Requirements: 7.1, 7.2, 7.3_
             let fontSize = font.pointSize
-            if fontSize >= 24 {
+            let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
+            switch detectedFormat {
+            case .heading1:
                 headingTag = "size"
-            } else if fontSize >= 20 {
+            case .heading2:
                 headingTag = "mid-size"
-            } else if fontSize >= 16 && fontSize < 20 {
+            case .heading3:
                 headingTag = "h3-size"
+            default:
+                break
             }
         }
         
@@ -1471,12 +1476,16 @@ class XiaoMiFormatConverter {
     /// 
     /// 修复：使用最外层优先的策略处理嵌套标签
     /// 对于 `<i><b>你好</b></i>`，先处理 `<i>` 标签，再递归处理内部的 `<b>` 标签
+    /// 
+    /// _Requirements: 7.4, 7.5, 7.6_ - 使用 FontSizeManager 统一字体大小，标题使用常规字重
     private func processNestedTags(_ text: String, attributes: inout [(NSRange, [NSAttributedString.Key: Any])]) throws -> String {
         // 定义所有支持的标签及其对应的属性
+        // 使用 FontSizeManager 获取字体大小，标题使用常规字重（不加粗）
+        // _Requirements: 7.4, 7.5, 7.6_
         let tagMappings: [(tag: String, attribute: NSAttributedString.Key, value: Any)] = [
-            ("size", .font, NSFont.systemFont(ofSize: 24, weight: .bold)),
-            ("mid-size", .font, NSFont.systemFont(ofSize: 20, weight: .semibold)),
-            ("h3-size", .font, NSFont.systemFont(ofSize: 16, weight: .medium)),
+            ("size", .font, FontSizeManager.shared.createFont(for: .heading1)),      // 23pt, regular
+            ("mid-size", .font, FontSizeManager.shared.createFont(for: .heading2)),  // 20pt, regular
+            ("h3-size", .font, FontSizeManager.shared.createFont(for: .heading3)),   // 17pt, regular
             ("b", .font, NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)),
             ("i", .obliqueness, 0.2),
             ("u", .underlineStyle, NSUnderlineStyle.single.rawValue),

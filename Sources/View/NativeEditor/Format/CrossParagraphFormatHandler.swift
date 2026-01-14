@@ -236,20 +236,17 @@ class CrossParagraphFormatHandler {
     }
     
     /// 应用标题格式到段落
+    /// _Requirements: 4.1, 4.2, 4.3_ - 使用 FontSizeManager 获取字体大小
     private func applyHeadingToParagraph(
         level: Int,
         to textStorage: NSTextStorage,
         paragraphRange: NSRange
     ) {
-        let fontSize: CGFloat
-        switch level {
-        case 1: fontSize = 24
-        case 2: fontSize = 20
-        case 3: fontSize = 17
-        default: fontSize = 15
-        }
+        // 使用 FontSizeManager 获取字体大小
+        let fontSize = FontSizeManager.shared.fontSize(for: level)
         
-        let font = NSFont.boldSystemFont(ofSize: fontSize)
+        // 使用常规字重，不再使用加粗
+        let font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
         textStorage.addAttribute(.font, value: font, range: paragraphRange)
     }
     
@@ -273,6 +270,7 @@ class CrossParagraphFormatHandler {
     }
     
     /// 检查段落是否有指定格式
+    /// _Requirements: 4.1, 4.2, 4.3_ - 使用 FontSizeManager 统一检测逻辑
     private func isParagraphFormatActive(
         _ format: TextFormat,
         in textStorage: NSAttributedString,
@@ -285,17 +283,20 @@ class CrossParagraphFormatHandler {
         let attributes = textStorage.attributes(at: paragraphRange.location, effectiveRange: nil)
         
         switch format {
-        case .heading1:
+        case .heading1, .heading2, .heading3:
+            // 使用 FontSizeManager 的统一检测逻辑
             if let font = attributes[.font] as? NSFont {
-                return font.pointSize >= 24
-            }
-        case .heading2:
-            if let font = attributes[.font] as? NSFont {
-                return font.pointSize >= 20 && font.pointSize < 24
-            }
-        case .heading3:
-            if let font = attributes[.font] as? NSFont {
-                return font.pointSize >= 16 && font.pointSize < 20
+                let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: font.pointSize)
+                switch format {
+                case .heading1:
+                    return detectedFormat == .heading1
+                case .heading2:
+                    return detectedFormat == .heading2
+                case .heading3:
+                    return detectedFormat == .heading3
+                default:
+                    return false
+                }
             }
         case .alignCenter:
             if let style = attributes[.paragraphStyle] as? NSParagraphStyle {

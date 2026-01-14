@@ -16,15 +16,15 @@ import AppKit
 /// 换行处理器
 /// 统一处理所有换行时的格式继承逻辑
 /// _Requirements: 8.1, 8.3, 8.4_
+@MainActor
 public struct NewLineHandler {
     
     // MARK: - 常量
     
-    /// 默认字体
-    /// 注意：使用 nonisolated(unsafe) 因为 NSFont 不是 Sendable，但这里是只读常量
-    /// 修复：使用 13pt（正文字体大小），与 FormatAttributesBuilder.bodyFontSize 保持一致
-    /// _Requirements: 1.6, 1.7_
-    nonisolated(unsafe) public static let defaultFont: NSFont = NSFont.systemFont(ofSize: 13)
+    /// 默认字体 (14pt)
+    /// 使用 FontSizeManager 统一管理
+    /// _Requirements: 1.4, 8.1, 8.3_
+    public static var defaultFont: NSFont { FontSizeManager.shared.defaultFont }
     
     // MARK: - 主要方法
     
@@ -622,6 +622,7 @@ public struct NewLineHandler {
 
 // MARK: - NewLineContext 扩展
 
+@MainActor
 extension NewLineContext {
     
     /// 从 textView 构建换行上下文

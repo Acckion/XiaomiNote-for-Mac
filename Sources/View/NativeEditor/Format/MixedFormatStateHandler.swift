@@ -409,24 +409,29 @@ extension NativeEditorContext {
     
     /// 检测选中范围内的块级格式
     /// - Parameter range: 选中范围
+    /// _Requirements: 3.1, 3.2, 3.3, 3.4_ - 使用 FontSizeManager 统一检测逻辑
     private func detectBlockFormatsInRange(_ range: NSRange) {
         guard range.location < nsAttributedText.length else { return }
         
         let position = range.location
         let attributes = nsAttributedText.attributes(at: position, effectiveRange: nil)
         
-        // 检测标题格式
+        // 检测标题格式 - 使用 FontSizeManager 的统一检测逻辑
         if let font = attributes[.font] as? NSFont {
             let fontSize = font.pointSize
-            if fontSize >= 24 {
+            let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
+            switch detectedFormat {
+            case .heading1:
                 currentFormats.insert(.heading1)
                 toolbarButtonStates[.heading1] = true
-            } else if fontSize >= 20 {
+            case .heading2:
                 currentFormats.insert(.heading2)
                 toolbarButtonStates[.heading2] = true
-            } else if fontSize >= 16 && fontSize < 20 {
+            case .heading3:
                 currentFormats.insert(.heading3)
                 toolbarButtonStates[.heading3] = true
+            default:
+                break
             }
         }
         

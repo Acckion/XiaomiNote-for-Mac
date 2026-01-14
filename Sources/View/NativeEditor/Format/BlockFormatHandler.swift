@@ -16,18 +16,25 @@ import AppKit
 /// 块级格式处理器
 /// 统一处理所有块级格式（标题、列表、引用）
 /// _Requirements: 3.1-3.7_
+@MainActor
 public struct BlockFormatHandler {
     
     // MARK: - 常量
     
-    /// 大标题字体大小
-    public static let heading1Size: CGFloat = 24
+    /// 大标题字体大小 (23pt)
+    /// 使用 FontSizeManager 统一管理
+    /// _Requirements: 1.1, 1.5_
+    public static var heading1Size: CGFloat { FontSizeManager.shared.heading1Size }
     
-    /// 二级标题字体大小
-    public static let heading2Size: CGFloat = 20
+    /// 二级标题字体大小 (20pt)
+    /// 使用 FontSizeManager 统一管理
+    /// _Requirements: 1.2, 1.5_
+    public static var heading2Size: CGFloat { FontSizeManager.shared.heading2Size }
     
-    /// 三级标题字体大小
-    public static let heading3Size: CGFloat = 16
+    /// 三级标题字体大小 (17pt)
+    /// 使用 FontSizeManager 统一管理
+    /// _Requirements: 1.3, 1.5_
+    public static var heading3Size: CGFloat { FontSizeManager.shared.heading3Size }
     
     /// 缩进单位（像素）
     public static let indentUnit: CGFloat = 20
@@ -47,17 +54,15 @@ public struct BlockFormatHandler {
     /// 引用块内边距
     public static let quotePadding: CGFloat = 12
     
-    /// 正文字体大小
-    /// 与 FormatAttributesBuilder.bodyFontSize 保持一致
-    /// _Requirements: 1.6, 1.7_
-    public static let bodyFontSize: CGFloat = 13
+    /// 正文字体大小 (14pt)
+    /// 使用 FontSizeManager 统一管理
+    /// _Requirements: 1.4, 1.5_
+    public static var bodyFontSize: CGFloat { FontSizeManager.shared.bodySize }
     
-    /// 默认字体
-    /// 注意：使用 nonisolated(unsafe) 因为 NSFont 不是 Sendable，但这里是只读常量
-    /// 修复：使用 13pt（正文字体大小），而不是 15pt
-    /// 15pt 会被误识别为三级标题（阈值 >=15pt）
-    /// _Requirements: 1.6, 1.7_
-    nonisolated(unsafe) public static let defaultFont: NSFont = NSFont.systemFont(ofSize: bodyFontSize)
+    /// 默认字体 (14pt)
+    /// 使用 FontSizeManager 统一管理
+    /// _Requirements: 1.4, 1.5_
+    public static var defaultFont: NSFont { FontSizeManager.shared.defaultFont }
     
     // MARK: - 格式应用
     
@@ -350,7 +355,7 @@ public struct BlockFormatHandler {
     /// 
     /// - Parameter format: 格式类型
     /// - Returns: 是否是块级格式
-    public static func isBlockFormat(_ format: TextFormat) -> Bool {
+    nonisolated public static func isBlockFormat(_ format: TextFormat) -> Bool {
         switch format.category {
         case .blockTitle, .blockList, .blockQuote, .alignment:
             return true
@@ -363,7 +368,7 @@ public struct BlockFormatHandler {
     /// 
     /// - Parameter format: 格式类型
     /// - Returns: 是否是标题格式
-    public static func isHeadingFormat(_ format: TextFormat) -> Bool {
+    nonisolated public static func isHeadingFormat(_ format: TextFormat) -> Bool {
         return format.category == .blockTitle
     }
     
@@ -371,37 +376,35 @@ public struct BlockFormatHandler {
     /// 
     /// - Parameter format: 格式类型
     /// - Returns: 是否是列表格式
-    public static func isListFormat(_ format: TextFormat) -> Bool {
+    nonisolated public static func isListFormat(_ format: TextFormat) -> Bool {
         return format.category == .blockList
     }
     
     // MARK: - 私有方法 - 标题格式
     
     /// 应用标题格式
-    /// 
+    /// 使用常规字重（.regular），不默认加粗
     /// - Parameters:
     ///   - level: 标题级别（1-3）
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
+    /// _Requirements: 2.1, 2.2, 2.3, 5.1, 5.2_
     private static func applyHeading(level: Int, to range: NSRange, in textStorage: NSTextStorage) {
         let fontSize: CGFloat
-        let fontWeight: NSFont.Weight
         
         switch level {
         case 1:
             fontSize = heading1Size
-            fontWeight = .bold
         case 2:
             fontSize = heading2Size
-            fontWeight = .semibold
         case 3:
             fontSize = heading3Size
-            fontWeight = .medium
         default:
             return
         }
         
-        let font = NSFont.systemFont(ofSize: fontSize, weight: fontWeight)
+        // 使用常规字重，标题不默认加粗
+        let font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
         
         textStorage.beginEditing()
         textStorage.addAttribute(.font, value: font, range: range)
@@ -410,25 +413,20 @@ public struct BlockFormatHandler {
     }
     
     /// 从属性中检测标题级别
-    /// 
+    /// 使用 FontSizeManager 统一的检测逻辑
     /// - Parameter attributes: 属性字典
     /// - Returns: 标题级别（1-3），如果不是标题则返回 nil
+    /// _Requirements: 3.1, 3.2, 3.3, 3.4_
     private static func detectHeadingLevel(from attributes: [NSAttributedString.Key: Any]) -> Int? {
         // 优先检查 headingLevel 属性
         if let level = attributes[.headingLevel] as? Int, level > 0 {
             return level
         }
         
-        // 备用检测：通过字体大小判断
+        // 备用检测：通过字体大小判断，使用 FontSizeManager 的检测逻辑
         if let font = attributes[.font] as? NSFont {
-            let fontSize = font.pointSize
-            if fontSize >= heading1Size {
-                return 1
-            } else if fontSize >= heading2Size {
-                return 2
-            } else if fontSize >= heading3Size && fontSize < heading2Size {
-                return 3
-            }
+            let level = FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize)
+            return level > 0 ? level : nil
         }
         
         return nil

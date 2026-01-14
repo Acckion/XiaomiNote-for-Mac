@@ -693,6 +693,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
     ///   - textStorage: 文本存储
     ///   - position: 位置
     /// - Returns: 段落格式
+    /// _Requirements: 3.1, 3.2, 3.3, 3.4_
     private func detectParagraphFormat(
         from attributes: [NSAttributedString.Key: Any],
         textStorage: NSAttributedString,
@@ -708,15 +709,13 @@ public final class NativeFormatProvider: FormatMenuProvider {
             }
         }
         
-        // 方法 2: 检查字体大小
+        // 方法 2: 使用 FontSizeManager 检查字体大小
+        // _Requirements: 3.1, 3.2, 3.3, 3.4_ - 使用统一的检测逻辑
         if let font = attributes[.font] as? NSFont {
             let fontSize = font.pointSize
-            if fontSize >= 20 {
-                return .heading1
-            } else if fontSize >= 16 && fontSize < 20 {
-                return .heading2
-            } else if fontSize >= 14 && fontSize < 16 {
-                return .heading3
+            let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
+            if detectedFormat != .body {
+                return detectedFormat
             }
         }
         

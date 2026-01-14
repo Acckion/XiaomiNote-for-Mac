@@ -244,6 +244,7 @@
 		F3296E10A249F036F83F8998 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEF19FCB59B84D1474DA6684 /* UserProfile.swift */; };
 		F3B320B44618ABF1B5827B54 /* NotesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E8468EC0808E65357580C03 /* NotesListView.swift */; };
 		F53C19F15A2F79F26A9BA6D4 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B3D5E462F26593AB71C991 /* SettingsWindowController.swift */; };
+		F7B25B66D77F78D8AB849455 /* FontSizeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E029C2225FC8BA512E3ECE30 /* FontSizeManager.swift */; };
 		FA31A3C141A35190A53B00BC /* NotesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86C1FFFB0DCECC7C50F99BD8 /* NotesViewModel.swift */; };
 		FA6C761DB3820A1E6EB6E452 /* LoginWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7D8D743FBFC1AA843C6E833 /* LoginWindowController.swift */; };
 		FA766B6134D85774BC6B381F /* NetworkRecoveryHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CF1BF6126F1DDDE6FF259C7 /* NetworkRecoveryHandler.swift */; };
@@ -513,6 +514,7 @@
 		DCBD00E79A0F1B72CD0C005A /* EditorConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorConfiguration.swift; sourceTree = "<group>"; };
 		DF92A82F64F6FD9B3D6BA4D3 /* AudioPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerView.swift; sourceTree = "<group>"; };
 		DFE6152CBC81B5733ABB4506 /* OnlineStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineStateManager.swift; sourceTree = "<group>"; };
+		E029C2225FC8BA512E3ECE30 /* FontSizeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontSizeManager.swift; sourceTree = "<group>"; };
 		E15BE193071CD4784522F26C /* OperationQueueDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationQueueDebugView.swift; sourceTree = "<group>"; };
 		E16D67DF14912FA422743986 /* MenuState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuState.swift; sourceTree = "<group>"; };
 		E256E1921B30DE6AC08D14D7 /* WindowStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowStateManager.swift; sourceTree = "<group>"; };
@@ -1146,6 +1148,7 @@
 				73C43716EF906941DD0B39E1 /* BlockFormatHandler.swift */,
 				8E02BED92A2320CE43A87555 /* CrossParagraphFormatHandler.swift */,
 				2FC4DFE5A72297F6145EA260 /* EditorStateConsistencyChecker.swift */,
+				E029C2225FC8BA512E3ECE30 /* FontSizeManager.swift */,
 				0702C41AF42048EDDA73321C /* FormatApplicationConsistencyChecker.swift */,
 				4F74A5BE0EA62E0F08B459F3 /* FormatApplicationMethod.swift */,
 				F536EF508195999D2B84CE4C /* FormatError.swift */,
@@ -1413,6 +1416,7 @@
 				FB9D22888993D0CBEBFE1EFD /* ErrorRecoveryService.swift in Sources */,
 				EBA5E00131015D430D09503A /* ExpandedNoteView.swift in Sources */,
 				4C8F032FCAC2B617F227FDA1 /* Folder.swift in Sources */,
+				F7B25B66D77F78D8AB849455 /* FontSizeManager.swift in Sources */,
 				1B726A5671CE94DED200017B /* FormatApplicationConsistencyChecker.swift in Sources */,
 				8DD476D2BAF2D586864E044C /* FormatApplicationMethod.swift in Sources */,
 				6370B86B6C2FA781CDC335EE /* FormatApplicationPerformanceOptimizer.swift in Sources */,

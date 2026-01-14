@@ -42,9 +42,9 @@ class FormatManager {
     // MARK: - Properties
     
     /// 默认字体
-    /// 修复：使用 13pt（正文字体大小），与 FormatAttributesBuilder.bodyFontSize 保持一致
-    /// _Requirements: 1.6, 1.7_
-    var defaultFont: NSFont = NSFont.systemFont(ofSize: 13)
+    /// 使用 FontSizeManager 统一管理，14pt（正文字体大小）
+    /// _Requirements: 1.4, 1.5_
+    var defaultFont: NSFont { FontSizeManager.shared.defaultFont }
     
     /// 默认文本颜色
     var defaultTextColor: NSColor = .textColor
@@ -52,14 +52,20 @@ class FormatManager {
     /// 高亮背景色（小米笔记格式）
     var highlightColor: NSColor = NSColor(hex: "#9affe8af") ?? NSColor.systemYellow
     
-    /// 大标题字体大小
-    var heading1Size: CGFloat = 24
+    /// 大标题字体大小 (23pt)
+    /// 使用 FontSizeManager 统一管理
+    /// _Requirements: 1.1, 1.5_
+    var heading1Size: CGFloat { FontSizeManager.shared.heading1Size }
     
-    /// 二级标题字体大小
-    var heading2Size: CGFloat = 20
+    /// 二级标题字体大小 (20pt)
+    /// 使用 FontSizeManager 统一管理
+    /// _Requirements: 1.2, 1.5_
+    var heading2Size: CGFloat { FontSizeManager.shared.heading2Size }
     
-    /// 三级标题字体大小
-    var heading3Size: CGFloat = 16
+    /// 三级标题字体大小 (17pt)
+    /// 使用 FontSizeManager 统一管理
+    /// _Requirements: 1.3, 1.5_
+    var heading3Size: CGFloat { FontSizeManager.shared.heading3Size }
     
     /// 缩进单位（像素）
     var indentUnit: CGFloat = 20
@@ -229,27 +235,33 @@ class FormatManager {
     // MARK: - Public Methods - 标题格式
     
     /// 应用大标题格式 (需求 6.3)
+    /// 使用常规字重，不默认加粗
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
+    /// _Requirements: 2.1, 4.1_
     func applyHeading1(to textStorage: NSTextStorage, range: NSRange) {
-        applyHeadingStyle(to: textStorage, range: range, size: heading1Size, weight: .bold, level: .h1)
+        applyHeadingStyle(to: textStorage, range: range, size: heading1Size, level: .h1)
     }
     
     /// 应用二级标题格式 (需求 6.4)
+    /// 使用常规字重，不默认加粗
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
+    /// _Requirements: 2.2, 4.2_
     func applyHeading2(to textStorage: NSTextStorage, range: NSRange) {
-        applyHeadingStyle(to: textStorage, range: range, size: heading2Size, weight: .semibold, level: .h2)
+        applyHeadingStyle(to: textStorage, range: range, size: heading2Size, level: .h2)
     }
     
     /// 应用三级标题格式 (需求 6.5)
+    /// 使用常规字重，不默认加粗
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
+    /// _Requirements: 2.3, 4.3_
     func applyHeading3(to textStorage: NSTextStorage, range: NSRange) {
-        applyHeadingStyle(to: textStorage, range: range, size: heading3Size, weight: .medium, level: .h3)
+        applyHeadingStyle(to: textStorage, range: range, size: heading3Size, level: .h3)
     }
     
     /// 移除标题格式（恢复正常文本）
@@ -724,22 +736,17 @@ class FormatManager {
     }
     
     /// 获取指定位置的标题级别
+    /// 使用 FontSizeManager 统一的检测逻辑
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - position: 位置
     /// - Returns: 标题级别（0 = 无标题，1 = 大标题，2 = 二级标题，3 = 三级标题）
+    /// _Requirements: 3.1, 3.2, 3.3, 3.4_
     func getHeadingLevel(in textStorage: NSTextStorage, at position: Int) -> Int {
         guard position < textStorage.length else { return 0 }
         
         if let font = textStorage.attribute(.font, at: position, effectiveRange: nil) as? NSFont {
-            let fontSize = font.pointSize
-            if fontSize >= heading1Size {
-                return 1
-            } else if fontSize >= heading2Size {
-                return 2
-            } else if fontSize >= heading3Size && fontSize < heading2Size {
-                return 3
-            }
+            return FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize)
         }
         
         return 0
@@ -1001,9 +1008,12 @@ class FormatManager {
     }
     
     /// 应用标题样式
-    private func applyHeadingStyle(to textStorage: NSTextStorage, range: NSRange, size: CGFloat, weight: NSFont.Weight, level: HeadingLevel = .none) {
+    /// 使用常规字重（.regular），不默认加粗
+    /// _Requirements: 2.1, 2.2, 2.3_
+    private func applyHeadingStyle(to textStorage: NSTextStorage, range: NSRange, size: CGFloat, level: HeadingLevel = .none) {
         let lineRange = (textStorage.string as NSString).lineRange(for: range)
-        let font = NSFont.systemFont(ofSize: size, weight: weight)
+        // 使用常规字重，标题不默认加粗
+        let font = NSFont.systemFont(ofSize: size, weight: .regular)
         
         textStorage.beginEditing()
         textStorage.addAttribute(.font, value: font, range: lineRange)

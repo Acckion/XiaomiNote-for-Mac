@@ -742,12 +742,12 @@ class EditorInitializationOptimizer {
         
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        // 预加载字体
-        // 修复：使用 13pt（正文字体大小），与 FormatAttributesBuilder.bodyFontSize 保持一致
-        _ = NSFont.systemFont(ofSize: 13)
-        _ = NSFont.systemFont(ofSize: 24, weight: .bold)
-        _ = NSFont.systemFont(ofSize: 20, weight: .semibold)
-        _ = NSFont.systemFont(ofSize: 16, weight: .medium)
+        // 预加载字体 - 使用 FontSizeManager 统一管理
+        // _Requirements: 1.1, 1.2, 1.3, 1.4_
+        _ = NSFont.systemFont(ofSize: FontSizeConstants.body)     // 14pt 正文
+        _ = NSFont.systemFont(ofSize: FontSizeConstants.heading1) // 23pt 大标题
+        _ = NSFont.systemFont(ofSize: FontSizeConstants.heading2) // 20pt 二级标题
+        _ = NSFont.systemFont(ofSize: FontSizeConstants.heading3) // 17pt 三级标题
         
         // 预加载颜色
         _ = NSColor.textColor
@@ -785,8 +785,9 @@ class EditorInitializationOptimizer {
         textView.textContainer?.heightTracksTextView = false
         
         // 设置合理的默认值
-        // 修复：使用 13pt（正文字体大小），与 FormatAttributesBuilder.bodyFontSize 保持一致
-        textView.font = NSFont.systemFont(ofSize: 13)
+        // 使用 FontSizeConstants.body (14pt) 保持与 FontSizeManager 一致
+        // _Requirements: 1.4_
+        textView.font = NSFont.systemFont(ofSize: FontSizeConstants.body)
         textView.textColor = .textColor
         
         return textView

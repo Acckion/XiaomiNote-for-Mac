@@ -253,15 +253,20 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     ///
     /// - Parameter attributes: 属性字典
     /// - Returns: 格式类型集合
+    /// - Requirements: 7.1, 7.2, 7.3
     private func extractFormats(from attributes: [NSAttributedString.Key: Any]) -> Set<ASTNodeType> {
         var formats: Set<ASTNodeType> = []
         
         // 检查字体属性（粗体、斜体、标题）
         if let font = attributes[.font] as? NSFont {
-            // 检查粗体（但不包括标题的粗体，因为标题会单独处理）
             let fontSize = font.pointSize
-            let isHeading = fontSize >= 15.5  // 标题的最小字体大小
             
+            // 使用 FontSizeConstants 检测标题级别（非 MainActor 上下文）
+            // _Requirements: 7.1, 7.2, 7.3_
+            let detectedFormat = FontSizeConstants.detectParagraphFormat(fontSize: fontSize)
+            let isHeading = detectedFormat.isHeading
+            
+            // 检查粗体（但不包括标题的粗体，因为标题会单独处理）
             if font.fontDescriptor.symbolicTraits.contains(.bold) && !isHeading {
                 formats.insert(.bold)
             }
@@ -269,16 +274,17 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
                 formats.insert(.italic)
             }
             
-            // 检查字体大小（标题）- 使用更精确的范围
-            // 24pt ± 0.5 -> heading1
-            // 20pt ± 0.5 -> heading2  
-            // 16pt ± 0.5 -> heading3
-            if fontSize >= 23.5 && fontSize <= 24.5 {
-                formats.insert(.heading1)  // 大标题 24pt
-            } else if fontSize >= 19.5 && fontSize <= 20.5 {
+            // 使用 FontSizeConstants 的检测结果设置标题格式
+            // _Requirements: 7.1, 7.2, 7.3_
+            switch detectedFormat {
+            case .heading1:
+                formats.insert(.heading1)  // 大标题 23pt
+            case .heading2:
                 formats.insert(.heading2)  // 二级标题 20pt
-            } else if fontSize >= 15.5 && fontSize <= 16.5 {
-                formats.insert(.heading3)  // 三级标题 16pt
+            case .heading3:
+                formats.insert(.heading3)  // 三级标题 17pt
+            default:
+                break
             }
         }
         

@@ -24,11 +24,11 @@ public struct InlineFormatHandler {
     /// _Requirements: 1.5_
     public static let italicObliquenessValue: Double = 0.2
     
-    /// 默认字体
+    /// 默认字体 (14pt)
     /// 注意：使用 nonisolated(unsafe) 因为 NSFont 不是 Sendable，但这里是只读常量
-    /// 修复：使用 13pt（正文字体大小），与 FormatAttributesBuilder.bodyFontSize 保持一致
-    /// _Requirements: 1.6, 1.7_
-    nonisolated(unsafe) public static let defaultFont: NSFont = NSFont.systemFont(ofSize: 13)
+    /// 使用 FontSizeConstants.body (14pt) 保持与 FontSizeManager 一致
+    /// _Requirements: 1.4, 4.5_
+    nonisolated(unsafe) public static let defaultFont: NSFont = NSFont.systemFont(ofSize: FontSizeConstants.body)
     
     /// 高亮背景色
     /// 注意：使用 nonisolated(unsafe) 因为 NSColor 不是 Sendable，但这里是只读常量

@@ -461,14 +461,17 @@ public class NativeEditorContext: ObservableObject {
         print("[NativeEditorContext] ✅ 标题格式已清除，字体大小已重置为 13pt")
     }
     
-    /// 重置字体大小为正文大小（13pt）
+    /// 重置字体大小为正文大小
     /// 
-    /// 将选中文本的字体大小重置为正文大小（13pt），同时保留字体特性（加粗、斜体等）
+    /// 将选中文本的字体大小重置为正文大小，同时保留字体特性（加粗、斜体等）
     /// 用于将标题转换为正文时，确保字体大小正确重置
     /// 
     /// _需求: 1.6, 1.7, 4.7_
+    /// _Requirements: 3.1, 3.2, 3.3, 3.4, 6.2, 6.3, 6.4, 6.5_
     private func resetFontSizeToBody() {
-        print("[NativeEditorContext] 开始重置字体大小为正文大小（13pt）")
+        // 使用 FontSizeManager 获取正文字体大小
+        let bodySize = FontSizeManager.shared.bodySize
+        print("[NativeEditorContext] 开始重置字体大小为正文大小（\(bodySize)pt）")
         
         // 获取选中范围或光标位置
         let range = selectedRange.length > 0 ? selectedRange : NSRange(location: cursorPosition, length: 0)
@@ -490,20 +493,10 @@ public class NativeEditorContext: ObservableObject {
                 print("[NativeEditorContext]   - 处理子范围: location=\(subRange.location), length=\(subRange.length)")
                 print("[NativeEditorContext]     原字体: \(font.fontName), 大小: \(font.pointSize)pt")
                 
-                // 创建新字体，保留字体特性（加粗、斜体），但使用正文字体大小（13pt）
+                // 使用 FontSizeManager 创建新字体，保留字体特性（加粗、斜体）
                 let traits = font.fontDescriptor.symbolicTraits
-                let newFont: NSFont
-                
-                if traits.isEmpty {
-                    // 没有特殊特性，使用默认系统字体
-                    newFont = NSFont.systemFont(ofSize: 13)
-                    print("[NativeEditorContext]     新字体: 系统字体, 大小: 13pt（无特性）")
-                } else {
-                    // 有特殊特性（加粗、斜体等），保留这些特性
-                    let descriptor = NSFont.systemFont(ofSize: 13).fontDescriptor.withSymbolicTraits(traits)
-                    newFont = NSFont(descriptor: descriptor, size: 13) ?? NSFont.systemFont(ofSize: 13)
-                    print("[NativeEditorContext]     新字体: \(newFont.fontName), 大小: 13pt（保留特性: bold=\(traits.contains(.bold)), italic=\(traits.contains(.italic))）")
-                }
+                let newFont = FontSizeManager.shared.createFont(ofSize: bodySize, traits: traits)
+                print("[NativeEditorContext]     新字体: \(newFont.fontName), 大小: \(bodySize)pt（保留特性: bold=\(traits.contains(.bold)), italic=\(traits.contains(.italic))）")
                 
                 // 应用新字体
                 mutableText.addAttribute(.font, value: newFont, range: subRange)
@@ -1378,21 +1371,25 @@ public class NativeEditorContext: ObservableObject {
         // 如果没有通过 headingLevel 检测到标题，尝试通过字体大小检测
         // 这是备用检测方式，用于处理旧数据或手动设置的字体大小
         // _需求: 2.1, 2.2, 2.3, 4.5_ - 当 headingLevel 存在时，忽略字体大小检测
+        // _Requirements: 3.1, 3.2, 3.3, 3.4, 6.2, 6.3, 6.4, 6.5_ - 使用 FontSizeManager 统一检测逻辑
         if !formats.contains(.heading1) && !formats.contains(.heading2) && !formats.contains(.heading3) {
             print("[NativeEditorContext] 🔍 优先级检测步骤 2: 通过字体大小判断标题类型")
-            print("[NativeEditorContext]   当前阈值: 大标题>=20pt, 二级标题>=17pt, 三级标题>=15pt")
+            print("[NativeEditorContext]   当前阈值: 大标题>=\(FontSizeManager.shared.heading1Threshold)pt, 二级标题>=\(FontSizeManager.shared.heading2Threshold)pt, 三级标题>=\(FontSizeManager.shared.heading3Threshold)pt")
             
-            if fontSize >= 20 {
+            // 使用 FontSizeManager 的统一检测逻辑
+            let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
+            switch detectedFormat {
+            case .heading1:
                 formats.insert(.heading1)
-                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt >= 20pt，识别为【大标题】")
-            } else if fontSize >= 17 && fontSize < 20 {
+                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt >= \(FontSizeManager.shared.heading1Threshold)pt，识别为【大标题】")
+            case .heading2:
                 formats.insert(.heading2)
-                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [17, 20) 范围内，识别为【二级标题】")
-            } else if fontSize >= 15 && fontSize < 17 {
+                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [\(FontSizeManager.shared.heading2Threshold), \(FontSizeManager.shared.heading1Threshold)) 范围内，识别为【二级标题】")
+            case .heading3:
                 formats.insert(.heading3)
-                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [15, 17) 范围内，识别为【三级标题】")
-            } else {
-                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt < 15pt，识别为【正文】（不添加标题格式）")
+                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [\(FontSizeManager.shared.heading3Threshold), \(FontSizeManager.shared.heading2Threshold)) 范围内，识别为【三级标题】")
+            default:
+                print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt < \(FontSizeManager.shared.heading3Threshold)pt，识别为【正文】（不添加标题格式）")
             }
         } else {
             print("[NativeEditorContext] ℹ️ 已通过 headingLevel 属性确定标题类型")
