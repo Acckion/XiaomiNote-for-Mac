@@ -69,6 +69,14 @@ public struct OfflineOperation: Codable, Identifiable, Sendable {
 /// 离线操作队列管理器
 /// 
 /// 使用数据库存储离线操作，支持优先级、重试、状态管理等功能
+///
+/// - Important: 此类已废弃，请使用 `UnifiedOperationQueue` 替代。
+///   迁移指南：
+///   - `addOperation()` → `UnifiedOperationQueue.shared.enqueue()`
+///   - `getPendingOperations()` → `UnifiedOperationQueue.shared.getPendingOperations()`
+///   - `removeOperation()` → `UnifiedOperationQueue.shared.markCompleted()`
+///   - `updateOperationStatus()` → `UnifiedOperationQueue.shared.markFailed()` 或 `markCompleted()`
+@available(*, deprecated, message: "请使用 UnifiedOperationQueue 替代")
 final class OfflineOperationQueue: @unchecked Sendable {
     static let shared = OfflineOperationQueue()
     

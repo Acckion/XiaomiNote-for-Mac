@@ -29,7 +29,11 @@ public final class ErrorRecoveryService: ObservableObject {
     
     // MARK: - 依赖服务
     
-    private let offlineQueue = OfflineOperationQueue.shared
+    /// 统一操作队列（新的队列，用于主要功能）
+    private let unifiedQueue = UnifiedOperationQueue.shared
+    /// 旧的离线操作队列（已废弃，仅用于兼容旧的错误恢复逻辑）
+    @available(*, deprecated, message: "使用 unifiedQueue 替代")
+    private let legacyOfflineQueue = OfflineOperationQueue.shared
     private let networkErrorHandler = NetworkErrorHandler.shared
     private let onlineStateManager = OnlineStateManager.shared
     
@@ -193,7 +197,7 @@ public final class ErrorRecoveryService: ObservableObject {
             )
             
             // 添加到队列
-            try offlineQueue.addOperation(operation)
+            try legacyOfflineQueue.addOperation(operation)
             
             print("[ErrorRecoveryService] ✅ 操作已添加到离线队列: \(operationType.rawValue), noteId: \(noteId)")
             
@@ -247,9 +251,9 @@ public final class ErrorRecoveryService: ObservableObject {
         // 更新离线队列中的操作状态为失败
         do {
             // 查找并更新操作状态
-            let pendingOperations = offlineQueue.getPendingOperations()
+            let pendingOperations = legacyOfflineQueue.getPendingOperations()
             if let existingOp = pendingOperations.first(where: { $0.noteId == noteId && $0.type == operationType }) {
-                try offlineQueue.updateOperationStatus(
+                try legacyOfflineQueue.updateOperationStatus(
                     operationId: existingOp.id,
                     status: .failed,
                     error: "超过最大重试次数 (\(maxRetryCount))"
@@ -314,7 +318,7 @@ public final class ErrorRecoveryService: ObservableObject {
             )
             
             // 添加到队列
-            try offlineQueue.addOperation(operation)
+            try legacyOfflineQueue.addOperation(operation)
             
             // 从失败列表中移除
             permanentlyFailedOperations.remove(at: index)

@@ -4,30 +4,52 @@
 //
 //  操作队列调试面板 - 用于监控和调试统一操作队列
 //
+//  需求: 6.1 - 状态可观察性
+//
 
 import SwiftUI
 
 /// 操作队列调试面板
+///
+/// 显示 UnifiedOperationQueue 的状态，包括：
+/// - 各状态操作数量（待处理、处理中、失败、认证失败、超过重试次数）
+/// - 临时 ID 笔记数量
+/// - 活跃编辑状态
+/// - 待处理操作列表
+///
+/// _需求: 6.1_
 public struct OperationQueueDebugView: View {
     
     // MARK: - State
     
-    @State private var pendingUploads: [PendingUploadEntry] = []
-    @State private var offlineOperations: [OfflineOperation] = []
+    /// 统一操作队列中的操作
+    @State private var unifiedOperations: [NoteOperation] = []
+    /// 队列统计信息
+    @State private var queueStatistics: [String: Int] = [:]
+    /// 临时 ID 笔记数量
+    @State private var temporaryIdNoteCount: Int = 0
+    /// 临时 ID 笔记列表
+    @State private var temporaryNoteIds: [String] = []
+    /// ID 映射统计
+    @State private var idMappingStats: [String: Int] = [:]
+    /// 活跃编辑笔记 ID
     @State private var activeEditingNoteId: String?
+    /// 是否正在刷新
     @State private var isRefreshing = false
+    /// 是否自动刷新
     @State private var autoRefresh = true
+    /// 刷新定时器
     @State private var refreshTimer: Timer?
+    /// 最后刷新时间
     @State private var lastRefreshTime: Date?
     
     // 过滤和排序
-    @State private var operationFilter: OperationFilterType = .all
+    @State private var operationFilter: UnifiedOperationFilterType = .all
     @State private var searchText = ""
     
     // 操作确认
     @State private var showClearConfirmation = false
     @State private var showRetryConfirmation = false
-    @State private var operationToDelete: OfflineOperation?
     
     public init() {}
     
@@ -39,17 +61,20 @@ public struct OperationQueueDebugView: View {
                 // 顶部工具栏
                 toolbarSection
                 
-                // 状态概览卡片
-                statusOverviewSection
+                // 状态概览卡片（显示 UnifiedOperationQueue 状态）
+                unifiedQueueStatusSection
+                
+                // 临时 ID 笔记状态
+                temporaryIdNotesSection
+                
+                // ID 映射状态
+                idMappingSection
                 
                 // 活跃编辑状态
                 activeEditingSection
                 
-                // 待上传注册表
-                pendingUploadsSection
-                
-                // 离线操作队列
-                offlineOperationsSection
+                // 统一操作队列
+                unifiedOperationsSection
             }
             .padding(12)
         }
@@ -62,7 +87,7 @@ public struct OperationQueueDebugView: View {
             Button("取消", role: .cancel) {}
             Button("清空", role: .destructive) { clearAllOperations() }
         } message: {
-            Text("确定要清空所有离线操作吗？此操作不可撤销。")
+            Text("确定要清空所有操作吗？此操作不可撤销。")
         }
         .alert("重试失败操作", isPresented: $showRetryConfirmation) {
             Button("取消", role: .cancel) {}
@@ -83,7 +108,7 @@ public struct OperationQueueDebugView: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
                         .font(.caption)
-                    TextField("搜索...", text: $searchText)
+                    TextField("搜索笔记 ID...", text: $searchText)
                         .textFieldStyle(.plain)
                         .font(.caption)
                     if !searchText.isEmpty {
@@ -101,12 +126,12 @@ public struct OperationQueueDebugView: View {
                 
                 // 过滤器
                 Picker("", selection: $operationFilter) {
-                    ForEach(OperationFilterType.allCases, id: \.self) { filter in
+                    ForEach(UnifiedOperationFilterType.allCases, id: \.self) { filter in
                         Text(filter.displayName).tag(filter)
                     }
                 }
                 .pickerStyle(.menu)
-                .frame(width: 80)
+                .frame(width: 100)
             }
             
             // 刷新控制
@@ -144,42 +169,156 @@ public struct OperationQueueDebugView: View {
     }
 
     
-    // MARK: - Status Overview Section
+    // MARK: - Unified Queue Status Section
     
-    private var statusOverviewSection: some View {
+    /// 统一操作队列状态概览
+    /// 显示各状态操作数量
+    /// _需求: 6.1_
+    private var unifiedQueueStatusSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("状态概览")
+            Text("统一操作队列状态")
                 .font(.subheadline)
                 .fontWeight(.medium)
             
+            // 第一行：主要状态
             HStack(spacing: 8) {
                 StatusCard(
-                    title: "待上传",
-                    value: "\(pendingUploads.count)",
-                    icon: "arrow.up.circle",
-                    color: pendingUploads.isEmpty ? .green : .orange
-                )
-                
-                StatusCard(
-                    title: "离线操作",
-                    value: "\(offlineOperations.count)",
+                    title: "总计",
+                    value: "\(queueStatistics["total"] ?? 0)",
                     icon: "tray.full",
-                    color: offlineOperations.isEmpty ? .green : .blue
+                    color: (queueStatistics["total"] ?? 0) == 0 ? .green : .blue
                 )
                 
                 StatusCard(
                     title: "待处理",
-                    value: "\(pendingOperationsCount)",
+                    value: "\(queueStatistics["pending"] ?? 0)",
                     icon: "clock",
-                    color: pendingOperationsCount == 0 ? .green : .yellow
+                    color: (queueStatistics["pending"] ?? 0) == 0 ? .green : .yellow
+                )
+                
+                StatusCard(
+                    title: "处理中",
+                    value: "\(queueStatistics["processing"] ?? 0)",
+                    icon: "arrow.triangle.2.circlepath",
+                    color: (queueStatistics["processing"] ?? 0) == 0 ? .green : .blue
                 )
                 
                 StatusCard(
                     title: "失败",
-                    value: "\(failedOperationsCount)",
+                    value: "\(queueStatistics["failed"] ?? 0)",
                     icon: "exclamationmark.triangle",
-                    color: failedOperationsCount == 0 ? .green : .red
+                    color: (queueStatistics["failed"] ?? 0) == 0 ? .green : .red
                 )
+            }
+            
+            // 第二行：特殊状态
+            HStack(spacing: 8) {
+                StatusCard(
+                    title: "认证失败",
+                    value: "\(queueStatistics["authFailed"] ?? 0)",
+                    icon: "person.crop.circle.badge.exclamationmark",
+                    color: (queueStatistics["authFailed"] ?? 0) == 0 ? .green : .orange
+                )
+                
+                StatusCard(
+                    title: "超过重试",
+                    value: "\(queueStatistics["maxRetryExceeded"] ?? 0)",
+                    icon: "arrow.counterclockwise.circle",
+                    color: (queueStatistics["maxRetryExceeded"] ?? 0) == 0 ? .green : .red
+                )
+                
+                StatusCard(
+                    title: "待上传",
+                    value: "\(UnifiedOperationQueue.shared.getPendingUploadCount())",
+                    icon: "arrow.up.circle",
+                    color: UnifiedOperationQueue.shared.getPendingUploadCount() == 0 ? .green : .orange
+                )
+                
+                StatusCard(
+                    title: "临时 ID",
+                    value: "\(temporaryIdNoteCount)",
+                    icon: "number.circle",
+                    color: temporaryIdNoteCount == 0 ? .green : .purple
+                )
+            }
+            
+            // 第三行：按操作类型统计
+            VStack(alignment: .leading, spacing: 4) {
+                Text("按操作类型")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                HStack(spacing: 6) {
+                    OperationTypeTag(type: "noteCreate", count: queueStatistics["noteCreate"] ?? 0)
+                    OperationTypeTag(type: "cloudUpload", count: queueStatistics["cloudUpload"] ?? 0)
+                    OperationTypeTag(type: "cloudDelete", count: queueStatistics["cloudDelete"] ?? 0)
+                    OperationTypeTag(type: "imageUpload", count: queueStatistics["imageUpload"] ?? 0)
+                }
+            }
+            .padding(.top, 4)
+        }
+        .padding(10)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(8)
+    }
+    
+    // MARK: - Temporary ID Notes Section
+    
+    /// 临时 ID 笔记状态
+    /// 显示离线创建的笔记数量
+    /// _需求: 6.1_
+    private var temporaryIdNotesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("临时 ID 笔记")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text("(\(temporaryIdNoteCount))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                if temporaryIdNoteCount > 0 {
+                    Circle()
+                        .fill(Color.purple)
+                        .frame(width: 6, height: 6)
+                    Text("离线创建")
+                        .font(.caption2)
+                        .foregroundColor(.purple)
+                }
+            }
+            
+            if temporaryNoteIds.isEmpty {
+                HStack {
+                    Image(systemName: "checkmark.circle")
+                        .foregroundColor(.green)
+                        .font(.caption)
+                    Text("无临时 ID 笔记")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(6)
+            } else {
+                ForEach(temporaryNoteIds, id: \.self) { noteId in
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.badge.clock")
+                            .foregroundColor(.purple)
+                            .font(.caption)
+                        Text(noteId)
+                            .font(.system(.caption, design: .monospaced))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        Button("复制") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(noteId, forType: .string)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+                    }
+                    .padding(6)
+                    .background(Color.purple.opacity(0.05))
+                    .cornerRadius(6)
+                }
             }
         }
         .padding(10)
@@ -187,12 +326,47 @@ public struct OperationQueueDebugView: View {
         .cornerRadius(8)
     }
     
-    private var pendingOperationsCount: Int {
-        offlineOperations.filter { $0.status == .pending || $0.status == .processing }.count
-    }
+    // MARK: - ID Mapping Section
     
-    private var failedOperationsCount: Int {
-        offlineOperations.filter { $0.status == .failed }.count
+    /// ID 映射状态
+    private var idMappingSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("ID 映射")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text("(\(idMappingStats["total"] ?? 0))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            
+            HStack(spacing: 8) {
+                StatusCard(
+                    title: "总映射",
+                    value: "\(idMappingStats["total"] ?? 0)",
+                    icon: "arrow.left.arrow.right",
+                    color: .blue
+                )
+                
+                StatusCard(
+                    title: "未完成",
+                    value: "\(idMappingStats["incomplete"] ?? 0)",
+                    icon: "clock.arrow.circlepath",
+                    color: (idMappingStats["incomplete"] ?? 0) == 0 ? .green : .orange
+                )
+                
+                StatusCard(
+                    title: "已完成",
+                    value: "\(idMappingStats["completed"] ?? 0)",
+                    icon: "checkmark.circle",
+                    color: .green
+                )
+            }
+        }
+        .padding(10)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(8)
     }
     
     // MARK: - Active Editing Section
@@ -219,11 +393,23 @@ public struct OperationQueueDebugView: View {
                     Image(systemName: "pencil.circle.fill")
                         .foregroundColor(.blue)
                         .font(.caption)
-                    Text(noteId)
-                        .font(.system(.caption, design: .monospaced))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(noteId)
+                            .font(.system(.caption, design: .monospaced))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        
+                        // 显示是否为临时 ID
+                        if NoteOperation.isTemporaryId(noteId) {
+                            Text("临时 ID（离线创建）")
+                                .font(.caption2)
+                                .foregroundColor(.purple)
+                        }
+                    }
+                    
                     Spacer()
+                    
                     Button("复制") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(noteId, forType: .string)
@@ -251,67 +437,17 @@ public struct OperationQueueDebugView: View {
         .cornerRadius(8)
     }
     
-    // MARK: - Pending Uploads Section
+    // MARK: - Unified Operations Section
     
-    private var pendingUploadsSection: some View {
+    /// 统一操作队列列表
+    /// _需求: 6.1_
+    private var unifiedOperationsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("待上传")
+                Text("操作队列")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text("(\(pendingUploads.count))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Spacer()
-                if !pendingUploads.isEmpty {
-                    Button("全部注销") {
-                        clearAllPendingUploads()
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.mini)
-                }
-            }
-            
-            if pendingUploads.isEmpty {
-                HStack {
-                    Image(systemName: "checkmark.circle")
-                        .foregroundColor(.green)
-                        .font(.caption)
-                    Text("无待上传笔记")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(6)
-            } else {
-                ForEach(filteredPendingUploads, id: \.noteId) { entry in
-                    PendingUploadRow(entry: entry) {
-                        unregisterPendingUpload(noteId: entry.noteId)
-                    }
-                }
-            }
-        }
-        .padding(10)
-        .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(8)
-    }
-    
-    private var filteredPendingUploads: [PendingUploadEntry] {
-        if searchText.isEmpty {
-            return pendingUploads
-        }
-        return pendingUploads.filter { $0.noteId.localizedCaseInsensitiveContains(searchText) }
-    }
-
-    
-    // MARK: - Offline Operations Section
-    
-    private var offlineOperationsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("离线队列")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text("(\(offlineOperations.count))")
+                Text("(\(unifiedOperations.count))")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -324,7 +460,7 @@ public struct OperationQueueDebugView: View {
                     .controlSize(.mini)
                 }
                 
-                if !offlineOperations.isEmpty {
+                if !unifiedOperations.isEmpty {
                     Button("清空") {
                         showClearConfirmation = true
                     }
@@ -334,7 +470,7 @@ public struct OperationQueueDebugView: View {
                 }
             }
             
-            if offlineOperations.isEmpty {
+            if unifiedOperations.isEmpty {
                 HStack {
                     Image(systemName: "checkmark.circle")
                         .foregroundColor(.green)
@@ -345,8 +481,8 @@ public struct OperationQueueDebugView: View {
                 }
                 .padding(6)
             } else {
-                ForEach(filteredOfflineOperations) { operation in
-                    OfflineOperationRow(operation: operation) {
+                ForEach(filteredUnifiedOperations) { operation in
+                    UnifiedOperationRow(operation: operation) {
                         deleteOperation(operation)
                     }
                 }
@@ -357,8 +493,14 @@ public struct OperationQueueDebugView: View {
         .cornerRadius(8)
     }
     
-    private var filteredOfflineOperations: [OfflineOperation] {
-        var operations = offlineOperations
+    /// 失败操作数量
+    private var failedOperationsCount: Int {
+        unifiedOperations.filter { $0.status == .failed }.count
+    }
+    
+    /// 过滤后的操作列表
+    private var filteredUnifiedOperations: [NoteOperation] {
+        var operations = unifiedOperations
         
         // 应用状态过滤
         switch operationFilter {
@@ -368,10 +510,14 @@ public struct OperationQueueDebugView: View {
             operations = operations.filter { $0.status == .pending }
         case .processing:
             operations = operations.filter { $0.status == .processing }
-        case .completed:
-            operations = operations.filter { $0.status == .completed }
         case .failed:
             operations = operations.filter { $0.status == .failed }
+        case .authFailed:
+            operations = operations.filter { $0.status == .authFailed }
+        case .maxRetryExceeded:
+            operations = operations.filter { $0.status == .maxRetryExceeded }
+        case .temporaryId:
+            operations = operations.filter { $0.isLocalId }
         }
         
         // 应用搜索过滤
@@ -388,27 +534,27 @@ public struct OperationQueueDebugView: View {
         isRefreshing = true
         
         Task {
-            // 获取待上传注册表数据
-            let registry = PendingUploadRegistry.shared
-            let pendingIds = registry.getAllPendingNoteIds()
-            var entries: [PendingUploadEntry] = []
-            for noteId in pendingIds {
-                if let timestamp = registry.getLocalSaveTimestamp(noteId) {
-                    entries.append(PendingUploadEntry(noteId: noteId, localSaveTimestamp: timestamp))
-                }
-            }
+            // 获取统一操作队列数据
+            let queue = UnifiedOperationQueue.shared
+            let operations = queue.getPendingOperations()
+            let stats = queue.getStatistics()
+            let tempCount = queue.getTemporaryIdNoteCount()
+            let tempIds = queue.getAllTemporaryNoteIds()
             
-            // 获取离线操作队列数据
-            let queue = OfflineOperationQueue.shared
-            let operations = queue.getAllOperations()
+            // 获取 ID 映射统计
+            let mappingRegistry = IdMappingRegistry.shared
+            let mappingStats = mappingRegistry.getStatistics()
             
             // 获取活跃编辑笔记 ID
             let coordinator = NoteOperationCoordinator.shared
             let activeNoteId = await coordinator.getActiveEditingNoteId()
             
             await MainActor.run {
-                self.pendingUploads = entries.sorted { $0.localSaveTimestamp > $1.localSaveTimestamp }
-                self.offlineOperations = operations
+                self.unifiedOperations = operations
+                self.queueStatistics = stats
+                self.temporaryIdNoteCount = tempCount
+                self.temporaryNoteIds = tempIds
+                self.idMappingStats = mappingStats
                 self.activeEditingNoteId = activeNoteId
                 self.lastRefreshTime = Date()
                 self.isRefreshing = false
@@ -430,32 +576,19 @@ public struct OperationQueueDebugView: View {
         refreshTimer = nil
     }
     
-    private func clearAllPendingUploads() {
-        let registry = PendingUploadRegistry.shared
-        for entry in pendingUploads {
-            registry.unregister(noteId: entry.noteId)
-        }
-        refreshData()
-    }
-    
-    private func unregisterPendingUpload(noteId: String) {
-        PendingUploadRegistry.shared.unregister(noteId: noteId)
-        refreshData()
-    }
-    
     private func clearAllOperations() {
-        try? OfflineOperationQueue.shared.clearAll()
+        try? UnifiedOperationQueue.shared.clearAll()
         refreshData()
     }
     
-    private func deleteOperation(_ operation: OfflineOperation) {
-        try? OfflineOperationQueue.shared.removeOperation(operation.id)
+    private func deleteOperation(_ operation: NoteOperation) {
+        try? UnifiedOperationQueue.shared.markCompleted(operation.id)
         refreshData()
     }
     
     private func retryFailedOperations() {
         Task {
-            await OfflineOperationProcessor.shared.retryFailedOperations()
+            await OperationProcessor.shared.processRetries()
             await MainActor.run {
                 refreshData()
             }
@@ -466,13 +599,16 @@ public struct OperationQueueDebugView: View {
 
 // MARK: - Supporting Types
 
-/// 操作过滤类型
-enum OperationFilterType: String, CaseIterable {
+/// 统一操作过滤类型
+/// _需求: 6.1_
+enum UnifiedOperationFilterType: String, CaseIterable {
     case all = "全部"
     case pending = "待处理"
     case processing = "处理中"
-    case completed = "已完成"
     case failed = "失败"
+    case authFailed = "认证失败"
+    case maxRetryExceeded = "超过重试"
+    case temporaryId = "临时 ID"
     
     var displayName: String { rawValue }
 }
@@ -505,51 +641,54 @@ struct StatusCard: View {
     }
 }
 
-/// 待上传条目行
-struct PendingUploadRow: View {
-    let entry: PendingUploadEntry
-    let onUnregister: () -> Void
+/// 操作类型标签
+struct OperationTypeTag: View {
+    let type: String
+    let count: Int
     
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "arrow.up.circle")
-                .foregroundColor(.orange)
-                .font(.caption)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.noteId)
-                    .font(.system(.caption, design: .monospaced))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Text(entry.localSaveTimestamp, style: .relative)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            Button("复制") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(entry.noteId, forType: .string)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-            
-            Button("注销") {
-                onUnregister()
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
+        HStack(spacing: 4) {
+            Text(displayName)
+                .font(.caption2)
+            Text("\(count)")
+                .font(.caption2)
+                .fontWeight(.bold)
         }
-        .padding(6)
-        .background(Color.orange.opacity(0.05))
-        .cornerRadius(6)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(color.opacity(0.15))
+        .foregroundColor(color)
+        .cornerRadius(4)
+    }
+    
+    private var displayName: String {
+        switch type {
+        case "noteCreate": return "创建"
+        case "cloudUpload": return "上传"
+        case "cloudDelete": return "删除"
+        case "imageUpload": return "图片"
+        case "folderCreate": return "文件夹创建"
+        case "folderRename": return "文件夹重命名"
+        case "folderDelete": return "文件夹删除"
+        default: return type
+        }
+    }
+    
+    private var color: Color {
+        switch type {
+        case "noteCreate": return .purple
+        case "cloudUpload": return .blue
+        case "cloudDelete": return .red
+        case "imageUpload": return .green
+        default: return .gray
+        }
     }
 }
 
-/// 离线操作行
-struct OfflineOperationRow: View {
-    let operation: OfflineOperation
+/// 统一操作行
+/// _需求: 6.1_
+struct UnifiedOperationRow: View {
+    let operation: NoteOperation
     let onDelete: () -> Void
     
     var body: some View {
@@ -562,6 +701,18 @@ struct OfflineOperationRow: View {
                     Text(operation.type.displayName)
                         .font(.caption)
                         .fontWeight(.medium)
+                    
+                    // 显示临时 ID 标记
+                    if operation.isLocalId {
+                        Text("临时")
+                            .font(.caption2)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.purple.opacity(0.2))
+                            .foregroundColor(.purple)
+                            .cornerRadius(3)
+                    }
+                    
                     Text(operation.noteId)
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundColor(.secondary)
@@ -570,7 +721,7 @@ struct OfflineOperationRow: View {
                 }
                 
                 HStack(spacing: 6) {
-                    Text(operation.timestamp, style: .relative)
+                    Text(operation.createdAt, style: .relative)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                     
@@ -578,6 +729,12 @@ struct OfflineOperationRow: View {
                         Text("重试:\(operation.retryCount)")
                             .font(.caption2)
                             .foregroundColor(.orange)
+                    }
+                    
+                    if let nextRetry = operation.nextRetryAt {
+                        Text("下次: \(nextRetry, style: .relative)")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
                     }
                 }
                 
@@ -620,6 +777,12 @@ struct OfflineOperationRow: View {
         case .failed:
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.red)
+        case .authFailed:
+            Image(systemName: "person.crop.circle.badge.exclamationmark")
+                .foregroundColor(.orange)
+        case .maxRetryExceeded:
+            Image(systemName: "arrow.counterclockwise.circle")
+                .foregroundColor(.red)
         }
     }
     
@@ -640,33 +803,37 @@ struct OfflineOperationRow: View {
         case .processing: return .blue
         case .completed: return .green
         case .failed: return .red
+        case .authFailed: return .orange
+        case .maxRetryExceeded: return .red
         }
     }
 }
 
 // MARK: - Extensions
 
-extension OfflineOperationType {
+extension OperationType {
     var displayName: String {
         switch self {
-        case .createNote: return "创建笔记"
-        case .updateNote: return "更新笔记"
-        case .deleteNote: return "删除笔记"
-        case .uploadImage: return "上传图片"
-        case .createFolder: return "创建文件夹"
-        case .renameFolder: return "重命名文件夹"
-        case .deleteFolder: return "删除文件夹"
+        case .noteCreate: return "创建笔记"
+        case .cloudUpload: return "上传笔记"
+        case .cloudDelete: return "删除笔记"
+        case .imageUpload: return "上传图片"
+        case .folderCreate: return "创建文件夹"
+        case .folderRename: return "重命名文件夹"
+        case .folderDelete: return "删除文件夹"
         }
     }
 }
 
-extension OfflineOperationStatus {
+extension OperationStatus {
     var displayName: String {
         switch self {
         case .pending: return "待处理"
         case .processing: return "处理中"
         case .completed: return "已完成"
         case .failed: return "失败"
+        case .authFailed: return "认证失败"
+        case .maxRetryExceeded: return "超过重试"
         }
     }
 }

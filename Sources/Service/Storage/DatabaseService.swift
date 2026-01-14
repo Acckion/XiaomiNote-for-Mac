@@ -115,7 +115,9 @@ final class DatabaseService: @unchecked Sendable {
         """
         executeSQL(addPinnedColumn, ignoreError: true)  // 忽略错误（如果字段已存在）
         
-        // 创建 offline_operations 表
+        // ⚠️ 废弃表：offline_operations
+        // 此表已被 unified_operations 替代，保留用于数据迁移和回滚
+        // 计划在未来版本中移除
         let createOfflineOperationsTable = """
         CREATE TABLE IF NOT EXISTS offline_operations (
             id TEXT PRIMARY KEY,
@@ -158,7 +160,9 @@ final class DatabaseService: @unchecked Sendable {
         """
         executeSQL(createPendingDeletionsTable)
         
-        // 创建 pending_uploads 表（待上传注册表）
+        // ⚠️ 废弃表：pending_uploads
+        // 此表已被 unified_operations 替代，保留用于数据迁移和回滚
+        // 计划在未来版本中移除
         let createPendingUploadsTable = """
         CREATE TABLE IF NOT EXISTS pending_uploads (
             note_id TEXT PRIMARY KEY,
@@ -167,6 +171,38 @@ final class DatabaseService: @unchecked Sendable {
         );
         """
         executeSQL(createPendingUploadsTable)
+        
+        // 创建 unified_operations 表（统一操作队列，替换 offline_operations 和 pending_uploads）
+        let createUnifiedOperationsTable = """
+        CREATE TABLE IF NOT EXISTS unified_operations (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            note_id TEXT NOT NULL,
+            data BLOB NOT NULL,
+            created_at INTEGER NOT NULL,
+            local_save_timestamp INTEGER,
+            status TEXT NOT NULL DEFAULT 'pending',
+            priority INTEGER NOT NULL DEFAULT 0,
+            retry_count INTEGER NOT NULL DEFAULT 0,
+            next_retry_at INTEGER,
+            last_error TEXT,
+            error_type TEXT,
+            is_local_id INTEGER NOT NULL DEFAULT 0
+        );
+        """
+        executeSQL(createUnifiedOperationsTable)
+        
+        // 创建 id_mappings 表（临时 ID -> 正式 ID 映射）
+        let createIdMappingsTable = """
+        CREATE TABLE IF NOT EXISTS id_mappings (
+            local_id TEXT PRIMARY KEY,
+            server_id TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            completed INTEGER NOT NULL DEFAULT 0
+        );
+        """
+        executeSQL(createIdMappingsTable)
         
         // 创建索引
         createIndexes()
@@ -181,6 +217,15 @@ final class DatabaseService: @unchecked Sendable {
         executeSQL("CREATE INDEX IF NOT EXISTS idx_offline_operations_timestamp ON offline_operations(timestamp);")
         executeSQL("CREATE INDEX IF NOT EXISTS idx_offline_operations_status ON offline_operations(status);")
         executeSQL("CREATE INDEX IF NOT EXISTS idx_offline_operations_priority ON offline_operations(priority DESC, timestamp ASC);")
+        
+        // unified_operations 表索引
+        executeSQL("CREATE INDEX IF NOT EXISTS idx_unified_operations_note_id ON unified_operations(note_id);")
+        executeSQL("CREATE INDEX IF NOT EXISTS idx_unified_operations_status ON unified_operations(status) WHERE status IN ('pending', 'failed');")
+        executeSQL("CREATE INDEX IF NOT EXISTS idx_unified_operations_retry ON unified_operations(next_retry_at) WHERE next_retry_at IS NOT NULL;")
+        executeSQL("CREATE INDEX IF NOT EXISTS idx_unified_operations_priority ON unified_operations(priority DESC, created_at ASC);")
+        
+        // id_mappings 表索引
+        executeSQL("CREATE INDEX IF NOT EXISTS idx_id_mappings_server_id ON id_mappings(server_id);")
     }
     
     /// 迁移 offline_operations 表，添加新字段
@@ -406,6 +451,107 @@ final class DatabaseService: @unchecked Sendable {
                 Swift.print("[保存流程] ❌ Tier 1 异步保存笔记失败: \(error)")
                 completion(error)
             }
+        }
+    }
+    
+    /// 更新笔记 ID
+    ///
+    /// 将临时 ID 更新为云端下发的正式 ID。
+    /// 这是一个原子操作，会更新 notes 表中的主键。
+    ///
+    /// - Parameters:
+    ///   - oldId: 旧的笔记 ID（临时 ID）
+    ///   - newId: 新的笔记 ID（正式 ID）
+    /// - Throws: DatabaseError（数据库操作失败）
+    ///
+    /// **需求覆盖**：
+    /// - 需求 8.5: 更新本地数据库中的笔记 ID
+    func updateNoteId(oldId: String, newId: String) throws {
+        try dbQueue.sync(flags: .barrier) {
+            // SQLite 不支持直接更新主键，需要使用 INSERT + DELETE 的方式
+            // 1. 先读取旧记录
+            let selectSQL = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes WHERE id = ?;"
+            
+            var selectStatement: OpaquePointer?
+            defer {
+                if selectStatement != nil {
+                    sqlite3_finalize(selectStatement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, selectSQL, -1, &selectStatement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(selectStatement, 1, (oldId as NSString).utf8String, -1, nil)
+            
+            guard sqlite3_step(selectStatement) == SQLITE_ROW else {
+                print("[Database] ⚠️ 更新笔记 ID 失败：找不到笔记 \(oldId)")
+                return
+            }
+            
+            // 读取所有字段
+            let title = String(cString: sqlite3_column_text(selectStatement, 1))
+            let content = String(cString: sqlite3_column_text(selectStatement, 2))
+            let folderId = String(cString: sqlite3_column_text(selectStatement, 3))
+            let isStarred = sqlite3_column_int(selectStatement, 4) != 0
+            let createdAt = sqlite3_column_double(selectStatement, 5)
+            let updatedAt = sqlite3_column_double(selectStatement, 6)
+            let tagsText = sqlite3_column_text(selectStatement, 7).map { String(cString: $0) }
+            let rawDataText = sqlite3_column_text(selectStatement, 8).map { String(cString: $0) }
+            
+            // 2. 插入新记录（使用新 ID）
+            let insertSQL = """
+            INSERT INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """
+            
+            var insertStatement: OpaquePointer?
+            defer {
+                if insertStatement != nil {
+                    sqlite3_finalize(insertStatement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, insertSQL, -1, &insertStatement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(insertStatement, 1, (newId as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(insertStatement, 2, (title as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(insertStatement, 3, (content as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(insertStatement, 4, (folderId as NSString).utf8String, -1, nil)
+            sqlite3_bind_int(insertStatement, 5, isStarred ? 1 : 0)
+            sqlite3_bind_double(insertStatement, 6, createdAt)
+            sqlite3_bind_double(insertStatement, 7, updatedAt)
+            sqlite3_bind_text(insertStatement, 8, tagsText, -1, nil)
+            sqlite3_bind_text(insertStatement, 9, rawDataText, -1, nil)
+            
+            guard sqlite3_step(insertStatement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            // 3. 删除旧记录
+            let deleteSQL = "DELETE FROM notes WHERE id = ?;"
+            
+            var deleteStatement: OpaquePointer?
+            defer {
+                if deleteStatement != nil {
+                    sqlite3_finalize(deleteStatement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, deleteSQL, -1, &deleteStatement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(deleteStatement, 1, (oldId as NSString).utf8String, -1, nil)
+            
+            guard sqlite3_step(deleteStatement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            print("[Database] ✅ 更新笔记 ID: \(oldId) -> \(newId)")
         }
     }
     
@@ -1446,6 +1592,490 @@ final class DatabaseService: @unchecked Sendable {
             let sql = "DELETE FROM pending_uploads;"
             executeSQL(sql)
         }
+    }
+    
+    // MARK: - 统一操作队列（UnifiedOperations）
+    
+    /// 保存统一操作
+    ///
+    /// - Parameter operation: 笔记操作
+    /// - Throws: DatabaseError（数据库操作失败）
+    func saveUnifiedOperation(_ operation: NoteOperation) throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = """
+            INSERT OR REPLACE INTO unified_operations (
+                id, type, note_id, data, created_at, local_save_timestamp,
+                status, priority, retry_count, next_retry_at, last_error, error_type, is_local_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (operation.id as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 2, (operation.type.rawValue as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 3, (operation.noteId as NSString).utf8String, -1, nil)
+            sqlite3_bind_blob(statement, 4, (operation.data as NSData).bytes, Int32(operation.data.count), nil)
+            sqlite3_bind_int64(statement, 5, Int64(operation.createdAt.timeIntervalSince1970))
+            
+            if let localSaveTimestamp = operation.localSaveTimestamp {
+                sqlite3_bind_int64(statement, 6, Int64(localSaveTimestamp.timeIntervalSince1970))
+            } else {
+                sqlite3_bind_null(statement, 6)
+            }
+            
+            sqlite3_bind_text(statement, 7, (operation.status.rawValue as NSString).utf8String, -1, nil)
+            sqlite3_bind_int(statement, 8, Int32(operation.priority))
+            sqlite3_bind_int(statement, 9, Int32(operation.retryCount))
+            
+            if let nextRetryAt = operation.nextRetryAt {
+                sqlite3_bind_int64(statement, 10, Int64(nextRetryAt.timeIntervalSince1970))
+            } else {
+                sqlite3_bind_null(statement, 10)
+            }
+            
+            if let lastError = operation.lastError {
+                sqlite3_bind_text(statement, 11, (lastError as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(statement, 11)
+            }
+            
+            if let errorType = operation.errorType {
+                sqlite3_bind_text(statement, 12, (errorType.rawValue as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(statement, 12)
+            }
+            
+            sqlite3_bind_int(statement, 13, operation.isLocalId ? 1 : 0)
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            print("[Database] 保存统一操作: \(operation.id), type: \(operation.type.rawValue), noteId: \(operation.noteId)")
+        }
+    }
+    
+    /// 获取所有统一操作
+    ///
+    /// 按优先级降序、创建时间升序排列
+    ///
+    /// - Returns: 操作数组
+    /// - Throws: DatabaseError（数据库操作失败）
+    func getAllUnifiedOperations() throws -> [NoteOperation] {
+        return try dbQueue.sync {
+            let sql = """
+            SELECT id, type, note_id, data, created_at, local_save_timestamp,
+                   status, priority, retry_count, next_retry_at, last_error, error_type, is_local_id
+            FROM unified_operations
+            ORDER BY priority DESC, created_at ASC;
+            """
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            var operations: [NoteOperation] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                if let operation = parseUnifiedOperation(from: statement) {
+                    operations.append(operation)
+                }
+            }
+            
+            return operations
+        }
+    }
+    
+    /// 获取待处理的统一操作
+    ///
+    /// 返回状态为 pending 或 failed 的操作
+    ///
+    /// - Returns: 待处理操作数组
+    /// - Throws: DatabaseError（数据库操作失败）
+    func getPendingUnifiedOperations() throws -> [NoteOperation] {
+        return try dbQueue.sync {
+            let sql = """
+            SELECT id, type, note_id, data, created_at, local_save_timestamp,
+                   status, priority, retry_count, next_retry_at, last_error, error_type, is_local_id
+            FROM unified_operations
+            WHERE status IN ('pending', 'failed')
+            ORDER BY priority DESC, created_at ASC;
+            """
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            var operations: [NoteOperation] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                if let operation = parseUnifiedOperation(from: statement) {
+                    operations.append(operation)
+                }
+            }
+            
+            return operations
+        }
+    }
+    
+    /// 获取指定笔记的待处理操作
+    ///
+    /// - Parameter noteId: 笔记 ID
+    /// - Returns: 该笔记的待处理操作数组
+    /// - Throws: DatabaseError（数据库操作失败）
+    func getUnifiedOperations(for noteId: String) throws -> [NoteOperation] {
+        return try dbQueue.sync {
+            let sql = """
+            SELECT id, type, note_id, data, created_at, local_save_timestamp,
+                   status, priority, retry_count, next_retry_at, last_error, error_type, is_local_id
+            FROM unified_operations
+            WHERE note_id = ? AND status IN ('pending', 'failed')
+            ORDER BY priority DESC, created_at ASC;
+            """
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (noteId as NSString).utf8String, -1, nil)
+            
+            var operations: [NoteOperation] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                if let operation = parseUnifiedOperation(from: statement) {
+                    operations.append(operation)
+                }
+            }
+            
+            return operations
+        }
+    }
+    
+    /// 删除统一操作
+    ///
+    /// - Parameter operationId: 操作 ID
+    /// - Throws: DatabaseError（数据库操作失败）
+    func deleteUnifiedOperation(operationId: String) throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = "DELETE FROM unified_operations WHERE id = ?;"
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (operationId as NSString).utf8String, -1, nil)
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            print("[Database] 删除统一操作: \(operationId)")
+        }
+    }
+    
+    /// 更新操作中的笔记 ID
+    ///
+    /// 用于将临时 ID 更新为正式 ID
+    ///
+    /// - Parameters:
+    ///   - oldNoteId: 旧的笔记 ID（临时 ID）
+    ///   - newNoteId: 新的笔记 ID（正式 ID）
+    /// - Throws: DatabaseError（数据库操作失败）
+    func updateNoteIdInUnifiedOperations(oldNoteId: String, newNoteId: String) throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = "UPDATE unified_operations SET note_id = ?, is_local_id = 0 WHERE note_id = ?;"
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (newNoteId as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 2, (oldNoteId as NSString).utf8String, -1, nil)
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            let changes = sqlite3_changes(db)
+            print("[Database] 更新操作中的笔记 ID: \(oldNoteId) -> \(newNoteId), 影响了 \(changes) 条操作")
+        }
+    }
+    
+    /// 清空所有统一操作
+    ///
+    /// - Throws: DatabaseError（数据库操作失败）
+    func clearAllUnifiedOperations() throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = "DELETE FROM unified_operations;"
+            executeSQL(sql)
+            print("[Database] 清空所有统一操作")
+        }
+    }
+    
+    /// 解析统一操作
+    private func parseUnifiedOperation(from statement: OpaquePointer?) -> NoteOperation? {
+        guard let statement = statement else { return nil }
+        
+        let id = String(cString: sqlite3_column_text(statement, 0))
+        let typeString = String(cString: sqlite3_column_text(statement, 1))
+        guard let type = OperationType(rawValue: typeString) else { return nil }
+        
+        let noteId = String(cString: sqlite3_column_text(statement, 2))
+        
+        // 获取 BLOB 数据
+        let dataLength = sqlite3_column_bytes(statement, 3)
+        guard let dataPointer = sqlite3_column_blob(statement, 3) else { return nil }
+        let data = Data(bytes: dataPointer, count: Int(dataLength))
+        
+        let createdAt = Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(statement, 4)))
+        
+        var localSaveTimestamp: Date? = nil
+        if sqlite3_column_type(statement, 5) != SQLITE_NULL {
+            localSaveTimestamp = Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(statement, 5)))
+        }
+        
+        let statusString = String(cString: sqlite3_column_text(statement, 6))
+        let status = OperationStatus(rawValue: statusString) ?? .pending
+        
+        let priority = Int(sqlite3_column_int(statement, 7))
+        let retryCount = Int(sqlite3_column_int(statement, 8))
+        
+        var nextRetryAt: Date? = nil
+        if sqlite3_column_type(statement, 9) != SQLITE_NULL {
+            nextRetryAt = Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(statement, 9)))
+        }
+        
+        var lastError: String? = nil
+        if sqlite3_column_type(statement, 10) != SQLITE_NULL {
+            if let errorText = sqlite3_column_text(statement, 10) {
+                lastError = String(cString: errorText)
+            }
+        }
+        
+        var errorType: OperationErrorType? = nil
+        if sqlite3_column_type(statement, 11) != SQLITE_NULL {
+            if let errorTypeText = sqlite3_column_text(statement, 11) {
+                errorType = OperationErrorType(rawValue: String(cString: errorTypeText))
+            }
+        }
+        
+        let isLocalId = sqlite3_column_int(statement, 12) != 0
+        
+        return NoteOperation(
+            id: id,
+            type: type,
+            noteId: noteId,
+            data: data,
+            createdAt: createdAt,
+            localSaveTimestamp: localSaveTimestamp,
+            status: status,
+            priority: priority,
+            retryCount: retryCount,
+            nextRetryAt: nextRetryAt,
+            lastError: lastError,
+            errorType: errorType,
+            isLocalId: isLocalId
+        )
+    }
+    
+    // MARK: - ID 映射表（IdMappings）
+    
+    // 注意：IdMapping 结构体已移至 IdMappingRegistry.swift 中定义为公共类型
+    
+    /// 保存 ID 映射
+    ///
+    /// - Parameter mapping: ID 映射记录
+    /// - Throws: DatabaseError（数据库操作失败）
+    func saveIdMapping(_ mapping: IdMapping) throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = """
+            INSERT OR REPLACE INTO id_mappings (local_id, server_id, entity_type, created_at, completed)
+            VALUES (?, ?, ?, ?, ?);
+            """
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (mapping.localId as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 2, (mapping.serverId as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 3, (mapping.entityType as NSString).utf8String, -1, nil)
+            sqlite3_bind_int64(statement, 4, Int64(mapping.createdAt.timeIntervalSince1970))
+            sqlite3_bind_int(statement, 5, mapping.completed ? 1 : 0)
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            print("[Database] 保存 ID 映射: \(mapping.localId) -> \(mapping.serverId)")
+        }
+    }
+    
+    /// 获取 ID 映射
+    ///
+    /// - Parameter localId: 临时 ID
+    /// - Returns: ID 映射记录，如果不存在则返回 nil
+    /// - Throws: DatabaseError（数据库操作失败）
+    func getIdMapping(for localId: String) throws -> IdMapping? {
+        return try dbQueue.sync {
+            let sql = "SELECT local_id, server_id, entity_type, created_at, completed FROM id_mappings WHERE local_id = ?;"
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (localId as NSString).utf8String, -1, nil)
+            
+            guard sqlite3_step(statement) == SQLITE_ROW else {
+                return nil
+            }
+            
+            return parseIdMapping(from: statement)
+        }
+    }
+    
+    /// 获取所有未完成的 ID 映射
+    ///
+    /// - Returns: 未完成的 ID 映射数组
+    /// - Throws: DatabaseError（数据库操作失败）
+    func getIncompleteIdMappings() throws -> [IdMapping] {
+        return try dbQueue.sync {
+            let sql = "SELECT local_id, server_id, entity_type, created_at, completed FROM id_mappings WHERE completed = 0;"
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            var mappings: [IdMapping] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                if let mapping = parseIdMapping(from: statement) {
+                    mappings.append(mapping)
+                }
+            }
+            
+            return mappings
+        }
+    }
+    
+    /// 标记 ID 映射为已完成
+    ///
+    /// - Parameter localId: 临时 ID
+    /// - Throws: DatabaseError（数据库操作失败）
+    func markIdMappingCompleted(localId: String) throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = "UPDATE id_mappings SET completed = 1 WHERE local_id = ?;"
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            sqlite3_bind_text(statement, 1, (localId as NSString).utf8String, -1, nil)
+            
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
+            }
+            
+            print("[Database] 标记 ID 映射完成: \(localId)")
+        }
+    }
+    
+    /// 删除已完成的 ID 映射
+    ///
+    /// - Throws: DatabaseError（数据库操作失败）
+    func deleteCompletedIdMappings() throws {
+        try dbQueue.sync(flags: .barrier) {
+            let sql = "DELETE FROM id_mappings WHERE completed = 1;"
+            executeSQL(sql)
+            print("[Database] 删除已完成的 ID 映射")
+        }
+    }
+    
+    /// 解析 ID 映射
+    private func parseIdMapping(from statement: OpaquePointer?) -> IdMapping? {
+        guard let statement = statement else { return nil }
+        
+        let localId = String(cString: sqlite3_column_text(statement, 0))
+        let serverId = String(cString: sqlite3_column_text(statement, 1))
+        let entityType = String(cString: sqlite3_column_text(statement, 2))
+        let createdAt = Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(statement, 3)))
+        let completed = sqlite3_column_int(statement, 4) != 0
+        
+        return IdMapping(
+            localId: localId,
+            serverId: serverId,
+            entityType: entityType,
+            createdAt: createdAt,
+            completed: completed
+        )
     }
 }
 

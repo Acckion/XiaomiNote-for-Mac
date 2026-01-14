@@ -127,8 +127,10 @@ final class StartupSequenceManager: ObservableObject {
     
     private let localStorage = LocalStorageService.shared
     private let onlineStateManager = OnlineStateManager.shared
-    private let offlineProcessor = OfflineOperationProcessor.shared
-    private let offlineQueue = OfflineOperationQueue.shared
+    /// 新的操作处理器（替代旧的 OfflineOperationProcessor）
+    private let operationProcessor = OperationProcessor.shared
+    /// 统一操作队列（替代旧的 OfflineOperationQueue）
+    private let unifiedQueue = UnifiedOperationQueue.shared
     private let syncService = SyncService.shared
     private let miNoteService = MiNoteService.shared
     
@@ -298,12 +300,12 @@ final class StartupSequenceManager: ObservableObject {
     /// 处理离线队列
     ///
     /// 只在网络可用且 Cookie 有效时处理队列（需求 3.1, 3.2, 3.3）
-    /// 使用 OfflineOperationProcessor 的启动时专用方法
+    /// 使用新的 OperationProcessor 处理统一操作队列
     private func processOfflineQueue() async throws {
         print("[StartupSequenceManager] 检查离线队列...")
         
-        // 获取待处理的操作
-        let pendingOperations = offlineQueue.getPendingOperations()
+        // 获取待处理的操作（使用新的 UnifiedOperationQueue）
+        let pendingOperations = unifiedQueue.getPendingOperations()
         
         if pendingOperations.isEmpty {
             print("[StartupSequenceManager] 离线队列为空，跳过处理")
@@ -312,35 +314,24 @@ final class StartupSequenceManager: ObservableObject {
         
         print("[StartupSequenceManager] 发现 \(pendingOperations.count) 个待处理操作")
         
-        // 使用 OfflineOperationProcessor 的启动时专用方法
-        // 该方法会严格检查网络和 Cookie 状态（需求 3.1, 3.2, 3.3）
-        let (processedCount, skippedReason) = await offlineProcessor.processOperationsAtStartup()
-        
-        if let reason = skippedReason {
-            print("[StartupSequenceManager] 离线队列处理被跳过: \(reason.rawValue)")
-            // 根据跳过原因决定是否记录错误
-            switch reason {
-            case .networkUnavailable:
-                print("[StartupSequenceManager] 网络不可用，保留队列中的操作（需求 3.2）")
-            case .cookieInvalid:
-                print("[StartupSequenceManager] Cookie 无效，保留队列中的操作（需求 3.3）")
-            case .notAuthenticated:
-                print("[StartupSequenceManager] 未认证，保留队列中的操作")
-            case .alreadyProcessing:
-                print("[StartupSequenceManager] 已在处理中，跳过")
-            case .emptyQueue:
-                print("[StartupSequenceManager] 队列为空")
-            }
+        // 检查网络和认证状态
+        guard onlineStateManager.isOnline else {
+            print("[StartupSequenceManager] 网络不可用，保留队列中的操作（需求 3.2）")
             return
         }
         
+        // 使用新的 OperationProcessor 处理队列
+        await operationProcessor.processQueue()
+        
         // 更新处理数量
-        startupState.processedOfflineOperationsCount = processedCount
+        let stats = unifiedQueue.getStatistics()
+        let processedCount = (stats["total"] ?? 0) - pendingOperations.count
+        startupState.processedOfflineOperationsCount = max(0, processedCount)
         
         print("[StartupSequenceManager] 处理了 \(processedCount) 个离线操作")
         
         // 检查是否有失败的操作（需求 3.5 - 失败操作保留在队列中）
-        let remainingOperations = offlineQueue.getPendingOperations()
+        let remainingOperations = unifiedQueue.getPendingOperations()
         if !remainingOperations.isEmpty {
             print("[StartupSequenceManager] 还有 \(remainingOperations.count) 个操作待处理（失败或未处理）")
         }

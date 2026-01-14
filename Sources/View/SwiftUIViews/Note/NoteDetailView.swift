@@ -1572,93 +1572,94 @@ struct NoteDetailView: View {
         var updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
         // 注意：Note模型中没有htmlContent属性，HTML缓存由DatabaseService单独管理
         
-        // 使用SaveQueueManager管理保存任务（合并相同笔记的多次保存）
-        SaveQueueManager.shared.enqueueSave(updated, priority: .normal)
-        
-        // 同时使用异步保存，不阻塞主线程（保持现有逻辑）
+        // 使用 NoteOperationCoordinator 统一管理保存
+        // NoteOperationCoordinator.saveNote() 会：
+        // 1. 同步执行本地保存
+        // 2. 创建 cloudUpload 操作到 UnifiedOperationQueue
+        // 3. 网络可用时立即处理上传
         xmlSaveTask = Task { @MainActor in
-            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                DatabaseService.shared.saveNoteAsync(updated) { error in
-                    Task { @MainActor in
-                        // 检查任务是否被取消或笔记已切换
-                        guard !Task.isCancelled && self.currentEditingNoteId == noteId else {
-                            Swift.print("[保存流程] ⏸️ Tier 1 XML保存已取消")
-                            continuation.resume()
-                            return
-                        }
-                        
-                        if let error = error {
-                            Swift.print("[保存流程] ❌ Tier 1 本地保存失败: \(error)")
-                            // _Requirements: 6.4_ - 保存失败显示"保存失败"状态
-                            let errorMessage = "保存笔记失败: \(error.localizedDescription)"
-                            self.saveStatus = .error(errorMessage)
-                            Swift.print("[保存状态] ❌ 保存失败 - 设置为错误状态")
-                            
-                            // _Requirements: 2.5, 9.1_ - 保存失败时保留编辑内容
-                            // 标记保存失败，保留内容在内存中
-                            if self.isUsingNativeEditor {
-                                self.nativeEditorContext.markSaveFailed(error: errorMessage)
-                            }
-                            // 保存失败的 XML 内容到状态变量，用于重试
-                            self.pendingRetryXMLContent = xmlContent
-                            self.pendingRetryNote = note
-                            
-                            continuation.resume()
-                            return
-                        }
-                        
-                        // 保存成功后更新状态
-                        // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
-                        // _需求: 2.2_
-                        self.lastSavedXMLContent = xmlContent
-                        self.currentXMLContent = xmlContent
-                        Swift.print("[保存流程] 📝 XML保存成功，lastSavedXMLContent 已同步 - 长度: \(self.lastSavedXMLContent.count)")
-                        
-                        // 清除重试状态
-                        self.pendingRetryXMLContent = nil
-                        self.pendingRetryNote = nil
-                        
-                        // 更新视图模型中的笔记
-                        // **Requirements: 1.1, 1.2** - 编辑笔记内容时保持选中状态不变
-                        // 由于 Note 的 Equatable 现在只比较 id，所以更新 notes 数组不会影响选择状态
-                        let oldSelectedNoteId = self.viewModel.selectedNote?.id
-                        Swift.print("[保存流程] 🔄 更新 notes 数组 - 笔记ID: \(noteId.prefix(8))..., 当前选中: \(oldSelectedNoteId?.prefix(8) ?? "nil")")
-                        
-                        if let index = self.viewModel.notes.firstIndex(where: { $0.id == noteId }) {
-                            self.viewModel.notes[index] = updated
-                            Swift.print("[保存流程] ✅ notes[\(index)] 已更新")
-                        }
-                        
-                        // 同步更新 selectedNote（如果当前选中的是这个笔记）
-                        // 这确保 selectedNote 的内容与 notes 数组中的笔记保持一致
-                        if self.viewModel.selectedNote?.id == noteId {
-                            self.viewModel.selectedNote = updated
-                            Swift.print("[保存流程] ✅ selectedNote 已同步更新")
-                        }
-                        
-                        let newSelectedNoteId = self.viewModel.selectedNote?.id
-                        Swift.print("[保存流程] 📊 更新后选中状态: \(newSelectedNoteId?.prefix(8) ?? "nil")")
-                        
-                        // 更新内存缓存
-                        await MemoryCacheManager.shared.cacheNote(updated)
-                        
-                        // _Requirements: 6.3_ - 保存完成显示"已保存"状态
-                        self.saveStatus = .saved
-                        Swift.print("[保存状态] ✅ 保存完成 - 设置为已保存")
-                        
-                        // 清除 coordinator 的未保存内容标志
-                        // **Requirements: 6.1**
-                        self.viewModel.stateCoordinator.hasUnsavedContent = false
-                        
-                        // 通知原生编辑器内容已保存
-                        if self.isUsingNativeEditor {
-                            self.nativeEditorContext.markContentSaved()
-                        }
-                        
-                        Swift.print("[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: \(noteId.prefix(8))..., 标题: \(self.editedTitle)")
-                        continuation.resume()
-                    }
+            // 检查任务是否被取消或笔记已切换
+            guard !Task.isCancelled && self.currentEditingNoteId == noteId else {
+                Swift.print("[保存流程] ⏸️ Tier 1 XML保存已取消")
+                return
+            }
+            
+            // 使用 NoteOperationCoordinator 进行保存（会自动入队到 UnifiedOperationQueue）
+            let result = await NoteOperationCoordinator.shared.saveNote(updated)
+            
+            // 检查任务是否被取消或笔记已切换
+            guard !Task.isCancelled && self.currentEditingNoteId == noteId else {
+                Swift.print("[保存流程] ⏸️ Tier 1 XML保存已取消（保存后）")
+                return
+            }
+            
+            switch result {
+            case .success:
+                // 保存成功后更新状态
+                // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+                // _需求: 2.2_
+                self.lastSavedXMLContent = xmlContent
+                self.currentXMLContent = xmlContent
+                Swift.print("[保存流程] 📝 XML保存成功，lastSavedXMLContent 已同步 - 长度: \(self.lastSavedXMLContent.count)")
+                
+                // 清除重试状态
+                self.pendingRetryXMLContent = nil
+                self.pendingRetryNote = nil
+                
+                // 更新视图模型中的笔记
+                // **Requirements: 1.1, 1.2** - 编辑笔记内容时保持选中状态不变
+                // 由于 Note 的 Equatable 现在只比较 id，所以更新 notes 数组不会影响选择状态
+                let oldSelectedNoteId = self.viewModel.selectedNote?.id
+                Swift.print("[保存流程] 🔄 更新 notes 数组 - 笔记ID: \(noteId.prefix(8))..., 当前选中: \(oldSelectedNoteId?.prefix(8) ?? "nil")")
+                
+                if let index = self.viewModel.notes.firstIndex(where: { $0.id == noteId }) {
+                    self.viewModel.notes[index] = updated
+                    Swift.print("[保存流程] ✅ notes[\(index)] 已更新")
                 }
+                
+                // 同步更新 selectedNote（如果当前选中的是这个笔记）
+                // 这确保 selectedNote 的内容与 notes 数组中的笔记保持一致
+                if self.viewModel.selectedNote?.id == noteId {
+                    self.viewModel.selectedNote = updated
+                    Swift.print("[保存流程] ✅ selectedNote 已同步更新")
+                }
+                
+                let newSelectedNoteId = self.viewModel.selectedNote?.id
+                Swift.print("[保存流程] 📊 更新后选中状态: \(newSelectedNoteId?.prefix(8) ?? "nil")")
+                
+                // 更新内存缓存
+                await MemoryCacheManager.shared.cacheNote(updated)
+                
+                // _Requirements: 6.3_ - 保存完成显示"已保存"状态
+                self.saveStatus = .saved
+                Swift.print("[保存状态] ✅ 保存完成 - 设置为已保存")
+                
+                // 清除 coordinator 的未保存内容标志
+                // **Requirements: 6.1**
+                self.viewModel.stateCoordinator.hasUnsavedContent = false
+                
+                // 通知原生编辑器内容已保存
+                if self.isUsingNativeEditor {
+                    self.nativeEditorContext.markContentSaved()
+                }
+                
+                Swift.print("[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: \(noteId.prefix(8))..., 标题: \(self.editedTitle)")
+                
+            case .failure(let error):
+                Swift.print("[保存流程] ❌ Tier 1 本地保存失败: \(error)")
+                // _Requirements: 6.4_ - 保存失败显示"保存失败"状态
+                let errorMessage = "保存笔记失败: \(error.localizedDescription)"
+                self.saveStatus = .error(errorMessage)
+                Swift.print("[保存状态] ❌ 保存失败 - 设置为错误状态")
+                
+                // _Requirements: 2.5, 9.1_ - 保存失败时保留编辑内容
+                // 标记保存失败，保留内容在内存中
+                if self.isUsingNativeEditor {
+                    self.nativeEditorContext.markSaveFailed(error: errorMessage)
+                }
+                // 保存失败的 XML 内容到状态变量，用于重试
+                self.pendingRetryXMLContent = xmlContent
+                self.pendingRetryNote = note
             }
         }
     }
@@ -1775,7 +1776,7 @@ struct NoteDetailView: View {
         Swift.print("[离线队列] 📥 网络不可用，将操作添加到离线队列 - 笔记ID: \(note.id.prefix(8))...")
         
         // 构建操作数据
-        let data: [String: Any] = [
+        let dataDict: [String: Any] = [
             "title": editedTitle.isEmpty ? note.title : editedTitle,
             "content": xmlContent,
             "folderId": note.folderId,
@@ -1783,22 +1784,24 @@ struct NoteDetailView: View {
         ]
         
         do {
-            // 使用 JSONSerialization 编码数据
-            let operationData = try JSONSerialization.data(withJSONObject: data, options: [])
-            let operation = OfflineOperation(
-                type: .updateNote,
+            // 将字典编码为 Data
+            let jsonData = try JSONSerialization.data(withJSONObject: dataDict, options: [])
+            
+            // 使用新的 UnifiedOperationQueue 创建操作
+            let operation = NoteOperation(
+                type: .cloudUpload,
                 noteId: note.id,
-                data: operationData,
-                priority: OfflineOperation.calculatePriority(for: .updateNote)
+                data: jsonData,
+                localSaveTimestamp: Date()
             )
-            try OfflineOperationQueue.shared.addOperation(operation)
-            Swift.print("[离线队列] ✅ 操作已添加到离线队列 - 笔记ID: \(note.id.prefix(8))...")
+            try UnifiedOperationQueue.shared.enqueue(operation)
+            Swift.print("[离线队列] ✅ 操作已添加到统一操作队列 - 笔记ID: \(note.id.prefix(8))...")
             
             // 更新最后上传内容记录（避免重复添加）
             lastUploadedContentByNoteId[note.id] = xmlContent
             
         } catch {
-            Swift.print("[离线队列] ❌ 添加操作到离线队列失败: \(error)")
+            Swift.print("[离线队列] ❌ 添加操作到统一操作队列失败: \(error)")
         }
     }
     

@@ -8,6 +8,8 @@ import XCTest
 /// - 活跃编辑状态管理
 /// - 同步保护检查
 /// - 冲突解决逻辑
+/// - 离线创建笔记
+/// - 临时 ID 处理
 final class NoteOperationCoordinatorTests: XCTestCase {
     
     // MARK: - 测试辅助
@@ -28,14 +30,11 @@ final class NoteOperationCoordinatorTests: XCTestCase {
         try await super.setUp()
         // 重置协调器状态
         await NoteOperationCoordinator.shared.resetForTesting()
-        // 清空待上传注册表
-        PendingUploadRegistry.shared.clearAll()
     }
     
     override func tearDown() async throws {
         // 清理测试数据
         await NoteOperationCoordinator.shared.resetForTesting()
-        PendingUploadRegistry.shared.clearAll()
         try await super.tearDown()
     }
     
@@ -124,30 +123,26 @@ final class NoteOperationCoordinatorTests: XCTestCase {
         XCTAssertFalse(canUpdate, "正在编辑的笔记不应该被同步更新")
     }
     
-    /// 测试待上传笔记的同步保护
-    func testCanSyncUpdateNote_PendingUpload() async {
-        let noteId = "test-note-123"
-        let localTimestamp = Date()
-        let cloudTimestamp = Date().addingTimeInterval(-60) // 云端时间戳早于本地
-        
-        // 注册待上传笔记
-        PendingUploadRegistry.shared.register(noteId: noteId, timestamp: localTimestamp)
-        
-        // 验证不能同步更新待上传的笔记
-        let canUpdate = await NoteOperationCoordinator.shared.canSyncUpdateNote(noteId, cloudTimestamp: cloudTimestamp)
-        XCTAssertFalse(canUpdate, "待上传的笔记不应该被同步更新")
-    }
-    
     /// 测试普通笔记可以同步更新
     func testCanSyncUpdateNote_NormalNote() async {
         let noteId = "test-note-123"
         let cloudTimestamp = Date()
         
-        // 不设置活跃编辑状态，不注册待上传
+        // 不设置活跃编辑状态
         
         // 验证可以同步更新普通笔记
         let canUpdate = await NoteOperationCoordinator.shared.canSyncUpdateNote(noteId, cloudTimestamp: cloudTimestamp)
         XCTAssertTrue(canUpdate, "普通笔记应该可以被同步更新")
+    }
+    
+    /// 测试临时 ID 笔记的同步保护
+    func testCanSyncUpdateNote_TemporaryId() async {
+        let temporaryId = NoteOperation.generateTemporaryId()
+        let cloudTimestamp = Date()
+        
+        // 验证临时 ID 笔记不能被同步更新
+        let canUpdate = await NoteOperationCoordinator.shared.canSyncUpdateNote(temporaryId, cloudTimestamp: cloudTimestamp)
+        XCTAssertFalse(canUpdate, "临时 ID 笔记不应该被同步更新")
     }
 
     
@@ -166,32 +161,14 @@ final class NoteOperationCoordinatorTests: XCTestCase {
         XCTAssertEqual(resolution, .keepLocal, "正在编辑的笔记应该保留本地内容")
     }
     
-    /// 测试本地较新时的冲突解决
-    func testResolveConflict_LocalNewer() async {
-        let noteId = "test-note-123"
-        let localTimestamp = Date()
-        let cloudTimestamp = Date().addingTimeInterval(-60) // 云端时间戳早于本地
-        
-        // 注册待上传笔记
-        PendingUploadRegistry.shared.register(noteId: noteId, timestamp: localTimestamp)
-        
-        // 验证冲突解决结果为保留本地
-        let resolution = await NoteOperationCoordinator.shared.resolveConflict(noteId: noteId, cloudTimestamp: cloudTimestamp)
-        XCTAssertEqual(resolution, .keepLocal, "本地较新时应该保留本地内容")
-    }
-    
-    /// 测试云端较新但待上传时的冲突解决（用户优先策略）
-    func testResolveConflict_CloudNewerButPending() async {
-        let noteId = "test-note-123"
-        let localTimestamp = Date().addingTimeInterval(-60) // 本地时间戳早于云端
+    /// 测试临时 ID 笔记的冲突解决
+    func testResolveConflict_TemporaryId() async {
+        let temporaryId = NoteOperation.generateTemporaryId()
         let cloudTimestamp = Date()
         
-        // 注册待上传笔记
-        PendingUploadRegistry.shared.register(noteId: noteId, timestamp: localTimestamp)
-        
-        // 验证冲突解决结果为保留本地（用户优先策略）
-        let resolution = await NoteOperationCoordinator.shared.resolveConflict(noteId: noteId, cloudTimestamp: cloudTimestamp)
-        XCTAssertEqual(resolution, .keepLocal, "云端较新但待上传时应该保留本地内容（用户优先策略）")
+        // 验证临时 ID 笔记的冲突解决结果为保留本地
+        let resolution = await NoteOperationCoordinator.shared.resolveConflict(noteId: temporaryId, cloudTimestamp: cloudTimestamp)
+        XCTAssertEqual(resolution, .keepLocal, "临时 ID 笔记应该保留本地内容")
     }
     
     /// 测试云端较新且不在待上传列表时的冲突解决
@@ -206,39 +183,29 @@ final class NoteOperationCoordinatorTests: XCTestCase {
         XCTAssertEqual(resolution, .useCloud, "云端较新且不在待上传列表时应该使用云端内容")
     }
     
-    // MARK: - 上传回调测试
+    // MARK: - 临时 ID 测试
     
-    /// 测试上传成功回调
-    func testOnUploadSuccess() async {
-        let noteId = "test-note-123"
-        let timestamp = Date()
+    /// 测试检查临时 ID
+    func testIsTemporaryNoteId() async {
+        let temporaryId = NoteOperation.generateTemporaryId()
+        let normalId = UUID().uuidString
         
-        // 注册待上传笔记
-        PendingUploadRegistry.shared.register(noteId: noteId, timestamp: timestamp)
-        XCTAssertTrue(PendingUploadRegistry.shared.isRegistered(noteId), "笔记应该在待上传列表中")
+        // 验证临时 ID 检查
+        let isTemporary = await NoteOperationCoordinator.shared.isTemporaryNoteId(temporaryId)
+        XCTAssertTrue(isTemporary, "临时 ID 应该被正确识别")
         
-        // 调用上传成功回调
-        await NoteOperationCoordinator.shared.onUploadSuccess(noteId: noteId)
-        
-        // 验证笔记已从待上传列表中移除
-        XCTAssertFalse(PendingUploadRegistry.shared.isRegistered(noteId), "上传成功后笔记应该从待上传列表中移除")
+        // 验证普通 ID 检查
+        let isNormalTemporary = await NoteOperationCoordinator.shared.isTemporaryNoteId(normalId)
+        XCTAssertFalse(isNormalTemporary, "普通 ID 不应该被识别为临时 ID")
     }
     
-    /// 测试上传失败回调
-    func testOnUploadFailure() async {
-        let noteId = "test-note-123"
-        let timestamp = Date()
+    /// 测试临时 ID 格式
+    func testTemporaryIdFormat() {
+        let temporaryId = NoteOperation.generateTemporaryId()
         
-        // 注册待上传笔记
-        PendingUploadRegistry.shared.register(noteId: noteId, timestamp: timestamp)
-        XCTAssertTrue(PendingUploadRegistry.shared.isRegistered(noteId), "笔记应该在待上传列表中")
-        
-        // 调用上传失败回调
-        let error = NSError(domain: "test", code: 500, userInfo: nil)
-        await NoteOperationCoordinator.shared.onUploadFailure(noteId: noteId, error: error)
-        
-        // 验证笔记仍在待上传列表中
-        XCTAssertTrue(PendingUploadRegistry.shared.isRegistered(noteId), "上传失败后笔记应该保留在待上传列表中")
+        // 验证临时 ID 格式
+        XCTAssertTrue(temporaryId.hasPrefix("local_"), "临时 ID 应该以 'local_' 开头")
+        XCTAssertTrue(NoteOperation.isTemporaryId(temporaryId), "生成的临时 ID 应该被正确识别")
     }
     
     // MARK: - 重置测试

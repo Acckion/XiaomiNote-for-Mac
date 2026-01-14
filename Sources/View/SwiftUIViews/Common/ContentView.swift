@@ -556,8 +556,29 @@ public struct ContentView: View {
                     .font(.caption2)
                     .foregroundColor(statusColor)
                 
-                // 显示待处理操作数量（如果有）
-                if viewModel.pendingOperationsCount > 0 {
+                // 显示统一操作队列待上传数量（优先显示）
+                // _需求: 6.2_
+                if viewModel.unifiedPendingUploadCount > 0 {
+                    HStack(spacing: 2) {
+                        Image(systemName: "arrow.up.circle")
+                            .font(.system(size: 8))
+                        Text("\(viewModel.unifiedPendingUploadCount)")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.orange)
+                }
+                // 显示临时 ID 笔记数量（离线创建）
+                else if viewModel.temporaryIdNoteCount > 0 {
+                    HStack(spacing: 2) {
+                        Image(systemName: "doc.badge.clock")
+                            .font(.system(size: 8))
+                        Text("\(viewModel.temporaryIdNoteCount)")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.purple)
+                }
+                // 兼容旧的离线操作队列
+                else if viewModel.pendingOperationsCount > 0 {
                     Text("(\(viewModel.pendingOperationsCount))")
                         .font(.caption2)
                         .foregroundColor(.orange)

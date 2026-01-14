@@ -180,10 +180,11 @@ extension MainWindowToolbarDelegate: NSMenuDelegate {
             if item.tag == 100 { // 在线状态项
                 item.attributedTitle = getOnlineStatusAttributedTitle()
             } else if item.tag == 200 { // 离线操作状态项
-                // 更新离线操作状态
-                let offlineQueue = OfflineOperationQueue.shared
-                let pendingCount = offlineQueue.getPendingOperations().count
-                let failedCount = OfflineOperationProcessor.shared.failedOperations.count
+                // 更新离线操作状态（使用新的 UnifiedOperationQueue）
+                let unifiedQueue = UnifiedOperationQueue.shared
+                let stats = unifiedQueue.getStatistics()
+                let pendingCount = stats["pending"] ?? 0
+                let failedCount = stats["failed"] ?? 0
                 
                 if pendingCount > 0 {
                     if failedCount > 0 {

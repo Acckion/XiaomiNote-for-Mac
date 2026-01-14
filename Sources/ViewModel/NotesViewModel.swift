@@ -250,9 +250,39 @@ public class NotesViewModel: ObservableObject {
     
     // MARK: - 离线操作状态
     
-    /// 待处理的离线操作数量
+    /// 待处理的离线操作数量（使用新的 UnifiedOperationQueue）
     var pendingOperationsCount: Int {
-        offlineQueue.getPendingOperations().count
+        unifiedQueue.getPendingOperations().count
+    }
+    
+    /// 统一操作队列待上传数量
+    /// _需求: 6.1, 6.2_
+    var unifiedPendingUploadCount: Int {
+        unifiedQueue.getPendingUploadCount()
+    }
+    
+    /// 统一操作队列所有待上传笔记 ID
+    /// _需求: 6.1_
+    var unifiedPendingNoteIds: [String] {
+        unifiedQueue.getAllPendingNoteIds()
+    }
+    
+    /// 临时 ID 笔记数量（离线创建的笔记）
+    /// _需求: 6.1_
+    var temporaryIdNoteCount: Int {
+        unifiedQueue.getTemporaryIdNoteCount()
+    }
+    
+    /// 检查笔记是否有待处理上传
+    /// _需求: 6.2_
+    func hasPendingUpload(for noteId: String) -> Bool {
+        unifiedQueue.hasPendingUpload(for: noteId)
+    }
+    
+    /// 检查笔记是否使用临时 ID（离线创建）
+    /// _需求: 6.2_
+    func isTemporaryIdNote(_ noteId: String) -> Bool {
+        NoteOperation.isTemporaryId(noteId)
     }
     
     /// 是否正在处理离线操作
@@ -304,8 +334,12 @@ public class NotesViewModel: ObservableObject {
     /// 网络监控服务
     private let networkMonitor = NetworkMonitor.shared
     
-    /// 离线操作队列
-    private let offlineQueue = OfflineOperationQueue.shared
+    /// 统一操作队列（新的队列，用于主要功能）
+    private let unifiedQueue = UnifiedOperationQueue.shared
+    
+    /// 旧的离线操作队列（已废弃，仅用于兼容旧的文件夹操作等逻辑）
+    @available(*, deprecated, message: "使用 unifiedQueue 替代")
+    private let legacyOfflineQueue = OfflineOperationQueue.shared
     
     /// Combine订阅集合
     private var cancellables = Set<AnyCancellable>()
@@ -610,6 +644,22 @@ public class NotesViewModel: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in
                 await self?.handleCookieRefreshSuccess()
+            }
+        }
+        
+        // 监听 ID 映射完成通知
+        // _Requirements: 8.7_ - 更新 UI 中的笔记引用（selectedNote 等）
+        NotificationCenter.default.addObserver(
+            forName: IdMappingRegistry.idMappingCompletedNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            // 提取通知中的 ID 映射信息
+            let localId = notification.userInfo?["localId"] as? String ?? ""
+            let serverId = notification.userInfo?["serverId"] as? String ?? ""
+            let entityType = notification.userInfo?["entityType"] as? String ?? ""
+            Task { @MainActor in
+                self?.handleIdMappingCompleted(localId: localId, serverId: serverId, entityType: entityType)
             }
         }
         
@@ -1039,8 +1089,8 @@ public class NotesViewModel: ObservableObject {
         print("[OfflineQueue] 统一处理错误并添加到离线队列: \(operationType.rawValue), noteId: \(noteId), context: \(context)")
         
         // 使用 ErrorRecoveryService 统一处理错误（需求 8.1, 8.7）
-        // 获取当前重试次数（从离线队列中查找）
-        let pendingOps = offlineQueue.getPendingOperations()
+        // 获取当前重试次数（从旧的离线队列中查找）
+        let pendingOps = legacyOfflineQueue.getPendingOperations()
         let existingOp = pendingOps.first { $0.noteId == noteId && $0.type == operationType }
         let currentRetryCount = existingOp?.retryCount ?? 0
         
@@ -1101,7 +1151,7 @@ public class NotesViewModel: ObservableObject {
                 data: operationData,
                 priority: operationPriority
             )
-            try offlineQueue.addOperation(operation)
+            try legacyOfflineQueue.addOperation(operation)
             return true
         } catch {
             print("[OfflineQueue] ❌ 编码操作数据失败: \(error)")
@@ -1180,7 +1230,8 @@ public class NotesViewModel: ObservableObject {
             return
         }
         
-        let operations = offlineQueue.getPendingOperations()
+        // 使用旧的离线队列处理待处理操作（因为这些操作使用旧的 OfflineOperation 类型）
+        let operations = legacyOfflineQueue.getPendingOperations()
         guard !operations.isEmpty else {
             print("[VIEWMODEL] 没有待处理的离线操作")
             return
@@ -1210,7 +1261,7 @@ public class NotesViewModel: ObservableObject {
                 }
                 
                 // 操作成功，移除
-                try offlineQueue.removeOperation(operation.id)
+                try legacyOfflineQueue.removeOperation(operation.id)
                 print("[VIEWMODEL] ✅ 成功处理离线操作: \(operation.type.rawValue), noteId: \(operation.noteId)")
             } catch {
                 handleOfflineOperationError(operation, error: error, context: "处理离线操作")
@@ -2135,6 +2186,71 @@ public class NotesViewModel: ObservableObject {
         }
     }
     
+    /// 处理 ID 映射完成通知
+    ///
+    /// 当离线创建的笔记上传成功后，临时 ID 会被替换为云端下发的正式 ID。
+    /// 此方法更新 ViewModel 中的相关引用。
+    ///
+    /// - Parameters:
+    ///   - localId: 临时 ID（格式：local_xxx）
+    ///   - serverId: 云端下发的正式 ID
+    ///   - entityType: 实体类型（"note" 或 "folder"）
+    ///
+    /// **需求覆盖**：
+    /// - 需求 8.7: 更新 UI 中的笔记引用（selectedNote 等）
+    private func handleIdMappingCompleted(localId: String, serverId: String, entityType: String) {
+        print("[NotesViewModel] 🔄 处理 ID 映射完成: \(localId.prefix(16))... -> \(serverId.prefix(8))... (\(entityType))")
+        
+        guard entityType == "note" else {
+            // 文件夹 ID 映射暂不处理
+            print("[NotesViewModel] ⏭️ 跳过文件夹 ID 映射")
+            return
+        }
+        
+        // 1. 更新 selectedNote
+        if selectedNote?.id == localId {
+            // 创建新的笔记对象，使用正式 ID
+            if var updatedNote = selectedNote {
+                updatedNote = Note(
+                    id: serverId,
+                    title: updatedNote.title,
+                    content: updatedNote.content,
+                    folderId: updatedNote.folderId,
+                    isStarred: updatedNote.isStarred,
+                    createdAt: updatedNote.createdAt,
+                    updatedAt: updatedNote.updatedAt,
+                    tags: updatedNote.tags,
+                    rawData: updatedNote.rawData
+                )
+                selectedNote = updatedNote
+                print("[NotesViewModel] ✅ 更新 selectedNote ID: \(localId.prefix(16))... -> \(serverId.prefix(8))...")
+            }
+        }
+        
+        // 2. 更新 notes 数组中的引用
+        if let index = notes.firstIndex(where: { $0.id == localId }) {
+            let oldNote = notes[index]
+            let updatedNote = Note(
+                id: serverId,
+                title: oldNote.title,
+                content: oldNote.content,
+                folderId: oldNote.folderId,
+                isStarred: oldNote.isStarred,
+                createdAt: oldNote.createdAt,
+                updatedAt: oldNote.updatedAt,
+                tags: oldNote.tags,
+                rawData: oldNote.rawData
+            )
+            notes[index] = updatedNote
+            print("[NotesViewModel] ✅ 更新 notes 数组中的笔记 ID: \(localId.prefix(16))... -> \(serverId.prefix(8))...")
+        }
+        
+        // 3. 通知 UI 更新
+        objectWillChange.send()
+        
+        print("[NotesViewModel] ✅ ID 映射处理完成")
+    }
+    
     /// 清除示例数据（如果有）
     /// 
     /// 检查当前笔记是否为示例数据，如果是则清除
@@ -2340,9 +2456,10 @@ public class NotesViewModel: ObservableObject {
             }
             
             // 🛡️ 统一操作队列集成：检查笔记是否在待上传列表中
+            // 使用 UnifiedOperationQueue 替代废弃的 PendingUploadRegistry
             let isPendingUpload: Bool
             if let noteId = currentSelectedNoteId {
-                isPendingUpload = PendingUploadRegistry.shared.isRegistered(noteId)
+                isPendingUpload = UnifiedOperationQueue.shared.hasPendingUpload(for: noteId)
             } else {
                 isPendingUpload = false
             }
@@ -2483,14 +2600,47 @@ public class NotesViewModel: ObservableObject {
     /// **统一接口**：推荐使用此方法创建笔记，而不是直接调用API
     /// 
     /// **特性**：
-    /// - 支持离线模式：如果离线，会保存到本地并添加到离线队列
+    /// - 支持离线模式：如果离线，使用 NoteOperationCoordinator.createNoteOffline() 创建临时 ID 笔记
     /// - 自动处理ID变更：如果服务器返回新的ID，会自动更新本地笔记
     /// - 自动更新UI：创建后会自动更新笔记列表和文件夹计数
+    /// 
+    /// **统一操作队列集成**：
+    /// - 离线时使用 NoteOperationCoordinator.createNoteOffline() 生成临时 ID
+    /// - 在线时直接调用 API 创建笔记
+    /// - 需求 8.1: 离线时调用 createNoteOffline()
     /// 
     /// - Parameter note: 要创建的笔记对象
     /// - Throws: 创建失败时抛出错误（网络错误、认证错误等）
     public func createNote(_ note: Note) async throws {
-        // 先保存到本地（无论在线还是离线）
+        // 检查是否离线或未认证
+        // 需求 8.1: 离线时调用 createNoteOffline()，在线时直接创建
+        if !isOnline || !service.isAuthenticated() {
+            // 离线模式：使用 NoteOperationCoordinator 创建临时 ID 笔记
+            print("[VIEWMODEL] 📴 离线模式：使用 NoteOperationCoordinator.createNoteOffline()")
+            
+            do {
+                let offlineNote = try await NoteOperationCoordinator.shared.createNoteOffline(
+                    title: note.title,
+                    content: note.content,
+                    folderId: note.folderId
+                )
+                
+                // 更新视图数据
+                if !notes.contains(where: { $0.id == offlineNote.id }) {
+                    notes.append(offlineNote)
+                }
+                selectedNote = offlineNote
+                updateFolderCounts()
+                
+                print("[VIEWMODEL] ✅ 离线笔记创建成功，临时 ID: \(offlineNote.id.prefix(16))...")
+            } catch {
+                print("[VIEWMODEL] ❌ 离线笔记创建失败: \(error)")
+                throw error
+            }
+            return
+        }
+        
+        // 在线模式：先保存到本地，然后上传到云端
         try localStorage.saveNote(note)
         
         // 更新视图数据
@@ -2499,23 +2649,6 @@ public class NotesViewModel: ObservableObject {
         }
         selectedNote = note
         updateFolderCounts()
-        
-        // 如果离线或未认证，添加到离线队列
-        if !isOnline || !service.isAuthenticated() {
-            let operationData = try JSONEncoder().encode([
-                "title": note.title,
-                "content": note.content,
-                "folderId": note.folderId
-            ])
-            let operation = OfflineOperation(
-                type: .createNote,
-                noteId: note.id,
-                data: operationData
-            )
-            try offlineQueue.addOperation(operation)
-            print("[VIEWMODEL] 离线模式：笔记已保存到本地，等待同步: \(note.id)")
-            return
-        }
         
         // 在线模式：尝试上传到云端
         isLoading = true
@@ -2620,11 +2753,11 @@ public class NotesViewModel: ObservableObject {
                     )
                     
                     // 更新笔记列表
-                if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
-                    if index < self.notes.count {
-                        self.notes[index] = updatedNote
+                    if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                        if index < self.notes.count {
+                            self.notes[index] = updatedNote
+                        }
                     }
-                }
                     
                     // 保存更新后的笔记
                     try localStorage.saveNote(updatedNote)
@@ -2660,14 +2793,17 @@ public class NotesViewModel: ObservableObject {
     /// **统一接口**：推荐使用此方法更新笔记，而不是直接调用API
     /// 
     /// **特性**：
-    /// - 支持离线模式：如果离线，会保存到本地并添加到离线队列
+    /// - 支持离线模式：如果离线，会保存到本地并添加到 UnifiedOperationQueue
     /// - 自动获取最新tag：更新前会从服务器获取最新的tag，避免并发冲突
     /// - 自动更新UI：更新后会自动更新笔记列表
     /// 
     /// **统一操作队列集成**：
     /// - 使用 NoteOperationCoordinator 进行保存
-    /// - 自动注册到 PendingUploadRegistry
-    /// - 防抖上传机制
+    /// - 自动创建 cloudUpload 操作到 UnifiedOperationQueue
+    /// - 网络可用时立即处理上传
+    /// 
+    /// **需求覆盖**：
+    /// - 需求 2.1: 本地保存完成且网络可用时立即尝试上传
     /// 
     /// - Parameter note: 要更新的笔记对象
     /// - Throws: 更新失败时抛出错误（网络错误、认证错误等）
@@ -2678,7 +2814,7 @@ public class NotesViewModel: ObservableObject {
         let noteToSave = mergeWithLocalData(note)
         
         // 🛡️ 统一操作队列集成：使用 NoteOperationCoordinator 进行保存
-        // 这会自动注册到 PendingUploadRegistry 并触发防抖上传
+        // 需求 2.1: 本地保存后创建 cloudUpload 操作，网络可用时立即处理
         let saveResult = await NoteOperationCoordinator.shared.saveNote(noteToSave)
         
         switch saveResult {
@@ -2697,10 +2833,10 @@ public class NotesViewModel: ObservableObject {
             throw error
         }
         
-        // 2. 检查同步状态（云端上传由 NoteOperationCoordinator 的防抖机制处理）
-        // 如果离线，操作已经被添加到离线队列
+        // 2. 检查同步状态（云端上传由 NoteOperationCoordinator 自动处理）
+        // 如果离线，操作已经被添加到 UnifiedOperationQueue
         guard isOnline && service.isAuthenticated() else {
-            print("[VIEWMODEL] 📴 离线模式，等待网络恢复后上传")
+            print("[VIEWMODEL] 📴 离线模式，操作已加入 UnifiedOperationQueue 等待网络恢复")
             return
         }
     }
@@ -2935,9 +3071,10 @@ public class NotesViewModel: ObservableObject {
             "tag": note.rawData?["tag"] as? String ?? note.id
         ]
         
-        // 获取当前重试次数（从离线队列中查找）
-        let pendingOps = offlineQueue.getPendingOperations()
-        let existingOp = pendingOps.first { $0.noteId == note.id && $0.type == .updateNote }
+        // 获取当前重试次数（从统一操作队列中查找）
+        // 注意：新的 NoteOperation 使用 cloudUpload 类型代替旧的 updateNote
+        let pendingOps = unifiedQueue.getPendingOperations()
+        let existingOp = pendingOps.first { $0.noteId == note.id && $0.type == .cloudUpload }
         let currentRetryCount = existingOp?.retryCount ?? 0
         
         let result = ErrorRecoveryService.shared.handleNetworkError(
@@ -3153,6 +3290,42 @@ public class NotesViewModel: ObservableObject {
     }
     
     func deleteNote(_ note: Note) {
+        // 检查是否为临时 ID 笔记（离线创建的笔记）
+        // 需求 8.8: 临时 ID 笔记被删除时取消 noteCreate 操作
+        if NoteOperation.isTemporaryId(note.id) {
+            print("[VIEWMODEL] 🗑️ 删除临时 ID 笔记: \(note.id.prefix(16))...")
+            
+            // 1. 先在本地删除（UI 更新）
+            if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                if index < self.notes.count {
+                    self.notes.remove(at: index)
+                }
+                
+                // 更新文件夹计数
+                if let folderIndex = folders.firstIndex(where: { $0.id == note.folderId }) {
+                    folders[folderIndex].count = max(0, folders[folderIndex].count - 1)
+                }
+                
+                // 如果删除的是当前选中的笔记，清空选择
+                if selectedNote?.id == note.id {
+                    selectedNote = nil
+                }
+            }
+            
+            // 2. 使用 NoteOperationCoordinator 删除临时 ID 笔记
+            // 这会取消 noteCreate 操作并删除本地笔记
+            Task {
+                do {
+                    try await NoteOperationCoordinator.shared.deleteTemporaryNote(note.id)
+                    print("[VIEWMODEL] ✅ 临时 ID 笔记删除成功: \(note.id.prefix(16))...")
+                } catch {
+                    print("[VIEWMODEL] ❌ 临时 ID 笔记删除失败: \(error)")
+                }
+            }
+            return
+        }
+        
+        // 正常笔记删除流程
         // 1. 先在本地删除
         if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
             if index < self.notes.count {
@@ -3509,7 +3682,7 @@ public class NotesViewModel: ObservableObject {
                 noteId: tempFolderId, // 对于文件夹操作，使用 folderId
                 data: operationData
             )
-            try offlineQueue.addOperation(operation)
+            try legacyOfflineQueue.addOperation(operation)
             print("[VIEWMODEL] 离线模式：文件夹已保存到本地，等待同步: \(tempFolderId)")
             // 刷新文件夹列表
             loadFolders()
@@ -3722,7 +3895,7 @@ public class NotesViewModel: ObservableObject {
                 noteId: folder.id, // 对于文件夹操作，使用 folderId
                 data: operationData
             )
-            try offlineQueue.addOperation(operation)
+            try legacyOfflineQueue.addOperation(operation)
             print("[FolderRename] ✅ 离线重命名操作已添加到队列: \(folder.id)")
             print("[FolderRename] ========== 离线模式处理完成 ==========")
             return
@@ -3939,7 +4112,7 @@ public class NotesViewModel: ObservableObject {
                 noteId: folder.id,
                 data: operationData
             )
-            try offlineQueue.addOperation(operation)
+            try legacyOfflineQueue.addOperation(operation)
             print("[VIEWMODEL] ✅ 离线删除操作已添加到队列: \(folder.id)")
             
             // 刷新文件夹列表和笔记列表
@@ -4006,7 +4179,7 @@ public class NotesViewModel: ObservableObject {
                     noteId: folder.id,
                     data: operationData
                 )
-                try? offlineQueue.addOperation(operation)
+                try? legacyOfflineQueue.addOperation(operation)
                 print("[VIEWMODEL] 云端删除失败，已保存到离线队列等待重试: \(folder.id)")
             }
             throw error

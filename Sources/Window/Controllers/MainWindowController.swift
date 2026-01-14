@@ -958,10 +958,11 @@ extension MainWindowController: NSMenuDelegate {
             if item.tag == 100 { // 在线状态项
                 item.attributedTitle = getOnlineStatusAttributedTitle()
             } else if item.tag == 200 { // 离线操作状态项
-                // 更新离线操作状态
-                let offlineQueue = OfflineOperationQueue.shared
-                let pendingCount = offlineQueue.getPendingOperations().count
-                let failedCount = OfflineOperationProcessor.shared.failedOperations.count
+                // 更新离线操作状态（使用新的 UnifiedOperationQueue）
+                let unifiedQueue = UnifiedOperationQueue.shared
+                let stats = unifiedQueue.getStatistics()
+                let pendingCount = stats["pending"] ?? 0
+                let failedCount = stats["failed"] ?? 0
                 
                 if pendingCount > 0 {
                     if failedCount > 0 {
@@ -1917,10 +1918,10 @@ extension MainWindowController {
     @objc func processOfflineOperations(_ sender: Any?) {
         print("处理离线操作")
         
-        // 检查是否有待处理的离线操作
-        let processor = OfflineOperationProcessor.shared
-        let offlineQueue = OfflineOperationQueue.shared
-        let pendingCount = processor.failedOperations.count + offlineQueue.getPendingOperations().count
+        // 检查是否有待处理的离线操作（使用新的 UnifiedOperationQueue）
+        let unifiedQueue = UnifiedOperationQueue.shared
+        let stats = unifiedQueue.getStatistics()
+        let pendingCount = (stats["pending"] ?? 0) + (stats["failed"] ?? 0)
         
         if pendingCount == 0 {
             let alert = NSAlert()
@@ -1942,9 +1943,9 @@ extension MainWindowController {
         
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
-            // 开始处理离线操作
+            // 开始处理离线操作（使用新的 OperationProcessor）
             Task {
-                await processor.processOperations()
+                await OperationProcessor.shared.processQueue()
             }
         }
     }
@@ -2023,9 +2024,10 @@ extension MainWindowController {
     @objc func retryFailedOperations(_ sender: Any?) {
         print("重试失败的操作")
         
-        // 检查是否有失败的离线操作
-        let processor = OfflineOperationProcessor.shared
-        let failedCount = processor.failedOperations.count
+        // 检查是否有失败的离线操作（使用新的 UnifiedOperationQueue）
+        let unifiedQueue = UnifiedOperationQueue.shared
+        let stats = unifiedQueue.getStatistics()
+        let failedCount = stats["failed"] ?? 0
         
         if failedCount == 0 {
             let alert = NSAlert()
@@ -2047,9 +2049,9 @@ extension MainWindowController {
         
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
-            // 重试失败的操作
+            // 重试失败的操作（使用新的 OperationProcessor）
             Task {
-                await processor.retryFailedOperations()
+                await OperationProcessor.shared.processRetries()
             }
         }
     }

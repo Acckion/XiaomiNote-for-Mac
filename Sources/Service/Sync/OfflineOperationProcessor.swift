@@ -11,6 +11,13 @@ import Combine
 /// - 启动时条件检查（网络可用且 Cookie 有效）
 /// 
 /// 遵循需求 3.1, 3.2, 3.3, 3.4, 3.5
+///
+/// - Important: 此类已废弃，请使用 `OperationProcessor` 替代。
+///   迁移指南：
+///   - `processOperations()` → `OperationProcessor.shared.processQueue()`
+///   - `retryFailedOperations()` → `OperationProcessor.shared.processRetries()`
+///   - `failedOperations` → 使用 `UnifiedOperationQueue.shared.getStatistics()["failed"]`
+@available(*, deprecated, message: "请使用 OperationProcessor 替代")
 @MainActor
 public final class OfflineOperationProcessor: ObservableObject {
     public static let shared = OfflineOperationProcessor()
@@ -526,6 +533,9 @@ public final class OfflineOperationProcessor: ObservableObject {
         }
         
         print("[OfflineProcessor] ✅ 成功创建笔记: \(operation.noteId) -> \(serverNoteId)")
+        
+        // 通知 NoteOperationCoordinator 上传成功，注销待上传状态
+        await NoteOperationCoordinator.shared.onUploadSuccess(noteId: operation.noteId)
     }
     
     /// 处理更新笔记操作
@@ -584,6 +594,9 @@ public final class OfflineOperationProcessor: ObservableObject {
         }
         
         print("[OfflineProcessor] ✅ 成功更新笔记: \(operation.noteId)")
+        
+        // 通知 NoteOperationCoordinator 上传成功，注销待上传状态
+        await NoteOperationCoordinator.shared.onUploadSuccess(noteId: operation.noteId)
     }
     
     /// 冲突解决结果

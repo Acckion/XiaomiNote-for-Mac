@@ -20,9 +20,14 @@ final class SyncService: @unchecked Sendable {
     /// 本地存储服务
     private let localStorage = LocalStorageService.shared
     
-    /// 同步保护过滤器
-    /// 用于检查笔记是否应该被同步跳过（正在编辑或待上传）
-    private let syncProtectionFilter = SyncProtectionFilter()
+    /// 同步保护器
+    /// 用于检查笔记是否应该被同步跳过（正在编辑、待上传或临时 ID）
+    /// 替代旧的 SyncProtectionFilter，使用 UnifiedOperationQueue 作为数据源
+    private let syncGuard = SyncGuard()
+    
+    /// 旧的离线操作队列（已废弃，仅用于兼容旧的文件夹操作等逻辑）
+    @available(*, deprecated, message: "使用 UnifiedOperationQueue 替代")
+    private let legacyOfflineQueue = OfflineOperationQueue.shared
     
     // MARK: - 同步状态
     
@@ -181,11 +186,17 @@ final class SyncService: @unchecked Sendable {
         var syncTag = ""
         
         do {
-            // 1. 清除所有本地数据
+            // 1. 清除所有本地数据（保护临时 ID 笔记）
             syncStatusMessage = "清除所有本地数据..."
             print("[SYNC] 清除所有本地笔记和文件夹")
             let localNotes = try localStorage.getAllLocalNotes()
             for note in localNotes {
+                // 🛡️ 保护临时 ID 笔记（离线创建的笔记）
+                // 这些笔记尚未上传到云端，不应该被删除
+                if NoteOperation.isTemporaryId(note.id) {
+                    print("[SYNC] 🛡️ 保护临时 ID 笔记: \(note.id.prefix(8))... - \(note.title)")
+                    continue
+                }
                 try localStorage.deleteNote(noteId: note.id)
             }
             let localFolders = try localStorage.loadFolders()
@@ -891,8 +902,8 @@ final class SyncService: @unchecked Sendable {
     ///   - cloudFolders: 云端文件夹列表
     ///   - cloudFolderIds: 云端文件夹ID集合（用于快速查找）
     private func syncFoldersIncremental(cloudFolders: [Folder], cloudFolderIds: Set<String>) async throws {
-        let offlineQueue = OfflineOperationQueue.shared
-        let pendingOps = offlineQueue.getPendingOperations()
+        // 使用旧的离线操作队列（文件夹操作尚未迁移到新队列）
+        let pendingOps = legacyOfflineQueue.getPendingOperations()
         let localFolders = try localStorage.loadFolders()
         
         for cloudFolder in cloudFolders {
@@ -926,7 +937,7 @@ final class SyncService: @unchecked Sendable {
                             noteId: localFolder.id,
                             data: data
                         )
-                        try offlineQueue.addOperation(operation)
+                        try legacyOfflineQueue.addOperation(operation)
                         print("[SYNC] 文件夹本地较新，已添加到上传队列: \(localFolder.name)")
                     }
                 } else {
@@ -973,24 +984,25 @@ final class SyncService: @unchecked Sendable {
     /// - Returns: 同步结果，包含同步状态和消息
     private func syncNoteIncremental(cloudNote: Note) async throws -> NoteSyncResult {
         var result = NoteSyncResult(noteId: cloudNote.id, noteTitle: cloudNote.title)
-        let offlineQueue = OfflineOperationQueue.shared
-        let pendingOps = offlineQueue.getPendingOperations()
+        // 使用旧的离线操作队列（笔记同步操作尚未完全迁移到新队列）
+        let pendingOps = legacyOfflineQueue.getPendingOperations()
         
-        // 🛡️ 同步保护检查：检查笔记是否应该被跳过
-        let shouldSkip = await syncProtectionFilter.shouldSkipSync(
+        // 🛡️ 同步保护检查：使用 SyncGuard 检查笔记是否应该被跳过
+        // 包括：临时 ID 笔记、正在编辑、待上传等情况
+        let shouldSkip = await syncGuard.shouldSkipSync(
             noteId: cloudNote.id,
             cloudTimestamp: cloudNote.updatedAt
         )
         if shouldSkip {
             // 获取跳过原因用于日志
-            if let skipReason = await syncProtectionFilter.getSkipReason(
+            if let skipReason = await syncGuard.getSkipReason(
                 noteId: cloudNote.id,
                 cloudTimestamp: cloudNote.updatedAt
             ) {
                 print("[SYNC] 🛡️ 同步保护：跳过笔记 \(cloudNote.id.prefix(8))... - \(skipReason.description)")
             }
             result.status = .skipped
-            result.message = "同步保护：笔记正在编辑或待上传"
+            result.message = "同步保护：笔记正在编辑、待上传或使用临时 ID"
             result.success = true
             return result
         }
@@ -1015,7 +1027,7 @@ final class SyncService: @unchecked Sendable {
                         noteId: localNote.id,
                         data: data
                     )
-                    try offlineQueue.addOperation(operation)
+                    try legacyOfflineQueue.addOperation(operation)
                     print("[SYNC] 笔记本地较新，已添加到上传队列: \(localNote.title)")
                 }
                 result.status = .skipped
@@ -1172,13 +1184,20 @@ final class SyncService: @unchecked Sendable {
     ///   - cloudNoteIds: 云端笔记ID集合
     ///   - cloudFolderIds: 云端文件夹ID集合
     private func syncLocalOnlyItems(cloudNoteIds: Set<String>, cloudFolderIds: Set<String>) async throws {
-        let offlineQueue = OfflineOperationQueue.shared
-        let pendingOps = offlineQueue.getPendingOperations()
+        // 使用旧的离线操作队列（同步操作尚未完全迁移到新队列）
+        let pendingOps = legacyOfflineQueue.getPendingOperations()
         let localNotes = try localStorage.getAllLocalNotes()
         let localFolders = try localStorage.loadFolders()
         
         // 处理本地独有的笔记
         for localNote in localNotes {
+            // 🛡️ 跳过临时 ID 笔记（离线创建的笔记）
+            // 临时 ID 笔记不会出现在云端，需要等待 noteCreate 操作完成后才能同步
+            if NoteOperation.isTemporaryId(localNote.id) {
+                print("[SYNC] 🛡️ 跳过临时 ID 笔记: \(localNote.id.prefix(8))... - \(localNote.title)")
+                continue
+            }
+            
             if !cloudNoteIds.contains(localNote.id) {
                 // 情况3：只有本地存在，云端不存在
                 // 3.1 检查离线新建队列
@@ -1980,21 +1999,22 @@ final class SyncService: @unchecked Sendable {
         print("[SYNC] 处理有修改的笔记: \(note.id) - \(note.title)")
         var result = NoteSyncResult(noteId: note.id, noteTitle: note.title)
         
-        // 🛡️ 同步保护检查：检查笔记是否应该被跳过
-        let shouldSkip = await syncProtectionFilter.shouldSkipSync(
+        // 🛡️ 同步保护检查：使用 SyncGuard 检查笔记是否应该被跳过
+        // 包括：临时 ID 笔记、正在编辑、待上传等情况
+        let shouldSkip = await syncGuard.shouldSkipSync(
             noteId: note.id,
             cloudTimestamp: note.updatedAt
         )
         if shouldSkip {
             // 获取跳过原因用于日志
-            if let skipReason = await syncProtectionFilter.getSkipReason(
+            if let skipReason = await syncGuard.getSkipReason(
                 noteId: note.id,
                 cloudTimestamp: note.updatedAt
             ) {
                 print("[SYNC] 🛡️ 同步保护：跳过笔记 \(note.id.prefix(8))... - \(skipReason.description)")
             }
             result.status = .skipped
-            result.message = "同步保护：笔记正在编辑或待上传"
+            result.message = "同步保护：笔记正在编辑、待上传或使用临时 ID"
             result.success = true
             return result
         }

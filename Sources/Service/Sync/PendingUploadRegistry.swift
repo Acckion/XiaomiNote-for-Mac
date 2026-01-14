@@ -1,9 +1,47 @@
 import Foundation
 
+// MARK: - ⚠️ 废弃警告
+// 此文件中的组件已被废弃，请使用新的统一操作队列系统
+// 迁移指南：
+// - PendingUploadRegistry -> UnifiedOperationQueue
+// - 待上传追踪现在由 UnifiedOperationQueue 统一管理
+// - 使用 UnifiedOperationQueue.hasPendingUpload(for:) 检查待上传状态
+// - 使用 UnifiedOperationQueue.getLocalSaveTimestamp(for:) 获取时间戳
+
 /// 待上传注册表
 /// 
 /// 记录有本地修改等待上传的笔记 ID 和时间戳
 /// 支持持久化到数据库，应用重启后可恢复
+/// 
+/// - Important: 此类已废弃，请使用 `UnifiedOperationQueue` 替代
+/// 
+/// ## 迁移指南
+/// 
+/// ### 旧代码
+/// ```swift
+/// PendingUploadRegistry.shared.register(noteId: noteId, timestamp: Date())
+/// PendingUploadRegistry.shared.isRegistered(noteId)
+/// PendingUploadRegistry.shared.getLocalSaveTimestamp(noteId)
+/// PendingUploadRegistry.shared.unregister(noteId: noteId)
+/// ```
+/// 
+/// ### 新代码
+/// ```swift
+/// // 注册待上传（通过 NoteOperationCoordinator.saveNote() 自动处理）
+/// await NoteOperationCoordinator.shared.saveNote(note)
+/// 
+/// // 检查待上传状态
+/// UnifiedOperationQueue.shared.hasPendingUpload(for: noteId)
+/// UnifiedOperationQueue.shared.getLocalSaveTimestamp(for: noteId)
+/// 
+/// // 上传完成后自动清理（由 OperationProcessor 处理）
+/// ```
+/// 
+/// 新的实现特点：
+/// - 统一的操作队列管理所有类型的操作
+/// - 支持操作合并和去重
+/// - 自动重试和错误处理
+/// - 更好的状态可观察性
 /// 
 /// **线程安全**：使用 NSLock 确保线程安全
 /// 
@@ -12,6 +50,7 @@ import Foundation
 /// - 需求 1.2: 上传成功后注销
 /// - 需求 1.4: 应用启动时恢复
 /// - 需求 6.1: 持久化到数据库
+@available(*, deprecated, message: "请使用 UnifiedOperationQueue 替代，待上传追踪功能已统一管理")
 public final class PendingUploadRegistry: @unchecked Sendable {
     
     // MARK: - 单例

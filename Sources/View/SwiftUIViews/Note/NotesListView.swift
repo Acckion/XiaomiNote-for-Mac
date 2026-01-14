@@ -711,6 +711,44 @@ struct NoteRow: View {
         self.showDivider = showDivider
         self.viewModel = viewModel
     }
+    
+    // MARK: - 同步状态
+    
+    /// 笔记是否有待处理上传
+    /// _需求: 6.2_
+    private var hasPendingUpload: Bool {
+        viewModel.hasPendingUpload(for: note.id)
+    }
+    
+    /// 笔记是否使用临时 ID（离线创建）
+    /// _需求: 6.2_
+    private var isTemporaryIdNote: Bool {
+        viewModel.isTemporaryIdNote(note.id)
+    }
+    
+    /// 同步状态指示器
+    /// 显示"未同步"图标或"离线创建"标记
+    /// _需求: 6.2_
+    @ViewBuilder
+    private var syncStatusIndicator: some View {
+        if isTemporaryIdNote {
+            // 临时 ID 笔记显示"离线创建"标记
+            HStack(spacing: 2) {
+                Image(systemName: "doc.badge.clock")
+                    .font(.system(size: 10))
+                Text("离线")
+                    .font(.system(size: 9))
+            }
+            .foregroundColor(.purple)
+            .help("离线创建的笔记，等待上传")
+        } else if hasPendingUpload {
+            // 有待处理上传显示"未同步"图标
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.system(size: 10))
+                .foregroundColor(.orange)
+                .help("笔记未同步，等待上传")
+        }
+    }
 
     /// 是否应该显示文件夹信息
     ///
@@ -850,6 +888,10 @@ struct NoteRow: View {
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                 }
+                
+                // 同步状态标记
+                // _需求: 6.2_
+                syncStatusIndicator
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 8)

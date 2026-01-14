@@ -24,8 +24,10 @@ public final class NetworkRecoveryHandler: ObservableObject {
     
     private let networkMonitor = NetworkMonitor.shared
     private let onlineStateManager = OnlineStateManager.shared
-    private let offlineProcessor = OfflineOperationProcessor.shared
-    private let offlineQueue = OfflineOperationQueue.shared
+    /// 新的操作处理器（替代旧的 OfflineOperationProcessor）
+    private let operationProcessor = OperationProcessor.shared
+    /// 统一操作队列（替代旧的 OfflineOperationQueue）
+    private let unifiedQueue = UnifiedOperationQueue.shared
     
     // MARK: - 状态
     
@@ -122,8 +124,8 @@ public final class NetworkRecoveryHandler: ObservableObject {
         // 取消之前的恢复任务（如果有）
         recoveryTask?.cancel()
         
-        // 检查是否有待处理的操作
-        let pendingCount = offlineQueue.getPendingOperations().count
+        // 检查是否有待处理的操作（使用新的 UnifiedOperationQueue）
+        let pendingCount = unifiedQueue.getPendingOperations().count
         if pendingCount == 0 {
             print("[NetworkRecoveryHandler] 离线队列为空，无需处理")
             return
@@ -173,8 +175,8 @@ public final class NetworkRecoveryHandler: ObservableObject {
             return
         }
         
-        // 检查是否有待处理的操作
-        let pendingCount = offlineQueue.getPendingOperations().count
+        // 检查是否有待处理的操作（使用新的 UnifiedOperationQueue）
+        let pendingCount = unifiedQueue.getPendingOperations().count
         if pendingCount == 0 {
             print("[NetworkRecoveryHandler] 离线队列为空，无需处理")
             return
@@ -212,12 +214,19 @@ public final class NetworkRecoveryHandler: ObservableObject {
             object: nil
         )
         
-        // 调用 OfflineOperationProcessor 处理队列
-        await offlineProcessor.processOperations()
+        // 获取处理前的统计
+        let beforeStats = unifiedQueue.getStatistics()
+        let beforePending = (beforeStats["pending"] ?? 0) + (beforeStats["failed"] ?? 0)
         
-        // 获取处理结果
-        let successCount = offlineProcessor.processedCount - offlineProcessor.failedOperations.count
-        let failedCount = offlineProcessor.failedOperations.count
+        // 调用新的 OperationProcessor 处理队列
+        await operationProcessor.processQueue()
+        
+        // 获取处理后的统计
+        let afterStats = unifiedQueue.getStatistics()
+        let afterPending = (afterStats["pending"] ?? 0) + (afterStats["failed"] ?? 0)
+        let failedCount = afterStats["failed"] ?? 0
+        
+        let successCount = max(0, beforePending - afterPending)
         
         lastProcessingResult = ProcessingResult(
             success: failedCount == 0,

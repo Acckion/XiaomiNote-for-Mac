@@ -1,9 +1,40 @@
 import Foundation
 
+// MARK: - ⚠️ 废弃警告
+// 此文件中的组件已被废弃，请使用新的统一操作队列系统
+// 迁移指南：
+// - SyncProtectionFilter -> SyncGuard
+// - 同步保护检查现在由 SyncGuard 统一处理
+// - SyncGuard 依赖 UnifiedOperationQueue 和 NoteOperationCoordinator
+
 /// 同步保护过滤器
 /// 
 /// 在同步时过滤掉不应被更新的笔记
 /// 用于 SyncService 在处理云端更新前检查笔记是否应该被跳过
+/// 
+/// - Important: 此结构体已废弃，请使用 `SyncGuard` 替代
+/// 
+/// ## 迁移指南
+/// 
+/// ### 旧代码
+/// ```swift
+/// let filter = SyncProtectionFilter()
+/// let shouldSkip = await filter.shouldSkipSync(noteId: noteId, cloudTimestamp: timestamp)
+/// let reason = await filter.getSkipReason(noteId: noteId, cloudTimestamp: timestamp)
+/// ```
+/// 
+/// ### 新代码
+/// ```swift
+/// let guard = SyncGuard()
+/// let shouldSkip = await guard.shouldSkipSync(noteId: noteId, cloudTimestamp: timestamp)
+/// let reason = await guard.getSkipReason(noteId: noteId, cloudTimestamp: timestamp)
+/// ```
+/// 
+/// 新的实现特点：
+/// - 依赖 UnifiedOperationQueue 而非 PendingUploadRegistry
+/// - 支持临时 ID 笔记的检查
+/// - 更完整的跳过原因枚举
+/// - 与新的操作队列系统完全集成
 /// 
 /// **需求覆盖**：
 /// - 需求 2.1: 检查笔记是否在 PendingUploadRegistry 中
@@ -11,6 +42,7 @@ import Foundation
 /// - 需求 2.3: 比较时间戳
 /// - 需求 2.4: 正常笔记执行同步
 /// - 需求 3.2: 活跃编辑笔记跳过同步
+@available(*, deprecated, message: "请使用 SyncGuard 替代，同步保护功能已重构")
 public struct SyncProtectionFilter: Sendable {
     
     // MARK: - 依赖
@@ -121,6 +153,9 @@ public struct SyncProtectionFilter: Sendable {
 // MARK: - 跳过原因
 
 /// 同步跳过原因
+/// 
+/// - Important: 此枚举已废弃，请使用 `SyncGuard.SkipReason` 替代
+@available(*, deprecated, message: "请使用 SyncGuard 中的 SkipReason 替代")
 public enum SkipReason: Sendable, Equatable {
     /// 笔记正在编辑
     case activelyEditing

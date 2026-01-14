@@ -1,6 +1,14 @@
 import Foundation
 
+// MARK: - ⚠️ 废弃警告
+// 此文件中的组件已被废弃，请使用新的统一操作队列系统
+// 迁移指南：
+// - SaveQueueManager -> NoteOperationCoordinator（本地保存功能已集成）
+// - 本地保存现在由 NoteOperationCoordinator.saveNote() 直接处理
+// - 云端上传由 UnifiedOperationQueue + OperationProcessor 处理
+
 /// 保存优先级
+@available(*, deprecated, message: "请使用 NoteOperationCoordinator 进行笔记保存，本地保存功能已集成到协调器中")
 public enum SavePriority: Int, Comparable {
     case background = 0  // 后台保存
     case normal = 1      // 普通保存
@@ -12,6 +20,7 @@ public enum SavePriority: Int, Comparable {
 }
 
 /// 保存任务
+@available(*, deprecated, message: "请使用 NoteOperation 替代")
 private class SaveTask {
     let noteId: String
     var note: Note  // 改为var，允许更新笔记内容（合并保存时）
@@ -29,6 +38,29 @@ private class SaveTask {
 /// 保存队列管理器
 /// 
 /// 管理笔记保存任务队列，合并相同笔记的多次保存，支持优先级
+/// 
+/// - Important: 此类已废弃，请使用 `NoteOperationCoordinator` 替代
+/// 
+/// ## 迁移指南
+/// 
+/// ### 旧代码
+/// ```swift
+/// SaveQueueManager.shared.enqueueSave(note, priority: .normal)
+/// SaveQueueManager.shared.saveImmediately(note)
+/// ```
+/// 
+/// ### 新代码
+/// ```swift
+/// await NoteOperationCoordinator.shared.saveNote(note)
+/// await NoteOperationCoordinator.shared.saveNoteImmediately(note)
+/// ```
+/// 
+/// 新的实现特点：
+/// - 本地保存同步执行，确保数据安全
+/// - 云端上传通过 UnifiedOperationQueue 管理
+/// - 网络可用时立即上传，无需等待队列处理
+/// - 支持离线操作和自动重试
+@available(*, deprecated, message: "请使用 NoteOperationCoordinator 替代，本地保存和云端上传功能已统一管理")
 @MainActor
 public final class SaveQueueManager {
     static let shared = SaveQueueManager()
