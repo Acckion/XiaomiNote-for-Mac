@@ -54,6 +54,8 @@ public struct OperationQueueDebugView: View {
             .padding(12)
         }
         .navigationTitle("操作队列调试")
+        .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
+        .toolbarBackgroundVisibility(.automatic, for: .windowToolbar)
         .onAppear { startAutoRefresh() }
         .onDisappear { stopAutoRefresh() }
         .alert("清空所有操作", isPresented: $showClearConfirmation) {

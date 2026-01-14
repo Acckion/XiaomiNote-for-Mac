@@ -39,6 +39,8 @@ public struct EditorSettingsView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("编辑器设置")
+        .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
+        .toolbarBackgroundVisibility(.automatic, for: .windowToolbar)
         .frame(minWidth: 500, minHeight: 600)
     }
     

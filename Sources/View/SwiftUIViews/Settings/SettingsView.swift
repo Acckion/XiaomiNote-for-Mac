@@ -226,6 +226,15 @@ public struct SettingsView: View {
             }
             .formStyle(.grouped)
             .navigationTitle("设置")
+            .toolbarTitleDisplayMode(.inline)
+            .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)  // 导航栏模糊背景
+            .toolbarBackgroundVisibility(.automatic, for: .windowToolbar)
+            .toolbar {
+                // 空工具栏，确保导航栏始终存在以保持大圆角样式
+                ToolbarItem(placement: .automatic) {
+                    Color.clear.frame(width: 0, height: 0)
+                }
+            }
             .alert("退出登录", isPresented: $showLogoutAlert) {
                 Button("退出", role: .destructive) {
                     logout()
@@ -243,7 +252,8 @@ public struct SettingsView: View {
                 Text("清除缓存将删除所有本地笔记数据，但不会影响云端数据。")
             }
         }
-        .frame(minWidth: 500, idealWidth: 600, minHeight: 500, idealHeight: 600)
+        .background(.ultraThickMaterial)  // macOS 26 材质背景
+        .frame(minWidth: 550, idealWidth: 650, minHeight: 500, idealHeight: 600)
     }
     
     private func saveSettings() {

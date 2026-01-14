@@ -130,6 +130,8 @@ public struct DebugSettingsView: View {
             }
             .formStyle(.grouped)
             .navigationTitle("调试设置")
+            .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
+            .toolbarBackgroundVisibility(.automatic, for: .windowToolbar)
             .modifier(AlertModifier(
                 showCopyAlert: $showCopyAlert,
                 copyAlertMessage: copyAlertMessage,
