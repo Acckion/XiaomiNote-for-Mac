@@ -385,15 +385,19 @@ public class NativeEditorContext: ObservableObject {
         // 记录应用方式
         currentApplicationMethod = method
         
-        // 切换格式状态
-        if currentFormats.contains(format) {
-            currentFormats.remove(format)
-            toolbarButtonStates[format] = false
-        } else {
-            // 处理互斥格式
-            handleMutuallyExclusiveFormats(for: format)
-            currentFormats.insert(format)
-            toolbarButtonStates[format] = true
+        // 使用批量更新机制，减少视图重绘次数
+        // _需求: FR-3.3.3 - 批量更新机制_
+        batchUpdateState {
+            // 切换格式状态
+            if currentFormats.contains(format) {
+                currentFormats.remove(format)
+                toolbarButtonStates[format] = false
+            } else {
+                // 处理互斥格式（内联版本，避免嵌套批量更新）
+                handleMutuallyExclusiveFormatsInline(for: format)
+                currentFormats.insert(format)
+                toolbarButtonStates[format] = true
+            }
         }
         
         // 发布格式变化
@@ -425,9 +429,13 @@ public class NativeEditorContext: ObservableObject {
     
     /// 清除所有格式
     func clearAllFormats() {
-        currentFormats.removeAll()
-        for format in TextFormat.allCases {
-            toolbarButtonStates[format] = false
+        // 使用批量更新机制，减少视图重绘次数
+        // _需求: FR-3.3.3 - 批量更新机制_
+        batchUpdateState {
+            currentFormats.removeAll()
+            for format in TextFormat.allCases {
+                toolbarButtonStates[format] = false
+            }
         }
     }
     
@@ -435,13 +443,17 @@ public class NativeEditorContext: ObservableObject {
     func clearHeadingFormat() {
         print("[NativeEditorContext] 清除标题格式，恢复为正文样式")
         
-        // 移除所有标题格式
-        currentFormats.remove(.heading1)
-        currentFormats.remove(.heading2)
-        currentFormats.remove(.heading3)
-        toolbarButtonStates[.heading1] = false
-        toolbarButtonStates[.heading2] = false
-        toolbarButtonStates[.heading3] = false
+        // 使用批量更新机制，减少视图重绘次数
+        // _需求: FR-3.3.3 - 批量更新机制_
+        batchUpdateState {
+            // 移除所有标题格式
+            currentFormats.remove(.heading1)
+            currentFormats.remove(.heading2)
+            currentFormats.remove(.heading3)
+            toolbarButtonStates[.heading1] = false
+            toolbarButtonStates[.heading2] = false
+            toolbarButtonStates[.heading3] = false
+        }
         
         // 重置字体大小为正文大小（13pt）
         // _需求: 1.6, 1.7, 5.1, 5.4, 5.5_
@@ -527,11 +539,15 @@ public class NativeEditorContext: ObservableObject {
     func clearAlignmentFormat() {
         print("[NativeEditorContext] 清除对齐格式，恢复为左对齐")
         
-        // 移除居中和居右格式
-        currentFormats.remove(.alignCenter)
-        currentFormats.remove(.alignRight)
-        toolbarButtonStates[.alignCenter] = false
-        toolbarButtonStates[.alignRight] = false
+        // 使用批量更新机制，减少视图重绘次数
+        // _需求: FR-3.3.3 - 批量更新机制_
+        batchUpdateState {
+            // 移除居中和居右格式
+            currentFormats.remove(.alignCenter)
+            currentFormats.remove(.alignRight)
+            toolbarButtonStates[.alignCenter] = false
+            toolbarButtonStates[.alignRight] = false
+        }
         
         // 注意：不要调用 formatChangeSubject.send(.alignCenter)！
         // 因为这会触发 NativeEditorView.Coordinator 中的 applyFormat(.alignCenter)
@@ -1694,12 +1710,16 @@ public class NativeEditorContext: ObservableObject {
             // _Requirements: 14.6_
             let previousParagraphStyle = detectParagraphStyleFromFormats(previousFormats)
             
-            // 更新当前格式
-            currentFormats = validatedFormats
-            
-            // 更新工具栏按钮状态
-            for format in TextFormat.allCases {
-                toolbarButtonStates[format] = validatedFormats.contains(format)
+            // 使用批量更新机制，减少视图重绘次数
+            // _需求: FR-3.3.3 - 批量更新机制_
+            batchUpdateState {
+                // 更新当前格式
+                currentFormats = validatedFormats
+                
+                // 更新工具栏按钮状态
+                for format in TextFormat.allCases {
+                    toolbarButtonStates[format] = validatedFormats.contains(format)
+                }
             }
             
             // 检测新的段落样式并发送通知（如果变化）
@@ -1923,9 +1943,12 @@ public class NativeEditorContext: ObservableObject {
         }
     }
     
-    /// 处理互斥格式
+    /// 处理互斥格式（内联版本，不使用批量更新）
+    /// 
+    /// 此方法用于在已经处于批量更新上下文中时调用，避免嵌套批量更新
+    /// 
     /// - Parameter format: 要应用的格式
-    private func handleMutuallyExclusiveFormats(for format: TextFormat) {
+    private func handleMutuallyExclusiveFormatsInline(for format: TextFormat) {
         // 标题格式互斥
         if format == .heading1 || format == .heading2 || format == .heading3 {
             currentFormats.remove(.heading1)
@@ -1952,6 +1975,16 @@ public class NativeEditorContext: ObservableObject {
             toolbarButtonStates[.bulletList] = false
             toolbarButtonStates[.numberedList] = false
             toolbarButtonStates[.checkbox] = false
+        }
+    }
+    
+    /// 处理互斥格式
+    /// - Parameter format: 要应用的格式
+    private func handleMutuallyExclusiveFormats(for format: TextFormat) {
+        // 使用批量更新机制，减少视图重绘次数
+        // _需求: FR-3.3.3 - 批量更新机制_
+        batchUpdateState {
+            handleMutuallyExclusiveFormatsInline(for: format)
         }
     } 
     
