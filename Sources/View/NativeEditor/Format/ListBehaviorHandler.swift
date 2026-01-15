@@ -1103,20 +1103,9 @@ public struct ListBehaviorHandler {
             return false
         }
         
-        // 如果是空列表项，只删除列表标记，保留空行
-        if listInfo.isEmpty {
-            return removeListMarkerOnly(textView: textView, textStorage: textStorage, listInfo: listInfo)
-        }
-        
-        // 检查是否是文档第一行
-        guard listInfo.lineRange.location > 0 else {
-            // 文档第一行，不能合并到上一行，只删除列表标记
-            return removeListMarkerOnly(textView: textView, textStorage: textStorage, listInfo: listInfo)
-        }
-        
-        // 有内容的列表项：执行合并操作
+        // 无论是空列表项还是有内容的列表项，都只删除列表标记，保持行结构不变
         // _Requirements: 4.1, 4.2, 4.3, 4.4_
-        return mergeWithPreviousLine(textView: textView, textStorage: textStorage, listInfo: listInfo)
+        return removeListMarkerOnly(textView: textView, textStorage: textStorage, listInfo: listInfo)
     }
     
     /// 只删除列表标记，保留空行
