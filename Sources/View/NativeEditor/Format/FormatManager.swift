@@ -407,21 +407,22 @@ class FormatManager {
     }
     
     /// 切换复选框列表格式
+    /// 
+    /// 调用 ListFormatHandler.toggleCheckboxList 实现复选框列表的切换
+    /// 确保与现有格式管理逻辑一致
+    /// 
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
+    /// _Requirements: 1.1, 1.2, 1.3_
     func toggleCheckboxList(to textStorage: NSTextStorage, range: NSRange) {
-        let currentListType = getListType(in: textStorage, at: range.location)
-        
-        if currentListType == .checkbox {
-            removeListFormat(from: textStorage, range: range)
-        } else {
-            // 如果是其他列表类型，先移除再应用
-            if currentListType != .none {
-                removeListFormat(from: textStorage, range: range)
-            }
-            applyCheckboxList(to: textStorage, range: range)
-        }
+        // 调用 ListFormatHandler 实现复选框列表切换
+        // ListFormatHandler 会正确处理：
+        // 1. 在行首插入 InteractiveCheckboxAttachment
+        // 2. 设置列表类型属性
+        // 3. 处理标题格式互斥
+        // 4. 处理其他列表类型的转换
+        ListFormatHandler.toggleCheckboxList(to: textStorage, range: range)
     }
     
     /// 检测指定位置是否是复选框列表

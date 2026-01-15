@@ -252,12 +252,22 @@ public struct BlockFormatHandler {
     public static func removeBlockFormat(from range: NSRange, in textStorage: NSTextStorage) {
         let lineRange = (textStorage.string as NSString).lineRange(for: range)
         
+        // 检测当前是否有列表格式
+        let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
+        
+        // 如果有列表格式，使用 ListFormatHandler 移除（会正确移除附件）
+        if listType != .none {
+            ListFormatHandler.removeListFormat(from: textStorage, range: lineRange)
+            print("[BlockFormatHandler] 使用 ListFormatHandler 移除列表格式")
+            return
+        }
+        
         textStorage.beginEditing()
         
         // 移除标题格式（通过设置正文字体大小）
         textStorage.addAttribute(.font, value: defaultFont, range: lineRange)
         
-        // 移除列表格式
+        // 移除列表格式属性（备用，以防 ListFormatHandler 未处理）
         textStorage.removeAttribute(.listType, range: lineRange)
         textStorage.removeAttribute(.listIndent, range: lineRange)
         textStorage.removeAttribute(.listNumber, range: lineRange)
@@ -548,22 +558,23 @@ public struct BlockFormatHandler {
     
     /// 应用复选框格式
     /// 
+    /// 使用 ListFormatHandler 统一处理复选框列表格式
+    /// 这确保了列表附件的正确创建和列表与标题的互斥处理
+    /// 
     /// - Parameters:
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
     ///   - indent: 缩进级别（默认为 1）
     ///   - level: 复选框级别（默认为 3）
+    /// _Requirements: 1.1, 1.4, 1.5, 7.1, 7.3, 7.4 - 使用 ListFormatHandler 统一处理
     private static func applyCheckbox(to range: NSRange, in textStorage: NSTextStorage, indent: Int = 1, level: Int = 3) {
-        textStorage.beginEditing()
-        
-        textStorage.addAttribute(.listType, value: ListType.checkbox, range: range)
-        textStorage.addAttribute(.listIndent, value: indent, range: range)
-        textStorage.addAttribute(.checkboxLevel, value: level, range: range)
-        
-        let paragraphStyle = createListParagraphStyle(indent: indent, bulletWidth: checkboxWidth)
-        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
-        
-        textStorage.endEditing()
+        // 使用 ListFormatHandler 统一处理复选框列表格式
+        // 这确保了：
+        // 1. 在行首插入 InteractiveCheckboxAttachment
+        // 2. 设置列表类型属性
+        // 3. 处理标题格式互斥
+        ListFormatHandler.applyCheckboxList(to: textStorage, range: range, indent: indent, level: level)
+        print("[BlockFormatHandler] 使用 ListFormatHandler 应用复选框列表格式")
     }
     
     /// 创建列表段落样式

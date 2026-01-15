@@ -141,6 +141,152 @@ public struct ListFormatHandler {
         print("[ListFormatHandler] 应用有序列表格式, number: \(number), indent: \(indent)")
     }
     
+    // MARK: - 复选框列表应用
+    
+    /// 复选框宽度
+    public static let checkboxWidth: CGFloat = 24
+    
+    /// 应用复选框列表格式
+    /// 
+    /// 在行首插入 InteractiveCheckboxAttachment，设置列表类型属性
+    /// 
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    ///   - indent: 缩进级别（默认为 1）
+    ///   - level: 复选框级别（默认为 3，对应 XML 中的 level 属性）
+    /// _Requirements: 1.1, 1.4, 1.5, 7.1, 7.3, 7.4_
+    public static func applyCheckboxList(
+        to textStorage: NSTextStorage,
+        range: NSRange,
+        indent: Int = 1,
+        level: Int = 3
+    ) {
+        let lineRange = (textStorage.string as NSString).lineRange(for: range)
+        
+        // 先处理列表与标题的互斥（会保留字体特性如加粗、斜体）
+        handleListHeadingMutualExclusion(in: textStorage, range: lineRange)
+        
+        textStorage.beginEditing()
+        
+        // 创建 InteractiveCheckboxAttachment（默认未勾选）
+        let checkboxAttachment = InteractiveCheckboxAttachment(checked: false, level: level, indent: indent)
+        let attachmentString = NSAttributedString(attachment: checkboxAttachment)
+        
+        // 在行首插入附件
+        let lineStart = lineRange.location
+        textStorage.insert(attachmentString, at: lineStart)
+        
+        // 更新行范围（因为插入了附件）
+        let newLineRange = NSRange(location: lineStart, length: lineRange.length + 1)
+        
+        // 设置列表类型属性
+        textStorage.addAttribute(.listType, value: ListType.checkbox, range: newLineRange)
+        textStorage.addAttribute(.listIndent, value: indent, range: newLineRange)
+        textStorage.addAttribute(.checkboxLevel, value: level, range: newLineRange)
+        textStorage.addAttribute(.checkboxChecked, value: false, range: newLineRange)
+        
+        // 设置段落样式
+        let paragraphStyle = createListParagraphStyle(indent: indent, bulletWidth: checkboxWidth)
+        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
+        
+        // 确保使用正文字体大小，但保留字体特性（加粗、斜体等）
+        applyBodyFontSizePreservingTraits(to: textStorage, range: newLineRange)
+        
+        textStorage.endEditing()
+        
+        print("[ListFormatHandler] 应用复选框列表格式, indent: \(indent), level: \(level)")
+    }
+    
+    /// 移除复选框列表格式
+    /// 
+    /// 移除复选框附件和列表类型属性，保留文本内容
+    /// 
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    /// _Requirements: 1.2_
+    public static func removeCheckboxList(
+        from textStorage: NSTextStorage,
+        range: NSRange
+    ) {
+        let lineRange = (textStorage.string as NSString).lineRange(for: range)
+        
+        textStorage.beginEditing()
+        
+        // 查找并移除复选框附件
+        var attachmentRange: NSRange?
+        textStorage.enumerateAttribute(.attachment, in: lineRange, options: []) { value, attrRange, stop in
+            if value is InteractiveCheckboxAttachment {
+                attachmentRange = attrRange
+                stop.pointee = true
+            }
+        }
+        
+        // 移除附件
+        if let range = attachmentRange {
+            textStorage.deleteCharacters(in: range)
+        }
+        
+        // 重新计算行范围（因为可能删除了附件）
+        let newLineRange: NSRange
+        if let range = attachmentRange {
+            newLineRange = NSRange(location: lineRange.location, length: lineRange.length - range.length)
+        } else {
+            newLineRange = lineRange
+        }
+        
+        // 移除列表相关属性
+        if newLineRange.length > 0 {
+            textStorage.removeAttribute(.listType, range: newLineRange)
+            textStorage.removeAttribute(.listIndent, range: newLineRange)
+            textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
+            textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
+            
+            // 重置段落样式
+            let paragraphStyle = NSMutableParagraphStyle()
+            textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
+        }
+        
+        textStorage.endEditing()
+        
+        print("[ListFormatHandler] 移除复选框列表格式")
+    }
+    
+    /// 切换复选框列表格式
+    /// 
+    /// 如果当前行是复选框列表，则移除；否则应用复选框列表
+    /// 如果当前行是有序/无序列表，则转换为复选框列表
+    /// 
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    /// _Requirements: 1.2, 1.3_
+    public static func toggleCheckboxList(
+        to textStorage: NSTextStorage,
+        range: NSRange
+    ) {
+        let currentType = detectListType(in: textStorage, at: range.location)
+        
+        switch currentType {
+        case .checkbox:
+            // 已经是复选框列表，移除格式
+            removeCheckboxList(from: textStorage, range: range)
+            print("[ListFormatHandler] 切换：移除复选框列表")
+            
+        case .bullet, .ordered:
+            // 是其他列表，先移除再应用复选框
+            removeListFormat(from: textStorage, range: range)
+            applyCheckboxList(to: textStorage, range: range)
+            print("[ListFormatHandler] 切换：\(currentType) -> 复选框列表")
+            
+        case .none:
+            // 不是列表，应用复选框列表
+            applyCheckboxList(to: textStorage, range: range)
+            print("[ListFormatHandler] 切换：应用复选框列表")
+        }
+    }
+    
     // MARK: - 列表移除
     
     /// 移除列表格式
@@ -159,10 +305,10 @@ public struct ListFormatHandler {
         
         textStorage.beginEditing()
         
-        // 查找并移除列表附件
+        // 查找并移除列表附件（包括复选框附件）
         var attachmentRange: NSRange?
         textStorage.enumerateAttribute(.attachment, in: lineRange, options: []) { value, attrRange, stop in
-            if value is BulletAttachment || value is OrderAttachment {
+            if value is BulletAttachment || value is OrderAttachment || value is InteractiveCheckboxAttachment {
                 attachmentRange = attrRange
                 stop.pointee = true
             }
@@ -186,6 +332,8 @@ public struct ListFormatHandler {
             textStorage.removeAttribute(.listType, range: newLineRange)
             textStorage.removeAttribute(.listIndent, range: newLineRange)
             textStorage.removeAttribute(.listNumber, range: newLineRange)
+            textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
+            textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
             
             // 重置段落样式
             let paragraphStyle = NSMutableParagraphStyle()

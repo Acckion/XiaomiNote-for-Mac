@@ -1262,13 +1262,23 @@ struct NativeEditorView: NSViewRepresentable {
         }
         
         /// 插入复选框
+        /// 
+        /// 使用 ListFormatHandler.toggleCheckboxList 实现复选框列表的切换
+        /// 这确保了：
+        /// 1. 如果当前行已经是复选框列表，则移除格式
+        /// 2. 如果当前行是其他列表类型，则转换为复选框列表
+        /// 3. 如果当前行不是列表，则应用复选框列表格式
+        /// 
+        /// _Requirements: 1.1, 1.2, 1.3_
         private func insertCheckbox(checked: Bool, level: Int, at location: Int, in textStorage: NSTextStorage) {
-            let renderer = CustomRenderer.shared
-            let attachment = renderer.createCheckboxAttachment(checked: checked, level: level, indent: 1)
-            let attachmentString = NSAttributedString(attachment: attachment)
-            
-            // 注意：不再添加空格，附件本身已有足够的间距
-            textStorage.insert(attachmentString, at: location)
+            // 使用 ListFormatHandler.toggleCheckboxList 实现复选框列表切换
+            // 这会正确处理：
+            // 1. 在行首插入 InteractiveCheckboxAttachment
+            // 2. 设置列表类型属性
+            // 3. 处理标题格式互斥
+            // 4. 处理其他列表类型的转换
+            let range = NSRange(location: location, length: 0)
+            ListFormatHandler.toggleCheckboxList(to: textStorage, range: range)
         }
         
         /// 插入分割线
