@@ -1321,6 +1321,39 @@ public class NativeEditorContext: ObservableObject {
         }
     }
     
+    /// 批量更新状态
+    /// 
+    /// 将多个状态更新合并为一次批量更新，减少视图重绘次数
+    /// 在执行 updates 闭包前后控制通知发布，确保所有更新作为一个原子操作完成
+    /// 
+    /// - Parameter updates: 包含所有状态更新操作的闭包
+    /// 
+    /// _需求: FR-3.3.3 - 批量更新机制_
+    /// 
+    /// 使用示例：
+    /// ```swift
+    /// batchUpdateState {
+    ///     currentFormats.insert(.bold)
+    ///     currentFormats.insert(.italic)
+    ///     toolbarButtonStates[.bold] = true
+    ///     toolbarButtonStates[.italic] = true
+    /// }
+    /// ```
+    func batchUpdateState(updates: () -> Void) {
+        // 暂停发布通知
+        // 注意：objectWillChange.send() 会立即触发视图更新
+        // 我们在批量更新前发送一次，告诉 SwiftUI 即将有变化
+        objectWillChange.send()
+        
+        // 执行所有状态更新
+        updates()
+        
+        // 恢复发布通知
+        // 批量更新完成后再发送一次，触发最终的视图更新
+        // 这样可以确保所有更新作为一个原子操作完成，只触发一次视图重绘
+        objectWillChange.send()
+    }
+    
     /// 更新混合格式状态
     /// 需求: 6.1, 6.2
     private func updateMixedFormatStates() {

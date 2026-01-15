@@ -74,22 +74,6 @@ count_ext "scss" "SCSS"
 count_ext "sass" "Sass"
 count_ext "less" "Less"
 
-# 配置和数据
-count_ext "json" "JSON"
-count_ext "yaml" "YAML"
-count_ext "yml" "YAML"
-count_ext "toml" "TOML"
-count_ext "plist" "Property List"
-
-# Shell 脚本
-count_ext "sh" "Shell"
-count_ext "bash" "Bash"
-count_ext "zsh" "Zsh"
-
-# 其他
-count_ext "sql" "SQL"
-count_ext "graphql" "GraphQL"
-count_ext "md" "Markdown"
 
 echo "------------------------------------------------"
 
