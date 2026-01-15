@@ -3,8 +3,7 @@
 //  MiNoteMac
 //
 //  XML 解析器属性测试
-//  Property 7: 块级元素解析正确性
-//  Validates: Requirements 1.1-1.8
+//  Property 7: 块级元素解析正确性 
 //
 
 import XCTest

@@ -316,8 +316,7 @@
             attributes: false     // 不监听属性变化（避免频繁触发）
         });
 
-        // 语音占位符点击事件处理
-        // Requirements: 13.1 - 点击语音占位符时通知 Swift 进行播放
+        // 语音占位符点击事件处理 
         editor.addEventListener('click', function(e) {
             // 查找点击的语音占位符元素
             let target = e.target;
@@ -337,8 +336,7 @@
                 if (fileId) {
                     log.debug(LOG_MODULES.EDITOR, '点击语音占位符', { fileId });
                     
-                    // 通过 WebKit 消息处理器通知 Swift
-                    // Requirements: 13.1
+                    // 通过 WebKit 消息处理器通知 Swift 
                     if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.editorBridge) {
                         window.webkit.messageHandlers.editorBridge.postMessage({
                             type: 'playAudio',

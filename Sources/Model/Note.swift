@@ -96,8 +96,7 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         }
     }
     
-    // 自定义 Equatable 实现
-    // **Requirements: 1.1, 1.2** - 编辑笔记内容时保持选中状态不变
+    // 自定义 Equatable 实现 
     // 只比较 id，这样当笔记内容更新时，SwiftUI 的 List selection 不会因为
     // updatedAt 等字段的变化而认为是不同的笔记，从而保持选择状态
     public static func == (lhs: Note, rhs: Note) -> Bool {
@@ -105,8 +104,7 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         return lhs.id == rhs.id
     }
     
-    // Hashable 实现
-    // **Requirements: 1.1, 1.2** - 与 Equatable 保持一致，只使用 id
+    // Hashable 实现 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }

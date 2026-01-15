@@ -8,8 +8,7 @@
 //
 //  Feature: list-format-enhancement, Property 6: 列表中回车正确继承格式
 //  Feature: list-format-enhancement, Property 7: 空列表回车正确取消格式
-//
-//  _Validates: Requirements 7.1-7.3, 8.1-8.3_
+// 
 //
 
 import XCTest
@@ -49,13 +48,11 @@ final class ListNewLinePropertyTests: XCTestCase {
         try await super.tearDown()
     }
     
-    // MARK: - Property 6: 列表中回车正确继承格式
-    // _Validates: Requirements 7.1, 7.2, 7.3_
+    // MARK: - Property 6: 列表中回车正确继承格式 
     
     /// 属性测试：无序列表换行继承格式
     ///
-    /// **Property 6**: 对于任何有内容的无序列表行，当按下回车时，新行应该继承列表格式和缩进级别
-    /// **Validates: Requirements 7.1**
+    /// **Property 6**: 对于任何有内容的无序列表行，当按下回车时，新行应该继承列表格式和缩进级别 
     ///
     /// 测试策略：
     /// 1. 生成随机文本内容
@@ -124,8 +121,7 @@ final class ListNewLinePropertyTests: XCTestCase {
     
     /// 属性测试：有序列表换行继承格式并递增编号
     ///
-    /// **Property 6**: 对于任何有内容的有序列表行，当按下回车时，新行应该继承列表格式并自动递增编号
-    /// **Validates: Requirements 7.2**
+    /// **Property 6**: 对于任何有内容的有序列表行，当按下回车时，新行应该继承列表格式并自动递增编号 
     ///
     /// 测试策略：
     /// 1. 生成随机文本内容和起始编号
@@ -199,8 +195,7 @@ final class ListNewLinePropertyTests: XCTestCase {
     
     /// 属性测试：列表换行清除内联格式
     ///
-    /// **Property 6**: 对于任何列表行，当按下回车时，新行应该清除内联格式（加粗、斜体等）但保留列表格式
-    /// **Validates: Requirements 7.3**
+    /// **Property 6**: 对于任何列表行，当按下回车时，新行应该清除内联格式（加粗、斜体等）但保留列表格式 
     ///
     /// 测试策略：
     /// 1. 生成随机文本内容
@@ -274,13 +269,11 @@ final class ListNewLinePropertyTests: XCTestCase {
         print("[PropertyTest] ✅ 列表换行清除内联格式测试完成")
     }
     
-    // MARK: - Property 7: 空列表回车正确取消格式
-    // _Validates: Requirements 8.1, 8.2, 8.3_
+    // MARK: - Property 7: 空列表回车正确取消格式 
     
     /// 属性测试：空无序列表回车取消格式
     ///
-    /// **Property 7**: 对于任何空的无序列表行，当按下回车时，列表格式应该被取消而非换行
-    /// **Validates: Requirements 8.1**
+    /// **Property 7**: 对于任何空的无序列表行，当按下回车时，列表格式应该被取消而非换行 
     ///
     /// 测试策略：
     /// 1. 创建空的无序列表行
@@ -347,8 +340,7 @@ final class ListNewLinePropertyTests: XCTestCase {
     
     /// 属性测试：空有序列表回车取消格式
     ///
-    /// **Property 7**: 对于任何空的有序列表行，当按下回车时，列表格式应该被取消而非换行
-    /// **Validates: Requirements 8.2**
+    /// **Property 7**: 对于任何空的有序列表行，当按下回车时，列表格式应该被取消而非换行 
     ///
     /// 测试策略：
     /// 1. 创建空的有序列表行
@@ -416,8 +408,7 @@ final class ListNewLinePropertyTests: XCTestCase {
     
     /// 属性测试：空列表回车恢复正文格式
     ///
-    /// **Property 7**: 对于任何空的列表行，当按下回车时，当前行应该恢复为普通正文格式
-    /// **Validates: Requirements 8.3**
+    /// **Property 7**: 对于任何空的列表行，当按下回车时，当前行应该恢复为普通正文格式 
     ///
     /// 测试策略：
     /// 1. 创建空的列表行（随机选择有序或无序）

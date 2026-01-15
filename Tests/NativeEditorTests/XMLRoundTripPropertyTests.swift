@@ -3,8 +3,7 @@
 //  MiNoteMac
 //
 //  XML 往返测试
-//  Property 1: XML 解析往返一致性
-//  Validates: Requirements 6.1, 6.3, 6.4
+//  Property 1: XML 解析往返一致性 
 //
 
 import XCTest

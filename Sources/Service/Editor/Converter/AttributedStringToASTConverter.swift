@@ -323,8 +323,7 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     /// 从属性字典提取格式类型集合
     ///
     /// - Parameter attributes: 属性字典
-    /// - Returns: 格式类型集合
-    /// - Requirements: 7.1, 7.2, 7.3
+    /// - Returns: 格式类型集合 
     private func extractFormats(from attributes: [NSAttributedString.Key: Any]) -> Set<ASTNodeType> {
         var formats: Set<ASTNodeType> = []
         

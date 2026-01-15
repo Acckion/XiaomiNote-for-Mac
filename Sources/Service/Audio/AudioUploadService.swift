@@ -16,8 +16,7 @@ import Combine
 /// - 获取 fileId
 /// - 进度回调
 /// - 错误处理和重试
-///
-/// Requirements: 9.1, 9.4, 9.5, 9.6, 9.7
+/// 
 final class AudioUploadService: ObservableObject, @unchecked Sendable {
     
     // MARK: - 单例
@@ -126,8 +125,7 @@ final class AudioUploadService: ObservableObject, @unchecked Sendable {
     ///   - fileName: 文件名（可选，默认从 URL 获取）
     ///   - mimeType: MIME 类型（默认 audio/mpeg）
     /// - Returns: 上传结果
-    /// - Throws: 上传失败时抛出错误
-    /// - Requirements: 9.1, 9.6
+    /// - Throws: 上传失败时抛出错误 
     @MainActor
     func uploadAudio(fileURL: URL, fileName: String? = nil, mimeType: String = "audio/mpeg") async throws -> UploadResult {
         print("[AudioUploadService] 开始上传语音文件: \(fileURL.lastPathComponent)")

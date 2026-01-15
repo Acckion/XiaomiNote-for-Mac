@@ -109,7 +109,6 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// 负责协调侧边栏、笔记列表和编辑器之间的状态同步
     /// 
-    /// **Requirements: 4.1, 4.2**
     /// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
     /// - 4.2: selectedFolder 变化时按顺序更新 Notes_List_View 和 Editor
     public private(set) lazy var stateCoordinator: ViewStateCoordinator = {
@@ -585,8 +584,7 @@ public class NotesViewModel: ObservableObject {
             .sink { [weak self] selectedNote, _ in
                 self?.saveLastSelectedState()
                 
-                // 处理笔记切换时的音频面板状态同步
-                // Requirements: 5.1, 5.2 - 笔记切换状态同步
+                // 处理笔记切换时的音频面板状态同步 
                 if let newNoteId = selectedNote?.id {
                     self?.handleNoteSwitch(to: newNoteId)
                 }
@@ -765,15 +763,13 @@ public class NotesViewModel: ObservableObject {
         authStateManager.$showCookieRefreshView
             .assign(to: &$showCookieRefreshView)
         
-        // 同步 ViewStateCoordinator 的状态到 ViewModel
-        // **Requirements: 1.1, 1.2, 4.1**
+        // 同步 ViewStateCoordinator 的状态到 ViewModel 
         // - 1.1: 编辑笔记内容时保持选中状态不变
         // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
         // - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
         setupStateCoordinatorSync()
         
-        // 同步数据加载状态指示
-        // **Requirements: 7.1, 7.2, 7.3, 7.4, 7.5**
+        // 同步数据加载状态指示 
         setupDataLoadingStatusSync()
     }
     
@@ -781,7 +777,6 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// 通过 Combine 将 OfflineOperationProcessor、StartupSequenceManager 和 OnlineStateManager 的状态同步到 ViewModel
     /// 
-    /// **Requirements: 7.1, 7.2, 7.3, 7.4, 7.5**
     /// - 7.1: 加载指示器状态
     /// - 7.2: 离线队列处理进度状态
     /// - 7.3: 同步进度和状态消息
@@ -876,7 +871,6 @@ public class NotesViewModel: ObservableObject {
     /// 通过 Combine 将 ViewStateCoordinator 的 @Published 属性同步到 ViewModel 的 @Published 属性
     /// 这样 ViewStateCoordinator 的状态变化会自动触发 ViewModel 的状态更新，进而触发 UI 更新
     /// 
-    /// **Requirements: 1.1, 1.2, 4.1**
     /// - 1.1: 编辑笔记内容时保持选中状态不变
     /// - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
     /// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
@@ -935,7 +929,6 @@ public class NotesViewModel: ObservableObject {
     /// 通过 Combine 将 ViewOptionsManager 的排序设置同步到 ViewModel 的排序属性
     /// 确保画廊视图和列表视图使用相同的排序设置
     /// 
-    /// **Requirements: 8.1, 8.3, 8.4, 8.5**
     /// - 8.1: 文件夹切换时画廊视图更新
     /// - 8.3: 搜索时画廊视图过滤
     /// - 8.4: 画廊视图尊重所有搜索筛选选项
@@ -2313,7 +2306,6 @@ public class NotesViewModel: ObservableObject {
     /// **关键修复**：如果用户正在编辑笔记且有未保存的更改，不更新 selectedNote 的内容
     /// 这样可以防止云端同步覆盖用户正在编辑的内容
     /// 
-    /// **Requirements: Property 7** - 冲突解决策略：本地编辑优先
     /// **统一操作队列集成**：使用 NoteOperationCoordinator 检查活跃编辑状态
     private func loadLocalDataAfterSync() async {
         print("[FolderRename] ========== loadLocalDataAfterSync() 开始 ==========")
@@ -2360,8 +2352,7 @@ public class NotesViewModel: ObservableObject {
                let updatedNote = localNotes.first(where: { $0.id == noteId }) {
                 
                 // 关键修复：如果用户正在编辑且有未保存的更改，跳过更新 selectedNote
-                // 这样可以防止云端同步覆盖用户正在编辑的内容
-                // **Requirements: Property 7** - 冲突解决策略
+                // 这样可以防止云端同步覆盖用户正在编辑的内容 
                 // 🛡️ 统一操作队列集成：增加活跃编辑和待上传检查
                 let shouldSkipUpdate = hasUnsavedChanges || isActivelyEditing || isPendingUpload
                 
@@ -2786,7 +2777,6 @@ public class NotesViewModel: ObservableObject {
     /// - Parameter note: 更新后的笔记对象
     /// - Returns: 是否成功更新（如果笔记不存在于数组中则返回 false）
     /// 
-    /// **Requirements: 5.1** - 笔记内容更新时仅更新对应笔记的属性而非替换整个数组
     @discardableResult
     public func updateNoteInPlace(_ note: Note) -> Bool {
         guard let index = notes.firstIndex(where: { $0.id == note.id }) else {
@@ -2815,7 +2805,6 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// - Parameter updates: 更新操作列表，每个元素包含笔记ID和更新闭包
     /// 
-    /// **Requirements: 2.3** - 多个笔记同时更新位置时批量处理动画以避免视觉混乱
     public func batchUpdateNotes(_ updates: [(noteId: String, update: (inout Note) -> Void)]) {
         guard !updates.isEmpty else {
             print("[VIEWMODEL] batchUpdateNotes: 没有需要更新的笔记")
@@ -2824,8 +2813,7 @@ public class NotesViewModel: ObservableObject {
         
         print("[VIEWMODEL] batchUpdateNotes: 开始批量更新 \(updates.count) 个笔记")
         
-        // 使用 withAnimation 包装更新操作，提供 300ms 的 easeInOut 动画
-        // 这符合 Requirements 2.4 的动画持续时间要求
+        // 使用 withAnimation 包装更新操作，提供 300ms 的 easeInOut 动画 
         withAnimation(.easeInOut(duration: 0.3)) {
             for (noteId, update) in updates {
                 if let index = notes.firstIndex(where: { $0.id == noteId }) {
@@ -2856,7 +2844,6 @@ public class NotesViewModel: ObservableObject {
     ///   - timestamp: 新的时间戳
     /// - Returns: 是否成功更新
     /// 
-    /// **Requirements: 2.1** - 笔记的 updatedAt 时间戳变化导致排序位置改变时使用动画
     @discardableResult
     public func updateNoteTimestamp(_ noteId: String, timestamp: Date) -> Bool {
         guard let index = notes.firstIndex(where: { $0.id == noteId }) else {
@@ -3458,7 +3445,6 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
     /// 
-    /// **Requirements: 4.1, 4.2**
     /// - 4.1: 通过 coordinator 作为单一数据源管理状态
     /// - 4.2: 按顺序更新 Notes_List_View 和 Editor
     /// 
@@ -3475,7 +3461,6 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
     /// 
-    /// **Requirements: 4.3**
     /// - 4.3: 验证笔记是否属于当前文件夹
     /// 
     /// **统一操作队列集成**：
@@ -4685,8 +4670,7 @@ public class NotesViewModel: ObservableObject {
         print("[VIEWMODEL] 同步间隔已更新为 \(effectiveInterval) 秒")
     }
     
-    // MARK: - 音频面板状态同步
-    // Requirements: 5.1, 5.2
+    // MARK: - 音频面板状态同步 
     
     /// 处理笔记切换时的音频面板状态同步
     ///
@@ -4694,8 +4678,7 @@ public class NotesViewModel: ObservableObject {
     /// - 如果正在播放，停止播放并关闭面板
     /// - 如果正在录制，显示确认对话框
     ///
-    /// - Parameter newNoteId: 新选中的笔记 ID
-    /// Requirements: 5.1, 5.2
+    /// - Parameter newNoteId: 新选中的笔记 ID 
     private func handleNoteSwitch(to newNoteId: String) {
         // 调用 AudioPanelStateManager 的 handleNoteSwitch 方法
         // 该方法会根据当前状态决定是否需要确认对话框

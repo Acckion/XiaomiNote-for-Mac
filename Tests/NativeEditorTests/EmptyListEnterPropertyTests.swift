@@ -4,8 +4,7 @@
 //
 //  空列表回车属性测试 - 验证空列表项回车时取消格式的功能
 //
-//  **Feature: list-behavior-optimization, Property 4: 空列表回车取消格式**
-//  **Validates: Requirements 3.1, 3.2, 3.3, 3.4**
+//  **Feature: list-behavior-optimization, Property 4: 空列表回车取消格式** 
 //
 
 import XCTest
@@ -50,13 +49,11 @@ final class EmptyListEnterPropertyTests: XCTestCase {
     }
     
     // MARK: - Property 4: 空列表回车取消格式
-    // **Feature: list-behavior-optimization, Property 4: 空列表回车取消格式**
-    // **Validates: Requirements 3.1, 3.2, 3.3, 3.4**
+    // **Feature: list-behavior-optimization, Property 4: 空列表回车取消格式** 
     
     /// 属性测试：空无序列表回车取消格式
     ///
-    /// **Property 4**: 对于任何空的无序列表行，当按下回车时，列表格式应该被取消
-    /// **Validates: Requirements 3.1, 3.2**
+    /// **Property 4**: 对于任何空的无序列表行，当按下回车时，列表格式应该被取消 
     ///
     /// 测试策略：
     /// 1. 创建空的无序列表行（随机缩进级别）
@@ -128,8 +125,7 @@ final class EmptyListEnterPropertyTests: XCTestCase {
     
     /// 属性测试：空有序列表回车取消格式
     ///
-    /// **Property 4**: 对于任何空的有序列表行，当按下回车时，列表格式应该被取消
-    /// **Validates: Requirements 3.1, 3.2**
+    /// **Property 4**: 对于任何空的有序列表行，当按下回车时，列表格式应该被取消 
     ///
     /// 测试策略：
     /// 1. 创建空的有序列表行（随机编号和缩进级别）
@@ -202,8 +198,7 @@ final class EmptyListEnterPropertyTests: XCTestCase {
     
     /// 属性测试：空列表回车恢复普通正文格式
     ///
-    /// **Property 4**: 对于任何空的列表行，当按下回车时，当前行应该恢复为普通正文格式
-    /// **Validates: Requirements 3.3**
+    /// **Property 4**: 对于任何空的列表行，当按下回车时，当前行应该恢复为普通正文格式 
     ///
     /// 测试策略：
     /// 1. 创建空的列表行（随机选择有序或无序）
@@ -273,8 +268,7 @@ final class EmptyListEnterPropertyTests: XCTestCase {
     
     /// 属性测试：空列表回车光标保持在当前行
     ///
-    /// **Property 4**: 对于任何空的列表行，当按下回车时，光标应该保持在当前行
-    /// **Validates: Requirements 3.4**
+    /// **Property 4**: 对于任何空的列表行，当按下回车时，光标应该保持在当前行 
     ///
     /// 测试策略：
     /// 1. 创建空的列表行
@@ -328,8 +322,7 @@ final class EmptyListEnterPropertyTests: XCTestCase {
     
     /// 属性测试：只有空白字符的列表项也被视为空列表项
     ///
-    /// **Property 4**: 对于只有空白字符（空格、制表符）的列表项，也应该被视为空列表项
-    /// **Validates: Requirements 3.1**
+    /// **Property 4**: 对于只有空白字符（空格、制表符）的列表项，也应该被视为空列表项 
     ///
     /// 测试策略：
     /// 1. 创建只有空白字符的列表行
@@ -388,8 +381,7 @@ final class EmptyListEnterPropertyTests: XCTestCase {
     
     /// 属性测试：有内容的列表项不会被取消格式
     ///
-    /// **Property 4 反向验证**: 对于有内容的列表项，回车不应该取消格式
-    /// **Validates: Requirements 3.1**
+    /// **Property 4 反向验证**: 对于有内容的列表项，回车不应该取消格式 
     ///
     /// 测试策略：
     /// 1. 创建有内容的列表行

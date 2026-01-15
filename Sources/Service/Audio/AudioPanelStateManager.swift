@@ -3,8 +3,7 @@ import Combine
 
 /// 录音模板状态枚举
 /// 
-/// 跟踪录音模板从插入到完成的完整状态
-/// Requirements: 2.5
+/// 跟踪录音模板从插入到完成的完整状态 
 enum RecordingTemplateState: Equatable, CustomStringConvertible {
     case none                           // 无模板
     case inserted(templateId: String)   // 模板已插入
@@ -70,8 +69,7 @@ enum RecordingTemplateState: Equatable, CustomStringConvertible {
 ///
 /// 负责管理音频面板的显示状态、模式和与其他组件的协调。
 /// 音频面板是主窗口的第四栏，用于录制和播放音频。
-///
-/// Requirements: 1.1, 1.3, 2.1, 2.2, 2.3, 5.1
+/// 
 @MainActor
 final class AudioPanelStateManager: ObservableObject {
     
@@ -89,23 +87,19 @@ final class AudioPanelStateManager: ObservableObject {
     
     // MARK: - 发布属性
     
-    /// 面板是否可见
-    /// Requirements: 1.1, 1.3
+    /// 面板是否可见 
     @Published private(set) var isVisible: Bool = false
     
-    /// 当前模式
-    /// Requirements: 2.1, 2.2
+    /// 当前模式 
     @Published private(set) var mode: Mode = .recording
     
     /// 当前播放的文件 ID（播放模式）
     @Published private(set) var currentFileId: String?
     
-    /// 当前关联的笔记 ID
-    /// Requirements: 5.1
+    /// 当前关联的笔记 ID 
     @Published private(set) var currentNoteId: String?
     
-    /// 当前录音模板状态
-    /// Requirements: 2.5
+    /// 当前录音模板状态 
     @Published private(set) var recordingTemplateState: RecordingTemplateState = .none
     
     /// 当前录制的模板 ID（用于录制完成后更新模板）
@@ -188,8 +182,7 @@ final class AudioPanelStateManager: ObservableObject {
     
     /// 显示面板进入录制模式
     ///
-    /// - Parameter noteId: 当前笔记 ID
-    /// Requirements: 2.1
+    /// - Parameter noteId: 当前笔记 ID 
     func showForRecording(noteId: String) {
         print("[AudioPanelState] 显示面板 - 录制模式，笔记: \(noteId)")
         
@@ -220,8 +213,7 @@ final class AudioPanelStateManager: ObservableObject {
     ///
     /// - Parameters:
     ///   - fileId: 音频文件 ID
-    ///   - noteId: 当前笔记 ID
-    /// Requirements: 2.2
+    ///   - noteId: 当前笔记 ID 
     func showForPlayback(fileId: String, noteId: String) {
         print("[AudioPanelState] 显示面板 - 播放模式，文件: \(fileId)，笔记: \(noteId)")
         
@@ -251,8 +243,7 @@ final class AudioPanelStateManager: ObservableObject {
     
     /// 隐藏面板
     ///
-    /// - Returns: 是否成功隐藏（录制中可能需要确认）
-    /// Requirements: 1.3, 2.3
+    /// - Returns: 是否成功隐藏（录制中可能需要确认） 
     @discardableResult
     func hide() -> Bool {
         print("[AudioPanelState] 请求隐藏面板")
@@ -318,8 +309,7 @@ final class AudioPanelStateManager: ObservableObject {
     
     /// 检查是否可以安全关闭
     ///
-    /// - Returns: 是否可以关闭（录制中返回 false）
-    /// Requirements: 2.5
+    /// - Returns: 是否可以关闭（录制中返回 false） 
     func canClose() -> Bool {
         // 如果正在录制或暂停，不能直接关闭
         let recordingState = recorderService.state
@@ -334,8 +324,7 @@ final class AudioPanelStateManager: ObservableObject {
     /// 处理笔记切换
     ///
     /// - Parameter newNoteId: 新笔记 ID
-    /// - Returns: 是否允许切换（录制中可能需要确认）
-    /// Requirements: 5.1, 5.2
+    /// - Returns: 是否允许切换（录制中可能需要确认） 
     @discardableResult
     func handleNoteSwitch(to newNoteId: String) -> Bool {
         print("[AudioPanelState] 处理笔记切换: \(currentNoteId ?? "nil") -> \(newNoteId)")
@@ -369,8 +358,7 @@ final class AudioPanelStateManager: ObservableObject {
     
     /// 处理音频附件删除
     ///
-    /// - Parameter fileId: 被删除的文件 ID
-    /// Requirements: 5.4
+    /// - Parameter fileId: 被删除的文件 ID 
     func handleAudioAttachmentDeleted(fileId: String) {
         print("[AudioPanelState] 处理音频附件删除: \(fileId)")
         

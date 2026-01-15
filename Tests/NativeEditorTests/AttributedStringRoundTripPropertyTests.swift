@@ -3,8 +3,7 @@
 //  MiNoteMac
 //
 //  NSAttributedString 往返一致性属性测试
-//  Feature: xml-attributedstring-converter, Property 2: NSAttributedString 往返一致性
-//  Validates: Requirements 6.2, 6.3, 6.4
+//  Feature: xml-attributedstring-converter, Property 2: NSAttributedString 往返一致性 
 //
 
 import XCTest
@@ -16,8 +15,7 @@ import AppKit
 /// Property 2: NSAttributedString 往返一致性
 /// For any 有效的 NSAttributedString，转换为 AST 后再转换回 NSAttributedString，
 /// 所有格式属性（粗体、斜体、下划线、删除线、背景色、字体大小、对齐方式）和附件信息应该保持不变。
-///
-/// Validates: Requirements 6.2, 6.3, 6.4
+/// 
 final class AttributedStringRoundTripPropertyTests: XCTestCase {
     
     // MARK: - Properties

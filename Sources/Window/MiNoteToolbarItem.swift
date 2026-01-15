@@ -18,15 +18,13 @@ public class MiNoteToolbarItem: NSToolbarItem {
 
     /// 验证工具栏项是否可用
     /// 通过响应链查找实现了 NSUserInterfaceValidations 的对象
-    ///
-    /// **Requirements: 2.2, 2.3**
+    /// 
     /// - 2.2: 当选中笔记时，编辑器项应该启用
     /// - 2.3: 当没有选中笔记时，编辑器项应该可见但禁用
     /// - 隐藏状态优先于启用状态：隐藏的工具栏项不会被错误地启用
     override public func validate() {
         // 隐藏状态优先于启用状态
-        // 如果工具栏项被隐藏，则不应该启用
-        // **Requirements: 2.2, 2.3**
+        // 如果工具栏项被隐藏，则不应该启用 
         if isHidden {
             isEnabled = false
             return

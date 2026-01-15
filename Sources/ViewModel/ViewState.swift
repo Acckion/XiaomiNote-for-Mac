@@ -6,7 +6,6 @@ import Foundation
 /// 
 /// 记录当前选中的文件夹和笔记状态，用于状态一致性验证和状态恢复
 /// 
-/// **Requirements: 4.1, 4.3**
 /// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
 /// - 4.3: 验证笔记是否属于当前文件夹
 public struct ViewState: Equatable, Codable {
@@ -127,7 +126,6 @@ public enum TransitionTrigger: String, Codable {
 /// 
 /// 记录从一个状态到另一个状态的转换，用于调试和日志
 /// 
-/// **Requirements: 4.5**
 /// - 提供状态变化的日志记录以便调试
 public struct StateTransition: Codable {
     /// 转换前的状态

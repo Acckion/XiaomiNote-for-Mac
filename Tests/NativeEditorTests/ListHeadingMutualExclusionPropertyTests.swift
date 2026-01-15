@@ -21,8 +21,7 @@ import AppKit
 /// **Property 5: 列表与标题格式互斥**
 /// *For any* 行，列表格式和标题格式不能同时存在。当应用列表格式时，标题格式应该被移除；
 /// 当应用标题格式时，列表格式应该被移除。列表行的字体大小应该始终为正文大小（14pt）。
-///
-/// **Validates: Requirements 5.1, 5.2, 5.3**
+/// 
 @MainActor
 final class ListHeadingMutualExclusionPropertyTests: XCTestCase {
     

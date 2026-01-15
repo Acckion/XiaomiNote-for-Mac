@@ -596,8 +596,7 @@ public class NativeEditorContext: ObservableObject {
     /// - Parameters:
     ///   - fileId: 语音文件 ID
     ///   - digest: 文件摘要（可选）
-    ///   - mimeType: MIME 类型（可选）
-    /// - Requirements: 9.4, 9.5
+    ///   - mimeType: MIME 类型（可选） 
     func insertAudio(fileId: String, digest: String? = nil, mimeType: String? = nil) {
         print("[NativeEditorContext] 插入语音录音: fileId=\(fileId)")
         insertSpecialElement(.audio(fileId: fileId, digest: digest, mimeType: mimeType))
@@ -611,8 +610,7 @@ public class NativeEditorContext: ObservableObject {
     /// 占位符使用 `temp_[templateId]` 作为 fileId，并设置 `isTemporaryPlaceholder = true`
     /// 导出 XML 时会生成 `<sound fileid="temp_xxx" des="temp"/>` 格式
     /// 
-    /// - Parameter templateId: 模板唯一标识符
-    /// - Requirements: 4.2
+    /// - Parameter templateId: 模板唯一标识符 
     func insertRecordingTemplate(templateId: String) {
         print("[NativeEditorContext] 插入录音模板: templateId=\(templateId)")
         
@@ -661,8 +659,7 @@ public class NativeEditorContext: ObservableObject {
     ///   - templateId: 模板唯一标识符
     ///   - fileId: 音频文件 ID
     ///   - digest: 文件摘要（可选）
-    ///   - mimeType: MIME 类型（可选）
-    /// - Requirements: 4.3
+    ///   - mimeType: MIME 类型（可选） 
     func updateRecordingTemplate(templateId: String, fileId: String, digest: String? = nil, mimeType: String? = nil) {
         print("[NativeEditorContext] 更新录音模板: templateId=\(templateId), fileId=\(fileId)")
         
@@ -717,8 +714,7 @@ public class NativeEditorContext: ObservableObject {
     ///   - templateId: 模板唯一标识符
     ///   - fileId: 音频文件 ID
     ///   - digest: 文件摘要（可选）
-    ///   - mimeType: MIME 类型（可选）
-    /// - Requirements: 1.1, 2.1
+    ///   - mimeType: MIME 类型（可选） 
     func updateRecordingTemplateAndSave(templateId: String, fileId: String, digest: String? = nil, mimeType: String? = nil) async throws {
         print("[NativeEditorContext] 更新录音模板并强制保存: templateId=\(templateId), fileId=\(fileId)")
         
@@ -738,8 +734,7 @@ public class NativeEditorContext: ObservableObject {
     /// 验证保存后的内容是否包含预期的音频附件，确保持久化成功
     /// 
     /// - Parameter expectedContent: 预期的内容（包含音频附件的XML）
-    /// - Returns: 是否验证成功
-    /// - Requirements: 1.3, 3.4
+    /// - Returns: 是否验证成功 
     func verifyContentPersistence(expectedContent: String) async -> Bool {
         print("[NativeEditorContext] 验证内容持久化，预期内容长度: \(expectedContent.count)")
         
@@ -862,8 +857,7 @@ public class NativeEditorContext: ObservableObject {
     /// 
     /// 将状态更新包装在 Task 中异步执行，避免在视图更新过程中修改 @Published 属性
     /// 
-    /// - Parameter text: 新的内容
-    /// - Requirements: FR-3.3.1 - 异步状态更新
+    /// - Parameter text: 新的内容 
     func updateNSContentAsync(_ text: NSAttributedString) {
         Task { @MainActor in
             nsAttributedText = text
@@ -1321,7 +1315,6 @@ public class NativeEditorContext: ObservableObject {
     /// 
     /// 将格式状态更新包装在 Task 中异步执行，避免在视图更新过程中修改 @Published 属性
     /// 
-    /// - Requirements: FR-3.3.1 - 异步状态更新
     func updateCurrentFormatsAsync() {
         Task { @MainActor in
             updateCurrentFormats()
@@ -1927,28 +1920,23 @@ public class NativeEditorContext: ObservableObject {
             toolbarButtonStates[.numberedList] = false
             toolbarButtonStates[.checkbox] = false
         }
-    }
+    } 
     
-    // MARK: - Public Methods - 缩放操作 (Requirements: 10.2, 10.3, 10.4)
-    
-    /// 放大
-    /// - Requirements: 10.2
+    /// 放大 
     func zoomIn() {
         print("[NativeEditorContext] 放大")
         // 发送缩放通知，让编辑器视图处理
         NotificationCenter.default.post(name: .editorZoomIn, object: nil)
     }
     
-    /// 缩小
-    /// - Requirements: 10.3
+    /// 缩小 
     func zoomOut() {
         print("[NativeEditorContext] 缩小")
         // 发送缩放通知，让编辑器视图处理
         NotificationCenter.default.post(name: .editorZoomOut, object: nil)
     }
     
-    /// 重置缩放
-    /// - Requirements: 10.4
+    /// 重置缩放 
     func resetZoom() {
         print("[NativeEditorContext] 重置缩放")
         // 发送重置缩放通知，让编辑器视图处理

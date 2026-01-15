@@ -5,8 +5,7 @@
 //  文本分割属性测试
 //  验证 ListBehaviorHandler 的文本分割功能
 //
-//  **Feature: list-behavior-optimization, Property 2: 文本分割正确性**
-//  **Validates: Requirements 2.1, 2.2, 2.3**
+//  **Feature: list-behavior-optimization, Property 2: 文本分割正确性** 
 //
 
 import XCTest
@@ -47,8 +46,7 @@ final class TextSplitPropertyTests: XCTestCase {
     }
     
     // MARK: - Property 2: 文本分割正确性
-    // **Feature: list-behavior-optimization, Property 2: 文本分割正确性**
-    // **Validates: Requirements 2.1, 2.2, 2.3**
+    // **Feature: list-behavior-optimization, Property 2: 文本分割正确性** 
     
     /// 属性测试：文本分割结果的前后文本拼接等于原始内容
     /// *For any* 有内容的列表项和任意光标位置，光标前的文本 + 光标后的文本 = 原始内容

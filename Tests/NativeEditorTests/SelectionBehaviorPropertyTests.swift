@@ -5,8 +5,7 @@
 //  选择行为限制属性测试
 //  验证 NativeTextView 的选择行为限制功能
 //
-//  **Property 6: 选择行为限制**
-//  **Validates: Requirements 5.1, 5.2**
+//  **Property 6: 选择行为限制** 
 //
 
 import XCTest
@@ -61,8 +60,7 @@ final class SelectionBehaviorPropertyTests: XCTestCase {
         return textStorage
     }
     
-    // MARK: - Property 6: 选择行为限制
-    // **Validates: Requirements 5.1, 5.2**
+    // MARK: - Property 6: 选择行为限制 
     
     /// 属性测试：选择范围的起始位置永远不在列表标记区域内
     /// 验证任何选择操作后，选择范围的起始位置都不会落在列表标记区域内

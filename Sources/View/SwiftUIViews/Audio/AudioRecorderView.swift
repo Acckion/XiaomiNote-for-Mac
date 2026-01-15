@@ -16,8 +16,7 @@ import AVFoundation
 /// - 音量指示器
 /// - 录制/停止/取消按钮
 /// - 录制完成后的预览界面
-///
-/// Requirements: 8.1, 8.4, 8.6, 8.7
+/// 
 struct AudioRecorderView: View {
     
     // MARK: - Properties
@@ -184,8 +183,7 @@ struct AudioRecorderView: View {
         }
     }
     
-    /// 录制中视图
-    /// Requirements: 8.4
+    /// 录制中视图 
     private var recordingView: some View {
         VStack(spacing: 20) {
             // 录制时长显示
@@ -202,8 +200,7 @@ struct AudioRecorderView: View {
         }
     }
     
-    /// 预览视图
-    /// Requirements: 8.7
+    /// 预览视图 
     private var previewView: some View {
         VStack(spacing: 20) {
             // 录制时长显示
@@ -261,8 +258,7 @@ struct AudioRecorderView: View {
             .animation(.easeInOut(duration: 0.3), value: viewState)
     }
     
-    /// 音量指示器
-    /// Requirements: 8.4
+    /// 音量指示器 
     private var audioLevelMeter: some View {
         AudioLevelMeterView(level: recorderService.audioLevel, isActive: viewState == .recording)
             .frame(height: 8)
@@ -304,8 +300,7 @@ struct AudioRecorderView: View {
         .buttonStyle(.plain)
     }
     
-    /// 录制控制按钮
-    /// Requirements: 8.6
+    /// 录制控制按钮 
     private var recordingControlButtons: some View {
         HStack(spacing: 40) {
             // 取消按钮
@@ -359,8 +354,7 @@ struct AudioRecorderView: View {
     
     // MARK: - Preview Components
     
-    /// 预览播放控制
-    /// Requirements: 8.7
+    /// 预览播放控制 
     private var previewPlaybackControls: some View {
         HStack(spacing: 20) {
             // 播放/暂停按钮
@@ -411,8 +405,7 @@ struct AudioRecorderView: View {
         .padding(.horizontal, 20)
     }
     
-    /// 预览操作按钮
-    /// Requirements: 8.7
+    /// 预览操作按钮 
     private var previewActionButtons: some View {
         HStack(spacing: 16) {
             // 重录按钮
@@ -460,8 +453,7 @@ struct AudioRecorderView: View {
         }
     }
     
-    /// 开始录制
-    /// Requirements: 8.1
+    /// 开始录制 
     private func startRecording() {
         do {
             try recorderService.startRecording()
@@ -472,8 +464,7 @@ struct AudioRecorderView: View {
         }
     }
     
-    /// 切换暂停/继续
-    /// Requirements: 8.6
+    /// 切换暂停/继续 
     private func togglePauseResume() {
         if viewState == .recording {
             recorderService.pauseRecording()
@@ -484,8 +475,7 @@ struct AudioRecorderView: View {
         }
     }
     
-    /// 停止录制
-    /// Requirements: 8.6
+    /// 停止录制 
     private func stopRecording() {
         if let fileURL = recorderService.stopRecording() {
             recordedFileURL = fileURL
@@ -500,8 +490,7 @@ struct AudioRecorderView: View {
     }
     
     /// 加载音频用于预览
-    /// 不再自动播放然后暂停，只验证文件可以被加载
-    /// Requirements: 1.1
+    /// 不再自动播放然后暂停，只验证文件可以被加载 
     private func loadAudioForPreview(_ url: URL) {
         // 只验证文件可以被加载，不自动播放
         if let duration = playerService.getDuration(for: url) {
@@ -512,8 +501,7 @@ struct AudioRecorderView: View {
     }
     
     /// 切换预览播放
-    /// 确保从头开始播放时正确初始化
-    /// Requirements: 1.2
+    /// 确保从头开始播放时正确初始化 
     private func togglePreviewPlayback() {
         if playerService.isPlaying {
             // 正在播放，暂停
@@ -540,8 +528,7 @@ struct AudioRecorderView: View {
         }
     }
     
-    /// 重新录制
-    /// Requirements: 8.7
+    /// 重新录制 
     private func reRecord() {
         // 停止播放
         playerService.stop()
@@ -557,8 +544,7 @@ struct AudioRecorderView: View {
         viewState = .idle
     }
     
-    /// 确认录制
-    /// Requirements: 8.7
+    /// 确认录制 
     private func confirmRecording() {
         print("[AudioRecorderView] 确认录制，准备停止播放并回调")
         
@@ -638,8 +624,7 @@ struct AudioRecorderView: View {
 
 // MARK: - Audio Level Meter View
 
-/// 音量指示器视图
-/// Requirements: 8.4
+/// 音量指示器视图 
 struct AudioLevelMeterView: View {
     
     /// 音量级别（0.0 - 1.0）

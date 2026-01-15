@@ -9,8 +9,7 @@ import Combine
 /// - 进度跳转
 /// - 播放状态管理
 /// - 播放完成通知
-///
-/// Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8
+/// 
 final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable {
     
     // MARK: - 单例
@@ -117,8 +116,7 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
     /// 播放音频文件
     ///
     /// - Parameter url: 音频文件 URL
-    /// - Throws: 播放失败时抛出错误
-    /// - Requirements: 7.1
+    /// - Throws: 播放失败时抛出错误 
     func play(url: URL) throws {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -195,8 +193,7 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
     }
     
     /// 暂停播放
-    ///
-    /// - Requirements: 7.5
+    /// 
     func pause() {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -214,8 +211,7 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
     }
     
     /// 停止播放
-    ///
-    /// - Requirements: 7.7
+    /// 
     func stop() {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -246,8 +242,7 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
     
     /// 跳转到指定位置
     ///
-    /// - Parameter progress: 进度值（0.0 - 1.0）
-    /// - Requirements: 7.6
+    /// - Parameter progress: 进度值（0.0 - 1.0） 
     func seek(to progress: Double) {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -525,8 +520,7 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
 extension AudioPlayerService: AVAudioPlayerDelegate {
     
     /// 播放完成回调
-    ///
-    /// - Requirements: 7.7
+    /// 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -551,8 +545,7 @@ extension AudioPlayerService: AVAudioPlayerDelegate {
     }
     
     /// 播放解码错误回调
-    ///
-    /// - Requirements: 7.8
+    /// 
     func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         stateLock.lock()
         defer { stateLock.unlock() }

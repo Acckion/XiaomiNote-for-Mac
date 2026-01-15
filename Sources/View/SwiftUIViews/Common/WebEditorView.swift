@@ -547,8 +547,7 @@ struct WebEditorView: NSViewRepresentable {
             print("[WebEditorView] ⚠️ 未找到 Inspector 窗口")
         }
         
-        /// 处理语音播放请求
-        /// Requirements: 13.1, 13.2, 13.3
+        /// 处理语音播放请求 
         /// - Parameter fileId: 语音文件 ID
         func handlePlayAudioRequest(fileId: String) {
             print("[WebEditorView] 处理语音播放请求: fileId=\(fileId)")
@@ -610,8 +609,7 @@ struct WebEditorView: NSViewRepresentable {
             }
         }
         
-        /// 设置播放状态观察者
-        /// Requirements: 13.4
+        /// 设置播放状态观察者 
         private func setupPlaybackObservers(for fileId: String) {
             // 监听播放完成通知
             NotificationCenter.default.addObserver(
@@ -648,8 +646,7 @@ struct WebEditorView: NSViewRepresentable {
             }
         }
         
-        /// 更新 Web 编辑器中的播放状态
-        /// Requirements: 13.4
+        /// 更新 Web 编辑器中的播放状态 
         private func updateAudioPlaybackState(fileId: String, isPlaying: Bool, isLoading: Bool = false, error: String? = nil) {
             guard let webView = webView else { return }
             
@@ -700,8 +697,7 @@ struct WebEditorView: NSViewRepresentable {
                 }
             }
             
-            // 插入语音录音闭包
-            // Requirements: 12.1, 12.2, 12.3
+            // 插入语音录音闭包 
             insertAudioClosure = { [weak self] fileId, digest, mimeType in
                 guard let webView = self?.webView else { return }
                 // 转义参数，防止 JavaScript 注入
@@ -841,8 +837,7 @@ struct WebEditorView: NSViewRepresentable {
             if let webEditorContext = self.webEditorContext {
                 webEditorContext.highlightSearchTextClosure = self.highlightSearchTextClosure
                 
-                // 设置语音播放控制闭包
-                // Requirements: 13.2, 13.3
+                // 设置语音播放控制闭包 
                 webEditorContext.playAudioClosure = { [weak self] fileId in
                     self?.handlePlayAudioRequest(fileId: fileId)
                 }
@@ -1114,8 +1109,7 @@ struct WebEditorView: NSViewRepresentable {
                 }
                 
             case "playAudio":
-                // 处理语音播放请求
-                // Requirements: 13.1, 13.2
+                // 处理语音播放请求 
                 if let fileId = body["fileId"] as? String {
                     print("[WebEditorView] 收到播放语音请求: fileId=\(fileId)")
                     DispatchQueue.main.async { [weak self] in

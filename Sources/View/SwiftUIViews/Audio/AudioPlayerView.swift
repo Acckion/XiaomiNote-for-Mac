@@ -15,8 +15,7 @@ import Combine
 /// - 播放进度条
 /// - 当前时间和总时长
 /// - 播放/暂停/跳转控制按钮
-///
-/// Requirements: 7.2, 7.3, 7.4, 7.6
+/// 
 struct AudioPlayerView: View {
     
     // MARK: - Properties

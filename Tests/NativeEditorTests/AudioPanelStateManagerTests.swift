@@ -4,8 +4,7 @@
 //
 //  音频面板状态管理器单元测试
 //
-//  测试状态转换逻辑和 canClose() 在各种状态下的返回值
-//  Requirements: 1.1, 1.3
+//  测试状态转换逻辑和 canClose() 在各种状态下的返回值 
 //
 
 import XCTest
@@ -23,8 +22,7 @@ final class AudioPanelStateManagerTests: XCTestCase {
     
     // MARK: - 基础测试
     
-    /// 测试状态管理器存在
-    /// Requirements: 1.1
+    /// 测试状态管理器存在 
     func testStateManagerExists() {
         // 简单测试确保状态管理器类型存在
         let managerType = AudioPanelStateManager.self

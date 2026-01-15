@@ -100,9 +100,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     var placeholderSize: NSSize = NSSize(width: 240, height: 56)
     
     /// 缓存的图像
-    private var cachedImage: NSImage?
-    
-    // MARK: - 播放状态属性（Requirements: 7.2, 7.3, 7.4）
+    private var cachedImage: NSImage? 
     
     /// 当前播放状态
     private(set) var playbackState: AudioPlaybackState = .idle {
@@ -308,14 +306,11 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
                 "state": playbackState
             ]
         )
-    }
-    
-    // MARK: - 播放控制方法（Requirements: 7.1, 7.5, 7.6）
+    } 
     
     /// 开始播放（自动下载和缓存）
     ///
-    /// - Throws: 播放失败时抛出错误
-    /// - Requirements: 7.1
+    /// - Throws: 播放失败时抛出错误 
     func play() async throws {
         guard let fileId = fileId else {
             let error = "无法播放：缺少文件 ID"
@@ -367,8 +362,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
     
     /// 暂停播放
-    ///
-    /// - Requirements: 7.5
+    /// 
     func pause() {
         guard let fileId = fileId,
               AudioPlayerService.shared.currentFileId == fileId else {
@@ -396,8 +390,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     /// 跳转到指定位置
     ///
-    /// - Parameter progress: 进度值（0.0 - 1.0）
-    /// - Requirements: 7.6
+    /// - Parameter progress: 进度值（0.0 - 1.0） 
     func seek(to progress: Double) {
         guard let fileId = fileId,
               AudioPlayerService.shared.currentFileId == fileId else {

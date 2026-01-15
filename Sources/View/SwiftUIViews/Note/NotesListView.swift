@@ -257,8 +257,7 @@ struct NotesListView: View {
                 moveNoteSheetView(for: note)
             }
         }
-        // 监听笔记选择变化，通过 coordinator 进行状态管理
-        // **Requirements: 1.1, 1.2**
+        // 监听笔记选择变化，通过 coordinator 进行状态管理 
         // - 1.1: 编辑笔记内容时保持选中状态不变
         // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
         .onChange(of: viewModel.selectedNote) { oldValue, newValue in

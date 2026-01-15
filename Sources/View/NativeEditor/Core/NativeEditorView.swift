@@ -269,8 +269,7 @@ struct NativeEditorView: NSViewRepresentable {
             
             // 监听内容变化（用于录音模板插入等外部内容更新）
             // 当 NativeEditorContext.updateNSContent 被调用时，直接更新 textView
-            // 这解决了 SwiftUI 无法检测 NSAttributedString 内容变化的问题
-            // Requirements: 4.2, 4.3 - 录音模板插入和更新
+            // 这解决了 SwiftUI 无法检测 NSAttributedString 内容变化的问题 
             parent.editorContext.contentChangePublisher
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] newContent in
@@ -500,8 +499,7 @@ struct NativeEditorView: NSViewRepresentable {
         /// 当 NativeEditorContext.updateNSContent 或 loadFromXML 被调用时，此方法会被触发
         /// 直接更新 textView 的内容，解决 SwiftUI 无法检测 NSAttributedString 变化的问题
         /// 
-        /// - Parameter newContent: 新的内容
-        /// - Requirements: 1.1, 1.3, 2.3, 4.2, 4.3 - 笔记切换时立即显示格式、录音模板插入和更新
+        /// - Parameter newContent: 新的内容 
         private func handleExternalContentUpdate(_ newContent: NSAttributedString) {
             guard let textView = textView else {
                 print("[NativeEditorView] handleExternalContentUpdate: textView 为 nil")
@@ -1384,8 +1382,7 @@ struct NativeEditorView: NSViewRepresentable {
         ///   - digest: 文件摘要（可选）
         ///   - mimeType: MIME 类型（可选）
         ///   - location: 插入位置
-        ///   - textStorage: 文本存储
-        /// - Requirements: 9.4, 9.5
+        ///   - textStorage: 文本存储 
         private func insertAudio(fileId: String, digest: String?, mimeType: String?, at location: Int, in textStorage: NSTextStorage) {
             print("[NativeEditorView] 插入语音录音: fileId=\(fileId)")
             
@@ -1750,8 +1747,7 @@ class NativeTextView: NSTextView {
                         
                         print("[NativeTextView] 🎤 音频附件点击: charIndex=\(charIndex), fileId=\(fileId)")
                         
-                        // 发送通知，让音频面板处理播放
-                        // Requirements: 2.2
+                        // 发送通知，让音频面板处理播放 
                         NotificationCenter.default.postAudioAttachmentClicked(fileId: fileId)
                         
                         return

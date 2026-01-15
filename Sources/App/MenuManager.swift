@@ -3,8 +3,7 @@ import MiNoteLibrary
 
 /// 菜单管理器
 /// 负责应用程序菜单的设置和管理
-/// 按照 Apple Notes 标准实现完整的 macOS 原生菜单体验
-/// - Requirements: 1.1-1.9
+/// 按照 Apple Notes 标准实现完整的 macOS 原生菜单体验 
 @MainActor
 class MenuManager {
     
@@ -360,8 +359,7 @@ class MenuManager {
     // MARK: - 私有方法
     
     /// 设置应用程序菜单
-    /// 按照 Apple Notes 标准实现完整的应用程序菜单
-    /// - Requirements: 1.1-1.9
+    /// 按照 Apple Notes 标准实现完整的应用程序菜单 
     private func setupAppMenu(in mainMenu: NSMenu) {
         // 创建应用程序菜单项
         let appMenuItem = NSMenuItem()
@@ -445,8 +443,7 @@ class MenuManager {
     }
     
     /// 设置文件菜单
-    /// 按照 Apple Notes 标准实现完整的文件菜单
-    /// - Requirements: 2.1-2.20
+    /// 按照 Apple Notes 标准实现完整的文件菜单 
     private func setupFileMenu(in mainMenu: NSMenu) {
         // 创建文件菜单
         let fileMenuItem = NSMenuItem()
@@ -607,8 +604,7 @@ class MenuManager {
         fileMenu.addItem(printItem)
     }
     
-    /// 创建"导出为"子菜单
-    /// - Requirements: 2.12-2.13
+    /// 创建"导出为"子菜单 
     private func createExportSubmenu() -> NSMenu {
         let exportMenu = NSMenu(title: "导出为")
         
@@ -647,8 +643,7 @@ class MenuManager {
     
     /// 设置编辑菜单
     /// 按照 Apple Notes 标准实现完整的编辑菜单
-    /// 使用标准 NSResponder 选择器，让系统自动路由到响应链中的正确响应者
-    /// - Requirements: 3.1-3.11
+    /// 使用标准 NSResponder 选择器，让系统自动路由到响应链中的正确响应者 
     private func setupEditMenu(in mainMenu: NSMenu) {
         // 创建编辑菜单
         let editMenuItem = NSMenuItem()
@@ -868,8 +863,7 @@ class MenuManager {
     }
     
     /// 创建"查找"子菜单
-    /// 使用 performFindPanelAction: 和 NSTextFinder.Action 实现标准查找功能
-    /// - Requirements: 3.17-3.22
+    /// 使用 performFindPanelAction: 和 NSTextFinder.Action 实现标准查找功能 
     private func createFindSubmenu() -> NSMenu {
         let findMenu = NSMenu(title: "查找")
         
@@ -932,8 +926,7 @@ class MenuManager {
     }
     
     /// 创建"拼写和语法"子菜单
-    /// 使用系统标准实现
-    /// - Requirements: 3.23
+    /// 使用系统标准实现 
     private func createSpellingSubmenu() -> NSMenu {
         let spellingMenu = NSMenu(title: "拼写和语法")
         
@@ -969,8 +962,7 @@ class MenuManager {
     }
     
     /// 创建"替换"子菜单
-    /// 使用系统标准实现
-    /// - Requirements: 3.24
+    /// 使用系统标准实现 
     private func createSubstitutionsSubmenu() -> NSMenu {
         let substitutionsMenu = NSMenu(title: "替换")
         
@@ -1034,8 +1026,7 @@ class MenuManager {
     }
     
     /// 创建"转换"子菜单
-    /// 使用系统标准实现
-    /// - Requirements: 3.25
+    /// 使用系统标准实现 
     private func createTransformationsSubmenu() -> NSMenu {
         let transformationsMenu = NSMenu(title: "转换")
         
@@ -1070,8 +1061,7 @@ class MenuManager {
     }
     
     /// 创建"语音"子菜单
-    /// 使用系统标准实现
-    /// - Requirements: 3.26
+    /// 使用系统标准实现 
     private func createSpeechSubmenu() -> NSMenu {
         let speechMenu = NSMenu(title: "语音")
         
@@ -1097,17 +1087,14 @@ class MenuManager {
     }
     
     /// 设置格式菜单
-    /// 按照 Apple Notes 标准实现完整的格式菜单
-    /// - Requirements: 4.1-4.9, 5.1-5.11, 6.1-6.9, 7.1-7.7
+    /// 按照 Apple Notes 标准实现完整的格式菜单 
     private func setupFormatMenu(in mainMenu: NSMenu) {
         // 创建格式菜单
         let formatMenuItem = NSMenuItem()
         formatMenuItem.title = "格式"
         let formatMenu = NSMenu(title: "格式")
         formatMenuItem.submenu = formatMenu
-        mainMenu.addItem(formatMenuItem)
-        
-        // ========== 段落样式部分（Requirements: 4.1-4.9）==========
+        mainMenu.addItem(formatMenuItem) 
         
         // 4.1 添加"大标题"菜单项（支持单选勾选状态）
         let headingItem = NSMenuItem(
@@ -1183,9 +1170,7 @@ class MenuManager {
         formatMenu.addItem(blockQuoteItem)
         
         // 添加分隔线
-        formatMenu.addItem(NSMenuItem.separator())
-        
-        // ========== 核对清单部分（Requirements: 5.1-5.11）==========
+        formatMenu.addItem(NSMenuItem.separator()) 
         
         // 5.1 添加"核对清单"菜单项
         let checklistItem = NSMenuItem(
@@ -1231,9 +1216,7 @@ class MenuManager {
         formatMenu.addItem(moveItemMenuItem)
         
         // 6.1 添加分隔线
-        formatMenu.addItem(NSMenuItem.separator())
-        
-        // ========== 外观和字体部分（Requirements: 6.1-6.9）==========
+        formatMenu.addItem(NSMenuItem.separator()) 
         
         // 6.2 添加"使用浅色背景显示笔记"菜单项（支持勾选状态）
         let lightBackgroundItem = NSMenuItem(
@@ -1256,9 +1239,7 @@ class MenuManager {
         )
         fontMenuItem.submenu = createFontSubmenu()
         setMenuItemIcon(fontMenuItem, symbolName: "textformat")
-        formatMenu.addItem(fontMenuItem)
-        
-        // ========== 文本对齐和缩进部分（Requirements: 7.1-7.7）==========
+        formatMenu.addItem(fontMenuItem) 
         
         // 7.1 添加"文本"子菜单
         let textMenuItem = NSMenuItem(
@@ -1281,8 +1262,7 @@ class MenuManager {
         formatMenu.addItem(indentMenuItem)
     }
     
-    /// 创建"更多"子菜单（核对清单）
-    /// - Requirements: 5.3-5.7
+    /// 创建"更多"子菜单（核对清单） 
     private func createChecklistMoreSubmenu() -> NSMenu {
         let moreMenu = NSMenu(title: "更多")
         
@@ -1329,8 +1309,7 @@ class MenuManager {
         return moreMenu
     }
     
-    /// 创建"移动项目"子菜单
-    /// - Requirements: 5.9-5.11
+    /// 创建"移动项目"子菜单 
     private func createMoveItemSubmenu() -> NSMenu {
         let moveMenu = NSMenu(title: "移动项目")
         
@@ -1361,8 +1340,7 @@ class MenuManager {
         return moveMenu
     }
     
-    /// 创建"字体"子菜单
-    /// - Requirements: 6.4-6.9
+    /// 创建"字体"子菜单 
     private func createFontSubmenu() -> NSMenu {
         let fontMenu = NSMenu(title: "字体")
         
@@ -1422,8 +1400,7 @@ class MenuManager {
         return fontMenu
     }
     
-    /// 创建"文本"子菜单（文本对齐）
-    /// - Requirements: 7.1-7.4
+    /// 创建"文本"子菜单（文本对齐） 
     private func createTextAlignmentSubmenu() -> NSMenu {
         let textMenu = NSMenu(title: "文本")
         
@@ -1460,8 +1437,7 @@ class MenuManager {
         return textMenu
     }
     
-    /// 创建"缩进"子菜单
-    /// - Requirements: 7.5-7.7
+    /// 创建"缩进"子菜单 
     private func createIndentSubmenu() -> NSMenu {
         let indentMenu = NSMenu(title: "缩进")
         
@@ -1498,9 +1474,7 @@ class MenuManager {
         viewMenuItem.title = "显示"
         let viewMenu = NSMenu(title: "显示")
         viewMenuItem.submenu = viewMenu
-        mainMenu.addItem(viewMenuItem)
-        
-        // ========== 视图模式部分（Requirements: 8.1-8.5）==========
+        mainMenu.addItem(viewMenuItem) 
         
         // 8.1 添加"列表视图"菜单项（支持单选勾选状态）
         let listViewItem = NSMenuItem(
@@ -1533,9 +1507,7 @@ class MenuManager {
         )
         recentNotesItem.isEnabled = false  // 待实现
         setMenuItemIcon(recentNotesItem, symbolName: "clock")
-        viewMenu.addItem(recentNotesItem)
-        
-        // ========== 文件夹和笔记数量控制部分（Requirements: 9.1-9.8）==========
+        viewMenu.addItem(recentNotesItem) 
         
         // 9.1 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
@@ -1594,9 +1566,7 @@ class MenuManager {
         )
         showInNoteItem.isEnabled = false  // 待实现
         setMenuItemIcon(showInNoteItem, symbolName: "doc.text.magnifyingglass")
-        viewMenu.addItem(showInNoteItem)
-        
-        // ========== 缩放控制部分（Requirements: 10.1-10.4）==========
+        viewMenu.addItem(showInNoteItem) 
         
         // 10.1 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
@@ -1632,9 +1602,7 @@ class MenuManager {
         actualSizeItem.keyEquivalentModifierMask = [.command]
         actualSizeItem.tag = MenuItemTag.actualSize.rawValue
         setMenuItemIcon(actualSizeItem, symbolName: "1.magnifyingglass")
-        viewMenu.addItem(actualSizeItem)
-        
-        // ========== 区域折叠控制部分（Requirements: 11.1-11.5）==========
+        viewMenu.addItem(actualSizeItem) 
         
         // 11.1 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
@@ -1677,9 +1645,7 @@ class MenuManager {
         )
         collapseAllSectionsItem.tag = MenuItemTag.collapseAllSections.rawValue
         setMenuItemIcon(collapseAllSectionsItem, symbolName: "chevron.up.2")
-        viewMenu.addItem(collapseAllSectionsItem)
-        
-        // ========== 工具栏控制部分（Requirements: 12.1-12.4）==========
+        viewMenu.addItem(collapseAllSectionsItem) 
         
         // 12.1 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
@@ -1747,9 +1713,7 @@ class MenuManager {
         mainMenu.addItem(windowMenuItem)
         
         // 13.1 注册系统窗口菜单，让系统自动管理窗口列表
-        NSApp.windowsMenu = windowMenu
-        
-        // ========== 基础窗口控制部分（Requirements: 13.2-13.6）==========
+        NSApp.windowsMenu = windowMenu 
         
         // 13.2 添加"最小化"菜单项（⌘M）
         // 使用标准 NSWindow 选择器 performMiniaturize:
@@ -1796,9 +1760,7 @@ class MenuManager {
         windowMenu.addItem(centerItem)
         
         // 13.6 添加分隔线
-        windowMenu.addItem(NSMenuItem.separator())
-        
-        // ========== 窗口布局部分（Requirements: 13.7-13.9）==========
+        windowMenu.addItem(NSMenuItem.separator()) 
         
         // 13.7 添加"移动与调整大小"子菜单（系统标准）
         let moveAndResizeMenuItem = NSMenuItem(
@@ -1821,9 +1783,7 @@ class MenuManager {
         windowMenu.addItem(fullScreenTileMenuItem)
         
         // 13.9 添加分隔线
-        windowMenu.addItem(NSMenuItem.separator())
-        
-        // ========== 自定义窗口操作部分（Requirements: 13.10-13.11）==========
+        windowMenu.addItem(NSMenuItem.separator()) 
         
         // 13.10 添加"在新窗口中打开笔记"菜单项
         let openInNewWindowItem = NSMenuItem(
@@ -1836,13 +1796,9 @@ class MenuManager {
         windowMenu.addItem(openInNewWindowItem)
         
         // 13.11 添加分隔线
-        windowMenu.addItem(NSMenuItem.separator())
-        
-        // ========== 系统自动管理的窗口列表（Requirements: 13.12-13.13）==========
+        windowMenu.addItem(NSMenuItem.separator()) 
         // 13.12 系统会自动在此处添加打开的窗口列表
-        // 13.13 系统会自动添加分隔线
-        
-        // ========== 前置全部窗口（Requirements: 13.14）==========
+        // 13.13 系统会自动添加分隔线 
         
         // 13.14 添加"前置全部窗口"菜单项
         // 使用标准 NSApplication 选择器 arrangeInFront:
@@ -1856,8 +1812,7 @@ class MenuManager {
         windowMenu.addItem(bringAllToFrontItem)
     }
     
-    /// 创建"移动与调整大小"子菜单
-    /// - Requirements: 13.7
+    /// 创建"移动与调整大小"子菜单 
     private func createMoveAndResizeSubmenu() -> NSMenu {
         let moveAndResizeMenu = NSMenu(title: "移动与调整大小")
         
@@ -1922,8 +1877,7 @@ class MenuManager {
         return moveAndResizeMenu
     }
     
-    /// 创建"全屏幕平铺"子菜单
-    /// - Requirements: 13.8
+    /// 创建"全屏幕平铺"子菜单 
     private func createFullScreenTileSubmenu() -> NSMenu {
         let fullScreenTileMenu = NSMenu(title: "全屏幕平铺")
         

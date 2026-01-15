@@ -3,8 +3,7 @@
 //  MiNoteMac
 //
 //  格式跨度合并属性测试
-//  Property 4: 格式跨度合并正确性
-//  Validates: Requirements 5.1, 5.3
+//  Property 4: 格式跨度合并正确性 
 //
 
 import XCTest

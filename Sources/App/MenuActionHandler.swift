@@ -603,8 +603,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     // MARK: - 格式菜单动作（Apple Notes 风格）
     
     /// 设置标题（Apple Notes 风格）
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.1, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func setHeading(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -615,8 +614,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 设置小标题
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.2, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func setSubheading(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -627,8 +625,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 设置副标题
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.3, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func setSubtitle(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -639,8 +636,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 切换有序列表
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.5, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func toggleOrderedList(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -651,8 +647,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 切换无序列表
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.6, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func toggleUnorderedList(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -663,8 +658,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 切换块引用
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.9, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func toggleBlockQuote(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -677,8 +671,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     // MARK: - 核对清单动作
     
     /// 切换核对清单
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 5.1, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func toggleChecklist(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -688,59 +681,50 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 标记为已勾选
-    /// - Requirements: 5.2
+    /// 标记为已勾选 
     @objc func markAsChecked(_ sender: Any?) {
         mainWindowController?.markAsChecked(sender)
     }
     
-    /// 全部勾选
-    /// - Requirements: 5.4
+    /// 全部勾选 
     @objc func checkAll(_ sender: Any?) {
         mainWindowController?.checkAll(sender)
     }
     
-    /// 全部取消勾选
-    /// - Requirements: 5.5
+    /// 全部取消勾选 
     @objc func uncheckAll(_ sender: Any?) {
         mainWindowController?.uncheckAll(sender)
     }
     
-    /// 将勾选的项目移到底部
-    /// - Requirements: 5.6
+    /// 将勾选的项目移到底部 
     @objc func moveCheckedToBottom(_ sender: Any?) {
         mainWindowController?.moveCheckedToBottom(sender)
     }
     
-    /// 删除已勾选项目
-    /// - Requirements: 5.7
+    /// 删除已勾选项目 
     @objc func deleteCheckedItems(_ sender: Any?) {
         mainWindowController?.deleteCheckedItems(sender)
     }
     
-    /// 向上移动项目
-    /// - Requirements: 5.10
+    /// 向上移动项目 
     @objc func moveItemUp(_ sender: Any?) {
         mainWindowController?.moveItemUp(sender)
     }
     
-    /// 向下移动项目
-    /// - Requirements: 5.11
+    /// 向下移动项目 
     @objc func moveItemDown(_ sender: Any?) {
         mainWindowController?.moveItemDown(sender)
     }
     
     // MARK: - 外观动作
     
-    /// 切换浅色背景
-    /// - Requirements: 6.2
+    /// 切换浅色背景 
     @objc func toggleLightBackground(_ sender: Any?) {
         mainWindowController?.toggleLightBackground(sender)
     }
     
     /// 切换高亮
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 6.9, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func toggleHighlight(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -899,8 +883,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     // MARK: - 文件菜单新增动作
     
-    /// 创建智能文件夹
-    /// - Requirements: 2.3
+    /// 创建智能文件夹 
     func createSmartFolder(_ sender: Any?) {
         print("创建智能文件夹")
         // 智能文件夹功能待实现
@@ -912,8 +895,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         alert.runModal()
     }
     
-    /// 导入 Markdown 文件
-    /// - Requirements: 2.10
+    /// 导入 Markdown 文件 
     func importMarkdown(_ sender: Any?) {
         print("导入 Markdown")
         let panel = NSOpenPanel()
@@ -959,8 +941,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 导出为 PDF
-    /// - Requirements: 2.12, 2.13
+    /// 导出为 PDF 
     func exportAsPDF(_ sender: Any?) {
         print("导出为 PDF")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
@@ -980,8 +961,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 导出为 Markdown
-    /// - Requirements: 2.12, 2.13
+    /// 导出为 Markdown 
     func exportAsMarkdown(_ sender: Any?) {
         print("导出为 Markdown")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
@@ -1013,8 +993,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 导出为纯文本
-    /// - Requirements: 2.12, 2.13
+    /// 导出为纯文本 
     func exportAsPlainText(_ sender: Any?) {
         print("导出为纯文本")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
@@ -1046,8 +1025,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 添加到私密笔记
-    /// - Requirements: 2.16
+    /// 添加到私密笔记 
     func addToPrivateNotes(_ sender: Any?) {
         print("添加到私密笔记")
         // 私密笔记功能待实现
@@ -1059,8 +1037,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         alert.runModal()
     }
     
-    /// 复制笔记（创建副本）
-    /// - Requirements: 2.17
+    /// 复制笔记（创建副本） 
     func duplicateNote(_ sender: Any?) {
         print("复制笔记（创建副本）")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
@@ -1188,8 +1165,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     // MARK: - 附件操作
     
     /// 附加文件
-    /// 直接调用 MainWindowController.insertAttachment() 复用工具栏中已有的实现逻辑
-    /// - Requirements: 1.1, 1.2, 1.4
+    /// 直接调用 MainWindowController.insertAttachment() 复用工具栏中已有的实现逻辑 
     @objc func attachFile(_ sender: Any?) {
         print("[MenuActionHandler] 附加文件 - 转发到 MainWindowController.insertAttachment()")
         // 直接调用 MainWindowController 的 insertAttachment 方法
@@ -1197,8 +1173,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         mainWindowController?.insertAttachment(sender)
     }
     
-    /// 添加链接
-    /// - Requirements: 3.13
+    /// 添加链接 
     @objc func addLink(_ sender: Any?) {
         print("添加链接")
         // 显示添加链接对话框
@@ -1225,22 +1200,19 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     // MARK: - 显示菜单动作
     
-    /// 设置列表视图
-    /// - Requirements: 8.1
+    /// 设置列表视图 
     @objc func setListView(_ sender: Any?) {
         print("设置列表视图")
         ViewOptionsManager.shared.setViewMode(.list)
     }
     
-    /// 设置画廊视图
-    /// - Requirements: 8.2
+    /// 设置画廊视图 
     @objc func setGalleryView(_ sender: Any?) {
         print("设置画廊视图")
         ViewOptionsManager.shared.setViewMode(.gallery)
     }
     
-    /// 切换文件夹可见性
-    /// - Requirements: 9.2, 4.4
+    /// 切换文件夹可见性 
     @objc func toggleFolderVisibility(_ sender: Any?) {
         // 通过 MainWindowController 切换侧边栏
         if let window = NSApp.mainWindow,
@@ -1269,8 +1241,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 切换笔记数量显示
-    /// - Requirements: 9.3
+    /// 切换笔记数量显示 
     @objc func toggleNoteCount(_ sender: Any?) {
         // 通过 ViewOptionsManager 切换笔记数量显示
         ViewOptionsManager.shared.toggleNoteCount()
@@ -1281,50 +1252,43 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         menuState = newState
     }
     
-    /// 放大
-    /// - Requirements: 10.2
+    /// 放大 
     @objc func zoomIn(_ sender: Any?) {
         print("放大")
         mainWindowController?.zoomIn(sender)
     }
     
-    /// 缩小
-    /// - Requirements: 10.3
+    /// 缩小 
     @objc func zoomOut(_ sender: Any?) {
         print("缩小")
         mainWindowController?.zoomOut(sender)
     }
     
-    /// 实际大小
-    /// - Requirements: 10.4
+    /// 实际大小 
     @objc func actualSize(_ sender: Any?) {
         print("实际大小")
         mainWindowController?.actualSize(sender)
     }
     
-    /// 展开区域
-    /// - Requirements: 11.2
+    /// 展开区域 
     @objc func expandSection(_ sender: Any?) {
         print("展开区域")
         mainWindowController?.expandSection(sender)
     }
     
-    /// 展开所有区域
-    /// - Requirements: 11.3
+    /// 展开所有区域 
     @objc func expandAllSections(_ sender: Any?) {
         print("展开所有区域")
         mainWindowController?.expandAllSections(sender)
     }
     
-    /// 折叠区域
-    /// - Requirements: 11.4
+    /// 折叠区域 
     @objc func collapseSection(_ sender: Any?) {
         print("折叠区域")
         mainWindowController?.collapseSection(sender)
     }
     
-    /// 折叠所有区域
-    /// - Requirements: 11.5
+    /// 折叠所有区域 
     @objc func collapseAllSections(_ sender: Any?) {
         print("折叠所有区域")
         mainWindowController?.collapseAllSections(sender)
@@ -1332,8 +1296,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     // MARK: - 窗口菜单动作
     
-    /// 填充窗口到屏幕
-    /// - Requirements: 13.4
+    /// 填充窗口到屏幕 
     @objc func fillWindow(_ sender: Any?) {
         print("填充窗口")
         guard let window = NSApp.mainWindow,
@@ -1346,16 +1309,14 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         window.setFrame(visibleFrame, display: true, animate: true)
     }
     
-    /// 居中窗口
-    /// - Requirements: 13.5
+    /// 居中窗口 
     @objc func centerWindow(_ sender: Any?) {
         print("居中窗口")
         guard let window = NSApp.mainWindow else { return }
         window.center()
     }
     
-    /// 移动窗口到屏幕左半边
-    /// - Requirements: 13.7
+    /// 移动窗口到屏幕左半边 
     @objc func moveWindowToLeftHalf(_ sender: Any?) {
         print("移动窗口到屏幕左半边")
         guard let window = NSApp.mainWindow,
@@ -1371,8 +1332,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         window.setFrame(newFrame, display: true, animate: true)
     }
     
-    /// 移动窗口到屏幕右半边
-    /// - Requirements: 13.7
+    /// 移动窗口到屏幕右半边 
     @objc func moveWindowToRightHalf(_ sender: Any?) {
         print("移动窗口到屏幕右半边")
         guard let window = NSApp.mainWindow,
@@ -1388,8 +1348,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         window.setFrame(newFrame, display: true, animate: true)
     }
     
-    /// 移动窗口到屏幕上半边
-    /// - Requirements: 13.7
+    /// 移动窗口到屏幕上半边 
     @objc func moveWindowToTopHalf(_ sender: Any?) {
         print("移动窗口到屏幕上半边")
         guard let window = NSApp.mainWindow,
@@ -1405,8 +1364,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         window.setFrame(newFrame, display: true, animate: true)
     }
     
-    /// 移动窗口到屏幕下半边
-    /// - Requirements: 13.7
+    /// 移动窗口到屏幕下半边 
     @objc func moveWindowToBottomHalf(_ sender: Any?) {
         print("移动窗口到屏幕下半边")
         guard let window = NSApp.mainWindow,
@@ -1422,16 +1380,14 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         window.setFrame(newFrame, display: true, animate: true)
     }
     
-    /// 最大化窗口
-    /// - Requirements: 13.7
+    /// 最大化窗口 
     @objc func maximizeWindow(_ sender: Any?) {
         print("最大化窗口")
         guard let window = NSApp.mainWindow else { return }
         window.performZoom(sender)
     }
     
-    /// 恢复窗口
-    /// - Requirements: 13.7
+    /// 恢复窗口 
     @objc func restoreWindow(_ sender: Any?) {
         print("恢复窗口")
         guard let window = NSApp.mainWindow else { return }
@@ -1442,8 +1398,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 平铺窗口到屏幕左侧（全屏幕平铺）
-    /// - Requirements: 13.8
+    /// 平铺窗口到屏幕左侧（全屏幕平铺） 
     @objc func tileWindowToLeft(_ sender: Any?) {
         print("平铺窗口到屏幕左侧")
         guard NSApp.mainWindow != nil else { return }
@@ -1458,8 +1413,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 平铺窗口到屏幕右侧（全屏幕平铺）
-    /// - Requirements: 13.8
+    /// 平铺窗口到屏幕右侧（全屏幕平铺） 
     @objc func tileWindowToRight(_ sender: Any?) {
         print("平铺窗口到屏幕右侧")
         guard NSApp.mainWindow != nil else { return }
@@ -1473,8 +1427,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 在新窗口中打开笔记
-    /// - Requirements: 13.10
+    /// 在新窗口中打开笔记 
     @objc func openNoteInNewWindow(_ sender: Any?) {
         print("在新窗口中打开笔记")
         guard let note = mainWindowController?.viewModel?.selectedNote else {

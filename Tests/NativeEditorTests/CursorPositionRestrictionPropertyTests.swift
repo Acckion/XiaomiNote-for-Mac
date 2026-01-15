@@ -5,8 +5,7 @@
 //  光标位置限制属性测试
 //  验证 NativeTextView 的光标位置限制功能
 //
-//  **Property 1: 光标位置限制**
-//  **Validates: Requirements 1.1, 1.2, 1.4**
+//  **Property 1: 光标位置限制** 
 //
 
 import XCTest
@@ -40,8 +39,7 @@ final class CursorPositionRestrictionPropertyTests: XCTestCase {
         return textStorage
     }
     
-    // MARK: - Property 1: 光标位置限制
-    // **Validates: Requirements 1.1, 1.2, 1.4**
+    // MARK: - Property 1: 光标位置限制 
     
     /// 属性测试：调整后的光标位置永远不在列表标记区域内
     /// _Requirements: 1.1, 1.2_

@@ -5,8 +5,7 @@
 //  格式继承属性测试
 //  验证新列表项正确继承列表类型、缩进级别和编号
 //
-//  **Feature: list-behavior-optimization, Property 3: 格式继承正确性**
-//  **Validates: Requirements 2.4, 2.5, 2.6**
+//  **Feature: list-behavior-optimization, Property 3: 格式继承正确性** 
 //
 
 import XCTest
@@ -68,8 +67,7 @@ final class FormatInheritancePropertyTests: XCTestCase {
     }
     
     // MARK: - Property 3: 格式继承正确性
-    // **Feature: list-behavior-optimization, Property 3: 格式继承正确性**
-    // **Validates: Requirements 2.4, 2.5, 2.6**
+    // **Feature: list-behavior-optimization, Property 3: 格式继承正确性** 
     
     /// 属性测试：新列表项继承列表类型
     /// *For any* 列表项，当创建新列表项时，新项应该继承当前项的列表类型

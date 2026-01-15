@@ -4,8 +4,7 @@
 //
 //  删除键合并属性测试 - 验证列表项删除键合并功能
 //
-//  **Feature: list-behavior-optimization, Property 5: 删除键合并行为**
-//  **Validates: Requirements 4.1, 4.2, 4.3, 4.4**
+//  **Feature: list-behavior-optimization, Property 5: 删除键合并行为** 
 //
 
 import XCTest
@@ -51,14 +50,12 @@ final class BackspaceMergePropertyTests: XCTestCase {
     }
     
     // MARK: - Property 5: 删除键合并行为
-    // **Feature: list-behavior-optimization, Property 5: 删除键合并行为**
-    // **Validates: Requirements 4.1, 4.2, 4.3, 4.4**
+    // **Feature: list-behavior-optimization, Property 5: 删除键合并行为** 
     
     /// 属性测试：列表项合并到上一个列表项
     ///
     /// **Property 5**: 对于任何列表项，当光标在内容起始位置按删除键时，
-    /// 如果上一行也是列表项，当前内容应该追加到上一行列表项末尾
-    /// **Validates: Requirements 4.1, 4.3**
+    /// 如果上一行也是列表项，当前内容应该追加到上一行列表项末尾 
     ///
     /// 测试策略：
     /// 1. 创建两行列表项（随机内容）
@@ -139,8 +136,7 @@ final class BackspaceMergePropertyTests: XCTestCase {
     /// 属性测试：列表项合并到普通文本行
     ///
     /// **Property 5**: 对于任何列表项，当光标在内容起始位置按删除键时，
-    /// 如果上一行是普通文本，当前内容应该追加到上一行末尾并取消列表格式
-    /// **Validates: Requirements 4.1, 4.4**
+    /// 如果上一行是普通文本，当前内容应该追加到上一行末尾并取消列表格式 
     ///
     /// 测试策略：
     /// 1. 创建一行普通文本和一行列表项
@@ -209,8 +205,7 @@ final class BackspaceMergePropertyTests: XCTestCase {
     
     /// 属性测试：删除键移除列表标记
     ///
-    /// **Property 5**: 当列表项合并时，当前行的列表标记应该被移除
-    /// **Validates: Requirements 4.2**
+    /// **Property 5**: 当列表项合并时，当前行的列表标记应该被移除 
     ///
     /// 测试策略：
     /// 1. 创建两行列表项
@@ -284,8 +279,7 @@ final class BackspaceMergePropertyTests: XCTestCase {
     
     /// 属性测试：光标位置正确更新
     ///
-    /// **Property 5**: 合并后光标应该位于合并点（上一行末尾）
-    /// **Validates: Requirements 4.1**
+    /// **Property 5**: 合并后光标应该位于合并点（上一行末尾） 
     ///
     /// 测试策略：
     /// 1. 创建两行列表项
@@ -359,8 +353,7 @@ final class BackspaceMergePropertyTests: XCTestCase {
     
     /// 属性测试：非内容起始位置不触发合并
     ///
-    /// **Property 5 反向验证**: 当光标不在内容起始位置时，删除键不应该触发合并
-    /// **Validates: Requirements 4.1**
+    /// **Property 5 反向验证**: 当光标不在内容起始位置时，删除键不应该触发合并 
     ///
     /// 测试策略：
     /// 1. 创建有内容的列表项
@@ -416,8 +409,7 @@ final class BackspaceMergePropertyTests: XCTestCase {
     
     /// 属性测试：文档第一行不触发合并
     ///
-    /// **Property 5 边界条件**: 当列表项是文档第一行时，删除键不应该触发合并
-    /// **Validates: Requirements 4.1**
+    /// **Property 5 边界条件**: 当列表项是文档第一行时，删除键不应该触发合并 
     ///
     /// 测试策略：
     /// 1. 创建单行列表项（文档第一行）

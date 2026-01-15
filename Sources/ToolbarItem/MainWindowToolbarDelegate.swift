@@ -27,8 +27,7 @@ public class MainWindowToolbarDelegate: NSObject {
     public weak var windowController: MainWindowController?
     
     /// 工具栏可见性管理器引用
-    /// 用于在工具栏项添加时设置初始可见性
-    /// **Requirements: 6.3**
+    /// 用于在工具栏项添加时设置初始可见性 
     public var visibilityManager: ToolbarVisibilityManager?
 
     /// 当前搜索字段（用于工具栏搜索项）
@@ -687,8 +686,7 @@ extension MainWindowToolbarDelegate: NSToolbarDelegate {
             return
         }
         
-        // 设置新添加工具栏项的初始可见性
-        // **Requirements: 6.3**
+        // 设置新添加工具栏项的初始可见性 
         visibilityManager?.updateItemVisibility(item)
         
         if item.itemIdentifier == .search, let searchItem = item as? NSSearchToolbarItem {

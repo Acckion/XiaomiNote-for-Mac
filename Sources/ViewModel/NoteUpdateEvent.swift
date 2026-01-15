@@ -6,7 +6,6 @@ import Foundation
 /// 
 /// 描述笔记的各种更新类型，用于确定是否需要触发列表动画和保持选择状态
 /// 
-/// **Requirements: 2.1, 1.1**
 /// - 2.1: 笔记的 updatedAt 时间戳变化导致排序位置改变时使用动画
 /// - 1.1: 编辑笔记内容时保持选中状态不变
 public enum NoteUpdateEvent: Equatable {
@@ -57,7 +56,6 @@ public enum NoteUpdateEvent: Equatable {
     /// 
     /// 当笔记的排序位置可能改变时返回 true
     /// 
-    /// **Requirements: 2.1**
     public var requiresListAnimation: Bool {
         switch self {
         case .timestampUpdated:
@@ -88,7 +86,6 @@ public enum NoteUpdateEvent: Equatable {
     /// 
     /// 大多数更新操作都应该保持当前的选择状态
     /// 
-    /// **Requirements: 1.1, 1.2**
     public var shouldPreserveSelection: Bool {
         switch self {
         case .deleted:

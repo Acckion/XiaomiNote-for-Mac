@@ -3,8 +3,7 @@
 //  MiNoteMac
 //
 //  格式边界处理属性测试
-//  Property 5: 格式边界处理正确性
-//  Validates: Requirements 5.3, 5.4
+//  Property 5: 格式边界处理正确性 
 //
 
 import XCTest

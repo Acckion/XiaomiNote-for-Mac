@@ -16,8 +16,7 @@ import Combine
 /// - 预览录音
 /// - 上传到服务器
 /// - 获取 fileId 并回调
-///
-/// Requirements: 9.1, 9.4, 9.5, 9.6, 9.7
+/// 
 struct AudioRecorderUploadView: View {
     
     // MARK: - Properties
@@ -92,8 +91,7 @@ struct AudioRecorderUploadView: View {
     
     // MARK: - Subviews
     
-    /// 上传中视图
-    /// Requirements: 9.6, 9.7
+    /// 上传中视图 
     private var uploadingView: some View {
         VStack(spacing: 20) {
             // 标题
@@ -189,8 +187,7 @@ struct AudioRecorderUploadView: View {
         }
     }
     
-    /// 错误视图
-    /// Requirements: 9.6, 9.7
+    /// 错误视图 
     private var errorView: some View {
         VStack(spacing: 20) {
             // 标题
@@ -252,8 +249,7 @@ struct AudioRecorderUploadView: View {
     
     // MARK: - Actions
     
-    /// 开始上传
-    /// Requirements: 9.1
+    /// 开始上传 
     private func startUpload(fileURL: URL) {
         viewState = .uploading
         uploadProgress = 0.0
@@ -283,8 +279,7 @@ struct AudioRecorderUploadView: View {
         cleanupAndCancel()
     }
     
-    /// 重试上传
-    /// Requirements: 9.6
+    /// 重试上传 
     private func retryUpload() {
         guard let fileURL = recordedFileURL else {
             // 没有录制文件，返回录制状态

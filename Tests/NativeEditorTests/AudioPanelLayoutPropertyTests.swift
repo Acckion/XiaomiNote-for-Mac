@@ -3,8 +3,7 @@
 //  MiNoteLibraryTests
 //
 //  音频面板四栏布局切换属性测试
-//  Property 1: 四栏布局切换一致性
-//  验证需求: Requirements 1.1, 1.3, 2.3
+//  Property 1: 四栏布局切换一致性 
 //
 //  Feature: audio-panel-layout, Property 1: 四栏布局切换一致性
 //
@@ -20,8 +19,7 @@ import XCTest
 /// **Property 1: 四栏布局切换一致性**
 /// *对于任意* 主窗口状态，当显示音频面板时，分割视图应包含四个子视图；
 /// 当隐藏音频面板时，分割视图应恢复为三个子视图。
-///
-/// **Validates: Requirements 1.1, 1.3, 2.3**
+/// 
 @MainActor
 final class AudioPanelLayoutPropertyTests: XCTestCase {
     
@@ -37,8 +35,7 @@ final class AudioPanelLayoutPropertyTests: XCTestCase {
     
     // MARK: - 基础测试
     
-    /// 测试状态管理器存在
-    /// Requirements: 1.1
+    /// 测试状态管理器存在 
     func testStateManagerExists() {
         // 简单测试确保状态管理器类型存在
         let managerType = AudioPanelStateManager.self

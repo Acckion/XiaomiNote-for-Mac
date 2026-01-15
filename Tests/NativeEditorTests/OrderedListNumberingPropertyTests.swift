@@ -6,8 +6,7 @@
 //  Property 7: 编号连续性
 //
 //  Feature: list-behavior-optimization, Property 7: 编号连续性
-//
-//  _Validates: Requirements 6.1, 6.2, 6.4_
+// 
 //
 
 import XCTest
@@ -47,13 +46,11 @@ final class OrderedListNumberingPropertyTests: XCTestCase {
         try await super.tearDown()
     }
     
-    // MARK: - Property 7: 编号连续性
-    // _Validates: Requirements 6.1, 6.2, 6.4_
+    // MARK: - Property 7: 编号连续性 
     
     /// 属性测试：新建有序列表编号从 1 开始
     ///
-    /// **Property 7**: 对于任何新建的有序列表，编号应该从 1 开始
-    /// **Validates: Requirements 6.4**
+    /// **Property 7**: 对于任何新建的有序列表，编号应该从 1 开始 
     ///
     /// 测试策略：
     /// 1. 生成随机文本内容
@@ -90,8 +87,7 @@ final class OrderedListNumberingPropertyTests: XCTestCase {
     
     /// 属性测试：插入新列表项后编号连续递增
     ///
-    /// **Property 7**: 对于任何有序列表，在插入新列表项后，编号应该连续递增
-    /// **Validates: Requirements 6.1**
+    /// **Property 7**: 对于任何有序列表，在插入新列表项后，编号应该连续递增 
     ///
     /// 测试策略：
     /// 1. 创建有序列表
@@ -169,8 +165,7 @@ final class OrderedListNumberingPropertyTests: XCTestCase {
     
     /// 属性测试：删除列表项后编号连续递增
     ///
-    /// **Property 7**: 对于任何有序列表，在删除列表项后，编号应该连续递增
-    /// **Validates: Requirements 6.2**
+    /// **Property 7**: 对于任何有序列表，在删除列表项后，编号应该连续递增 
     ///
     /// 测试策略：
     /// 1. 创建有序列表
@@ -250,8 +245,7 @@ final class OrderedListNumberingPropertyTests: XCTestCase {
     
     /// 属性测试：重新编号确保从 1 开始连续递增
     ///
-    /// **Property 7**: 对于任何有序列表，调用重新编号后，编号应该从 1 开始连续递增
-    /// **Validates: Requirements 6.4**
+    /// **Property 7**: 对于任何有序列表，调用重新编号后，编号应该从 1 开始连续递增 
     ///
     /// 测试策略：
     /// 1. 创建有序列表（可能有不连续的编号）
@@ -310,8 +304,7 @@ final class OrderedListNumberingPropertyTests: XCTestCase {
     
     /// 属性测试：编号验证方法正确检测不连续编号
     ///
-    /// **Property 7**: 编号验证方法应该正确检测不连续的编号
-    /// **Validates: Requirements 6.4**
+    /// **Property 7**: 编号验证方法应该正确检测不连续的编号 
     ///
     /// 测试策略：
     /// 1. 创建有序列表（使用不连续的编号）

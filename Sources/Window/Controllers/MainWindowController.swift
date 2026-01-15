@@ -72,8 +72,7 @@ public class MainWindowController: NSWindowController {
     private var toolbarDelegate: MainWindowToolbarDelegate?
     
     /// 工具栏可见性管理器
-    /// 负责根据应用状态动态更新工具栏项的可见性
-    /// **Requirements: 5.4**
+    /// 负责根据应用状态动态更新工具栏项的可见性 
     private var visibilityManager: ToolbarVisibilityManager?
 
     /// 查找面板控制器
@@ -85,8 +84,7 @@ public class MainWindowController: NSWindowController {
     /// 笔记列表宽度的 UserDefaults 键
     private let notesListWidthKey = "NotesListWidth"
     
-    // MARK: - 音频面板属性
-    // Requirements: 1.1
+    // MARK: - 音频面板属性 
     
     /// 音频面板状态管理器
     /// 负责管理音频面板的显示状态、模式和与其他组件的协调
@@ -313,8 +311,7 @@ public class MainWindowController: NSWindowController {
         window.toolbar = toolbar
         window.toolbarStyle = .unified
         
-        // 创建工具栏可见性管理器
-        // **Requirements: 5.4**
+        // 创建工具栏可见性管理器 
         visibilityManager = ToolbarVisibilityManager(toolbar: toolbar, viewModel: viewModel)
         
         // 将可见性管理器传递给工具栏代理
@@ -1593,7 +1590,6 @@ extension MainWindowController {
     /// 点击工具栏录音按钮时调用，先在光标位置插入录音模板占位符，
     /// 然后显示音频面板进入录制模式。录制完成后，更新之前插入的模板。
     /// 
-    /// Requirements: 2.1 - 点击工具栏录音按钮显示音频面板并进入录制准备状态
     @objc public func insertAudioRecording(_ sender: Any?) {
         print("[MainWindowController] 插入语音录音 - 先插入模板再显示音频面板")
         
@@ -2462,8 +2458,7 @@ extension MainWindowController {
     
     // MARK: - 格式菜单动作（Apple Notes 风格）
     
-    /// 切换块引用
-    /// - Requirements: 4.9
+    /// 切换块引用 
     @objc public func toggleBlockQuote(_ sender: Any?) {
         print("切换块引用")
         // 功能尚未实现，显示提示
@@ -2472,56 +2467,49 @@ extension MainWindowController {
     
     // MARK: - 核对清单动作
     
-    /// 标记为已勾选
-    /// - Requirements: 5.2
+    /// 标记为已勾选 
     @objc public func markAsChecked(_ sender: Any?) {
         print("标记为已勾选")
         // 功能尚未实现，显示提示
         showFeatureNotImplementedAlert(featureName: "标记为已勾选")
     }
     
-    /// 全部勾选
-    /// - Requirements: 5.4
+    /// 全部勾选 
     @objc public func checkAll(_ sender: Any?) {
         print("全部勾选")
         // 功能尚未实现，显示提示
         showFeatureNotImplementedAlert(featureName: "全部勾选")
     }
     
-    /// 全部取消勾选
-    /// - Requirements: 5.5
+    /// 全部取消勾选 
     @objc public func uncheckAll(_ sender: Any?) {
         print("全部取消勾选")
         // 功能尚未实现，显示提示
         showFeatureNotImplementedAlert(featureName: "全部取消勾选")
     }
     
-    /// 将勾选的项目移到底部
-    /// - Requirements: 5.6
+    /// 将勾选的项目移到底部 
     @objc public func moveCheckedToBottom(_ sender: Any?) {
         print("将勾选的项目移到底部")
         // 功能尚未实现，显示提示
         showFeatureNotImplementedAlert(featureName: "将勾选的项目移到底部")
     }
     
-    /// 删除已勾选项目
-    /// - Requirements: 5.7
+    /// 删除已勾选项目 
     @objc public func deleteCheckedItems(_ sender: Any?) {
         print("删除已勾选项目")
         // 功能尚未实现，显示提示
         showFeatureNotImplementedAlert(featureName: "删除已勾选项目")
     }
     
-    /// 向上移动项目
-    /// - Requirements: 5.10
+    /// 向上移动项目 
     @objc public func moveItemUp(_ sender: Any?) {
         print("向上移动项目")
         // 功能尚未实现，显示提示
         showFeatureNotImplementedAlert(featureName: "向上移动项目")
     }
     
-    /// 向下移动项目
-    /// - Requirements: 5.11
+    /// 向下移动项目 
     @objc public func moveItemDown(_ sender: Any?) {
         print("向下移动项目")
         // 功能尚未实现，显示提示
@@ -2530,16 +2518,14 @@ extension MainWindowController {
     
     // MARK: - 外观动作
     
-    /// 切换浅色背景
-    /// - Requirements: 6.2
+    /// 切换浅色背景 
     @objc public func toggleLightBackground(_ sender: Any?) {
         print("切换浅色背景")
         // 功能尚未实现，显示提示
         showFeatureNotImplementedAlert(featureName: "浅色背景")
     }
     
-    /// 切换高亮
-    /// - Requirements: 6.9
+    /// 切换高亮 
     @objc public func toggleHighlight(_ sender: Any?) {
         print("切换高亮")
         // 功能尚未实现，显示提示
@@ -2584,8 +2570,7 @@ extension MainWindowController {
     
     // MARK: - 附件操作
     
-    /// 附加文件到当前笔记
-    /// - Requirements: 3.12
+    /// 附加文件到当前笔记 
     /// - Parameter url: 文件 URL
     @objc public func attachFile(_ url: URL) {
         print("[MainWindowController] 附加文件: \(url.path)")
@@ -2616,8 +2601,7 @@ extension MainWindowController {
         }
     }
     
-    /// 添加链接到当前笔记
-    /// - Requirements: 3.13
+    /// 添加链接到当前笔记 
     /// - Parameter urlString: 链接地址
     @objc public func addLink(_ urlString: String) {
         print("[MainWindowController] 添加链接: \(urlString)")
@@ -2864,8 +2848,7 @@ extension MainWindowController {
             self?.showCookieRefresh(nil)
         }
         
-        // 监听音频面板可见性变化
-        // Requirements: 1.1, 1.3
+        // 监听音频面板可见性变化 
         NotificationCenter.default.addObserver(
             forName: AudioPanelStateManager.visibilityDidChangeNotification,
             object: nil,
@@ -2880,8 +2863,7 @@ extension MainWindowController {
             }
         }
         
-        // 监听音频面板需要确认对话框通知
-        // Requirements: 2.5, 5.2
+        // 监听音频面板需要确认对话框通知 
         NotificationCenter.default.addObserver(
             forName: AudioPanelStateManager.needsConfirmationNotification,
             object: nil,
@@ -2891,8 +2873,7 @@ extension MainWindowController {
             self?.showAudioPanelCloseConfirmation()
         }
         
-        // 监听音频附件点击通知
-        // Requirements: 2.2
+        // 监听音频附件点击通知 
         NotificationCenter.default.addObserver(
             forName: .audioAttachmentClicked,
             object: nil,
@@ -3076,12 +3057,9 @@ extension MainWindowController {
         viewModel?.searchFilterHasImages = false
         viewModel?.searchFilterHasAudio = false
         viewModel?.searchFilterIsPrivate = false
-    }
+    } 
     
-    // MARK: - 显示菜单动作（Requirements: 10.1-10.4, 11.1-11.5）
-    
-    /// 放大
-    /// - Requirements: 10.2
+    /// 放大 
     @objc public func zoomIn(_ sender: Any?) {
         print("[MainWindowController] 放大")
         
@@ -3101,8 +3079,7 @@ extension MainWindowController {
         }
     }
     
-    /// 缩小
-    /// - Requirements: 10.3
+    /// 缩小 
     @objc public func zoomOut(_ sender: Any?) {
         print("[MainWindowController] 缩小")
         
@@ -3122,8 +3099,7 @@ extension MainWindowController {
         }
     }
     
-    /// 实际大小
-    /// - Requirements: 10.4
+    /// 实际大小 
     @objc public func actualSize(_ sender: Any?) {
         print("[MainWindowController] 实际大小")
         
@@ -3143,47 +3119,41 @@ extension MainWindowController {
         }
     }
     
-    /// 展开区域
-    /// - Requirements: 11.2
+    /// 展开区域 
     @objc public func expandSection(_ sender: Any?) {
         print("[MainWindowController] 展开区域")
         // 功能尚未实现，显示提示
         showFeatureNotImplementedAlert(featureName: "展开区域")
     }
     
-    /// 展开所有区域
-    /// - Requirements: 11.3
+    /// 展开所有区域 
     @objc public func expandAllSections(_ sender: Any?) {
         print("[MainWindowController] 展开所有区域")
         // 功能尚未实现，显示提示
         showFeatureNotImplementedAlert(featureName: "展开所有区域")
     }
     
-    /// 折叠区域
-    /// - Requirements: 11.4
+    /// 折叠区域 
     @objc public func collapseSection(_ sender: Any?) {
         print("[MainWindowController] 折叠区域")
         // 功能尚未实现，显示提示
         showFeatureNotImplementedAlert(featureName: "折叠区域")
     }
     
-    /// 折叠所有区域
-    /// - Requirements: 11.5
+    /// 折叠所有区域 
     @objc public func collapseAllSections(_ sender: Any?) {
         print("[MainWindowController] 折叠所有区域")
         // 功能尚未实现，显示提示
         showFeatureNotImplementedAlert(featureName: "折叠所有区域")
     }
     
-    // MARK: - 音频面板方法
-    // Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.3, 2.5
+    // MARK: - 音频面板方法 
     
     /// 显示音频面板
     ///
     /// 在主窗口右侧添加第四栏显示音频面板。
     /// 如果当前是画廊模式，则不显示音频面板。
-    ///
-    /// Requirements: 1.1, 1.2, 1.4, 1.5
+    /// 
     private func showAudioPanel() {
         guard let window = window,
               let splitViewController = window.contentViewController as? NSSplitViewController,
@@ -3231,14 +3201,11 @@ extension MainWindowController {
         // 保存引用
         self.audioPanelHostingController = audioPanelController
         
-        // 创建分割视图项
-        // Requirements: 1.4 - 最小宽度 280 像素，最大宽度 400 像素
+        // 创建分割视图项 
         let audioPanelSplitViewItem = NSSplitViewItem(viewController: audioPanelController)
         audioPanelSplitViewItem.minimumThickness = 280
         audioPanelSplitViewItem.maximumThickness = 400
-        audioPanelSplitViewItem.canCollapse = false
-        
-        // Requirements: 1.5 - 设置 holdingPriority 确保优先压缩编辑器
+        audioPanelSplitViewItem.canCollapse = false 
         // 音频面板的 holdingPriority 设置为 252，高于编辑器的 250
         // 这样窗口缩小时会优先压缩编辑器而非音频面板
         audioPanelSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(252)
@@ -3246,8 +3213,7 @@ extension MainWindowController {
         // 添加到分割视图控制器作为第四栏
         splitViewController.addSplitViewItem(audioPanelSplitViewItem)
         
-        // 让音频面板成为第一响应者，以便接收键盘事件（如 Escape 键）
-        // Requirements: 2.4
+        // 让音频面板成为第一响应者，以便接收键盘事件（如 Escape 键） 
         DispatchQueue.main.async {
             window.makeFirstResponder(audioPanelController)
         }
@@ -3258,8 +3224,7 @@ extension MainWindowController {
     /// 隐藏音频面板
     ///
     /// 从主窗口移除第四栏，恢复三栏布局。
-    ///
-    /// Requirements: 1.3, 2.3
+    /// 
     private func hideAudioPanel() {
         guard let window = window,
               let splitViewController = window.contentViewController as? NSSplitViewController else {
@@ -3288,8 +3253,7 @@ extension MainWindowController {
     /// 显示音频面板关闭确认对话框
     ///
     /// 当用户在录制过程中尝试关闭面板时显示确认对话框。
-    ///
-    /// Requirements: 2.5, 5.2
+    /// 
     private func showAudioPanelCloseConfirmation() {
         guard let window = window else { return }
         
@@ -3330,8 +3294,7 @@ extension MainWindowController {
     /// 处理音频录制完成
     ///
     /// 上传音频文件并更新之前插入的录音模板为实际的音频附件。
-    ///
-    /// Requirements: 3.5, 5.3
+    /// 
     private func handleAudioRecordingComplete(url: URL) {
         print("[MainWindowController] 处理录制完成: \(url)")
         
@@ -3516,8 +3479,7 @@ extension MainWindowController {
     /// 公开方法：显示音频面板进入录制模式
     ///
     /// 供工具栏按钮调用，显示音频面板并进入录制模式。
-    ///
-    /// Requirements: 2.1
+    /// 
     public func showAudioPanelForRecording() {
         guard let viewModel = viewModel,
               let selectedNote = viewModel.selectedNote else {
@@ -3531,8 +3493,7 @@ extension MainWindowController {
     /// 公开方法：显示音频面板进入播放模式
     ///
     /// 供音频附件点击调用，显示音频面板并播放指定音频。
-    ///
-    /// Requirements: 2.2
+    /// 
     public func showAudioPanelForPlayback(fileId: String) {
         guard let viewModel = viewModel,
               let selectedNote = viewModel.selectedNote else {

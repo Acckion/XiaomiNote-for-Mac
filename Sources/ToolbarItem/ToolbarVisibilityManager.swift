@@ -17,8 +17,7 @@ import Combine
 ///
 /// 负责根据应用状态动态更新工具栏项的可见性
 /// 使用 macOS 15 的 `NSToolbarItem.isHidden` 属性实现
-///
-/// **Requirements: 1.3, 5.4**
+/// 
 /// - 1.3: 定义编辑器相关工具栏项
 /// - 5.4: 使用 Combine publishers 观察状态变化
 @MainActor
@@ -38,8 +37,7 @@ public class ToolbarVisibilityManager {
     // MARK: - 工具栏项分类常量
     
     /// 编辑器相关工具栏项标识符
-    /// 这些项在画廊视图中应该隐藏
-    /// **Requirements: 1.3**
+    /// 这些项在画廊视图中应该隐藏 
     private let editorItemIdentifiers: Set<NSToolbarItem.Identifier> = [
         .formatMenu,
         .undo,
@@ -59,16 +57,14 @@ public class ToolbarVisibilityManager {
     ]
     
     /// 笔记操作相关工具栏项标识符
-    /// 这些项在没有选中笔记时应该隐藏
-    /// **Requirements: 4.1, 4.2**
+    /// 这些项在没有选中笔记时应该隐藏 
     private let noteActionItemIdentifiers: Set<NSToolbarItem.Identifier> = [
         .share,
         .noteOperations
     ]
     
     /// 上下文相关工具栏项标识符
-    /// 这些项根据特定上下文条件显示/隐藏
-    /// **Requirements: 3.1, 3.2, 3.3**
+    /// 这些项根据特定上下文条件显示/隐藏 
     private let contextItemIdentifiers: Set<NSToolbarItem.Identifier> = [
         .lockPrivateNotes
     ]
@@ -99,11 +95,9 @@ public class ToolbarVisibilityManager {
     
     // MARK: - 状态监听
     
-    /// 设置状态监听
-    /// **Requirements: 5.1, 5.2, 5.3, 5.4**
+    /// 设置状态监听 
     private func setupStateObservers() {
-        // 监听视图模式变化
-        // **Requirements: 5.1**
+        // 监听视图模式变化 
         ViewOptionsManager.shared.$state
             .map(\.viewMode)
             .removeDuplicates()
@@ -113,8 +107,7 @@ public class ToolbarVisibilityManager {
             }
             .store(in: &cancellables)
         
-        // 监听文件夹选择变化
-        // **Requirements: 5.2**
+        // 监听文件夹选择变化 
         viewModel?.$selectedFolder
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -122,8 +115,7 @@ public class ToolbarVisibilityManager {
             }
             .store(in: &cancellables)
         
-        // 监听笔记选择变化
-        // **Requirements: 5.3**
+        // 监听笔记选择变化 
         viewModel?.$selectedNote
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -131,8 +123,7 @@ public class ToolbarVisibilityManager {
             }
             .store(in: &cancellables)
         
-        // 监听私密笔记解锁状态变化
-        // **Requirements: 3.4**
+        // 监听私密笔记解锁状态变化 
         viewModel?.$isPrivateNotesUnlocked
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -152,8 +143,7 @@ public class ToolbarVisibilityManager {
     
     // MARK: - 可见性更新
     
-    /// 更新所有工具栏项的可见性
-    /// **Requirements: 1.1, 1.2, 2.1, 3.1, 3.2, 3.3, 4.1, 4.2**
+    /// 更新所有工具栏项的可见性 
     public func updateToolbarVisibility() {
         guard let toolbar = toolbar else { return }
         
@@ -185,8 +175,7 @@ public class ToolbarVisibilityManager {
     ///   - isPrivateFolder: 是否在私密笔记文件夹
     ///   - isUnlocked: 私密笔记是否已解锁
     ///   - isGalleryExpanded: 画廊视图是否展开（正在编辑笔记）
-    ///
-    /// **Requirements: 1.1, 1.2, 2.1, 3.1, 3.2, 3.3, 4.1, 4.2**
+    /// 
     public func updateItemVisibility(
         _ item: NSToolbarItem,
         viewMode: ViewMode? = nil,
@@ -208,8 +197,7 @@ public class ToolbarVisibilityManager {
         let isInGalleryEditMode = (currentViewMode == .gallery && currentIsGalleryExpanded)
         
         if editorItemIdentifiers.contains(identifier) {
-            // 编辑器项：在列表视图中显示，或在画廊视图展开编辑时显示
-            // **Requirements: 1.1, 1.2, 2.1**
+            // 编辑器项：在列表视图中显示，或在画廊视图展开编辑时显示 
             item.isHidden = (currentViewMode == .gallery && !currentIsGalleryExpanded)
         } else if galleryHiddenSeparatorIdentifiers.contains(identifier) {
             // 时间线跟踪分隔符：仅在列表视图（三栏布局）中显示
@@ -218,16 +206,14 @@ public class ToolbarVisibilityManager {
         } else if noteActionItemIdentifiers.contains(identifier) {
             // 笔记操作项：
             // - 列表视图：有选中笔记时显示
-            // - 画廊视图：仅在展开编辑时显示
-            // **Requirements: 4.1, 4.2**
+            // - 画廊视图：仅在展开编辑时显示 
             if currentViewMode == .gallery {
                 item.isHidden = !isInGalleryEditMode
             } else {
                 item.isHidden = !currentHasSelectedNote
             }
         } else if identifier == .lockPrivateNotes {
-            // 锁按钮：仅在私密笔记文件夹且已解锁时显示
-            // **Requirements: 3.1, 3.2, 3.3**
+            // 锁按钮：仅在私密笔记文件夹且已解锁时显示 
             item.isHidden = !(currentIsPrivateFolder && currentIsUnlocked)
         } else if identifier == .backToGallery {
             // 返回画廊按钮：仅在画廊视图展开编辑时显示

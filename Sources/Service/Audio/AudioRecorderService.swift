@@ -11,8 +11,7 @@ import AppKit
 /// - 录制状态管理
 /// - 音量级别监控
 /// - 最大时长限制
-///
-/// Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6
+/// 
 final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendable {
     
     // MARK: - 单例
@@ -87,8 +86,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     
     // MARK: - 配置属性
     
-    /// 最大录制时长（秒）- 5 分钟
-    /// Requirements: 8.5
+    /// 最大录制时长（秒）- 5 分钟 
     let maxDuration: TimeInterval = 300
     
     /// 录制的音频文件 URL
@@ -246,13 +244,11 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         }
     }
     
-    // MARK: - 权限管理
-    // Requirements: 8.2, 8.3
+    // MARK: - 权限管理 
     
     /// 请求麦克风权限
     ///
-    /// - Returns: 是否获得授权
-    /// - Requirements: 8.2
+    /// - Returns: 是否获得授权 
     @MainActor
     func requestPermission() async -> Bool {
         print("[AudioRecorder] 请求麦克风权限...")
@@ -297,8 +293,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     
     /// 检查麦克风权限状态
     ///
-    /// - Returns: 当前权限状态
-    /// - Requirements: 8.3
+    /// - Returns: 当前权限状态 
     func checkPermissionStatus() -> PermissionStatus {
         updatePermissionStatus()
         return permissionStatus
@@ -345,8 +340,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     }
     
     /// 打开系统偏好设置（麦克风权限）
-    ///
-    /// - Requirements: 8.3
+    /// 
     func openSystemPreferences() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
             NSWorkspace.shared.open(url)
@@ -355,13 +349,11 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     }
 
     
-    // MARK: - 录制控制方法
-    // Requirements: 8.1, 8.6
+    // MARK: - 录制控制方法 
     
     /// 开始录制
     ///
-    /// - Throws: 录制失败时抛出错误
-    /// - Requirements: 8.1
+    /// - Throws: 录制失败时抛出错误 
     func startRecording() throws {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -451,8 +443,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     }
     
     /// 暂停录制
-    ///
-    /// - Requirements: 8.6
+    /// 
     func pauseRecording() {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -477,8 +468,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     }
     
     /// 继续录制
-    ///
-    /// - Requirements: 8.6
+    /// 
     func resumeRecording() {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -505,8 +495,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     
     /// 停止录制并返回文件 URL
     ///
-    /// - Returns: 录制的音频文件 URL，如果录制失败则返回 nil
-    /// - Requirements: 8.6
+    /// - Returns: 录制的音频文件 URL，如果录制失败则返回 nil 
     @discardableResult
     func stopRecording() -> URL? {
         stateLock.lock()
@@ -567,8 +556,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     }
     
     /// 取消录制
-    ///
-    /// - Requirements: 8.6
+    /// 
     func cancelRecording() {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -611,8 +599,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     }
 
     
-    // MARK: - 录制状态管理
-    // Requirements: 8.4, 8.5
+    // MARK: - 录制状态管理 
     
     /// 更新录制状态（内部版本，不加锁）
     private func updateStateInternal(_ newState: RecordingState) {
@@ -670,15 +657,13 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         stopTimers()
     }
     
-    /// 更新录制时长
-    /// Requirements: 8.4
+    /// 更新录制时长 
     private func updateRecordingDuration() {
         guard state == .recording, let startTime = recordingStartTime else { return }
         
         let currentDuration = accumulatedDuration + Date().timeIntervalSince(startTime)
         
-        // 检查是否达到最大时长
-        // Requirements: 8.5
+        // 检查是否达到最大时长 
         if currentDuration >= maxDuration {
             print("[AudioRecorder] ⚠️ 达到最大录制时长限制")
             
@@ -696,8 +681,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         }
     }
     
-    /// 更新音量级别
-    /// Requirements: 8.4
+    /// 更新音量级别 
     private func updateAudioLevel() {
         guard let recorder = audioRecorder, recorder.isRecording else {
             audioLevel = 0

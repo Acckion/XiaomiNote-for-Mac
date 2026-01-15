@@ -3,8 +3,7 @@
 //  MiNoteMac
 //
 //  错误容错性属性测试
-//  Property 8: 错误容错性
-//  Validates: Requirements 7.1
+//  Property 8: 错误容错性 
 //
 
 import XCTest

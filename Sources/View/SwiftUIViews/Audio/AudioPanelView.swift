@@ -2,8 +2,7 @@
 //  AudioPanelView.swift
 //  MiNoteMac
 //
-//  音频面板视图 - 显示在主窗口第四栏，提供录制和播放功能
-//  Requirements: 1.1, 3.1, 4.1, 6.1, 6.2, 6.4, 6.5
+//  音频面板视图 - 显示在主窗口第四栏，提供录制和播放功能 
 //
 
 import SwiftUI
@@ -12,8 +11,7 @@ import SwiftUI
 ///
 /// 显示在主窗口第四栏，根据模式显示录制或播放界面。
 /// 支持深色背景和橙色主题色，与 Apple Notes 风格一致。
-///
-/// Requirements: 1.1, 3.1, 4.1, 6.1, 6.2, 6.4, 6.5
+/// 
 struct AudioPanelView: View {
     
     // MARK: - Properties
@@ -54,8 +52,7 @@ struct AudioPanelView: View {
         .background(panelBackground)
     }
     
-    // MARK: - 标题栏
-    // Requirements: 6.5
+    // MARK: - 标题栏 
     
     /// 面板标题栏
     private var panelHeader: some View {
@@ -180,8 +177,7 @@ struct AudioPanelView: View {
         }
     }
     
-    // MARK: - 背景
-    // Requirements: 6.1
+    // MARK: - 背景 
     
     /// 面板背景
     private var panelBackground: some View {
@@ -227,8 +223,7 @@ struct AudioPanelView: View {
 }
 
 
-// MARK: - 录制模式内容
-// Requirements: 3.1, 3.2, 3.3, 3.4, 6.3
+// MARK: - 录制模式内容 
 
 /// 音频面板录制模式内容
 ///
@@ -237,8 +232,7 @@ struct AudioPanelView: View {
 /// - 音量指示器
 /// - 录制/暂停/停止按钮
 /// - 预览和确认界面
-///
-/// Requirements: 3.1, 3.2, 3.3, 3.4, 6.3
+/// 
 struct AudioPanelRecordingContent: View {
     
     // MARK: - Properties
@@ -320,8 +314,7 @@ struct AudioPanelRecordingContent: View {
         }
     }
     
-    // MARK: - 空闲状态视图
-    // Requirements: 3.1
+    // MARK: - 空闲状态视图 
     
     private var idleView: some View {
         VStack(spacing: 32) {
@@ -357,13 +350,11 @@ struct AudioPanelRecordingContent: View {
         }
     }
     
-    // MARK: - 录制中视图
-    // Requirements: 3.2, 3.3, 6.3
+    // MARK: - 录制中视图 
     
     private var recordingView: some View {
         VStack(spacing: 24) {
-            // 录制指示器
-            // Requirements: 6.3
+            // 录制指示器 
             if viewState == .recording {
                 recordingIndicator
             }
@@ -371,8 +362,7 @@ struct AudioPanelRecordingContent: View {
             // 录制时长显示
             durationDisplay
             
-            // 音量指示器
-            // Requirements: 3.2
+            // 音量指示器 
             audioLevelMeter
             
             // 剩余时间提示
@@ -381,14 +371,12 @@ struct AudioPanelRecordingContent: View {
             Spacer()
                 .frame(height: 20)
             
-            // 控制按钮
-            // Requirements: 3.3, 3.4
+            // 控制按钮 
             recordingControlButtons
         }
     }
     
-    /// 录制指示器（红色闪烁点）
-    /// Requirements: 6.3
+    /// 录制指示器（红色闪烁点） 
     private var recordingIndicator: some View {
         HStack(spacing: 8) {
             Circle()
@@ -416,8 +404,7 @@ struct AudioPanelRecordingContent: View {
             .animation(.easeInOut(duration: 0.3), value: viewState)
     }
     
-    /// 音量指示器
-    /// Requirements: 3.2
+    /// 音量指示器 
     private var audioLevelMeter: some View {
         AudioLevelMeterView(
             level: recorderService.audioLevel,
@@ -462,8 +449,7 @@ struct AudioPanelRecordingContent: View {
         .buttonStyle(.plain)
     }
     
-    /// 录制控制按钮
-    /// Requirements: 3.3, 3.4
+    /// 录制控制按钮 
     private var recordingControlButtons: some View {
         HStack(spacing: 40) {
             // 取消按钮
@@ -485,8 +471,7 @@ struct AudioPanelRecordingContent: View {
             }
             .buttonStyle(.plain)
             
-            // 暂停/继续按钮
-            // Requirements: 3.3
+            // 暂停/继续按钮 
             Button(action: togglePauseResume) {
                 VStack(spacing: 6) {
                     ZStack {
@@ -505,8 +490,7 @@ struct AudioPanelRecordingContent: View {
             }
             .buttonStyle(.plain)
             
-            // 停止按钮
-            // Requirements: 3.4
+            // 停止按钮 
             Button(action: stopRecording) {
                 VStack(spacing: 6) {
                     ZStack {
@@ -829,8 +813,7 @@ struct AudioPanelRecordingContent: View {
 }
 
 
-// MARK: - 播放模式内容
-// Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
+// MARK: - 播放模式内容 
 
 /// 音频面板播放模式内容
 ///
@@ -838,8 +821,7 @@ struct AudioPanelRecordingContent: View {
 /// - 播放进度条
 /// - 当前时间和总时长
 /// - 播放/暂停/跳转控制按钮
-///
-/// Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
+/// 
 struct AudioPanelPlaybackContent: View {
     
     // MARK: - Properties
@@ -884,24 +866,20 @@ struct AudioPanelPlaybackContent: View {
         .padding(24)
     }
     
-    // MARK: - 播放内容
-    // Requirements: 4.1
+    // MARK: - 播放内容 
     
     private var playbackContent: some View {
         VStack(spacing: 32) {
             // 波形图标
             waveformIcon
             
-            // 时间显示
-            // Requirements: 4.1
+            // 时间显示 
             timeDisplay
             
-            // 进度条
-            // Requirements: 4.3
+            // 进度条 
             progressBar
             
-            // 控制按钮
-            // Requirements: 4.2, 4.4
+            // 控制按钮 
             controlButtons
         }
     }
@@ -941,8 +919,7 @@ struct AudioPanelPlaybackContent: View {
             )
     }
     
-    /// 时间显示
-    /// Requirements: 4.1
+    /// 时间显示 
     private var timeDisplay: some View {
         VStack(spacing: 8) {
             // 当前时间
@@ -957,8 +934,7 @@ struct AudioPanelPlaybackContent: View {
         }
     }
     
-    /// 进度条
-    /// Requirements: 4.3
+    /// 进度条 
     private var progressBar: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
@@ -999,12 +975,10 @@ struct AudioPanelPlaybackContent: View {
         .padding(.horizontal, 20)
     }
     
-    /// 控制按钮
-    /// Requirements: 4.2, 4.4
+    /// 控制按钮 
     private var controlButtons: some View {
         HStack(spacing: 32) {
-            // 后退 15 秒
-            // Requirements: 4.4
+            // 后退 15 秒 
             Button(action: { playerService.skipBackward(15) }) {
                 ZStack {
                     Circle()
@@ -1019,8 +993,7 @@ struct AudioPanelPlaybackContent: View {
             .buttonStyle(.plain)
             .disabled(!isCurrentFile)
             
-            // 播放/暂停按钮
-            // Requirements: 4.2
+            // 播放/暂停按钮 
             Button(action: togglePlayPause) {
                 ZStack {
                     Circle()
@@ -1041,8 +1014,7 @@ struct AudioPanelPlaybackContent: View {
             .buttonStyle(.plain)
             .disabled(playerService.isLoading && isCurrentFile)
             
-            // 前进 15 秒
-            // Requirements: 4.4
+            // 前进 15 秒 
             Button(action: { playerService.skipForward(15) }) {
                 ZStack {
                     Circle()
@@ -1144,8 +1116,7 @@ struct AudioPanelPlaybackContent: View {
         return (totalWidth - indicatorRadius * 2) * progress
     }
     
-    /// 切换播放/暂停状态
-    /// Requirements: 4.2, 4.5
+    /// 切换播放/暂停状态 
     private func togglePlayPause() {
         if isCurrentFile {
             playerService.togglePlayPause()

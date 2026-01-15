@@ -3,8 +3,7 @@
 //  MiNoteMac
 //
 //  AST 到 NSAttributedString 转换器
-//  将抽象语法树转换为 macOS 原生富文本格式
-//  Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
+//  将抽象语法树转换为 macOS 原生富文本格式 
 //
 
 import AppKit
@@ -66,8 +65,7 @@ public final class ASTToAttributedStringConverter {
     /// 将文档 AST 转换为 NSAttributedString
     ///
     /// - Parameter document: 文档 AST 节点
-    /// - Returns: NSAttributedString
-    /// - Requirements: 4.1, 9.3
+    /// - Returns: NSAttributedString 
     public func convert(_ document: DocumentNode) -> NSAttributedString {
         let result = NSMutableAttributedString()
         
@@ -93,8 +91,7 @@ public final class ASTToAttributedStringConverter {
     /// 将块级节点转换为 NSAttributedString
     ///
     /// - Parameter block: 块级节点
-    /// - Returns: NSAttributedString
-    /// - Requirements: 4.1, 4.3, 4.4, 4.5, 9.3
+    /// - Returns: NSAttributedString 
     private func convertBlock(_ block: any BlockNode) -> NSAttributedString {
         // 非有序列表块会重置编号计数器
         // _Requirements: 9.3_ - 只有连续的有序列表才继续编号
@@ -338,8 +335,7 @@ public final class ASTToAttributedStringConverter {
     /// - Parameters:
     ///   - nodes: 行内节点数组
     ///   - inheritedAttributes: 继承的属性
-    /// - Returns: NSAttributedString
-    /// - Requirements: 4.1, 4.2
+    /// - Returns: NSAttributedString 
     private func convertInlineNodes(_ nodes: [any InlineNode], inheritedAttributes: [NSAttributedString.Key: Any]) -> NSAttributedString {
         let result = NSMutableAttributedString()
         
@@ -428,8 +424,7 @@ public final class ASTToAttributedStringConverter {
     /// 支持字体属性的累积（例如同时应用粗体和斜体）
     ///
     /// - Parameter node: 格式化节点
-    /// - Returns: 属性字典
-    /// - Requirements: 4.2, 7.4, 7.5, 7.6
+    /// - Returns: 属性字典 
     private func attributesForFormat(_ node: FormattedNode) -> [NSAttributedString.Key: Any] {
         var attributes: [NSAttributedString.Key: Any] = [:]
         
@@ -581,8 +576,7 @@ public final class ASTToAttributedStringConverter {
     /// 将自定义的字体标记（粗体、大小、粗细）合并为实际的 NSFont
     ///
     /// - Parameter attributes: 属性字典
-    /// - Returns: 解析后的属性字典
-    /// - Requirements: 4.2, 7.4, 7.5, 7.6
+    /// - Returns: 解析后的属性字典 
     private func resolveFontAttributes(_ attributes: [NSAttributedString.Key: Any]) -> [NSAttributedString.Key: Any] {
         var result = attributes
         

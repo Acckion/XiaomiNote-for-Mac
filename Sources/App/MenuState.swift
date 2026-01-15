@@ -85,8 +85,7 @@ enum MenuViewMode: String, CaseIterable {
 }
 
 /// 菜单状态结构体
-/// 用于管理菜单项的状态（启用/禁用、勾选/未勾选）
-/// - Requirements: 14.4, 14.5, 14.6, 14.7
+/// 用于管理菜单项的状态（启用/禁用、勾选/未勾选） 
 struct MenuState: Equatable {
     
     // MARK: - 段落样式状态

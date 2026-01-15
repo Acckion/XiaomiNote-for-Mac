@@ -408,8 +408,7 @@ class XiaoMiFormatConverter {
     /// - Parameters:
     ///   - text: 文本内容
     ///   - attributes: NSAttributedString 属性字典
-    /// - Returns: 包含 XML 标签的文本
-    /// - Requirements: 5.2, 5.3, 5.4, 5.5, 5.6, 7.1, 7.2, 7.3
+    /// - Returns: 包含 XML 标签的文本 
     private func processNSAttributesToXMLTags(_ text: String, attributes: [NSAttributedString.Key: Any]) -> String {
         var result = escapeXMLCharacters(text)
         
@@ -933,8 +932,7 @@ class XiaoMiFormatConverter {
     /// 
     /// - Parameter line: XML 行
     /// - Returns: 包含 AudioAttachment 的 NSAttributedString
-    /// - Throws: ConversionError
-    /// - Requirements: 1.1, 1.2
+    /// - Throws: ConversionError 
     private func processSoundElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
         // 1. 提取 fileid 属性（小米笔记 XML 中使用全小写的 fileid）
         guard let fileId = extractAttribute("fileid", from: line), !fileId.isEmpty else {
@@ -1251,8 +1249,7 @@ class XiaoMiFormatConverter {
     /// 
     /// - Parameter line: XML 行
     /// - Returns: AttributedString 片段
-    /// - Throws: ConversionError
-    /// - Requirements: 1.1, 1.2
+    /// - Throws: ConversionError 
     private func processSoundElement(_ line: String) throws -> AttributedString {
         // 调用 NSAttributedString 版本并转换
         let nsAttributedString = try processSoundElementToNSAttributedString(line)
@@ -1304,14 +1301,12 @@ class XiaoMiFormatConverter {
     /// 
     /// - Parameter attachment: NSTextAttachment
     /// - Returns: XML 字符串
-    /// - Throws: ConversionError
-    /// - Requirements: 5.8, 5.9, 5.10
+    /// - Throws: ConversionError 
     private func convertAttachmentToXML(_ attachment: NSTextAttachment) throws -> String {
         // 根据 attachment 的类型生成对应的 XML
         // 这里需要识别不同类型的自定义 attachment
         
-        // 检查是否是复选框 attachment
-        // Requirements: 5.8 - 保留 checked 属性
+        // 检查是否是复选框 attachment 
         if let checkboxAttachment = attachment as? InteractiveCheckboxAttachment {
             var xmlAttrs: [String] = [
                 "type=\"checkbox\"",
@@ -1342,8 +1337,7 @@ class XiaoMiFormatConverter {
             return "<order indent=\"\(orderAttachment.indent)\" inputNumber=\"\(orderAttachment.inputNumber)\" />"
         }
         
-        // 检查是否是语音文件 attachment
-        // Requirements: 5.10 - 将 AudioAttachment 转换为 <sound fileid="xxx" /> 格式
+        // 检查是否是语音文件 attachment 
         if let audioAttachment = attachment as? AudioAttachment {
             if let fileId = audioAttachment.fileId, !fileId.isEmpty {
                 // 如果是临时占位符，添加 des="temp" 属性
@@ -1357,8 +1351,7 @@ class XiaoMiFormatConverter {
             }
         }
         
-        // 检查是否是图片 attachment
-        // Requirements: 5.9 - 保留 fileId 属性
+        // 检查是否是图片 attachment 
         if let imageAttachment = attachment as? ImageAttachment {
             var xmlAttrs: [String] = []
             
@@ -1852,8 +1845,7 @@ class XiaoMiFormatConverter {
     /// - Parameters:
     ///   - text: 文本内容
     ///   - run: AttributedString 运行段
-    /// - Returns: 包含 XML 标签的文本
-    /// - Requirements: 5.2, 5.3, 5.4, 5.5, 5.6, 5.7
+    /// - Returns: 包含 XML 标签的文本 
     private func processAttributesToXMLTags(_ text: String, run: AttributedString.Runs.Run) -> String {
         var result = text
         

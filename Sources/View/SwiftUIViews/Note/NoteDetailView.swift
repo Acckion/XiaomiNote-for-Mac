@@ -124,8 +124,7 @@ struct NoteDetailView: View {
                 }
             }
             .onAppear {
-                // 注册保存回调到 ViewStateCoordinator
-                // **Requirements: 3.5, 6.1, 6.2**
+                // 注册保存回调到 ViewStateCoordinator 
                 // - 3.5: 用户在 Editor 中编辑笔记时切换到另一个文件夹，先保存当前编辑内容再切换
                 // - 6.1: 切换文件夹且 Editor 有未保存内容时，先触发保存操作
                 // - 6.2: 保存操作完成后继续执行文件夹切换
@@ -188,7 +187,6 @@ struct NoteDetailView: View {
     /// 
     /// 当文件夹切换时，ViewStateCoordinator 会调用此回调来保存当前编辑的内容
     /// 
-    /// **Requirements: 3.5, 6.1, 6.2**
     private func registerSaveCallback() {
         viewModel.stateCoordinator.saveContentCallback = { [self] in
             await self.saveCurrentContentForFolderSwitch()
@@ -201,7 +199,6 @@ struct NoteDetailView: View {
     /// 这个方法会被 ViewStateCoordinator 在文件夹切换前调用
     /// 后台异步保存，不阻塞界面切换
     /// 
-    /// **Requirements: 3.5, 6.1, 6.2**
     /// 
     /// - Returns: 是否保存成功（立即返回 true，保存在后台进行）
     @MainActor
@@ -1072,8 +1069,7 @@ struct NoteDetailView: View {
         
         Swift.print("[快速切换] ✅ 从缓存加载完成 - ID: \(note.id.prefix(8))..., 标题: \(title), 内容长度: \(currentXMLContent.count)")
         
-        // 验证内容持久化 - 检查是否包含音频附件
-        // Requirements: 1.3
+        // 验证内容持久化 - 检查是否包含音频附件 
         await verifyAudioAttachmentPersistence(note: note)
         
         // 短暂延迟以确保编辑器正确初始化
@@ -1092,8 +1088,7 @@ struct NoteDetailView: View {
     /// 
     /// 检查加载的笔记内容是否包含预期的音频附件，确保持久化成功
     /// 
-    /// - Parameter note: 要验证的笔记
-    /// - Requirements: 1.3
+    /// - Parameter note: 要验证的笔记 
     @MainActor
     private func verifyAudioAttachmentPersistence(note: Note) async {
         Swift.print("[持久化验证] 🔍 开始验证音频附件 - 笔记ID: \(note.id.prefix(8))...")
@@ -1360,8 +1355,7 @@ struct NoteDetailView: View {
                     if self.viewModel.selectedNote?.id == updated.id {
                         self.viewModel.selectedNote = updated
                         
-                        // 通过 coordinator 更新笔记内容，保持选择状态不变
-                        // **Requirements: 1.1, 1.2, 1.3**
+                        // 通过 coordinator 更新笔记内容，保持选择状态不变 
                         self.viewModel.stateCoordinator.updateNoteContent(updated)
                     }
                     self.scheduleCloudUpload(for: updated, xmlContent: xmlContent)
@@ -1420,8 +1414,7 @@ struct NoteDetailView: View {
             Swift.print("[保存状态] 📝 内容变化 - 设置为未保存")
         }
         
-        // 标记 coordinator 有未保存的内容
-        // **Requirements: 6.1**
+        // 标记 coordinator 有未保存的内容 
         // - 6.1: 切换文件夹时检查是否有未保存内容
         viewModel.stateCoordinator.hasUnsavedContent = true
         
@@ -1606,8 +1599,7 @@ struct NoteDetailView: View {
                 self.pendingRetryXMLContent = nil
                 self.pendingRetryNote = nil
                 
-                // 更新视图模型中的笔记
-                // **Requirements: 1.1, 1.2** - 编辑笔记内容时保持选中状态不变
+                // 更新视图模型中的笔记 
                 // 由于 Note 的 Equatable 现在只比较 id，所以更新 notes 数组不会影响选择状态
                 let oldSelectedNoteId = self.viewModel.selectedNote?.id
                 Swift.print("[保存流程] 🔄 更新 notes 数组 - 笔记ID: \(noteId.prefix(8))..., 当前选中: \(oldSelectedNoteId?.prefix(8) ?? "nil")")
@@ -1634,8 +1626,7 @@ struct NoteDetailView: View {
                 self.saveStatus = .saved
                 Swift.print("[保存状态] ✅ 保存完成 - 设置为已保存")
                 
-                // 清除 coordinator 的未保存内容标志
-                // **Requirements: 6.1**
+                // 清除 coordinator 的未保存内容标志 
                 self.viewModel.stateCoordinator.hasUnsavedContent = false
                 
                 // 通知原生编辑器内容已保存
@@ -2085,8 +2076,7 @@ struct NoteDetailView: View {
         if viewModel.selectedNote?.id == updated.id {
             viewModel.selectedNote = updated
             
-            // 通过 coordinator 更新笔记内容，保持选择状态不变
-            // **Requirements: 1.1, 1.2, 1.3**
+            // 通过 coordinator 更新笔记内容，保持选择状态不变 
             // - 1.1: 编辑笔记内容时保持选中状态不变
             // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
             // - 1.3: 笔记的 updatedAt 时间戳变化时保持选中笔记的高亮状态

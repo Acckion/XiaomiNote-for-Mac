@@ -4,8 +4,7 @@
 //
 //  音频面板托管控制器 - 托管 AudioPanelView
 //  将 SwiftUI 的 AudioPanelView 嵌入 NSSplitViewController 作为第四栏
-//
-//  Requirements: 1.1, 1.2
+// 
 //
 
 import AppKit
@@ -16,8 +15,7 @@ import Combine
 ///
 /// 将 AudioPanelView 嵌入 NSSplitViewController 作为第四栏。
 /// 负责管理音频面板的显示和与主窗口的交互。
-///
-/// Requirements: 1.1, 1.2
+/// 
 /// - 1.1: 在主窗口右侧显示第四栏音频面板
 /// - 1.2: 保持侧边栏、笔记列表和编辑器的原有布局
 class AudioPanelHostingController: NSViewController {
@@ -97,8 +95,7 @@ class AudioPanelHostingController: NSViewController {
         // 设置视图
         self.view = hostingView
         
-        // 设置视图约束
-        // Requirements: 1.4 - 最小宽度 280 像素，最大宽度 400 像素
+        // 设置视图约束 
         view.translatesAutoresizingMaskIntoConstraints = false
     }
     
@@ -138,15 +135,13 @@ class AudioPanelHostingController: NSViewController {
         print("[AudioPanelHostingController] 视图已消失")
     }
     
-    // MARK: - 键盘事件处理
-    // Requirements: 2.4 - Escape 键关闭面板（空闲状态）
+    // MARK: - 键盘事件处理 
     
     /// 处理 Escape 键
     ///
     /// 当用户按下 Escape 键时，如果面板处于空闲状态（非录制中），则关闭面板。
     /// 如果正在录制，则不响应 Escape 键，需要用户通过确认对话框关闭。
-    ///
-    /// Requirements: 2.4
+    /// 
     override func cancelOperation(_ sender: Any?) {
         print("[AudioPanelHostingController] 收到 Escape 键事件")
         
@@ -234,16 +229,14 @@ class AudioPanelHostingController: NSViewController {
     }
     
     /// 获取最小宽度
-    ///
-    /// Requirements: 1.4
+    /// 
     /// - Returns: 最小宽度（280 像素）
     func minimumWidth() -> CGFloat {
         return 280
     }
     
     /// 获取最大宽度
-    ///
-    /// Requirements: 1.4
+    /// 
     /// - Returns: 最大宽度（400 像素）
     func maximumWidth() -> CGFloat {
         return 400
