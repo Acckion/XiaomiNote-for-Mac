@@ -172,6 +172,7 @@ struct UnifiedEditorWrapper: View {
     // MARK: - Content Change Handlers
     
     /// 处理 xmlContent 变化（切换笔记时触发）
+    /// _Requirements: FR-3.3.1_ - 使用异步状态更新避免 SwiftUI 警告
     private func handleXMLContentChange(oldValue: String?, newValue: String?) {
         // xmlContent 变化是检测笔记切换最可靠的方式
         guard let newContent = newValue else { return }
@@ -191,8 +192,11 @@ struct UnifiedEditorWrapper: View {
             let currentEditorXML = nativeEditorContext.exportToXML()
             if !currentEditorXML.isEmpty && currentEditorXML == newContent {
                 print("[UnifiedEditorWrapper] xmlContent 变化但与编辑器内容相同，跳过重新加载")
+                // _Requirements: FR-3.3.1_ - 使用 Task 异步更新状态
                 // 更新 lastLoadedContent 以保持同步
-                lastLoadedContent = newContent
+                Task { @MainActor in
+                    lastLoadedContent = newContent
+                }
                 return
             }
         }
@@ -263,6 +267,7 @@ struct UnifiedEditorWrapper: View {
     /// 处理原生编辑器内容变化
     /// _Requirements: 2.1_ - 确保 NSAttributedString 正确转换为 XML 并调用回调
     /// _Requirements: 2.3_ - 实现 300ms 防抖，避免频繁保存
+    /// _Requirements: FR-3.3.1_ - 使用异步状态更新避免 SwiftUI 警告
     private func handleNativeContentChange(_ attributedString: NSAttributedString) {
         // 如果正在从外部更新内容，跳过处理
         guard !isUpdatingFromExternal else {
@@ -270,9 +275,12 @@ struct UnifiedEditorWrapper: View {
             return
         }
         
+        // _Requirements: FR-3.3.1_ - 使用 Task 异步标记未保存状态
         // 关键修复：立即标记有未保存的更改
         // 这确保用户在输入时能看到"未保存"状态
-        nativeEditorContext.hasUnsavedChanges = true
+        Task { @MainActor in
+            nativeEditorContext.hasUnsavedChanges = true
+        }
         
         // 取消之前的防抖任务
         debounceTask?.cancel()
@@ -306,6 +314,7 @@ struct UnifiedEditorWrapper: View {
     /// 执行实际的内容变化处理
     /// _Requirements: 2.1_ - 将 NSAttributedString 转换为 XML 格式并触发保存流程
     /// _Requirements: 9.3_ - 格式转换失败时记录日志并尝试使用原始内容
+    /// _Requirements: FR-3.3.1_ - 使用异步状态更新避免 SwiftUI 警告
     private func performContentChange(_ attributedString: NSAttributedString) async {
         // 关键修复：直接使用传入的 attributedString 进行转换
         // 而不是依赖 nativeEditorContext.nsAttributedText
@@ -331,13 +340,17 @@ struct UnifiedEditorWrapper: View {
         let hasUnsavedChanges = nativeEditorContext.hasUnsavedChanges
         
         if contentChanged || hasUnsavedChanges {
-            isUpdatingFromExternal = true
-            
-            // 更新绑定的内容
-            content = xmlContent
-            lastLoadedContent = xmlContent
-            
-            isUpdatingFromExternal = false
+            // _Requirements: FR-3.3.1_ - 使用 await MainActor.run 异步更新状态
+            // 避免在视图更新过程中直接修改 @Published 属性
+            await MainActor.run {
+                isUpdatingFromExternal = true
+                
+                // 更新绑定的内容
+                content = xmlContent
+                lastLoadedContent = xmlContent
+                
+                isUpdatingFromExternal = false
+            }
             
             // 调用内容变化回调（原生编辑器不提供 HTML 缓存）
             // _Requirements: 2.1_ - 触发保存流程
