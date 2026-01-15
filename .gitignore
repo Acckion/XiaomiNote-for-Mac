@@ -34,3 +34,6 @@ project.xcworkspace/xcuserdata/
 # 参考目录
 References/
 
+# IDE
+.kiro/
+.vscode/
