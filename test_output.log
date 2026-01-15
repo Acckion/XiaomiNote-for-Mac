@@ -1,8 +1,0 @@
-Command line invocation:
-    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -project MiNoteMac.xcodeproj -scheme MiNoteMac -destination platform=macOS "-only-testing:NativeEditorTests"
-
---- xcodebuild: WARNING: Using the first of multiple matching destinations:
-{ platform:macOS, arch:arm64, id:00008132-001A70A23621801C, name:My Mac }
-{ platform:macOS, arch:x86_64, id:00008132-001A70A23621801C, name:My Mac }
-2026-01-14 18:44:44.024 xcodebuild[26938:286278] Writing error result bundle to /var/folders/b7/5ybx77kn1kjbnxz3w5gvrwkr0000gn/T/ResultBundle_2026-14-01_18-44-0044.xcresult
-xcodebuild: error: Failed to build project MiNoteMac with scheme MiNoteMac.: Tests in the target “NativeEditorTests” can’t be run because “NativeEditorTests” isn’t a member of the specified test plan or scheme.
