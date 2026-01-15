@@ -61,6 +61,9 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
     /// 复选框大小
     var checkboxSize: CGFloat = 16
     
+    /// 附件总宽度（确保符号右侧与文字间距统一）
+    var attachmentWidth: CGFloat = 21
+    
     /// 是否为深色模式
     var isDarkMode: Bool = false {
         didSet {
@@ -108,8 +111,8 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
     }
     
     private func setupAttachment() {
-        // 设置附件边界
-        self.bounds = CGRect(x: 0, y: -3, width: checkboxSize, height: checkboxSize)
+        // 设置附件边界，使用 attachmentWidth 确保与其他列表类型间距一致
+        self.bounds = CGRect(x: 0, y: -3, width: attachmentWidth, height: checkboxSize)
         
         // 预先创建图像，确保附件有默认图像
         // 这对于某些 NSTextView 配置是必要的
@@ -149,8 +152,8 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
                                   proposedLineFragment lineFrag: CGRect,
                                   glyphPosition position: CGPoint,
                                   characterIndex charIndex: Int) -> CGRect {
-        // 返回复选框的边界，稍微向下偏移以对齐文本基线
-        return CGRect(x: 0, y: -3, width: checkboxSize, height: checkboxSize)
+        // 返回复选框的边界，使用 attachmentWidth 确保与其他列表类型间距一致
+        return CGRect(x: 0, y: -3, width: attachmentWidth, height: checkboxSize)
     }
     
     // MARK: - InteractiveAttachment
@@ -207,14 +210,18 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
     /// - Parameter checked: 是否为选中状态
     /// - Returns: 复选框图像
     private func createCheckboxImage(checked: Bool) -> NSImage {
-        let size = NSSize(width: checkboxSize, height: checkboxSize)
+        // 图像使用 attachmentWidth 宽度，但 checkbox 只绘制在左侧 checkboxSize 区域
+        let size = NSSize(width: attachmentWidth, height: checkboxSize)
         let image = NSImage(size: size, flipped: false) { [weak self] rect in
             guard let self = self else { return false }
             
+            // 只在左侧 checkboxSize 区域绘制 checkbox，右侧留白作为间距
+            let checkboxRect = CGRect(x: 0, y: 0, width: self.checkboxSize, height: self.checkboxSize)
+            
             if checked {
-                self.drawCheckedCheckbox(in: rect)
+                self.drawCheckedCheckbox(in: checkboxRect)
             } else {
-                self.drawUncheckedCheckbox(in: rect)
+                self.drawUncheckedCheckbox(in: checkboxRect)
             }
             
             return true
@@ -568,8 +575,9 @@ final class BulletAttachment: NSTextAttachment, ThemeAwareAttachment {
     /// 项目符号大小
     var bulletSize: CGFloat = 6
     
-    /// 附件总宽度（包含缩进空间）
-    var attachmentWidth: CGFloat = 20
+    /// 附件总宽度（优化后减小以使列表标记与正文左边缘对齐）
+    /// _Requirements: 1.1, 4.1_
+    var attachmentWidth: CGFloat = 16
     
     /// 是否为深色模式
     var isDarkMode: Bool = false {
@@ -632,6 +640,9 @@ final class BulletAttachment: NSTextAttachment, ThemeAwareAttachment {
                                   glyphPosition position: CGPoint,
                                   characterIndex charIndex: Int) -> CGRect {
         // 根据缩进级别调整位置
+        // 缩进级别 1 时 x = 0（与正文左边缘对齐）
+        // 缩进级别 > 1 时按 20pt 递增
+        // _Requirements: 3.1, 3.2_
         let indentOffset = CGFloat(indent - 1) * 20
         return CGRect(x: indentOffset, y: 2, width: attachmentWidth, height: bulletSize + 4)
     }
@@ -652,6 +663,7 @@ final class BulletAttachment: NSTextAttachment, ThemeAwareAttachment {
     // MARK: - Private Methods
     
     /// 创建项目符号图像
+    /// _Requirements: 1.1, 1.4_
     private func createBulletImage() -> NSImage {
         let size = NSSize(width: attachmentWidth, height: bulletSize + 4)
         
@@ -666,8 +678,8 @@ final class BulletAttachment: NSTextAttachment, ThemeAwareAttachment {
             // 根据缩进级别选择不同的符号样式
             let bulletStyle = self.getBulletStyle(for: self.indent)
             
-            // 计算项目符号位置（居中）
-            let bulletX = (rect.width - self.bulletSize) / 2
+            // 计算项目符号位置（左对齐，x = 2 提供最小边距）
+            let bulletX: CGFloat = 2
             let bulletY = (rect.height - self.bulletSize) / 2
             let bulletRect = CGRect(x: bulletX, y: bulletY, width: self.bulletSize, height: self.bulletSize)
             
@@ -748,8 +760,9 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
         }
     }
     
-    /// 附件宽度
-    var attachmentWidth: CGFloat = 24
+    /// 附件宽度（优化后减小以使列表标记与正文左边缘对齐）
+    /// _Requirements: 1.2, 4.2_
+    var attachmentWidth: CGFloat = 20
     
     /// 附件高度
     var attachmentHeight: CGFloat = 16
@@ -817,6 +830,9 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
                                   glyphPosition position: CGPoint,
                                   characterIndex charIndex: Int) -> CGRect {
         // 根据缩进级别调整位置
+        // 缩进级别 1 时 x = 0（与正文左边缘对齐）
+        // 缩进级别 > 1 时按 20pt 递增
+        // _Requirements: 3.1, 3.2_
         let indentOffset = CGFloat(indent - 1) * 20
         return CGRect(x: indentOffset, y: -2, width: attachmentWidth, height: attachmentHeight)
     }
@@ -837,6 +853,7 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
     // MARK: - Private Methods
     
     /// 创建编号图像
+    /// _Requirements: 1.2, 1.4_
     private func createOrderImage() -> NSImage {
         let size = NSSize(width: attachmentWidth, height: attachmentHeight)
         
@@ -859,8 +876,9 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
             let attributedString = NSAttributedString(string: numberText, attributes: attributes)
             let textSize = attributedString.size()
             
-            // 计算文本位置（右对齐）
-            let textX = rect.width - textSize.width - 4
+            // 计算文本位置（左对齐，x = 2 提供最小边距）
+            // _Requirements: 1.2, 1.4_
+            let textX: CGFloat = 2
             let textY = (rect.height - textSize.height) / 2
             
             attributedString.draw(at: NSPoint(x: textX, y: textY))
