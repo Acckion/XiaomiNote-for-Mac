@@ -5,7 +5,6 @@ import CommonCrypto
 /// 菜单动作处理器
 /// 负责处理应用程序菜单的各种动作
 /// 实现 NSMenuItemValidation 协议以管理菜单项的启用/禁用状态
-/// - Requirements: 14.1-14.8
 @MainActor
 class MenuActionHandler: NSObject, NSMenuItemValidation {
     
@@ -56,7 +55,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 根据 MenuItemTag 和 MenuState 返回正确的启用状态
     /// - Parameter menuItem: 要验证的菜单项
     /// - Returns: 菜单项是否应该启用
-    /// - Requirements: 14.1-14.8
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         // 获取菜单项标签
         guard let tag = MenuItemTag(rawValue: menuItem.tag) else {
@@ -81,10 +79,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 设置状态观察者
     /// 
     /// 监听各种状态变化通知，更新菜单状态
-    /// _Requirements: 14.4, 14.5, 14.6, 14.7_
     private func setupStateObservers() {
         // 监听笔记选中状态变化
-        // _Requirements: 14.4_
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleNoteSelectionChanged(_:)),
@@ -93,7 +89,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         )
         
         // 监听编辑器焦点变化
-        // _Requirements: 14.5_
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleEditorFocusChanged(_:)),
@@ -102,7 +97,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         )
         
         // 监听视图模式变化
-        // _Requirements: 14.7_
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleViewModeChanged(_:)),
@@ -111,7 +105,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         )
         
         // 监听段落样式变化
-        // _Requirements: 14.6_
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleParagraphStyleChanged(_:)),
@@ -128,7 +121,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         )
         
         // 监听笔记数量显示变化
-        // _Requirements: 5.5_
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleNoteCountVisibilityChanged(_:)),
@@ -138,7 +130,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 处理笔记选中状态变化
-    /// _Requirements: 14.4_
     @objc private func handleNoteSelectionChanged(_ notification: Notification) {
         // 从通知中获取选中状态
         if let hasSelectedNote = notification.userInfo?["hasSelectedNote"] as? Bool {
@@ -538,7 +529,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 切换有序列表
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleNumberedList(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -551,7 +541,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 切换复选框列表
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleCheckboxList(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -564,7 +553,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 设置大标题
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func setHeading1(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -577,7 +565,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 设置二级标题
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func setHeading2(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -590,7 +577,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 设置三级标题
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func setHeading3(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -911,7 +897,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         pasteboard.setString(content, forType: .string)
     }
     
-    // MARK: - 文件菜单新增动作（Requirements: 2.1-2.20）
+    // MARK: - 文件菜单新增动作
     
     /// 创建智能文件夹
     /// - Requirements: 2.3
@@ -1237,7 +1223,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    // MARK: - 显示菜单动作（Requirements: 8.1-8.5, 9.1-9.8, 10.1-10.4, 11.1-11.5）
+    // MARK: - 显示菜单动作
     
     /// 设置列表视图
     /// - Requirements: 8.1
@@ -1344,7 +1330,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         mainWindowController?.collapseAllSections(sender)
     }
     
-    // MARK: - 窗口菜单动作（Requirements: 13.1-13.14）
+    // MARK: - 窗口菜单动作
     
     /// 填充窗口到屏幕
     /// - Requirements: 13.4

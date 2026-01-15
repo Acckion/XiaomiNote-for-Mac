@@ -1492,7 +1492,6 @@ class MenuManager {
     
     /// 设置视图菜单
     /// 按照 Apple Notes 标准实现完整的显示菜单
-    /// - Requirements: 8.1-8.5, 9.1-9.8, 10.1-10.4, 11.1-11.5, 12.1-12.4
     private func setupViewMenu(in mainMenu: NSMenu) {
         // 创建显示菜单
         let viewMenuItem = NSMenuItem()
@@ -1739,7 +1738,6 @@ class MenuManager {
     /// 设置窗口菜单
     /// 按照 Apple Notes 标准实现完整的窗口菜单
     /// 使用系统窗口菜单管理，让系统自动管理窗口列表
-    /// - Requirements: 13.1-13.14
     private func setupWindowMenu(in mainMenu: NSMenu) {
         // 创建窗口菜单
         let windowMenuItem = NSMenuItem()
