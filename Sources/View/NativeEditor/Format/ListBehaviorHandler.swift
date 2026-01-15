@@ -1057,10 +1057,8 @@ public struct ListBehaviorHandler {
     /// 处理列表项中的删除键（Backspace）
     /// 
     /// 当光标在列表项内容区域起始位置按下删除键时：
-    /// - 将当前列表项的内容合并到上一行
-    /// - 移除当前行的列表标记
-    /// - 如果上一行是列表项，内容追加到列表项末尾
-    /// - 如果上一行是普通文本，内容追加到行末尾并取消列表格式
+    /// - 如果是空列表项：只删除列表标记，保留空行
+    /// - 如果是有内容的列表项：将当前列表项的内容合并到上一行
     /// 
     /// - Parameter textView: NSTextView 实例
     /// - Returns: 是否已处理（true 表示已处理，调用方不需要执行默认行为）
@@ -1092,22 +1090,105 @@ public struct ListBehaviorHandler {
             return false
         }
         
-        // 检查是否是文档第一行
-        guard listInfo.lineRange.location > 0 else {
-            // 文档第一行，不能合并到上一行
-            return false
+        // 如果是空列表项，只删除列表标记，保留空行
+        if listInfo.isEmpty {
+            return removeListMarkerOnly(textView: textView, textStorage: textStorage, listInfo: listInfo)
         }
         
-        // 执行合并操作
+        // 检查是否是文档第一行
+        guard listInfo.lineRange.location > 0 else {
+            // 文档第一行，不能合并到上一行，只删除列表标记
+            return removeListMarkerOnly(textView: textView, textStorage: textStorage, listInfo: listInfo)
+        }
+        
+        // 有内容的列表项：执行合并操作
         // _Requirements: 4.1, 4.2, 4.3, 4.4_
         return mergeWithPreviousLine(textView: textView, textStorage: textStorage, listInfo: listInfo)
+    }
+    
+    /// 只删除列表标记，保留空行
+    /// 
+    /// 用于空列表项按删除键时，只删除列表标记（序号、项目符号或勾选框），
+    /// 保留空行结构，不合并到上一行
+    /// 
+    /// - Parameters:
+    ///   - textView: NSTextView 实例
+    ///   - textStorage: NSTextStorage 实例
+    ///   - listInfo: 列表项信息
+    /// - Returns: 是否成功删除
+    private static func removeListMarkerOnly(
+        textView: NSTextView,
+        textStorage: NSTextStorage,
+        listInfo: ListItemInfo
+    ) -> Bool {
+        let lineRange = listInfo.lineRange
+        let lineStart = lineRange.location
+        let isOrderedList = listInfo.listType == .ordered
+        
+        textStorage.beginEditing()
+        
+        // 1. 删除列表附件（序号、项目符号或勾选框）
+        if let markerRange = listInfo.markerRange {
+            textStorage.deleteCharacters(in: markerRange)
+            print("[ListBehaviorHandler] 删除列表标记, range: \(markerRange)")
+        }
+        
+        // 2. 重新计算行范围（因为删除了附件）
+        let deletedLength = listInfo.markerRange?.length ?? 0
+        let newLineLength = max(0, lineRange.length - deletedLength)
+        let newLineRange = NSRange(location: lineStart, length: newLineLength)
+        
+        // 3. 移除列表格式属性，恢复为普通正文格式
+        if newLineRange.length > 0 {
+            // 移除所有列表相关属性
+            textStorage.removeAttribute(.listType, range: newLineRange)
+            textStorage.removeAttribute(.listIndent, range: newLineRange)
+            textStorage.removeAttribute(.listNumber, range: newLineRange)
+            textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
+            textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
+            
+            // 重置段落样式为默认（无缩进）
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.firstLineHeadIndent = 0
+            paragraphStyle.headIndent = 0
+            textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
+            
+            // 确保使用正文字体
+            textStorage.addAttribute(.font, value: defaultFont, range: newLineRange)
+        }
+        
+        textStorage.endEditing()
+        
+        // 4. 更新光标位置到行首
+        textView.setSelectedRange(NSRange(location: lineStart, length: 0))
+        
+        // 5. 更新 typingAttributes 为普通正文
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.firstLineHeadIndent = 0
+        paragraphStyle.headIndent = 0
+        textView.typingAttributes = [
+            .font: defaultFont,
+            .paragraphStyle: paragraphStyle
+        ]
+        
+        // 6. 如果是有序列表，更新后续编号
+        if isOrderedList {
+            // 计算下一行的起始位置
+            let nextLineStart = lineStart + newLineLength
+            if nextLineStart < textStorage.length {
+                updateOrderedListNumbers(in: textStorage, from: nextLineStart)
+            }
+        }
+        
+        print("[ListBehaviorHandler] 删除列表标记完成，保留空行，光标位置: \(lineStart)")
+        return true
     }
     
     /// 将当前列表项与上一行合并
     /// 
     /// 合并逻辑：
     /// - 获取当前列表项的内容文本
-    /// - 删除当前行（包括列表标记和换行符）
+    /// - 删除当前行的列表标记（保留换行符结构）
     /// - 将内容追加到上一行末尾
     /// - 更新光标位置到合并点
     /// - 如果是有序列表，更新后续编号
@@ -1151,8 +1232,14 @@ public struct ListBehaviorHandler {
         // 获取当前列表项的内容文本（不包括列表标记）
         let contentText = listInfo.contentText
         
-        // 计算当前行的结束位置（包括换行符）
+        // 计算当前行的结束位置
         let currentLineEnd = lineRange.location + lineRange.length
+        
+        // 检查当前行是否有换行符
+        let currentLineHasNewline = currentLineEnd > 0 && 
+                                    currentLineEnd <= textStorage.length &&
+                                    currentLineEnd > lineRange.location &&
+                                    string.character(at: currentLineEnd - 1) == 0x0A
         
         // 检查上一行是否是列表项
         let prevListType = ListFormatHandler.detectListType(in: textStorage, at: prevLineRange.location)
@@ -1160,17 +1247,30 @@ public struct ListBehaviorHandler {
         
         textStorage.beginEditing()
         
-        // 1. 删除当前行（从上一行末尾的换行符开始，到当前行结束）
-        // 这样可以同时删除换行符和当前行的列表标记
-        let deleteStart = prevLineEndPosition
-        let deleteLength = currentLineEnd - deleteStart
+        // 关键修复：只删除当前行的内容（从上一行换行符到当前行换行符之前）
+        // 不要删除当前行的换行符，这样后续行会保持独立
+        
+        // 计算要删除的范围：从上一行末尾换行符到当前行内容结束（不包括当前行的换行符）
+        let deleteStart = prevLineEndPosition  // 上一行换行符位置
+        let deleteEnd: Int
+        if currentLineHasNewline {
+            // 当前行有换行符，删除到换行符之前
+            deleteEnd = currentLineEnd - 1
+        } else {
+            // 当前行没有换行符（文档最后一行），删除到行尾
+            deleteEnd = currentLineEnd
+        }
+        
+        let deleteLength = deleteEnd - deleteStart
         let deleteRange = NSRange(location: deleteStart, length: deleteLength)
+        
+        print("[ListBehaviorHandler] 删除范围: \(deleteRange), 当前行有换行符: \(currentLineHasNewline)")
         
         if deleteRange.length > 0 && deleteRange.location + deleteRange.length <= textStorage.length {
             textStorage.deleteCharacters(in: deleteRange)
         }
         
-        // 2. 在上一行末尾插入当前行的内容
+        // 在上一行末尾插入当前行的内容
         if !contentText.isEmpty {
             // 获取上一行的属性（用于继承格式）
             var insertAttrs: [NSAttributedString.Key: Any] = [.font: defaultFont]
@@ -1201,17 +1301,21 @@ public struct ListBehaviorHandler {
         
         textStorage.endEditing()
         
-        // 3. 更新光标位置到合并点
+        // 更新光标位置到合并点
         let newCursorPosition = prevLineEndPosition
         textView.setSelectedRange(NSRange(location: newCursorPosition, length: 0))
         
-        // 4. 如果是有序列表，更新后续编号
+        // 如果是有序列表，更新后续编号
         if isOrderedList {
             // 需要更新从当前位置开始的有序列表编号
             // 因为删除了一行，后续的编号需要减 1
             let nextLineStart = prevLineEndPosition + contentText.count
             if nextLineStart < textStorage.length {
-                updateOrderedListNumbers(in: textStorage, from: nextLineStart)
+                // 需要跳过换行符找到下一行
+                let adjustedStart = currentLineHasNewline ? nextLineStart + 1 : nextLineStart
+                if adjustedStart < textStorage.length {
+                    updateOrderedListNumbers(in: textStorage, from: adjustedStart)
+                }
             }
         }
         
