@@ -1833,25 +1833,10 @@ public class NotesViewModel: ObservableObject {
                 objectWillChange.send()
             } else {
                 // 如果没有本地文件夹数据，加载示例数据
-                loadSampleFolders()
+                // loadSampleFolders()
             }
         } catch {
             print("[VIEWMODEL] 加载文件夹失败: \(error)")
-        }
-    }
-    
-    
-    private func loadSampleFolders() {
-        // 临时示例文件夹数据
-        self.folders = [
-            Folder(id: "0", name: "所有笔记", count: notes.count, isSystem: true),
-            Folder(id: "starred", name: "置顶", count: notes.filter { $0.isStarred }.count, isSystem: true),
-            Folder(id: "2", name: "未分类", count: notes.filter { $0.folderId == "2" }.count)
-        ]
-        
-        // 默认选择第一个文件夹
-        if selectedFolder == nil {
-            selectedFolder = folders.first
         }
     }
     

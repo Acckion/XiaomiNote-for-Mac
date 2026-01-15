@@ -858,6 +858,20 @@ public class NativeEditorContext: ObservableObject {
         hasUnsavedChanges = true
     }
     
+    /// 异步更新编辑器内容（NSAttributedString）
+    /// 
+    /// 将状态更新包装在 Task 中异步执行，避免在视图更新过程中修改 @Published 属性
+    /// 
+    /// - Parameter text: 新的内容
+    /// - Requirements: FR-3.3.1 - 异步状态更新
+    func updateNSContentAsync(_ text: NSAttributedString) {
+        Task { @MainActor in
+            nsAttributedText = text
+            contentChangeSubject.send(text)
+            hasUnsavedChanges = true
+        }
+    }
+    
     /// 从 XML 加载内容
     /// - Parameter xml: 小米笔记 XML 格式内容
     func loadFromXML(_ xml: String) {
@@ -1301,6 +1315,17 @@ public class NativeEditorContext: ObservableObject {
         print("[NativeEditorContext] ========================================")
         print("[NativeEditorContext] ✅ 格式状态更新完成")
         print("[NativeEditorContext] ========================================")
+    }
+    
+    /// 异步更新当前格式状态
+    /// 
+    /// 将格式状态更新包装在 Task 中异步执行，避免在视图更新过程中修改 @Published 属性
+    /// 
+    /// - Requirements: FR-3.3.1 - 异步状态更新
+    func updateCurrentFormatsAsync() {
+        Task { @MainActor in
+            updateCurrentFormats()
+        }
     }
     
     /// 更新混合格式状态

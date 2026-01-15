@@ -618,9 +618,8 @@ struct NativeEditorView: NSViewRepresentable {
             self.parent.editorContext.updateSelectedRange(selectedRange)
             
             // 异步更新格式状态，避免在视图更新中触发其他视图更新
-            Task { @MainActor in
-                self.parent.editorContext.updateCurrentFormats()
-            }
+            // _Requirements: FR-3.3.1_ - 使用异步方法更新状态
+            self.parent.editorContext.updateCurrentFormatsAsync()
         }
         
         // MARK: - 音频附件删除检测
@@ -699,7 +698,8 @@ struct NativeEditorView: NSViewRepresentable {
                     return
                 }
                 
-                self.parent.editorContext.updateNSContent(attributedString)
+                // _Requirements: FR-3.3.1_ - 使用异步方法更新内容
+                self.parent.editorContext.updateNSContentAsync(attributedString)
                 // 调用回调
                 contentChangeCallback?(attributedString)
                 self.isUpdatingFromTextView = false
@@ -1036,9 +1036,8 @@ struct NativeEditorView: NSViewRepresentable {
         /// - Parameter format: 应用的格式
         private func updateContextAfterFormatApplication(_ format: TextFormat) {
             // 延迟更新状态，避免在视图更新中修改 @Published 属性
-            Task { @MainActor in
-                self.parent.editorContext.updateCurrentFormats()
-            }
+            // _Requirements: FR-3.3.1_ - 使用异步方法更新状态
+            self.parent.editorContext.updateCurrentFormatsAsync()
         }
 
         
