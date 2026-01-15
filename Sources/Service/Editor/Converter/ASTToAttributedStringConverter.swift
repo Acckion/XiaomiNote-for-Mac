@@ -162,17 +162,16 @@ public final class ASTToAttributedStringConverter {
         let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
         result.append(inlineString)
         
-        // 应用缩进
-        if node.indent > 1 {
-            applyIndent(to: result, level: node.indent)
-        }
-        
         // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
         // 这对于列表换行继承功能至关重要
         // _Requirements: 9.4, 7.1_ - 列表换行继承需要 listType 属性
         let fullRange = NSRange(location: 0, length: result.length)
         result.addAttribute(.listType, value: ListType.bullet, range: fullRange)
         result.addAttribute(.listIndent, value: node.indent, range: fullRange)
+        
+        // 应用列表段落样式（包含行间距和段落间距）
+        let paragraphStyle = createListParagraphStyle(indent: node.indent, bulletWidth: 24)
+        result.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
         
         return result
     }
@@ -212,11 +211,6 @@ public final class ASTToAttributedStringConverter {
         let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
         result.append(inlineString)
         
-        // 应用缩进
-        if node.indent > 1 {
-            applyIndent(to: result, level: node.indent)
-        }
-        
         // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
         // 这对于列表换行继承功能至关重要
         // _Requirements: 9.4, 7.2_ - 列表换行继承需要 listType 属性
@@ -224,6 +218,10 @@ public final class ASTToAttributedStringConverter {
         result.addAttribute(.listType, value: ListType.ordered, range: fullRange)
         result.addAttribute(.listIndent, value: node.indent, range: fullRange)
         result.addAttribute(.listNumber, value: displayNumber, range: fullRange)
+        
+        // 应用列表段落样式（包含行间距和段落间距）
+        let paragraphStyle = createListParagraphStyle(indent: node.indent, bulletWidth: 28)
+        result.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
         
         return result
     }
@@ -251,11 +249,6 @@ public final class ASTToAttributedStringConverter {
         let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
         result.append(inlineString)
         
-        // 应用缩进
-        if node.indent > 1 {
-            applyIndent(to: result, level: node.indent)
-        }
-        
         // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
         // _Requirements: 9.4_ - 列表换行继承需要 listType 属性
         let fullRange = NSRange(location: 0, length: result.length)
@@ -263,6 +256,10 @@ public final class ASTToAttributedStringConverter {
         result.addAttribute(.listIndent, value: node.indent, range: fullRange)
         result.addAttribute(.checkboxLevel, value: node.level, range: fullRange)
         result.addAttribute(.checkboxChecked, value: node.isChecked, range: fullRange)
+        
+        // 应用列表段落样式（包含行间距和段落间距）
+        let paragraphStyle = createListParagraphStyle(indent: node.indent, bulletWidth: 24)
+        result.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
         
         return result
     }
@@ -623,6 +620,34 @@ public final class ASTToAttributedStringConverter {
         }
         
         return result
+    }
+    
+    /// 创建列表段落样式
+    ///
+    /// 设置列表项的缩进、制表位、行间距和段落间距
+    ///
+    /// - Parameters:
+    ///   - indent: 缩进级别
+    ///   - bulletWidth: 项目符号宽度
+    /// - Returns: 段落样式
+    private func createListParagraphStyle(indent: Int, bulletWidth: CGFloat) -> NSParagraphStyle {
+        let style = NSMutableParagraphStyle()
+        let indentUnit: CGFloat = 20
+        let baseIndent = CGFloat(indent - 1) * indentUnit
+        
+        // 设置首行缩进（为项目符号留出空间）
+        style.firstLineHeadIndent = baseIndent
+        // 设置后续行缩进（与项目符号后的文本对齐）
+        style.headIndent = baseIndent + bulletWidth
+        // 设置制表位
+        style.tabStops = [NSTextTab(textAlignment: .left, location: baseIndent + bulletWidth)]
+        style.defaultTabInterval = indentUnit
+        
+        // 设置行间距和段落间距（与正文一致）
+        style.lineSpacing = 4
+        style.paragraphSpacing = 8
+        
+        return style
     }
 }
 

@@ -40,6 +40,14 @@ public struct ListFormatHandler {
     /// 有序列表编号宽度
     public static let orderNumberWidth: CGFloat = 28
     
+    /// 默认行间距（与正文一致）
+    /// _Requirements: 2.1_
+    public static let defaultLineSpacing: CGFloat = 4
+    
+    /// 默认段落间距（与正文一致）
+    /// _Requirements: 2.2_
+    public static let defaultParagraphSpacing: CGFloat = 8
+    
     // MARK: - 列表应用
     
     /// 应用无序列表格式
@@ -796,6 +804,7 @@ public struct ListFormatHandler {
     ///   - indent: 缩进级别
     ///   - bulletWidth: 项目符号宽度
     /// - Returns: 段落样式
+    /// _Requirements: 1.1, 1.2, 1.3, 1.4_
     private static func createListParagraphStyle(indent: Int, bulletWidth: CGFloat) -> NSParagraphStyle {
         let style = NSMutableParagraphStyle()
         let baseIndent = CGFloat(indent - 1) * indentUnit
@@ -807,6 +816,10 @@ public struct ListFormatHandler {
         // 设置制表位
         style.tabStops = [NSTextTab(textAlignment: .left, location: baseIndent + bulletWidth)]
         style.defaultTabInterval = indentUnit
+        
+        // 设置行间距和段落间距（与正文一致）
+        style.lineSpacing = defaultLineSpacing
+        style.paragraphSpacing = defaultParagraphSpacing
         
         return style
     }

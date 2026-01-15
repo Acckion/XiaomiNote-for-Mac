@@ -79,6 +79,14 @@ class FormatManager {
     /// 复选框宽度
     var checkboxWidth: CGFloat = 24
     
+    /// 默认行间距（与正文一致）
+    /// _Requirements: 2.1_
+    private let defaultLineSpacing: CGFloat = 4
+    
+    /// 默认段落间距（与正文一致）
+    /// _Requirements: 2.2_
+    private let defaultParagraphSpacing: CGFloat = 8
+    
     // MARK: - Public Methods - 格式应用
     
     /// 应用加粗格式 (需求 2.1)
@@ -1063,6 +1071,11 @@ class FormatManager {
         // 设置制表位
         style.tabStops = [NSTextTab(textAlignment: .left, location: baseIndent + bulletWidth)]
         style.defaultTabInterval = indentUnit
+        
+        // 设置行间距和段落间距（与正文一致）
+        // _Requirements: 1.1, 1.2, 1.3, 1.4_
+        style.lineSpacing = defaultLineSpacing
+        style.paragraphSpacing = defaultParagraphSpacing
         
         return style
     }

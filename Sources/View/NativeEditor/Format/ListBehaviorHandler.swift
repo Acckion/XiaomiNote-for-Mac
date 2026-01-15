@@ -80,6 +80,14 @@ public struct ListBehaviorHandler {
     /// 使用 FontSizeManager 统一管理
     public static var defaultFont: NSFont { FontSizeManager.shared.defaultFont }
     
+    /// 默认行间距（与正文一致）
+    /// _Requirements: 2.1_
+    public static let defaultLineSpacing: CGFloat = 4
+    
+    /// 默认段落间距（与正文一致）
+    /// _Requirements: 2.2_
+    public static let defaultParagraphSpacing: CGFloat = 8
+    
     // MARK: - 光标位置限制
     
     /// 获取列表项内容区域的起始位置
@@ -966,6 +974,11 @@ public struct ListBehaviorHandler {
         
         paragraphStyle.firstLineHeadIndent = CGFloat(indent - 1) * 20
         paragraphStyle.headIndent = CGFloat(indent - 1) * 20 + bulletWidth
+        
+        // 设置行间距和段落间距（与正文一致）
+        // _Requirements: 1.1, 1.2, 1.3, 1.4_
+        paragraphStyle.lineSpacing = defaultLineSpacing
+        paragraphStyle.paragraphSpacing = defaultParagraphSpacing
         
         // 创建附件
         let attachment: NSTextAttachment
