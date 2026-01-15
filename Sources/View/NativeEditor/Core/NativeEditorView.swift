@@ -1165,10 +1165,8 @@ struct NativeEditorView: NSViewRepresentable {
                     let attachment = renderer.createCheckboxAttachment(checked: false, level: 3, indent: indent)
                     let attachmentString = NSAttributedString(attachment: attachment)
                     
-                    let checkboxString = NSMutableAttributedString(attributedString: attachmentString)
-                    checkboxString.append(NSAttributedString(string: " "))
-                    
-                    textStorage.insert(checkboxString, at: lineRange.location)
+                    // 注意：不再添加空格，附件本身已有足够的间距
+                    textStorage.insert(attachmentString, at: lineRange.location)
                 }
             }
         }
@@ -1269,10 +1267,8 @@ struct NativeEditorView: NSViewRepresentable {
             let attachment = renderer.createCheckboxAttachment(checked: checked, level: level, indent: 1)
             let attachmentString = NSAttributedString(attachment: attachment)
             
-            let result = NSMutableAttributedString(attributedString: attachmentString)
-            result.append(NSAttributedString(string: " "))
-            
-            textStorage.insert(result, at: location)
+            // 注意：不再添加空格，附件本身已有足够的间距
+            textStorage.insert(attachmentString, at: location)
         }
         
         /// 插入分割线
@@ -1803,16 +1799,18 @@ class NativeTextView: NSTextView {
         // 使用 InteractiveCheckboxAttachment 创建可交互的复选框
         let renderer = CustomRenderer.shared
         let attachment = renderer.createCheckboxAttachment(checked: false, level: 3, indent: indent)
-        let attachmentString = NSAttributedString(attachment: attachment)
+        let attachmentString = NSMutableAttributedString(attachment: attachment)
         
-        let result = NSMutableAttributedString(attributedString: attachmentString)
-        result.append(NSAttributedString(string: " ", attributes: [
+        // 注意：不再添加空格，附件本身已有足够的间距
+        // 设置列表类型属性
+        let fullRange = NSRange(location: 0, length: attachmentString.length)
+        attachmentString.addAttributes([
             .font: FontSizeManager.shared.defaultFont,
             .listType: ListType.checkbox,
             .listIndent: indent
-        ]))
+        ], range: fullRange)
         
-        return result
+        return attachmentString
     }
     
     /// 获取列表前缀长度

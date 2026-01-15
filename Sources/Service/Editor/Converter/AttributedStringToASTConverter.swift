@@ -144,7 +144,16 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         let defaultIndent = extractIndent(from: paragraphStyle)
         
         // 提取附件后的文本内容（用于列表和复选框）
-        let contentRange = NSRange(location: 1, length: paragraph.length - 1)
+        // 注意：现在附件后不再有空格，但保留兼容性检查以处理旧数据
+        var contentStart = 1
+        if paragraph.length > 1 {
+            let charAfterAttachment = (paragraph.string as NSString).substring(with: NSRange(location: 1, length: 1))
+            if charAfterAttachment == " " {
+                contentStart = 2  // 跳过空格（兼容旧数据）
+            }
+        }
+        
+        let contentRange = NSRange(location: contentStart, length: paragraph.length - contentStart)
         let contentString = contentRange.length > 0 ? paragraph.attributedSubstring(from: contentRange) : NSAttributedString()
         let inlineNodes = convertToInlineNodes(contentString)
         

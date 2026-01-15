@@ -290,37 +290,89 @@ public struct BlockFormatHandler {
     
     /// 检测列表项是否为空
     /// 
-    /// 空列表项定义：只包含列表符号，没有实际内容
+    /// 空列表项定义：只包含列表符号（附件），没有实际内容
+    /// 
+    /// 检测逻辑：
+    /// 1. 首先获取光标所在行的范围
+    /// 2. 检查该行是否有列表格式（通过检查行内任意位置的 listType 属性或列表附件）
+    /// 3. 获取行内容，移除附件字符后检查是否为空
+    /// 4. 如果只有附件没有其他内容，则认为是空列表项
     /// 
     /// - Parameters:
-    ///   - position: 检测位置
+    ///   - position: 检测位置（光标位置）
     ///   - textStorage: 文本存储
     /// - Returns: 是否为空列表项
-    /// _Requirements: 5.4, 5.5, 5.6_
+    /// _Requirements: 5.4, 5.5, 5.6, 8.1, 8.2, 8.3_
     public static func isListItemEmpty(at position: Int, in textStorage: NSTextStorage) -> Bool {
-        guard position >= 0 && position < textStorage.length else {
+        guard position >= 0 && position <= textStorage.length else {
             return false
         }
         
-        // 检测是否是列表
-        let currentFormat = detect(at: position, in: textStorage)
-        guard let format = currentFormat,
-              format == .bulletList || format == .numberedList || format == .checkbox else {
-            return false
-        }
+        let string = textStorage.string as NSString
         
         // 获取当前行范围
-        let string = textStorage.string as NSString
-        let lineRange = string.lineRange(for: NSRange(location: position, length: 0))
+        // 注意：当 position 等于 textStorage.length 时（光标在文档末尾），
+        // 需要使用前一个位置来获取行范围
+        let safePosition: Int
+        if position >= textStorage.length && textStorage.length > 0 {
+            safePosition = textStorage.length - 1
+        } else if position > 0 && position < textStorage.length {
+            // 如果光标在换行符位置，使用前一个位置来获取当前行
+            let charAtPosition = string.character(at: position)
+            if charAtPosition == 0x0A { // 换行符 \n
+                safePosition = position - 1
+            } else {
+                safePosition = position
+            }
+        } else {
+            safePosition = max(0, min(position, textStorage.length - 1))
+        }
+        
+        let lineRange = string.lineRange(for: NSRange(location: safePosition, length: 0))
+        
+        guard lineRange.length > 0 else {
+            return false
+        }
+        
+        // 检查整行是否有列表格式或列表附件
+        var hasListFormat = false
+        var hasListAttachment = false
+        
+        textStorage.enumerateAttributes(in: lineRange, options: []) { attrs, _, _ in
+            // 检查是否有列表类型属性
+            if let listType = attrs[.listType] as? ListType, listType != .none {
+                hasListFormat = true
+            }
+            
+            // 检查是否有列表附件
+            if let attachment = attrs[.attachment] {
+                if attachment is BulletAttachment || attachment is OrderAttachment || attachment is InteractiveCheckboxAttachment {
+                    hasListAttachment = true
+                }
+            }
+        }
+        
+        // 如果没有列表格式和列表附件，则不是列表项
+        guard hasListFormat || hasListAttachment else {
+            print("[BlockFormatHandler] isListItemEmpty - 位置: \(position), 不是列表项")
+            return false
+        }
         
         // 获取行内容
         let lineContent = string.substring(with: lineRange)
         
-        // 移除换行符后检查内容
+        // 移除换行符
         let trimmedContent = lineContent.trimmingCharacters(in: .newlines)
         
-        // 空列表项：内容为空或只有空白字符
-        return trimmedContent.trimmingCharacters(in: .whitespaces).isEmpty
+        // 移除附件字符（Unicode 对象替换字符 \u{FFFC}）
+        let contentWithoutAttachment = trimmedContent.replacingOccurrences(of: "\u{FFFC}", with: "")
+        
+        // 空列表项：移除附件后内容为空或只有空白字符
+        let isEmpty = contentWithoutAttachment.trimmingCharacters(in: .whitespaces).isEmpty
+        
+        print("[BlockFormatHandler] isListItemEmpty - 位置: \(position), 安全位置: \(safePosition), 行范围: \(lineRange), 有列表格式: \(hasListFormat), 有列表附件: \(hasListAttachment), 行内容: '\(trimmedContent)', 移除附件后: '\(contentWithoutAttachment)', 是否为空: \(isEmpty)")
+        
+        return isEmpty
     }
     
     /// 获取指定位置的列表类型

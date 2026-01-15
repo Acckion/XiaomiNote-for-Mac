@@ -380,9 +380,44 @@ public final class UnifiedFormatManager {
         }
         
         let string = textStorage.string as NSString
-        let lineRange = string.lineRange(for: NSRange(location: position, length: 0))
-        let blockFormat = BlockFormatHandler.detect(at: position, in: textStorage)
-        let alignment = BlockFormatHandler.detectAlignment(at: position, in: textStorage)
+        
+        // 计算安全位置，用于获取当前行范围
+        // 当光标在换行符位置时，使用前一个位置来获取当前行
+        let safePositionForLineRange: Int
+        if position > 0 && position < textStorage.length {
+            let charAtPosition = string.character(at: position)
+            if charAtPosition == 0x0A { // 换行符 \n
+                safePositionForLineRange = position - 1
+            } else {
+                safePositionForLineRange = position
+            }
+        } else if position >= textStorage.length && textStorage.length > 0 {
+            safePositionForLineRange = textStorage.length - 1
+        } else {
+            safePositionForLineRange = position
+        }
+        
+        let lineRange = string.lineRange(for: NSRange(location: safePositionForLineRange, length: 0))
+        
+        // 使用安全位置来检测格式
+        let blockFormat: TextFormat?
+        if safePositionForLineRange < textStorage.length {
+            blockFormat = BlockFormatHandler.detect(at: safePositionForLineRange, in: textStorage)
+        } else if safePositionForLineRange > 0 {
+            blockFormat = BlockFormatHandler.detect(at: safePositionForLineRange - 1, in: textStorage)
+        } else {
+            blockFormat = nil
+        }
+        
+        let alignment: NSTextAlignment
+        if safePositionForLineRange < textStorage.length {
+            alignment = BlockFormatHandler.detectAlignment(at: safePositionForLineRange, in: textStorage)
+        } else if safePositionForLineRange > 0 {
+            alignment = BlockFormatHandler.detectAlignment(at: safePositionForLineRange - 1, in: textStorage)
+        } else {
+            alignment = .left
+        }
+        
         let isListEmpty = BlockFormatHandler.isListItemEmpty(at: position, in: textStorage)
         
         return NewLineContext(

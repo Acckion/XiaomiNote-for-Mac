@@ -146,6 +146,7 @@ public final class ASTToAttributedStringConverter {
     /// 转换无序列表节点
     /// - Parameter node: 无序列表节点
     /// - Returns: NSAttributedString
+    /// _Requirements: 9.1, 9.4_ - 设置 listType 属性以支持列表换行继承
     private func convertBulletList(_ node: BulletListNode) -> NSAttributedString {
         let result = NSMutableAttributedString()
         
@@ -154,8 +155,8 @@ public final class ASTToAttributedStringConverter {
         let attachmentString = NSAttributedString(attachment: bulletAttachment)
         result.append(attachmentString)
         
-        // 添加空格
-        result.append(NSAttributedString(string: " "))
+        // 注意：不再添加空格，附件本身已有足够的间距
+        // 这确保 XML 往返转换的一致性
         
         // 转换行内内容
         let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
@@ -166,6 +167,13 @@ public final class ASTToAttributedStringConverter {
             applyIndent(to: result, level: node.indent)
         }
         
+        // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
+        // 这对于列表换行继承功能至关重要
+        // _Requirements: 9.4, 7.1_ - 列表换行继承需要 listType 属性
+        let fullRange = NSRange(location: 0, length: result.length)
+        result.addAttribute(.listType, value: ListType.bullet, range: fullRange)
+        result.addAttribute(.listIndent, value: node.indent, range: fullRange)
+        
         return result
     }
     
@@ -173,6 +181,7 @@ public final class ASTToAttributedStringConverter {
     /// - Parameter node: 有序列表节点
     /// - Returns: NSAttributedString
     /// _Requirements: 9.2, 9.3_ - 根据 inputNumber 正确计算显示编号
+    /// _Requirements: 9.4, 7.2_ - 设置 listType 属性以支持列表换行继承
     private func convertOrderedList(_ node: OrderedListNode) -> NSAttributedString {
         let result = NSMutableAttributedString()
         
@@ -196,8 +205,8 @@ public final class ASTToAttributedStringConverter {
         let attachmentString = NSAttributedString(attachment: orderAttachment)
         result.append(attachmentString)
         
-        // 添加空格
-        result.append(NSAttributedString(string: " "))
+        // 注意：不再添加空格，附件本身已有足够的间距
+        // 这确保 XML 往返转换的一致性
         
         // 转换行内内容
         let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
@@ -208,12 +217,21 @@ public final class ASTToAttributedStringConverter {
             applyIndent(to: result, level: node.indent)
         }
         
+        // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
+        // 这对于列表换行继承功能至关重要
+        // _Requirements: 9.4, 7.2_ - 列表换行继承需要 listType 属性
+        let fullRange = NSRange(location: 0, length: result.length)
+        result.addAttribute(.listType, value: ListType.ordered, range: fullRange)
+        result.addAttribute(.listIndent, value: node.indent, range: fullRange)
+        result.addAttribute(.listNumber, value: displayNumber, range: fullRange)
+        
         return result
     }
     
     /// 转换复选框节点
     /// - Parameter node: 复选框节点
     /// - Returns: NSAttributedString
+    /// _Requirements: 9.4_ - 设置 listType 属性以支持列表换行继承
     private func convertCheckbox(_ node: CheckboxNode) -> NSAttributedString {
         let result = NSMutableAttributedString()
         
@@ -226,8 +244,8 @@ public final class ASTToAttributedStringConverter {
         let attachmentString = NSAttributedString(attachment: checkboxAttachment)
         result.append(attachmentString)
         
-        // 添加空格
-        result.append(NSAttributedString(string: " "))
+        // 注意：不再添加空格，附件本身已有足够的间距
+        // 这确保 XML 往返转换的一致性
         
         // 转换行内内容
         let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
@@ -237,6 +255,14 @@ public final class ASTToAttributedStringConverter {
         if node.indent > 1 {
             applyIndent(to: result, level: node.indent)
         }
+        
+        // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
+        // _Requirements: 9.4_ - 列表换行继承需要 listType 属性
+        let fullRange = NSRange(location: 0, length: result.length)
+        result.addAttribute(.listType, value: ListType.checkbox, range: fullRange)
+        result.addAttribute(.listIndent, value: node.indent, range: fullRange)
+        result.addAttribute(.checkboxLevel, value: node.level, range: fullRange)
+        result.addAttribute(.checkboxChecked, value: node.isChecked, range: fullRange)
         
         return result
     }

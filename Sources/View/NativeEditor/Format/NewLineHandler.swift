@@ -738,25 +738,43 @@ extension NewLineContext {
         }
         
         let string = textStorage.string as NSString
-        let lineRange = string.lineRange(for: NSRange(location: position, length: 0))
+        
+        // 计算安全位置，用于获取当前行范围
+        // 当光标在换行符位置时，使用前一个位置来获取当前行
+        let safePositionForLineRange: Int
+        if position > 0 && position < textStorage.length {
+            let charAtPosition = string.character(at: position)
+            if charAtPosition == 0x0A { // 换行符 \n
+                safePositionForLineRange = position - 1
+            } else {
+                safePositionForLineRange = position
+            }
+        } else if position >= textStorage.length && textStorage.length > 0 {
+            safePositionForLineRange = textStorage.length - 1
+        } else {
+            safePositionForLineRange = position
+        }
+        
+        let lineRange = string.lineRange(for: NSRange(location: safePositionForLineRange, length: 0))
         
         // 检测块级格式
+        // 使用安全位置来检测格式
         let blockFormat: TextFormat?
-        if position < textStorage.length {
-            blockFormat = BlockFormatHandler.detect(at: position, in: textStorage)
-        } else if position > 0 {
+        if safePositionForLineRange < textStorage.length {
+            blockFormat = BlockFormatHandler.detect(at: safePositionForLineRange, in: textStorage)
+        } else if safePositionForLineRange > 0 {
             // 如果在文档末尾，检查前一个字符的格式
-            blockFormat = BlockFormatHandler.detect(at: position - 1, in: textStorage)
+            blockFormat = BlockFormatHandler.detect(at: safePositionForLineRange - 1, in: textStorage)
         } else {
             blockFormat = nil
         }
         
         // 检测对齐方式
         let alignment: NSTextAlignment
-        if position < textStorage.length {
-            alignment = BlockFormatHandler.detectAlignment(at: position, in: textStorage)
-        } else if position > 0 {
-            alignment = BlockFormatHandler.detectAlignment(at: position - 1, in: textStorage)
+        if safePositionForLineRange < textStorage.length {
+            alignment = BlockFormatHandler.detectAlignment(at: safePositionForLineRange, in: textStorage)
+        } else if safePositionForLineRange > 0 {
+            alignment = BlockFormatHandler.detectAlignment(at: safePositionForLineRange - 1, in: textStorage)
         } else {
             alignment = .left
         }
