@@ -1755,34 +1755,16 @@ public class NotesViewModel: ObservableObject {
         do {
             let localNotes = try localStorage.getAllLocalNotes()
             if !localNotes.isEmpty {
-                // 有本地数据，直接加载
-                // _Requirements: 1.1 - 登录状态下首先从本地数据库加载数据
                 self.notes = localNotes
                 print("[NotesViewModel] 从本地存储加载了 \(localNotes.count) 条笔记")
-            } else if isUserLoggedIn {
-                // 登录状态下，本地数据库为空，显示空列表
-                // _Requirements: 1.2 - 登录状态下本地数据库为空时显示空列表而非示例数据
+            } else  {
                 self.notes = []
-                print("[NotesViewModel] 登录状态下本地数据库为空，显示空列表")
-            } else {
-                // 未登录状态下，加载示例数据
-                // _Requirements: 1.3 - 未登录状态下加载示例数据作为演示内容
-                loadSampleData()
-                print("[NotesViewModel] 未登录状态，加载示例数据")
-            }
+                print("[NotesViewModel] 无笔记数据，显示空列表")
+            } 
         } catch {
             // _Requirements: 1.5 - 加载本地数据时发生错误，记录错误日志并显示空列表
             print("[NotesViewModel] 加载本地数据失败: \(error)")
-            
-            if isUserLoggedIn {
-                // 登录状态下，加载失败显示空列表
-                self.notes = []
-                print("[NotesViewModel] 登录状态下加载失败，显示空列表")
-            } else {
-                // 未登录状态下，加载示例数据作为后备
-                loadSampleData()
-                print("[NotesViewModel] 未登录状态下加载失败，加载示例数据")
-            }
+            self.notes = []
         }
         
         // 加载文件夹（优先从本地存储加载）
@@ -1858,99 +1840,13 @@ public class NotesViewModel: ObservableObject {
         }
     }
     
-    private func loadSampleData() {
-        // 使用XML格式的示例数据，匹配小米笔记真实格式
-        // 注意：这里使用与真实数据相同的格式，便于测试和开发
-        let sampleXMLContent = """
-        <new-format/><text indent="1"><size>一级标题</size></text>
-        <text indent="1"><mid-size>二级标题</mid-size></text>
-        <text indent="1"><h3-size>三级标题</h3-size></text>
-        <text indent="1"><b>加粗</b></text>
-        <text indent="1"><i>斜体</i></text>
-        <text indent="1"><b><i>加粗斜体</i></b></text>
-        <text indent="1"><size><b>一级标题加粗</b></size></text>
-        <text indent="1"><size><i>一级标题斜体</i></size></text>
-        <text indent="1"><size><b><i>一级标题加粗斜体</i></b></size></text>
-        <text indent="1"><background color="#9affe8af">高亮</background></text>
-        <text indent="1">普通文本段落，包含各种格式的示例内容。</text>
-        """
-        
-        // 创建示例笔记，使用与真实数据相同的结构
-        let now = Date()
-        self.notes = [
-            Note(
-                id: "sample-1",
-                title: "购物清单",
-                content: sampleXMLContent,
-                folderId: "2",
-                isStarred: false,
-                createdAt: now,
-                updatedAt: now,
-                rawData: [
-                    "id": "sample-1",
-                    "title": "购物清单",
-                    "content": sampleXMLContent,
-                    "snippet": sampleXMLContent,
-                    "folderId": "2",
-                    "isStarred": false,
-                    "createDate": Int(now.timeIntervalSince1970 * 1000),
-                    "modifyDate": Int(now.timeIntervalSince1970 * 1000),
-                    "type": "note",
-                    "status": "normal"
-                ]
-            ),
-            Note(
-                id: "sample-2",
-                title: "会议记录",
-                content: sampleXMLContent,
-                folderId: "1",
-                isStarred: true,
-                createdAt: now,
-                updatedAt: now,
-                rawData: [
-                    "id": "sample-2",
-                    "title": "会议记录",
-                    "content": sampleXMLContent,
-                    "snippet": sampleXMLContent,
-                    "folderId": "1",
-                    "isStarred": true,
-                    "createDate": Int(now.timeIntervalSince1970 * 1000),
-                    "modifyDate": Int(now.timeIntervalSince1970 * 1000),
-                    "type": "note",
-                    "status": "normal"
-                ]
-            ),
-            Note(
-                id: "sample-3",
-                title: "旅行计划",
-                content: sampleXMLContent,
-                folderId: "2",
-                isStarred: false,
-                createdAt: now,
-                updatedAt: now,
-                rawData: [
-                    "id": "sample-3",
-                    "title": "旅行计划",
-                    "content": sampleXMLContent,
-                    "snippet": sampleXMLContent,
-                    "folderId": "2",
-                    "isStarred": false,
-                    "createDate": Int(now.timeIntervalSince1970 * 1000),
-                    "modifyDate": Int(now.timeIntervalSince1970 * 1000),
-                    "type": "note",
-                    "status": "normal"
-                ]
-            )
-        ]
-    }
     
     private func loadSampleFolders() {
         // 临时示例文件夹数据
         self.folders = [
             Folder(id: "0", name: "所有笔记", count: notes.count, isSystem: true),
             Folder(id: "starred", name: "置顶", count: notes.filter { $0.isStarred }.count, isSystem: true),
-            Folder(id: "1", name: "工作", count: notes.filter { $0.folderId == "1" }.count),
-            Folder(id: "2", name: "个人", count: notes.filter { $0.folderId == "2" }.count)
+            Folder(id: "2", name: "未分类", count: notes.filter { $0.folderId == "2" }.count)
         ]
         
         // 默认选择第一个文件夹
