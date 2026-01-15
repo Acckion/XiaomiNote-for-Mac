@@ -76,12 +76,16 @@ public struct BlockFormatHandler {
     /// 注意：应用新的块级格式会自动移除旧的块级格式（互斥）
     /// 对齐格式是独立的，不与其他块级格式互斥
     /// 
+    /// 互斥规则：
+    /// - 标题和列表格式互斥：应用标题时移除列表，应用列表时移除标题
+    /// - 列表行始终使用正文字体大小（14pt）
+    /// 
     /// - Parameters:
     ///   - format: 要应用的块级格式
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
     ///   - toggle: 是否切换模式（true 则切换，false 则强制应用）
-    /// _Requirements: 3.1-3.7_
+    /// _Requirements: 3.1-3.7, 5.1, 5.2, 5.3_
     public static func apply(
         _ format: TextFormat,
         to range: NSRange,
@@ -112,10 +116,37 @@ public struct BlockFormatHandler {
             return
         }
         
-        // 互斥逻辑：先移除现有的块级格式（标题、列表、引用互斥）
+        // 互斥逻辑：标题和列表格式互斥
+        // _Requirements: 5.1, 5.2, 5.3_
+        
+        // 如果要应用标题格式，先移除列表格式
+        if isHeadingFormat(format) {
+            let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
+            if listType != .none {
+                // 使用 ListFormatHandler 的互斥处理方法
+                ListFormatHandler.handleHeadingListMutualExclusion(in: textStorage, range: lineRange)
+                print("[BlockFormatHandler] 互斥：移除列表格式，准备应用标题格式 \(format.displayName)")
+            }
+        }
+        
+        // 如果要应用列表格式，先移除标题格式（由 ListFormatHandler 内部处理）
+        // ListFormatHandler.applyBulletList/applyOrderedList 内部会调用 handleListHeadingMutualExclusion
+        
+        // 移除其他现有的块级格式（标题、列表、引用互斥）
         // _Requirements: 3.7_
-        if currentFormat != nil {
-            removeBlockFormat(from: lineRange, in: textStorage)
+        if currentFormat != nil && currentFormat != format {
+            // 如果当前是列表格式且要应用标题，已经在上面处理了
+            // 如果当前是标题格式且要应用列表，会在 ListFormatHandler 中处理
+            // 这里处理其他情况（如引用块）
+            if !isListFormat(format) && !isHeadingFormat(format) {
+                removeBlockFormat(from: lineRange, in: textStorage)
+            } else if isHeadingFormat(format) && !isListFormat(currentFormat!) {
+                // 当前不是列表，但有其他块级格式（如引用），需要移除
+                removeBlockFormat(from: lineRange, in: textStorage)
+            } else if isListFormat(format) && !isHeadingFormat(currentFormat!) {
+                // 当前不是标题，但有其他块级格式（如引用），需要移除
+                removeBlockFormat(from: lineRange, in: textStorage)
+            }
             print("[BlockFormatHandler] 互斥：移除现有格式 \(currentFormat!.displayName)，应用新格式 \(format.displayName)")
         }
         
@@ -432,40 +463,35 @@ public struct BlockFormatHandler {
     
     /// 应用无序列表格式
     /// 
+    /// 使用 ListFormatHandler 统一处理列表格式
+    /// 
     /// - Parameters:
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
     ///   - indent: 缩进级别（默认为 1）
+    /// _Requirements: 1.1, 2.1, 6.1 - 使用 ListFormatHandler 统一处理
     private static func applyBulletList(to range: NSRange, in textStorage: NSTextStorage, indent: Int = 1) {
-        textStorage.beginEditing()
-        
-        textStorage.addAttribute(.listType, value: ListType.bullet, range: range)
-        textStorage.addAttribute(.listIndent, value: indent, range: range)
-        
-        let paragraphStyle = createListParagraphStyle(indent: indent, bulletWidth: bulletWidth)
-        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
-        
-        textStorage.endEditing()
+        // 使用 ListFormatHandler 统一处理无序列表格式
+        // 这确保了列表附件的正确创建和列表与标题的互斥处理
+        ListFormatHandler.applyBulletList(to: textStorage, range: range, indent: indent)
+        print("[BlockFormatHandler] 使用 ListFormatHandler 应用无序列表格式")
     }
     
     /// 应用有序列表格式
+    /// 
+    /// 使用 ListFormatHandler 统一处理列表格式
     /// 
     /// - Parameters:
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
     ///   - number: 列表编号（默认为 1）
     ///   - indent: 缩进级别（默认为 1）
+    /// _Requirements: 1.2, 2.2, 6.2 - 使用 ListFormatHandler 统一处理
     private static func applyNumberedList(to range: NSRange, in textStorage: NSTextStorage, number: Int = 1, indent: Int = 1) {
-        textStorage.beginEditing()
-        
-        textStorage.addAttribute(.listType, value: ListType.ordered, range: range)
-        textStorage.addAttribute(.listIndent, value: indent, range: range)
-        textStorage.addAttribute(.listNumber, value: number, range: range)
-        
-        let paragraphStyle = createListParagraphStyle(indent: indent, bulletWidth: orderNumberWidth)
-        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
-        
-        textStorage.endEditing()
+        // 使用 ListFormatHandler 统一处理有序列表格式
+        // 这确保了列表附件的正确创建和列表与标题的互斥处理
+        ListFormatHandler.applyOrderedList(to: textStorage, range: range, number: number, indent: indent)
+        print("[BlockFormatHandler] 使用 ListFormatHandler 应用有序列表格式")
     }
     
     /// 应用复选框格式

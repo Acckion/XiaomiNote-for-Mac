@@ -12,7 +12,7 @@ import SwiftUI
 // MARK: - 列表类型枚举
 
 /// 列表类型
-enum ListType: Equatable {
+public enum ListType: Equatable {
     case bullet     // 无序列表
     case ordered    // 有序列表
     case checkbox   // 复选框列表

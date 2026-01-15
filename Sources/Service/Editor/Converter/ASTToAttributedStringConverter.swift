@@ -38,6 +38,10 @@ public final class ASTToAttributedStringConverter {
     /// 默认段落样式
     private let defaultParagraphStyle: NSMutableParagraphStyle
     
+    /// 当前有序列表编号（用于跟踪连续有序列表）
+    /// _Requirements: 9.3_ - 根据 inputNumber 规则自动递增编号
+    private var currentOrderedListNumber: Int = 0
+    
     // MARK: - Initialization
     
     /// 创建转换器
@@ -63,9 +67,13 @@ public final class ASTToAttributedStringConverter {
     ///
     /// - Parameter document: 文档 AST 节点
     /// - Returns: NSAttributedString
-    /// - Requirements: 4.1
+    /// - Requirements: 4.1, 9.3
     public func convert(_ document: DocumentNode) -> NSAttributedString {
         let result = NSMutableAttributedString()
+        
+        // 重置有序列表编号计数器
+        // _Requirements: 9.3_ - 每次转换文档时重置编号
+        currentOrderedListNumber = 0
         
         for (index, block) in document.blocks.enumerated() {
             let blockString = convertBlock(block)
@@ -86,8 +94,14 @@ public final class ASTToAttributedStringConverter {
     ///
     /// - Parameter block: 块级节点
     /// - Returns: NSAttributedString
-    /// - Requirements: 4.1, 4.3, 4.4, 4.5
+    /// - Requirements: 4.1, 4.3, 4.4, 4.5, 9.3
     private func convertBlock(_ block: any BlockNode) -> NSAttributedString {
+        // 非有序列表块会重置编号计数器
+        // _Requirements: 9.3_ - 只有连续的有序列表才继续编号
+        if block.nodeType != .orderedList {
+            currentOrderedListNumber = 0
+        }
+        
         switch block.nodeType {
         case .textBlock:
             return convertTextBlock(block as! TextBlockNode)
@@ -158,13 +172,27 @@ public final class ASTToAttributedStringConverter {
     /// 转换有序列表节点
     /// - Parameter node: 有序列表节点
     /// - Returns: NSAttributedString
+    /// _Requirements: 9.2, 9.3_ - 根据 inputNumber 正确计算显示编号
     private func convertOrderedList(_ node: OrderedListNode) -> NSAttributedString {
         let result = NSMutableAttributedString()
         
+        // 计算实际显示编号
+        // _Requirements: 9.3_ - inputNumber 规则：
+        // - inputNumber = 0 表示继续编号（使用上一个编号 + 1）
+        // - inputNumber > 0 表示新列表起始值（实际值 = inputNumber + 1）
+        let displayNumber: Int
+        if node.inputNumber == 0 {
+            // 继续编号
+            currentOrderedListNumber += 1
+            displayNumber = currentOrderedListNumber
+        } else {
+            // 新列表起始值
+            displayNumber = node.inputNumber + 1
+            currentOrderedListNumber = displayNumber
+        }
+        
         // 创建编号附件
-        // 注意：实际编号需要在上下文中计算，这里使用 inputNumber
-        let number = node.inputNumber == 0 ? 1 : node.inputNumber + 1
-        let orderAttachment = OrderAttachment(number: number, inputNumber: node.inputNumber, indent: node.indent)
+        let orderAttachment = OrderAttachment(number: displayNumber, inputNumber: node.inputNumber, indent: node.indent)
         let attachmentString = NSAttributedString(attachment: orderAttachment)
         result.append(attachmentString)
         

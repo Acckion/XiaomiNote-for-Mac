@@ -407,4 +407,127 @@ final class XiaoMiFormatConverterTests: XCTestCase {
         XCTAssertTrue(hasItalic, "应该检测到斜体格式")
         XCTAssertTrue(hasLargeFont, "应该检测到大字体（一级标题）")
     }
+    
+    // MARK: - 有序列表 inputNumber 测试
+
+    /// 测试连续有序列表的 inputNumber 计算
+    /// _Requirements: 10.3_ - inputNumber 规则：第一项为实际值减1，后续项为0
+    func testConsecutiveOrderedListInputNumber() throws {
+        // 创建连续的有序列表 NSAttributedString
+        let textStorage = NSMutableAttributedString()
+        
+        // 第一项：编号 1
+        let order1 = OrderAttachment(number: 1, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order1))
+        textStorage.append(NSAttributedString(string: " 第一项\n"))
+        
+        // 第二项：编号 2
+        let order2 = OrderAttachment(number: 2, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order2))
+        textStorage.append(NSAttributedString(string: " 第二项\n"))
+        
+        // 第三项：编号 3
+        let order3 = OrderAttachment(number: 3, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order3))
+        textStorage.append(NSAttributedString(string: " 第三项"))
+        
+        // 转换为 XML
+        let xml = try converter.nsAttributedStringToXML(textStorage)
+        
+        // 验证第一项的 inputNumber 应该是 0（因为 1 - 1 = 0）
+        XCTAssertTrue(xml.contains("<order indent=\"1\" inputNumber=\"0\" />"), 
+                     "第一项的 inputNumber 应该是 0")
+        
+        // 验证后续项的 inputNumber 也应该是 0（连续编号）
+        // 由于所有项都是连续的，所以都应该是 inputNumber="0"
+        let inputNumberMatches = xml.components(separatedBy: "inputNumber=\"0\"").count - 1
+        XCTAssertEqual(inputNumberMatches, 3, "所有连续有序列表项的 inputNumber 都应该是 0")
+    }
+
+    /// 测试非连续有序列表的 inputNumber 计算
+    /// _Requirements: 10.3_ - 非连续编号时，inputNumber = 实际编号 - 1
+    func testNonConsecutiveOrderedListInputNumber() throws {
+        // 创建非连续的有序列表 NSAttributedString
+        let textStorage = NSMutableAttributedString()
+        
+        // 第一项：编号 5（新列表从 5 开始）
+        let order1 = OrderAttachment(number: 5, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order1))
+        textStorage.append(NSAttributedString(string: " 第五项\n"))
+        
+        // 第二项：编号 6（连续）
+        let order2 = OrderAttachment(number: 6, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order2))
+        textStorage.append(NSAttributedString(string: " 第六项"))
+        
+        // 转换为 XML
+        let xml = try converter.nsAttributedStringToXML(textStorage)
+        
+        // 验证第一项的 inputNumber 应该是 4（因为 5 - 1 = 4）
+        XCTAssertTrue(xml.contains("<order indent=\"1\" inputNumber=\"4\" />"), 
+                     "第一项的 inputNumber 应该是 4（5 - 1）")
+        
+        // 验证第二项的 inputNumber 应该是 0（连续编号）
+        XCTAssertTrue(xml.contains("<order indent=\"1\" inputNumber=\"0\" />"), 
+                     "第二项的 inputNumber 应该是 0（连续编号）")
+    }
+
+    /// 测试有序列表被其他块打断后的 inputNumber 计算
+    /// _Requirements: 10.3_ - 被打断后重新开始的列表应该有新的 inputNumber
+    func testOrderedListInterruptedByOtherBlock() throws {
+        // 创建被文本块打断的有序列表
+        let textStorage = NSMutableAttributedString()
+        
+        // 第一个有序列表：编号 1
+        let order1 = OrderAttachment(number: 1, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order1))
+        textStorage.append(NSAttributedString(string: " 第一项\n"))
+        
+        // 普通文本（打断列表）
+        textStorage.append(NSAttributedString(string: "普通文本\n"))
+        
+        // 第二个有序列表：编号 1（新列表）
+        let order2 = OrderAttachment(number: 1, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order2))
+        textStorage.append(NSAttributedString(string: " 新列表第一项"))
+        
+        // 转换为 XML
+        let xml = try converter.nsAttributedStringToXML(textStorage)
+        
+        // 两个有序列表都应该有 inputNumber="0"（因为都是从 1 开始）
+        let inputNumberMatches = xml.components(separatedBy: "inputNumber=\"0\"").count - 1
+        XCTAssertEqual(inputNumberMatches, 2, "两个独立的有序列表都应该有 inputNumber=\"0\"")
+    }
+
+    /// 测试无序列表不影响有序列表的 inputNumber 计算
+    /// _Requirements: 10.1, 10.2_ - 正确检测 BulletAttachment 和 OrderAttachment
+    func testBulletListDoesNotAffectOrderedListInputNumber() throws {
+        // 创建混合列表
+        let textStorage = NSMutableAttributedString()
+        
+        // 有序列表：编号 1
+        let order1 = OrderAttachment(number: 1, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order1))
+        textStorage.append(NSAttributedString(string: " 有序第一项\n"))
+        
+        // 无序列表
+        let bullet = BulletAttachment(indent: 1)
+        textStorage.append(NSAttributedString(attachment: bullet))
+        textStorage.append(NSAttributedString(string: " 无序项\n"))
+        
+        // 有序列表：编号 1（新列表，因为被无序列表打断）
+        let order2 = OrderAttachment(number: 1, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order2))
+        textStorage.append(NSAttributedString(string: " 有序第一项（新）"))
+        
+        // 转换为 XML
+        let xml = try converter.nsAttributedStringToXML(textStorage)
+        
+        // 验证无序列表正确生成
+        XCTAssertTrue(xml.contains("<bullet indent=\"1\" />"), "应该包含无序列表标签")
+        
+        // 验证两个有序列表都有 inputNumber="0"
+        let orderMatches = xml.components(separatedBy: "<order indent=\"1\" inputNumber=\"0\" />").count - 1
+        XCTAssertEqual(orderMatches, 2, "两个有序列表都应该有 inputNumber=\"0\"")
+    }
 }

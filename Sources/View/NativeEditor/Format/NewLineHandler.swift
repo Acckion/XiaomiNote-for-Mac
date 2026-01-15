@@ -149,7 +149,8 @@ public struct NewLineHandler {
     /// 处理空列表项回车
     /// 
     /// 空列表项回车时：
-    /// - 移除列表格式
+    /// - 移除列表附件（BulletAttachment 或 OrderAttachment）
+    /// - 移除列表格式属性
     /// - 不换行
     /// - 当前行变为普通正文
     /// 
@@ -158,7 +159,7 @@ public struct NewLineHandler {
     ///   - textView: NSTextView 实例
     ///   - textStorage: NSTextStorage 实例
     /// - Returns: 是否已处理
-    /// _Requirements: 5.4, 5.5, 5.6_
+    /// _Requirements: 8.1, 8.2, 8.3_
     public static func handleEmptyListItem(
         context: NewLineContext,
         textView: NSTextView,
@@ -166,15 +167,57 @@ public struct NewLineHandler {
     ) -> Bool {
         print("[NewLineHandler] 处理空列表项回车")
         
+        let lineRange = context.currentLineRange
+        
         textStorage.beginEditing()
         
-        // 移除列表格式
-        BlockFormatHandler.removeBlockFormat(from: context.currentLineRange, in: textStorage)
+        // 1. 查找并移除列表附件（BulletAttachment 或 OrderAttachment）
+        var attachmentRange: NSRange?
+        textStorage.enumerateAttribute(.attachment, in: lineRange, options: []) { value, attrRange, stop in
+            if value is BulletAttachment || value is OrderAttachment || value is InteractiveCheckboxAttachment {
+                attachmentRange = attrRange
+                stop.pointee = true
+            }
+        }
+        
+        // 移除附件
+        if let range = attachmentRange {
+            textStorage.deleteCharacters(in: range)
+            print("[NewLineHandler] 移除列表附件, range: \(range)")
+        }
+        
+        // 2. 重新计算行范围（因为可能删除了附件）
+        let newLineRange: NSRange
+        if let range = attachmentRange {
+            newLineRange = NSRange(location: lineRange.location, length: max(0, lineRange.length - range.length))
+        } else {
+            newLineRange = lineRange
+        }
+        
+        // 3. 移除列表格式属性
+        if newLineRange.length > 0 {
+            textStorage.removeAttribute(.listType, range: newLineRange)
+            textStorage.removeAttribute(.listIndent, range: newLineRange)
+            textStorage.removeAttribute(.listNumber, range: newLineRange)
+            textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
+            textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
+            
+            // 重置段落样式（保留对齐方式）
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.alignment = context.currentAlignment
+            textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
+            
+            // 确保使用正文字体
+            textStorage.addAttribute(.font, value: defaultFont, range: newLineRange)
+        }
         
         textStorage.endEditing()
         
-        // 更新 typingAttributes 为普通正文
-        var attrs = buildCleanTypingAttributes(alignment: context.currentAlignment)
+        // 4. 更新光标位置到行首
+        textView.setSelectedRange(NSRange(location: lineRange.location, length: 0))
+        
+        // 5. 更新 typingAttributes 为普通正文
+        let attrs = buildCleanTypingAttributes(alignment: context.currentAlignment)
         textView.typingAttributes = attrs
         
         print("[NewLineHandler] 空列表项已转换为普通正文")
@@ -252,8 +295,8 @@ public struct NewLineHandler {
     /// 处理非空列表项换行
     /// 
     /// 非空列表项换行后继承列表格式：
-    /// - 有序列表：序号递增
-    /// - 无序列表：保持相同格式
+    /// - 有序列表：使用 OrderAttachment，序号递增
+    /// - 无序列表：使用 BulletAttachment，保持相同格式
     /// - Checkbox：保持相同格式
     /// 
     /// - Parameters:
@@ -262,7 +305,7 @@ public struct NewLineHandler {
     ///   - textStorage: NSTextStorage 实例
     ///   - format: 列表格式类型
     /// - Returns: 是否已处理
-    /// _Requirements: 5.1-5.3_
+    /// _Requirements: 7.1, 7.2, 7.3_
     private static func handleListNewLine(
         context: NewLineContext,
         textView: NSTextView,
@@ -288,18 +331,17 @@ public struct NewLineHandler {
         
         // 在新行应用列表格式
         let newLineStart = selectedRange.location + 1
-        let newLineRange = NSRange(location: newLineStart, length: 0)
         
         switch format {
         case .bulletList:
-            // 无序列表：继承格式
-            applyBulletListToNewLine(at: newLineStart, indent: indent, textStorage: textStorage)
+            // 无序列表：使用 BulletAttachment 继承格式
+            applyBulletAttachmentToNewLine(at: newLineStart, indent: indent, textStorage: textStorage)
             
         case .numberedList:
-            // 有序列表：序号递增
+            // 有序列表：使用 OrderAttachment，序号递增
             let currentNumber = getListNumber(at: position, in: textStorage)
             let newNumber = currentNumber + 1
-            applyNumberedListToNewLine(at: newLineStart, number: newNumber, indent: indent, textStorage: textStorage)
+            applyOrderAttachmentToNewLine(at: newLineStart, number: newNumber, indent: indent, textStorage: textStorage)
             
         case .checkbox:
             // Checkbox：继承格式
@@ -311,15 +353,18 @@ public struct NewLineHandler {
         
         textStorage.endEditing()
         
-        // 移动光标到新行内容开始位置
-        let prefixLength = getListPrefixLength(format: format)
-        let newCursorPosition = newLineStart + prefixLength
+        // 移动光标到新行内容开始位置（附件占用 1 个字符）
+        let newCursorPosition = newLineStart + 1
         textView.setSelectedRange(NSRange(location: newCursorPosition, length: 0))
         
         // 设置 typingAttributes（继承对齐属性，但清除内联格式）
         var attrs = cleanAttrs
         attrs[.listType] = getListType(for: format)
         attrs[.listIndent] = indent
+        if format == .numberedList {
+            let currentNumber = getListNumber(at: position, in: textStorage)
+            attrs[.listNumber] = currentNumber + 1
+        }
         textView.typingAttributes = attrs
         
         print("[NewLineHandler] 列表项换行完成")
@@ -453,25 +498,25 @@ public struct NewLineHandler {
             return 1
         }
         
+        // 首先尝试从属性获取
         let attrs = textStorage.attributes(at: position, effectiveRange: nil)
-        return attrs[.listNumber] as? Int ?? 1
-    }
-    
-    /// 获取列表前缀长度
-    /// 
-    /// - Parameter format: 列表格式
-    /// - Returns: 前缀长度
-    private static func getListPrefixLength(format: TextFormat) -> Int {
-        switch format {
-        case .bulletList:
-            return 2 // "• "
-        case .numberedList:
-            return 3 // "1. " (假设单位数)
-        case .checkbox:
-            return 1 // 附件字符
-        default:
-            return 0
+        if let number = attrs[.listNumber] as? Int {
+            return number
         }
+        
+        // 如果没有属性，尝试从 OrderAttachment 获取
+        let string = textStorage.string as NSString
+        let lineRange = string.lineRange(for: NSRange(location: position, length: 0))
+        
+        var foundNumber = 1
+        textStorage.enumerateAttribute(.attachment, in: lineRange, options: []) { value, _, stop in
+            if let orderAttachment = value as? OrderAttachment {
+                foundNumber = orderAttachment.number
+                stop.pointee = true
+            }
+        }
+        
+        return foundNumber
     }
     
     /// 获取 ListType 枚举值
@@ -491,52 +536,103 @@ public struct NewLineHandler {
         }
     }
     
-    /// 应用无序列表到新行
+    /// 应用无序列表附件到新行
+    /// 
+    /// 使用 BulletAttachment 替代文本符号 "• "
     /// 
     /// - Parameters:
     ///   - position: 插入位置
     ///   - indent: 缩进级别
     ///   - textStorage: NSTextStorage 实例
-    private static func applyBulletListToNewLine(at position: Int, indent: Int, textStorage: NSTextStorage) {
-        let bullet = "• "
+    /// _Requirements: 7.1_
+    private static func applyBulletAttachmentToNewLine(at position: Int, indent: Int, textStorage: NSTextStorage) {
+        // 创建 BulletAttachment
+        let bulletAttachment = BulletAttachment(indent: indent)
+        
+        // 构建附件属性
         var attributes: [NSAttributedString.Key: Any] = [
+            .attachment: bulletAttachment,
             .font: defaultFont,
             .listType: ListType.bullet,
             .listIndent: indent
         ]
         
+        // 设置段落样式
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.firstLineHeadIndent = CGFloat(indent - 1) * 20
         paragraphStyle.headIndent = CGFloat(indent - 1) * 20 + 24
         attributes[.paragraphStyle] = paragraphStyle
         
-        let bulletString = NSAttributedString(string: bullet, attributes: attributes)
-        textStorage.insert(bulletString, at: position)
+        // 创建附件字符串
+        let attachmentString = NSMutableAttributedString(attachment: bulletAttachment)
+        attachmentString.addAttributes(attributes, range: NSRange(location: 0, length: attachmentString.length))
+        
+        // 插入附件
+        textStorage.insert(attachmentString, at: position)
+        
+        print("[NewLineHandler] 应用 BulletAttachment 到新行, indent: \(indent)")
     }
     
-    /// 应用有序列表到新行
+    /// 应用有序列表附件到新行
+    /// 
+    /// 使用 OrderAttachment 替代文本编号 "1. "
     /// 
     /// - Parameters:
     ///   - position: 插入位置
     ///   - number: 列表编号
     ///   - indent: 缩进级别
     ///   - textStorage: NSTextStorage 实例
-    private static func applyNumberedListToNewLine(at position: Int, number: Int, indent: Int, textStorage: NSTextStorage) {
-        let orderText = "\(number). "
+    /// _Requirements: 7.2_
+    private static func applyOrderAttachmentToNewLine(at position: Int, number: Int, indent: Int, textStorage: NSTextStorage) {
+        // 创建 OrderAttachment
+        let orderAttachment = OrderAttachment(number: number, inputNumber: 0, indent: indent)
+        
+        // 构建附件属性
         var attributes: [NSAttributedString.Key: Any] = [
+            .attachment: orderAttachment,
             .font: defaultFont,
             .listType: ListType.ordered,
             .listIndent: indent,
             .listNumber: number
         ]
         
+        // 设置段落样式
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.firstLineHeadIndent = CGFloat(indent - 1) * 20
         paragraphStyle.headIndent = CGFloat(indent - 1) * 20 + 28
         attributes[.paragraphStyle] = paragraphStyle
         
-        let orderString = NSAttributedString(string: orderText, attributes: attributes)
-        textStorage.insert(orderString, at: position)
+        // 创建附件字符串
+        let attachmentString = NSMutableAttributedString(attachment: orderAttachment)
+        attachmentString.addAttributes(attributes, range: NSRange(location: 0, length: attachmentString.length))
+        
+        // 插入附件
+        textStorage.insert(attachmentString, at: position)
+        
+        print("[NewLineHandler] 应用 OrderAttachment 到新行, number: \(number), indent: \(indent)")
+    }
+    
+    /// 应用无序列表到新行（旧方法，保留用于兼容）
+    /// 
+    /// - Parameters:
+    ///   - position: 插入位置
+    ///   - indent: 缩进级别
+    ///   - textStorage: NSTextStorage 实例
+    @available(*, deprecated, message: "使用 applyBulletAttachmentToNewLine 替代")
+    private static func applyBulletListToNewLine(at position: Int, indent: Int, textStorage: NSTextStorage) {
+        applyBulletAttachmentToNewLine(at: position, indent: indent, textStorage: textStorage)
+    }
+    
+    /// 应用有序列表到新行（旧方法，保留用于兼容）
+    /// 
+    /// - Parameters:
+    ///   - position: 插入位置
+    ///   - number: 列表编号
+    ///   - indent: 缩进级别
+    ///   - textStorage: NSTextStorage 实例
+    @available(*, deprecated, message: "使用 applyOrderAttachmentToNewLine 替代")
+    private static func applyNumberedListToNewLine(at position: Int, number: Int, indent: Int, textStorage: NSTextStorage) {
+        applyOrderAttachmentToNewLine(at: position, number: number, indent: indent, textStorage: textStorage)
     }
     
     /// 应用 Checkbox 到新行

@@ -27,6 +27,13 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     /// 格式跨度合并器
     private let spanMerger: FormatSpanMerger
     
+    /// 是否在有序列表序列中（用于计算 inputNumber）
+    /// _Requirements: 10.3_ - 遵循 inputNumber 规则
+    private var isInOrderedListSequence: Bool = false
+    
+    /// 上一个有序列表的编号（用于验证连续性）
+    private var lastOrderedListNumber: Int = 0
+    
     // MARK: - Initialization
     
     public init() {
@@ -39,7 +46,12 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     ///
     /// - Parameter attributedString: NSAttributedString
     /// - Returns: 文档 AST 节点
+    /// _Requirements: 10.3_ - 正确计算 inputNumber
     public func convert(_ attributedString: NSAttributedString) -> DocumentNode {
+        // 重置有序列表跟踪状态
+        isInOrderedListSequence = false
+        lastOrderedListNumber = 0
+        
         // 按段落分割
         let paragraphs = splitIntoParagraphs(attributedString)
         
@@ -87,6 +99,7 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     ///
     /// - Parameter paragraph: 段落 NSAttributedString
     /// - Returns: 块级节点
+    /// _Requirements: 10.3_ - 非有序列表块重置序列状态
     private func convertParagraphToBlock(_ paragraph: NSAttributedString) -> (any BlockNode)? {
         // 检查是否为空段落
         if paragraph.length == 0 {
@@ -101,6 +114,11 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
                 return convertAttachmentToBlock(attachment, paragraph: paragraph)
             }
         }
+        
+        // 非附件段落（普通文本块），重置有序列表序列状态
+        // _Requirements: 10.3_ - 只有连续的有序列表才使用 inputNumber = 0
+        isInOrderedListSequence = false
+        lastOrderedListNumber = 0
         
         // 提取段落属性
         let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
@@ -119,6 +137,7 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     ///   - attachment: NSTextAttachment
     ///   - paragraph: 段落 NSAttributedString
     /// - Returns: 块级节点
+    /// _Requirements: 10.1, 10.2, 10.3_ - 正确检测附件并计算 inputNumber
     private func convertAttachmentToBlock(_ attachment: NSTextAttachment, paragraph: NSAttributedString) -> (any BlockNode)? {
         // 提取段落属性（作为后备）
         let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
@@ -132,6 +151,10 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         // 使用类型检查而不是字符串比较
         // 复选框附件
         if let checkboxAttachment = attachment as? InteractiveCheckboxAttachment {
+            // 非有序列表，重置序列状态
+            isInOrderedListSequence = false
+            lastOrderedListNumber = 0
+            
             // 优先使用附件自身的 indent 属性
             let indent = checkboxAttachment.indent
             return CheckboxNode(
@@ -144,11 +167,17 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         
         // 分割线附件
         if attachment is HorizontalRuleAttachment {
+            // 非有序列表，重置序列状态
+            isInOrderedListSequence = false
+            lastOrderedListNumber = 0
             return HorizontalRuleNode()
         }
         
         // 图片附件
         if let imageAttachment = attachment as? ImageAttachment {
+            // 非有序列表，重置序列状态
+            isInOrderedListSequence = false
+            lastOrderedListNumber = 0
             return ImageNode(
                 fileId: imageAttachment.fileId,
                 src: imageAttachment.src,
@@ -159,6 +188,9 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         
         // 音频附件
         if let audioAttachment = attachment as? AudioAttachment {
+            // 非有序列表，重置序列状态
+            isInOrderedListSequence = false
+            lastOrderedListNumber = 0
             return AudioNode(
                 fileId: audioAttachment.fileId ?? "",
                 isTemporary: audioAttachment.isTemporaryPlaceholder
@@ -167,23 +199,49 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         
         // 无序列表附件
         if let bulletAttachment = attachment as? BulletAttachment {
+            // 非有序列表，重置序列状态
+            isInOrderedListSequence = false
+            lastOrderedListNumber = 0
+            
             // 优先使用附件自身的 indent 属性
             let indent = bulletAttachment.indent
             return BulletListNode(indent: indent, content: inlineNodes)
         }
         
         // 有序列表附件
+        // _Requirements: 10.2, 10.3_ - 正确计算 inputNumber
         if let orderAttachment = attachment as? OrderAttachment {
             // 优先使用附件自身的 indent 属性
             let indent = orderAttachment.indent
+            let currentNumber = orderAttachment.number
+            
+            // 计算 inputNumber
+            // _Requirements: 10.3_ - inputNumber 规则：
+            // - 第一项：inputNumber = 实际编号 - 1
+            // - 后续连续项：inputNumber = 0
+            let calculatedInputNumber: Int
+            if isInOrderedListSequence && currentNumber == lastOrderedListNumber + 1 {
+                // 连续编号，使用 0
+                calculatedInputNumber = 0
+            } else {
+                // 新列表或非连续编号，使用 number - 1
+                calculatedInputNumber = currentNumber - 1
+            }
+            
+            // 更新跟踪状态
+            isInOrderedListSequence = true
+            lastOrderedListNumber = currentNumber
+            
             return OrderedListNode(
                 indent: indent,
-                inputNumber: orderAttachment.inputNumber,
+                inputNumber: calculatedInputNumber,
                 content: inlineNodes
             )
         }
         
-        // 未识别的附件类型，返回 nil
+        // 未识别的附件类型，重置序列状态并返回 nil
+        isInOrderedListSequence = false
+        lastOrderedListNumber = 0
         return nil
     }
     

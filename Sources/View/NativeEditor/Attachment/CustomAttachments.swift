@@ -603,6 +603,9 @@ final class BulletAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     private func setupAttachment() {
         self.bounds = CGRect(x: 0, y: 0, width: attachmentWidth, height: bulletSize + 4)
+        // 预先创建图像，确保附件有默认图像
+        // 这对于某些 NSTextView 配置是必要的
+        self.image = createBulletImage()
     }
     
     // MARK: - NSTextAttachment Override
@@ -785,6 +788,9 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     private func setupAttachment() {
         self.bounds = CGRect(x: 0, y: -2, width: attachmentWidth, height: attachmentHeight)
+        // 预先创建图像，确保附件有默认图像
+        // 这对于某些 NSTextView 配置是必要的
+        self.image = createOrderImage()
     }
     
     // MARK: - NSTextAttachment Override

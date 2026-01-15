@@ -965,6 +965,7 @@ struct NativeEditorView: NSViewRepresentable {
         ///   - range: 应用范围
         ///   - textStorage: 文本存储
         /// - Throws: 格式应用错误
+        /// _Requirements: 1.1-1.3, 2.1-2.3, 3.1-3.3, 4.1-4.3 - 集成 ListFormatHandler
         private func applyFormatSafely(_ format: TextFormat, to range: NSRange, in textStorage: NSTextStorage) throws {
             // 开始编辑
             textStorage.beginEditing()
@@ -974,7 +975,23 @@ struct NativeEditorView: NSViewRepresentable {
                 textStorage.endEditing()
             }
             
-            // 使用 UnifiedFormatManager 统一处理格式应用
+            // 特殊处理：列表格式使用 ListFormatHandler
+            // _Requirements: 1.1-1.3, 2.1-2.3, 3.1-3.3, 4.1-4.3_
+            if format == .bulletList || format == .numberedList {
+                print("[FormatApplicator] 使用 ListFormatHandler 处理列表格式: \(format.displayName)")
+                
+                if format == .bulletList {
+                    // 使用 ListFormatHandler 切换无序列表
+                    ListFormatHandler.toggleBulletList(to: textStorage, range: range)
+                } else if format == .numberedList {
+                    // 使用 ListFormatHandler 切换有序列表
+                    ListFormatHandler.toggleOrderedList(to: textStorage, range: range)
+                }
+                
+                return
+            }
+            
+            // 使用 UnifiedFormatManager 统一处理其他格式应用
             // _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5 - 统一格式应用入口
             if UnifiedFormatManager.shared.isRegistered {
                 // 根据格式类型调用对应的处理器
@@ -1003,9 +1020,11 @@ struct NativeEditorView: NSViewRepresentable {
                     InlineFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
                     
                 case .blockTitle, .blockList, .blockQuote:
+                    // 块级格式：使用 BlockFormatHandler
                     BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
                     
                 case .alignment:
+                    // 对齐格式：使用 BlockFormatHandler
                     BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
                 }
                 
