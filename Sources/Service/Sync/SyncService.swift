@@ -386,8 +386,6 @@ final class SyncService: @unchecked Sendable {
             // 确保保存同步状态，即使syncTag可能为空
             print("[SYNC] 完整同步：保存同步状态 - lastSyncTime: \(Date()), syncTag: \(syncStatus.syncTag ?? "nil")")
             try localStorage.saveSyncStatus(syncStatus)
-            
-            // 更新内部缓存（需求 6.2）
             _lastSyncTime = syncStatus.lastSyncTime
             _currentSyncTag = syncStatus.syncTag
             

@@ -3,8 +3,6 @@
 //  MiNoteMac
 //
 //  原生编辑器错误处理器 - 统一处理编辑器相关的错误
-//  需求: 12.1, 12.2, 12.3, 12.4, 12.5
-//
 
 import Foundation
 import AppKit

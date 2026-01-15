@@ -242,7 +242,6 @@ class FormatManager {
     
     // MARK: - Public Methods - 标题格式
     
-    /// 应用大标题格式 (需求 6.3)
     /// 使用常规字重，不默认加粗
     /// - Parameters:
     ///   - textStorage: 文本存储

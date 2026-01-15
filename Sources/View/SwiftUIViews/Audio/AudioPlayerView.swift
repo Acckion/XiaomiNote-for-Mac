@@ -3,8 +3,6 @@
 //  MiNoteMac
 //
 //  音频播放器视图 - 用于显示音频播放控件
-//  需求: 7.2, 7.3, 7.4, 7.6
-//
 
 import SwiftUI
 import Combine

@@ -261,7 +261,6 @@ class LRUCache<Key: Hashable, Value> {
 // MARK: - 性能优化器
 
 /// 性能优化器 - 负责编辑器渲染和响应性能优化
-/// 需求: 11.1, 11.2, 11.3, 11.4, 11.5
 @MainActor
 class PerformanceOptimizer {
     

@@ -44,12 +44,6 @@ import Foundation
 /// - 更好的状态可观察性
 /// 
 /// **线程安全**：使用 NSLock 确保线程安全
-/// 
-/// **需求覆盖**：
-/// - 需求 1.1: 注册待上传笔记
-/// - 需求 1.2: 上传成功后注销
-/// - 需求 1.4: 应用启动时恢复
-/// - 需求 6.1: 持久化到数据库
 @available(*, deprecated, message: "请使用 UnifiedOperationQueue 替代，待上传追踪功能已统一管理")
 public final class PendingUploadRegistry: @unchecked Sendable {
     

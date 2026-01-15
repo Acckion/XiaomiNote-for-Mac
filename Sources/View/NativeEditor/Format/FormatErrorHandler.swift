@@ -3,8 +3,6 @@
 //  MiNoteMac
 //
 //  格式错误处理器 - 统一处理格式应用和状态同步相关的错误
-//  需求: 4.1, 4.2
-//
 
 import Foundation
 import AppKit

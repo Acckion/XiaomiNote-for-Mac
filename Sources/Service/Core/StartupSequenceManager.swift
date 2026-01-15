@@ -256,8 +256,6 @@ final class StartupSequenceManager: ObservableObject {
         
         isCompleted = true
         statusMessage = "启动完成"
-        
-        // 发送启动完成通知（需求 2.4）
         NotificationCenter.default.post(
             name: .startupSequenceCompleted,
             object: nil,

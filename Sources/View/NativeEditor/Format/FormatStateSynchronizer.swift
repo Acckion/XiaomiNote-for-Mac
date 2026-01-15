@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  格式状态同步器 - 管理格式菜单按钮状态与编辑器实际状态的同步
-//  需求: 3.2, 3.3
 //
 
 import Foundation
@@ -22,13 +21,10 @@ struct StateSyncPerformanceRecord {
 /// 
 /// 负责管理格式菜单按钮状态与编辑器实际状态的同步，
 /// 使用防抖机制避免频繁更新，并提供性能监控功能。
-/// 需求: 3.2 - 确保100ms内完成状态更新
 @MainActor
 class FormatStateSynchronizer {
     
     // MARK: - 性能阈值常量
-    
-    /// 状态同步响应时间阈值（毫秒）- 需求 3.2
     static let stateSyncThresholdMs: Double = 100.0
     
     // MARK: - Properties
@@ -72,11 +68,10 @@ class FormatStateSynchronizer {
     /// - Parameters:
     ///   - debounceInterval: 防抖间隔（默认 0.1 秒）
     ///   - performanceMonitoringEnabled: 是否启用性能监控（默认 true）
-    ///   - performanceThreshold: 性能阈值（默认 100 毫秒，需求 3.2）
     init(
         debounceInterval: TimeInterval = 0.1,
         performanceMonitoringEnabled: Bool = true,
-        performanceThreshold: Double = 100.0  // 需求 3.2: 100ms 内完成状态更新
+        performanceThreshold: Double = 100.0
     ) {
         self.debounceInterval = debounceInterval
         self.performanceMonitoringEnabled = performanceMonitoringEnabled
@@ -358,7 +353,7 @@ extension FormatStateSynchronizer {
         return FormatStateSynchronizer(
             debounceInterval: 0.1,
             performanceMonitoringEnabled: true,
-            performanceThreshold: 100.0  // 需求 3.2: 100ms 内完成状态更新
+            performanceThreshold: 100.0
         )
     }
     

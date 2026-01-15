@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  格式操作队列管理器 - 管理连续格式操作，防止操作丢失和冲突
-//  需求: 3.4 - 确保连续操作的正确性
 //
 
 import Foundation
@@ -63,7 +62,6 @@ struct OperationResult {
 /// 
 /// 负责管理连续的格式操作，确保操作按顺序执行，
 /// 防止操作丢失和冲突，并提供性能监控功能。
-/// 需求: 3.4
 @MainActor
 final class FormatOperationQueue {
     

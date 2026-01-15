@@ -3,8 +3,6 @@
 //  MiNoteMac
 //
 //  图片存储管理器 - 处理图片的本地存储和加载
-//  需求: 10.1, 10.2
-//
 
 import AppKit
 import Foundation

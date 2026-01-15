@@ -19,7 +19,6 @@ import AppKit
 /// 每个测试运行 100 次迭代，确保在各种输入条件下格式应用的响应时间符合要求。
 ///
 /// **属性 5**: 对于任何格式按钮点击操作，系统应该在50ms内开始应用格式
-/// **验证需求**: 3.1
 @MainActor
 final class FormatApplicationPerformancePropertyTests: XCTestCase {
     
@@ -30,7 +29,7 @@ final class FormatApplicationPerformancePropertyTests: XCTestCase {
     var textView: NSTextView!
     var performanceOptimizer: FormatApplicationPerformanceOptimizer!
     
-    /// 性能阈值（毫秒）- 需求 3.1
+    /// 性能阈值（毫秒)
     let performanceThresholdMs: Double = 50.0
     
     // MARK: - Setup & Teardown

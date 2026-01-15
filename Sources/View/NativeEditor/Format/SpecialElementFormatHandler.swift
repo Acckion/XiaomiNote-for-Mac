@@ -3,8 +3,6 @@
 //  MiNoteMac
 //
 //  特殊元素格式处理器 - 处理复选框、分割线、图片等特殊元素的格式应用逻辑
-//  需求: 7.1, 7.2, 7.3, 7.4
-//
 
 import AppKit
 import SwiftUI

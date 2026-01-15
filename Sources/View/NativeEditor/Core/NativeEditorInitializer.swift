@@ -3,8 +3,6 @@
 //  MiNoteMac
 //
 //  原生编辑器初始化器 - 处理编辑器初始化和系统兼容性检查
-//  需求: 12.1
-//
 
 import Foundation
 import AppKit

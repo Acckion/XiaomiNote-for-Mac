@@ -3,8 +3,6 @@
 //  MiNoteMac
 //
 //  图片附件 - 用于在原生编辑器中显示和管理图片
-//  需求: 10.1, 10.2, 10.3, 10.4, 10.5
-//
 
 import AppKit
 import SwiftUI

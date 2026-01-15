@@ -142,8 +142,6 @@ public final class OfflineOperationProcessor: ObservableObject {
         if isProcessing {
             return (false, .alreadyProcessing)
         }
-        
-        // 检查是否已认证（需求 3.3 - Cookie 过期时跳过）
         guard service.isAuthenticated() else {
             return (false, .notAuthenticated)
         }
@@ -173,11 +171,11 @@ public final class OfflineOperationProcessor: ObservableObject {
     /// 启动时处理离线队列
     /// 
     /// 专门用于应用启动时的离线队列处理，严格检查条件：
-    /// - 只在网络可用且 Cookie 有效时处理队列（需求 3.1）
-    /// - 网络不可用时保留队列中的操作（需求 3.2）
-    /// - Cookie 过期时保留队列中的操作（需求 3.3）
-    /// - 处理完成后更新本地数据库（需求 3.4）
-    /// - 处理失败的操作保留在队列中（需求 3.5）
+    /// - 只在网络可用且 Cookie 有效时处理队列
+    /// - 网络不可用时保留队列中的操作
+    /// - Cookie 过期时保留队列中的操作
+    /// - 处理完成后更新本地数据库
+    /// - 处理失败的操作保留在队列中
     /// 
     /// - Returns: 处理结果，包含处理的操作数量和跳过原因（如果有）
     public func processOperationsAtStartup() async -> (processedCount: Int, skippedReason: SkipReason?) {

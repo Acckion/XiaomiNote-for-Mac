@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  格式菜单性能监控器 - 专门监控格式菜单操作的性能
-//  需求: 8.3 - 状态同步延迟监控和性能指标记录
 //
 
 import Foundation
@@ -12,7 +11,6 @@ import AppKit
 // MARK: - 性能指标类型
 
 /// 格式菜单性能指标类型
-/// 需求: 8.3 - 添加格式应用时间的测量
 enum FormatMenuMetricType: String, CaseIterable {
     case formatApplication = "格式应用"
     case stateDetection = "状态检测"
@@ -29,7 +27,6 @@ enum FormatMenuMetricType: String, CaseIterable {
 // MARK: - 性能指标记录
 
 /// 格式菜单性能指标记录
-/// 需求: 8.3 - 实现性能监控和指标收集
 struct FormatMenuMetricRecord: Identifiable {
     let id = UUID()
     let timestamp: Date
@@ -63,7 +60,6 @@ struct FormatMenuMetricRecord: Identifiable {
 // MARK: - 性能统计
 
 /// 格式菜单性能统计
-/// 需求: 8.3 - 创建性能报告机制
 struct FormatMenuPerformanceStatistics {
     let type: FormatMenuMetricType
     let count: Int
@@ -110,7 +106,6 @@ struct FormatMenuPerformanceStatistics {
 
 /// 格式菜单性能测量器
 /// 用于测量格式菜单操作的执行时间
-/// 需求: 8.3 - 添加格式应用时间的测量
 struct FormatMenuPerformanceMeasurer {
     let operation: String
     let format: TextFormat?
@@ -173,7 +168,6 @@ struct FormatMenuPerformanceMeasurer {
 
 /// 格式菜单性能监控器
 /// 提供性能监控和分析功能
-/// 需求: 8.3 - 状态同步延迟监控和性能指标记录
 @MainActor
 final class FormatMenuPerformanceMonitor: ObservableObject {
     
@@ -192,7 +186,6 @@ final class FormatMenuPerformanceMonitor: ObservableObject {
     // MARK: - Properties
     
     /// 性能阈值（毫秒）
-    /// 需求: 8.3 - 实现状态同步延迟的监控
     struct PerformanceThresholds {
         var formatApplication: TimeInterval = 0.05  // 50ms
         var stateDetection: TimeInterval = 0.1      // 100ms
@@ -226,7 +219,6 @@ final class FormatMenuPerformanceMonitor: ObservableObject {
     // MARK: - Metric Recording
     
     /// 记录性能指标
-    /// 需求: 8.3 - 添加格式应用时间的测量
     func recordMetric(
         type: FormatMenuMetricType,
         format: TextFormat? = nil,
@@ -342,7 +334,6 @@ final class FormatMenuPerformanceMonitor: ObservableObject {
     // MARK: - Measurement Methods
     
     /// 测量格式应用性能
-    /// 需求: 8.3 - 添加格式应用时间的测量
     /// - Parameters:
     ///   - format: 格式类型
     ///   - block: 要测量的代码块
@@ -399,7 +390,6 @@ final class FormatMenuPerformanceMonitor: ObservableObject {
     }
     
     /// 测量状态同步性能
-    /// 需求: 8.3 - 实现状态同步延迟的监控
     /// - Parameters:
     ///   - cursorPosition: 光标位置
     ///   - block: 要测量的代码块，返回检测到的格式集合
@@ -567,7 +557,6 @@ final class FormatMenuPerformanceMonitor: ObservableObject {
     // MARK: - Performance Analysis
     
     /// 获取性能摘要
-    /// 需求: 8.3 - 创建性能报告机制
     func getPerformanceSummary() -> String {
         let stats = debugger.statistics
         
@@ -642,7 +631,6 @@ final class FormatMenuPerformanceMonitor: ObservableObject {
     }
     
     /// 检查性能是否达标
-    /// 需求: 8.3 - 创建性能报告机制
     func checkPerformanceCompliance() -> (passed: Bool, issues: [String]) {
         let stats = debugger.statistics
         var issues: [String] = []
@@ -685,7 +673,6 @@ final class FormatMenuPerformanceMonitor: ObservableObject {
     }
     
     /// 生成性能报告
-    /// 需求: 8.3 - 创建性能报告机制
     func generatePerformanceReport() -> String {
         var report = getPerformanceSummary()
         

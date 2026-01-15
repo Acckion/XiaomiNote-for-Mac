@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  跨段落格式处理器 - 处理选中文本跨越多个段落时的格式应用逻辑
-//  需求: 6.4
 //
 
 import AppKit
@@ -28,7 +27,6 @@ struct ParagraphInfo {
 /// 跨段落格式处理器
 /// 
 /// 负责处理选中文本跨越多个段落时的格式应用逻辑。
-/// 需求: 6.4
 @MainActor
 class CrossParagraphFormatHandler {
     
@@ -85,7 +83,6 @@ class CrossParagraphFormatHandler {
     ///   - format: 格式类型
     ///   - textStorage: 文本存储
     ///   - range: 选中范围
-    /// 需求: 6.4
     func applyParagraphFormat(
         _ format: TextFormat,
         to textStorage: NSTextStorage,

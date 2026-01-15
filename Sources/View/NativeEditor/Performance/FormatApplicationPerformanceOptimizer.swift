@@ -25,10 +25,10 @@ final class FormatApplicationPerformanceOptimizer {
     
     // MARK: - 性能阈值常量
     
-    /// 格式应用响应时间阈值（毫秒）- 需求 3.1
+    /// 格式应用响应时间阈值（毫秒）
     static let formatApplicationThresholdMs: Double = 50.0
     
-    /// 状态同步响应时间阈值（毫秒）- 需求 3.2
+    /// 状态同步响应时间阈值（毫秒）
     static let stateSyncThresholdMs: Double = 100.0
     
     // MARK: - Properties

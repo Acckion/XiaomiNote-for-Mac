@@ -43,16 +43,6 @@ public enum NoteOperationError: Error, Sendable {
 /// - Local-First：本地写入立即生效，网络操作异步执行
 /// - Actor Isolation：使用 Swift Actor 确保线程安全
 /// - UnifiedOperationQueue：统一操作队列，追踪待上传笔记，阻止同步覆盖本地修改
-/// 
-/// **需求覆盖**：
-/// - 需求 1.2: 本地保存后创建 cloudUpload 操作
-/// - 需求 2.1: 网络可用时立即处理
-/// - 需求 3.1: 活跃编辑笔记管理
-/// - 需求 4.1: 使用 SyncGuard 进行同步保护
-/// - 需求 5.1: 冲突解决
-/// - 需求 8.1, 8.2: 离线创建笔记
-/// - 需求 8.4, 8.5, 8.6, 8.7: ID 更新流程
-/// - 需求 8.8: 临时 ID 笔记删除处理
 public actor NoteOperationCoordinator {
     
     // MARK: - 单例

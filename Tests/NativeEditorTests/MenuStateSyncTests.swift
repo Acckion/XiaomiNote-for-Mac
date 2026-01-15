@@ -237,7 +237,6 @@ final class MenuStateSyncTests: XCTestCase {
     /// 测试段落样式切换时状态正确更新
     /// 
     /// **验证**: 当段落样式从一种切换到另一种时，格式状态应该正确更新，保持互斥性
-    /// **需求**: 3.1, 3.2, 3.3
     func testParagraphStyleSwitchingFormatState() async throws {
         print("\n[Test] 测试段落样式切换时状态更新")
         

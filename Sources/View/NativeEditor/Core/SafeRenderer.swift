@@ -3,8 +3,6 @@
 //  MiNoteMac
 //
 //  安全渲染器 - 提供渲染失败的回退机制
-//  需求: 12.2
-//
 
 import AppKit
 import Foundation

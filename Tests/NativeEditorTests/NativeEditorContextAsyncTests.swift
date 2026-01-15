@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  测试 NativeEditorContext 的异步状态更新方法
-//  需求: FR-3.3.1 - 异步状态更新
 //
 
 import XCTest
@@ -25,7 +24,6 @@ final class NativeEditorContextAsyncTests: XCTestCase {
     // MARK: - updateNSContentAsync 测试
     
     /// 测试异步更新内容方法
-    /// 需求: FR-3.3.1
     func testUpdateNSContentAsync() async throws {
         // 1. 创建测试内容
         let testText = "测试异步更新内容"
@@ -43,7 +41,6 @@ final class NativeEditorContextAsyncTests: XCTestCase {
     }
     
     /// 测试异步更新内容不会阻塞主线程
-    /// 需求: FR-3.3.1
     func testUpdateNSContentAsyncNonBlocking() async throws {
         // 1. 创建测试内容
         let testText = "测试非阻塞更新"
@@ -71,7 +68,6 @@ final class NativeEditorContextAsyncTests: XCTestCase {
     // MARK: - updateCurrentFormatsAsync 测试
     
     /// 测试异步更新格式状态方法
-    /// 需求: FR-3.3.1
     func testUpdateCurrentFormatsAsync() async throws {
         // 1. 创建带格式的测试内容
         let testText = "测试格式"
@@ -96,7 +92,6 @@ final class NativeEditorContextAsyncTests: XCTestCase {
     }
     
     /// 测试异步更新格式不会阻塞主线程
-    /// 需求: FR-3.3.1
     func testUpdateCurrentFormatsAsyncNonBlocking() async throws {
         // 1. 创建测试内容
         let testText = "测试非阻塞格式更新"
@@ -120,7 +115,6 @@ final class NativeEditorContextAsyncTests: XCTestCase {
     // MARK: - 并发安全性测试
     
     /// 测试多次并发调用异步更新方法的安全性
-    /// 需求: FR-3.3.1
     func testConcurrentAsyncUpdates() async throws {
         // 1. 创建多个测试内容
         let contents = (1...10).map { i in
@@ -147,7 +141,6 @@ final class NativeEditorContextAsyncTests: XCTestCase {
     // MARK: - 与同步方法的对比测试
     
     /// 测试异步方法和同步方法的结果一致性
-    /// 需求: FR-3.3.1
     func testAsyncSyncConsistency() async throws {
         // 1. 创建测试内容
         let testText = "测试一致性"

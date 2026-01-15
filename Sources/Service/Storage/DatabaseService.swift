@@ -484,9 +484,6 @@ final class DatabaseService: @unchecked Sendable {
     ///   - oldId: 旧的笔记 ID（临时 ID）
     ///   - newId: 新的笔记 ID（正式 ID）
     /// - Throws: DatabaseError（数据库操作失败）
-    ///
-    /// **需求覆盖**：
-    /// - 需求 8.5: 更新本地数据库中的笔记 ID
     func updateNoteId(oldId: String, newId: String) throws {
         try dbQueue.sync(flags: .barrier) {
             // SQLite 不支持直接更新主键，需要使用 INSERT + DELETE 的方式

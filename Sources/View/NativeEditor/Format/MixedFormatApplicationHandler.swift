@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  混合格式应用处理器 - 处理选中文本包含多种格式时的格式应用逻辑
-//  需求: 6.3
 //
 
 import AppKit
@@ -26,7 +25,6 @@ enum MixedFormatApplicationStrategy {
 /// 混合格式应用处理器
 /// 
 /// 负责处理选中文本包含多种格式时的格式应用逻辑。
-/// 需求: 6.3
 @MainActor
 class MixedFormatApplicationHandler {
     
@@ -52,7 +50,6 @@ class MixedFormatApplicationHandler {
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
     ///   - strategy: 应用策略（可选，默认使用 toggle）
-    /// 需求: 6.3
     func applyFormat(
         _ format: TextFormat,
         to textStorage: NSTextStorage,
@@ -257,7 +254,6 @@ extension NativeEditorContext {
     
     /// 应用格式到当前选中范围（支持混合格式处理）
     /// - Parameter format: 格式类型
-    /// 需求: 6.3
     func applyFormatToSelection(_ format: TextFormat) {
         // 如果有选中范围，使用混合格式处理
         if selectedRange.length > 0 {

@@ -3,8 +3,6 @@
 //  MiNoteLibraryTests
 //
 //  编辑器集成测试 - 验证编辑器切换和数据同步功能
-//  需求: 1.2, 1.3, 7.1-7.12
-//
 
 import XCTest
 @testable import MiNoteLibrary

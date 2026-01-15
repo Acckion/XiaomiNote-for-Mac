@@ -35,13 +35,6 @@ import Foundation
 /// - 支持临时 ID 笔记的检查
 /// - 更完整的跳过原因枚举
 /// - 与新的操作队列系统完全集成
-/// 
-/// **需求覆盖**：
-/// - 需求 2.1: 检查笔记是否在 PendingUploadRegistry 中
-/// - 需求 2.2: 待上传笔记跳过同步
-/// - 需求 2.3: 比较时间戳
-/// - 需求 2.4: 正常笔记执行同步
-/// - 需求 3.2: 活跃编辑笔记跳过同步
 @available(*, deprecated, message: "请使用 SyncGuard 替代，同步保护功能已重构")
 public struct SyncProtectionFilter: Sendable {
     
@@ -94,9 +87,6 @@ public struct SyncProtectionFilter: Sendable {
     /// 
     /// - Parameter noteId: 笔记 ID
     /// - Returns: 是否正在编辑
-    /// 
-    /// **需求覆盖**：
-    /// - 需求 3.2: 活跃编辑笔记跳过同步
     public func isActivelyEditing(noteId: String) async -> Bool {
         return await coordinator.isNoteActivelyEditing(noteId)
     }

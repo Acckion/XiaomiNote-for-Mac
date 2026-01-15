@@ -11,8 +11,6 @@ import Combine
 /// - 重试处理（处理需要重试的操作）
 /// - 错误分类和处理
 /// - 指数退避重试策略
-///
-/// 需求: 2.1, 2.2, 2.3, 2.4, 5.1, 5.2
 public actor OperationProcessor {
     
     // MARK: - 单例

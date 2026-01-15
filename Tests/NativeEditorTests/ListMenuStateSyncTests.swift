@@ -96,7 +96,6 @@ final class ListMenuStateSyncTests: XCTestCase {
     /// 测试无序列表格式时状态正确
     /// 
     /// **验证**: 当光标位于无序列表行时，格式状态应该正确反映为无序列表
-    /// **需求**: 11.1
     func testBulletListFormatState() async throws {
         print("\n[Test] 测试无序列表格式状态检测")
         
@@ -136,7 +135,6 @@ final class ListMenuStateSyncTests: XCTestCase {
     /// 测试有序列表格式时状态正确
     /// 
     /// **验证**: 当光标位于有序列表行时，格式状态应该正确反映为有序列表
-    /// **需求**: 11.2
     func testOrderedListFormatState() async throws {
         print("\n[Test] 测试有序列表格式状态检测")
         
@@ -176,7 +174,6 @@ final class ListMenuStateSyncTests: XCTestCase {
     /// 测试光标移动到不同格式行时状态正确更新
     /// 
     /// **验证**: 当光标从普通文本移动到列表行时，格式状态应该正确更新
-    /// **需求**: 11.3
     func testCursorMoveUpdatesListFormatState() async throws {
         print("\n[Test] 测试光标移动时菜单状态更新")
         
@@ -228,7 +225,6 @@ final class ListMenuStateSyncTests: XCTestCase {
     /// 测试列表格式与标题格式互斥
     /// 
     /// **验证**: 列表格式和标题格式不能同时存在
-    /// **需求**: 11.1, 11.2
     func testListAndHeadingMutualExclusion() async throws {
         print("\n[Test] 测试列表格式与标题格式互斥")
         
@@ -283,7 +279,6 @@ final class ListMenuStateSyncTests: XCTestCase {
     /// 测试 FormatState 中列表格式与标题格式的互斥性
     /// 
     /// **验证**: 当格式集合同时包含列表和标题时，FormatState 应该正确处理
-    /// **需求**: 11.1, 11.2
     func testFormatStateListHeadingMutualExclusion() {
         print("\n[Test] 测试 FormatState 列表格式与标题格式互斥")
         

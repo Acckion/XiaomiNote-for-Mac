@@ -3,8 +3,6 @@
 //  MiNoteMac
 //
 //  语音录制和上传视图 - 集成录制完成后的上传流程
-//  需求: 9.1, 9.4, 9.5, 9.6, 9.7
-//
 
 import SwiftUI
 import Combine

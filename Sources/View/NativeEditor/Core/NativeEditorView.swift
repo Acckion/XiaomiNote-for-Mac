@@ -781,7 +781,6 @@ struct NativeEditorView: NSViewRepresentable {
             // 1. 预检查 - 验证编辑器状态
             guard let textView = textView else {
                 print("[FormatApplicator] ❌ 错误: textView 为 nil")
-                // 需求 4.1: 记录错误日志
                 let context = FormatErrorContext(
                     operation: "applyFormat",
                     format: format.displayName,

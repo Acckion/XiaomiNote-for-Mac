@@ -15,7 +15,6 @@ import Foundation
 ///
 /// 线程安全：使用 NSLock 确保所有操作的线程安全
 ///
-/// 需求: 1.1
 public final class UnifiedOperationQueue: @unchecked Sendable {
     
     // MARK: - 单例
@@ -61,7 +60,6 @@ public final class UnifiedOperationQueue: @unchecked Sendable {
     
     /// 从数据库加载所有待处理操作
     ///
-    /// 需求: 1.1 - 系统初始化时从数据库恢复所有待处理操作
     private func loadFromDatabase() {
         lock.lock()
         defer { lock.unlock() }
@@ -151,7 +149,6 @@ extension UnifiedOperationQueue {
     /// - Returns: 实际添加的操作（可能经过合并处理），如果操作被忽略则返回 nil
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// 需求: 1.2, 3.1
     @discardableResult
     public func enqueue(_ operation: NoteOperation) throws -> NoteOperation? {
         lock.lock()
@@ -210,7 +207,6 @@ extension UnifiedOperationQueue {
     /// - Returns: 处理后的操作，如果应该忽略则返回 nil
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// 需求: 3.2, 3.3, 3.4
     private func deduplicateAndMerge(_ newOperation: NoteOperation) throws -> NoteOperation? {
         // 获取该笔记的所有待处理操作
         let existingOperations = operationsByNoteId[newOperation.noteId]?.filter { 
@@ -247,7 +243,6 @@ extension UnifiedOperationQueue {
             // 删除操作清除所有其他操作
             for op in existingOperations {
                 // 如果有 noteCreate 操作，说明是离线创建后又删除
-                // 两个操作都删除（需求 3.4）
                 if op.type == .noteCreate {
                     try removeOperation(op.id)
                     print("[UnifiedOperationQueue] 离线创建后删除，取消 noteCreate 操作: \(op.id)")
@@ -303,7 +298,6 @@ extension UnifiedOperationQueue {
     /// - Parameter operationId: 操作 ID
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// 需求: 1.3
     public func markProcessing(_ operationId: String) throws {
         lock.lock()
         defer { lock.unlock() }
@@ -328,7 +322,6 @@ extension UnifiedOperationQueue {
     /// - Parameter operationId: 操作 ID
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// 需求: 1.3
     public func markCompleted(_ operationId: String) throws {
         lock.lock()
         defer { lock.unlock() }
@@ -361,7 +354,6 @@ extension UnifiedOperationQueue {
     ///   - errorType: 错误类型
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// 需求: 1.3
     public func markFailed(_ operationId: String, error: Error, errorType: OperationErrorType) throws {
         lock.lock()
         defer { lock.unlock() }
@@ -445,7 +437,6 @@ extension UnifiedOperationQueue {
     ///
     /// - Returns: 待处理操作数组
     ///
-    /// 需求: 1.4
     public func getPendingOperations() -> [NoteOperation] {
         lock.lock()
         defer { lock.unlock() }
@@ -465,7 +456,6 @@ extension UnifiedOperationQueue {
     /// - Parameter noteId: 笔记 ID
     /// - Returns: 待处理的上传操作，如果没有则返回 nil
     ///
-    /// 需求: 4.1
     public func getPendingUpload(for noteId: String) -> NoteOperation? {
         lock.lock()
         defer { lock.unlock() }
@@ -480,7 +470,6 @@ extension UnifiedOperationQueue {
     /// - Parameter noteId: 笔记 ID
     /// - Returns: 如果有待处理上传返回 true
     ///
-    /// 需求: 4.1
     public func hasPendingUpload(for noteId: String) -> Bool {
         lock.lock()
         defer { lock.unlock() }
@@ -498,7 +487,6 @@ extension UnifiedOperationQueue {
     /// - Parameter noteId: 笔记 ID
     /// - Returns: 本地保存时间戳，如果没有则返回 nil
     ///
-    /// 需求: 4.1
     public func getLocalSaveTimestamp(for noteId: String) -> Date? {
         lock.lock()
         defer { lock.unlock() }
@@ -573,7 +561,6 @@ extension UnifiedOperationQueue {
     ///   - delay: 可选的自定义延迟时间，如果不提供则自动计算
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// 需求: 5.2
     public func scheduleRetry(_ operationId: String, delay: TimeInterval? = nil) throws {
         lock.lock()
         defer { lock.unlock() }
@@ -614,7 +601,6 @@ extension UnifiedOperationQueue {
     ///
     /// - Returns: 需要重试的操作数组
     ///
-    /// 需求: 5.2
     public func getOperationsReadyForRetry() -> [NoteOperation] {
         lock.lock()
         defer { lock.unlock() }
@@ -677,7 +663,6 @@ extension UnifiedOperationQueue {
     ///
     /// - Returns: 待上传笔记数量
     ///
-    /// 需求: 6.1
     public func getPendingUploadCount() -> Int {
         lock.lock()
         defer { lock.unlock() }
@@ -694,7 +679,6 @@ extension UnifiedOperationQueue {
     ///
     /// - Returns: 笔记 ID 数组
     ///
-    /// 需求: 6.1
     public func getAllPendingNoteIds() -> [String] {
         lock.lock()
         defer { lock.unlock() }
@@ -804,7 +788,6 @@ extension UnifiedOperationQueue {
     ///   - newNoteId: 新的笔记 ID（正式 ID）
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// 需求: 8.6
     public func updateNoteIdInPendingOperations(oldNoteId: String, newNoteId: String) throws {
         lock.lock()
         defer { lock.unlock() }
@@ -857,7 +840,6 @@ extension UnifiedOperationQueue {
     /// - Parameter noteId: 笔记 ID
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// 需求: 8.8
     public func cancelOperations(for noteId: String) throws {
         lock.lock()
         defer { lock.unlock() }

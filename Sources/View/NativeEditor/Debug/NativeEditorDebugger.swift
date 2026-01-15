@@ -3,8 +3,7 @@
 //  MiNoteMac
 //
 //  原生编辑器调试器 - 提供调试和监控功能
-//  需求: 13.1, 13.2, 13.3, 13.4, 13.5
-//
+
 
 import Foundation
 import AppKit
