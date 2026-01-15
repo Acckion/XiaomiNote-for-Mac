@@ -68,7 +68,8 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     /// 按段落分割 NSAttributedString
     ///
     /// - Parameter attributedString: NSAttributedString
-    /// - Returns: 段落数组
+    /// - Returns: 段落数组（包括空行）
+    /// - Note: 空行会被保留为空的 NSAttributedString，以便后续转换为空的 TextBlockNode
     private func splitIntoParagraphs(_ attributedString: NSAttributedString) -> [NSAttributedString] {
         let string = attributedString.string
         var paragraphs: [NSAttributedString] = []
@@ -82,10 +83,10 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
             (string as NSString).getLineStart(nil, end: &lineEnd, contentsEnd: &contentsEnd, for: NSRange(location: currentStart, length: 0))
             
             let range = NSRange(location: currentStart, length: contentsEnd - currentStart)
-            if range.length > 0 {
-                let paragraph = attributedString.attributedSubstring(from: range)
-                paragraphs.append(paragraph)
-            }
+            // 修复：保留空行（range.length == 0 的情况）
+            // 空行在 XML 中表示为 <text indent="1"></text>
+            let paragraph = attributedString.attributedSubstring(from: range)
+            paragraphs.append(paragraph)
             
             currentStart = lineEnd
         }
@@ -100,19 +101,22 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     /// - Parameter paragraph: 段落 NSAttributedString
     /// - Returns: 块级节点
     /// _Requirements: 10.3_ - 非有序列表块重置序列状态
+    /// - Note: 空段落会被转换为空内容的 TextBlockNode，以保留空行
     private func convertParagraphToBlock(_ paragraph: NSAttributedString) -> (any BlockNode)? {
-        // 检查是否为空段落
+        // 修复：空段落转换为空内容的 TextBlockNode，而不是返回 nil
+        // 这样可以保留用户创建的空行
         if paragraph.length == 0 {
-            return nil
+            // 重置有序列表序列状态
+            isInOrderedListSequence = false
+            lastOrderedListNumber = 0
+            // 返回空内容的文本块，默认缩进为 1
+            return TextBlockNode(indent: 1, content: [])
         }
         
         // 检查第一个字符是否为附件
-        if paragraph.length > 0 {
-            let firstCharRange = NSRange(location: 0, length: 1)
-            if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
-                // 识别附件类型并创建对应的块级节点
-                return convertAttachmentToBlock(attachment, paragraph: paragraph)
-            }
+        if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
+            // 识别附件类型并创建对应的块级节点
+            return convertAttachmentToBlock(attachment, paragraph: paragraph)
         }
         
         // 非附件段落（普通文本块），重置有序列表序列状态
