@@ -163,6 +163,16 @@ public struct FormatState: Equatable, Sendable {
     /// 是否引用块
     public var isQuote: Bool = false
     
+    // MARK: - 列表属性
+    
+    /// 列表缩进级别（仅当 paragraphFormat 为列表类型时有效）
+    /// 默认为 1，表示第一级缩进
+    public var listIndent: Int = 1
+    
+    /// 列表编号（仅当 paragraphFormat 为 .numberedList 时有效）
+    /// 默认为 1
+    public var listNumber: Int = 1
+    
     // MARK: - 选择模式信息
     
     /// 是否有选中文本
@@ -188,6 +198,8 @@ public struct FormatState: Equatable, Sendable {
         isStrikethrough: Bool = false,
         isHighlight: Bool = false,
         isQuote: Bool = false,
+        listIndent: Int = 1,
+        listNumber: Int = 1,
         hasSelection: Bool = false,
         selectionLength: Int = 0
     ) {
@@ -199,6 +211,8 @@ public struct FormatState: Equatable, Sendable {
         self.isStrikethrough = isStrikethrough
         self.isHighlight = isHighlight
         self.isQuote = isQuote
+        self.listIndent = listIndent
+        self.listNumber = listNumber
         self.hasSelection = hasSelection
         self.selectionLength = selectionLength
     }

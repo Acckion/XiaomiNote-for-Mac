@@ -560,6 +560,27 @@ public final class UnifiedFormatManager {
             }
         }
         
+        // 检测列表属性（缩进级别和编号）
+        if state.paragraphFormat.isList {
+            // 获取列表缩进级别
+            if let listIndent = attributes[.listIndent] as? Int {
+                state.listIndent = listIndent
+            } else {
+                // 尝试从 ListFormatHandler 获取
+                state.listIndent = ListFormatHandler.getListIndent(in: textStorage, at: detectPosition)
+            }
+            
+            // 获取列表编号（仅有序列表）
+            if state.paragraphFormat == .numberedList {
+                if let listNumber = attributes[.listNumber] as? Int {
+                    state.listNumber = listNumber
+                } else {
+                    // 尝试从 ListFormatHandler 获取
+                    state.listNumber = ListFormatHandler.getListNumber(in: textStorage, at: detectPosition)
+                }
+            }
+        }
+        
         // 检测对齐属性
         let alignment = BlockFormatHandler.detectAlignment(at: detectPosition, in: textStorage)
         switch alignment {

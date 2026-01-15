@@ -1420,6 +1420,8 @@ struct NativeEditorView: NSViewRepresentable {
 // MARK: - NativeTextView
 
 /// 自定义 NSTextView 子类，支持额外的交互功能
+/// 扩展了光标位置限制功能，确保光标不能移动到列表标记区域内
+/// _Requirements: 1.1, 1.2, 1.4_
 class NativeTextView: NSTextView {
     
     /// 复选框点击回调
@@ -1427,6 +1429,251 @@ class NativeTextView: NSTextView {
     
     /// 列表状态管理器
     private var listStateManager = ListStateManager()
+    
+    /// 是否启用列表光标限制
+    /// 默认启用，可以在需要时临时禁用
+    var enableListCursorRestriction: Bool = true
+    
+    // MARK: - Cursor Position Restriction
+    // _Requirements: 1.1, 1.2, 1.4_
+    
+    /// 重写 setSelectedRange 方法，限制光标位置
+    /// 确保光标不能移动到列表标记区域内
+    /// _Requirements: 1.1, 1.2_
+    override func setSelectedRange(_ charRange: NSRange) {
+        guard enableListCursorRestriction,
+              let textStorage = textStorage,
+              charRange.length == 0 else {
+            // 如果禁用限制、没有 textStorage 或有选择范围，使用默认行为
+            super.setSelectedRange(charRange)
+            return
+        }
+        
+        // 调整光标位置，确保不在列表标记区域内
+        let adjustedPosition = ListBehaviorHandler.adjustCursorPosition(
+            in: textStorage,
+            from: charRange.location
+        )
+        
+        let adjustedRange = NSRange(location: adjustedPosition, length: 0)
+        super.setSelectedRange(adjustedRange)
+    }
+    
+    /// 重写 moveLeft 方法，处理左移光标到上一行
+    /// 当光标在列表项内容起始位置时，左移应跳到上一行末尾
+    /// _Requirements: 1.1, 1.2_
+    override func moveLeft(_ sender: Any?) {
+        guard enableListCursorRestriction,
+              let textStorage = textStorage else {
+            super.moveLeft(sender)
+            return
+        }
+        
+        let currentRange = selectedRange()
+        let currentPosition = currentRange.location
+        
+        // 检查当前位置是否在列表项内容起始位置
+        if let listInfo = ListBehaviorHandler.getListItemInfo(in: textStorage, at: currentPosition) {
+            if currentPosition == listInfo.contentStartPosition {
+                // 光标在内容起始位置，跳到上一行末尾
+                if listInfo.lineRange.location > 0 {
+                    let prevLineEnd = listInfo.lineRange.location - 1
+                    setSelectedRange(NSRange(location: prevLineEnd, length: 0))
+                    return
+                }
+            }
+        }
+        
+        // 执行默认左移
+        super.moveLeft(sender)
+        
+        // 检查移动后的位置是否在列表标记区域内
+        let newPosition = selectedRange().location
+        if ListBehaviorHandler.isInListMarkerArea(in: textStorage, at: newPosition) {
+            // 调整到内容起始位置
+            let adjustedPosition = ListBehaviorHandler.adjustCursorPosition(in: textStorage, from: newPosition)
+            super.setSelectedRange(NSRange(location: adjustedPosition, length: 0))
+        }
+    }
+    
+    /// 重写 moveToBeginningOfLine 方法，移动到内容起始位置
+    /// 对于列表项，移动到内容区域起始位置而非行首
+    /// _Requirements: 1.1, 1.4_
+    override func moveToBeginningOfLine(_ sender: Any?) {
+        guard enableListCursorRestriction,
+              let textStorage = textStorage else {
+            super.moveToBeginningOfLine(sender)
+            return
+        }
+        
+        let currentPosition = selectedRange().location
+        
+        // 检查当前行是否是列表项
+        if let listInfo = ListBehaviorHandler.getListItemInfo(in: textStorage, at: currentPosition) {
+            // 移动到内容起始位置
+            setSelectedRange(NSRange(location: listInfo.contentStartPosition, length: 0))
+            return
+        }
+        
+        // 非列表行，使用默认行为
+        super.moveToBeginningOfLine(sender)
+    }
+    
+    /// 重写 moveWordLeft 方法，处理 Option+左方向键
+    /// 确保不会移动到列表标记区域内
+    /// _Requirements: 1.1, 1.2_
+    override func moveWordLeft(_ sender: Any?) {
+        guard enableListCursorRestriction,
+              let textStorage = textStorage else {
+            super.moveWordLeft(sender)
+            return
+        }
+        
+        let currentPosition = selectedRange().location
+        
+        // 检查当前位置是否在列表项内容起始位置
+        if let listInfo = ListBehaviorHandler.getListItemInfo(in: textStorage, at: currentPosition) {
+            if currentPosition == listInfo.contentStartPosition {
+                // 光标在内容起始位置，跳到上一行末尾
+                if listInfo.lineRange.location > 0 {
+                    let prevLineEnd = listInfo.lineRange.location - 1
+                    setSelectedRange(NSRange(location: prevLineEnd, length: 0))
+                    return
+                }
+            }
+        }
+        
+        // 执行默认单词左移
+        super.moveWordLeft(sender)
+        
+        // 检查移动后的位置是否在列表标记区域内
+        let newPosition = selectedRange().location
+        if ListBehaviorHandler.isInListMarkerArea(in: textStorage, at: newPosition) {
+            // 调整到内容起始位置
+            let adjustedPosition = ListBehaviorHandler.adjustCursorPosition(in: textStorage, from: newPosition)
+            super.setSelectedRange(NSRange(location: adjustedPosition, length: 0))
+        }
+    }
+    
+    // MARK: - Selection Restriction
+    // _Requirements: 5.1, 5.2_
+    
+    /// 重写 moveLeftAndModifySelection 方法，处理 Shift+左方向键选择
+    /// 当选择起点在列表项内容起始位置时，向左扩展选择应跳到上一行而非选中列表标记
+    /// _Requirements: 5.1_
+    override func moveLeftAndModifySelection(_ sender: Any?) {
+        guard enableListCursorRestriction,
+              let textStorage = textStorage else {
+            super.moveLeftAndModifySelection(sender)
+            return
+        }
+        
+        let currentRange = selectedRange()
+        let selectionStart = currentRange.location
+        let selectionEnd = currentRange.location + currentRange.length
+        
+        // 检查选择的起始位置是否在列表项内容起始位置
+        if let listInfo = ListBehaviorHandler.getListItemInfo(in: textStorage, at: selectionStart) {
+            if selectionStart == listInfo.contentStartPosition {
+                // 选择起点在内容起始位置，扩展选择到上一行末尾
+                if listInfo.lineRange.location > 0 {
+                    let prevLineEnd = listInfo.lineRange.location - 1
+                    // 计算新的选择范围：从上一行末尾到当前选择末尾
+                    let newLength = selectionEnd - prevLineEnd
+                    super.setSelectedRange(NSRange(location: prevLineEnd, length: newLength))
+                    return
+                }
+            }
+        }
+        
+        // 执行默认选择扩展
+        super.moveLeftAndModifySelection(sender)
+        
+        // 检查选择后的起始位置是否在列表标记区域内
+        let newRange = selectedRange()
+        let newStart = newRange.location
+        
+        if ListBehaviorHandler.isInListMarkerArea(in: textStorage, at: newStart) {
+            // 调整选择起始位置到内容起始位置
+            let adjustedStart = ListBehaviorHandler.adjustCursorPosition(in: textStorage, from: newStart)
+            let adjustedLength = newRange.length - (adjustedStart - newStart)
+            if adjustedLength >= 0 {
+                super.setSelectedRange(NSRange(location: adjustedStart, length: adjustedLength))
+            }
+        }
+    }
+    
+    /// 重写 moveToBeginningOfLineAndModifySelection 方法，处理 Cmd+Shift+左方向键选择
+    /// 对于列表项，选择到内容区域起始位置而非行首
+    /// _Requirements: 5.2_
+    override func moveToBeginningOfLineAndModifySelection(_ sender: Any?) {
+        guard enableListCursorRestriction,
+              let textStorage = textStorage else {
+            super.moveToBeginningOfLineAndModifySelection(sender)
+            return
+        }
+        
+        let currentRange = selectedRange()
+        let selectionEnd = currentRange.location + currentRange.length
+        
+        // 检查当前行是否是列表项
+        if let listInfo = ListBehaviorHandler.getListItemInfo(in: textStorage, at: selectionEnd) {
+            // 选择到内容起始位置
+            let contentStart = listInfo.contentStartPosition
+            let newLength = selectionEnd - contentStart
+            if newLength >= 0 {
+                super.setSelectedRange(NSRange(location: contentStart, length: newLength))
+                return
+            }
+        }
+        
+        // 非列表行，使用默认行为
+        super.moveToBeginningOfLineAndModifySelection(sender)
+    }
+    
+    /// 重写 moveWordLeftAndModifySelection 方法，处理 Option+Shift+左方向键选择
+    /// 确保选择不会包含列表标记
+    /// _Requirements: 5.1_
+    override func moveWordLeftAndModifySelection(_ sender: Any?) {
+        guard enableListCursorRestriction,
+              let textStorage = textStorage else {
+            super.moveWordLeftAndModifySelection(sender)
+            return
+        }
+        
+        let currentRange = selectedRange()
+        let selectionStart = currentRange.location
+        let selectionEnd = currentRange.location + currentRange.length
+        
+        // 检查选择的起始位置是否在列表项内容起始位置
+        if let listInfo = ListBehaviorHandler.getListItemInfo(in: textStorage, at: selectionStart) {
+            if selectionStart == listInfo.contentStartPosition {
+                // 选择起点在内容起始位置，扩展选择到上一行末尾
+                if listInfo.lineRange.location > 0 {
+                    let prevLineEnd = listInfo.lineRange.location - 1
+                    let newLength = selectionEnd - prevLineEnd
+                    super.setSelectedRange(NSRange(location: prevLineEnd, length: newLength))
+                    return
+                }
+            }
+        }
+        
+        // 执行默认单词选择扩展
+        super.moveWordLeftAndModifySelection(sender)
+        
+        // 检查选择后的起始位置是否在列表标记区域内
+        let newRange = selectedRange()
+        let newStart = newRange.location
+        
+        if ListBehaviorHandler.isInListMarkerArea(in: textStorage, at: newStart) {
+            // 调整选择起始位置到内容起始位置
+            let adjustedStart = ListBehaviorHandler.adjustCursorPosition(in: textStorage, from: newStart)
+            let adjustedLength = newRange.length - (adjustedStart - newStart)
+            if adjustedLength >= 0 {
+                super.setSelectedRange(NSRange(location: adjustedStart, length: adjustedLength))
+            }
+        }
+    }
     
     // MARK: - Mouse Events
     
@@ -1534,6 +1781,14 @@ class NativeTextView: NSTextView {
                 insertHorizontalRuleAtCursor()
                 return
             }
+            
+            // Cmd+Shift+U : 切换当前行勾选框状态
+            // _Requirements: 7.5_
+            if event.modifierFlags.contains(.shift) && event.charactersIgnoringModifiers?.lowercased() == "u" {
+                if toggleCurrentLineCheckboxState() {
+                    return
+                }
+            }
         }
         
         // 处理回车键 - 使用 UnifiedFormatManager 统一处理换行逻辑
@@ -1567,7 +1822,14 @@ class NativeTextView: NSTextView {
         
         // 处理删除键 - 删除分割线
         if event.keyCode == 51 { // Delete key (Backspace)
+            // 首先尝试删除分割线
             if deleteSelectedHorizontalRule() {
+                return
+            }
+            
+            // 然后尝试处理列表项合并
+            // _Requirements: 4.1, 4.2, 4.3, 4.4_
+            if handleBackspaceKeyForList() {
                 return
             }
         }
@@ -1578,7 +1840,9 @@ class NativeTextView: NSTextView {
     // MARK: - List Handling
     
     /// 处理回车键创建新列表项
+    /// 使用 ListBehaviorHandler 统一处理列表回车行为
     /// - Returns: 是否处理了回车键
+    /// _Requirements: 2.1, 2.2, 2.3_
     private func handleReturnKeyForList() -> Bool {
         guard let textStorage = textStorage else { return false }
         
@@ -1590,7 +1854,15 @@ class NativeTextView: NSTextView {
             return handleReturnKeyForQuote()
         }
         
-        // 检查当前行是否是列表项
+        // 使用 ListBehaviorHandler 处理列表回车
+        // _Requirements: 2.1-2.8, 3.1-3.4_
+        if ListBehaviorHandler.handleEnterKey(textView: self) {
+            // 通知内容变化
+            delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
+            return true
+        }
+        
+        // 检查当前行是否是列表项（回退逻辑）
         let listType = FormatManager.shared.getListType(in: textStorage, at: position)
         guard listType != .none else { return false }
         
@@ -1735,6 +2007,50 @@ class NativeTextView: NSTextView {
         delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
         
         return true
+    }
+    
+    /// 处理删除键（Backspace）合并列表项
+    /// 当光标在列表项内容起始位置时，将当前行内容合并到上一行
+    /// - Returns: 是否处理了删除键
+    /// _Requirements: 4.1, 4.2, 4.3, 4.4_
+    private func handleBackspaceKeyForList() -> Bool {
+        guard let textStorage = textStorage else { return false }
+        
+        // 使用 ListBehaviorHandler 处理删除键
+        if ListBehaviorHandler.handleBackspaceKey(textView: self) {
+            // 通知内容变化
+            delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
+            return true
+        }
+        
+        return false
+    }
+    
+    /// 切换当前行勾选框状态
+    /// 使用快捷键 Cmd+Shift+U 切换当前行的勾选框状态
+    /// - Returns: 是否成功切换
+    /// _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+    private func toggleCurrentLineCheckboxState() -> Bool {
+        guard let textStorage = textStorage else { return false }
+        
+        let position = selectedRange().location
+        
+        // 检查当前行是否是勾选框列表
+        let listType = ListFormatHandler.detectListType(in: textStorage, at: position)
+        guard listType == .checkbox else {
+            print("[NativeTextView] 当前行不是勾选框列表，无法切换状态")
+            return false
+        }
+        
+        // 使用 ListBehaviorHandler 切换勾选框状态
+        if ListBehaviorHandler.toggleCheckboxState(textView: self, at: position) {
+            // 通知内容变化
+            delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
+            print("[NativeTextView] ☑️ 快捷键切换勾选框状态成功")
+            return true
+        }
+        
+        return false
     }
     
     /// 检查列表项是否为空

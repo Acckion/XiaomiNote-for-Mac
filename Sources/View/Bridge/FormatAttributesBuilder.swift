@@ -77,6 +77,9 @@ public struct FormatAttributesBuilder {
         // _Requirements: 2.2_
         addItalicObliqueness(to: &attributes, font: font, state: state)
         
+        // 7. 添加列表属性（确保列表格式在输入时正确继承）
+        addListAttributes(to: &attributes, state: state)
+        
         return attributes
     }
     
@@ -205,6 +208,36 @@ public struct FormatAttributesBuilder {
         }
     }
     
+    /// 添加列表属性
+    /// 
+    /// 如果格式状态包含列表格式，添加列表类型、缩进和编号属性
+    /// 这确保在列表项中输入新文本时，文本能正确继承列表属性
+    /// 
+    /// - Parameters:
+    ///   - attributes: 属性字典（inout）
+    ///   - state: 格式状态
+    private static func addListAttributes(to attributes: inout [NSAttributedString.Key: Any], state: FormatState) {
+        // 根据段落格式添加列表属性
+        switch state.paragraphFormat {
+        case .bulletList:
+            attributes[.listType] = ListType.bullet
+            attributes[.listIndent] = state.listIndent
+            
+        case .numberedList:
+            attributes[.listType] = ListType.ordered
+            attributes[.listIndent] = state.listIndent
+            attributes[.listNumber] = state.listNumber
+            
+        case .checkbox:
+            attributes[.listType] = ListType.checkbox
+            attributes[.listIndent] = state.listIndent
+            
+        default:
+            // 非列表格式，不添加列表属性
+            break
+        }
+    }
+    
     // MARK: - 便捷方法
     
     /// 构建默认属性字典
@@ -276,6 +309,30 @@ public struct FormatAttributesBuilder {
             if backgroundColor.alphaComponent > 0.1 && backgroundColor != .clear && backgroundColor != .white {
                 state.isHighlight = true
             }
+        }
+        
+        // 列表属性检测
+        if let listType = attributes[.listType] as? ListType {
+            switch listType {
+            case .bullet:
+                state.paragraphFormat = .bulletList
+            case .ordered:
+                state.paragraphFormat = .numberedList
+            case .checkbox:
+                state.paragraphFormat = .checkbox
+            case .none:
+                break
+            }
+        }
+        
+        // 列表缩进检测
+        if let listIndent = attributes[.listIndent] as? Int {
+            state.listIndent = listIndent
+        }
+        
+        // 列表编号检测
+        if let listNumber = attributes[.listNumber] as? Int {
+            state.listNumber = listNumber
         }
         
         return state

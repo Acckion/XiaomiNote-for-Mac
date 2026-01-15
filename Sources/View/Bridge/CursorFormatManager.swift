@@ -460,6 +460,23 @@ extension CursorFormatManager {
             }
         }
         
+        // 检测列表属性（缩进级别和编号）
+        if state.paragraphFormat.isList {
+            // 获取列表缩进级别
+            if let listIndent = attributes[.listIndent] as? Int {
+                state.listIndent = listIndent
+                print("[CursorFormatManager] 检测到列表缩进: \(listIndent)")
+            }
+            
+            // 获取列表编号（仅有序列表）
+            if state.paragraphFormat == .numberedList {
+                if let listNumber = attributes[.listNumber] as? Int {
+                    state.listNumber = listNumber
+                    print("[CursorFormatManager] 检测到列表编号: \(listNumber)")
+                }
+            }
+        }
+        
         print("[CursorFormatManager] 格式状态检测完成: \(state)")
         return state
     }
