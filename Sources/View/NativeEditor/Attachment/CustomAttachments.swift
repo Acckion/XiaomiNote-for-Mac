@@ -307,8 +307,8 @@ final class HorizontalRuleAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - Properties
     
-    /// 分割线高度（增加到 3pt 以确保在所有屏幕上清晰可见）
-    var lineHeight: CGFloat = 3
+    /// 分割线高度（1pt 适中，既清晰可见又不会太粗）
+    var lineHeight: CGFloat = 1
     
     /// 分割线宽度（相对于容器宽度的比例，0-1）
     var widthRatio: CGFloat = 1.0
@@ -371,6 +371,9 @@ final class HorizontalRuleAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     private func setupAttachment() {
         updateBounds()
+        // 预先创建图像，确保附件有默认图像
+        // 这对于某些 NSTextView 配置是必要的
+        self.image = createHorizontalRuleImage()
     }
     
     private func updateBounds() {
@@ -462,35 +465,29 @@ final class HorizontalRuleAttachment: NSTextAttachment, ThemeAwareAttachment {
         let lineWidth = currentWidth * widthRatio
         let size = NSSize(width: lineWidth, height: totalHeight)
         
-        let image = NSImage(size: size, flipped: false) { [weak self] rect in
-            guard let self = self else { return false }
-            
-            // 获取分割线颜色（大幅增加对比度确保可见）
-            let lineColor: NSColor
-            if self.isDarkMode {
-                // 深色模式使用浅色分割线，透明度提高到 0.5 确保清晰可见
-                lineColor = NSColor.white.withAlphaComponent(0.5)
-            } else {
-                // 浅色模式使用深色分割线，透明度提高到 0.35
-                lineColor = NSColor.black.withAlphaComponent(0.35)
-            }
-            
-            // 计算分割线位置（垂直居中）
-            let lineY = rect.height / 2
-            
-            switch self.lineStyle {
-            case .solid:
-                self.drawSolidLine(in: rect, at: lineY, color: lineColor)
-            case .dashed:
-                self.drawDashedLine(in: rect, at: lineY, color: lineColor)
-            case .dotted:
-                self.drawDottedLine(in: rect, at: lineY, color: lineColor)
-            case .gradient:
-                self.drawGradientLine(in: rect, at: lineY)
-            }
-            
-            return true
+        // 使用 lockFocus 方式创建图像（更可靠）
+        let image = NSImage(size: size)
+        image.lockFocus()
+        
+        // 获取分割线颜色（使用适中的透明度）
+        let lineColor: NSColor
+        if isDarkMode {
+            // 深色模式使用浅色分割线，透明度 0.3 适中
+            lineColor = NSColor.white.withAlphaComponent(0.3)
+        } else {
+            // 浅色模式使用深色分割线，透明度 0.25 适中
+            lineColor = NSColor.black.withAlphaComponent(0.25)
         }
+        
+        // 计算分割线位置（垂直居中）
+        let lineY = (totalHeight - lineHeight) / 2
+        
+        // 使用填充矩形绘制分割线
+        let lineRect = CGRect(x: 0, y: lineY, width: lineWidth, height: lineHeight)
+        lineColor.setFill()
+        NSBezierPath(rect: lineRect).fill()
+        
+        image.unlockFocus()
         
         return image
     }
