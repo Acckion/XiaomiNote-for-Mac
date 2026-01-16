@@ -165,6 +165,7 @@ class AttachmentSelectionManager {
     func isSelectableAttachment(_ attachment: NSTextAttachment) -> Bool {
         // 仅支持分割线、图片、录音的选择高亮
         // checkbox、有序列表、无序列表不使用此高亮机制
+        // 这些列表类型的光标限制由 ListBehaviorHandler 处理
         return attachment is HorizontalRuleAttachment ||
                attachment is ImageAttachment ||
                attachment is AudioAttachment

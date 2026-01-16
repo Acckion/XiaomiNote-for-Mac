@@ -1520,7 +1520,7 @@ class NativeTextView: NSTextView {
     }
     
     /// 重写 moveLeft 方法，处理左移光标到上一行
-    /// 当光标在列表项内容起始位置时，左移应跳到上一行末尾
+    /// 当光标在列表项（包括 checkbox）内容起始位置时，左移应跳到上一行末尾
     /// _Requirements: 1.1, 1.2_
     override func moveLeft(_ sender: Any?) {
         guard enableListCursorRestriction,
@@ -1532,13 +1532,14 @@ class NativeTextView: NSTextView {
         let currentRange = selectedRange()
         let currentPosition = currentRange.location
         
-        // 检查当前位置是否在列表项内容起始位置
+        // 检查当前位置是否在列表项内容起始位置（包括 checkbox）
         if let listInfo = ListBehaviorHandler.getListItemInfo(in: textStorage, at: currentPosition) {
             if currentPosition == listInfo.contentStartPosition {
                 // 光标在内容起始位置，跳到上一行末尾
                 if listInfo.lineRange.location > 0 {
                     let prevLineEnd = listInfo.lineRange.location - 1
                     setSelectedRange(NSRange(location: prevLineEnd, length: 0))
+                    print("[NativeTextView] moveLeft: 从列表内容起始位置跳到上一行末尾")
                     return
                 }
             }
@@ -1547,17 +1548,18 @@ class NativeTextView: NSTextView {
         // 执行默认左移
         super.moveLeft(sender)
         
-        // 检查移动后的位置是否在列表标记区域内
+        // 检查移动后的位置是否在列表标记区域内（包括 checkbox）
         let newPosition = selectedRange().location
         if ListBehaviorHandler.isInListMarkerArea(in: textStorage, at: newPosition) {
             // 调整到内容起始位置
             let adjustedPosition = ListBehaviorHandler.adjustCursorPosition(in: textStorage, from: newPosition)
             super.setSelectedRange(NSRange(location: adjustedPosition, length: 0))
+            print("[NativeTextView] moveLeft: 调整光标位置到内容起始位置")
         }
     }
     
     /// 重写 moveToBeginningOfLine 方法，移动到内容起始位置
-    /// 对于列表项，移动到内容区域起始位置而非行首
+    /// 对于列表项（包括 checkbox），移动到内容区域起始位置而非行首
     /// _Requirements: 1.1, 1.4_
     override func moveToBeginningOfLine(_ sender: Any?) {
         guard enableListCursorRestriction,
@@ -1568,10 +1570,11 @@ class NativeTextView: NSTextView {
         
         let currentPosition = selectedRange().location
         
-        // 检查当前行是否是列表项
+        // 检查当前行是否是列表项（包括 checkbox）
         if let listInfo = ListBehaviorHandler.getListItemInfo(in: textStorage, at: currentPosition) {
             // 移动到内容起始位置
             setSelectedRange(NSRange(location: listInfo.contentStartPosition, length: 0))
+            print("[NativeTextView] moveToBeginningOfLine: 移动到列表内容起始位置")
             return
         }
         
@@ -1580,7 +1583,7 @@ class NativeTextView: NSTextView {
     }
     
     /// 重写 moveWordLeft 方法，处理 Option+左方向键
-    /// 确保不会移动到列表标记区域内
+    /// 确保不会移动到列表标记区域内（包括 checkbox）
     /// _Requirements: 1.1, 1.2_
     override func moveWordLeft(_ sender: Any?) {
         guard enableListCursorRestriction,
@@ -1591,13 +1594,14 @@ class NativeTextView: NSTextView {
         
         let currentPosition = selectedRange().location
         
-        // 检查当前位置是否在列表项内容起始位置
+        // 检查当前位置是否在列表项内容起始位置（包括 checkbox）
         if let listInfo = ListBehaviorHandler.getListItemInfo(in: textStorage, at: currentPosition) {
             if currentPosition == listInfo.contentStartPosition {
                 // 光标在内容起始位置，跳到上一行末尾
                 if listInfo.lineRange.location > 0 {
                     let prevLineEnd = listInfo.lineRange.location - 1
                     setSelectedRange(NSRange(location: prevLineEnd, length: 0))
+                    print("[NativeTextView] moveWordLeft: 从列表内容起始位置跳到上一行末尾")
                     return
                 }
             }
@@ -1606,12 +1610,13 @@ class NativeTextView: NSTextView {
         // 执行默认单词左移
         super.moveWordLeft(sender)
         
-        // 检查移动后的位置是否在列表标记区域内
+        // 检查移动后的位置是否在列表标记区域内（包括 checkbox）
         let newPosition = selectedRange().location
         if ListBehaviorHandler.isInListMarkerArea(in: textStorage, at: newPosition) {
             // 调整到内容起始位置
             let adjustedPosition = ListBehaviorHandler.adjustCursorPosition(in: textStorage, from: newPosition)
             super.setSelectedRange(NSRange(location: adjustedPosition, length: 0))
+            print("[NativeTextView] moveWordLeft: 调整光标位置到内容起始位置")
         }
     }
     

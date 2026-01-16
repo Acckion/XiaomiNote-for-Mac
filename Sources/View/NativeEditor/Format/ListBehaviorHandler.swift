@@ -93,6 +93,7 @@ public struct ListBehaviorHandler {
     /// 获取列表项内容区域的起始位置
     /// 
     /// 内容区域起始位置是列表标记（附件字符）之后的第一个位置
+    /// 支持无序列表、有序列表和复选框列表
     /// 对于非列表行，返回行首位置
     /// 
     /// - Parameters:
@@ -113,16 +114,17 @@ public struct ListBehaviorHandler {
         let safePosition = min(position, max(0, textStorage.length - 1))
         let lineRange = string.lineRange(for: NSRange(location: safePosition, length: 0))
         
-        // 检查是否是列表行
+        // 检查是否是列表行（包括 checkbox）
         let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
         guard listType != .none else {
             // 非列表行，返回行首位置
             return lineRange.location
         }
         
-        // 查找列表附件的位置
+        // 查找列表附件的位置（包括 InteractiveCheckboxAttachment）
         var attachmentEndPosition = lineRange.location
         textStorage.enumerateAttribute(.attachment, in: lineRange, options: []) { value, attrRange, stop in
+            // 检查所有类型的列表附件，包括 checkbox
             if value is BulletAttachment || value is OrderAttachment || value is InteractiveCheckboxAttachment {
                 // 内容起始位置是附件之后
                 attachmentEndPosition = attrRange.location + attrRange.length
@@ -136,6 +138,7 @@ public struct ListBehaviorHandler {
     /// 检查位置是否在列表标记区域内
     /// 
     /// 列表标记区域是从行首到列表附件结束的区域
+    /// 包括无序列表、有序列表和复选框列表的标记
     /// 
     /// - Parameters:
     ///   - textStorage: 文本存储
@@ -155,7 +158,7 @@ public struct ListBehaviorHandler {
         let safePosition = min(position, max(0, textStorage.length - 1))
         let lineRange = string.lineRange(for: NSRange(location: safePosition, length: 0))
         
-        // 检查是否是列表行
+        // 检查是否是列表行（包括 checkbox）
         let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
         guard listType != .none else {
             return false
@@ -165,12 +168,13 @@ public struct ListBehaviorHandler {
         let contentStart = getContentStartPosition(in: textStorage, at: position)
         
         // 如果位置在内容起始位置之前，则在标记区域内
+        // 这包括了 checkbox、bullet 和 order 附件
         return position < contentStart
     }
     
     /// 调整光标位置，确保不在列表标记区域内
     /// 
-    /// 如果光标在列表标记区域内，将其调整到内容区域起始位置
+    /// 如果光标在列表标记区域内（包括 checkbox），将其调整到内容区域起始位置
     /// 
     /// - Parameters:
     ///   - textStorage: 文本存储
@@ -188,7 +192,9 @@ public struct ListBehaviorHandler {
         // 检查是否在列表标记区域内
         if isInListMarkerArea(in: textStorage, at: position) {
             // 调整到内容起始位置
-            return getContentStartPosition(in: textStorage, at: position)
+            let adjustedPosition = getContentStartPosition(in: textStorage, at: position)
+            print("[ListBehaviorHandler] 光标位置调整: \(position) -> \(adjustedPosition)")
+            return adjustedPosition
         }
         
         return position
