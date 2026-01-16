@@ -324,8 +324,8 @@ final class ChineseInputCompositionPropertyTests: XCTestCase {
         for _ in 0..<100 {
             var contentChangeCount = 0
             
-            // 订阅内容变化
-            context.contentChangeSubject
+            // 订阅内容变化（使用公开的 contentChangePublisher）
+            context.contentChangePublisher
                 .sink { _ in
                     contentChangeCount += 1
                 }

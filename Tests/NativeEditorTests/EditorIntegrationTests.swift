@@ -60,11 +60,9 @@ final class EditorIntegrationTests: XCTestCase {
         XCTAssertTrue(availableTypes.contains(.native), "可用类型应包含原生编辑器")
         
         // 测试原生编辑器可用性
-        if EditorFactory.isEditorAvailable(.native) {
-            let nativeInfo = EditorFactory.getEditorInfo(for: .native)
-            XCTAssertTrue(nativeInfo.isAvailable, "原生编辑器信息应显示可用")
-            XCTAssertEqual(nativeInfo.type, .native, "编辑器类型应为原生编辑器")
-        }
+        let nativeInfo = EditorFactory.getEditorInfo(for: .native)
+        XCTAssertTrue(nativeInfo.isAvailable, "原生编辑器信息应显示可用")
+        XCTAssertEqual(nativeInfo.type, .native, "编辑器类型应为原生编辑器")
     }
     
     // MARK: - 格式转换测试
@@ -178,14 +176,8 @@ final class EditorIntegrationTests: XCTestCase {
     /// 测试编辑器切换性能
     func testEditorSwitchPerformance() async throws {
         measure {
-            // 测试编辑器可用性检查性能
-            let _ = EditorFactory.isEditorAvailable(.web)
-            let _ = EditorFactory.getEditorInfo(for: .web)
-            
-            // 如果原生编辑器可用，也测试原生编辑器
-            if EditorFactory.isEditorAvailable(.native) {
-                let _ = EditorFactory.getEditorInfo(for: .native)
-            }
+            // 测试编辑器可用性检查性能（现在只有原生编辑器）
+            let _ = EditorFactory.getEditorInfo(for: .native)
         }
     }
     

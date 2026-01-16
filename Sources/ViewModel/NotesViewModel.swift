@@ -244,6 +244,11 @@ public class NotesViewModel: ObservableObject {
     @MainActor
     private let offlineProcessor = OfflineOperationProcessor.shared
     
+    /// 新的操作处理器（用于观察处理状态）
+    /// 替代 offlineProcessor，基于 UnifiedOperationQueue
+    @MainActor
+    private let operationProcessor = OperationProcessor.shared
+    
     // MARK: - 离线操作状态
     
     /// 待处理的离线操作数量（使用新的 UnifiedOperationQueue）
@@ -256,6 +261,15 @@ public class NotesViewModel: ObservableObject {
     var unifiedPendingUploadCount: Int {
         unifiedQueue.getPendingUploadCount()
     }
+    
+    /// 是否正在处理操作（从新的 OperationProcessor 获取）
+    @Published var isProcessingOperations: Bool = false
+    
+    /// 操作处理进度（0.0 - 1.0）
+    @Published var operationProgress: Double = 0.0
+    
+    /// 操作处理状态消息
+    @Published var operationStatusMessage: String = ""
     
     /// 统一操作队列所有待上传笔记 ID
     /// _需求: 6.1_
@@ -792,6 +806,46 @@ public class NotesViewModel: ObservableObject {
         offlineProcessor.$statusMessage
             .receive(on: DispatchQueue.main)
             .assign(to: &$offlineQueueStatusMessage)
+        
+        offlineProcessor.$processedCount
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$offlineQueueProcessedCount)
+        
+        // 监听新的 OperationProcessor 状态
+        // 由于 OperationProcessor 是 actor，使用定时器定期更新
+        Timer.publish(every: 1.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    
+                    // 更新处理状态
+                    self.isProcessingOperations = await self.operationProcessor.isProcessing
+                    
+                    // 更新进度
+                    let stats = self.unifiedQueue.getStatistics()
+                    let totalCount = stats["pending", default: 0] + 
+                                   stats["processing", default: 0] + 
+                                   stats["failed", default: 0]
+                    let processedCount = stats["completed", default: 0]
+                    
+                    if totalCount + processedCount > 0 {
+                        self.operationProgress = Double(processedCount) / Double(totalCount + processedCount)
+                    } else {
+                        self.operationProgress = 0.0
+                    }
+                    
+                    // 更新状态消息
+                    if self.isProcessingOperations {
+                        self.operationStatusMessage = "正在处理操作..."
+                    } else if totalCount > 0 {
+                        self.operationStatusMessage = "等待处理 \(totalCount) 个操作"
+                    } else {
+                        self.operationStatusMessage = ""
+                    }
+                }
+            }
+            .store(in: &cancellables)
         
         offlineProcessor.$processedCount
             .receive(on: DispatchQueue.main)
