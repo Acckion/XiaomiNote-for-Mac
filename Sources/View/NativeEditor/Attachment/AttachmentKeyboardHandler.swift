@@ -39,15 +39,6 @@ class AttachmentKeyboardHandler {
     ///   - textView: 文本视图
     /// - Returns: 是否处理了事件
     func handleKeyDown(_ event: NSEvent, in textView: NSTextView) -> Bool {
-        // 检查是否有选中的附件
-        guard selectionManager.hasSelectedAttachment,
-              let attachmentIndex = selectionManager.selectedAttachmentIndex else {
-            return false
-        }
-        
-        // 获取光标位置
-        let cursorPosition = selectionManager.cursorPosition
-        
         // 获取按键字符
         guard let characters = event.characters else {
             return false
@@ -56,14 +47,40 @@ class AttachmentKeyboardHandler {
         // 处理特殊键
         let keyCode = event.keyCode
         
-        // Backspace
+        // Backspace - 需要特殊处理,因为可能在没有选中附件的情况下也需要拦截
         if keyCode == 51 {
-            if cursorPosition == .beforeAttachment {
-                return handleBackspaceBeforeAttachment(in: textView, attachmentIndex: attachmentIndex)
-            } else if cursorPosition == .afterAttachment {
-                return handleBackspaceAfterAttachment(in: textView, attachmentIndex: attachmentIndex)
+            // 重新检测光标位置和附件
+            guard let textStorage = textView.textStorage else {
+                return false
             }
+            
+            let selectedRange = textView.selectedRange()
+            
+            // 检测光标是否在附件处
+            if let (_, index, position) = selectionManager.detectAttachmentAndPosition(at: selectedRange.location, in: textStorage) {
+                print("[AttachmentKeyboardHandler] Backspace: 检测到附件 at index=\(index), position=\(position)")
+                
+                if position == .beforeAttachment {
+                    print("[AttachmentKeyboardHandler] Backspace: 光标在附件左边,执行移动到上一行")
+                    return handleBackspaceBeforeAttachment(in: textView, attachmentIndex: index)
+                } else if position == .afterAttachment {
+                    print("[AttachmentKeyboardHandler] Backspace: 光标在附件右边,执行删除附件")
+                    return handleBackspaceAfterAttachment(in: textView, attachmentIndex: index)
+                }
+            }
+            
+            // 光标不在附件处,不处理
+            return false
         }
+        
+        // 其他键盘事件需要有选中的附件才处理
+        guard selectionManager.hasSelectedAttachment,
+              let attachmentIndex = selectionManager.selectedAttachmentIndex else {
+            return false
+        }
+        
+        // 获取光标位置
+        let cursorPosition = selectionManager.cursorPosition
         
         // Delete
         if keyCode == 117 {
@@ -168,18 +185,32 @@ class AttachmentKeyboardHandler {
         
         // 将光标移动到上一行末尾
         // 找到附件所在行的开头
-        let lineRange = (textStorage.string as NSString).lineRange(for: NSRange(location: attachmentIndex, length: 0))
+        let currentLineRange = (textStorage.string as NSString).lineRange(for: NSRange(location: attachmentIndex, length: 0))
         
-        if lineRange.location > 0 {
-            // 找到上一行的末尾(不包括换行符)
-            let previousLineEnd = lineRange.location - 1
+        if currentLineRange.location > 0 {
+            // 找到上一行的范围
+            // currentLineRange.location - 1 是上一行的换行符位置
+            let previousLineLocation = currentLineRange.location - 1
+            let previousLineRange = (textStorage.string as NSString).lineRange(for: NSRange(location: previousLineLocation, length: 0))
             
-            // 如果上一个字符是换行符,再往前移一位
-            var newLocation = previousLineEnd
-            if newLocation > 0 && (textStorage.string as NSString).character(at: newLocation) == 10 { // \n
-                newLocation -= 1
+            // 计算上一行的末尾位置(不包括换行符)
+            // previousLineRange.location + previousLineRange.length 是行末尾(包括换行符)
+            // 需要减去换行符的长度
+            let string = textStorage.string as NSString
+            var newLocation = previousLineRange.location + previousLineRange.length
+            
+            // 往回查找,跳过所有换行符,找到最后一个非换行符字符的后面
+            while newLocation > previousLineRange.location {
+                let charIndex = newLocation - 1
+                let char = string.character(at: charIndex)
+                if char == 10 || char == 13 { // \n 或 \r
+                    newLocation -= 1
+                } else {
+                    break
+                }
             }
             
+            print("[AttachmentKeyboardHandler] 移动光标到位置: \(newLocation)")
             textView.setSelectedRange(NSRange(location: newLocation, length: 0))
         }
         
@@ -230,17 +261,33 @@ class AttachmentKeyboardHandler {
         print("[AttachmentKeyboardHandler] 附件右边输入文本: \(text)")
         
         // 在附件下方新增一行
-        // 找到附件所在行的末尾
+        // 找到附件所在行的范围
         let lineRange = (textStorage.string as NSString).lineRange(for: NSRange(location: attachmentIndex, length: 0))
-        let lineEnd = lineRange.location + lineRange.length
         
-        // 在行末尾插入换行符和文本
+        // 计算行末尾位置(不包括换行符)
+        let string = textStorage.string as NSString
+        var lineEnd = lineRange.location + lineRange.length
+        
+        // 往回查找,跳过所有换行符
+        while lineEnd > lineRange.location {
+            let charIndex = lineEnd - 1
+            let char = string.character(at: charIndex)
+            if char == 10 || char == 13 { // \n 或 \r
+                lineEnd -= 1
+            } else {
+                break
+            }
+        }
+        
+        // 在行末尾(不包括换行符)插入换行符和文本
         let insertString = "\n" + text
         textStorage.insert(NSAttributedString(string: insertString), at: lineEnd)
         
         // 将光标移动到新行末尾
         let newCursorLocation = lineEnd + insertString.count
         textView.setSelectedRange(NSRange(location: newCursorLocation, length: 0))
+        
+        print("[AttachmentKeyboardHandler] 插入位置: \(lineEnd), 新光标位置: \(newCursorLocation)")
         
         // 通知文本变化
         textView.didChangeText()
@@ -289,15 +336,31 @@ class AttachmentKeyboardHandler {
         print("[AttachmentKeyboardHandler] 附件右边按下 Enter")
         
         // 在附件下方插入新行
-        // 找到附件所在行的末尾
+        // 找到附件所在行的范围
         let lineRange = (textStorage.string as NSString).lineRange(for: NSRange(location: attachmentIndex, length: 0))
-        let lineEnd = lineRange.location + lineRange.length
         
-        // 在行末尾插入换行符
+        // 计算行末尾位置(不包括换行符)
+        let string = textStorage.string as NSString
+        var lineEnd = lineRange.location + lineRange.length
+        
+        // 往回查找,跳过所有换行符
+        while lineEnd > lineRange.location {
+            let charIndex = lineEnd - 1
+            let char = string.character(at: charIndex)
+            if char == 10 || char == 13 { // \n 或 \r
+                lineEnd -= 1
+            } else {
+                break
+            }
+        }
+        
+        // 在行末尾(不包括换行符)插入换行符
         textStorage.insert(NSAttributedString(string: "\n"), at: lineEnd)
         
         // 将光标移动到新行开头
         textView.setSelectedRange(NSRange(location: lineEnd + 1, length: 0))
+        
+        print("[AttachmentKeyboardHandler] 插入位置: \(lineEnd), 新光标位置: \(lineEnd + 1)")
         
         // 通知文本变化
         textView.didChangeText()
