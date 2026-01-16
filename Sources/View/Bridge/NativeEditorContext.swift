@@ -882,6 +882,19 @@ public class NativeEditorContext: ObservableObject {
         }
     }
     
+    /// 异步更新 hasUnsavedChanges 状态
+    /// 
+    /// 将状态更新包装在 Task 中异步执行，避免在视图更新周期内修改 @Published 属性
+    /// 
+    /// - Parameter value: 新的状态值
+    /// 
+    /// _Requirements: 5.1_ - 异步状态更新方法
+    func updateHasUnsavedChangesAsync(_ value: Bool) {
+        Task { @MainActor in
+            hasUnsavedChanges = value
+        }
+    }
+    
     /// 从 XML 加载内容
     /// - Parameter xml: 小米笔记 XML 格式内容
     func loadFromXML(_ xml: String) {
@@ -937,9 +950,10 @@ public class NativeEditorContext: ObservableObject {
             // _Requirements: 3.1_
             contentVersion += 1
             
-            // 新增：发送内容变化通知，确保 Coordinator 收到更新
-            // _Requirements: 2.1, 2.2, 2.3_
-            contentChangeSubject.send(mutableAttributed)
+            // 关键修复：移除 contentChangeSubject.send() 调用
+            // loadFromXML 是加载操作，不是编辑操作，不应触发 handleExternalContentUpdate
+            // contentVersion 的递增已经足以触发 SwiftUI 视图更新
+            // _Requirements: 5.3_ - loadFromXML 不触发 contentChangeSubject
             
             // 调试日志：检查斜体字体是否正确保留
             print("[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:")

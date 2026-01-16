@@ -517,10 +517,13 @@ struct NativeEditorView: NSViewRepresentable {
                 return
             }
             
-            // 修改：移除不必要的内容比较逻辑
-            // 因为 loadFromXML 已经确保只在内容真正变化时才发送通知
-            // 直接更新内容，确保格式正确显示
-            // _Requirements: 1.1, 1.3, 2.3 - 笔记切换时立即显示格式
+            // 关键修复：检查内容字符串是否真的变化
+            // 如果内容相同，跳过更新，避免打断输入法
+            // _Requirements: 1.1, 2.3 - 防止输入法状态被打断
+            if textStorage.string == newContent.string {
+                print("[NativeEditorView] handleExternalContentUpdate: 内容未变化，跳过更新")
+                return
+            }
             
             print("[NativeEditorView] handleExternalContentUpdate: 更新内容")
             print("[NativeEditorView]   - 新内容长度: \(newContent.length)")

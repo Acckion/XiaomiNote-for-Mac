@@ -173,43 +173,46 @@ struct UnifiedEditorWrapper: View {
     
     /// 处理 xmlContent 变化（切换笔记时触发）
     /// _Requirements: FR-3.3.1_ - 使用异步状态更新避免 SwiftUI 警告
+    /// _Requirements: 2.3, 3.1, 3.2, 3.3, 3.4_ - 增强内容比较逻辑
     private func handleXMLContentChange(oldValue: String?, newValue: String?) {
         // xmlContent 变化是检测笔记切换最可靠的方式
         guard let newContent = newValue else { return }
         
-        // 关键修复：移除过于严格的内容相同性检查
-        // 只要 xmlContent 发生变化，就应该重新加载
-        // 这确保笔记切换时内容一定会更新
+        // 如果内容完全相同，不需要处理
         if newContent == oldValue {
-            // 内容完全相同，不需要处理
             return
         }
         
-        // 关键修复：检查是否是保存后的内容更新（而不是笔记切换）
+        // ✅ 关键修复：增强内容比较逻辑，避免保存后不必要的重新加载
+        // 检查是否是保存后的内容更新（而不是笔记切换）
         // 如果新内容与当前编辑器中的内容相同（或非常接近），说明这是保存后的更新
         // 不需要重新加载，避免触发 hasUnsavedChanges = true 和打断输入法
+        // _Requirements: 2.3, 3.1, 3.2, 3.3, 3.4_
         if preferencesService.selectedEditorType == .native && preferencesService.isNativeEditorAvailable {
             let currentEditorXML = nativeEditorContext.exportToXML()
             
-            // 使用更宽松的比较：去除空白字符后比较
+            // ✅ 规范化内容比较：去除空白字符后比较
+            // _Requirements: 3.1_ - 添加规范化内容比较
             let normalizedCurrent = currentEditorXML.trimmingCharacters(in: .whitespacesAndNewlines)
             let normalizedNew = newContent.trimmingCharacters(in: .whitespacesAndNewlines)
             
             if !normalizedCurrent.isEmpty && normalizedCurrent == normalizedNew {
                 print("[UnifiedEditorWrapper] xmlContent 变化但与编辑器内容相同，跳过重新加载")
+                // _Requirements: 3.3_ - 跳过重新加载时更新 lastLoadedContent
                 // _Requirements: FR-3.3.1_ - 使用 Task 异步更新状态
-                // 更新 lastLoadedContent 以保持同步
                 Task { @MainActor in
                     lastLoadedContent = newContent
                 }
                 return
             }
             
-            // 额外检查：如果内容长度差异很小（< 10 个字符），也认为是保存后的更新
+            // ✅ 长度差异检查：如果内容长度差异很小（< 10 个字符），也认为是保存后的更新
             // 这可以处理格式化差异（如空格、换行符的微小变化）
+            // _Requirements: 3.2_ - 添加长度差异检查（< 10 字符跳过重新加载）
             let lengthDiff = abs(currentEditorXML.count - newContent.count)
             if lengthDiff < 10 && !currentEditorXML.isEmpty {
                 print("[UnifiedEditorWrapper] xmlContent 变化但长度差异很小 (\(lengthDiff))，跳过重新加载")
+                // _Requirements: 3.3_ - 跳过重新加载时更新 lastLoadedContent
                 Task { @MainActor in
                     lastLoadedContent = newContent
                 }
@@ -217,6 +220,8 @@ struct UnifiedEditorWrapper: View {
             }
         }
         
+        // ✅ 真正的内容变化（笔记切换），执行重新加载
+        // _Requirements: 3.4_ - 只在真正需要时调用 loadFromXML
         print("[UnifiedEditorWrapper] xmlContent 变化（切换笔记）- 从长度 \(oldValue?.count ?? 0) 到 \(newContent.count)")
         
         // 记录内容重新加载（性能监控）
@@ -228,6 +233,7 @@ struct UnifiedEditorWrapper: View {
             
             // 关键修复：先更新 lastLoadedContent，再加载内容
             // 这样可以防止后续的 content 变化被误认为是用户编辑
+            // _Requirements: 3.3_ - 跳过重新加载时更新 lastLoadedContent
             lastLoadedContent = newContent
             
             // 如果使用原生编辑器，强制重新加载内容
@@ -240,6 +246,7 @@ struct UnifiedEditorWrapper: View {
                     nativeEditorContext.nsAttributedText = NSAttributedString()
                     print("[UnifiedEditorWrapper] 原生编辑器清空内容")
                 } else {
+                    // _Requirements: 3.4_ - 只在真正需要时调用 loadFromXML
                     nativeEditorContext.loadFromXML(newContent)
                     print("[UnifiedEditorWrapper] 原生编辑器重新加载内容 - 长度: \(newContent.count)")
                 }
