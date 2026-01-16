@@ -433,70 +433,59 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         menuActionHandler.collapseAllSections(sender)
     }
     
-    // MARK: - 窗口菜单动作（Requirements: 13.1-13.14）
+    // MARK: - 窗口菜单动作
     
     /// 填充窗口到屏幕
-    /// - Requirements: 13.4
     @objc func fillWindow(_ sender: Any?) {
         menuActionHandler.fillWindow(sender)
     }
     
     /// 居中窗口
-    /// - Requirements: 13.5
     @objc func centerWindow(_ sender: Any?) {
         menuActionHandler.centerWindow(sender)
     }
     
     /// 移动窗口到屏幕左半边
-    /// - Requirements: 13.7
     @objc func moveWindowToLeftHalf(_ sender: Any?) {
         menuActionHandler.moveWindowToLeftHalf(sender)
     }
     
     /// 移动窗口到屏幕右半边
-    /// - Requirements: 13.7
     @objc func moveWindowToRightHalf(_ sender: Any?) {
         menuActionHandler.moveWindowToRightHalf(sender)
     }
     
     /// 移动窗口到屏幕上半边
-    /// - Requirements: 13.7
     @objc func moveWindowToTopHalf(_ sender: Any?) {
         menuActionHandler.moveWindowToTopHalf(sender)
     }
     
     /// 移动窗口到屏幕下半边
-    /// - Requirements: 13.7
     @objc func moveWindowToBottomHalf(_ sender: Any?) {
         menuActionHandler.moveWindowToBottomHalf(sender)
     }
     
     /// 最大化窗口
-    /// - Requirements: 13.7
     @objc func maximizeWindow(_ sender: Any?) {
         menuActionHandler.maximizeWindow(sender)
     }
     
     /// 恢复窗口
-    /// - Requirements: 13.7
     @objc func restoreWindow(_ sender: Any?) {
         menuActionHandler.restoreWindow(sender)
     }
     
     /// 平铺窗口到屏幕左侧（全屏幕平铺）
-    /// - Requirements: 13.8
     @objc func tileWindowToLeft(_ sender: Any?) {
         menuActionHandler.tileWindowToLeft(sender)
     }
     
     /// 平铺窗口到屏幕右侧（全屏幕平铺）
-    /// - Requirements: 13.8
     @objc func tileWindowToRight(_ sender: Any?) {
         menuActionHandler.tileWindowToRight(sender)
     }
     
     /// 在新窗口中打开笔记
-    /// - Requirements: 13.10
     @objc func openNoteInNewWindow(_ sender: Any?) {
         menuActionHandler.openNoteInNewWindow(sender)
     }

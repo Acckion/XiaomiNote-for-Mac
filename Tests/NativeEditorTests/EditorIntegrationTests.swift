@@ -3,8 +3,6 @@
 //  MiNoteLibraryTests
 //
 //  编辑器集成测试 - 验证编辑器切换和数据同步功能
-//  需求: 1.2, 1.3, 7.1-7.12
-//
 
 import XCTest
 @testable import MiNoteLibrary
@@ -40,40 +38,31 @@ final class EditorIntegrationTests: XCTestCase {
         try await super.tearDown()
     }
     
-    // MARK: - 编辑器切换测试
+    // MARK: - 编辑器测试
     
-    /// 测试编辑器类型切换
-    func testEditorTypeSwitch() async throws {
-        // 初始状态
-        let initialType = preferencesService.selectedEditorType
+    /// 测试编辑器类型（现在始终返回原生编辑器）
+    func testEditorType() async throws {
+        let currentType = preferencesService.getCurrentEditorType()
+        XCTAssertEqual(currentType, .native, "应该始终返回原生编辑器")
         
-        // 切换到 Web 编辑器
-        let switchToWeb = preferencesService.setEditorType(.web)
-        XCTAssertTrue(switchToWeb, "应该能够切换到 Web 编辑器")
-        XCTAssertEqual(preferencesService.selectedEditorType, .web)
-        
-        // 如果原生编辑器可用，测试切换到原生编辑器
+        // 验证原生编辑器可用性
         if preferencesService.isNativeEditorAvailable {
-            let switchToNative = preferencesService.setEditorType(.native)
-            XCTAssertTrue(switchToNative, "应该能够切换到原生编辑器")
-            XCTAssertEqual(preferencesService.selectedEditorType, .native)
+            XCTAssertTrue(true, "原生编辑器可用")
+        } else {
+            XCTFail("原生编辑器不可用")
         }
-        
-        // 恢复初始状态
-        _ = preferencesService.setEditorType(initialType)
     }
     
     /// 测试编辑器工厂创建
     func testEditorFactoryCreation() async throws {
-        // 测试创建 Web 编辑器
-        let webEditor = EditorFactory.createEditorSafely(type: .web)
-        XCTAssertTrue(webEditor.isAvailable(), "Web 编辑器应该可用")
+        // 测试获取可用编辑器类型
+        let availableTypes = EditorFactory.getAvailableEditorTypes()
+        XCTAssertTrue(availableTypes.contains(.native), "可用类型应包含原生编辑器")
         
-        // 测试创建原生编辑器（如果可用）
-        if EditorFactory.isEditorAvailable(.native) {
-            let nativeEditor = EditorFactory.createEditorSafely(type: .native)
-            XCTAssertTrue(nativeEditor.isAvailable(), "原生编辑器应该可用")
-        }
+        // 测试原生编辑器可用性
+        let nativeInfo = EditorFactory.getEditorInfo(for: .native)
+        XCTAssertTrue(nativeInfo.isAvailable, "原生编辑器信息应显示可用")
+        XCTAssertEqual(nativeInfo.type, .native, "编辑器类型应为原生编辑器")
     }
     
     // MARK: - 格式转换测试
@@ -187,13 +176,8 @@ final class EditorIntegrationTests: XCTestCase {
     /// 测试编辑器切换性能
     func testEditorSwitchPerformance() async throws {
         measure {
-            // 创建编辑器
-            let _ = EditorFactory.createEditorSafely(type: .web)
-            
-            // 如果原生编辑器可用，也测试原生编辑器
-            if EditorFactory.isEditorAvailable(.native) {
-                let _ = EditorFactory.createEditorSafely(type: .native)
-            }
+            // 测试编辑器可用性检查性能（现在只有原生编辑器）
+            let _ = EditorFactory.getEditorInfo(for: .native)
         }
     }
     

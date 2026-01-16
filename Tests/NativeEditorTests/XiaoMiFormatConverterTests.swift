@@ -198,4 +198,336 @@ final class XiaoMiFormatConverterTests: XCTestCase {
             XCTAssertTrue(converter.validateConversion(xml), "往返转换验证应该成功")
         }
     }
+    
+    // MARK: - 复选框状态保留测试
+    
+    /// 测试未选中复选框的解析和导出
+    /// _Requirements: 1.4, 5.8_
+    func testUncheckedCheckboxParsing() throws {
+        let xml = "<input type=\"checkbox\" indent=\"1\" level=\"3\" />待办事项"
+        
+        // 解析 XML
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 验证文本内容
+        XCTAssertTrue(nsAttributedString.string.contains("待办事项"), "应该包含待办事项文本")
+        
+        // 验证复选框附件
+        var foundCheckbox = false
+        nsAttributedString.enumerateAttribute(.attachment, in: NSRange(location: 0, length: nsAttributedString.length)) { value, _, _ in
+            if let checkbox = value as? InteractiveCheckboxAttachment {
+                foundCheckbox = true
+                XCTAssertFalse(checkbox.isChecked, "复选框应该是未选中状态")
+                XCTAssertEqual(checkbox.indent, 1, "缩进应该是 1")
+                XCTAssertEqual(checkbox.level, 3, "级别应该是 3")
+            }
+        }
+        XCTAssertTrue(foundCheckbox, "应该找到复选框附件")
+    }
+    
+    /// 测试选中复选框的解析和导出
+    /// _Requirements: 1.4, 5.8_
+    func testCheckedCheckboxParsing() throws {
+        let xml = "<input type=\"checkbox\" indent=\"2\" level=\"3\" checked=\"true\" />已完成事项"
+        
+        // 解析 XML
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 验证文本内容
+        XCTAssertTrue(nsAttributedString.string.contains("已完成事项"), "应该包含已完成事项文本")
+        
+        // 验证复选框附件
+        var foundCheckbox = false
+        nsAttributedString.enumerateAttribute(.attachment, in: NSRange(location: 0, length: nsAttributedString.length)) { value, _, _ in
+            if let checkbox = value as? InteractiveCheckboxAttachment {
+                foundCheckbox = true
+                XCTAssertTrue(checkbox.isChecked, "复选框应该是选中状态")
+                XCTAssertEqual(checkbox.indent, 2, "缩进应该是 2")
+                XCTAssertEqual(checkbox.level, 3, "级别应该是 3")
+            }
+        }
+        XCTAssertTrue(foundCheckbox, "应该找到复选框附件")
+    }
+    
+    /// 测试复选框状态往返一致性
+    /// _Requirements: 1.4, 5.8_
+    func testCheckboxStateRoundTrip() throws {
+        // 测试选中状态
+        let checkedXML = "<input type=\"checkbox\" indent=\"1\" level=\"3\" checked=\"true\" />选中的复选框"
+        let checkedNS = try converter.xmlToNSAttributedString(checkedXML)
+        let exportedCheckedXML = try converter.nsAttributedStringToXML(checkedNS)
+        
+        XCTAssertTrue(exportedCheckedXML.contains("checked=\"true\""), "导出的 XML 应该包含 checked=\"true\"")
+        
+        // 测试未选中状态
+        let uncheckedXML = "<input type=\"checkbox\" indent=\"1\" level=\"3\" />未选中的复选框"
+        let uncheckedNS = try converter.xmlToNSAttributedString(uncheckedXML)
+        let exportedUncheckedXML = try converter.nsAttributedStringToXML(uncheckedNS)
+        
+        XCTAssertFalse(exportedUncheckedXML.contains("checked=\"true\""), "导出的 XML 不应该包含 checked=\"true\"")
+        XCTAssertTrue(exportedUncheckedXML.contains("<input type=\"checkbox\""), "导出的 XML 应该包含复选框标签")
+    }
+    
+    /// 测试复选框属性保留
+    /// _Requirements: 5.8_
+    func testCheckboxAttributesPreservation() throws {
+        let xml = "<input type=\"checkbox\" indent=\"3\" level=\"5\" checked=\"true\" />带属性的复选框"
+        
+        // 解析 XML
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 导出 XML
+        let exportedXML = try converter.nsAttributedStringToXML(nsAttributedString)
+        
+        // 验证属性保留
+        XCTAssertTrue(exportedXML.contains("indent=\"3\""), "应该保留 indent 属性")
+        XCTAssertTrue(exportedXML.contains("level=\"5\""), "应该保留 level 属性")
+        XCTAssertTrue(exportedXML.contains("checked=\"true\""), "应该保留 checked 属性")
+    }
+    
+    // MARK: - 嵌套格式测试
+    
+    /// 测试粗体+斜体嵌套格式（斜体在外，粗体在内）
+    /// 这是用户报告的 bug：设置粗体+斜体后，切换笔记再切回来，粗体丢失
+    func testNestedBoldItalicFormat_ItalicOuterBoldInner() throws {
+        // XML 格式：<i><b>你好</b></i>
+        let xml = "<text indent=\"1\"><i><b>你好</b></i></text>"
+        
+        // 解析 XML 到 NSAttributedString
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 验证文本内容
+        XCTAssertEqual(nsAttributedString.string, "你好", "文本内容应该正确")
+        
+        // 验证粗体属性
+        var hasBold = false
+        var hasItalic = false
+        
+        nsAttributedString.enumerateAttributes(in: NSRange(location: 0, length: nsAttributedString.length), options: []) { attrs, _, _ in
+            // 检查字体是否有粗体特性
+            if let font = attrs[.font] as? NSFont {
+                let traits = font.fontDescriptor.symbolicTraits
+                if traits.contains(.bold) {
+                    hasBold = true
+                }
+            }
+            
+            // 检查是否有斜体（通过 obliqueness 属性）
+            if let obliqueness = attrs[.obliqueness] as? Double, obliqueness > 0 {
+                hasItalic = true
+            }
+        }
+        
+        XCTAssertTrue(hasBold, "应该检测到粗体格式")
+        XCTAssertTrue(hasItalic, "应该检测到斜体格式")
+    }
+    
+    /// 测试粗体+斜体嵌套格式（粗体在外，斜体在内）
+    func testNestedBoldItalicFormat_BoldOuterItalicInner() throws {
+        // XML 格式：<b><i>你好</i></b>
+        let xml = "<text indent=\"1\"><b><i>你好</i></b></text>"
+        
+        // 解析 XML 到 NSAttributedString
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 验证文本内容
+        XCTAssertEqual(nsAttributedString.string, "你好", "文本内容应该正确")
+        
+        // 验证粗体和斜体属性
+        var hasBold = false
+        var hasItalic = false
+        
+        nsAttributedString.enumerateAttributes(in: NSRange(location: 0, length: nsAttributedString.length), options: []) { attrs, _, _ in
+            if let font = attrs[.font] as? NSFont {
+                let traits = font.fontDescriptor.symbolicTraits
+                if traits.contains(.bold) {
+                    hasBold = true
+                }
+            }
+            
+            if let obliqueness = attrs[.obliqueness] as? Double, obliqueness > 0 {
+                hasItalic = true
+            }
+        }
+        
+        XCTAssertTrue(hasBold, "应该检测到粗体格式")
+        XCTAssertTrue(hasItalic, "应该检测到斜体格式")
+    }
+    
+    /// 测试粗体+斜体往返转换
+    func testNestedBoldItalicRoundTrip() throws {
+        let originalXML = "<text indent=\"1\"><i><b>你好</b></i></text>"
+        
+        // XML -> NSAttributedString
+        let nsAttributedString = try converter.xmlToNSAttributedString(originalXML)
+        
+        // NSAttributedString -> XML
+        let exportedXML = try converter.nsAttributedStringToXML(nsAttributedString)
+        
+        // 验证导出的 XML 包含粗体和斜体标签
+        XCTAssertTrue(exportedXML.contains("<b>"), "导出的 XML 应该包含粗体标签")
+        XCTAssertTrue(exportedXML.contains("<i>"), "导出的 XML 应该包含斜体标签")
+        XCTAssertTrue(exportedXML.contains("你好"), "导出的 XML 应该包含文本内容")
+    }
+    
+    /// 测试标题+粗体+斜体三层嵌套
+    func testTripleNestedFormat() throws {
+        // XML 格式：<size><b><i>标题粗斜体</i></b></size>
+        let xml = "<text indent=\"1\"><size><b><i>标题粗斜体</i></b></size></text>"
+        
+        // 解析 XML 到 NSAttributedString
+        let nsAttributedString = try converter.xmlToNSAttributedString(xml)
+        
+        // 验证文本内容
+        XCTAssertEqual(nsAttributedString.string, "标题粗斜体", "文本内容应该正确")
+        
+        // 验证所有格式属性
+        var hasBold = false
+        var hasItalic = false
+        var hasLargeFont = false
+        
+        nsAttributedString.enumerateAttributes(in: NSRange(location: 0, length: nsAttributedString.length), options: []) { attrs, _, _ in
+            if let font = attrs[.font] as? NSFont {
+                let traits = font.fontDescriptor.symbolicTraits
+                if traits.contains(.bold) {
+                    hasBold = true
+                }
+                // 一级标题字体大小应该是 24
+                if font.pointSize >= 24 {
+                    hasLargeFont = true
+                }
+            }
+            
+            if let obliqueness = attrs[.obliqueness] as? Double, obliqueness > 0 {
+                hasItalic = true
+            }
+        }
+        
+        XCTAssertTrue(hasBold, "应该检测到粗体格式")
+        XCTAssertTrue(hasItalic, "应该检测到斜体格式")
+        XCTAssertTrue(hasLargeFont, "应该检测到大字体（一级标题）")
+    }
+    
+    // MARK: - 有序列表 inputNumber 测试
+
+    /// 测试连续有序列表的 inputNumber 计算
+    /// _Requirements: 10.3_ - inputNumber 规则：第一项为实际值减1，后续项为0
+    func testConsecutiveOrderedListInputNumber() throws {
+        // 创建连续的有序列表 NSAttributedString
+        let textStorage = NSMutableAttributedString()
+        
+        // 第一项：编号 1
+        let order1 = OrderAttachment(number: 1, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order1))
+        textStorage.append(NSAttributedString(string: " 第一项\n"))
+        
+        // 第二项：编号 2
+        let order2 = OrderAttachment(number: 2, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order2))
+        textStorage.append(NSAttributedString(string: " 第二项\n"))
+        
+        // 第三项：编号 3
+        let order3 = OrderAttachment(number: 3, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order3))
+        textStorage.append(NSAttributedString(string: " 第三项"))
+        
+        // 转换为 XML
+        let xml = try converter.nsAttributedStringToXML(textStorage)
+        
+        // 验证第一项的 inputNumber 应该是 0（因为 1 - 1 = 0）
+        XCTAssertTrue(xml.contains("<order indent=\"1\" inputNumber=\"0\" />"), 
+                     "第一项的 inputNumber 应该是 0")
+        
+        // 验证后续项的 inputNumber 也应该是 0（连续编号）
+        // 由于所有项都是连续的，所以都应该是 inputNumber="0"
+        let inputNumberMatches = xml.components(separatedBy: "inputNumber=\"0\"").count - 1
+        XCTAssertEqual(inputNumberMatches, 3, "所有连续有序列表项的 inputNumber 都应该是 0")
+    }
+
+    /// 测试非连续有序列表的 inputNumber 计算
+    /// _Requirements: 10.3_ - 非连续编号时，inputNumber = 实际编号 - 1
+    func testNonConsecutiveOrderedListInputNumber() throws {
+        // 创建非连续的有序列表 NSAttributedString
+        let textStorage = NSMutableAttributedString()
+        
+        // 第一项：编号 5（新列表从 5 开始）
+        let order1 = OrderAttachment(number: 5, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order1))
+        textStorage.append(NSAttributedString(string: " 第五项\n"))
+        
+        // 第二项：编号 6（连续）
+        let order2 = OrderAttachment(number: 6, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order2))
+        textStorage.append(NSAttributedString(string: " 第六项"))
+        
+        // 转换为 XML
+        let xml = try converter.nsAttributedStringToXML(textStorage)
+        
+        // 验证第一项的 inputNumber 应该是 4（因为 5 - 1 = 4）
+        XCTAssertTrue(xml.contains("<order indent=\"1\" inputNumber=\"4\" />"), 
+                     "第一项的 inputNumber 应该是 4（5 - 1）")
+        
+        // 验证第二项的 inputNumber 应该是 0（连续编号）
+        XCTAssertTrue(xml.contains("<order indent=\"1\" inputNumber=\"0\" />"), 
+                     "第二项的 inputNumber 应该是 0（连续编号）")
+    }
+
+    /// 测试有序列表被其他块打断后的 inputNumber 计算
+    /// _Requirements: 10.3_ - 被打断后重新开始的列表应该有新的 inputNumber
+    func testOrderedListInterruptedByOtherBlock() throws {
+        // 创建被文本块打断的有序列表
+        let textStorage = NSMutableAttributedString()
+        
+        // 第一个有序列表：编号 1
+        let order1 = OrderAttachment(number: 1, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order1))
+        textStorage.append(NSAttributedString(string: " 第一项\n"))
+        
+        // 普通文本（打断列表）
+        textStorage.append(NSAttributedString(string: "普通文本\n"))
+        
+        // 第二个有序列表：编号 1（新列表）
+        let order2 = OrderAttachment(number: 1, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order2))
+        textStorage.append(NSAttributedString(string: " 新列表第一项"))
+        
+        // 转换为 XML
+        let xml = try converter.nsAttributedStringToXML(textStorage)
+        
+        // 两个有序列表都应该有 inputNumber="0"（因为都是从 1 开始）
+        let inputNumberMatches = xml.components(separatedBy: "inputNumber=\"0\"").count - 1
+        XCTAssertEqual(inputNumberMatches, 2, "两个独立的有序列表都应该有 inputNumber=\"0\"")
+    }
+
+    /// 测试无序列表不影响有序列表的 inputNumber 计算
+    /// _Requirements: 10.1, 10.2_ - 正确检测 BulletAttachment 和 OrderAttachment
+    func testBulletListDoesNotAffectOrderedListInputNumber() throws {
+        // 创建混合列表
+        let textStorage = NSMutableAttributedString()
+        
+        // 有序列表：编号 1
+        let order1 = OrderAttachment(number: 1, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order1))
+        textStorage.append(NSAttributedString(string: " 有序第一项\n"))
+        
+        // 无序列表
+        let bullet = BulletAttachment(indent: 1)
+        textStorage.append(NSAttributedString(attachment: bullet))
+        textStorage.append(NSAttributedString(string: " 无序项\n"))
+        
+        // 有序列表：编号 1（新列表，因为被无序列表打断）
+        let order2 = OrderAttachment(number: 1, inputNumber: 0, indent: 1)
+        textStorage.append(NSAttributedString(attachment: order2))
+        textStorage.append(NSAttributedString(string: " 有序第一项（新）"))
+        
+        // 转换为 XML
+        let xml = try converter.nsAttributedStringToXML(textStorage)
+        
+        // 验证无序列表正确生成
+        XCTAssertTrue(xml.contains("<bullet indent=\"1\" />"), "应该包含无序列表标签")
+        
+        // 验证两个有序列表都有 inputNumber="0"
+        let orderMatches = xml.components(separatedBy: "<order indent=\"1\" inputNumber=\"0\" />").count - 1
+        XCTAssertEqual(orderMatches, 2, "两个有序列表都应该有 inputNumber=\"0\"")
+    }
 }

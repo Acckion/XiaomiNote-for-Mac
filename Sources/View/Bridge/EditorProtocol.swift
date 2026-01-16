@@ -2,7 +2,7 @@
 //  EditorProtocol.swift
 //  MiNoteMac
 //
-//  编辑器协议定义 - 统一原生编辑器和 Web 编辑器的接口
+//  编辑器协议定义 - 定义原生编辑器的统一接口
 //
 
 import Foundation
@@ -130,12 +130,7 @@ class EditorFactory {
         }
         
         do {
-            switch type {
-            case .native:
-                return try createNativeEditor()
-            case .web:
-                return try createWebEditor()
-            }
+            return try createNativeEditor()
         } catch {
             throw EditorCreationError.initializationFailed(type, error)
         }
@@ -143,39 +138,18 @@ class EditorFactory {
     
     /// 创建编辑器实例（安全版本，带回退机制）
     /// - Parameter type: 编辑器类型
-    /// - Returns: 编辑器实例，如果创建失败则返回 Web 编辑器作为回退
-    static func createEditorSafely(type: EditorType) -> EditorProtocol {
-        do {
-            return try createEditor(type: type)
-        } catch {
-            print("[EditorFactory] 创建 \(type.displayName) 失败: \(error.localizedDescription)，回退到 Web 编辑器")
-            
-            // 如果原生编辑器创建失败，回退到 Web 编辑器
-            if type == .native {
-                do {
-                    return try createWebEditor()
-                } catch {
-                    print("[EditorFactory] Web 编辑器创建也失败: \(error.localizedDescription)")
-                    // 最后的回退：创建一个基础的 Web 编辑器实例
-                    return WebEditor()
-                }
-            } else {
-                // Web 编辑器创建失败，返回基础实例
-                return WebEditor()
-            }
-        }
+    /// - Returns: 编辑器实例
+    /// - Throws: EditorCreationError 如果创建失败
+    /// - Note: 实际的编辑器实现在 NativeEditorContext 中
+    static func createEditorSafely(type: EditorType) throws -> EditorProtocol {
+        return try createEditor(type: type)
     }
     
     /// 检查编辑器类型是否可用
     /// - Parameter type: 编辑器类型
     /// - Returns: 是否可用
     static func isEditorAvailable(_ type: EditorType) -> Bool {
-        switch type {
-        case .native:
-            return checkNativeEditorSupport()
-        case .web:
-            return checkWebEditorSupport()
-        }
+        return checkNativeEditorSupport()
     }
     
     /// 获取所有可用的编辑器类型
@@ -215,6 +189,7 @@ class EditorFactory {
     /// 创建原生编辑器
     /// - Returns: 原生编辑器实例
     /// - Throws: EditorCreationError
+    /// - Note: 实际的原生编辑器实现在 NativeEditorContext 中，此方法仅用于验证系统支持
     private static func createNativeEditor() throws -> EditorProtocol {
         // 检查系统版本
         guard #available(macOS 13.0, *) else {
@@ -226,28 +201,9 @@ class EditorFactory {
             throw EditorCreationError.systemRequirementsNotMet(.native, "NSTextAttachment 不可用")
         }
         
-        let editor = NativeEditor()
-        
-        // 验证编辑器是否正确初始化
-        guard editor.isAvailable() else {
-            throw EditorCreationError.initializationFailed(.native, NSError(domain: "EditorFactory", code: -1, userInfo: [NSLocalizedDescriptionKey: "编辑器初始化验证失败"]))
-        }
-        
-        return editor
-    }
-    
-    /// 创建 Web 编辑器
-    /// - Returns: Web 编辑器实例
-    /// - Throws: EditorCreationError
-    private static func createWebEditor() throws -> EditorProtocol {
-        let editor = WebEditor()
-        
-        // 验证编辑器是否正确初始化
-        guard editor.isAvailable() else {
-            throw EditorCreationError.initializationFailed(.web, NSError(domain: "EditorFactory", code: -1, userInfo: [NSLocalizedDescriptionKey: "Web 编辑器初始化验证失败"]))
-        }
-        
-        return editor
+        // 原生编辑器的实际实现在 NativeEditorContext 中
+        // 此工厂方法不直接创建编辑器实例，而是由 UnifiedEditorWrapper 管理
+        throw EditorCreationError.initializationFailed(.native, NSError(domain: "EditorFactory", code: -1, userInfo: [NSLocalizedDescriptionKey: "请使用 NativeEditorContext 创建原生编辑器"]))
     }
     
     /// 检查原生编辑器支持
@@ -264,13 +220,6 @@ class EditorFactory {
         }
         print("[EditorFactory] checkNativeEditorSupport: macOS 13.0+ 不可用")
         return false
-    }
-    
-    /// 检查 Web 编辑器支持
-    /// - Returns: 是否支持 Web 编辑器
-    private static func checkWebEditorSupport() -> Bool {
-        // Web 编辑器总是可用
-        return true
     }
 }
 
@@ -291,191 +240,5 @@ struct EditorInfo {
     
     var icon: String {
         return type.icon
-    }
-}
-/// 原生编辑器实现（占位符）
-class NativeEditor: EditorProtocol {
-    
-    // MARK: - Private Properties
-    
-    private let contentChangeSubject = PassthroughSubject<String, Never>()
-    private let selectionChangeSubject = PassthroughSubject<NSRange, Never>()
-    private let formatChangeSubject = PassthroughSubject<Set<TextFormat>, Never>()
-    
-    private var currentContent: String = ""
-    private var currentSelection: NSRange = NSRange(location: 0, length: 0)
-    private var currentFormats: Set<TextFormat> = []
-    private var isFocused: Bool = false
-    
-    // MARK: - Publishers
-    
-    var contentChangePublisher: AnyPublisher<String, Never> {
-        contentChangeSubject.eraseToAnyPublisher()
-    }
-    
-    var selectionChangePublisher: AnyPublisher<NSRange, Never> {
-        selectionChangeSubject.eraseToAnyPublisher()
-    }
-    
-    var formatChangePublisher: AnyPublisher<Set<TextFormat>, Never> {
-        formatChangeSubject.eraseToAnyPublisher()
-    }
-    
-    // MARK: - Content Management
-    
-    func loadContent(_ content: String) {
-        currentContent = content
-        contentChangeSubject.send(content)
-    }
-    
-    func getContent() -> String {
-        return currentContent
-    }
-    
-    func clearContent() {
-        loadContent("")
-    }
-    
-    // MARK: - Format Operations
-    
-    func applyFormat(_ format: TextFormat) {
-        if currentFormats.contains(format) {
-            currentFormats.remove(format)
-        } else {
-            currentFormats.insert(format)
-        }
-        formatChangeSubject.send(currentFormats)
-    }
-    
-    func insertSpecialElement(_ element: SpecialElement) {
-        // TODO: 实现特殊元素插入
-    }
-    
-    func getCurrentFormats() -> Set<TextFormat> {
-        return currentFormats
-    }
-    
-    // MARK: - Selection and Cursor
-    
-    func getSelectedRange() -> NSRange {
-        return currentSelection
-    }
-    
-    func setSelectedRange(_ range: NSRange) {
-        currentSelection = range
-        selectionChangeSubject.send(range)
-    }
-    
-    func getCursorPosition() -> Int {
-        return currentSelection.location
-    }
-    
-    func setCursorPosition(_ position: Int) {
-        setSelectedRange(NSRange(location: position, length: 0))
-    }
-    
-    // MARK: - Focus and State
-    
-    func setFocus(_ focused: Bool) {
-        isFocused = focused
-    }
-    
-    func hasFocus() -> Bool {
-        return isFocused
-    }
-    
-    func isAvailable() -> Bool {
-        return EditorFactory.isEditorAvailable(.native)
-    }
-}
-
-/// Web 编辑器实现（占位符）
-class WebEditor: EditorProtocol {
-    
-    // MARK: - Private Properties
-    
-    private let contentChangeSubject = PassthroughSubject<String, Never>()
-    private let selectionChangeSubject = PassthroughSubject<NSRange, Never>()
-    private let formatChangeSubject = PassthroughSubject<Set<TextFormat>, Never>()
-    
-    // MARK: - Publishers
-    
-    var contentChangePublisher: AnyPublisher<String, Never> {
-        contentChangeSubject.eraseToAnyPublisher()
-    }
-    
-    var selectionChangePublisher: AnyPublisher<NSRange, Never> {
-        selectionChangeSubject.eraseToAnyPublisher()
-    }
-    
-    var formatChangePublisher: AnyPublisher<Set<TextFormat>, Never> {
-        formatChangeSubject.eraseToAnyPublisher()
-    }
-    
-    // MARK: - Content Management
-    
-    func loadContent(_ content: String) {
-        // TODO: 委托给现有的 WebEditorContext
-        contentChangeSubject.send(content)
-    }
-    
-    func getContent() -> String {
-        // TODO: 从现有的 WebEditorContext 获取内容
-        return ""
-    }
-    
-    func clearContent() {
-        loadContent("")
-    }
-    
-    // MARK: - Format Operations
-    
-    func applyFormat(_ format: TextFormat) {
-        // TODO: 委托给现有的 Web 编辑器
-        formatChangeSubject.send([])
-    }
-    
-    func insertSpecialElement(_ element: SpecialElement) {
-        // TODO: 委托给现有的 Web 编辑器
-    }
-    
-    func getCurrentFormats() -> Set<TextFormat> {
-        // TODO: 从现有的 Web 编辑器获取格式
-        return []
-    }
-    
-    // MARK: - Selection and Cursor
-    
-    func getSelectedRange() -> NSRange {
-        // TODO: 从现有的 Web 编辑器获取选择范围
-        return NSRange(location: 0, length: 0)
-    }
-    
-    func setSelectedRange(_ range: NSRange) {
-        // TODO: 设置 Web 编辑器选择范围
-        selectionChangeSubject.send(range)
-    }
-    
-    func getCursorPosition() -> Int {
-        return getSelectedRange().location
-    }
-    
-    func setCursorPosition(_ position: Int) {
-        setSelectedRange(NSRange(location: position, length: 0))
-    }
-    
-    // MARK: - Focus and State
-    
-    func setFocus(_ focused: Bool) {
-        // TODO: 设置 Web 编辑器焦点
-    }
-    
-    func hasFocus() -> Bool {
-        // TODO: 检查 Web 编辑器焦点
-        return false
-    }
-    
-    func isAvailable() -> Bool {
-        return true
     }
 }

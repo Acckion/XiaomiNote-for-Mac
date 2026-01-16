@@ -78,8 +78,6 @@ class AppStateManager {
     /// - OnlineStateManager 的网络状态变化回调
     /// - 登录成功通知
     /// - Cookie 刷新成功通知
-    /// 
-    /// _Requirements: 2.1, 5.1, 5.2, 8.6_
     private func setupComponentConnections() {
         print("[AppStateManager] 设置组件连接...")
         
@@ -112,18 +110,13 @@ class AppStateManager {
     }
     
     /// 处理在线状态变化
-    /// 
-    /// _Requirements: 8.6_
     private func handleOnlineStatusChange(isOnline: Bool) {
         print("[AppStateManager] 在线状态变化: \(isOnline ? "在线" : "离线")")
-        
         // 在线状态变化时，NetworkRecoveryHandler 会自动处理离线队列
         // 这里可以添加额外的应用级别处理逻辑
     }
     
     /// 处理启动序列完成通知
-    /// 
-    /// _Requirements: 2.4_
     private func handleStartupSequenceCompleted(_ notification: Notification) {
         let success = notification.userInfo?["success"] as? Bool ?? false
         let duration = notification.userInfo?["duration"] as? TimeInterval ?? 0
@@ -134,8 +127,6 @@ class AppStateManager {
     }
     
     /// 处理网络恢复处理完成通知
-    /// 
-    /// _Requirements: 8.6_
     private func handleNetworkRecoveryProcessingCompleted(_ notification: Notification) {
         let successCount = notification.userInfo?["successCount"] as? Int ?? 0
         let failedCount = notification.userInfo?["failedCount"] as? Int ?? 0

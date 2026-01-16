@@ -92,9 +92,6 @@ public class NotesViewModel: ObservableObject {
     /// 是否显示回收站视图
     @Published var showTrashView: Bool = false
     
-    /// Web编辑器上下文（共享实例）
-    @Published var webEditorContext = WebEditorContext()
-    
     /// 原生编辑器上下文（共享实例）
     /// 需求: 1.1, 1.3 - 在 MainWindowController 和 NoteDetailView 之间共享
     @Published var nativeEditorContext = NativeEditorContext()
@@ -109,7 +106,6 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// 负责协调侧边栏、笔记列表和编辑器之间的状态同步
     /// 
-    /// **Requirements: 4.1, 4.2**
     /// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
     /// - 4.2: selectedFolder 变化时按顺序更新 Notes_List_View 和 Editor
     public private(set) lazy var stateCoordinator: ViewStateCoordinator = {
@@ -248,11 +244,55 @@ public class NotesViewModel: ObservableObject {
     @MainActor
     private let offlineProcessor = OfflineOperationProcessor.shared
     
+    /// 新的操作处理器（用于观察处理状态）
+    /// 替代 offlineProcessor，基于 UnifiedOperationQueue
+    @MainActor
+    private let operationProcessor = OperationProcessor.shared
+    
     // MARK: - 离线操作状态
     
-    /// 待处理的离线操作数量
+    /// 待处理的离线操作数量（使用新的 UnifiedOperationQueue）
     var pendingOperationsCount: Int {
-        offlineQueue.getPendingOperations().count
+        unifiedQueue.getPendingOperations().count
+    }
+    
+    /// 统一操作队列待上传数量
+    /// _需求: 6.1, 6.2_
+    var unifiedPendingUploadCount: Int {
+        unifiedQueue.getPendingUploadCount()
+    }
+    
+    /// 是否正在处理操作（从新的 OperationProcessor 获取）
+    @Published var isProcessingOperations: Bool = false
+    
+    /// 操作处理进度（0.0 - 1.0）
+    @Published var operationProgress: Double = 0.0
+    
+    /// 操作处理状态消息
+    @Published var operationStatusMessage: String = ""
+    
+    /// 统一操作队列所有待上传笔记 ID
+    /// _需求: 6.1_
+    var unifiedPendingNoteIds: [String] {
+        unifiedQueue.getAllPendingNoteIds()
+    }
+    
+    /// 临时 ID 笔记数量（离线创建的笔记）
+    /// _需求: 6.1_
+    var temporaryIdNoteCount: Int {
+        unifiedQueue.getTemporaryIdNoteCount()
+    }
+    
+    /// 检查笔记是否有待处理上传
+    /// _需求: 6.2_
+    func hasPendingUpload(for noteId: String) -> Bool {
+        unifiedQueue.hasPendingUpload(for: noteId)
+    }
+    
+    /// 检查笔记是否使用临时 ID（离线创建）
+    /// _需求: 6.2_
+    func isTemporaryIdNote(_ noteId: String) -> Bool {
+        NoteOperation.isTemporaryId(noteId)
     }
     
     /// 是否正在处理离线操作
@@ -304,8 +344,12 @@ public class NotesViewModel: ObservableObject {
     /// 网络监控服务
     private let networkMonitor = NetworkMonitor.shared
     
-    /// 离线操作队列
-    private let offlineQueue = OfflineOperationQueue.shared
+    /// 统一操作队列（新的队列，用于主要功能）
+    private let unifiedQueue = UnifiedOperationQueue.shared
+    
+    /// 旧的离线操作队列（已废弃，仅用于兼容旧的文件夹操作等逻辑）
+    @available(*, deprecated, message: "使用 unifiedQueue 替代")
+    private let legacyOfflineQueue = OfflineOperationQueue.shared
     
     /// Combine订阅集合
     private var cancellables = Set<AnyCancellable>()
@@ -448,15 +492,37 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 根据排序方式和方向对笔记进行排序
+    /// 
+    /// 使用稳定排序：当主排序键相同时，使用 id 作为次要排序键，
+    /// 确保排序结果的一致性，避免不必要的列表重排和动画。
     private func sortNotes(_ notes: [Note], by sortOrder: NoteSortOrder, direction: SortDirection) -> [Note] {
         let sorted: [Note]
         switch sortOrder {
         case .editDate:
-            sorted = notes.sorted { $0.updatedAt < $1.updatedAt }
+            // 使用稳定排序：先按 updatedAt 排序，相同时按 id 排序
+            sorted = notes.sorted { 
+                if $0.updatedAt == $1.updatedAt {
+                    return $0.id < $1.id
+                }
+                return $0.updatedAt < $1.updatedAt 
+            }
         case .createDate:
-            sorted = notes.sorted { $0.createdAt < $1.createdAt }
+            // 使用稳定排序：先按 createdAt 排序，相同时按 id 排序
+            sorted = notes.sorted { 
+                if $0.createdAt == $1.createdAt {
+                    return $0.id < $1.id
+                }
+                return $0.createdAt < $1.createdAt 
+            }
         case .title:
-            sorted = notes.sorted { $0.title.localizedCompare($1.title) == .orderedAscending }
+            // 使用稳定排序：先按 title 排序，相同时按 id 排序
+            sorted = notes.sorted { 
+                let comparison = $0.title.localizedCompare($1.title)
+                if comparison == .orderedSame {
+                    return $0.id < $1.id
+                }
+                return comparison == .orderedAscending
+            }
         }
         
         // 根据排序方向决定是否反转
@@ -526,8 +592,13 @@ public class NotesViewModel: ObservableObject {
         
         // 监听selectedNote和selectedFolder变化，保存状态
         Publishers.CombineLatest($selectedNote, $selectedFolder)
-            .sink { [weak self] _, _ in
+            .sink { [weak self] selectedNote, _ in
                 self?.saveLastSelectedState()
+                
+                // 处理笔记切换时的音频面板状态同步 
+                if let newNoteId = selectedNote?.id {
+                    self?.handleNoteSwitch(to: newNoteId)
+                }
             }
             .store(in: &cancellables)
         
@@ -582,6 +653,22 @@ public class NotesViewModel: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in
                 await self?.handleCookieRefreshSuccess()
+            }
+        }
+        
+        // 监听 ID 映射完成通知
+        // _Requirements: 8.7_ - 更新 UI 中的笔记引用（selectedNote 等）
+        NotificationCenter.default.addObserver(
+            forName: IdMappingRegistry.idMappingCompletedNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            // 提取通知中的 ID 映射信息
+            let localId = notification.userInfo?["localId"] as? String ?? ""
+            let serverId = notification.userInfo?["serverId"] as? String ?? ""
+            let entityType = notification.userInfo?["entityType"] as? String ?? ""
+            Task { @MainActor in
+                self?.handleIdMappingCompleted(localId: localId, serverId: serverId, entityType: entityType)
             }
         }
         
@@ -687,15 +774,13 @@ public class NotesViewModel: ObservableObject {
         authStateManager.$showCookieRefreshView
             .assign(to: &$showCookieRefreshView)
         
-        // 同步 ViewStateCoordinator 的状态到 ViewModel
-        // **Requirements: 1.1, 1.2, 4.1**
+        // 同步 ViewStateCoordinator 的状态到 ViewModel 
         // - 1.1: 编辑笔记内容时保持选中状态不变
         // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
         // - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
         setupStateCoordinatorSync()
         
-        // 同步数据加载状态指示
-        // **Requirements: 7.1, 7.2, 7.3, 7.4, 7.5**
+        // 同步数据加载状态指示 
         setupDataLoadingStatusSync()
     }
     
@@ -703,7 +788,6 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// 通过 Combine 将 OfflineOperationProcessor、StartupSequenceManager 和 OnlineStateManager 的状态同步到 ViewModel
     /// 
-    /// **Requirements: 7.1, 7.2, 7.3, 7.4, 7.5**
     /// - 7.1: 加载指示器状态
     /// - 7.2: 离线队列处理进度状态
     /// - 7.3: 同步进度和状态消息
@@ -722,6 +806,46 @@ public class NotesViewModel: ObservableObject {
         offlineProcessor.$statusMessage
             .receive(on: DispatchQueue.main)
             .assign(to: &$offlineQueueStatusMessage)
+        
+        offlineProcessor.$processedCount
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$offlineQueueProcessedCount)
+        
+        // 监听新的 OperationProcessor 状态
+        // 由于 OperationProcessor 是 actor，使用定时器定期更新
+        Timer.publish(every: 1.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    
+                    // 更新处理状态
+                    self.isProcessingOperations = await self.operationProcessor.isProcessing
+                    
+                    // 更新进度
+                    let stats = self.unifiedQueue.getStatistics()
+                    let totalCount = stats["pending", default: 0] + 
+                                   stats["processing", default: 0] + 
+                                   stats["failed", default: 0]
+                    let processedCount = stats["completed", default: 0]
+                    
+                    if totalCount + processedCount > 0 {
+                        self.operationProgress = Double(processedCount) / Double(totalCount + processedCount)
+                    } else {
+                        self.operationProgress = 0.0
+                    }
+                    
+                    // 更新状态消息
+                    if self.isProcessingOperations {
+                        self.operationStatusMessage = "正在处理操作..."
+                    } else if totalCount > 0 {
+                        self.operationStatusMessage = "等待处理 \(totalCount) 个操作"
+                    } else {
+                        self.operationStatusMessage = ""
+                    }
+                }
+            }
+            .store(in: &cancellables)
         
         offlineProcessor.$processedCount
             .receive(on: DispatchQueue.main)
@@ -798,7 +922,6 @@ public class NotesViewModel: ObservableObject {
     /// 通过 Combine 将 ViewStateCoordinator 的 @Published 属性同步到 ViewModel 的 @Published 属性
     /// 这样 ViewStateCoordinator 的状态变化会自动触发 ViewModel 的状态更新，进而触发 UI 更新
     /// 
-    /// **Requirements: 1.1, 1.2, 4.1**
     /// - 1.1: 编辑笔记内容时保持选中状态不变
     /// - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
     /// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
@@ -857,7 +980,6 @@ public class NotesViewModel: ObservableObject {
     /// 通过 Combine 将 ViewOptionsManager 的排序设置同步到 ViewModel 的排序属性
     /// 确保画廊视图和列表视图使用相同的排序设置
     /// 
-    /// **Requirements: 8.1, 8.3, 8.4, 8.5**
     /// - 8.1: 文件夹切换时画廊视图更新
     /// - 8.3: 搜索时画廊视图过滤
     /// - 8.4: 画廊视图尊重所有搜索筛选选项
@@ -1011,8 +1133,8 @@ public class NotesViewModel: ObservableObject {
         print("[OfflineQueue] 统一处理错误并添加到离线队列: \(operationType.rawValue), noteId: \(noteId), context: \(context)")
         
         // 使用 ErrorRecoveryService 统一处理错误（需求 8.1, 8.7）
-        // 获取当前重试次数（从离线队列中查找）
-        let pendingOps = offlineQueue.getPendingOperations()
+        // 获取当前重试次数（从旧的离线队列中查找）
+        let pendingOps = legacyOfflineQueue.getPendingOperations()
         let existingOp = pendingOps.first { $0.noteId == noteId && $0.type == operationType }
         let currentRetryCount = existingOp?.retryCount ?? 0
         
@@ -1073,7 +1195,7 @@ public class NotesViewModel: ObservableObject {
                 data: operationData,
                 priority: operationPriority
             )
-            try offlineQueue.addOperation(operation)
+            try legacyOfflineQueue.addOperation(operation)
             return true
         } catch {
             print("[OfflineQueue] ❌ 编码操作数据失败: \(error)")
@@ -1152,7 +1274,8 @@ public class NotesViewModel: ObservableObject {
             return
         }
         
-        let operations = offlineQueue.getPendingOperations()
+        // 使用旧的离线队列处理待处理操作（因为这些操作使用旧的 OfflineOperation 类型）
+        let operations = legacyOfflineQueue.getPendingOperations()
         guard !operations.isEmpty else {
             print("[VIEWMODEL] 没有待处理的离线操作")
             return
@@ -1182,7 +1305,7 @@ public class NotesViewModel: ObservableObject {
                 }
                 
                 // 操作成功，移除
-                try offlineQueue.removeOperation(operation.id)
+                try legacyOfflineQueue.removeOperation(operation.id)
                 print("[VIEWMODEL] ✅ 成功处理离线操作: \(operation.type.rawValue), noteId: \(operation.noteId)")
             } catch {
                 handleOfflineOperationError(operation, error: error, context: "处理离线操作")
@@ -1676,34 +1799,16 @@ public class NotesViewModel: ObservableObject {
         do {
             let localNotes = try localStorage.getAllLocalNotes()
             if !localNotes.isEmpty {
-                // 有本地数据，直接加载
-                // _Requirements: 1.1 - 登录状态下首先从本地数据库加载数据
                 self.notes = localNotes
                 print("[NotesViewModel] 从本地存储加载了 \(localNotes.count) 条笔记")
-            } else if isUserLoggedIn {
-                // 登录状态下，本地数据库为空，显示空列表
-                // _Requirements: 1.2 - 登录状态下本地数据库为空时显示空列表而非示例数据
+            } else  {
                 self.notes = []
-                print("[NotesViewModel] 登录状态下本地数据库为空，显示空列表")
-            } else {
-                // 未登录状态下，加载示例数据
-                // _Requirements: 1.3 - 未登录状态下加载示例数据作为演示内容
-                loadSampleData()
-                print("[NotesViewModel] 未登录状态，加载示例数据")
-            }
+                print("[NotesViewModel] 无笔记数据，显示空列表")
+            } 
         } catch {
             // _Requirements: 1.5 - 加载本地数据时发生错误，记录错误日志并显示空列表
             print("[NotesViewModel] 加载本地数据失败: \(error)")
-            
-            if isUserLoggedIn {
-                // 登录状态下，加载失败显示空列表
-                self.notes = []
-                print("[NotesViewModel] 登录状态下加载失败，显示空列表")
-            } else {
-                // 未登录状态下，加载示例数据作为后备
-                loadSampleData()
-                print("[NotesViewModel] 未登录状态下加载失败，加载示例数据")
-            }
+            self.notes = []
         }
         
         // 加载文件夹（优先从本地存储加载）
@@ -1772,111 +1877,10 @@ public class NotesViewModel: ObservableObject {
                 objectWillChange.send()
             } else {
                 // 如果没有本地文件夹数据，加载示例数据
-                loadSampleFolders()
+                // loadSampleFolders()
             }
         } catch {
             print("[VIEWMODEL] 加载文件夹失败: \(error)")
-        }
-    }
-    
-    private func loadSampleData() {
-        // 使用XML格式的示例数据，匹配小米笔记真实格式
-        // 注意：这里使用与真实数据相同的格式，便于测试和开发
-        let sampleXMLContent = """
-        <new-format/><text indent="1"><size>一级标题</size></text>
-        <text indent="1"><mid-size>二级标题</mid-size></text>
-        <text indent="1"><h3-size>三级标题</h3-size></text>
-        <text indent="1"><b>加粗</b></text>
-        <text indent="1"><i>斜体</i></text>
-        <text indent="1"><b><i>加粗斜体</i></b></text>
-        <text indent="1"><size><b>一级标题加粗</b></size></text>
-        <text indent="1"><size><i>一级标题斜体</i></size></text>
-        <text indent="1"><size><b><i>一级标题加粗斜体</i></b></size></text>
-        <text indent="1"><background color="#9affe8af">高亮</background></text>
-        <text indent="1">普通文本段落，包含各种格式的示例内容。</text>
-        """
-        
-        // 创建示例笔记，使用与真实数据相同的结构
-        let now = Date()
-        self.notes = [
-            Note(
-                id: "sample-1",
-                title: "购物清单",
-                content: sampleXMLContent,
-                folderId: "2",
-                isStarred: false,
-                createdAt: now,
-                updatedAt: now,
-                rawData: [
-                    "id": "sample-1",
-                    "title": "购物清单",
-                    "content": sampleXMLContent,
-                    "snippet": sampleXMLContent,
-                    "folderId": "2",
-                    "isStarred": false,
-                    "createDate": Int(now.timeIntervalSince1970 * 1000),
-                    "modifyDate": Int(now.timeIntervalSince1970 * 1000),
-                    "type": "note",
-                    "status": "normal"
-                ]
-            ),
-            Note(
-                id: "sample-2",
-                title: "会议记录",
-                content: sampleXMLContent,
-                folderId: "1",
-                isStarred: true,
-                createdAt: now,
-                updatedAt: now,
-                rawData: [
-                    "id": "sample-2",
-                    "title": "会议记录",
-                    "content": sampleXMLContent,
-                    "snippet": sampleXMLContent,
-                    "folderId": "1",
-                    "isStarred": true,
-                    "createDate": Int(now.timeIntervalSince1970 * 1000),
-                    "modifyDate": Int(now.timeIntervalSince1970 * 1000),
-                    "type": "note",
-                    "status": "normal"
-                ]
-            ),
-            Note(
-                id: "sample-3",
-                title: "旅行计划",
-                content: sampleXMLContent,
-                folderId: "2",
-                isStarred: false,
-                createdAt: now,
-                updatedAt: now,
-                rawData: [
-                    "id": "sample-3",
-                    "title": "旅行计划",
-                    "content": sampleXMLContent,
-                    "snippet": sampleXMLContent,
-                    "folderId": "2",
-                    "isStarred": false,
-                    "createDate": Int(now.timeIntervalSince1970 * 1000),
-                    "modifyDate": Int(now.timeIntervalSince1970 * 1000),
-                    "type": "note",
-                    "status": "normal"
-                ]
-            )
-        ]
-    }
-    
-    private func loadSampleFolders() {
-        // 临时示例文件夹数据
-        self.folders = [
-            Folder(id: "0", name: "所有笔记", count: notes.count, isSystem: true),
-            Folder(id: "starred", name: "置顶", count: notes.filter { $0.isStarred }.count, isSystem: true),
-            Folder(id: "1", name: "工作", count: notes.filter { $0.folderId == "1" }.count),
-            Folder(id: "2", name: "个人", count: notes.filter { $0.folderId == "2" }.count)
-        ]
-        
-        // 默认选择第一个文件夹
-        if selectedFolder == nil {
-            selectedFolder = folders.first
         }
     }
     
@@ -2107,6 +2111,71 @@ public class NotesViewModel: ObservableObject {
         }
     }
     
+    /// 处理 ID 映射完成通知
+    ///
+    /// 当离线创建的笔记上传成功后，临时 ID 会被替换为云端下发的正式 ID。
+    /// 此方法更新 ViewModel 中的相关引用。
+    ///
+    /// - Parameters:
+    ///   - localId: 临时 ID（格式：local_xxx）
+    ///   - serverId: 云端下发的正式 ID
+    ///   - entityType: 实体类型（"note" 或 "folder"）
+    ///
+    /// **需求覆盖**：
+    /// - 需求 8.7: 更新 UI 中的笔记引用（selectedNote 等）
+    private func handleIdMappingCompleted(localId: String, serverId: String, entityType: String) {
+        print("[NotesViewModel] 🔄 处理 ID 映射完成: \(localId.prefix(16))... -> \(serverId.prefix(8))... (\(entityType))")
+        
+        guard entityType == "note" else {
+            // 文件夹 ID 映射暂不处理
+            print("[NotesViewModel] ⏭️ 跳过文件夹 ID 映射")
+            return
+        }
+        
+        // 1. 更新 selectedNote
+        if selectedNote?.id == localId {
+            // 创建新的笔记对象，使用正式 ID
+            if var updatedNote = selectedNote {
+                updatedNote = Note(
+                    id: serverId,
+                    title: updatedNote.title,
+                    content: updatedNote.content,
+                    folderId: updatedNote.folderId,
+                    isStarred: updatedNote.isStarred,
+                    createdAt: updatedNote.createdAt,
+                    updatedAt: updatedNote.updatedAt,
+                    tags: updatedNote.tags,
+                    rawData: updatedNote.rawData
+                )
+                selectedNote = updatedNote
+                print("[NotesViewModel] ✅ 更新 selectedNote ID: \(localId.prefix(16))... -> \(serverId.prefix(8))...")
+            }
+        }
+        
+        // 2. 更新 notes 数组中的引用
+        if let index = notes.firstIndex(where: { $0.id == localId }) {
+            let oldNote = notes[index]
+            let updatedNote = Note(
+                id: serverId,
+                title: oldNote.title,
+                content: oldNote.content,
+                folderId: oldNote.folderId,
+                isStarred: oldNote.isStarred,
+                createdAt: oldNote.createdAt,
+                updatedAt: oldNote.updatedAt,
+                tags: oldNote.tags,
+                rawData: oldNote.rawData
+            )
+            notes[index] = updatedNote
+            print("[NotesViewModel] ✅ 更新 notes 数组中的笔记 ID: \(localId.prefix(16))... -> \(serverId.prefix(8))...")
+        }
+        
+        // 3. 通知 UI 更新
+        objectWillChange.send()
+        
+        print("[NotesViewModel] ✅ ID 映射处理完成")
+    }
+    
     /// 清除示例数据（如果有）
     /// 
     /// 检查当前笔记是否为示例数据，如果是则清除
@@ -2284,6 +2353,11 @@ public class NotesViewModel: ObservableObject {
     }
     
     /// 同步后重新加载本地数据
+    /// 
+    /// **关键修复**：如果用户正在编辑笔记且有未保存的更改，不更新 selectedNote 的内容
+    /// 这样可以防止云端同步覆盖用户正在编辑的内容
+    /// 
+    /// **统一操作队列集成**：使用 NoteOperationCoordinator 检查活跃编辑状态
     private func loadLocalDataAfterSync() async {
         print("[FolderRename] ========== loadLocalDataAfterSync() 开始 ==========")
         print("[FolderRename] 同步前 folders 数组数量: \(folders.count)")
@@ -2292,6 +2366,27 @@ public class NotesViewModel: ObservableObject {
         do {
             // 保存当前选中的笔记ID
             let currentSelectedNoteId = selectedNote?.id
+            
+            // 关键修复：检查原生编辑器是否有未保存的更改
+            // 如果有未保存的更改，不应该用云端数据覆盖用户正在编辑的内容
+            let hasUnsavedChanges = nativeEditorContext.hasUnsavedChanges
+            
+            // 🛡️ 统一操作队列集成：检查笔记是否正在活跃编辑
+            let isActivelyEditing: Bool
+            if let noteId = currentSelectedNoteId {
+                isActivelyEditing = await NoteOperationCoordinator.shared.isNoteActivelyEditing(noteId)
+            } else {
+                isActivelyEditing = false
+            }
+            
+            // 🛡️ 统一操作队列集成：检查笔记是否在待上传列表中
+            // 使用 UnifiedOperationQueue 替代废弃的 PendingUploadRegistry
+            let isPendingUpload: Bool
+            if let noteId = currentSelectedNoteId {
+                isPendingUpload = UnifiedOperationQueue.shared.hasPendingUpload(for: noteId)
+            } else {
+                isPendingUpload = false
+            }
             
             let localNotes = try localStorage.getAllLocalNotes()
             self.notes = localNotes
@@ -2306,10 +2401,25 @@ public class NotesViewModel: ObservableObject {
             // 如果之前有选中的笔记，更新为重新加载的版本（确保内容是最新的）
             if let noteId = currentSelectedNoteId,
                let updatedNote = localNotes.first(where: { $0.id == noteId }) {
-                // 更新选中的笔记，这会触发 NoteDetailView 的 onChange
-                await MainActor.run {
-                    self.selectedNote = updatedNote
-                    print("[VIEWMODEL] 同步后更新选中笔记: \(noteId)")
+                
+                // 关键修复：如果用户正在编辑且有未保存的更改，跳过更新 selectedNote
+                // 这样可以防止云端同步覆盖用户正在编辑的内容 
+                // 🛡️ 统一操作队列集成：增加活跃编辑和待上传检查
+                let shouldSkipUpdate = hasUnsavedChanges || isActivelyEditing || isPendingUpload
+                
+                if shouldSkipUpdate {
+                    print("[VIEWMODEL] ⚠️ 同步后跳过更新选中笔记 - 同步保护生效")
+                    print("[VIEWMODEL]   - 笔记ID: \(noteId)")
+                    print("[VIEWMODEL]   - hasUnsavedChanges: \(hasUnsavedChanges)")
+                    print("[VIEWMODEL]   - isActivelyEditing: \(isActivelyEditing)")
+                    print("[VIEWMODEL]   - isPendingUpload: \(isPendingUpload)")
+                    // 不更新 selectedNote，保留用户正在编辑的内容
+                } else {
+                    // 没有未保存的更改，可以安全地更新 selectedNote
+                    await MainActor.run {
+                        self.selectedNote = updatedNote
+                        print("[VIEWMODEL] 同步后更新选中笔记: \(noteId)")
+                    }
                 }
             } else {
                 // 如果没有选中的笔记，尝试恢复上次选中的状态
@@ -2413,14 +2523,47 @@ public class NotesViewModel: ObservableObject {
     /// **统一接口**：推荐使用此方法创建笔记，而不是直接调用API
     /// 
     /// **特性**：
-    /// - 支持离线模式：如果离线，会保存到本地并添加到离线队列
+    /// - 支持离线模式：如果离线，使用 NoteOperationCoordinator.createNoteOffline() 创建临时 ID 笔记
     /// - 自动处理ID变更：如果服务器返回新的ID，会自动更新本地笔记
     /// - 自动更新UI：创建后会自动更新笔记列表和文件夹计数
+    /// 
+    /// **统一操作队列集成**：
+    /// - 离线时使用 NoteOperationCoordinator.createNoteOffline() 生成临时 ID
+    /// - 在线时直接调用 API 创建笔记
+    /// - 需求 8.1: 离线时调用 createNoteOffline()
     /// 
     /// - Parameter note: 要创建的笔记对象
     /// - Throws: 创建失败时抛出错误（网络错误、认证错误等）
     public func createNote(_ note: Note) async throws {
-        // 先保存到本地（无论在线还是离线）
+        // 检查是否离线或未认证
+        // 需求 8.1: 离线时调用 createNoteOffline()，在线时直接创建
+        if !isOnline || !service.isAuthenticated() {
+            // 离线模式：使用 NoteOperationCoordinator 创建临时 ID 笔记
+            print("[VIEWMODEL] 📴 离线模式：使用 NoteOperationCoordinator.createNoteOffline()")
+            
+            do {
+                let offlineNote = try await NoteOperationCoordinator.shared.createNoteOffline(
+                    title: note.title,
+                    content: note.content,
+                    folderId: note.folderId
+                )
+                
+                // 更新视图数据
+                if !notes.contains(where: { $0.id == offlineNote.id }) {
+                    notes.append(offlineNote)
+                }
+                selectedNote = offlineNote
+                updateFolderCounts()
+                
+                print("[VIEWMODEL] ✅ 离线笔记创建成功，临时 ID: \(offlineNote.id.prefix(16))...")
+            } catch {
+                print("[VIEWMODEL] ❌ 离线笔记创建失败: \(error)")
+                throw error
+            }
+            return
+        }
+        
+        // 在线模式：先保存到本地，然后上传到云端
         try localStorage.saveNote(note)
         
         // 更新视图数据
@@ -2429,23 +2572,6 @@ public class NotesViewModel: ObservableObject {
         }
         selectedNote = note
         updateFolderCounts()
-        
-        // 如果离线或未认证，添加到离线队列
-        if !isOnline || !service.isAuthenticated() {
-            let operationData = try JSONEncoder().encode([
-                "title": note.title,
-                "content": note.content,
-                "folderId": note.folderId
-            ])
-            let operation = OfflineOperation(
-                type: .createNote,
-                noteId: note.id,
-                data: operationData
-            )
-            try offlineQueue.addOperation(operation)
-            print("[VIEWMODEL] 离线模式：笔记已保存到本地，等待同步: \(note.id)")
-            return
-        }
         
         // 在线模式：尝试上传到云端
         isLoading = true
@@ -2550,11 +2676,11 @@ public class NotesViewModel: ObservableObject {
                     )
                     
                     // 更新笔记列表
-                if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
-                    if index < self.notes.count {
-                        self.notes[index] = updatedNote
+                    if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                        if index < self.notes.count {
+                            self.notes[index] = updatedNote
+                        }
                     }
-                }
                     
                     // 保存更新后的笔记
                     try localStorage.saveNote(updatedNote)
@@ -2590,9 +2716,17 @@ public class NotesViewModel: ObservableObject {
     /// **统一接口**：推荐使用此方法更新笔记，而不是直接调用API
     /// 
     /// **特性**：
-    /// - 支持离线模式：如果离线，会保存到本地并添加到离线队列
+    /// - 支持离线模式：如果离线，会保存到本地并添加到 UnifiedOperationQueue
     /// - 自动获取最新tag：更新前会从服务器获取最新的tag，避免并发冲突
     /// - 自动更新UI：更新后会自动更新笔记列表
+    /// 
+    /// **统一操作队列集成**：
+    /// - 使用 NoteOperationCoordinator 进行保存
+    /// - 自动创建 cloudUpload 操作到 UnifiedOperationQueue
+    /// - 网络可用时立即处理上传
+    /// 
+    /// **需求覆盖**：
+    /// - 需求 2.1: 本地保存完成且网络可用时立即尝试上传
     /// 
     /// - Parameter note: 要更新的笔记对象
     /// - Throws: 更新失败时抛出错误（网络错误、认证错误等）
@@ -2601,21 +2735,32 @@ public class NotesViewModel: ObservableObject {
         
         // 1. 合并并本地持久化
         let noteToSave = mergeWithLocalData(note)
-        try await applyLocalUpdate(noteToSave)
         
-        // 2. 检查同步状态
-        guard isOnline && service.isAuthenticated() else {
-            queueOfflineUpdate(noteToSave)
-            return
+        // 🛡️ 统一操作队列集成：使用 NoteOperationCoordinator 进行保存
+        // 需求 2.1: 本地保存后创建 cloudUpload 操作，网络可用时立即处理
+        let saveResult = await NoteOperationCoordinator.shared.saveNote(noteToSave)
+        
+        switch saveResult {
+        case .success:
+            print("[VIEWMODEL] ✅ 通过 NoteOperationCoordinator 保存成功: \(note.id.prefix(8))...")
+            // 更新内存列表
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                notes[index] = noteToSave
+            }
+            // 更新 selectedNote
+            if selectedNote?.id == note.id {
+                selectedNote = noteToSave
+            }
+        case .failure(let error):
+            print("[VIEWMODEL] ❌ 通过 NoteOperationCoordinator 保存失败: \(error)")
+            throw error
         }
         
-        isLoading = true
-        defer { isLoading = false }
-        
-        do {
-            try await performCloudUpdateWithRetry(noteToSave)
-        } catch {
-            handleUpdateError(error, for: noteToSave)
+        // 2. 检查同步状态（云端上传由 NoteOperationCoordinator 自动处理）
+        // 如果离线，操作已经被添加到 UnifiedOperationQueue
+        guard isOnline && service.isAuthenticated() else {
+            print("[VIEWMODEL] 📴 离线模式，操作已加入 UnifiedOperationQueue 等待网络恢复")
+            return
         }
     }
     
@@ -2683,7 +2828,6 @@ public class NotesViewModel: ObservableObject {
     /// - Parameter note: 更新后的笔记对象
     /// - Returns: 是否成功更新（如果笔记不存在于数组中则返回 false）
     /// 
-    /// **Requirements: 5.1** - 笔记内容更新时仅更新对应笔记的属性而非替换整个数组
     @discardableResult
     public func updateNoteInPlace(_ note: Note) -> Bool {
         guard let index = notes.firstIndex(where: { $0.id == note.id }) else {
@@ -2712,7 +2856,6 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// - Parameter updates: 更新操作列表，每个元素包含笔记ID和更新闭包
     /// 
-    /// **Requirements: 2.3** - 多个笔记同时更新位置时批量处理动画以避免视觉混乱
     public func batchUpdateNotes(_ updates: [(noteId: String, update: (inout Note) -> Void)]) {
         guard !updates.isEmpty else {
             print("[VIEWMODEL] batchUpdateNotes: 没有需要更新的笔记")
@@ -2721,8 +2864,7 @@ public class NotesViewModel: ObservableObject {
         
         print("[VIEWMODEL] batchUpdateNotes: 开始批量更新 \(updates.count) 个笔记")
         
-        // 使用 withAnimation 包装更新操作，提供 300ms 的 easeInOut 动画
-        // 这符合 Requirements 2.4 的动画持续时间要求
+        // 使用 withAnimation 包装更新操作，提供 300ms 的 easeInOut 动画 
         withAnimation(.easeInOut(duration: 0.3)) {
             for (noteId, update) in updates {
                 if let index = notes.firstIndex(where: { $0.id == noteId }) {
@@ -2753,7 +2895,6 @@ public class NotesViewModel: ObservableObject {
     ///   - timestamp: 新的时间戳
     /// - Returns: 是否成功更新
     /// 
-    /// **Requirements: 2.1** - 笔记的 updatedAt 时间戳变化导致排序位置改变时使用动画
     @discardableResult
     public func updateNoteTimestamp(_ noteId: String, timestamp: Date) -> Bool {
         guard let index = notes.firstIndex(where: { $0.id == noteId }) else {
@@ -2849,9 +2990,10 @@ public class NotesViewModel: ObservableObject {
             "tag": note.rawData?["tag"] as? String ?? note.id
         ]
         
-        // 获取当前重试次数（从离线队列中查找）
-        let pendingOps = offlineQueue.getPendingOperations()
-        let existingOp = pendingOps.first { $0.noteId == note.id && $0.type == .updateNote }
+        // 获取当前重试次数（从统一操作队列中查找）
+        // 注意：新的 NoteOperation 使用 cloudUpload 类型代替旧的 updateNote
+        let pendingOps = unifiedQueue.getPendingOperations()
+        let existingOp = pendingOps.first { $0.noteId == note.id && $0.type == .cloudUpload }
         let currentRetryCount = existingOp?.retryCount ?? 0
         
         let result = ErrorRecoveryService.shared.handleNetworkError(
@@ -2884,14 +3026,27 @@ public class NotesViewModel: ObservableObject {
     /// 用于延迟加载，提高列表加载速度
     /// 
     /// - Parameter note: 要检查的笔记对象
+    /// 
+    /// **注意**：此方法在更新笔记时会尽量避免触发不必要的排序变化，
+    /// 以防止笔记在列表中错误移动。
+    /// 
+    /// _需求: 3.5_
     func ensureNoteHasFullContent(_ note: Note) async {
+        // 性能监控：记录开始时间
+        // _需求: 3.5_
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
         // 如果笔记已经有完整内容，不需要获取
         if !note.content.isEmpty {
+            let skipDuration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+            print("[性能监控] ⏱️ ensureNoteHasFullContent 跳过（已有内容）耗时: \(String(format: "%.2f", skipDuration))ms")
             return
         }
         
         // 如果连 snippet 都没有，可能笔记不存在，不需要获取
         if note.rawData?["snippet"] == nil {
+            let skipDuration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+            print("[性能监控] ⏱️ ensureNoteHasFullContent 跳过（无 snippet）耗时: \(String(format: "%.2f", skipDuration))ms")
             return
         }
         
@@ -2904,14 +3059,52 @@ public class NotesViewModel: ObservableObject {
             // 更新笔记内容
             if let index = notes.firstIndex(where: { $0.id == note.id }) {
                 var updatedNote = notes[index]
+                
+                // 4.1 保存原始时间戳
+                let originalUpdatedAt = updatedNote.updatedAt
+                let originalContent = updatedNote.content
+                let originalTitle = updatedNote.title
+                
+                // 增强日志：记录 ensureNoteHasFullContent 的详细信息
+                // _需求: 3.3_
+                print("[VIEWMODEL] [ensureNoteHasFullContent] ═══════════════════════════════════════")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 📝 笔记ID: \(note.id.prefix(8))...")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 🕐 原始时间戳: \(originalUpdatedAt)")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 📏 原始内容长度: \(originalContent.count)")
+                
                 updatedNote.updateContent(from: noteDetails)
-                print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent更新完成")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] ✅ 内容更新完成")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 📏 新内容长度: \(updatedNote.content.count)")
+                
+                // 4.2 检测内容实际变化
+                let contentActuallyChanged = hasContentActuallyChanged(
+                    currentContent: updatedNote.content,
+                    savedContent: originalContent,
+                    currentTitle: updatedNote.title,
+                    originalTitle: originalTitle
+                )
+                
+                // 4.3 添加调试日志
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 📊 内容变化检测结果: \(contentActuallyChanged)")
+                
+                // 如果内容无实际变化，恢复原始时间戳
+                if !contentActuallyChanged {
+                    updatedNote.updatedAt = originalUpdatedAt
+                    print("[VIEWMODEL] [ensureNoteHasFullContent] 🕐 内容无实际变化，恢复原始时间戳: \(originalUpdatedAt)")
+                    print("[VIEWMODEL] [ensureNoteHasFullContent] ✅ 时间戳决策: 保持不变")
+                } else {
+                    print("[VIEWMODEL] [ensureNoteHasFullContent] 🕐 内容有实际变化，保持新时间戳: \(updatedNote.updatedAt)")
+                    print("[VIEWMODEL] [ensureNoteHasFullContent] ✅ 时间戳决策: 更新")
+                }
+                print("[VIEWMODEL] [ensureNoteHasFullContent] ═══════════════════════════════════════")
                 
                 // 保存到本地
-                print("[[调试]] [VIEWMODEL] ensureNoteHasFullContent保存到本地")
+                print("[VIEWMODEL] [ensureNoteHasFullContent] 💾 保存到本地数据库")
                 try localStorage.saveNote(updatedNote)
                 
                 // 更新列表中的笔记
+                // 注意：即使 updatedAt 没有变化，我们仍然需要更新 notes 数组以反映新的内容
+                // 但由于 Note 的 Equatable 只比较 id，这不会导致 SwiftUI 认为笔记发生了变化
                 notes[index] = updatedNote
                 
                 // 如果这是当前选中的笔记，更新选中状态
@@ -2919,15 +3112,139 @@ public class NotesViewModel: ObservableObject {
                     selectedNote = updatedNote
                 }
                 
-                print("[VIEWMODEL] 已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count)")
+                // 性能监控：记录完成时间
+                // _需求: 3.5_
+                let totalDuration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+                print("[性能监控] ═══════════════════════════════════════")
+                print("[性能监控] ⏱️ ensureNoteHasFullContent 总耗时: \(String(format: "%.2f", totalDuration))ms")
+                print("[性能监控] 📏 内容长度: \(updatedNote.content.count)")
+                print("[性能监控] 🕐 时间戳决策: \(contentActuallyChanged ? "更新" : "保持")")
+                if totalDuration > 200 {
+                    print("[性能监控] ⚠️ 警告: 内容获取耗时超过 200ms，可能影响用户体验")
+                } else {
+                    print("[性能监控] ✅ 内容获取性能正常")
+                }
+                print("[性能监控] ═══════════════════════════════════════")
+                
+                print("[VIEWMODEL] 已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count), 时间戳决策: \(contentActuallyChanged ? "更新" : "保持")")
             }
         } catch {
+            // 性能监控：记录失败时的耗时
+            // _需求: 3.5_
+            let errorDuration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+            print("[性能监控] ⏱️ ensureNoteHasFullContent 失败耗时: \(String(format: "%.2f", errorDuration))ms")
             print("[VIEWMODEL] 获取笔记完整内容失败: \(error.localizedDescription)")
             // 不显示错误，因为可能只是网络问题，用户仍然可以查看 snippet
         }
     }
     
+    /// 检查内容是否真正发生变化
+    /// 
+    /// 通过标准化内容比较（去除空白字符差异）来准确判断内容是否真正变化
+    /// 
+    /// - Parameters:
+    ///   - currentContent: 当前内容
+    ///   - savedContent: 保存的内容
+    ///   - currentTitle: 当前标题
+    ///   - originalTitle: 原始标题
+    /// - Returns: 如果内容或标题发生实际变化返回 true，否则返回 false
+    /// 
+    /// _需求: 2.1, 2.2, 3.3_
+    private func hasContentActuallyChanged(currentContent: String, savedContent: String, currentTitle: String, originalTitle: String) -> Bool {
+        // 记录检测开始时间（用于性能监控）
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        // 标准化内容比较（去除空白字符差异）
+        let normalizedCurrent = currentContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedSaved = savedContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        let contentChanged = normalizedCurrent != normalizedSaved
+        let titleChanged = currentTitle != originalTitle
+        
+        // 计算检测耗时
+        let elapsedTime = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+        
+        // 增强日志：记录详细的内容变化检测信息
+        // _需求: 3.3_
+        print("[VIEWMODEL] [内容检测] ═══════════════════════════════════════")
+        print("[VIEWMODEL] [内容检测] 📊 检测结果: 内容变化=\(contentChanged), 标题变化=\(titleChanged)")
+        print("[VIEWMODEL] [内容检测] 📏 内容长度: 当前=\(normalizedCurrent.count), 保存=\(normalizedSaved.count)")
+        print("[VIEWMODEL] [内容检测] ⏱️ 检测耗时: \(String(format: "%.2f", elapsedTime))ms")
+        
+        if contentChanged {
+            // 如果内容长度差异较大，记录更详细的信息
+            let lengthDiff = abs(normalizedCurrent.count - normalizedSaved.count)
+            print("[VIEWMODEL] [内容检测] 📝 内容长度差异: \(lengthDiff) 字符")
+            
+            if lengthDiff > 10 {
+                print("[VIEWMODEL] [内容检测] ⚠️ 内容长度差异较大，可能是实际编辑")
+            } else {
+                print("[VIEWMODEL] [内容检测] ℹ️ 内容长度差异较小，可能是格式化差异")
+            }
+            
+            // 如果内容变化较小，记录前后内容的前100个字符用于调试
+            if lengthDiff <= 50 {
+                let currentPreview = String(normalizedCurrent.prefix(100))
+                let savedPreview = String(normalizedSaved.prefix(100))
+                print("[VIEWMODEL] [内容检测] 🔍 当前内容预览: \(currentPreview)")
+                print("[VIEWMODEL] [内容检测] 🔍 保存内容预览: \(savedPreview)")
+            }
+        } else {
+            print("[VIEWMODEL] [内容检测] ✅ 内容无变化")
+        }
+        
+        if titleChanged {
+            print("[VIEWMODEL] [内容检测] 📝 标题变化: '\(originalTitle)' -> '\(currentTitle)'")
+        } else {
+            print("[VIEWMODEL] [内容检测] ✅ 标题无变化")
+        }
+        
+        // 记录时间戳更新决策
+        // _需求: 3.3_
+        let shouldUpdateTimestamp = contentChanged || titleChanged
+        print("[VIEWMODEL] [内容检测] 🕐 时间戳决策: \(shouldUpdateTimestamp ? "需要更新" : "保持不变")")
+        print("[VIEWMODEL] [内容检测] ═══════════════════════════════════════")
+        
+        return contentChanged || titleChanged
+    }
+    
     func deleteNote(_ note: Note) {
+        // 检查是否为临时 ID 笔记（离线创建的笔记）
+        // 需求 8.8: 临时 ID 笔记被删除时取消 noteCreate 操作
+        if NoteOperation.isTemporaryId(note.id) {
+            print("[VIEWMODEL] 🗑️ 删除临时 ID 笔记: \(note.id.prefix(16))...")
+            
+            // 1. 先在本地删除（UI 更新）
+            if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
+                if index < self.notes.count {
+                    self.notes.remove(at: index)
+                }
+                
+                // 更新文件夹计数
+                if let folderIndex = folders.firstIndex(where: { $0.id == note.folderId }) {
+                    folders[folderIndex].count = max(0, folders[folderIndex].count - 1)
+                }
+                
+                // 如果删除的是当前选中的笔记，清空选择
+                if selectedNote?.id == note.id {
+                    selectedNote = nil
+                }
+            }
+            
+            // 2. 使用 NoteOperationCoordinator 删除临时 ID 笔记
+            // 这会取消 noteCreate 操作并删除本地笔记
+            Task {
+                do {
+                    try await NoteOperationCoordinator.shared.deleteTemporaryNote(note.id)
+                    print("[VIEWMODEL] ✅ 临时 ID 笔记删除成功: \(note.id.prefix(16))...")
+                } catch {
+                    print("[VIEWMODEL] ❌ 临时 ID 笔记删除失败: \(error)")
+                }
+            }
+            return
+        }
+        
+        // 正常笔记删除流程
         // 1. 先在本地删除
         if let index = self.notes.firstIndex(where: { $0.id == note.id }) {
             if index < self.notes.count {
@@ -3179,7 +3496,6 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
     /// 
-    /// **Requirements: 4.1, 4.2**
     /// - 4.1: 通过 coordinator 作为单一数据源管理状态
     /// - 4.2: 按顺序更新 Notes_List_View 和 Editor
     /// 
@@ -3196,12 +3512,33 @@ public class NotesViewModel: ObservableObject {
     /// 
     /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
     /// 
-    /// **Requirements: 4.3**
     /// - 4.3: 验证笔记是否属于当前文件夹
+    /// 
+    /// **统一操作队列集成**：
+    /// - 切换笔记时设置活跃编辑状态
+    /// - 切换前保存当前笔记（如果有未保存的更改）
     /// 
     /// - Parameter note: 要选择的笔记
     public func selectNoteWithCoordinator(_ note: Note?) {
         Task {
+            // 🛡️ 统一操作队列集成：切换笔记前的处理
+            let previousNoteId = selectedNote?.id
+            
+            // 如果有之前选中的笔记且有未保存的更改，先保存
+            if let prevId = previousNoteId,
+               let prevNote = notes.first(where: { $0.id == prevId }),
+               nativeEditorContext.hasUnsavedChanges {
+                print("[VIEWMODEL] 🛡️ 切换笔记前保存: \(prevId.prefix(8))...")
+                do {
+                    try await NoteOperationCoordinator.shared.saveNoteImmediately(prevNote)
+                } catch {
+                    print("[VIEWMODEL] ⚠️ 切换笔记前保存失败: \(error)")
+                }
+            }
+            
+            // 🛡️ 统一操作队列集成：设置新的活跃编辑笔记
+            await NoteOperationCoordinator.shared.setActiveEditingNote(note?.id)
+            
             await stateCoordinator.selectNote(note)
             // 同步 coordinator 的状态到 ViewModel
             syncStateFromCoordinator()
@@ -3262,7 +3599,7 @@ public class NotesViewModel: ObservableObject {
                 noteId: tempFolderId, // 对于文件夹操作，使用 folderId
                 data: operationData
             )
-            try offlineQueue.addOperation(operation)
+            try legacyOfflineQueue.addOperation(operation)
             print("[VIEWMODEL] 离线模式：文件夹已保存到本地，等待同步: \(tempFolderId)")
             // 刷新文件夹列表
             loadFolders()
@@ -3475,7 +3812,7 @@ public class NotesViewModel: ObservableObject {
                 noteId: folder.id, // 对于文件夹操作，使用 folderId
                 data: operationData
             )
-            try offlineQueue.addOperation(operation)
+            try legacyOfflineQueue.addOperation(operation)
             print("[FolderRename] ✅ 离线重命名操作已添加到队列: \(folder.id)")
             print("[FolderRename] ========== 离线模式处理完成 ==========")
             return
@@ -3692,7 +4029,7 @@ public class NotesViewModel: ObservableObject {
                 noteId: folder.id,
                 data: operationData
             )
-            try offlineQueue.addOperation(operation)
+            try legacyOfflineQueue.addOperation(operation)
             print("[VIEWMODEL] ✅ 离线删除操作已添加到队列: \(folder.id)")
             
             // 刷新文件夹列表和笔记列表
@@ -3759,7 +4096,7 @@ public class NotesViewModel: ObservableObject {
                     noteId: folder.id,
                     data: operationData
                 )
-                try? offlineQueue.addOperation(operation)
+                try? legacyOfflineQueue.addOperation(operation)
                 print("[VIEWMODEL] 云端删除失败，已保存到离线队列等待重试: \(folder.id)")
             }
             throw error
@@ -4382,5 +4719,26 @@ public class NotesViewModel: ObservableObject {
         }
         
         print("[VIEWMODEL] 同步间隔已更新为 \(effectiveInterval) 秒")
+    }
+    
+    // MARK: - 音频面板状态同步 
+    
+    /// 处理笔记切换时的音频面板状态同步
+    ///
+    /// 当用户切换到其他笔记时，检查音频面板的状态：
+    /// - 如果正在播放，停止播放并关闭面板
+    /// - 如果正在录制，显示确认对话框
+    ///
+    /// - Parameter newNoteId: 新选中的笔记 ID 
+    private func handleNoteSwitch(to newNoteId: String) {
+        // 调用 AudioPanelStateManager 的 handleNoteSwitch 方法
+        // 该方法会根据当前状态决定是否需要确认对话框
+        let canSwitch = AudioPanelStateManager.shared.handleNoteSwitch(to: newNoteId)
+        
+        if !canSwitch {
+            // 如果不能切换（正在录制中），AudioPanelStateManager 会发送确认通知
+            // MainWindowController 会监听该通知并显示确认对话框
+            print("[NotesViewModel] 笔记切换被阻止，等待用户确认")
+        }
     }
 }

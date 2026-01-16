@@ -5,7 +5,6 @@ import CommonCrypto
 /// 菜单动作处理器
 /// 负责处理应用程序菜单的各种动作
 /// 实现 NSMenuItemValidation 协议以管理菜单项的启用/禁用状态
-/// - Requirements: 14.1-14.8
 @MainActor
 class MenuActionHandler: NSObject, NSMenuItemValidation {
     
@@ -32,7 +31,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         self.windowManager = windowManager
         super.init()
         setupStateObservers()
-        print("菜单动作处理器初始化")
     }
     
     // MARK: - 公共方法
@@ -57,7 +55,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 根据 MenuItemTag 和 MenuState 返回正确的启用状态
     /// - Parameter menuItem: 要验证的菜单项
     /// - Returns: 菜单项是否应该启用
-    /// - Requirements: 14.1-14.8
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         // 获取菜单项标签
         guard let tag = MenuItemTag(rawValue: menuItem.tag) else {
@@ -74,11 +71,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         // 根据标签类型返回启用状态
         let shouldEnable = menuState.shouldEnableMenuItem(for: tag)
         
-        // 添加日志用于调试段落样式菜单项
-        if tag.isParagraphStyle {
-            print("[MenuActionHandler] validateMenuItem - tag: \(tag), title: \(menuItem.title), shouldEnable: \(shouldEnable), state: \(menuItem.state == .on ? "✓" : "○"), isEditorFocused: \(menuState.isEditorFocused), currentParagraphStyle: \(menuState.currentParagraphStyle.displayName)")
-        }
-        
         return shouldEnable
     }
     
@@ -87,10 +79,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 设置状态观察者
     /// 
     /// 监听各种状态变化通知，更新菜单状态
-    /// _Requirements: 14.4, 14.5, 14.6, 14.7_
     private func setupStateObservers() {
         // 监听笔记选中状态变化
-        // _Requirements: 14.4_
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleNoteSelectionChanged(_:)),
@@ -99,7 +89,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         )
         
         // 监听编辑器焦点变化
-        // _Requirements: 14.5_
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleEditorFocusChanged(_:)),
@@ -108,7 +97,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         )
         
         // 监听视图模式变化
-        // _Requirements: 14.7_
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleViewModeChanged(_:)),
@@ -117,7 +105,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         )
         
         // 监听段落样式变化
-        // _Requirements: 14.6_
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleParagraphStyleChanged(_:)),
@@ -134,7 +121,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         )
         
         // 监听笔记数量显示变化
-        // _Requirements: 5.5_
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleNoteCountVisibilityChanged(_:)),
@@ -144,7 +130,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 处理笔记选中状态变化
-    /// _Requirements: 14.4_
     @objc private func handleNoteSelectionChanged(_ notification: Notification) {
         // 从通知中获取选中状态
         if let hasSelectedNote = notification.userInfo?["hasSelectedNote"] as? Bool {
@@ -234,7 +219,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         // 更新笔记选中状态
         let hasSelectedNote = mainWindowController?.viewModel?.selectedNote != nil
         newState.hasSelectedNote = hasSelectedNote
-        print("[MenuActionHandler] updateMenuStateFromContext - hasSelectedNote: \(hasSelectedNote)")
         
         // 更新编辑器焦点状态
         // 检查当前第一响应者是否是编辑器（NSTextView 或其子类）
@@ -243,16 +227,13 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
            let firstResponder = window.firstResponder {
             // 检查是否是 NSTextView 或其子类
             isEditorFocused = firstResponder is NSTextView
-            print("[MenuActionHandler] updateMenuStateFromContext - firstResponder: \(type(of: firstResponder)), isEditorFocused: \(isEditorFocused)")
-        } else {
-            print("[MenuActionHandler] updateMenuStateFromContext - 无法获取 firstResponder")
         }
+
         
         // 如果有选中的笔记，即使编辑器没有焦点，也应该允许格式菜单操作
         // 这样用户可以在点击菜单时应用格式
         if hasSelectedNote {
             isEditorFocused = true
-            print("[MenuActionHandler] updateMenuStateFromContext - 有选中笔记，强制启用编辑器焦点状态")
         }
         newState.isEditorFocused = isEditorFocused
         
@@ -284,7 +265,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         // _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
         // 关键修复：检查当前使用的是哪种编辑器
         let isUsingNativeEditor = mainWindowController?.isUsingNativeEditor ?? false
-        print("[MenuActionHandler] updateMenuStateFromContext - isUsingNativeEditor: \(isUsingNativeEditor)")
         
         if isUsingNativeEditor {
             // 原生编辑器：从 NativeEditorContext 获取格式状态
@@ -295,24 +275,13 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                 
                 // 强制更新格式状态
                 // 这与工具栏格式菜单（NativeFormatMenuView）的行为保持一致
-                print("[MenuActionHandler] updateMenuStateFromContext - 强制更新格式状态")
                 nativeEditorContext.forceUpdateFormats()
                 
                 let paragraphStyleString = nativeEditorContext.getCurrentParagraphStyleString()
-                print("[MenuActionHandler] updateMenuStateFromContext - 从原生编辑器获取段落样式: \(paragraphStyleString)")
                 if let paragraphStyle = ParagraphStyle(rawValue: paragraphStyleString) {
                     newState.setParagraphStyle(paragraphStyle)
-                    print("[MenuActionHandler] updateMenuStateFromContext - 设置段落样式: \(paragraphStyle.displayName)")
                 }
-            } else {
-                print("[MenuActionHandler] updateMenuStateFromContext - 无法获取 NativeEditorContext")
             }
-        } else {
-            // Web 编辑器：目前不支持从 Web 编辑器获取格式状态
-            // TODO: 未来可以通过 JavaScript 桥接获取 Web 编辑器的格式状态
-            print("[MenuActionHandler] updateMenuStateFromContext - 使用 Web 编辑器，格式状态检测暂不支持")
-            // 保持默认的正文样式
-            newState.setParagraphStyle(.body)
         }
         
         menuState = newState
@@ -325,11 +294,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     private func updateMenuItemCheckState(_ menuItem: NSMenuItem, for tag: MenuItemTag) {
         let shouldCheck = menuState.shouldCheckMenuItem(for: tag)
         menuItem.state = shouldCheck ? .on : .off
-        
-        // 添加日志用于调试段落样式菜单项
-        if tag.isParagraphStyle {
-            print("[MenuActionHandler] updateMenuItemCheckState - tag: \(tag), title: \(menuItem.title), shouldCheck: \(shouldCheck), currentParagraphStyle: \(menuState.currentParagraphStyle.displayName)")
-        }
         
         // 更新动态标题
         // _Requirements: 9.2, 9.3_
@@ -370,8 +334,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 显示设置窗口
     func showSettings(_ sender: Any?) {
-        print("显示设置窗口")
-        
         // 创建设置窗口控制器
         let settingsWindowController = SettingsWindowController(viewModel: mainWindowController?.viewModel)
         
@@ -382,9 +344,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 显示帮助
     func showHelp(_ sender: Any?) {
-        print("显示帮助")
         // 这里可以打开帮助文档
-        // 暂时使用控制台输出
     }
     
     // MARK: - 窗口菜单动作
@@ -398,42 +358,36 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 撤销
     func undo(_ sender: Any?) {
-        print("撤销")
         // 转发到主窗口控制器
         mainWindowController?.undo(sender)
     }
     
     /// 重做
     func redo(_ sender: Any?) {
-        print("重做")
         // 转发到主窗口控制器
         mainWindowController?.redo(sender)
     }
     
     /// 剪切
     func cut(_ sender: Any?) {
-        print("剪切")
         // 转发到主窗口控制器
         mainWindowController?.cut(sender)
     }
     
     /// 复制
     func copy(_ sender: Any?) {
-        print("复制")
         // 转发到主窗口控制器
         mainWindowController?.copy(sender)
     }
     
     /// 粘贴
     func paste(_ sender: Any?) {
-        print("粘贴")
         // 转发到主窗口控制器
         mainWindowController?.paste(sender)
     }
     
     /// 全选
     func selectAll(_ sender: Any?) {
-        print("全选")
         // 转发到主窗口控制器
         mainWindowController?.selectAll(sender)
     }
@@ -444,7 +398,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     /// _Requirements: 8.1, 8.2_
     func toggleBold(_ sender: Any?) {
-        print("[MenuActionHandler] 切换粗体")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.bold)
@@ -458,7 +411,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     /// _Requirements: 8.1, 8.2_
     func toggleItalic(_ sender: Any?) {
-        print("[MenuActionHandler] 切换斜体")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.italic)
@@ -472,7 +424,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     /// _Requirements: 8.1, 8.2_
     func toggleUnderline(_ sender: Any?) {
-        print("[MenuActionHandler] 切换下划线")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.underline)
@@ -486,7 +437,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     /// _Requirements: 8.1, 8.2_
     func toggleStrikethrough(_ sender: Any?) {
-        print("[MenuActionHandler] 切换删除线")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.strikethrough)
@@ -498,28 +448,24 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 增大字体
     func increaseFontSize(_ sender: Any?) {
-        print("增大字体")
         // 转发到主窗口控制器
         mainWindowController?.increaseFontSize(sender)
     }
     
     /// 减小字体
     func decreaseFontSize(_ sender: Any?) {
-        print("减小字体")
         // 转发到主窗口控制器
         mainWindowController?.decreaseFontSize(sender)
     }
     
     /// 增加缩进
     func increaseIndent(_ sender: Any?) {
-        print("增加缩进")
         // 转发到主窗口控制器
         mainWindowController?.increaseIndent(sender)
     }
     
     /// 减少缩进
     func decreaseIndent(_ sender: Any?) {
-        print("减少缩进")
         // 转发到主窗口控制器
         mainWindowController?.decreaseIndent(sender)
     }
@@ -528,7 +474,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     /// _Requirements: 8.1, 8.2_
     func alignLeft(_ sender: Any?) {
-        print("[MenuActionHandler] 居左对齐")
         // 优先使用 FormatStateManager 清除对齐格式（恢复左对齐）
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.clearAlignmentFormat()
@@ -542,7 +487,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     /// _Requirements: 8.1, 8.2_
     func alignCenter(_ sender: Any?) {
-        print("[MenuActionHandler] 居中对齐")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.applyFormat(.alignCenter)
@@ -556,7 +500,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     /// _Requirements: 8.1, 8.2_
     func alignRight(_ sender: Any?) {
-        print("[MenuActionHandler] 居右对齐")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.applyFormat(.alignRight)
@@ -570,7 +513,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     /// _Requirements: 8.1, 8.2_
     func toggleBulletList(_ sender: Any?) {
-        print("[MenuActionHandler] 切换无序列表")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.bulletList)
@@ -582,9 +524,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 切换有序列表
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleNumberedList(_ sender: Any?) {
-        print("[MenuActionHandler] 切换有序列表")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.numberedList)
@@ -596,9 +536,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 切换复选框列表
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleCheckboxList(_ sender: Any?) {
-        print("[MenuActionHandler] 切换复选框列表")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.checkbox)
@@ -610,9 +548,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 设置大标题
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func setHeading1(_ sender: Any?) {
-        print("[MenuActionHandler] 设置大标题")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.applyFormat(.heading1)
@@ -624,9 +560,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 设置二级标题
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func setHeading2(_ sender: Any?) {
-        print("[MenuActionHandler] 设置二级标题")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.applyFormat(.heading2)
@@ -638,9 +572,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 设置三级标题
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func setHeading3(_ sender: Any?) {
-        print("[MenuActionHandler] 设置三级标题")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.applyFormat(.heading3)
@@ -654,7 +586,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     /// _Requirements: 8.1, 8.2_
     func setBodyText(_ sender: Any?) {
-        print("[MenuActionHandler] 设置正文")
         // 优先使用 FormatStateManager 清除段落格式（恢复正文）
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.clearParagraphFormat()
@@ -667,10 +598,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     // MARK: - 格式菜单动作（Apple Notes 风格）
     
     /// 设置标题（Apple Notes 风格）
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.1, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func setHeading(_ sender: Any?) {
-        print("[MenuActionHandler] 设置标题")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.applyFormat(.heading1)
@@ -680,10 +609,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 设置小标题
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.2, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func setSubheading(_ sender: Any?) {
-        print("[MenuActionHandler] 设置小标题")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.applyFormat(.heading2)
@@ -693,10 +620,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 设置副标题
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.3, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func setSubtitle(_ sender: Any?) {
-        print("[MenuActionHandler] 设置副标题")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.applyFormat(.heading3)
@@ -706,10 +631,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 切换有序列表
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.5, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func toggleOrderedList(_ sender: Any?) {
-        print("[MenuActionHandler] 切换有序列表")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.numberedList)
@@ -719,10 +642,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 切换无序列表
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.6, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func toggleUnorderedList(_ sender: Any?) {
-        print("[MenuActionHandler] 切换无序列表")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.bulletList)
@@ -732,10 +653,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
     
     /// 切换块引用
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 4.9, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func toggleBlockQuote(_ sender: Any?) {
-        print("[MenuActionHandler] 切换块引用")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.quote)
@@ -747,10 +666,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     // MARK: - 核对清单动作
     
     /// 切换核对清单
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 5.1, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func toggleChecklist(_ sender: Any?) {
-        print("[MenuActionHandler] 切换核对清单")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.checkbox)
@@ -759,69 +676,51 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 标记为已勾选
-    /// - Requirements: 5.2
+    /// 标记为已勾选 
     @objc func markAsChecked(_ sender: Any?) {
-        print("标记为已勾选")
         mainWindowController?.markAsChecked(sender)
     }
     
-    /// 全部勾选
-    /// - Requirements: 5.4
+    /// 全部勾选 
     @objc func checkAll(_ sender: Any?) {
-        print("全部勾选")
         mainWindowController?.checkAll(sender)
     }
     
-    /// 全部取消勾选
-    /// - Requirements: 5.5
+    /// 全部取消勾选 
     @objc func uncheckAll(_ sender: Any?) {
-        print("全部取消勾选")
         mainWindowController?.uncheckAll(sender)
     }
     
-    /// 将勾选的项目移到底部
-    /// - Requirements: 5.6
+    /// 将勾选的项目移到底部 
     @objc func moveCheckedToBottom(_ sender: Any?) {
-        print("将勾选的项目移到底部")
         mainWindowController?.moveCheckedToBottom(sender)
     }
     
-    /// 删除已勾选项目
-    /// - Requirements: 5.7
+    /// 删除已勾选项目 
     @objc func deleteCheckedItems(_ sender: Any?) {
-        print("删除已勾选项目")
         mainWindowController?.deleteCheckedItems(sender)
     }
     
-    /// 向上移动项目
-    /// - Requirements: 5.10
+    /// 向上移动项目 
     @objc func moveItemUp(_ sender: Any?) {
-        print("向上移动项目")
         mainWindowController?.moveItemUp(sender)
     }
     
-    /// 向下移动项目
-    /// - Requirements: 5.11
+    /// 向下移动项目 
     @objc func moveItemDown(_ sender: Any?) {
-        print("向下移动项目")
         mainWindowController?.moveItemDown(sender)
     }
     
     // MARK: - 外观动作
     
-    /// 切换浅色背景
-    /// - Requirements: 6.2
+    /// 切换浅色背景 
     @objc func toggleLightBackground(_ sender: Any?) {
-        print("切换浅色背景")
         mainWindowController?.toggleLightBackground(sender)
     }
     
     /// 切换高亮
-    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// - Requirements: 6.9, 8.1, 8.2
+    /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑 
     @objc func toggleHighlight(_ sender: Any?) {
-        print("[MenuActionHandler] 切换高亮")
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
             FormatStateManager.shared.toggleFormat(.highlight)
@@ -834,8 +733,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 显示调试设置窗口
     func showDebugSettings(_ sender: Any?) {
-        print("显示调试设置窗口")
-        
         // 创建调试窗口控制器
         let debugWindowController = DebugWindowController(viewModel: mainWindowController?.viewModel)
         
@@ -846,53 +743,43 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     
     /// 显示登录sheet
     func showLogin(_ sender: Any?) {
-        print("显示登录sheet")
-        
         // 通过主窗口控制器显示登录sheet
         mainWindowController?.showLogin(sender)
     }
     
     /// 显示Cookie刷新sheet
     func showCookieRefresh(_ sender: Any?) {
-        print("显示Cookie刷新sheet")
-        
         // 通过主窗口控制器显示Cookie刷新sheet
         mainWindowController?.showCookieRefresh(sender)
     }
     
     /// 显示离线操作
     func showOfflineOperations(_ sender: Any?) {
-        print("显示离线操作")
         // 这里可以打开离线操作窗口
-        // 暂时使用控制台输出
     }
     
     // MARK: - 文件菜单新增动作
     
     /// 创建新笔记
     func createNewNote(_ sender: Any?) {
-        print("创建新笔记")
         // 转发到主窗口控制器
         mainWindowController?.createNewNote(sender)
     }
     
     /// 创建新文件夹
     func createNewFolder(_ sender: Any?) {
-        print("创建新文件夹")
         // 转发到主窗口控制器
         mainWindowController?.createNewFolder(sender)
     }
     
     /// 共享笔记
     func shareNote(_ sender: Any?) {
-        print("共享笔记")
         // 转发到主窗口控制器
         mainWindowController?.shareNote(sender)
     }
     
     /// 导入笔记
     func importNotes(_ sender: Any?) {
-        print("导入笔记")
         // 实现导入功能
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
@@ -989,10 +876,9 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         pasteboard.setString(content, forType: .string)
     }
     
-    // MARK: - 文件菜单新增动作（Requirements: 2.1-2.20）
+    // MARK: - 文件菜单新增动作
     
-    /// 创建智能文件夹
-    /// - Requirements: 2.3
+    /// 创建智能文件夹 
     func createSmartFolder(_ sender: Any?) {
         print("创建智能文件夹")
         // 智能文件夹功能待实现
@@ -1004,8 +890,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         alert.runModal()
     }
     
-    /// 导入 Markdown 文件
-    /// - Requirements: 2.10
+    /// 导入 Markdown 文件 
     func importMarkdown(_ sender: Any?) {
         print("导入 Markdown")
         let panel = NSOpenPanel()
@@ -1051,8 +936,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 导出为 PDF
-    /// - Requirements: 2.12, 2.13
+    /// 导出为 PDF 
     func exportAsPDF(_ sender: Any?) {
         print("导出为 PDF")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
@@ -1072,8 +956,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 导出为 Markdown
-    /// - Requirements: 2.12, 2.13
+    /// 导出为 Markdown 
     func exportAsMarkdown(_ sender: Any?) {
         print("导出为 Markdown")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
@@ -1105,8 +988,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 导出为纯文本
-    /// - Requirements: 2.12, 2.13
+    /// 导出为纯文本 
     func exportAsPlainText(_ sender: Any?) {
         print("导出为纯文本")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
@@ -1138,8 +1020,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 添加到私密笔记
-    /// - Requirements: 2.16
+    /// 添加到私密笔记 
     func addToPrivateNotes(_ sender: Any?) {
         print("添加到私密笔记")
         // 私密笔记功能待实现
@@ -1151,8 +1032,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         alert.runModal()
     }
     
-    /// 复制笔记（创建副本）
-    /// - Requirements: 2.17
+    /// 复制笔记（创建副本） 
     func duplicateNote(_ sender: Any?) {
         print("复制笔记（创建副本）")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
@@ -1280,8 +1160,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     // MARK: - 附件操作
     
     /// 附加文件
-    /// 直接调用 MainWindowController.insertAttachment() 复用工具栏中已有的实现逻辑
-    /// - Requirements: 1.1, 1.2, 1.4
+    /// 直接调用 MainWindowController.insertAttachment() 复用工具栏中已有的实现逻辑 
     @objc func attachFile(_ sender: Any?) {
         print("[MenuActionHandler] 附加文件 - 转发到 MainWindowController.insertAttachment()")
         // 直接调用 MainWindowController 的 insertAttachment 方法
@@ -1289,8 +1168,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         mainWindowController?.insertAttachment(sender)
     }
     
-    /// 添加链接
-    /// - Requirements: 3.13
+    /// 添加链接 
     @objc func addLink(_ sender: Any?) {
         print("添加链接")
         // 显示添加链接对话框
@@ -1315,24 +1193,21 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    // MARK: - 显示菜单动作（Requirements: 8.1-8.5, 9.1-9.8, 10.1-10.4, 11.1-11.5）
+    // MARK: - 显示菜单动作
     
-    /// 设置列表视图
-    /// - Requirements: 8.1
+    /// 设置列表视图 
     @objc func setListView(_ sender: Any?) {
         print("设置列表视图")
         ViewOptionsManager.shared.setViewMode(.list)
     }
     
-    /// 设置画廊视图
-    /// - Requirements: 8.2
+    /// 设置画廊视图 
     @objc func setGalleryView(_ sender: Any?) {
         print("设置画廊视图")
         ViewOptionsManager.shared.setViewMode(.gallery)
     }
     
-    /// 切换文件夹可见性
-    /// - Requirements: 9.2, 4.4
+    /// 切换文件夹可见性 
     @objc func toggleFolderVisibility(_ sender: Any?) {
         // 通过 MainWindowController 切换侧边栏
         if let window = NSApp.mainWindow,
@@ -1361,8 +1236,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 切换笔记数量显示
-    /// - Requirements: 9.3
+    /// 切换笔记数量显示 
     @objc func toggleNoteCount(_ sender: Any?) {
         // 通过 ViewOptionsManager 切换笔记数量显示
         ViewOptionsManager.shared.toggleNoteCount()
@@ -1373,59 +1247,51 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         menuState = newState
     }
     
-    /// 放大
-    /// - Requirements: 10.2
+    /// 放大 
     @objc func zoomIn(_ sender: Any?) {
         print("放大")
         mainWindowController?.zoomIn(sender)
     }
     
-    /// 缩小
-    /// - Requirements: 10.3
+    /// 缩小 
     @objc func zoomOut(_ sender: Any?) {
         print("缩小")
         mainWindowController?.zoomOut(sender)
     }
     
-    /// 实际大小
-    /// - Requirements: 10.4
+    /// 实际大小 
     @objc func actualSize(_ sender: Any?) {
         print("实际大小")
         mainWindowController?.actualSize(sender)
     }
     
-    /// 展开区域
-    /// - Requirements: 11.2
+    /// 展开区域 
     @objc func expandSection(_ sender: Any?) {
         print("展开区域")
         mainWindowController?.expandSection(sender)
     }
     
-    /// 展开所有区域
-    /// - Requirements: 11.3
+    /// 展开所有区域 
     @objc func expandAllSections(_ sender: Any?) {
         print("展开所有区域")
         mainWindowController?.expandAllSections(sender)
     }
     
-    /// 折叠区域
-    /// - Requirements: 11.4
+    /// 折叠区域 
     @objc func collapseSection(_ sender: Any?) {
         print("折叠区域")
         mainWindowController?.collapseSection(sender)
     }
     
-    /// 折叠所有区域
-    /// - Requirements: 11.5
+    /// 折叠所有区域 
     @objc func collapseAllSections(_ sender: Any?) {
         print("折叠所有区域")
         mainWindowController?.collapseAllSections(sender)
     }
     
-    // MARK: - 窗口菜单动作（Requirements: 13.1-13.14）
+    // MARK: - 窗口菜单动作
     
-    /// 填充窗口到屏幕
-    /// - Requirements: 13.4
+    /// 填充窗口到屏幕 
     @objc func fillWindow(_ sender: Any?) {
         print("填充窗口")
         guard let window = NSApp.mainWindow,
@@ -1438,16 +1304,14 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         window.setFrame(visibleFrame, display: true, animate: true)
     }
     
-    /// 居中窗口
-    /// - Requirements: 13.5
+    /// 居中窗口 
     @objc func centerWindow(_ sender: Any?) {
         print("居中窗口")
         guard let window = NSApp.mainWindow else { return }
         window.center()
     }
     
-    /// 移动窗口到屏幕左半边
-    /// - Requirements: 13.7
+    /// 移动窗口到屏幕左半边 
     @objc func moveWindowToLeftHalf(_ sender: Any?) {
         print("移动窗口到屏幕左半边")
         guard let window = NSApp.mainWindow,
@@ -1463,8 +1327,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         window.setFrame(newFrame, display: true, animate: true)
     }
     
-    /// 移动窗口到屏幕右半边
-    /// - Requirements: 13.7
+    /// 移动窗口到屏幕右半边 
     @objc func moveWindowToRightHalf(_ sender: Any?) {
         print("移动窗口到屏幕右半边")
         guard let window = NSApp.mainWindow,
@@ -1480,8 +1343,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         window.setFrame(newFrame, display: true, animate: true)
     }
     
-    /// 移动窗口到屏幕上半边
-    /// - Requirements: 13.7
+    /// 移动窗口到屏幕上半边 
     @objc func moveWindowToTopHalf(_ sender: Any?) {
         print("移动窗口到屏幕上半边")
         guard let window = NSApp.mainWindow,
@@ -1497,8 +1359,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         window.setFrame(newFrame, display: true, animate: true)
     }
     
-    /// 移动窗口到屏幕下半边
-    /// - Requirements: 13.7
+    /// 移动窗口到屏幕下半边 
     @objc func moveWindowToBottomHalf(_ sender: Any?) {
         print("移动窗口到屏幕下半边")
         guard let window = NSApp.mainWindow,
@@ -1514,16 +1375,14 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         window.setFrame(newFrame, display: true, animate: true)
     }
     
-    /// 最大化窗口
-    /// - Requirements: 13.7
+    /// 最大化窗口 
     @objc func maximizeWindow(_ sender: Any?) {
         print("最大化窗口")
         guard let window = NSApp.mainWindow else { return }
         window.performZoom(sender)
     }
     
-    /// 恢复窗口
-    /// - Requirements: 13.7
+    /// 恢复窗口 
     @objc func restoreWindow(_ sender: Any?) {
         print("恢复窗口")
         guard let window = NSApp.mainWindow else { return }
@@ -1534,8 +1393,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 平铺窗口到屏幕左侧（全屏幕平铺）
-    /// - Requirements: 13.8
+    /// 平铺窗口到屏幕左侧（全屏幕平铺） 
     @objc func tileWindowToLeft(_ sender: Any?) {
         print("平铺窗口到屏幕左侧")
         guard NSApp.mainWindow != nil else { return }
@@ -1550,8 +1408,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 平铺窗口到屏幕右侧（全屏幕平铺）
-    /// - Requirements: 13.8
+    /// 平铺窗口到屏幕右侧（全屏幕平铺） 
     @objc func tileWindowToRight(_ sender: Any?) {
         print("平铺窗口到屏幕右侧")
         guard NSApp.mainWindow != nil else { return }
@@ -1565,8 +1422,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
     
-    /// 在新窗口中打开笔记
-    /// - Requirements: 13.10
+    /// 在新窗口中打开笔记 
     @objc func openNoteInNewWindow(_ sender: Any?) {
         print("在新窗口中打开笔记")
         guard let note = mainWindowController?.viewModel?.selectedNote else {

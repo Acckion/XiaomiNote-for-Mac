@@ -19,8 +19,7 @@ final class EditorPreferencesServiceTests: XCTestCase {
         userDefaults = UserDefaults(suiteName: "test.editor.preferences")
         userDefaults.removePersistentDomain(forName: "test.editor.preferences")
         
-        // 注意：这里需要修改 EditorPreferencesService 以支持依赖注入
-        // 目前使用 shared 实例进行测试
+        // 注意：这里使用 shared 实例进行测试
         service = EditorPreferencesService.shared
     }
     
@@ -33,47 +32,18 @@ final class EditorPreferencesServiceTests: XCTestCase {
     // MARK: - 初始化测试
     
     func testDefaultEditorSelection() {
-        // 测试默认编辑器选择逻辑
-        let availableTypes = service.getAvailableEditorTypes()
-        XCTAssertFalse(availableTypes.isEmpty, "应该至少有一个可用的编辑器类型")
-        
         let currentType = service.getCurrentEditorType()
-        XCTAssertTrue(availableTypes.contains(currentType), "当前编辑器类型应该在可用类型中")
+        XCTAssertEqual(currentType, .native, "应该始终返回原生编辑器")
     }
     
     func testNativeEditorAvailabilityCheck() {
-        let isAvailable = service.isEditorTypeAvailable(.native)
+        let isAvailable = service.isNativeEditorAvailable
         
         // 在 macOS 13.0+ 上应该可用
         if #available(macOS 13.0, *) {
             XCTAssertTrue(isAvailable, "在支持的系统版本上原生编辑器应该可用")
         } else {
             XCTAssertFalse(isAvailable, "在不支持的系统版本上原生编辑器应该不可用")
-        }
-    }
-    
-    func testWebEditorAlwaysAvailable() {
-        let isAvailable = service.isEditorTypeAvailable(.web)
-        XCTAssertTrue(isAvailable, "Web 编辑器应该总是可用")
-    }
-    
-    // MARK: - 编辑器切换测试
-    
-    func testEditorTypeSwitch() {
-        let availableTypes = service.getAvailableEditorTypes()
-        
-        for type in availableTypes {
-            let success = service.setEditorType(type)
-            XCTAssertTrue(success, "设置可用的编辑器类型应该成功")
-            XCTAssertEqual(service.getCurrentEditorType(), type, "编辑器类型应该正确设置")
-        }
-    }
-    
-    func testInvalidEditorTypeSwitch() {
-        // 如果原生编辑器不可用，尝试设置应该失败
-        if !service.isEditorTypeAvailable(.native) {
-            let success = service.setEditorType(.native)
-            XCTAssertFalse(success, "设置不可用的编辑器类型应该失败")
         }
     }
     
@@ -88,23 +58,33 @@ final class EditorPreferencesServiceTests: XCTestCase {
         XCTAssertEqual(service.isNativeEditorAvailable, initialAvailability, "重新检查后可用性应该保持一致")
     }
     
-    func testFallbackToWebEditor() {
-        // 模拟原生编辑器变为不可用的情况
-        // 注意：这个测试需要修改 EditorPreferencesService 以支持模拟
-        // 目前只能测试逻辑的正确性
+    // MARK: - 编辑器类型测试
+    
+    func testEditorTypeAlwaysNative() {
+        // 验证编辑器类型始终为原生编辑器
+        let currentType = service.getCurrentEditorType()
+        XCTAssertEqual(currentType, .native, "编辑器类型应该始终为原生编辑器")
         
-        let availableTypes = service.getAvailableEditorTypes()
-        XCTAssertTrue(availableTypes.contains(.web), "Web 编辑器应该总是在可用类型中")
+        // 多次调用应该返回相同结果
+        for _ in 0..<5 {
+            XCTAssertEqual(service.getCurrentEditorType(), .native, "编辑器类型应该始终为原生编辑器")
+        }
     }
     
-    // MARK: - UserDefaults 扩展测试
+    // MARK: - 旧数据清理测试
     
-    func testUserDefaultsExtension() {
-        let availableTypes = service.getAvailableEditorTypes()
+    func testOldPreferencesCleanup() {
+        // 设置旧的编辑器类型偏好
+        userDefaults.set("web", forKey: "selectedEditorType")
         
-        for type in availableTypes {
-            userDefaults.editorType = type
-            XCTAssertEqual(userDefaults.editorType, type, "UserDefaults 扩展应该正确工作")
-        }
+        // 重新初始化服务应该清理旧的偏好设置
+        let newService = EditorPreferencesService(userDefaults: userDefaults)
+        
+        // 验证旧的偏好设置已被清理
+        let savedType = userDefaults.string(forKey: "selectedEditorType")
+        XCTAssertNil(savedType, "旧的编辑器类型偏好设置应该被清理")
+        
+        // 验证当前编辑器类型为原生编辑器
+        XCTAssertEqual(newService.getCurrentEditorType(), .native, "应该返回原生编辑器")
     }
 }

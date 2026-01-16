@@ -339,8 +339,85 @@ class NotesListViewController: NSViewController {
     }
     
     @objc private func moveNote(_ sender: Any?) {
-        // TODO: 实现移动笔记功能
-        print("移动笔记")
+        let clickedRow = tableView.clickedRow
+        guard clickedRow >= 0 else { return }
+        
+        // 查找点击的笔记
+        var rowIndex = 0
+        for sectionKey in sectionKeys {
+            if let notes = groupedNotes[sectionKey] {
+                if clickedRow >= rowIndex && clickedRow < rowIndex + notes.count {
+                    let note = notes[clickedRow - rowIndex]
+                    showMoveNoteMenu(for: note)
+                    return
+                }
+                rowIndex += notes.count
+            }
+        }
+    }
+    
+    /// 显示移动笔记菜单
+    /// - Parameter note: 要移动的笔记
+    private func showMoveNoteMenu(for note: Note) {
+        // 创建菜单
+        let menu = NSMenu()
+        
+        // 未分类文件夹（folderId为"0"）
+        let uncategorizedMenuItem = NSMenuItem(title: "未分类", action: #selector(moveToUncategorized(_:)), keyEquivalent: "")
+        uncategorizedMenuItem.representedObject = note
+        uncategorizedMenuItem.image = NSImage(systemSymbolName: "folder.badge.questionmark", accessibilityDescription: nil)
+        uncategorizedMenuItem.image?.size = NSSize(width: 16, height: 16)
+        uncategorizedMenuItem.target = self
+        menu.addItem(uncategorizedMenuItem)
+        
+        // 其他可用文件夹
+        let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+        
+        if !availableFolders.isEmpty {
+            menu.addItem(NSMenuItem.separator())
+            
+            for folder in availableFolders {
+                let menuItem = NSMenuItem(title: folder.name, action: #selector(moveNoteToFolder(_:)), keyEquivalent: "")
+                menuItem.representedObject = (note, folder)
+                menuItem.image = NSImage(systemSymbolName: folder.isPinned ? "pin.fill" : "folder", accessibilityDescription: nil)
+                menuItem.image?.size = NSSize(width: 16, height: 16)
+                menuItem.target = self
+                menu.addItem(menuItem)
+            }
+        }
+        
+        // 在点击位置显示菜单
+        let clickedRow = tableView.clickedRow
+        let rowRect = tableView.rect(ofRow: clickedRow)
+        menu.popUp(positioning: nil, at: NSPoint(x: rowRect.midX, y: rowRect.minY), in: tableView)
+    }
+    
+    /// 移动笔记到未分类文件夹
+    @objc private func moveToUncategorized(_ sender: NSMenuItem) {
+        guard let note = sender.representedObject as? Note else { return }
+        
+        NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
+            switch result {
+            case .success:
+                print("[NotesListViewController] 笔记移动到未分类成功: \(note.id)")
+            case .failure(let error):
+                print("[NotesListViewController] 移动到未分类失败: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    /// 移动笔记到指定文件夹
+    @objc private func moveNoteToFolder(_ sender: NSMenuItem) {
+        guard let (note, folder) = sender.representedObject as? (Note, Folder) else { return }
+        
+        NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
+            switch result {
+            case .success:
+                print("[NotesListViewController] 笔记移动成功: \(note.id) -> \(folder.name)")
+            case .failure(let error):
+                print("[NotesListViewController] 移动笔记失败: \(error.localizedDescription)")
+            }
+        }
     }
     
     @objc private func deleteNote(_ sender: Any?) {

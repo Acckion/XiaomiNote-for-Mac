@@ -29,7 +29,7 @@ final class StateSyncPerformancePropertyTests: XCTestCase {
     var textStorage: NSTextStorage!
     var formatStateSynchronizer: FormatStateSynchronizer!
     
-    /// 性能阈值（毫秒）- 需求 3.2
+    /// 性能阈值（毫秒）
     let performanceThresholdMs: Double = 100.0
     
     // MARK: - Setup & Teardown

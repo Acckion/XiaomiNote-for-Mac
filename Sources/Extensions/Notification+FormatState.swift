@@ -34,6 +34,27 @@ public extension Notification.Name {
     /// _Requirements: 4.2_
     static let requestFormatStateUpdate = Notification.Name("RequestFormatStateUpdate")
     
+    /// 音频附件点击通知
+    /// 
+    /// 当用户点击音频附件时发送此通知，用于在音频面板中播放音频
+    /// 
+    /// userInfo:
+    /// - "fileId": String - 音频文件 ID
+    /// 
+    /// _Requirements: 2.2_
+    static let audioAttachmentClicked = Notification.Name("AudioAttachmentClicked")
+    
+    /// 原生编辑器保存状态变化通知
+    /// 
+    /// 当原生编辑器的保存状态发生变化时发送此通知
+    /// 用于更新 UI 中的保存状态指示器
+    /// 
+    /// userInfo:
+    /// - "hasUnsavedChanges": Bool - 是否有未保存的更改
+    /// 
+    /// _Requirements: 6.1, 6.2, 6.3, 6.4_
+    static let nativeEditorSaveStatusDidChange = Notification.Name("NativeEditorSaveStatusDidChange")
+    
     // 注意：nativeEditorRequestContentSync 已在 NativeEditorView.swift 中定义
 }
 
@@ -62,10 +83,30 @@ public extension NotificationCenter {
         )
     }
     
+    /// 发送音频附件点击通知
+    /// - Parameter fileId: 音频文件 ID
+    /// _Requirements: 2.2_
+    @MainActor
+    func postAudioAttachmentClicked(fileId: String) {
+        post(
+            name: .audioAttachmentClicked,
+            object: nil,
+            userInfo: ["fileId": fileId]
+        )
+    }
+    
     /// 从通知中提取格式状态
     /// - Parameter notification: 通知对象
     /// - Returns: 格式状态，如果无法提取则返回 nil
     static func extractFormatState(from notification: Notification) -> FormatState? {
         return notification.userInfo?["state"] as? FormatState
+    }
+    
+    /// 从通知中提取音频文件 ID
+    /// - Parameter notification: 通知对象
+    /// - Returns: 音频文件 ID，如果无法提取则返回 nil
+    /// _Requirements: 2.2_
+    static func extractAudioFileId(from notification: Notification) -> String? {
+        return notification.userInfo?["fileId"] as? String
     }
 }
