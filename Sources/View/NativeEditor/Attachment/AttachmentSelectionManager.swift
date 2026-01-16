@@ -7,6 +7,13 @@
 
 import AppKit
 
+/// 光标相对于附件的位置
+enum CursorPositionRelativeToAttachment {
+    case beforeAttachment  // 光标在附件左边
+    case afterAttachment   // 光标在附件右边
+    case notAtAttachment   // 光标不在附件处
+}
+
 /// 附件选择管理器
 /// 负责检测光标位置、管理选择状态、协调高亮显示
 @MainActor
@@ -21,6 +28,9 @@ class AttachmentSelectionManager {
     
     /// 当前选中附件的字符索引
     private(set) var selectedAttachmentIndex: Int?
+    
+    /// 光标相对于附件的位置
+    private(set) var cursorPosition: CursorPositionRelativeToAttachment = .notAtAttachment
     
     /// 高亮视图
     private var highlightView: AttachmentHighlightView?
@@ -66,20 +76,31 @@ class AttachmentSelectionManager {
         // 如果选择范围长度大于 0，说明是文本选择，移除高亮
         if selectedRange.length > 0 {
             print("[AttachmentSelectionManager] 文本选择，移除高亮")
+            cursorPosition = .notAtAttachment
             removeHighlight()
             showCursor()
             return
         }
         
-        // 检测光标位置是否在附件处
-        if let (attachment, index) = detectAttachment(at: selectedRange.location, in: textStorage) {
-            print("[AttachmentSelectionManager] 检测到附件: \(type(of: attachment)), index=\(index)")
+        // 检测光标位置和附件
+        if let (attachment, index, position) = detectAttachmentAndPosition(at: selectedRange.location, in: textStorage) {
+            print("[AttachmentSelectionManager] 检测到附件: \(type(of: attachment)), index=\(index), position=\(position)")
+            
+            // 更新光标位置
+            cursorPosition = position
+            
             // 检查是否支持选择高亮
             if isSelectableAttachment(attachment) {
-                print("[AttachmentSelectionManager] 附件支持选择高亮，显示高亮")
-                // 显示高亮
-                showHighlight(for: attachment, at: index)
-                hideCursor()
+                // 仅在光标位于附件右边时显示高亮
+                if position == .afterAttachment {
+                    print("[AttachmentSelectionManager] 光标在附件右边，显示高亮并隐藏光标")
+                    showHighlight(for: attachment, at: index)
+                    hideCursor()
+                } else {
+                    print("[AttachmentSelectionManager] 光标在附件左边，显示普通光标")
+                    removeHighlight()
+                    showCursor()
+                }
                 return
             } else {
                 print("[AttachmentSelectionManager] 附件不支持选择高亮")
@@ -89,35 +110,52 @@ class AttachmentSelectionManager {
         }
         
         // 光标不在附件处，移除高亮
+        cursorPosition = .notAtAttachment
         removeHighlight()
         showCursor()
     }
     
-    /// 检测光标是否在附件处
+    /// 检测光标相对于附件的位置
+    /// - Parameters:
+    ///   - location: 光标位置
+    ///   - textStorage: 文本存储
+    /// - Returns: (附件, 字符索引, 光标位置) 或 nil
+    func detectAttachmentAndPosition(at location: Int, in textStorage: NSTextStorage) -> (NSTextAttachment, Int, CursorPositionRelativeToAttachment)? {
+        // 检查位置是否有效
+        guard location >= 0 && location <= textStorage.length else {
+            return nil
+        }
+        
+        // 情况1: 检查当前位置的字符(光标在附件左边)
+        if location < textStorage.length {
+            var effectiveRange = NSRange(location: 0, length: 0)
+            if let attachment = textStorage.attribute(.attachment, at: location, effectiveRange: &effectiveRange) as? NSTextAttachment {
+                // 光标正好在附件字符上,说明在附件左边
+                return (attachment, location, .beforeAttachment)
+            }
+        }
+        
+        // 情况2: 检查前一个位置(光标在附件右边)
+        if location > 0 && location <= textStorage.length {
+            var effectiveRange = NSRange(location: 0, length: 0)
+            if let attachment = textStorage.attribute(.attachment, at: location - 1, effectiveRange: &effectiveRange) as? NSTextAttachment {
+                // 光标在附件字符之后,说明在附件右边
+                return (attachment, location - 1, .afterAttachment)
+            }
+        }
+        
+        return nil
+    }
+    
+    /// 检测光标是否在附件处(兼容旧代码)
     /// - Parameters:
     ///   - location: 光标位置
     ///   - textStorage: 文本存储
     /// - Returns: (附件, 字符索引) 或 nil
     func detectAttachment(at location: Int, in textStorage: NSTextStorage) -> (NSTextAttachment, Int)? {
-        // 检查位置是否有效
-        guard location >= 0 && location < textStorage.length else {
-            return nil
+        if let (attachment, index, _) = detectAttachmentAndPosition(at: location, in: textStorage) {
+            return (attachment, index)
         }
-        
-        // 检查当前位置的字符
-        var effectiveRange = NSRange(location: 0, length: 0)
-        if let attachment = textStorage.attribute(.attachment, at: location, effectiveRange: &effectiveRange) as? NSTextAttachment {
-            // 光标正好在附件字符上
-            return (attachment, location)
-        }
-        
-        // 检查前一个位置（光标可能在附件后方）
-        if location > 0 {
-            if let attachment = textStorage.attribute(.attachment, at: location - 1, effectiveRange: &effectiveRange) as? NSTextAttachment {
-                return (attachment, location - 1)
-            }
-        }
-        
         return nil
     }
     
@@ -245,5 +283,15 @@ class AttachmentSelectionManager {
     /// 是否有选中的附件
     var hasSelectedAttachment: Bool {
         return selectedAttachment != nil
+    }
+    
+    /// 光标是否在附件左边
+    var isCursorBeforeAttachment: Bool {
+        return cursorPosition == .beforeAttachment
+    }
+    
+    /// 光标是否在附件右边
+    var isCursorAfterAttachment: Bool {
+        return cursorPosition == .afterAttachment
     }
 }

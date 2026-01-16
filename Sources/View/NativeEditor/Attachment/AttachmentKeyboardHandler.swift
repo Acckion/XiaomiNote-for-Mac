@@ -16,7 +16,7 @@ enum ArrowDirection {
 }
 
 /// 附件键盘处理器
-/// 负责处理方向键导航、删除操作、复制/剪切等键盘交互
+/// 负责根据光标位置处理不同的键盘交互
 @MainActor
 class AttachmentKeyboardHandler {
     // MARK: - Properties
@@ -40,9 +40,13 @@ class AttachmentKeyboardHandler {
     /// - Returns: 是否处理了事件
     func handleKeyDown(_ event: NSEvent, in textView: NSTextView) -> Bool {
         // 检查是否有选中的附件
-        guard selectionManager.hasSelectedAttachment else {
+        guard selectionManager.hasSelectedAttachment,
+              let attachmentIndex = selectionManager.selectedAttachmentIndex else {
             return false
         }
+        
+        // 获取光标位置
+        let cursorPosition = selectionManager.cursorPosition
         
         // 获取按键字符
         guard let characters = event.characters else {
@@ -52,9 +56,30 @@ class AttachmentKeyboardHandler {
         // 处理特殊键
         let keyCode = event.keyCode
         
-        // Delete 或 Backspace
-        if keyCode == 51 || keyCode == 117 {
-            return handleDelete(in: textView)
+        // Backspace
+        if keyCode == 51 {
+            if cursorPosition == .beforeAttachment {
+                return handleBackspaceBeforeAttachment(in: textView, attachmentIndex: attachmentIndex)
+            } else if cursorPosition == .afterAttachment {
+                return handleBackspaceAfterAttachment(in: textView, attachmentIndex: attachmentIndex)
+            }
+        }
+        
+        // Delete
+        if keyCode == 117 {
+            // Delete 键在附件右边时删除附件
+            if cursorPosition == .afterAttachment {
+                return handleBackspaceAfterAttachment(in: textView, attachmentIndex: attachmentIndex)
+            }
+        }
+        
+        // Enter/Return
+        if keyCode == 36 || keyCode == 76 {
+            if cursorPosition == .beforeAttachment {
+                return handleEnterBeforeAttachment(in: textView, attachmentIndex: attachmentIndex)
+            } else if cursorPosition == .afterAttachment {
+                return handleEnterAfterAttachment(in: textView, attachmentIndex: attachmentIndex)
+            }
         }
         
         // 方向键
@@ -68,38 +93,178 @@ class AttachmentKeyboardHandler {
             return handleArrowKey(.up, in: textView)
         }
         
-        // Cmd+C (复制)
-        if event.modifierFlags.contains(.command) && characters == "c" {
+        // Cmd+C (复制) - 仅在附件右边时
+        if event.modifierFlags.contains(.command) && characters == "c" && cursorPosition == .afterAttachment {
             return handleCopy(in: textView)
         }
         
-        // Cmd+X (剪切)
-        if event.modifierFlags.contains(.command) && characters == "x" {
+        // Cmd+X (剪切) - 仅在附件右边时
+        if event.modifierFlags.contains(.command) && characters == "x" && cursorPosition == .afterAttachment {
             return handleCut(in: textView)
         }
         
         // 普通文本输入
         if !event.modifierFlags.contains(.command) && !event.modifierFlags.contains(.control) {
-            return handleTextInput(characters, in: textView)
+            if cursorPosition == .beforeAttachment {
+                return handleTextInputBeforeAttachment(characters, in: textView, attachmentIndex: attachmentIndex)
+            } else if cursorPosition == .afterAttachment {
+                return handleTextInputAfterAttachment(characters, in: textView, attachmentIndex: attachmentIndex)
+            }
         }
         
         return false
     }
     
-    /// 处理删除键(Delete/Backspace)
-    /// - Parameter textView: 文本视图
+    // MARK: - 附件左边的键盘行为
+    
+    /// 处理附件左边的文本输入
+    /// - Parameters:
+    ///   - text: 输入的文本
+    ///   - textView: 文本视图
+    ///   - attachmentIndex: 附件索引
     /// - Returns: 是否处理了事件
-    func handleDelete(in textView: NSTextView) -> Bool {
-        guard let index = selectionManager.selectedAttachmentIndex,
-              let textStorage = textView.textStorage else {
+    func handleTextInputBeforeAttachment(_ text: String, in textView: NSTextView, attachmentIndex: Int) -> Bool {
+        guard let textStorage = textView.textStorage else {
             return false
         }
         
-        // 删除附件
-        textStorage.deleteCharacters(in: NSRange(location: index, length: 1))
+        print("[AttachmentKeyboardHandler] 附件左边输入文本: \(text)")
         
-        // 更新光标位置
-        textView.setSelectedRange(NSRange(location: index, length: 0))
+        // 在附件上方新增一行
+        // 找到附件所在行的开头
+        let lineStart = (textStorage.string as NSString).lineRange(for: NSRange(location: attachmentIndex, length: 0)).location
+        
+        // 在行开头插入新行和文本
+        let insertString = text + "\n"
+        textStorage.insert(NSAttributedString(string: insertString), at: lineStart)
+        
+        // 将光标移动到新行末尾(在换行符之前)
+        let newCursorLocation = lineStart + text.count
+        textView.setSelectedRange(NSRange(location: newCursorLocation, length: 0))
+        
+        // 通知文本变化
+        textView.didChangeText()
+        
+        return true
+    }
+    
+    /// 处理附件左边的 Backspace
+    /// - Parameters:
+    ///   - textView: 文本视图
+    ///   - attachmentIndex: 附件索引
+    /// - Returns: 是否处理了事件
+    func handleBackspaceBeforeAttachment(in textView: NSTextView, attachmentIndex: Int) -> Bool {
+        guard let textStorage = textView.textStorage else {
+            return false
+        }
+        
+        print("[AttachmentKeyboardHandler] 附件左边按下 Backspace")
+        
+        // 如果附件是文档第一行,不执行任何操作
+        if attachmentIndex == 0 {
+            print("[AttachmentKeyboardHandler] 附件在文档开头,不执行操作")
+            return true
+        }
+        
+        // 将光标移动到上一行末尾
+        // 找到附件所在行的开头
+        let lineRange = (textStorage.string as NSString).lineRange(for: NSRange(location: attachmentIndex, length: 0))
+        
+        if lineRange.location > 0 {
+            // 找到上一行的末尾(不包括换行符)
+            let previousLineEnd = lineRange.location - 1
+            
+            // 如果上一个字符是换行符,再往前移一位
+            var newLocation = previousLineEnd
+            if newLocation > 0 && (textStorage.string as NSString).character(at: newLocation) == 10 { // \n
+                newLocation -= 1
+            }
+            
+            textView.setSelectedRange(NSRange(location: newLocation, length: 0))
+        }
+        
+        return true
+    }
+    
+    /// 处理附件左边的 Enter
+    /// - Parameters:
+    ///   - textView: 文本视图
+    ///   - attachmentIndex: 附件索引
+    /// - Returns: 是否处理了事件
+    func handleEnterBeforeAttachment(in textView: NSTextView, attachmentIndex: Int) -> Bool {
+        guard let textStorage = textView.textStorage else {
+            return false
+        }
+        
+        print("[AttachmentKeyboardHandler] 附件左边按下 Enter")
+        
+        // 在附件上方插入新行
+        // 找到附件所在行的开头
+        let lineStart = (textStorage.string as NSString).lineRange(for: NSRange(location: attachmentIndex, length: 0)).location
+        
+        // 在行开头插入换行符
+        textStorage.insert(NSAttributedString(string: "\n"), at: lineStart)
+        
+        // 光标保持在原位置(新行末尾,也就是换行符之前)
+        textView.setSelectedRange(NSRange(location: lineStart, length: 0))
+        
+        // 通知文本变化
+        textView.didChangeText()
+        
+        return true
+    }
+    
+    // MARK: - 附件右边的键盘行为
+    
+    /// 处理附件右边的文本输入
+    /// - Parameters:
+    ///   - text: 输入的文本
+    ///   - textView: 文本视图
+    ///   - attachmentIndex: 附件索引
+    /// - Returns: 是否处理了事件
+    func handleTextInputAfterAttachment(_ text: String, in textView: NSTextView, attachmentIndex: Int) -> Bool {
+        guard let textStorage = textView.textStorage else {
+            return false
+        }
+        
+        print("[AttachmentKeyboardHandler] 附件右边输入文本: \(text)")
+        
+        // 在附件下方新增一行
+        // 找到附件所在行的末尾
+        let lineRange = (textStorage.string as NSString).lineRange(for: NSRange(location: attachmentIndex, length: 0))
+        let lineEnd = lineRange.location + lineRange.length
+        
+        // 在行末尾插入换行符和文本
+        let insertString = "\n" + text
+        textStorage.insert(NSAttributedString(string: insertString), at: lineEnd)
+        
+        // 将光标移动到新行末尾
+        let newCursorLocation = lineEnd + insertString.count
+        textView.setSelectedRange(NSRange(location: newCursorLocation, length: 0))
+        
+        // 通知文本变化
+        textView.didChangeText()
+        
+        return true
+    }
+    
+    /// 处理附件右边的 Backspace(删除附件)
+    /// - Parameters:
+    ///   - textView: 文本视图
+    ///   - attachmentIndex: 附件索引
+    /// - Returns: 是否处理了事件
+    func handleBackspaceAfterAttachment(in textView: NSTextView, attachmentIndex: Int) -> Bool {
+        guard let textStorage = textView.textStorage else {
+            return false
+        }
+        
+        print("[AttachmentKeyboardHandler] 附件右边按下 Backspace,删除附件")
+        
+        // 删除附件
+        textStorage.deleteCharacters(in: NSRange(location: attachmentIndex, length: 1))
+        
+        // 光标保持在该行开头
+        textView.setSelectedRange(NSRange(location: attachmentIndex, length: 0))
         
         // 清除选择状态
         selectionManager.removeHighlight()
@@ -111,6 +276,37 @@ class AttachmentKeyboardHandler {
         return true
     }
     
+    /// 处理附件右边的 Enter
+    /// - Parameters:
+    ///   - textView: 文本视图
+    ///   - attachmentIndex: 附件索引
+    /// - Returns: 是否处理了事件
+    func handleEnterAfterAttachment(in textView: NSTextView, attachmentIndex: Int) -> Bool {
+        guard let textStorage = textView.textStorage else {
+            return false
+        }
+        
+        print("[AttachmentKeyboardHandler] 附件右边按下 Enter")
+        
+        // 在附件下方插入新行
+        // 找到附件所在行的末尾
+        let lineRange = (textStorage.string as NSString).lineRange(for: NSRange(location: attachmentIndex, length: 0))
+        let lineEnd = lineRange.location + lineRange.length
+        
+        // 在行末尾插入换行符
+        textStorage.insert(NSAttributedString(string: "\n"), at: lineEnd)
+        
+        // 将光标移动到新行开头
+        textView.setSelectedRange(NSRange(location: lineEnd + 1, length: 0))
+        
+        // 通知文本变化
+        textView.didChangeText()
+        
+        return true
+    }
+    
+    // MARK: - 通用键盘行为
+    
     /// 处理方向键
     /// - Parameters:
     ///   - direction: 方向(左/右/上/下)
@@ -121,15 +317,26 @@ class AttachmentKeyboardHandler {
             return false
         }
         
+        let cursorPosition = selectionManager.cursorPosition
         var newLocation = index
         
         switch direction {
         case .left:
-            // 移动到附件前方
-            newLocation = index
+            // 从右边移动到左边
+            if cursorPosition == .afterAttachment {
+                newLocation = index
+            } else {
+                // 已经在左边,使用默认行为
+                return false
+            }
         case .right:
-            // 移动到附件后方
-            newLocation = index + 1
+            // 从左边移动到右边
+            if cursorPosition == .beforeAttachment {
+                newLocation = index + 1
+            } else {
+                // 已经在右边,使用默认行为
+                return false
+            }
         case .up, .down:
             // 上下方向键使用默认行为
             return false
@@ -137,10 +344,6 @@ class AttachmentKeyboardHandler {
         
         // 更新光标位置
         textView.setSelectedRange(NSRange(location: newLocation, length: 0))
-        
-        // 清除选择状态
-        selectionManager.removeHighlight()
-        selectionManager.showCursor()
         
         return true
     }
@@ -153,6 +356,8 @@ class AttachmentKeyboardHandler {
               let textStorage = textView.textStorage else {
             return false
         }
+        
+        print("[AttachmentKeyboardHandler] 复制附件")
         
         // 获取附件的 attributed string
         let attachmentRange = NSRange(location: index, length: 1)
@@ -170,42 +375,18 @@ class AttachmentKeyboardHandler {
     /// - Parameter textView: 文本视图
     /// - Returns: 是否处理了事件
     func handleCut(in textView: NSTextView) -> Bool {
+        print("[AttachmentKeyboardHandler] 剪切附件")
+        
         // 先复制
         guard handleCopy(in: textView) else {
             return false
         }
         
         // 再删除
-        return handleDelete(in: textView)
-    }
-    
-    /// 处理文本输入(替换附件)
-    /// - Parameters:
-    ///   - text: 输入的文本
-    ///   - textView: 文本视图
-    /// - Returns: 是否处理了事件
-    func handleTextInput(_ text: String, in textView: NSTextView) -> Bool {
-        guard let index = selectionManager.selectedAttachmentIndex,
-              let textStorage = textView.textStorage else {
+        guard let index = selectionManager.selectedAttachmentIndex else {
             return false
         }
         
-        // 删除附件
-        textStorage.deleteCharacters(in: NSRange(location: index, length: 1))
-        
-        // 插入文本
-        textStorage.insert(NSAttributedString(string: text), at: index)
-        
-        // 更新光标位置
-        textView.setSelectedRange(NSRange(location: index + text.count, length: 0))
-        
-        // 清除选择状态
-        selectionManager.removeHighlight()
-        selectionManager.showCursor()
-        
-        // 通知文本变化
-        textView.didChangeText()
-        
-        return true
+        return handleBackspaceAfterAttachment(in: textView, attachmentIndex: index)
     }
 }
