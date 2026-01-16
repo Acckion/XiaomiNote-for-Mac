@@ -200,7 +200,7 @@ class AttachmentSelectionManager {
             textView.addSubview(highlightView!)
             print("[AttachmentSelectionManager] 创建高亮视图，frame=\(rect)")
         } else {
-            highlightView?.updateFrame(rect, animated: true)
+            highlightView?.updateFrame(rect, animated: false)
             print("[AttachmentSelectionManager] 更新高亮视图，frame=\(rect)")
         }
         

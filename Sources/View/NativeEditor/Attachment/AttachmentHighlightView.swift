@@ -46,8 +46,8 @@ class AttachmentHighlightView: NSView {
         }
     }
     
-    /// 是否启用动画
-    var animationEnabled: Bool = true
+    /// 是否启用动画(已禁用以避免延迟感)
+    var animationEnabled: Bool = false
     
     /// 动画时长
     var animationDuration: TimeInterval = 0.15
