@@ -307,8 +307,8 @@ final class HorizontalRuleAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - Properties
     
-    /// 分割线高度
-    var lineHeight: CGFloat = 1
+    /// 分割线高度（增加到 3pt 以确保在所有屏幕上清晰可见）
+    var lineHeight: CGFloat = 3
     
     /// 分割线宽度（相对于容器宽度的比例，0-1）
     var widthRatio: CGFloat = 1.0
@@ -465,12 +465,14 @@ final class HorizontalRuleAttachment: NSTextAttachment, ThemeAwareAttachment {
         let image = NSImage(size: size, flipped: false) { [weak self] rect in
             guard let self = self else { return false }
             
-            // 获取分割线颜色
+            // 获取分割线颜色（大幅增加对比度确保可见）
             let lineColor: NSColor
             if self.isDarkMode {
-                lineColor = NSColor.white.withAlphaComponent(0.15)
+                // 深色模式使用浅色分割线，透明度提高到 0.5 确保清晰可见
+                lineColor = NSColor.white.withAlphaComponent(0.5)
             } else {
-                lineColor = NSColor.black.withAlphaComponent(0.12)
+                // 浅色模式使用深色分割线，透明度提高到 0.35
+                lineColor = NSColor.black.withAlphaComponent(0.35)
             }
             
             // 计算分割线位置（垂直居中）
@@ -536,10 +538,12 @@ final class HorizontalRuleAttachment: NSTextAttachment, ThemeAwareAttachment {
         let edgeColor: NSColor
         
         if isDarkMode {
-            centerColor = NSColor.white.withAlphaComponent(0.2)
+            // 深色模式渐变线中心使用更高对比度
+            centerColor = NSColor.white.withAlphaComponent(0.5)
             edgeColor = NSColor.white.withAlphaComponent(0.0)
         } else {
-            centerColor = NSColor.black.withAlphaComponent(0.15)
+            // 浅色模式渐变线中心使用更高对比度
+            centerColor = NSColor.black.withAlphaComponent(0.35)
             edgeColor = NSColor.black.withAlphaComponent(0.0)
         }
         
