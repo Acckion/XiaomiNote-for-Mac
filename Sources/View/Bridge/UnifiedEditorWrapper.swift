@@ -250,6 +250,9 @@ struct UnifiedEditorWrapper: View {
     }
     
     /// 处理内容变化
+    /// 
+    /// 关键修复：增强内容比较逻辑，避免保存后不必要的重新加载
+    /// _Requirements: 2.3, 3.1, 3.2, 3.3, 3.4_
     private func handleContentChange(oldValue: String, newValue: String) {
         guard oldValue != newValue else { return }
         guard !isUpdatingFromExternal else { return }
@@ -259,6 +262,43 @@ struct UnifiedEditorWrapper: View {
         if newValue != lastLoadedContent {
             print("[UnifiedEditorWrapper] content 变化 - 从长度 \(oldValue.count) 到 \(newValue.count), lastLoaded: \(lastLoadedContent.count)")
             
+            // ✅ 关键修复：检查是否是保存后的内容更新（而不是笔记切换）
+            // 如果新内容与当前编辑器中的内容相同（或非常接近），说明这是保存后的更新
+            // 不需要重新加载，避免触发视图更新和打断输入法
+            // _Requirements: 2.3, 3.1, 3.2, 3.3, 3.4_
+            if preferencesService.selectedEditorType == .native && preferencesService.isNativeEditorAvailable {
+                let currentEditorXML = nativeEditorContext.exportToXML()
+                
+                // 使用规范化比较：去除空白字符后比较
+                // _Requirements: 3.1_
+                let normalizedCurrent = currentEditorXML.trimmingCharacters(in: .whitespacesAndNewlines)
+                let normalizedNew = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                if !normalizedCurrent.isEmpty && normalizedCurrent == normalizedNew {
+                    print("[UnifiedEditorWrapper] content 变化但与编辑器内容相同，跳过重新加载")
+                    // _Requirements: 3.3_ - 跳过重新加载时更新 lastLoadedContent
+                    Task { @MainActor in
+                        lastLoadedContent = newValue
+                    }
+                    return
+                }
+                
+                // 额外检查：如果内容长度差异很小（< 10 个字符），也认为是保存后的更新
+                // 这可以处理格式化差异（如空格、换行符的微小变化）
+                // _Requirements: 3.2_
+                let lengthDiff = abs(currentEditorXML.count - newValue.count)
+                if lengthDiff < 10 && !currentEditorXML.isEmpty {
+                    print("[UnifiedEditorWrapper] content 变化但长度差异很小 (\(lengthDiff))，跳过重新加载")
+                    // _Requirements: 3.3_ - 跳过重新加载时更新 lastLoadedContent
+                    Task { @MainActor in
+                        lastLoadedContent = newValue
+                    }
+                    return
+                }
+            }
+            
+            // ✅ 真正的内容变化（笔记切换），执行重新加载
+            // _Requirements: 3.4_
             Task { @MainActor in
                 isUpdatingFromExternal = true
                 
