@@ -24,6 +24,9 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     /// 文件夹 ID（用于本地存储路径）
     var folderId: String?
     
+    /// 图片描述（从 XML 解析得到，用户可编辑的说明信息）
+    var imageDescription: String?
+    
     /// 原始图片尺寸
     var originalSize: NSSize = .zero
     
@@ -70,10 +73,11 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
     
     /// 便捷初始化方法 - 从图片数据创建
-    convenience init(imageData: Data, fileId: String, folderId: String? = nil) {
+    convenience init(imageData: Data, fileId: String, folderId: String? = nil, imageDescription: String? = nil) {
         self.init(data: imageData, ofType: "public.image")
         self.fileId = fileId
         self.folderId = folderId
+        self.imageDescription = imageDescription
         
         if let image = NSImage(data: imageData) {
             self.image = image
@@ -83,26 +87,29 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
     
     /// 便捷初始化方法 - 从 NSImage 创建
-    convenience init(image: NSImage, fileId: String? = nil, folderId: String? = nil) {
+    convenience init(image: NSImage, fileId: String? = nil, folderId: String? = nil, imageDescription: String? = nil) {
         self.init(data: nil, ofType: nil)
         self.fileId = fileId
         self.folderId = folderId
+        self.imageDescription = imageDescription
         self.image = image
         self.originalSize = image.size
         calculateDisplaySize()
     }
     
     /// 便捷初始化方法 - 从 URL 创建（立即加载）
-    convenience init(src: String, fileId: String? = nil, folderId: String? = nil) {
+    convenience init(src: String, fileId: String? = nil, folderId: String? = nil, imageDescription: String? = nil) {
         self.init(data: nil, ofType: nil)
         self.src = src
         self.fileId = fileId
         self.folderId = folderId
+        self.imageDescription = imageDescription
         self.isLoading = true
         print("[ImageAttachment] 🖼️ 初始化（立即加载）")
         print("[ImageAttachment]   - src: '\(src)'")
         print("[ImageAttachment]   - fileId: '\(fileId ?? "nil")'")
         print("[ImageAttachment]   - folderId: '\(folderId ?? "nil")'")
+        print("[ImageAttachment]   - imageDescription: '\(imageDescription ?? "nil")'")
         print("[ImageAttachment]   - 附件对象地址: \(Unmanaged.passUnretained(self).toOpaque())")
         setupPlaceholder()
         

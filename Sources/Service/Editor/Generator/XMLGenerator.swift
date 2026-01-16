@@ -130,18 +130,27 @@ public final class XMLGenerator: @unchecked Sendable {
     }
     
     /// 生成图片 XML
-    /// 格式：`<img fileid="ID" />` 或 `<img src="URL" />`
+    /// 格式：新格式 `<img fileid="ID" imgshow="0" imgdes="描述" />` 或旧格式 `<img src="URL" />`
     private func generateImage(_ node: ImageNode) -> String {
         var attributes: [String] = []
         
+        // 优先使用 fileId（小米笔记格式）
         if let fileId = node.fileId {
             attributes.append("fileid=\"\(encodeXMLEntities(fileId))\"")
+            
+            // 新格式必需属性
+            attributes.append("imgshow=\"0\"")
+            
+            // 添加描述（如果有）
+            let description = node.description ?? ""
+            attributes.append("imgdes=\"\(encodeXMLEntities(description))\"")
         }
-        
-        if let src = node.src {
+        // 如果没有 fileId，使用 src（兼容其他格式）
+        else if let src = node.src {
             attributes.append("src=\"\(encodeXMLEntities(src))\"")
         }
         
+        // 添加尺寸信息（如果有）
         if let width = node.width {
             attributes.append("width=\"\(width)\"")
         }

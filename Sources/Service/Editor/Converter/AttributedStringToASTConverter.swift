@@ -195,7 +195,8 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
                 fileId: imageAttachment.fileId,
                 src: imageAttachment.src,
                 width: Int(imageAttachment.displaySize.width),
-                height: Int(imageAttachment.displaySize.height)
+                height: Int(imageAttachment.displaySize.height),
+                description: imageAttachment.imageDescription
             )
         }
         

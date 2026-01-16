@@ -377,11 +377,12 @@ public final class MiNoteXMLParser: @unchecked Sendable {
         let src = attributes["src"]
         let width = attributes["width"].flatMap { Int($0) }
         let height = attributes["height"].flatMap { Int($0) }
+        let description = attributes["imgdes"]
         
         // 跳过标签
         advance()
         
-        return ImageNode(fileId: fileId, src: src, width: width, height: height)
+        return ImageNode(fileId: fileId, src: src, width: width, height: height, description: description)
     }
     
     /// 解析音频 `<sound fileid="ID" />`

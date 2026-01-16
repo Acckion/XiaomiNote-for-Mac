@@ -295,6 +295,17 @@ public final class XMLTokenizer: @unchecked Sendable {
         while !isAtEnd {
             let char = currentChar
             
+            // 检查旧格式图片标记 ☺
+            if char == "☺" {
+                // 如果已经累积了文本，先返回文本 Token
+                if !text.isEmpty {
+                    let decodedText = XMLEntityCodec.decode(text)
+                    return .text(decodedText)
+                }
+                // 解析旧格式图片
+                return try parseLegacyImage()
+            }
+            
             // 遇到标签开始或换行符时停止
             if char == "<" || char == "\n" {
                 break
@@ -308,6 +319,108 @@ public final class XMLTokenizer: @unchecked Sendable {
         let decodedText = XMLEntityCodec.decode(text)
         
         return .text(decodedText)
+    }
+    
+    /// 解析旧格式图片
+    /// 格式：☺ {fileId}<0/><[{description}]/>
+    private func parseLegacyImage() throws -> XMLToken {
+        // 跳过 ☺ 字符
+        advance()
+        
+        // 跳过空白
+        skipWhitespace()
+        
+        // 提取 fileId（直到 <0/> 标记）
+        var fileId = ""
+        while !isAtEnd {
+            let char = currentChar
+            
+            // 检查是否到达 <0/> 标记
+            if char == "<" {
+                // 检查后续是否为 "0/>"
+                let savedIndex = currentIndex
+                advance()
+                
+                if !isAtEnd && currentChar == "0" {
+                    advance()
+                    if !isAtEnd && currentChar == "/" {
+                        advance()
+                        if !isAtEnd && currentChar == ">" {
+                            advance()
+                            // 找到 <0/> 标记
+                            break
+                        }
+                    }
+                }
+                
+                // 不是 <0/> 标记，恢复位置并继续
+                currentIndex = savedIndex
+                fileId.append(char)
+                advance()
+            } else {
+                fileId.append(char)
+                advance()
+            }
+        }
+        
+        // 验证 fileId 不为空
+        let trimmedFileId = fileId.trimmingCharacters(in: .whitespaces)
+        guard !trimmedFileId.isEmpty else {
+            throw TokenizerError.invalidLegacyImageFormat("缺少 fileId")
+        }
+        
+        // 提取 description（从 <[ 到 ]/> 之间的文本）
+        var description = ""
+        
+        // 查找 <[ 标记
+        if !isAtEnd && currentChar == "<" {
+            let savedIndex = currentIndex
+            advance()
+            
+            if !isAtEnd && currentChar == "[" {
+                advance()
+                
+                // 提取描述内容（直到 ]/> 标记）
+                while !isAtEnd {
+                    let char = currentChar
+                    
+                    // 检查是否到达 ]/> 标记
+                    if char == "]" {
+                        let savedDescIndex = currentIndex
+                        advance()
+                        
+                        if !isAtEnd && currentChar == "/" {
+                            advance()
+                            if !isAtEnd && currentChar == ">" {
+                                advance()
+                                // 找到 ]/> 标记
+                                break
+                            }
+                        }
+                        
+                        // 不是 ]/> 标记，恢复位置并继续
+                        currentIndex = savedDescIndex
+                        description.append(char)
+                        advance()
+                    } else {
+                        description.append(char)
+                        advance()
+                    }
+                }
+            } else {
+                // 没有找到 <[ 标记，恢复位置
+                currentIndex = savedIndex
+            }
+        }
+        
+        // 生成等效的 <img> 标签 Token
+        let attributes: [String: String] = [
+            "fileid": trimmedFileId,
+            "imgshow": "0",
+            "imgdes": description
+        ]
+        
+        return .startTag(name: "img", attributes: attributes, selfClosing: true)
     }
     
     // MARK: - 辅助方法
@@ -347,6 +460,7 @@ public enum TokenizerError: Error, LocalizedError, Sendable {
     case expectedClosingBracket
     case unterminatedString
     case invalidEntity(String)
+    case invalidLegacyImageFormat(String)
     
     public var errorDescription: String? {
         switch self {
@@ -362,6 +476,8 @@ public enum TokenizerError: Error, LocalizedError, Sendable {
             return "未终止的字符串"
         case .invalidEntity(let entity):
             return "无效的 XML 实体: \(entity)"
+        case .invalidLegacyImageFormat(let reason):
+            return "无效的旧格式图片: \(reason)"
         }
     }
 }

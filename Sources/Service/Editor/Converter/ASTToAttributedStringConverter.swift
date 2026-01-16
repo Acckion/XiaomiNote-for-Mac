@@ -277,14 +277,14 @@ public final class ASTToAttributedStringConverter {
         let imageAttachment: ImageAttachment
         
         if let fileId = node.fileId {
-            // 使用 fileId 创建附件
-            imageAttachment = ImageAttachment(src: "minote://image/\(fileId)", fileId: fileId, folderId: folderId)
+            // 使用 fileId 创建附件，传递 description
+            imageAttachment = ImageAttachment(src: "minote://image/\(fileId)", fileId: fileId, folderId: folderId, imageDescription: node.description)
         } else if let src = node.src {
-            // 使用 src 创建附件
-            imageAttachment = ImageAttachment(src: src, fileId: nil, folderId: folderId)
+            // 使用 src 创建附件，传递 description
+            imageAttachment = ImageAttachment(src: src, fileId: nil, folderId: folderId, imageDescription: node.description)
         } else {
-            // 创建占位符
-            imageAttachment = ImageAttachment(src: "", fileId: nil, folderId: folderId)
+            // 创建占位符，传递 description
+            imageAttachment = ImageAttachment(src: "", fileId: nil, folderId: folderId, imageDescription: node.description)
         }
         
         // 设置图片尺寸（如果有）

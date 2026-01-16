@@ -231,14 +231,18 @@ public struct ImageNode: BlockNode, Equatable, Sendable {
     /// 图片高度
     public var height: Int?
     
+    /// 图片描述（用户可编辑的说明文本）
+    public var description: String?
+    
     /// 图片没有子节点
     public var children: [any ASTNode] { [] }
     
-    public init(fileId: String? = nil, src: String? = nil, width: Int? = nil, height: Int? = nil) {
+    public init(fileId: String? = nil, src: String? = nil, width: Int? = nil, height: Int? = nil, description: String? = nil) {
         self.fileId = fileId
         self.src = src
         self.width = width
         self.height = height
+        self.description = description
     }
 }
 
