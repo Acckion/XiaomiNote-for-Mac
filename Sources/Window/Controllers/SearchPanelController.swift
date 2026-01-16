@@ -263,7 +263,7 @@ public class SearchPanelController: NSObject {
         print("[DEBUG] 查找文本: '\(searchText)'")
         print("[DEBUG] 查找选项: 区分大小写=\(isCaseSensitive), 全字匹配=\(isWholeWord), 正则表达式=\(isRegex)")
 
-        // 调用Web编辑器的查找功能
+        // 调用编辑器的查找功能
         findInEditor(direction: "next")
     }
 
@@ -279,7 +279,7 @@ public class SearchPanelController: NSObject {
         print("[DEBUG] 查找文本: '\(searchText)'")
         print("[DEBUG] 查找选项: 区分大小写=\(isCaseSensitive), 全字匹配=\(isWholeWord), 正则表达式=\(isRegex)")
 
-        // 调用Web编辑器的查找功能
+        // 调用编辑器的查找功能
         findInEditor(direction: "previous")
     }
 
@@ -290,7 +290,7 @@ public class SearchPanelController: NSObject {
 
         logger.debug("替换: \(self.searchText) -> \(self.replaceText)")
 
-        // 调用Web编辑器的替换功能
+        // 调用编辑器的替换功能
         replaceInEditor(replaceAll: false)
     }
 
@@ -301,72 +301,29 @@ public class SearchPanelController: NSObject {
 
         logger.debug("替换所有: \(self.searchText) -> \(self.replaceText)")
 
-        // 调用Web编辑器的替换所有功能
+        // 调用编辑器的替换所有功能
         replaceInEditor(replaceAll: true)
     }
 
     /// 在编辑器中查找
     @MainActor
     private func findInEditor(direction: String) {
-        // 获取Web编辑器上下文
-        guard let webEditorContext = mainWindowController?.viewModel?.webEditorContext else {
-            logger.error("无法获取Web编辑器上下文")
-            return
-        }
-
-        // 调用Web编辑器的查找API
-        let options = [
-            "text": searchText,
-            "direction": direction,
-            "caseSensitive": isCaseSensitive,
-            "wholeWord": isWholeWord,
-            "regex": isRegex
-        ] as [String: Any]
-
-        // 这里需要通过WebEditorContext调用JavaScript
-        // 暂时使用简单的实现
-        if let findText = webEditorContext.findTextClosure {
-            findText(options)
-        }
+        // TODO: 实现原生编辑器的查找功能
+        logger.warning("原生编辑器的查找功能尚未实现")
     }
 
     /// 在编辑器中替换
     @MainActor
     private func replaceInEditor(replaceAll: Bool) {
-        // 获取Web编辑器上下文
-        guard let webEditorContext = mainWindowController?.viewModel?.webEditorContext else {
-            logger.error("无法获取Web编辑器上下文")
-            return
-        }
-
-        // 调用Web编辑器的替换API
-        let options = [
-            "searchText": searchText,
-            "replaceText": replaceText,
-            "replaceAll": replaceAll,
-            "caseSensitive": isCaseSensitive,
-            "wholeWord": isWholeWord,
-            "regex": isRegex
-        ] as [String: Any]
-
-        // 这里需要通过WebEditorContext调用JavaScript
-        if let replaceText = webEditorContext.replaceTextClosure {
-            replaceText(options)
-        }
+        // TODO: 实现原生编辑器的替换功能
+        logger.warning("原生编辑器的替换功能尚未实现")
     }
 
     /// 清除所有查找高亮和选择
     @MainActor
     private func clearAllSearchHighlights() {
-        // 获取Web编辑器上下文
-        guard let webEditorContext = mainWindowController?.viewModel?.webEditorContext else {
-            print("[DEBUG] 无法获取Web编辑器上下文，无法清除高亮")
-            return
-        }
-
-        // 调用Web编辑器的高亮清除功能
-        webEditorContext.highlightSearchText("")
-        print("[DEBUG] 已清除所有查找高亮")
+        // TODO: 实现原生编辑器的高亮清除功能
+        print("[DEBUG] 原生编辑器的高亮清除功能尚未实现")
     }
 }
 
