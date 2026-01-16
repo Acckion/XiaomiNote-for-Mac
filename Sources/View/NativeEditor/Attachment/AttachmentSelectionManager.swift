@@ -163,14 +163,11 @@ class AttachmentSelectionManager {
     /// - Parameter attachment: 附件对象
     /// - Returns: 是否支持
     func isSelectableAttachment(_ attachment: NSTextAttachment) -> Bool {
-        // 支持所有附件类型的选择高亮
-        // 包括：分割线、图片、录音、复选框、项目符号、有序列表
+        // 仅支持分割线、图片、录音的选择高亮
+        // checkbox、有序列表、无序列表不使用此高亮机制
         return attachment is HorizontalRuleAttachment ||
                attachment is ImageAttachment ||
-               attachment is AudioAttachment ||
-               attachment is InteractiveCheckboxAttachment ||
-               attachment is BulletAttachment ||
-               attachment is OrderAttachment
+               attachment is AudioAttachment
     }
     
     // MARK: - Highlight Management
@@ -207,6 +204,17 @@ class AttachmentSelectionManager {
             print("[AttachmentSelectionManager] 更新高亮视图，frame=\(rect)")
         }
         
+        // 根据附件类型设置高亮样式
+        if attachment is HorizontalRuleAttachment {
+            // 分割线使用加粗线条样式
+            highlightView?.highlightStyle = .thickLine
+            print("[AttachmentSelectionManager] 使用加粗线条样式(分割线)")
+        } else {
+            // 其他附件使用描边样式
+            highlightView?.highlightStyle = .border
+            print("[AttachmentSelectionManager] 使用描边样式")
+        }
+        
         // 显示高亮
         highlightView?.show()
         print("[AttachmentSelectionManager] 显示高亮，alphaValue=\(highlightView?.alphaValue ?? 0)")
@@ -240,7 +248,8 @@ class AttachmentSelectionManager {
                                                     in: textContainer)
         
         // 转换到 textView 坐标系
-        glyphRect.origin.x += textContainer.lineFragmentPadding
+        // boundingRect 已经包含了 lineFragmentPadding,只需要加上 textContainerInset
+        glyphRect.origin.x += textView.textContainerInset.width
         glyphRect.origin.y += textView.textContainerInset.height
         
         // 添加一些内边距使高亮更明显
