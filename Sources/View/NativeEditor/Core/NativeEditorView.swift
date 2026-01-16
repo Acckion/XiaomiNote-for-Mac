@@ -1819,6 +1819,16 @@ class NativeTextView: NSTextView {
         // 处理回车键 - 使用 UnifiedFormatManager 统一处理换行逻辑
         // _Requirements: 8.2 - 回车键调用 UnifiedFormatManager.handleNewLine
         if event.keyCode == 36 { // Return key
+            // 关键修复：检查输入法组合状态
+            // 如果用户正在使用输入法（如中文输入法输入英文），按回车应该只是确认输入，不换行
+            // hasMarkedText() 返回 true 表示输入法正在组合中（如拼音未选择候选词）
+            if hasMarkedText() {
+                print("[NativeTextView] 检测到输入法组合状态，让系统处理回车键（确认输入）")
+                // 调用父类方法，让系统处理输入法的确认操作
+                super.keyDown(with: event)
+                return
+            }
+            
             // 首先尝试使用 UnifiedFormatManager 处理换行
             // 如果 UnifiedFormatManager 已注册且处理了换行，则不执行默认行为
             if UnifiedFormatManager.shared.isRegistered {
