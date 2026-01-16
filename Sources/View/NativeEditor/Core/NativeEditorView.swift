@@ -662,11 +662,18 @@ struct NativeEditorView: NSViewRepresentable {
             guard let textView = notification.object as? NSTextView else { return }
             guard let textStorage = textView.textStorage else { return }
             
+            // 记录输入法检测（性能监控）
+            // _Requirements: FR-3.4.1_ - 监控输入法状态检测次数
+            PerformanceMonitor.shared.recordInputMethodDetection()
+            
             // 检查是否处于输入法组合状态（如中文拼音输入）
             // 如果有 markedText，说明用户正在输入拼音但还未选择候选词
             // 此时不应该触发保存，否则会中断输入法的候选词选择
             if textView.hasMarkedText() {
                 print("[NativeEditorView] 检测到输入法组合状态，跳过内容更新")
+                // 记录跳过保存（输入法状态）
+                // _Requirements: FR-3.4.2_ - 监控因输入法状态跳过的保存次数
+                PerformanceMonitor.shared.recordSkippedSave_InputMethod()
                 return
             }
             
@@ -681,6 +688,10 @@ struct NativeEditorView: NSViewRepresentable {
             // 检测音频附件删除
             detectAndHandleAudioAttachmentDeletion(currentAttributedString: attributedString)
             
+            // 记录保存请求（性能监控）
+            // _Requirements: FR-3.4.2_ - 监控保存请求次数
+            PerformanceMonitor.shared.recordSaveRequest()
+            
             // 优化：延迟 50ms 再检查输入法状态，确保组合输入真正完成
             // 这样可以避免在用户选择候选词的瞬间触发保存
             // 50ms 的延迟对用户来说几乎无感知，但足以让输入法完成候选词选择
@@ -692,9 +703,16 @@ struct NativeEditorView: NSViewRepresentable {
                 // 如果用户仍在输入（例如连续输入多个拼音），则跳过此次更新
                 if textView.hasMarkedText() {
                     print("[NativeEditorView] 延迟检查：仍在输入法组合状态，跳过内容更新")
+                    // 记录跳过保存（输入法状态）
+                    // _Requirements: FR-3.4.2_ - 监控因输入法状态跳过的保存次数
+                    PerformanceMonitor.shared.recordSkippedSave_InputMethod()
                     self.isUpdatingFromTextView = false
                     return
                 }
+                
+                // 记录实际保存（性能监控）
+                // _Requirements: FR-3.4.2_ - 监控实际执行的保存次数
+                PerformanceMonitor.shared.recordActualSave()
                 
                 // _Requirements: FR-3.3.1_ - 使用异步方法更新内容
                 self.parent.editorContext.updateNSContentAsync(attributedString)

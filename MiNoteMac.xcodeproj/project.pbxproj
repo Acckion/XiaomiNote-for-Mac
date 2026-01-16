@@ -13,6 +13,7 @@
 		051BD8556C208048DEB0A4D9 /* WebEditorContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2130327C29EDBCBFCA0592A0 /* WebEditorContext.swift */; };
 		058BB3EC81704771A8FFA252 /* SpecialElementFormatHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690890368250EA7A0BBB83B7 /* SpecialElementFormatHandler.swift */; };
 		077E1732A0453F54099EADDE /* AudioPanelHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2581C453FE41B54A4B57196E /* AudioPanelHostingController.swift */; };
+		07A64B47ADD68695A10B39B3 /* PerformanceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5850C05E06D29B03CF92F52C /* PerformanceMonitor.swift */; };
 		07B99D0DA78B66169D27FF5D /* editor-api.js in Resources */ = {isa = PBXBuildFile; fileRef = 1797B73354C97433D32A2F3C /* editor-api.js */; };
 		086B91C19174D16E30CF5F14 /* LocalStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E801D09B469FC01A6DB0EAD /* LocalStorageService.swift */; };
 		0B77F2F250BFBCE79BF81962 /* EditorIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A34AE11924CF938B863454B /* EditorIntegrationTests.swift */; };
@@ -91,6 +92,7 @@
 		5164E88FB94A90D8E504B3A2 /* CookieRefreshWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 292E4B63350D7808E2ED51CD /* CookieRefreshWindowController.swift */; };
 		51F1038247446C443FE06035 /* NewLineHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95D04A341EF5C70245B351D /* NewLineHandler.swift */; };
 		51FC2EA55847A0807C1D2AD1 /* SidebarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAEF726E1B0B16672107891A /* SidebarViewController.swift */; };
+		522F2F984414AEAC435CFD8B /* NativeEditorContextAsyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5685B81A6A238A17D8FDB9C /* NativeEditorContextAsyncTests.swift */; };
 		52AB4C321C2F872666B12E72 /* CustomSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 556702212ADAF5D108879BA1 /* CustomSearchField.swift */; };
 		52ADA13E3A89B6CAFC325AC1 /* MiNoteLibrary.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; };
 		539D32D591754A7847CDB121 /* utils.js in Resources */ = {isa = PBXBuildFile; fileRef = 001537C6B9980FF4CB10E788 /* utils.js */; };
@@ -410,6 +412,7 @@
 		573FDE5520107215B8529339 /* constants.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = constants.js; sourceTree = "<group>"; };
 		5767A8F9F5F64421BEBD9923 /* SearchPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPanelController.swift; sourceTree = "<group>"; };
 		57994F98553EE7B669CEFD7A /* index.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = index.js; sourceTree = "<group>"; };
+		5850C05E06D29B03CF92F52C /* PerformanceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMonitor.swift; sourceTree = "<group>"; };
 		58C67AE30081191D6CA6AB1A /* editor-core.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "editor-core.js"; sourceTree = "<group>"; };
 		598769660960CF358F48F4A9 /* AttributedStringToASTConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttributedStringToASTConverter.swift; sourceTree = "<group>"; };
 		5A34AE11924CF938B863454B /* EditorIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorIntegrationTests.swift; sourceTree = "<group>"; };
@@ -516,6 +519,7 @@
 		C103724B4C23753411493B8A /* SyncGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncGuard.swift; sourceTree = "<group>"; };
 		C16859EEF1FE9BBFDCAAC99C /* EditorPreferencesServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorPreferencesServiceTests.swift; sourceTree = "<group>"; };
 		C489901C950CFEF3A3BFC595 /* xml-to-html.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "xml-to-html.js"; sourceTree = "<group>"; };
+		C5685B81A6A238A17D8FDB9C /* NativeEditorContextAsyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorContextAsyncTests.swift; sourceTree = "<group>"; };
 		C5F6D1068AACE1CFC896341B /* NetworkLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogger.swift; sourceTree = "<group>"; };
 		C711BC08F84D96E1B82B8084 /* NetworkRequestManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRequestManager.swift; sourceTree = "<group>"; };
 		C86277B721480A72E5E65BE8 /* NoteHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteHistoryView.swift; sourceTree = "<group>"; };
@@ -935,6 +939,7 @@
 			isa = PBXGroup;
 			children = (
 				F2F9D80E55516F226B64D42C /* FormatApplicationPerformanceOptimizer.swift */,
+				5850C05E06D29B03CF92F52C /* PerformanceMonitor.swift */,
 				6AAB3F04549B463A337781EF /* PerformanceOptimizer.swift */,
 			);
 			path = Performance;
@@ -1000,6 +1005,7 @@
 				ADB568E93EE5D601C49969E0 /* MenuStateSyncTests.swift */,
 				2AB07F122240574EE0B7070D /* MixedFormatApplicationPropertyTests.swift */,
 				77D7B33096695C3B1E5DB414 /* MixedFormatStatePropertyTests.swift */,
+				C5685B81A6A238A17D8FDB9C /* NativeEditorContextAsyncTests.swift */,
 				FC4FEF51DC935D9154870D5F /* NativeEditorContextTests.swift */,
 				E291D388221AEE40451DBF14 /* NoteOperationCoordinatorTests.swift */,
 				218E6FB7F0F59C1B2FE4AB1E /* OperationProcessorTests.swift */,
@@ -1552,6 +1558,7 @@
 				AB314E30B8598E02C85D47CE /* ParseError.swift in Sources */,
 				209FBD54924BF259AA003953 /* PendingUploadEntry.swift in Sources */,
 				CAFBEF509F025F60F801E571 /* PendingUploadRegistry.swift in Sources */,
+				07A64B47ADD68695A10B39B3 /* PerformanceMonitor.swift in Sources */,
 				EE4C90B6FBCC621335FA6A57 /* PerformanceOptimizer.swift in Sources */,
 				01FA068133809256656CA1E6 /* PrivateNotesPasswordInputDialogView.swift in Sources */,
 				DF56A6D5FA2CE29CD602E5FA /* PrivateNotesPasswordManager.swift in Sources */,
@@ -1641,6 +1648,7 @@
 				7C518E38CF4668ABA28BEA39 /* MenuStateSyncTests.swift in Sources */,
 				12174D702AC11B5D581ECFDC /* MixedFormatApplicationPropertyTests.swift in Sources */,
 				183C7FDB52AAD9B722F32656 /* MixedFormatStatePropertyTests.swift in Sources */,
+				522F2F984414AEAC435CFD8B /* NativeEditorContextAsyncTests.swift in Sources */,
 				778DF5E49FECB86BA93395F2 /* NativeEditorContextTests.swift in Sources */,
 				879D920412E2F5167C677A09 /* NoteOperationCoordinatorTests.swift in Sources */,
 				29B61EFB901FBACA1C38F2B7 /* OperationProcessorTests.swift in Sources */,

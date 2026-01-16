@@ -187,10 +187,15 @@ struct UnifiedEditorWrapper: View {
         
         // 关键修复：检查是否是保存后的内容更新（而不是笔记切换）
         // 如果新内容与当前编辑器中的内容相同（或非常接近），说明这是保存后的更新
-        // 不需要重新加载，避免触发 hasUnsavedChanges = true
+        // 不需要重新加载，避免触发 hasUnsavedChanges = true 和打断输入法
         if preferencesService.selectedEditorType == .native && preferencesService.isNativeEditorAvailable {
             let currentEditorXML = nativeEditorContext.exportToXML()
-            if !currentEditorXML.isEmpty && currentEditorXML == newContent {
+            
+            // 使用更宽松的比较：去除空白字符后比较
+            let normalizedCurrent = currentEditorXML.trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalizedNew = newContent.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            if !normalizedCurrent.isEmpty && normalizedCurrent == normalizedNew {
                 print("[UnifiedEditorWrapper] xmlContent 变化但与编辑器内容相同，跳过重新加载")
                 // _Requirements: FR-3.3.1_ - 使用 Task 异步更新状态
                 // 更新 lastLoadedContent 以保持同步
@@ -199,9 +204,24 @@ struct UnifiedEditorWrapper: View {
                 }
                 return
             }
+            
+            // 额外检查：如果内容长度差异很小（< 10 个字符），也认为是保存后的更新
+            // 这可以处理格式化差异（如空格、换行符的微小变化）
+            let lengthDiff = abs(currentEditorXML.count - newContent.count)
+            if lengthDiff < 10 && !currentEditorXML.isEmpty {
+                print("[UnifiedEditorWrapper] xmlContent 变化但长度差异很小 (\(lengthDiff))，跳过重新加载")
+                Task { @MainActor in
+                    lastLoadedContent = newContent
+                }
+                return
+            }
         }
         
         print("[UnifiedEditorWrapper] xmlContent 变化（切换笔记）- 从长度 \(oldValue?.count ?? 0) 到 \(newContent.count)")
+        
+        // 记录内容重新加载（性能监控）
+        // _Requirements: FR-3.4.3_ - 监控内容重新加载次数
+        PerformanceMonitor.shared.recordContentReload()
         
         Task { @MainActor in
             isUpdatingFromExternal = true
