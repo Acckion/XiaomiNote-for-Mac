@@ -12,6 +12,19 @@ import AppKit
 class AttachmentHighlightView: NSView {
     // MARK: - Properties
     
+    /// 高亮样式
+    enum HighlightStyle {
+        case border         // 描边样式(用于图片、音频等)
+        case thickLine      // 加粗线条样式(用于分割线)
+    }
+    
+    /// 当前高亮样式
+    var highlightStyle: HighlightStyle = .border {
+        didSet {
+            needsDisplay = true
+        }
+    }
+    
     /// 描边宽度
     var borderWidth: CGFloat = 2.5 {
         didSet {
@@ -149,12 +162,25 @@ class AttachmentHighlightView: NSView {
             return
         }
         
-        // 绘制描边
-        let insetRect = bounds.insetBy(dx: borderWidth / 2, dy: borderWidth / 2)
-        let path = NSBezierPath(roundedRect: insetRect, xRadius: cornerRadius, yRadius: cornerRadius)
-        
-        borderColor.setStroke()
-        path.lineWidth = borderWidth
-        path.stroke()
+        switch highlightStyle {
+        case .border:
+            // 绘制描边样式(用于图片、音频等)
+            let insetRect = bounds.insetBy(dx: borderWidth / 2, dy: borderWidth / 2)
+            let path = NSBezierPath(roundedRect: insetRect, xRadius: cornerRadius, yRadius: cornerRadius)
+            
+            borderColor.setStroke()
+            path.lineWidth = borderWidth
+            path.stroke()
+            
+        case .thickLine:
+            // 绘制加粗线条样式(用于分割线)
+            // 使用更粗的线条(4pt)和圆角矩形
+            let lineHeight: CGFloat = 4
+            let lineY = (bounds.height - lineHeight) / 2
+            let lineRect = CGRect(x: 0, y: lineY, width: bounds.width, height: lineHeight)
+            
+            borderColor.setFill()
+            NSBezierPath(roundedRect: lineRect, xRadius: 2, yRadius: 2).fill()
+        }
     }
 }
