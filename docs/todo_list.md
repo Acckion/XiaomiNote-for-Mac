@@ -1,108 +1,94 @@
-# 立即修复
-1. 登录、cookie刷新视图优化
-2. 恢复历史、回收站
+# 待办事项
 
-# 短期功能
+## 立即修复
+1. 登录、cookie 刷新视图优化
+2. 恢复历史、回收站功能
 
-1. 搜索框实现 Mac 笔记样式 ✅
-   1.1 使用 SwiftUI 标准 ✅
-   1.2 笔记编辑视图中搜索结果匹配的高亮 ✅
-   1.3 修复：列表高亮不完全 ✅
+## 短期功能
 
-2. 优化设置页面
+1. 优化设置页面
+2. 私密笔记验证修复
+   - 消除指纹弹窗
+3. 切换文件夹时编辑视图跟随
+4. 修复文件夹删除（离线删除失败，无效的文件夹数据）
+5. 修复笔记列表内容预览和图片预览不刷新的问题
 
-3. 优化重命名文件夹、新建文件夹弹窗
-   4.1 重命名 ✅
-   4.2 新建 ✅
-   4.3 修复：新建文件夹时不会选中的问题（新建文件夹时，光标会移动到输入框，但是文件夹没有被选中） ✅
-   4.4 修复：输入名称冲突提示窗选择“好”没有修改机会 ✅
-
-4. 尝试静默刷新 cookie ✅
-   5.1 测试通过 ✅
-   5.2 优化 Cookie、在线状态相关内容 ✅
-
-5. 私密笔记验证修复 ✅
-   6.1 优化验证界面（尝试使用 Mac 笔记样式）✅
-   6.2 消除指纹弹窗
-6. 添加全部笔记和搜索结果的笔记列表文件夹显示 ✅
-7. 修复默认笔记打开页面 ✅
-8. 支持调整文字大小、行距等显示效果 ✅
-9. 优化深色模式的闪动 ✅
-10. 切换文件夹时编辑视图跟随
-11. 修复文件夹删除（离线删除失败，无效的文件夹数据）
-12. 修复笔记列表内容预览和图片预览不刷新的问题
-
-# 长期功能
+## 长期功能
 
 1. 思维笔记解析和显示
 2. 端到端加密支持
-3. 代办事项支持
+3. 待办事项支持
 4. 自定义工具栏
 
-# API 接口记录
+## 已完成功能 ✅
 
-## 获取代办
+### v3.3.0
+- 统一操作队列架构重构
+- 笔记选择和时间戳处理优化
+- 启动数据加载流程优化
+- 视图状态同步机制完善
+- 原生编辑器格式应用性能优化
+- 中文输入法兼容性改进
+- 附件选择机制完善
+- 列表格式处理优化
+- 笔记列表排序和显示优化
+- 工具栏可见性管理改进
+- 格式菜单状态同步完善
+- 代码结构和模块化优化
 
-请求 URL: https://i.mi.com/todo/v1/user/records/0?ts=1766599238280
-请求方法: GET
-状态代码: 200 OK
-远程地址: 127.0.0.1:7897
-引用站点策略: strict-origin-when-cross-origin
-content-encoding: gzip
-content-type: application/json
-date: Wed, 24 Dec 2025 18:00:38 GMT
-server: Tengine
-:authority i.mi.com
-:method GET
-:path /todo/v1/user/records/0?ts=1766599238280
-:scheme https
-accept: _/_
-accept-encoding: gzip, deflate, br, zstd
-accept-language: zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7
-cookie: Hm_lvt_21cf8e00109c51ddc329127cade0bc77=1747382684......
-dnt: 1
-priority: u=1, i
-referer: https://i.mi.com/note/h5
-sec-ch-ua: "Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"
-sec-ch-ua-mobile: ?0
-sec-ch-ua-platform: "macOS"
-sec-fetch-dest: empty
-sec-fetch-mode: cors
-sec-fetch-site: same-origin
-user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0
+### v3.0.0
+- 搜索框实现 Mac 笔记样式
+- 笔记编辑视图中搜索结果匹配的高亮
+- 重命名文件夹、新建文件夹弹窗优化
+- 静默刷新 cookie
+- 私密笔记验证界面优化
+- 添加全部笔记和搜索结果的笔记列表文件夹显示
+- 修复默认笔记打开页面
+- 支持调整文字大小、行距等显示效果
+- 优化深色模式的闪动
 
-响应：
+---
+
+## API 接口记录
+
+### 获取待办
+
+**请求 URL**: `https://i.mi.com/todo/v1/user/records/0?ts=1766599238280`
+**请求方法**: GET
+**状态代码**: 200 OK
+
+**响应示例**:
+```json
 {
-"result": "ok",
-"retriable": false,
-"code": 0,
-"data": {
-"record": {
-"contentJson": {
-"folder": {
-"syncId": 0
-},
-"sort": {
-"eTag": "12697100320243872",
-"orders": [
-"11361199335997537",
-"12209401093881920",
-"12134475657380064",
-"12195560091287744",
-"11136039787626560"
-]
+  "result": "ok",
+  "retriable": false,
+  "code": 0,
+  "data": {
+    "record": {
+      "contentJson": {
+        "folder": {
+          "syncId": 0
+        },
+        "sort": {
+          "eTag": "12697100320243872",
+          "orders": [
+            "11361199335997537",
+            "12209401093881920",
+            "12134475657380064",
+            "12195560091287744",
+            "11136039787626560"
+          ]
+        }
+      },
+      "eTag": 0,
+      "id": 0,
+      "type": "folder",
+      "status": "normal"
+    },
+    "purged": false,
+    "existed": true
+  },
+  "description": "成功",
+  "ts": 1766599238389
 }
-},
-"eTag": 0,
-"id": 0,
-"type": "folder",
-"status": "normal"
-},
-"purged": false,
-"existed": true
-},
-"description": "成功",
-"ts": 1766599238389
-}
-
-test_git_dev_fork
+```

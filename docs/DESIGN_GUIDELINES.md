@@ -178,5 +178,5 @@ xcodebuild clean -project MiNoteMac.xcodeproj -scheme MiNoteMac
 
 ---
 
-**最后更新**: 2026年1月12日
-**版本**: 3.0.0
+**最后更新**: 2026年1月16日
+**版本**: 3.3.0
