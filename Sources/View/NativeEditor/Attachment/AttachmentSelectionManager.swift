@@ -231,8 +231,8 @@ class AttachmentSelectionManager {
     func showCursor() {
         guard let textView = textView else { return }
         
-        // 恢复光标颜色
-        textView.insertionPointColor = .textColor
+        // 恢复光标颜色为系统强调色
+        textView.insertionPointColor = .controlAccentColor
         
         // 强制刷新显示
         textView.setNeedsDisplay(textView.visibleRect)

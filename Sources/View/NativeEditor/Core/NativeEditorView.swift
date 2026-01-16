@@ -91,6 +91,7 @@ struct NativeEditorView: NSViewRepresentable {
         // _Requirements: 5.1, 5.2_
         textView.font = FontSizeManager.shared.defaultFont
         textView.textColor = .labelColor  // 使用 labelColor 自动适配深色模式
+        textView.insertionPointColor = .controlAccentColor  // 设置光标颜色为系统强调色
         
         // 设置内边距
         textView.textContainerInset = NSSize(width: 16, height: 16)
