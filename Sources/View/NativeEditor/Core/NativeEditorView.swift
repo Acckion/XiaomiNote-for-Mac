@@ -148,6 +148,10 @@ struct NativeEditorView: NSViewRepresentable {
         UnifiedFormatManager.shared.register(textView: textView, context: editorContext)
         print("[NativeEditorView] UnifiedFormatManager 已注册")
         
+        // 注册 AttachmentSelectionManager
+        AttachmentSelectionManager.shared.register(textView: textView)
+        print("[NativeEditorView] AttachmentSelectionManager 已注册")
+        
         return scrollView
     }
     
@@ -159,6 +163,9 @@ struct NativeEditorView: NSViewRepresentable {
         
         UnifiedFormatManager.shared.unregister()
         print("[NativeEditorView] UnifiedFormatManager 已取消注册")
+        
+        AttachmentSelectionManager.shared.unregister()
+        print("[NativeEditorView] AttachmentSelectionManager 已取消注册")
     }
     
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
@@ -750,6 +757,10 @@ struct NativeEditorView: NSViewRepresentable {
             // 使用 CursorFormatManager 处理选择变化
             // _Requirements: 6.2 - 自动执行格式检测、工具栏更新和 Typing_Attributes 同步
             CursorFormatManager.shared.handleSelectionChange(selectedRange)
+            
+            // 使用 AttachmentSelectionManager 处理附件选择
+            // _Requirements: 50-1.1, 50-1.2 - 检测光标是否在附件处并显示高亮
+            AttachmentSelectionManager.shared.handleSelectionChange(selectedRange)
             
             // 异步调用回调，避免在视图更新中触发其他视图更新
             Task { @MainActor in
@@ -1460,6 +1471,9 @@ class NativeTextView: NSTextView {
     /// 默认启用，可以在需要时临时禁用
     var enableListCursorRestriction: Bool = true
     
+    /// 是否正在内部调整选择范围（防止递归）
+    private var isAdjustingSelection: Bool = false
+    
     // MARK: - Cursor Position Restriction
     // _Requirements: 1.1, 1.2, 1.4_
     
@@ -1467,11 +1481,24 @@ class NativeTextView: NSTextView {
     /// 确保光标不能移动到列表标记区域内
     /// _Requirements: 1.1, 1.2_
     override func setSelectedRange(_ charRange: NSRange) {
+        print("[NativeTextView] setSelectedRange 被调用: location=\(charRange.location), length=\(charRange.length)")
+        
+        // 先调用父类方法
+        super.setSelectedRange(charRange)
+        
+        // 通知附件选择管理器（仅在非递归调用时）
+        if !isAdjustingSelection {
+            print("[NativeTextView] 通知 AttachmentSelectionManager")
+            AttachmentSelectionManager.shared.handleSelectionChange(charRange)
+        } else {
+            print("[NativeTextView] 跳过通知（正在调整选择）")
+        }
+        
+        // 如果禁用限制、没有 textStorage 或有选择范围，不进行列表光标限制
         guard enableListCursorRestriction,
               let textStorage = textStorage,
-              charRange.length == 0 else {
-            // 如果禁用限制、没有 textStorage 或有选择范围，使用默认行为
-            super.setSelectedRange(charRange)
+              charRange.length == 0,
+              !isAdjustingSelection else {
             return
         }
         
@@ -1482,7 +1509,13 @@ class NativeTextView: NSTextView {
         )
         
         let adjustedRange = NSRange(location: adjustedPosition, length: 0)
-        super.setSelectedRange(adjustedRange)
+        if adjustedRange.location != charRange.location {
+            isAdjustingSelection = true
+            super.setSelectedRange(adjustedRange)
+            // 通知附件选择管理器调整后的位置
+            AttachmentSelectionManager.shared.handleSelectionChange(adjustedRange)
+            isAdjustingSelection = false
+        }
     }
     
     /// 重写 moveLeft 方法，处理左移光标到上一行
@@ -1782,6 +1815,11 @@ class NativeTextView: NSTextView {
     // MARK: - Keyboard Events
     
     override func keyDown(with event: NSEvent) {
+        // 先尝试让附件键盘处理器处理
+        if AttachmentKeyboardHandler.shared.handleKeyDown(event, in: self) {
+            return
+        }
+        
         // 处理快捷键
         if event.modifierFlags.contains(.command) {
             switch event.charactersIgnoringModifiers {
