@@ -113,7 +113,7 @@ enum NativeEditorError: Error, LocalizedError {
     var suggestedRecovery: ErrorRecoveryAction {
         switch self {
         case .initializationFailed, .systemVersionNotSupported, .frameworkNotAvailable:
-            return .switchToWebEditor
+            return .refreshEditor
         case .renderingFailed, .attachmentCreationFailed:
             return .useFallbackRendering
         case .layoutManagerError:
@@ -134,7 +134,6 @@ enum NativeEditorError: Error, LocalizedError {
 
 /// 错误恢复操作
 enum ErrorRecoveryAction {
-    case switchToWebEditor      // 切换到 Web 编辑器
     case useFallbackRendering   // 使用回退渲染
     case refreshEditor          // 刷新编辑器
     case preserveOriginalContent // 保留原始内容
@@ -145,8 +144,6 @@ enum ErrorRecoveryAction {
     
     var description: String {
         switch self {
-        case .switchToWebEditor:
-            return "切换到 Web 编辑器"
         case .useFallbackRendering:
             return "使用基础文本显示"
         case .refreshEditor:
@@ -288,11 +285,11 @@ final class NativeEditorErrorHandler {
         // 重置计数
         consecutiveErrorCount[error.errorCode] = 0
         
-        // 对于重复错误，建议切换到 Web 编辑器
+        // 对于重复错误，建议刷新编辑器
         return ErrorHandlingResult.handled(
             error: error,
-            action: .switchToWebEditor,
-            message: "检测到重复错误，建议切换到 Web 编辑器",
+            action: .refreshEditor,
+            message: "检测到重复错误，建议刷新编辑器",
             notify: true
         )
     }
@@ -337,15 +334,6 @@ final class NativeEditorErrorHandler {
                 action: action,
                 message: nil,
                 notify: false
-            )
-            
-        case .switchToWebEditor:
-            logger.logWarning("建议切换到 Web 编辑器")
-            return ErrorHandlingResult.handled(
-                error: error,
-                action: action,
-                message: "原生编辑器遇到问题，建议切换到 Web 编辑器",
-                notify: true
             )
             
         default:
