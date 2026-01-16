@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  原生编辑器格式菜单视图 - 提供富文本格式选项
-//  外观样式与 WebFormatMenuView 保持一致
 //
 //  _Requirements: 9.1, 9.2, 9.3_
 //
@@ -50,7 +49,6 @@ enum NativeTextStyle: String, CaseIterable {
 }
 
 /// 原生编辑器格式菜单视图
-/// 外观样式与 WebFormatMenuView 保持一致
 /// _Requirements: 9.1, 9.2, 9.3_
 struct NativeFormatMenuView: View {
     

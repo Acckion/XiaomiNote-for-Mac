@@ -126,65 +126,33 @@ enum IndentOperation: Equatable {
 /// 编辑器类型枚举
 public enum EditorType: String, CaseIterable, Identifiable, Codable, Sendable {
     case native = "native"
-    case web = "web"
     
     public var id: String { rawValue }
     
     var displayName: String {
-        switch self {
-        case .native:
-            return "原生编辑器"
-        case .web:
-            return "Web 编辑器"
-        }
+        return "原生编辑器"
     }
     
     var description: String {
-        switch self {
-        case .native:
-            return "使用 SwiftUI 和 NSTextView 实现的原生编辑器，提供最佳的 macOS 体验"
-        case .web:
-            return "基于 Web 技术的编辑器，功能完整且稳定"
-        }
+        return "使用 SwiftUI 和 NSTextView 实现的原生编辑器，提供最佳的 macOS 体验"
     }
     
     var icon: String {
-        switch self {
-        case .native:
-            return "doc.text"
-        case .web:
-            return "globe"
-        }
+        return "doc.text"
     }
     
     var features: [String] {
-        switch self {
-        case .native:
-            return [
-                "原生 macOS 体验",
-                "更好的性能",
-                "系统级快捷键支持",
-                "无缝的复制粘贴",
-                "原生滚动和缩放"
-            ]
-        case .web:
-            return [
-                "功能完整",
-                "跨平台兼容",
-                "稳定可靠",
-                "丰富的编辑功能",
-                "成熟的实现"
-            ]
-        }
+        return [
+            "原生 macOS 体验",
+            "更好的性能",
+            "系统级快捷键支持",
+            "无缝的复制粘贴",
+            "原生滚动和缩放"
+        ]
     }
     
     var minimumSystemVersion: String {
-        switch self {
-        case .native:
-            return "macOS 13.0"
-        case .web:
-            return "macOS 10.15"
-        }
+        return "macOS 13.0"
     }
 }
 
@@ -724,7 +692,6 @@ public class NativeEditorContext: ObservableObject {
     /// 更新录音模板并强制保存
     /// 
     /// 更新录音模板为音频附件后立即强制保存，确保内容持久化
-    /// 与Web编辑器保持相同的保存逻辑
     /// 
     /// - Parameters:
     ///   - templateId: 模板唯一标识符

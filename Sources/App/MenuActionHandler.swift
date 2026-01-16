@@ -282,11 +282,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                     newState.setParagraphStyle(paragraphStyle)
                 }
             }
-        } else {
-            // Web 编辑器：目前不支持从 Web 编辑器获取格式状态
-            // TODO: 未来可以通过 JavaScript 桥接获取 Web 编辑器的格式状态
-            // 保持默认的正文样式
-            newState.setParagraphStyle(.body)
         }
         
         menuState = newState

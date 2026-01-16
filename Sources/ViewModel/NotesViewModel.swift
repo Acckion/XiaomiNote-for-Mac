@@ -92,9 +92,6 @@ public class NotesViewModel: ObservableObject {
     /// 是否显示回收站视图
     @Published var showTrashView: Bool = false
     
-    /// Web编辑器上下文（共享实例）
-    @Published var webEditorContext = WebEditorContext()
-    
     /// 原生编辑器上下文（共享实例）
     /// 需求: 1.1, 1.3 - 在 MainWindowController 和 NoteDetailView 之间共享
     @Published var nativeEditorContext = NativeEditorContext()

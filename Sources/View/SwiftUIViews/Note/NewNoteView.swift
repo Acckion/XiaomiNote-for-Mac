@@ -12,7 +12,7 @@ struct NewNoteView: View {
     @State private var showError: Bool = false
     @State private var errorMessage: String = ""
     @State private var isEditable: Bool = true
-    @StateObject private var webEditorContext = WebEditorContext()
+    @StateObject private var nativeEditorContext = NativeEditorContext()
     
     var body: some View {
         NavigationStack {
@@ -48,22 +48,22 @@ struct NewNoteView: View {
                     }
                     
                     // 编辑器区域（正文）
-                    WebEditorWrapper(
-                        content: Binding(
-                            get: { xmlContent },
-                            set: { newContent in
-                                xmlContent = newContent
+                    NativeEditorView(
+                        editorContext: nativeEditorContext,
+                        onContentChange: { _ in
+                            xmlContent = nativeEditorContext.exportToXML()
+                        },
+                        onSelectionChange: { range in
+                            Task { @MainActor in
+                                nativeEditorContext.updateSelectedRange(range)
                             }
-                        ),
-                        isEditable: $isEditable,
-                        editorContext: webEditorContext,
-                        noteRawData: nil,
-                        xmlContent: xmlContent,
-                        onContentChange: { newContent, _ in
-                            xmlContent = newContent
-                        }
+                        },
+                        isEditable: isEditable
                     )
                     .frame(maxWidth: CGFloat.infinity, maxHeight: CGFloat.infinity)
+                    .onAppear {
+                        nativeEditorContext.loadFromXML(xmlContent)
+                    }
                 }
             }
             .navigationTitle("新建笔记")

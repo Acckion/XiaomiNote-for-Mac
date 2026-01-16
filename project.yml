@@ -16,9 +16,6 @@ targets:
         excludes:
           - "**/*.md"
           - "App/**"
-    resources:
-      - path: Sources/Web
-        type: folder
     settings:
       base:
         PRODUCT_NAME: MiNoteLibrary

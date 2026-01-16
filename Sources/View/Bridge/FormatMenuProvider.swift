@@ -2,7 +2,7 @@
 //  FormatMenuProvider.swift
 //  MiNoteMac
 //
-//  格式菜单提供者协议 - 统一原生编辑器和 Web 编辑器的格式操作接口
+//  格式菜单提供者协议 - 定义编辑器的格式操作接口
 //  用于统一格式菜单系统，确保工具栏和菜单栏使用相同的格式操作逻辑
 //
 //  _Requirements: 3.1, 3.2, 3.3_
@@ -14,7 +14,7 @@ import Combine
 // MARK: - 格式菜单提供者协议
 
 /// 格式菜单提供者协议
-/// 统一原生编辑器和 Web 编辑器的格式操作接口
+/// 定义编辑器的格式操作接口
 /// _Requirements: 3.1, 3.2, 3.3_
 @MainActor
 public protocol FormatMenuProvider: AnyObject {

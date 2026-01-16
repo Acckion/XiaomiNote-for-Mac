@@ -12,9 +12,6 @@ struct EditorConfiguration: Codable, Equatable {
     
     // MARK: - Properties
     
-    /// 编辑器类型
-    let type: EditorType
-    
     /// 是否启用自动保存
     var autoSaveEnabled: Bool
     
@@ -54,49 +51,28 @@ struct EditorConfiguration: Codable, Equatable {
     // MARK: - Initialization
     
     /// 初始化编辑器配置
-    /// - Parameter type: 编辑器类型
-    init(type: EditorType) {
-        self.type = type
-        
-        // 根据编辑器类型设置默认值
-        switch type {
-        case .native:
-            self.autoSaveEnabled = true
-            self.autoSaveInterval = 5.0
-            self.spellCheckEnabled = true
-            self.syntaxHighlightEnabled = true
-            self.fontSize = 14.0
-            self.fontName = "SF Pro Text"
-            self.lineSpacing = 1.2
-            self.darkModeEnabled = true
-            self.showLineNumbers = false
-            self.codeFoldingEnabled = false
-            self.indentSize = 4
-            self.useTabsForIndentation = false
-            
-        case .web:
-            self.autoSaveEnabled = true
-            self.autoSaveInterval = 3.0
-            self.spellCheckEnabled = true
-            self.syntaxHighlightEnabled = false
-            self.fontSize = 14.0
-            self.fontName = "system"
-            self.lineSpacing = 1.0
-            self.darkModeEnabled = true
-            self.showLineNumbers = false
-            self.codeFoldingEnabled = false
-            self.indentSize = 2
-            self.useTabsForIndentation = false
-        }
+    init() {
+        // 设置默认值（原生编辑器）
+        self.autoSaveEnabled = true
+        self.autoSaveInterval = 5.0
+        self.spellCheckEnabled = true
+        self.syntaxHighlightEnabled = true
+        self.fontSize = 14.0
+        self.fontName = "SF Pro Text"
+        self.lineSpacing = 1.2
+        self.darkModeEnabled = true
+        self.showLineNumbers = false
+        self.codeFoldingEnabled = false
+        self.indentSize = 4
+        self.useTabsForIndentation = false
     }
     
     // MARK: - Static Methods
     
     /// 获取默认配置
-    /// - Parameter type: 编辑器类型
     /// - Returns: 默认配置
-    static func defaultConfiguration(for type: EditorType) -> EditorConfiguration {
-        return EditorConfiguration(type: type)
+    static func defaultConfiguration() -> EditorConfiguration {
+        return EditorConfiguration()
     }
 }
 
@@ -130,8 +106,8 @@ class EditorConfigurationManager: ObservableObject {
            let configuration = try? JSONDecoder().decode(EditorConfiguration.self, from: data) {
             self.currentConfiguration = configuration
         } else {
-            // 使用默认配置 - 默认使用 web 编辑器配置，避免初始化时的循环依赖
-            self.currentConfiguration = EditorConfiguration.defaultConfiguration(for: .web)
+            // 使用默认配置
+            self.currentConfiguration = EditorConfiguration.defaultConfiguration()
         }
     }
     
@@ -145,21 +121,9 @@ class EditorConfigurationManager: ObservableObject {
     }
     
     /// 重置为默认配置
-    /// - Parameter type: 编辑器类型
-    func resetToDefault(for type: EditorType) {
-        let defaultConfig = EditorConfiguration.defaultConfiguration(for: type)
+    func resetToDefault() {
+        let defaultConfig = EditorConfiguration.defaultConfiguration()
         updateConfiguration(defaultConfig)
-    }
-    
-    /// 获取指定编辑器类型的配置
-    /// - Parameter type: 编辑器类型
-    /// - Returns: 配置
-    func getConfiguration(for type: EditorType) -> EditorConfiguration {
-        if currentConfiguration.type == type {
-            return currentConfiguration
-        } else {
-            return EditorConfiguration.defaultConfiguration(for: type)
-        }
     }
     
     /// 更新字体设置

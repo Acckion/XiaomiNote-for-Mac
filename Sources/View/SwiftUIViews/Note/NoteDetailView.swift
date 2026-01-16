@@ -94,10 +94,6 @@ struct NoteDetailView: View {
     }
     
     @State private var showingHistoryView: Bool = false
-    // 使用共享的WebEditorContext
-    private var webEditorContext: WebEditorContext {
-        viewModel.webEditorContext
-    }
     
     // 使用共享的 NativeEditorContext（从 viewModel 获取）
     private var nativeEditorContext: NativeEditorContext {
@@ -107,20 +103,15 @@ struct NoteDetailView: View {
     // 编辑器偏好设置服务 - 使用 @ObservedObject 因为是单例
     @ObservedObject private var editorPreferencesService = EditorPreferencesService.shared
     
-    /// 当前是否使用原生编辑器
+    /// 当前是否使用原生编辑器（始终为 true）
     private var isUsingNativeEditor: Bool {
-        editorPreferencesService.selectedEditorType == .native && editorPreferencesService.isNativeEditorAvailable
+        editorPreferencesService.isNativeEditorAvailable
     }
     
     var body: some View {
         mainContentView
             .onChange(of: viewModel.selectedNote) { oldValue, newValue in
                 handleSelectedNoteChange(oldValue: oldValue, newValue: newValue)
-            }
-            .onChange(of: viewModel.searchText) { _, newValue in
-                if webEditorContext.isEditorReady {
-                    webEditorContext.highlightSearchText(newValue)
-                }
             }
             .onAppear {
                 // 注册保存回调到 ViewStateCoordinator 
@@ -230,22 +221,8 @@ struct NoteDetailView: View {
         
         // 后台异步保存，不阻塞界面切换
         Task { @MainActor in
-            // 1. 根据编辑器类型获取内容
-            var content: String = capturedContent
-            
-            if !self.isUsingNativeEditor {
-                // Web 编辑器：强制保存并获取内容
-                await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
-                    self.webEditorContext.forceSaveContent { c.resume() }
-                }
-                
-                // 获取最新内容
-                if let webContent = await withCheckedContinuation({ (c: CheckedContinuation<String?, Never>) in 
-                    self.webEditorContext.getCurrentContent { c.resume(returning: $0) } 
-                }) {
-                    content = webContent
-                }
-            }
+            // 1. 使用捕获的内容
+            let content: String = capturedContent
             
             // 2. 检查内容是否变化
             let hasContentChange = content != capturedLastSavedXMLContent
@@ -607,18 +584,11 @@ struct NoteDetailView: View {
                         }
                     )
                 } else {
-                    // 普通模式：使用统一编辑器包装器，支持原生编辑器和 Web 编辑器切换
+                    // 普通模式：使用原生编辑器包装器
                     UnifiedEditorWrapper(
                         content: $currentXMLContent,
                         isEditable: $isEditable,
-                        webEditorContext: webEditorContext,
                         nativeEditorContext: nativeEditorContext,
-                        noteRawData: {
-                            if let rawData = note.rawData, let jsonData = try? JSONSerialization.data(withJSONObject: rawData, options: []) {
-                                return String(data: jsonData, encoding: .utf8)
-                            }
-                            return nil
-                        }(),
                         xmlContent: note.primaryXMLContent,
                         folderId: note.folderId,
                         onContentChange: { newXML, newHTML in
@@ -804,15 +774,13 @@ struct NoteDetailView: View {
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // MARK: - 工具栏按钮（支持原生编辑器和 Web 编辑器）
+    // MARK: - 工具栏按钮
     
     private var undoButton: some View {
         Button {
             if isUsingNativeEditor {
                 // 原生编辑器撤销（通过 NSTextView 的 undoManager）
                 NSApp.sendAction(#selector(UndoManager.undo), to: nil, from: nil)
-            } else {
-                webEditorContext.undo()
             }
         } label: { Label("撤销", systemImage: "arrow.uturn.backward") }
     }
@@ -822,8 +790,6 @@ struct NoteDetailView: View {
             if isUsingNativeEditor {
                 // 原生编辑器重做（通过 NSTextView 的 undoManager）
                 NSApp.sendAction(#selector(UndoManager.redo), to: nil, from: nil)
-            } else {
-                webEditorContext.redo()
             }
         } label: { Label("重做", systemImage: "arrow.uturn.forward") }
     }
@@ -834,7 +800,6 @@ struct NoteDetailView: View {
         .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
             FormatMenuPopoverContent(
                 nativeEditorContext: nativeEditorContext,
-                webEditorContext: webEditorContext,
                 onDismiss: { showFormatMenu = false }
             )
         }
@@ -844,8 +809,6 @@ struct NoteDetailView: View {
         Button {
             if isUsingNativeEditor {
                 nativeEditorContext.insertCheckbox()
-            } else {
-                webEditorContext.insertCheckbox()
             }
         } label: { Label("插入待办", systemImage: "checklist") }
     }
@@ -854,8 +817,6 @@ struct NoteDetailView: View {
         Button {
             if isUsingNativeEditor {
                 nativeEditorContext.insertHorizontalRule()
-            } else {
-                webEditorContext.insertHorizontalRule()
             }
         } label: { Label("插入分割线", systemImage: "minus") }
     }
@@ -868,8 +829,6 @@ struct NoteDetailView: View {
             if isUsingNativeEditor {
                 // 原生编辑器增加缩进
                 nativeEditorContext.increaseIndent()
-            } else {
-                webEditorContext.increaseIndent()
             }
         } label: { Label("增加缩进", systemImage: "increase.indent") }
         
@@ -877,8 +836,6 @@ struct NoteDetailView: View {
             if isUsingNativeEditor {
                 // 原生编辑器减少缩进
                 nativeEditorContext.decreaseIndent()
-            } else {
-                webEditorContext.decreaseIndent()
             }
         } label: { Label("减少缩进", systemImage: "decrease.indent") }
     }
@@ -903,11 +860,9 @@ struct NoteDetailView: View {
         do {
             let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
             
-            // 根据当前编辑器类型插入图片
+            // 使用原生编辑器插入图片
             if isUsingNativeEditor {
                 nativeEditorContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
-            } else {
-                webEditorContext.insertImage("minote://image/\(fileId)", altText: url.lastPathComponent)
             }
             
             imageInsertStatus = .success
@@ -1107,13 +1062,10 @@ struct NoteDetailView: View {
             Swift.print("[持久化验证] ℹ️ 无音频附件 - 笔记ID: \(note.id.prefix(8))...")
         }
         
-        // 如果使用编辑器上下文，也进行验证
+        // 如果使用原生编辑器，进行验证
         if isUsingNativeEditor {
             let isValid = await nativeEditorContext.verifyContentPersistence(expectedContent: contentToVerify)
             Swift.print("[持久化验证] 原生编辑器验证结果: \(isValid ? "通过" : "失败")")
-        } else {
-            let isValid = await webEditorContext.verifyContentPersistence(expectedContent: contentToVerify)
-            Swift.print("[持久化验证] Web编辑器验证结果: \(isValid ? "通过" : "失败")")
         }
     }
     
@@ -1130,9 +1082,8 @@ struct NoteDetailView: View {
         editedTitle = title
         originalTitle = title
         
-        // 使用HTML内容（编辑器可以直接显示HTML）
-        // 注意：这里我们需要将HTML转换为XML，或者让编辑器直接使用HTML
-        // 暂时使用primaryXMLContent，后台会加载完整内容
+        // 使用 XML 内容初始化编辑器
+        // 暂时使用 primaryXMLContent，后台会加载完整内容
         currentXMLContent = note.primaryXMLContent
         // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
         // _需求: 2.2_
@@ -1507,11 +1458,6 @@ struct NoteDetailView: View {
                     if !exportedXML.isEmpty {
                         latestXMLContent = exportedXML
                         Swift.print("[保存流程] 📝 使用原生编辑器最新内容 - 长度: \(latestXMLContent.count)")
-                    }
-                } else {
-                    // Web 编辑器：使用 currentXMLContent（已经是最新的）
-                    if !self.currentXMLContent.isEmpty {
-                        latestXMLContent = self.currentXMLContent
                     }
                 }
                 
@@ -1912,22 +1858,8 @@ struct NoteDetailView: View {
             
             defer { isSavingBeforeSwitch = false }
             
-            // 1. 根据编辑器类型获取内容
-            var content: String = capturedContent
-            
-            if !isUsingNativeEditor {
-                // Web 编辑器：强制保存并获取内容
-                await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in 
-                    webEditorContext.forceSaveContent { c.resume() } 
-                }
-                
-                // 获取最新内容
-                if let webContent = await withCheckedContinuation({ (c: CheckedContinuation<String?, Never>) in 
-                    webEditorContext.getCurrentContent { c.resume(returning: $0) } 
-                }) {
-                    content = webContent
-                }
-            }
+            // 1. 使用捕获的内容
+            let content: String = capturedContent
             
             Swift.print("[笔记切换] 📝 后台保存内容 - 长度: \(content.count)")
             
@@ -2004,19 +1936,13 @@ struct NoteDetailView: View {
     
     @MainActor
     private func getLatestContentFromEditor() async -> String {
-        // 关键修复：根据当前使用的编辑器类型获取内容
+        // 从原生编辑器获取内容
         if isUsingNativeEditor {
             // 原生编辑器：从 nativeEditorContext 导出 XML
             let xmlContent = nativeEditorContext.exportToXML()
             if !xmlContent.isEmpty {
                 Swift.print("[保存流程] 📝 从原生编辑器获取内容 - 长度: \(xmlContent.count)")
                 return xmlContent
-            }
-        } else {
-            // Web 编辑器：从 webEditorContext 获取内容
-            if let content = await withCheckedContinuation({ (c: CheckedContinuation<String?, Never>) in webEditorContext.getCurrentContent { c.resume(returning: $0) } }) {
-                Swift.print("[保存流程] 📝 从 Web 编辑器获取内容 - 长度: \(content.count)")
-                return content
             }
         }
         
@@ -2179,56 +2105,27 @@ struct ImageInsertStatusView: View {
 
 /// 格式菜单弹出内容视图
 /// 
-/// 这个视图在每次显示时会重新检查编辑器类型，
-/// 确保显示正确的格式菜单（原生或 Web）
+/// 显示原生编辑器的格式菜单
 @available(macOS 14.0, *)
 struct FormatMenuPopoverContent: View {
     
     /// 原生编辑器上下文
     @ObservedObject var nativeEditorContext: NativeEditorContext
     
-    /// Web 编辑器上下文
-    @ObservedObject var webEditorContext: WebEditorContext
-    
     /// 关闭回调
     let onDismiss: () -> Void
     
-    /// 编辑器偏好设置服务
-    @ObservedObject private var preferencesService = EditorPreferencesService.shared
-    
-    /// 当前是否使用原生编辑器
-    private var isUsingNativeEditor: Bool {
-        preferencesService.selectedEditorType == .native && preferencesService.isNativeEditorAvailable
-    }
-    
     var body: some View {
-        Group {
-            // 添加调试日志
-            let _ = print("显示格式菜单")
-            let _ = print("  - isUsingNativeEditor: \(isUsingNativeEditor)")
-            let _ = print("  - selectedEditorType: \(preferencesService.selectedEditorType)")
-            let _ = print("  - isNativeEditorAvailable: \(preferencesService.isNativeEditorAvailable)")
-            
-            if isUsingNativeEditor {
-                NativeFormatMenuView(context: nativeEditorContext) { _ in onDismiss() }
-            } else {
-                WebFormatMenuView(context: webEditorContext) { _ in onDismiss() }
-            }
-        }
-        .onAppear {
-            print("[FormatMenuPopoverContent] onAppear")
-            print("  - selectedEditorType: \(preferencesService.selectedEditorType.rawValue)")
-            print("  - isNativeEditorAvailable: \(preferencesService.isNativeEditorAvailable)")
-            
-            // 如果使用原生编辑器，请求内容同步并更新格式状态
-            if isUsingNativeEditor {
-                print("  - 使用原生编辑器，请求内容同步")
+        NativeFormatMenuView(context: nativeEditorContext) { _ in onDismiss() }
+            .onAppear {
+                print("[FormatMenuPopoverContent] onAppear - 使用原生编辑器")
+                
+                // 请求内容同步并更新格式状态
                 nativeEditorContext.requestContentSync()
                 // 延迟一小段时间后强制更新格式状态
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                     nativeEditorContext.forceUpdateFormats()
                 }
             }
-        }
     }
 }

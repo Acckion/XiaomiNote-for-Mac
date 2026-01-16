@@ -1443,7 +1443,7 @@ extension MainWindowController {
     // MARK: - 新增工具栏按钮动作方法
     
     /// 切换待办（插入复选框）
-    /// 需求: 3.1, 3.2, 3.4 - 根据编辑器类型调用对应的 insertCheckbox 方法
+    /// 需求: 3.1, 3.2, 3.4 - 调用原生编辑器的 insertCheckbox 方法
     @objc func toggleCheckbox(_ sender: Any?) {
         print("[MainWindowController] 切换待办")
         
@@ -1453,28 +1453,17 @@ extension MainWindowController {
             return
         }
         
-        // 需求 3.1, 3.2: 根据编辑器类型调用对应的方法
-        if isUsingNativeEditor {
-            // 需求 3.1: 原生编辑器模式
-            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertCheckbox()")
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.insertCheckbox()
-            } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
-            }
+        // 需求 3.1: 使用原生编辑器插入复选框
+        print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertCheckbox()")
+        if let nativeContext = getCurrentNativeEditorContext() {
+            nativeContext.insertCheckbox()
         } else {
-            // 需求 3.2: Web 编辑器模式
-            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertCheckbox()")
-            if let webContext = getCurrentWebEditorContext() {
-                webContext.insertCheckbox()
-            } else {
-                print("[MainWindowController] 错误：无法获取 WebEditorContext")
-            }
+            print("[MainWindowController] 错误：无法获取 NativeEditorContext")
         }
     }
     
     /// 插入分割线
-    /// 需求: 4.1, 4.2, 4.4 - 根据编辑器类型调用对应的 insertHorizontalRule 方法
+    /// 需求: 4.1, 4.2, 4.4 - 调用原生编辑器的 insertHorizontalRule 方法
     @objc func insertHorizontalRule(_ sender: Any?) {
         print("[MainWindowController] 插入分割线")
         
@@ -1484,23 +1473,12 @@ extension MainWindowController {
             return
         }
         
-        // 需求 4.1, 4.2: 根据编辑器类型调用对应的方法
-        if isUsingNativeEditor {
-            // 需求 4.1: 原生编辑器模式
-            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertHorizontalRule()")
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.insertHorizontalRule()
-            } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
-            }
+        // 需求 4.1: 使用原生编辑器插入分隔线
+        print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertHorizontalRule()")
+        if let nativeContext = getCurrentNativeEditorContext() {
+            nativeContext.insertHorizontalRule()
         } else {
-            // 需求 4.2: Web 编辑器模式
-            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertHorizontalRule()")
-            if let webContext = getCurrentWebEditorContext() {
-                webContext.insertHorizontalRule()
-            } else {
-                print("[MainWindowController] 错误：无法获取 WebEditorContext")
-            }
+            print("[MainWindowController] 错误：无法获取 NativeEditorContext")
         }
     }
     
@@ -1537,7 +1515,7 @@ extension MainWindowController {
     }
     
     /// 从 URL 插入图片
-    /// 需求: 5.2, 5.3 - 上传图片并根据编辑器类型插入
+    /// 需求: 5.2, 5.3 - 上传图片并插入到原生编辑器
     @MainActor
     private func insertImage(from url: URL) async {
         guard let viewModel = viewModel else {
@@ -1555,23 +1533,12 @@ extension MainWindowController {
             let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
             print("[MainWindowController] 图片上传成功: fileId=\(fileId)")
             
-            // 需求 5.2, 5.3: 根据编辑器类型调用对应的 insertImage 方法
-            if isUsingNativeEditor {
-                // 原生编辑器模式
-                print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertImage()")
-                if let nativeContext = getCurrentNativeEditorContext() {
-                    nativeContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
-                } else {
-                    print("[MainWindowController] 错误：无法获取 NativeEditorContext")
-                }
+            // 需求 5.2: 使用原生编辑器插入图片
+            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertImage()")
+            if let nativeContext = getCurrentNativeEditorContext() {
+                nativeContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
             } else {
-                // Web 编辑器模式
-                print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.insertImage()")
-                if let webContext = getCurrentWebEditorContext() {
-                    webContext.insertImage("minote://image/\(fileId)", altText: url.lastPathComponent)
-                } else {
-                    print("[MainWindowController] 错误：无法获取 WebEditorContext")
-                }
+                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
             }
         } catch {
             print("[MainWindowController] 插入图片失败: \(error.localizedDescription)")
@@ -1602,27 +1569,13 @@ extension MainWindowController {
         // 生成唯一的模板 ID
         let templateId = "recording_template_\(UUID().uuidString)"
         
-        // 1. 先在编辑器光标位置插入录音模板占位符
-        // 关键修复：根据当前编辑器类型选择正确的上下文
-        // _Requirements: 4.1, 4.2_
-        if isUsingNativeEditor {
-            // 原生编辑器：插入录音模板
-            if let nativeEditorContext = getCurrentNativeEditorContext() {
-                nativeEditorContext.insertRecordingTemplate(templateId: templateId)
-                print("[MainWindowController] ✅ 已在原生编辑器中插入录音模板: \(templateId)")
-            } else {
-                print("[MainWindowController] ❌ 无法获取原生编辑器上下文")
-                return
-            }
+        // 1. 在原生编辑器光标位置插入录音模板占位符
+        if let nativeEditorContext = getCurrentNativeEditorContext() {
+            nativeEditorContext.insertRecordingTemplate(templateId: templateId)
+            print("[MainWindowController] ✅ 已在原生编辑器中插入录音模板: \(templateId)")
         } else {
-            // Web 编辑器：插入录音模板
-            if let webEditorContext = getCurrentWebEditorContext() {
-                webEditorContext.insertRecordingTemplate(templateId: templateId)
-                print("[MainWindowController] ✅ 已在 Web 编辑器中插入录音模板: \(templateId)")
-            } else {
-                print("[MainWindowController] ❌ 无法获取 Web 编辑器上下文")
-                return
-            }
+            print("[MainWindowController] ❌ 无法获取原生编辑器上下文")
+            return
         }
         
         // 2. 保存模板 ID 到状态管理器，用于后续更新
@@ -2096,7 +2049,6 @@ extension MainWindowController {
     @objc func showFormatMenu(_ sender: Any?) {
         // 显示格式菜单popover
         print("显示格式菜单")
-        print("  - isUsingNativeEditor: \(isUsingNativeEditor)")
         
         // 如果popover已经显示，则关闭它
         if let popover = formatMenuPopover, popover.isShown {
@@ -2105,49 +2057,26 @@ extension MainWindowController {
             return
         }
         
-        // 根据编辑器类型创建对应的格式菜单视图
-        // 需求: 2.1, 2.2 - 根据编辑器类型创建 NativeFormatMenuView 或 WebFormatMenuView
-        let hostingController: NSViewController
-        let contentSize: NSSize
-        
-        if isUsingNativeEditor {
-            // 使用原生编辑器时，显示 NativeFormatMenuView
-            guard let nativeEditorContext = getCurrentNativeEditorContext() else {
-                print("无法获取 NativeEditorContext")
-                return
-            }
-            
-            print("  - 使用原生编辑器格式菜单")
-            
-            // 请求内容同步并更新格式状态
-            nativeEditorContext.requestContentSync()
-            
-            let formatMenuView = NativeFormatMenuView(context: nativeEditorContext) { [weak self] _ in
-                // 格式操作完成后关闭popover
-                self?.formatMenuPopover?.performClose(nil)
-                self?.formatMenuPopover = nil
-            }
-            
-            hostingController = NSHostingController(rootView: AnyView(formatMenuView))
-            contentSize = NSSize(width: 280, height: 450)
-        } else {
-            // 使用 Web 编辑器时，显示 WebFormatMenuView
-            guard let webEditorContext = getCurrentWebEditorContext() else {
-                print("无法获取 WebEditorContext")
-                return
-            }
-            
-            print("  - 使用 Web 编辑器格式菜单")
-            
-            let formatMenuView = WebFormatMenuView(context: webEditorContext) { [weak self] _ in
-                // 格式操作完成后关闭popover
-                self?.formatMenuPopover?.performClose(nil)
-                self?.formatMenuPopover = nil
-            }
-            
-            hostingController = NSHostingController(rootView: AnyView(formatMenuView))
-            contentSize = NSSize(width: 200, height: 400)
+        // 获取原生编辑器上下文
+        guard let nativeEditorContext = getCurrentNativeEditorContext() else {
+            print("无法获取 NativeEditorContext")
+            return
         }
+        
+        print("  - 使用原生编辑器格式菜单")
+        
+        // 请求内容同步并更新格式状态
+        nativeEditorContext.requestContentSync()
+        
+        // 创建原生编辑器格式菜单视图
+        let formatMenuView = NativeFormatMenuView(context: nativeEditorContext) { [weak self] _ in
+            // 格式操作完成后关闭popover
+            self?.formatMenuPopover?.performClose(nil)
+            self?.formatMenuPopover = nil
+        }
+        
+        let hostingController = NSHostingController(rootView: AnyView(formatMenuView))
+        let contentSize = NSSize(width: 280, height: 450)
         
         // 设置托管控制器的视图大小
         hostingController.view.frame = NSRect(origin: .zero, size: contentSize)
@@ -2265,18 +2194,14 @@ extension MainWindowController {
         NotificationCenter.default.post(name: .backToGalleryRequested, object: nil)
     }
     
-    /// 获取当前的WebEditorContext
-    private func getCurrentWebEditorContext() -> WebEditorContext? {
-        // 直接从viewModel获取共享的WebEditorContext
-        return viewModel?.webEditorContext
-    }
+
     
     // MARK: - 编辑器类型检测和路由
     
-    /// 是否正在使用原生编辑器
-    /// 需求: 7.1 - 通过 EditorPreferencesService.shared.selectedEditorType 判断
+    /// 是否正在使用原生编辑器（始终为 true）
+    /// 需求: 7.1 - 现在仅使用原生编辑器
     public var isUsingNativeEditor: Bool {
-        return EditorPreferencesService.shared.selectedEditorType == .native
+        return EditorPreferencesService.shared.isNativeEditorAvailable
     }
     
     /// 获取当前的 NativeEditorContext
@@ -2347,23 +2272,12 @@ extension MainWindowController {
             return
         }
         
-        // 需求 6.1, 6.3: 根据编辑器类型调用对应的方法
-        if isUsingNativeEditor {
-            // 需求 6.1: 原生编辑器模式
-            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.increaseIndent()")
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.increaseIndent()
-            } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
-            }
+        // 需求 6.1: 使用原生编辑器增加缩进
+        print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.increaseIndent()")
+        if let nativeContext = getCurrentNativeEditorContext() {
+            nativeContext.increaseIndent()
         } else {
-            // 需求 6.3: Web 编辑器模式
-            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.increaseIndent()")
-            if let webContext = getCurrentWebEditorContext() {
-                webContext.increaseIndent()
-            } else {
-                print("[MainWindowController] 错误：无法获取 WebEditorContext")
-            }
+            print("[MainWindowController] 错误：无法获取 NativeEditorContext")
         }
     }
     
@@ -2376,23 +2290,12 @@ extension MainWindowController {
             return
         }
         
-        // 需求 6.2, 6.4: 根据编辑器类型调用对应的方法
-        if isUsingNativeEditor {
-            // 需求 6.2: 原生编辑器模式
-            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.decreaseIndent()")
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.decreaseIndent()
-            } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
-            }
+        // 需求 6.2: 使用原生编辑器减少缩进
+        print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.decreaseIndent()")
+        if let nativeContext = getCurrentNativeEditorContext() {
+            nativeContext.decreaseIndent()
         } else {
-            // 需求 6.4: Web 编辑器模式
-            print("[MainWindowController] 使用 Web 编辑器，调用 WebEditorContext.decreaseIndent()")
-            if let webContext = getCurrentWebEditorContext() {
-                webContext.decreaseIndent()
-            } else {
-                print("[MainWindowController] 错误：无法获取 WebEditorContext")
-            }
+            print("[MainWindowController] 错误：无法获取 NativeEditorContext")
         }
     }
     
@@ -3063,19 +2966,10 @@ extension MainWindowController {
     @objc public func zoomIn(_ sender: Any?) {
         print("[MainWindowController] 放大")
         
-        // 根据编辑器类型调用对应的缩放方法
-        if isUsingNativeEditor {
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.zoomIn()
-            } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
-            }
+        if let nativeContext = getCurrentNativeEditorContext() {
+            nativeContext.zoomIn()
         } else {
-            if let webContext = getCurrentWebEditorContext() {
-                webContext.zoomIn()
-            } else {
-                print("[MainWindowController] 错误：无法获取 WebEditorContext")
-            }
+            print("[MainWindowController] 错误：无法获取 NativeEditorContext")
         }
     }
     
@@ -3083,19 +2977,10 @@ extension MainWindowController {
     @objc public func zoomOut(_ sender: Any?) {
         print("[MainWindowController] 缩小")
         
-        // 根据编辑器类型调用对应的缩放方法
-        if isUsingNativeEditor {
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.zoomOut()
-            } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
-            }
+        if let nativeContext = getCurrentNativeEditorContext() {
+            nativeContext.zoomOut()
         } else {
-            if let webContext = getCurrentWebEditorContext() {
-                webContext.zoomOut()
-            } else {
-                print("[MainWindowController] 错误：无法获取 WebEditorContext")
-            }
+            print("[MainWindowController] 错误：无法获取 NativeEditorContext")
         }
     }
     
@@ -3103,19 +2988,10 @@ extension MainWindowController {
     @objc public func actualSize(_ sender: Any?) {
         print("[MainWindowController] 实际大小")
         
-        // 根据编辑器类型调用对应的重置缩放方法
-        if isUsingNativeEditor {
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.resetZoom()
-            } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
-            }
+        if let nativeContext = getCurrentNativeEditorContext() {
+            nativeContext.resetZoom()
         } else {
-            if let webContext = getCurrentWebEditorContext() {
-                webContext.resetZoom()
-            } else {
-                print("[MainWindowController] 错误：无法获取 WebEditorContext")
-            }
+            print("[MainWindowController] 错误：无法获取 NativeEditorContext")
         }
     }
     
@@ -3360,11 +3236,8 @@ extension MainWindowController {
                     // 更新模板状态为更新中
                     audioPanelStateManager.setTemplateUpdating(templateId: templateId, fileId: uploadResult.fileId)
                     
-                    // 有录音模板：根据编辑器类型更新模板并强制保存
-                    // 关键修复：根据当前编辑器类型选择正确的上下文
-                    // _Requirements: 4.3_
+                    // 有录音模板：使用原生编辑器更新模板并强制保存
                     if self.isUsingNativeEditor {
-                        // 原生编辑器：使用强制保存方法
                         if let nativeEditorContext = self.getCurrentNativeEditorContext() {
                             try await nativeEditorContext.updateRecordingTemplateAndSave(
                                 templateId: templateId,
@@ -3377,27 +3250,12 @@ extension MainWindowController {
                             print("[MainWindowController] ⚠️ 无法获取原生编辑器上下文，录音模板未更新")
                             self.audioPanelStateManager.setTemplateFailed(templateId: templateId, error: "无法获取原生编辑器上下文")
                         }
-                    } else {
-                        // Web 编辑器：使用强制保存方法
-                        if let webEditorContext = self.getCurrentWebEditorContext() {
-                            try await webEditorContext.updateRecordingTemplateAndSave(
-                                templateId: templateId,
-                                fileId: uploadResult.fileId,
-                                digest: uploadResult.digest,
-                                mimeType: uploadResult.mimeType
-                            )
-                            print("[MainWindowController] ✅ Web编辑器录音模板已更新并保存: \(templateId) -> \(uploadResult.fileId)")
-                        } else {
-                            print("[MainWindowController] ⚠️ 无法获取 Web 编辑器上下文，录音模板未更新")
-                            self.audioPanelStateManager.setTemplateFailed(templateId: templateId, error: "无法获取 Web 编辑器上下文")
-                        }
                     }
                     
                     // 更新模板状态为完成
                     audioPanelStateManager.setTemplateCompleted(templateId: templateId, fileId: uploadResult.fileId)
                 } else {
-                    // 没有录音模板：使用传统方式插入音频附件
-                    // 关键修复：根据当前编辑器类型选择正确的上下文
+                    // 没有录音模板：使用原生编辑器插入音频附件
                     if self.isUsingNativeEditor {
                         if let nativeEditorContext = self.getCurrentNativeEditorContext() {
                             nativeEditorContext.insertAudio(
@@ -3408,17 +3266,6 @@ extension MainWindowController {
                             print("[MainWindowController] ✅ 音频附件已插入到原生编辑器")
                         } else {
                             print("[MainWindowController] ⚠️ 无法获取原生编辑器上下文，音频附件未插入")
-                        }
-                    } else {
-                        if let webEditorContext = self.getCurrentWebEditorContext() {
-                            webEditorContext.insertAudio(
-                                fileId: uploadResult.fileId,
-                                digest: uploadResult.digest,
-                                mimeType: uploadResult.mimeType
-                            )
-                            print("[MainWindowController] ✅ 音频附件已插入到Web编辑器")
-                        } else {
-                            print("[MainWindowController] ⚠️ 无法获取 Web 编辑器上下文，音频附件未插入")
                         }
                     }
                 }

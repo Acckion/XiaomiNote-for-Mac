@@ -2,7 +2,7 @@
 //  EditorSettingsView.swift
 //  MiNoteMac
 //
-//  编辑器设置界面 - 允许用户选择和配置编辑器
+//  编辑器设置界面 - 配置原生编辑器
 //
 
 import SwiftUI
@@ -17,7 +17,6 @@ public struct EditorSettingsView: View {
     @ObservedObject private var configurationManager = EditorConfigurationManager.shared
     
     @State private var showCompatibilityInfo = false
-    @State private var showFeatureComparison = false
     
     public init() {}
     
@@ -25,11 +24,8 @@ public struct EditorSettingsView: View {
     
     public var body: some View {
         Form {
-            // 编辑器选择部分
-            editorSelectionSection
-            
-            // 编辑器特性对比部分
-            editorComparisonSection
+            // 编辑器信息部分
+            editorInfoSection
             
             // 编辑器配置部分
             editorConfigurationSection
@@ -46,23 +42,27 @@ public struct EditorSettingsView: View {
     
     // MARK: - Sections
     
-    /// 编辑器选择部分
-    private var editorSelectionSection: some View {
-        Section("编辑器选择") {
+    /// 编辑器信息部分
+    private var editorInfoSection: some View {
+        Section("编辑器") {
             VStack(alignment: .leading, spacing: 16) {
-                Text("选择您偏好的编辑器类型")
-                    .font(.headline)
-                    .padding(.bottom, 4)
-                
-                ForEach(EditorType.allCases) { editorType in
-                    EditorOptionView(
-                        editorType: editorType,
-                        isSelected: preferencesService.selectedEditorType == editorType,
-                        isAvailable: preferencesService.isEditorTypeAvailable(editorType)
-                    ) {
-                        selectEditor(editorType)
+                HStack(spacing: 16) {
+                    // 编辑器图标
+                    Image(systemName: EditorType.native.icon)
+                        .font(.title)
+                        .foregroundColor(.accentColor)
+                        .frame(width: 32, height: 32)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(EditorType.native.displayName)
+                            .font(.headline)
+                        
+                        Text(EditorType.native.description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
+                .padding(.vertical, 8)
                 
                 if !preferencesService.isNativeEditorAvailable {
                     HStack {
@@ -79,35 +79,10 @@ public struct EditorSettingsView: View {
         }
     }
     
-    /// 编辑器特性对比部分
-    private var editorComparisonSection: some View {
-        Section("特性对比") {
-            VStack(alignment: .leading, spacing: 12) {
-                Button(action: { showFeatureComparison.toggle() }) {
-                    HStack {
-                        Text("查看详细特性对比")
-                        Spacer()
-                        Image(systemName: showFeatureComparison ? "chevron.up" : "chevron.down")
-                    }
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
-                
-                if showFeatureComparison {
-                    EditorComparisonView()
-                        .transition(.opacity.combined(with: .slide))
-                }
-            }
-        }
-    }
-    
     /// 编辑器配置部分
     private var editorConfigurationSection: some View {
         Section("编辑器配置") {
             VStack(alignment: .leading, spacing: 16) {
-                Text("当前编辑器：\(preferencesService.selectedEditorType.displayName)")
-                    .font(.headline)
-                
                 EditorConfigurationView(configuration: $configurationManager.currentConfiguration)
             }
         }
@@ -139,153 +114,6 @@ public struct EditorSettingsView: View {
             }
         }
     }
-    
-    // MARK: - Methods
-    
-    /// 选择编辑器
-    /// - Parameter editorType: 编辑器类型
-    private func selectEditor(_ editorType: EditorType) {
-        // 使用 Task 延迟执行，避免在视图更新期间修改状态
-        Task { @MainActor in
-            let success = preferencesService.setEditorType(editorType)
-            if success {
-                // 更新配置管理器的配置
-                let newConfig = EditorConfiguration.defaultConfiguration(for: editorType)
-                configurationManager.updateConfiguration(newConfig)
-            }
-        }
-    }
-}
-
-/// 编辑器选项视图
-struct EditorOptionView: View {
-    let editorType: EditorType
-    let isSelected: Bool
-    let isAvailable: Bool
-    let onSelect: () -> Void
-    
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 16) {
-                // 编辑器图标
-                Image(systemName: editorType.icon)
-                    .font(.title2)
-                    .foregroundColor(isAvailable ? .accentColor : .secondary)
-                    .frame(width: 24, height: 24)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(editorType.displayName)
-                            .font(.headline)
-                            .foregroundColor(isAvailable ? .primary : .secondary)
-                        
-                        if isSelected {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                        }
-                        
-                        if !isAvailable {
-                            Text("不可用")
-                                .font(.caption)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.secondary.opacity(0.2))
-                                .cornerRadius(4)
-                        }
-                    }
-                    
-                    Text(editorType.description)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
-                    
-                    Text("最低系统要求：\(editorType.minimumSystemVersion)")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-            }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
-                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(!isAvailable)
-    }
-}
-
-/// 编辑器特性对比视图
-struct EditorComparisonView: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("特性对比")
-                .font(.headline)
-                .padding(.bottom, 4)
-            
-            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-                // 表头
-                GridRow {
-                    Text("特性")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Text("原生编辑器")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Text("Web 编辑器")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                }
-                .padding(.bottom, 4)
-                
-                Divider()
-                
-                // 特性对比行
-                ForEach(comparisonFeatures, id: \.name) { feature in
-                    GridRow {
-                        Text(feature.name)
-                            .font(.caption)
-                        
-                        Image(systemName: feature.nativeSupport ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundColor(feature.nativeSupport ? .green : .red)
-                        
-                        Image(systemName: feature.webSupport ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundColor(feature.webSupport ? .green : .red)
-                    }
-                }
-            }
-            .padding(.horizontal, 8)
-        }
-        .padding(.vertical, 8)
-        .background(Color.secondary.opacity(0.05))
-        .cornerRadius(8)
-    }
-    
-    private var comparisonFeatures: [ComparisonFeature] {
-        [
-            ComparisonFeature(name: "原生性能", nativeSupport: true, webSupport: false),
-            ComparisonFeature(name: "系统快捷键", nativeSupport: true, webSupport: false),
-            ComparisonFeature(name: "无缝复制粘贴", nativeSupport: true, webSupport: false),
-            ComparisonFeature(name: "原生滚动", nativeSupport: true, webSupport: false),
-            ComparisonFeature(name: "跨平台兼容", nativeSupport: false, webSupport: true),
-            ComparisonFeature(name: "功能完整性", nativeSupport: true, webSupport: true),
-            ComparisonFeature(name: "稳定性", nativeSupport: true, webSupport: true),
-            ComparisonFeature(name: "富文本编辑", nativeSupport: true, webSupport: true),
-            ComparisonFeature(name: "图片支持", nativeSupport: true, webSupport: true),
-            ComparisonFeature(name: "列表和复选框", nativeSupport: true, webSupport: true)
-        ]
-    }
-}
-
-/// 特性对比数据模型
-struct ComparisonFeature {
-    let name: String
-    let nativeSupport: Bool
-    let webSupport: Bool
 }
 
 /// 编辑器配置视图
@@ -307,7 +135,7 @@ struct EditorConfigurationView: View {
             HStack {
                 Spacer()
                 Button("重置为默认") {
-                    configuration = EditorConfiguration.defaultConfiguration(for: configuration.type)
+                    configuration = EditorConfiguration.defaultConfiguration()
                 }
                 .buttonStyle(.bordered)
             }
@@ -388,20 +216,17 @@ struct EditorConfigurationView: View {
             
             Toggle("适配暗色模式", isOn: $configuration.darkModeEnabled)
             Toggle("显示行号", isOn: $configuration.showLineNumbers)
+            Toggle("启用代码折叠", isOn: $configuration.codeFoldingEnabled)
             
-            if configuration.type == .native {
-                Toggle("启用代码折叠", isOn: $configuration.codeFoldingEnabled)
-                
-                HStack {
-                    Text("缩进大小")
-                    Spacer()
-                    Stepper(value: $configuration.indentSize, in: 2...8, step: 1) {
-                        Text("\(configuration.indentSize) 空格")
-                    }
+            HStack {
+                Text("缩进大小")
+                Spacer()
+                Stepper(value: $configuration.indentSize, in: 2...8, step: 1) {
+                    Text("\(configuration.indentSize) 空格")
                 }
-                
-                Toggle("使用制表符缩进", isOn: $configuration.useTabsForIndentation)
             }
+            
+            Toggle("使用制表符缩进", isOn: $configuration.useTabsForIndentation)
         }
     }
 }
@@ -425,12 +250,6 @@ struct SystemCompatibilityView: View {
                     title: "原生编辑器支持",
                     value: EditorFactory.isEditorAvailable(.native) ? "支持" : "不支持",
                     status: EditorFactory.isEditorAvailable(.native) ? .success : .warning
-                )
-                
-                compatibilityRow(
-                    title: "Web 编辑器支持",
-                    value: "支持",
-                    status: .success
                 )
                 
                 compatibilityRow(

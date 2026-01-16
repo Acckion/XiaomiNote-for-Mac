@@ -2,7 +2,7 @@
 //  EditorProtocol.swift
 //  MiNoteMac
 //
-//  编辑器协议定义 - 统一原生编辑器和 Web 编辑器的接口
+//  编辑器协议定义 - 定义原生编辑器的统一接口
 //
 
 import Foundation
@@ -130,12 +130,7 @@ class EditorFactory {
         }
         
         do {
-            switch type {
-            case .native:
-                return try createNativeEditor()
-            case .web:
-                return try createWebEditor()
-            }
+            return try createNativeEditor()
         } catch {
             throw EditorCreationError.initializationFailed(type, error)
         }
@@ -145,7 +140,7 @@ class EditorFactory {
     /// - Parameter type: 编辑器类型
     /// - Returns: 编辑器实例
     /// - Throws: EditorCreationError 如果创建失败
-    /// - Note: 实际的编辑器实现在 NativeEditorContext 和 WebEditorContext 中
+    /// - Note: 实际的编辑器实现在 NativeEditorContext 中
     static func createEditorSafely(type: EditorType) throws -> EditorProtocol {
         return try createEditor(type: type)
     }
@@ -154,12 +149,7 @@ class EditorFactory {
     /// - Parameter type: 编辑器类型
     /// - Returns: 是否可用
     static func isEditorAvailable(_ type: EditorType) -> Bool {
-        switch type {
-        case .native:
-            return checkNativeEditorSupport()
-        case .web:
-            return checkWebEditorSupport()
-        }
+        return checkNativeEditorSupport()
     }
     
     /// 获取所有可用的编辑器类型
@@ -216,16 +206,6 @@ class EditorFactory {
         throw EditorCreationError.initializationFailed(.native, NSError(domain: "EditorFactory", code: -1, userInfo: [NSLocalizedDescriptionKey: "请使用 NativeEditorContext 创建原生编辑器"]))
     }
     
-    /// 创建 Web 编辑器
-    /// - Returns: Web 编辑器实例
-    /// - Throws: EditorCreationError
-    /// - Note: 实际的 Web 编辑器实现在 WebEditorContext 中，此方法仅用于验证系统支持
-    private static func createWebEditor() throws -> EditorProtocol {
-        // Web 编辑器的实际实现在 WebEditorContext 中
-        // 此工厂方法不直接创建编辑器实例，而是由 UnifiedEditorWrapper 管理
-        throw EditorCreationError.initializationFailed(.web, NSError(domain: "EditorFactory", code: -1, userInfo: [NSLocalizedDescriptionKey: "请使用 WebEditorContext 创建 Web 编辑器"]))
-    }
-    
     /// 检查原生编辑器支持
     /// - Returns: 是否支持原生编辑器
     private static func checkNativeEditorSupport() -> Bool {
@@ -240,13 +220,6 @@ class EditorFactory {
         }
         print("[EditorFactory] checkNativeEditorSupport: macOS 13.0+ 不可用")
         return false
-    }
-    
-    /// 检查 Web 编辑器支持
-    /// - Returns: 是否支持 Web 编辑器
-    private static func checkWebEditorSupport() -> Bool {
-        // Web 编辑器总是可用
-        return true
     }
 }
 

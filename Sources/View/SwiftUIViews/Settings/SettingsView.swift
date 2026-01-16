@@ -65,7 +65,7 @@ public struct SettingsView: View {
                     NavigationLink("编辑器设置") {
                         EditorSettingsView()
                     }
-                    .help("选择和配置编辑器类型（原生编辑器或 Web 编辑器）")
+                    .help("配置原生编辑器")
                 }
                 
                 Section("调试") {
@@ -285,7 +285,7 @@ public struct SettingsView: View {
     
     /// 应用编辑器显示设置（字体大小和行间距）
     private func applyEditorSettings() {
-        // 通知所有活动的 WebEditorView 更新显示设置
+        // 通知所有活动的编辑器更新显示设置
         NotificationCenter.default.post(
             name: NSNotification.Name("EditorSettingsChanged"),
             object: nil,

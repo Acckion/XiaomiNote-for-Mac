@@ -490,7 +490,4 @@ extension Notification.Name {
     
     /// 编辑器错误发生
     static let nativeEditorErrorOccurred = Notification.Name("nativeEditorErrorOccurred")
-    
-    /// 建议切换编辑器
-    static let suggestSwitchEditor = Notification.Name("suggestSwitchEditor")
 }
