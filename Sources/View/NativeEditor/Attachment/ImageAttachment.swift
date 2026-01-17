@@ -141,34 +141,39 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - NSTextAttachment Override
     
+    /// 是否已记录过调用日志（避免重复日志）
+    private var hasLoggedCall: Bool = false
+    
     override func image(forBounds imageBounds: CGRect,
                        textContainer: NSTextContainer?,
                        characterIndex charIndex: Int) -> NSImage? {
-        print("[ImageAttachment] 🖼️ image(forBounds:) 被调用")
-        print("[ImageAttachment]   - 附件对象地址: \(Unmanaged.passUnretained(self).toOpaque())")
-        print("[ImageAttachment]   - imageBounds: \(imageBounds)")
-        print("[ImageAttachment]   - characterIndex: \(charIndex)")
-        print("[ImageAttachment]   - fileId: '\(fileId ?? "nil")'")
-        print("[ImageAttachment]   - src: '\(src ?? "nil")'")
+        // 只在第一次调用时打印详细日志
+        if !hasLoggedCall {
+            print("[ImageAttachment] 🖼️ image(forBounds:) 首次调用")
+            print("[ImageAttachment]   - 附件对象地址: \(Unmanaged.passUnretained(self).toOpaque())")
+            print("[ImageAttachment]   - imageBounds: \(imageBounds)")
+            print("[ImageAttachment]   - characterIndex: \(charIndex)")
+            print("[ImageAttachment]   - fileId: '\(fileId ?? "nil")'")
+            print("[ImageAttachment]   - src: '\(src ?? "nil")'")
+            hasLoggedCall = true
+        }
         
         updateTheme()
         
         if let cached = cachedImage {
-            print("[ImageAttachment] 🖼️ image(forBounds:) - 返回缓存图片")
             return cached
         }
         
         if isLoading || loadFailed {
-            print("[ImageAttachment] 🖼️ image(forBounds:) - 返回占位符（isLoading=\(isLoading), loadFailed=\(loadFailed)）")
             return placeholderImage ?? createPlaceholderImage()
         }
         
         if let image = self.image {
-            print("[ImageAttachment] 🖼️ image(forBounds:) - 返回已加载的图片")
             cachedImage = image
             return image
         }
         
+        // 只在需要加载时打印日志
         print("[ImageAttachment] 🖼️ image(forBounds:) - 开始加载图片")
         print("[ImageAttachment]   - fileId: '\(fileId ?? "nil")'")
         print("[ImageAttachment]   - folderId: '\(folderId ?? "nil")'")

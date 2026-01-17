@@ -322,7 +322,7 @@ public final class XMLTokenizer: @unchecked Sendable {
     }
     
     /// 解析旧格式图片
-    /// 格式：☺ {fileId}<0/><[{description}]/>
+    /// 格式：☺ {fileId}<0/><[{description}]/> 或 ☺ {fileId}<0/></>
     private func parseLegacyImage() throws -> XMLToken {
         // 跳过 ☺ 字符
         advance()
@@ -369,15 +369,24 @@ public final class XMLTokenizer: @unchecked Sendable {
             throw TokenizerError.invalidLegacyImageFormat("缺少 fileId")
         }
         
-        // 提取 description（从 <[ 到 ]/> 之间的文本）
+        // 提取 description（从 <[ 到 ]/> 之间的文本，或者 </> 表示无描述）
         var description = ""
         
-        // 查找 <[ 标记
+        // 查找描述标记
         if !isAtEnd && currentChar == "<" {
             let savedIndex = currentIndex
             advance()
             
-            if !isAtEnd && currentChar == "[" {
+            // 检查是否是空描述标记 </>
+            if !isAtEnd && currentChar == "/" {
+                advance()
+                if !isAtEnd && currentChar == ">" {
+                    advance()
+                    // 找到 </> 标记，表示无描述
+                    description = ""
+                }
+            } else if !isAtEnd && currentChar == "[" {
+                // 有描述的情况：<[description]/>
                 advance()
                 
                 // 提取描述内容（直到 ]/> 标记）
@@ -408,7 +417,7 @@ public final class XMLTokenizer: @unchecked Sendable {
                     }
                 }
             } else {
-                // 没有找到 <[ 标记，恢复位置
+                // 不是预期的描述标记，恢复位置
                 currentIndex = savedIndex
             }
         }
