@@ -56,6 +56,9 @@ public actor OperationProcessor {
     /// 网络监控
     private let networkMonitor: NetworkMonitor
     
+    /// 同步状态管理器
+    private let syncStateManager: SyncStateManager
+    
     // MARK: - 状态
     
     /// 是否正在处理队列
@@ -83,6 +86,7 @@ public actor OperationProcessor {
         self.localStorage = LocalStorageService.shared
         self.databaseService = DatabaseService.shared
         self.networkMonitor = NetworkMonitor.shared
+        self.syncStateManager = SyncStateManager()
     }
     
     /// 用于测试的初始化方法
@@ -93,18 +97,21 @@ public actor OperationProcessor {
     ///   - localStorage: 本地存储服务实例
     ///   - databaseService: 数据库服务实例
     ///   - networkMonitor: 网络监控实例
+    ///   - syncStateManager: 同步状态管理器实例
     internal init(
         operationQueue: UnifiedOperationQueue,
         miNoteService: MiNoteService,
         localStorage: LocalStorageService,
         databaseService: DatabaseService,
-        networkMonitor: NetworkMonitor
+        networkMonitor: NetworkMonitor,
+        syncStateManager: SyncStateManager
     ) {
         self.operationQueue = operationQueue
         self.miNoteService = miNoteService
         self.localStorage = localStorage
         self.databaseService = databaseService
         self.networkMonitor = networkMonitor
+        self.syncStateManager = syncStateManager
     }
     
     // MARK: - 网络状态检查
@@ -261,6 +268,16 @@ extension OperationProcessor {
         currentOperationId = nil
         
         print("[OperationProcessor] 📋 队列处理完成，成功: \(successCount), 失败: \(failureCount)")
+        
+        // 确认暂存的 syncTag（如果存在）
+        do {
+            let confirmed = try await syncStateManager.confirmPendingSyncTagIfNeeded()
+            if confirmed {
+                print("[OperationProcessor] ✅ 已确认暂存的 syncTag")
+            }
+        } catch {
+            print("[OperationProcessor] ⚠️ 确认 syncTag 失败: \(error.localizedDescription)")
+        }
         
         // 发送处理完成通知
         await MainActor.run {
@@ -491,6 +508,16 @@ extension OperationProcessor {
         
         if successCount > 0 || failureCount > 0 {
             print("[OperationProcessor] 🔄 重试处理完成，成功: \(successCount), 失败: \(failureCount)")
+            
+            // 确认暂存的 syncTag（如果存在）
+            do {
+                let confirmed = try await syncStateManager.confirmPendingSyncTagIfNeeded()
+                if confirmed {
+                    print("[OperationProcessor] ✅ 已确认暂存的 syncTag")
+                }
+            } catch {
+                print("[OperationProcessor] ⚠️ 确认 syncTag 失败: \(error.localizedDescription)")
+            }
         }
     }
     

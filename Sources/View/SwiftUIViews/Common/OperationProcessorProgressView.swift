@@ -172,10 +172,6 @@ class OperationProcessorProgressViewModel: ObservableObject {
         setupNotificationObservers()
     }
     
-    deinit {
-        stopMonitoring()
-    }
-    
     // MARK: - Monitoring
     
     func startMonitoring() {

@@ -20,6 +20,10 @@ final class SyncService: @unchecked Sendable {
     /// 本地存储服务
     private let localStorage = LocalStorageService.shared
     
+    /// 同步状态管理器
+    /// 负责统一管理 syncTag 的获取、更新和确认
+    private let syncStateManager: SyncStateManager
+    
     /// 同步保护器
     /// 用于检查笔记是否应该被同步跳过（正在编辑、待上传或临时 ID）
     /// 替代旧的 SyncProtectionFilter，使用 UnifiedOperationQueue 作为数据源
@@ -28,6 +32,16 @@ final class SyncService: @unchecked Sendable {
     /// 旧的离线操作队列（已废弃，仅用于兼容旧的文件夹操作等逻辑）
     @available(*, deprecated, message: "使用 UnifiedOperationQueue 替代")
     private let legacyOfflineQueue = OfflineOperationQueue.shared
+    
+    // MARK: - 初始化
+    
+    /// 初始化同步服务
+    ///
+    /// - Parameter syncStateManager: 同步状态管理器，默认创建新实例
+    private init(syncStateManager: SyncStateManager = SyncStateManager()) {
+        self.syncStateManager = syncStateManager
+        print("[SYNC] SyncService 初始化完成，已注入 SyncStateManager")
+    }
     
     // MARK: - 同步状态
     
@@ -351,27 +365,27 @@ final class SyncService: @unchecked Sendable {
                 print("[SYNC] 已保存 \(allCloudFolders.count) 个云端文件夹")
             }
             
-            // 更新同步状态 - 确保保存正确的syncTag
-            syncStatus.lastSyncTime = Date()
-            
+            // 更新同步状态 - 使用 SyncStateManager
             // 保存syncTag（即使为空也要保存，但记录警告）
             // 注意：syncStatus.syncTag 已经在循环中被设置，这里不需要检查 syncTag 变量
+            var finalSyncTag = syncStatus.syncTag
+            
             if let currentSyncTag = syncStatus.syncTag, !currentSyncTag.isEmpty {
-                print("[SYNC] 完整同步：保存syncTag: \(currentSyncTag)")
+                print("[SYNC] 完整同步：找到 syncTag: \(currentSyncTag)")
             } else {
-                print("[SYNC] ⚠️ 完整同步：syncTag为空，无法保存有效的syncTag")
+                print("[SYNC] ⚠️ 完整同步：syncTag为空，尝试从最后一次API响应中提取")
                 // 尝试从最后一次API响应中提取syncTag
                 do {
                     let lastPageResponse = try await miNoteService.fetchPage(syncTag: "")
                     print("[SYNC] 完整同步：获取最后一次API响应成功")
                     if let lastSyncTag = lastPageResponse["syncTag"] as? String,
                        !lastSyncTag.isEmpty {
-                        syncStatus.syncTag = lastSyncTag
+                        finalSyncTag = lastSyncTag
                         print("[SYNC] 完整同步：从最后一次API响应中提取syncTag: \(lastSyncTag)")
                     } else {
                         // 尝试使用extractSyncTags方法提取
                         if let extractedSyncTag = extractSyncTags(from: lastPageResponse) {
-                            syncStatus.syncTag = extractedSyncTag
+                            finalSyncTag = extractedSyncTag
                             print("[SYNC] 完整同步：使用extractSyncTags提取syncTag: \(extractedSyncTag)")
                         } else {
                             print("[SYNC] ⚠️ 完整同步：无法从最后一次API响应中提取syncTag")
@@ -379,17 +393,26 @@ final class SyncService: @unchecked Sendable {
                     }
                 } catch {
                     print("[SYNC] ⚠️ 完整同步：获取最后一次API响应失败: \(error)")
-                    // 即使失败也要保存同步状态，但syncTag可能为空
+                    // 即使失败也要继续，但syncTag可能为空
                 }
             }
             
-            // 确保保存同步状态，即使syncTag可能为空
-            print("[SYNC] 完整同步：保存同步状态 - lastSyncTime: \(Date()), syncTag: \(syncStatus.syncTag ?? "nil")")
-            try localStorage.saveSyncStatus(syncStatus)
-            _lastSyncTime = syncStatus.lastSyncTime
-            _currentSyncTag = syncStatus.syncTag
+            // 使用 SyncStateManager 暂存 syncTag（需求 2.1, 2.3）
+            if let syncTag = finalSyncTag, !syncTag.isEmpty {
+                print("[SYNC] 完整同步：使用 SyncStateManager 暂存 syncTag: \(syncTag)")
+                
+                // 完整同步后通常没有待上传笔记，直接确认
+                let hasPendingNotes = await syncStateManager.hasPendingUploadNotes()
+                print("[SYNC] 完整同步：是否有待上传笔记: \(hasPendingNotes)")
+                
+                try await syncStateManager.stageSyncTag(syncTag, hasPendingNotes: hasPendingNotes)
+                print("[SYNC] 完整同步：syncTag 已通过 SyncStateManager 处理")
+            } else {
+                print("[SYNC] ⚠️ 完整同步：syncTag 为空，无法暂存")
+            }
             
-            print("[SYNC] 完整同步：同步状态已保存")
+            // 移除直接更新 LocalStorageService 的代码（已由 SyncStateManager 处理）
+            // 移除内部缓存更新（不再需要）
             
             syncProgress = 1.0
             syncStatusMessage = "完整同步完成"
@@ -487,7 +510,11 @@ final class SyncService: @unchecked Sendable {
             
             // 如果网页版增量同步也失败，使用旧API增量同步
             print("[SYNC] 使用旧API增量同步")
-            let lastSyncTag = syncStatus.syncTag ?? ""
+            
+            // 使用 SyncStateManager 获取 syncTag（需求 1.1）
+            let lastSyncTag = await syncStateManager.getCurrentSyncTag()
+            print("[SYNC] 从 SyncStateManager 获取 syncTag: \(lastSyncTag)")
+            
             syncStatusMessage = "获取自上次同步以来的更改..."
             
             let syncResponse = try await miNoteService.fetchPage(syncTag: lastSyncTag)
@@ -529,18 +556,21 @@ final class SyncService: @unchecked Sendable {
             }
             
             // 更新同步状态
-            var updatedStatus = syncStatus
             // 从响应中提取新的syncTag
             if let newSyncTag = extractSyncTags(from: syncResponse) {
-                updatedStatus.syncTag = newSyncTag
-                print("[SYNC] 更新syncTag: \(newSyncTag)")
+                print("[SYNC] 提取到新的 syncTag: \(newSyncTag)")
+                
+                // 检查是否有待上传笔记（需求 2.1, 2.2, 2.3）
+                let hasPendingNotes = await syncStateManager.hasPendingUploadNotes()
+                print("[SYNC] 是否有待上传笔记: \(hasPendingNotes)")
+                
+                // 使用 SyncStateManager 暂存 syncTag
+                try await syncStateManager.stageSyncTag(newSyncTag, hasPendingNotes: hasPendingNotes)
+                print("[SYNC] syncTag 已通过 SyncStateManager 处理")
             }
-            updatedStatus.lastSyncTime = Date()
-            try localStorage.saveSyncStatus(updatedStatus)
             
-            // 更新内部缓存（需求 6.2）
-            _lastSyncTime = updatedStatus.lastSyncTime
-            _currentSyncTag = updatedStatus.syncTag
+            // 移除直接更新 LocalStorageService 的代码（已由 SyncStateManager 处理）
+            // 移除内部缓存更新（不再需要）
             
             // 处理只有本地存在但云端不存在的笔记和文件夹
             syncStatusMessage = "检查本地独有的笔记和文件夹..."
@@ -603,7 +633,10 @@ final class SyncService: @unchecked Sendable {
         var result = SyncResult()
         
         do {
-            let lastSyncTag = syncStatus.syncTag ?? ""
+            // 使用 SyncStateManager 获取 syncTag（需求 1.1）
+            let lastSyncTag = await syncStateManager.getCurrentSyncTag()
+            print("[SYNC] 从 SyncStateManager 获取 syncTag: \(lastSyncTag)")
+            
             syncStatusMessage = "获取自上次同步以来的更改..."
             
             // 使用网页版增量同步API
@@ -646,18 +679,21 @@ final class SyncService: @unchecked Sendable {
             }
             
             // 更新同步状态
-            var updatedStatus = syncStatus
             // 从响应中提取新的syncTag
             if let newSyncTag = extractSyncTags(from: syncResponse) {
-                updatedStatus.syncTag = newSyncTag
-                print("[SYNC] 更新syncTag: \(newSyncTag)")
+                print("[SYNC] 提取到新的 syncTag: \(newSyncTag)")
+                
+                // 检查是否有待上传笔记（需求 2.1, 2.2, 2.3）
+                let hasPendingNotes = await syncStateManager.hasPendingUploadNotes()
+                print("[SYNC] 是否有待上传笔记: \(hasPendingNotes)")
+                
+                // 使用 SyncStateManager 暂存 syncTag
+                try await syncStateManager.stageSyncTag(newSyncTag, hasPendingNotes: hasPendingNotes)
+                print("[SYNC] syncTag 已通过 SyncStateManager 处理")
             }
-            updatedStatus.lastSyncTime = Date()
-            try localStorage.saveSyncStatus(updatedStatus)
             
-            // 更新内部缓存（需求 6.2）
-            _lastSyncTime = updatedStatus.lastSyncTime
-            _currentSyncTag = updatedStatus.syncTag
+            // 移除直接更新 LocalStorageService 的代码（已由 SyncStateManager 处理）
+            // 移除内部缓存更新（不再需要）
             
             // 处理只有本地存在但云端不存在的笔记和文件夹
             syncStatusMessage = "检查本地独有的笔记和文件夹..."
@@ -725,7 +761,10 @@ final class SyncService: @unchecked Sendable {
         var result = SyncResult()
         
         do {
-            let lastSyncTag = syncStatus.syncTag ?? ""
+            // 使用 SyncStateManager 获取 syncTag（需求 1.1）
+            let lastSyncTag = await syncStateManager.getCurrentSyncTag()
+            print("[SYNC] 从 SyncStateManager 获取 syncTag: \(lastSyncTag)")
+            
             syncStatusMessage = "获取自上次同步以来的更改..."
             
             // 使用轻量级增量同步API
@@ -779,17 +818,20 @@ final class SyncService: @unchecked Sendable {
             }
             
             // 更新同步状态
-            var updatedStatus = syncStatus
             if !newSyncTag.isEmpty {
-                updatedStatus.syncTag = newSyncTag
-                print("[SYNC] 更新syncTag: \(newSyncTag)")
+                print("[SYNC] 提取到新的 syncTag: \(newSyncTag)")
+                
+                // 检查是否有待上传笔记（需求 2.1, 2.2, 2.3）
+                let hasPendingNotes = await syncStateManager.hasPendingUploadNotes()
+                print("[SYNC] 是否有待上传笔记: \(hasPendingNotes)")
+                
+                // 使用 SyncStateManager 暂存 syncTag
+                try await syncStateManager.stageSyncTag(newSyncTag, hasPendingNotes: hasPendingNotes)
+                print("[SYNC] syncTag 已通过 SyncStateManager 处理")
             }
-            updatedStatus.lastSyncTime = Date()
-            try localStorage.saveSyncStatus(updatedStatus)
             
-            // 更新内部缓存（需求 6.2）
-            _lastSyncTime = updatedStatus.lastSyncTime
-            _currentSyncTag = updatedStatus.syncTag
+            // 移除直接更新 LocalStorageService 的代码（已由 SyncStateManager 处理）
+            // 移除内部缓存更新（不再需要）
             
             // 注意：轻量级同步不调用 syncLocalOnlyItems，因为它只返回有修改的笔记
             // 未修改的笔记应该保持不变，删除操作通过笔记的"status"字段处理
