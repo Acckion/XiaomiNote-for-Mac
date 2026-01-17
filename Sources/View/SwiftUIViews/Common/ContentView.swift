@@ -165,7 +165,7 @@ public struct ContentView: View {
             CookieRefreshView(viewModel: viewModel)
         }
         .sheet(isPresented: $showingOfflineOperationsProgress) {
-            OfflineOperationsProgressView(processor: OfflineOperationProcessor.shared)
+            OfflineOperationsProgressView(processor: OperationProcessor.shared)
         }
         .sheet(isPresented: $viewModel.showTrashView) {
             TrashView(viewModel: viewModel)
@@ -488,22 +488,22 @@ public struct ContentView: View {
                 Button {
                     showingOfflineOperationsProgress = true
                     Task {
-                        await OfflineOperationProcessor.shared.processOperations()
+                        await OperationProcessor.shared.processQueue()
                     }
                 } label: {
                     Label("处理离线操作 (\(viewModel.pendingOperationsCount))", systemImage: "arrow.clockwise.circle")
                 }
-                .disabled(viewModel.isProcessingOfflineOperations || !viewModel.isOnline)
+                .disabled(viewModel.isProcessingOfflineQueue || !viewModel.isOnline)
                 
-                if viewModel.failedOperationsCount > 0 {
+                if viewModel.offlineQueueFailedCount > 0 {
                     Button {
                         Task {
-                            await OfflineOperationProcessor.shared.retryFailedOperations()
+                            await OperationProcessor.shared.processRetries()
                         }
                     } label: {
-                        Label("重试失败操作 (\(viewModel.failedOperationsCount))", systemImage: "arrow.counterclockwise.circle")
+                        Label("重试失败操作 (\(viewModel.offlineQueueFailedCount))", systemImage: "arrow.counterclockwise.circle")
                     }
-                    .disabled(viewModel.isProcessingOfflineOperations || !viewModel.isOnline)
+                    .disabled(viewModel.isProcessingOfflineQueue || !viewModel.isOnline)
                 }
                 
                 Divider()

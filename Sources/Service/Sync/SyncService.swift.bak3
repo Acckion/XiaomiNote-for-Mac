@@ -952,8 +952,8 @@ final class SyncService: @unchecked Sendable {
                 } else if localFolder.createdAt > cloudFolder.createdAt {
                     // 1.1 本地较新，上传本地到云端（通过统一操作队列）
                     // 这里需要检查是否有重命名操作
-                    let hasRenameOp = pendingOps.contains { operation in
-                        operation.type == .folderRename && operation.noteId == localFolder.id
+                    let hasRenameOp = pendingOps.contains { op in
+                        op.type == .folderRename && op.noteId == localFolder.id
                     }
                     if !hasRenameOp {
                         // 创建更新操作
@@ -1043,8 +1043,8 @@ final class SyncService: @unchecked Sendable {
             // 情况1：云端和本地都存在
             if localNote.updatedAt > cloudNote.updatedAt {
                 // 1.1 本地较新，上传本地到云端
-                let hasUpdateOp = pendingOps.contains { operation in
-                    operation.type == .cloudUpload && operation.noteId == localNote.id
+                let hasUpdateOp = pendingOps.contains { op in
+                    op.type == .cloudUpload && op.noteId == localNote.id
                 }
                 if !hasUpdateOp {
                     // 创建更新操作
@@ -1125,8 +1125,8 @@ final class SyncService: @unchecked Sendable {
         } else {
             // 情况2：只有云端存在，本地不存在
             // 2.1 检查离线删除队列
-            let hasDeleteOp: Bool = pendingOps.contains { operation in
-                operation.type == .cloudDelete && operation.noteId == cloudNote.id
+            let hasDeleteOp = pendingOps.contains { op in
+                op.type == .deleteNote && op.noteId == cloudNote.id
             }
             if hasDeleteOp {
                 // 在删除队列中，删除云端笔记
@@ -1235,8 +1235,8 @@ final class SyncService: @unchecked Sendable {
             if !cloudNoteIds.contains(localNote.id) {
                 // 情况3：只有本地存在，云端不存在
                 // 3.1 检查离线新建队列
-                let hasCreateOp: Bool = pendingOps.contains { operation in
-                    operation.type == .noteCreate && operation.noteId == localNote.id
+                let hasCreateOp = pendingOps.contains { op in
+                    op.type == .createNote && op.noteId == localNote.id
                 }
                 if hasCreateOp {
                     // 在新建队列中，上传到云端
@@ -1287,8 +1287,8 @@ final class SyncService: @unchecked Sendable {
                 } else {
                     // 3.2 不在新建队列，删除本地笔记
                     // 但需要检查是否有待处理的更新操作（可能笔记正在上传中）
-                    let hasUpdateOp: Bool = pendingOps.contains { operation in
-                        operation.type == .cloudUpload && operation.noteId == localNote.id
+                    let hasUpdateOp = pendingOps.contains { op in
+                        op.type == .updateNote && op.noteId == localNote.id
                     }
                     if !hasUpdateOp {
                         // 没有待处理的操作，删除本地笔记
@@ -1309,8 +1309,8 @@ final class SyncService: @unchecked Sendable {
                !cloudFolderIds.contains(localFolder.id) {
                 // 情况3：只有本地存在，云端不存在
                 // 3.1 检查离线新建队列
-                let hasCreateOp: Bool = pendingOps.contains { operation in
-                    operation.type == .folderCreate && operation.noteId == localFolder.id
+                let hasCreateOp = pendingOps.contains { op in
+                    op.type == .createFolder && op.noteId == localFolder.id
                 }
                 if hasCreateOp {
                     // 在新建队列中，上传到云端

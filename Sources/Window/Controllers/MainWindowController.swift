@@ -1921,7 +1921,7 @@ extension MainWindowController {
         
         // 创建离线操作进度视图，传递关闭回调
         let progressView = OfflineOperationsProgressView(
-            processor: OfflineOperationProcessor.shared,
+            processor: OperationProcessor.shared,
             onClose: { [weak window, weak self] in
                 // 关闭sheet
                 if let sheetWindow = self?.currentSheetWindow {

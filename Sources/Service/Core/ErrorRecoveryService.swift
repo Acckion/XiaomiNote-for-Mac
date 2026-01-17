@@ -29,11 +29,8 @@ public final class ErrorRecoveryService: ObservableObject {
     
     // MARK: - 依赖服务
     
-    /// 统一操作队列（新的队列，用于主要功能）
+    /// 统一操作队列
     private let unifiedQueue = UnifiedOperationQueue.shared
-    /// 旧的离线操作队列（已废弃，仅用于兼容旧的错误恢复逻辑）
-    @available(*, deprecated, message: "使用 unifiedQueue 替代")
-    private let legacyOfflineQueue = OfflineOperationQueue.shared
     private let networkErrorHandler = NetworkErrorHandler.shared
     private let onlineStateManager = OnlineStateManager.shared
     
@@ -87,69 +84,58 @@ public final class ErrorRecoveryService: ObservableObject {
     /// 遵循需求 8.1
     /// 
     /// - Parameters:
-    ///   - error: 发生的错误
-    ///   - operationType: 操作类型
+    ///   - operation: 操作类型
     ///   - noteId: 笔记或文件夹ID
-    ///   - operationData: 操作数据
-    ///   - currentRetryCount: 当前重试次数
+    ///   - data: 操作数据
+    ///   - error: 发生的错误
+    ///   - context: 错误上下文描述
     /// - Returns: 错误处理结果
     public func handleNetworkError(
-        _ error: Error,
-        operationType: OfflineOperationType,
+        operation: OperationType,
         noteId: String,
-        operationData: [String: Any],
-        currentRetryCount: Int = 0
+        data: Data,
+        error: Error,
+        context: String
     ) -> ErrorRecoveryResult {
+        print("[ErrorRecovery] 处理网络错误: \(context)")
+        print("[ErrorRecovery] 错误: \(error.localizedDescription)")
+        
         // 分类错误
         let errorType = networkErrorHandler.classifyError(error)
-        let handlingResult = networkErrorHandler.handleError(error, retryCount: currentRetryCount)
-        
-        print("[ErrorRecoveryService] 处理错误: \(error.localizedDescription)")
-        print("[ErrorRecoveryService] 错误类型: \(errorType), 重试次数: \(currentRetryCount)")
-        
-        // 检查是否超过最大重试次数（需求 8.7）
-        if currentRetryCount >= maxRetryCount {
-            return handleMaxRetryExceeded(
-                error: error,
-                operationType: operationType,
-                noteId: noteId,
-                operationData: operationData,
-                retryCount: currentRetryCount
-            )
-        }
         
         // 根据错误类型决定处理策略
         switch errorType {
         case .networkError:
-            // 网络错误：添加到离线队列（需求 8.1）
-            return addToOfflineQueue(
-                operationType: operationType,
+            // 网络错误：添加到统一队列
+            return addToUnifiedQueue(
+                operation: operation,
                 noteId: noteId,
-                operationData: operationData,
-                retryCount: currentRetryCount,
-                error: error
+                data: data,
+                error: error,
+                context: context
             )
             
         case .authenticationError:
-            // 认证错误：添加到离线队列，等待Cookie刷新
-            return addToOfflineQueue(
-                operationType: operationType,
+            // 认证错误：添加到统一队列，等待Cookie刷新
+            return addToUnifiedQueue(
+                operation: operation,
                 noteId: noteId,
-                operationData: operationData,
-                retryCount: currentRetryCount,
+                data: data,
                 error: error,
+                context: context,
                 requiresAuth: true
             )
             
         case .serverError:
-            // 服务器错误：如果可重试，添加到离线队列
+            // 服务器错误：如果可重试，添加到统一队列
+            let handlingResult = networkErrorHandler.handleError(error, retryCount: 0)
             if handlingResult.shouldRetry {
-                return addToOfflineQueue(
-                    operationType: operationType,
+                return addToUnifiedQueue(
+                    operation: operation,
                     noteId: noteId,
-                    operationData: operationData,
-                    retryCount: currentRetryCount,
-                    error: error
+                    data: data,
+                    error: error,
+                    context: context
                 )
             } else {
                 return .noRetry(message: handlingResult.userMessage ?? "服务器错误")
@@ -157,49 +143,47 @@ public final class ErrorRecoveryService: ObservableObject {
             
         case .clientError, .businessError:
             // 客户端错误或业务错误：不重试
+            let handlingResult = networkErrorHandler.handleError(error, retryCount: 0)
             return .noRetry(message: handlingResult.userMessage ?? error.localizedDescription)
         }
     }
     
-    /// 添加操作到离线队列
+    /// 添加操作到统一队列
     /// 
     /// 遵循需求 8.1
     /// 
     /// - Parameters:
-    ///   - operationType: 操作类型
+    ///   - operation: 操作类型
     ///   - noteId: 笔记或文件夹ID
-    ///   - operationData: 操作数据
-    ///   - retryCount: 当前重试次数
+    ///   - data: 操作数据
     ///   - error: 错误信息
+    ///   - context: 错误上下文
     ///   - requiresAuth: 是否需要认证
     /// - Returns: 错误处理结果
-    private func addToOfflineQueue(
-        operationType: OfflineOperationType,
+    private func addToUnifiedQueue(
+        operation: OperationType,
         noteId: String,
-        operationData: [String: Any],
-        retryCount: Int,
+        data: Data,
         error: Error,
+        context: String,
         requiresAuth: Bool = false
     ) -> ErrorRecoveryResult {
         do {
-            // 编码操作数据
-            let data = try JSONSerialization.data(withJSONObject: operationData, options: [])
-            
-            // 创建离线操作
-            let operation = OfflineOperation(
-                type: operationType,
+            // 创建统一操作
+            let noteOperation = NoteOperation(
+                type: operation,
                 noteId: noteId,
                 data: data,
-                priority: OfflineOperation.calculatePriority(for: operationType),
-                retryCount: retryCount,
-                lastError: error.localizedDescription,
-                status: .pending
+                status: .pending,
+                priority: determinePriority(for: operation),
+                retryCount: 0,
+                lastError: error.localizedDescription
             )
             
-            // 添加到队列
-            try legacyOfflineQueue.addOperation(operation)
+            // 添加到统一队列
+            try unifiedQueue.enqueue(noteOperation)
             
-            print("[ErrorRecoveryService] ✅ 操作已添加到离线队列: \(operationType.rawValue), noteId: \(noteId)")
+            print("[ErrorRecovery] ✅ 操作已添加到统一队列: \(operation.rawValue), noteId: \(noteId)")
             
             let message = requiresAuth 
                 ? "操作已保存，将在登录后自动同步"
@@ -208,77 +192,32 @@ public final class ErrorRecoveryService: ObservableObject {
             return .addedToQueue(message: message)
             
         } catch {
-            print("[ErrorRecoveryService] ❌ 添加到离线队列失败: \(error)")
+            print("[ErrorRecovery] ❌ 添加到统一队列失败: \(error)")
             return .noRetry(message: "保存操作失败: \(error.localizedDescription)")
         }
     }
     
-    /// 处理超过最大重试次数的情况
+    /// 确定操作优先级
     /// 
-    /// 遵循需求 8.7
-    /// 
-    /// - Parameters:
-    ///   - error: 错误信息
-    ///   - operationType: 操作类型
-    ///   - noteId: 笔记或文件夹ID
-    ///   - operationData: 操作数据
-    ///   - retryCount: 重试次数
-    /// - Returns: 错误处理结果
-    private func handleMaxRetryExceeded(
-        error: Error,
-        operationType: OfflineOperationType,
-        noteId: String,
-        operationData: [String: Any],
-        retryCount: Int
-    ) -> ErrorRecoveryResult {
-        print("[ErrorRecoveryService] ⚠️ 操作超过最大重试次数: \(operationType.rawValue), noteId: \(noteId), retryCount: \(retryCount)")
-        
-        // 创建失败操作记录
-        let failedOperation = FailedOperation(
-            id: UUID().uuidString,
-            operationType: operationType,
-            noteId: noteId,
-            operationData: operationData,
-            error: error.localizedDescription,
-            retryCount: retryCount,
-            failedAt: Date()
-        )
-        
-        // 添加到失败列表
-        permanentlyFailedOperations.append(failedOperation)
-        hasFailedOperations = true
-        
-        // 更新离线队列中的操作状态为失败
-        do {
-            // 查找并更新操作状态
-            let pendingOperations = legacyOfflineQueue.getPendingOperations()
-            if let existingOp = pendingOperations.first(where: { $0.noteId == noteId && $0.type == operationType }) {
-                try legacyOfflineQueue.updateOperationStatus(
-                    operationId: existingOp.id,
-                    status: .failed,
-                    error: "超过最大重试次数 (\(maxRetryCount))"
-                )
-            }
-        } catch {
-            print("[ErrorRecoveryService] ❌ 更新操作状态失败: \(error)")
+    /// - Parameter operation: 操作类型
+    /// - Returns: 优先级数值（数字越大优先级越高）
+    private func determinePriority(for operation: OperationType) -> Int {
+        switch operation {
+        case .cloudDelete:
+            return 10 // 删除操作最高优先级
+        case .noteCreate:
+            return 8  // 创建笔记高优先级
+        case .cloudUpload:
+            return 5  // 上传笔记中等优先级
+        case .folderDelete:
+            return 7  // 删除文件夹高优先级
+        case .folderRename:
+            return 4  // 重命名文件夹中等优先级
+        case .folderCreate:
+            return 6  // 创建文件夹较高优先级
+        case .imageUpload:
+            return 3  // 图片上传低优先级
         }
-        
-        // 发送通知
-        NotificationCenter.default.post(
-            name: .operationPermanentlyFailed,
-            object: nil,
-            userInfo: [
-                "operationType": operationType.rawValue,
-                "noteId": noteId,
-                "error": error.localizedDescription,
-                "retryCount": retryCount
-            ]
-        )
-        
-        let message = "操作失败（已重试 \(retryCount) 次），请稍后手动重试"
-        lastErrorMessage = message
-        
-        return .permanentlyFailed(message: message)
     }
     
     /// 计算重试延迟（指数退避）
@@ -288,66 +227,6 @@ public final class ErrorRecoveryService: ObservableObject {
     public func calculateRetryDelay(retryCount: Int) -> TimeInterval {
         let delay = initialRetryDelay * pow(retryBackoffMultiplier, Double(retryCount))
         return min(delay, maxRetryDelay)
-    }
-    
-    /// 重试失败的操作
-    /// 
-    /// - Parameter operationId: 失败操作的ID
-    /// - Returns: 是否成功重新添加到队列
-    public func retryFailedOperation(_ operationId: String) -> Bool {
-        guard let index = permanentlyFailedOperations.firstIndex(where: { $0.id == operationId }) else {
-            print("[ErrorRecoveryService] 找不到失败的操作: \(operationId)")
-            return false
-        }
-        
-        let failedOp = permanentlyFailedOperations[index]
-        
-        do {
-            // 编码操作数据
-            let data = try JSONSerialization.data(withJSONObject: failedOp.operationData, options: [])
-            
-            // 创建新的离线操作（重置重试次数）
-            let operation = OfflineOperation(
-                type: failedOp.operationType,
-                noteId: failedOp.noteId,
-                data: data,
-                priority: OfflineOperation.calculatePriority(for: failedOp.operationType),
-                retryCount: 0,  // 重置重试次数
-                lastError: nil,
-                status: .pending
-            )
-            
-            // 添加到队列
-            try legacyOfflineQueue.addOperation(operation)
-            
-            // 从失败列表中移除
-            permanentlyFailedOperations.remove(at: index)
-            hasFailedOperations = !permanentlyFailedOperations.isEmpty
-            
-            print("[ErrorRecoveryService] ✅ 失败操作已重新添加到队列: \(failedOp.operationType.rawValue)")
-            return true
-            
-        } catch {
-            print("[ErrorRecoveryService] ❌ 重试失败操作失败: \(error)")
-            return false
-        }
-    }
-    
-    /// 重试所有失败的操作
-    /// 
-    /// - Returns: 成功重试的操作数量
-    public func retryAllFailedOperations() -> Int {
-        var successCount = 0
-        let operationIds = permanentlyFailedOperations.map { $0.id }
-        
-        for operationId in operationIds {
-            if retryFailedOperation(operationId) {
-                successCount += 1
-            }
-        }
-        
-        print("[ErrorRecoveryService] 重试所有失败操作完成，成功: \(successCount)")
-        return successCount
     }
     
     /// 清除失败操作
@@ -412,7 +291,7 @@ public enum ErrorRecoveryResult {
 /// 失败操作记录
 public struct FailedOperation: Identifiable {
     public let id: String
-    public let operationType: OfflineOperationType
+    public let operationType: OperationType
     public let noteId: String
     public let operationData: [String: Any]
     public let error: String
@@ -422,19 +301,19 @@ public struct FailedOperation: Identifiable {
     /// 操作类型的显示名称
     public var operationTypeName: String {
         switch operationType {
-        case .createNote: return "创建笔记"
-        case .updateNote: return "更新笔记"
-        case .deleteNote: return "删除笔记"
-        case .uploadImage: return "上传图片"
-        case .createFolder: return "创建文件夹"
-        case .renameFolder: return "重命名文件夹"
-        case .deleteFolder: return "删除文件夹"
+        case .noteCreate: return "创建笔记"
+        case .cloudUpload: return "更新笔记"
+        case .cloudDelete: return "删除笔记"
+        case .imageUpload: return "上传图片"
+        case .folderCreate: return "创建文件夹"
+        case .folderRename: return "重命名文件夹"
+        case .folderDelete: return "删除文件夹"
         }
     }
     
     public init(
         id: String,
-        operationType: OfflineOperationType,
+        operationType: OperationType,
         noteId: String,
         operationData: [String: Any],
         error: String,

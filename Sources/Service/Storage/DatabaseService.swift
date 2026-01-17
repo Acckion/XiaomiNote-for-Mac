@@ -75,9 +75,11 @@ final class DatabaseService: @unchecked Sendable {
     /// 创建以下表：
     /// - notes: 笔记表
     /// - folders: 文件夹表
-    /// - offline_operations: 离线操作队列表
     /// - sync_status: 同步状态表（单行表）
-    /// - pending_deletions: 待删除笔记表
+    /// - unified_operations: 统一操作队列表
+    /// - id_mappings: ID 映射表
+    /// - operation_history: 操作历史表
+    /// - folder_sort_info: 文件夹排序信息表
     private func createTables() {
         // 创建 notes 表
         let createNotesTable = """
@@ -115,27 +117,6 @@ final class DatabaseService: @unchecked Sendable {
         """
         executeSQL(addPinnedColumn, ignoreError: true)  // 忽略错误（如果字段已存在）
         
-        // ⚠️ 废弃表：offline_operations
-        // 此表已被 unified_operations 替代，保留用于数据迁移和回滚
-        // 计划在未来版本中移除
-        let createOfflineOperationsTable = """
-        CREATE TABLE IF NOT EXISTS offline_operations (
-            id TEXT PRIMARY KEY,
-            type TEXT NOT NULL,
-            note_id TEXT NOT NULL,
-            data BLOB NOT NULL,
-            timestamp REAL NOT NULL,
-            priority INTEGER NOT NULL DEFAULT 0,
-            retry_count INTEGER NOT NULL DEFAULT 0,
-            last_error TEXT,
-            status TEXT NOT NULL DEFAULT 'pending'
-        );
-        """
-        executeSQL(createOfflineOperationsTable)
-        
-        // 迁移：为已存在的表添加新字段（如果字段不存在）
-        migrateOfflineOperationsTable()
-        
         // 迁移 notes 表，确保 raw_data 字段兼容性
         migrateNotesTable()
         
@@ -149,30 +130,7 @@ final class DatabaseService: @unchecked Sendable {
         """
         executeSQL(createSyncStatusTable)
         
-        // 创建 pending_deletions 表
-        let createPendingDeletionsTable = """
-        CREATE TABLE IF NOT EXISTS pending_deletions (
-            note_id TEXT PRIMARY KEY,
-            tag TEXT NOT NULL,
-            purge INTEGER NOT NULL DEFAULT 0,
-            created_at REAL NOT NULL
-        );
-        """
-        executeSQL(createPendingDeletionsTable)
-        
-        // ⚠️ 废弃表：pending_uploads
-        // 此表已被 unified_operations 替代，保留用于数据迁移和回滚
-        // 计划在未来版本中移除
-        let createPendingUploadsTable = """
-        CREATE TABLE IF NOT EXISTS pending_uploads (
-            note_id TEXT PRIMARY KEY,
-            local_save_timestamp REAL NOT NULL,
-            registered_at REAL NOT NULL
-        );
-        """
-        executeSQL(createPendingUploadsTable)
-        
-        // 创建 unified_operations 表（统一操作队列，替换 offline_operations 和 pending_uploads）
+        // 创建 unified_operations 表（统一操作队列）
         let createUnifiedOperationsTable = """
         CREATE TABLE IF NOT EXISTS unified_operations (
             id TEXT PRIMARY KEY,
@@ -221,6 +179,16 @@ final class DatabaseService: @unchecked Sendable {
         """
         executeSQL(createOperationHistoryTable)
         
+        // 创建 folder_sort_info 表（文件夹排序信息）
+        let createFolderSortInfoTable = """
+        CREATE TABLE IF NOT EXISTS folder_sort_info (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            etag TEXT NOT NULL,
+            orders TEXT NOT NULL
+        );
+        """
+        executeSQL(createFolderSortInfoTable)
+        
         // 创建索引
         createIndexes()
     }
@@ -229,11 +197,6 @@ final class DatabaseService: @unchecked Sendable {
         // notes 表索引
         executeSQL("CREATE INDEX IF NOT EXISTS idx_notes_folder_id ON notes(folder_id);")
         executeSQL("CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at);")
-        
-        // offline_operations 表索引
-        executeSQL("CREATE INDEX IF NOT EXISTS idx_offline_operations_timestamp ON offline_operations(timestamp);")
-        executeSQL("CREATE INDEX IF NOT EXISTS idx_offline_operations_status ON offline_operations(status);")
-        executeSQL("CREATE INDEX IF NOT EXISTS idx_offline_operations_priority ON offline_operations(priority DESC, timestamp ASC);")
         
         // unified_operations 表索引
         executeSQL("CREATE INDEX IF NOT EXISTS idx_unified_operations_note_id ON unified_operations(note_id);")
@@ -247,37 +210,6 @@ final class DatabaseService: @unchecked Sendable {
         // operation_history 表索引
         executeSQL("CREATE INDEX IF NOT EXISTS idx_operation_history_completed_at ON operation_history(completed_at DESC);")
         executeSQL("CREATE INDEX IF NOT EXISTS idx_operation_history_note_id ON operation_history(note_id);")
-    }
-    
-    /// 迁移 offline_operations 表，添加新字段
-    /// 
-    /// 为已存在的表添加以下字段（如果不存在）：
-    /// - priority: 操作优先级
-    /// - retry_count: 重试次数
-    /// - last_error: 最后错误信息
-    /// - status: 操作状态
-    private func migrateOfflineOperationsTable() {
-        // 检查并添加 priority 字段
-        let addPriorityColumn = "ALTER TABLE offline_operations ADD COLUMN priority INTEGER NOT NULL DEFAULT 0;"
-        executeSQL(addPriorityColumn, ignoreError: true)
-        
-        // 检查并添加 retry_count 字段
-        let addRetryCountColumn = "ALTER TABLE offline_operations ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0;"
-        executeSQL(addRetryCountColumn, ignoreError: true)
-        
-        // 检查并添加 last_error 字段
-        let addLastErrorColumn = "ALTER TABLE offline_operations ADD COLUMN last_error TEXT;"
-        executeSQL(addLastErrorColumn, ignoreError: true)
-        
-        // 检查并添加 status 字段
-        let addStatusColumn = "ALTER TABLE offline_operations ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';"
-        executeSQL(addStatusColumn, ignoreError: true)
-        
-        // 更新所有现有记录的状态为 'pending'（如果 status 为空）
-        let updateStatus = "UPDATE offline_operations SET status = 'pending' WHERE status IS NULL OR status = '';"
-        executeSQL(updateStatus, ignoreError: true)
-        
-        print("[Database] 离线操作表迁移完成")
     }
     
     /// 迁移 notes 表，确保 raw_data 字段兼容性
@@ -982,200 +914,6 @@ final class DatabaseService: @unchecked Sendable {
     // MARK: - 离线操作队列
     
     /// 添加离线操作到队列
-    /// 
-    /// 离线操作会在网络恢复时自动处理
-    /// 
-    /// - Parameter operation: 离线操作对象
-    /// - Throws: DatabaseError（数据库操作失败）
-    func addOfflineOperation(_ operation: OfflineOperation) throws {
-        try dbQueue.sync(flags: .barrier) {
-            let sql = """
-            INSERT OR REPLACE INTO offline_operations (id, type, note_id, data, timestamp, priority, retry_count, last_error, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-            """
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            sqlite3_bind_text(statement, 1, (operation.id as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(statement, 2, (operation.type.rawValue as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(statement, 3, (operation.noteId as NSString).utf8String, -1, nil)
-            sqlite3_bind_blob(statement, 4, (operation.data as NSData).bytes, Int32(operation.data.count), nil)
-            sqlite3_bind_double(statement, 5, operation.timestamp.timeIntervalSince1970)
-            sqlite3_bind_int(statement, 6, Int32(operation.priority))
-            sqlite3_bind_int(statement, 7, Int32(operation.retryCount))
-            
-            if let lastError = operation.lastError {
-                sqlite3_bind_text(statement, 8, (lastError as NSString).utf8String, -1, nil)
-            } else {
-                sqlite3_bind_null(statement, 8)
-            }
-            
-            sqlite3_bind_text(statement, 9, (operation.status.rawValue as NSString).utf8String, -1, nil)
-            
-            guard sqlite3_step(statement) == SQLITE_DONE else {
-                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            print("[Database] 添加离线操作: \(operation.id), type: \(operation.type.rawValue), priority: \(operation.priority), status: \(operation.status.rawValue)")
-        }
-    }
-    
-    /// 获取所有离线操作
-    /// 
-    /// 按优先级降序、时间戳升序排列（高优先级且早的在前面）
-    /// 
-    /// - Returns: 离线操作数组
-    /// - Throws: DatabaseError（数据库操作失败）
-    func getAllOfflineOperations() throws -> [OfflineOperation] {
-        return try dbQueue.sync {
-            // 确保数据库连接有效
-            guard let db = db else {
-                throw DatabaseError.prepareFailed("数据库连接无效")
-            }
-            
-            let sql = "SELECT id, type, note_id, data, timestamp, priority, retry_count, last_error, status FROM offline_operations ORDER BY priority DESC, timestamp ASC;"
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[Database] ❌ 准备SQL语句失败: \(errorMsg)")
-                throw DatabaseError.prepareFailed(errorMsg)
-            }
-            
-            var operations: [OfflineOperation] = []
-            while sqlite3_step(statement) == SQLITE_ROW {
-                if let operation = try parseOfflineOperation(from: statement) {
-                    operations.append(operation)
-                }
-            }
-            
-            return operations
-        }
-    }
-    
-    /// 删除离线操作
-    func deleteOfflineOperation(operationId: String) throws {
-        try dbQueue.sync(flags: .barrier) {
-            let sql = "DELETE FROM offline_operations WHERE id = ?;"
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            sqlite3_bind_text(statement, 1, (operationId as NSString).utf8String, -1, nil)
-            
-            guard sqlite3_step(statement) == SQLITE_DONE else {
-                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            print("[Database] 删除离线操作: \(operationId)")
-        }
-    }
-    
-    /// 清空所有离线操作
-    func clearAllOfflineOperations() throws {
-        try dbQueue.sync(flags: .barrier) {
-            let sql = "DELETE FROM offline_operations;"
-            executeSQL(sql)
-            print("[Database] 清空所有离线操作")
-        }
-    }
-    
-    private func parseOfflineOperation(from statement: OpaquePointer?) throws -> OfflineOperation? {
-        guard let statement = statement else { return nil }
-        
-        // 检查新字段是否存在（兼容旧数据和新数据）
-        // 旧数据：id, type, note_id, data, timestamp (5列)
-        // 新数据：id, type, note_id, data, timestamp, priority, retry_count, last_error, status (9列)
-        // 通过检查第5列（索引5）的类型来判断是否有新字段
-        // 如果是 INTEGER 类型，说明有 priority 字段（新数据）；如果是 NULL，说明是旧数据
-        let hasNewFields = sqlite3_column_type(statement, 5) != SQLITE_NULL
-        
-        let id = String(cString: sqlite3_column_text(statement, 0))
-        let typeString = String(cString: sqlite3_column_text(statement, 1))
-        guard let type = OfflineOperationType(rawValue: typeString) else {
-            return nil
-        }
-        let noteId = String(cString: sqlite3_column_text(statement, 2))
-        
-        // 获取 BLOB 数据
-        let dataLength = sqlite3_column_bytes(statement, 3)
-        let dataPointer = sqlite3_column_blob(statement, 3)
-        guard let dataPointer = dataPointer else {
-            return nil
-        }
-        let data = Data(bytes: dataPointer, count: Int(dataLength))
-        
-        let timestamp = Date(timeIntervalSince1970: sqlite3_column_double(statement, 4))
-        
-        // 解析新字段（如果存在）
-        if hasNewFields {
-            let priority = Int(sqlite3_column_int(statement, 5))
-            let retryCount = Int(sqlite3_column_int(statement, 6))
-            
-            var lastError: String? = nil
-            if sqlite3_column_type(statement, 7) != SQLITE_NULL {
-                if let errorText = sqlite3_column_text(statement, 7) {
-                    lastError = String(cString: errorText)
-                }
-            }
-            
-            var status = OfflineOperationStatus.pending
-            if sqlite3_column_type(statement, 8) != SQLITE_NULL {
-                if let statusText = sqlite3_column_text(statement, 8) {
-                    status = OfflineOperationStatus(rawValue: String(cString: statusText)) ?? .pending
-                }
-            }
-            
-            return OfflineOperation(
-                id: id,
-                type: type,
-                noteId: noteId,
-                data: data,
-                timestamp: timestamp,
-                priority: priority,
-                retryCount: retryCount,
-                lastError: lastError,
-                status: status
-            )
-        } else {
-            // 兼容旧数据，使用默认值
-            return OfflineOperation(
-                id: id,
-                type: type,
-                noteId: noteId,
-                data: data,
-                timestamp: timestamp,
-                priority: OfflineOperation.calculatePriority(for: type),
-                retryCount: 0,
-                lastError: nil,
-                status: .pending
-            )
-        }
-    }
-    
     // MARK: - 同步状态
     
     /// 保存同步状态
@@ -1280,96 +1018,6 @@ final class DatabaseService: @unchecked Sendable {
             let sql = "DELETE FROM sync_status WHERE id = 1;"
             executeSQL(sql)
             print("[Database] 清除同步状态")
-        }
-    }
-    
-    // MARK: - 待删除笔记
-    
-    /// 保存待删除笔记
-    func savePendingDeletion(_ deletion: PendingDeletion) throws {
-        try dbQueue.sync(flags: .barrier) {
-            let sql = """
-            INSERT OR REPLACE INTO pending_deletions (note_id, tag, purge, created_at)
-            VALUES (?, ?, ?, ?);
-            """
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            sqlite3_bind_text(statement, 1, (deletion.noteId as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(statement, 2, (deletion.tag as NSString).utf8String, -1, nil)
-            sqlite3_bind_int(statement, 3, deletion.purge ? 1 : 0)
-            sqlite3_bind_double(statement, 4, deletion.createdAt.timeIntervalSince1970)
-            
-            guard sqlite3_step(statement) == SQLITE_DONE else {
-                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            print("[Database] 保存待删除笔记: \(deletion.noteId)")
-        }
-    }
-    
-    /// 获取所有待删除笔记
-    func getAllPendingDeletions() throws -> [PendingDeletion] {
-        return try dbQueue.sync {
-            let sql = "SELECT note_id, tag, purge, created_at FROM pending_deletions ORDER BY created_at ASC;"
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            var deletions: [PendingDeletion] = []
-            while sqlite3_step(statement) == SQLITE_ROW {
-                let noteId = String(cString: sqlite3_column_text(statement, 0))
-                let tag = String(cString: sqlite3_column_text(statement, 1))
-                let purge = sqlite3_column_int(statement, 2) != 0
-                let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 3))
-                
-                deletions.append(PendingDeletion(noteId: noteId, tag: tag, purge: purge, createdAt: createdAt))
-            }
-            
-            return deletions
-        }
-    }
-    
-    /// 删除待删除笔记
-    func deletePendingDeletion(noteId: String) throws {
-        try dbQueue.sync(flags: .barrier) {
-            let sql = "DELETE FROM pending_deletions WHERE note_id = ?;"
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            sqlite3_bind_text(statement, 1, (noteId as NSString).utf8String, -1, nil)
-            
-            guard sqlite3_step(statement) == SQLITE_DONE else {
-                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            print("[Database] 删除待删除笔记: \(noteId)")
         }
     }
     
@@ -1500,115 +1148,6 @@ final class DatabaseService: @unchecked Sendable {
             let sql = "DELETE FROM folder_sort_info WHERE id = 1;"
             executeSQL(sql)
             print("[Database] 清除文件夹排序信息")
-        }
-    }
-    
-    // MARK: - 待上传注册表操作
-    
-    /// 保存待上传条目
-    /// 
-    /// - Parameter entry: 待上传条目
-    /// - Throws: DatabaseError（数据库操作失败）
-    func savePendingUpload(_ entry: PendingUploadEntry) throws {
-        try dbQueue.sync(flags: .barrier) {
-            let sql = """
-            INSERT OR REPLACE INTO pending_uploads (note_id, local_save_timestamp, registered_at)
-            VALUES (?, ?, ?);
-            """
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            sqlite3_bind_text(statement, 1, (entry.noteId as NSString).utf8String, -1, nil)
-            sqlite3_bind_double(statement, 2, entry.localSaveTimestamp.timeIntervalSince1970)
-            sqlite3_bind_double(statement, 3, entry.registeredAt.timeIntervalSince1970)
-            
-            guard sqlite3_step(statement) == SQLITE_DONE else {
-                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
-            }
-        }
-    }
-    
-    /// 删除待上传条目
-    /// 
-    /// - Parameter noteId: 笔记 ID
-    /// - Throws: DatabaseError（数据库操作失败）
-    func deletePendingUpload(noteId: String) throws {
-        try dbQueue.sync(flags: .barrier) {
-            let sql = "DELETE FROM pending_uploads WHERE note_id = ?;"
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            sqlite3_bind_text(statement, 1, (noteId as NSString).utf8String, -1, nil)
-            
-            guard sqlite3_step(statement) == SQLITE_DONE else {
-                throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
-            }
-        }
-    }
-    
-    /// 获取所有待上传条目
-    /// 
-    /// - Returns: 待上传条目数组
-    /// - Throws: DatabaseError（数据库操作失败）
-    func getAllPendingUploads() throws -> [PendingUploadEntry] {
-        return try dbQueue.sync {
-            let sql = "SELECT note_id, local_save_timestamp, registered_at FROM pending_uploads;"
-            
-            var statement: OpaquePointer?
-            defer {
-                if statement != nil {
-                    sqlite3_finalize(statement)
-                }
-            }
-            
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
-            }
-            
-            var entries: [PendingUploadEntry] = []
-            
-            while sqlite3_step(statement) == SQLITE_ROW {
-                let noteId = String(cString: sqlite3_column_text(statement, 0))
-                let localSaveTimestamp = Date(timeIntervalSince1970: sqlite3_column_double(statement, 1))
-                let registeredAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 2))
-                
-                let entry = PendingUploadEntry(
-                    noteId: noteId,
-                    localSaveTimestamp: localSaveTimestamp,
-                    registeredAt: registeredAt
-                )
-                entries.append(entry)
-            }
-            
-            return entries
-        }
-    }
-    
-    /// 清空所有待上传条目
-    /// 
-    /// - Throws: DatabaseError（数据库操作失败）
-    func clearAllPendingUploads() throws {
-        try dbQueue.sync(flags: .barrier) {
-            let sql = "DELETE FROM pending_uploads;"
-            executeSQL(sql)
         }
     }
     

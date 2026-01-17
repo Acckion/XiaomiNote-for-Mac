@@ -247,46 +247,6 @@ final class LocalStorageService: @unchecked Sendable {
         return fileManager.fileExists(atPath: fileURL.path)
     }
     
-    // MARK: - 待删除笔记管理
-    
-    /// 保存待删除的笔记（删除失败的笔记）
-    func savePendingDeletions(_ deletions: [PendingDeletion]) throws {
-        // 清空现有数据并重新保存
-        let existing = try? database.getAllPendingDeletions()
-        for existingDeletion in existing ?? [] {
-            try? database.deletePendingDeletion(noteId: existingDeletion.noteId)
-        }
-        for deletion in deletions {
-            try database.savePendingDeletion(deletion)
-        }
-        print("保存 \(deletions.count) 个待删除笔记")
-    }
-    
-    /// 加载待删除的笔记列表
-    func loadPendingDeletions() -> [PendingDeletion] {
-        do {
-            let deletions = try database.getAllPendingDeletions()
-            print("加载了 \(deletions.count) 个待删除笔记")
-            return deletions
-        } catch {
-            print("加载待删除笔记列表失败: \(error)")
-            return []
-        }
-    }
-    
-    /// 移除待删除的笔记（删除成功后调用）
-    func removePendingDeletion(noteId: String) throws {
-        try database.deletePendingDeletion(noteId: noteId)
-        print("移除待删除笔记: \(noteId)")
-    }
-    
-    
-    /// 添加待删除的笔记（删除失败时调用）
-    func addPendingDeletion(_ deletion: PendingDeletion) throws {
-        try database.savePendingDeletion(deletion)
-        print("添加待删除笔记: \(deletion.noteId)")
-    }
-    
     // MARK: - 图片文件管理
     
     /// 获取图片存储目录
@@ -502,21 +462,5 @@ struct SyncStatus: Codable {
     init(lastSyncTime: Date? = nil, syncTag: String? = nil) {
         self.lastSyncTime = lastSyncTime
         self.syncTag = syncTag
-    }
-}
-
-// MARK: - 待删除笔记模型
-
-struct PendingDeletion: Codable {
-    let noteId: String
-    let tag: String
-    let purge: Bool
-    let createdAt: Date
-    
-    init(noteId: String, tag: String, purge: Bool = false, createdAt: Date = Date()) {
-        self.noteId = noteId
-        self.tag = tag
-        self.purge = purge
-        self.createdAt = createdAt
     }
 }
