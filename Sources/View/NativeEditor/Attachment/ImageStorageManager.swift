@@ -272,6 +272,101 @@ class ImageStorageManager {
         return (imageCache.count, maxCacheSize)
     }
     
+    // MARK: - 按需下载
+    
+    /// 加载图片,如果本地不存在则尝试从云端下载
+    /// - Parameter fileId: 文件ID(完整的 userId.fileId 格式)
+    /// - Returns: 加载的图片,如果失败则返回占位符
+    func loadImageWithFallback(fileId: String) async -> NSImage {
+        // 1. 尝试从本地加载
+        if let image = loadImage(fileId: fileId) {
+            return image
+        }
+        
+        print("[ImageStorageManager] 本地图片不存在,尝试从云端下载: \(fileId)")
+        
+        // 2. 尝试从云端下载
+        if let image = await downloadImageOnDemand(fileId: fileId) {
+            return image
+        }
+        
+        // 3. 返回占位符
+        print("[ImageStorageManager] 无法加载图片,返回占位符: \(fileId)")
+        return createPlaceholderImage()
+    }
+    
+    /// 按需从云端下载图片
+    /// - Parameter fileId: 文件ID(完整的 userId.fileId 格式)
+    /// - Returns: 下载的图片,如果失败则返回 nil
+    private func downloadImageOnDemand(fileId: String) async -> NSImage? {
+        do {
+            // 从 fileId 中提取实际的文件ID
+            // fileId 格式: userId.actualFileId
+            let components = fileId.split(separator: ".")
+            guard components.count >= 2 else {
+                print("[ImageStorageManager] 无效的 fileId 格式: \(fileId)")
+                return nil
+            }
+            
+            let actualFileId = components.dropFirst().joined(separator: ".")
+            
+            // 下载图片
+            print("[ImageStorageManager] 开始下载图片: \(actualFileId)")
+            let miNoteService = MiNoteService.shared
+            let imageData = try await miNoteService.downloadFile(fileId: actualFileId, type: "note_img")
+            
+            print("[ImageStorageManager] 图片下载成功,大小: \(imageData.count) 字节")
+            
+            // 保存到本地
+            let localStorage = LocalStorageService.shared
+            try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: "jpg")
+            
+            // 创建图片对象
+            if let image = NSImage(data: imageData) {
+                addToCache(image, forKey: fileId)
+                print("[ImageStorageManager] 图片下载并保存成功: \(fileId)")
+                return image
+            }
+            
+            return nil
+        } catch {
+            print("[ImageStorageManager] 按需下载图片失败: \(fileId), 错误: \(error)")
+            return nil
+        }
+    }
+    
+    /// 创建占位符图片
+    /// - Returns: 占位符图片
+    private func createPlaceholderImage() -> NSImage {
+        let size = NSSize(width: 200, height: 150)
+        let image = NSImage(size: size)
+        
+        image.lockFocus()
+        
+        // 绘制灰色背景
+        NSColor.lightGray.setFill()
+        NSRect(origin: .zero, size: size).fill()
+        
+        // 绘制文字
+        let text = "无法加载图片"
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 14),
+            .foregroundColor: NSColor.darkGray
+        ]
+        let textSize = text.size(withAttributes: attributes)
+        let textRect = NSRect(
+            x: (size.width - textSize.width) / 2,
+            y: (size.height - textSize.height) / 2,
+            width: textSize.width,
+            height: textSize.height
+        )
+        text.draw(in: textRect, withAttributes: attributes)
+        
+        image.unlockFocus()
+        
+        return image
+    }
+    
     // MARK: - Private Methods
     
     /// 生成唯一的文件 ID

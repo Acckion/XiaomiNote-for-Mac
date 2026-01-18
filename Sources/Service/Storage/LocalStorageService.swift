@@ -278,11 +278,38 @@ final class LocalStorageService: @unchecked Sendable {
         print("保存图片到本地: \(fileURL.path)")
     }
     
-    /// 检查图片文件是否存在
+    /// 检查图片文件是否存在且有效
+    /// - Parameters:
+    ///   - fileId: 文件ID
+    ///   - fileType: 文件类型
+    /// - Returns: 文件是否存在且有效(大小>0)
     func imageExists(fileId: String, fileType: String) -> Bool {
         let fileName = "\(fileId).\(fileType)"
         let fileURL = imagesDirectory.appendingPathComponent(fileName)
-        return fileManager.fileExists(atPath: fileURL.path)
+        
+        // 检查文件是否存在
+        guard fileManager.fileExists(atPath: fileURL.path) else {
+            print("[LocalStorage] 图片文件不存在: \(fileName)")
+            return false
+        }
+        
+        // 检查文件大小
+        do {
+            let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+            if let fileSize = attributes[.size] as? Int64 {
+                if fileSize > 0 {
+                    print("[LocalStorage] 图片文件有效: \(fileName), 大小: \(fileSize) 字节")
+                    return true
+                } else {
+                    print("[LocalStorage] 图片文件大小为0: \(fileName)")
+                    return false
+                }
+            }
+        } catch {
+            print("[LocalStorage] 检查图片文件失败: \(fileName), 错误: \(error)")
+        }
+        
+        return false
     }
     
     /// 获取图片文件URL
@@ -348,27 +375,13 @@ final class LocalStorageService: @unchecked Sendable {
     }
     
     /// 验证图片文件是否有效
+    /// - Parameters:
+    ///   - fileId: 文件ID
+    ///   - fileType: 文件类型
+    /// - Returns: 文件是否有效(存在且大小>0)
     func validateImage(fileId: String, fileType: String) -> Bool {
-        guard let fileURL = getImageURL(fileId: fileId, fileType: fileType) else {
-            return false
-        }
-        
-        // 检查文件是否存在
-        guard fileManager.fileExists(atPath: fileURL.path) else {
-            return false
-        }
-        
-        // 检查文件大小（至少1字节）
-        do {
-            let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
-            if let fileSize = attributes[.size] as? Int64, fileSize > 0 {
-                return true
-            }
-        } catch {
-            print("[LocalStorage] 验证图片失败: \(fileId).\(fileType), 错误: \(error)")
-        }
-        
-        return false
+        // 使用增强后的 imageExists 方法
+        return imageExists(fileId: fileId, fileType: fileType)
     }
     
     /// 清理无效的图片文件
@@ -450,6 +463,51 @@ final class LocalStorageService: @unchecked Sendable {
     func clearFolderSortInfo() throws {
         try database.clearFolderSortInfo()
         print("[LocalStorage] 清除文件夹排序信息")
+    }
+    
+    // MARK: - 应用重置
+    
+    /// 清除所有本地数据(用于应用重置)
+    /// - Throws: 文件系统或数据库操作失败
+    func clearAllData() throws {
+        print("[LocalStorage] 开始清除所有本地数据...")
+        
+        // 1. 清除所有笔记
+        let notes = try getAllLocalNotes()
+        for note in notes {
+            try deleteNote(noteId: note.id)
+        }
+        print("[LocalStorage] 已清除 \(notes.count) 个笔记")
+        
+        // 2. 清除所有文件夹
+        let folders = try loadFolders()
+        for folder in folders {
+            if !folder.isSystem && folder.id != "0" && folder.id != "starred" {
+                try DatabaseService.shared.deleteFolder(folderId: folder.id)
+            }
+        }
+        print("[LocalStorage] 已清除 \(folders.count) 个文件夹")
+        
+        // 3. 清除同步状态
+        try clearSyncStatus()
+        print("[LocalStorage] 已清除同步状态")
+        
+        // 4. 清除文件夹排序信息
+        try clearFolderSortInfo()
+        print("[LocalStorage] 已清除文件夹排序信息")
+        
+        // 5. 清除所有图片文件
+        let imagesDir = documentsDirectory.appendingPathComponent("images")
+        if fileManager.fileExists(atPath: imagesDir.path) {
+            try fileManager.removeItem(at: imagesDir)
+            print("[LocalStorage] 已清除所有图片文件")
+        }
+        
+        // 6. 清除音频缓存
+        AudioCacheService.shared.clearCache()
+        print("[LocalStorage] 已清除音频缓存")
+        
+        print("[LocalStorage] ✅ 所有本地数据已清除")
     }
 }
 

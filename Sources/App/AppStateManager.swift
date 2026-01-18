@@ -167,6 +167,20 @@ class AppStateManager {
         return windowManager.handleApplicationReopen(hasVisibleWindows: hasVisibleWindows)
     }
     
+    /// 重置应用(清除所有数据和缓存)
+    /// 注意：此方法需要在实际使用时根据项目结构进行调整
+    func resetApplication() async throws {
+        print("[AppState] 开始重置应用...")
+        
+        // TODO: 实现应用重置逻辑
+        // 1. 清除所有本地数据
+        // 2. 清除认证信息
+        // 3. 清除图片缓存
+        // 4. 重置应用状态
+        
+        print("[AppState] 应用重置功能待实现")
+    }
+    
     /// 判断当最后一个窗口关闭时是否终止应用程序
     /// - Returns: 是否终止应用程序
     func shouldTerminateAfterLastWindowClosed() -> Bool {

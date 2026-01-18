@@ -274,8 +274,8 @@ final class SyncService: @unchecked Sendable {
                     updatedNote.updateContent(from: noteDetails)
                     print("[SYNC] 更新笔记内容，content长度: \(updatedNote.content.count)")
                     
-                    // 下载图片，并获取更新后的 setting.data
-                    if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
+                    // 下载图片，并获取更新后的 setting.data (完整同步强制重新下载)
+                    if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id, forceRedownload: true) {
                         // 更新笔记的 rawData 中的 setting.data
                         var rawData = updatedNote.rawData ?? [:]
                         var setting = rawData["setting"] as? [String: Any] ?? [:]
@@ -321,8 +321,8 @@ final class SyncService: @unchecked Sendable {
                     updatedNote.updateContent(from: noteDetails)
                     print("[SYNC] 更新私密笔记内容，content长度: \(updatedNote.content.count)")
                     
-                    // 下载图片，并获取更新后的 setting.data
-                    if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
+                    // 下载图片，并获取更新后的 setting.data (完整同步强制重新下载)
+                    if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id, forceRedownload: true) {
                         // 更新笔记的 rawData 中的 setting.data
                         var rawData = updatedNote.rawData ?? [:]
                         var setting = rawData["setting"] as? [String: Any] ?? [:]
@@ -1707,10 +1707,14 @@ final class SyncService: @unchecked Sendable {
     /// 
     /// - Parameters:
     ///   - noteDetails: 笔记详情响应（包含setting.data字段）
+    /// 下载笔记中的附件(图片和音频)
+    /// - Parameters:
+    ///   - noteDetails: 笔记详情响应
     ///   - noteId: 笔记ID（用于日志和错误处理）
+    ///   - forceRedownload: 是否强制重新下载(忽略现有文件)
     /// - Returns: 更新后的setting.data数组，包含附件下载状态信息
-    private func downloadNoteImages(from noteDetails: [String: Any], noteId: String) async throws -> [[String: Any]]? {
-        print("[SYNC] 开始下载笔记附件: \(noteId)")
+    private func downloadNoteImages(from noteDetails: [String: Any], noteId: String, forceRedownload: Bool = false) async throws -> [[String: Any]]? {
+        print("[SYNC] 开始下载笔记附件: \(noteId), forceRedownload: \(forceRedownload)")
         print("[SYNC] noteDetails 键: \(noteDetails.keys)")
         
         // 提取 entry 对象
@@ -1732,6 +1736,11 @@ final class SyncService: @unchecked Sendable {
         guard let entry = entry else {
             print("[SYNC] 无法提取 entry，跳过附件下载: \(noteId)")
             return nil
+        }
+        
+        // 首先尝试从 content 中提取旧版格式的图片
+        if let content = entry["content"] as? String {
+            await downloadLegacyFormatImages(from: content, forceRedownload: forceRedownload)
         }
         
         // 从 setting.data 中提取附件信息
@@ -1771,19 +1780,25 @@ final class SyncService: @unchecked Sendable {
                 let fileType = String(mimeType.dropFirst("image/".count))
                 print("[SYNC] 找到图片: fileId=\(fileId), fileType=\(fileType)")
                 
-                // 检查图片是否已存在
-                if localStorage.imageExists(fileId: fileId, fileType: fileType) {
-                    print("[SYNC] 图片已存在，跳过下载: \(fileId).\(fileType)")
-                    var updatedData = attachmentData
-                    updatedData["localExists"] = true
-                    settingData[index] = updatedData
-                    continue
+                // 如果不是强制重新下载,检查图片是否已存在且有效
+                if !forceRedownload {
+                    if localStorage.validateImage(fileId: fileId, fileType: fileType) {
+                        print("[SYNC] 图片已存在且有效，跳过下载: \(fileId).\(fileType)")
+                        var updatedData = attachmentData
+                        updatedData["localExists"] = true
+                        settingData[index] = updatedData
+                        continue
+                    } else {
+                        print("[SYNC] 图片不存在或无效，需要下载: \(fileId).\(fileType)")
+                    }
+                } else {
+                    print("[SYNC] 强制重新下载图片: \(fileId).\(fileType)")
                 }
                 
-                // 下载图片
+                // 下载图片(带重试)
                 do {
                     print("[SYNC] 开始下载图片: \(fileId).\(fileType)")
-                    let imageData = try await miNoteService.downloadFile(fileId: fileId, type: "note_img")
+                    let imageData = try await downloadImageWithRetry(fileId: fileId, type: "note_img")
                     print("[SYNC] 图片下载完成，大小: \(imageData.count) 字节")
                     try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
                     print("[SYNC] 图片保存成功: \(fileId).\(fileType)")
@@ -1834,6 +1849,151 @@ final class SyncService: @unchecked Sendable {
         
         print("[SYNC] 所有附件处理完成，共处理 \(settingData.count) 个条目")
         return settingData
+    }
+    
+    /// 下载图片(带重试机制)
+    /// - Parameters:
+    ///   - fileId: 文件ID
+    ///   - type: 文件类型
+    ///   - maxRetries: 最大重试次数
+    /// - Returns: 图片数据
+    /// - Throws: 下载失败错误
+    private func downloadImageWithRetry(
+        fileId: String,
+        type: String,
+        maxRetries: Int = 3
+    ) async throws -> Data {
+        var lastError: Error?
+        
+        for attempt in 1...maxRetries {
+            do {
+                print("[SYNC] 尝试下载图片 (第 \(attempt)/\(maxRetries) 次): \(fileId)")
+                let data = try await miNoteService.downloadFile(fileId: fileId, type: type)
+                print("[SYNC] 图片下载成功: \(fileId), 大小: \(data.count) 字节")
+                return data
+            } catch {
+                lastError = error
+                print("[SYNC] 图片下载失败 (第 \(attempt)/\(maxRetries) 次): \(fileId), 错误: \(error)")
+                
+                // 如果不是最后一次尝试,等待后重试
+                if attempt < maxRetries {
+                    let delay = TimeInterval(attempt) // 1秒, 2秒, 3秒
+                    print("[SYNC] 等待 \(delay) 秒后重试...")
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                }
+            }
+        }
+        
+        // 所有重试都失败
+        print("[SYNC] ❌ 所有重试都失败: \(fileId)")
+        throw lastError ?? SyncError.networkError(NSError(domain: "SyncService", code: -1, userInfo: [NSLocalizedDescriptionKey: "图片下载失败"]))
+    }
+    
+    /// 从content中提取并下载旧版格式的图片
+    /// 旧版格式: ☺ fileId<0/></>
+    /// - Parameters:
+    ///   - content: 笔记内容
+    ///   - forceRedownload: 是否强制重新下载
+    private func downloadLegacyFormatImages(from content: String, forceRedownload: Bool) async {
+        print("[SYNC] 检查旧版格式图片...")
+        
+        // 使用正则表达式提取旧版格式的图片ID
+        // 格式: ☺ fileId<0/></>
+        let pattern = "☺ ([^<]+)<0/></>"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            print("[SYNC] 无法创建正则表达式")
+            return
+        }
+        
+        let nsContent = content as NSString
+        let matches = regex.matches(in: content, options: [], range: NSRange(location: 0, length: nsContent.length))
+        
+        if matches.isEmpty {
+            print("[SYNC] 未找到旧版格式图片")
+            return
+        }
+        
+        print("[SYNC] 找到 \(matches.count) 个旧版格式图片")
+        
+        for match in matches {
+            guard match.numberOfRanges >= 2 else { continue }
+            
+            let fileIdRange = match.range(at: 1)
+            let fileId = nsContent.substring(with: fileIdRange).trimmingCharacters(in: .whitespaces)
+            
+            print("[SYNC] 处理旧版格式图片: \(fileId)")
+            
+            // 检查图片是否已存在且有效
+            if !forceRedownload {
+                // 尝试所有可能的图片格式
+                let formats = ["jpg", "jpeg", "png", "gif"]
+                var imageExists = false
+                
+                for format in formats {
+                    if localStorage.validateImage(fileId: fileId, fileType: format) {
+                        print("[SYNC] 旧版格式图片已存在且有效，跳过下载: \(fileId).\(format)")
+                        imageExists = true
+                        break
+                    }
+                }
+                
+                if imageExists {
+                    continue
+                }
+            }
+            
+            // 下载图片
+            do {
+                print("[SYNC] 开始下载旧版格式图片: \(fileId)")
+                let imageData = try await downloadImageWithRetry(fileId: fileId, type: "note_img")
+                print("[SYNC] 旧版格式图片下载完成，大小: \(imageData.count) 字节")
+                
+                // 默认保存为 jpeg 格式
+                try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: "jpeg")
+                print("[SYNC] 旧版格式图片保存成功: \(fileId).jpeg")
+            } catch {
+                print("[SYNC] 旧版格式图片下载失败: \(fileId), 错误: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    /// 手动重新下载笔记的所有图片
+    /// - Parameter noteId: 笔记ID
+    /// - Returns: 下载结果(成功数量, 失败数量)
+    /// - Throws: 同步错误
+    func redownloadNoteImages(noteId: String) async throws -> (success: Int, failed: Int) {
+        print("[SYNC] 手动重新下载笔记图片: \(noteId)")
+        
+        guard miNoteService.isAuthenticated() else {
+            throw SyncError.notAuthenticated
+        }
+        
+        // 获取笔记详情
+        let noteDetails = try await miNoteService.fetchNoteDetails(noteId: noteId)
+        
+        // 强制重新下载所有图片
+        guard let updatedSettingData = try await downloadNoteImages(
+            from: noteDetails,
+            noteId: noteId,
+            forceRedownload: true
+        ) else {
+            return (0, 0)
+        }
+        
+        // 统计结果
+        var successCount = 0
+        var failedCount = 0
+        
+        for data in updatedSettingData {
+            if let downloaded = data["downloaded"] as? Bool, downloaded {
+                successCount += 1
+            } else if let mimeType = data["mimeType"] as? String, mimeType.hasPrefix("image/") {
+                failedCount += 1
+            }
+        }
+        
+        print("[SYNC] 图片重新下载完成: 成功 \(successCount), 失败 \(failedCount)")
+        return (successCount, failedCount)
     }
     
     
