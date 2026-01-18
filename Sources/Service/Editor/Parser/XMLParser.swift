@@ -388,17 +388,35 @@ public final class MiNoteXMLParser: @unchecked Sendable {
         // 读取 imgdes 属性，并清理可能的双引号嵌套问题
         // 例如：imgdes=""2"" 应该变成 "2"
         let description: String? = {
-            guard let rawDesc = attributes["imgdes"] else { return nil }
+            guard let rawDesc = attributes["imgdes"] else {
+                print("[XMLParser] 📝 解析图片: imgdes 属性不存在")
+                return nil
+            }
             // 移除开头和结尾的多余引号
             var cleaned = rawDesc
             while cleaned.hasPrefix("\"") && cleaned.hasSuffix("\"") && cleaned.count > 1 {
                 cleaned = String(cleaned.dropFirst().dropLast())
             }
-            return cleaned.isEmpty ? nil : cleaned
+            
+            print("[XMLParser] 📝 解析图片描述:")
+            print("[XMLParser]   - 原始值: '\(rawDesc)'")
+            print("[XMLParser]   - 清理后: '\(cleaned)'")
+            
+            // 修复：保留空字符串，不转换为 nil
+            // 空字符串和 nil 的语义不同：
+            // - "" 表示有 imgdes 属性，但值为空
+            // - nil 表示没有 imgdes 属性
+            // 这样可以确保 XML 往返转换的一致性
+            return cleaned
         }()
         
         // 读取 imgshow 属性（小米笔记固有属性，必须保持原值）
         let imgshow = attributes["imgshow"]
+        
+        print("[XMLParser] 📝 创建 ImageNode:")
+        print("[XMLParser]   - fileId: '\(fileId ?? "nil")'")
+        print("[XMLParser]   - description: '\(description ?? "nil")'")
+        print("[XMLParser]   - imgshow: '\(imgshow ?? "nil")'")
         
         // 跳过标签
         advance()

@@ -138,9 +138,10 @@ public final class XMLGenerator: @unchecked Sendable {
         if let fileId = node.fileId {
             attributes.append("fileid=\"\(encodeXMLEntities(fileId))\"")
             
-            // 添加描述（如果有）
-            let description = node.description ?? ""
-            attributes.append("imgdes=\"\(encodeXMLEntities(description))\"")
+            // 添加描述（只在有值时添加，避免生成空属性）
+            if let description = node.description, !description.isEmpty {
+                attributes.append("imgdes=\"\(encodeXMLEntities(description))\"")
+            }
             
             // 使用实际的 imgshow 值，如果没有则默认为 "0"
             // 注意：必须保持原值，不能随意修改

@@ -369,7 +369,10 @@ public final class XMLTokenizer: @unchecked Sendable {
             throw TokenizerError.invalidLegacyImageFormat("缺少 fileId")
         }
         
-        // 提取 description（从 <[ 到 ]/> 之间的文本，或者 </> 表示无描述）
+        // 提取 description（支持三种格式）
+        // 1. </>：空描述
+        // 2. <[description]/>：方括号包裹的描述
+        // 3. <description/>：标签名就是描述内容
         var description = ""
         
         // 查找描述标记
@@ -386,7 +389,7 @@ public final class XMLTokenizer: @unchecked Sendable {
                     description = ""
                 }
             } else if !isAtEnd && currentChar == "[" {
-                // 有描述的情况：<[description]/>
+                // 格式 2：有描述的情况 <[description]/>
                 advance()
                 
                 // 提取描述内容（直到 ]/> 标记）
@@ -417,8 +420,31 @@ public final class XMLTokenizer: @unchecked Sendable {
                     }
                 }
             } else {
-                // 不是预期的描述标记，恢复位置
-                currentIndex = savedIndex
+                // 格式 3：<tagname/> 格式，标签名就是描述内容
+                // 提取标签名（直到 /> 标记）
+                while !isAtEnd {
+                    let char = currentChar
+                    
+                    // 检查是否到达 /> 标记
+                    if char == "/" {
+                        let savedDescIndex = currentIndex
+                        advance()
+                        
+                        if !isAtEnd && currentChar == ">" {
+                            advance()
+                            // 找到 /> 标记
+                            break
+                        }
+                        
+                        // 不是 /> 标记，恢复位置并继续
+                        currentIndex = savedDescIndex
+                        description.append(char)
+                        advance()
+                    } else {
+                        description.append(char)
+                        advance()
+                    }
+                }
             }
         }
         

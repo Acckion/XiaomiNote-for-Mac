@@ -273,6 +273,11 @@ public final class ASTToAttributedStringConverter {
     /// - Parameter node: 图片节点
     /// - Returns: NSAttributedString
     private func convertImage(_ node: ImageNode) -> NSAttributedString {
+        print("[ASTToAttributedStringConverter] 📝 转换图片:")
+        print("[ASTToAttributedStringConverter]   - fileId: '\(node.fileId ?? "nil")'")
+        print("[ASTToAttributedStringConverter]   - description: '\(node.description ?? "nil")'")
+        print("[ASTToAttributedStringConverter]   - imgshow: '\(node.imgshow ?? "nil")'")
+        
         // 创建图片附件
         let imageAttachment: ImageAttachment
         

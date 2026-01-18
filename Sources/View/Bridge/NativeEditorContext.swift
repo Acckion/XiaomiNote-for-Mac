@@ -234,6 +234,10 @@ public class NativeEditorContext: ObservableObject {
     
     // MARK: - Private Properties
     
+    /// 原始 XML 是否以 <new-format/> 开头
+    /// 用于在导出 XML 时保持格式标记的一致性
+    private var hasNewFormatPrefix: Bool = false
+    
     /// 格式变化发布者
     private let formatChangeSubject = PassthroughSubject<TextFormat, Never>()
     
@@ -871,7 +875,15 @@ public class NativeEditorContext: ObservableObject {
             attributedText = AttributedString()
             nsAttributedText = NSAttributedString()
             hasUnsavedChanges = false
+            hasNewFormatPrefix = false
             return
+        }
+        
+        // 检测并保存 <new-format/> 标签的存在
+        let trimmedXml = xml.trimmingCharacters(in: .whitespacesAndNewlines)
+        hasNewFormatPrefix = trimmedXml.hasPrefix("<new-format/>")
+        if hasNewFormatPrefix {
+            print("[NativeEditorContext] 检测到 <new-format/> 前缀，将在导出时保留")
         }
         
         do {
@@ -980,7 +992,13 @@ public class NativeEditorContext: ObservableObject {
             // 关键修复：使用 nsAttributedText 而不是 attributedText
             // 因为 NativeEditorView 使用的是 nsAttributedText，编辑后的内容存储在这里
             // _Requirements: 2.1_
-            let xmlContent = try formatConverter.nsAttributedStringToXML(nsAttributedText)
+            var xmlContent = try formatConverter.nsAttributedStringToXML(nsAttributedText)
+            
+            // 如果原始内容有 <new-format/> 前缀，则在导出时也添加
+            if hasNewFormatPrefix && !xmlContent.hasPrefix("<new-format/>") {
+                xmlContent = "<new-format/>" + xmlContent
+                print("[NativeEditorContext] exportToXML: 添加 <new-format/> 前缀")
+            }
             
             print("[NativeEditorContext] exportToXML: 成功导出 XML - 长度: \(xmlContent.count)")
             return xmlContent

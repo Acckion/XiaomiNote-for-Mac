@@ -177,12 +177,19 @@ public class XMLNormalizer {
                     }
                     
                     // 只保留有语义的属性：fileid, imgdes, imgshow
+                    // 注意：移除空的 imgdes 属性（兼容旧笔记）
                     var normalizedAttrs: [(String, String)] = []
                     if let fileid = attributes["fileid"] {
                         normalizedAttrs.append(("fileid", fileid))
                     }
                     if let imgdes = attributes["imgdes"] {
-                        normalizedAttrs.append(("imgdes", imgdes))
+                        print("[XMLNormalizer] 🔍 检查 imgdes: '\(imgdes)', isEmpty: \(imgdes.isEmpty)")
+                        if !imgdes.isEmpty {
+                            normalizedAttrs.append(("imgdes", imgdes))
+                            print("[XMLNormalizer] ✅ 保留 imgdes: '\(imgdes)'")
+                        } else {
+                            print("[XMLNormalizer] ❌ 移除空 imgdes")
+                        }
                     }
                     if let imgshow = attributes["imgshow"] {
                         normalizedAttrs.append(("imgshow", imgshow))

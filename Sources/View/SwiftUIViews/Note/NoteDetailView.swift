@@ -2060,12 +2060,34 @@ struct NoteDetailView: View {
                 Swift.print("[内容检测] ℹ️ 规范化后差异较小")
             }
             
-            // 如果规范化后内容变化较小，记录前后内容的前100个字符用于调试
+            // 如果规范化后内容变化较小，记录完整内容用于调试
             if normalizedLengthDiff <= 50 {
-                let currentPreview = String(normalizedCurrent.prefix(100))
-                let savedPreview = String(normalizedSaved.prefix(100))
-                Swift.print("[内容检测] 🔍 当前内容预览: \(currentPreview)")
-                Swift.print("[内容检测] 🔍 保存内容预览: \(savedPreview)")
+                Swift.print("[内容检测] 🔍 当前内容完整: \(normalizedCurrent)")
+                Swift.print("[内容检测] 🔍 保存内容完整: \(normalizedSaved)")
+                
+                // 找出第一个不同的字符位置
+                let minLength = min(normalizedCurrent.count, normalizedSaved.count)
+                var firstDiffIndex: Int? = nil
+                for i in 0..<minLength {
+                    let currentIndex = normalizedCurrent.index(normalizedCurrent.startIndex, offsetBy: i)
+                    let savedIndex = normalizedSaved.index(normalizedSaved.startIndex, offsetBy: i)
+                    if normalizedCurrent[currentIndex] != normalizedSaved[savedIndex] {
+                        firstDiffIndex = i
+                        break
+                    }
+                }
+                
+                if let diffIndex = firstDiffIndex {
+                    Swift.print("[内容检测] 🔍 第一个不同的位置: \(diffIndex)")
+                    let contextStart = max(0, diffIndex - 20)
+                    let contextEnd = min(minLength, diffIndex + 20)
+                    let currentContext = String(normalizedCurrent[normalizedCurrent.index(normalizedCurrent.startIndex, offsetBy: contextStart)..<normalizedCurrent.index(normalizedCurrent.startIndex, offsetBy: contextEnd)])
+                    let savedContext = String(normalizedSaved[normalizedSaved.index(normalizedSaved.startIndex, offsetBy: contextStart)..<normalizedSaved.index(normalizedSaved.startIndex, offsetBy: contextEnd)])
+                    Swift.print("[内容检测] 🔍 当前内容上下文: \(currentContext)")
+                    Swift.print("[内容检测] 🔍 保存内容上下文: \(savedContext)")
+                } else if normalizedCurrent.count != normalizedSaved.count {
+                    Swift.print("[内容检测] 🔍 内容长度不同，较短的内容是另一个的前缀")
+                }
             }
         } else {
             Swift.print("[内容检测] ✅ 内容无变化（规范化后相同）")

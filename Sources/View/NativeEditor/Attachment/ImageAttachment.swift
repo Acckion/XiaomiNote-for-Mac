@@ -112,13 +112,15 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         self.imageDescription = imageDescription
         self.imgshow = imgshow
         self.isLoading = true
-        print("[ImageAttachment] 🖼️ 初始化（立即加载）")
+        
+        print("[ImageAttachment] 📝 初始化（立即加载）:")
         print("[ImageAttachment]   - src: '\(src)'")
         print("[ImageAttachment]   - fileId: '\(fileId ?? "nil")'")
         print("[ImageAttachment]   - folderId: '\(folderId ?? "nil")'")
         print("[ImageAttachment]   - imageDescription: '\(imageDescription ?? "nil")'")
         print("[ImageAttachment]   - imgshow: '\(imgshow ?? "nil")'")
         print("[ImageAttachment]   - 附件对象地址: \(Unmanaged.passUnretained(self).toOpaque())")
+        
         setupPlaceholder()
         
         // 立即开始加载图片，不等待 image(forBounds:) 被调用
