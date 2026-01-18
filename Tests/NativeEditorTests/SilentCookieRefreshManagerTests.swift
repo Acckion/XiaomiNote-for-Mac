@@ -1,5 +1,5 @@
 import XCTest
-@testable import MiNoteMac
+@testable import MiNoteLibrary
 
 /// SilentCookieRefreshManager 失败记录和重试逻辑测试
 /// 

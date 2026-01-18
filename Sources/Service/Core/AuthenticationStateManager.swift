@@ -437,8 +437,10 @@ class AuthenticationStateManager: ObservableObject {
         shouldStayOffline = false
         showCookieRefreshView = true
         
-        // 手动刷新时重置计数器和冷却期
-        handleManualRefresh()
+        // 手动刷新时重置计数器和冷却期（异步执行）
+        Task {
+            await handleManualRefresh()
+        }
     }
     
     /// 处理响应式刷新（401 错误触发）
@@ -519,13 +521,83 @@ class AuthenticationStateManager: ObservableObject {
     /// 处理手动刷新
     /// 
     /// 当用户手动触发刷新时调用，重置失败计数器和冷却期
-    func handleManualRefresh() {
+    /// 使用手动刷新类型，忽略冷却期限制，立即执行刷新
+    /// 
+    /// - Returns: 刷新是否成功
+    @discardableResult
+    func handleManualRefresh() async -> Bool {
         print("[AuthenticationStateManager] 🔄 手动刷新：重置失败计数器和冷却期")
+        
+        // 防重入检查
+        guard !isInRefreshCycle else {
+            print("[AuthenticationStateManager] ⚠️ 已在刷新周期中，跳过手动刷新")
+            return false
+        }
+        
+        isInRefreshCycle = true
+        defer { isInRefreshCycle = false }
+        
+        // 重置失败计数器
         consecutiveFailures = 0
-        SilentCookieRefreshManager.shared.resetCooldown()
         
         // 清除弹窗显示标志，允许重新触发刷新流程
         cookieExpiredShown = false
+        
+        // 更新刷新状态
+        isRefreshingCookie = true
+        refreshStatusMessage = "正在手动刷新登录状态..."
+        
+        // 暂停定时检查任务
+        ScheduledTaskManager.shared.pauseTask("cookie_validity_check")
+        
+        defer {
+            isRefreshingCookie = false
+            refreshStatusMessage = ""
+            // 恢复定时检查任务（带 30 秒宽限期）
+            ScheduledTaskManager.shared.resumeTask("cookie_validity_check", gracePeriod: 30.0)
+        }
+        
+        do {
+            print("[AuthenticationStateManager] 📡 调用 SilentCookieRefreshManager.refresh(type: .manual)")
+            
+            // 调用手动刷新，重置冷却期并立即执行
+            let refreshSuccess = try await SilentCookieRefreshManager.shared.refresh(type: .manual)
+            
+            print("[AuthenticationStateManager] 📡 手动刷新返回: \(refreshSuccess)")
+            
+            if refreshSuccess {
+                refreshStatusMessage = "正在验证 Cookie 有效性..."
+                print("[AuthenticationStateManager] ✅ 手动刷新成功，开始验证 Cookie 有效性...")
+                
+                // 验证刷新结果
+                let isValid = try await MiNoteService.shared.checkCookieValidity()
+                print("[AuthenticationStateManager] 📡 checkCookieValidity() 返回: \(isValid)")
+                
+                if isValid {
+                    // Cookie 确实有效，恢复在线状态
+                    consecutiveFailures = 0
+                    refreshStatusMessage = "登录状态已恢复"
+                    restoreOnlineStatusAfterValidation(isValid: true)
+                    print("[AuthenticationStateManager] ✅ 手动刷新并验证成功")
+                    return true
+                } else {
+                    // 刷新成功但验证失败
+                    refreshStatusMessage = "验证失败"
+                    handleRefreshSuccessButValidationFailed()
+                    return false
+                }
+            } else {
+                // 刷新返回 false
+                refreshStatusMessage = "刷新失败"
+                handleRefreshFailure()
+                return false
+            }
+        } catch {
+            print("[AuthenticationStateManager] ❌ 手动刷新失败: \(error)")
+            refreshStatusMessage = "刷新失败: \(error.localizedDescription)"
+            handleRefreshFailure()
+            return false
+        }
     }
     
     /// 处理Cookie失效弹窗的"取消"选项
