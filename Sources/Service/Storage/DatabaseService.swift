@@ -136,6 +136,42 @@ final class DatabaseService: @unchecked Sendable {
         }
     }
     
+    /// 创建 notes 表
+    /// 
+    /// 创建包含所有优化字段的 notes 表，包括：
+    /// - 基本字段：id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data
+    /// - 新增字段：snippet, color_id, subject, alert_date, type, tag, status, setting_json, extra_info_json, modify_date, create_date
+    /// 
+    /// 使用事务确保创建操作的原子性
+    /// 
+    /// - Throws: DatabaseError（数据库操作失败）
+    func createNotesTable() throws {
+        try dbQueue.sync(flags: .barrier) {
+            // 开始事务
+            executeSQL("BEGIN TRANSACTION;")
+            
+            do {
+                // 创建 notes 表（使用常量定义）
+                executeSQL(Self.createNotesTableSQL)
+                
+                // 创建索引
+                for indexSQL in Self.createNotesIndexesSQL {
+                    executeSQL(indexSQL)
+                }
+                
+                // 提交事务
+                executeSQL("COMMIT;")
+                
+                print("[Database] ✅ notes 表创建成功，包含所有优化字段")
+            } catch {
+                // 回滚事务
+                executeSQL("ROLLBACK;")
+                print("[Database] ❌ notes 表创建失败，事务已回滚")
+                throw error
+            }
+        }
+    }
+    
     /// 创建数据库表
     /// 
     /// 创建以下表：
@@ -147,8 +183,12 @@ final class DatabaseService: @unchecked Sendable {
     /// - operation_history: 操作历史表
     /// - folder_sort_info: 文件夹排序信息表
     private func createTables() {
-        // 创建 notes 表（使用常量定义）
-        executeSQL(Self.createNotesTableSQL)
+        // 创建 notes 表（使用新的 createNotesTable 方法）
+        do {
+            try createNotesTable()
+        } catch {
+            print("[Database] ❌ 创建 notes 表失败: \(error)")
+        }
         
         // 创建 folders 表
         let createFoldersTable = """
@@ -170,8 +210,8 @@ final class DatabaseService: @unchecked Sendable {
         """
         executeSQL(addPinnedColumn, ignoreError: true)  // 忽略错误（如果字段已存在）
         
-        // 迁移 notes 表，确保 raw_data 字段兼容性
-        migrateNotesTable()
+        // 注意：由于应用未正式投入使用，不需要实现数据迁移逻辑
+        // notes 表已通过 createNotesTable() 方法创建，包含所有必需字段
         
         // 创建 sync_status 表（单行表）
         let createSyncStatusTable = """
@@ -266,35 +306,67 @@ final class DatabaseService: @unchecked Sendable {
         executeSQL("CREATE INDEX IF NOT EXISTS idx_operation_history_note_id ON operation_history(note_id);")
     }
     
-    /// 迁移 notes 表，确保 raw_data 字段兼容性
+    /// 迁移 notes 表，确保所有新增字段存在
     /// 
-    /// 检查并修复 raw_data 字段的 JSON 格式问题
-    /// 确保现有数据与新 Note 模型的编码/解码兼容
+    /// 检查并添加缺失的字段到现有表
+    /// 使用事务确保迁移的原子性
     private func migrateNotesTable() {
         print("[Database] 开始迁移 notes 表，检查字段兼容性")
         
-        // 1. 检查是否有 raw_data 字段为 NULL 的记录
-        let checkNullSQL = "SELECT COUNT(*) FROM notes WHERE raw_data IS NULL;"
-        var nullCount = 0
+        // 开始事务
+        executeSQL("BEGIN TRANSACTION;")
         
-        var statement: OpaquePointer?
-        defer {
-            if statement != nil {
-                sqlite3_finalize(statement)
+        // 定义需要添加的字段及其默认值
+        let newColumns: [(name: String, definition: String)] = [
+            ("snippet", "TEXT"),
+            ("color_id", "INTEGER DEFAULT 0"),
+            ("subject", "TEXT"),
+            ("alert_date", "INTEGER"),
+            ("type", "TEXT DEFAULT 'note'"),
+            ("tag", "TEXT"),
+            ("status", "TEXT DEFAULT 'normal'"),
+            ("setting_json", "TEXT"),
+            ("extra_info_json", "TEXT"),
+            ("modify_date", "INTEGER"),
+            ("create_date", "INTEGER")
+        ]
+        
+        // 检查每个字段是否存在，如果不存在则添加
+        for column in newColumns {
+            let checkColumnSQL = "PRAGMA table_info(notes);"
+            var columnExists = false
+            
+            var statement: OpaquePointer?
+            defer {
+                if statement != nil {
+                    sqlite3_finalize(statement)
+                }
+            }
+            
+            if sqlite3_prepare_v2(db, checkColumnSQL, -1, &statement, nil) == SQLITE_OK {
+                while sqlite3_step(statement) == SQLITE_ROW {
+                    if let nameText = sqlite3_column_text(statement, 1) {
+                        let columnName = String(cString: nameText)
+                        if columnName == column.name {
+                            columnExists = true
+                            break
+                        }
+                    }
+                }
+            }
+            
+            // 如果字段不存在，添加该字段
+            if !columnExists {
+                let alterSQL = "ALTER TABLE notes ADD COLUMN \(column.name) \(column.definition);"
+                executeSQL(alterSQL, ignoreError: false)
+                print("[Database] 添加字段: \(column.name)")
+            } else {
+                print("[Database] 字段已存在: \(column.name)")
             }
         }
         
-        if sqlite3_prepare_v2(db, checkNullSQL, -1, &statement, nil) == SQLITE_OK {
-            if sqlite3_step(statement) == SQLITE_ROW {
-                nullCount = Int(sqlite3_column_int(statement, 0))
-            }
-        }
-        
-        print("[Database] 有 \(nullCount) 条记录的 raw_data 字段为 NULL")
-        
-        // 2. 检查 raw_data 字段是否为有效的 JSON
-        // 这里我们只是记录日志，不自动修复，因为修复可能破坏数据
-        // 在实际加载时会使用更健壮的解析逻辑
+        // 提交事务
+        executeSQL("COMMIT;")
         
         print("[Database] notes 表迁移完成")
     }
@@ -335,16 +407,23 @@ final class DatabaseService: @unchecked Sendable {
     /// 保存笔记（插入或更新）
     /// 
     /// 如果笔记已存在，则更新；否则插入新记录
+    /// 包含数据验证，确保字段类型和约束正确
     /// 
     /// - Parameter note: 要保存的笔记对象
-    /// - Throws: DatabaseError（数据库操作失败）
+    /// - Throws: DatabaseError（数据库操作失败或数据验证失败）
     func saveNote(_ note: Note) throws {
         print("![[debug]] [Database] 保存笔记，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
         
+        // 数据验证
+        try validateNote(note)
+        
         try dbQueue.sync(flags: .barrier) {
             let sql = """
-            INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            INSERT OR REPLACE INTO notes (
+                id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
+                snippet, color_id, subject, alert_date, type, tag, status, 
+                setting_json, extra_info_json, modify_date, create_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
             
             var statement: OpaquePointer?
@@ -361,7 +440,7 @@ final class DatabaseService: @unchecked Sendable {
             }
             
             print("![[debug]] ========== 数据流程节点DB2: 绑定参数 ==========")
-            // 绑定参数
+            // 绑定基本字段（索引 1-9）
             sqlite3_bind_text(statement, 1, (note.id as NSString).utf8String, -1, nil)
             sqlite3_bind_text(statement, 2, (note.title as NSString).utf8String, -1, nil)
             sqlite3_bind_text(statement, 3, (note.content as NSString).utf8String, -1, nil)
@@ -382,6 +461,52 @@ final class DatabaseService: @unchecked Sendable {
             }
             sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
             
+            // 绑定新增字段（索引 10-20）
+            // snippet（索引 10）
+            sqlite3_bind_text(statement, 10, note.snippet, -1, nil)
+            
+            // color_id（索引 11）
+            sqlite3_bind_int(statement, 11, Int32(note.colorId))
+            
+            // subject（索引 12）
+            sqlite3_bind_text(statement, 12, note.subject, -1, nil)
+            
+            // alert_date（索引 13）- Date 转毫秒时间戳
+            if let alertDate = note.alertDate {
+                sqlite3_bind_int64(statement, 13, Int64(alertDate.timeIntervalSince1970 * 1000))
+            } else {
+                sqlite3_bind_null(statement, 13)
+            }
+            
+            // type（索引 14）
+            sqlite3_bind_text(statement, 14, (note.type as NSString).utf8String, -1, nil)
+            
+            // tag（索引 15）- 服务器标签
+            sqlite3_bind_text(statement, 15, note.serverTag, -1, nil)
+            
+            // status（索引 16）
+            sqlite3_bind_text(statement, 16, (note.status as NSString).utf8String, -1, nil)
+            
+            // setting_json（索引 17）
+            sqlite3_bind_text(statement, 17, note.settingJson, -1, nil)
+            
+            // extra_info_json（索引 18）
+            sqlite3_bind_text(statement, 18, note.extraInfoJson, -1, nil)
+            
+            // modify_date（索引 19）- Date 转毫秒时间戳
+            if let modifyDate = note.modifyDate {
+                sqlite3_bind_int64(statement, 19, Int64(modifyDate.timeIntervalSince1970 * 1000))
+            } else {
+                sqlite3_bind_null(statement, 19)
+            }
+            
+            // create_date（索引 20）- Date 转毫秒时间戳
+            if let createDate = note.createDate {
+                sqlite3_bind_int64(statement, 20, Int64(createDate.timeIntervalSince1970 * 1000))
+            } else {
+                sqlite3_bind_null(statement, 20)
+            }
+            
             print("![[debug]] ========== 数据流程节点DB4: 执行 SQL ==========")
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
@@ -391,6 +516,71 @@ final class DatabaseService: @unchecked Sendable {
             
             print("![[debug]] ========== 数据流程节点DB5: 数据库保存成功 ==========")
             print("![[debug]] [Database] ✅ 保存笔记到数据库成功，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
+        }
+    }
+    
+    /// 验证笔记数据
+    /// 
+    /// 检查笔记字段是否符合约束条件
+    /// 
+    /// - Parameter note: 要验证的笔记对象
+    /// - Throws: DatabaseError.validationFailed（数据验证失败）
+    private func validateNote(_ note: Note) throws {
+        // 验证 ID 不为空
+        guard !note.id.isEmpty else {
+            throw DatabaseError.validationFailed("笔记 ID 不能为空")
+        }
+        
+        // 验证 folderId 不为空
+        guard !note.folderId.isEmpty else {
+            throw DatabaseError.validationFailed("文件夹 ID 不能为空")
+        }
+        
+        // 验证 colorId 在合理范围内（0-10）
+        guard note.colorId >= 0 && note.colorId <= 10 else {
+            throw DatabaseError.validationFailed("颜色 ID 必须在 0-10 之间，当前值: \(note.colorId)")
+        }
+        
+        // 验证 type 不为空
+        guard !note.type.isEmpty else {
+            throw DatabaseError.validationFailed("笔记类型不能为空")
+        }
+        
+        // 验证 status 不为空
+        guard !note.status.isEmpty else {
+            throw DatabaseError.validationFailed("笔记状态不能为空")
+        }
+        
+        // 验证 JSON 字段格式（如果存在）
+        if let settingJson = note.settingJson, !settingJson.isEmpty {
+            guard let jsonData = settingJson.data(using: .utf8),
+                  (try? JSONSerialization.jsonObject(with: jsonData, options: [])) != nil else {
+                throw DatabaseError.validationFailed("setting_json 格式无效")
+            }
+        }
+        
+        if let extraInfoJson = note.extraInfoJson, !extraInfoJson.isEmpty {
+            guard let jsonData = extraInfoJson.data(using: .utf8),
+                  (try? JSONSerialization.jsonObject(with: jsonData, options: [])) != nil else {
+                throw DatabaseError.validationFailed("extra_info_json 格式无效")
+            }
+        }
+        
+        // 验证时间戳合理性
+        let now = Date()
+        let minDate = Date(timeIntervalSince1970: 0) // 1970-01-01
+        
+        guard note.createdAt >= minDate && note.createdAt <= now.addingTimeInterval(86400) else {
+            throw DatabaseError.validationFailed("创建时间不合理: \(note.createdAt)")
+        }
+        
+        guard note.updatedAt >= minDate && note.updatedAt <= now.addingTimeInterval(86400) else {
+            throw DatabaseError.validationFailed("更新时间不合理: \(note.updatedAt)")
+        }
+        
+        // 验证 updatedAt >= createdAt
+        guard note.updatedAt >= note.createdAt else {
+            throw DatabaseError.validationFailed("更新时间不能早于创建时间")
         }
     }
     
@@ -410,8 +600,11 @@ final class DatabaseService: @unchecked Sendable {
             
             do {
                 let sql = """
-                INSERT OR REPLACE INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                INSERT OR REPLACE INTO notes (
+                    id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
+                    snippet, color_id, subject, alert_date, type, tag, status, 
+                    setting_json, extra_info_json, modify_date, create_date
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """
                 
                 var statement: OpaquePointer?
@@ -426,7 +619,7 @@ final class DatabaseService: @unchecked Sendable {
                     throw DatabaseError.prepareFailed(errorMsg)
                 }
                 
-                // 绑定参数
+                // 绑定基本字段（索引 1-9）
                 sqlite3_bind_text(statement, 1, (note.id as NSString).utf8String, -1, nil)
                 sqlite3_bind_text(statement, 2, (note.title as NSString).utf8String, -1, nil)
                 sqlite3_bind_text(statement, 3, (note.content as NSString).utf8String, -1, nil)
@@ -446,6 +639,52 @@ final class DatabaseService: @unchecked Sendable {
                     rawDataJSON = String(data: jsonData, encoding: .utf8)
                 }
                 sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
+                
+                // 绑定新增字段（索引 10-20）
+                // snippet（索引 10）
+                sqlite3_bind_text(statement, 10, note.snippet, -1, nil)
+                
+                // color_id（索引 11）
+                sqlite3_bind_int(statement, 11, Int32(note.colorId))
+                
+                // subject（索引 12）
+                sqlite3_bind_text(statement, 12, note.subject, -1, nil)
+                
+                // alert_date（索引 13）- Date 转毫秒时间戳
+                if let alertDate = note.alertDate {
+                    sqlite3_bind_int64(statement, 13, Int64(alertDate.timeIntervalSince1970 * 1000))
+                } else {
+                    sqlite3_bind_null(statement, 13)
+                }
+                
+                // type（索引 14）
+                sqlite3_bind_text(statement, 14, (note.type as NSString).utf8String, -1, nil)
+                
+                // tag（索引 15）- 服务器标签
+                sqlite3_bind_text(statement, 15, note.serverTag, -1, nil)
+                
+                // status（索引 16）
+                sqlite3_bind_text(statement, 16, (note.status as NSString).utf8String, -1, nil)
+                
+                // setting_json（索引 17）
+                sqlite3_bind_text(statement, 17, note.settingJson, -1, nil)
+                
+                // extra_info_json（索引 18）
+                sqlite3_bind_text(statement, 18, note.extraInfoJson, -1, nil)
+                
+                // modify_date（索引 19）- Date 转毫秒时间戳
+                if let modifyDate = note.modifyDate {
+                    sqlite3_bind_int64(statement, 19, Int64(modifyDate.timeIntervalSince1970 * 1000))
+                } else {
+                    sqlite3_bind_null(statement, 19)
+                }
+                
+                // create_date（索引 20）- Date 转毫秒时间戳
+                if let createDate = note.createDate {
+                    sqlite3_bind_int64(statement, 20, Int64(createDate.timeIntervalSince1970 * 1000))
+                } else {
+                    sqlite3_bind_null(statement, 20)
+                }
                 
                 guard sqlite3_step(statement) == SQLITE_DONE else {
                     let errorMsg = String(cString: sqlite3_errmsg(self.db))
@@ -473,8 +712,13 @@ final class DatabaseService: @unchecked Sendable {
     func updateNoteId(oldId: String, newId: String) throws {
         try dbQueue.sync(flags: .barrier) {
             // SQLite 不支持直接更新主键，需要使用 INSERT + DELETE 的方式
-            // 1. 先读取旧记录
-            let selectSQL = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes WHERE id = ?;"
+            // 1. 先读取旧记录（包含所有字段）
+            let selectSQL = """
+            SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
+                   snippet, color_id, subject, alert_date, type, tag, status, 
+                   setting_json, extra_info_json, modify_date, create_date
+            FROM notes WHERE id = ?;
+            """
             
             var selectStatement: OpaquePointer?
             defer {
@@ -494,20 +738,43 @@ final class DatabaseService: @unchecked Sendable {
                 return
             }
             
-            // 读取所有字段
-            let title = String(cString: sqlite3_column_text(selectStatement, 1))
-            let content = String(cString: sqlite3_column_text(selectStatement, 2))
-            let folderId = String(cString: sqlite3_column_text(selectStatement, 3))
-            let isStarred = sqlite3_column_int(selectStatement, 4) != 0
-            let createdAt = sqlite3_column_double(selectStatement, 5)
-            let updatedAt = sqlite3_column_double(selectStatement, 6)
-            let tagsText = sqlite3_column_text(selectStatement, 7).map { String(cString: $0) }
-            let rawDataText = sqlite3_column_text(selectStatement, 8).map { String(cString: $0) }
+            // 使用 parseNote 方法解析完整的笔记对象
+            guard var note = try parseNote(from: selectStatement) else {
+                print("[Database] ⚠️ 更新笔记 ID 失败：无法解析笔记 \(oldId)")
+                return
+            }
+            
+            // 更新笔记 ID
+            note = Note(
+                id: newId,
+                title: note.title,
+                content: note.content,
+                folderId: note.folderId,
+                isStarred: note.isStarred,
+                createdAt: note.createdAt,
+                updatedAt: note.updatedAt,
+                tags: note.tags,
+                rawData: note.rawData,
+                snippet: note.snippet,
+                colorId: note.colorId,
+                subject: note.subject,
+                alertDate: note.alertDate,
+                type: note.type,
+                serverTag: note.serverTag,
+                status: note.status,
+                settingJson: note.settingJson,
+                extraInfoJson: note.extraInfoJson,
+                modifyDate: note.modifyDate,
+                createDate: note.createDate
+            )
             
             // 2. 插入新记录（使用新 ID）
             let insertSQL = """
-            INSERT INTO notes (id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            INSERT INTO notes (
+                id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
+                snippet, color_id, subject, alert_date, type, tag, status, 
+                setting_json, extra_info_json, modify_date, create_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
             
             var insertStatement: OpaquePointer?
@@ -521,15 +788,55 @@ final class DatabaseService: @unchecked Sendable {
                 throw DatabaseError.prepareFailed(String(cString: sqlite3_errmsg(db)))
             }
             
-            sqlite3_bind_text(insertStatement, 1, (newId as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(insertStatement, 2, (title as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(insertStatement, 3, (content as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(insertStatement, 4, (folderId as NSString).utf8String, -1, nil)
-            sqlite3_bind_int(insertStatement, 5, isStarred ? 1 : 0)
-            sqlite3_bind_double(insertStatement, 6, createdAt)
-            sqlite3_bind_double(insertStatement, 7, updatedAt)
-            sqlite3_bind_text(insertStatement, 8, tagsText, -1, nil)
-            sqlite3_bind_text(insertStatement, 9, rawDataText, -1, nil)
+            // 绑定基本字段
+            sqlite3_bind_text(insertStatement, 1, (note.id as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(insertStatement, 2, (note.title as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(insertStatement, 3, (note.content as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(insertStatement, 4, (note.folderId as NSString).utf8String, -1, nil)
+            sqlite3_bind_int(insertStatement, 5, note.isStarred ? 1 : 0)
+            sqlite3_bind_double(insertStatement, 6, note.createdAt.timeIntervalSince1970)
+            sqlite3_bind_double(insertStatement, 7, note.updatedAt.timeIntervalSince1970)
+            
+            // tags 作为 JSON
+            let tagsJSON = try JSONEncoder().encode(note.tags)
+            sqlite3_bind_text(insertStatement, 8, String(data: tagsJSON, encoding: .utf8), -1, nil)
+            
+            // raw_data 作为 JSON
+            var rawDataJSON: String? = nil
+            if let rawData = note.rawData {
+                let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
+                rawDataJSON = String(data: jsonData, encoding: .utf8)
+            }
+            sqlite3_bind_text(insertStatement, 9, rawDataJSON, -1, nil)
+            
+            // 绑定新增字段
+            sqlite3_bind_text(insertStatement, 10, note.snippet, -1, nil)
+            sqlite3_bind_int(insertStatement, 11, Int32(note.colorId))
+            sqlite3_bind_text(insertStatement, 12, note.subject, -1, nil)
+            
+            if let alertDate = note.alertDate {
+                sqlite3_bind_int64(insertStatement, 13, Int64(alertDate.timeIntervalSince1970 * 1000))
+            } else {
+                sqlite3_bind_null(insertStatement, 13)
+            }
+            
+            sqlite3_bind_text(insertStatement, 14, (note.type as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(insertStatement, 15, note.serverTag, -1, nil)
+            sqlite3_bind_text(insertStatement, 16, (note.status as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(insertStatement, 17, note.settingJson, -1, nil)
+            sqlite3_bind_text(insertStatement, 18, note.extraInfoJson, -1, nil)
+            
+            if let modifyDate = note.modifyDate {
+                sqlite3_bind_int64(insertStatement, 19, Int64(modifyDate.timeIntervalSince1970 * 1000))
+            } else {
+                sqlite3_bind_null(insertStatement, 19)
+            }
+            
+            if let createDate = note.createDate {
+                sqlite3_bind_int64(insertStatement, 20, Int64(createDate.timeIntervalSince1970 * 1000))
+            } else {
+                sqlite3_bind_null(insertStatement, 20)
+            }
             
             guard sqlite3_step(insertStatement) == SQLITE_DONE else {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
@@ -571,7 +878,12 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func loadNote(noteId: String) throws -> Note? {
         return try dbQueue.sync {
-            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes WHERE id = ?;"
+            let sql = """
+            SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
+                   snippet, color_id, subject, alert_date, type, tag, status, 
+                   setting_json, extra_info_json, modify_date, create_date
+            FROM notes WHERE id = ?;
+            """
             
             var statement: OpaquePointer?
             defer {
@@ -606,7 +918,12 @@ final class DatabaseService: @unchecked Sendable {
     /// - Throws: DatabaseError（数据库操作失败）
     func getAllNotes() throws -> [Note] {
         return try dbQueue.sync {
-            let sql = "SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data FROM notes ORDER BY updated_at DESC;"
+            let sql = """
+            SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
+                   snippet, color_id, subject, alert_date, type, tag, status, 
+                   setting_json, extra_info_json, modify_date, create_date
+            FROM notes ORDER BY updated_at DESC;
+            """
             
             var statement: OpaquePointer?
             defer {
@@ -695,11 +1012,125 @@ final class DatabaseService: @unchecked Sendable {
         }
     }
     
+    /// 批量保存笔记（插入或更新）
+    /// 
+    /// 使用事务批量保存多个笔记，提高性能
+    /// 
+    /// - Parameter notes: 要保存的笔记数组
+    /// - Throws: DatabaseError（数据库操作失败）
+    func saveNotes(_ notes: [Note]) throws {
+        guard !notes.isEmpty else { return }
+        
+        try dbQueue.sync(flags: .barrier) {
+            // 开始事务
+            executeSQL("BEGIN TRANSACTION;")
+            
+            do {
+                for note in notes {
+                    let sql = """
+                    INSERT OR REPLACE INTO notes (
+                        id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
+                        snippet, color_id, subject, alert_date, type, tag, status, 
+                        setting_json, extra_info_json, modify_date, create_date
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    """
+                    
+                    var statement: OpaquePointer?
+                    defer {
+                        if statement != nil {
+                            sqlite3_finalize(statement)
+                        }
+                    }
+                    
+                    guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                        let errorMsg = String(cString: sqlite3_errmsg(db))
+                        throw DatabaseError.prepareFailed(errorMsg)
+                    }
+                    
+                    // 绑定基本字段（索引 1-9）
+                    sqlite3_bind_text(statement, 1, (note.id as NSString).utf8String, -1, nil)
+                    sqlite3_bind_text(statement, 2, (note.title as NSString).utf8String, -1, nil)
+                    sqlite3_bind_text(statement, 3, (note.content as NSString).utf8String, -1, nil)
+                    sqlite3_bind_text(statement, 4, (note.folderId as NSString).utf8String, -1, nil)
+                    sqlite3_bind_int(statement, 5, note.isStarred ? 1 : 0)
+                    sqlite3_bind_double(statement, 6, note.createdAt.timeIntervalSince1970)
+                    sqlite3_bind_double(statement, 7, note.updatedAt.timeIntervalSince1970)
+                    
+                    // tags 作为 JSON
+                    let tagsJSON = try JSONEncoder().encode(note.tags)
+                    sqlite3_bind_text(statement, 8, String(data: tagsJSON, encoding: .utf8), -1, nil)
+                    
+                    // raw_data 作为 JSON
+                    var rawDataJSON: String? = nil
+                    if let rawData = note.rawData {
+                        let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
+                        rawDataJSON = String(data: jsonData, encoding: .utf8)
+                    }
+                    sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
+                    
+                    // 绑定新增字段（索引 10-20）
+                    sqlite3_bind_text(statement, 10, note.snippet, -1, nil)
+                    sqlite3_bind_int(statement, 11, Int32(note.colorId))
+                    sqlite3_bind_text(statement, 12, note.subject, -1, nil)
+                    
+                    if let alertDate = note.alertDate {
+                        sqlite3_bind_int64(statement, 13, Int64(alertDate.timeIntervalSince1970 * 1000))
+                    } else {
+                        sqlite3_bind_null(statement, 13)
+                    }
+                    
+                    sqlite3_bind_text(statement, 14, (note.type as NSString).utf8String, -1, nil)
+                    sqlite3_bind_text(statement, 15, note.serverTag, -1, nil)
+                    sqlite3_bind_text(statement, 16, (note.status as NSString).utf8String, -1, nil)
+                    sqlite3_bind_text(statement, 17, note.settingJson, -1, nil)
+                    sqlite3_bind_text(statement, 18, note.extraInfoJson, -1, nil)
+                    
+                    if let modifyDate = note.modifyDate {
+                        sqlite3_bind_int64(statement, 19, Int64(modifyDate.timeIntervalSince1970 * 1000))
+                    } else {
+                        sqlite3_bind_null(statement, 19)
+                    }
+                    
+                    if let createDate = note.createDate {
+                        sqlite3_bind_int64(statement, 20, Int64(createDate.timeIntervalSince1970 * 1000))
+                    } else {
+                        sqlite3_bind_null(statement, 20)
+                    }
+                    
+                    guard sqlite3_step(statement) == SQLITE_DONE else {
+                        let errorMsg = String(cString: sqlite3_errmsg(db))
+                        throw DatabaseError.executionFailed(errorMsg)
+                    }
+                }
+                
+                // 提交事务
+                executeSQL("COMMIT;")
+                
+                print("[Database] ✅ 批量保存 \(notes.count) 条笔记成功")
+            } catch {
+                // 回滚事务
+                executeSQL("ROLLBACK;")
+                print("[Database] ❌ 批量保存笔记失败，事务已回滚: \(error)")
+                throw error
+            }
+        }
+    }
+    
+    /// 从数据库行解析 Note 对象
+    /// 
+    /// 解析数据库查询结果中的所有字段，包括新增的优化字段。
+    /// 处理 NULL 值并使用合适的默认值。
+    /// 对 JSON 字段进行错误处理，解析失败时记录错误并使用空值。
+    /// 
+    /// - Parameter statement: SQLite 查询语句指针
+    /// - Returns: Note 对象，如果解析失败则返回 nil
+    /// - Throws: DatabaseError（数据库操作失败）
     private func parseNote(from statement: OpaquePointer?) throws -> Note? {
         guard let statement = statement else {
             return nil
         }
         
+        // 解析基本字段（索引 0-8）
         let id = String(cString: sqlite3_column_text(statement, 0))
         let title = String(cString: sqlite3_column_text(statement, 1))
         let content = String(cString: sqlite3_column_text(statement, 2))
@@ -708,23 +1139,140 @@ final class DatabaseService: @unchecked Sendable {
         let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 5))
         let updatedAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 6))
         
-        // 解析 tags
+        // 解析 tags（索引 7）- 带 JSON 错误处理
         var tags: [String] = []
         if let tagsText = sqlite3_column_text(statement, 7) {
             let tagsString = String(cString: tagsText)
             if !tagsString.isEmpty, let tagsData = tagsString.data(using: .utf8) {
-                if let decodedTags = try? JSONDecoder().decode([String].self, from: tagsData) {
-                    tags = decodedTags
+                do {
+                    tags = try JSONDecoder().decode([String].self, from: tagsData)
+                } catch {
+                    print("[Database] ⚠️ 解析 tags JSON 失败 (id=\(id)): \(error)")
+                    // 使用空数组作为默认值
+                    tags = []
                 }
             }
         }
         
-        // 解析 raw_data
+        // 解析 raw_data（索引 8）- 带 JSON 错误处理
         var rawData: [String: Any]? = nil
         if let rawDataText = sqlite3_column_text(statement, 8) {
             let rawDataString = String(cString: rawDataText)
             if !rawDataString.isEmpty, let rawDataData = rawDataString.data(using: .utf8) {
-                rawData = try? JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
+                do {
+                    rawData = try JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
+                } catch {
+                    print("[Database] ⚠️ 解析 raw_data JSON 失败 (id=\(id)): \(error)")
+                    // 使用 nil 作为默认值
+                    rawData = nil
+                }
+            }
+        }
+        
+        // 解析新增字段（索引 9-19）
+        // snippet（索引 9）- 可选字段
+        var snippet: String? = nil
+        if sqlite3_column_type(statement, 9) != SQLITE_NULL,
+           let snippetText = sqlite3_column_text(statement, 9) {
+            snippet = String(cString: snippetText)
+        }
+        
+        // color_id（索引 10）- 默认值 0
+        let colorId: Int
+        if sqlite3_column_type(statement, 10) != SQLITE_NULL {
+            colorId = Int(sqlite3_column_int(statement, 10))
+        } else {
+            colorId = 0
+        }
+        
+        // subject（索引 11）- 可选字段
+        var subject: String? = nil
+        if sqlite3_column_type(statement, 11) != SQLITE_NULL,
+           let subjectText = sqlite3_column_text(statement, 11) {
+            subject = String(cString: subjectText)
+        }
+        
+        // alert_date（索引 12）- 可选字段，毫秒时间戳转 Date
+        var alertDate: Date? = nil
+        if sqlite3_column_type(statement, 12) != SQLITE_NULL {
+            let alertDateMs = sqlite3_column_int64(statement, 12)
+            if alertDateMs > 0 {
+                alertDate = Date(timeIntervalSince1970: TimeInterval(alertDateMs) / 1000.0)
+            }
+        }
+        
+        // type（索引 13）- 默认值 "note"
+        let type: String
+        if sqlite3_column_type(statement, 13) != SQLITE_NULL,
+           let typeText = sqlite3_column_text(statement, 13) {
+            type = String(cString: typeText)
+        } else {
+            type = "note"
+        }
+        
+        // tag（索引 14）- 可选字段（服务器标签）
+        var serverTag: String? = nil
+        if sqlite3_column_type(statement, 14) != SQLITE_NULL,
+           let tagText = sqlite3_column_text(statement, 14) {
+            serverTag = String(cString: tagText)
+        }
+        
+        // status（索引 15）- 默认值 "normal"
+        let status: String
+        if sqlite3_column_type(statement, 15) != SQLITE_NULL,
+           let statusText = sqlite3_column_text(statement, 15) {
+            status = String(cString: statusText)
+        } else {
+            status = "normal"
+        }
+        
+        // setting_json（索引 16）- 可选字段，不需要解析，直接存储字符串
+        var settingJson: String? = nil
+        if sqlite3_column_type(statement, 16) != SQLITE_NULL,
+           let settingText = sqlite3_column_text(statement, 16) {
+            settingJson = String(cString: settingText)
+            // 验证 JSON 格式（可选）
+            if let jsonData = settingJson?.data(using: .utf8) {
+                do {
+                    _ = try JSONSerialization.jsonObject(with: jsonData, options: [])
+                } catch {
+                    print("[Database] ⚠️ setting_json 格式无效 (id=\(id)): \(error)")
+                    // 保留原始字符串，不清空
+                }
+            }
+        }
+        
+        // extra_info_json（索引 17）- 可选字段，不需要解析，直接存储字符串
+        var extraInfoJson: String? = nil
+        if sqlite3_column_type(statement, 17) != SQLITE_NULL,
+           let extraInfoText = sqlite3_column_text(statement, 17) {
+            extraInfoJson = String(cString: extraInfoText)
+            // 验证 JSON 格式（可选）
+            if let jsonData = extraInfoJson?.data(using: .utf8) {
+                do {
+                    _ = try JSONSerialization.jsonObject(with: jsonData, options: [])
+                } catch {
+                    print("[Database] ⚠️ extra_info_json 格式无效 (id=\(id)): \(error)")
+                    // 保留原始字符串，不清空
+                }
+            }
+        }
+        
+        // modify_date（索引 18）- 可选字段，毫秒时间戳转 Date
+        var modifyDate: Date? = nil
+        if sqlite3_column_type(statement, 18) != SQLITE_NULL {
+            let modifyDateMs = sqlite3_column_int64(statement, 18)
+            if modifyDateMs > 0 {
+                modifyDate = Date(timeIntervalSince1970: TimeInterval(modifyDateMs) / 1000.0)
+            }
+        }
+        
+        // create_date（索引 19）- 可选字段，毫秒时间戳转 Date
+        var createDate: Date? = nil
+        if sqlite3_column_type(statement, 19) != SQLITE_NULL {
+            let createDateMs = sqlite3_column_int64(statement, 19)
+            if createDateMs > 0 {
+                createDate = Date(timeIntervalSince1970: TimeInterval(createDateMs) / 1000.0)
             }
         }
         
@@ -737,7 +1285,18 @@ final class DatabaseService: @unchecked Sendable {
             createdAt: createdAt,
             updatedAt: updatedAt,
             tags: tags,
-            rawData: rawData
+            rawData: rawData,
+            snippet: snippet,
+            colorId: colorId,
+            subject: subject,
+            alertDate: alertDate,
+            type: type,
+            serverTag: serverTag,
+            status: status,
+            settingJson: settingJson,
+            extraInfoJson: extraInfoJson,
+            modifyDate: modifyDate,
+            createDate: createDate
         )
     }
     
@@ -1887,9 +2446,59 @@ final class DatabaseService: @unchecked Sendable {
 
 // MARK: - 数据库错误
 
+/// 数据库操作错误类型
+/// 
+/// 定义了所有可能的数据库操作错误，包括：
+/// - 连接错误
+/// - SQL 准备和执行错误
+/// - 数据验证错误
+/// - JSON 解析错误
+/// - 事务错误
 enum DatabaseError: Error {
+    /// SQL 语句准备失败
     case prepareFailed(String)
+    
+    /// SQL 语句执行失败
     case executionFailed(String)
-    case invalidData(String)
+    
+    /// 数据验证失败（字段类型或约束违反）
+    case validationFailed(String)
+    
+    /// 数据库连接失败或已关闭
     case connectionFailed(String)
+    
+    /// JSON 解析失败
+    case jsonParseFailed(String)
+    
+    /// 事务操作失败
+    case transactionFailed(String)
+    
+    /// 数据格式无效
+    case invalidData(String)
+    
+    /// 表或字段不存在
+    case schemaError(String)
+}
+
+extension DatabaseError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .prepareFailed(let message):
+            return "SQL 准备失败: \(message)"
+        case .executionFailed(let message):
+            return "SQL 执行失败: \(message)"
+        case .validationFailed(let message):
+            return "数据验证失败: \(message)"
+        case .connectionFailed(let message):
+            return "数据库连接失败: \(message)"
+        case .jsonParseFailed(let message):
+            return "JSON 解析失败: \(message)"
+        case .transactionFailed(let message):
+            return "事务操作失败: \(message)"
+        case .invalidData(let message):
+            return "数据格式无效: \(message)"
+        case .schemaError(let message):
+            return "表结构错误: \(message)"
+        }
+    }
 }
