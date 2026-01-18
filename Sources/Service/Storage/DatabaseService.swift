@@ -41,8 +41,6 @@ final class DatabaseService: @unchecked Sendable {
         static let status = "status"
         static let settingJson = "setting_json"
         static let extraInfoJson = "extra_info_json"
-        static let modifyDate = "modify_date"
-        static let createDate = "create_date"
     }
     
     /// Notes 表创建 SQL 语句
@@ -65,9 +63,7 @@ final class DatabaseService: @unchecked Sendable {
         tag TEXT,
         status TEXT DEFAULT 'normal',
         setting_json TEXT,
-        extra_info_json TEXT,
-        modify_date INTEGER,
-        create_date INTEGER
+        extra_info_json TEXT
     );
     """
     
@@ -76,7 +72,6 @@ final class DatabaseService: @unchecked Sendable {
         "CREATE INDEX IF NOT EXISTS idx_notes_folder_id ON notes(folder_id);",
         "CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at);",
         "CREATE INDEX IF NOT EXISTS idx_notes_snippet ON notes(snippet);",
-        "CREATE INDEX IF NOT EXISTS idx_notes_modify_date ON notes(modify_date DESC);",
         "CREATE INDEX IF NOT EXISTS idx_notes_status ON notes(status);",
         "CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type);",
         "CREATE INDEX IF NOT EXISTS idx_notes_folder_status ON notes(folder_id, status);"
@@ -140,7 +135,7 @@ final class DatabaseService: @unchecked Sendable {
     /// 
     /// 创建包含所有优化字段的 notes 表，包括：
     /// - 基本字段：id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data
-    /// - 新增字段：snippet, color_id, subject, alert_date, type, tag, status, setting_json, extra_info_json, modify_date, create_date
+    /// - 新增字段：snippet, color_id, subject, alert_date, type, tag, status, setting_json, extra_info_json
     /// 
     /// 注意：此方法应该在 dbQueue.sync 块内调用，不要直接调用
     /// 
@@ -311,9 +306,7 @@ final class DatabaseService: @unchecked Sendable {
             ("tag", "TEXT"),
             ("status", "TEXT DEFAULT 'normal'"),
             ("setting_json", "TEXT"),
-            ("extra_info_json", "TEXT"),
-            ("modify_date", "INTEGER"),
-            ("create_date", "INTEGER")
+            ("extra_info_json", "TEXT")
         ]
         
         // 检查每个字段是否存在，如果不存在则添加
@@ -397,7 +390,7 @@ final class DatabaseService: @unchecked Sendable {
     /// - Parameter note: 要保存的笔记对象
     /// - Throws: DatabaseError（数据库操作失败或数据验证失败）
     func saveNote(_ note: Note) throws {
-        print("![[debug]] [Database] 保存笔记，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
+        print("[Database] 保存笔记，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
         
         // 数据验证
         try validateNote(note)
@@ -407,8 +400,8 @@ final class DatabaseService: @unchecked Sendable {
             INSERT OR REPLACE INTO notes (
                 id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
                 snippet, color_id, subject, alert_date, type, tag, status, 
-                setting_json, extra_info_json, modify_date, create_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                setting_json, extra_info_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
             
             var statement: OpaquePointer?
@@ -420,11 +413,10 @@ final class DatabaseService: @unchecked Sendable {
             
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("![[debug]] [Database] ❌ SQL准备失败: \(errorMsg)")
+                print("[Database] ❌ SQL准备失败: \(errorMsg)")
                 throw DatabaseError.prepareFailed(errorMsg)
             }
             
-            print("![[debug]] ========== 数据流程节点DB2: 绑定参数 ==========")
             // 绑定基本字段（索引 1-9）
             sqlite3_bind_text(statement, 1, (note.id as NSString).utf8String, -1, nil)
             sqlite3_bind_text(statement, 2, (note.title as NSString).utf8String, -1, nil)
@@ -446,7 +438,7 @@ final class DatabaseService: @unchecked Sendable {
             }
             sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
             
-            // 绑定新增字段（索引 10-20）
+            // 绑定新增字段（索引 10-18）
             // snippet（索引 10）
             sqlite3_bind_text(statement, 10, note.snippet, -1, nil)
             
@@ -478,29 +470,13 @@ final class DatabaseService: @unchecked Sendable {
             // extra_info_json（索引 18）
             sqlite3_bind_text(statement, 18, note.extraInfoJson, -1, nil)
             
-            // modify_date（索引 19）- Date 转毫秒时间戳
-            if let modifyDate = note.modifyDate {
-                sqlite3_bind_int64(statement, 19, Int64(modifyDate.timeIntervalSince1970 * 1000))
-            } else {
-                sqlite3_bind_null(statement, 19)
-            }
-            
-            // create_date（索引 20）- Date 转毫秒时间戳
-            if let createDate = note.createDate {
-                sqlite3_bind_int64(statement, 20, Int64(createDate.timeIntervalSince1970 * 1000))
-            } else {
-                sqlite3_bind_null(statement, 20)
-            }
-            
-            print("![[debug]] ========== 数据流程节点DB4: 执行 SQL ==========")
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("![[debug]] [Database] ❌ SQL执行失败: \(errorMsg)")
+                print("[Database] ❌ SQL执行失败: \(errorMsg)")
                 throw DatabaseError.executionFailed(errorMsg)
             }
             
-            print("![[debug]] ========== 数据流程节点DB5: 数据库保存成功 ==========")
-            print("![[debug]] [Database] ✅ 保存笔记到数据库成功，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
+            print("[Database] ✅ 保存笔记到数据库成功，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
         }
     }
     
@@ -589,8 +565,8 @@ final class DatabaseService: @unchecked Sendable {
                 INSERT OR REPLACE INTO notes (
                     id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
                     snippet, color_id, subject, alert_date, type, tag, status, 
-                    setting_json, extra_info_json, modify_date, create_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    setting_json, extra_info_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """
                 
                 var statement: OpaquePointer?
@@ -626,7 +602,7 @@ final class DatabaseService: @unchecked Sendable {
                 }
                 sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
                 
-                // 绑定新增字段（索引 10-20）
+                // 绑定新增字段（索引 10-18）
                 // snippet（索引 10）
                 sqlite3_bind_text(statement, 10, note.snippet, -1, nil)
                 
@@ -657,20 +633,6 @@ final class DatabaseService: @unchecked Sendable {
                 
                 // extra_info_json（索引 18）
                 sqlite3_bind_text(statement, 18, note.extraInfoJson, -1, nil)
-                
-                // modify_date（索引 19）- Date 转毫秒时间戳
-                if let modifyDate = note.modifyDate {
-                    sqlite3_bind_int64(statement, 19, Int64(modifyDate.timeIntervalSince1970 * 1000))
-                } else {
-                    sqlite3_bind_null(statement, 19)
-                }
-                
-                // create_date（索引 20）- Date 转毫秒时间戳
-                if let createDate = note.createDate {
-                    sqlite3_bind_int64(statement, 20, Int64(createDate.timeIntervalSince1970 * 1000))
-                } else {
-                    sqlite3_bind_null(statement, 20)
-                }
                 
                 guard sqlite3_step(statement) == SQLITE_DONE else {
                     let errorMsg = String(cString: sqlite3_errmsg(self.db))
@@ -749,9 +711,7 @@ final class DatabaseService: @unchecked Sendable {
                 serverTag: note.serverTag,
                 status: note.status,
                 settingJson: note.settingJson,
-                extraInfoJson: note.extraInfoJson,
-                modifyDate: note.modifyDate,
-                createDate: note.createDate
+                extraInfoJson: note.extraInfoJson
             )
             
             // 2. 插入新记录（使用新 ID）
@@ -759,8 +719,8 @@ final class DatabaseService: @unchecked Sendable {
             INSERT INTO notes (
                 id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
                 snippet, color_id, subject, alert_date, type, tag, status, 
-                setting_json, extra_info_json, modify_date, create_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                setting_json, extra_info_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
             
             var insertStatement: OpaquePointer?
@@ -812,18 +772,6 @@ final class DatabaseService: @unchecked Sendable {
             sqlite3_bind_text(insertStatement, 17, note.settingJson, -1, nil)
             sqlite3_bind_text(insertStatement, 18, note.extraInfoJson, -1, nil)
             
-            if let modifyDate = note.modifyDate {
-                sqlite3_bind_int64(insertStatement, 19, Int64(modifyDate.timeIntervalSince1970 * 1000))
-            } else {
-                sqlite3_bind_null(insertStatement, 19)
-            }
-            
-            if let createDate = note.createDate {
-                sqlite3_bind_int64(insertStatement, 20, Int64(createDate.timeIntervalSince1970 * 1000))
-            } else {
-                sqlite3_bind_null(insertStatement, 20)
-            }
-            
             guard sqlite3_step(insertStatement) == SQLITE_DONE else {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
@@ -867,7 +815,7 @@ final class DatabaseService: @unchecked Sendable {
             let sql = """
             SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
                    snippet, color_id, subject, alert_date, type, tag, status, 
-                   setting_json, extra_info_json, modify_date, create_date
+                   setting_json, extra_info_json
             FROM notes WHERE id = ?;
             """
             
@@ -907,7 +855,7 @@ final class DatabaseService: @unchecked Sendable {
             let sql = """
             SELECT id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
                    snippet, color_id, subject, alert_date, type, tag, status, 
-                   setting_json, extra_info_json, modify_date, create_date
+                   setting_json, extra_info_json
             FROM notes ORDER BY updated_at DESC;
             """
             
@@ -1017,8 +965,8 @@ final class DatabaseService: @unchecked Sendable {
                     INSERT OR REPLACE INTO notes (
                         id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data,
                         snippet, color_id, subject, alert_date, type, tag, status, 
-                        setting_json, extra_info_json, modify_date, create_date
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        setting_json, extra_info_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                     """
                     
                     var statement: OpaquePointer?
@@ -1054,7 +1002,7 @@ final class DatabaseService: @unchecked Sendable {
                     }
                     sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
                     
-                    // 绑定新增字段（索引 10-20）
+                    // 绑定新增字段（索引 10-18）
                     sqlite3_bind_text(statement, 10, note.snippet, -1, nil)
                     sqlite3_bind_int(statement, 11, Int32(note.colorId))
                     sqlite3_bind_text(statement, 12, note.subject, -1, nil)
@@ -1070,18 +1018,6 @@ final class DatabaseService: @unchecked Sendable {
                     sqlite3_bind_text(statement, 16, (note.status as NSString).utf8String, -1, nil)
                     sqlite3_bind_text(statement, 17, note.settingJson, -1, nil)
                     sqlite3_bind_text(statement, 18, note.extraInfoJson, -1, nil)
-                    
-                    if let modifyDate = note.modifyDate {
-                        sqlite3_bind_int64(statement, 19, Int64(modifyDate.timeIntervalSince1970 * 1000))
-                    } else {
-                        sqlite3_bind_null(statement, 19)
-                    }
-                    
-                    if let createDate = note.createDate {
-                        sqlite3_bind_int64(statement, 20, Int64(createDate.timeIntervalSince1970 * 1000))
-                    } else {
-                        sqlite3_bind_null(statement, 20)
-                    }
                     
                     guard sqlite3_step(statement) == SQLITE_DONE else {
                         let errorMsg = String(cString: sqlite3_errmsg(db))
@@ -1244,24 +1180,6 @@ final class DatabaseService: @unchecked Sendable {
             }
         }
         
-        // modify_date（索引 18）- 可选字段，毫秒时间戳转 Date
-        var modifyDate: Date? = nil
-        if sqlite3_column_type(statement, 18) != SQLITE_NULL {
-            let modifyDateMs = sqlite3_column_int64(statement, 18)
-            if modifyDateMs > 0 {
-                modifyDate = Date(timeIntervalSince1970: TimeInterval(modifyDateMs) / 1000.0)
-            }
-        }
-        
-        // create_date（索引 19）- 可选字段，毫秒时间戳转 Date
-        var createDate: Date? = nil
-        if sqlite3_column_type(statement, 19) != SQLITE_NULL {
-            let createDateMs = sqlite3_column_int64(statement, 19)
-            if createDateMs > 0 {
-                createDate = Date(timeIntervalSince1970: TimeInterval(createDateMs) / 1000.0)
-            }
-        }
-        
         return Note(
             id: id,
             title: title,
@@ -1280,9 +1198,7 @@ final class DatabaseService: @unchecked Sendable {
             serverTag: serverTag,
             status: status,
             settingJson: settingJson,
-            extraInfoJson: extraInfoJson,
-            modifyDate: modifyDate,
-            createDate: createDate
+            extraInfoJson: extraInfoJson
         )
     }
     

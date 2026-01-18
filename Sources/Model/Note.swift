@@ -31,22 +31,20 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
     public var status: String             // 笔记状态 (normal/deleted等)，默认值 "normal"
     public var settingJson: String?       // setting 对象的 JSON
     public var extraInfoJson: String?     // extraInfo 的 JSON
-    public var modifyDate: Date?          // 服务器修改时间戳
-    public var createDate: Date?          // 服务器创建时间戳
     
     // 小米笔记格式的原始数据
     public var rawData: [String: Any]?
     
     enum CodingKeys: String, CodingKey {
         case id, title, content, folderId, isStarred, createdAt, updatedAt, tags, rawData
-        case snippet, colorId, subject, alertDate, type, serverTag, status, settingJson, extraInfoJson, modifyDate, createDate
+        case snippet, colorId, subject, alertDate, type, serverTag, status, settingJson, extraInfoJson
     }
     
     public init(id: String, title: String, content: String, folderId: String, isStarred: Bool = false, 
          createdAt: Date, updatedAt: Date, tags: [String] = [], rawData: [String: Any]? = nil,
          snippet: String? = nil, colorId: Int = 0, subject: String? = nil, alertDate: Date? = nil,
          type: String = "note", serverTag: String? = nil, status: String = "normal",
-         settingJson: String? = nil, extraInfoJson: String? = nil, modifyDate: Date? = nil, createDate: Date? = nil) {
+         settingJson: String? = nil, extraInfoJson: String? = nil) {
         self.id = id
         self.title = title
         self.content = content
@@ -65,8 +63,6 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         self.status = status
         self.settingJson = settingJson
         self.extraInfoJson = extraInfoJson
-        self.modifyDate = modifyDate
-        self.createDate = createDate
     }
     
     // 自定义编码
@@ -91,8 +87,6 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         try container.encode(status, forKey: .status)
         try container.encodeIfPresent(settingJson, forKey: .settingJson)
         try container.encodeIfPresent(extraInfoJson, forKey: .extraInfoJson)
-        try container.encodeIfPresent(modifyDate, forKey: .modifyDate)
-        try container.encodeIfPresent(createDate, forKey: .createDate)
         
         // 编码 rawData 为 JSON 数据，使用更稳定的选项
         if let rawData = rawData {
@@ -125,8 +119,6 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         status = try container.decodeIfPresent(String.self, forKey: .status) ?? "normal"
         settingJson = try container.decodeIfPresent(String.self, forKey: .settingJson)
         extraInfoJson = try container.decodeIfPresent(String.self, forKey: .extraInfoJson)
-        modifyDate = try container.decodeIfPresent(Date.self, forKey: .modifyDate)
-        createDate = try container.decodeIfPresent(Date.self, forKey: .createDate)
         
         // 解码 rawData，使用更健壮的错误处理
         do {
@@ -187,9 +179,7 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
               self.serverTag == other.serverTag &&
               self.status == other.status &&
               self.settingJson == other.settingJson &&
-              self.extraInfoJson == other.extraInfoJson &&
-              self.modifyDate == other.modifyDate &&
-              self.createDate == other.createDate else {
+              self.extraInfoJson == other.extraInfoJson else {
             return false
         }
         
@@ -422,18 +412,14 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         // 解析时间戳（毫秒转 Date）
         if let createDateMs = entry["createDate"] as? TimeInterval {
             self.createdAt = Date(timeIntervalSince1970: createDateMs / 1000)
-            self.createDate = self.createdAt
         } else {
             self.createdAt = Date()
-            self.createDate = nil
         }
         
         if let modifyDateMs = entry["modifyDate"] as? TimeInterval {
             self.updatedAt = Date(timeIntervalSince1970: modifyDateMs / 1000)
-            self.modifyDate = self.updatedAt
         } else {
             self.updatedAt = self.createdAt
-            self.modifyDate = nil
         }
         
         // 解析标签

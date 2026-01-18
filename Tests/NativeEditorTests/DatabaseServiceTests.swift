@@ -69,9 +69,7 @@ final class DatabaseServiceTests: XCTestCase {
             ("tag", "TEXT"),
             ("status", "TEXT DEFAULT 'normal'"),
             ("setting_json", "TEXT"),
-            ("extra_info_json", "TEXT"),
-            ("modify_date", "INTEGER"),
-            ("create_date", "INTEGER")
+            ("extra_info_json", "TEXT")
         ]
         
         // 开始事务
@@ -91,8 +89,7 @@ final class DatabaseServiceTests: XCTestCase {
             "id", "title", "content", "folder_id", "is_starred",
             "created_at", "updated_at", "tags", "raw_data",
             "snippet", "color_id", "subject", "alert_date", "type",
-            "tag", "status", "setting_json", "extra_info_json",
-            "modify_date", "create_date"
+            "tag", "status", "setting_json", "extra_info_json"
         ]
         
         let actualFields = getTableColumns(tableName: "notes")
@@ -307,9 +304,7 @@ final class DatabaseServiceTests: XCTestCase {
             ("tag", "TEXT"),
             ("status", "TEXT DEFAULT 'normal'"),
             ("setting_json", "TEXT"),
-            ("extra_info_json", "TEXT"),
-            ("modify_date", "INTEGER"),
-            ("create_date", "INTEGER")
+            ("extra_info_json", "TEXT")
         ]
         
         executeSQL("BEGIN TRANSACTION;")
