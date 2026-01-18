@@ -426,6 +426,26 @@ public class XMLNormalizer {
         
         var result = xml
         
+        // 0. 移除空的 imgdes 属性（兼容旧笔记）
+        // 注意：normalizeAttributeOrder 可能会重新生成空的 imgdes=""
+        // 所以需要在这里再次移除
+        // 修复：使用 \s* 而不是 \s+，因为 imgdes 可能紧跟在标签名或其他属性后面
+        let emptyImgdesPattern = "\\s*imgdes\\s*=\\s*\"\"\\s*"
+        if let regex = try? NSRegularExpression(pattern: emptyImgdesPattern, options: []) {
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: (result as NSString).length))
+            if !matches.isEmpty {
+                print("[XMLNormalizer] 🔍 在 normalizeAttributeValues 中发现 \(matches.count) 个空 imgdes 属性")
+                // 替换为单个空格，保持属性之间的分隔
+                result = regex.stringByReplacingMatches(
+                    in: result,
+                    options: [],
+                    range: NSRange(location: 0, length: (result as NSString).length),
+                    withTemplate: " "
+                )
+                print("[XMLNormalizer] ✅ 已移除所有空 imgdes 属性")
+            }
+        }
+        
         // 1. 移除所有标签中的 width 和 height 属性
         // 匹配模式：width="任意值" 或 height="任意值"（包括前后可能的空格）
         let sizeAttrPattern = "\\s+(width|height)\\s*=\\s*\"[^\"]*\""
