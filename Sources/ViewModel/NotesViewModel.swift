@@ -567,6 +567,10 @@ public class NotesViewModel: ObservableObject {
         // _Requirements: 8.1, 8.3, 8.4, 8.5_
         setupViewOptionsSync()
         
+        // 监听原生编辑器的内容变化（基于版本号机制）
+        // _Requirements: FR-6.2_ - 只在有未保存更改时触发保存
+        setupNativeEditorContentChangeListener()
+        
         // 监听selectedNote和selectedFolder变化，保存状态
         Publishers.CombineLatest($selectedNote, $selectedFolder)
             .sink { [weak self] selectedNote, _ in
@@ -957,6 +961,111 @@ public class NotesViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+    }
+    
+    /// 设置原生编辑器内容变化监听器
+    /// 
+    /// 监听 NativeEditorContext 的 contentChangePublisher，基于版本号机制判断是否需要保存
+    /// 只在有未保存更改时触发保存操作
+    /// 
+    /// _Requirements: FR-6.2_ - 只在有未保存更改时保存
+    private func setupNativeEditorContentChangeListener() {
+        nativeEditorContext.contentChangePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                
+                // 检查是否需要保存（基于版本号机制）
+                // _Requirements: FR-6.2_
+                guard self.nativeEditorContext.needsSave else {
+                    print("[NotesViewModel] 内容变化但无需保存，跳过")
+                    return
+                }
+                
+                // 检查是否有选中的笔记
+                guard let note = self.selectedNote else {
+                    print("[NotesViewModel] 内容变化但无选中笔记，跳过保存")
+                    return
+                }
+                
+                print("[NotesViewModel] 📝 检测到内容变化且需要保存")
+                print("[NotesViewModel]   - 笔记ID: \(note.id.prefix(8))...")
+                print("[NotesViewModel]   - needsSave: \(self.nativeEditorContext.needsSave)")
+                
+                // 触发保存操作
+                Task { @MainActor in
+                    await self.handleContentChangeAndSave(note)
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    /// 处理内容变化并保存
+    /// 
+    /// 当编辑器内容变化且需要保存时，执行保存操作
+    /// 
+    /// _Requirements: FR-6.2_ - 只在有未保存更改时保存
+    @MainActor
+    private func handleContentChangeAndSave(_ note: Note) async {
+        // 导出 XML 内容
+        let xmlContent = nativeEditorContext.exportToXML()
+        
+        guard !xmlContent.isEmpty else {
+            print("[NotesViewModel] ⚠️ 导出的 XML 为空，取消保存")
+            return
+        }
+        
+        print("[NotesViewModel] 💾 开始保存笔记")
+        print("[NotesViewModel]   - 笔记ID: \(note.id.prefix(8))...")
+        print("[NotesViewModel]   - XML 长度: \(xmlContent.count)")
+        
+        // 构建更新的笔记对象
+        let updatedNote = Note(
+            id: note.id,
+            title: note.title,
+            content: xmlContent,
+            folderId: note.folderId,
+            isStarred: note.isStarred,
+            createdAt: note.createdAt,
+            updatedAt: Date(),
+            tags: note.tags,
+            rawData: note.rawData
+        )
+        
+        // 使用 NoteOperationCoordinator 保存笔记
+        // 这会处理本地保存和云端同步
+        do {
+            let saveResult = await NoteOperationCoordinator.shared.saveNote(updatedNote)
+            
+            switch saveResult {
+            case .success:
+                print("[NotesViewModel] ✅ 笔记保存成功")
+                
+                // 通知 changeTracker 保存成功
+                // _Requirements: FR-4.1_
+                nativeEditorContext.changeTracker.didSaveSuccessfully()
+                
+                // 更新内存中的笔记列表
+                if let index = notes.firstIndex(where: { $0.id == updatedNote.id }) {
+                    notes[index] = updatedNote
+                }
+                
+                // 更新选中的笔记
+                if selectedNote?.id == updatedNote.id {
+                    selectedNote = updatedNote
+                }
+                
+            case .failure(let error):
+                print("[NotesViewModel] ❌ 笔记保存失败: \(error)")
+                
+                // 通知 changeTracker 保存失败
+                // _Requirements: FR-4.2, FR-4.3_
+                nativeEditorContext.changeTracker.didSaveFail()
+                
+                // 保存失败时，版本号机制会保持 needsSave 状态
+                // 后续会自动重试
+            }
+        }
     }
     
     @MainActor

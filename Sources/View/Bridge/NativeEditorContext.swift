@@ -232,6 +232,36 @@ public class NativeEditorContext: ObservableObject {
     /// 需求: 6.2
     @Published var formatActivationRatios: [TextFormat: Double] = [:]
     
+    // MARK: - 版本号机制属性
+    // _Requirements: FR-1, FR-6_ - 版本号追踪和自动保存
+    
+    /// 变化追踪器
+    /// 
+    /// 使用版本号机制追踪内容变化，避免内容比较的性能开销和误判问题
+    /// 
+    /// _Requirements: FR-1, FR-2, FR-3, FR-4_
+    internal let changeTracker = EditorChangeTracker()
+    
+    /// 自动保存管理器
+    /// 
+    /// 负责自动保存的调度、防抖和并发控制
+    /// 
+    /// _Requirements: FR-6_
+    private lazy var autoSaveManager: AutoSaveManager = {
+        AutoSaveManager { [weak self] in
+            await self?.performAutoSave()
+        }
+    }()
+    
+    /// 是否需要保存（基于版本号机制）
+    /// 
+    /// 通过版本号差异判断是否需要保存，避免内容比较的性能开销
+    /// 
+    /// _Requirements: FR-1.3_
+    public var needsSave: Bool {
+        changeTracker.needsSave
+    }
+    
     // MARK: - Private Properties
     
     /// 原始 XML 是否以 <new-format/> 开头
@@ -382,6 +412,11 @@ public class NativeEditorContext: ObservableObject {
         // 标记有未保存的更改
         hasUnsavedChanges = true
         
+        // 使用版本号机制追踪格式变化
+        // _Requirements: FR-2.2, FR-6_
+        changeTracker.formatDidChange()
+        autoSaveManager.scheduleAutoSave()
+        
         // 重置应用方式
         currentApplicationMethod = .programmatic
     }
@@ -409,6 +444,11 @@ public class NativeEditorContext: ObservableObject {
                 toolbarButtonStates[format] = false
             }
         }
+        
+        // 使用版本号机制追踪格式变化
+        // _Requirements: FR-2.2, FR-6_
+        changeTracker.formatDidChange()
+        autoSaveManager.scheduleAutoSave()
     }
     
     /// 清除标题格式（将文本恢复为正文样式）
@@ -438,6 +478,11 @@ public class NativeEditorContext: ObservableObject {
         
         // 标记有未保存的更改
         hasUnsavedChanges = true
+        
+        // 使用版本号机制追踪格式变化
+        // _Requirements: FR-2.2, FR-6_
+        changeTracker.formatDidChange()
+        autoSaveManager.scheduleAutoSave()
         
         // 强制更新格式状态，确保 UI 同步
         updateCurrentFormats()
@@ -529,6 +574,11 @@ public class NativeEditorContext: ObservableObject {
         // 标记有未保存的更改
         hasUnsavedChanges = true
         
+        // 使用版本号机制追踪格式变化
+        // _Requirements: FR-2.2, FR-6_
+        changeTracker.formatDidChange()
+        autoSaveManager.scheduleAutoSave()
+        
         // 强制更新格式状态，确保 UI 同步
         updateCurrentFormats()
         
@@ -540,6 +590,11 @@ public class NativeEditorContext: ObservableObject {
     func insertSpecialElement(_ element: SpecialElement) {
         specialElementSubject.send(element)
         hasUnsavedChanges = true
+        
+        // 使用版本号机制追踪附件变化
+        // _Requirements: FR-2.3, FR-6_
+        changeTracker.attachmentDidChange()
+        autoSaveManager.scheduleAutoSave()
     }
     
     /// 插入分割线
@@ -634,6 +689,12 @@ public class NativeEditorContext: ObservableObject {
         
         hasUnsavedChanges = true
         
+        // 使用版本号机制追踪附件变化
+        // _Requirements: FR-2.3, FR-6_
+        changeTracker.attachmentDidChange()
+        autoSaveManager.scheduleAutoSave()
+
+        
         print("[NativeEditorContext] ✅ 录音模板占位符已插入（使用 AudioAttachment）")
     }
     
@@ -686,6 +747,11 @@ public class NativeEditorContext: ObservableObject {
             // 更新编辑器内容
             updateNSContent(currentText)
             hasUnsavedChanges = true
+            
+            // 使用版本号机制追踪附件变化
+            // _Requirements: FR-2.3, FR-6_
+            changeTracker.attachmentDidChange()
+            autoSaveManager.scheduleAutoSave()
             
             print("[NativeEditorContext] ✅ 录音模板已更新为音频附件（使用 AudioAttachment）")
         } else {
@@ -837,7 +903,11 @@ public class NativeEditorContext: ObservableObject {
     func updateNSContent(_ text: NSAttributedString) {
         nsAttributedText = text
         contentChangeSubject.send(text)
-        hasUnsavedChanges = true
+        
+        // 使用版本号机制追踪文本变化
+        // _Requirements: FR-2.1, FR-6_
+        changeTracker.textDidChange()
+        autoSaveManager.scheduleAutoSave()
     }
     
     /// 异步更新编辑器内容（NSAttributedString）
@@ -849,7 +919,11 @@ public class NativeEditorContext: ObservableObject {
         Task { @MainActor in
             nsAttributedText = text
             contentChangeSubject.send(text)
-            hasUnsavedChanges = true
+            
+            // 使用版本号机制追踪文本变化
+            // _Requirements: FR-2.1, FR-6_
+            changeTracker.textDidChange()
+            autoSaveManager.scheduleAutoSave()
         }
     }
     
@@ -869,6 +943,19 @@ public class NativeEditorContext: ObservableObject {
     /// 从 XML 加载内容
     /// - Parameter xml: 小米笔记 XML 格式内容
     func loadFromXML(_ xml: String) {
+        // 使用程序化修改包裹，确保版本号不变
+        // _Requirements: FR-3_
+        changeTracker.performProgrammaticChange {
+            loadFromXMLInternal(xml)
+        }
+        
+        // 重置追踪器
+        changeTracker.reset()
+    }
+    
+    /// 内部加载 XML 方法
+    /// - Parameter xml: 小米笔记 XML 格式内容
+    private func loadFromXMLInternal(_ xml: String) {
         // 关键修复：如果 XML 为空，清空编辑器
         guard !xml.isEmpty else {
             print("[NativeEditorContext] XML 为空，清空编辑器")
@@ -1090,23 +1177,26 @@ public class NativeEditorContext: ObservableObject {
             }
             .store(in: &cancellables)
         
-        // 监听 hasUnsavedChanges 变化，用于调试和状态同步
-        // _Requirements: 6.1, 6.2, 6.3, 6.4_
-        $hasUnsavedChanges
+        // 监听版本号变化,用于状态同步
+        // _Requirements: FR-1, FR-6_ - 使用版本号机制判断是否需要保存
+        changeTracker.$contentVersion
             .dropFirst()
             .removeDuplicates()
-            .sink { [weak self] hasChanges in
+            .sink { [weak self] _ in
                 guard let self = self else { return }
                 
+                // 使用 needsSave 判断是否需要保存
+                let needsSave = self.needsSave
+                
                 // 发送保存状态变化通知
-                // _Requirements: 6.1, 6.2, 6.3, 6.4_
+                // _Requirements: FR-1, FR-6_
                 NotificationCenter.default.post(
                     name: .nativeEditorSaveStatusDidChange,
                     object: self,
-                    userInfo: ["hasUnsavedChanges": hasChanges]
+                    userInfo: ["needsSave": needsSave]
                 )
                 
-                print("[NativeEditorContext] 保存状态变化: hasUnsavedChanges = \(hasChanges)")
+                print("[NativeEditorContext] 保存状态变化: needsSave = \(needsSave)")
             }
             .store(in: &cancellables)
     }
@@ -1202,6 +1292,97 @@ public class NativeEditorContext: ObservableObject {
         hasUnsavedChanges = true
         print("[NativeEditorContext] ✅ 内容已从备份恢复 - 长度: \(backup.length)")
         return true
+    }
+    
+    // MARK: - 自动保存方法
+    // _Requirements: FR-4, FR-5, FR-6_ - 自动保存逻辑
+    
+    /// 执行自动保存
+    /// 
+    /// 检查是否需要保存，如果需要则导出 XML 并触发保存流程
+    /// 此方法会被 AutoSaveManager 调用
+    /// 
+    /// **实现逻辑**：
+    /// 1. 检查 needsSave 状态
+    /// 2. 记录保存版本号
+    /// 3. 导出 XML 内容
+    /// 4. 通过 contentChangeSubject 发布内容变化，触发 NotesViewModel 的保存逻辑
+    /// 5. 检测并发编辑（保存期间是否有新编辑）
+    /// 
+    /// **注意**：
+    /// - 保存成功/失败的处理将在后续任务 3.2 和 3.3 中由 NotesViewModel 调用 changeTracker 的方法
+    /// - 此方法只负责触发保存流程，不直接处理保存结果
+    /// 
+    /// _Requirements: FR-4, FR-5, FR-6_
+    private func performAutoSave() async {
+        print("[NativeEditorContext] ========================================")
+        print("[NativeEditorContext] performAutoSave 被调用")
+        print("[NativeEditorContext] ========================================")
+        
+        // 1. 检查是否需要保存
+        // _Requirements: FR-6.2_
+        guard changeTracker.needsSave else {
+            print("[NativeEditorContext] 无需保存，跳过")
+            print("[NativeEditorContext]   - contentVersion: \(changeTracker.contentVersion)")
+            print("[NativeEditorContext]   - needsSave: \(changeTracker.needsSave)")
+            print("[NativeEditorContext] ========================================")
+            return
+        }
+        
+        // 2. 记录保存的版本号
+        // _Requirements: FR-5.1_
+        let versionToSave = changeTracker.contentVersion
+        autoSaveManager.markSaveStarted(version: versionToSave)
+        
+        print("[NativeEditorContext] 开始自动保存")
+        print("[NativeEditorContext]   - 保存版本: \(versionToSave)")
+        print("[NativeEditorContext]   - 内容长度: \(nsAttributedText.length)")
+        
+        // 3. 导出 XML 内容
+        // _Requirements: FR-4_
+        let xmlContent = exportToXML()
+        
+        guard !xmlContent.isEmpty else {
+            print("[NativeEditorContext] ⚠️ 导出的 XML 为空，取消保存")
+            autoSaveManager.markSaveCompleted()
+            print("[NativeEditorContext] ========================================")
+            return
+        }
+        
+        print("[NativeEditorContext]   - XML 长度: \(xmlContent.count)")
+        print("[NativeEditorContext]   - XML 预览: \(xmlContent.prefix(100))...")
+        
+        // 4. 通过 contentChangeSubject 发布内容变化
+        // 这会触发 NotesViewModel 监听器，进而调用 updateNote() 保存到服务器
+        // _Requirements: FR-4_
+        print("[NativeEditorContext] 📤 发布内容变化，触发保存流程")
+        contentChangeSubject.send(nsAttributedText)
+        
+        // 5. 检测并发编辑
+        // 检查在保存过程中是否有新的编辑
+        // _Requirements: FR-5.1, FR-5.2_
+        if changeTracker.hasNewEditsSince(savingVersion: versionToSave) {
+            print("[NativeEditorContext] ⚠️ 保存期间检测到新编辑")
+            print("[NativeEditorContext]   - 保存版本: \(versionToSave)")
+            print("[NativeEditorContext]   - 当前版本: \(changeTracker.contentVersion)")
+            print("[NativeEditorContext] 📅 将再次调度保存")
+            
+            // 再次调度保存，确保新编辑也被保存
+            // _Requirements: FR-5.2_
+            autoSaveManager.scheduleAutoSave()
+        } else {
+            print("[NativeEditorContext] ✅ 保存期间无新编辑")
+        }
+        
+        // 6. 标记保存完成
+        autoSaveManager.markSaveCompleted()
+        
+        print("[NativeEditorContext] performAutoSave 完成")
+        print("[NativeEditorContext] ========================================")
+        
+        // 注意：保存成功/失败的处理将在后续任务 3.2 和 3.3 中实现
+        // NotesViewModel 会在保存成功后调用 changeTracker.didSaveSuccessfully()
+        // 或在保存失败后调用 changeTracker.didSaveFail()
     }
     
     /// 通知内容变化

@@ -142,9 +142,9 @@ struct NoteDetailView: View {
     
     /// 处理原生编辑器保存状态变化通知
     /// 
-    /// 当原生编辑器的 hasUnsavedChanges 状态变化时，更新保存状态指示器
+    /// 当原生编辑器的 needsSave 状态变化时,更新保存状态指示器
     /// 
-    /// _Requirements: 6.1, 6.2, 6.3, 6.4_
+    /// _Requirements: FR-1, FR-6_ - 使用版本号机制判断是否需要保存
     private func handleNativeEditorSaveStatusChange(_ notification: Notification) {
         // 只在使用原生编辑器时处理
         guard isUsingNativeEditor else { return }
@@ -152,15 +152,15 @@ struct NoteDetailView: View {
         // 只在非调试模式下处理
         guard !isDebugMode else { return }
         
-        // 获取 hasUnsavedChanges 状态
+        // 获取 needsSave 状态
         guard let userInfo = notification.userInfo,
-              let hasUnsavedChanges = userInfo["hasUnsavedChanges"] as? Bool else {
+              let needsSave = userInfo["needsSave"] as? Bool else {
             return
         }
         
         // 更新保存状态
-        // _Requirements: 6.1_ - 内容未保存时显示"未保存"状态
-        if hasUnsavedChanges {
+        // _Requirements: FR-1, FR-6_ - 内容未保存时显示"未保存"状态
+        if needsSave {
             // 只有在当前状态不是 saving 时才更新为 unsaved
             // 避免在保存过程中被覆盖
             if case .saving = saveStatus {
@@ -170,7 +170,7 @@ struct NoteDetailView: View {
                 Swift.print("[保存状态] 📝 内容变化 - 设置为未保存")
             }
         }
-        // 注意：saved 状态由保存完成后的回调设置，不在这里处理
+        // 注意：saved 状态由保存完成后的回调设置,不在这里处理
     }
     
     /// 注册保存回调到 ViewStateCoordinator
