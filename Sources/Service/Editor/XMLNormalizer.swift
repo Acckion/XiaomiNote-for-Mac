@@ -22,8 +22,8 @@ public class XMLNormalizer {
     /// 单例
     public static let shared = XMLNormalizer()
     
-    /// 私有初始化器，确保单例模式
-    private init() {}
+    /// 公共初始化器，允许测试创建实例
+    public init() {}
     
     // MARK: - 公共方法
     

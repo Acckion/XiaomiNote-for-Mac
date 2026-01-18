@@ -160,6 +160,47 @@ public class NotesViewModel: ObservableObject {
     /// _Requirements: Spec 60 - 修复笔记切换死循环_
     private var isUpdatingFromCoordinator: Bool = false
     
+    /// 当前加载任务的唯一标识符
+    /// 
+    /// 用于跟踪延迟加载任务，防止过期任务完成时触发意外操作
+    /// 
+    /// **使用场景**：
+    /// - 在开始加载笔记内容时生成新的 UUID 并赋值给此属性
+    /// - 在延迟加载完成前检查任务 ID 是否仍然有效
+    /// - 如果任务 ID 已经改变（说明用户已切换到其他笔记），则取消当前任务
+    /// 
+    /// **问题背景**：
+    /// - 快速切换笔记时，延迟加载任务可能还未完成
+    /// - 新的切换已经发生，但旧任务完成时发现笔记 ID 不匹配
+    /// - 取消操作可能触发了新的切换，导致死循环
+    /// 
+    /// **解决方案**：
+    /// - 使用唯一的任务 ID 跟踪每个加载任务
+    /// - 任务完成前检查 ID 是否仍然有效
+    /// - 如果 ID 已过期，直接返回，不执行任何操作
+    /// 
+    /// **示例**：
+    /// ```swift
+    /// func loadNoteContent(_ note: Note) async {
+    ///     let taskId = UUID()
+    ///     currentLoadingTaskId = taskId
+    ///     
+    ///     // 延迟加载
+    ///     try? await Task.sleep(nanoseconds: 100_000_000)
+    ///     
+    ///     // 检查任务是否仍然有效
+    ///     guard currentLoadingTaskId == taskId else {
+    ///         print("[快速切换] 任务已过期，取消加载")
+    ///         return
+    ///     }
+    ///     
+    ///     // 执行加载...
+    /// }
+    /// ```
+    /// 
+    /// _Requirements: Spec 60 - 修复笔记切换死循环_
+    private var currentLoadingTaskId: UUID?
+    
     // MARK: - 状态协调器
     
     /// 视图状态协调器
@@ -948,10 +989,22 @@ public class NotesViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] folder in
                 guard let self = self else { return }
+                
+                // 防止循环更新：当正在从 Coordinator 更新时，忽略新的更新
+                // _Requirements: Spec 60 - 修复笔记切换死循环_
+                guard !self.isUpdatingFromCoordinator else {
+                    print("[NotesViewModel] 正在从 Coordinator 更新，忽略 selectedFolder 变化")
+                    return
+                }
+                
                 // 只有当状态真正变化时才更新，避免循环更新
                 if self.selectedFolder?.id != folder?.id {
                     print("[NotesViewModel] 从 stateCoordinator 同步 selectedFolder: \(folder?.name ?? "nil")")
+                    
+                    // 设置标志，防止循环更新
+                    self.isUpdatingFromCoordinator = true
                     self.selectedFolder = folder
+                    self.isUpdatingFromCoordinator = false
                 }
             }
             .store(in: &cancellables)
@@ -961,10 +1014,22 @@ public class NotesViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] note in
                 guard let self = self else { return }
+                
+                // 防止循环更新：当正在从 Coordinator 更新时，忽略新的更新
+                // _Requirements: Spec 60 - 修复笔记切换死循环_
+                guard !self.isUpdatingFromCoordinator else {
+                    print("[NotesViewModel] 正在从 Coordinator 更新，忽略 selectedNote 变化")
+                    return
+                }
+                
                 // 只有当状态真正变化时才更新，避免循环更新
                 if self.selectedNote?.id != note?.id {
                     print("[NotesViewModel] 从 stateCoordinator 同步 selectedNote: \(note?.title ?? "nil")")
+                    
+                    // 设置标志，防止循环更新
+                    self.isUpdatingFromCoordinator = true
                     self.selectedNote = note
+                    self.isUpdatingFromCoordinator = false
                     
                     // 发送笔记选中状态变化通知
                     // _Requirements: 14.4_
