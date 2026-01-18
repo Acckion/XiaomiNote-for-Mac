@@ -2023,6 +2023,12 @@ final class SyncService: @unchecked Sendable {
                     print("[SYNC] 旧版格式图片下载失败: \(fileId), 错误: \(error.localizedDescription)")
                     continue
                 }
+            } else {
+                // 图片已存在，尝试获取文件大小
+                if let imageData = localStorage.loadImage(fileId: fileId, fileType: existingFormat!) {
+                    imageSize = imageData.count
+                    print("[SYNC] 从本地加载旧版格式图片大小: \(imageSize) 字节")
+                }
             }
             
             // 生成 setting.data 条目
