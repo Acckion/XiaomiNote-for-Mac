@@ -341,6 +341,151 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
     
     // MARK: - 数据转换
     
+    /// 从服务器响应初始化 Note 对象
+    /// 
+    /// 解析服务器返回的完整笔记数据，包括所有新增字段。
+    /// 此方法用于从服务器响应中创建完整的 Note 对象。
+    /// 
+    /// - Parameter serverResponse: 服务器响应字典，可能包含 data.entry、entry 或直接是笔记数据
+    /// - Returns: Note 对象，如果数据无效则返回 nil
+    public init?(from serverResponse: [String: Any]) {
+        // 提取 entry 数据
+        var entry: [String: Any]?
+        
+        // 格式1: {"data": {"entry": {...}}}
+        if let data = serverResponse["data"] as? [String: Any],
+           let dataEntry = data["entry"] as? [String: Any] {
+            entry = dataEntry
+        }
+        // 格式2: {"entry": {...}}
+        else if let directEntry = serverResponse["entry"] as? [String: Any] {
+            entry = directEntry
+        }
+        // 格式3: 响应本身就是 entry
+        else if serverResponse["id"] != nil {
+            entry = serverResponse
+        }
+        
+        guard let entry = entry else {
+            return nil
+        }
+        
+        // 必需字段：id
+        guard let id = entry["id"] as? String else {
+            return nil
+        }
+        
+        // 解析基本字段
+        self.id = id
+        
+        // 解析标题（从 extraInfo 或 title 字段）
+        var title = ""
+        if let extraInfo = entry["extraInfo"] as? String,
+           let extraData = extraInfo.data(using: .utf8),
+           let extraJson = try? JSONSerialization.jsonObject(with: extraData) as? [String: Any],
+           let extractedTitle = extraJson["title"] as? String {
+            title = extractedTitle
+        }
+        
+        if title.isEmpty, let entryTitle = entry["title"] as? String {
+            title = entryTitle
+        }
+        
+        if title.isEmpty {
+            title = "未命名笔记_\(id)"
+        }
+        
+        // 清理标题中的 HTML 标签和非法字符
+        title = title.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        title = title.replacingOccurrences(of: "[\\\\/:*?\"<>|]", with: "", options: .regularExpression)
+        self.title = title
+        
+        // 解析内容
+        if let content = entry["content"] as? String {
+            self.content = Self.convertLegacyImageFormat(content)
+        } else {
+            self.content = ""
+        }
+        
+        // 解析文件夹 ID
+        if let folderIdString = entry["folderId"] as? String {
+            self.folderId = folderIdString
+        } else if let folderIdInt = entry["folderId"] as? Int {
+            self.folderId = String(folderIdInt)
+        } else {
+            self.folderId = "0"
+        }
+        
+        // 解析收藏状态
+        self.isStarred = entry["isStarred"] as? Bool ?? false
+        
+        // 解析时间戳（毫秒转 Date）
+        if let createDateMs = entry["createDate"] as? TimeInterval {
+            self.createdAt = Date(timeIntervalSince1970: createDateMs / 1000)
+            self.createDate = self.createdAt
+        } else {
+            self.createdAt = Date()
+            self.createDate = nil
+        }
+        
+        if let modifyDateMs = entry["modifyDate"] as? TimeInterval {
+            self.updatedAt = Date(timeIntervalSince1970: modifyDateMs / 1000)
+            self.modifyDate = self.updatedAt
+        } else {
+            self.updatedAt = self.createdAt
+            self.modifyDate = nil
+        }
+        
+        // 解析标签
+        self.tags = []
+        
+        // 解析新增字段
+        self.snippet = entry["snippet"] as? String
+        self.colorId = entry["colorId"] as? Int ?? 0
+        self.subject = entry["subject"] as? String
+        
+        // 解析提醒时间（毫秒转 Date）
+        if let alertDateMs = entry["alertDate"] as? TimeInterval, alertDateMs > 0 {
+            self.alertDate = Date(timeIntervalSince1970: alertDateMs / 1000)
+        } else {
+            self.alertDate = nil
+        }
+        
+        self.type = entry["type"] as? String ?? "note"
+        self.serverTag = entry["tag"] as? String
+        self.status = entry["status"] as? String ?? "normal"
+        
+        // 解析 JSON 字段
+        if let setting = entry["setting"] {
+            // 将 setting 对象转换为 JSON 字符串
+            if let settingData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
+               let settingString = String(data: settingData, encoding: .utf8) {
+                self.settingJson = settingString
+            } else {
+                self.settingJson = nil
+            }
+        } else {
+            self.settingJson = nil
+        }
+        
+        if let extraInfo = entry["extraInfo"] as? String {
+            self.extraInfoJson = extraInfo
+        } else if let extraInfo = entry["extraInfo"] {
+            // 如果 extraInfo 不是字符串，尝试转换为 JSON 字符串
+            if let extraInfoData = try? JSONSerialization.data(withJSONObject: extraInfo, options: [.sortedKeys]),
+               let extraInfoString = String(data: extraInfoData, encoding: .utf8) {
+                self.extraInfoJson = extraInfoString
+            } else {
+                self.extraInfoJson = nil
+            }
+        } else {
+            self.extraInfoJson = nil
+        }
+        
+        // 保存原始数据
+        self.rawData = entry
+    }
+    
     /// 从小米笔记API数据创建Note对象
     /// 
     /// 解析API返回的笔记数据，提取标题、时间戳等信息
