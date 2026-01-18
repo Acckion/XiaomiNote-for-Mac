@@ -72,6 +72,15 @@ public class EditorChangeTracker: ObservableObject {
     /// _Requirements: FR-3.1_
     private var isProgrammaticChange: Bool = false
     
+    /// 是否正在进行程序化修改（公开只读）
+    ///
+    /// 用于外部检查当前是否在程序化修改中
+    ///
+    /// _Requirements: FR-3.1_
+    public var isInProgrammaticChange: Bool {
+        isProgrammaticChange
+    }
+    
     /// 是否有用户编辑
     ///
     /// 用于区分用户编辑和程序化修改

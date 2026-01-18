@@ -1165,6 +1165,13 @@ public class NativeEditorContext: ObservableObject {
             .sink { [weak self] newContent in
                 guard let self = self else { return }
                 
+                // 检查是否是程序化修改
+                // _Requirements: FR-3.1_ - 程序化修改不触发保存
+                if self.changeTracker.isInProgrammaticChange {
+                    print("[NativeEditorContext] 程序化修改，跳过 hasUnsavedChanges 更新")
+                    return
+                }
+                
                 // 更新未保存状态
                 // _Requirements: 6.1_
                 self.hasUnsavedChanges = true
