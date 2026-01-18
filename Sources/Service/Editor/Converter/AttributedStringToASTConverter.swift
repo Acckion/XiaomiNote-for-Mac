@@ -196,7 +196,8 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
                 src: imageAttachment.src,
                 width: Int(imageAttachment.displaySize.width),
                 height: Int(imageAttachment.displaySize.height),
-                description: imageAttachment.imageDescription
+                description: imageAttachment.imageDescription,
+                imgshow: imageAttachment.imgshow
             )
         }
         
@@ -335,10 +336,11 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
             // 使用 FontSizeConstants 检测标题级别（非 MainActor 上下文）
             // _Requirements: 7.1, 7.2, 7.3_
             let detectedFormat = FontSizeConstants.detectParagraphFormat(fontSize: fontSize)
-            let isHeading = detectedFormat.isHeading
             
-            // 检查粗体（但不包括标题的粗体，因为标题会单独处理）
-            if font.fontDescriptor.symbolicTraits.contains(.bold) && !isHeading {
+            // 检查粗体（包括标题的粗体）
+            // 修复：移除 !isHeading 条件，允许标题文本同时具有粗体格式
+            // 这样可以正确保留 <size><b>1</b></size> 这样的嵌套格式
+            if font.fontDescriptor.symbolicTraits.contains(.bold) {
                 formats.insert(.bold)
             }
             if font.fontDescriptor.symbolicTraits.contains(.italic) {

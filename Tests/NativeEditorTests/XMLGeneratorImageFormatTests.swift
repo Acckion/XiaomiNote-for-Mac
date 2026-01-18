@@ -13,7 +13,7 @@ struct XMLGeneratorImageFormatTests {
     
     // MARK: - 新格式生成测试
     
-    @Test("生成包含描述的新格式图片")
+    @Test("生成包含描述的新格式图片（默认 imgshow）")
     func testGenerateNewFormat_WithDescription() async throws {
         let node = ImageNode(
             fileId: "1315204657.test",
@@ -24,7 +24,7 @@ struct XMLGeneratorImageFormatTests {
         let xml = generator.generate(document)
         
         #expect(xml.contains("fileid=\"1315204657.test\""))
-        #expect(xml.contains("imgshow=\"0\""))
+        #expect(xml.contains("imgshow=\"0\""))  // 默认值为 "0"
         #expect(xml.contains("imgdes=\"我的照片\""))
     }
     
@@ -77,17 +77,41 @@ struct XMLGeneratorImageFormatTests {
         #expect(xml.contains("&quot;"))
     }
     
-    @Test("验证始终包含 imgshow=\"0\"")
-    func testGenerateNewFormat_AlwaysIncludesImgshow() async throws {
-        let node = ImageNode(
+    @Test("验证 imgshow 属性保持原值")
+    func testGenerateNewFormat_PreservesImgshow() async throws {
+        // 测试 imgshow="1"
+        let node1 = ImageNode(
             fileId: "1315204657.test",
-            description: "测试"
+            description: "测试",
+            imgshow: "1"
         )
-        let document = DocumentNode(blocks: [node])
+        let document1 = DocumentNode(blocks: [node1])
         let generator = XMLGenerator()
-        let xml = generator.generate(document)
+        let xml1 = generator.generate(document1)
         
-        #expect(xml.contains("imgshow=\"0\""))
+        #expect(xml1.contains("imgshow=\"1\""))
+        
+        // 测试 imgshow="0"
+        let node2 = ImageNode(
+            fileId: "1315204657.test",
+            description: "测试",
+            imgshow: "0"
+        )
+        let document2 = DocumentNode(blocks: [node2])
+        let xml2 = generator.generate(document2)
+        
+        #expect(xml2.contains("imgshow=\"0\""))
+        
+        // 测试 imgshow=nil（默认为 "0"）
+        let node3 = ImageNode(
+            fileId: "1315204657.test",
+            description: "测试",
+            imgshow: nil
+        )
+        let document3 = DocumentNode(blocks: [node3])
+        let xml3 = generator.generate(document3)
+        
+        #expect(xml3.contains("imgshow=\"0\""))
     }
     
     // MARK: - 向后兼容性测试

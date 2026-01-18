@@ -234,15 +234,20 @@ public struct ImageNode: BlockNode, Equatable, Sendable {
     /// 图片描述（用户可编辑的说明文本）
     public var description: String?
     
+    /// 图片显示属性（小米笔记固有属性，必须保持原值）
+    /// "0" 或 "1"，客户端不使用但需要保持与云端一致
+    public var imgshow: String?
+    
     /// 图片没有子节点
     public var children: [any ASTNode] { [] }
     
-    public init(fileId: String? = nil, src: String? = nil, width: Int? = nil, height: Int? = nil, description: String? = nil) {
+    public init(fileId: String? = nil, src: String? = nil, width: Int? = nil, height: Int? = nil, description: String? = nil, imgshow: String? = nil) {
         self.fileId = fileId
         self.src = src
         self.width = width
         self.height = height
         self.description = description
+        self.imgshow = imgshow
     }
 }
 

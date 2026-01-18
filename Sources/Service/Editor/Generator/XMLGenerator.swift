@@ -130,7 +130,7 @@ public final class XMLGenerator: @unchecked Sendable {
     }
     
     /// 生成图片 XML
-    /// 格式：新格式 `<img fileid="ID" imgshow="0" imgdes="描述" />` 或旧格式 `<img src="URL" />`
+    /// 格式：新格式 `<img fileid="ID" imgshow="0/1" imgdes="描述" />` 或旧格式 `<img src="URL" />`
     private func generateImage(_ node: ImageNode) -> String {
         var attributes: [String] = []
         
@@ -138,12 +138,14 @@ public final class XMLGenerator: @unchecked Sendable {
         if let fileId = node.fileId {
             attributes.append("fileid=\"\(encodeXMLEntities(fileId))\"")
             
-            // 新格式必需属性
-            attributes.append("imgshow=\"0\"")
-            
             // 添加描述（如果有）
             let description = node.description ?? ""
             attributes.append("imgdes=\"\(encodeXMLEntities(description))\"")
+            
+            // 使用实际的 imgshow 值，如果没有则默认为 "0"
+            // 注意：必须保持原值，不能随意修改
+            let imgshowValue = node.imgshow ?? "0"
+            attributes.append("imgshow=\"\(imgshowValue)\"")
         }
         // 如果没有 fileId，使用 src（兼容其他格式）
         else if let src = node.src {

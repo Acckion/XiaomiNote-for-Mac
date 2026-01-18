@@ -237,6 +237,13 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     
     /// 解析块级元素
     private func parseBlockElement(name: String, attributes: [String: String], selfClosing: Bool) throws -> (any BlockNode)? {
+        // 特殊处理：<new-format/> 标签
+        // 这是一个元数据标记，不影响文本渲染，直接跳过
+        if name == "new-format" {
+            advance()
+            return nil
+        }
+        
         switch name {
         case "text":
             return try parseTextBlock(attributes: attributes, selfClosing: selfClosing)
@@ -377,12 +384,26 @@ public final class MiNoteXMLParser: @unchecked Sendable {
         let src = attributes["src"]
         let width = attributes["width"].flatMap { Int($0) }
         let height = attributes["height"].flatMap { Int($0) }
-        let description = attributes["imgdes"]
+        
+        // 读取 imgdes 属性，并清理可能的双引号嵌套问题
+        // 例如：imgdes=""2"" 应该变成 "2"
+        let description: String? = {
+            guard let rawDesc = attributes["imgdes"] else { return nil }
+            // 移除开头和结尾的多余引号
+            var cleaned = rawDesc
+            while cleaned.hasPrefix("\"") && cleaned.hasSuffix("\"") && cleaned.count > 1 {
+                cleaned = String(cleaned.dropFirst().dropLast())
+            }
+            return cleaned.isEmpty ? nil : cleaned
+        }()
+        
+        // 读取 imgshow 属性（小米笔记固有属性，必须保持原值）
+        let imgshow = attributes["imgshow"]
         
         // 跳过标签
         advance()
         
-        return ImageNode(fileId: fileId, src: src, width: width, height: height, description: description)
+        return ImageNode(fileId: fileId, src: src, width: width, height: height, description: description, imgshow: imgshow)
     }
     
     /// 解析音频 `<sound fileid="ID" />`
@@ -537,6 +558,13 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     
     /// 解析行内元素
     private func parseInlineElement(name: String, attributes: [String: String], selfClosing: Bool) throws -> (any InlineNode)? {
+        // 特殊处理：<new-format/> 标签
+        // 这是一个元数据标记，不影响文本渲染，直接跳过
+        if name == "new-format" {
+            advance()
+            return nil
+        }
+        
         // 获取对应的节点类型
         guard let nodeType = inlineTagToNodeType(name) else {
             // 不支持的行内元素，记录警告并跳过
@@ -638,6 +666,11 @@ public final class MiNoteXMLParser: @unchecked Sendable {
             return .centerAlign
         case "right":
             return .rightAlign
+        case "new-format":
+            // <new-format/> 标签是一个标记标签，表示使用新版格式
+            // 它不影响文本渲染，只是一个元数据标记
+            // 返回 nil 表示跳过这个标签，但不记录警告
+            return nil
         default:
             return nil
         }

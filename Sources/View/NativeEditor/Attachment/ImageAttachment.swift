@@ -27,6 +27,10 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     /// 图片描述（从 XML 解析得到，用户可编辑的说明信息）
     var imageDescription: String?
     
+    /// 图片显示属性（小米笔记固有属性，必须保持原值）
+    /// "0" 或 "1"，客户端不使用但需要保持与云端一致
+    var imgshow: String?
+    
     /// 原始图片尺寸
     var originalSize: NSSize = .zero
     
@@ -73,11 +77,12 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
     
     /// 便捷初始化方法 - 从图片数据创建
-    convenience init(imageData: Data, fileId: String, folderId: String? = nil, imageDescription: String? = nil) {
+    convenience init(imageData: Data, fileId: String, folderId: String? = nil, imageDescription: String? = nil, imgshow: String? = nil) {
         self.init(data: imageData, ofType: "public.image")
         self.fileId = fileId
         self.folderId = folderId
         self.imageDescription = imageDescription
+        self.imgshow = imgshow
         
         if let image = NSImage(data: imageData) {
             self.image = image
@@ -87,29 +92,32 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
     
     /// 便捷初始化方法 - 从 NSImage 创建
-    convenience init(image: NSImage, fileId: String? = nil, folderId: String? = nil, imageDescription: String? = nil) {
+    convenience init(image: NSImage, fileId: String? = nil, folderId: String? = nil, imageDescription: String? = nil, imgshow: String? = nil) {
         self.init(data: nil, ofType: nil)
         self.fileId = fileId
         self.folderId = folderId
         self.imageDescription = imageDescription
+        self.imgshow = imgshow
         self.image = image
         self.originalSize = image.size
         calculateDisplaySize()
     }
     
     /// 便捷初始化方法 - 从 URL 创建（立即加载）
-    convenience init(src: String, fileId: String? = nil, folderId: String? = nil, imageDescription: String? = nil) {
+    convenience init(src: String, fileId: String? = nil, folderId: String? = nil, imageDescription: String? = nil, imgshow: String? = nil) {
         self.init(data: nil, ofType: nil)
         self.src = src
         self.fileId = fileId
         self.folderId = folderId
         self.imageDescription = imageDescription
+        self.imgshow = imgshow
         self.isLoading = true
         print("[ImageAttachment] 🖼️ 初始化（立即加载）")
         print("[ImageAttachment]   - src: '\(src)'")
         print("[ImageAttachment]   - fileId: '\(fileId ?? "nil")'")
         print("[ImageAttachment]   - folderId: '\(folderId ?? "nil")'")
         print("[ImageAttachment]   - imageDescription: '\(imageDescription ?? "nil")'")
+        print("[ImageAttachment]   - imgshow: '\(imgshow ?? "nil")'")
         print("[ImageAttachment]   - 附件对象地址: \(Unmanaged.passUnretained(self).toOpaque())")
         setupPlaceholder()
         
