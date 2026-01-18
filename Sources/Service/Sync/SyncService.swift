@@ -312,7 +312,15 @@ final class SyncService: @unchecked Sendable {
                         setting["data"] = updatedSettingData
                         rawData["setting"] = setting
                         updatedNote.rawData = rawData
-                        print("[SYNC] 更新笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                        
+                        // 同步更新 settingJson 字段
+                        if let settingData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
+                           let settingString = String(data: settingData, encoding: .utf8) {
+                            updatedNote.settingJson = settingString
+                            print("[SYNC] 更新笔记的 setting.data 和 settingJson，包含 \(updatedSettingData.count) 个图片条目")
+                        } else {
+                            print("[SYNC] ⚠️ 无法将 setting 转换为 JSON 字符串")
+                        }
                     }
                     
                     // 保存到本地
@@ -354,7 +362,15 @@ final class SyncService: @unchecked Sendable {
                         setting["data"] = updatedSettingData
                         rawData["setting"] = setting
                         updatedNote.rawData = rawData
-                        print("[SYNC] 更新私密笔记的 setting.data，包含 \(updatedSettingData.count) 个图片条目")
+                        
+                        // 同步更新 settingJson 字段
+                        if let settingData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
+                           let settingString = String(data: settingData, encoding: .utf8) {
+                            updatedNote.settingJson = settingString
+                            print("[SYNC] 更新私密笔记的 setting.data 和 settingJson，包含 \(updatedSettingData.count) 个图片条目")
+                        } else {
+                            print("[SYNC] ⚠️ 无法将 setting 转换为 JSON 字符串")
+                        }
                     }
                     
                     // 保存到本地（确保 folderId 为 "2"）
@@ -1793,6 +1809,12 @@ final class SyncService: @unchecked Sendable {
             let attachmentData = settingData[index]
             print("[SYNC] 处理附件条目 \(index + 1)/\(settingData.count): \(attachmentData.keys)")
             
+            // 跳过从旧版格式转换的条目（已经被 downloadLegacyFormatImages 处理过）
+            if let fromLegacy = attachmentData["fromLegacyFormat"] as? Bool, fromLegacy {
+                print("[SYNC] 跳过旧版格式转换的附件条目（已处理）: \(index + 1)")
+                continue
+            }
+            
             guard let fileId = attachmentData["fileId"] as? String else {
                 print("[SYNC] 附件条目 \(index + 1) 没有 fileId，跳过")
                 continue
@@ -1811,17 +1833,18 @@ final class SyncService: @unchecked Sendable {
                 
                 // 如果不是强制重新下载,检查图片是否已存在且有效
                 if !forceRedownload {
+                    print("[SYNC] 检查图片是否存在: \(fileId).\(fileType)")
                     if localStorage.validateImage(fileId: fileId, fileType: fileType) {
-                        print("[SYNC] 图片已存在且有效，跳过下载: \(fileId).\(fileType)")
+                        print("[SYNC] ✅ 图片已存在且有效，跳过下载: \(fileId).\(fileType)")
                         var updatedData = attachmentData
                         updatedData["localExists"] = true
                         settingData[index] = updatedData
                         continue
                     } else {
-                        print("[SYNC] 图片不存在或无效，需要下载: \(fileId).\(fileType)")
+                        print("[SYNC] ⚠️ 图片不存在或无效，需要下载: \(fileId).\(fileType)")
                     }
                 } else {
-                    print("[SYNC] 强制重新下载图片: \(fileId).\(fileType)")
+                    print("[SYNC] ⚠️ 强制重新下载图片: \(fileId).\(fileType)")
                 }
                 
                 // 下载图片(带重试)
