@@ -563,9 +563,10 @@ final class DatabaseService: @unchecked Sendable {
             throw DatabaseError.validationFailed("更新时间不合理: \(note.updatedAt)")
         }
         
-        // 验证 updatedAt >= createdAt
-        guard note.updatedAt >= note.createdAt else {
-            throw DatabaseError.validationFailed("更新时间不能早于创建时间")
+        // 验证 updatedAt >= createdAt（允许 1 秒的误差，处理浮点数精度问题）
+        let timeDifference = note.createdAt.timeIntervalSince(note.updatedAt)
+        guard timeDifference <= 1.0 else {
+            throw DatabaseError.validationFailed("更新时间不能早于创建时间（差异: \(timeDifference) 秒）")
         }
     }
     

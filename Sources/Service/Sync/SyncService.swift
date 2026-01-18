@@ -225,7 +225,9 @@ final class SyncService: @unchecked Sendable {
             var pageCount = 0
             var totalNotes = 0
             var syncedNotes = 0
+            var failedNotes = 0
             var allCloudFolders: [Folder] = []
+            var allCloudNotes: [Note] = []
             
             while true {
                 pageCount += 1
@@ -260,14 +262,42 @@ final class SyncService: @unchecked Sendable {
                 for folder in folders {
                     if !folder.isSystem && folder.id != "0" && folder.id != "starred" {
                         allCloudFolders.append(folder)
-                }
+                    }
                 }
                 
-                // 处理笔记（直接保存，因为已经清除了本地数据）
-                for (index, note) in notes.enumerated() {
-                    syncProgress = Double(syncedNotes + index) / Double(max(totalNotes, 1))
-                    syncStatusMessage = "正在同步笔记: \(note.title)"
-                    
+                // 收集所有云端笔记（稍后处理）
+                allCloudNotes.append(contentsOf: notes)
+                
+                // 检查是否还有下一页
+                if let nextSyncTag = pageResponse["syncTag"] as? String, !nextSyncTag.isEmpty {
+                    syncTag = nextSyncTag
+                    syncStatus.syncTag = nextSyncTag
+                } else {
+                    // 没有更多页面
+                    break
+                }
+            }
+            
+            // 3. 先保存所有云端文件夹（在处理笔记之前）
+            syncStatusMessage = "保存云端文件夹..."
+            if !allCloudFolders.isEmpty {
+                do {
+                    try localStorage.saveFolders(allCloudFolders)
+                    print("[SYNC] ✅ 已保存 \(allCloudFolders.count) 个云端文件夹")
+                } catch {
+                    print("[SYNC] ⚠️ 保存文件夹失败: \(error.localizedDescription)")
+                    // 继续执行，不影响笔记同步
+                }
+            } else {
+                print("[SYNC] ⚠️ 没有找到云端文件夹")
+            }
+            
+            // 4. 处理所有笔记（添加错误处理，单个笔记失败不影响整体同步）
+            for (index, note) in allCloudNotes.enumerated() {
+                syncProgress = Double(index) / Double(max(totalNotes, 1))
+                syncStatusMessage = "正在同步笔记: \(note.title)"
+                
+                do {
                     // 获取笔记详情
                     let noteDetails = try await miNoteService.fetchNoteDetails(noteId: note.id)
                     var updatedNote = note
@@ -288,20 +318,15 @@ final class SyncService: @unchecked Sendable {
                     // 保存到本地
                     print("[SYNC] 保存笔记: \(updatedNote.id)")
                     try localStorage.saveNote(updatedNote)
-                        syncedNotes += 1
-                }
-                
-                // 检查是否还有下一页
-                if let nextSyncTag = pageResponse["syncTag"] as? String, !nextSyncTag.isEmpty {
-                    syncTag = nextSyncTag
-                    syncStatus.syncTag = nextSyncTag
-                } else {
-                    // 没有更多页面
-                    break
+                    syncedNotes += 1
+                } catch {
+                    print("[SYNC] ⚠️ 保存笔记失败: \(note.id) - \(error.localizedDescription)")
+                    failedNotes += 1
+                    // 继续处理下一个笔记
                 }
             }
             
-            // 3. 获取并同步私密笔记
+            // 5. 获取并同步私密笔记
             syncStatusMessage = "获取私密笔记..."
             do {
                 let privateNotesResponse = try await miNoteService.fetchPrivateNotes(folderId: "2", limit: 200)
@@ -357,14 +382,7 @@ final class SyncService: @unchecked Sendable {
                 // 不抛出错误，继续执行同步流程
             }
             
-            // 4. 保存所有云端文件夹
-            syncStatusMessage = "保存云端文件夹..."
-            if !allCloudFolders.isEmpty {
-                try localStorage.saveFolders(allCloudFolders)
-                print("[SYNC] 已保存 \(allCloudFolders.count) 个云端文件夹")
-            }
-            
-            // 更新同步状态 - 使用 SyncStateManager
+            // 6. 更新同步状态 - 使用 SyncStateManager
             // 保存syncTag（即使为空也要保存，但记录警告）
             // 注意：syncStatus.syncTag 已经在循环中被设置，这里不需要检查 syncTag 变量
             var finalSyncTag = syncStatus.syncTag
@@ -419,6 +437,13 @@ final class SyncService: @unchecked Sendable {
             result.totalNotes = totalNotes
             result.syncedNotes = syncedNotes
             result.lastSyncTime = Date()
+            
+            // 打印同步统计
+            print("[SYNC] 📊 完整同步统计:")
+            print("[SYNC]   - 总笔记数: \(totalNotes)")
+            print("[SYNC]   - 成功同步: \(syncedNotes)")
+            print("[SYNC]   - 失败笔记: \(failedNotes)")
+            print("[SYNC]   - 文件夹数: \(allCloudFolders.count)")
             
             // 显示同步状态信息
             print("[SYNC] 🔍 完整同步完成，显示同步状态信息:")
