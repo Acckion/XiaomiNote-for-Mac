@@ -53,19 +53,25 @@ public class XMLNormalizer {
         let imageFormatTime = (CFAbsoluteTimeGetCurrent() - imageFormatStart) * 1000
         print("[XMLNormalizer] ✅ 图片格式规范化完成，耗时: \(String(format: "%.2f", imageFormatTime))ms")
         
-        // 2. 移除多余空格和换行
+        // 2. 移除空标签
+        let emptyTagStart = CFAbsoluteTimeGetCurrent()
+        normalized = removeEmptyTags(normalized)
+        let emptyTagTime = (CFAbsoluteTimeGetCurrent() - emptyTagStart) * 1000
+        print("[XMLNormalizer] ✅ 空标签移除完成，耗时: \(String(format: "%.2f", emptyTagTime))ms")
+        
+        // 3. 移除多余空格和换行
         let whitespaceStart = CFAbsoluteTimeGetCurrent()
         normalized = removeExtraWhitespace(normalized)
         let whitespaceTime = (CFAbsoluteTimeGetCurrent() - whitespaceStart) * 1000
         print("[XMLNormalizer] ✅ 空格规范化完成，耗时: \(String(format: "%.2f", whitespaceTime))ms")
         
-        // 3. 统一属性顺序
+        // 4. 统一属性顺序
         let attributeOrderStart = CFAbsoluteTimeGetCurrent()
         normalized = normalizeAttributeOrder(normalized)
         let attributeOrderTime = (CFAbsoluteTimeGetCurrent() - attributeOrderStart) * 1000
         print("[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: \(String(format: "%.2f", attributeOrderTime))ms")
         
-        // 4. 规范化属性值
+        // 5. 规范化属性值
         let attributeValueStart = CFAbsoluteTimeGetCurrent()
         normalized = normalizeAttributeValues(normalized)
         let attributeValueTime = (CFAbsoluteTimeGetCurrent() - attributeValueStart) * 1000
@@ -84,6 +90,7 @@ public class XMLNormalizer {
             print("[XMLNormalizer] ⚠️ 内容长度: \(xml.count) 字符")
             print("[XMLNormalizer] ⚠️ 各步骤耗时详情：")
             print("[XMLNormalizer]    - 图片格式: \(String(format: "%.2f", imageFormatTime))ms")
+            print("[XMLNormalizer]    - 空标签移除: \(String(format: "%.2f", emptyTagTime))ms")
             print("[XMLNormalizer]    - 空格处理: \(String(format: "%.2f", whitespaceTime))ms")
             print("[XMLNormalizer]    - 属性顺序: \(String(format: "%.2f", attributeOrderTime))ms")
             print("[XMLNormalizer]    - 属性值: \(String(format: "%.2f", attributeValueTime))ms")
@@ -116,7 +123,8 @@ public class XMLNormalizer {
         
         // 1. 处理旧版图片格式：☺ fileId<0/><description/> 或 ☺ fileId<imgshow/><description/>
         // 正则表达式匹配旧版格式
-        // 格式：☺ <空格>fileId<0/>或<imgshow/><description/>
+        // 格式：☺ <空格>fileId<0/>或<imgshow/><description/>或</>
+        // 注意：</>表示空描述
         let oldFormatPattern = "☺\\s+([^<]+)<(0|imgshow)\\s*/><([^>]*)\\s*/>"
         
         if let regex = try? NSRegularExpression(pattern: oldFormatPattern, options: []) {
@@ -138,7 +146,16 @@ public class XMLNormalizer {
                     let imgshow = (imgshowValue == "0") ? "0" : "1"
                     
                     // 构建规范化的新版格式（按字母顺序：fileid, imgdes, imgshow）
-                    let normalized = "<img fileid=\"\(fileId)\" imgdes=\"\(description)\" imgshow=\"\(imgshow)\" />"
+                    // 注意：如果 description 为空，则不添加 imgdes 属性
+                    var normalized: String
+                    if description.isEmpty {
+                        normalized = "<img fileid=\"\(fileId)\" imgshow=\"\(imgshow)\" />"
+                    } else {
+                        normalized = "<img fileid=\"\(fileId)\" imgdes=\"\(description)\" imgshow=\"\(imgshow)\" />"
+                    }
+                    
+                    print("[XMLNormalizer] 🔄 旧版图片转换: fileId=\(fileId), imgshow=\(imgshow), description='\(description)'")
+                    print("[XMLNormalizer] 🔄 转换结果: \(normalized)")
                     
                     // 替换
                     let matchRange = match.range
@@ -204,6 +221,42 @@ public class XMLNormalizer {
                     let matchRange = match.range
                     result = (nsString.replacingCharacters(in: matchRange, with: normalized) as NSString) as String
                 }
+            }
+        }
+        
+        return result
+    }
+    
+    /// 移除空标签
+    ///
+    /// 移除内容为空的标签，例如 `<text indent="1"></text>`
+    /// 这些空标签不影响内容语义，但会导致内容比较时出现差异
+    ///
+    /// - Parameter xml: 原始XML内容
+    /// - Returns: 移除空标签后的XML内容
+    private func removeEmptyTags(_ xml: String) -> String {
+        var result = xml
+        
+        // 匹配空的 text 标签：<text ...></text>
+        // 注意：只匹配完全为空的标签，不包含任何内容（包括空格）
+        let emptyTextPattern = "<text\\s+([^>]+)>\\s*</text>"
+        
+        if let regex = try? NSRegularExpression(pattern: emptyTextPattern, options: []) {
+            let nsString = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
+            
+            if !matches.isEmpty {
+                print("[XMLNormalizer] 🔍 发现 \(matches.count) 个空 text 标签")
+            }
+            
+            // 从后往前替换，避免索引变化
+            for match in matches.reversed() {
+                let matchRange = match.range
+                let matchedText = nsString.substring(with: matchRange)
+                print("[XMLNormalizer] 🗑️ 移除空标签: \(matchedText)")
+                
+                // 替换为空字符串
+                result = (nsString.replacingCharacters(in: matchRange, with: "") as NSString) as String
             }
         }
         
