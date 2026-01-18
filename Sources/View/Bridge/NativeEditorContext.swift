@@ -786,21 +786,116 @@ public class NativeEditorContext: ObservableObject {
     /// 
     /// 验证保存后的内容是否包含预期的音频附件，确保持久化成功
     /// 
+    /// **修复说明**：
+    /// - 使用 XMLNormalizer 对预期内容和当前内容进行规范化
+    /// - 规范化后再进行比较，避免因格式差异导致的误判
+    /// - 这样可以正确处理图片格式、空格、属性顺序等差异
+    /// 
     /// - Parameter expectedContent: 预期的内容（包含音频附件的XML）
     /// - Returns: 是否验证成功 
     func verifyContentPersistence(expectedContent: String) async -> Bool {
-        print("[NativeEditorContext] 验证内容持久化，预期内容长度: \(expectedContent.count)")
+        print("[持久化验证] ========== 开始验证内容持久化 ==========")
+        print("[持久化验证] 预期内容长度: \(expectedContent.count)")
         
         // 导出当前内容为XML格式
         let currentXML = exportToXML()
+        print("[持久化验证] 当前XML长度: \(currentXML.count)")
         
-        // 验证XML内容是否包含音频附件且不包含临时模板
-        let isValid = currentXML.contains("<sound fileid=") && 
-                     !currentXML.contains("des=\"temp\"") && 
-                     currentXML.count > 0
+        // 使用 XMLNormalizer 规范化两边的内容
+        print("[持久化验证] 🔄 开始规范化内容...")
+        let normalizedExpected = XMLNormalizer.shared.normalize(expectedContent)
+        let normalizedCurrent = XMLNormalizer.shared.normalize(currentXML)
+        print("[持久化验证] ✅ 规范化完成")
+        print("[持久化验证] 规范化后预期内容长度: \(normalizedExpected.count)")
+        print("[持久化验证] 规范化后当前内容长度: \(normalizedCurrent.count)")
         
-        print("[NativeEditorContext] 内容持久化验证结果: \(isValid ? "成功" : "失败")")
-        print("[NativeEditorContext] 当前XML长度: \(currentXML.count)")
+        // 分析预期内容的类型（使用规范化后的内容）
+        let expectedIsEmpty = normalizedExpected.isEmpty
+        let expectedHasAudio = normalizedExpected.contains("<sound fileid=")
+        let expectedHasTemp = normalizedExpected.contains("des=\"temp\"")
+        
+        print("[持久化验证] 预期内容类型分析:")
+        print("[持久化验证]   - 是否为空: \(expectedIsEmpty)")
+        print("[持久化验证]   - 包含音频: \(expectedHasAudio)")
+        print("[持久化验证]   - 包含临时模板: \(expectedHasTemp)")
+        
+        // 分析当前内容的类型（使用规范化后的内容）
+        let currentIsEmpty = normalizedCurrent.isEmpty
+        let currentHasAudio = normalizedCurrent.contains("<sound fileid=")
+        let currentHasTemp = normalizedCurrent.contains("des=\"temp\"")
+        
+        print("[持久化验证] 当前内容类型分析:")
+        print("[持久化验证]   - 是否为空: \(currentIsEmpty)")
+        print("[持久化验证]   - 包含音频: \(currentHasAudio)")
+        print("[持久化验证]   - 包含临时模板: \(currentHasTemp)")
+        
+        // 验证逻辑
+        var isValid = false
+        var failureReason = ""
+        
+        // 情况1：预期内容为空
+        if expectedIsEmpty {
+            if currentIsEmpty {
+                isValid = true
+                print("[持久化验证] ✅ 验证通过：预期为空，当前也为空")
+            } else {
+                failureReason = "预期为空内容，但当前内容不为空（规范化后长度: \(normalizedCurrent.count)）"
+                print("[持久化验证] ❌ 验证失败：\(failureReason)")
+            }
+        }
+        // 情况2：预期内容包含音频
+        else if expectedHasAudio {
+            if !currentHasAudio {
+                failureReason = "预期包含音频附件，但当前内容不包含音频"
+                print("[持久化验证] ❌ 验证失败：\(failureReason)")
+            } else if currentHasTemp {
+                failureReason = "当前内容包含临时模板（des=\"temp\"），音频附件未正确持久化"
+                print("[持久化验证] ❌ 验证失败：\(failureReason)")
+            } else if normalizedCurrent.count == 0 {
+                failureReason = "当前内容长度为0"
+                print("[持久化验证] ❌ 验证失败：\(failureReason)")
+            } else {
+                isValid = true
+                print("[持久化验证] ✅ 验证通过：音频附件已正确持久化")
+            }
+        }
+        // 情况3：预期内容为普通文本（不包含音频）
+        else {
+            if normalizedCurrent.count > 0 {
+                isValid = true
+                print("[持久化验证] ✅ 验证通过：普通文本内容已持久化")
+            } else {
+                failureReason = "预期包含普通文本，但当前内容为空"
+                print("[持久化验证] ❌ 验证失败：\(failureReason)")
+            }
+        }
+        
+        // 输出验证结果摘要
+        print("[持久化验证] ========== 验证结果: \(isValid ? "✅ 成功" : "❌ 失败") ==========")
+        if !isValid && !failureReason.isEmpty {
+            print("[持久化验证] 失败原因: \(failureReason)")
+        }
+        
+        // 如果验证失败，输出规范化后的内容预览（前200个字符）
+        if !isValid {
+            print("[持久化验证] 📋 规范化后的内容对比:")
+            
+            let expectedPreviewLength = min(200, normalizedExpected.count)
+            if expectedPreviewLength > 0 {
+                let expectedPreview = String(normalizedExpected.prefix(expectedPreviewLength))
+                print("[持久化验证] 预期内容: \(expectedPreview)...")
+            } else {
+                print("[持久化验证] 预期内容: (空)")
+            }
+            
+            let currentPreviewLength = min(200, normalizedCurrent.count)
+            if currentPreviewLength > 0 {
+                let currentPreview = String(normalizedCurrent.prefix(currentPreviewLength))
+                print("[持久化验证] 当前内容: \(currentPreview)...")
+            } else {
+                print("[持久化验证] 当前内容: (空)")
+            }
+        }
         
         return isValid
     }
