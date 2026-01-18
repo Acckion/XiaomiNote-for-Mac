@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import MiNoteMac
+@testable import MiNoteLibrary
 
 @MainActor
 final class CheckboxCursorRestrictionTests: XCTestCase {

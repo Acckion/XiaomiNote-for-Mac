@@ -6,7 +6,7 @@
 //
 
 import Testing
-@testable import MiNoteMac
+@testable import MiNoteLibrary
 
 @Suite("XMLGenerator 图片格式生成测试")
 struct XMLGeneratorImageFormatTests {

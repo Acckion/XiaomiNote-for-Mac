@@ -177,6 +177,7 @@
 		A270D0413C60659EE7CB9D06 /* NativeEditorInitializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926B8428724A337ED50DC628 /* NativeEditorInitializer.swift */; };
 		A2C45B6C1562B74CAFBE7EF4 /* NativeEditorLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A054576271DE2E23FFE0172E /* NativeEditorLogger.swift */; };
 		A3017A7115BCD8F400DB3FB2 /* MenuActionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685FEDE9207773081854F9F4 /* MenuActionHandler.swift */; };
+		A4BCF5036D5307C5EB9EC98D /* XMLNormalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD232BDFDBFD9353B3AF2D56 /* XMLNormalizerTests.swift */; };
 		A64A173024F2CD3B35EC6794 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FB238A8636288F6888DE3904 /* Assets.xcassets */; };
 		A757EAF430E57DE325F8E530 /* FormatOperationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 783B405112717E49DF20E8F3 /* FormatOperationQueue.swift */; };
 		A8021AE8951CE4B7B72E2FA5 /* ListBehaviorHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB121C16C0AE8482C4FF812C /* ListBehaviorHandlerTests.swift */; };
@@ -248,6 +249,7 @@
 		FA6C761DB3820A1E6EB6E452 /* LoginWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7D8D743FBFC1AA843C6E833 /* LoginWindowController.swift */; };
 		FA766B6134D85774BC6B381F /* NetworkRecoveryHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CF1BF6126F1DDDE6FF259C7 /* NetworkRecoveryHandler.swift */; };
 		FB0F94316D8C6665E037A8E3 /* MainWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 673F8B6390F2F7C84F32E4F6 /* MainWindowController.swift */; };
+		FB1565154A6A743ED34CD951 /* XMLNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B293C41F4B82AC07103F0968 /* XMLNormalizer.swift */; };
 		FB9D22888993D0CBEBFE1EFD /* ErrorRecoveryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 183B5F80ED788390D391B681 /* ErrorRecoveryService.swift */; };
 		FB9F0EBF4A58AC8C1A74F4D6 /* AttachmentHighlightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4359C5D7A1B6E7C98FD9228 /* AttachmentHighlightView.swift */; };
 		FC92E4193F8A84A517450702 /* SyncStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D3BA692DAB19B11F922BD3 /* SyncStateManager.swift */; };
@@ -471,6 +473,7 @@
 		AEF19FCB59B84D1474DA6684 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
 		AF106D1C11364EA28F52D92C /* SearchPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPanelView.swift; sourceTree = "<group>"; };
 		B1B157A5008284F9354BB52D /* FormatSpan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatSpan.swift; sourceTree = "<group>"; };
+		B293C41F4B82AC07103F0968 /* XMLNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLNormalizer.swift; sourceTree = "<group>"; };
 		B3CDA00AB09FA1D8E878E1FB /* OnlineStatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineStatusIndicator.swift; sourceTree = "<group>"; };
 		B3E63752A7478BC553F188AC /* EditorStateConsistencyPropertyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorStateConsistencyPropertyTests.swift; sourceTree = "<group>"; };
 		B45BF5C9F7754010D58D5BF6 /* MoveNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveNoteView.swift; sourceTree = "<group>"; };
@@ -488,6 +491,7 @@
 		C88083B427871B6F24E50522 /* NoteDetailHostingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailHostingController.swift; sourceTree = "<group>"; };
 		CAEF726E1B0B16672107891A /* SidebarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewController.swift; sourceTree = "<group>"; };
 		CCB262906957F0C09B5BB34A /* EditorProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorProtocol.swift; sourceTree = "<group>"; };
+		CD232BDFDBFD9353B3AF2D56 /* XMLNormalizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLNormalizerTests.swift; sourceTree = "<group>"; };
 		CE3C586E102197714CA7802B /* UnifiedOperationQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedOperationQueue.swift; sourceTree = "<group>"; };
 		D194384700AE79A33F16FC55 /* XMLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLParser.swift; sourceTree = "<group>"; };
 		D31141023C933334BE386ED5 /* XMLGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLGenerator.swift; sourceTree = "<group>"; };
@@ -930,6 +934,7 @@
 				94F7CBAF87725A8F370AAC25 /* UnifiedOperationQueueTests.swift */,
 				ABA355D00FDC0FD5285B0ED3 /* XiaoMiFormatConverterTests.swift */,
 				9F7D4873AE8E0581C3E006BC /* XMLGeneratorImageFormatTests.swift */,
+				CD232BDFDBFD9353B3AF2D56 /* XMLNormalizerTests.swift */,
 				63CD6D0EF581C4E893DBC01F /* XMLParserPropertyTests.swift */,
 				21B818F750FE7889C5353329 /* XMLRoundTripPropertyTests.swift */,
 			);
@@ -1121,6 +1126,7 @@
 				DCBD00E79A0F1B72CD0C005A /* EditorConfiguration.swift */,
 				15545D21BA291E581CAC4C5E /* EditorPreferencesService.swift */,
 				568BE73C2FC4E84138643989 /* XiaoMiFormatConverter.swift */,
+				B293C41F4B82AC07103F0968 /* XMLNormalizer.swift */,
 				963CDD64E3B4083070BBF9EC /* AST */,
 				591372F80E0E02241EB2BCEE /* Converter */,
 				15F7CA8BB89AEB292A13A3D9 /* Generator */,
@@ -1147,7 +1153,7 @@
 			path = Sources/App;
 			sourceTree = "<group>";
 		};
-		"TEMP_BDEC2C20-45DB-44FF-B3EA-08C224FF9E6E" /* Web */ = {
+		"TEMP_41AEA9F4-0332-45AB-9EBA-96FD1FF6E398" /* Web */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -1468,6 +1474,7 @@
 				0DF1B923170E02BB94E35DDD /* XMLDebugEditorView.swift in Sources */,
 				81348C353C6753A4412F1CA7 /* XMLEntityCodec.swift in Sources */,
 				33873EAD5BF53C6FF5B78E4C /* XMLGenerator.swift in Sources */,
+				FB1565154A6A743ED34CD951 /* XMLNormalizer.swift in Sources */,
 				E2E0264104CA8FF4DE181456 /* XMLParser.swift in Sources */,
 				AD75F85774EFDDC4E4BF272A /* XMLTokenizer.swift in Sources */,
 				7900062368F99F3A71A4037B /* XiaoMiFormatConverter.swift in Sources */,
@@ -1524,6 +1531,7 @@
 				A8B024BD133F33BD79E913E4 /* TextSplitPropertyTests.swift in Sources */,
 				28A2CFCA5F7AD68C986B22FA /* UnifiedOperationQueueTests.swift in Sources */,
 				D7F6C5D45709312BCD269895 /* XMLGeneratorImageFormatTests.swift in Sources */,
+				A4BCF5036D5307C5EB9EC98D /* XMLNormalizerTests.swift in Sources */,
 				7FBB7F016F82B07997C50063 /* XMLParserPropertyTests.swift in Sources */,
 				8C39414E37E21B072E2A15BE /* XMLRoundTripPropertyTests.swift in Sources */,
 				E5B802AF5EE1FC640E28B8D2 /* XiaoMiFormatConverterTests.swift in Sources */,

@@ -2027,9 +2027,10 @@ struct NoteDetailView: View {
         // 记录检测开始时间（用于性能监控）
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        // 标准化内容比较（去除空白字符差异）
-        let normalizedCurrent = currentContent.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedSaved = savedContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 使用 XMLNormalizer 进行语义比较
+        // _需求: 2.1.2, 2.1.3_
+        let normalizedCurrent = XMLNormalizer.shared.normalize(currentContent)
+        let normalizedSaved = XMLNormalizer.shared.normalize(savedContent)
         
         let contentChanged = normalizedCurrent != normalizedSaved
         let titleChanged = currentTitle != originalTitle
@@ -2038,32 +2039,42 @@ struct NoteDetailView: View {
         let elapsedTime = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
         
         // 增强日志：记录详细的内容变化检测信息
-        // _需求: 3.3_
+        // _需求: 2.1.4, 2.2.1, 2.2.2, 2.2.3, 3.3_
         Swift.print("[内容检测] ═══════════════════════════════════════")
         Swift.print("[内容检测] 📊 检测结果: 内容变化=\(contentChanged), 标题变化=\(titleChanged)")
-        Swift.print("[内容检测] 📏 内容长度: 当前=\(normalizedCurrent.count), 保存=\(normalizedSaved.count)")
+        Swift.print("[内容检测] 📏 原始内容长度: 当前=\(currentContent.count), 保存=\(savedContent.count)")
+        Swift.print("[内容检测] 📏 规范化后长度: 当前=\(normalizedCurrent.count), 保存=\(normalizedSaved.count)")
         Swift.print("[内容检测] ⏱️ 检测耗时: \(String(format: "%.2f", elapsedTime))ms")
         
         if contentChanged {
             // 如果内容长度差异较大，记录更详细的信息
-            let lengthDiff = abs(normalizedCurrent.count - normalizedSaved.count)
-            Swift.print("[内容检测] 📝 内容长度差异: \(lengthDiff) 字符")
+            let originalLengthDiff = abs(currentContent.count - savedContent.count)
+            let normalizedLengthDiff = abs(normalizedCurrent.count - normalizedSaved.count)
             
-            if lengthDiff > 10 {
-                Swift.print("[内容检测] ⚠️ 内容长度差异较大，可能是实际编辑")
+            Swift.print("[内容检测] 📝 原始内容长度差异: \(originalLengthDiff) 字符")
+            Swift.print("[内容检测] 📝 规范化后长度差异: \(normalizedLengthDiff) 字符")
+            
+            if normalizedLengthDiff > 10 {
+                Swift.print("[内容检测] ⚠️ 规范化后仍有显著差异，这是实际内容变化")
             } else {
-                Swift.print("[内容检测] ℹ️ 内容长度差异较小，可能是格式化差异")
+                Swift.print("[内容检测] ℹ️ 规范化后差异较小")
             }
             
-            // 如果内容变化较小，记录前后内容的前100个字符用于调试
-            if lengthDiff <= 50 {
+            // 如果规范化后内容变化较小，记录前后内容的前100个字符用于调试
+            if normalizedLengthDiff <= 50 {
                 let currentPreview = String(normalizedCurrent.prefix(100))
                 let savedPreview = String(normalizedSaved.prefix(100))
                 Swift.print("[内容检测] 🔍 当前内容预览: \(currentPreview)")
                 Swift.print("[内容检测] 🔍 保存内容预览: \(savedPreview)")
             }
         } else {
-            Swift.print("[内容检测] ✅ 内容无变化")
+            Swift.print("[内容检测] ✅ 内容无变化（规范化后相同）")
+            
+            // 如果原始内容不同但规范化后相同，说明只是格式差异
+            if currentContent != savedContent {
+                let originalLengthDiff = abs(currentContent.count - savedContent.count)
+                Swift.print("[内容检测] ℹ️ 原始内容有差异（\(originalLengthDiff) 字符），但规范化后相同 - 这是格式化差异")
+            }
         }
         
         if titleChanged {
@@ -2073,7 +2084,7 @@ struct NoteDetailView: View {
         }
         
         // 记录时间戳更新决策
-        // _需求: 3.3_
+        // _需求: 3.2.3, 3.3_
         let shouldUpdateTimestamp = contentChanged || titleChanged
         Swift.print("[内容检测] 🕐 时间戳决策: \(shouldUpdateTimestamp ? "需要更新" : "保持不变")")
         Swift.print("[内容检测] ═══════════════════════════════════════")
