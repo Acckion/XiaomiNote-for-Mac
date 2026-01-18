@@ -16,6 +16,72 @@ import AppKit
 final class DatabaseService: @unchecked Sendable {
     static let shared = DatabaseService()
     
+    // MARK: - 数据库字段常量
+    
+    /// Notes 表字段名称常量
+    private enum NotesTableColumns {
+        // 现有字段
+        static let id = "id"
+        static let title = "title"
+        static let content = "content"
+        static let folderId = "folder_id"
+        static let isStarred = "is_starred"
+        static let createdAt = "created_at"
+        static let updatedAt = "updated_at"
+        static let tags = "tags"
+        static let rawData = "raw_data"
+        
+        // 新增字段
+        static let snippet = "snippet"
+        static let colorId = "color_id"
+        static let subject = "subject"
+        static let alertDate = "alert_date"
+        static let type = "type"
+        static let tag = "tag"
+        static let status = "status"
+        static let settingJson = "setting_json"
+        static let extraInfoJson = "extra_info_json"
+        static let modifyDate = "modify_date"
+        static let createDate = "create_date"
+    }
+    
+    /// Notes 表创建 SQL 语句
+    private static let createNotesTableSQL = """
+    CREATE TABLE IF NOT EXISTS notes (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        folder_id TEXT NOT NULL DEFAULT '0',
+        is_starred INTEGER NOT NULL DEFAULT 0,
+        created_at REAL NOT NULL,
+        updated_at REAL NOT NULL,
+        tags TEXT,
+        raw_data TEXT,
+        snippet TEXT,
+        color_id INTEGER DEFAULT 0,
+        subject TEXT,
+        alert_date INTEGER,
+        type TEXT DEFAULT 'note',
+        tag TEXT,
+        status TEXT DEFAULT 'normal',
+        setting_json TEXT,
+        extra_info_json TEXT,
+        modify_date INTEGER,
+        create_date INTEGER
+    );
+    """
+    
+    /// Notes 表索引创建 SQL 语句
+    private static let createNotesIndexesSQL = [
+        "CREATE INDEX IF NOT EXISTS idx_notes_folder_id ON notes(folder_id);",
+        "CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at);",
+        "CREATE INDEX IF NOT EXISTS idx_notes_snippet ON notes(snippet);",
+        "CREATE INDEX IF NOT EXISTS idx_notes_modify_date ON notes(modify_date DESC);",
+        "CREATE INDEX IF NOT EXISTS idx_notes_status ON notes(status);",
+        "CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type);",
+        "CREATE INDEX IF NOT EXISTS idx_notes_folder_status ON notes(folder_id, status);"
+    ]
+    
     private var db: OpaquePointer?
     private let dbQueue = DispatchQueue(label: "DatabaseQueue", attributes: .concurrent)
     private let dbPath: URL
@@ -73,7 +139,7 @@ final class DatabaseService: @unchecked Sendable {
     /// 创建数据库表
     /// 
     /// 创建以下表：
-    /// - notes: 笔记表
+    /// - notes: 笔记表（包含所有优化后的字段）
     /// - folders: 文件夹表
     /// - sync_status: 同步状态表（单行表）
     /// - unified_operations: 统一操作队列表
@@ -81,21 +147,8 @@ final class DatabaseService: @unchecked Sendable {
     /// - operation_history: 操作历史表
     /// - folder_sort_info: 文件夹排序信息表
     private func createTables() {
-        // 创建 notes 表
-        let createNotesTable = """
-        CREATE TABLE IF NOT EXISTS notes (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            folder_id TEXT NOT NULL DEFAULT '0',
-            is_starred INTEGER NOT NULL DEFAULT 0,
-            created_at REAL NOT NULL,
-            updated_at REAL NOT NULL,
-            tags TEXT, -- JSON 数组
-            raw_data TEXT -- JSON 对象
-        );
-        """
-        executeSQL(createNotesTable)
+        // 创建 notes 表（使用常量定义）
+        executeSQL(Self.createNotesTableSQL)
         
         // 创建 folders 表
         let createFoldersTable = """
@@ -194,9 +247,10 @@ final class DatabaseService: @unchecked Sendable {
     }
     
     private func createIndexes() {
-        // notes 表索引
-        executeSQL("CREATE INDEX IF NOT EXISTS idx_notes_folder_id ON notes(folder_id);")
-        executeSQL("CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at);")
+        // notes 表索引（使用常量定义）
+        for indexSQL in Self.createNotesIndexesSQL {
+            executeSQL(indexSQL)
+        }
         
         // unified_operations 表索引
         executeSQL("CREATE INDEX IF NOT EXISTS idx_unified_operations_note_id ON unified_operations(note_id);")
