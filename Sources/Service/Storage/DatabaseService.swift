@@ -1152,14 +1152,19 @@ final class DatabaseService: @unchecked Sendable {
         var settingJson: String? = nil
         if sqlite3_column_type(statement, 16) != SQLITE_NULL,
            let settingText = sqlite3_column_text(statement, 16) {
-            settingJson = String(cString: settingText)
-            // 验证 JSON 格式（可选）
-            if let jsonData = settingJson?.data(using: .utf8) {
-                do {
-                    _ = try JSONSerialization.jsonObject(with: jsonData, options: [])
-                } catch {
-                    print("[Database] ⚠️ setting_json 格式无效 (id=\(id)): \(error)")
-                    // 保留原始字符串，不清空
+            let settingString = String(cString: settingText)
+            // 只有非空字符串才保存，空字符串视为 NULL
+            if !settingString.isEmpty {
+                settingJson = settingString
+                // 验证 JSON 格式（可选）
+                if let jsonData = settingJson?.data(using: .utf8) {
+                    do {
+                        _ = try JSONSerialization.jsonObject(with: jsonData, options: [])
+                    } catch {
+                        print("[Database] ⚠️ setting_json 格式无效 (id=\(id)): \(error)")
+                        // 格式无效，设置为 nil
+                        settingJson = nil
+                    }
                 }
             }
         }
@@ -1168,14 +1173,19 @@ final class DatabaseService: @unchecked Sendable {
         var extraInfoJson: String? = nil
         if sqlite3_column_type(statement, 17) != SQLITE_NULL,
            let extraInfoText = sqlite3_column_text(statement, 17) {
-            extraInfoJson = String(cString: extraInfoText)
-            // 验证 JSON 格式（可选）
-            if let jsonData = extraInfoJson?.data(using: .utf8) {
-                do {
-                    _ = try JSONSerialization.jsonObject(with: jsonData, options: [])
-                } catch {
-                    print("[Database] ⚠️ extra_info_json 格式无效 (id=\(id)): \(error)")
-                    // 保留原始字符串，不清空
+            let extraInfoString = String(cString: extraInfoText)
+            // 只有非空字符串才保存，空字符串视为 NULL
+            if !extraInfoString.isEmpty {
+                extraInfoJson = extraInfoString
+                // 验证 JSON 格式（可选）
+                if let jsonData = extraInfoJson?.data(using: .utf8) {
+                    do {
+                        _ = try JSONSerialization.jsonObject(with: jsonData, options: [])
+                    } catch {
+                        print("[Database] ⚠️ extra_info_json 格式无效 (id=\(id)): \(error)")
+                        // 格式无效，设置为 nil
+                        extraInfoJson = nil
+                    }
                 }
             }
         }
