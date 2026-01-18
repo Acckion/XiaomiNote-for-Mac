@@ -100,6 +100,20 @@ public class NotesViewModel: ObservableObject {
     /// 用于工具栏可见性管理，在画廊视图展开时显示返回按钮和编辑器工具栏项
     @Published public var isGalleryExpanded: Bool = false
     
+    // MARK: - 笔记切换保护
+    
+    /// 是否正在切换笔记
+    /// 
+    /// 用于防止笔记切换过程中被打断，避免死循环问题
+    /// 
+    /// **使用场景**：
+    /// - 在 `selectNoteWithCoordinator()` 中设置为 true
+    /// - 切换完成后自动重置为 false
+    /// - 切换过程中忽略新的切换请求
+    /// 
+    /// _Requirements: Spec 60 - 修复笔记切换死循环_
+    private var isSwitchingNote: Bool = false
+    
     // MARK: - 状态协调器
     
     /// 视图状态协调器
@@ -3107,8 +3121,24 @@ public class NotesViewModel: ObservableObject {
     /// - 切换笔记时设置活跃编辑状态
     /// - 切换前保存当前笔记（如果有未保存的更改）
     /// 
+    /// **死循环防护**（Spec 60）：
+    /// - 使用 `isSwitchingNote` 标志防止切换过程中被打断
+    /// - 使用 `defer` 确保标志正确重置
+    /// 
     /// - Parameter note: 要选择的笔记
     public func selectNoteWithCoordinator(_ note: Note?) {
+        // 🛡️ Spec 60: 防止在切换过程中被打断
+        guard !isSwitchingNote else {
+            print("[VIEWMODEL] ⚠️ 正在切换笔记，忽略新的切换请求")
+            return
+        }
+        
+        isSwitchingNote = true
+        defer { 
+            isSwitchingNote = false
+            print("[VIEWMODEL] ✅ 笔记切换完成，重置标志")
+        }
+        
         Task {
             // 🛡️ 统一操作队列集成：切换笔记前的处理
             let previousNoteId = selectedNote?.id
