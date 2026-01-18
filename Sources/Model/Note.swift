@@ -21,15 +21,32 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
     public var updatedAt: Date
     public var tags: [String] = []
     
+    // 新增字段 - 数据库优化
+    public var snippet: String?           // 笔记摘要，用于列表显示
+    public var colorId: Int               // 笔记颜色ID，默认值 0
+    public var subject: String?           // 笔记主题
+    public var alertDate: Date?           // 提醒时间
+    public var type: String               // 笔记类型 (note/checklist等)，默认值 "note"
+    public var serverTag: String?         // 服务器标签，用于同步
+    public var status: String             // 笔记状态 (normal/deleted等)，默认值 "normal"
+    public var settingJson: String?       // setting 对象的 JSON
+    public var extraInfoJson: String?     // extraInfo 的 JSON
+    public var modifyDate: Date?          // 服务器修改时间戳
+    public var createDate: Date?          // 服务器创建时间戳
+    
     // 小米笔记格式的原始数据
     public var rawData: [String: Any]?
     
     enum CodingKeys: String, CodingKey {
         case id, title, content, folderId, isStarred, createdAt, updatedAt, tags, rawData
+        case snippet, colorId, subject, alertDate, type, serverTag, status, settingJson, extraInfoJson, modifyDate, createDate
     }
     
     public init(id: String, title: String, content: String, folderId: String, isStarred: Bool = false, 
-         createdAt: Date, updatedAt: Date, tags: [String] = [], rawData: [String: Any]? = nil) {
+         createdAt: Date, updatedAt: Date, tags: [String] = [], rawData: [String: Any]? = nil,
+         snippet: String? = nil, colorId: Int = 0, subject: String? = nil, alertDate: Date? = nil,
+         type: String = "note", serverTag: String? = nil, status: String = "normal",
+         settingJson: String? = nil, extraInfoJson: String? = nil, modifyDate: Date? = nil, createDate: Date? = nil) {
         self.id = id
         self.title = title
         self.content = content
@@ -39,6 +56,17 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         self.updatedAt = updatedAt
         self.tags = tags
         self.rawData = rawData
+        self.snippet = snippet
+        self.colorId = colorId
+        self.subject = subject
+        self.alertDate = alertDate
+        self.type = type
+        self.serverTag = serverTag
+        self.status = status
+        self.settingJson = settingJson
+        self.extraInfoJson = extraInfoJson
+        self.modifyDate = modifyDate
+        self.createDate = createDate
     }
     
     // 自定义编码
@@ -52,6 +80,19 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(tags, forKey: .tags)
+        
+        // 编码新增字段
+        try container.encodeIfPresent(snippet, forKey: .snippet)
+        try container.encode(colorId, forKey: .colorId)
+        try container.encodeIfPresent(subject, forKey: .subject)
+        try container.encodeIfPresent(alertDate, forKey: .alertDate)
+        try container.encode(type, forKey: .type)
+        try container.encodeIfPresent(serverTag, forKey: .serverTag)
+        try container.encode(status, forKey: .status)
+        try container.encodeIfPresent(settingJson, forKey: .settingJson)
+        try container.encodeIfPresent(extraInfoJson, forKey: .extraInfoJson)
+        try container.encodeIfPresent(modifyDate, forKey: .modifyDate)
+        try container.encodeIfPresent(createDate, forKey: .createDate)
         
         // 编码 rawData 为 JSON 数据，使用更稳定的选项
         if let rawData = rawData {
@@ -73,6 +114,19 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         tags = try container.decode([String].self, forKey: .tags)
+        
+        // 解码新增字段，使用默认值
+        snippet = try container.decodeIfPresent(String.self, forKey: .snippet)
+        colorId = try container.decodeIfPresent(Int.self, forKey: .colorId) ?? 0
+        subject = try container.decodeIfPresent(String.self, forKey: .subject)
+        alertDate = try container.decodeIfPresent(Date.self, forKey: .alertDate)
+        type = try container.decodeIfPresent(String.self, forKey: .type) ?? "note"
+        serverTag = try container.decodeIfPresent(String.self, forKey: .serverTag)
+        status = try container.decodeIfPresent(String.self, forKey: .status) ?? "normal"
+        settingJson = try container.decodeIfPresent(String.self, forKey: .settingJson)
+        extraInfoJson = try container.decodeIfPresent(String.self, forKey: .extraInfoJson)
+        modifyDate = try container.decodeIfPresent(Date.self, forKey: .modifyDate)
+        createDate = try container.decodeIfPresent(Date.self, forKey: .createDate)
         
         // 解码 rawData，使用更健壮的错误处理
         do {
@@ -124,7 +178,18 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
               self.isStarred == other.isStarred &&
               self.createdAt == other.createdAt &&
               self.updatedAt == other.updatedAt &&
-              self.tags == other.tags else {
+              self.tags == other.tags &&
+              self.snippet == other.snippet &&
+              self.colorId == other.colorId &&
+              self.subject == other.subject &&
+              self.alertDate == other.alertDate &&
+              self.type == other.type &&
+              self.serverTag == other.serverTag &&
+              self.status == other.status &&
+              self.settingJson == other.settingJson &&
+              self.extraInfoJson == other.extraInfoJson &&
+              self.modifyDate == other.modifyDate &&
+              self.createDate == other.createDate else {
             return false
         }
         
