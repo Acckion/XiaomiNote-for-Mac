@@ -142,21 +142,19 @@ final class DatabaseService: @unchecked Sendable {
     /// - 基本字段：id, title, content, folder_id, is_starred, created_at, updated_at, tags, raw_data
     /// - 新增字段：snippet, color_id, subject, alert_date, type, tag, status, setting_json, extra_info_json, modify_date, create_date
     /// 
-    /// 使用事务确保创建操作的原子性
+    /// 注意：此方法应该在 dbQueue.sync 块内调用，不要直接调用
     /// 
     /// - Throws: DatabaseError（数据库操作失败）
-    func createNotesTable() throws {
-        dbQueue.sync(flags: .barrier) {
-            // 创建 notes 表（使用常量定义）
-            executeSQL(Self.createNotesTableSQL)
-            
-            // 创建索引
-            for indexSQL in Self.createNotesIndexesSQL {
-                executeSQL(indexSQL)
-            }
-            
-            print("[Database] ✅ notes 表创建成功，包含所有优化字段")
+    private func createNotesTable() throws {
+        // 创建 notes 表（使用常量定义）
+        executeSQL(Self.createNotesTableSQL)
+        
+        // 创建索引
+        for indexSQL in Self.createNotesIndexesSQL {
+            executeSQL(indexSQL)
         }
+        
+        print("[Database] ✅ notes 表创建成功，包含所有优化字段")
     }
     
     /// 创建数据库表
