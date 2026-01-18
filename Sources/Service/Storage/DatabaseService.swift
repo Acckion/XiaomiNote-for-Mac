@@ -146,29 +146,16 @@ final class DatabaseService: @unchecked Sendable {
     /// 
     /// - Throws: DatabaseError（数据库操作失败）
     func createNotesTable() throws {
-        try dbQueue.sync(flags: .barrier) {
-            // 开始事务
-            executeSQL("BEGIN TRANSACTION;")
+        dbQueue.sync(flags: .barrier) {
+            // 创建 notes 表（使用常量定义）
+            executeSQL(Self.createNotesTableSQL)
             
-            do {
-                // 创建 notes 表（使用常量定义）
-                executeSQL(Self.createNotesTableSQL)
-                
-                // 创建索引
-                for indexSQL in Self.createNotesIndexesSQL {
-                    executeSQL(indexSQL)
-                }
-                
-                // 提交事务
-                executeSQL("COMMIT;")
-                
-                print("[Database] ✅ notes 表创建成功，包含所有优化字段")
-            } catch {
-                // 回滚事务
-                executeSQL("ROLLBACK;")
-                print("[Database] ❌ notes 表创建失败，事务已回滚")
-                throw error
+            // 创建索引
+            for indexSQL in Self.createNotesIndexesSQL {
+                executeSQL(indexSQL)
             }
+            
+            print("[Database] ✅ notes 表创建成功，包含所有优化字段")
         }
     }
     
