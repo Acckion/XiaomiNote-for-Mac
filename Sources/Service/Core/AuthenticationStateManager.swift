@@ -579,6 +579,14 @@ class AuthenticationStateManager: ObservableObject {
             name: NSNotification.Name("CookieRefreshedSuccessfully"),
             object: nil
         )
+        
+        // 监听达到最大重试次数的通知
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMaxRetriesExceededNotification(_:)),
+            name: NSNotification.Name("CookieRefreshMaxRetriesExceeded"),
+            object: nil
+        )
     }
     
     /// 处理Cookie刷新成功通知
@@ -590,5 +598,38 @@ class AuthenticationStateManager: ObservableObject {
         
         // 刷新 OnlineStateManager 的状态
         onlineStateManager.refreshStatus()
+    }
+    
+    /// 处理达到最大重试次数通知
+    /// 
+    /// 当 SilentCookieRefreshManager 达到最大重试次数时调用
+    /// 停止自动重试，显示弹窗提示用户手动刷新
+    @objc private func handleMaxRetriesExceededNotification(_ notification: Notification) {
+        print("[AuthenticationStateManager] ⛔️ 收到达到最大重试次数通知")
+        
+        // 提取通知信息
+        if let userInfo = notification.userInfo {
+            let failures = userInfo["consecutiveFailures"] as? Int ?? 0
+            let maxRetries = userInfo["maxRetries"] as? Int ?? 0
+            let lastError = userInfo["lastError"] as? String ?? "未知错误"
+            
+            print("[AuthenticationStateManager] 📊 失败次数: \(failures)/\(maxRetries), 最后错误: \(lastError)")
+        }
+        
+        // 更新状态：停止自动重试，显示弹窗
+        Task { @MainActor in
+            // 清除刷新状态
+            self.isRefreshingCookie = false
+            self.refreshStatusMessage = ""
+            
+            // 设置为离线状态
+            self.isOnline = false
+            self.isCookieExpired = true
+            
+            // 显示弹窗，提示用户手动刷新
+            self.showCookieExpiredAlert = true
+            
+            print("[AuthenticationStateManager] ⚠️ 已达到最大重试次数，显示手动刷新提示")
+        }
     }
 }

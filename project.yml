@@ -98,6 +98,9 @@ schemes:
     build:
       targets:
         MiNoteMac: all
+    test:
+      targets:
+        - MiNoteLibraryTests
   
   MiNoteLibrary:
     build:
