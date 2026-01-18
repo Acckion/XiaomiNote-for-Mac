@@ -370,10 +370,17 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         
         print("[NOTE] 找到entry，包含字段: \(entry.keys)")
         
-        // 更新内容
+        // 更新内容，并转换旧版图片格式
         if let newContent = entry["content"] as? String {
-            self.content = newContent
-            print("[NOTE] 更新内容，长度: \(newContent.count)")
+            // 简单转换旧版格式为新版格式（不依赖 XMLNormalizer 避免 actor 隔离问题）
+            let normalizedContent = Self.convertLegacyImageFormat(newContent)
+            self.content = normalizedContent
+            print("[NOTE] 更新内容，长度: \(normalizedContent.count)")
+            
+            // 如果内容被转换了，记录日志
+            if normalizedContent != newContent {
+                print("[NOTE] ✅ 内容中的旧版格式已转换为新版格式")
+            }
         } else {
             print("[NOTE] 警告：entry中没有content字段")
         }
@@ -465,6 +472,56 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
     }
     
     // MARK: - 内容访问/更新工具
+    
+    /// 转换旧版图片格式为新版格式
+    /// - Parameter xml: 原始 XML 内容
+    /// - Returns: 转换后的 XML 内容
+    private static func convertLegacyImageFormat(_ xml: String) -> String {
+        // 使用正则表达式匹配旧版格式：☺ fileId<0/><description/> 或 ☺ fileId<imgshow/><description/>
+        let pattern = "☺\\s+([^<]+)<(0|imgshow)\\s*/><([^>]*)\\s*/>"
+        
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return xml
+        }
+        
+        let nsString = xml as NSString
+        let matches = regex.matches(in: xml, options: [], range: NSRange(location: 0, length: nsString.length))
+        
+        if matches.isEmpty {
+            return xml
+        }
+        
+        var result = xml
+        
+        // 从后往前替换，避免索引变化
+        for match in matches.reversed() {
+            let fullRange = match.range
+            let fileIdRange = match.range(at: 1)
+            let imgshowRange = match.range(at: 2)
+            let descriptionRange = match.range(at: 3)
+            
+            let fileId = nsString.substring(with: fileIdRange).trimmingCharacters(in: .whitespaces)
+            let imgshow = nsString.substring(with: imgshowRange)
+            var description = nsString.substring(with: descriptionRange)
+            
+            // 处理描述：移除方括号
+            if description.hasPrefix("[") && description.hasSuffix("]") {
+                description = String(description.dropFirst().dropLast())
+            }
+            
+            // 转换为新版格式
+            var normalized = "<img fileid=\"\(fileId)\" imgshow=\"\(imgshow)\""
+            if !description.isEmpty {
+                normalized += " imgdes=\"\(description)\""
+            }
+            normalized += " />"
+            
+            result = (result as NSString).replacingCharacters(in: fullRange, with: normalized) as String
+        }
+        
+        return result
+    }
+    
     /// 用于编辑/展示的主 XML 内容。
     /// 优先使用 `content`；为空时回退到 `rawData["snippet"]`，并在需要时补上 `<new-format/>` 前缀。
     var primaryXMLContent: String {

@@ -1738,9 +1738,13 @@ final class SyncService: @unchecked Sendable {
             return nil
         }
         
-        // 首先尝试从 content 中提取旧版格式的图片
+        // 首先尝试从 content 中提取旧版格式的图片，并生成 setting.data
+        var legacyImageData: [[String: Any]] = []
         if let content = entry["content"] as? String {
-            await downloadLegacyFormatImages(from: content, forceRedownload: forceRedownload)
+            legacyImageData = await downloadLegacyFormatImages(from: content, forceRedownload: forceRedownload)
+            if !legacyImageData.isEmpty {
+                print("[SYNC] 从旧版格式生成了 \(legacyImageData.count) 个 setting.data 条目")
+            }
         }
         
         // 从 setting.data 中提取附件信息
@@ -1848,6 +1852,14 @@ final class SyncService: @unchecked Sendable {
         }
         
         print("[SYNC] 所有附件处理完成，共处理 \(settingData.count) 个条目")
+        
+        // 合并旧版格式生成的 setting.data
+        if !legacyImageData.isEmpty {
+            print("[SYNC] 合并 \(legacyImageData.count) 个旧版格式图片的 setting.data")
+            settingData.append(contentsOf: legacyImageData)
+            print("[SYNC] 合并后共 \(settingData.count) 个 setting.data 条目")
+        }
+        
         return settingData
     }
     
@@ -1889,12 +1901,13 @@ final class SyncService: @unchecked Sendable {
         throw lastError ?? SyncError.networkError(NSError(domain: "SyncService", code: -1, userInfo: [NSLocalizedDescriptionKey: "图片下载失败"]))
     }
     
-    /// 从content中提取并下载旧版格式的图片
+    /// 从content中提取并下载旧版格式的图片，同时生成 setting.data
     /// 旧版格式: ☺ fileId<0/></>
     /// - Parameters:
     ///   - content: 笔记内容
     ///   - forceRedownload: 是否强制重新下载
-    private func downloadLegacyFormatImages(from content: String, forceRedownload: Bool) async {
+    /// - Returns: 生成的 setting.data 数组（包含旧版格式图片的元数据）
+    private func downloadLegacyFormatImages(from content: String, forceRedownload: Bool) async -> [[String: Any]] {
         print("[SYNC] 检查旧版格式图片...")
         
         // 使用正则表达式提取旧版格式的图片ID
@@ -1902,7 +1915,7 @@ final class SyncService: @unchecked Sendable {
         let pattern = "☺ ([^<]+)<0/></>"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
             print("[SYNC] 无法创建正则表达式")
-            return
+            return []
         }
         
         let nsContent = content as NSString
@@ -1910,10 +1923,12 @@ final class SyncService: @unchecked Sendable {
         
         if matches.isEmpty {
             print("[SYNC] 未找到旧版格式图片")
-            return
+            return []
         }
         
         print("[SYNC] 找到 \(matches.count) 个旧版格式图片")
+        
+        var settingDataEntries: [[String: Any]] = []
         
         for match in matches {
             guard match.numberOfRanges >= 2 else { continue }
@@ -1924,37 +1939,95 @@ final class SyncService: @unchecked Sendable {
             print("[SYNC] 处理旧版格式图片: \(fileId)")
             
             // 检查图片是否已存在且有效
+            var existingFormat: String?
             if !forceRedownload {
                 // 尝试所有可能的图片格式
-                let formats = ["jpg", "jpeg", "png", "gif"]
-                var imageExists = false
+                let formats = ["jpg", "jpeg", "png", "gif", "webp"]
                 
                 for format in formats {
                     if localStorage.validateImage(fileId: fileId, fileType: format) {
                         print("[SYNC] 旧版格式图片已存在且有效，跳过下载: \(fileId).\(format)")
-                        imageExists = true
+                        existingFormat = format
                         break
                     }
                 }
-                
-                if imageExists {
+            }
+            
+            // 下载图片（如果需要）
+            var downloadedFormat: String?
+            var imageSize: Int = 0
+            
+            if existingFormat == nil {
+                do {
+                    print("[SYNC] 开始下载旧版格式图片: \(fileId)")
+                    let imageData = try await downloadImageWithRetry(fileId: fileId, type: "note_img")
+                    print("[SYNC] 旧版格式图片下载完成，大小: \(imageData.count) 字节")
+                    imageSize = imageData.count
+                    
+                    // 检测图片格式
+                    let detectedFormat = detectImageFormat(from: imageData)
+                    downloadedFormat = detectedFormat
+                    
+                    // 保存图片
+                    try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: detectedFormat)
+                    print("[SYNC] 旧版格式图片保存成功: \(fileId).\(detectedFormat)")
+                } catch {
+                    print("[SYNC] 旧版格式图片下载失败: \(fileId), 错误: \(error.localizedDescription)")
                     continue
                 }
             }
             
-            // 下载图片
-            do {
-                print("[SYNC] 开始下载旧版格式图片: \(fileId)")
-                let imageData = try await downloadImageWithRetry(fileId: fileId, type: "note_img")
-                print("[SYNC] 旧版格式图片下载完成，大小: \(imageData.count) 字节")
-                
-                // 默认保存为 jpeg 格式
-                try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: "jpeg")
-                print("[SYNC] 旧版格式图片保存成功: \(fileId).jpeg")
-            } catch {
-                print("[SYNC] 旧版格式图片下载失败: \(fileId), 错误: \(error.localizedDescription)")
-            }
+            // 生成 setting.data 条目
+            let finalFormat = downloadedFormat ?? existingFormat ?? "jpeg"
+            let mimeType = "image/\(finalFormat)"
+            
+            let settingEntry: [String: Any] = [
+                "fileId": fileId,
+                "mimeType": mimeType,
+                "size": imageSize,
+                "fromLegacyFormat": true  // 标记这是从旧版格式转换的
+            ]
+            
+            settingDataEntries.append(settingEntry)
+            print("[SYNC] 为旧版格式图片生成 setting.data 条目: \(fileId), mimeType: \(mimeType)")
         }
+        
+        print("[SYNC] 旧版格式图片处理完成，生成 \(settingDataEntries.count) 个 setting.data 条目")
+        return settingDataEntries
+    }
+    
+    /// 检测图片格式
+    /// - Parameter data: 图片数据
+    /// - Returns: 图片格式（jpeg, png, gif, webp）
+    private func detectImageFormat(from data: Data) -> String {
+        // 检查文件头来判断格式
+        guard data.count >= 12 else { return "jpeg" }
+        
+        let bytes = [UInt8](data.prefix(12))
+        
+        // PNG: 89 50 4E 47
+        if bytes.count >= 4 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47 {
+            return "png"
+        }
+        
+        // GIF: 47 49 46
+        if bytes.count >= 3 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 {
+            return "gif"
+        }
+        
+        // WebP: 52 49 46 46 ... 57 45 42 50
+        if bytes.count >= 12 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
+           bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50 {
+            return "webp"
+        }
+        
+        // JPEG: FF D8 FF
+        if bytes.count >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF {
+            return "jpeg"
+        }
+        
+        // 默认返回 jpeg
+        return "jpeg"
     }
     
     /// 手动重新下载笔记的所有图片

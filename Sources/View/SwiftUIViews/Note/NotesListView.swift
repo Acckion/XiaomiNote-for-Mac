@@ -64,8 +64,13 @@ struct NoteDisplayProperties: Equatable, Hashable {
             return ""
         }
         
-        // 移除 XML 标签，提取纯文本
+        // 先移除旧版图片格式（☺ fileId<...>）
         var text = xmlContent
+        let legacyImagePattern = "☺\\s*[^<]+<[^>]*>"
+        text = text.replacingOccurrences(of: legacyImagePattern, with: "[图片]", options: .regularExpression)
+        
+        // 移除 XML 标签，提取纯文本
+        text = text
             .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
             .replacingOccurrences(of: "&amp;", with: "&")
             .replacingOccurrences(of: "&lt;", with: "<")
@@ -1153,8 +1158,13 @@ struct NoteRow: View {
             return ""
         }
         
-        // 移除 XML 标签，提取纯文本
+        // 先移除旧版图片格式（☺ fileId<...>）
         var text = xmlContent
+        let legacyImagePattern = "☺\\s*[^<]+<[^>]*>"
+        text = text.replacingOccurrences(of: legacyImagePattern, with: "[图片]", options: .regularExpression)
+        
+        // 移除 XML 标签，提取纯文本
+        text = text
             .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)  // 移除所有 XML 标签
             .replacingOccurrences(of: "&amp;", with: "&")
             .replacingOccurrences(of: "&lt;", with: "<")
