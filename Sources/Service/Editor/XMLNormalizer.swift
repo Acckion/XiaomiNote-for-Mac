@@ -39,27 +39,56 @@ public class XMLNormalizer {
     /// - Parameter xml: 原始XML内容
     /// - Returns: 规范化后的XML内容
     public func normalize(_ xml: String) -> String {
+        // 记录规范化开始时间
         let startTime = CFAbsoluteTimeGetCurrent()
+        
+        print("[XMLNormalizer] 🚀 开始规范化 XML 内容")
+        print("[XMLNormalizer] 📏 原始内容长度: \(xml.count) 字符")
         
         var normalized = xml
         
         // 1. 统一图片格式
+        let imageFormatStart = CFAbsoluteTimeGetCurrent()
         normalized = normalizeImageFormat(normalized)
+        let imageFormatTime = (CFAbsoluteTimeGetCurrent() - imageFormatStart) * 1000
+        print("[XMLNormalizer] ✅ 图片格式规范化完成，耗时: \(String(format: "%.2f", imageFormatTime))ms")
         
         // 2. 移除多余空格和换行
+        let whitespaceStart = CFAbsoluteTimeGetCurrent()
         normalized = removeExtraWhitespace(normalized)
+        let whitespaceTime = (CFAbsoluteTimeGetCurrent() - whitespaceStart) * 1000
+        print("[XMLNormalizer] ✅ 空格规范化完成，耗时: \(String(format: "%.2f", whitespaceTime))ms")
         
         // 3. 统一属性顺序
+        let attributeOrderStart = CFAbsoluteTimeGetCurrent()
         normalized = normalizeAttributeOrder(normalized)
+        let attributeOrderTime = (CFAbsoluteTimeGetCurrent() - attributeOrderStart) * 1000
+        print("[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: \(String(format: "%.2f", attributeOrderTime))ms")
         
         // 4. 规范化属性值
+        let attributeValueStart = CFAbsoluteTimeGetCurrent()
         normalized = normalizeAttributeValues(normalized)
+        let attributeValueTime = (CFAbsoluteTimeGetCurrent() - attributeValueStart) * 1000
+        print("[XMLNormalizer] ✅ 属性值规范化完成，耗时: \(String(format: "%.2f", attributeValueTime))ms")
         
+        // 记录规范化结束时间
         let elapsedTime = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
         
-        // 性能监控日志
+        print("[XMLNormalizer] 📏 规范化后内容长度: \(normalized.count) 字符")
+        print("[XMLNormalizer] ⏱️ 总耗时: \(String(format: "%.2f", elapsedTime))ms")
+        
+        // 性能监控：如果耗时超过阈值（10ms），记录警告日志
         if elapsedTime > 10 {
-            print("[XMLNormalizer] ⚠️ 规范化耗时超过阈值: \(String(format: "%.2f", elapsedTime))ms")
+            print("[XMLNormalizer] ⚠️ 警告：规范化耗时超过阈值（10ms）！")
+            print("[XMLNormalizer] ⚠️ 实际耗时: \(String(format: "%.2f", elapsedTime))ms")
+            print("[XMLNormalizer] ⚠️ 内容长度: \(xml.count) 字符")
+            print("[XMLNormalizer] ⚠️ 各步骤耗时详情：")
+            print("[XMLNormalizer]    - 图片格式: \(String(format: "%.2f", imageFormatTime))ms")
+            print("[XMLNormalizer]    - 空格处理: \(String(format: "%.2f", whitespaceTime))ms")
+            print("[XMLNormalizer]    - 属性顺序: \(String(format: "%.2f", attributeOrderTime))ms")
+            print("[XMLNormalizer]    - 属性值: \(String(format: "%.2f", attributeValueTime))ms")
+        } else {
+            print("[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）")
         }
         
         return normalized
