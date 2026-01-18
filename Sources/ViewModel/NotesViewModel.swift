@@ -114,6 +114,52 @@ public class NotesViewModel: ObservableObject {
     /// _Requirements: Spec 60 - 修复笔记切换死循环_
     private var isSwitchingNote: Bool = false
     
+    /// 上次笔记切换的时间
+    /// 
+    /// 用于实现防抖机制，防止快速连续切换导致的死循环问题
+    /// 
+    /// **使用场景**：
+    /// - 在 `selectNoteWithCoordinator()` 中记录切换时间
+    /// - 切换前检查距离上次切换的时间间隔
+    /// - 如果间隔小于 `switchDebounceInterval`，则忽略本次切换
+    /// 
+    /// _Requirements: Spec 60 - 修复笔记切换死循环_
+    private var lastSwitchTime: Date?
+    
+    /// 笔记切换防抖时间间隔（秒）
+    /// 
+    /// 防止快速连续切换导致的死循环问题。如果两次切换的时间间隔小于此值，
+    /// 则忽略第二次切换请求。
+    /// 
+    /// **值说明**：
+    /// - 设置为 0.3 秒（300ms）
+    /// - 这个时间足够短，不会影响正常使用体验
+    /// - 同时足够长，可以防止意外的快速切换
+    /// 
+    /// _Requirements: Spec 60 - 修复笔记切换死循环_
+    private let switchDebounceInterval: TimeInterval = 0.3
+    
+    /// 是否正在从 ViewStateCoordinator 更新状态
+    /// 
+    /// 用于防止状态同步的循环依赖，打破双向绑定的循环更新
+    /// 
+    /// **使用场景**：
+    /// - 在 `setupStateCoordinatorSync()` 中从 ViewStateCoordinator 同步状态时设置为 true
+    /// - 更新完成后立即重置为 false
+    /// - 当此标志为 true 时，忽略来自 ViewStateCoordinator 的状态更新
+    /// 
+    /// **问题背景**：
+    /// - NotesViewModel 从 ViewStateCoordinator 同步 selectedNote
+    /// - 某些操作又会更新 ViewStateCoordinator 的状态
+    /// - 双向绑定没有足够的防护机制，导致循环更新
+    /// 
+    /// **解决方案**：
+    /// - 使用此标志确保单向数据流
+    /// - 防止 NotesViewModel → ViewStateCoordinator → NotesViewModel 的循环更新
+    /// 
+    /// _Requirements: Spec 60 - 修复笔记切换死循环_
+    private var isUpdatingFromCoordinator: Bool = false
+    
     // MARK: - 状态协调器
     
     /// 视图状态协调器
@@ -3132,6 +3178,18 @@ public class NotesViewModel: ObservableObject {
             print("[VIEWMODEL] ⚠️ 正在切换笔记，忽略新的切换请求")
             return
         }
+        
+        // 🛡️ Spec 60: 防抖检查 - 防止快速连续切换
+        if let lastTime = lastSwitchTime {
+            let timeSinceLastSwitch = Date().timeIntervalSince(lastTime)
+            if timeSinceLastSwitch < switchDebounceInterval {
+                print("[VIEWMODEL] ⚠️ 切换过快，忽略 - 距上次切换: \(String(format: "%.3f", timeSinceLastSwitch))s")
+                return
+            }
+        }
+        
+        // 记录本次切换时间
+        lastSwitchTime = Date()
         
         isSwitchingNote = true
         defer { 
