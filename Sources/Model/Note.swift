@@ -659,6 +659,56 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
             print("[NOTE] 更新收藏状态: \(isStarred)")
         }
         
+        // 更新新增字段
+        self.snippet = entry["snippet"] as? String
+        self.colorId = entry["colorId"] as? Int ?? 0
+        self.subject = entry["subject"] as? String
+        
+        // 更新提醒时间（毫秒转 Date）
+        if let alertDateMs = entry["alertDate"] as? TimeInterval, alertDateMs > 0 {
+            self.alertDate = Date(timeIntervalSince1970: alertDateMs / 1000)
+        } else {
+            self.alertDate = nil
+        }
+        
+        self.type = entry["type"] as? String ?? "note"
+        self.serverTag = entry["tag"] as? String
+        self.status = entry["status"] as? String ?? "normal"
+        
+        // 更新 JSON 字段
+        if let setting = entry["setting"] {
+            // 将 setting 对象转换为 JSON 字符串
+            if let settingData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
+               let settingString = String(data: settingData, encoding: .utf8) {
+                self.settingJson = settingString
+                print("[NOTE] 更新 settingJson: \(settingString.prefix(100))...")
+            } else {
+                self.settingJson = nil
+                print("[NOTE] 警告：无法转换 setting 为 JSON 字符串")
+            }
+        } else {
+            self.settingJson = nil
+            print("[NOTE] entry 中没有 setting 字段")
+        }
+        
+        if let extraInfo = entry["extraInfo"] as? String {
+            self.extraInfoJson = extraInfo
+            print("[NOTE] 更新 extraInfoJson (字符串): \(extraInfo.prefix(100))...")
+        } else if let extraInfo = entry["extraInfo"] {
+            // 如果 extraInfo 不是字符串，尝试转换为 JSON 字符串
+            if let extraInfoData = try? JSONSerialization.data(withJSONObject: extraInfo, options: [.sortedKeys]),
+               let extraInfoString = String(data: extraInfoData, encoding: .utf8) {
+                self.extraInfoJson = extraInfoString
+                print("[NOTE] 更新 extraInfoJson (对象转字符串): \(extraInfoString.prefix(100))...")
+            } else {
+                self.extraInfoJson = nil
+                print("[NOTE] 警告：无法转换 extraInfo 为 JSON 字符串")
+            }
+        } else {
+            self.extraInfoJson = nil
+            print("[NOTE] entry 中没有 extraInfo 字段")
+        }
+        
         // 更新rawData
         var updatedRawData = self.rawData ?? [:]
         for (key, value) in entry {
