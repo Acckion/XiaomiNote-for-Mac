@@ -1989,16 +1989,19 @@ final class SyncService: @unchecked Sendable {
             // 检查图片是否已存在且有效
             var existingFormat: String?
             if !forceRedownload {
+                print("[SYNC] 检查旧版格式图片是否存在: \(fileId)")
                 // 尝试所有可能的图片格式
                 let formats = ["jpg", "jpeg", "png", "gif", "webp"]
                 
                 for format in formats {
                     if localStorage.validateImage(fileId: fileId, fileType: format) {
-                        print("[SYNC] 旧版格式图片已存在且有效，跳过下载: \(fileId).\(format)")
+                        print("[SYNC] ✅ 旧版格式图片已存在且有效，跳过下载: \(fileId).\(format)")
                         existingFormat = format
                         break
                     }
                 }
+            } else {
+                print("[SYNC] ⚠️ 强制重新下载旧版格式图片: \(fileId)")
             }
             
             // 下载图片（如果需要）
