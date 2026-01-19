@@ -467,6 +467,13 @@ final class DatabaseService: @unchecked Sendable {
             // setting_json（索引 17）
             sqlite3_bind_text(statement, 17, note.settingJson, -1, nil)
             
+            // 调试：打印 settingJson 内容
+            if let settingJson = note.settingJson, !settingJson.isEmpty {
+                print("[Database] 📝 保存 settingJson: \(settingJson.prefix(200))...")
+            } else {
+                print("[Database] ⚠️ settingJson 为空或 nil")
+            }
+            
             // extra_info_json（索引 18）
             sqlite3_bind_text(statement, 18, note.extraInfoJson, -1, nil)
             

@@ -318,6 +318,7 @@ final class SyncService: @unchecked Sendable {
                            let settingString = String(data: settingData, encoding: .utf8) {
                             updatedNote.settingJson = settingString
                             print("[SYNC] 更新笔记的 setting.data 和 settingJson，包含 \(updatedSettingData.count) 个图片条目")
+                            print("[SYNC] 📝 settingJson 内容: \(settingString.prefix(200))...")
                         } else {
                             print("[SYNC] ⚠️ 无法将 setting 转换为 JSON 字符串")
                         }
@@ -368,6 +369,7 @@ final class SyncService: @unchecked Sendable {
                            let settingString = String(data: settingData, encoding: .utf8) {
                             updatedNote.settingJson = settingString
                             print("[SYNC] 更新私密笔记的 setting.data 和 settingJson，包含 \(updatedSettingData.count) 个图片条目")
+                            print("[SYNC] 📝 settingJson 内容: \(settingString.prefix(200))...")
                         } else {
                             print("[SYNC] ⚠️ 无法将 setting 转换为 JSON 字符串")
                         }
