@@ -2,7 +2,7 @@ import Foundation
 
 /// 段落类型枚举
 /// 定义编辑器中支持的所有段落类型
-enum ParagraphType: Equatable, Hashable {
+public enum ParagraphType: Equatable, Hashable {
     /// 标题段落（特殊）- 始终是编辑器中的第一个段落
     case title
     
@@ -13,6 +13,7 @@ enum ParagraphType: Equatable, Hashable {
     case normal
     
     /// 列表段落
+    /// 注意：使用 FormatManager 中定义的 ListType
     case list(ListType)
     
     /// 引用段落
@@ -22,22 +23,18 @@ enum ParagraphType: Equatable, Hashable {
     case code
 }
 
-/// 列表类型
-enum ListType: Equatable, Hashable {
-    /// 无序列表（项目符号）
-    case bullet
-    
-    /// 有序列表（编号）
-    case numbered
-    
-    /// 复选框列表
-    case checkbox(checked: Bool)
-}
+// 注意：ListType 已在 FormatManager.swift 中定义
+// public enum ListType: Equatable {
+//     case bullet     // 无序列表
+//     case ordered    // 有序列表
+//     case checkbox   // 复选框列表
+//     case none       // 非列表
+// }
 
 // MARK: - CustomStringConvertible
 
 extension ParagraphType: CustomStringConvertible {
-    var description: String {
+    public var description: String {
         switch self {
         case .title:
             return "标题段落"
@@ -51,19 +48,6 @@ extension ParagraphType: CustomStringConvertible {
             return "引用段落"
         case .code:
             return "代码块段落"
-        }
-    }
-}
-
-extension ListType: CustomStringConvertible {
-    var description: String {
-        switch self {
-        case .bullet:
-            return "无序列表"
-        case .numbered:
-            return "有序列表"
-        case .checkbox(let checked):
-            return "复选框列表 (\(checked ? "已选中" : "未选中"))"
         }
     }
 }

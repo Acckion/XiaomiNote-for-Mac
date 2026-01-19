@@ -3,7 +3,7 @@ import AppKit
 
 /// 段落模型
 /// 表示编辑器中的一个段落，包含其范围、类型、属性和版本信息
-struct Paragraph {
+public struct Paragraph {
     /// 段落在文本中的范围
     let range: NSRange
     
@@ -39,7 +39,7 @@ struct Paragraph {
     ///   - decorativeAttributes: 装饰属性字典
     ///   - version: 版本号，默认为 0
     ///   - needsReparse: 是否需要重新解析，默认为 true
-    init(
+    public init(
         range: NSRange,
         type: ParagraphType,
         metaAttributes: [String: Any] = [:],
@@ -169,7 +169,7 @@ extension Paragraph {
 // MARK: - CustomStringConvertible
 
 extension Paragraph: CustomStringConvertible {
-    var description: String {
+    public var description: String {
         "Paragraph(range: \(range), type: \(type), version: \(version), needsReparse: \(needsReparse))"
     }
 }
@@ -177,7 +177,7 @@ extension Paragraph: CustomStringConvertible {
 // MARK: - Equatable
 
 extension Paragraph: Equatable {
-    static func == (lhs: Paragraph, rhs: Paragraph) -> Bool {
+    public static func == (lhs: Paragraph, rhs: Paragraph) -> Bool {
         lhs.range == rhs.range &&
         lhs.type == rhs.type &&
         lhs.version == rhs.version &&

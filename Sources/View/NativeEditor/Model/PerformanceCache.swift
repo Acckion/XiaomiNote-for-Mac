@@ -157,6 +157,7 @@ struct CacheStatistics {
 /// 缓存常用的属性对象（字体、段落样式、颜色）以提高性能
 class PerformanceCache {
     /// 单例实例
+    @MainActor
     static let shared = PerformanceCache()
     
     /// 字体缓存
