@@ -1779,41 +1779,26 @@ final class SyncService: @unchecked Sendable {
             return nil
         }
         
-        // 首先尝试从 content 中提取旧版格式的图片，并生成 setting.data
-        var legacyImageData: [[String: Any]] = []
-        if let content = entry["content"] as? String {
-            legacyImageData = await downloadLegacyFormatImages(from: content, forceRedownload: forceRedownload)
-            if !legacyImageData.isEmpty {
-                print("[SYNC] 从旧版格式生成了 \(legacyImageData.count) 个 setting.data 条目")
+        // 第一步：处理 setting.data 中的图片（如果存在）
+        var settingData: [[String: Any]] = []
+        
+        if let setting = entry["setting"] as? [String: Any] {
+            print("[SYNC] 找到 setting 字段，包含键: \(setting.keys)")
+            
+            if let existingData = setting["data"] as? [[String: Any]] {
+                settingData = existingData
+                print("[SYNC] 找到 \(settingData.count) 个 setting.data 附件条目")
+            } else {
+                print("[SYNC] setting 中没有 data 字段或 data 不是数组")
             }
+        } else {
+            print("[SYNC] entry 中没有 setting 字段")
         }
         
-        // 从 setting.data 中提取附件信息
-        guard let setting = entry["setting"] as? [String: Any] else {
-            print("[SYNC] entry 中没有 setting 字段，跳过附件下载: \(noteId)")
-            print("[SYNC] entry 包含的键: \(entry.keys)")
-            return nil
-        }
-        
-        print("[SYNC] 找到 setting 字段，包含键: \(setting.keys)")
-        
-        guard var settingData = setting["data"] as? [[String: Any]] else {
-            print("[SYNC] setting 中没有 data 字段或 data 不是数组，跳过附件下载: \(noteId)")
-            return nil
-        }
-        
-        print("[SYNC] 找到 \(settingData.count) 个附件条目")
-        
-        // 使用简单的异步循环，避免复杂的并发问题
+        // 使用简单的异步循环处理 setting.data 中的附件
         for index in 0..<settingData.count {
             let attachmentData = settingData[index]
-            print("[SYNC] 处理附件条目 \(index + 1)/\(settingData.count): \(attachmentData.keys)")
-            
-            // 跳过从旧版格式转换的条目（已经被 downloadLegacyFormatImages 处理过）
-            if let fromLegacy = attachmentData["fromLegacyFormat"] as? Bool, fromLegacy {
-                print("[SYNC] 跳过旧版格式转换的附件条目（已处理）: \(index + 1)")
-                continue
-            }
+            print("[SYNC] 处理 setting.data 附件条目 \(index + 1)/\(settingData.count): \(attachmentData.keys)")
             
             guard let fileId = attachmentData["fileId"] as? String else {
                 print("[SYNC] 附件条目 \(index + 1) 没有 fileId，跳过")
@@ -1899,9 +1884,18 @@ final class SyncService: @unchecked Sendable {
             }
         }
         
-        print("[SYNC] 所有附件处理完成，共处理 \(settingData.count) 个条目")
+        print("[SYNC] setting.data 中的附件处理完成，共处理 \(settingData.count) 个条目")
         
-        // 合并旧版格式生成的 setting.data
+        // 第二步：检测并下载旧版格式图片
+        var legacyImageData: [[String: Any]] = []
+        if let content = entry["content"] as? String {
+            legacyImageData = await downloadLegacyFormatImages(from: content, forceRedownload: forceRedownload)
+            if !legacyImageData.isEmpty {
+                print("[SYNC] 从旧版格式生成了 \(legacyImageData.count) 个 setting.data 条目")
+            }
+        }
+        
+        // 第三步：合并旧版格式生成的 setting.data
         if !legacyImageData.isEmpty {
             print("[SYNC] 合并 \(legacyImageData.count) 个旧版格式图片的 setting.data")
             settingData.append(contentsOf: legacyImageData)
@@ -2041,8 +2035,7 @@ final class SyncService: @unchecked Sendable {
             let settingEntry: [String: Any] = [
                 "fileId": fileId,
                 "mimeType": mimeType,
-                "size": imageSize,
-                "fromLegacyFormat": true  // 标记这是从旧版格式转换的
+                "size": imageSize
             ]
             
             settingDataEntries.append(settingEntry)
