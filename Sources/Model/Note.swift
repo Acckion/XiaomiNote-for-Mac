@@ -838,7 +838,7 @@ extension Note {
     /// 只返回 `mimeType` 以 "image/" 开头的附件。
     ///
     /// - Returns: 图片附件数组，如果没有图片或解析失败则返回空数组
-    public var imageAttachments: [ImageAttachment] {
+    public var imageAttachments: [NoteImageAttachment] {
         // 检查 settingJson 是否存在
         guard let settingJson = settingJson,
               !settingJson.isEmpty else {
@@ -861,8 +861,8 @@ extension Note {
                 return []
             }
             
-            // 过滤并转换为 ImageAttachment
-            return dataArray.compactMap { dict -> ImageAttachment? in
+            // 过滤并转换为 NoteImageAttachment
+            return dataArray.compactMap { dict -> NoteImageAttachment? in
                 guard let fileId = dict["fileId"] as? String,
                       let mimeType = dict["mimeType"] as? String,
                       mimeType.hasPrefix("image/") else {
@@ -870,7 +870,7 @@ extension Note {
                 }
                 
                 let size = dict["size"] as? Int
-                return ImageAttachment(fileId: fileId, mimeType: mimeType, size: size)
+                return NoteImageAttachment(fileId: fileId, mimeType: mimeType, size: size)
             }
         } catch {
             print("[Note] 解析 settingJson 失败: \(error)")

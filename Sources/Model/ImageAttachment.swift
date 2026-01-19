@@ -1,6 +1,6 @@
 import Foundation
 
-/// 图片附件信息
+/// 笔记图片附件信息
 ///
 /// 从笔记的 `settingJson` 字段中解析出的图片附件信息。
 /// 用于在笔记列表中显示图片预览。
@@ -22,7 +22,10 @@ import Foundation
 ///   ]
 /// }
 /// ```
-public struct ImageAttachment: Codable, Identifiable, Equatable, Hashable {
+///
+/// **注意**：此结构体与 `Sources/View/NativeEditor/Attachment/ImageAttachment.swift` 中的
+/// `ImageAttachment` 类不同。后者是用于原生编辑器的 NSTextAttachment 子类。
+public struct NoteImageAttachment: Codable, Identifiable, Equatable, Hashable, Sendable {
     /// 文件ID（完整格式：userId.fileId）
     public let fileId: String
     
