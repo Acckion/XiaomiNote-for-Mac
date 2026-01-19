@@ -1810,6 +1810,19 @@ class MenuManager {
         bringAllToFrontItem.tag = MenuItemTag.bringAllToFront.rawValue
         setMenuItemIcon(bringAllToFrontItem, symbolName: "rectangle.stack")
         windowMenu.addItem(bringAllToFrontItem)
+        
+        // 添加调试工具子菜单
+        #if DEBUG
+        windowMenu.addItem(NSMenuItem.separator())
+        let debugMenuItem = NSMenuItem(
+            title: "调试工具",
+            action: nil,
+            keyEquivalent: ""
+        )
+        debugMenuItem.submenu = createDebugToolsSubmenu()
+        setMenuItemIcon(debugMenuItem, symbolName: "wrench.and.screwdriver")
+        windowMenu.addItem(debugMenuItem)
+        #endif
     }
     
     /// 创建"移动与调整大小"子菜单 
@@ -1900,6 +1913,31 @@ class MenuManager {
         fullScreenTileMenu.addItem(tileRightItem)
         
         return fullScreenTileMenu
+    }
+    
+    /// 创建"调试工具"子菜单
+    private func createDebugToolsSubmenu() -> NSMenu {
+        let debugMenu = NSMenu(title: "调试工具")
+        
+        // 段落管理器调试窗口
+        let paragraphDebugItem = NSMenuItem(
+            title: "段落管理器调试",
+            action: #selector(AppDelegate.showParagraphDebugWindow(_:)),
+            keyEquivalent: ""
+        )
+        setMenuItemIcon(paragraphDebugItem, symbolName: "text.alignleft")
+        debugMenu.addItem(paragraphDebugItem)
+        
+        // 调试设置窗口
+        let debugSettingsItem = NSMenuItem(
+            title: "调试设置",
+            action: #selector(AppDelegate.showDebugSettings(_:)),
+            keyEquivalent: ""
+        )
+        setMenuItemIcon(debugSettingsItem, symbolName: "gearshape.2")
+        debugMenu.addItem(debugSettingsItem)
+        
+        return debugMenu
     }
     
     /// 设置帮助菜单

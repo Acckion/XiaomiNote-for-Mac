@@ -758,6 +758,11 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         // 这里可以打开离线操作窗口
     }
     
+    /// 显示段落管理器调试窗口
+    func showParagraphDebugWindow(_ sender: Any?) {
+        windowManager.showParagraphDebugWindow()
+    }
+    
     // MARK: - 文件菜单新增动作
     
     /// 创建新笔记

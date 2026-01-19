@@ -2,9 +2,9 @@ import AppKit
 import SwiftUI
 
 /// 段落管理器调试窗口控制器
-class ParagraphDebugWindowController: NSWindowController {
+public class ParagraphDebugWindowController: NSWindowController {
     
-    convenience init() {
+    public convenience init() {
         // 创建窗口
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 900, height: 700),
@@ -25,7 +25,7 @@ class ParagraphDebugWindowController: NSWindowController {
     }
     
     /// 显示窗口
-    func show() {
+    public func show() {
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

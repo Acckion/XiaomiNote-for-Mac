@@ -252,6 +252,19 @@ class WindowManager {
         }
     }
     
+    // MARK: - 调试工具
+    
+    /// 段落管理器调试窗口控制器
+    private var paragraphDebugWindowController: ParagraphDebugWindowController?
+    
+    /// 显示段落管理器调试窗口
+    func showParagraphDebugWindow() {
+        if paragraphDebugWindowController == nil {
+            paragraphDebugWindowController = ParagraphDebugWindowController()
+        }
+        paragraphDebugWindowController?.show()
+    }
+    
     // MARK: - 清理
     
     deinit {
