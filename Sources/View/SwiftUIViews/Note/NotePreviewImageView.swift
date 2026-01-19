@@ -89,16 +89,20 @@ struct NotePreviewImageView: View {
         loadFailed = false
         isLoading = true
         
+        print("[NotePreviewImageView] 开始加载图片: \(fileId).\(fileType)")
+        
         // 异步加载图片
         Task {
             // 从预览服务加载
             if let loadedImage = previewService.loadPreviewImage(fileId: fileId, fileType: fileType) {
+                print("[NotePreviewImageView] ✅ 图片加载成功: \(fileId).\(fileType)")
                 await MainActor.run {
                     self.image = loadedImage
                     self.isLoading = false
                 }
             } else {
                 // 加载失败
+                print("[NotePreviewImageView] ❌ 图片加载失败: \(fileId).\(fileType)")
                 await MainActor.run {
                     self.loadFailed = true
                     self.isLoading = false

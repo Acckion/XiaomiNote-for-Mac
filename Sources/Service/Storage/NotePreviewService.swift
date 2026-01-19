@@ -31,17 +31,8 @@ public class NotePreviewService: ObservableObject {
     private let localStorage = LocalStorageService.shared
     
     private init() {
-        // 监听内存警告
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleMemoryWarning),
-            name: NSApplication.didReceiveMemoryWarningNotification,
-            object: nil
-        )
-    }
-    
-    deinit {
-        NotificationCenter.default.removeObserver(self)
+        // macOS 没有内存警告通知，可以监听其他系统通知
+        // 或者提供手动清除缓存的方法
     }
     
     // MARK: - 公共方法
@@ -56,21 +47,43 @@ public class NotePreviewService: ObservableObject {
     ///   - fileType: 文件类型（如 "png", "jpg"）
     /// - Returns: NSImage 对象，如果加载失败则返回 nil
     public func loadPreviewImage(fileId: String, fileType: String) -> NSImage? {
+        print("[NotePreviewService] 请求加载图片: \(fileId).\(fileType)")
+        
         // 1. 检查缓存
         if let cached = getCachedImage(fileId: fileId) {
+            print("[NotePreviewService] ✅ 从缓存加载: \(fileId)")
             return cached
         }
         
+        print("[NotePreviewService] 缓存未命中，从本地存储加载")
+        
         // 2. 从本地存储加载
-        guard let imageData = localStorage.loadImage(fileId: fileId, fileType: fileType) else {
+        var imageData: Data? = localStorage.loadImage(fileId: fileId, fileType: fileType)
+        var actualFileType = fileType
+        
+        // 如果加载失败且文件类型是 "jpg"，尝试 "jpeg"
+        if imageData == nil && fileType == "jpg" {
+            print("[NotePreviewService] jpg 加载失败，尝试 jpeg")
+            imageData = localStorage.loadImage(fileId: fileId, fileType: "jpeg")
+            if imageData != nil {
+                actualFileType = "jpeg"
+            }
+        }
+        
+        guard let imageData = imageData else {
+            print("[NotePreviewService] ❌ 本地存储加载失败: \(fileId).\(fileType)")
             return nil
         }
         
+        print("[NotePreviewService] ✅ 本地存储加载成功（\(actualFileType)），数据大小: \(imageData.count) 字节")
+        
         // 3. 创建 NSImage
         guard let image = NSImage(data: imageData) else {
-            print("[NotePreviewService] 无法从数据创建 NSImage: \(fileId)")
+            print("[NotePreviewService] ❌ 无法从数据创建 NSImage: \(fileId)")
             return nil
         }
+        
+        print("[NotePreviewService] ✅ NSImage 创建成功，尺寸: \(image.size)")
         
         // 4. 缓存图片
         cacheImage(image, forFileId: fileId)
@@ -145,11 +158,5 @@ public class NotePreviewService: ObservableObject {
         cacheAccessOrder.removeFirst()
         
         print("[NotePreviewService] 移除最旧的缓存图片: \(oldestFileId)")
-    }
-    
-    /// 处理内存警告
-    @objc private func handleMemoryWarning() {
-        print("[NotePreviewService] 收到内存警告，清除缓存")
-        clearCache()
     }
 }
