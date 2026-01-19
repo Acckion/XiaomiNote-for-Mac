@@ -895,4 +895,13 @@ extension Note {
     public var hasImages: Bool {
         return !imageAttachments.isEmpty
     }
+    
+    /// 是否包含音频
+    ///
+    /// 通过检查笔记内容中是否包含 `<sound fileid="xxx" />` 标签来判断。
+    ///
+    /// - Returns: 如果包含至少一个音频附件则返回 true
+    public var hasAudio: Bool {
+        return content.contains("<sound fileid=")
+    }
 }

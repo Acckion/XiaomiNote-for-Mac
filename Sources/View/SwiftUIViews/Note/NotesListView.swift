@@ -841,6 +841,13 @@ struct NoteRow: View {
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                                 .lineLimit(1)
+                            
+                            // 录音指示器
+                            if note.hasAudio {
+                                Image(systemName: "mic.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
