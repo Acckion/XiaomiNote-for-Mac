@@ -38,9 +38,18 @@ public final class XMLGenerator: @unchecked Sendable {
     /// 将文档 AST 转换为 XML 字符串
     /// - Parameter document: 文档 AST 节点
     /// - Returns: XML 字符串
+    ///
+    /// _Requirements: 3.4_ - 将标题转换为 XML 的 `<title>` 标签
     public func generate(_ document: DocumentNode) -> String {
         var lines: [String] = []
         
+        // 如果有标题，先生成标题标签
+        if let title = document.title, !title.isEmpty {
+            let encodedTitle = encodeXMLEntities(title)
+            lines.append("<title>\(encodedTitle)</title>")
+        }
+        
+        // 生成所有块级元素
         for block in document.blocks {
             let line = generateBlock(block)
             lines.append(line)

@@ -32,6 +32,13 @@ public class ParagraphManager {
     /// 
     /// 遍历文本存储，识别换行符位置，构建段落范围数组。
     /// 处理空文本和单段落的边缘情况。
+    /// 
+    /// **附件处理规则**:
+    /// - "真实附件"（ImageAttachment, AudioAttachment, HorizontalRuleAttachment）必须独占一个段落
+    /// - "列表标记附件"（BulletAttachment, OrderAttachment, InteractiveCheckboxAttachment）
+    ///   在逻辑上不是附件，而是段落的一部分，不需要特殊处理
+    /// 
+    /// _Requirements: 8.5_
     ///
     /// - Parameter textStorage: 文本存储
     /// - Returns: 段落范围数组
@@ -54,7 +61,15 @@ public class ParagraphManager {
                 // 计算当前段落的范围（包含换行符）
                 let paragraphLength = index - currentStart + 1
                 let range = NSRange(location: currentStart, length: paragraphLength)
-                paragraphRanges.append(range)
+                
+                // 验证段落中的附件
+                if validateAttachmentsInParagraph(range, in: textStorage) {
+                    paragraphRanges.append(range)
+                } else {
+                    // 附件验证失败，记录警告但仍然添加段落
+                    print("[ParagraphManager] ⚠️ 警告: 段落 \(range) 包含跨越边界的附件")
+                    paragraphRanges.append(range)
+                }
                 
                 // 更新下一个段落的起始位置
                 currentStart = index + 1
@@ -73,7 +88,15 @@ public class ParagraphManager {
         if currentStart < length {
             let paragraphLength = length - currentStart
             let range = NSRange(location: currentStart, length: paragraphLength)
-            paragraphRanges.append(range)
+            
+            // 验证段落中的附件
+            if validateAttachmentsInParagraph(range, in: textStorage) {
+                paragraphRanges.append(range)
+            } else {
+                // 附件验证失败，记录警告但仍然添加段落
+                print("[ParagraphManager] ⚠️ 警告: 段落 \(range) 包含跨越边界的附件")
+                paragraphRanges.append(range)
+            }
         }
         
         // 边缘情况：如果没有找到任何段落（例如只有换行符），返回一个空段落
@@ -82,6 +105,83 @@ public class ParagraphManager {
         }
         
         return paragraphRanges
+    }
+    
+    /// 验证段落中的附件是否符合规则
+    /// 
+    /// **验证规则**:
+    /// 1. "真实附件"（图片、音频、分割线）必须独占一个段落
+    /// 2. "列表标记附件"（项目符号、编号、复选框）可以与文本共存
+    /// 3. 附件字符不能跨越段落边界
+    /// 
+    /// _Requirements: 8.5_
+    /// 
+    /// - Parameters:
+    ///   - range: 段落范围
+    ///   - textStorage: 文本存储
+    /// - Returns: 如果附件符合规则返回 true，否则返回 false
+    private func validateAttachmentsInParagraph(_ range: NSRange, in textStorage: NSTextStorage) -> Bool {
+        var isValid = true
+        var hasTrueAttachment = false
+        var hasText = false
+        
+        // 遍历段落中的所有字符
+        textStorage.enumerateAttribute(.attachment, in: range, options: []) { value, subRange, stop in
+            if let attachment = value as? NSTextAttachment {
+                // 检查是否为"真实附件"
+                if isTrueAttachment(attachment) {
+                    hasTrueAttachment = true
+                    
+                    // 验证附件字符不跨越段落边界
+                    if !NSEqualRanges(NSIntersectionRange(subRange, range), subRange) {
+                        print("[ParagraphManager] ❌ 错误: 附件字符跨越段落边界")
+                        print("[ParagraphManager]   - 附件范围: \(subRange)")
+                        print("[ParagraphManager]   - 段落范围: \(range)")
+                        isValid = false
+                        stop.pointee = true
+                    }
+                }
+                // 列表标记附件不需要特殊验证
+            } else {
+                // 非附件字符，检查是否为有效文本（非换行符）
+                let text = (textStorage.string as NSString).substring(with: subRange)
+                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    hasText = true
+                }
+            }
+        }
+        
+        // 验证"真实附件"独占段落的规则
+        if hasTrueAttachment && hasText {
+            print("[ParagraphManager] ⚠️ 警告: 段落 \(range) 包含真实附件但不是独占段落")
+            // 注意: 这里只是警告，不强制失败，因为可能存在遗留数据
+            // isValid = false
+        }
+        
+        return isValid
+    }
+    
+    /// 判断附件是否为"真实附件"
+    /// 
+    /// **真实附件**:
+    /// - ImageAttachment: 图片附件
+    /// - AudioAttachment: 音频附件
+    /// - HorizontalRuleAttachment: 分割线附件
+    /// 
+    /// **非真实附件（列表标记）**:
+    /// - BulletAttachment: 项目符号
+    /// - OrderAttachment: 有序列表编号
+    /// - InteractiveCheckboxAttachment: 复选框
+    /// 
+    /// _Requirements: 8.5_
+    /// 
+    /// - Parameter attachment: NSTextAttachment 对象
+    /// - Returns: 如果是真实附件返回 true，否则返回 false
+    private func isTrueAttachment(_ attachment: NSTextAttachment) -> Bool {
+        // 使用类型检查判断是否为真实附件
+        return attachment is ImageAttachment 
+            || attachment is AudioAttachment 
+            || attachment is HorizontalRuleAttachment
     }
     
     // MARK: - Paragraph List Management

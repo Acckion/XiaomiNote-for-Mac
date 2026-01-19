@@ -61,6 +61,8 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     /// - Parameter xml: 小米笔记 XML 字符串
     /// - Returns: 解析结果（包含文档 AST 和警告）
     /// - Throws: ParseError（仅在无法恢复时抛出）
+    ///
+    /// _Requirements: 3.5_ - 从 XML 的 `<title>` 标签加载为文档标题
     public func parse(_ xml: String) throws -> ParseResult<DocumentNode> {
         // 重置状态
         warnings = []
@@ -85,6 +87,9 @@ public final class MiNoteXMLParser: @unchecked Sendable {
             }
         }
         
+        // 提取标题（如果存在）
+        var title: String? = nil
+        
         // 语法分析
         var blocks: [any BlockNode] = []
         
@@ -92,6 +97,27 @@ public final class MiNoteXMLParser: @unchecked Sendable {
             // 跳过换行符
             if case .newline = currentToken {
                 advance()
+                continue
+            }
+            
+            // 检查是否是标题标签
+            if case .startTag(let name, _, let selfClosing) = currentToken, name == "title" {
+                // 解析标题
+                advance()
+                
+                if !selfClosing {
+                    // 提取标题内容
+                    if case .text(let titleText) = currentToken {
+                        title = titleText
+                        advance()
+                    }
+                    
+                    // 跳过结束标签
+                    if case .endTag(let endName) = currentToken, endName == "title" {
+                        advance()
+                    }
+                }
+                
                 continue
             }
             
@@ -147,7 +173,7 @@ public final class MiNoteXMLParser: @unchecked Sendable {
             }
         }
         
-        return ParseResult(value: DocumentNode(blocks: blocks), warnings: warnings)
+        return ParseResult(value: DocumentNode(title: title, blocks: blocks), warnings: warnings)
     }
     
     /// 创建纯文本回退文档

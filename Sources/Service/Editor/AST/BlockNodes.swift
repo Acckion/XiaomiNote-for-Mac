@@ -15,6 +15,11 @@ import Foundation
 public struct DocumentNode: ASTNode, Equatable, Sendable {
     public var nodeType: ASTNodeType { .document }
     
+    /// 文档标题（可选）
+    /// 对应 XML 中的 `<title>` 标签
+    /// _Requirements: 3.2, 3.4, 3.5, 3.6_
+    public var title: String?
+    
     /// 文档包含的块级节点
     public var blocks: [any BlockNode]
     
@@ -22,11 +27,13 @@ public struct DocumentNode: ASTNode, Equatable, Sendable {
         blocks.map { $0 as any ASTNode }
     }
     
-    public init(blocks: [any BlockNode] = []) {
+    public init(title: String? = nil, blocks: [any BlockNode] = []) {
+        self.title = title
         self.blocks = blocks
     }
     
     public static func == (lhs: DocumentNode, rhs: DocumentNode) -> Bool {
+        guard lhs.title == rhs.title else { return false }
         guard lhs.blocks.count == rhs.blocks.count else { return false }
         for (left, right) in zip(lhs.blocks, rhs.blocks) {
             if !areNodesEqual(left, right) {
