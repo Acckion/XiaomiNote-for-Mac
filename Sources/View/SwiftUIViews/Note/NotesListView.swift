@@ -689,8 +689,6 @@ struct NoteRow: View {
     let showDivider: Bool
     @ObservedObject var viewModel: NotesViewModel
     @ObservedObject var optionsManager: ViewOptionsManager = .shared
-    @State private var thumbnailImage: NSImage? = nil
-    @State private var currentImageFileId: String? = nil // 跟踪当前显示的图片ID
     
     /// 用于比较的显示属性
     /// 只有当这些属性变化时，才会触发视图重建
@@ -850,40 +848,12 @@ struct NoteRow: View {
                 Spacer()
                 
                 // 图片预览（如果有图片）
-                if let imageInfo = getFirstImageInfo(from: note) {
-                    Group {
-                        if let nsImage = thumbnailImage {
-                            Image(nsImage: nsImage)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } else {
-                            Image(systemName: "photo")
-                                .font(.system(size: 20))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .frame(width: 50, height: 50)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .clipped() // 确保超出部分被剪裁
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+                if let attachment = note.imageAttachments.first {
+                    NotePreviewImageView(
+                        fileId: attachment.fileId,
+                        fileType: attachment.fileType,
+                        size: 50
                     )
-                    .onAppear {
-                        // 首次加载或图片ID变化时，重新加载
-                        if currentImageFileId != imageInfo.fileId {
-                            loadThumbnail(imageInfo: imageInfo)
-                            currentImageFileId = imageInfo.fileId
-                        }
-                    }
-                    .onChange(of: imageInfo.fileId) { oldValue, newValue in
-                        // 图片ID变化时，重新加载
-                        if currentImageFileId != newValue {
-                            loadThumbnail(imageInfo: imageInfo)
-                            currentImageFileId = newValue
-                        }
-                    }
                 }
                 
                 // 锁图标（如果有）
@@ -945,24 +915,6 @@ struct NoteRow: View {
                     }
                 }
             }
-        }
-        .onChange(of: note.content) { oldValue, newValue in
-            // 笔记内容变化时，重新检查并更新图片
-            updateThumbnail()
-        }
-        .onChange(of: note.updatedAt) { oldValue, newValue in
-            // 更新时间变化时，重新检查并更新图片
-            updateThumbnail()
-        }
-        .onChange(of: note.title) { oldValue, newValue in
-            // 笔记标题变化时，强制视图刷新
-            print("[NoteRow] onChange(title): 笔记标题变化: \(oldValue) -> \(newValue)")
-        }
-        .onChange(of: noteImageHash) { oldValue, newValue in
-            // 图片信息哈希值变化时，强制更新缩略图
-            // 这确保当图片插入/删除时能正确刷新
-            print("[NoteRow] onChange(noteImageHash): 图片信息哈希值变化 (\(oldValue) -> \(newValue))，更新缩略图")
-            updateThumbnail()
         }
         // 使用笔记 ID 作为视图标识符（而非 displayProperties）
         // 这样编辑笔记内容时不会改变视图标识，选择状态能够保持
@@ -1180,128 +1132,6 @@ struct NoteRow: View {
         }
         
         return text.isEmpty ? "无内容" : text
-    }
-    
-    /// 从笔记中提取第一张图片的信息
-    private func getFirstImageInfo(from note: Note) -> (fileId: String, fileType: String)? {
-        guard let rawData = note.rawData,
-              let setting = rawData["setting"] as? [String: Any],
-              let settingData = setting["data"] as? [[String: Any]] else {
-            return nil
-        }
-        
-        // 查找第一张图片
-        for imgData in settingData {
-            if let fileId = imgData["fileId"] as? String,
-               let mimeType = imgData["mimeType"] as? String,
-               mimeType.hasPrefix("image/") {
-                let fileType = String(mimeType.dropFirst("image/".count))
-                return (fileId: fileId, fileType: fileType)
-            }
-        }
-        
-        return nil
-    }
-    
-    /// 获取图片信息的哈希值，用于检测变化
-    private func getImageInfoHash(from note: Note) -> String {
-        guard let rawData = note.rawData,
-              let setting = rawData["setting"] as? [String: Any],
-              let settingData = setting["data"] as? [[String: Any]] else {
-            return "no_images"
-        }
-        
-        // 提取所有图片信息并生成哈希
-        var imageInfos: [String] = []
-        for imgData in settingData {
-            if let fileId = imgData["fileId"] as? String,
-               let mimeType = imgData["mimeType"] as? String,
-               mimeType.hasPrefix("image/") {
-                imageInfos.append("\(fileId):\(mimeType)")
-            }
-        }
-        
-        if imageInfos.isEmpty {
-            return "no_images"
-        }
-        
-        // 排序以确保一致的哈希
-        return imageInfos.sorted().joined(separator: "|")
-    }
-    
-    /// 当前笔记的图片哈希值（计算属性）
-    private var noteImageHash: String {
-        getImageInfoHash(from: note)
-    }
-    
-    /// 更新缩略图（根据当前笔记内容）
-    private func updateThumbnail() {
-        if let imageInfo = getFirstImageInfo(from: note) {
-            // 如果图片ID变化了，重新加载
-            if currentImageFileId != imageInfo.fileId {
-                loadThumbnail(imageInfo: imageInfo)
-                currentImageFileId = imageInfo.fileId
-            }
-        } else {
-            // 如果没有图片了，清空缩略图
-            if currentImageFileId != nil || thumbnailImage != nil {
-                currentImageFileId = nil
-                thumbnailImage = nil
-            }
-        }
-    }
-    
-    /// 加载缩略图
-    private func loadThumbnail(imageInfo: (fileId: String, fileType: String)) {
-        // 在后台线程加载图片
-        Task {
-            if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
-               let nsImage = NSImage(data: imageData) {
-                // 创建缩略图（50x50），使用剪裁模式而不是拉伸
-                let thumbnailSize = NSSize(width: 50, height: 50)
-                let thumbnail = NSImage(size: thumbnailSize)
-                
-                thumbnail.lockFocus()
-                defer { thumbnail.unlockFocus() }
-                
-                // 计算缩放比例，保持宽高比
-                let imageSize = nsImage.size
-                let scaleX = thumbnailSize.width / imageSize.width
-                let scaleY = thumbnailSize.height / imageSize.height
-                let scale = max(scaleX, scaleY) // 使用较大的缩放比例，确保覆盖整个区域
-                
-                // 计算缩放后的尺寸
-                let scaledSize = NSSize(
-                    width: imageSize.width * scale,
-                    height: imageSize.height * scale
-                )
-                
-                // 计算居中位置
-                let offsetX = (thumbnailSize.width - scaledSize.width) / 2
-                let offsetY = (thumbnailSize.height - scaledSize.height) / 2
-                
-                // 填充背景色（可选）
-                NSColor.controlBackgroundColor.setFill()
-                NSRect(origin: .zero, size: thumbnailSize).fill()
-                
-                // 绘制图片（居中，可能会超出边界，但会被 clipShape 剪裁）
-                nsImage.draw(
-                    in: NSRect(origin: NSPoint(x: offsetX, y: offsetY), size: scaledSize),
-                    from: NSRect(origin: .zero, size: imageSize),
-                    operation: .sourceOver,
-                    fraction: 1.0
-                )
-                
-                await MainActor.run {
-                    self.thumbnailImage = thumbnail
-                }
-            } else {
-                // 如果加载失败，清空缩略图
-                await MainActor.run {
-                    self.thumbnailImage = nil
-                }
-            }
-        }
     }
 }
 

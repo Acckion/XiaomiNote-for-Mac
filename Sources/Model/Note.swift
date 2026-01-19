@@ -828,3 +828,71 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         return data
     }
 }
+
+// MARK: - 图片附件扩展
+
+extension Note {
+    /// 图片附件列表
+    ///
+    /// 从 `settingJson` 字段中解析图片附件信息。
+    /// 只返回 `mimeType` 以 "image/" 开头的附件。
+    ///
+    /// - Returns: 图片附件数组，如果没有图片或解析失败则返回空数组
+    public var imageAttachments: [ImageAttachment] {
+        // 检查 settingJson 是否存在
+        guard let settingJson = settingJson,
+              !settingJson.isEmpty else {
+            return []
+        }
+        
+        // 解析 JSON
+        guard let jsonData = settingJson.data(using: .utf8) else {
+            return []
+        }
+        
+        do {
+            // 解析为字典
+            guard let setting = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+                return []
+            }
+            
+            // 提取 data 数组
+            guard let dataArray = setting["data"] as? [[String: Any]] else {
+                return []
+            }
+            
+            // 过滤并转换为 ImageAttachment
+            return dataArray.compactMap { dict -> ImageAttachment? in
+                guard let fileId = dict["fileId"] as? String,
+                      let mimeType = dict["mimeType"] as? String,
+                      mimeType.hasPrefix("image/") else {
+                    return nil
+                }
+                
+                let size = dict["size"] as? Int
+                return ImageAttachment(fileId: fileId, mimeType: mimeType, size: size)
+            }
+        } catch {
+            print("[Note] 解析 settingJson 失败: \(error)")
+            return []
+        }
+    }
+    
+    /// 第一张图片的 fileId
+    ///
+    /// 用于快速获取笔记的第一张图片，用于列表预览。
+    ///
+    /// - Returns: 第一张图片的 fileId，如果没有图片则返回 nil
+    public var firstImageId: String? {
+        return imageAttachments.first?.fileId
+    }
+    
+    /// 是否包含图片
+    ///
+    /// 用于判断笔记是否包含图片附件。
+    ///
+    /// - Returns: 如果包含至少一张图片则返回 true
+    public var hasImages: Bool {
+        return !imageAttachments.isEmpty
+    }
+}
