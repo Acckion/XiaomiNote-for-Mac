@@ -12,6 +12,12 @@ struct NoteDetailView: View {
     @State private var isUploading: Bool = false
     @State private var showSaveSuccess: Bool = false
     
+    // 标题提取服务
+    private let titleExtractionService = TitleExtractionService.shared
+    
+    // 保存流程协调器
+    private let savePipelineCoordinator = SavePipelineCoordinator()
+    
     // 保存状态
     /// 保存状态枚举
     /// 
@@ -619,17 +625,37 @@ struct NoteDetailView: View {
                             }
                             
                             Task { @MainActor in
-                                // 任务 22.3: 从编辑器内容提取标题
-                                // _Requirements: 3.3_ - 从编辑器提取标题文本
-                                let extractedTitle = self.nativeEditorContext.extractTitle()
+                                // 任务 4.1: 集成 TitleExtractionService 进行标题提取
+                                // _需求: 1.1, 1.2, 4.2_ - 使用 TitleExtractionService 提取标题
                                 
-                                // 更新 editedTitle 状态（保持 UI 同步）
-                                if !extractedTitle.isEmpty {
-                                    self.editedTitle = extractedTitle
-                                    Swift.print("[保存流程] 📝 从编辑器提取标题: \(extractedTitle)")
+                                // 1. 优先从原生编辑器提取标题
+                                var titleResult: TitleExtractionResult
+                                let nsAttributedText = self.nativeEditorContext.nsAttributedText
+                                if nsAttributedText.length > 0 {
+                                    // 创建临时的 NSTextStorage 用于标题提取
+                                    let textStorage = NSTextStorage(attributedString: nsAttributedText)
+                                    titleResult = self.titleExtractionService.extractTitleFromEditor(textStorage)
+                                    Swift.print("[保存流程] 📝 从原生编辑器提取标题: '\(titleResult.title)' (来源: \(titleResult.source.displayName))")
+                                } else {
+                                    // 2. 后备方案：从 XML 内容提取标题
+                                    titleResult = self.titleExtractionService.extractTitleFromXML(newXML)
+                                    Swift.print("[保存流程] 📝 从 XML 内容提取标题: '\(titleResult.title)' (来源: \(titleResult.source.displayName))")
                                 }
                                 
-                                // 更新当前内容状态
+                                // 3. 验证提取的标题
+                                let validation = self.titleExtractionService.validateTitle(titleResult.title)
+                                if validation.isValid {
+                                    // 更新 editedTitle 状态（保持 UI 同步）
+                                    if !titleResult.title.isEmpty {
+                                        self.editedTitle = titleResult.title
+                                        Swift.print("[保存流程] ✅ 标题验证通过，已更新 editedTitle: '\(titleResult.title)'")
+                                    }
+                                } else {
+                                    Swift.print("[保存流程] ⚠️ 标题验证失败: \(validation.error ?? "未知错误")")
+                                    // 保持原有标题不变
+                                }
+                                
+                                // 4. 更新当前内容状态
                                 self.currentXMLContent = newXML
                                 
                                 // [Tier 0] 立即更新内存缓存（<1ms，无延迟）
@@ -641,7 +667,8 @@ struct NoteDetailView: View {
                                 }
                                 
                                 // [Tier 2] 异步保存 XML（后台，<50ms，防抖300ms）
-                                self.scheduleXMLSave(xmlContent: newXML, for: currentNote, immediate: false)
+                                // 传递提取的标题结果，确保在保存前正确提取和设置标题
+                                self.scheduleXMLSave(xmlContent: newXML, for: currentNote, extractedTitle: titleResult, immediate: false)
                                 
                                 // [Tier 3] 计划同步云端（延迟3秒）
                                 self.scheduleCloudUpload(for: currentNote, xmlContent: newXML)
@@ -1549,11 +1576,12 @@ struct NoteDetailView: View {
     /// - Parameters:
     ///   - xmlContent: XML内容
     ///   - note: 笔记对象
+    ///   - extractedTitle: 提取的标题结果（可选）
     ///   - immediate: 是否立即保存（切换笔记时使用），默认false（防抖保存）
     /// 
     /// _Requirements: 6.2_ - 保存中显示"保存中..."状态
     @MainActor
-    private func scheduleXMLSave(xmlContent: String, for note: Note, immediate: Bool = false) {
+    private func scheduleXMLSave(xmlContent: String, for note: Note, extractedTitle: TitleExtractionResult? = nil, immediate: Bool = false) {
         // 检查是否是当前编辑的笔记
         guard note.id == currentEditingNoteId else {
             Swift.print("[保存流程] ⏭️ Tier 1 跳过 - 不是当前编辑笔记，ID: \(note.id.prefix(8))..., currentEditingNoteId: \(currentEditingNoteId?.prefix(8) ?? "nil")")
@@ -1583,7 +1611,7 @@ struct NoteDetailView: View {
                 return
             }
             Swift.print("[保存流程] 🔄 Tier 1 立即保存 - 笔记ID: \(noteId.prefix(8))..., XML长度: \(xmlContent.count)")
-            performXMLSave(xmlContent: xmlContent, for: note)
+            performXMLSave(xmlContent: xmlContent, for: note, extractedTitle: extractedTitle)
         } else {
             // 防抖保存（正常编辑时）
             // _Requirements: 6.1_ - 内容未保存时显示"未保存"状态
@@ -1632,7 +1660,7 @@ struct NoteDetailView: View {
                 }
                 
                 Swift.print("[保存流程] 🔄 Tier 1 防抖保存触发 - 笔记ID: \(noteId.prefix(8))..., XML长度: \(latestXMLContent.count)")
-                self.performXMLSave(xmlContent: latestXMLContent, for: note)
+                self.performXMLSave(xmlContent: latestXMLContent, for: note, extractedTitle: extractedTitle)
             }
         }
     }
@@ -1644,7 +1672,10 @@ struct NoteDetailView: View {
     /// _Requirements: 6.4_ - 保存失败显示"保存失败"状态
     /// _Requirements: 2.5, 9.1_ - 保存失败时保留编辑内容在内存中
     @MainActor
-    private func performXMLSave(xmlContent: String, for note: Note) {
+    private func performXMLSave(xmlContent: String, for note: Note, extractedTitle: TitleExtractionResult? = nil) {
+        // 任务 4.3: 集成 SavePipelineCoordinator
+        // _需求: 1.2, 3.1_ - 确保使用新的保存流程
+        
         // 取消之前的保存任务
         xmlSaveTask?.cancel()
         
@@ -1659,15 +1690,6 @@ struct NoteDetailView: View {
             nativeEditorContext.backupCurrentContent()
         }
         
-        // 构建更新的笔记对象
-        var updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
-        // 注意：Note模型中没有htmlContent属性，HTML缓存由DatabaseService单独管理
-        
-        // 使用 NoteOperationCoordinator 统一管理保存
-        // NoteOperationCoordinator.saveNote() 会：
-        // 1. 同步执行本地保存
-        // 2. 创建 cloudUpload 操作到 UnifiedOperationQueue
-        // 3. 网络可用时立即处理上传
         xmlSaveTask = Task { @MainActor in
             // 检查任务是否被取消或笔记已切换
             guard !Task.isCancelled && self.currentEditingNoteId == noteId else {
@@ -1675,82 +1697,128 @@ struct NoteDetailView: View {
                 return
             }
             
-            // 使用 NoteOperationCoordinator 进行保存（会自动入队到 UnifiedOperationQueue）
-            let result = await NoteOperationCoordinator.shared.saveNote(updated)
-            
-            // 检查任务是否被取消或笔记已切换
-            guard !Task.isCancelled && self.currentEditingNoteId == noteId else {
-                Swift.print("[保存流程] ⏸️ Tier 1 XML保存已取消（保存后）")
-                return
-            }
-            
-            switch result {
-            case .success:
-                // 保存成功后更新状态
-                // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
-                // _需求: 2.2_
-                self.lastSavedXMLContent = xmlContent
-                self.currentXMLContent = xmlContent
-                Swift.print("[保存流程] 📝 XML保存成功，lastSavedXMLContent 已同步 - 长度: \(self.lastSavedXMLContent.count)")
+            do {
+                // 使用 SavePipelineCoordinator 执行完整的保存流程
+                // _需求: 1.2, 3.1_ - 确保正确的执行顺序
+                let textStorage = self.isUsingNativeEditor ? NSTextStorage(attributedString: self.nativeEditorContext.nsAttributedText) : nil
                 
-                // 清除重试状态
-                self.pendingRetryXMLContent = nil
-                self.pendingRetryNote = nil
-                
-                // 更新视图模型中的笔记 
-                // 由于 Note 的 Equatable 现在只比较 id，所以更新 notes 数组不会影响选择状态
-                let oldSelectedNoteId = self.viewModel.selectedNote?.id
-                Swift.print("[保存流程] 🔄 更新 notes 数组 - 笔记ID: \(noteId.prefix(8))..., 当前选中: \(oldSelectedNoteId?.prefix(8) ?? "nil")")
-                
-                if let index = self.viewModel.notes.firstIndex(where: { $0.id == noteId }) {
-                    self.viewModel.notes[index] = updated
-                    Swift.print("[保存流程] ✅ notes[\(index)] 已更新")
+                let result = try await self.savePipelineCoordinator.executeSavePipeline(
+                    xmlContent: xmlContent,
+                    textStorage: textStorage,
+                    noteId: noteId
+                ) { noteId, title, content in
+                    // API 保存处理器
+                    // 构建更新的笔记对象，使用 SavePipelineCoordinator 提取的标题
+                    let titleResult = TitleExtractionResult(
+                        title: title,
+                        source: textStorage != nil ? .nativeEditor : .xml,
+                        isValid: true,
+                        extractionTime: Date(),
+                        originalLength: xmlContent.count,
+                        processedLength: content.count
+                    )
+                    
+                    let updated = self.buildUpdatedNote(from: note, xmlContent: xmlContent, extractedTitle: titleResult)
+                    
+                    // 使用 NoteOperationCoordinator 进行保存
+                    let saveResult = await NoteOperationCoordinator.shared.saveNote(updated)
+                    
+                    switch saveResult {
+                    case .success:
+                        // 保存成功，更新本地状态
+                        await self.handleSaveSuccess(xmlContent: xmlContent, noteId: noteId, updatedNote: updated)
+                    case .failure(let error):
+                        throw error
+                    }
                 }
                 
-                // 同步更新 selectedNote（如果当前选中的是这个笔记）
-                // 这确保 selectedNote 的内容与 notes 数组中的笔记保持一致
-                if self.viewModel.selectedNote?.id == noteId {
-                    self.viewModel.selectedNote = updated
-                    Swift.print("[保存流程] ✅ selectedNote 已同步更新")
+                Swift.print("[保存流程] ✅ SavePipelineCoordinator 保存成功 - 标题: '\(result.extractedTitle)', 耗时: \(String(format: "%.2f", result.executionTime))秒")
+                
+            } catch {
+                // 检查任务是否被取消或笔记已切换
+                guard !Task.isCancelled && self.currentEditingNoteId == noteId else {
+                    Swift.print("[保存流程] ⏸️ Tier 1 XML保存已取消（错误处理）")
+                    return
                 }
                 
-                let newSelectedNoteId = self.viewModel.selectedNote?.id
-                Swift.print("[保存流程] 📊 更新后选中状态: \(newSelectedNoteId?.prefix(8) ?? "nil")")
+                Swift.print("[保存流程] ❌ SavePipelineCoordinator 保存失败: \(error)")
                 
-                // 更新内存缓存
-                await MemoryCacheManager.shared.cacheNote(updated)
-                
-                // _Requirements: 6.3_ - 保存完成显示"已保存"状态
-                self.saveStatus = .saved
-                Swift.print("[保存状态] ✅ 保存完成 - 设置为已保存")
-                
-                // 清除 coordinator 的未保存内容标志 
-                self.viewModel.stateCoordinator.hasUnsavedContent = false
-                
-                // 通知原生编辑器内容已保存
-                if self.isUsingNativeEditor {
-                    self.nativeEditorContext.markContentSaved()
-                }
-                
-                Swift.print("[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: \(noteId.prefix(8))..., 标题: \(self.editedTitle)")
-                
-            case .failure(let error):
-                Swift.print("[保存流程] ❌ Tier 1 本地保存失败: \(error)")
-                // _Requirements: 6.4_ - 保存失败显示"保存失败"状态
-                let errorMessage = "保存笔记失败: \(error.localizedDescription)"
-                self.saveStatus = .error(errorMessage)
-                Swift.print("[保存状态] ❌ 保存失败 - 设置为错误状态")
-                
-                // _Requirements: 2.5, 9.1_ - 保存失败时保留编辑内容
-                // 标记保存失败，保留内容在内存中
-                if self.isUsingNativeEditor {
-                    self.nativeEditorContext.markSaveFailed(error: errorMessage)
-                }
-                // 保存失败的 XML 内容到状态变量，用于重试
-                self.pendingRetryXMLContent = xmlContent
-                self.pendingRetryNote = note
+                // 处理保存失败
+                await self.handleSaveFailure(error: error, xmlContent: xmlContent, note: note)
             }
         }
+    }
+    
+    /// 处理保存成功
+    /// 
+    /// _需求: 6.3_ - 保存完成显示"已保存"状态
+    @MainActor
+    private func handleSaveSuccess(xmlContent: String, noteId: String, updatedNote: Note) async {
+        // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+        // _需求: 2.2_
+        self.lastSavedXMLContent = xmlContent
+        self.currentXMLContent = xmlContent
+        Swift.print("[保存流程] 📝 XML保存成功，lastSavedXMLContent 已同步 - 长度: \(self.lastSavedXMLContent.count)")
+        
+        // 清除重试状态
+        self.pendingRetryXMLContent = nil
+        self.pendingRetryNote = nil
+        
+        // 更新视图模型中的笔记 
+        let oldSelectedNoteId = self.viewModel.selectedNote?.id
+        Swift.print("[保存流程] 🔄 更新 notes 数组 - 笔记ID: \(noteId.prefix(8))..., 当前选中: \(oldSelectedNoteId?.prefix(8) ?? "nil")")
+        
+        if let index = self.viewModel.notes.firstIndex(where: { $0.id == noteId }) {
+            self.viewModel.notes[index] = updatedNote
+            Swift.print("[保存流程] ✅ notes[\(index)] 已更新")
+        }
+        
+        // 同步更新 selectedNote（如果当前选中的是这个笔记）
+        if self.viewModel.selectedNote?.id == noteId {
+            self.viewModel.selectedNote = updatedNote
+            Swift.print("[保存流程] ✅ selectedNote 已同步更新")
+        }
+        
+        let newSelectedNoteId = self.viewModel.selectedNote?.id
+        Swift.print("[保存流程] 📊 更新后选中状态: \(newSelectedNoteId?.prefix(8) ?? "nil")")
+        
+        // 更新内存缓存
+        await MemoryCacheManager.shared.cacheNote(updatedNote)
+        
+        // _Requirements: 6.3_ - 保存完成显示"已保存"状态
+        self.saveStatus = .saved
+        Swift.print("[保存状态] ✅ 保存完成 - 设置为已保存")
+        
+        // 清除 coordinator 的未保存内容标志 
+        self.viewModel.stateCoordinator.hasUnsavedContent = false
+        
+        // 通知原生编辑器内容已保存
+        if self.isUsingNativeEditor {
+            self.nativeEditorContext.markContentSaved()
+        }
+        
+        Swift.print("[保存流程] ✅ Tier 1 本地保存成功 - 笔记ID: \(noteId.prefix(8))..., 标题: \(self.editedTitle)")
+    }
+    
+    /// 处理保存失败
+    /// 
+    /// _需求: 6.4_ - 保存失败显示"保存失败"状态
+    /// _需求: 2.5, 9.1_ - 保存失败时保留编辑内容
+    @MainActor
+    private func handleSaveFailure(error: Error, xmlContent: String, note: Note) async {
+        // _Requirements: 6.4_ - 保存失败显示"保存失败"状态
+        let errorMessage = "保存笔记失败: \(error.localizedDescription)"
+        self.saveStatus = .error(errorMessage)
+        Swift.print("[保存状态] ❌ 保存失败 - 设置为错误状态")
+        
+        // _Requirements: 2.5, 9.1_ - 保存失败时保留编辑内容
+        // 标记保存失败，保留内容在内存中
+        if self.isUsingNativeEditor {
+            self.nativeEditorContext.markSaveFailed(error: errorMessage)
+        }
+        // 保存失败的 XML 内容到状态变量，用于重试
+        self.pendingRetryXMLContent = xmlContent
+        self.pendingRetryNote = note
     }
     
     /// 重试保存操作
@@ -2107,14 +2175,22 @@ struct NoteDetailView: View {
     }
     
     /// _需求: 1.5, 3.3_
-    private func buildUpdatedNote(from note: Note, xmlContent: String, shouldUpdateTimestamp: Bool = true) -> Note {
-        // 关键修复：确保使用传入的note的标题，而不是editedTitle（editedTitle可能在切换笔记后已改变）
-        // 只有在当前编辑的笔记才使用editedTitle
+    private func buildUpdatedNote(from note: Note, xmlContent: String, extractedTitle: TitleExtractionResult? = nil, shouldUpdateTimestamp: Bool = true) -> Note {
+        // 任务 4.2: 修改标题使用逻辑，优先使用传入的提取标题
+        // _需求: 1.3, 3.2_ - 优先使用传入的提取标题
         let titleToUse: String
-        if note.id == currentEditingNoteId {
+        if let extractedTitle = extractedTitle, extractedTitle.isValid && !extractedTitle.title.isEmpty {
+            // 优先使用提取的标题
+            titleToUse = extractedTitle.title
+            Swift.print("[buildUpdatedNote] 📝 使用提取的标题: '\(titleToUse)' (来源: \(extractedTitle.source.displayName))")
+        } else if note.id == currentEditingNoteId {
+            // 后备方案：使用当前编辑的标题
             titleToUse = editedTitle
+            Swift.print("[buildUpdatedNote] 📝 使用编辑的标题: '\(titleToUse)' (后备方案)")
         } else {
+            // 最后方案：使用原始标题
             titleToUse = note.title
+            Swift.print("[buildUpdatedNote] 📝 使用原始标题: '\(titleToUse)' (最后方案)")
         }
         
         // ✅ 关键修复：移除 XML 中的 <title> 标签
