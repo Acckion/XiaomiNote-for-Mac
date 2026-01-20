@@ -1144,7 +1144,7 @@ public class NotesViewModel: ObservableObject {
         print("[NotesViewModel]   - 笔记ID: \(note.id.prefix(8))...")
         print("[NotesViewModel]   - XML 长度: \(xmlContent.count)")
         
-        // 构建更新的笔记对象
+        // 构建更新的笔记对象（保留所有原有字段）
         let updatedNote = Note(
             id: note.id,
             title: note.title,
@@ -1154,7 +1154,16 @@ public class NotesViewModel: ObservableObject {
             createdAt: note.createdAt,
             updatedAt: Date(),
             tags: note.tags,
-            rawData: note.rawData
+            rawData: note.rawData,
+            snippet: note.snippet,
+            colorId: note.colorId,
+            subject: note.subject,
+            alertDate: note.alertDate,
+            type: note.type,
+            serverTag: note.serverTag,  // 保留 serverTag
+            status: note.status,
+            settingJson: note.settingJson,  // 保留 settingJson
+            extraInfoJson: note.extraInfoJson  // 保留 extraInfoJson
         )
         
         // 使用 NoteOperationCoordinator 保存笔记
@@ -1836,7 +1845,16 @@ public class NotesViewModel: ObservableObject {
                 createdAt: oldNote.createdAt,
                 updatedAt: oldNote.updatedAt,
                 tags: oldNote.tags,
-                rawData: oldNote.rawData
+                rawData: oldNote.rawData,
+                snippet: oldNote.snippet,
+                colorId: oldNote.colorId,
+                subject: oldNote.subject,
+                alertDate: oldNote.alertDate,
+                type: oldNote.type,
+                serverTag: oldNote.serverTag,
+                status: oldNote.status,
+                settingJson: oldNote.settingJson,
+                extraInfoJson: oldNote.extraInfoJson
             )
             notes[index] = updatedNote
             print("[NotesViewModel] ✅ 更新 notes 数组中的笔记 ID: \(localId.prefix(16))... -> \(serverId.prefix(8))...")
@@ -2306,7 +2324,7 @@ public class NotesViewModel: ObservableObject {
                 
                 // 如果本地笔记的 ID 与服务器返回的不同，需要创建新笔记并删除旧的
                 if note.id != noteId {
-                    // 创建新的笔记对象（使用服务器返回的 ID 和 folderId）
+                    // 创建新的笔记对象（使用服务器返回的 ID 和 folderId，保留所有字段）
                     let updatedNote = Note(
                         id: noteId,
                         title: note.title,
@@ -2316,7 +2334,16 @@ public class NotesViewModel: ObservableObject {
                         createdAt: note.createdAt,
                         updatedAt: note.updatedAt,
                         tags: note.tags,
-                        rawData: updatedRawData
+                        rawData: updatedRawData,
+                        snippet: note.snippet,
+                        colorId: note.colorId,
+                        subject: note.subject,
+                        alertDate: note.alertDate,
+                        type: note.type,
+                        serverTag: note.serverTag,
+                        status: note.status,
+                        settingJson: note.settingJson,
+                        extraInfoJson: note.extraInfoJson
                     )
                     
                     // 删除旧的本地文件
@@ -2334,7 +2361,7 @@ public class NotesViewModel: ObservableObject {
                     // 更新选中状态
                     selectedNote = updatedNote
                 } else {
-                    // ID 相同，更新现有笔记
+                    // ID 相同，更新现有笔记（保留所有字段）
                     let updatedNote = Note(
                         id: note.id,
                         title: note.title,
@@ -2344,7 +2371,16 @@ public class NotesViewModel: ObservableObject {
                         createdAt: note.createdAt,
                         updatedAt: note.updatedAt,
                         tags: note.tags,
-                        rawData: updatedRawData
+                        rawData: updatedRawData,
+                        snippet: note.snippet,
+                        colorId: note.colorId,
+                        subject: note.subject,
+                        alertDate: note.alertDate,
+                        type: note.type,
+                        serverTag: note.serverTag,
+                        status: note.status,
+                        settingJson: note.settingJson,
+                        extraInfoJson: note.extraInfoJson
                     )
                     
                     // 更新笔记列表

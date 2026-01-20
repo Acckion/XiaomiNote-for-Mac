@@ -783,6 +783,14 @@ extension OperationProcessor {
             )
         }
         
+        // 调试：打印加载的笔记字段
+        print("[OperationProcessor] 📖 从数据库加载的笔记字段:")
+        print("[OperationProcessor]   - id: \(note.id)")
+        print("[OperationProcessor]   - serverTag: \(note.serverTag ?? "nil")")
+        print("[OperationProcessor]   - subject: \(note.subject ?? "nil")")
+        print("[OperationProcessor]   - settingJson: \(note.settingJson != nil ? "有值(\(note.settingJson!.count)字符)" : "nil")")
+        print("[OperationProcessor]   - extraInfoJson: \(note.extraInfoJson != nil ? "有值(\(note.extraInfoJson!.count)字符)" : "nil")")
+        
         // 获取现有的 tag（从 serverTag 字段，而不是 rawData）
         let existingTag = note.serverTag ?? note.id
         print("[OperationProcessor] 🏷️ 使用 tag: \(existingTag), serverTag: \(note.serverTag ?? "nil"), id: \(note.id)")
