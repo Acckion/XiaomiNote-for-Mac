@@ -647,13 +647,21 @@ final class DatabaseService: @unchecked Sendable {
                 
                 // 绑定新增字段（索引 10-18）
                 // snippet（索引 10）
-                sqlite3_bind_text(statement, 10, note.snippet, -1, nil)
+                if let snippet = note.snippet {
+                    sqlite3_bind_text(statement, 10, (snippet as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(statement, 10)
+                }
                 
                 // color_id（索引 11）
                 sqlite3_bind_int(statement, 11, Int32(note.colorId))
                 
                 // subject（索引 12）
-                sqlite3_bind_text(statement, 12, note.subject, -1, nil)
+                if let subject = note.subject {
+                    sqlite3_bind_text(statement, 12, (subject as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(statement, 12)
+                }
                 
                 // alert_date（索引 13）- Date 转毫秒时间戳
                 if let alertDate = note.alertDate {
@@ -666,16 +674,28 @@ final class DatabaseService: @unchecked Sendable {
                 sqlite3_bind_text(statement, 14, (note.type as NSString).utf8String, -1, nil)
                 
                 // tag（索引 15）- 服务器标签
-                sqlite3_bind_text(statement, 15, note.serverTag, -1, nil)
+                if let serverTag = note.serverTag {
+                    sqlite3_bind_text(statement, 15, (serverTag as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(statement, 15)
+                }
                 
                 // status（索引 16）
                 sqlite3_bind_text(statement, 16, (note.status as NSString).utf8String, -1, nil)
                 
                 // setting_json（索引 17）
-                sqlite3_bind_text(statement, 17, note.settingJson, -1, nil)
+                if let settingJson = note.settingJson {
+                    sqlite3_bind_text(statement, 17, (settingJson as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(statement, 17)
+                }
                 
                 // extra_info_json（索引 18）
-                sqlite3_bind_text(statement, 18, note.extraInfoJson, -1, nil)
+                if let extraInfoJson = note.extraInfoJson {
+                    sqlite3_bind_text(statement, 18, (extraInfoJson as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(statement, 18)
+                }
                 
                 guard sqlite3_step(statement) == SQLITE_DONE else {
                     let errorMsg = String(cString: sqlite3_errmsg(self.db))
@@ -1099,10 +1119,26 @@ final class DatabaseService: @unchecked Sendable {
                     }
                     
                     sqlite3_bind_text(statement, 14, (note.type as NSString).utf8String, -1, nil)
-                    sqlite3_bind_text(statement, 15, note.serverTag, -1, nil)
+                    
+                    if let serverTag = note.serverTag {
+                        sqlite3_bind_text(statement, 15, (serverTag as NSString).utf8String, -1, nil)
+                    } else {
+                        sqlite3_bind_null(statement, 15)
+                    }
+                    
                     sqlite3_bind_text(statement, 16, (note.status as NSString).utf8String, -1, nil)
-                    sqlite3_bind_text(statement, 17, note.settingJson, -1, nil)
-                    sqlite3_bind_text(statement, 18, note.extraInfoJson, -1, nil)
+                    
+                    if let settingJson = note.settingJson {
+                        sqlite3_bind_text(statement, 17, (settingJson as NSString).utf8String, -1, nil)
+                    } else {
+                        sqlite3_bind_null(statement, 17)
+                    }
+                    
+                    if let extraInfoJson = note.extraInfoJson {
+                        sqlite3_bind_text(statement, 18, (extraInfoJson as NSString).utf8String, -1, nil)
+                    } else {
+                        sqlite3_bind_null(statement, 18)
+                    }
                     
                     guard sqlite3_step(statement) == SQLITE_DONE else {
                         let errorMsg = String(cString: sqlite3_errmsg(db))
@@ -1222,6 +1258,9 @@ final class DatabaseService: @unchecked Sendable {
         if sqlite3_column_type(statement, 14) != SQLITE_NULL,
            let tagText = sqlite3_column_text(statement, 14) {
             serverTag = String(cString: tagText)
+            print("[Database] 📝 读取 serverTag: \(serverTag ?? "nil"), id: \(id)")
+        } else {
+            print("[Database] ⚠️ serverTag 为 NULL, id: \(id)")
         }
         
         // status（索引 15）- 默认值 "normal"

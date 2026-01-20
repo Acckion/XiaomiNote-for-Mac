@@ -785,7 +785,7 @@ extension OperationProcessor {
         
         // 获取现有的 tag（从 serverTag 字段，而不是 rawData）
         let existingTag = note.serverTag ?? note.id
-        print("[OperationProcessor] 🏷️ 使用 tag: \(existingTag), serverTag: \(note.serverTag ?? "nil")")
+        print("[OperationProcessor] 🏷️ 使用 tag: \(existingTag), serverTag: \(note.serverTag ?? "nil"), id: \(note.id)")
         
         // 调用 API 更新笔记
         let response = try await miNoteService.updateNote(
