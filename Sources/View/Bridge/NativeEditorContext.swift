@@ -1811,43 +1811,27 @@ public class NativeEditorContext: ObservableObject {
     /// _Requirements: 3.1, 3.2, 3.3, 3.4, 6.2, 6.3, 6.4, 6.5_ - 使用 FontSizeManager 统一检测逻辑
     private func detectFontFormats(from attributes: [NSAttributedString.Key: Any]) -> Set<TextFormat> {
         var formats: Set<TextFormat> = []
-        
-        print("[NativeEditorContext] ========== 开始检测字体格式 ==========")
-        // 调试：打印所有属性键
-        print("[NativeEditorContext] detectFontFormats - 属性键: \(attributes.keys.map { $0.rawValue })")
-        
+
         guard let font = attributes[.font] as? NSFont else {
             print("[NativeEditorContext] ❌ 没有找到 .font 属性，无法继续检测")
-            print("[NativeEditorContext] ========== 检测结束（无字体） ==========")
             return formats
         }
         
         let fontSize = font.pointSize
-        print("[NativeEditorContext] 📏 字体信息:")
-        print("[NativeEditorContext]   - 字体名称: \(font.fontName)")
-        print("[NativeEditorContext]   - 字体大小: \(fontSize)pt")
         
         // 检测字体特性
         let traits = font.fontDescriptor.symbolicTraits
-        print("[NativeEditorContext]   - 字体特性: bold=\(traits.contains(.bold)), italic=\(traits.contains(.italic))")
         
-        // 通过字体大小检测标题格式
-        // 在小米笔记中，字体大小和标题类型是一一对应的，不需要额外的 headingLevel 属性
-        print("[NativeEditorContext] 🔍 通过字体大小判断标题类型")
-        print("[NativeEditorContext]   当前阈值: 大标题>=\(FontSizeManager.shared.heading1Threshold)pt, 二级标题>=\(FontSizeManager.shared.heading2Threshold)pt, 三级标题>=\(FontSizeManager.shared.heading3Threshold)pt")
         
         // 使用 FontSizeManager 的统一检测逻辑
         let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
         switch detectedFormat {
         case .heading1:
             formats.insert(.heading1)
-            print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt >= \(FontSizeManager.shared.heading1Threshold)pt，识别为【大标题】")
         case .heading2:
             formats.insert(.heading2)
-            print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [\(FontSizeManager.shared.heading2Threshold), \(FontSizeManager.shared.heading1Threshold)) 范围内，识别为【二级标题】")
         case .heading3:
             formats.insert(.heading3)
-            print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt 在 [\(FontSizeManager.shared.heading3Threshold), \(FontSizeManager.shared.heading2Threshold)) 范围内，识别为【三级标题】")
         default:
             print("[NativeEditorContext] ✅ 字体大小 \(fontSize)pt < \(FontSizeManager.shared.heading3Threshold)pt，识别为【正文】（不添加标题格式）")
         }

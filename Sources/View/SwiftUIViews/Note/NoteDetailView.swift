@@ -2149,7 +2149,20 @@ struct NoteDetailView: View {
         Swift.print("[buildUpdatedNote] 🕐 时间戳决策: \(shouldUpdateTimestamp ? "更新为当前时间" : "保持原始时间戳")")
         Swift.print("[buildUpdatedNote] ═══════════════════════════════════════")
         
-        return Note(id: note.id, title: titleToUse, content: contentWithoutTitle, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: updatedAt, tags: note.tags, rawData: mergedRawData)
+        return Note(
+            id: note.id,
+            title: titleToUse,
+            content: contentWithoutTitle,
+            folderId: note.folderId,
+            isStarred: note.isStarred,
+            createdAt: note.createdAt,
+            updatedAt: updatedAt,
+            tags: note.tags,
+            rawData: mergedRawData,
+            subject: note.subject, serverTag: note.serverTag,
+            settingJson: note.settingJson,
+            extraInfoJson: note.extraInfoJson
+        )
     }
     
     /// 从 XML 中移除 <title> 标签
