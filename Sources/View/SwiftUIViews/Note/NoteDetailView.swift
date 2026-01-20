@@ -237,7 +237,7 @@ struct NoteDetailView: View {
             Swift.print("[保存流程]   - 内容变化: \(hasContentChange)")
             Swift.print("[保存流程]   - 标题变化: \(hasTitleChange)")
             
-            // 3. 构建更新的笔记对象
+            // 3. 构建更新的笔记对象（保留所有字段）
             let updated = Note(
                 id: capturedNote.id,
                 title: capturedTitle,
@@ -247,7 +247,16 @@ struct NoteDetailView: View {
                 createdAt: capturedNote.createdAt,
                 updatedAt: Date(),
                 tags: capturedNote.tags,
-                rawData: capturedNote.rawData
+                rawData: capturedNote.rawData,
+                snippet: capturedNote.snippet,
+                colorId: capturedNote.colorId,
+                subject: capturedNote.subject,
+                alertDate: capturedNote.alertDate,
+                type: capturedNote.type,
+                serverTag: capturedNote.serverTag,
+                status: capturedNote.status,
+                settingJson: capturedNote.settingJson,
+                extraInfoJson: capturedNote.extraInfoJson
             )
             
             // 立即更新内存缓存（不阻塞）
@@ -1467,8 +1476,27 @@ struct NoteDetailView: View {
             titleToUse = note.title
         }
         
-        // 构建更新的笔记对象
-        var updated = Note(id: note.id, title: titleToUse, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: Date(), tags: note.tags, rawData: note.rawData)
+        // 构建更新的笔记对象（保留所有字段）
+        var updated = Note(
+            id: note.id,
+            title: titleToUse,
+            content: xmlContent,
+            folderId: note.folderId,
+            isStarred: note.isStarred,
+            createdAt: note.createdAt,
+            updatedAt: Date(),
+            tags: note.tags,
+            rawData: note.rawData,
+            snippet: note.snippet,
+            colorId: note.colorId,
+            subject: note.subject,
+            alertDate: note.alertDate,
+            type: note.type,
+            serverTag: note.serverTag,
+            status: note.status,
+            settingJson: note.settingJson,
+            extraInfoJson: note.extraInfoJson
+        )
         // 注意：Note模型中没有htmlContent属性，HTML缓存由DatabaseService单独管理
         
         // 立即更新内存缓存（<1ms）
