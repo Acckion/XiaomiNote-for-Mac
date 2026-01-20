@@ -102,6 +102,14 @@ public actor NoteOperationCoordinator {
     public func saveNote(_ note: Note) async -> SaveResult {
         let timestamp = Date()
         
+        // 调试：打印传入的笔记字段
+        print("[NoteOperationCoordinator] 📝 准备保存笔记:")
+        print("[NoteOperationCoordinator]   - id: \(note.id)")
+        print("[NoteOperationCoordinator]   - serverTag: \(note.serverTag ?? "nil")")
+        print("[NoteOperationCoordinator]   - subject: \(note.subject ?? "nil")")
+        print("[NoteOperationCoordinator]   - settingJson: \(note.settingJson != nil ? "有值(\(note.settingJson!.count)字符)" : "nil")")
+        print("[NoteOperationCoordinator]   - extraInfoJson: \(note.extraInfoJson != nil ? "有值(\(note.extraInfoJson!.count)字符)" : "nil")")
+        
         // 1. 本地保存到数据库（同步执行）
         do {
             try databaseService.saveNote(note)
