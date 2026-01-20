@@ -61,12 +61,15 @@ struct NativeFormatMenuView: View {
     @ObservedObject private var stateManager = FormatStateManager.shared
     var onFormatApplied: ((TextFormat) -> Void)?
     
+    /// 是否在标题段落中（用于禁用格式按钮）
+    @State private var isInTitleParagraph: Bool = false
+    
     // MARK: - Body
     
     var body: some View {
         VStack(spacing: 0) {
             // 状态提示（当编辑器不可编辑时显示）
-            if !stateChecker.formatButtonsEnabled {
+            if !stateChecker.formatButtonsEnabled || isInTitleParagraph {
                 stateWarningView
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
@@ -88,7 +91,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
                 
                 // 斜体按钮
                 /// _Requirements: 9.2_
@@ -103,7 +106,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
                 
                 // 下划线按钮
                 /// _Requirements: 9.2_
@@ -119,7 +122,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
                 
                 // 删除线按钮
                 /// _Requirements: 9.2_
@@ -135,7 +138,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
                 
                 // 高亮按钮
                 /// _Requirements: 9.2_
@@ -150,7 +153,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -188,7 +191,7 @@ struct NativeFormatMenuView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .disabled(!stateChecker.formatButtonsEnabled)
+                    .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
                 }
             }
             
@@ -225,7 +228,7 @@ struct NativeFormatMenuView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
             }
             
             // 分割线（引用块和对齐按钮组之间）
@@ -247,7 +250,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
                 
                 // 居中按钮
                 Button(action: {
@@ -261,7 +264,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
                 
                 // 居右按钮
                 Button(action: {
@@ -275,7 +278,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -292,6 +295,9 @@ struct NativeFormatMenuView: View {
                 stateChecker.updateState(.editable, reason: "格式菜单显示")
             }
             
+            // 检查是否在标题段落中
+            isInTitleParagraph = checkIfInTitleParagraph()
+            
             // 请求从 textView 同步内容
             context.requestContentSync()
             
@@ -303,6 +309,8 @@ struct NativeFormatMenuView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 context.forceUpdateFormats()
                 stateManager.forceRefresh()
+                // 再次检查标题段落状态
+                isInTitleParagraph = checkIfInTitleParagraph()
             }
         }
         .onChange(of: stateManager.currentState) { oldValue, newValue in
@@ -316,6 +324,14 @@ struct NativeFormatMenuView: View {
                 stateChecker.updateState(.editable, reason: "编辑器获得焦点")
             }
         }
+        .onChange(of: context.selectedRange) { oldValue, newValue in
+            // 当光标位置变化时，重新检查是否在标题段落中
+            isInTitleParagraph = checkIfInTitleParagraph()
+        }
+        .onChange(of: context.nsAttributedText) { oldValue, newValue in
+            // 当内容变化时，重新检查是否在标题段落中
+            isInTitleParagraph = checkIfInTitleParagraph()
+        }
     }
     
     // MARK: - State Warning View
@@ -326,7 +342,7 @@ struct NativeFormatMenuView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.orange)
             
-            Text(stateChecker.currentState.userMessage ?? "格式操作不可用")
+            Text(warningMessage)
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -337,18 +353,55 @@ struct NativeFormatMenuView: View {
         )
     }
     
+    /// 警告消息
+    private var warningMessage: String {
+        if isInTitleParagraph {
+            return "标题格式不可修改"
+        } else {
+            return stateChecker.currentState.userMessage ?? "格式操作不可用"
+        }
+    }
+    
     // MARK: - Helper Methods
+    
+    /// 检查当前光标是否在标题段落中
+    /// - Returns: 是否在标题段落中
+    private func checkIfInTitleParagraph() -> Bool {
+        let textStorage = context.nsAttributedText
+        let cursorPosition = context.selectedRange.location
+        
+        // 检查光标位置是否在标题段落中
+        if cursorPosition < textStorage.length {
+            // 获取光标所在行的范围
+            let string = textStorage.string as NSString
+            let lineRange = string.lineRange(for: NSRange(location: cursorPosition, length: 0))
+            
+            // 检查该行是否有 .isTitle 属性
+            if lineRange.location < textStorage.length {
+                let attributes = textStorage.attributes(at: lineRange.location, effectiveRange: nil)
+                if let isTitle = attributes[.isTitle] as? Bool, isTitle {
+                    return true
+                }
+            }
+        }
+        
+        return false
+    }
     
     /// 检查样式是否被选中
     /// 使用 FormatStateManager 的状态来判断
-    /// _Requirements: 9.1_
     private func isStyleSelected(_ style: NativeTextStyle) -> Bool {
         return stateManager.currentState.paragraphFormat == style.paragraphFormat
     }
     
     /// 清除对齐格式（恢复默认左对齐）
-    /// _Requirements: 9.3_
     private func clearAlignmentFormats() {
+        // 检查是否在标题段落中，如果是则禁止格式操作
+        if isInTitleParagraph {
+            print("[NativeFormatMenuView] 标题段落中禁止对齐操作")
+            return
+        }
+        
         // 使用 FormatStateManager 清除对齐格式
         if stateManager.hasActiveEditor {
             stateManager.clearAlignmentFormat()
@@ -359,8 +412,13 @@ struct NativeFormatMenuView: View {
     }
     
     /// 处理样式选择
-    /// _Requirements: 9.3_
     private func handleStyleSelection(_ style: NativeTextStyle) {
+        // 检查是否在标题段落中，如果是则禁止格式操作
+        if isInTitleParagraph {
+            print("[NativeFormatMenuView] 标题段落中禁止样式操作: \(style.displayName)")
+            return
+        }
+        
         switch style {
         case .title:
             applyFormat(.heading1)
@@ -403,6 +461,12 @@ struct NativeFormatMenuView: View {
     /// 使用 FormatStateManager 确保工具栏和菜单栏状态同步
     /// _Requirements: 9.3_
     private func applyFormat(_ format: TextFormat) {
+        // 检查是否在标题段落中，如果是则禁止格式操作
+        if isInTitleParagraph {
+            print("[NativeFormatMenuView] 标题段落中禁止格式操作: \(format.displayName)")
+            return
+        }
+        
         // 验证格式操作是否允许
         guard stateChecker.validateFormatOperation(format) else {
             return

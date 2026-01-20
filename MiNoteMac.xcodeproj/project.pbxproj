@@ -1277,7 +1277,7 @@
 			path = Sources/App;
 			sourceTree = "<group>";
 		};
-		"TEMP_7088F6AE-5506-4084-A1AD-C86BC5D8B774" /* Web */ = {
+		"TEMP_5326990F-234E-41A3-AA19-B0FC95A35642" /* Web */ = {
 			isa = PBXGroup;
 			children = (
 			);

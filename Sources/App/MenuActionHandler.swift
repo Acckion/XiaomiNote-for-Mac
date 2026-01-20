@@ -68,6 +68,12 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         // 更新菜单项的勾选状态
         updateMenuItemCheckState(menuItem, for: tag)
         
+        // 检查是否在标题段落中，如果是则禁用格式菜单
+        if isFormatMenuItem(tag) && isInTitleParagraph() {
+            print("[MenuActionHandler] 标题段落中禁用格式菜单: \(tag)")
+            return false
+        }
+        
         // 根据标签类型返回启用状态
         let shouldEnable = menuState.shouldEnableMenuItem(for: tag)
         
@@ -318,6 +324,55 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         default:
             break
         }
+    }
+    
+    /// 检查菜单项是否为格式菜单项
+    /// - Parameter tag: 菜单项标签
+    /// - Returns: 是否为格式菜单项
+    private func isFormatMenuItem(_ tag: MenuItemTag) -> Bool {
+        switch tag {
+        case .bold, .italic, .underline, .strikethrough, .highlight,
+             .heading, .subheading, .subtitle, .bodyText,
+             .unorderedList, .orderedList, .checklist,
+             .alignLeft, .alignCenter, .alignRight,
+             .blockQuote:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    /// 检查当前光标是否在标题段落中
+    /// - Returns: 是否在标题段落中
+    private func isInTitleParagraph() -> Bool {
+        // 检查当前使用的是哪种编辑器
+        let isUsingNativeEditor = mainWindowController?.isUsingNativeEditor ?? false
+        
+        if isUsingNativeEditor {
+            // 原生编辑器：从 NativeEditorContext 检查
+            if let nativeEditorContext = mainWindowController?.getCurrentNativeEditorContext() {
+                // 使用 nsAttributedText 而不是 textStorage
+                let textStorage = nativeEditorContext.nsAttributedText
+                let cursorPosition = nativeEditorContext.selectedRange.location
+                
+                // 检查光标位置是否在标题段落中
+                if cursorPosition < textStorage.length {
+                    // 获取光标所在行的范围
+                    let string = textStorage.string as NSString
+                    let lineRange = string.lineRange(for: NSRange(location: cursorPosition, length: 0))
+                    
+                    // 检查该行是否有 .isTitle 属性
+                    if lineRange.location < textStorage.length {
+                        let attributes = textStorage.attributes(at: lineRange.location, effectiveRange: nil)
+                        if let isTitle = attributes[.isTitle] as? Bool, isTitle {
+                            return true
+                        }
+                    }
+                }
+            }
+        }
+        
+        return false
     }
     
     // MARK: - 应用程序菜单动作
@@ -1462,14 +1517,14 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                 // 从 UserDefaults 获取 Cookie
                 guard let cookie = UserDefaults.standard.string(forKey: "minote_cookie"), !cookie.isEmpty else {
                     print("[AudioTest] ❌ 未找到 Cookie，请先登录")
-                    await self.showTestResult(success: false, message: "未找到 Cookie，请先登录")
+                    self.showTestResult(success: false, message: "未找到 Cookie，请先登录")
                     return
                 }
                 
                 // 从 Cookie 中提取 serviceToken
-                guard let serviceToken = self.extractServiceToken(from: cookie) else {
+                guard extractServiceToken(from: cookie) != nil else {
                     print("[AudioTest] ❌ 无法从 Cookie 中提取 serviceToken")
-                    await self.showTestResult(success: false, message: "无法从 Cookie 中提取 serviceToken")
+                    self.showTestResult(success: false, message: "无法从 Cookie 中提取 serviceToken")
                     return
                 }
                 
@@ -1484,7 +1539,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                 
                 guard let url = URL(string: urlString) else {
                     print("[AudioTest] ❌ URL 无效")
-                    await self.showTestResult(success: false, message: "URL 无效")
+                    self.showTestResult(success: false, message: "URL 无效")
                     return
                 }
                 
@@ -1497,7 +1552,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                 
                 guard let response = httpResponse as? HTTPURLResponse else {
                     print("[AudioTest] ❌ 无效的响应")
-                    await self.showTestResult(success: false, message: "无效的响应")
+                    self.showTestResult(success: false, message: "无效的响应")
                     return
                 }
                 
@@ -1505,27 +1560,27 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                 
                 guard response.statusCode == 200 else {
                     print("[AudioTest] ❌ 请求失败，状态码: \(response.statusCode)")
-                    await self.showTestResult(success: false, message: "请求失败，状态码: \(response.statusCode)")
+                    self.showTestResult(success: false, message: "请求失败，状态码: \(response.statusCode)")
                     return
                 }
                 
                 guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                     print("[AudioTest] ❌ JSON 解析失败")
-                    await self.showTestResult(success: false, message: "JSON 解析失败")
+                    self.showTestResult(success: false, message: "JSON 解析失败")
                     return
                 }
                 
                 guard let code = json["code"] as? Int, code == 0 else {
                     let description = json["description"] as? String ?? "未知错误"
                     print("[AudioTest] ❌ API 请求失败: \(description)")
-                    await self.showTestResult(success: false, message: "API 请求失败: \(description)")
+                    self.showTestResult(success: false, message: "API 请求失败: \(description)")
                     return
                 }
                 
                 guard let responseData = json["data"] as? [String: Any],
                       let entry = responseData["entry"] as? [String: Any] else {
                     print("[AudioTest] ❌ 响应格式错误：无法解析 data.entry")
-                    await self.showTestResult(success: false, message: "响应格式错误")
+                    self.showTestResult(success: false, message: "响应格式错误")
                     return
                 }
                 
@@ -1603,7 +1658,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                 // 解析上传结果
                 guard let fileId = uploadResult["fileId"] as? String else {
                     print("[AudioTest] ❌ 上传成功但未返回 fileId")
-                    await self.showTestResult(success: false, message: "上传成功但未返回 fileId")
+                    self.showTestResult(success: false, message: "上传成功但未返回 fileId")
                     return
                 }
                 
@@ -1616,11 +1671,11 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                 print("[AudioTest] mimeType: \(mimeType)")
                 
                 print("\n========== 语音文件 API 测试完成 ==========")
-                await self.showTestResult(success: true, message: "语音文件 API 测试完成！\n\n包含：\n1. 解析测试 ✅\n2. 上传测试 ✅\n\n上传结果：\nfileId: \(fileId)\ndigest: \(digest)")
+                self.showTestResult(success: true, message: "语音文件 API 测试完成！\n\n包含：\n1. 解析测试 ✅\n2. 上传测试 ✅\n\n上传结果：\nfileId: \(fileId)\ndigest: \(digest)")
                 
             } catch {
                 print("[AudioTest] ❌ 测试失败: \(error)")
-                await self.showTestResult(success: false, message: "测试失败: \(error.localizedDescription)")
+                self.showTestResult(success: false, message: "测试失败: \(error.localizedDescription)")
             }
         }
     }

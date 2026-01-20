@@ -169,7 +169,7 @@ public class NativeEditorContext: ObservableObject {
     @Published var cursorPosition: Int = 0
     
     /// 选择范围
-    @Published var selectedRange: NSRange = NSRange(location: 0, length: 0)
+    @Published public var selectedRange: NSRange = NSRange(location: 0, length: 0)
     
     /// 编辑器是否获得焦点
     @Published var isEditorFocused: Bool = false
@@ -178,7 +178,7 @@ public class NativeEditorContext: ObservableObject {
     @Published var attributedText: AttributedString = AttributedString()
     
     /// 当前编辑的 NSAttributedString（用于 NSTextView）
-    @Published var nsAttributedText: NSAttributedString = NSAttributedString()
+    @Published public var nsAttributedText: NSAttributedString = NSAttributedString()
     
     /// 当前检测到的特殊元素类型
     @Published var currentSpecialElement: SpecialElement? = nil
@@ -497,9 +497,6 @@ public class NativeEditorContext: ObservableObject {
     /// 
     /// - 选择模式：重置选中文本的字体大小
     /// - 光标模式：重置当前行的字体大小
-    /// 
-    /// _需求: 1.6, 1.7, 4.7_
-    /// _Requirements: 3.1, 3.2, 3.3, 3.4, 6.2, 6.3, 6.4, 6.5_
     private func resetFontSizeToBody() {
         // 使用 FontSizeManager 获取正文字体大小
         let bodySize = FontSizeManager.shared.bodySize
@@ -510,37 +507,28 @@ public class NativeEditorContext: ObservableObject {
         if selectedRange.length > 0 {
             // 选择模式：使用选中范围
             range = selectedRange
-            print("[NativeEditorContext]   📝 选择模式：使用选中范围")
         } else {
             // 光标模式：获取当前行的范围
             let string = nsAttributedText.string as NSString
             let lineRange = string.lineRange(for: NSRange(location: cursorPosition, length: 0))
             range = lineRange
-            print("[NativeEditorContext]   📍 光标模式：使用当前行范围")
         }
         
         // 检查范围是否有效
         guard range.length > 0 else {
-            print("[NativeEditorContext]   ⚠️ 范围长度为0，跳过字体大小重置")
             return
         }
-        
-        print("[NativeEditorContext]   - 处理范围: location=\(range.location), length=\(range.length)")
         
         // 创建可变副本
         let mutableText = nsAttributedText.mutableCopy() as! NSMutableAttributedString
         
         // 遍历范围，重置字体大小
         mutableText.enumerateAttribute(.font, in: range, options: []) { value, subRange, _ in
-            if let font = value as? NSFont {
-                print("[NativeEditorContext]   - 处理子范围: location=\(subRange.location), length=\(subRange.length)")
-                print("[NativeEditorContext]     原字体: \(font.fontName), 大小: \(font.pointSize)pt")
-                
+            if let font = value as? NSFont {            
                 // 使用 FontSizeManager 创建新字体，保留字体特性（加粗、斜体）
                 let traits = font.fontDescriptor.symbolicTraits
                 let newFont = FontSizeManager.shared.createFont(ofSize: bodySize, traits: traits)
-                print("[NativeEditorContext]     新字体: \(newFont.fontName), 大小: \(bodySize)pt（保留特性: bold=\(traits.contains(.bold)), italic=\(traits.contains(.italic))）")
-                
+               
                 // 应用新字体
                 mutableText.addAttribute(.font, value: newFont, range: subRange)
             }
@@ -548,8 +536,6 @@ public class NativeEditorContext: ObservableObject {
         
         // 更新编辑器内容
         updateNSContent(mutableText)
-        
-        print("[NativeEditorContext] ✅ 字体大小重置完成")
     }
     
     /// 清除对齐格式（恢复默认左对齐）
@@ -557,7 +543,6 @@ public class NativeEditorContext: ObservableObject {
         print("[NativeEditorContext] 清除对齐格式，恢复为左对齐")
         
         // 使用批量更新机制，减少视图重绘次数
-        // _需求: FR-3.3.3 - 批量更新机制_
         batchUpdateState {
             // 移除居中和居右格式
             currentFormats.remove(.alignCenter)
@@ -575,14 +560,11 @@ public class NativeEditorContext: ObservableObject {
         hasUnsavedChanges = true
         
         // 使用版本号机制追踪格式变化
-        // _Requirements: FR-2.2, FR-6_
         changeTracker.formatDidChange()
         autoSaveManager.scheduleAutoSave()
         
         // 强制更新格式状态，确保 UI 同步
         updateCurrentFormats()
-        
-        print("[NativeEditorContext] ✅ 对齐格式已清除")
     }
     
     /// 插入特殊元素
@@ -592,7 +574,6 @@ public class NativeEditorContext: ObservableObject {
         hasUnsavedChanges = true
         
         // 使用版本号机制追踪附件变化
-        // _Requirements: FR-2.3, FR-6_
         changeTracker.attachmentDidChange()
         autoSaveManager.scheduleAutoSave()
     }
@@ -900,7 +881,7 @@ public class NativeEditorContext: ObservableObject {
         return isValid
     }
     
-    // MARK: - Public Methods - 缩进操作 (需求 6.1, 6.2, 6.3, 6.5)
+    // MARK: - Public Methods - 缩进操作 
     
     /// 增加缩进
     /// 需求: 6.1, 6.3, 6.5 - 增加当前行或选中文本的缩进级别
@@ -918,7 +899,7 @@ public class NativeEditorContext: ObservableObject {
         hasUnsavedChanges = true
     }
     
-    // MARK: - Public Methods - 光标和选择管理 (需求 9.1, 9.2)
+    // MARK: - Public Methods - 光标和选择管理 
     
     /// 更新光标位置
     /// - Parameter position: 新的光标位置
@@ -1117,7 +1098,6 @@ public class NativeEditorContext: ObservableObject {
             nsAttributed.enumerateAttribute(.attachment, in: NSRange(location: 0, length: nsAttributed.length), options: []) { value, range, _ in
                 if let attachment = value as? NSTextAttachment {
                     attachmentCount += 1
-                    print("[NativeEditorContext] 🖼️ 发现附件 \(attachmentCount): \(type(of: attachment)) at range \(range)")
                     if let imageAttachment = attachment as? ImageAttachment {
                         imageAttachmentCount += 1
                         print("[NativeEditorContext]   - ImageAttachment.fileId: '\(imageAttachment.fileId ?? "nil")'")
@@ -1125,8 +1105,7 @@ public class NativeEditorContext: ObservableObject {
                     }
                 }
             }
-            print("[NativeEditorContext] 🖼️ 总共发现 \(attachmentCount) 个附件，其中 \(imageAttachmentCount) 个是 ImageAttachment")
-            
+        
             // 为没有设置前景色的文本添加默认颜色（适配深色模式）
             let mutableAttributed = NSMutableAttributedString(attributedString: nsAttributed)
             let fullRange = NSRange(location: 0, length: mutableAttributed.length)
@@ -1193,11 +1172,8 @@ public class NativeEditorContext: ObservableObject {
     ///   - 使用 nsAttributedText 而不是 attributedText，因为 NativeEditorView 使用的是 nsAttributedText
     ///   - 空内容返回空字符串
     ///   - 转换失败时记录错误并返回空字符串
-    /// 
-    /// _Requirements: 2.1, 5.1, 3.4_ - 识别标题段落并转换为 XML
     func exportToXML() -> String {
         // 处理空内容的情况
-        // _Requirements: 5.1_
         guard nsAttributedText.length > 0 else {
             print("[NativeEditorContext] exportToXML: 内容为空，返回空字符串")
             return ""
@@ -1213,7 +1189,6 @@ public class NativeEditorContext: ObservableObject {
         do {
             // 关键修复：使用 nsAttributedText 而不是 attributedText
             // 因为 NativeEditorView 使用的是 nsAttributedText，编辑后的内容存储在这里
-            // _Requirements: 2.1_
             var xmlContent = try formatConverter.nsAttributedStringToXML(nsAttributedText)
             
             // 如果原始内容有 <new-format/> 前缀，则在导出时也添加
@@ -1434,14 +1409,11 @@ public class NativeEditorContext: ObservableObject {
     }
     
     // MARK: - 内容保护方法
-    // _Requirements: 2.5, 9.1_ - 保存失败时的内容保护
     
     /// 备份当前内容
     /// 
     /// 在保存操作开始前调用，备份当前编辑内容
     /// 如果保存失败，可以使用备份内容进行恢复或重试
-    /// 
-    /// _Requirements: 2.5, 9.1_
     public func backupCurrentContent() {
         backupContent = nsAttributedText.copy() as? NSAttributedString
         print("[NativeEditorContext] 📦 内容已备份 - 长度: \(nsAttributedText.length)")
@@ -1452,8 +1424,6 @@ public class NativeEditorContext: ObservableObject {
     /// 当保存操作失败时调用此方法，记录错误信息并保留编辑内容
     /// 
     /// - Parameter error: 错误信息
-    /// 
-    /// _Requirements: 2.5, 9.1_
     public func markSaveFailed(error: String) {
         lastSaveError = error
         hasPendingRetry = true
@@ -1469,8 +1439,6 @@ public class NativeEditorContext: ObservableObject {
     /// 清除保存错误状态
     /// 
     /// 当保存成功或用户取消重试时调用
-    /// 
-    /// _Requirements: 9.1_
     public func clearSaveErrorState() {
         backupContent = nil
         lastSaveError = nil
@@ -1484,8 +1452,6 @@ public class NativeEditorContext: ObservableObject {
     /// 用于重试保存操作
     /// 
     /// - Returns: 待保存的 NSAttributedString
-    /// 
-    /// _Requirements: 9.1_
     public func getContentForRetry() -> NSAttributedString {
         if let backup = backupContent {
             print("[NativeEditorContext] 📤 使用备份内容进行重试 - 长度: \(backup.length)")
@@ -1500,8 +1466,6 @@ public class NativeEditorContext: ObservableObject {
     /// 如果有备份内容，将其恢复到编辑器
     /// 
     /// - Returns: 是否成功恢复
-    /// 
-    /// _Requirements: 9.1_
     @discardableResult
     public func restoreFromBackup() -> Bool {
         guard let backup = backupContent else {
@@ -1532,8 +1496,6 @@ public class NativeEditorContext: ObservableObject {
     /// **注意**：
     /// - 保存成功/失败的处理将在后续任务 3.2 和 3.3 中由 NotesViewModel 调用 changeTracker 的方法
     /// - 此方法只负责触发保存流程，不直接处理保存结果
-    /// 
-    /// _Requirements: FR-4, FR-5, FR-6_
     private func performAutoSave() async {
         print("[NativeEditorContext] ========================================")
         print("[NativeEditorContext] performAutoSave 被调用")
@@ -1622,37 +1584,25 @@ public class NativeEditorContext: ObservableObject {
     /// 混合格式需求: 6.1, 6.2
     /// 错误处理需求: 4.2 - 状态同步失败时重新检测格式状态并更新界面
     func updateCurrentFormats() {
-        print("[NativeEditorContext] ========================================")
         print("[NativeEditorContext] 🔄 开始更新当前格式状态")
-        print("[NativeEditorContext] ========================================")
-        print("[NativeEditorContext]   - 文本长度: \(nsAttributedText.length)")
-        print("[NativeEditorContext]   - 光标位置: \(cursorPosition)")
-        print("[NativeEditorContext]   - 选中范围: location=\(selectedRange.location), length=\(selectedRange.length)")
-        
-        // 需求 4.2: 状态同步错误处理
+    
         let errorHandler = FormatErrorHandler.shared
         
         guard !nsAttributedText.string.isEmpty else {
-            print("[NativeEditorContext]   ⚠️ 文本为空，清除所有格式")
             clearAllFormats()
             clearMixedFormatStates()
-            print("[NativeEditorContext] ========================================")
             return
         }
         
         // 确保位置有效
         let position = min(cursorPosition, nsAttributedText.length - 1)
         guard position >= 0 else {
-            print("[NativeEditorContext]   ❌ 位置无效 (position: \(position))，清除所有格式")
             clearAllFormats()
             clearMixedFormatStates()
-            print("[NativeEditorContext] ========================================")
             return
         }
         
-        print("[NativeEditorContext]   ✅ 有效位置: \(position)")
-        
-        // 需求 6.1, 6.2: 如果有选中范围，检测混合格式状态
+        // 如果有选中范围，检测混合格式状态
         if selectedRange.length > 0 {
             print("[NativeEditorContext]   📝 选中了文本，检测混合格式状态 (选中长度: \(selectedRange.length))")
             updateMixedFormatStates()
@@ -1669,62 +1619,43 @@ public class NativeEditorContext: ObservableObject {
         if selectedRange.length == 0 && position > 0 {
             // 光标模式：获取光标前一个字符的属性
             attributePosition = position - 1
-            print("[NativeEditorContext]   💡 光标模式：使用前一个字符的属性位置: \(attributePosition)")
         }
         
         let attributes = nsAttributedText.attributes(at: attributePosition, effectiveRange: nil)
-        print("[NativeEditorContext]   📦 获取到 \(attributes.count) 个属性")
         
         // 检测所有格式类型
-        var detectedFormats: Set<TextFormat> = []
-        
-        print("[NativeEditorContext] ----------------------------------------")
-        print("[NativeEditorContext] 🔍 开始检测各类格式...")
-        print("[NativeEditorContext] ----------------------------------------")
-        
+        var detectedFormats: Set<TextFormat> = []        
         // 1. 检测字体属性（加粗、斜体、标题）
         let fontFormats = detectFontFormats(from: attributes)
         detectedFormats.formUnion(fontFormats)
-        print("[NativeEditorContext]   ✅ 字体格式检测完成: \(fontFormats.map { $0.displayName })")
         
         // 2. 检测文本装饰（下划线、删除线、高亮）
         let decorationFormats = detectTextDecorations(from: attributes)
         detectedFormats.formUnion(decorationFormats)
-        print("[NativeEditorContext]   ✅ 装饰格式检测完成: \(decorationFormats.map { $0.displayName })")
         
         // 3. 检测段落格式（对齐方式）
         let paragraphFormats = detectParagraphFormats(from: attributes)
         detectedFormats.formUnion(paragraphFormats)
-        print("[NativeEditorContext]   ✅ 段落格式检测完成: \(paragraphFormats.map { $0.displayName })")
         
         // 4. 检测列表格式（无序、有序、复选框）
         let listFormats = detectListFormats(at: attributePosition)
         detectedFormats.formUnion(listFormats)
-        print("[NativeEditorContext]   ✅ 列表格式检测完成: \(listFormats.map { $0.displayName })")
         
         // 5. 检测特殊元素格式（引用块、分割线）
         let specialFormats = detectSpecialElementFormats(at: attributePosition)
         detectedFormats.formUnion(specialFormats)
-        print("[NativeEditorContext]   ✅ 特殊格式检测完成: \(specialFormats.map { $0.displayName })")
         
         // 需求 6.1: 如果有选中范围，合并混合格式检测结果
         if selectedRange.length > 0 {
             let mixedHandler = MixedFormatStateHandler.shared
             let activeFormats = mixedHandler.getActiveFormats(in: nsAttributedText, range: selectedRange)
             detectedFormats.formUnion(activeFormats)
-            print("[NativeEditorContext]   ✅ 混合格式检测完成: \(activeFormats.map { $0.displayName })")
         }
         
-        print("[NativeEditorContext] ----------------------------------------")
         print("[NativeEditorContext] 📊 最终检测到的所有格式: \(detectedFormats.map { $0.displayName })")
-        print("[NativeEditorContext] ----------------------------------------")
         
         // 更新状态并验证
         updateFormatsWithValidation(detectedFormats)
-        
-        print("[NativeEditorContext] ========================================")
-        print("[NativeEditorContext] ✅ 格式状态更新完成")
-        print("[NativeEditorContext] ========================================")
     }
     
     /// 异步更新当前格式状态
@@ -1808,7 +1739,7 @@ public class NativeEditorContext: ObservableObject {
     /// - 17pt = 三级标题
     /// - 14pt = 正文
     /// 
-    /// _Requirements: 3.1, 3.2, 3.3, 3.4, 6.2, 6.3, 6.4, 6.5_ - 使用 FontSizeManager 统一检测逻辑
+    /// 使用 FontSizeManager 统一检测逻辑
     private func detectFontFormats(from attributes: [NSAttributedString.Key: Any]) -> Set<TextFormat> {
         var formats: Set<TextFormat> = []
 
@@ -1889,7 +1820,6 @@ public class NativeEditorContext: ObservableObject {
     }
     
     /// 检测斜体格式（使用 obliqueness 属性）
-    /// 需求: 2.2 - 斜体检测
     /// 
     /// 由于中文字体（如苹方）通常没有真正的斜体变体，
     /// 我们使用 obliqueness 属性来实现和检测斜体效果
@@ -1902,7 +1832,6 @@ public class NativeEditorContext: ObservableObject {
     }
     
     /// 检测文本装饰（下划线、删除线、高亮、斜体）
-    /// 需求: 2.2, 2.3, 2.4, 2.5
     private func detectTextDecorations(from attributes: [NSAttributedString.Key: Any]) -> Set<TextFormat> {
         var formats: Set<TextFormat> = []
         

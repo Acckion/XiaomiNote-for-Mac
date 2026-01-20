@@ -624,12 +624,52 @@ extension CursorFormatManager {
         
         print("[CursorFormatManager] 同步 typingAttributes")
         
-        // 直接使用传入的 state 构建 typingAttributes
-        // 不从 textStorage 读取，确保工具栏切换后的格式状态能正确应用到后续输入
-        let attributes = FormatAttributesBuilder.build(from: state)
-        textView.typingAttributes = attributes
+        // 检查是否在标题段落中
+        let isInTitleParagraph = checkIfInTitleParagraph()
         
-        print("[CursorFormatManager] typingAttributes 已更新，属性数量: \(attributes.count)")
+        if isInTitleParagraph {
+            // 在标题段落中，强制使用标题字体大小（40pt Semibold）
+            print("[CursorFormatManager] 检测到标题段落，使用标题字体")
+            var titleAttributes = textView.typingAttributes
+            titleAttributes[.font] = NSFont.systemFont(ofSize: 40, weight: .semibold)
+            titleAttributes[.foregroundColor] = NSColor.labelColor
+            textView.typingAttributes = titleAttributes
+            print("[CursorFormatManager] 标题段落 typingAttributes 已更新为 40pt Semibold")
+        } else {
+            // 不在标题段落中，使用正常的格式状态构建 typingAttributes
+            let attributes = FormatAttributesBuilder.build(from: state)
+            textView.typingAttributes = attributes
+            print("[CursorFormatManager] typingAttributes 已更新，属性数量: \(attributes.count)")
+        }
+    }
+    
+    /// 检查当前光标是否在标题段落中
+    /// - Returns: 是否在标题段落中
+    private func checkIfInTitleParagraph() -> Bool {
+        guard let textView = textView,
+              let textStorage = textView.textStorage else {
+            return false
+        }
+        
+        let selectedRange = textView.selectedRange()
+        let cursorPosition = selectedRange.location
+        
+        // 检查光标位置是否在标题段落中
+        if cursorPosition < textStorage.length {
+            // 获取光标所在行的范围
+            let string = textStorage.string as NSString
+            let lineRange = string.lineRange(for: NSRange(location: cursorPosition, length: 0))
+            
+            // 检查该行是否有 .isTitle 属性
+            if lineRange.location < textStorage.length {
+                let attributes = textStorage.attributes(at: lineRange.location, effectiveRange: nil)
+                if let isTitle = attributes[.isTitle] as? Bool, isTitle {
+                    return true
+                }
+            }
+        }
+        
+        return false
     }
     
     /// 更新工具栏状态

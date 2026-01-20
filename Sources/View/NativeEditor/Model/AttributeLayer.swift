@@ -244,7 +244,7 @@ extension NSAttributedString.Key {
     static let paragraphVersion = NSAttributedString.Key("ParagraphVersion")
     
     /// 是否为标题段落属性键
-    static let isTitle = NSAttributedString.Key("IsTitle")
+    public static let isTitle = NSAttributedString.Key("IsTitle")
     
     /// 列表级别属性键
     static let listLevel = NSAttributedString.Key("ListLevel")
