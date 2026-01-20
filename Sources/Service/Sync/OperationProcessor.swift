@@ -806,39 +806,51 @@ extension OperationProcessor {
             )
         }
         
-        // 更新本地笔记的 rawData 和 serverTag
-        if let entry = extractEntry(from: response) {
-            var updatedRawData = note.rawData ?? [:]
-            for (key, value) in entry {
-                updatedRawData[key] = value
-            }
-            
-            // 从响应中提取新的 tag
-            let newTag = extractTag(from: response, fallbackTag: entry["tag"] as? String ?? existingTag)
-            print("[OperationProcessor] 📥 服务器返回新 tag: \(newTag)")
-            
-            let updatedNote = Note(
-                id: note.id,
-                title: note.title,
-                content: note.content,
-                folderId: note.folderId,
-                isStarred: note.isStarred,
-                createdAt: note.createdAt,
-                updatedAt: note.updatedAt,
-                tags: note.tags,
-                rawData: updatedRawData,
-                snippet: note.snippet,
-                colorId: note.colorId,
-                subject: note.subject,
-                alertDate: note.alertDate,
-                type: note.type,
-                serverTag: newTag,  // 更新 serverTag
-                status: note.status,
-                settingJson: note.settingJson,
-                extraInfoJson: note.extraInfoJson
-            )
-            try localStorage.saveNote(updatedNote)
+        // 从响应中提取新的 tag（updateNote 响应只包含 data.tag，没有完整的 entry）
+        // 响应格式：{"code": 0, "data": {"modifyDate": xxx, "id": "xxx", "tag": "xxx", "conflict": false}}
+        let newTag: String
+        if let data = response["data"] as? [String: Any],
+           let tag = data["tag"] as? String {
+            newTag = tag
+        } else {
+            newTag = existingTag
         }
+        
+        print("[OperationProcessor] 📥 服务器返回新 tag: \(newTag)")
+        print("[OperationProcessor] 📝 准备保存笔记，保持原有字段值:")
+        print("[OperationProcessor]   - serverTag: \(newTag)")
+        print("[OperationProcessor]   - subject: \(note.subject ?? "nil")")
+        print("[OperationProcessor]   - settingJson: \(note.settingJson != nil ? "有值(\(note.settingJson!.count)字符)" : "nil")")
+        print("[OperationProcessor]   - extraInfoJson: \(note.extraInfoJson != nil ? "有值(\(note.extraInfoJson!.count)字符)" : "nil")")
+        
+        // 更新 rawData 中的 tag
+        var updatedRawData = note.rawData ?? [:]
+        updatedRawData["tag"] = newTag
+        
+        // 创建更新后的笔记（只更新 serverTag 和 rawData，保持其他字段不变）
+        let updatedNote = Note(
+            id: note.id,
+            title: note.title,
+            content: note.content,
+            folderId: note.folderId,
+            isStarred: note.isStarred,
+            createdAt: note.createdAt,
+            updatedAt: note.updatedAt,
+            tags: note.tags,
+            rawData: updatedRawData,
+            snippet: note.snippet,
+            colorId: note.colorId,
+            subject: note.subject,
+            alertDate: note.alertDate,
+            type: note.type,
+            serverTag: newTag,  // 更新 serverTag
+            status: note.status,
+            settingJson: note.settingJson,  // 保持原值
+            extraInfoJson: note.extraInfoJson  // 保持原值
+        )
+        
+        try localStorage.saveNote(updatedNote)
+        print("[OperationProcessor] ✅ 笔记已保存到数据库")
         
         print("[OperationProcessor] ☁️ 上传成功: \(operation.noteId)")
     }
