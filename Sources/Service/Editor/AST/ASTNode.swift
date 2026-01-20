@@ -15,6 +15,7 @@ import Foundation
 public enum ASTNodeType: String, Equatable, Hashable, Sendable {
     // 块级元素
     case document       // 文档根节点
+    case titleBlock     // 标题块 <title> (特殊的第一个段落)
     case textBlock      // 文本块 <text>
     case bulletList     // 无序列表 <bullet>
     case orderedList    // 有序列表 <order>
@@ -40,7 +41,7 @@ public enum ASTNodeType: String, Equatable, Hashable, Sendable {
     /// 是否为块级元素
     public var isBlockLevel: Bool {
         switch self {
-        case .document, .textBlock, .bulletList, .orderedList,
+        case .document, .titleBlock, .textBlock, .bulletList, .orderedList,
              .checkbox, .horizontalRule, .image, .audio, .quote:
             return true
         default:
@@ -65,6 +66,8 @@ public enum ASTNodeType: String, Equatable, Hashable, Sendable {
         switch self {
         case .document:
             return nil
+        case .titleBlock:
+            return "title"
         case .textBlock:
             return "text"
         case .bulletList:

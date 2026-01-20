@@ -47,6 +47,7 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     /// - Parameter attributedString: NSAttributedString
     /// - Returns: 文档 AST 节点
     /// _Requirements: 10.3_ - 正确计算 inputNumber
+    /// _Requirements: 3.4_ - 识别第一个段落为标题段落
     public func convert(_ attributedString: NSAttributedString) -> DocumentNode {
         // 重置有序列表跟踪状态
         isInOrderedListSequence = false
@@ -56,8 +57,9 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         let paragraphs = splitIntoParagraphs(attributedString)
         
         // 转换每个段落为块级节点
-        let blocks = paragraphs.compactMap { paragraph -> (any BlockNode)? in
-            convertParagraphToBlock(paragraph)
+        // 第一个段落特殊处理：检查是否为标题段落
+        let blocks = paragraphs.enumerated().compactMap { index, paragraph -> (any BlockNode)? in
+            convertParagraphToBlock(paragraph, isFirstParagraph: index == 0)
         }
         
         return DocumentNode(blocks: blocks)
@@ -98,11 +100,14 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     
     /// 将单个段落转换为块级节点
     ///
-    /// - Parameter paragraph: 段落 NSAttributedString
+    /// - Parameters:
+    ///   - paragraph: 段落 NSAttributedString
+    ///   - isFirstParagraph: 是否为第一个段落
     /// - Returns: 块级节点
     /// _Requirements: 10.3_ - 非有序列表块重置序列状态
+    /// _Requirements: 3.4_ - 第一个段落识别为标题段落
     /// - Note: 空段落会被转换为空内容的 TextBlockNode，以保留空行
-    private func convertParagraphToBlock(_ paragraph: NSAttributedString) -> (any BlockNode)? {
+    private func convertParagraphToBlock(_ paragraph: NSAttributedString, isFirstParagraph: Bool = false) -> (any BlockNode)? {
         // 修复：空段落转换为空内容的 TextBlockNode，而不是返回 nil
         // 这样可以保留用户创建的空行
         if paragraph.length == 0 {
@@ -117,6 +122,20 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
             // 识别附件类型并创建对应的块级节点
             return convertAttachmentToBlock(attachment, paragraph: paragraph)
+        }
+        
+        // 检查是否为标题段落（第一个段落且有标题属性）
+        // _Requirements: 3.4_ - 识别第一个段落为标题段落
+        if isFirstParagraph {
+            // 检查是否有标题段落标记
+            if let isTitle = paragraph.attribute(.isTitle, at: 0, effectiveRange: nil) as? Bool, isTitle {
+                // 提取行内内容
+                let inlineNodes = convertToInlineNodes(paragraph)
+                
+                // 创建标题块节点（使用特殊的 indent 值 0 表示标题）
+                // 注意：标题段落在 XML 中会被转换为 <title> 标签，而不是 <text> 标签
+                return TitleBlockNode(content: inlineNodes)
+            }
         }
         
         // 非附件段落（普通文本块），重置有序列表序列状态

@@ -1,105 +1,671 @@
-应用程序状态恢复完成
-[NotePreviewImageView] 开始加载图片: 1315204657.RSgsGMIo2QYlsy-vb_2lXw.jpg
-[NotePreviewImageView] 开始加载图片: 1315204657.njhyTfUQqNbtu5fAlEWqcg.jpg
-[NotePreviewImageView] 开始加载图片: 1315204657.mqD6sEiru5CFpGR0vUZaMA.png
-[NotePreviewImageView] 开始加载图片: 1315204657.PonsT-5dGNMDd8zBDNuEZw.jpg
-主窗口创建完成
-应用程序初始化完成，耗时: 0.59秒
-[NativeEditorContext] forceUpdateFormats 被调用
+[VIEWMODEL] 应用变为前台
+[VIEWMODEL] 启动自动同步定时器，间隔: 300.0秒
+[MemoryCache] 更新缓存 - ID: 48716783..., 标题: 测试图片上
+[MemoryCache] 更新缓存 - ID: 48978154..., 标题: 1223213323232323232323232324322222222343454353554354545454545444444444444444435553453453453453453451212111121121213它啊发你手机发你f b sai u b fu id s b k f s d k f b1b j s d n f即老师的福利呢slainlsa dn la s l d111111111111n n1你奶奶121n
+[ScheduledTaskManager] 开始执行任务: Cookie有效性检查
+[CookieValidityCheckTask] 开始检查Cookie有效性
+[MiNoteService] 开始实时检查Cookie在服务器端的有效性
+📤 请求: GET https://i.mi.com/common/check?ts=1768889113462
+📥 响应: GET https://i.mi.com/common/check?ts=1768889113462 - 状态码: 401
+响应体: {"R":401,"S":"Err","D":"https://account.xiaomi.com/pass/serviceLogin?callback=https%3A%2F%2Fi.mi.com%2Fsts%3Fsign%3DIb3horUmfhQFoQV2LgZ1BLPKbRg%253D%26followup%3D%252F&sid=i.mi.com&_group=DEFAULT&checkSafePhone=true&_bal=true","E":false,"isSecondValidation":false}
+[MiNoteService] 检测到Cookie过期（401 + 认证错误）
+[MiNoteService] 响应包含登录重定向URL，确认需要重新登录
+[MiNoteService] 首次检测到Cookie失效，触发回调并阻止后续请求
+[AuthenticationStateManager] 处理Cookie失效，silentRefreshOnFailure: false
+[AuthenticationStateManager] 静默刷新未启用，直接显示弹窗
+❌ 错误: GET https://i.mi.com/common/check?ts=1768889113462 - Cookie已过期，请重新登录
+[MiNoteService] ❌ Cookie有效性检查失败: cookieExpired
+[CookieValidityCheckTask] Cookie有效性检查失败: cookieExpired
+[AppStateManager] 在线状态变化: 离线
+[OnlineStateManager] 在线状态变化: 离线
+[OnlineStateManager]   网络连接: true
+[OnlineStateManager]   已认证: true
+[OnlineStateManager]   Cookie有效: false
+[ScheduledTaskManager] 任务执行失败: Cookie有效性检查, 错误: Cookie已过期，请重新登录
+[MemoryCache] 更新缓存 - ID: 49027666..., 标题: 1
+[MemoryCache] 更新缓存 - ID: 49027666..., 标题: 、
+[MemoryCache] 更新缓存 - ID: 48978102..., 标题: 新笔记1
+[PinnedNoteRowContent] 点击笔记 - ID: 48978102..., 当前选中: 48966438, isSelected: false
+[AudioPanelState] 处理笔记切换: nil -> 48978102269526848
+[PinnedNoteRowContent] 设置 selectedNote 为 48978102...
+[NotesListView] 📊 selectedNote 变化: 48966438 -> 48978102
+[NotesListView] 🔄 选择 ID 变化，通知 coordinator
+[笔记切换] 💾 保存当前笔记 - ID: 48966438..., 标题: 新笔记
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 46
+[笔记切换] 📝 立即捕获原生编辑器内容 - 长度: 46
+[笔记切换] ═══════════════════════════════════════
+[笔记切换] 🔄 开始保存当前笔记
+[笔记切换] 📝 从笔记ID: 48966438... 切换到: 48978102...
+[笔记切换] 📝 捕获的标题: 新笔记
+[笔记切换] 📝 原始标题: 新笔记
+[笔记切换] 📏 捕获的内容长度: 46
+[笔记切换] 📏 lastSavedXMLContent 长度: 46
+[笔记切换] ═══════════════════════════════════════
+[ViewStateCoordinator] 状态已保存到 UserDefaults: folder=0, note=48978102269526848
+[StateTransition] noteSelection: folder(0 -> 0), note(48966438869550624 -> 48978102269526848)
+[ViewStateCoordinator] 笔记选择完成: 新笔记1
+[笔记切换] 📝 后台保存内容 - 长度: 46
+[XMLNormalizer] 🚀 开始规范化 XML 内容
+[XMLNormalizer] 📏 原始内容长度: 46 字符
+[XMLNormalizer] ✅ 图片格式规范化完成，耗时: 0.04ms
+[XMLNormalizer] ✅ 空标签移除完成，耗时: 0.01ms
+[XMLNormalizer] ✅ 空格规范化完成，耗时: 0.01ms
+[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: 0.04ms
+[XMLNormalizer] ✅ 属性值规范化完成，耗时: 0.05ms
+[XMLNormalizer] 📏 规范化后内容长度: 46 字符
+[XMLNormalizer] ⏱️ 总耗时: 0.17ms
+[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）
+[XMLNormalizer] 🚀 开始规范化 XML 内容
+[XMLNormalizer] 📏 原始内容长度: 46 字符
+[XMLNormalizer] ✅ 图片格式规范化完成，耗时: 0.01ms
+[XMLNormalizer] ✅ 空标签移除完成，耗时: 0.01ms
+[XMLNormalizer] ✅ 空格规范化完成，耗时: 0.00ms
+[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: 0.02ms
+[XMLNormalizer] ✅ 属性值规范化完成，耗时: 0.05ms
+[XMLNormalizer] 📏 规范化后内容长度: 46 字符
+[XMLNormalizer] ⏱️ 总耗时: 0.10ms
+[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）
+[内容检测] ═══════════════════════════════════════
+[内容检测] 📊 检测结果: 内容变化=false, 标题变化=false
+[内容检测] 📏 原始内容长度: 当前=46, 保存=46
+[内容检测] 📏 规范化后长度: 当前=46, 保存=46
+[内容检测] ⏱️ 检测耗时: 0.28ms
+[内容检测] ✅ 内容无变化（规范化后相同）
+[内容检测] ✅ 标题无变化
+[内容检测] 🕐 时间戳决策: 保持不变
+[内容检测] ═══════════════════════════════════════
+[笔记切换] ⏭️ 内容无实际变化，跳过保存
+[性能监控] ═══════════════════════════════════════
+[性能监控] ⏱️ 笔记切换后台保存总耗时: 0.30ms
+[性能监控] 📊 保存决策: 跳过保存
+[性能监控] ✅ 后台保存性能正常
+[性能监控] ═══════════════════════════════════════
+[快速切换] 🔄 开始切换到笔记 - ID: 48978102..., 标题: 新笔记1
+[保存状态] 🔄 笔记切换 - 重置为已保存
+[快速切换] 📝 标题已更新: 新笔记1
+[快速切换] 📝 重置内容状态，lastSavedXMLContent 已清空
+[笔记切换] ⏭️ 无需保存 - 无当前编辑笔记或笔记ID相同
+[快速切换] 🔄 开始切换到笔记 - ID: 48978102..., 标题: 新笔记1
+[保存状态] 🔄 笔记切换 - 重置为已保存
+[快速切换] 📝 标题已更新: 新笔记1
+[快速切换] 📝 重置内容状态，lastSavedXMLContent 已清空
+[MemoryCache] 缓存命中 - ID: 48978102..., 标题: 新笔记1
+[MemoryCache] 缓存命中 - ID: 48978102..., 标题: 新笔记1
+[CursorFormatManager] 取消注册
+[NativeEditorView] CursorFormatManager 已取消注册
+[UnifiedFormatManager] 取消注册
+[NativeEditorView] UnifiedFormatManager 已取消注册
+[AttachmentSelectionManager] 已取消注册
+[NativeEditorView] AttachmentSelectionManager 已取消注册
+[快速切换] ✅ 内存缓存命中 - ID: 48978102...
+[快速切换] 📝 从缓存加载内容，lastSavedXMLContent 已同步 - 长度: 534
+[快速切换] ✅ 从缓存加载完成 - ID: 48978102..., 标题: 新笔记1, 内容长度: 534
+[持久化验证] 🔍 开始验证音频附件 - 笔记ID: 48978102...
+[持久化验证] ℹ️ 无音频附件 - 笔记ID: 48978102...
+[持久化验证] ========== 开始验证内容持久化 ==========
+[持久化验证] 预期内容长度: 534
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 46
+[持久化验证] 当前XML长度: 46
+[持久化验证] 🔄 开始规范化内容...
+[XMLNormalizer] 🚀 开始规范化 XML 内容
+[XMLNormalizer] 📏 原始内容长度: 534 字符
+[XMLNormalizer] 🔍 检查 imgdes: 'ces', isEmpty: false
+[XMLNormalizer] ✅ 保留 imgdes: 'ces'
+[XMLNormalizer] ✅ 图片格式规范化完成，耗时: 0.07ms
+[XMLNormalizer] 🔍 发现 1 个空 text 标签
+[XMLNormalizer] 🗑️ 移除空标签: <text indent="1"></text>
+[XMLNormalizer] ✅ 空标签移除完成，耗时: 0.02ms
+[XMLNormalizer] ✅ 空格规范化完成，耗时: 0.03ms
+[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: 0.23ms
+[XMLNormalizer] ✅ 属性值规范化完成，耗时: 0.27ms
+[XMLNormalizer] 📏 规范化后内容长度: 484 字符
+[XMLNormalizer] ⏱️ 总耗时: 2.29ms
+[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）
+[XMLNormalizer] 🚀 开始规范化 XML 内容
+[XMLNormalizer] 📏 原始内容长度: 46 字符
+[XMLNormalizer] ✅ 图片格式规范化完成，耗时: 0.01ms
+[XMLNormalizer] ✅ 空标签移除完成，耗时: 0.01ms
+[XMLNormalizer] ✅ 空格规范化完成，耗时: 0.00ms
+[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: 0.02ms
+[XMLNormalizer] ✅ 属性值规范化完成，耗时: 0.05ms
+[XMLNormalizer] 📏 规范化后内容长度: 46 字符
+[XMLNormalizer] ⏱️ 总耗时: 1.48ms
+[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）
+[持久化验证] ✅ 规范化完成
+[持久化验证] 规范化后预期内容长度: 484
+[持久化验证] 规范化后当前内容长度: 46
+[持久化验证] 预期内容类型分析:
+[持久化验证]   - 是否为空: false
+[持久化验证]   - 包含音频: false
+[持久化验证]   - 包含临时模板: false
+[持久化验证] 当前内容类型分析:
+[持久化验证]   - 是否为空: false
+[持久化验证]   - 包含音频: false
+[持久化验证]   - 包含临时模板: false
+[持久化验证] ✅ 验证通过：普通文本内容已持久化
+[持久化验证] ========== 验证结果: ✅ 成功 ==========
+[持久化验证] 原生编辑器验证结果: 通过
+[快速切换] ✅ 内存缓存命中 - ID: 48978102...
+[快速切换] 📝 从缓存加载内容，lastSavedXMLContent 已同步 - 长度: 534
+[快速切换] ✅ 从缓存加载完成 - ID: 48978102..., 标题: 新笔记1, 内容长度: 534
+[持久化验证] 🔍 开始验证音频附件 - 笔记ID: 48978102...
+[持久化验证] ℹ️ 无音频附件 - 笔记ID: 48978102...
+[持久化验证] ========== 开始验证内容持久化 ==========
+[持久化验证] 预期内容长度: 534
+[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 46
+[持久化验证] 当前XML长度: 46
+[持久化验证] 🔄 开始规范化内容...
+[XMLNormalizer] 🚀 开始规范化 XML 内容
+[XMLNormalizer] 📏 原始内容长度: 534 字符
+[XMLNormalizer] 🔍 检查 imgdes: 'ces', isEmpty: false
+[XMLNormalizer] ✅ 保留 imgdes: 'ces'
+[XMLNormalizer] ✅ 图片格式规范化完成，耗时: 0.04ms
+[XMLNormalizer] 🔍 发现 1 个空 text 标签
+[XMLNormalizer] 🗑️ 移除空标签: <text indent="1"></text>
+[XMLNormalizer] ✅ 空标签移除完成，耗时: 0.02ms
+[XMLNormalizer] ✅ 空格规范化完成，耗时: 0.04ms
+[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: 0.18ms
+[XMLNormalizer] ✅ 属性值规范化完成，耗时: 0.25ms
+[XMLNormalizer] 📏 规范化后内容长度: 484 字符
+[XMLNormalizer] ⏱️ 总耗时: 2.53ms
+[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）
+[XMLNormalizer] 🚀 开始规范化 XML 内容
+[XMLNormalizer] 📏 原始内容长度: 46 字符
+[XMLNormalizer] ✅ 图片格式规范化完成，耗时: 0.01ms
+[XMLNormalizer] ✅ 空标签移除完成，耗时: 0.01ms
+[XMLNormalizer] ✅ 空格规范化完成，耗时: 0.00ms
+[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: 0.02ms
+[XMLNormalizer] ✅ 属性值规范化完成，耗时: 0.04ms
+[XMLNormalizer] 📏 规范化后内容长度: 46 字符
+[XMLNormalizer] ⏱️ 总耗时: 0.09ms
+[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）
+[持久化验证] ✅ 规范化完成
+[持久化验证] 规范化后预期内容长度: 484
+[持久化验证] 规范化后当前内容长度: 46
+[持久化验证] 预期内容类型分析:
+[持久化验证]   - 是否为空: false
+[持久化验证]   - 包含音频: false
+[持久化验证]   - 包含临时模板: false
+[持久化验证] 当前内容类型分析:
+[持久化验证]   - 是否为空: false
+[持久化验证]   - 包含音频: false
+[持久化验证]   - 包含临时模板: false
+[持久化验证] ✅ 验证通过：普通文本内容已持久化
+[持久化验证] ========== 验证结果: ✅ 成功 ==========
+[持久化验证] 原生编辑器验证结果: 通过
+<_TtGC7SwiftUI22AppKitPlatformViewHostGVS_P10$1c99b695432PlatformViewRepresentableAdaptorVS_18AppKitProgressView__: 0xb64140700> has an maximum length (32.083333) that doesn't satisfy min (32.083333) <= max (32.083333).
+[NativeEditorView] 🔍 加载初始内容到 NSTextView
+[NativeEditorView]   - 内容长度: 2
+[NativeEditorView]   - 加载前 范围 {0, 2}: .AppleSystemUIFontBold, italic=false
+[NativeTextView] setSelectedRange 被调用: location=2, length=0
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorContext] 内容变化检测 - 长度: 2, hasUnsavedChanges: true
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[SelectionAnchorManager] 清除锚点
+[AttachmentSelectionManager] 错误: textView 或 textStorage 为 nil
+[NativeTextView] 通知 AttachmentSelectionManager
+[AttachmentSelectionManager] 错误: textView 或 textStorage 为 nil
+[NativeEditorView]   - 加载后 范围 {0, 2}: .AppleSystemUIFontBold, italic=false
+[CustomRenderer] 缓存预热完成，当前缓存数量: 19
+[CursorFormatManager] 注册编辑器组件
+[NativeEditorView] CursorFormatManager 已注册
+[UnifiedFormatManager] 注册编辑器组件
+[NativeEditorView] UnifiedFormatManager 已注册
+[AttachmentSelectionManager] 已注册 textView
+[NativeEditorView] AttachmentSelectionManager 已注册
+[NativeEditorView] 初始化完成，耗时: 2.53ms
+[NativeEditorView] 更新内容 - 当前长度: 2, 新长度: 2, 版本变化: true
+[NativeTextView] setSelectedRange 被调用: location=2, length=0
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorContext] 内容变化检测 - 长度: 2, hasUnsavedChanges: true
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[SelectionAnchorManager] 清除锚点
+[AttachmentSelectionManager] 处理选择变化: location=2, length=0
+[AttachmentSelectionManager] 未检测到附件
+[AttachmentSelectionManager] 已显示光标
+[NativeTextView] 通知 AttachmentSelectionManager
+[AttachmentSelectionManager] 处理选择变化: location=2, length=0
+[AttachmentSelectionManager] 未检测到附件
+[AttachmentSelectionManager] 已显示光标
+[NativeTextView] setSelectedRange 被调用: location=2, length=0
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorContext] 内容变化检测 - 长度: 2, hasUnsavedChanges: true
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[SelectionAnchorManager] 清除锚点
+[AttachmentSelectionManager] 处理选择变化: location=2, length=0
+[AttachmentSelectionManager] 未检测到附件
+[AttachmentSelectionManager] 已显示光标
+[NativeTextView] 通知 AttachmentSelectionManager
+[AttachmentSelectionManager] 处理选择变化: location=2, length=0
+[AttachmentSelectionManager] 未检测到附件
+[AttachmentSelectionManager] 已显示光标
+[EditorChangeTracker] 开始程序化修改
+[NativeEditorContext] 🔄 开始加载 XML
+[NativeEditorContext]   - XML 长度: 534
+[XMLParser] 🚀 开始解析 XML
+[XMLParser]   - XML 长度: 534
+[XMLParser]   - XML 前200字符: '<text indent="1"><size><b>新笔记1</b></size></text>
+<order indent="1" inputNumber="0" />113331
+<input type="checkbox" indent="1" level="3" />11111212
+<input type="checkbox" indent="1" level="3" />1212122'
+[XMLParser] ✅ 词法分析完成，生成 50 个 token
+[XMLParser]   Token 0: startTag(name: "text", attributes: ["indent": "1"], selfClosing: false)
+[XMLParser]   Token 1: startTag(name: "size", attributes: [:], selfClosing: false)
+[XMLParser]   Token 2: startTag(name: "b", attributes: [:], selfClosing: false)
+[XMLParser]   Token 3: text("新笔记1")
+[XMLParser]   Token 4: endTag(name: "b")
+[XMLParser]   Token 5: endTag(name: "size")
+[XMLParser]   Token 6: endTag(name: "text")
+[XMLParser]   Token 7: newline
+[XMLParser]   Token 8: startTag(name: "order", attributes: ["indent": "1", "inputNumber": "0"], selfClosing: true)
+[XMLParser]   Token 9: text("113331")
+[XMLParser] 🔄 开始语法分析
+[XMLParser] 🔍 处理 token 0: Optional(MiNoteLibrary.XMLToken.startTag(name: "text", attributes: ["indent": "1"], selfClosing: false))
+[XMLParser] 🔍 处理 token 8: Optional(MiNoteLibrary.XMLToken.startTag(name: "order", attributes: ["indent": "1", "inputNumber": "0"], selfClosing: true))
+[XMLParser] 🔍 处理 token 11: Optional(MiNoteLibrary.XMLToken.startTag(name: "input", attributes: ["level": "3", "indent": "1", "type": "checkbox"], selfClosing: true))
+[XMLParser] 🔍 处理 token 14: Optional(MiNoteLibrary.XMLToken.startTag(name: "input", attributes: ["type": "checkbox", "indent": "1", "level": "3"], selfClosing: true))
+[XMLParser] 🔍 处理 token 17: Optional(MiNoteLibrary.XMLToken.startTag(name: "order", attributes: ["indent": "1", "inputNumber": "1"], selfClosing: true))
+[XMLParser] 📝 解析图片描述:
+[XMLParser]   - 原始值: 'ces'
+[XMLParser]   - 清理后: 'ces'
+[XMLParser] 📝 创建 ImageNode:
+[XMLParser]   - fileId: '1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[XMLParser]   - description: 'ces'
+[XMLParser]   - imgshow: '0'
+标题[ASTToAttributedStringConverter] 🔄 开始转换文档
+[ASTToAttributedStringConverter]   - document.title: 'nil'
+[ASTToAttributedStringConverter]   - document.blocks.count: 14
+[ASTToAttributedStringConverter] ⚠️ 没有发现
+[ASTToAttributedStringConverter] 📝 开始转换 14 个内容块
+[ASTToAttributedStringConverter] 📝 转换图片:
+[ASTToAttributedStringConverter]   - fileId: '1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[ASTToAttributedStringConverter]   - description: 'ces'
+[ASTToAttributedStringConverter]   - imgshow: '0'
+[ImageAttachment] 📝 初始化（立即加载）:
+[ImageAttachment]   - src: 'minote://image/1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[ImageAttachment]   - fileId: '1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[ImageAttachment]   - folderId: '0'
+[ImageAttachment]   - imageDescription: 'ces'
+[ImageAttachment]   - imgshow: '0'
+[ImageAttachment]   - 附件对象地址: 0x0000000b63b703c0
+[ImageAttachment] 🖼️ setupPlaceholder - 设置占位符图片
+[ImageAttachment] 🖼️ startLoadingImage 被调用
+[ImageAttachment] 🖼️ 使用 fileId 加载: 1315204657.iWIa7HjEEF53X3XD8vvm5Q
+[ImageAttachment] 🖼️ loadImageFromLocalStorage 开始
+[ImageAttachment]   - fileId: 1315204657.iWIa7HjEEF53X3XD8vvm5Q
+[ImageAttachment]   - folderId: 0（已废弃，不再使用）
+[ASTToAttributedStringConverter] ✅ 文档转换完成，总长度: 58
+[NativeEditorContext] ✅ NSAttributedString 转换完成
+[NativeEditorContext]   - 长度: 58
+[NativeEditorContext]   - 文本: '新笔记1
+￼113331
+￼11111212
+￼1212122
+￼12121
+1
+1
+
+2211
+￼
+3
+1
+1
+￼'
+[LocalStorage] 🖼️ 加载图片（统一格式）:
+[LocalStorage]   - fullFileId: 1315204657.iWIa7HjEEF53X3XD8vvm5Q
+[LocalStorage]   - fileType: jpg
+[NativeEditorContext] ⚠️ 没有发现标题段落
+[NativeEditorContext] 🖼️ 发现附件 1: OrderAttachment at range {5, 1}
+[NativeEditorContext] 🖼️ 发现附件 2: InteractiveCheckboxAttachment at range {13, 1}
+[NativeEditorContext] 🖼️ 发现附件 3: InteractiveCheckboxAttachment at range {23, 1}
+[NativeEditorContext] 🖼️ 发现附件 4: OrderAttachment at range {32, 1}
+[NativeEditorContext] 🖼️ 发现附件 5: HorizontalRuleAttachment at range {49, 1}
+[NativeEditorContext] 🖼️ 发现附件 6: ImageAttachment at range {57, 1}
+[NativeEditorContext]   - ImageAttachment.fileId: '1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[NativeEditorContext]   - ImageAttachment.src: 'minote://image/1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[NativeEditorContext] 🖼️ 总共发现 6 个附件，其中 1 个是 ImageAttachment
+[LocalStorage] 🖼️ getImageURL: /Users/acckion/Library/Application Support/com.minote.MiNoteMac/images/1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg - 不存在
+[LocalStorage] ❌ 加载失败: images/1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg
+[LocalStorage] 🖼️ 加载图片（统一格式）:
+[LocalStorage]   - fullFileId: 1315204657.iWIa7HjEEF53X3XD8vvm5Q
+[LocalStorage]   - fileType: jpeg
+[LocalStorage] 🖼️ getImageURL: /Users/acckion/Library/Application Support/com.minote.MiNoteMac/images/1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpeg - 存在
+[NativeEditorContext] 程序化修改，跳过 hasUnsavedChanges 更新
+[NativeEditorContext] 📝 contentVersion 递增至: 25
+[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:
+[NativeEditorContext]   - 范围 {0, 4}: '新笔记1'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 23.0
+[LocalStorage] ✅ 加载图片成功: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpeg, 大小: 161587 字节
+[NativeEditorContext]     特性: bold=true, italic=false
+[LocalStorage] ✅ 加载成功: images/1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpeg
+[NativeEditorContext]   - 范围 {6, 6}: '113331'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {14, 8}: '11111212'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {24, 7}: '1212122'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {33, 5}: '12121'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {39, 1}: '1'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {41, 1}: '1'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {44, 4}: '2211'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {51, 1}: '3'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {53, 1}: '1'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {55, 1}: '1'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext] ✅ 加载 XML 成功
+[EditorChangeTracker] 程序化修改完成 - 版本号保持: 0
+[EditorChangeTracker] 追踪器已重置
+[NativeEditorWrapper] 原生编辑器加载内容 - 长度: 534
+[EditorChangeTracker] 开始程序化修改
+[NativeEditorContext] 🔄 开始加载 XML
+[NativeEditorContext]   - XML 长度: 534
+[XMLParser] 🚀 开始解析 XML
+[XMLParser]   - XML 长度: 534
+[XMLParser]   - XML 前200字符: '<text indent="1"><size><b>新笔记1</b></size></text>
+<order indent="1" inputNumber="0" />113331
+<input type="checkbox" indent="1" level="3" />11111212
+<input type="checkbox" indent="1" level="3" />1212122'
+[XMLParser] ✅ 词法分析完成，生成 50 个 token
+[XMLParser]   Token 0: startTag(name: "text", attributes: ["indent": "1"], selfClosing: false)
+[XMLParser]   Token 1: startTag(name: "size", attributes: [:], selfClosing: false)
+[XMLParser]   Token 2: startTag(name: "b", attributes: [:], selfClosing: false)
+[XMLParser]   Token 3: text("新笔记1")
+[XMLParser]   Token 4: endTag(name: "b")
+[XMLParser]   Token 5: endTag(name: "size")
+[XMLParser]   Token 6: endTag(name: "text")
+[XMLParser]   Token 7: newline
+[XMLParser]   Token 8: startTag(name: "order", attributes: ["indent": "1", "inputNumber": "0"], selfClosing: true)
+[XMLParser]   Token 9: text("113331")
+[XMLParser] 🔄 开始语法分析
+[XMLParser] 🔍 处理 token 0: Optional(MiNoteLibrary.XMLToken.startTag(name: "text", attributes: ["indent": "1"], selfClosing: false))
+[XMLParser] 🔍 处理 token 8: Optional(MiNoteLibrary.XMLToken.startTag(name: "order", attributes: ["indent": "1", "inputNumber": "0"], selfClosing: true))
+[XMLParser] 🔍 处理 token 11: Optional(MiNoteLibrary.XMLToken.startTag(name: "input", attributes: ["type": "checkbox", "indent": "1", "level": "3"], selfClosing: true))
+[XMLParser] 🔍 处理 token 14: Optional(MiNoteLibrary.XMLToken.startTag(name: "input", attributes: ["level": "3", "indent": "1", "type": "checkbox"], selfClosing: true))
+[XMLParser] 🔍 处理 token 17: Optional(MiNoteLibrary.XMLToken.startTag(name: "order", attributes: ["indent": "1", "inputNumber": "1"], selfClosing: true))
+[XMLParser] 📝 解析图片描述:
+[XMLParser]   - 原始值: 'ces'
+[XMLParser]   - 清理后: 'ces'
+[XMLParser] 📝 创建 ImageNode:
+[XMLParser]   - fileId: '1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[XMLParser]   - description: 'ces'
+[XMLParser]   - imgshow: '0'
+[ASTToAttributedStringConverter] 🔄 开始转换文档
+[ASTToAttributedStringConverter]   - document.title: 'nil'
+[ASTToAttributedStringConverter]   - document.blocks.count: 14
+[ASTToAttributedStringConverter] ⚠️ 没有发现标题
+[ASTToAttributedStringConverter] 📝 开始转换 14 个内容块
+[ASTToAttributedStringConverter] 📝 转换图片:
+[ASTToAttributedStringConverter]   - fileId: '1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[ASTToAttributedStringConverter]   - description: 'ces'
+[ASTToAttributedStringConverter]   - imgshow: '0'
+[ImageAttachment] 📝 初始化（立即加载）:
+[ImageAttachment]   - src: 'minote://image/1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[ImageAttachment]   - fileId: '1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[ImageAttachment]   - folderId: '0'
+[ImageAttachment]   - imageDescription: 'ces'
+[ImageAttachment]   - imgshow: '0'
+[ImageAttachment]   - 附件对象地址: 0x0000000b63b73d40
+[ImageAttachment] 🖼️ setupPlaceholder - 设置占位符图片
+[ImageAttachment] 🖼️ startLoadingImage 被调用
+[ImageAttachment] 🖼️ 使用 fileId 加载: 1315204657.iWIa7HjEEF53X3XD8vvm5Q
+[ImageAttachment] 🖼️ loadImageFromLocalStorage 开始
+[ImageAttachment]   - fileId: 1315204657.iWIa7HjEEF53X3XD8vvm5Q
+[ImageAttachment]   - folderId: 0（已废弃，不再使用）
+[ASTToAttributedStringConverter] ✅ 文档转换完成，总长度: 58
+[NativeEditorContext] ✅ NSAttributedString 转换完成
+[NativeEditorContext]   - 长度: 58
+[LocalStorage] 🖼️ 加载图片（统一格式）:
+[NativeEditorContext]   - 文本: '新笔记1
+￼113331
+￼11111212
+￼1212122
+￼12121
+1
+1
+
+2211
+￼
+3
+1
+1
+￼'
+[LocalStorage]   - fullFileId: 1315204657.iWIa7HjEEF53X3XD8vvm5Q
+[LocalStorage]   - fileType: jpg
+[NativeEditorContext] ⚠️ 没有发现标题段落
+[NativeEditorContext] 🖼️ 发现附件 1: OrderAttachment at range {5, 1}
+[NativeEditorContext] 🖼️ 发现附件 2: InteractiveCheckboxAttachment at range {13, 1}
+[NativeEditorContext] 🖼️ 发现附件 3: InteractiveCheckboxAttachment at range {23, 1}
+[NativeEditorContext] 🖼️ 发现附件 4: OrderAttachment at range {32, 1}
+[NativeEditorContext] 🖼️ 发现附件 5: HorizontalRuleAttachment at range {49, 1}
+[NativeEditorContext] 🖼️ 发现附件 6: ImageAttachment at range {57, 1}
+[NativeEditorContext]   - ImageAttachment.fileId: '1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[NativeEditorContext]   - ImageAttachment.src: 'minote://image/1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[NativeEditorContext] 🖼️ 总共发现 6 个附件，其中 1 个是 ImageAttachment
+[LocalStorage] 🖼️ getImageURL: /Users/acckion/Library/Application Support/com.minote.MiNoteMac/images/1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg - 不存在
+[LocalStorage] ❌ 加载失败: images/1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg
+[LocalStorage] 🖼️ 加载图片（统一格式）:
+[LocalStorage]   - fullFileId: 1315204657.iWIa7HjEEF53X3XD8vvm5Q
+[LocalStorage]   - fileType: jpeg
+[NativeEditorContext] 程序化修改，跳过 hasUnsavedChanges 更新
+[NativeEditorContext] 📝 contentVersion 递增至: 26
+[NativeEditorContext] 🔍 loadFromXML 完成后检查字体属性:
+[LocalStorage] 🖼️ getImageURL: /Users/acckion/Library/Application Support/com.minote.MiNoteMac/images/1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpeg - 存在
+[NativeEditorContext]   - 范围 {0, 4}: '新笔记1'
+[NativeEditorContext]     字体: .AppleSystemUIFontBold, 大小: 23.0
+[NativeEditorContext]     特性: bold=true, italic=false
+[NativeEditorContext]   - 范围 {6, 6}: '113331'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {14, 8}: '11111212'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[LocalStorage] ✅ 加载图片成功: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpeg, 大小: 161587 字节
+[LocalStorage] ✅ 加载成功: images/1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpeg
+[NativeEditorContext]   - 范围 {24, 7}: '1212122'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {33, 5}: '12121'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {39, 1}: '1'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {41, 1}: '1'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {44, 4}: '2211'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {51, 1}: '3'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {53, 1}: '1'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext]   - 范围 {55, 1}: '1'
+[NativeEditorContext]     字体: .AppleSystemUIFont, 大小: 14.0
+[NativeEditorContext]     特性: bold=false, italic=false
+[NativeEditorContext] ✅ 加载 XML 成功
+[EditorChangeTracker] 程序化修改完成 - 版本号保持: 0
+[EditorChangeTracker] 追踪器已重置
+[NativeEditorWrapper] 原生编辑器加载内容 - 长度: 534
+[NativeEditorWrapper] 初始加载内容 - 长度: 534
+[NativeEditorView] 更新内容 - 当前长度: 2, 新长度: 58, 版本变化: true
+[NativeTextView] setSelectedRange 被调用: location=58, length=0
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorContext] 内容变化检测 - 长度: 58, hasUnsavedChanges: true
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[SelectionAnchorManager] 清除锚点
+[AttachmentSelectionManager] 处理选择变化: location=58, length=0
+[AttachmentSelectionManager] 检测到附件: ImageAttachment, index=57, position=afterAttachment
+[AttachmentSelectionManager] 光标在附件右边，显示高亮并隐藏光标
+[AttachmentSelectionManager] 附件显示区域: (19.0, 382.0, 504.0, 229.0)
+[AttachmentSelectionManager] 创建高亮视图，frame=(19.0, 382.0, 504.0, 229.0)
+[AttachmentSelectionManager] 使用描边样式
+[AttachmentSelectionManager] 显示高亮，alphaValue=1.0
+[AttachmentSelectionManager] 已隐藏光标
+[NativeTextView] 通知 AttachmentSelectionManager
+[AttachmentSelectionManager] 处理选择变化: location=58, length=0
+[AttachmentSelectionManager] 检测到附件: ImageAttachment, index=57, position=afterAttachment
+[AttachmentSelectionManager] 光标在附件右边，显示高亮并隐藏光标
+[AttachmentSelectionManager] 附件显示区域: (19.0, 382.0, 504.0, 229.0)
+[AttachmentSelectionManager] 更新高亮视图，frame=(19.0, 382.0, 504.0, 229.0)
+[AttachmentSelectionManager] 使用描边样式
+[AttachmentSelectionManager] 显示高亮，alphaValue=1.0
+[AttachmentSelectionManager] 已隐藏光标
+[NativeTextView] setSelectedRange 被调用: location=2, length=0
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[NativeEditorContext] 内容变化检测 - 长度: 58, hasUnsavedChanges: true
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+Publishing changes from within view updates is not allowed, this will cause undefined behavior.
+[SelectionAnchorManager] 清除锚点
+[AttachmentSelectionManager] 处理选择变化: location=2, length=0
+[AttachmentSelectionManager] 未检测到附件
+[AttachmentSelectionManager] 已显示光标
+[NativeTextView] 通知 AttachmentSelectionManager
+[AttachmentSelectionManager] 处理选择变化: location=2, length=0
+[AttachmentSelectionManager] 未检测到附件
+[AttachmentSelectionManager] 已显示光标
+[ImageAttachment] ✅ 图片加载成功: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpeg, 尺寸: (1920.0, 864.0)
+[ImageAttachment] ✅ 已更新 self.image
+[ImageAttachment] 🖼️ image(forBounds:) 首次调用
+[ImageAttachment]   - 附件对象地址: 0x0000000b63b73d40
+[ImageAttachment]   - imageBounds: (21.0, 609.0, 500.0, 225.00000000000003)
+[ImageAttachment]   - characterIndex: 57
+[ImageAttachment]   - fileId: '1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[ImageAttachment]   - src: 'minote://image/1315204657.iWIa7HjEEF53X3XD8vvm5Q'
+[CursorFormatManager] 执行更新 - range: {2, 0}
+[UnifiedFormatManager] detectFormatState - position: 2, state: FormatState(段落: 大标题, 对齐: 左对齐, 字符: 加粗)
+[CursorFormatManager] 使用 UnifiedFormatManager 检测格式状态
+[CursorFormatManager] 同步 typingAttributes
+[CursorFormatManager] typingAttributes 已更新，属性数量: 2
+[CursorFormatManager] 更新工具栏状态
+[CursorFormatManager] 工具栏状态已更新，激活格式: ["加粗", "大标题"]
+[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 大标题, 对齐: 左对齐, 字符: 加粗)
+[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
+[CursorFormatManager] 光标模式更新完成 - position: 2, state: FormatState(段落: 大标题, 对齐: 左对齐, 字符: 加粗)
 [NativeEditorContext] ========================================
 [NativeEditorContext] 🔄 开始更新当前格式状态
 [NativeEditorContext] ========================================
-[NativeEditorContext]   - 文本长度: 0
-[NativeEditorContext]   - 光标位置: 0
-[NativeEditorContext]   - 选中范围: location=0, length=0
-[NativeEditorContext]   ⚠️ 文本为空，清除所有格式
-[NativeEditorContext] 保存状态变化: needsSave = false
-[EditorChangeTracker] 格式变化 - 版本号: 1, needsSave: true
-[AutoSaveManager] 初始化 - 防抖延迟: 2.0秒
-[AutoSaveManager] 已调度自动保存（2.0秒后）
-[NativeEditorContext] ========================================
+[NativeEditorContext]   - 文本长度: 58
+[NativeEditorContext]   - 光标位置: 2
+[NativeEditorContext]   - 选中范围: location=2, length=0
+[NativeEditorContext]   ✅ 有效位置: 2
+[NativeEditorContext]   📍 光标模式（未选中文本）
+[NativeEditorContext]   💡 光标模式：使用前一个字符的属性位置: 1
+[NativeEditorContext]   📦 获取到 4 个属性
+[NativeEditorContext] ----------------------------------------
+[NativeEditorContext] 🔍 开始检测各类格式...
+[NativeEditorContext] ----------------------------------------
+[NativeEditorContext] ========== 开始检测字体格式 ==========
+[NativeEditorContext] detectFontFormats - 属性键: ["NSFont", "NSOriginalFont", "NSParagraphStyle", "NSColor"]
+[NativeEditorContext] 📏 字体信息:
+[NativeEditorContext]   - 字体名称: .PingFangUIDisplaySC-Bold
+[NativeEditorContext]   - 字体大小: 23.0pt
+[NativeEditorContext]   - 字体特性: bold=true, italic=false
+[NativeEditorContext] 🔍 通过字体大小判断标题类型
+[NativeEditorContext]   当前阈值: 大标题>=23.0pt, 二级标题>=20.0pt, 三级标题>=17.0pt
+[NativeEditorContext] ✅ 字体大小 23.0pt >= 23.0pt，识别为【大标题】
+[NativeEditorContext] detectFontFormats - 检测到粗体
+[NativeEditorContext] ========== 检测结束，最终格式: ["加粗", "大标题"] ==========
+[NativeEditorContext]   ✅ 字体格式检测完成: ["加粗", "大标题"]
+[NativeEditorContext]   ✅ 装饰格式检测完成: []
+[NativeEditorContext]   ✅ 段落格式检测完成: []
+[NativeEditorContext]   ✅ 列表格式检测完成: []
+[NativeEditorContext]   ✅ 特殊格式检测完成: []
+[NativeEditorContext] ----------------------------------------
+[NativeEditorContext] 📊 最终检测到的所有格式: ["加粗", "大标题"]
+[NativeEditorContext] ----------------------------------------
 [NativeEditorContext] ========== 开始转换格式为段落样式 ==========
-[NativeEditorContext] 输入格式集合: []
-[NativeEditorContext] ✅ 没有检测到任何块级格式，返回默认段落样式: 【body】(正文)
-[NativeEditorContext] ========== 段落样式转换完成: body ==========
-[NativeEditorContext] getCurrentParagraphStyleString - currentFormats: [], result: body
-[NetworkMonitor] 网络连接状态变化: 已连接
-[VIEWMODEL] 网络已恢复，开始处理待同步操作
-[ScheduledTaskManager] 网络断开，停止需要网络的任务
-[ScheduledTaskManager] 停止任务: Cookie有效性检查
-[AppStateManager] 在线状态变化: 在线
-[OnlineStateManager] 在线状态变化: 在线
-[OnlineStateManager]   网络连接: true
-[OnlineStateManager]   已认证: true
-[OnlineStateManager]   Cookie有效: true
-[NetworkRecoveryHandler] 📴 网络断开
-[NativeEditorContext] 创建 NativeFormatProvider
-[NativeEditorContext] 初始化完成，formatProvider 已创建
-[ScheduledTaskManager] 启动定时任务管理器
-[ScheduledTaskManager] 停止任务: Cookie有效性检查
-[ScheduledTaskManager] 启动任务: Cookie有效性检查, 间隔: 30.0秒
-[VIEWMODEL] 默认选择所有笔记文件夹
-[AudioPanelState] 处理笔记切换: nil -> 49017105768006496
-[VIEWMODEL] 选择当前文件夹的第一个笔记
-[NotePreviewService] 请求加载图片: 1315204657.njhyTfUQqNbtu5fAlEWqcg.jpg
-[NotePreviewService] 缓存未命中，从本地存储加载
-[LocalStorage] 🖼️ getImageURL: /Users/acckion/Library/Application Support/com.minote.MiNoteMac/images/1315204657.njhyTfUQqNbtu5fAlEWqcg.jpg - 不存在
-[NotePreviewService] ❌ 本地存储加载失败: 1315204657.njhyTfUQqNbtu5fAlEWqcg.jpg
-[NotePreviewImageView] ❌ 图片加载失败: 1315204657.njhyTfUQqNbtu5fAlEWqcg.jpg
-[NotePreviewService] 请求加载图片: 1315204657.RSgsGMIo2QYlsy-vb_2lXw.jpg
-[NotePreviewService] 缓存未命中，从本地存储加载
-[LocalStorage] 🖼️ getImageURL: /Users/acckion/Library/Application Support/com.minote.MiNoteMac/images/1315204657.RSgsGMIo2QYlsy-vb_2lXw.jpg - 不存在
-[NotePreviewService] ❌ 本地存储加载失败: 1315204657.RSgsGMIo2QYlsy-vb_2lXw.jpg
-[NotePreviewImageView] ❌ 图片加载失败: 1315204657.RSgsGMIo2QYlsy-vb_2lXw.jpg
-[NotePreviewService] 请求加载图片: 1315204657.njhyTfUQqNbtu5fAlEWqcg.jpg
-[NotePreviewService] 缓存未命中，从本地存储加载
-[LocalStorage] 🖼️ getImageURL: /Users/acckion/Library/Application Support/com.minote.MiNoteMac/images/1315204657.njhyTfUQqNbtu5fAlEWqcg.jpg - 不存在
-[NotePreviewService] ❌ 本地存储加载失败: 1315204657.njhyTfUQqNbtu5fAlEWqcg.jpg
-[NotePreviewImageView] ❌ 图片加载失败: 1315204657.njhyTfUQqNbtu5fAlEWqcg.jpg
-[NotePreviewService] 请求加载图片: 1315204657.mqD6sEiru5CFpGR0vUZaMA.png
-[NotePreviewService] 缓存未命中，从本地存储加载
-[LocalStorage] 🖼️ getImageURL: /Users/acckion/Library/Application Support/com.minote.MiNoteMac/images/1315204657.mqD6sEiru5CFpGR0vUZaMA.png - 存在
-[LocalStorage] ✅ 加载图片成功: 1315204657.mqD6sEiru5CFpGR0vUZaMA.png, 大小: 118307 字节
-[NotePreviewService] ✅ 本地存储加载成功，数据大小: 118307 字节
-[NotePreviewService] ✅ NSImage 创建成功，尺寸: (1210.0, 279.0)
-[NotePreviewImageView] ✅ 图片加载成功: 1315204657.mqD6sEiru5CFpGR0vUZaMA.png
-[NotePreviewService] 请求加载图片: 1315204657.PonsT-5dGNMDd8zBDNuEZw.jpg
-[NotePreviewService] 缓存未命中，从本地存储加载
-[LocalStorage] 🖼️ getImageURL: /Users/acckion/Library/Application Support/com.minote.MiNoteMac/images/1315204657.PonsT-5dGNMDd8zBDNuEZw.jpg - 不存在
-[NotePreviewService] ❌ 本地存储加载失败: 1315204657.PonsT-5dGNMDd8zBDNuEZw.jpg
-[NotePreviewImageView] ❌ 图片加载失败: 1315204657.PonsT-5dGNMDd8zBDNuEZw.jpg
-[NotesListView] 📊 selectedNote 变化: nil -> 49017105
-[NotesListView] 🔄 选择 ID 变化，通知 coordinator
-[笔记切换] ⏭️ 无需保存 - 无当前编辑笔记或笔记ID相同
-[笔记切换] ⏭️ 无需保存 - 无当前编辑笔记或笔记ID相同
-[NotePreviewImageView] 开始加载图片: 1315204657.njhyTfUQqNbtu5fAlEWqcg.jpg
-[NotePreviewImageView] 开始加载图片: 1315204657.njhyTfUQqNbtu5fAlEWqcg.jpg
-[NotePreviewImageView] 开始加载图片: 1315204657.PonsT-5dGNMDd8zBDNuEZw.jpg
-[NotePreviewImageView] 开始加载图片: 1315204657.RSgsGMIo2QYlsy-vb_2lXw.jpg
-<_TtGC7SwiftUI22AppKitPlatformViewHostGVS_P10$1c99b695432PlatformViewRepresentableAdaptorVS_18AppKitProgressView__: 0x7948b3100> has an maximum length (32.083333) that doesn't satisfy min (32.083333) <= max (32.083333).
-[ScheduledTaskManager] 网络恢复，重新启动需要网络的任务
-[ScheduledTaskManager] 停止任务: Cookie有效性检查
-[ScheduledTaskManager] 启动任务: Cookie有效性检查, 间隔: 30.0秒
-[NetworkRecoveryHandler] 🌐 检测到网络恢复
-[NetworkRecoveryHandler] 离线队列为空，无需处理
-[NetworkRecoveryHandler] 🌐 检测到网络恢复
-[NetworkRecoveryHandler] 离线队列为空，无需处理
-[NetworkRecoveryHandler] 离线队列为空，无需处理
-[ScheduledTaskManager] 开始执行任务: Cookie有效性检查
-[ViewStateCoordinator] 状态已保存到 UserDefaults: folder=nil, note=49017105768006496
-[StateTransition] noteSelection: folder(nil -> nil), note(nil -> 49017105768006496)
-[ViewStateCoordinator] 笔记选择完成: 11
-[ViewStateCoordinator] 开始文件夹切换: nil -> 所有笔记
-[ViewStateCoordinator] 无未保存内容，直接切换
-[ViewStateCoordinator] 状态已保存到 UserDefaults: folder=0, note=49017105768006496
-[ViewStateCoordinator] 已更新 selectedFolder: 所有笔记
-[ViewStateCoordinator] 状态已保存到 UserDefaults: folder=0, note=49017105768006496
-[ViewStateCoordinator] 当前笔记在新文件夹中，保持选中: 11
-[StateTransition] folderSelection: folder(nil -> 0), note(49017105768006496 -> 49017105768006496)
-[ViewStateCoordinator] ✅ 文件夹切换完成: 所有笔记
-[快速切换] 🔄 开始切换到笔记 - ID: 49017105..., 标题: 11
-[保存状态] 🔄 笔记切换 - 重置为已保存
-[快速切换] 📝 标题已更新: 11
-[快速切换] 📝 重置内容状态，lastSavedXMLContent 已清空
-[MemoryCache] 初始化内存缓存管理器，最大缓存数: 10
-[快速切换] 🔄 开始切换到笔记 - ID: 49017105..., 标题: 11
+[NativeEditorContext] 输入格式集合: ["加粗", "大标题"]
+[NativeEditorContext] ✅ 检测到 heading1 格式，返回段落样式: 【heading】(大标题)
+[NativeEditorContext] ========== 段落样式转换完成: heading ==========
+[NativeEditorContext] ========== 开始转换格式为段落样式 ==========
+[NativeEditorContext] 输入格式集合: ["加粗", "大标题"]
+[NativeEditorContext] ✅ 检测到 heading1 格式，返回段落样式: 【heading】(大标题)
+[NativeEditorContext] ========== 段落样式转换完成: heading ==========
+[NativeEditorContext] 检测到格式: 加粗, 大标题
+[NativeEditorContext] ========================================
+[NativeEditorContext] ✅ 格式状态更新完成
+[NativeEditorContext] ========================================
+[VIEWMODEL] 应用变为后台
+[VIEWMODEL] 停止自动同步定时器

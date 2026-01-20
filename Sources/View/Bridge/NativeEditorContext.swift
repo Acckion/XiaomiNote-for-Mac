@@ -1036,7 +1036,15 @@ public class NativeEditorContext: ObservableObject {
     }
     
     /// 从 XML 加载内容
+    /// 
+    /// **标题段落处理**：
+    /// - XML 的 `<title>` 标签通过 `XMLParser` 解析为 `TitleBlockNode`
+    /// - `ASTToAttributedStringConverter` 将 `TitleBlockNode` 转换为带有 `.isTitle` 属性的段落
+    /// - 标题段落会被插入到编辑器的第一个位置
+    /// 
     /// - Parameter xml: 小米笔记 XML 格式内容
+    /// 
+    /// _Requirements: 3.5_ - 从 XML 加载标题段落
     func loadFromXML(_ xml: String) {
         // 使用程序化修改包裹，确保版本号不变
         // _Requirements: FR-3_
@@ -1051,9 +1059,12 @@ public class NativeEditorContext: ObservableObject {
     /// 内部加载 XML 方法
     /// - Parameter xml: 小米笔记 XML 格式内容
     private func loadFromXMLInternal(_ xml: String) {
+        print("[NativeEditorContext] 🔄 开始加载 XML")
+        print("[NativeEditorContext]   - XML 长度: \(xml.count)")
+        
         // 关键修复：如果 XML 为空，清空编辑器
         guard !xml.isEmpty else {
-            print("[NativeEditorContext] XML 为空，清空编辑器")
+            print("[NativeEditorContext] ⚠️ XML 为空，清空编辑器")
             attributedText = AttributedString()
             nsAttributedText = NSAttributedString()
             hasUnsavedChanges = false
@@ -1065,7 +1076,7 @@ public class NativeEditorContext: ObservableObject {
         let trimmedXml = xml.trimmingCharacters(in: .whitespacesAndNewlines)
         hasNewFormatPrefix = trimmedXml.hasPrefix("<new-format/>")
         if hasNewFormatPrefix {
-            print("[NativeEditorContext] 检测到 <new-format/> 前缀，将在导出时保留")
+            print("[NativeEditorContext] 📝 检测到 <new-format/> 前缀，将在导出时保留")
         }
         
         do {
@@ -1073,9 +1084,32 @@ public class NativeEditorContext: ObservableObject {
             // 这样可以正确保留自定义的 NSTextAttachment 子类（如 ImageAttachment）
             let nsAttributed = try formatConverter.xmlToNSAttributedString(xml, folderId: currentFolderId)
             
-            print("[NativeEditorContext] 🖼️ NSAttributedString 转换完成（直接转换）")
-            print("[NativeEditorContext]   - nsAttributed.length: \(nsAttributed.length)")
-            print("[NativeEditorContext]   - nsAttributed.string: '\(nsAttributed.string)'")
+            print("[NativeEditorContext] ✅ NSAttributedString 转换完成")
+            print("[NativeEditorContext]   - 长度: \(nsAttributed.length)")
+            print("[NativeEditorContext]   - 文本: '\(nsAttributed.string)'")
+            
+            // 检查是否包含标题段落
+            var hasTitleParagraph = false
+            nsAttributed.enumerateAttribute(.isTitle, in: NSRange(location: 0, length: nsAttributed.length), options: []) { value, range, stop in
+                if let isTitle = value as? Bool, isTitle {
+                    hasTitleParagraph = true
+                    let titleText = (nsAttributed.string as NSString).substring(with: range)
+                    print("[NativeEditorContext] 📝 发现标题段落:")
+                    print("[NativeEditorContext]   - 范围: \(range)")
+                    print("[NativeEditorContext]   - 文本: '\(titleText)'")
+                    
+                    // 检查字体
+                    if let font = nsAttributed.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont {
+                        print("[NativeEditorContext]   - 字体: \(font.fontName), 大小: \(font.pointSize)pt")
+                    }
+                    
+                    stop.pointee = true
+                }
+            }
+            
+            if !hasTitleParagraph {
+                print("[NativeEditorContext] ⚠️ 没有发现标题段落")
+            }
             
             // 检查是否包含附件
             var attachmentCount = 0
@@ -1110,6 +1144,7 @@ public class NativeEditorContext: ObservableObject {
             // 新增：递增版本号，强制触发视图更新
             // _Requirements: 3.1_
             contentVersion += 1
+            print("[NativeEditorContext] 📝 contentVersion 递增至: \(contentVersion)")
             
             // 关键修复：移除 contentChangeSubject.send() 调用
             // loadFromXML 是加载操作，不是编辑操作，不应触发 handleExternalContentUpdate
@@ -1134,7 +1169,7 @@ public class NativeEditorContext: ObservableObject {
             }
             
             hasUnsavedChanges = false
-            print("[NativeEditorContext] ✅ 加载 XML 成功 - 长度: \(xml.count), 转换后文本长度: \(mutableAttributed.length)")
+            print("[NativeEditorContext] ✅ 加载 XML 成功")
         } catch {
             print("[NativeEditorContext] ❌ 加载 XML 失败: \(error)")
             // 关键修复：加载失败时清空编辑器，避免显示旧内容
@@ -1148,13 +1183,18 @@ public class NativeEditorContext: ObservableObject {
     /// 
     /// 将当前编辑器内容（nsAttributedText）转换为小米笔记 XML 格式
     /// 
+    /// **标题段落处理**：
+    /// - 第一个段落如果标记为 `.isTitle` 属性，会被识别为标题段落
+    /// - 标题段落通过 `AttributedStringToASTConverter` 转换为 `TitleBlockNode`
+    /// - `XMLGenerator` 将 `TitleBlockNode` 转换为 XML 的 `<title>` 标签
+    /// 
     /// - Returns: 小米笔记 XML 格式内容
     /// - Note: 
     ///   - 使用 nsAttributedText 而不是 attributedText，因为 NativeEditorView 使用的是 nsAttributedText
     ///   - 空内容返回空字符串
     ///   - 转换失败时记录错误并返回空字符串
     /// 
-    /// _Requirements: 2.1, 5.1_
+    /// _Requirements: 2.1, 5.1, 3.4_ - 识别标题段落并转换为 XML
     func exportToXML() -> String {
         // 处理空内容的情况
         // _Requirements: 5.1_
@@ -1189,6 +1229,84 @@ public class NativeEditorContext: ObservableObject {
             print("[NativeEditorContext] exportToXML: 导出 XML 失败 - \(error)")
             return ""
         }
+    }
+    
+    /// 从编辑器内容提取标题
+    ///
+    /// 从当前编辑器内容中提取第一个段落作为标题
+    /// 如果第一个段落标记为 `.title` 类型，则提取其文本内容
+    ///
+    /// - Returns: 标题文本，如果没有标题段落则返回空字符串
+    ///
+    /// _Requirements: 3.3_ - 从编辑器提取标题文本
+    ///
+    /// 注意：
+    /// - 只提取第一个段落的文本
+    /// - 会移除末尾的换行符
+    /// - 如果第一个段落不是标题类型，返回空字符串
+    public func extractTitle() -> String {
+        // 处理空内容的情况
+        guard nsAttributedText.length > 0 else {
+            print("[NativeEditorContext] extractTitle: 内容为空，返回空字符串")
+            return ""
+        }
+        
+        // 创建临时的 NSTextStorage 以使用 TitleIntegration
+        let textStorage = NSTextStorage(attributedString: nsAttributedText)
+        
+        // 使用 TitleIntegration 提取标题
+        let title = TitleIntegration.shared.extractTitle(from: textStorage)
+        
+        print("[NativeEditorContext] extractTitle: 提取标题 - \(title.isEmpty ? "(空)" : title)")
+        return title
+    }
+    
+    // MARK: - 标题段落支持方法
+    // _Requirements: 3.1, 3.3_ - 标题段落管理
+    
+    /// 插入标题段落
+    ///
+    /// 将标题作为第一个段落插入到编辑器中
+    /// 标题段落使用特殊的格式标记（通过自定义属性）
+    ///
+    /// - Parameter title: 标题文本
+    ///
+    /// _Requirements: 3.1_ - 将标题作为第一个段落插入编辑器
+    ///
+    /// 注意：
+    /// - 如果编辑器已有内容，标题会插入到最前面
+    /// - 标题后会自动添加换行符
+    /// - 标题使用自定义属性 `paragraphType` 标记为 `.title`
+    public func insertTitleParagraph(_ title: String) {
+        print("[NativeEditorContext] insertTitleParagraph: 插入标题段落 - \(title)")
+        
+        // 如果标题为空，不插入
+        guard !title.isEmpty else {
+            print("[NativeEditorContext] insertTitleParagraph: 标题为空，跳过插入")
+            return
+        }
+        
+        // 创建临时的 NSTextStorage
+        let textStorage = NSTextStorage(attributedString: nsAttributedText)
+        
+        // 使用 TitleIntegration 插入标题
+        TitleIntegration.shared.insertTitle(title, into: textStorage)
+        
+        // 更新编辑器内容
+        updateNSContent(NSAttributedString(attributedString: textStorage))
+        
+        print("[NativeEditorContext] insertTitleParagraph: 标题段落已插入")
+    }
+    
+    /// 从编辑器内容提取标题（别名方法）
+    ///
+    /// 此方法是 `extractTitle()` 的别名，提供更明确的命名
+    ///
+    /// - Returns: 标题文本，如果没有标题段落则返回空字符串
+    ///
+    /// _Requirements: 3.3_ - 从编辑器提取标题文本
+    public func extractTitleFromContent() -> String {
+        return extractTitle()
     }
     
     /// 检查格式是否激活

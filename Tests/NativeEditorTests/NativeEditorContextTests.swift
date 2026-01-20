@@ -196,4 +196,51 @@ final class NativeEditorContextTests: XCTestCase {
         
         XCTAssertEqual(receivedElements.count, 2, "应该接收到 2 个特殊元素")
     }
+    
+    // MARK: - 标题提取测试
+    // _Requirements: 3.3_ - 从编辑器提取标题文本
+    
+    func testExtractTitle_EmptyContent() {
+        // 测试空内容的情况
+        let title = context.extractTitle()
+        XCTAssertTrue(title.isEmpty, "空内容应该返回空标题")
+    }
+    
+    func testExtractTitle_WithTitleParagraph() {
+        // 创建包含标题段落的内容
+        let titleText = "我的笔记标题"
+        let bodyText = "这是正文内容"
+        
+        // 创建标题段落
+        let titleString = NSMutableAttributedString(string: titleText + "\n")
+        titleString.addAttribute(.paragraphType, value: ParagraphType.title, range: NSRange(location: 0, length: titleString.length))
+        
+        // 创建正文段落
+        let bodyString = NSAttributedString(string: bodyText)
+        
+        // 组合内容
+        titleString.append(bodyString)
+        
+        // 更新编辑器内容
+        context.updateNSContent(titleString)
+        
+        // 提取标题
+        let extractedTitle = context.extractTitle()
+        
+        XCTAssertEqual(extractedTitle, titleText, "应该正确提取标题文本")
+    }
+    
+    func testExtractTitle_WithoutTitleParagraph() {
+        // 创建不包含标题段落的内容（只有普通文本）
+        let normalText = "这是普通文本"
+        let normalString = NSAttributedString(string: normalText)
+        
+        // 更新编辑器内容
+        context.updateNSContent(normalString)
+        
+        // 提取标题
+        let extractedTitle = context.extractTitle()
+        
+        XCTAssertTrue(extractedTitle.isEmpty, "没有标题段落时应该返回空字符串")
+    }
 }

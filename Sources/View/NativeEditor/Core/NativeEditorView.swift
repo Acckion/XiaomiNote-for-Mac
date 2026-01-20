@@ -243,6 +243,27 @@ struct NativeEditorView: NSViewRepresentable {
         /// _Requirements: 3.1, 3.2 - 确保视图更新机制能够可靠地检测内容和格式变化
         var lastContentVersion: Int = 0
         
+        // MARK: - Paper-Inspired Managers (Task 19.1)
+        // _Requirements: 1.1, 2.1 - 初始化所有管理器
+        
+        /// 段落管理器 - 负责段落边界检测和段落列表维护
+        private let paragraphManager = ParagraphManager()
+        
+        /// 属性管理器 - 负责分层属性管理
+        private let attributeManager = AttributeManager()
+        
+        /// 性能缓存 - 缓存常用的属性对象
+        private let performanceCache = PerformanceCache.shared
+        
+        /// 打字优化器 - 检测简单输入场景并优化更新策略
+        private let typingOptimizer = TypingOptimizer.shared
+        
+        /// 选择锚点管理器 - 管理文本选择的锚点
+        private let selectionAnchorManager = SelectionAnchorManager()
+        
+        /// 撤销合并管理器 - 管理撤销操作的合并策略
+        private let undoCoalescingManager = UndoCoalescingManager()
+        
         init(_ parent: NativeEditorView) {
             self.parent = parent
             super.init()
@@ -703,6 +724,37 @@ struct NativeEditorView: NSViewRepresentable {
             // _Requirements: FR-3.4.2_ - 监控保存请求次数
             PerformanceMonitor.shared.recordSaveRequest()
             
+            // MARK: - Paper-Inspired Integration (Task 19.2)
+            // _Requirements: 1.2, 4.1, 4.2 - 集成打字优化器、段落管理器和属性管理器
+            
+            // 1. 使用 TypingOptimizer 判断更新策略
+            let selectedRange = textView.selectedRange()
+            let isSimpleTyping = typingOptimizer.isSimpleTyping(
+                change: "",  // 简化：不传递具体变化内容
+                at: selectedRange.location,
+                in: textStorage
+            )
+            
+            if isSimpleTyping {
+                print("[NativeEditorView] 检测到简单输入，跳过完整解析")
+                // 简单输入场景：只更新打字属性，不进行完整解析
+                // 注意：这里仍然需要同步内容，但可以跳过段落重新解析
+            } else {
+                print("[NativeEditorView] 检测到复杂输入，执行完整解析")
+                
+                // 2. 使用 ParagraphManager 更新段落列表
+                // 计算变化范围（简化：使用整个文档范围）
+                let changedRange = NSRange(location: 0, length: textStorage.length)
+                paragraphManager.updateParagraphs(in: textStorage, changedRange: changedRange)
+                
+                // 3. 使用 AttributeManager 更新属性
+                // 获取受影响的段落
+                let affectedParagraphs = paragraphManager.paragraphs(in: changedRange)
+                for paragraph in affectedParagraphs where paragraph.needsReparse {
+                    attributeManager.applyLayeredAttributes(for: paragraph, in: textStorage)
+                }
+            }
+            
             // 优化：延迟 50ms 再检查输入法状态，确保组合输入真正完成
             // 这样可以避免在用户选择候选词的瞬间触发保存
             // 50ms 的延迟对用户来说几乎无感知，但足以让输入法完成候选词选择
@@ -753,6 +805,20 @@ struct NativeEditorView: NSViewRepresentable {
             if !self.parent.editorContext.isEditorFocused {
                 print("[NativeEditorView] textViewDidChangeSelection: 设置焦点状态为 true")
                 self.parent.editorContext.setEditorFocused(true)
+            }
+            
+            // MARK: - Paper-Inspired Integration (Task 19.4)
+            // _Requirements: 12.3, 12.4, 13.1 - 集成选择锚点管理器和打字属性更新
+            
+            // 1. 使用 SelectionAnchorManager 管理锚点
+            // 检查是否是选择开始（从无选择到有选择）
+            if selectedRange.length > 0 && selectionAnchorManager.anchorLocation == nil {
+                // 设置锚点为选择的起始位置
+                selectionAnchorManager.setAnchor(at: selectedRange.location)
+                print("[NativeEditorView] 设置选择锚点: \(selectedRange.location)")
+            } else if selectedRange.length == 0 {
+                // 清除锚点（无选择）
+                selectionAnchorManager.clearAnchor()
             }
             
             // 使用 CursorFormatManager 处理选择变化
@@ -895,9 +961,23 @@ struct NativeEditorView: NSViewRepresentable {
             
             print("[FormatApplicator] 有效范围: location=\(effectiveRange.location), length=\(effectiveRange.length)")
             
+            // MARK: - Paper-Inspired Integration (Task 19.3)
+            // _Requirements: 1.3, 9.1 - 集成段落管理器和属性管理器
+            
             // 4. 应用格式
             do {
-                try applyFormatSafely(format, to: effectiveRange, in: textStorage)
+                // 检查是否为段落级格式
+                if format.category == .blockTitle || format.category == .blockList || format.category == .blockQuote {
+                    // 使用 ParagraphManager 应用段落格式
+                    print("[FormatApplicator] 使用 ParagraphManager 应用段落格式")
+                    
+                    // 将 TextFormat 转换为 ParagraphType
+                    let paragraphType = convertTextFormatToParagraphType(format)
+                    paragraphManager.applyParagraphFormat(paragraphType, to: effectiveRange, in: textStorage)
+                } else {
+                    // 内联格式：使用原有逻辑
+                    try applyFormatSafely(format, to: effectiveRange, in: textStorage)
+                }
                 
                 // 5. 更新编辑器上下文状态
                 updateContextAfterFormatApplication(format)
@@ -958,6 +1038,30 @@ struct NativeEditorView: NSViewRepresentable {
                 
                 // 触发状态重新同步
                 parent.editorContext.updateCurrentFormats()
+            }
+        }
+        
+        /// 将 TextFormat 转换为 ParagraphType
+        /// - Parameter format: 文本格式
+        /// - Returns: 段落类型
+        private func convertTextFormatToParagraphType(_ format: TextFormat) -> ParagraphType {
+            switch format {
+            case .heading1:
+                return .heading(level: 1)
+            case .heading2:
+                return .heading(level: 2)
+            case .heading3:
+                return .heading(level: 3)
+            case .bulletList:
+                return .list(.bullet)
+            case .numberedList:
+                return .list(.ordered)
+            case .checkbox:
+                return .list(.checkbox)
+            case .quote:
+                return .quote
+            default:
+                return .normal
             }
         }
         
@@ -1873,6 +1977,14 @@ class NativeTextView: NSTextView {
                 return
             }
             
+            // 任务 22.7: 处理标题中的 Enter 键
+            // _Requirements: 3.2_ - 在标题段落中按 Enter 时移动光标到正文开头
+            if handleReturnKeyForTitle() {
+                // 通知内容变化
+                delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
+                return
+            }
+            
             // 首先尝试使用 UnifiedFormatManager 处理换行
             // 如果 UnifiedFormatManager 已注册且处理了换行，则不执行默认行为
             if UnifiedFormatManager.shared.isRegistered {
@@ -1901,7 +2013,14 @@ class NativeTextView: NSTextView {
         
         // 处理删除键 - 删除分割线
         if event.keyCode == 51 { // Delete key (Backspace)
-            // 首先尝试删除分割线
+            // 首先检查标题边界保护
+            // _Requirements: 3.2_ - 标题边界保护
+            if !canDeleteAtCurrentPosition() {
+                print("[NativeTextView] 标题边界保护：阻止删除操作")
+                return
+            }
+            
+            // 然后尝试删除分割线
             if deleteSelectedHorizontalRule() {
                 return
             }
@@ -1914,6 +2033,102 @@ class NativeTextView: NSTextView {
         }
         
         super.keyDown(with: event)
+    }
+    
+    // MARK: - Title Handling
+    
+    /// 处理标题中的 Enter 键
+    /// 
+    /// 当光标在标题段落中按 Enter 时：
+    /// 1. 移动光标到正文开头（标题换行符之后）
+    /// 2. 如果正文为空，插入换行符并使用默认格式
+    /// 3. 如果正文不为空，继承正文第一行的格式
+    /// 
+    /// - Returns: 是否处理了 Enter 键
+    /// 
+    /// _Requirements: 3.2_ - 在标题段落中按 Enter 时移动光标到正文开头
+    private func handleReturnKeyForTitle() -> Bool {
+        guard let textStorage = textStorage else { return false }
+        
+        let selectedRange = self.selectedRange()
+        let cursorPosition = selectedRange.location
+        
+        // 检查光标是否在标题段落
+        guard isTitleParagraph(at: cursorPosition) else {
+            return false
+        }
+        
+        print("[NativeTextView] 标题中按 Enter：移动光标到正文开头")
+        
+        // 查找标题段落的结束位置（第一个换行符）
+        let string = textStorage.string as NSString
+        let titleLineRange = string.lineRange(for: NSRange(location: 0, length: 1))
+        let titleEnd = titleLineRange.location + titleLineRange.length
+        
+        // 检查标题后是否有内容（正文）
+        if titleEnd >= textStorage.length {
+            // 正文为空，插入换行符并使用默认格式
+            print("[NativeTextView]   - 正文为空，插入换行符")
+            
+            textStorage.beginEditing()
+            
+            // 在标题末尾插入换行符（如果还没有）
+            if titleEnd == 0 || string.character(at: titleEnd - 1) != unichar(UInt8(ascii: "\n")) {
+                textStorage.insert(NSAttributedString(string: "\n"), at: titleEnd)
+            }
+            
+            // 插入正文的第一行（使用默认格式）
+            let bodyAttributes: [NSAttributedString.Key: Any] = [
+                .font: FontSizeManager.shared.defaultFont,
+                .foregroundColor: NSColor.labelColor
+            ]
+            let bodyString = NSAttributedString(string: "\n", attributes: bodyAttributes)
+            textStorage.insert(bodyString, at: titleEnd + 1)
+            
+            textStorage.endEditing()
+            
+            // 移动光标到正文开头
+            setSelectedRange(NSRange(location: titleEnd + 1, length: 0))
+            
+            return true
+        }
+        
+        // 正文不为空，移动光标到正文开头
+        print("[NativeTextView]   - 正文不为空，移动光标到正文开头")
+        
+        // 查找正文第一行的范围
+        let bodyStart = titleEnd
+        let bodyLineRange = string.lineRange(for: NSRange(location: bodyStart, length: 0))
+        
+        // 获取正文第一行的格式
+        var bodyAttributes: [NSAttributedString.Key: Any] = [:]
+        if bodyLineRange.length > 0 && bodyStart < textStorage.length {
+            bodyAttributes = textStorage.attributes(at: bodyStart, effectiveRange: nil)
+        }
+        
+        // 如果正文第一行没有格式，使用默认格式
+        if bodyAttributes.isEmpty {
+            bodyAttributes = [
+                .font: FontSizeManager.shared.defaultFont,
+                .foregroundColor: NSColor.labelColor
+            ]
+        }
+        
+        // 移动光标到正文开头
+        setSelectedRange(NSRange(location: bodyStart, length: 0))
+        
+        // 更新打字属性，继承正文第一行的格式
+        // _Requirements: 12.2_ - 新输入继承打字属性
+        if let font = bodyAttributes[.font] as? NSFont {
+            typingAttributes[.font] = font
+        }
+        if let foregroundColor = bodyAttributes[.foregroundColor] as? NSColor {
+            typingAttributes[.foregroundColor] = foregroundColor
+        }
+        
+        print("[NativeTextView]   - 光标已移动到位置 \(bodyStart)")
+        
+        return true
     }
     
     // MARK: - List Handling
@@ -2086,6 +2301,126 @@ class NativeTextView: NSTextView {
         delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
         
         return true
+    }
+    
+    /// 检查当前位置是否可以删除
+    /// 
+    /// 实现标题边界保护：
+    /// 1. 阻止删除标题和正文之间的换行符
+    /// 2. 阻止在标题开头按 Backspace
+    /// 3. 阻止在正文开头按 Backspace 合并到标题
+    /// 
+    /// - Returns: 是否可以删除
+    /// 
+    /// _Requirements: 3.2_ - 标题边界保护
+    private func canDeleteAtCurrentPosition() -> Bool {
+        guard let textStorage = textStorage else { return true }
+        
+        let selectedRange = self.selectedRange()
+        
+        // 如果有选择范围，检查是否跨越标题边界
+        if selectedRange.length > 0 {
+            // 检查选择范围是否包含标题段落
+            let selectionStart = selectedRange.location
+            let selectionEnd = selectedRange.location + selectedRange.length
+            
+            // 检查选择起点是否在标题段落
+            let startInTitle = isTitleParagraph(at: selectionStart)
+            
+            // 检查选择终点是否在标题段落
+            let endInTitle = isTitleParagraph(at: selectionEnd)
+            
+            // 如果选择跨越标题边界（一端在标题，一端不在标题），阻止删除
+            if startInTitle != endInTitle {
+                print("[NativeTextView] 标题边界保护：选择范围跨越标题边界，阻止删除")
+                return false
+            }
+            
+            // 允许删除（选择范围完全在标题内或完全在正文内）
+            return true
+        }
+        
+        // 光标位置（无选择）
+        let cursorPosition = selectedRange.location
+        
+        // 情况1: 阻止在标题开头按 Backspace
+        if cursorPosition == 0 {
+            print("[NativeTextView] 标题边界保护：在文档开头，阻止删除")
+            return false
+        }
+        
+        // 检查光标是否在标题段落
+        let cursorInTitle = isTitleParagraph(at: cursorPosition)
+        
+        if cursorInTitle {
+            // 光标在标题段落内
+            // 查找标题段落的范围
+            let string = textStorage.string as NSString
+            let titleLineRange = string.lineRange(for: NSRange(location: 0, length: 1))
+            
+            // 如果光标在标题段落的开头（位置0），阻止删除
+            if cursorPosition == 0 {
+                print("[NativeTextView] 标题边界保护：在标题开头，阻止删除")
+                return false
+            }
+            
+            // 允许在标题段落内删除（但不在开头）
+            return true
+        }
+        
+        // 情况2: 阻止在正文开头按 Backspace 合并到标题
+        // 检查光标前一个字符是否是标题段落的换行符
+        let prevPosition = cursorPosition - 1
+        if prevPosition >= 0 {
+            let prevInTitle = isTitleParagraph(at: prevPosition)
+            
+            // 如果前一个位置在标题段落，当前位置不在标题段落
+            // 说明光标在标题和正文之间的换行符后面（正文开头）
+            if prevInTitle && !cursorInTitle {
+                print("[NativeTextView] 标题边界保护：在正文开头，阻止删除标题换行符")
+                return false
+            }
+        }
+        
+        // 允许删除
+        return true
+    }
+    
+    /// 检查指定位置是否在标题段落
+    /// 
+    /// - Parameter position: 位置
+    /// - Returns: 是否在标题段落
+    private func isTitleParagraph(at position: Int) -> Bool {
+        guard let textStorage = textStorage,
+              position >= 0,
+              position <= textStorage.length else {
+            return false
+        }
+        
+        // 如果位置在文本末尾，检查最后一个字符
+        let checkPosition = position == textStorage.length ? max(0, position - 1) : position
+        
+        guard checkPosition < textStorage.length else {
+            return false
+        }
+        
+        // 获取该位置的段落范围
+        let string = textStorage.string as NSString
+        let lineRange = string.lineRange(for: NSRange(location: checkPosition, length: 0))
+        
+        // 检查段落的 .isTitle 属性
+        let attributes = textStorage.attributes(at: lineRange.location, effectiveRange: nil)
+        if let isTitle = attributes[.isTitle] as? Bool, isTitle {
+            return true
+        }
+        
+        // 检查段落的 .paragraphType 属性
+        if let paragraphType = attributes[.paragraphType] as? ParagraphType,
+           paragraphType == .title {
+            return true
+        }
+        
+        return false
     }
     
     /// 处理删除键（Backspace）合并列表项

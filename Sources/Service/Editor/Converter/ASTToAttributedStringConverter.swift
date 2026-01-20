@@ -65,24 +65,137 @@ public final class ASTToAttributedStringConverter {
     /// 将文档 AST 转换为 NSAttributedString
     ///
     /// - Parameter document: 文档 AST 节点
-    /// - Returns: NSAttributedString 
+    /// - Returns: NSAttributedString
+    /// _Requirements: 3.5_ - 从 XML 的 `<title>` 标签加载标题作为第一个段落
     public func convert(_ document: DocumentNode) -> NSAttributedString {
+        print("[ASTToAttributedStringConverter] 🔄 开始转换文档")
+        print("[ASTToAttributedStringConverter]   - document.title: '\(document.title ?? "nil")'")
+        print("[ASTToAttributedStringConverter]   - document.blocks.count: \(document.blocks.count)")
+        
         let result = NSMutableAttributedString()
         
         // 重置有序列表编号计数器
         // _Requirements: 9.3_ - 每次转换文档时重置编号
         currentOrderedListNumber = 0
         
-        for (index, block) in document.blocks.enumerated() {
+        // 检查是否有标题（从 DocumentNode.title 或第一个 TitleBlockNode）
+        var hasTitle = false
+        var contentBlocks = document.blocks
+        
+        // 优先检查第一个块是否为 TitleBlockNode
+        if let firstBlock = document.blocks.first as? TitleBlockNode {
+            print("[ASTToAttributedStringConverter] 📝 发现 TitleBlockNode")
+            // 转换标题块
+            let titleString = convertTitleBlock(firstBlock)
+            result.append(titleString)
+            hasTitle = true
+            // 移除标题块，避免重复处理
+            contentBlocks = Array(document.blocks.dropFirst())
+            print("[ASTToAttributedStringConverter] ✅ 标题块已转换，长度: \(titleString.length)")
+        } else if let title = document.title, !title.isEmpty {
+            print("[ASTToAttributedStringConverter] 📝 使用 DocumentNode.title: '\(title)'")
+            // 使用 DocumentNode 的 title 属性（向后兼容）
+            let titleString = createTitleParagraph(title)
+            result.append(titleString)
+            hasTitle = true
+            print("[ASTToAttributedStringConverter] ✅ 标题段落已创建，长度: \(titleString.length)")
+        } else {
+            print("[ASTToAttributedStringConverter] ⚠️ 没有发现标题")
+        }
+        
+        // 如果有标题，添加换行符
+        if hasTitle && !contentBlocks.isEmpty {
+            result.append(NSAttributedString(string: "\n"))
+            print("[ASTToAttributedStringConverter] 📝 标题后添加换行符")
+        }
+        
+        // 转换其他块
+        print("[ASTToAttributedStringConverter] 📝 开始转换 \(contentBlocks.count) 个内容块")
+        for (index, block) in contentBlocks.enumerated() {
             let blockString = convertBlock(block)
             result.append(blockString)
             
             // 在块之间添加换行符（除了最后一个块）
-            if index < document.blocks.count - 1 {
+            if index < contentBlocks.count - 1 {
                 result.append(NSAttributedString(string: "\n"))
             }
         }
         
+        print("[ASTToAttributedStringConverter] ✅ 文档转换完成，总长度: \(result.length)")
+        return result
+    }
+    
+    /// 转换标题块节点
+    /// - Parameter node: 标题块节点
+    /// - Returns: NSAttributedString
+    /// _Requirements: 3.5_ - 将标题块转换为带有标题属性的段落
+    /// _任务 22.2_ - 标题段落使用 40pt Semibold 字体
+    private func convertTitleBlock(_ node: TitleBlockNode) -> NSAttributedString {
+        print("[ASTToAttributedStringConverter] 🔄 开始转换 TitleBlockNode")
+        print("[ASTToAttributedStringConverter]   - content.count: \(node.content.count)")
+        
+        let result = NSMutableAttributedString()
+        
+        // 转换行内内容
+        let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
+        result.append(inlineString)
+        print("[ASTToAttributedStringConverter]   - 行内内容长度: \(inlineString.length)")
+        print("[ASTToAttributedStringConverter]   - 行内内容文本: '\(inlineString.string)'")
+        
+        // 应用标题段落样式
+        let fullRange = NSRange(location: 0, length: result.length)
+        
+        // 设置标题标记属性
+        result.addAttribute(.isTitle, value: true, range: fullRange)
+        print("[ASTToAttributedStringConverter]   - 已添加 .isTitle 属性")
+        
+        // 设置标题字体（40pt Semibold，符合任务 22.2 要求）
+        let titleFont = NSFont.systemFont(ofSize: 40, weight: .semibold)
+        result.addAttribute(.font, value: titleFont, range: fullRange)
+        print("[ASTToAttributedStringConverter]   - 已设置标题字体: 40pt Semibold")
+        
+        // 设置段落样式
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .left
+        paragraphStyle.lineSpacing = 4
+        paragraphStyle.paragraphSpacing = 12
+        result.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
+        print("[ASTToAttributedStringConverter]   - 已设置段落样式")
+        
+        print("[ASTToAttributedStringConverter] ✅ TitleBlockNode 转换完成")
+        return result
+    }
+    
+    /// 创建标题段落（从纯文本）
+    /// - Parameter title: 标题文本
+    /// - Returns: NSAttributedString
+    /// _Requirements: 3.5_ - 从 XML 的 title 文本创建标题段落
+    /// _任务 22.2_ - 标题段落使用 40pt Semibold 字体
+    private func createTitleParagraph(_ title: String) -> NSAttributedString {
+        print("[ASTToAttributedStringConverter] 🔄 开始创建标题段落")
+        print("[ASTToAttributedStringConverter]   - title: '\(title)'")
+        
+        let result = NSMutableAttributedString(string: title)
+        let fullRange = NSRange(location: 0, length: result.length)
+        
+        // 设置标题标记属性
+        result.addAttribute(.isTitle, value: true, range: fullRange)
+        print("[ASTToAttributedStringConverter]   - 已添加 .isTitle 属性")
+        
+        // 设置标题字体（40pt Semibold，符合任务 22.2 要求）
+        let titleFont = NSFont.systemFont(ofSize: 40, weight: .semibold)
+        result.addAttribute(.font, value: titleFont, range: fullRange)
+        print("[ASTToAttributedStringConverter]   - 已设置标题字体: 40pt Semibold")
+        
+        // 设置段落样式
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .left
+        paragraphStyle.lineSpacing = 4
+        paragraphStyle.paragraphSpacing = 12
+        result.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
+        print("[ASTToAttributedStringConverter]   - 已设置段落样式")
+        
+        print("[ASTToAttributedStringConverter] ✅ 标题段落创建完成")
         return result
     }
     
@@ -100,6 +213,11 @@ public final class ASTToAttributedStringConverter {
         }
         
         switch block.nodeType {
+        case .titleBlock:
+            // 标题块应该在 convert() 方法中处理，不应该出现在这里
+            // 如果出现，说明有错误，但为了容错，转换为标题段落
+            return convertTitleBlock(block as! TitleBlockNode)
+            
         case .textBlock:
             return convertTextBlock(block as! TextBlockNode)
         case .bulletList:

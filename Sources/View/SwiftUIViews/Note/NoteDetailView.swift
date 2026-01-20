@@ -367,20 +367,25 @@ struct NoteDetailView: View {
         GeometryReader { geometry in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    titleEditorView.padding(.horizontal, 16).padding(.top, 16).frame(minHeight: 60)
-                    metaInfoView(for: note).padding(.horizontal, 16).padding(.top, 8)
+                    // 任务 22.1: 移除独立的标题编辑器,标题将作为编辑器的第一个段落
+                    // titleEditorView 已移除,标题将在后续任务中集成到编辑器内部
+                    metaInfoView(for: note).padding(.horizontal, 16).padding(.top, 16)
                     Spacer().frame(height: 16)
-                    bodyEditorView.padding(.horizontal, 16).frame(minHeight: max(600, geometry.size.height - 200))
+                    // 编辑器现在占据全部空间,包括标题区域
+                    bodyEditorView.padding(.horizontal, 16).frame(minHeight: max(600, geometry.size.height - 100))
                 }
                 .frame(maxWidth: .infinity)
             }
         }
     }
     
-    private var titleEditorView: some View {
-        TitleEditorView(title: $editedTitle, isEditable: $isEditable, hasRealTitle: hasRealTitle())
-    }
+    // 任务 22.1: 移除 titleEditorView 计算属性
+    // 标题编辑器已移除,标题将在后续任务中作为编辑器的第一个段落
+    // private var titleEditorView: some View {
+    //     TitleEditorView(title: $editedTitle, isEditable: $isEditable, hasRealTitle: hasRealTitle())
+    // }
     
+    // 注意: hasRealTitle() 方法暂时保留,后续任务可能需要使用
     private func hasRealTitle() -> Bool {
         guard let note = viewModel.selectedNote else { return false }
         return !note.title.isEmpty && !note.title.hasPrefix("未命名笔记_")
@@ -585,11 +590,13 @@ struct NoteDetailView: View {
                     )
                 } else {
                     // 普通模式：使用原生编辑器包装器
+                    // 任务 22.2 修复：使用 currentXMLContent（包含标题）而不是 note.primaryXMLContent
+                    // 这确保标题能够正确显示在编辑器中
                     UnifiedEditorWrapper(
                         content: $currentXMLContent,
                         isEditable: $isEditable,
                         nativeEditorContext: nativeEditorContext,
-                        xmlContent: note.primaryXMLContent,
+                        xmlContent: currentXMLContent,
                         folderId: note.folderId,
                         onContentChange: { newXML, newHTML in
                             guard !isInitializing else { return }
@@ -603,6 +610,16 @@ struct NoteDetailView: View {
                             }
                             
                             Task { @MainActor in
+                                // 任务 22.3: 从编辑器内容提取标题
+                                // _Requirements: 3.3_ - 从编辑器提取标题文本
+                                let extractedTitle = self.nativeEditorContext.extractTitle()
+                                
+                                // 更新 editedTitle 状态（保持 UI 同步）
+                                if !extractedTitle.isEmpty {
+                                    self.editedTitle = extractedTitle
+                                    Swift.print("[保存流程] 📝 从编辑器提取标题: \(extractedTitle)")
+                                }
+                                
                                 // 更新当前内容状态
                                 self.currentXMLContent = newXML
                                 
@@ -1010,6 +1027,15 @@ struct NoteDetailView: View {
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
         Swift.print("[快速切换] 📝 从缓存加载内容，lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
+        Swift.print("[快速切换] 📝 currentXMLContent 前200字符: '\(String(currentXMLContent.prefix(200)))'")
+        
+        // 关键修复：立即调用 loadFromXML 确保编辑器内容同步
+        // 这解决了笔记切换时内容丢失的问题
+        if isUsingNativeEditor {
+            Swift.print("[快速切换] 🔄 立即加载内容到原生编辑器")
+            nativeEditorContext.loadFromXML(currentXMLContent)
+            Swift.print("[快速切换] ✅ 原生编辑器内容已加载 - nsAttributedText.length: \(nativeEditorContext.nsAttributedText.length)")
+        }
         
         // 调试模式：同步内容到调试编辑器
         // _Requirements: 6.4_
@@ -1155,12 +1181,9 @@ struct NoteDetailView: View {
         }
         
         // 2. 加载内容
-        currentXMLContent = note.primaryXMLContent
-        // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
-        // _需求: 2.2_
-        lastSavedXMLContent = currentXMLContent
-        originalXMLContent = currentXMLContent
-        Swift.print("[笔记切换] 📝 初始加载内容，lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
+        // 任务 22.2: 构建包含标题的完整内容
+        // 将标题作为第一个段落插入到编辑器中
+        var contentToLoad = note.primaryXMLContent
         
         // 3. 如果内容为空，确保获取完整内容
         if note.content.isEmpty {
@@ -1176,26 +1199,70 @@ struct NoteDetailView: View {
             
             if let updated = viewModel.selectedNote, updated.id == note.id {
                 Swift.print("[笔记切换] ✅ 获取完整内容后更新 - 内容长度: \(updated.content.count)")
-                
-                currentXMLContent = updated.primaryXMLContent
-                // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
-                // _需求: 2.2_
-                lastSavedXMLContent = currentXMLContent
-                Swift.print("[笔记切换] 📝 ensureNoteHasFullContent 后同步 lastSavedXMLContent - 长度: \(lastSavedXMLContent.count)")
+                contentToLoad = updated.primaryXMLContent
                 
                 // 更新缓存
                 await MemoryCacheManager.shared.cacheNote(updated)
             } else {
-                // 关键修复：即使 selectedNote 不匹配，也要确保 lastSavedXMLContent 与 currentXMLContent 同步
-                // _需求: 2.2_
-                Swift.print("[笔记切换] ⚠️ selectedNote 不匹配，但保持 lastSavedXMLContent 同步 - 长度: \(lastSavedXMLContent.count)")
+                Swift.print("[笔记切换] ⚠️ selectedNote 不匹配")
             }
         } else {
-            // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
-            // _需求: 2.2_
-            Swift.print("[笔记切换] 📝 内容已存在，lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
             // 更新缓存
             await MemoryCacheManager.shared.cacheNote(note)
+        }
+        
+        // 任务 22.2: 如果有标题，将标题插入到内容的开头
+        // 标题将作为编辑器的第一个段落显示
+        if !title.isEmpty {
+            print("[NoteDetailView] 📝 开始处理标题插入")
+            print("[NoteDetailView]   - 标题: '\(title)'")
+            print("[NoteDetailView]   - 原始内容长度: \(contentToLoad.count)")
+            print("[NoteDetailView]   - 原始内容前100字符: '\(String(contentToLoad.prefix(100)))'")
+            
+            // 检查 XML 中是否已经有 <title> 标签
+            if !contentToLoad.contains("<title>") {
+                print("[NoteDetailView] 📝 XML 中没有 <title> 标签，准备插入")
+                
+                // 如果没有 <title> 标签，添加一个
+                // 将标题插入到内容的最前面（在 <new-format/> 之后）
+                let titleTag = "<title>\(encodeXMLEntities(title))</title>"
+                print("[NoteDetailView]   - 标题标签: '\(titleTag)'")
+                
+                if contentToLoad.hasPrefix("<new-format/>") {
+                    print("[NoteDetailView] 📝 内容以 <new-format/> 开头，在其后插入标题")
+                    // 在 <new-format/> 后插入标题
+                    let afterPrefix = String(contentToLoad.dropFirst("<new-format/>".count))
+                    contentToLoad = "<new-format/>\(titleTag)\(afterPrefix)"
+                } else {
+                    print("[NoteDetailView] 📝 内容不以 <new-format/> 开头，直接在开头插入标题")
+                    // 直接在开头插入标题
+                    contentToLoad = "\(titleTag)\(contentToLoad)"
+                }
+                
+                print("[NoteDetailView] ✅ 标题已插入到 XML 内容开头")
+                print("[NoteDetailView]   - 插入后内容长度: \(contentToLoad.count)")
+                print("[NoteDetailView]   - 插入后内容前150字符: '\(String(contentToLoad.prefix(150)))'")
+            } else {
+                print("[NoteDetailView] 📝 XML 中已存在 <title> 标签，跳过插入")
+            }
+        } else {
+            print("[NoteDetailView] 📝 标题为空，不插入 <title> 标签")
+        }
+        
+        currentXMLContent = contentToLoad
+        // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
+        // _需求: 2.2_
+        lastSavedXMLContent = currentXMLContent
+        originalXMLContent = currentXMLContent
+        Swift.print("[笔记切换] 📝 初始加载内容（包含标题），lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
+        Swift.print("[笔记切换] 📝 currentXMLContent 前200字符: '\(String(currentXMLContent.prefix(200)))'")
+        
+        // 关键修复：立即调用 loadFromXML 确保编辑器内容同步
+        // 这解决了笔记切换时内容丢失的问题
+        if isUsingNativeEditor {
+            Swift.print("[笔记切换] 🔄 立即加载内容到原生编辑器")
+            nativeEditorContext.loadFromXML(currentXMLContent)
+            Swift.print("[笔记切换] ✅ 原生编辑器内容已加载 - nsAttributedText.length: \(nativeEditorContext.nsAttributedText.length)")
         }
         
         // 调试模式：同步内容到调试编辑器
@@ -1219,6 +1286,25 @@ struct NoteDetailView: View {
         }
         
         isInitializing = false
+    }
+    
+    /// 编码 XML 实体
+    /// 
+    /// 将特殊字符转换为 XML 实体，以便安全地嵌入 XML 中
+    /// 
+    /// - Parameter text: 原始文本
+    /// - Returns: 编码后的文本
+    private func encodeXMLEntities(_ text: String) -> String {
+        var result = text
+        
+        // 必须首先处理 &，避免重复编码
+        result = result.replacingOccurrences(of: "&", with: "&amp;")
+        result = result.replacingOccurrences(of: "<", with: "&lt;")
+        result = result.replacingOccurrences(of: ">", with: "&gt;")
+        result = result.replacingOccurrences(of: "\"", with: "&quot;")
+        result = result.replacingOccurrences(of: "'", with: "&apos;")
+        
+        return result
     }
     
     @MainActor

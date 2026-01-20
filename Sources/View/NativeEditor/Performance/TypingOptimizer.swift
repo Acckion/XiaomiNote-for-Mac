@@ -17,11 +17,11 @@ import AppKit
 /// 跳过完整的段落解析，从而提高打字响应速度。同时支持批量处理
 /// 连续的文本变化，在用户停止输入后统一处理。
 @MainActor
-final class TypingOptimizer {
+public final class TypingOptimizer {
     
     // MARK: - Singleton
     
-    static let shared = TypingOptimizer()
+    public static let shared = TypingOptimizer()
     
     // MARK: - 常量
     
@@ -98,7 +98,7 @@ final class TypingOptimizer {
     ///   - textStorage: 文本存储
     /// - Returns: 是否为简单输入场景
     /// - 需求: 6.1
-    func isSimpleTyping(change: String, at location: Int, in textStorage: NSTextStorage) -> Bool {
+    public func isSimpleTyping(change: String, at location: Int, in textStorage: NSTextStorage) -> Bool {
         guard isEnabled else { return false }
         
         // 1. 检测单字符输入
@@ -465,18 +465,3 @@ struct TextChange {
     let timestamp: Date
 }
 
-// MARK: - 属性键扩展
-
-extension NSAttributedString.Key {
-    /// 段落类型属性键
-    static let paragraphType = NSAttributedString.Key("ParagraphType")
-    
-    /// 是否为标题属性键
-    static let isTitle = NSAttributedString.Key("IsTitle")
-    
-    /// 列表类型属性键
-    static let listType = NSAttributedString.Key("ListType")
-    
-    /// 列表级别属性键
-    static let listLevel = NSAttributedString.Key("ListLevel")
-}

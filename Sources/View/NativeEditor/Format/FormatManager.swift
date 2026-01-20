@@ -834,11 +834,26 @@ class FormatManager {
     // MARK: - Public Methods - 格式应用（通用）
     
     /// 应用格式
+    /// 
+    /// **标题段落格式限制**：
+    /// - 检测段落是否为标题段落（通过 `.isTitle` 属性）
+    /// - 禁止对标题段落应用段落格式（列表、标题样式、对齐、引用等）
+    /// - 允许对标题段落应用内联格式（加粗、斜体、下划线、删除线、高亮）
+    /// 
     /// - Parameters:
     ///   - format: 格式类型
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
+    /// 
+    /// _Requirements: 3.1_ - 标题段落格式限制
     func applyFormat(_ format: TextFormat, to textStorage: NSTextStorage, range: NSRange) {
+        // 检查是否为标题段落
+        // _Requirements: 3.1_ - 禁止对标题段落应用段落格式
+        if format.isBlockFormat && isTitleParagraph(in: textStorage, range: range) {
+            print("[FormatManager] ⚠️ 检测到标题段落，禁止应用段落格式: \(format.displayName)")
+            return
+        }
+        
         switch format {
         case .bold:
             applyBold(to: textStorage, range: range)
@@ -915,6 +930,39 @@ class FormatManager {
     }
     
     // MARK: - Private Methods
+    
+    /// 检查段落是否为标题段落
+    /// 
+    /// 通过检查段落的 `.isTitle` 属性来判断
+    /// 
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 段落范围
+    /// - Returns: 是否为标题段落
+    /// 
+    /// _Requirements: 3.1_ - 标题段落检测
+    private func isTitleParagraph(in textStorage: NSTextStorage, range: NSRange) -> Bool {
+        guard range.location < textStorage.length else {
+            return false
+        }
+        
+        // 获取段落范围
+        let lineRange = (textStorage.string as NSString).lineRange(for: range)
+        
+        // 检查段落的 `.isTitle` 属性
+        let attributes = textStorage.attributes(at: lineRange.location, effectiveRange: nil)
+        if let isTitle = attributes[.isTitle] as? Bool, isTitle {
+            return true
+        }
+        
+        // 检查段落的 `.paragraphType` 属性
+        if let paragraphType = attributes[.paragraphType] as? ParagraphType,
+           paragraphType == .title {
+            return true
+        }
+        
+        return false
+    }
     
     /// 应用字体特性
     private func applyFontTrait(_ trait: NSFontDescriptor.SymbolicTraits, to textStorage: NSTextStorage, range: NSRange, toggle: Bool) {

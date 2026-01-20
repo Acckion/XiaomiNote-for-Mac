@@ -46,6 +46,38 @@ public struct DocumentNode: ASTNode, Equatable, Sendable {
 
 // MARK: - 文本块节点
 
+/// 标题块节点
+/// 对应 XML 中的 `<title>内容</title>`
+/// 标题段落是文档的第一个段落，具有特殊的格式和语义
+/// _Requirements: 3.1, 3.2, 3.4_
+public struct TitleBlockNode: BlockNode, Equatable, Sendable {
+    public var nodeType: ASTNodeType { .titleBlock }
+    
+    /// 标题的缩进固定为 1
+    public var indent: Int { 1 }
+    
+    /// 行内内容
+    public var content: [any InlineNode]
+    
+    public var children: [any ASTNode] {
+        content.map { $0 as any ASTNode }
+    }
+    
+    public init(content: [any InlineNode] = []) {
+        self.content = content
+    }
+    
+    public static func == (lhs: TitleBlockNode, rhs: TitleBlockNode) -> Bool {
+        guard lhs.content.count == rhs.content.count else { return false }
+        for (left, right) in zip(lhs.content, rhs.content) {
+            if !areNodesEqual(left, right) {
+                return false
+            }
+        }
+        return true
+    }
+}
+
 /// 文本块节点
 /// 对应 XML 中的 `<text indent="N">内容</text>`
 public struct TextBlockNode: BlockNode, Equatable, Sendable {

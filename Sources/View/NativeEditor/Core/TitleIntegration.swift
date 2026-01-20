@@ -86,6 +86,7 @@ public final class TitleIntegration {
     /// - 如果 textStorage 已有内容，标题会插入到最前面
     /// - 标题后会自动添加换行符
     /// - 标题使用自定义属性 `paragraphType` 标记为 `.title`
+    /// - 标题使用 40pt Semibold 字体
     public func insertTitle(_ title: String, into textStorage: NSTextStorage) {
         // 如果标题为空，不插入
         guard !title.isEmpty else { return }
@@ -94,9 +95,11 @@ public final class TitleIntegration {
         let titleString = NSMutableAttributedString(string: title + "\n")
         
         // 设置标题的自定义属性
+        // 标题使用 40pt Semibold 字体
         let titleAttributes: [NSAttributedString.Key: Any] = [
             .paragraphType: ParagraphType.title,
-            .font: NSFont.systemFont(ofSize: NSFont.systemFontSize)
+            .isTitle: true,
+            .font: NSFont.systemFont(ofSize: 40, weight: .semibold)
         ]
         
         titleString.addAttributes(
@@ -291,12 +294,3 @@ public final class TitleIntegration {
     }
 }
 
-// MARK: - NSAttributedString.Key Extension
-
-extension NSAttributedString.Key {
-    /// 段落类型属性键
-    ///
-    /// 用于标记段落的类型（如标题、普通段落、列表等）
-    /// 值类型为 `ParagraphType` 枚举
-    static let paragraphType = NSAttributedString.Key("ParagraphType")
-}

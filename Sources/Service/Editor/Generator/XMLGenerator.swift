@@ -39,23 +39,55 @@ public final class XMLGenerator: @unchecked Sendable {
     /// - Parameter document: 文档 AST 节点
     /// - Returns: XML 字符串
     ///
-    /// _Requirements: 3.4_ - 将标题转换为 XML 的 `<title>` 标签
+    /// _Requirements: 3.4_ - 将标题段落转换为 XML 的 `<title>` 标签
     public func generate(_ document: DocumentNode) -> String {
         var lines: [String] = []
         
+        // 检查第一个块是否为标题块
+        var titleText: String? = nil
+        var contentBlocks: [any BlockNode] = document.blocks
+        
+        if let firstBlock = document.blocks.first as? TitleBlockNode {
+            // 提取标题文本
+            titleText = extractTextFromInlineNodes(firstBlock.content)
+            // 移除标题块，不在内容中重复
+            contentBlocks = Array(document.blocks.dropFirst())
+        } else if let title = document.title {
+            // 使用 DocumentNode 的 title 属性（向后兼容）
+            titleText = title
+        }
+        
         // 如果有标题，先生成标题标签
-        if let title = document.title, !title.isEmpty {
+        if let title = titleText, !title.isEmpty {
             let encodedTitle = encodeXMLEntities(title)
             lines.append("<title>\(encodedTitle)</title>")
         }
         
         // 生成所有块级元素
-        for block in document.blocks {
+        for block in contentBlocks {
             let line = generateBlock(block)
             lines.append(line)
         }
         
         return lines.joined(separator: "\n")
+    }
+    
+    /// 从行内节点数组提取纯文本
+    /// - Parameter nodes: 行内节点数组
+    /// - Returns: 纯文本字符串
+    private func extractTextFromInlineNodes(_ nodes: [any InlineNode]) -> String {
+        var result = ""
+        
+        for node in nodes {
+            if let textNode = node as? TextNode {
+                result += textNode.text
+            } else if let formattedNode = node as? FormattedNode {
+                // 递归提取格式化节点中的文本
+                result += extractTextFromInlineNodes(formattedNode.content)
+            }
+        }
+        
+        return result
     }
     
     // MARK: - 块级元素生成
@@ -65,6 +97,13 @@ public final class XMLGenerator: @unchecked Sendable {
     /// - Returns: XML 行字符串
     private func generateBlock(_ block: any BlockNode) -> String {
         switch block.nodeType {
+        case .titleBlock:
+            // 标题块应该在 generate() 方法中处理，不应该出现在这里
+            // 如果出现，说明有错误，但为了容错，生成为普通文本块
+            let titleNode = block as! TitleBlockNode
+            let content = generateInlineContent(titleNode.content)
+            return "<text indent=\"1\">\(content)</text>"
+            
         case .textBlock:
             return generateTextBlock(block as! TextBlockNode)
             

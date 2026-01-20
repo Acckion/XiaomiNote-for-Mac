@@ -68,10 +68,20 @@ public final class MiNoteXMLParser: @unchecked Sendable {
         warnings = []
         currentIndex = 0
         
+        print("[XMLParser] 🚀 开始解析 XML")
+        print("[XMLParser]   - XML 长度: \(xml.count)")
+        print("[XMLParser]   - XML 前200字符: '\(String(xml.prefix(200)))'")
+        
         // 词法分析
         do {
             let tokenizer = XMLTokenizer(input: xml)
             tokens = try tokenizer.tokenize()
+            print("[XMLParser] ✅ 词法分析完成，生成 \(tokens.count) 个 token")
+            
+            // 打印前10个 token
+            for (index, token) in tokens.prefix(10).enumerated() {
+                print("[XMLParser]   Token \(index): \(token)")
+            }
         } catch {
             // 词法分析失败，尝试纯文本回退
             if enableErrorRecovery {
@@ -93,6 +103,8 @@ public final class MiNoteXMLParser: @unchecked Sendable {
         // 语法分析
         var blocks: [any BlockNode] = []
         
+        print("[XMLParser] 🔄 开始语法分析")
+        
         while !isAtEnd {
             // 跳过换行符
             if case .newline = currentToken {
@@ -100,8 +112,14 @@ public final class MiNoteXMLParser: @unchecked Sendable {
                 continue
             }
             
+            // 打印当前 token（仅前20个）
+            if currentIndex < 20 {
+                print("[XMLParser] 🔍 处理 token \(currentIndex): \(String(describing: currentToken))")
+            }
+            
             // 检查是否是标题标签
             if case .startTag(let name, _, let selfClosing) = currentToken, name == "title" {
+                print("[XMLParser] 🔍 发现 <title> 标签, selfClosing=\(selfClosing)")
                 // 解析标题
                 advance()
                 
@@ -109,12 +127,18 @@ public final class MiNoteXMLParser: @unchecked Sendable {
                     // 提取标题内容
                     if case .text(let titleText) = currentToken {
                         title = titleText
+                        print("[XMLParser] 📝 提取标题文本: '\(titleText)'")
                         advance()
+                    } else {
+                        print("[XMLParser] ⚠️ <title> 标签后没有文本内容, currentToken=\(String(describing: currentToken))")
                     }
                     
                     // 跳过结束标签
                     if case .endTag(let endName) = currentToken, endName == "title" {
+                        print("[XMLParser] ✅ 找到 </title> 结束标签")
                         advance()
+                    } else {
+                        print("[XMLParser] ⚠️ 没有找到 </title> 结束标签, currentToken=\(String(describing: currentToken))")
                     }
                 }
                 
