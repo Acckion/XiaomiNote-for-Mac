@@ -423,7 +423,20 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         }
         
         // 解析标签
-        self.tags = []
+        if let tagsArray = entry["tags"] as? [String] {
+            self.tags = tagsArray
+        } else if let tagsString = entry["tags"] as? String, !tagsString.isEmpty {
+            // 如果 tags 是字符串，尝试解析为 JSON 数组
+            if let tagsData = tagsString.data(using: .utf8),
+               let tagsArray = try? JSONSerialization.jsonObject(with: tagsData) as? [String] {
+                self.tags = tagsArray
+            } else {
+                // 如果无法解析，将整个字符串作为单个标签
+                self.tags = [tagsString]
+            }
+        } else {
+            self.tags = []
+        }
         
         // 解析新增字段
         self.snippet = entry["snippet"] as? String

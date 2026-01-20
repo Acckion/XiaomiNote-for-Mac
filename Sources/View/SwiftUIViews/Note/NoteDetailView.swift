@@ -1021,12 +1021,53 @@ struct NoteDetailView: View {
         }
         
         // 加载内容
-        currentXMLContent = note.primaryXMLContent
+        var contentToLoad = note.primaryXMLContent
+        
+        // ✅ 关键修复：插入标题到 XML（与 loadNoteContent 保持一致）
+        // 任务 22.2: 如果有标题，将标题插入到内容的开头
+        // 标题将作为编辑器的第一个段落显示
+        if !title.isEmpty {
+            print("[快速切换] 📝 开始处理标题插入")
+            print("[快速切换]   - 标题: '\(title)'")
+            print("[快速切换]   - 原始内容长度: \(contentToLoad.count)")
+            print("[快速切换]   - 原始内容前100字符: '\(String(contentToLoad.prefix(100)))'")
+            
+            // 检查 XML 中是否已经有 <title> 标签
+            if !contentToLoad.contains("<title>") {
+                print("[快速切换] 📝 XML 中没有 <title> 标签，准备插入")
+                
+                // 如果没有 <title> 标签，添加一个
+                // 将标题插入到内容的最前面（在 <new-format/> 之后）
+                let titleTag = "<title>\(encodeXMLEntities(title))</title>"
+                print("[快速切换]   - 标题标签: '\(titleTag)'")
+                
+                if contentToLoad.hasPrefix("<new-format/>") {
+                    print("[快速切换] 📝 内容以 <new-format/> 开头，在其后插入标题")
+                    // 在 <new-format/> 后插入标题
+                    let afterPrefix = String(contentToLoad.dropFirst("<new-format/>".count))
+                    contentToLoad = "<new-format/>\(titleTag)\(afterPrefix)"
+                } else {
+                    print("[快速切换] 📝 内容不以 <new-format/> 开头，直接在开头插入标题")
+                    // 直接在开头插入标题
+                    contentToLoad = "\(titleTag)\(contentToLoad)"
+                }
+                
+                print("[快速切换] ✅ 标题已插入到 XML 内容开头")
+                print("[快速切换]   - 插入后内容长度: \(contentToLoad.count)")
+                print("[快速切换]   - 插入后内容前150字符: '\(String(contentToLoad.prefix(150)))'")
+            } else {
+                print("[快速切换] 📝 XML 中已存在 <title> 标签，跳过插入")
+            }
+        } else {
+            print("[快速切换] 📝 标题为空，不插入 <title> 标签")
+        }
+        
+        currentXMLContent = contentToLoad
         // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
         // _需求: 2.2_
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
-        Swift.print("[快速切换] 📝 从缓存加载内容，lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
+        Swift.print("[快速切换] 📝 从缓存加载内容（包含标题），lastSavedXMLContent 已同步 - 长度: \(lastSavedXMLContent.count)")
         Swift.print("[快速切换] 📝 currentXMLContent 前200字符: '\(String(currentXMLContent.prefix(200)))'")
         
         // 关键修复：立即调用 loadFromXML 确保编辑器内容同步
@@ -2048,6 +2089,10 @@ struct NoteDetailView: View {
             titleToUse = note.title
         }
         
+        // ✅ 关键修复：移除 XML 中的 <title> 标签
+        // 数据库中只存储正文内容，标题单独存储在 Note.title 字段
+        let contentWithoutTitle = removeTitleTag(from: xmlContent)
+        
         // 关键修复：合并 rawData，确保包含最新的 setting.data（音频/图片元数据）
         // 从 viewModel.selectedNote 获取最新的 rawData，因为音频上传后会更新 setting.data
         var mergedRawData = note.rawData ?? [:]
@@ -2068,14 +2113,41 @@ struct NoteDetailView: View {
         Swift.print("[buildUpdatedNote] ═══════════════════════════════════════")
         Swift.print("[buildUpdatedNote] 📝 笔记ID: \(note.id.prefix(8))...")
         Swift.print("[buildUpdatedNote] 📝 标题: \(titleToUse)")
-        Swift.print("[buildUpdatedNote] 📏 内容长度: \(xmlContent.count)")
+        Swift.print("[buildUpdatedNote] 📏 原始内容长度: \(xmlContent.count)")
+        Swift.print("[buildUpdatedNote] 📏 移除标题后内容长度: \(contentWithoutTitle.count)")
         Swift.print("[buildUpdatedNote] 🕐 shouldUpdateTimestamp: \(shouldUpdateTimestamp)")
         Swift.print("[buildUpdatedNote] 🕐 原始时间戳: \(note.updatedAt)")
         Swift.print("[buildUpdatedNote] 🕐 新时间戳: \(updatedAt)")
         Swift.print("[buildUpdatedNote] 🕐 时间戳决策: \(shouldUpdateTimestamp ? "更新为当前时间" : "保持原始时间戳")")
         Swift.print("[buildUpdatedNote] ═══════════════════════════════════════")
         
-        return Note(id: note.id, title: titleToUse, content: xmlContent, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: updatedAt, tags: note.tags, rawData: mergedRawData)
+        return Note(id: note.id, title: titleToUse, content: contentWithoutTitle, folderId: note.folderId, isStarred: note.isStarred, createdAt: note.createdAt, updatedAt: updatedAt, tags: note.tags, rawData: mergedRawData)
+    }
+    
+    /// 从 XML 中移除 <title> 标签
+    /// 
+    /// 数据库中只存储正文内容，标题单独存储在 Note.title 字段
+    /// 
+    /// - Parameter xml: 包含标题的完整 XML
+    /// - Returns: 移除标题后的 XML（只包含正文）
+    private func removeTitleTag(from xml: String) -> String {
+        // 使用正则表达式移除 <title>...</title> 标签
+        // 支持多行标题和特殊字符
+        let pattern = "<title>.*?</title>"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else {
+            Swift.print("[removeTitleTag] ⚠️ 正则表达式创建失败，返回原始内容")
+            return xml
+        }
+        
+        let range = NSRange(xml.startIndex..., in: xml)
+        let result = regex.stringByReplacingMatches(in: xml, range: range, withTemplate: "")
+        
+        // 如果移除了标题，记录日志
+        if result != xml {
+            Swift.print("[removeTitleTag] ✅ 已移除 <title> 标签 - 原始长度: \(xml.count), 移除后长度: \(result.count)")
+        }
+        
+        return result
     }
     
     private func updateViewModelDelayed(with updated: Note) {

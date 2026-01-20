@@ -783,8 +783,9 @@ extension OperationProcessor {
             )
         }
         
-        // 获取现有的 tag
-        let existingTag = note.rawData?["tag"] as? String ?? note.id
+        // 获取现有的 tag（从 serverTag 字段，而不是 rawData）
+        let existingTag = note.serverTag ?? note.id
+        print("[OperationProcessor] 🏷️ 使用 tag: \(existingTag), serverTag: \(note.serverTag ?? "nil")")
         
         // 调用 API 更新笔记
         let response = try await miNoteService.updateNote(
@@ -805,12 +806,16 @@ extension OperationProcessor {
             )
         }
         
-        // 更新本地笔记的 rawData
+        // 更新本地笔记的 rawData 和 serverTag
         if let entry = extractEntry(from: response) {
             var updatedRawData = note.rawData ?? [:]
             for (key, value) in entry {
                 updatedRawData[key] = value
             }
+            
+            // 从响应中提取新的 tag
+            let newTag = extractTag(from: response, fallbackTag: entry["tag"] as? String ?? existingTag)
+            print("[OperationProcessor] 📥 服务器返回新 tag: \(newTag)")
             
             let updatedNote = Note(
                 id: note.id,
@@ -821,7 +826,16 @@ extension OperationProcessor {
                 createdAt: note.createdAt,
                 updatedAt: note.updatedAt,
                 tags: note.tags,
-                rawData: updatedRawData
+                rawData: updatedRawData,
+                snippet: note.snippet,
+                colorId: note.colorId,
+                subject: note.subject,
+                alertDate: note.alertDate,
+                type: note.type,
+                serverTag: newTag,  // 更新 serverTag
+                status: note.status,
+                settingJson: note.settingJson,
+                extraInfoJson: note.extraInfoJson
             )
             try localStorage.saveNote(updatedNote)
         }

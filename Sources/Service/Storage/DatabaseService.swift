@@ -428,15 +428,23 @@ final class DatabaseService: @unchecked Sendable {
             
             // tags 作为 JSON
             let tagsJSON = try JSONEncoder().encode(note.tags)
-            sqlite3_bind_text(statement, 8, String(data: tagsJSON, encoding: .utf8), -1, nil)
+            if let tagsString = String(data: tagsJSON, encoding: .utf8) {
+                sqlite3_bind_text(statement, 8, (tagsString as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(statement, 8)
+            }
             
             // raw_data 作为 JSON
-            var rawDataJSON: String? = nil
             if let rawData = note.rawData {
                 let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
-                rawDataJSON = String(data: jsonData, encoding: .utf8)
+                if let rawDataString = String(data: jsonData, encoding: .utf8) {
+                    sqlite3_bind_text(statement, 9, (rawDataString as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(statement, 9)
+                }
+            } else {
+                sqlite3_bind_null(statement, 9)
             }
-            sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
             
             // 绑定新增字段（索引 10-18）
             // snippet（索引 10）
@@ -619,15 +627,23 @@ final class DatabaseService: @unchecked Sendable {
                 
                 // tags 作为 JSON
                 let tagsJSON = try JSONEncoder().encode(note.tags)
-                sqlite3_bind_text(statement, 8, String(data: tagsJSON, encoding: .utf8), -1, nil)
+                if let tagsString = String(data: tagsJSON, encoding: .utf8) {
+                    sqlite3_bind_text(statement, 8, (tagsString as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(statement, 8)
+                }
                 
                 // raw_data 作为 JSON
-                var rawDataJSON: String? = nil
                 if let rawData = note.rawData {
                     let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
-                    rawDataJSON = String(data: jsonData, encoding: .utf8)
+                    if let rawDataString = String(data: jsonData, encoding: .utf8) {
+                        sqlite3_bind_text(statement, 9, (rawDataString as NSString).utf8String, -1, nil)
+                    } else {
+                        sqlite3_bind_null(statement, 9)
+                    }
+                } else {
+                    sqlite3_bind_null(statement, 9)
                 }
-                sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
                 
                 // 绑定新增字段（索引 10-18）
                 // snippet（索引 10）
@@ -772,20 +788,38 @@ final class DatabaseService: @unchecked Sendable {
             
             // tags 作为 JSON
             let tagsJSON = try JSONEncoder().encode(note.tags)
-            sqlite3_bind_text(insertStatement, 8, String(data: tagsJSON, encoding: .utf8), -1, nil)
+            if let tagsString = String(data: tagsJSON, encoding: .utf8) {
+                sqlite3_bind_text(insertStatement, 8, (tagsString as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(insertStatement, 8)
+            }
             
             // raw_data 作为 JSON
-            var rawDataJSON: String? = nil
             if let rawData = note.rawData {
                 let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
-                rawDataJSON = String(data: jsonData, encoding: .utf8)
+                if let rawDataString = String(data: jsonData, encoding: .utf8) {
+                    sqlite3_bind_text(insertStatement, 9, (rawDataString as NSString).utf8String, -1, nil)
+                } else {
+                    sqlite3_bind_null(insertStatement, 9)
+                }
+            } else {
+                sqlite3_bind_null(insertStatement, 9)
             }
-            sqlite3_bind_text(insertStatement, 9, rawDataJSON, -1, nil)
             
             // 绑定新增字段
-            sqlite3_bind_text(insertStatement, 10, note.snippet, -1, nil)
+            if let snippet = note.snippet {
+                sqlite3_bind_text(insertStatement, 10, (snippet as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(insertStatement, 10)
+            }
+            
             sqlite3_bind_int(insertStatement, 11, Int32(note.colorId))
-            sqlite3_bind_text(insertStatement, 12, note.subject, -1, nil)
+            
+            if let subject = note.subject {
+                sqlite3_bind_text(insertStatement, 12, (subject as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(insertStatement, 12)
+            }
             
             if let alertDate = note.alertDate {
                 sqlite3_bind_int64(insertStatement, 13, Int64(alertDate.timeIntervalSince1970 * 1000))
@@ -794,10 +828,26 @@ final class DatabaseService: @unchecked Sendable {
             }
             
             sqlite3_bind_text(insertStatement, 14, (note.type as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(insertStatement, 15, note.serverTag, -1, nil)
+            
+            if let serverTag = note.serverTag {
+                sqlite3_bind_text(insertStatement, 15, (serverTag as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(insertStatement, 15)
+            }
+            
             sqlite3_bind_text(insertStatement, 16, (note.status as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(insertStatement, 17, note.settingJson, -1, nil)
-            sqlite3_bind_text(insertStatement, 18, note.extraInfoJson, -1, nil)
+            
+            if let settingJson = note.settingJson {
+                sqlite3_bind_text(insertStatement, 17, (settingJson as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(insertStatement, 17)
+            }
+            
+            if let extraInfoJson = note.extraInfoJson {
+                sqlite3_bind_text(insertStatement, 18, (extraInfoJson as NSString).utf8String, -1, nil)
+            } else {
+                sqlite3_bind_null(insertStatement, 18)
+            }
             
             guard sqlite3_step(insertStatement) == SQLITE_DONE else {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
@@ -1019,15 +1069,23 @@ final class DatabaseService: @unchecked Sendable {
                     
                     // tags 作为 JSON
                     let tagsJSON = try JSONEncoder().encode(note.tags)
-                    sqlite3_bind_text(statement, 8, String(data: tagsJSON, encoding: .utf8), -1, nil)
+                    if let tagsString = String(data: tagsJSON, encoding: .utf8) {
+                        sqlite3_bind_text(statement, 8, (tagsString as NSString).utf8String, -1, nil)
+                    } else {
+                        sqlite3_bind_null(statement, 8)
+                    }
                     
                     // raw_data 作为 JSON
-                    var rawDataJSON: String? = nil
                     if let rawData = note.rawData {
                         let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
-                        rawDataJSON = String(data: jsonData, encoding: .utf8)
+                        if let rawDataString = String(data: jsonData, encoding: .utf8) {
+                            sqlite3_bind_text(statement, 9, (rawDataString as NSString).utf8String, -1, nil)
+                        } else {
+                            sqlite3_bind_null(statement, 9)
+                        }
+                    } else {
+                        sqlite3_bind_null(statement, 9)
                     }
-                    sqlite3_bind_text(statement, 9, rawDataJSON, -1, nil)
                     
                     // 绑定新增字段（索引 10-18）
                     sqlite3_bind_text(statement, 10, note.snippet, -1, nil)
