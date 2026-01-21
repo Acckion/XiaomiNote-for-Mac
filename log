@@ -1,314 +1,638 @@
-[VIEWMODEL] 应用变为前台
-[VIEWMODEL] 启动自动同步定时器，间隔: 300.0秒
-[MemoryCache] 添加缓存 - ID: 49027666..., 标题: 、, 当前缓存数: 6
-[NativeEditorContext] 内容变化检测 - 长度: 33, hasUnsavedChanges: true
-[SelectionAnchorManager] 清除锚点
-[AttachmentSelectionManager] 处理选择变化: location=6, length=0
-[AttachmentSelectionManager] 未检测到附件
-[AttachmentSelectionManager] 已显示光标
-[CursorFormatManager] 执行更新 - range: {6, 0}
-[UnifiedFormatManager] detectFormatState - position: 6, state: FormatState(段落: 大标题, 对齐: 左对齐, 字符: 加粗)
-[CursorFormatManager] 使用 UnifiedFormatManager 检测格式状态
-[CursorFormatManager] 同步 typingAttributes
-[CursorFormatManager] typingAttributes 已更新，属性数量: 2
-[CursorFormatManager] 更新工具栏状态
-[CursorFormatManager] 工具栏状态已更新，激活格式: ["大标题", "加粗"]
-[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 大标题, 对齐: 左对齐, 字符: 加粗)
-[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
-[CursorFormatManager] 光标模式更新完成 - position: 6, state: FormatState(段落: 大标题, 对齐: 左对齐, 字符: 加粗)
-[NativeEditorContext] ========================================
-[NativeEditorContext] 🔄 开始更新当前格式状态
-[NativeEditorContext] ========================================
-[NativeEditorContext]   - 文本长度: 33
-[NativeEditorContext]   - 光标位置: 6
-[NativeEditorContext]   - 选中范围: location=6, length=0
-[NativeEditorContext]   ✅ 有效位置: 6
-[NativeEditorContext]   📍 光标模式（未选中文本）
-[NativeEditorContext]   💡 光标模式：使用前一个字符的属性位置: 5
-[NativeEditorContext]   📦 获取到 4 个属性
-[NativeEditorContext] ----------------------------------------
-[NativeEditorContext] 🔍 开始检测各类格式...
-[NativeEditorContext] ----------------------------------------
-[NativeEditorContext] detectFontFormats - 检测到粗体
-[NativeEditorContext] ========== 检测结束，最终格式: ["大标题", "加粗"] ==========
-[NativeEditorContext]   ✅ 字体格式检测完成: ["大标题", "加粗"]
-[NativeEditorContext]   ✅ 装饰格式检测完成: []
-[NativeEditorContext]   ✅ 段落格式检测完成: []
-[NativeEditorContext]   ✅ 列表格式检测完成: []
-[NativeEditorContext]   ✅ 特殊格式检测完成: []
-[NativeEditorContext] ----------------------------------------
-[NativeEditorContext] 📊 最终检测到的所有格式: ["大标题", "加粗"]
-[NativeEditorContext] ----------------------------------------
-[NativeEditorContext] ========== 开始转换格式为段落样式 ==========
-[NativeEditorContext] 输入格式集合: ["大标题", "加粗"]
-[NativeEditorContext] ✅ 检测到 heading1 格式，返回段落样式: 【heading】(大标题)
-[NativeEditorContext] ========== 段落样式转换完成: heading ==========
-[NativeEditorContext] ========== 开始转换格式为段落样式 ==========
-[NativeEditorContext] 输入格式集合: ["大标题", "加粗"]
-[NativeEditorContext] ✅ 检测到 heading1 格式，返回段落样式: 【heading】(大标题)
-[NativeEditorContext] ========== 段落样式转换完成: heading ==========
-[NativeEditorContext] 检测到格式: 大标题, 加粗
-[NativeEditorContext] ========================================
-[NativeEditorContext] ✅ 格式状态更新完成
-[NativeEditorContext] ========================================
-[NativeTextView] setSelectedRange 被调用: location=7, length=0
-[NativeEditorContext] 内容变化检测 - 长度: 34, hasUnsavedChanges: true
-[SelectionAnchorManager] 清除锚点
-[AttachmentSelectionManager] 处理选择变化: location=7, length=0
-[AttachmentSelectionManager] 未检测到附件
-[AttachmentSelectionManager] 已显示光标
-[NativeTextView] 通知 AttachmentSelectionManager
-[AttachmentSelectionManager] 处理选择变化: location=7, length=0
-[AttachmentSelectionManager] 未检测到附件
-[AttachmentSelectionManager] 已显示光标
-[NativeEditorView] 检测到复杂输入，执行完整解析
-[CursorFormatManager] 执行更新 - range: {7, 0}
-[UnifiedFormatManager] detectFormatState - position: 7, state: FormatState(段落: 大标题, 对齐: 左对齐, 字符: 加粗)
-[CursorFormatManager] 使用 UnifiedFormatManager 检测格式状态
-[CursorFormatManager] 同步 typingAttributes
-[CursorFormatManager] typingAttributes 已更新，属性数量: 2
-[CursorFormatManager] 更新工具栏状态
-[CursorFormatManager] 工具栏状态已更新，激活格式: ["大标题", "加粗"]
-[CursorFormatManager] 通知 FormatStateManager - state: FormatState(段落: 大标题, 对齐: 左对齐, 字符: 加粗)
-[CursorFormatManager] 已触发 NativeFormatProvider 状态更新
-[CursorFormatManager] 光标模式更新完成 - position: 7, state: FormatState(段落: 大标题, 对齐: 左对齐, 字符: 加粗)
-[NativeEditorContext] 内容变化检测 - 长度: 34, hasUnsavedChanges: true
-[NativeEditorContext] 保存状态变化: needsSave = false
-[EditorChangeTracker] 文本变化 - 版本号: 1, needsSave: true
-[AutoSaveManager] 已调度自动保存（2.0秒后）
-[NotesViewModel] 📝 检测到内容变化且需要保存
-[NotesViewModel]   - 笔记ID: 49006034...
-[NotesViewModel]   - needsSave: true
-[NativeEditorView] handleExternalContentUpdate: 内容未变化，跳过更新
-[AttributedStringToASTConverter] 📝 提取图片属性:
-[AttributedStringToASTConverter]   - fileId: '1315204657.cFYt7E8dlMa6S8NUle35qQ'
-[AttributedStringToASTConverter]   - imageDescription: '“2”'
-[AttributedStringToASTConverter]   - imgshow: '“1”'
-[AttributedStringToASTConverter]   - 附件对象地址: 0x0000000a78fb5680
-[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 294
-[NotesViewModel] 💾 开始保存笔记
-[NotesViewModel]   - 笔记ID: 49006034...
-[NotesViewModel]   - XML 长度: 294
-[NoteOperationCoordinator] 📝 准备保存笔记:
-[NoteOperationCoordinator]   - id: 49006034077892704
-[NoteOperationCoordinator]   - serverTag: 49039269047059552
-[NoteOperationCoordinator]   - subject: 
-[NoteOperationCoordinator]   - settingJson: 有值(50字符)
-[NoteOperationCoordinator]   - extraInfoJson: 有值(113字符)
-[Database] 保存笔记，ID: 49006034077892704, 标题: ce11s3, content长度: 294
-[Database] 📝 保存 settingJson: {"data":[],"stickyTime":0,"themeId":0,"version":0}...
-[Database] ✅ 保存笔记到数据库成功，ID: 49006034077892704, 标题: ce11s3, content长度: 294
-[NoteOperationCoordinator] 💾 本地保存成功: 49006034...
-[Database] 删除统一操作: 2AD7E404-02E8-4BF5-947C-AE1BB3749F18
-[UnifiedOperationQueue] 合并 cloudUpload 操作: 删除旧操作 2AD7E404-02E8-4BF5-947C-AE1BB3749F18
-[Database] 保存统一操作: C3B6D67C-F93E-4CBF-95FA-8D039F394CDB, type: cloudUpload, noteId: 49006034077892704
-[UnifiedOperationQueue] 入队操作: cloudUpload for 49006034077892704, id: C3B6D67C-F93E-4CBF-95FA-8D039F394CDB
-[NoteOperationCoordinator] 📤 已创建 cloudUpload 操作: 49006034...
-[NoteOperationCoordinator] 🚀 网络可用，立即处理上传: 49006034...
-[NotesViewModel] ✅ 笔记保存成功
-[EditorChangeTracker] 保存成功 - 版本号同步: 1, needsSave: false
-[AudioPanelState] 处理笔记切换: nil -> 49006034077892704
-[OperationProcessor] 🚀 立即处理操作: cloudUpload for 49006034077892704
-[Database] 保存统一操作: C3B6D67C-F93E-4CBF-95FA-8D039F394CDB, type: cloudUpload, noteId: 49006034077892704
-[UnifiedOperationQueue] 标记操作为处理中: C3B6D67C-F93E-4CBF-95FA-8D039F394CDB
-[OperationProcessor] ☁️ 处理 cloudUpload: 49006034077892704
-[Database] 📝 读取 serverTag: 49039269047059552, id: 49006034077892704
-[OperationProcessor] 📖 从数据库加载的笔记字段:
-[OperationProcessor]   - id: 49006034077892704
-[OperationProcessor]   - serverTag: 49039269047059552
-[OperationProcessor]   - subject: 
-[OperationProcessor]   - settingJson: 有值(50字符)
-[OperationProcessor]   - extraInfoJson: 有值(113字符)
-[OperationProcessor] 🏷️ 使用 tag: 49039269047059552, serverTag: 49039269047059552, id: 49006034077892704
-[[调试]]步骤34 [MiNoteService] 进入updateNote服务方法，noteId: 49006034077892704, title: ce11s3, content长度: 294
-[[调试]]步骤35 [MiNoteService] 构建extraInfo，title: ce11s3
-[[调试]]步骤36 [MiNoteService] 清理content，原始长度: 294, 清理后长度: 294
-[[调试]]步骤37 [MiNoteService] 构建setting对象，包含图片数据: false
-[[调试]]步骤38 [MiNoteService] 构建entry对象，id: 49006034077892704, tag: 49039269047059552, content长度: 294
-[[调试]]步骤39 [MiNoteService] 序列化entry为JSON，JSON长度: 705
-[[调试]]步骤40 [MiNoteService] URL编码完成，entry编码后长度: 1219
-[[调试]]步骤41 [MiNoteService] 构建请求体，body长度: 1631
-📤 请求: POST https://i.mi.com/note/note/49006034077892704
-请求体: entry=%7B%22alertDate%22%3A0%2C%22colorId%22%3A0%2C%22content%22%3A%22%3Ctitle%3Ece11s31%3C%5C%2Ftitle%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3Ehi1%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3Ehi1%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3Ehi1%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3Ehi1%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3Ehi1%3C%5C%2Ftext%3E%5Cn%3Ctext%20indent%3D%5C%221%5C%22%3Ehi11%3C%5C%2Ftext%3E%5Cn%3Cimg%20fileid%3D%5C%221315204657.cFYt7E8dlMa6S8NUle35qQ%5C%22%20imgdes%3D%5C%22%E2%80%9C2%E2%80%9D%5C%22%20imgshow%3D%5C%22%E2%80%9C1%E2%80%9D%5C%22%20width%3D%5C%22500%5C%22%20height%3D%5C%22499%5C%22%20%5C%2F%3E%22%2C%22createDate%22%3A1768933291434%2C%22extraInfo%22%3A%22%7B%5C%22title%5C%22%3A%5C%22ce11s3%5C%22%2C%5C%22mind_content%5C%22%3A%5C%22%5C%22%2C%5C%22note_content_type%5C%22%3A%5C%22common%5C%22%2C%5C%22web_images%5C%22%3A%5C%22%5C%22%2C%5C%22mind_content_plain_text%5C%22%3A%5C%22%5C%22%7D%22%2C%22folderId%22%3A%220%22%2C%22id%22%3A%2249006034077892704%22%2C%22modifyDate%22%3A1768933291434%2C%22setting%22%3A%7B%22stickyTime%22%3A0%2C%22themeId%22%3A0%2C%22version%22%3A0%7D%2C%22status%22%3A%22normal%22%2C%22tag%22%3A%2249039269047059552%22%7D&serviceToken=U7s%2Fv0q0JE%2FUQMNZhVxzLeOktqG4Qz13woP%2F80HpIvVY2dK8xLxEXCrhtt80BPc4u1FUfd0MAkS1ihlTjRbFwu3cOujdykqotf2nz2J72FFnubv0sqv0j4danVlHBEqUMoL08Lln69xff3wEgLpRbcMTbeyfyeTxOcjxJVXojeUwX%2BYqY%2FYoLXYLVW3oEylwhnY0hT%2Bx0givLRrjgqSBkRsZNd%2BnKVchUo2I1Vo%2BE0KRIL%2F1rSRXYAH%2Fndb%2FcUanW3zZekv0jmOmywjtRzFffQl866pvqRYjSFT%2FCDSPMsLA%2Fa7JX26aM8EA4AAnQNznLZc7k6Mh5E8tSlll6MQ5LYhBf8oAO6h7lsUNSKwJIcc%3D
-[[调试]]步骤42 [MiNoteService] 创建HTTP请求，URL: https://i.mi.com/note/note/49006034077892704, method: POST
-[[调试]]步骤43 [MiNoteService] 发送网络请求，笔记ID: 49006034077892704
-[NativeEditorContext] ========================================
-[NativeEditorContext] 🔄 开始更新当前格式状态
-[NativeEditorContext] ========================================
-[NativeEditorContext]   - 文本长度: 34
-[NativeEditorContext]   - 光标位置: 7
-[NativeEditorContext]   - 选中范围: location=7, length=0
-[NativeEditorContext]   ✅ 有效位置: 7
-[NativeEditorContext]   📍 光标模式（未选中文本）
-[NativeEditorContext]   💡 光标模式：使用前一个字符的属性位置: 6
-[NativeEditorContext]   📦 获取到 3 个属性
-[NativeEditorContext] ----------------------------------------
-[NativeEditorContext] 🔍 开始检测各类格式...
-[NativeEditorContext] ----------------------------------------
-[NativeEditorContext] detectFontFormats - 检测到粗体
-[NativeEditorContext] ========== 检测结束，最终格式: ["加粗", "大标题"] ==========
-[NativeEditorContext]   ✅ 字体格式检测完成: ["加粗", "大标题"]
-[NativeEditorContext]   ✅ 装饰格式检测完成: []
-[NativeEditorContext]   ✅ 段落格式检测完成: []
-[NativeEditorContext]   ✅ 列表格式检测完成: []
-[NativeEditorContext]   ✅ 特殊格式检测完成: []
-[NativeEditorContext] ----------------------------------------
-[NativeEditorContext] 📊 最终检测到的所有格式: ["大标题", "加粗"]
-[NativeEditorContext] ----------------------------------------
-[NativeEditorContext] ========== 开始转换格式为段落样式 ==========
-[NativeEditorContext] 输入格式集合: ["大标题", "加粗"]
-[NativeEditorContext] ✅ 检测到 heading1 格式，返回段落样式: 【heading】(大标题)
-[NativeEditorContext] ========== 段落样式转换完成: heading ==========
-[NativeEditorContext] ========== 开始转换格式为段落样式 ==========
-[NativeEditorContext] 输入格式集合: ["大标题", "加粗"]
-[NativeEditorContext] ✅ 检测到 heading1 格式，返回段落样式: 【heading】(大标题)
-[NativeEditorContext] ========== 段落样式转换完成: heading ==========
-[NativeEditorContext] 检测到格式: 大标题, 加粗
-[NativeEditorContext] ========================================
-[NativeEditorContext] ✅ 格式状态更新完成
-[NativeEditorContext] ========================================
-[[调试]]步骤44 [MiNoteService] 接收HTTP响应，状态码: 401
-📥 响应: POST https://i.mi.com/note/note/49006034077892704 - 状态码: 401
-[[调试]]步骤45 [MiNoteService] 处理401错误，需要重新认证
-[MiNoteService] 401错误但不是明确的认证失败，仍视为Cookie过期，设置为离线状态
-[MiNoteService] 响应体: 
-[MiNoteService] Cookie失效已被处理，跳过重复回调
-❌ 错误: POST https://i.mi.com/note/note/49006034077892704 - Cookie已过期，请重新登录
-[OperationProcessor] ❌ 操作失败: C3B6D67C-F93E-4CBF-95FA-8D039F394CDB, 错误类型: authExpired, 可重试: false
-[UnifiedOperationQueue] 操作认证失败: C3B6D67C-F93E-4CBF-95FA-8D039F394CDB
-[Database] 保存统一操作: C3B6D67C-F93E-4CBF-95FA-8D039F394CDB, type: cloudUpload, noteId: 49006034077892704
-[UnifiedOperationQueue] 标记操作失败: C3B6D67C-F93E-4CBF-95FA-8D039F394CDB, error: Cookie已过期，请重新登录, type: authExpired
-[OperationProcessor] 🔐 认证失败，已通知用户: C3B6D67C-F93E-4CBF-95FA-8D039F394CDB
-[AttributedStringToASTConverter] 📝 提取图片属性:
-[AttributedStringToASTConverter]   - fileId: '1315204657.cFYt7E8dlMa6S8NUle35qQ'
-[AttributedStringToASTConverter]   - imageDescription: '“2”'
-[AttributedStringToASTConverter]   - imgshow: '“1”'
-[AttributedStringToASTConverter]   - 附件对象地址: 0x0000000a78fb5680
-[NativeEditorWrapper] performContentChange: XML 转换成功 - 长度: 294
-[NativeEditorWrapper] performContentChange: 已触发保存回调 - contentChanged: true, hasUnsavedChanges: true
-[AttributedStringToASTConverter] 📝 提取图片属性:
-[AttributedStringToASTConverter]   - fileId: '1315204657.cFYt7E8dlMa6S8NUle35qQ'
-[AttributedStringToASTConverter]   - imageDescription: '“2”'
-[AttributedStringToASTConverter]   - imgshow: '“1”'
-[AttributedStringToASTConverter]   - 附件对象地址: 0x0000000a78fb5680
-[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 294
-[NativeEditorWrapper] xmlContent 变化但与编辑器内容相同，跳过重新加载
-[TitleExtractionService] 开始从编辑器提取标题
-[TitleExtractionService] 从编辑器提取标题成功: 'ce11s31' (通过 .isTitle 属性)
-[保存流程] 📝 从原生编辑器提取标题: 'ce11s31' (来源: 原生编辑器)
-[保存流程] ✅ 标题验证通过，已更新 editedTitle: 'ce11s31'
-[MemoryCache] 更新缓存 - ID: 49006034..., 标题: ce11s31
-[保存状态] 📝 内容变化 - 设置为未保存
-[保存流程] ✅ Tier 0 内存缓存更新 - 笔记ID: 49006034..., XML长度: 294
-[离线队列] 📥 网络不可用，将操作添加到离线队列 - 笔记ID: 49006034...
-[Database] 保存统一操作: C098CE8B-F813-4110-AF6C-B8EF245AC8C8, type: cloudUpload, noteId: 49006034077892704
-[UnifiedOperationQueue] 入队操作: cloudUpload for 49006034077892704, id: C098CE8B-F813-4110-AF6C-B8EF245AC8C8
-[离线队列] ✅ 操作已添加到统一操作队列 - 笔记ID: 49006034...
-[XMLNormalizer] 🚀 开始规范化 XML 内容
-[XMLNormalizer] 📏 原始内容长度: 294 字符
-[XMLNormalizer] 🔍 检查 imgdes: '“2”', isEmpty: false
-[XMLNormalizer] ✅ 保留 imgdes: '“2”'
-[XMLNormalizer] ✅ 图片格式规范化完成，耗时: 0.07ms
-[XMLNormalizer] ✅ 空标签移除完成，耗时: 0.01ms
-[XMLNormalizer] ✅ 空格规范化完成，耗时: 0.02ms
-[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: 0.10ms
-[XMLNormalizer] ✅ 属性值规范化完成，耗时: 0.16ms
-[XMLNormalizer] 📏 规范化后内容长度: 269 字符
-[XMLNormalizer] ⏱️ 总耗时: 0.39ms
-[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）
-[XMLNormalizer] 🚀 开始规范化 XML 内容
-[XMLNormalizer] 📏 原始内容长度: 293 字符
-[XMLNormalizer] 🔍 检查 imgdes: '“2”', isEmpty: false
-[XMLNormalizer] ✅ 保留 imgdes: '“2”'
-[XMLNormalizer] ✅ 图片格式规范化完成，耗时: 0.04ms
-[XMLNormalizer] ✅ 空标签移除完成，耗时: 0.01ms
-[XMLNormalizer] ✅ 空格规范化完成，耗时: 0.02ms
-[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: 0.09ms
-[XMLNormalizer] ✅ 属性值规范化完成，耗时: 0.15ms
-[XMLNormalizer] 📏 规范化后内容长度: 268 字符
-[XMLNormalizer] ⏱️ 总耗时: 0.32ms
-[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）
-[内容检测] ═══════════════════════════════════════
-[内容检测] 📊 检测结果: 内容变化=true, 标题变化=false
-[内容检测] 📏 原始内容长度: 当前=294, 保存=293
-[内容检测] 📏 规范化后长度: 当前=269, 保存=268
-[内容检测] ⏱️ 检测耗时: 0.71ms
-[内容检测] 📝 原始内容长度差异: 1 字符
-[内容检测] 📝 规范化后长度差异: 1 字符
-[内容检测] ℹ️ 规范化后差异较小
-[内容检测] 🔍 当前内容完整: <title>ce11s31</title> <text indent="1">hi1</text> <text indent="1">hi1</text> <text indent="1">hi1</text> <text indent="1">hi1</text> <text indent="1">hi1</text> <text indent="1">hi11</text> <img fileid="1315204657.cFYt7E8dlMa6S8NUle35qQ" imgdes="“2”" imgshow="“1”" />
-[内容检测] 🔍 保存内容完整: <title>ce11s3</title> <text indent="1">hi1</text> <text indent="1">hi1</text> <text indent="1">hi1</text> <text indent="1">hi1</text> <text indent="1">hi1</text> <text indent="1">hi11</text> <img fileid="1315204657.cFYt7E8dlMa6S8NUle35qQ" imgdes="“2”" imgshow="“1”" />
-[内容检测] 🔍 第一个不同的位置: 13
-[内容检测] 🔍 当前内容上下文: <title>ce11s31</title> <text inde
-[内容检测] 🔍 保存内容上下文: <title>ce11s3</title> <text inden
-[内容检测] ✅ 标题无变化
-[内容检测] 🕐 时间戳决策: 需要更新
-[内容检测] ═══════════════════════════════════════
-[buildUpdatedNote] 📝 使用编辑的标题: 'ce11s31' (后备方案)
-[removeTitleTag] ✅ 已移除 <title> 标签 - 原始长度: 294, 移除后长度: 272
-[buildUpdatedNote] ═══════════════════════════════════════
-[buildUpdatedNote] 📝 笔记ID: 49006034...
-[buildUpdatedNote] 📝 标题: ce11s31
-[buildUpdatedNote] 📏 原始内容长度: 294
-[buildUpdatedNote] 📏 移除标题后内容长度: 272
-[buildUpdatedNote] 🕐 shouldUpdateTimestamp: true
-[buildUpdatedNote] 🕐 原始时间戳: 2026-01-20 18:21:31 +0000
-[buildUpdatedNote] 🕐 新时间戳: 2026-01-20 18:21:31 +0000
-[buildUpdatedNote] 🕐 时间戳决策: 更新为当前时间
-[buildUpdatedNote] ═══════════════════════════════════════
-[保存流程] 📝 saveTitleAndContent - 内容变化: true, 更新时间戳: true
-[保存流程] ✅ Tier 1 异步保存笔记到数据库成功，ID: 49006034..., 标题: ce11s31
-[保存流程] 📝 标题和内容保存成功，lastSavedXMLContent 已同步 - 长度: 294
-[AudioPanelState] 处理笔记切换: nil -> 49006034077892704
-[ViewStateCoordinator] 状态已保存到 UserDefaults: folder=0, note=49006034077892704
-[ViewStateCoordinator] 更新选中笔记内容: 49006034077892704
-[StateTransition] contentUpdate: folder(0 -> 0), note(49006034077892704 -> 49006034077892704)
-[离线队列] 📥 网络不可用，将操作添加到离线队列 - 笔记ID: 49006034...
-[Database] 删除统一操作: C098CE8B-F813-4110-AF6C-B8EF245AC8C8
-[UnifiedOperationQueue] 合并 cloudUpload 操作: 删除旧操作 C098CE8B-F813-4110-AF6C-B8EF245AC8C8
-[Database] 保存统一操作: F67E3A44-87A2-4CD5-936B-23DD361DAE0B, type: cloudUpload, noteId: 49006034077892704
-[UnifiedOperationQueue] 入队操作: cloudUpload for 49006034077892704, id: F67E3A44-87A2-4CD5-936B-23DD361DAE0B
-[离线队列] ✅ 操作已添加到统一操作队列 - 笔记ID: 49006034...
-[AttributedStringToASTConverter] 📝 提取图片属性:
-[AttributedStringToASTConverter]   - fileId: '1315204657.cFYt7E8dlMa6S8NUle35qQ'
-[AttributedStringToASTConverter]   - imageDescription: '“2”'
-[AttributedStringToASTConverter]   - imgshow: '“1”'
-[AttributedStringToASTConverter]   - 附件对象地址: 0x0000000a78fb5680
-[NativeEditorContext] exportToXML: 成功导出 XML - 长度: 294
-[保存流程] 📝 使用原生编辑器最新内容 - 长度: 294
-[XMLNormalizer] 🚀 开始规范化 XML 内容
-[XMLNormalizer] 📏 原始内容长度: 294 字符
-[XMLNormalizer] 🔍 检查 imgdes: '“2”', isEmpty: false
-[XMLNormalizer] ✅ 保留 imgdes: '“2”'
-[XMLNormalizer] ✅ 图片格式规范化完成，耗时: 0.06ms
-[XMLNormalizer] ✅ 空标签移除完成，耗时: 0.01ms
-[XMLNormalizer] ✅ 空格规范化完成，耗时: 0.02ms
-[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: 0.10ms
-[XMLNormalizer] ✅ 属性值规范化完成，耗时: 0.16ms
-[XMLNormalizer] 📏 规范化后内容长度: 269 字符
-[XMLNormalizer] ⏱️ 总耗时: 0.36ms
-[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）
-[XMLNormalizer] 🚀 开始规范化 XML 内容
-[XMLNormalizer] 📏 原始内容长度: 294 字符
-[XMLNormalizer] 🔍 检查 imgdes: '“2”', isEmpty: false
-[XMLNormalizer] ✅ 保留 imgdes: '“2”'
-[XMLNormalizer] ✅ 图片格式规范化完成，耗时: 0.04ms
-[XMLNormalizer] ✅ 空标签移除完成，耗时: 0.01ms
-[XMLNormalizer] ✅ 空格规范化完成，耗时: 0.02ms
-[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: 0.10ms
-[XMLNormalizer] ✅ 属性值规范化完成，耗时: 0.17ms
-[XMLNormalizer] 📏 规范化后内容长度: 269 字符
-[XMLNormalizer] ⏱️ 总耗时: 0.35ms
-[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）
-[内容检测] ═══════════════════════════════════════
-[内容检测] 📊 检测结果: 内容变化=false, 标题变化=false
-[内容检测] 📏 原始内容长度: 当前=294, 保存=294
-[内容检测] 📏 规范化后长度: 当前=269, 保存=269
-[内容检测] ⏱️ 检测耗时: 0.72ms
-[内容检测] ✅ 内容无变化（规范化后相同）
-[内容检测] ✅ 标题无变化
-[内容检测] 🕐 时间戳决策: 保持不变
-[内容检测] ═══════════════════════════════════════
-[保存流程] ⏭️ Tier 1 防抖保存跳过 - 内容无实际变化
+[MemoryCache] 更新缓存 - ID: 49013983..., 标题: 新xxx笔记
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=96.0
+[StickyHeader]   昨天: Y=729.0
+[StickyHeader]   本周: Y=903.5
+[StickyHeader]   本月: Y=1209.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: []
+[StickyHeader] 🔝 在顶部，显示第一个分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=90.0
+[StickyHeader]   昨天: Y=723.0
+[StickyHeader]   本周: Y=897.5
+[StickyHeader]   本月: Y=1203.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: []
+[StickyHeader] 🔝 在顶部，显示第一个分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=72.0
+[StickyHeader]   昨天: Y=705.0
+[StickyHeader]   本周: Y=879.5
+[StickyHeader]   本月: Y=1185.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: []
+[StickyHeader] 🔝 在顶部，显示第一个分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=44.0
+[StickyHeader]   昨天: Y=677.0
+[StickyHeader]   本周: Y=851.5
+[StickyHeader]   本月: Y=1157.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=6.0
+[StickyHeader]   昨天: Y=639.0
+[StickyHeader]   本周: Y=813.5
+[StickyHeader]   本月: Y=1119.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-33.0
+[StickyHeader]   昨天: Y=600.0
+[StickyHeader]   本周: Y=774.5
+[StickyHeader]   本月: Y=1080.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-69.0
+[StickyHeader]   昨天: Y=564.0
+[StickyHeader]   本周: Y=738.5
+[StickyHeader]   本月: Y=1044.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[NotePreviewImageView] 开始加载图片: 1315204657.rK-BVySgZSFqJYcpQF3AOQ.jpg
+[NotePreviewService] 请求加载图片: 1315204657.rK-BVySgZSFqJYcpQF3AOQ.jpg
+[NotePreviewService] ✅ 从缓存加载: 1315204657.rK-BVySgZSFqJYcpQF3AOQ
+[NotePreviewImageView] ✅ 图片加载成功: 1315204657.rK-BVySgZSFqJYcpQF3AOQ.jpg
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-100.0
+[StickyHeader]   昨天: Y=533.0
+[StickyHeader]   本周: Y=707.5
+[StickyHeader]   本月: Y=1013.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-126.0
+[StickyHeader]   昨天: Y=507.0
+[StickyHeader]   本周: Y=681.5
+[StickyHeader]   本月: Y=987.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[MemoryCache] 更新缓存 - ID: 47730500..., 标题: 账户
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-148.0
+[StickyHeader]   昨天: Y=485.0
+[StickyHeader]   本周: Y=659.5
+[StickyHeader]   本月: Y=965.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-166.0
+[StickyHeader]   昨天: Y=467.0
+[StickyHeader]   本周: Y=641.5
+[StickyHeader]   本月: Y=947.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[MemoryCache] 更新缓存 - ID: 49027666..., 标题: 13
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-180.0
+[StickyHeader]   昨天: Y=453.0
+[StickyHeader]   本周: Y=627.5
+[StickyHeader]   本月: Y=933.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-191.0
+[StickyHeader]   昨天: Y=442.0
+[StickyHeader]   本周: Y=616.5
+[StickyHeader]   本月: Y=922.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-200.0
+[StickyHeader]   昨天: Y=433.0
+[StickyHeader]   本周: Y=607.5
+[StickyHeader]   本月: Y=913.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[MemoryCache] 更新缓存 - ID: 49038835..., 标题: 新笔记2
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-207.0
+[StickyHeader]   昨天: Y=426.0
+[StickyHeader]   本周: Y=600.5
+[StickyHeader]   本月: Y=906.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[MemoryCache] 更新缓存 - ID: 49006034..., 标题: ce11s3111
+[MemoryCache] 更新缓存 - ID: 49038300..., 标题: 新编辑1器标题
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-209.0
+[StickyHeader]   昨天: Y=424.0
+[StickyHeader]   本周: Y=598.5
+[StickyHeader]   本月: Y=904.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-220.0
+[StickyHeader]   昨天: Y=413.0
+[StickyHeader]   本周: Y=587.5
+[StickyHeader]   本月: Y=893.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-246.0
+[StickyHeader]   昨天: Y=387.0
+[StickyHeader]   本周: Y=561.5
+[StickyHeader]   本月: Y=867.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-300.0
+[StickyHeader]   昨天: Y=333.0
+[StickyHeader]   本周: Y=507.5
+[StickyHeader]   本月: Y=813.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-363.0
+[StickyHeader]   昨天: Y=270.0
+[StickyHeader]   本周: Y=444.5
+[StickyHeader]   本月: Y=750.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-433.0
+[StickyHeader]   昨天: Y=200.0
+[StickyHeader]   本周: Y=374.5
+[StickyHeader]   本月: Y=680.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-500.0
+[StickyHeader]   昨天: Y=133.0
+[StickyHeader]   本周: Y=307.5
+[StickyHeader]   本月: Y=613.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-560.0
+[StickyHeader]   昨天: Y=73.0
+[StickyHeader]   本周: Y=247.5
+[StickyHeader]   本月: Y=553.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天"]
+[StickyHeader] ✅ 选择最后通过的分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-611.0
+[StickyHeader]   昨天: Y=22.0
+[StickyHeader]   本周: Y=196.5
+[StickyHeader]   本月: Y=502.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天", "昨天"]
+[StickyHeader] ✅ 选择最后通过的分组: 昨天
+[StickyHeader] 🔄 更新粘性头: 今天 -> 昨天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-653.0
+[StickyHeader]   昨天: Y=-20.0
+[StickyHeader]   本周: Y=154.5
+[StickyHeader]   本月: Y=460.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天", "昨天"]
+[StickyHeader] ✅ 选择最后通过的分组: 昨天
+[MemoryCache] 更新缓存 - ID: 49022549..., 标题: 11
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-687.0
+[StickyHeader]   昨天: Y=-54.0
+[StickyHeader]   本周: Y=120.5
+[StickyHeader]   本月: Y=426.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天", "昨天"]
+[StickyHeader] ✅ 选择最后通过的分组: 昨天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-715.0
+[StickyHeader]   昨天: Y=-82.0
+[StickyHeader]   本周: Y=92.5
+[StickyHeader]   本月: Y=398.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天", "昨天"]
+[StickyHeader] ✅ 选择最后通过的分组: 昨天
+[MemoryCache] 更新缓存 - ID: 49015310..., 标题: 辑保存
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   今天: Y=-737.0
+[StickyHeader]   昨天: Y=-104.0
+[StickyHeader]   本周: Y=70.5
+[StickyHeader]   本月: Y=376.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["今天", "昨天"]
+[StickyHeader] ✅ 选择最后通过的分组: 昨天
+[MemoryCache] 更新缓存 - ID: 49017011..., 标题: 111测测
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-121.0
+[StickyHeader]   本周: Y=53.5
+[StickyHeader]   本月: Y=359.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周"]
+[StickyHeader] ✅ 选择最后通过的分组: 本周
+[StickyHeader] 🔄 更新粘性头: 昨天 -> 本周
+[MemoryCache] 更新缓存 - ID: 48966438..., 标题: 新笔记
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-134.0
+[StickyHeader]   本周: Y=40.5
+[StickyHeader]   本月: Y=346.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周"]
+[StickyHeader] ✅ 选择最后通过的分组: 本周
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-144.0
+[StickyHeader]   本周: Y=30.5
+[StickyHeader]   本月: Y=336.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周"]
+[StickyHeader] ✅ 选择最后通过的分组: 本周
+[Database] 📝 读取 serverTag: 49021816532911616, id: 49017105768006496
+[MemoryCache] 移除LRU缓存 - ID: 49013983..., 标题: 新xxx笔记
+[MemoryCache] 添加缓存 - ID: 49017105..., 标题: 11, 当前缓存数: 10
+[预加载] 悬停预加载完成 - ID: 49017105...
+[MemoryCache] 移除LRU缓存 - ID: 47730500..., 标题: 账户
+[MemoryCache] 添加缓存 - ID: 49016984..., 标题: 111测测, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-145.0
+[StickyHeader]   本周: Y=29.5
+[StickyHeader]   本月: Y=335.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周"]
+[StickyHeader] ✅ 选择最后通过的分组: 本周
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-151.0
+[StickyHeader]   本周: Y=23.5
+[StickyHeader]   本月: Y=329.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周"]
+[StickyHeader] ✅ 选择最后通过的分组: 本周
+[MemoryCache] 移除LRU缓存 - ID: 49027666..., 标题: 13
+[MemoryCache] 添加缓存 - ID: 49016304..., 标题: 未命名笔记_49016304370205216, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-175.0
+[StickyHeader]   本周: Y=-0.5
+[StickyHeader]   本月: Y=305.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周"]
+[StickyHeader] ✅ 选择最后通过的分组: 本周
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-221.0
+[StickyHeader]   本周: Y=-46.5
+[StickyHeader]   本月: Y=259.0
+[StickyHeader]   2025年: Y=1495.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周"]
+[StickyHeader] ✅ 选择最后通过的分组: 本周
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-221.0
+[StickyHeader]   本周: Y=-46.5
+[StickyHeader]   本月: Y=259.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周"]
+[StickyHeader] ✅ 选择最后通过的分组: 本周
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-281.0
+[StickyHeader]   本周: Y=-106.5
+[StickyHeader]   本月: Y=199.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周"]
+[StickyHeader] ✅ 选择最后通过的分组: 本周
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-343.0
+[StickyHeader]   本周: Y=-168.5
+[StickyHeader]   本月: Y=137.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周"]
+[StickyHeader] ✅ 选择最后通过的分组: 本周
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-400.0
+[StickyHeader]   本周: Y=-225.5
+[StickyHeader]   本月: Y=80.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周"]
+[StickyHeader] ✅ 选择最后通过的分组: 本周
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-450.0
+[StickyHeader]   本周: Y=-275.5
+[StickyHeader]   本月: Y=30.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 🔄 更新粘性头: 本周 -> 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-492.0
+[StickyHeader]   本周: Y=-317.5
+[StickyHeader]   本月: Y=-12.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-527.0
+[StickyHeader]   本周: Y=-352.5
+[StickyHeader]   本月: Y=-47.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-527.0
+[StickyHeader]   本周: Y=-352.5
+[StickyHeader]   本月: Y=-47.0
+[StickyHeader]   2025年: Y=1189.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-527.0
+[StickyHeader]   本周: Y=-352.5
+[StickyHeader]   本月: Y=-47.0
+[StickyHeader]   2025年: Y=938.75
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[NotePreviewImageView] 开始加载图片: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-527.0
+[StickyHeader]   本周: Y=-352.5
+[StickyHeader]   本月: Y=-47.0
+[StickyHeader]   2025年: Y=938.75
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-527.0
+[StickyHeader]   本周: Y=-352.5
+[StickyHeader]   本月: Y=-47.0
+[StickyHeader]   2025年: Y=1189.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-527.0
+[StickyHeader]   本周: Y=-352.5
+[StickyHeader]   本月: Y=-47.0
+[StickyHeader]   2025年: Y=938.75
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[NotePreviewService] 请求加载图片: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg
+[NotePreviewService] ✅ 从缓存加载: 1315204657.iWIa7HjEEF53X3XD8vvm5Q
+[NotePreviewImageView] ✅ 图片加载成功: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg
+[MemoryCache] 移除LRU缓存 - ID: 49038835..., 标题: 新笔记2
+[MemoryCache] 添加缓存 - ID: 48989473..., 标题: 旧版格式测试, 当前缓存数: 10
+[MemoryCache] 移除LRU缓存 - ID: 49006034..., 标题: ce11s3111
+[MemoryCache] 添加缓存 - ID: 49015298..., 标题: 新笔记, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-527.0
+[StickyHeader]   本周: Y=-352.5
+[StickyHeader]   本月: Y=-47.0
+[StickyHeader]   2025年: Y=1189.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-527.0
+[StickyHeader]   本周: Y=-352.5
+[StickyHeader]   本月: Y=-47.0
+[StickyHeader]   2025年: Y=938.75
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-595.0
+[StickyHeader]   本周: Y=-420.5
+[StickyHeader]   本月: Y=-115.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[MemoryCache] 移除LRU缓存 - ID: 49038300..., 标题: 新编辑1器标题
+[MemoryCache] 添加缓存 - ID: 48989118..., 标题: 111测试1
+, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-609.0
+[StickyHeader]   本周: Y=-434.5
+[StickyHeader]   本月: Y=-129.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-620.0
+[StickyHeader]   本周: Y=-445.5
+[StickyHeader]   本月: Y=-140.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[MemoryCache] 移除LRU缓存 - ID: 49022549..., 标题: 11
+[MemoryCache] 添加缓存 - ID: 49013776..., 标题: 112你哈, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-620.0
+[StickyHeader]   本周: Y=-445.5
+[StickyHeader]   本月: Y=-140.0
+[StickyHeader]   2025年: Y=3367.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-620.0
+[StickyHeader]   本周: Y=-445.5
+[StickyHeader]   本月: Y=-140.0
+[StickyHeader]   2025年: Y=1096.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[NotePreviewImageView] 开始加载图片: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg
+[NotePreviewService] 请求加载图片: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg
+[MemoryCache] 移除LRU缓存 - ID: 49015310..., 标题: 辑保存
+[MemoryCache] 添加缓存 - ID: 49006032..., 标题: 新笔记, 当前缓存数: 10
+[NotePreviewService] ✅ 从缓存加载: 1315204657.iWIa7HjEEF53X3XD8vvm5Q
+[NotePreviewImageView] ✅ 图片加载成功: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg
+[MemoryCache] 移除LRU缓存 - ID: 49017011..., 标题: 111测测
+[MemoryCache] 添加缓存 - ID: 49006046..., 标题: 测ceshi, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-633.0
+[StickyHeader]   本周: Y=-458.5
+[StickyHeader]   本月: Y=-153.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-657.0
+[StickyHeader]   本周: Y=-482.5
+[StickyHeader]   本月: Y=-177.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[MemoryCache] 移除LRU缓存 - ID: 48966438..., 标题: 新笔记
+[MemoryCache] 添加缓存 - ID: 49005878..., 标题: 新笔记121, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   昨天: Y=-703.0
+[StickyHeader]   本周: Y=-528.5
+[StickyHeader]   本月: Y=-223.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["昨天", "本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本周: Y=-589.5
+[StickyHeader]   本月: Y=-284.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本周: Y=-651.5
+[StickyHeader]   本月: Y=-346.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本周: Y=-709.5
+[StickyHeader]   本月: Y=-404.0
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本周", "本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-454.0
+[StickyHeader]   2025年: Y=782.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-496.0
+[StickyHeader]   2025年: Y=740.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-531.0
+[StickyHeader]   2025年: Y=705.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[MemoryCache] 移除LRU缓存 - ID: 49017105..., 标题: 11
+[MemoryCache] 添加缓存 - ID: 49003902..., 标题: 未命名笔记_49003902292345696, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-559.0
+[StickyHeader]   2025年: Y=677.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[NotePreviewImageView] 开始加载图片: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg
+[NotePreviewService] 请求加载图片: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg
+[NotePreviewService] ✅ 从缓存加载: 1315204657.iWIa7HjEEF53X3XD8vvm5Q
+[NotePreviewImageView] ✅ 图片加载成功: 1315204657.iWIa7HjEEF53X3XD8vvm5Q.jpg
+[Database] 📝 读取 serverTag: 48987395652206592, id: 48986921876472960
+[MemoryCache] 移除LRU缓存 - ID: 49016984..., 标题: 111测测
+[MemoryCache] 添加缓存 - ID: 48986921..., 标题: 新笔记, 当前缓存数: 10
+[预加载] 悬停预加载完成 - ID: 48986921...
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-581.0
+[StickyHeader]   2025年: Y=655.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[MemoryCache] 移除LRU缓存 - ID: 49016304..., 标题: 未命名笔记_49016304370205216
+[MemoryCache] 添加缓存 - ID: 48966095..., 标题: 新笔记, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-599.0
+[StickyHeader]   2025年: Y=637.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[MemoryCache] 移除LRU缓存 - ID: 48989473..., 标题: 旧版格式测试
+[MemoryCache] 添加缓存 - ID: 48970847..., 标题: 新笔记, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-613.0
+[StickyHeader]   2025年: Y=623.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-624.0
+[StickyHeader]   2025年: Y=612.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[MemoryCache] 移除LRU缓存 - ID: 49015298..., 标题: 新笔记
+[MemoryCache] 添加缓存 - ID: 48976637..., 标题: 新笔记, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-632.0
+[StickyHeader]   2025年: Y=604.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[MemoryCache] 移除LRU缓存 - ID: 48989118..., 标题: 111测试1
+
+[MemoryCache] 添加缓存 - ID: 48977865..., 标题: 新笔记, 当前缓存数: 10
+[MemoryCache] 移除LRU缓存 - ID: 49013776..., 标题: 112你哈
+[MemoryCache] 添加缓存 - ID: 48969392..., 标题: 未命名笔记_48969392250438496, 当前缓存数: 10
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-637.0
+[StickyHeader]   2025年: Y=599.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-649.0
+[StickyHeader]   2025年: Y=587.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-676.0
+[StickyHeader]   2025年: Y=560.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   本月: Y=-715.0
+[StickyHeader]   2025年: Y=521.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: ["本月"]
+[StickyHeader] ✅ 选择最后通过的分组: 本月
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   2025年: Y=473.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: []
+[StickyHeader] 🔝 在顶部，显示第一个分组: 今天
+[StickyHeader] 🔄 更新粘性头: 本月 -> 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   2025年: Y=424.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: []
+[StickyHeader] 🔝 在顶部，显示第一个分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   2025年: Y=379.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: []
+[StickyHeader] 🔝 在顶部，显示第一个分组: 今天
+[StickyHeader] 📍 所有分组头位置:
+[StickyHeader]   2025年: Y=341.5
+[StickyHeader] 🎯 工具栏高度: 62.0
+[StickyHeader] ⬆️ 已通过工具栏的分组: []
+[StickyHeader] 🔝 在顶部，显示第一个分组: 今天
+[MemoryCache] 移除LRU缓存 - ID: 49006032..., 标题: 新笔记
+[MemoryCache] 添加缓存 - ID: 48759929..., 标题: 最终稿, 当前缓存数: 10
+[MemoryCache] 移除LRU缓存 - ID: 49006046..., 标题: 测ceshi
+[MemoryCache] 添加缓存 - ID: 47075179..., 标题: sjjx.ulearning.cnnewpc#login_47075179581817280, 当前缓存数: 10
+[MemoryCache] 移除LRU缓存 - ID: 49005878..., 标题: 新笔记121
+[MemoryCache] 添加缓存 - ID: 48903015..., 标题: 未命名笔记_48903015812973184, 当前缓存数: 10
+[MemoryCache] 移除LRU缓存 - ID: 49003902..., 标题: 未命名笔记_49003902292345696
+[MemoryCache] 添加缓存 - ID: 47732603..., 标题: 账户密码, 当前缓存数: 10
 [VIEWMODEL] 应用变为后台
 [VIEWMODEL] 停止自动同步定时器
+[ScheduledTaskManager] 网络恢复，重新启动需要网络的任务
+[ScheduledTaskManager] 停止任务: Cookie有效性检查
+[ScheduledTaskManager] 启动任务: Cookie有效性检查, 间隔: 30.0秒
+[ScheduledTaskManager] 开始执行任务: Cookie有效性检查
+[CookieValidityCheckTask] 开始检查Cookie有效性

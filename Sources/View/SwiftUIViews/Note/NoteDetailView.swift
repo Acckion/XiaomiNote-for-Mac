@@ -403,13 +403,7 @@ struct NoteDetailView: View {
             .ignoresSafeArea(edges: .top) // 允许内容延伸到工具栏下方
     }
     
-    // 任务 22.1: 移除 titleEditorView 计算属性
     // 标题编辑器已移除,标题将在后续任务中作为编辑器的第一个段落
-    // private var titleEditorView: some View {
-    //     TitleEditorView(title: $editedTitle, isEditable: $isEditable, hasRealTitle: hasRealTitle())
-    // }
-    
-    // 注意: hasRealTitle() 方法暂时保留,后续任务可能需要使用
     private func hasRealTitle() -> Bool {
         guard let note = viewModel.selectedNote else { return false }
         return !note.title.isEmpty && !note.title.hasPrefix("未命名笔记_")
@@ -427,7 +421,6 @@ struct NoteDetailView: View {
                 .foregroundColor(.secondary)
             
             // 调试模式指示器
-            // _Requirements: 1.3_
             if isDebugMode {
                 debugModeIndicator
             }
@@ -442,8 +435,6 @@ struct NoteDetailView: View {
     }
     
     /// 调试模式指示器
-    /// 
-    /// _Requirements: 1.3_
     private var debugModeIndicator: some View {
         HStack(spacing: 4) {
             Image(systemName: "chevron.left.forwardslash.chevron.right")
@@ -459,8 +450,6 @@ struct NoteDetailView: View {
     }
     
     /// 调试模式保存状态指示器
-    /// 
-    /// _Requirements: 4.5, 4.6, 4.7_
     private var debugSaveStatusIndicator: some View {
         Group {
             switch debugSaveStatus {

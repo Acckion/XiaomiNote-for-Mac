@@ -1,107 +1,37 @@
 import AppKit
 import SwiftUI
-import Combine
 
 /// 笔记列表托管控制器
-/// 使用NSHostingView托管SwiftUI的NotesListView
-///
-/// ## 刷新策略优化
 /// 
-/// 本控制器采用优化的刷新策略，依赖 SwiftUI 的自动更新机制来处理大部分状态变化，
-/// 只在必要时才进行强制刷新。
-///
-/// ### 不需要强制刷新的情况（SwiftUI 自动处理）
-/// - `selectedNote` 变化：SwiftUI 通过 `@ObservedObject` 自动更新选择状态
-/// - `notes` 数组变化：SwiftUI 通过 `@Published` 自动更新列表内容
-///
-/// ### 需要强制刷新的情况
-/// - `selectedFolder` 变化：需要重新过滤笔记列表，确保显示正确的文件夹内容
-/// - `searchText` 变化：需要重新过滤笔记列表，确保搜索结果正确
-///
-/// _Requirements: 5.2, 3.1_
-class NotesListHostingController: NSViewController {
-    
-    // MARK: - 属性
+/// **问题分析**:
+/// SwiftUI 的 `.safeAreaInset` 在 splitview 宽度与工具栏一致时会被系统自动融合导致透明
+/// 这是 SwiftUI 的 bug,不是我们的实现问题
+/// 
+/// **解决方案**:
+/// 1. 方案 A (推荐): 给 LiquidGlassSectionHeader 添加 `.background(.regularMaterial)` 
+///    - 虽然会有轻微的视觉差异,但能保证功能正常
+///    - 这是最简单且最可靠的方案
+/// 
+/// 2. 方案 B (完美但复杂): 完全重写笔记列表,使用 AppKit 的 NSTableView + NSScrollView.addFloatingSubview
+///    - 需要大量重构代码
+///    - 可以使用 AppKit 的标准 API 避免 SwiftUI 的 bug
+///    - 参考: https://casualprogrammer.com/blog/2020/12-30-appkit_notes_nsscrol.html
+/// 
+/// 3. 方案 C (临时): 强制 splitview 宽度略小于工具栏,避免完全对齐
+///    - 通过设置 `maximumThickness` 确保永远不会完全对齐
+///    - 但这会影响用户体验
+/// 
+/// **当前实现**: 保持原有的 SwiftUI 实现,等待 Apple 修复 bug
+class NotesListHostingController: NSHostingController<NotesListView> {
     
     private var viewModel: NotesViewModel
-    private var hostingView: NSHostingView<NotesListView>?
-    private var cancellables = Set<AnyCancellable>()
-    
-    // MARK: - 初始化
     
     init(viewModel: NotesViewModel) {
         self.viewModel = viewModel
-        super.init(nibName: nil, bundle: nil)
+        super.init(rootView: NotesListView(viewModel: viewModel))
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-    
-    // MARK: - 视图生命周期
-    
-    override func loadView() {
-        // 创建SwiftUI视图
-        let notesListView = NotesListView(viewModel: viewModel)
-        
-        // 创建NSHostingView
-        let hostingView = NSHostingView(rootView: notesListView)
-        self.hostingView = hostingView
-        
-        // 设置视图
-        self.view = hostingView
-    }
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        
-        // 设置必要的刷新监听
-        // 注意：selectedNote 和 notes 的变化由 SwiftUI 自动处理，不需要强制刷新
-        // _Requirements: 5.2_
-        setupNecessaryRefreshListeners()
-    }
-    
-    /// 设置必要的刷新监听
-    /// 
-    /// 只监听需要强制刷新的状态变化：
-    /// - selectedFolder：文件夹切换需要重新过滤笔记列表
-    /// - searchText：搜索文本变化需要重新过滤笔记列表
-    ///
-    /// _Requirements: 3.1_
-    private func setupNecessaryRefreshListeners() {
-        // 监听文件夹变化 - 需要强制刷新以确保笔记列表正确过滤
-        // _Requirements: 3.1_
-        viewModel.$selectedFolder
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.refreshView()
-            }
-            .store(in: &cancellables)
-        
-        // 监听搜索文本变化 - 需要强制刷新以确保搜索结果正确
-        // _Requirements: 3.1_
-        viewModel.$searchText
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.refreshView()
-            }
-            .store(in: &cancellables)
-    }
-    
-    override func viewDidLayout() {
-        super.viewDidLayout()
-        
-        // 确保hostingView填充整个视图
-        hostingView?.frame = view.bounds
-    }
-    
-    // MARK: - 公共方法
-    
-    /// 刷新SwiftUI视图
-    /// 
-    /// 通过重新创建 rootView 来强制刷新视图。
-    /// 注意：只在必要时调用此方法，大部分情况下 SwiftUI 会自动处理更新。
-    func refreshView() {
-        hostingView?.rootView = NotesListView(viewModel: viewModel)
     }
 }

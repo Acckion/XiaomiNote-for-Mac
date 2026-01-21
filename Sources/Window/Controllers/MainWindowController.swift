@@ -116,6 +116,10 @@ public class MainWindowController: NSWindowController {
         window.titleVisibility = .visible
         window.setFrameAutosaveName("MainWindow")
         
+        // 强制禁用透明标题栏，避免系统自动融合行为
+        window.titlebarAppearsTransparent = false
+        window.titlebarSeparatorStyle = .none
+        
         // 设置窗口内容
         setupWindowContent()
         
@@ -153,7 +157,6 @@ public class MainWindowController: NSWindowController {
     /// 
     /// 使用三栏布局：侧边栏 + 笔记列表 + 编辑器
     /// 在画廊模式下，笔记列表和编辑器区域会被 ContentAreaView 替换
-    /// _Requirements: 4.3, 4.4, 4.5_
     private func setupWindowContent() {
         guard let window = window, let viewModel = viewModel else { return }
         
@@ -195,7 +198,7 @@ public class MainWindowController: NSWindowController {
     
     /// 设置视图模式监听
     /// 在列表模式和画廊模式之间切换时，动态调整分割视图布局
-    /// _Requirements: 4.3, 4.4, 4.5_
+
     private func setupViewModeObserver(splitViewController: NSSplitViewController) {
         guard let viewModel = viewModel else { return }
         
@@ -214,7 +217,6 @@ public class MainWindowController: NSWindowController {
     }
     
     /// 根据视图模式更新布局
-    /// _Requirements: 4.3, 4.4, 4.5_
     private func updateLayoutForViewMode(_ viewMode: ViewMode, splitViewController: NSSplitViewController, viewModel: NotesViewModel) {
         let splitViewItems = splitViewController.splitViewItems
         guard splitViewItems.count >= 2 else { return }
