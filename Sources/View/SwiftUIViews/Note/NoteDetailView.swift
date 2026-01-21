@@ -356,6 +356,25 @@ struct NoteDetailView: View {
         ZStack {
             Color(nsColor: NSColor.textBackgroundColor).ignoresSafeArea()
             editorContentView(for: note)
+            
+            // 悬浮信息栏
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    FloatingInfoBar(
+                        note: note,
+                        currentXMLContent: currentXMLContent,
+                        isDebugMode: isDebugMode,
+                        saveStatus: isDebugMode ? .debug(debugSaveStatus) : .normal(saveStatus),
+                        showSaveErrorAlert: $showSaveErrorAlert,
+                        saveErrorMessage: $saveErrorMessage,
+                        onRetrySave: { retrySave() }
+                    )
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 16)
+                }
+            }
         }
         .onAppear {
             handleNoteAppear(note)
@@ -379,19 +398,9 @@ struct NoteDetailView: View {
     }
     
     private func editorContentView(for note: Note) -> some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    // 任务 22.1: 移除独立的标题编辑器,标题将作为编辑器的第一个段落
-                    // titleEditorView 已移除,标题将在后续任务中集成到编辑器内部
-                    metaInfoView(for: note).padding(.horizontal, 16).padding(.top, 16)
-                    Spacer().frame(height: 16)
-                    // 编辑器现在占据全部空间,包括标题区域
-                    bodyEditorView.padding(.horizontal, 16).frame(minHeight: max(600, geometry.size.height - 100))
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
+        bodyEditorView
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea(edges: .top) // 允许内容延伸到工具栏下方
     }
     
     // 任务 22.1: 移除 titleEditorView 计算属性

@@ -272,6 +272,7 @@
 		ED3A4C12E9B81324BBFA537F /* IdMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F6355E51C3D0A1C60586CE /* IdMapping.swift */; };
 		EE2577EBD0917307417A77DC /* GalleryHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB8443B36E7272469F67E446 /* GalleryHostingController.swift */; };
 		EE4C90B6FBCC621335FA6A57 /* PerformanceOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AAB3F04549B463A337781EF /* PerformanceOptimizer.swift */; };
+		F00707AF58806715F39E45A1 /* FloatingInfoBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D3AD9766528663C9AF736CF /* FloatingInfoBar.swift */; };
 		F11D9F656EC3CD2A267F524C /* IdMappingRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8652918ADC21FC4044BE9DA /* IdMappingRegistry.swift */; };
 		F1E187613EF00B34A9426DD5 /* StateSyncPerformancePropertyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527102FDA5C72211803F71F1 /* StateSyncPerformancePropertyTests.swift */; };
 		F28FE4BBE79F11DB5D9FE9FD /* NoteHistoryVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37A7A4CBCA0AB8BDB7F6D8F /* NoteHistoryVersion.swift */; };
@@ -416,6 +417,7 @@
 		4C7654820D42A04A6EF7CF49 /* SyncGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncGuardTests.swift; sourceTree = "<group>"; };
 		4C7F993C8253413F7C9A9F79 /* NoteImageAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteImageAttachment.swift; sourceTree = "<group>"; };
 		4CF1BF6126F1DDDE6FF259C7 /* NetworkRecoveryHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRecoveryHandler.swift; sourceTree = "<group>"; };
+		4D3AD9766528663C9AF736CF /* FloatingInfoBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingInfoBar.swift; sourceTree = "<group>"; };
 		4D9E193F6285E5B73F3B182D /* MiNoteToolbarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteToolbarItem.swift; sourceTree = "<group>"; };
 		4E8468EC0808E65357580C03 /* NotesListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListView.swift; sourceTree = "<group>"; };
 		4F74A5BE0EA62E0F08B459F3 /* FormatApplicationMethod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatApplicationMethod.swift; sourceTree = "<group>"; };
@@ -686,6 +688,7 @@
 			children = (
 				39ADFA5993E5132BB0D77892 /* ContentAreaView.swift */,
 				720CC824AAA08D790B1559C9 /* ContentView.swift */,
+				4D3AD9766528663C9AF736CF /* FloatingInfoBar.swift */,
 				F1ABCE2B774CDF77B76A251D /* GalleryView.swift */,
 				B4E2EE44754A0D5742CDE5B9 /* NativeFormatMenuView.swift */,
 				4AF05A85D65CE9514ADD86D9 /* NetworkLogView.swift */,
@@ -1277,7 +1280,7 @@
 			path = Sources/App;
 			sourceTree = "<group>";
 		};
-		"TEMP_5326990F-234E-41A3-AA19-B0FC95A35642" /* Web */ = {
+		"TEMP_B324C2B1-E6EE-416A-9F20-3D4C1A8DFAE0" /* Web */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -1468,6 +1471,7 @@
 				6DBE66AC34F276C1BE7028D9 /* EditorStateConsistencyChecker.swift in Sources */,
 				FB9D22888993D0CBEBFE1EFD /* ErrorRecoveryService.swift in Sources */,
 				EBA5E00131015D430D09503A /* ExpandedNoteView.swift in Sources */,
+				F00707AF58806715F39E45A1 /* FloatingInfoBar.swift in Sources */,
 				4C8F032FCAC2B617F227FDA1 /* Folder.swift in Sources */,
 				F7B25B66D77F78D8AB849455 /* FontSizeManager.swift in Sources */,
 				1B726A5671CE94DED200017B /* FormatApplicationConsistencyChecker.swift in Sources */,
