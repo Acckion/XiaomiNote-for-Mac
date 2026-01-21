@@ -233,6 +233,7 @@
 		C4F6494E12E9E852488DD40B /* IncrementalUpdateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD154D4385EDD8B76C293132 /* IncrementalUpdateManager.swift */; };
 		C99D2E386A21CA95675C3745 /* NetworkLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AF05A85D65CE9514ADD86D9 /* NetworkLogView.swift */; };
 		C9AA78115DA5EA00B1418C6F /* SyncGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C103724B4C23753411493B8A /* SyncGuard.swift */; };
+		CA301283BF4E3A095F99BC16 /* LiquidGlassSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2585AEEDD27CDA693B3839D9 /* LiquidGlassSectionHeader.swift */; };
 		CB7F0F56BAE76D901A5C29FD /* AudioPanelStateManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 115B6C43B6C102D5E25AE301 /* AudioPanelStateManagerTests.swift */; };
 		CE3D635DB3EE4344580E883B /* PerformanceCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55B4B2CC41CAC90B9E638851 /* PerformanceCache.swift */; };
 		CFE56CC841FE95DA872872E0 /* PasteboardManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB8E6EBCA9EAA667044F9F3E /* PasteboardManager.swift */; };
@@ -375,6 +376,7 @@
 		23C0A34630D09A5EF91919EF /* ExpandedNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandedNoteView.swift; sourceTree = "<group>"; };
 		253D1427C8F76E2989212651 /* MainWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowState.swift; sourceTree = "<group>"; };
 		2581C453FE41B54A4B57196E /* AudioPanelHostingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPanelHostingController.swift; sourceTree = "<group>"; };
+		2585AEEDD27CDA693B3839D9 /* LiquidGlassSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassSectionHeader.swift; sourceTree = "<group>"; };
 		270282B256DE7C3BF5ED1372 /* PendingUploadEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingUploadEntry.swift; sourceTree = "<group>"; };
 		284BE62A95857AFA64A4A7FC /* ViewOptionsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewOptionsManager.swift; sourceTree = "<group>"; };
 		28FAA4982B15A440D56E5C45 /* AppStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateManager.swift; sourceTree = "<group>"; };
@@ -964,6 +966,7 @@
 			isa = PBXGroup;
 			children = (
 				23C0A34630D09A5EF91919EF /* ExpandedNoteView.swift */,
+				2585AEEDD27CDA693B3839D9 /* LiquidGlassSectionHeader.swift */,
 				3A6B407AC757C4CF9CE8B305 /* MoveNoteMenuView.swift */,
 				B45BF5C9F7754010D58D5BF6 /* MoveNoteView.swift */,
 				F5A164FE1770FFB98A74958A /* NewNoteView.swift */,
@@ -1280,7 +1283,7 @@
 			path = Sources/App;
 			sourceTree = "<group>";
 		};
-		"TEMP_B324C2B1-E6EE-416A-9F20-3D4C1A8DFAE0" /* Web */ = {
+		"TEMP_83DCE824-D00F-4868-BF10-4CDEAD6DE5AC" /* Web */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -1501,6 +1504,7 @@
 				C4F6494E12E9E852488DD40B /* IncrementalUpdateManager.swift in Sources */,
 				868E02A3BB670D82FA7A24D2 /* InlineFormatHandler.swift in Sources */,
 				73CED8359A62FBFC59B15D8C /* InlineNodes.swift in Sources */,
+				CA301283BF4E3A095F99BC16 /* LiquidGlassSectionHeader.swift in Sources */,
 				6E63D4502AD91BAC76B7A880 /* ListBehaviorHandler.swift in Sources */,
 				907FA53C9686AD1AA222175C /* ListFormatHandler.swift in Sources */,
 				086B91C19174D16E30CF5F14 /* LocalStorageService.swift in Sources */,
@@ -1763,7 +1767,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1790,7 +1794,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteLibrary;
 				PRODUCT_NAME = MiNoteLibrary;
 				SDKROOT = macosx;
@@ -1812,7 +1816,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteLibraryTests;
 				PRODUCT_NAME = MiNoteLibraryTests;
 				SDKROOT = macosx;
@@ -1832,7 +1836,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteMac;
 				PRODUCT_NAME = MiNoteMac;
 				SDKROOT = macosx;
@@ -1853,7 +1857,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteLibraryTests;
 				PRODUCT_NAME = MiNoteLibraryTests;
 				SDKROOT = macosx;
@@ -1879,7 +1883,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteLibrary;
 				PRODUCT_NAME = MiNoteLibrary;
 				SDKROOT = macosx;
@@ -1941,7 +1945,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -1966,7 +1970,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteMac;
 				PRODUCT_NAME = MiNoteMac;
 				SDKROOT = macosx;

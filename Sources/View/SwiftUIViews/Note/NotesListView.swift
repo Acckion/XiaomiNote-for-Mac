@@ -327,7 +327,8 @@ struct NotesListView: View {
             .padding(.bottom, 8) // 增加底部边距，避免最后一个笔记与底部距离太近
         }
         .background(Color(NSColor.windowBackgroundColor))
-        // 注意：不再使用 .id() 强制重建整个 ScrollView
+        // 注意：不使用 .ignoresSafeArea()，让粘性分组头在工具栏下方而不是背后
+        // 粘性分组头紧贴工具栏，使用相同的 .regularMaterial 模糊效果，视觉上融为一体
         // 选择状态通过 PinnedNoteRowContent 子视图的 @ObservedObject 自动更新
         // 这样可以保持滚动位置，同时正确更新高亮状态
         // _Requirements: 2.2, 2.3_
@@ -348,36 +349,21 @@ struct NotesListView: View {
     }
     
     /// 固定分组标题样式
-    /// 使用不透明背景确保滚动时内容不会透过标题显示
+    /// 使用 LiquidGlassSectionHeader 组件实现 Liquid Glass 效果
+    /// 与工具栏融为一体，形成连续的模糊玻璃表面
+    /// _Validates: Requirements 2.1, 2.2, 2.3_
     private func pinnedSectionHeader(title: String) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(title)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.primary)
-                .padding(.bottom, 10)
-            
-            Rectangle()
-                .fill(Color(NSColor.separatorColor))
-                .frame(height: 1)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, -10)  // 负的水平 padding，使分割线向左右两侧延伸到边缘
-                .padding(.bottom, 8)
-        }
-        .padding(.top, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.windowBackgroundColor)) // 不透明背景，确保固定时遮挡下方内容
+        LiquidGlassSectionHeader(title: title)
     }
     
     // MARK: - 标准列表内容（平铺模式）
     
     /// 标准 List 视图，用于平铺模式（不分组）
-    /// _Requirements: 2.1, 2.2, 2.3_
     private var standardListContent: some View {
         List(selection: Binding(
             get: { viewModel.selectedNote },
             set: { newValue in
                 // 设置选择标志，禁用选择期间的动画
-                // _Requirements: 2.1, 2.2, 2.3_
                 isSelectingNote = true
                 viewModel.selectedNote = newValue
                 // 延迟重置选择标志，确保动画禁用生效
@@ -422,7 +408,6 @@ struct NotesListView: View {
         let now = Date()
         
         // 根据排序方式决定使用哪个日期字段
-        // _Requirements: 2.3, 3.3_
         let useCreateDate = optionsManager.sortOrder == .createDate
         
         // 先分离置顶笔记
@@ -1145,3 +1130,4 @@ struct NoteRow: View {
 #Preview {
     NotesListView(viewModel: NotesViewModel())
 }
+
