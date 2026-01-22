@@ -69,6 +69,7 @@
 		2AC9FA0344198983CB4A7E32 /* AudioRecorderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 912AD0623157E3FEF51C3918 /* AudioRecorderService.swift */; };
 		2B74B192C5F0ECF3B0CAF378 /* NotesListHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41D32DA81E0A2F6BE5BCFF0 /* NotesListHostingController.swift */; };
 		2BA81EAE173461CC788DB9E1 /* BlockFormatHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73C43716EF906941DD0B39E1 /* BlockFormatHandler.swift */; };
+		2C327C24F7614C6EE02F8C0E /* AppCoordinatorIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3077EB699CFCD0F5D39D137D /* AppCoordinatorIntegrationTests.swift */; };
 		2E026C2D5C15FA58D42204C6 /* MoveNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B45BF5C9F7754010D58D5BF6 /* MoveNoteView.swift */; };
 		2EA59F8914CA2CD4E0C63897 /* MockNoteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0097E56E1C6E07F9BCDA63 /* MockNoteService.swift */; };
 		2F9D70EB17894706E00AF658 /* NetworkClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 773C672810F5822E8CC50FC1 /* NetworkClient.swift */; };
@@ -452,6 +453,7 @@
 		2FC4DFE5A72297F6145EA260 /* EditorStateConsistencyChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorStateConsistencyChecker.swift; sourceTree = "<group>"; };
 		301E50F0217F541578473B97 /* NoteListViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteListViewModelTests.swift; sourceTree = "<group>"; };
 		305FEF5D4ABF0071C1325748 /* AudioAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAttachment.swift; sourceTree = "<group>"; };
+		3077EB699CFCD0F5D39D137D /* AppCoordinatorIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinatorIntegrationTests.swift; sourceTree = "<group>"; };
 		308D9082943F0E7CCA1DC4BF /* FormatSpanMergerPropertyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatSpanMergerPropertyTests.swift; sourceTree = "<group>"; };
 		30F9C29A7C4099E8FA362063 /* UnifiedFormatManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedFormatManager.swift; sourceTree = "<group>"; };
 		3102964278BED01E0B049D1C /* ViewOptionsState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewOptionsState.swift; sourceTree = "<group>"; };
@@ -1103,6 +1105,7 @@
 		5F6AEAF16CE6582E6B7048C4 /* CoordinatorTests */ = {
 			isa = PBXGroup;
 			children = (
+				3077EB699CFCD0F5D39D137D /* AppCoordinatorIntegrationTests.swift */,
 				C8A7BCDA485D181F68A7CD0E /* AppCoordinatorTests.swift */,
 				45A869D6DDC7044296680869 /* SyncCoordinatorTests.swift */,
 			);
@@ -2129,6 +2132,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2C327C24F7614C6EE02F8C0E /* AppCoordinatorIntegrationTests.swift in Sources */,
 				31AC7A045CBC6DF1AEB95D5A /* AppCoordinatorTests.swift in Sources */,
 				63167748D9013E4385C17A14 /* AttributedStringRoundTripPropertyTests.swift in Sources */,
 				265A5E3E31C20BA614800D43 /* AudioPanelLayoutPropertyTests.swift in Sources */,

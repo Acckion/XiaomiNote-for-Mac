@@ -117,7 +117,7 @@ class PerformanceBenchmark: XCTestCase {
         iterations: Int = 100
     ) rethrows {
         print("\n🔬 开始性能对比测试")
-        print("=" * 60)
+        print(String(repeating: "=", count: 60))
         
         let oldMetrics = try measure(name: "旧实现", iterations: iterations, block: oldImplementation)
         let newMetrics = try measure(name: "新实现", iterations: iterations, block: newImplementation)
@@ -130,7 +130,7 @@ class PerformanceBenchmark: XCTestCase {
         let memoryImprovement = ((Double(oldMetrics.memoryUsage) - Double(newMetrics.memoryUsage)) / Double(oldMetrics.memoryUsage)) * 100
         
         print("\n📈 性能改进")
-        print("=" * 60)
+        print(String(repeating: "=", count: 60))
         print("⏱️  时间: \(String(format: "%.1f", timeImprovement))%")
         print("💾 内存: \(String(format: "%.1f", memoryImprovement))%")
         
@@ -152,7 +152,7 @@ class PerformanceBenchmark: XCTestCase {
         iterations: Int = 100
     ) async rethrows {
         print("\n🔬 开始异步性能对比测试")
-        print("=" * 60)
+        print(String(repeating: "=", count: 60))
         
         let oldMetrics = try await measureAsync(name: "旧实现", iterations: iterations, block: oldImplementation)
         let newMetrics = try await measureAsync(name: "新实现", iterations: iterations, block: newImplementation)
@@ -165,7 +165,7 @@ class PerformanceBenchmark: XCTestCase {
         let memoryImprovement = ((Double(oldMetrics.memoryUsage) - Double(newMetrics.memoryUsage)) / Double(oldMetrics.memoryUsage)) * 100
         
         print("\n📈 性能改进")
-        print("=" * 60)
+        print(String(repeating: "=", count: 60))
         print("⏱️  时间: \(String(format: "%.1f", timeImprovement))%")
         print("💾 内存: \(String(format: "%.1f", memoryImprovement))%")
         
@@ -186,7 +186,7 @@ class PerformanceBenchmark: XCTestCase {
         let metrics = try measure(name: name, iterations: 1000, block: block)
         
         print("\n📊 性能基线: \(name)")
-        print("=" * 60)
+        print(String(repeating: "=", count: 60))
         print(metrics.report())
         
         // 保存基线到 UserDefaults（仅用于测试）
@@ -210,7 +210,7 @@ class PerformanceBenchmark: XCTestCase {
         let metrics = try measure(name: name, iterations: 1000, block: block)
         
         print("\n📊 与基线对比: \(name)")
-        print("=" * 60)
+        print(String(repeating: "=", count: 60))
         print("📍 基线: \(String(format: "%.3f", baseline * 1000))ms")
         print("📊 当前: \(String(format: "%.3f", metrics.averageTime * 1000))ms")
         
