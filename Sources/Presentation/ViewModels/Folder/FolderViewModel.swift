@@ -6,8 +6,8 @@
 //  文件夹 ViewModel - 负责文件夹管理功能
 //
 
-import Foundation
-import Combine
+@preconcurrency import Foundation
+@preconcurrency import Combine
 
 /// 文件夹 ViewModel
 ///
@@ -20,8 +20,8 @@ import Combine
 final class FolderViewModel: LoadableViewModel {
     // MARK: - Dependencies
 
-    private let noteStorage: NoteStorageProtocol
-    private let noteService: NoteServiceProtocol
+    nonisolated(unsafe) private let noteStorage: NoteStorageProtocol
+    nonisolated(unsafe) private let noteService: NoteServiceProtocol
 
     // MARK: - Published Properties
 

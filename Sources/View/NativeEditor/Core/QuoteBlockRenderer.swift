@@ -13,13 +13,13 @@ import SwiftUI
 /// 自定义属性键，用于标记引用块范围
 extension NSAttributedString.Key {
     /// 引用块标记属性
-    static let quoteBlock = NSAttributedString.Key("MiNote.quoteBlock")
+    nonisolated(unsafe) static let quoteBlock = NSAttributedString.Key("MiNote.quoteBlock")
     
     /// 引用块缩进级别
-    static let quoteIndent = NSAttributedString.Key("MiNote.quoteIndent")
+    nonisolated(unsafe) static let quoteIndent = NSAttributedString.Key("MiNote.quoteIndent")
     
     /// 引用块 ID（用于标识同一个引用块的多行）
-    static let quoteBlockId = NSAttributedString.Key("MiNote.quoteBlockId")
+    nonisolated(unsafe) static let quoteBlockId = NSAttributedString.Key("MiNote.quoteBlockId")
 }
 
 // MARK: - 引用块样式配置
@@ -57,12 +57,12 @@ struct QuoteBlockStyle {
     var cornerRadius: CGFloat = 4
     
     /// 获取当前主题的边框颜色
-    func borderColor(isDarkMode: Bool) -> NSColor {
+    nonisolated func borderColor(isDarkMode: Bool) -> NSColor {
         return isDarkMode ? borderColorDark : borderColorLight
     }
     
     /// 获取当前主题的背景颜色
-    func backgroundColor(isDarkMode: Bool) -> NSColor {
+    nonisolated func backgroundColor(isDarkMode: Bool) -> NSColor {
         return isDarkMode ? backgroundColorDark : backgroundColorLight
     }
 }
@@ -75,10 +75,10 @@ class QuoteBlockLayoutManager: NSLayoutManager {
     // MARK: - Properties
     
     /// 引用块样式
-    var quoteStyle: QuoteBlockStyle = QuoteBlockStyle()
+    nonisolated(unsafe) var quoteStyle: QuoteBlockStyle = QuoteBlockStyle()
     
     /// 是否为深色模式
-    var isDarkMode: Bool = false {
+    nonisolated(unsafe) var isDarkMode: Bool = false {
         didSet {
             if oldValue != isDarkMode {
                 // 需要重新绘制
@@ -88,31 +88,31 @@ class QuoteBlockLayoutManager: NSLayoutManager {
     }
     
     /// 缓存的引用块范围
-    private var cachedQuoteRanges: [NSRange] = []
+    nonisolated(unsafe) private var cachedQuoteRanges: [NSRange] = []
     
     /// 是否需要更新缓存
-    private var needsUpdateCache: Bool = true
+    nonisolated(unsafe) private var needsUpdateCache: Bool = true
     
     // MARK: - Initialization
     
-    override init() {
+    nonisolated override init() {
         super.init()
         setupLayoutManager()
     }
     
-    required init?(coder: NSCoder) {
+    nonisolated required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupLayoutManager()
     }
     
-    private func setupLayoutManager() {
+    nonisolated private func setupLayoutManager() {
         // 启用背景布局
         allowsNonContiguousLayout = true
     }
     
     // MARK: - NSLayoutManager Override
     
-    override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+    nonisolated override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         // 先调用父类方法绘制默认背景
         super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
         
@@ -123,7 +123,7 @@ class QuoteBlockLayoutManager: NSLayoutManager {
         drawQuoteBlockBackgrounds(forGlyphRange: glyphsToShow, at: origin)
     }
     
-    override func processEditing(for textStorage: NSTextStorage,
+    nonisolated override func processEditing(for textStorage: NSTextStorage,
                                 edited editMask: NSTextStorageEditActions,
                                 range newCharRange: NSRange,
                                 changeInLength delta: Int,
@@ -137,7 +137,7 @@ class QuoteBlockLayoutManager: NSLayoutManager {
     // MARK: - Quote Block Drawing
     
     /// 绘制引用块背景
-    private func drawQuoteBlockBackgrounds(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+    nonisolated private func drawQuoteBlockBackgrounds(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         guard let textStorage = textStorage,
               let textContainer = textContainers.first else {
             return
@@ -163,7 +163,7 @@ class QuoteBlockLayoutManager: NSLayoutManager {
     }
     
     /// 绘制单个引用块
-    private func drawQuoteBlock(for charRange: NSRange, in textContainer: NSTextContainer, at origin: NSPoint) {
+    nonisolated private func drawQuoteBlock(for charRange: NSRange, in textContainer: NSTextContainer, at origin: NSPoint) {
         // 获取引用块的字形范围
         let glyphRange = glyphRange(forCharacterRange: charRange, actualCharacterRange: nil)
         
@@ -204,7 +204,7 @@ class QuoteBlockLayoutManager: NSLayoutManager {
     }
     
     /// 合并行矩形
-    private func mergeLineRects(_ rects: [CGRect]) -> CGRect {
+    nonisolated private func mergeLineRects(_ rects: [CGRect]) -> CGRect {
         guard let first = rects.first else {
             return .zero
         }
@@ -229,7 +229,7 @@ class QuoteBlockLayoutManager: NSLayoutManager {
     }
     
     /// 绘制引用块背景
-    private func drawQuoteBackground(in rect: CGRect) {
+    nonisolated private func drawQuoteBackground(in rect: CGRect) {
         let backgroundColor = quoteStyle.backgroundColor(isDarkMode: isDarkMode)
         
         // 创建圆角矩形路径
@@ -240,7 +240,7 @@ class QuoteBlockLayoutManager: NSLayoutManager {
     }
     
     /// 绘制引用块左侧边框
-    private func drawQuoteBorder(in rect: CGRect) {
+    nonisolated private func drawQuoteBorder(in rect: CGRect) {
         let borderColor = quoteStyle.borderColor(isDarkMode: isDarkMode)
         
         // 创建左侧边框路径
@@ -261,7 +261,7 @@ class QuoteBlockLayoutManager: NSLayoutManager {
     // MARK: - Cache Management
     
     /// 更新引用块范围缓存
-    private func updateQuoteRangesCache() {
+    nonisolated private func updateQuoteRangesCache() {
         cachedQuoteRanges.removeAll()
         
         guard let textStorage = textStorage else {
@@ -292,14 +292,14 @@ class QuoteBlockLayoutManager: NSLayoutManager {
     }
     
     /// 使缓存失效
-    func invalidateQuoteCache() {
+    nonisolated func invalidateQuoteCache() {
         needsUpdateCache = true
     }
     
     // MARK: - Theme
     
     /// 更新主题
-    private func updateTheme() {
+    nonisolated private func updateTheme() {
         guard let currentAppearance = NSApp?.effectiveAppearance else {
             return
         }
@@ -377,10 +377,10 @@ final class QuoteBlockAttachment: NSTextAttachment, ThemeAwareAttachment {
     // MARK: - Properties
     
     /// 缩进级别
-    var indent: Int = 1
+    nonisolated(unsafe) var indent: Int = 1
     
     /// 是否为深色模式
-    var isDarkMode: Bool = false {
+    nonisolated(unsafe) var isDarkMode: Bool = false {
         didSet {
             if oldValue != isDarkMode {
                 cachedImage = nil
@@ -389,37 +389,37 @@ final class QuoteBlockAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
     
     /// 引用块样式
-    var style: QuoteBlockStyle = QuoteBlockStyle()
+    nonisolated(unsafe) var style: QuoteBlockStyle = QuoteBlockStyle()
     
     /// 缓存的图像
-    private var cachedImage: NSImage?
+    nonisolated(unsafe) private var cachedImage: NSImage?
     
     // MARK: - Initialization
     
-    override init(data contentData: Data?, ofType uti: String?) {
+    nonisolated override init(data contentData: Data?, ofType uti: String?) {
         super.init(data: contentData, ofType: uti)
         setupAttachment()
     }
     
-    required init?(coder: NSCoder) {
+    nonisolated required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupAttachment()
     }
     
     /// 便捷初始化方法
-    convenience init(indent: Int = 1) {
+    nonisolated convenience init(indent: Int = 1) {
         self.init(data: nil, ofType: nil)
         self.indent = indent
     }
     
-    private func setupAttachment() {
+    nonisolated private func setupAttachment() {
         // 设置附件边界（仅用于左侧边框指示器）
         self.bounds = CGRect(x: 0, y: 0, width: style.borderWidth + style.leftPadding, height: 16)
     }
     
     // MARK: - NSTextAttachment Override
     
-    override func image(forBounds imageBounds: CGRect,
+    nonisolated override func image(forBounds imageBounds: CGRect,
                        textContainer: NSTextContainer?,
                        characterIndex charIndex: Int) -> NSImage? {
         // 检查主题变化
@@ -436,7 +436,7 @@ final class QuoteBlockAttachment: NSTextAttachment, ThemeAwareAttachment {
         return image
     }
     
-    override func attachmentBounds(for textContainer: NSTextContainer?,
+    nonisolated override func attachmentBounds(for textContainer: NSTextContainer?,
                                   proposedLineFragment lineFrag: CGRect,
                                   glyphPosition position: CGPoint,
                                   characterIndex charIndex: Int) -> CGRect {
@@ -445,7 +445,7 @@ final class QuoteBlockAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - ThemeAwareAttachment
     
-    func updateTheme() {
+    nonisolated func updateTheme() {
         guard let currentAppearance = NSApp?.effectiveAppearance else {
             return
         }
@@ -459,7 +459,7 @@ final class QuoteBlockAttachment: NSTextAttachment, ThemeAwareAttachment {
     // MARK: - Private Methods
     
     /// 创建引用块指示器图像
-    private func createQuoteIndicatorImage() -> NSImage {
+    nonisolated private func createQuoteIndicatorImage() -> NSImage {
         let width = style.borderWidth + style.leftPadding
         let height: CGFloat = 16
         let size = NSSize(width: width, height: height)

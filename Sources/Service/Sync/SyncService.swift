@@ -30,14 +30,14 @@ final class SyncService: @unchecked Sendable {
     private let syncGuard = SyncGuard()
     
     /// 统一操作队列
-    private let unifiedQueue = UnifiedOperationQueue.shared
+    let unifiedQueue = UnifiedOperationQueue.shared
     
     // MARK: - 初始化
     
     /// 初始化同步服务
     ///
     /// - Parameter syncStateManager: 同步状态管理器，默认创建新实例
-    private init(syncStateManager: SyncStateManager = SyncStateManager()) {
+    private init(syncStateManager: SyncStateManager = SyncStateManager.createDefault()) {
         self.syncStateManager = syncStateManager
         print("[SYNC] SyncService 初始化完成，已注入 SyncStateManager")
     }
@@ -53,7 +53,7 @@ final class SyncService: @unchecked Sendable {
 
     
     /// 是否正在同步（线程安全访问）
-    private var isSyncing: Bool {
+    private var _isSyncingInternal: Bool {
         get {
             syncLock.lock()
             defer { syncLock.unlock() }
@@ -67,7 +67,7 @@ final class SyncService: @unchecked Sendable {
     }
     
     /// 同步进度（0.0 - 1.0）
-    private var syncProgress: Double = 0
+    private var _syncProgressInternal: Double = 0
     
     /// 同步状态消息（用于UI显示）
     private var syncStatusMessage: String = ""
@@ -79,11 +79,11 @@ final class SyncService: @unchecked Sendable {
     private var _currentSyncTag: String?
     
     var isSyncingNow: Bool {
-        return isSyncing
+        return _isSyncingInternal
     }
     
     var currentProgress: Double {
-        return syncProgress
+        return _syncProgressInternal
     }
     
     var currentStatusMessage: String {
@@ -124,7 +124,7 @@ final class SyncService: @unchecked Sendable {
             return false
         }
         
-        _isSyncing = true
+        _isSyncingInternal = true
         print("[SYNC] 🔒 同步锁已获取")
         return true
     }
@@ -135,7 +135,7 @@ final class SyncService: @unchecked Sendable {
         syncLock.lock()
         defer { syncLock.unlock() }
         
-        _isSyncing = false
+        _isSyncingInternal = false
         print("[SYNC] 🔓 同步锁已释放")
     }
     
@@ -175,7 +175,7 @@ final class SyncService: @unchecked Sendable {
         print("[SYNC] 开始执行完整同步，checkIsSyncing: \(checkIsSyncing)")
         
         if checkIsSyncing {
-            guard !isSyncing else {
+            guard !_isSyncingInternal else {
                 print("[SYNC] 错误：同步正在进行中")
                 throw SyncError.alreadySyncing
             }
@@ -186,12 +186,12 @@ final class SyncService: @unchecked Sendable {
             throw SyncError.notAuthenticated
         }
         
-        isSyncing = true
-        syncProgress = 0
+        _isSyncingInternal = true
+        _syncProgressInternal = 0
         syncStatusMessage = "开始完整同步..."
         
         defer {
-            isSyncing = false
+            _isSyncingInternal = false
             print("[SYNC] 同步结束，isSyncing设置为false")
         }
         
@@ -294,7 +294,7 @@ final class SyncService: @unchecked Sendable {
             
             // 4. 处理所有笔记（添加错误处理，单个笔记失败不影响整体同步）
             for (index, note) in allCloudNotes.enumerated() {
-                syncProgress = Double(index) / Double(max(totalNotes, 1))
+                _syncProgressInternal = Double(index) / Double(max(totalNotes, 1))
                 syncStatusMessage = "正在同步笔记: \(note.title)"
                 
                 do {
@@ -346,7 +346,7 @@ final class SyncService: @unchecked Sendable {
                 
                 // 处理私密笔记
                 for (index, note) in privateNotes.enumerated() {
-                    syncProgress = Double(syncedNotes + index) / Double(max(totalNotes, 1))
+                    _syncProgressInternal = Double(syncedNotes + index) / Double(max(totalNotes, 1))
                     syncStatusMessage = "正在同步私密笔记: \(note.title)"
                     
                     // 获取笔记详情
@@ -449,7 +449,7 @@ final class SyncService: @unchecked Sendable {
             // 移除直接更新 LocalStorageService 的代码（已由 SyncStateManager 处理）
             // 移除内部缓存更新（不再需要）
             
-            syncProgress = 1.0
+            _syncProgressInternal = 1.0
             syncStatusMessage = "完整同步完成"
             
             result.totalNotes = totalNotes
@@ -501,7 +501,7 @@ final class SyncService: @unchecked Sendable {
     /// - Throws: SyncError（同步错误、网络错误等）
     func performIncrementalSync() async throws -> SyncResult {
         print("[SYNC] 开始执行增量同步")
-        guard !isSyncing else {
+        guard !_isSyncingInternal else {
             print("[SYNC] 错误：同步正在进行中")
             throw SyncError.alreadySyncing
         }
@@ -518,12 +518,12 @@ final class SyncService: @unchecked Sendable {
             return try await performFullSync()
         }
         
-        isSyncing = true
-        syncProgress = 0
+        _isSyncingInternal = true
+        _syncProgressInternal = 0
         syncStatusMessage = "开始增量同步..."
         
         defer {
-            isSyncing = false
+            _isSyncingInternal = false
             print("[SYNC] 增量同步结束，isSyncing设置为false")
         }
         
@@ -586,7 +586,7 @@ final class SyncService: @unchecked Sendable {
             
             // 处理笔记（按照增量同步规则）
             for (index, note) in notes.enumerated() {
-                syncProgress = Double(index) / Double(max(notes.count, 1))
+                _syncProgressInternal = Double(index) / Double(max(notes.count, 1))
                 syncStatusMessage = "正在同步笔记: \(note.title)"
                 
                 let noteResult = try await syncNoteIncremental(cloudNote: note)
@@ -618,7 +618,7 @@ final class SyncService: @unchecked Sendable {
             syncStatusMessage = "检查本地独有的笔记和文件夹..."
             try await syncLocalOnlyItems(cloudNoteIds: cloudNoteIds, cloudFolderIds: cloudFolderIds)
             
-            syncProgress = 1.0
+            _syncProgressInternal = 1.0
             syncStatusMessage = "增量同步完成"
             
             result.totalNotes = notes.count
@@ -666,7 +666,7 @@ final class SyncService: @unchecked Sendable {
             return try await performFullSync(checkIsSyncing: false)
         }
         
-        syncProgress = 0
+        _syncProgressInternal = 0
         syncStatusMessage = "开始网页版增量同步..."
         
         var result = SyncResult()
@@ -706,7 +706,7 @@ final class SyncService: @unchecked Sendable {
             
             // 处理笔记（按照增量同步规则）
             for (index, note) in notes.enumerated() {
-                syncProgress = Double(index) / Double(max(notes.count, 1))
+                _syncProgressInternal = Double(index) / Double(max(notes.count, 1))
                 syncStatusMessage = "正在同步笔记: \(note.title)"
                 
                 let noteResult = try await syncNoteIncremental(cloudNote: note)
@@ -738,7 +738,7 @@ final class SyncService: @unchecked Sendable {
             syncStatusMessage = "检查本地独有的笔记和文件夹..."
             try await syncLocalOnlyItems(cloudNoteIds: cloudNoteIds, cloudFolderIds: cloudFolderIds)
             
-            syncProgress = 1.0
+            _syncProgressInternal = 1.0
             syncStatusMessage = "网页版增量同步完成"
             
             result.totalNotes = notes.count
@@ -791,7 +791,7 @@ final class SyncService: @unchecked Sendable {
             return try await performFullSync(checkIsSyncing: false)
         }
         
-        syncProgress = 0
+        _syncProgressInternal = 0
         syncStatusMessage = "开始轻量级增量同步..."
         
         var result = SyncResult()
@@ -830,7 +830,7 @@ final class SyncService: @unchecked Sendable {
             syncStatusMessage = "同步有修改的文件夹..."
             if !modifiedFolders.isEmpty {
                 for (index, folder) in modifiedFolders.enumerated() {
-                    syncProgress = Double(index) / Double(max(modifiedFolders.count + modifiedNotes.count, 1))
+                    _syncProgressInternal = Double(index) / Double(max(modifiedFolders.count + modifiedNotes.count, 1))
                     syncStatusMessage = "正在同步文件夹: \(folder.name)"
                     
                     try await processModifiedFolder(folder)
@@ -841,7 +841,7 @@ final class SyncService: @unchecked Sendable {
             syncStatusMessage = "同步有修改的笔记..."
             if !modifiedNotes.isEmpty {
                 for (index, note) in modifiedNotes.enumerated() {
-                    syncProgress = Double(modifiedFolders.count + index) / Double(max(modifiedFolders.count + modifiedNotes.count, 1))
+                    _syncProgressInternal = Double(modifiedFolders.count + index) / Double(max(modifiedFolders.count + modifiedNotes.count, 1))
                     syncStatusMessage = "正在同步笔记: \(note.title)"
                     
                     let noteResult = try await processModifiedNote(note)
@@ -872,7 +872,7 @@ final class SyncService: @unchecked Sendable {
             // 注意：轻量级同步不调用 syncLocalOnlyItems，因为它只返回有修改的笔记
             // 未修改的笔记应该保持不变，删除操作通过笔记的"status"字段处理
             
-            syncProgress = 1.0
+            _syncProgressInternal = 1.0
             syncStatusMessage = "轻量级增量同步完成"
             
             result.totalNotes = modifiedNotes.count
@@ -2172,7 +2172,7 @@ final class SyncService: @unchecked Sendable {
     /// 
     /// 注意：此方法只是设置标志位，不会立即中断正在执行的网络请求
     func cancelSync() {
-        isSyncing = false
+        _isSyncingInternal = false
         syncStatusMessage = "同步已取消"
     }
     

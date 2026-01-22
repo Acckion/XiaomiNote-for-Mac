@@ -5,7 +5,7 @@ import Combine
 ///
 /// 注意：这是重构过渡期的实现，暂时不完全可用
 /// 需要等待 NetworkClient 完整实现后才能正常工作
-final class DefaultAuthenticationService: AuthenticationServiceProtocol {
+final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchecked Sendable {
     // MARK: - Properties
     private let networkClient: NetworkClient
     private let userStateSubject = CurrentValueSubject<UserProfile?, Never>(nil)

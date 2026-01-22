@@ -129,19 +129,19 @@ public enum EditorType: String, CaseIterable, Identifiable, Codable, Sendable {
     
     public var id: String { rawValue }
     
-    var displayName: String {
+    nonisolated var displayName: String {
         return "原生编辑器"
     }
     
-    var description: String {
+    nonisolated var description: String {
         return "使用 SwiftUI 和 NSTextView 实现的原生编辑器，提供最佳的 macOS 体验"
     }
     
-    var icon: String {
+    nonisolated var icon: String {
         return "doc.text"
     }
     
-    var features: [String] {
+    nonisolated var features: [String] {
         return [
             "原生 macOS 体验",
             "更好的性能",
@@ -151,7 +151,7 @@ public enum EditorType: String, CaseIterable, Identifiable, Codable, Sendable {
         ]
     }
     
-    var minimumSystemVersion: String {
+    nonisolated var minimumSystemVersion: String {
         return "macOS 13.0"
     }
 }

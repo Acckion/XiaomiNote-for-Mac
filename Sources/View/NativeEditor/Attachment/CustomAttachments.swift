@@ -92,12 +92,12 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
     
     // MARK: - Initialization
     
-    override init(data contentData: Data?, ofType uti: String?) {
+    nonisolated override init(data contentData: Data?, ofType uti: String?) {
         super.init(data: contentData, ofType: uti)
         setupAttachment()
     }
     
-    required init?(coder: NSCoder) {
+    nonisolated required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupAttachment()
     }
@@ -121,7 +121,7 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
     
     // MARK: - NSTextAttachment Override
     
-    override func image(forBounds imageBounds: CGRect,
+    nonisolated override func image(forBounds imageBounds: CGRect,
                        textContainer: NSTextContainer?,
                        characterIndex charIndex: Int) -> NSImage? {
         // 保存字符索引
@@ -148,7 +148,7 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
         }
     }
     
-    override func attachmentBounds(for textContainer: NSTextContainer?,
+    nonisolated override func attachmentBounds(for textContainer: NSTextContainer?,
                                   proposedLineFragment lineFrag: CGRect,
                                   glyphPosition position: CGPoint,
                                   characterIndex charIndex: Int) -> CGRect {
@@ -352,12 +352,12 @@ final class HorizontalRuleAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - Initialization
     
-    override init(data contentData: Data?, ofType uti: String?) {
+    nonisolated override init(data contentData: Data?, ofType uti: String?) {
         super.init(data: contentData, ofType: uti)
         setupAttachment()
     }
     
-    required init?(coder: NSCoder) {
+    nonisolated required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupAttachment()
     }
@@ -383,7 +383,7 @@ final class HorizontalRuleAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - NSTextAttachment Override
     
-    override func image(forBounds imageBounds: CGRect,
+    nonisolated override func image(forBounds imageBounds: CGRect,
                        textContainer: NSTextContainer?,
                        characterIndex charIndex: Int) -> NSImage? {
         // 检查主题变化
@@ -416,7 +416,7 @@ final class HorizontalRuleAttachment: NSTextAttachment, ThemeAwareAttachment {
         return image
     }
     
-    override func attachmentBounds(for textContainer: NSTextContainer?,
+    nonisolated override func attachmentBounds(for textContainer: NSTextContainer?,
                                   proposedLineFragment lineFrag: CGRect,
                                   glyphPosition position: CGPoint,
                                   characterIndex charIndex: Int) -> CGRect {
@@ -594,12 +594,12 @@ final class BulletAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - Initialization
     
-    override init(data contentData: Data?, ofType uti: String?) {
+    nonisolated override init(data contentData: Data?, ofType uti: String?) {
         super.init(data: contentData, ofType: uti)
         setupAttachment()
     }
     
-    required init?(coder: NSCoder) {
+    nonisolated required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupAttachment()
     }
@@ -619,7 +619,7 @@ final class BulletAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - NSTextAttachment Override
     
-    override func image(forBounds imageBounds: CGRect,
+    nonisolated override func image(forBounds imageBounds: CGRect,
                        textContainer: NSTextContainer?,
                        characterIndex charIndex: Int) -> NSImage? {
         // 检查主题变化
@@ -636,7 +636,7 @@ final class BulletAttachment: NSTextAttachment, ThemeAwareAttachment {
         return image
     }
     
-    override func attachmentBounds(for textContainer: NSTextContainer?,
+    nonisolated override func attachmentBounds(for textContainer: NSTextContainer?,
                                   proposedLineFragment lineFrag: CGRect,
                                   glyphPosition position: CGPoint,
                                   characterIndex charIndex: Int) -> CGRect {
@@ -745,17 +745,17 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
     // MARK: - Properties
     
     /// 列表编号
-    var number: Int = 1 {
+    nonisolated(unsafe) var number: Int = 1 {
         didSet {
             cachedImage = nil
         }
     }
     
     /// 输入编号（对应 XML 中的 inputNumber 属性）
-    var inputNumber: Int = 0
+    nonisolated(unsafe) var inputNumber: Int = 0
     
     /// 缩进级别
-    var indent: Int = 1 {
+    nonisolated(unsafe) var indent: Int = 1 {
         didSet {
             cachedImage = nil
         }
@@ -763,13 +763,13 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     /// 附件宽度（优化后减小以使列表标记与正文左边缘对齐）
     /// _Requirements: 1.2, 4.2_
-    var attachmentWidth: CGFloat = 20
+    nonisolated(unsafe) var attachmentWidth: CGFloat = 20
     
     /// 附件高度
-    var attachmentHeight: CGFloat = 16
+    nonisolated(unsafe) var attachmentHeight: CGFloat = 16
     
     /// 是否为深色模式
-    var isDarkMode: Bool = false {
+    nonisolated(unsafe) var isDarkMode: Bool = false {
         didSet {
             if oldValue != isDarkMode {
                 cachedImage = nil
@@ -778,16 +778,16 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
     
     /// 缓存的图像
-    private var cachedImage: NSImage?
+    nonisolated(unsafe) private var cachedImage: NSImage?
     
     // MARK: - Initialization
     
-    override init(data contentData: Data?, ofType uti: String?) {
+    nonisolated override init(data contentData: Data?, ofType uti: String?) {
         super.init(data: contentData, ofType: uti)
         setupAttachment()
     }
     
-    required init?(coder: NSCoder) {
+    nonisolated required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupAttachment()
     }
@@ -809,7 +809,7 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - NSTextAttachment Override
     
-    override func image(forBounds imageBounds: CGRect,
+    nonisolated override func image(forBounds imageBounds: CGRect,
                        textContainer: NSTextContainer?,
                        characterIndex charIndex: Int) -> NSImage? {
         // 检查主题变化
@@ -826,7 +826,7 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
         return image
     }
     
-    override func attachmentBounds(for textContainer: NSTextContainer?,
+    nonisolated override func attachmentBounds(for textContainer: NSTextContainer?,
                                   proposedLineFragment lineFrag: CGRect,
                                   glyphPosition position: CGPoint,
                                   characterIndex charIndex: Int) -> CGRect {

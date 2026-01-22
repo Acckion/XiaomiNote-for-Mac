@@ -14,6 +14,7 @@ import Combine
 /// 定义了网络状态监控相关的操作接口，包括：
 /// - 网络连接状态
 /// - 网络类型检测
+@preconcurrency
 protocol NetworkMonitorProtocol {
     // MARK: - 网络状态
 

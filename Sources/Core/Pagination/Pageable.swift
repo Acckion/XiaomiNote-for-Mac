@@ -1,6 +1,7 @@
 import Foundation
 
 /// 分页协议
+@MainActor
 protocol Pageable {
     associatedtype Item
 

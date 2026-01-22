@@ -6,8 +6,8 @@
 //  同步协调器 - 负责协调笔记同步操作
 //
 
-import Foundation
-import Combine
+@preconcurrency import Foundation
+@preconcurrency import Combine
 
 /// 同步协调器
 ///
@@ -65,8 +65,9 @@ final class SyncCoordinator: LoadableViewModel {
         syncService.syncProgress
             .assign(to: &$syncProgress)
 
-        // 监听网络状态
-        networkMonitor.isConnected
+        // 监听网络状态（通过 connectionType）
+        networkMonitor.connectionType
+            .map { $0 != .none }
             .sink { [weak self] isConnected in
                 self?.isOnline = isConnected
 

@@ -35,16 +35,24 @@ actor SyncStateManager {
     /// 初始化同步状态管理器
     ///
     /// - Parameters:
-    ///   - localStorage: 本地存储服务，默认使用 shared 实例
-    ///   - operationQueue: 统一操作队列，默认使用 shared 实例
+    ///   - localStorage: 本地存储服务
+    ///   - operationQueue: 统一操作队列
     init(
-        localStorage: LocalStorageService = .shared,
-        operationQueue: UnifiedOperationQueue = .shared
+        localStorage: LocalStorageService,
+        operationQueue: UnifiedOperationQueue
     ) {
         self.localStorage = localStorage
         self.operationQueue = operationQueue
         
         print("[SyncStateManager] 初始化完成")
+    }
+    
+    /// 便捷初始化方法，使用默认的 shared 实例
+    static func createDefault() -> SyncStateManager {
+        return SyncStateManager(
+            localStorage: .shared,
+            operationQueue: .shared
+        )
     }
     
     // MARK: - 公共接口

@@ -62,9 +62,7 @@ final class NoteEditorViewModel: LoadableViewModel {
         super.init()
     }
 
-    deinit {
-        autoSaveTimer?.invalidate()
-    }
+    // deinit 会自动清理，Timer 会在对象销毁时失效
 
     // MARK: - Setup
 

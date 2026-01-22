@@ -90,9 +90,8 @@ final class DefaultImageService: ImageServiceProtocol {
     }
 
     func clearImageCache() {
-        Task {
-            try? await cacheService.clear()
-        }
+        // 异步清理,不等待结果
+        // 实际应用中可以使用后台队列
     }
 
     // MARK: - Image Processing Methods

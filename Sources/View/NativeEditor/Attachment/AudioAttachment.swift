@@ -148,12 +148,12 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - Initialization
     
-    override init(data contentData: Data?, ofType uti: String?) {
+    nonisolated override init(data contentData: Data?, ofType uti: String?) {
         super.init(data: contentData, ofType: uti)
         setupAttachment()
     }
     
-    required init?(coder: NSCoder) {
+    nonisolated required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupAttachment()
     }
@@ -456,7 +456,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - NSTextAttachment Override
     
-    override func image(forBounds imageBounds: CGRect,
+    nonisolated override func image(forBounds imageBounds: CGRect,
                        textContainer: NSTextContainer?,
                        characterIndex charIndex: Int) -> NSImage? {
         // 检查主题变化
@@ -473,7 +473,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
         return image
     }
     
-    override func attachmentBounds(for textContainer: NSTextContainer?,
+    nonisolated override func attachmentBounds(for textContainer: NSTextContainer?,
                                   proposedLineFragment lineFrag: CGRect,
                                   glyphPosition position: CGPoint,
                                   characterIndex charIndex: Int) -> CGRect {

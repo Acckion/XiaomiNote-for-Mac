@@ -86,7 +86,7 @@ public actor OperationProcessor {
         self.localStorage = LocalStorageService.shared
         self.databaseService = DatabaseService.shared
         self.networkMonitor = NetworkMonitor.shared
-        self.syncStateManager = SyncStateManager()
+        self.syncStateManager = SyncStateManager.createDefault()
     }
     
     /// 用于测试的初始化方法

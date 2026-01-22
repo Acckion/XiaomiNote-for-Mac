@@ -47,7 +47,9 @@ public actor NoteOperationCoordinator {
     
     // MARK: - 单例
     
-    public static let shared = NoteOperationCoordinator()
+    public static let shared: NoteOperationCoordinator = {
+        return NoteOperationCoordinator.createDefault()
+    }()
     
     // MARK: - 依赖
     
@@ -71,16 +73,26 @@ public actor NoteOperationCoordinator {
     // MARK: - 初始化
     
     private init(
-        operationQueue: UnifiedOperationQueue = .shared,
-        databaseService: DatabaseService = .shared,
-        localStorage: LocalStorageService = .shared,
-        idMappingRegistry: IdMappingRegistry = .shared
+        operationQueue: UnifiedOperationQueue,
+        databaseService: DatabaseService,
+        localStorage: LocalStorageService,
+        idMappingRegistry: IdMappingRegistry
     ) {
         self.operationQueue = operationQueue
         self.databaseService = databaseService
         self.localStorage = localStorage
         self.idMappingRegistry = idMappingRegistry
         print("[NoteOperationCoordinator] ✅ 初始化完成（使用 UnifiedOperationQueue）")
+    }
+    
+    /// 便捷初始化方法，使用默认的 shared 实例
+    static func createDefault() -> NoteOperationCoordinator {
+        return NoteOperationCoordinator(
+            operationQueue: .shared,
+            databaseService: .shared,
+            localStorage: .shared,
+            idMappingRegistry: .shared
+        )
     }
     
     // MARK: - 保存操作

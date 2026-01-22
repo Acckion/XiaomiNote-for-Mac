@@ -14,6 +14,7 @@ import Foundation
 /// - 笔记的 CRUD 操作
 /// - 查询和搜索
 /// - 批量操作
+@preconcurrency
 protocol NoteStorageProtocol {
     // MARK: - 读取操作
 

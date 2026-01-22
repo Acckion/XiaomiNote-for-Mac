@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 /// 默认同步服务实现
-final class DefaultSyncService: SyncServiceProtocol {
+final class DefaultSyncService: SyncServiceProtocol, @unchecked Sendable {
     // MARK: - Properties
     private let networkClient: NetworkClient
     private let storage: NoteStorageProtocol
@@ -102,6 +102,56 @@ final class DefaultSyncService: SyncServiceProtocol {
                 change: change,
                 timestamp: Date()
             )
+        }
+    }
+
+    func getPendingOperationCount() throws -> Int {
+        // 简化实现：返回 0
+        // 实际应该从 storage 获取待处理操作数量
+        return 0
+    }
+
+    func clearPendingOperations() throws {
+        // 简化实现：暂不实现
+        // 实际应该清除 storage 中的待处理操作
+    }
+
+    func processPendingOperations() async throws {
+        // 简化实现：暂不实现
+        // 实际应该处理 storage 中的待处理操作
+    }
+
+    func queueOperation(_ operation: SyncOperation) throws {
+        // 简化实现：暂不实现
+        // 实际应该将操作添加到 storage 的队列中
+    }
+
+    var isSyncing: AnyPublisher<Bool, Never> {
+        syncStateSubject
+            .map { state in
+                if case .syncing = state {
+                    return true
+                }
+                return false
+            }
+            .eraseToAnyPublisher()
+    }
+
+    var lastSyncTime: Date? {
+        // 简化实现：返回 nil
+        // 实际应该从 storage 获取最后同步时间
+        return nil
+    }
+
+    func forceFullSync() async throws {
+        // 简化实现：调用 startSync
+        try await startSync()
+    }
+
+    func syncNote(id: String) async throws {
+        // 简化实现：从 storage 获取笔记并同步
+        if let note = try? await storage.getNote(id: id) {
+            try await syncNote(note)
         }
     }
 

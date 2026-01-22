@@ -28,9 +28,7 @@ class BaseViewModel: ObservableObject {
         setupBindings()
     }
 
-    deinit {
-        cancellables.removeAll()
-    }
+    // deinit 会自动清理 cancellables，不需要手动调用 removeAll()
 
     // MARK: - Setup
 

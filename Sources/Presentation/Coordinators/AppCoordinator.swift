@@ -21,8 +21,10 @@ final class AppCoordinator: ObservableObject {
 
         // 解析依赖
         let noteStorage = container.resolve(NoteStorageProtocol.self)
+        let noteService = container.resolve(NoteServiceProtocol.self)
         let syncService = container.resolve(SyncServiceProtocol.self)
         let authService = container.resolve(AuthenticationServiceProtocol.self)
+        let networkMonitor = container.resolve(NetworkMonitorProtocol.self)
 
         // 创建 ViewModels
         self.noteListViewModel = NoteListViewModel(
@@ -32,11 +34,13 @@ final class AppCoordinator: ObservableObject {
 
         self.noteEditorViewModel = NoteEditorViewModel(
             noteStorage: noteStorage,
-            syncService: syncService
+            noteService: noteService
         )
 
         self.syncCoordinator = SyncCoordinator(
-            syncService: syncService
+            syncService: syncService,
+            noteStorage: noteStorage,
+            networkMonitor: networkMonitor
         )
 
         self.authViewModel = AuthenticationViewModel(
@@ -44,7 +48,8 @@ final class AppCoordinator: ObservableObject {
         )
 
         self.folderViewModel = FolderViewModel(
-            noteStorage: noteStorage
+            noteStorage: noteStorage,
+            noteService: noteService
         )
 
         setupCoordination()
@@ -57,7 +62,7 @@ final class AppCoordinator: ObservableObject {
             .compactMap { $0 }
             .sink { [weak self] noteId in
                 Task {
-                    await self?.noteEditorViewModel.loadNote(id: noteId)
+                    await self?.noteEditorViewModel.loadNote(noteId)
                 }
             }
             .store(in: &cancellables)

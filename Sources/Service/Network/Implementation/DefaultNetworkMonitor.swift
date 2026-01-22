@@ -24,7 +24,8 @@ final class DefaultNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
     }
 
     deinit {
-        stopMonitoring()
+        // 直接取消监控，不需要通过 stopMonitoring()
+        monitor.cancel()
     }
 
     // MARK: - Public Methods
@@ -37,7 +38,7 @@ final class DefaultNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
     }
 
     // MARK: - Private Methods
-    private func setupMonitoring() {
+    nonisolated private func setupMonitoring() {
         monitor.pathUpdateHandler = { [weak self] path in
             guard let self else { return }
             
@@ -51,10 +52,12 @@ final class DefaultNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
             }
         }
 
-        startMonitoring()
+        Task { @MainActor in
+            self.startMonitoring()
+        }
     }
 
-    private func determineConnectionType(from path: NWPath) -> ConnectionType {
+    nonisolated private func determineConnectionType(from path: NWPath) -> ConnectionType {
         if path.usesInterfaceType(.wifi) {
             return .wifi
         } else if path.usesInterfaceType(.cellular) {

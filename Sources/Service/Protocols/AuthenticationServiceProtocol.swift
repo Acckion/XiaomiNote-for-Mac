@@ -15,6 +15,7 @@ import Combine
 /// - 登录和登出
 /// - Token 管理
 /// - 用户信息管理
+@preconcurrency
 protocol AuthenticationServiceProtocol {
     // MARK: - 认证状态
 

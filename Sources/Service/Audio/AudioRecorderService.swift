@@ -861,7 +861,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
 extension AudioRecorderService: AVAudioRecorderDelegate {
     
     /// 录制完成回调
-    func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
+    nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
         stateLock.lock()
         defer { stateLock.unlock() }
         
@@ -879,7 +879,7 @@ extension AudioRecorderService: AVAudioRecorderDelegate {
     }
     
     /// 录制编码错误回调
-    func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) {
+    nonisolated func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) {
         stateLock.lock()
         defer { stateLock.unlock() }
         

@@ -16,38 +16,38 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     // MARK: - Properties
     
     /// 图片文件 ID（用于本地存储）
-    var fileId: String?
+    nonisolated(unsafe) var fileId: String?
     
     /// 图片源 URL（minote:// 或 http(s)://）
-    var src: String?
+    nonisolated(unsafe) var src: String?
     
     /// 文件夹 ID（用于本地存储路径）
-    var folderId: String?
+    nonisolated(unsafe) var folderId: String?
     
     /// 图片描述（从 XML 解析得到，用户可编辑的说明信息）
-    var imageDescription: String?
+    nonisolated(unsafe) var imageDescription: String?
     
     /// 图片显示属性（小米笔记固有属性，必须保持原值）
     /// "0" 或 "1"，客户端不使用但需要保持与云端一致
-    var imgshow: String?
+    nonisolated(unsafe) var imgshow: String?
     
     /// 原始图片尺寸
-    var originalSize: NSSize = .zero
+    nonisolated(unsafe) var originalSize: NSSize = .zero
     
     /// 显示尺寸
-    var displaySize: NSSize = NSSize(width: 300, height: 200)
+    nonisolated(unsafe) var displaySize: NSSize = NSSize(width: 300, height: 200)
     
     /// 最大显示宽度
-    var maxWidth: CGFloat = 500
+    nonisolated(unsafe) var maxWidth: CGFloat = 500
     
     /// 是否正在加载
-    var isLoading: Bool = false
+    nonisolated(unsafe) var isLoading: Bool = false
     
     /// 加载失败
-    var loadFailed: Bool = false
+    nonisolated(unsafe) var loadFailed: Bool = false
     
     /// 是否为深色模式
-    var isDarkMode: Bool = false {
+    nonisolated(unsafe) var isDarkMode: Bool = false {
         didSet {
             if oldValue != isDarkMode {
                 invalidateCache()
@@ -56,22 +56,22 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
     
     /// 缓存的图像
-    private var cachedImage: NSImage?
+    nonisolated(unsafe) private var cachedImage: NSImage?
     
     /// 占位符图像
-    private var placeholderImage: NSImage?
+    nonisolated(unsafe) private var placeholderImage: NSImage?
     
     /// 加载完成回调
-    var onLoadComplete: ((Bool) -> Void)?
+    nonisolated(unsafe) var onLoadComplete: ((Bool) -> Void)?
     
     // MARK: - Initialization
     
-    override init(data contentData: Data?, ofType uti: String?) {
+    nonisolated override init(data contentData: Data?, ofType uti: String?) {
         super.init(data: contentData, ofType: uti)
         setupAttachment()
     }
     
-    required init?(coder: NSCoder) {
+    nonisolated required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupAttachment()
     }
@@ -144,7 +144,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         }
     }
     
-    private func setupAttachment() {
+    nonisolated private func setupAttachment() {
         updateTheme()
     }
 
@@ -152,9 +152,9 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     // MARK: - NSTextAttachment Override
     
     /// 是否已记录过调用日志（避免重复日志）
-    private var hasLoggedCall: Bool = false
+    nonisolated(unsafe) private var hasLoggedCall: Bool = false
     
-    override func image(forBounds imageBounds: CGRect,
+    nonisolated override func image(forBounds imageBounds: CGRect,
                        textContainer: NSTextContainer?,
                        characterIndex charIndex: Int) -> NSImage? {
         // 只在第一次调用时打印详细日志
@@ -202,7 +202,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         return placeholderImage ?? createPlaceholderImage()
     }
     
-    override func attachmentBounds(for textContainer: NSTextContainer?,
+    nonisolated override func attachmentBounds(for textContainer: NSTextContainer?,
                                   proposedLineFragment lineFrag: CGRect,
                                   glyphPosition position: CGPoint,
                                   characterIndex charIndex: Int) -> CGRect {
@@ -222,7 +222,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - ThemeAwareAttachment
     
-    func updateTheme() {
+    nonisolated func updateTheme() {
         guard let currentAppearance = NSApp?.effectiveAppearance else {
             return
         }
@@ -237,7 +237,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     /// 从本地存储加载图片
     /// 仅使用 images/{userId}.{fileId}.{format} 格式
-    private func loadImageFromLocalStorage(fileId: String, folderId: String) {
+    nonisolated private func loadImageFromLocalStorage(fileId: String, folderId: String) {
         isLoading = true
         print("[ImageAttachment] 🖼️ loadImageFromLocalStorage 开始")
         print("[ImageAttachment]   - fileId: \(fileId)")
@@ -288,7 +288,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         }
     }
     
-    private func loadImageFromSource(_ src: String) {
+    nonisolated private func loadImageFromSource(_ src: String) {
         isLoading = true
         print("[ImageAttachment] 🖼️ loadImageFromSource: \(src)")
         
@@ -304,7 +304,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         }
     }
     
-    private func loadFromMinoteURL(_ urlString: String) {
+    nonisolated private func loadFromMinoteURL(_ urlString: String) {
         print("[ImageAttachment] 🖼️ loadFromMinoteURL: \(urlString)")
         
         guard let url = URL(string: urlString) else {
@@ -366,7 +366,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         }
     }
     
-    private func loadFromRemoteURL(_ urlString: String) {
+    nonisolated private func loadFromRemoteURL(_ urlString: String) {
         guard let url = URL(string: urlString) else {
             loadFailed = true
             isLoading = false
@@ -394,7 +394,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         }.resume()
     }
     
-    private func loadFromLocalPath(_ path: String) {
+    nonisolated private func loadFromLocalPath(_ path: String) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let image = NSImage(contentsOfFile: path)
             
@@ -459,7 +459,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         print("[ImageAttachment] 🖼️ setupPlaceholder - 设置占位符图片")
     }
     
-    private func createPlaceholderImage() -> NSImage {
+    nonisolated private func createPlaceholderImage() -> NSImage {
         let size = NSSize(width: 200, height: 150)
         
         let image = NSImage(size: size, flipped: false) { [weak self] rect in
@@ -600,12 +600,12 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     
     // MARK: - Cache Management
     
-    func invalidateCache() {
+    nonisolated func invalidateCache() {
         cachedImage = nil
         placeholderImage = nil
     }
     
-    func reload() {
+    nonisolated func reload() {
         invalidateCache()
         loadFailed = false
         isLoading = true

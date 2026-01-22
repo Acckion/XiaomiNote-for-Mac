@@ -14,6 +14,7 @@ import Foundation
 /// - 笔记的 CRUD 操作
 /// - 笔记同步操作
 /// - 批量操作
+@preconcurrency
 protocol NoteServiceProtocol {
     // MARK: - 笔记操作
 

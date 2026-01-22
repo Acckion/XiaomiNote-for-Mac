@@ -20,7 +20,7 @@ import Combine
 final class AuthenticationViewModel: LoadableViewModel {
     // MARK: - Dependencies
 
-    private let authService: AuthenticationServiceProtocol
+    nonisolated(unsafe) private let authService: AuthenticationServiceProtocol
 
     // MARK: - Published Properties
 

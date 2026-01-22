@@ -20,7 +20,7 @@ final class NetworkMonitor: ObservableObject, @unchecked Sendable {
         startMonitoring()
     }
     
-    private func startMonitoring() {
+    func startMonitoring() {
         monitor.pathUpdateHandler = { [weak self] path in
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -48,7 +48,25 @@ final class NetworkMonitor: ObservableObject, @unchecked Sendable {
     }
 }
 
+// MARK: - NetworkMonitorProtocol Conformance
+
+extension NetworkMonitor: @MainActor NetworkMonitorProtocol {
+    var connectionType: AnyPublisher<ConnectionType, Never> {
+        // 将 isConnected 转换为 ConnectionType
+        $isConnected
+            .map { isConnected in
+                isConnected ? .wifi : .none  // 简化实现，假设连接时为 WiFi
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    func stopMonitoring() {
+        monitor.cancel()
+    }
+}
+
 extension Notification.Name {
     static let networkDidBecomeAvailable = Notification.Name("networkDidBecomeAvailable")
 }
+
 

@@ -19,7 +19,7 @@ final class DIContainer: @unchecked Sendable {
     private var factories: [String: () -> Any] = [:]
     private let lock = NSLock()
 
-    private init() {}
+    nonisolated private init() {}
 
     // MARK: - Registration
 

@@ -34,8 +34,8 @@ enum FilterOption: String, Codable {
 final class NoteListViewModel: LoadableViewModel {
     // MARK: - Dependencies
 
-    private let noteStorage: NoteStorageProtocol
-    private let syncService: SyncServiceProtocol
+    nonisolated(unsafe) private let noteStorage: NoteStorageProtocol
+    nonisolated(unsafe) private let syncService: SyncServiceProtocol
 
     // MARK: - Published Properties
 

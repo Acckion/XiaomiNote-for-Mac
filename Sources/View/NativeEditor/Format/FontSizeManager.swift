@@ -199,19 +199,19 @@ public final class FontSizeManager {
 public enum FontSizeConstants {
     /// 大标题字体大小常量 (23pt)
     /// _Requirements: 1.1_
-    public static let heading1: CGFloat = 23
+    nonisolated(unsafe) public static let heading1: CGFloat = 23
     
     /// 二级标题字体大小常量 (20pt)
     /// _Requirements: 1.2_
-    public static let heading2: CGFloat = 20
+    nonisolated(unsafe) public static let heading2: CGFloat = 20
     
     /// 三级标题字体大小常量 (17pt)
     /// _Requirements: 1.3_
-    public static let heading3: CGFloat = 17
+    nonisolated(unsafe) public static let heading3: CGFloat = 17
     
     /// 正文字体大小常量 (14pt)
     /// _Requirements: 1.4_
-    public static let body: CGFloat = 14
+    nonisolated(unsafe) public static let body: CGFloat = 14
     
     /// 根据字体大小检测段落格式（静态方法，用于非 MainActor 上下文）
     /// - Parameter fontSize: 字体大小
