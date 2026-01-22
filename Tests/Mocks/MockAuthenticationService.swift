@@ -58,9 +58,8 @@ class MockAuthenticationService: AuthenticationServiceProtocol {
         }
 
         let profile = mockUserProfile ?? UserProfile(
-            id: "test-user-id",
-            username: username,
-            email: "\(username)@test.com"
+            nickname: username,
+            icon: ""
         )
 
         isAuthenticatedSubject.send(true)
@@ -80,9 +79,8 @@ class MockAuthenticationService: AuthenticationServiceProtocol {
         mockCookie = cookie
 
         let profile = mockUserProfile ?? UserProfile(
-            id: "test-user-id",
-            username: "testuser",
-            email: "testuser@test.com"
+            nickname: "testuser",
+            icon: ""
         )
 
         isAuthenticatedSubject.send(true)

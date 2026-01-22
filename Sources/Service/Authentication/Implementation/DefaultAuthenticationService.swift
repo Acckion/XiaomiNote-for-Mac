@@ -2,12 +2,15 @@ import Foundation
 import Combine
 
 /// 默认认证服务实现
+///
+/// 注意：这是重构过渡期的实现，暂时不完全可用
+/// 需要等待 NetworkClient 完整实现后才能正常工作
 final class DefaultAuthenticationService: AuthenticationServiceProtocol {
     // MARK: - Properties
     private let networkClient: NetworkClient
     private let userStateSubject = CurrentValueSubject<UserProfile?, Never>(nil)
     private let isAuthenticatedSubject = CurrentValueSubject<Bool, Never>(false)
-    private var currentUserProfile: UserProfile?
+    private var currentAuthUser: AuthUser?
     private var currentCookie: String?
 
     var currentUser: AnyPublisher<UserProfile?, Never> {
@@ -33,21 +36,23 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
         let response: LoginResponse = try await networkClient.request(
             "/auth/login",
             method: .post,
-            parameters: parameters
+            parameters: parameters,
+            headers: nil
         )
 
-        let user = UserProfile(
+        let authUser = AuthUser(
             id: response.userId,
             username: username,
             email: response.email,
             token: response.token
         )
 
-        currentUserProfile = user
-        userStateSubject.send(user)
+        currentAuthUser = authUser
+        let userProfile = authUser.toUserProfile()
+        userStateSubject.send(userProfile)
         isAuthenticatedSubject.send(true)
 
-        return user
+        return userProfile
     }
 
     func loginWithCookie(_ cookie: String) async throws -> UserProfile {
@@ -56,46 +61,49 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
         let response: LoginResponse = try await networkClient.request(
             "/auth/cookie-login",
             method: .post,
+            parameters: nil,
             headers: headers
         )
 
-        let user = UserProfile(
+        let authUser = AuthUser(
             id: response.userId,
             username: response.username ?? "User",
             email: response.email,
             token: response.token
         )
 
-        currentUserProfile = user
+        currentAuthUser = authUser
         currentCookie = cookie
-        userStateSubject.send(user)
+        let userProfile = authUser.toUserProfile()
+        userStateSubject.send(userProfile)
         isAuthenticatedSubject.send(true)
 
-        return user
+        return userProfile
     }
 
     func logout() async throws {
-        if let token = currentUserProfile?.token {
+        if let token = currentAuthUser?.token {
             let headers = ["Authorization": "Bearer \(token)"]
-            try await networkClient.request(
+            let _: EmptyResponse = try await networkClient.request(
                 "/auth/logout",
                 method: .post,
+                parameters: nil,
                 headers: headers
-            ) as EmptyResponse
+            )
         }
 
-        currentUserProfile = nil
+        currentAuthUser = nil
         currentCookie = nil
         userStateSubject.send(nil)
         isAuthenticatedSubject.send(false)
     }
 
     func getAccessToken() -> String? {
-        return currentUserProfile?.token
+        return currentAuthUser?.token
     }
 
     func refreshAccessToken() async throws -> String {
-        guard let user = currentUserProfile else {
+        guard let user = currentAuthUser else {
             throw AuthError.notAuthenticated
         }
 
@@ -104,24 +112,25 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
         let response: TokenResponse = try await networkClient.request(
             "/auth/refresh",
             method: .post,
+            parameters: nil,
             headers: headers
         )
 
-        let updatedUser = UserProfile(
+        let updatedUser = AuthUser(
             id: user.id,
             username: user.username,
             email: user.email,
             token: response.token
         )
 
-        currentUserProfile = updatedUser
-        userStateSubject.send(updatedUser)
+        currentAuthUser = updatedUser
+        userStateSubject.send(updatedUser.toUserProfile())
         
         return response.token
     }
 
     func validateToken() async throws -> Bool {
-        guard let user = currentUserProfile else {
+        guard let user = currentAuthUser else {
             return false
         }
 
@@ -131,6 +140,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
             let _: EmptyResponse = try await networkClient.request(
                 "/auth/validate",
                 method: .get,
+                parameters: nil,
                 headers: headers
             )
             return true
@@ -140,7 +150,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
     }
 
     func fetchUserProfile() async throws -> UserProfile {
-        guard let user = currentUserProfile else {
+        guard let user = currentAuthUser else {
             throw AuthError.notAuthenticated
         }
 
@@ -149,31 +159,33 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
         let response: UserProfileResponse = try await networkClient.request(
             "/user/profile",
             method: .get,
+            parameters: nil,
             headers: headers
         )
 
-        let updatedUser = UserProfile(
+        let updatedUser = AuthUser(
             id: response.userId,
             username: response.username,
             email: response.email,
             token: user.token
         )
 
-        currentUserProfile = updatedUser
-        userStateSubject.send(updatedUser)
+        currentAuthUser = updatedUser
+        let userProfile = updatedUser.toUserProfile()
+        userStateSubject.send(userProfile)
 
-        return updatedUser
+        return userProfile
     }
 
     func updateUserProfile(_ profile: UserProfile) async throws {
-        guard let user = currentUserProfile else {
+        guard let user = currentAuthUser else {
             throw AuthError.notAuthenticated
         }
 
         let headers = ["Authorization": "Bearer \(user.token)"]
         let parameters: [String: Any] = [
-            "username": profile.username,
-            "email": profile.email ?? ""
+            "username": profile.nickname,
+            "email": "" // UserProfile 没有 email 字段
         ]
 
         let _: EmptyResponse = try await networkClient.request(
@@ -183,7 +195,8 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
             headers: headers
         )
 
-        currentUserProfile = profile
+        // 注意：这里无法完全更新 AuthUser，因为 UserProfile 缺少必要字段
+        // 这是模型不兼容的一个例子
         userStateSubject.send(profile)
     }
 
@@ -200,7 +213,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
     }
 
     func getCurrentUser() async throws -> UserProfile? {
-        return currentUserProfile
+        return currentAuthUser?.toUserProfile()
     }
 }
 
