@@ -76,6 +76,7 @@
 		31409F1B84A96294961100DD /* DefaultNetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5FA14F78ED2FB3376F0C85E /* DefaultNetworkMonitor.swift */; };
 		31AC7A045CBC6DF1AEB95D5A /* AppCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8A7BCDA485D181F68A7CD0E /* AppCoordinatorTests.swift */; };
 		32DFE02E7EF3CD8C2AC40D09 /* TitleIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 811DB3C2760EE536BF82D47B /* TitleIntegration.swift */; };
+		32EF021FF63CA2C713FC3C23 /* NotesViewModelAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A0A475262A5A2DBFC6B07D /* NotesViewModelAdapterTests.swift */; };
 		333F0FFC231A4E8D7EFFE291 /* NotesListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A3C89BCCABD0E45A3309D9 /* NotesListViewController.swift */; };
 		3378A9C335C533B44C16BAE5 /* OperationProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 375938B9E362D91CB9A306F7 /* OperationProcessor.swift */; };
 		33873EAD5BF53C6FF5B78E4C /* XMLGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D31141023C933334BE386ED5 /* XMLGenerator.swift */; };
@@ -727,6 +728,7 @@
 		F5BD5728D0821E148C7A7C8C /* FormatApplicationPropertyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatApplicationPropertyTests.swift; sourceTree = "<group>"; };
 		F77C3C040EC6CA0CF4519B9F /* Pageable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pageable.swift; sourceTree = "<group>"; };
 		F789083FAF24C819C5F3B066 /* NoteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailView.swift; sourceTree = "<group>"; };
+		F7A0A475262A5A2DBFC6B07D /* NotesViewModelAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesViewModelAdapterTests.swift; sourceTree = "<group>"; };
 		F8799405BFCC9105AAE2AEA0 /* ViewStateCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewStateCoordinator.swift; sourceTree = "<group>"; };
 		F982132BE5AD3AEDF14BA8FF /* NativeFormatProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFormatProvider.swift; sourceTree = "<group>"; };
 		FA4193B25283EC76AF010994 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
@@ -1110,6 +1112,7 @@
 			children = (
 				3077EB699CFCD0F5D39D137D /* AppCoordinatorIntegrationTests.swift */,
 				C8A7BCDA485D181F68A7CD0E /* AppCoordinatorTests.swift */,
+				F7A0A475262A5A2DBFC6B07D /* NotesViewModelAdapterTests.swift */,
 				45A869D6DDC7044296680869 /* SyncCoordinatorTests.swift */,
 			);
 			name = CoordinatorTests;
@@ -2189,6 +2192,7 @@
 				A1C31B032E4A1440C889A429 /* NoteEditorViewModelTests.swift in Sources */,
 				AFA37BA6025239143AEAA777 /* NoteListViewModelTests.swift in Sources */,
 				879D920412E2F5167C677A09 /* NoteOperationCoordinatorTests.swift in Sources */,
+				32EF021FF63CA2C713FC3C23 /* NotesViewModelAdapterTests.swift in Sources */,
 				29B61EFB901FBACA1C38F2B7 /* OperationProcessorTests.swift in Sources */,
 				886C09F64C60F1D4F1ACA1FC /* OrderedListNumberingPropertyTests.swift in Sources */,
 				13CAEDE53A6054966DF6276E /* ParagraphManagerIntegrationTests.swift in Sources */,
