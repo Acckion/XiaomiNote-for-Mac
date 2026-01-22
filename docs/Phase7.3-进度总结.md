@@ -422,3 +422,145 @@ let sut = NoteListViewModel(
 
 **最后更新**: 2026-01-23  
 **负责人**: Kiro AI Assistant
+
+
+---
+
+## 📝 更新 (2026-01-23 - 任务 11 完成)
+
+### ✅ NotesViewModelAdapter 适配器实现完成
+
+**任务 11**: UI 更新 - 使用适配器模式 (Day 8-9)
+
+#### 完成的工作
+
+1. **创建 NotesViewModelAdapter**:
+   - 继承自 `NotesViewModel`,保持接口兼容
+   - 内部持有 `AppCoordinator` 实例
+   - 使用 Combine 同步状态 (笔记列表、文件夹列表、选中状态、加载状态等)
+   - 实现主要方法的委托 (文件夹操作、笔记操作、同步操作、认证操作)
+
+2. **修复编译错误**:
+   - `createFolder`: 适配返回类型不匹配 (FolderViewModel 不返回值)
+   - `createNote`: NoteListViewModel 没有此方法,直接添加到列表
+   - `createNewNote`: 实现创建新笔记的逻辑
+   - `verifyPrivateNotesPassword`: 适配异步方法到同步接口
+
+3. **在 AppDelegate 中集成**:
+   ```swift
+   if FeatureFlags.useNewArchitecture {
+       let coordinator = AppCoordinator()
+       appCoordinator = coordinator
+       notesViewModel = NotesViewModelAdapter(coordinator: coordinator)
+       Task { @MainActor in
+           await coordinator.start()
+       }
+   } else {
+       notesViewModel = NotesViewModel()
+   }
+   ```
+
+4. **编译状态**: ✅ BUILD SUCCEEDED
+
+#### 适配器设计
+
+**适配器模式 (Adapter Pattern)**:
+- 将新的 AppCoordinator 架构适配到旧的 NotesViewModel 接口
+- 使得现有的 UI 代码无需修改即可使用新架构
+- 通过 Combine 实现状态同步
+- 通过方法委托实现功能调用
+
+**状态同步**:
+```swift
+// 同步笔记列表
+coordinator.noteListViewModel.$notes
+    .assign(to: &$notes)
+
+// 同步选中的笔记
+coordinator.noteListViewModel.$selectedNote
+    .assign(to: &$selectedNote)
+
+// 同步文件夹列表
+coordinator.folderViewModel.$folders
+    .assign(to: &$folders)
+
+// 同步加载状态
+Publishers.CombineLatest3(
+    coordinator.noteListViewModel.$isLoading,
+    coordinator.folderViewModel.$isLoading,
+    coordinator.syncCoordinator.$isSyncing
+)
+.map { $0 || $1 || $2 }
+.assign(to: &$isLoading)
+```
+
+**方法委托**:
+```swift
+// 文件夹操作
+public override func loadFolders() {
+    Task {
+        await coordinator.folderViewModel.loadFolders()
+    }
+}
+
+// 笔记操作
+public override func selectNoteWithCoordinator(_ note: Note?) {
+    if let note = note {
+        coordinator.handleNoteSelection(note)
+    }
+}
+
+// 同步操作
+override func performFullSync() async {
+    await coordinator.syncCoordinator.forceFullSync()
+}
+```
+
+#### 待完善的功能
+
+以下功能标记为 TODO,需要后续实现:
+- `toggleFolderPin` (文件夹置顶)
+- `getNoteHistoryTimes/getNoteHistory/restoreNoteHistory` (笔记历史)
+- `fetchDeletedNotes` (回收站)
+- `uploadImageAndInsertToNote` (图片上传)
+- `startAutoRefreshCookieIfNeeded/stopAutoRefreshCookie` (自动刷新 Cookie)
+- `updateSyncInterval` (更新同步间隔)
+- `hasPendingUpload` (检查待上传)
+- `verifyPrivateNotesPassword` (验证私密笔记密码)
+
+#### 下一步工作
+
+1. **测试适配器** (任务 11.3):
+   - 设置 `FeatureFlags.useNewArchitecture = true`
+   - 启动应用验证基本功能
+   - 测试笔记列表、编辑、同步等核心功能
+
+2. **完善适配器功能** (任务 11.2):
+   - 实现标记为 TODO 的方法
+   - 添加适配器的单元测试
+
+3. **功能验证** (任务 12):
+   - 验证所有现有功能正常工作
+   - 验证性能无明显下降
+
+#### 进度更新
+
+- Week 1: 8/8 (100%) ✅
+- Week 2: 3/7 (42.9%) ⏳
+- 总体: 11/35 (31.4%)
+
+**已完成任务**:
+1. ✅ 任务 1-8: 创建 7 个 ViewModel + AppCoordinator
+2. ✅ 任务 9: AppCoordinator 集成测试
+3. ✅ 任务 10: AppDelegate 集成
+4. ✅ 任务 11.1: 创建 NotesViewModelAdapter
+
+**进行中任务**:
+- ⏳ 任务 11.2: 完善适配器功能
+- ⏳ 任务 11.3: 测试适配器
+- ⏳ 任务 11.4: 验证功能
+
+---
+
+**最后更新**: 2026-01-23 15:30  
+**负责人**: Kiro AI Assistant
