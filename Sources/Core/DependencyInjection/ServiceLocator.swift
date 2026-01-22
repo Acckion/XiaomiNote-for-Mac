@@ -13,8 +13,8 @@ import Foundation
 /// 这个类用于在重构过渡期间提供一个集中的地方来配置所有服务
 /// 随着重构的进行，应该逐步将依赖注入直接传递到需要的地方
 /// 最终目标是完全移除这个类，使用纯粹的依赖注入
-public final class ServiceLocator {
-    public static let shared = ServiceLocator()
+public final class ServiceLocator: @unchecked Sendable {
+    nonisolated(unsafe) public static let shared = ServiceLocator()
     private let container = DIContainer.shared
 
     private init() {}

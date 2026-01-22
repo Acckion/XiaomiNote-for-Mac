@@ -6,14 +6,16 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
     // MARK: - Properties
     private let networkClient: NetworkClient
     private let userStateSubject = CurrentValueSubject<UserProfile?, Never>(nil)
+    private let isAuthenticatedSubject = CurrentValueSubject<Bool, Never>(false)
     private var currentUserProfile: UserProfile?
+    private var currentCookie: String?
 
-    var userState: AnyPublisher<UserProfile?, Never> {
+    var currentUser: AnyPublisher<UserProfile?, Never> {
         userStateSubject.eraseToAnyPublisher()
     }
 
-    var isAuthenticated: Bool {
-        currentUserProfile != nil
+    var isAuthenticated: AnyPublisher<Bool, Never> {
+        isAuthenticatedSubject.eraseToAnyPublisher()
     }
 
     // MARK: - Initialization
@@ -43,6 +45,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
 
         currentUserProfile = user
         userStateSubject.send(user)
+        isAuthenticatedSubject.send(true)
 
         return user
     }
@@ -64,7 +67,9 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
         )
 
         currentUserProfile = user
+        currentCookie = cookie
         userStateSubject.send(user)
+        isAuthenticatedSubject.send(true)
 
         return user
     }
@@ -80,10 +85,16 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
         }
 
         currentUserProfile = nil
+        currentCookie = nil
         userStateSubject.send(nil)
+        isAuthenticatedSubject.send(false)
     }
 
-    func refreshToken() async throws {
+    func getAccessToken() -> String? {
+        return currentUserProfile?.token
+    }
+
+    func refreshAccessToken() async throws -> String {
         guard let user = currentUserProfile else {
             throw AuthError.notAuthenticated
         }
@@ -105,6 +116,87 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
 
         currentUserProfile = updatedUser
         userStateSubject.send(updatedUser)
+        
+        return response.token
+    }
+
+    func validateToken() async throws -> Bool {
+        guard let user = currentUserProfile else {
+            return false
+        }
+
+        let headers = ["Authorization": "Bearer \(user.token)"]
+
+        do {
+            let _: EmptyResponse = try await networkClient.request(
+                "/auth/validate",
+                method: .get,
+                headers: headers
+            )
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func fetchUserProfile() async throws -> UserProfile {
+        guard let user = currentUserProfile else {
+            throw AuthError.notAuthenticated
+        }
+
+        let headers = ["Authorization": "Bearer \(user.token)"]
+
+        let response: UserProfileResponse = try await networkClient.request(
+            "/user/profile",
+            method: .get,
+            headers: headers
+        )
+
+        let updatedUser = UserProfile(
+            id: response.userId,
+            username: response.username,
+            email: response.email,
+            token: user.token
+        )
+
+        currentUserProfile = updatedUser
+        userStateSubject.send(updatedUser)
+
+        return updatedUser
+    }
+
+    func updateUserProfile(_ profile: UserProfile) async throws {
+        guard let user = currentUserProfile else {
+            throw AuthError.notAuthenticated
+        }
+
+        let headers = ["Authorization": "Bearer \(user.token)"]
+        let parameters: [String: Any] = [
+            "username": profile.username,
+            "email": profile.email ?? ""
+        ]
+
+        let _: EmptyResponse = try await networkClient.request(
+            "/user/profile",
+            method: .put,
+            parameters: parameters,
+            headers: headers
+        )
+
+        currentUserProfile = profile
+        userStateSubject.send(profile)
+    }
+
+    func getCurrentCookie() -> String? {
+        return currentCookie
+    }
+
+    func saveCookie(_ cookie: String) throws {
+        currentCookie = cookie
+    }
+
+    func clearCookie() throws {
+        currentCookie = nil
     }
 
     func getCurrentUser() async throws -> UserProfile? {
@@ -122,6 +214,12 @@ private struct LoginResponse: Decodable {
 
 private struct TokenResponse: Decodable {
     let token: String
+}
+
+private struct UserProfileResponse: Decodable {
+    let userId: String
+    let username: String
+    let email: String?
 }
 
 private struct EmptyResponse: Decodable {}

@@ -12,8 +12,8 @@ import Foundation
 ///
 /// 用于注册和解析应用中的服务依赖，支持单例和工厂模式
 /// 这是重构的第一步，用于逐步替代现有的单例模式
-final class DIContainer {
-    static let shared = DIContainer()
+final class DIContainer: @unchecked Sendable {
+    nonisolated(unsafe) static let shared = DIContainer()
 
     private var services: [String: Any] = [:]
     private var factories: [String: () -> Any] = [:]
