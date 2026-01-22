@@ -3,25 +3,12 @@ import SwiftUI
 
 /// 笔记列表托管控制器
 /// 
-/// **问题分析**:
-/// SwiftUI 的 `.safeAreaInset` 在 splitview 宽度与工具栏一致时会被系统自动融合导致透明
-/// 这是 SwiftUI 的 bug,不是我们的实现问题
+/// 负责将 SwiftUI 的 NotesListView 嵌入到 AppKit 的窗口系统中。
 /// 
-/// **解决方案**:
-/// 1. 方案 A (推荐): 给 LiquidGlassSectionHeader 添加 `.background(.regularMaterial)` 
-///    - 虽然会有轻微的视觉差异,但能保证功能正常
-///    - 这是最简单且最可靠的方案
-/// 
-/// 2. 方案 B (完美但复杂): 完全重写笔记列表,使用 AppKit 的 NSTableView + NSScrollView.addFloatingSubview
-///    - 需要大量重构代码
-///    - 可以使用 AppKit 的标准 API 避免 SwiftUI 的 bug
-///    - 参考: https://casualprogrammer.com/blog/2020/12-30-appkit_notes_nsscrol.html
-/// 
-/// 3. 方案 C (临时): 强制 splitview 宽度略小于工具栏,避免完全对齐
-///    - 通过设置 `maximumThickness` 确保永远不会完全对齐
-///    - 但这会影响用户体验
-/// 
-/// **当前实现**: 保持原有的 SwiftUI 实现,等待 Apple 修复 bug
+/// **布局说明**:
+/// - 笔记列表内容不会延伸至工具栏区域
+/// - 使用 `.safeAreaInset` 确保内容正确显示在工具栏下方
+/// - 支持分组模式（固定分组标题）和平铺模式
 class NotesListHostingController: NSHostingController<NotesListView> {
     
     private var viewModel: NotesViewModel
@@ -29,9 +16,35 @@ class NotesListHostingController: NSHostingController<NotesListView> {
     init(viewModel: NotesViewModel) {
         self.viewModel = viewModel
         super.init(rootView: NotesListView(viewModel: viewModel))
+        
+        // 禁止视图延伸到安全区域（工具栏下方）
+        self.view.wantsLayer = true
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        // 确保视图不会延伸到工具栏区域
+        if let scrollView = findScrollView(in: view) {
+            scrollView.automaticallyAdjustsContentInsets = true
+            scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+        }
+    }
+    
+    /// 递归查找 NSScrollView
+    private func findScrollView(in view: NSView) -> NSScrollView? {
+        if let scrollView = view as? NSScrollView {
+            return scrollView
+        }
+        for subview in view.subviews {
+            if let found = findScrollView(in: subview) {
+                return found
+            }
+        }
+        return nil
     }
 }

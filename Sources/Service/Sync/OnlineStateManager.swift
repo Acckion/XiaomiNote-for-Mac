@@ -118,7 +118,7 @@ public final class OnlineStateManager: ObservableObject {
     }
     
     /// 手动触发状态更新（供外部调用）
-    func refreshStatus() {
+    public func refreshStatus() {
         updateOnlineStatus()
     }
 }

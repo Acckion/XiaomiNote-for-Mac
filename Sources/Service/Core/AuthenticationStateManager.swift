@@ -67,12 +67,8 @@ class AuthenticationStateManager: ObservableObject {
         setupCookieExpiredHandler()
         setupCookieRefreshNotification()
         
-        // 启动 ScheduledTaskManager 定时任务
-        Task { @MainActor in
-            ScheduledTaskManager.shared.start()
-            // 立即刷新一次在线状态
-            onlineStateManager.refreshStatus()
-        }
+        // ScheduledTaskManager 现在由 AppStateManager 在应用启动时启动
+        // 不再在这里启动，避免循环依赖和启动时机问题
     }
     
     // MARK: - 在线状态同步
@@ -162,7 +158,14 @@ class AuthenticationStateManager: ObservableObject {
     /// 处理Cookie过期（支持静默刷新）
     func handleCookieExpired() {
         // 检查是否启用静默刷新
-        let silentRefreshEnabled = UserDefaults.standard.bool(forKey: "silentRefreshOnFailure")
+        // 注意：UserDefaults.standard.bool(forKey:) 在键不存在时返回 false
+        // 所以我们需要检查键是否存在，如果不存在则使用默认值 true
+        let silentRefreshEnabled: Bool
+        if UserDefaults.standard.object(forKey: "silentRefreshOnFailure") != nil {
+            silentRefreshEnabled = UserDefaults.standard.bool(forKey: "silentRefreshOnFailure")
+        } else {
+            silentRefreshEnabled = true // 默认启用静默刷新
+        }
         print("[AuthenticationStateManager] 处理Cookie失效，silentRefreshOnFailure: \(silentRefreshEnabled)")
         
         // 立即设置为离线状态，阻止后续请求

@@ -60,6 +60,9 @@ class AppStateManager {
         // 初始化错误恢复相关服务（需求 8.1, 8.6, 8.7）
         initializeErrorRecoveryServices()
         
+        // 启动后台服务（在创建主窗口之前）
+        startBackgroundServices()
+        
         // 创建主窗口
         windowManager.createMainWindow()
         
@@ -149,6 +152,33 @@ class AppStateManager {
         // 初始化网络恢复处理器（需求 8.6）
         networkRecoveryHandler = NetworkRecoveryHandler.shared
         print("[AppStateManager] ✅ NetworkRecoveryHandler 已初始化")
+    }
+    
+    /// 启动后台服务
+    /// 
+    /// 在应用启动完成后立即启动所有后台服务，包括：
+    /// - ScheduledTaskManager: 定时任务管理器
+    /// 
+    /// 遵循需求 1.1, 1.2, 1.3, 1.4
+    private func startBackgroundServices() {
+        print("[AppStateManager] 启动后台服务...")
+        
+        do {
+            // 启动定时任务管理器
+            ScheduledTaskManager.shared.start()
+            print("[AppStateManager] ✅ ScheduledTaskManager 已启动")
+            
+            // 启动后立即刷新一次在线状态
+            // 确保 OnlineStateManager 使用最新的 Cookie 有效性状态
+            if let onlineStateManager = onlineStateManager {
+                onlineStateManager.refreshStatus()
+                print("[AppStateManager] ✅ 在线状态已刷新")
+            }
+        } catch {
+            // 记录错误但不阻塞应用启动
+            // 用户仍然可以正常使用应用，只是定时任务不可用
+            print("[AppStateManager] ⚠️ ScheduledTaskManager 启动失败: \(error)")
+        }
     }
     
     /// 处理应用程序即将终止

@@ -87,10 +87,10 @@ struct TaskStatus {
 /// - 轻量化同步（未来）
 /// - 其他定时任务（未来）
 @MainActor
-class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
+public class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
     // MARK: - 单例实例
     
-    static let shared = ScheduledTaskManager()
+    public static let shared = ScheduledTaskManager()
     
     // MARK: - 发布属性
     
@@ -140,7 +140,7 @@ class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
     // MARK: - 公共方法
     
     /// 启动所有启用的任务
-    func start() {
+    public func start() {
         guard !isStarted else { return }
         
         print("[ScheduledTaskManager] 启动定时任务管理器")
