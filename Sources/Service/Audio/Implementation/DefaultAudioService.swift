@@ -8,10 +8,25 @@ final class DefaultAudioService: AudioServiceProtocol {
     private let cacheService: CacheServiceProtocol
     private var audioPlayer: AVAudioPlayer?
     private var audioRecorder: AVAudioRecorder?
-    private let playbackStateSubject = CurrentValueSubject<PlaybackState, Never>(.stopped)
+    
+    private let isPlayingSubject = CurrentValueSubject<Bool, Never>(false)
+    private let currentTimeSubject = CurrentValueSubject<TimeInterval, Never>(0)
+    private let durationSubject = CurrentValueSubject<TimeInterval, Never>(0)
 
-    var playbackState: AnyPublisher<PlaybackState, Never> {
-        playbackStateSubject.eraseToAnyPublisher()
+    var isPlaying: AnyPublisher<Bool, Never> {
+        isPlayingSubject.eraseToAnyPublisher()
+    }
+
+    var currentTime: AnyPublisher<TimeInterval, Never> {
+        currentTimeSubject.eraseToAnyPublisher()
+    }
+
+    var duration: AnyPublisher<TimeInterval, Never> {
+        durationSubject.eraseToAnyPublisher()
+    }
+
+    var isRecording: Bool {
+        audioRecorder?.isRecording ?? false
     }
 
     // MARK: - Initialization
@@ -37,34 +52,32 @@ final class DefaultAudioService: AudioServiceProtocol {
 
         audioPlayer = try AVAudioPlayer(data: audioData)
         audioPlayer?.play()
-        playbackStateSubject.send(.playing)
+        
+        isPlayingSubject.send(true)
+        durationSubject.send(audioPlayer?.duration ?? 0)
     }
 
     func pause() {
         audioPlayer?.pause()
-        playbackStateSubject.send(.paused)
+        isPlayingSubject.send(false)
     }
 
     func stop() {
         audioPlayer?.stop()
         audioPlayer = nil
-        playbackStateSubject.send(.stopped)
+        isPlayingSubject.send(false)
+        currentTimeSubject.send(0)
     }
 
     func seek(to time: TimeInterval) {
         audioPlayer?.currentTime = time
-    }
-
-    func getCurrentTime() -> TimeInterval {
-        return audioPlayer?.currentTime ?? 0
-    }
-
-    func getDuration() -> TimeInterval {
-        return audioPlayer?.duration ?? 0
+        currentTimeSubject.send(time)
     }
 
     // MARK: - Recording Methods
-    func startRecording(outputURL: URL) async throws {
+    func startRecording() throws {
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".m4a")
+        
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
             AVSampleRateKey: 44100,
@@ -72,11 +85,11 @@ final class DefaultAudioService: AudioServiceProtocol {
             AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
         ]
 
-        audioRecorder = try AVAudioRecorder(url: outputURL, settings: settings)
+        audioRecorder = try AVAudioRecorder(url: tempURL, settings: settings)
         audioRecorder?.record()
     }
 
-    func stopRecording() async throws -> URL {
+    func stopRecording() throws -> Data {
         guard let recorder = audioRecorder else {
             throw AudioError.noActiveRecording
         }
@@ -85,25 +98,51 @@ final class DefaultAudioService: AudioServiceProtocol {
         let url = recorder.url
         audioRecorder = nil
 
-        return url
+        let data = try Data(contentsOf: url)
+        try? FileManager.default.removeItem(at: url)
+
+        return data
     }
 
-    func deleteRecording(url: URL) async throws {
-        try FileManager.default.removeItem(at: url)
+    // MARK: - Upload/Download Methods
+    func uploadAudio(_ data: Data) async throws -> String {
+        // 暂时返回占位 URL
+        // 实际应用中应该上传到服务器
+        throw AudioError.notImplemented
     }
 
-    // MARK: - Cache Methods
-    func cacheAudio(url: String) async throws {
+    func downloadAudio(from url: String) async throws -> Data {
         guard let audioURL = URL(string: url) else {
             throw AudioError.invalidURL
         }
 
+        // 检查缓存
+        if let cachedData: Data = try? await cacheService.get(key: url) {
+            return cachedData
+        }
+
         let (data, _) = try await URLSession.shared.data(from: audioURL)
-        try await cacheService.set(key: url, value: data, policy: .default)
+        try? await cacheService.set(key: url, value: data, policy: .default)
+
+        return data
     }
 
-    func clearAudioCache() async throws {
-        try await cacheService.clear()
+    // MARK: - Cache Methods
+    func getCachedAudio(for url: String) -> Data? {
+        // 同步方法，暂时返回 nil
+        return nil
+    }
+
+    func cacheAudio(_ data: Data, for url: String) {
+        Task {
+            try? await cacheService.set(key: url, value: data, policy: .default)
+        }
+    }
+
+    func clearAudioCache() {
+        Task {
+            try? await cacheService.clear()
+        }
     }
 }
 
@@ -111,4 +150,5 @@ final class DefaultAudioService: AudioServiceProtocol {
 enum AudioError: Error {
     case invalidURL
     case noActiveRecording
+    case notImplemented
 }
