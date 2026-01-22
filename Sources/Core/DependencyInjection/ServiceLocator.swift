@@ -13,8 +13,8 @@ import Foundation
 /// 这个类用于在重构过渡期间提供一个集中的地方来配置所有服务
 /// 随着重构的进行，应该逐步将依赖注入直接传递到需要的地方
 /// 最终目标是完全移除这个类，使用纯粹的依赖注入
-final class ServiceLocator {
-    static let shared = ServiceLocator()
+public final class ServiceLocator {
+    public static let shared = ServiceLocator()
     private let container = DIContainer.shared
 
     private init() {}
@@ -24,13 +24,33 @@ final class ServiceLocator {
     /// 配置所有服务
     ///
     /// 在应用启动时调用，注册所有需要的服务
-    /// 随着重构的进行，这里会逐步添加更多服务的注册
-    func configure() {
-        // TODO: 在后续步骤中逐步添加服务注册
-        // 例如：
-        // container.register(NoteServiceProtocol.self, instance: MiNoteService.shared)
-        // container.register(NoteStorageProtocol.self, instance: DatabaseService.shared)
-        // container.register(SyncServiceProtocol.self, instance: SyncService.shared)
+    public func configure() {
+        // 创建基础服务
+        let networkClient = NetworkClient()
+        let cacheService = DefaultCacheService()
+        let noteStorage = DefaultNoteStorage()
+
+        // 注册基础服务
+        container.register(CacheServiceProtocol.self, instance: cacheService)
+        container.register(NoteStorageProtocol.self, instance: noteStorage)
+
+        // 创建并注册网络相关服务
+        let noteService = DefaultNoteService(networkClient: networkClient)
+        let syncService = DefaultSyncService(networkClient: networkClient, storage: noteStorage)
+        let authService = DefaultAuthenticationService(networkClient: networkClient)
+        let imageService = DefaultImageService(networkClient: networkClient, cacheService: cacheService)
+        let audioService = DefaultAudioService(cacheService: cacheService)
+        let networkMonitor = DefaultNetworkMonitor()
+
+        container.register(NoteServiceProtocol.self, instance: noteService)
+        container.register(SyncServiceProtocol.self, instance: syncService)
+        container.register(AuthenticationServiceProtocol.self, instance: authService)
+        container.register(ImageServiceProtocol.self, instance: imageService)
+        container.register(AudioServiceProtocol.self, instance: audioService)
+        container.register(NetworkMonitorProtocol.self, instance: networkMonitor)
+
+        // 启动网络监控
+        networkMonitor.startMonitoring()
     }
 
     // MARK: - Service Access (Convenience Methods)

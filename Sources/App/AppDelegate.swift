@@ -48,6 +48,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     // MARK: - NSApplicationDelegate
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 配置依赖注入服务
+        ServiceLocator.shared.configure()
+
         appStateManager.handleApplicationDidFinishLaunching()
 
         // 应用程序启动完成后，更新MenuActionHandler的主窗口控制器引用
