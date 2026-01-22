@@ -97,4 +97,15 @@ protocol NoteStorageProtocol {
     /// - Parameter folderId: 文件夹ID
     /// - Returns: 笔记数量
     func getNoteCount(in folderId: String) throws -> Int
+
+    // MARK: - 同步支持
+
+    /// 获取待同步的变更
+    /// - Returns: 待同步的笔记变更数组
+    func getPendingChanges() async throws -> [NoteChange]
+
+    /// 获取指定笔记
+    /// - Parameter id: 笔记ID
+    /// - Returns: 笔记对象
+    func getNote(id: String) async throws -> Note
 }

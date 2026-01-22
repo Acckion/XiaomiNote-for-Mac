@@ -7,7 +7,7 @@ final class DefaultNetworkMonitor: NetworkMonitorProtocol {
     // MARK: - Properties
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "com.minote.networkmonitor")
-    private let connectionTypeSubject = CurrentValueSubject<ConnectionType, Never>(.unknown)
+    private let connectionTypeSubject = CurrentValueSubject<ConnectionType, Never>(.none)
     private let isConnectedSubject = CurrentValueSubject<Bool, Never>(false)
 
     var connectionType: AnyPublisher<ConnectionType, Never> {

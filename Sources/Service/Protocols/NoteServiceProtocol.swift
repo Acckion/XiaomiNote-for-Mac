@@ -75,7 +75,7 @@ protocol NoteServiceProtocol {
 // MARK: - Supporting Types
 
 /// 同步结果
-struct SyncResult {
+struct SyncResult: Codable {
     /// 同步的笔记
     let notes: [Note]
 

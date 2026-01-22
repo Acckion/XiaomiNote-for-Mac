@@ -17,14 +17,11 @@ import Combine
 protocol NetworkMonitorProtocol {
     // MARK: - 网络状态
 
-    /// 是否已连接网络
-    var isConnected: AnyPublisher<Bool, Never> { get }
-
     /// 网络类型
     var connectionType: AnyPublisher<ConnectionType, Never> { get }
 
-    /// 是否为昂贵网络（如移动数据）
-    var isExpensive: AnyPublisher<Bool, Never> { get }
+    /// 是否已连接网络
+    var isConnected: Bool { get }
 
     // MARK: - 监控操作
 
@@ -33,14 +30,6 @@ protocol NetworkMonitorProtocol {
 
     /// 停止监控网络状态
     func stopMonitoring()
-
-    /// 获取当前网络状态
-    /// - Returns: 是否已连接
-    func getCurrentConnectionStatus() -> Bool
-
-    /// 获取当前网络类型
-    /// - Returns: 网络类型
-    func getCurrentConnectionType() -> ConnectionType
 }
 
 // MARK: - Supporting Types
