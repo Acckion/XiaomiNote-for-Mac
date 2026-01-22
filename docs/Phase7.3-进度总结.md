@@ -322,3 +322,103 @@ let sut = NoteListViewModel(
 
 **最后更新**: 2026-01-23  
 **负责人**: Kiro AI Assistant
+
+
+---
+
+## 📝 更新 (2026-01-23 - 任务 10 完成)
+
+### ✅ AppDelegate 集成完成
+
+**任务 10**: AppDelegate 集成 (Day 7-8)
+
+#### 完成的工作
+
+1. **更新 AppDelegate**:
+   - 添加 `appCoordinator` 属性 (新架构)
+   - 保留 `notesViewModel` 属性 (旧架构备份)
+   - 实现特性开关逻辑 (`FeatureFlags.useNewArchitecture`)
+   - 添加 `coordinator` 和 `isUsingNewArchitecture` 公共属性
+
+2. **修复编译错误**:
+   - 将 `DIContainer` 标记为 `public`
+   - 将所有 `DIContainer` 方法标记为 `public`
+   - 删除旧的 `SyncCoordinator.swift` 文件 (已移动到 `Sync/` 子目录)
+   - 修复 `SearchViewModel` 中的 `isPrivate` 属性引用 (注释掉,因为 `Note` 模型没有此属性)
+   - 修复 `SyncCoordinator` 中的 `isConnectedPublisher` 引用 (改用 `connectionType` publisher)
+   - 修复 `SyncCoordinator` 中的语法错误 (多余的 `}`)
+
+3. **特性开关实现**:
+   ```swift
+   if FeatureFlags.useNewArchitecture {
+       print("[AppDelegate] 使用新架构 (AppCoordinator + 7 个 ViewModel)")
+       appCoordinator = AppCoordinator()
+       Task { @MainActor in
+           await appCoordinator?.start()
+       }
+   } else {
+       print("[AppDelegate] 使用旧架构 (NotesViewModel)")
+       // 保留旧架构作为备份
+   }
+   ```
+
+4. **编译状态**: ✅ BUILD SUCCEEDED
+
+#### 技术细节
+
+1. **DIContainer 访问级别**:
+   - 类: `public final class DIContainer`
+   - 单例: `public nonisolated(unsafe) static let shared`
+   - 所有方法: `public func register/resolve/...`
+
+2. **AppCoordinator 启动流程**:
+   - 创建 AppCoordinator 实例
+   - 调用 `start()` 方法
+   - 加载文件夹列表
+   - 加载笔记列表
+   - 如果已登录,启动同步
+
+3. **网络监听修复**:
+   ```swift
+   // 旧代码 (错误)
+   networkMonitor.isConnectedPublisher
+   
+   // 新代码 (正确)
+   networkMonitor.connectionType
+       .map { $0 != .none }
+       .removeDuplicates()
+   ```
+
+#### 待完成的任务
+
+- Week 2 剩余任务: 5/7 (71.4%)
+  1. ⏳ UI 更新 (任务 11)
+  2. ⏳ 功能验证 (任务 12)
+  3. ⏳ 性能测试 (任务 13)
+  4. ⏳ 文档更新 (任务 14)
+  5. ⏳ 最终验收 (任务 15)
+
+#### 下一步工作
+
+1. **UI 更新** (任务 11):
+   - 更新笔记列表视图使用 `NoteListViewModel`
+   - 更新笔记编辑视图使用 `NoteEditorViewModel`
+   - 更新搜索视图使用 `SearchViewModel`
+   - 更新文件夹视图使用 `FolderViewModel`
+   - 更新音频面板视图使用 `AudioPanelViewModel`
+   - 更新认证视图使用 `AuthenticationViewModel`
+
+2. **功能验证** (任务 12):
+   - 验证所有现有功能正常工作
+   - 验证性能无明显下降
+
+3. **性能测试** (任务 13):
+   - 应用启动时间测试
+   - 笔记列表加载测试
+   - 同步操作测试
+   - 内存占用测试
+
+---
+
+**最后更新**: 2026-01-23  
+**负责人**: Kiro AI Assistant

@@ -21,6 +21,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// 菜单动作处理器
     private let menuActionHandler: MenuActionHandler
     
+    // MARK: - 新架构 (Phase 7.3)
+    
+    /// 应用协调器 (新架构)
+    private var appCoordinator: AppCoordinator?
+    
+    /// 旧的 NotesViewModel (备份)
+    /// 注意: 保留用于向后兼容，通过 FeatureFlags.useNewArchitecture 控制
+    private var notesViewModel: NotesViewModel?
+    
     // MARK: - 初始化
     
     override init() {
@@ -50,6 +59,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 配置依赖注入服务
         ServiceLocator.shared.configure()
+        
+        // 根据特性开关选择架构
+        if FeatureFlags.useNewArchitecture {
+            print("[AppDelegate] 使用新架构 (AppCoordinator + 7 个 ViewModel)")
+            
+            // 创建 AppCoordinator
+            appCoordinator = AppCoordinator()
+            
+            // 启动应用
+            Task { @MainActor in
+                await appCoordinator?.start()
+            }
+        } else {
+            print("[AppDelegate] 使用旧架构 (NotesViewModel)")
+            
+            // 保留旧架构作为备份
+            // 注意: NotesViewModel 的初始化逻辑保持不变
+            // 这里暂时不创建 NotesViewModel，因为它会在 MainWindowController 中创建
+        }
 
         appStateManager.handleApplicationDidFinishLaunching()
 
@@ -74,6 +102,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// 主窗口控制器（对外暴露）
     var mainWindowController: MainWindowController? {
         return windowManager.mainWindowController
+    }
+    
+    /// 应用协调器（对外暴露，仅在使用新架构时可用）
+    var coordinator: AppCoordinator? {
+        return appCoordinator
+    }
+    
+    /// 是否使用新架构
+    var isUsingNewArchitecture: Bool {
+        return FeatureFlags.useNewArchitecture
     }
     
     // MARK: - 窗口管理方法（对外暴露）

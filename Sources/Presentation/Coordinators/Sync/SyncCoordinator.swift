@@ -230,7 +230,9 @@ public final class SyncCoordinator: ObservableObject {
     /// 设置观察者
     private func setupObservers() {
         // 监听网络状态变化
-        networkMonitor.isConnectedPublisher
+        networkMonitor.connectionType
+            .map { $0 != .none }
+            .removeDuplicates()
             .sink { [weak self] isConnected in
                 guard let self = self else { return }
                 

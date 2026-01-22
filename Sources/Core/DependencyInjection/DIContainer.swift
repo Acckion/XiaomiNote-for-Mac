@@ -12,8 +12,8 @@ import Foundation
 ///
 /// 用于注册和解析应用中的服务依赖，支持单例和工厂模式
 /// 这是重构的第一步，用于逐步替代现有的单例模式
-final class DIContainer: @unchecked Sendable {
-    nonisolated(unsafe) static let shared = DIContainer()
+public final class DIContainer: @unchecked Sendable {
+    public nonisolated(unsafe) static let shared = DIContainer()
 
     private var services: [String: Any] = [:]
     private var factories: [String: () -> Any] = [:]
@@ -27,7 +27,7 @@ final class DIContainer: @unchecked Sendable {
     /// - Parameters:
     ///   - type: 服务类型
     ///   - instance: 服务实例
-    func register<T>(_ type: T.Type, instance: T) {
+    public func register<T>(_ type: T.Type, instance: T) {
         let key = String(describing: type)
         lock.lock()
         defer { lock.unlock() }
@@ -38,7 +38,7 @@ final class DIContainer: @unchecked Sendable {
     /// - Parameters:
     ///   - type: 服务类型
     ///   - factory: 创建服务实例的工厂方法
-    func register<T>(_ type: T.Type, factory: @escaping () -> T) {
+    public func register<T>(_ type: T.Type, factory: @escaping () -> T) {
         let key = String(describing: type)
         lock.lock()
         defer { lock.unlock() }
@@ -50,7 +50,7 @@ final class DIContainer: @unchecked Sendable {
     /// 解析服务
     /// - Parameter type: 服务类型
     /// - Returns: 服务实例
-    func resolve<T>(_ type: T.Type) -> T {
+    public func resolve<T>(_ type: T.Type) -> T {
         let key = String(describing: type)
 
         lock.lock()
@@ -73,7 +73,7 @@ final class DIContainer: @unchecked Sendable {
     /// 尝试解析服务（不会崩溃）
     /// - Parameter type: 服务类型
     /// - Returns: 服务实例，如果未注册则返回 nil
-    func tryResolve<T>(_ type: T.Type) -> T? {
+    public func tryResolve<T>(_ type: T.Type) -> T? {
         let key = String(describing: type)
 
         lock.lock()
@@ -98,7 +98,7 @@ final class DIContainer: @unchecked Sendable {
     /// 检查服务是否已注册
     /// - Parameter type: 服务类型
     /// - Returns: 是否已注册
-    func isRegistered<T>(_ type: T.Type) -> Bool {
+    public func isRegistered<T>(_ type: T.Type) -> Bool {
         let key = String(describing: type)
         lock.lock()
         defer { lock.unlock() }
@@ -107,7 +107,7 @@ final class DIContainer: @unchecked Sendable {
 
     /// 移除已注册的服务（主要用于测试）
     /// - Parameter type: 服务类型
-    func unregister<T>(_ type: T.Type) {
+    public func unregister<T>(_ type: T.Type) {
         let key = String(describing: type)
         lock.lock()
         defer { lock.unlock() }
@@ -116,7 +116,7 @@ final class DIContainer: @unchecked Sendable {
     }
 
     /// 清空所有注册（主要用于测试）
-    func reset() {
+    public func reset() {
         lock.lock()
         defer { lock.unlock() }
         services.removeAll()

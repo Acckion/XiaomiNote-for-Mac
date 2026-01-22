@@ -240,9 +240,11 @@ public final class SearchViewModel: ObservableObject {
         }
         
         // 过滤：私密笔记
-        if filterIsPrivate {
-            filteredResults = filteredResults.filter { $0.isPrivate }
-        }
+        // 注意: Note 模型目前没有 isPrivate 属性
+        // TODO: 如果需要支持私密笔记过滤，需要在 Note 模型中添加 isPrivate 属性
+        // if filterIsPrivate {
+        //     filteredResults = filteredResults.filter { $0.isPrivate }
+        // }
         
         return filteredResults
     }
