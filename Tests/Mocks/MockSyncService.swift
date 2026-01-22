@@ -1,0 +1,222 @@
+//
+//  MockSyncService.swift
+//  MiNoteMac
+//
+//  Created on 2026-01-22.
+//  Mock 同步服务 - 用于测试
+//
+
+import Foundation
+import Combine
+@testable import MiNoteMac
+
+/// Mock 同步服务
+///
+/// 用于测试的同步服务实现，可以模拟各种同步场景
+class MockSyncService: SyncServiceProtocol {
+    // MARK: - Mock 数据
+
+    private let isSyncingSubject = CurrentValueSubject<Bool, Never>(false)
+    private let syncProgressSubject = CurrentValueSubject<Double, Never>(0.0)
+
+    var mockLastSyncTime: Date?
+    var mockError: Error?
+    var mockPendingOperations: [SyncOperation] = []
+    var mockConflictResolution: Note?
+
+    // MARK: - 调用计数
+
+    var startSyncCallCount = 0
+    var stopSyncCallCount = 0
+    var syncNoteCallCount = 0
+    var syncFolderCallCount = 0
+    var forceFullSyncCallCount = 0
+    var queueOperationCallCount = 0
+    var processPendingOperationsCallCount = 0
+    var getPendingOperationCountCallCount = 0
+    var clearPendingOperationsCallCount = 0
+    var resolveConflictCallCount = 0
+
+    // MARK: - SyncServiceProtocol - 同步状态
+
+    var isSyncing: AnyPublisher<Bool, Never> {
+        isSyncingSubject.eraseToAnyPublisher()
+    }
+
+    var lastSyncTime: Date? {
+        mockLastSyncTime
+    }
+
+    var syncProgress: AnyPublisher<Double, Never> {
+        syncProgressSubject.eraseToAnyPublisher()
+    }
+
+    // MARK: - SyncServiceProtocol - 同步操作
+
+    func startSync() async throws {
+        startSyncCallCount += 1
+
+        if let error = mockError {
+            throw error
+        }
+
+        isSyncingSubject.send(true)
+
+        // 模拟同步进度
+        for progress in stride(from: 0.0, through: 1.0, by: 0.1) {
+            syncProgressSubject.send(progress)
+            try? await Task.sleep(nanoseconds: 10_000_000) // 0.01秒
+        }
+
+        mockLastSyncTime = Date()
+        isSyncingSubject.send(false)
+        syncProgressSubject.send(0.0)
+    }
+
+    func stopSync() {
+        stopSyncCallCount += 1
+        isSyncingSubject.send(false)
+        syncProgressSubject.send(0.0)
+    }
+
+    func syncNote(id: String) async throws {
+        syncNoteCallCount += 1
+
+        if let error = mockError {
+            throw error
+        }
+
+        // 模拟同步单个笔记
+    }
+
+    func syncFolder(id: String) async throws {
+        syncFolderCallCount += 1
+
+        if let error = mockError {
+            throw error
+        }
+
+        // 模拟同步文件夹
+    }
+
+    func forceFullSync() async throws {
+        forceFullSyncCallCount += 1
+
+        if let error = mockError {
+            throw error
+        }
+
+        mockLastSyncTime = nil
+        try await startSync()
+    }
+
+    // MARK: - SyncServiceProtocol - 离线队列
+
+    func queueOperation(_ operation: SyncOperation) throws {
+        queueOperationCallCount += 1
+
+        if let error = mockError {
+            throw error
+        }
+
+        mockPendingOperations.append(operation)
+    }
+
+    func processPendingOperations() async throws {
+        processPendingOperationsCallCount += 1
+
+        if let error = mockError {
+            throw error
+        }
+
+        // 模拟处理待处理操作
+        mockPendingOperations.removeAll()
+    }
+
+    func getPendingOperationCount() throws -> Int {
+        getPendingOperationCountCallCount += 1
+
+        if let error = mockError {
+            throw error
+        }
+
+        return mockPendingOperations.count
+    }
+
+    func clearPendingOperations() throws {
+        clearPendingOperationsCallCount += 1
+
+        if let error = mockError {
+            throw error
+        }
+
+        mockPendingOperations.removeAll()
+    }
+
+    // MARK: - SyncServiceProtocol - 冲突处理
+
+    func resolveConflict(
+        localNote: Note,
+        remoteNote: Note,
+        strategy: ConflictResolutionStrategy
+    ) async throws -> Note {
+        resolveConflictCallCount += 1
+
+        if let error = mockError {
+            throw error
+        }
+
+        if let resolution = mockConflictResolution {
+            return resolution
+        }
+
+        // 默认冲突解决逻辑
+        switch strategy {
+        case .useLocal:
+            return localNote
+        case .useRemote:
+            return remoteNote
+        case .useNewest:
+            return localNote.updatedAt > remoteNote.updatedAt ? localNote : remoteNote
+        case .manual:
+            return localNote // 默认返回本地版本
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    /// 设置同步状态
+    func setSyncing(_ syncing: Bool) {
+        isSyncingSubject.send(syncing)
+    }
+
+    /// 设置同步进度
+    func setSyncProgress(_ progress: Double) {
+        syncProgressSubject.send(progress)
+    }
+
+    /// 重置所有状态
+    func reset() {
+        isSyncingSubject.send(false)
+        syncProgressSubject.send(0.0)
+        mockLastSyncTime = nil
+        mockError = nil
+        mockPendingOperations.removeAll()
+        mockConflictResolution = nil
+        resetCallCounts()
+    }
+
+    /// 重置调用计数
+    func resetCallCounts() {
+        startSyncCallCount = 0
+        stopSyncCallCount = 0
+        syncNoteCallCount = 0
+        syncFolderCallCount = 0
+        forceFullSyncCallCount = 0
+        queueOperationCallCount = 0
+        processPendingOperationsCallCount = 0
+        getPendingOperationCountCallCount = 0
+        clearPendingOperationsCallCount = 0
+        resolveConflictCallCount = 0
+    }
+}
