@@ -9,6 +9,16 @@
 import Foundation
 import Combine
 
+/// 播放状态
+enum PlaybackState {
+    /// 停止
+    case stopped
+    /// 播放中
+    case playing
+    /// 暂停
+    case paused
+}
+
 /// 音频服务协议
 ///
 /// 定义了音频处理相关的操作接口，包括：

@@ -282,7 +282,6 @@
 		E0CECEAB5C4D1A233677784C /* FormatMenuProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA2C5228C6D1AD33C3CC0ED /* FormatMenuProvider.swift */; };
 		E105BA9A72AC4F34F4F58004 /* TitleExtractionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F1DB31FF5233FAD5310C6D /* TitleExtractionResult.swift */; };
 		E11CF9ACA07646605794744A /* ParagraphDebugWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC91543705F2AC75FA52B3A /* ParagraphDebugWindowController.swift */; };
-		E16C7C5FDA2C99BB44C2A7C6 /* NetworkClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EB8EE372BE3C518E5BD02B /* NetworkClient.swift */; };
 		E268AF6D29FFA27E14499553 /* LoadableViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D2DCC440123DD9A9F925288 /* LoadableViewModel.swift */; };
 		E2E0264104CA8FF4DE181456 /* XMLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = D194384700AE79A33F16FC55 /* XMLParser.swift */; };
 		E36D43378EE51753686A79F7 /* ViewStateCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8799405BFCC9105AAE2AEA0 /* ViewStateCoordinator.swift */; };
@@ -581,7 +580,6 @@
 		A8D0BE6AA93B1A77FB8323AD /* SyncService.swift.bak4 */ = {isa = PBXFileReference; path = SyncService.swift.bak4; sourceTree = "<group>"; };
 		A95D04A341EF5C70245B351D /* NewLineHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewLineHandler.swift; sourceTree = "<group>"; };
 		A9B169C15EB27658B047F945 /* NativeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorView.swift; sourceTree = "<group>"; };
-		A9EB8EE372BE3C518E5BD02B /* NetworkClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NetworkClient.swift; path = Sources/Service/Network/Core/NetworkClient.swift; sourceTree = "<group>"; };
 		A9ED9286CE7FE1DE05A119DC /* MockNoteService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MockNoteService.swift; path = Tests/Mocks/MockNoteService.swift; sourceTree = "<group>"; };
 		ABA355D00FDC0FD5285B0ED3 /* XiaoMiFormatConverterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XiaoMiFormatConverterTests.swift; sourceTree = "<group>"; };
 		ABE5F4289985D6251543ECE9 /* OfflineOperationsProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineOperationsProgressView.swift; sourceTree = "<group>"; };
@@ -840,7 +838,6 @@
 				AE1069CF662731564489709C /* ImageServiceProtocol.swift */,
 				CB291B7254B4A684386E54C3 /* AudioServiceProtocol.swift */,
 				0C8033870E492F770EF0C3AA /* CacheServiceProtocol.swift */,
-				A9EB8EE372BE3C518E5BD02B /* NetworkClient.swift */,
 				A42B966459F8B326BE0B6962 /* DefaultNoteService.swift */,
 				526FA7C827528E99812AF2F8 /* DefaultNetworkMonitor.swift */,
 				9AEA9CFFE254C1BE327ADAA6 /* DefaultNoteStorage.swift */,
@@ -1735,7 +1732,6 @@
 				65E6E2834C46E21A7C986714 /* ImageServiceProtocol.swift in Sources */,
 				5A42CA7EE42A49F3F4BE1C6E /* AudioServiceProtocol.swift in Sources */,
 				C5DF447C1E100C10EA9261FA /* CacheServiceProtocol.swift in Sources */,
-				E16C7C5FDA2C99BB44C2A7C6 /* NetworkClient.swift in Sources */,
 				2B2FE911686227A2B7D48938 /* DefaultNoteService.swift in Sources */,
 				64AE039EBDB2C3D8389E7C13 /* DefaultNetworkMonitor.swift in Sources */,
 				DCE5200998ADC7D1DF76DB8C /* DefaultNoteStorage.swift in Sources */,

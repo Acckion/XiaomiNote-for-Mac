@@ -15,81 +15,90 @@ import Foundation
 /// - 缓存管理
 /// - 缓存策略
 protocol CacheServiceProtocol {
-    // MARK: - 基本操作
+    // MARK: - 基本操作（异步版本）
 
     /// 获取缓存对象
     /// - Parameter key: 缓存键
     /// - Returns: 缓存对象，如果不存在返回 nil
-    func get<T: Codable>(_ key: String) -> T?
+    func get<T: Codable>(key: String) async throws -> T?
 
     /// 设置缓存对象
     /// - Parameters:
-    ///   - value: 缓存对象
     ///   - key: 缓存键
-    ///   - expiration: 过期时间，nil 表示永不过期
-    func set<T: Codable>(_ value: T, for key: String, expiration: TimeInterval?)
+    ///   - value: 缓存对象
+    ///   - policy: 缓存策略
+    func set<T: Codable>(key: String, value: T, policy: CachePolicy) async throws
 
     /// 删除缓存对象
     /// - Parameter key: 缓存键
-    func remove(_ key: String)
+    func remove(key: String) async throws
 
     /// 检查缓存是否存在
     /// - Parameter key: 缓存键
     /// - Returns: 是否存在
-    func exists(_ key: String) -> Bool
+    func exists(key: String) async -> Bool
 
     // MARK: - 批量操作
 
     /// 批量获取缓存对象
     /// - Parameter keys: 缓存键数组
     /// - Returns: 缓存对象字典
-    func getMultiple<T: Codable>(_ keys: [String]) -> [String: T]
+    func getMultiple<T: Codable>(keys: [String]) async throws -> [String: T]
 
     /// 批量设置缓存对象
     /// - Parameters:
     ///   - values: 缓存对象字典
-    ///   - expiration: 过期时间，nil 表示永不过期
-    func setMultiple<T: Codable>(_ values: [String: T], expiration: TimeInterval?)
+    ///   - policy: 缓存策略
+    func setMultiple<T: Codable>(values: [String: T], policy: CachePolicy) async throws
 
     /// 批量删除缓存对象
     /// - Parameter keys: 缓存键数组
-    func removeMultiple(_ keys: [String])
+    func removeMultiple(keys: [String]) async throws
 
     // MARK: - 缓存管理
 
     /// 清空所有缓存
-    func clear()
+    func clear() async throws
 
     /// 清空过期缓存
-    func clearExpired()
+    func clearExpired() async throws
 
     /// 获取缓存大小（字节）
     /// - Returns: 缓存大小
-    func getCacheSize() -> Int64
+    func getCacheSize() async -> Int64
 
     /// 获取缓存对象数量
     /// - Returns: 缓存对象数量
-    func getCacheCount() -> Int
+    func getCacheCount() async -> Int
 
     // MARK: - 缓存策略
 
     /// 设置最大缓存大小（字节）
     /// - Parameter size: 最大缓存大小
-    func setMaxCacheSize(_ size: Int64)
+    func setMaxCacheSize(_ size: Int64) async
 
     /// 设置最大缓存对象数量
     /// - Parameter count: 最大缓存对象数量
-    func setMaxCacheCount(_ count: Int)
+    func setMaxCacheCount(_ count: Int) async
 
     /// 设置默认过期时间
     /// - Parameter expiration: 默认过期时间
-    func setDefaultExpiration(_ expiration: TimeInterval)
+    func setDefaultExpiration(_ expiration: TimeInterval) async
 }
 
 // MARK: - Supporting Types
 
 /// 缓存策略
 enum CachePolicy {
+    /// 默认策略（使用默认过期时间）
+    case `default`
+    
+    /// 永不过期
+    case never
+    
+    /// 自定义过期时间
+    case expiration(TimeInterval)
+    
     /// 仅使用缓存
     case cacheOnly
 

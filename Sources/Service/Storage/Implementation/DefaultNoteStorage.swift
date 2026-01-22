@@ -12,12 +12,12 @@ import Foundation
 ///
 /// 实现 NoteStorageProtocol，提供笔记的本地存储功能
 /// 使用内存存储作为简化实现，实际项目中应使用数据库
-final class DefaultNoteStorage: NoteStorageProtocol {
+final class DefaultNoteStorage: NoteStorageProtocol, @unchecked Sendable {
     // MARK: - Properties
 
     private var notes: [String: Note] = [:]
     private var folders: [String: Folder] = [:]
-    private let lock = NSLock()
+    private let queue = DispatchQueue(label: "com.minote.storage", attributes: .concurrent)
 
     // MARK: - Initialization
 
@@ -26,130 +26,129 @@ final class DefaultNoteStorage: NoteStorageProtocol {
     // MARK: - NoteStorageProtocol - 读取操作
 
     func fetchAllNotes() throws -> [Note] {
-        lock.lock()
-        defer { lock.unlock() }
-        return Array(notes.values).sorted { $0.updatedAt > $1.updatedAt }
+        return queue.sync {
+            Array(notes.values).sorted { $0.updatedAt > $1.updatedAt }
+        }
     }
 
     func fetchNote(id: String) throws -> Note? {
-        lock.lock()
-        defer { lock.unlock() }
-        return notes[id]
+        return queue.sync {
+            notes[id]
+        }
     }
 
     func fetchNotes(in folderId: String) throws -> [Note] {
-        lock.lock()
-        defer { lock.unlock() }
-        return notes.values
-            .filter { $0.folderId == folderId }
-            .sorted { $0.updatedAt > $1.updatedAt }
+        return queue.sync {
+            notes.values
+                .filter { $0.folderId == folderId }
+                .sorted { $0.updatedAt > $1.updatedAt }
+        }
     }
 
     func searchNotes(query: String) throws -> [Note] {
-        lock.lock()
-        defer { lock.unlock() }
-
-        let lowercasedQuery = query.lowercased()
-        return notes.values
-            .filter {
-                $0.title.lowercased().contains(lowercasedQuery) ||
-                $0.content.lowercased().contains(lowercasedQuery)
-            }
-            .sorted { $0.updatedAt > $1.updatedAt }
+        return queue.sync {
+            let lowercasedQuery = query.lowercased()
+            return notes.values
+                .filter {
+                    $0.title.lowercased().contains(lowercasedQuery) ||
+                    $0.content.lowercased().contains(lowercasedQuery)
+                }
+                .sorted { $0.updatedAt > $1.updatedAt }
+        }
     }
 
     func fetchStarredNotes() throws -> [Note] {
-        lock.lock()
-        defer { lock.unlock() }
-        return notes.values
-            .filter { $0.isStarred }
-            .sorted { $0.updatedAt > $1.updatedAt }
+        return queue.sync {
+            notes.values
+                .filter { $0.isStarred }
+                .sorted { $0.updatedAt > $1.updatedAt }
+        }
     }
 
     // MARK: - NoteStorageProtocol - 写入操作
 
     func saveNote(_ note: Note) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        notes[note.id] = note
+        queue.async(flags: .barrier) { [weak self] in
+            self?.notes[note.id] = note
+        }
     }
 
     func saveNotes(_ notes: [Note]) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        for note in notes {
-            self.notes[note.id] = note
+        queue.async(flags: .barrier) { [weak self] in
+            for note in notes {
+                self?.notes[note.id] = note
+            }
         }
     }
 
     func deleteNote(id: String) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        notes.removeValue(forKey: id)
+        queue.async(flags: .barrier) { [weak self] in
+            self?.notes.removeValue(forKey: id)
+        }
     }
 
     func deleteNotes(ids: [String]) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        for id in ids {
-            notes.removeValue(forKey: id)
+        queue.async(flags: .barrier) { [weak self] in
+            for id in ids {
+                self?.notes.removeValue(forKey: id)
+            }
         }
     }
 
     // MARK: - NoteStorageProtocol - 批量操作
 
     func performBatchUpdate(_ block: () throws -> Void) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        try block()
+        try queue.sync(flags: .barrier) {
+            try block()
+        }
     }
 
     // MARK: - NoteStorageProtocol - 文件夹操作
 
     func fetchAllFolders() throws -> [Folder] {
-        lock.lock()
-        defer { lock.unlock() }
-        return Array(folders.values).sorted { $0.name < $1.name }
+        return queue.sync {
+            Array(folders.values).sorted { $0.name < $1.name }
+        }
     }
 
     func fetchFolder(id: String) throws -> Folder? {
-        lock.lock()
-        defer { lock.unlock() }
-        return folders[id]
+        return queue.sync {
+            folders[id]
+        }
     }
 
     func saveFolder(_ folder: Folder) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        folders[folder.id] = folder
+        queue.async(flags: .barrier) { [weak self] in
+            self?.folders[folder.id] = folder
+        }
     }
 
     func saveFolders(_ folders: [Folder]) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        for folder in folders {
-            self.folders[folder.id] = folder
+        queue.async(flags: .barrier) { [weak self] in
+            for folder in folders {
+                self?.folders[folder.id] = folder
+            }
         }
     }
 
     func deleteFolder(id: String) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        folders.removeValue(forKey: id)
+        queue.async(flags: .barrier) { [weak self] in
+            self?.folders.removeValue(forKey: id)
+        }
     }
 
     // MARK: - NoteStorageProtocol - 统计操作
 
     func getNoteCount() throws -> Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return notes.count
+        return queue.sync {
+            notes.count
+        }
     }
 
     func getNoteCount(in folderId: String) throws -> Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return notes.values.filter { $0.folderId == folderId }.count
+        return queue.sync {
+            notes.values.filter { $0.folderId == folderId }.count
+        }
     }
 
     // MARK: - 同步支持
@@ -161,14 +160,12 @@ final class DefaultNoteStorage: NoteStorageProtocol {
     }
 
     func getNote(id: String) async throws -> Note {
-        lock.lock()
-        defer { lock.unlock() }
-
-        guard let note = notes[id] else {
-            throw StorageError.noteNotFound
+        return try queue.sync {
+            guard let note = notes[id] else {
+                throw StorageError.noteNotFound
+            }
+            return note
         }
-
-        return note
     }
 }
 

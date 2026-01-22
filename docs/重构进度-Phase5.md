@@ -64,54 +64,45 @@
 
 ## ⚠️ 当前问题
 
-### 1. 模型不兼容 🔴 **高优先级**
+### 1. 模型不兼容 ✅ **已解决**
 
-**问题描述**:
-- 新创建的服务层使用的 `UserProfile` 模型与现有模型不兼容
-- 现有模型: `UserProfile(nickname: String, icon: String)`
-- 新服务期望: `UserProfile(id: String, username: String, email: String, token: String)`
+**解决方案**: 创建了独立的 AuthUser 模型用于认证层，避免破坏现有代码
 
-**影响范围**:
-- DefaultAuthenticationService
-- MockAuthenticationService
-- AuthenticationViewModel
+### 2. 网络客户端不存在 ✅ **已解决**
 
-**解决方案**:
-1. **选项 A**: 扩展现有 UserProfile 模型，添加新字段
-2. **选项 B**: 创建新的 AuthUser 模型用于认证层
-3. **选项 C**: 暂时禁用新服务，继续使用现有 MiNoteService
+**解决方案**: 创建了 NetworkClient 和 NetworkClientProtocol 抽象层
 
-**推荐**: 选项 B - 创建独立的 AuthUser 模型，避免破坏现有代码
+### 3. 缓存服务 API 不匹配 ✅ **已解决**
 
-### 2. 网络客户端不存在 🔴 **高优先级**
+**解决方案**: 统一了 CacheServiceProtocol API，使用异步方法和统一的参数命名
 
-**问题描述**:
-- 服务实现中使用了 `NetworkClient` 类，但项目中不存在
-- 现有系统使用 `MiNoteService` 处理所有网络请求
+### 4. 异步锁使用问题 ✅ **已解决**
 
-**解决方案**:
-1. 创建 NetworkClient 抽象层
-2. 或者让新服务直接使用 MiNoteService
+**解决方案**: 使用 DispatchQueue 替代 NSLock，避免在异步上下文中使用同步锁
 
-### 3. 缓存服务 API 不匹配 🟡 **中优先级**
+### 5. PlaybackState 枚举缺失 ✅ **已解决**
 
-**问题描述**:
-- DefaultImageService 和 DefaultAudioService 使用的缓存 API 与 CacheServiceProtocol 不匹配
-- 例如: `cache(key:value:policy:)` vs `cache(_:for:expiration:)`
+**解决方案**: 在 AudioServiceProtocol.swift 中定义了 PlaybackState 枚举
 
-**解决方案**:
-- 统一缓存服务 API 设计
-- 更新服务实现以匹配协议
+### 6. Sendable 并发安全问题 ✅ **已解决**
 
-### 4. 异步锁使用问题 🟡 **中优先级**
+**解决方案**: 
+- DefaultNetworkMonitor: 添加 `@unchecked Sendable`，使用 Task 在主线程更新 Subject
+- DefaultNoteStorage: 使用 DispatchQueue 替代 NSLock，添加 `@unchecked Sendable`
+- DefaultCacheService: 使用 DispatchQueue 替代 Actor，添加 `@unchecked Sendable`
 
-**问题描述**:
-- DefaultNoteStorage 在异步方法中使用 NSLock
-- Swift 6 不允许在异步上下文中使用同步锁
+### 7. 文件名冲突 ✅ **已解决**
 
-**解决方案**:
-- 使用 Actor 模式替代锁
-- 或使用 OSAllocatedUnfairLock (macOS 13.0+)
+**问题**: 存在两个 NetworkClient.swift 文件
+**解决方案**: 删除旧的 `Sources/Service/Network/Core/NetworkClient.swift`，保留新的实现
+
+### 8. 剩余编译错误 🟡 **进行中**
+
+以下错误仍需修复：
+- ImageServiceProtocol 和 AudioServiceProtocol 协议不匹配
+- SyncServiceProtocol 缺少某些属性和方法
+- ViewModel 层的协议调用问题
+- BackgroundTaskManager 的 Sendable 问题
 
 ## 📝 编译错误统计
 
@@ -132,34 +123,24 @@
 
 ## 🎯 下一步行动计划
 
-### 立即行动 (今天)
+### 立即行动 (今天) - 90% 完成
 
-1. **创建 AuthUser 模型** (30 分钟)
-   ```swift
-   struct AuthUser {
-       let id: String
-       let username: String
-       let email: String?
-       let token: String
-   }
-   ```
-
-2. **创建 NetworkClient 抽象** (1 小时)
-   - 定义 NetworkClientProtocol
-   - 创建 MiNoteNetworkClient 适配器
-   - 包装现有 MiNoteService 的网络功能
-
-3. **修复缓存服务 API** (30 分钟)
-   - 统一 CacheServiceProtocol 方法签名
-   - 更新所有服务实现
-
-4. **修复异步锁问题** (30 分钟)
-   - 将 DefaultNoteStorage 改为 Actor
-   - 或使用 OSAllocatedUnfairLock
+1. ✅ **创建 AuthUser 模型** 
+2. ✅ **创建 NetworkClient 抽象**
+3. ✅ **修复缓存服务 API**
+4. ✅ **修复异步锁问题**
+5. ✅ **添加 PlaybackState 枚举**
+6. ✅ **修复 Sendable 并发安全问题**
+7. ✅ **解决文件名冲突**
+8. 🔄 **修复剩余协议不匹配问题** (进行中)
 
 ### 短期目标 (本周)
 
 1. **完成所有编译错误修复**
+   - 修复 ImageServiceProtocol 和 AudioServiceProtocol 不匹配
+   - 补充 SyncServiceProtocol 缺失的方法
+   - 修复 ViewModel 层的调用问题
+   
 2. **运行基础测试验证**
 3. **更新 ServiceLocator 配置**
 4. **文档更新**
@@ -261,20 +242,21 @@
 - ✅ Phase 2: 协议定义 (100%)
 - ✅ Phase 3: 服务实现 (100%)
 - ✅ Phase 4: ViewModel 和性能优化 (100%)
-- 🔄 Phase 5: 迁移现有代码 (85%)
+- 🔄 Phase 5: 迁移现有代码 (90%)
 - ⏳ Phase 6: 清理旧代码 (0%)
 - ⏳ Phase 7: 文档和测试 (0%)
 
 ## 📅 时间线
 
-- **2026-01-22**: 开始 Phase 5 迁移
-- **2026-01-22**: 修复 LRUCache 重复和 Sendable 警告
+- **2026-01-22 上午**: 开始 Phase 5 迁移
+- **2026-01-22 下午**: 修复 LRUCache 重复和 Sendable 警告
+- **2026-01-22 晚上**: 修复核心编译错误（缓存 API、异步锁、PlaybackState、文件冲突）
 - **预计 2026-01-23**: 完成所有编译错误修复
 - **预计 2026-01-24**: 完成 Phase 5
 - **预计 2026-01-27**: 完成整个重构项目
 
 ---
 
-**最后更新**: 2026-01-22
-**状态**: 进行中 🔄
+**最后更新**: 2026-01-22 晚上
+**状态**: 进行中 🔄 (90% 完成)
 **下次审查**: 2026-01-23

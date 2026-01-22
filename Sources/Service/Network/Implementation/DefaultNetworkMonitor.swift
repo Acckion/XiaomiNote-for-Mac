@@ -3,7 +3,7 @@ import Network
 import Combine
 
 /// 默认网络监控实现
-final class DefaultNetworkMonitor: NetworkMonitorProtocol {
+final class DefaultNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
     // MARK: - Properties
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "com.minote.networkmonitor")
@@ -42,10 +42,13 @@ final class DefaultNetworkMonitor: NetworkMonitorProtocol {
             guard let self else { return }
             
             let isConnected = path.status == .satisfied
-            self.isConnectedSubject.send(isConnected)
-
             let connectionType = self.determineConnectionType(from: path)
-            self.connectionTypeSubject.send(connectionType)
+            
+            // 在主线程更新 Subject，避免 Sendable 警告
+            Task { @MainActor in
+                self.isConnectedSubject.send(isConnected)
+                self.connectionTypeSubject.send(connectionType)
+            }
         }
 
         startMonitoring()
