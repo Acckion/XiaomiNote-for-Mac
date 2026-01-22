@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import MiNoteMac
+@testable import MiNoteLibrary
 
 /// 性能基准测试
 ///

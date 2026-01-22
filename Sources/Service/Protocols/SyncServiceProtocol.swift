@@ -10,7 +10,7 @@ import Foundation
 import Combine
 
 /// 同步状态
-enum SyncState {
+public enum SyncState {
     case idle
     case syncing
     case failed(Error)
@@ -23,7 +23,7 @@ enum SyncState {
 /// - 同步操作
 /// - 离线队列管理
 @preconcurrency
-protocol SyncServiceProtocol {
+public protocol SyncServiceProtocol: Sendable {
     // MARK: - 同步状态
 
     /// 同步状态
@@ -91,25 +91,25 @@ protocol SyncServiceProtocol {
 // MARK: - Supporting Types
 
 /// 同步操作
-struct SyncOperation: Codable, Identifiable {
+public struct SyncOperation: Codable, Identifiable {
     /// 操作ID
-    let id: String
+    public let id: String
 
     /// 操作类型
-    let type: OperationType
+    public let type: OperationType
 
     /// 笔记变更
-    let change: NoteChange
+    public let change: NoteChange
 
     /// 时间戳
-    let timestamp: Date
+    public let timestamp: Date
 
-    enum OperationType: String, Codable {
+    public enum OperationType: String, Codable {
         case upload
         case download
     }
 
-    init(id: String = UUID().uuidString, type: OperationType, change: NoteChange, timestamp: Date = Date()) {
+    public init(id: String = UUID().uuidString, type: OperationType, change: NoteChange, timestamp: Date = Date()) {
         self.id = id
         self.type = type
         self.change = change
@@ -118,7 +118,7 @@ struct SyncOperation: Codable, Identifiable {
 }
 
 /// 冲突解决策略
-enum ConflictResolutionStrategy {
+public enum ConflictResolutionStrategy {
     /// 使用本地版本
     case useLocal
 

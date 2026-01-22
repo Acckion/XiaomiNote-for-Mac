@@ -15,7 +15,7 @@ import Foundation
 /// - 查询和搜索
 /// - 批量操作
 @preconcurrency
-protocol NoteStorageProtocol {
+public protocol NoteStorageProtocol: Sendable {
     // MARK: - 读取操作
 
     /// 获取所有笔记

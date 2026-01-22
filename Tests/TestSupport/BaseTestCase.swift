@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import MiNoteMac
+@testable import MiNoteLibrary
 
 /// 测试基类
 ///
@@ -16,17 +16,17 @@ import XCTest
 /// - Mock 服务配置
 /// - 通用的 setUp 和 tearDown
 class BaseTestCase: XCTestCase {
-    var container: DIContainer!
+    var container: DIContainer {
+        DIContainer.shared
+    }
 
     override func setUp() {
         super.setUp()
-        container = DIContainer()
         configureMockServices()
     }
 
     override func tearDown() {
         container.reset()
-        container = nil
         super.tearDown()
     }
 

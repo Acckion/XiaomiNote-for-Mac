@@ -10,7 +10,7 @@ import Foundation
 import Combine
 
 /// 播放状态
-enum PlaybackState {
+public enum PlaybackState {
     /// 停止
     case stopped
     /// 播放中
@@ -25,7 +25,8 @@ enum PlaybackState {
 /// - 音频播放
 /// - 音频录制
 /// - 音频上传和下载
-protocol AudioServiceProtocol {
+@preconcurrency
+public protocol AudioServiceProtocol: Sendable {
     // MARK: - 播放状态
 
     /// 是否正在播放

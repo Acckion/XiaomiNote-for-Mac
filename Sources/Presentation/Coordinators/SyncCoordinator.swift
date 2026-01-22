@@ -91,7 +91,7 @@ final class SyncCoordinator: LoadableViewModel {
             return
         }
 
-        await withLoadingSafe {
+        await withLoadingSafe { [syncService] in
             try await syncService.startSync()
             self.lastSyncTime = Date()
             await self.updatePendingOperationCount()
@@ -110,7 +110,7 @@ final class SyncCoordinator: LoadableViewModel {
             return
         }
 
-        await withLoadingSafe {
+        await withLoadingSafe { [syncService] in
             try await syncService.forceFullSync()
             self.lastSyncTime = Date()
         }
@@ -121,7 +121,7 @@ final class SyncCoordinator: LoadableViewModel {
     func syncNote(_ noteId: String) async {
         guard isOnline else { return }
 
-        await withLoadingSafe {
+        await withLoadingSafe { [syncService] in
             try await syncService.syncNote(id: noteId)
         }
     }
@@ -152,7 +152,7 @@ final class SyncCoordinator: LoadableViewModel {
     func processPendingOperations() async {
         guard isOnline else { return }
 
-        await withLoadingSafe {
+        await withLoadingSafe { [syncService] in
             try await syncService.processPendingOperations()
             await self.updatePendingOperationCount()
         }

@@ -7,7 +7,7 @@
 //
 
 import Foundation
-@testable import MiNoteMac
+@testable import MiNoteLibrary
 
 /// Mock 笔记网络服务
 ///
@@ -15,31 +15,31 @@ import Foundation
 /// - 成功的网络请求
 /// - 网络错误
 /// - 特定的返回数据
-class MockNoteService: NoteServiceProtocol {
+public final class MockNoteService: NoteServiceProtocol, @unchecked Sendable {
     // MARK: - Mock 数据
 
-    var mockNotes: [Note] = []
-    var mockFolders: [Folder] = []
-    var mockError: Error?
-    var mockSyncResult: SyncResult?
+    public var mockNotes: [Note] = []
+    public var mockFolders: [Folder] = []
+    public var mockError: Error?
+    public var mockSyncResult: SyncResult?
 
     // MARK: - 调用计数
 
-    var fetchNotesCallCount = 0
-    var fetchNoteCallCount = 0
-    var createNoteCallCount = 0
-    var updateNoteCallCount = 0
-    var deleteNoteCallCount = 0
-    var syncNotesCallCount = 0
-    var uploadChangesCallCount = 0
-    var fetchFoldersCallCount = 0
-    var createFolderCallCount = 0
-    var updateFolderCallCount = 0
-    var deleteFolderCallCount = 0
+    public var fetchNotesCallCount = 0
+    public var fetchNoteCallCount = 0
+    public var createNoteCallCount = 0
+    public var updateNoteCallCount = 0
+    public var deleteNoteCallCount = 0
+    public var syncNotesCallCount = 0
+    public var uploadChangesCallCount = 0
+    public var fetchFoldersCallCount = 0
+    public var createFolderCallCount = 0
+    public var updateFolderCallCount = 0
+    public var deleteFolderCallCount = 0
 
     // MARK: - NoteServiceProtocol - 笔记操作
 
-    func fetchNotes() async throws -> [Note] {
+    public func fetchNotes() async throws -> [Note] {
         fetchNotesCallCount += 1
 
         if let error = mockError {
@@ -49,7 +49,7 @@ class MockNoteService: NoteServiceProtocol {
         return mockNotes
     }
 
-    func fetchNote(id: String) async throws -> Note {
+    public func fetchNote(id: String) async throws -> Note {
         fetchNoteCallCount += 1
 
         if let error = mockError {
@@ -63,7 +63,7 @@ class MockNoteService: NoteServiceProtocol {
         return note
     }
 
-    func createNote(_ note: Note) async throws -> Note {
+    public func createNote(_ note: Note) async throws -> Note {
         createNoteCallCount += 1
 
         if let error = mockError {
@@ -74,7 +74,7 @@ class MockNoteService: NoteServiceProtocol {
         return note
     }
 
-    func updateNote(_ note: Note) async throws -> Note {
+    public func updateNote(_ note: Note) async throws -> Note {
         updateNoteCallCount += 1
 
         if let error = mockError {
@@ -88,7 +88,7 @@ class MockNoteService: NoteServiceProtocol {
         return note
     }
 
-    func deleteNote(id: String) async throws {
+    public func deleteNote(id: String) async throws {
         deleteNoteCallCount += 1
 
         if let error = mockError {
@@ -100,7 +100,7 @@ class MockNoteService: NoteServiceProtocol {
 
     // MARK: - NoteServiceProtocol - 同步操作
 
-    func syncNotes(since: Date?) async throws -> SyncResult {
+    public func syncNotes(since: Date?) async throws -> SyncResult {
         syncNotesCallCount += 1
 
         if let error = mockError {
@@ -120,7 +120,7 @@ class MockNoteService: NoteServiceProtocol {
         )
     }
 
-    func uploadChanges(_ changes: [NoteChange]) async throws {
+    public func uploadChanges(_ changes: [NoteChange]) async throws {
         uploadChangesCallCount += 1
 
         if let error = mockError {
@@ -146,7 +146,7 @@ class MockNoteService: NoteServiceProtocol {
 
     // MARK: - NoteServiceProtocol - 文件夹操作
 
-    func fetchFolders() async throws -> [Folder] {
+    public func fetchFolders() async throws -> [Folder] {
         fetchFoldersCallCount += 1
 
         if let error = mockError {
@@ -156,7 +156,7 @@ class MockNoteService: NoteServiceProtocol {
         return mockFolders
     }
 
-    func createFolder(_ folder: Folder) async throws -> Folder {
+    public func createFolder(_ folder: Folder) async throws -> Folder {
         createFolderCallCount += 1
 
         if let error = mockError {
@@ -167,7 +167,7 @@ class MockNoteService: NoteServiceProtocol {
         return folder
     }
 
-    func updateFolder(_ folder: Folder) async throws -> Folder {
+    public func updateFolder(_ folder: Folder) async throws -> Folder {
         updateFolderCallCount += 1
 
         if let error = mockError {
@@ -181,7 +181,7 @@ class MockNoteService: NoteServiceProtocol {
         return folder
     }
 
-    func deleteFolder(id: String) async throws {
+    public func deleteFolder(id: String) async throws {
         deleteFolderCallCount += 1
 
         if let error = mockError {
@@ -194,7 +194,7 @@ class MockNoteService: NoteServiceProtocol {
     // MARK: - Helper Methods
 
     /// 重置所有状态
-    func reset() {
+    public func reset() {
         mockNotes.removeAll()
         mockFolders.removeAll()
         mockError = nil
@@ -203,7 +203,7 @@ class MockNoteService: NoteServiceProtocol {
     }
 
     /// 重置调用计数
-    func resetCallCounts() {
+    public func resetCallCounts() {
         fetchNotesCallCount = 0
         fetchNoteCallCount = 0
         createNoteCallCount = 0

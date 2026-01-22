@@ -7,34 +7,36 @@
 //
 
 import Foundation
-@testable import MiNoteMac
+@testable import MiNoteLibrary
 
 /// Mock 笔记存储服务
 ///
 /// 用于测试的存储服务实现，使用内存存储模拟数据库操作
-class MockNoteStorage: NoteStorageProtocol {
+public final class MockNoteStorage: NoteStorageProtocol, @unchecked Sendable {
     // MARK: - Mock 数据
 
     private var notes: [String: Note] = [:]
     private var folders: [String: Folder] = [:]
-    var mockError: Error?
+    public var mockError: Error?
+    public var mockPendingChanges: [NoteChange] = []
+    public var mockSearchResults: [Note]?
 
     // MARK: - 调用计数
 
-    var fetchAllNotesCallCount = 0
-    var fetchNoteCallCount = 0
-    var fetchNotesInFolderCallCount = 0
-    var searchNotesCallCount = 0
-    var fetchStarredNotesCallCount = 0
-    var saveNoteCallCount = 0
-    var saveNotesCallCount = 0
-    var deleteNoteCallCount = 0
-    var deleteNotesCallCount = 0
-    var performBatchUpdateCallCount = 0
+    public var fetchAllNotesCallCount = 0
+    public var fetchNoteCallCount = 0
+    public var fetchNotesInFolderCallCount = 0
+    public var searchNotesCallCount = 0
+    public var fetchStarredNotesCallCount = 0
+    public var saveNoteCallCount = 0
+    public var saveNotesCallCount = 0
+    public var deleteNoteCallCount = 0
+    public var deleteNotesCallCount = 0
+    public var performBatchUpdateCallCount = 0
 
     // MARK: - NoteStorageProtocol - 读取操作
 
-    func fetchAllNotes() throws -> [Note] {
+    public func fetchAllNotes() throws -> [Note] {
         fetchAllNotesCallCount += 1
 
         if let error = mockError {
@@ -44,7 +46,7 @@ class MockNoteStorage: NoteStorageProtocol {
         return Array(notes.values)
     }
 
-    func fetchNote(id: String) throws -> Note? {
+    public func fetchNote(id: String) throws -> Note? {
         fetchNoteCallCount += 1
 
         if let error = mockError {
@@ -54,7 +56,7 @@ class MockNoteStorage: NoteStorageProtocol {
         return notes[id]
     }
 
-    func fetchNotes(in folderId: String) throws -> [Note] {
+    public func fetchNotes(in folderId: String) throws -> [Note] {
         fetchNotesInFolderCallCount += 1
 
         if let error = mockError {
@@ -64,11 +66,16 @@ class MockNoteStorage: NoteStorageProtocol {
         return notes.values.filter { $0.folderId == folderId }
     }
 
-    func searchNotes(query: String) throws -> [Note] {
+    public func searchNotes(query: String) throws -> [Note] {
         searchNotesCallCount += 1
 
         if let error = mockError {
             throw error
+        }
+
+        // 如果设置了 mockSearchResults，直接返回
+        if let mockResults = mockSearchResults {
+            return mockResults
         }
 
         let lowercasedQuery = query.lowercased()
@@ -78,7 +85,7 @@ class MockNoteStorage: NoteStorageProtocol {
         }
     }
 
-    func fetchStarredNotes() throws -> [Note] {
+    public func fetchStarredNotes() throws -> [Note] {
         fetchStarredNotesCallCount += 1
 
         if let error = mockError {
@@ -90,7 +97,7 @@ class MockNoteStorage: NoteStorageProtocol {
 
     // MARK: - NoteStorageProtocol - 写入操作
 
-    func saveNote(_ note: Note) throws {
+    public func saveNote(_ note: Note) throws {
         saveNoteCallCount += 1
 
         if let error = mockError {
@@ -100,7 +107,7 @@ class MockNoteStorage: NoteStorageProtocol {
         notes[note.id] = note
     }
 
-    func saveNotes(_ notes: [Note]) throws {
+    public func saveNotes(_ notes: [Note]) throws {
         saveNotesCallCount += 1
 
         if let error = mockError {
@@ -112,7 +119,7 @@ class MockNoteStorage: NoteStorageProtocol {
         }
     }
 
-    func deleteNote(id: String) throws {
+    public func deleteNote(id: String) throws {
         deleteNoteCallCount += 1
 
         if let error = mockError {
@@ -122,7 +129,7 @@ class MockNoteStorage: NoteStorageProtocol {
         notes.removeValue(forKey: id)
     }
 
-    func deleteNotes(ids: [String]) throws {
+    public func deleteNotes(ids: [String]) throws {
         deleteNotesCallCount += 1
 
         if let error = mockError {
@@ -136,7 +143,7 @@ class MockNoteStorage: NoteStorageProtocol {
 
     // MARK: - NoteStorageProtocol - 批量操作
 
-    func performBatchUpdate(_ block: () throws -> Void) throws {
+    public func performBatchUpdate(_ block: () throws -> Void) throws {
         performBatchUpdateCallCount += 1
 
         if let error = mockError {
@@ -148,7 +155,7 @@ class MockNoteStorage: NoteStorageProtocol {
 
     // MARK: - NoteStorageProtocol - 文件夹操作
 
-    func fetchAllFolders() throws -> [Folder] {
+    public func fetchAllFolders() throws -> [Folder] {
         if let error = mockError {
             throw error
         }
@@ -156,7 +163,7 @@ class MockNoteStorage: NoteStorageProtocol {
         return Array(folders.values)
     }
 
-    func fetchFolder(id: String) throws -> Folder? {
+    public func fetchFolder(id: String) throws -> Folder? {
         if let error = mockError {
             throw error
         }
@@ -164,7 +171,7 @@ class MockNoteStorage: NoteStorageProtocol {
         return folders[id]
     }
 
-    func saveFolder(_ folder: Folder) throws {
+    public func saveFolder(_ folder: Folder) throws {
         if let error = mockError {
             throw error
         }
@@ -172,7 +179,7 @@ class MockNoteStorage: NoteStorageProtocol {
         folders[folder.id] = folder
     }
 
-    func saveFolders(_ folders: [Folder]) throws {
+    public func saveFolders(_ folders: [Folder]) throws {
         if let error = mockError {
             throw error
         }
@@ -182,7 +189,7 @@ class MockNoteStorage: NoteStorageProtocol {
         }
     }
 
-    func deleteFolder(id: String) throws {
+    public func deleteFolder(id: String) throws {
         if let error = mockError {
             throw error
         }
@@ -192,7 +199,7 @@ class MockNoteStorage: NoteStorageProtocol {
 
     // MARK: - NoteStorageProtocol - 统计操作
 
-    func getNoteCount() throws -> Int {
+    public func getNoteCount() throws -> Int {
         if let error = mockError {
             throw error
         }
@@ -200,7 +207,7 @@ class MockNoteStorage: NoteStorageProtocol {
         return notes.count
     }
 
-    func getNoteCount(in folderId: String) throws -> Int {
+    public func getNoteCount(in folderId: String) throws -> Int {
         if let error = mockError {
             throw error
         }
@@ -211,15 +218,16 @@ class MockNoteStorage: NoteStorageProtocol {
     // MARK: - Helper Methods
 
     /// 重置所有状态
-    func reset() {
+    public func reset() {
         notes.removeAll()
         folders.removeAll()
         mockError = nil
+        mockSearchResults = nil
         resetCallCounts()
     }
 
     /// 重置调用计数
-    func resetCallCounts() {
+    public func resetCallCounts() {
         fetchAllNotesCallCount = 0
         fetchNoteCallCount = 0
         fetchNotesInFolderCallCount = 0
@@ -230,5 +238,26 @@ class MockNoteStorage: NoteStorageProtocol {
         deleteNoteCallCount = 0
         deleteNotesCallCount = 0
         performBatchUpdateCallCount = 0
+    }
+    
+    // MARK: - NoteStorageProtocol - 同步支持
+    
+    public func getPendingChanges() async throws -> [NoteChange] {
+        if let error = mockError {
+            throw error
+        }
+        return mockPendingChanges
+    }
+    
+    public func getNote(id: String) async throws -> Note {
+        if let error = mockError {
+            throw error
+        }
+        
+        guard let note = notes[id] else {
+            throw NSError(domain: "MockNoteStorage", code: 404, userInfo: [NSLocalizedDescriptionKey: "Note not found"])
+        }
+        
+        return note
     }
 }

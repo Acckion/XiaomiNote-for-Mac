@@ -8,12 +8,12 @@
 
 import Foundation
 import Combine
-@testable import MiNoteMac
+@testable import MiNoteLibrary
 
 /// Mock 认证服务
 ///
 /// 用于测试的认证服务实现，可以模拟各种认证场景
-class MockAuthenticationService: AuthenticationServiceProtocol {
+final class MockAuthenticationService: AuthenticationServiceProtocol, @unchecked Sendable {
     // MARK: - Mock 数据
 
     private let isAuthenticatedSubject = CurrentValueSubject<Bool, Never>(false)

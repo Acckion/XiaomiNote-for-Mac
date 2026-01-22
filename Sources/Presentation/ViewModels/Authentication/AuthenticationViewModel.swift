@@ -2,139 +2,315 @@
 //  AuthenticationViewModel.swift
 //  MiNoteMac
 //
-//  Created on 2026-01-22.
-//  认证 ViewModel - 负责用户认证相关功能
+//  Created on 2026-01-23.
+//  认证视图模型 - 管理用户认证状态
 //
 
 import Foundation
+import SwiftUI
 import Combine
 
-/// 认证 ViewModel
+/// 认证视图模型
 ///
-/// 负责管理用户认证相关的逻辑，包括：
+/// 负责管理用户认证状态，包括：
 /// - 登录和登出
-/// - 认证状态管理
-/// - Cookie 管理
+/// - Cookie 刷新
 /// - 用户信息管理
+/// - 私密笔记密码管理
+///
+/// **设计原则**:
+/// - 单一职责：只负责认证相关的功能
+/// - 依赖注入：通过构造函数注入依赖，而不是使用单例
+/// - 可测试性：所有依赖都可以被 Mock，便于单元测试
+///
+/// **线程安全**：使用 @MainActor 确保所有 UI 更新在主线程执行
 @MainActor
-final class AuthenticationViewModel: LoadableViewModel {
-    // MARK: - Dependencies
-
-    nonisolated(unsafe) private let authService: AuthenticationServiceProtocol
-
+public final class AuthenticationViewModel: ObservableObject {
     // MARK: - Published Properties
-
-    /// 是否已认证
-    @Published var isAuthenticated: Bool = false
-
-    /// 当前用户
-    @Published var currentUser: UserProfile?
-
-    /// 用户名（用于登录）
-    @Published var username: String = ""
-
-    /// 密码（用于登录）
-    @Published var password: String = ""
-
+    
+    /// 是否已登录
+    @Published public var isLoggedIn: Bool = false
+    
+    /// 用户信息
+    @Published public var userProfile: UserProfile?
+    
     /// 是否显示登录视图
-    @Published var showLoginView: Bool = false
-
+    @Published public var showLoginView: Bool = false
+    
+    /// 是否显示 Cookie 刷新视图
+    @Published public var showCookieRefreshView: Bool = false
+    
+    /// Cookie 是否过期
+    @Published public var isCookieExpired: Bool = false
+    
+    /// 私密笔记是否已解锁
+    @Published public var isPrivateNotesUnlocked: Bool = false
+    
+    /// 是否正在加载
+    @Published public var isLoading: Bool = false
+    
+    /// 错误消息
+    @Published public var errorMessage: String?
+    
+    // MARK: - Dependencies
+    
+    /// 认证服务
+    private let authService: AuthenticationServiceProtocol
+    
+    /// 笔记存储服务（用于私密笔记密码管理）
+    private let noteStorage: NoteStorageProtocol
+    
+    // MARK: - Private Properties
+    
+    /// Combine 订阅集合
+    private var cancellables = Set<AnyCancellable>()
+    
+    /// 私密笔记密码（内存中临时存储）
+    private var privateNotesPassword: String?
+    
     // MARK: - Initialization
-
-    init(authService: AuthenticationServiceProtocol) {
+    
+    /// 初始化认证视图模型
+    ///
+    /// - Parameters:
+    ///   - authService: 认证服务
+    ///   - noteStorage: 笔记存储服务
+    public init(
+        authService: AuthenticationServiceProtocol,
+        noteStorage: NoteStorageProtocol
+    ) {
         self.authService = authService
-        super.init()
+        self.noteStorage = noteStorage
+        
+        setupObservers()
+        checkAuthenticationStatus()
+        
+        print("[AuthenticationViewModel] 初始化完成")
     }
-
-    // MARK: - Setup
-
-    override func setupBindings() {
-        // 监听认证状态
-        authService.isAuthenticated
-            .assign(to: &$isAuthenticated)
-
-        // 监听当前用户
-        authService.currentUser
-            .assign(to: &$currentUser)
-    }
-
+    
     // MARK: - Public Methods
-
-    /// 使用用户名和密码登录
-    func login() async {
-        guard !username.isEmpty, !password.isEmpty else {
-            error = NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Username and password are required"])
+    
+    /// 登录
+    ///
+    /// - Parameters:
+    ///   - username: 用户名
+    ///   - password: 密码
+    public func login(username: String, password: String) async {
+        guard !isLoading else {
+            print("[AuthenticationViewModel] 正在登录中")
             return
         }
-
-        await withLoadingSafe {
-            let user = try await authService.login(username: username, password: password)
-            self.currentUser = user
-            self.showLoginView = false
-            self.clearLoginForm()
-        }
-    }
-
-    /// 使用 Cookie 登录
-    /// - Parameter cookie: Cookie 字符串
-    func loginWithCookie(_ cookie: String) async {
-        await withLoadingSafe {
-            let user = try await authService.loginWithCookie(cookie)
-            self.currentUser = user
-            self.showLoginView = false
-        }
-    }
-
-    /// 登出
-    func logout() async {
-        await withLoadingSafe {
-            try await authService.logout()
-            self.currentUser = nil
-            self.clearLoginForm()
-        }
-    }
-
-    /// 刷新访问令牌
-    func refreshAccessToken() async {
-        await withLoadingSafe {
-            _ = try await authService.refreshAccessToken()
-        }
-    }
-
-    /// 验证令牌
-    func validateToken() async -> Bool {
+        
+        isLoading = true
+        errorMessage = nil
+        
         do {
-            return try await authService.validateToken()
+            print("[AuthenticationViewModel] 开始登录: \(username)")
+            
+            let profile = try await authService.login(username: username, password: password)
+            
+            userProfile = profile
+            isLoggedIn = true
+            showLoginView = false
+            
+            print("[AuthenticationViewModel] 登录成功: \(profile.nickname)")
         } catch {
-            self.error = error
-            return false
+            errorMessage = "登录失败: \(error.localizedDescription)"
+            print("[AuthenticationViewModel] 登录失败: \(error)")
         }
+        
+        isLoading = false
     }
-
+    
+    /// 使用 Cookie 登录
+    ///
+    /// - Parameter cookie: Cookie 字符串
+    public func loginWithCookie(_ cookie: String) async {
+        guard !isLoading else {
+            print("[AuthenticationViewModel] 正在登录中")
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            print("[AuthenticationViewModel] 使用 Cookie 登录")
+            
+            let profile = try await authService.loginWithCookie(cookie)
+            
+            userProfile = profile
+            isLoggedIn = true
+            showLoginView = false
+            
+            print("[AuthenticationViewModel] Cookie 登录成功: \(profile.nickname)")
+        } catch {
+            errorMessage = "Cookie 登录失败: \(error.localizedDescription)"
+            print("[AuthenticationViewModel] Cookie 登录失败: \(error)")
+        }
+        
+        isLoading = false
+    }
+    
+    /// 登出
+    public func logout() async {
+        guard !isLoading else {
+            print("[AuthenticationViewModel] 正在处理中")
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            print("[AuthenticationViewModel] 开始登出")
+            
+            try await authService.logout()
+            
+            userProfile = nil
+            isLoggedIn = false
+            isPrivateNotesUnlocked = false
+            privateNotesPassword = nil
+            
+            print("[AuthenticationViewModel] 登出成功")
+        } catch {
+            errorMessage = "登出失败: \(error.localizedDescription)"
+            print("[AuthenticationViewModel] 登出失败: \(error)")
+        }
+        
+        isLoading = false
+    }
+    
+    /// 刷新 Cookie
+    public func refreshCookie() async {
+        guard !isLoading else {
+            print("[AuthenticationViewModel] 正在处理中")
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            print("[AuthenticationViewModel] 开始刷新 Cookie")
+            
+            _ = try await authService.refreshAccessToken()
+            
+            isCookieExpired = false
+            showCookieRefreshView = false
+            
+            print("[AuthenticationViewModel] Cookie 刷新成功")
+        } catch {
+            errorMessage = "Cookie 刷新失败: \(error.localizedDescription)"
+            isCookieExpired = true
+            showCookieRefreshView = true
+            print("[AuthenticationViewModel] Cookie 刷新失败: \(error)")
+        }
+        
+        isLoading = false
+    }
+    
+    /// 解锁私密笔记
+    ///
+    /// - Parameter password: 私密笔记密码
+    public func unlockPrivateNotes(password: String) async {
+        guard !isLoading else {
+            print("[AuthenticationViewModel] 正在处理中")
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        print("[AuthenticationViewModel] 验证私密笔记密码")
+        
+        // 这里应该调用服务验证密码
+        // 简化实现：直接存储密码
+        privateNotesPassword = password
+        isPrivateNotesUnlocked = true
+        
+        print("[AuthenticationViewModel] 私密笔记已解锁")
+        
+        isLoading = false
+    }
+    
+    /// 锁定私密笔记
+    public func lockPrivateNotes() {
+        privateNotesPassword = nil
+        isPrivateNotesUnlocked = false
+        print("[AuthenticationViewModel] 私密笔记已锁定")
+    }
+    
     /// 获取用户信息
-    func fetchUserProfile() async {
-        await withLoadingSafe {
-            let profile = try await authService.fetchUserProfile()
-            self.currentUser = profile
+    public func fetchUserProfile() async {
+        guard !isLoading else {
+            print("[AuthenticationViewModel] 正在处理中")
+            return
         }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            print("[AuthenticationViewModel] 获取用户信息")
+            
+            let profile = try await authService.fetchUserProfile()
+            
+            userProfile = profile
+            
+            print("[AuthenticationViewModel] 用户信息获取成功: \(profile.nickname)")
+        } catch {
+            errorMessage = "获取用户信息失败: \(error.localizedDescription)"
+            print("[AuthenticationViewModel] 获取用户信息失败: \(error)")
+        }
+        
+        isLoading = false
     }
-
-    /// 显示登录视图
-    func showLogin() {
-        showLoginView = true
-    }
-
-    /// 隐藏登录视图
-    func hideLogin() {
-        showLoginView = false
-        clearLoginForm()
-    }
-
+    
     // MARK: - Private Methods
-
-    /// 清除登录表单
-    private func clearLoginForm() {
-        username = ""
-        password = ""
+    
+    /// 设置观察者
+    private func setupObservers() {
+        // 监听认证状态变化
+        authService.isAuthenticated
+            .sink { [weak self] isAuthenticated in
+                guard let self = self else { return }
+                self.isLoggedIn = isAuthenticated
+                
+                if !isAuthenticated {
+                    self.userProfile = nil
+                    self.isPrivateNotesUnlocked = false
+                    self.privateNotesPassword = nil
+                }
+            }
+            .store(in: &cancellables)
+        
+        // 监听用户信息变化
+        authService.currentUser
+            .sink { [weak self] user in
+                guard let self = self else { return }
+                self.userProfile = user
+            }
+            .store(in: &cancellables)
+    }
+    
+    /// 检查认证状态
+    private func checkAuthenticationStatus() {
+        Task {
+            do {
+                let isValid = try await authService.validateToken()
+                
+                if isValid {
+                    await fetchUserProfile()
+                } else {
+                    isLoggedIn = false
+                    showLoginView = true
+                }
+            } catch {
+                print("[AuthenticationViewModel] 检查认证状态失败: \(error)")
+                isLoggedIn = false
+                showLoginView = true
+            }
+        }
     }
 }

@@ -16,14 +16,14 @@ extension MiNoteService: NoteServiceProtocol {
     // MARK: - 笔记操作
 
     /// 获取所有笔记
-    func fetchNotes() async throws -> [Note] {
+    public func fetchNotes() async throws -> [Note] {
         // 使用 fetchPage 获取所有笔记
         let response = try await fetchPage()
         return parseNotes(from: response)
     }
 
     /// 获取指定笔记
-    func fetchNote(id: String) async throws -> Note {
+    public func fetchNote(id: String) async throws -> Note {
         let response = try await fetchNoteDetails(noteId: id)
         
         // 从响应中解析笔记
@@ -37,7 +37,7 @@ extension MiNoteService: NoteServiceProtocol {
     }
 
     /// 创建新笔记
-    func createNote(_ note: Note) async throws -> Note {
+    public func createNote(_ note: Note) async throws -> Note {
         // 提取标题和内容
         let title = note.title
         let content = note.content
@@ -61,7 +61,7 @@ extension MiNoteService: NoteServiceProtocol {
     }
 
     /// 更新笔记
-    func updateNote(_ note: Note) async throws -> Note {
+    public func updateNote(_ note: Note) async throws -> Note {
         // 调用现有的 updateNote 方法
         let response = try await updateNote(
             noteId: note.id,
@@ -83,7 +83,7 @@ extension MiNoteService: NoteServiceProtocol {
     }
 
     /// 删除笔记
-    func deleteNote(id: String) async throws {
+    public func deleteNote(id: String) async throws {
         // 首先获取笔记的 serverTag
         let note = try await fetchNote(id: id)
         
@@ -94,7 +94,7 @@ extension MiNoteService: NoteServiceProtocol {
     // MARK: - 同步操作
 
     /// 同步笔记
-    func syncNotes(since: Date?) async throws -> SyncResult {
+    public func syncNotes(since: Date?) async throws -> SyncResult {
         // 如果提供了 since 参数,使用增量同步
         // 否则使用完整同步
         let response = try await fetchPage()
@@ -118,7 +118,7 @@ extension MiNoteService: NoteServiceProtocol {
     }
 
     /// 上传变更
-    func uploadChanges(_ changes: [NoteChange]) async throws {
+    public func uploadChanges(_ changes: [NoteChange]) async throws {
         // 遍历所有变更并应用
         for change in changes {
             switch change.type {
@@ -139,13 +139,13 @@ extension MiNoteService: NoteServiceProtocol {
     // MARK: - 文件夹操作
 
     /// 获取所有文件夹
-    func fetchFolders() async throws -> [Folder] {
+    public func fetchFolders() async throws -> [Folder] {
         let response = try await fetchPage()
         return parseFolders(from: response)
     }
 
     /// 创建文件夹
-    func createFolder(_ folder: Folder) async throws -> Folder {
+    public func createFolder(_ folder: Folder) async throws -> Folder {
         let response = try await createFolder(name: folder.name)
         
         // 从响应中解析创建后的文件夹
@@ -159,7 +159,7 @@ extension MiNoteService: NoteServiceProtocol {
     }
 
     /// 更新文件夹
-    func updateFolder(_ folder: Folder) async throws -> Folder {
+    public func updateFolder(_ folder: Folder) async throws -> Folder {
         // 首先获取文件夹的详细信息以获取 tag
         let detailsResponse = try await fetchFolderDetails(folderId: folder.id)
         
@@ -187,7 +187,7 @@ extension MiNoteService: NoteServiceProtocol {
     }
 
     /// 删除文件夹
-    func deleteFolder(id: String) async throws {
+    public func deleteFolder(id: String) async throws {
         // 首先获取文件夹的详细信息以获取 tag
         let detailsResponse = try await fetchFolderDetails(folderId: id)
         

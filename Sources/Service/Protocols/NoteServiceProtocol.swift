@@ -15,7 +15,7 @@ import Foundation
 /// - 笔记同步操作
 /// - 批量操作
 @preconcurrency
-protocol NoteServiceProtocol {
+public protocol NoteServiceProtocol: Sendable {
     // MARK: - 笔记操作
 
     /// 获取所有笔记
@@ -76,43 +76,59 @@ protocol NoteServiceProtocol {
 // MARK: - Supporting Types
 
 /// 同步结果
-struct SyncResult: Codable {
+public struct SyncResult: Codable {
     /// 同步的笔记
-    let notes: [Note]
+    public let notes: [Note]
 
     /// 删除的笔记ID
-    let deletedIds: [String]
+    public let deletedIds: [String]
 
     /// 同步的文件夹
-    let folders: [Folder]
+    public let folders: [Folder]
 
     /// 删除的文件夹ID
-    let deletedFolderIds: [String]
+    public let deletedFolderIds: [String]
 
     /// 最后同步时间
-    let lastSyncTime: Date
+    public let lastSyncTime: Date
+    
+    public init(notes: [Note], deletedIds: [String], folders: [Folder], deletedFolderIds: [String], lastSyncTime: Date) {
+        self.notes = notes
+        self.deletedIds = deletedIds
+        self.folders = folders
+        self.deletedFolderIds = deletedFolderIds
+        self.lastSyncTime = lastSyncTime
+    }
 }
 
 /// 笔记变更
-struct NoteChange: Codable {
+public struct NoteChange: Codable {
     /// 变更ID
-    let id: String
+    public let id: String
 
     /// 变更类型
-    let type: ChangeType
+    public let type: ChangeType
 
     /// 笔记ID
-    let noteId: String
+    public let noteId: String
 
     /// 笔记数据（创建和更新时需要）
-    let note: Note?
+    public let note: Note?
 
     /// 时间戳
-    let timestamp: Date
+    public let timestamp: Date
 
-    enum ChangeType: String, Codable {
+    public enum ChangeType: String, Codable {
         case create
         case update
         case delete
+    }
+    
+    public init(id: String, type: ChangeType, noteId: String, note: Note?, timestamp: Date) {
+        self.id = id
+        self.type = type
+        self.noteId = noteId
+        self.note = note
+        self.timestamp = timestamp
     }
 }

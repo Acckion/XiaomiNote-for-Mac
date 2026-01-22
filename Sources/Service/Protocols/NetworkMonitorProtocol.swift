@@ -15,7 +15,7 @@ import Combine
 /// - 网络连接状态
 /// - 网络类型检测
 @preconcurrency
-protocol NetworkMonitorProtocol {
+public protocol NetworkMonitorProtocol: Sendable {
     // MARK: - 网络状态
 
     /// 网络类型
@@ -36,7 +36,7 @@ protocol NetworkMonitorProtocol {
 // MARK: - Supporting Types
 
 /// 网络连接类型
-enum ConnectionType {
+public enum ConnectionType {
     /// 无连接
     case none
 

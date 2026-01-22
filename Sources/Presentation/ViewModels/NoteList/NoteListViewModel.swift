@@ -2,206 +2,260 @@
 //  NoteListViewModel.swift
 //  MiNoteMac
 //
-//  Created on 2026-01-22.
-//  笔记列表 ViewModel - 负责笔记列表的展示、过滤和排序
+//  Created on 2026-01-23.
+//  笔记列表视图模型 - 管理笔记列表的展示和交互
 //
 
 import Foundation
+import SwiftUI
 import Combine
 
-/// 笔记排序选项
-enum SortOption: String, Codable {
-    case editDate = "editDate"      // 编辑日期
-    case createDate = "createDate"  // 创建日期
-    case title = "title"            // 标题
-}
-
-/// 笔记过滤选项
-enum FilterOption: String, Codable {
-    case all = "all"                // 全部
-    case starred = "starred"        // 收藏
-    case folder = "folder"          // 指定文件夹
-}
-
-/// 笔记列表 ViewModel
+/// 笔记列表视图模型
 ///
-/// 负责管理笔记列表的展示逻辑，包括：
-/// - 笔记列表加载
-/// - 排序和过滤
-/// - 选择管理
-/// - 搜索功能
+/// 负责管理笔记列表的展示和交互，包括：
+/// - 加载笔记列表
+/// - 按文件夹过滤笔记
+/// - 按收藏状态过滤笔记
+/// - 笔记排序（按修改时间、创建时间、标题）
+/// - 笔记选择状态管理
+/// - 笔记删除
+/// - 笔记移动到文件夹
+///
+/// **设计原则**:
+/// - 单一职责：只负责笔记列表相关的功能
+/// - 依赖注入：通过构造函数注入依赖，而不是使用单例
+/// - 可测试性：所有依赖都可以被 Mock，便于单元测试
+///
+/// **线程安全**：使用 @MainActor 确保所有 UI 更新在主线程执行
 @MainActor
-final class NoteListViewModel: LoadableViewModel {
-    // MARK: - Dependencies
-
-    nonisolated(unsafe) private let noteStorage: NoteStorageProtocol
-    nonisolated(unsafe) private let syncService: SyncServiceProtocol
-
+public final class NoteListViewModel: ObservableObject {
     // MARK: - Published Properties
-
-    /// 笔记列表
-    @Published var notes: [Note] = []
-
-    /// 当前选中的笔记ID
-    @Published var selectedNoteId: String?
-
-    /// 排序选项
-    @Published var sortOption: SortOption = .editDate
-
-    /// 过滤选项
-    @Published var filterOption: FilterOption = .all
-
-    /// 当前文件夹ID（当 filterOption 为 .folder 时使用）
-    @Published var currentFolderId: String?
-
-    /// 搜索文本
-    @Published var searchText = ""
-
-    // MARK: - Computed Properties
-
-    /// 过滤和排序后的笔记列表
-    var filteredAndSortedNotes: [Note] {
-        let filtered = filterNotes(notes)
-        return sortNotes(filtered)
-    }
-
+    
+    /// 笔记列表（原始数据）
+    @Published public var notes: [Note] = []
+    
     /// 当前选中的笔记
-    var selectedNote: Note? {
-        guard let id = selectedNoteId else { return nil }
-        return notes.first { $0.id == id }
-    }
-
+    @Published public var selectedNote: Note?
+    
+    /// 当前选中的文件夹
+    @Published public var selectedFolder: Folder?
+    
+    /// 笔记排序方式
+    @Published public var sortOrder: NoteSortOrder = .editDate
+    
+    /// 排序方向
+    @Published public var sortDirection: SortDirection = .descending
+    
+    /// 是否只显示收藏的笔记
+    @Published public var showStarredOnly: Bool = false
+    
+    /// 是否正在加载
+    @Published public var isLoading: Bool = false
+    
+    /// 错误消息（用于显示错误提示）
+    @Published public var errorMessage: String?
+    
+    // MARK: - Dependencies
+    
+    /// 笔记存储服务（本地数据库）
+    private let noteStorage: NoteStorageProtocol
+    
+    /// 笔记网络服务（云端 API）
+    private let noteService: NoteServiceProtocol
+    
+    // MARK: - Private Properties
+    
+    /// Combine 订阅集合
+    private var cancellables = Set<AnyCancellable>()
+    
     // MARK: - Initialization
-
-    init(
+    
+    /// 初始化笔记列表视图模型
+    ///
+    /// - Parameters:
+    ///   - noteStorage: 笔记存储服务（本地数据库）
+    ///   - noteService: 笔记网络服务（云端 API）
+    public init(
         noteStorage: NoteStorageProtocol,
-        syncService: SyncServiceProtocol
+        noteService: NoteServiceProtocol
     ) {
         self.noteStorage = noteStorage
-        self.syncService = syncService
-        super.init()
+        self.noteService = noteService
+        
+        print("[NoteListViewModel] 初始化完成")
     }
-
-    // MARK: - Setup
-
-    override func setupBindings() {
-        // 监听同步完成事件，自动刷新笔记列表
-        syncService.isSyncing
-            .sink { [weak self] isSyncing in
-                if !isSyncing {
-                    Task { await self?.loadNotes() }
-                }
-            }
-            .store(in: &cancellables)
+    
+    // MARK: - Computed Properties
+    
+    /// 过滤和排序后的笔记列表
+    ///
+    /// 根据当前的过滤条件和排序设置，返回处理后的笔记列表
+    public var filteredNotes: [Note] {
+        var result = notes
+        
+        // 按文件夹过滤
+        if let folder = selectedFolder {
+            result = result.filter { $0.folderId == folder.id }
+        }
+        
+        // 按收藏状态过滤
+        if showStarredOnly {
+            result = result.filter { $0.isStarred }
+        }
+        
+        // 排序
+        result = sortNotes(result, by: sortOrder, direction: sortDirection)
+        
+        return result
     }
-
+    
     // MARK: - Public Methods
-
+    
     /// 加载笔记列表
-    func loadNotes() async {
-        await withLoadingSafe {
-            let loadedNotes = try noteStorage.fetchAllNotes()
-            self.notes = loadedNotes
+    ///
+    /// 从本地数据库加载所有笔记
+    public func loadNotes() async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            notes = try noteStorage.fetchAllNotes()
+            print("[NoteListViewModel] 加载了 \(notes.count) 条笔记")
+        } catch {
+            errorMessage = "加载笔记失败: \(error.localizedDescription)"
+            print("[NoteListViewModel] 加载失败: \(error)")
         }
+        
+        isLoading = false
     }
-
-    /// 刷新笔记列表
-    func refreshNotes() async {
-        await loadNotes()
+    
+    /// 按文件夹过滤笔记
+    ///
+    /// - Parameter folder: 要过滤的文件夹，nil 表示显示所有笔记
+    public func filterNotes(by folder: Folder?) {
+        selectedFolder = folder
+        print("[NoteListViewModel] 过滤文件夹: \(folder?.name ?? "全部")")
     }
-
-    /// 选择笔记
-    /// - Parameter noteId: 笔记ID
-    func selectNote(_ noteId: String?) {
-        selectedNoteId = noteId
-    }
-
-    /// 删除笔记
-    /// - Parameter noteId: 笔记ID
-    func deleteNote(_ noteId: String) async {
-        await withLoadingSafe {
-            try noteStorage.deleteNote(id: noteId)
-            notes.removeAll { $0.id == noteId }
-
-            // 如果删除的是当前选中的笔记，清除选择
-            if selectedNoteId == noteId {
-                selectedNoteId = nil
-            }
-        }
-    }
-
-    /// 切换笔记收藏状态
-    /// - Parameter noteId: 笔记ID
-    func toggleStarred(_ noteId: String) async {
-        guard let index = notes.firstIndex(where: { $0.id == noteId }) else { return }
-
-        var note = notes[index]
-        note.isStarred.toggle()
-
-        await withLoadingSafe {
-            try noteStorage.saveNote(note)
-            notes[index] = note
-        }
-    }
-
-    /// 设置排序选项
-    /// - Parameter option: 排序选项
-    func setSortOption(_ option: SortOption) {
-        sortOption = option
-    }
-
-    /// 设置过滤选项
+    
+    /// 设置排序方式
+    ///
     /// - Parameters:
-    ///   - option: 过滤选项
-    ///   - folderId: 文件夹ID（当选择 .folder 时需要）
-    func setFilterOption(_ option: FilterOption, folderId: String? = nil) {
-        filterOption = option
-        currentFolderId = folderId
+    ///   - order: 排序字段
+    ///   - direction: 排序方向
+    public func setSortOrder(by order: NoteSortOrder, direction: SortDirection) {
+        sortOrder = order
+        sortDirection = direction
+        print("[NoteListViewModel] 排序: \(order.rawValue) \(direction.rawValue)")
     }
-
+    
+    /// 选择笔记
+    ///
+    /// - Parameter note: 要选择的笔记
+    public func selectNote(_ note: Note) {
+        selectedNote = note
+        print("[NoteListViewModel] 选择笔记: \(note.title)")
+    }
+    
+    /// 删除笔记
+    ///
+    /// - Parameter note: 要删除的笔记
+    public func deleteNote(_ note: Note) async {
+        do {
+            // 从本地数据库删除
+            try noteStorage.deleteNote(id: note.id)
+            
+            // 从列表中移除
+            notes.removeAll { $0.id == note.id }
+            
+            // 如果删除的是当前选中的笔记，清除选择
+            if selectedNote?.id == note.id {
+                selectedNote = nil
+            }
+            
+            print("[NoteListViewModel] 删除笔记: \(note.title)")
+        } catch {
+            errorMessage = "删除笔记失败: \(error.localizedDescription)"
+            print("[NoteListViewModel] 删除失败: \(error)")
+        }
+    }
+    
+    /// 移动笔记到文件夹
+    ///
+    /// - Parameters:
+    ///   - note: 要移动的笔记
+    ///   - folder: 目标文件夹
+    public func moveNote(_ note: Note, to folder: Folder) async {
+        do {
+            // 更新笔记的文件夹ID
+            var updatedNote = note
+            updatedNote.folderId = folder.id
+            
+            // 保存到本地数据库
+            try noteStorage.saveNote(updatedNote)
+            
+            // 更新列表中的笔记
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                notes[index] = updatedNote
+            }
+            
+            print("[NoteListViewModel] 移动笔记 '\(note.title)' 到文件夹 '\(folder.name)'")
+        } catch {
+            errorMessage = "移动笔记失败: \(error.localizedDescription)"
+            print("[NoteListViewModel] 移动失败: \(error)")
+        }
+    }
+    
+    /// 切换收藏状态
+    ///
+    /// - Parameter note: 要切换收藏状态的笔记
+    public func toggleStar(_ note: Note) async {
+        do {
+            // 更新笔记的收藏状态
+            var updatedNote = note
+            updatedNote.isStarred.toggle()
+            
+            // 保存到本地数据库
+            try noteStorage.saveNote(updatedNote)
+            
+            // 更新列表中的笔记
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                notes[index] = updatedNote
+            }
+            
+            print("[NoteListViewModel] 切换笔记 '\(note.title)' 的收藏状态: \(updatedNote.isStarred)")
+        } catch {
+            errorMessage = "更新收藏状态失败: \(error.localizedDescription)"
+            print("[NoteListViewModel] 更新失败: \(error)")
+        }
+    }
+    
     // MARK: - Private Methods
-
-    /// 过滤笔记
-    /// - Parameter notes: 原始笔记列表
-    /// - Returns: 过滤后的笔记列表
-    private func filterNotes(_ notes: [Note]) -> [Note] {
-        var filtered = notes
-
-        // 根据过滤选项过滤
-        switch filterOption {
-        case .all:
-            break
-        case .starred:
-            filtered = filtered.filter { $0.isStarred }
-        case .folder:
-            if let folderId = currentFolderId {
-                filtered = filtered.filter { $0.folderId == folderId }
-            }
-        }
-
-        // 根据搜索文本过滤
-        if !searchText.isEmpty {
-            let lowercasedQuery = searchText.lowercased()
-            filtered = filtered.filter {
-                $0.title.lowercased().contains(lowercasedQuery) ||
-                $0.content.lowercased().contains(lowercasedQuery)
-            }
-        }
-
-        return filtered
-    }
-
-    /// 排序笔记
-    /// - Parameter notes: 原始笔记列表
+    
+    /// 对笔记列表进行排序
+    ///
+    /// - Parameters:
+    ///   - notes: 要排序的笔记列表
+    ///   - order: 排序字段
+    ///   - direction: 排序方向
     /// - Returns: 排序后的笔记列表
-    private func sortNotes(_ notes: [Note]) -> [Note] {
-        switch sortOption {
+    private func sortNotes(_ notes: [Note], by order: NoteSortOrder, direction: SortDirection) -> [Note] {
+        let sorted: [Note]
+        
+        switch order {
         case .editDate:
-            return notes.sorted { $0.updatedAt > $1.updatedAt }
+            sorted = notes.sorted { (note1: Note, note2: Note) -> Bool in
+                note1.updatedAt > note2.updatedAt
+            }
         case .createDate:
-            return notes.sorted { $0.createdAt > $1.createdAt }
+            sorted = notes.sorted { (note1: Note, note2: Note) -> Bool in
+                note1.createdAt > note2.createdAt
+            }
         case .title:
-            return notes.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            sorted = notes.sorted { (note1: Note, note2: Note) -> Bool in
+                note1.title.localizedCompare(note2.title) == .orderedAscending
+            }
         }
+        
+        return direction == .ascending ? sorted.reversed() : sorted
     }
 }

@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import MiNoteMac
+@testable import MiNoteLibrary
 
 /// ViewModel 测试模板
 ///

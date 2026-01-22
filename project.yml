@@ -79,6 +79,10 @@ targets:
       - target: MiNoteLibrary
     sources:
       - path: Tests/NativeEditorTests
+      - path: Tests/ViewModelTests
+      - path: Tests/CoordinatorTests
+      - path: Tests/Mocks
+      - path: Tests/TestSupport
     settings:
       base:
         PRODUCT_NAME: MiNoteLibraryTests

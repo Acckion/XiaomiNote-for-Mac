@@ -2,163 +2,226 @@
 //  FolderViewModel.swift
 //  MiNoteMac
 //
-//  Created on 2026-01-22.
-//  文件夹 ViewModel - 负责文件夹管理功能
+//  Created on 2026-01-23.
+//  文件夹视图模型 - 管理文件夹功能
 //
 
-@preconcurrency import Foundation
-@preconcurrency import Combine
+import Foundation
+import Combine
 
-/// 文件夹 ViewModel
+/// 文件夹视图模型
 ///
-/// 负责管理文件夹相关的逻辑，包括：
-/// - 文件夹列表管理
-/// - 创建、编辑、删除文件夹
-/// - 文件夹选择
-/// - 笔记数量统计
+/// 负责管理文件夹功能，包括：
+/// - 加载文件夹列表
+/// - 创建/删除/重命名文件夹
+/// - 文件夹选择状态管理
 @MainActor
-final class FolderViewModel: LoadableViewModel {
-    // MARK: - Dependencies
-
-    nonisolated(unsafe) private let noteStorage: NoteStorageProtocol
-    nonisolated(unsafe) private let noteService: NoteServiceProtocol
-
+public final class FolderViewModel: ObservableObject {
     // MARK: - Published Properties
-
+    
     /// 文件夹列表
-    @Published var folders: [Folder] = []
-
-    /// 当前选中的文件夹ID
-    @Published var selectedFolderId: String?
-
-    /// 新文件夹名称（用于创建）
-    @Published var newFolderName: String = ""
-
-    // MARK: - Computed Properties
-
-    /// 当前选中的文件夹
-    var selectedFolder: Folder? {
-        guard let id = selectedFolderId else { return nil }
-        return folders.first { $0.id == id }
-    }
-
+    @Published public var folders: [Folder] = []
+    
+    /// 选中的文件夹
+    @Published public var selectedFolder: Folder?
+    
+    /// 是否正在加载
+    @Published public var isLoading: Bool = false
+    
+    /// 错误消息
+    @Published public var errorMessage: String?
+    
+    // MARK: - Dependencies
+    
+    private let noteStorage: NoteStorageProtocol
+    private let noteService: NoteServiceProtocol
+    
     // MARK: - Initialization
-
-    init(
+    
+    /// 初始化文件夹视图模型
+    /// - Parameters:
+    ///   - noteStorage: 笔记存储服务
+    ///   - noteService: 笔记服务
+    public init(
         noteStorage: NoteStorageProtocol,
         noteService: NoteServiceProtocol
     ) {
         self.noteStorage = noteStorage
         self.noteService = noteService
-        super.init()
     }
-
+    
     // MARK: - Public Methods
-
+    
     /// 加载文件夹列表
-    func loadFolders() async {
-        await withLoadingSafe {
+    public func loadFolders() async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            // 从本地存储加载文件夹
             let loadedFolders = try noteStorage.fetchAllFolders()
-            self.folders = loadedFolders
+            
+            // 按创建时间排序
+            folders = loadedFolders.sorted { $0.createdAt > $1.createdAt }
+            
+        } catch {
+            errorMessage = "加载文件夹失败: \(error.localizedDescription)"
+            print("[FolderViewModel] 加载文件夹失败: \(error)")
         }
+        
+        isLoading = false
     }
-
-    /// 刷新文件夹列表
-    func refreshFolders() async {
-        await loadFolders()
-    }
-
-    /// 选择文件夹
-    /// - Parameter folderId: 文件夹ID
-    func selectFolder(_ folderId: String?) {
-        selectedFolderId = folderId
-    }
-
-    /// 创建新文件夹
-    func createFolder() async {
-        guard !newFolderName.isEmpty else {
-            error = NSError(domain: "Folder", code: -1, userInfo: [NSLocalizedDescriptionKey: "Folder name is required"])
+    
+    /// 创建文件夹
+    /// - Parameter name: 文件夹名称
+    public func createFolder(name: String) async {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 验证文件夹名称
+        guard !trimmedName.isEmpty else {
+            errorMessage = "文件夹名称不能为空"
             return
         }
-
-        let folder = Folder(
-            id: UUID().uuidString,
-            name: newFolderName,
-            count: 0,
-            isSystem: false
-        )
-
-        await withLoadingSafe {
-            // 保存到本地
-            try noteStorage.saveFolder(folder)
-
-            // 同步到服务器
-            _ = try await noteService.createFolder(folder)
-
-            self.folders.append(folder)
-            self.newFolderName = ""
+        
+        // 检查是否已存在同名文件夹
+        if folders.contains(where: { $0.name == trimmedName }) {
+            errorMessage = "文件夹名称已存在"
+            return
         }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            // 创建新文件夹
+            let newFolder = Folder(
+                id: UUID().uuidString,
+                name: trimmedName,
+                count: 0,
+                isSystem: false,
+                createdAt: Date()
+            )
+            
+            // 保存到本地存储
+            try noteStorage.saveFolder(newFolder)
+            
+            // 尝试同步到云端
+            do {
+                _ = try await noteService.createFolder(newFolder)
+            } catch {
+                print("[FolderViewModel] 同步文件夹到云端失败: \(error)")
+                // 不阻塞本地操作
+            }
+            
+            // 重新加载文件夹列表
+            await loadFolders()
+            
+        } catch {
+            errorMessage = "创建文件夹失败: \(error.localizedDescription)"
+            print("[FolderViewModel] 创建文件夹失败: \(error)")
+        }
+        
+        isLoading = false
     }
-
+    
+    /// 删除文件夹
+    /// - Parameter folder: 要删除的文件夹
+    public func deleteFolder(_ folder: Folder) async {
+        // 不能删除系统文件夹
+        guard !folder.isSystem else {
+            errorMessage = "不能删除系统文件夹"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            // 从本地存储删除
+            try noteStorage.deleteFolder(id: folder.id)
+            
+            // 尝试从云端删除
+            do {
+                try await noteService.deleteFolder(id: folder.id)
+            } catch {
+                print("[FolderViewModel] 从云端删除文件夹失败: \(error)")
+                // 不阻塞本地操作
+            }
+            
+            // 如果删除的是当前选中的文件夹，清除选中状态
+            if selectedFolder?.id == folder.id {
+                selectedFolder = nil
+            }
+            
+            // 重新加载文件夹列表
+            await loadFolders()
+            
+        } catch {
+            errorMessage = "删除文件夹失败: \(error.localizedDescription)"
+            print("[FolderViewModel] 删除文件夹失败: \(error)")
+        }
+        
+        isLoading = false
+    }
+    
     /// 重命名文件夹
     /// - Parameters:
-    ///   - folderId: 文件夹ID
+    ///   - folder: 要重命名的文件夹
     ///   - newName: 新名称
-    func renameFolder(_ folderId: String, to newName: String) async {
-        guard !newName.isEmpty else { return }
-        guard let index = folders.firstIndex(where: { $0.id == folderId }) else { return }
-
-        var folder = folders[index]
-        folder.name = newName
-
-        await withLoadingSafe {
-            try noteStorage.saveFolder(folder)
-            _ = try await noteService.updateFolder(folder)
-            self.folders[index] = folder
-        }
-    }
-
-    /// 删除文件夹
-    /// - Parameter folderId: 文件夹ID
-    func deleteFolder(_ folderId: String) async {
-        guard let folder = folders.first(where: { $0.id == folderId }) else { return }
-        guard !folder.isSystem else {
-            error = NSError(domain: "Folder", code: -1, userInfo: [NSLocalizedDescriptionKey: "Cannot delete system folder"])
+    public func renameFolder(_ folder: Folder, newName: String) async {
+        let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 验证新名称
+        guard !trimmedName.isEmpty else {
+            errorMessage = "文件夹名称不能为空"
             return
         }
-
-        await withLoadingSafe {
-            try noteStorage.deleteFolder(id: folderId)
-            try await noteService.deleteFolder(id: folderId)
-
-            self.folders.removeAll { $0.id == folderId }
-
-            // 如果删除的是当前选中的文件夹，清除选择
-            if selectedFolderId == folderId {
-                selectedFolderId = nil
-            }
+        
+        // 不能重命名系统文件夹
+        guard !folder.isSystem else {
+            errorMessage = "不能重命名系统文件夹"
+            return
         }
-    }
-
-    /// 更新文件夹笔记数量
-    /// - Parameter folderId: 文件夹ID
-    func updateFolderCount(_ folderId: String) async {
-        guard let index = folders.firstIndex(where: { $0.id == folderId }) else { return }
-
+        
+        // 检查是否已存在同名文件夹
+        if folders.contains(where: { $0.name == trimmedName && $0.id != folder.id }) {
+            errorMessage = "文件夹名称已存在"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
         do {
-            let count = try noteStorage.getNoteCount(in: folderId)
-            var folder = folders[index]
-            folder.count = count
-            folders[index] = folder
+            // 更新文件夹名称
+            var updatedFolder = folder
+            updatedFolder.name = trimmedName
+            
+            // 保存到本地存储
+            try noteStorage.saveFolder(updatedFolder)
+            
+            // 尝试同步到云端
+            do {
+                _ = try await noteService.updateFolder(updatedFolder)
+            } catch {
+                print("[FolderViewModel] 同步文件夹到云端失败: \(error)")
+                // 不阻塞本地操作
+            }
+            
+            // 重新加载文件夹列表
+            await loadFolders()
+            
         } catch {
-            self.error = error
+            errorMessage = "重命名文件夹失败: \(error.localizedDescription)"
+            print("[FolderViewModel] 重命名文件夹失败: \(error)")
         }
+        
+        isLoading = false
     }
-
-    /// 更新所有文件夹的笔记数量
-    func updateAllFolderCounts() async {
-        for folder in folders {
-            await updateFolderCount(folder.id)
-        }
+    
+    /// 选择文件夹
+    /// - Parameter folder: 要选择的文件夹
+    public func selectFolder(_ folder: Folder?) {
+        selectedFolder = folder
     }
 }

@@ -16,7 +16,7 @@ import Combine
 /// - Token 管理
 /// - 用户信息管理
 @preconcurrency
-protocol AuthenticationServiceProtocol {
+public protocol AuthenticationServiceProtocol: Sendable {
     // MARK: - 认证状态
 
     /// 是否已登录

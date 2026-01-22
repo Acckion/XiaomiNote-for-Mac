@@ -8,16 +8,17 @@
 
 import Foundation
 import Combine
-@testable import MiNoteMac
+@testable import MiNoteLibrary
 
 /// Mock 同步服务
 ///
 /// 用于测试的同步服务实现，可以模拟各种同步场景
-class MockSyncService: SyncServiceProtocol {
+final class MockSyncService: SyncServiceProtocol, @unchecked Sendable {
     // MARK: - Mock 数据
 
     private let isSyncingSubject = CurrentValueSubject<Bool, Never>(false)
     private let syncProgressSubject = CurrentValueSubject<Double, Never>(0.0)
+    private let syncStateSubject = CurrentValueSubject<SyncState, Never>(.idle)
 
     var mockLastSyncTime: Date?
     var mockError: Error?
@@ -36,8 +37,13 @@ class MockSyncService: SyncServiceProtocol {
     var getPendingOperationCountCallCount = 0
     var clearPendingOperationsCallCount = 0
     var resolveConflictCallCount = 0
+    var getPendingOperationsCallCount = 0
 
     // MARK: - SyncServiceProtocol - 同步状态
+
+    var syncState: AnyPublisher<SyncState, Never> {
+        syncStateSubject.eraseToAnyPublisher()
+    }
 
     var isSyncing: AnyPublisher<Bool, Never> {
         isSyncingSubject.eraseToAnyPublisher()
@@ -57,9 +63,11 @@ class MockSyncService: SyncServiceProtocol {
         startSyncCallCount += 1
 
         if let error = mockError {
+            syncStateSubject.send(.failed(error))
             throw error
         }
 
+        syncStateSubject.send(.syncing)
         isSyncingSubject.send(true)
 
         // 模拟同步进度
@@ -69,14 +77,26 @@ class MockSyncService: SyncServiceProtocol {
         }
 
         mockLastSyncTime = Date()
+        syncStateSubject.send(.idle)
         isSyncingSubject.send(false)
         syncProgressSubject.send(0.0)
     }
 
     func stopSync() {
         stopSyncCallCount += 1
+        syncStateSubject.send(.idle)
         isSyncingSubject.send(false)
         syncProgressSubject.send(0.0)
+    }
+
+    func syncNote(_ note: Note) async throws {
+        syncNoteCallCount += 1
+
+        if let error = mockError {
+            throw error
+        }
+
+        // 模拟同步单个笔记
     }
 
     func syncNote(id: String) async throws {
@@ -153,34 +173,26 @@ class MockSyncService: SyncServiceProtocol {
         mockPendingOperations.removeAll()
     }
 
+    func getPendingOperations() async throws -> [SyncOperation] {
+        getPendingOperationsCallCount += 1
+
+        if let error = mockError {
+            throw error
+        }
+
+        return mockPendingOperations
+    }
+
     // MARK: - SyncServiceProtocol - 冲突处理
 
-    func resolveConflict(
-        localNote: Note,
-        remoteNote: Note,
-        strategy: ConflictResolutionStrategy
-    ) async throws -> Note {
+    func resolveConflict(_ operation: SyncOperation, strategy: ConflictResolutionStrategy) async throws {
         resolveConflictCallCount += 1
 
         if let error = mockError {
             throw error
         }
 
-        if let resolution = mockConflictResolution {
-            return resolution
-        }
-
-        // 默认冲突解决逻辑
-        switch strategy {
-        case .useLocal:
-            return localNote
-        case .useRemote:
-            return remoteNote
-        case .useNewest:
-            return localNote.updatedAt > remoteNote.updatedAt ? localNote : remoteNote
-        case .manual:
-            return localNote // 默认返回本地版本
-        }
+        // 模拟冲突解决
     }
 
     // MARK: - Helper Methods
