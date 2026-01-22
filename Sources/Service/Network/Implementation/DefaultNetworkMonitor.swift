@@ -39,7 +39,7 @@ final class DefaultNetworkMonitor: NetworkMonitorProtocol {
     // MARK: - Private Methods
     private func setupMonitoring() {
         monitor.pathUpdateHandler = { [weak self] path in
-            guard let self = self else { return }
+            guard let self else { return }
 
             let isConnected = path.status == .satisfied
             self.isConnectedSubject.send(isConnected)

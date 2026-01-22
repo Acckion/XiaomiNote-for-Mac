@@ -87,7 +87,7 @@ final class DefaultSyncService: SyncServiceProtocol {
             // 简单合并策略：使用最新时间戳
             if let localNote = try? await storage.getNote(id: operation.change.noteId),
                let remoteNote = operation.change.note {
-                let merged = localNote.editDate > remoteNote.editDate ? localNote : remoteNote
+                let merged = localNote.updatedAt > remoteNote.updatedAt ? localNote : remoteNote
                 try await storage.saveNote(merged)
             }
         }
@@ -126,11 +126,11 @@ final class DefaultSyncService: SyncServiceProtocol {
 
     private func applyChange(_ change: NoteChange) async throws {
         switch change.type {
-        case .created, .updated:
+        case .create, .update:
             if let note = change.note {
                 try await storage.saveNote(note)
             }
-        case .deleted:
+        case .delete:
             try await storage.deleteNote(id: change.noteId)
         }
     }

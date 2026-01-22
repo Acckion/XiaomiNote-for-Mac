@@ -151,4 +151,27 @@ final class DefaultNoteStorage: NoteStorageProtocol {
         defer { lock.unlock() }
         return notes.values.filter { $0.folderId == folderId }.count
     }
+
+    // MARK: - 同步支持
+
+    func getPendingChanges() async throws -> [NoteChange] {
+        // 简化实现：返回空数组
+        // 实际应用中应该跟踪本地更改
+        return []
+    }
+
+    func getNote(id: String) async throws -> Note {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard let note = notes[id] else {
+            throw StorageError.noteNotFound
+        }
+
+        return note
+    }
+}
+
+enum StorageError: Error {
+    case noteNotFound
 }

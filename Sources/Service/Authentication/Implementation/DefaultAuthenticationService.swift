@@ -5,15 +5,15 @@ import Combine
 final class DefaultAuthenticationService: AuthenticationServiceProtocol {
     // MARK: - Properties
     private let networkClient: NetworkClient
-    private let userStateSubject = CurrentValueSubject<User?, Never>(nil)
-    private var currentUser: User?
+    private let userStateSubject = CurrentValueSubject<UserProfile?, Never>(nil)
+    private var currentUserProfile: UserProfile?
 
-    var userState: AnyPublisher<User?, Never> {
+    var userState: AnyPublisher<UserProfile?, Never> {
         userStateSubject.eraseToAnyPublisher()
     }
 
     var isAuthenticated: Bool {
-        currentUser != nil
+        currentUserProfile != nil
     }
 
     // MARK: - Initialization
@@ -22,7 +22,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
     }
 
     // MARK: - Public Methods
-    func login(username: String, password: String) async throws -> User {
+    func login(username: String, password: String) async throws -> UserProfile {
         let parameters: [String: Any] = [
             "username": username,
             "password": password
@@ -34,19 +34,20 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
             parameters: parameters
         )
 
-        let user = User(
+        let user = UserProfile(
             id: response.userId,
             username: username,
+            email: response.email,
             token: response.token
         )
 
-        currentUser = user
+        currentUserProfile = user
         userStateSubject.send(user)
 
         return user
     }
 
-    func loginWithCookie(_ cookie: String) async throws -> User {
+    func loginWithCookie(_ cookie: String) async throws -> UserProfile {
         let headers = ["Cookie": cookie]
 
         let response: LoginResponse = try await networkClient.request(
@@ -55,20 +56,21 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
             headers: headers
         )
 
-        let user = User(
+        let user = UserProfile(
             id: response.userId,
             username: response.username ?? "User",
+            email: response.email,
             token: response.token
         )
 
-        currentUser = user
+        currentUserProfile = user
         userStateSubject.send(user)
 
         return user
     }
 
     func logout() async throws {
-        if let token = currentUser?.token {
+        if let token = currentUserProfile?.token {
             let headers = ["Authorization": "Bearer \(token)"]
             try await networkClient.request(
                 "/auth/logout",
@@ -77,12 +79,12 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
             ) as EmptyResponse
         }
 
-        currentUser = nil
+        currentUserProfile = nil
         userStateSubject.send(nil)
     }
 
     func refreshToken() async throws {
-        guard let user = currentUser else {
+        guard let user = currentUserProfile else {
             throw AuthError.notAuthenticated
         }
 
@@ -94,18 +96,19 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
             headers: headers
         )
 
-        let updatedUser = User(
+        let updatedUser = UserProfile(
             id: user.id,
             username: user.username,
+            email: user.email,
             token: response.token
         )
 
-        currentUser = updatedUser
+        currentUserProfile = updatedUser
         userStateSubject.send(updatedUser)
     }
 
-    func getCurrentUser() async throws -> User? {
-        return currentUser
+    func getCurrentUser() async throws -> UserProfile? {
+        return currentUserProfile
     }
 }
 
@@ -113,6 +116,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol {
 private struct LoginResponse: Decodable {
     let userId: String
     let username: String?
+    let email: String?
     let token: String
 }
 

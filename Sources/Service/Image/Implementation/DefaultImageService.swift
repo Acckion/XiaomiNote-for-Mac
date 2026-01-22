@@ -47,7 +47,7 @@ final class DefaultImageService: ImageServiceProtocol {
         return response.imageUrl
     }
 
-    func downloadImage(url: String) async throws -> NSImage {
+    func downloadImage(from url: String) async throws -> NSImage {
         // 检查缓存
         if let cachedData: Data = try? await cacheService.get(key: url) {
             if let image = NSImage(data: cachedData) {
