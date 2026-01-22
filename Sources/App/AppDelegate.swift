@@ -65,18 +65,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             print("[AppDelegate] 使用新架构 (AppCoordinator + 7 个 ViewModel)")
             
             // 创建 AppCoordinator
-            appCoordinator = AppCoordinator()
+            let coordinator = AppCoordinator()
+            appCoordinator = coordinator
+            
+            // 创建适配器,让新架构兼容旧的 NotesViewModel 接口
+            notesViewModel = NotesViewModelAdapter(coordinator: coordinator)
             
             // 启动应用
             Task { @MainActor in
-                await appCoordinator?.start()
+                await coordinator.start()
             }
         } else {
             print("[AppDelegate] 使用旧架构 (NotesViewModel)")
             
-            // 保留旧架构作为备份
-            // 注意: NotesViewModel 的初始化逻辑保持不变
-            // 这里暂时不创建 NotesViewModel，因为它会在 MainWindowController 中创建
+            // 使用旧架构
+            notesViewModel = NotesViewModel()
         }
 
         appStateManager.handleApplicationDidFinishLaunching()
