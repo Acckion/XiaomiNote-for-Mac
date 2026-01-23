@@ -297,6 +297,7 @@
 		DBAA0A08844DA6808949C1B5 /* UndoRedoStateHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438DF85A272111C8EE27CC07 /* UndoRedoStateHandler.swift */; };
 		DCF46E4C55ED4F712EA91325 /* NoteDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F789083FAF24C819C5F3B066 /* NoteDetailView.swift */; };
 		DD2B92EED23D4E85FCF1A854 /* CacheServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC9B374C346E86438315072 /* CacheServiceProtocol.swift */; };
+		DE745FB4EA41F63F55CE80D4 /* PreviewHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E14D64E3C82112FC62CDE9 /* PreviewHelper.swift */; };
 		DEE9277CD279D9751E407F27 /* Paragraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60C133F92A9701F6B796AE9 /* Paragraph.swift */; };
 		DF56A6D5FA2CE29CD602E5FA /* PrivateNotesPasswordManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A04B6DFCC8AAB90EB0DC9466 /* PrivateNotesPasswordManager.swift */; };
 		DFE4F55D3EEABAD1AD4366DE /* NotePreviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AC8D9614629254E1863AD2C /* NotePreviewService.swift */; };
@@ -585,6 +586,7 @@
 		91C1B631F89F3C19B2C5E8BB /* ViewModelTestTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTestTemplate.swift; sourceTree = "<group>"; };
 		924780FAE9123A04364CBFE5 /* MockNoteStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockNoteStorage.swift; sourceTree = "<group>"; };
 		926B8428724A337ED50DC628 /* NativeEditorInitializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorInitializer.swift; sourceTree = "<group>"; };
+		92E14D64E3C82112FC62CDE9 /* PreviewHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewHelper.swift; sourceTree = "<group>"; };
 		935849EE298307BDFA679DA7 /* InlineFormatHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineFormatHandler.swift; sourceTree = "<group>"; };
 		943F2FF4A27B6E45C2C665F5 /* SyncServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncServiceProtocol.swift; sourceTree = "<group>"; };
 		94AE1166BBBEA0591105B760 /* ServiceLocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceLocator.swift; sourceTree = "<group>"; };
@@ -815,6 +817,7 @@
 				4AF05A85D65CE9514ADD86D9 /* NetworkLogView.swift */,
 				ABE5F4289985D6251543ECE9 /* OfflineOperationsProgressView.swift */,
 				E2D2958C630522F173B34204 /* OperationProcessorProgressView.swift */,
+				92E14D64E3C82112FC62CDE9 /* PreviewHelper.swift */,
 				8F72E84B0EB4D67C81832A72 /* SidebarView.swift */,
 				FE6C20DDB302E92970CE6D72 /* TrashView.swift */,
 				0009A6156CFF4E810CE7C7FF /* XMLDebugEditorView.swift */,
@@ -2048,6 +2051,7 @@
 				CE3D635DB3EE4344580E883B /* PerformanceCache.swift in Sources */,
 				07A64B47ADD68695A10B39B3 /* PerformanceMonitor.swift in Sources */,
 				EE4C90B6FBCC621335FA6A57 /* PerformanceOptimizer.swift in Sources */,
+				DE745FB4EA41F63F55CE80D4 /* PreviewHelper.swift in Sources */,
 				01FA068133809256656CA1E6 /* PrivateNotesPasswordInputDialogView.swift in Sources */,
 				DF56A6D5FA2CE29CD602E5FA /* PrivateNotesPasswordManager.swift in Sources */,
 				9EBA9ABA4304536494BE4D0E /* PrivateNotesVerificationView.swift in Sources */,
