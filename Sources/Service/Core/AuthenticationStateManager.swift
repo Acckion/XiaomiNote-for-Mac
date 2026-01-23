@@ -630,10 +630,17 @@ class AuthenticationStateManager: ObservableObject {
         // 这样 restoreOnlineStatus() 才能正确判断
         ScheduledTaskManager.shared.setCookieValid(true)
         
-        // 恢复在线状态
-        restoreOnlineStatus()
-        
-        print("[AuthenticationStateManager] ✅ Cookie刷新完成，状态已更新: isOnline=\(isOnline), isCookieExpired=\(isCookieExpired)")
+        // 延迟恢复在线状态，确保 Cookie 完全生效
+        // 延迟 1.5 秒，给 Cookie 足够的时间在所有网络层生效
+        Task { @MainActor in
+            print("[AuthenticationStateManager] ⏳ 延迟 1.5 秒后恢复在线状态，确保 Cookie 完全生效")
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5秒
+            
+            // 恢复在线状态
+            self.restoreOnlineStatus()
+            
+            print("[AuthenticationStateManager] ✅ Cookie刷新完成，状态已更新: isOnline=\(self.isOnline), isCookieExpired=\(self.isCookieExpired)")
+        }
     }
     
     /// 执行静默Cookie刷新（旧方法，保持兼容性）

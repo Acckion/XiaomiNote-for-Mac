@@ -301,15 +301,22 @@ public final class AuthenticationViewModel: ObservableObject {
                 let isValid = try await authService.validateToken()
                 
                 if isValid {
+                    isLoggedIn = true
                     await fetchUserProfile()
                 } else {
                     isLoggedIn = false
-                    showLoginView = true
+                    // 只有在未登录时才显示登录视图
+                    if !isLoggedIn {
+                        showLoginView = true
+                    }
                 }
             } catch {
                 print("[AuthenticationViewModel] 检查认证状态失败: \(error)")
                 isLoggedIn = false
-                showLoginView = true
+                // 只有在未登录时才显示登录视图
+                if !isLoggedIn {
+                    showLoginView = true
+                }
             }
         }
     }

@@ -76,6 +76,10 @@ public final class NotesViewModelAdapter: NotesViewModel {
         .map { $0 || $1 || $2 }
         .assign(to: &$isLoading)
         
+        // 同步同步状态（用于显示同步指示器）
+        coordinator.syncCoordinator.$isSyncing
+            .assign(to: &$isSyncing)
+        
         // 6. 同步错误消息
         Publishers.Merge4(
             coordinator.noteListViewModel.$errorMessage.compactMap { $0 },
