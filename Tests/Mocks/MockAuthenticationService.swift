@@ -188,6 +188,25 @@ final class MockAuthenticationService: AuthenticationServiceProtocol, @unchecked
 
     // MARK: - Helper Methods
 
+    /// 设置当前用户
+    func setCurrentUser(_ user: UserProfile?) {
+        currentUserSubject.send(user)
+        mockUserProfile = user
+        if user != nil {
+            isAuthenticatedSubject.send(true)
+        }
+    }
+
+    /// Mock 登录状态
+    var mockIsLoggedIn: Bool {
+        get {
+            isAuthenticatedSubject.value
+        }
+        set {
+            isAuthenticatedSubject.send(newValue)
+        }
+    }
+
     /// 设置认证状态
     func setAuthenticated(_ authenticated: Bool, user: UserProfile? = nil) {
         isAuthenticatedSubject.send(authenticated)
