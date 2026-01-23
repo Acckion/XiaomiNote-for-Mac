@@ -142,5 +142,5 @@ struct NewNoteView: View {
 
 @available(macOS 14.0, *)
 #Preview {
-    NewNoteView(viewModel: NotesViewModel())
+    NewNoteView(viewModel: PreviewHelper.shared.createPreviewViewModel())
 }

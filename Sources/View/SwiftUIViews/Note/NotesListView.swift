@@ -1257,6 +1257,6 @@ struct NoteRow: View {
 }
 
 #Preview {
-    NotesListView(viewModel: NotesViewModel())
+    NotesListView(viewModel: PreviewHelper.shared.createPreviewViewModel())
 }
 

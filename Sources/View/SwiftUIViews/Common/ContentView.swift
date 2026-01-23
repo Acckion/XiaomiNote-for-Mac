@@ -952,5 +952,5 @@ struct NotesListViewControllerWrapper: NSViewControllerRepresentable {
 
 @available(macOS 14.0, *)
 #Preview {
-    ContentView(viewModel: NotesViewModel())
+    ContentView(viewModel: PreviewHelper.shared.createPreviewViewModel())
 }

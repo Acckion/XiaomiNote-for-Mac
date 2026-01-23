@@ -127,7 +127,7 @@ struct MoveNoteMenuView: View {
 }
 
 #Preview {
-    let viewModel = NotesViewModel()
+    let viewModel = PreviewHelper.shared.createPreviewViewModel()
     let sampleNote = Note(
         id: "sample-1",
         title: "测试笔记",

@@ -138,7 +138,7 @@ struct ContentAreaView: View {
 @available(macOS 14.0, *)
 #Preview {
     ContentAreaView(
-        viewModel: NotesViewModel(),
+        viewModel: PreviewHelper.shared.createPreviewViewModel(),
         optionsManager: .shared
     )
     .frame(width: 1000, height: 700)
