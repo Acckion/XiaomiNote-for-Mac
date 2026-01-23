@@ -49,39 +49,40 @@ public static var useNewArchitecture: Bool {
 ### 阶段 1: 基础功能测试 (15 分钟)
 
 #### ✅ 测试 1: 应用启动
-- [ ] 应用正常启动，无崩溃
-- [ ] 登录界面显示正常
-- [ ] 可以成功登录
-- [ ] 主窗口显示正常
+- [x] 应用正常启动，无崩溃
+- [x] 登录界面显示正常
+- [x] 可以成功登录
+- [x] 主窗口显示正常
 
 #### ✅ 测试 2: 笔记列表
-- [ ] 笔记列表加载成功
-- [ ] 笔记数量正确
-- [ ] 笔记排序正确（按修改时间）
-- [ ] 可以选择笔记
-- [ ] 选中状态正确显示（高亮）
+- [x] 笔记列表加载成功
+- [x] 笔记数量正确
+- [ ] 笔记排序正确（按修改时间）BUG: 无法按照创建时间排序
+- [x] 可以选择笔记
+- [x] 选中状态正确显示（高亮）
+额外发现一个BUG: 如果笔记列表中有置顶笔记，粘性分组头显示的是“今天”而不是“置顶
 
 #### ✅ 测试 3: 文件夹管理
-- [ ] 文件夹列表加载成功
-- [ ] 可以选择文件夹
-- [ ] 笔记列表根据文件夹过滤
-- [ ] 可以创建新文件夹
-- [ ] 可以删除文件夹
-- [ ] 可以重命名文件夹
+- [x] 文件夹列表加载成功
+- [x] 可以选择文件夹
+- [x] 笔记列表根据文件夹过滤
+- [x] 可以创建新文件夹
+- [x] 可以删除文件夹
+- [x] 可以重命名文件夹
 
 #### ✅ 测试 4: 笔记编辑
-- [ ] 选择笔记后编辑器加载内容
-- [ ] 可以编辑笔记内容
-- [ ] 自动保存功能正常（3秒后）
-- [ ] 手动保存功能正常（Cmd+S）
-- [ ] 标题提取正确
+- [x] 选择笔记后编辑器加载内容
+- [x] 可以编辑笔记内容
+- [x] 自动保存功能正常（3秒后）
+- [x] 手动保存功能正常（Cmd+S）
+- [x] 标题提取正确
 
 #### ✅ 测试 5: 同步功能
-- [ ] 启动同步成功
-- [ ] 同步进度显示正确
-- [ ] 同步完成后笔记列表更新
-- [ ] 可以停止同步
-- [ ] 可以强制全量同步
+- [x] 启动同步成功
+- [x] 同步进度显示正确
+- [x] 同步完成后笔记列表更新
+- [x] 可以停止同步
+- [x] 可以强制全量同步
 
 ---
 
@@ -92,28 +93,30 @@ public static var useNewArchitecture: Bool {
 - [ ] 置顶状态正确显示（图标或标记）
 - [ ] 置顶文件夹排序在前
 - [ ] 可以取消置顶
+BUG: 无法置顶，但暂时不需要该功能
 
 #### ✅ 测试 7: 笔记历史 (getNoteHistory)
-- [ ] 选择一个笔记
-- [ ] 打开"历史版本"菜单
-- [ ] 可以看到历史版本列表
-- [ ] 可以查看历史版本内容
-- [ ] 可以恢复历史版本
-- [ ] 恢复后笔记内容正确
+- [x] 选择一个笔记
+- [x] 打开"历史版本"菜单
+- [x] 可以看到历史版本列表
+- [ ] 可以查看历史版本内容 BUG: 无法预览，提示“加载内容失败: XMLToHTMLConverter 类未定义”，似乎仍然使用旧的HTML编辑器
+- [x] 可以恢复历史版本
+- [x] 恢复后笔记内容正确
 
 #### ✅ 测试 8: 回收站 (fetchDeletedNotes)
-- [ ] 删除一个笔记
-- [ ] 打开"回收站"
-- [ ] 可以看到已删除笔记
-- [ ] 可以恢复已删除笔记
-- [ ] 可以永久删除笔记
+- [x] 删除一个笔记
+- [x] 打开"回收站"
+- [x] 可以看到已删除笔记列表
+- [ ] 可以看到已删除笔记列表 BUG: 加载内容失败: XMLToHTMLConverter 类未定义
+- [ ] 可以恢复已删除笔记 BUG: 无恢复按钮
+- [ ] 可以永久删除笔记 BUG: 无永久删除按钮
 
 #### ✅ 测试 9: 图片上传 (uploadImageAndInsertToNote)
-- [ ] 在编辑器中插入图片
-- [ ] 图片上传成功（查看进度）
-- [ ] 图片插入到正确位置
-- [ ] 图片显示正常
-- [ ] 保存后重新打开，图片仍然显示
+- [x] 在编辑器中插入图片
+- [x] 图片上传成功（查看进度）
+- [x] 图片插入到正确位置
+- [x] 图片显示正常
+- [x] 保存后重新打开，图片仍然显示
 
 #### ✅ 测试 10: 自动刷新 Cookie (startAutoRefreshCookieIfNeeded)
 - [ ] 登录后自动刷新功能启动
@@ -121,6 +124,83 @@ public static var useNewArchitecture: Bool {
 - [ ] 刷新成功后无错误提示
 - [ ] 刷新失败时有错误提示
 - [ ] 退出登录后自动刷新停止
+BUG: 似乎在检测到cookie失效后不会自动静默刷新
+日志:
+[ScheduledTaskManager] 开始执行任务: Cookie有效性检查
+[CookieValidityCheckTask] 开始检查Cookie有效性
+[MiNoteService] 开始实时检查Cookie在服务器端的有效性
+📤 请求: GET https://i.mi.com/common/check?ts=1769147551994
+📥 响应: GET https://i.mi.com/common/check?ts=1769147551994 - 状态码: 401
+响应体: {"R":401,"S":"Err","D":"https://account.xiaomi.com/pass/serviceLogin?callback=https%3A%2F%2Fi.mi.com%2Fsts%3Fsign%3DIb3horUmfhQFoQV2LgZ1BLPKbRg%253D%26followup%3D%252F&sid=i.mi.com&_group=DEFAULT&checkSafePhone=true&_bal=true","E":false,"isSecondValidation":false}
+[MiNoteService] 检测到Cookie过期（401 + 认证错误）
+[MiNoteService] 响应包含登录重定向URL，确认需要重新登录
+[MiNoteService] Cookie失效已被处理，跳过重复回调
+❌ 错误: GET https://i.mi.com/common/check?ts=1769147551994 - Cookie已过期，请重新登录
+[MiNoteService] ❌ Cookie有效性检查失败: cookieExpired
+[CookieValidityCheckTask] Cookie有效性检查失败: cookieExpired
+[AuthenticationStateManager] Cookie失效，标记为失效状态
+[ScheduledTaskManager] 任务执行失败: Cookie有效性检查, 错误: Cookie已过期，请重新登录
+
+BUG: 手动点击刷新时，也无法进行刷新
+日志：
+[SYNC] 网页版增量同步失败，回退到旧API增量同步: cookieExpired
+[SYNC] 使用旧API增量同步
+[SyncStateManager] 🔍 获取当前 syncTag
+[LocalStorage] 🔍 开始加载同步状态
+[LocalStorage] ✅ 成功加载同步状态:
+[LocalStorage]   - lastSyncTime: 2026-01-23 05:34:29 +0000
+[LocalStorage]   - syncTag: 49067866249119008
+[SyncStateManager] ✅ 当前 syncTag: 49067866249119008
+[SYNC] 从 SyncStateManager 获取 syncTag: 49067866249119008
+📤 请求: GET https://i.mi.com/note/full/page?ts=1769147654893&limit=200
+[SilentCookieRefreshManager] 🔄 收到刷新请求，类型: automatic
+[SilentCookieRefreshManager] 在冷却期内，已过 30.7 秒，需等待 29.3 秒
+[SilentCookieRefreshManager] 自动刷新在冷却期内，跳过刷新（剩余 29.3 秒）
+[SilentCookieRefreshManager] ⏳ 跳过刷新，返回上次结果: true
+[MiNoteService] ✅ 静默Cookie刷新成功
+[MiNoteService] ✅ Cookie刷新成功
+[AuthenticationStateManager] 📡 refreshCookie()返回: true
+[AuthenticationStateManager] ✅ 静默刷新成功，开始验证Cookie有效性...
+[MiNoteService] 开始实时检查Cookie在服务器端的有效性
+📤 请求: GET https://i.mi.com/common/check?ts=1769147654915
+📥 响应: GET https://i.mi.com/note/full/page?ts=1769147654893&limit=200 - 状态码: 401
+响应体: {"R":401,"S":"Err","D":"https://account.xiaomi.com/pass/serviceLogin?callback=https%3A%2F%2Fi.mi.com%2Fsts%3Fsign%3DIb3horUmfhQFoQV2LgZ1BLPKbRg%253D%26followup%3D%252F&sid=i.mi.com&_group=DEFAULT&checkSafePhone=true&_bal=true","E":false,"isSecondValidation":false}
+[MiNoteService] 检测到Cookie过期（401 + 认证错误）
+[MiNoteService] 响应包含登录重定向URL，确认需要重新登录
+[MiNoteService] Cookie失效已被处理，跳过重复回调
+❌ 错误: GET https://i.mi.com/note/full/page?ts=1769147654893&limit=200 - Cookie已过期，请重新登录
+[SYNC] 增量同步结束，isSyncing设置为false
+[VIEWMODEL] Cookie过期，尝试静默刷新...
+📥 响应: GET https://i.mi.com/common/check?ts=1769147654915 - 状态码: 401
+响应体: {"R":401,"S":"Err","D":"https://account.xiaomi.com/pass/serviceLogin?callback=https%3A%2F%2Fi.mi.com%2Fsts%3Fsign%3DIb3horUmfhQFoQV2LgZ1BLPKbRg%253D%26followup%3D%252F&sid=i.mi.com&_group=DEFAULT&checkSafePhone=true&_bal=true","E":false,"isSecondValidation":false}
+[MiNoteService] 检测到Cookie过期（401 + 认证错误）
+[MiNoteService] 响应包含登录重定向URL，确认需要重新登录
+[MiNoteService] Cookie失效已被处理，跳过重复回调
+❌ 错误: GET https://i.mi.com/common/check?ts=1769147654915 - Cookie已过期，请重新登录
+[MiNoteService] ❌ Cookie有效性检查失败: cookieExpired
+[VIEWMODEL] 静默处理Cookie失效
+[AuthenticationStateManager] 静默处理Cookie失效
+[AuthenticationStateManager] ⚠️ 已在刷新周期中，跳过重复请求
+[AuthenticationStateManager] ❌ 静默刷新失败: cookieExpired
+[AuthenticationStateManager] ❌ 刷新失败，失败次数: 1/3
+[ScheduledTaskManager] ▶️ 任务 cookie_validity_check 将在 30.0 秒后恢复
+[ScheduledTaskManager] 停止任务: Cookie有效性检查
+[ScheduledTaskManager] 启动任务: Cookie有效性检查, 间隔: 30.0秒
+[ScheduledTaskManager] ▶️ 任务已恢复: Cookie有效性检查
+[ScheduledTaskManager] 开始执行任务: Cookie有效性检查
+[CookieValidityCheckTask] 开始检查Cookie有效性
+[MiNoteService] 开始实时检查Cookie在服务器端的有效性
+📤 请求: GET https://i.mi.com/common/check?ts=1769147686711
+📥 响应: GET https://i.mi.com/common/check?ts=1769147686711 - 状态码: 401
+响应体: {"R":401,"S":"Err","D":"https://account.xiaomi.com/pass/serviceLogin?callback=https%3A%2F%2Fi.mi.com%2Fsts%3Fsign%3DIb3horUmfhQFoQV2LgZ1BLPKbRg%253D%26followup%3D%252F&sid=i.mi.com&_group=DEFAULT&checkSafePhone=true&_bal=true","E":false,"isSecondValidation":false}
+[MiNoteService] 检测到Cookie过期（401 + 认证错误）
+[MiNoteService] 响应包含登录重定向URL，确认需要重新登录
+[MiNoteService] Cookie失效已被处理，跳过重复回调
+❌ 错误: GET https://i.mi.com/common/check?ts=1769147686711 - Cookie已过期，请重新登录
+[MiNoteService] ❌ Cookie有效性检查失败: cookieExpired
+[CookieValidityCheckTask] Cookie有效性检查失败: cookieExpired
+[AuthenticationStateManager] Cookie失效，标记为失效状态
+[ScheduledTaskManager] 任务执行失败: Cookie有效性检查, 错误: Cookie已过期，请重新登录
 
 #### ✅ 测试 11: 同步间隔更新 (updateSyncInterval)
 - [ ] 打开设置

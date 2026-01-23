@@ -4302,7 +4302,7 @@ public class NotesViewModel: ObservableObject {
             print("[VIEWMODEL] ✅ 恢复笔记成功: \(noteId)")
             
             // 刷新笔记列表和回收站列表
-            await fetchNotes()
+            await reloadDataAfterSync()
             await fetchDeletedNotes()
         } catch {
             print("[VIEWMODEL] ❌ 恢复笔记失败: \(error.localizedDescription)")

@@ -256,7 +256,7 @@ struct TrashView: View {
                 )
                 
                 // 设置到编辑器上下文
-                editorContext.setContent(attributedString)
+                editorContext.updateNSContent(attributedString)
             } catch {
                 print("[TrashView] 加载内容失败: \(error.localizedDescription)")
                 // 如果转换失败，显示纯文本
@@ -265,7 +265,7 @@ struct TrashView: View {
                     .replacingOccurrences(of: "&amp;", with: "&")
                     .replacingOccurrences(of: "&lt;", with: "<")
                     .replacingOccurrences(of: "&gt;", with: ">")
-                editorContext.setContent(NSAttributedString(string: plainText))
+                editorContext.updateNSContent(NSAttributedString(string: plainText))
             }
         }
     }

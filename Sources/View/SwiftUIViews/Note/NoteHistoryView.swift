@@ -366,7 +366,7 @@ private struct VersionPreviewView: View {
                 )
                 
                 // 设置到编辑器上下文
-                editorContext.setContent(attributedString)
+                editorContext.updateNSContent(attributedString)
             } catch {
                 print("[VersionPreviewView] 加载内容失败: \(error.localizedDescription)")
                 // 如果转换失败，显示纯文本
@@ -375,7 +375,7 @@ private struct VersionPreviewView: View {
                     .replacingOccurrences(of: "&amp;", with: "&")
                     .replacingOccurrences(of: "&lt;", with: "<")
                     .replacingOccurrences(of: "&gt;", with: ">")
-                editorContext.setContent(NSAttributedString(string: plainText))
+                editorContext.updateNSContent(NSAttributedString(string: plainText))
             }
         }
     }
