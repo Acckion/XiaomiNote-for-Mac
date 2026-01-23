@@ -11,11 +11,17 @@ import SwiftUI
 /// - 支持分组模式（固定分组标题）和平铺模式
 class NotesListHostingController: NSHostingController<NotesListView> {
     
-    private var viewModel: NotesViewModel
+    private let coordinator: AppCoordinator
+    private let windowState: WindowState
     
-    init(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
-        super.init(rootView: NotesListView(viewModel: viewModel))
+    init(coordinator: AppCoordinator, windowState: WindowState) {
+        self.coordinator = coordinator
+        self.windowState = windowState
+        super.init(rootView: NotesListView(
+            coordinator: coordinator,
+            windowState: windowState,
+            optionsManager: .shared
+        ))
         
         // 禁止视图延伸到安全区域（工具栏下方）
         self.view.wantsLayer = true

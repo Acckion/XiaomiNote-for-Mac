@@ -8,15 +8,17 @@ class NoteDetailViewController: NSViewController {
     
     // MARK: - 属性
     
-    private var viewModel: NotesViewModel
+    private let coordinator: AppCoordinator
+    private let windowState: WindowState
     private var hostingController: NSHostingController<NoteDetailView>?
     
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - 初始化
     
-    init(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    init(coordinator: AppCoordinator, windowState: WindowState) {
+        self.coordinator = coordinator
+        self.windowState = windowState
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -38,7 +40,7 @@ class NoteDetailViewController: NSViewController {
         super.viewDidLoad()
         
         // 创建SwiftUI视图
-        let noteDetailView = NoteDetailView(viewModel: viewModel)
+        let noteDetailView = NoteDetailView(coordinator: coordinator, windowState: windowState)
         
         // 创建托管控制器
         hostingController = NSHostingController(rootView: noteDetailView)
@@ -58,7 +60,7 @@ class NoteDetailViewController: NSViewController {
         ])
         
         // 监听选中的笔记变化
-        viewModel.$selectedNote
+        windowState.$selectedNote
             .receive(on: DispatchQueue.main)
             .sink { [weak self] note in
                 self?.updateTitle(with: note)
@@ -82,7 +84,7 @@ class NoteDetailViewController: NSViewController {
     /// - Returns: 笔记详情窗口状态对象
     public func savableWindowState() -> NoteDetailWindowState {
         // 获取编辑器内容（从原生编辑器导出）
-        let editorContent = viewModel.nativeEditorContext.exportToXML()
+        let editorContent = coordinator.notesViewModel.nativeEditorContext.exportToXML()
         
         // 滚动位置和光标位置暂时设为0
         let scrollPosition = 0.0
@@ -105,7 +107,7 @@ class NoteDetailViewController: NSViewController {
         
         // 恢复编辑器内容
         if let editorContent = state.editorContent {
-            viewModel.nativeEditorContext.loadFromXML(editorContent)
+            coordinator.notesViewModel.nativeEditorContext.loadFromXML(editorContent)
         }
         
         print("[NoteDetailViewController] 笔记详情状态恢复完成")

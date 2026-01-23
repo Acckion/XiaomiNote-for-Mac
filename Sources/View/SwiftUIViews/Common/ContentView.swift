@@ -3,17 +3,17 @@ import AppKit
 
 /// 主内容视图 - 应用程序的核心UI容器
 /// 
-/// 这个视图负责：
-/// - 管理三栏布局（侧边栏、笔记列表、编辑区）
-/// - 响应式窗口大小调整
-/// - 工具栏和搜索功能
-/// - 窗口标题设置
+/// **已废弃**: 此视图已被新的多窗口架构替代。
+/// 现在应该使用 `ContentAreaView` 配合 `coordinator` 和 `windowState`。
+/// 
+/// 保留此文件仅用于向后兼容和预览，但不应在新代码中使用。
 ///
 /// UI布局说明：
 /// - 左侧：侧边栏（文件夹列表）
 /// - 中间：笔记列表（显示选中文件夹的笔记）
 /// - 右侧：笔记编辑器（显示和编辑选中的笔记）
 @available(macOS 14.0, *)
+@available(*, deprecated, message: "使用 ContentAreaView 配合 coordinator 和 windowState 替代")
 public struct ContentView: View {
     // MARK: - 数据绑定和状态管理
     
@@ -302,8 +302,13 @@ public struct ContentView: View {
     /// 宽度设置：
     /// - 最小：calculatedDetailMinWidth（动态计算）
     /// - 理想：calculatedDetailWidth.ideal（动态计算）
+    /// 
+    /// **注意**: 此视图已废弃，使用临时兼容层
     private var detailContent: some View {
-        NoteDetailView(viewModel: viewModel)
+        // 临时兼容层：创建一个简单的占位视图
+        // 由于 ContentView 已废弃，这里不需要完整实现
+        Text("此视图已废弃")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationSplitViewColumnWidth(
                 min: calculatedDetailMinWidth,
                 ideal: calculatedDetailWidth.ideal

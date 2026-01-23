@@ -5,12 +5,12 @@ import MiNoteLibrary
 /// 替代SwiftUI的App结构，采用纯AppKit架构
 /// 使用模块化设计，将功能分解到专门的类中
 @MainActor
-class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
+public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     
     // MARK: - 属性
     
-    /// 窗口管理器
-    private let windowManager: WindowManager
+    /// 窗口管理器（使用共享实例）
+    private let windowManager = WindowManager.shared
     
     /// 菜单管理器
     private let menuManager: MenuManager
@@ -23,14 +23,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     
     // MARK: - 架构
     
-    /// 应用协调器
-    private var appCoordinator: AppCoordinator?
+    /// 应用协调器（对外只读访问）
+    private(set) var appCoordinator: AppCoordinator?
     
     // MARK: - 初始化
     
     override init() {
-        // 首先初始化窗口管理器
-        windowManager = WindowManager()
+        // 获取窗口管理器共享实例
+        let windowManager = WindowManager.shared
         
         // 初始化菜单管理器（暂时使用 nil，稍后更新）
         menuManager = MenuManager(appDelegate: nil, mainWindowController: windowManager.mainWindowController)
@@ -52,7 +52,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     
     // MARK: - NSApplicationDelegate
     
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    public func applicationDidFinishLaunching(_ notification: Notification) {
         // 配置依赖注入服务
         ServiceLocator.shared.configure()
         
@@ -77,6 +77,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let coordinator = AppCoordinator()
         appCoordinator = coordinator
         
+        // 配置 WindowManager（为未来的多窗口支持做准备）
+        WindowManager.shared.setAppCoordinator(coordinator)
+        
         // 启动应用
         Task { @MainActor in
             await coordinator.start()
@@ -88,15 +91,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         menuActionHandler.updateMainWindowController(windowManager.mainWindowController)
     }
     
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+    public func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return appStateManager.shouldTerminateAfterLastWindowClosed()
     }
     
-    func applicationWillTerminate(_ notification: Notification) {
+    public func applicationWillTerminate(_ notification: Notification) {
         appStateManager.handleApplicationWillTerminate()
     }
     
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    public func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         return appStateManager.handleApplicationReopen(hasVisibleWindows: flag)
     }
     
@@ -118,6 +121,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func createNewWindow() {
         windowManager.createNewWindow()
         // 更新菜单动作处理器的引用
+        menuActionHandler.updateMainWindowController(windowManager.mainWindowController)
+    }
+    
+    /// 创建新窗口并打开指定笔记
+    ///
+    /// 注意：此方法为多窗口支持预留，当前实现将在任务 5 完成后启用
+    ///
+    /// - Parameter note: 要在新窗口中打开的笔记
+    public func createNewWindow(withNote note: Note?) {
+        // TODO: 任务 5 完成后，使用 WindowManager.shared.createNewWindow(withNote:)
+        // 当前暂时使用旧的实现
+        windowManager.createNewWindow()
         menuActionHandler.updateMainWindowController(windowManager.mainWindowController)
     }
     
@@ -537,7 +552,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     
     /// 验证菜单项是否应该启用
     /// 将验证委托给 MenuActionHandler
-    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+    public func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         return menuActionHandler.validateMenuItem(menuItem)
     }
     

@@ -107,8 +107,13 @@ public class SettingsWindowController: NSWindowController, NSToolbarDelegate {
     private func setupWindowContent() {
         guard let window = window else { return }
         
+        guard let viewModel = viewModel else {
+            print("[SettingsWindowController] 错误: viewModel 为 nil，无法创建设置视图")
+            return
+        }
+        
         // 创建 SwiftUI 设置视图
-        let settingsView = SettingsView(viewModel: viewModel ?? NotesViewModel())
+        let settingsView = SettingsView(viewModel: viewModel)
             .frame(minWidth: 550, minHeight: 500)
         
         // 使用 NSHostingController 包装 SwiftUI 视图

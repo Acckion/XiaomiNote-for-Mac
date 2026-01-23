@@ -1495,12 +1495,9 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
             return
         }
         
-        // 创建新窗口并显示选中的笔记
-        windowManager.createNewWindow()
-        
-        // 在新窗口中选中相同的笔记
-        if let newWindowController = windowManager.mainWindowController {
-            newWindowController.viewModel?.selectNoteWithCoordinator(note)
+        // 使用 AppDelegate 的 createNewWindow 方法
+        if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
+            appDelegate.createNewWindow(withNote: note)
         }
     }
 

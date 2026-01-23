@@ -5,7 +5,17 @@ import Combine
 /// 笔记详情视图
 @available(macOS 14.0, *)
 struct NoteDetailView: View {
-    @ObservedObject var viewModel: NotesViewModel
+    /// 应用协调器（共享数据层）
+    let coordinator: AppCoordinator
+    
+    /// 窗口状态（窗口独立状态）
+    @ObservedObject var windowState: WindowState
+    
+    /// 笔记视图模型（通过 coordinator 访问）
+    private var viewModel: NotesViewModel {
+        coordinator.notesViewModel
+    }
+    
     @State private var editedTitle: String = ""
     @State private var currentXMLContent: String = ""
     @State private var isSaving: Bool = false

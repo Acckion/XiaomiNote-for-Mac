@@ -87,8 +87,13 @@ public class CookieRefreshWindowController: NSWindowController {
     private func setupWindowContent() {
         guard let window = window else { return }
         
+        guard let viewModel = viewModel else {
+            print("[CookieRefreshWindowController] 错误: viewModel 为 nil，无法创建 Cookie 刷新视图")
+            return
+        }
+        
         // 创建SwiftUI Cookie刷新视图
-        let cookieRefreshView = CookieRefreshView(viewModel: viewModel ?? NotesViewModel())
+        let cookieRefreshView = CookieRefreshView(viewModel: viewModel)
         
         // 使用NSHostingController包装SwiftUI视图
         let hostingController = NSHostingController(rootView: cookieRefreshView)

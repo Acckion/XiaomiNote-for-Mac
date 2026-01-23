@@ -13,19 +13,24 @@ import AppKit
 /// 画廊视图
 /// 
 /// 以卡片网格形式展示笔记，支持响应式布局、日期分组和键盘导航
-/// _Requirements: 5.1, 5.5, 5.7, 5.8, 5.9, 7.4_
+/// _Requirements: 5.1, 5.5, 5.7, 5.8, 5.9, 7.4, 5.3, 5.4, 5.5_
 struct GalleryView: View {
     
     // MARK: - 属性
     
-    /// 笔记视图模型
-    @ObservedObject var viewModel: NotesViewModel
+    /// 应用协调器（共享数据层）
+    let coordinator: AppCoordinator
+    
+    /// 窗口状态（窗口独立状态）
+    @ObservedObject var windowState: WindowState
+    
+    /// 笔记视图模型（通过 coordinator 访问）
+    private var viewModel: NotesViewModel {
+        coordinator.notesViewModel
+    }
     
     /// 视图选项管理器
     @ObservedObject var optionsManager: ViewOptionsManager
-    
-    /// 展开的笔记（用于展开视图）
-    @Binding var expandedNote: Note?
     
     /// 动画命名空间（外部传入，用于与 ExpandedNoteView 共享）
     /// _Requirements: 6.1, 6.4_
@@ -64,7 +69,7 @@ struct GalleryView: View {
                     flatGalleryContent
                 }
             }
-            .onChange(of: viewModel.selectedNote?.id) { oldValue, newValue in
+            .onChange(of: windowState.selectedNote?.id) { oldValue, newValue in
                 // 滚动到选中的笔记
                 // _Requirements: 6.7_
                 if let noteId = newValue {
@@ -176,13 +181,13 @@ struct GalleryView: View {
     private func noteCardItem(note: Note) -> some View {
         NoteCardView(
             note: note,
-            isSelected: viewModel.selectedNote?.id == note.id,
+            isSelected: windowState.selectedNote?.id == note.id,
             onTap: {
                 // 点击卡片时展开笔记
                 // _Requirements: 6.1, 6.6_
                 withAnimation(.easeInOut(duration: 0.35)) {
-                    expandedNote = note
-                    viewModel.selectedNote = note
+                    windowState.expandNote(note)
+                    windowState.selectNote(note)
                 }
             },
             viewModel: viewModel
@@ -267,12 +272,14 @@ struct GalleryView: View {
         let notes = viewModel.filteredNotes
         guard !notes.isEmpty else { return }
         
-        if let currentNote = viewModel.selectedNote,
+        if let currentNote = windowState.selectedNote,
            let currentIndex = notes.firstIndex(where: { $0.id == currentNote.id }) {
             let newIndex = max(0, currentIndex - 1)
-            viewModel.selectedNote = notes[newIndex]
+            windowState.selectNote(notes[newIndex])
         } else {
-            viewModel.selectedNote = notes.first
+            if let firstNote = notes.first {
+                windowState.selectNote(firstNote)
+            }
         }
     }
     
@@ -282,12 +289,14 @@ struct GalleryView: View {
         let notes = viewModel.filteredNotes
         guard !notes.isEmpty else { return }
         
-        if let currentNote = viewModel.selectedNote,
+        if let currentNote = windowState.selectedNote,
            let currentIndex = notes.firstIndex(where: { $0.id == currentNote.id }) {
             let newIndex = min(notes.count - 1, currentIndex + 1)
-            viewModel.selectedNote = notes[newIndex]
+            windowState.selectNote(notes[newIndex])
         } else {
-            viewModel.selectedNote = notes.first
+            if let firstNote = notes.first {
+                windowState.selectNote(firstNote)
+            }
         }
     }
     
@@ -300,12 +309,14 @@ struct GalleryView: View {
         // 假设每行大约4个卡片（根据自适应布局）
         let columnsPerRow = 4
         
-        if let currentNote = viewModel.selectedNote,
+        if let currentNote = windowState.selectedNote,
            let currentIndex = notes.firstIndex(where: { $0.id == currentNote.id }) {
             let newIndex = max(0, currentIndex - columnsPerRow)
-            viewModel.selectedNote = notes[newIndex]
+            windowState.selectNote(notes[newIndex])
         } else {
-            viewModel.selectedNote = notes.first
+            if let firstNote = notes.first {
+                windowState.selectNote(firstNote)
+            }
         }
     }
     
@@ -318,21 +329,23 @@ struct GalleryView: View {
         // 假设每行大约4个卡片（根据自适应布局）
         let columnsPerRow = 4
         
-        if let currentNote = viewModel.selectedNote,
+        if let currentNote = windowState.selectedNote,
            let currentIndex = notes.firstIndex(where: { $0.id == currentNote.id }) {
             let newIndex = min(notes.count - 1, currentIndex + columnsPerRow)
-            viewModel.selectedNote = notes[newIndex]
+            windowState.selectNote(notes[newIndex])
         } else {
-            viewModel.selectedNote = notes.first
+            if let firstNote = notes.first {
+                windowState.selectNote(firstNote)
+            }
         }
     }
     
     /// 打开当前聚焦的笔记
     /// _Requirements: 7.4_
     private func openFocusedNote() {
-        if let note = viewModel.selectedNote {
+        if let note = windowState.selectedNote {
             withAnimation(.easeInOut(duration: 0.35)) {
-                expandedNote = note
+                windowState.expandNote(note)
             }
         }
     }
@@ -432,25 +445,9 @@ struct GalleryView: View {
     
     /// 在新窗口打开笔记
     private func openNoteInNewWindow(_ note: Note) {
-        if NSApplication.shared.keyWindow != nil {
-            let newWindow = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
-                styleMask: [.titled, .closable, .miniaturizable, .resizable],
-                backing: .buffered,
-                defer: false
-            )
-            newWindow.title = note.title.isEmpty ? "无标题" : note.title
-            newWindow.center()
-            
-            let newViewModel = NotesViewModel()
-            newViewModel.selectedNote = note
-            newViewModel.selectedFolder = viewModel.folders.first { $0.id == note.folderId }
-                ?? viewModel.folders.first { $0.id == "0" }
-            
-            let contentView = NoteDetailView(viewModel: newViewModel)
-            newWindow.contentView = NSHostingView(rootView: contentView)
-            newWindow.makeKeyAndOrderFront(nil)
-        }
+        // TODO: 实现多窗口支持后启用
+        // 当前由于模块依赖问题暂时禁用
+        print("[GalleryView] 在新窗口打开笔记功能暂时禁用")
     }
     
     /// 复制笔记内容到剪贴板
@@ -510,14 +507,16 @@ struct GalleryView: View {
 
 #Preview {
     struct PreviewWrapper: View {
-        @State private var expandedNote: Note? = nil
         @Namespace private var animation
         
         var body: some View {
+            let coordinator = AppCoordinator()
+            let windowState = WindowState(coordinator: coordinator)
+            
             GalleryView(
-                viewModel: PreviewHelper.shared.createPreviewViewModel(),
+                coordinator: coordinator,
+                windowState: windowState,
                 optionsManager: .shared,
-                expandedNote: $expandedNote,
                 animation: animation
             )
             .frame(width: 800, height: 600)

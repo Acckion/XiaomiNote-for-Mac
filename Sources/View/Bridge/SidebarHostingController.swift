@@ -44,8 +44,12 @@ public class SidebarHostingController: NSViewController {
         viewModel.$selectedFolder
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
+                guard let self = self, let viewModel = self.viewModel as NotesViewModel? else {
+                    print("[SidebarHostingController] 错误: viewModel 为 nil，无法刷新视图")
+                    return
+                }
                 // 强制刷新SwiftUI视图
-                self?.hostingView?.rootView = SidebarView(viewModel: self?.viewModel ?? NotesViewModel())
+                self.hostingView?.rootView = SidebarView(viewModel: viewModel)
             }
             .store(in: &cancellables)
         
@@ -53,8 +57,12 @@ public class SidebarHostingController: NSViewController {
         viewModel.$folders
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
+                guard let self = self, let viewModel = self.viewModel as NotesViewModel? else {
+                    print("[SidebarHostingController] 错误: viewModel 为 nil，无法刷新视图")
+                    return
+                }
                 // 强制刷新SwiftUI视图
-                self?.hostingView?.rootView = SidebarView(viewModel: self?.viewModel ?? NotesViewModel())
+                self.hostingView?.rootView = SidebarView(viewModel: viewModel)
             }
             .store(in: &cancellables)
     }

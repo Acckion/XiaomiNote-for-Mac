@@ -21,11 +21,11 @@ struct ExpandedNoteView: View {
     
     // MARK: - 属性
     
-    /// 笔记视图模型
-    @ObservedObject var viewModel: NotesViewModel
+    /// 应用协调器（共享数据层）
+    let coordinator: AppCoordinator
     
-    /// 展开的笔记（绑定，用于控制展开/收起）
-    @Binding var expandedNote: Note?
+    /// 窗口状态（窗口独立状态）
+    @ObservedObject var windowState: WindowState
     
     /// 动画命名空间（用于 matchedGeometryEffect）
     var animation: Namespace.ID
@@ -56,9 +56,12 @@ struct ExpandedNoteView: View {
     /// _Requirements: 6.2_
     @ViewBuilder
     private var editorContent: some View {
-        if let note = expandedNote {
-            NoteDetailView(viewModel: viewModel)
-                .matchedGeometryEffect(id: note.id, in: animation)
+        if let note = windowState.expandedNote {
+            NoteDetailView(
+                coordinator: coordinator,
+                windowState: windowState
+            )
+            .matchedGeometryEffect(id: note.id, in: animation)
         } else {
             // 空状态（理论上不应该出现）
             emptyStateView
@@ -89,7 +92,7 @@ struct ExpandedNoteView: View {
         // 使用 easeInOut 动画，时长 350ms
         // _Requirements: 6.5_
         withAnimation(.easeInOut(duration: 0.35)) {
-            expandedNote = nil
+            windowState.collapseNote()
         }
         
         // 重置状态
@@ -104,22 +107,27 @@ struct ExpandedNoteView: View {
 @available(macOS 14.0, *)
 #Preview {
     struct PreviewWrapper: View {
-        @State private var expandedNote: Note? = Note(
-            id: "preview-1",
-            title: "预览笔记",
-            content: "<new-format/><text indent=\"1\">这是一个预览笔记的内容。</text>",
-            folderId: "0",
-            isStarred: false,
-            createdAt: Date(),
-            updatedAt: Date(),
-            tags: []
-        )
         @Namespace private var animation
         
         var body: some View {
-            ExpandedNoteView(
-                viewModel: PreviewHelper.shared.createPreviewViewModel(),
-                expandedNote: $expandedNote,
+            let coordinator = AppCoordinator()
+            let windowState = WindowState(coordinator: coordinator)
+            
+            // 设置一个展开的笔记用于预览
+            windowState.expandedNote = Note(
+                id: "preview-1",
+                title: "预览笔记",
+                content: "<new-format/><text indent=\"1\">这是一个预览笔记的内容。</text>",
+                folderId: "0",
+                isStarred: false,
+                createdAt: Date(),
+                updatedAt: Date(),
+                tags: []
+            )
+            
+            return ExpandedNoteView(
+                coordinator: coordinator,
+                windowState: windowState,
                 animation: animation
             )
             .frame(width: 800, height: 600)

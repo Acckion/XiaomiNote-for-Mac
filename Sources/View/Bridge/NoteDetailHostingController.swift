@@ -17,8 +17,11 @@ class NoteDetailHostingController: NSViewController {
     
     // MARK: - 属性
     
-    /// 笔记视图模型
-    private var viewModel: NotesViewModel
+    /// 应用协调器
+    private let coordinator: AppCoordinator
+    
+    /// 窗口状态
+    private let windowState: WindowState
     
     /// 托管视图
     private var hostingView: NSHostingView<NoteDetailView>?
@@ -29,9 +32,12 @@ class NoteDetailHostingController: NSViewController {
     // MARK: - 初始化
     
     /// 初始化方法
-    /// - Parameter viewModel: 笔记视图模型
-    init(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    /// - Parameters:
+    ///   - coordinator: 应用协调器
+    ///   - windowState: 窗口状态
+    init(coordinator: AppCoordinator, windowState: WindowState) {
+        self.coordinator = coordinator
+        self.windowState = windowState
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -43,7 +49,7 @@ class NoteDetailHostingController: NSViewController {
     
     override func loadView() {
         // 创建 SwiftUI 视图
-        let noteDetailView = NoteDetailView(viewModel: viewModel)
+        let noteDetailView = NoteDetailView(coordinator: coordinator, windowState: windowState)
         
         // 创建 NSHostingView
         let hostingView = NSHostingView(rootView: noteDetailView)
@@ -71,7 +77,7 @@ class NoteDetailHostingController: NSViewController {
     
     /// 设置选中笔记监听
     private func setupSelectedNoteObserver() {
-        viewModel.$selectedNote
+        windowState.$selectedNote
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.refreshView()
@@ -83,6 +89,6 @@ class NoteDetailHostingController: NSViewController {
     
     /// 刷新 SwiftUI 视图
     func refreshView() {
-        hostingView?.rootView = NoteDetailView(viewModel: viewModel)
+        hostingView?.rootView = NoteDetailView(coordinator: coordinator, windowState: windowState)
     }
 }

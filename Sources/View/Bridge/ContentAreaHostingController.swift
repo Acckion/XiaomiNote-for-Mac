@@ -19,8 +19,16 @@ public class ContentAreaHostingController: NSViewController {
     
     // MARK: - 属性
     
-    /// 笔记视图模型
-    private var viewModel: NotesViewModel
+    /// 应用协调器（共享数据层）
+    private let coordinator: AppCoordinator
+    
+    /// 窗口状态（窗口独立状态）
+    private let windowState: WindowState
+    
+    /// 笔记视图模型（通过 coordinator 访问）
+    private var viewModel: NotesViewModel {
+        coordinator.notesViewModel
+    }
     
     /// 视图选项管理器
     private var optionsManager: ViewOptionsManager
@@ -35,10 +43,16 @@ public class ContentAreaHostingController: NSViewController {
     
     /// 初始化方法
     /// - Parameters:
-    ///   - viewModel: 笔记视图模型
+    ///   - coordinator: 应用协调器
+    ///   - windowState: 窗口状态
     ///   - optionsManager: 视图选项管理器，默认使用共享实例
-    public init(viewModel: NotesViewModel, optionsManager: ViewOptionsManager = .shared) {
-        self.viewModel = viewModel
+    public init(
+        coordinator: AppCoordinator,
+        windowState: WindowState,
+        optionsManager: ViewOptionsManager = .shared
+    ) {
+        self.coordinator = coordinator
+        self.windowState = windowState
         self.optionsManager = optionsManager
         super.init(nibName: nil, bundle: nil)
     }
@@ -52,7 +66,8 @@ public class ContentAreaHostingController: NSViewController {
     override public func loadView() {
         // 创建 SwiftUI 视图
         let contentAreaView = ContentAreaView(
-            viewModel: viewModel,
+            coordinator: coordinator,
+            windowState: windowState,
             optionsManager: optionsManager
         )
         
@@ -130,7 +145,8 @@ public class ContentAreaHostingController: NSViewController {
     /// 刷新 SwiftUI 视图
     public func refreshView() {
         hostingView?.rootView = ContentAreaView(
-            viewModel: viewModel,
+            coordinator: coordinator,
+            windowState: windowState,
             optionsManager: optionsManager
         )
     }

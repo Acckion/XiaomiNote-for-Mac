@@ -20,8 +20,16 @@ public class MainWindowController: NSWindowController {
     
     private let logger = Logger(subsystem: "com.minote.MiNoteMac", category: "MainWindowController")
     
-    /// 内容视图模型
-    public private(set) var viewModel: NotesViewModel?
+    /// AppCoordinator 引用
+    private let coordinator: AppCoordinator
+    
+    /// 窗口状态
+    private let windowState: WindowState
+    
+    /// 内容视图模型（向后兼容，通过 coordinator 获取）
+    public var viewModel: NotesViewModel? {
+        coordinator.notesViewModel
+    }
     
     /// 当前搜索字段（用于工具栏搜索项）
     private var currentSearchField: CustomSearchField?
@@ -96,10 +104,13 @@ public class MainWindowController: NSWindowController {
     
     // MARK: - 初始化
     
-    /// 使用指定的视图模型初始化窗口控制器
-    /// - Parameter viewModel: 笔记视图模型
-    public init(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    /// 使用 AppCoordinator 和 WindowState 初始化窗口控制器
+    /// - Parameters:
+    ///   - coordinator: 应用协调器（共享数据层）
+    ///   - windowState: 窗口状态（独立 UI 状态）
+    public init(coordinator: AppCoordinator, windowState: WindowState) {
+        self.coordinator = coordinator
+        self.windowState = windowState
         
         // 创建窗口
         let window = NSWindow(
@@ -110,6 +121,11 @@ public class MainWindowController: NSWindowController {
         )
         
         super.init(window: window)
+        
+        // 验证 WindowState 有效性
+        if !validateWindowState() {
+            logger.warning("[MainWindowController] WindowState 验证失败，使用默认状态")
+        }
         
         // 设置窗口
         window.title = "笔记"
@@ -134,6 +150,8 @@ public class MainWindowController: NSWindowController {
 
         // 初始化查找面板控制器
         searchPanelController = SearchPanelController(mainWindowController: self)
+        
+        print("[MainWindowController] 初始化完成，窗口ID: \(windowState.windowId)")
     }
     
     required init?(coder: NSCoder) {
@@ -158,7 +176,10 @@ public class MainWindowController: NSWindowController {
     /// 使用三栏布局：侧边栏 + 笔记列表 + 编辑器
     /// 在画廊模式下，笔记列表和编辑器区域会被 ContentAreaView 替换
     private func setupWindowContent() {
-        guard let window = window, let viewModel = viewModel else { return }
+        guard let window = window else { return }
+        
+        // 通过 coordinator 获取 viewModel（向后兼容）
+        let viewModel = coordinator.notesViewModel
         
         // 创建分割视图控制器（三栏布局）
         let splitViewController = NSSplitViewController()
@@ -174,7 +195,7 @@ public class MainWindowController: NSWindowController {
         splitViewController.addSplitViewItem(sidebarSplitViewItem)
         
         // 第二栏：笔记列表（使用SwiftUI视图）
-        let notesListSplitViewItem = NSSplitViewItem(viewController: NotesListHostingController(viewModel: viewModel))
+        let notesListSplitViewItem = NSSplitViewItem(viewController: NotesListHostingController(coordinator: coordinator, windowState: windowState))
         notesListSplitViewItem.minimumThickness = 200
         notesListSplitViewItem.maximumThickness = 350
         notesListSplitViewItem.canCollapse = false
@@ -183,7 +204,7 @@ public class MainWindowController: NSWindowController {
         splitViewController.addSplitViewItem(notesListSplitViewItem)
         
         // 第三栏：笔记详情编辑器（使用SwiftUI视图）
-        let noteDetailSplitViewItem = NSSplitViewItem(viewController: NoteDetailHostingController(viewModel: viewModel))
+        let noteDetailSplitViewItem = NSSplitViewItem(viewController: NoteDetailHostingController(coordinator: coordinator, windowState: windowState))
         noteDetailSplitViewItem.minimumThickness = 400
         // 编辑器 holdingPriority 较低，窗口缩小时先压缩编辑器
         noteDetailSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(250)
@@ -200,7 +221,8 @@ public class MainWindowController: NSWindowController {
     /// 在列表模式和画廊模式之间切换时，动态调整分割视图布局
 
     private func setupViewModeObserver(splitViewController: NSSplitViewController) {
-        guard let viewModel = viewModel else { return }
+        // 通过 coordinator 获取 viewModel（向后兼容）
+        let viewModel = coordinator.notesViewModel
         
         ViewOptionsManager.shared.$state
             .map(\.viewMode)
@@ -230,7 +252,7 @@ public class MainWindowController: NSWindowController {
                 splitViewController.removeSplitViewItem(splitViewItems[1])
                 
                 // 添加笔记列表
-                let notesListSplitViewItem = NSSplitViewItem(viewController: NotesListHostingController(viewModel: viewModel))
+                let notesListSplitViewItem = NSSplitViewItem(viewController: NotesListHostingController(coordinator: coordinator, windowState: windowState))
                 notesListSplitViewItem.minimumThickness = 200
                 notesListSplitViewItem.maximumThickness = 350
                 notesListSplitViewItem.canCollapse = false
@@ -239,7 +261,7 @@ public class MainWindowController: NSWindowController {
                 splitViewController.insertSplitViewItem(notesListSplitViewItem, at: 1)
                 
                 // 添加笔记详情编辑器
-                let noteDetailSplitViewItem = NSSplitViewItem(viewController: NoteDetailHostingController(viewModel: viewModel))
+                let noteDetailSplitViewItem = NSSplitViewItem(viewController: NoteDetailHostingController(coordinator: coordinator, windowState: windowState))
                 noteDetailSplitViewItem.minimumThickness = 400
                 // 编辑器 holdingPriority 较低，窗口缩小时先压缩编辑器
                 noteDetailSplitViewItem.holdingPriority = NSLayoutConstraint.Priority(250)
@@ -300,6 +322,9 @@ public class MainWindowController: NSWindowController {
     /// 设置工具栏
     private func setupToolbar() {
         guard let window = window else { return }
+        
+        // 通过 coordinator 获取 viewModel（向后兼容）
+        let viewModel = coordinator.notesViewModel
         
         // 创建工具栏代理
         toolbarDelegate = MainWindowToolbarDelegate(viewModel: viewModel, windowController: self)
@@ -851,7 +876,13 @@ extension MainWindowController: NSWindowDelegate {
     public func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
         
-        // 清理窗口控制器引用
+        // 如果是主窗口关闭，从 WindowManager 移除
+        if window == self.window {
+            print("[MainWindowController] 主窗口即将关闭，从 WindowManager 移除，窗口ID: \(windowState.windowId)")
+            WindowManager.shared.removeWindow(withId: windowState.windowId)
+        }
+        
+        // 清理其他窗口控制器引用
         if window == loginWindowController?.window {
             print("登录窗口即将关闭，清理引用")
             loginWindowController = nil
@@ -870,6 +901,69 @@ extension MainWindowController: NSWindowDelegate {
         } else if window == currentSheetWindow {
             print("离线操作进度sheet窗口即将关闭，清理引用")
             currentSheetWindow = nil
+        }
+    }
+}
+
+// MARK: - WindowState 验证和恢复
+
+extension MainWindowController {
+    
+    /// 验证 WindowState 有效性
+    ///
+    /// 检查 WindowState 是否正确初始化，如果发现问题则记录警告日志
+    ///
+    /// - Returns: WindowState 是否有效
+    private func validateWindowState() -> Bool {
+        // 检查 windowId 是否有效
+        if windowState.windowId.uuidString.isEmpty {
+            logger.error("[MainWindowController] WindowState windowId 无效")
+            return false
+        }
+        
+        // 检查是否能访问共享数据（通过 AppCoordinator）
+        // 如果 notes 和 folders 都为空，可能表示 AppCoordinator 未正确设置
+        // 但这不一定是错误，因为数据可能还在加载中
+        if windowState.notes.isEmpty && windowState.folders.isEmpty {
+            logger.warning("[MainWindowController] WindowState 数据为空，可能正在加载")
+        }
+        
+        return true
+    }
+    
+    /// 恢复 WindowState（如果丢失）
+    ///
+    /// 当检测到 WindowState 丢失或无效时，尝试从 AppCoordinator 创建默认状态
+    /// 这是一个防御性措施，正常情况下不应该被调用
+    ///
+    /// - Returns: 恢复是否成功
+    @discardableResult
+    private func recoverWindowState() -> Bool {
+        logger.warning("[MainWindowController] 尝试恢复 WindowState")
+        
+        // 在当前架构中，WindowState 是在初始化时传入的
+        // 如果真的丢失了，我们无法重新创建它
+        // 这里只能记录错误并返回失败
+        logger.error("[MainWindowController] WindowState 丢失且无法恢复")
+        
+        // 显示错误提示
+        showWindowStateRecoveryError()
+        
+        return false
+    }
+    
+    /// 显示 WindowState 恢复错误提示
+    private func showWindowStateRecoveryError() {
+        let alert = NSAlert()
+        alert.messageText = "窗口状态异常"
+        alert.informativeText = "窗口状态丢失，部分功能可能无法正常使用。\n\n建议关闭此窗口并重新打开。"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "确定")
+        
+        if let window = window {
+            alert.beginSheetModal(for: window)
+        } else {
+            alert.runModal()
         }
     }
 }
@@ -1313,8 +1407,13 @@ extension MainWindowController {
             return
         }
         
+        guard let viewModel = viewModel else {
+            print("[MainWindowController] 错误: viewModel 为 nil，无法创建登录视图")
+            return
+        }
+        
         // 创建登录视图
-        let loginView = LoginView(viewModel: viewModel ?? NotesViewModel())
+        let loginView = LoginView(viewModel: viewModel)
         
         // 创建托管控制器
         let hostingController = NSHostingController(rootView: loginView)
@@ -1363,8 +1462,13 @@ extension MainWindowController {
             return
         }
         
+        guard let viewModel = viewModel else {
+            print("[MainWindowController] 错误: viewModel 为 nil，无法创建 Cookie 刷新视图")
+            return
+        }
+        
         // 创建Cookie刷新视图
-        let cookieRefreshView = CookieRefreshView(viewModel: viewModel ?? NotesViewModel())
+        let cookieRefreshView = CookieRefreshView(viewModel: viewModel)
         
         // 创建托管控制器
         let hostingController = NSHostingController(rootView: cookieRefreshView)
@@ -1606,8 +1710,13 @@ extension MainWindowController {
             return
         }
         
+        guard let viewModel = viewModel else {
+            print("[MainWindowController] 错误: viewModel 为 nil，无法创建历史记录视图")
+            return
+        }
+        
         // 创建历史记录视图
-        let historyView = NoteHistoryView(viewModel: viewModel ?? NotesViewModel(), noteId: note.id)
+        let historyView = NoteHistoryView(viewModel: viewModel, noteId: note.id)
         
         // 创建托管控制器
         let hostingController = NSHostingController(rootView: historyView)
@@ -1653,8 +1762,13 @@ extension MainWindowController {
             return
         }
         
+        guard let viewModel = viewModel else {
+            print("[MainWindowController] 错误: viewModel 为 nil，无法创建回收站视图")
+            return
+        }
+        
         // 创建回收站视图
-        let trashView = TrashView(viewModel: viewModel ?? NotesViewModel())
+        let trashView = TrashView(viewModel: viewModel)
         
         // 创建托管控制器
         let hostingController = NSHostingController(rootView: trashView)

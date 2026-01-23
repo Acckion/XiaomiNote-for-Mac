@@ -22,6 +22,12 @@ class GalleryHostingController: NSViewController {
     /// 笔记视图模型
     private var viewModel: NotesViewModel
     
+    /// 应用协调器（用于新架构视图）
+    private var coordinator: AppCoordinator?
+    
+    /// 窗口状态（用于新架构视图）
+    private var windowState: WindowState?
+    
     /// 视图选项管理器
     private var optionsManager: ViewOptionsManager
     
@@ -33,12 +39,25 @@ class GalleryHostingController: NSViewController {
     
     // MARK: - 初始化
     
-    /// 初始化方法
+    /// 初始化方法（旧架构）
     /// - Parameters:
     ///   - viewModel: 笔记视图模型
     ///   - optionsManager: 视图选项管理器，默认使用共享实例
     init(viewModel: NotesViewModel, optionsManager: ViewOptionsManager = .shared) {
         self.viewModel = viewModel
+        self.optionsManager = optionsManager
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    /// 初始化方法（新架构）
+    /// - Parameters:
+    ///   - coordinator: 应用协调器
+    ///   - windowState: 窗口状态
+    ///   - optionsManager: 视图选项管理器，默认使用共享实例
+    init(coordinator: AppCoordinator, windowState: WindowState, optionsManager: ViewOptionsManager = .shared) {
+        self.coordinator = coordinator
+        self.windowState = windowState
+        self.viewModel = coordinator.notesViewModel
         self.optionsManager = optionsManager
         super.init(nibName: nil, bundle: nil)
     }
@@ -53,6 +72,8 @@ class GalleryHostingController: NSViewController {
         // 创建 SwiftUI 视图
         let galleryContainerView = GalleryContainerView(
             viewModel: viewModel,
+            coordinator: coordinator,
+            windowState: windowState,
             optionsManager: optionsManager
         )
         
@@ -113,6 +134,8 @@ class GalleryHostingController: NSViewController {
     func refreshView() {
         hostingView?.rootView = GalleryContainerView(
             viewModel: viewModel,
+            coordinator: coordinator,
+            windowState: windowState,
             optionsManager: optionsManager
         )
     }
@@ -132,6 +155,12 @@ struct GalleryContainerView: View {
     /// 笔记视图模型
     @ObservedObject var viewModel: NotesViewModel
     
+    /// 应用协调器（可选，用于新架构）
+    var coordinator: AppCoordinator?
+    
+    /// 窗口状态（可选，用于新架构）
+    var windowState: WindowState?
+    
     /// 视图选项管理器
     @ObservedObject var optionsManager: ViewOptionsManager
     
@@ -146,48 +175,73 @@ struct GalleryContainerView: View {
     // MARK: - 视图
     
     var body: some View {
+        contentView
+            .animation(.easeInOut(duration: 0.35), value: expandedNote?.id)
+            .background(Color(NSColor.windowBackgroundColor))
+            .onChange(of: expandedNote?.id) { _, newValue in
+                viewModel.isGalleryExpanded = (newValue != nil)
+            }
+            .onChange(of: optionsManager.viewMode) { _, newMode in
+                handleViewModeChange(newMode)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .backToGalleryRequested)) { _ in
+                handleBackToGallery()
+            }
+    }
+    
+    // 将内容视图提取为单独的计算属性
+    @ViewBuilder
+    private var contentView: some View {
         ZStack {
             if let _ = expandedNote {
                 // 展开模式：显示笔记编辑器
                 // _Requirements: 6.1, 6.2_
-                ExpandedNoteView(
-                    viewModel: viewModel,
-                    expandedNote: $expandedNote,
-                    animation: animation
-                )
-                .transition(expandedTransition)
+                if let coordinator = coordinator, let windowState = windowState {
+                    // 新架构：使用 coordinator 和 windowState
+                    ExpandedNoteView(
+                        coordinator: coordinator,
+                        windowState: windowState,
+                        animation: animation
+                    )
+                    .transition(expandedTransition)
+                } else {
+                    // 旧架构：显示错误提示
+                    Text("展开视图不可用")
+                        .foregroundColor(.secondary)
+                }
             } else {
                 // 画廊模式：显示笔记卡片网格
                 // _Requirements: 5.1_
-                GalleryView(
-                    viewModel: viewModel,
-                    optionsManager: optionsManager,
-                    expandedNote: $expandedNote,
-                    animation: animation
-                )
-                .transition(.opacity)
+                if let coordinator = coordinator, let windowState = windowState {
+                    // 新架构：使用 coordinator 和 windowState
+                    GalleryView(
+                        coordinator: coordinator,
+                        windowState: windowState,
+                        optionsManager: optionsManager,
+                        animation: animation
+                    )
+                    .transition(.opacity)
+                } else {
+                    // 旧架构：显示错误提示
+                    Text("画廊视图不可用")
+                        .foregroundColor(.secondary)
+                }
             }
         }
-        // 动画配置：easeInOut，时长 350ms
-        // _Requirements: 6.5_
-        .animation(.easeInOut(duration: 0.35), value: expandedNote?.id)
-        .background(Color(NSColor.windowBackgroundColor))
-        // 同步 expandedNote 状态到 viewModel，用于工具栏可见性管理
-        .onChange(of: expandedNote?.id) { _, newValue in
-            viewModel.isGalleryExpanded = (newValue != nil)
+    }
+    
+    // 处理视图模式变化
+    private func handleViewModeChange(_ newMode: ViewMode) {
+        if newMode == .list {
+            expandedNote = nil
+            viewModel.isGalleryExpanded = false
         }
-        // 视图模式切换时重置展开状态
-        .onChange(of: optionsManager.viewMode) { _, newMode in
-            if newMode == .list {
-                expandedNote = nil
-                viewModel.isGalleryExpanded = false
-            }
-        }
-        // 监听返回画廊视图的通知
-        .onReceive(NotificationCenter.default.publisher(for: .backToGalleryRequested)) { _ in
-            withAnimation(.easeInOut(duration: 0.35)) {
-                expandedNote = nil
-            }
+    }
+    
+    // 处理返回画廊视图
+    private func handleBackToGallery() {
+        withAnimation(.easeInOut(duration: 0.35)) {
+            expandedNote = nil
         }
     }
     

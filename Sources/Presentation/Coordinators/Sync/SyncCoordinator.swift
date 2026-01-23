@@ -115,14 +115,15 @@ public final class SyncCoordinator: ObservableObject {
             // 启动同步
             print("[SyncCoordinator] 开始同步")
             
-            // 这里应该调用 syncService 的同步方法
-            // 由于 SyncServiceProtocol 的具体实现可能不同，这里使用简化的逻辑
+            // 调用 syncService 执行实际的同步操作
+            syncProgress = 0.3
+            syncStatusMessage = "正在同步笔记..."
             
-            syncProgress = 0.5
-            syncStatusMessage = "正在下载更新..."
+            // 执行同步
+            try await syncService.startSync()
             
-            // 模拟同步过程
-            try await Task.sleep(nanoseconds: 1_000_000_000) // 1秒
+            syncProgress = 0.8
+            syncStatusMessage = "正在保存数据..."
             
             syncProgress = 1.0
             syncStatusMessage = "同步完成"
@@ -159,7 +160,16 @@ public final class SyncCoordinator: ObservableObject {
         // 清除最后同步时间，强制全量同步
         lastSyncTime = nil
         
-        await startSync()
+        do {
+            // 调用 syncService 的强制全量同步方法
+            try await syncService.forceFullSync()
+            
+            lastSyncTime = Date()
+            print("[SyncCoordinator] 强制全量同步完成")
+        } catch {
+            errorMessage = "强制全量同步失败: \(error.localizedDescription)"
+            print("[SyncCoordinator] 强制全量同步失败: \(error)")
+        }
     }
     
     /// 同步单个笔记

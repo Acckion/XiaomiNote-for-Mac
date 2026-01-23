@@ -40,6 +40,11 @@ public final class AppCoordinator: ObservableObject {
     /// 音频面板视图模型
     public let audioPanelViewModel: AudioPanelViewModel
     
+    /// NotesViewModel 适配器（用于向后兼容）
+    public private(set) lazy var notesViewModel: NotesViewModel = {
+        return NotesViewModelAdapter(coordinator: self)
+    }()
+    
     // MARK: - Dependencies
     
     private let container: DIContainer
@@ -180,27 +185,30 @@ public final class AppCoordinator: ObservableObject {
                 // 更新笔记列表的选中文件夹
                 self.noteListViewModel.selectedFolder = folder
                 
-                // 重新加载笔记列表
-                Task { @MainActor in
-                    await self.noteListViewModel.loadNotes()
-                }
+                // 注意：不需要重新加载笔记列表，因为 filteredNotes 会自动根据 selectedFolder 过滤
+                // 笔记列表已经在内存中，只需要过滤即可
+                print("[AppCoordinator] 笔记列表将根据文件夹过滤，当前笔记总数: \(self.noteListViewModel.notes.count)")
             }
             .store(in: &cancellables)
     }
     
     /// 设置同步完成通信
     private func setupSyncCompletionCommunication() {
-        syncCoordinator.$syncResult
-            .compactMap { $0 }
-            .sink { [weak self] result in
+        // 监听同步状态变化
+        syncCoordinator.$isSyncing
+            .removeDuplicates()
+            .sink { [weak self] isSyncing in
                 guard let self = self else { return }
                 
-                print("[AppCoordinator] 同步完成: \(result.notes.count) 条笔记")
-                
-                // 刷新笔记列表
-                Task { @MainActor in
-                    await self.noteListViewModel.loadNotes()
-                    await self.folderViewModel.loadFolders()
+                // 当同步完成时（从 true 变为 false），刷新数据
+                if !isSyncing {
+                    print("[AppCoordinator] 同步完成，刷新笔记列表和文件夹")
+                    
+                    // 刷新笔记列表和文件夹
+                    Task { @MainActor in
+                        await self.folderViewModel.loadFolders()
+                        await self.noteListViewModel.loadNotes()
+                    }
                 }
             }
             .store(in: &cancellables)

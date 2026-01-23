@@ -2,6 +2,12 @@ import SwiftUI
 import AppKit
 
 /// 笔记详情窗口视图（用于在新窗口打开笔记）
+/// 
+/// **已废弃**: 此视图已被新的多窗口架构替代。
+/// 现在应该使用 `AppDelegate.createNewWindow(withNote:)` 来创建新窗口。
+/// 
+/// 保留此文件仅用于向后兼容，但不应在新代码中使用。
+@available(*, deprecated, message: "使用 AppDelegate.createNewWindow(withNote:) 替代")
 public struct NoteDetailWindowView: View {
     @StateObject private var viewModel = NotesViewModel()
     @State private var noteId: String?

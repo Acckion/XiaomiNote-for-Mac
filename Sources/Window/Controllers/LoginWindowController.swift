@@ -87,8 +87,13 @@ public class LoginWindowController: NSWindowController {
     private func setupWindowContent() {
         guard let window = window else { return }
         
+        guard let viewModel = viewModel else {
+            print("[LoginWindowController] 错误: viewModel 为 nil，无法创建登录视图")
+            return
+        }
+        
         // 创建SwiftUI登录视图
-        let loginView = LoginView(viewModel: viewModel ?? NotesViewModel())
+        let loginView = LoginView(viewModel: viewModel)
         
         // 使用NSHostingController包装SwiftUI视图
         let hostingController = NSHostingController(rootView: loginView)

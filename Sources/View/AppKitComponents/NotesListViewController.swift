@@ -295,24 +295,9 @@ class NotesListViewController: NSViewController {
             if let notes = groupedNotes[sectionKey] {
                 if clickedRow >= rowIndex && clickedRow < rowIndex + notes.count {
                     let note = notes[clickedRow - rowIndex]
-                    // 在新窗口打开笔记
-                    let newWindow = NSWindow(
-                        contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
-                        styleMask: [.titled, .closable, .miniaturizable, .resizable],
-                        backing: .buffered,
-                        defer: false
-                    )
-                    newWindow.title = note.title.isEmpty ? "无标题" : note.title
-                    newWindow.center()
-                    
-                    // 创建新的视图模型和视图
-                    let newViewModel = NotesViewModel()
-                    newViewModel.selectedNote = note
-                    newViewModel.selectedFolder = viewModel.folders.first { $0.id == note.folderId } ?? viewModel.folders.first { $0.id == "0" }
-                    
-                    let contentView = NoteDetailView(viewModel: newViewModel)
-                    newWindow.contentView = NSHostingView(rootView: contentView)
-                    newWindow.makeKeyAndOrderFront(nil)
+                    // TODO: 实现多窗口支持后启用
+                    // 当前由于模块依赖问题暂时禁用
+                    print("[NotesListViewController] 在新窗口打开笔记功能暂时禁用")
                     return
                 }
                 rowIndex += notes.count

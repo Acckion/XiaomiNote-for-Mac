@@ -164,13 +164,14 @@ struct PinnedNoteRowContent<ContextMenu: View>: View {
     let note: Note
     let showDivider: Bool
     @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var windowState: WindowState
     @Binding var isSelectingNote: Bool
     let contextMenuBuilder: () -> ContextMenu
     
     /// 计算当前笔记是否被选中
     /// 每次视图重新评估时都会重新计算
     private var isSelected: Bool {
-        viewModel.selectedNote?.id == note.id
+        windowState.selectedNote?.id == note.id
     }
     
     var body: some View {
@@ -195,7 +196,7 @@ struct PinnedNoteRowContent<ContextMenu: View>: View {
     
     /// 处理点击事件
     private func handleTap() {
-        let currentSelectedId = viewModel.selectedNote?.id
+        let currentSelectedId = windowState.selectedNote?.id
         Swift.print("[PinnedNoteRowContent] 点击笔记 - ID: \(note.id.prefix(8))..., 当前选中: \(currentSelectedId?.prefix(8) ?? "nil"), isSelected: \(isSelected)")
         
         // 如果点击的是已选中的笔记，不需要做任何事情
@@ -208,7 +209,7 @@ struct PinnedNoteRowContent<ContextMenu: View>: View {
         // 设置选择标志，禁用选择期间的动画
         // _Requirements: 2.1, 2.2, 2.3_
         isSelectingNote = true
-        viewModel.selectedNote = note
+        windowState.selectNote(note)
         Swift.print("[PinnedNoteRowContent] 设置 selectedNote 为 \(note.id.prefix(8))...")
         
         // 延迟重置选择标志，确保动画禁用生效
@@ -222,7 +223,32 @@ struct PinnedNoteRowContent<ContextMenu: View>: View {
 // MARK: - NotesListView
 
 struct NotesListView: View {
-    @ObservedObject var viewModel: NotesViewModel
+    /// 应用协调器（共享数据层）
+    let coordinator: AppCoordinator
+    
+    /// 窗口状态（窗口独立状态）
+    @ObservedObject var windowState: WindowState
+    
+    /// 笔记视图模型（通过 coordinator 访问）
+    /// 使用 @ObservedObject 确保 SwiftUI 能够追踪 filteredNotes 的变化
+    @ObservedObject private var viewModel: NotesViewModel
+    
+    /// 初始化方法
+    /// - Parameters:
+    ///   - coordinator: 应用协调器
+    ///   - windowState: 窗口状态
+    ///   - optionsManager: 视图选项管理器（可选）
+    init(
+        coordinator: AppCoordinator,
+        windowState: WindowState,
+        optionsManager: ViewOptionsManager = .shared
+    ) {
+        self.coordinator = coordinator
+        self.windowState = windowState
+        self._viewModel = ObservedObject(wrappedValue: coordinator.notesViewModel)
+        self._optionsManager = ObservedObject(wrappedValue: optionsManager)
+    }
+    
     /// 视图选项管理器，用于控制日期分组开关
     /// _Requirements: 3.3, 3.4_
     @ObservedObject var optionsManager: ViewOptionsManager = .shared
@@ -296,7 +322,7 @@ struct NotesListView: View {
         // 监听笔记选择变化，通过 coordinator 进行状态管理 
         // - 1.1: 编辑笔记内容时保持选中状态不变
         // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
-        .onChange(of: viewModel.selectedNote) { oldValue, newValue in
+        .onChange(of: windowState.selectedNote) { oldValue, newValue in
             // 添加日志追踪选择状态变化
             let oldId = oldValue?.id.prefix(8) ?? "nil"
             let newId = newValue?.id.prefix(8) ?? "nil"
@@ -480,6 +506,7 @@ struct NotesListView: View {
             note: note,
             showDivider: showDivider,
             viewModel: viewModel,
+            windowState: windowState,
             isSelectingNote: $isSelectingNote,
             contextMenuBuilder: { noteContextMenu(for: note) }
         )
@@ -490,11 +517,13 @@ struct NotesListView: View {
     /// 标准 List 视图，用于平铺模式（不分组）
     private var standardListContent: some View {
         List(selection: Binding(
-            get: { viewModel.selectedNote },
+            get: { windowState.selectedNote },
             set: { newValue in
                 // 设置选择标志，禁用选择期间的动画
                 isSelectingNote = true
-                viewModel.selectedNote = newValue
+                if let note = newValue {
+                    windowState.selectNote(note)
+                }
                 // 延迟重置选择标志，确保动画禁用生效
                 // 延长到 1.5 秒以覆盖 ensureNoteHasFullContent 等异步操作
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -734,26 +763,12 @@ struct NotesListView: View {
     
     private func openNoteInNewWindow(_ note: Note) {
         // 在新窗口打开笔记
-        // 使用 NSApplication 创建新窗口
-        if NSApplication.shared.keyWindow != nil {
-            let newWindow = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
-                styleMask: [.titled, .closable, .miniaturizable, .resizable],
-                backing: .buffered,
-                defer: false
-            )
-            newWindow.title = note.title.isEmpty ? "无标题" : note.title
-            newWindow.center()
-            
-            // 创建新的视图模型和视图
-            let newViewModel = NotesViewModel()
-            newViewModel.selectedNote = note
-            newViewModel.selectedFolder = viewModel.folders.first { $0.id == note.folderId } ?? viewModel.folders.first { $0.id == "0" }
-            
-            let contentView = NoteDetailView(viewModel: newViewModel)
-            newWindow.contentView = NSHostingView(rootView: contentView)
-            newWindow.makeKeyAndOrderFront(nil)
-        }
+        // TODO: 实现多窗口支持后启用
+        // 当前由于模块依赖问题暂时禁用
+        print("[NotesListView] 在新窗口打开笔记功能暂时禁用")
+        
+        // 未来实现：通过 coordinator 的回调来创建新窗口
+        // coordinator.createNewWindow?(withNote: note)
     }
     
     private func copyNote(_ note: Note) {
@@ -1257,6 +1272,13 @@ struct NoteRow: View {
 }
 
 #Preview {
-    NotesListView(viewModel: PreviewHelper.shared.createPreviewViewModel())
+    // 创建预览用的 AppCoordinator 和 WindowState
+    let coordinator = AppCoordinator()
+    let windowState = WindowState(coordinator: coordinator)
+    
+    return NotesListView(
+        coordinator: coordinator,
+        windowState: windowState
+    )
 }
 
