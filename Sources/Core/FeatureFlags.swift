@@ -12,8 +12,8 @@ public struct FeatureFlags {
     /// 默认值: `false` (使用旧架构,保持向后兼容)
     public static var useNewArchitecture: Bool {
         get {
-            // 默认返回 false 保持向后兼容
-            UserDefaults.standard.object(forKey: "useNewArchitecture") as? Bool ?? false
+            // 默认返回 true 使用新架构
+            UserDefaults.standard.object(forKey: "useNewArchitecture") as? Bool ?? true
         }
         set {
             UserDefaults.standard.set(newValue, forKey: "useNewArchitecture")
