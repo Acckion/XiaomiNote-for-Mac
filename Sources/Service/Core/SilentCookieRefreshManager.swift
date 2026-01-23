@@ -438,7 +438,7 @@ public final class SilentCookieRefreshManager: NSObject {
     /// 根据刷新类型决定是否执行刷新操作：
     /// - 响应式刷新（reactive）：忽略冷却期，立即执行
     /// - 手动刷新（manual）：忽略冷却期，立即执行
-    /// - 自动刷新（automatic）：遵守冷却期，冷却期内返回缓存结果
+    /// - 自动刷新（automatic）：遵守冷却期，冷却期内返回false（不执行刷新）
     /// 
     /// - Parameter type: 刷新类型，默认为自动刷新
     /// - Returns: 是否成功刷新
@@ -448,9 +448,10 @@ public final class SilentCookieRefreshManager: NSObject {
         
         // 检查是否应该跳过刷新
         if shouldSkipRefresh(type: type) {
-            // 冷却期内的自动刷新，返回上次结果
-            print("[SilentCookieRefreshManager] ⏳ 跳过刷新，返回上次结果: \(lastRefreshResult ?? false)")
-            return lastRefreshResult ?? false
+            // 冷却期内的自动刷新，返回false（表示未执行刷新）
+            // 注意：不返回缓存的结果，因为缓存可能已经过期
+            print("[SilentCookieRefreshManager] ⏳ 跳过刷新（冷却期内），返回false")
+            return false
         }
         
         // 防重入检查：确保同一时间只有一个刷新操作在执行
