@@ -224,4 +224,42 @@ public final class FolderViewModel: ObservableObject {
     public func selectFolder(_ folder: Folder?) {
         selectedFolder = folder
     }
+    
+    /// 切换文件夹置顶状态
+    /// - Parameter folder: 要切换置顶状态的文件夹
+    public func toggleFolderPin(_ folder: Folder) async {
+        // 不能置顶系统文件夹
+        guard !folder.isSystem else {
+            errorMessage = "不能置顶系统文件夹"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            // 更新文件夹置顶状态
+            var updatedFolder = folder
+            updatedFolder.isPinned.toggle()
+            
+            // 保存到本地存储
+            try noteStorage.saveFolder(updatedFolder)
+            
+            print("[FolderViewModel] 文件夹置顶状态已更新: \(folder.name) -> \(updatedFolder.isPinned)")
+            
+            // 重新加载文件夹列表（会自动按置顶状态排序）
+            await loadFolders()
+            
+            // 如果是当前选中的文件夹，更新选中状态
+            if selectedFolder?.id == folder.id {
+                selectedFolder = updatedFolder
+            }
+            
+        } catch {
+            errorMessage = "更新文件夹置顶状态失败: \(error.localizedDescription)"
+            print("[FolderViewModel] 更新文件夹置顶状态失败: \(error)")
+        }
+        
+        isLoading = false
+    }
 }

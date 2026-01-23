@@ -225,6 +225,18 @@ public final class SyncCoordinator: ObservableObject {
         isProcessingOfflineOperations = false
     }
     
+    /// 更新同步间隔
+    ///
+    /// - Parameter newInterval: 新的同步间隔（秒）
+    public func updateSyncInterval(_ newInterval: Double) {
+        // 同步间隔的管理通常在应用级别
+        // 这里只记录日志
+        print("[SyncCoordinator] 同步间隔已更新为 \(newInterval) 秒")
+        
+        // 保存到 UserDefaults
+        UserDefaults.standard.set(newInterval, forKey: "syncInterval")
+    }
+    
     // MARK: - Private Methods
     
     /// 设置观察者

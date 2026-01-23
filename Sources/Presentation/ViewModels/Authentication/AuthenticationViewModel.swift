@@ -313,4 +313,53 @@ public final class AuthenticationViewModel: ObservableObject {
             }
         }
     }
+    
+    // MARK: - Auto Refresh Cookie
+    
+    /// 自动刷新 Cookie 定时器
+    private var autoRefreshCookieTimer: Timer?
+    
+    /// 启动自动刷新 Cookie 定时器
+    public func startAutoRefreshCookieIfNeeded() {
+        // 检查是否已登录
+        guard isLoggedIn else {
+            print("[AuthenticationViewModel] 未登录，不启动自动刷新 Cookie 定时器")
+            return
+        }
+        
+        // 检查是否已有定时器在运行
+        if autoRefreshCookieTimer != nil {
+            print("[AuthenticationViewModel] 自动刷新 Cookie 定时器已在运行")
+            return
+        }
+        
+        // 从 UserDefaults 获取刷新间隔
+        let defaults = UserDefaults.standard
+        let autoRefreshCookie = defaults.bool(forKey: "autoRefreshCookie")
+        let autoRefreshInterval = defaults.double(forKey: "autoRefreshInterval")
+        
+        guard autoRefreshCookie, autoRefreshInterval > 0 else {
+            print("[AuthenticationViewModel] 自动刷新 Cookie 未启用或间隔为 0")
+            return
+        }
+        
+        print("[AuthenticationViewModel] 启动自动刷新 Cookie 定时器，间隔: \(autoRefreshInterval) 秒")
+        
+        // 创建定时器
+        autoRefreshCookieTimer = Timer.scheduledTimer(withTimeInterval: autoRefreshInterval, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            Task { @MainActor in
+                print("[AuthenticationViewModel] 自动刷新 Cookie 定时器触发")
+                await self.refreshCookie()
+            }
+        }
+    }
+    
+    /// 停止自动刷新 Cookie 定时器
+    public func stopAutoRefreshCookie() {
+        print("[AuthenticationViewModel] 停止自动刷新 Cookie 定时器")
+        autoRefreshCookieTimer?.invalidate()
+        autoRefreshCookieTimer = nil
+    }
 }

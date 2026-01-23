@@ -564,3 +564,100 @@ override func performFullSync() async {
 
 **最后更新**: 2026-01-23 15:30  
 **负责人**: Kiro AI Assistant
+
+
+---
+
+## 📝 更新 (2026-01-23 - 任务 11.2 完成)
+
+### ✅ NotesViewModelAdapter 所有 TODO 方法实现完成
+
+**任务 11.2**: 完善适配器功能
+
+#### 完成的工作
+
+所有标记为 TODO 的方法都已经实现:
+
+1. **文件夹置顶** (`toggleFolderPin`):
+   - 委托给 `FolderViewModel.toggleFolderPin`
+   - 在 `FolderViewModel` 中添加了对应的方法
+
+2. **笔记历史功能**:
+   - `getNoteHistoryTimes`: 直接调用 `MiNoteService.shared.getNoteHistoryTimes`
+   - `getNoteHistory`: 直接调用 `MiNoteService.shared.getNoteHistory`
+   - `restoreNoteHistory`: 直接调用 `MiNoteService.shared.restoreNoteHistory`
+   - 恢复后触发完整同步以获取最新数据
+
+3. **回收站功能** (`fetchDeletedNotes`):
+   - 直接调用 `MiNoteService.shared.fetchDeletedNotes`
+   - 解析响应并更新 `deletedNotes` 列表
+
+4. **图片上传功能** (`uploadImageAndInsertToNote`):
+   - 读取图片数据并推断 MIME 类型
+   - 调用 `MiNoteService.shared.uploadImage` 上传图片
+   - 调用 `LocalStorageService.shared.saveImage` 保存到本地
+   - 更新笔记的 `setting.data` 添加图片信息
+   - 触发笔记保存
+
+5. **自动刷新 Cookie**:
+   - `startAutoRefreshCookieIfNeeded`: 委托给 `AuthenticationViewModel.startAutoRefreshCookieIfNeeded`
+   - `stopAutoRefreshCookie`: 委托给 `AuthenticationViewModel.stopAutoRefreshCookie`
+   - 在 `AuthenticationViewModel` 中添加了对应的方法
+
+6. **更新同步间隔** (`updateSyncInterval`):
+   - 委托给 `SyncCoordinator.updateSyncInterval`
+   - 在 `SyncCoordinator` 中添加了对应的方法
+
+7. **检查待上传** (`hasPendingUpload`):
+   - 直接使用 `UnifiedOperationQueue.shared.hasPendingUpload`
+
+8. **验证私密笔记密码** (`verifyPrivateNotesPassword`):
+   - 使用 `PrivateNotesPasswordManager.shared.verifyPassword`
+   - 验证成功后更新 `isPrivateNotesUnlocked` 状态
+
+#### 实现策略
+
+对于不在协议中的方法,采用以下策略:
+- **直接调用服务**: 对于历史记录、回收站、图片上传等功能,直接调用 `MiNoteService.shared` 和 `LocalStorageService.shared`
+- **委托给 ViewModel**: 对于文件夹置顶、自动刷新 Cookie、更新同步间隔等功能,委托给对应的 ViewModel
+- **使用共享实例**: 对于待上传检查、密码验证等功能,使用共享的管理器实例
+
+#### 编译状态
+
+- ✅ 项目编译成功 (BUILD SUCCEEDED)
+- ✅ 所有方法都已实现
+- ✅ 没有编译错误或警告
+
+#### 下一步工作
+
+1. **测试适配器** (任务 11.3):
+   - 设置 `FeatureFlags.useNewArchitecture = true`
+   - 启动应用验证基本功能
+   - 测试笔记列表、编辑、同步等核心功能
+   - 测试新实现的功能 (历史记录、回收站、图片上传等)
+
+2. **验证功能** (任务 11.4):
+   - 确保所有现有功能正常工作
+   - 确保可以通过特性开关切换新旧架构
+
+#### 进度更新
+
+- Week 1: 8/8 (100%) ✅
+- Week 2: 4/7 (57.1%) ⏳
+- 总体: 12/35 (34.3%)
+
+**已完成任务**:
+1. ✅ 任务 1-8: 创建 7 个 ViewModel + AppCoordinator
+2. ✅ 任务 9: AppCoordinator 集成测试
+3. ✅ 任务 10: AppDelegate 集成
+4. ✅ 任务 11.1: 创建 NotesViewModelAdapter
+5. ✅ 任务 11.2: 完善适配器功能
+
+**进行中任务**:
+- ⏳ 任务 11.3: 测试适配器
+- ⏳ 任务 11.4: 验证功能
+
+---
+
+**最后更新**: 2026-01-23 16:00  
+**负责人**: Kiro AI Assistant

@@ -155,8 +155,7 @@ public final class NotesViewModelAdapter: NotesViewModel {
     }
     
     override func toggleFolderPin(_ folder: Folder) async throws {
-        // TODO: 实现文件夹置顶功能
-        print("[NotesViewModelAdapter] toggleFolderPin 待实现")
+        await coordinator.folderViewModel.toggleFolderPin(folder)
     }
     
     // MARK: - Note Operations
@@ -275,10 +274,12 @@ public final class NotesViewModelAdapter: NotesViewModel {
     }
     
     override func verifyPrivateNotesPassword(_ password: String) -> Bool {
-        // AuthenticationViewModel.unlockPrivateNotes 是 async 方法,不返回值
-        // 我们需要同步检查密码
-        // TODO: 实现同步的密码验证
-        return false
+        // 使用 PrivateNotesPasswordManager 进行同步密码验证
+        let isValid = PrivateNotesPasswordManager.shared.verifyPassword(password)
+        if isValid {
+            coordinator.authViewModel.isPrivateNotesUnlocked = true
+        }
+        return isValid
     }
     
     override func unlockPrivateNotes() {
@@ -324,35 +325,166 @@ public final class NotesViewModelAdapter: NotesViewModel {
     // MARK: - Note History (TODO)
     
     override func getNoteHistoryTimes(noteId: String) async throws -> [NoteHistoryVersion] {
-        // TODO: 实现笔记历史功能
-        print("[NotesViewModelAdapter] getNoteHistoryTimes 待实现")
-        return []
+        // 笔记历史功能需要直接调用 MiNoteService
+        // 因为 NoteServiceProtocol 中没有定义这些方法
+        let response = try await MiNoteService.shared.getNoteHistoryTimes(noteId: noteId)
+        
+        guard let code = response["code"] as? Int, code == 0,
+              let data = response["data"] as? [String: Any],
+              let tvList = data["tvList"] as? [[String: Any]] else {
+            throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "无效的响应"])
+        }
+        
+        var versions: [NoteHistoryVersion] = []
+        for item in tvList {
+            if let updateTime = item["updateTime"] as? Int64,
+               let version = item["version"] as? Int64 {
+                versions.append(NoteHistoryVersion(version: version, updateTime: updateTime))
+            }
+        }
+        
+        return versions
     }
     
     override func getNoteHistory(noteId: String, version: Int64) async throws -> Note {
-        // TODO: 实现笔记历史功能
-        print("[NotesViewModelAdapter] getNoteHistory 待实现")
-        throw NSError(domain: "MiNote", code: 501, userInfo: [NSLocalizedDescriptionKey: "功能待实现"])
+        // 笔记历史功能需要直接调用 MiNoteService
+        let response = try await MiNoteService.shared.getNoteHistory(noteId: noteId, version: version)
+        
+        guard let code = response["code"] as? Int, code == 0,
+              let data = response["data"] as? [String: Any],
+              let entry = data["entry"] as? [String: Any] else {
+            throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "无效的响应"])
+        }
+        
+        // 使用 Note.fromMinoteData 解析历史记录数据
+        guard var note = Note.fromMinoteData(entry) else {
+            throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "无法解析笔记数据"])
+        }
+        
+        // 使用 updateContent 更新内容
+        note.updateContent(from: response)
+        
+        return note
     }
     
     override func restoreNoteHistory(noteId: String, version: Int64) async throws {
-        // TODO: 实现笔记历史功能
-        print("[NotesViewModelAdapter] restoreNoteHistory 待实现")
+        // 笔记历史功能需要直接调用 MiNoteService
+        let response = try await MiNoteService.shared.restoreNoteHistory(noteId: noteId, version: version)
+        
+        guard let code = response["code"] as? Int, code == 0 else {
+            throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "恢复历史记录失败"])
+        }
+        
+        // 恢复成功后,重新同步笔记以获取最新数据
+        await coordinator.syncCoordinator.forceFullSync()
+        
+        // 更新选中的笔记
+        if let index = notes.firstIndex(where: { $0.id == noteId }) {
+            selectedNote = notes[index]
+        }
     }
     
     // MARK: - Deleted Notes (TODO)
     
     override func fetchDeletedNotes() async {
-        // TODO: 实现回收站功能
-        print("[NotesViewModelAdapter] fetchDeletedNotes 待实现")
+        // 回收站功能需要直接调用 MiNoteService
+        do {
+            let response = try await MiNoteService.shared.fetchDeletedNotes()
+            
+            guard let code = response["code"] as? Int, code == 0,
+                  let data = response["data"] as? [String: Any],
+                  let entries = data["entries"] as? [[String: Any]] else {
+                print("[NotesViewModelAdapter] 无效的响应")
+                return
+            }
+            
+            var deletedNotesList: [DeletedNote] = []
+            for entry in entries {
+                if let deletedNote = DeletedNote.fromAPIResponse(entry) {
+                    deletedNotesList.append(deletedNote)
+                }
+            }
+            
+            deletedNotes = deletedNotesList
+            print("[NotesViewModelAdapter] ✅ 获取回收站笔记成功，共 \(deletedNotesList.count) 条")
+        } catch {
+            print("[NotesViewModelAdapter] ❌ 获取回收站笔记失败: \(error.localizedDescription)")
+            deletedNotes = []
+        }
     }
     
     // MARK: - Image Upload (TODO)
     
     override func uploadImageAndInsertToNote(imageURL: URL) async throws -> String {
-        // TODO: 实现图片上传功能
-        print("[NotesViewModelAdapter] uploadImageAndInsertToNote 待实现")
-        throw NSError(domain: "MiNote", code: 501, userInfo: [NSLocalizedDescriptionKey: "功能待实现"])
+        // 图片上传功能需要直接调用 MiNoteService 和 LocalStorageService
+        guard let note = selectedNote else {
+            throw NSError(domain: "MiNote", code: 400, userInfo: [NSLocalizedDescriptionKey: "请先选择笔记"])
+        }
+        
+        // 读取图片数据
+        let imageData = try Data(contentsOf: imageURL)
+        let fileName = imageURL.lastPathComponent
+        
+        // 根据文件扩展名推断 MIME 类型
+        let fileExtension = (imageURL.pathExtension as NSString).lowercased
+        let mimeType: String
+        switch fileExtension {
+        case "jpg", "jpeg":
+            mimeType = "image/jpeg"
+        case "png":
+            mimeType = "image/png"
+        case "gif":
+            mimeType = "image/gif"
+        case "webp":
+            mimeType = "image/webp"
+        default:
+            mimeType = "image/jpeg"
+        }
+        
+        // 上传图片
+        let uploadResult = try await MiNoteService.shared.uploadImage(
+            imageData: imageData,
+            fileName: fileName,
+            mimeType: mimeType
+        )
+        
+        guard let fileId = uploadResult["fileId"] as? String,
+              let digest = uploadResult["digest"] as? String else {
+            throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "上传图片失败：服务器返回无效响应"])
+        }
+        
+        print("[NotesViewModelAdapter] 图片上传成功: fileId=\(fileId), digest=\(digest)")
+        
+        // 保存图片到本地
+        let fileType = String(mimeType.dropFirst("image/".count))
+        try LocalStorageService.shared.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
+        
+        // 更新笔记的 setting.data，添加图片信息
+        var updatedNote = note
+        var rawData = updatedNote.rawData ?? [:]
+        var setting = rawData["setting"] as? [String: Any] ?? [
+            "themeId": 0,
+            "stickyTime": 0,
+            "version": 0
+        ]
+        
+        var settingData = setting["data"] as? [[String: Any]] ?? []
+        let imageInfo: [String: Any] = [
+            "fileId": fileId,
+            "mimeType": mimeType,
+            "digest": digest
+        ]
+        settingData.append(imageInfo)
+        setting["data"] = settingData
+        rawData["setting"] = setting
+        updatedNote.rawData = rawData
+        
+        // 更新笔记
+        await coordinator.noteEditorViewModel.saveNote()
+        
+        print("[NotesViewModelAdapter] 图片已添加到笔记的 setting.data: \(note.id), fileId: \(fileId)")
+        
+        return fileId
     }
     
     // MARK: - Cookie Management
@@ -377,27 +509,30 @@ public final class NotesViewModelAdapter: NotesViewModel {
     // MARK: - Auto Refresh Cookie
     
     override func startAutoRefreshCookieIfNeeded() {
-        // TODO: 实现自动刷新 Cookie 功能
-        print("[NotesViewModelAdapter] startAutoRefreshCookieIfNeeded 待实现")
+        // 自动刷新 Cookie 功能由 AuthenticationViewModel 管理
+        // 这里只需要启动定时器
+        coordinator.authViewModel.startAutoRefreshCookieIfNeeded()
     }
     
     override func stopAutoRefreshCookie() {
-        // TODO: 实现停止自动刷新 Cookie 功能
-        print("[NotesViewModelAdapter] stopAutoRefreshCookie 待实现")
+        // 停止自动刷新 Cookie 功能由 AuthenticationViewModel 管理
+        coordinator.authViewModel.stopAutoRefreshCookie()
     }
     
     // MARK: - Sync Interval
     
     override func updateSyncInterval(_ newInterval: Double) {
-        // TODO: 实现更新同步间隔功能
-        print("[NotesViewModelAdapter] updateSyncInterval 待实现")
+        // 更新同步间隔由 SyncCoordinator 管理
+        coordinator.syncCoordinator.updateSyncInterval(newInterval)
+        syncInterval = newInterval
     }
     
     // MARK: - Pending Operations
     
     override func hasPendingUpload(for noteId: String) -> Bool {
-        // TODO: 实现检查待上传功能
-        return false
+        // 检查统一操作队列中是否有待上传的操作
+        // 直接使用 UnifiedOperationQueue.shared
+        return UnifiedOperationQueue.shared.hasPendingUpload(for: noteId)
     }
     
     override func isTemporaryIdNote(_ noteId: String) -> Bool {
