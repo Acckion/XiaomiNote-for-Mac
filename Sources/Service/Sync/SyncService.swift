@@ -1888,20 +1888,17 @@ final class SyncService: @unchecked Sendable {
         
         print("[SYNC] setting.data 中的附件处理完成，共处理 \(settingData.count) 个条目")
         
-        // 第二步：检测并下载旧版格式图片
-        var legacyImageData: [[String: Any]] = []
+        // 第二步：统一检测并下载所有附件（旧版图片、新版图片、音频）
         if let content = entry["content"] as? String {
-            legacyImageData = await downloadLegacyFormatImages(from: content, forceRedownload: forceRedownload)
-            if !legacyImageData.isEmpty {
-                print("[SYNC] 从旧版格式生成了 \(legacyImageData.count) 个 setting.data 条目")
-            }
-        }
-        
-        // 第三步：合并旧版格式生成的 setting.data
-        if !legacyImageData.isEmpty {
-            print("[SYNC] 合并 \(legacyImageData.count) 个旧版格式图片的 setting.data")
-            settingData.append(contentsOf: legacyImageData)
-            print("[SYNC] 合并后共 \(settingData.count) 个 setting.data 条目")
+            let allAttachmentData = await extractAndDownloadAllAttachments(
+                from: content,
+                existingSettingData: settingData,
+                forceRedownload: forceRedownload
+            )
+            
+            // 使用统一处理后的完整 setting.data
+            settingData = allAttachmentData
+            print("[SYNC] 统一处理后共 \(settingData.count) 个附件记录")
         }
         
         return settingData
@@ -1945,20 +1942,86 @@ final class SyncService: @unchecked Sendable {
         throw lastError ?? SyncError.networkError(NSError(domain: "SyncService", code: -1, userInfo: [NSLocalizedDescriptionKey: "图片下载失败"]))
     }
     
-    /// 从content中提取并下载旧版格式的图片，同时生成 setting.data
-    /// 旧版格式: ☺ fileId<0/></>
+    /// 从 content 中提取所有附件（图片和音频），并生成 setting.data
+    /// 
+    /// 支持的格式：
+    /// - 旧版图片格式: ☺ fileId<0/></>
+    /// - 新版图片格式: <img fileid="xxx" />
+    /// - 音频格式: <sound fileid="xxx" />
+    /// 
     /// - Parameters:
     ///   - content: 笔记内容
+    ///   - existingSettingData: 已存在的 setting.data 数组
     ///   - forceRedownload: 是否强制重新下载
-    /// - Returns: 生成的 setting.data 数组（包含旧版格式图片的元数据）
-    private func downloadLegacyFormatImages(from content: String, forceRedownload: Bool) async -> [[String: Any]] {
-        print("[SYNC] 检查旧版格式图片...")
+    /// - Returns: 完整的 setting.data 数组（包含所有附件的元数据）
+    private func extractAndDownloadAllAttachments(
+        from content: String,
+        existingSettingData: [[String: Any]],
+        forceRedownload: Bool
+    ) async -> [[String: Any]] {
+        print("[SYNC] 🔍 开始检测所有附件...")
         
+        var allSettingData: [[String: Any]] = existingSettingData
+        var existingFileIds = Set<String>()
+        
+        // 提取已存在的 fileId
+        for entry in existingSettingData {
+            if let fileId = entry["fileId"] as? String {
+                existingFileIds.insert(fileId)
+            }
+        }
+        print("[SYNC] 已存在 \(existingFileIds.count) 个附件记录")
+        
+        // 1. 检测旧版图片格式: ☺ fileId<0/></>
+        let legacyImageData = await extractLegacyImages(from: content, existingFileIds: existingFileIds, forceRedownload: forceRedownload)
+        if !legacyImageData.isEmpty {
+            print("[SYNC] 📷 找到 \(legacyImageData.count) 个旧版格式图片")
+            allSettingData.append(contentsOf: legacyImageData)
+            for entry in legacyImageData {
+                if let fileId = entry["fileId"] as? String {
+                    existingFileIds.insert(fileId)
+                }
+            }
+        }
+        
+        // 2. 检测新版图片格式: <img fileid="xxx" />
+        let newImageData = await extractNewFormatImages(from: content, existingFileIds: existingFileIds, forceRedownload: forceRedownload)
+        if !newImageData.isEmpty {
+            print("[SYNC] 🖼️ 找到 \(newImageData.isEmpty) 个新版格式图片")
+            allSettingData.append(contentsOf: newImageData)
+            for entry in newImageData {
+                if let fileId = entry["fileId"] as? String {
+                    existingFileIds.insert(fileId)
+                }
+            }
+        }
+        
+        // 3. 检测音频格式: <sound fileid="xxx" />
+        let audioData = await extractAudioAttachments(from: content, existingFileIds: existingFileIds, forceRedownload: forceRedownload)
+        if !audioData.isEmpty {
+            print("[SYNC] 🎵 找到 \(audioData.count) 个音频附件")
+            allSettingData.append(contentsOf: audioData)
+            for entry in audioData {
+                if let fileId = entry["fileId"] as? String {
+                    existingFileIds.insert(fileId)
+                }
+            }
+        }
+        
+        print("[SYNC] ✅ 附件检测完成，共 \(allSettingData.count) 个附件记录")
+        return allSettingData
+    }
+    
+    /// 提取旧版格式图片
+    private func extractLegacyImages(
+        from content: String,
+        existingFileIds: Set<String>,
+        forceRedownload: Bool
+    ) async -> [[String: Any]] {
         // 使用正则表达式提取旧版格式的图片ID
         // 格式: ☺ fileId<0/></>
         let pattern = "☺ ([^<]+)<0/></>"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
-            print("[SYNC] 无法创建正则表达式")
             return []
         }
         
@@ -1966,11 +2029,8 @@ final class SyncService: @unchecked Sendable {
         let matches = regex.matches(in: content, options: [], range: NSRange(location: 0, length: nsContent.length))
         
         if matches.isEmpty {
-            print("[SYNC] 未找到旧版格式图片")
             return []
         }
-        
-        print("[SYNC] 找到 \(matches.count) 个旧版格式图片")
         
         var settingDataEntries: [[String: Any]] = []
         
@@ -1980,72 +2040,233 @@ final class SyncService: @unchecked Sendable {
             let fileIdRange = match.range(at: 1)
             let fileId = nsContent.substring(with: fileIdRange).trimmingCharacters(in: .whitespaces)
             
-            print("[SYNC] 处理旧版格式图片: \(fileId)")
+            // 跳过已存在的附件
+            if existingFileIds.contains(fileId) {
+                print("[SYNC] ⏭️ 旧版图片已在 settingJson 中，跳过: \(fileId)")
+                continue
+            }
             
-            // 检查图片是否已存在且有效
-            var existingFormat: String?
-            if !forceRedownload {
-                print("[SYNC] 检查旧版格式图片是否存在: \(fileId)")
+            print("[SYNC] 📷 处理旧版格式图片: \(fileId)")
+            
+            if let entry = await downloadAndCreateSettingEntry(fileId: fileId, type: "note_img", attachmentType: "image", forceRedownload: forceRedownload) {
+                settingDataEntries.append(entry)
+            }
+        }
+        
+        return settingDataEntries
+    }
+    
+    /// 提取新版格式图片
+    private func extractNewFormatImages(
+        from content: String,
+        existingFileIds: Set<String>,
+        forceRedownload: Bool
+    ) async -> [[String: Any]] {
+        // 使用正则表达式提取新版格式的图片ID
+        // 格式: <img fileid="xxx" ... />
+        let pattern = "<img[^>]+fileid=\"([^\"]+)\"[^>]*/?>"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return []
+        }
+        
+        let nsContent = content as NSString
+        let matches = regex.matches(in: content, options: [], range: NSRange(location: 0, length: nsContent.length))
+        
+        if matches.isEmpty {
+            return []
+        }
+        
+        var settingDataEntries: [[String: Any]] = []
+        
+        for match in matches {
+            guard match.numberOfRanges >= 2 else { continue }
+            
+            let fileIdRange = match.range(at: 1)
+            let fileId = nsContent.substring(with: fileIdRange).trimmingCharacters(in: .whitespaces)
+            
+            // 跳过已存在的附件
+            if existingFileIds.contains(fileId) {
+                print("[SYNC] ⏭️ 新版图片已在 settingJson 中，跳过: \(fileId)")
+                continue
+            }
+            
+            print("[SYNC] 🖼️ 处理新版格式图片: \(fileId)")
+            
+            if let entry = await downloadAndCreateSettingEntry(fileId: fileId, type: "note_img", attachmentType: "image", forceRedownload: forceRedownload) {
+                settingDataEntries.append(entry)
+            }
+        }
+        
+        return settingDataEntries
+    }
+    
+    /// 提取音频附件
+    private func extractAudioAttachments(
+        from content: String,
+        existingFileIds: Set<String>,
+        forceRedownload: Bool
+    ) async -> [[String: Any]] {
+        // 使用正则表达式提取音频ID
+        // 格式: <sound fileid="xxx" ... />
+        let pattern = "<sound[^>]+fileid=\"([^\"]+)\"[^>]*/?>"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return []
+        }
+        
+        let nsContent = content as NSString
+        let matches = regex.matches(in: content, options: [], range: NSRange(location: 0, length: nsContent.length))
+        
+        if matches.isEmpty {
+            return []
+        }
+        
+        var settingDataEntries: [[String: Any]] = []
+        
+        for match in matches {
+            guard match.numberOfRanges >= 2 else { continue }
+            
+            let fileIdRange = match.range(at: 1)
+            let fileId = nsContent.substring(with: fileIdRange).trimmingCharacters(in: .whitespaces)
+            
+            // 跳过已存在的附件
+            if existingFileIds.contains(fileId) {
+                print("[SYNC] ⏭️ 音频已在 settingJson 中，跳过: \(fileId)")
+                continue
+            }
+            
+            print("[SYNC] 🎵 处理音频附件: \(fileId)")
+            
+            if let entry = await downloadAndCreateSettingEntry(fileId: fileId, type: "note_audio", attachmentType: "audio", forceRedownload: forceRedownload) {
+                settingDataEntries.append(entry)
+            }
+        }
+        
+        return settingDataEntries
+    }
+    
+    /// 下载附件并创建 setting.data 条目
+    /// 
+    /// - Parameters:
+    ///   - fileId: 文件ID
+    ///   - type: 下载类型（note_img 或 note_audio）
+    ///   - attachmentType: 附件类型（image 或 audio）
+    ///   - forceRedownload: 是否强制重新下载
+    /// - Returns: setting.data 条目，如果下载失败则返回 nil
+    private func downloadAndCreateSettingEntry(
+        fileId: String,
+        type: String,
+        attachmentType: String,
+        forceRedownload: Bool
+    ) async -> [String: Any]? {
+        // 检查附件是否已存在且有效
+        var existingFormat: String?
+        var fileSize: Int = 0
+        
+        if !forceRedownload {
+            if attachmentType == "image" {
                 // 尝试所有可能的图片格式
                 let formats = ["jpg", "jpeg", "png", "gif", "webp"]
-                
                 for format in formats {
                     if localStorage.validateImage(fileId: fileId, fileType: format) {
-                        print("[SYNC] ✅ 旧版格式图片已存在且有效，跳过下载: \(fileId).\(format)")
+                        print("[SYNC] ✅ 图片已存在且有效，跳过下载: \(fileId).\(format)")
                         existingFormat = format
+                        if let imageData = localStorage.loadImage(fileId: fileId, fileType: format) {
+                            fileSize = imageData.count
+                        }
                         break
                     }
                 }
-            } else {
-                print("[SYNC] ⚠️ 强制重新下载旧版格式图片: \(fileId)")
-            }
-            
-            // 下载图片（如果需要）
-            var downloadedFormat: String?
-            var imageSize: Int = 0
-            
-            if existingFormat == nil {
-                do {
-                    print("[SYNC] 开始下载旧版格式图片: \(fileId)")
-                    let imageData = try await downloadImageWithRetry(fileId: fileId, type: "note_img")
-                    print("[SYNC] 旧版格式图片下载完成，大小: \(imageData.count) 字节")
-                    imageSize = imageData.count
+            } else if attachmentType == "audio" {
+                // 检查音频文件是否已缓存
+                if AudioCacheService.shared.isCached(fileId: fileId) {
+                    print("[SYNC] ✅ 音频已缓存，跳过下载: \(fileId)")
+                    existingFormat = "amr" // 默认格式
                     
+                    // 获取缓存文件信息
+                    if let cachedFileURL = AudioCacheService.shared.getCachedFile(for: fileId) {
+                        do {
+                            let attributes = try FileManager.default.attributesOfItem(atPath: cachedFileURL.path)
+                            if let size = attributes[.size] as? Int {
+                                fileSize = size
+                                print("[SYNC] 音频文件大小: \(size) 字节")
+                            }
+                        } catch {
+                            print("[SYNC] ⚠️ 获取音频文件大小失败: \(error)")
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 下载附件（如果需要）
+        var downloadedFormat: String?
+        
+        if existingFormat == nil {
+            do {
+                print("[SYNC] 📥 开始下载附件: \(fileId), 类型: \(type)")
+                let data = try await downloadImageWithRetry(fileId: fileId, type: type)
+                print("[SYNC] ✅ 附件下载完成，大小: \(data.count) 字节")
+                fileSize = data.count
+                
+                if attachmentType == "image" {
                     // 检测图片格式
-                    let detectedFormat = detectImageFormat(from: imageData)
+                    let detectedFormat = detectImageFormat(from: data)
                     downloadedFormat = detectedFormat
                     
                     // 保存图片
-                    try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: detectedFormat)
-                    print("[SYNC] 旧版格式图片保存成功: \(fileId).\(detectedFormat)")
-                } catch {
-                    print("[SYNC] 旧版格式图片下载失败: \(fileId), 错误: \(error.localizedDescription)")
-                    continue
+                    try localStorage.saveImage(imageData: data, fileId: fileId, fileType: detectedFormat)
+                    print("[SYNC] 💾 图片保存成功: \(fileId).\(detectedFormat)")
+                } else if attachmentType == "audio" {
+                    // 检测音频格式
+                    let detectedFormat = detectAudioFormat(from: data)
+                    downloadedFormat = detectedFormat
+                    
+                    // 使用 AudioCacheService 保存音频
+                    let mimeType = "audio/\(detectedFormat)"
+                    do {
+                        try AudioCacheService.shared.cacheFile(
+                            data: data,
+                            fileId: fileId,
+                            mimeType: mimeType
+                        )
+                        print("[SYNC] 💾 音频保存成功: \(fileId).\(detectedFormat)")
+                    } catch {
+                        print("[SYNC] ❌ 音频保存失败: \(fileId), 错误: \(error)")
+                        return nil
+                    }
                 }
-            } else {
-                // 图片已存在，尝试获取文件大小
-                if let imageData = localStorage.loadImage(fileId: fileId, fileType: existingFormat!) {
-                    imageSize = imageData.count
-                    print("[SYNC] 从本地加载旧版格式图片大小: \(imageSize) 字节")
-                }
+            } catch {
+                print("[SYNC] ❌ 附件下载失败: \(fileId), 错误: \(error.localizedDescription)")
+                return nil
             }
-            
-            // 生成 setting.data 条目
-            let finalFormat = downloadedFormat ?? existingFormat ?? "jpeg"
-            let mimeType = "image/\(finalFormat)"
-            
-            let settingEntry: [String: Any] = [
-                "fileId": fileId,
-                "mimeType": mimeType,
-                "size": imageSize
-            ]
-            
-            settingDataEntries.append(settingEntry)
-            print("[SYNC] 为旧版格式图片生成 setting.data 条目: \(fileId), mimeType: \(mimeType)")
         }
         
-        print("[SYNC] 旧版格式图片处理完成，生成 \(settingDataEntries.count) 个 setting.data 条目")
-        return settingDataEntries
+        // 生成 setting.data 条目
+        let finalFormat = downloadedFormat ?? existingFormat ?? (attachmentType == "image" ? "jpeg" : "amr")
+        let mimeType = attachmentType == "image" ? "image/\(finalFormat)" : "audio/\(finalFormat)"
+        
+        let settingEntry: [String: Any] = [
+            "fileId": fileId,
+            "mimeType": mimeType,
+            "size": fileSize
+        ]
+        
+        print("[SYNC] 📝 生成 setting.data 条目: \(fileId), mimeType: \(mimeType), size: \(fileSize)")
+        return settingEntry
+    }
+    
+    /// 从content中提取并下载旧版格式的图片，同时生成 setting.data
+    /// 旧版格式: ☺ fileId<0/></>
+    /// 
+    /// ⚠️ 已废弃：请使用 extractAndDownloadAllAttachments 方法
+    /// 
+    /// - Parameters:
+    ///   - content: 笔记内容
+    ///   - forceRedownload: 是否强制重新下载
+    /// - Returns: 生成的 setting.data 数组（包含旧版格式图片的元数据）
+    private func downloadLegacyFormatImages(from content: String, forceRedownload: Bool) async -> [[String: Any]] {
+        // 调用新的统一方法
+        return await extractLegacyImages(from: content, existingFileIds: Set(), forceRedownload: forceRedownload)
     }
     
     /// 检测图片格式
@@ -2080,6 +2301,55 @@ final class SyncService: @unchecked Sendable {
         
         // 默认返回 jpeg
         return "jpeg"
+    }
+    
+    /// 检测音频格式
+    /// 
+    /// 通过检查文件头魔数来判断音频格式
+    /// 
+    /// - Parameter data: 音频数据
+    /// - Returns: 音频格式（amr, mp3, m4a, wav 等）
+    private func detectAudioFormat(from data: Data) -> String {
+        // 检查文件头魔数
+        guard data.count >= 12 else {
+            return "amr" // 默认格式
+        }
+        
+        let bytes = [UInt8](data.prefix(12))
+        
+        // AMR 格式: #!AMR\n (0x23 0x21 0x41 0x4D 0x52 0x0A)
+        if bytes.count >= 6 &&
+           bytes[0] == 0x23 && bytes[1] == 0x21 &&
+           bytes[2] == 0x41 && bytes[3] == 0x4D &&
+           bytes[4] == 0x52 && bytes[5] == 0x0A {
+            return "amr"
+        }
+        
+        // MP3 格式: ID3 (0x49 0x44 0x33) 或 0xFF 0xFB
+        if bytes.count >= 3 &&
+           ((bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) ||
+            (bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0)) {
+            return "mp3"
+        }
+        
+        // M4A 格式: ftyp (0x66 0x74 0x79 0x70)
+        if bytes.count >= 8 &&
+           bytes[4] == 0x66 && bytes[5] == 0x74 &&
+           bytes[6] == 0x79 && bytes[7] == 0x70 {
+            return "m4a"
+        }
+        
+        // WAV 格式: RIFF...WAVE (0x52 0x49 0x46 0x46 ... 0x57 0x41 0x56 0x45)
+        if bytes.count >= 12 &&
+           bytes[0] == 0x52 && bytes[1] == 0x49 &&
+           bytes[2] == 0x46 && bytes[3] == 0x46 &&
+           bytes[8] == 0x57 && bytes[9] == 0x41 &&
+           bytes[10] == 0x56 && bytes[11] == 0x45 {
+            return "wav"
+        }
+        
+        // 默认返回 amr（小米笔记主要使用 AMR 格式）
+        return "amr"
     }
     
     /// 手动重新下载笔记的所有图片
