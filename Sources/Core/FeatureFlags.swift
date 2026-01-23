@@ -9,7 +9,7 @@ public struct FeatureFlags {
     /// - `true`: 使用新的 ViewModel 架构 (AppCoordinator + 7 个 ViewModel)
     /// - `false`: 使用旧的 NotesViewModel 架构
     ///
-    /// 默认值: `false` (使用旧架构,保持向后兼容)
+    /// 默认值: `true` (正式切换到新架构)
     public static var useNewArchitecture: Bool {
         get {
             // 默认返回 true 使用新架构
