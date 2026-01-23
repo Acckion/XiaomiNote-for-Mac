@@ -1,5 +1,4 @@
 import SwiftUI
-import WebKit
 import OSLog
 
 /// 回收站视图
@@ -13,6 +12,12 @@ struct TrashView: View {
     @State private var selectedDeletedNote: DeletedNote?
     @State private var noteContent: Note?
     @State private var isLoadingContent: Bool = false
+    
+    // 创建只读的编辑器上下文
+    @StateObject private var editorContext: NativeEditorContext = {
+        let context = NativeEditorContext()
+        return context
+    }()
     
     // 日志记录器
     private let logger = Logger(subsystem: "com.xiaomi.minote.mac", category: "TrashView")
@@ -104,19 +109,7 @@ struct TrashView: View {
     @ViewBuilder
     private var rightPanel: some View {
         Group {
-            if let note = noteContent {
-                if isLoadingContent {
-                    VStack(spacing: 16) {
-                        ProgressView("加载内容...")
-                        Text("正在加载笔记内容...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    HistoryContentWebView(content: note.content)
-                }
-            } else {
+            if selectedDeletedNote == nil {
                 VStack(spacing: 16) {
                     Image(systemName: "doc.text")
                         .font(.system(size: 48))
@@ -129,13 +122,80 @@ struct TrashView: View {
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if isLoadingContent {
+                VStack(spacing: 16) {
+                    ProgressView("加载内容...")
+                    Text("正在加载笔记内容...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let note = noteContent {
+                // 使用原生编辑器（只读模式）
+                VStack(alignment: .leading, spacing: 0) {
+                    if !note.content.isEmpty {
+                        NativeEditorView(
+                            editorContext: editorContext,
+                            isEditable: false  // 设置为只读
+                        )
+                        .opacity(0.9)  // 降低透明度表示只读
+                    } else {
+                        VStack {
+                            Spacer()
+                            Text("此笔记暂无内容")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                    }
+                }
+            } else {
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 48))
+                        .foregroundColor(.orange)
+                    Text("无法加载内容")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.textBackgroundColor))
+        .onChange(of: noteContent) { oldValue, newValue in
+            if let note = newValue {
+                loadContentToEditor(note)
+            }
+        }
     }
     
     // MARK: - 辅助方法
+    
+    /// 加载内容到编辑器
+    private func loadContentToEditor(_ note: Note) {
+        Task { @MainActor in
+            do {
+                // 使用 XiaoMiFormatConverter 将 XML 转换为 NSAttributedString
+                let attributedString = try XiaoMiFormatConverter.shared.xmlToNSAttributedString(
+                    note.content,
+                    folderId: note.folderId
+                )
+                
+                // 设置到编辑器上下文
+                editorContext.setContent(attributedString)
+            } catch {
+                print("[TrashView] 加载内容失败: \(error.localizedDescription)")
+                // 如果转换失败，显示纯文本
+                let plainText = note.content
+                    .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                    .replacingOccurrences(of: "&amp;", with: "&")
+                    .replacingOccurrences(of: "&lt;", with: "<")
+                    .replacingOccurrences(of: "&gt;", with: ">")
+                editorContext.setContent(NSAttributedString(string: plainText))
+            }
+        }
+    }
     
     /// 加载笔记内容
     private func loadNoteContent(_ deletedNote: DeletedNote) {
