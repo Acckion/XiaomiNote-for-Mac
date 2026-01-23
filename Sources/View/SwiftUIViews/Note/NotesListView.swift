@@ -890,9 +890,15 @@ struct NoteRow: View {
     ///
     /// 不显示场景：
     /// - 选中"未分类"文件夹（id = "uncategorized"）
+    /// - 选中其他用户文件夹
     private var shouldShowFolderInfo: Bool {
         // 如果选中"未分类"文件夹，不显示文件夹信息
         if let folderId = viewModel.selectedFolder?.id, folderId == "uncategorized" {
+            return false
+        }
+        
+        // 如果选中用户文件夹（非系统文件夹），不显示文件夹信息
+        if let folder = viewModel.selectedFolder, !folder.isSystem {
             return false
         }
         
@@ -961,8 +967,9 @@ struct NoteRow: View {
                     }
                     
                     // 文件夹信息（在特定条件下显示）- 调整大小与时间、正文预览一致，行距与其他行保持一致
-                    if shouldShowFolderInfo {
-                        HStack(spacing: 4) {
+                    // 始终保留这一行的空间，确保卡片高度一致
+                    HStack(spacing: 4) {
+                        if shouldShowFolderInfo {
                             Image(systemName: "folder")
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
@@ -977,8 +984,14 @@ struct NoteRow: View {
                                     .font(.system(size: 11))
                                     .foregroundColor(.secondary)
                             }
+                        } else {
+                            // 占位符：保持行高一致，但不显示内容
+                            Text(" ")
+                                .font(.system(size: 11))
+                                .foregroundColor(.clear)
                         }
                     }
+                    .frame(height: 15) // 固定行高，确保所有卡片高度一致
                 }
                 
                 Spacer()
