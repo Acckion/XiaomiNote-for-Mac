@@ -99,6 +99,29 @@ public final class NotesViewModelAdapter: NotesViewModel {
         coordinator.authViewModel.$isPrivateNotesUnlocked
             .assign(to: &$isPrivateNotesUnlocked)
         
+        // 9. 同步 ViewOptionsManager 的排序设置到 NoteListViewModel
+        // Bug 2.1 修复: 确保排序设置正确同步
+        ViewOptionsManager.shared.$state
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                guard let self = self else { return }
+                
+                // 同步排序方式到 NoteListViewModel
+                if self.coordinator.noteListViewModel.sortOrder != state.sortOrder {
+                    print("[NotesViewModelAdapter] 从 ViewOptionsManager 同步排序方式: \(state.sortOrder.displayName)")
+                    self.coordinator.noteListViewModel.sortOrder = state.sortOrder
+                    self.notesListSortField = state.sortOrder
+                }
+                
+                // 同步排序方向到 NoteListViewModel
+                if self.coordinator.noteListViewModel.sortDirection != state.sortDirection {
+                    print("[NotesViewModelAdapter] 从 ViewOptionsManager 同步排序方向: \(state.sortDirection.displayName)")
+                    self.coordinator.noteListViewModel.sortDirection = state.sortDirection
+                    self.notesListSortDirection = state.sortDirection
+                }
+            }
+            .store(in: &cancellables)
+        
         coordinator.authViewModel.$userProfile
             .assign(to: &$userProfile)
         
