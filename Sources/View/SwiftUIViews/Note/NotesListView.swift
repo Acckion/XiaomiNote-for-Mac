@@ -417,6 +417,17 @@ struct NotesListView: View {
                 LiquidGlassSectionHeader(title: currentSection)
             }
         }
+        .onAppear {
+            // 初始化时设置第一个分组为当前可见分组
+            let groupedNotes = groupNotesByDate(viewModel.filteredNotes)
+            let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
+            let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
+            let allSections = sectionOrder.filter { groupedNotes[$0] != nil && !groupedNotes[$0]!.isEmpty } + yearGroups.keys.sorted(by: >)
+            
+            if let firstSection = allSections.first {
+                currentVisibleSection = firstSection
+            }
+        }
     }
     
     /// 根据笔记位置更新当前可见的分组
@@ -429,7 +440,7 @@ struct NotesListView: View {
         let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
         let allSections = sectionOrder.filter { groupedNotes[$0] != nil && !groupedNotes[$0]!.isEmpty } + yearGroups.keys.sorted(by: >)
         
-        // 找到第一个在工具栏下方可见的笔记（Y >= toolbarHeight）
+        // 找到第一个在工具栏下方可见的笔记（Y >= 0）
         let visibleNotes = notePositions
             .filter { $0.yPosition >= 0}
             .sorted { $0.yPosition < $1.yPosition } // 按 Y 坐标升序排列
