@@ -682,5 +682,5 @@ struct ChangePasswordDialogView: View {
 }
 
 #Preview {
-    SettingsView(viewModel: NotesViewModel())
+    SettingsView(viewModel: PreviewHelper.shared.createPreviewViewModel())
 }

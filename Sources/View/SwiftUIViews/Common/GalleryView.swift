@@ -515,7 +515,7 @@ struct GalleryView: View {
         
         var body: some View {
             GalleryView(
-                viewModel: NotesViewModel(),
+                viewModel: PreviewHelper.shared.createPreviewViewModel(),
                 optionsManager: .shared,
                 expandedNote: $expandedNote,
                 animation: animation

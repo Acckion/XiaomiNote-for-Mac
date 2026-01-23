@@ -118,7 +118,7 @@ struct ExpandedNoteView: View {
         
         var body: some View {
             ExpandedNoteView(
-                viewModel: NotesViewModel(),
+                viewModel: PreviewHelper.shared.createPreviewViewModel(),
                 expandedNote: $expandedNote,
                 animation: animation
             )

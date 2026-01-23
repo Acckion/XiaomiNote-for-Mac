@@ -437,7 +437,7 @@ struct NoteCardView: View {
         note: sampleNote,
         isSelected: false,
         onTap: {},
-        viewModel: NotesViewModel()
+        viewModel: PreviewHelper.shared.createPreviewViewModel()
     )
     .frame(width: 250, height: 200)
     .padding()

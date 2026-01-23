@@ -451,5 +451,5 @@ struct WebView: NSViewRepresentable {
 }
 
 #Preview {
-    LoginView(viewModel: NotesViewModel())
+    LoginView(viewModel: PreviewHelper.shared.createPreviewViewModel())
 }
