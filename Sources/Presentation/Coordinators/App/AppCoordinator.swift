@@ -305,6 +305,25 @@ public final class AppCoordinator: ObservableObject {
     /// - Parameter folder: 选中的文件夹
     public func handleFolderSelection(_ folder: Folder?) {
         folderViewModel.selectFolder(folder)
+        
+        // 处理私密笔记文件夹的解锁状态
+        if let folder = folder, folder.id == "2" {
+            // 切换到私密笔记文件夹
+            // 检查是否已设置密码
+            if PrivateNotesPasswordManager.shared.hasPassword() {
+                // 每次切换到私密笔记文件夹时，都需要重新验证
+                // 重置解锁状态，强制用户重新验证
+                authViewModel.isPrivateNotesUnlocked = false
+                print("[AppCoordinator] 切换到私密笔记文件夹，重置解锁状态")
+            } else {
+                // 未设置密码，直接允许访问
+                authViewModel.isPrivateNotesUnlocked = true
+                print("[AppCoordinator] 私密笔记未设置密码，直接解锁")
+            }
+        } else {
+            // 切换到其他文件夹，重置解锁状态
+            authViewModel.isPrivateNotesUnlocked = false
+        }
     }
     
     /// 处理同步请求
