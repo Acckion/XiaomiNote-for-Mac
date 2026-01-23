@@ -29,7 +29,9 @@ class WindowManager {
     func createMainWindow() {
         print("创建主窗口...")
         
-        // 创建视图模型
+        // TODO: 新架构下,应该从 AppCoordinator 获取 ViewModel
+        // 暂时使用 NotesViewModelAdapter 作为占位符
+        // 后续需要重构为共享 AppCoordinator
         let viewModel = NotesViewModel()
         
         // 创建主窗口控制器
@@ -59,28 +61,15 @@ class WindowManager {
     func createNewWindow() {
         print("创建新窗口...")
         
-        // 创建新的视图模型
-        let viewModel = NotesViewModel()
+        // TODO: 新架构下的多窗口支持需要重新设计
+        // 选项1: 共享同一个 AppCoordinator
+        // 选项2: 为每个窗口创建独立的 AppCoordinator
+        // 暂时禁用多窗口功能
+        print("⚠️  多窗口功能暂时禁用,等待新架构支持")
         
-        // 创建新的窗口控制器
-        let newWindowController = MainWindowController(viewModel: viewModel)
-        
-        // 添加到窗口控制器列表
-        windowControllers.append(newWindowController)
-        
-        // 为新窗口分配一个唯一的 ID
-        let windowId = "window_\(windowControllers.count - 1)"
-        
-        // 恢复新窗口的 frame（如果有保存的状态）
-        if let window = newWindowController.window {
-            restoreWindowFrame(window, windowId: windowId)
-        }
-        
-        // 显示新窗口
-        newWindowController.showWindow(nil)
-        newWindowController.window?.makeKeyAndOrderFront(nil)
-        
-        print("新窗口创建完成，窗口ID: \(windowId)")
+        // 暂时只激活现有窗口
+        mainWindowController?.showWindow(nil)
+        mainWindowController?.window?.makeKeyAndOrderFront(nil)
     }
     
     /// 移除窗口控制器
