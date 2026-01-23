@@ -12,6 +12,11 @@ struct TrashView: View {
     @State private var selectedDeletedNote: DeletedNote?
     @State private var noteContent: Note?
     @State private var isLoadingContent: Bool = false
+    @State private var showingRestoreConfirm: Bool = false
+    @State private var showingDeleteConfirm: Bool = false
+    @State private var isRestoring: Bool = false
+    @State private var isPermanentlyDeleting: Bool = false
+    @State private var operationError: String?
     
     // 创建只读的编辑器上下文
     @StateObject private var editorContext: NativeEditorContext = {
@@ -52,6 +57,35 @@ struct TrashView: View {
         .task {
             // 打开时自动获取回收站笔记
             await viewModel.fetchDeletedNotes()
+        }
+        .alert("恢复笔记", isPresented: $showingRestoreConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("恢复") {
+                if let deletedNote = selectedDeletedNote {
+                    restoreNote(deletedNote)
+                }
+            }
+        } message: {
+            Text("确定要恢复这个笔记吗？")
+        }
+        .alert("永久删除", isPresented: $showingDeleteConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("永久删除", role: .destructive) {
+                if let deletedNote = selectedDeletedNote {
+                    permanentlyDeleteNote(deletedNote)
+                }
+            }
+        } message: {
+            Text("确定要永久删除这个笔记吗？此操作不可恢复！")
+        }
+        .alert("操作失败", isPresented: .constant(operationError != nil)) {
+            Button("确定", role: .cancel) {
+                operationError = nil
+            }
+        } message: {
+            if let error = operationError {
+                Text(error)
+            }
         }
         .frame(minWidth: 800, idealWidth: 1000, maxWidth: 1200, minHeight: 500, idealHeight: 700, maxHeight: 800)
     }
@@ -132,7 +166,46 @@ struct TrashView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let note = noteContent {
                 // 使用原生编辑器（只读模式）
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(spacing: 0) {
+                    // 工具栏
+                    HStack {
+                        if let deletedNote = selectedDeletedNote {
+                            Text("删除于: \(deletedNote.formattedDeleteTime)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        // 恢复按钮
+                        Button {
+                            showingRestoreConfirm = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.uturn.backward")
+                                Text("恢复")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isRestoring || isPermanentlyDeleting)
+                        
+                        // 永久删除按钮
+                        Button(role: .destructive) {
+                            showingDeleteConfirm = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "trash")
+                                Text("永久删除")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isRestoring || isPermanentlyDeleting)
+                    }
+                    .padding()
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .border(Color(NSColor.separatorColor), width: 0.5)
+                    
+                    // 内容区域
                     if !note.content.isEmpty {
                         NativeEditorView(
                             editorContext: editorContext,
@@ -264,6 +337,66 @@ struct TrashView: View {
                 await MainActor.run {
                     self.noteContent = note
                     self.isLoadingContent = false
+                }
+            }
+        }
+    }
+    
+    /// 恢复笔记
+    private func restoreNote(_ deletedNote: DeletedNote) {
+        isRestoring = true
+        operationError = nil
+        
+        Task {
+            do {
+                // 调用 ViewModel 的恢复方法
+                try await viewModel.restoreDeletedNote(noteId: deletedNote.id, tag: deletedNote.tag)
+                
+                await MainActor.run {
+                    isRestoring = false
+                    // 清除选中状态
+                    selectedDeletedNote = nil
+                    noteContent = nil
+                    // 刷新回收站列表
+                    Task {
+                        await viewModel.fetchDeletedNotes()
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isRestoring = false
+                    operationError = "恢复失败: \(error.localizedDescription)"
+                    logger.error("恢复笔记失败: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    /// 永久删除笔记
+    private func permanentlyDeleteNote(_ deletedNote: DeletedNote) {
+        isPermanentlyDeleting = true
+        operationError = nil
+        
+        Task {
+            do {
+                // 调用 ViewModel 的永久删除方法
+                try await viewModel.permanentlyDeleteNote(noteId: deletedNote.id, tag: deletedNote.tag)
+                
+                await MainActor.run {
+                    isPermanentlyDeleting = false
+                    // 清除选中状态
+                    selectedDeletedNote = nil
+                    noteContent = nil
+                    // 刷新回收站列表
+                    Task {
+                        await viewModel.fetchDeletedNotes()
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isPermanentlyDeleting = false
+                    operationError = "永久删除失败: \(error.localizedDescription)"
+                    logger.error("永久删除笔记失败: \(error.localizedDescription)")
                 }
             }
         }

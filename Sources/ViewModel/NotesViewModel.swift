@@ -4274,6 +4274,75 @@ public class NotesViewModel: ObservableObject {
         }
     }
     
+    /// 恢复回收站笔记
+    /// 
+    /// 从回收站恢复笔记到原文件夹
+    /// - Parameters:
+    ///   - noteId: 笔记ID
+    ///   - tag: 笔记的tag（版本标识）
+    /// - Throws: MiNoteError
+    func restoreDeletedNote(noteId: String, tag: String) async throws {
+        guard service.isAuthenticated() else {
+            throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
+        }
+        
+        print("[VIEWMODEL] 开始恢复笔记: \(noteId)")
+        
+        do {
+            // 调用 MiNoteService 的恢复API
+            // 注意：小米笔记可能没有专门的恢复API，可能需要通过更新笔记状态来实现
+            // 这里先尝试调用 service 的方法
+            let response = try await service.restoreDeletedNote(noteId: noteId, tag: tag)
+            
+            guard let code = response["code"] as? Int, code == 0 else {
+                let message = response["description"] as? String ?? response["message"] as? String ?? "恢复笔记失败"
+                throw NSError(domain: "MiNote", code: -1, userInfo: [NSLocalizedDescriptionKey: message])
+            }
+            
+            print("[VIEWMODEL] ✅ 恢复笔记成功: \(noteId)")
+            
+            // 刷新笔记列表和回收站列表
+            await fetchNotes()
+            await fetchDeletedNotes()
+        } catch {
+            print("[VIEWMODEL] ❌ 恢复笔记失败: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    /// 永久删除笔记
+    /// 
+    /// 从回收站永久删除笔记，此操作不可恢复
+    /// - Parameters:
+    ///   - noteId: 笔记ID
+    ///   - tag: 笔记的tag（版本标识）
+    /// - Throws: MiNoteError
+    func permanentlyDeleteNote(noteId: String, tag: String) async throws {
+        guard service.isAuthenticated() else {
+            throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
+        }
+        
+        print("[VIEWMODEL] 开始永久删除笔记: \(noteId)")
+        
+        do {
+            // 调用 MiNoteService 的删除API，设置 purge=true 表示永久删除
+            let response = try await service.deleteNote(noteId: noteId, tag: tag, purge: true)
+            
+            guard let code = response["code"] as? Int, code == 0 else {
+                let message = response["description"] as? String ?? response["message"] as? String ?? "永久删除笔记失败"
+                throw NSError(domain: "MiNote", code: -1, userInfo: [NSLocalizedDescriptionKey: message])
+            }
+            
+            print("[VIEWMODEL] ✅ 永久删除笔记成功: \(noteId)")
+            
+            // 刷新回收站列表
+            await fetchDeletedNotes()
+        } catch {
+            print("[VIEWMODEL] ❌ 永久删除笔记失败: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
     /// 获取用户信息
     /// 
     /// 从服务器获取当前登录用户的昵称和头像

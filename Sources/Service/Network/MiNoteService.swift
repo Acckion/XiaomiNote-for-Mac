@@ -394,6 +394,81 @@ public final class MiNoteService: @unchecked Sendable {
         }
     }
     
+    /// 恢复回收站笔记
+    /// 
+    /// 从回收站恢复笔记到原文件夹
+    /// API端点: POST https://i.mi.com/note/note/{noteId}/restore
+    /// 
+    /// - Parameters:
+    ///   - noteId: 笔记ID
+    ///   - tag: 笔记的tag（版本标识），用于并发控制
+    /// - Returns: API响应字典
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    func restoreDeletedNote(noteId: String, tag: String) async throws -> [String: Any] {
+        // 构建请求体：tag={tag}&serviceToken={serviceToken}
+        let tagEncoded = encodeURIComponent(tag)
+        let serviceTokenEncoded = encodeURIComponent(serviceToken)
+        let body = "tag=\(tagEncoded)&serviceToken=\(serviceTokenEncoded)"
+        
+        // 使用正确的恢复API端点
+        let urlString = "\(baseURL)/note/note/\(noteId)/restore"
+        
+        // 记录请求
+        let postHeaders = getPostHeaders()
+        NetworkLogger.shared.logRequest(
+            url: urlString,
+            method: "POST",
+            headers: postHeaders,
+            body: body
+        )
+        
+        guard let url = URL(string: urlString) else {
+            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = postHeaders
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body.data(using: .utf8)
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                let responseString = String(data: data, encoding: .utf8)
+                
+                // 记录响应
+                NetworkLogger.shared.logResponse(
+                    url: urlString,
+                    method: "POST",
+                    statusCode: httpResponse.statusCode,
+                    headers: httpResponse.allHeaderFields as? [String: String],
+                    response: responseString,
+                    error: nil
+                )
+                
+                // 处理401未授权错误
+                if httpResponse.statusCode == 401 {
+                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    let errorMessage = responseString ?? "未知错误"
+                    print("[MiNoteService] 恢复笔记失败，状态码: \(httpResponse.statusCode), 响应: \(errorMessage)")
+                    throw MiNoteError.networkError(URLError(.badServerResponse))
+                }
+            }
+            
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            return json
+        } catch {
+            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
+            throw error
+        }
+    }
+    
     /// MARK: 获取私密笔记列表
     /// 
     /// 获取指定文件夹（通常是私密笔记文件夹，folderId=2）的笔记列表
