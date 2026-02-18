@@ -228,9 +228,8 @@ final class NativeEditorDebugger: ObservableObject {
             events.removeFirst(events.count - maxEvents)
         }
 
-        // 控制台输出
         if logger.enableConsoleOutput {
-            print("[DEBUG] \(event.summary)")
+            LogService.shared.debug(.editor, event.summary)
         }
     }
 
