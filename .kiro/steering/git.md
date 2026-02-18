@@ -91,3 +91,4 @@ git checkout -b refactor/79-notes-viewmodel-refactor
 - 提交前确保代码可以编译通过
 - 不要提交 `.build/`、`build/` 等构建产物
 - 敏感信息（Cookie、密钥等）不要提交
+- 合并分支时，一定要使用 `--no-ff`
