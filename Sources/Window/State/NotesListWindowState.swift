@@ -26,8 +26,8 @@ public final class NotesListWindowState: NSObject, NSSecureCoding {
     }
 
     public required init?(coder: NSCoder) {
-        selectedNoteId = coder.decodeObject(of: NSString.self, forKey: CodingKeys.selectedNoteId.rawValue) as String?
-        scrollPosition = coder.decodeDouble(forKey: CodingKeys.scrollPosition.rawValue)
+        self.selectedNoteId = coder.decodeObject(of: NSString.self, forKey: CodingKeys.selectedNoteId.rawValue) as String?
+        self.scrollPosition = coder.decodeDouble(forKey: CodingKeys.scrollPosition.rawValue)
     }
 
     public func encode(with coder: NSCoder) {

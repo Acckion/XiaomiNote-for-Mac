@@ -37,7 +37,7 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     // MARK: - Initialization
 
     public init() {
-        spanMerger = FormatSpanMerger()
+        self.spanMerger = FormatSpanMerger()
     }
 
     // MARK: - Public Methods

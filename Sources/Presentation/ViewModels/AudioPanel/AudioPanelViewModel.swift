@@ -67,7 +67,7 @@ public final class AudioPanelViewModel: ObservableObject {
         noteService: NoteStorageProtocol
     ) {
         self.audioService = audioService
-        noteStorage = noteService
+        self.noteStorage = noteService
 
         // 监听音频服务状态
         setupAudioServiceObservers()

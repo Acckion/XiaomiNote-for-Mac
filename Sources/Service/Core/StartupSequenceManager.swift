@@ -91,14 +91,14 @@ final class StartupSequenceManager: ObservableObject {
             default:
                 self.phase = "unknown"
             }
-            message = error.localizedDescription
-            timestamp = Date()
+            self.message = error.localizedDescription
+            self.timestamp = Date()
         }
 
         init(phase: String, message: String) {
             self.phase = phase
             self.message = message
-            timestamp = Date()
+            self.timestamp = Date()
         }
 
         static func == (lhs: StartupError, rhs: StartupError) -> Bool {

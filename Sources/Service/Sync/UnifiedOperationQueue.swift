@@ -44,7 +44,7 @@ public final class UnifiedOperationQueue: @unchecked Sendable {
 
     /// 私有初始化方法（单例模式）
     private init() {
-        databaseService = DatabaseService.shared
+        self.databaseService = DatabaseService.shared
         loadFromDatabase()
     }
 

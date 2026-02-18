@@ -91,7 +91,7 @@ public final class WindowState: ObservableObject {
     /// - Parameter coordinator: AppCoordinator 实例（弱引用）
     public init(coordinator: AppCoordinator) {
         self.coordinator = coordinator
-        windowId = UUID()
+        self.windowId = UUID()
 
         print("[WindowState] 初始化窗口状态，ID: \(windowId)")
 

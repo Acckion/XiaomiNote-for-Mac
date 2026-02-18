@@ -210,7 +210,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
 
     override private init() {
         // 配置临时录音文件目录
-        tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("AudioRecordings")
+        self.tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("AudioRecordings")
 
         super.init()
 

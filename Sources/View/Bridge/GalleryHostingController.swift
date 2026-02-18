@@ -57,7 +57,7 @@ class GalleryHostingController: NSViewController {
     init(coordinator: AppCoordinator, windowState: WindowState, optionsManager: ViewOptionsManager = .shared) {
         self.coordinator = coordinator
         self.windowState = windowState
-        viewModel = coordinator.notesViewModel
+        self.viewModel = coordinator.notesViewModel
         self.optionsManager = optionsManager
         super.init(nibName: nil, bundle: nil)
     }

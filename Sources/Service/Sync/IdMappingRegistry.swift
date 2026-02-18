@@ -62,8 +62,8 @@ public final class IdMappingRegistry: @unchecked Sendable {
 
     /// 私有初始化方法（单例模式）
     private init() {
-        databaseService = DatabaseService.shared
-        operationQueue = UnifiedOperationQueue.shared
+        self.databaseService = DatabaseService.shared
+        self.operationQueue = UnifiedOperationQueue.shared
 
         // 从数据库恢复未完成的映射
         loadFromDatabase()

@@ -54,7 +54,7 @@ final class AudioConverterService: @unchecked Sendable {
     // MARK: - 初始化
 
     private init() {
-        tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("AudioConversion")
+        self.tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("AudioConversion")
         createTempDirectoryIfNeeded()
         print("[AudioConverter] 初始化完成，临时目录: \(tempDirectory.path)")
     }

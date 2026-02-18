@@ -855,14 +855,14 @@ struct SidebarFolderRow: View {
     init(folder: Folder, prefix: String = "") {
         self.folder = folder
         self.prefix = prefix
-        isEditing = false
+        self.isEditing = false
         _editingName = .constant("")
     }
 
     /// 初始化器 - 用于编辑模式
     init(folder: Folder, isEditing: Bool, editingName: Binding<String>, onCommit: (() -> Void)? = nil, onCancel: (() -> Void)? = nil) {
         self.folder = folder
-        prefix = ""
+        self.prefix = ""
         self.isEditing = isEditing
         _editingName = editingName
         self.onCommit = onCommit

@@ -51,13 +51,13 @@ public final class ASTToAttributedStringConverter {
 
         // 使用 FontSizeConstants 获取默认字体大小
         // _Requirements: 7.4, 7.5, 7.6_
-        defaultFont = NSFont.systemFont(ofSize: FontSizeConstants.body)
+        self.defaultFont = NSFont.systemFont(ofSize: FontSizeConstants.body)
 
         // 设置默认段落样式
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineSpacing = 4
         paragraphStyle.paragraphSpacing = 8
-        defaultParagraphStyle = paragraphStyle
+        self.defaultParagraphStyle = paragraphStyle
     }
 
     // MARK: - Public Methods

@@ -803,12 +803,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         mainWindowController?.showLogin(sender)
     }
 
-    /// 显示Cookie刷新sheet
-    func showCookieRefresh(_ sender: Any?) {
-        // 通过主窗口控制器显示Cookie刷新sheet
-        mainWindowController?.showCookieRefresh(sender)
-    }
-
     /// 显示离线操作
     func showOfflineOperations(_: Any?) {
         // 这里可以打开离线操作窗口

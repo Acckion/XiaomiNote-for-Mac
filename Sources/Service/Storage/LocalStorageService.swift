@@ -11,7 +11,7 @@ final class LocalStorageService: @unchecked Sendable {
         // 获取应用程序支持目录
         let appSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let appBundleID = Bundle.main.bundleIdentifier ?? "com.mi.note.mac"
-        documentsDirectory = appSupportURL.appendingPathComponent(appBundleID)
+        self.documentsDirectory = appSupportURL.appendingPathComponent(appBundleID)
 
         // 创建目录（如果不存在）
         createDirectoryIfNeeded()

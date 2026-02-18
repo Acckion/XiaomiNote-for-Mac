@@ -45,18 +45,18 @@ public final class MainWindowState: NSObject, NSSecureCoding {
     }
 
     public required init?(coder: NSCoder) {
-        isFullScreen = coder.decodeBool(forKey: CodingKeys.isFullScreen.rawValue)
+        self.isFullScreen = coder.decodeBool(forKey: CodingKeys.isFullScreen.rawValue)
 
         if let widths = coder.decodeObject(of: [NSArray.self, NSNumber.self], forKey: CodingKeys.splitViewWidths.rawValue) as? [Int] {
-            splitViewWidths = widths
+            self.splitViewWidths = widths
         } else {
-            splitViewWidths = []
+            self.splitViewWidths = []
         }
 
-        isSidebarHidden = coder.decodeBool(forKey: CodingKeys.isSidebarHidden.rawValue)
-        sidebarWindowState = coder.decodeObject(of: SidebarWindowState.self, forKey: CodingKeys.sidebarWindowState.rawValue)
-        notesListWindowState = coder.decodeObject(of: NotesListWindowState.self, forKey: CodingKeys.notesListWindowState.rawValue)
-        noteDetailWindowState = coder.decodeObject(of: NoteDetailWindowState.self, forKey: CodingKeys.noteDetailWindowState.rawValue)
+        self.isSidebarHidden = coder.decodeBool(forKey: CodingKeys.isSidebarHidden.rawValue)
+        self.sidebarWindowState = coder.decodeObject(of: SidebarWindowState.self, forKey: CodingKeys.sidebarWindowState.rawValue)
+        self.notesListWindowState = coder.decodeObject(of: NotesListWindowState.self, forKey: CodingKeys.notesListWindowState.rawValue)
+        self.noteDetailWindowState = coder.decodeObject(of: NoteDetailWindowState.self, forKey: CodingKeys.noteDetailWindowState.rawValue)
     }
 
     public func encode(with coder: NSCoder) {

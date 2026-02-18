@@ -43,7 +43,7 @@ public class ViewOptionsManager: ObservableObject {
     /// - Parameter defaults: UserDefaults 实例，默认为 standard
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        state = Self.loadState(from: defaults) ?? .default
+        self.state = Self.loadState(from: defaults) ?? .default
     }
 
     // MARK: - 公开方法

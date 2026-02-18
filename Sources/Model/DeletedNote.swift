@@ -182,36 +182,36 @@ public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        id = try container.decode(String.self, forKey: .id)
-        subject = try container.decodeIfPresent(String.self, forKey: .subject) ?? ""
-        snippet = try container.decodeIfPresent(String.self, forKey: .snippet) ?? ""
-        tag = try container.decode(String.self, forKey: .tag)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.subject = try container.decodeIfPresent(String.self, forKey: .subject) ?? ""
+        self.snippet = try container.decodeIfPresent(String.self, forKey: .snippet) ?? ""
+        self.tag = try container.decode(String.self, forKey: .tag)
 
         // 处理 folderId（可能是 Int 或 String）
         if let folderIdInt = try? container.decode(Int.self, forKey: .folderId) {
-            folderId = String(folderIdInt)
+            self.folderId = String(folderIdInt)
         } else {
-            folderId = try container.decodeIfPresent(String.self, forKey: .folderId) ?? "0"
+            self.folderId = try container.decodeIfPresent(String.self, forKey: .folderId) ?? "0"
         }
 
-        folderName = try container.decodeIfPresent(String.self, forKey: .folderName)
-        createDate = try container.decode(Int64.self, forKey: .createDate)
-        modifyDate = try container.decode(Int64.self, forKey: .modifyDate)
-        deleteTime = try container.decode(Int64.self, forKey: .deleteTime)
-        colorId = try container.decodeIfPresent(Int.self, forKey: .colorId) ?? 0
-        alertDate = try container.decodeIfPresent(Int64.self, forKey: .alertDate) ?? 0
-        alertTag = try container.decodeIfPresent(Int.self, forKey: .alertTag)
-        type = try container.decode(String.self, forKey: .type)
-        status = try container.decode(String.self, forKey: .status)
+        self.folderName = try container.decodeIfPresent(String.self, forKey: .folderName)
+        self.createDate = try container.decode(Int64.self, forKey: .createDate)
+        self.modifyDate = try container.decode(Int64.self, forKey: .modifyDate)
+        self.deleteTime = try container.decode(Int64.self, forKey: .deleteTime)
+        self.colorId = try container.decodeIfPresent(Int.self, forKey: .colorId) ?? 0
+        self.alertDate = try container.decodeIfPresent(Int64.self, forKey: .alertDate) ?? 0
+        self.alertTag = try container.decodeIfPresent(Int.self, forKey: .alertTag)
+        self.type = try container.decode(String.self, forKey: .type)
+        self.status = try container.decode(String.self, forKey: .status)
 
         // 处理 setting（字典类型）
         if let settingData = try? container.decode([String: AnyCodable].self, forKey: .setting) {
-            setting = settingData.mapValues { $0.value }
+            self.setting = settingData.mapValues { $0.value }
         } else {
-            setting = nil
+            self.setting = nil
         }
 
-        extraInfo = try container.decodeIfPresent(String.self, forKey: .extraInfo)
+        self.extraInfo = try container.decodeIfPresent(String.self, forKey: .extraInfo)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -265,17 +265,17 @@ private struct AnyCodable: Codable {
         let container = try decoder.singleValueContainer()
 
         if let bool = try? container.decode(Bool.self) {
-            value = bool
+            self.value = bool
         } else if let int = try? container.decode(Int.self) {
-            value = int
+            self.value = int
         } else if let double = try? container.decode(Double.self) {
-            value = double
+            self.value = double
         } else if let string = try? container.decode(String.self) {
-            value = string
+            self.value = string
         } else if let array = try? container.decode([AnyCodable].self) {
-            value = array.map(\.value)
+            self.value = array.map(\.value)
         } else if let dict = try? container.decode([String: AnyCodable].self) {
-            value = dict.mapValues { $0.value }
+            self.value = dict.mapValues { $0.value }
         } else {
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "无法解码 AnyCodable")
         }

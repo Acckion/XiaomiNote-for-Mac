@@ -50,7 +50,7 @@ public final class XMLTokenizer: @unchecked Sendable {
     /// - Parameter input: XML 字符串
     public init(input: String) {
         self.input = input
-        currentIndex = input.startIndex
+        self.currentIndex = input.startIndex
     }
 
     // MARK: - 公共方法

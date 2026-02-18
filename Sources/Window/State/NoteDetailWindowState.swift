@@ -29,9 +29,9 @@ public final class NoteDetailWindowState: NSObject, NSSecureCoding {
     }
 
     public required init?(coder: NSCoder) {
-        editorContent = coder.decodeObject(of: NSString.self, forKey: CodingKeys.editorContent.rawValue) as String?
-        scrollPosition = coder.decodeDouble(forKey: CodingKeys.scrollPosition.rawValue)
-        cursorPosition = coder.decodeInteger(forKey: CodingKeys.cursorPosition.rawValue)
+        self.editorContent = coder.decodeObject(of: NSString.self, forKey: CodingKeys.editorContent.rawValue) as String?
+        self.scrollPosition = coder.decodeDouble(forKey: CodingKeys.scrollPosition.rawValue)
+        self.cursorPosition = coder.decodeInteger(forKey: CodingKeys.cursorPosition.rawValue)
     }
 
     public func encode(with coder: NSCoder) {

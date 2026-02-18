@@ -62,14 +62,14 @@ struct ParagraphStyleCacheKey: Hashable {
 
     /// 从 NSParagraphStyle 创建缓存键
     init(from style: NSParagraphStyle) {
-        lineSpacing = style.lineSpacing
-        paragraphSpacing = style.paragraphSpacing
-        alignment = style.alignment
-        firstLineHeadIndent = style.firstLineHeadIndent
-        headIndent = style.headIndent
-        tailIndent = style.tailIndent
-        minimumLineHeight = style.minimumLineHeight
-        maximumLineHeight = style.maximumLineHeight
+        self.lineSpacing = style.lineSpacing
+        self.paragraphSpacing = style.paragraphSpacing
+        self.alignment = style.alignment
+        self.firstLineHeadIndent = style.firstLineHeadIndent
+        self.headIndent = style.headIndent
+        self.tailIndent = style.tailIndent
+        self.minimumLineHeight = style.minimumLineHeight
+        self.maximumLineHeight = style.maximumLineHeight
     }
 }
 
@@ -93,7 +93,7 @@ struct ColorCacheKey: Hashable {
         let green = Int(rgbColor.greenComponent * 255)
         let blue = Int(rgbColor.blueComponent * 255)
 
-        hex = String(format: "#%02X%02X%02X", red, green, blue)
+        self.hex = String(format: "#%02X%02X%02X", red, green, blue)
     }
 }
 

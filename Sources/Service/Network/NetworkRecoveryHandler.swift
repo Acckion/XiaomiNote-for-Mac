@@ -315,7 +315,7 @@ public struct ProcessingResult: Sendable {
         self.processedCount = processedCount
         self.failedCount = failedCount
         self.skippedReason = skippedReason
-        timestamp = Date()
+        self.timestamp = Date()
     }
 }
 

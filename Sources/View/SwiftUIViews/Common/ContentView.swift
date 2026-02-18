@@ -34,9 +34,6 @@ public struct ContentView: View {
     /// 是否显示登录弹窗
     @State private var showingLogin = false
 
-    /// 是否显示Cookie刷新弹窗
-    @State private var showingCookieRefresh = false
-
     /// 是否显示Cookie失效弹窗
     @State private var showingCookieExpiredAlert = false
 
@@ -161,9 +158,6 @@ public struct ContentView: View {
         .sheet(isPresented: $showingLogin) {
             LoginView(viewModel: viewModel)
         }
-        .sheet(isPresented: $showingCookieRefresh) {
-            CookieRefreshView(viewModel: viewModel)
-        }
         .sheet(isPresented: $showingOfflineOperationsProgress) {
             OfflineOperationsProgressView(processor: OperationProcessor.shared)
         }
@@ -171,14 +165,14 @@ public struct ContentView: View {
             TrashView(viewModel: viewModel)
         }
         .alert("Cookie已失效", isPresented: $showingCookieExpiredAlert) {
-            Button("刷新Cookie") {
+            Button("重新登录") {
                 viewModel.handleCookieExpiredRefresh()
             }
             Button("取消", role: .cancel) {
                 viewModel.handleCookieExpiredCancel()
             }
         } message: {
-            Text("Cookie已失效，请刷新Cookie以恢复同步功能。选择\"取消\"将保持离线模式。")
+            Text("Cookie已失效，请重新登录以恢复同步功能。选择\"取消\"将保持离线模式。")
         }
         .onChange(of: viewModel.showCookieExpiredAlert) { _, newValue in
             if newValue {
@@ -191,12 +185,6 @@ public struct ContentView: View {
             if newValue {
                 showingLogin = true
                 viewModel.showLoginView = false
-            }
-        }
-        .onChange(of: viewModel.showCookieRefreshView) { _, newValue in
-            if newValue {
-                showingCookieRefresh = true
-                viewModel.showCookieRefreshView = false
             }
         }
         .onChange(of: viewModel.isLoggedIn) { oldValue, newValue in
@@ -426,12 +414,12 @@ public struct ContentView: View {
 
             Divider()
 
-            // Cookie刷新（如果失效）
+            // Cookie 刷新（如果失效，提示重新登录）
             if viewModel.isCookieExpired {
                 Button {
-                    viewModel.showCookieRefreshView = true
+                    viewModel.showLoginView = true
                 } label: {
-                    Label("刷新Cookie", systemImage: "arrow.clockwise")
+                    Label("重新登录", systemImage: "person.crop.circle.badge.exclamationmark")
                 }
 
                 Divider()

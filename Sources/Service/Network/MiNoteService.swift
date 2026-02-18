@@ -1313,78 +1313,32 @@ public final class MiNoteService: @unchecked Sendable {
 
     // MARK: - Cookie Management
 
-    /// 刷新Cookie（带重试机制）
+    /// 刷新Cookie（通过 PassTokenManager 三步流程）
     ///
-    /// 参考 Obsidian 插件的实现：
-    /// 1. 打开浏览器窗口加载 https://i.mi.com
-    /// 2. 监听 https://i.mi.com/status/lite/profile?ts=* 的请求头
-    /// 3. 从请求头的Cookie中提取cookie并保存
+    /// 使用 PassToken 通过纯 HTTP 请求刷新 serviceToken，
+    /// 替代旧的 WebView 模拟点击方式
     ///
     /// - Returns: 是否成功刷新
     func refreshCookie() async throws -> Bool {
-        print("[MiNoteService] 刷新Cookie（带重试机制）")
+        print("[[调试]] [MiNoteService] 刷新Cookie（通过 PassTokenManager）")
 
         // 先检查Cookie是否仍然有效，避免不必要的刷新
-        // 注意：hasValidCookie() 是 @MainActor，所以我们需要在主线程上调用它
         let isValid = await MainActor.run {
             hasValidCookie()
         }
 
         if isValid {
-            print("[MiNoteService] ✅ Cookie仍然有效，跳过刷新")
+            print("[[调试]] [MiNoteService] Cookie仍然有效，跳过刷新")
             return true
         }
 
-        var attempt = 0
-        let maxAttempts = 3
-        var lastError: Error?
-
-        while attempt < maxAttempts {
-            attempt += 1
-            print("[MiNoteService] 刷新Cookie尝试 \(attempt)/\(maxAttempts)")
-
-            do {
-                let success = try await performCookieRefresh()
-                if success {
-                    print("[MiNoteService] ✅ Cookie刷新成功")
-                    return true
-                }
-            } catch {
-                print("[MiNoteService] ❌ Cookie刷新失败 (尝试 \(attempt)): \(error)")
-                lastError = error
-
-                // 如果不是最后一次尝试，等待一段时间再重试
-                if attempt < maxAttempts {
-                    let delaySeconds = TimeInterval(attempt * 2) // 指数退避：2, 4, 6秒
-                    print("[MiNoteService] 等待 \(delaySeconds) 秒后重试...")
-                    try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
-                }
-            }
-        }
-
-        print("[MiNoteService] ❌ 所有刷新尝试都失败")
-        throw lastError ?? MiNoteError.networkError(URLError(.cannotConnectToHost))
-    }
-
-    /// 执行实际的Cookie刷新逻辑
-    private func performCookieRefresh() async throws -> Bool {
-        print("[MiNoteService] 🔄 执行实际的Cookie刷新逻辑（使用静默WebView）")
-
-        // 使用 SilentCookieRefreshManager 进行静默刷新
-        // 复用 CookieRefreshWebView 的自动点击登录按钮逻辑
         do {
-            let success = try await SilentCookieRefreshManager.shared.refresh()
-            if success {
-                print("[MiNoteService] ✅ 静默Cookie刷新成功")
-                return true
-            } else {
-                print("[MiNoteService] ⚠️ 静默Cookie刷新返回false")
-                return false
-            }
+            let _ = try await PassTokenManager.shared.refreshServiceToken()
+            print("[[调试]] [MiNoteService] Cookie刷新成功")
+            return true
         } catch {
-            print("[MiNoteService] ❌ 静默Cookie刷新失败: \(error)")
-            NetworkLogger.shared.logError(url: "silent-cookie-refresh", method: "POST", error: error)
-            return false
+            print("[[调试]] [MiNoteService] Cookie刷新失败: \(error)")
+            throw error
         }
     }
 

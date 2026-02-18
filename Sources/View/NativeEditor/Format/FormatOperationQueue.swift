@@ -36,10 +36,10 @@ struct FormatOperation: Identifiable, Equatable {
         range: NSRange,
         priority: OperationPriority = .normal
     ) {
-        id = UUID()
+        self.id = UUID()
         self.format = format
         self.range = range
-        timestamp = Date()
+        self.timestamp = Date()
         self.priority = priority
     }
 

@@ -81,12 +81,12 @@ public actor OperationProcessor {
     /// 私有初始化方法（单例模式）
     @MainActor
     private init() {
-        operationQueue = UnifiedOperationQueue.shared
-        miNoteService = MiNoteService.shared
-        localStorage = LocalStorageService.shared
-        databaseService = DatabaseService.shared
-        networkMonitor = NetworkMonitor.shared
-        syncStateManager = SyncStateManager.createDefault()
+        self.operationQueue = UnifiedOperationQueue.shared
+        self.miNoteService = MiNoteService.shared
+        self.localStorage = LocalStorageService.shared
+        self.databaseService = DatabaseService.shared
+        self.networkMonitor = NetworkMonitor.shared
+        self.syncStateManager = SyncStateManager.createDefault()
     }
 
     /// 用于测试的初始化方法

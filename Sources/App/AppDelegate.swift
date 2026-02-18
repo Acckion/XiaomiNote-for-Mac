@@ -33,13 +33,13 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         let windowManager = WindowManager.shared
 
         // 初始化菜单管理器（暂时使用 nil，稍后更新）
-        menuManager = MenuManager(appDelegate: nil, mainWindowController: windowManager.mainWindowController)
+        self.menuManager = MenuManager(appDelegate: nil, mainWindowController: windowManager.mainWindowController)
 
         // 初始化应用程序状态管理器
-        appStateManager = AppStateManager(windowManager: windowManager, menuManager: menuManager)
+        self.appStateManager = AppStateManager(windowManager: windowManager, menuManager: menuManager)
 
         // 初始化菜单动作处理器
-        menuActionHandler = MenuActionHandler(mainWindowController: windowManager.mainWindowController, windowManager: windowManager)
+        self.menuActionHandler = MenuActionHandler(mainWindowController: windowManager.mainWindowController, windowManager: windowManager)
 
         // 然后调用 super.init()
         super.init()
@@ -356,10 +356,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
 
     @objc func showLogin(_ sender: Any?) {
         menuActionHandler.showLogin(sender)
-    }
-
-    @objc func showCookieRefresh(_ sender: Any?) {
-        menuActionHandler.showCookieRefresh(sender)
     }
 
     @objc func showOfflineOperations(_ sender: Any?) {

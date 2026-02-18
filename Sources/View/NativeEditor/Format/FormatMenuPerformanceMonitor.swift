@@ -133,7 +133,7 @@ struct FormatMenuPerformanceMeasurer {
         self.operation = operation
         self.format = format
         self.type = type
-        startTime = CFAbsoluteTimeGetCurrent()
+        self.startTime = CFAbsoluteTimeGetCurrent()
     }
 
     /// 结束测量并记录

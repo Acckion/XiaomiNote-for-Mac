@@ -490,16 +490,13 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
 
     /// 检查是否应该跳过本次检查
     ///
-    /// 当 Cookie 刷新正在进行时，跳过定时检查以避免冲突
+    /// 当 PassToken 刷新正在进行时或任务被暂停时，跳过定时检查以避免冲突
     /// - Returns: 如果应该跳过返回 true，否则返回 false
     private func shouldSkipCheck() async -> Bool {
-        // 检查 SilentCookieRefreshManager 是否正在刷新
-        let isRefreshing = await MainActor.run {
-            SilentCookieRefreshManager.shared.isRefreshing
-        }
-
-        if isRefreshing {
-            print("[CookieValidityCheckTask] ⏭️ Cookie 刷新正在进行中，跳过本次检查")
+        // 检查 PassTokenManager 是否有存储的 passToken
+        let hasPassToken = await PassTokenManager.shared.hasStoredPassToken()
+        if !hasPassToken {
+            print("[CookieValidityCheckTask] 未存储 passToken，跳过本次检查")
             return true
         }
 
@@ -509,7 +506,7 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
         }
 
         if isPaused {
-            print("[CookieValidityCheckTask] ⏭️ 任务已暂停，跳过本次检查")
+            print("[CookieValidityCheckTask] 任务已暂停，跳过本次检查")
             return true
         }
 
@@ -534,7 +531,7 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
     func execute() async -> TaskResult {
         // 检查是否应该跳过本次检查
         if await shouldSkipCheck() {
-            print("[CookieValidityCheckTask] 🔄 刷新进行中，跳过检查并返回成功")
+            print("[CookieValidityCheckTask] 刷新进行中，跳过检查并返回成功")
             return TaskResult(
                 taskId: id,
                 success: true,
@@ -559,7 +556,7 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
 
             // 如果 Cookie 无效，立即触发静默刷新
             if !isValid {
-                print("[CookieValidityCheckTask] ⚠️ Cookie 无效，立即触发静默刷新")
+                print("[CookieValidityCheckTask] Cookie 无效，触发 PassToken 刷新")
                 await triggerSilentRefresh()
             }
 
@@ -579,7 +576,7 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
             print("[CookieValidityCheckTask] Cookie有效性检查失败: \(error)")
 
             // Cookie 检查失败，立即触发静默刷新
-            print("[CookieValidityCheckTask] ⚠️ Cookie 检查失败，立即触发静默刷新")
+            print("[CookieValidityCheckTask] Cookie 检查失败，触发 PassToken 刷新")
             await triggerSilentRefresh()
 
             return TaskResult(
@@ -593,43 +590,29 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
 
     /// 触发静默刷新
     ///
-    /// 当 Cookie 有效性检查失败时，立即触发静默刷新
+    /// 当 Cookie 有效性检查失败时，通过 PassTokenManager 刷新 serviceToken
     private func triggerSilentRefresh() async {
         do {
-            print("[CookieValidityCheckTask] 🔄 开始静默刷新 Cookie（响应式刷新）")
+            print("[CookieValidityCheckTask] 开始通过 PassToken 刷新 serviceToken")
 
-            // 使用响应式刷新类型，忽略冷却期
-            let refreshSuccess = try await SilentCookieRefreshManager.shared.refresh(type: .reactive)
+            try await PassTokenManager.shared.refreshServiceToken()
 
-            if refreshSuccess {
-                print("[CookieValidityCheckTask] ✅ 静默刷新成功")
+            print("[CookieValidityCheckTask] PassToken 刷新成功")
 
-                // 更新 Cookie 有效性状态
-                await MainActor.run {
-                    self.isCookieValid = true
-                    self.lastCheckResult = true
-                }
+            // 更新 Cookie 有效性状态
+            await MainActor.run {
+                self.isCookieValid = true
+                self.lastCheckResult = true
+            }
 
-                // 通知 ScheduledTaskManager 更新状态
-                await MainActor.run {
-                    ScheduledTaskManager.shared.setCookieValid(true)
-                }
-            } else {
-                print("[CookieValidityCheckTask] ❌ 静默刷新失败")
-
-                // 发送通知，告知用户需要手动登录
-                await MainActor.run {
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("CookieRefreshFailed"),
-                        object: nil,
-                        userInfo: ["reason": "静默刷新失败，请手动登录"]
-                    )
-                }
+            // 通知 ScheduledTaskManager 更新状态
+            await MainActor.run {
+                ScheduledTaskManager.shared.setCookieValid(true)
             }
         } catch {
-            print("[CookieValidityCheckTask] ❌ 静默刷新异常: \(error.localizedDescription)")
+            print("[CookieValidityCheckTask] PassToken 刷新失败: \(error.localizedDescription)")
 
-            // 发送通知，告知用户需要手动登录
+            // 发送通知，告知用户需要重新登录
             await MainActor.run {
                 NotificationCenter.default.post(
                     name: NSNotification.Name("CookieRefreshFailed"),

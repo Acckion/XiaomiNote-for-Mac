@@ -13,7 +13,7 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
 
     init() {
         let cachesDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        cacheDirectory = cachesDirectory.appendingPathComponent("com.minote.cache")
+        self.cacheDirectory = cachesDirectory.appendingPathComponent("com.minote.cache")
 
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
 
@@ -308,8 +308,8 @@ private class CacheEntryWrapper: NSObject, Codable {
 
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        value = try container.decode(AnyCodableValue.self, forKey: .value)
-        expirationDate = try container.decode(Date.self, forKey: .expirationDate)
+        self.value = try container.decode(AnyCodableValue.self, forKey: .value)
+        self.expirationDate = try container.decode(Date.self, forKey: .expirationDate)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -330,15 +330,15 @@ private struct AnyCodableValue: Codable {
         let container = try decoder.singleValueContainer()
 
         if let intValue = try? container.decode(Int.self) {
-            value = intValue
+            self.value = intValue
         } else if let doubleValue = try? container.decode(Double.self) {
-            value = doubleValue
+            self.value = doubleValue
         } else if let stringValue = try? container.decode(String.self) {
-            value = stringValue
+            self.value = stringValue
         } else if let boolValue = try? container.decode(Bool.self) {
-            value = boolValue
+            self.value = boolValue
         } else if let dataValue = try? container.decode(Data.self) {
-            value = dataValue
+            self.value = dataValue
         } else {
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported type")
         }

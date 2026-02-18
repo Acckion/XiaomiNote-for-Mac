@@ -51,7 +51,6 @@ final class AuthenticationViewModelTests: XCTestCase {
         XCTAssertFalse(sut.isLoggedIn)
         XCTAssertNil(sut.userProfile)
         XCTAssertFalse(sut.showLoginView)
-        XCTAssertFalse(sut.showCookieRefreshView)
         XCTAssertFalse(sut.isCookieExpired)
         XCTAssertFalse(sut.isPrivateNotesUnlocked)
         XCTAssertFalse(sut.isLoading)
@@ -185,7 +184,6 @@ final class AuthenticationViewModelTests: XCTestCase {
 
         // Then
         XCTAssertFalse(sut.isCookieExpired)
-        XCTAssertFalse(sut.showCookieRefreshView)
         XCTAssertNil(sut.errorMessage)
         XCTAssertEqual(mockAuthService.refreshAccessTokenCallCount, 1)
     }
@@ -199,7 +197,6 @@ final class AuthenticationViewModelTests: XCTestCase {
 
         // Then
         XCTAssertTrue(sut.isCookieExpired)
-        XCTAssertTrue(sut.showCookieRefreshView)
         XCTAssertNotNil(sut.errorMessage)
         XCTAssertTrue(sut.errorMessage?.contains("Cookie 刷新失败") ?? false)
     }
