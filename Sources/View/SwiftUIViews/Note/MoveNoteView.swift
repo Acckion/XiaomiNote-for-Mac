@@ -5,18 +5,18 @@ struct MoveNoteSheetView: View {
     let note: Note
     @ObservedObject var viewModel: NotesViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedFolderId: String = ""
-    
+    @State private var selectedFolderId = ""
+
     var body: some View {
         VStack(spacing: 20) {
             Text("移动笔记")
                 .font(.headline)
                 .padding(.top)
-            
+
             Text("选择目标文件夹")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-            
+
             List(selection: $selectedFolderId) {
                 // 所有笔记
                 if let allNotesFolder = viewModel.folders.first(where: { $0.id == "0" }) {
@@ -29,7 +29,7 @@ struct MoveNoteSheetView: View {
                     }
                     .tag(allNotesFolder.id)
                 }
-                
+
                 // 未分类
                 HStack {
                     Image(systemName: "folder.badge.questionmark")
@@ -39,14 +39,14 @@ struct MoveNoteSheetView: View {
                     Spacer()
                 }
                 .tag(viewModel.uncategorizedFolder.id)
-                
+
                 // 其他文件夹
                 ForEach(viewModel.folders.filter { folder in
-                    !folder.isSystem && 
-                    folder.id != "0" && 
-                    folder.id != "starred" && 
-                    folder.id != "uncategorized" &&
-                    folder.id != "new"
+                    !folder.isSystem &&
+                        folder.id != "0" &&
+                        folder.id != "starred" &&
+                        folder.id != "uncategorized" &&
+                        folder.id != "new"
                 }.sorted { $0.name < $1.name }) { folder in
                     HStack {
                         Image(systemName: folder.isPinned ? "pin.fill" : "folder")
@@ -60,13 +60,13 @@ struct MoveNoteSheetView: View {
             }
             .listStyle(.sidebar)
             .frame(width: 300, height: 300)
-            
+
             HStack(spacing: 12) {
                 Button("取消") {
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
-                
+
                 Button("移动") {
                     moveNote()
                 }
@@ -81,7 +81,7 @@ struct MoveNoteSheetView: View {
             selectedFolderId = note.folderId.isEmpty ? "0" : note.folderId
         }
     }
-    
+
     private func moveNote() {
         Task {
             do {

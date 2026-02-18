@@ -19,25 +19,25 @@ import Foundation
 public struct TitleExtractionResult {
     /// 提取的标题文本
     public let title: String
-    
+
     /// 标题来源
     public let source: TitleSource
-    
+
     /// 是否有效
     public let isValid: Bool
-    
+
     /// 提取时间
     public let extractionTime: Date
-    
+
     /// 原始内容长度
     public let originalLength: Int
-    
+
     /// 处理后长度
     public let processedLength: Int
-    
+
     /// 错误信息（如果有）
     public let error: String?
-    
+
     /// 初始化方法
     public init(
         title: String,
@@ -64,28 +64,28 @@ public struct TitleExtractionResult {
 /// _需求: 6.1_ - 记录标题的来源以便调试和追踪
 public enum TitleSource: String, CaseIterable {
     /// 来自 XML 内容
-    case xml = "xml"
-    
+    case xml
+
     /// 来自原生编辑器
-    case nativeEditor = "nativeEditor"
-    
+    case nativeEditor
+
     /// 来自用户输入
-    case userInput = "userInput"
-    
+    case userInput
+
     /// 来自缓存
-    case cache = "cache"
-    
+    case cache
+
     /// 显示名称
     public var displayName: String {
         switch self {
         case .xml:
-            return "XML 内容"
+            "XML 内容"
         case .nativeEditor:
-            return "原生编辑器"
+            "原生编辑器"
         case .userInput:
-            return "用户输入"
+            "用户输入"
         case .cache:
-            return "缓存"
+            "缓存"
         }
     }
 }
@@ -97,48 +97,48 @@ public enum TitleSource: String, CaseIterable {
 /// _需求: 6.2_ - 记录保存流程的执行状态
 public enum SavePipelineState: String, CaseIterable {
     /// 未开始
-    case notStarted = "notStarted"
-    
+    case notStarted
+
     /// 准备中
-    case preparing = "preparing"
-    
+    case preparing
+
     /// 执行中
-    case executing = "executing"
-    
+    case executing
+
     /// 已完成
-    case completed = "completed"
-    
+    case completed
+
     /// 已失败
-    case failed = "failed"
-    
+    case failed
+
     /// 已取消
-    case cancelled = "cancelled"
-    
+    case cancelled
+
     /// 显示名称
     public var displayName: String {
         switch self {
         case .notStarted:
-            return "未开始"
+            "未开始"
         case .preparing:
-            return "准备中"
+            "准备中"
         case .executing:
-            return "执行中"
+            "执行中"
         case .completed:
-            return "已完成"
+            "已完成"
         case .failed:
-            return "已失败"
+            "已失败"
         case .cancelled:
-            return "已取消"
+            "已取消"
         }
     }
-    
+
     /// 是否为终止状态
     public var isTerminal: Bool {
         switch self {
         case .completed, .failed, .cancelled:
-            return true
+            true
         case .notStarted, .preparing, .executing:
-            return false
+            false
         }
     }
 }
@@ -150,62 +150,62 @@ public enum SavePipelineState: String, CaseIterable {
 /// _需求: 6.2_ - 记录保存流程的详细步骤
 public enum SaveStep: String, CaseIterable, Sendable {
     /// 开始保存
-    case startSave = "startSave"
-    
+    case startSave
+
     /// 提取标题
-    case extractTitle = "extractTitle"
-    
+    case extractTitle
+
     /// 验证标题
-    case validateTitle = "validateTitle"
-    
+    case validateTitle
+
     /// 移除标题标签
-    case removeTitleTag = "removeTitleTag"
-    
+    case removeTitleTag
+
     /// 构建笔记对象
-    case buildNote = "buildNote"
-    
+    case buildNote
+
     /// 调用 API
-    case callAPI = "callAPI"
-    
+    case callAPI
+
     /// 更新状态
-    case updateState = "updateState"
-    
+    case updateState
+
     /// 完成保存
-    case completeSave = "completeSave"
-    
+    case completeSave
+
     /// 显示名称
     public var displayName: String {
         switch self {
         case .startSave:
-            return "开始保存"
+            "开始保存"
         case .extractTitle:
-            return "提取标题"
+            "提取标题"
         case .validateTitle:
-            return "验证标题"
+            "验证标题"
         case .removeTitleTag:
-            return "移除标题标签"
+            "移除标题标签"
         case .buildNote:
-            return "构建笔记对象"
+            "构建笔记对象"
         case .callAPI:
-            return "调用 API"
+            "调用 API"
         case .updateState:
-            return "更新状态"
+            "更新状态"
         case .completeSave:
-            return "完成保存"
+            "完成保存"
         }
     }
-    
+
     /// 步骤顺序（用于排序和验证）
     public var order: Int {
         switch self {
-        case .startSave: return 1
-        case .extractTitle: return 2
-        case .validateTitle: return 3
-        case .removeTitleTag: return 4
-        case .buildNote: return 5
-        case .callAPI: return 6
-        case .updateState: return 7
-        case .completeSave: return 8
+        case .startSave: 1
+        case .extractTitle: 2
+        case .validateTitle: 3
+        case .removeTitleTag: 4
+        case .buildNote: 5
+        case .callAPI: 6
+        case .updateState: 7
+        case .completeSave: 8
         }
     }
 }
@@ -214,12 +214,12 @@ public enum SaveStep: String, CaseIterable, Sendable {
 
 extension TitleExtractionResult: Equatable {
     public static func == (lhs: TitleExtractionResult, rhs: TitleExtractionResult) -> Bool {
-        return lhs.title == rhs.title &&
-               lhs.source == rhs.source &&
-               lhs.isValid == rhs.isValid &&
-               lhs.originalLength == rhs.originalLength &&
-               lhs.processedLength == rhs.processedLength &&
-               lhs.error == rhs.error
+        lhs.title == rhs.title &&
+            lhs.source == rhs.source &&
+            lhs.isValid == rhs.isValid &&
+            lhs.originalLength == rhs.originalLength &&
+            lhs.processedLength == rhs.processedLength &&
+            lhs.error == rhs.error
     }
 }
 
@@ -246,12 +246,12 @@ extension TitleExtractionResult: CustomStringConvertible {
 
 extension SavePipelineState: CustomStringConvertible {
     public var description: String {
-        return displayName
+        displayName
     }
 }
 
 extension SaveStep: CustomStringConvertible {
     public var description: String {
-        return displayName
+        displayName
     }
 }

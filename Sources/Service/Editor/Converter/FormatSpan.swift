@@ -25,14 +25,14 @@ import Foundation
 public struct FormatSpan: Equatable, Sendable {
     /// 文本内容
     public var text: String
-    
+
     /// 格式类型集合
     /// 包含应用于此文本的所有行内格式
     public var formats: Set<ASTNodeType>
-    
+
     /// 高亮颜色值（仅当 formats 包含 .highlight 时有效）
     public var highlightColor: String?
-    
+
     /// 创建格式跨度
     /// - Parameters:
     ///   - text: 文本内容
@@ -43,7 +43,7 @@ public struct FormatSpan: Equatable, Sendable {
         self.formats = formats
         self.highlightColor = highlightColor
     }
-    
+
     /// 检查两个跨度是否可以合并（格式完全相同）
     ///
     /// 合并条件：
@@ -53,9 +53,9 @@ public struct FormatSpan: Equatable, Sendable {
     /// - Parameter other: 另一个格式跨度
     /// - Returns: 是否可以合并
     public func canMerge(with other: FormatSpan) -> Bool {
-        return formats == other.formats && highlightColor == other.highlightColor
+        formats == other.formats && highlightColor == other.highlightColor
     }
-    
+
     /// 合并两个跨度
     ///
     /// 将两个格式相同的跨度合并为一个，文本内容拼接
@@ -64,53 +64,53 @@ public struct FormatSpan: Equatable, Sendable {
     /// - Returns: 合并后的格式跨度
     /// - Note: 调用前应先使用 `canMerge(with:)` 检查是否可以合并
     public func merged(with other: FormatSpan) -> FormatSpan {
-        return FormatSpan(
+        FormatSpan(
             text: text + other.text,
             formats: formats,
             highlightColor: highlightColor
         )
     }
-    
+
     /// 是否为空跨度（没有文本内容）
     public var isEmpty: Bool {
         text.isEmpty
     }
-    
+
     /// 是否为纯文本（没有任何格式）
     public var isPlainText: Bool {
         formats.isEmpty
     }
-    
+
     /// 是否包含粗体格式
     public var isBold: Bool {
         formats.contains(.bold)
     }
-    
+
     /// 是否包含斜体格式
     public var isItalic: Bool {
         formats.contains(.italic)
     }
-    
+
     /// 是否包含下划线格式
     public var isUnderline: Bool {
         formats.contains(.underline)
     }
-    
+
     /// 是否包含删除线格式
     public var isStrikethrough: Bool {
         formats.contains(.strikethrough)
     }
-    
+
     /// 是否包含高亮格式
     public var isHighlight: Bool {
         formats.contains(.highlight)
     }
-    
+
     /// 是否包含标题格式（任意级别）
     public var isHeading: Bool {
         formats.contains(.heading1) || formats.contains(.heading2) || formats.contains(.heading3)
     }
-    
+
     /// 是否包含对齐格式（居中或右对齐）
     public var isAligned: Bool {
         formats.contains(.centerAlign) || formats.contains(.rightAlign)
@@ -119,39 +119,39 @@ public struct FormatSpan: Equatable, Sendable {
 
 // MARK: - 便捷构造方法
 
-extension FormatSpan {
+public extension FormatSpan {
     /// 创建纯文本跨度
-    public static func plain(_ text: String) -> FormatSpan {
+    static func plain(_ text: String) -> FormatSpan {
         FormatSpan(text: text)
     }
-    
+
     /// 创建粗体跨度
-    public static func bold(_ text: String) -> FormatSpan {
+    static func bold(_ text: String) -> FormatSpan {
         FormatSpan(text: text, formats: [.bold])
     }
-    
+
     /// 创建斜体跨度
-    public static func italic(_ text: String) -> FormatSpan {
+    static func italic(_ text: String) -> FormatSpan {
         FormatSpan(text: text, formats: [.italic])
     }
-    
+
     /// 创建下划线跨度
-    public static func underline(_ text: String) -> FormatSpan {
+    static func underline(_ text: String) -> FormatSpan {
         FormatSpan(text: text, formats: [.underline])
     }
-    
+
     /// 创建删除线跨度
-    public static func strikethrough(_ text: String) -> FormatSpan {
+    static func strikethrough(_ text: String) -> FormatSpan {
         FormatSpan(text: text, formats: [.strikethrough])
     }
-    
+
     /// 创建高亮跨度
-    public static func highlight(_ text: String, color: String) -> FormatSpan {
+    static func highlight(_ text: String, color: String) -> FormatSpan {
         FormatSpan(text: text, formats: [.highlight], highlightColor: color)
     }
-    
+
     /// 创建粗斜体跨度
-    public static func boldItalic(_ text: String) -> FormatSpan {
+    static func boldItalic(_ text: String) -> FormatSpan {
         FormatSpan(text: text, formats: [.bold, .italic])
     }
 }
@@ -160,7 +160,7 @@ extension FormatSpan {
 
 extension FormatSpan: CustomStringConvertible {
     public var description: String {
-        let formatNames = formats.map { $0.rawValue }.sorted().joined(separator: ", ")
+        let formatNames = formats.map(\.rawValue).sorted().joined(separator: ", ")
         let colorInfo = highlightColor.map { " color=\($0)" } ?? ""
         return "FormatSpan(\"\(text)\", formats: [\(formatNames)]\(colorInfo))"
     }

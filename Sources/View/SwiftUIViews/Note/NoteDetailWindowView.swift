@@ -1,19 +1,26 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 /// 笔记详情窗口视图（用于在新窗口打开笔记）
+///
+/// **已废弃**: 此视图已被新的多窗口架构替代。
+/// 现在应该使用 `AppDelegate.createNewWindow(withNote:)` 来创建新窗口。
+///
+/// 保留此文件仅用于向后兼容，但不应在新代码中使用。
+@available(*, deprecated, message: "使用 AppDelegate.createNewWindow(withNote:) 替代")
 public struct NoteDetailWindowView: View {
     @StateObject private var viewModel = NotesViewModel()
     @State private var noteId: String?
     @State private var showingPasswordDialog = false
     @State private var noteToOpen: Note?
-    
+
     public init() {}
-    
+
     public var body: some View {
         Group {
-            if let noteId = noteId,
-               let note = viewModel.notes.first(where: { $0.id == noteId }) {
+            if let noteId,
+               let note = viewModel.notes.first(where: { $0.id == noteId })
+            {
                 // 使用 ContentView 来显示笔记详情
                 ContentView(viewModel: viewModel)
                     .onAppear {
@@ -46,8 +53,8 @@ public struct NoteDetailWindowView: View {
                             viewModel.selectedFolder = viewModel.folders.first { $0.id == note.folderId } ?? viewModel.folders.first { $0.id == "0" }
                         } else {
                             // 未解锁，清空笔记ID
-                            self.noteId = nil
-                            self.noteToOpen = nil
+                            noteId = nil
+                            noteToOpen = nil
                         }
                     }
             }
@@ -56,15 +63,16 @@ public struct NoteDetailWindowView: View {
             if let noteId = notification.object as? String {
                 self.noteId = noteId
             } else if let userInfo = notification.userInfo,
-                      let note = userInfo["note"] as? Note {
-                self.noteId = note.id
+                      let note = userInfo["note"] as? Note
+            {
+                noteId = note.id
             }
         }
     }
-    
+
     private func handlePrivateNoteAccess(note: Note) {
         let passwordManager = PrivateNotesPasswordManager.shared
-        
+
         if passwordManager.hasPassword() {
             // 已设置密码，需要验证
             noteToOpen = note

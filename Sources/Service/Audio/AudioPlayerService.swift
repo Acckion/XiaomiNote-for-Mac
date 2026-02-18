@@ -1,6 +1,6 @@
-import Foundation
 import AVFoundation
 import Combine
+import Foundation
 
 /// 音频播放服务
 ///
@@ -9,122 +9,121 @@ import Combine
 /// - 进度跳转
 /// - 播放状态管理
 /// - 播放完成通知
-/// 
+///
 final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable {
-    
+
     // MARK: - 单例
-    
+
     static let shared = AudioPlayerService()
-    
+
     // MARK: - 发布属性（用于 SwiftUI 绑定）
-    
+
     /// 当前播放的音频 URL
     @Published private(set) var currentURL: URL?
-    
+
     /// 当前播放的文件 ID
     @Published private(set) var currentFileId: String?
-    
+
     /// 是否正在播放
-    @Published private(set) var isPlaying: Bool = false
-    
+    @Published private(set) var isPlaying = false
+
     /// 是否正在加载
-    @Published private(set) var isLoading: Bool = false
-    
+    @Published private(set) var isLoading = false
+
     /// 当前播放时间（秒）
     @Published private(set) var currentTime: TimeInterval = 0
-    
+
     /// 总时长（秒）
     @Published private(set) var duration: TimeInterval = 0
-    
+
     /// 播放错误信息
     @Published private(set) var errorMessage: String?
-    
+
     /// 播放进度（0.0 - 1.0）
     var progress: Double {
         guard duration > 0 else { return 0 }
         return currentTime / duration
     }
-    
+
     // MARK: - 播放状态枚举
-    
+
     /// 播放状态
     enum PlaybackState: Equatable {
-        case idle           // 空闲
-        case loading        // 加载中
-        case playing        // 播放中
-        case paused         // 暂停
-        case error(String)  // 错误
-        
+        case idle // 空闲
+        case loading // 加载中
+        case playing // 播放中
+        case paused // 暂停
+        case error(String) // 错误
+
         static func == (lhs: PlaybackState, rhs: PlaybackState) -> Bool {
             switch (lhs, rhs) {
             case (.idle, .idle), (.loading, .loading), (.playing, .playing), (.paused, .paused):
-                return true
-            case (.error(let lhsMsg), .error(let rhsMsg)):
-                return lhsMsg == rhsMsg
+                true
+            case let (.error(lhsMsg), .error(rhsMsg)):
+                lhsMsg == rhsMsg
             default:
-                return false
+                false
             }
         }
     }
-    
+
     /// 当前播放状态
     @Published private(set) var playbackState: PlaybackState = .idle
-    
+
     // MARK: - 私有属性
-    
+
     /// 音频播放器
     private var audioPlayer: AVAudioPlayer?
-    
+
     /// 进度更新定时器
     private var progressTimer: Timer?
-    
+
     /// 进度更新间隔（秒）
     private let progressUpdateInterval: TimeInterval = 0.1
-    
+
     /// 状态访问锁
     private let stateLock = NSLock()
-    
+
     // MARK: - 通知名称
-    
+
     /// 播放状态变化通知
     static let playbackStateDidChangeNotification = Notification.Name("AudioPlayerService.playbackStateDidChange")
-    
+
     /// 播放进度变化通知
     static let playbackProgressDidChangeNotification = Notification.Name("AudioPlayerService.playbackProgressDidChange")
-    
+
     /// 播放完成通知
     static let playbackDidFinishNotification = Notification.Name("AudioPlayerService.playbackDidFinish")
-    
+
     /// 播放错误通知
     static let playbackErrorNotification = Notification.Name("AudioPlayerService.playbackError")
-    
+
     // MARK: - 初始化
-    
-    private override init() {
+
+    override private init() {
         super.init()
         print("[AudioPlayer] 初始化完成")
     }
-    
+
     deinit {
         stopProgressTimer()
         audioPlayer?.stop()
     }
 
-    
     // MARK: - 播放控制方法
-    
+
     /// 播放音频文件
     ///
     /// - Parameter url: 音频文件 URL
-    /// - Throws: 播放失败时抛出错误 
+    /// - Throws: 播放失败时抛出错误
     func play(url: URL) throws {
         stateLock.lock()
         defer { stateLock.unlock() }
-        
+
         print("[AudioPlayer] 开始播放: \(url.lastPathComponent)")
-        
+
         // 如果正在播放同一个文件，继续播放
-        if let currentURL = currentURL, currentURL == url, let player = audioPlayer {
+        if let currentURL, currentURL == url, let player = audioPlayer {
             if !player.isPlaying {
                 let success = player.play()
                 if success {
@@ -139,27 +138,27 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
             }
             return
         }
-        
+
         // 停止当前播放
         stopInternal()
-        
+
         // 创建新的播放器
         do {
             audioPlayer = try AVAudioPlayer(contentsOf: url)
             audioPlayer?.delegate = self
             audioPlayer?.prepareToPlay()
-            
+
             // 设置音量为最大
             audioPlayer?.volume = 1.0
-            
+
             // 更新状态
-            self.currentURL = url
-            self.duration = audioPlayer?.duration ?? 0
-            self.currentTime = 0
-            self.errorMessage = nil
-            
+            currentURL = url
+            duration = audioPlayer?.duration ?? 0
+            currentTime = 0
+            errorMessage = nil
+
             print("[AudioPlayer] 播放器创建成功，时长: \(formatTime(duration))，音量: \(audioPlayer?.volume ?? 0)")
-            
+
             // 开始播放
             let playSuccess = audioPlayer?.play() ?? false
             if playSuccess {
@@ -172,7 +171,6 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
                 updateState(.error(errorMsg))
                 throw NSError(domain: "AudioPlayerService", code: -1, userInfo: [NSLocalizedDescriptionKey: errorMsg])
             }
-            
         } catch {
             let errorMsg = "播放失败: \(error.localizedDescription)"
             print("[AudioPlayer] ❌ \(errorMsg)")
@@ -180,7 +178,7 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
             throw error
         }
     }
-    
+
     /// 播放音频文件（带文件 ID）
     ///
     /// - Parameters:
@@ -188,83 +186,83 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
     ///   - fileId: 文件 ID
     /// - Throws: 播放失败时抛出错误
     func play(url: URL, fileId: String) throws {
-        self.currentFileId = fileId
+        currentFileId = fileId
         try play(url: url)
     }
-    
+
     /// 暂停播放
-    /// 
+    ///
     func pause() {
         stateLock.lock()
         defer { stateLock.unlock() }
-        
+
         guard let player = audioPlayer, player.isPlaying else {
             print("[AudioPlayer] 无法暂停：没有正在播放的音频")
             return
         }
-        
+
         player.pause()
         stopProgressTimer()
         updateState(.paused)
-        
+
         print("[AudioPlayer] 暂停播放，当前位置: \(formatTime(currentTime))")
     }
-    
+
     /// 停止播放
-    /// 
+    ///
     func stop() {
         stateLock.lock()
         defer { stateLock.unlock() }
-        
+
         stopInternal()
-        
+
         // 打印调用栈以帮助调试
         let callStack = Thread.callStackSymbols.prefix(5).joined(separator: "\n")
         print("[AudioPlayer] 停止播放，调用栈:\n\(callStack)")
     }
-    
+
     /// 内部停止方法（不加锁）
     private func stopInternal() {
         stopProgressTimer()
-        
+
         audioPlayer?.stop()
         audioPlayer = nil
-        
+
         // 重置状态
         currentURL = nil
         currentFileId = nil
         currentTime = 0
         duration = 0
         errorMessage = nil
-        
+
         updateStateInternal(.idle)
     }
-    
+
     /// 跳转到指定位置
     ///
-    /// - Parameter progress: 进度值（0.0 - 1.0） 
+    /// - Parameter progress: 进度值（0.0 - 1.0）
     func seek(to progress: Double) {
         stateLock.lock()
         defer { stateLock.unlock() }
-        
+
         guard let player = audioPlayer else {
             print("[AudioPlayer] 无法跳转：没有加载的音频")
             return
         }
-        
+
         // 限制进度范围
         let clampedProgress = max(0, min(1, progress))
         let targetTime = duration * clampedProgress
-        
+
         player.currentTime = targetTime
-        self.currentTime = targetTime
-        
+        currentTime = targetTime
+
         print("[AudioPlayer] 跳转到: \(formatTime(targetTime)) (\(Int(clampedProgress * 100))%)")
-        
+
         // 发送进度变化通知
         postProgressNotification()
     }
-    
+
     /// 跳转到指定时间
     ///
     /// - Parameter time: 目标时间（秒）
@@ -273,7 +271,7 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
         let progress = time / duration
         seek(to: progress)
     }
-    
+
     /// 快进指定秒数
     ///
     /// - Parameter seconds: 快进秒数
@@ -282,7 +280,7 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
         let newProgress = min(1, (currentTime + seconds) / duration)
         seek(to: newProgress)
     }
-    
+
     /// 快退指定秒数
     ///
     /// - Parameter seconds: 快退秒数
@@ -291,7 +289,7 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
         let newProgress = max(0, (currentTime - seconds) / duration)
         seek(to: newProgress)
     }
-    
+
     /// 切换播放/暂停状态
     func togglePlayPause() {
         if isPlaying {
@@ -301,19 +299,18 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
         }
     }
 
-    
     // MARK: - 播放状态管理
-    
+
     /// 更新播放状态（加锁版本）
     private func updateState(_ newState: PlaybackState) {
         updateStateInternal(newState)
     }
-    
+
     /// 更新播放状态（内部版本，不加锁）
     private func updateStateInternal(_ newState: PlaybackState) {
         let oldState = playbackState
         playbackState = newState
-        
+
         // 更新相关属性
         switch newState {
         case .idle:
@@ -332,55 +329,55 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
             isPlaying = false
             isLoading = false
             errorMessage = nil
-        case .error(let message):
+        case let .error(message):
             isPlaying = false
             isLoading = false
             errorMessage = message
         }
-        
+
         // 发送状态变化通知
         if oldState != newState {
             postStateNotification(oldState: oldState, newState: newState)
         }
     }
-    
+
     // MARK: - 进度定时器
-    
+
     /// 启动进度更新定时器
     private func startProgressTimer() {
         stopProgressTimer()
-        
+
         progressTimer = Timer.scheduledTimer(withTimeInterval: progressUpdateInterval, repeats: true) { [weak self] _ in
             self?.updateProgress()
         }
-        
+
         // 确保定时器在 RunLoop 中运行
         if let timer = progressTimer {
             RunLoop.main.add(timer, forMode: .common)
         }
     }
-    
+
     /// 停止进度更新定时器
     private func stopProgressTimer() {
         progressTimer?.invalidate()
         progressTimer = nil
     }
-    
+
     /// 更新播放进度
     private func updateProgress() {
         guard let player = audioPlayer else { return }
-        
+
         let newTime = player.currentTime
-        
+
         // 只有当时间变化时才更新
         if abs(newTime - currentTime) > 0.01 {
             currentTime = newTime
             postProgressNotification()
         }
     }
-    
+
     // MARK: - 通知发送
-    
+
     /// 发送状态变化通知
     private func postStateNotification(oldState: PlaybackState, newState: PlaybackState) {
         DispatchQueue.main.async {
@@ -390,12 +387,12 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
                 userInfo: [
                     "oldState": oldState,
                     "newState": newState,
-                    "fileId": self.currentFileId as Any
+                    "fileId": self.currentFileId as Any,
                 ]
             )
         }
     }
-    
+
     /// 发送进度变化通知
     private func postProgressNotification() {
         DispatchQueue.main.async {
@@ -406,12 +403,12 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
                     "currentTime": self.currentTime,
                     "duration": self.duration,
                     "progress": self.progress,
-                    "fileId": self.currentFileId as Any
+                    "fileId": self.currentFileId as Any,
                 ]
             )
         }
     }
-    
+
     /// 发送播放完成通知
     private func postFinishNotification() {
         DispatchQueue.main.async {
@@ -419,12 +416,12 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
                 name: Self.playbackDidFinishNotification,
                 object: self,
                 userInfo: [
-                    "fileId": self.currentFileId as Any
+                    "fileId": self.currentFileId as Any,
                 ]
             )
         }
     }
-    
+
     /// 发送播放错误通知
     private func postErrorNotification(_ error: String) {
         DispatchQueue.main.async {
@@ -433,15 +430,14 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
                 object: self,
                 userInfo: [
                     "error": error,
-                    "fileId": self.currentFileId as Any
+                    "fileId": self.currentFileId as Any,
                 ]
             )
         }
     }
 
-    
     // MARK: - 辅助方法
-    
+
     /// 获取音频文件时长
     ///
     /// - Parameter url: 音频文件 URL
@@ -455,23 +451,23 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
             return nil
         }
     }
-    
+
     /// 检查是否正在播放指定文件
     ///
     /// - Parameter fileId: 文件 ID
     /// - Returns: 是否正在播放
     func isPlaying(fileId: String) -> Bool {
-        return currentFileId == fileId && isPlaying
+        currentFileId == fileId && isPlaying
     }
-    
+
     /// 检查是否已加载指定文件
     ///
     /// - Parameter fileId: 文件 ID
     /// - Returns: 是否已加载
     func isLoaded(fileId: String) -> Bool {
-        return currentFileId == fileId && audioPlayer != nil
+        currentFileId == fileId && audioPlayer != nil
     }
-    
+
     /// 获取指定文件的播放状态
     ///
     /// - Parameter fileId: 文件 ID
@@ -482,26 +478,26 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
         }
         return .idle
     }
-    
+
     /// 格式化时间为 mm:ss 格式
     ///
     /// - Parameter time: 时间（秒）
     /// - Returns: 格式化的时间字符串
     func formatTime(_ time: TimeInterval) -> String {
-        guard time.isFinite && time >= 0 else { return "0:00" }
-        
+        guard time.isFinite, time >= 0 else { return "0:00" }
+
         let totalSeconds = Int(time)
         let minutes = totalSeconds / 60
         let seconds = totalSeconds % 60
-        
+
         return String(format: "%d:%02d", minutes, seconds)
     }
-    
+
     /// 获取当前播放信息
     ///
     /// - Returns: 播放信息字典
     func getPlaybackInfo() -> [String: Any] {
-        return [
+        [
             "fileId": currentFileId as Any,
             "url": currentURL?.absoluteString as Any,
             "state": String(describing: playbackState),
@@ -510,7 +506,7 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
             "duration": duration,
             "progress": progress,
             "formattedCurrentTime": formatTime(currentTime),
-            "formattedDuration": formatTime(duration)
+            "formattedDuration": formatTime(duration),
         ]
     }
 }
@@ -518,22 +514,22 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
 // MARK: - AVAudioPlayerDelegate
 
 extension AudioPlayerService: AVAudioPlayerDelegate {
-    
+
     /// 播放完成回调
-    /// 
+    ///
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         stateLock.lock()
         defer { stateLock.unlock() }
-        
+
         stopProgressTimer()
-        
+
         if flag {
             print("[AudioPlayer] ✅ 播放完成")
-            
+
             // 重置到开始位置
             currentTime = 0
             player.currentTime = 0
-            
+
             updateStateInternal(.idle)
             postFinishNotification()
         } else {
@@ -543,18 +539,18 @@ extension AudioPlayerService: AVAudioPlayerDelegate {
             postErrorNotification(errorMsg)
         }
     }
-    
+
     /// 播放解码错误回调
-    /// 
-    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+    ///
+    func audioPlayerDecodeErrorDidOccur(_: AVAudioPlayer, error: Error?) {
         stateLock.lock()
         defer { stateLock.unlock() }
-        
+
         stopProgressTimer()
-        
+
         let errorMsg = error?.localizedDescription ?? "音频解码错误"
         print("[AudioPlayer] ❌ 解码错误: \(errorMsg)")
-        
+
         updateStateInternal(.error(errorMsg))
         postErrorNotification(errorMsg)
     }

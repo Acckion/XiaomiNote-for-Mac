@@ -7,19 +7,19 @@ import Foundation
 /// 定义统一操作队列支持的所有操作类型
 public enum OperationType: String, Codable, Sendable, CaseIterable {
     /// 创建笔记（离线创建时使用）
-    case noteCreate = "noteCreate"
+    case noteCreate
     /// 上传笔记到云端
-    case cloudUpload = "cloudUpload"
+    case cloudUpload
     /// 从云端删除笔记
-    case cloudDelete = "cloudDelete"
+    case cloudDelete
     /// 上传图片
-    case imageUpload = "imageUpload"
+    case imageUpload
     /// 创建文件夹
-    case folderCreate = "folderCreate"
+    case folderCreate
     /// 重命名文件夹
-    case folderRename = "folderRename"
+    case folderRename
     /// 删除文件夹
-    case folderDelete = "folderDelete"
+    case folderDelete
 }
 
 // MARK: - 操作状态
@@ -29,17 +29,17 @@ public enum OperationType: String, Codable, Sendable, CaseIterable {
 /// 表示操作在队列中的当前状态
 public enum OperationStatus: String, Codable, Sendable {
     /// 待处理
-    case pending = "pending"
+    case pending
     /// 处理中
-    case processing = "processing"
+    case processing
     /// 已完成
-    case completed = "completed"
+    case completed
     /// 失败（可重试）
-    case failed = "failed"
+    case failed
     /// 认证失败（需用户处理）
-    case authFailed = "authFailed"
+    case authFailed
     /// 超过最大重试次数
-    case maxRetryExceeded = "maxRetryExceeded"
+    case maxRetryExceeded
 }
 
 // MARK: - 错误类型
@@ -49,27 +49,27 @@ public enum OperationStatus: String, Codable, Sendable {
 /// 用于分类操作失败的原因，决定是否可以重试
 public enum OperationErrorType: String, Codable, Sendable {
     /// 网络错误（可重试）
-    case network = "network"
+    case network
     /// 超时（可重试）
-    case timeout = "timeout"
+    case timeout
     /// 服务器错误（可重试）
-    case serverError = "serverError"
+    case serverError
     /// 认证过期（不可重试）
-    case authExpired = "authExpired"
+    case authExpired
     /// 资源不存在（不可重试）
-    case notFound = "notFound"
+    case notFound
     /// 冲突（需特殊处理）
-    case conflict = "conflict"
+    case conflict
     /// 未知错误
-    case unknown = "unknown"
-    
+    case unknown
+
     /// 判断错误是否可重试
     public var isRetryable: Bool {
         switch self {
         case .network, .timeout, .serverError:
-            return true
+            true
         case .authExpired, .notFound, .conflict, .unknown:
-            return false
+            false
         }
     }
 }
@@ -82,46 +82,46 @@ public enum OperationErrorType: String, Codable, Sendable {
 public struct NoteOperation: Codable, Identifiable, Sendable {
     /// 操作 ID
     public let id: String
-    
+
     /// 操作类型
     public let type: OperationType
-    
+
     /// 笔记 ID（文件夹操作时为 folderId）
     /// 注意：可能是临时 ID（local_xxx）或正式 ID
     public var noteId: String
-    
+
     /// 操作数据（JSON 编码）
     public let data: Data
-    
+
     /// 创建时间
     public let createdAt: Date
-    
+
     /// 本地保存时间戳（用于同步保护）
     public var localSaveTimestamp: Date?
-    
+
     /// 操作状态
     public var status: OperationStatus
-    
+
     /// 优先级（数字越大优先级越高）
     public var priority: Int
-    
+
     /// 重试次数
     public var retryCount: Int
-    
+
     /// 下次重试时间
     public var nextRetryAt: Date?
-    
+
     /// 最后错误信息
     public var lastError: String?
-    
+
     /// 错误类型
     public var errorType: OperationErrorType?
-    
+
     /// 是否使用临时 ID（离线创建的笔记）
     public var isLocalId: Bool
-    
+
     // MARK: - 初始化
-    
+
     /// 创建新的笔记操作
     ///
     /// - Parameters:
@@ -167,20 +167,20 @@ public struct NoteOperation: Codable, Identifiable, Sendable {
         self.errorType = errorType
         self.isLocalId = isLocalId
     }
-    
+
     // MARK: - 临时 ID 相关
-    
+
     /// 临时 ID 前缀
     private static let temporaryIdPrefix = "local_"
-    
+
     /// 检查是否为临时 ID
     ///
     /// - Parameter id: 要检查的 ID
     /// - Returns: 如果是临时 ID 返回 true
     public static func isTemporaryId(_ id: String) -> Bool {
-        return id.hasPrefix(temporaryIdPrefix)
+        id.hasPrefix(temporaryIdPrefix)
     }
-    
+
     /// 生成临时 ID
     ///
     /// 格式：local_<UUID>
@@ -188,11 +188,11 @@ public struct NoteOperation: Codable, Identifiable, Sendable {
     ///
     /// - Returns: 新生成的临时 ID
     public static func generateTemporaryId() -> String {
-        return "\(temporaryIdPrefix)\(UUID().uuidString)"
+        "\(temporaryIdPrefix)\(UUID().uuidString)"
     }
-    
+
     // MARK: - 优先级计算
-    
+
     /// 计算操作优先级（基于操作类型）
     ///
     /// 优先级规则：
@@ -206,31 +206,31 @@ public struct NoteOperation: Codable, Identifiable, Sendable {
     public static func calculatePriority(for type: OperationType) -> Int {
         switch type {
         case .noteCreate:
-            return 4  // 最高优先级
+            4 // 最高优先级
         case .cloudDelete, .folderDelete:
-            return 3
+            3
         case .cloudUpload, .folderRename:
-            return 2
+            2
         case .imageUpload, .folderCreate:
-            return 1
+            1
         }
     }
-    
+
     // MARK: - 状态检查
-    
+
     /// 检查操作是否可以处理
     ///
     /// 只有 pending 或 failed 状态的操作可以处理
     public var canProcess: Bool {
-        return status == .pending || status == .failed
+        status == .pending || status == .failed
     }
-    
+
     /// 检查操作是否需要重试
     ///
     /// 检查是否到达重试时间
     public var isReadyForRetry: Bool {
         guard status == .failed else { return false }
-        guard let nextRetryAt = nextRetryAt else { return true }
+        guard let nextRetryAt else { return true }
         return Date() >= nextRetryAt
     }
 }
@@ -239,7 +239,7 @@ public struct NoteOperation: Codable, Identifiable, Sendable {
 
 extension NoteOperation: Equatable {
     public static func == (lhs: NoteOperation, rhs: NoteOperation) -> Bool {
-        return lhs.id == rhs.id
+        lhs.id == rhs.id
     }
 }
 
@@ -259,34 +259,34 @@ extension NoteOperation: Hashable {
 public struct OperationHistoryEntry: Codable, Identifiable, Sendable {
     /// 操作 ID
     public let id: String
-    
+
     /// 操作类型
     public let type: OperationType
-    
+
     /// 笔记 ID
     public let noteId: String
-    
+
     /// 操作数据
     public let data: Data
-    
+
     /// 创建时间
     public let createdAt: Date
-    
+
     /// 完成时间
     public let completedAt: Date
-    
+
     /// 最终状态
     public let status: OperationStatus
-    
+
     /// 重试次数
     public let retryCount: Int
-    
+
     /// 最后错误信息（如果有）
     public let lastError: String?
-    
+
     /// 错误类型（如果有）
     public let errorType: OperationErrorType?
-    
+
     /// 初始化
     public init(
         id: String,
@@ -311,14 +311,14 @@ public struct OperationHistoryEntry: Codable, Identifiable, Sendable {
         self.lastError = lastError
         self.errorType = errorType
     }
-    
+
     /// 操作是否成功
     public var isSuccess: Bool {
-        return status == .completed
+        status == .completed
     }
-    
+
     /// 操作耗时（秒）
     public var duration: TimeInterval {
-        return completedAt.timeIntervalSince(createdAt)
+        completedAt.timeIntervalSince(createdAt)
     }
 }

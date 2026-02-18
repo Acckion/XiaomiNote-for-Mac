@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 /// 笔记预览图片视图
 ///
@@ -17,31 +17,31 @@ import AppKit
 struct NotePreviewImageView: View {
     /// 文件ID（完整格式：userId.fileId）
     let fileId: String
-    
+
     /// 文件类型（如 "png", "jpg"）
     let fileType: String
-    
+
     /// 预览图片尺寸（宽高相同）
     let size: CGFloat
-    
+
     /// 预览服务
     @StateObject private var previewService = NotePreviewService.shared
-    
+
     /// 加载的图片
     @State private var image: NSImage?
-    
+
     /// 是否正在加载
     @State private var isLoading = false
-    
+
     /// 是否加载失败
     @State private var loadFailed = false
-    
+
     init(fileId: String, fileType: String, size: CGFloat = 50) {
         self.fileId = fileId
         self.fileType = fileType
         self.size = size
     }
-    
+
     var body: some View {
         Group {
             if let nsImage = image {
@@ -81,31 +81,31 @@ struct NotePreviewImageView: View {
             loadImage()
         }
     }
-    
+
     /// 加载图片
     private func loadImage() {
         // 重置状态
         image = nil
         loadFailed = false
         isLoading = true
-        
+
         print("[NotePreviewImageView] 开始加载图片: \(fileId).\(fileType)")
-        
+
         // 异步加载图片
         Task {
             // 从预览服务加载
             if let loadedImage = previewService.loadPreviewImage(fileId: fileId, fileType: fileType) {
                 print("[NotePreviewImageView] ✅ 图片加载成功: \(fileId).\(fileType)")
                 await MainActor.run {
-                    self.image = loadedImage
-                    self.isLoading = false
+                    image = loadedImage
+                    isLoading = false
                 }
             } else {
                 // 加载失败
                 print("[NotePreviewImageView] ❌ 图片加载失败: \(fileId).\(fileType)")
                 await MainActor.run {
-                    self.loadFailed = true
-                    self.isLoading = false
+                    loadFailed = true
+                    isLoading = false
                 }
             }
         }

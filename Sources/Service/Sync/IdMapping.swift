@@ -15,19 +15,19 @@ import Foundation
 public struct IdMapping: Codable, Sendable {
     /// 临时 ID（格式：local_xxx）
     public let localId: String
-    
+
     /// 云端下发的正式 ID
     public let serverId: String
-    
+
     /// 实体类型（"note" 或 "folder"）
     public let entityType: String
-    
+
     /// 创建时间
     public let createdAt: Date
-    
+
     /// 是否已完成（所有引用都已更新）
     public var completed: Bool
-    
+
     /// 创建新的 ID 映射记录
     ///
     /// - Parameters:
@@ -55,7 +55,7 @@ public struct IdMapping: Codable, Sendable {
 
 extension IdMapping: Equatable {
     public static func == (lhs: IdMapping, rhs: IdMapping) -> Bool {
-        return lhs.localId == rhs.localId && lhs.serverId == rhs.serverId
+        lhs.localId == rhs.localId && lhs.serverId == rhs.serverId
     }
 }
 

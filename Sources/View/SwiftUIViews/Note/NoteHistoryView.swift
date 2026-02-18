@@ -1,42 +1,42 @@
-import SwiftUI
-import WebKit
 import OSLog
+import SwiftUI
 
 /// 笔记历史记录视图
-/// 
+///
 /// 显示笔记的历史记录列表，支持查看和恢复历史记录
 @available(macOS 14.0, *)
 struct NoteHistoryView: View {
     @ObservedObject var viewModel: NotesViewModel
     let noteId: String
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var historyVersions: [NoteHistoryVersion] = []
-    @State private var isLoading: Bool = false
+    @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var selectedVersion: NoteHistoryVersion?
     @State private var versionContent: Note?
-    @State private var isLoadingContent: Bool = false
-    @State private var isRestoring: Bool = false
+    @State private var isLoadingContent = false
+    @State private var isRestoring = false
     @State private var restoreError: String?
-    
-    // 日志记录器
+
+    /// 日志记录器
     private let logger = Logger(subsystem: "com.xiaomi.minote.mac", category: "NoteHistoryView")
-    
-    // 自定义关闭方法，用于AppKit环境
+
+    /// 自定义关闭方法，用于AppKit环境
     private func closeSheet() {
         // 尝试使用dismiss环境变量
         dismiss()
-        
+
         // 如果dismiss无效，尝试通过NSApp关闭窗口
         DispatchQueue.main.async {
             if let window = NSApp.keyWindow,
-               let sheetParent = window.sheetParent {
+               let sheetParent = window.sheetParent
+            {
                 sheetParent.endSheet(window)
             }
         }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // 主内容区域
@@ -44,7 +44,7 @@ struct NoteHistoryView: View {
                 // 左侧：历史记录列表
                 leftPanel
                     .frame(minWidth: 300, idealWidth: 350, maxWidth: 400)
-                
+
                 // 右侧：预览区域
                 rightPanel
                     .frame(minWidth: 400)
@@ -71,10 +71,9 @@ struct NoteHistoryView: View {
         }
         .frame(minWidth: 800, idealWidth: 1000, maxWidth: 1200, minHeight: 500, idealHeight: 700, maxHeight: 800)
     }
-    
+
     // MARK: - 左侧面板
-    
-    @ViewBuilder
+
     private var leftPanel: some View {
         Group {
             if isLoading {
@@ -138,16 +137,15 @@ struct NoteHistoryView: View {
                 }
             }
         }
-        .onChange(of: selectedVersion) { oldValue, newValue in
+        .onChange(of: selectedVersion) { _, newValue in
             if let version = newValue {
                 viewVersion(version)
             }
         }
     }
-    
+
     // MARK: - 右侧面板
-    
-    @ViewBuilder
+
     private var rightPanel: some View {
         Group {
             if selectedVersion == nil {
@@ -191,57 +189,57 @@ struct NoteHistoryView: View {
             }
         }
     }
-    
+
     private func loadHistoryVersions() {
-        logger.info("开始加载历史记录列表，noteId: \(self.noteId)")
+        logger.info("开始加载历史记录列表，noteId: \(noteId)")
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 let versions = try await viewModel.getNoteHistoryTimes(noteId: noteId)
                 await MainActor.run {
-                    self.historyVersions = versions
-                    self.isLoading = false
-                    self.logger.info("成功加载历史记录列表，共 \(versions.count) 个版本")
+                    historyVersions = versions
+                    isLoading = false
+                    logger.info("成功加载历史记录列表，共 \(versions.count) 个版本")
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                    self.isLoading = false
-                    self.logger.error("加载历史记录列表失败: \(error.localizedDescription)")
+                    errorMessage = error.localizedDescription
+                    isLoading = false
+                    logger.error("加载历史记录列表失败: \(error.localizedDescription)")
                 }
             }
         }
     }
-    
+
     private func viewVersion(_ version: NoteHistoryVersion) {
-        logger.info("开始加载历史记录内容，version: \(version.version), noteId: \(self.noteId)")
+        logger.info("开始加载历史记录内容，version: \(version.version), noteId: \(noteId)")
         isLoadingContent = true
         versionContent = nil
-        
+
         Task {
             do {
                 let note = try await viewModel.getNoteHistory(noteId: noteId, version: version.version)
                 await MainActor.run {
-                    self.versionContent = note
-                    self.isLoadingContent = false
-                    self.logger.info("成功加载历史记录内容，标题: \(note.title), 内容长度: \(note.content.count) 字符")
+                    versionContent = note
+                    isLoadingContent = false
+                    logger.info("成功加载历史记录内容，标题: \(note.title), 内容长度: \(note.content.count) 字符")
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = "加载版本内容失败: \(error.localizedDescription)"
-                    self.isLoadingContent = false
-                    self.logger.error("加载历史记录内容失败: \(error.localizedDescription)")
+                    errorMessage = "加载版本内容失败: \(error.localizedDescription)"
+                    isLoadingContent = false
+                    logger.error("加载历史记录内容失败: \(error.localizedDescription)")
                 }
             }
         }
     }
-    
+
     private func restoreVersion(_ version: NoteHistoryVersion) {
         isRestoring = true
         restoreError = nil
-        
+
         Task {
             do {
                 try await viewModel.restoreNoteHistory(noteId: noteId, version: version.version)
@@ -265,7 +263,7 @@ private struct HistoryVersionRow: View {
     let version: NoteHistoryVersion
     let isSelected: Bool
     let onRestore: () -> Void
-    
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -275,9 +273,9 @@ private struct HistoryVersionRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
+
             Button {
                 onRestore()
             } label: {
@@ -298,19 +296,22 @@ private struct VersionPreviewView: View {
     let version: NoteHistoryVersion?
     let note: Note
     let onRestore: () -> Void
-    
+
+    /// 创建只读的编辑器上下文
+    @StateObject private var editorContext = NativeEditorContext()
+
     var body: some View {
         VStack(spacing: 0) {
             // 工具栏
             HStack {
-                if let version = version {
+                if let version {
                     Text("版本时间: \(version.formattedUpdateTime)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 Button {
                     onRestore()
                 } label: {
@@ -324,332 +325,53 @@ private struct VersionPreviewView: View {
             .padding()
             .background(Color(NSColor.controlBackgroundColor))
             .border(Color(NSColor.separatorColor), width: 0.5)
-            
-            // 内容区域
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(note.title)
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .padding(.bottom, 8)
-                    
-                    // 使用 WebView 显示 HTML 内容
-                    if !note.content.isEmpty {
-                        HistoryContentWebView(content: note.content)
-                            .frame(minHeight: 400)
-                    } else {
+
+            // 内容区域 - 使用原生编辑器（只读模式）
+            VStack(alignment: .leading, spacing: 0) {
+                if !note.content.isEmpty {
+                    NativeEditorView(
+                        editorContext: editorContext,
+                        isEditable: false // 设置为只读
+                    )
+                    .opacity(0.9) // 降低透明度表示只读
+                    .onAppear {
+                        // 加载内容到编辑器
+                        loadContentToEditor()
+                    }
+                } else {
+                    VStack {
+                        Spacer()
                         Text("此版本暂无内容")
                             .font(.body)
                             .foregroundColor(.secondary)
+                        Spacer()
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
-}
 
-/// 历史记录内容 WebView（只读）
-@available(macOS 14.0, *)
-struct HistoryContentWebView: NSViewRepresentable {
-    let content: String
-    
-    // 日志记录器
-    private let logger = Logger(subsystem: "com.xiaomi.minote.mac", category: "HistoryContentWebView")
-    
-    func makeNSView(context: Context) -> WKWebView {
-        logger.info("创建 WebView，内容长度: \(self.content.count) 字符")
-        
-        let config = WKWebViewConfiguration()
-        let userContentController = WKUserContentController()
-        
-        // 添加消息处理器来接收 JavaScript 错误和日志
-        userContentController.add(context.coordinator, name: "historyViewBridge")
-        config.userContentController = userContentController
-        
-        let webView = WKWebView(frame: .zero, configuration: config)
-        webView.navigationDelegate = context.coordinator
-        
-        // 加载 XML 转换器脚本
-        context.coordinator.loadConverterScript { script in
-            context.coordinator.converterScript = script
-            if script.isEmpty {
-                self.logger.error("转换器脚本为空，无法转换 XML 内容")
-            } else {
-                self.logger.info("转换器脚本加载成功，长度: \(script.count) 字符")
-            }
-            self.loadContent(webView: webView, xmlContent: self.content, converterScript: script)
-        }
-        
-        return webView
-    }
-    
-    func updateNSView(_ nsView: WKWebView, context: Context) {
-        // 当内容改变时，重新加载
-        let script = context.coordinator.converterScript
-        if !script.isEmpty {
-            logger.info("内容已更新，重新加载，新内容长度: \(self.content.count) 字符")
-            loadContent(webView: nsView, xmlContent: content, converterScript: script)
-        } else {
-            logger.warning("转换器脚本未加载，跳过内容更新")
-        }
-    }
-    
-    private func loadContent(webView: WKWebView, xmlContent: String, converterScript: String) {
-        logger.debug("开始加载内容到 WebView，XML 长度: \(xmlContent.count) 字符")
-        
-        // 转义 XML 内容以便在 JavaScript 中使用
-        let escapedContent = xmlContent
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "`", with: "\\`")
-            .replacingOccurrences(of: "$", with: "\\$")
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with: "\\r")
-        
-        // 创建 HTML 模板，包含转换器脚本和转换逻辑
-        let htmlTemplate = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                :root {
-                    color-scheme: light dark;
-                }
-                
-                body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    font-size: 14px;
-                    line-height: 1.6;
-                    color: #333;
-                    padding: 20px;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    background-color: #ffffff;
-                }
-                
-                @media (prefers-color-scheme: dark) {
-                    body {
-                        color: #e5e5e5;
-                        background-color: #1e1e1e;
-                    }
-                    
-                    pre {
-                        background-color: #2d2d2d;
-                        color: #e5e5e5;
-                    }
-                    
-                    code {
-                        background-color: #2d2d2d;
-                        color: #e5e5e5;
-                    }
-                    
-                    blockquote {
-                        border-left-color: #666;
-                        color: #b3b3b3;
-                    }
-                    
-                    h1, h2, h3, h4, h5, h6 {
-                        color: #e5e5e5;
-                    }
-                }
-                
-                img {
-                    max-width: 100%;
-                    height: auto;
-                }
-                
-                pre {
-                    background-color: #f5f5f5;
-                    padding: 10px;
-                    border-radius: 4px;
-                    overflow-x: auto;
-                }
-                
-                code {
-                    background-color: #f5f5f5;
-                    padding: 2px 4px;
-                    border-radius: 3px;
-                    font-family: 'Monaco', 'Menlo', monospace;
-                }
-                
-                h1, h2, h3, h4, h5, h6 {
-                    margin-top: 1em;
-                    margin-bottom: 0.5em;
-                    font-weight: 600;
-                }
-                
-                p {
-                    margin: 0.5em 0;
-                }
-                
-                ul, ol {
-                    margin: 0.5em 0;
-                    padding-left: 2em;
-                }
-                
-                blockquote {
-                    margin: 0.5em 0;
-                    padding-left: 1em;
-                    border-left: 3px solid #ddd;
-                    color: #666;
-                }
-            </style>
-            <script>
-                \(converterScript)
-                
-                // 转换 XML 内容（在 DOM 加载完成后执行）
-                function convertContent() {
-                    try {
-                        console.log('[HistoryView] 开始转换 XML 内容');
-                        const xmlContent = `\(escapedContent)`;
-                        console.log('[HistoryView] XML 内容长度:', xmlContent.length);
-                        
-                        if (typeof XMLToHTMLConverter === 'undefined') {
-                            throw new Error('XMLToHTMLConverter 类未定义');
-                        }
-                        
-                        const converter = new XMLToHTMLConverter();
-                        const htmlContent = converter.convert(xmlContent);
-                        console.log('[HistoryView] 转换成功，HTML 长度:', htmlContent.length);
-                        
-                        document.body.innerHTML = htmlContent;
-                        
-                        // 通知原生代码转换成功
-                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.historyViewBridge) {
-                            window.webkit.messageHandlers.historyViewBridge.postMessage({
-                                type: 'conversionSuccess',
-                                htmlLength: htmlContent.length
-                            });
-                        }
-                    } catch (error) {
-                        console.error('[HistoryView] 转换XML失败:', error);
-                        const errorMsg = error.message || String(error);
-                        document.body.innerHTML = '<p style="color: red; padding: 20px;">加载内容失败: ' + errorMsg + '</p>';
-                        
-                        // 通知原生代码转换失败
-                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.historyViewBridge) {
-                            window.webkit.messageHandlers.historyViewBridge.postMessage({
-                                type: 'conversionError',
-                                error: errorMsg
-                            });
-                        }
-                    }
-                }
-                
-                // 等待 DOM 加载完成后再执行转换
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', convertContent);
-                } else {
-                    // DOM 已经加载完成，立即执行
-                    convertContent();
-                }
-            </script>
-        </head>
-        <body>
-            <p>正在加载内容...</p>
-        </body>
-        </html>
-        """
-        
-        webView.loadHTMLString(htmlTemplate, baseURL: nil)
-        logger.debug("HTML 模板已加载到 WebView")
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(logger: logger)
-    }
-    
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
-        var converterScript: String = ""
-        private let logger: Logger
-        
-        init(logger: Logger) {
-            self.logger = logger
-        }
-        
-        func loadConverterScript(completion: @escaping (String) -> Void) {
-            // 如果已经加载过，直接返回
-            if !converterScript.isEmpty {
-                logger.debug("使用已缓存的转换器脚本")
-                completion(converterScript)
-                return
-            }
-            
-            logger.info("开始加载 xml-to-html.js 转换器脚本")
-            
-            // 尝试从 bundle 加载 xml-to-html.js
-            let bundle = Bundle(for: HistoryContentWebView.Coordinator.self)
-            var scriptURL: URL? = nil
-            
-            // 尝试多种路径
-            if let url = bundle.url(forResource: "xml-to-html", withExtension: "js") {
-                scriptURL = url
-                logger.debug("找到脚本文件: \(url.path)")
-            } else if let resourceURL = bundle.resourceURL {
-                let webURL = resourceURL.appendingPathComponent("xml-to-html.js")
-                if FileManager.default.fileExists(atPath: webURL.path) {
-                    scriptURL = webURL
-                    logger.debug("找到脚本文件: \(webURL.path)")
-                } else {
-                    logger.warning("在资源目录中未找到 xml-to-html.js: \(webURL.path)")
-                }
-            }
-            
-            if let scriptURL = scriptURL {
-                do {
-                    let script = try String(contentsOf: scriptURL, encoding: .utf8)
-                    self.converterScript = script
-                    logger.info("成功加载转换器脚本，长度: \(script.count) 字符")
-                    completion(script)
-                } catch {
-                    logger.error("读取转换器脚本失败: \(error.localizedDescription)")
-                    completion("")
-                }
-            } else {
-                logger.error("无法找到 xml-to-html.js 脚本文件")
-                completion("")
-            }
-        }
-        
-        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            // 允许所有导航（只读视图）
-            decisionHandler(.allow)
-        }
-        
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            logger.info("WebView 页面加载完成")
-        }
-        
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            logger.error("WebView 页面加载失败: \(error.localizedDescription)")
-        }
-        
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            logger.error("WebView 临时导航失败: \(error.localizedDescription)")
-        }
-        
-        // WKScriptMessageHandler 实现
-        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard message.name == "historyViewBridge" else { return }
-            
-            if let body = message.body as? [String: Any] {
-                if let type = body["type"] as? String {
-                    switch type {
-                    case "conversionSuccess":
-                        if let htmlLength = body["htmlLength"] as? Int {
-                            logger.info("JavaScript 转换成功，HTML 长度: \(htmlLength) 字符")
-                        }
-                    case "conversionError":
-                        if let error = body["error"] as? String {
-                            logger.error("JavaScript 转换失败: \(error)")
-                        }
-                    default:
-                        logger.debug("收到未知消息类型: \(type)")
-                    }
-                }
+    /// 加载内容到编辑器
+    private func loadContentToEditor() {
+        Task { @MainActor in
+            do {
+                // 使用 XiaoMiFormatConverter 将 XML 转换为 NSAttributedString
+                let attributedString = try XiaoMiFormatConverter.shared.xmlToNSAttributedString(
+                    note.content,
+                    folderId: note.folderId
+                )
+
+                // 设置到编辑器上下文
+                editorContext.updateNSContent(attributedString)
+            } catch {
+                print("[VersionPreviewView] 加载内容失败: \(error.localizedDescription)")
+                // 如果转换失败，显示纯文本
+                let plainText = note.content
+                    .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                    .replacingOccurrences(of: "&amp;", with: "&")
+                    .replacingOccurrences(of: "&lt;", with: "<")
+                    .replacingOccurrences(of: "&gt;", with: ">")
+                editorContext.updateNSContent(NSAttributedString(string: plainText))
             }
         }
     }

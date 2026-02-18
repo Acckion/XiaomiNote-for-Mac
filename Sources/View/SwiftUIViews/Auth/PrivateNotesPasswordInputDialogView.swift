@@ -4,25 +4,25 @@ import SwiftUI
 struct PrivateNotesPasswordInputDialogView: View {
     @ObservedObject var viewModel: NotesViewModel
     @Environment(\.dismiss) private var dismiss
-    
-    @State private var password: String = ""
-    @State private var showError: Bool = false
-    @State private var errorMessage: String = ""
-    @State private var isAuthenticating: Bool = false
-    
+
+    @State private var password = ""
+    @State private var showError = false
+    @State private var errorMessage = ""
+    @State private var isAuthenticating = false
+
     private let passwordManager = PrivateNotesPasswordManager.shared
-    
+
     var body: some View {
         VStack(spacing: 20) {
             Text("访问私密笔记")
                 .font(.headline)
-            
+
             Text("请输入私密笔记密码以继续")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-            
+
             // Touch ID 按钮（如果启用且设备支持）
-            if passwordManager.isTouchIDEnabled() && passwordManager.isBiometricAvailable() {
+            if passwordManager.isTouchIDEnabled(), passwordManager.isBiometricAvailable() {
                 Button {
                     authenticateWithTouchID()
                 } label: {
@@ -35,10 +35,10 @@ struct PrivateNotesPasswordInputDialogView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isAuthenticating)
-                
+
                 Divider()
             }
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("密码")
                     .font(.caption)
@@ -49,13 +49,13 @@ struct PrivateNotesPasswordInputDialogView: View {
                         verifyPassword()
                     }
             }
-            
+
             if showError {
                 Text(errorMessage)
                     .font(.caption)
                     .foregroundColor(.red)
             }
-            
+
             HStack {
                 Button("取消") {
                     // 用户取消验证，通知视图模型
@@ -63,9 +63,9 @@ struct PrivateNotesPasswordInputDialogView: View {
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
-                
+
                 Spacer()
-                
+
                 Button("确定") {
                     verifyPassword()
                 }
@@ -78,7 +78,7 @@ struct PrivateNotesPasswordInputDialogView: View {
         .frame(width: 400)
         .task {
             // 如果启用了 Touch ID，自动尝试使用 Touch ID 验证
-            if passwordManager.isTouchIDEnabled() && passwordManager.isBiometricAvailable() {
+            if passwordManager.isTouchIDEnabled(), passwordManager.isBiometricAvailable() {
                 // 延迟一小段时间，让对话框先显示
                 try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
                 authenticateWithTouchID()
@@ -91,17 +91,17 @@ struct PrivateNotesPasswordInputDialogView: View {
             }
         }
     }
-    
+
     private func authenticateWithTouchID() {
         guard !isAuthenticating else { return }
-        
+
         isAuthenticating = true
         showError = false
-        
+
         Task {
             do {
                 let success = try await passwordManager.authenticateWithTouchID()
-                
+
                 await MainActor.run {
                     isAuthenticating = false
                     if success {
@@ -134,7 +134,7 @@ struct PrivateNotesPasswordInputDialogView: View {
             }
         }
     }
-    
+
     private func verifyPassword() {
         if password.isEmpty {
             errorMessage = "密码不能为空"

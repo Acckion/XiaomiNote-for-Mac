@@ -13,42 +13,50 @@ import Foundation
 /// 线程安全：使用 actor 隔离确保所有状态访问都是线程安全的
 ///
 actor SyncStateManager {
-    
+
     // MARK: - 依赖
-    
+
     /// 本地存储服务
     private let localStorage: LocalStorageService
-    
+
     /// 统一操作队列
     private let operationQueue: UnifiedOperationQueue
-    
+
     // MARK: - 内存状态
-    
+
     /// 暂存的 syncTag（尚未确认）
     private var pendingSyncTag: String?
-    
+
     /// 暂存 syncTag 的时间
     private var pendingSyncTagTime: Date?
-    
+
     // MARK: - 初始化
-    
+
     /// 初始化同步状态管理器
     ///
     /// - Parameters:
-    ///   - localStorage: 本地存储服务，默认使用 shared 实例
-    ///   - operationQueue: 统一操作队列，默认使用 shared 实例
+    ///   - localStorage: 本地存储服务
+    ///   - operationQueue: 统一操作队列
     init(
-        localStorage: LocalStorageService = .shared,
-        operationQueue: UnifiedOperationQueue = .shared
+        localStorage: LocalStorageService,
+        operationQueue: UnifiedOperationQueue
     ) {
         self.localStorage = localStorage
         self.operationQueue = operationQueue
-        
+
         print("[SyncStateManager] 初始化完成")
     }
-    
+
+    /// 便捷初始化方法，使用默认的 shared 实例
+    static func createDefault() -> SyncStateManager {
+        SyncStateManager(
+            localStorage: .shared,
+            operationQueue: .shared
+        )
+    }
+
     // MARK: - 公共接口
-    
+
     /// 获取当前的 syncTag
     ///
     /// 从 LocalStorageService 加载 SyncStatus 并返回 syncTag。
@@ -59,18 +67,18 @@ actor SyncStateManager {
     /// **验证: 需求 1.1, 1.2**
     func getCurrentSyncTag() -> String {
         print("[SyncStateManager] 🔍 获取当前 syncTag")
-        
+
         // 从 LocalStorageService 加载 SyncStatus
         let syncStatus = localStorage.loadSyncStatus()
-        
+
         // 获取 syncTag，如果不存在返回空字符串
         let syncTag = syncStatus?.syncTag ?? ""
-        
+
         print("[SyncStateManager] ✅ 当前 syncTag: \(syncTag.isEmpty ? "空字符串" : syncTag)")
-        
+
         return syncTag
     }
-    
+
     /// 暂存新的 syncTag
     ///
     /// 如果没有待上传笔记，直接确认并持久化；
@@ -83,7 +91,7 @@ actor SyncStateManager {
     /// **验证: 需求 2.1, 2.2, 2.3, 2.4**
     func stageSyncTag(_ syncTag: String, hasPendingNotes: Bool) async throws {
         print("[SyncStateManager] 📝 暂存 syncTag: \(syncTag), 有待上传笔记: \(hasPendingNotes)")
-        
+
         // 检查是否有待上传笔记
         if !hasPendingNotes {
             // 没有待上传笔记，直接确认并持久化
@@ -97,7 +105,7 @@ actor SyncStateManager {
             print("[SyncStateManager] ✅ syncTag 已暂存，等待确认")
         }
     }
-    
+
     /// 确认暂存的 syncTag（如果存在）
     ///
     /// 将暂存的 syncTag 持久化到本地存储，并清除内存中的暂存值。
@@ -109,45 +117,45 @@ actor SyncStateManager {
     @discardableResult
     func confirmPendingSyncTagIfNeeded() async throws -> Bool {
         print("[SyncStateManager] 🔍 检查是否有暂存的 syncTag 需要确认")
-        
+
         // 检查是否有暂存的 syncTag
         guard let syncTag = pendingSyncTag else {
             print("[SyncStateManager] ℹ️ 没有暂存的 syncTag，无需确认")
             return false
         }
-        
+
         print("[SyncStateManager] ✅ 发现暂存的 syncTag: \(syncTag)，开始确认")
-        
+
         // 调用 confirmSyncTag() 持久化
         try await confirmSyncTag(syncTag)
-        
+
         // 清除 pendingSyncTag 和 pendingSyncTagTime
         pendingSyncTag = nil
         pendingSyncTagTime = nil
-        
+
         print("[SyncStateManager] ✅ syncTag 已确认并持久化，暂存值已清除")
-        
+
         return true
     }
-    
+
     /// 检查是否有暂存的 syncTag
     ///
     /// - Returns: 如果有暂存的 syncTag 返回 true
     ///
     /// **验证: 需求 7.1**
     func hasPendingSyncTag() -> Bool {
-        return pendingSyncTag != nil
+        pendingSyncTag != nil
     }
-    
+
     /// 获取暂存的 syncTag
     ///
     /// - Returns: 暂存的 syncTag，如果不存在则返回 nil
     ///
     /// **验证: 需求 7.2**
     func getPendingSyncTag() -> String? {
-        return pendingSyncTag
+        pendingSyncTag
     }
-    
+
     /// 获取上次同步时间
     ///
     /// 从 LocalStorageService 加载 SyncStatus 并返回 lastSyncTime。
@@ -157,22 +165,22 @@ actor SyncStateManager {
     /// **验证: 需求 7.3**
     func getLastSyncTime() -> Date? {
         print("[SyncStateManager] 🔍 获取上次同步时间")
-        
+
         // 从 LocalStorageService 加载 SyncStatus
         let syncStatus = localStorage.loadSyncStatus()
-        
+
         // 返回 lastSyncTime
         let lastSyncTime = syncStatus?.lastSyncTime
-        
+
         if let time = lastSyncTime {
             print("[SyncStateManager] ✅ 上次同步时间: \(time)")
         } else {
             print("[SyncStateManager] ℹ️ 没有上次同步时间记录")
         }
-        
+
         return lastSyncTime
     }
-    
+
     /// 检查是否有待上传笔记
     ///
     /// 通过 UnifiedOperationQueue 查询是否有待上传的笔记。
@@ -181,9 +189,9 @@ actor SyncStateManager {
     ///
     /// **验证: 需求 7.4**
     func hasPendingUploadNotes() -> Bool {
-        return checkHasPendingUploadNotes()
+        checkHasPendingUploadNotes()
     }
-    
+
     /// 清除暂存的 syncTag（用于错误恢复）
     ///
     /// 在某些错误情况下，可能需要清除暂存的 syncTag 重新开始。
@@ -191,20 +199,20 @@ actor SyncStateManager {
     /// **验证: 需求 8.3**
     func clearPendingSyncTag() {
         print("[SyncStateManager] 🗑️ 清除暂存的 syncTag")
-        
+
         if pendingSyncTag != nil {
             print("[SyncStateManager] ℹ️ 清除暂存的 syncTag: \(pendingSyncTag!)")
         }
-        
+
         // 清除 pendingSyncTag 和 pendingSyncTagTime
         pendingSyncTag = nil
         pendingSyncTagTime = nil
-        
+
         print("[SyncStateManager] ✅ 暂存的 syncTag 已清除")
     }
-    
+
     // MARK: - 私有辅助方法
-    
+
     /// 直接确认并持久化 syncTag
     ///
     /// 创建 SyncStatus 对象并将其持久化到 LocalStorageService。
@@ -216,13 +224,13 @@ actor SyncStateManager {
     /// **验证: 需求 3.2**
     private func confirmSyncTag(_ syncTag: String) async throws {
         print("[SyncStateManager] 💾 开始确认并持久化 syncTag: \(syncTag)")
-        
+
         // 创建 SyncStatus 对象
         let syncStatus = SyncStatus(
             lastSyncTime: Date(),
             syncTag: syncTag
         )
-        
+
         do {
             // 调用 LocalStorageService.saveSyncStatus()
             try localStorage.saveSyncStatus(syncStatus)
@@ -233,7 +241,7 @@ actor SyncStateManager {
             throw SyncStateError.storageOperationFailed(error)
         }
     }
-    
+
     /// 检查操作队列中是否有待上传笔记
     ///
     /// 查询 UnifiedOperationQueue 获取待上传笔记数量（cloudUpload 或 noteCreate 操作）。
@@ -245,9 +253,9 @@ actor SyncStateManager {
     private func checkHasPendingUploadNotes() -> Bool {
         // 查询 UnifiedOperationQueue 获取待上传笔记数量
         let pendingCount = operationQueue.getPendingUploadCount()
-        
+
         print("[SyncStateManager] 🔍 检查待上传笔记数量: \(pendingCount)")
-        
+
         // 返回是否大于 0
         return pendingCount > 0
     }
@@ -263,21 +271,21 @@ actor SyncStateManager {
 enum SyncStateError: Error, LocalizedError {
     /// 存储操作失败
     case storageOperationFailed(Error)
-    
+
     /// 操作队列不可用
     case operationQueueUnavailable
-    
+
     /// 无效状态
     case invalidState(String)
-    
+
     var errorDescription: String? {
         switch self {
-        case .storageOperationFailed(let error):
-            return "存储操作失败: \(error.localizedDescription)"
+        case let .storageOperationFailed(error):
+            "存储操作失败: \(error.localizedDescription)"
         case .operationQueueUnavailable:
-            return "操作队列不可用"
-        case .invalidState(let message):
-            return "无效状态: \(message)"
+            "操作队列不可用"
+        case let .invalidState(message):
+            "无效状态: \(message)"
         }
     }
 }

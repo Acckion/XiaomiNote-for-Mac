@@ -16,15 +16,15 @@ import SwiftUI
 ///
 /// _需求: 6.1_
 public struct OperationQueueDebugView: View {
-    
+
     // MARK: - State
-    
+
     /// 统一操作队列中的操作
     @State private var unifiedOperations: [NoteOperation] = []
     /// 队列统计信息
     @State private var queueStatistics: [String: Int] = [:]
     /// 临时 ID 笔记数量
-    @State private var temporaryIdNoteCount: Int = 0
+    @State private var temporaryIdNoteCount = 0
     /// 临时 ID 笔记列表
     @State private var temporaryNoteIds: [String] = []
     /// ID 映射统计
@@ -39,46 +39,46 @@ public struct OperationQueueDebugView: View {
     @State private var refreshTimer: Timer?
     /// 最后刷新时间
     @State private var lastRefreshTime: Date?
-    
+
     // 历史记录
     @State private var operationHistory: [OperationHistoryEntry] = []
     @State private var historyStatistics: [String: Int] = [:]
     @State private var showHistory = true
-    
+
     // 过滤和排序
     @State private var operationFilter: UnifiedOperationFilterType = .all
     @State private var searchText = ""
-    
+
     // 操作确认
     @State private var showClearConfirmation = false
     @State private var showRetryConfirmation = false
     @State private var showClearHistoryConfirmation = false
-    
+
     public init() {}
-    
+
     // MARK: - Body
-    
+
     public var body: some View {
         ScrollView {
             VStack(spacing: 12) {
                 // 顶部工具栏
                 toolbarSection
-                
+
                 // 状态概览卡片（显示 UnifiedOperationQueue 状态）
                 unifiedQueueStatusSection
-                
+
                 // 临时 ID 笔记状态
                 temporaryIdNotesSection
-                
+
                 // ID 映射状态
                 idMappingSection
-                
+
                 // 活跃编辑状态
                 activeEditingSection
-                
+
                 // 统一操作队列
                 unifiedOperationsSection
-                
+
                 // 历史操作记录
                 operationHistorySection
             }
@@ -108,9 +108,9 @@ public struct OperationQueueDebugView: View {
             Text("确定要清空所有历史记录吗？此操作不可撤销。")
         }
     }
-    
+
     // MARK: - Toolbar Section
-    
+
     private var toolbarSection: some View {
         VStack(spacing: 8) {
             // 搜索和过滤
@@ -135,7 +135,7 @@ public struct OperationQueueDebugView: View {
                 .padding(6)
                 .background(Color(NSColor.controlBackgroundColor))
                 .cornerRadius(6)
-                
+
                 // 过滤器
                 Picker("", selection: $operationFilter) {
                     ForEach(UnifiedOperationFilterType.allCases, id: \.self) { filter in
@@ -145,7 +145,7 @@ public struct OperationQueueDebugView: View {
                 .pickerStyle(.menu)
                 .frame(width: 100)
             }
-            
+
             // 刷新控制
             HStack(spacing: 8) {
                 Toggle("自动刷新", isOn: $autoRefresh)
@@ -158,16 +158,16 @@ public struct OperationQueueDebugView: View {
                             stopAutoRefresh()
                         }
                     }
-                
+
                 Button(action: { refreshData() }) {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .disabled(isRefreshing)
-                
+
                 Spacer()
-                
+
                 if let lastRefresh = lastRefreshTime {
                     Text(lastRefresh, style: .time)
                         .font(.caption2)
@@ -180,9 +180,8 @@ public struct OperationQueueDebugView: View {
         .cornerRadius(8)
     }
 
-    
     // MARK: - Unified Queue Status Section
-    
+
     /// 统一操作队列状态概览
     /// 显示各状态操作数量
     /// _需求: 6.1_
@@ -191,7 +190,7 @@ public struct OperationQueueDebugView: View {
             Text("统一操作队列状态")
                 .font(.subheadline)
                 .fontWeight(.medium)
-            
+
             // 第一行：主要状态
             HStack(spacing: 8) {
                 StatusCard(
@@ -200,21 +199,21 @@ public struct OperationQueueDebugView: View {
                     icon: "tray.full",
                     color: (queueStatistics["total"] ?? 0) == 0 ? .green : .blue
                 )
-                
+
                 StatusCard(
                     title: "待处理",
                     value: "\(queueStatistics["pending"] ?? 0)",
                     icon: "clock",
                     color: (queueStatistics["pending"] ?? 0) == 0 ? .green : .yellow
                 )
-                
+
                 StatusCard(
                     title: "处理中",
                     value: "\(queueStatistics["processing"] ?? 0)",
                     icon: "arrow.triangle.2.circlepath",
                     color: (queueStatistics["processing"] ?? 0) == 0 ? .green : .blue
                 )
-                
+
                 StatusCard(
                     title: "失败",
                     value: "\(queueStatistics["failed"] ?? 0)",
@@ -222,7 +221,7 @@ public struct OperationQueueDebugView: View {
                     color: (queueStatistics["failed"] ?? 0) == 0 ? .green : .red
                 )
             }
-            
+
             // 第二行：特殊状态
             HStack(spacing: 8) {
                 StatusCard(
@@ -231,21 +230,21 @@ public struct OperationQueueDebugView: View {
                     icon: "person.crop.circle.badge.exclamationmark",
                     color: (queueStatistics["authFailed"] ?? 0) == 0 ? .green : .orange
                 )
-                
+
                 StatusCard(
                     title: "超过重试",
                     value: "\(queueStatistics["maxRetryExceeded"] ?? 0)",
                     icon: "arrow.counterclockwise.circle",
                     color: (queueStatistics["maxRetryExceeded"] ?? 0) == 0 ? .green : .red
                 )
-                
+
                 StatusCard(
                     title: "待上传",
                     value: "\(UnifiedOperationQueue.shared.getPendingUploadCount())",
                     icon: "arrow.up.circle",
                     color: UnifiedOperationQueue.shared.getPendingUploadCount() == 0 ? .green : .orange
                 )
-                
+
                 StatusCard(
                     title: "临时 ID",
                     value: "\(temporaryIdNoteCount)",
@@ -253,13 +252,13 @@ public struct OperationQueueDebugView: View {
                     color: temporaryIdNoteCount == 0 ? .green : .purple
                 )
             }
-            
+
             // 第三行：按操作类型统计
             VStack(alignment: .leading, spacing: 4) {
                 Text("按操作类型")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                
+
                 HStack(spacing: 6) {
                     OperationTypeTag(type: "noteCreate", count: queueStatistics["noteCreate"] ?? 0)
                     OperationTypeTag(type: "cloudUpload", count: queueStatistics["cloudUpload"] ?? 0)
@@ -273,9 +272,9 @@ public struct OperationQueueDebugView: View {
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
     }
-    
+
     // MARK: - Temporary ID Notes Section
-    
+
     /// 临时 ID 笔记状态
     /// 显示离线创建的笔记数量
     /// _需求: 6.1_
@@ -298,7 +297,7 @@ public struct OperationQueueDebugView: View {
                         .foregroundColor(.purple)
                 }
             }
-            
+
             if temporaryNoteIds.isEmpty {
                 HStack {
                     Image(systemName: "checkmark.circle")
@@ -337,9 +336,9 @@ public struct OperationQueueDebugView: View {
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
     }
-    
+
     // MARK: - ID Mapping Section
-    
+
     /// ID 映射状态
     private var idMappingSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -352,7 +351,7 @@ public struct OperationQueueDebugView: View {
                     .foregroundColor(.secondary)
                 Spacer()
             }
-            
+
             HStack(spacing: 8) {
                 StatusCard(
                     title: "总映射",
@@ -360,14 +359,14 @@ public struct OperationQueueDebugView: View {
                     icon: "arrow.left.arrow.right",
                     color: .blue
                 )
-                
+
                 StatusCard(
                     title: "未完成",
                     value: "\(idMappingStats["incomplete"] ?? 0)",
                     icon: "clock.arrow.circlepath",
                     color: (idMappingStats["incomplete"] ?? 0) == 0 ? .green : .orange
                 )
-                
+
                 StatusCard(
                     title: "已完成",
                     value: "\(idMappingStats["completed"] ?? 0)",
@@ -380,9 +379,9 @@ public struct OperationQueueDebugView: View {
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
     }
-    
+
     // MARK: - Active Editing Section
-    
+
     private var activeEditingSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -399,19 +398,19 @@ public struct OperationQueueDebugView: View {
                         .foregroundColor(.green)
                 }
             }
-            
+
             if let noteId = activeEditingNoteId {
                 HStack(spacing: 8) {
                     Image(systemName: "pencil.circle.fill")
                         .foregroundColor(.blue)
                         .font(.caption)
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(noteId)
                             .font(.system(.caption, design: .monospaced))
                             .lineLimit(1)
                             .truncationMode(.middle)
-                        
+
                         // 显示是否为临时 ID
                         if NoteOperation.isTemporaryId(noteId) {
                             Text("临时 ID（离线创建）")
@@ -419,9 +418,9 @@ public struct OperationQueueDebugView: View {
                                 .foregroundColor(.purple)
                         }
                     }
-                    
+
                     Spacer()
-                    
+
                     Button("复制") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(noteId, forType: .string)
@@ -448,9 +447,9 @@ public struct OperationQueueDebugView: View {
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
     }
-    
+
     // MARK: - Unified Operations Section
-    
+
     /// 统一操作队列列表
     /// _需求: 6.1_
     private var unifiedOperationsSection: some View {
@@ -463,7 +462,7 @@ public struct OperationQueueDebugView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
-                
+
                 if failedOperationsCount > 0 {
                     Button("重试") {
                         showRetryConfirmation = true
@@ -471,7 +470,7 @@ public struct OperationQueueDebugView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.mini)
                 }
-                
+
                 if !unifiedOperations.isEmpty {
                     Button("清空") {
                         showClearConfirmation = true
@@ -481,7 +480,7 @@ public struct OperationQueueDebugView: View {
                     .foregroundColor(.red)
                 }
             }
-            
+
             if unifiedOperations.isEmpty {
                 HStack {
                     Image(systemName: "checkmark.circle")
@@ -504,16 +503,16 @@ public struct OperationQueueDebugView: View {
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
     }
-    
+
     /// 失败操作数量
     private var failedOperationsCount: Int {
-        unifiedOperations.filter { $0.status == .failed }.count
+        unifiedOperations.count(where: { $0.status == .failed })
     }
-    
+
     /// 过滤后的操作列表
     private var filteredUnifiedOperations: [NoteOperation] {
         var operations = unifiedOperations
-        
+
         // 应用状态过滤
         switch operationFilter {
         case .all:
@@ -529,19 +528,19 @@ public struct OperationQueueDebugView: View {
         case .maxRetryExceeded:
             operations = operations.filter { $0.status == .maxRetryExceeded }
         case .temporaryId:
-            operations = operations.filter { $0.isLocalId }
+            operations = operations.filter(\.isLocalId)
         }
-        
+
         // 应用搜索过滤
         if !searchText.isEmpty {
             operations = operations.filter { $0.noteId.localizedCaseInsensitiveContains(searchText) }
         }
-        
+
         return operations
     }
-    
+
     // MARK: - Operation History Section
-    
+
     /// 历史操作记录区域
     private var operationHistorySection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -556,13 +555,13 @@ public struct OperationQueueDebugView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                
+
                 Text("(\(operationHistory.count))")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                
+
                 Spacer()
-                
+
                 // 历史统计
                 if showHistory {
                     HStack(spacing: 8) {
@@ -573,7 +572,7 @@ public struct OperationQueueDebugView: View {
                             Text("\(historyStatistics["success"] ?? 0)")
                                 .font(.caption2)
                         }
-                        
+
                         HStack(spacing: 2) {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.red)
@@ -582,7 +581,7 @@ public struct OperationQueueDebugView: View {
                                 .font(.caption2)
                         }
                     }
-                    
+
                     if !operationHistory.isEmpty {
                         Button("清空") {
                             showClearHistoryConfirmation = true
@@ -592,7 +591,7 @@ public struct OperationQueueDebugView: View {
                     }
                 }
             }
-            
+
             if showHistory {
                 if operationHistory.isEmpty {
                     HStack {
@@ -615,12 +614,12 @@ public struct OperationQueueDebugView: View {
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
     }
-    
+
     // MARK: - Data Operations
-    
+
     private func refreshData() {
         isRefreshing = true
-        
+
         Task {
             // 获取统一操作队列数据
             let queue = UnifiedOperationQueue.shared
@@ -628,58 +627,58 @@ public struct OperationQueueDebugView: View {
             let stats = queue.getStatistics()
             let tempCount = queue.getTemporaryIdNoteCount()
             let tempIds = queue.getAllTemporaryNoteIds()
-            
+
             // 获取历史记录
             let history = queue.getOperationHistory(limit: 50)
             let historyStats = queue.getHistoryStatistics()
-            
+
             // 获取 ID 映射统计
             let mappingRegistry = IdMappingRegistry.shared
             let mappingStats = mappingRegistry.getStatistics()
-            
+
             // 获取活跃编辑笔记 ID
             let coordinator = NoteOperationCoordinator.shared
             let activeNoteId = await coordinator.getActiveEditingNoteId()
-            
+
             await MainActor.run {
-                self.unifiedOperations = operations
-                self.queueStatistics = stats
-                self.temporaryIdNoteCount = tempCount
-                self.temporaryNoteIds = tempIds
-                self.operationHistory = history
-                self.historyStatistics = historyStats
-                self.idMappingStats = mappingStats
-                self.activeEditingNoteId = activeNoteId
-                self.lastRefreshTime = Date()
-                self.isRefreshing = false
+                unifiedOperations = operations
+                queueStatistics = stats
+                temporaryIdNoteCount = tempCount
+                temporaryNoteIds = tempIds
+                operationHistory = history
+                historyStatistics = historyStats
+                idMappingStats = mappingStats
+                activeEditingNoteId = activeNoteId
+                lastRefreshTime = Date()
+                isRefreshing = false
             }
         }
     }
-    
+
     private func startAutoRefresh() {
         refreshData()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
             Task { @MainActor in
-                self.refreshData()
+                refreshData()
             }
         }
     }
-    
+
     private func stopAutoRefresh() {
         refreshTimer?.invalidate()
         refreshTimer = nil
     }
-    
+
     private func clearAllOperations() {
         try? UnifiedOperationQueue.shared.clearAll()
         refreshData()
     }
-    
+
     private func deleteOperation(_ operation: NoteOperation) {
         try? UnifiedOperationQueue.shared.markCompleted(operation.id)
         refreshData()
     }
-    
+
     private func retryFailedOperations() {
         Task {
             await OperationProcessor.shared.processRetries()
@@ -688,13 +687,12 @@ public struct OperationQueueDebugView: View {
             }
         }
     }
-    
+
     private func clearHistory() {
         try? UnifiedOperationQueue.shared.clearHistory()
         refreshData()
     }
 }
-
 
 // MARK: - Supporting Types
 
@@ -708,8 +706,10 @@ enum UnifiedOperationFilterType: String, CaseIterable {
     case authFailed = "认证失败"
     case maxRetryExceeded = "超过重试"
     case temporaryId = "临时 ID"
-    
-    var displayName: String { rawValue }
+
+    var displayName: String {
+        rawValue
+    }
 }
 
 // MARK: - Supporting Views
@@ -720,7 +720,7 @@ struct StatusCard: View {
     let value: String
     let icon: String
     let color: Color
-    
+
     var body: some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
@@ -744,7 +744,7 @@ struct StatusCard: View {
 struct OperationTypeTag: View {
     let type: String
     let count: Int
-    
+
     var body: some View {
         HStack(spacing: 4) {
             Text(displayName)
@@ -759,27 +759,27 @@ struct OperationTypeTag: View {
         .foregroundColor(color)
         .cornerRadius(4)
     }
-    
+
     private var displayName: String {
         switch type {
-        case "noteCreate": return "创建"
-        case "cloudUpload": return "上传"
-        case "cloudDelete": return "删除"
-        case "imageUpload": return "图片"
-        case "folderCreate": return "文件夹创建"
-        case "folderRename": return "文件夹重命名"
-        case "folderDelete": return "文件夹删除"
-        default: return type
+        case "noteCreate": "创建"
+        case "cloudUpload": "上传"
+        case "cloudDelete": "删除"
+        case "imageUpload": "图片"
+        case "folderCreate": "文件夹创建"
+        case "folderRename": "文件夹重命名"
+        case "folderDelete": "文件夹删除"
+        default: type
         }
     }
-    
+
     private var color: Color {
         switch type {
-        case "noteCreate": return .purple
-        case "cloudUpload": return .blue
-        case "cloudDelete": return .red
-        case "imageUpload": return .green
-        default: return .gray
+        case "noteCreate": .purple
+        case "cloudUpload": .blue
+        case "cloudDelete": .red
+        case "imageUpload": .green
+        default: .gray
         }
     }
 }
@@ -789,18 +789,18 @@ struct OperationTypeTag: View {
 struct UnifiedOperationRow: View {
     let operation: NoteOperation
     let onDelete: () -> Void
-    
+
     var body: some View {
         HStack(spacing: 8) {
             statusIcon
                 .font(.caption)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(operation.type.displayName)
                         .font(.caption)
                         .fontWeight(.medium)
-                    
+
                     // 显示临时 ID 标记
                     if operation.isLocalId {
                         Text("临时")
@@ -811,32 +811,32 @@ struct UnifiedOperationRow: View {
                             .foregroundColor(.purple)
                             .cornerRadius(3)
                     }
-                    
+
                     Text(operation.noteId)
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
-                
+
                 HStack(spacing: 6) {
                     Text(operation.createdAt, style: .relative)
                         .font(.caption2)
                         .foregroundColor(.secondary)
-                    
+
                     if operation.retryCount > 0 {
                         Text("重试:\(operation.retryCount)")
                             .font(.caption2)
                             .foregroundColor(.orange)
                     }
-                    
+
                     if let nextRetry = operation.nextRetryAt {
                         Text("下次: \(nextRetry, style: .relative)")
                             .font(.caption2)
                             .foregroundColor(.blue)
                     }
                 }
-                
+
                 if let error = operation.lastError {
                     Text(error)
                         .font(.caption2)
@@ -844,11 +844,11 @@ struct UnifiedOperationRow: View {
                         .lineLimit(1)
                 }
             }
-            
+
             Spacer()
-            
+
             statusBadge
-            
+
             Button(action: onDelete) {
                 Image(systemName: "trash")
                     .font(.caption)
@@ -860,7 +860,7 @@ struct UnifiedOperationRow: View {
         .background(statusBackgroundColor.opacity(0.05))
         .cornerRadius(6)
     }
-    
+
     @ViewBuilder
     private var statusIcon: some View {
         switch operation.status {
@@ -884,8 +884,7 @@ struct UnifiedOperationRow: View {
                 .foregroundColor(.red)
         }
     }
-    
-    @ViewBuilder
+
     private var statusBadge: some View {
         Text(operation.status.displayName)
             .font(.caption2)
@@ -895,15 +894,15 @@ struct UnifiedOperationRow: View {
             .foregroundColor(statusBackgroundColor)
             .cornerRadius(4)
     }
-    
+
     private var statusBackgroundColor: Color {
         switch operation.status {
-        case .pending: return .yellow
-        case .processing: return .blue
-        case .completed: return .green
-        case .failed: return .red
-        case .authFailed: return .orange
-        case .maxRetryExceeded: return .red
+        case .pending: .yellow
+        case .processing: .blue
+        case .completed: .green
+        case .failed: .red
+        case .authFailed: .orange
+        case .maxRetryExceeded: .red
         }
     }
 }
@@ -913,13 +912,13 @@ struct UnifiedOperationRow: View {
 extension OperationType {
     var displayName: String {
         switch self {
-        case .noteCreate: return "创建笔记"
-        case .cloudUpload: return "上传笔记"
-        case .cloudDelete: return "删除笔记"
-        case .imageUpload: return "上传图片"
-        case .folderCreate: return "创建文件夹"
-        case .folderRename: return "重命名文件夹"
-        case .folderDelete: return "删除文件夹"
+        case .noteCreate: "创建笔记"
+        case .cloudUpload: "上传笔记"
+        case .cloudDelete: "删除笔记"
+        case .imageUpload: "上传图片"
+        case .folderCreate: "创建文件夹"
+        case .folderRename: "重命名文件夹"
+        case .folderDelete: "删除文件夹"
         }
     }
 }
@@ -927,12 +926,12 @@ extension OperationType {
 extension OperationStatus {
     var displayName: String {
         switch self {
-        case .pending: return "待处理"
-        case .processing: return "处理中"
-        case .completed: return "已完成"
-        case .failed: return "失败"
-        case .authFailed: return "认证失败"
-        case .maxRetryExceeded: return "超过重试"
+        case .pending: "待处理"
+        case .processing: "处理中"
+        case .completed: "已完成"
+        case .failed: "失败"
+        case .authFailed: "认证失败"
+        case .maxRetryExceeded: "超过重试"
         }
     }
 }
@@ -940,38 +939,38 @@ extension OperationStatus {
 /// 历史操作行
 struct OperationHistoryRow: View {
     let entry: OperationHistoryEntry
-    
+
     var body: some View {
         HStack(spacing: 8) {
             // 状态图标
             Image(systemName: entry.isSuccess ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .foregroundColor(entry.isSuccess ? .green : .red)
                 .font(.caption)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(entry.type.displayName)
                         .font(.caption)
                         .fontWeight(.medium)
-                    
+
                     Text(entry.noteId)
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
-                
+
                 HStack(spacing: 6) {
                     // 完成时间
                     Text(entry.completedAt, style: .relative)
                         .font(.caption2)
                         .foregroundColor(.secondary)
-                    
+
                     // 耗时
                     Text("耗时: \(formatDuration(entry.duration))")
                         .font(.caption2)
                         .foregroundColor(.secondary)
-                    
+
                     // 重试次数
                     if entry.retryCount > 0 {
                         Text("重试:\(entry.retryCount)")
@@ -979,7 +978,7 @@ struct OperationHistoryRow: View {
                             .foregroundColor(.orange)
                     }
                 }
-                
+
                 // 错误信息
                 if let error = entry.lastError {
                     Text(error)
@@ -988,9 +987,9 @@ struct OperationHistoryRow: View {
                         .lineLimit(1)
                 }
             }
-            
+
             Spacer()
-            
+
             // 状态标签
             Text(entry.isSuccess ? "成功" : "失败")
                 .font(.caption2)
@@ -1004,7 +1003,7 @@ struct OperationHistoryRow: View {
         .background((entry.isSuccess ? Color.green : Color.red).opacity(0.03))
         .cornerRadius(6)
     }
-    
+
     /// 格式化耗时
     private func formatDuration(_ duration: TimeInterval) -> String {
         if duration < 1 {

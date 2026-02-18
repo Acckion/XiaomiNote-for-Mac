@@ -28,16 +28,18 @@ import Foundation
 public struct NoteImageAttachment: Codable, Identifiable, Equatable, Hashable, Sendable {
     /// 文件ID（完整格式：userId.fileId）
     public let fileId: String
-    
+
     /// MIME 类型（如 "image/png", "image/jpeg"）
     public let mimeType: String
-    
+
     /// 文件大小（字节）
     public let size: Int?
-    
+
     /// Identifiable 协议要求的 id
-    public var id: String { fileId }
-    
+    public var id: String {
+        fileId
+    }
+
     /// 文件类型（从 mimeType 提取）
     ///
     /// 例如：
@@ -50,9 +52,9 @@ public struct NoteImageAttachment: Codable, Identifiable, Equatable, Hashable, S
         guard components.count == 2 else {
             return "jpg" // 默认为 jpg
         }
-        
+
         let type = String(components[1]).lowercased()
-        
+
         // 处理特殊情况
         switch type {
         case "jpeg":
@@ -61,7 +63,7 @@ public struct NoteImageAttachment: Codable, Identifiable, Equatable, Hashable, S
             return type
         }
     }
-    
+
     public init(fileId: String, mimeType: String, size: Int?) {
         self.fileId = fileId
         self.mimeType = mimeType

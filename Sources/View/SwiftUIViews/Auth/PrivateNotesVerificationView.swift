@@ -1,30 +1,30 @@
-import SwiftUI
 import LocalAuthentication
+import SwiftUI
 
 /// 私密笔记验证视图（类似Apple Notes样式）
 struct PrivateNotesVerificationView: View {
     @ObservedObject var viewModel: NotesViewModel
-    @State private var password: String = ""
-    @State private var showError: Bool = false
-    @State private var errorMessage: String = ""
-    @State private var isAuthenticating: Bool = false
-    @State private var showPasswordInput: Bool = false
-    
+    @State private var password = ""
+    @State private var showError = false
+    @State private var errorMessage = ""
+    @State private var isAuthenticating = false
+    @State private var showPasswordInput = false
+
     private let passwordManager = PrivateNotesPasswordManager.shared
-    
+
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
-            
+
             // 锁图标和Touch ID图标
             ZStack {
                 // 大锁图标
                 Image(systemName: "lock.fill")
                     .font(.system(size: 80))
                     .foregroundColor(.secondary)
-                
+
                 // Touch ID图标（如果支持且启用）
-                if passwordManager.isTouchIDEnabled() && passwordManager.isBiometricAvailable() {
+                if passwordManager.isTouchIDEnabled(), passwordManager.isBiometricAvailable() {
                     Image(systemName: "touchid")
                         .font(.system(size: 40))
                         .foregroundColor(.red)
@@ -32,13 +32,13 @@ struct PrivateNotesVerificationView: View {
                 }
             }
             .padding(.bottom, 30)
-            
+
             // 提示文字
             Text("此笔记已锁定。")
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.primary)
                 .padding(.bottom, 8)
-            
+
             // 说明文字
             Text("使用触控 ID 或输入为\"iCloud\"账户中笔记创建的密码查看此笔记。")
                 .font(.system(size: 14))
@@ -46,7 +46,7 @@ struct PrivateNotesVerificationView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
                 .padding(.bottom, 30)
-            
+
             // 密码输入按钮
             Button {
                 showPasswordInput = true
@@ -57,9 +57,9 @@ struct PrivateNotesVerificationView: View {
             }
             .buttonStyle(.bordered)
             .padding(.bottom, 20)
-            
+
             // Touch ID按钮（如果支持且启用）
-            if passwordManager.isTouchIDEnabled() && passwordManager.isBiometricAvailable() {
+            if passwordManager.isTouchIDEnabled(), passwordManager.isBiometricAvailable() {
                 Button {
                     authenticateWithTouchID()
                 } label: {
@@ -75,7 +75,7 @@ struct PrivateNotesVerificationView: View {
                 .disabled(isAuthenticating)
                 .padding(.bottom, 20)
             }
-            
+
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -91,17 +91,17 @@ struct PrivateNotesVerificationView: View {
             )
         }
     }
-    
+
     private func authenticateWithTouchID() {
         guard !isAuthenticating else { return }
-        
+
         isAuthenticating = true
         showError = false
-        
+
         Task {
             do {
                 let success = try await passwordManager.authenticateWithTouchID()
-                
+
                 await MainActor.run {
                     isAuthenticating = false
                     if success {
@@ -144,16 +144,16 @@ struct PasswordInputSheetView: View {
     @Binding var isAuthenticating: Bool
     let onDismiss: () -> Void
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         VStack(spacing: 20) {
             Text("访问私密笔记")
                 .font(.headline)
-            
+
             Text("请输入私密笔记密码以继续")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("密码")
                     .font(.caption)
@@ -164,13 +164,13 @@ struct PasswordInputSheetView: View {
                         verifyPassword()
                     }
             }
-            
+
             if showError {
                 Text(errorMessage)
                     .font(.caption)
                     .foregroundColor(.red)
             }
-            
+
             HStack(spacing: 12) {
                 Button("取消") {
                     password = ""
@@ -180,7 +180,7 @@ struct PasswordInputSheetView: View {
                     onDismiss()
                 }
                 .buttonStyle(.bordered)
-                
+
                 Button("验证") {
                     verifyPassword()
                 }
@@ -197,7 +197,7 @@ struct PasswordInputSheetView: View {
             }
         }
     }
-    
+
     private func verifyPassword() {
         if password.isEmpty {
             errorMessage = "请输入密码"
@@ -217,4 +217,3 @@ struct PasswordInputSheetView: View {
         }
     }
 }
-

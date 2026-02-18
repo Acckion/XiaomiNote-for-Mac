@@ -38,25 +38,25 @@ import Foundation
 @MainActor
 public class AutoSaveManager {
     // MARK: - 配置
-    
+
     /// 防抖延迟时间（秒）
     ///
     /// _Requirements: FR-6.1_
     private let debounceDelay: TimeInterval
-    
+
     // MARK: - 状态
-    
+
     /// 防抖定时器
     private var debounceTimer: Timer?
-    
+
     /// 正在保存的版本号
     private var savingVersion: Int?
-    
+
     /// 保存回调
     private var saveCallback: (() async -> Void)?
-    
+
     // MARK: - 初始化
-    
+
     /// 初始化自动保存管理器
     ///
     /// - Parameters:
@@ -68,12 +68,12 @@ public class AutoSaveManager {
     ) {
         self.debounceDelay = debounceDelay
         self.saveCallback = saveCallback
-        
+
         print("[AutoSaveManager] 初始化 - 防抖延迟: \(debounceDelay)秒")
     }
-    
+
     // MARK: - 调度保存
-    
+
     /// 调度自动保存
     ///
     /// 使用防抖机制，避免频繁保存
@@ -83,7 +83,7 @@ public class AutoSaveManager {
     public func scheduleAutoSave() {
         // 取消之前的定时器
         debounceTimer?.invalidate()
-        
+
         // 创建新的定时器
         debounceTimer = Timer.scheduledTimer(
             withTimeInterval: debounceDelay,
@@ -93,10 +93,10 @@ public class AutoSaveManager {
                 await self?.triggerSave()
             }
         }
-        
+
         print("[AutoSaveManager] 已调度自动保存（\(debounceDelay)秒后）")
     }
-    
+
     /// 取消自动保存
     ///
     /// 取消待处理的保存任务
@@ -105,10 +105,10 @@ public class AutoSaveManager {
     public func cancelAutoSave() {
         debounceTimer?.invalidate()
         debounceTimer = nil
-        
+
         print("[AutoSaveManager] 已取消自动保存")
     }
-    
+
     /// 立即保存
     ///
     /// 取消防抖延迟，立即执行保存
@@ -116,9 +116,9 @@ public class AutoSaveManager {
         cancelAutoSave()
         await triggerSave()
     }
-    
+
     // MARK: - 保存执行
-    
+
     /// 触发保存
     ///
     /// 执行保存回调函数
@@ -127,11 +127,11 @@ public class AutoSaveManager {
             print("[AutoSaveManager] ⚠️ 保存回调未设置")
             return
         }
-        
+
         print("[AutoSaveManager] 触发保存")
         await callback()
     }
-    
+
     /// 标记保存开始
     ///
     /// 记录正在保存的版本号，用于检测并发编辑
@@ -143,7 +143,7 @@ public class AutoSaveManager {
         savingVersion = version
         print("[AutoSaveManager] 保存开始 - 版本: \(version)")
     }
-    
+
     /// 标记保存完成
     ///
     /// 清除正在保存的版本号
@@ -152,22 +152,22 @@ public class AutoSaveManager {
         savingVersion = nil
         print("[AutoSaveManager] 保存完成 - 版本: \(version ?? -1)")
     }
-    
+
     /// 检查是否正在保存
     public var isSaving: Bool {
         savingVersion != nil
     }
-    
+
     /// 获取正在保存的版本号
     public var currentSavingVersion: Int? {
         savingVersion
     }
-    
+
     // MARK: - 调试信息
-    
+
     /// 获取调试信息
     public func getDebugInfo() -> String {
-        return """
+        """
         AutoSaveManager 状态:
         - debounceDelay: \(debounceDelay)秒
         - isSaving: \(isSaving)
@@ -175,16 +175,16 @@ public class AutoSaveManager {
         - hasPendingSave: \(debounceTimer != nil)
         """
     }
-    
+
     /// 打印调试信息
     public func printDebugInfo() {
         print("[AutoSaveManager] ========================================")
         print(getDebugInfo())
         print("[AutoSaveManager] ========================================")
     }
-    
+
     // MARK: - 清理
-    
+
     deinit {
         // 注意：由于 Swift 6 的 Sendable 限制，我们不能在 deinit 中直接访问 Timer
         // Timer 会在 AutoSaveManager 释放时自动失效

@@ -8,8 +8,8 @@
 //  Created by Title Content Integration Fix
 //
 
-import Foundation
 import AppKit
+import Foundation
 
 /// 标题提取服务
 ///
@@ -28,16 +28,16 @@ import AppKit
 /// _需求: 1.1, 2.1, 2.2, 2.3_
 @MainActor
 public final class TitleExtractionService {
-    
+
     // MARK: - Singleton
-    
+
     /// 共享实例
     public static let shared = TitleExtractionService()
-    
+
     private init() {}
-    
+
     // MARK: - 公共接口
-    
+
     /// 从 XML 内容提取标题
     ///
     /// 解析 XML 字符串，查找 `<title>` 标签并提取其内容
@@ -55,7 +55,7 @@ public final class TitleExtractionService {
     /// 返回: TitleExtractionResult(title: "我的笔记标题 & 特殊字符", source: .xml, isValid: true)
     public func extractTitleFromXML(_ xmlContent: String) -> TitleExtractionResult {
         print("[TitleExtractionService] 开始从 XML 提取标题")
-        
+
         // 验证输入
         guard !xmlContent.isEmpty else {
             print("[TitleExtractionService] XML 内容为空")
@@ -68,9 +68,9 @@ public final class TitleExtractionService {
                 processedLength: 0
             )
         }
-        
+
         let originalLength = xmlContent.count
-        
+
         // 查找 <title> 标签
         guard let titleRange = xmlContent.range(of: "<title>") else {
             print("[TitleExtractionService] 未找到 <title> 标签")
@@ -83,9 +83,9 @@ public final class TitleExtractionService {
                 processedLength: 0
             )
         }
-        
+
         // 查找 </title> 结束标签
-        guard let endTitleRange = xmlContent.range(of: "</title>", range: titleRange.upperBound..<xmlContent.endIndex) else {
+        guard let endTitleRange = xmlContent.range(of: "</title>", range: titleRange.upperBound ..< xmlContent.endIndex) else {
             print("[TitleExtractionService] 未找到 </title> 结束标签")
             return TitleExtractionResult(
                 title: "",
@@ -97,16 +97,16 @@ public final class TitleExtractionService {
                 error: "XML 格式错误：缺少 </title> 结束标签"
             )
         }
-        
+
         // 提取标题内容
-        let rawTitleContent = String(xmlContent[titleRange.upperBound..<endTitleRange.lowerBound])
-        
+        let rawTitleContent = String(xmlContent[titleRange.upperBound ..< endTitleRange.lowerBound])
+
         // 解码 XML 实体
         let decodedTitle = decodeXMLEntities(rawTitleContent)
-        
+
         // 验证和清理标题
         let cleanedTitle = validateAndCleanTitle(decodedTitle)
-        
+
         let result = TitleExtractionResult(
             title: cleanedTitle,
             source: .xml,
@@ -115,11 +115,11 @@ public final class TitleExtractionService {
             originalLength: originalLength,
             processedLength: cleanedTitle.count
         )
-        
+
         print("[TitleExtractionService] 从 XML 提取标题成功: '\(cleanedTitle)'")
         return result
     }
-    
+
     /// 从原生编辑器提取标题
     ///
     /// 从 NSTextStorage 中提取第一个标记为标题的段落
@@ -136,7 +136,7 @@ public final class TitleExtractionService {
     /// - 如果第一个段落不是标题类型，返回空字符串
     public func extractTitleFromEditor(_ textStorage: NSTextStorage) -> TitleExtractionResult {
         print("[TitleExtractionService] 开始从编辑器提取标题")
-        
+
         // 验证输入
         guard textStorage.length > 0 else {
             print("[TitleExtractionService] 编辑器内容为空")
@@ -149,29 +149,28 @@ public final class TitleExtractionService {
                 processedLength: 0
             )
         }
-        
+
         let originalLength = textStorage.length
         let fullText = textStorage.string
-        
+
         // 查找第一个换行符的位置
-        let firstLineEnd: Int
-        if let newlineRange = fullText.range(of: "\n") {
-            firstLineEnd = fullText.distance(from: fullText.startIndex, to: newlineRange.lowerBound)
+        let firstLineEnd: Int = if let newlineRange = fullText.range(of: "\n") {
+            fullText.distance(from: fullText.startIndex, to: newlineRange.lowerBound)
         } else {
             // 如果没有换行符，整个文本就是第一行
-            firstLineEnd = fullText.count
+            fullText.count
         }
-        
+
         // 提取第一行文本
         let firstLineRange = NSRange(location: 0, length: firstLineEnd)
-        
+
         // 检查第一行是否标记为标题类型
         var isTitle = false
         var titleCheckMethod = ""
-        
+
         if firstLineEnd > 0 {
             let attributes = textStorage.attributes(at: 0, effectiveRange: nil)
-            
+
             // 方法1：检查 .isTitle 属性
             if let isTitleAttr = attributes[.isTitle] as? Bool, isTitleAttr {
                 isTitle = true
@@ -179,12 +178,13 @@ public final class TitleExtractionService {
             }
             // 方法2：检查 .paragraphType 属性
             else if let paragraphType = attributes[.paragraphType] as? ParagraphType,
-                    paragraphType == .title {
+                    paragraphType == .title
+            {
                 isTitle = true
                 titleCheckMethod = ".paragraphType 属性"
             }
         }
-        
+
         // 如果不是标题类型，返回空字符串
         guard isTitle else {
             print("[TitleExtractionService] 第一行不是标题段落")
@@ -197,13 +197,13 @@ public final class TitleExtractionService {
                 processedLength: 0
             )
         }
-        
+
         // 提取标题文本
         let rawTitleText = (fullText as NSString).substring(with: firstLineRange)
-        
+
         // 验证和清理标题
         let cleanedTitle = validateAndCleanTitle(rawTitleText)
-        
+
         let result = TitleExtractionResult(
             title: cleanedTitle,
             source: .nativeEditor,
@@ -212,11 +212,11 @@ public final class TitleExtractionService {
             originalLength: originalLength,
             processedLength: cleanedTitle.count
         )
-        
+
         print("[TitleExtractionService] 从编辑器提取标题成功: '\(cleanedTitle)' (通过 \(titleCheckMethod))")
         return result
     }
-    
+
     /// 验证标题内容
     ///
     /// 检查标题是否符合基本要求：
@@ -233,23 +233,23 @@ public final class TitleExtractionService {
         if title.count > 200 {
             return (false, "标题长度超过限制（最大 200 字符）")
         }
-        
+
         // 检查是否包含换行符
         if title.contains("\n") || title.contains("\r") {
             return (false, "标题不能包含换行符")
         }
-        
+
         // 检查是否包含控制字符
         let controlCharacters = CharacterSet.controlCharacters
         if title.rangeOfCharacter(from: controlCharacters) != nil {
             return (false, "标题不能包含控制字符")
         }
-        
+
         return (true, nil)
     }
-    
+
     // MARK: - 私有辅助方法
-    
+
     /// 验证和清理标题文本
     ///
     /// 执行以下操作：
@@ -262,14 +262,14 @@ public final class TitleExtractionService {
     private func validateAndCleanTitle(_ rawTitle: String) -> String {
         // 移除首尾空白字符和换行符
         var cleanedTitle = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         // 将内部的多个空白字符合并为单个空格
         cleanedTitle = cleanedTitle.replacingOccurrences(
             of: "\\s+",
             with: " ",
             options: .regularExpression
         )
-        
+
         // 验证标题
         let validation = validateTitle(cleanedTitle)
         if !validation.isValid {
@@ -280,10 +280,10 @@ public final class TitleExtractionService {
                 print("[TitleExtractionService] 标题已截断到 200 字符")
             }
         }
-        
+
         return cleanedTitle
     }
-    
+
     /// 解码 XML 实体
     ///
     /// 将 XML 实体（如 `&lt;`, `&gt;`, `&amp;` 等）转换为对应的字符
@@ -295,20 +295,20 @@ public final class TitleExtractionService {
     /// _需求: 2.2_ - 处理特殊字符和XML实体编码
     private func decodeXMLEntities(_ text: String) -> String {
         var result = text
-        
+
         // 标准 XML 实体（注意顺序：&amp; 必须最后处理）
         result = result.replacingOccurrences(of: "&lt;", with: "<")
         result = result.replacingOccurrences(of: "&gt;", with: ">")
         result = result.replacingOccurrences(of: "&quot;", with: "\"")
         result = result.replacingOccurrences(of: "&apos;", with: "'")
         result = result.replacingOccurrences(of: "&amp;", with: "&")
-        
+
         // 处理数字字符引用（如 &#39; &#x27;）
         result = decodeNumericCharacterReferences(result)
-        
+
         return result
     }
-    
+
     /// 解码数字字符引用
     ///
     /// 处理形如 `&#39;` (十进制) 和 `&#x27;` (十六进制) 的字符引用
@@ -317,41 +317,43 @@ public final class TitleExtractionService {
     /// - Returns: 解码后的文本
     private func decodeNumericCharacterReferences(_ text: String) -> String {
         var result = text
-        
+
         // 处理十进制字符引用 &#数字;
         let decimalPattern = "&#(\\d+);"
         if let regex = try? NSRegularExpression(pattern: decimalPattern) {
             let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
-            
+
             // 从后往前替换，避免索引变化问题
             for match in matches.reversed() {
                 if let numberRange = Range(match.range(at: 1), in: result),
                    let number = Int(result[numberRange]),
-                   let scalar = UnicodeScalar(number) {
+                   let scalar = UnicodeScalar(number)
+                {
                     let character = String(Character(scalar))
                     let fullRange = Range(match.range, in: result)!
                     result.replaceSubrange(fullRange, with: character)
                 }
             }
         }
-        
+
         // 处理十六进制字符引用 &#x十六进制;
         let hexPattern = "&#x([0-9a-fA-F]+);"
         if let regex = try? NSRegularExpression(pattern: hexPattern) {
             let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
-            
+
             // 从后往前替换，避免索引变化问题
             for match in matches.reversed() {
                 if let hexRange = Range(match.range(at: 1), in: result),
                    let number = Int(result[hexRange], radix: 16),
-                   let scalar = UnicodeScalar(number) {
+                   let scalar = UnicodeScalar(number)
+                {
                     let character = String(Character(scalar))
                     let fullRange = Range(match.range, in: result)!
                     result.replaceSubrange(fullRange, with: character)
                 }
             }
         }
-        
+
         return result
     }
 }
