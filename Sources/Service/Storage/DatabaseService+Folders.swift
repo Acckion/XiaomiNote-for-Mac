@@ -5,9 +5,6 @@ import SQLite3
 
 extension DatabaseService {
     /// 保存文件夹（插入或更新）
-    ///
-    /// - Parameter folder: 要保存的文件夹对象
-    /// - Throws: DatabaseError（数据库操作失败）
     func saveFolder(_ folder: Folder) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = """
@@ -49,9 +46,6 @@ extension DatabaseService {
     }
 
     /// 保存多个文件夹
-    ///
-    /// - Parameter folders: 文件夹数组
-    /// - Throws: DatabaseError（数据库操作失败）
     func saveFolders(_ folders: [Folder]) throws {
         for folder in folders {
             try saveFolder(folder)
@@ -59,14 +53,6 @@ extension DatabaseService {
     }
 
     /// 加载所有文件夹
-    ///
-    /// 按以下顺序排列：
-    /// 1. 置顶文件夹（is_pinned = 1）
-    /// 2. 系统文件夹（is_system = 1）
-    /// 3. 普通文件夹（按名称升序）
-    ///
-    /// - Returns: 文件夹数组
-    /// - Throws: DatabaseError（数据库操作失败）
     func loadFolders() throws -> [Folder] {
         try dbQueue.sync {
             let sql = "SELECT id, name, count, is_system, is_pinned, created_at, raw_data FROM folders ORDER BY is_pinned DESC, is_system DESC, name ASC;"
@@ -123,11 +109,6 @@ extension DatabaseService {
     }
 
     /// 更新笔记的文件夹ID
-    ///
-    /// - Parameters:
-    ///   - oldFolderId: 旧的文件夹ID
-    ///   - newFolderId: 新的文件夹ID
-    /// - Throws: DatabaseError（数据库操作失败）
     func updateNotesFolderId(oldFolderId: String, newFolderId: String) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = "UPDATE notes SET folder_id = ? WHERE folder_id = ?;"
@@ -160,11 +141,6 @@ extension DatabaseService {
     }
 
     /// 保存文件夹排序信息
-    ///
-    /// - Parameters:
-    ///   - eTag: 排序信息的ETag（用于增量同步）
-    ///   - orders: 文件夹ID的顺序数组
-    /// - Throws: DatabaseError（数据库操作失败）
     func saveFolderSortInfo(eTag: String, orders: [String]) throws {
         try dbQueue.sync(flags: .barrier) {
             let createTableSQL = """
@@ -209,9 +185,6 @@ extension DatabaseService {
     }
 
     /// 加载文件夹排序信息
-    ///
-    /// - Returns: 包含eTag和orders的元组，如果不存在则返回nil
-    /// - Throws: DatabaseError（数据库操作失败）
     func loadFolderSortInfo() throws -> (eTag: String, orders: [String])? {
         try dbQueue.sync {
             let tableExistsSQL = "SELECT name FROM sqlite_master WHERE type='table' AND name='folder_sort_info';"
@@ -273,8 +246,6 @@ extension DatabaseService {
     }
 
     /// 清除文件夹排序信息
-    ///
-    /// - Throws: DatabaseError（数据库操作失败）
     func clearFolderSortInfo() throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM folder_sort_info WHERE id = 1;"

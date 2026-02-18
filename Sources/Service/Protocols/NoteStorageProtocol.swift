@@ -14,7 +14,6 @@ import Foundation
 /// - 笔记的 CRUD 操作
 /// - 查询和搜索
 /// - 批量操作
-@preconcurrency
 public protocol NoteStorageProtocol: Sendable {
     // MARK: - 读取操作
 

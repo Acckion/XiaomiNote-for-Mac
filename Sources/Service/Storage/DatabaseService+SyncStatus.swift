@@ -11,9 +11,9 @@ extension DatabaseService {
     /// - Parameter status: 同步状态对象
     /// - Throws: DatabaseError（数据库操作失败）
     func saveSyncStatus(_ status: SyncStatus) throws {
-        try dbQueue.sync(flags: .barrier) {
-            print("[[调试]] 开始保存同步状态: syncTag=\(status.syncTag ?? "nil")")
+        print("[[调试]] 开始保存同步状态: syncTag=\(status.syncTag ?? "nil")")
 
+        try dbQueue.sync(flags: .barrier) {
             let sql = """
             INSERT OR REPLACE INTO sync_status (id, last_sync_time, sync_tag)
             VALUES (1, ?, ?);
@@ -63,7 +63,7 @@ extension DatabaseService {
     /// - Returns: 同步状态对象，如果不存在则返回nil
     /// - Throws: DatabaseError（数据库操作失败）
     func loadSyncStatus() throws -> SyncStatus? {
-        try dbQueue.sync { () -> SyncStatus? in
+        try dbQueue.sync {
             let sql = "SELECT last_sync_time, sync_tag FROM sync_status WHERE id = 1;"
 
             var statement: OpaquePointer?
@@ -101,8 +101,8 @@ extension DatabaseService {
     }
 
     /// 清除同步状态
-    func clearSyncStatus() throws {
-        try dbQueue.sync(flags: .barrier) {
+    func clearSyncStatus() {
+        dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM sync_status WHERE id = 1;"
             executeSQL(sql)
             print("[[调试]] 清除同步状态")

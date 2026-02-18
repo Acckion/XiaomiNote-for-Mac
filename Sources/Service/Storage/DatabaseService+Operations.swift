@@ -5,9 +5,6 @@ import SQLite3
 
 extension DatabaseService {
     /// 保存统一操作
-    ///
-    /// - Parameter operation: 笔记操作
-    /// - Throws: DatabaseError（数据库操作失败）
     func saveUnifiedOperation(_ operation: NoteOperation) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = """
@@ -73,11 +70,6 @@ extension DatabaseService {
     }
 
     /// 获取所有统一操作
-    ///
-    /// 按优先级降序、创建时间升序排列
-    ///
-    /// - Returns: 操作数组
-    /// - Throws: DatabaseError（数据库操作失败）
     func getAllUnifiedOperations() throws -> [NoteOperation] {
         try dbQueue.sync {
             let sql = """
@@ -110,11 +102,6 @@ extension DatabaseService {
     }
 
     /// 获取待处理的统一操作
-    ///
-    /// 返回状态为 pending 或 failed 的操作
-    ///
-    /// - Returns: 待处理操作数组
-    /// - Throws: DatabaseError（数据库操作失败）
     func getPendingUnifiedOperations() throws -> [NoteOperation] {
         try dbQueue.sync {
             let sql = """
@@ -148,10 +135,6 @@ extension DatabaseService {
     }
 
     /// 获取指定笔记的待处理操作
-    ///
-    /// - Parameter noteId: 笔记 ID
-    /// - Returns: 该笔记的待处理操作数组
-    /// - Throws: DatabaseError（数据库操作失败）
     func getUnifiedOperations(for noteId: String) throws -> [NoteOperation] {
         try dbQueue.sync {
             let sql = """
@@ -187,9 +170,6 @@ extension DatabaseService {
     }
 
     /// 删除统一操作
-    ///
-    /// - Parameter operationId: 操作 ID
-    /// - Throws: DatabaseError（数据库操作失败）
     func deleteUnifiedOperation(operationId: String) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM unified_operations WHERE id = ?;"
@@ -216,13 +196,6 @@ extension DatabaseService {
     }
 
     /// 更新操作中的笔记 ID
-    ///
-    /// 用于将临时 ID 更新为正式 ID
-    ///
-    /// - Parameters:
-    ///   - oldNoteId: 旧的笔记 ID（临时 ID）
-    ///   - newNoteId: 新的笔记 ID（正式 ID）
-    /// - Throws: DatabaseError（数据库操作失败）
     func updateNoteIdInUnifiedOperations(oldNoteId: String, newNoteId: String) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = "UPDATE unified_operations SET note_id = ?, is_local_id = 0 WHERE note_id = ?;"
@@ -251,8 +224,6 @@ extension DatabaseService {
     }
 
     /// 清空所有统一操作
-    ///
-    /// - Throws: DatabaseError（数据库操作失败）
     func clearAllUnifiedOperations() throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM unified_operations;"
@@ -266,11 +237,6 @@ extension DatabaseService {
 
 extension DatabaseService {
     /// 保存操作到历史记录
-    ///
-    /// - Parameters:
-    ///   - operation: 笔记操作
-    ///   - completedAt: 完成时间
-    /// - Throws: DatabaseError（数据库操作失败）
     func saveOperationHistory(_ operation: NoteOperation, completedAt: Date) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = """
@@ -319,10 +285,6 @@ extension DatabaseService {
     }
 
     /// 获取历史操作记录
-    ///
-    /// - Parameter limit: 最大返回数量
-    /// - Returns: 历史操作数组（按完成时间降序）
-    /// - Throws: DatabaseError（数据库操作失败）
     func getOperationHistory(limit: Int = 100) throws -> [OperationHistoryEntry] {
         try dbQueue.sync {
             let sql = """
@@ -358,8 +320,6 @@ extension DatabaseService {
     }
 
     /// 清空历史操作记录
-    ///
-    /// - Throws: DatabaseError（数据库操作失败）
     func clearOperationHistory() throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM operation_history;"
@@ -369,9 +329,6 @@ extension DatabaseService {
     }
 
     /// 清理旧的历史记录（保留最近 N 条）
-    ///
-    /// - Parameter keepCount: 保留的记录数量
-    /// - Throws: DatabaseError（数据库操作失败）
     func cleanupOldHistory(keepCount: Int = 100) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = """
@@ -412,9 +369,6 @@ extension DatabaseService {
 
 extension DatabaseService {
     /// 保存 ID 映射
-    ///
-    /// - Parameter mapping: ID 映射记录
-    /// - Throws: DatabaseError（数据库操作失败）
     func saveIdMapping(_ mapping: IdMapping) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = """
@@ -448,10 +402,6 @@ extension DatabaseService {
     }
 
     /// 获取 ID 映射
-    ///
-    /// - Parameter localId: 临时 ID
-    /// - Returns: ID 映射记录，如果不存在则返回 nil
-    /// - Throws: DatabaseError（数据库操作失败）
     func getIdMapping(for localId: String) throws -> IdMapping? {
         try dbQueue.sync {
             let sql = "SELECT local_id, server_id, entity_type, created_at, completed FROM id_mappings WHERE local_id = ?;"
@@ -478,9 +428,6 @@ extension DatabaseService {
     }
 
     /// 获取所有未完成的 ID 映射
-    ///
-    /// - Returns: 未完成的 ID 映射数组
-    /// - Throws: DatabaseError（数据库操作失败）
     func getIncompleteIdMappings() throws -> [IdMapping] {
         try dbQueue.sync {
             let sql = "SELECT local_id, server_id, entity_type, created_at, completed FROM id_mappings WHERE completed = 0;"
@@ -508,9 +455,6 @@ extension DatabaseService {
     }
 
     /// 标记 ID 映射为已完成
-    ///
-    /// - Parameter localId: 临时 ID
-    /// - Throws: DatabaseError（数据库操作失败）
     func markIdMappingCompleted(localId: String) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = "UPDATE id_mappings SET completed = 1 WHERE local_id = ?;"
@@ -537,8 +481,6 @@ extension DatabaseService {
     }
 
     /// 删除已完成的 ID 映射
-    ///
-    /// - Throws: DatabaseError（数据库操作失败）
     func deleteCompletedIdMappings() throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM id_mappings WHERE completed = 1;"

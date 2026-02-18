@@ -5,12 +5,6 @@ import SQLite3
 
 extension DatabaseService {
     /// 保存笔记（插入或更新）
-    ///
-    /// 如果笔记已存在，则更新；否则插入新记录
-    /// 包含数据验证，确保字段类型和约束正确
-    ///
-    /// - Parameter note: 要保存的笔记对象
-    /// - Throws: DatabaseError（数据库操作失败或数据验证失败）
     func saveNote(_ note: Note) throws {
         print("[[调试]] 保存笔记，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
 
@@ -51,13 +45,7 @@ extension DatabaseService {
     }
 
     /// 异步保存笔记（插入或更新）
-    ///
-    /// 使用异步队列执行，不阻塞调用线程
-    ///
-    /// - Parameters:
-    ///   - note: 要保存的笔记对象
-    ///   - completion: 完成回调，参数为错误（如果有）
-    func saveNoteAsync(_ note: Note, completion: @escaping (Error?) -> Void) {
+    func saveNoteAsync(_ note: Note, completion: @escaping @Sendable (Error?) -> Void) {
         dbQueue.async(flags: .barrier) { [weak self] in
             guard let self else {
                 completion(DatabaseError.connectionFailed("数据库连接已关闭"))
@@ -102,11 +90,6 @@ extension DatabaseService {
     }
 
     /// 批量保存笔记（插入或更新）
-    ///
-    /// 使用事务批量保存多个笔记，提高性能
-    ///
-    /// - Parameter notes: 要保存的笔记数组
-    /// - Throws: DatabaseError（数据库操作失败）
     func saveNotes(_ notes: [Note]) throws {
         guard !notes.isEmpty else { return }
 
@@ -154,10 +137,6 @@ extension DatabaseService {
     }
 
     /// 加载笔记
-    ///
-    /// - Parameter noteId: 笔记ID
-    /// - Returns: 笔记对象，如果不存在则返回nil
-    /// - Throws: DatabaseError（数据库操作失败）
     func loadNote(noteId: String) throws -> Note? {
         try dbQueue.sync {
             let sql = """
@@ -189,11 +168,6 @@ extension DatabaseService {
     }
 
     /// 获取所有笔记
-    ///
-    /// 按更新时间倒序排列（最新的在前）
-    ///
-    /// - Returns: 笔记数组
-    /// - Throws: DatabaseError（数据库操作失败）
     func getAllNotes() throws -> [Note] {
         try dbQueue.sync {
             let sql = """
@@ -233,9 +207,6 @@ extension DatabaseService {
     }
 
     /// 删除笔记
-    ///
-    /// - Parameter noteId: 要删除的笔记ID
-    /// - Throws: DatabaseError（数据库操作失败）
     func deleteNote(noteId: String) throws {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM notes WHERE id = ?;"
@@ -262,9 +233,6 @@ extension DatabaseService {
     }
 
     /// 检查笔记是否存在
-    ///
-    /// - Parameter noteId: 笔记ID
-    /// - Returns: 如果存在返回true，否则返回false
     func noteExists(noteId: String) -> Bool {
         dbQueue.sync {
             let sql = "SELECT COUNT(*) FROM notes WHERE id = ?;"
@@ -291,14 +259,6 @@ extension DatabaseService {
     }
 
     /// 更新笔记 ID
-    ///
-    /// 将临时 ID 更新为云端下发的正式 ID。
-    /// 这是一个原子操作，会更新 notes 表中的主键。
-    ///
-    /// - Parameters:
-    ///   - oldId: 旧的笔记 ID（临时 ID）
-    ///   - newId: 新的笔记 ID（正式 ID）
-    /// - Throws: DatabaseError（数据库操作失败）
     func updateNoteId(oldId: String, newId: String) throws {
         try dbQueue.sync(flags: .barrier) {
             let selectSQL = """

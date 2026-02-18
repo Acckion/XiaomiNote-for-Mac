@@ -102,7 +102,7 @@ public struct SyncResult: Codable {
 }
 
 /// 笔记变更
-public struct NoteChange: Codable {
+public struct NoteChange: Codable, Sendable {
     /// 变更ID
     public let id: String
 
@@ -118,7 +118,7 @@ public struct NoteChange: Codable {
     /// 时间戳
     public let timestamp: Date
 
-    public enum ChangeType: String, Codable {
+    public enum ChangeType: String, Codable, Sendable {
         case create
         case update
         case delete
