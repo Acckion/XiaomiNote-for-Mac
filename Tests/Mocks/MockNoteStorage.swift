@@ -81,7 +81,7 @@ public final class MockNoteStorage: NoteStorageProtocol, @unchecked Sendable {
         let lowercasedQuery = query.lowercased()
         return notes.values.filter {
             $0.title.lowercased().contains(lowercasedQuery) ||
-            $0.content.lowercased().contains(lowercasedQuery)
+                $0.content.lowercased().contains(lowercasedQuery)
         }
     }
 
@@ -92,7 +92,7 @@ public final class MockNoteStorage: NoteStorageProtocol, @unchecked Sendable {
             throw error
         }
 
-        return notes.values.filter { $0.isStarred }
+        return notes.values.filter(\.isStarred)
     }
 
     // MARK: - NoteStorageProtocol - 写入操作
@@ -212,7 +212,7 @@ public final class MockNoteStorage: NoteStorageProtocol, @unchecked Sendable {
             throw error
         }
 
-        return notes.values.filter { $0.folderId == folderId }.count
+        return notes.values.count(where: { $0.folderId == folderId })
     }
 
     // MARK: - Helper Methods
@@ -239,25 +239,25 @@ public final class MockNoteStorage: NoteStorageProtocol, @unchecked Sendable {
         deleteNotesCallCount = 0
         performBatchUpdateCallCount = 0
     }
-    
+
     // MARK: - NoteStorageProtocol - 同步支持
-    
+
     public func getPendingChanges() async throws -> [NoteChange] {
         if let error = mockError {
             throw error
         }
         return mockPendingChanges
     }
-    
+
     public func getNote(id: String) async throws -> Note {
         if let error = mockError {
             throw error
         }
-        
+
         guard let note = notes[id] else {
             throw NSError(domain: "MockNoteStorage", code: 404, userInfo: [NSLocalizedDescriptionKey: "Note not found"])
         }
-        
+
         return note
     }
 }

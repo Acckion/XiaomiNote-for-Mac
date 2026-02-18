@@ -1,11 +1,11 @@
 import AppKit
 
 /// 菜单项标签枚举
-/// 用于标识菜单项，便于状态管理和验证 
+/// 用于标识菜单项，便于状态管理和验证
 enum MenuItemTag: Int {
-    
+
     // MARK: - 段落样式（互斥选择，1001-1099）
-    
+
     /// 标题
     case heading = 1001
     /// 小标题
@@ -20,25 +20,25 @@ enum MenuItemTag: Int {
     case unorderedList = 1006
     /// 块引用
     case blockQuote = 1007
-    
+
     // MARK: - 视图模式（互斥选择，2001-2099）
-    
+
     /// 列表视图
     case listView = 2001
     /// 画廊视图
     case galleryView = 2002
-    
+
     // MARK: - 切换状态（3001-3099）
-    
+
     /// 使用浅色背景显示笔记
     case lightBackground = 3001
     /// 隐藏文件夹
     case hideFolders = 3002
     /// 显示笔记数量
     case showNoteCount = 3003
-    
+
     // MARK: - 编辑操作（4001-4099）
-    
+
     /// 撤销
     case undo = 4001
     /// 重做
@@ -59,9 +59,9 @@ enum MenuItemTag: Int {
     case attachFile = 4009
     /// 添加链接
     case addLink = 4010
-    
+
     // MARK: - 查找操作（4101-4199）
-    
+
     /// 显示查找界面
     case showFindInterface = 4101
     /// 查找下一个
@@ -72,9 +72,9 @@ enum MenuItemTag: Int {
     case showReplaceInterface = 4104
     /// 使用所选内容查找
     case setSearchString = 4105
-    
+
     // MARK: - 核对清单操作（5001-5099）
-    
+
     /// 核对清单
     case checklist = 5001
     /// 标记为已勾选
@@ -91,9 +91,9 @@ enum MenuItemTag: Int {
     case moveItemUp = 5007
     /// 向下移动项目
     case moveItemDown = 5008
-    
+
     // MARK: - 字体样式（6001-6099）
-    
+
     /// 粗体
     case bold = 6001
     /// 斜体
@@ -104,34 +104,34 @@ enum MenuItemTag: Int {
     case strikethrough = 6004
     /// 高亮
     case highlight = 6005
-    
+
     // MARK: - 文本对齐（7001-7099）
-    
+
     /// 左对齐
     case alignLeft = 7001
     /// 居中
     case alignCenter = 7002
     /// 右对齐
     case alignRight = 7003
-    
+
     // MARK: - 缩进（8001-8099）
-    
+
     /// 增大缩进
     case increaseIndent = 8001
     /// 减小缩进
     case decreaseIndent = 8002
-    
+
     // MARK: - 缩放控制（9001-9099）
-    
+
     /// 放大
     case zoomIn = 9001
     /// 缩小
     case zoomOut = 9002
     /// 实际大小
     case actualSize = 9003
-    
+
     // MARK: - 区域折叠（10001-10099）
-    
+
     /// 展开区域
     case expandSection = 10001
     /// 展开所有区域
@@ -140,9 +140,9 @@ enum MenuItemTag: Int {
     case collapseSection = 10003
     /// 折叠所有区域
     case collapseAllSections = 10004
-    
+
     // MARK: - 文件操作（11001-11099）
-    
+
     /// 新建笔记
     case newNote = 11001
     /// 新建文件夹
@@ -169,9 +169,9 @@ enum MenuItemTag: Int {
     case duplicateNote = 11012
     /// 打印
     case printNote = 11013
-    
+
     // MARK: - 窗口操作（12001-12099）
-    
+
     /// 最小化
     case minimize = 12001
     /// 缩放
@@ -184,51 +184,51 @@ enum MenuItemTag: Int {
     case openNoteInNewWindow = 12005
     /// 前置全部窗口
     case bringAllToFront = 12006
-    
+
     // MARK: - 辅助方法
-    
+
     /// 判断是否为段落样式标签
     var isParagraphStyle: Bool {
         switch self {
         case .heading, .subheading, .subtitle, .bodyText, .orderedList, .unorderedList, .blockQuote:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
-    
+
     /// 判断是否为视图模式标签
     var isViewMode: Bool {
         switch self {
         case .listView, .galleryView:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
-    
+
     /// 判断是否为切换状态标签
     var isToggleState: Bool {
         switch self {
         case .lightBackground, .hideFolders, .showNoteCount:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
-    
+
     /// 判断是否为需要选中笔记的操作
     var requiresSelectedNote: Bool {
         switch self {
         case .share, .exportAsPDF, .exportAsMarkdown, .exportAsPlainText,
              .toggleStar, .addToPrivateNotes, .duplicateNote, .printNote,
              .openNoteInNewWindow:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
-    
+
     /// 判断是否为需要编辑器焦点的操作
     var requiresEditorFocus: Bool {
         switch self {
@@ -238,17 +238,17 @@ enum MenuItemTag: Int {
              .bold, .italic, .underline, .strikethrough, .highlight,
              .alignLeft, .alignCenter, .alignRight,
              .increaseIndent, .decreaseIndent:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
-    
+
     /// 获取所有段落样式标签
     static var allParagraphStyles: [MenuItemTag] {
         [.heading, .subheading, .subtitle, .bodyText, .orderedList, .unorderedList, .blockQuote]
     }
-    
+
     /// 获取所有视图模式标签
     static var allViewModes: [MenuItemTag] {
         [.listView, .galleryView]

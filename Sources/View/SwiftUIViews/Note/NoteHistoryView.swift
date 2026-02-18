@@ -1,41 +1,42 @@
-import SwiftUI
 import OSLog
+import SwiftUI
 
 /// 笔记历史记录视图
-/// 
+///
 /// 显示笔记的历史记录列表，支持查看和恢复历史记录
 @available(macOS 14.0, *)
 struct NoteHistoryView: View {
     @ObservedObject var viewModel: NotesViewModel
     let noteId: String
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var historyVersions: [NoteHistoryVersion] = []
-    @State private var isLoading: Bool = false
+    @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var selectedVersion: NoteHistoryVersion?
     @State private var versionContent: Note?
-    @State private var isLoadingContent: Bool = false
-    @State private var isRestoring: Bool = false
+    @State private var isLoadingContent = false
+    @State private var isRestoring = false
     @State private var restoreError: String?
-    
-    // 日志记录器
+
+    /// 日志记录器
     private let logger = Logger(subsystem: "com.xiaomi.minote.mac", category: "NoteHistoryView")
-    
-    // 自定义关闭方法，用于AppKit环境
+
+    /// 自定义关闭方法，用于AppKit环境
     private func closeSheet() {
         // 尝试使用dismiss环境变量
         dismiss()
-        
+
         // 如果dismiss无效，尝试通过NSApp关闭窗口
         DispatchQueue.main.async {
             if let window = NSApp.keyWindow,
-               let sheetParent = window.sheetParent {
+               let sheetParent = window.sheetParent
+            {
                 sheetParent.endSheet(window)
             }
         }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // 主内容区域
@@ -43,7 +44,7 @@ struct NoteHistoryView: View {
                 // 左侧：历史记录列表
                 leftPanel
                     .frame(minWidth: 300, idealWidth: 350, maxWidth: 400)
-                
+
                 // 右侧：预览区域
                 rightPanel
                     .frame(minWidth: 400)
@@ -70,10 +71,9 @@ struct NoteHistoryView: View {
         }
         .frame(minWidth: 800, idealWidth: 1000, maxWidth: 1200, minHeight: 500, idealHeight: 700, maxHeight: 800)
     }
-    
+
     // MARK: - 左侧面板
-    
-    @ViewBuilder
+
     private var leftPanel: some View {
         Group {
             if isLoading {
@@ -137,16 +137,15 @@ struct NoteHistoryView: View {
                 }
             }
         }
-        .onChange(of: selectedVersion) { oldValue, newValue in
+        .onChange(of: selectedVersion) { _, newValue in
             if let version = newValue {
                 viewVersion(version)
             }
         }
     }
-    
+
     // MARK: - 右侧面板
-    
-    @ViewBuilder
+
     private var rightPanel: some View {
         Group {
             if selectedVersion == nil {
@@ -190,57 +189,57 @@ struct NoteHistoryView: View {
             }
         }
     }
-    
+
     private func loadHistoryVersions() {
-        logger.info("开始加载历史记录列表，noteId: \(self.noteId)")
+        logger.info("开始加载历史记录列表，noteId: \(noteId)")
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 let versions = try await viewModel.getNoteHistoryTimes(noteId: noteId)
                 await MainActor.run {
-                    self.historyVersions = versions
-                    self.isLoading = false
-                    self.logger.info("成功加载历史记录列表，共 \(versions.count) 个版本")
+                    historyVersions = versions
+                    isLoading = false
+                    logger.info("成功加载历史记录列表，共 \(versions.count) 个版本")
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                    self.isLoading = false
-                    self.logger.error("加载历史记录列表失败: \(error.localizedDescription)")
+                    errorMessage = error.localizedDescription
+                    isLoading = false
+                    logger.error("加载历史记录列表失败: \(error.localizedDescription)")
                 }
             }
         }
     }
-    
+
     private func viewVersion(_ version: NoteHistoryVersion) {
-        logger.info("开始加载历史记录内容，version: \(version.version), noteId: \(self.noteId)")
+        logger.info("开始加载历史记录内容，version: \(version.version), noteId: \(noteId)")
         isLoadingContent = true
         versionContent = nil
-        
+
         Task {
             do {
                 let note = try await viewModel.getNoteHistory(noteId: noteId, version: version.version)
                 await MainActor.run {
-                    self.versionContent = note
-                    self.isLoadingContent = false
-                    self.logger.info("成功加载历史记录内容，标题: \(note.title), 内容长度: \(note.content.count) 字符")
+                    versionContent = note
+                    isLoadingContent = false
+                    logger.info("成功加载历史记录内容，标题: \(note.title), 内容长度: \(note.content.count) 字符")
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = "加载版本内容失败: \(error.localizedDescription)"
-                    self.isLoadingContent = false
-                    self.logger.error("加载历史记录内容失败: \(error.localizedDescription)")
+                    errorMessage = "加载版本内容失败: \(error.localizedDescription)"
+                    isLoadingContent = false
+                    logger.error("加载历史记录内容失败: \(error.localizedDescription)")
                 }
             }
         }
     }
-    
+
     private func restoreVersion(_ version: NoteHistoryVersion) {
         isRestoring = true
         restoreError = nil
-        
+
         Task {
             do {
                 try await viewModel.restoreNoteHistory(noteId: noteId, version: version.version)
@@ -264,7 +263,7 @@ private struct HistoryVersionRow: View {
     let version: NoteHistoryVersion
     let isSelected: Bool
     let onRestore: () -> Void
-    
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -274,9 +273,9 @@ private struct HistoryVersionRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
+
             Button {
                 onRestore()
             } label: {
@@ -297,25 +296,22 @@ private struct VersionPreviewView: View {
     let version: NoteHistoryVersion?
     let note: Note
     let onRestore: () -> Void
-    
-    // 创建只读的编辑器上下文
-    @StateObject private var editorContext: NativeEditorContext = {
-        let context = NativeEditorContext()
-        return context
-    }()
-    
+
+    /// 创建只读的编辑器上下文
+    @StateObject private var editorContext = NativeEditorContext()
+
     var body: some View {
         VStack(spacing: 0) {
             // 工具栏
             HStack {
-                if let version = version {
+                if let version {
                     Text("版本时间: \(version.formattedUpdateTime)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 Button {
                     onRestore()
                 } label: {
@@ -329,15 +325,15 @@ private struct VersionPreviewView: View {
             .padding()
             .background(Color(NSColor.controlBackgroundColor))
             .border(Color(NSColor.separatorColor), width: 0.5)
-            
+
             // 内容区域 - 使用原生编辑器（只读模式）
             VStack(alignment: .leading, spacing: 0) {
                 if !note.content.isEmpty {
                     NativeEditorView(
                         editorContext: editorContext,
-                        isEditable: false  // 设置为只读
+                        isEditable: false // 设置为只读
                     )
-                    .opacity(0.9)  // 降低透明度表示只读
+                    .opacity(0.9) // 降低透明度表示只读
                     .onAppear {
                         // 加载内容到编辑器
                         loadContentToEditor()
@@ -354,7 +350,7 @@ private struct VersionPreviewView: View {
             }
         }
     }
-    
+
     /// 加载内容到编辑器
     private func loadContentToEditor() {
         Task { @MainActor in
@@ -364,7 +360,7 @@ private struct VersionPreviewView: View {
                     note.content,
                     folderId: note.folderId
                 )
-                
+
                 // 设置到编辑器上下文
                 editorContext.updateNSContent(attributedString)
             } catch {
@@ -380,4 +376,3 @@ private struct VersionPreviewView: View {
         }
     }
 }
-

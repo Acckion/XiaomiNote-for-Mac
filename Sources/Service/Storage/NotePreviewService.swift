@@ -1,5 +1,5 @@
-import Foundation
 import AppKit
+import Foundation
 
 /// 笔记预览服务
 ///
@@ -17,26 +17,26 @@ import AppKit
 public class NotePreviewService: ObservableObject {
     /// 单例实例
     public static let shared = NotePreviewService()
-    
+
     /// 内存缓存：fileId -> NSImage
     private var imageCache: [String: NSImage] = [:]
-    
+
     /// 缓存大小限制（最多缓存的图片数量）
     private let maxCacheSize = 100
-    
+
     /// LRU 缓存访问顺序记录
     private var cacheAccessOrder: [String] = []
-    
+
     /// 本地存储服务
     private let localStorage = LocalStorageService.shared
-    
+
     private init() {
         // macOS 没有内存警告通知，可以监听其他系统通知
         // 或者提供手动清除缓存的方法
     }
-    
+
     // MARK: - 公共方法
-    
+
     /// 加载预览图片
     ///
     /// 首先检查内存缓存，如果缓存中没有则从本地存储加载。
@@ -48,56 +48,56 @@ public class NotePreviewService: ObservableObject {
     /// - Returns: NSImage 对象，如果加载失败则返回 nil
     public func loadPreviewImage(fileId: String, fileType: String) -> NSImage? {
         print("[NotePreviewService] 请求加载图片: \(fileId).\(fileType)")
-        
+
         // 1. 检查缓存
         if let cached = getCachedImage(fileId: fileId) {
             print("[NotePreviewService] ✅ 从缓存加载: \(fileId)")
             return cached
         }
-        
+
         print("[NotePreviewService] 缓存未命中，从本地存储加载")
-        
+
         // 2. 从本地存储加载
         var imageData: Data? = localStorage.loadImage(fileId: fileId, fileType: fileType)
         var actualFileType = fileType
-        
+
         // 如果加载失败且文件类型是 "jpg"，尝试 "jpeg"
-        if imageData == nil && fileType == "jpg" {
+        if imageData == nil, fileType == "jpg" {
             print("[NotePreviewService] jpg 加载失败，尝试 jpeg")
             imageData = localStorage.loadImage(fileId: fileId, fileType: "jpeg")
             if imageData != nil {
                 actualFileType = "jpeg"
             }
         }
-        
-        guard let imageData = imageData else {
+
+        guard let imageData else {
             print("[NotePreviewService] ❌ 本地存储加载失败: \(fileId).\(fileType)")
             return nil
         }
-        
+
         print("[NotePreviewService] ✅ 本地存储加载成功（\(actualFileType)），数据大小: \(imageData.count) 字节")
-        
+
         // 3. 创建 NSImage
         guard let image = NSImage(data: imageData) else {
             print("[NotePreviewService] ❌ 无法从数据创建 NSImage: \(fileId)")
             return nil
         }
-        
+
         print("[NotePreviewService] ✅ NSImage 创建成功，尺寸: \(image.size)")
-        
+
         // 4. 缓存图片
         cacheImage(image, forFileId: fileId)
-        
+
         return image
     }
-    
+
     /// 清除所有缓存
     public func clearCache() {
         imageCache.removeAll()
         cacheAccessOrder.removeAll()
         print("[NotePreviewService] 缓存已清除")
     }
-    
+
     /// 清除指定图片的缓存
     ///
     /// - Parameter fileId: 要清除的图片 fileId
@@ -105,58 +105,58 @@ public class NotePreviewService: ObservableObject {
         imageCache.removeValue(forKey: fileId)
         cacheAccessOrder.removeAll { $0 == fileId }
     }
-    
+
     /// 获取缓存统计信息
     ///
     /// - Returns: (缓存数量, 最大缓存数量)
     public func getCacheStats() -> (count: Int, maxSize: Int) {
-        return (imageCache.count, maxCacheSize)
+        (imageCache.count, maxCacheSize)
     }
-    
+
     // MARK: - 私有方法
-    
+
     /// 从缓存中获取图片
     private func getCachedImage(fileId: String) -> NSImage? {
         guard let image = imageCache[fileId] else {
             return nil
         }
-        
+
         // 更新访问顺序（LRU）
         updateAccessOrder(fileId: fileId)
-        
+
         return image
     }
-    
+
     /// 缓存图片
     private func cacheImage(_ image: NSImage, forFileId fileId: String) {
         // 检查缓存大小，如果超过限制则移除最旧的图片
         if imageCache.count >= maxCacheSize {
             evictOldestImage()
         }
-        
+
         // 添加到缓存
         imageCache[fileId] = image
         updateAccessOrder(fileId: fileId)
     }
-    
+
     /// 更新访问顺序（LRU）
     private func updateAccessOrder(fileId: String) {
         // 移除旧的访问记录
         cacheAccessOrder.removeAll { $0 == fileId }
-        
+
         // 添加到末尾（最新访问）
         cacheAccessOrder.append(fileId)
     }
-    
+
     /// 移除最旧的图片（LRU 策略）
     private func evictOldestImage() {
         guard let oldestFileId = cacheAccessOrder.first else {
             return
         }
-        
+
         imageCache.removeValue(forKey: oldestFileId)
         cacheAccessOrder.removeFirst()
-        
+
         print("[NotePreviewService] 移除最旧的缓存图片: \(oldestFileId)")
     }
 }

@@ -1,23 +1,27 @@
-import Foundation
 import AppKit
+import Foundation
 
 /// 默认图片服务实现
 final class DefaultImageService: ImageServiceProtocol {
     // MARK: - Properties
+
     private let networkClient: NetworkClient
     private let cacheService: CacheServiceProtocol
 
     // MARK: - Initialization
+
     init(networkClient: NetworkClient, cacheService: CacheServiceProtocol) {
         self.networkClient = networkClient
         self.cacheService = cacheService
     }
 
     // MARK: - Upload Methods
+
     func uploadImage(_ image: NSImage) async throws -> String {
         guard let imageData = image.tiffRepresentation,
               let bitmapImage = NSBitmapImageRep(data: imageData),
-              let pngData = bitmapImage.representation(using: .png, properties: [:]) else {
+              let pngData = bitmapImage.representation(using: .png, properties: [:])
+        else {
             throw ImageError.invalidImage
         }
 
@@ -48,9 +52,10 @@ final class DefaultImageService: ImageServiceProtocol {
     }
 
     // MARK: - Download Methods
+
     func downloadImage(from url: String) async throws -> NSImage {
         let data = try await downloadImageData(from: url)
-        
+
         guard let image = NSImage(data: data) else {
             throw ImageError.invalidImage
         }
@@ -78,13 +83,14 @@ final class DefaultImageService: ImageServiceProtocol {
     }
 
     // MARK: - Cache Methods
-    func getCachedImage(for url: String) -> NSImage? {
+
+    func getCachedImage(for _: String) -> NSImage? {
         // 同步方法，暂时返回 nil
         // 实际应用中可以使用同步缓存
-        return nil
+        nil
     }
 
-    func cacheImage(_ image: NSImage, for url: String) {
+    func cacheImage(_: NSImage, for _: String) {
         // 同步方法，暂时不实现
         // 实际应用中可以使用同步缓存
     }
@@ -95,9 +101,11 @@ final class DefaultImageService: ImageServiceProtocol {
     }
 
     // MARK: - Image Processing Methods
+
     func compressImage(_ image: NSImage, quality: Double) -> Data? {
         guard let imageData = image.tiffRepresentation,
-              let bitmapImage = NSBitmapImageRep(data: imageData) else {
+              let bitmapImage = NSBitmapImageRep(data: imageData)
+        else {
             return nil
         }
 
@@ -134,11 +142,12 @@ final class DefaultImageService: ImageServiceProtocol {
     }
 
     func generateThumbnail(from image: NSImage, size: CGSize) -> NSImage? {
-        return resizeImage(image, to: size)
+        resizeImage(image, to: size)
     }
 }
 
 // MARK: - Supporting Types
+
 private struct UploadResponse: Decodable {
     let imageUrl: String
 }

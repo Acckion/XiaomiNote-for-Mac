@@ -1,9 +1,10 @@
-import Foundation
 import Combine
+import Foundation
 
 /// 默认同步服务实现
 final class DefaultSyncService: SyncServiceProtocol, @unchecked Sendable {
     // MARK: - Properties
+
     private let networkClient: NetworkClient
     private let storage: NoteStorageProtocol
     private let syncStateSubject = CurrentValueSubject<SyncState, Never>(.idle)
@@ -19,12 +20,14 @@ final class DefaultSyncService: SyncServiceProtocol, @unchecked Sendable {
     }
 
     // MARK: - Initialization
+
     init(networkClient: NetworkClient, storage: NoteStorageProtocol) {
         self.networkClient = networkClient
         self.storage = storage
     }
 
     // MARK: - Public Methods
+
     func startSync() async throws {
         syncStateSubject.send(.syncing)
         syncProgressSubject.send(0.0)
@@ -67,7 +70,7 @@ final class DefaultSyncService: SyncServiceProtocol, @unchecked Sendable {
             "id": note.id,
             "title": note.title,
             "content": note.content,
-            "folderId": note.folderId ?? ""
+            "folderId": note.folderId ?? "",
         ]
 
         let _: Note = try await networkClient.request(
@@ -86,7 +89,8 @@ final class DefaultSyncService: SyncServiceProtocol, @unchecked Sendable {
         case .merge:
             // 简单合并策略：使用最新时间戳
             if let localNote = try? await storage.getNote(id: operation.change.noteId),
-               let remoteNote = operation.change.note {
+               let remoteNote = operation.change.note
+            {
                 let merged = localNote.updatedAt > remoteNote.updatedAt ? localNote : remoteNote
                 try await storage.saveNote(merged)
             }
@@ -108,7 +112,7 @@ final class DefaultSyncService: SyncServiceProtocol, @unchecked Sendable {
     func getPendingOperationCount() throws -> Int {
         // 简化实现：返回 0
         // 实际应该从 storage 获取待处理操作数量
-        return 0
+        0
     }
 
     func clearPendingOperations() throws {
@@ -121,7 +125,7 @@ final class DefaultSyncService: SyncServiceProtocol, @unchecked Sendable {
         // 实际应该处理 storage 中的待处理操作
     }
 
-    func queueOperation(_ operation: SyncOperation) throws {
+    func queueOperation(_: SyncOperation) throws {
         // 简化实现：暂不实现
         // 实际应该将操作添加到 storage 的队列中
     }
@@ -140,7 +144,7 @@ final class DefaultSyncService: SyncServiceProtocol, @unchecked Sendable {
     var lastSyncTime: Date? {
         // 简化实现：返回 nil
         // 实际应该从 storage 获取最后同步时间
-        return nil
+        nil
     }
 
     func forceFullSync() async throws {
@@ -156,15 +160,16 @@ final class DefaultSyncService: SyncServiceProtocol, @unchecked Sendable {
     }
 
     // MARK: - Private Methods
+
     private func uploadChanges(_ changes: [NoteChange]) async throws {
         let parameters: [String: Any] = [
             "changes": changes.map { change in
                 [
                     "noteId": change.noteId,
                     "type": change.type.rawValue,
-                    "timestamp": change.timestamp.timeIntervalSince1970
+                    "timestamp": change.timestamp.timeIntervalSince1970,
                 ]
-            }
+            },
         ]
 
         try await networkClient.request(
@@ -187,4 +192,5 @@ final class DefaultSyncService: SyncServiceProtocol, @unchecked Sendable {
 }
 
 // MARK: - Supporting Types
+
 private struct EmptyResponse: Decodable {}

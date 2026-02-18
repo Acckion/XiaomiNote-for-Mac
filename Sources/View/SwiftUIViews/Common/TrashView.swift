@@ -1,46 +1,44 @@
-import SwiftUI
 import OSLog
+import SwiftUI
 
 /// 回收站视图
-/// 
+///
 /// 显示已删除的笔记列表，使用与历史记录相同的UI布局
 @available(macOS 14.0, *)
 struct TrashView: View {
     @ObservedObject var viewModel: NotesViewModel
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var selectedDeletedNote: DeletedNote?
     @State private var noteContent: Note?
-    @State private var isLoadingContent: Bool = false
-    @State private var showingRestoreConfirm: Bool = false
-    @State private var showingDeleteConfirm: Bool = false
-    @State private var isRestoring: Bool = false
-    @State private var isPermanentlyDeleting: Bool = false
+    @State private var isLoadingContent = false
+    @State private var showingRestoreConfirm = false
+    @State private var showingDeleteConfirm = false
+    @State private var isRestoring = false
+    @State private var isPermanentlyDeleting = false
     @State private var operationError: String?
-    
-    // 创建只读的编辑器上下文
-    @StateObject private var editorContext: NativeEditorContext = {
-        let context = NativeEditorContext()
-        return context
-    }()
-    
-    // 日志记录器
+
+    /// 创建只读的编辑器上下文
+    @StateObject private var editorContext = NativeEditorContext()
+
+    /// 日志记录器
     private let logger = Logger(subsystem: "com.xiaomi.minote.mac", category: "TrashView")
-    
-    // 自定义关闭方法，用于AppKit环境
+
+    /// 自定义关闭方法，用于AppKit环境
     private func closeSheet() {
         // 尝试使用dismiss环境变量
         dismiss()
-        
+
         // 如果dismiss无效，尝试通过NSApp关闭窗口
         DispatchQueue.main.async {
             if let window = NSApp.keyWindow,
-               let sheetParent = window.sheetParent {
+               let sheetParent = window.sheetParent
+            {
                 sheetParent.endSheet(window)
             }
         }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // 主内容区域（左右分栏）
@@ -48,7 +46,7 @@ struct TrashView: View {
                 // 左侧：回收站笔记列表
                 leftPanel
                     .frame(minWidth: 300, idealWidth: 350, maxWidth: 400)
-                
+
                 // 右侧：预览区域
                 rightPanel
                     .frame(minWidth: 400)
@@ -89,10 +87,9 @@ struct TrashView: View {
         }
         .frame(minWidth: 800, idealWidth: 1000, maxWidth: 1200, minHeight: 500, idealHeight: 700, maxHeight: 800)
     }
-    
+
     // MARK: - 左侧面板
-    
-    @ViewBuilder
+
     private var leftPanel: some View {
         Group {
             if viewModel.isLoadingDeletedNotes {
@@ -137,10 +134,9 @@ struct TrashView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.controlBackgroundColor))
     }
-    
+
     // MARK: - 右侧面板
-    
-    @ViewBuilder
+
     private var rightPanel: some View {
         Group {
             if selectedDeletedNote == nil {
@@ -174,9 +170,9 @@ struct TrashView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        
+
                         Spacer()
-                        
+
                         // 恢复按钮
                         Button {
                             showingRestoreConfirm = true
@@ -188,7 +184,7 @@ struct TrashView: View {
                         }
                         .buttonStyle(.bordered)
                         .disabled(isRestoring || isPermanentlyDeleting)
-                        
+
                         // 永久删除按钮
                         Button(role: .destructive) {
                             showingDeleteConfirm = true
@@ -204,14 +200,14 @@ struct TrashView: View {
                     .padding()
                     .background(Color(NSColor.controlBackgroundColor))
                     .border(Color(NSColor.separatorColor), width: 0.5)
-                    
+
                     // 内容区域
                     if !note.content.isEmpty {
                         NativeEditorView(
                             editorContext: editorContext,
-                            isEditable: false  // 设置为只读
+                            isEditable: false // 设置为只读
                         )
-                        .opacity(0.9)  // 降低透明度表示只读
+                        .opacity(0.9) // 降低透明度表示只读
                     } else {
                         VStack {
                             Spacer()
@@ -236,15 +232,15 @@ struct TrashView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.textBackgroundColor))
-        .onChange(of: noteContent) { oldValue, newValue in
+        .onChange(of: noteContent) { _, newValue in
             if let note = newValue {
                 loadContentToEditor(note)
             }
         }
     }
-    
+
     // MARK: - 辅助方法
-    
+
     /// 加载内容到编辑器
     private func loadContentToEditor(_ note: Note) {
         Task { @MainActor in
@@ -254,7 +250,7 @@ struct TrashView: View {
                     note.content,
                     folderId: note.folderId
                 )
-                
+
                 // 设置到编辑器上下文
                 editorContext.updateNSContent(attributedString)
             } catch {
@@ -269,23 +265,23 @@ struct TrashView: View {
             }
         }
     }
-    
+
     /// 加载笔记内容
     private func loadNoteContent(_ deletedNote: DeletedNote) {
         isLoadingContent = true
-        
+
         Task {
             do {
                 // 尝试获取笔记的完整内容
                 // 注意：回收站的笔记可能无法直接获取完整内容，先尝试使用 snippet
                 // 如果需要完整内容，可能需要调用特定的 API
                 let response = try await viewModel.service.fetchNoteDetails(noteId: deletedNote.id)
-                
+
                 // 解析响应并创建 Note 对象
                 if let note = Note.fromMinoteData(response) {
                     await MainActor.run {
-                        self.noteContent = note
-                        self.isLoadingContent = false
+                        noteContent = note
+                        isLoadingContent = false
                     }
                 } else {
                     // 如果无法获取完整内容，至少显示 snippet
@@ -293,11 +289,11 @@ struct TrashView: View {
                 }
             } catch {
                 logger.error("加载笔记内容失败: \(error.localizedDescription)")
-                
+
                 // 如果获取失败，将 snippet 包装成简单的 XML 格式以便显示
                 // snippet 可能是 HTML 或纯文本，我们需要将其转换为 XML
                 let snippetContent = deletedNote.snippet.isEmpty ? "无内容" : deletedNote.snippet
-                
+
                 // 尝试将 snippet 包装成 XML 格式
                 // 如果 snippet 已经是 XML，直接使用；否则包装成简单的 XML
                 let xmlContent: String
@@ -312,7 +308,7 @@ struct TrashView: View {
                         .replacingOccurrences(of: ">", with: "&gt;")
                     xmlContent = "<en-note><p>\(escapedText)</p></en-note>"
                 }
-                
+
                 let note = Note(
                     id: deletedNote.id,
                     title: deletedNote.subject.isEmpty ? "无标题" : deletedNote.subject,
@@ -330,28 +326,28 @@ struct TrashView: View {
                         "createDate": deletedNote.createDate,
                         "modifyDate": deletedNote.modifyDate,
                         "deleteTime": deletedNote.deleteTime,
-                        "status": deletedNote.status
+                        "status": deletedNote.status,
                     ]
                 )
-                
+
                 await MainActor.run {
-                    self.noteContent = note
-                    self.isLoadingContent = false
+                    noteContent = note
+                    isLoadingContent = false
                 }
             }
         }
     }
-    
+
     /// 恢复笔记
     private func restoreNote(_ deletedNote: DeletedNote) {
         isRestoring = true
         operationError = nil
-        
+
         Task {
             do {
                 // 调用 ViewModel 的恢复方法
                 try await viewModel.restoreDeletedNote(noteId: deletedNote.id, tag: deletedNote.tag)
-                
+
                 await MainActor.run {
                     isRestoring = false
                     // 清除选中状态
@@ -371,17 +367,17 @@ struct TrashView: View {
             }
         }
     }
-    
+
     /// 永久删除笔记
     private func permanentlyDeleteNote(_ deletedNote: DeletedNote) {
         isPermanentlyDeleting = true
         operationError = nil
-        
+
         Task {
             do {
                 // 调用 ViewModel 的永久删除方法
                 try await viewModel.permanentlyDeleteNote(noteId: deletedNote.id, tag: deletedNote.tag)
-                
+
                 await MainActor.run {
                     isPermanentlyDeleting = false
                     // 清除选中状态
@@ -407,7 +403,7 @@ struct TrashView: View {
 struct DeletedNoteRow: View {
     let deletedNote: DeletedNote
     let isSelected: Bool
-    
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
@@ -416,7 +412,7 @@ struct DeletedNoteRow: View {
                     .font(.headline)
                     .lineLimit(2)
                     .foregroundColor(isSelected ? .white : .primary)
-                
+
                 // 摘要
                 if !deletedNote.snippet.isEmpty {
                     Text(deletedNote.snippet)
@@ -424,13 +420,13 @@ struct DeletedNoteRow: View {
                         .lineLimit(3)
                         .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
                 }
-                
+
                 // 删除时间
                 Text("删除于 \(deletedNote.formattedDeleteTime)")
                     .font(.caption2)
                     .foregroundColor(isSelected ? .white.opacity(0.6) : .secondary)
             }
-            
+
             Spacer()
         }
         .padding(.horizontal, 12)

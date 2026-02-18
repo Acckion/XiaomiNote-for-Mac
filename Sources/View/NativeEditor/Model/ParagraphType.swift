@@ -5,20 +5,20 @@ import Foundation
 public enum ParagraphType: Equatable, Hashable {
     /// 标题段落（特殊）- 始终是编辑器中的第一个段落
     case title
-    
+
     /// 标题 H1-H6
     case heading(level: Int)
-    
+
     /// 普通段落
     case normal
-    
+
     /// 列表段落
     /// 注意：使用 FormatManager 中定义的 ListType
     case list(ListType)
-    
+
     /// 引用段落
     case quote
-    
+
     /// 代码块段落
     case code
 }
@@ -37,17 +37,17 @@ extension ParagraphType: CustomStringConvertible {
     public var description: String {
         switch self {
         case .title:
-            return "标题段落"
-        case .heading(let level):
-            return "H\(level) 标题"
+            "标题段落"
+        case let .heading(level):
+            "H\(level) 标题"
         case .normal:
-            return "普通段落"
-        case .list(let listType):
-            return "列表段落 (\(listType))"
+            "普通段落"
+        case let .list(listType):
+            "列表段落 (\(listType))"
         case .quote:
-            return "引用段落"
+            "引用段落"
         case .code:
-            return "代码块段落"
+            "代码块段落"
         }
     }
 }

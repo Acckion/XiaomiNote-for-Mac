@@ -6,8 +6,8 @@
 //  音频服务协议 - 定义音频处理操作接口
 //
 
-import Foundation
 import Combine
+import Foundation
 
 /// 播放状态
 public enum PlaybackState {

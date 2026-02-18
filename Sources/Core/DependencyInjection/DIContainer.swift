@@ -19,7 +19,7 @@ public final class DIContainer: @unchecked Sendable {
     private var factories: [String: () -> Any] = [:]
     private let lock = NSLock()
 
-    nonisolated private init() {}
+    private nonisolated init() {}
 
     // MARK: - Registration
 
@@ -63,8 +63,7 @@ public final class DIContainer: @unchecked Sendable {
 
         // 再查找工厂方法
         if let factory = factories[key] {
-            let instance = factory() as! T
-            return instance
+            return factory() as! T
         }
 
         fatalError("Service \(key) not registered in DIContainer")
@@ -86,8 +85,7 @@ public final class DIContainer: @unchecked Sendable {
 
         // 再查找工厂方法
         if let factory = factories[key] {
-            let instance = factory() as? T
-            return instance
+            return factory() as? T
         }
 
         return nil
@@ -98,7 +96,7 @@ public final class DIContainer: @unchecked Sendable {
     /// 检查服务是否已注册
     /// - Parameter type: 服务类型
     /// - Returns: 是否已注册
-    public func isRegistered<T>(_ type: T.Type) -> Bool {
+    public func isRegistered(_ type: (some Any).Type) -> Bool {
         let key = String(describing: type)
         lock.lock()
         defer { lock.unlock() }
@@ -107,7 +105,7 @@ public final class DIContainer: @unchecked Sendable {
 
     /// 移除已注册的服务（主要用于测试）
     /// - Parameter type: 服务类型
-    public func unregister<T>(_ type: T.Type) {
+    public func unregister(_ type: (some Any).Type) {
         let key = String(describing: type)
         lock.lock()
         defer { lock.unlock() }

@@ -1,57 +1,57 @@
 import Foundation
 
 /// 回收站笔记数据模型
-/// 
+///
 /// 表示已删除的笔记，包含删除时间和原始笔记信息
 public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
     /// 笔记ID
     public let id: String
-    
+
     /// 笔记标题（subject）
     public let subject: String
-    
+
     /// 笔记摘要（snippet）
     public let snippet: String
-    
+
     /// 笔记标签（tag）
     public let tag: String
-    
+
     /// 文件夹ID
     public let folderId: String
-    
+
     /// 文件夹名称（如果有）
     public let folderName: String?
-    
+
     /// 创建时间（时间戳，毫秒）
     public let createDate: Int64
-    
+
     /// 修改时间（时间戳，毫秒）
     public let modifyDate: Int64
-    
+
     /// 删除时间（时间戳，毫秒）
     public let deleteTime: Int64
-    
+
     /// 颜色ID
     public let colorId: Int
-    
+
     /// 提醒日期
     public let alertDate: Int64
-    
+
     /// 提醒标签
     public let alertTag: Int?
-    
+
     /// 笔记类型
     public let type: String
-    
+
     /// 笔记状态（通常为 "deleted"）
     public let status: String
-    
+
     /// 设置信息（可选）
     public let setting: [String: Any]?
-    
+
     /// 额外信息（可选，JSON字符串）
     public let extraInfo: String?
-    
+
     /// 格式化删除时间
     public var formattedDeleteTime: String {
         let date = Date(timeIntervalSince1970: TimeInterval(deleteTime) / 1000.0)
@@ -59,7 +59,7 @@ public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
         formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
         return formatter.string(from: date)
     }
-    
+
     /// 格式化创建时间
     public var formattedCreateTime: String {
         let date = Date(timeIntervalSince1970: TimeInterval(createDate) / 1000.0)
@@ -67,7 +67,7 @@ public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
         formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
         return formatter.string(from: date)
     }
-    
+
     /// 格式化修改时间
     public var formattedModifyTime: String {
         let date = Date(timeIntervalSince1970: TimeInterval(modifyDate) / 1000.0)
@@ -75,7 +75,7 @@ public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
         formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
         return formatter.string(from: date)
     }
-    
+
     enum CodingKeys: String, CodingKey {
         case id
         case subject
@@ -94,7 +94,7 @@ public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
         case setting
         case extraInfo
     }
-    
+
     /// 公共初始化器
     public init(
         id: String,
@@ -131,9 +131,9 @@ public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
         self.setting = setting
         self.extraInfo = extraInfo
     }
-    
+
     /// 从API响应创建 DeletedNote
-    /// 
+    ///
     /// - Parameter data: API返回的笔记数据字典
     /// - Returns: DeletedNote对象，如果数据无效则返回nil
     static func fromAPIResponse(_ data: [String: Any]) -> DeletedNote? {
@@ -143,20 +143,20 @@ public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
               let modifyDate = data["modifyDate"] as? Int64,
               let deleteTime = data["deleteTime"] as? Int64,
               let type = data["type"] as? String,
-              let status = data["status"] as? String else {
+              let status = data["status"] as? String
+        else {
             return nil
         }
-        
+
         // 处理 folderId（可能是 Int 或 String）
-        let folderId: String
-        if let folderIdInt = data["folderId"] as? Int {
-            folderId = String(folderIdInt)
+        let folderId: String = if let folderIdInt = data["folderId"] as? Int {
+            String(folderIdInt)
         } else if let folderIdStr = data["folderId"] as? String {
-            folderId = folderIdStr
+            folderIdStr
         } else {
-            folderId = "0"
+            "0"
         }
-        
+
         return DeletedNote(
             id: id,
             subject: data["subject"] as? String ?? "",
@@ -176,24 +176,24 @@ public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
             extraInfo: data["extraInfo"] as? String
         )
     }
-    
+
     // MARK: - Codable 实现（处理 setting 和 extraInfo）
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
+
         id = try container.decode(String.self, forKey: .id)
         subject = try container.decodeIfPresent(String.self, forKey: .subject) ?? ""
         snippet = try container.decodeIfPresent(String.self, forKey: .snippet) ?? ""
         tag = try container.decode(String.self, forKey: .tag)
-        
+
         // 处理 folderId（可能是 Int 或 String）
         if let folderIdInt = try? container.decode(Int.self, forKey: .folderId) {
             folderId = String(folderIdInt)
         } else {
             folderId = try container.decodeIfPresent(String.self, forKey: .folderId) ?? "0"
         }
-        
+
         folderName = try container.decodeIfPresent(String.self, forKey: .folderName)
         createDate = try container.decode(Int64.self, forKey: .createDate)
         modifyDate = try container.decode(Int64.self, forKey: .modifyDate)
@@ -203,20 +203,20 @@ public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
         alertTag = try container.decodeIfPresent(Int.self, forKey: .alertTag)
         type = try container.decode(String.self, forKey: .type)
         status = try container.decode(String.self, forKey: .status)
-        
+
         // 处理 setting（字典类型）
         if let settingData = try? container.decode([String: AnyCodable].self, forKey: .setting) {
             setting = settingData.mapValues { $0.value }
         } else {
             setting = nil
         }
-        
+
         extraInfo = try container.decodeIfPresent(String.self, forKey: .extraInfo)
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
+
         try container.encode(id, forKey: .id)
         try container.encode(subject, forKey: .subject)
         try container.encode(snippet, forKey: .snippet)
@@ -231,22 +231,22 @@ public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
         try container.encodeIfPresent(alertTag, forKey: .alertTag)
         try container.encode(type, forKey: .type)
         try container.encode(status, forKey: .status)
-        
+
         // 处理 setting
-        if let setting = setting {
+        if let setting {
             let codableSetting = setting.mapValues { AnyCodable($0) }
             try container.encode(codableSetting, forKey: .setting)
         }
-        
+
         try container.encodeIfPresent(extraInfo, forKey: .extraInfo)
     }
-    
+
     // MARK: - Hashable & Equatable
-    
+
     public static func == (lhs: DeletedNote, rhs: DeletedNote) -> Bool {
         lhs.id == rhs.id && lhs.deleteTime == rhs.deleteTime
     }
-    
+
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(deleteTime)
@@ -256,14 +256,14 @@ public struct DeletedNote: Identifiable, Codable, Hashable, Equatable {
 /// 用于 Codable 的 Any 类型包装器
 private struct AnyCodable: Codable {
     let value: Any
-    
+
     init(_ value: Any) {
         self.value = value
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        
+
         if let bool = try? container.decode(Bool.self) {
             value = bool
         } else if let int = try? container.decode(Int.self) {
@@ -273,17 +273,17 @@ private struct AnyCodable: Codable {
         } else if let string = try? container.decode(String.self) {
             value = string
         } else if let array = try? container.decode([AnyCodable].self) {
-            value = array.map { $0.value }
+            value = array.map(\.value)
         } else if let dict = try? container.decode([String: AnyCodable].self) {
             value = dict.mapValues { $0.value }
         } else {
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "无法解码 AnyCodable")
         }
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        
+
         switch value {
         case let bool as Bool:
             try container.encode(bool)
@@ -304,4 +304,3 @@ private struct AnyCodable: Codable {
         }
     }
 }
-

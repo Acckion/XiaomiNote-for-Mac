@@ -4,23 +4,23 @@ import SwiftUI
 struct NewNoteView: View {
     @ObservedObject var viewModel: NotesViewModel
     @Environment(\.dismiss) private var dismiss
-    
-    @State private var title: String = ""
-    @State private var xmlContent: String = "<new-format/><text indent=\"1\"></text>"
+
+    @State private var title = ""
+    @State private var xmlContent = "<new-format/><text indent=\"1\"></text>"
     @State private var selectedFolderId: String?
-    @State private var isCreating: Bool = false
-    @State private var showError: Bool = false
-    @State private var errorMessage: String = ""
-    @State private var isEditable: Bool = true
+    @State private var isCreating = false
+    @State private var showError = false
+    @State private var errorMessage = ""
+    @State private var isEditable = true
     @StateObject private var nativeEditorContext = NativeEditorContext()
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
                 // 编辑器背景
                 Color(nsColor: NSColor.textBackgroundColor)
                     .ignoresSafeArea()
-                
+
                 VStack(spacing: 0) {
                     // 标题（作为放大的正文，不单独区分）
                     HStack {
@@ -31,9 +31,9 @@ struct NewNoteView: View {
                             .padding(.horizontal, 16)
                             .padding(.top, 16)
                             .padding(.bottom, 8)
-                        
+
                         Spacer()
-                        
+
                         if !viewModel.folders.isEmpty {
                             Picker("", selection: $selectedFolderId) {
                                 Text("未分类").tag(String?.none)
@@ -46,7 +46,7 @@ struct NewNoteView: View {
                             .padding(.top, 16)
                         }
                     }
-                    
+
                     // 编辑器区域（正文）
                     NativeEditorView(
                         editorContext: nativeEditorContext,
@@ -73,7 +73,7 @@ struct NewNoteView: View {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button(action: createNote) {
                         if isCreating {
@@ -100,19 +100,19 @@ struct NewNoteView: View {
         }
         .frame(width: 600, height: 700)
     }
-    
+
     private func createNote() {
         guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        
+
         isCreating = true
-        
+
         Task {
             do {
                 // 确保 XML 内容格式正确
-                let finalContent = xmlContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
+                let finalContent = xmlContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     ? "<new-format/><text indent=\"1\"></text>"
                     : xmlContent
-                
+
                 let newNote = Note(
                     id: UUID().uuidString,
                     title: title.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -122,14 +122,13 @@ struct NewNoteView: View {
                     createdAt: Date(),
                     updatedAt: Date()
                 )
-                
+
                 try await viewModel.createNote(newNote)
-                
+
                 // 创建成功后关闭视图
                 await MainActor.run {
                     dismiss()
                 }
-                
             } catch {
                 errorMessage = error.localizedDescription
                 showError = true
@@ -137,7 +136,6 @@ struct NewNoteView: View {
             }
         }
     }
-    
 }
 
 @available(macOS 14.0, *)

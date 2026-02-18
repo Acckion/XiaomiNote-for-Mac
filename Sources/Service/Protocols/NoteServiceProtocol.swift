@@ -91,7 +91,7 @@ public struct SyncResult: Codable {
 
     /// 最后同步时间
     public let lastSyncTime: Date
-    
+
     public init(notes: [Note], deletedIds: [String], folders: [Folder], deletedFolderIds: [String], lastSyncTime: Date) {
         self.notes = notes
         self.deletedIds = deletedIds
@@ -123,7 +123,7 @@ public struct NoteChange: Codable {
         case update
         case delete
     }
-    
+
     public init(id: String, type: ChangeType, noteId: String, note: Note?, timestamp: Date) {
         self.id = id
         self.type = type

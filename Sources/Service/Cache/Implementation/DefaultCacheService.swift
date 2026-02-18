@@ -3,12 +3,14 @@ import Foundation
 /// 默认缓存服务实现
 final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
     // MARK: - Properties
+
     private let cache = NSCache<NSString, CacheEntryWrapper>()
     private let fileManager = FileManager.default
     private let cacheDirectory: URL
     private let queue = DispatchQueue(label: "com.minote.cache", attributes: .concurrent)
 
     // MARK: - Initialization
+
     init() {
         let cachesDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         cacheDirectory = cachesDirectory.appendingPathComponent("com.minote.cache")
@@ -20,30 +22,31 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
     }
 
     // MARK: - Public Methods
+
     func get<T: Codable>(key: String) async throws -> T? {
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             queue.async { [weak self] in
                 guard let self else {
                     continuation.resume(returning: nil)
                     return
                 }
-                
+
                 // 检查内存缓存
-                if let wrapper = self.cache.object(forKey: key as NSString) {
+                if let wrapper = cache.object(forKey: key as NSString) {
                     if !wrapper.isExpired {
                         if let value = wrapper.value as? T {
                             continuation.resume(returning: value)
                             return
                         }
                     } else {
-                        self.cache.removeObject(forKey: key as NSString)
+                        cache.removeObject(forKey: key as NSString)
                     }
                 }
 
                 // 检查磁盘缓存
-                let fileURL = self.cacheDirectory.appendingPathComponent(key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? key)
+                let fileURL = cacheDirectory.appendingPathComponent(key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? key)
 
-                guard self.fileManager.fileExists(atPath: fileURL.path) else {
+                guard fileManager.fileExists(atPath: fileURL.path) else {
                     continuation.resume(returning: nil)
                     return
                 }
@@ -54,7 +57,7 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
                     let wrapper = try decoder.decode(CacheEntryWrapper.self, from: data)
 
                     if wrapper.isExpired {
-                        try? self.fileManager.removeItem(at: fileURL)
+                        try? fileManager.removeItem(at: fileURL)
                         continuation.resume(returning: nil)
                         return
                     }
@@ -65,7 +68,7 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
                     }
 
                     // 更新内存缓存
-                    self.cache.setObject(wrapper, forKey: key as NSString)
+                    cache.setObject(wrapper, forKey: key as NSString)
                     continuation.resume(returning: value)
                 } catch {
                     continuation.resume(throwing: error)
@@ -74,33 +77,32 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
         }
     }
 
-    func set<T: Codable>(key: String, value: T, policy: CachePolicy) async throws {
-        return try await withCheckedThrowingContinuation { continuation in
+    func set(key: String, value: some Codable, policy: CachePolicy) async throws {
+        try await withCheckedThrowingContinuation { continuation in
             queue.async(flags: .barrier) { [weak self] in
                 guard let self else {
                     continuation.resume()
                     return
                 }
-                
-                let expirationDate: Date
-                switch policy {
+
+                let expirationDate = switch policy {
                 case .default:
-                    expirationDate = Date().addingTimeInterval(3600) // 1 hour
+                    Date().addingTimeInterval(3600) // 1 hour
                 case .never:
-                    expirationDate = Date.distantFuture
-                case .expiration(let interval):
-                    expirationDate = Date().addingTimeInterval(interval)
+                    Date.distantFuture
+                case let .expiration(interval):
+                    Date().addingTimeInterval(interval)
                 default:
-                    expirationDate = Date().addingTimeInterval(3600) // 默认 1 小时
+                    Date().addingTimeInterval(3600) // 默认 1 小时
                 }
 
                 let wrapper = CacheEntryWrapper(value: value, expirationDate: expirationDate)
 
                 // 更新内存缓存
-                self.cache.setObject(wrapper, forKey: key as NSString)
+                cache.setObject(wrapper, forKey: key as NSString)
 
                 // 更新磁盘缓存
-                let fileURL = self.cacheDirectory.appendingPathComponent(key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? key)
+                let fileURL = cacheDirectory.appendingPathComponent(key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? key)
 
                 do {
                     let encoder = JSONEncoder()
@@ -115,38 +117,38 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
     }
 
     func remove(key: String) async throws {
-        return await withCheckedContinuation { continuation in
+        await withCheckedContinuation { continuation in
             queue.async(flags: .barrier) { [weak self] in
                 guard let self else {
                     continuation.resume()
                     return
                 }
-                
-                self.cache.removeObject(forKey: key as NSString)
 
-                let fileURL = self.cacheDirectory.appendingPathComponent(key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? key)
-                try? self.fileManager.removeItem(at: fileURL)
-                
+                cache.removeObject(forKey: key as NSString)
+
+                let fileURL = cacheDirectory.appendingPathComponent(key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? key)
+                try? fileManager.removeItem(at: fileURL)
+
                 continuation.resume()
             }
         }
     }
 
     func exists(key: String) async -> Bool {
-        return await withCheckedContinuation { continuation in
+        await withCheckedContinuation { continuation in
             queue.async { [weak self] in
                 guard let self else {
                     continuation.resume(returning: false)
                     return
                 }
-                
-                if self.cache.object(forKey: key as NSString) != nil {
+
+                if cache.object(forKey: key as NSString) != nil {
                     continuation.resume(returning: true)
                     return
                 }
 
-                let fileURL = self.cacheDirectory.appendingPathComponent(key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? key)
-                continuation.resume(returning: self.fileManager.fileExists(atPath: fileURL.path))
+                let fileURL = cacheDirectory.appendingPathComponent(key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? key)
+                continuation.resume(returning: fileManager.fileExists(atPath: fileURL.path))
             }
         }
     }
@@ -161,7 +163,7 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
         return result
     }
 
-    func setMultiple<T: Codable>(values: [String: T], policy: CachePolicy) async throws {
+    func setMultiple(values: [String: some Codable], policy: CachePolicy) async throws {
         for (key, value) in values {
             try await set(key: key, value: value, policy: policy)
         }
@@ -174,19 +176,19 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
     }
 
     func clear() async throws {
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             queue.async(flags: .barrier) { [weak self] in
                 guard let self else {
                     continuation.resume()
                     return
                 }
-                
-                self.cache.removeAllObjects()
+
+                cache.removeAllObjects()
 
                 do {
-                    let contents = try self.fileManager.contentsOfDirectory(at: self.cacheDirectory, includingPropertiesForKeys: nil)
+                    let contents = try fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil)
                     for fileURL in contents {
-                        try? self.fileManager.removeItem(at: fileURL)
+                        try? fileManager.removeItem(at: fileURL)
                     }
                     continuation.resume()
                 } catch {
@@ -197,24 +199,25 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
     }
 
     func clearExpired() async throws {
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             queue.async(flags: .barrier) { [weak self] in
                 guard let self else {
                     continuation.resume()
                     return
                 }
-                
+
                 do {
-                    let contents = try self.fileManager.contentsOfDirectory(at: self.cacheDirectory, includingPropertiesForKeys: nil)
+                    let contents = try fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil)
 
                     for fileURL in contents {
                         guard let data = try? Data(contentsOf: fileURL),
-                              let wrapper = try? JSONDecoder().decode(CacheEntryWrapper.self, from: data) else {
+                              let wrapper = try? JSONDecoder().decode(CacheEntryWrapper.self, from: data)
+                        else {
                             continue
                         }
 
                         if wrapper.isExpired {
-                            try? self.fileManager.removeItem(at: fileURL)
+                            try? fileManager.removeItem(at: fileURL)
                         }
                     }
                     continuation.resume()
@@ -226,23 +229,24 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
     }
 
     func getCacheSize() async -> Int64 {
-        return await withCheckedContinuation { continuation in
+        await withCheckedContinuation { continuation in
             queue.async { [weak self] in
                 guard let self else {
                     continuation.resume(returning: 0)
                     return
                 }
-                
+
                 var totalSize: Int64 = 0
 
-                guard let contents = try? self.fileManager.contentsOfDirectory(at: self.cacheDirectory, includingPropertiesForKeys: [.fileSizeKey]) else {
+                guard let contents = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: [.fileSizeKey]) else {
                     continuation.resume(returning: 0)
                     return
                 }
 
                 for fileURL in contents {
-                    if let attributes = try? self.fileManager.attributesOfItem(atPath: fileURL.path),
-                       let fileSize = attributes[.size] as? Int64 {
+                    if let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path),
+                       let fileSize = attributes[.size] as? Int64
+                    {
                         totalSize += fileSize
                     }
                 }
@@ -253,14 +257,14 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
     }
 
     func getCacheCount() async -> Int {
-        return await withCheckedContinuation { continuation in
+        await withCheckedContinuation { continuation in
             queue.async { [weak self] in
                 guard let self else {
                     continuation.resume(returning: 0)
                     return
                 }
-                
-                guard let contents = try? self.fileManager.contentsOfDirectory(at: self.cacheDirectory, includingPropertiesForKeys: nil) else {
+
+                guard let contents = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) else {
                     continuation.resume(returning: 0)
                     return
                 }
@@ -277,12 +281,13 @@ final class DefaultCacheService: CacheServiceProtocol, @unchecked Sendable {
         cache.countLimit = count
     }
 
-    func setDefaultExpiration(_ expiration: TimeInterval) async {
+    func setDefaultExpiration(_: TimeInterval) async {
         // 存储默认过期时间（可以添加一个属性来保存）
     }
 }
 
 // MARK: - Supporting Types
+
 private class CacheEntryWrapper: NSObject, Codable {
     let value: AnyCodableValue
     let expirationDate: Date
@@ -291,7 +296,7 @@ private class CacheEntryWrapper: NSObject, Codable {
         Date() > expirationDate
     }
 
-    init<T: Codable>(value: T, expirationDate: Date) {
+    init(value: some Codable, expirationDate: Date) {
         self.value = AnyCodableValue(value)
         self.expirationDate = expirationDate
     }
@@ -303,8 +308,8 @@ private class CacheEntryWrapper: NSObject, Codable {
 
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.value = try container.decode(AnyCodableValue.self, forKey: .value)
-        self.expirationDate = try container.decode(Date.self, forKey: .expirationDate)
+        value = try container.decode(AnyCodableValue.self, forKey: .value)
+        expirationDate = try container.decode(Date.self, forKey: .expirationDate)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -317,7 +322,7 @@ private class CacheEntryWrapper: NSObject, Codable {
 private struct AnyCodableValue: Codable {
     let value: Any
 
-    init<T: Codable>(_ value: T) {
+    init(_ value: some Codable) {
         self.value = value
     }
 

@@ -14,10 +14,10 @@ import Foundation
 /// 随着重构的进行，应该逐步将依赖注入直接传递到需要的地方
 /// 最终目标是完全移除这个类，使用纯粹的依赖注入
 public final class ServiceLocator: @unchecked Sendable {
-    nonisolated(unsafe) public static let shared = ServiceLocator()
+    public nonisolated(unsafe) static let shared = ServiceLocator()
     private let container = DIContainer.shared
 
-    nonisolated private init() {}
+    private nonisolated init() {}
 
     // MARK: - Configuration
 
@@ -39,48 +39,48 @@ public final class ServiceLocator: @unchecked Sendable {
         print("  📦 创建基础服务...")
         let networkClient = NetworkClient()
         let cacheService = DefaultCacheService()
-        
+
         // 使用现有的 DatabaseService.shared（过渡期）
         let noteStorage = DatabaseService.shared
 
         // 注册基础服务
         print("  ✅ 注册 CacheServiceProtocol")
         container.register(CacheServiceProtocol.self, instance: cacheService)
-        
+
         print("  ✅ 注册 NoteStorageProtocol")
         container.register(NoteStorageProtocol.self, instance: noteStorage)
 
         // 创建并注册网络相关服务
         print("  📦 创建网络相关服务...")
-        
+
         // 使用现有的 MiNoteService.shared（过渡期）
         let noteService = MiNoteService.shared
-        
+
         // 使用现有的 SyncService.shared（过渡期）
         let syncService = SyncService.shared
-        
+
         let authService = DefaultAuthenticationService(networkClient: networkClient)
         let imageService = DefaultImageService(networkClient: networkClient, cacheService: cacheService)
         let audioService = DefaultAudioService(cacheService: cacheService)
-        
+
         // 使用现有的 NetworkMonitor.shared（过渡期）
         let networkMonitor = NetworkMonitor.shared
 
         print("  ✅ 注册 NoteServiceProtocol (使用现有单例)")
         container.register(NoteServiceProtocol.self, instance: noteService)
-        
+
         print("  ✅ 注册 SyncServiceProtocol (使用现有单例)")
         container.register(SyncServiceProtocol.self, instance: syncService)
-        
+
         print("  ✅ 注册 AuthenticationServiceProtocol")
         container.register(AuthenticationServiceProtocol.self, instance: authService)
-        
+
         print("  ✅ 注册 ImageServiceProtocol")
         container.register(ImageServiceProtocol.self, instance: imageService)
-        
+
         print("  ✅ 注册 AudioServiceProtocol")
         container.register(AudioServiceProtocol.self, instance: audioService)
-        
+
         print("  ✅ 注册 NetworkMonitorProtocol (使用现有单例)")
         container.register(NetworkMonitorProtocol.self, instance: networkMonitor)
 
@@ -89,7 +89,7 @@ public final class ServiceLocator: @unchecked Sendable {
 
         isConfigured = true
         print("✅ ServiceLocator 配置完成！")
-        
+
         // 验证所有服务已注册
         verifyConfiguration()
     }
@@ -97,7 +97,7 @@ public final class ServiceLocator: @unchecked Sendable {
     /// 验证所有服务是否已正确注册
     private func verifyConfiguration() {
         print("🔍 验证服务注册...")
-        
+
         let services: [(String, Any.Type)] = [
             ("CacheServiceProtocol", CacheServiceProtocol.self),
             ("NoteStorageProtocol", NoteStorageProtocol.self),
@@ -106,9 +106,9 @@ public final class ServiceLocator: @unchecked Sendable {
             ("AuthenticationServiceProtocol", AuthenticationServiceProtocol.self),
             ("ImageServiceProtocol", ImageServiceProtocol.self),
             ("AudioServiceProtocol", AudioServiceProtocol.self),
-            ("NetworkMonitorProtocol", NetworkMonitorProtocol.self)
+            ("NetworkMonitorProtocol", NetworkMonitorProtocol.self),
         ]
-        
+
         var allRegistered = true
         for (name, type) in services {
             if container.isRegistered(type) {
@@ -118,7 +118,7 @@ public final class ServiceLocator: @unchecked Sendable {
                 allRegistered = false
             }
         }
-        
+
         if allRegistered {
             print("✅ 所有服务验证通过！")
         } else {
@@ -132,60 +132,60 @@ public final class ServiceLocator: @unchecked Sendable {
     /// - Parameter type: 服务类型
     /// - Returns: 服务实例
     func resolve<T>(_ type: T.Type) -> T {
-        return container.resolve(type)
+        container.resolve(type)
     }
 
     /// 尝试解析服务
     /// - Parameter type: 服务类型
     /// - Returns: 服务实例，如果未注册则返回 nil
     func tryResolve<T>(_ type: T.Type) -> T? {
-        return container.tryResolve(type)
+        container.tryResolve(type)
     }
 
     /// 检查服务是否已注册
     /// - Parameter type: 服务类型
     /// - Returns: 是否已注册
-    func isRegistered<T>(_ type: T.Type) -> Bool {
-        return container.isRegistered(type)
+    func isRegistered(_ type: (some Any).Type) -> Bool {
+        container.isRegistered(type)
     }
-    
+
     // MARK: - Convenience Accessors
-    
+
     /// 网络监控服务
     var networkMonitor: NetworkMonitorProtocol {
         resolve(NetworkMonitorProtocol.self)
     }
-    
+
     /// 笔记服务
     var noteService: NoteServiceProtocol {
         resolve(NoteServiceProtocol.self)
     }
-    
+
     /// 同步服务
     var syncService: SyncServiceProtocol {
         resolve(SyncServiceProtocol.self)
     }
-    
+
     /// 认证服务
     var authService: AuthenticationServiceProtocol {
         resolve(AuthenticationServiceProtocol.self)
     }
-    
+
     /// 笔记存储
     var noteStorage: NoteStorageProtocol {
         resolve(NoteStorageProtocol.self)
     }
-    
+
     /// 缓存服务
     var cacheService: CacheServiceProtocol {
         resolve(CacheServiceProtocol.self)
     }
-    
+
     /// 图片服务
     var imageService: ImageServiceProtocol {
         resolve(ImageServiceProtocol.self)
     }
-    
+
     /// 音频服务
     var audioService: AudioServiceProtocol {
         resolve(AudioServiceProtocol.self)

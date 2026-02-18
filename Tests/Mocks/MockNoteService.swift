@@ -100,7 +100,7 @@ public final class MockNoteService: NoteServiceProtocol, @unchecked Sendable {
 
     // MARK: - NoteServiceProtocol - 同步操作
 
-    public func syncNotes(since: Date?) async throws -> SyncResult {
+    public func syncNotes(since _: Date?) async throws -> SyncResult {
         syncNotesCallCount += 1
 
         if let error = mockError {

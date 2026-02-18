@@ -31,11 +31,11 @@ final class DefaultNoteService: NoteServiceProtocol {
     // MARK: - NoteServiceProtocol - 笔记操作
 
     func fetchNotes() async throws -> [Note] {
-        return try await client.request("/notes", method: .get)
+        try await client.request("/notes", method: .get)
     }
 
-    func fetchNote(id: String) async throws -> Note {
-        return try await client.request("/notes/\\(id)", method: .get)
+    func fetchNote(id _: String) async throws -> Note {
+        try await client.request("/notes/\\(id)", method: .get)
     }
 
     func createNote(_ note: Note) async throws -> Note {
@@ -48,7 +48,7 @@ final class DefaultNoteService: NoteServiceProtocol {
         return try await client.request("/notes/\\(note.id)", method: .put, parameters: parameters)
     }
 
-    func deleteNote(id: String) async throws {
+    func deleteNote(id _: String) async throws {
         let _: EmptyResponse = try await client.request("/notes/\\(id)", method: .delete)
     }
 
@@ -56,7 +56,7 @@ final class DefaultNoteService: NoteServiceProtocol {
 
     func syncNotes(since: Date?) async throws -> SyncResult {
         var parameters: [String: Any] = [:]
-        if let since = since {
+        if let since {
             parameters["since"] = Int(since.timeIntervalSince1970 * 1000)
         }
 
@@ -65,7 +65,7 @@ final class DefaultNoteService: NoteServiceProtocol {
 
     func uploadChanges(_ changes: [NoteChange]) async throws {
         let parameters: [String: Any] = [
-            "changes": changes.map { changeToParameters($0) }
+            "changes": changes.map { changeToParameters($0) },
         ]
 
         let _: EmptyResponse = try await client.request("/sync/upload", method: .post, parameters: parameters)
@@ -74,7 +74,7 @@ final class DefaultNoteService: NoteServiceProtocol {
     // MARK: - NoteServiceProtocol - 文件夹操作
 
     func fetchFolders() async throws -> [Folder] {
-        return try await client.request("/folders", method: .get)
+        try await client.request("/folders", method: .get)
     }
 
     func createFolder(_ folder: Folder) async throws -> Folder {
@@ -87,29 +87,29 @@ final class DefaultNoteService: NoteServiceProtocol {
         return try await client.request("/folders/\\(folder.id)", method: .put, parameters: parameters)
     }
 
-    func deleteFolder(id: String) async throws {
+    func deleteFolder(id _: String) async throws {
         let _: EmptyResponse = try await client.request("/folders/\\(id)", method: .delete)
     }
 
     // MARK: - Private Methods
 
     private func noteToParameters(_ note: Note) -> [String: Any] {
-        return [
+        [
             "id": note.id,
             "title": note.title,
             "content": note.content,
             "folderId": note.folderId,
             "isStarred": note.isStarred,
             "createdAt": Int(note.createdAt.timeIntervalSince1970 * 1000),
-            "updatedAt": Int(note.updatedAt.timeIntervalSince1970 * 1000)
+            "updatedAt": Int(note.updatedAt.timeIntervalSince1970 * 1000),
         ]
     }
 
     private func folderToParameters(_ folder: Folder) -> [String: Any] {
-        return [
+        [
             "id": folder.id,
             "name": folder.name,
-            "count": folder.count
+            "count": folder.count,
         ]
     }
 
@@ -118,7 +118,7 @@ final class DefaultNoteService: NoteServiceProtocol {
             "id": change.id,
             "type": change.type.rawValue,
             "noteId": change.noteId,
-            "timestamp": Int(change.timestamp.timeIntervalSince1970 * 1000)
+            "timestamp": Int(change.timestamp.timeIntervalSince1970 * 1000),
         ]
 
         if let note = change.note {

@@ -6,8 +6,8 @@
 //  认证服务协议 - 定义用户认证操作接口
 //
 
-import Foundation
 import Combine
+import Foundation
 
 /// 认证服务协议
 ///

@@ -6,8 +6,8 @@
 //  图片服务协议 - 定义图片处理操作接口
 //
 
-import Foundation
 import AppKit
+import Foundation
 
 /// 图片服务协议
 ///

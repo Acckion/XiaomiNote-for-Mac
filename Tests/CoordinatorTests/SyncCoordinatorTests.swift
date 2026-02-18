@@ -6,8 +6,8 @@
 //  SyncCoordinator 单元测试
 //
 
-import XCTest
 import Combine
+import XCTest
 @testable import MiNoteLibrary
 
 /// SyncCoordinator 单元测试
@@ -206,7 +206,7 @@ final class SyncCoordinatorTests: XCTestCase {
         // Given
         let pendingChanges = [
             NoteChange(noteId: "1", type: .create, timestamp: Date()),
-            NoteChange(noteId: "2", type: .update, timestamp: Date())
+            NoteChange(noteId: "2", type: .update, timestamp: Date()),
         ]
         mockNoteStorage.mockPendingChanges = pendingChanges
 
@@ -232,7 +232,7 @@ final class SyncCoordinatorTests: XCTestCase {
         // Given
         mockNetworkMonitor.setConnected(false)
         let pendingChanges = [
-            NoteChange(noteId: "1", type: .create, timestamp: Date())
+            NoteChange(noteId: "1", type: .create, timestamp: Date()),
         ]
         mockNoteStorage.mockPendingChanges = pendingChanges
 
@@ -246,7 +246,7 @@ final class SyncCoordinatorTests: XCTestCase {
     func testProcessPendingOperations_WhenAlreadyProcessing_ShouldNotProcessAgain() async {
         // Given
         let pendingChanges = [
-            NoteChange(noteId: "1", type: .create, timestamp: Date())
+            NoteChange(noteId: "1", type: .create, timestamp: Date()),
         ]
         mockNoteStorage.mockPendingChanges = pendingChanges
 
@@ -265,7 +265,7 @@ final class SyncCoordinatorTests: XCTestCase {
     func testNetworkReconnect_ShouldProcessPendingOperations() async {
         // Given
         let pendingChanges = [
-            NoteChange(noteId: "1", type: .create, timestamp: Date())
+            NoteChange(noteId: "1", type: .create, timestamp: Date()),
         ]
         mockNoteStorage.mockPendingChanges = pendingChanges
         mockNetworkMonitor.setConnected(false)
@@ -301,7 +301,7 @@ final class SyncCoordinatorTests: XCTestCase {
 
     // MARK: - 错误处理测试
 
-    func testStartSync_WhenError_ShouldShowErrorMessage() async {
+    func testStartSync_WhenError_ShouldShowErrorMessage() {
         // Given
         mockSyncService.mockError = NSError(domain: "test", code: -1, userInfo: [NSLocalizedDescriptionKey: "同步失败"])
 

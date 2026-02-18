@@ -6,8 +6,8 @@
 //  ViewModel 基类 - 提供通用的 ViewModel 功能
 //
 
-import Foundation
 import Combine
+import Foundation
 
 /// ViewModel 基类
 ///

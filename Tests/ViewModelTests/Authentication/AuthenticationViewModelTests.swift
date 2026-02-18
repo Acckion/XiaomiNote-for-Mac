@@ -6,8 +6,8 @@
 //  AuthenticationViewModel 单元测试
 //
 
-import XCTest
 import Combine
+import XCTest
 @testable import MiNoteLibrary
 
 /// AuthenticationViewModel 单元测试
@@ -265,7 +265,7 @@ final class AuthenticationViewModelTests: XCTestCase {
     func testAuthenticationStateChange_ShouldUpdateViewModel() async {
         // Given
         let expectation = XCTestExpectation(description: "Authentication state changed")
-        
+
         sut.$isLoggedIn
             .dropFirst()
             .sink { isLoggedIn in
@@ -287,7 +287,7 @@ final class AuthenticationViewModelTests: XCTestCase {
         // Given
         let expectedProfile = UserProfile.mock()
         let expectation = XCTestExpectation(description: "User profile changed")
-        
+
         sut.$userProfile
             .dropFirst()
             .sink { profile in

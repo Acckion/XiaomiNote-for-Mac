@@ -1,5 +1,5 @@
-import Foundation
 import Combine
+import Foundation
 
 /// 默认认证服务实现
 ///
@@ -7,6 +7,7 @@ import Combine
 /// 需要等待 NetworkClient 完整实现后才能正常工作
 final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchecked Sendable {
     // MARK: - Properties
+
     private let networkClient: NetworkClient
     private let userStateSubject = CurrentValueSubject<UserProfile?, Never>(nil)
     private let isAuthenticatedSubject = CurrentValueSubject<Bool, Never>(false)
@@ -22,15 +23,17 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
     }
 
     // MARK: - Initialization
+
     init(networkClient: NetworkClient) {
         self.networkClient = networkClient
     }
 
     // MARK: - Public Methods
+
     func login(username: String, password: String) async throws -> UserProfile {
         let parameters: [String: Any] = [
             "username": username,
-            "password": password
+            "password": password,
         ]
 
         let response: LoginResponse = try await networkClient.request(
@@ -99,7 +102,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
     }
 
     func getAccessToken() -> String? {
-        return currentAuthUser?.token
+        currentAuthUser?.token
     }
 
     func refreshAccessToken() async throws -> String {
@@ -125,7 +128,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
 
         currentAuthUser = updatedUser
         userStateSubject.send(updatedUser.toUserProfile())
-        
+
         return response.token
     }
 
@@ -185,7 +188,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
         let headers = ["Authorization": "Bearer \(user.token)"]
         let parameters: [String: Any] = [
             "username": profile.nickname,
-            "email": "" // UserProfile 没有 email 字段
+            "email": "", // UserProfile 没有 email 字段
         ]
 
         let _: EmptyResponse = try await networkClient.request(
@@ -201,7 +204,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
     }
 
     func getCurrentCookie() -> String? {
-        return currentCookie
+        currentCookie
     }
 
     func saveCookie(_ cookie: String) throws {
@@ -213,11 +216,12 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
     }
 
     func getCurrentUser() async throws -> UserProfile? {
-        return currentAuthUser?.toUserProfile()
+        currentAuthUser?.toUserProfile()
     }
 }
 
 // MARK: - Supporting Types
+
 private struct LoginResponse: Decodable {
     let userId: String
     let username: String?

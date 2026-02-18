@@ -3,32 +3,32 @@ import SwiftUI
 public struct SettingsView: View {
     @ObservedObject var viewModel: NotesViewModel
     @Environment(\.dismiss) private var dismiss
-    
+
     @AppStorage("syncInterval") private var syncInterval: Double = 300 // 默认5分钟
-    @AppStorage("autoSave") private var autoSave: Bool = true
-    @AppStorage("offlineMode") private var offlineMode: Bool = false
-    @AppStorage("theme") private var theme: String = "system"
-    @AppStorage("autoRefreshCookie") private var autoRefreshCookie: Bool = false
+    @AppStorage("autoSave") private var autoSave = true
+    @AppStorage("offlineMode") private var offlineMode = false
+    @AppStorage("theme") private var theme = "system"
+    @AppStorage("autoRefreshCookie") private var autoRefreshCookie = false
     @AppStorage("autoRefreshInterval") private var autoRefreshInterval: Double = 86400 // 默认每天（24小时）
-    @AppStorage("silentRefreshOnFailure") private var silentRefreshOnFailure: Bool = true // 默认启用静默刷新
-    
+    @AppStorage("silentRefreshOnFailure") private var silentRefreshOnFailure = true // 默认启用静默刷新
+
     // 编辑器显示设置
-    @AppStorage("editorFontSize") private var editorFontSize: Double = 14.0 // 默认字体大小 14px
-    @AppStorage("editorLineHeight") private var editorLineHeight: Double = 1.5 // 默认行间距 1.5
-    
-    @State private var showLogoutAlert: Bool = false
-    @State private var showClearCacheAlert: Bool = false
-    
+    @AppStorage("editorFontSize") private var editorFontSize = 14.0 // 默认字体大小 14px
+    @AppStorage("editorLineHeight") private var editorLineHeight = 1.5 // 默认行间距 1.5
+
+    @State private var showLogoutAlert = false
+    @State private var showClearCacheAlert = false
+
     public init(viewModel: NotesViewModel) {
         self.viewModel = viewModel
     }
-    
+
     public var body: some View {
         NavigationStack {
             Form {
                 Section("同步设置") {
                     Toggle("自动保存", isOn: $autoSave)
-                    
+
                     Picker("同步间隔", selection: $syncInterval) {
                         Text("10秒").tag(10.0)
                         Text("30秒").tag(30.0)
@@ -41,60 +41,60 @@ public struct SettingsView: View {
                     .onChange(of: syncInterval) { newValue in
                         viewModel.updateSyncInterval(newValue)
                     }
-                    
+
                     Toggle("离线模式", isOn: $offlineMode)
                         .help("离线模式下仅使用本地缓存，不进行网络同步")
-                    
+
                     Toggle("自动刷新Cookie", isOn: $autoRefreshCookie)
                         .help("启用后，系统会自动定期刷新Cookie，避免Cookie过期导致同步失败")
-                    
+
                     if autoRefreshCookie {
                         Picker("刷新频率", selection: $autoRefreshInterval) {
                             Text("每天").tag(86400.0)
-                            Text("每周").tag(604800.0)
-                            Text("每月").tag(2592000.0)
+                            Text("每周").tag(604_800.0)
+                            Text("每月").tag(2_592_000.0)
                         }
                         .help("自动刷新Cookie的时间间隔")
                     }
-                    
+
                     Toggle("Cookie失效时静默刷新", isOn: $silentRefreshOnFailure)
                         .help("启用后，当Cookie失效时会自动尝试静默刷新，刷新失败才会弹窗提示")
                 }
-                
+
                 Section("编辑器") {
                     NavigationLink("编辑器设置") {
                         EditorSettingsView()
                     }
                     .help("配置原生编辑器")
                 }
-                
+
                 Section("调试") {
                     NavigationLink("操作队列调试") {
                         OperationQueueDebugView()
                     }
                     .help("查看和管理待上传注册表、离线操作队列等")
-                    
+
                     NavigationLink("调试设置") {
                         DebugSettingsView()
                     }
                     .help("Cookie 管理、API 测试等调试功能")
                 }
-                
+
                 Section("外观") {
                     Picker("主题", selection: $theme) {
                         Text("跟随系统").tag("system")
                         Text("浅色").tag("light")
                         Text("深色").tag("dark")
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 12) {
                         Text("编辑器显示")
                             .font(.headline)
                             .padding(.bottom, 4)
-                        
+
                         // 字体大小设置
-                        VStack(alignment: .leading, spacing: 8) {    
-                            Slider(value: $editorFontSize, in: 12...24, step: 1) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Slider(value: $editorFontSize, in: 12 ... 24, step: 1) {
                                 Text("字体大小")
                             } minimumValueLabel: {
                                 Text("12")
@@ -105,15 +105,15 @@ public struct SettingsView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .onChange(of: editorFontSize) { newValue in
+                            .onChange(of: editorFontSize) { _ in
                                 // 立即应用字体大小更改
                                 applyEditorSettings()
                             }
                         }
-                        
+
                         // 行间距设置
                         VStack(alignment: .leading, spacing: 8) {
-                            Slider(value: $editorLineHeight, in: 1.0...2.5, step: 0.1) {
+                            Slider(value: $editorLineHeight, in: 1.0 ... 2.5, step: 0.1) {
                                 Text("行间距")
                             } minimumValueLabel: {
                                 Text("1.0")
@@ -124,14 +124,14 @@ public struct SettingsView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .onChange(of: editorLineHeight) { newValue in
+                            .onChange(of: editorLineHeight) { _ in
                                 // 立即应用行间距更改
                                 applyEditorSettings()
                             }
                         }
-                        
+
                         // 预设按钮
-                        HStack {                    
+                        HStack {
                             Spacer()
                             Button("重置为默认") {
                                 editorFontSize = 14.0
@@ -145,11 +145,11 @@ public struct SettingsView: View {
                     }
                     .padding(.vertical, 8)
                 }
-                
+
                 Section("私密笔记") {
                     PrivateNotesPasswordSettingsView()
                 }
-                
+
                 Section("账户") {
                     // 用户信息显示
                     if let profile = viewModel.userProfile {
@@ -165,7 +165,7 @@ public struct SettingsView: View {
                             }
                             .frame(width: 40, height: 40)
                             .clipShape(Circle())
-                            
+
                             // 用户名
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(profile.nickname)
@@ -174,7 +174,7 @@ public struct SettingsView: View {
                                     .font(.caption)
                                     .foregroundColor(.green)
                             }
-                            
+
                             Spacer()
                         }
                         .padding(.vertical, 4)
@@ -191,7 +191,7 @@ public struct SettingsView: View {
                             }
                         }
                     }
-                    
+
                     Button("重新登录") {
                         // 发送通知让主窗口控制器显示登录视图
                         NotificationCenter.default.post(name: NSNotification.Name("ShowLoginView"), object: nil)
@@ -204,21 +204,21 @@ public struct SettingsView: View {
                         dismiss()
                     }
                     .help("如果同步失败，尝试刷新Cookie")
-                    
+
                     Button("退出登录", role: .destructive) {
                         showLogoutAlert = true
                     }
                 }
-                
+
                 Section("数据管理") {
                     Button("清除本地缓存") {
                         showClearCacheAlert = true
                     }
-                    
+
                     Button("导出所有笔记") {
                         exportNotes()
                     }
-                    
+
                     Button("从文件导入") {
                         importNotes()
                     }
@@ -227,7 +227,7 @@ public struct SettingsView: View {
             .formStyle(.grouped)
             .navigationTitle("设置")
             .toolbarTitleDisplayMode(.inline)
-            .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)  // 导航栏模糊背景
+            .toolbarBackground(.ultraThinMaterial, for: .windowToolbar) // 导航栏模糊背景
             .toolbarBackgroundVisibility(.automatic, for: .windowToolbar)
             .toolbar {
                 // 空工具栏，确保导航栏始终存在以保持大圆角样式
@@ -252,10 +252,10 @@ public struct SettingsView: View {
                 Text("清除缓存将删除所有本地笔记数据，但不会影响云端数据。")
             }
         }
-        .background(.ultraThickMaterial)  // macOS 26 材质背景
+        .background(.ultraThickMaterial) // macOS 26 材质背景
         .frame(minWidth: 550, idealWidth: 650, minHeight: 500, idealHeight: 600)
     }
-    
+
     private func saveSettings() {
         // 保存设置到UserDefaults
         UserDefaults.standard.set(syncInterval, forKey: "syncInterval")
@@ -267,22 +267,22 @@ public struct SettingsView: View {
         UserDefaults.standard.set(silentRefreshOnFailure, forKey: "silentRefreshOnFailure")
         UserDefaults.standard.set(editorFontSize, forKey: "editorFontSize")
         UserDefaults.standard.set(editorLineHeight, forKey: "editorLineHeight")
-        
+
         // 通知ViewModel设置已更改
         viewModel.syncInterval = syncInterval
         viewModel.autoSave = autoSave
-        
+
         // 启动或停止自动刷新Cookie定时器
         if autoRefreshCookie {
             viewModel.startAutoRefreshCookieIfNeeded()
         } else {
             viewModel.stopAutoRefreshCookie()
         }
-        
+
         // 应用编辑器设置
         applyEditorSettings()
     }
-    
+
     /// 应用编辑器显示设置（字体大小和行间距）
     private func applyEditorSettings() {
         // 通知所有活动的编辑器更新显示设置
@@ -291,40 +291,38 @@ public struct SettingsView: View {
             object: nil,
             userInfo: [
                 "fontSize": editorFontSize,
-                "lineHeight": editorLineHeight
+                "lineHeight": editorLineHeight,
             ]
         )
-        
+
         print("[SettingsView] 编辑器设置已更新: 字体大小=\(editorFontSize)px, 行间距=\(editorLineHeight)")
     }
-    
+
     private func logout() {
         // 清除cookie
         MiNoteService.shared.clearCookie()
-        
+
         // 清除本地数据
         viewModel.notes = []
         viewModel.folders = []
         viewModel.selectedNote = nil
         viewModel.selectedFolder = nil
-        
+
         // 显示登录视图
         viewModel.showLoginView = true
-        
+
         dismiss()
     }
-    
 
-    
     private func clearCache() {
         // 清除所有本地存储的数据
         UserDefaults.standard.removeObject(forKey: "cachedNotes")
         UserDefaults.standard.removeObject(forKey: "cachedFolders")
-        
+
         // 重新加载空数据
         viewModel.notes = []
         viewModel.folders = []
-        
+
         // 如果已登录，从云端重新加载
         if viewModel.isLoggedIn {
             Task {
@@ -332,21 +330,21 @@ public struct SettingsView: View {
             }
         }
     }
-    
+
     private func exportNotes() {
         let notesData = viewModel.notes.map { $0.toMinoteData() }
-        
+
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: notesData, options: .prettyPrinted)
-            
+
             let savePanel = NSSavePanel()
             savePanel.title = "导出笔记"
             savePanel.nameFieldStringValue = "小米笔记备份.json"
             savePanel.allowedContentTypes = [.json]
-            
+
             if savePanel.runModal() == .OK, let url = savePanel.url {
                 try jsonData.write(to: url)
-                
+
                 // 显示成功提示
                 let alert = NSAlert()
                 alert.messageText = "导出成功"
@@ -359,22 +357,22 @@ public struct SettingsView: View {
             print("导出失败: \(error)")
         }
     }
-    
+
     private func importNotes() {
         let openPanel = NSOpenPanel()
         openPanel.title = "导入笔记"
         openPanel.allowedContentTypes = [.json]
         openPanel.allowsMultipleSelection = false
-        
+
         if openPanel.runModal() == .OK, let url = openPanel.url {
             do {
                 let jsonData = try Data(contentsOf: url)
                 let notesArray = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [[String: Any]] ?? []
-                
+
                 // 导入笔记到ViewModel
                 let importedNotes = notesArray.compactMap { Note.fromMinoteData($0) }
                 viewModel.notes.append(contentsOf: importedNotes)
-                
+
                 // 显示成功提示
                 let alert = NSAlert()
                 alert.messageText = "导入成功"
@@ -382,13 +380,12 @@ public struct SettingsView: View {
                 alert.alertStyle = .informational
                 alert.addButton(withTitle: "确定")
                 alert.runModal()
-                
             } catch {
                 print("导入失败: \(error)")
             }
         }
     }
-    
+
     private func checkForUpdates() {
         // 检查更新逻辑
         let alert = NSAlert()
@@ -400,19 +397,19 @@ public struct SettingsView: View {
     }
 }
 
-// 私密笔记密码设置视图
+/// 私密笔记密码设置视图
 struct PrivateNotesPasswordSettingsView: View {
-    @State private var showSetPasswordDialog: Bool = false
-    @State private var showChangePasswordDialog: Bool = false
-    @State private var showDeletePasswordAlert: Bool = false
-    @State private var showErrorAlert: Bool = false
-    @State private var errorMessage: String = ""
-    @State private var showSuccessAlert: Bool = false
-    @State private var successMessage: String = ""
-    @State private var touchIDEnabled: Bool = false
-    
+    @State private var showSetPasswordDialog = false
+    @State private var showChangePasswordDialog = false
+    @State private var showDeletePasswordAlert = false
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
+    @State private var showSuccessAlert = false
+    @State private var successMessage = ""
+    @State private var touchIDEnabled = false
+
     private let passwordManager = PrivateNotesPasswordManager.shared
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if passwordManager.hasPassword() {
@@ -422,17 +419,17 @@ struct PrivateNotesPasswordSettingsView: View {
                     Text("已设置")
                         .foregroundColor(.green)
                 }
-                
+
                 Button("修改密码") {
                     showChangePasswordDialog = true
                 }
-                
+
                 Button("删除密码", role: .destructive) {
                     showDeletePasswordAlert = true
                 }
-                
+
                 Divider()
-                
+
                 // Touch ID 设置
                 if passwordManager.isBiometricAvailable() {
                     Toggle("使用 \(passwordManager.getBiometricType() ?? "Touch ID")", isOn: $touchIDEnabled)
@@ -455,7 +452,7 @@ struct PrivateNotesPasswordSettingsView: View {
                     Text("未设置")
                         .foregroundColor(.secondary)
                 }
-                
+
                 Button("设置密码") {
                     showSetPasswordDialog = true
                 }
@@ -517,22 +514,22 @@ struct PrivateNotesPasswordSettingsView: View {
     }
 }
 
-// 设置密码对话框
+/// 设置密码对话框
 struct SetPasswordDialogView: View {
     @Binding var isPresented: Bool
-    @State private var password: String = ""
-    @State private var confirmPassword: String = ""
-    @State private var showError: Bool = false
-    @State private var errorMessage: String = ""
-    
+    @State private var password = ""
+    @State private var confirmPassword = ""
+    @State private var showError = false
+    @State private var errorMessage = ""
+
     let onSuccess: () -> Void
     let onError: (String) -> Void
-    
+
     var body: some View {
         VStack(spacing: 20) {
             Text("设置私密笔记密码")
                 .font(.headline)
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("密码")
                     .font(.caption)
@@ -540,7 +537,7 @@ struct SetPasswordDialogView: View {
                 SecureField("请输入密码", text: $password)
                     .textFieldStyle(.roundedBorder)
             }
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("确认密码")
                     .font(.caption)
@@ -548,21 +545,21 @@ struct SetPasswordDialogView: View {
                 SecureField("请再次输入密码", text: $confirmPassword)
                     .textFieldStyle(.roundedBorder)
             }
-            
+
             if showError {
                 Text(errorMessage)
                     .font(.caption)
                     .foregroundColor(.red)
             }
-            
+
             HStack {
                 Button("取消") {
                     isPresented = false
                 }
                 .keyboardShortcut(.cancelAction)
-                
+
                 Spacer()
-                
+
                 Button("确定") {
                     if password.isEmpty {
                         errorMessage = "密码不能为空"
@@ -593,23 +590,23 @@ struct SetPasswordDialogView: View {
     }
 }
 
-// 修改密码对话框
+/// 修改密码对话框
 struct ChangePasswordDialogView: View {
     @Binding var isPresented: Bool
-    @State private var currentPassword: String = ""
-    @State private var newPassword: String = ""
-    @State private var confirmPassword: String = ""
-    @State private var showError: Bool = false
-    @State private var errorMessage: String = ""
-    
+    @State private var currentPassword = ""
+    @State private var newPassword = ""
+    @State private var confirmPassword = ""
+    @State private var showError = false
+    @State private var errorMessage = ""
+
     let onSuccess: () -> Void
     let onError: (String) -> Void
-    
+
     var body: some View {
         VStack(spacing: 20) {
             Text("修改私密笔记密码")
                 .font(.headline)
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("当前密码")
                     .font(.caption)
@@ -617,7 +614,7 @@ struct ChangePasswordDialogView: View {
                 SecureField("请输入当前密码", text: $currentPassword)
                     .textFieldStyle(.roundedBorder)
             }
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("新密码")
                     .font(.caption)
@@ -625,7 +622,7 @@ struct ChangePasswordDialogView: View {
                 SecureField("请输入新密码", text: $newPassword)
                     .textFieldStyle(.roundedBorder)
             }
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("确认新密码")
                     .font(.caption)
@@ -633,21 +630,21 @@ struct ChangePasswordDialogView: View {
                 SecureField("请再次输入新密码", text: $confirmPassword)
                     .textFieldStyle(.roundedBorder)
             }
-            
+
             if showError {
                 Text(errorMessage)
                     .font(.caption)
                     .foregroundColor(.red)
             }
-            
+
             HStack {
                 Button("取消") {
                     isPresented = false
                 }
                 .keyboardShortcut(.cancelAction)
-                
+
                 Spacer()
-                
+
                 Button("确定") {
                     if !PrivateNotesPasswordManager.shared.verifyPassword(currentPassword) {
                         errorMessage = "当前密码不正确"

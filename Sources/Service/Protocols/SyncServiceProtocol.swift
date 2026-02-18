@@ -6,8 +6,8 @@
 //  同步服务协议 - 定义笔记同步操作接口
 //
 
-import Foundation
 import Combine
+import Foundation
 
 /// 同步状态
 public enum SyncState {
@@ -55,34 +55,34 @@ public protocol SyncServiceProtocol: Sendable {
     /// 获取待处理操作
     /// - Returns: 待处理操作列表
     func getPendingOperations() async throws -> [SyncOperation]
-    
+
     // MARK: - 离线队列管理
-    
+
     /// 获取待处理操作数量
     /// - Returns: 待处理操作数量
     func getPendingOperationCount() throws -> Int
-    
+
     /// 清空待处理操作
     func clearPendingOperations() throws
-    
+
     /// 处理待处理操作
     func processPendingOperations() async throws
-    
+
     /// 添加操作到队列
     /// - Parameter operation: 同步操作
     func queueOperation(_ operation: SyncOperation) throws
-    
+
     // MARK: - 同步控制
-    
+
     /// 是否正在同步
     var isSyncing: AnyPublisher<Bool, Never> { get }
-    
+
     /// 最后同步时间
     var lastSyncTime: Date? { get }
-    
+
     /// 强制全量同步
     func forceFullSync() async throws
-    
+
     /// 同步指定笔记
     /// - Parameter id: 笔记ID
     func syncNote(id: String) async throws

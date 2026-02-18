@@ -6,8 +6,8 @@
 //  Mock 同步服务 - 用于测试
 //
 
-import Foundation
 import Combine
+import Foundation
 @testable import MiNoteLibrary
 
 /// Mock 同步服务
@@ -89,7 +89,7 @@ final class MockSyncService: SyncServiceProtocol, @unchecked Sendable {
         syncProgressSubject.send(0.0)
     }
 
-    func syncNote(_ note: Note) async throws {
+    func syncNote(_: Note) async throws {
         syncNoteCallCount += 1
 
         if let error = mockError {
@@ -99,7 +99,7 @@ final class MockSyncService: SyncServiceProtocol, @unchecked Sendable {
         // 模拟同步单个笔记
     }
 
-    func syncNote(id: String) async throws {
+    func syncNote(id _: String) async throws {
         syncNoteCallCount += 1
 
         if let error = mockError {
@@ -109,7 +109,7 @@ final class MockSyncService: SyncServiceProtocol, @unchecked Sendable {
         // 模拟同步单个笔记
     }
 
-    func syncFolder(id: String) async throws {
+    func syncFolder(id _: String) async throws {
         syncFolderCallCount += 1
 
         if let error = mockError {
@@ -185,7 +185,7 @@ final class MockSyncService: SyncServiceProtocol, @unchecked Sendable {
 
     // MARK: - SyncServiceProtocol - 冲突处理
 
-    func resolveConflict(_ operation: SyncOperation, strategy: ConflictResolutionStrategy) async throws {
+    func resolveConflict(_: SyncOperation, strategy _: ConflictResolutionStrategy) async throws {
         resolveConflictCallCount += 1
 
         if let error = mockError {

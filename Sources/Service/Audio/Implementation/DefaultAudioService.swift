@@ -1,14 +1,15 @@
-import Foundation
 import AVFoundation
 import Combine
+import Foundation
 
 /// 默认音频服务实现
 final class DefaultAudioService: AudioServiceProtocol {
     // MARK: - Properties
+
     private let cacheService: CacheServiceProtocol
     private var audioPlayer: AVAudioPlayer?
     private var audioRecorder: AVAudioRecorder?
-    
+
     private let isPlayingSubject = CurrentValueSubject<Bool, Never>(false)
     private let currentTimeSubject = CurrentValueSubject<TimeInterval, Never>(0)
     private let durationSubject = CurrentValueSubject<TimeInterval, Never>(0)
@@ -30,11 +31,13 @@ final class DefaultAudioService: AudioServiceProtocol {
     }
 
     // MARK: - Initialization
+
     init(cacheService: CacheServiceProtocol) {
         self.cacheService = cacheService
     }
 
     // MARK: - Playback Methods
+
     func play(url: String) async throws {
         guard let audioURL = URL(string: url) else {
             throw AudioError.invalidURL
@@ -52,7 +55,7 @@ final class DefaultAudioService: AudioServiceProtocol {
 
         audioPlayer = try AVAudioPlayer(data: audioData)
         audioPlayer?.play()
-        
+
         isPlayingSubject.send(true)
         durationSubject.send(audioPlayer?.duration ?? 0)
     }
@@ -75,14 +78,15 @@ final class DefaultAudioService: AudioServiceProtocol {
     }
 
     // MARK: - Recording Methods
+
     func startRecording() throws {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".m4a")
-        
+
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
             AVSampleRateKey: 44100,
             AVNumberOfChannelsKey: 2,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
         ]
 
         audioRecorder = try AVAudioRecorder(url: tempURL, settings: settings)
@@ -105,7 +109,8 @@ final class DefaultAudioService: AudioServiceProtocol {
     }
 
     // MARK: - Upload/Download Methods
-    func uploadAudio(_ data: Data) async throws -> String {
+
+    func uploadAudio(_: Data) async throws -> String {
         // 暂时返回占位 URL
         // 实际应用中应该上传到服务器
         throw AudioError.notImplemented
@@ -128,12 +133,13 @@ final class DefaultAudioService: AudioServiceProtocol {
     }
 
     // MARK: - Cache Methods
-    func getCachedAudio(for url: String) -> Data? {
+
+    func getCachedAudio(for _: String) -> Data? {
         // 同步方法，暂时返回 nil
-        return nil
+        nil
     }
 
-    func cacheAudio(_ data: Data, for url: String) {
+    func cacheAudio(_: Data, for _: String) {
         // 异步缓存,不等待结果
         // 实际应用中可以使用后台队列
     }
@@ -145,6 +151,7 @@ final class DefaultAudioService: AudioServiceProtocol {
 }
 
 // MARK: - Supporting Types
+
 enum AudioError: Error {
     case invalidURL
     case noActiveRecording

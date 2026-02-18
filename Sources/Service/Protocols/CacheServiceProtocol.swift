@@ -27,7 +27,7 @@ protocol CacheServiceProtocol {
     ///   - key: 缓存键
     ///   - value: 缓存对象
     ///   - policy: 缓存策略
-    func set<T: Codable>(key: String, value: T, policy: CachePolicy) async throws
+    func set(key: String, value: some Codable, policy: CachePolicy) async throws
 
     /// 删除缓存对象
     /// - Parameter key: 缓存键
@@ -49,7 +49,7 @@ protocol CacheServiceProtocol {
     /// - Parameters:
     ///   - values: 缓存对象字典
     ///   - policy: 缓存策略
-    func setMultiple<T: Codable>(values: [String: T], policy: CachePolicy) async throws
+    func setMultiple(values: [String: some Codable], policy: CachePolicy) async throws
 
     /// 批量删除缓存对象
     /// - Parameter keys: 缓存键数组
@@ -92,13 +92,13 @@ protocol CacheServiceProtocol {
 enum CachePolicy {
     /// 默认策略（使用默认过期时间）
     case `default`
-    
+
     /// 永不过期
     case never
-    
+
     /// 自定义过期时间
     case expiration(TimeInterval)
-    
+
     /// 仅使用缓存
     case cacheOnly
 

@@ -23,27 +23,27 @@ enum MixedFormatApplicationStrategy {
 // MARK: - 混合格式应用处理器
 
 /// 混合格式应用处理器
-/// 
+///
 /// 负责处理选中文本包含多种格式时的格式应用逻辑。
 @MainActor
 class MixedFormatApplicationHandler {
-    
+
     // MARK: - Singleton
-    
+
     static let shared = MixedFormatApplicationHandler()
-    
+
     private init() {}
-    
+
     // MARK: - Properties
-    
+
     /// 切换阈值 - 超过此比例时认为格式已应用
-    var toggleThreshold: Double = 0.5
-    
+    var toggleThreshold = 0.5
+
     /// 默认应用策略
     var defaultStrategy: MixedFormatApplicationStrategy = .toggle
-    
+
     // MARK: - Public Methods
-    
+
     /// 应用格式到混合格式范围
     /// - Parameters:
     ///   - format: 格式类型
@@ -57,44 +57,43 @@ class MixedFormatApplicationHandler {
         strategy: MixedFormatApplicationStrategy? = nil
     ) {
         guard range.length > 0 else { return }
-        
+
         let effectiveStrategy = strategy ?? defaultStrategy
         let mixedHandler = MixedFormatStateHandler.shared
         let state = mixedHandler.detectFormatState(format, in: textStorage, range: range)
-        
+
         print("[MixedFormatApplication] 应用格式: \(format.displayName)")
         print("[MixedFormatApplication]   - 范围: \(range)")
         print("[MixedFormatApplication]   - 当前状态: \(state.stateType), 激活比例: \(String(format: "%.2f", state.activationRatio))")
         print("[MixedFormatApplication]   - 策略: \(effectiveStrategy)")
-        
+
         // 根据策略决定操作
-        let shouldApply: Bool
-        switch effectiveStrategy {
+        let shouldApply: Bool = switch effectiveStrategy {
         case .unifyApply:
-            shouldApply = true
+            true
         case .unifyRemove:
-            shouldApply = false
+            false
         case .toggle:
             // 根据激活比例决定
-            shouldApply = state.activationRatio < toggleThreshold
+            state.activationRatio < toggleThreshold
         }
-        
+
         print("[MixedFormatApplication]   - 决定: \(shouldApply ? "应用" : "移除")")
-        
+
         // 执行格式操作
         textStorage.beginEditing()
-        
+
         if shouldApply {
             applyFormatToEntireRange(format, to: textStorage, range: range)
         } else {
             removeFormatFromEntireRange(format, from: textStorage, range: range)
         }
-        
+
         textStorage.endEditing()
-        
+
         print("[MixedFormatApplication] ✅ 格式操作完成")
     }
-    
+
     /// 强制应用格式到整个范围（不考虑当前状态）
     /// - Parameters:
     ///   - format: 格式类型
@@ -106,12 +105,12 @@ class MixedFormatApplicationHandler {
         range: NSRange
     ) {
         guard range.length > 0 else { return }
-        
+
         textStorage.beginEditing()
         applyFormatToEntireRange(format, to: textStorage, range: range)
         textStorage.endEditing()
     }
-    
+
     /// 强制移除格式从整个范围（不考虑当前状态）
     /// - Parameters:
     ///   - format: 格式类型
@@ -123,14 +122,14 @@ class MixedFormatApplicationHandler {
         range: NSRange
     ) {
         guard range.length > 0 else { return }
-        
+
         textStorage.beginEditing()
         removeFormatFromEntireRange(format, from: textStorage, range: range)
         textStorage.endEditing()
     }
-    
+
     // MARK: - Private Methods
-    
+
     /// 应用格式到整个范围
     private func applyFormatToEntireRange(
         _ format: TextFormat,
@@ -154,7 +153,7 @@ class MixedFormatApplicationHandler {
             FormatManager.shared.applyFormat(format, to: textStorage, range: range)
         }
     }
-    
+
     /// 移除格式从整个范围
     private func removeFormatFromEntireRange(
         _ format: TextFormat,
@@ -178,17 +177,17 @@ class MixedFormatApplicationHandler {
             break
         }
     }
-    
+
     /// 应用加粗到整个范围
     private func applyBoldToEntireRange(to textStorage: NSTextStorage, range: NSRange) {
         let fontManager = NSFontManager.shared
-        
+
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
             // 使用 FontSizeManager 统一管理默认字体
             // _Requirements: 4.5_
             let font = (value as? NSFont) ?? FontSizeManager.shared.defaultFont
             let traits = font.fontDescriptor.symbolicTraits
-            
+
             // 如果还没有加粗，则添加
             if !traits.contains(.bold) {
                 let boldFont = fontManager.convert(font, toHaveTrait: .boldFontMask)
@@ -196,15 +195,15 @@ class MixedFormatApplicationHandler {
             }
         }
     }
-    
+
     /// 移除加粗从整个范围
     private func removeBoldFromEntireRange(from textStorage: NSTextStorage, range: NSRange) {
         let fontManager = NSFontManager.shared
-        
+
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
             guard let font = value as? NSFont else { return }
             let traits = font.fontDescriptor.symbolicTraits
-            
+
             // 如果有加粗，则移除
             if traits.contains(.bold) {
                 let normalFont = fontManager.convert(font, toNotHaveTrait: .boldFontMask)
@@ -212,17 +211,17 @@ class MixedFormatApplicationHandler {
             }
         }
     }
-    
+
     /// 应用斜体到整个范围
     private func applyItalicToEntireRange(to textStorage: NSTextStorage, range: NSRange) {
         let fontManager = NSFontManager.shared
-        
+
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
             // 使用 FontSizeManager 统一管理默认字体
             // _Requirements: 4.5_
             let font = (value as? NSFont) ?? FontSizeManager.shared.defaultFont
             let traits = font.fontDescriptor.symbolicTraits
-            
+
             // 如果还没有斜体，则添加
             if !traits.contains(.italic) {
                 let italicFont = fontManager.convert(font, toHaveTrait: .italicFontMask)
@@ -230,15 +229,15 @@ class MixedFormatApplicationHandler {
             }
         }
     }
-    
+
     /// 移除斜体从整个范围
     private func removeItalicFromEntireRange(from textStorage: NSTextStorage, range: NSRange) {
         let fontManager = NSFontManager.shared
-        
+
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
             guard let font = value as? NSFont else { return }
             let traits = font.fontDescriptor.symbolicTraits
-            
+
             // 如果有斜体，则移除
             if traits.contains(.italic) {
                 let normalFont = fontManager.convert(font, toNotHaveTrait: .italicFontMask)
@@ -251,7 +250,7 @@ class MixedFormatApplicationHandler {
 // MARK: - NativeEditorContext Extension
 
 extension NativeEditorContext {
-    
+
     /// 应用格式到当前选中范围（支持混合格式处理）
     /// - Parameter format: 格式类型
     func applyFormatToSelection(_ format: TextFormat) {

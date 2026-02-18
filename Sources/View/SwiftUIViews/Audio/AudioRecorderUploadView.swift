@@ -4,8 +4,8 @@
 //
 //  语音录制和上传视图 - 集成录制完成后的上传流程
 
-import SwiftUI
 import Combine
+import SwiftUI
 
 /// 语音录制和上传视图
 ///
@@ -14,51 +14,51 @@ import Combine
 /// - 预览录音
 /// - 上传到服务器
 /// - 获取 fileId 并回调
-/// 
+///
 struct AudioRecorderUploadView: View {
-    
+
     // MARK: - Properties
-    
+
     /// 上传服务
     @ObservedObject private var uploadService = AudioUploadService.shared
-    
+
     /// 录制完成并上传成功的回调
     /// - Parameters:
     ///   - fileId: 上传后的文件 ID
     ///   - digest: 文件摘要
     ///   - mimeType: MIME 类型
     let onUploadComplete: (String, String?, String) -> Void
-    
+
     /// 取消回调
     let onCancel: () -> Void
-    
+
     /// 当前视图状态
     @State private var viewState: ViewState = .recording
-    
+
     /// 录制完成的文件 URL
     @State private var recordedFileURL: URL?
-    
+
     /// 上传进度
-    @State private var uploadProgress: Double = 0.0
-    
+    @State private var uploadProgress = 0.0
+
     /// 错误信息
     @State private var errorMessage: String?
-    
+
     /// 是否显示重试按钮
-    @State private var showRetryButton: Bool = false
-    
+    @State private var showRetryButton = false
+
     // MARK: - View State
-    
+
     /// 视图状态枚举
     enum ViewState {
-        case recording      // 录制中
-        case uploading      // 上传中
-        case success        // 成功
-        case error          // 错误
+        case recording // 录制中
+        case uploading // 上传中
+        case success // 成功
+        case error // 错误
     }
-    
+
     // MARK: - Body
-    
+
     var body: some View {
         Group {
             switch viewState {
@@ -86,10 +86,10 @@ struct AudioRecorderUploadView: View {
             uploadProgress = newProgress
         }
     }
-    
+
     // MARK: - Subviews
-    
-    /// 上传中视图 
+
+    /// 上传中视图
     private var uploadingView: some View {
         VStack(spacing: 20) {
             // 标题
@@ -98,13 +98,13 @@ struct AudioRecorderUploadView: View {
                     .foregroundColor(.orange)
                     .font(.title2)
                     .symbolEffect(.pulse)
-                
+
                 Text("正在上传")
                     .font(.headline)
-                
+
                 Spacer()
             }
-            
+
             // 进度指示器
             VStack(spacing: 12) {
                 // 圆形进度指示器
@@ -112,32 +112,32 @@ struct AudioRecorderUploadView: View {
                     Circle()
                         .stroke(Color.secondary.opacity(0.2), lineWidth: 8)
                         .frame(width: 80, height: 80)
-                    
+
                     Circle()
                         .trim(from: 0, to: CGFloat(uploadProgress))
                         .stroke(Color.orange, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                         .frame(width: 80, height: 80)
                         .rotationEffect(.degrees(-90))
                         .animation(.easeInOut(duration: 0.3), value: uploadProgress)
-                    
+
                     Text("\(Int(uploadProgress * 100))%")
                         .font(.system(.title3, design: .monospaced))
                         .fontWeight(.medium)
                 }
                 .padding(.vertical, 10)
-                
+
                 // 线性进度条
                 ProgressView(value: uploadProgress)
                     .progressViewStyle(.linear)
                     .tint(.orange)
-                
+
                 // 状态文字
                 Text(uploadStatusText)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
             .padding(.vertical, 10)
-            
+
             // 取消按钮
             Button("取消上传") {
                 cancelUpload()
@@ -148,28 +148,28 @@ struct AudioRecorderUploadView: View {
         .frame(width: 320)
         .background(backgroundView)
     }
-    
+
     /// 上传状态文字
     private var uploadStatusText: String {
         if uploadProgress < 0.2 {
-            return "准备上传..."
+            "准备上传..."
         } else if uploadProgress < 0.9 {
-            return "正在上传语音文件..."
+            "正在上传语音文件..."
         } else {
-            return "即将完成..."
+            "即将完成..."
         }
     }
-    
+
     /// 成功视图
     private var successView: some View {
         VStack(spacing: 20) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))
                 .foregroundColor(.green)
-            
+
             Text("上传成功")
                 .font(.headline)
-            
+
             Text("语音已添加到笔记中")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -184,8 +184,8 @@ struct AudioRecorderUploadView: View {
             }
         }
     }
-    
-    /// 错误视图 
+
+    /// 错误视图
     private var errorView: some View {
         VStack(spacing: 20) {
             // 标题
@@ -193,12 +193,12 @@ struct AudioRecorderUploadView: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.red)
                     .font(.title2)
-                
+
                 Text("上传失败")
                     .font(.headline)
-                
+
                 Spacer()
-                
+
                 // 关闭按钮
                 Button(action: onCancel) {
                     Image(systemName: "xmark.circle.fill")
@@ -207,14 +207,14 @@ struct AudioRecorderUploadView: View {
                 }
                 .buttonStyle(.plain)
             }
-            
+
             // 错误信息
             Text(errorMessage ?? "上传失败，请重试")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.vertical, 10)
-            
+
             // 操作按钮
             HStack(spacing: 16) {
                 // 取消按钮
@@ -223,7 +223,7 @@ struct AudioRecorderUploadView: View {
                 }
                 .buttonStyle(.bordered)
                 .frame(maxWidth: .infinity)
-                
+
                 // 重试按钮
                 Button("重试") {
                     retryUpload()
@@ -237,32 +237,31 @@ struct AudioRecorderUploadView: View {
         .frame(width: 320)
         .background(backgroundView)
     }
-    
+
     /// 背景视图
     private var backgroundView: some View {
         RoundedRectangle(cornerRadius: 16)
             .fill(Color(NSColor.controlBackgroundColor))
             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
     }
-    
+
     // MARK: - Actions
-    
-    /// 开始上传 
+
+    /// 开始上传
     private func startUpload(fileURL: URL) {
         viewState = .uploading
         uploadProgress = 0.0
         errorMessage = nil
-        
+
         Task { @MainActor in
             do {
                 let result = try await uploadService.uploadAudio(fileURL: fileURL)
-                
+
                 // 上传成功
                 viewState = .success
-                
+
                 // 回调
                 onUploadComplete(result.fileId, result.digest, result.mimeType)
-                
             } catch {
                 // 上传失败
                 errorMessage = error.localizedDescription
@@ -270,35 +269,35 @@ struct AudioRecorderUploadView: View {
             }
         }
     }
-    
+
     /// 取消上传
     private func cancelUpload() {
         uploadService.cancelUpload()
         cleanupAndCancel()
     }
-    
-    /// 重试上传 
+
+    /// 重试上传
     private func retryUpload() {
         guard let fileURL = recordedFileURL else {
             // 没有录制文件，返回录制状态
             viewState = .recording
             return
         }
-        
+
         startUpload(fileURL: fileURL)
     }
-    
+
     /// 清理并取消
     private func cleanupAndCancel() {
         // 删除临时文件
         if let url = recordedFileURL {
             try? FileManager.default.removeItem(at: url)
         }
-        
+
         uploadService.reset()
         onCancel()
     }
-    
+
     /// 处理上传状态变化
     private func handleUploadStateChange(_ newState: AudioUploadService.UploadState) {
         switch newState {
@@ -308,7 +307,7 @@ struct AudioRecorderUploadView: View {
             viewState = .uploading
         case .success:
             viewState = .success
-        case .failed(let message):
+        case let .failed(message):
             errorMessage = message
             viewState = .error
         }
@@ -319,12 +318,12 @@ struct AudioRecorderUploadView: View {
 
 /// 语音录制上传 Sheet 视图（用于从其他视图弹出）
 struct AudioRecorderUploadSheetView: View {
-    
+
     @Environment(\.dismiss) private var dismiss
-    
+
     /// 上传完成回调
     let onUploadComplete: (String, String?, String) -> Void
-    
+
     var body: some View {
         AudioRecorderUploadView(
             onUploadComplete: { fileId, digest, mimeType in
@@ -342,13 +341,13 @@ struct AudioRecorderUploadSheetView: View {
 
 /// 语音录制上传弹出视图
 struct AudioRecorderUploadPopoverView: View {
-    
+
     /// 上传完成回调
     let onUploadComplete: (String, String?, String) -> Void
-    
+
     /// 关闭回调
     let onDismiss: () -> Void
-    
+
     var body: some View {
         AudioRecorderUploadView(
             onUploadComplete: { fileId, digest, mimeType in
@@ -364,7 +363,7 @@ struct AudioRecorderUploadPopoverView: View {
 
 #Preview("Uploading State") {
     AudioRecorderUploadView(
-        onUploadComplete: { fileId, digest, mimeType in
+        onUploadComplete: { fileId, _, _ in
             print("Upload complete: fileId=\(fileId)")
         },
         onCancel: {

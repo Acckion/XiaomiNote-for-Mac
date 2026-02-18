@@ -20,7 +20,7 @@ import Foundation
 ///
 /// 这是解决 `</b></i><i><b>` 问题的关键组件。
 public final class FormatSpanMerger: Sendable {
-    
+
     /// 格式标签的嵌套顺序（从外到内）
     /// 生成 XML 时按此顺序嵌套标签
     ///
@@ -31,19 +31,19 @@ public final class FormatSpanMerger: Sendable {
     /// - 删除线、下划线（装饰性格式）
     /// - 斜体、粗体最内层（最常用的文本格式）
     public static let formatOrder: [ASTNodeType] = [
-        .heading1, .heading2, .heading3,  // 标题最外层
-        .centerAlign, .rightAlign,         // 对齐
-        .highlight,                         // 背景色
-        .strikethrough,                     // 删除线
-        .underline,                         // 下划线
-        .italic,                            // 斜体
-        .bold                               // 粗体最内层
+        .heading1, .heading2, .heading3, // 标题最外层
+        .centerAlign, .rightAlign, // 对齐
+        .highlight, // 背景色
+        .strikethrough, // 删除线
+        .underline, // 下划线
+        .italic, // 斜体
+        .bold, // 粗体最内层
     ]
-    
+
     public init() {}
-    
+
     // MARK: - 合并相邻跨度
-    
+
     /// 合并相邻的相同格式跨度
     ///
     /// 这是解决 `</b></i><i><b>` 问题的关键步骤。
@@ -59,11 +59,11 @@ public final class FormatSpanMerger: Sendable {
     /// - Returns: 合并后的格式跨度数组
     public func mergeAdjacentSpans(_ spans: [FormatSpan]) -> [FormatSpan] {
         guard !spans.isEmpty else { return [] }
-        
+
         var result: [FormatSpan] = []
         var current = spans[0]
-        
-        for i in 1..<spans.count {
+
+        for i in 1 ..< spans.count {
             let next = spans[i]
             if current.canMerge(with: next) {
                 // 格式相同，合并
@@ -76,17 +76,17 @@ public final class FormatSpanMerger: Sendable {
                 current = next
             }
         }
-        
+
         // 添加最后一个跨度
         if !current.isEmpty {
             result.append(current)
         }
-        
+
         return result
     }
-    
+
     // MARK: - 跨度转换为行内节点
-    
+
     /// 将格式跨度数组转换为行内节点树
     ///
     /// 按照 formatOrder 的顺序，从外到内构建嵌套的格式节点。
@@ -103,11 +103,11 @@ public final class FormatSpanMerger: Sendable {
     /// - Parameter spans: 格式跨度数组
     /// - Returns: 行内节点数组
     public func spansToInlineNodes(_ spans: [FormatSpan]) -> [any InlineNode] {
-        return spans.map { span in
+        spans.map { span in
             spanToInlineNode(span)
         }
     }
-    
+
     /// 将单个格式跨度转换为行内节点
     ///
     /// - Parameter span: 格式跨度
@@ -117,10 +117,10 @@ public final class FormatSpanMerger: Sendable {
         if span.formats.isEmpty {
             return TextNode(text: span.text)
         }
-        
+
         // 创建最内层的文本节点
         var node: any InlineNode = TextNode(text: span.text)
-        
+
         // 按照从内到外的顺序包裹格式节点
         // formatOrder 是从外到内的顺序，所以需要反转
         for format in Self.formatOrder.reversed() {
@@ -129,12 +129,12 @@ public final class FormatSpanMerger: Sendable {
                 node = FormattedNode(type: format, content: [node], color: color)
             }
         }
-        
+
         return node
     }
-    
+
     // MARK: - 行内节点转换为跨度
-    
+
     /// 将行内节点树展平为格式跨度数组
     ///
     /// 递归遍历节点树，收集每个叶子节点的格式集合。
@@ -148,7 +148,7 @@ public final class FormatSpanMerger: Sendable {
     /// - Returns: 格式跨度数组
     public func inlineNodesToSpans(_ nodes: [any InlineNode]) -> [FormatSpan] {
         var spans: [FormatSpan] = []
-        
+
         /// 递归展平节点
         /// - Parameters:
         ///   - node: 当前节点
@@ -167,22 +167,22 @@ public final class FormatSpanMerger: Sendable {
                 var newFormats = formats
                 newFormats.insert(formattedNode.nodeType)
                 let newColor = formattedNode.color ?? highlightColor
-                
+
                 for child in formattedNode.content {
                     flatten(child, formats: newFormats, highlightColor: newColor)
                 }
             }
         }
-        
+
         for node in nodes {
             flatten(node, formats: [], highlightColor: nil)
         }
-        
+
         return spans
     }
-    
+
     // MARK: - 优化行内节点
-    
+
     /// 优化行内节点数组
     ///
     /// 将行内节点树展平为跨度，合并相邻相同格式，然后重建节点树。
@@ -193,10 +193,10 @@ public final class FormatSpanMerger: Sendable {
     public func optimizeInlineNodes(_ nodes: [any InlineNode]) -> [any InlineNode] {
         // 1. 展平为跨度
         let spans = inlineNodesToSpans(nodes)
-        
+
         // 2. 合并相邻相同格式
         let mergedSpans = mergeAdjacentSpans(spans)
-        
+
         // 3. 重建节点树
         return spansToInlineNodes(mergedSpans)
     }
@@ -204,7 +204,7 @@ public final class FormatSpanMerger: Sendable {
 
 // MARK: - 便捷方法
 
-extension FormatSpanMerger {
+public extension FormatSpanMerger {
     /// 检查两个行内节点数组是否语义等价
     ///
     /// 通过比较展平后的跨度来判断，忽略嵌套结构的差异。
@@ -213,18 +213,18 @@ extension FormatSpanMerger {
     ///   - lhs: 第一个节点数组
     ///   - rhs: 第二个节点数组
     /// - Returns: 是否语义等价
-    public func areInlineNodesEquivalent(_ lhs: [any InlineNode], _ rhs: [any InlineNode]) -> Bool {
+    func areInlineNodesEquivalent(_ lhs: [any InlineNode], _ rhs: [any InlineNode]) -> Bool {
         let lhsSpans = mergeAdjacentSpans(inlineNodesToSpans(lhs))
         let rhsSpans = mergeAdjacentSpans(inlineNodesToSpans(rhs))
         return lhsSpans == rhsSpans
     }
-    
+
     /// 提取行内节点数组的纯文本内容
     ///
     /// - Parameter nodes: 行内节点数组
     /// - Returns: 纯文本字符串
-    public func extractPlainText(_ nodes: [any InlineNode]) -> String {
+    func extractPlainText(_ nodes: [any InlineNode]) -> String {
         let spans = inlineNodesToSpans(nodes)
-        return spans.map { $0.text }.joined()
+        return spans.map(\.text).joined()
     }
 }

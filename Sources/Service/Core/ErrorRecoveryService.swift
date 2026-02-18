@@ -1,62 +1,62 @@
-import Foundation
 import Combine
+import Foundation
 
 /// 错误恢复服务
-/// 
+///
 /// 统一管理网络错误的恢复机制，包括：
 /// - 网络错误时自动添加到离线队列
 /// - 重试限制和失败标记
 /// - 失败操作通知用户
-/// 
+///
 /// 遵循需求 8.1, 8.7
 @MainActor
 public final class ErrorRecoveryService: ObservableObject {
     public static let shared = ErrorRecoveryService()
-    
+
     // MARK: - 配置
-    
+
     /// 最大重试次数
-    public var maxRetryCount: Int = 3
-    
+    public var maxRetryCount = 3
+
     /// 初始重试延迟（秒）
     public var initialRetryDelay: TimeInterval = 5.0
-    
+
     /// 最大重试延迟（秒）
     public var maxRetryDelay: TimeInterval = 60.0
-    
+
     /// 重试退避倍数
-    public var retryBackoffMultiplier: Double = 2.0
-    
+    public var retryBackoffMultiplier = 2.0
+
     // MARK: - 依赖服务
-    
+
     /// 统一操作队列
     private let unifiedQueue = UnifiedOperationQueue.shared
     private let networkErrorHandler = NetworkErrorHandler.shared
     private let onlineStateManager = OnlineStateManager.shared
-    
+
     // MARK: - 状态
-    
+
     /// 失败的操作列表（超过最大重试次数）
     @Published public private(set) var permanentlyFailedOperations: [FailedOperation] = []
-    
+
     /// 是否有需要用户关注的失败操作
-    @Published public private(set) var hasFailedOperations: Bool = false
-    
+    @Published public private(set) var hasFailedOperations = false
+
     /// 最后一次错误消息
     @Published public var lastErrorMessage: String?
-    
+
     // MARK: - Combine
-    
+
     private var cancellables = Set<AnyCancellable>()
-    
+
     // MARK: - 初始化
-    
+
     private init() {
         setupNotificationObservers()
     }
-    
+
     // MARK: - 通知监听
-    
+
     /// 设置通知监听
     private func setupNotificationObservers() {
         // 监听离线操作失败通知
@@ -71,18 +71,18 @@ public final class ErrorRecoveryService: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
     // MARK: - 公共方法
-    
+
     /// 处理网络错误并决定是否添加到离线队列
-    /// 
+    ///
     /// 根据错误类型和重试次数决定处理策略：
     /// - 网络错误：添加到离线队列
     /// - Cookie过期：添加到离线队列，等待Cookie刷新
     /// - 其他错误：根据是否可重试决定
-    /// 
+    ///
     /// 遵循需求 8.1
-    /// 
+    ///
     /// - Parameters:
     ///   - operation: 操作类型
     ///   - noteId: 笔记或文件夹ID
@@ -99,10 +99,10 @@ public final class ErrorRecoveryService: ObservableObject {
     ) -> ErrorRecoveryResult {
         print("[ErrorRecovery] 处理网络错误: \(context)")
         print("[ErrorRecovery] 错误: \(error.localizedDescription)")
-        
+
         // 分类错误
         let errorType = networkErrorHandler.classifyError(error)
-        
+
         // 根据错误类型决定处理策略
         switch errorType {
         case .networkError:
@@ -114,7 +114,7 @@ public final class ErrorRecoveryService: ObservableObject {
                 error: error,
                 context: context
             )
-            
+
         case .authenticationError:
             // 认证错误：添加到统一队列，等待Cookie刷新
             return addToUnifiedQueue(
@@ -125,7 +125,7 @@ public final class ErrorRecoveryService: ObservableObject {
                 context: context,
                 requiresAuth: true
             )
-            
+
         case .serverError:
             // 服务器错误：如果可重试，添加到统一队列
             let handlingResult = networkErrorHandler.handleError(error, retryCount: 0)
@@ -140,18 +140,18 @@ public final class ErrorRecoveryService: ObservableObject {
             } else {
                 return .noRetry(message: handlingResult.userMessage ?? "服务器错误")
             }
-            
+
         case .clientError, .businessError:
             // 客户端错误或业务错误：不重试
             let handlingResult = networkErrorHandler.handleError(error, retryCount: 0)
             return .noRetry(message: handlingResult.userMessage ?? error.localizedDescription)
         }
     }
-    
+
     /// 添加操作到统一队列
-    /// 
+    ///
     /// 遵循需求 8.1
-    /// 
+    ///
     /// - Parameters:
     ///   - operation: 操作类型
     ///   - noteId: 笔记或文件夹ID
@@ -165,7 +165,7 @@ public final class ErrorRecoveryService: ObservableObject {
         noteId: String,
         data: Data,
         error: Error,
-        context: String,
+        context _: String,
         requiresAuth: Bool = false
     ) -> ErrorRecoveryResult {
         do {
@@ -179,67 +179,66 @@ public final class ErrorRecoveryService: ObservableObject {
                 retryCount: 0,
                 lastError: error.localizedDescription
             )
-            
+
             // 添加到统一队列
             try unifiedQueue.enqueue(noteOperation)
-            
+
             print("[ErrorRecovery] ✅ 操作已添加到统一队列: \(operation.rawValue), noteId: \(noteId)")
-            
-            let message = requiresAuth 
+
+            let message = requiresAuth
                 ? "操作已保存，将在登录后自动同步"
                 : "操作已保存，将在网络恢复后自动同步"
-            
+
             return .addedToQueue(message: message)
-            
         } catch {
             print("[ErrorRecovery] ❌ 添加到统一队列失败: \(error)")
             return .noRetry(message: "保存操作失败: \(error.localizedDescription)")
         }
     }
-    
+
     /// 确定操作优先级
-    /// 
+    ///
     /// - Parameter operation: 操作类型
     /// - Returns: 优先级数值（数字越大优先级越高）
     private func determinePriority(for operation: OperationType) -> Int {
         switch operation {
         case .cloudDelete:
-            return 10 // 删除操作最高优先级
+            10 // 删除操作最高优先级
         case .noteCreate:
-            return 8  // 创建笔记高优先级
+            8 // 创建笔记高优先级
         case .cloudUpload:
-            return 5  // 上传笔记中等优先级
+            5 // 上传笔记中等优先级
         case .folderDelete:
-            return 7  // 删除文件夹高优先级
+            7 // 删除文件夹高优先级
         case .folderRename:
-            return 4  // 重命名文件夹中等优先级
+            4 // 重命名文件夹中等优先级
         case .folderCreate:
-            return 6  // 创建文件夹较高优先级
+            6 // 创建文件夹较高优先级
         case .imageUpload:
-            return 3  // 图片上传低优先级
+            3 // 图片上传低优先级
         }
     }
-    
+
     /// 计算重试延迟（指数退避）
-    /// 
+    ///
     /// - Parameter retryCount: 当前重试次数
     /// - Returns: 延迟时间（秒）
     public func calculateRetryDelay(retryCount: Int) -> TimeInterval {
         let delay = initialRetryDelay * pow(retryBackoffMultiplier, Double(retryCount))
         return min(delay, maxRetryDelay)
     }
-    
+
     /// 清除失败操作
-    /// 
+    ///
     /// - Parameter operationId: 要清除的操作ID，如果为nil则清除所有
     public func clearFailedOperations(_ operationId: String? = nil) {
-        if let operationId = operationId {
+        if let operationId {
             permanentlyFailedOperations.removeAll { $0.id == operationId }
         } else {
             permanentlyFailedOperations.removeAll()
         }
         hasFailedOperations = !permanentlyFailedOperations.isEmpty
-        
+
         if permanentlyFailedOperations.isEmpty {
             lastErrorMessage = nil
         }
@@ -252,23 +251,23 @@ public final class ErrorRecoveryService: ObservableObject {
 public enum ErrorRecoveryResult {
     /// 已添加到离线队列
     case addedToQueue(message: String)
-    
+
     /// 不重试
     case noRetry(message: String)
-    
+
     /// 永久失败（超过最大重试次数）
     case permanentlyFailed(message: String)
-    
+
     /// 获取用户消息
     public var message: String {
         switch self {
-        case .addedToQueue(let message),
-             .noRetry(let message),
-             .permanentlyFailed(let message):
-            return message
+        case let .addedToQueue(message),
+             let .noRetry(message),
+             let .permanentlyFailed(message):
+            message
         }
     }
-    
+
     /// 是否已添加到队列
     public var isAddedToQueue: Bool {
         if case .addedToQueue = self {
@@ -276,7 +275,7 @@ public enum ErrorRecoveryResult {
         }
         return false
     }
-    
+
     /// 是否永久失败
     public var isPermanentlyFailed: Bool {
         if case .permanentlyFailed = self {
@@ -297,20 +296,20 @@ public struct FailedOperation: Identifiable {
     public let error: String
     public let retryCount: Int
     public let failedAt: Date
-    
+
     /// 操作类型的显示名称
     public var operationTypeName: String {
         switch operationType {
-        case .noteCreate: return "创建笔记"
-        case .cloudUpload: return "更新笔记"
-        case .cloudDelete: return "删除笔记"
-        case .imageUpload: return "上传图片"
-        case .folderCreate: return "创建文件夹"
-        case .folderRename: return "重命名文件夹"
-        case .folderDelete: return "删除文件夹"
+        case .noteCreate: "创建笔记"
+        case .cloudUpload: "更新笔记"
+        case .cloudDelete: "删除笔记"
+        case .imageUpload: "上传图片"
+        case .folderCreate: "创建文件夹"
+        case .folderRename: "重命名文件夹"
+        case .folderDelete: "删除文件夹"
         }
     }
-    
+
     public init(
         id: String,
         operationType: OperationType,

@@ -26,19 +26,19 @@ final class DefaultNoteStorage: NoteStorageProtocol, @unchecked Sendable {
     // MARK: - NoteStorageProtocol - 读取操作
 
     func fetchAllNotes() throws -> [Note] {
-        return queue.sync {
+        queue.sync {
             Array(notes.values).sorted { $0.updatedAt > $1.updatedAt }
         }
     }
 
     func fetchNote(id: String) throws -> Note? {
-        return queue.sync {
+        queue.sync {
             notes[id]
         }
     }
 
     func fetchNotes(in folderId: String) throws -> [Note] {
-        return queue.sync {
+        queue.sync {
             notes.values
                 .filter { $0.folderId == folderId }
                 .sorted { $0.updatedAt > $1.updatedAt }
@@ -46,21 +46,21 @@ final class DefaultNoteStorage: NoteStorageProtocol, @unchecked Sendable {
     }
 
     func searchNotes(query: String) throws -> [Note] {
-        return queue.sync {
+        queue.sync {
             let lowercasedQuery = query.lowercased()
             return notes.values
                 .filter {
                     $0.title.lowercased().contains(lowercasedQuery) ||
-                    $0.content.lowercased().contains(lowercasedQuery)
+                        $0.content.lowercased().contains(lowercasedQuery)
                 }
                 .sorted { $0.updatedAt > $1.updatedAt }
         }
     }
 
     func fetchStarredNotes() throws -> [Note] {
-        return queue.sync {
+        queue.sync {
             notes.values
-                .filter { $0.isStarred }
+                .filter(\.isStarred)
                 .sorted { $0.updatedAt > $1.updatedAt }
         }
     }
@@ -106,13 +106,13 @@ final class DefaultNoteStorage: NoteStorageProtocol, @unchecked Sendable {
     // MARK: - NoteStorageProtocol - 文件夹操作
 
     func fetchAllFolders() throws -> [Folder] {
-        return queue.sync {
+        queue.sync {
             Array(folders.values).sorted { $0.name < $1.name }
         }
     }
 
     func fetchFolder(id: String) throws -> Folder? {
-        return queue.sync {
+        queue.sync {
             folders[id]
         }
     }
@@ -140,14 +140,14 @@ final class DefaultNoteStorage: NoteStorageProtocol, @unchecked Sendable {
     // MARK: - NoteStorageProtocol - 统计操作
 
     func getNoteCount() throws -> Int {
-        return queue.sync {
+        queue.sync {
             notes.count
         }
     }
 
     func getNoteCount(in folderId: String) throws -> Int {
-        return queue.sync {
-            notes.values.filter { $0.folderId == folderId }.count
+        queue.sync {
+            notes.values.count(where: { $0.folderId == folderId })
         }
     }
 
@@ -156,11 +156,11 @@ final class DefaultNoteStorage: NoteStorageProtocol, @unchecked Sendable {
     func getPendingChanges() async throws -> [NoteChange] {
         // 简化实现：返回空数组
         // 实际应用中应该跟踪本地更改
-        return []
+        []
     }
 
     func getNote(id: String) async throws -> Note {
-        return try queue.sync {
+        try queue.sync {
             guard let note = notes[id] else {
                 throw StorageError.noteNotFound
             }

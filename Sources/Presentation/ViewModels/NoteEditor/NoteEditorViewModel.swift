@@ -6,9 +6,9 @@
 //  笔记编辑器视图模型 - 管理笔记编辑功能
 //
 
+import Combine
 import Foundation
 import SwiftUI
-import Combine
 
 /// 笔记编辑器视图模型
 ///
@@ -30,53 +30,53 @@ import Combine
 @MainActor
 public final class NoteEditorViewModel: ObservableObject {
     // MARK: - Published Properties
-    
+
     /// 当前编辑的笔记
     @Published public var currentNote: Note?
-    
+
     /// 笔记内容（XML 格式）
-    @Published public var content: String = ""
-    
+    @Published public var content = ""
+
     /// 笔记标题
-    @Published public var title: String = ""
-    
+    @Published public var title = ""
+
     /// 是否有未保存的更改
-    @Published public var hasUnsavedChanges: Bool = false
-    
+    @Published public var hasUnsavedChanges = false
+
     /// 是否正在保存
-    @Published public var isSaving: Bool = false
-    
+    @Published public var isSaving = false
+
     /// 是否正在加载
-    @Published public var isLoading: Bool = false
-    
+    @Published public var isLoading = false
+
     /// 错误消息（用于显示错误提示）
     @Published public var errorMessage: String?
-    
+
     // MARK: - Dependencies
-    
+
     /// 笔记存储服务（本地数据库）
     private let noteStorage: NoteStorageProtocol
-    
+
     /// 笔记网络服务（云端 API）
     private let noteService: NoteServiceProtocol
-    
+
     // MARK: - Private Properties
-    
+
     /// 自动保存定时器
     /// 使用 nonisolated(unsafe) 因为 Timer 不是 Sendable 的
-    nonisolated(unsafe) private var autoSaveTimer: Timer?
-    
+    private nonisolated(unsafe) var autoSaveTimer: Timer?
+
     /// 自动保存间隔（秒）
     private let autoSaveInterval: TimeInterval = 3.0
-    
+
     /// Combine 订阅集合
     private var cancellables = Set<AnyCancellable>()
-    
+
     /// 上次保存的内容（用于检测是否有更改）
-    private var lastSavedContent: String = ""
-    
+    private var lastSavedContent = ""
+
     // MARK: - Initialization
-    
+
     /// 初始化笔记编辑器视图模型
     ///
     /// - Parameters:
@@ -88,18 +88,18 @@ public final class NoteEditorViewModel: ObservableObject {
     ) {
         self.noteStorage = noteStorage
         self.noteService = noteService
-        
+
         setupAutoSave()
-        
+
         print("[NoteEditorViewModel] 初始化完成")
     }
-    
+
     deinit {
         autoSaveTimer?.invalidate()
     }
-    
+
     // MARK: - Public Methods
-    
+
     /// 加载笔记内容
     ///
     /// - Parameter note: 要加载的笔记
@@ -109,73 +109,73 @@ public final class NoteEditorViewModel: ObservableObject {
             print("[NoteEditorViewModel] 已经在编辑笔记: \(note.title)")
             return
         }
-        
+
         // 如果有未保存的更改，先保存
         if hasUnsavedChanges {
             await saveNote()
         }
-        
+
         isLoading = true
         errorMessage = nil
-        
+
         do {
             // 从本地数据库加载笔记
             let loadedNote = try await noteStorage.getNote(id: note.id)
-            
+
             currentNote = loadedNote
             content = loadedNote.content
             title = loadedNote.title
             lastSavedContent = loadedNote.content
             hasUnsavedChanges = false
-            
+
             print("[NoteEditorViewModel] 加载笔记: \(loadedNote.title)")
         } catch {
             errorMessage = "加载笔记失败: \(error.localizedDescription)"
             print("[NoteEditorViewModel] 加载失败: \(error)")
         }
-        
+
         isLoading = false
     }
-    
+
     /// 保存笔记
     public func saveNote() async {
         guard let note = currentNote else {
             print("[NoteEditorViewModel] 没有要保存的笔记")
             return
         }
-        
+
         guard hasUnsavedChanges else {
             print("[NoteEditorViewModel] 没有未保存的更改")
             return
         }
-        
+
         isSaving = true
         errorMessage = nil
-        
+
         do {
             // 更新笔记内容
             var updatedNote = note
             updatedNote.content = content
             updatedNote.title = title.isEmpty ? extractTitle(from: content) : title
             updatedNote.updatedAt = Date()
-            
+
             // 保存到本地数据库
             try noteStorage.saveNote(updatedNote)
-            
+
             // 更新状态
             currentNote = updatedNote
             lastSavedContent = content
             hasUnsavedChanges = false
-            
+
             print("[NoteEditorViewModel] 保存笔记: \(updatedNote.title)")
         } catch {
             errorMessage = "保存笔记失败: \(error.localizedDescription)"
             print("[NoteEditorViewModel] 保存失败: \(error)")
         }
-        
+
         isSaving = false
     }
-    
+
     /// 更新笔记内容
     ///
     /// - Parameter newContent: 新的内容
@@ -183,7 +183,7 @@ public final class NoteEditorViewModel: ObservableObject {
         content = newContent
         hasUnsavedChanges = (newContent != lastSavedContent)
     }
-    
+
     /// 更新笔记标题
     ///
     /// - Parameter newTitle: 新的标题
@@ -191,7 +191,7 @@ public final class NoteEditorViewModel: ObservableObject {
         title = newTitle
         hasUnsavedChanges = true
     }
-    
+
     /// 从内容中提取标题
     ///
     /// - Parameter content: 笔记内容（XML 格式）
@@ -203,21 +203,21 @@ public final class NoteEditorViewModel: ObservableObject {
             with: "",
             options: .regularExpression
         )
-        
+
         // 获取第一行作为标题
         let lines = plainText.components(separatedBy: .newlines)
         let firstLine = lines.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        
+
         // 限制标题长度
         let maxLength = 100
         if firstLine.count > maxLength {
             let index = firstLine.index(firstLine.startIndex, offsetBy: maxLength)
             return String(firstLine[..<index]) + "..."
         }
-        
+
         return firstLine.isEmpty ? "未命名笔记" : firstLine
     }
-    
+
     /// 转换为 XML 格式
     ///
     /// - Parameter text: 纯文本
@@ -229,50 +229,50 @@ public final class NoteEditorViewModel: ObservableObject {
         let xmlLines = lines.map { line in
             "<text indent=\"1\">\(line)</text>"
         }
-        
+
         return "<new-format/>" + xmlLines.joined(separator: "\n")
     }
-    
+
     /// 从 XML 转换为纯文本
     ///
     /// - Parameter xml: XML 格式的内容
     /// - Returns: 纯文本
     public func convertFromXML(_ xml: String) -> String {
         // 移除 XML 标签
-        return xml.replacingOccurrences(
+        xml.replacingOccurrences(
             of: "<[^>]+>",
             with: "",
             options: .regularExpression
         )
     }
-    
+
     /// 清除当前编辑的笔记
     public func clearNote() async {
         // 如果有未保存的更改，先保存
         if hasUnsavedChanges {
             await saveNote()
         }
-        
+
         currentNote = nil
         content = ""
         title = ""
         lastSavedContent = ""
         hasUnsavedChanges = false
-        
+
         print("[NoteEditorViewModel] 清除笔记")
     }
-    
+
     // MARK: - Private Methods
-    
+
     /// 设置自动保存
     private func setupAutoSave() {
         // 监听内容变化
         $content
             .debounce(for: .seconds(autoSaveInterval), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
-                guard let self = self else { return }
-                
-                if self.hasUnsavedChanges {
+                guard let self else { return }
+
+                if hasUnsavedChanges {
                     Task {
                         await self.autoSave()
                     }
@@ -280,11 +280,11 @@ public final class NoteEditorViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
     /// 自动保存
     private func autoSave() async {
         guard hasUnsavedChanges else { return }
-        
+
         print("[NoteEditorViewModel] 自动保存...")
         await saveNote()
     }

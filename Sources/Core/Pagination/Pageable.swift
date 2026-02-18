@@ -20,6 +20,6 @@ struct PageInfo {
     let totalCount: Int
 
     var hasMore: Bool {
-        return page * pageSize < totalCount
+        page * pageSize < totalCount
     }
 }

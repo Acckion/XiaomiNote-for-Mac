@@ -5,8 +5,8 @@
 //  内容区域视图 - 根据视图模式显示不同的内容
 //
 
-import SwiftUI
 import AppKit
+import SwiftUI
 
 // MARK: - 通知名称扩展
 
@@ -18,32 +18,32 @@ extension Notification.Name {
 // MARK: - ContentAreaView
 
 /// 内容区域视图
-/// 
+///
 /// 根据视图模式（列表/画廊）显示不同的内容，并管理展开笔记状态
 /// 负责协调 GalleryView 和 ExpandedNoteView 之间的动画过渡
 /// _Requirements: 4.3, 4.4, 4.5, 6.1, 6.4, 6.5, 5.2, 5.3, 5.4, 5.5_
 @available(macOS 14.0, *)
 struct ContentAreaView: View {
-    
+
     // MARK: - 属性
-    
+
     /// 应用协调器（共享数据层）
     let coordinator: AppCoordinator
-    
+
     /// 窗口状态（窗口独立状态）
     @ObservedObject var windowState: WindowState
-    
+
     /// 视图选项管理器
     @ObservedObject var optionsManager: ViewOptionsManager
-    
+
     // MARK: - 状态
-    
+
     /// 动画命名空间（用于 matchedGeometryEffect）
     /// _Requirements: 6.1, 6.4_
     @Namespace private var animation
-    
+
     // MARK: - 视图
-    
+
     var body: some View {
         ZStack {
             switch optionsManager.viewMode {
@@ -51,7 +51,7 @@ struct ContentAreaView: View {
                 // 列表模式：笔记列表 + 编辑器
                 // _Requirements: 4.3_
                 listModeContent
-                
+
             case .gallery:
                 // 画廊模式：根据是否有展开的笔记显示不同内容
                 // _Requirements: 4.4, 4.5_
@@ -79,9 +79,9 @@ struct ContentAreaView: View {
             }
         }
     }
-    
+
     // MARK: - 子视图
-    
+
     /// 列表模式内容
     /// 使用 HSplitView 实现可调整宽度的分隔符
     /// _Requirements: 4.3_
@@ -93,7 +93,7 @@ struct ContentAreaView: View {
                 windowState: windowState
             )
             .frame(minWidth: 200, idealWidth: 280, maxWidth: 400)
-            
+
             // 笔记详情编辑器
             NoteDetailView(
                 coordinator: coordinator,
@@ -102,7 +102,7 @@ struct ContentAreaView: View {
             .frame(minWidth: 400)
         }
     }
-    
+
     /// 画廊模式内容
     /// _Requirements: 4.4, 4.5, 6.1_
     @ViewBuilder
@@ -128,7 +128,7 @@ struct ContentAreaView: View {
             .transition(.opacity)
         }
     }
-    
+
     /// 展开视图的过渡动画
     /// _Requirements: 6.4, 6.5_
     private var expandedTransition: AnyTransition {
@@ -146,7 +146,7 @@ struct ContentAreaView: View {
     // 创建预览用的 AppCoordinator 和 WindowState
     let coordinator = AppCoordinator()
     let windowState = WindowState(coordinator: coordinator)
-    
+
     return ContentAreaView(
         coordinator: coordinator,
         windowState: windowState,

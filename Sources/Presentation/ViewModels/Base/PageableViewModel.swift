@@ -1,21 +1,24 @@
-import Foundation
 import Combine
+import Foundation
 
 /// 支持分页的 ViewModel 基类
 @MainActor
 class PageableViewModel<Item>: LoadableViewModel, Pageable {
     // MARK: - Published Properties
+
     @Published var items: [Item] = []
     @Published var hasMore = true
     @Published var isLoadingMore = false
 
     // MARK: - Private Properties
+
     private var currentPage = 0
     private let pageSize = 50
 
     // MARK: - Pageable
+
     func loadMore() async throws {
-        guard hasMore && !isLoadingMore else { return }
+        guard hasMore, !isLoadingMore else { return }
 
         isLoadingMore = true
         defer { isLoadingMore = false }
@@ -39,8 +42,9 @@ class PageableViewModel<Item>: LoadableViewModel, Pageable {
     }
 
     // MARK: - Abstract Methods
+
     /// 子类实现此方法来获取分页数据
-    func fetchPage(page: Int, pageSize: Int) async throws -> [Item] {
+    func fetchPage(page _: Int, pageSize _: Int) async throws -> [Item] {
         fatalError("Subclass must implement fetchPage")
     }
 }

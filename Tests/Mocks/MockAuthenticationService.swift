@@ -6,8 +6,8 @@
 //  Mock 认证服务 - 用于测试
 //
 
-import Foundation
 import Combine
+import Foundation
 @testable import MiNoteLibrary
 
 /// Mock 认证服务
@@ -50,7 +50,7 @@ final class MockAuthenticationService: AuthenticationServiceProtocol, @unchecked
 
     // MARK: - AuthenticationServiceProtocol - 登录操作
 
-    func login(username: String, password: String) async throws -> UserProfile {
+    func login(username: String, password _: String) async throws -> UserProfile {
         loginCallCount += 1
 
         if let error = mockError {

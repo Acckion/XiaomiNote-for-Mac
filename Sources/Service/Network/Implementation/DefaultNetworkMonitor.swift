@@ -1,10 +1,11 @@
+import Combine
 import Foundation
 import Network
-import Combine
 
 /// 默认网络监控实现
 final class DefaultNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
     // MARK: - Properties
+
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "com.minote.networkmonitor")
     private let connectionTypeSubject = CurrentValueSubject<ConnectionType, Never>(.none)
@@ -19,6 +20,7 @@ final class DefaultNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
     }
 
     // MARK: - Initialization
+
     init() {
         setupMonitoring()
     }
@@ -29,6 +31,7 @@ final class DefaultNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
     }
 
     // MARK: - Public Methods
+
     func startMonitoring() {
         monitor.start(queue: queue)
     }
@@ -38,13 +41,14 @@ final class DefaultNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
     }
 
     // MARK: - Private Methods
-    nonisolated private func setupMonitoring() {
+
+    private nonisolated func setupMonitoring() {
         monitor.pathUpdateHandler = { [weak self] path in
             guard let self else { return }
-            
+
             let isConnected = path.status == .satisfied
-            let connectionType = self.determineConnectionType(from: path)
-            
+            let connectionType = determineConnectionType(from: path)
+
             // 在主线程更新 Subject，避免 Sendable 警告
             Task { @MainActor in
                 self.isConnectedSubject.send(isConnected)
@@ -57,17 +61,17 @@ final class DefaultNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
         }
     }
 
-    nonisolated private func determineConnectionType(from path: NWPath) -> ConnectionType {
+    private nonisolated func determineConnectionType(from path: NWPath) -> ConnectionType {
         if path.usesInterfaceType(.wifi) {
-            return .wifi
+            .wifi
         } else if path.usesInterfaceType(.cellular) {
-            return .cellular
+            .cellular
         } else if path.usesInterfaceType(.wiredEthernet) {
-            return .ethernet
+            .ethernet
         } else if path.status == .satisfied {
-            return .other
+            .other
         } else {
-            return .none
+            .none
         }
     }
 }

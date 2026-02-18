@@ -36,20 +36,20 @@ struct SpecialElementDetectionResult {
 // MARK: - 特殊元素格式处理器
 
 /// 特殊元素格式处理器
-/// 
+///
 /// 负责处理复选框、分割线、图片等特殊元素的格式应用逻辑。
 /// 需求: 7.1, 7.2, 7.3, 7.4
 @MainActor
 class SpecialElementFormatHandler {
-    
+
     // MARK: - Singleton
-    
+
     static let shared = SpecialElementFormatHandler()
-    
+
     private init() {}
-    
+
     // MARK: - Public Methods
-    
+
     /// 检测指定位置的特殊元素
     /// - Parameters:
     ///   - textStorage: 文本存储
@@ -60,7 +60,7 @@ class SpecialElementFormatHandler {
         in textStorage: NSAttributedString,
         at position: Int
     ) -> SpecialElementDetectionResult {
-        guard position >= 0 && position < textStorage.length else {
+        guard position >= 0, position < textStorage.length else {
             return SpecialElementDetectionResult(
                 elementType: nil,
                 range: NSRange(location: position, length: 0),
@@ -68,9 +68,9 @@ class SpecialElementFormatHandler {
                 isNearElement: false
             )
         }
-        
+
         let attributes = textStorage.attributes(at: position, effectiveRange: nil)
-        
+
         // 检查是否有附件
         if let attachment = attributes[.attachment] as? NSTextAttachment {
             let elementType = identifyAttachmentType(attachment)
@@ -81,12 +81,11 @@ class SpecialElementFormatHandler {
                 isNearElement: true
             )
         }
-        
+
         // 检查附近是否有特殊元素
-        let nearbyResult = checkNearbySpecialElements(in: textStorage, at: position)
-        return nearbyResult
+        return checkNearbySpecialElements(in: textStorage, at: position)
     }
-    
+
     /// 检测选中范围内的特殊元素
     /// - Parameters:
     ///   - textStorage: 文本存储
@@ -97,7 +96,7 @@ class SpecialElementFormatHandler {
         range: NSRange
     ) -> [SpecialElementDetectionResult] {
         var results: [SpecialElementDetectionResult] = []
-        
+
         textStorage.enumerateAttribute(.attachment, in: range, options: []) { value, attrRange, _ in
             if let attachment = value as? NSTextAttachment {
                 let elementType = identifyAttachmentType(attachment)
@@ -110,10 +109,10 @@ class SpecialElementFormatHandler {
                 results.append(result)
             }
         }
-        
+
         return results
     }
-    
+
     /// 决定是否应该应用格式到特殊元素
     /// - Parameters:
     ///   - format: 格式类型
@@ -127,30 +126,30 @@ class SpecialElementFormatHandler {
         switch elementType {
         case .checkbox:
             // 复选框：允许应用内联格式到复选框后的文本
-            return format.isInlineFormat ? .skipElement : .deny
-            
+            format.isInlineFormat ? .skipElement : .deny
+
         case .horizontalRule:
             // 分割线：禁止应用任何格式
-            return .deny
-            
+            .deny
+
         case .image:
             // 图片：禁止应用文本格式
-            return .deny
-            
+            .deny
+
         case .audio:
             // 语音录音：禁止应用文本格式
-            return .deny
-            
+            .deny
+
         case .bulletPoint, .numberedItem:
             // 列表项：允许应用内联格式到列表项后的文本
-            return format.isInlineFormat ? .skipElement : .deny
-            
+            format.isInlineFormat ? .skipElement : .deny
+
         case .quote:
             // 引用块：允许应用内联格式
-            return format.isInlineFormat ? .allow : .deny
+            format.isInlineFormat ? .allow : .deny
         }
     }
-    
+
     /// 应用格式到包含特殊元素的范围
     /// - Parameters:
     ///   - format: 格式类型
@@ -164,32 +163,32 @@ class SpecialElementFormatHandler {
         range: NSRange
     ) -> [NSRange] {
         let specialElements = detectSpecialElements(in: textStorage, range: range)
-        
+
         print("[SpecialElementFormat] 应用格式: \(format.displayName)")
         print("[SpecialElementFormat]   - 范围: \(range)")
         print("[SpecialElementFormat]   - 特殊元素数量: \(specialElements.count)")
-        
+
         // 如果没有特殊元素，直接应用格式
         if specialElements.isEmpty {
             return [range]
         }
-        
+
         // 计算需要应用格式的范围（排除特殊元素）
         var applicableRanges: [NSRange] = []
         var currentLocation = range.location
-        
+
         for element in specialElements.sorted(by: { $0.range.location < $1.range.location }) {
             guard let elementType = element.elementType else { continue }
-            
+
             let decision = shouldApplyFormat(format, to: elementType)
-            
+
             print("[SpecialElementFormat]   - 元素: \(elementType.displayName), 决策: \(decision)")
-            
+
             switch decision {
             case .allow:
                 // 允许应用，不需要特殊处理
                 break
-                
+
             case .deny, .skipElement:
                 // 添加元素之前的范围
                 if currentLocation < element.range.location {
@@ -204,7 +203,7 @@ class SpecialElementFormatHandler {
                 currentLocation = element.range.location + element.range.length
             }
         }
-        
+
         // 添加最后一个元素之后的范围
         let endLocation = range.location + range.length
         if currentLocation < endLocation {
@@ -216,19 +215,19 @@ class SpecialElementFormatHandler {
                 applicableRanges.append(afterRange)
             }
         }
-        
+
         // 如果没有需要排除的元素，返回原始范围
-        if applicableRanges.isEmpty && specialElements.allSatisfy({ element in
+        if applicableRanges.isEmpty, specialElements.allSatisfy({ element in
             guard let elementType = element.elementType else { return true }
             return shouldApplyFormat(format, to: elementType) == .allow
         }) {
             return [range]
         }
-        
+
         print("[SpecialElementFormat]   - 实际应用范围: \(applicableRanges)")
         return applicableRanges
     }
-    
+
     /// 获取特殊元素附近应该禁用的格式按钮
     /// - Parameter elementType: 特殊元素类型
     /// - Returns: 应该禁用的格式类型数组
@@ -237,28 +236,28 @@ class SpecialElementFormatHandler {
         switch elementType {
         case .horizontalRule:
             // 分割线附近禁用所有格式
-            return TextFormat.allCases
-            
+            TextFormat.allCases
+
         case .image:
             // 图片附近禁用所有文本格式
-            return TextFormat.allCases.filter { $0.isInlineFormat }
-            
+            TextFormat.allCases.filter(\.isInlineFormat)
+
         case .audio:
             // 语音录音附近禁用所有文本格式
-            return TextFormat.allCases.filter { $0.isInlineFormat }
-            
+            TextFormat.allCases.filter(\.isInlineFormat)
+
         case .checkbox, .bulletPoint, .numberedItem:
             // 列表项附近禁用块级格式
-            return TextFormat.allCases.filter { $0.isBlockFormat }
-            
+            TextFormat.allCases.filter(\.isBlockFormat)
+
         case .quote:
             // 引用块附近禁用其他块级格式
-            return [.heading1, .heading2, .heading3, .bulletList, .numberedList, .checkbox]
+            [.heading1, .heading2, .heading3, .bulletList, .numberedList, .checkbox]
         }
     }
-    
+
     // MARK: - Private Methods
-    
+
     /// 识别附件类型
     private func identifyAttachmentType(_ attachment: NSTextAttachment) -> SpecialElement? {
         if let checkboxAttachment = attachment as? InteractiveCheckboxAttachment {
@@ -274,7 +273,7 @@ class SpecialElementFormatHandler {
         }
         return nil
     }
-    
+
     /// 检查附近是否有特殊元素
     private func checkNearbySpecialElements(
         in textStorage: NSAttributedString,
@@ -293,7 +292,7 @@ class SpecialElementFormatHandler {
                 )
             }
         }
-        
+
         // 检查后一个位置
         if position < textStorage.length - 1 {
             let nextAttributes = textStorage.attributes(at: position + 1, effectiveRange: nil)
@@ -307,7 +306,7 @@ class SpecialElementFormatHandler {
                 )
             }
         }
-        
+
         return SpecialElementDetectionResult(
             elementType: nil,
             range: NSRange(location: position, length: 0),
@@ -320,16 +319,16 @@ class SpecialElementFormatHandler {
 // MARK: - NativeEditorContext Extension
 
 extension NativeEditorContext {
-    
+
     /// 检测当前光标位置的特殊元素
     /// - Returns: 特殊元素检测结果
     func detectSpecialElementAtCursorPosition() -> SpecialElementDetectionResult {
-        return SpecialElementFormatHandler.shared.detectSpecialElement(
+        SpecialElementFormatHandler.shared.detectSpecialElement(
             in: nsAttributedText,
             at: cursorPosition
         )
     }
-    
+
     /// 获取当前位置应该禁用的格式按钮
     /// - Returns: 应该禁用的格式类型数组
     func getDisabledFormatsAtCursor() -> [TextFormat] {
@@ -339,7 +338,7 @@ extension NativeEditorContext {
         }
         return SpecialElementFormatHandler.shared.getDisabledFormats(for: elementType)
     }
-    
+
     /// 检查指定格式在当前位置是否可用
     /// - Parameter format: 格式类型
     /// - Returns: 是否可用

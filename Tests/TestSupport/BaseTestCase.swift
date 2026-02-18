@@ -56,7 +56,7 @@ class BaseTestCase: XCTestCase {
         content: String = "Test Content",
         folderId: String = "0"
     ) -> Note {
-        return Note(
+        Note(
             id: id,
             title: title,
             content: content,
@@ -78,7 +78,7 @@ class BaseTestCase: XCTestCase {
         name: String = "Test Folder",
         count: Int = 0
     ) -> Folder {
-        return Folder(
+        Folder(
             id: id,
             name: name,
             count: count,
@@ -90,7 +90,7 @@ class BaseTestCase: XCTestCase {
     /// - Parameters:
     ///   - timeout: 超时时间，默认为 5 秒
     ///   - block: 异步操作闭包
-    func waitForAsync(timeout: TimeInterval = 5.0, _ block: @escaping () async throws -> Void) async throws {
+    func waitForAsync(timeout _: TimeInterval = 5.0, _ block: @escaping () async throws -> Void) async throws {
         try await block()
     }
 }
