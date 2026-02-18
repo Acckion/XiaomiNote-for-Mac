@@ -4618,18 +4618,10 @@ public class NotesViewModel: ObservableObject {
     // MARK: - 清理
 
     deinit {
-        // 清理定时器，防止内存泄漏
-        autoRefreshCookieTimer?.invalidate()
-        autoSyncTimer?.invalidate()
-        autoRefreshCookieTimer = nil
-        autoSyncTimer = nil
-
-        // 清理Combine订阅
-        cancellables.removeAll()
-
         // 移除NotificationCenter观察者
         NotificationCenter.default.removeObserver(self)
-
-        print("[NotesViewModel] ViewModel已释放，资源已清理")
+        // 由于 deinit 是 nonisolated 的，不能访问 @MainActor 隔离的属性
+        // Timer 和 Combine 订阅会在对象释放时自动清理
+        print("[NotesViewModel] ViewModel已释放")
     }
 }

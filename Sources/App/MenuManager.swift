@@ -645,7 +645,91 @@ class MenuManager {
         return exportMenu
     }
 
+    /// 设置编辑菜单
+    private func setupEditMenu(in mainMenu: NSMenu) {
+        let editMenuItem = NSMenuItem()
+        editMenuItem.title = "编辑"
+        let editMenu = NSMenu(title: "编辑")
+        editMenuItem.submenu = editMenu
+        mainMenu.addItem(editMenuItem)
+
+        // 撤销
+        let undoItem = NSMenuItem(title: "撤销", action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(undoItem)
+
+        // 重做
+        let redoItem = NSMenuItem(title: "重做", action: Selector(("redo:")), keyEquivalent: "Z")
+        redoItem.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(redoItem)
+
+        editMenu.addItem(NSMenuItem.separator())
+
+        // 剪切
+        let cutItem = NSMenuItem(title: "剪切", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(cutItem)
+
+        // 复制
+        let copyItem = NSMenuItem(title: "复制", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(copyItem)
+
+        // 粘贴
+        let pasteItem = NSMenuItem(title: "粘贴", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(pasteItem)
+
+        // 全选
+        let selectAllItem = NSMenuItem(title: "全选", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editMenu.addItem(selectAllItem)
+
+        editMenu.addItem(NSMenuItem.separator())
+
+        // 查找子菜单
+        let findMenuItem = NSMenuItem(title: "查找", action: nil, keyEquivalent: "")
+        let findMenu = NSMenu(title: "查找")
+        findMenuItem.submenu = findMenu
+
+        let findItem = NSMenuItem(title: "查找...", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
+        findItem.tag = Int(NSTextFinder.Action.showFindInterface.rawValue)
+        findMenu.addItem(findItem)
+
+        let findNextItem = NSMenuItem(title: "查找下一个", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "g")
+        findNextItem.tag = Int(NSTextFinder.Action.nextMatch.rawValue)
+        findMenu.addItem(findNextItem)
+
+        let findPreviousItem = NSMenuItem(title: "查找上一个", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "G")
+        findPreviousItem.keyEquivalentModifierMask = [.command, .shift]
+        findPreviousItem.tag = Int(NSTextFinder.Action.previousMatch.rawValue)
+        findMenu.addItem(findPreviousItem)
+
+        editMenu.addItem(findMenuItem)
+    }
+
     /// 设置格式菜单
+    private func setupFormatMenu(in mainMenu: NSMenu) {
+        let formatMenuItem = NSMenuItem()
+        formatMenuItem.title = "格式"
+        let formatMenu = NSMenu(title: "格式")
+        formatMenuItem.submenu = formatMenu
+        mainMenu.addItem(formatMenuItem)
+
+        // 字体子菜单
+        let fontMenuItem = NSMenuItem(title: "字体", action: nil, keyEquivalent: "")
+        let fontMenu = NSMenu(title: "字体")
+        fontMenuItem.submenu = fontMenu
+
+        let boldItem = NSMenuItem(title: "粗体", action: #selector(NSFontManager.addFontTrait(_:)), keyEquivalent: "b")
+        boldItem.tag = 2 // NSBoldFontMask
+        fontMenu.addItem(boldItem)
+
+        let italicItem = NSMenuItem(title: "斜体", action: #selector(NSFontManager.addFontTrait(_:)), keyEquivalent: "i")
+        italicItem.tag = 1 // NSItalicFontMask
+        fontMenu.addItem(italicItem)
+
+        let underlineItem = NSMenuItem(title: "下划线", action: #selector(NSText.underline(_:)), keyEquivalent: "u")
+        fontMenu.addItem(underlineItem)
+
+        formatMenu.addItem(fontMenuItem)
+    }
+
     /// 设置视图菜单
     /// 按照 Apple Notes 标准实现完整的显示菜单
     private func setupViewMenu(in mainMenu: NSMenu) {

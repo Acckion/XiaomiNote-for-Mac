@@ -363,6 +363,15 @@
         @objc func makeToolbarValidate() {
             window?.toolbar?.validateVisibleItems()
         }
+
+        // MARK: - 清理
+
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+            // 由于 deinit 是 nonisolated 的，不能访问 @MainActor 隔离的属性
+            // 这些属性会在对象释放时自动清理
+            print("[MainWindowController] 主窗口控制器已释放")
+        }
     }
 
     // MARK: - NSToolbarDelegate
@@ -3563,27 +3572,6 @@
             }
 
             audioPanelStateManager.showForPlayback(fileId: fileId, noteId: selectedNote.id)
-        }
-
-        // MARK: - 清理
-
-        internal deinit {
-            // 清理所有NotificationCenter观察者，防止内存泄漏
-            NotificationCenter.default.removeObserver(self)
-
-            // 清理定时器
-            // autoRefreshCookieTimer?.invalidate()
-            // autoSyncTimer?.invalidate()
-
-            // 清理代理引用
-            currentSheetToolbarDelegate = nil
-            trashSheetToolbarDelegate = nil
-            loginSheetToolbarDelegate = nil
-            cookieRefreshSheetToolbarDelegate = nil
-            historySheetToolbarDelegate = nil
-            toolbarDelegate = nil
-
-            print("[MainWindowController] 主窗口控制器已释放，资源已清理")
         }
     }
 

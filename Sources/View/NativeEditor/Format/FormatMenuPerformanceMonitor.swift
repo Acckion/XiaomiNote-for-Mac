@@ -62,7 +62,7 @@ struct FormatMenuMetricRecord: Identifiable {
 /// 格式菜单性能统计
 struct FormatMenuPerformanceStatistics {
     let type: FormatMenuMetricType
-    let count: Int
+    let totalCount: Int
     let successCount: Int
     let failureCount: Int
     let totalDuration: TimeInterval
@@ -75,8 +75,8 @@ struct FormatMenuPerformanceStatistics {
     let thresholdExceededCount: Int
 
     var successRate: Double {
-        guard !count.isZero else { return 0 }
-        return Double(successCount) / Double(count) * 100
+        guard totalCount > 0 else { return 0 }
+        return Double(successCount) / Double(totalCount) * 100
     }
 
     var averageMs: Double {
@@ -327,7 +327,7 @@ final class FormatMenuPerformanceMonitor: ObservableObject {
 
         return FormatMenuPerformanceStatistics(
             type: type,
-            count: count,
+            totalCount: count,
             successCount: successCount,
             failureCount: count - successCount,
             totalDuration: total,

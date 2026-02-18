@@ -119,7 +119,7 @@ public final class XMLGenerator: @unchecked Sendable {
             return generateBulletList(bulletNode)
 
         case .orderedList:
-            guard let orderedNode = block as? OrderedList else {
+            guard let orderedNode = block as? OrderedListNode else {
                 return "<text indent=\"1\">Error: Invalid ordered list</text>"
             }
             return generateOrderedList(orderedNode)

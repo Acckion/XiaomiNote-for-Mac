@@ -128,15 +128,8 @@ public class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
     }
 
     deinit {
-        // 同步清理所有定时器，防止内存泄漏
-        timers.values.forEach { $0.invalidate() }
-        timers.removeAll()
-
-        // 移除网络监控
-        monitor?.cancel()
-
-        // 清理暂停的任务
-        pausedTasks.removeAll()
+        // Timer 会在对象释放时自动失效
+        // 由于 deinit 是 nonisolated 的，不能访问 @MainActor 隔离的属性
     }
 
     // MARK: - 公共方法

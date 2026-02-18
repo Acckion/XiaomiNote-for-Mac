@@ -106,7 +106,8 @@ final class SyncService: @unchecked Sendable {
             return false
         }
         // 有效的同步状态需要有 lastSyncTime 和非空的 syncTag
-        return status.lastSyncTime != nil && status.syncTag != nil && !status.syncTag.isEmpty
+        guard let syncTag = status.syncTag else { return false }
+        return status.lastSyncTime != nil && !syncTag.isEmpty
     }
 
     // MARK: - 同步锁管理
@@ -186,16 +187,16 @@ final class SyncService: @unchecked Sendable {
         }
 
         // 使用线程安全的方式设置同步状态
-        syncLock.lock()
-        _isSyncing = true
-        _syncProgressInternal = 0
-        syncStatusMessage = "开始完整同步..."
-        syncLock.unlock()
+        syncLock.withLock {
+            _isSyncing = true
+            _syncProgressInternal = 0
+            syncStatusMessage = "开始完整同步..."
+        }
 
         defer {
-            syncLock.lock()
-            _isSyncing = false
-            syncLock.unlock()
+            syncLock.withLock {
+                _isSyncing = false
+            }
             print("[SYNC] 同步结束，isSyncing设置为false")
         }
 
