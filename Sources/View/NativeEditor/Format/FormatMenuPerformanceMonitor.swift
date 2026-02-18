@@ -106,7 +106,7 @@ struct FormatMenuPerformanceStatistics {
     var summary: String {
         """
         \(type.displayName):
-          - 总次数: \(count) (成功: \(successCount), 失败: \(failureCount))
+          - 总次数: \(totalCount) (成功: \(successCount), 失败: \(failureCount))
           - 成功率: \(String(format: "%.1f", successRate))%
           - 平均时间: \(String(format: "%.2f", averageMs))ms
           - 最小时间: \(String(format: "%.2f", minMs))ms
