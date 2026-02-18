@@ -1,7 +1,7 @@
 import OSLog
 
 /// 日志模块标识
-public enum LogModule: String, CaseIterable {
+public enum LogModule: String, CaseIterable, Sendable {
     case storage
     case network
     case sync

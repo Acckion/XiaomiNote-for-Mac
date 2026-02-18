@@ -231,6 +231,7 @@
 		9E115ABE3947646953570E84 /* NativeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B169C15EB27658B047F945 /* NativeEditorView.swift */; };
 		9EBA9ABA4304536494BE4D0E /* PrivateNotesVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73E4609FAB97AA612BEF9B49 /* PrivateNotesVerificationView.swift */; };
 		9FED13360CD1A8A114251CC2 /* MoveNoteMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A6B407AC757C4CF9CE8B305 /* MoveNoteMenuView.swift */; };
+		A0833C4490B76CCE3CEA31AD /* LogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E54929596C00B125F5810CB /* LogService.swift */; };
 		A0AE1B27C938C4BF1482B6EC /* ViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4412C82EA1558B82AE40CD1C /* ViewState.swift */; };
 		A0DDD62A7DFB5DF16E4B0B13 /* FormatStateSynchronizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FB493AEA912DB26484DDE5C /* FormatStateSynchronizer.swift */; };
 		A0E576048EFAA846E5F8AE5E /* FormatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABF2C4848C1DAC598DCA8CEC /* FormatManager.swift */; };
@@ -426,6 +427,7 @@
 		191D9517F524F9B1B2F5C18E /* SelectionBehaviorPropertyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionBehaviorPropertyTests.swift; sourceTree = "<group>"; };
 		1A290F5662F46042CE43A8F1 /* InlineNodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineNodes.swift; sourceTree = "<group>"; };
 		1D2E7AE9BE1A2A7A2FEB12DB /* MenuManager+FormatMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuManager+FormatMenu.swift"; sourceTree = "<group>"; };
+		1E54929596C00B125F5810CB /* LogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogService.swift; sourceTree = "<group>"; };
 		1E801D09B469FC01A6DB0EAD /* LocalStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStorageService.swift; sourceTree = "<group>"; };
 		218E6FB7F0F59C1B2FE4AB1E /* OperationProcessorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationProcessorTests.swift; sourceTree = "<group>"; };
 		219F0B75700F8DF4DFE90145 /* DatabaseService+Operations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DatabaseService+Operations.swift"; sourceTree = "<group>"; };
@@ -1018,6 +1020,7 @@
 			children = (
 				10446C74043129C0B3A413EE /* AuthenticationStateManager.swift */,
 				183B5F80ED788390D391B681 /* ErrorRecoveryService.swift */,
+				1E54929596C00B125F5810CB /* LogService.swift */,
 				4C5E5D58F33CA9E2E9D6ACEF /* PassTokenManager.swift */,
 				A04B6DFCC8AAB90EB0DC9466 /* PrivateNotesPasswordManager.swift */,
 				DAF08C51D2585FAD202F3E75 /* ScheduledTaskManager.swift */,
@@ -1974,6 +1977,7 @@
 				907FA53C9686AD1AA222175C /* ListFormatHandler.swift in Sources */,
 				75E434DFE9AB75A527A6995D /* LoadableViewModel.swift in Sources */,
 				086B91C19174D16E30CF5F14 /* LocalStorageService.swift in Sources */,
+				A0833C4490B76CCE3CEA31AD /* LogService.swift in Sources */,
 				3B98F4EDCD42284B05553281 /* LoginView.swift in Sources */,
 				FA6C761DB3820A1E6EB6E452 /* LoginWindowController.swift in Sources */,
 				FB0F94316D8C6665E037A8E3 /* MainWindowController.swift in Sources */,
