@@ -32,43 +32,43 @@ struct MixedFormatState: Equatable {
     let activeCharacterCount: Int
     /// 总字符数
     let totalCharacterCount: Int
-    
+
     /// 是否应该显示为激活状态（完全激活或部分激活）
     var shouldShowAsActive: Bool {
-        return stateType != .inactive
+        stateType != .inactive
     }
-    
+
     /// 是否是部分激活状态
     var isPartiallyActive: Bool {
-        return stateType == .partiallyActive
+        stateType == .partiallyActive
     }
 }
 
 // MARK: - 混合格式状态处理器
 
 /// 混合格式状态处理器
-/// 
+///
 /// 负责检测选中文本中的混合格式状态，并提供适当的状态显示逻辑。
 /// 需求: 6.1, 6.2
 @MainActor
 class MixedFormatStateHandler {
-    
+
     // MARK: - Singleton
-    
+
     static let shared = MixedFormatStateHandler()
-    
+
     private init() {}
-    
+
     // MARK: - Properties
-    
+
     /// 部分激活阈值 - 超过此比例才显示为部分激活
-    var partialActivationThreshold: Double = 0.0
-    
+    var partialActivationThreshold = 0.0
+
     /// 是否启用部分激活状态显示
-    var enablePartialActivationDisplay: Bool = true
-    
+    var enablePartialActivationDisplay = true
+
     // MARK: - Public Methods
-    
+
     /// 检测选中范围内的混合格式状态
     /// - Parameters:
     ///   - attributedString: 富文本内容
@@ -80,17 +80,17 @@ class MixedFormatStateHandler {
         range: NSRange
     ) -> [TextFormat: MixedFormatState] {
         var states: [TextFormat: MixedFormatState] = [:]
-        
+
         // 检测所有内联格式
         let inlineFormats: [TextFormat] = [.bold, .italic, .underline, .strikethrough, .highlight]
         for format in inlineFormats {
             let state = detectFormatState(format, in: attributedString, range: range)
             states[format] = state
         }
-        
+
         return states
     }
-    
+
     /// 检测单个格式在选中范围内的状态
     /// - Parameters:
     ///   - format: 格式类型
@@ -106,13 +106,13 @@ class MixedFormatStateHandler {
             // 空选择范围，检测光标位置的格式
             return detectFormatStateAtPosition(format, in: attributedString, position: range.location)
         }
-        
+
         // 确保范围有效
         let effectiveRange = NSRange(
             location: range.location,
             length: min(range.length, attributedString.length - range.location)
         )
-        
+
         guard effectiveRange.length > 0 else {
             return MixedFormatState(
                 format: format,
@@ -122,30 +122,29 @@ class MixedFormatStateHandler {
                 totalCharacterCount: 0
             )
         }
-        
+
         // 统计格式激活的字符数
         var activeCount = 0
         let totalCount = effectiveRange.length
-        
+
         attributedString.enumerateAttributes(in: effectiveRange, options: []) { attributes, attrRange, _ in
             if isFormatActive(format, in: attributes) {
                 activeCount += attrRange.length
             }
         }
-        
+
         // 计算激活比例
         let ratio = Double(activeCount) / Double(totalCount)
-        
+
         // 确定状态类型
-        let stateType: FormatStateType
-        if activeCount == 0 {
-            stateType = .inactive
+        let stateType: FormatStateType = if activeCount == 0 {
+            .inactive
         } else if activeCount == totalCount {
-            stateType = .fullyActive
+            .fullyActive
         } else {
-            stateType = .partiallyActive
+            .partiallyActive
         }
-        
+
         return MixedFormatState(
             format: format,
             stateType: stateType,
@@ -154,7 +153,7 @@ class MixedFormatStateHandler {
             totalCharacterCount: totalCount
         )
     }
-    
+
     /// 检测光标位置的格式状态
     /// - Parameters:
     ///   - format: 格式类型
@@ -166,7 +165,7 @@ class MixedFormatStateHandler {
         in attributedString: NSAttributedString,
         position: Int
     ) -> MixedFormatState {
-        guard position >= 0 && position < attributedString.length else {
+        guard position >= 0, position < attributedString.length else {
             return MixedFormatState(
                 format: format,
                 stateType: .inactive,
@@ -175,10 +174,10 @@ class MixedFormatStateHandler {
                 totalCharacterCount: 0
             )
         }
-        
+
         let attributes = attributedString.attributes(at: position, effectiveRange: nil)
         let isActive = isFormatActive(format, in: attributes)
-        
+
         return MixedFormatState(
             format: format,
             stateType: isActive ? .fullyActive : .inactive,
@@ -187,7 +186,7 @@ class MixedFormatStateHandler {
             totalCharacterCount: 1
         )
     }
-    
+
     /// 获取应该显示为激活状态的格式集合
     /// - Parameters:
     ///   - attributedString: 富文本内容
@@ -200,16 +199,16 @@ class MixedFormatStateHandler {
     ) -> Set<TextFormat> {
         let states = detectMixedFormatStates(in: attributedString, range: range)
         var activeFormats: Set<TextFormat> = []
-        
+
         for (format, state) in states {
             if state.shouldShowAsActive {
                 activeFormats.insert(format)
             }
         }
-        
+
         return activeFormats
     }
-    
+
     /// 获取部分激活的格式集合
     /// - Parameters:
     ///   - attributedString: 富文本内容
@@ -222,16 +221,16 @@ class MixedFormatStateHandler {
     ) -> Set<TextFormat> {
         let states = detectMixedFormatStates(in: attributedString, range: range)
         var partialFormats: Set<TextFormat> = []
-        
+
         for (format, state) in states {
             if state.isPartiallyActive {
                 partialFormats.insert(format)
             }
         }
-        
+
         return partialFormats
     }
-    
+
     /// 获取完全激活的格式集合
     /// - Parameters:
     ///   - attributedString: 富文本内容
@@ -243,18 +242,18 @@ class MixedFormatStateHandler {
     ) -> Set<TextFormat> {
         let states = detectMixedFormatStates(in: attributedString, range: range)
         var fullyActiveFormats: Set<TextFormat> = []
-        
+
         for (format, state) in states {
             if state.stateType == .fullyActive {
                 fullyActiveFormats.insert(format)
             }
         }
-        
+
         return fullyActiveFormats
     }
-    
+
     // MARK: - Private Methods
-    
+
     /// 检测属性中是否包含指定格式
     /// - Parameters:
     ///   - format: 格式类型
@@ -263,59 +262,60 @@ class MixedFormatStateHandler {
     private func isFormatActive(_ format: TextFormat, in attributes: [NSAttributedString.Key: Any]) -> Bool {
         switch format {
         case .bold:
-            return isBoldActive(in: attributes)
+            isBoldActive(in: attributes)
         case .italic:
-            return isItalicActive(in: attributes)
+            isItalicActive(in: attributes)
         case .underline:
-            return isUnderlineActive(in: attributes)
+            isUnderlineActive(in: attributes)
         case .strikethrough:
-            return isStrikethroughActive(in: attributes)
+            isStrikethroughActive(in: attributes)
         case .highlight:
-            return isHighlightActive(in: attributes)
+            isHighlightActive(in: attributes)
         default:
-            return false
+            false
         }
     }
-    
+
     /// 检测加粗格式
     private func isBoldActive(in attributes: [NSAttributedString.Key: Any]) -> Bool {
         guard let font = attributes[.font] as? NSFont else { return false }
-        
+
         let traits = font.fontDescriptor.symbolicTraits
         if traits.contains(.bold) {
             return true
         }
-        
+
         // 备用检测：检查字体名称
         let fontName = font.fontName.lowercased()
         if fontName.contains("bold") || fontName.contains("-bold") {
             return true
         }
-        
+
         // 备用检测：检查字体 weight
         if let weightTrait = font.fontDescriptor.object(forKey: .traits) as? [NSFontDescriptor.TraitKey: Any],
            let weight = weightTrait[.weight] as? CGFloat,
-           weight >= 0.4 {
+           weight >= 0.4
+        {
             return true
         }
-        
+
         return false
     }
-    
+
     /// 检测斜体格式
     private func isItalicActive(in attributes: [NSAttributedString.Key: Any]) -> Bool {
         guard let font = attributes[.font] as? NSFont else { return false }
-        
+
         let traits = font.fontDescriptor.symbolicTraits
         if traits.contains(.italic) {
             return true
         }
-        
+
         // 备用检测：检查字体名称
         let fontName = font.fontName.lowercased()
         return fontName.contains("italic") || fontName.contains("oblique")
     }
-    
+
     /// 检测下划线格式
     private func isUnderlineActive(in attributes: [NSAttributedString.Key: Any]) -> Bool {
         if let underlineStyle = attributes[.underlineStyle] as? Int, underlineStyle != 0 {
@@ -323,7 +323,7 @@ class MixedFormatStateHandler {
         }
         return false
     }
-    
+
     /// 检测删除线格式
     private func isStrikethroughActive(in attributes: [NSAttributedString.Key: Any]) -> Bool {
         if let strikethroughStyle = attributes[.strikethroughStyle] as? Int, strikethroughStyle != 0 {
@@ -331,12 +331,12 @@ class MixedFormatStateHandler {
         }
         return false
     }
-    
+
     /// 检测高亮格式
     private func isHighlightActive(in attributes: [NSAttributedString.Key: Any]) -> Bool {
         if let backgroundColor = attributes[.backgroundColor] as? NSColor {
             // 排除透明或白色背景
-            if backgroundColor.alphaComponent > 0.1 && backgroundColor != .clear && backgroundColor != .white {
+            if backgroundColor.alphaComponent > 0.1, backgroundColor != .clear, backgroundColor != .white {
                 return true
             }
         }
@@ -347,7 +347,7 @@ class MixedFormatStateHandler {
 // MARK: - NativeEditorContext Extension
 
 extension NativeEditorContext {
-    
+
     /// 获取当前选中范围的混合格式状态
     /// - Returns: 混合格式状态字典
     /// 需求: 6.1, 6.2
@@ -355,7 +355,7 @@ extension NativeEditorContext {
         let handler = MixedFormatStateHandler.shared
         return handler.detectMixedFormatStates(in: nsAttributedText, range: selectedRange)
     }
-    
+
     /// 获取部分激活的格式集合
     /// - Returns: 部分激活的格式集合
     /// 需求: 6.2
@@ -363,7 +363,7 @@ extension NativeEditorContext {
         let handler = MixedFormatStateHandler.shared
         return handler.getPartiallyActiveFormats(in: nsAttributedText, range: selectedRange)
     }
-    
+
     /// 检测指定格式是否部分激活
     /// - Parameter format: 格式类型
     /// - Returns: 是否部分激活
@@ -372,7 +372,7 @@ extension NativeEditorContext {
         let state = handler.detectFormatState(format, in: nsAttributedText, range: selectedRange)
         return state.isPartiallyActive
     }
-    
+
     /// 获取指定格式的激活比例
     /// - Parameter format: 格式类型
     /// - Returns: 激活比例（0.0 - 1.0）
@@ -381,7 +381,7 @@ extension NativeEditorContext {
         let state = handler.detectFormatState(format, in: nsAttributedText, range: selectedRange)
         return state.activationRatio
     }
-    
+
     /// 更新当前格式状态（包含混合格式检测）
     /// 需求: 6.1, 6.2
     func updateCurrentFormatsWithMixedState() {
@@ -389,15 +389,15 @@ extension NativeEditorContext {
         if selectedRange.length > 0 {
             let handler = MixedFormatStateHandler.shared
             let activeFormats = handler.getActiveFormats(in: nsAttributedText, range: selectedRange)
-            
+
             // 更新当前格式
             currentFormats = activeFormats
-            
+
             // 更新工具栏按钮状态
             for format in TextFormat.allCases {
                 toolbarButtonStates[format] = activeFormats.contains(format)
             }
-            
+
             // 检测块级格式（标题、对齐、列表等）
             detectBlockFormatsInRange(selectedRange)
         } else {
@@ -405,16 +405,16 @@ extension NativeEditorContext {
             updateCurrentFormats()
         }
     }
-    
+
     /// 检测选中范围内的块级格式
     /// - Parameter range: 选中范围
     /// _Requirements: 3.1, 3.2, 3.3, 3.4_ - 使用 FontSizeManager 统一检测逻辑
     private func detectBlockFormatsInRange(_ range: NSRange) {
         guard range.location < nsAttributedText.length else { return }
-        
+
         let position = range.location
         let attributes = nsAttributedText.attributes(at: position, effectiveRange: nil)
-        
+
         // 检测标题格式 - 使用 FontSizeManager 的统一检测逻辑
         if let font = attributes[.font] as? NSFont {
             let fontSize = font.pointSize
@@ -433,7 +433,7 @@ extension NativeEditorContext {
                 break
             }
         }
-        
+
         // 检测对齐格式
         if let paragraphStyle = attributes[.paragraphStyle] as? NSParagraphStyle {
             switch paragraphStyle.alignment {
@@ -447,7 +447,7 @@ extension NativeEditorContext {
                 break
             }
         }
-        
+
         // 检测引用块格式
         if let isQuote = attributes[.quoteBlock] as? Bool, isQuote {
             currentFormats.insert(.quote)

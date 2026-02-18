@@ -1,0 +1,47 @@
+# SwiftFormat 配置
+
+# Swift 版本
+--swiftversion 6.0
+
+# 缩进
+--indent 4
+--tabwidth 4
+--smarttabs enabled
+--indentcase false
+--ifdef indent
+
+# 空格
+--operatorfunc spaced
+--ranges spaced
+--trimwhitespace always
+
+# 换行
+--maxwidth 150
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--closingparen balanced
+
+# 大括号
+--allman false
+
+# 分号
+--semicolons never
+
+# 冗余
+--redundanttype inferred
+--self remove
+
+# 排序
+--importgrouping testable-bottom
+
+# 空行
+--emptybraces no-space
+--typeblanklines remove
+
+# 排除目录
+--exclude Sources/Web,References,.build,build,DerivedData
+
+# 禁用的规则
+--disable blankLinesAtStartOfScope
+--disable blankLinesAtEndOfScope

@@ -4,8 +4,8 @@
 //
 //  音频播放器视图 - 用于显示音频播放控件
 
-import SwiftUI
 import Combine
+import SwiftUI
 
 /// 音频播放器视图
 ///
@@ -13,34 +13,34 @@ import Combine
 /// - 播放进度条
 /// - 当前时间和总时长
 /// - 播放/暂停/跳转控制按钮
-/// 
+///
 struct AudioPlayerView: View {
-    
+
     // MARK: - Properties
-    
+
     /// 播放器服务
     @ObservedObject private var playerService: AudioPlayerService
-    
+
     /// 文件 ID
     let fileId: String
-    
+
     /// 关闭回调
     let onClose: (() -> Void)?
-    
+
     /// 是否显示关闭按钮
     let showCloseButton: Bool
-    
+
     /// 是否为紧凑模式
     let isCompact: Bool
-    
+
     /// 是否正在拖动进度条
-    @State private var isDragging: Bool = false
-    
+    @State private var isDragging = false
+
     /// 拖动时的临时进度值
     @State private var dragProgress: Double = 0
-    
+
     // MARK: - Initialization
-    
+
     /// 初始化音频播放器视图
     /// - Parameters:
     ///   - fileId: 文件 ID
@@ -61,9 +61,9 @@ struct AudioPlayerView: View {
         self.isCompact = isCompact
         self.onClose = onClose
     }
-    
+
     // MARK: - Body
-    
+
     var body: some View {
         if isCompact {
             compactLayout
@@ -71,9 +71,9 @@ struct AudioPlayerView: View {
             standardLayout
         }
     }
-    
+
     // MARK: - Standard Layout
-    
+
     /// 标准布局
     private var standardLayout: some View {
         VStack(spacing: 12) {
@@ -81,33 +81,33 @@ struct AudioPlayerView: View {
             if showCloseButton {
                 titleBar
             }
-            
+
             // 播放进度条
             progressBar
-            
+
             // 时间显示
             timeDisplay
-            
+
             // 播放控制按钮
             controlButtons
         }
         .padding()
         .background(backgroundView)
     }
-    
+
     // MARK: - Compact Layout
-    
+
     /// 紧凑布局（用于内嵌显示）
     private var compactLayout: some View {
         HStack(spacing: 12) {
             // 播放/暂停按钮
             playPauseButton
                 .frame(width: 32, height: 32)
-            
+
             // 进度条和时间
             VStack(spacing: 4) {
                 progressBar
-                
+
                 HStack {
                     Text(formattedCurrentTime)
                         .font(.caption2)
@@ -123,21 +123,21 @@ struct AudioPlayerView: View {
         .padding(.vertical, 8)
         .background(backgroundView)
     }
-    
+
     // MARK: - Subviews
-    
+
     /// 标题栏
     private var titleBar: some View {
         HStack {
             // 音频图标
             Image(systemName: "waveform")
                 .foregroundColor(.orange)
-            
+
             Text("语音录音")
                 .font(.headline)
-            
+
             Spacer()
-            
+
             // 关闭按钮
             Button(action: { onClose?() }) {
                 Image(systemName: "xmark.circle.fill")
@@ -146,7 +146,7 @@ struct AudioPlayerView: View {
             .buttonStyle(.plain)
         }
     }
-    
+
     /// 播放进度条
     private var progressBar: some View {
         GeometryReader { geometry in
@@ -155,12 +155,12 @@ struct AudioPlayerView: View {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color.secondary.opacity(0.2))
                     .frame(height: 6)
-                
+
                 // 进度填充
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color.orange)
                     .frame(width: progressWidth(for: geometry.size.width), height: 6)
-                
+
                 // 进度指示点
                 Circle()
                     .fill(Color.orange)
@@ -186,22 +186,22 @@ struct AudioPlayerView: View {
         }
         .frame(height: 14)
     }
-    
+
     /// 时间显示
     private var timeDisplay: some View {
         HStack {
             Text(formattedCurrentTime)
                 .font(.system(.caption, design: .monospaced))
                 .foregroundColor(.secondary)
-            
+
             Spacer()
-            
+
             Text(formattedDuration)
                 .font(.system(.caption, design: .monospaced))
                 .foregroundColor(.secondary)
         }
     }
-    
+
     /// 播放控制按钮
     private var controlButtons: some View {
         HStack(spacing: 24) {
@@ -213,11 +213,11 @@ struct AudioPlayerView: View {
             .buttonStyle(.plain)
             .foregroundColor(.primary)
             .disabled(!isCurrentFile)
-            
+
             // 播放/暂停按钮
             playPauseButton
                 .frame(width: 48, height: 48)
-            
+
             // 前进 15 秒
             Button(action: { playerService.skipForward(15) }) {
                 Image(systemName: "goforward.15")
@@ -228,15 +228,15 @@ struct AudioPlayerView: View {
             .disabled(!isCurrentFile)
         }
     }
-    
+
     /// 播放/暂停按钮
     private var playPauseButton: some View {
         Button(action: togglePlayPause) {
             ZStack {
                 Circle()
                     .fill(Color.orange)
-                
-                if playerService.isLoading && isCurrentFile {
+
+                if playerService.isLoading, isCurrentFile {
                     // 加载中显示进度指示器
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -251,21 +251,21 @@ struct AudioPlayerView: View {
         .buttonStyle(.plain)
         .disabled(playerService.isLoading && isCurrentFile)
     }
-    
+
     /// 背景视图
     private var backgroundView: some View {
         RoundedRectangle(cornerRadius: 12)
             .fill(Color(NSColor.controlBackgroundColor))
             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
-    
+
     // MARK: - Computed Properties
-    
+
     /// 是否为当前播放的文件
     private var isCurrentFile: Bool {
         playerService.currentFileId == fileId
     }
-    
+
     /// 当前进度（考虑拖动状态）
     private var currentProgress: Double {
         if isDragging {
@@ -273,7 +273,7 @@ struct AudioPlayerView: View {
         }
         return isCurrentFile ? playerService.progress : 0
     }
-    
+
     /// 格式化的当前时间
     private var formattedCurrentTime: String {
         if isDragging {
@@ -282,29 +282,29 @@ struct AudioPlayerView: View {
         }
         return isCurrentFile ? playerService.formatTime(playerService.currentTime) : "0:00"
     }
-    
+
     /// 格式化的总时长
     private var formattedDuration: String {
         isCurrentFile ? playerService.formatTime(playerService.duration) : "0:00"
     }
-    
+
     /// 播放/暂停图标
     private var playPauseIcon: String {
-        if isCurrentFile && playerService.isPlaying {
+        if isCurrentFile, playerService.isPlaying {
             return "pause.fill"
         }
         return "play.fill"
     }
-    
+
     // MARK: - Helper Methods
-    
+
     /// 计算进度条宽度
     /// - Parameter totalWidth: 总宽度
     /// - Returns: 进度条宽度
     private func progressWidth(for totalWidth: CGFloat) -> CGFloat {
-        return totalWidth * CGFloat(currentProgress)
+        totalWidth * CGFloat(currentProgress)
     }
-    
+
     /// 计算指示点偏移
     /// - Parameter totalWidth: 总宽度
     /// - Returns: 指示点偏移量
@@ -313,7 +313,7 @@ struct AudioPlayerView: View {
         let indicatorRadius: CGFloat = 7
         return (totalWidth - indicatorRadius * 2) * progress
     }
-    
+
     /// 切换播放/暂停状态
     private func togglePlayPause() {
         if isCurrentFile {
@@ -330,13 +330,13 @@ struct AudioPlayerView: View {
 
 /// 迷你音频播放器视图（用于工具栏或状态栏）
 struct MiniAudioPlayerView: View {
-    
+
     @ObservedObject private var playerService: AudioPlayerService
-    
+
     init(playerService: AudioPlayerService = .shared) {
         self.playerService = playerService
     }
-    
+
     var body: some View {
         HStack(spacing: 8) {
             // 播放/暂停按钮
@@ -346,19 +346,19 @@ struct MiniAudioPlayerView: View {
             }
             .buttonStyle(.plain)
             .disabled(playerService.currentURL == nil)
-            
+
             // 进度指示
             if playerService.currentURL != nil {
                 Text(playerService.formatTime(playerService.currentTime))
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundColor(.secondary)
-                
+
                 // 简单进度条
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         Rectangle()
                             .fill(Color.secondary.opacity(0.2))
-                        
+
                         Rectangle()
                             .fill(Color.orange)
                             .frame(width: geometry.size.width * CGFloat(playerService.progress))
@@ -367,7 +367,7 @@ struct MiniAudioPlayerView: View {
                 .frame(width: 60, height: 4)
                 .cornerRadius(2)
             }
-            
+
             // 停止按钮
             Button(action: { playerService.stop() }) {
                 Image(systemName: "stop.fill")
@@ -385,15 +385,15 @@ struct MiniAudioPlayerView: View {
 
 /// 音频播放器弹出视图（用于从附件弹出显示）
 struct AudioPlayerPopoverView: View {
-    
+
     @ObservedObject private var playerService: AudioPlayerService
-    
+
     let fileId: String
     let onDismiss: () -> Void
-    
-    @State private var isLoading: Bool = false
+
+    @State private var isLoading = false
     @State private var errorMessage: String?
-    
+
     init(
         fileId: String,
         playerService: AudioPlayerService = .shared,
@@ -403,7 +403,7 @@ struct AudioPlayerPopoverView: View {
         self.playerService = playerService
         self.onDismiss = onDismiss
     }
-    
+
     var body: some View {
         VStack(spacing: 16) {
             // 标题
@@ -419,7 +419,7 @@ struct AudioPlayerPopoverView: View {
                 }
                 .buttonStyle(.plain)
             }
-            
+
             // 错误提示
             if let error = errorMessage {
                 HStack {
@@ -434,7 +434,7 @@ struct AudioPlayerPopoverView: View {
                 .background(Color.red.opacity(0.1))
                 .cornerRadius(6)
             }
-            
+
             // 播放器控件
             AudioPlayerView(
                 fileId: fileId,
@@ -443,7 +443,7 @@ struct AudioPlayerPopoverView: View {
                 isCompact: false,
                 onClose: nil
             )
-            
+
             // 文件信息
             HStack {
                 Text("文件 ID:")

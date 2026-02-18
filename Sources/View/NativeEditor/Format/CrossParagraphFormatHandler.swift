@@ -19,25 +19,27 @@ struct ParagraphInfo {
     /// 段落索引
     let index: Int
     /// 是否是空段落
-    var isEmpty: Bool { text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    var isEmpty: Bool {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 }
 
 // MARK: - 跨段落格式处理器
 
 /// 跨段落格式处理器
-/// 
+///
 /// 负责处理选中文本跨越多个段落时的格式应用逻辑。
 @MainActor
 class CrossParagraphFormatHandler {
-    
+
     // MARK: - Singleton
-    
+
     static let shared = CrossParagraphFormatHandler()
-    
+
     private init() {}
-    
+
     // MARK: - Public Methods
-    
+
     /// 获取选中范围内的所有段落
     /// - Parameters:
     ///   - textStorage: 文本存储
@@ -46,15 +48,17 @@ class CrossParagraphFormatHandler {
     func getParagraphs(in textStorage: NSAttributedString, range: NSRange) -> [ParagraphInfo] {
         var paragraphs: [ParagraphInfo] = []
         let string = textStorage.string as NSString
-        
+
         var currentIndex = 0
         var paragraphIndex = 0
-        
+
         // 遍历所有段落
-        string.enumerateSubstrings(in: NSRange(location: 0, length: string.length), options: .byParagraphs) { substring, substringRange, enclosingRange, _ in
+        string.enumerateSubstrings(in: NSRange(location: 0, length: string.length), options: .byParagraphs) { substring, _, enclosingRange, _ in
             // 检查段落是否与选中范围相交
             let intersection = NSIntersectionRange(enclosingRange, range)
-            if intersection.length > 0 || (range.location >= enclosingRange.location && range.location < enclosingRange.location + enclosingRange.length) {
+            if intersection
+                .length > 0 || (range.location >= enclosingRange.location && range.location < enclosingRange.location + enclosingRange.length)
+            {
                 let paragraphInfo = ParagraphInfo(
                     range: enclosingRange,
                     text: substring ?? "",
@@ -64,10 +68,10 @@ class CrossParagraphFormatHandler {
             }
             paragraphIndex += 1
         }
-        
+
         return paragraphs
     }
-    
+
     /// 检查选中范围是否跨越多个段落
     /// - Parameters:
     ///   - textStorage: 文本存储
@@ -77,7 +81,7 @@ class CrossParagraphFormatHandler {
         let paragraphs = getParagraphs(in: textStorage, range: range)
         return paragraphs.count > 1
     }
-    
+
     /// 应用段落级格式到跨段落选中范围
     /// - Parameters:
     ///   - format: 格式类型
@@ -92,25 +96,25 @@ class CrossParagraphFormatHandler {
             print("[CrossParagraphFormat] 警告: \(format.displayName) 不是块级格式")
             return
         }
-        
+
         let paragraphs = getParagraphs(in: textStorage, range: range)
-        
+
         print("[CrossParagraphFormat] 应用段落格式: \(format.displayName)")
         print("[CrossParagraphFormat]   - 选中范围: \(range)")
         print("[CrossParagraphFormat]   - 段落数量: \(paragraphs.count)")
-        
+
         textStorage.beginEditing()
-        
+
         for paragraph in paragraphs {
             print("[CrossParagraphFormat]   - 处理段落 \(paragraph.index): 范围=\(paragraph.range)")
             applyFormatToParagraph(format, to: textStorage, paragraphRange: paragraph.range)
         }
-        
+
         textStorage.endEditing()
-        
+
         print("[CrossParagraphFormat] ✅ 段落格式应用完成")
     }
-    
+
     /// 应用对齐格式到跨段落选中范围
     /// - Parameters:
     ///   - alignment: 对齐方式
@@ -122,22 +126,22 @@ class CrossParagraphFormatHandler {
         range: NSRange
     ) {
         let paragraphs = getParagraphs(in: textStorage, range: range)
-        
+
         print("[CrossParagraphFormat] 应用对齐格式: \(alignment)")
         print("[CrossParagraphFormat]   - 选中范围: \(range)")
         print("[CrossParagraphFormat]   - 段落数量: \(paragraphs.count)")
-        
+
         textStorage.beginEditing()
-        
+
         for paragraph in paragraphs {
             applyAlignmentToParagraph(alignment, to: textStorage, paragraphRange: paragraph.range)
         }
-        
+
         textStorage.endEditing()
-        
+
         print("[CrossParagraphFormat] ✅ 对齐格式应用完成")
     }
-    
+
     /// 检测跨段落选中范围的段落格式状态
     /// - Parameters:
     ///   - format: 格式类型
@@ -152,20 +156,20 @@ class CrossParagraphFormatHandler {
         guard format.isBlockFormat else {
             return .inactive
         }
-        
+
         let paragraphs = getParagraphs(in: textStorage, range: range)
         guard !paragraphs.isEmpty else {
             return .inactive
         }
-        
+
         var activeCount = 0
-        
+
         for paragraph in paragraphs {
             if isParagraphFormatActive(format, in: textStorage, paragraphRange: paragraph.range) {
                 activeCount += 1
             }
         }
-        
+
         if activeCount == paragraphs.count {
             return .fullyActive
         } else if activeCount > 0 {
@@ -174,7 +178,7 @@ class CrossParagraphFormatHandler {
             return .inactive
         }
     }
-    
+
     /// 检测跨段落选中范围的对齐状态
     /// - Parameters:
     ///   - textStorage: 文本存储
@@ -188,31 +192,45 @@ class CrossParagraphFormatHandler {
         guard !paragraphs.isEmpty else {
             return nil
         }
-        
+
         var alignments: Set<NSTextAlignment> = []
-        
+
         for paragraph in paragraphs {
             if let alignment = getParagraphAlignment(in: textStorage, paragraphRange: paragraph.range) {
                 alignments.insert(alignment)
             }
         }
-        
+
         // 如果所有段落对齐一致，返回该对齐方式
         if alignments.count == 1 {
             return alignments.first
         }
-        
+
         return nil
     }
-    
+
     // MARK: - Private Methods
-    
+
     /// 应用格式到单个段落
+    ///
+    /// **标题段落格式限制**：
+    /// - 检测段落是否为标题段落（通过 `.isTitle` 属性）
+    /// - 禁止对标题段落应用段落格式（列表、标题样式等）
+    /// - 允许对标题段落应用内联格式（加粗、斜体等）
+    ///
+    /// _Requirements: 3.1_ - 标题段落格式限制
     private func applyFormatToParagraph(
         _ format: TextFormat,
         to textStorage: NSTextStorage,
         paragraphRange: NSRange
     ) {
+        // 检查是否为标题段落
+        // _Requirements: 3.1_ - 禁止对标题段落应用段落格式
+        if isTitleParagraph(in: textStorage, range: paragraphRange) {
+            print("[CrossParagraphFormat] ⚠️ 检测到标题段落，禁止应用段落格式: \(format.displayName)")
+            return
+        }
+
         switch format {
         case .heading1:
             applyHeadingToParagraph(level: 1, to: textStorage, paragraphRange: paragraphRange)
@@ -231,7 +249,38 @@ class CrossParagraphFormatHandler {
             break
         }
     }
-    
+
+    /// 检查段落是否为标题段落
+    ///
+    /// 通过检查段落的 `.isTitle` 属性来判断
+    ///
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 段落范围
+    /// - Returns: 是否为标题段落
+    ///
+    /// _Requirements: 3.1_ - 标题段落检测
+    private func isTitleParagraph(in textStorage: NSTextStorage, range: NSRange) -> Bool {
+        guard range.location < textStorage.length else {
+            return false
+        }
+
+        // 检查段落的 `.isTitle` 属性
+        let attributes = textStorage.attributes(at: range.location, effectiveRange: nil)
+        if let isTitle = attributes[.isTitle] as? Bool, isTitle {
+            return true
+        }
+
+        // 检查段落的 `.paragraphType` 属性
+        if let paragraphType = attributes[.paragraphType] as? ParagraphType,
+           paragraphType == .title
+        {
+            return true
+        }
+
+        return false
+    }
+
     /// 应用标题格式到段落
     /// _Requirements: 4.1, 4.2, 4.3_ - 使用 FontSizeManager 获取字体大小
     private func applyHeadingToParagraph(
@@ -241,12 +290,12 @@ class CrossParagraphFormatHandler {
     ) {
         // 使用 FontSizeManager 获取字体大小
         let fontSize = FontSizeManager.shared.fontSize(for: level)
-        
+
         // 使用常规字重，不再使用加粗
         let font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
         textStorage.addAttribute(.font, value: font, range: paragraphRange)
     }
-    
+
     /// 应用对齐格式到段落
     private func applyAlignmentToParagraph(
         _ alignment: NSTextAlignment,
@@ -254,18 +303,20 @@ class CrossParagraphFormatHandler {
         paragraphRange: NSRange
     ) {
         // 获取现有段落样式或创建新的
-        var paragraphStyle: NSMutableParagraphStyle
-        
-        if let existingStyle = textStorage.attribute(.paragraphStyle, at: paragraphRange.location, effectiveRange: nil) as? NSParagraphStyle {
-            paragraphStyle = existingStyle.mutableCopy() as! NSMutableParagraphStyle
+        var paragraphStyle: NSMutableParagraphStyle = if let existingStyle = textStorage.attribute(
+            .paragraphStyle,
+            at: paragraphRange.location,
+            effectiveRange: nil
+        ) as? NSParagraphStyle {
+            existingStyle.mutableCopy() as! NSMutableParagraphStyle
         } else {
-            paragraphStyle = NSMutableParagraphStyle()
+            NSMutableParagraphStyle()
         }
-        
+
         paragraphStyle.alignment = alignment
         textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: paragraphRange)
     }
-    
+
     /// 检查段落是否有指定格式
     /// _Requirements: 4.1, 4.2, 4.3_ - 使用 FontSizeManager 统一检测逻辑
     private func isParagraphFormatActive(
@@ -276,9 +327,9 @@ class CrossParagraphFormatHandler {
         guard paragraphRange.location < textStorage.length else {
             return false
         }
-        
+
         let attributes = textStorage.attributes(at: paragraphRange.location, effectiveRange: nil)
-        
+
         switch format {
         case .heading1, .heading2, .heading3:
             // 使用 FontSizeManager 的统一检测逻辑
@@ -306,10 +357,10 @@ class CrossParagraphFormatHandler {
         default:
             break
         }
-        
+
         return false
     }
-    
+
     /// 获取段落的对齐方式
     private func getParagraphAlignment(
         in textStorage: NSAttributedString,
@@ -318,13 +369,13 @@ class CrossParagraphFormatHandler {
         guard paragraphRange.location < textStorage.length else {
             return nil
         }
-        
+
         let attributes = textStorage.attributes(at: paragraphRange.location, effectiveRange: nil)
-        
+
         if let style = attributes[.paragraphStyle] as? NSParagraphStyle {
             return style.alignment
         }
-        
+
         return .left // 默认左对齐
     }
 }
@@ -332,7 +383,7 @@ class CrossParagraphFormatHandler {
 // MARK: - NativeEditorContext Extension
 
 extension NativeEditorContext {
-    
+
     /// 检查当前选中范围是否跨越多个段落
     /// - Returns: 是否跨越多个段落
     func isSelectionCrossParagraph() -> Bool {
@@ -341,7 +392,7 @@ extension NativeEditorContext {
         }
         return CrossParagraphFormatHandler.shared.isCrossParagraph(in: nsAttributedText, range: selectedRange)
     }
-    
+
     /// 获取当前选中范围内的段落数量
     /// - Returns: 段落数量
     func getSelectedParagraphCount() -> Int {

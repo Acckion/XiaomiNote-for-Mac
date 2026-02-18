@@ -5,8 +5,8 @@
 //  格式菜单诊断工具 - 收集和分析格式菜单问题的诊断信息
 //
 
-import Foundation
 import AppKit
+import Foundation
 
 // MARK: - 诊断信息类型
 
@@ -42,33 +42,33 @@ enum FormatMenuProblemType: String, CaseIterable {
     case keyboardShortcutIssue = "快捷键问题"
     case specialElementIssue = "特殊元素问题"
     case mixedFormatIssue = "混合格式问题"
-    
+
     var displayName: String {
-        return rawValue
+        rawValue
     }
-    
+
     var description: String {
         switch self {
         case .formatNotApplied:
-            return "点击格式按钮后，格式没有正确应用到选中的文本"
+            "点击格式按钮后，格式没有正确应用到选中的文本"
         case .stateNotSynchronized:
-            return "格式菜单按钮状态与实际文本格式不一致"
+            "格式菜单按钮状态与实际文本格式不一致"
         case .performanceSlow:
-            return "格式操作响应缓慢，超过预期时间"
+            "格式操作响应缓慢，超过预期时间"
         case .unexpectedBehavior:
-            return "格式操作产生了意外的结果"
+            "格式操作产生了意外的结果"
         case .uiNotResponding:
-            return "格式菜单界面无响应或卡顿"
+            "格式菜单界面无响应或卡顿"
         case .inconsistentState:
-            return "编辑器内部状态不一致"
+            "编辑器内部状态不一致"
         case .undoRedoIssue:
-            return "撤销或重做操作后格式状态不正确"
+            "撤销或重做操作后格式状态不正确"
         case .keyboardShortcutIssue:
-            return "快捷键操作与菜单操作结果不一致"
+            "快捷键操作与菜单操作结果不一致"
         case .specialElementIssue:
-            return "特殊元素（图片、复选框等）附近的格式问题"
+            "特殊元素（图片、复选框等）附近的格式问题"
         case .mixedFormatIssue:
-            return "混合格式选择时的状态或应用问题"
+            "混合格式选择时的状态或应用问题"
         }
     }
 }
@@ -86,7 +86,7 @@ struct FormatMenuProblemReport: Identifiable {
     let diagnosticSnapshot: FormatMenuDiagnosticSnapshot?
     let suggestedActions: [String]
     let relatedLogs: [String]
-    
+
     /// 问题上下文
     struct ProblemContext {
         let format: TextFormat?
@@ -96,63 +96,63 @@ struct FormatMenuProblemReport: Identifiable {
         let userAction: String
         let additionalInfo: [String: Any]
     }
-    
+
     /// 生成报告摘要
     func generateSummary() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        
+
         var summary = """
         ========================================
         格式菜单问题报告
         ========================================
-        
+
         ## 基本信息
         - 报告 ID: \(id.uuidString.prefix(8))
         - 时间: \(formatter.string(from: timestamp))
         - 问题类型: \(problemType.displayName)
-        
+
         ## 问题描述
         \(description)
-        
+
         ## 问题上下文
         - 用户操作: \(context.userAction)
         - 光标位置: \(context.cursorPosition)
         - 选择范围: \(NSStringFromRange(context.selectedRange))
-        - 当前格式: \(context.currentFormats.map { $0.displayName }.joined(separator: ", "))
+        - 当前格式: \(context.currentFormats.map(\.displayName).joined(separator: ", "))
         """
-        
+
         if let format = context.format {
             summary += "\n- 相关格式: \(format.displayName)"
         }
-        
+
         if !context.additionalInfo.isEmpty {
             summary += "\n- 附加信息: \(context.additionalInfo)"
         }
-        
+
         if !suggestedActions.isEmpty {
             summary += "\n\n## 建议操作\n"
             for (index, action) in suggestedActions.enumerated() {
                 summary += "\(index + 1). \(action)\n"
             }
         }
-        
+
         if !relatedLogs.isEmpty {
             summary += "\n## 相关日志\n"
             for log in relatedLogs.prefix(10) {
                 summary += "- \(log)\n"
             }
         }
-        
+
         if let snapshot = diagnosticSnapshot {
             summary += "\n## 诊断快照摘要\n"
             summary += "- 编辑器焦点: \(snapshot.editorState.isEditorFocused ? "是" : "否")\n"
             summary += "- 文本长度: \(snapshot.textStorageInfo.length)\n"
             summary += "- 性能: 应用 \(String(format: "%.2f", snapshot.performanceInfo.avgApplicationTimeMs))ms, 同步 \(String(format: "%.2f", snapshot.performanceInfo.avgSynchronizationTimeMs))ms\n"
         }
-        
+
         summary += "\n========================================"
-        
+
         return summary
     }
 }
@@ -161,70 +161,70 @@ struct FormatMenuProblemReport: Identifiable {
 
 /// 上下文信息收集器
 /// 需求: 8.4 - 实现上下文信息的收集
-struct DiagnosticContextCollector {
-    
+enum DiagnosticContextCollector {
+
     /// 收集系统信息
     static func collectSystemInfo() -> [String: Any] {
         var info: [String: Any] = [:]
-        
+
         // 操作系统版本
         let osVersion = ProcessInfo.processInfo.operatingSystemVersion
         info["osVersion"] = "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)"
-        
+
         // 应用版本
         if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
             info["appVersion"] = appVersion
         }
-        
+
         // 构建版本
         if let buildVersion = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
             info["buildVersion"] = buildVersion
         }
-        
+
         // 处理器数量
         info["processorCount"] = ProcessInfo.processInfo.processorCount
-        
+
         // 物理内存
         info["physicalMemory"] = ByteCountFormatter.string(fromByteCount: Int64(ProcessInfo.processInfo.physicalMemory), countStyle: .memory)
-        
+
         // 系统运行时间
         info["systemUptime"] = String(format: "%.2f 小时", ProcessInfo.processInfo.systemUptime / 3600)
-        
+
         return info
     }
-    
+
     /// 收集内存使用信息
     static func collectMemoryUsage() -> [String: Any] {
         var info: [String: Any] = [:]
-        
+
         var taskInfo = task_vm_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<task_vm_info>.size) / 4
-        
+
         let result = withUnsafeMutablePointer(to: &taskInfo) {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
                 task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
             }
         }
-        
+
         if result == KERN_SUCCESS {
             let usedMemory = taskInfo.phys_footprint
             info["usedMemory"] = ByteCountFormatter.string(fromByteCount: Int64(usedMemory), countStyle: .memory)
             info["usedMemoryBytes"] = usedMemory
         }
-        
+
         return info
     }
-    
+
     /// 收集撤销历史信息
     @MainActor
     static func collectUndoHistory(from undoManager: UndoManager?) -> [String: Any] {
         var info: [String: Any] = [:]
-        
-        guard let undoManager = undoManager else {
+
+        guard let undoManager else {
             info["available"] = false
             return info
         }
-        
+
         info["available"] = true
         info["canUndo"] = undoManager.canUndo
         info["canRedo"] = undoManager.canRedo
@@ -232,28 +232,28 @@ struct DiagnosticContextCollector {
         info["redoActionName"] = undoManager.redoActionName
         info["levelsOfUndo"] = undoManager.levelsOfUndo
         info["groupingLevel"] = undoManager.groupingLevel
-        
+
         return info
     }
-    
+
     /// 收集文本属性详情
     static func collectAttributeDetails(from textStorage: NSTextStorage, at range: NSRange) -> [[String: Any]] {
         var attributes: [[String: Any]] = []
-        
+
         guard range.location < textStorage.length else { return attributes }
-        
+
         let effectiveRange = NSRange(
             location: range.location,
             length: min(range.length, textStorage.length - range.location)
         )
-        
+
         guard effectiveRange.length > 0 else { return attributes }
-        
+
         textStorage.enumerateAttributes(in: effectiveRange, options: []) { attrs, attrRange, _ in
             var attrInfo: [String: Any] = [
-                "range": NSStringFromRange(attrRange)
+                "range": NSStringFromRange(attrRange),
             ]
-            
+
             for (key, value) in attrs {
                 switch key {
                 case .font:
@@ -285,29 +285,29 @@ struct DiagnosticContextCollector {
                     attrInfo[key.rawValue] = String(describing: value)
                 }
             }
-            
+
             attributes.append(attrInfo)
         }
-        
+
         return attributes
     }
-    
+
     /// 描述字体特性
     private static func describeFontTraits(_ font: NSFont) -> String {
         let fontManager = NSFontManager.shared
         let traits = fontManager.traits(of: font)
         var descriptions: [String] = []
-        
+
         if traits.contains(.boldFontMask) {
             descriptions.append("加粗")
         }
         if traits.contains(.italicFontMask) {
             descriptions.append("斜体")
         }
-        
+
         return descriptions.isEmpty ? "常规" : descriptions.joined(separator: ", ")
     }
-    
+
     /// 描述对齐方式
     private static func describeAlignment(_ alignment: NSTextAlignment) -> String {
         switch alignment {
@@ -333,7 +333,7 @@ struct FormatMenuDiagnosticSnapshot {
     let cursorInfo: CursorInfo
     let performanceInfo: PerformanceInfo
     let errorHistory: [String]
-    
+
     /// 编辑器状态信息
     struct EditorStateInfo {
         let isEditorFocused: Bool
@@ -341,7 +341,7 @@ struct FormatMenuDiagnosticSnapshot {
         let textLength: Int
         let isEmpty: Bool
     }
-    
+
     /// 文本存储信息
     struct TextStorageInfo {
         let length: Int
@@ -349,14 +349,14 @@ struct FormatMenuDiagnosticSnapshot {
         let attributeCount: Int
         let hasAttachments: Bool
     }
-    
+
     /// 格式状态信息
     struct FormatStateInfo {
         let currentFormats: Set<TextFormat>
         let toolbarButtonStates: [TextFormat: Bool]
         let specialElement: String?
     }
-    
+
     /// 光标信息
     struct CursorInfo {
         let position: Int
@@ -364,7 +364,7 @@ struct FormatMenuDiagnosticSnapshot {
         let hasSelection: Bool
         let attributesAtCursor: [String: Any]
     }
-    
+
     /// 性能信息
     struct PerformanceInfo {
         let avgApplicationTimeMs: Double
@@ -372,7 +372,7 @@ struct FormatMenuDiagnosticSnapshot {
         let slowOperationsCount: Int
         let totalOperations: Int
     }
-    
+
     /// 生成摘要
     func generateSummary() -> String {
         var summary = """
@@ -380,52 +380,52 @@ struct FormatMenuDiagnosticSnapshot {
         格式菜单诊断快照
         时间: \(ISO8601DateFormatter().string(from: timestamp))
         ========================================
-        
+
         ## 编辑器状态
         - 焦点状态: \(editorState.isEditorFocused ? "已获得" : "未获得")
         - 未保存更改: \(editorState.hasUnsavedChanges ? "是" : "否")
         - 文本长度: \(editorState.textLength)
         - 是否为空: \(editorState.isEmpty ? "是" : "否")
-        
+
         ## 文本存储
         - 长度: \(textStorageInfo.length)
         - 属性数量: \(textStorageInfo.attributeCount)
         - 包含附件: \(textStorageInfo.hasAttachments ? "是" : "否")
         - 文本预览: \(String(textStorageInfo.string.prefix(100)))
-        
+
         ## 格式状态
-        - 当前激活格式: \(formatState.currentFormats.map { $0.displayName }.joined(separator: ", "))
+        - 当前激活格式: \(formatState.currentFormats.map(\.displayName).joined(separator: ", "))
         - 特殊元素: \(formatState.specialElement ?? "无")
-        
+
         ## 光标信息
         - 位置: \(cursorInfo.position)
         - 选择范围: \(NSStringFromRange(cursorInfo.selectedRange))
         - 有选择: \(cursorInfo.hasSelection ? "是" : "否")
         - 光标处属性数量: \(cursorInfo.attributesAtCursor.count)
-        
+
         ## 性能信息
         - 平均应用时间: \(String(format: "%.2f", performanceInfo.avgApplicationTimeMs))ms
         - 平均同步时间: \(String(format: "%.2f", performanceInfo.avgSynchronizationTimeMs))ms
         - 慢速操作: \(performanceInfo.slowOperationsCount) / \(performanceInfo.totalOperations)
-        
+
         """
-        
+
         if !errorHistory.isEmpty {
             summary += """
-            
+
             ## 最近错误
-            
+
             """
             for error in errorHistory.prefix(5) {
                 summary += "- \(error)\n"
             }
         }
-        
+
         summary += """
-        
+
         ========================================
         """
-        
+
         return summary
     }
 }
@@ -437,47 +437,47 @@ struct FormatMenuDiagnosticSnapshot {
 /// 需求: 8.4 - 创建格式问题的诊断工具，实现上下文信息的收集，添加问题报告的生成功能
 @MainActor
 final class FormatMenuDiagnostics {
-    
+
     // MARK: - Singleton
-    
+
     static let shared = FormatMenuDiagnostics()
-    
+
     // MARK: - Properties
-    
+
     /// 日志记录器
     private let logger = NativeEditorLogger.shared
-    
+
     /// 调试器
     private let debugger = FormatMenuDebugger.shared
-    
+
     /// 性能监控器
     private let performanceMonitor = FormatMenuPerformanceMonitor.shared
-    
+
     /// 诊断快照历史
     private var snapshots: [FormatMenuDiagnosticSnapshot] = []
-    
+
     /// 问题报告历史
     /// 需求: 8.4 - 添加问题报告的生成功能
     private var problemReports: [FormatMenuProblemReport] = []
-    
+
     /// 最大快照数
     private let maxSnapshots = 50
-    
+
     /// 最大问题报告数
     private let maxProblemReports = 100
-    
+
     /// 是否启用自动诊断
-    var isAutoDiagnosticsEnabled: Bool = false
-    
+    var isAutoDiagnosticsEnabled = false
+
     /// 问题检测回调
     var onProblemDetected: ((FormatMenuProblemReport) -> Void)?
-    
+
     // MARK: - Initialization
-    
+
     private init() {}
-    
+
     // MARK: - Snapshot Capture
-    
+
     /// 捕获当前状态的诊断快照
     /// - Parameters:
     ///   - context: 编辑器上下文
@@ -494,52 +494,52 @@ final class FormatMenuDiagnostics {
             textLength: context.nsAttributedText.length,
             isEmpty: context.nsAttributedText.string.isEmpty
         )
-        
+
         // 文本存储信息
         let textStorage = textView?.textStorage ?? context.nsAttributedText.mutableCopy() as? NSMutableAttributedString ?? NSMutableAttributedString()
         var attributeCount = 0
         var hasAttachments = false
-        
+
         textStorage.enumerateAttributes(in: NSRange(location: 0, length: textStorage.length), options: []) { attrs, _, _ in
             attributeCount += attrs.count
             if attrs[.attachment] != nil {
                 hasAttachments = true
             }
         }
-        
+
         let textStorageInfo = FormatMenuDiagnosticSnapshot.TextStorageInfo(
             length: textStorage.length,
             string: textStorage.string,
             attributeCount: attributeCount,
             hasAttachments: hasAttachments
         )
-        
+
         // 格式状态
         let formatState = FormatMenuDiagnosticSnapshot.FormatStateInfo(
             currentFormats: context.currentFormats,
             toolbarButtonStates: context.toolbarButtonStates,
             specialElement: context.currentSpecialElement?.displayName
         )
-        
+
         // 光标信息
         let position = context.cursorPosition
         let selectedRange = context.selectedRange
         var attributesAtCursor: [String: Any] = [:]
-        
+
         if position < textStorage.length {
             let attrs = textStorage.attributes(at: position, effectiveRange: nil)
             for (key, value) in attrs {
                 attributesAtCursor[key.rawValue] = value
             }
         }
-        
+
         let cursorInfo = FormatMenuDiagnosticSnapshot.CursorInfo(
             position: position,
             selectedRange: selectedRange,
             hasSelection: selectedRange.length > 0,
             attributesAtCursor: attributesAtCursor
         )
-        
+
         // 性能信息
         let stats = debugger.statistics
         let performanceInfo = FormatMenuDiagnosticSnapshot.PerformanceInfo(
@@ -548,12 +548,12 @@ final class FormatMenuDiagnostics {
             slowOperationsCount: stats.slowApplications + stats.slowSynchronizations,
             totalOperations: stats.totalApplications + stats.totalSynchronizations
         )
-        
+
         // 错误历史
         let errorHistory = debugger.getEvents(type: .error)
             .suffix(10)
-            .map { $0.message }
-        
+            .map(\.message)
+
         // 创建快照
         let snapshot = FormatMenuDiagnosticSnapshot(
             timestamp: Date(),
@@ -564,20 +564,20 @@ final class FormatMenuDiagnostics {
             performanceInfo: performanceInfo,
             errorHistory: errorHistory
         )
-        
+
         // 保存快照
         snapshots.append(snapshot)
         if snapshots.count > maxSnapshots {
             snapshots.removeFirst(snapshots.count - maxSnapshots)
         }
-        
+
         logger.logDebug("已捕获格式菜单诊断快照", category: "FormatMenuDiagnostics")
-        
+
         return snapshot
     }
-    
+
     // MARK: - Diagnostic Analysis
-    
+
     /// 分析格式应用问题
     /// - Parameters:
     ///   - format: 格式类型
@@ -591,13 +591,13 @@ final class FormatMenuDiagnostics {
     ) -> DiagnosticResult {
         var issues: [String] = []
         var suggestions: [String] = []
-        
+
         // 检查编辑器状态
         if !context.isEditorFocused {
             issues.append("编辑器未获得焦点")
             suggestions.append("确保编辑器已获得焦点")
         }
-        
+
         // 检查文本存储
         guard let textStorage = textView.textStorage else {
             issues.append("文本存储不可用")
@@ -610,19 +610,19 @@ final class FormatMenuDiagnostics {
                 severity: .critical
             )
         }
-        
+
         // 检查选择范围
         let selectedRange = textView.selectedRange()
-        if selectedRange.length == 0 && !format.isBlockFormat {
+        if selectedRange.length == 0, !format.isBlockFormat {
             issues.append("没有选中文本，且格式不是块级格式")
             suggestions.append("选中要应用格式的文本")
         }
-        
+
         if selectedRange.location + selectedRange.length > textStorage.length {
             issues.append("选择范围超出文本长度")
             suggestions.append("检查选择范围的有效性")
         }
-        
+
         // 检查格式管理器
         let formatManager = FormatManager.shared
         if selectedRange.length > 0 {
@@ -633,25 +633,25 @@ final class FormatMenuDiagnostics {
                 suggestions.append("格式未激活，点击将应用格式")
             }
         }
-        
+
         // 检查性能
         let recentRecords = debugger.getApplicationRecords(for: format)
         if !recentRecords.isEmpty {
-            let failedCount = recentRecords.filter { !$0.success }.count
+            let failedCount = recentRecords.count(where: { !$0.success })
             if failedCount > 0 {
                 issues.append("最近 \(recentRecords.count) 次应用中有 \(failedCount) 次失败")
                 suggestions.append("查看错误日志了解失败原因")
             }
-            
-            let avgDuration = recentRecords.map { $0.duration }.reduce(0, +) / Double(recentRecords.count)
+
+            let avgDuration = recentRecords.map(\.duration).reduce(0, +) / Double(recentRecords.count)
             if avgDuration > performanceMonitor.thresholds.formatApplication {
                 issues.append("平均应用时间 (\(String(format: "%.2f", avgDuration * 1000))ms) 超过阈值")
                 suggestions.append("优化格式应用逻辑")
             }
         }
-        
+
         let severity: DiagnosticSeverity = issues.isEmpty ? .info : (issues.count > 2 ? .error : .warning)
-        
+
         return DiagnosticResult(
             type: .formatApplication,
             format: format,
@@ -660,7 +660,7 @@ final class FormatMenuDiagnostics {
             severity: severity
         )
     }
-    
+
     /// 分析状态同步问题
     /// - Parameters:
     ///   - context: 编辑器上下文
@@ -672,7 +672,7 @@ final class FormatMenuDiagnostics {
     ) -> DiagnosticResult {
         var issues: [String] = []
         var suggestions: [String] = []
-        
+
         // 检查文本存储
         guard let textStorage = textView.textStorage else {
             issues.append("文本存储不可用")
@@ -685,47 +685,47 @@ final class FormatMenuDiagnostics {
                 severity: .critical
             )
         }
-        
+
         // 检查光标位置
         let cursorPosition = context.cursorPosition
         if cursorPosition > textStorage.length {
             issues.append("光标位置超出文本长度")
             suggestions.append("更新光标位置到有效范围")
         }
-        
+
         // 检查格式状态一致性
         if cursorPosition < textStorage.length {
             let formatManager = FormatManager.shared
             var inconsistencies: [TextFormat] = []
-            
+
             for format in TextFormat.allCases {
                 let isActiveInContext = context.currentFormats.contains(format)
                 let isActiveInStorage = formatManager.isFormatActive(format, in: textStorage, at: cursorPosition)
-                
+
                 if isActiveInContext != isActiveInStorage {
                     inconsistencies.append(format)
                 }
             }
-            
+
             if !inconsistencies.isEmpty {
                 issues.append("检测到 \(inconsistencies.count) 个格式状态不一致")
-                suggestions.append("不一致的格式: \(inconsistencies.map { $0.displayName }.joined(separator: ", "))")
+                suggestions.append("不一致的格式: \(inconsistencies.map(\.displayName).joined(separator: ", "))")
                 suggestions.append("调用 updateCurrentFormats() 重新同步状态")
             }
         }
-        
+
         // 检查性能
         let recentRecords = debugger.getRecentSynchronizationRecords(count: 10)
         if !recentRecords.isEmpty {
-            let avgDuration = recentRecords.map { $0.duration }.reduce(0, +) / Double(recentRecords.count)
+            let avgDuration = recentRecords.map(\.duration).reduce(0, +) / Double(recentRecords.count)
             if avgDuration > performanceMonitor.thresholds.stateSynchronization {
                 issues.append("平均同步时间 (\(String(format: "%.2f", avgDuration * 1000))ms) 超过阈值")
                 suggestions.append("优化状态检测算法")
             }
         }
-        
+
         let severity: DiagnosticSeverity = issues.isEmpty ? .info : (issues.count > 2 ? .error : .warning)
-        
+
         return DiagnosticResult(
             type: .stateSynchronization,
             format: nil,
@@ -734,7 +734,7 @@ final class FormatMenuDiagnostics {
             severity: severity
         )
     }
-    
+
     /// 生成完整诊断报告
     /// - Parameters:
     ///   - context: 编辑器上下文
@@ -746,63 +746,63 @@ final class FormatMenuDiagnostics {
     ) -> String {
         // 捕获快照
         let snapshot = captureSnapshot(context: context, textView: textView)
-        
+
         var report = snapshot.generateSummary()
-        
+
         // 添加状态同步诊断
         let syncDiagnostic = diagnoseStateSynchronization(context: context, textView: textView)
         report += """
-        
+
         ## 状态同步诊断
         严重程度: \(syncDiagnostic.severity.rawValue)
-        
+
         """
-        
+
         if !syncDiagnostic.issues.isEmpty {
             report += "问题:\n"
             for issue in syncDiagnostic.issues {
                 report += "- \(issue)\n"
             }
         }
-        
+
         if !syncDiagnostic.suggestions.isEmpty {
             report += "\n建议:\n"
             for suggestion in syncDiagnostic.suggestions {
                 report += "- \(suggestion)\n"
             }
         }
-        
+
         // 添加性能分析
         report += """
-        
+
         ## 性能分析
         \(performanceMonitor.getPerformanceSummary())
-        
+
         """
-        
+
         return report
     }
-    
+
     // MARK: - Snapshot Management
-    
+
     /// 获取所有快照
     func getAllSnapshots() -> [FormatMenuDiagnosticSnapshot] {
-        return snapshots
+        snapshots
     }
-    
+
     /// 获取最近的快照
     func getRecentSnapshots(count: Int = 10) -> [FormatMenuDiagnosticSnapshot] {
-        return Array(snapshots.suffix(count))
+        Array(snapshots.suffix(count))
     }
-    
+
     /// 清除所有快照
     func clearSnapshots() {
         snapshots.removeAll()
         logger.logInfo("已清除所有诊断快照", category: "FormatMenuDiagnostics")
     }
-    
+
     // MARK: - Export
-    
+
     /// 导出诊断报告
     func exportDiagnosticReport(
         context: NativeEditorContext,
@@ -813,10 +813,11 @@ final class FormatMenuDiagnostics {
         try report.write(to: url, atomically: true, encoding: .utf8)
         logger.logInfo("诊断报告已导出到: \(url.path)", category: "FormatMenuDiagnostics")
     }
-    
+
     // MARK: - Problem Report Generation
+
     // 需求: 8.4 - 添加问题报告的生成功能
-    
+
     /// 创建问题报告
     /// - Parameters:
     ///   - problemType: 问题类型
@@ -845,21 +846,20 @@ final class FormatMenuDiagnostics {
             userAction: userAction,
             additionalInfo: additionalInfo
         )
-        
+
         // 捕获诊断快照
-        let snapshot: FormatMenuDiagnosticSnapshot?
-        if let textView = textView {
-            snapshot = captureSnapshot(context: context, textView: textView)
+        let snapshot: FormatMenuDiagnosticSnapshot? = if let textView {
+            captureSnapshot(context: context, textView: textView)
         } else {
-            snapshot = nil
+            nil
         }
-        
+
         // 生成建议操作
         let suggestedActions = generateSuggestedActions(for: problemType, context: problemContext)
-        
+
         // 收集相关日志
         let relatedLogs = collectRelatedLogs(for: problemType, format: format)
-        
+
         // 创建报告
         let report = FormatMenuProblemReport(
             timestamp: Date(),
@@ -870,13 +870,13 @@ final class FormatMenuDiagnostics {
             suggestedActions: suggestedActions,
             relatedLogs: relatedLogs
         )
-        
+
         // 保存报告
         problemReports.append(report)
         if problemReports.count > maxProblemReports {
             problemReports.removeFirst(problemReports.count - maxProblemReports)
         }
-        
+
         // 记录日志
         logger.logWarning(
             "检测到格式菜单问题: \(problemType.displayName)",
@@ -884,23 +884,23 @@ final class FormatMenuDiagnostics {
             additionalInfo: [
                 "reportId": report.id.uuidString,
                 "problemType": problemType.rawValue,
-                "description": description
+                "description": description,
             ]
         )
-        
+
         // 触发回调
         onProblemDetected?(report)
-        
+
         return report
     }
-    
+
     /// 生成建议操作
     private func generateSuggestedActions(
         for problemType: FormatMenuProblemType,
         context: FormatMenuProblemReport.ProblemContext
     ) -> [String] {
         var actions: [String] = []
-        
+
         switch problemType {
         case .formatNotApplied:
             actions.append("确保已选中要格式化的文本")
@@ -909,123 +909,123 @@ final class FormatMenuDiagnostics {
             if context.format != nil {
                 actions.append("检查该格式是否与当前内容兼容")
             }
-            
+
         case .stateNotSynchronized:
             actions.append("移动光标到其他位置再移回")
             actions.append("点击编辑器区域重新获取焦点")
             actions.append("检查是否有未完成的格式操作")
-            
+
         case .performanceSlow:
             actions.append("检查文档大小是否过大")
             actions.append("关闭不必要的调试功能")
             actions.append("重启应用程序")
-            
+
         case .unexpectedBehavior:
             actions.append("尝试撤销操作恢复之前的状态")
             actions.append("保存文档后重新打开")
             actions.append("检查是否有冲突的格式")
-            
+
         case .uiNotResponding:
             actions.append("等待当前操作完成")
             actions.append("检查系统资源使用情况")
             actions.append("如果持续无响应，考虑强制退出应用")
-            
+
         case .inconsistentState:
             actions.append("保存当前文档")
             actions.append("关闭并重新打开文档")
             actions.append("检查撤销历史是否正常")
-            
+
         case .undoRedoIssue:
             actions.append("尝试多次撤销/重做")
             actions.append("手动重新应用格式")
             actions.append("检查撤销历史记录")
-            
+
         case .keyboardShortcutIssue:
             actions.append("确认快捷键没有被其他应用占用")
             actions.append("尝试使用菜单操作代替")
             actions.append("检查系统快捷键设置")
-            
+
         case .specialElementIssue:
             actions.append("避免在特殊元素上直接应用格式")
             actions.append("选择特殊元素周围的文本进行格式化")
             actions.append("检查特殊元素是否正确渲染")
-            
+
         case .mixedFormatIssue:
             actions.append("尝试先清除所有格式再重新应用")
             actions.append("分段选择并分别应用格式")
             actions.append("检查选中范围内的格式一致性")
         }
-        
+
         return actions
     }
-    
+
     /// 收集相关日志
     private func collectRelatedLogs(
         for problemType: FormatMenuProblemType,
-        format: TextFormat?
+        format _: TextFormat?
     ) -> [String] {
         var logs: [String] = []
-        
+
         // 根据问题类型收集相关日志
         switch problemType {
         case .formatNotApplied, .unexpectedBehavior:
             let formatLogs = logger.getLogs(category: LogCategory.formatApplication)
-            logs.append(contentsOf: formatLogs.suffix(5).map { $0.compactMessage })
-            
+            logs.append(contentsOf: formatLogs.suffix(5).map(\.compactMessage))
+
         case .stateNotSynchronized, .inconsistentState:
             let syncLogs = logger.getLogs(category: LogCategory.stateSynchronization)
-            logs.append(contentsOf: syncLogs.suffix(5).map { $0.compactMessage })
-            
+            logs.append(contentsOf: syncLogs.suffix(5).map(\.compactMessage))
+
         case .performanceSlow, .uiNotResponding:
             let perfLogs = logger.getLogs(category: LogCategory.performance)
-            logs.append(contentsOf: perfLogs.suffix(5).map { $0.compactMessage })
-            
+            logs.append(contentsOf: perfLogs.suffix(5).map(\.compactMessage))
+
         case .undoRedoIssue, .keyboardShortcutIssue:
             let userLogs = logger.getLogs(category: LogCategory.userInteraction)
-            logs.append(contentsOf: userLogs.suffix(5).map { $0.compactMessage })
-            
+            logs.append(contentsOf: userLogs.suffix(5).map(\.compactMessage))
+
         case .specialElementIssue, .mixedFormatIssue:
             let formatStateLogs = logger.getLogs(category: LogCategory.formatState)
-            logs.append(contentsOf: formatStateLogs.suffix(5).map { $0.compactMessage })
+            logs.append(contentsOf: formatStateLogs.suffix(5).map(\.compactMessage))
         }
-        
+
         // 添加错误日志
         let errorLogs = logger.getLogs(category: LogCategory.error)
-        logs.append(contentsOf: errorLogs.suffix(3).map { $0.compactMessage })
-        
+        logs.append(contentsOf: errorLogs.suffix(3).map(\.compactMessage))
+
         return logs
     }
-    
+
     // MARK: - Problem Report Management
-    
+
     /// 获取所有问题报告
     func getAllProblemReports() -> [FormatMenuProblemReport] {
-        return problemReports
+        problemReports
     }
-    
+
     /// 获取最近的问题报告
     func getRecentProblemReports(count: Int = 10) -> [FormatMenuProblemReport] {
-        return Array(problemReports.suffix(count))
+        Array(problemReports.suffix(count))
     }
-    
+
     /// 获取指定类型的问题报告
     func getProblemReports(for type: FormatMenuProblemType) -> [FormatMenuProblemReport] {
-        return problemReports.filter { $0.problemType == type }
+        problemReports.filter { $0.problemType == type }
     }
-    
+
     /// 清除所有问题报告
     func clearProblemReports() {
         problemReports.removeAll()
         logger.logInfo("已清除所有问题报告", category: LogCategory.diagnostics.rawValue)
     }
-    
+
     /// 导出问题报告
     func exportProblemReport(_ report: FormatMenuProblemReport, to url: URL) throws {
         let content = report.generateSummary()
         try content.write(to: url, atomically: true, encoding: .utf8)
         logger.logInfo("问题报告已导出到: \(url.path)", category: LogCategory.diagnostics.rawValue)
     }
-    
+
     /// 导出所有问题报告
     func exportAllProblemReports(to url: URL) throws {
         var content = """
@@ -1034,22 +1034,23 @@ final class FormatMenuDiagnostics {
         导出时间: \(ISO8601DateFormatter().string(from: Date()))
         总报告数: \(problemReports.count)
         ========================================
-        
+
         """
-        
+
         for (index, report) in problemReports.enumerated() {
             content += "\n--- 报告 \(index + 1) ---\n"
             content += report.generateSummary()
             content += "\n"
         }
-        
+
         try content.write(to: url, atomically: true, encoding: .utf8)
         logger.logInfo("所有问题报告已导出到: \(url.path)", category: LogCategory.diagnostics.rawValue)
     }
-    
+
     // MARK: - Auto Diagnostics
+
     // 需求: 8.4 - 创建格式问题的诊断工具
-    
+
     /// 自动检测问题
     /// - Parameters:
     ///   - context: 编辑器上下文
@@ -1067,7 +1068,7 @@ final class FormatMenuDiagnostics {
         success: Bool
     ) {
         guard isAutoDiagnosticsEnabled else { return }
-        
+
         // 检测性能问题
         if duration > performanceMonitor.thresholds.formatApplication * 2 {
             _ = createProblemReport(
@@ -1080,7 +1081,7 @@ final class FormatMenuDiagnostics {
                 additionalInfo: ["duration": duration]
             )
         }
-        
+
         // 检测操作失败
         if !success {
             _ = createProblemReport(
@@ -1092,15 +1093,16 @@ final class FormatMenuDiagnostics {
                 userAction: operation
             )
         }
-        
+
         // 检测状态不一致
-        if let format = format {
+        if let format {
             let formatManager = FormatManager.shared
             if let textStorage = textView.textStorage,
-               context.cursorPosition < textStorage.length {
+               context.cursorPosition < textStorage.length
+            {
                 let isActiveInContext = context.currentFormats.contains(format)
                 let isActiveInStorage = formatManager.isFormatActive(format, in: textStorage, at: context.cursorPosition)
-                
+
                 if isActiveInContext != isActiveInStorage {
                     _ = createProblemReport(
                         problemType: .inconsistentState,
@@ -1114,10 +1116,11 @@ final class FormatMenuDiagnostics {
             }
         }
     }
-    
+
     // MARK: - Comprehensive Context Collection
+
     // 需求: 8.4 - 实现上下文信息的收集
-    
+
     /// 收集完整的上下文信息
     /// - Parameters:
     ///   - context: 编辑器上下文
@@ -1128,34 +1131,34 @@ final class FormatMenuDiagnostics {
         textView: NSTextView
     ) -> [String: Any] {
         var info: [String: Any] = [:]
-        
+
         // 系统信息
         info["system"] = DiagnosticContextCollector.collectSystemInfo()
-        
+
         // 内存使用
         info["memory"] = DiagnosticContextCollector.collectMemoryUsage()
-        
+
         // 撤销历史
         info["undoHistory"] = DiagnosticContextCollector.collectUndoHistory(from: textView.undoManager)
-        
+
         // 编辑器状态
         info["editorState"] = [
             "isEditorFocused": context.isEditorFocused,
             "hasUnsavedChanges": context.hasUnsavedChanges,
             "cursorPosition": context.cursorPosition,
             "selectedRange": NSStringFromRange(context.selectedRange),
-            "currentFormats": context.currentFormats.map { $0.displayName },
-            "specialElement": context.currentSpecialElement?.displayName ?? "无"
+            "currentFormats": context.currentFormats.map(\.displayName),
+            "specialElement": context.currentSpecialElement?.displayName ?? "无",
         ]
-        
+
         // 文本存储信息
         if let textStorage = textView.textStorage {
             info["textStorage"] = [
                 "length": textStorage.length,
                 "isEmpty": textStorage.string.isEmpty,
-                "preview": String(textStorage.string.prefix(200))
+                "preview": String(textStorage.string.prefix(200)),
             ]
-            
+
             // 选中范围的属性详情
             let selectedRange = textView.selectedRange()
             if selectedRange.length > 0 {
@@ -1165,7 +1168,7 @@ final class FormatMenuDiagnostics {
                 )
             }
         }
-        
+
         // 性能统计
         let stats = debugger.statistics
         info["performance"] = [
@@ -1174,16 +1177,16 @@ final class FormatMenuDiagnostics {
             "avgApplicationTimeMs": stats.avgApplicationTimeMs,
             "avgSynchronizationTimeMs": stats.avgSynchronizationTimeMs,
             "slowApplications": stats.slowApplications,
-            "slowSynchronizations": stats.slowSynchronizations
+            "slowSynchronizations": stats.slowSynchronizations,
         ]
-        
+
         // 最近的错误
         let recentErrors = debugger.getEvents(type: .error).suffix(5)
-        info["recentErrors"] = recentErrors.map { $0.message }
-        
+        info["recentErrors"] = recentErrors.map(\.message)
+
         return info
     }
-    
+
     /// 生成综合诊断报告
     /// - Parameters:
     ///   - context: 编辑器上下文
@@ -1202,17 +1205,17 @@ final class FormatMenuDiagnostics {
         格式菜单综合诊断报告
         生成时间: \(ISO8601DateFormatter().string(from: Date()))
         ========================================
-        
+
         """
-        
+
         // 基础诊断报告
         report += generateFullDiagnosticReport(context: context, textView: textView)
-        
+
         // 系统信息
         if includeSystemInfo {
             let systemInfo = DiagnosticContextCollector.collectSystemInfo()
             report += """
-            
+
             ## 系统信息
             - 操作系统版本: \(systemInfo["osVersion"] ?? "未知")
             - 应用版本: \(systemInfo["appVersion"] ?? "未知")
@@ -1220,42 +1223,42 @@ final class FormatMenuDiagnostics {
             - 处理器数量: \(systemInfo["processorCount"] ?? "未知")
             - 物理内存: \(systemInfo["physicalMemory"] ?? "未知")
             - 系统运行时间: \(systemInfo["systemUptime"] ?? "未知")
-            
+
             """
-            
+
             let memoryInfo = DiagnosticContextCollector.collectMemoryUsage()
             report += """
             ## 内存使用
             - 当前使用: \(memoryInfo["usedMemory"] ?? "未知")
-            
+
             """
         }
-        
+
         // 性能详情
         if includePerformanceDetails {
             report += """
-            
+
             ## 性能详情
             \(performanceMonitor.generatePerformanceReport())
-            
+
             """
         }
-        
+
         // 问题报告摘要
         if !problemReports.isEmpty {
             report += """
-            
+
             ## 最近的问题报告
-            
+
             """
-            
+
             for problemReport in problemReports.suffix(5) {
                 report += "- [\(problemReport.problemType.displayName)] \(problemReport.description)\n"
             }
         }
-        
+
         report += "\n========================================"
-        
+
         return report
     }
 }
@@ -1269,18 +1272,18 @@ struct DiagnosticResult {
     let issues: [String]
     let suggestions: [String]
     let severity: DiagnosticSeverity
-    
+
     var summary: String {
         var result = """
         诊断类型: \(type.rawValue)
         严重程度: \(severity.rawValue)
-        
+
         """
-        
-        if let format = format {
+
+        if let format {
             result += "格式: \(format.displayName)\n\n"
         }
-        
+
         if !issues.isEmpty {
             result += "问题:\n"
             for issue in issues {
@@ -1288,14 +1291,14 @@ struct DiagnosticResult {
             }
             result += "\n"
         }
-        
+
         if !suggestions.isEmpty {
             result += "建议:\n"
             for suggestion in suggestions {
                 result += "- \(suggestion)\n"
             }
         }
-        
+
         return result
     }
 }

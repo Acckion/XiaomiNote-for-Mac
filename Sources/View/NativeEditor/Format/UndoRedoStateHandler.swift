@@ -6,9 +6,9 @@
 //  需求: 5.5 - 确保撤销后状态正确更新
 //
 
-import Foundation
 import AppKit
 import Combine
+import Foundation
 
 /// 撤销/重做操作类型
 enum UndoRedoOperationType: String {
@@ -26,80 +26,80 @@ struct UndoRedoOperationRecord {
     let cursorPositionAfter: Int
     let success: Bool
     let errorMessage: String?
-    
+
     /// 格式是否发生变化
     var formatsChanged: Bool {
-        return formatsBefore != formatsAfter
+        formatsBefore != formatsAfter
     }
-    
+
     /// 光标位置是否发生变化
     var cursorPositionChanged: Bool {
-        return cursorPositionBefore != cursorPositionAfter
+        cursorPositionBefore != cursorPositionAfter
     }
 }
 
 /// 撤销/重做状态处理器
-/// 
+///
 /// 负责监听撤销/重做操作，并确保格式菜单状态正确更新。
 /// 需求: 5.5 - 确保撤销后状态正确更新
 @MainActor
 class UndoRedoStateHandler {
-    
+
     // MARK: - Singleton
-    
+
     static let shared = UndoRedoStateHandler()
-    
+
     // MARK: - Properties
-    
+
     /// 操作记录
     private var operationRecords: [UndoRedoOperationRecord] = []
-    
+
     /// 最大记录数量
-    private let maxRecordCount: Int = 100
-    
+    private let maxRecordCount = 100
+
     /// 状态更新延迟（毫秒）
     private let stateUpdateDelayMs: UInt64 = 50
-    
+
     /// 是否启用详细日志
-    var verboseLogging: Bool = true
-    
+    var verboseLogging = true
+
     /// 统计信息
-    private var undoCount: Int = 0
-    private var redoCount: Int = 0
-    private var successCount: Int = 0
-    private var failureCount: Int = 0
-    
+    private var undoCount = 0
+    private var redoCount = 0
+    private var successCount = 0
+    private var failureCount = 0
+
     /// 取消订阅集合
     private var cancellables = Set<AnyCancellable>()
-    
+
     /// 状态更新回调
     private var stateUpdateCallback: (() -> Void)?
-    
+
     /// 内容同步回调
     private var contentSyncCallback: (() -> Void)?
-    
+
     // MARK: - Initialization
-    
+
     private init() {
         if verboseLogging {
             print("[UndoRedoStateHandler] 初始化完成")
         }
     }
-    
+
     // MARK: - Public Methods
-    
+
     /// 设置状态更新回调
     /// - Parameter callback: 状态更新回调函数
     func setStateUpdateCallback(_ callback: @escaping () -> Void) {
-        self.stateUpdateCallback = callback
+        stateUpdateCallback = callback
     }
-    
+
     /// 设置内容同步回调
     /// - Parameter callback: 内容同步回调函数
     func setContentSyncCallback(_ callback: @escaping () -> Void) {
-        self.contentSyncCallback = callback
+        contentSyncCallback = callback
     }
-    
+
     /// 处理撤销操作
     /// - Parameters:
     ///   - formatsBefore: 撤销前的格式状态
@@ -110,29 +110,29 @@ class UndoRedoStateHandler {
         cursorPositionBefore: Int
     ) async -> UndoRedoOperationRecord {
         undoCount += 1
-        
+
         if verboseLogging {
             print("[UndoRedoStateHandler] 处理撤销操作 #\(undoCount)")
-            print("[UndoRedoStateHandler]   - 撤销前格式: \(formatsBefore.map { $0.displayName })")
+            print("[UndoRedoStateHandler]   - 撤销前格式: \(formatsBefore.map(\.displayName))")
             print("[UndoRedoStateHandler]   - 撤销前光标位置: \(cursorPositionBefore)")
         }
-        
+
         // 1. 同步内容
         contentSyncCallback?()
-        
+
         // 2. 等待撤销操作完成
         try? await Task.sleep(nanoseconds: stateUpdateDelayMs * 1_000_000)
-        
+
         // 3. 强制更新格式状态
         stateUpdateCallback?()
-        
+
         // 4. 再次等待状态更新完成
         try? await Task.sleep(nanoseconds: stateUpdateDelayMs * 1_000_000)
-        
+
         // 5. 获取撤销后的状态（这里需要从外部获取，暂时使用空集合）
         let formatsAfter: Set<TextFormat> = []
-        let cursorPositionAfter: Int = 0
-        
+        let cursorPositionAfter = 0
+
         // 6. 记录操作
         let record = UndoRedoOperationRecord(
             timestamp: Date(),
@@ -144,19 +144,19 @@ class UndoRedoStateHandler {
             success: true,
             errorMessage: nil
         )
-        
+
         addRecord(record)
         successCount += 1
-        
+
         if verboseLogging {
             print("[UndoRedoStateHandler] 撤销操作完成")
             print("[UndoRedoStateHandler]   - 格式变化: \(record.formatsChanged)")
             print("[UndoRedoStateHandler]   - 光标位置变化: \(record.cursorPositionChanged)")
         }
-        
+
         return record
     }
-    
+
     /// 处理重做操作
     /// - Parameters:
     ///   - formatsBefore: 重做前的格式状态
@@ -167,29 +167,29 @@ class UndoRedoStateHandler {
         cursorPositionBefore: Int
     ) async -> UndoRedoOperationRecord {
         redoCount += 1
-        
+
         if verboseLogging {
             print("[UndoRedoStateHandler] 处理重做操作 #\(redoCount)")
-            print("[UndoRedoStateHandler]   - 重做前格式: \(formatsBefore.map { $0.displayName })")
+            print("[UndoRedoStateHandler]   - 重做前格式: \(formatsBefore.map(\.displayName))")
             print("[UndoRedoStateHandler]   - 重做前光标位置: \(cursorPositionBefore)")
         }
-        
+
         // 1. 同步内容
         contentSyncCallback?()
-        
+
         // 2. 等待重做操作完成
         try? await Task.sleep(nanoseconds: stateUpdateDelayMs * 1_000_000)
-        
+
         // 3. 强制更新格式状态
         stateUpdateCallback?()
-        
+
         // 4. 再次等待状态更新完成
         try? await Task.sleep(nanoseconds: stateUpdateDelayMs * 1_000_000)
-        
+
         // 5. 获取重做后的状态（这里需要从外部获取，暂时使用空集合）
         let formatsAfter: Set<TextFormat> = []
-        let cursorPositionAfter: Int = 0
-        
+        let cursorPositionAfter = 0
+
         // 6. 记录操作
         let record = UndoRedoOperationRecord(
             timestamp: Date(),
@@ -201,65 +201,65 @@ class UndoRedoStateHandler {
             success: true,
             errorMessage: nil
         )
-        
+
         addRecord(record)
         successCount += 1
-        
+
         if verboseLogging {
             print("[UndoRedoStateHandler] 重做操作完成")
             print("[UndoRedoStateHandler]   - 格式变化: \(record.formatsChanged)")
             print("[UndoRedoStateHandler]   - 光标位置变化: \(record.cursorPositionChanged)")
         }
-        
+
         return record
     }
-    
+
     /// 处理撤销/重做操作（简化版本）
     /// - Parameter operationType: 操作类型
     func handleOperation(_ operationType: UndoRedoOperationType) {
         if verboseLogging {
             print("[UndoRedoStateHandler] 处理\(operationType.rawValue)操作")
         }
-        
+
         switch operationType {
         case .undo:
             undoCount += 1
         case .redo:
             redoCount += 1
         }
-        
+
         // 1. 同步内容
         contentSyncCallback?()
-        
+
         // 2. 延迟更新格式状态
         Task { @MainActor in
             // 等待操作完成
             try? await Task.sleep(nanoseconds: stateUpdateDelayMs * 1_000_000)
-            
+
             // 强制更新格式状态
             self.stateUpdateCallback?()
-            
+
             if self.verboseLogging {
                 print("[UndoRedoStateHandler] \(operationType.rawValue)操作后状态已更新")
             }
-            
+
             self.successCount += 1
         }
     }
-    
+
     /// 获取统计信息
     /// - Returns: 统计信息字典
     func getStatistics() -> [String: Any] {
-        return [
+        [
             "undoCount": undoCount,
             "redoCount": redoCount,
             "totalCount": undoCount + redoCount,
             "successCount": successCount,
             "failureCount": failureCount,
-            "recordCount": operationRecords.count
+            "recordCount": operationRecords.count,
         ]
     }
-    
+
     /// 获取最近的操作记录
     /// - Parameter count: 记录数量
     /// - Returns: 操作记录数组
@@ -267,7 +267,7 @@ class UndoRedoStateHandler {
         let startIndex = max(0, operationRecords.count - count)
         return Array(operationRecords[startIndex...])
     }
-    
+
     /// 重置统计信息
     func resetStatistics() {
         undoCount = 0
@@ -275,16 +275,16 @@ class UndoRedoStateHandler {
         successCount = 0
         failureCount = 0
         operationRecords.removeAll()
-        
+
         if verboseLogging {
             print("[UndoRedoStateHandler] 统计信息已重置")
         }
     }
-    
+
     /// 打印统计信息
     func printStatistics() {
         let stats = getStatistics()
-        
+
         print("[UndoRedoStateHandler] 统计信息:")
         print("  - 撤销次数: \(stats["undoCount"] ?? 0)")
         print("  - 重做次数: \(stats["redoCount"] ?? 0)")
@@ -293,13 +293,13 @@ class UndoRedoStateHandler {
         print("  - 失败次数: \(stats["failureCount"] ?? 0)")
         print("  - 记录数量: \(stats["recordCount"] ?? 0)")
     }
-    
+
     // MARK: - Private Methods
-    
+
     /// 添加操作记录
     private func addRecord(_ record: UndoRedoOperationRecord) {
         operationRecords.append(record)
-        
+
         // 限制记录数量
         if operationRecords.count > maxRecordCount {
             operationRecords.removeFirst(operationRecords.count - maxRecordCount)
@@ -310,29 +310,29 @@ class UndoRedoStateHandler {
 // MARK: - UndoRedoStateHandler Extension
 
 extension UndoRedoStateHandler {
-    
+
     /// 生成操作报告
     /// - Returns: 操作报告字符串
     func generateReport() -> String {
         let stats = getStatistics()
         let recentRecords = getRecentRecords(count: 5)
-        
+
         var report = """
         ========================================
         撤销/重做操作报告
         ========================================
-        
+
         ## 统计信息
         - 撤销次数: \(stats["undoCount"] ?? 0)
         - 重做次数: \(stats["redoCount"] ?? 0)
         - 总操作次数: \(stats["totalCount"] ?? 0)
         - 成功次数: \(stats["successCount"] ?? 0)
         - 失败次数: \(stats["failureCount"] ?? 0)
-        
+
         ## 最近操作记录
-        
+
         """
-        
+
         if recentRecords.isEmpty {
             report += "暂无操作记录\n"
         } else {
@@ -340,22 +340,22 @@ extension UndoRedoStateHandler {
                 let dateFormatter = DateFormatter()
                 dateFormatter.dateFormat = "HH:mm:ss"
                 let timeString = dateFormatter.string(from: record.timestamp)
-                
+
                 report += """
                 \(index + 1). [\(timeString)] \(record.operationType.rawValue)
                    - 格式变化: \(record.formatsChanged ? "是" : "否")
                    - 光标位置变化: \(record.cursorPositionChanged ? "是" : "否")
                    - 状态: \(record.success ? "成功" : "失败")
-                
+
                 """
             }
         }
-        
+
         report += """
-        
+
         ========================================
         """
-        
+
         return report
     }
 }

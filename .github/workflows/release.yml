@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Release
+    runs-on: macos-15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      
+      - name: Generate Xcode Project
+        run: xcodegen generate
+      
+      - name: Build Release
+        run: |
+          xcodebuild -project MiNoteMac.xcodeproj \
+            -scheme MiNoteMac \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -archivePath build/MiNoteMac.xcarchive \
+            archive
+      
+      - name: Export App
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath build/MiNoteMac.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist ExportOptions.plist || true
+      
+      - name: Create DMG
+        run: |
+          APP_PATH="build/MiNoteMac.xcarchive/Products/Applications/MiNoteMac.app"
+          if [ -d "$APP_PATH" ]; then
+            hdiutil create -volname "MiNoteMac" \
+              -srcfolder "$APP_PATH" \
+              -ov -format UDZO \
+              "build/MiNoteMac-${{ github.event.release.tag_name }}.dmg"
+          fi
+      
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/MiNoteMac-${{ github.event.release.tag_name }}.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
