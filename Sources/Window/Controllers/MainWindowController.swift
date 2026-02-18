@@ -144,7 +144,7 @@
             setupStateObservers()
 
             // 初始化查找面板控制器
-            searchPanelController = SearchPanelController(mainWindowController: self)
+            self.searchPanelController = SearchPanelController(mainWindowController: self)
 
             print("[MainWindowController] 初始化完成，窗口ID: \(windowState.windowId)")
         }

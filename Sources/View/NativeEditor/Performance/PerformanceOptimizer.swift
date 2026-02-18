@@ -119,9 +119,9 @@ struct CacheEntry<T> {
 
     init(value: T) {
         self.value = value
-        createdAt = Date()
-        lastAccessedAt = Date()
-        accessCount = 1
+        self.createdAt = Date()
+        self.lastAccessedAt = Date()
+        self.accessCount = 1
     }
 
     mutating func recordAccess() {
@@ -307,16 +307,16 @@ class PerformanceOptimizer {
     // MARK: - Initialization
 
     private init() {
-        configuration = .default
-        attachmentCache = LRUCache(
+        self.configuration = .default
+        self.attachmentCache = LRUCache(
             maxSize: configuration.maxAttachmentCacheSize,
             expirationTime: configuration.cacheExpirationTime
         )
-        imageCache = LRUCache(
+        self.imageCache = LRUCache(
             maxSize: configuration.maxImageCacheSize,
             expirationTime: configuration.cacheExpirationTime
         )
-        renderCache = LRUCache(
+        self.renderCache = LRUCache(
             maxSize: configuration.maxRenderCacheSize,
             expirationTime: configuration.cacheExpirationTime
         )

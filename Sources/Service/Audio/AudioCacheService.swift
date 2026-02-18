@@ -62,8 +62,8 @@ final class AudioCacheService: @unchecked Sendable {
         let appSupportDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let appBundleID = Bundle.main.bundleIdentifier ?? "com.mi.note.mac"
         let appDirectory = appSupportDirectory.appendingPathComponent(appBundleID)
-        cacheDirectory = appDirectory.appendingPathComponent("audio")
-        metadataFilePath = appDirectory.appendingPathComponent("audio_cache_metadata.json")
+        self.cacheDirectory = appDirectory.appendingPathComponent("audio")
+        self.metadataFilePath = appDirectory.appendingPathComponent("audio_cache_metadata.json")
 
         // 创建缓存目录
         createCacheDirectoryIfNeeded()

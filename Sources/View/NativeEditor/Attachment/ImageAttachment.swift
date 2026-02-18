@@ -86,7 +86,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
 
         if let image = NSImage(data: imageData) {
             self.image = image
-            originalSize = image.size
+            self.originalSize = image.size
             calculateDisplaySize()
         }
     }
@@ -99,7 +99,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         self.imageDescription = imageDescription
         self.imgshow = imgshow
         self.image = image
-        originalSize = image.size
+        self.originalSize = image.size
         calculateDisplaySize()
     }
 
@@ -111,7 +111,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         self.folderId = folderId
         self.imageDescription = imageDescription
         self.imgshow = imgshow
-        isLoading = true
+        self.isLoading = true
 
         print("[ImageAttachment] 📝 初始化（立即加载）:")
         print("[ImageAttachment]   - src: '\(src)'")

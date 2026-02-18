@@ -19,9 +19,9 @@ class AttributeManager {
 
     /// 初始化属性管理器
     init() {
-        metaLayer = MetaAttributeLayer()
-        layoutLayer = LayoutAttributeLayer()
-        decorativeLayer = DecorativeAttributeLayer()
+        self.metaLayer = MetaAttributeLayer()
+        self.layoutLayer = LayoutAttributeLayer()
+        self.decorativeLayer = DecorativeAttributeLayer()
     }
 
     // MARK: - Public Methods

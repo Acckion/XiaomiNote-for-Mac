@@ -82,7 +82,8 @@ actor PassTokenManager {
     func storeCredentials(passToken: String, userId: String) {
         UserDefaults.standard.set(passToken, forKey: passTokenKey)
         UserDefaults.standard.set(userId, forKey: userIdKey)
-        print("[[调试]] PassToken 凭据已存储")
+        let maskedToken = String(passToken.prefix(8)) + "..." + String(passToken.suffix(4))
+        print("[[调试]] PassToken 凭据已存储, userId=\(userId), passToken=\(maskedToken) (长度:\(passToken.count))")
     }
 
     /// 清除存储的凭据和缓存
@@ -214,6 +215,9 @@ actor PassTokenManager {
             lastRefreshTime = Date()
             isRefreshing = false
 
+            let maskedServiceToken = String(serviceToken.prefix(8)) + "..." + String(serviceToken.suffix(4))
+            print("[[调试]] PassToken 三步流程成功, serviceToken=\(maskedServiceToken) (长度:\(serviceToken.count))")
+
             // 构建完整 Cookie 并更新 MiNoteService
             if let passToken = getPassToken(), let userId = getUserId() {
                 let fullCookie = buildFullCookie(
@@ -222,6 +226,8 @@ actor PassTokenManager {
                     passToken: passToken,
                     serviceToken: serviceToken
                 )
+                let maskedCookie = String(fullCookie.prefix(80)) + "..."
+                print("[[调试]] PassToken 构建的完整 Cookie=\(maskedCookie) (长度:\(fullCookie.count))")
                 MiNoteService.shared.setCookie(fullCookie)
                 print("[[调试]] PassToken 刷新成功，已更新 MiNoteService Cookie")
             }
@@ -270,15 +276,27 @@ actor PassTokenManager {
 
         var step1Request = URLRequest(url: step1Url)
         step1Request.setValue(cookie, forHTTPHeaderField: "Cookie")
-        print("[[调试]] PassToken 三步流程 - 步骤1: 请求 loginUrl")
+        let maskedPassToken = String(passToken.prefix(8)) + "..." + String(passToken.suffix(4))
+        print("[[调试]] PassToken 三步流程 - 步骤1: 请求 loginUrl, userId=\(userId), passToken=\(maskedPassToken)")
 
         let (step1Data, step1Response) = try await URLSession.shared.data(for: step1Request)
-        guard let httpResponse1 = step1Response as? HTTPURLResponse, httpResponse1.statusCode == 200 else {
+        guard let httpResponse1 = step1Response as? HTTPURLResponse else {
+            print("[[调试]] PassToken 三步流程 - 步骤1: 响应不是 HTTPURLResponse")
+            throw PassTokenError.invalidResponse
+        }
+        print("[[调试]] PassToken 三步流程 - 步骤1: HTTP 状态码=\(httpResponse1.statusCode)")
+        if httpResponse1.statusCode != 200 {
+            let bodyStr = String(data: step1Data, encoding: .utf8) ?? "(无法解码)"
+            print("[[调试]] PassToken 三步流程 - 步骤1: 响应体=\(String(bodyStr.prefix(500)))")
             throw PassTokenError.invalidResponse
         }
 
+        // 打印步骤1的原始响应用于调试
+        let step1Body = String(data: step1Data, encoding: .utf8) ?? "(无法解码)"
+        print("[[调试]] PassToken 三步流程 - 步骤1: 响应体=\(String(step1Body.prefix(500)))")
+
         let loginUrl = try parseLoginUrl(from: step1Data)
-        print("[[调试]] PassToken 三步流程 - 步骤1: 获取到 loginUrl")
+        print("[[调试]] PassToken 三步流程 - 步骤1: 获取到 loginUrl=\(String(loginUrl.prefix(100)))...")
 
         // 步骤2：GET loginUrl 获取 Location 重定向 URL（禁用自动重定向）
         guard let step2Url = URL(string: loginUrl) else {
@@ -287,7 +305,7 @@ actor PassTokenManager {
 
         var step2Request = URLRequest(url: step2Url)
         step2Request.setValue(cookie, forHTTPHeaderField: "Cookie")
-        print("[[调试]] PassToken 三步流程 - 步骤2: 请求重定向 URL")
+        print("[[调试]] PassToken 三步流程 - 步骤2: 请求重定向 URL, url=\(String(loginUrl.prefix(100)))...")
 
         let noRedirectDelegate = NoRedirectDelegate()
         let noRedirectSession = URLSession(configuration: .default, delegate: noRedirectDelegate, delegateQueue: nil)
@@ -295,13 +313,16 @@ actor PassTokenManager {
 
         let (_, step2Response) = try await noRedirectSession.data(for: step2Request)
         guard let httpResponse2 = step2Response as? HTTPURLResponse else {
+            print("[[调试]] PassToken 三步流程 - 步骤2: 响应不是 HTTPURLResponse")
             throw PassTokenError.invalidResponse
         }
+        print("[[调试]] PassToken 三步流程 - 步骤2: HTTP 状态码=\(httpResponse2.statusCode)")
 
         guard let redirectUrl = httpResponse2.value(forHTTPHeaderField: "Location"), !redirectUrl.isEmpty else {
+            print("[[调试]] PassToken 三步流程 - 步骤2: 未找到 Location 头, 所有头=\(httpResponse2.allHeaderFields.keys)")
             throw PassTokenError.redirectUrlNotFound
         }
-        print("[[调试]] PassToken 三步流程 - 步骤2: 获取到重定向 URL")
+        print("[[调试]] PassToken 三步流程 - 步骤2: 获取到重定向 URL=\(String(redirectUrl.prefix(100)))...")
 
         // 步骤3：GET redirectUrl 从 Set-Cookie 提取 serviceToken（禁用自动重定向）
         guard let step3Url = URL(string: redirectUrl) else {
@@ -310,7 +331,7 @@ actor PassTokenManager {
 
         var step3Request = URLRequest(url: step3Url)
         step3Request.setValue(cookie, forHTTPHeaderField: "Cookie")
-        print("[[调试]] PassToken 三步流程 - 步骤3: 请求 serviceToken")
+        print("[[调试]] PassToken 三步流程 - 步骤3: 请求 serviceToken, url=\(String(redirectUrl.prefix(100)))...")
 
         let noRedirectDelegate3 = NoRedirectDelegate()
         let noRedirectSession3 = URLSession(configuration: .default, delegate: noRedirectDelegate3, delegateQueue: nil)
@@ -318,15 +339,19 @@ actor PassTokenManager {
 
         let (_, step3Response) = try await noRedirectSession3.data(for: step3Request)
         guard let httpResponse3 = step3Response as? HTTPURLResponse else {
+            print("[[调试]] PassToken 三步流程 - 步骤3: 响应不是 HTTPURLResponse")
             throw PassTokenError.invalidResponse
         }
+        print("[[调试]] PassToken 三步流程 - 步骤3: HTTP 状态码=\(httpResponse3.statusCode)")
 
         // 从 allHeaderFields 中获取 Set-Cookie
         let allHeaders = httpResponse3.allHeaderFields
+        print("[[调试]] PassToken 三步流程 - 步骤3: 响应头 keys=\(allHeaders.keys.map { "\($0)" }.joined(separator: ", "))")
         var serviceToken: String?
 
         // 尝试从多个 Set-Cookie 头中提取
         if let setCookieHeaders = allHeaders["Set-Cookie"] as? String {
+            print("[[调试]] PassToken 三步流程 - 步骤3: Set-Cookie=\(String(setCookieHeaders.prefix(200)))...")
             serviceToken = try? extractServiceToken(from: setCookieHeaders)
         }
 

@@ -11,7 +11,7 @@ private class CacheNode {
     init(noteId: String, note: Note) {
         self.noteId = noteId
         self.note = note
-        lastAccessTime = Date()
+        self.lastAccessTime = Date()
     }
 }
 

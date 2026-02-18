@@ -34,7 +34,7 @@ class EditorPreferencesService: ObservableObject {
 
         // 检查原生编辑器可用性
         let isNativeAvailable = EditorFactory.isEditorAvailable(.native)
-        isNativeEditorAvailable = isNativeAvailable
+        self.isNativeEditorAvailable = isNativeAvailable
 
         print("[EditorPreferencesService] 初始化")
         print("[EditorPreferencesService]   - isNativeAvailable: \(isNativeAvailable)")

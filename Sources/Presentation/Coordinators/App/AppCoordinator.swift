@@ -68,38 +68,38 @@ public final class AppCoordinator: ObservableObject {
         let audioService = container.resolve(AudioServiceProtocol.self)
 
         // 创建所有 ViewModel
-        noteListViewModel = NoteListViewModel(
+        self.noteListViewModel = NoteListViewModel(
             noteStorage: noteStorage,
             noteService: noteService
         )
 
-        noteEditorViewModel = NoteEditorViewModel(
+        self.noteEditorViewModel = NoteEditorViewModel(
             noteStorage: noteStorage,
             noteService: noteService
         )
 
-        syncCoordinator = SyncCoordinator(
+        self.syncCoordinator = SyncCoordinator(
             syncService: syncService,
             noteStorage: noteStorage,
             networkMonitor: networkMonitor
         )
 
-        authViewModel = AuthenticationViewModel(
+        self.authViewModel = AuthenticationViewModel(
             authService: authService,
             noteStorage: noteStorage
         )
 
-        searchViewModel = SearchViewModel(
+        self.searchViewModel = SearchViewModel(
             noteStorage: noteStorage,
             noteService: noteService
         )
 
-        folderViewModel = FolderViewModel(
+        self.folderViewModel = FolderViewModel(
             noteStorage: noteStorage,
             noteService: noteService
         )
 
-        audioPanelViewModel = AudioPanelViewModel(
+        self.audioPanelViewModel = AudioPanelViewModel(
             audioService: audioService,
             noteService: noteStorage
         )

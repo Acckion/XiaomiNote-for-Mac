@@ -105,7 +105,7 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
     /// 便捷初始化方法
     convenience init(checked: Bool = false, level: Int = 3, indent: Int = 1) {
         self.init(data: nil, ofType: nil)
-        isChecked = checked
+        self.isChecked = checked
         self.level = level
         self.indent = indent
     }
@@ -369,8 +369,8 @@ final class HorizontalRuleAttachment: NSTextAttachment, ThemeAwareAttachment {
     /// 便捷初始化方法
     convenience init(width: CGFloat = 300, style: LineStyle = .solid) {
         self.init(data: nil, ofType: nil)
-        currentWidth = width
-        lineStyle = style
+        self.currentWidth = width
+        self.lineStyle = style
     }
 
     private func setupAttachment() {

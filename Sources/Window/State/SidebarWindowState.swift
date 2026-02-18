@@ -26,12 +26,12 @@ public final class SidebarWindowState: NSObject, NSSecureCoding {
     }
 
     public required init?(coder: NSCoder) {
-        selectedFolderId = coder.decodeObject(of: NSString.self, forKey: CodingKeys.selectedFolderId.rawValue) as String?
+        self.selectedFolderId = coder.decodeObject(of: NSString.self, forKey: CodingKeys.selectedFolderId.rawValue) as String?
 
         if let expandedIds = coder.decodeObject(of: [NSArray.self, NSString.self], forKey: CodingKeys.expandedFolderIds.rawValue) as? [String] {
-            expandedFolderIds = expandedIds
+            self.expandedFolderIds = expandedIds
         } else {
-            expandedFolderIds = []
+            self.expandedFolderIds = []
         }
     }
 

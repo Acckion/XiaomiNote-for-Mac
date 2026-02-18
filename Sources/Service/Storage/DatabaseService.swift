@@ -89,7 +89,7 @@ final class DatabaseService: @unchecked Sendable {
 
         try? FileManager.default.createDirectory(at: appDirectory, withIntermediateDirectories: true, attributes: nil)
 
-        dbPath = appDirectory.appendingPathComponent("minote.db")
+        self.dbPath = appDirectory.appendingPathComponent("minote.db")
 
         initializeDatabase()
     }

@@ -73,14 +73,14 @@ struct NoteDisplayProperties: Equatable, Hashable {
     /// 从 Note 对象创建显示属性
     /// - Parameter note: 笔记对象
     init(from note: Note) {
-        id = note.id
-        title = note.title
-        contentPreview = NoteDisplayProperties.extractPreviewText(from: note.content)
-        updatedAt = note.updatedAt
-        isStarred = note.isStarred
-        folderId = note.folderId
-        isLocked = note.rawData?["isLocked"] as? Bool ?? false
-        imageInfoHash = NoteDisplayProperties.getImageInfoHash(from: note)
+        self.id = note.id
+        self.title = note.title
+        self.contentPreview = NoteDisplayProperties.extractPreviewText(from: note.content)
+        self.updatedAt = note.updatedAt
+        self.isStarred = note.isStarred
+        self.folderId = note.folderId
+        self.isLocked = note.rawData?["isLocked"] as? Bool ?? false
+        self.imageInfoHash = NoteDisplayProperties.getImageInfoHash(from: note)
     }
 
     /// 从 XML 内容中提取预览文本
