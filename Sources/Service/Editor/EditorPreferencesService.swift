@@ -36,13 +36,12 @@ class EditorPreferencesService: ObservableObject {
         let isNativeAvailable = EditorFactory.isEditorAvailable(.native)
         self.isNativeEditorAvailable = isNativeAvailable
 
-        print("[EditorPreferencesService] 初始化")
-        print("[EditorPreferencesService]   - isNativeAvailable: \(isNativeAvailable)")
+        LogService.shared.info(.editor, "初始化，原生编辑器可用: \(isNativeAvailable)")
 
         // 清理旧的编辑器类型偏好设置（如果存在）
         if userDefaults.string(forKey: "selectedEditorType") != nil {
             userDefaults.removeObject(forKey: "selectedEditorType")
-            print("[EditorPreferencesService]   - 已清理旧的编辑器类型偏好设置")
+            LogService.shared.debug(.editor, "已清理旧的编辑器类型偏好设置")
         }
     }
 

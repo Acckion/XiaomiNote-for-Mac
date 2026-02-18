@@ -238,17 +238,13 @@ class XiaoMiFormatConverter {
                 let xmlElement = try convertNSLineToXML(lineAttributedString)
                 xmlElements.append(xmlElement)
             } catch {
-                // 记录错误日志
                 let errorMessage = "行 \(lineIndex + 1) 转换失败: \(error.localizedDescription)"
                 conversionErrors.append(errorMessage)
-                print("[XiaoMiFormatConverter] ⚠️ \(errorMessage)")
+                LogService.shared.error(.editor, errorMessage)
 
-                // 回退逻辑：使用纯文本作为回退内容
-                // _Requirements: 9.3_
                 let fallbackText = escapeXMLCharacters(lineText)
                 let fallbackXML = "<text indent=\"1\">\(fallbackText)</text>"
                 xmlElements.append(fallbackXML)
-                print("[XiaoMiFormatConverter] 📝 使用回退内容: \(fallbackXML.prefix(100))...")
             }
 
             // 更新位置，跳过当前行和换行符
@@ -260,10 +256,7 @@ class XiaoMiFormatConverter {
 
         // 如果有转换错误，记录汇总日志
         if !conversionErrors.isEmpty {
-            print("[XiaoMiFormatConverter] ⚠️ 转换完成，但有 \(conversionErrors.count) 个错误:")
-            for error in conversionErrors {
-                print("[XiaoMiFormatConverter]   - \(error)")
-            }
+            LogService.shared.error(.editor, "转换完成，但有 \(conversionErrors.count) 个错误")
         }
 
         return xmlElements.joined(separator: "\n")
@@ -286,9 +279,7 @@ class XiaoMiFormatConverter {
         do {
             return try nsAttributedStringToXML(nsAttributedString)
         } catch {
-            // 完全失败时的回退：返回纯文本内容
-            print("[XiaoMiFormatConverter] ❌ 转换完全失败: \(error.localizedDescription)")
-            print("[XiaoMiFormatConverter] 📝 使用纯文本回退")
+            LogService.shared.error(.editor, "XML 转换失败，使用纯文本回退: \(error.localizedDescription)")
 
             let plainText = nsAttributedString.string
             let lines = plainText.components(separatedBy: "\n")
@@ -347,7 +338,7 @@ class XiaoMiFormatConverter {
                 do {
                     content = try convertAttachmentToXML(attachment)
                 } catch {
-                    print("[XiaoMiFormatConverter] 附件转换失败: \(error)")
+                    LogService.shared.error(.editor, "附件转换失败: \(error)")
                 }
                 return
             }
@@ -645,7 +636,7 @@ class XiaoMiFormatConverter {
 
         // 记录解析警告
         for warning in parseResult.warnings {
-            print("[XiaoMiFormatConverter] ⚠️ 解析警告: \(warning.message)")
+            LogService.shared.warning(.editor, "XML 解析警告: \(warning.message)")
         }
 
         // 使用 AST 到 NSAttributedString 转换器
@@ -977,7 +968,7 @@ class XiaoMiFormatConverter {
 
             return isEquivalent(original: xml, converted: backConverted)
         } catch {
-            print("[XiaoMiFormatConverter] 验证转换失败: \(error)")
+            LogService.shared.error(.editor, "验证转换失败: \(error)")
             return false
         }
     }

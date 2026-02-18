@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import os.log
 
 // MARK: - 日志级别
 
@@ -218,9 +217,6 @@ final class NativeEditorLogger: ObservableObject {
 
     // MARK: - Properties
 
-    /// 系统日志
-    private let osLog = OSLog(subsystem: "com.minote.mac", category: "NativeEditor")
-
     /// 日志条目缓存
     private var logEntries: [LogEntry] = []
 
@@ -304,7 +300,7 @@ final class NativeEditorLogger: ObservableObject {
                 logFileHandle?.seekToEndOfFile()
             }
         } catch {
-            print("[NativeEditorLogger] 无法设置文件日志: \(error)")
+            LogService.shared.error(.editor, "无法设置文件日志: \(error)")
         }
     }
 
@@ -680,7 +676,7 @@ final class NativeEditorLogger: ObservableObject {
         // 检查类别是否启用
         guard isCategoryEnabled(category) else { return }
 
-        // 创建日志条目
+        // 创建日志条目（保留缓存功能）
         let entry = LogEntry(
             timestamp: Date(),
             level: level,
@@ -698,13 +694,18 @@ final class NativeEditorLogger: ObservableObject {
             logEntries.removeFirst(logEntries.count - maxLogEntries)
         }
 
-        // 控制台输出
-        if enableConsoleOutput {
-            print(entry.formattedMessage)
+        // 通过 LogService 输出日志
+        let fullMessage = "[\(category)] \(message)"
+        switch level {
+        case .trace, .debug:
+            LogService.shared.debug(.editor, fullMessage)
+        case .info:
+            LogService.shared.info(.editor, fullMessage)
+        case .warning:
+            LogService.shared.warning(.editor, fullMessage)
+        case .error, .critical:
+            LogService.shared.error(.editor, fullMessage)
         }
-
-        // 系统日志
-        os_log("%{public}@", log: osLog, type: level.osLogType, entry.formattedMessage)
 
         // 文件日志
         writeToFile(entry)
