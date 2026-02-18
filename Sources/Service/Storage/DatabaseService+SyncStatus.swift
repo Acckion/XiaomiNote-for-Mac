@@ -11,7 +11,7 @@ extension DatabaseService {
     /// - Parameter status: 同步状态对象
     /// - Throws: DatabaseError（数据库操作失败）
     func saveSyncStatus(_ status: SyncStatus) throws {
-        print("[[调试]] 开始保存同步状态: syncTag=\(status.syncTag ?? "nil")")
+        LogService.shared.debug(.storage, "开始保存同步状态: syncTag=\(status.syncTag ?? "nil")")
 
         try dbQueue.sync(flags: .barrier) {
             let sql = """
@@ -28,33 +28,33 @@ extension DatabaseService {
 
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[[调试]] SQL准备失败: \(errorMsg)")
+                LogService.shared.error(.storage, "SQL准备失败: \(errorMsg)")
                 throw DatabaseError.prepareFailed(errorMsg)
             }
 
             if let lastSyncTime = status.lastSyncTime {
                 sqlite3_bind_double(statement, 1, lastSyncTime.timeIntervalSince1970)
-                print("[[调试]] 绑定 lastSyncTime: \(lastSyncTime)")
+                LogService.shared.debug(.storage, "绑定 lastSyncTime: \(lastSyncTime)")
             } else {
                 sqlite3_bind_null(statement, 1)
-                print("[[调试]] 绑定 lastSyncTime: NULL")
+                LogService.shared.debug(.storage, "绑定 lastSyncTime: NULL")
             }
 
             if let syncTag = status.syncTag {
                 sqlite3_bind_text(statement, 2, (syncTag as NSString).utf8String, -1, nil)
-                print("[[调试]] 绑定 syncTag: \(syncTag)")
+                LogService.shared.debug(.storage, "绑定 syncTag: \(syncTag)")
             } else {
                 sqlite3_bind_null(statement, 2)
-                print("[[调试]] 绑定 syncTag: NULL")
+                LogService.shared.debug(.storage, "绑定 syncTag: NULL")
             }
 
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[[调试]] SQL执行失败: \(errorMsg)")
+                LogService.shared.error(.storage, "SQL执行失败: \(errorMsg)")
                 throw DatabaseError.executionFailed(errorMsg)
             }
 
-            print("[[调试]] 保存同步状态成功: syncTag=\(status.syncTag ?? "nil")")
+            LogService.shared.info(.storage, "保存同步状态成功: syncTag=\(status.syncTag ?? "nil")")
         }
     }
 
@@ -105,7 +105,7 @@ extension DatabaseService {
         dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM sync_status WHERE id = 1;"
             executeSQL(sql)
-            print("[[调试]] 清除同步状态")
+            LogService.shared.debug(.storage, "清除同步状态")
         }
     }
 }

@@ -41,7 +41,7 @@ struct NetworkLogView: View {
                 Picker("日志类型", selection: $selectedLogType) {
                     Text("全部").tag(NetworkLogEntry.LogType?.none)
                     ForEach(NetworkLogEntry.LogType.allCases, id: \.self) { type in
-                        Text("\(type.emoji) \(type.description)")
+                        Text("\(type.symbol) \(type.description)")
                             .tag(Optional(type))
                     }
                 }
@@ -216,7 +216,7 @@ struct NetworkLogRow: View {
         VStack(alignment: .leading, spacing: 4) {
             // 标题行
             HStack {
-                Text(log.type.emoji)
+                Text(log.type.symbol)
                     .font(.title3)
 
                 VStack(alignment: .leading) {

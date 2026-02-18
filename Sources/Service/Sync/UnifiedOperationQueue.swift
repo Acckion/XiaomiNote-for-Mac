@@ -80,9 +80,9 @@ public final class UnifiedOperationQueue: @unchecked Sendable {
                 operationsByNoteId[operation.noteId]?.append(operation)
             }
 
-            print("[UnifiedOperationQueue] 从数据库加载了 \(operations.count) 个操作")
+            LogService.shared.debug(.sync, "UnifiedOperationQueue 从数据库加载了 \(operations.count) 个操作")
         } catch {
-            print("[UnifiedOperationQueue] 从数据库加载操作失败: \(error)")
+            LogService.shared.error(.sync, "UnifiedOperationQueue 从数据库加载操作失败: \(error)")
         }
     }
 
@@ -155,7 +155,7 @@ public extension UnifiedOperationQueue {
 
         // 执行去重合并逻辑
         guard let finalOperation = try deduplicateAndMerge(operation) else {
-            print("[UnifiedOperationQueue] 操作被忽略: \(operation.type.rawValue) for \(operation.noteId)")
+            LogService.shared.debug(.sync, "操作被忽略: \(operation.type.rawValue) for \(operation.noteId)")
             return nil
         }
 
@@ -165,7 +165,7 @@ public extension UnifiedOperationQueue {
         // 更新内存缓存
         addToCache(finalOperation)
 
-        print("[UnifiedOperationQueue] 入队操作: \(finalOperation.type.rawValue) for \(finalOperation.noteId), id: \(finalOperation.id)")
+        LogService.shared.debug(.sync, "入队操作: \(finalOperation.type.rawValue) for \(finalOperation.noteId)")
 
         return finalOperation
     }
@@ -216,7 +216,7 @@ extension UnifiedOperationQueue {
             // noteCreate 优先级最高，不合并
             // 如果已有 noteCreate，忽略新的
             if existingOperations.contains(where: { $0.type == .noteCreate }) {
-                print("[UnifiedOperationQueue] 已存在 noteCreate 操作，忽略新的")
+                LogService.shared.debug(.sync, "已存在 noteCreate 操作，忽略新的")
                 return nil
             }
             return newOperation
@@ -224,14 +224,13 @@ extension UnifiedOperationQueue {
         case .cloudUpload:
             // 如果已有上传操作，合并为最新的
             if let existingUpload = existingOperations.first(where: { $0.type == .cloudUpload }) {
-                // 删除旧操作
                 try removeOperation(existingUpload.id)
-                print("[UnifiedOperationQueue] 合并 cloudUpload 操作: 删除旧操作 \(existingUpload.id)")
+                LogService.shared.debug(.sync, "合并 cloudUpload 操作: 删除旧操作 \(existingUpload.id)")
             }
 
             // 如果有删除操作，忽略上传
             if existingOperations.contains(where: { $0.type == .cloudDelete }) {
-                print("[UnifiedOperationQueue] 存在 cloudDelete 操作，忽略 cloudUpload")
+                LogService.shared.debug(.sync, "存在 cloudDelete 操作，忽略 cloudUpload")
                 return nil
             }
 
@@ -243,13 +242,13 @@ extension UnifiedOperationQueue {
                 // 如果有 noteCreate 操作，说明是离线创建后又删除
                 if op.type == .noteCreate {
                     try removeOperation(op.id)
-                    print("[UnifiedOperationQueue] 离线创建后删除，取消 noteCreate 操作: \(op.id)")
+                    LogService.shared.debug(.sync, "离线创建后删除，取消 noteCreate 操作: \(op.id)")
                     // 返回 nil，不需要 cloudDelete（因为云端没有这个笔记）
                     return nil
                 }
 
                 try removeOperation(op.id)
-                print("[UnifiedOperationQueue] cloudDelete 清除操作: \(op.id)")
+                LogService.shared.debug(.sync, "cloudDelete 清除操作: \(op.id)")
             }
             return newOperation
 
@@ -261,14 +260,14 @@ extension UnifiedOperationQueue {
             // 文件夹操作：只保留最新的同类型操作
             if let existingOp = existingOperations.first(where: { $0.type == newOperation.type }) {
                 try removeOperation(existingOp.id)
-                print("[UnifiedOperationQueue] 合并文件夹操作: 删除旧操作 \(existingOp.id)")
+                LogService.shared.debug(.sync, "合并文件夹操作: 删除旧操作 \(existingOp.id)")
             }
 
             // 如果是删除操作，清除其他文件夹操作
             if newOperation.type == .folderDelete {
                 for op in existingOperations where op.type != .folderDelete {
                     try removeOperation(op.id)
-                    print("[UnifiedOperationQueue] folderDelete 清除操作: \(op.id)")
+                    LogService.shared.debug(.sync, "folderDelete 清除操作: \(op.id)")
                 }
             }
 
@@ -300,7 +299,7 @@ public extension UnifiedOperationQueue {
         defer { lock.unlock() }
 
         guard var operation = operationsById[operationId] else {
-            print("[UnifiedOperationQueue] 操作不存在: \(operationId)")
+            LogService.shared.debug(.sync, "操作不存在: \(operationId)")
             return
         }
 
@@ -309,7 +308,7 @@ public extension UnifiedOperationQueue {
         try databaseService.saveUnifiedOperation(operation)
         updateInCache(operation)
 
-        print("[UnifiedOperationQueue] 标记操作为处理中: \(operationId)")
+        LogService.shared.debug(.sync, "标记操作为处理中: \(operationId)")
     }
 
     /// 标记操作完成
@@ -324,7 +323,7 @@ public extension UnifiedOperationQueue {
         defer { lock.unlock() }
 
         guard let operation = operationsById[operationId] else {
-            print("[UnifiedOperationQueue] 操作不存在: \(operationId)")
+            LogService.shared.debug(.sync, "操作不存在: \(operationId)")
             return
         }
 
@@ -340,7 +339,7 @@ public extension UnifiedOperationQueue {
         try databaseService.deleteUnifiedOperation(operationId: operationId)
         removeFromCache(operationId)
 
-        print("[UnifiedOperationQueue] 标记操作完成并移除: \(operationId), type: \(operation.type.rawValue)")
+        LogService.shared.debug(.sync, "标记操作完成并移除: \(operationId), type: \(operation.type.rawValue)")
     }
 
     /// 标记操作失败
@@ -356,7 +355,7 @@ public extension UnifiedOperationQueue {
         defer { lock.unlock() }
 
         guard var operation = operationsById[operationId] else {
-            print("[UnifiedOperationQueue] 操作不存在: \(operationId)")
+            LogService.shared.debug(.sync, "操作不存在: \(operationId)")
             return
         }
 
@@ -369,19 +368,19 @@ public extension UnifiedOperationQueue {
         let maxRetryCount = 5
         if operation.retryCount >= maxRetryCount {
             operation.status = .maxRetryExceeded
-            print("[UnifiedOperationQueue] 操作超过最大重试次数: \(operationId)")
+            LogService.shared.error(.sync, "操作超过最大重试次数: \(operationId)")
         }
 
         // 如果是认证错误，标记为 authFailed
         if errorType == .authExpired {
             operation.status = .authFailed
-            print("[UnifiedOperationQueue] 操作认证失败: \(operationId)")
+            LogService.shared.error(.sync, "操作认证失败: \(operationId)")
         }
 
         try databaseService.saveUnifiedOperation(operation)
         updateInCache(operation)
 
-        print("[UnifiedOperationQueue] 标记操作失败: \(operationId), error: \(error.localizedDescription), type: \(errorType.rawValue)")
+        LogService.shared.error(.sync, "标记操作失败: \(operationId), error: \(error.localizedDescription), type: \(errorType.rawValue)")
     }
 
     /// 标记操作失败（简化版本）
@@ -396,7 +395,7 @@ public extension UnifiedOperationQueue {
         defer { lock.unlock() }
 
         guard var operation = operationsById[operationId] else {
-            print("[UnifiedOperationQueue] 操作不存在: \(operationId)")
+            LogService.shared.debug(.sync, "操作不存在: \(operationId)")
             return
         }
 
@@ -419,7 +418,7 @@ public extension UnifiedOperationQueue {
         try databaseService.saveUnifiedOperation(operation)
         updateInCache(operation)
 
-        print("[UnifiedOperationQueue] 标记操作失败: \(operationId), error: \(errorMessage)")
+        LogService.shared.error(.sync, "标记操作失败: \(operationId), error: \(errorMessage)")
     }
 }
 
@@ -561,7 +560,7 @@ public extension UnifiedOperationQueue {
         defer { lock.unlock() }
 
         guard var operation = operationsById[operationId] else {
-            print("[UnifiedOperationQueue] 操作不存在: \(operationId)")
+            LogService.shared.debug(.sync, "操作不存在: \(operationId)")
             return
         }
 
@@ -575,7 +574,7 @@ public extension UnifiedOperationQueue {
         try databaseService.saveUnifiedOperation(operation)
         updateInCache(operation)
 
-        print("[UnifiedOperationQueue] 安排重试: \(operationId), 延迟 \(retryDelay) 秒, 下次重试时间: \(operation.nextRetryAt!)")
+        LogService.shared.debug(.sync, "安排重试: \(operationId), 延迟 \(retryDelay) 秒")
     }
 
     /// 计算重试延迟（指数退避）
@@ -631,7 +630,7 @@ public extension UnifiedOperationQueue {
         defer { lock.unlock() }
 
         guard var operation = operationsById[operationId] else {
-            print("[UnifiedOperationQueue] 操作不存在: \(operationId)")
+            LogService.shared.debug(.sync, "操作不存在: \(operationId)")
             return
         }
 
@@ -643,7 +642,7 @@ public extension UnifiedOperationQueue {
         try databaseService.saveUnifiedOperation(operation)
         updateInCache(operation)
 
-        print("[UnifiedOperationQueue] 重置操作状态为待处理: \(operationId)")
+        LogService.shared.debug(.sync, "重置操作状态为待处理: \(operationId)")
     }
 }
 
@@ -789,7 +788,7 @@ public extension UnifiedOperationQueue {
 
         // 获取该笔记的所有操作
         guard let operations = operationsByNoteId[oldNoteId] else {
-            print("[UnifiedOperationQueue] 没有找到笔记 \(oldNoteId) 的操作")
+            LogService.shared.debug(.sync, "没有找到笔记 \(oldNoteId) 的操作")
             return
         }
 
@@ -825,7 +824,7 @@ public extension UnifiedOperationQueue {
             }
         }
 
-        print("[UnifiedOperationQueue] 更新笔记 ID: \(oldNoteId) -> \(newNoteId), 影响了 \(updatedCount) 个操作")
+        LogService.shared.debug(.sync, "更新笔记 ID: \(oldNoteId) -> \(newNoteId), 影响了 \(updatedCount) 个操作")
     }
 
     /// 取消指定笔记的所有待处理操作
@@ -840,7 +839,7 @@ public extension UnifiedOperationQueue {
         defer { lock.unlock() }
 
         guard let operations = operationsByNoteId[noteId] else {
-            print("[UnifiedOperationQueue] 没有找到笔记 \(noteId) 的操作")
+            LogService.shared.debug(.sync, "没有找到笔记 \(noteId) 的操作，无法取消")
             return
         }
 
@@ -854,7 +853,7 @@ public extension UnifiedOperationQueue {
 
         operationsByNoteId.removeValue(forKey: noteId)
 
-        print("[UnifiedOperationQueue] 取消笔记 \(noteId) 的所有操作，共 \(cancelledCount) 个")
+        LogService.shared.debug(.sync, "取消笔记 \(noteId) 的所有操作，共 \(cancelledCount) 个")
     }
 }
 
@@ -880,7 +879,7 @@ public extension UnifiedOperationQueue {
             removeFromCache(id)
         }
 
-        print("[UnifiedOperationQueue] 清理了 \(completedIds.count) 个已完成的操作")
+        LogService.shared.debug(.sync, "清理了 \(completedIds.count) 个已完成的操作")
     }
 
     /// 清空所有操作
@@ -895,7 +894,7 @@ public extension UnifiedOperationQueue {
         operationsById.removeAll()
         operationsByNoteId.removeAll()
 
-        print("[UnifiedOperationQueue] 清空所有操作")
+        LogService.shared.info(.sync, "清空所有操作")
     }
 
     /// 重新加载数据
@@ -918,7 +917,7 @@ public extension UnifiedOperationQueue {
         do {
             return try databaseService.getOperationHistory(limit: limit)
         } catch {
-            print("[UnifiedOperationQueue] 获取历史记录失败: \(error)")
+            LogService.shared.error(.sync, "获取历史记录失败: \(error)")
             return []
         }
     }
@@ -928,7 +927,7 @@ public extension UnifiedOperationQueue {
     /// - Throws: DatabaseError（数据库操作失败）
     func clearHistory() throws {
         try databaseService.clearOperationHistory()
-        print("[UnifiedOperationQueue] 清空历史记录")
+        LogService.shared.info(.sync, "清空历史记录")
     }
 
     /// 获取历史记录统计

@@ -6,7 +6,7 @@ import SQLite3
 extension DatabaseService {
     /// 保存笔记（插入或更新）
     func saveNote(_ note: Note) throws {
-        print("[[调试]] 保存笔记，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
+        LogService.shared.debug(.storage, "保存笔记，ID: \(note.id), 标题: \(note.title), content长度: \(note.content.count)")
 
         try validateNote(note)
 
@@ -28,7 +28,7 @@ extension DatabaseService {
 
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[[调试]] SQL准备失败: \(errorMsg)")
+                LogService.shared.error(.storage, "SQL准备失败: \(errorMsg)")
                 throw DatabaseError.prepareFailed(errorMsg)
             }
 
@@ -36,11 +36,11 @@ extension DatabaseService {
 
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[[调试]] SQL执行失败: \(errorMsg)")
+                LogService.shared.error(.storage, "SQL执行失败: \(errorMsg)")
                 throw DatabaseError.executionFailed(errorMsg)
             }
 
-            print("[[调试]] 保存笔记到数据库成功，ID: \(note.id)")
+            LogService.shared.debug(.storage, "保存笔记到数据库成功，ID: \(note.id)")
         }
     }
 
@@ -80,10 +80,10 @@ extension DatabaseService {
                     throw DatabaseError.executionFailed(errorMsg)
                 }
 
-                Swift.print("[[调试]] 异步保存笔记到数据库成功，ID: \(note.id.prefix(8))...")
+                LogService.shared.debug(.storage, "异步保存笔记到数据库成功，ID: \(note.id.prefix(8))...")
                 completion(nil)
             } catch {
-                Swift.print("[[调试]] 异步保存笔记失败: \(error)")
+                LogService.shared.error(.storage, "异步保存笔记失败: \(error)")
                 completion(error)
             }
         }
@@ -127,10 +127,10 @@ extension DatabaseService {
                 }
 
                 executeSQL("COMMIT;")
-                print("[[调试]] 批量保存 \(notes.count) 条笔记成功")
+                LogService.shared.info(.storage, "批量保存 \(notes.count) 条笔记成功")
             } catch {
                 executeSQL("ROLLBACK;")
-                print("[[调试]] 批量保存笔记失败，事务已回滚: \(error)")
+                LogService.shared.error(.storage, "批量保存笔记失败，事务已回滚: \(error)")
                 throw error
             }
         }
@@ -201,7 +201,7 @@ extension DatabaseService {
                 }
             }
 
-            print("[[调试]] getAllNotes: 处理了 \(rowCount) 行，成功解析 \(notes.count) 条笔记")
+            LogService.shared.debug(.storage, "getAllNotes: 处理了 \(rowCount) 行，成功解析 \(notes.count) 条笔记")
             return notes
         }
     }
@@ -228,7 +228,7 @@ extension DatabaseService {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
 
-            print("[[调试]] 删除笔记: \(noteId)")
+            LogService.shared.debug(.storage, "删除笔记: \(noteId)")
         }
     }
 
@@ -282,12 +282,12 @@ extension DatabaseService {
             sqlite3_bind_text(selectStatement, 1, (oldId as NSString).utf8String, -1, nil)
 
             guard sqlite3_step(selectStatement) == SQLITE_ROW else {
-                print("[[调试]] 更新笔记 ID 失败：找不到笔记 \(oldId)")
+                LogService.shared.error(.storage, "更新笔记 ID 失败：找不到笔记 \(oldId)")
                 return
             }
 
             guard let parsedNote = try parseNote(from: selectStatement) else {
-                print("[[调试]] 更新笔记 ID 失败：无法解析笔记 \(oldId)")
+                LogService.shared.error(.storage, "更新笔记 ID 失败：无法解析笔记 \(oldId)")
                 return
             }
 
@@ -356,7 +356,7 @@ extension DatabaseService {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
 
-            print("[[调试]] 更新笔记 ID: \(oldId) -> \(newId)")
+            LogService.shared.debug(.storage, "更新笔记 ID: \(oldId) -> \(newId)")
         }
     }
 }

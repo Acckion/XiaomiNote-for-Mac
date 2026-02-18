@@ -150,17 +150,17 @@ public extension OperationProcessor {
     func processImmediately(_ operation: NoteOperation) async {
         // 检查网络是否可用
         guard await isNetworkConnected() else {
-            print("[OperationProcessor] 网络不可用，跳过立即处理: \(operation.id)")
+            LogService.shared.debug(.sync, "网络不可用，跳过立即处理: \(operation.id)")
             return
         }
 
         // 检查是否已认证
         guard miNoteService.isAuthenticated() else {
-            print("[OperationProcessor] 未认证，跳过立即处理: \(operation.id)")
+            LogService.shared.debug(.sync, "未认证，跳过立即处理: \(operation.id)")
             return
         }
 
-        print("[OperationProcessor] 🚀 立即处理操作: \(operation.type.rawValue) for \(operation.noteId)")
+        LogService.shared.debug(.sync, "立即处理操作: \(operation.type.rawValue) for \(operation.noteId)")
 
         currentOperationId = operation.id
         defer { currentOperationId = nil }
@@ -175,7 +175,7 @@ public extension OperationProcessor {
             // 标记为完成
             try operationQueue.markCompleted(operation.id)
 
-            print("[OperationProcessor] ✅ 立即处理成功: \(operation.id)")
+            LogService.shared.debug(.sync, "立即处理成功: \(operation.id)")
         } catch {
             // 处理失败
             await handleOperationFailure(operation: operation, error: error)
@@ -195,36 +195,36 @@ public extension OperationProcessor {
     func processQueue() async {
         // 防止重复处理
         guard !isProcessingQueue else {
-            print("[OperationProcessor] 队列正在处理中，跳过")
+            LogService.shared.debug(.sync, "队列正在处理中，跳过")
             return
         }
 
         // 检查网络是否可用
         guard await isNetworkConnected() else {
-            print("[OperationProcessor] 网络不可用，跳过队列处理")
+            LogService.shared.debug(.sync, "网络不可用，跳过队列处理")
             return
         }
 
         // 检查是否已认证
         guard miNoteService.isAuthenticated() else {
-            print("[OperationProcessor] 未认证，跳过队列处理")
+            LogService.shared.debug(.sync, "未认证，跳过队列处理")
             return
         }
 
         isProcessingQueue = true
         defer { isProcessingQueue = false }
 
-        print("[OperationProcessor] 📋 开始处理队列...")
+        LogService.shared.info(.sync, "开始处理队列")
 
         // 获取待处理操作（已按优先级和时间排序）
         let pendingOperations = operationQueue.getPendingOperations()
 
         guard !pendingOperations.isEmpty else {
-            print("[OperationProcessor] 队列为空，无需处理")
+            LogService.shared.debug(.sync, "队列为空，无需处理")
             return
         }
 
-        print("[OperationProcessor] 待处理操作数量: \(pendingOperations.count)")
+        LogService.shared.debug(.sync, "OperationProcessor 待处理操作数量: \(pendingOperations.count)")
 
         var successCount = 0
         var failureCount = 0
@@ -233,7 +233,7 @@ public extension OperationProcessor {
         for operation in pendingOperations {
             // 检查网络状态（可能在处理过程中断开）
             guard await isNetworkConnected() else {
-                print("[OperationProcessor] ⚠️ 网络断开，停止队列处理")
+                LogService.shared.warning(.sync, "OperationProcessor 网络断开，停止队列处理")
                 break
             }
 
@@ -255,7 +255,7 @@ public extension OperationProcessor {
                 try operationQueue.markCompleted(operation.id)
 
                 successCount += 1
-                print("[OperationProcessor] ✅ 处理成功: \(operation.id), type: \(operation.type.rawValue)")
+                LogService.shared.debug(.sync, "OperationProcessor 处理成功: \(operation.id), type: \(operation.type.rawValue)")
             } catch {
                 failureCount += 1
                 await handleOperationFailure(operation: operation, error: error)
@@ -264,16 +264,16 @@ public extension OperationProcessor {
 
         currentOperationId = nil
 
-        print("[OperationProcessor] 📋 队列处理完成，成功: \(successCount), 失败: \(failureCount)")
+        LogService.shared.info(.sync, "OperationProcessor 队列处理完成，成功: \(successCount), 失败: \(failureCount)")
 
         // 确认暂存的 syncTag（如果存在）
         do {
             let confirmed = try await syncStateManager.confirmPendingSyncTagIfNeeded()
             if confirmed {
-                print("[OperationProcessor] ✅ 已确认暂存的 syncTag")
+                LogService.shared.debug(.sync, "OperationProcessor 已确认暂存的 syncTag")
             }
         } catch {
-            print("[OperationProcessor] ⚠️ 确认 syncTag 失败: \(error.localizedDescription)")
+            LogService.shared.warning(.sync, "OperationProcessor 确认 syncTag 失败: \(error.localizedDescription)")
         }
 
         // 发送处理完成通知
@@ -434,19 +434,19 @@ public extension OperationProcessor {
     func processRetries() async {
         // 防止重复处理
         guard !isProcessingRetries else {
-            print("[OperationProcessor] 重试正在处理中，跳过")
+            LogService.shared.debug(.sync, "OperationProcessor 重试正在处理中，跳过")
             return
         }
 
         // 检查网络是否可用
         guard await isNetworkConnected() else {
-            print("[OperationProcessor] 网络不可用，跳过重试处理")
+            LogService.shared.debug(.sync, "OperationProcessor 网络不可用，跳过重试处理")
             return
         }
 
         // 检查是否已认证
         guard miNoteService.isAuthenticated() else {
-            print("[OperationProcessor] 未认证，跳过重试处理")
+            LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过重试处理")
             return
         }
 
@@ -460,7 +460,7 @@ public extension OperationProcessor {
             return
         }
 
-        print("[OperationProcessor] 🔄 开始处理重试，数量: \(retryOperations.count)")
+        LogService.shared.info(.sync, "OperationProcessor 开始处理重试，数量: \(retryOperations.count)")
 
         var successCount = 0
         var failureCount = 0
@@ -468,13 +468,13 @@ public extension OperationProcessor {
         for operation in retryOperations {
             // 检查网络状态
             guard await isNetworkConnected() else {
-                print("[OperationProcessor] ⚠️ 网络断开，停止重试处理")
+                LogService.shared.warning(.sync, "OperationProcessor 网络断开，停止重试处理")
                 break
             }
 
             // 检查是否超过最大重试次数
             guard operation.retryCount < maxRetryCount else {
-                print("[OperationProcessor] ⚠️ 操作超过最大重试次数: \(operation.id)")
+                LogService.shared.warning(.sync, "OperationProcessor 操作超过最大重试次数: \(operation.id)")
                 continue
             }
 
@@ -491,7 +491,7 @@ public extension OperationProcessor {
                 try operationQueue.markCompleted(operation.id)
 
                 successCount += 1
-                print("[OperationProcessor] ✅ 重试成功: \(operation.id)")
+                LogService.shared.debug(.sync, "OperationProcessor 重试成功: \(operation.id)")
             } catch {
                 failureCount += 1
                 await handleOperationFailure(operation: operation, error: error)
@@ -501,16 +501,16 @@ public extension OperationProcessor {
         currentOperationId = nil
 
         if successCount > 0 || failureCount > 0 {
-            print("[OperationProcessor] 🔄 重试处理完成，成功: \(successCount), 失败: \(failureCount)")
+            LogService.shared.info(.sync, "OperationProcessor 重试处理完成，成功: \(successCount), 失败: \(failureCount)")
 
             // 确认暂存的 syncTag（如果存在）
             do {
                 let confirmed = try await syncStateManager.confirmPendingSyncTagIfNeeded()
                 if confirmed {
-                    print("[OperationProcessor] ✅ 已确认暂存的 syncTag")
+                    LogService.shared.debug(.sync, "OperationProcessor 已确认暂存的 syncTag")
                 }
             } catch {
-                print("[OperationProcessor] ⚠️ 确认 syncTag 失败: \(error.localizedDescription)")
+                LogService.shared.warning(.sync, "OperationProcessor 确认 syncTag 失败: \(error.localizedDescription)")
             }
         }
     }
@@ -541,19 +541,17 @@ extension OperationProcessor {
         let errorType = classifyError(error)
         let isRetryable = errorType.isRetryable
 
-        print("[OperationProcessor] ❌ 操作失败: \(operation.id), 错误类型: \(errorType.rawValue), 可重试: \(isRetryable)")
+        LogService.shared.error(.sync, "OperationProcessor 操作失败: \(operation.id), 错误类型: \(errorType.rawValue), 可重试: \(isRetryable)")
 
         do {
             if isRetryable, operation.retryCount < maxRetryCount {
                 // 可重试错误：安排重试
-                // 需求: 2.3 - 上传失败（网络错误）时保留在队列中等待重试
                 let retryDelay = calculateRetryDelay(retryCount: operation.retryCount)
                 try operationQueue.scheduleRetry(operation.id, delay: retryDelay)
 
-                print("[OperationProcessor] ⏳ 安排重试: \(operation.id), 延迟 \(retryDelay) 秒")
+                LogService.shared.debug(.sync, "OperationProcessor 安排重试: \(operation.id), 延迟 \(retryDelay) 秒")
             } else if errorType == .authExpired {
                 // 认证错误：标记为 authFailed 并通知用户
-                // 需求: 2.4 - 上传失败（认证错误）时标记为 authFailed 并通知用户
                 try operationQueue.markFailed(operation.id, error: error, errorType: errorType)
 
                 // 发送认证失败通知
@@ -568,15 +566,15 @@ extension OperationProcessor {
                     )
                 }
 
-                print("[OperationProcessor] 🔐 认证失败，已通知用户: \(operation.id)")
+                LogService.shared.error(.sync, "OperationProcessor 认证失败，已通知用户: \(operation.id)")
             } else {
                 // 不可重试错误或超过最大重试次数：标记为失败
                 try operationQueue.markFailed(operation.id, error: error, errorType: errorType)
 
-                print("[OperationProcessor] ⛔ 操作最终失败: \(operation.id)")
+                LogService.shared.error(.sync, "OperationProcessor 操作最终失败: \(operation.id)")
             }
         } catch {
-            print("[OperationProcessor] ⚠️ 更新操作状态失败: \(error)")
+            LogService.shared.error(.sync, "OperationProcessor 更新操作状态失败: \(error)")
         }
     }
 
@@ -586,7 +584,7 @@ extension OperationProcessor {
     ///
     /// 需求: 2.2
     private func handleOperationSuccess(operation: NoteOperation) async {
-        print("[OperationProcessor] ✅ 操作成功: \(operation.id), type: \(operation.type.rawValue)")
+        LogService.shared.debug(.sync, "OperationProcessor 操作成功: \(operation.id), type: \(operation.type.rawValue)")
 
         // 发送成功通知
         await MainActor.run {
@@ -642,7 +640,7 @@ extension OperationProcessor {
     ///
     /// 需求: 8.4
     public func processNoteCreate(_ operation: NoteOperation) async throws {
-        print("[OperationProcessor] 📝 处理 noteCreate: \(operation.noteId)")
+        LogService.shared.debug(.sync, "OperationProcessor 处理 noteCreate: \(operation.noteId)")
 
         // 1. 从本地加载笔记
         guard let note = try? localStorage.loadNote(noteId: operation.noteId) else {
@@ -688,7 +686,7 @@ extension OperationProcessor {
             note.folderId
         }
 
-        print("[OperationProcessor] 📝 云端创建成功: \(operation.noteId) -> \(serverNoteId)")
+        LogService.shared.info(.sync, "OperationProcessor 云端创建成功: \(operation.noteId) -> \(serverNoteId)")
 
         // 4. 更新本地笔记
         var updatedRawData = note.rawData ?? [:]
@@ -739,7 +737,7 @@ extension OperationProcessor {
                 )
             }
 
-            print("[OperationProcessor] 📝 ID 更新完成: \(note.id) -> \(serverNoteId)")
+            LogService.shared.info(.sync, "OperationProcessor ID 更新完成: \(note.id) -> \(serverNoteId)")
         } else {
             // ID 相同，只更新 rawData
             let updatedNote = Note(
@@ -762,7 +760,7 @@ extension OperationProcessor {
     /// - Parameter operation: cloudUpload 操作
     /// - Throws: 执行错误
     private func processCloudUpload(_ operation: NoteOperation) async throws {
-        print("[OperationProcessor] ☁️ 处理 cloudUpload: \(operation.noteId)")
+        LogService.shared.debug(.sync, "OperationProcessor 处理 cloudUpload: \(operation.noteId)")
 
         // 从本地加载笔记
         guard let note = try? localStorage.loadNote(noteId: operation.noteId) else {
@@ -773,17 +771,8 @@ extension OperationProcessor {
             )
         }
 
-        // 调试：打印加载的笔记字段
-        print("[OperationProcessor] 📖 从数据库加载的笔记字段:")
-        print("[OperationProcessor]   - id: \(note.id)")
-        print("[OperationProcessor]   - serverTag: \(note.serverTag ?? "nil")")
-        print("[OperationProcessor]   - subject: \(note.subject ?? "nil")")
-        print("[OperationProcessor]   - settingJson: \(note.settingJson != nil ? "有值(\(note.settingJson!.count)字符)" : "nil")")
-        print("[OperationProcessor]   - extraInfoJson: \(note.extraInfoJson != nil ? "有值(\(note.extraInfoJson!.count)字符)" : "nil")")
-
-        // 获取现有的 tag（从 serverTag 字段，而不是 rawData）
         let existingTag = note.serverTag ?? note.id
-        print("[OperationProcessor] 🏷️ 使用 tag: \(existingTag), serverTag: \(note.serverTag ?? "nil"), id: \(note.id)")
+        LogService.shared.debug(.sync, "OperationProcessor cloudUpload 使用 tag: \(existingTag)")
 
         // 调用 API 更新笔记
         let response = try await miNoteService.updateNote(
@@ -814,12 +803,7 @@ extension OperationProcessor {
             existingTag
         }
 
-        print("[OperationProcessor] 📥 服务器返回新 tag: \(newTag)")
-        print("[OperationProcessor] 📝 准备保存笔记，保持原有字段值:")
-        print("[OperationProcessor]   - serverTag: \(newTag)")
-        print("[OperationProcessor]   - subject: \(note.subject ?? "nil")")
-        print("[OperationProcessor]   - settingJson: \(note.settingJson != nil ? "有值(\(note.settingJson!.count)字符)" : "nil")")
-        print("[OperationProcessor]   - extraInfoJson: \(note.extraInfoJson != nil ? "有值(\(note.extraInfoJson!.count)字符)" : "nil")")
+        LogService.shared.debug(.sync, "OperationProcessor 服务器返回新 tag: \(newTag)")
 
         // 更新 rawData 中的 tag
         var updatedRawData = note.rawData ?? [:]
@@ -848,9 +832,7 @@ extension OperationProcessor {
         )
 
         try localStorage.saveNote(updatedNote)
-        print("[OperationProcessor] ✅ 笔记已保存到数据库")
-
-        print("[OperationProcessor] ☁️ 上传成功: \(operation.noteId)")
+        LogService.shared.info(.sync, "OperationProcessor 上传成功: \(operation.noteId)")
     }
 
     /// 处理云端删除操作
@@ -858,7 +840,7 @@ extension OperationProcessor {
     /// - Parameter operation: cloudDelete 操作
     /// - Throws: 执行错误
     private func processCloudDelete(_ operation: NoteOperation) async throws {
-        print("[OperationProcessor] 🗑️ 处理 cloudDelete: \(operation.noteId)")
+        LogService.shared.debug(.sync, "OperationProcessor 处理 cloudDelete: \(operation.noteId)")
 
         // 从操作数据中解析 tag
         guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
@@ -874,7 +856,7 @@ extension OperationProcessor {
         // 调用 API 删除笔记
         _ = try await miNoteService.deleteNote(noteId: operation.noteId, tag: tag, purge: false)
 
-        print("[OperationProcessor] 🗑️ 删除成功: \(operation.noteId)")
+        LogService.shared.info(.sync, "OperationProcessor 删除成功: \(operation.noteId)")
     }
 
     /// 处理图片上传操作
@@ -882,10 +864,8 @@ extension OperationProcessor {
     /// - Parameter operation: imageUpload 操作
     /// - Throws: 执行错误
     private func processImageUpload(_ operation: NoteOperation) async throws {
-        print("[OperationProcessor] 🖼️ 处理 imageUpload: \(operation.noteId)")
+        LogService.shared.debug(.sync, "OperationProcessor 处理 imageUpload: \(operation.noteId)")
         // 图片上传通常在更新笔记时一起处理
-        // 这里可以添加独立的图片上传逻辑
-        print("[OperationProcessor] 🖼️ 图片上传操作（已在更新笔记时处理）")
     }
 
     /// 处理创建文件夹操作
@@ -893,7 +873,7 @@ extension OperationProcessor {
     /// - Parameter operation: folderCreate 操作
     /// - Throws: 执行错误
     private func processFolderCreate(_ operation: NoteOperation) async throws {
-        print("[OperationProcessor] 📁 处理 folderCreate: \(operation.noteId)")
+        LogService.shared.debug(.sync, "OperationProcessor 处理 folderCreate: \(operation.noteId)")
 
         // 从操作数据中解析文件夹名称
         guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
@@ -969,7 +949,7 @@ extension OperationProcessor {
 
         try databaseService.saveFolder(folder)
 
-        print("[OperationProcessor] 📁 创建文件夹成功: \(operation.noteId) -> \(folderId)")
+        LogService.shared.info(.sync, "OperationProcessor 创建文件夹成功: \(operation.noteId) -> \(folderId)")
     }
 
     /// 处理重命名文件夹操作
@@ -977,7 +957,7 @@ extension OperationProcessor {
     /// - Parameter operation: folderRename 操作
     /// - Throws: 执行错误
     private func processFolderRename(_ operation: NoteOperation) async throws {
-        print("[OperationProcessor] 📁 处理 folderRename: \(operation.noteId)")
+        LogService.shared.debug(.sync, "OperationProcessor 处理 folderRename: \(operation.noteId)")
 
         // 从操作数据中解析参数
         guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
@@ -1033,15 +1013,14 @@ extension OperationProcessor {
             }
         }
 
-        print("[OperationProcessor] 📁 重命名文件夹成功: \(operation.noteId)")
-    }
+        LogService.shared.info(.sync, "OperationProcessor 重命名文件夹成功: \(operation.noteId)")    }
 
     /// 处理删除文件夹操作
     ///
     /// - Parameter operation: folderDelete 操作
     /// - Throws: 执行错误
     private func processFolderDelete(_ operation: NoteOperation) async throws {
-        print("[OperationProcessor] 📁 处理 folderDelete: \(operation.noteId)")
+        LogService.shared.debug(.sync, "OperationProcessor 处理 folderDelete: \(operation.noteId)")
 
         // 从操作数据中解析 tag
         guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
@@ -1057,7 +1036,7 @@ extension OperationProcessor {
         // 调用 API 删除文件夹
         _ = try await miNoteService.deleteFolder(folderId: operation.noteId, tag: tag, purge: false)
 
-        print("[OperationProcessor] 📁 删除文件夹成功: \(operation.noteId)")
+        LogService.shared.info(.sync, "OperationProcessor 删除文件夹成功: \(operation.noteId)")
     }
 }
 
@@ -1172,17 +1151,17 @@ public extension OperationProcessor {
     ///
     /// - Returns: 处理结果，包含成功和失败的操作数量
     func processOperationsAtStartup() async -> (successCount: Int, failureCount: Int) {
-        print("[OperationProcessor] 🚀 启动时处理离线队列")
+        LogService.shared.info(.sync, "OperationProcessor 启动时处理离线队列")
 
         // 检查网络是否可用
         guard await isNetworkConnected() else {
-            print("[OperationProcessor] 网络不可用，跳过启动处理")
+            LogService.shared.debug(.sync, "OperationProcessor 网络不可用，跳过启动处理")
             return (0, 0)
         }
 
         // 检查是否已认证
         guard miNoteService.isAuthenticated() else {
-            print("[OperationProcessor] 未认证，跳过启动处理")
+            LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过启动处理")
             return (0, 0)
         }
 

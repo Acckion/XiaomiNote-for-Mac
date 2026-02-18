@@ -85,7 +85,7 @@ extension SyncService: SyncServiceProtocol {
 
         case .merge:
             // 合并版本：目前不支持，使用远程版本
-            print("[SYNC] 合并策略暂不支持，使用远程版本")
+            LogService.shared.info(.sync, "合并策略暂不支持，使用远程版本")
             _ = try await syncSingleNote(noteId: operation.change.noteId)
         }
     }
