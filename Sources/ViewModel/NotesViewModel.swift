@@ -71,9 +71,6 @@ public class NotesViewModel: ObservableObject {
     /// 是否显示登录视图
     @Published var showLoginView = false
 
-    /// 是否显示Cookie刷新视图
-    @Published var showCookieRefreshView = false
-
     /// 私密笔记是否已解锁
     @Published var isPrivateNotesUnlocked = false
 
@@ -850,10 +847,6 @@ public class NotesViewModel: ObservableObject {
         // 同步 showLoginView
         authStateManager.$showLoginView
             .assign(to: &$showLoginView)
-
-        // 同步 showCookieRefreshView
-        authStateManager.$showCookieRefreshView
-            .assign(to: &$showCookieRefreshView)
 
         // 同步 ViewStateCoordinator 的状态到 ViewModel
         // - 1.1: 编辑笔记内容时保持选中状态不变

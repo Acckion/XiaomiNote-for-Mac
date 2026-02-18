@@ -198,13 +198,6 @@ public struct SettingsView: View {
                         dismiss()
                     }
 
-                    Button("刷新Cookie") {
-                        // 发送通知让主窗口控制器显示Cookie刷新视图
-                        NotificationCenter.default.post(name: NSNotification.Name("ShowCookieRefreshView"), object: nil)
-                        dismiss()
-                    }
-                    .help("如果同步失败，尝试刷新Cookie")
-
                     Button("退出登录", role: .destructive) {
                         showLogoutAlert = true
                     }

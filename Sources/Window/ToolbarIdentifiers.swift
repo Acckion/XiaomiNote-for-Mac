@@ -101,9 +101,6 @@
         /// 回收站
         static let trash = NSToolbarItem.Identifier("trash")
 
-        /// Cookie刷新
-        static let cookieRefresh = NSToolbarItem.Identifier("cookieRefresh")
-
         /// 离线操作处理
         static let offlineOperations = NSToolbarItem.Identifier("offlineOperations")
 

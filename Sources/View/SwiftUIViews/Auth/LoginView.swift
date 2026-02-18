@@ -129,6 +129,10 @@ struct LoginView: View {
     }
 
     private func extractAndSaveCookies(_ cookies: [HTTPCookie]) {
+        // 从 HTTPCookie 数组中提取 passToken 和 userId，用于 PassTokenManager
+        let passTokenFromCookies = cookies.first(where: { $0.name == "passToken" })?.value
+        let userIdFromCookies = cookies.first(where: { $0.name == "userId" })?.value
+
         // 如果已经有保存的 cookie 字符串（从 URLSession 获取的），直接使用
         if let savedCookieString = UserDefaults.standard.string(forKey: "minote_cookie"), !savedCookieString.isEmpty {
             print("使用已保存的 Cookie 字符串（从 URLSession 获取）")
@@ -143,10 +147,12 @@ struct LoginView: View {
                 isLoggedIn = true
             }
 
-            // 延迟一下再加载数据，确保 cookie 完全生效
+            // 尝试存储 passToken 并执行三步流程
             Task {
-                // 等待 1 秒，让 cookie 有时间生效
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                await storePassTokenAndRefresh(
+                    passToken: passTokenFromCookies,
+                    userId: userIdFromCookies
+                )
                 await viewModel.loadNotesFromCloud()
             }
             return
@@ -204,10 +210,12 @@ struct LoginView: View {
                 isLoggedIn = true
             }
 
-            // 延迟一下再加载数据，确保 cookie 完全生效
+            // 尝试存储 passToken 并执行三步流程
             Task {
-                // 等待 1 秒，让 cookie 有时间生效
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                await storePassTokenAndRefresh(
+                    passToken: passTokenFromCookies ?? cookieDict["passToken"],
+                    userId: userIdFromCookies ?? cookieDict["userId"]
+                )
                 await viewModel.loadNotesFromCloud()
             }
         } else {
@@ -223,6 +231,30 @@ struct LoginView: View {
             if cookieDict["csrfToken"] == nil {
                 print("警告：缺少 csrfToken cookie，可能需要访问主页")
             }
+        }
+    }
+
+    /// 存储 passToken 凭据并执行三步流程刷新 serviceToken
+    ///
+    /// 如果 passToken 提取失败，回退到现有 Cookie 逻辑（不影响登录成功状态）
+    private func storePassTokenAndRefresh(passToken: String?, userId: String?) async {
+        guard let passToken, !passToken.isEmpty,
+              let userId, !userId.isEmpty
+        else {
+            print("[[调试]] passToken 或 userId 提取失败，回退到现有 Cookie 逻辑")
+            return
+        }
+
+        print("[[调试]] 成功提取 passToken 和 userId，存储到 PassTokenManager")
+        await PassTokenManager.shared.storeCredentials(passToken: passToken, userId: userId)
+
+        // 执行一次三步流程获取 serviceToken
+        do {
+            try await PassTokenManager.shared.refreshServiceToken()
+            print("[[调试]] 首次三步流程执行成功")
+        } catch {
+            // 首次三步流程失败不影响登录成功状态，后续由定时任务触发刷新
+            print("[[调试]] 首次三步流程执行失败: \(error.localizedDescription)，不影响登录状态")
         }
     }
 }

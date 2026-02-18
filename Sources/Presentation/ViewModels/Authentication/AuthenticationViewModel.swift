@@ -37,9 +37,6 @@ public final class AuthenticationViewModel: ObservableObject {
     /// 是否显示登录视图
     @Published public var showLoginView = false
 
-    /// 是否显示 Cookie 刷新视图
-    @Published public var showCookieRefreshView = false
-
     /// Cookie 是否过期
     @Published public var isCookieExpired = false
 
@@ -197,13 +194,11 @@ public final class AuthenticationViewModel: ObservableObject {
             _ = try await authService.refreshAccessToken()
 
             isCookieExpired = false
-            showCookieRefreshView = false
 
             print("[AuthenticationViewModel] Cookie 刷新成功")
         } catch {
             errorMessage = "Cookie 刷新失败: \(error.localizedDescription)"
             isCookieExpired = true
-            showCookieRefreshView = true
             print("[AuthenticationViewModel] Cookie 刷新失败: \(error)")
         }
 

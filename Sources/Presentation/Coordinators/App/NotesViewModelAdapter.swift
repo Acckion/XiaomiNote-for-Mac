@@ -97,9 +97,6 @@ public final class NotesViewModelAdapter: NotesViewModel {
         coordinator.authViewModel.$showLoginView
             .assign(to: &$showLoginView)
 
-        coordinator.authViewModel.$showCookieRefreshView
-            .assign(to: &$showCookieRefreshView)
-
         coordinator.authViewModel.$isPrivateNotesUnlocked
             .assign(to: &$isPrivateNotesUnlocked)
 
@@ -521,7 +518,8 @@ public final class NotesViewModelAdapter: NotesViewModel {
     // MARK: - Cookie Management
 
     override func handleCookieExpiredRefresh() {
-        showCookieRefreshView = true
+        // PassToken 重构后，Cookie 过期时提示重新登录
+        showLoginView = true
     }
 
     override func handleCookieExpiredCancel() {
@@ -529,7 +527,7 @@ public final class NotesViewModelAdapter: NotesViewModel {
     }
 
     override func handleCookieRefreshed() {
-        showCookieRefreshView = false
+        // PassToken 重构后不再需要 CookieRefreshView
     }
 
     override func handleCookieExpiredSilently() async {

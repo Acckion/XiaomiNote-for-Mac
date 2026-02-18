@@ -36,7 +36,6 @@
 
         /// 窗口控制器引用（防止被释放）
         private var loginWindowController: LoginWindowController?
-        private var cookieRefreshWindowController: CookieRefreshWindowController?
         private var settingsWindowController: SettingsWindowController?
         private var historyWindowController: HistoryWindowController?
         private var trashWindowController: TrashWindowController?
@@ -68,9 +67,6 @@
 
         /// 登录sheet的工具栏代理引用
         private weak var loginSheetToolbarDelegate: BaseSheetToolbarDelegate?
-
-        /// Cookie刷新sheet的工具栏代理引用
-        private weak var cookieRefreshSheetToolbarDelegate: BaseSheetToolbarDelegate?
 
         /// 历史记录sheet的工具栏代理引用
         private weak var historySheetToolbarDelegate: BaseSheetToolbarDelegate?
@@ -557,14 +553,6 @@
 
                 menu.addItem(NSMenuItem.separator())
 
-                // 刷新Cookie
-                let refreshCookieItem = NSMenuItem()
-                refreshCookieItem.title = "刷新Cookie"
-                refreshCookieItem.action = #selector(showCookieRefresh(_:))
-                refreshCookieItem.target = self
-                menu.addItem(refreshCookieItem)
-
-                menu.addItem(NSMenuItem.separator())
                 // 完整同步
                 let fullSyncItem = NSMenuItem()
                 fullSyncItem.title = "完整同步"
@@ -659,14 +647,6 @@
             case .trash:
                 return buildToolbarButton(.trash, "回收站", NSImage(systemSymbolName: "trash", accessibilityDescription: nil)!, "showTrash:")
 
-            case .cookieRefresh:
-                return buildToolbarButton(
-                    .cookieRefresh,
-                    "刷新Cookie",
-                    NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)!,
-                    "showCookieRefresh:"
-                )
-
             case .offlineOperations:
                 return buildToolbarButton(
                     .offlineOperations,
@@ -748,7 +728,6 @@
                 NSToolbarItem.Identifier.onlineStatus,
                 NSToolbarItem.Identifier.settings,
                 NSToolbarItem.Identifier.login,
-                NSToolbarItem.Identifier.cookieRefresh,
                 NSToolbarItem.Identifier.offlineOperations,
                 NSToolbarItem.Identifier.timelineTrackingSeparator,
                 NSToolbarItem.Identifier.share,
@@ -998,9 +977,6 @@
             if window == loginWindowController?.window {
                 print("登录窗口即将关闭，清理引用")
                 loginWindowController = nil
-            } else if window == cookieRefreshWindowController?.window {
-                print("Cookie刷新窗口即将关闭，清理引用")
-                cookieRefreshWindowController = nil
             } else if window == settingsWindowController?.window {
                 print("设置窗口即将关闭，清理引用")
                 settingsWindowController = nil
@@ -1292,10 +1268,6 @@
                 return !isLoggedIn
             }
 
-            if item.action == #selector(showCookieRefresh(_:)) {
-                return viewModel?.isCookieExpired ?? false
-            }
-
             if item.action == #selector(showOfflineOperations(_:)) {
                 let pendingCount = viewModel?.pendingOperationsCount ?? 0
                 return pendingCount > 0
@@ -1547,59 +1519,6 @@
             }
 
             print("显示登录sheet - 完成")
-        }
-
-        @objc func showCookieRefresh(_: Any?) {
-            // 显示Cookie刷新sheet
-            print("显示Cookie刷新sheet - 开始")
-
-            guard let window else {
-                print("错误：主窗口不存在，无法显示Cookie刷新sheet")
-                return
-            }
-
-            guard let viewModel else {
-                print("[MainWindowController] 错误: viewModel 为 nil，无法创建 Cookie 刷新视图")
-                return
-            }
-
-            // 创建Cookie刷新视图
-            let cookieRefreshView = CookieRefreshView(viewModel: viewModel)
-
-            // 创建托管控制器
-            let hostingController = NSHostingController(rootView: cookieRefreshView)
-
-            // 创建sheet窗口
-            let sheetWindow = NSWindow(contentViewController: hostingController)
-            sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
-            sheetWindow.title = "刷新Cookie"
-            sheetWindow.titlebarAppearsTransparent = false // 显示标题栏
-            sheetWindow.titleVisibility = .visible // 显示标题
-
-            // 为sheet窗口添加工具栏
-            let toolbarDelegate = BaseSheetToolbarDelegate()
-            toolbarDelegate.onClose = { [weak window] in
-                // 关闭sheet
-                window?.endSheet(sheetWindow)
-            }
-
-            let toolbar = NSToolbar(identifier: "CookieRefreshSheetToolbar")
-            toolbar.displayMode = .iconOnly
-            toolbar.delegate = toolbarDelegate
-            sheetWindow.toolbar = toolbar
-            sheetWindow.toolbarStyle = .unified
-
-            // 存储工具栏代理引用，防止被ARC释放
-            cookieRefreshSheetToolbarDelegate = toolbarDelegate
-
-            // 显示sheet
-            window.beginSheet(sheetWindow) { response in
-                print("Cookie刷新sheet关闭，响应: \(response)")
-                // 清理工具栏代理引用
-                self.cookieRefreshSheetToolbarDelegate = nil
-            }
-
-            print("显示Cookie刷新sheet - 完成")
         }
 
         @objc internal func showOfflineOperations(_: Any?) {
@@ -2888,19 +2807,6 @@
                 }
                 .store(in: &cancellables)
 
-            // 监听Cookie刷新视图显示状态
-            viewModel.$showCookieRefreshView
-                .receive(on: RunLoop.main)
-                .sink { [weak self] showCookieRefreshView in
-                    if showCookieRefreshView {
-                        print("[MainWindowController] 检测到showCookieRefreshView变为true，显示Cookie刷新窗口")
-                        self?.showCookieRefresh(nil)
-                        // 重置状态，避免重复触发
-                        viewModel.showCookieRefreshView = false
-                    }
-                }
-                .store(in: &cancellables)
-
             // 监听选中的文件夹变化，更新窗口标题
             viewModel.$selectedFolder
                 .receive(on: RunLoop.main)
@@ -2959,15 +2865,6 @@
             ) { [weak self] _ in
                 print("[MainWindowController] 收到ShowLoginView通知，显示登录窗口")
                 self?.showLogin(nil)
-            }
-
-            NotificationCenter.default.addObserver(
-                forName: NSNotification.Name("ShowCookieRefreshView"),
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                print("[MainWindowController] 收到ShowCookieRefreshView通知，显示Cookie刷新窗口")
-                self?.showCookieRefresh(nil)
             }
 
             // 监听音频面板可见性变化

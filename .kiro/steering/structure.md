@@ -51,6 +51,7 @@ Sources/
 │   │   └── XiaoMiFormatConverter.swift
 │   └── Core/               # 核心服务
 │       ├── AuthenticationStateManager.swift
+│       ├── PassTokenManager.swift
 │       ├── StartupSequenceManager.swift
 │       ├── ScheduledTaskManager.swift
 │       ├── ErrorRecoveryService.swift

@@ -429,15 +429,6 @@
 
                 menu.addItem(NSMenuItem.separator())
 
-                // 刷新Cookie
-                let refreshCookieItem = NSMenuItem()
-                refreshCookieItem.title = "刷新Cookie"
-                refreshCookieItem.action = #selector(MainWindowController.showCookieRefresh(_:))
-                refreshCookieItem.target = windowController
-                menu.addItem(refreshCookieItem)
-
-                menu.addItem(NSMenuItem.separator())
-
                 // 完整同步
                 let fullSyncItem = NSMenuItem()
                 fullSyncItem.title = "完整同步"
@@ -561,14 +552,6 @@
 
             case .trash:
                 return buildToolbarButton(.trash, "回收站", NSImage(systemSymbolName: "trash", accessibilityDescription: nil)!, "showTrash:")
-
-            case .cookieRefresh:
-                return buildToolbarButton(
-                    .cookieRefresh,
-                    "刷新Cookie",
-                    NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)!,
-                    "showCookieRefresh:"
-                )
 
             case .offlineOperations:
                 return buildToolbarButton(
@@ -724,7 +707,6 @@
                 NSToolbarItem.Identifier.viewOptions,
                 NSToolbarItem.Identifier.settings,
                 NSToolbarItem.Identifier.login,
-                NSToolbarItem.Identifier.cookieRefresh,
                 NSToolbarItem.Identifier.offlineOperations,
                 NSToolbarItem.Identifier.timelineTrackingSeparator,
                 NSToolbarItem.Identifier.share,

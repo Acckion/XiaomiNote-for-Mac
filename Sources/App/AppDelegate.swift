@@ -358,10 +358,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         menuActionHandler.showLogin(sender)
     }
 
-    @objc func showCookieRefresh(_ sender: Any?) {
-        menuActionHandler.showCookieRefresh(sender)
-    }
-
     @objc func showOfflineOperations(_ sender: Any?) {
         menuActionHandler.showOfflineOperations(sender)
     }
