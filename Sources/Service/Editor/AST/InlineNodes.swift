@@ -57,7 +57,7 @@ public struct FormattedNode: InlineNode, Equatable, Sendable {
     public init(type: ASTNodeType, content: [any InlineNode], color: String? = nil) {
         // 确保类型是行内格式类型
         assert(type.isInlineFormat, "FormattedNode 只能使用行内格式类型")
-        nodeType = type
+        self.nodeType = type
         self.content = content
         self.color = color
     }

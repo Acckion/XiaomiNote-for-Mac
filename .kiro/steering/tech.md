@@ -49,3 +49,53 @@ xcodebuild clean -project MiNoteMac.xcodeproj -scheme MiNoteMac
 - **本地存储**: SQLite 数据库
 - **云端格式**: XML（小米笔记格式）
 - **编辑器格式**: HTML（Web 编辑器）/ NSAttributedString（原生编辑器）
+
+## 数据库迁移指南
+
+项目使用版本化迁移机制管理数据库结构变更，迁移文件位于 `Sources/Service/Storage/DatabaseMigrationManager.swift`。
+
+### 添加新迁移
+
+在 `DatabaseMigrationManager.migrations` 数组中添加新条目：
+
+```swift
+static let migrations: [Migration] = [
+    // 已有迁移...
+    
+    // 新增迁移
+    Migration(
+        version: 2,  // 版本号递增
+        description: "添加笔记归档字段",
+        sql: "ALTER TABLE notes ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;"
+    ),
+]
+```
+
+### 迁移规则
+
+- 版本号必须递增（1, 2, 3...），不能跳跃或修改已发布的迁移
+- 每个迁移是原子操作，失败会自动回滚
+- SQL 语句建议使用 `IF NOT EXISTS` / `IF EXISTS` 增强健壮性
+- 迁移在应用启动时自动执行（`DatabaseService.createTables()` 调用）
+
+### 常见迁移类型
+
+```swift
+// 添加列
+"ALTER TABLE notes ADD COLUMN new_field TEXT;"
+
+// 添加索引
+"CREATE INDEX IF NOT EXISTS idx_name ON table(column);"
+
+// 创建新表
+"CREATE TABLE IF NOT EXISTS new_table (id TEXT PRIMARY KEY, ...);"
+
+// 删除索引
+"DROP INDEX IF EXISTS idx_name;"
+```
+
+### 注意事项
+
+- SQLite 不支持 `DROP COLUMN`，需要重建表
+- 复杂迁移可使用多条 SQL 语句，用分号分隔
+- 测试迁移时可删除本地数据库文件（位于 `~/Library/Application Support/com.mi.note.mac/minote.db`）

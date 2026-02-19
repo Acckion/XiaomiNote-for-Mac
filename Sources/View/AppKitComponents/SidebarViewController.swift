@@ -170,7 +170,7 @@ class SidebarViewController: NSViewController {
                 do {
                     try await viewModel.toggleFolderPin(folder)
                 } catch {
-                    print("切换文件夹置顶状态失败: \(error)")
+                    LogService.shared.error(.app, "切换文件夹置顶状态失败: \(error)")
                 }
             }
         }
@@ -211,7 +211,7 @@ class SidebarViewController: NSViewController {
                     do {
                         try await viewModel.renameFolder(folder, newName: newName)
                     } catch {
-                        print("重命名文件夹失败: \(error)")
+                        LogService.shared.error(.app, "重命名文件夹失败: \(error)")
                     }
                 }
             }
@@ -238,7 +238,7 @@ class SidebarViewController: NSViewController {
                 do {
                     try await viewModel.deleteFolder(folder)
                 } catch {
-                    print("删除文件夹失败: \(error)")
+                    LogService.shared.error(.app, "删除文件夹失败: \(error)")
                 }
             }
         }
@@ -266,7 +266,7 @@ class SidebarViewController: NSViewController {
                     do {
                         try await viewModel.createFolder(name: folderName)
                     } catch {
-                        print("创建文件夹失败: \(error)")
+                        LogService.shared.error(.app, "创建文件夹失败: \(error)")
                     }
                 }
             }
@@ -573,15 +573,12 @@ extension SidebarViewController: NSOutlineViewDelegate {
             expandedFolderIds: expandedFolderIds
         )
 
-        print("[SidebarViewController] 侧边栏状态已保存: \(state)")
         return state
     }
 
     /// 恢复窗口状态
     /// - Parameter state: 要恢复的侧边栏窗口状态
     func restoreWindowState(_ state: SidebarWindowState) {
-        print("[SidebarViewController] 恢复侧边栏状态: \(state)")
-
         // 恢复选中的文件夹
         if let selectedFolderId = state.selectedFolderId,
            let folder = viewModel.folders.first(where: { $0.id == selectedFolderId })
@@ -591,8 +588,6 @@ extension SidebarViewController: NSOutlineViewDelegate {
 
         // 恢复展开状态（在这个实现中，所有文件夹都是展开的）
         // 如果需要，可以在这里实现具体的展开逻辑
-
-        print("[SidebarViewController] 侧边栏状态恢复完成")
     }
 }
 

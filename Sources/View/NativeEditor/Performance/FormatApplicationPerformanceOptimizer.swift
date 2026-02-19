@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  格式应用性能优化器 - 优化格式应用的响应时间
-//  需求: 3.1 - 确保50ms内开始格式应用
 //
 
 import AppKit
@@ -95,7 +94,7 @@ final class FormatApplicationPerformanceOptimizer {
                     thresholdMs: Self.formatApplicationThresholdMs
                 )
             } else if verboseLogging {
-                print("[FormatPerformance] ✅ 格式应用完成: \(format.displayName), 耗时: \(String(format: "%.2f", durationMs))ms")
+                LogService.shared.debug(.editor, "格式应用完成: \(format.displayName), 耗时: \(String(format: "%.2f", durationMs))ms")
             }
         }
 
@@ -206,7 +205,7 @@ final class FormatApplicationPerformanceOptimizer {
                 thresholdMs: Self.formatApplicationThresholdMs
             )
         } else if verboseLogging {
-            print("[FormatPerformance] ✅ 格式应用完成: \(context.format.displayName), 耗时: \(String(format: "%.2f", durationMs))ms")
+            LogService.shared.debug(.editor, "格式应用完成: \(context.format.displayName), 耗时: \(String(format: "%.2f", durationMs))ms")
         }
     }
 
@@ -277,10 +276,10 @@ final class FormatApplicationPerformanceOptimizer {
         durationMs: Double,
         thresholdMs: Double
     ) {
-        print("[FormatPerformance] ⚠️ \(operation)性能警告: \(format.displayName)")
-        print("  - 耗时: \(String(format: "%.2f", durationMs))ms")
-        print("  - 阈值: \(String(format: "%.2f", thresholdMs))ms")
-        print("  - 超出: \(String(format: "%.2f", durationMs - thresholdMs))ms")
+        LogService.shared.warning(
+            .editor,
+            "\(operation)性能警告: \(format.displayName) 耗时 \(String(format: "%.2f", durationMs))ms, 超出阈值 \(String(format: "%.2f", durationMs - thresholdMs))ms"
+        )
     }
 
     // MARK: - 查询方法

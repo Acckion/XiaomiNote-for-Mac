@@ -62,65 +62,30 @@
         /// 显示查找面板
         @MainActor
         public func showSearchPanel() {
-            print("[DEBUG] === 开始显示查找面板 ===")
-            print("[DEBUG] 主窗口控制器是否存在: \(mainWindowController != nil)")
-            print("[DEBUG] 查找面板窗口是否已存在: \(searchPanelWindow != nil)")
-
-            // 确保应用程序被激活
-            print("[DEBUG] 激活应用程序...")
             NSApp.activate(ignoringOtherApps: true)
-            print("[DEBUG] 应用程序激活状态: \(NSApp.isActive)")
 
             if searchPanelWindow == nil {
-                print("[DEBUG] 创建查找面板窗口")
                 createSearchPanel()
             }
 
             guard let window = searchPanelWindow else {
-                print("[ERROR] 查找面板窗口创建失败")
+                LogService.shared.error(.window, "查找面板窗口创建失败")
                 return
-            }
-
-            print(
-                "[DEBUG] 查找面板窗口状态: 可见=\(window.isVisible), 位置=(\(window.frame.origin.x), \(window.frame.origin.y), \(window.frame.size.width), \(window.frame.size.height))"
-            )
-            print(
-                "[DEBUG] 窗口属性: isFloatingPanel=\(window.isFloatingPanel), level=\(window.level.rawValue), hidesOnDeactivate=\(window.hidesOnDeactivate)"
-            )
-
-            // 检查主窗口
-            if let mainWindow = mainWindowController?.window {
-                print("[DEBUG] 主窗口状态: 可见=\(mainWindow.isVisible), 位置=(\(mainWindow.frame.origin.x), \(mainWindow.frame.origin.y))")
-            } else {
-                print("[WARNING] 主窗口不存在")
             }
 
             // 如果窗口已经显示，只需要激活它
             if window.isVisible {
-                print("[DEBUG] 窗口已显示，只需要激活")
                 window.makeKeyAndOrderFront(nil)
-                print("[DEBUG] 查找面板已激活")
                 return
             }
 
             // 设置窗口的父窗口为应用程序的主窗口
             if let mainWindow = mainWindowController?.window {
-                print("[DEBUG] 设置父窗口")
                 window.parent = mainWindow
             }
 
-            // 显示窗口
-            print("[DEBUG] 执行 makeKeyAndOrderFront")
             window.makeKeyAndOrderFront(nil)
-
-            print("[DEBUG] 执行 orderFrontRegardless")
-            window.orderFrontRegardless() // 强制显示窗口
-
-            print("[DEBUG] 查找面板显示命令已执行，窗口可见性: \(window.isVisible)")
-            print(
-                "[DEBUG] 窗口在屏幕上的位置: x=\(window.frame.origin.x), y=\(window.frame.origin.y), width=\(window.frame.size.width), height=\(window.frame.size.height)"
-            )
-            print("[DEBUG] === 显示查找面板完成 ===")
+            window.orderFrontRegardless()
         }
 
         /// 隐藏查找面板
@@ -132,7 +97,6 @@
             clearAllSearchHighlights()
 
             window.orderOut(nil)
-            print("[DEBUG] 查找面板已隐藏，已清除所有高亮")
         }
 
         /// 切换查找面板的显示/隐藏状态
@@ -258,32 +222,14 @@
         /// 查找下一个匹配项
         @MainActor
         public func findNext() {
-            guard !searchText.isEmpty else {
-                print("[DEBUG] 查找文本为空，跳过查找")
-                return
-            }
-
-            print("[DEBUG] === 查找下一个匹配项 ===")
-            print("[DEBUG] 查找文本: '\(searchText)'")
-            print("[DEBUG] 查找选项: 区分大小写=\(isCaseSensitive), 全字匹配=\(isWholeWord), 正则表达式=\(isRegex)")
-
-            // 调用编辑器的查找功能
+            guard !searchText.isEmpty else { return }
             findInEditor(direction: "next")
         }
 
         /// 查找上一个匹配项
         @MainActor
         public func findPrevious() {
-            guard !searchText.isEmpty else {
-                print("[DEBUG] 查找文本为空，跳过查找")
-                return
-            }
-
-            print("[DEBUG] === 查找上一个匹配项 ===")
-            print("[DEBUG] 查找文本: '\(searchText)'")
-            print("[DEBUG] 查找选项: 区分大小写=\(isCaseSensitive), 全字匹配=\(isWholeWord), 正则表达式=\(isRegex)")
-
-            // 调用编辑器的查找功能
+            guard !searchText.isEmpty else { return }
             findInEditor(direction: "previous")
         }
 
@@ -292,7 +238,7 @@
         private func replace() {
             guard !searchText.isEmpty else { return }
 
-            logger.debug("替换: \(searchText) -> \(replaceText)")
+            logger.debug("替换: \(self.searchText) -> \(self.replaceText)")
 
             // 调用编辑器的替换功能
             replaceInEditor(replaceAll: false)
@@ -303,7 +249,7 @@
         private func replaceAll() {
             guard !searchText.isEmpty else { return }
 
-            logger.debug("替换所有: \(searchText) -> \(replaceText)")
+            logger.debug("替换所有: \(self.searchText) -> \(self.replaceText)")
 
             // 调用编辑器的替换所有功能
             replaceInEditor(replaceAll: true)
@@ -327,7 +273,6 @@
         @MainActor
         private func clearAllSearchHighlights() {
             // TODO: 实现原生编辑器的高亮清除功能
-            print("[DEBUG] 原生编辑器的高亮清除功能尚未实现")
         }
     }
 

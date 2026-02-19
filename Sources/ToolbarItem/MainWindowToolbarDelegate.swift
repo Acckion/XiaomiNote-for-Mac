@@ -429,15 +429,6 @@
 
                 menu.addItem(NSMenuItem.separator())
 
-                // 刷新Cookie
-                let refreshCookieItem = NSMenuItem()
-                refreshCookieItem.title = "刷新Cookie"
-                refreshCookieItem.action = #selector(MainWindowController.showCookieRefresh(_:))
-                refreshCookieItem.target = windowController
-                menu.addItem(refreshCookieItem)
-
-                menu.addItem(NSMenuItem.separator())
-
                 // 完整同步
                 let fullSyncItem = NSMenuItem()
                 fullSyncItem.title = "完整同步"
@@ -488,7 +479,6 @@
 
             case .viewOptions:
                 // 创建视图选项工具栏按钮（使用原生 NSMenu）
-                // _Requirements: 1.1, 1.2_
                 let toolbarItem = NSMenuToolbarItem(itemIdentifier: .viewOptions)
                 toolbarItem.image = NSImage(systemSymbolName: "list.bullet", accessibilityDescription: "视图选项")
                 toolbarItem.toolTip = "视图选项"
@@ -562,14 +552,6 @@
             case .trash:
                 return buildToolbarButton(.trash, "回收站", NSImage(systemSymbolName: "trash", accessibilityDescription: nil)!, "showTrash:")
 
-            case .cookieRefresh:
-                return buildToolbarButton(
-                    .cookieRefresh,
-                    "刷新Cookie",
-                    NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)!,
-                    "showCookieRefresh:"
-                )
-
             case .offlineOperations:
                 return buildToolbarButton(
                     .offlineOperations,
@@ -615,7 +597,6 @@
 
             case .debugMode:
                 // XML 调试模式按钮
-                // _Requirements: 1.1, 1.2, 5.2, 6.1_
                 return buildToolbarButton(
                     .debugMode,
                     "调试模式",
@@ -640,7 +621,6 @@
                 // 时间线跟踪分隔符
                 // 注意：由于使用两栏布局（侧边栏 + 内容区域），只有一个分隔符
                 // 如果分割视图只有一个分隔符，返回普通分隔符
-                // _Requirements: 4.3, 4.4, 4.5_
                 if let window = windowController?.window,
                    let splitViewController = window.contentViewController as? NSSplitViewController
                 {
@@ -724,7 +704,6 @@
                 NSToolbarItem.Identifier.viewOptions,
                 NSToolbarItem.Identifier.settings,
                 NSToolbarItem.Identifier.login,
-                NSToolbarItem.Identifier.cookieRefresh,
                 NSToolbarItem.Identifier.offlineOperations,
                 NSToolbarItem.Identifier.timelineTrackingSeparator,
                 NSToolbarItem.Identifier.share,
@@ -875,7 +854,6 @@
         // MARK: - 视图选项菜单
 
         /// 创建视图选项菜单
-        /// _Requirements: 1.2, 2.1, 2.2, 2.6, 3.2, 4.2_
         private func createViewOptionsMenu() -> NSMenu {
             let menu = NSMenu()
 

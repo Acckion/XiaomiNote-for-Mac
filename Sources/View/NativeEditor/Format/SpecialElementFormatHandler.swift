@@ -38,7 +38,6 @@ struct SpecialElementDetectionResult {
 /// 特殊元素格式处理器
 ///
 /// 负责处理复选框、分割线、图片等特殊元素的格式应用逻辑。
-/// 需求: 7.1, 7.2, 7.3, 7.4
 @MainActor
 class SpecialElementFormatHandler {
 
@@ -55,7 +54,6 @@ class SpecialElementFormatHandler {
     ///   - textStorage: 文本存储
     ///   - position: 位置
     /// - Returns: 特殊元素检测结果
-    /// 需求: 7.1, 7.2, 7.3
     func detectSpecialElement(
         in textStorage: NSAttributedString,
         at position: Int
@@ -118,7 +116,6 @@ class SpecialElementFormatHandler {
     ///   - format: 格式类型
     ///   - elementType: 特殊元素类型
     /// - Returns: 格式应用决策
-    /// 需求: 7.4
     func shouldApplyFormat(
         _ format: TextFormat,
         to elementType: SpecialElement
@@ -156,7 +153,6 @@ class SpecialElementFormatHandler {
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
     /// - Returns: 实际应用格式的范围数组
-    /// 需求: 7.4
     func applyFormatWithSpecialElements(
         _ format: TextFormat,
         to textStorage: NSTextStorage,
@@ -164,16 +160,10 @@ class SpecialElementFormatHandler {
     ) -> [NSRange] {
         let specialElements = detectSpecialElements(in: textStorage, range: range)
 
-        print("[SpecialElementFormat] 应用格式: \(format.displayName)")
-        print("[SpecialElementFormat]   - 范围: \(range)")
-        print("[SpecialElementFormat]   - 特殊元素数量: \(specialElements.count)")
-
-        // 如果没有特殊元素，直接应用格式
         if specialElements.isEmpty {
             return [range]
         }
 
-        // 计算需要应用格式的范围（排除特殊元素）
         var applicableRanges: [NSRange] = []
         var currentLocation = range.location
 
@@ -182,15 +172,10 @@ class SpecialElementFormatHandler {
 
             let decision = shouldApplyFormat(format, to: elementType)
 
-            print("[SpecialElementFormat]   - 元素: \(elementType.displayName), 决策: \(decision)")
-
             switch decision {
             case .allow:
-                // 允许应用，不需要特殊处理
                 break
-
             case .deny, .skipElement:
-                // 添加元素之前的范围
                 if currentLocation < element.range.location {
                     let beforeRange = NSRange(
                         location: currentLocation,
@@ -204,7 +189,6 @@ class SpecialElementFormatHandler {
             }
         }
 
-        // 添加最后一个元素之后的范围
         let endLocation = range.location + range.length
         if currentLocation < endLocation {
             let afterRange = NSRange(
@@ -216,7 +200,6 @@ class SpecialElementFormatHandler {
             }
         }
 
-        // 如果没有需要排除的元素，返回原始范围
         if applicableRanges.isEmpty, specialElements.allSatisfy({ element in
             guard let elementType = element.elementType else { return true }
             return shouldApplyFormat(format, to: elementType) == .allow
@@ -224,14 +207,12 @@ class SpecialElementFormatHandler {
             return [range]
         }
 
-        print("[SpecialElementFormat]   - 实际应用范围: \(applicableRanges)")
         return applicableRanges
     }
 
     /// 获取特殊元素附近应该禁用的格式按钮
     /// - Parameter elementType: 特殊元素类型
     /// - Returns: 应该禁用的格式类型数组
-    /// 需求: 7.2
     func getDisabledFormats(for elementType: SpecialElement) -> [TextFormat] {
         switch elementType {
         case .horizontalRule:

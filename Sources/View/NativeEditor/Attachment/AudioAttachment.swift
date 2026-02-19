@@ -168,10 +168,6 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
         self.fileId = fileId
         self.digest = digest
         self.mimeType = mimeType
-        print("[AudioAttachment] 🎤 初始化语音附件")
-        print("[AudioAttachment]   - fileId: '\(fileId)'")
-        print("[AudioAttachment]   - digest: '\(digest ?? "nil")'")
-        print("[AudioAttachment]   - mimeType: '\(mimeType ?? "nil")'")
     }
 
     private func setupAttachment() {
@@ -320,8 +316,6 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
             throw NSError(domain: "AudioAttachment", code: -1, userInfo: [NSLocalizedDescriptionKey: error])
         }
 
-        print("[AudioAttachment] ▶️ 开始播放: \(fileId)")
-
         // 设置加载状态
         playbackState = .loading
 
@@ -329,19 +323,16 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
             // 检查缓存
             let audioURL: URL
             if let cachedURL = AudioCacheService.shared.getCachedFile(for: fileId) {
-                print("[AudioAttachment] 使用缓存文件: \(cachedURL.lastPathComponent)")
                 audioURL = cachedURL
                 cachedFileURL = cachedURL
             } else {
                 // 需要下载
-                print("[AudioAttachment] 开始下载音频文件...")
                 let audioData = try await MiNoteService.shared.downloadAudio(fileId: fileId)
 
                 // 缓存文件
                 let mimeType = mimeType ?? "audio/mpeg"
                 audioURL = try AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
                 cachedFileURL = audioURL
-                print("[AudioAttachment] ✅ 下载并缓存完成: \(audioURL.lastPathComponent)")
             }
 
             // 播放音频
@@ -353,10 +344,8 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
             }
 
             playbackState = .playing
-            print("[AudioAttachment] ✅ 播放开始")
         } catch {
             let errorMsg = "播放失败: \(error.localizedDescription)"
-            print("[AudioAttachment] ❌ \(errorMsg)")
             playbackState = .error(errorMsg)
             throw error
         }
@@ -371,7 +360,6 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
             return
         }
 
-        print("[AudioAttachment] ⏸️ 暂停播放")
         AudioPlayerService.shared.pause()
         playbackState = .paused
     }
@@ -384,7 +372,6 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
             return
         }
 
-        print("[AudioAttachment] ⏹️ 停止播放")
         AudioPlayerService.shared.stop()
         playbackState = .idle
         playbackProgress = 0
@@ -402,7 +389,6 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
         }
 
         let clampedProgress = max(0, min(1, progress))
-        print("[AudioAttachment] ⏩ 跳转到: \(Int(clampedProgress * 100))%")
         AudioPlayerService.shared.seek(to: clampedProgress)
         playbackProgress = clampedProgress
         currentTime = duration * clampedProgress

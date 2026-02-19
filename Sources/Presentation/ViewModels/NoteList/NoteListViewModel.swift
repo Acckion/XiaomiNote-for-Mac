@@ -81,8 +81,6 @@ public final class NoteListViewModel: ObservableObject {
     ) {
         self.noteStorage = noteStorage
         self.noteService = noteService
-
-        print("[NoteListViewModel] 初始化完成")
     }
 
     // MARK: - Computed Properties
@@ -120,10 +118,10 @@ public final class NoteListViewModel: ObservableObject {
 
         do {
             notes = try noteStorage.fetchAllNotes()
-            print("[NoteListViewModel] 加载了 \(notes.count) 条笔记")
+            LogService.shared.info(.viewmodel, "加载了 \(notes.count) 条笔记")
         } catch {
             errorMessage = "加载笔记失败: \(error.localizedDescription)"
-            print("[NoteListViewModel] 加载失败: \(error)")
+            LogService.shared.error(.viewmodel, "加载笔记失败: \(error)")
         }
 
         isLoading = false
@@ -134,7 +132,6 @@ public final class NoteListViewModel: ObservableObject {
     /// - Parameter folder: 要过滤的文件夹，nil 表示显示所有笔记
     public func filterNotes(by folder: Folder?) {
         selectedFolder = folder
-        print("[NoteListViewModel] 过滤文件夹: \(folder?.name ?? "全部")")
     }
 
     /// 设置排序方式
@@ -145,7 +142,6 @@ public final class NoteListViewModel: ObservableObject {
     public func setSortOrder(by order: NoteSortOrder, direction: SortDirection) {
         sortOrder = order
         sortDirection = direction
-        print("[NoteListViewModel] 排序: \(order.rawValue) \(direction.rawValue)")
     }
 
     /// 选择笔记
@@ -153,7 +149,6 @@ public final class NoteListViewModel: ObservableObject {
     /// - Parameter note: 要选择的笔记
     public func selectNote(_ note: Note) {
         selectedNote = note
-        print("[NoteListViewModel] 选择笔记: \(note.title)")
     }
 
     /// 删除笔记
@@ -172,10 +167,10 @@ public final class NoteListViewModel: ObservableObject {
                 selectedNote = nil
             }
 
-            print("[NoteListViewModel] 删除笔记: \(note.title)")
+            LogService.shared.info(.viewmodel, "删除笔记: \(note.title)")
         } catch {
             errorMessage = "删除笔记失败: \(error.localizedDescription)"
-            print("[NoteListViewModel] 删除失败: \(error)")
+            LogService.shared.error(.viewmodel, "删除笔记失败: \(error)")
         }
     }
 
@@ -198,10 +193,10 @@ public final class NoteListViewModel: ObservableObject {
                 notes[index] = updatedNote
             }
 
-            print("[NoteListViewModel] 移动笔记 '\(note.title)' 到文件夹 '\(folder.name)'")
+            LogService.shared.info(.viewmodel, "移动笔记 '\(note.title)' 到文件夹 '\(folder.name)'")
         } catch {
             errorMessage = "移动笔记失败: \(error.localizedDescription)"
-            print("[NoteListViewModel] 移动失败: \(error)")
+            LogService.shared.error(.viewmodel, "移动笔记失败: \(error)")
         }
     }
 
@@ -221,11 +216,9 @@ public final class NoteListViewModel: ObservableObject {
             if let index = notes.firstIndex(where: { $0.id == note.id }) {
                 notes[index] = updatedNote
             }
-
-            print("[NoteListViewModel] 切换笔记 '\(note.title)' 的收藏状态: \(updatedNote.isStarred)")
         } catch {
             errorMessage = "更新收藏状态失败: \(error.localizedDescription)"
-            print("[NoteListViewModel] 更新失败: \(error)")
+            LogService.shared.error(.viewmodel, "更新收藏状态失败: \(error)")
         }
     }
 

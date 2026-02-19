@@ -101,9 +101,6 @@
         /// 回收站
         static let trash = NSToolbarItem.Identifier("trash")
 
-        /// Cookie刷新
-        static let cookieRefresh = NSToolbarItem.Identifier("cookieRefresh")
-
         /// 离线操作处理
         static let offlineOperations = NSToolbarItem.Identifier("offlineOperations")
 
@@ -120,7 +117,6 @@
         static let backToGallery = NSToolbarItem.Identifier("backToGallery")
 
         /// XML 调试模式
-        /// _Requirements: 1.1, 1.2, 5.2, 6.1_
         static let debugMode = NSToolbarItem.Identifier("debugMode")
 
         // MARK: - 编辑器区域间距

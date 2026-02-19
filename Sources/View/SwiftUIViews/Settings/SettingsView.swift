@@ -198,13 +198,6 @@ public struct SettingsView: View {
                         dismiss()
                     }
 
-                    Button("刷新Cookie") {
-                        // 发送通知让主窗口控制器显示Cookie刷新视图
-                        NotificationCenter.default.post(name: NSNotification.Name("ShowCookieRefreshView"), object: nil)
-                        dismiss()
-                    }
-                    .help("如果同步失败，尝试刷新Cookie")
-
                     Button("退出登录", role: .destructive) {
                         showLogoutAlert = true
                     }
@@ -295,7 +288,7 @@ public struct SettingsView: View {
             ]
         )
 
-        print("[SettingsView] 编辑器设置已更新: 字体大小=\(editorFontSize)px, 行间距=\(editorLineHeight)")
+        LogService.shared.debug(.app, "编辑器设置已更新: 字体大小=\(editorFontSize)px, 行间距=\(editorLineHeight)")
     }
 
     private func logout() {
@@ -354,7 +347,7 @@ public struct SettingsView: View {
                 alert.runModal()
             }
         } catch {
-            print("导出失败: \(error)")
+            LogService.shared.error(.app, "导出笔记失败: \(error)")
         }
     }
 
@@ -381,7 +374,7 @@ public struct SettingsView: View {
                 alert.addButton(withTitle: "确定")
                 alert.runModal()
             } catch {
-                print("导入失败: \(error)")
+                LogService.shared.error(.app, "导入笔记失败: \(error)")
             }
         }
     }

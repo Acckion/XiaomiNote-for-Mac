@@ -67,7 +67,7 @@ public final class AudioPanelViewModel: ObservableObject {
         noteService: NoteStorageProtocol
     ) {
         self.audioService = audioService
-        noteStorage = noteService
+        self.noteStorage = noteService
 
         // 监听音频服务状态
         setupAudioServiceObservers()
@@ -84,11 +84,10 @@ public final class AudioPanelViewModel: ObservableObject {
             isRecording = true
             recordingDuration = 0
 
-            // 启动录制时长计时器
             startRecordingTimer()
         } catch {
             errorMessage = "开始录制失败: \(error.localizedDescription)"
-            print("[AudioPanelViewModel] 开始录制失败: \(error)")
+            LogService.shared.error(.audio, "开始录制失败: \(error)")
         }
     }
 
@@ -101,10 +100,10 @@ public final class AudioPanelViewModel: ObservableObject {
             recordedAudioData = audioData
             isRecording = false
 
-            print("[AudioPanelViewModel] 录制完成，音频大小: \(audioData.count) bytes")
+            LogService.shared.info(.audio, "录制完成，音频大小: \(audioData.count) bytes")
         } catch {
             errorMessage = "停止录制失败: \(error.localizedDescription)"
-            print("[AudioPanelViewModel] 停止录制失败: \(error)")
+            LogService.shared.error(.audio, "停止录制失败: \(error)")
             isRecording = false
         }
     }
@@ -119,24 +118,19 @@ public final class AudioPanelViewModel: ObservableObject {
         do {
             // 先检查缓存
             if let cachedData = audioService.getCachedAudio(for: url) {
-                print("[AudioPanelViewModel] 使用缓存的音频")
-                // 使用缓存的音频
+                LogService.shared.debug(.audio, "使用缓存的音频")
+                _ = cachedData
             } else {
-                // 下载音频
-                print("[AudioPanelViewModel] 下载音频...")
                 let audioData = try await audioService.downloadAudio(from: url)
-
-                // 缓存音频
                 audioService.cacheAudio(audioData, for: url)
             }
 
-            // 播放音频
             try await audioService.play(url: url)
             currentAudioURL = url
             isPlaying = true
         } catch {
             errorMessage = "播放音频失败: \(error.localizedDescription)"
-            print("[AudioPanelViewModel] 播放音频失败: \(error)")
+            LogService.shared.error(.audio, "播放音频失败: \(error)")
         }
     }
 
@@ -175,15 +169,14 @@ public final class AudioPanelViewModel: ObservableObject {
 
         do {
             let audioURL = try await audioService.uploadAudio(audioData)
-            print("[AudioPanelViewModel] 音频上传成功: \(audioURL)")
+            LogService.shared.info(.audio, "音频上传成功")
 
-            // 清除录制的音频数据
             recordedAudioData = nil
 
             return audioURL
         } catch {
             errorMessage = "上传音频失败: \(error.localizedDescription)"
-            print("[AudioPanelViewModel] 上传音频失败: \(error)")
+            LogService.shared.error(.audio, "上传音频失败: \(error)")
             return nil
         }
     }
@@ -196,15 +189,14 @@ public final class AudioPanelViewModel: ObservableObject {
 
         do {
             let audioData = try await audioService.downloadAudio(from: url)
-            print("[AudioPanelViewModel] 音频下载成功，大小: \(audioData.count) bytes")
+            LogService.shared.info(.audio, "音频下载成功，大小: \(audioData.count) bytes")
 
-            // 缓存音频
             audioService.cacheAudio(audioData, for: url)
 
             return audioData
         } catch {
             errorMessage = "下载音频失败: \(error.localizedDescription)"
-            print("[AudioPanelViewModel] 下载音频失败: \(error)")
+            LogService.shared.error(.audio, "下载音频失败: \(error)")
             return nil
         }
     }

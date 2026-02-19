@@ -103,10 +103,7 @@ public final class OnlineStateManager: ObservableObject {
         isOnline = isConnected && isAuthenticated && isCookieValid
 
         if wasOnline != isOnline {
-            print("[OnlineStateManager] 在线状态变化: \(isOnline ? "在线" : "离线")")
-            print("[OnlineStateManager]   网络连接: \(isConnected)")
-            print("[OnlineStateManager]   已认证: \(isAuthenticated)")
-            print("[OnlineStateManager]   Cookie有效: \(isCookieValid)")
+            LogService.shared.info(.sync, "在线状态变化: \(isOnline ? "在线" : "离线"), 网络: \(isConnected), 认证: \(isAuthenticated), Cookie: \(isCookieValid)")
 
             // 发布状态变化通知
             NotificationCenter.default.post(

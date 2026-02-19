@@ -15,7 +15,6 @@ import SwiftUI
 ///
 /// 负责管理和持久化视图选项状态，包括排序方式、排序方向、日期分组和视图模式
 /// 使用单例模式确保全局状态一致性
-/// _Requirements: 2.9, 3.6, 4.7_
 @MainActor
 public class ViewOptionsManager: ObservableObject {
 
@@ -43,13 +42,12 @@ public class ViewOptionsManager: ObservableObject {
     /// - Parameter defaults: UserDefaults 实例，默认为 standard
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        state = Self.loadState(from: defaults) ?? .default
+        self.state = Self.loadState(from: defaults) ?? .default
     }
 
     // MARK: - 公开方法
 
     /// 更新排序方式
-    /// _Requirements: 2.3_
     /// - Parameter order: 新的排序方式
     public func setSortOrder(_ order: NoteSortOrder) {
         guard state.sortOrder != order else { return }
@@ -58,7 +56,6 @@ public class ViewOptionsManager: ObservableObject {
     }
 
     /// 更新排序方向
-    /// _Requirements: 2.7_
     /// - Parameter direction: 新的排序方向
     public func setSortDirection(_ direction: SortDirection) {
         guard state.sortDirection != direction else { return }
@@ -67,14 +64,12 @@ public class ViewOptionsManager: ObservableObject {
     }
 
     /// 切换日期分组
-    /// _Requirements: 3.3, 3.4_
     public func toggleDateGrouping() {
         state.isDateGroupingEnabled.toggle()
         saveState()
     }
 
     /// 设置日期分组状态
-    /// _Requirements: 3.3, 3.4_
     /// - Parameter enabled: 是否启用日期分组
     public func setDateGrouping(_ enabled: Bool) {
         guard state.isDateGroupingEnabled != enabled else { return }
@@ -83,7 +78,6 @@ public class ViewOptionsManager: ObservableObject {
     }
 
     /// 设置视图模式
-    /// _Requirements: 4.3_
     /// - Parameter mode: 新的视图模式
     public func setViewMode(_ mode: ViewMode) {
         guard state.viewMode != mode else { return }
@@ -91,7 +85,6 @@ public class ViewOptionsManager: ObservableObject {
         saveState()
 
         // 发送视图模式变化通知
-        // _Requirements: 14.7_
         postViewModeNotification(mode)
     }
 
@@ -99,18 +92,16 @@ public class ViewOptionsManager: ObservableObject {
     ///
     /// 当视图模式变化时，发送通知以更新菜单状态
     ///
-    /// _Requirements: 14.7_
     private func postViewModeNotification(_ mode: ViewMode) {
         NotificationCenter.default.post(
             name: .viewModeDidChange,
             object: self,
             userInfo: ["viewMode": mode.rawValue]
         )
-        print("[ViewOptionsManager] 发送视图模式变化通知: \(mode.displayName)")
+        LogService.shared.debug(.viewmodel, "发送视图模式变化通知: \(mode.displayName)")
     }
 
     /// 切换笔记数量显示
-    /// _Requirements: 9.3_
     public func toggleNoteCount() {
         state.showNoteCount.toggle()
         saveState()
@@ -120,7 +111,6 @@ public class ViewOptionsManager: ObservableObject {
     }
 
     /// 设置笔记数量显示状态
-    /// _Requirements: 9.3_
     /// - Parameter show: 是否显示笔记数量
     public func setShowNoteCount(_ show: Bool) {
         guard state.showNoteCount != show else { return }
@@ -135,14 +125,13 @@ public class ViewOptionsManager: ObservableObject {
     ///
     /// 当笔记数量显示状态变化时，发送通知以更新菜单状态和侧边栏
     ///
-    /// _Requirements: 9.3_
     private func postNoteCountVisibilityNotification(_ isVisible: Bool) {
         NotificationCenter.default.post(
             name: .noteCountVisibilityDidChange,
             object: self,
             userInfo: ["isNoteCountVisible": isVisible]
         )
-        print("[ViewOptionsManager] 发送笔记数量显示变化通知: \(isVisible ? "显示" : "隐藏")")
+        LogService.shared.debug(.viewmodel, "发送笔记数量显示变化通知: \(isVisible ? "显示" : "隐藏")")
     }
 
     /// 重置为默认设置
@@ -167,13 +156,10 @@ public class ViewOptionsManager: ObservableObject {
             let data = try JSONEncoder().encode(state)
             defaults.set(data, forKey: persistenceKey)
         } catch {
-            print("[ViewOptionsManager] 保存状态失败: \(error.localizedDescription)")
+            LogService.shared.error(.viewmodel, "保存视图选项状态失败: \(error.localizedDescription)")
         }
     }
 
-    /// 从 UserDefaults 加载状态
-    /// - Parameter defaults: UserDefaults 实例
-    /// - Returns: 加载的视图选项状态，如果加载失败则返回 nil
     private static func loadState(from defaults: UserDefaults) -> ViewOptionsState? {
         guard let data = defaults.data(forKey: "ViewOptionsState") else {
             return nil
@@ -182,7 +168,7 @@ public class ViewOptionsManager: ObservableObject {
         do {
             return try JSONDecoder().decode(ViewOptionsState.self, from: data)
         } catch {
-            print("[ViewOptionsManager] 加载状态失败: \(error.localizedDescription)")
+            LogService.shared.error(.viewmodel, "加载视图选项状态失败: \(error.localizedDescription)")
             return nil
         }
     }

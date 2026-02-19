@@ -39,7 +39,6 @@ public final class XMLGenerator: @unchecked Sendable {
     /// - Parameter document: 文档 AST 节点
     /// - Returns: XML 字符串
     ///
-    /// _Requirements: 3.4_ - 将标题段落转换为 XML 的 `<title>` 标签
     public func generate(_ document: DocumentNode) -> String {
         var lines: [String] = []
 

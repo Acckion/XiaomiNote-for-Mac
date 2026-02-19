@@ -70,7 +70,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
         // 检查是否在标题段落中，如果是则禁用格式菜单
         if isFormatMenuItem(tag), isInTitleParagraph() {
-            print("[MenuActionHandler] 标题段落中禁用格式菜单: \(tag)")
             return false
         }
 
@@ -147,7 +146,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
 
     /// 处理编辑器焦点变化
-    /// _Requirements: 14.5_
     @objc private func handleEditorFocusChanged(_ notification: Notification) {
         // 从通知中获取焦点状态
         if let isEditorFocused = notification.userInfo?["isEditorFocused"] as? Bool {
@@ -161,7 +159,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
 
     /// 处理视图模式变化
-    /// _Requirements: 14.7_
     @objc private func handleViewModeChanged(_ notification: Notification) {
         // 从通知中获取视图模式
         if let viewModeRaw = notification.userInfo?["viewMode"] as? String,
@@ -182,7 +179,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
 
     /// 处理段落样式变化
-    /// _Requirements: 14.6_
     @objc private func handleParagraphStyleChanged(_ notification: Notification) {
         // 从通知中获取段落样式
         if let paragraphStyleRaw = notification.userInfo?["paragraphStyle"] as? String,
@@ -205,7 +201,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
 
     /// 处理笔记数量显示变化
-    /// _Requirements: 5.5_
     @objc private func handleNoteCountVisibilityChanged(_ notification: Notification) {
         // 从通知中获取笔记数量显示状态
         if let isNoteCountVisible = notification.userInfo?["isNoteCountVisible"] as? Bool {
@@ -218,7 +213,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 从当前上下文更新菜单状态
     ///
     /// 从编辑器上下文获取当前的格式状态，并更新菜单状态
-    /// _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
     private func updateMenuStateFromContext() {
         var newState = menuState
 
@@ -265,11 +259,9 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
 
         // 更新笔记数量显示状态
-        // _Requirements: 9.3_
         newState.isNoteCountVisible = ViewOptionsManager.shared.showNoteCount
 
         // 更新段落样式状态（从编辑器上下文获取）
-        // _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
         // 关键修复：检查当前使用的是哪种编辑器
         let isUsingNativeEditor = mainWindowController?.isUsingNativeEditor ?? false
 
@@ -303,7 +295,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         menuItem.state = shouldCheck ? .on : .off
 
         // 更新动态标题
-        // _Requirements: 9.2, 9.3_
         updateMenuItemDynamicTitle(menuItem, for: tag)
     }
 
@@ -313,7 +304,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// - Parameters:
     ///   - menuItem: 菜单项
     ///   - tag: 菜单项标签
-    /// _Requirements: 9.2, 9.3_
     private func updateMenuItemDynamicTitle(_ menuItem: NSMenuItem, for tag: MenuItemTag) {
         switch tag {
         case .hideFolders:
@@ -452,7 +442,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 切换粗体
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleBold(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -465,7 +454,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 切换斜体
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleItalic(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -478,7 +466,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 切换下划线
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleUnderline(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -491,7 +478,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 切换删除线
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleStrikethrough(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -528,7 +514,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 居左对齐
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func alignLeft(_ sender: Any?) {
         // 优先使用 FormatStateManager 清除对齐格式（恢复左对齐）
         if FormatStateManager.shared.hasActiveEditor {
@@ -541,7 +526,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 居中对齐
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func alignCenter(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -554,7 +538,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 居右对齐
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func alignRight(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -567,7 +550,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 切换无序列表
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleBulletList(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -640,7 +622,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 设置正文
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func setBodyText(_ sender: Any?) {
         // 优先使用 FormatStateManager 清除段落格式（恢复正文）
         if FormatStateManager.shared.hasActiveEditor {
@@ -803,12 +784,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         mainWindowController?.showLogin(sender)
     }
 
-    /// 显示Cookie刷新sheet
-    func showCookieRefresh(_ sender: Any?) {
-        // 通过主窗口控制器显示Cookie刷新sheet
-        mainWindowController?.showCookieRefresh(sender)
-    }
-
     /// 显示离线操作
     func showOfflineOperations(_: Any?) {
         // 这里可以打开离线操作窗口
@@ -817,6 +792,11 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 显示段落管理器调试窗口
     func showParagraphDebugWindow(_: Any?) {
         windowManager.showParagraphDebugWindow()
+    }
+
+    /// 测试音频文件 API（调试用）
+    func testAudioFileAPI(_: Any?) {
+        // 调试功能，暂未实现
     }
 
     // MARK: - 文件菜单新增动作
@@ -869,7 +849,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
                             try await self?.mainWindowController?.viewModel?.createNote(newNote)
                         } catch {
-                            print("[MenuActionHandler] 导入笔记失败: \(error)")
                             DispatchQueue.main.async {
                                 let errorAlert = NSAlert()
                                 errorAlert.messageText = "导入失败"
@@ -886,7 +865,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 导出笔记
     func exportNote(_: Any?) {
-        print("导出笔记")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
             let alert = NSAlert()
             alert.messageText = "导出失败"
@@ -906,7 +884,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                 do {
                     try note.content.write(to: url, atomically: true, encoding: String.Encoding.utf8)
                 } catch {
-                    print("[MenuActionHandler] 导出笔记失败: \(error)")
                     let errorAlert = NSAlert()
                     errorAlert.messageText = "导出失败"
                     errorAlert.informativeText = error.localizedDescription
@@ -919,14 +896,12 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 置顶/取消置顶笔记
     func toggleStarNote(_: Any?) {
-        print("置顶/取消置顶笔记")
         guard let note = mainWindowController?.viewModel?.selectedNote else { return }
         mainWindowController?.viewModel?.toggleStar(note)
     }
 
     /// 复制笔记
     func copyNote(_: Any?) {
-        print("复制笔记")
         guard let note = mainWindowController?.viewModel?.selectedNote else { return }
 
         let pasteboard = NSPasteboard.general
@@ -941,7 +916,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 创建智能文件夹
     func createSmartFolder(_: Any?) {
-        print("创建智能文件夹")
         // 智能文件夹功能待实现
         let alert = NSAlert()
         alert.messageText = "功能开发中"
@@ -953,7 +927,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 导入 Markdown 文件
     func importMarkdown(_: Any?) {
-        print("导入 Markdown")
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
@@ -980,9 +953,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                             )
 
                             try await self?.mainWindowController?.viewModel?.createNote(newNote)
-                            print("[MenuActionHandler] 成功导入 Markdown 文件: \(fileName)")
                         } catch {
-                            print("[MenuActionHandler] 导入 Markdown 失败: \(error)")
                             DispatchQueue.main.async {
                                 let errorAlert = NSAlert()
                                 errorAlert.messageText = "导入失败"
@@ -999,7 +970,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 导出为 PDF
     func exportAsPDF(_: Any?) {
-        print("导出为 PDF")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
             showNoNoteSelectedAlert()
             return
@@ -1019,7 +989,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 导出为 Markdown
     func exportAsMarkdown(_: Any?) {
-        print("导出为 Markdown")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
             showNoNoteSelectedAlert()
             return
@@ -1036,9 +1005,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                     // 将笔记内容转换为 Markdown 格式
                     let markdownContent = self.convertToMarkdown(note: note)
                     try markdownContent.write(to: url, atomically: true, encoding: .utf8)
-                    print("[MenuActionHandler] 成功导出 Markdown: \(url.path)")
                 } catch {
-                    print("[MenuActionHandler] 导出 Markdown 失败: \(error)")
                     let errorAlert = NSAlert()
                     errorAlert.messageText = "导出失败"
                     errorAlert.informativeText = error.localizedDescription
@@ -1051,7 +1018,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 导出为纯文本
     func exportAsPlainText(_: Any?) {
-        print("导出为纯文本")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
             showNoNoteSelectedAlert()
             return
@@ -1068,9 +1034,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                     // 组合标题和内容
                     let content = note.title.isEmpty ? note.content : "\(note.title)\n\n\(note.content)"
                     try content.write(to: url, atomically: true, encoding: .utf8)
-                    print("[MenuActionHandler] 成功导出纯文本: \(url.path)")
                 } catch {
-                    print("[MenuActionHandler] 导出纯文本失败: \(error)")
                     let errorAlert = NSAlert()
                     errorAlert.messageText = "导出失败"
                     errorAlert.informativeText = error.localizedDescription
@@ -1083,7 +1047,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 添加到私密笔记
     func addToPrivateNotes(_: Any?) {
-        print("添加到私密笔记")
         // 私密笔记功能待实现
         let alert = NSAlert()
         alert.messageText = "功能开发中"
@@ -1095,7 +1058,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 复制笔记（创建副本）
     func duplicateNote(_: Any?) {
-        print("复制笔记（创建副本）")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
             showNoNoteSelectedAlert()
             return
@@ -1115,9 +1077,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                 )
 
                 try await mainWindowController?.viewModel?.createNote(duplicatedNote)
-                print("[MenuActionHandler] 成功复制笔记: \(duplicatedNote.title)")
             } catch {
-                print("[MenuActionHandler] 复制笔记失败: \(error)")
                 DispatchQueue.main.async {
                     let errorAlert = NSAlert()
                     errorAlert.messageText = "复制失败"
@@ -1160,9 +1120,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
         do {
             try pdfData.write(to: url)
-            print("[MenuActionHandler] 成功导出 PDF: \(url.path)")
         } catch {
-            print("[MenuActionHandler] 导出 PDF 失败: \(error)")
             let errorAlert = NSAlert()
             errorAlert.messageText = "导出失败"
             errorAlert.informativeText = error.localizedDescription
@@ -1190,48 +1148,36 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 显示查找面板
     func showFindPanel(_ sender: Any?) {
-        print("显示查找面板")
-        print("[DEBUG] MenuActionHandler - mainWindowController: \(mainWindowController != nil)")
         if let controller = mainWindowController {
-            print("[DEBUG] MenuActionHandler - 调用主窗口控制器的showFindPanel")
             controller.showFindPanel(sender)
         } else {
-            print("[ERROR] MenuActionHandler - mainWindowController为nil")
         }
     }
 
     /// 显示查找和替换面板
     func showFindAndReplacePanel(_ sender: Any?) {
-        print("显示查找和替换面板")
         mainWindowController?.showFindAndReplacePanel(sender)
     }
 
     /// 查找下一个
     func findNext(_ sender: Any?) {
-        print("查找下一个")
         mainWindowController?.findNext(sender)
     }
 
     /// 查找上一个
     func findPrevious(_ sender: Any?) {
-        print("查找上一个")
         mainWindowController?.findPrevious(sender)
     }
 
     // MARK: - 附件操作
 
     /// 附加文件
-    /// 直接调用 MainWindowController.insertAttachment() 复用工具栏中已有的实现逻辑
     @objc func attachFile(_ sender: Any?) {
-        print("[MenuActionHandler] 附加文件 - 转发到 MainWindowController.insertAttachment()")
-        // 直接调用 MainWindowController 的 insertAttachment 方法
-        // 复用工具栏中已有的实现逻辑（包括文件选择对话框和图片插入）
         mainWindowController?.insertAttachment(sender)
     }
 
     /// 添加链接
     @objc func addLink(_: Any?) {
-        print("添加链接")
         // 显示添加链接对话框
         let alert = NSAlert()
         alert.messageText = "添加链接"
@@ -1248,7 +1194,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         if response == .alertFirstButtonReturn {
             let urlString = inputField.stringValue
             if !urlString.isEmpty {
-                print("[MenuActionHandler] 添加链接: \(urlString)")
                 mainWindowController?.addLink(urlString)
             }
         }
@@ -1258,13 +1203,11 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 设置列表视图
     @objc func setListView(_: Any?) {
-        print("设置列表视图")
         ViewOptionsManager.shared.setViewMode(.list)
     }
 
     /// 设置画廊视图
     @objc func setGalleryView(_: Any?) {
-        print("设置画廊视图")
         ViewOptionsManager.shared.setViewMode(.gallery)
     }
 
@@ -1280,7 +1223,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
             let newCollapsedState = !currentCollapsedState
 
             // 先更新菜单状态，确保状态一致性
-            // _Requirements: 4.4, 4.5_
             var newState = menuState
             newState.isFolderHidden = newCollapsedState
             menuState = newState
@@ -1289,7 +1231,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
             sidebarItem.animator().isCollapsed = newCollapsedState
 
             // 发送文件夹可见性变化通知
-            // _Requirements: 4.4_
             NotificationCenter.default.post(
                 name: .folderVisibilityDidChange,
                 object: nil,
@@ -1311,43 +1252,36 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 放大
     @objc func zoomIn(_ sender: Any?) {
-        print("放大")
         mainWindowController?.zoomIn(sender)
     }
 
     /// 缩小
     @objc func zoomOut(_ sender: Any?) {
-        print("缩小")
         mainWindowController?.zoomOut(sender)
     }
 
     /// 实际大小
     @objc func actualSize(_ sender: Any?) {
-        print("实际大小")
         mainWindowController?.actualSize(sender)
     }
 
     /// 展开区域
     @objc func expandSection(_ sender: Any?) {
-        print("展开区域")
         mainWindowController?.expandSection(sender)
     }
 
     /// 展开所有区域
     @objc func expandAllSections(_ sender: Any?) {
-        print("展开所有区域")
         mainWindowController?.expandAllSections(sender)
     }
 
     /// 折叠区域
     @objc func collapseSection(_ sender: Any?) {
-        print("折叠区域")
         mainWindowController?.collapseSection(sender)
     }
 
     /// 折叠所有区域
     @objc func collapseAllSections(_ sender: Any?) {
-        print("折叠所有区域")
         mainWindowController?.collapseAllSections(sender)
     }
 
@@ -1355,7 +1289,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 填充窗口到屏幕
     @objc func fillWindow(_: Any?) {
-        print("填充窗口")
         guard let window = NSApp.mainWindow,
               let screen = window.screen else { return }
 
@@ -1368,14 +1301,12 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 居中窗口
     @objc func centerWindow(_: Any?) {
-        print("居中窗口")
         guard let window = NSApp.mainWindow else { return }
         window.center()
     }
 
     /// 移动窗口到屏幕左半边
     @objc func moveWindowToLeftHalf(_: Any?) {
-        print("移动窗口到屏幕左半边")
         guard let window = NSApp.mainWindow,
               let screen = window.screen else { return }
 
@@ -1391,7 +1322,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 移动窗口到屏幕右半边
     @objc func moveWindowToRightHalf(_: Any?) {
-        print("移动窗口到屏幕右半边")
         guard let window = NSApp.mainWindow,
               let screen = window.screen else { return }
 
@@ -1407,7 +1337,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 移动窗口到屏幕上半边
     @objc func moveWindowToTopHalf(_: Any?) {
-        print("移动窗口到屏幕上半边")
         guard let window = NSApp.mainWindow,
               let screen = window.screen else { return }
 
@@ -1423,7 +1352,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 移动窗口到屏幕下半边
     @objc func moveWindowToBottomHalf(_: Any?) {
-        print("移动窗口到屏幕下半边")
         guard let window = NSApp.mainWindow,
               let screen = window.screen else { return }
 
@@ -1439,17 +1367,14 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 最大化窗口
     @objc func maximizeWindow(_ sender: Any?) {
-        print("最大化窗口")
         guard let window = NSApp.mainWindow else { return }
         window.performZoom(sender)
     }
 
     /// 恢复窗口
     @objc func restoreWindow(_ sender: Any?) {
-        print("恢复窗口")
         guard let window = NSApp.mainWindow else { return }
 
-        // 如果窗口处于缩放状态，则恢复到之前的大小
         if window.isZoomed {
             window.performZoom(sender)
         }
@@ -1457,36 +1382,22 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 平铺窗口到屏幕左侧（全屏幕平铺）
     @objc func tileWindowToLeft(_ sender: Any?) {
-        print("平铺窗口到屏幕左侧")
         guard NSApp.mainWindow != nil else { return }
-
-        // 使用系统的全屏幕平铺功能
-        // 注意：这需要 macOS 10.15+ 的 API
         if #available(macOS 10.15, *) {
-            // 尝试进入全屏幕平铺模式
-            // 由于 macOS 没有直接的 API 来实现全屏幕平铺，
-            // 我们使用移动到左半边作为替代
             moveWindowToLeftHalf(sender)
         }
     }
 
     /// 平铺窗口到屏幕右侧（全屏幕平铺）
     @objc func tileWindowToRight(_ sender: Any?) {
-        print("平铺窗口到屏幕右侧")
         guard NSApp.mainWindow != nil else { return }
-
-        // 使用系统的全屏幕平铺功能
         if #available(macOS 10.15, *) {
-            // 尝试进入全屏幕平铺模式
-            // 由于 macOS 没有直接的 API 来实现全屏幕平铺，
-            // 我们使用移动到右半边作为替代
             moveWindowToRightHalf(sender)
         }
     }
 
     /// 在新窗口中打开笔记
     @objc func openNoteInNewWindow(_: Any?) {
-        print("在新窗口中打开笔记")
         guard let note = mainWindowController?.viewModel?.selectedNote else {
             let alert = NSAlert()
             alert.messageText = "操作失败"
@@ -1503,219 +1414,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
     }
 
-    // MARK: - 调试测试方法
-
-    /// 测试语音文件 API（解析 + 上传）
-    /// 1. 获取包含语音的笔记，验证 sound 标签和 setting.data 元数据解析
-    /// 2. 测试语音文件上传 API（使用模拟数据）
-    @objc func testAudioFileAPI(_: Any?) {
-        print("\n========== 语音文件 API 测试开始 ==========")
-
-        Task {
-            do {
-                // 从 UserDefaults 获取 Cookie
-                guard let cookie = UserDefaults.standard.string(forKey: "minote_cookie"), !cookie.isEmpty else {
-                    print("[AudioTest] ❌ 未找到 Cookie，请先登录")
-                    self.showTestResult(success: false, message: "未找到 Cookie，请先登录")
-                    return
-                }
-
-                // 从 Cookie 中提取 serviceToken
-                guard extractServiceToken(from: cookie) != nil else {
-                    print("[AudioTest] ❌ 无法从 Cookie 中提取 serviceToken")
-                    self.showTestResult(success: false, message: "无法从 Cookie 中提取 serviceToken")
-                    return
-                }
-
-                // ========== 第一部分：解析测试 ==========
-                print("\n---------- 第一部分：解析测试 ----------")
-
-                let testNoteId = "48926433520534752"
-                print("[AudioTest] 正在获取笔记: \(testNoteId)")
-
-                let ts = Int(Date().timeIntervalSince1970 * 1000)
-                let urlString = "https://i.mi.com/note/note/\(testNoteId)/?ts=\(ts)"
-
-                guard let url = URL(string: urlString) else {
-                    print("[AudioTest] ❌ URL 无效")
-                    self.showTestResult(success: false, message: "URL 无效")
-                    return
-                }
-
-                var request = URLRequest(url: url)
-                request.httpMethod = "GET"
-                request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36", forHTTPHeaderField: "User-Agent")
-                request.setValue(cookie, forHTTPHeaderField: "Cookie")
-
-                let (data, httpResponse) = try await URLSession.shared.data(for: request)
-
-                guard let response = httpResponse as? HTTPURLResponse else {
-                    print("[AudioTest] ❌ 无效的响应")
-                    self.showTestResult(success: false, message: "无效的响应")
-                    return
-                }
-
-                print("[AudioTest] HTTP 状态码: \(response.statusCode)")
-
-                guard response.statusCode == 200 else {
-                    print("[AudioTest] ❌ 请求失败，状态码: \(response.statusCode)")
-                    self.showTestResult(success: false, message: "请求失败，状态码: \(response.statusCode)")
-                    return
-                }
-
-                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    print("[AudioTest] ❌ JSON 解析失败")
-                    self.showTestResult(success: false, message: "JSON 解析失败")
-                    return
-                }
-
-                guard let code = json["code"] as? Int, code == 0 else {
-                    let description = json["description"] as? String ?? "未知错误"
-                    print("[AudioTest] ❌ API 请求失败: \(description)")
-                    self.showTestResult(success: false, message: "API 请求失败: \(description)")
-                    return
-                }
-
-                guard let responseData = json["data"] as? [String: Any],
-                      let entry = responseData["entry"] as? [String: Any]
-                else {
-                    print("[AudioTest] ❌ 响应格式错误：无法解析 data.entry")
-                    self.showTestResult(success: false, message: "响应格式错误")
-                    return
-                }
-
-                print("[AudioTest] ✅ 成功获取笔记数据")
-
-                // 解析 content 中的 sound 标签
-                if let content = entry["content"] as? String {
-                    print("[AudioTest] 笔记内容: \(content)")
-
-                    let soundPattern = #"<sound\s+fileid=\"([^\"]+)\"\s*/>"#
-                    if let regex = try? NSRegularExpression(pattern: soundPattern),
-                       let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-                       let fileIdRange = Range(match.range(at: 1), in: content)
-                    {
-                        let fileId = String(content[fileIdRange])
-                        print("[AudioTest] ✅ 解析到 sound 标签，fileId: \(fileId)")
-                    } else {
-                        print("[AudioTest] ⚠️ 未找到 sound 标签")
-                    }
-                }
-
-                // 解析 setting.data 元数据
-                if let setting = entry["setting"] as? [String: Any],
-                   let dataArray = setting["data"] as? [[String: Any]]
-                {
-                    print("[AudioTest] ✅ 找到 setting.data 元数据，共 \(dataArray.count) 个文件")
-
-                    for (index, fileInfo) in dataArray.enumerated() {
-                        let fileId = fileInfo["fileId"] as? String ?? "未知"
-                        let digest = fileInfo["digest"] as? String ?? "未知"
-                        let mimeType = fileInfo["mimeType"] as? String ?? "未知"
-
-                        print("[AudioTest] 文件 \(index + 1):")
-                        print("  - fileId: \(fileId)")
-                        print("  - digest: \(digest)")
-                        print("  - mimeType: \(mimeType)")
-
-                        if mimeType.hasPrefix("audio/") {
-                            print("  - ✅ 确认为音频文件")
-                        }
-                    }
-                } else {
-                    print("[AudioTest] ⚠️ 未找到 setting.data 元数据")
-                }
-
-                // 解析 extraInfo
-                if let extraInfoString = entry["extraInfo"] as? String,
-                   let extraInfoData = extraInfoString.data(using: .utf8),
-                   let extraInfo = try? JSONSerialization.jsonObject(with: extraInfoData) as? [String: Any]
-                {
-                    let title = extraInfo["title"] as? String ?? "无标题"
-                    print("[AudioTest] 笔记标题: \(title)")
-                }
-
-                print("[AudioTest] ✅ 解析测试完成")
-
-                // ========== 第二部分：上传测试 ==========
-                print("\n---------- 第二部分：上传测试（使用 MiNoteService.uploadAudio）----------")
-
-                // 创建模拟音频数据（一个简单的测试文件）
-                let testAudioData = "Test audio file content for API testing".data(using: .utf8)!
-                let testFileName = "test_audio_\(Int(Date().timeIntervalSince1970)).mp3"
-                let testMimeType = "audio/mpeg"
-
-                print("[AudioTest] 测试文件: \(testFileName)")
-                print("[AudioTest] 文件大小: \(testAudioData.count) 字节")
-                print("[AudioTest] MIME 类型: \(testMimeType)")
-
-                // 使用 MiNoteService.uploadAudio 方法上传
-                print("[AudioTest] 正在调用 MiNoteService.uploadAudio...")
-
-                let uploadResult = try await MiNoteService.shared.uploadAudio(
-                    audioData: testAudioData,
-                    fileName: testFileName,
-                    mimeType: testMimeType
-                )
-
-                // 解析上传结果
-                guard let fileId = uploadResult["fileId"] as? String else {
-                    print("[AudioTest] ❌ 上传成功但未返回 fileId")
-                    self.showTestResult(success: false, message: "上传成功但未返回 fileId")
-                    return
-                }
-
-                let digest = uploadResult["digest"] as? String ?? "未知"
-                let mimeType = uploadResult["mimeType"] as? String ?? "未知"
-
-                print("[AudioTest] ✅ 上传成功！")
-                print("[AudioTest] fileId: \(fileId)")
-                print("[AudioTest] digest: \(digest)")
-                print("[AudioTest] mimeType: \(mimeType)")
-
-                print("\n========== 语音文件 API 测试完成 ==========")
-                self.showTestResult(
-                    success: true,
-                    message: "语音文件 API 测试完成！\n\n包含：\n1. 解析测试 ✅\n2. 上传测试 ✅\n\n上传结果：\nfileId: \(fileId)\ndigest: \(digest)"
-                )
-            } catch {
-                print("[AudioTest] ❌ 测试失败: \(error)")
-                self.showTestResult(success: false, message: "测试失败: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    // MARK: - 辅助方法（语音文件测试）
-
-    /// 从 Cookie 中提取 serviceToken（用于解析测试）
-    private func extractServiceToken(from cookie: String) -> String? {
-        let pattern = "serviceToken=([^;]+)"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
-
-        let range = NSRange(location: 0, length: cookie.utf16.count)
-        if let match = regex.firstMatch(in: cookie, options: [], range: range),
-           let tokenRange = Range(match.range(at: 1), in: cookie)
-        {
-            return String(cookie[tokenRange])
-        }
-        return nil
-    }
-
-    /// 显示测试结果弹窗
-    @MainActor
-    private func showTestResult(success: Bool, message: String) {
-        let alert = NSAlert()
-        alert.messageText = success ? "测试成功" : "测试失败"
-        alert.informativeText = message
-        alert.alertStyle = success ? .informational : .warning
-        alert.addButton(withTitle: "确定")
-        alert.runModal()
-    }
-
     // MARK: - 清理
-
     deinit {
         NotificationCenter.default.removeObserver(self)
-        print("菜单动作处理器释放")
     }
 }

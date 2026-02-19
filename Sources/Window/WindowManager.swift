@@ -36,7 +36,7 @@ public class WindowManager {
     // MARK: - 初始化
 
     private init() {
-        print("窗口管理器初始化")
+        LogService.shared.debug(.window, "窗口管理器初始化")
     }
 
     // MARK: - 配置
@@ -48,14 +48,14 @@ public class WindowManager {
     /// - Parameter coordinator: AppCoordinator 实例
     public func setAppCoordinator(_ coordinator: AppCoordinator) {
         appCoordinator = coordinator
-        print("[WindowManager] AppCoordinator 已设置")
+        LogService.shared.debug(.window, "AppCoordinator 已设置")
     }
 
     // MARK: - 窗口管理
 
     /// 创建主窗口
     public func createMainWindow() -> MainWindowController? {
-        print("创建主窗口...")
+        LogService.shared.debug(.window, "创建主窗口")
 
         // TODO: 任务 5 完成后启用新实现
         // 当前使用旧实现保持向后兼容
@@ -63,7 +63,7 @@ public class WindowManager {
         // 旧实现：使用 NotesViewModel
         guard let coordinator = appCoordinator else {
             let errorMessage = "AppCoordinator 未设置，无法创建窗口"
-            print("[WindowManager] 错误: \(errorMessage)")
+            LogService.shared.error(.window, errorMessage)
             showWindowCreationError(message: errorMessage)
             return nil
         }
@@ -89,12 +89,12 @@ public class WindowManager {
                 restoreWindowFrame(window)
             }
 
-            print("[WindowManager] 主窗口创建完成")
+            LogService.shared.info(.window, "主窗口创建完成")
 
             return controller
         } catch {
             let errorMessage = "创建主窗口失败: \(error.localizedDescription)"
-            print("[WindowManager] 错误: \(errorMessage)")
+            LogService.shared.error(.window, errorMessage)
             showWindowCreationError(message: errorMessage)
             return nil
         }
@@ -140,7 +140,7 @@ public class WindowManager {
     /// - Parameter note: 可选的笔记，如果指定则在新窗口中打开该笔记
     /// - Returns: 创建的窗口控制器，如果创建失败则返回 nil
     public func createNewWindow(withNote note: Note? = nil) -> MainWindowController? {
-        print("创建新窗口...")
+        LogService.shared.debug(.window, "创建新窗口")
 
         // TODO: 任务 5 完成后启用新实现
         // 当前使用旧实现保持向后兼容
@@ -148,7 +148,7 @@ public class WindowManager {
         // 旧实现：使用 NotesViewModel
         guard let coordinator = appCoordinator else {
             let errorMessage = "AppCoordinator 未设置，无法创建窗口"
-            print("[WindowManager] 错误: \(errorMessage)")
+            LogService.shared.error(.window, errorMessage)
             showWindowCreationError(message: errorMessage)
             return nil
         }
@@ -160,7 +160,7 @@ public class WindowManager {
             // 如果指定了笔记，设置为选中状态
             if let note {
                 windowState.selectedNote = note
-                print("[WindowManager] 新窗口将打开笔记: \(note.title)")
+                LogService.shared.debug(.window, "新窗口将打开笔记: \(note.title)")
             }
 
             // 创建窗口控制器
@@ -171,12 +171,12 @@ public class WindowManager {
 
             windowControllers.append(controller)
 
-            print("[WindowManager] 新窗口创建完成")
+            LogService.shared.info(.window, "新窗口创建完成")
 
             return controller
         } catch {
             let errorMessage = "创建新窗口失败: \(error.localizedDescription)"
-            print("[WindowManager] 错误: \(errorMessage)")
+            LogService.shared.error(.window, errorMessage)
             showWindowCreationError(message: errorMessage)
             return nil
         }
@@ -219,7 +219,7 @@ public class WindowManager {
     public func removeWindowController(_ windowController: MainWindowController) {
         if let index = windowControllers.firstIndex(where: { $0 === windowController }) {
             windowControllers.remove(at: index)
-            print("窗口控制器已移除，剩余窗口数: \(windowControllers.count)")
+            LogService.shared.debug(.window, "窗口控制器已移除，剩余窗口数: \(windowControllers.count)")
         }
     }
 
@@ -230,7 +230,7 @@ public class WindowManager {
     /// - Parameter windowId: 窗口唯一标识符
     public func removeWindow(withId _: UUID) {
         // TODO: 任务 5 完成后启用新实现
-        print("[WindowManager] removeWindow(withId:) 将在任务 5 完成后实现")
+        LogService.shared.debug(.window, "removeWindow(withId:) 将在任务 5 完成后实现")
 
         /* 新实现（任务 5 完成后启用）:
          // 移除窗口状态
@@ -272,7 +272,7 @@ public class WindowManager {
     /// - Returns: 所有窗口状态的数组
     public func getAllWindowStates() -> [Any] {
         // TODO: 任务 5 完成后返回 [WindowState]
-        print("[WindowManager] getAllWindowStates() 将在任务 5 完成后实现")
+        LogService.shared.debug(.window, "getAllWindowStates() 将在任务 5 完成后实现")
         return []
 
         /* 新实现（任务 5 完成后启用）:
@@ -300,23 +300,23 @@ public class WindowManager {
     /// - Parameter hasVisibleWindows: 是否有可见窗口
     /// - Returns: 是否处理成功
     public func handleApplicationReopen(hasVisibleWindows: Bool) -> Bool {
-        print("应用程序重新打开，是否有可见窗口: \(hasVisibleWindows)")
+        LogService.shared.debug(.window, "应用程序重新打开，是否有可见窗口: \(hasVisibleWindows)")
 
         // 获取所有窗口（包括最小化的）
         let allWindows = getAllWindows()
-        print("当前窗口总数: \(allWindows.count)")
+        LogService.shared.debug(.window, "当前窗口总数: \(allWindows.count)")
 
         if allWindows.isEmpty {
             // 如果没有任何窗口（包括最小化的），创建新的主窗口
-            print("没有窗口，创建新主窗口")
+            LogService.shared.debug(.window, "没有窗口，创建新主窗口")
             createMainWindow()
         } else if !hasVisibleWindows {
             // 如果有窗口但不可见（可能被最小化），将它们前置显示
-            print("有窗口但不可见，前置显示所有窗口")
+            LogService.shared.debug(.window, "有窗口但不可见，前置显示所有窗口")
             bringAllWindowsToFront()
         } else {
             // 如果有可见窗口，激活应用程序
-            print("已有可见窗口，激活应用程序")
+            LogService.shared.debug(.window, "已有可见窗口，激活应用程序")
             NSApp.activate(ignoringOtherApps: true)
         }
 
@@ -327,7 +327,7 @@ public class WindowManager {
 
     /// 保存应用程序状态
     public func saveApplicationState() {
-        print("保存应用程序状态...")
+        LogService.shared.debug(.window, "保存应用程序状态")
 
         // 迁移旧版窗口状态
         windowStateManager.migrateLegacyWindowState()
@@ -355,12 +355,12 @@ public class WindowManager {
             }
         }
 
-        print("应用程序状态保存完成")
+        LogService.shared.info(.window, "应用程序状态保存完成")
     }
 
     /// 恢复应用程序状态
     public func restoreApplicationState() {
-        print("恢复应用程序状态...")
+        LogService.shared.debug(.window, "恢复应用程序状态")
 
         // 迁移旧版窗口状态
         windowStateManager.migrateLegacyWindowState()
@@ -372,7 +372,7 @@ public class WindowManager {
             mainWindowController.restoreWindowState(savedState)
         }
 
-        print("应用程序状态恢复完成")
+        LogService.shared.info(.window, "应用程序状态恢复完成")
     }
 
     /// 恢复窗口 frame
@@ -448,7 +448,7 @@ public class WindowManager {
     // MARK: - 清理
 
     deinit {
-        print("窗口管理器释放")
+        LogService.shared.debug(.window, "窗口管理器释放")
     }
 
     // MARK: - 错误处理

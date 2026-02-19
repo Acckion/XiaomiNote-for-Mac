@@ -38,7 +38,6 @@ public class ParagraphManager {
     /// - "列表标记附件"（BulletAttachment, OrderAttachment, InteractiveCheckboxAttachment）
     ///   在逻辑上不是附件，而是段落的一部分，不需要特殊处理
     ///
-    /// _Requirements: 8.5_
     ///
     /// - Parameter textStorage: 文本存储
     /// - Returns: 段落范围数组
@@ -67,7 +66,6 @@ public class ParagraphManager {
                     paragraphRanges.append(range)
                 } else {
                     // 附件验证失败，记录警告但仍然添加段落
-                    print("[ParagraphManager] ⚠️ 警告: 段落 \(range) 包含跨越边界的附件")
                     paragraphRanges.append(range)
                 }
 
@@ -94,7 +92,6 @@ public class ParagraphManager {
                 paragraphRanges.append(range)
             } else {
                 // 附件验证失败，记录警告但仍然添加段落
-                print("[ParagraphManager] ⚠️ 警告: 段落 \(range) 包含跨越边界的附件")
                 paragraphRanges.append(range)
             }
         }
@@ -114,7 +111,6 @@ public class ParagraphManager {
     /// 2. "列表标记附件"（项目符号、编号、复选框）可以与文本共存
     /// 3. 附件字符不能跨越段落边界
     ///
-    /// _Requirements: 8.5_
     ///
     /// - Parameters:
     ///   - range: 段落范围
@@ -134,9 +130,6 @@ public class ParagraphManager {
 
                     // 验证附件字符不跨越段落边界
                     if !NSEqualRanges(NSIntersectionRange(subRange, range), subRange) {
-                        print("[ParagraphManager] ❌ 错误: 附件字符跨越段落边界")
-                        print("[ParagraphManager]   - 附件范围: \(subRange)")
-                        print("[ParagraphManager]   - 段落范围: \(range)")
                         isValid = false
                         stop.pointee = true
                     }
@@ -153,7 +146,6 @@ public class ParagraphManager {
 
         // 验证"真实附件"独占段落的规则
         if hasTrueAttachment, hasText {
-            print("[ParagraphManager] ⚠️ 警告: 段落 \(range) 包含真实附件但不是独占段落")
             // 注意: 这里只是警告，不强制失败，因为可能存在遗留数据
             // isValid = false
         }
@@ -173,7 +165,6 @@ public class ParagraphManager {
     /// - OrderAttachment: 有序列表编号
     /// - InteractiveCheckboxAttachment: 复选框
     ///
-    /// _Requirements: 8.5_
     ///
     /// - Parameter attachment: NSTextAttachment 对象
     /// - Returns: 如果是真实附件返回 true，否则返回 false
@@ -325,17 +316,13 @@ public class ParagraphManager {
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
     ///
-    /// _Requirements: 1.3, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6_
     public func applyParagraphFormat(_ type: ParagraphType, to range: NSRange, in textStorage: NSTextStorage) {
         // 1. 获取范围内的所有段落
         let affectedParagraphs = paragraphs(in: range)
 
         guard !affectedParagraphs.isEmpty else {
-            print("[ParagraphManager] 警告：范围 \(range) 内没有段落")
             return
         }
-
-        print("[ParagraphManager] 应用段落格式 \(type) 到 \(affectedParagraphs.count) 个段落")
 
         textStorage.beginEditing()
 
@@ -348,8 +335,6 @@ public class ParagraphManager {
 
         // 3. 更新段落列表中的段落类型
         updateParagraphTypes(affectedParagraphs, newType: type)
-
-        print("[ParagraphManager] ✅ 段落格式应用完成")
     }
 
     /// 应用段落格式到单个段落
@@ -394,8 +379,6 @@ public class ParagraphManager {
 
         // 设置段落类型元属性
         textStorage.addAttribute(.paragraphType, value: type, range: paragraphRange)
-
-        print("[ParagraphManager]   - 应用格式到段落 \(paragraphRange): \(type)")
     }
 
     /// 更新段落列表中的段落类型

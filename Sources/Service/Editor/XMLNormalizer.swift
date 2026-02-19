@@ -1,11 +1,3 @@
-//
-//  XMLNormalizer.swift
-//  MiNoteMac
-//
-//  Created by Kiro on 2024.
-//  Copyright © 2024 Acckion. All rights reserved.
-//
-
 import Foundation
 
 /// XML规范化器
@@ -39,11 +31,7 @@ public class XMLNormalizer {
     /// - Parameter xml: 原始XML内容
     /// - Returns: 规范化后的XML内容
     public func normalize(_ xml: String) -> String {
-        // 记录规范化开始时间
         let startTime = CFAbsoluteTimeGetCurrent()
-
-        print("[XMLNormalizer] 🚀 开始规范化 XML 内容")
-        print("[XMLNormalizer] 📏 原始内容长度: \(xml.count) 字符")
 
         var normalized = xml
 
@@ -51,51 +39,37 @@ public class XMLNormalizer {
         let imageFormatStart = CFAbsoluteTimeGetCurrent()
         normalized = normalizeImageFormat(normalized)
         let imageFormatTime = (CFAbsoluteTimeGetCurrent() - imageFormatStart) * 1000
-        print("[XMLNormalizer] ✅ 图片格式规范化完成，耗时: \(String(format: "%.2f", imageFormatTime))ms")
 
         // 2. 移除空标签
         let emptyTagStart = CFAbsoluteTimeGetCurrent()
         normalized = removeEmptyTags(normalized)
         let emptyTagTime = (CFAbsoluteTimeGetCurrent() - emptyTagStart) * 1000
-        print("[XMLNormalizer] ✅ 空标签移除完成，耗时: \(String(format: "%.2f", emptyTagTime))ms")
 
         // 3. 移除多余空格和换行
         let whitespaceStart = CFAbsoluteTimeGetCurrent()
         normalized = removeExtraWhitespace(normalized)
         let whitespaceTime = (CFAbsoluteTimeGetCurrent() - whitespaceStart) * 1000
-        print("[XMLNormalizer] ✅ 空格规范化完成，耗时: \(String(format: "%.2f", whitespaceTime))ms")
 
         // 4. 统一属性顺序
         let attributeOrderStart = CFAbsoluteTimeGetCurrent()
         normalized = normalizeAttributeOrder(normalized)
         let attributeOrderTime = (CFAbsoluteTimeGetCurrent() - attributeOrderStart) * 1000
-        print("[XMLNormalizer] ✅ 属性顺序规范化完成，耗时: \(String(format: "%.2f", attributeOrderTime))ms")
 
         // 5. 规范化属性值
         let attributeValueStart = CFAbsoluteTimeGetCurrent()
         normalized = normalizeAttributeValues(normalized)
         let attributeValueTime = (CFAbsoluteTimeGetCurrent() - attributeValueStart) * 1000
-        print("[XMLNormalizer] ✅ 属性值规范化完成，耗时: \(String(format: "%.2f", attributeValueTime))ms")
 
-        // 记录规范化结束时间
         let elapsedTime = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
 
-        print("[XMLNormalizer] 📏 规范化后内容长度: \(normalized.count) 字符")
-        print("[XMLNormalizer] ⏱️ 总耗时: \(String(format: "%.2f", elapsedTime))ms")
-
-        // 性能监控：如果耗时超过阈值（10ms），记录警告日志
+        // 性能监控：超过阈值时输出详情（warning），否则仅输出总耗时（debug）
         if elapsedTime > 10 {
-            print("[XMLNormalizer] ⚠️ 警告：规范化耗时超过阈值（10ms）！")
-            print("[XMLNormalizer] ⚠️ 实际耗时: \(String(format: "%.2f", elapsedTime))ms")
-            print("[XMLNormalizer] ⚠️ 内容长度: \(xml.count) 字符")
-            print("[XMLNormalizer] ⚠️ 各步骤耗时详情：")
-            print("[XMLNormalizer]    - 图片格式: \(String(format: "%.2f", imageFormatTime))ms")
-            print("[XMLNormalizer]    - 空标签移除: \(String(format: "%.2f", emptyTagTime))ms")
-            print("[XMLNormalizer]    - 空格处理: \(String(format: "%.2f", whitespaceTime))ms")
-            print("[XMLNormalizer]    - 属性顺序: \(String(format: "%.2f", attributeOrderTime))ms")
-            print("[XMLNormalizer]    - 属性值: \(String(format: "%.2f", attributeValueTime))ms")
+            LogService.shared.warning(
+                .editor,
+                "XML 规范化耗时超过阈值: \(String(format: "%.2f", elapsedTime))ms，内容长度: \(xml.count) 字符，各步骤: 图片格式 \(String(format: "%.2f", imageFormatTime))ms，空标签 \(String(format: "%.2f", emptyTagTime))ms，空格 \(String(format: "%.2f", whitespaceTime))ms，属性顺序 \(String(format: "%.2f", attributeOrderTime))ms，属性值 \(String(format: "%.2f", attributeValueTime))ms"
+            )
         } else {
-            print("[XMLNormalizer] ✅ 规范化完成，性能良好（< 10ms）")
+            LogService.shared.debug(.editor, "XML 规范化完成，耗时: \(String(format: "%.2f", elapsedTime))ms")
         }
 
         return normalized
@@ -153,9 +127,6 @@ public class XMLNormalizer {
                         "<img fileid=\"\(fileId)\" imgdes=\"\(description)\" imgshow=\"\(imgshow)\" />"
                     }
 
-                    print("[XMLNormalizer] 🔄 旧版图片转换: fileId=\(fileId), imgshow=\(imgshow), description='\(description)'")
-                    print("[XMLNormalizer] 🔄 转换结果: \(normalized)")
-
                     // 替换
                     let matchRange = match.range
                     result = (nsString.replacingCharacters(in: matchRange, with: normalized) as NSString) as String
@@ -203,12 +174,8 @@ public class XMLNormalizer {
                         normalizedAttrs.append(("fileid", fileid))
                     }
                     if let imgdes = attributes["imgdes"] {
-                        print("[XMLNormalizer] 🔍 检查 imgdes: '\(imgdes)', isEmpty: \(imgdes.isEmpty)")
                         if !imgdes.isEmpty {
                             normalizedAttrs.append(("imgdes", imgdes))
-                            print("[XMLNormalizer] ✅ 保留 imgdes: '\(imgdes)'")
-                        } else {
-                            print("[XMLNormalizer] ❌ 移除空 imgdes")
                         }
                     }
                     if let imgshow = attributes["imgshow"] {
@@ -248,17 +215,9 @@ public class XMLNormalizer {
             let nsString = result as NSString
             let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
 
-            if !matches.isEmpty {
-                print("[XMLNormalizer] 🔍 发现 \(matches.count) 个空 text 标签")
-            }
-
             // 从后往前替换，避免索引变化
             for match in matches.reversed() {
                 let matchRange = match.range
-                let matchedText = nsString.substring(with: matchRange)
-                print("[XMLNormalizer] 🗑️ 移除空标签: \(matchedText)")
-
-                // 替换为空字符串
                 result = (nsString.replacingCharacters(in: matchRange, with: "") as NSString) as String
             }
         }
@@ -441,15 +400,12 @@ public class XMLNormalizer {
         if let regex = try? NSRegularExpression(pattern: emptyImgdesPattern, options: []) {
             let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: (result as NSString).length))
             if !matches.isEmpty {
-                print("[XMLNormalizer] 🔍 在 normalizeAttributeValues 中发现 \(matches.count) 个空 imgdes 属性")
-                // 替换为单个空格，保持属性之间的分隔
                 result = regex.stringByReplacingMatches(
                     in: result,
                     options: [],
                     range: NSRange(location: 0, length: (result as NSString).length),
                     withTemplate: " "
                 )
-                print("[XMLNormalizer] ✅ 已移除所有空 imgdes 属性")
             }
         }
 

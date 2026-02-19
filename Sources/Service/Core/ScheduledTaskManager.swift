@@ -4,46 +4,22 @@ import Foundation
 // MARK: - 任务协议
 
 /// 定时任务协议
-///
-/// 所有定时任务都必须实现此协议
 protocol ScheduledTask: AnyObject, Sendable {
-    /// 任务唯一标识符
     var id: String { get }
-
-    /// 任务名称（用于显示）
     var name: String { get }
-
-    /// 执行间隔（秒）
     var interval: TimeInterval { get }
-
-    /// 是否需要网络连接
     var requiresNetwork: Bool { get }
-
-    /// 是否启用
     var enabled: Bool { get set }
-
-    /// 执行任务
-    /// - Returns: 任务执行结果
     func execute() async -> TaskResult
 }
 
 // MARK: - 任务结果
 
-/// 任务执行结果
 struct TaskResult: @unchecked Sendable {
-    /// 任务ID
     let taskId: String
-
-    /// 是否成功
     let success: Bool
-
-    /// 执行时间戳
     let timestamp: Date
-
-    /// 返回数据（可选）
     let data: Any?
-
-    /// 错误信息（如果失败）
     let error: Error?
 
     init(taskId: String, success: Bool, timestamp: Date = Date(), data: Any? = nil, error: Error? = nil) {
@@ -57,223 +33,127 @@ struct TaskResult: @unchecked Sendable {
 
 // MARK: - 任务状态
 
-/// 任务状态
 struct TaskStatus {
-    /// 任务ID
     let taskId: String
-
-    /// 最后执行时间
     var lastExecutionTime: Date?
-
-    /// 最后执行结果
     var lastResult: TaskResult?
-
-    /// 是否正在执行
     var isExecuting = false
-
-    /// 连续失败次数
     var consecutiveFailures = 0
-
-    /// 下次执行时间
     var nextExecutionTime: Date?
 }
 
 // MARK: - 任务管理器
 
-/// 定时任务管理器
-///
-/// 统一管理所有后台定时任务，包括：
-/// - Cookie有效性检查
-/// - 轻量化同步（未来）
-/// - 其他定时任务（未来）
 @MainActor
 public class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
-    // MARK: - 单例实例
-
     public static let shared = ScheduledTaskManager()
 
-    // MARK: - 发布属性
-
-    /// 所有任务状态
     @Published private(set) var taskStatuses: [String: TaskStatus] = [:]
 
-    // MARK: - 私有属性
-
-    /// 已注册的任务
     private var tasks: [String: ScheduledTask] = [:]
-
-    /// 任务定时器
     private var timers: [String: Timer] = [:]
-
-    /// 暂停的任务集合
     private var pausedTasks: Set<String> = []
-
-    /// 任务恢复时间
     private var taskResumeTime: [String: Date] = [:]
-
-    /// 网络监控器
     private let networkMonitor = NetworkMonitor.shared
-
-    /// 是否已启动
     private var isStarted = false
-
-    // MARK: - 初始化
+    private var cancellables = Set<AnyCancellable>()
 
     private init() {
-        // 注册默认任务
         registerDefaultTasks()
-
-        // 监听网络状态变化
         setupNetworkMonitoring()
-    }
-
-    deinit {
-        // Timer 会在对象释放时自动失效
-        // 由于 deinit 是 nonisolated 的，不能访问 @MainActor 隔离的属性
     }
 
     // MARK: - 公共方法
 
-    /// 启动所有启用的任务
     public func start() {
         guard !isStarted else { return }
 
-        print("[ScheduledTaskManager] 启动定时任务管理器")
+        LogService.shared.info(.core, "启动定时任务管理器")
         isStarted = true
 
-        for task in tasks.values {
-            if task.enabled {
-                startTask(task)
-            }
+        for task in tasks.values where task.enabled {
+            startTask(task)
         }
     }
 
-    /// 停止所有任务
     func stop() {
         guard isStarted else { return }
 
-        print("[ScheduledTaskManager] 停止定时任务管理器")
+        LogService.shared.info(.core, "停止定时任务管理器")
         isStarted = false
         stopAllTasks()
     }
 
-    /// 注册新任务
-    /// - Parameter task: 要注册的任务
     func registerTask(_ task: ScheduledTask) {
         tasks[task.id] = task
-
-        // 初始化任务状态
         taskStatuses[task.id] = TaskStatus(taskId: task.id)
+        LogService.shared.debug(.core, "注册任务: \(task.name) (ID: \(task.id))")
 
-        print("[ScheduledTaskManager] 注册任务: \(task.name) (ID: \(task.id))")
-
-        // 如果管理器已启动且任务启用，启动任务
         if isStarted, task.enabled {
             startTask(task)
         }
     }
 
-    /// 获取任务
-    /// - Parameter taskId: 任务ID
-    /// - Returns: 任务实例，如果不存在则返回nil
     func getTask(_ taskId: String) -> ScheduledTask? {
         tasks[taskId]
     }
 
-    /// 手动触发任务执行
-    /// - Parameter taskId: 任务ID
-    /// - Returns: 任务执行结果
     func triggerTask(_ taskId: String) async -> TaskResult? {
         guard let task = tasks[taskId], task.enabled else {
-            print("[ScheduledTaskManager] 任务不存在或未启用: \(taskId)")
+            LogService.shared.debug(.core, "任务不存在或未启用: \(taskId)")
             return nil
         }
-
-        print("[ScheduledTaskManager] 手动触发任务: \(task.name)")
         return await executeTask(task)
     }
 
-    /// 更新任务配置
-    /// - Parameters:
-    ///   - taskId: 任务ID
-    ///   - enabled: 是否启用
-    ///   - interval: 新的执行间隔（可选）
     func updateTask(_ taskId: String, enabled: Bool, interval: TimeInterval? = nil) {
         guard let task = tasks[taskId] else {
-            print("[ScheduledTaskManager] 任务不存在: \(taskId)")
+            LogService.shared.debug(.core, "任务不存在: \(taskId)")
             return
         }
 
         let wasEnabled = task.enabled
-        // 注意：我们不能直接修改 task.enabled，因为 task 是 let
-        // 我们需要通过其他方式更新任务状态
-        // 这里我们使用一个临时的可变副本
         var mutableTask = task
         mutableTask.enabled = enabled
 
-        // 更新间隔（如果任务支持）
         if let interval {
-            // 注意：这里需要任务支持动态更新间隔
-            // 对于简单实现，我们停止并重新启动任务
-            print("[ScheduledTaskManager] 更新任务间隔: \(task.name) -> \(interval)秒")
+            LogService.shared.debug(.core, "更新任务间隔: \(task.name) -> \(interval)秒")
         }
 
         if isStarted {
             if enabled, !wasEnabled {
-                // 启用之前禁用的任务
                 startTask(task)
             } else if !enabled, wasEnabled {
-                // 禁用之前启用的任务
                 stopTask(taskId)
             }
         }
-
-        print("[ScheduledTaskManager] 更新任务: \(task.name), 启用: \(enabled)")
     }
 
     // MARK: - 任务暂停/恢复
 
-    /// 暂停任务
-    ///
-    /// 暂停指定任务，停止其定时器但保留任务配置
-    /// - Parameter taskId: 任务ID
     func pauseTask(_ taskId: String) {
-        guard let task = tasks[taskId] else {
-            print("[ScheduledTaskManager] 任务不存在: \(taskId)")
-            return
-        }
+        guard let task = tasks[taskId] else { return }
 
         pausedTasks.insert(taskId)
         stopTask(taskId)
-        print("[ScheduledTaskManager] ⏸️ 暂停任务: \(task.name)")
+        LogService.shared.debug(.core, "暂停任务: \(task.name)")
     }
 
-    /// 恢复任务（支持宽限期）
-    ///
-    /// 恢复之前暂停的任务，可选择设置宽限期
-    /// - Parameters:
-    ///   - taskId: 任务ID
-    ///   - gracePeriod: 宽限期（秒），在此时间后才恢复任务执行
     func resumeTask(_ taskId: String, gracePeriod: TimeInterval = 0) {
-        guard pausedTasks.contains(taskId) else {
-            print("[ScheduledTaskManager] 任务未暂停: \(taskId)")
-            return
-        }
+        guard pausedTasks.contains(taskId) else { return }
 
         pausedTasks.remove(taskId)
 
         if gracePeriod > 0 {
             taskResumeTime[taskId] = Date().addingTimeInterval(gracePeriod)
-            print("[ScheduledTaskManager] ▶️ 任务 \(taskId) 将在 \(gracePeriod) 秒后恢复")
 
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: UInt64(gracePeriod * 1_000_000_000))
 
-                // 检查任务是否仍然应该恢复（可能在等待期间被再次暂停）
                 if !self.pausedTasks.contains(taskId) {
                     if let task = self.tasks[taskId], task.enabled {
                         self.startTask(task)
-                        print("[ScheduledTaskManager] ▶️ 任务已恢复: \(task.name)")
+                        LogService.shared.debug(.core, "任务已恢复: \(task.name)")
                     }
                 }
                 self.taskResumeTime.removeValue(forKey: taskId)
@@ -281,46 +161,29 @@ public class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
         } else {
             if let task = tasks[taskId], task.enabled {
                 startTask(task)
-                print("[ScheduledTaskManager] ▶️ 任务已恢复: \(task.name)")
+                LogService.shared.debug(.core, "任务已恢复: \(task.name)")
             }
         }
     }
 
-    /// 检查任务是否暂停
-    /// - Parameter taskId: 任务ID
-    /// - Returns: 如果任务暂停返回 true，否则返回 false
     func isTaskPaused(_ taskId: String) -> Bool {
         pausedTasks.contains(taskId)
     }
 
     // MARK: - 私有方法
 
-    /// 注册默认任务
     private func registerDefaultTasks() {
-        // 注册Cookie有效性检查任务
-        let cookieTask = CookieValidityCheckTask()
-        registerTask(cookieTask)
-
-        // 未来可以在这里注册其他默认任务
-        // 例如：轻量化同步任务、健康检查任务等
+        registerTask(CookieValidityCheckTask())
     }
 
-    /// 启动单个任务
     private func startTask(_ task: ScheduledTask) {
         guard task.enabled else { return }
 
         let taskId = task.id
-
-        // 停止现有的定时器（如果存在）
         stopTask(taskId)
 
-        print("[ScheduledTaskManager] 启动任务: \(task.name), 间隔: \(task.interval)秒")
-
-        // 创建定时器
-        // 注意：我们需要捕获 task 的弱引用，避免循环引用
         let timer = Timer.scheduledTimer(withTimeInterval: task.interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                // 重新获取任务，确保我们使用的是最新的任务实例
                 if let task = self?.tasks[taskId] {
                     await self?.executeTask(task)
                 }
@@ -329,41 +192,28 @@ public class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
 
         timers[taskId] = timer
 
-        // 立即执行一次
         Task { @MainActor in
             await executeTask(task)
         }
     }
 
-    /// 停止单个任务
     private func stopTask(_ taskId: String) {
         timers[taskId]?.invalidate()
         timers.removeValue(forKey: taskId)
-
-        if let task = tasks[taskId] {
-            print("[ScheduledTaskManager] 停止任务: \(task.name)")
-        }
     }
 
-    /// 停止所有任务
     private func stopAllTasks() {
-        for (taskId, _) in timers {
+        for taskId in timers.keys {
             stopTask(taskId)
         }
         timers.removeAll()
     }
 
-    /// 执行任务
-    /// - Parameter task: 要执行的任务
-    /// - Returns: 任务执行结果
+    @discardableResult
     private func executeTask(_ task: ScheduledTask) async -> TaskResult {
         let taskId = task.id
 
-        // 检查网络要求（只检查网络连接，不检查认证状态）
         if task.requiresNetwork, !networkMonitor.isConnected {
-            print("[ScheduledTaskManager] 网络不可用，跳过任务: \(task.name)")
-
-            // 更新任务状态
             updateTaskStatus(taskId, isExecuting: false)
             return TaskResult(
                 taskId: taskId,
@@ -375,32 +225,17 @@ public class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
             )
         }
 
-        // 更新任务状态：正在执行
         updateTaskStatus(taskId, isExecuting: true)
-
-        print("[ScheduledTaskManager] 开始执行任务: \(task.name)")
-
-        // 执行任务
         let result = await task.execute()
-
-        // 更新任务状态：执行完成
         updateTaskStatus(taskId, isExecuting: false, result: result)
 
-        // 处理执行结果
-        if result.success {
-            print("[ScheduledTaskManager] 任务执行成功: \(task.name)")
-        } else {
-            print("[ScheduledTaskManager] 任务执行失败: \(task.name), 错误: \(result.error?.localizedDescription ?? "未知错误")")
+        if !result.success {
+            LogService.shared.debug(.core, "任务执行失败: \(task.name), 错误: \(result.error?.localizedDescription ?? "未知错误")")
         }
 
         return result
     }
 
-    /// 更新任务状态
-    /// - Parameters:
-    ///   - taskId: 任务ID
-    ///   - isExecuting: 是否正在执行
-    ///   - result: 执行结果（可选）
     private func updateTaskStatus(_ taskId: String, isExecuting: Bool, result: TaskResult? = nil) {
         var status = taskStatuses[taskId] ?? TaskStatus(taskId: taskId)
         status.isExecuting = isExecuting
@@ -415,7 +250,6 @@ public class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
                 status.consecutiveFailures += 1
             }
 
-            // 计算下次执行时间
             if let task = tasks[taskId] {
                 status.nextExecutionTime = Date().addingTimeInterval(task.interval)
             }
@@ -424,7 +258,6 @@ public class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
         taskStatuses[taskId] = status
     }
 
-    /// 设置网络监控
     private func setupNetworkMonitoring() {
         networkMonitor.$isConnected
             .sink { [weak self] isConnected in
@@ -436,105 +269,50 @@ public class ScheduledTaskManager: ObservableObject, @unchecked Sendable {
             .store(in: &cancellables)
     }
 
-    /// 处理网络变化
-    /// - Parameter isConnected: 是否连接
     private func handleNetworkChange(_ isConnected: Bool) {
         if isConnected {
-            print("[ScheduledTaskManager] 网络恢复，重新启动需要网络的任务")
-            // 网络恢复时，重新启动需要网络的任务
-            for task in tasks.values {
-                if task.enabled, task.requiresNetwork {
-                    startTask(task)
-                }
+            for task in tasks.values where task.enabled && task.requiresNetwork {
+                startTask(task)
             }
         } else {
-            print("[ScheduledTaskManager] 网络断开，停止需要网络的任务")
-            // 网络断开时，停止需要网络的任务
-            for task in tasks.values {
-                if task.requiresNetwork {
-                    stopTask(task.id)
-                }
+            for task in tasks.values where task.requiresNetwork {
+                stopTask(task.id)
             }
         }
     }
-
-    // MARK: - Combine
-
-    private var cancellables = Set<AnyCancellable>()
 }
 
-// MARK: - Cookie有效性检查任务
+// MARK: - Cookie 有效性检查任务
 
-/// Cookie有效性检查任务
 final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked Sendable {
-    // MARK: - ScheduledTask 协议实现
-
     let id = "cookie_validity_check"
     let name = "Cookie有效性检查"
-    let interval: TimeInterval = 30.0 // 30秒检查一次
+    let interval: TimeInterval = 30.0
     let requiresNetwork = true
     var enabled = true
 
-    // MARK: - 任务特定属性
-
-    /// Cookie是否有效（供其他模块使用）
     @Published private(set) var isCookieValid = true
-
-    /// 最后检查时间
     @Published private(set) var lastCheckTime: Date?
-
-    /// 最后检查结果
     @Published private(set) var lastCheckResult = true
 
-    // MARK: - 刷新协调
-
-    /// 检查是否应该跳过本次检查
-    ///
-    /// 当 Cookie 刷新正在进行时，跳过定时检查以避免冲突
-    /// - Returns: 如果应该跳过返回 true，否则返回 false
+    /// 跳过检查的条件：未存储 passToken 或任务已暂停
     private func shouldSkipCheck() async -> Bool {
-        // 检查 SilentCookieRefreshManager 是否正在刷新
-        let isRefreshing = await MainActor.run {
-            SilentCookieRefreshManager.shared.isRefreshing
-        }
+        let hasPassToken = await PassTokenManager.shared.hasStoredPassToken()
+        if !hasPassToken { return true }
 
-        if isRefreshing {
-            print("[CookieValidityCheckTask] ⏭️ Cookie 刷新正在进行中，跳过本次检查")
-            return true
-        }
-
-        // 检查任务是否被暂停
-        let isPaused = await MainActor.run {
+        return await MainActor.run {
             ScheduledTaskManager.shared.isTaskPaused(self.id)
         }
-
-        if isPaused {
-            print("[CookieValidityCheckTask] ⏭️ 任务已暂停，跳过本次检查")
-            return true
-        }
-
-        return false
     }
 
-    // MARK: - 公开方法
-
-    /// 手动设置 Cookie 有效性状态
-    ///
-    /// 当 Cookie 刷新成功后调用此方法，立即更新状态而不等待下次定时检查
-    /// - Parameter isValid: Cookie 是否有效
     func setCookieValid(_ isValid: Bool) {
         isCookieValid = isValid
         lastCheckTime = Date()
         lastCheckResult = isValid
-        print("[CookieValidityCheckTask] 手动设置Cookie有效性: \(isValid ? "有效" : "无效")")
     }
 
-    // MARK: - 任务执行
-
     func execute() async -> TaskResult {
-        // 检查是否应该跳过本次检查
         if await shouldSkipCheck() {
-            print("[CookieValidityCheckTask] 🔄 刷新进行中，跳过检查并返回成功")
             return TaskResult(
                 taskId: id,
                 success: true,
@@ -543,10 +321,7 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
             )
         }
 
-        print("[CookieValidityCheckTask] 开始检查Cookie有效性")
-
         do {
-            // 调用 MiNoteService 检查Cookie有效性
             let isValid = try await MiNoteService.shared.checkCookieValidity()
 
             await MainActor.run {
@@ -555,11 +330,7 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
                 self.lastCheckResult = isValid
             }
 
-            print("[CookieValidityCheckTask] Cookie有效性检查结果: \(isValid ? "有效" : "无效")")
-
-            // 如果 Cookie 无效，立即触发静默刷新
             if !isValid {
-                print("[CookieValidityCheckTask] ⚠️ Cookie 无效，立即触发静默刷新")
                 await triggerSilentRefresh()
             }
 
@@ -576,10 +347,7 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
                 self.lastCheckResult = false
             }
 
-            print("[CookieValidityCheckTask] Cookie有效性检查失败: \(error)")
-
-            // Cookie 检查失败，立即触发静默刷新
-            print("[CookieValidityCheckTask] ⚠️ Cookie 检查失败，立即触发静默刷新")
+            LogService.shared.debug(.core, "Cookie 有效性检查失败: \(error.localizedDescription)")
             await triggerSilentRefresh()
 
             return TaskResult(
@@ -591,45 +359,18 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
         }
     }
 
-    /// 触发静默刷新
-    ///
-    /// 当 Cookie 有效性检查失败时，立即触发静默刷新
     private func triggerSilentRefresh() async {
         do {
-            print("[CookieValidityCheckTask] 🔄 开始静默刷新 Cookie（响应式刷新）")
+            try await PassTokenManager.shared.refreshServiceToken()
 
-            // 使用响应式刷新类型，忽略冷却期
-            let refreshSuccess = try await SilentCookieRefreshManager.shared.refresh(type: .reactive)
-
-            if refreshSuccess {
-                print("[CookieValidityCheckTask] ✅ 静默刷新成功")
-
-                // 更新 Cookie 有效性状态
-                await MainActor.run {
-                    self.isCookieValid = true
-                    self.lastCheckResult = true
-                }
-
-                // 通知 ScheduledTaskManager 更新状态
-                await MainActor.run {
-                    ScheduledTaskManager.shared.setCookieValid(true)
-                }
-            } else {
-                print("[CookieValidityCheckTask] ❌ 静默刷新失败")
-
-                // 发送通知，告知用户需要手动登录
-                await MainActor.run {
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("CookieRefreshFailed"),
-                        object: nil,
-                        userInfo: ["reason": "静默刷新失败，请手动登录"]
-                    )
-                }
+            await MainActor.run {
+                self.isCookieValid = true
+                self.lastCheckResult = true
+                ScheduledTaskManager.shared.setCookieValid(true)
             }
         } catch {
-            print("[CookieValidityCheckTask] ❌ 静默刷新异常: \(error.localizedDescription)")
+            LogService.shared.error(.core, "PassToken 刷新失败: \(error.localizedDescription)")
 
-            // 发送通知，告知用户需要手动登录
             await MainActor.run {
                 NotificationCenter.default.post(
                     name: NSNotification.Name("CookieRefreshFailed"),
@@ -641,23 +382,17 @@ final class CookieValidityCheckTask: ScheduledTask, ObservableObject, @unchecked
     }
 }
 
-// MARK: - 工具函数
+// MARK: - 工具扩展
 
 extension ScheduledTaskManager {
-    /// 获取Cookie有效性检查任务
     var cookieValidityCheckTask: CookieValidityCheckTask? {
         getTask("cookie_validity_check") as? CookieValidityCheckTask
     }
 
-    /// 获取当前Cookie是否有效（同步）
     var isCookieValid: Bool {
         cookieValidityCheckTask?.isCookieValid ?? true
     }
 
-    /// 手动设置 Cookie 有效性状态
-    ///
-    /// 当 Cookie 刷新成功后调用此方法，立即更新状态
-    /// - Parameter isValid: Cookie 是否有效
     func setCookieValid(_ isValid: Bool) {
         cookieValidityCheckTask?.setCookieValid(isValid)
     }

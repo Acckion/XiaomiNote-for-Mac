@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  性能优化器 - 负责编辑器渲染和响应性能优化
-//  需求: 11.1, 11.2, 11.3, 11.4, 11.5
 //
 
 import AppKit
@@ -119,9 +118,9 @@ struct CacheEntry<T> {
 
     init(value: T) {
         self.value = value
-        createdAt = Date()
-        lastAccessedAt = Date()
-        accessCount = 1
+        self.createdAt = Date()
+        self.lastAccessedAt = Date()
+        self.accessCount = 1
     }
 
     mutating func recordAccess() {
@@ -307,16 +306,16 @@ class PerformanceOptimizer {
     // MARK: - Initialization
 
     private init() {
-        configuration = .default
-        attachmentCache = LRUCache(
+        self.configuration = .default
+        self.attachmentCache = LRUCache(
             maxSize: configuration.maxAttachmentCacheSize,
             expirationTime: configuration.cacheExpirationTime
         )
-        imageCache = LRUCache(
+        self.imageCache = LRUCache(
             maxSize: configuration.maxImageCacheSize,
             expirationTime: configuration.cacheExpirationTime
         )
-        renderCache = LRUCache(
+        self.renderCache = LRUCache(
             maxSize: configuration.maxRenderCacheSize,
             expirationTime: configuration.cacheExpirationTime
         )
@@ -425,13 +424,12 @@ class PerformanceOptimizer {
 
         // 检查性能警告
         if duration > performanceWarningThreshold {
-            print("[PerformanceOptimizer] 性能警告: \(operation) 耗时 \(String(format: "%.2f", duration))ms")
+            LogService.shared.warning(.editor, "\(operation) 耗时 \(String(format: "%.2f", duration))ms")
         }
 
         return result
     }
 
-    /// 测量异步操作执行时间
     func measureTimeAsync<T>(_ operation: String, block: () async throws -> T) async rethrows -> T {
         guard isMonitoringEnabled else {
             return try await block()
@@ -445,7 +443,7 @@ class PerformanceOptimizer {
         recordOperationTime(operation: operation, duration: duration)
 
         if duration > performanceWarningThreshold {
-            print("[PerformanceOptimizer] 性能警告: \(operation) 耗时 \(String(format: "%.2f", duration))ms")
+            LogService.shared.warning(.editor, "\(operation) 耗时 \(String(format: "%.2f", duration))ms")
         }
 
         return result
@@ -561,8 +559,6 @@ class PerformanceOptimizer {
         attachmentCache.clear()
         imageCache.clear()
         renderCache.clear()
-
-        print("[PerformanceOptimizer] 所有缓存已清除")
     }
 
     /// 清除过期缓存
@@ -601,7 +597,7 @@ class PerformanceOptimizer {
         // 如果内存使用过高，切换到低内存配置
         updateMemoryUsage()
         if currentMetrics.memoryUsage > configuration.maxImageCacheMemory * 2 {
-            print("[PerformanceOptimizer] 内存压力过高，切换到低内存配置")
+            LogService.shared.warning(.editor, "内存压力过高，切换到低内存配置")
             updateConfiguration(.lowMemory)
         }
     }
@@ -706,7 +702,7 @@ class IncrementalRenderManager {
                 try? await Task.sleep(nanoseconds: 1_000_000) // 1ms
 
             } catch {
-                print("[IncrementalRenderManager] 渲染块失败: \(error)")
+                LogService.shared.error(.editor, "渲染块失败: \(error)")
             }
         }
 
@@ -724,7 +720,6 @@ class IncrementalRenderManager {
 // MARK: - 编辑器初始化优化器
 
 /// 编辑器初始化优化器 - 确保快速初始化
-/// 需求: 11.1
 @MainActor
 class EditorInitializationOptimizer {
 
@@ -741,7 +736,6 @@ class EditorInitializationOptimizer {
         let startTime = CFAbsoluteTimeGetCurrent()
 
         // 预加载字体 - 使用 FontSizeManager 统一管理
-        // _Requirements: 1.1, 1.2, 1.3, 1.4_
         _ = NSFont.systemFont(ofSize: FontSizeConstants.body) // 14pt 正文
         _ = NSFont.systemFont(ofSize: FontSizeConstants.heading1) // 23pt 大标题
         _ = NSFont.systemFont(ofSize: FontSizeConstants.heading2) // 20pt 二级标题
@@ -762,8 +756,7 @@ class EditorInitializationOptimizer {
 
         let endTime = CFAbsoluteTimeGetCurrent()
         let duration = (endTime - startTime) * 1000
-
-        print("[EditorInitializationOptimizer] 资源预加载完成，耗时: \(String(format: "%.2f", duration))ms")
+        LogService.shared.debug(.editor, "资源预加载完成，耗时: \(String(format: "%.2f", duration))ms")
     }
 
     /// 创建优化的文本视图
@@ -784,7 +777,6 @@ class EditorInitializationOptimizer {
 
         // 设置合理的默认值
         // 使用 FontSizeConstants.body (14pt) 保持与 FontSizeManager 一致
-        // _Requirements: 1.4_
         textView.font = NSFont.systemFont(ofSize: FontSizeConstants.body)
         textView.textColor = .textColor
 
@@ -803,7 +795,7 @@ class EditorInitializationOptimizer {
 
         // 检查是否超过阈值
         if duration > 100 {
-            print("[EditorInitializationOptimizer] 警告: 初始化时间超过 100ms (\(String(format: "%.2f", duration))ms)")
+            LogService.shared.warning(.editor, "初始化时间超过 100ms (\(String(format: "%.2f", duration))ms)")
         }
 
         return (result, duration)

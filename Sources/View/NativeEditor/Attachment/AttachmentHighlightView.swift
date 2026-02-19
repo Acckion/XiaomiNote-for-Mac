@@ -1,10 +1,3 @@
-//
-//  AttachmentHighlightView.swift
-//  MiNoteMac
-//
-//  Created by Kiro AI
-//
-
 import AppKit
 
 /// 附件高亮视图

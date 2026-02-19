@@ -1,13 +1,5 @@
-//
-//  ToolbarVisibilityManager.swift
-//  MiNoteMac
-//
 //  工具栏可见性管理器
 //  负责根据应用状态动态更新工具栏项的可见性
-//
-//  Created by Kiro on 2026/1/10.
-//  Copyright © 2026 Acckion. All rights reserved.
-//
 
 #if os(macOS)
     import AppKit
@@ -17,9 +9,6 @@
     ///
     /// 负责根据应用状态动态更新工具栏项的可见性
     /// 使用 macOS 15 的 `NSToolbarItem.isHidden` 属性实现
-    ///
-    /// - 1.3: 定义编辑器相关工具栏项
-    /// - 5.4: 使用 Combine publishers 观察状态变化
     @MainActor
     public class ToolbarVisibilityManager {
 

@@ -4,7 +4,6 @@ import Foundation
 /// 文本容器布局配置
 /// 定义文本容器的布局参数
 ///
-/// _Requirements: 14.1, 14.2_
 public struct TextContainerLayoutConfig: Sendable {
     /// 首选行长度（字符数或点数）
     public let preferredLineLength: CGFloat
@@ -42,7 +41,6 @@ public struct TextContainerLayoutConfig: Sendable {
 /// - 响应窗口尺寸变化
 /// - 支持渐进式边距折叠
 ///
-/// _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6_
 public class TextContainerLayoutManager {
     // MARK: - Properties
 
@@ -76,10 +74,6 @@ public class TextContainerLayoutManager {
         self.config = config
         self.textContainer = textContainer
         self.scrollView = scrollView
-
-        #if DEBUG
-            print("[TextContainerLayoutManager] 初始化，配置: \(config)")
-        #endif
     }
 
     // MARK: - Public Methods - 布局计算
@@ -93,7 +87,6 @@ public class TextContainerLayoutManager {
     /// 2. 否则，使用可用宽度 - 2 * 最小边距
     /// 3. 确保容器宽度不小于最小值
     ///
-    /// _Requirements: 14.1, 14.2_
     ///
     /// - Parameter availableWidth: 可用宽度
     /// - Returns: 文本容器尺寸
@@ -109,10 +102,6 @@ public class TextContainerLayoutManager {
         let size = NSSize(width: containerWidth, height: containerHeight)
         currentContainerSize = size
 
-        #if DEBUG
-            print("[TextContainerLayoutManager] 计算容器尺寸: \(size), 可用宽度: \(availableWidth)")
-        #endif
-
         return size
     }
 
@@ -126,7 +115,6 @@ public class TextContainerLayoutManager {
     /// 3. 如果空间不足，使用最小边距
     /// 4. 使用渐进式边距折叠算法平滑过渡
     ///
-    /// _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
     ///
     /// - Parameter availableWidth: 可用宽度
     /// - Returns: 左右边距
@@ -139,26 +127,16 @@ public class TextContainerLayoutManager {
 
         if idealTotalMargin >= 2 * minMargin {
             // 空间充足：均匀分配边距
-            // _Requirements: 14.2 - 在可用空间内均匀分配侧边距
             let margin = idealTotalMargin / 2
             currentMargins = (margin, margin)
-
-            #if DEBUG
-                print("[TextContainerLayoutManager] 空间充足，均匀分配边距: \(margin)")
-            #endif
         } else {
             // 空间不足：使用渐进式边距折叠
-            // _Requirements: 14.5 - 使用数学函数实现渐进式边距折叠
             let margin = calculateProgressiveMargin(
                 availableWidth: availableWidth,
                 preferredWidth: preferredWidth,
                 minMargin: minMargin
             )
             currentMargins = (margin, margin)
-
-            #if DEBUG
-                print("[TextContainerLayoutManager] 空间不足，渐进式边距: \(margin)")
-            #endif
         }
 
         return currentMargins
@@ -168,23 +146,9 @@ public class TextContainerLayoutManager {
     ///
     /// 当窗口尺寸变化时，重新计算布局并应用。
     ///
-    /// **处理策略**:
-    /// 1. 优先保持行长度
-    /// 2. 如果空间不足，优先保持最小边距
-    /// 3. 平滑过渡，避免突变
-    ///
-    /// _Requirements: 14.3, 14.4_
-    ///
     /// - Parameter newSize: 新的窗口尺寸
     public func handleWindowResize(newSize: NSSize) {
-        #if DEBUG
-            print("[TextContainerLayoutManager] 处理窗口尺寸变化: \(newSize)")
-        #endif
-
-        // 计算新的容器尺寸
         let containerSize = calculateContainerSize(availableWidth: newSize.width)
-
-        // 应用到文本容器
         applyLayout(containerSize: containerSize)
     }
 
@@ -197,9 +161,6 @@ public class TextContainerLayoutManager {
     /// - Parameter containerSize: 容器尺寸
     public func applyLayout(containerSize: NSSize) {
         guard let textContainer else {
-            #if DEBUG
-                print("[TextContainerLayoutManager] 警告：文本容器不可用")
-            #endif
             return
         }
 
@@ -207,15 +168,10 @@ public class TextContainerLayoutManager {
         textContainer.containerSize = containerSize
 
         // 如果支持非对称布局，可以在这里设置额外的布局参数
-        // _Requirements: 14.6 - 支持非对称布局
         if config.allowAsymmetricLayout {
             // 预留：可以设置不同的左右边距
             // 例如：为标题标签留出空间
         }
-
-        #if DEBUG
-            print("[TextContainerLayoutManager] 布局已应用: \(containerSize)")
-        #endif
     }
 
     /// 更新配置
@@ -232,10 +188,6 @@ public class TextContainerLayoutManager {
             let containerSize = calculateContainerSize(availableWidth: availableWidth)
             applyLayout(containerSize: containerSize)
         }
-
-        #if DEBUG
-            print("[TextContainerLayoutManager] 配置已更新: \(newConfig)")
-        #endif
     }
 
     // MARK: - Private Helper Methods
@@ -244,12 +196,6 @@ public class TextContainerLayoutManager {
     ///
     /// 使用数学函数实现平滑的边距折叠。
     /// 当可用空间减少时，边距逐渐从理想值过渡到最小值。
-    ///
-    /// **数学模型**:
-    /// 使用 sigmoid 函数的变体实现平滑过渡：
-    /// margin = minMargin + (idealMargin - minMargin) * smoothFactor
-    ///
-    /// _Requirements: 14.5_
     ///
     /// - Parameters:
     ///   - availableWidth: 可用宽度
@@ -308,20 +254,12 @@ public extension TextContainerLayoutManager {
         let availableWidth = scrollView.contentView.bounds.width
         let containerSize = calculateContainerSize(availableWidth: availableWidth)
         applyLayout(containerSize: containerSize)
-
-        #if DEBUG
-            print("[TextContainerLayoutManager] 已注册文本容器和滚动视图")
-        #endif
     }
 
     /// 取消注册
     func unregister() {
         textContainer = nil
         scrollView = nil
-
-        #if DEBUG
-            print("[TextContainerLayoutManager] 已取消注册")
-        #endif
     }
 }
 

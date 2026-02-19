@@ -115,45 +115,42 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
     /// 自定义解码
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        title = try container.decode(String.self, forKey: .title)
-        content = try container.decode(String.self, forKey: .content)
-        folderId = try container.decode(String.self, forKey: .folderId)
-        isStarred = try container.decode(Bool.self, forKey: .isStarred)
-        createdAt = try container.decode(Date.self, forKey: .createdAt)
-        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
-        tags = try container.decode([String].self, forKey: .tags)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.title = try container.decode(String.self, forKey: .title)
+        self.content = try container.decode(String.self, forKey: .content)
+        self.folderId = try container.decode(String.self, forKey: .folderId)
+        self.isStarred = try container.decode(Bool.self, forKey: .isStarred)
+        self.createdAt = try container.decode(Date.self, forKey: .createdAt)
+        self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        self.tags = try container.decode([String].self, forKey: .tags)
 
         // 解码新增字段，使用默认值
-        snippet = try container.decodeIfPresent(String.self, forKey: .snippet)
-        colorId = try container.decodeIfPresent(Int.self, forKey: .colorId) ?? 0
-        subject = try container.decodeIfPresent(String.self, forKey: .subject)
-        alertDate = try container.decodeIfPresent(Date.self, forKey: .alertDate)
-        type = try container.decodeIfPresent(String.self, forKey: .type) ?? "note"
-        serverTag = try container.decodeIfPresent(String.self, forKey: .serverTag)
-        status = try container.decodeIfPresent(String.self, forKey: .status) ?? "normal"
-        settingJson = try container.decodeIfPresent(String.self, forKey: .settingJson)
-        extraInfoJson = try container.decodeIfPresent(String.self, forKey: .extraInfoJson)
+        self.snippet = try container.decodeIfPresent(String.self, forKey: .snippet)
+        self.colorId = try container.decodeIfPresent(Int.self, forKey: .colorId) ?? 0
+        self.subject = try container.decodeIfPresent(String.self, forKey: .subject)
+        self.alertDate = try container.decodeIfPresent(Date.self, forKey: .alertDate)
+        self.type = try container.decodeIfPresent(String.self, forKey: .type) ?? "note"
+        self.serverTag = try container.decodeIfPresent(String.self, forKey: .serverTag)
+        self.status = try container.decodeIfPresent(String.self, forKey: .status) ?? "normal"
+        self.settingJson = try container.decodeIfPresent(String.self, forKey: .settingJson)
+        self.extraInfoJson = try container.decodeIfPresent(String.self, forKey: .extraInfoJson)
 
-        // 解码 rawData，使用更健壮的错误处理
+        // 解码 rawData
         do {
             if let jsonData = try container.decodeIfPresent(Data.self, forKey: .rawData) {
-                // 尝试解析为 [String: Any]
                 if let dict = try JSONSerialization.jsonObject(with: jsonData, options: [.fragmentsAllowed, .mutableContainers]) as? [String: Any] {
-                    rawData = dict
+                    self.rawData = dict
                 } else if let array = try JSONSerialization.jsonObject(with: jsonData, options: [.fragmentsAllowed]) as? [Any] {
-                    // 如果是数组，包装为字典
-                    rawData = ["data": array]
+                    self.rawData = ["data": array]
                 } else {
-                    // 其他类型，包装为字典
-                    rawData = try ["value": JSONSerialization.jsonObject(with: jsonData, options: [.fragmentsAllowed])]
+                    self.rawData = try ["value": JSONSerialization.jsonObject(with: jsonData, options: [.fragmentsAllowed])]
                 }
             } else {
-                rawData = nil
+                self.rawData = nil
             }
         } catch {
-            print("[Note] 解码 rawData 失败: \(error)")
-            rawData = nil
+            LogService.shared.error(.storage, "解码 rawData 失败: \(error)")
+            self.rawData = nil
         }
     }
 
@@ -413,66 +410,66 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         if let content = entry["content"] as? String {
             self.content = Self.convertLegacyImageFormat(content)
         } else {
-            content = ""
+            self.content = ""
         }
 
         // 解析文件夹 ID
         if let folderIdString = entry["folderId"] as? String {
-            folderId = folderIdString
+            self.folderId = folderIdString
         } else if let folderIdInt = entry["folderId"] as? Int {
-            folderId = String(folderIdInt)
+            self.folderId = String(folderIdInt)
         } else {
-            folderId = "0"
+            self.folderId = "0"
         }
 
         // 解析收藏状态
-        isStarred = entry["isStarred"] as? Bool ?? false
+        self.isStarred = entry["isStarred"] as? Bool ?? false
 
         // 解析时间戳（毫秒转 Date）
         if let createDateMs = entry["createDate"] as? TimeInterval {
-            createdAt = Date(timeIntervalSince1970: createDateMs / 1000)
+            self.createdAt = Date(timeIntervalSince1970: createDateMs / 1000)
         } else {
-            createdAt = Date()
+            self.createdAt = Date()
         }
 
         if let modifyDateMs = entry["modifyDate"] as? TimeInterval {
-            updatedAt = Date(timeIntervalSince1970: modifyDateMs / 1000)
+            self.updatedAt = Date(timeIntervalSince1970: modifyDateMs / 1000)
         } else {
-            updatedAt = createdAt
+            self.updatedAt = createdAt
         }
 
         // 解析标签
         if let tagsArray = entry["tags"] as? [String] {
-            tags = tagsArray
+            self.tags = tagsArray
         } else if let tagsString = entry["tags"] as? String, !tagsString.isEmpty {
             // 如果 tags 是字符串，尝试解析为 JSON 数组
             if let tagsData = tagsString.data(using: .utf8),
                let tagsArray = try? JSONSerialization.jsonObject(with: tagsData) as? [String]
             {
-                tags = tagsArray
+                self.tags = tagsArray
             } else {
                 // 如果无法解析，将整个字符串作为单个标签
-                tags = [tagsString]
+                self.tags = [tagsString]
             }
         } else {
-            tags = []
+            self.tags = []
         }
 
         // 解析新增字段
-        snippet = entry["snippet"] as? String
-        colorId = entry["colorId"] as? Int ?? 0
-        subject = entry["subject"] as? String
+        self.snippet = entry["snippet"] as? String
+        self.colorId = entry["colorId"] as? Int ?? 0
+        self.subject = entry["subject"] as? String
 
         // 解析提醒时间（毫秒转 Date）
         if let alertDateMs = entry["alertDate"] as? TimeInterval, alertDateMs > 0 {
-            alertDate = Date(timeIntervalSince1970: alertDateMs / 1000)
+            self.alertDate = Date(timeIntervalSince1970: alertDateMs / 1000)
         } else {
-            alertDate = nil
+            self.alertDate = nil
         }
 
-        type = entry["type"] as? String ?? "note"
-        serverTag = entry["tag"] as? String
-        status = entry["status"] as? String ?? "normal"
+        self.type = entry["type"] as? String ?? "note"
+        self.serverTag = entry["tag"] as? String
+        self.status = entry["status"] as? String ?? "normal"
 
         // 解析 JSON 字段
         if let setting = entry["setting"] {
@@ -480,31 +477,31 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
             if let settingData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
                let settingString = String(data: settingData, encoding: .utf8)
             {
-                settingJson = settingString
+                self.settingJson = settingString
             } else {
-                settingJson = nil
+                self.settingJson = nil
             }
         } else {
-            settingJson = nil
+            self.settingJson = nil
         }
 
         if let extraInfo = entry["extraInfo"] as? String {
-            extraInfoJson = extraInfo
+            self.extraInfoJson = extraInfo
         } else if let extraInfo = entry["extraInfo"] {
             // 如果 extraInfo 不是字符串，尝试转换为 JSON 字符串
             if let extraInfoData = try? JSONSerialization.data(withJSONObject: extraInfo, options: [.sortedKeys]),
                let extraInfoString = String(data: extraInfoData, encoding: .utf8)
             {
-                extraInfoJson = extraInfoString
+                self.extraInfoJson = extraInfoString
             } else {
-                extraInfoJson = nil
+                self.extraInfoJson = nil
             }
         } else {
-            extraInfoJson = nil
+            self.extraInfoJson = nil
         }
 
         // 保存原始数据
-        rawData = entry
+        self.rawData = entry
     }
 
     /// 从小米笔记API数据创建Note对象
@@ -572,8 +569,6 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
     ///
     /// - Parameter noteDetails: API返回的笔记详情字典
     mutating func updateContent(from noteDetails: [String: Any]) {
-        print("[NOTE] 开始更新内容，响应结构: \(noteDetails.keys)")
-
         var entry: [String: Any]?
 
         // 尝试不同的响应格式
@@ -582,40 +577,18 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
            let dataEntry = data["entry"] as? [String: Any]
         {
             entry = dataEntry
-            print("[NOTE] 使用格式1: data->entry")
-        }
-        // 格式2: 直接是entry对象
-        else if let directEntry = noteDetails["entry"] as? [String: Any] {
-            entry = directEntry
-            print("[NOTE] 使用格式2: 直接entry")
-        }
-        // 格式3: 响应本身就是entry
-        else if noteDetails["id"] != nil || noteDetails["content"] != nil {
-            entry = noteDetails
-            print("[NOTE] 使用格式3: 响应本身就是entry")
         }
 
         guard let entry else {
-            print("[NOTE] 错误：无法从响应中提取entry")
-            print("[NOTE] 完整响应: \(noteDetails)")
+            LogService.shared.error(.storage, "updateContent 无法从响应中提取 entry")
             return
         }
-
-        print("[NOTE] 找到entry，包含字段: \(entry.keys)")
 
         // 更新内容，并转换旧版图片格式
         if let newContent = entry["content"] as? String {
             // 简单转换旧版格式为新版格式（不依赖 XMLNormalizer 避免 actor 隔离问题）
             let normalizedContent = Self.convertLegacyImageFormat(newContent)
             content = normalizedContent
-            print("[NOTE] 更新内容，长度: \(normalizedContent.count)")
-
-            // 如果内容被转换了，记录日志
-            if normalizedContent != newContent {
-                print("[NOTE] ✅ 内容中的旧版格式已转换为新版格式")
-            }
-        } else {
-            print("[NOTE] 警告：entry中没有content字段")
         }
 
         // 更新标题
@@ -623,20 +596,17 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
 
         // 首先尝试从extraInfo中获取
         if let extraInfo = entry["extraInfo"] as? String {
-            print("[NOTE] 找到extraInfo: \(extraInfo.prefix(100))...")
             if let extraData = extraInfo.data(using: .utf8),
                let extraJson = try? JSONSerialization.jsonObject(with: extraData) as? [String: Any],
                let title = extraJson["title"] as? String, !title.isEmpty
             {
                 newTitle = title
-                print("[NOTE] 从extraInfo获取标题: \(title)")
             }
         }
 
         // 如果extraInfo中没有标题，尝试从entry直接获取
         if newTitle == nil, let title = entry["title"] as? String, !title.isEmpty {
             newTitle = title
-            print("[NOTE] 从entry直接获取标题: \(title)")
         }
 
         // 不再从snippet或content中提取标题
@@ -645,17 +615,11 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         // 更新标题（如果找到了新的标题）
         if let title = newTitle, !title.isEmpty {
             self.title = title
-            print("[NOTE] 最终标题: \(title)")
         } else {
             // 如果没有找到新的标题，且当前标题是"未命名笔记_xxx"格式，保持它
             // 否则，如果当前标题是从内容中提取的，清空它
             if !title.isEmpty, !title.hasPrefix("未命名笔记_") {
-                // 检查当前标题是否可能是从内容中提取的
-                // 如果是，清空它，让它显示为"无标题"
                 title = ""
-                print("[NOTE] 清空从内容中提取的标题")
-            } else {
-                print("[NOTE] 保持原标题: \(title)")
             }
         }
 
@@ -663,38 +627,27 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
         // 只有当服务器返回的时间戳与本地不同时才更新，避免不必要的排序变化
         if let modifyDate = entry["modifyDate"] as? TimeInterval {
             let serverUpdatedAt = Date(timeIntervalSince1970: modifyDate / 1000)
-            // 只有当时间差超过 1 秒时才更新，避免因为毫秒级差异导致的排序变化
             if abs(serverUpdatedAt.timeIntervalSince(updatedAt)) > 1.0 {
                 updatedAt = serverUpdatedAt
-                print("[NOTE] 更新修改时间: \(updatedAt)")
-            } else {
-                print("[NOTE] 修改时间差异小于1秒，保持本地时间: \(updatedAt)")
             }
         }
 
         if let createDate = entry["createDate"] as? TimeInterval {
             let serverCreatedAt = Date(timeIntervalSince1970: createDate / 1000)
-            // 只有当时间差超过 1 秒时才更新
             if abs(serverCreatedAt.timeIntervalSince(createdAt)) > 1.0 {
                 createdAt = serverCreatedAt
-                print("[NOTE] 更新创建时间: \(createdAt)")
-            } else {
-                print("[NOTE] 创建时间差异小于1秒，保持本地时间: \(createdAt)")
             }
         }
 
         if let folderId = entry["folderId"] as? String {
             self.folderId = folderId
-            print("[NOTE] 更新文件夹ID: \(folderId)")
         } else if let folderId = entry["folderId"] as? Int {
             self.folderId = String(folderId)
-            print("[NOTE] 更新文件夹ID: \(folderId)")
         }
 
         // 更新收藏状态
         if let isStarred = entry["isStarred"] as? Bool {
             self.isStarred = isStarred
-            print("[NOTE] 更新收藏状态: \(isStarred)")
         }
 
         // 更新新增字段
@@ -715,38 +668,32 @@ public struct Note: Identifiable, Codable, Hashable, @unchecked Sendable {
 
         // 更新 JSON 字段
         if let setting = entry["setting"] {
-            // 将 setting 对象转换为 JSON 字符串
             if let settingData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
                let settingString = String(data: settingData, encoding: .utf8)
             {
                 settingJson = settingString
-                print("[NOTE] 更新 settingJson: \(settingString.prefix(100))...")
             } else {
                 settingJson = nil
-                print("[NOTE] 警告：无法转换 setting 为 JSON 字符串")
+                LogService.shared.warning(.storage, "无法将 setting 转换为 JSON 字符串")
             }
         } else {
             settingJson = nil
-            print("[NOTE] entry 中没有 setting 字段")
         }
 
         if let extraInfo = entry["extraInfo"] as? String {
             extraInfoJson = extraInfo
-            print("[NOTE] 更新 extraInfoJson (字符串): \(extraInfo.prefix(100))...")
         } else if let extraInfo = entry["extraInfo"] {
             // 如果 extraInfo 不是字符串，尝试转换为 JSON 字符串
             if let extraInfoData = try? JSONSerialization.data(withJSONObject: extraInfo, options: [.sortedKeys]),
                let extraInfoString = String(data: extraInfoData, encoding: .utf8)
             {
                 extraInfoJson = extraInfoString
-                print("[NOTE] 更新 extraInfoJson (对象转字符串): \(extraInfoString.prefix(100))...")
             } else {
                 extraInfoJson = nil
-                print("[NOTE] 警告：无法转换 extraInfo 为 JSON 字符串")
+                LogService.shared.warning(.storage, "无法将 extraInfo 转换为 JSON 字符串")
             }
         } else {
             extraInfoJson = nil
-            print("[NOTE] entry 中没有 extraInfo 字段")
         }
 
         // 更新rawData
@@ -915,7 +862,7 @@ public extension Note {
                 return NoteImageAttachment(fileId: fileId, mimeType: mimeType, size: size)
             }
         } catch {
-            print("[Note] 解析 settingJson 失败: \(error)")
+            LogService.shared.error(.storage, "解析 settingJson 失败: \(error)")
             return []
         }
     }

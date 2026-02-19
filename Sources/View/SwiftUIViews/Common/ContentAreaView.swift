@@ -21,7 +21,6 @@ extension Notification.Name {
 ///
 /// 根据视图模式（列表/画廊）显示不同的内容，并管理展开笔记状态
 /// 负责协调 GalleryView 和 ExpandedNoteView 之间的动画过渡
-/// _Requirements: 4.3, 4.4, 4.5, 6.1, 6.4, 6.5, 5.2, 5.3, 5.4, 5.5_
 @available(macOS 14.0, *)
 struct ContentAreaView: View {
 
@@ -39,7 +38,6 @@ struct ContentAreaView: View {
     // MARK: - 状态
 
     /// 动画命名空间（用于 matchedGeometryEffect）
-    /// _Requirements: 6.1, 6.4_
     @Namespace private var animation
 
     // MARK: - 视图
@@ -49,17 +47,14 @@ struct ContentAreaView: View {
             switch optionsManager.viewMode {
             case .list:
                 // 列表模式：笔记列表 + 编辑器
-                // _Requirements: 4.3_
                 listModeContent
 
             case .gallery:
                 // 画廊模式：根据是否有展开的笔记显示不同内容
-                // _Requirements: 4.4, 4.5_
                 galleryModeContent
             }
         }
         // 动画配置：easeInOut，时长 350ms
-        // _Requirements: 6.5_
         .animation(.easeInOut(duration: 0.35), value: windowState.expandedNote?.id)
         // 同步 expandedNote 状态到 notesViewModel（用于工具栏可见性管理）
         .onChange(of: windowState.expandedNote?.id) { _, newValue in
@@ -84,7 +79,6 @@ struct ContentAreaView: View {
 
     /// 列表模式内容
     /// 使用 HSplitView 实现可调整宽度的分隔符
-    /// _Requirements: 4.3_
     private var listModeContent: some View {
         HSplitView {
             // 笔记列表
@@ -104,12 +98,10 @@ struct ContentAreaView: View {
     }
 
     /// 画廊模式内容
-    /// _Requirements: 4.4, 4.5, 6.1_
     @ViewBuilder
     private var galleryModeContent: some View {
         if let _ = windowState.expandedNote {
             // 展开模式：显示笔记编辑器
-            // _Requirements: 6.1, 6.2_
             ExpandedNoteView(
                 coordinator: coordinator,
                 windowState: windowState,
@@ -118,7 +110,6 @@ struct ContentAreaView: View {
             .transition(expandedTransition)
         } else {
             // 画廊模式：显示笔记卡片网格
-            // _Requirements: 5.1_
             GalleryView(
                 coordinator: coordinator,
                 windowState: windowState,
@@ -130,7 +121,6 @@ struct ContentAreaView: View {
     }
 
     /// 展开视图的过渡动画
-    /// _Requirements: 6.4, 6.5_
     private var expandedTransition: AnyTransition {
         .asymmetric(
             insertion: .scale(scale: 0.95).combined(with: .opacity),

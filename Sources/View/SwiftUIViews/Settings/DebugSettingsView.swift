@@ -773,7 +773,7 @@ public struct DebugSettingsView: View {
                 try logs.write(to: url, atomically: true, encoding: .utf8)
                 showExportLogsAlert = true
             } catch {
-                print("导出日志失败: \(error)")
+                LogService.shared.error(.app, "导出日志失败: \(error)")
             }
         }
     }
@@ -875,80 +875,73 @@ public struct DebugSettingsView: View {
                 return
             }
 
-            resultText += "✅ Cookie清除成功，开始静默刷新...\n\n"
+            resultText += "Cookie清除成功，开始 PassToken 刷新...\n\n"
 
-            // 直接调用 SilentCookieRefreshManager 进行刷新
-            resultText += "📢 调用 SilentCookieRefreshManager.shared.refresh()...\n"
+            // 调用 PassTokenManager 进行刷新
+            resultText += "调用 PassTokenManager.shared.refreshServiceToken()...\n"
 
             do {
-                let success = try await SilentCookieRefreshManager.shared.refresh()
-                resultText += "⏳ 静默刷新完成，结果: \(success ? "成功" : "失败")\n"
+                let serviceToken = try await PassTokenManager.shared.refreshServiceToken()
+                resultText += "PassToken 刷新完成，获取到 serviceToken\n"
 
                 // 检查刷新结果
                 let isAuthenticatedAfterRefresh = MiNoteService.shared.isAuthenticated()
                 let newCookie = UserDefaults.standard.string(forKey: "minote_cookie") ?? ""
 
-                resultText += "\n📊 测试结果：\n"
+                resultText += "\n测试结果:\n"
                 resultText += "刷新后认证状态: \(isAuthenticatedAfterRefresh ? "已认证" : "未认证")\n"
                 resultText += "新Cookie长度: \(newCookie.count) 字符\n"
 
-                if success, isAuthenticatedAfterRefresh, !newCookie.isEmpty {
-                    resultText += "\n✅ 静默刷新成功！\n"
+                if isAuthenticatedAfterRefresh, !newCookie.isEmpty {
+                    resultText += "\nPassToken 刷新成功\n"
                     resultText += "系统已自动刷新Cookie并恢复认证状态\n\n"
 
-                    // 比较新旧Cookie
                     if newCookie != currentCookie {
-                        resultText += "📝 Cookie已更新：\n"
+                        resultText += "Cookie已更新:\n"
                         resultText += "- 旧Cookie长度: \(currentCookie.count) 字符\n"
                         resultText += "- 新Cookie长度: \(newCookie.count) 字符\n"
 
-                        // 检查关键字段
                         let hasServiceToken = newCookie.contains("serviceToken=")
                         let hasUserId = newCookie.contains("userId=")
 
-                        resultText += "\n🔍 新Cookie验证：\n"
+                        resultText += "\n新Cookie验证:\n"
                         resultText += "- 包含serviceToken: \(hasServiceToken ? "是" : "否")\n"
                         resultText += "- 包含userId: \(hasUserId ? "是" : "否")\n"
 
                         if hasServiceToken, hasUserId {
-                            resultText += "✅ 新Cookie格式正确\n"
+                            resultText += "新Cookie格式正确\n"
                         } else {
-                            resultText += "⚠️ 新Cookie可能缺少必要字段\n"
+                            resultText += "新Cookie可能缺少必要字段\n"
                         }
                     } else {
-                        resultText += "📝 Cookie未变化（可能使用了相同的Cookie）\n"
+                        resultText += "Cookie未变化（可能使用了相同的Cookie）\n"
                     }
                 } else {
-                    resultText += "\n❌ 静默刷新失败！\n"
+                    resultText += "\nPassToken 刷新失败\n"
                     resultText += "系统未能自动刷新Cookie\n\n"
 
-                    // 恢复原始Cookie
-                    resultText += "🔄 恢复原始Cookie...\n"
+                    resultText += "恢复原始Cookie...\n"
                     UserDefaults.standard.set(currentCookie, forKey: "minote_cookie")
                     MiNoteService.shared.setCookie(currentCookie)
 
-                    resultText += "✅ 原始Cookie已恢复\n"
-                    resultText += "\n💡 可能的原因：\n"
+                    resultText += "原始Cookie已恢复\n"
+                    resultText += "\n可能的原因:\n"
                     resultText += "1. 网络连接问题\n"
-                    resultText += "2. 小米登录页面结构变化\n"
-                    resultText += "3. 需要手动登录\n"
-                    resultText += "4. 静默刷新逻辑未正确实现\n"
+                    resultText += "2. PassToken 已失效\n"
+                    resultText += "3. 需要重新登录\n"
                 }
             } catch {
-                resultText += "\n❌ 静默刷新失败，错误: \(error.localizedDescription)\n"
-                resultText += "系统未能自动刷新Cookie\n\n"
+                resultText += "\nPassToken 刷新失败，错误: \(error.localizedDescription)\n"
 
-                // 恢复原始Cookie
-                resultText += "🔄 恢复原始Cookie...\n"
+                resultText += "恢复原始Cookie...\n"
                 UserDefaults.standard.set(currentCookie, forKey: "minote_cookie")
                 MiNoteService.shared.setCookie(currentCookie)
 
-                resultText += "✅ 原始Cookie已恢复\n"
-                resultText += "\n💡 可能的原因：\n"
+                resultText += "原始Cookie已恢复\n"
+                resultText += "\n可能的原因:\n"
                 resultText += "1. 网络连接问题\n"
-                resultText += "2. 小米登录页面结构变化\n"
-                resultText += "3. 需要手动登录\n"
-                resultText += "4. 静默刷新逻辑未正确实现\n"
+                resultText += "2. PassToken 已失效\n"
+                resultText += "3. 需要重新登录\n"
             }
 
             // 重新加载凭证以更新UI

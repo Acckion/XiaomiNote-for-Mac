@@ -102,7 +102,7 @@
             guard let window else { return }
 
             guard let viewModel else {
-                print("[SettingsWindowController] 错误: viewModel 为 nil，无法创建设置视图")
+                LogService.shared.error(.window, "viewModel 为 nil，无法创建设置视图")
                 return
             }
 

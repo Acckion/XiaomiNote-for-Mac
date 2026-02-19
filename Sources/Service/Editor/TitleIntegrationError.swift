@@ -13,7 +13,6 @@ import Foundation
 /// 标题集成错误类型
 ///
 /// 定义标题提取、验证和保存过程中可能出现的所有错误
-/// _需求: 6.1_ - 提供完善的错误处理和日志记录
 public enum TitleIntegrationError: Error, LocalizedError {
 
     // MARK: - 标题提取错误

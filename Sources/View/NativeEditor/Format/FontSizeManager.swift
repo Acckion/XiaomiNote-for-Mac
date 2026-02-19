@@ -17,7 +17,6 @@
 //  - H3: 17 <= fontSize < 20
 //  - Body: fontSize < 17
 //
-//  _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 6.1, 6.2, 6.3, 6.4, 6.5_
 //
 
 import AppKit
@@ -37,37 +36,30 @@ public final class FontSizeManager {
     // MARK: - 字体大小常量
 
     /// 大标题字体大小 (23pt)
-    /// _Requirements: 1.1_
     public let heading1Size: CGFloat = 23
 
     /// 二级标题字体大小 (20pt)
-    /// _Requirements: 1.2_
     public let heading2Size: CGFloat = 20
 
     /// 三级标题字体大小 (17pt)
-    /// _Requirements: 1.3_
     public let heading3Size: CGFloat = 17
 
     /// 正文字体大小 (14pt)
-    /// _Requirements: 1.4_
     public let bodySize: CGFloat = 14
 
     // MARK: - 检测阈值（与字体大小相同）
 
     /// 大标题检测阈值 (>= 23pt)
-    /// _Requirements: 6.2_
     public var heading1Threshold: CGFloat {
         heading1Size
     }
 
     /// 二级标题检测阈值 (>= 20pt, < 23pt)
-    /// _Requirements: 6.3_
     public var heading2Threshold: CGFloat {
         heading2Size
     }
 
     /// 三级标题检测阈值 (>= 17pt, < 20pt)
-    /// _Requirements: 6.4_
     public var heading3Threshold: CGFloat {
         heading3Size
     }
@@ -77,7 +69,6 @@ public final class FontSizeManager {
     /// 根据段落格式获取字体大小
     /// - Parameter format: 段落格式
     /// - Returns: 对应的字体大小
-    /// _Requirements: 1.5_
     public func fontSize(for format: ParagraphFormat) -> CGFloat {
         switch format {
         case .heading1:
@@ -94,7 +85,6 @@ public final class FontSizeManager {
     /// 根据标题级别获取字体大小
     /// - Parameter level: 标题级别 (1, 2, 3)
     /// - Returns: 对应的字体大小
-    /// _Requirements: 1.5_
     public func fontSize(for level: Int) -> CGFloat {
         switch level {
         case 1:
@@ -111,7 +101,6 @@ public final class FontSizeManager {
     /// 根据字体大小检测段落格式
     /// - Parameter fontSize: 字体大小
     /// - Returns: 检测到的段落格式
-    /// _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
     public func detectParagraphFormat(fontSize: CGFloat) -> ParagraphFormat {
         // 处理无效值
         guard fontSize > 0 else {
@@ -137,7 +126,6 @@ public final class FontSizeManager {
     /// 根据字体大小检测标题级别
     /// - Parameter fontSize: 字体大小
     /// - Returns: 标题级别 (0=正文, 1=H1, 2=H2, 3=H3)
-    /// _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
     public func detectHeadingLevel(fontSize: CGFloat) -> Int {
         let format = detectParagraphFormat(fontSize: fontSize)
         switch format {
@@ -157,7 +145,6 @@ public final class FontSizeManager {
     ///   - format: 段落格式
     ///   - traits: 额外的字体特性（如加粗、斜体）
     /// - Returns: 创建的字体
-    /// _Requirements: 2.1, 2.2, 2.3_
     public func createFont(
         for format: ParagraphFormat,
         traits: NSFontDescriptor.SymbolicTraits = []
@@ -189,7 +176,6 @@ public final class FontSizeManager {
     }
 
     /// 默认字体（正文大小，常规字重）
-    /// _Requirements: 1.4_
     public var defaultFont: NSFont {
         createFont(for: .body)
     }
@@ -199,28 +185,22 @@ public final class FontSizeManager {
 
 /// 字体大小常量枚举
 /// 用于非 MainActor 上下文中访问字体大小值
-/// _Requirements: 1.1, 1.2, 1.3, 1.4_
 public enum FontSizeConstants {
     /// 大标题字体大小常量 (23pt)
-    /// _Requirements: 1.1_
     public nonisolated(unsafe) static let heading1: CGFloat = 23
 
     /// 二级标题字体大小常量 (20pt)
-    /// _Requirements: 1.2_
     public nonisolated(unsafe) static let heading2: CGFloat = 20
 
     /// 三级标题字体大小常量 (17pt)
-    /// _Requirements: 1.3_
     public nonisolated(unsafe) static let heading3: CGFloat = 17
 
     /// 正文字体大小常量 (14pt)
-    /// _Requirements: 1.4_
     public nonisolated(unsafe) static let body: CGFloat = 14
 
     /// 根据字体大小检测段落格式（静态方法，用于非 MainActor 上下文）
     /// - Parameter fontSize: 字体大小
     /// - Returns: 检测到的段落格式
-    /// _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
     public static func detectParagraphFormat(fontSize: CGFloat) -> ParagraphFormat {
         // 处理无效值
         guard fontSize > 0 else {

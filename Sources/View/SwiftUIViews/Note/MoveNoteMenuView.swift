@@ -115,9 +115,9 @@ struct MoveNoteMenuView: View {
                 // 使用视图模型的updateNote方法（它会处理在线/离线逻辑）
                 try await viewModel.updateNote(updatedNote)
 
-                print("[MoveNoteMenuView] 笔记移动成功: \(note.id) -> \(folder.name)")
+                LogService.shared.info(.viewmodel, "笔记移动成功: \(note.id) -> \(folder.name)")
             } catch {
-                print("[MoveNoteMenuView] 移动笔记失败: \(error.localizedDescription)")
+                LogService.shared.error(.viewmodel, "移动笔记失败: \(error.localizedDescription)")
                 // 错误处理已经在viewModel中完成，这里不需要额外处理
             }
 

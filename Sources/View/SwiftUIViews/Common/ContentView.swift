@@ -34,9 +34,6 @@ public struct ContentView: View {
     /// 是否显示登录弹窗
     @State private var showingLogin = false
 
-    /// 是否显示Cookie刷新弹窗
-    @State private var showingCookieRefresh = false
-
     /// 是否显示Cookie失效弹窗
     @State private var showingCookieExpiredAlert = false
 
@@ -161,9 +158,6 @@ public struct ContentView: View {
         .sheet(isPresented: $showingLogin) {
             LoginView(viewModel: viewModel)
         }
-        .sheet(isPresented: $showingCookieRefresh) {
-            CookieRefreshView(viewModel: viewModel)
-        }
         .sheet(isPresented: $showingOfflineOperationsProgress) {
             OfflineOperationsProgressView(processor: OperationProcessor.shared)
         }
@@ -171,14 +165,14 @@ public struct ContentView: View {
             TrashView(viewModel: viewModel)
         }
         .alert("Cookie已失效", isPresented: $showingCookieExpiredAlert) {
-            Button("刷新Cookie") {
+            Button("重新登录") {
                 viewModel.handleCookieExpiredRefresh()
             }
             Button("取消", role: .cancel) {
                 viewModel.handleCookieExpiredCancel()
             }
         } message: {
-            Text("Cookie已失效，请刷新Cookie以恢复同步功能。选择\"取消\"将保持离线模式。")
+            Text("Cookie已失效，请重新登录以恢复同步功能。选择\"取消\"将保持离线模式。")
         }
         .onChange(of: viewModel.showCookieExpiredAlert) { _, newValue in
             if newValue {
@@ -193,16 +187,9 @@ public struct ContentView: View {
                 viewModel.showLoginView = false
             }
         }
-        .onChange(of: viewModel.showCookieRefreshView) { _, newValue in
-            if newValue {
-                showingCookieRefresh = true
-                viewModel.showCookieRefreshView = false
-            }
-        }
         .onChange(of: viewModel.isLoggedIn) { oldValue, newValue in
             if newValue, !oldValue {
                 // 登录成功后处理
-                // _Requirements: 5.1, 5.3, 5.4_
                 Task {
                     await viewModel.handleLoginSuccess()
                 }
@@ -426,12 +413,12 @@ public struct ContentView: View {
 
             Divider()
 
-            // Cookie刷新（如果失效）
+            // Cookie 刷新（如果失效，提示重新登录）
             if viewModel.isCookieExpired {
                 Button {
-                    viewModel.showCookieRefreshView = true
+                    viewModel.showLoginView = true
                 } label: {
-                    Label("刷新Cookie", systemImage: "arrow.clockwise")
+                    Label("重新登录", systemImage: "person.crop.circle.badge.exclamationmark")
                 }
 
                 Divider()
@@ -562,7 +549,6 @@ public struct ContentView: View {
                     .foregroundColor(statusColor)
 
                 // 显示统一操作队列待上传数量（优先显示）
-                // _需求: 6.2_
                 if viewModel.unifiedPendingUploadCount > 0 {
                     HStack(spacing: 2) {
                         Image(systemName: "arrow.up.circle")
@@ -738,16 +724,11 @@ public struct ContentView: View {
     /// - 启动自动刷新Cookie定时器
     /// - 检查Cookie状态，如果失效则尝试静默刷新
     private func handleAppear() {
-        print("ContentView onAppear - 检查认证状态")
         let isAuthenticated = MiNoteService.shared.isAuthenticated()
-        print("isAuthenticated: \(isAuthenticated)")
 
         if !isAuthenticated {
-            print("显示登录界面")
             showingLogin = true
         } else {
-            print("已认证，不显示登录界面")
-
             // 启动自动刷新Cookie定时器
             viewModel.startAutoRefreshCookieIfNeeded()
 
@@ -758,29 +739,16 @@ public struct ContentView: View {
 
     /// 检查Cookie状态，如果失效则尝试静默刷新
     private func checkCookieStatusAndRefreshIfNeeded() {
-        print("[ContentView] 检查Cookie状态")
-
-        // 检查Cookie是否有效
         let hasValidCookie = MiNoteService.shared.hasValidCookie()
-        print("[ContentView] Cookie是否有效: \(hasValidCookie)")
 
         if !hasValidCookie {
-            print("[ContentView] Cookie无效，尝试静默刷新")
-
-            // 检查是否启用静默刷新
             let silentRefreshOnFailure = UserDefaults.standard.bool(forKey: "silentRefreshOnFailure")
-            print("[ContentView] 静默刷新是否启用: \(silentRefreshOnFailure)")
 
             if silentRefreshOnFailure {
-                // 尝试静默刷新
                 Task {
                     await viewModel.handleCookieExpiredSilently()
                 }
-            } else {
-                print("[ContentView] 静默刷新未启用，等待用户手动刷新")
             }
-        } else {
-            print("[ContentView] Cookie有效，无需刷新")
         }
     }
 

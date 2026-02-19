@@ -8,7 +8,6 @@ import Foundation
 /// - 重试限制和失败标记
 /// - 失败操作通知用户
 ///
-/// 遵循需求 8.1, 8.7
 @MainActor
 public final class ErrorRecoveryService: ObservableObject {
     public static let shared = ErrorRecoveryService()
@@ -81,7 +80,6 @@ public final class ErrorRecoveryService: ObservableObject {
     /// - Cookie过期：添加到离线队列，等待Cookie刷新
     /// - 其他错误：根据是否可重试决定
     ///
-    /// 遵循需求 8.1
     ///
     /// - Parameters:
     ///   - operation: 操作类型
@@ -97,9 +95,6 @@ public final class ErrorRecoveryService: ObservableObject {
         error: Error,
         context: String
     ) -> ErrorRecoveryResult {
-        print("[ErrorRecovery] 处理网络错误: \(context)")
-        print("[ErrorRecovery] 错误: \(error.localizedDescription)")
-
         // 分类错误
         let errorType = networkErrorHandler.classifyError(error)
 
@@ -150,7 +145,6 @@ public final class ErrorRecoveryService: ObservableObject {
 
     /// 添加操作到统一队列
     ///
-    /// 遵循需求 8.1
     ///
     /// - Parameters:
     ///   - operation: 操作类型
@@ -169,7 +163,6 @@ public final class ErrorRecoveryService: ObservableObject {
         requiresAuth: Bool = false
     ) -> ErrorRecoveryResult {
         do {
-            // 创建统一操作
             let noteOperation = NoteOperation(
                 type: operation,
                 noteId: noteId,
@@ -180,10 +173,8 @@ public final class ErrorRecoveryService: ObservableObject {
                 lastError: error.localizedDescription
             )
 
-            // 添加到统一队列
             try unifiedQueue.enqueue(noteOperation)
-
-            print("[ErrorRecovery] ✅ 操作已添加到统一队列: \(operation.rawValue), noteId: \(noteId)")
+            LogService.shared.debug(.core, "操作已添加到统一队列: \(operation.rawValue)")
 
             let message = requiresAuth
                 ? "操作已保存，将在登录后自动同步"
@@ -191,7 +182,7 @@ public final class ErrorRecoveryService: ObservableObject {
 
             return .addedToQueue(message: message)
         } catch {
-            print("[ErrorRecovery] ❌ 添加到统一队列失败: \(error)")
+            LogService.shared.error(.core, "添加到统一队列失败: \(error)")
             return .noRetry(message: "保存操作失败: \(error.localizedDescription)")
         }
     }

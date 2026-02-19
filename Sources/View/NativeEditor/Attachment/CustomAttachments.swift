@@ -40,7 +40,6 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
 
     /// 复选框是否选中
     /// 此属性会被保存到 XML 中（checked="true"）
-    /// _Requirements: 1.4, 5.8_
     var isChecked = false {
         didSet {
             // 清除缓存的图像，强制重新渲染
@@ -105,7 +104,7 @@ final class InteractiveCheckboxAttachment: NSTextAttachment, InteractiveAttachme
     /// 便捷初始化方法
     convenience init(checked: Bool = false, level: Int = 3, indent: Int = 1) {
         self.init(data: nil, ofType: nil)
-        isChecked = checked
+        self.isChecked = checked
         self.level = level
         self.indent = indent
     }
@@ -369,8 +368,8 @@ final class HorizontalRuleAttachment: NSTextAttachment, ThemeAwareAttachment {
     /// 便捷初始化方法
     convenience init(width: CGFloat = 300, style: LineStyle = .solid) {
         self.init(data: nil, ofType: nil)
-        currentWidth = width
-        lineStyle = style
+        self.currentWidth = width
+        self.lineStyle = style
     }
 
     private func setupAttachment() {
@@ -586,7 +585,6 @@ final class BulletAttachment: NSTextAttachment, ThemeAwareAttachment {
     var bulletSize: CGFloat = 6
 
     /// 附件总宽度（优化后减小以使列表标记与正文左边缘对齐）
-    /// _Requirements: 1.1, 4.1_
     var attachmentWidth: CGFloat = 16
 
     /// 是否为深色模式
@@ -656,7 +654,6 @@ final class BulletAttachment: NSTextAttachment, ThemeAwareAttachment {
         // 根据缩进级别调整位置
         // 缩进级别 1 时 x = 0（与正文左边缘对齐）
         // 缩进级别 > 1 时按 20pt 递增
-        // _Requirements: 3.1, 3.2_
         let indentOffset = CGFloat(indent - 1) * 20
         return CGRect(x: indentOffset, y: 2, width: attachmentWidth, height: bulletSize + 4)
     }
@@ -677,7 +674,6 @@ final class BulletAttachment: NSTextAttachment, ThemeAwareAttachment {
     // MARK: - Private Methods
 
     /// 创建项目符号图像
-    /// _Requirements: 1.1, 1.4_
     private func createBulletImage() -> NSImage {
         let size = NSSize(width: attachmentWidth, height: bulletSize + 4)
 
@@ -773,7 +769,6 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
 
     /// 附件宽度（优化后减小以使列表标记与正文左边缘对齐）
-    /// _Requirements: 1.2, 4.2_
     nonisolated(unsafe) var attachmentWidth: CGFloat = 20
 
     /// 附件高度
@@ -848,7 +843,6 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
         // 根据缩进级别调整位置
         // 缩进级别 1 时 x = 0（与正文左边缘对齐）
         // 缩进级别 > 1 时按 20pt 递增
-        // _Requirements: 3.1, 3.2_
         let indentOffset = CGFloat(indent - 1) * 20
         return CGRect(x: indentOffset, y: -2, width: attachmentWidth, height: attachmentHeight)
     }
@@ -869,7 +863,6 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
     // MARK: - Private Methods
 
     /// 创建编号图像
-    /// _Requirements: 1.2, 1.4_
     private func createOrderImage() -> NSImage {
         let size = NSSize(width: attachmentWidth, height: attachmentHeight)
 
@@ -893,7 +886,6 @@ final class OrderAttachment: NSTextAttachment, ThemeAwareAttachment {
             let textSize = attributedString.size()
 
             // 计算文本位置（左对齐，x = 2 提供最小边距）
-            // _Requirements: 1.2, 1.4_
             let textX: CGFloat = 2
             let textY = (rect.height - textSize.height) / 2
 

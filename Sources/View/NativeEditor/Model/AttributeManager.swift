@@ -19,9 +19,9 @@ class AttributeManager {
 
     /// 初始化属性管理器
     init() {
-        metaLayer = MetaAttributeLayer()
-        layoutLayer = LayoutAttributeLayer()
-        decorativeLayer = DecorativeAttributeLayer()
+        self.metaLayer = MetaAttributeLayer()
+        self.layoutLayer = LayoutAttributeLayer()
+        self.decorativeLayer = DecorativeAttributeLayer()
     }
 
     // MARK: - Public Methods
@@ -39,9 +39,6 @@ class AttributeManager {
 
         // 验证范围有效性
         guard range.location >= 0, NSMaxRange(range) <= textStorage.length else {
-            #if DEBUG
-                print("[AttributeManager] 警告：段落范围无效 \(range)，文本长度 \(textStorage.length)")
-            #endif
             return
         }
 
@@ -79,9 +76,6 @@ class AttributeManager {
     ) {
         // 验证范围有效性
         guard range.location >= 0, NSMaxRange(range) <= textStorage.length else {
-            #if DEBUG
-                print("[AttributeManager] 警告：更新范围无效 \(range)，文本长度 \(textStorage.length)")
-            #endif
             return
         }
 

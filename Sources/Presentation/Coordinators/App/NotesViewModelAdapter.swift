@@ -42,10 +42,8 @@ public final class NotesViewModelAdapter: NotesViewModel {
         // 设置状态同步
         setupStateSync()
 
-        print("[NotesViewModelAdapter] 初始化完成")
+        LogService.shared.info(.viewmodel, "NotesViewModelAdapter 初始化完成")
     }
-
-    // MARK: - State Synchronization
 
     /// 设置状态同步
     ///
@@ -97,9 +95,6 @@ public final class NotesViewModelAdapter: NotesViewModel {
         coordinator.authViewModel.$showLoginView
             .assign(to: &$showLoginView)
 
-        coordinator.authViewModel.$showCookieRefreshView
-            .assign(to: &$showCookieRefreshView)
-
         coordinator.authViewModel.$isPrivateNotesUnlocked
             .assign(to: &$isPrivateNotesUnlocked)
 
@@ -112,14 +107,13 @@ public final class NotesViewModelAdapter: NotesViewModel {
 
                 // 同步排序方式到 NoteListViewModel
                 if coordinator.noteListViewModel.sortOrder != state.sortOrder {
-                    print("[NotesViewModelAdapter] 从 ViewOptionsManager 同步排序方式: \(state.sortOrder.displayName)")
+                    LogService.shared.debug(.viewmodel, "从 ViewOptionsManager 同步排序方式: \(state.sortOrder.displayName)")
                     coordinator.noteListViewModel.sortOrder = state.sortOrder
                     notesListSortField = state.sortOrder
                 }
 
-                // 同步排序方向到 NoteListViewModel
                 if coordinator.noteListViewModel.sortDirection != state.sortDirection {
-                    print("[NotesViewModelAdapter] 从 ViewOptionsManager 同步排序方向: \(state.sortDirection.displayName)")
+                    LogService.shared.debug(.viewmodel, "从 ViewOptionsManager 同步排序方向: \(state.sortDirection.displayName)")
                     coordinator.noteListViewModel.sortDirection = state.sortDirection
                     notesListSortDirection = state.sortDirection
                 }
@@ -145,10 +139,8 @@ public final class NotesViewModelAdapter: NotesViewModel {
         coordinator.searchViewModel.$filterIsPrivate
             .assign(to: &$searchFilterIsPrivate)
 
-        print("[NotesViewModelAdapter] 状态同步设置完成")
+        LogService.shared.debug(.viewmodel, "状态同步设置完成")
     }
-
-    // MARK: - Folder Operations
 
     override public func loadFolders() {
         Task {
@@ -425,7 +417,7 @@ public final class NotesViewModelAdapter: NotesViewModel {
                   let data = response["data"] as? [String: Any],
                   let entries = data["entries"] as? [[String: Any]]
             else {
-                print("[NotesViewModelAdapter] 无效的响应")
+                LogService.shared.error(.viewmodel, "获取回收站笔记失败: 无效的响应")
                 return
             }
 
@@ -437,9 +429,9 @@ public final class NotesViewModelAdapter: NotesViewModel {
             }
 
             deletedNotes = deletedNotesList
-            print("[NotesViewModelAdapter] ✅ 获取回收站笔记成功，共 \(deletedNotesList.count) 条")
+            LogService.shared.info(.viewmodel, "获取回收站笔记成功，共 \(deletedNotesList.count) 条")
         } catch {
-            print("[NotesViewModelAdapter] ❌ 获取回收站笔记失败: \(error.localizedDescription)")
+            LogService.shared.error(.viewmodel, "获取回收站笔记失败: \(error.localizedDescription)")
             deletedNotes = []
         }
     }
@@ -484,7 +476,7 @@ public final class NotesViewModelAdapter: NotesViewModel {
             throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "上传图片失败：服务器返回无效响应"])
         }
 
-        print("[NotesViewModelAdapter] 图片上传成功: fileId=\(fileId), digest=\(digest)")
+        LogService.shared.info(.viewmodel, "图片上传成功: fileId=\(fileId)")
 
         // 保存图片到本地
         let fileType = String(mimeType.dropFirst("image/".count))
@@ -513,7 +505,7 @@ public final class NotesViewModelAdapter: NotesViewModel {
         // 更新笔记
         await coordinator.noteEditorViewModel.saveNote()
 
-        print("[NotesViewModelAdapter] 图片已添加到笔记的 setting.data: \(note.id), fileId: \(fileId)")
+        LogService.shared.debug(.viewmodel, "图片已添加到笔记 setting.data: noteId=\(note.id), fileId=\(fileId)")
 
         return fileId
     }
@@ -521,7 +513,8 @@ public final class NotesViewModelAdapter: NotesViewModel {
     // MARK: - Cookie Management
 
     override func handleCookieExpiredRefresh() {
-        showCookieRefreshView = true
+        // PassToken 重构后，Cookie 过期时提示重新登录
+        showLoginView = true
     }
 
     override func handleCookieExpiredCancel() {
@@ -529,7 +522,7 @@ public final class NotesViewModelAdapter: NotesViewModel {
     }
 
     override func handleCookieRefreshed() {
-        showCookieRefreshView = false
+        // PassToken 重构后不再需要 CookieRefreshView
     }
 
     override func handleCookieExpiredSilently() async {

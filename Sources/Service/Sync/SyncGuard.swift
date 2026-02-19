@@ -55,23 +55,18 @@ public extension SyncGuard {
     ///   - cloudTimestamp: 云端时间戳
     /// - Returns: 是否应该跳过同步
     ///
-    /// **需求覆盖**：
-    /// - 需求 4.2: 待上传笔记跳过同步
-    /// - 需求 4.3: 活跃编辑笔记跳过同步
-    /// - 需求 4.4: 无待处理操作且未在编辑时允许同步
-    /// - 需求 8.3: 临时 ID 笔记跳过同步
     func shouldSkipSync(noteId: String, cloudTimestamp: Date) async -> Bool {
         // 1. 检查是否为临时 ID（离线创建的笔记）
         // 临时 ID 笔记不会出现在云端，不需要同步
         if NoteOperation.isTemporaryId(noteId) {
-            print("[SyncGuard] 🛡️ 跳过同步: 临时 ID 笔记 \(noteId.prefix(8))...")
+            LogService.shared.debug(.sync, "跳过同步: 临时 ID 笔记 \(noteId.prefix(8))...")
             return true
         }
 
         // 2. 检查是否正在编辑
         let isEditing = await coordinator.isNoteActivelyEditing(noteId)
         if isEditing {
-            print("[SyncGuard] 🛡️ 跳过同步: 笔记正在编辑 \(noteId.prefix(8))...")
+            LogService.shared.debug(.sync, "跳过同步: 笔记正在编辑 \(noteId.prefix(8))...")
             return true
         }
 
@@ -80,18 +75,18 @@ public extension SyncGuard {
             // 比较时间戳
             if let localTimestamp = operationQueue.getLocalSaveTimestamp(for: noteId) {
                 if localTimestamp >= cloudTimestamp {
-                    print("[SyncGuard] 🛡️ 跳过同步: 本地较新 \(noteId.prefix(8))... (本地: \(localTimestamp), 云端: \(cloudTimestamp))")
+                    LogService.shared.debug(.sync, "跳过同步: 本地较新 \(noteId.prefix(8))...")
                     return true
                 }
             }
             // 即使云端较新，但笔记在待上传列表中，也应该跳过（用户优先策略）
-            print("[SyncGuard] 🛡️ 跳过同步: 待上传中 \(noteId.prefix(8))...")
+            LogService.shared.debug(.sync, "跳过同步: 待上传中 \(noteId.prefix(8))...")
             return true
         }
 
         // 4. 检查是否有待处理的 noteCreate 操作
         if operationQueue.hasPendingNoteCreate(for: noteId) {
-            print("[SyncGuard] 🛡️ 跳过同步: 待创建中 \(noteId.prefix(8))...")
+            LogService.shared.debug(.sync, "跳过同步: 待创建中 \(noteId.prefix(8))...")
             return true
         }
 
@@ -104,8 +99,6 @@ public extension SyncGuard {
     /// - Parameter noteId: 笔记 ID
     /// - Returns: 是否正在编辑
     ///
-    /// **需求覆盖**：
-    /// - 需求 4.3: 活跃编辑笔记跳过同步
     func isActivelyEditing(noteId: String) async -> Bool {
         await coordinator.isNoteActivelyEditing(noteId)
     }
@@ -115,8 +108,6 @@ public extension SyncGuard {
     /// - Parameter noteId: 笔记 ID
     /// - Returns: 是否有待处理上传
     ///
-    /// **需求覆盖**：
-    /// - 需求 4.1: 查询 UnifiedOperationQueue 中是否有该笔记的待处理上传
     func hasPendingUpload(noteId: String) -> Bool {
         operationQueue.hasPendingUpload(for: noteId)
     }
@@ -134,8 +125,6 @@ public extension SyncGuard {
     /// - Parameter noteId: 笔记 ID
     /// - Returns: 是否为临时 ID
     ///
-    /// **需求覆盖**：
-    /// - 需求 8.3: 临时 ID 笔记跳过同步
     func isTemporaryId(_ noteId: String) -> Bool {
         NoteOperation.isTemporaryId(noteId)
     }
@@ -154,8 +143,6 @@ public extension SyncGuard {
     ///   - cloudTimestamp: 云端时间戳
     /// - Returns: 跳过原因，如果不应该跳过则返回 nil
     ///
-    /// **需求覆盖**：
-    /// - 需求 4.2: 返回跳过原因用于日志
     func getSkipReason(noteId: String, cloudTimestamp: Date) async -> SyncSkipReason? {
         // 1. 检查是否为临时 ID
         if NoteOperation.isTemporaryId(noteId) {

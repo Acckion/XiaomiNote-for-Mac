@@ -48,13 +48,42 @@ docs: 更新技术文档
 
 - `main`: 主分支，保持稳定
 - `develop`: 开发分支
-- `feature/*`: 功能分支
-- `fix/*`: 修复分支
+- `feature/{编号}-{描述}`: 新功能开发分支，对应 spec 编号和简短描述
+- `fix/{编号}-{描述}`: Bug 修复分支，对应 spec 编号和简短描述
+- `refactor/{编号}-{描述}`: 重构分支
+
+### Spec 开发分支规范
+
+每个 spec 开始实现时，必须先创建对应的开发分支，再开始编写代码。
+
+分支命名与 spec 目录名保持一致：
+
+```bash
+# spec 目录：.kiro/specs/85-database-management-refactor/
+# 对应分支：
+git checkout -b feature/85-database-management-refactor
+
+# 修复类 spec
+git checkout -b fix/77-cookie-auto-refresh-fix
+
+# 重构类 spec
+git checkout -b refactor/79-notes-viewmodel-refactor
+```
+
+分支类型选择依据 spec 的主要 commit type：
+- spec 主要是 `feat` → 使用 `feature/`
+- spec 主要是 `fix` → 使用 `fix/`
+- spec 主要是 `refactor` → 使用 `refactor/`
+
+### 分支生命周期
+
+1. spec 实现开始前：从 `main` 或 `develop` 创建分支
+2. spec 实现完成后：合并回 `main` 或 `develop`，删除功能分支
 
 ## 提交频率
 
 - 完成一个独立功能或修复后立即提交
-- 大型任务拆分为多个小提交
+- 大型任务拆分为多个小提交（一个大型的spec中，完成一个或者几个spec之后，就可以提交）
 - 每个提交应该是可编译、可运行的状态
 
 ## 注意事项
@@ -62,3 +91,4 @@ docs: 更新技术文档
 - 提交前确保代码可以编译通过
 - 不要提交 `.build/`、`build/` 等构建产物
 - 敏感信息（Cookie、密钥等）不要提交
+- 合并分支时，一定要使用 `--no-ff`

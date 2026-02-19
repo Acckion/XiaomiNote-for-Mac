@@ -30,7 +30,7 @@
 
 # 冗余
 --redundanttype inferred
---self remove
+--self init-only
 
 # 排序
 --importgrouping testable-bottom

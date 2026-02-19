@@ -5,7 +5,6 @@
 //  格式状态管理器 - 负责同步工具栏和菜单栏的格式状态
 //  管理当前活动的格式提供者，并在格式状态变化时发送通知
 //
-//  _Requirements: 3.1, 3.2, 3.3, 4.1, 10.3, 10.4_
 //
 
 import Combine
@@ -14,7 +13,6 @@ import Foundation
 // MARK: - 性能监控记录
 
 /// 格式状态更新性能记录
-/// _Requirements: 10.3_
 public struct FormatStatePerformanceRecord: Sendable {
     public let timestamp: Date
     public let durationMs: Double
@@ -32,7 +30,6 @@ public struct FormatStatePerformanceRecord: Sendable {
 
 /// 格式状态管理器
 /// 负责同步工具栏和菜单栏的格式状态
-/// _Requirements: 3.1, 3.2, 3.3, 4.1, 10.3, 10.4_
 @MainActor
 public final class FormatStateManager: ObservableObject {
 
@@ -44,7 +41,6 @@ public final class FormatStateManager: ObservableObject {
     // MARK: - Published Properties
 
     /// 当前格式状态
-    /// _Requirements: 8.1_
     @Published public private(set) var currentState = FormatState()
 
     /// 当前活动的格式提供者
@@ -64,14 +60,10 @@ public final class FormatStateManager: ObservableObject {
     /// 防抖定时器
     private var debounceTimer: Timer?
 
-    /// 防抖间隔（毫秒）- 满足需求 10.1 的 50ms 要求
-    /// _Requirements: 10.1, 10.4_
+    /// 防抖间隔（毫秒）
     private let debounceInterval: TimeInterval = 0.05 // 50ms
 
     // MARK: - 性能监控属性
-
-    // _Requirements: 10.3_
-
     /// 性能监控是否启用
     private var performanceMonitoringEnabled = true
 
@@ -116,7 +108,6 @@ public final class FormatStateManager: ObservableObject {
 
     /// 设置活动的格式提供者
     /// - Parameter provider: 格式提供者（传入 nil 表示没有活动的编辑器）
-    /// _Requirements: 8.4_
     public func setActiveProvider(_ provider: (any FormatMenuProvider)?) {
         // 取消之前的订阅
         cancellables.removeAll()
@@ -151,7 +142,6 @@ public final class FormatStateManager: ObservableObject {
 
     /// 应用格式
     /// - Parameter format: 要应用的格式
-    /// _Requirements: 8.2_
     public func applyFormat(_ format: TextFormat) {
         guard let provider = activeProvider else {
             return
@@ -166,7 +156,6 @@ public final class FormatStateManager: ObservableObject {
 
     /// 切换格式
     /// - Parameter format: 要切换的格式
-    /// _Requirements: 8.2, 8.3_
     public func toggleFormat(_ format: TextFormat) {
         guard let provider = activeProvider else {
             return
@@ -230,7 +219,6 @@ public final class FormatStateManager: ObservableObject {
 
     // MARK: - Public Methods - 性能监控
 
-    // _Requirements: 10.3_
 
     /// 启用或禁用性能监控
     /// - Parameter enabled: 是否启用
@@ -284,7 +272,6 @@ public final class FormatStateManager: ObservableObject {
     // MARK: - Private Methods - 状态更新
 
     /// 更新状态（带防抖）
-    /// _Requirements: 10.1, 10.4_
     private func updateState(_ state: FormatState) {
         // 取消之前的定时器
         debounceTimer?.invalidate()
@@ -301,12 +288,10 @@ public final class FormatStateManager: ObservableObject {
     /// - Parameters:
     ///   - state: 新的格式状态
     ///   - updateType: 更新类型（用于性能监控）
-    /// _Requirements: 10.3_
     private func updateStateImmediately(_ state: FormatState, updateType: FormatStatePerformanceRecord.UpdateType = .immediate) {
         let startTime = CFAbsoluteTimeGetCurrent()
 
         // 增量更新：检查状态是否真的变化了
-        // _Requirements: 10.3_
         guard state != currentState else {
             skippedUpdateCount += 1
             return
@@ -331,7 +316,6 @@ public final class FormatStateManager: ObservableObject {
     }
 
     /// 记录性能数据
-    /// _Requirements: 10.3_
     private func recordPerformance(duration: Double, updateType: FormatStatePerformanceRecord.UpdateType, stateChanged: Bool) {
         // 更新统计信息
         updateCount += 1
@@ -356,7 +340,6 @@ public final class FormatStateManager: ObservableObject {
     }
 
     /// 发送格式状态变化通知
-    /// _Requirements: 4.1, 4.2_
     private func postFormatStateNotification(_ state: FormatState) {
         NotificationCenter.default.post(
             name: .formatStateDidChange,
@@ -395,7 +378,6 @@ public final class FormatStateManager: ObservableObject {
     }
 
     /// 处理编辑器焦点变化
-    /// _Requirements: 8.4_
     private func handleEditorFocusChange(isEditorFocused: Bool) {
 
         if isEditorFocused {
@@ -422,18 +404,5 @@ public extension FormatStateManager {
 
     /// 打印当前状态（调试用）
     func printCurrentState() {
-        print("[FormatStateManager] 当前状态:")
-        print("  - 段落格式: \(currentState.paragraphFormat.displayName)")
-        print("  - 对齐方式: \(currentState.alignment.displayName)")
-        print("  - 加粗: \(currentState.isBold)")
-        print("  - 斜体: \(currentState.isItalic)")
-        print("  - 下划线: \(currentState.isUnderline)")
-        print("  - 删除线: \(currentState.isStrikethrough)")
-        print("  - 高亮: \(currentState.isHighlight)")
-        print("  - 引用块: \(currentState.isQuote)")
-        print("  - 有选择: \(currentState.hasSelection)")
-        print("  - 选择长度: \(currentState.selectionLength)")
-        print("  - 活动提供者: \(activeProvider?.editorType.displayName ?? "无")")
-        print("  - 编辑器可用: \(hasActiveEditor)")
     }
 }

@@ -67,10 +67,6 @@ class MetaAttributeLayer: AttributeLayer {
     ) {
         // 元属性的变化会触发完整的段落重新解析
         // 因此需要在应用前记录日志
-        #if DEBUG
-            print("[MetaAttributeLayer] 应用元属性到范围 \(range): \(attributes.keys)")
-        #endif
-
         textStorage.addAttributes(attributes, range: range)
     }
 
@@ -79,10 +75,6 @@ class MetaAttributeLayer: AttributeLayer {
         from range: NSRange,
         in textStorage: NSTextStorage
     ) {
-        #if DEBUG
-            print("[MetaAttributeLayer] 移除元属性从范围 \(range): \(keys)")
-        #endif
-
         for key in keys {
             textStorage.removeAttribute(key, range: range)
         }
@@ -127,10 +119,6 @@ class LayoutAttributeLayer: AttributeLayer {
         in textStorage: NSTextStorage
     ) {
         // 布局属性的变化会触发布局更新
-        #if DEBUG
-            print("[LayoutAttributeLayer] 应用布局属性到范围 \(range): \(attributes.keys)")
-        #endif
-
         textStorage.addAttributes(attributes, range: range)
     }
 
@@ -139,10 +127,6 @@ class LayoutAttributeLayer: AttributeLayer {
         from range: NSRange,
         in textStorage: NSTextStorage
     ) {
-        #if DEBUG
-            print("[LayoutAttributeLayer] 移除布局属性从范围 \(range): \(keys)")
-        #endif
-
         for key in keys {
             textStorage.removeAttribute(key, range: range)
         }
@@ -185,10 +169,6 @@ class DecorativeAttributeLayer: AttributeLayer {
         in textStorage: NSTextStorage
     ) {
         // 装饰属性的变化只触发视觉重绘，不影响布局
-        #if DEBUG
-            print("[DecorativeAttributeLayer] 应用装饰属性到范围 \(range): \(attributes.keys)")
-        #endif
-
         textStorage.addAttributes(attributes, range: range)
     }
 
@@ -197,10 +177,6 @@ class DecorativeAttributeLayer: AttributeLayer {
         from range: NSRange,
         in textStorage: NSTextStorage
     ) {
-        #if DEBUG
-            print("[DecorativeAttributeLayer] 移除装饰属性从范围 \(range): \(keys)")
-        #endif
-
         for key in keys {
             textStorage.removeAttribute(key, range: range)
         }

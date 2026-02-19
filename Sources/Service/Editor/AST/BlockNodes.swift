@@ -19,7 +19,6 @@ public struct DocumentNode: ASTNode, Equatable, Sendable {
 
     /// 文档标题（可选）
     /// 对应 XML 中的 `<title>` 标签
-    /// _Requirements: 3.2, 3.4, 3.5, 3.6_
     public var title: String?
 
     /// 文档包含的块级节点
@@ -51,7 +50,6 @@ public struct DocumentNode: ASTNode, Equatable, Sendable {
 /// 标题块节点
 /// 对应 XML 中的 `<title>内容</title>`
 /// 标题段落是文档的第一个段落，具有特殊的格式和语义
-/// _Requirements: 3.1, 3.2, 3.4_
 public struct TitleBlockNode: BlockNode, Equatable, Sendable {
     public var nodeType: ASTNodeType {
         .titleBlock

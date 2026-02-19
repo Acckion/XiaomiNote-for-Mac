@@ -13,7 +13,6 @@ import SwiftUI
 ///
 /// 使用 NSHostingView 托管 SwiftUI 的 ContentAreaView
 /// 根据视图模式（列表/画廊）显示不同的内容
-/// _Requirements: 4.3, 4.4, 4.5_
 @available(macOS 14.0, *)
 public class ContentAreaHostingController: NSViewController {
 
@@ -84,7 +83,6 @@ public class ContentAreaHostingController: NSViewController {
         super.viewDidLoad()
 
         // 监听视图模式变化
-        // _Requirements: 4.3, 4.4_
         setupViewModeObserver()
 
         // 监听文件夹变化
@@ -104,14 +102,12 @@ public class ContentAreaHostingController: NSViewController {
     // MARK: - 私有方法
 
     /// 设置视图模式监听
-    /// _Requirements: 4.3, 4.4_
     private func setupViewModeObserver() {
         optionsManager.$state
             .map(\.viewMode)
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] viewMode in
-                print("[ContentAreaHostingController] 视图模式变化: \(viewMode)")
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -122,7 +118,6 @@ public class ContentAreaHostingController: NSViewController {
         viewModel.$selectedFolder
             .receive(on: DispatchQueue.main)
             .sink { [weak self] folder in
-                print("[ContentAreaHostingController] 文件夹变化: \(folder?.name ?? "nil")")
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -134,7 +129,6 @@ public class ContentAreaHostingController: NSViewController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] searchText in
                 if !searchText.isEmpty {
-                    print("[ContentAreaHostingController] 搜索文本变化: \(searchText)")
                 }
                 self?.refreshView()
             }

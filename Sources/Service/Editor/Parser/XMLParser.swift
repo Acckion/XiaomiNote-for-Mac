@@ -62,28 +62,16 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     /// - Returns: 解析结果（包含文档 AST 和警告）
     /// - Throws: ParseError（仅在无法恢复时抛出）
     ///
-    /// _Requirements: 3.5_ - 从 XML 的 `<title>` 标签加载为文档标题
     public func parse(_ xml: String) throws -> ParseResult<DocumentNode> {
-        // 重置状态
         warnings = []
         currentIndex = 0
 
-        print("[XMLParser] 🚀 开始解析 XML")
-        print("[XMLParser]   - XML 长度: \(xml.count)")
-        print("[XMLParser]   - XML 前200字符: '\(String(xml.prefix(200)))'")
+        LogService.shared.debug(.editor, "开始解析 XML，长度: \(xml.count)")
 
-        // 词法分析
         do {
             let tokenizer = XMLTokenizer(input: xml)
             tokens = try tokenizer.tokenize()
-            print("[XMLParser] ✅ 词法分析完成，生成 \(tokens.count) 个 token")
-
-            // 打印前10个 token
-            for (index, token) in tokens.prefix(10).enumerated() {
-                print("[XMLParser]   Token \(index): \(token)")
-            }
         } catch {
-            // 词法分析失败，尝试纯文本回退
             if enableErrorRecovery {
                 errorLogger.logError(error, context: ["phase": "tokenization"])
                 let fallbackNode = createFallbackDocument(xml)
@@ -97,61 +85,37 @@ public final class MiNoteXMLParser: @unchecked Sendable {
             }
         }
 
-        // 提取标题（如果存在）
         var title: String?
-
-        // 语法分析
         var blocks: [any BlockNode] = []
 
-        print("[XMLParser] 🔄 开始语法分析")
-
         while !isAtEnd {
-            // 跳过换行符
             if case .newline = currentToken {
                 advance()
                 continue
             }
 
-            // 打印当前 token（仅前20个）
-            if currentIndex < 20 {
-                print("[XMLParser] 🔍 处理 token \(currentIndex): \(String(describing: currentToken))")
-            }
-
-            // 检查是否是标题标签
             if case let .startTag(name, _, selfClosing) = currentToken, name == "title" {
-                print("[XMLParser] 🔍 发现 <title> 标签, selfClosing=\(selfClosing)")
-                // 解析标题
                 advance()
 
                 if !selfClosing {
-                    // 提取标题内容
                     if case let .text(titleText) = currentToken {
                         title = titleText
-                        print("[XMLParser] 📝 提取标题文本: '\(titleText)'")
                         advance()
-                    } else {
-                        print("[XMLParser] ⚠️ <title> 标签后没有文本内容, currentToken=\(String(describing: currentToken))")
                     }
 
-                    // 跳过结束标签
                     if case let .endTag(endName) = currentToken, endName == "title" {
-                        print("[XMLParser] ✅ 找到 </title> 结束标签")
                         advance()
-                    } else {
-                        print("[XMLParser] ⚠️ 没有找到 </title> 结束标签, currentToken=\(String(describing: currentToken))")
                     }
                 }
 
                 continue
             }
 
-            // 解析块级元素
             do {
                 if let block = try parseBlock() {
                     blocks.append(block)
                 }
             } catch let error as ParseError {
-                // 处理解析错误
                 if enableErrorRecovery {
                     let context = ErrorContext(
                         elementName: extractElementName(from: currentToken),
@@ -163,7 +127,6 @@ public final class MiNoteXMLParser: @unchecked Sendable {
 
                     switch strategy {
                     case .skipElement:
-                        // 跳过当前元素，继续处理
                         let warning = ParseWarning(
                             message: "跳过错误元素: \(error.localizedDescription)",
                             location: "位置 \(currentIndex)",
@@ -171,12 +134,9 @@ public final class MiNoteXMLParser: @unchecked Sendable {
                         )
                         warnings.append(warning)
                         errorLogger.logWarning(warning)
-
-                        // 尝试跳到下一个块级元素
                         skipToNextBlock()
 
                     case .fallbackToPlainText:
-                        // 将当前内容作为纯文本处理
                         if let content = context.content {
                             let textBlock = TextBlockNode(indent: 1, content: [TextNode(text: content)])
                             blocks.append(textBlock)
@@ -184,11 +144,9 @@ public final class MiNoteXMLParser: @unchecked Sendable {
                         advance()
 
                     case .useDefaultValue:
-                        // 使用默认值（已在具体解析方法中处理）
                         advance()
 
                     case .abort:
-                        // 终止解析
                         throw error
                     }
                 } else {
@@ -435,40 +393,17 @@ public final class MiNoteXMLParser: @unchecked Sendable {
         let width = attributes["width"].flatMap { Int($0) }
         let height = attributes["height"].flatMap { Int($0) }
 
-        // 读取 imgdes 属性，并清理可能的双引号嵌套问题
-        // 例如：imgdes=""2"" 应该变成 "2"
         let description: String? = {
-            guard let rawDesc = attributes["imgdes"] else {
-                print("[XMLParser] 📝 解析图片: imgdes 属性不存在")
-                return nil
-            }
-            // 移除开头和结尾的多余引号
+            guard let rawDesc = attributes["imgdes"] else { return nil }
             var cleaned = rawDesc
             while cleaned.hasPrefix("\""), cleaned.hasSuffix("\""), cleaned.count > 1 {
                 cleaned = String(cleaned.dropFirst().dropLast())
             }
-
-            print("[XMLParser] 📝 解析图片描述:")
-            print("[XMLParser]   - 原始值: '\(rawDesc)'")
-            print("[XMLParser]   - 清理后: '\(cleaned)'")
-
-            // 修复：保留空字符串，不转换为 nil
-            // 空字符串和 nil 的语义不同：
-            // - "" 表示有 imgdes 属性，但值为空
-            // - nil 表示没有 imgdes 属性
-            // 这样可以确保 XML 往返转换的一致性
             return cleaned
         }()
 
-        // 读取 imgshow 属性（小米笔记固有属性，必须保持原值）
         let imgshow = attributes["imgshow"]
 
-        print("[XMLParser] 📝 创建 ImageNode:")
-        print("[XMLParser]   - fileId: '\(fileId ?? "nil")'")
-        print("[XMLParser]   - description: '\(description ?? "nil")'")
-        print("[XMLParser]   - imgshow: '\(imgshow ?? "nil")'")
-
-        // 跳过标签
         advance()
 
         return ImageNode(fileId: fileId, src: src, width: width, height: height, description: description, imgshow: imgshow)

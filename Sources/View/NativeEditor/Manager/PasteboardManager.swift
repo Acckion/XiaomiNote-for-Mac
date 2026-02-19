@@ -9,7 +9,6 @@ import Foundation
 /// - 从剪贴板导入最合适的格式
 /// - 支持"粘贴并匹配样式"功能
 ///
-/// _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5, 15.6_
 @MainActor
 public class PasteboardManager {
     // MARK: - Singleton
@@ -21,7 +20,6 @@ public class PasteboardManager {
 
     private init() {
         #if DEBUG
-            print("[PasteboardManager] 初始化")
         #endif
     }
 
@@ -36,7 +34,6 @@ public class PasteboardManager {
     ///
     /// 这样可以确保与各种应用的兼容性。
     ///
-    /// _Requirements: 15.1, 15.2, 15.3, 15.4_
     ///
     /// - Parameters:
     ///   - attributedString: 要导出的富文本
@@ -46,7 +43,6 @@ public class PasteboardManager {
         to pasteboard: NSPasteboard = .general
     ) {
         #if DEBUG
-            print("[PasteboardManager] 导出多种格式到剪贴板")
         #endif
 
         // 清空剪贴板
@@ -56,16 +52,13 @@ public class PasteboardManager {
         let item = NSPasteboardItem()
 
         // 1. 导出纯文本格式
-        // _Requirements: 15.1 - 导出纯文本格式
         let plainText = attributedString.string
         item.setString(plainText, forType: .string)
 
         #if DEBUG
-            print("[PasteboardManager] 导出纯文本: \(plainText.prefix(50))...")
         #endif
 
         // 2. 导出 RTF 格式
-        // _Requirements: 15.2 - 导出 RTF 格式
         if let rtfData = try? attributedString.data(
             from: NSRange(location: 0, length: attributedString.length),
             documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
@@ -73,12 +66,10 @@ public class PasteboardManager {
             item.setData(rtfData, forType: .rtf)
 
             #if DEBUG
-                print("[PasteboardManager] 导出 RTF: \(rtfData.count) 字节")
             #endif
         }
 
         // 3. 导出 HTML 格式
-        // _Requirements: 15.3 - 导出 HTML 格式
         if let htmlData = try? attributedString.data(
             from: NSRange(location: 0, length: attributedString.length),
             documentAttributes: [
@@ -89,18 +80,15 @@ public class PasteboardManager {
             item.setData(htmlData, forType: .html)
 
             #if DEBUG
-                print("[PasteboardManager] 导出 HTML: \(htmlData.count) 字节")
             #endif
         }
 
         items.append(item)
 
         // 写入剪贴板
-        // _Requirements: 15.4 - 同时写入多种格式到剪贴板
         pasteboard.writeObjects(items)
 
         #if DEBUG
-            print("[PasteboardManager] 多格式导出完成")
         #endif
     }
 
@@ -113,7 +101,6 @@ public class PasteboardManager {
     /// 2. HTML 格式
     /// 3. 纯文本格式（最基础）
     ///
-    /// _Requirements: 15.5 - 按优先级选择最合适的格式
     ///
     /// - Parameter pasteboard: 源剪贴板，默认为通用剪贴板
     /// - Returns: 导入的富文本，如果失败返回 nil
@@ -121,7 +108,6 @@ public class PasteboardManager {
         from pasteboard: NSPasteboard = .general
     ) -> NSAttributedString? {
         #if DEBUG
-            print("[PasteboardManager] 从剪贴板导入最合适的格式")
         #endif
 
         // 优先级 1: RTF 格式
@@ -132,7 +118,6 @@ public class PasteboardManager {
                 documentAttributes: nil
             ) {
                 #if DEBUG
-                    print("[PasteboardManager] 导入 RTF 格式成功")
                 #endif
                 return attributedString
             }
@@ -149,7 +134,6 @@ public class PasteboardManager {
                 documentAttributes: nil
             ) {
                 #if DEBUG
-                    print("[PasteboardManager] 导入 HTML 格式成功")
                 #endif
                 return attributedString
             }
@@ -158,13 +142,11 @@ public class PasteboardManager {
         // 优先级 3: 纯文本格式
         if let plainText = pasteboard.string(forType: .string) {
             #if DEBUG
-                print("[PasteboardManager] 导入纯文本格式")
             #endif
             return NSAttributedString(string: plainText)
         }
 
         #if DEBUG
-            print("[PasteboardManager] 导入失败：没有可用的格式")
         #endif
 
         return nil
@@ -175,7 +157,6 @@ public class PasteboardManager {
     /// 从剪贴板导入内容，但只保留纯文本，应用当前的打字属性。
     /// 这样可以确保粘贴的内容与周围文本的样式一致。
     ///
-    /// _Requirements: 15.6 - 实现"粘贴并匹配样式"功能
     ///
     /// - Parameters:
     ///   - pasteboard: 源剪贴板，默认为通用剪贴板
@@ -186,13 +167,11 @@ public class PasteboardManager {
         typingAttributes: [NSAttributedString.Key: Any]
     ) -> NSAttributedString? {
         #if DEBUG
-            print("[PasteboardManager] 粘贴并匹配样式")
         #endif
 
         // 获取纯文本
         guard let plainText = pasteboard.string(forType: .string) else {
             #if DEBUG
-                print("[PasteboardManager] 粘贴失败：没有纯文本")
             #endif
             return nil
         }
@@ -204,7 +183,6 @@ public class PasteboardManager {
         )
 
         #if DEBUG
-            print("[PasteboardManager] 粘贴并匹配样式成功，文本长度: \(plainText.count)")
         #endif
 
         return attributedString
@@ -225,7 +203,6 @@ public class PasteboardManager {
         pasteboard.setString(text, forType: .string)
 
         #if DEBUG
-            print("[PasteboardManager] 复制纯文本: \(text.prefix(50))...")
         #endif
     }
 

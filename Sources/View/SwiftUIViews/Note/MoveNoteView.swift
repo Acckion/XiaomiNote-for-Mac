@@ -97,7 +97,7 @@ struct MoveNoteSheetView: View {
                 try await viewModel.updateNote(updatedNote)
                 dismiss()
             } catch {
-                print("[MoveNoteView] 移动笔记失败: \(error.localizedDescription)")
+                LogService.shared.error(.viewmodel, "移动笔记失败: \(error.localizedDescription)")
             }
         }
     }

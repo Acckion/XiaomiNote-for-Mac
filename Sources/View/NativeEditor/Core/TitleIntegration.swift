@@ -24,7 +24,6 @@ import Foundation
 /// - 标题在 XML 中表示为 `<title>` 标签
 /// - 保持与现有 XML 格式的完全兼容性
 ///
-/// _Requirements: 3.1, 3.3, 3.4, 3.5, 3.6_
 @MainActor
 public final class TitleIntegration {
 
@@ -44,7 +43,6 @@ public final class TitleIntegration {
     /// - Parameter xml: XML 字符串
     /// - Returns: 标题文本，如果没有找到标题则返回空字符串
     ///
-    /// _Requirements: 3.1_ - 从 XML 提取标题文本
     ///
     /// 示例：
     /// ```xml
@@ -80,7 +78,6 @@ public final class TitleIntegration {
     ///   - title: 标题文本
     ///   - textStorage: 文本存储对象
     ///
-    /// _Requirements: 3.1_ - 将标题作为第一个段落插入编辑器
     ///
     /// 注意：
     /// - 如果 textStorage 已有内容，标题会插入到最前面
@@ -123,7 +120,6 @@ public final class TitleIntegration {
     /// - Parameter textStorage: 文本存储对象
     /// - Returns: 标题文本，如果没有标题段落则返回空字符串
     ///
-    /// _Requirements: 3.3_ - 从编辑器提取标题文本
     ///
     /// 注意：
     /// - 只提取第一个段落的文本
@@ -177,7 +173,6 @@ public final class TitleIntegration {
     /// - Parameter textStorage: 文本存储对象
     /// - Returns: XML 标题标签字符串，如果没有标题则返回空字符串
     ///
-    /// _Requirements: 3.4_ - 将第一个段落（type=title）转换为 XML 的 `<title>` 标签
     ///
     /// 示例输出：
     /// ```xml
@@ -205,7 +200,6 @@ public final class TitleIntegration {
     ///   - xml: XML 字符串
     ///   - textStorage: 文本存储对象
     ///
-    /// _Requirements: 3.5_ - 从 XML 的 `<title>` 标签加载为第一个段落
     ///
     /// 注意：
     /// - 如果 XML 中没有标题，不会插入任何内容
@@ -230,7 +224,6 @@ public final class TitleIntegration {
     /// - Parameter xml: XML 字符串
     /// - Returns: 移除标题标签后的 XML 字符串
     ///
-    /// _Requirements: 3.6_ - 保持与现有 XML 格式的兼容性
     public func removeTitleTag(from xml: String) -> String {
         // 查找 <title> 标签
         guard let titleRange = xml.range(of: "<title>") else {

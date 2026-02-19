@@ -68,7 +68,6 @@ struct FormatErrorHandlingResult {
 /// - 错误回调通知
 /// - 性能监控
 ///
-/// 需求: 4.1, 4.2
 @MainActor
 final class FormatErrorHandler {
 
@@ -120,7 +119,6 @@ final class FormatErrorHandler {
     ///   - context: 错误上下文
     /// - Returns: 错误处理结果
     ///
-    /// 需求: 4.1 - 格式应用失败时记录错误日志并保持界面状态一致
     @discardableResult
     func handleError(_ error: FormatError, context: FormatErrorContext = .empty) -> FormatErrorHandlingResult {
         // 1. 记录错误
@@ -174,7 +172,6 @@ final class FormatErrorHandler {
     ///   - underlyingError: 底层错误
     /// - Returns: 错误处理结果
     ///
-    /// 需求: 4.1
     @discardableResult
     func handleFormatApplicationError(
         format: TextFormat,
@@ -207,7 +204,6 @@ final class FormatErrorHandler {
     ///   - textLength: 文本长度
     /// - Returns: 错误处理结果
     ///
-    /// 需求: 4.2 - 状态同步失败时重新检测格式状态并更新界面
     @discardableResult
     func handleStateSyncError(
         reason: String,
@@ -274,7 +270,6 @@ final class FormatErrorHandler {
 
     /// 执行自动恢复
     ///
-    /// 需求: 4.1, 4.2
     private func performAutoRecovery(for error: FormatError, context _: FormatErrorContext) -> FormatErrorHandlingResult {
         let action = error.suggestedRecovery
 
@@ -435,14 +430,7 @@ final class FormatErrorHandler {
     /// 打印错误统计信息
     func printErrorStatistics() {
         let stats = getErrorStatistics()
-        print("""
-        [FormatErrorHandler] 错误统计
-          - 总错误数: \(stats["totalErrors"] ?? 0)
-          - 已处理: \(stats["handledErrors"] ?? 0)
-          - 未处理: \(stats["unhandledErrors"] ?? 0)
-          - 按错误代码: \(stats["errorsByCode"] ?? [:])
-          - 恢复操作: \(stats["recoveryActions"] ?? [:])
-        """)
+        LogService.shared.debug(.editor, "格式错误统计: 总数=\(stats["totalErrors"] ?? 0), 已处理=\(stats["handledErrors"] ?? 0), 未处理=\(stats["unhandledErrors"] ?? 0)")
     }
 }
 

@@ -10,7 +10,6 @@ import Foundation
 /// - 处理选择方向变化
 /// - 支持键盘和鼠标混合扩展选择
 ///
-/// _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6_
 public class SelectionAnchorManager {
     // MARK: - Properties
 
@@ -46,61 +45,32 @@ public class SelectionAnchorManager {
     ///
     /// 在选择开始时调用此方法设置锚点位置。
     /// 锚点是选择的固定端，在后续的扩展/收缩操作中保持不变。
-    ///
-    /// _Requirements: 13.1_
-    ///
     /// - Parameter location: 锚点位置
     public func setAnchor(at location: Int) {
         anchorLocation = location
         activeLocation = location
         isSelecting = true
         isForwardSelection = true
-
-        #if DEBUG
-            print("[SelectionAnchorManager] 设置锚点: \(location)")
-        #endif
     }
 
     /// 清除锚点
-    ///
-    /// 在选择结束时调用此方法清除锚点。
-    ///
-    /// _Requirements: 13.3_
     public func clearAnchor() {
         anchorLocation = nil
         activeLocation = nil
         isSelecting = false
-
-        #if DEBUG
-            print("[SelectionAnchorManager] 清除锚点")
-        #endif
     }
 
     /// 开始选择操作
-    ///
-    /// 在用户开始选择文本时调用（例如按下 Shift 键或开始拖动）。
-    ///
-    /// - Parameter location: 选择起始位置
     public func beginSelection(at location: Int) {
         if anchorLocation == nil {
             setAnchor(at: location)
         }
         isSelecting = true
-
-        #if DEBUG
-            print("[SelectionAnchorManager] 开始选择: \(location)")
-        #endif
     }
 
     /// 结束选择操作
-    ///
-    /// 在用户结束选择文本时调用（例如释放 Shift 键或结束拖动）。
     public func endSelection() {
         isSelecting = false
-
-        #if DEBUG
-            print("[SelectionAnchorManager] 结束选择")
-        #endif
     }
 
     // MARK: - Public Methods - 选择扩展
@@ -109,14 +79,6 @@ public class SelectionAnchorManager {
     ///
     /// 根据新位置和锚点计算新的选择范围。
     /// 锚点保持不变，活动端移动到新位置。
-    ///
-    /// **处理逻辑**:
-    /// 1. 如果没有锚点，将新位置设为锚点
-    /// 2. 计算新位置相对于锚点的方向
-    /// 3. 根据方向确定选择范围
-    /// 4. 检测方向变化并相应处理
-    ///
-    /// _Requirements: 13.2, 13.5_
     ///
     /// - Parameters:
     ///   - newLocation: 新的位置
@@ -153,10 +115,6 @@ public class SelectionAnchorManager {
             NSRange(location: newLocation, length: anchor - newLocation)
         }
 
-        #if DEBUG
-            print("[SelectionAnchorManager] 扩展选择: anchor=\(anchor), new=\(newLocation), range=\(newRange)")
-        #endif
-
         return newRange
     }
 
@@ -165,12 +123,6 @@ public class SelectionAnchorManager {
     /// 当用户改变选择方向时（例如从向前选择变为向后选择），
     /// 需要切换锚点和活动端。
     ///
-    /// **处理逻辑**:
-    /// - 原来的锚点变为活动端
-    /// - 原来的活动端变为新的锚点
-    ///
-    /// _Requirements: 13.5_
-    ///
     /// - Parameters:
     ///   - newLocation: 新的位置
     ///   - currentSelection: 当前选择范围
@@ -178,21 +130,13 @@ public class SelectionAnchorManager {
         to _: Int,
         from _: NSRange
     ) {
-        #if DEBUG
-            print("[SelectionAnchorManager] 检测到方向变化")
-        #endif
-
         // 在方向变化时，锚点保持不变
-        // 只是选择方向反转了
-        // 不需要交换锚点和活动端
     }
 
     /// 处理拖动选择边缘
     ///
     /// 当用户拖动选择边缘时，被拖动的边缘成为活动端，
     /// 另一边成为锚点。
-    ///
-    /// _Requirements: 13.6_
     ///
     /// - Parameters:
     ///   - edge: 被拖动的边缘（.start 或 .end）
@@ -218,18 +162,11 @@ public class SelectionAnchorManager {
             isForwardSelection = true
         }
 
-        #if DEBUG
-            print("[SelectionAnchorManager] 拖动边缘: \(edge), anchor=\(anchorLocation!)")
-        #endif
     }
 
     // MARK: - Public Methods - 键盘选择
 
     /// 处理键盘选择扩展
-    ///
-    /// 支持 Shift + 方向键扩展选择。
-    ///
-    /// _Requirements: 13.4_
     ///
     /// - Parameters:
     ///   - direction: 移动方向
@@ -274,8 +211,6 @@ public class SelectionAnchorManager {
     /// 处理鼠标选择
     ///
     /// 支持鼠标拖动选择和 Shift + 点击扩展选择。
-    ///
-    /// _Requirements: 13.4_
     ///
     /// - Parameters:
     ///   - location: 鼠标点击位置

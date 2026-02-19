@@ -53,18 +53,18 @@ struct EditorConfiguration: Codable, Equatable {
     /// 初始化编辑器配置
     init() {
         // 设置默认值（原生编辑器）
-        autoSaveEnabled = true
-        autoSaveInterval = 5.0
-        spellCheckEnabled = true
-        syntaxHighlightEnabled = true
-        fontSize = 14.0
-        fontName = "SF Pro Text"
-        lineSpacing = 1.2
-        darkModeEnabled = true
-        showLineNumbers = false
-        codeFoldingEnabled = false
-        indentSize = 4
-        useTabsForIndentation = false
+        self.autoSaveEnabled = true
+        self.autoSaveInterval = 5.0
+        self.spellCheckEnabled = true
+        self.syntaxHighlightEnabled = true
+        self.fontSize = 14.0
+        self.fontName = "SF Pro Text"
+        self.lineSpacing = 1.2
+        self.darkModeEnabled = true
+        self.showLineNumbers = false
+        self.codeFoldingEnabled = false
+        self.indentSize = 4
+        self.useTabsForIndentation = false
     }
 
     // MARK: - Static Methods
@@ -105,10 +105,10 @@ class EditorConfigurationManager: ObservableObject {
         if let data = userDefaults.data(forKey: configurationKey),
            let configuration = try? JSONDecoder().decode(EditorConfiguration.self, from: data)
         {
-            currentConfiguration = configuration
+            self.currentConfiguration = configuration
         } else {
             // 使用默认配置
-            currentConfiguration = EditorConfiguration.defaultConfiguration()
+            self.currentConfiguration = EditorConfiguration.defaultConfiguration()
         }
     }
 

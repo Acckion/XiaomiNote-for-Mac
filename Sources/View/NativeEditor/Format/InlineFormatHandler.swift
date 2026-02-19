@@ -5,7 +5,6 @@
 //  内联格式处理器 - 统一处理加粗、斜体、下划线、删除线、高亮格式
 //  负责格式的应用、检测和 typingAttributes 构建
 //
-//  _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 //
 
 import AppKit
@@ -15,19 +14,16 @@ import Foundation
 
 /// 内联格式处理器
 /// 统一处理所有内联格式（加粗、斜体、下划线、删除线、高亮）
-/// _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 public enum InlineFormatHandler {
 
     // MARK: - 常量
 
     /// 斜体 obliqueness 值（用于不支持斜体的字体）
-    /// _Requirements: 1.5_
     public static let italicObliquenessValue = 0.2
 
     /// 默认字体 (14pt)
     /// 注意：使用 nonisolated(unsafe) 因为 NSFont 不是 Sendable，但这里是只读常量
     /// 使用 FontSizeConstants.body (14pt) 保持与 FontSizeManager 一致
-    /// _Requirements: 1.4, 4.5_
     public nonisolated(unsafe) static let defaultFont = NSFont.systemFont(ofSize: FontSizeConstants.body)
 
     /// 高亮背景色
@@ -50,7 +46,6 @@ public enum InlineFormatHandler {
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
     ///   - toggle: 是否切换模式（true 则切换，false 则强制应用）
-    /// _Requirements: 1.1, 1.2, 1.3_
     public static func apply(
         _ format: TextFormat,
         to range: NSRange,
@@ -59,7 +54,6 @@ public enum InlineFormatHandler {
     ) {
         guard range.length > 0 else { return }
         guard format.category == .inline else {
-            print("[InlineFormatHandler] 警告：尝试应用非内联格式 \(format.displayName)")
             return
         }
 
@@ -88,7 +82,6 @@ public enum InlineFormatHandler {
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
     ///   - toggle: 是否切换模式
-    /// _Requirements: 1.4_
     public static func applyMultiple(
         _ formats: Set<TextFormat>,
         to range: NSRange,
@@ -114,7 +107,6 @@ public enum InlineFormatHandler {
     ///   - position: 检测位置
     ///   - textStorage: 文本存储
     /// - Returns: 当前位置激活的内联格式集合
-    /// _Requirements: 1.3_
     public static func detect(at position: Int, in textStorage: NSTextStorage) -> Set<TextFormat> {
         guard position >= 0, position < textStorage.length else {
             return []
@@ -157,7 +149,6 @@ public enum InlineFormatHandler {
     ///   - format: 要检测的格式
     ///   - attributes: 属性字典
     /// - Returns: 是否激活
-    /// _Requirements: 1.3_
     public static func isFormatActive(
         _ format: TextFormat,
         in attributes: [NSAttributedString.Key: Any]
@@ -189,7 +180,6 @@ public enum InlineFormatHandler {
     ///
     /// - Parameter baseAttributes: 基础属性（可选，仅用于保留段落样式如对齐方式）
     /// - Returns: 清除内联格式后的属性字典
-    /// _Requirements: 2.1-2.6_
     public static func buildCleanTypingAttributes(
         from baseAttributes: [NSAttributedString.Key: Any]? = nil
     ) -> [NSAttributedString.Key: Any] {
@@ -221,7 +211,6 @@ public enum InlineFormatHandler {
     ///
     /// - Parameter attributes: 原始属性字典
     /// - Returns: 移除内联格式后的属性字典
-    /// _Requirements: 2.1-2.6_
     public static func removeInlineFormats(
         from attributes: [NSAttributedString.Key: Any]
     ) -> [NSAttributedString.Key: Any] {
@@ -253,7 +242,6 @@ public enum InlineFormatHandler {
     // MARK: - 私有方法 - 格式应用
 
     /// 应用加粗格式
-    /// _Requirements: 1.1_
     private static func applyBold(
         to range: NSRange,
         in textStorage: NSTextStorage,
@@ -267,7 +255,6 @@ public enum InlineFormatHandler {
     /// 统一使用 obliqueness 属性实现斜体，不依赖字体特性
     /// 这样可以确保中英文斜体行为一致
     ///
-    /// _Requirements: 1.2, 1.5_
     private static func applyItalic(
         to range: NSRange,
         in textStorage: NSTextStorage,
@@ -293,29 +280,24 @@ public enum InlineFormatHandler {
 
     /// 添加斜体效果
     /// 统一使用 obliqueness 属性实现斜体
-    /// _Requirements: 1.5_
     private static func addItalic(
         to range: NSRange,
         in textStorage: NSTextStorage
     ) {
         // 统一使用 obliqueness 实现斜体，不依赖字体特性
         textStorage.addAttribute(.obliqueness, value: italicObliquenessValue, range: range)
-        print("[InlineFormatHandler] 添加斜体（obliqueness）")
     }
 
     /// 移除斜体效果
-    /// _Requirements: 1.5_
     private static func removeItalic(
         from range: NSRange,
         in textStorage: NSTextStorage
     ) {
         // 移除 obliqueness 属性
         textStorage.removeAttribute(.obliqueness, range: range)
-        print("[InlineFormatHandler] 移除斜体")
     }
 
     /// 应用下划线格式
-    /// _Requirements: 1.1_
     private static func applyUnderline(
         to range: NSRange,
         in textStorage: NSTextStorage,
@@ -331,7 +313,6 @@ public enum InlineFormatHandler {
     }
 
     /// 应用删除线格式
-    /// _Requirements: 1.1_
     private static func applyStrikethrough(
         to range: NSRange,
         in textStorage: NSTextStorage,
@@ -347,7 +328,6 @@ public enum InlineFormatHandler {
     }
 
     /// 应用高亮格式
-    /// _Requirements: 1.1_
     private static func applyHighlight(
         to range: NSRange,
         in textStorage: NSTextStorage,
@@ -374,7 +354,6 @@ public enum InlineFormatHandler {
 
     /// 检测属性中是否有斜体
     /// 只检查 obliqueness 属性（统一使用 obliqueness 实现斜体）
-    /// _Requirements: 1.5_
     private static func isItalicInAttributes(_ attributes: [NSAttributedString.Key: Any]) -> Bool {
         // 只检查 obliqueness 属性
         if let obliqueness = attributes[.obliqueness] as? Double, obliqueness > 0 {
@@ -479,7 +458,6 @@ public enum InlineFormatHandler {
     }
 
     /// 从字体中移除内联特性（只处理加粗，斜体使用 obliqueness）
-    /// _Requirements: 2.1-2.6_
     private static func removeInlineTraitsFromFont(_ font: NSFont) -> NSFont {
         let fontManager = NSFontManager.shared
         var resultFont = font

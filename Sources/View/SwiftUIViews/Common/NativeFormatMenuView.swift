@@ -4,7 +4,6 @@
 //
 //  原生编辑器格式菜单视图 - 提供富文本格式选项
 //
-//  _Requirements: 9.1, 9.2, 9.3_
 //
 
 import SwiftUI
@@ -35,7 +34,6 @@ enum NativeTextStyle: String, CaseIterable {
     }
 
     /// 对应的 ParagraphFormat（用于与 FormatStateManager 集成）
-    /// _Requirements: 9.1_
     var paragraphFormat: ParagraphFormat {
         switch self {
         case .title: .heading1
@@ -49,7 +47,6 @@ enum NativeTextStyle: String, CaseIterable {
 }
 
 /// 原生编辑器格式菜单视图
-/// _Requirements: 9.1, 9.2, 9.3_
 struct NativeFormatMenuView: View {
 
     // MARK: - Properties
@@ -57,7 +54,6 @@ struct NativeFormatMenuView: View {
     @ObservedObject var context: NativeEditorContext
     @StateObject private var stateChecker = EditorStateConsistencyChecker.shared
     /// 格式状态管理器 - 用于统一工具栏和菜单栏的格式状态
-    /// _Requirements: 9.1_
     @ObservedObject private var stateManager = FormatStateManager.shared
     var onFormatApplied: ((TextFormat) -> Void)?
 
@@ -79,7 +75,6 @@ struct NativeFormatMenuView: View {
             // 顶部格式化按钮组（加粗、斜体、下划线、删除线、高亮）
             HStack(spacing: 8) {
                 // 加粗按钮
-                // _Requirements: 9.2_
                 Button(action: {
                     applyFormat(.bold)
                 }) {
@@ -94,7 +89,6 @@ struct NativeFormatMenuView: View {
                 .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
 
                 // 斜体按钮
-                // _Requirements: 9.2_
                 Button(action: {
                     applyFormat(.italic)
                 }) {
@@ -109,7 +103,6 @@ struct NativeFormatMenuView: View {
                 .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
 
                 // 下划线按钮
-                // _Requirements: 9.2_
                 Button(action: {
                     applyFormat(.underline)
                 }) {
@@ -125,7 +118,6 @@ struct NativeFormatMenuView: View {
                 .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
 
                 // 删除线按钮
-                // _Requirements: 9.2_
                 Button(action: {
                     applyFormat(.strikethrough)
                 }) {
@@ -141,7 +133,6 @@ struct NativeFormatMenuView: View {
                 .disabled(!stateChecker.formatButtonsEnabled || isInTitleParagraph)
 
                 // 高亮按钮
-                // _Requirements: 9.2_
                 Button(action: {
                     applyFormat(.highlight)
                 }) {
@@ -199,7 +190,6 @@ struct NativeFormatMenuView: View {
             Divider()
 
             // 引用块（可勾选）
-            // _Requirements: 9.2_
             VStack(spacing: 0) {
                 Button(action: {
                     applyFormat(.quote)
@@ -235,7 +225,6 @@ struct NativeFormatMenuView: View {
             Divider()
 
             // 对齐按钮组（居左、居中、居右）
-            // _Requirements: 9.2_
             HStack(spacing: 8) {
                 // 居左按钮（默认状态，当没有居中和居右时为激活）
                 Button(action: {
@@ -302,7 +291,6 @@ struct NativeFormatMenuView: View {
             context.requestContentSync()
 
             // 强制刷新 FormatStateManager 状态
-            // _Requirements: 9.1_
             stateManager.forceRefresh()
 
             // 使用延迟确保同步完成后再更新格式状态
@@ -398,7 +386,6 @@ struct NativeFormatMenuView: View {
     private func clearAlignmentFormats() {
         // 检查是否在标题段落中，如果是则禁止格式操作
         if isInTitleParagraph {
-            print("[NativeFormatMenuView] 标题段落中禁止对齐操作")
             return
         }
 
@@ -415,7 +402,6 @@ struct NativeFormatMenuView: View {
     private func handleStyleSelection(_ style: NativeTextStyle) {
         // 检查是否在标题段落中，如果是则禁止格式操作
         if isInTitleParagraph {
-            print("[NativeFormatMenuView] 标题段落中禁止样式操作: \(style.displayName)")
             return
         }
 
@@ -459,11 +445,9 @@ struct NativeFormatMenuView: View {
 
     /// 应用格式
     /// 使用 FormatStateManager 确保工具栏和菜单栏状态同步
-    /// _Requirements: 9.3_
     private func applyFormat(_ format: TextFormat) {
         // 检查是否在标题段落中，如果是则禁止格式操作
         if isInTitleParagraph {
-            print("[NativeFormatMenuView] 标题段落中禁止格式操作: \(format.displayName)")
             return
         }
 

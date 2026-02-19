@@ -25,7 +25,6 @@ import Foundation
 /// - 支持多种数据源（XML、NSTextStorage）
 /// - 包含完善的错误处理和验证逻辑
 ///
-/// _需求: 1.1, 2.1, 2.2, 2.3_
 @MainActor
 public final class TitleExtractionService {
 
@@ -46,7 +45,6 @@ public final class TitleExtractionService {
     /// - Parameter xmlContent: XML 字符串内容
     /// - Returns: TitleExtractionResult 包含提取结果和元数据
     ///
-    /// _需求: 1.1, 2.1_ - 从 XML 内容提取标题的方法
     ///
     /// 示例：
     /// ```xml
@@ -54,11 +52,11 @@ public final class TitleExtractionService {
     /// ```
     /// 返回: TitleExtractionResult(title: "我的笔记标题 & 特殊字符", source: .xml, isValid: true)
     public func extractTitleFromXML(_ xmlContent: String) -> TitleExtractionResult {
-        print("[TitleExtractionService] 开始从 XML 提取标题")
+        LogService.shared.debug(.editor, "开始从 XML 提取标题")
 
         // 验证输入
         guard !xmlContent.isEmpty else {
-            print("[TitleExtractionService] XML 内容为空")
+            LogService.shared.debug(.editor, "XML 内容为空")
             return TitleExtractionResult(
                 title: "",
                 source: .xml,
@@ -73,7 +71,7 @@ public final class TitleExtractionService {
 
         // 查找 <title> 标签
         guard let titleRange = xmlContent.range(of: "<title>") else {
-            print("[TitleExtractionService] 未找到 <title> 标签")
+            LogService.shared.debug(.editor, "未找到 title 标签")
             return TitleExtractionResult(
                 title: "",
                 source: .xml,
@@ -86,7 +84,7 @@ public final class TitleExtractionService {
 
         // 查找 </title> 结束标签
         guard let endTitleRange = xmlContent.range(of: "</title>", range: titleRange.upperBound ..< xmlContent.endIndex) else {
-            print("[TitleExtractionService] 未找到 </title> 结束标签")
+            LogService.shared.debug(.editor, "未找到 title 结束标签")
             return TitleExtractionResult(
                 title: "",
                 source: .xml,
@@ -116,7 +114,7 @@ public final class TitleExtractionService {
             processedLength: cleanedTitle.count
         )
 
-        print("[TitleExtractionService] 从 XML 提取标题成功: '\(cleanedTitle)'")
+        LogService.shared.info(.editor, "从 XML 提取标题成功: '\(cleanedTitle)'")
         return result
     }
 
@@ -128,18 +126,17 @@ public final class TitleExtractionService {
     /// - Parameter textStorage: NSTextStorage 对象
     /// - Returns: TitleExtractionResult 包含提取结果和元数据
     ///
-    /// _需求: 1.1, 2.2_ - 从原生编辑器提取标题的方法
     ///
     /// 注意：
     /// - 只提取第一个段落的文本
     /// - 会移除末尾的换行符和空白字符
     /// - 如果第一个段落不是标题类型，返回空字符串
     public func extractTitleFromEditor(_ textStorage: NSTextStorage) -> TitleExtractionResult {
-        print("[TitleExtractionService] 开始从编辑器提取标题")
+        LogService.shared.debug(.editor, "开始从编辑器提取标题")
 
         // 验证输入
         guard textStorage.length > 0 else {
-            print("[TitleExtractionService] 编辑器内容为空")
+            LogService.shared.debug(.editor, "编辑器内容为空")
             return TitleExtractionResult(
                 title: "",
                 source: .nativeEditor,
@@ -187,7 +184,7 @@ public final class TitleExtractionService {
 
         // 如果不是标题类型，返回空字符串
         guard isTitle else {
-            print("[TitleExtractionService] 第一行不是标题段落")
+            LogService.shared.debug(.editor, "第一行不是标题段落")
             return TitleExtractionResult(
                 title: "",
                 source: .nativeEditor,
@@ -213,7 +210,7 @@ public final class TitleExtractionService {
             processedLength: cleanedTitle.count
         )
 
-        print("[TitleExtractionService] 从编辑器提取标题成功: '\(cleanedTitle)' (通过 \(titleCheckMethod))")
+        LogService.shared.info(.editor, "从编辑器提取标题成功: '\(cleanedTitle)'")
         return result
     }
 
@@ -227,7 +224,6 @@ public final class TitleExtractionService {
     /// - Parameter title: 待验证的标题文本
     /// - Returns: 验证结果，包含是否有效和错误信息
     ///
-    /// _需求: 2.3_ - 添加标题验证逻辑
     public func validateTitle(_ title: String) -> (isValid: Bool, error: String?) {
         // 检查长度限制
         if title.count > 200 {
@@ -273,11 +269,10 @@ public final class TitleExtractionService {
         // 验证标题
         let validation = validateTitle(cleanedTitle)
         if !validation.isValid {
-            print("[TitleExtractionService] 标题验证失败: \(validation.error ?? "未知错误")")
-            // 如果验证失败，尝试截断到有效长度
+            LogService.shared.warning(.editor, "标题验证失败: \(validation.error ?? "未知错误")")
             if cleanedTitle.count > 200 {
                 cleanedTitle = String(cleanedTitle.prefix(200))
-                print("[TitleExtractionService] 标题已截断到 200 字符")
+                LogService.shared.debug(.editor, "标题已截断到 200 字符")
             }
         }
 
@@ -292,7 +287,6 @@ public final class TitleExtractionService {
     /// - Parameter text: 包含 XML 实体的文本
     /// - Returns: 解码后的文本
     ///
-    /// _需求: 2.2_ - 处理特殊字符和XML实体编码
     private func decodeXMLEntities(_ text: String) -> String {
         var result = text
 

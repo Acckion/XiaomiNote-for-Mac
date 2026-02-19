@@ -62,11 +62,6 @@ class MixedFormatApplicationHandler {
         let mixedHandler = MixedFormatStateHandler.shared
         let state = mixedHandler.detectFormatState(format, in: textStorage, range: range)
 
-        print("[MixedFormatApplication] 应用格式: \(format.displayName)")
-        print("[MixedFormatApplication]   - 范围: \(range)")
-        print("[MixedFormatApplication]   - 当前状态: \(state.stateType), 激活比例: \(String(format: "%.2f", state.activationRatio))")
-        print("[MixedFormatApplication]   - 策略: \(effectiveStrategy)")
-
         // 根据策略决定操作
         let shouldApply: Bool = switch effectiveStrategy {
         case .unifyApply:
@@ -78,8 +73,6 @@ class MixedFormatApplicationHandler {
             state.activationRatio < toggleThreshold
         }
 
-        print("[MixedFormatApplication]   - 决定: \(shouldApply ? "应用" : "移除")")
-
         // 执行格式操作
         textStorage.beginEditing()
 
@@ -90,8 +83,6 @@ class MixedFormatApplicationHandler {
         }
 
         textStorage.endEditing()
-
-        print("[MixedFormatApplication] ✅ 格式操作完成")
     }
 
     /// 强制应用格式到整个范围（不考虑当前状态）
@@ -184,7 +175,6 @@ class MixedFormatApplicationHandler {
 
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
             // 使用 FontSizeManager 统一管理默认字体
-            // _Requirements: 4.5_
             let font = (value as? NSFont) ?? FontSizeManager.shared.defaultFont
             let traits = font.fontDescriptor.symbolicTraits
 
@@ -218,7 +208,6 @@ class MixedFormatApplicationHandler {
 
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
             // 使用 FontSizeManager 统一管理默认字体
-            // _Requirements: 4.5_
             let font = (value as? NSFont) ?? FontSizeManager.shared.defaultFont
             let traits = font.fontDescriptor.symbolicTraits
 

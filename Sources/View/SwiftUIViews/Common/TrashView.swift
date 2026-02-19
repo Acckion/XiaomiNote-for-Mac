@@ -254,7 +254,7 @@ struct TrashView: View {
                 // 设置到编辑器上下文
                 editorContext.updateNSContent(attributedString)
             } catch {
-                print("[TrashView] 加载内容失败: \(error.localizedDescription)")
+                LogService.shared.error(.window, "TrashView 加载内容失败: \(error.localizedDescription)")
                 // 如果转换失败，显示纯文本
                 let plainText = note.content
                     .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)

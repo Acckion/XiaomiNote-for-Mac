@@ -54,9 +54,9 @@ final class AudioConverterService: @unchecked Sendable {
     // MARK: - 初始化
 
     private init() {
-        tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("AudioConversion")
+        self.tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("AudioConversion")
         createTempDirectoryIfNeeded()
-        print("[AudioConverter] 初始化完成，临时目录: \(tempDirectory.path)")
+        LogService.shared.debug(.audio, "AudioConverterService 初始化完成")
     }
 
     /// 创建临时目录
@@ -65,7 +65,7 @@ final class AudioConverterService: @unchecked Sendable {
             do {
                 try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
             } catch {
-                print("[AudioConverter] ❌ 创建临时目录失败: \(error)")
+                LogService.shared.error(.audio, "创建临时目录失败: \(error)")
             }
         }
     }
@@ -85,45 +85,27 @@ final class AudioConverterService: @unchecked Sendable {
     /// - Returns: 转换后的 MP3 文件 URL
     /// - Throws: ConversionError
     func convertM4AToMP3(inputURL: URL) async throws -> URL {
-        print("[AudioConverter] 开始转换 M4A 到 MP3: \(inputURL.lastPathComponent)")
+        LogService.shared.info(.audio, "开始转换 M4A 到 MP3: \(inputURL.lastPathComponent)")
 
         // 检查输入文件是否存在
         guard FileManager.default.fileExists(atPath: inputURL.path) else {
-            print("[AudioConverter] ❌ 输入文件不存在: \(inputURL.path)")
+            LogService.shared.error(.audio, "输入文件不存在: \(inputURL.lastPathComponent)")
             throw ConversionError.inputFileNotFound
         }
-
-        // 打印输入文件信息
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: inputURL.path),
-           let size = attrs[.size] as? Int64
-        {
-            print("[AudioConverter] 输入文件大小: \(size) 字节")
-
-            // 检查文件是否太小（可能没有录到声音）
-            if size < 5000 {
-                print("[AudioConverter] ⚠️ 警告：输入文件太小（\(size) 字节），可能没有录到声音")
-            }
-        }
-
-        // 使用 ffprobe 检查输入文件的详细信息
-        let probeResult = probeAudioFileDetailed(inputURL)
-        print("[AudioConverter] 输入文件详细信息:\n\(probeResult)")
 
         // 缓存原始 M4A 文件（用于调试和预览播放）
         do {
             let cachedM4A = try cacheM4AFile(inputURL: inputURL)
-            print("[AudioConverter] ✅ 已缓存原始 M4A 文件: \(cachedM4A.lastPathComponent)")
+            LogService.shared.debug(.audio, "已缓存原始 M4A 文件: \(cachedM4A.lastPathComponent)")
         } catch {
-            print("[AudioConverter] ⚠️ 缓存 M4A 文件失败: \(error.localizedDescription)")
+            LogService.shared.warning(.audio, "缓存 M4A 文件失败: \(error.localizedDescription)")
         }
 
         // 检查 ffmpeg 是否可用
         guard let ffmpegPath = findFFmpeg() else {
-            print("[AudioConverter] ❌ ffmpeg 未安装")
+            LogService.shared.error(.audio, "ffmpeg 未安装")
             throw ConversionError.ffmpegNotInstalled
         }
-
-        print("[AudioConverter] 检测到 ffmpeg: \(ffmpegPath)")
 
         // 生成输出文件路径
         let outputFileName = inputURL.deletingPathExtension().lastPathComponent + ".mp3"
@@ -144,25 +126,18 @@ final class AudioConverterService: @unchecked Sendable {
         if ffmpegResult.success {
             // 验证输出文件格式
             let format = getAudioFormat(outputURL)
-            print("[AudioConverter] 输出文件格式: \(format)")
-
-            // 使用 ffprobe 检查输出文件
-            let outputProbeResult = probeAudioFileDetailed(outputURL)
-            print("[AudioConverter] 输出文件详细信息:\n\(outputProbeResult)")
 
             // 检查是否为有效的 MP3 格式
-            // 注意：没有 ID3 标签的 MP3 文件以帧同步 (0xFF 0xFB/FA/F3/F2) 开头
             guard format.contains("MP3") else {
-                print("[AudioConverter] ❌ 转换后的文件不是有效的 MP3 格式: \(format)")
-                // 删除无效的输出文件
+                LogService.shared.error(.audio, "转换后的文件不是有效的 MP3 格式: \(format)")
                 try? FileManager.default.removeItem(at: outputURL)
                 throw ConversionError.invalidOutputFormat(format)
             }
 
-            print("[AudioConverter] ✅ ffmpeg MP3 转换成功: \(outputURL.lastPathComponent)")
+            LogService.shared.info(.audio, "MP3 转换成功: \(outputURL.lastPathComponent)")
             return outputURL
         } else {
-            print("[AudioConverter] ❌ ffmpeg 转换失败: \(ffmpegResult.error)")
+            LogService.shared.error(.audio, "ffmpeg 转换失败: \(ffmpegResult.error)")
             throw ConversionError.conversionFailed(ffmpegResult.error)
         }
     }
@@ -238,8 +213,6 @@ final class AudioConverterService: @unchecked Sendable {
                 outputPath,
             ]
 
-            print("[AudioConverter] ffmpeg 命令: \(ffmpegPath) \(process.arguments?.joined(separator: " ") ?? "")")
-
             let errorPipe = Pipe()
             let outputPipe = Pipe()
             process.standardError = errorPipe
@@ -252,15 +225,10 @@ final class AudioConverterService: @unchecked Sendable {
                 let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
                 let errorString = String(data: errorData, encoding: .utf8) ?? ""
 
-                // ffmpeg 输出信息到 stderr，即使成功也会有输出
-                print("[AudioConverter] ffmpeg 输出:\n\(errorString.prefix(500))")
-
                 if process.terminationStatus == 0, FileManager.default.fileExists(atPath: outputPath) {
-                    // 检查输出文件大小
                     if let attrs = try? FileManager.default.attributesOfItem(atPath: outputPath),
                        let size = attrs[.size] as? Int64
                     {
-                        print("[AudioConverter] 输出文件大小: \(size) 字节")
                         if size < 100 {
                             continuation.resume(returning: (false, "输出文件太小，可能转换失败"))
                             return
@@ -289,16 +257,7 @@ final class AudioConverterService: @unchecked Sendable {
             try FileManager.default.removeItem(at: cachedURL)
         }
 
-        // 复制文件
         try FileManager.default.copyItem(at: inputURL, to: cachedURL)
-
-        // 打印文件信息
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: cachedURL.path),
-           let size = attrs[.size] as? Int64
-        {
-            print("[AudioConverter] ✅ 缓存 M4A 文件: \(cachedURL.lastPathComponent), 大小: \(size) 字节")
-        }
-
         return cachedURL
     }
 
@@ -430,11 +389,6 @@ final class AudioConverterService: @unchecked Sendable {
                 let maxVolume = String(volumeOutput[maxVolumeRange])
                 result += "\n\(maxVolume)"
             }
-
-            // 检查是否是静音
-            if volumeOutput.contains("mean_volume: -91") || volumeOutput.contains("mean_volume: -inf") {
-                result += "\n⚠️ 警告：音频可能是静音的！"
-            }
         } catch {
             result += "\n音量检测失败: \(error.localizedDescription)"
         }
@@ -448,7 +402,7 @@ final class AudioConverterService: @unchecked Sendable {
     /// - Returns: 转换后的 AAC 文件 URL
     /// - Throws: ConversionError
     func convertM4AToAAC(inputURL: URL) async throws -> URL {
-        print("[AudioConverter] 开始转换为 AAC: \(inputURL.lastPathComponent)")
+        LogService.shared.info(.audio, "开始转换为 AAC: \(inputURL.lastPathComponent)")
 
         guard FileManager.default.fileExists(atPath: inputURL.path) else {
             throw ConversionError.inputFileNotFound
@@ -473,7 +427,7 @@ final class AudioConverterService: @unchecked Sendable {
         )
 
         if result.success {
-            print("[AudioConverter] ✅ AAC 转换成功: \(outputURL.lastPathComponent)")
+            LogService.shared.info(.audio, "AAC 转换成功: \(outputURL.lastPathComponent)")
             return outputURL
         } else {
             throw ConversionError.conversionFailed(result.error)
@@ -578,9 +532,9 @@ final class AudioConverterService: @unchecked Sendable {
             for file in files {
                 try FileManager.default.removeItem(at: file)
             }
-            print("[AudioConverter] ✅ 清理临时文件完成")
+            LogService.shared.info(.audio, "清理临时文件完成")
         } catch {
-            print("[AudioConverter] ❌ 清理临时文件失败: \(error)")
+            LogService.shared.error(.audio, "清理临时文件失败: \(error)")
         }
     }
 
@@ -614,7 +568,6 @@ final class AudioConverterService: @unchecked Sendable {
                 let errorString = String(data: errorData, encoding: .utf8) ?? ""
 
                 if process.terminationStatus == 0 {
-                    // 检查输出文件是否存在
                     if FileManager.default.fileExists(atPath: outputPath) {
                         continuation.resume(returning: (true, ""))
                     } else {

@@ -14,7 +14,6 @@ import SwiftUI
 /// - 活跃编辑状态
 /// - 待处理操作列表
 ///
-/// _需求: 6.1_
 public struct OperationQueueDebugView: View {
 
     // MARK: - State
@@ -184,7 +183,6 @@ public struct OperationQueueDebugView: View {
 
     /// 统一操作队列状态概览
     /// 显示各状态操作数量
-    /// _需求: 6.1_
     private var unifiedQueueStatusSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("统一操作队列状态")
@@ -277,7 +275,6 @@ public struct OperationQueueDebugView: View {
 
     /// 临时 ID 笔记状态
     /// 显示离线创建的笔记数量
-    /// _需求: 6.1_
     private var temporaryIdNotesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -451,7 +448,6 @@ public struct OperationQueueDebugView: View {
     // MARK: - Unified Operations Section
 
     /// 统一操作队列列表
-    /// _需求: 6.1_
     private var unifiedOperationsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -697,7 +693,6 @@ public struct OperationQueueDebugView: View {
 // MARK: - Supporting Types
 
 /// 统一操作过滤类型
-/// _需求: 6.1_
 enum UnifiedOperationFilterType: String, CaseIterable {
     case all = "全部"
     case pending = "待处理"
@@ -785,7 +780,6 @@ struct OperationTypeTag: View {
 }
 
 /// 统一操作行
-/// _需求: 6.1_
 struct UnifiedOperationRow: View {
     let operation: NoteOperation
     let onDelete: () -> Void

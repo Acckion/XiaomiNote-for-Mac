@@ -1,11 +1,3 @@
-//
-//  PerformanceMonitor.swift
-//  MiNoteMac
-//
-//  Created by Kiro on 2026-01-15.
-//  性能监控器 - 用于监控编辑器的各项性能指标
-//
-
 import Combine
 import Foundation
 
@@ -143,31 +135,16 @@ class PerformanceMonitor: ObservableObject {
         compositionStartTime = nil
     }
 
-    /// 打印性能报告
+    /// 输出性能报告到日志
     func printReport() {
-        print("=== 性能监控报告 ===")
-        print("输入法检测次数: \(inputMethodDetectionCount)")
-        print("输入法组合总时长: \(String(format: "%.2f", inputMethodCompositionDuration))s")
-        print("保存请求次数: \(saveRequestCount)")
-        print("实际保存次数: \(actualSaveCount)")
-        print("跳过保存（输入法）: \(skippedSaveCountInputMethod)")
-        print("跳过保存（无变化）: \(skippedSaveCountNoChange)")
-        print("视图重绘次数: \(viewRedrawCount)")
-        print("内容重新加载次数: \(contentReloadCount)")
-        print("状态更新次数: \(stateUpdateCount)")
-
-        // 计算保存效率
+        var report = "性能监控报告 - "
+        report += "输入法检测:\(inputMethodDetectionCount) "
+        report += "保存请求:\(saveRequestCount) 实际保存:\(actualSaveCount) "
+        report += "跳过(输入法):\(skippedSaveCountInputMethod) 跳过(无变化):\(skippedSaveCountNoChange)"
         if saveRequestCount > 0 {
-            let saveEfficiency = Double(actualSaveCount) / Double(saveRequestCount) * 100
-            print("保存效率: \(String(format: "%.1f", saveEfficiency))%")
+            let efficiency = Double(actualSaveCount) / Double(saveRequestCount) * 100
+            report += " 效率:\(String(format: "%.1f", efficiency))%"
         }
-
-        // 计算平均组合时长
-        if inputMethodDetectionCount > 0 {
-            let avgCompositionDuration = inputMethodCompositionDuration / Double(inputMethodDetectionCount)
-            print("平均组合时长: \(String(format: "%.3f", avgCompositionDuration))s")
-        }
-
-        print("==================")
+        LogService.shared.debug(.editor, report)
     }
 }

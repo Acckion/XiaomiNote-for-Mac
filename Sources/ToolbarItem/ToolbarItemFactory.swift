@@ -97,8 +97,6 @@
                 return createHistoryToolbarItem(target: target)
             case .trash:
                 return createTrashToolbarItem(target: target)
-            case .cookieRefresh:
-                return createCookieRefreshToolbarItem(target: target)
             case .offlineOperations:
                 return createOfflineOperationsToolbarItem(target: target)
             case .noteOperations:
@@ -398,15 +396,6 @@
             menu.addItem(offlineOperationsStatusItem)
 
             menu.addItem(NSMenuItem.separator())
-
-            // 刷新Cookie
-            let refreshCookieItem = NSMenuItem()
-            refreshCookieItem.title = "刷新Cookie"
-            refreshCookieItem.action = #selector(MainWindowController.showCookieRefresh(_:))
-            refreshCookieItem.target = target
-            menu.addItem(refreshCookieItem)
-
-            menu.addItem(NSMenuItem.separator())
             // 完整同步
             let fullSyncItem = NSMenuItem()
             fullSyncItem.title = "完整同步"
@@ -520,17 +509,6 @@
                 toolTip: "回收站"
             )
             return item.createToolbarItem(target: target) ?? NSToolbarItem(itemIdentifier: .trash)
-        }
-
-        private func createCookieRefreshToolbarItem(target: AnyObject?) -> NSToolbarItem {
-            let item = BaseToolbarItem(
-                identifier: .cookieRefresh,
-                title: "刷新Cookie",
-                image: NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil),
-                action: #selector(MainWindowController.showCookieRefresh(_:)),
-                toolTip: "刷新Cookie"
-            )
-            return item.createToolbarItem(target: target) ?? NSToolbarItem(itemIdentifier: .cookieRefresh)
         }
 
         private func createOfflineOperationsToolbarItem(target: AnyObject?) -> NSToolbarItem {

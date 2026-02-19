@@ -421,7 +421,7 @@ struct PerformanceMeasurer {
     init(operation: String, type: MetricType = .other) {
         self.operation = operation
         self.type = type
-        startTime = CFAbsoluteTimeGetCurrent()
+        self.startTime = CFAbsoluteTimeGetCurrent()
     }
 
     /// 结束测量并记录

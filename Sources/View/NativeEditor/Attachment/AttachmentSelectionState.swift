@@ -1,10 +1,3 @@
-//
-//  AttachmentSelectionState.swift
-//  MiNoteMac
-//
-//  Created by Kiro AI
-//
-
 import AppKit
 
 /// 附件选择状态

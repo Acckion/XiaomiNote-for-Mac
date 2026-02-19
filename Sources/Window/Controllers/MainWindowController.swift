@@ -36,7 +36,6 @@
 
         /// 窗口控制器引用（防止被释放）
         private var loginWindowController: LoginWindowController?
-        private var cookieRefreshWindowController: CookieRefreshWindowController?
         private var settingsWindowController: SettingsWindowController?
         private var historyWindowController: HistoryWindowController?
         private var trashWindowController: TrashWindowController?
@@ -51,7 +50,6 @@
         private var searchFilterMenuPopover: NSPopover?
 
         /// 视图选项菜单popover
-        /// _Requirements: 1.2, 1.3, 1.4_
         private var viewOptionsMenuPopover: NSPopover?
 
         /// 在线状态菜单工具栏项
@@ -68,9 +66,6 @@
 
         /// 登录sheet的工具栏代理引用
         private weak var loginSheetToolbarDelegate: BaseSheetToolbarDelegate?
-
-        /// Cookie刷新sheet的工具栏代理引用
-        private weak var cookieRefreshSheetToolbarDelegate: BaseSheetToolbarDelegate?
 
         /// 历史记录sheet的工具栏代理引用
         private weak var historySheetToolbarDelegate: BaseSheetToolbarDelegate?
@@ -148,9 +143,9 @@
             setupStateObservers()
 
             // 初始化查找面板控制器
-            searchPanelController = SearchPanelController(mainWindowController: self)
+            self.searchPanelController = SearchPanelController(mainWindowController: self)
 
-            print("[MainWindowController] 初始化完成，窗口ID: \(windowState.windowId)")
+            LogService.shared.info(.window, "初始化完成，窗口ID: \(windowState.windowId)")
         }
 
         @available(*, unavailable)
@@ -166,7 +161,7 @@
             // 激活应用程序
             NSApp.activate(ignoringOtherApps: true)
 
-            print("主窗口控制器已加载")
+            LogService.shared.info(.window, "主窗口控制器已加载")
         }
 
         // MARK: - 设置方法
@@ -370,7 +365,7 @@
             NotificationCenter.default.removeObserver(self)
             // 由于 deinit 是 nonisolated 的，不能访问 @MainActor 隔离的属性
             // 这些属性会在对象释放时自动清理
-            print("[MainWindowController] 主窗口控制器已释放")
+            LogService.shared.debug(.window, "主窗口控制器已释放")
         }
     }
 
@@ -557,14 +552,6 @@
 
                 menu.addItem(NSMenuItem.separator())
 
-                // 刷新Cookie
-                let refreshCookieItem = NSMenuItem()
-                refreshCookieItem.title = "刷新Cookie"
-                refreshCookieItem.action = #selector(showCookieRefresh(_:))
-                refreshCookieItem.target = self
-                menu.addItem(refreshCookieItem)
-
-                menu.addItem(NSMenuItem.separator())
                 // 完整同步
                 let fullSyncItem = NSMenuItem()
                 fullSyncItem.title = "完整同步"
@@ -659,14 +646,6 @@
             case .trash:
                 return buildToolbarButton(.trash, "回收站", NSImage(systemSymbolName: "trash", accessibilityDescription: nil)!, "showTrash:")
 
-            case .cookieRefresh:
-                return buildToolbarButton(
-                    .cookieRefresh,
-                    "刷新Cookie",
-                    NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)!,
-                    "showCookieRefresh:"
-                )
-
             case .offlineOperations:
                 return buildToolbarButton(
                     .offlineOperations,
@@ -690,7 +669,6 @@
                 // 时间线跟踪分隔符
                 // 注意：由于使用两栏布局（侧边栏 + 内容区域），只有一个分隔符
                 // 如果分割视图只有一个分隔符，返回普通分隔符
-                // _Requirements: 4.3, 4.4, 4.5_
                 if let splitViewController = window?.contentViewController as? NSSplitViewController {
                     let dividerCount = splitViewController.splitView.subviews.count - 1
                     if dividerCount > 1 {
@@ -748,7 +726,6 @@
                 NSToolbarItem.Identifier.onlineStatus,
                 NSToolbarItem.Identifier.settings,
                 NSToolbarItem.Identifier.login,
-                NSToolbarItem.Identifier.cookieRefresh,
                 NSToolbarItem.Identifier.offlineOperations,
                 NSToolbarItem.Identifier.timelineTrackingSeparator,
                 NSToolbarItem.Identifier.share,
@@ -990,28 +967,25 @@
 
             // 如果是主窗口关闭，从 WindowManager 移除
             if window == self.window {
-                print("[MainWindowController] 主窗口即将关闭，从 WindowManager 移除，窗口ID: \(windowState.windowId)")
+                LogService.shared.info(.window, "主窗口即将关闭，从 WindowManager 移除，窗口ID: \(windowState.windowId)")
                 WindowManager.shared.removeWindow(withId: windowState.windowId)
             }
 
             // 清理其他窗口控制器引用
             if window == loginWindowController?.window {
-                print("登录窗口即将关闭，清理引用")
+                LogService.shared.debug(.window, "登录窗口即将关闭，清理引用")
                 loginWindowController = nil
-            } else if window == cookieRefreshWindowController?.window {
-                print("Cookie刷新窗口即将关闭，清理引用")
-                cookieRefreshWindowController = nil
             } else if window == settingsWindowController?.window {
-                print("设置窗口即将关闭，清理引用")
+                LogService.shared.debug(.window, "设置窗口即将关闭，清理引用")
                 settingsWindowController = nil
             } else if window == historyWindowController?.window {
-                print("历史记录窗口即将关闭，清理引用")
+                LogService.shared.debug(.window, "历史记录窗口即将关闭，清理引用")
                 historyWindowController = nil
             } else if window == trashWindowController?.window {
-                print("回收站窗口即将关闭，清理引用")
+                LogService.shared.debug(.window, "回收站窗口即将关闭，清理引用")
                 trashWindowController = nil
             } else if window == currentSheetWindow {
-                print("离线操作进度sheet窗口即将关闭，清理引用")
+                LogService.shared.debug(.window, "离线操作进度sheet窗口即将关闭，清理引用")
                 currentSheetWindow = nil
             }
         }
@@ -1101,45 +1075,45 @@
         }
 
         public func controlTextDidBeginEditing(_ obj: Notification) {
-            print("[MainWindowController] controlTextDidBeginEditing被调用")
+            LogService.shared.debug(.window, "controlTextDidBeginEditing被调用")
 
             // 当搜索框开始编辑（获得焦点）时，显示筛选菜单
             if let searchField = obj.object as? NSSearchField {
-                print("[MainWindowController] 搜索框开始编辑: \(searchField)")
+                LogService.shared.debug(.window, "搜索框开始编辑")
 
                 if searchField == currentSearchField {
                     // 检查popover是否已经显示
                     if let popover = searchFilterMenuPopover, popover.isShown {
-                        print("[MainWindowController] popover已经显示，跳过重复调用")
+                        LogService.shared.debug(.window, "popover已经显示，跳过重复调用")
                         return
                     }
 
-                    print("[MainWindowController] 是当前搜索框，立即显示筛选菜单")
+                    LogService.shared.debug(.window, "是当前搜索框，立即显示筛选菜单")
 
                     // 只要光标在搜索框中就弹出菜单，不需要检查搜索框内容
-                    print("[MainWindowController] 光标在搜索框中，立即显示筛选菜单")
+                    LogService.shared.debug(.window, "光标在搜索框中，立即显示筛选菜单")
                     showSearchFilterMenu(searchField)
                 } else {
-                    print("[MainWindowController] 不是当前搜索框，忽略")
+                    LogService.shared.debug(.window, "不是当前搜索框，忽略")
                 }
             } else {
-                print("[MainWindowController] 通知对象不是搜索框: \(obj.object ?? "nil")")
+                LogService.shared.debug(.window, "通知对象不是搜索框")
             }
         }
 
         public func controlTextDidEndEditing(_ obj: Notification) {
-            print("[MainWindowController] controlTextDidEndEditing被调用")
+            LogService.shared.debug(.window, "controlTextDidEndEditing被调用")
 
             // 当搜索框结束编辑（失去焦点）时，收回筛选菜单
             if let searchField = obj.object as? NSSearchField {
-                print("[MainWindowController] 搜索框结束编辑: \(searchField)")
+                LogService.shared.debug(.window, "搜索框结束编辑")
 
                 if searchField == currentSearchField {
-                    print("[MainWindowController] 是当前搜索框，收回筛选菜单")
+                    LogService.shared.debug(.window, "是当前搜索框，收回筛选菜单")
 
                     // 如果popover正在显示，关闭它
                     if let popover = searchFilterMenuPopover, popover.isShown {
-                        print("[MainWindowController] popover正在显示，关闭它")
+                        LogService.shared.debug(.window, "popover正在显示，关闭它")
                         popover.performClose(nil)
                         searchFilterMenuPopover = nil
                     }
@@ -1153,7 +1127,7 @@
     extension MainWindowController: NSMenuDelegate {
 
         public func menuNeedsUpdate(_ menu: NSMenu) {
-            print("[MainWindowController] menuNeedsUpdate被调用，菜单标题: \(menu.title)，菜单项数量: \(menu.items.count)")
+            LogService.shared.debug(.window, "菜单需要更新: \(menu.title)")
 
             let optionsManager = ViewOptionsManager.shared
 
@@ -1185,7 +1159,6 @@
                 }
 
                 // 视图选项菜单的选中状态
-                // _Requirements: 2.4, 2.8, 3.5, 4.6_
 
                 // 排序方式选中状态
                 if item.tag == 1 { // 编辑时间
@@ -1292,10 +1265,6 @@
                 return !isLoggedIn
             }
 
-            if item.action == #selector(showCookieRefresh(_:)) {
-                return viewModel?.isCookieExpired ?? false
-            }
-
             if item.action == #selector(showOfflineOperations(_:)) {
                 let pendingCount = viewModel?.pendingOperationsCount ?? 0
                 return pendingCount > 0
@@ -1395,7 +1364,7 @@
                         do {
                             try await viewModel?.createFolder(name: folderName)
                         } catch {
-                            print("创建文件夹失败: \(error)")
+                            LogService.shared.error(.window, "创建文件夹失败: \(error)")
                         }
                     }
                 }
@@ -1448,43 +1417,35 @@
 
         @objc internal func restoreNote(_: Any?) {
             // 恢复笔记功能
-            print("恢复笔记")
         }
 
         @objc func toggleBold(_: Any?) {
             // 切换粗体
-            print("切换粗体")
             // 这里应该调用编辑器API
         }
 
         @objc func toggleItalic(_: Any?) {
             // 切换斜体
-            print("切换斜体")
         }
 
         @objc func toggleUnderline(_: Any?) {
             // 切换下划线
-            print("切换下划线")
         }
 
         @objc func toggleStrikethrough(_: Any?) {
             // 切换删除线
-            print("切换删除线")
         }
 
         @objc internal func toggleCode(_: Any?) {
             // 切换代码格式
-            print("切换代码格式")
         }
 
         @objc internal func insertLink(_: Any?) {
             // 插入链接
-            print("插入链接")
         }
 
         @objc internal func showSettings(_: Any?) {
             // 显示设置窗口
-            print("显示设置窗口")
 
             // 创建设置窗口控制器
             let settingsWindowController = SettingsWindowController(viewModel: viewModel)
@@ -1495,16 +1456,13 @@
         }
 
         @objc func showLogin(_: Any?) {
-            // 显示登录sheet
-            print("显示登录sheet - 开始")
-
             guard let window else {
-                print("错误：主窗口不存在，无法显示登录sheet")
+                LogService.shared.error(.window, "主窗口不存在，无法显示登录 sheet")
                 return
             }
 
             guard let viewModel else {
-                print("[MainWindowController] 错误: viewModel 为 nil，无法创建登录视图")
+                LogService.shared.error(.window, "viewModel 为 nil，无法创建登录视图")
                 return
             }
 
@@ -1541,70 +1499,17 @@
 
             // 显示sheet
             window.beginSheet(sheetWindow) { response in
-                print("登录sheet关闭，响应: \(response)")
+                LogService.shared.debug(.window, "登录sheet关闭，响应: \(response)")
                 // 清理工具栏代理引用
                 self.loginSheetToolbarDelegate = nil
             }
 
-            print("显示登录sheet - 完成")
-        }
-
-        @objc func showCookieRefresh(_: Any?) {
-            // 显示Cookie刷新sheet
-            print("显示Cookie刷新sheet - 开始")
-
-            guard let window else {
-                print("错误：主窗口不存在，无法显示Cookie刷新sheet")
-                return
-            }
-
-            guard let viewModel else {
-                print("[MainWindowController] 错误: viewModel 为 nil，无法创建 Cookie 刷新视图")
-                return
-            }
-
-            // 创建Cookie刷新视图
-            let cookieRefreshView = CookieRefreshView(viewModel: viewModel)
-
-            // 创建托管控制器
-            let hostingController = NSHostingController(rootView: cookieRefreshView)
-
-            // 创建sheet窗口
-            let sheetWindow = NSWindow(contentViewController: hostingController)
-            sheetWindow.styleMask = [.titled, .closable, .fullSizeContentView]
-            sheetWindow.title = "刷新Cookie"
-            sheetWindow.titlebarAppearsTransparent = false // 显示标题栏
-            sheetWindow.titleVisibility = .visible // 显示标题
-
-            // 为sheet窗口添加工具栏
-            let toolbarDelegate = BaseSheetToolbarDelegate()
-            toolbarDelegate.onClose = { [weak window] in
-                // 关闭sheet
-                window?.endSheet(sheetWindow)
-            }
-
-            let toolbar = NSToolbar(identifier: "CookieRefreshSheetToolbar")
-            toolbar.displayMode = .iconOnly
-            toolbar.delegate = toolbarDelegate
-            sheetWindow.toolbar = toolbar
-            sheetWindow.toolbarStyle = .unified
-
-            // 存储工具栏代理引用，防止被ARC释放
-            cookieRefreshSheetToolbarDelegate = toolbarDelegate
-
-            // 显示sheet
-            window.beginSheet(sheetWindow) { response in
-                print("Cookie刷新sheet关闭，响应: \(response)")
-                // 清理工具栏代理引用
-                self.cookieRefreshSheetToolbarDelegate = nil
-            }
-
-            print("显示Cookie刷新sheet - 完成")
+            LogService.shared.info(.window, "显示登录sheet完成")
         }
 
         @objc internal func showOfflineOperations(_: Any?) {
             // 显示离线操作处理窗口 - 使用简单的实现
-            print("显示离线操作处理窗口")
+            LogService.shared.debug(.window, "显示离线操作处理窗口")
             let alert = NSAlert()
             alert.messageText = "离线操作"
             alert.informativeText = "离线操作处理窗口功能正在开发中..."
@@ -1615,7 +1520,7 @@
 
         @objc internal func showDebugSettings(_: Any?) {
             // 显示调试设置窗口 - 使用简单的实现
-            print("显示调试设置窗口")
+            LogService.shared.debug(.window, "显示调试设置窗口")
             let alert = NSAlert()
             alert.messageText = "调试设置"
             alert.informativeText = "调试设置窗口功能正在开发中..."
@@ -1625,16 +1530,13 @@
         }
 
         /// 切换 XML 调试模式
-        ///
         /// 通过发送通知来切换调试模式，NoteDetailView 会监听此通知并切换显示模式
-        ///
-        /// _Requirements: 1.1, 1.2, 5.2, 6.1_
         @objc internal func toggleDebugMode(_: Any?) {
-            print("[MainWindowController] 切换 XML 调试模式")
+            LogService.shared.debug(.window, "切换 XML 调试模式")
 
             // 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
-                print("[MainWindowController] 没有选中笔记，无法切换调试模式")
+                LogService.shared.debug(.window, "没有选中笔记，无法切换调试模式")
                 return
             }
 
@@ -1645,57 +1547,48 @@
         // MARK: - 新增工具栏按钮动作方法
 
         /// 切换待办（插入复选框）
-        /// 需求: 3.1, 3.2, 3.4 - 调用原生编辑器的 insertCheckbox 方法
         @objc internal func toggleCheckbox(_: Any?) {
-            print("[MainWindowController] 切换待办")
+            LogService.shared.debug(.window, "切换待办")
 
-            // 需求 3.4: 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
-                print("[MainWindowController] 没有选中笔记，无法插入待办")
+                LogService.shared.debug(.window, "没有选中笔记，无法插入待办")
                 return
             }
 
-            // 需求 3.1: 使用原生编辑器插入复选框
-            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertCheckbox()")
+            LogService.shared.debug(.window, "使用原生编辑器，调用 NativeEditorContext.insertCheckbox()")
             if let nativeContext = getCurrentNativeEditorContext() {
                 nativeContext.insertCheckbox()
             } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                LogService.shared.error(.window, "无法获取 NativeEditorContext")
             }
         }
 
         /// 插入分割线
-        /// 需求: 4.1, 4.2, 4.4 - 调用原生编辑器的 insertHorizontalRule 方法
         @objc internal func insertHorizontalRule(_: Any?) {
-            print("[MainWindowController] 插入分割线")
+            LogService.shared.debug(.window, "插入分割线")
 
-            // 需求 4.4: 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
-                print("[MainWindowController] 没有选中笔记，无法插入分割线")
+                LogService.shared.debug(.window, "没有选中笔记，无法插入分割线")
                 return
             }
 
-            // 需求 4.1: 使用原生编辑器插入分隔线
-            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertHorizontalRule()")
+            LogService.shared.debug(.window, "使用原生编辑器，调用 NativeEditorContext.insertHorizontalRule()")
             if let nativeContext = getCurrentNativeEditorContext() {
                 nativeContext.insertHorizontalRule()
             } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                LogService.shared.error(.window, "无法获取 NativeEditorContext")
             }
         }
 
         /// 插入附件（图片）
-        /// 需求: 5.1, 5.2, 5.3, 5.5 - 显示文件选择对话框，根据编辑器类型调用对应的 insertImage 方法
         @objc func insertAttachment(_: Any?) {
-            print("[MainWindowController] 插入附件")
+            LogService.shared.debug(.window, "插入附件")
 
-            // 需求 5.5: 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
-                print("[MainWindowController] 没有选中笔记，无法插入附件")
+                LogService.shared.debug(.window, "没有选中笔记，无法插入附件")
                 return
             }
 
-            // 需求 5.1: 显示文件选择对话框
             let openPanel = NSOpenPanel()
             openPanel.allowedContentTypes = [.image, .png, .jpeg, .gif]
             openPanel.allowsMultipleSelection = false
@@ -1708,7 +1601,6 @@
                 guard let self else { return }
 
                 if response == .OK, let url = openPanel.url {
-                    // 需求 5.2, 5.3: 上传图片并插入到编辑器
                     Task { @MainActor in
                         await self.insertImage(from: url)
                     }
@@ -1717,33 +1609,31 @@
         }
 
         /// 从 URL 插入图片
-        /// 需求: 5.2, 5.3 - 上传图片并插入到原生编辑器
         @MainActor
         private func insertImage(from url: URL) async {
             guard let viewModel else {
-                print("[MainWindowController] 错误：viewModel 不存在")
+                LogService.shared.error(.window, "viewModel 不存在")
                 return
             }
 
             guard viewModel.selectedNote != nil else {
-                print("[MainWindowController] 错误：没有选中笔记")
+                LogService.shared.error(.window, "没有选中笔记，无法插入图片")
                 return
             }
 
             do {
                 // 上传图片并获取 fileId
                 let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
-                print("[MainWindowController] 图片上传成功: fileId=\(fileId)")
+                LogService.shared.info(.window, "图片上传成功: fileId=\(fileId)")
 
-                // 需求 5.2: 使用原生编辑器插入图片
-                print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.insertImage()")
+                LogService.shared.debug(.window, "使用原生编辑器，调用 NativeEditorContext.insertImage()")
                 if let nativeContext = getCurrentNativeEditorContext() {
                     nativeContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
                 } else {
-                    print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                    LogService.shared.error(.window, "无法获取 NativeEditorContext")
                 }
             } catch {
-                print("[MainWindowController] 插入图片失败: \(error.localizedDescription)")
+                LogService.shared.error(.window, "插入图片失败: \(error.localizedDescription)")
                 // 显示错误提示
                 let alert = NSAlert()
                 alert.messageText = "插入图片失败"
@@ -1760,12 +1650,11 @@
         /// 然后显示音频面板进入录制模式。录制完成后，更新之前插入的模板。
         ///
         @objc func insertAudioRecording(_: Any?) {
-            print("[MainWindowController] 插入语音录音 - 先插入模板再显示音频面板")
 
             guard let viewModel,
                   let selectedNote = viewModel.selectedNote
             else {
-                print("[MainWindowController] ❌ 无法插入录音：没有选中的笔记")
+                LogService.shared.error(.window, "无法插入录音：没有选中的笔记")
                 return
             }
 
@@ -1775,9 +1664,9 @@
             // 1. 在原生编辑器光标位置插入录音模板占位符
             if let nativeEditorContext = getCurrentNativeEditorContext() {
                 nativeEditorContext.insertRecordingTemplate(templateId: templateId)
-                print("[MainWindowController] ✅ 已在原生编辑器中插入录音模板: \(templateId)")
+                LogService.shared.debug(.window, "已在原生编辑器中插入录音模板: \(templateId)")
             } else {
-                print("[MainWindowController] ❌ 无法获取原生编辑器上下文")
+                LogService.shared.error(.window, "无法获取原生编辑器上下文")
                 return
             }
 
@@ -1789,7 +1678,6 @@
         }
 
         @objc func showHistory(_: Any?) {
-            print("显示历史记录sheet - 开始")
 
             // 检查是否有选中的笔记
             guard let note = viewModel?.selectedNote else {
@@ -1803,12 +1691,12 @@
             }
 
             guard let window else {
-                print("错误：主窗口不存在，无法显示历史记录sheet")
+                LogService.shared.error(.window, "主窗口不存在，无法显示历史记录 sheet")
                 return
             }
 
             guard let viewModel else {
-                print("[MainWindowController] 错误: viewModel 为 nil，无法创建历史记录视图")
+                LogService.shared.error(.window, "viewModel 为 nil，无法创建历史记录视图")
                 return
             }
 
@@ -1843,24 +1731,21 @@
 
             // 显示sheet
             window.beginSheet(sheetWindow) { response in
-                print("历史记录sheet关闭，响应: \(response)")
                 // 清理工具栏代理引用
                 self.historySheetToolbarDelegate = nil
             }
 
-            print("显示历史记录sheet - 完成")
         }
 
         @objc func showTrash(_: Any?) {
-            print("[MainWindowController] 显示回收站sheet - 开始")
 
             guard let window else {
-                print("[MainWindowController] 错误：主窗口不存在，无法显示回收站sheet")
+                LogService.shared.error(.window, "主窗口不存在，无法显示回收站 sheet")
                 return
             }
 
             guard let viewModel else {
-                print("[MainWindowController] 错误: viewModel 为 nil，无法创建回收站视图")
+                LogService.shared.error(.window, "viewModel 为 nil，无法创建回收站视图")
                 return
             }
 
@@ -1877,14 +1762,10 @@
             sheetWindow.titlebarAppearsTransparent = false // 显示标题栏
             sheetWindow.titleVisibility = .visible // 显示标题
 
-            print("[MainWindowController] sheet窗口已创建: \(sheetWindow)")
 
             // 为sheet窗口添加工具栏
             let toolbarDelegate = BaseSheetToolbarDelegate()
             toolbarDelegate.onClose = { [weak window] in
-                print("[MainWindowController] 工具栏关闭按钮回调被调用")
-                print("[MainWindowController] 主窗口: \(String(describing: window))")
-                print("[MainWindowController] sheet窗口: \(sheetWindow)")
                 // 关闭sheet - 使用弱引用捕获主窗口，直接使用sheetWindow变量
                 window?.endSheet(sheetWindow)
             }
@@ -1901,16 +1782,13 @@
             // 存储工具栏代理引用，防止被ARC释放
             trashSheetToolbarDelegate = toolbarDelegate
 
-            print("[MainWindowController] 工具栏已设置，显示模式: \(toolbar.displayMode)")
 
             // 显示sheet
             window.beginSheet(sheetWindow) { response in
-                print("[MainWindowController] 回收站sheet关闭，响应: \(response)")
                 // 清理工具栏代理引用
                 self.trashSheetToolbarDelegate = nil
             }
 
-            print("[MainWindowController] 显示回收站sheet - 完成")
         }
 
         // MARK: - 笔记操作菜单动作方法
@@ -1936,7 +1814,6 @@
         }
 
         @objc internal func addToPrivateNotes(_: Any?) {
-            print("添加到私密笔记")
             guard let note = viewModel?.selectedNote else { return }
 
             let alert = NSAlert()
@@ -1949,7 +1826,6 @@
             let response = alert.runModal()
             if response == .alertFirstButtonReturn {
                 // 简化实现：显示成功消息
-                print("笔记已添加到私密笔记（功能正在开发中）")
                 let successAlert = NSAlert()
                 successAlert.messageText = "操作成功"
                 successAlert.informativeText = "笔记已添加到私密笔记（功能正在开发中）"
@@ -1960,7 +1836,6 @@
         }
 
         @objc internal func moveNote(_ sender: Any?) {
-            print("移动笔记")
             guard let note = viewModel?.selectedNote,
                   let viewModel else { return }
 
@@ -2005,9 +1880,9 @@
             NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
                 switch result {
                 case .success:
-                    print("[MainWindowController] 笔记移动到未分类成功: \(note.id)")
+                    LogService.shared.info(.window, "笔记移动到未分类成功: \(note.id)")
                 case let .failure(error):
-                    print("[MainWindowController] 移动到未分类失败: \(error.localizedDescription)")
+                    LogService.shared.error(.window, "移动到未分类失败: \(error.localizedDescription)")
                 }
             }
         }
@@ -2020,32 +1895,28 @@
             NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
                 switch result {
                 case .success:
-                    print("[MainWindowController] 笔记移动成功: \(note.id) -> \(folder.name)")
+                    LogService.shared.info(.window, "笔记移动成功: \(note.id) -> \(folder.name)")
                 case let .failure(error):
-                    print("[MainWindowController] 移动笔记失败: \(error.localizedDescription)")
+                    LogService.shared.error(.window, "移动笔记失败: \(error.localizedDescription)")
                 }
             }
         }
 
         @objc internal func showOnlineStatusMenu(_: Any?) {
             // 在线状态菜单按钮点击
-            print("显示在线状态菜单")
         }
 
         @objc internal func performIncrementalSync(_: Any?) {
-            print("执行增量同步")
             Task {
                 await viewModel?.performIncrementalSync()
             }
         }
 
         @objc internal func resetSyncStatus(_: Any?) {
-            print("重置同步状态")
             viewModel?.resetSyncStatus()
         }
 
         @objc internal func showSyncStatus(_: Any?) {
-            print("显示同步状态")
             // 显示同步状态信息
             if let lastSync = viewModel?.lastSyncTime {
                 let formatter = DateFormatter()
@@ -2077,7 +1948,6 @@
         // MARK: - 离线操作相关动作方法
 
         @objc internal func processOfflineOperations(_: Any?) {
-            print("处理离线操作")
 
             // 检查是否有待处理的离线操作（使用新的 UnifiedOperationQueue）
             let unifiedQueue = UnifiedOperationQueue.shared
@@ -2112,7 +1982,6 @@
         }
 
         @objc internal func showOfflineOperationsProgress(_: Any?) {
-            print("显示离线操作进度")
 
             // 检查是否有离线操作处理器
             guard let viewModel else {
@@ -2127,7 +1996,6 @@
 
             // 创建sheet窗口
             guard let window else {
-                print("错误：主窗口不存在，无法显示离线操作进度sheet")
                 return
             }
 
@@ -2175,7 +2043,6 @@
 
             // 显示sheet
             window.beginSheet(sheetWindow) { response in
-                print("离线操作进度sheet关闭，响应: \(response)")
                 // 清理sheet窗口引用和工具栏代理引用
                 self.currentSheetWindow = nil
                 self.currentSheetToolbarDelegate = nil
@@ -2183,7 +2050,6 @@
         }
 
         @objc internal func retryFailedOperations(_: Any?) {
-            print("重试失败的操作")
 
             // 检查是否有失败的离线操作（使用新的 UnifiedOperationQueue）
             let unifiedQueue = UnifiedOperationQueue.shared
@@ -2220,7 +2086,6 @@
         // MARK: - 锁定私密笔记动作
 
         @objc internal func lockPrivateNotes(_: Any?) {
-            print("锁定私密笔记")
 
             // 锁定私密笔记
             viewModel?.isPrivateNotesUnlocked = false
@@ -2261,7 +2126,6 @@
 
         @objc internal func showFormatMenu(_ sender: Any?) {
             // 显示格式菜单popover
-            print("显示格式菜单")
 
             // 如果popover已经显示，则关闭它
             if let popover = formatMenuPopover, popover.isShown {
@@ -2272,11 +2136,9 @@
 
             // 获取原生编辑器上下文
             guard let nativeEditorContext = getCurrentNativeEditorContext() else {
-                print("无法获取 NativeEditorContext")
                 return
             }
 
-            print("  - 使用原生编辑器格式菜单")
 
             // 请求内容同步并更新格式状态
             nativeEditorContext.requestContentSync()
@@ -2316,30 +2178,25 @@
         // MARK: - 视图选项菜单
 
         /// 显示视图选项菜单（已弃用，改用原生 NSMenu）
-        /// _Requirements: 1.2, 1.3, 1.4_
         @objc internal func showViewOptionsMenu(_: Any?) {
-            print("显示视图选项菜单（已弃用）")
             // 此方法已弃用，视图选项菜单现在使用原生 NSMenuToolbarItem
         }
 
         // MARK: - 视图选项菜单操作
 
         /// 设置排序方式为编辑时间
-        /// _Requirements: 2.3_
         @objc internal func setSortOrderEditDate(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.editDate)
             viewModel?.setNotesListSortField(.editDate)
         }
 
         /// 设置排序方式为创建时间
-        /// _Requirements: 2.3_
         @objc internal func setSortOrderCreateDate(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.createDate)
             viewModel?.setNotesListSortField(.createDate)
         }
 
         /// 设置排序方式为标题
-        /// _Requirements: 2.3_
         @objc internal func setSortOrderTitle(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.title)
             viewModel?.setNotesListSortField(.title)
@@ -2350,27 +2207,23 @@
         }
 
         /// 设置排序方向为降序
-        /// _Requirements: 2.7_
         @objc internal func setSortDirectionDescending(_: Any?) {
             ViewOptionsManager.shared.setSortDirection(.descending)
             viewModel?.setNotesListSortDirection(.descending)
         }
 
         /// 设置排序方向为升序
-        /// _Requirements: 2.7_
         @objc internal func setSortDirectionAscending(_: Any?) {
             ViewOptionsManager.shared.setSortDirection(.ascending)
             viewModel?.setNotesListSortDirection(.ascending)
         }
 
         /// 切换日期分组（已弃用，改用 setDateGroupingOn/Off）
-        /// _Requirements: 3.3, 3.4_
         @objc internal func toggleDateGrouping(_: Any?) {
             ViewOptionsManager.shared.toggleDateGrouping()
         }
 
         /// 开启日期分组
-        /// _Requirements: 3.3_
         @objc internal func setDateGroupingOn(_: Any?) {
             // 如果当前是按标题排序，自动切换到按编辑时间排序
             // 因为按标题排序时日期分组没有意义
@@ -2382,19 +2235,16 @@
         }
 
         /// 关闭日期分组
-        /// _Requirements: 3.4_
         @objc internal func setDateGroupingOff(_: Any?) {
             ViewOptionsManager.shared.setDateGrouping(false)
         }
 
         /// 设置视图模式为列表视图
-        /// _Requirements: 4.3_
         @objc internal func setViewModeList(_: Any?) {
             ViewOptionsManager.shared.setViewMode(.list)
         }
 
         /// 设置视图模式为画廊视图
-        /// _Requirements: 4.3_
         @objc internal func setViewModeGallery(_: Any?) {
             ViewOptionsManager.shared.setViewMode(.gallery)
         }
@@ -2402,7 +2252,6 @@
         /// 返回画廊视图
         /// 从画廊视图的笔记编辑模式返回到画廊网格视图
         @objc internal func backToGallery(_: Any?) {
-            print("[MainWindowController] 返回画廊视图")
             // 发送通知让 SwiftUI 视图收起展开的笔记
             NotificationCenter.default.post(name: .backToGalleryRequested, object: nil)
         }
@@ -2410,13 +2259,11 @@
         // MARK: - 编辑器类型检测和路由
 
         /// 是否正在使用原生编辑器（始终为 true）
-        /// 需求: 7.1 - 现在仅使用原生编辑器
         var isUsingNativeEditor: Bool {
             EditorPreferencesService.shared.isNativeEditorAvailable
         }
 
         /// 获取当前的 NativeEditorContext
-        /// 需求: 1.3, 7.2 - 从 viewModel 获取 nativeEditorContext
         /// - Returns: 当前的 NativeEditorContext，如果 viewModel 不存在则返回 nil
         func getCurrentNativeEditorContext() -> NativeEditorContext? {
             viewModel?.nativeEditorContext
@@ -2425,37 +2272,31 @@
         // MARK: - 编辑菜单动作
 
         @objc func undo(_: Any?) {
-            print("撤销")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func redo(_: Any?) {
-            print("重做")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func cut(_: Any?) {
-            print("剪切")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func copy(_: Any?) {
-            print("复制")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func paste(_: Any?) {
-            print("粘贴")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc override func selectAll(_: Any?) {
-            print("全选")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
@@ -2463,109 +2304,87 @@
         // MARK: - 格式菜单动作
 
         @objc func increaseFontSize(_: Any?) {
-            print("增大字体")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func decreaseFontSize(_: Any?) {
-            print("减小字体")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func increaseIndent(_: Any?) {
-            print("[MainWindowController] 增加缩进")
 
-            // 需求 6.5: 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
-                print("[MainWindowController] 没有选中笔记，无法增加缩进")
                 return
             }
 
-            // 需求 6.1: 使用原生编辑器增加缩进
-            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.increaseIndent()")
             if let nativeContext = getCurrentNativeEditorContext() {
                 nativeContext.increaseIndent()
             } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                LogService.shared.error(.window, "无法获取 NativeEditorContext")
             }
         }
 
         @objc func decreaseIndent(_: Any?) {
-            print("[MainWindowController] 减少缩进")
 
-            // 需求 6.5: 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
-                print("[MainWindowController] 没有选中笔记，无法减少缩进")
                 return
             }
 
-            // 需求 6.2: 使用原生编辑器减少缩进
-            print("[MainWindowController] 使用原生编辑器，调用 NativeEditorContext.decreaseIndent()")
             if let nativeContext = getCurrentNativeEditorContext() {
                 nativeContext.decreaseIndent()
             } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                LogService.shared.error(.window, "无法获取 NativeEditorContext")
             }
         }
 
         @objc func alignLeft(_: Any?) {
-            print("居左对齐")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func alignCenter(_: Any?) {
-            print("居中对齐")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func alignRight(_: Any?) {
-            print("居右对齐")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func toggleBulletList(_: Any?) {
-            print("切换无序列表")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func toggleNumberedList(_: Any?) {
-            print("切换有序列表")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func toggleCheckboxList(_: Any?) {
-            print("切换复选框列表")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func setHeading1(_: Any?) {
-            print("设置大标题")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func setHeading2(_: Any?) {
-            print("设置二级标题")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func setHeading3(_: Any?) {
-            print("设置三级标题")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
 
         @objc func setBodyText(_: Any?) {
-            print("设置正文")
             // 这里应该调用编辑器API
             // 暂时使用控制台输出
         }
@@ -2574,7 +2393,6 @@
 
         /// 切换块引用
         @objc func toggleBlockQuote(_: Any?) {
-            print("切换块引用")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "块引用")
         }
@@ -2583,49 +2401,42 @@
 
         /// 标记为已勾选
         @objc func markAsChecked(_: Any?) {
-            print("标记为已勾选")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "标记为已勾选")
         }
 
         /// 全部勾选
         @objc func checkAll(_: Any?) {
-            print("全部勾选")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "全部勾选")
         }
 
         /// 全部取消勾选
         @objc func uncheckAll(_: Any?) {
-            print("全部取消勾选")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "全部取消勾选")
         }
 
         /// 将勾选的项目移到底部
         @objc func moveCheckedToBottom(_: Any?) {
-            print("将勾选的项目移到底部")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "将勾选的项目移到底部")
         }
 
         /// 删除已勾选项目
         @objc func deleteCheckedItems(_: Any?) {
-            print("删除已勾选项目")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "删除已勾选项目")
         }
 
         /// 向上移动项目
         @objc func moveItemUp(_: Any?) {
-            print("向上移动项目")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "向上移动项目")
         }
 
         /// 向下移动项目
         @objc func moveItemDown(_: Any?) {
-            print("向下移动项目")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "向下移动项目")
         }
@@ -2634,14 +2445,12 @@
 
         /// 切换浅色背景
         @objc func toggleLightBackground(_: Any?) {
-            print("切换浅色背景")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "浅色背景")
         }
 
         /// 切换高亮
         @objc func toggleHighlight(_: Any?) {
-            print("切换高亮")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "高亮")
         }
@@ -2649,7 +2458,6 @@
         // MARK: - 新增的菜单动作方法
 
         @objc func copyNote(_: Any?) {
-            print("复制笔记（从菜单调用）")
             guard let note = viewModel?.selectedNote else { return }
 
             let pasteboard = NSPasteboard.general
@@ -2687,11 +2495,9 @@
         /// 附加文件到当前笔记
         /// - Parameter url: 文件 URL
         @objc func attachFile(_ url: URL) {
-            print("[MainWindowController] 附加文件: \(url.path)")
 
             // 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
-                print("[MainWindowController] 没有选中笔记，无法附加文件")
                 return
             }
 
@@ -2718,11 +2524,9 @@
         /// 添加链接到当前笔记
         /// - Parameter urlString: 链接地址
         @objc func addLink(_ urlString: String) {
-            print("[MainWindowController] 添加链接: \(urlString)")
 
             // 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
-                print("[MainWindowController] 没有选中笔记，无法添加链接")
                 return
             }
 
@@ -2739,7 +2543,6 @@
 
             // 链接插入功能待实现
             // TODO: 根据编辑器类型插入链接
-            print("[MainWindowController] 链接插入功能待实现: \(urlString)")
 
             let alert = NSAlert()
             alert.messageText = "功能开发中"
@@ -2757,7 +2560,7 @@
             guard let window,
                   let splitViewController = window.contentViewController as? NSSplitViewController
             else {
-                print("[MainWindowController] 无法获取窗口状态：窗口或分割视图控制器不存在")
+                LogService.shared.error(.window, "无法获取窗口状态：窗口或分割视图控制器不存在")
                 return nil
             }
 
@@ -2803,7 +2606,6 @@
                 noteDetailWindowState: noteDetailWindowState
             )
 
-            print("[MainWindowController] 窗口状态已保存: \(windowState)")
             return windowState
         }
 
@@ -2813,11 +2615,10 @@
             guard let window,
                   let splitViewController = window.contentViewController as? NSSplitViewController
             else {
-                print("[MainWindowController] 无法恢复窗口状态：窗口或分割视图控制器不存在")
+                LogService.shared.error(.window, "无法恢复窗口状态：窗口或分割视图控制器不存在")
                 return
             }
 
-            print("[MainWindowController] 恢复窗口状态: \(state)")
 
             // 恢复分割视图宽度
             if state.splitViewWidths.count == splitViewController.splitViewItems.count {
@@ -2866,7 +2667,6 @@
                 noteDetailViewController.restoreWindowState(noteDetailWindowState)
             }
 
-            print("[MainWindowController] 窗口状态恢复完成")
         }
 
         // MARK: - 状态监听
@@ -2880,23 +2680,9 @@
                 .receive(on: RunLoop.main)
                 .sink { [weak self] showLoginView in
                     if showLoginView {
-                        print("[MainWindowController] 检测到showLoginView变为true，显示登录窗口")
                         self?.showLogin(nil)
                         // 重置状态，避免重复触发
                         viewModel.showLoginView = false
-                    }
-                }
-                .store(in: &cancellables)
-
-            // 监听Cookie刷新视图显示状态
-            viewModel.$showCookieRefreshView
-                .receive(on: RunLoop.main)
-                .sink { [weak self] showCookieRefreshView in
-                    if showCookieRefreshView {
-                        print("[MainWindowController] 检测到showCookieRefreshView变为true，显示Cookie刷新窗口")
-                        self?.showCookieRefresh(nil)
-                        // 重置状态，避免重复触发
-                        viewModel.showCookieRefreshView = false
                     }
                 }
                 .store(in: &cancellables)
@@ -2957,17 +2743,7 @@
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                print("[MainWindowController] 收到ShowLoginView通知，显示登录窗口")
                 self?.showLogin(nil)
-            }
-
-            NotificationCenter.default.addObserver(
-                forName: NSNotification.Name("ShowCookieRefreshView"),
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                print("[MainWindowController] 收到ShowCookieRefreshView通知，显示Cookie刷新窗口")
-                self?.showCookieRefresh(nil)
             }
 
             // 监听音频面板可见性变化
@@ -2977,7 +2753,6 @@
                 queue: .main
             ) { [weak self] notification in
                 guard let visible = notification.userInfo?["visible"] as? Bool else { return }
-                print("[MainWindowController] 收到音频面板可见性变化通知: \(visible)")
                 if visible {
                     self?.showAudioPanel()
                 } else {
@@ -2991,7 +2766,6 @@
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                print("[MainWindowController] 收到音频面板需要确认通知")
                 self?.showAudioPanelCloseConfirmation()
             }
 
@@ -3002,14 +2776,12 @@
                 queue: .main
             ) { [weak self] notification in
                 guard let fileId = NotificationCenter.extractAudioFileId(from: notification) else {
-                    print("[MainWindowController] ❌ 收到音频附件点击通知但缺少 fileId")
+                    LogService.shared.error(.window, "收到音频附件点击通知但缺少 fileId")
                     return
                 }
-                print("[MainWindowController] 收到音频附件点击通知: fileId=\(fileId)")
                 self?.showAudioPanelForPlayback(fileId: fileId)
             }
 
-            print("[MainWindowController] 状态监听器已设置")
         }
 
         /// 重新配置工具栏
@@ -3071,7 +2843,6 @@
 
         /// 为搜索框设置下拉菜单（使用SwiftUI popover）
         private func setupSearchFieldMenu(for searchField: NSSearchField) {
-            print("[MainWindowController] 设置搜索框菜单（SwiftUI popover）")
 
             // 设置搜索框属性以确保菜单正确工作
             searchField.sendsSearchStringImmediately = false
@@ -3089,17 +2860,14 @@
             searchField.controlSize = .regular
 
             // 添加调试日志
-            print("[MainWindowController] 搜索框菜单已设置为使用SwiftUI popover，搜索框: \(searchField)")
         }
 
         // MARK: - 搜索筛选菜单动作
 
         @objc internal func showSearchFilterMenu(_ sender: Any?) {
-            print("[MainWindowController] 显示搜索筛选菜单 - 开始")
 
             // 如果popover已经显示，则关闭它
             if let popover = searchFilterMenuPopover, popover.isShown {
-                print("[MainWindowController] popover已经显示，关闭它")
                 popover.performClose(sender)
                 searchFilterMenuPopover = nil
                 return
@@ -3107,11 +2875,10 @@
 
             // 确保有viewModel
             guard let viewModel else {
-                print("[MainWindowController] 错误：viewModel不存在")
+                LogService.shared.error(.window, "viewModel 不存在，无法显示搜索筛选菜单")
                 return
             }
 
-            print("[MainWindowController] 创建SwiftUI搜索筛选菜单视图")
 
             // 创建SwiftUI搜索筛选菜单视图
             let searchFilterMenuView = SearchFilterMenuContent(viewModel: viewModel)
@@ -3120,7 +2887,6 @@
             let hostingController = NSHostingController(rootView: searchFilterMenuView)
             hostingController.view.frame = NSRect(x: 0, y: 0, width: 200, height: 190)
 
-            print("[MainWindowController] 创建popover")
 
             // 创建popover
             let popover = NSPopover()
@@ -3135,27 +2901,23 @@
 
             // 显示popover
             if let searchField = sender as? NSSearchField {
-                print("[MainWindowController] 显示popover在搜索框: \(searchField)")
 
                 // 方案三：参考格式菜单的实现，使用.maxY并调整positioningRect
                 // 格式菜单使用.maxY显示在按钮上方，搜索框也应该类似
 
                 // 获取搜索框的bounds
                 let bounds = searchField.bounds
-                print("[MainWindowController] 搜索框bounds: \(bounds)")
 
                 // 创建一个positioningRect，使用搜索框的bounds
                 let positioningRect = NSRect(x: 0, y: 0, width: bounds.width, height: bounds.height)
 
                 // 使用.maxY（显示在搜索框上方），与格式菜单保持一致
                 popover.show(relativeTo: positioningRect, of: searchField, preferredEdge: .maxY)
-                print("[MainWindowController] popover显示完成（使用.maxY边缘，与格式菜单一致）")
             } else if let window, let contentView = window.contentView {
-                print("[MainWindowController] 显示popover在窗口中央")
                 // 如果没有搜索框，显示在窗口中央
                 popover.show(relativeTo: contentView.bounds, of: contentView, preferredEdge: .maxY)
             } else {
-                print("[MainWindowController] 错误：无法显示popover，没有搜索框或窗口")
+                LogService.shared.error(.window, "无法显示搜索筛选菜单：没有搜索框或窗口")
             }
         }
 
@@ -3181,61 +2943,54 @@
 
         /// 放大
         @objc func zoomIn(_: Any?) {
-            print("[MainWindowController] 放大")
 
             if let nativeContext = getCurrentNativeEditorContext() {
                 nativeContext.zoomIn()
             } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                LogService.shared.error(.window, "无法获取 NativeEditorContext")
             }
         }
 
         /// 缩小
         @objc func zoomOut(_: Any?) {
-            print("[MainWindowController] 缩小")
 
             if let nativeContext = getCurrentNativeEditorContext() {
                 nativeContext.zoomOut()
             } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                LogService.shared.error(.window, "无法获取 NativeEditorContext")
             }
         }
 
         /// 实际大小
         @objc func actualSize(_: Any?) {
-            print("[MainWindowController] 实际大小")
 
             if let nativeContext = getCurrentNativeEditorContext() {
                 nativeContext.resetZoom()
             } else {
-                print("[MainWindowController] 错误：无法获取 NativeEditorContext")
+                LogService.shared.error(.window, "无法获取 NativeEditorContext")
             }
         }
 
         /// 展开区域
         @objc func expandSection(_: Any?) {
-            print("[MainWindowController] 展开区域")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "展开区域")
         }
 
         /// 展开所有区域
         @objc func expandAllSections(_: Any?) {
-            print("[MainWindowController] 展开所有区域")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "展开所有区域")
         }
 
         /// 折叠区域
         @objc func collapseSection(_: Any?) {
-            print("[MainWindowController] 折叠区域")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "折叠区域")
         }
 
         /// 折叠所有区域
         @objc func collapseAllSections(_: Any?) {
-            print("[MainWindowController] 折叠所有区域")
             // 功能尚未实现，显示提示
             showFeatureNotImplementedAlert(featureName: "折叠所有区域")
         }
@@ -3252,29 +3007,26 @@
                   let splitViewController = window.contentViewController as? NSSplitViewController,
                   let viewModel
             else {
-                print("[MainWindowController] ❌ 无法显示音频面板：窗口或分割视图控制器不存在")
+                LogService.shared.error(.window, "无法显示音频面板：窗口或分割视图控制器不存在")
                 return
             }
 
             // 检查是否是画廊模式，画廊模式下不支持音频面板
             if ViewOptionsManager.shared.viewMode == .gallery {
-                print("[MainWindowController] ⚠️ 画廊模式下不支持音频面板")
                 return
             }
 
             // 检查是否已经显示了音频面板（四栏布局）
             if splitViewController.splitViewItems.count >= 4 {
-                print("[MainWindowController] ⚠️ 音频面板已经显示")
                 return
             }
 
             // 确保当前是三栏布局
             guard splitViewController.splitViewItems.count == 3 else {
-                print("[MainWindowController] ❌ 当前不是三栏布局，无法添加音频面板")
+                LogService.shared.error(.window, "当前不是三栏布局，无法添加音频面板")
                 return
             }
 
-            print("[MainWindowController] 显示音频面板")
 
             // 创建音频面板托管控制器
             let audioPanelController = AudioPanelHostingController(
@@ -3312,7 +3064,6 @@
                 window.makeFirstResponder(audioPanelController)
             }
 
-            print("[MainWindowController] ✅ 音频面板已添加，当前栏数: \(splitViewController.splitViewItems.count)")
         }
 
         /// 隐藏音频面板
@@ -3323,17 +3074,15 @@
             guard let window,
                   let splitViewController = window.contentViewController as? NSSplitViewController
             else {
-                print("[MainWindowController] ❌ 无法隐藏音频面板：窗口或分割视图控制器不存在")
+                LogService.shared.error(.window, "无法隐藏音频面板：窗口或分割视图控制器不存在")
                 return
             }
 
             // 检查是否有第四栏（音频面板）
             guard splitViewController.splitViewItems.count >= 4 else {
-                print("[MainWindowController] ⚠️ 音频面板未显示，无需隐藏")
                 return
             }
 
-            print("[MainWindowController] 隐藏音频面板")
 
             // 移除第四栏（音频面板）
             let audioPanelItem = splitViewController.splitViewItems[3]
@@ -3342,7 +3091,6 @@
             // 清除引用
             audioPanelHostingController = nil
 
-            print("[MainWindowController] ✅ 音频面板已移除，当前栏数: \(splitViewController.splitViewItems.count)")
         }
 
         /// 显示音频面板关闭确认对话框
@@ -3366,7 +3114,6 @@
                 switch response {
                 case .alertFirstButtonReturn:
                     // 保存并关闭
-                    print("[MainWindowController] 用户选择保存并关闭")
                     // 停止录制并保存
                     if let url = AudioRecorderService.shared.stopRecording() {
                         self?.handleAudioRecordingComplete(url: url)
@@ -3375,13 +3122,11 @@
 
                 case .alertSecondButtonReturn:
                     // 放弃录制
-                    print("[MainWindowController] 用户选择放弃录制")
                     AudioRecorderService.shared.cancelRecording()
                     self?.audioPanelStateManager.forceHide()
 
                 default:
-                    // 取消，不做任何操作
-                    print("[MainWindowController] 用户取消关闭操作")
+                    break
                 }
             }
         }
@@ -3391,12 +3136,11 @@
         /// 上传音频文件并更新之前插入的录音模板为实际的音频附件。
         ///
         private func handleAudioRecordingComplete(url: URL) {
-            print("[MainWindowController] 处理录制完成: \(url)")
 
             guard let viewModel,
                   let selectedNote = viewModel.selectedNote
             else {
-                print("[MainWindowController] ❌ 无法处理录制完成：没有选中的笔记")
+                LogService.shared.error(.window, "无法处理录制完成：没有选中的笔记")
                 return
             }
 
@@ -3406,7 +3150,6 @@
             // 异步上传音频文件
             Task { @MainActor in
                 do {
-                    print("[MainWindowController] 🎤 开始上传音频文件...")
 
                     // 更新模板状态为上传中
                     if let templateId {
@@ -3416,9 +3159,7 @@
                     // 1. 上传音频文件到服务器
                     let uploadResult = try await AudioUploadService.shared.uploadAudio(fileURL: url)
 
-                    print(
-                        "[MainWindowController] ✅ 音频上传成功: fileId=\(uploadResult.fileId), digest=\(uploadResult.digest ?? "nil"), mimeType=\(uploadResult.mimeType ?? "nil")"
-                    )
+                    LogService.shared.info(.window, "音频上传成功: fileId=\(uploadResult.fileId)")
 
                     // 1.5. 更新笔记的 setting.data，添加音频信息
                     // 这是小米笔记服务器识别音频文件的关键
@@ -3444,7 +3185,6 @@
                         rawData["setting"] = setting
                         note.rawData = rawData
 
-                        print("[MainWindowController] 已更新笔记 setting.data，添加音频: \(audioInfo)")
 
                         // 更新 viewModel 中的笔记
                         viewModel.selectedNote = note
@@ -3467,9 +3207,9 @@
                                     digest: uploadResult.digest,
                                     mimeType: uploadResult.mimeType
                                 )
-                                print("[MainWindowController] ✅ 原生编辑器录音模板已更新并保存: \(templateId) -> \(uploadResult.fileId)")
+                                LogService.shared.info(.window, "原生编辑器录音模板已更新并保存: \(templateId) -> \(uploadResult.fileId)")
                             } else {
-                                print("[MainWindowController] ⚠️ 无法获取原生编辑器上下文，录音模板未更新")
+                                LogService.shared.error(.window, "无法获取原生编辑器上下文，录音模板未更新")
                                 self.audioPanelStateManager.setTemplateFailed(templateId: templateId, error: "无法获取原生编辑器上下文")
                             }
                         }
@@ -3485,9 +3225,9 @@
                                     digest: uploadResult.digest,
                                     mimeType: uploadResult.mimeType
                                 )
-                                print("[MainWindowController] ✅ 音频附件已插入到原生编辑器")
+                                LogService.shared.info(.window, "音频附件已插入到原生编辑器")
                             } else {
-                                print("[MainWindowController] ⚠️ 无法获取原生编辑器上下文，音频附件未插入")
+                                LogService.shared.error(.window, "无法获取原生编辑器上下文，音频附件未插入")
                             }
                         }
                     }
@@ -3497,9 +3237,9 @@
 
                     // 4. 删除临时文件
                     try? FileManager.default.removeItem(at: url)
-                    print("[MainWindowController] 🗑️ 临时文件已删除")
+                    LogService.shared.debug(.window, "临时文件已删除")
                 } catch {
-                    print("[MainWindowController] ❌ 音频上传失败: \(error.localizedDescription)")
+                    LogService.shared.error(.window, "音频上传失败: \(error.localizedDescription)")
 
                     // 更新模板状态为失败
                     if let templateId {
@@ -3552,7 +3292,7 @@
             guard let viewModel,
                   let selectedNote = viewModel.selectedNote
             else {
-                print("[MainWindowController] ❌ 无法显示录制面板：没有选中的笔记")
+                LogService.shared.error(.window, "无法显示录制面板：没有选中的笔记")
                 return
             }
 
@@ -3567,7 +3307,7 @@
             guard let viewModel,
                   let selectedNote = viewModel.selectedNote
             else {
-                print("[MainWindowController] ❌ 无法显示播放面板：没有选中的笔记")
+                LogService.shared.error(.window, "无法显示播放面板：没有选中的笔记")
                 return
             }
 

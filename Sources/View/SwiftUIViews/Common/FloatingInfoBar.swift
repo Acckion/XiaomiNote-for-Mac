@@ -4,7 +4,6 @@ import SwiftUI
 ///
 /// 显示笔记的元信息（修改日期、字数、调试模式指示器、保存状态）
 ///
-/// 需求: US-2, US-3, US-5
 @available(macOS 14.0, *)
 struct FloatingInfoBar: View {
     // MARK: - Properties
@@ -74,7 +73,6 @@ struct FloatingInfoBar: View {
     ///
     /// 根据模式显示不同的保存状态
     ///
-    /// 需求: US-2, AC-2.3, AC-4.3
     @ViewBuilder
     private var statusIndicator: some View {
         switch saveStatus {
@@ -87,7 +85,6 @@ struct FloatingInfoBar: View {
 
     /// 普通模式保存状态视图
     ///
-    /// 需求: US-2, AC-2.3, AC-4.3
     @ViewBuilder
     private func normalSaveStatusView(_ status: NoteDetailView.SaveStatus) -> some View {
         switch status {
@@ -161,7 +158,6 @@ struct FloatingInfoBar: View {
 
     /// 调试模式保存状态视图
     ///
-    /// 需求: US-5, AC-5.2
     @ViewBuilder
     private func debugSaveStatusView(_ status: DebugSaveStatus) -> some View {
         switch status {
@@ -190,7 +186,6 @@ struct FloatingInfoBar: View {
 
     /// 调试模式指示器
     ///
-    /// 需求: US-5, AC-5.1
     private var debugModeIndicator: some View {
         HStack(spacing: 4) {
             Image(systemName: "chevron.left.forwardslash.chevron.right")

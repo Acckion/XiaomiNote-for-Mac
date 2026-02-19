@@ -68,38 +68,38 @@ public final class AppCoordinator: ObservableObject {
         let audioService = container.resolve(AudioServiceProtocol.self)
 
         // 创建所有 ViewModel
-        noteListViewModel = NoteListViewModel(
+        self.noteListViewModel = NoteListViewModel(
             noteStorage: noteStorage,
             noteService: noteService
         )
 
-        noteEditorViewModel = NoteEditorViewModel(
+        self.noteEditorViewModel = NoteEditorViewModel(
             noteStorage: noteStorage,
             noteService: noteService
         )
 
-        syncCoordinator = SyncCoordinator(
+        self.syncCoordinator = SyncCoordinator(
             syncService: syncService,
             noteStorage: noteStorage,
             networkMonitor: networkMonitor
         )
 
-        authViewModel = AuthenticationViewModel(
+        self.authViewModel = AuthenticationViewModel(
             authService: authService,
             noteStorage: noteStorage
         )
 
-        searchViewModel = SearchViewModel(
+        self.searchViewModel = SearchViewModel(
             noteStorage: noteStorage,
             noteService: noteService
         )
 
-        folderViewModel = FolderViewModel(
+        self.folderViewModel = FolderViewModel(
             noteStorage: noteStorage,
             noteService: noteService
         )
 
-        audioPanelViewModel = AudioPanelViewModel(
+        self.audioPanelViewModel = AudioPanelViewModel(
             audioService: audioService,
             noteService: noteStorage
         )
@@ -107,22 +107,18 @@ public final class AppCoordinator: ObservableObject {
         // 设置 ViewModel 之间的通信
         setupCommunication()
 
-        print("[AppCoordinator] 初始化完成")
+        LogService.shared.info(.app, "AppCoordinator 初始化完成")
     }
 
     // MARK: - Public Methods
 
     /// 启动应用
     public func start() async {
-        print("[AppCoordinator] 启动应用")
+        LogService.shared.info(.app, "启动应用")
 
-        // 加载文件夹列表
         await folderViewModel.loadFolders()
-
-        // 加载笔记列表
         await noteListViewModel.loadNotes()
 
-        // 如果已登录，启动同步
         if authViewModel.isLoggedIn {
             await syncCoordinator.startSync()
         }
@@ -157,10 +153,7 @@ public final class AppCoordinator: ObservableObject {
             .compactMap(\.self)
             .sink { [weak self] note in
                 guard let self else { return }
-
-                print("[AppCoordinator] 笔记选择: \(note.title)")
-
-                // 加载笔记到编辑器
+                LogService.shared.debug(.app, "笔记选择: \(note.title)")
                 Task { @MainActor in
                     await self.noteEditorViewModel.loadNote(note)
                 }
@@ -173,36 +166,22 @@ public final class AppCoordinator: ObservableObject {
         folderViewModel.$selectedFolder
             .sink { [weak self] folder in
                 guard let self else { return }
-
                 if let folder {
-                    print("[AppCoordinator] 文件夹选择: \(folder.name)")
-                } else {
-                    print("[AppCoordinator] 清除文件夹选择")
+                    LogService.shared.debug(.app, "文件夹选择: \(folder.name)")
                 }
-
-                // 更新笔记列表的选中文件夹
                 noteListViewModel.selectedFolder = folder
-
-                // 注意：不需要重新加载笔记列表，因为 filteredNotes 会自动根据 selectedFolder 过滤
-                // 笔记列表已经在内存中，只需要过滤即可
-                print("[AppCoordinator] 笔记列表将根据文件夹过滤，当前笔记总数: \(noteListViewModel.notes.count)")
             }
             .store(in: &cancellables)
     }
 
     /// 设置同步完成通信
     private func setupSyncCompletionCommunication() {
-        // 监听同步状态变化
         syncCoordinator.$isSyncing
             .removeDuplicates()
             .sink { [weak self] isSyncing in
                 guard let self else { return }
-
-                // 当同步完成时（从 true 变为 false），刷新数据
                 if !isSyncing {
-                    print("[AppCoordinator] 同步完成，刷新笔记列表和文件夹")
-
-                    // 刷新笔记列表和文件夹
+                    LogService.shared.info(.app, "同步完成，刷新笔记列表和文件夹")
                     Task { @MainActor in
                         await self.folderViewModel.loadFolders()
                         await self.noteListViewModel.loadNotes()
@@ -215,28 +194,21 @@ public final class AppCoordinator: ObservableObject {
     /// 设置认证状态通信
     private func setupAuthenticationCommunication() {
         authViewModel.$isLoggedIn
-            .filter(\.self) // 只在登录时触发
+            .filter(\.self)
             .sink { [weak self] _ in
                 guard let self else { return }
-
-                print("[AppCoordinator] 用户已登录，启动同步")
-
-                // 启动同步
+                LogService.shared.info(.app, "用户已登录，启动同步")
                 Task { @MainActor in
                     await self.syncCoordinator.startSync()
                 }
             }
             .store(in: &cancellables)
 
-        // 登出时停止同步
         authViewModel.$isLoggedIn
-            .filter { !$0 } // 只在登出时触发
+            .filter { !$0 }
             .sink { [weak self] _ in
                 guard let self else { return }
-
-                print("[AppCoordinator] 用户已登出，停止同步")
-
-                // 停止同步
+                LogService.shared.info(.app, "用户已登出，停止同步")
                 Task { @MainActor in
                     await self.syncCoordinator.stopSync()
                 }
@@ -249,25 +221,17 @@ public final class AppCoordinator: ObservableObject {
         searchViewModel.$searchResults
             .sink { [weak self] results in
                 guard let self else { return }
-
                 if !results.isEmpty {
-                    print("[AppCoordinator] 搜索结果: \(results.count) 条笔记")
-
-                    // 更新笔记列表显示搜索结果
+                    LogService.shared.debug(.app, "搜索结果: \(results.count) 条笔记")
                     noteListViewModel.notes = results
                 }
             }
             .store(in: &cancellables)
 
-        // 清除搜索时恢复笔记列表
         searchViewModel.$searchText
             .filter(\.isEmpty)
             .sink { [weak self] _ in
                 guard let self else { return }
-
-                print("[AppCoordinator] 清除搜索，恢复笔记列表")
-
-                // 重新加载笔记列表
                 Task { @MainActor in
                     await self.noteListViewModel.loadNotes()
                 }
@@ -306,20 +270,12 @@ public final class AppCoordinator: ObservableObject {
 
         // 处理私密笔记文件夹的解锁状态
         if let folder, folder.id == "2" {
-            // 切换到私密笔记文件夹
-            // 检查是否已设置密码
             if PrivateNotesPasswordManager.shared.hasPassword() {
-                // 每次切换到私密笔记文件夹时，都需要重新验证
-                // 重置解锁状态，强制用户重新验证
                 authViewModel.isPrivateNotesUnlocked = false
-                print("[AppCoordinator] 切换到私密笔记文件夹，重置解锁状态")
             } else {
-                // 未设置密码，直接允许访问
                 authViewModel.isPrivateNotesUnlocked = true
-                print("[AppCoordinator] 私密笔记未设置密码，直接解锁")
             }
         } else {
-            // 切换到其他文件夹，重置解锁状态
             authViewModel.isPrivateNotesUnlocked = false
         }
     }

@@ -99,11 +99,10 @@ public final class PrivateNotesPasswordManager: @unchecked Sendable {
             guard let accessControl = SecAccessControlCreateWithFlags(
                 kCFAllocatorDefault,
                 kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-                [.biometryCurrentSet], // 只使用当前已注册的生物识别，避免权限弹窗
+                [.biometryCurrentSet],
                 &error
             ) else {
-                // 如果创建访问控制失败，只使用密码验证项
-                print("[PrivateNotesPasswordManager] 警告：无法创建生物识别访问控制，仅使用密码验证")
+                LogService.shared.warning(.core, "无法创建生物识别访问控制，仅使用密码验证")
                 return
             }
 

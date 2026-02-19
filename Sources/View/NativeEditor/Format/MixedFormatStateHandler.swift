@@ -49,7 +49,6 @@ struct MixedFormatState: Equatable {
 /// 混合格式状态处理器
 ///
 /// 负责检测选中文本中的混合格式状态，并提供适当的状态显示逻辑。
-/// 需求: 6.1, 6.2
 @MainActor
 class MixedFormatStateHandler {
 
@@ -74,7 +73,6 @@ class MixedFormatStateHandler {
     ///   - attributedString: 富文本内容
     ///   - range: 选中范围
     /// - Returns: 所有格式的混合状态字典
-    /// 需求: 6.1, 6.2
     func detectMixedFormatStates(
         in attributedString: NSAttributedString,
         range: NSRange
@@ -192,7 +190,6 @@ class MixedFormatStateHandler {
     ///   - attributedString: 富文本内容
     ///   - range: 选中范围
     /// - Returns: 应该显示为激活的格式集合
-    /// 需求: 6.1
     func getActiveFormats(
         in attributedString: NSAttributedString,
         range: NSRange
@@ -214,7 +211,6 @@ class MixedFormatStateHandler {
     ///   - attributedString: 富文本内容
     ///   - range: 选中范围
     /// - Returns: 部分激活的格式集合
-    /// 需求: 6.2
     func getPartiallyActiveFormats(
         in attributedString: NSAttributedString,
         range: NSRange
@@ -350,7 +346,6 @@ extension NativeEditorContext {
 
     /// 获取当前选中范围的混合格式状态
     /// - Returns: 混合格式状态字典
-    /// 需求: 6.1, 6.2
     func getMixedFormatStates() -> [TextFormat: MixedFormatState] {
         let handler = MixedFormatStateHandler.shared
         return handler.detectMixedFormatStates(in: nsAttributedText, range: selectedRange)
@@ -358,7 +353,6 @@ extension NativeEditorContext {
 
     /// 获取部分激活的格式集合
     /// - Returns: 部分激活的格式集合
-    /// 需求: 6.2
     func getPartiallyActiveFormats() -> Set<TextFormat> {
         let handler = MixedFormatStateHandler.shared
         return handler.getPartiallyActiveFormats(in: nsAttributedText, range: selectedRange)
@@ -383,7 +377,6 @@ extension NativeEditorContext {
     }
 
     /// 更新当前格式状态（包含混合格式检测）
-    /// 需求: 6.1, 6.2
     func updateCurrentFormatsWithMixedState() {
         // 如果有选中范围，使用混合格式检测
         if selectedRange.length > 0 {
@@ -408,7 +401,6 @@ extension NativeEditorContext {
 
     /// 检测选中范围内的块级格式
     /// - Parameter range: 选中范围
-    /// _Requirements: 3.1, 3.2, 3.3, 3.4_ - 使用 FontSizeManager 统一检测逻辑
     private func detectBlockFormatsInRange(_ range: NSRange) {
         guard range.location < nsAttributedText.length else { return }
 
