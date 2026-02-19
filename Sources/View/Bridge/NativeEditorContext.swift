@@ -1464,10 +1464,11 @@ public class NativeEditorContext: ObservableObject {
     }
 
     /// 批量更新状态
+    ///
+    /// 直接执行更新闭包，@Published 属性的修改会自动触发 objectWillChange
+    /// 不需要手动调用 objectWillChange.send()，否则会在视图渲染周期内产生额外发布
     func batchUpdateState(updates: () -> Void) {
-        objectWillChange.send()
         updates()
-        objectWillChange.send()
     }
 
     /// 更新混合格式状态

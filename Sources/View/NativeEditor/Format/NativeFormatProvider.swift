@@ -778,6 +778,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
         // 监听选择范围变化
         context.$selectedRange
             .dropFirst()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.scheduleStateUpdate()
             }
@@ -786,6 +787,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
         // 监听光标位置变化
         context.$cursorPosition
             .dropFirst()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.scheduleStateUpdate()
             }
@@ -794,6 +796,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
         // 监听当前格式变化
         context.$currentFormats
             .dropFirst()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.scheduleStateUpdate()
             }
@@ -802,6 +805,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
         // 监听内容变化
         context.$nsAttributedText
             .dropFirst()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.scheduleStateUpdate()
             }

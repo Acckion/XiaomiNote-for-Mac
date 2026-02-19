@@ -560,14 +560,20 @@ extension NotesListViewController: NSTableViewDelegate {
             for sectionKey in sectionKeys {
                 if let notes = groupedNotes[sectionKey] {
                     if selectedRow >= currentRow, selectedRow < currentRow + notes.count {
-                        viewModel.selectedNote = notes[selectedRow - currentRow]
+                        let note = notes[selectedRow - currentRow]
+                        // 延迟到下一个 RunLoop 周期，避免在视图更新周期内修改 @Published 属性
+                        DispatchQueue.main.async { [weak self] in
+                            self?.viewModel.selectedNote = note
+                        }
                         return
                     }
                     currentRow += notes.count
                 }
             }
         } else {
-            viewModel.selectedNote = nil
+            DispatchQueue.main.async { [weak self] in
+                self?.viewModel.selectedNote = nil
+            }
         }
     }
 }
@@ -987,11 +993,13 @@ extension NotesListViewController {
     func restoreWindowState(_ state: NotesListWindowState) {
         LogService.shared.debug(.window, "恢复笔记列表状态: \(state)")
 
-        // 恢复选中的笔记
+        // 恢复选中的笔记，延迟到下一个 RunLoop 周期避免视图更新冲突
         if let selectedNoteId = state.selectedNoteId,
            let note = viewModel.notes.first(where: { $0.id == selectedNoteId })
         {
-            viewModel.selectedNote = note
+            DispatchQueue.main.async { [weak self] in
+                self?.viewModel.selectedNote = note
+            }
         }
 
         // 恢复滚动位置

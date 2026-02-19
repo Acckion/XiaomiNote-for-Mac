@@ -667,7 +667,6 @@ public class NotesViewModel: ObservableObject {
 
             loadFolders()
             updateFolderCounts()
-            objectWillChange.send()
         } catch {
             LogService.shared.error(.viewmodel, "启动后重新加载数据失败: \(error)")
         }
@@ -1251,7 +1250,6 @@ public class NotesViewModel: ObservableObject {
         }
 
         loadFolders()
-        objectWillChange.send()
     }
 
     public func loadFolders() {
@@ -1309,9 +1307,6 @@ public class NotesViewModel: ObservableObject {
                 }
 
                 folders = foldersWithCount
-
-                // 强制触发 UI 更新
-                objectWillChange.send()
             } else {
                 // 如果没有本地文件夹数据，加载示例数据
                 // loadSampleFolders()
@@ -1576,8 +1571,6 @@ public class NotesViewModel: ObservableObject {
             )
             notes[index] = updatedNote
         }
-
-        objectWillChange.send()
     }
 
     /// 清除示例数据（如果有）
@@ -1611,7 +1604,6 @@ public class NotesViewModel: ObservableObject {
 
             loadFolders()
             updateFolderCounts()
-            objectWillChange.send()
         } catch {
             LogService.shared.error(.viewmodel, "重新加载数据失败: \(error)")
         }
@@ -2949,9 +2941,6 @@ public class NotesViewModel: ObservableObject {
             updatedFolders[index] = updatedFolder
             folders = updatedFolders
 
-            // 强制触发 UI 更新（通过 objectWillChange）
-            objectWillChange.send()
-
             try localStorage.saveFolders(folders.filter { !$0.isSystem })
 
             // 确保 selectedFolder 也更新（使用新的 updatedFolder 实例）
@@ -3048,8 +3037,6 @@ public class NotesViewModel: ObservableObject {
                 var updatedFolders = folders
                 updatedFolders[index] = updatedFolder
                 folders = updatedFolders
-
-                objectWillChange.send()
 
                 if selectedFolder?.id == folder.id {
                     selectedFolder = updatedFolder

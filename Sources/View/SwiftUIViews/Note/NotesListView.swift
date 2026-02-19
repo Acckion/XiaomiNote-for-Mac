@@ -9,34 +9,6 @@ enum ListAnimationConfig {
     static let moveAnimation: Animation = .easeInOut(duration: 0.3)
 }
 
-// MARK: - SectionHeaderPreferenceKey
-
-/// 用于追踪分组头位置的 PreferenceKey
-struct SectionHeaderPreferenceKey: PreferenceKey {
-    static let defaultValue: [String: CGFloat] = [:]
-
-    static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
-        value.merge(nextValue()) { $1 }
-    }
-}
-
-// MARK: - NotePositionPreferenceKey
-
-/// 用于追踪笔记位置的 PreferenceKey
-struct NotePositionPreferenceKey: PreferenceKey {
-    struct NotePosition: Equatable {
-        let noteId: String
-        let section: String
-        let yPosition: CGFloat
-    }
-
-    static let defaultValue: [NotePosition] = []
-
-    static func reduce(value: inout [NotePosition], nextValue: () -> [NotePosition]) {
-        value.append(contentsOf: nextValue())
-    }
-}
-
 // MARK: - NoteDisplayProperties
 
 /// 笔记显示属性（用于 Equatable 比较）
@@ -254,8 +226,6 @@ struct NotesListView: View {
     @State private var listId = UUID()
     /// 是否正在进行选择操作，用于禁用选择期间的动画
     @State private var isSelectingNote = false
-    /// 当前可见的分组标题（用于粘性分组头显示）
-    @State private var currentVisibleSection: String?
 
     var body: some View {
         Group {
@@ -296,8 +266,6 @@ struct NotesListView: View {
         .onChange(of: viewModel.selectedFolder?.id) { _, _ in
             // 文件夹切换时，更新 listId 强制重建列表，避免动画
             listId = UUID()
-            // 重置当前可见分组
-            currentVisibleSection = nil
         }
         .alert("删除笔记", isPresented: $showingDeleteAlert, presenting: noteToDelete) { note in
             deleteAlertButtons(for: note)
@@ -324,89 +292,44 @@ struct NotesListView: View {
 
     // MARK: - 固定分组标题的列表内容
 
-    /// 使用 ScrollView + safeAreaInset 实现固定分组标题
-    /// 当开启日期分组时使用此视图，分组标题会固定在顶部
+    /// 获取有序的分组列表（固定顺序分组 + 年份分组）
+    private func orderedSections(from groupedNotes: [String: [Note]]) -> [(key: String, notes: [Note])] {
+        let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
+        var result: [(key: String, notes: [Note])] = []
+
+        // 固定顺序分组
+        for key in sectionOrder {
+            if let notes = groupedNotes[key], !notes.isEmpty {
+                result.append((key: key, notes: notes))
+            }
+        }
+
+        // 年份分组（降序）
+        let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
+        for year in yearGroups.keys.sorted(by: >) {
+            if let notes = yearGroups[year], !notes.isEmpty {
+                result.append((key: year, notes: notes))
+            }
+        }
+
+        return result
+    }
+
+    /// 使用原生 pinnedViews 实现粘性分组头，避免 GeometryReader + PreferenceKey 的布局反馈循环
     private var pinnedHeadersListContent: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
+            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                 let groupedNotes = groupNotesByDate(viewModel.filteredNotes)
+                let sections = orderedSections(from: groupedNotes)
 
-                // 定义分组显示顺序
-                let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
-
-                // 确定第一个实际存在的分组（用于隐藏）
-                let allSections = sectionOrder.filter {
-                    guard let notes = groupedNotes[$0] else { return false }
-                    return !notes.isEmpty
-                }
-                let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
-                let firstSection = allSections.first ?? yearGroups.keys.sorted(by: >).first
-
-                // 先显示固定顺序的分组
-                ForEach(sectionOrder, id: \.self) { sectionKey in
-                    if let notes = groupedNotes[sectionKey], !notes.isEmpty {
-                        // 分组头（非粘性，随内容滚动）
-                        // 使用 GeometryReader 追踪分组头的位置
-                        // 第一个分组头需要隐藏，避免与粘性头重复显示
-                        GeometryReader { geometry in
-                            LiquidGlassSectionHeader(title: sectionKey)
-                                .opacity(sectionKey == firstSection ? 0 : 1) // 隐藏第一个分组头
-                                .preference(
-                                    key: SectionHeaderPreferenceKey.self,
-                                    value: [sectionKey: geometry.frame(in: .global).minY]
-                                )
+                ForEach(sections, id: \.key) { section in
+                    Section {
+                        ForEach(Array(section.notes.enumerated()), id: \.element.id) { index, note in
+                            pinnedNoteRow(note: note, showDivider: index < section.notes.count - 1)
                         }
-                        .frame(height: sectionKey == firstSection ? 1 : 44) // 第一个分组头高度为1（避免空白），其他为44
-
-                        // 笔记列表
-                        ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
-                            GeometryReader { geometry in
-                                pinnedNoteRow(note: note, showDivider: index < notes.count - 1)
-                                    .preference(
-                                        key: NotePositionPreferenceKey.self,
-                                        value: [NotePositionPreferenceKey.NotePosition(
-                                            noteId: note.id,
-                                            section: sectionKey,
-                                            yPosition: geometry.frame(in: .global).minY
-                                        )]
-                                    )
-                            }
-                            .frame(height: 70) // 笔记行的固定高度（根据实际情况调整）
-                        }
-                    }
-                }
-
-                // 然后按年份分组其他笔记（降序排列）
-                ForEach(yearGroups.keys.sorted(by: >), id: \.self) { year in
-                    if let notes = yearGroups[year], !notes.isEmpty {
-                        // 分组头（非粘性，随内容滚动）
-                        // 使用 GeometryReader 追踪分组头的位置
-                        // 第一个分组头需要隐藏，避免与粘性头重复显示
-                        GeometryReader { geometry in
-                            LiquidGlassSectionHeader(title: year)
-                                .opacity(year == firstSection ? 0 : 1) // 隐藏第一个分组头
-                                .preference(
-                                    key: SectionHeaderPreferenceKey.self,
-                                    value: [year: geometry.frame(in: .global).minY]
-                                )
-                        }
-                        .frame(height: year == firstSection ? 1 : 44) // 第一个分组头高度为1（避免空白），其他为44
-
-                        // 笔记列表
-                        ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
-                            GeometryReader { geometry in
-                                pinnedNoteRow(note: note, showDivider: index < notes.count - 1)
-                                    .preference(
-                                        key: NotePositionPreferenceKey.self,
-                                        value: [NotePositionPreferenceKey.NotePosition(
-                                            noteId: note.id,
-                                            section: year,
-                                            yPosition: geometry.frame(in: .global).minY
-                                        )]
-                                    )
-                            }
-                            .frame(height: 70) // 笔记行的固定高度（根据实际情况调整）
-                        }
+                    } header: {
+                        LiquidGlassSectionHeader(title: section.key)
+                            .background(Color(NSColor.windowBackgroundColor))
                     }
                 }
             }
@@ -414,78 +337,6 @@ struct NotesListView: View {
             .padding(.bottom, 8)
         }
         .background(Color(NSColor.windowBackgroundColor))
-        .onPreferenceChange(SectionHeaderPreferenceKey.self) { _ in
-            // 不再使用这个回调，改为使用笔记位置来判断
-        }
-        .onPreferenceChange(NotePositionPreferenceKey.self) { notePositions in
-            // 根据笔记位置更新当前可见的分组
-            updateCurrentVisibleSection(notePositions: notePositions)
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            // 粘性分组头（固定在顶部）
-            // 始终显示，用于覆盖第一个分组头，避免重复显示
-            if let currentSection = currentVisibleSection {
-                LiquidGlassSectionHeader(title: currentSection)
-            }
-        }
-        .onAppear {
-            // 初始化时设置第一个分组为当前可见分组
-            let groupedNotes = groupNotesByDate(viewModel.filteredNotes)
-            let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
-            let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
-            let allSections = sectionOrder.filter {
-                guard let notes = groupedNotes[$0] else { return false }
-                return !notes.isEmpty
-            } + yearGroups.keys.sorted(by: >)
-
-            if let firstSection = allSections.first {
-                currentVisibleSection = firstSection
-            }
-        }
-    }
-
-    /// 根据笔记位置更新当前可见的分组
-    /// - Parameter notePositions: 各笔记的位置信息
-    private func updateCurrentVisibleSection(notePositions: [NotePositionPreferenceKey.NotePosition]) {
-
-        // 定义分组显示顺序
-        let groupedNotes = groupNotesByDate(viewModel.filteredNotes)
-        let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
-        let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
-        let allSections = sectionOrder.filter {
-            guard let notes = groupedNotes[$0] else { return false }
-            return !notes.isEmpty
-        } + yearGroups.keys.sorted(by: >)
-
-        // 找到第一个在工具栏下方可见的笔记（Y >= 0）
-        let visibleNotes = notePositions
-            .filter { $0.yPosition >= 0 }
-            .sorted { $0.yPosition < $1.yPosition } // 按 Y 坐标升序排列
-
-        if let firstVisibleNote = visibleNotes.first {
-            // 找到第一个可见笔记所属的分组
-            let targetSection = firstVisibleNote.section
-
-            // 更新粘性头显示该分组
-            if currentVisibleSection != targetSection {
-                currentVisibleSection = targetSection
-            }
-        } else {
-            // 没有可见的笔记，说明所有笔记都滚动过去了
-            // 显示最后一个分组
-            if let lastSection = allSections.last {
-                if currentVisibleSection != lastSection {
-                    currentVisibleSection = lastSection
-                }
-            } else {
-                // 没有任何分组，显示第一个分组（边界情况）
-                if let firstSection = allSections.first {
-                    if currentVisibleSection != firstSection {
-                        currentVisibleSection = firstSection
-                    }
-                }
-            }
-        }
     }
 
     // 固定分组标题的笔记行
@@ -1012,19 +863,6 @@ struct NoteRow: View {
                         .frame(height: 0.5)
                         .frame(width: lineWidth, alignment: .leading)
                         .padding(.leading, leadingPadding)
-                        // #region agent log
-                        .onAppear {
-                            let logPath = "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.cursor/debug.log"
-                            let logEntry = "{\"location\":\"NotesListView.swift:divider\",\"message\":\"分割线GeometryReader渲染\",\"data\":{\"noteId\":\"\(note.id.prefix(8))\",\"showDivider\":\(showDivider),\"method\":\"geometry_calculated_width\",\"totalWidth\":\(geometry.size.width),\"lineWidth\":\(lineWidth),\"leadingPadding\":\(leadingPadding),\"trailingPadding\":\(trailingPadding),\"hypothesisId\":\"H\"},\"timestamp\":\(Int(Date().timeIntervalSince1970 * 1000)),\"sessionId\":\"debug-session\",\"runId\":\"post-fix\"}\n"
-                            if let fileHandle = FileHandle(forWritingAtPath: logPath) {
-                                defer { try? fileHandle.close() }
-                                try? fileHandle.seekToEnd()
-                                try? fileHandle.write(contentsOf: logEntry.data(using: .utf8)!)
-                            } else {
-                                try? logEntry.write(toFile: logPath, atomically: true, encoding: .utf8)
-                            }
-                        }
-                    // #endregion
                 }
                 .frame(height: 0.5) // GeometryReader 需要明确的高度
             }
@@ -1051,19 +889,6 @@ struct NoteRow: View {
         // - 1.1: 编辑笔记内容时保持选中状态不变
         // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
         .id(note.id)
-        // #region agent log
-        .onAppear {
-            let logPath = "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.cursor/debug.log"
-            let logEntry = "{\"location\":\"NotesListView.swift:body\",\"message\":\"NoteRow渲染\",\"data\":{\"noteId\":\"\(note.id.prefix(8))\",\"showDivider\":\(showDivider),\"verticalPadding\":6,\"layoutMethod\":\"overlay\",\"hypothesisId\":\"B\"},\"timestamp\":\(Int(Date().timeIntervalSince1970 * 1000)),\"sessionId\":\"debug-session\",\"runId\":\"initial\"}\n"
-            if let fileHandle = FileHandle(forWritingAtPath: logPath) {
-                defer { try? fileHandle.close() }
-                try? fileHandle.seekToEnd()
-                try? fileHandle.write(contentsOf: logEntry.data(using: .utf8)!)
-            } else {
-                try? logEntry.write(toFile: logPath, atomically: true, encoding: .utf8)
-            }
-        }
-        // #endregion
     }
 
     /// 检查笔记是否有真正的标题（不是从内容中提取的）

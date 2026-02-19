@@ -3186,10 +3186,13 @@
                         note.rawData = rawData
 
 
-                        // 更新 viewModel 中的笔记
-                        viewModel.selectedNote = note
-                        if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
-                            viewModel.notes[index] = note
+                        // 延迟到下一个 RunLoop 周期，避免在视图更新周期内修改 @Published 属性
+                        DispatchQueue.main.async { [weak self] in
+                            guard let self else { return }
+                            self.viewModel?.selectedNote = note
+                            if let index = self.viewModel?.notes.firstIndex(where: { $0.id == note.id }) {
+                                self.viewModel?.notes[index] = note
+                            }
                         }
                     }
 

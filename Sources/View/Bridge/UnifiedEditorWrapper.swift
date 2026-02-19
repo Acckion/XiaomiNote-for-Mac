@@ -182,6 +182,9 @@ struct UnifiedEditorWrapper: View {
         PerformanceMonitor.shared.recordContentReload()
 
         Task { @MainActor in
+            // 确保脱离视图更新周期，避免 loadFromXML 中修改 @Published 属性时触发警告
+            await Task.yield()
+
             isUpdatingFromExternal = true
 
             // 关键修复：先更新 lastLoadedContent，再加载内容
@@ -246,6 +249,9 @@ struct UnifiedEditorWrapper: View {
 
             // ✅ 真正的内容变化（笔记切换），执行重新加载
             Task { @MainActor in
+                // 确保脱离视图更新周期，避免 loadFromXML 中修改 @Published 属性时触发警告
+                await Task.yield()
+
                 isUpdatingFromExternal = true
 
                 // 关键修复：先更新 lastLoadedContent，再加载内容
@@ -356,6 +362,9 @@ struct UnifiedEditorWrapper: View {
         let contentToLoad = xmlContent ?? content
 
         Task { @MainActor in
+            // 确保脱离视图更新周期，避免 loadFromXML 中修改 @Published 属性时触发警告
+            await Task.yield()
+
             isUpdatingFromExternal = true
 
             // 关键修复：先更新 lastLoadedContent，再加载内容
