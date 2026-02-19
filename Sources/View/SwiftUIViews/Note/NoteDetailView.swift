@@ -237,6 +237,7 @@ struct NoteDetailView: View {
             }
 
             // 3. 构建更新的笔记对象（保留所有字段）
+            // 文件夹切换时的自动保存不更新时间戳，避免触发列表重排
             let updated = Note(
                 id: capturedNote.id,
                 title: capturedTitle,
@@ -244,7 +245,7 @@ struct NoteDetailView: View {
                 folderId: capturedNote.folderId,
                 isStarred: capturedNote.isStarred,
                 createdAt: capturedNote.createdAt,
-                updatedAt: Date(),
+                updatedAt: capturedNote.updatedAt,
                 tags: capturedNote.tags,
                 rawData: capturedNote.rawData,
                 snippet: capturedNote.snippet,
@@ -1670,7 +1671,8 @@ struct NoteDetailView: View {
             )
 
             if hasActualChange {
-                let updated = buildUpdatedNote(from: currentNote, xmlContent: content, shouldUpdateTimestamp: true)
+                // 切换笔记时的自动保存不更新时间戳，避免触发列表重排
+                let updated = buildUpdatedNote(from: currentNote, xmlContent: content, shouldUpdateTimestamp: false)
 
                 await MemoryCacheManager.shared.cacheNote(updated)
 
