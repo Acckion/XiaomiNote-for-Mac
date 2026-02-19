@@ -1004,6 +1004,7 @@ struct NoteDetailView: View {
         // 关键修复：立即调用 loadFromXML 确保编辑器内容同步
         // 这解决了笔记切换时内容丢失的问题
         if isUsingNativeEditor {
+            print("[[诊断]] loadNoteContentFromCache: 调用 loadFromXML")
             nativeEditorContext.loadFromXML(currentXMLContent)
         }
 
@@ -1146,6 +1147,7 @@ struct NoteDetailView: View {
         originalXMLContent = currentXMLContent
 
         if isUsingNativeEditor {
+            print("[[诊断]] loadNoteContent: 调用 loadFromXML")
             nativeEditorContext.loadFromXML(currentXMLContent)
         }
 

@@ -129,6 +129,7 @@ struct UnifiedEditorWrapper: View {
             // 加载 XML 内容到原生编辑器
             let contentToLoad = xmlContent ?? content
             if !contentToLoad.isEmpty {
+                print("[[诊断]] UnifiedEditorWrapper.onAppear: 调用 loadFromXML")
                 nativeEditorContext.loadFromXML(contentToLoad)
                 lastLoadedContent = contentToLoad
             }
@@ -195,11 +196,11 @@ struct UnifiedEditorWrapper: View {
             if preferencesService.isNativeEditorAvailable {
                 nativeEditorContext.currentFolderId = folderId
 
-                // 关键修复：先清空编辑器，再加载新内容
-                // 这样可以避免旧内容残留
                 if newContent.isEmpty {
+                    print("[[诊断]] handleXMLContentChange: 直接赋值 nsAttributedText = empty")
                     nativeEditorContext.nsAttributedText = NSAttributedString()
                 } else {
+                    print("[[诊断]] handleXMLContentChange: 调用 loadFromXML")
                     nativeEditorContext.loadFromXML(newContent)
                 }
             }
@@ -263,8 +264,10 @@ struct UnifiedEditorWrapper: View {
 
                     // 关键修复：先清空编辑器，再加载新内容
                     if newValue.isEmpty {
+                        print("[[诊断]] handleContentChange: 直接赋值 nsAttributedText = empty")
                         nativeEditorContext.nsAttributedText = NSAttributedString()
                     } else {
+                        print("[[诊断]] handleContentChange: 调用 loadFromXML")
                         nativeEditorContext.loadFromXML(newValue)
                     }
                 }
@@ -376,8 +379,10 @@ struct UnifiedEditorWrapper: View {
 
                 // 关键修复：先清空编辑器，再加载新内容
                 if contentToLoad.isEmpty {
+                    print("[[诊断]] handleFolderIdChange: 直接赋值 nsAttributedText = empty")
                     nativeEditorContext.nsAttributedText = NSAttributedString()
                 } else {
+                    print("[[诊断]] handleFolderIdChange: 调用 loadFromXML")
                     nativeEditorContext.loadFromXML(contentToLoad)
                 }
             }

@@ -830,6 +830,7 @@ public class NativeEditorContext: ObservableObject {
     /// 更新光标位置
     /// - Parameter position: 新的光标位置
     func updateCursorPosition(_ position: Int) {
+        print("[[诊断]] updateCursorPosition: \(position)")
         cursorPosition = position
         // 使用同步器调度状态更新（防抖）
         formatStateSynchronizer.scheduleStateUpdate()
@@ -839,6 +840,9 @@ public class NativeEditorContext: ObservableObject {
     /// 更新选择范围
     /// - Parameter range: 新的选择范围
     func updateSelectedRange(_ range: NSRange) {
+        print("[[诊断]] updateSelectedRange: range=\(range)")
+        let symbols = Thread.callStackSymbols.prefix(5)
+        for s in symbols { print("[[诊断]]   \(s)") }
         selectedRange = range
         cursorPosition = range.location
         // 使用同步器调度状态更新（防抖）
@@ -852,8 +856,11 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// 当焦点状态变化时，发送 `.editorFocusDidChange` 通知以更新菜单状态
     func setEditorFocused(_ focused: Bool) {
-        // 只有状态真正变化时才更新和发送通知
         guard isEditorFocused != focused else { return }
+
+        print("[[诊断]] setEditorFocused: \(focused)")
+        let symbols = Thread.callStackSymbols.prefix(5)
+        for s in symbols { print("[[诊断]]   \(s)") }
 
         isEditorFocused = focused
 
@@ -898,6 +905,9 @@ public class NativeEditorContext: ObservableObject {
     /// 更新编辑器内容（NSAttributedString）
     /// - Parameter text: 新的内容
     func updateNSContent(_ text: NSAttributedString) {
+        print("[[诊断]] updateNSContent: 长度=\(text.length)")
+        let symbols = Thread.callStackSymbols.prefix(5)
+        for s in symbols { print("[[诊断]]   \(s)") }
         nsAttributedText = text
         contentChangeSubject.send(text)
 
@@ -944,6 +954,9 @@ public class NativeEditorContext: ObservableObject {
     /// - Parameter xml: 小米笔记 XML 格式内容
     ///
     func loadFromXML(_ xml: String) {
+        print("[[诊断]] loadFromXML: 被调用，xml长度=\(xml.count)")
+        let symbols = Thread.callStackSymbols.prefix(6)
+        for s in symbols { print("[[诊断]]   \(s)") }
         // 使用程序化修改包裹，确保版本号不变
         changeTracker.performProgrammaticChange {
             loadFromXMLInternal(xml)
