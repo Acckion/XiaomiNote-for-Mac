@@ -371,6 +371,10 @@ struct NoteDetailView: View {
             }
         }
         .onChange(of: editedTitle) { _, newValue in
+            // 反向同步：加载笔记时 editedTitle 变化，同步到 TitleTextField
+            if nativeEditorContext.titleText != newValue {
+                nativeEditorContext.titleText = newValue
+            }
             Task { @MainActor in await handleTitleChange(newValue) }
         }
         .sheet(isPresented: $showImageInsertAlert) {
