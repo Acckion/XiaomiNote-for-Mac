@@ -109,7 +109,6 @@ public class IncrementalUpdateManager {
     /// 元属性包括：
     /// - 段落类型（.paragraphType）
     /// - 列表类型（.listType）
-    /// - 标题标记（.isTitle）
     /// - 列表级别（.listLevel）
     ///
     /// - Parameters:
@@ -146,15 +145,6 @@ public class IncrementalUpdateManager {
 
         if currentListType != storedListType {
             logDebug("      元属性变化: 列表类型 \(String(describing: storedListType)) -> \(String(describing: currentListType))")
-            return true
-        }
-
-        // 检查标题标记是否变化
-        let currentIsTitle = currentAttributes[.isTitle] as? Bool ?? false
-        let storedIsTitle = paragraph.metaAttributes["isTitle"] as? Bool ?? false
-
-        if currentIsTitle != storedIsTitle {
-            logDebug("      元属性变化: 标题标记 \(storedIsTitle) -> \(currentIsTitle)")
             return true
         }
 

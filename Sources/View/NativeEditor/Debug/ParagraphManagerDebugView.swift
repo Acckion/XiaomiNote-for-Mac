@@ -4,7 +4,7 @@ import SwiftUI
 /// 段落管理器调试视图
 /// 用于可视化验证 ParagraphManager 的功能
 struct ParagraphManagerDebugView: View {
-    @State private var textContent = "标题段落\n这是第一段普通文本\n这是第二段普通文本\n这是第三段普通文本"
+    @State private var textContent = "这是第一段普通文本\n这是第二段普通文本\n这是第三段普通文本"
     @State private var paragraphs: [Paragraph] = []
     @State private var selectedParagraphIndex: Int?
     @State private var selectedFormatType: ParagraphType = .normal
@@ -39,7 +39,7 @@ struct ParagraphManagerDebugView: View {
                     }
 
                     Button("示例文本") {
-                        textContent = "标题段落\n这是第一段普通文本\n这是第二段普通文本\n这是第三段普通文本"
+                        textContent = "这是第一段普通文本\n这是第二段普通文本\n这是第三段普通文本"
                         updateParagraphs()
                     }
                 }
@@ -52,7 +52,6 @@ struct ParagraphManagerDebugView: View {
                         .font(.headline)
 
                     Picker("格式类型", selection: $selectedFormatType) {
-                        Text("标题段落").tag(ParagraphType.title)
                         Text("H1 标题").tag(ParagraphType.heading(level: 1))
                         Text("H2 标题").tag(ParagraphType.heading(level: 2))
                         Text("H3 标题").tag(ParagraphType.heading(level: 3))
@@ -101,7 +100,6 @@ struct ParagraphManagerDebugView: View {
                         .font(.headline)
 
                     Text("总段落数: \(paragraphs.count)")
-                    Text("标题段落: \(paragraphs.count(where: { $0.isTitle }))")
                     Text("普通段落: \(paragraphs.count(where: { $0.type == .normal }))")
                     Text("列表段落: \(paragraphs.count(where: { $0.isList }))")
                 }
