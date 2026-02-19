@@ -944,13 +944,6 @@ public class NativeEditorContext: ObservableObject {
     /// - Parameter xml: 小米笔记 XML 格式内容
     ///
     func loadFromXML(_ xml: String) {
-        print("[[调试]] [spec89-诊断] loadFromXML: 被调用 (xml长度=\(xml.count))")
-        // 打印调用栈前几帧，帮助定位调用来源
-        let callStack = Thread.callStackSymbols.prefix(8)
-        for (index, frame) in callStack.enumerated() {
-            print("[[调试]] [spec89-诊断] loadFromXML 调用栈[\(index)]: \(frame)")
-        }
-
         // 使用程序化修改包裹，确保版本号不变
         changeTracker.performProgrammaticChange {
             loadFromXMLInternal(xml)
@@ -963,108 +956,53 @@ public class NativeEditorContext: ObservableObject {
     /// 内部加载 XML 方法
     /// - Parameter xml: 小米笔记 XML 格式内容
     private func loadFromXMLInternal(_ xml: String) {
-
-        print("[[调试]] [spec89-诊断] loadFromXMLInternal: 开始加载 XML (长度=\(xml.count))")
-
-        // 关键修复：如果 XML 为空，清空编辑器
+        // 如果 XML 为空，清空编辑器
         guard !xml.isEmpty else {
-            print("[[调试]] [spec89-诊断] loadFromXMLInternal: XML 为空，即将赋值 @Published 属性 (attributedText, nsAttributedText, hasUnsavedChanges)")
-            attributedText = AttributedString()
-            nsAttributedText = NSAttributedString()
-            hasUnsavedChanges = false
-            hasNewFormatPrefix = false
+            // 延迟赋值，避免在视图更新周期内触发 Publishing 警告
+            DispatchQueue.main.async { [weak self] in
+                self?.attributedText = AttributedString()
+                self?.nsAttributedText = NSAttributedString()
+                self?.hasUnsavedChanges = false
+                self?.hasNewFormatPrefix = false
+            }
             return
         }
 
         // 检测并保存 <new-format/> 标签的存在
         let trimmedXml = xml.trimmingCharacters(in: .whitespacesAndNewlines)
-        hasNewFormatPrefix = trimmedXml.hasPrefix("<new-format/>")
-        if hasNewFormatPrefix {
-        }
+        let detectedNewFormat = trimmedXml.hasPrefix("<new-format/>")
 
         do {
-            // 使用新的 xmlToNSAttributedString 方法直接获取 NSAttributedString
-            // 这样可以正确保留自定义的 NSTextAttachment 子类（如 ImageAttachment）
             let nsAttributed = try formatConverter.xmlToNSAttributedString(xml, folderId: currentFolderId)
-
-
-            // 检查是否包含标题段落
-            var hasTitleParagraph = false
-            nsAttributed.enumerateAttribute(.isTitle, in: NSRange(location: 0, length: nsAttributed.length), options: []) { value, range, stop in
-                if let isTitle = value as? Bool, isTitle {
-                    hasTitleParagraph = true
-                    let titleText = (nsAttributed.string as NSString).substring(with: range)
-
-                    // 检查字体
-                    if let font = nsAttributed.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont {
-                    }
-
-                    stop.pointee = true
-                }
-            }
-
-            if !hasTitleParagraph {
-            }
-
-            // 检查是否包含附件
-            var attachmentCount = 0
-            var imageAttachmentCount = 0
-            nsAttributed.enumerateAttribute(.attachment, in: NSRange(location: 0, length: nsAttributed.length), options: []) { value, _, _ in
-                if let attachment = value as? NSTextAttachment {
-                    attachmentCount += 1
-                    if let imageAttachment = attachment as? ImageAttachment {
-                        imageAttachmentCount += 1
-                    }
-                }
-            }
 
             // 为没有设置前景色的文本添加默认颜色（适配深色模式）
             let mutableAttributed = NSMutableAttributedString(attributedString: nsAttributed)
             let fullRange = NSRange(location: 0, length: mutableAttributed.length)
 
-            // 遍历所有范围，为没有前景色的文本设置 labelColor
             mutableAttributed.enumerateAttribute(.foregroundColor, in: fullRange, options: []) { value, range, _ in
                 if value == nil {
-                    // 使用 labelColor，它会自动适配深色/浅色模式
                     mutableAttributed.addAttribute(.foregroundColor, value: NSColor.labelColor, range: range)
                 }
             }
 
-            nsAttributedText = mutableAttributed
-
-            print("[[调试]] [spec89-诊断] loadFromXMLInternal: 已赋值 nsAttributedText (长度=\(mutableAttributed.length))")
-
-            // 新增：递增版本号，强制触发视图更新
-            contentVersion += 1
-
-            print("[[调试]] [spec89-诊断] loadFromXMLInternal: 已递增 contentVersion=\(contentVersion)")
-
-            // 关键修复：移除 contentChangeSubject.send() 调用
-            // loadFromXML 是加载操作，不是编辑操作，不应触发 handleExternalContentUpdate
-            // contentVersion 的递增已经足以触发 SwiftUI 视图更新
-
-            // 调试日志：检查斜体字体是否正确保留
-            mutableAttributed.enumerateAttribute(.font, in: fullRange, options: []) { value, range, _ in
-                if let font = value as? NSFont {
-                    let traits = font.fontDescriptor.symbolicTraits
-                    let rangeText = (mutableAttributed.string as NSString).substring(with: range)
+            // 延迟所有 @Published 赋值，避免在视图更新周期内触发 Publishing 警告
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.hasNewFormatPrefix = detectedNewFormat
+                self.nsAttributedText = mutableAttributed
+                self.contentVersion += 1
+                if let attributed = try? AttributedString(mutableAttributed, including: \.appKit) {
+                    self.attributedText = attributed
                 }
+                self.hasUnsavedChanges = false
             }
-
-            // 同时更新 attributedText（用于导出）
-            if let attributed = try? AttributedString(mutableAttributed, including: \.appKit) {
-                attributedText = attributed
-                print("[[调试]] [spec89-诊断] loadFromXMLInternal: 已赋值 attributedText")
-            }
-
-            hasUnsavedChanges = false
-            print("[[调试]] [spec89-诊断] loadFromXMLInternal: 已赋值 hasUnsavedChanges=false，加载完成")
         } catch {
-            print("[[调试]] [spec89-诊断] loadFromXMLInternal: 解析失败，即将赋值清空 @Published 属性")
-            // 关键修复：加载失败时清空编辑器，避免显示旧内容
-            attributedText = AttributedString()
-            nsAttributedText = NSAttributedString()
-            hasUnsavedChanges = false
+            // 加载失败时清空编辑器
+            DispatchQueue.main.async { [weak self] in
+                self?.attributedText = AttributedString()
+                self?.nsAttributedText = NSAttributedString()
+                self?.hasUnsavedChanges = false
+            }
         }
     }
 

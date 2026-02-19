@@ -155,9 +155,6 @@ struct NativeEditorView: NSViewRepresentable {
                 // 保存当前选择范围
                 let selectedRange = textView.selectedRange()
 
-                // [[调试]] 诊断：标记进入 updateNSView 内容更新阶段
-                print("[[调试]] [spec89-诊断] updateNSView: 开始内容更新，设置 isUpdatingFromSwiftUI = true")
-
                 // 标记正在从 SwiftUI 更新，防止 textViewDidChangeSelection 中的 @Published 赋值
                 context.coordinator.isUpdatingFromSwiftUI = true
 
@@ -176,12 +173,10 @@ struct NativeEditorView: NSViewRepresentable {
                         location: min(selectedRange.location, textView.string.count),
                         length: min(selectedRange.length, max(0, textView.string.count - selectedRange.location))
                     )
-                    print("[[调试]] [spec89-诊断] updateNSView: 即将调用 setSelectedRange(\(newRange))")
                     textView.setSelectedRange(newRange)
                 }
 
                 context.coordinator.isUpdatingFromSwiftUI = false
-                print("[[调试]] [spec89-诊断] updateNSView: 内容更新完成，设置 isUpdatingFromSwiftUI = false")
             }
         }
     }
@@ -633,29 +628,27 @@ struct NativeEditorView: NSViewRepresentable {
             let selectedRange = textView.selectedRange()
             let selectionChangeCallback = parent.onSelectionChange
 
-            // [[调试]] 诊断：检测是否在 updateNSView 期间被触发
-            if isUpdatingFromSwiftUI {
-                print("[[调试]] [spec89-诊断] textViewDidChangeSelection: 在 updateNSView 期间被触发! selectedRange=\(selectedRange)")
-                print("[[调试]] [spec89-诊断] 以下 @Published 赋值将在视图更新周期内执行（这是警告来源）:")
-                print("[[调试]] [spec89-诊断]   - editorContext.nsAttributedText = ...")
-                print("[[调试]] [spec89-诊断]   - editorContext.updateSelectedRange(\(selectedRange))")
-                if !parent.editorContext.isEditorFocused {
-                    print("[[调试]] [spec89-诊断]   - editorContext.setEditorFocused(true)")
-                }
-            }
-
             // 直接从 textStorage 获取内容（保留所有属性）
             let currentAttributedString = NSAttributedString(attributedString: textStorage)
 
-            // 关键修复：同步更新 nsAttributedText，确保菜单栏验证时数据是最新的
-            // 这是为了解决菜单栏格式菜单勾选状态不正确的问题
-            // 之前使用 Task 异步更新，导致 validateMenuItem 调用时数据还没更新
-            parent.editorContext.nsAttributedText = currentAttributedString
-            parent.editorContext.updateSelectedRange(selectedRange)
-
-            // 当选择变化时，说明用户正在与编辑器交互，设置焦点状态为 true
-            if !parent.editorContext.isEditorFocused {
-                parent.editorContext.setEditorFocused(true)
+            if isUpdatingFromSwiftUI {
+                // updateNSView 期间：跳过 nsAttributedText 回写，延迟其他 @Published 赋值
+                // 避免在视图更新周期内触发 Publishing 警告
+                let editorContext = parent.editorContext
+                let isEditorFocused = editorContext.isEditorFocused
+                Task { @MainActor in
+                    editorContext.updateSelectedRange(selectedRange)
+                    if !isEditorFocused {
+                        editorContext.setEditorFocused(true)
+                    }
+                }
+            } else {
+                // 正常交互：同步更新，确保菜单栏 validateMenuItem 能获取最新数据
+                parent.editorContext.nsAttributedText = currentAttributedString
+                parent.editorContext.updateSelectedRange(selectedRange)
+                if !parent.editorContext.isEditorFocused {
+                    parent.editorContext.setEditorFocused(true)
+                }
             }
 
             // MARK: - Paper-Inspired Integration (Task 19.4)
