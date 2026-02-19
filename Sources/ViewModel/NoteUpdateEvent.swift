@@ -6,8 +6,6 @@ import Foundation
 ///
 /// 描述笔记的各种更新类型，用于确定是否需要触发列表动画和保持选择状态
 ///
-/// - 2.1: 笔记的 updatedAt 时间戳变化导致排序位置改变时使用动画
-/// - 1.1: 编辑笔记内容时保持选中状态不变
 public enum NoteUpdateEvent: Equatable {
     /// 笔记内容变化
     /// - Parameter noteId: 笔记ID

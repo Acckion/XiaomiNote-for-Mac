@@ -16,8 +16,6 @@ import SwiftUI
 /// 将 AudioPanelView 嵌入 NSSplitViewController 作为第四栏。
 /// 负责管理音频面板的显示和与主窗口的交互。
 ///
-/// - 1.1: 在主窗口右侧显示第四栏音频面板
-/// - 1.2: 保持侧边栏、笔记列表和编辑器的原有布局
 class AudioPanelHostingController: NSViewController {
 
     // MARK: - 属性

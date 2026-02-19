@@ -6,8 +6,6 @@ import Foundation
 ///
 /// 记录当前选中的文件夹和笔记状态，用于状态一致性验证和状态恢复
 ///
-/// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
-/// - 4.3: 验证笔记是否属于当前文件夹
 public struct ViewState: Equatable, Codable {
     /// 当前选中的文件夹ID
     public let selectedFolderId: String?

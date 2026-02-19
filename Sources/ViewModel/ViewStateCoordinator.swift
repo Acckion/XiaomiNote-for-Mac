@@ -8,12 +8,6 @@ import SwiftUI
 ///
 /// 负责协调侧边栏、笔记列表和编辑器之间的状态同步，作为单一数据源管理选择状态
 ///
-/// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
-/// - 4.2: selectedFolder 变化时按顺序更新 Notes_List_View 和 Editor
-/// - 4.3: selectedNote 变化时验证该笔记是否属于当前 selectedFolder
-/// - 4.4: 如果 selectedNote 不属于当前 selectedFolder，自动更新或清除
-/// - 4.5: 提供状态变化的日志记录以便调试
-/// - 1.4: 视图重建后恢复选择状态
 @MainActor
 public class ViewStateCoordinator: ObservableObject {
 
@@ -62,9 +56,6 @@ public class ViewStateCoordinator: ObservableObject {
     ///
     /// 由 NoteDetailView 注册，用于在文件夹切换前保存当前编辑的内容
     ///
-    /// - 3.5: 用户在 Editor 中编辑笔记时切换到另一个文件夹，先保存当前编辑内容再切换
-    /// - 6.1: 切换文件夹且 Editor 有未保存内容时，先触发保存操作
-    /// - 6.2: 保存操作完成后继续执行文件夹切换
     public var saveContentCallback: (() async -> Bool)?
 
     // MARK: - Private Properties
@@ -114,7 +105,6 @@ public class ViewStateCoordinator: ObservableObject {
     ///
     /// 在状态变化时自动调用，将当前选择状态持久化
     ///
-    /// - 1.4: 视图重建后恢复选择状态
     private func saveStateToUserDefaults() {
         guard isStatePersistenceEnabled else { return }
 
@@ -145,7 +135,6 @@ public class ViewStateCoordinator: ObservableObject {
     ///
     /// 在视图重建后调用，恢复之前保存的选择状态
     ///
-    /// - 1.4: 视图重建后恢复选择状态
     private func restoreStateFromUserDefaults() {
         guard let viewModel else {
             log("警告: ViewModel 未设置，无法恢复状态")
@@ -223,7 +212,6 @@ public class ViewStateCoordinator: ObservableObject {
     ///
     /// 用于快速恢复，优先于 UserDefaults
     ///
-    /// - 1.4: 视图重建后恢复选择状态
     ///
     /// - Returns: 是否成功恢复
     @discardableResult
@@ -278,7 +266,6 @@ public class ViewStateCoordinator: ObservableObject {
     ///
     /// 在数据加载完成后调用，确保状态正确恢复
     ///
-    /// - 1.4: 视图重建后恢复选择状态
     public func triggerStateRestoration() {
         guard isStatePersistenceEnabled else { return }
 
@@ -302,13 +289,6 @@ public class ViewStateCoordinator: ObservableObject {
     /// 2. 更新 selectedFolder
     /// 3. 清除 selectedNote（或选择新文件夹的第一个笔记）
     ///
-    /// - 3.1: 用户在 Sidebar 中选择一个新文件夹时，Notes_List_View 立即显示该文件夹下的笔记列表
-    /// - 3.2: 用户在 Sidebar 中选择一个新文件夹时，Editor 清空当前内容或显示该文件夹的第一篇笔记
-    /// - 3.3: 用户在 Sidebar 中选择一个新文件夹时，Notes_List_View 清除之前的笔记选择状态
-    /// - 3.5: 用户在 Editor 中编辑笔记时切换到另一个文件夹，先保存当前编辑内容再切换
-    /// - 4.2: selectedFolder 变化时按顺序更新 Notes_List_View 和 Editor
-    /// - 6.1: 切换文件夹且 Editor 有未保存内容时，先触发保存操作
-    /// - 6.2: 保存操作完成后继续执行文件夹切换
     ///
     /// - Parameter folder: 要选择的文件夹，nil 表示清除选择
     /// - Returns: 是否成功切换
@@ -369,8 +349,6 @@ public class ViewStateCoordinator: ObservableObject {
     ///
     /// 执行笔记选择操作，包含归属验证逻辑
     ///
-    /// - 4.3: 验证该笔记是否属于当前 selectedFolder
-    /// - 4.4: 如果不属于，自动更新 selectedFolder 或清除 selectedNote
     ///
     /// - Parameter note: 要选择的笔记，nil 表示清除选择
     /// - Returns: 是否成功选择
@@ -423,9 +401,6 @@ public class ViewStateCoordinator: ObservableObject {
     ///
     /// 当编辑器中的笔记内容变化时调用，不会改变选择状态
     ///
-    /// - 1.1: 编辑笔记内容时保持选中状态不变
-    /// - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
-    /// - 1.3: 笔记的 updatedAt 时间戳变化时保持选中笔记的高亮状态
     ///
     /// - Parameter note: 更新后的笔记
     public func updateNoteContent(_ note: Note) {
@@ -538,9 +513,6 @@ public class ViewStateCoordinator: ObservableObject {
     ///
     /// 调用注册的保存回调来保存当前编辑的内容
     ///
-    /// - 3.5: 用户在 Editor 中编辑笔记时切换到另一个文件夹，先保存当前编辑内容再切换
-    /// - 6.1: 切换文件夹且 Editor 有未保存内容时，先触发保存操作
-    /// - 6.2: 保存操作完成后继续执行文件夹切换
     ///
     /// - Returns: 是否保存成功
     private func saveCurrentContent() async -> Bool {

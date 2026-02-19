@@ -454,10 +454,6 @@ public class WindowManager {
     // MARK: - 错误处理
 
     /// 显示窗口创建错误提示
-    ///
-    /// 向用户显示友好的错误消息，并提供重启应用的建议
-    ///
-    /// - Parameter message: 错误消息
     private func showWindowCreationError(message: String) {
         let alert = NSAlert()
         alert.messageText = "无法创建窗口"

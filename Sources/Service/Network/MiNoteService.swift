@@ -1302,11 +1302,6 @@ public final class MiNoteService: @unchecked Sendable {
     }
 
     /// 检查Cookie是否有效
-    ///
-    /// 用户要求：任何网络请求都不要使用缓存的cookie，从用户信息中获取当前最新的cookie。
-    /// 因此，这个方法总是从UserDefaults获取最新的Cookie，并检查其格式和服务器端有效性。
-    ///
-    /// 注意：这个方法不缓存结果，每次调用都会检查最新的状态。
     @MainActor
     func hasValidCookie() -> Bool {
         // 首先检查是否有Cookie失效标志
@@ -1349,12 +1344,6 @@ public final class MiNoteService: @unchecked Sendable {
     }
 
     /// 检查Cookie在服务器端是否有效
-    ///
-    /// 发送实际的网络请求到 /common/check 来验证Cookie是否真的有效
-    /// 用户要求：任何网络请求都不要使用缓存的cookie，所以这个方法总是进行实时检查
-    ///
-    /// - Returns: 如果Cookie在服务器端有效则返回true，否则返回false
-    /// - Throws: 网络错误或其他错误
     func checkCookieValidity() async throws -> Bool {
 
         do {

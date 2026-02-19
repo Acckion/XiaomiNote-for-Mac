@@ -731,11 +731,6 @@ public class NotesViewModel: ObservableObject {
     ///
     /// 通过 Combine 将 OperationProcessor、StartupSequenceManager 和 OnlineStateManager 的状态同步到 ViewModel
     ///
-    /// - 7.1: 加载指示器状态
-    /// - 7.2: 离线队列处理进度状态
-    /// - 7.3: 同步进度和状态消息
-    /// - 7.4: 同步结果
-    /// - 7.5: 离线模式指示
     private func setupDataLoadingStatusSync() {
         // 监听 OperationProcessor 状态
         // 由于 OperationProcessor 是 actor，使用定时器定期更新
@@ -841,9 +836,6 @@ public class NotesViewModel: ObservableObject {
     /// 通过 Combine 将 ViewStateCoordinator 的 @Published 属性同步到 ViewModel 的 @Published 属性
     /// 这样 ViewStateCoordinator 的状态变化会自动触发 ViewModel 的状态更新，进而触发 UI 更新
     ///
-    /// - 1.1: 编辑笔记内容时保持选中状态不变
-    /// - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
-    /// - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
     private func setupStateCoordinatorSync() {
         // 同步 selectedFolder
         stateCoordinator.$selectedFolder
@@ -900,10 +892,6 @@ public class NotesViewModel: ObservableObject {
     /// 通过 Combine 将 ViewOptionsManager 的排序设置同步到 ViewModel 的排序属性
     /// 确保画廊视图和列表视图使用相同的排序设置
     ///
-    /// - 8.1: 文件夹切换时画廊视图更新
-    /// - 8.3: 搜索时画廊视图过滤
-    /// - 8.4: 画廊视图尊重所有搜索筛选选项
-    /// - 8.5: 切换视图模式时保持选中文件夹和搜索状态
     private func setupViewOptionsSync() {
         // 同步排序方式
         ViewOptionsManager.shared.$state
@@ -1452,9 +1440,6 @@ public class NotesViewModel: ObservableObject {
     ///
     /// 清除示例数据，执行完整同步
     ///
-    /// - 5.1: 用户成功登录后自动执行完整同步
-    /// - 5.3: 登录后同步失败时显示错误信息并保留本地数据
-    /// - 5.4: 登录后同步成功时清除示例数据并显示云端数据
     public func handleLoginSuccess() async {
         clearSampleDataIfNeeded()
         await fetchUserProfile()
@@ -1485,9 +1470,6 @@ public class NotesViewModel: ObservableObject {
     ///
     /// 恢复在线状态，执行完整同步
     ///
-    /// - 5.2: 用户成功刷新Cookie后自动执行完整同步
-    /// - 5.3: 同步失败时显示错误信息并保留本地数据
-    /// - 5.4: 同步成功时更新本地数据
     public func handleCookieRefreshSuccess() async {
         LogService.shared.info(.viewmodel, "处理Cookie刷新成功")
 
@@ -2657,8 +2639,6 @@ public class NotesViewModel: ObservableObject {
     ///
     /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
     ///
-    /// - 4.1: 通过 coordinator 作为单一数据源管理状态
-    /// - 4.2: 按顺序更新 Notes_List_View 和 Editor
     ///
     /// - Parameter folder: 要选择的文件夹
     public func selectFolderWithCoordinator(_ folder: Folder?) {
@@ -2673,7 +2653,6 @@ public class NotesViewModel: ObservableObject {
     ///
     /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
     ///
-    /// - 4.3: 验证笔记是否属于当前文件夹
     ///
     /// **统一操作队列集成**：
     /// - 切换笔记时设置活跃编辑状态
