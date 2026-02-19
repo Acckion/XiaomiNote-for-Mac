@@ -68,11 +68,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         // 更新菜单项的勾选状态
         updateMenuItemCheckState(menuItem, for: tag)
 
-        // 检查是否在标题段落中，如果是则禁用格式菜单
-        if isFormatMenuItem(tag), isInTitleParagraph() {
-            return false
-        }
-
         // 根据标签类型返回启用状态
         return menuState.shouldEnableMenuItem(for: tag)
     }
@@ -315,55 +310,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         default:
             break
         }
-    }
-
-    /// 检查菜单项是否为格式菜单项
-    /// - Parameter tag: 菜单项标签
-    /// - Returns: 是否为格式菜单项
-    private func isFormatMenuItem(_ tag: MenuItemTag) -> Bool {
-        switch tag {
-        case .bold, .italic, .underline, .strikethrough, .highlight,
-             .heading, .subheading, .subtitle, .bodyText,
-             .unorderedList, .orderedList, .checklist,
-             .alignLeft, .alignCenter, .alignRight,
-             .blockQuote:
-            true
-        default:
-            false
-        }
-    }
-
-    /// 检查当前光标是否在标题段落中
-    /// - Returns: 是否在标题段落中
-    private func isInTitleParagraph() -> Bool {
-        // 检查当前使用的是哪种编辑器
-        let isUsingNativeEditor = mainWindowController?.isUsingNativeEditor ?? false
-
-        if isUsingNativeEditor {
-            // 原生编辑器：从 NativeEditorContext 检查
-            if let nativeEditorContext = mainWindowController?.getCurrentNativeEditorContext() {
-                // 使用 nsAttributedText 而不是 textStorage
-                let textStorage = nativeEditorContext.nsAttributedText
-                let cursorPosition = nativeEditorContext.selectedRange.location
-
-                // 检查光标位置是否在标题段落中
-                if cursorPosition < textStorage.length {
-                    // 获取光标所在行的范围
-                    let string = textStorage.string as NSString
-                    let lineRange = string.lineRange(for: NSRange(location: cursorPosition, length: 0))
-
-                    // 检查该行是否有 .isTitle 属性
-                    if lineRange.location < textStorage.length {
-                        let attributes = textStorage.attributes(at: lineRange.location, effectiveRange: nil)
-                        if let isTitle = attributes[.isTitle] as? Bool, isTitle {
-                            return true
-                        }
-                    }
-                }
-            }
-        }
-
-        return false
     }
 
     // MARK: - 应用程序菜单动作

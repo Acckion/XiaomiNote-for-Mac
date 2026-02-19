@@ -179,6 +179,9 @@ public class NativeEditorContext: ObservableObject {
     /// 当前编辑的 NSAttributedString（用于 NSTextView）
     @Published public var nsAttributedText = NSAttributedString()
 
+    /// 标题文本（独立于正文，由 loadFromXML 提取）
+    @Published public var titleText = ""
+
     /// 当前检测到的特殊元素类型
     @Published var currentSpecialElement: SpecialElement?
 
@@ -924,12 +927,7 @@ public class NativeEditorContext: ObservableObject {
         }
     }
 
-    /// 从 XML 加载内容
-    ///
-    /// **标题段落处理**：
-    /// - XML 的 `<title>` 标签通过 `XMLParser` 解析为 `TitleBlockNode`
-    /// - `ASTToAttributedStringConverter` 将 `TitleBlockNode` 转换为带有 `.isTitle` 属性的段落
-    /// - 标题段落会被插入到编辑器的第一个位置
+    /// 从 XML 加载正文内容（不含标题）
     ///
     /// - Parameter xml: 小米笔记 XML 格式内容
     ///
@@ -946,6 +944,7 @@ public class NativeEditorContext: ObservableObject {
         guard !xml.isEmpty else {
             attributedText = AttributedString()
             nsAttributedText = NSAttributedString()
+            titleText = ""
             hasUnsavedChanges = false
             hasNewFormatPrefix = false
             return
@@ -980,38 +979,23 @@ public class NativeEditorContext: ObservableObject {
         }
     }
 
-    /// 导出为 XML
+    /// 导出正文为 XML（不含标题）
     ///
-    /// 将当前编辑器内容（nsAttributedText）转换为小米笔记 XML 格式
-    ///
-    /// **标题段落处理**：
-    /// - 第一个段落如果标记为 `.isTitle` 属性，会被识别为标题段落
-    /// - 标题段落通过 `AttributedStringToASTConverter` 转换为 `TitleBlockNode`
-    /// - `XMLGenerator` 将 `TitleBlockNode` 转换为 XML 的 `<title>` 标签
-    ///
-    /// - Returns: 小米笔记 XML 格式内容
-    /// - Note:
-    ///   - 使用 nsAttributedText 而不是 attributedText，因为 NativeEditorView 使用的是 nsAttributedText
-    ///   - 空内容返回空字符串
-    ///   - 转换失败时记录错误并返回空字符串
+    /// - Returns: 小米笔记 XML 格式内容（仅正文）
     func exportToXML() -> String {
-        // 处理空内容的情况
+        // 处理空正文的情况
         guard nsAttributedText.length > 0 else {
             return ""
         }
 
-        // 检查是否只包含空白字符
         let trimmedString = nsAttributedText.string.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedString.isEmpty {
             return ""
         }
 
         do {
-            // 关键修复：使用 nsAttributedText 而不是 attributedText
-            // 因为 NativeEditorView 使用的是 nsAttributedText，编辑后的内容存储在这里
             var xmlContent = try formatConverter.nsAttributedStringToXML(nsAttributedText)
 
-            // 如果原始内容有 <new-format/> 前缀，则在导出时也添加
             if hasNewFormatPrefix, !xmlContent.hasPrefix("<new-format/>") {
                 xmlContent = "<new-format/>" + xmlContent
             }
@@ -1020,73 +1004,6 @@ public class NativeEditorContext: ObservableObject {
         } catch {
             return ""
         }
-    }
-
-    /// 从编辑器内容提取标题
-    ///
-    /// 从当前编辑器内容中提取第一个段落作为标题
-    /// 如果第一个段落标记为 `.title` 类型，则提取其文本内容
-    ///
-    /// - Returns: 标题文本，如果没有标题段落则返回空字符串
-    ///
-    ///
-    /// 注意：
-    /// - 只提取第一个段落的文本
-    /// - 会移除末尾的换行符
-    /// - 如果第一个段落不是标题类型，返回空字符串
-    public func extractTitle() -> String {
-        // 处理空内容的情况
-        guard nsAttributedText.length > 0 else {
-            return ""
-        }
-
-        // 创建临时的 NSTextStorage 以使用 TitleIntegration
-        let textStorage = NSTextStorage(attributedString: nsAttributedText)
-
-        // 使用 TitleIntegration 提取标题
-        return TitleIntegration.shared.extractTitle(from: textStorage)
-    }
-
-    // MARK: - 标题段落支持方法
-
-    /// 插入标题段落
-    ///
-    /// 将标题作为第一个段落插入到编辑器中
-    /// 标题段落使用特殊的格式标记（通过自定义属性）
-    ///
-    /// - Parameter title: 标题文本
-    ///
-    ///
-    /// 注意：
-    /// - 如果编辑器已有内容，标题会插入到最前面
-    /// - 标题后会自动添加换行符
-    /// - 标题使用自定义属性 `paragraphType` 标记为 `.title`
-    public func insertTitleParagraph(_ title: String) {
-
-        // 如果标题为空，不插入
-        guard !title.isEmpty else {
-            return
-        }
-
-        // 创建临时的 NSTextStorage
-        let textStorage = NSTextStorage(attributedString: nsAttributedText)
-
-        // 使用 TitleIntegration 插入标题
-        TitleIntegration.shared.insertTitle(title, into: textStorage)
-
-        // 更新编辑器内容
-        updateNSContent(NSAttributedString(attributedString: textStorage))
-
-    }
-
-    /// 从编辑器内容提取标题（别名方法）
-    ///
-    /// 此方法是 `extractTitle()` 的别名，提供更明确的命名
-    ///
-    /// - Returns: 标题文本，如果没有标题段落则返回空字符串
-    ///
-    public func extractTitleFromContent() -> String {
-        extractTitle()
     }
 
     /// 检查格式是否激活

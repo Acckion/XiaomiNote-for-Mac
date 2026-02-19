@@ -22,9 +22,6 @@ struct NoteDetailView: View {
     @State private var isUploading = false
     @State private var showSaveSuccess = false
 
-    /// 标题提取服务
-    private let titleExtractionService = TitleExtractionService.shared
-
     /// 保存流程协调器
     private let savePipelineCoordinator = SavePipelineCoordinator()
 
@@ -367,7 +364,17 @@ struct NoteDetailView: View {
             handleNoteAppear(note)
         }
         // 笔记切换由外层 handleSelectedNoteChange 统一处理，此处不再重复
+        .onChange(of: nativeEditorContext.titleText) { _, newValue in
+            // 标题由 TitleTextField 编辑时，同步到 editedTitle
+            if editedTitle != newValue {
+                editedTitle = newValue
+            }
+        }
         .onChange(of: editedTitle) { _, newValue in
+            // 反向同步：加载笔记时 editedTitle 变化，同步到 TitleTextField
+            if nativeEditorContext.titleText != newValue {
+                nativeEditorContext.titleText = newValue
+            }
             Task { @MainActor in await handleTitleChange(newValue) }
         }
         .sheet(isPresented: $showImageInsertAlert) {
@@ -582,8 +589,6 @@ struct NoteDetailView: View {
                     )
                 } else {
                     // 普通模式：使用原生编辑器包装器
-                    // 任务 22.2 修复：使用 currentXMLContent（包含标题）而不是 note.primaryXMLContent
-                    // 这确保标题能够正确显示在编辑器中
                     UnifiedEditorWrapper(
                         content: $currentXMLContent,
                         isEditable: $isEditable,
@@ -602,29 +607,10 @@ struct NoteDetailView: View {
                             }
 
                             Task { @MainActor in
-                                // 任务 4.1: 集成 TitleExtractionService 进行标题提取
-
-                                // 1. 优先从原生编辑器提取标题
-                                var titleResult: TitleExtractionResult
-                                let nsAttributedText = nativeEditorContext.nsAttributedText
-                                if nsAttributedText.length > 0 {
-                                    // 创建临时的 NSTextStorage 用于标题提取
-                                    let textStorage = NSTextStorage(attributedString: nsAttributedText)
-                                    titleResult = titleExtractionService.extractTitleFromEditor(textStorage)
-                                } else {
-                                    // 2. 后备方案：从 XML 内容提取标题
-                                    titleResult = titleExtractionService.extractTitleFromXML(newXML)
-                                }
-
-                                // 3. 验证提取的标题
-                                let validation = titleExtractionService.validateTitle(titleResult.title)
-                                if validation.isValid {
-                                    // 更新 editedTitle 状态（保持 UI 同步）
-                                    if !titleResult.title.isEmpty {
-                                        editedTitle = titleResult.title
-                                    }
-                                } else {
-                                    // 保持原有标题不变
+                                // 标题直接从 nativeEditorContext.titleText 获取（已由 TitleTextField 绑定）
+                                let titleFromEditor = nativeEditorContext.titleText
+                                if !titleFromEditor.isEmpty {
+                                    editedTitle = titleFromEditor
                                 }
 
                                 // 4. 更新当前内容状态
@@ -639,8 +625,7 @@ struct NoteDetailView: View {
                                 }
 
                                 // [Tier 2] 异步保存 XML（后台，<50ms，防抖300ms）
-                                // 传递提取的标题结果，确保在保存前正确提取和设置标题
-                                scheduleXMLSave(xmlContent: newXML, for: currentNote, extractedTitle: titleResult, immediate: false)
+                                scheduleXMLSave(xmlContent: newXML, for: currentNote, immediate: false)
 
                                 // [Tier 3] 计划同步云端（延迟3秒）
                                 scheduleCloudUpload(for: currentNote, xmlContent: newXML)
@@ -970,27 +955,6 @@ struct NoteDetailView: View {
         // 加载内容
         var contentToLoad = note.primaryXMLContent
 
-        // 关键修复：插入标题到 XML（与 loadNoteContent 保持一致）
-        // 任务 22.2: 如果有标题，将标题插入到内容的开头
-        // 标题将作为编辑器的第一个段落显示
-        if !title.isEmpty {
-            // 检查 XML 中是否已经有 <title> 标签
-            if !contentToLoad.contains("<title>") {
-                // 如果没有 <title> 标签，添加一个
-                // 将标题插入到内容的最前面（在 <new-format/> 之后）
-                let titleTag = "<title>\(encodeXMLEntities(title))</title>"
-
-                if contentToLoad.hasPrefix("<new-format/>") {
-                    // 在 <new-format/> 后插入标题
-                    let afterPrefix = String(contentToLoad.dropFirst("<new-format/>".count))
-                    contentToLoad = "<new-format/>\(titleTag)\(afterPrefix)"
-                } else {
-                    // 直接在开头插入标题
-                    contentToLoad = "\(titleTag)\(contentToLoad)"
-                }
-            }
-        }
-
         currentXMLContent = contentToLoad
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
@@ -1119,19 +1083,6 @@ struct NoteDetailView: View {
             await MemoryCacheManager.shared.cacheNote(note)
         }
 
-        // 任务 22.2: 如果有标题，将标题插入到内容的开头
-        if !title.isEmpty {
-            if !contentToLoad.contains("<title>") {
-                let titleTag = "<title>\(encodeXMLEntities(title))</title>"
-                if contentToLoad.hasPrefix("<new-format/>") {
-                    let afterPrefix = String(contentToLoad.dropFirst("<new-format/>".count))
-                    contentToLoad = "<new-format/>\(titleTag)\(afterPrefix)"
-                } else {
-                    contentToLoad = "\(titleTag)\(contentToLoad)"
-                }
-            }
-        }
-
         currentXMLContent = contentToLoad
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
@@ -1150,25 +1101,6 @@ struct NoteDetailView: View {
         }
 
         isInitializing = false
-    }
-
-    /// 编码 XML 实体
-    ///
-    /// 将特殊字符转换为 XML 实体，以便安全地嵌入 XML 中
-    ///
-    /// - Parameter text: 原始文本
-    /// - Returns: 编码后的文本
-    private func encodeXMLEntities(_ text: String) -> String {
-        var result = text
-
-        // 必须首先处理 &，避免重复编码
-        result = result.replacingOccurrences(of: "&", with: "&amp;")
-        result = result.replacingOccurrences(of: "<", with: "&lt;")
-        result = result.replacingOccurrences(of: ">", with: "&gt;")
-        result = result.replacingOccurrences(of: "\"", with: "&quot;")
-        result = result.replacingOccurrences(of: "'", with: "&apos;")
-
-        return result
     }
 
     @MainActor
@@ -1319,11 +1251,10 @@ struct NoteDetailView: View {
     /// - Parameters:
     ///   - xmlContent: XML内容
     ///   - note: 笔记对象
-    ///   - extractedTitle: 提取的标题结果（可选）
     ///   - immediate: 是否立即保存（切换笔记时使用），默认false（防抖保存）
     ///
     @MainActor
-    private func scheduleXMLSave(xmlContent: String, for note: Note, extractedTitle: TitleExtractionResult? = nil, immediate: Bool = false) {
+    private func scheduleXMLSave(xmlContent: String, for note: Note, immediate: Bool = false) {
         guard note.id == currentEditingNoteId else {
             return
         }
@@ -1345,7 +1276,7 @@ struct NoteDetailView: View {
                 }
                 return
             }
-            performXMLSave(xmlContent: xmlContent, for: note, extractedTitle: extractedTitle)
+            performXMLSave(xmlContent: xmlContent, for: note)
         } else {
             if case .saved = saveStatus {
                 saveStatus = .unsaved
@@ -1378,7 +1309,7 @@ struct NoteDetailView: View {
                     return
                 }
 
-                performXMLSave(xmlContent: latestXMLContent, for: note, extractedTitle: extractedTitle)
+                performXMLSave(xmlContent: latestXMLContent, for: note)
             }
         }
     }
@@ -1386,7 +1317,7 @@ struct NoteDetailView: View {
     /// 执行XML保存
     ///
     @MainActor
-    private func performXMLSave(xmlContent: String, for note: Note, extractedTitle _: TitleExtractionResult? = nil) {
+    private func performXMLSave(xmlContent: String, for note: Note) {
         // 任务 4.3: 集成 SavePipelineCoordinator
 
         xmlSaveTask?.cancel()
@@ -1405,23 +1336,11 @@ struct NoteDetailView: View {
             }
 
             do {
-                let textStorage = isUsingNativeEditor ? NSTextStorage(attributedString: nativeEditorContext.nsAttributedText) : nil
-
                 let result = try await savePipelineCoordinator.executeSavePipeline(
                     xmlContent: xmlContent,
-                    textStorage: textStorage,
                     noteId: noteId
-                ) { noteId, title, content in
-                    let titleResult = TitleExtractionResult(
-                        title: title,
-                        source: textStorage != nil ? .nativeEditor : .xml,
-                        isValid: true,
-                        extractionTime: Date(),
-                        originalLength: xmlContent.count,
-                        processedLength: content.count
-                    )
-
-                    let updated = buildUpdatedNote(from: note, xmlContent: xmlContent, extractedTitle: titleResult)
+                ) { noteId, _, _ in
+                    let updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
 
                     let saveResult = await NoteOperationCoordinator.shared.saveNote(updated)
 
@@ -1433,7 +1352,7 @@ struct NoteDetailView: View {
                     }
                 }
 
-                LogService.shared.info(.editor, "保存成功 - 标题: '\(result.extractedTitle)', 耗时: \(String(format: "%.2f", result.executionTime))秒")
+                LogService.shared.info(.editor, "保存成功，耗时: \(String(format: "%.2f", result.executionTime))秒")
             } catch {
                 guard !Task.isCancelled, currentEditingNoteId == noteId else {
                     return
@@ -1723,20 +1642,16 @@ struct NoteDetailView: View {
     private func buildUpdatedNote(
         from note: Note,
         xmlContent: String,
-        extractedTitle: TitleExtractionResult? = nil,
         shouldUpdateTimestamp: Bool = true
     ) -> Note {
-        let titleToUse: String = if let extractedTitle, extractedTitle.isValid, !extractedTitle.title.isEmpty {
-            extractedTitle.title
-        } else if note.id == currentEditingNoteId {
+        // 标题从数据库直接读取，不再从 XML 提取
+        let titleToUse: String = if note.id == currentEditingNoteId {
             editedTitle
         } else {
             note.title
         }
 
-        // ✅ 关键修复：移除 XML 中的 <title> 标签
-        // 数据库中只存储正文内容，标题单独存储在 Note.title 字段
-        let contentWithoutTitle = removeTitleTag(from: xmlContent)
+        let contentToSave = xmlContent
 
         // 关键修复：合并 rawData，确保包含最新的 setting.data（音频/图片元数据）
         // 从 viewModel.selectedNote 获取最新的 rawData，因为音频上传后会更新 setting.data
@@ -1756,7 +1671,7 @@ struct NoteDetailView: View {
         return Note(
             id: note.id,
             title: titleToUse,
-            content: contentWithoutTitle,
+            content: contentToSave,
             folderId: note.folderId,
             isStarred: note.isStarred,
             createdAt: note.createdAt,
@@ -1767,25 +1682,6 @@ struct NoteDetailView: View {
             settingJson: note.settingJson,
             extraInfoJson: note.extraInfoJson
         )
-    }
-
-    /// 从 XML 中移除 <title> 标签
-    ///
-    /// 数据库中只存储正文内容，标题单独存储在 Note.title 字段
-    ///
-    /// - Parameter xml: 包含标题的完整 XML
-    /// - Returns: 移除标题后的 XML（只包含正文）
-    private func removeTitleTag(from xml: String) -> String {
-        // 使用正则表达式移除 <title>...</title> 标签
-        // 支持多行标题和特殊字符
-        let pattern = "<title>.*?</title>"
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else {
-            LogService.shared.warning(.app, "removeTitleTag: 正则表达式创建失败，返回原始内容")
-            return xml
-        }
-
-        let range = NSRange(xml.startIndex..., in: xml)
-        return regex.stringByReplacingMatches(in: xml, range: range, withTemplate: "")
     }
 
     /// 延迟更新 viewModel 中的笔记数据，避免在视图更新周期内修改 @Published 属性

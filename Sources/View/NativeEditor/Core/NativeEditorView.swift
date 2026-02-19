@@ -59,6 +59,19 @@ struct NativeEditorView: NSViewRepresentable {
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
 
+        // 创建垂直 StackView 作为 documentView（标题 + 正文）
+        let stackView = FlippedStackView()
+        stackView.orientation = .vertical
+        stackView.alignment = .leading
+        stackView.spacing = 12
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+
+        // 创建标题 TextField
+        let titleField = TitleTextField()
+        titleField.isEditable = isEditable
+        titleField.delegate = context.coordinator
+        titleField.stringValue = editorContext.titleText
+
         // 创建优化的文本视图
         let textView = NativeTextView()
         textView.delegate = context.coordinator
@@ -86,11 +99,11 @@ struct NativeEditorView: NSViewRepresentable {
         textView.drawsBackground = false
         // 使用 FontSizeManager 统一管理默认字体 (14pt)
         textView.font = FontSizeManager.shared.defaultFont
-        textView.textColor = .labelColor // 使用 labelColor 自动适配深色模式
-        textView.insertionPointColor = .controlAccentColor // 设置光标颜色为系统强调色
+        textView.textColor = .labelColor
+        textView.insertionPointColor = .controlAccentColor
 
-        // 设置内边距
-        textView.textContainerInset = NSSize(width: 16, height: 16)
+        // 内边距：左右 16pt，上下 0（上边距由 stackView 布局控制）
+        textView.textContainerInset = NSSize(width: 16, height: 0)
 
         // 设置自动调整大小
         textView.minSize = NSSize(width: 0, height: 0)
@@ -99,12 +112,42 @@ struct NativeEditorView: NSViewRepresentable {
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
 
+        // NSStackView 中使用 Auto Layout，需要关闭 autoresizing mask 转换
+        // 但 NSTextView 的高度由内容决定，需要通过 invalidateIntrinsicContentSize 驱动
+        textView.translatesAutoresizingMaskIntoConstraints = false
+
+        // 组装 StackView
+        stackView.addArrangedSubview(titleField)
+        stackView.addArrangedSubview(textView)
+
         // 配置滚动视图
-        scrollView.documentView = textView
+        scrollView.documentView = stackView
+
+        // 约束：stackView 宽度跟随 scrollView.contentView
+        NSLayoutConstraint.activate([
+            stackView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
+        ])
+
+        // 标题 TextField 约束：左右内边距与 textView 的 textContainerInset 对齐
+        // NSTextField 文本起始位置比 NSTextView 偏左约 5pt，所以用 21pt 对齐
+        NSLayoutConstraint.activate([
+            titleField.leadingAnchor.constraint(equalTo: stackView.leadingAnchor, constant: 21),
+            titleField.trailingAnchor.constraint(equalTo: stackView.trailingAnchor, constant: -21),
+            titleField.topAnchor.constraint(equalTo: stackView.topAnchor, constant: 16),
+        ])
+
+        // textView 宽度跟随 stackView，高度至少填满可见区域
+        let textViewHeightConstraint = textView.heightAnchor.constraint(greaterThanOrEqualTo: scrollView.contentView.heightAnchor, constant: -60)
+        textViewHeightConstraint.priority = .defaultHigh
+        NSLayoutConstraint.activate([
+            textView.widthAnchor.constraint(equalTo: stackView.widthAnchor),
+            textViewHeightConstraint,
+        ])
 
         // 保存引用
         context.coordinator.textView = textView
         context.coordinator.scrollView = scrollView
+        context.coordinator.titleField = titleField
 
         // 加载初始内容
         if !editorContext.nsAttributedText.string.isEmpty {
@@ -129,11 +172,22 @@ struct NativeEditorView: NSViewRepresentable {
         AttachmentSelectionManager.shared.unregister()
     }
 
-    func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let textView = scrollView.documentView as? NativeTextView else { return }
+    func updateNSView(_: NSScrollView, context: Context) {
+        guard let textView = context.coordinator.textView else { return }
 
         // 更新可编辑状态
         textView.isEditable = isEditable
+        context.coordinator.titleField?.isEditable = isEditable
+
+        // 同步标题文本（避免循环更新）
+        if let titleField = context.coordinator.titleField,
+           !context.coordinator.isUpdatingTitleProgrammatically,
+           titleField.stringValue != editorContext.titleText
+        {
+            context.coordinator.isUpdatingTitleProgrammatically = true
+            titleField.stringValue = editorContext.titleText
+            context.coordinator.isUpdatingTitleProgrammatically = false
+        }
 
         // 确保文字颜色适配当前外观（深色/浅色模式）
         textView.textColor = .labelColor
@@ -188,14 +242,18 @@ struct NativeEditorView: NSViewRepresentable {
     // MARK: - Coordinator
 
     @MainActor
-    class Coordinator: NSObject, NSTextViewDelegate {
+    class Coordinator: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         var parent: NativeEditorView
         weak var textView: NativeTextView?
         weak var scrollView: NSScrollView?
+        weak var titleField: TitleTextField?
         var isUpdatingFromTextView = false
 
         /// 标记是否正在从 SwiftUI updateNSView 更新（诊断用）
         var isUpdatingFromSwiftUI = false
+
+        /// 标记是否正在程序化更新标题（防止循环）
+        var isUpdatingTitleProgrammatically = false
 
         private var cancellables = Set<AnyCancellable>()
 
@@ -529,6 +587,37 @@ struct NativeEditorView: NSViewRepresentable {
 
             // 更新记录的音频附件集合
             previousAudioFileIds = currentAudioFileIds
+        }
+
+        // MARK: - NSTextFieldDelegate
+
+        func controlTextDidChange(_ notification: Notification) {
+            guard let titleField = notification.object as? TitleTextField else { return }
+            guard !isUpdatingTitleProgrammatically else { return }
+
+            isUpdatingTitleProgrammatically = true
+            parent.editorContext.titleText = titleField.stringValue
+            parent.editorContext.hasUnsavedChanges = true
+            isUpdatingTitleProgrammatically = false
+        }
+
+        /// 处理标题 TextField 的特殊按键（Enter/Tab → 焦点转移到正文）
+        func control(_ control: NSControl, textView _: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            if control is TitleTextField,
+               commandSelector == #selector(NSResponder.insertNewline(_:)) ||
+               commandSelector == #selector(NSResponder.insertTab(_:))
+            {
+                guard let textView else { return true }
+                textView.window?.makeFirstResponder(textView)
+                textView.setSelectedRange(NSRange(location: 0, length: 0))
+                return true
+            }
+            return false
+        }
+
+        func controlTextDidBeginEditing(_ notification: Notification) {
+            guard notification.object is TitleTextField else { return }
+            parent.editorContext.setEditorFocused(true)
         }
 
         // MARK: - NSTextViewDelegate
@@ -1709,6 +1798,22 @@ class NativeTextView: NSTextView {
             return
         }
 
+        // 向上方向键：光标在第一行开头时，焦点转移到标题 TextField
+        if event.keyCode == 126 { // Up arrow
+            let cursorLocation = selectedRange().location
+            if cursorLocation == 0 {
+                if let scrollView = enclosingScrollView,
+                   let stackView = scrollView.documentView as? FlippedStackView,
+                   let titleField = stackView.arrangedSubviews.first as? TitleTextField
+                {
+                    window?.makeFirstResponder(titleField)
+                    // 将光标移到标题末尾
+                    titleField.currentEditor()?.selectedRange = NSRange(location: titleField.stringValue.count, length: 0)
+                    return
+                }
+            }
+        }
+
         // 处理快捷键
         if event.modifierFlags.contains(.command) {
             switch event.charactersIgnoringModifiers {
@@ -1753,13 +1858,6 @@ class NativeTextView: NSTextView {
                 return
             }
 
-            // 任务 22.7: 处理标题中的 Enter 键
-            if handleReturnKeyForTitle() {
-                // 通知内容变化
-                delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
-                return
-            }
-
             // 首先尝试使用 UnifiedFormatManager 处理换行
             // 如果 UnifiedFormatManager 已注册且处理了换行，则不执行默认行为
             if UnifiedFormatManager.shared.isRegistered {
@@ -1787,12 +1885,7 @@ class NativeTextView: NSTextView {
 
         // 处理删除键 - 删除分割线
         if event.keyCode == 51 { // Delete key (Backspace)
-            // 首先检查标题边界保护
-            if !canDeleteAtCurrentPosition() {
-                return
-            }
-
-            // 然后尝试删除分割线
+            // 尝试删除分割线
             if deleteSelectedHorizontalRule() {
                 return
             }
@@ -1804,94 +1897,6 @@ class NativeTextView: NSTextView {
         }
 
         super.keyDown(with: event)
-    }
-
-    // MARK: - Title Handling
-
-    /// 处理标题中的 Enter 键
-    ///
-    /// 当光标在标题段落中按 Enter 时：
-    /// 1. 移动光标到正文开头（标题换行符之后）
-    /// 2. 如果正文为空，插入换行符并使用默认格式
-    /// 3. 如果正文不为空，继承正文第一行的格式
-    ///
-    /// - Returns: 是否处理了 Enter 键
-    ///
-    private func handleReturnKeyForTitle() -> Bool {
-        guard let textStorage else { return false }
-
-        let selectedRange = selectedRange()
-        let cursorPosition = selectedRange.location
-
-        // 检查光标是否在标题段落
-        guard isTitleParagraph(at: cursorPosition) else {
-            return false
-        }
-
-        // 查找标题段落的结束位置（第一个换行符）
-        let string = textStorage.string as NSString
-        let titleLineRange = string.lineRange(for: NSRange(location: 0, length: 1))
-        let titleEnd = titleLineRange.location + titleLineRange.length
-
-        // 检查标题后是否有内容（正文）
-        if titleEnd >= textStorage.length {
-            // 正文为空，插入换行符并使用默认格式
-
-            textStorage.beginEditing()
-
-            // 在标题末尾插入换行符（如果还没有）
-            if titleEnd == 0 || string.character(at: titleEnd - 1) != unichar(UInt8(ascii: "\n")) {
-                textStorage.insert(NSAttributedString(string: "\n"), at: titleEnd)
-            }
-
-            // 插入正文的第一行（使用默认格式）
-            let bodyAttributes: [NSAttributedString.Key: Any] = [
-                .font: FontSizeManager.shared.defaultFont,
-                .foregroundColor: NSColor.labelColor,
-            ]
-            let bodyString = NSAttributedString(string: "\n", attributes: bodyAttributes)
-            textStorage.insert(bodyString, at: titleEnd + 1)
-
-            textStorage.endEditing()
-
-            // 移动光标到正文开头
-            setSelectedRange(NSRange(location: titleEnd + 1, length: 0))
-
-            return true
-        }
-
-        // 正文不为空，移动光标到正文开头
-
-        // 查找正文第一行的范围
-        let bodyStart = titleEnd
-        let bodyLineRange = string.lineRange(for: NSRange(location: bodyStart, length: 0))
-
-        // 获取正文第一行的格式
-        var bodyAttributes: [NSAttributedString.Key: Any] = [:]
-        if bodyLineRange.length > 0, bodyStart < textStorage.length {
-            bodyAttributes = textStorage.attributes(at: bodyStart, effectiveRange: nil)
-        }
-
-        // 如果正文第一行没有格式，使用默认格式
-        if bodyAttributes.isEmpty {
-            bodyAttributes = [
-                .font: FontSizeManager.shared.defaultFont,
-                .foregroundColor: NSColor.labelColor,
-            ]
-        }
-
-        // 移动光标到正文开头
-        setSelectedRange(NSRange(location: bodyStart, length: 0))
-
-        // 更新打字属性，继承正文第一行的格式
-        if let font = bodyAttributes[.font] as? NSFont {
-            typingAttributes[.font] = font
-        }
-        if let foregroundColor = bodyAttributes[.foregroundColor] as? NSColor {
-            typingAttributes[.foregroundColor] = foregroundColor
-        }
-
-        return true
     }
 
     // MARK: - List Handling
@@ -2062,123 +2067,6 @@ class NativeTextView: NSTextView {
         delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
 
         return true
-    }
-
-    /// 检查当前位置是否可以删除
-    ///
-    /// 实现标题边界保护：
-    /// 1. 阻止删除标题和正文之间的换行符
-    /// 2. 阻止在标题开头按 Backspace
-    /// 3. 阻止在正文开头按 Backspace 合并到标题
-    ///
-    /// - Returns: 是否可以删除
-    ///
-    private func canDeleteAtCurrentPosition() -> Bool {
-        guard let textStorage else { return true }
-
-        let selectedRange = selectedRange()
-
-        // 如果有选择范围，检查是否跨越标题边界
-        if selectedRange.length > 0 {
-            // 检查选择范围是否包含标题段落
-            let selectionStart = selectedRange.location
-            let selectionEnd = selectedRange.location + selectedRange.length
-
-            // 检查选择起点是否在标题段落
-            let startInTitle = isTitleParagraph(at: selectionStart)
-
-            // 检查选择终点是否在标题段落
-            let endInTitle = isTitleParagraph(at: selectionEnd)
-
-            // 如果选择跨越标题边界（一端在标题，一端不在标题），阻止删除
-            if startInTitle != endInTitle {
-                return false
-            }
-
-            // 允许删除（选择范围完全在标题内或完全在正文内）
-            return true
-        }
-
-        // 光标位置（无选择）
-        let cursorPosition = selectedRange.location
-
-        // 情况1: 阻止在标题开头按 Backspace
-        if cursorPosition == 0 {
-            return false
-        }
-
-        // 检查光标是否在标题段落
-        let cursorInTitle = isTitleParagraph(at: cursorPosition)
-
-        if cursorInTitle {
-            // 光标在标题段落内
-            // 查找标题段落的范围
-            let string = textStorage.string as NSString
-            let titleLineRange = string.lineRange(for: NSRange(location: 0, length: 1))
-
-            // 如果光标在标题段落的开头（位置0），阻止删除
-            if cursorPosition == 0 {
-                return false
-            }
-
-            // 允许在标题段落内删除（但不在开头）
-            return true
-        }
-
-        // 情况2: 阻止在正文开头按 Backspace 合并到标题
-        // 检查光标前一个字符是否是标题段落的换行符
-        let prevPosition = cursorPosition - 1
-        if prevPosition >= 0 {
-            let prevInTitle = isTitleParagraph(at: prevPosition)
-
-            // 如果前一个位置在标题段落，当前位置不在标题段落
-            // 说明光标在标题和正文之间的换行符后面（正文开头）
-            if prevInTitle, !cursorInTitle {
-                return false
-            }
-        }
-
-        // 允许删除
-        return true
-    }
-
-    /// 检查指定位置是否在标题段落
-    ///
-    /// - Parameter position: 位置
-    /// - Returns: 是否在标题段落
-    private func isTitleParagraph(at position: Int) -> Bool {
-        guard let textStorage,
-              position >= 0,
-              position <= textStorage.length
-        else {
-            return false
-        }
-
-        // 如果位置在文本末尾，检查最后一个字符
-        let checkPosition = position == textStorage.length ? max(0, position - 1) : position
-
-        guard checkPosition < textStorage.length else {
-            return false
-        }
-
-        // 获取该位置的段落范围
-        let string = textStorage.string as NSString
-        let lineRange = string.lineRange(for: NSRange(location: checkPosition, length: 0))
-
-        // 检查段落的 .isTitle 属性
-        let attributes = textStorage.attributes(at: lineRange.location, effectiveRange: nil)
-        if let isTitle = attributes[.isTitle] as? Bool, isTitle {
-            return true
-        }
-
-        // 检查段落的 .paragraphType 属性
-        if let paragraphType = attributes[.paragraphType] as? ParagraphType,
-           paragraphType == .title
-        {
-            return true
-        }
-
-        return false
     }
 
     /// 处理删除键（Backspace）合并列表项

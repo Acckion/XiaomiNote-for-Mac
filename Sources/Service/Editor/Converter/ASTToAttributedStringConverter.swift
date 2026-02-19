@@ -69,22 +69,11 @@ public final class ASTToAttributedStringConverter {
         // 每次转换文档时重置有序列表编号计数器
         currentOrderedListNumber = 0
 
-        var hasTitle = false
         var contentBlocks = document.blocks
 
-        if let firstBlock = document.blocks.first as? TitleBlockNode {
-            let titleString = convertTitleBlock(firstBlock)
-            result.append(titleString)
-            hasTitle = true
+        // 跳过 TitleBlockNode，标题已独立于正文，不再渲染到 NSTextView 中
+        if document.blocks.first is TitleBlockNode {
             contentBlocks = Array(document.blocks.dropFirst())
-        } else if let title = document.title, !title.isEmpty {
-            let titleString = createTitleParagraph(title)
-            result.append(titleString)
-            hasTitle = true
-        }
-
-        if hasTitle, !contentBlocks.isEmpty {
-            result.append(NSAttributedString(string: "\n"))
         }
 
         for (index, block) in contentBlocks.enumerated() {
@@ -95,54 +84,6 @@ public final class ASTToAttributedStringConverter {
                 result.append(NSAttributedString(string: "\n"))
             }
         }
-
-        return result
-    }
-
-    /// 转换标题块节点
-    /// - Parameter node: 标题块节点
-    /// - Returns: NSAttributedString
-    /// _任务 22.2_ - 标题段落使用 40pt Semibold 字体
-    private func convertTitleBlock(_ node: TitleBlockNode) -> NSAttributedString {
-        let result = NSMutableAttributedString()
-
-        let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
-        result.append(inlineString)
-
-        let fullRange = NSRange(location: 0, length: result.length)
-
-        result.addAttribute(.isTitle, value: true, range: fullRange)
-
-        let titleFont = NSFont.systemFont(ofSize: 40, weight: .semibold)
-        result.addAttribute(.font, value: titleFont, range: fullRange)
-
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .left
-        paragraphStyle.lineSpacing = 4
-        paragraphStyle.paragraphSpacing = 12
-        result.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
-
-        return result
-    }
-
-    /// 创建标题段落（从纯文本）
-    /// - Parameter title: 标题文本
-    /// - Returns: NSAttributedString
-    /// _任务 22.2_ - 标题段落使用 40pt Semibold 字体
-    private func createTitleParagraph(_ title: String) -> NSAttributedString {
-        let result = NSMutableAttributedString(string: title)
-        let fullRange = NSRange(location: 0, length: result.length)
-
-        result.addAttribute(.isTitle, value: true, range: fullRange)
-
-        let titleFont = NSFont.systemFont(ofSize: 40, weight: .semibold)
-        result.addAttribute(.font, value: titleFont, range: fullRange)
-
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .left
-        paragraphStyle.lineSpacing = 4
-        paragraphStyle.paragraphSpacing = 12
-        result.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
 
         return result
     }
@@ -161,9 +102,8 @@ public final class ASTToAttributedStringConverter {
 
         switch block.nodeType {
         case .titleBlock:
-            // 标题块应该在 convert() 方法中处理，不应该出现在这里
-            // 如果出现，说明有错误，但为了容错，转换为标题段落
-            return convertTitleBlock(block as! TitleBlockNode)
+            // 标题块在 convert() 中已跳过，此处为容错处理，返回空字符串
+            return NSAttributedString()
         case .textBlock:
             return convertTextBlock(block as! TextBlockNode)
         case .bulletList:

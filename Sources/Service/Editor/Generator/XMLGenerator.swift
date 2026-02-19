@@ -42,24 +42,11 @@ public final class XMLGenerator: @unchecked Sendable {
     public func generate(_ document: DocumentNode) -> String {
         var lines: [String] = []
 
-        // 检查第一个块是否为标题块
-        var titleText: String?
         var contentBlocks: [any BlockNode] = document.blocks
 
-        if let firstBlock = document.blocks.first as? TitleBlockNode {
-            // 提取标题文本
-            titleText = extractTextFromInlineNodes(firstBlock.content)
-            // 移除标题块，不在内容中重复
+        if document.blocks.first is TitleBlockNode {
+            // 旧数据兼容：跳过 TitleBlockNode，不再生成 <title> 标签
             contentBlocks = Array(document.blocks.dropFirst())
-        } else if let title = document.title {
-            // 使用 DocumentNode 的 title 属性（向后兼容）
-            titleText = title
-        }
-
-        // 如果有标题，先生成标题标签
-        if let title = titleText, !title.isEmpty {
-            let encodedTitle = encodeXMLEntities(title)
-            lines.append("<title>\(encodedTitle)</title>")
         }
 
         // 生成所有块级元素

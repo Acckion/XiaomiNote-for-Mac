@@ -255,12 +255,10 @@ class AttributeManager {
         return false
     }
 
-    /// 判断是否为元属性
     private func isMetaAttribute(_ key: NSAttributedString.Key) -> Bool {
         key == .paragraphType ||
             key == .listLevel ||
-            key == .listType ||
-            key == .isTitle
+            key == .listType
     }
 
     /// 判断是否为布局属性

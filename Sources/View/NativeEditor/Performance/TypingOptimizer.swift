@@ -239,11 +239,6 @@ public final class TypingOptimizer {
             return true
         }
 
-        // 检查是否有标题属性
-        if attributes[.isTitle] != nil {
-            return true
-        }
-
         // 检查是否有列表属性
         if attributes[.listType] != nil || attributes[.listLevel] != nil {
             return true

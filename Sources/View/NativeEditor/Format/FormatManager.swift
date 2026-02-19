@@ -827,22 +827,12 @@ class FormatManager {
 
     /// 应用格式
     ///
-    /// **标题段落格式限制**：
-    /// - 检测段落是否为标题段落（通过 `.isTitle` 属性）
-    /// - 禁止对标题段落应用段落格式（列表、标题样式、对齐、引用等）
-    /// - 允许对标题段落应用内联格式（加粗、斜体、下划线、删除线、高亮）
-    ///
     /// - Parameters:
     ///   - format: 格式类型
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
     ///
     func applyFormat(_ format: TextFormat, to textStorage: NSTextStorage, range: NSRange) {
-        // 检查是否为标题段落
-        if format.isBlockFormat, isTitleParagraph(in: textStorage, range: range) {
-            return
-        }
-
         switch format {
         case .bold:
             applyBold(to: textStorage, range: range)
@@ -920,38 +910,7 @@ class FormatManager {
 
     // MARK: - Private Methods
 
-    /// 检查段落是否为标题段落
-    ///
-    /// 通过检查段落的 `.isTitle` 属性来判断
-    ///
-    /// - Parameters:
-    ///   - textStorage: 文本存储
-    ///   - range: 段落范围
-    /// - Returns: 是否为标题段落
-    ///
-    private func isTitleParagraph(in textStorage: NSTextStorage, range: NSRange) -> Bool {
-        guard range.location < textStorage.length else {
-            return false
-        }
-
-        // 获取段落范围
-        let lineRange = (textStorage.string as NSString).lineRange(for: range)
-
-        // 检查段落的 `.isTitle` 属性
-        let attributes = textStorage.attributes(at: lineRange.location, effectiveRange: nil)
-        if let isTitle = attributes[.isTitle] as? Bool, isTitle {
-            return true
-        }
-
-        // 检查段落的 `.paragraphType` 属性
-        if let paragraphType = attributes[.paragraphType] as? ParagraphType,
-           paragraphType == .title
-        {
-            return true
-        }
-
-        return false
-    }
+    // MARK: - Private Methods
 
     /// 应用字体特性
     private func applyFontTrait(_ trait: NSFontDescriptor.SymbolicTraits, to textStorage: NSTextStorage, range: NSRange, toggle: Bool) {
