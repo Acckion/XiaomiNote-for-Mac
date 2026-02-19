@@ -56,7 +56,6 @@ struct NoteDetailView: View {
 
     // MARK: - 调试模式状态
 
-
     /// 是否处于调试模式
     ///
     /// 当为 true 时，显示 XML 调试编辑器；当为 false 时，显示普通编辑器
@@ -89,7 +88,6 @@ struct NoteDetailView: View {
     private let xmlSaveDebounceDelay: UInt64 = 300_000_000 // 300ms
 
     // MARK: - 保存重试状态
-
 
     /// 待重试保存的 XML 内容
     @State private var pendingRetryXMLContent: String?
@@ -683,7 +681,7 @@ struct NoteDetailView: View {
 
     /// 处理调试模式下的内容变化
     ///
-    private func handleDebugContentChange(_ newContent: String) {
+    private func handleDebugContentChange(_: String) {
         guard !isInitializing else { return }
 
         // 标记为未保存
@@ -993,15 +991,11 @@ struct NoteDetailView: View {
         }
 
         currentXMLContent = contentToLoad
-        // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
 
-        // 关键修复：立即调用 loadFromXML 确保编辑器内容同步
-        // 这解决了笔记切换时内容丢失的问题
-        if isUsingNativeEditor {
-            nativeEditorContext.loadFromXML(currentXMLContent)
-        }
+        // loadFromXML 由 UnifiedEditorWrapper 的 .onChange(of: xmlContent) 统一处理，
+        // 通过 DispatchQueue.main.async 确保脱离视图更新周期
 
         // 调试模式：同步内容到调试编辑器
         if isDebugMode {
@@ -1141,9 +1135,7 @@ struct NoteDetailView: View {
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
 
-        if isUsingNativeEditor {
-            nativeEditorContext.loadFromXML(currentXMLContent)
-        }
+        // loadFromXML 由 UnifiedEditorWrapper 的 .onChange(of: xmlContent) 统一处理
 
         if isDebugMode {
             debugXMLContent = currentXMLContent
@@ -1182,8 +1174,6 @@ struct NoteDetailView: View {
     private func handleNoteChange(_ newValue: Note) async {
         let task = saveCurrentNoteBeforeSwitching(newNoteId: newValue.id)
         if let t = task { await t.value }
-        // 确保脱离 .onChange 的视图更新周期
-        await Task.yield()
         await quickSwitchToNote(newValue)
     }
 
@@ -1455,7 +1445,7 @@ struct NoteDetailView: View {
     }
 
     @MainActor
-    private func handleSaveSuccess(xmlContent: String, noteId: String, updatedNote: Note) async {
+    private func handleSaveSuccess(xmlContent: String, noteId _: String, updatedNote: Note) async {
         lastSavedXMLContent = xmlContent
         currentXMLContent = xmlContent
 
@@ -1706,13 +1696,13 @@ struct NoteDetailView: View {
         guard let newNote = newValue else { return }
         if oldValue?.id != newNote.id {
             let task = saveCurrentNoteBeforeSwitching(newNoteId: newNote.id)
-            Task { @MainActor in
-                if let t = task { await t.value }
-                // 关键修复：在调用 quickSwitchToNote 前先 yield，确保脱离 .onChange 的视图更新周期
-                // 这避免了 loadFromXML 中修改 @Published 属性时触发
-                // "Publishing changes from within view updates is not allowed" 警告
-                await Task.yield()
-                await quickSwitchToNote(newNote)
+            // 使用 DispatchQueue.main.async 确保在下一个 run loop 迭代中执行，
+            // 彻底脱离 .onChange 的视图更新周期
+            DispatchQueue.main.async {
+                Task { @MainActor in
+                    if let t = task { await t.value }
+                    await quickSwitchToNote(newNote)
+                }
             }
         }
     }
@@ -1734,14 +1724,12 @@ struct NoteDetailView: View {
         extractedTitle: TitleExtractionResult? = nil,
         shouldUpdateTimestamp: Bool = true
     ) -> Note {
-        // 任务 4.2: 修改标题使用逻辑，优先使用传入的提取标题
-        let titleToUse: String
-        if let extractedTitle, extractedTitle.isValid, !extractedTitle.title.isEmpty {
-            titleToUse = extractedTitle.title
+        let titleToUse: String = if let extractedTitle, extractedTitle.isValid, !extractedTitle.title.isEmpty {
+            extractedTitle.title
         } else if note.id == currentEditingNoteId {
-            titleToUse = editedTitle
+            editedTitle
         } else {
-            titleToUse = note.title
+            note.title
         }
 
         // ✅ 关键修复：移除 XML 中的 <title> 标签
@@ -1795,9 +1783,7 @@ struct NoteDetailView: View {
         }
 
         let range = NSRange(xml.startIndex..., in: xml)
-        let result = regex.stringByReplacingMatches(in: xml, range: range, withTemplate: "")
-
-        return result
+        return regex.stringByReplacingMatches(in: xml, range: range, withTemplate: "")
     }
 
     /// 延迟更新 viewModel 中的笔记数据，避免在视图更新周期内修改 @Published 属性

@@ -164,8 +164,7 @@ public class AutoSaveManager {
     }
 
     /// 打印调试信息
-    public func printDebugInfo() {
-    }
+    public func printDebugInfo() {}
 
     // MARK: - 清理
 

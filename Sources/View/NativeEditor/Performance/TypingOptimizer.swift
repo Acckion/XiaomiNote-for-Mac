@@ -82,7 +82,6 @@ public final class TypingOptimizer {
 
     private init() {}
 
-
     /// 检测是否为简单输入
     ///
     /// 简单输入的定义：

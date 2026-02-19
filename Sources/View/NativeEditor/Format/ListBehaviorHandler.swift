@@ -185,8 +185,7 @@ public struct ListBehaviorHandler {
         // 检查是否在列表标记区域内
         if isInListMarkerArea(in: textStorage, at: position) {
             // 调整到内容起始位置
-            let adjustedPosition = getContentStartPosition(in: textStorage, at: position)
-            return adjustedPosition
+            return getContentStartPosition(in: textStorage, at: position)
         }
 
         return position
@@ -348,14 +347,14 @@ public struct ListBehaviorHandler {
         return true
     }
 
-    /// 检查位置是否在勾选框区域内
-    ///
-    /// 勾选框区域是勾选框附件所占的字符位置
-    ///
-    /// - Parameters:
-    ///   - textStorage: 文本存储
-    ///   - position: 要检查的位置
-    /// - Returns: 是否在勾选框区域内
+    // 检查位置是否在勾选框区域内
+    //
+    // 勾选框区域是勾选框附件所占的字符位置
+    //
+    // - Parameters:
+    //   - textStorage: 文本存储
+    //   - position: 要检查的位置
+    // - Returns: 是否在勾选框区域内
 
     public static func isInCheckboxArea(
         in textStorage: NSTextStorage,

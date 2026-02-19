@@ -568,12 +568,10 @@ extension SidebarViewController: NSOutlineViewDelegate {
         // 获取展开的文件夹ID（在这个实现中，所有文件夹都是展开的）
         let expandedFolderIds = viewModel.folders.map(\.id)
 
-        let state = SidebarWindowState(
+        return SidebarWindowState(
             selectedFolderId: selectedFolderId,
             expandedFolderIds: expandedFolderIds
         )
-
-        return state
     }
 
     /// 恢复窗口状态

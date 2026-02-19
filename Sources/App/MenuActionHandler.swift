@@ -1150,8 +1150,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     func showFindPanel(_ sender: Any?) {
         if let controller = mainWindowController {
             controller.showFindPanel(sender)
-        } else {
-        }
+        } else {}
     }
 
     /// 显示查找和替换面板
@@ -1415,6 +1414,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
 
     // MARK: - 清理
+
     deinit {
         NotificationCenter.default.removeObserver(self)
     }

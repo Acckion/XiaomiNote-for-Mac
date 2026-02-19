@@ -294,7 +294,7 @@ extension CursorFormatManager {
         return state
     }
 
-    private func handleDetectionError(_ error: CursorFormatDetectionError) {
+    private func handleDetectionError(_: CursorFormatDetectionError) {
         let defaultState = FormatState.default
         currentFormatState = defaultState
         syncTypingAttributes(with: defaultState)
@@ -335,11 +335,10 @@ extension CursorFormatManager {
 
         if isCursorMode {
             let position = range.location
-            let state: FormatState
-            if UnifiedFormatManager.shared.isRegistered {
-                state = UnifiedFormatManager.shared.detectFormatState(at: position)
+            let state: FormatState = if UnifiedFormatManager.shared.isRegistered {
+                UnifiedFormatManager.shared.detectFormatState(at: position)
             } else {
-                state = detectFormatState(at: position)
+                detectFormatState(at: position)
             }
 
             currentFormatState = state
@@ -351,11 +350,10 @@ extension CursorFormatManager {
             notifyFormatStateManager(with: state)
         } else {
             let position = range.location
-            var state: FormatState
-            if UnifiedFormatManager.shared.isRegistered {
-                state = UnifiedFormatManager.shared.detectFormatState(in: range)
+            var state: FormatState = if UnifiedFormatManager.shared.isRegistered {
+                UnifiedFormatManager.shared.detectFormatState(in: range)
             } else {
-                state = detectFormatState(at: position)
+                detectFormatState(at: position)
             }
 
             state.hasSelection = true

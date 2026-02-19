@@ -145,6 +145,7 @@ public class NotesViewModel: ObservableObject {
     @Published var syncResult: SyncService.SyncResult?
 
     // MARK: - 数据加载状态指示
+
     /// 是否正在加载本地数据
     @Published var isLoadingLocalData = false
 
@@ -880,7 +881,7 @@ public class NotesViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    /// 发送笔记选中状态变化通知
+    // 发送笔记选中状态变化通知
 
     private func postNoteSelectionNotification() {
         let hasSelectedNote = selectedNote != nil
@@ -2362,7 +2363,10 @@ public class NotesViewModel: ObservableObject {
                     selectedNote = updatedNote
                 }
 
-                LogService.shared.debug(.viewmodel, "已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count), 时间戳决策: \(contentActuallyChanged ? "更新" : "保持")")
+                LogService.shared.debug(
+                    .viewmodel,
+                    "已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count), 时间戳决策: \(contentActuallyChanged ? "更新" : "保持")"
+                )
             }
         } catch {
             LogService.shared.error(.viewmodel, "获取笔记完整内容失败: \(error.localizedDescription)")

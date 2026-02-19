@@ -108,7 +108,7 @@ class GalleryHostingController: NSViewController {
     private func setupFolderObserver() {
         viewModel.$selectedFolder
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] folder in
+            .sink { [weak self] _ in
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -118,7 +118,7 @@ class GalleryHostingController: NSViewController {
     private func setupSearchObserver() {
         viewModel.$searchText
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] searchText in
+            .sink { [weak self] _ in
                 self?.refreshView()
             }
             .store(in: &cancellables)

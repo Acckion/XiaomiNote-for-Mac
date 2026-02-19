@@ -91,13 +91,11 @@ class NoteDetailViewController: NSViewController {
         let scrollPosition = 0.0
         let cursorPosition = 0
 
-        let state = NoteDetailWindowState(
+        return NoteDetailWindowState(
             editorContent: editorContent,
             scrollPosition: scrollPosition,
             cursorPosition: cursorPosition
         )
-
-        return state
     }
 
     /// 恢复窗口状态

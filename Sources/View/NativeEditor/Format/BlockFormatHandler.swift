@@ -353,9 +353,7 @@ public struct BlockFormatHandler {
         let contentWithoutAttachment = trimmedContent.replacingOccurrences(of: "\u{FFFC}", with: "")
 
         // 空列表项：移除附件后内容为空或只有空白字符
-        let isEmpty = contentWithoutAttachment.trimmingCharacters(in: .whitespaces).isEmpty
-
-        return isEmpty
+        return contentWithoutAttachment.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     /// 获取指定位置的列表类型

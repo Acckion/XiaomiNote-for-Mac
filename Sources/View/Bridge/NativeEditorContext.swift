@@ -203,7 +203,6 @@ public class NativeEditorContext: ObservableObject {
 
     // MARK: - 内容保护属性
 
-
     /// 保存失败时的备份内容
     ///
     /// 当保存操作失败时，将当前编辑内容备份到此属性
@@ -226,7 +225,6 @@ public class NativeEditorContext: ObservableObject {
     @Published var formatActivationRatios: [TextFormat: Double] = [:]
 
     // MARK: - 版本号机制属性
-
 
     /// 变化追踪器
     ///
@@ -698,8 +696,7 @@ public class NativeEditorContext: ObservableObject {
             changeTracker.attachmentDidChange()
             autoSaveManager.scheduleAutoSave()
 
-        } else {
-        }
+        } else {}
     }
 
     /// 更新录音模板并强制保存
@@ -748,12 +745,10 @@ public class NativeEditorContext: ObservableObject {
         let expectedHasAudio = normalizedExpected.contains("<sound fileid=")
         let expectedHasTemp = normalizedExpected.contains("des=\"temp\"")
 
-
         // 分析当前内容的类型（使用规范化后的内容）
         let currentIsEmpty = normalizedCurrent.isEmpty
         let currentHasAudio = normalizedCurrent.contains("<sound fileid=")
         let currentHasTemp = normalizedCurrent.contains("des=\"temp\"")
-
 
         // 验证逻辑
         var isValid = false
@@ -789,8 +784,7 @@ public class NativeEditorContext: ObservableObject {
         }
 
         // 输出验证结果摘要
-        if !isValid, !failureReason.isEmpty {
-        }
+        if !isValid, !failureReason.isEmpty {}
 
         // 如果验证失败，输出规范化后的内容预览（前200个字符）
         if !isValid {
@@ -798,14 +792,12 @@ public class NativeEditorContext: ObservableObject {
             let expectedPreviewLength = min(200, normalizedExpected.count)
             if expectedPreviewLength > 0 {
                 let expectedPreview = String(normalizedExpected.prefix(expectedPreviewLength))
-            } else {
-            }
+            } else {}
 
             let currentPreviewLength = min(200, normalizedCurrent.count)
             if currentPreviewLength > 0 {
                 let currentPreview = String(normalizedCurrent.prefix(currentPreviewLength))
-            } else {
-            }
+            } else {}
         }
 
         return isValid
@@ -951,7 +943,6 @@ public class NativeEditorContext: ObservableObject {
     /// 内部加载 XML 方法
     /// - Parameter xml: 小米笔记 XML 格式内容
     private func loadFromXMLInternal(_ xml: String) {
-        // 如果 XML 为空，清空编辑器
         guard !xml.isEmpty else {
             attributedText = AttributedString()
             nsAttributedText = NSAttributedString()
@@ -960,14 +951,12 @@ public class NativeEditorContext: ObservableObject {
             return
         }
 
-        // 检测并保存 <new-format/> 标签的存在
         let trimmedXml = xml.trimmingCharacters(in: .whitespacesAndNewlines)
         let detectedNewFormat = trimmedXml.hasPrefix("<new-format/>")
 
         do {
             let nsAttributed = try formatConverter.xmlToNSAttributedString(xml, folderId: currentFolderId)
 
-            // 为没有设置前景色的文本添加默认颜色（适配深色模式）
             let mutableAttributed = NSMutableAttributedString(attributedString: nsAttributed)
             let fullRange = NSRange(location: 0, length: mutableAttributed.length)
 
@@ -977,8 +966,6 @@ public class NativeEditorContext: ObservableObject {
                 }
             }
 
-            // 同步赋值 @Published 属性
-            // 调用方需确保已脱离视图更新周期（通过 Task.yield() 或 Task { @MainActor in }）
             hasNewFormatPrefix = detectedNewFormat
             nsAttributedText = mutableAttributed
             contentVersion += 1
@@ -1057,13 +1044,10 @@ public class NativeEditorContext: ObservableObject {
         let textStorage = NSTextStorage(attributedString: nsAttributedText)
 
         // 使用 TitleIntegration 提取标题
-        let title = TitleIntegration.shared.extractTitle(from: textStorage)
-
-        return title
+        return TitleIntegration.shared.extractTitle(from: textStorage)
     }
 
     // MARK: - 标题段落支持方法
-
 
     /// 插入标题段落
     ///
@@ -1167,7 +1151,7 @@ public class NativeEditorContext: ObservableObject {
         // 当内容变化时，更新 hasUnsavedChanges 状态
         $nsAttributedText
             .dropFirst()
-            .sink { [weak self] newContent in
+            .sink { [weak self] _ in
                 guard let self else { return }
 
                 // 检查是否是程序化修改
@@ -1278,7 +1262,6 @@ public class NativeEditorContext: ObservableObject {
 
     // MARK: - 自动保存方法
 
-
     /// 执行自动保存
     ///
     /// 检查是否需要保存，如果需要则导出 XML 并触发保存流程
@@ -1330,7 +1313,7 @@ public class NativeEditorContext: ObservableObject {
         hasUnsavedChanges = true
     }
 
-    /// 根据当前光标位置更新格式状态 
+    /// 根据当前光标位置更新格式状态
     func updateCurrentFormats() {
 
         let errorHandler = FormatErrorHandler.shared
@@ -1392,7 +1375,6 @@ public class NativeEditorContext: ObservableObject {
             let activeFormats = mixedHandler.getActiveFormats(in: nsAttributedText, range: selectedRange)
             detectedFormats.formUnion(activeFormats)
         }
-
 
         // 更新状态并验证
         updateFormatsWithValidation(detectedFormats)
@@ -1481,8 +1463,7 @@ public class NativeEditorContext: ObservableObject {
         if !isBold {
             let fontName = font.fontName.lowercased()
             isBold = fontName.contains("bold") || fontName.contains("-bold")
-            if isBold {
-            }
+            if isBold {}
         }
 
         // 方法 3: 检查字体 weight（备用检测）
@@ -1492,8 +1473,7 @@ public class NativeEditorContext: ObservableObject {
             {
                 // NSFontWeight.bold 的值约为 0.4
                 isBold = weight >= 0.4
-                if isBold {
-                }
+                if isBold {}
             }
         }
 
@@ -1509,8 +1489,7 @@ public class NativeEditorContext: ObservableObject {
         if !isItalic {
             let fontName = font.fontName.lowercased()
             isItalic = fontName.contains("italic") || fontName.contains("oblique")
-            if isItalic {
-            }
+            if isItalic {}
         }
 
         if isItalic {
@@ -1726,30 +1705,26 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// - Returns: 段落样式字符串（heading, subheading, subtitle, body, orderedList, unorderedList, blockQuote）
     public func getCurrentParagraphStyleString() -> String {
-        let result = detectParagraphStyleFromFormats(currentFormats)
-        return result
+        detectParagraphStyleFromFormats(currentFormats)
     }
 
     /// 从格式集合中检测段落样式
     private func detectParagraphStyleFromFormats(_ formats: Set<TextFormat>) -> String {
-        let paragraphStyle: String
-
         if formats.contains(.heading1) {
-            paragraphStyle = "heading"
+            "heading"
         } else if formats.contains(.heading2) {
-            paragraphStyle = "subheading"
+            "subheading"
         } else if formats.contains(.heading3) {
-            paragraphStyle = "subtitle"
+            "subtitle"
         } else if formats.contains(.numberedList) {
-            paragraphStyle = "orderedList"
+            "orderedList"
         } else if formats.contains(.bulletList) {
-            paragraphStyle = "unorderedList"
+            "unorderedList"
         } else if formats.contains(.quote) {
-            paragraphStyle = "blockQuote"
+            "blockQuote"
         } else {
-            paragraphStyle = "body"
+            "body"
         }
-        return paragraphStyle
     }
 
     /// 发送段落样式变化通知

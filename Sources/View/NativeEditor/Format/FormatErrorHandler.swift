@@ -430,7 +430,10 @@ final class FormatErrorHandler {
     /// 打印错误统计信息
     func printErrorStatistics() {
         let stats = getErrorStatistics()
-        LogService.shared.debug(.editor, "格式错误统计: 总数=\(stats["totalErrors"] ?? 0), 已处理=\(stats["handledErrors"] ?? 0), 未处理=\(stats["unhandledErrors"] ?? 0)")
+        LogService.shared.debug(
+            .editor,
+            "格式错误统计: 总数=\(stats["totalErrors"] ?? 0), 已处理=\(stats["handledErrors"] ?? 0), 未处理=\(stats["unhandledErrors"] ?? 0)"
+        )
     }
 }
 

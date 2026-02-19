@@ -122,12 +122,9 @@ struct UnifiedEditorWrapper: View {
 
     /// 设置原生编辑器
     private func setupNativeEditor() {
-        Task { @MainActor in
-            // 设置文件夹 ID（用于图片存储）
+        DispatchQueue.main.async { [self] in
             nativeEditorContext.currentFolderId = folderId
 
-            // 仅在 handleSelectedNoteChange 尚未加载内容时才加载
-            // 避免与 handleSelectedNoteChange 路径重复调用 loadFromXML
             let contentToLoad = xmlContent ?? content
             if !contentToLoad.isEmpty, lastLoadedContent != contentToLoad {
                 nativeEditorContext.loadFromXML(contentToLoad)
@@ -160,19 +157,14 @@ struct UnifiedEditorWrapper: View {
             let normalizedNew = newContent.trimmingCharacters(in: .whitespacesAndNewlines)
 
             if !normalizedCurrent.isEmpty, normalizedCurrent == normalizedNew {
-                Task { @MainActor in
-                    lastLoadedContent = newContent
-                }
+                lastLoadedContent = newContent
                 return
             }
 
-            // ✅ 长度差异检查：如果内容长度差异很小（< 10 个字符），也认为是保存后的更新
-            // 这可以处理格式化差异（如空格、换行符的微小变化）
+            // 长度差异检查：如果内容长度差异很小（< 10 个字符），也认为是保存后的更新
             let lengthDiff = abs(currentEditorXML.count - newContent.count)
             if lengthDiff < 10, !currentEditorXML.isEmpty {
-                Task { @MainActor in
-                    lastLoadedContent = newContent
-                }
+                lastLoadedContent = newContent
                 return
             }
         }
@@ -182,17 +174,12 @@ struct UnifiedEditorWrapper: View {
         // 记录内容重新加载（性能监控）
         PerformanceMonitor.shared.recordContentReload()
 
-        Task { @MainActor in
-            // 确保脱离视图更新周期，避免 loadFromXML 中修改 @Published 属性时触发警告
-            await Task.yield()
-
+        // 使用 DispatchQueue.main.async 确保在下一个 run loop 迭代中执行，
+        // 彻底脱离 .onChange 的视图更新周期
+        DispatchQueue.main.async { [self] in
             isUpdatingFromExternal = true
-
-            // 关键修复：先更新 lastLoadedContent，再加载内容
-            // 这样可以防止后续的 content 变化被误认为是用户编辑
             lastLoadedContent = newContent
 
-            // 如果使用原生编辑器，强制重新加载内容
             if preferencesService.isNativeEditorAvailable {
                 nativeEditorContext.currentFolderId = folderId
 
@@ -214,13 +201,7 @@ struct UnifiedEditorWrapper: View {
         guard oldValue != newValue else { return }
         guard !isUpdatingFromExternal else { return }
 
-        // 关键修复：检查是否是新内容（不同于上次加载的内容）
-        // 这通常发生在笔记切换时，content 绑定被外部更新
         if newValue != lastLoadedContent {
-
-            // ✅ 关键修复：检查是否是保存后的内容更新（而不是笔记切换）
-            // 如果新内容与当前编辑器中的内容相同（或非常接近），说明这是保存后的更新
-            // 不需要重新加载，避免触发视图更新和打断输入法
             if preferencesService.isNativeEditorAvailable {
                 let currentEditorXML = nativeEditorContext.exportToXML()
 
@@ -229,9 +210,7 @@ struct UnifiedEditorWrapper: View {
                 let normalizedNew = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
 
                 if !normalizedCurrent.isEmpty, normalizedCurrent == normalizedNew {
-                    Task { @MainActor in
-                        lastLoadedContent = newValue
-                    }
+                    lastLoadedContent = newValue
                     return
                 }
 
@@ -239,28 +218,19 @@ struct UnifiedEditorWrapper: View {
                 // 这可以处理格式化差异（如空格、换行符的微小变化）
                 let lengthDiff = abs(currentEditorXML.count - newValue.count)
                 if lengthDiff < 10, !currentEditorXML.isEmpty {
-                    Task { @MainActor in
-                        lastLoadedContent = newValue
-                    }
+                    lastLoadedContent = newValue
                     return
                 }
             }
 
-            // ✅ 真正的内容变化（笔记切换），执行重新加载
-            Task { @MainActor in
-                // 确保脱离视图更新周期，避免 loadFromXML 中修改 @Published 属性时触发警告
-                await Task.yield()
-
+            // 使用 DispatchQueue.main.async 确保在下一个 run loop 迭代中执行
+            DispatchQueue.main.async { [self] in
                 isUpdatingFromExternal = true
-
-                // 关键修复：先更新 lastLoadedContent，再加载内容
                 lastLoadedContent = newValue
 
-                // 如果使用原生编辑器，同步内容
                 if preferencesService.isNativeEditorAvailable {
                     nativeEditorContext.currentFolderId = folderId
 
-                    // 关键修复：先清空编辑器，再加载新内容
                     if newValue.isEmpty {
                         nativeEditorContext.nsAttributedText = NSAttributedString()
                     } else {
@@ -307,8 +277,7 @@ struct UnifiedEditorWrapper: View {
                 await performContentChange(latestContent)
             } catch is CancellationError {
                 // 任务被取消，这是正常的防抖行为
-            } catch {
-            }
+            } catch {}
         }
     }
 
@@ -325,7 +294,6 @@ struct UnifiedEditorWrapper: View {
             // 不触发保存，保留用户编辑的内容在内存中
             return
         }
-
 
         // 关键修复：即使 XML 内容相同，也要检查是否需要触发保存
         // 因为格式变化可能不会改变 XML 字符串，但仍需要保存
@@ -347,33 +315,23 @@ struct UnifiedEditorWrapper: View {
             // 调用内容变化回调（原生编辑器不提供 HTML 缓存）
             onContentChange(xmlContent, nil)
 
-        } else {
-        }
+        } else {}
     }
 
     /// 处理文件夹 ID 变化（笔记切换时触发）
     private func handleFolderIdChange(oldValue: String?, newValue: String?) {
-        // 只有当 folderId 真正变化时才处理（表示切换了笔记）
         guard oldValue != newValue else { return }
 
-
-        // 获取要加载的内容
         let contentToLoad = xmlContent ?? content
 
-        Task { @MainActor in
-            // 确保脱离视图更新周期，避免 loadFromXML 中修改 @Published 属性时触发警告
-            await Task.yield()
-
+        // 使用 DispatchQueue.main.async 确保在下一个 run loop 迭代中执行
+        DispatchQueue.main.async { [self] in
             isUpdatingFromExternal = true
-
-            // 关键修复：先更新 lastLoadedContent，再加载内容
             lastLoadedContent = contentToLoad
 
-            // 如果使用原生编辑器，强制重新加载内容
             if preferencesService.isNativeEditorAvailable {
                 nativeEditorContext.currentFolderId = newValue
 
-                // 关键修复：先清空编辑器，再加载新内容
                 if contentToLoad.isEmpty {
                     nativeEditorContext.nsAttributedText = NSAttributedString()
                 } else {

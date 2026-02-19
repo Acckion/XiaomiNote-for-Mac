@@ -365,8 +365,7 @@ struct AudioRecorderUploadPopoverView: View {
     AudioRecorderUploadView(
         onUploadComplete: { _, _, _ in
         },
-        onCancel: {
-        }
+        onCancel: {}
     )
     .padding()
 }

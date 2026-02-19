@@ -56,7 +56,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
 
     // MARK: - 性能监控属性
 
-
     /// 性能监控是否启用
     private var performanceMonitoringEnabled = true
 
@@ -172,7 +171,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     }
 
     // MARK: - 性能监控方法
-
 
     /// 启用或禁用性能监控
     /// - Parameter enabled: 是否启用
