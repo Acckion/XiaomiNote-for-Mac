@@ -82,12 +82,6 @@ class FormatManager {
     /// 复选框宽度
     var checkboxWidth: CGFloat = 24
 
-    /// 默认行间距（与正文一致）
-    private let defaultLineSpacing: CGFloat = 4
-
-    /// 默认段落间距（与正文一致）
-    private let defaultParagraphSpacing: CGFloat = 8
-
     // MARK: - Public Methods - 格式应用
 
     /// 应用加粗格式
@@ -337,8 +331,8 @@ class FormatManager {
         textStorage.removeAttribute(.listIndent, range: lineRange)
         textStorage.removeAttribute(.listNumber, range: lineRange)
 
-        // 重置段落样式
-        let paragraphStyle = NSMutableParagraphStyle()
+        // 重置段落样式（保留默认行距属性）
+        let paragraphStyle = ParagraphStyleFactory.makeDefault()
         textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
 
         textStorage.endEditing()
@@ -504,8 +498,8 @@ class FormatManager {
         textStorage.removeAttribute(.quoteIndent, range: lineRange)
         textStorage.removeAttribute(.backgroundColor, range: lineRange)
 
-        // 重置段落样式
-        let paragraphStyle = NSMutableParagraphStyle()
+        // 重置段落样式（保留默认行距属性）
+        let paragraphStyle = ParagraphStyleFactory.makeDefault()
         textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
 
         textStorage.endEditing()
@@ -545,17 +539,7 @@ class FormatManager {
     /// - Parameter indent: 缩进级别
     /// - Returns: 段落样式
     private func createQuoteParagraphStyle(indent: Int) -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        let baseIndent = CGFloat(indent - 1) * indentUnit
-
-        // 设置左侧边距（为引用块边框留出空间）
-        let quoteBorderWidth: CGFloat = 3
-        let quotePadding: CGFloat = 12
-
-        style.firstLineHeadIndent = baseIndent + quoteBorderWidth + quotePadding
-        style.headIndent = baseIndent + quoteBorderWidth + quotePadding
-
-        return style
+        ParagraphStyleFactory.makeQuote(indent: indent)
     }
 
     /// 增加列表缩进
@@ -1055,22 +1039,7 @@ class FormatManager {
     ///   - bulletWidth: 项目符号宽度
     /// - Returns: 段落样式
     private func createListParagraphStyle(indent: Int, bulletWidth: CGFloat) -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        let baseIndent = CGFloat(indent - 1) * indentUnit
-
-        // 设置首行缩进（为项目符号留出空间）
-        style.firstLineHeadIndent = baseIndent
-        // 设置后续行缩进（与项目符号后的文本对齐）
-        style.headIndent = baseIndent + bulletWidth
-        // 设置制表位
-        style.tabStops = [NSTextTab(textAlignment: .left, location: baseIndent + bulletWidth)]
-        style.defaultTabInterval = indentUnit
-
-        // 设置行间距和段落间距（与正文一致）
-        style.lineSpacing = defaultLineSpacing
-        style.paragraphSpacing = defaultParagraphSpacing
-
-        return style
+        ParagraphStyleFactory.makeList(indent: indent, bulletWidth: bulletWidth)
     }
 
     /// 计算列表编号

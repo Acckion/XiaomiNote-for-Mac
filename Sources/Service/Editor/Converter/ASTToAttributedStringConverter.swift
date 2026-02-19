@@ -51,10 +51,7 @@ public final class ASTToAttributedStringConverter {
         self.defaultFont = NSFont.systemFont(ofSize: FontSizeConstants.body)
 
         // 设置默认段落样式
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = 4
-        paragraphStyle.paragraphSpacing = 8
-        self.defaultParagraphStyle = paragraphStyle
+        self.defaultParagraphStyle = ParagraphStyleFactory.makeDefault()
     }
 
     // MARK: - Public Methods
@@ -480,15 +477,11 @@ public final class ASTToAttributedStringConverter {
 
         case .centerAlign:
             // 居中对齐
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.alignment = .center
-            attributes[.paragraphStyle] = paragraphStyle
+            attributes[.paragraphStyle] = ParagraphStyleFactory.makeDefault(alignment: .center)
 
         case .rightAlign:
             // 右对齐
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.alignment = .right
-            attributes[.paragraphStyle] = paragraphStyle
+            attributes[.paragraphStyle] = ParagraphStyleFactory.makeDefault(alignment: .right)
 
         default:
             break
@@ -528,9 +521,7 @@ public final class ASTToAttributedStringConverter {
         let range = NSRange(location: 0, length: attributedString.length)
 
         // 应用引用块的段落样式
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.firstLineHeadIndent = 20
-        paragraphStyle.headIndent = 20
+        let paragraphStyle = ParagraphStyleFactory.makeQuote()
         paragraphStyle.tailIndent = -20
 
         attributedString.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
@@ -631,22 +622,6 @@ public final class ASTToAttributedStringConverter {
     ///   - bulletWidth: 项目符号宽度
     /// - Returns: 段落样式
     private func createListParagraphStyle(indent: Int, bulletWidth: CGFloat) -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        let indentUnit: CGFloat = 20
-        let baseIndent = CGFloat(indent - 1) * indentUnit
-
-        // 设置首行缩进（为项目符号留出空间）
-        style.firstLineHeadIndent = baseIndent
-        // 设置后续行缩进（与项目符号后的文本对齐）
-        style.headIndent = baseIndent + bulletWidth
-        // 设置制表位
-        style.tabStops = [NSTextTab(textAlignment: .left, location: baseIndent + bulletWidth)]
-        style.defaultTabInterval = indentUnit
-
-        // 设置行间距和段落间距（与正文一致）
-        style.lineSpacing = 4
-        style.paragraphSpacing = 8
-
-        return style
+        ParagraphStyleFactory.makeList(indent: indent, bulletWidth: bulletWidth)
     }
 }

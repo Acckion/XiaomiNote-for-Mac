@@ -55,12 +55,6 @@ public struct BlockFormatHandler {
     /// 引用块内边距
     public static let quotePadding: CGFloat = 12
 
-    /// 默认行间距（与正文一致）
-    public static let defaultLineSpacing: CGFloat = 4
-
-    /// 默认段落间距（与正文一致）
-    public static let defaultParagraphSpacing: CGFloat = 8
-
     /// 正文字体大小 (14pt)
     /// 使用 FontSizeManager 统一管理
     public static var bodyFontSize: CGFloat {
@@ -260,8 +254,7 @@ public struct BlockFormatHandler {
 
         // 重置段落样式（保留对齐方式）
         let currentAlignment = detectAlignment(at: lineRange.location, in: textStorage)
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = currentAlignment
+        let paragraphStyle = ParagraphStyleFactory.makeDefault(alignment: currentAlignment)
         textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
 
         // 移除引用块背景色（但保留高亮）
@@ -545,19 +538,7 @@ public struct BlockFormatHandler {
     ///   - bulletWidth: 项目符号宽度
     /// - Returns: 段落样式
     private static func createListParagraphStyle(indent: Int, bulletWidth: CGFloat) -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        let baseIndent = CGFloat(indent - 1) * indentUnit
-
-        style.firstLineHeadIndent = baseIndent
-        style.headIndent = baseIndent + bulletWidth
-        style.tabStops = [NSTextTab(textAlignment: .left, location: baseIndent + bulletWidth)]
-        style.defaultTabInterval = indentUnit
-
-        // 设置行间距和段落间距（与正文一致）
-        style.lineSpacing = defaultLineSpacing
-        style.paragraphSpacing = defaultParagraphSpacing
-
-        return style
+        ParagraphStyleFactory.makeList(indent: indent, bulletWidth: bulletWidth)
     }
 
     // MARK: - 私有方法 - 引用格式
@@ -589,13 +570,7 @@ public struct BlockFormatHandler {
     /// - Parameter indent: 缩进级别
     /// - Returns: 段落样式
     private static func createQuoteParagraphStyle(indent: Int) -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        let baseIndent = CGFloat(indent - 1) * indentUnit
-
-        style.firstLineHeadIndent = baseIndent + quoteBorderWidth + quotePadding
-        style.headIndent = baseIndent + quoteBorderWidth + quotePadding
-
-        return style
+        ParagraphStyleFactory.makeQuote(indent: indent)
     }
 
     // MARK: - 私有方法 - 对齐格式
