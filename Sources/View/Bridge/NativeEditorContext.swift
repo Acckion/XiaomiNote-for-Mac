@@ -179,6 +179,9 @@ public class NativeEditorContext: ObservableObject {
     /// 当前编辑的 NSAttributedString（用于 NSTextView）
     @Published public var nsAttributedText = NSAttributedString()
 
+    /// 标题文本（独立于正文，由 loadFromXML 提取）
+    @Published public var titleText = ""
+
     /// 当前检测到的特殊元素类型
     @Published var currentSpecialElement: SpecialElement?
 
@@ -946,6 +949,7 @@ public class NativeEditorContext: ObservableObject {
         guard !xml.isEmpty else {
             attributedText = AttributedString()
             nsAttributedText = NSAttributedString()
+            titleText = ""
             hasUnsavedChanges = false
             hasNewFormatPrefix = false
             return
@@ -954,8 +958,12 @@ public class NativeEditorContext: ObservableObject {
         let trimmedXml = xml.trimmingCharacters(in: .whitespacesAndNewlines)
         let detectedNewFormat = trimmedXml.hasPrefix("<new-format/>")
 
+        // 提取 <title> 标签内容到 titleText，并从 XML 中移除
+        let (extractedTitle, bodyXml) = extractAndRemoveTitle(from: xml)
+        titleText = extractedTitle
+
         do {
-            let nsAttributed = try formatConverter.xmlToNSAttributedString(xml, folderId: currentFolderId)
+            let nsAttributed = try formatConverter.xmlToNSAttributedString(bodyXml, folderId: currentFolderId)
 
             let mutableAttributed = NSMutableAttributedString(attributedString: nsAttributed)
             let fullRange = NSRange(location: 0, length: mutableAttributed.length)
@@ -980,46 +988,90 @@ public class NativeEditorContext: ObservableObject {
         }
     }
 
-    /// 导出为 XML
-    ///
-    /// 将当前编辑器内容（nsAttributedText）转换为小米笔记 XML 格式
-    ///
-    /// **标题段落处理**：
-    /// - 第一个段落如果标记为 `.isTitle` 属性，会被识别为标题段落
-    /// - 标题段落通过 `AttributedStringToASTConverter` 转换为 `TitleBlockNode`
-    /// - `XMLGenerator` 将 `TitleBlockNode` 转换为 XML 的 `<title>` 标签
-    ///
-    /// - Returns: 小米笔记 XML 格式内容
-    /// - Note:
-    ///   - 使用 nsAttributedText 而不是 attributedText，因为 NativeEditorView 使用的是 nsAttributedText
-    ///   - 空内容返回空字符串
-    ///   - 转换失败时记录错误并返回空字符串
-    func exportToXML() -> String {
-        // 处理空内容的情况
-        guard nsAttributedText.length > 0 else {
-            return ""
+    /// 从 XML 中提取 title 标签内容并返回去除 title 后的 XML
+    /// - Parameter xml: 原始 XML 字符串
+    /// - Returns: (标题文本, 去除 title 标签后的 XML)
+    private func extractAndRemoveTitle(from xml: String) -> (String, String) {
+        // 匹配 <title>...</title> 标签
+        guard let titleRange = xml.range(of: "<title>", options: .literal) else {
+            return ("", xml)
+        }
+        guard let titleEndRange = xml.range(of: "</title>", options: .literal, range: titleRange.upperBound ..< xml.endIndex) else {
+            return ("", xml)
         }
 
-        // 检查是否只包含空白字符
+        let titleContent = String(xml[titleRange.upperBound ..< titleEndRange.lowerBound])
+        // 解码 XML 实体
+        let decodedTitle = decodeXMLEntities(titleContent)
+
+        // 移除整个 <title>...</title> 标签（包括可能的尾部换行）
+        var bodyXml = xml
+        let fullTitleRange = titleRange.lowerBound ..< titleEndRange.upperBound
+        bodyXml.removeSubrange(fullTitleRange)
+        // 移除 title 标签后可能残留的开头换行
+        while bodyXml.hasPrefix("\n") {
+            bodyXml.removeFirst()
+        }
+
+        return (decodedTitle, bodyXml)
+    }
+
+    /// 解码 XML 实体
+    private func decodeXMLEntities(_ string: String) -> String {
+        string
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&apos;", with: "'")
+    }
+
+    /// 导出为 XML
+    ///
+    /// 将标题和正文分别转换为 XML，标题在前，正文在后
+    ///
+    /// - Returns: 小米笔记 XML 格式内容
+    func exportToXML() -> String {
+        // 生成标题标签
+        let titleTag: String
+        if titleText.isEmpty {
+            titleTag = "<title></title>"
+        } else {
+            let encodedTitle = encodeXMLEntities(titleText)
+            titleTag = "<title>\(encodedTitle)</title>"
+        }
+
+        // 处理空正文的情况
+        guard nsAttributedText.length > 0 else {
+            return titleTag
+        }
+
         let trimmedString = nsAttributedText.string.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedString.isEmpty {
-            return ""
+            return titleTag
         }
 
         do {
-            // 关键修复：使用 nsAttributedText 而不是 attributedText
-            // 因为 NativeEditorView 使用的是 nsAttributedText，编辑后的内容存储在这里
             var xmlContent = try formatConverter.nsAttributedStringToXML(nsAttributedText)
 
-            // 如果原始内容有 <new-format/> 前缀，则在导出时也添加
             if hasNewFormatPrefix, !xmlContent.hasPrefix("<new-format/>") {
                 xmlContent = "<new-format/>" + xmlContent
             }
 
-            return xmlContent
+            return titleTag + "\n" + xmlContent
         } catch {
-            return ""
+            return titleTag
         }
+    }
+
+    /// 编码 XML 实体
+    private func encodeXMLEntities(_ string: String) -> String {
+        string
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
     }
 
     /// 从编辑器内容提取标题
