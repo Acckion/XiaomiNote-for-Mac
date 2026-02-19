@@ -14,6 +14,9 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
     private var currentAuthUser: AuthUser?
     private var currentCookie: String?
 
+    // 与旧架构 MiNoteService 共享的 UserDefaults 键名
+    private static let cookieKey = "minote_cookie"
+
     var currentUser: AnyPublisher<UserProfile?, Never> {
         userStateSubject.eraseToAnyPublisher()
     }
@@ -26,6 +29,14 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
 
     init(networkClient: NetworkClient) {
         self.networkClient = networkClient
+
+        // 从持久化存储恢复 Cookie，避免重启后误弹登录窗口
+        if let savedCookie = UserDefaults.standard.string(forKey: Self.cookieKey),
+           !savedCookie.isEmpty
+        {
+            currentCookie = savedCookie
+            isAuthenticatedSubject.send(true)
+        }
     }
 
     // MARK: - Public Methods
@@ -77,6 +88,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
 
         currentAuthUser = authUser
         currentCookie = cookie
+        UserDefaults.standard.set(cookie, forKey: Self.cookieKey)
         let userProfile = authUser.toUserProfile()
         userStateSubject.send(userProfile)
         isAuthenticatedSubject.send(true)
@@ -97,6 +109,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
 
         currentAuthUser = nil
         currentCookie = nil
+        UserDefaults.standard.removeObject(forKey: Self.cookieKey)
         userStateSubject.send(nil)
         isAuthenticatedSubject.send(false)
     }
@@ -133,23 +146,11 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
     }
 
     func validateToken() async throws -> Bool {
-        guard let user = currentAuthUser else {
+        // 优先检查持久化的 Cookie，避免重启后内存状态丢失导致误判
+        guard let cookie = currentCookie, !cookie.isEmpty else {
             return false
         }
-
-        let headers = ["Authorization": "Bearer \(user.token)"]
-
-        do {
-            let _: EmptyResponse = try await networkClient.request(
-                "/auth/validate",
-                method: .get,
-                parameters: nil,
-                headers: headers
-            )
-            return true
-        } catch {
-            return false
-        }
+        return true
     }
 
     func fetchUserProfile() async throws -> UserProfile {
