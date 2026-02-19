@@ -684,10 +684,7 @@ public final class UnifiedFormatManager {
         // 构建清除内联格式后的基础属性
         var attrs = InlineFormatHandler.buildCleanTypingAttributes()
 
-        // 设置对齐属性
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = context.currentAlignment
-        attrs[.paragraphStyle] = paragraphStyle
+        attrs[.paragraphStyle] = ParagraphStyleFactory.makeDefault(alignment: context.currentAlignment)
 
         // 根据块级格式设置继承属性
         if context.shouldInheritFormat, let blockFormat = context.currentBlockFormat {

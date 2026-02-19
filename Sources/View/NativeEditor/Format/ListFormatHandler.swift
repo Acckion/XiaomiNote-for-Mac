@@ -40,12 +40,6 @@ public struct ListFormatHandler {
     /// 有序列表编号宽度
     public static let orderNumberWidth: CGFloat = 28
 
-    /// 默认行间距（与正文一致）
-    public static let defaultLineSpacing: CGFloat = 4
-
-    /// 默认段落间距（与正文一致）
-    public static let defaultParagraphSpacing: CGFloat = 8
-
     // MARK: - 列表应用
 
     /// 应用无序列表格式
@@ -238,8 +232,7 @@ public struct ListFormatHandler {
             textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
             textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
 
-            // 重置段落样式
-            let paragraphStyle = NSMutableParagraphStyle()
+            let paragraphStyle = ParagraphStyleFactory.makeDefault()
             textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
         }
 
@@ -317,8 +310,7 @@ public struct ListFormatHandler {
             textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
             textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
 
-            // 重置段落样式
-            let paragraphStyle = NSMutableParagraphStyle()
+            let paragraphStyle = ParagraphStyleFactory.makeDefault()
             textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
         }
 
@@ -506,7 +498,6 @@ public struct ListFormatHandler {
                     textStorage.addAttribute(.font, value: defaultFont, range: attrRange)
                 }
             }
-
         }
     }
 
@@ -746,22 +737,7 @@ public struct ListFormatHandler {
     ///   - bulletWidth: 项目符号宽度
     /// - Returns: 段落样式
     private static func createListParagraphStyle(indent: Int, bulletWidth: CGFloat) -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        let baseIndent = CGFloat(indent - 1) * indentUnit
-
-        // 设置首行缩进（为项目符号留出空间）
-        style.firstLineHeadIndent = baseIndent
-        // 设置后续行缩进（与项目符号后的文本对齐）
-        style.headIndent = baseIndent + bulletWidth
-        // 设置制表位
-        style.tabStops = [NSTextTab(textAlignment: .left, location: baseIndent + bulletWidth)]
-        style.defaultTabInterval = indentUnit
-
-        // 设置行间距和段落间距（与正文一致）
-        style.lineSpacing = defaultLineSpacing
-        style.paragraphSpacing = defaultParagraphSpacing
-
-        return style
+        ParagraphStyleFactory.makeList(indent: indent, bulletWidth: bulletWidth)
     }
 
     // MARK: - 辅助方法 - 字体处理
