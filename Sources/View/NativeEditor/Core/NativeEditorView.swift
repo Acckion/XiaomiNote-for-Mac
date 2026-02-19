@@ -69,6 +69,8 @@ struct NativeEditorView: NSViewRepresentable {
         // 创建标题 TextField
         let titleField = TitleTextField()
         titleField.isEditable = isEditable
+        titleField.delegate = context.coordinator
+        titleField.stringValue = editorContext.titleText
 
         // 创建优化的文本视图
         let textView = NativeTextView()
@@ -171,6 +173,16 @@ struct NativeEditorView: NSViewRepresentable {
         textView.isEditable = isEditable
         context.coordinator.titleField?.isEditable = isEditable
 
+        // 同步标题文本（避免循环更新）
+        if let titleField = context.coordinator.titleField,
+           !context.coordinator.isUpdatingTitleProgrammatically,
+           titleField.stringValue != editorContext.titleText
+        {
+            context.coordinator.isUpdatingTitleProgrammatically = true
+            titleField.stringValue = editorContext.titleText
+            context.coordinator.isUpdatingTitleProgrammatically = false
+        }
+
         // 确保文字颜色适配当前外观（深色/浅色模式）
         textView.textColor = .labelColor
 
@@ -224,7 +236,7 @@ struct NativeEditorView: NSViewRepresentable {
     // MARK: - Coordinator
 
     @MainActor
-    class Coordinator: NSObject, NSTextViewDelegate {
+    class Coordinator: NSObject, NSTextViewDelegate, NSTextFieldDelegate {
         var parent: NativeEditorView
         weak var textView: NativeTextView?
         weak var scrollView: NSScrollView?
@@ -233,6 +245,9 @@ struct NativeEditorView: NSViewRepresentable {
 
         /// 标记是否正在从 SwiftUI updateNSView 更新（诊断用）
         var isUpdatingFromSwiftUI = false
+
+        /// 标记是否正在程序化更新标题（防止循环）
+        var isUpdatingTitleProgrammatically = false
 
         private var cancellables = Set<AnyCancellable>()
 
@@ -566,6 +581,18 @@ struct NativeEditorView: NSViewRepresentable {
 
             // 更新记录的音频附件集合
             previousAudioFileIds = currentAudioFileIds
+        }
+
+        // MARK: - NSTextFieldDelegate
+
+        func controlTextDidChange(_ notification: Notification) {
+            guard let titleField = notification.object as? TitleTextField else { return }
+            guard !isUpdatingTitleProgrammatically else { return }
+
+            isUpdatingTitleProgrammatically = true
+            parent.editorContext.titleText = titleField.stringValue
+            parent.editorContext.hasUnsavedChanges = true
+            isUpdatingTitleProgrammatically = false
         }
 
         // MARK: - NSTextViewDelegate

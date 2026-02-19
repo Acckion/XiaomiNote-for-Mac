@@ -367,6 +367,12 @@ struct NoteDetailView: View {
             handleNoteAppear(note)
         }
         // 笔记切换由外层 handleSelectedNoteChange 统一处理，此处不再重复
+        .onChange(of: nativeEditorContext.titleText) { _, newValue in
+            // 标题由 TitleTextField 编辑时，同步到 editedTitle
+            if editedTitle != newValue {
+                editedTitle = newValue
+            }
+        }
         .onChange(of: editedTitle) { _, newValue in
             Task { @MainActor in await handleTitleChange(newValue) }
         }
@@ -602,29 +608,10 @@ struct NoteDetailView: View {
                             }
 
                             Task { @MainActor in
-                                // 任务 4.1: 集成 TitleExtractionService 进行标题提取
-
-                                // 1. 优先从原生编辑器提取标题
-                                var titleResult: TitleExtractionResult
-                                let nsAttributedText = nativeEditorContext.nsAttributedText
-                                if nsAttributedText.length > 0 {
-                                    // 创建临时的 NSTextStorage 用于标题提取
-                                    let textStorage = NSTextStorage(attributedString: nsAttributedText)
-                                    titleResult = titleExtractionService.extractTitleFromEditor(textStorage)
-                                } else {
-                                    // 2. 后备方案：从 XML 内容提取标题
-                                    titleResult = titleExtractionService.extractTitleFromXML(newXML)
-                                }
-
-                                // 3. 验证提取的标题
-                                let validation = titleExtractionService.validateTitle(titleResult.title)
-                                if validation.isValid {
-                                    // 更新 editedTitle 状态（保持 UI 同步）
-                                    if !titleResult.title.isEmpty {
-                                        editedTitle = titleResult.title
-                                    }
-                                } else {
-                                    // 保持原有标题不变
+                                // 标题直接从 nativeEditorContext.titleText 获取（已由 TitleTextField 绑定）
+                                let titleFromEditor = nativeEditorContext.titleText
+                                if !titleFromEditor.isEmpty {
+                                    editedTitle = titleFromEditor
                                 }
 
                                 // 4. 更新当前内容状态
@@ -639,8 +626,7 @@ struct NoteDetailView: View {
                                 }
 
                                 // [Tier 2] 异步保存 XML（后台，<50ms，防抖300ms）
-                                // 传递提取的标题结果，确保在保存前正确提取和设置标题
-                                scheduleXMLSave(xmlContent: newXML, for: currentNote, extractedTitle: titleResult, immediate: false)
+                                scheduleXMLSave(xmlContent: newXML, for: currentNote, immediate: false)
 
                                 // [Tier 3] 计划同步云端（延迟3秒）
                                 scheduleCloudUpload(for: currentNote, xmlContent: newXML)
