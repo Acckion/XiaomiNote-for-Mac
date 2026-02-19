@@ -93,26 +93,18 @@ class CrossParagraphFormatHandler {
         range: NSRange
     ) {
         guard format.isBlockFormat else {
-            print("[CrossParagraphFormat] 警告: \(format.displayName) 不是块级格式")
             return
         }
 
         let paragraphs = getParagraphs(in: textStorage, range: range)
 
-        print("[CrossParagraphFormat] 应用段落格式: \(format.displayName)")
-        print("[CrossParagraphFormat]   - 选中范围: \(range)")
-        print("[CrossParagraphFormat]   - 段落数量: \(paragraphs.count)")
-
         textStorage.beginEditing()
 
         for paragraph in paragraphs {
-            print("[CrossParagraphFormat]   - 处理段落 \(paragraph.index): 范围=\(paragraph.range)")
             applyFormatToParagraph(format, to: textStorage, paragraphRange: paragraph.range)
         }
 
         textStorage.endEditing()
-
-        print("[CrossParagraphFormat] ✅ 段落格式应用完成")
     }
 
     /// 应用对齐格式到跨段落选中范围
@@ -127,10 +119,6 @@ class CrossParagraphFormatHandler {
     ) {
         let paragraphs = getParagraphs(in: textStorage, range: range)
 
-        print("[CrossParagraphFormat] 应用对齐格式: \(alignment)")
-        print("[CrossParagraphFormat]   - 选中范围: \(range)")
-        print("[CrossParagraphFormat]   - 段落数量: \(paragraphs.count)")
-
         textStorage.beginEditing()
 
         for paragraph in paragraphs {
@@ -138,8 +126,6 @@ class CrossParagraphFormatHandler {
         }
 
         textStorage.endEditing()
-
-        print("[CrossParagraphFormat] ✅ 对齐格式应用完成")
     }
 
     /// 检测跨段落选中范围的段落格式状态
@@ -227,7 +213,6 @@ class CrossParagraphFormatHandler {
         // 检查是否为标题段落
         // _Requirements: 3.1_ - 禁止对标题段落应用段落格式
         if isTitleParagraph(in: textStorage, range: paragraphRange) {
-            print("[CrossParagraphFormat] ⚠️ 检测到标题段落，禁止应用段落格式: \(format.displayName)")
             return
         }
 

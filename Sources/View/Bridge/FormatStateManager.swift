@@ -64,14 +64,10 @@ public final class FormatStateManager: ObservableObject {
     /// 防抖定时器
     private var debounceTimer: Timer?
 
-    /// 防抖间隔（毫秒）- 满足需求 10.1 的 50ms 要求
-    /// _Requirements: 10.1, 10.4_
+    /// 防抖间隔（毫秒）
     private let debounceInterval: TimeInterval = 0.05 // 50ms
 
     // MARK: - 性能监控属性
-
-    // _Requirements: 10.3_
-
     /// 性能监控是否启用
     private var performanceMonitoringEnabled = true
 
@@ -116,7 +112,6 @@ public final class FormatStateManager: ObservableObject {
 
     /// 设置活动的格式提供者
     /// - Parameter provider: 格式提供者（传入 nil 表示没有活动的编辑器）
-    /// _Requirements: 8.4_
     public func setActiveProvider(_ provider: (any FormatMenuProvider)?) {
         // 取消之前的订阅
         cancellables.removeAll()
@@ -166,7 +161,6 @@ public final class FormatStateManager: ObservableObject {
 
     /// 切换格式
     /// - Parameter format: 要切换的格式
-    /// _Requirements: 8.2, 8.3_
     public func toggleFormat(_ format: TextFormat) {
         guard let provider = activeProvider else {
             return
@@ -422,18 +416,5 @@ public extension FormatStateManager {
 
     /// 打印当前状态（调试用）
     func printCurrentState() {
-        print("[FormatStateManager] 当前状态:")
-        print("  - 段落格式: \(currentState.paragraphFormat.displayName)")
-        print("  - 对齐方式: \(currentState.alignment.displayName)")
-        print("  - 加粗: \(currentState.isBold)")
-        print("  - 斜体: \(currentState.isItalic)")
-        print("  - 下划线: \(currentState.isUnderline)")
-        print("  - 删除线: \(currentState.isStrikethrough)")
-        print("  - 高亮: \(currentState.isHighlight)")
-        print("  - 引用块: \(currentState.isQuote)")
-        print("  - 有选择: \(currentState.hasSelection)")
-        print("  - 选择长度: \(currentState.selectionLength)")
-        print("  - 活动提供者: \(activeProvider?.editorType.displayName ?? "无")")
-        print("  - 编辑器可用: \(hasActiveEditor)")
     }
 }

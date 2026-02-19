@@ -182,7 +182,6 @@ public struct ListBehaviorHandler {
     ///   - textStorage: 文本存储
     ///   - position: 原始位置
     /// - Returns: 调整后的位置
-    /// _Requirements: 1.1, 1.3_
     public static func adjustCursorPosition(
         in textStorage: NSTextStorage,
         from position: Int
@@ -195,7 +194,6 @@ public struct ListBehaviorHandler {
         if isInListMarkerArea(in: textStorage, at: position) {
             // 调整到内容起始位置
             let adjustedPosition = getContentStartPosition(in: textStorage, at: position)
-            print("[ListBehaviorHandler] 光标位置调整: \(position) -> \(adjustedPosition)")
             return adjustedPosition
         }
 
@@ -210,7 +208,6 @@ public struct ListBehaviorHandler {
     ///   - textStorage: 文本存储
     ///   - position: 位置
     /// - Returns: 列表项信息，如果不是列表项则返回 nil
-    /// _Requirements: 1.1, 1.3, 1.4_
     public static func getListItemInfo(
         in textStorage: NSTextStorage,
         at position: Int
@@ -311,7 +308,6 @@ public struct ListBehaviorHandler {
     ///   - textView: NSTextView 实例
     ///   - position: 勾选框位置
     /// - Returns: 是否成功切换
-    /// _Requirements: 7.1, 7.2, 7.3, 7.4_
     public static func toggleCheckboxState(
         textView: NSTextView,
         at position: Int
@@ -358,7 +354,6 @@ public struct ListBehaviorHandler {
         // 恢复光标位置
         textView.setSelectedRange(currentSelection)
 
-        print("[ListBehaviorHandler] 勾选框状态切换: \(checkbox.isChecked)")
         return true
     }
 
@@ -370,7 +365,7 @@ public struct ListBehaviorHandler {
     ///   - textStorage: 文本存储
     ///   - position: 要检查的位置
     /// - Returns: 是否在勾选框区域内
-    /// _Requirements: 1.5, 7.1, 7.2_
+
     public static func isInCheckboxArea(
         in textStorage: NSTextStorage,
         at position: Int
@@ -471,8 +466,6 @@ public struct ListBehaviorHandler {
         }
 
         textStorage.endEditing()
-
-        print("[ListBehaviorHandler] 更新有序列表编号完成")
     }
 
     /// 从列表开头重新编号整个有序列表
@@ -551,8 +544,6 @@ public struct ListBehaviorHandler {
         }
 
         textStorage.endEditing()
-
-        print("[ListBehaviorHandler] 从列表开头重新编号完成，共 \(expectedNumber - 1) 项")
     }
 
     /// 验证有序列表编号是否连续
@@ -789,7 +780,6 @@ public struct ListBehaviorHandler {
         // _Requirements: 3.2_
         if let markerRange = listInfo.markerRange {
             textStorage.deleteCharacters(in: markerRange)
-            print("[ListBehaviorHandler] 移除列表附件, range: \(markerRange)")
         }
 
         // 2. 重新计算行范围（因为删除了附件）
@@ -842,7 +832,6 @@ public struct ListBehaviorHandler {
             }
         }
 
-        print("[ListBehaviorHandler] 空列表项已转换为普通正文，光标位置: \(lineStart)")
         return true
     }
 
@@ -885,8 +874,6 @@ public struct ListBehaviorHandler {
 
         let textBefore = textBeforeRange.length > 0 ? string.substring(with: textBeforeRange) : ""
         let textAfter = textAfterRange.length > 0 ? string.substring(with: textAfterRange) : ""
-
-        print("[ListBehaviorHandler] 分割文本: 前=\"\(textBefore)\", 后=\"\(textAfter)\"")
 
         textStorage.beginEditing()
 
@@ -939,7 +926,6 @@ public struct ListBehaviorHandler {
             }
         }
 
-        print("[ListBehaviorHandler] 文本分割完成，新光标位置: \(newCursorPosition)")
         return true
     }
 
@@ -1138,7 +1124,6 @@ public struct ListBehaviorHandler {
         // 1. 删除列表附件（序号、项目符号或勾选框）
         if let markerRange = listInfo.markerRange {
             textStorage.deleteCharacters(in: markerRange)
-            print("[ListBehaviorHandler] 删除列表标记, range: \(markerRange)")
         }
 
         // 2. 重新计算行范围（因为删除了附件）
@@ -1188,7 +1173,6 @@ public struct ListBehaviorHandler {
             }
         }
 
-        print("[ListBehaviorHandler] 删除列表标记完成，保留空行，光标位置: \(lineStart)")
         return true
     }
 

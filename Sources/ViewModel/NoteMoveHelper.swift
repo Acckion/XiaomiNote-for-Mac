@@ -46,10 +46,10 @@ public class NoteMoveHelper {
                 // 使用视图模型的updateNote方法（它会处理在线/离线逻辑）
                 try await viewModel.updateNote(updatedNote)
 
-                print("[NoteMoveHelper] 笔记移动成功: \(noteId) -> \(folderName)")
+                LogService.shared.debug(.viewmodel, "笔记移动成功: \(noteId) -> \(folderName)")
                 capturedCompletion(.success(()))
             } catch {
-                print("[NoteMoveHelper] 移动笔记失败: \(error.localizedDescription)")
+                LogService.shared.error(.viewmodel, "移动笔记失败: \(error.localizedDescription)")
                 capturedCompletion(.failure(error))
             }
         }

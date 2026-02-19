@@ -106,7 +106,7 @@ public class ViewOptionsManager: ObservableObject {
             object: self,
             userInfo: ["viewMode": mode.rawValue]
         )
-        print("[ViewOptionsManager] 发送视图模式变化通知: \(mode.displayName)")
+        LogService.shared.debug(.viewmodel, "发送视图模式变化通知: \(mode.displayName)")
     }
 
     /// 切换笔记数量显示
@@ -142,7 +142,7 @@ public class ViewOptionsManager: ObservableObject {
             object: self,
             userInfo: ["isNoteCountVisible": isVisible]
         )
-        print("[ViewOptionsManager] 发送笔记数量显示变化通知: \(isVisible ? "显示" : "隐藏")")
+        LogService.shared.debug(.viewmodel, "发送笔记数量显示变化通知: \(isVisible ? "显示" : "隐藏")")
     }
 
     /// 重置为默认设置
@@ -167,13 +167,10 @@ public class ViewOptionsManager: ObservableObject {
             let data = try JSONEncoder().encode(state)
             defaults.set(data, forKey: persistenceKey)
         } catch {
-            print("[ViewOptionsManager] 保存状态失败: \(error.localizedDescription)")
+            LogService.shared.error(.viewmodel, "保存视图选项状态失败: \(error.localizedDescription)")
         }
     }
 
-    /// 从 UserDefaults 加载状态
-    /// - Parameter defaults: UserDefaults 实例
-    /// - Returns: 加载的视图选项状态，如果加载失败则返回 nil
     private static func loadState(from defaults: UserDefaults) -> ViewOptionsState? {
         guard let data = defaults.data(forKey: "ViewOptionsState") else {
             return nil
@@ -182,7 +179,7 @@ public class ViewOptionsManager: ObservableObject {
         do {
             return try JSONDecoder().decode(ViewOptionsState.self, from: data)
         } catch {
-            print("[ViewOptionsManager] 加载状态失败: \(error.localizedDescription)")
+            LogService.shared.error(.viewmodel, "加载视图选项状态失败: \(error.localizedDescription)")
             return nil
         }
     }

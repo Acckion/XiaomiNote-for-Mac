@@ -435,14 +435,7 @@ final class FormatErrorHandler {
     /// 打印错误统计信息
     func printErrorStatistics() {
         let stats = getErrorStatistics()
-        print("""
-        [FormatErrorHandler] 错误统计
-          - 总错误数: \(stats["totalErrors"] ?? 0)
-          - 已处理: \(stats["handledErrors"] ?? 0)
-          - 未处理: \(stats["unhandledErrors"] ?? 0)
-          - 按错误代码: \(stats["errorsByCode"] ?? [:])
-          - 恢复操作: \(stats["recoveryActions"] ?? [:])
-        """)
+        LogService.shared.debug(.editor, "格式错误统计: 总数=\(stats["totalErrors"] ?? 0), 已处理=\(stats["handledErrors"] ?? 0), 未处理=\(stats["unhandledErrors"] ?? 0)")
     }
 }
 

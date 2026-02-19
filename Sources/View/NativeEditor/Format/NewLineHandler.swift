@@ -46,7 +46,6 @@ public struct NewLineHandler {
     /// _Requirements: 8.1, 8.3, 8.4_
     public static func handleNewLine(context: NewLineContext, textView: NSTextView) -> Bool {
         guard let textStorage = textView.textStorage else {
-            print("[NewLineHandler] 警告：textStorage 不可用")
             return false
         }
 
@@ -109,7 +108,6 @@ public struct NewLineHandler {
         textView: NSTextView,
         textStorage: NSTextStorage
     ) -> Bool {
-        print("[NewLineHandler] 处理普通文本换行")
 
         let selectedRange = textView.selectedRange()
 
@@ -132,7 +130,6 @@ public struct NewLineHandler {
         // 设置新行的 typingAttributes（清除内联格式，继承对齐属性）
         textView.typingAttributes = cleanAttrs
 
-        print("[NewLineHandler] 普通文本换行完成，已清除内联格式")
         return true
     }
 
@@ -167,7 +164,6 @@ public struct NewLineHandler {
         textView: NSTextView,
         textStorage: NSTextStorage
     ) -> Bool {
-        print("[NewLineHandler] 处理空列表项回车")
 
         let lineRange = context.currentLineRange
 
@@ -185,7 +181,6 @@ public struct NewLineHandler {
         // 移除附件
         if let range = attachmentRange {
             textStorage.deleteCharacters(in: range)
-            print("[NewLineHandler] 移除列表附件, range: \(range)")
         }
 
         // 2. 重新计算行范围（因为可能删除了附件）
@@ -221,7 +216,6 @@ public struct NewLineHandler {
         let attrs = buildCleanTypingAttributes(alignment: context.currentAlignment)
         textView.typingAttributes = attrs
 
-        print("[NewLineHandler] 空列表项已转换为普通正文")
         return true
     }
 
@@ -245,7 +239,6 @@ public struct NewLineHandler {
         attrs = InlineFormatHandler.removeInlineFormats(from: attrs)
 
         textView.typingAttributes = attrs
-        print("[NewLineHandler] 已清除 typingAttributes 中的内联格式")
     }
 
     // MARK: - 标题格式处理
@@ -265,7 +258,6 @@ public struct NewLineHandler {
         textView: NSTextView,
         textStorage: NSTextStorage
     ) -> Bool {
-        print("[NewLineHandler] 处理标题行换行")
 
         let selectedRange = textView.selectedRange()
 
@@ -287,7 +279,6 @@ public struct NewLineHandler {
         // 设置新行的 typingAttributes 为普通正文（继承对齐属性）
         textView.typingAttributes = cleanAttrs
 
-        print("[NewLineHandler] 标题行换行完成，新行为普通正文")
         return true
     }
 
@@ -313,7 +304,6 @@ public struct NewLineHandler {
         textStorage: NSTextStorage,
         format: TextFormat
     ) -> Bool {
-        print("[NewLineHandler] 处理列表项换行: \(format.displayName)")
 
         let selectedRange = textView.selectedRange()
         let position = selectedRange.location
@@ -368,7 +358,6 @@ public struct NewLineHandler {
         }
         textView.typingAttributes = attrs
 
-        print("[NewLineHandler] 列表项换行完成")
         return true
     }
 
@@ -389,7 +378,6 @@ public struct NewLineHandler {
         textView: NSTextView,
         textStorage: NSTextStorage
     ) -> Bool {
-        print("[NewLineHandler] 处理引用块换行")
 
         let selectedRange = textView.selectedRange()
         let position = selectedRange.location
@@ -421,7 +409,6 @@ public struct NewLineHandler {
         attrs[.quoteIndent] = indent
         textView.typingAttributes = attrs
 
-        print("[NewLineHandler] 引用块换行完成")
         return true
     }
 
@@ -448,7 +435,6 @@ public struct NewLineHandler {
         attrs[.paragraphStyle] = paragraphStyle
 
         textView.typingAttributes = attrs
-        print("[NewLineHandler] 继承对齐属性: \(context.currentAlignment.rawValue)")
     }
 
     // MARK: - 辅助方法 - typingAttributes 构建
@@ -568,8 +554,6 @@ public struct NewLineHandler {
 
         // 插入附件
         textStorage.insert(attachmentString, at: position)
-
-        print("[NewLineHandler] 应用 BulletAttachment 到新行, indent: \(indent)")
     }
 
     /// 应用有序列表附件到新行
@@ -607,8 +591,6 @@ public struct NewLineHandler {
 
         // 插入附件
         textStorage.insert(attachmentString, at: position)
-
-        print("[NewLineHandler] 应用 OrderAttachment 到新行, number: \(number), indent: \(indent)")
     }
 
     /// 应用无序列表到新行（旧方法，保留用于兼容）

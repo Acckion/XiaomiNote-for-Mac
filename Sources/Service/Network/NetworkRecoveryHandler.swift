@@ -99,7 +99,6 @@ public final class NetworkRecoveryHandler: ObservableObject {
         NotificationCenter.default.publisher(for: NSNotification.Name("CookieRefreshedSuccessfully"))
             .sink { [weak self] _ in
                 Task { @MainActor in
-                    print("[NetworkRecoveryHandler] Cookie 刷新成功，检查是否需要处理离线队列")
                     await self?.handleOnlineStateRecovery()
                 }
             }
@@ -113,11 +112,9 @@ public final class NetworkRecoveryHandler: ObservableObject {
     /// 遵循需求 8.6
     private func handleNetworkRecovery() async {
         guard autoProcessEnabled else {
-            print("[NetworkRecoveryHandler] 自动处理已禁用，跳过")
             return
         }
 
-        print("[NetworkRecoveryHandler] 🌐 检测到网络恢复")
         recoveryCount += 1
         lastRecoveryTime = Date()
 
@@ -127,11 +124,9 @@ public final class NetworkRecoveryHandler: ObservableObject {
         // 检查是否有待处理的操作（使用新的 UnifiedOperationQueue）
         let pendingCount = unifiedQueue.getPendingOperations().count
         if pendingCount == 0 {
-            print("[NetworkRecoveryHandler] 离线队列为空，无需处理")
             return
         }
 
-        print("[NetworkRecoveryHandler] 发现 \(pendingCount) 个待处理操作，将在 \(recoveryDelay) 秒后开始处理")
         isWaitingToProcess = true
 
         // 延迟处理，确保网络稳定
@@ -141,14 +136,12 @@ public final class NetworkRecoveryHandler: ObservableObject {
 
                 // 检查任务是否被取消
                 if Task.isCancelled {
-                    print("[NetworkRecoveryHandler] 恢复任务被取消")
                     isWaitingToProcess = false
                     return
                 }
 
                 // 再次检查在线状态
                 guard onlineStateManager.isOnline else {
-                    print("[NetworkRecoveryHandler] 网络状态不稳定，取消处理")
                     isWaitingToProcess = false
                     lastProcessingResult = ProcessingResult(
                         success: false,
@@ -161,7 +154,6 @@ public final class NetworkRecoveryHandler: ObservableObject {
 
                 await processOfflineQueue()
             } catch {
-                print("[NetworkRecoveryHandler] 恢复任务出错: \(error)")
                 isWaitingToProcess = false
             }
         }
@@ -170,22 +162,18 @@ public final class NetworkRecoveryHandler: ObservableObject {
     /// 处理在线状态恢复（包含 Cookie 有效性）
     private func handleOnlineStateRecovery() async {
         guard autoProcessEnabled else {
-            print("[NetworkRecoveryHandler] 自动处理已禁用，跳过")
             return
         }
 
         // 检查是否有待处理的操作（使用新的 UnifiedOperationQueue）
         let pendingCount = unifiedQueue.getPendingOperations().count
         if pendingCount == 0 {
-            print("[NetworkRecoveryHandler] 离线队列为空，无需处理")
             return
         }
 
-        print("[NetworkRecoveryHandler] ✅ 在线状态恢复，发现 \(pendingCount) 个待处理操作")
 
         // 如果已经在等待处理，不重复触发
         if isWaitingToProcess {
-            print("[NetworkRecoveryHandler] 已在等待处理中，跳过")
             return
         }
 
@@ -194,7 +182,6 @@ public final class NetworkRecoveryHandler: ObservableObject {
 
     /// 处理网络断开事件
     private func handleNetworkLost() {
-        print("[NetworkRecoveryHandler] 📴 网络断开")
 
         // 取消正在等待的恢复任务
         recoveryTask?.cancel()
@@ -205,7 +192,6 @@ public final class NetworkRecoveryHandler: ObservableObject {
     private func processOfflineQueue() async {
         isWaitingToProcess = false
 
-        print("[NetworkRecoveryHandler] 🚀 开始处理离线队列")
 
         // 发送开始处理通知
         NotificationCenter.default.post(
@@ -234,7 +220,6 @@ public final class NetworkRecoveryHandler: ObservableObject {
             skippedReason: nil
         )
 
-        print("[NetworkRecoveryHandler] ✅ 离线队列处理完成，成功: \(successCount)，失败: \(failedCount)")
 
         // 发送处理完成通知
         NotificationCenter.default.post(
@@ -275,7 +260,6 @@ public final class NetworkRecoveryHandler: ObservableObject {
     public func cancelPendingProcessing() {
         recoveryTask?.cancel()
         isWaitingToProcess = false
-        print("[NetworkRecoveryHandler] 已取消待处理的恢复任务")
     }
 
     /// 重置统计数据

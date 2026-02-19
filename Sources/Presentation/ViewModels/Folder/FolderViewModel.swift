@@ -113,10 +113,10 @@ public final class FolderViewModel: ObservableObject {
                 return folder1.createdAt > folder2.createdAt
             }
 
-            print("[FolderViewModel] 加载了 \(folders.count) 个文件夹（包含 \(folders.count(where: { $0.isSystem })) 个系统文件夹）")
+            LogService.shared.info(.viewmodel, "加载了 \(folders.count) 个文件夹（包含 \(folders.count(where: { $0.isSystem })) 个系统文件夹）")
         } catch {
             errorMessage = "加载文件夹失败: \(error.localizedDescription)"
-            print("[FolderViewModel] 加载文件夹失败: \(error)")
+            LogService.shared.error(.viewmodel, "加载文件夹失败: \(error)")
         }
 
         isLoading = false
@@ -159,15 +159,14 @@ public final class FolderViewModel: ObservableObject {
             do {
                 _ = try await noteService.createFolder(newFolder)
             } catch {
-                print("[FolderViewModel] 同步文件夹到云端失败: \(error)")
-                // 不阻塞本地操作
+                LogService.shared.warning(.viewmodel, "同步文件夹到云端失败: \(error)")
             }
 
             // 重新加载文件夹列表
             await loadFolders()
         } catch {
             errorMessage = "创建文件夹失败: \(error.localizedDescription)"
-            print("[FolderViewModel] 创建文件夹失败: \(error)")
+            LogService.shared.error(.viewmodel, "创建文件夹失败: \(error)")
         }
 
         isLoading = false
@@ -193,8 +192,7 @@ public final class FolderViewModel: ObservableObject {
             do {
                 try await noteService.deleteFolder(id: folder.id)
             } catch {
-                print("[FolderViewModel] 从云端删除文件夹失败: \(error)")
-                // 不阻塞本地操作
+                LogService.shared.warning(.viewmodel, "从云端删除文件夹失败: \(error)")
             }
 
             // 如果删除的是当前选中的文件夹，清除选中状态
@@ -206,7 +204,7 @@ public final class FolderViewModel: ObservableObject {
             await loadFolders()
         } catch {
             errorMessage = "删除文件夹失败: \(error.localizedDescription)"
-            print("[FolderViewModel] 删除文件夹失败: \(error)")
+            LogService.shared.error(.viewmodel, "删除文件夹失败: \(error)")
         }
 
         isLoading = false
@@ -252,15 +250,14 @@ public final class FolderViewModel: ObservableObject {
             do {
                 _ = try await noteService.updateFolder(updatedFolder)
             } catch {
-                print("[FolderViewModel] 同步文件夹到云端失败: \(error)")
-                // 不阻塞本地操作
+                LogService.shared.warning(.viewmodel, "同步文件夹重命名到云端失败: \(error)")
             }
 
             // 重新加载文件夹列表
             await loadFolders()
         } catch {
             errorMessage = "重命名文件夹失败: \(error.localizedDescription)"
-            print("[FolderViewModel] 重命名文件夹失败: \(error)")
+            LogService.shared.error(.viewmodel, "重命名文件夹失败: \(error)")
         }
 
         isLoading = false
@@ -292,7 +289,7 @@ public final class FolderViewModel: ObservableObject {
             // 保存到本地存储
             try noteStorage.saveFolder(updatedFolder)
 
-            print("[FolderViewModel] 文件夹置顶状态已更新: \(folder.name) -> \(updatedFolder.isPinned)")
+            LogService.shared.debug(.viewmodel, "文件夹置顶状态已更新: \(folder.name) -> \(updatedFolder.isPinned)")
 
             // 重新加载文件夹列表（会自动按置顶状态排序）
             await loadFolders()
@@ -303,7 +300,7 @@ public final class FolderViewModel: ObservableObject {
             }
         } catch {
             errorMessage = "更新文件夹置顶状态失败: \(error.localizedDescription)"
-            print("[FolderViewModel] 更新文件夹置顶状态失败: \(error)")
+            LogService.shared.error(.viewmodel, "更新文件夹置顶状态失败: \(error)")
         }
 
         isLoading = false

@@ -251,7 +251,6 @@
             icon: "pencil",
             isSelected: true
         ) {
-            print("点击了编辑时间")
         }
         .frame(width: 180)
         .padding()
@@ -263,7 +262,6 @@
             icon: "calendar.badge.plus",
             isSelected: false
         ) {
-            print("点击了创建时间")
         }
         .frame(width: 180)
         .padding()

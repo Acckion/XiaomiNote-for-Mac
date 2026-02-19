@@ -127,13 +127,9 @@ class FormatManager {
         textStorage.beginEditing()
 
         if toggle, hasItalic {
-            // 移除斜体
             textStorage.removeAttribute(.obliqueness, range: range)
-            print("[FormatManager] 移除斜体 (obliqueness)")
         } else if !hasItalic {
-            // 添加斜体 - 使用 obliqueness 值 0.2
             textStorage.addAttribute(.obliqueness, value: 0.2, range: range)
-            print("[FormatManager] 添加斜体 (obliqueness: 0.2)")
         }
 
         textStorage.endEditing()
@@ -858,7 +854,6 @@ class FormatManager {
         // 检查是否为标题段落
         // _Requirements: 3.1_ - 禁止对标题段落应用段落格式
         if format.isBlockFormat, isTitleParagraph(in: textStorage, range: range) {
-            print("[FormatManager] ⚠️ 检测到标题段落，禁止应用段落格式: \(format.displayName)")
             return
         }
 

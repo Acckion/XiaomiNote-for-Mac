@@ -109,7 +109,6 @@ public class EditorChangeTracker: ObservableObject {
     // MARK: - 初始化
 
     public init() {
-        print("[EditorChangeTracker] 初始化 - 版本号: \(contentVersion)")
     }
 
     // MARK: - 编辑追踪
@@ -121,14 +120,12 @@ public class EditorChangeTracker: ObservableObject {
     /// _Requirements: FR-2.1_
     public func textDidChange() {
         guard !isProgrammaticChange else {
-            print("[EditorChangeTracker] 程序化修改，跳过版本号增加")
             return
         }
 
         contentVersion += 1
         hasUserEdits = true
 
-        print("[EditorChangeTracker] 文本变化 - 版本号: \(contentVersion), needsSave: \(needsSave)")
     }
 
     /// 格式变化
@@ -138,14 +135,12 @@ public class EditorChangeTracker: ObservableObject {
     /// _Requirements: FR-2.2_
     public func formatDidChange() {
         guard !isProgrammaticChange else {
-            print("[EditorChangeTracker] 程序化修改，跳过版本号增加")
             return
         }
 
         contentVersion += 1
         hasUserEdits = true
 
-        print("[EditorChangeTracker] 格式变化 - 版本号: \(contentVersion), needsSave: \(needsSave)")
     }
 
     /// 附件变化
@@ -155,14 +150,12 @@ public class EditorChangeTracker: ObservableObject {
     /// _Requirements: FR-2.3_
     public func attachmentDidChange() {
         guard !isProgrammaticChange else {
-            print("[EditorChangeTracker] 程序化修改，跳过版本号增加")
             return
         }
 
         contentVersion += 1
         hasUserEdits = true
 
-        print("[EditorChangeTracker] 附件变化 - 版本号: \(contentVersion), needsSave: \(needsSave)")
     }
 
     // MARK: - 程序化修改
@@ -185,9 +178,7 @@ public class EditorChangeTracker: ObservableObject {
         isProgrammaticChange = true
         defer { isProgrammaticChange = wasProgrammaticChange }
 
-        print("[EditorChangeTracker] 开始程序化修改")
         block()
-        print("[EditorChangeTracker] 程序化修改完成 - 版本号保持: \(contentVersion)")
     }
 
     /// 异步执行程序化修改
@@ -200,9 +191,7 @@ public class EditorChangeTracker: ObservableObject {
         isProgrammaticChange = true
         defer { isProgrammaticChange = wasProgrammaticChange }
 
-        print("[EditorChangeTracker] 开始异步程序化修改")
         await block()
-        print("[EditorChangeTracker] 异步程序化修改完成 - 版本号保持: \(contentVersion)")
     }
 
     // MARK: - 保存管理
@@ -216,7 +205,6 @@ public class EditorChangeTracker: ObservableObject {
         lastSavedVersion = contentVersion
         hasUserEdits = false
 
-        print("[EditorChangeTracker] 保存成功 - 版本号同步: \(contentVersion), needsSave: \(needsSave)")
     }
 
     /// 保存失败
@@ -225,7 +213,6 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// _Requirements: FR-4.2_
     public func didSaveFail() {
-        print("[EditorChangeTracker] 保存失败 - 版本号保持: \(contentVersion), 待保存版本: \(lastSavedVersion), needsSave: \(needsSave)")
     }
 
     /// 检查是否有新编辑（在保存期间）
@@ -239,7 +226,6 @@ public class EditorChangeTracker: ObservableObject {
     public func hasNewEditsSince(savingVersion: Int) -> Bool {
         let hasNew = contentVersion > savingVersion
         if hasNew {
-            print("[EditorChangeTracker] 检测到新编辑 - 保存版本: \(savingVersion), 当前版本: \(contentVersion)")
         }
         return hasNew
     }
@@ -255,7 +241,6 @@ public class EditorChangeTracker: ObservableObject {
         hasUserEdits = false
         isProgrammaticChange = false
 
-        print("[EditorChangeTracker] 追踪器已重置")
     }
 
     // MARK: - 调试信息
@@ -279,8 +264,5 @@ public class EditorChangeTracker: ObservableObject {
 
     /// 打印调试信息
     public func printDebugInfo() {
-        print("[EditorChangeTracker] ========================================")
-        print(getDebugInfo())
-        print("[EditorChangeTracker] ========================================")
     }
 }

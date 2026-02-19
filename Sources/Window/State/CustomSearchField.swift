@@ -66,8 +66,6 @@ class CustomSearchField: NSSearchField {
 
         // 更新视图模型的搜索文本
         viewModel?.searchText = currentText
-
-        print("[CustomSearchField] 文本变化: '\(currentText)'")
     }
 
     // MARK: - 焦点处理
@@ -76,7 +74,6 @@ class CustomSearchField: NSSearchField {
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
         if result {
-            print("[CustomSearchField] 搜索框成为第一响应者")
             // 通知委托搜索框开始编辑
             // 使用异步确保UI更新完成后再通知
             DispatchQueue.main.async {
@@ -91,7 +88,6 @@ class CustomSearchField: NSSearchField {
     /// 处理鼠标点击事件
     override func mouseDown(with event: NSEvent) {
         super.mouseDown(with: event)
-        print("[CustomSearchField] 鼠标点击搜索框")
     }
 
     // MARK: - 清理

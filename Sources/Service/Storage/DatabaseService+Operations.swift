@@ -64,8 +64,6 @@ extension DatabaseService {
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
-
-            print("[[调试]] 保存统一操作: \(operation.id), type: \(operation.type.rawValue), noteId: \(operation.noteId)")
         }
     }
 
@@ -190,8 +188,6 @@ extension DatabaseService {
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
-
-            print("[[调试]] 删除统一操作: \(operationId)")
         }
     }
 
@@ -219,7 +215,7 @@ extension DatabaseService {
             }
 
             let changes = sqlite3_changes(db)
-            print("[[调试]] 更新操作中的笔记 ID: \(oldNoteId) -> \(newNoteId), 影响了 \(changes) 条操作")
+            LogService.shared.debug(.storage, "更新操作中的笔记 ID: \(oldNoteId) -> \(newNoteId), 影响了 \(changes) 条操作")
         }
     }
 
@@ -228,7 +224,6 @@ extension DatabaseService {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM unified_operations;"
             executeSQL(sql)
-            print("[[调试]] 清空所有统一操作")
         }
     }
 }
@@ -324,7 +319,6 @@ extension DatabaseService {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM operation_history;"
             executeSQL(sql)
-            print("[[调试]] 清空操作历史记录")
         }
     }
 
@@ -359,7 +353,7 @@ extension DatabaseService {
 
             let changes = sqlite3_changes(db)
             if changes > 0 {
-                print("[[调试]] 清理了 \(changes) 条旧的历史记录")
+                LogService.shared.debug(.storage, "清理了 \(changes) 条旧的历史记录")
             }
         }
     }
@@ -397,7 +391,7 @@ extension DatabaseService {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
 
-            print("[[调试]] 保存 ID 映射: \(mapping.localId) -> \(mapping.serverId)")
+            LogService.shared.debug(.storage, "保存 ID 映射: \(mapping.localId) -> \(mapping.serverId)")
         }
     }
 
@@ -476,7 +470,7 @@ extension DatabaseService {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
 
-            print("[[调试]] 标记 ID 映射完成: \(localId)")
+            LogService.shared.debug(.storage, "标记 ID 映射完成: \(localId)")
         }
     }
 
@@ -485,7 +479,6 @@ extension DatabaseService {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM id_mappings WHERE completed = 1;"
             executeSQL(sql)
-            print("[[调试]] 删除已完成的 ID 映射")
         }
     }
 }

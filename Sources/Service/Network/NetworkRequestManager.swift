@@ -171,7 +171,6 @@ final class NetworkRequestManager: ObservableObject {
         // 检查缓存
         if case .cache = request.cachePolicy {
             if let cached = getCachedResponse(for: request) {
-                print("[NetworkRequestManager] 使用缓存响应: \(request.url)")
                 return cached
             }
         }
@@ -450,7 +449,6 @@ final class NetworkRequestManager: ObservableObject {
 
         retryQueue[request.id] = (request: request, retryCount: retryCount, nextRetryTime: nextRetryTime)
 
-        print("[NetworkRequestManager] 添加到重试队列: \(request.url), 重试次数: \(retryCount), 下次重试时间: \(nextRetryTime)")
     }
 
     /// 处理重试队列
@@ -466,7 +464,6 @@ final class NetworkRequestManager: ObservableObject {
                 // 重新添加到队列
                 addToQueue(item.request)
             } else {
-                print("[NetworkRequestManager] 达到最大重试次数，放弃请求: \(item.request.url)")
             }
         }
     }

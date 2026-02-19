@@ -68,7 +68,7 @@ public final class IdMappingRegistry: @unchecked Sendable {
         // 从数据库恢复未完成的映射
         loadFromDatabase()
 
-        print("[IdMappingRegistry] ✅ 初始化完成，加载了 \(mappingsCache.count) 个未完成的映射")
+        LogService.shared.info(.sync, "IdMappingRegistry 初始化完成，加载了 \(mappingsCache.count) 个未完成的映射")
     }
 
     /// 用于测试的初始化方法
@@ -103,9 +103,9 @@ public final class IdMappingRegistry: @unchecked Sendable {
                 mappingsCache[mapping.localId] = mapping
             }
 
-            print("[IdMappingRegistry] 从数据库加载了 \(mappings.count) 个未完成的映射")
+            LogService.shared.debug(.sync, "IdMappingRegistry 从数据库加载了 \(mappings.count) 个未完成的映射")
         } catch {
-            print("[IdMappingRegistry] ❌ 从数据库加载映射失败: \(error)")
+            LogService.shared.error(.sync, "IdMappingRegistry 从数据库加载映射失败: \(error)")
         }
     }
 }
@@ -145,7 +145,7 @@ public extension IdMappingRegistry {
         // 更新内存缓存
         mappingsCache[localId] = mapping
 
-        print("[IdMappingRegistry] 📝 注册映射: \(localId) -> \(serverId) (\(entityType))")
+        LogService.shared.debug(.sync, "注册映射: \(localId) -> \(serverId) (\(entityType))")
     }
 
     /// 检查是否存在映射
@@ -261,7 +261,7 @@ public extension IdMappingRegistry {
     /// - 需求 8.6: 更新操作队列中的 noteId
     /// - 需求 8.7: 更新 UI 中的笔记引用
     func updateAllReferences(localId: String, serverId: String) async throws {
-        print("[IdMappingRegistry] 🔄 开始更新所有引用: \(localId) -> \(serverId)")
+        LogService.shared.debug(.sync, "开始更新所有引用: \(localId) -> \(serverId)")
 
         // 1. 注册映射（如果还没有注册）
         if !hasMapping(for: localId) {
@@ -271,18 +271,18 @@ public extension IdMappingRegistry {
         // 2. 更新数据库中的笔记 ID
         do {
             try databaseService.updateNoteId(oldId: localId, newId: serverId)
-            print("[IdMappingRegistry] ✅ 数据库笔记 ID 更新成功")
+            LogService.shared.debug(.sync, "数据库笔记 ID 更新成功")
         } catch {
-            print("[IdMappingRegistry] ❌ 数据库笔记 ID 更新失败: \(error)")
+            LogService.shared.error(.sync, "数据库笔记 ID 更新失败: \(error)")
             throw error
         }
 
         // 3. 更新操作队列中的 noteId
         do {
             try operationQueue.updateNoteIdInPendingOperations(oldNoteId: localId, newNoteId: serverId)
-            print("[IdMappingRegistry] ✅ 操作队列 noteId 更新成功")
+            LogService.shared.debug(.sync, "操作队列 noteId 更新成功")
         } catch {
-            print("[IdMappingRegistry] ❌ 操作队列 noteId 更新失败: \(error)")
+            LogService.shared.error(.sync, "操作队列 noteId 更新失败: \(error)")
             throw error
         }
 
@@ -297,10 +297,9 @@ public extension IdMappingRegistry {
                     "entityType": "note",
                 ]
             )
-            print("[IdMappingRegistry] 📢 已发送 ID 映射完成通知")
         }
 
-        print("[IdMappingRegistry] ✅ 所有引用更新完成: \(localId) -> \(serverId)")
+        LogService.shared.info(.sync, "所有引用更新完成: \(localId) -> \(serverId)")
     }
 
     /// 更新文件夹的所有引用
@@ -310,7 +309,7 @@ public extension IdMappingRegistry {
     ///   - serverId: 正式 ID
     /// - Throws: DatabaseError（数据库操作失败）
     func updateAllFolderReferences(localId: String, serverId: String) async throws {
-        print("[IdMappingRegistry] 🔄 开始更新文件夹引用: \(localId) -> \(serverId)")
+        LogService.shared.debug(.sync, "开始更新文件夹引用: \(localId) -> \(serverId)")
 
         // 1. 注册映射（如果还没有注册）
         if !hasMapping(for: localId) {
@@ -320,9 +319,9 @@ public extension IdMappingRegistry {
         // 2. 更新操作队列中的 noteId（文件夹操作也使用 noteId 字段）
         do {
             try operationQueue.updateNoteIdInPendingOperations(oldNoteId: localId, newNoteId: serverId)
-            print("[IdMappingRegistry] ✅ 操作队列 folderId 更新成功")
+            LogService.shared.debug(.sync, "操作队列 folderId 更新成功")
         } catch {
-            print("[IdMappingRegistry] ❌ 操作队列 folderId 更新失败: \(error)")
+            LogService.shared.error(.sync, "操作队列 folderId 更新失败: \(error)")
             throw error
         }
 
@@ -339,7 +338,7 @@ public extension IdMappingRegistry {
             )
         }
 
-        print("[IdMappingRegistry] ✅ 文件夹引用更新完成: \(localId) -> \(serverId)")
+        LogService.shared.info(.sync, "文件夹引用更新完成: \(localId) -> \(serverId)")
     }
 }
 
@@ -370,7 +369,7 @@ public extension IdMappingRegistry {
             mappingsCache[localId] = mapping
         }
 
-        print("[IdMappingRegistry] ✅ 标记映射完成: \(localId)")
+        LogService.shared.debug(.sync, "标记映射完成: \(localId)")
     }
 
     /// 清理已完成的映射
@@ -395,7 +394,7 @@ public extension IdMappingRegistry {
             mappingsCache.removeValue(forKey: id)
         }
 
-        print("[IdMappingRegistry] 🧹 清理了 \(completedIds.count) 个已完成的映射")
+        LogService.shared.debug(.sync, "清理了 \(completedIds.count) 个已完成的映射")
     }
 
     /// 获取所有未完成的映射
@@ -452,7 +451,7 @@ public extension IdMappingRegistry {
     /// - 需求 9.4: 应用重启时从数据库恢复未完成的映射关系
     func reload() {
         loadFromDatabase()
-        print("[IdMappingRegistry] 🔄 重新加载完成，当前有 \(mappingsCache.count) 个映射")
+        LogService.shared.debug(.sync, "IdMappingRegistry 重新加载完成，当前有 \(mappingsCache.count) 个映射")
     }
 
     /// 处理未完成的映射
@@ -478,11 +477,11 @@ public extension IdMappingRegistry {
         let pendingMappings = getPendingMappings()
 
         if pendingMappings.isEmpty {
-            print("[IdMappingRegistry] ✅ 没有需要恢复的映射")
+            LogService.shared.debug(.sync, "没有需要恢复的映射")
             return 0
         }
 
-        print("[IdMappingRegistry] 🔄 开始恢复 \(pendingMappings.count) 个未完成的映射")
+        LogService.shared.info(.sync, "开始恢复 \(pendingMappings.count) 个未完成的映射")
 
         var recoveredCount = 0
 
@@ -499,13 +498,13 @@ public extension IdMappingRegistry {
                 try markCompleted(localId: mapping.localId)
                 recoveredCount += 1
 
-                print("[IdMappingRegistry] ✅ 恢复映射成功: \(mapping.localId) -> \(mapping.serverId)")
+                LogService.shared.debug(.sync, "恢复映射成功: \(mapping.localId) -> \(mapping.serverId)")
             } catch {
-                print("[IdMappingRegistry] ❌ 恢复映射失败: \(mapping.localId), 错误: \(error)")
+                LogService.shared.error(.sync, "恢复映射失败: \(mapping.localId), 错误: \(error)")
             }
         }
 
-        print("[IdMappingRegistry] 🔄 恢复完成，成功 \(recoveredCount)/\(pendingMappings.count)")
+        LogService.shared.info(.sync, "恢复完成，成功 \(recoveredCount)/\(pendingMappings.count)")
         return recoveredCount
     }
 }
@@ -527,7 +526,7 @@ public extension IdMappingRegistry {
         // 清空数据库（先清理已完成的，再清理未完成的）
         try databaseService.deleteCompletedIdMappings()
 
-        print("[IdMappingRegistry] 🧪 测试清空完成")
+        LogService.shared.debug(.sync, "IdMappingRegistry 测试清空完成")
     }
 
     /// 重置状态（仅用于测试）
@@ -536,7 +535,7 @@ public extension IdMappingRegistry {
         defer { lock.unlock() }
 
         mappingsCache.removeAll()
-        print("[IdMappingRegistry] 🧪 测试重置完成")
+        LogService.shared.debug(.sync, "IdMappingRegistry 测试重置完成")
     }
 }
 

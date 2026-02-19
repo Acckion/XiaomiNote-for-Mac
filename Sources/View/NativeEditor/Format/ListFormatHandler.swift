@@ -98,8 +98,6 @@ public struct ListFormatHandler {
         applyBodyFontSizePreservingTraits(to: textStorage, range: newLineRange)
 
         textStorage.endEditing()
-
-        print("[ListFormatHandler] 应用无序列表格式, indent: \(indent)")
     }
 
     /// 应用有序列表格式
@@ -149,8 +147,6 @@ public struct ListFormatHandler {
         applyBodyFontSizePreservingTraits(to: textStorage, range: newLineRange)
 
         textStorage.endEditing()
-
-        print("[ListFormatHandler] 应用有序列表格式, number: \(number), indent: \(indent)")
     }
 
     // MARK: - 复选框列表应用
@@ -206,8 +202,6 @@ public struct ListFormatHandler {
         applyBodyFontSizePreservingTraits(to: textStorage, range: newLineRange)
 
         textStorage.endEditing()
-
-        print("[ListFormatHandler] 应用复选框列表格式, indent: \(indent), level: \(level)")
     }
 
     /// 移除复选框列表格式
@@ -260,8 +254,6 @@ public struct ListFormatHandler {
         }
 
         textStorage.endEditing()
-
-        print("[ListFormatHandler] 移除复选框列表格式")
     }
 
     /// 切换复选框列表格式
@@ -281,20 +273,12 @@ public struct ListFormatHandler {
 
         switch currentType {
         case .checkbox:
-            // 已经是复选框列表，移除格式
             removeCheckboxList(from: textStorage, range: range)
-            print("[ListFormatHandler] 切换：移除复选框列表")
-
         case .bullet, .ordered:
-            // 是其他列表，先移除再应用复选框
             removeListFormat(from: textStorage, range: range)
             applyCheckboxList(to: textStorage, range: range)
-            print("[ListFormatHandler] 切换：\(currentType) -> 复选框列表")
-
         case .none:
-            // 不是列表，应用复选框列表
             applyCheckboxList(to: textStorage, range: range)
-            print("[ListFormatHandler] 切换：应用复选框列表")
         }
     }
 
@@ -351,8 +335,6 @@ public struct ListFormatHandler {
         }
 
         textStorage.endEditing()
-
-        print("[ListFormatHandler] 移除列表格式")
     }
 
     // MARK: - 列表切换
@@ -374,25 +356,14 @@ public struct ListFormatHandler {
 
         switch currentType {
         case .bullet:
-            // 已经是无序列表，移除格式
             removeListFormat(from: textStorage, range: range)
-            print("[ListFormatHandler] 切换：移除无序列表")
-
         case .ordered:
-            // 是有序列表，转换为无序列表
             convertListType(in: textStorage, range: range, to: .bullet)
-            print("[ListFormatHandler] 切换：有序列表 -> 无序列表")
-
         case .checkbox:
-            // 是复选框列表，先移除再应用无序列表
             removeListFormat(from: textStorage, range: range)
             applyBulletList(to: textStorage, range: range)
-            print("[ListFormatHandler] 切换：复选框 -> 无序列表")
-
         case .none:
-            // 不是列表，应用无序列表
             applyBulletList(to: textStorage, range: range)
-            print("[ListFormatHandler] 切换：应用无序列表")
         }
     }
 
@@ -413,27 +384,16 @@ public struct ListFormatHandler {
 
         switch currentType {
         case .ordered:
-            // 已经是有序列表，移除格式
             removeListFormat(from: textStorage, range: range)
-            print("[ListFormatHandler] 切换：移除有序列表")
-
         case .bullet:
-            // 是无序列表，转换为有序列表
             convertListType(in: textStorage, range: range, to: .ordered)
-            print("[ListFormatHandler] 切换：无序列表 -> 有序列表")
-
         case .checkbox:
-            // 是复选框列表，先移除再应用有序列表
             removeListFormat(from: textStorage, range: range)
             let number = calculateListNumber(in: textStorage, at: range.location)
             applyOrderedList(to: textStorage, range: range, number: number)
-            print("[ListFormatHandler] 切换：复选框 -> 有序列表")
-
         case .none:
-            // 不是列表，应用有序列表
             let number = calculateListNumber(in: textStorage, at: range.location)
             applyOrderedList(to: textStorage, range: range, number: number)
-            print("[ListFormatHandler] 切换：应用有序列表")
         }
     }
 
@@ -514,8 +474,6 @@ public struct ListFormatHandler {
         textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
 
         textStorage.endEditing()
-
-        print("[ListFormatHandler] 转换列表类型为: \(targetType)")
     }
 
     // MARK: - 格式互斥处理
@@ -565,7 +523,7 @@ public struct ListFormatHandler {
                 }
             }
 
-            print("[ListFormatHandler] 互斥：移除标题格式（级别 \(headingLevel)），应用正文字体大小 \(bodyFontSize)pt")
+
         }
     }
 
@@ -592,7 +550,6 @@ public struct ListFormatHandler {
         if listType != .none {
             // 有列表格式，移除它
             removeListFormat(from: textStorage, range: range)
-            print("[ListFormatHandler] 互斥：移除列表格式（类型 \(listType)），准备应用标题格式")
             return true
         }
 

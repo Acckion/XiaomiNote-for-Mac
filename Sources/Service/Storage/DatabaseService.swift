@@ -105,7 +105,7 @@ final class DatabaseService: @unchecked Sendable {
             let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
             guard sqlite3_open_v2(dbPath.path, &db, flags, nil) == SQLITE_OK else {
                 let errorMsg = db != nil ? String(cString: sqlite3_errmsg(db)) : "无法打开数据库"
-                print("[[调试]] 无法打开数据库: \(errorMsg)")
+                LogService.shared.error(.storage, "无法打开数据库: \(errorMsg)")
                 if db != nil {
                     sqlite3_close(db)
                     db = nil
@@ -116,7 +116,7 @@ final class DatabaseService: @unchecked Sendable {
             sqlite3_busy_timeout(db, 5000)
             sqlite3_exec(db, "PRAGMA foreign_keys = ON;", nil, nil, nil)
 
-            print("[[调试]] 数据库已打开: \(dbPath.path)")
+            LogService.shared.info(.storage, "数据库已打开: \(dbPath.path)")
 
             createTables()
         }
@@ -130,7 +130,7 @@ final class DatabaseService: @unchecked Sendable {
             executeSQL(indexSQL)
         }
 
-        print("[[调试]] notes 表创建成功，包含所有优化字段")
+        LogService.shared.info(.storage, "notes 表创建成功，包含所有优化字段")
     }
 
     /// 创建数据库表
@@ -138,7 +138,7 @@ final class DatabaseService: @unchecked Sendable {
         do {
             try createNotesTable()
         } catch {
-            print("[[调试]] 创建 notes 表失败: \(error)")
+            LogService.shared.error(.storage, "创建 notes 表失败: \(error)")
         }
 
         let createFoldersTable = """
@@ -156,7 +156,7 @@ final class DatabaseService: @unchecked Sendable {
         do {
             try DatabaseMigrationManager.runPendingMigrations(db: db)
         } catch {
-            print("[[调试]] 数据库迁移失败: \(error)")
+            LogService.shared.error(.storage, "数据库迁移失败: \(error)")
         }
 
         let createSyncStatusTable = """
@@ -252,14 +252,14 @@ final class DatabaseService: @unchecked Sendable {
 
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             if !ignoreError {
-                print("[[调试]] SQL 准备失败: \(String(cString: sqlite3_errmsg(db)))")
+                LogService.shared.error(.storage, "SQL 准备失败: \(String(cString: sqlite3_errmsg(db)))")
             }
             return
         }
 
         let result = sqlite3_step(statement)
         if result != SQLITE_DONE, !ignoreError {
-            print("[[调试]] SQL 执行失败: \(String(cString: sqlite3_errmsg(db)))")
+            LogService.shared.error(.storage, "SQL 执行失败: \(String(cString: sqlite3_errmsg(db)))")
         }
     }
 
@@ -268,7 +268,7 @@ final class DatabaseService: @unchecked Sendable {
             if db != nil {
                 sqlite3_close(db)
                 db = nil
-                print("[[调试]] 数据库已关闭")
+                LogService.shared.info(.storage, "数据库已关闭")
             }
         }
     }

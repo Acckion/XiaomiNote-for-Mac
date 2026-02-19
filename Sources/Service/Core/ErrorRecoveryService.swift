@@ -97,9 +97,6 @@ public final class ErrorRecoveryService: ObservableObject {
         error: Error,
         context: String
     ) -> ErrorRecoveryResult {
-        print("[ErrorRecovery] 处理网络错误: \(context)")
-        print("[ErrorRecovery] 错误: \(error.localizedDescription)")
-
         // 分类错误
         let errorType = networkErrorHandler.classifyError(error)
 
@@ -169,7 +166,6 @@ public final class ErrorRecoveryService: ObservableObject {
         requiresAuth: Bool = false
     ) -> ErrorRecoveryResult {
         do {
-            // 创建统一操作
             let noteOperation = NoteOperation(
                 type: operation,
                 noteId: noteId,
@@ -180,10 +176,8 @@ public final class ErrorRecoveryService: ObservableObject {
                 lastError: error.localizedDescription
             )
 
-            // 添加到统一队列
             try unifiedQueue.enqueue(noteOperation)
-
-            print("[ErrorRecovery] ✅ 操作已添加到统一队列: \(operation.rawValue), noteId: \(noteId)")
+            LogService.shared.debug(.core, "操作已添加到统一队列: \(operation.rawValue)")
 
             let message = requiresAuth
                 ? "操作已保存，将在登录后自动同步"
@@ -191,7 +185,7 @@ public final class ErrorRecoveryService: ObservableObject {
 
             return .addedToQueue(message: message)
         } catch {
-            print("[ErrorRecovery] ❌ 添加到统一队列失败: \(error)")
+            LogService.shared.error(.core, "添加到统一队列失败: \(error)")
             return .noRetry(message: "保存操作失败: \(error.localizedDescription)")
         }
     }

@@ -29,75 +29,42 @@ public final class ServiceLocator: @unchecked Sendable {
     @MainActor
     public func configure() {
         guard !isConfigured else {
-            print("⚠️ ServiceLocator 已经配置过，跳过重复配置")
+            LogService.shared.warning(.core, "ServiceLocator 已经配置过，跳过重复配置")
             return
         }
 
-        print("🚀 开始配置 ServiceLocator...")
-
         // 创建基础服务
-        print("  📦 创建基础服务...")
         let networkClient = NetworkClient()
         let cacheService = DefaultCacheService()
 
-        // 使用现有的 DatabaseService.shared（过渡期）
         let noteStorage = DatabaseService.shared
 
-        // 注册基础服务
-        print("  ✅ 注册 CacheServiceProtocol")
         container.register(CacheServiceProtocol.self, instance: cacheService)
-
-        print("  ✅ 注册 NoteStorageProtocol")
         container.register(NoteStorageProtocol.self, instance: noteStorage)
 
-        // 创建并注册网络相关服务
-        print("  📦 创建网络相关服务...")
-
-        // 使用现有的 MiNoteService.shared（过渡期）
         let noteService = MiNoteService.shared
-
-        // 使用现有的 SyncService.shared（过渡期）
         let syncService = SyncService.shared
 
         let authService = DefaultAuthenticationService(networkClient: networkClient)
         let imageService = DefaultImageService(networkClient: networkClient, cacheService: cacheService)
         let audioService = DefaultAudioService(cacheService: cacheService)
 
-        // 使用现有的 NetworkMonitor.shared（过渡期）
         let networkMonitor = NetworkMonitor.shared
 
-        print("  ✅ 注册 NoteServiceProtocol (使用现有单例)")
         container.register(NoteServiceProtocol.self, instance: noteService)
-
-        print("  ✅ 注册 SyncServiceProtocol (使用现有单例)")
         container.register(SyncServiceProtocol.self, instance: syncService)
-
-        print("  ✅ 注册 AuthenticationServiceProtocol")
         container.register(AuthenticationServiceProtocol.self, instance: authService)
-
-        print("  ✅ 注册 ImageServiceProtocol")
         container.register(ImageServiceProtocol.self, instance: imageService)
-
-        print("  ✅ 注册 AudioServiceProtocol")
         container.register(AudioServiceProtocol.self, instance: audioService)
-
-        print("  ✅ 注册 NetworkMonitorProtocol (使用现有单例)")
         container.register(NetworkMonitorProtocol.self, instance: networkMonitor)
 
-        // 网络监控已经在 NetworkMonitor.shared 初始化时启动
-        print("  🌐 网络监控已启动（使用现有单例）")
-
         isConfigured = true
-        print("✅ ServiceLocator 配置完成！")
+        LogService.shared.info(.core, "ServiceLocator 配置完成")
 
-        // 验证所有服务已注册
         verifyConfiguration()
     }
 
-    /// 验证所有服务是否已正确注册
     private func verifyConfiguration() {
-        print("🔍 验证服务注册...")
-
         let services: [(String, Any.Type)] = [
             ("CacheServiceProtocol", CacheServiceProtocol.self),
             ("NoteStorageProtocol", NoteStorageProtocol.self),
@@ -109,20 +76,9 @@ public final class ServiceLocator: @unchecked Sendable {
             ("NetworkMonitorProtocol", NetworkMonitorProtocol.self),
         ]
 
-        var allRegistered = true
-        for (name, type) in services {
-            if container.isRegistered(type) {
-                print("  ✅ \(name) 已注册")
-            } else {
-                print("  ❌ \(name) 未注册")
-                allRegistered = false
-            }
-        }
-
-        if allRegistered {
-            print("✅ 所有服务验证通过！")
-        } else {
-            print("⚠️ 部分服务未注册，请检查配置")
+        let allRegistered = services.allSatisfy { _, type in container.isRegistered(type) }
+        if !allRegistered {
+            LogService.shared.warning(.core, "部分服务未注册，请检查配置")
         }
     }
 
@@ -197,6 +153,5 @@ public final class ServiceLocator: @unchecked Sendable {
     func reset() {
         container.reset()
         isConfigured = false
-        print("🔄 ServiceLocator 已重置")
     }
 }

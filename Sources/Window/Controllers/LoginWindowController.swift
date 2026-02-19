@@ -83,7 +83,7 @@
             guard let window else { return }
 
             guard let viewModel else {
-                print("[LoginWindowController] 错误: viewModel 为 nil，无法创建登录视图")
+                LogService.shared.error(.window, "viewModel 为 nil，无法创建登录视图")
                 return
             }
 

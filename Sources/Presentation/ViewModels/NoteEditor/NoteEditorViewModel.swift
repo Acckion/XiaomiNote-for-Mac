@@ -90,8 +90,6 @@ public final class NoteEditorViewModel: ObservableObject {
         self.noteService = noteService
 
         setupAutoSave()
-
-        print("[NoteEditorViewModel] 初始化完成")
     }
 
     deinit {
@@ -105,10 +103,7 @@ public final class NoteEditorViewModel: ObservableObject {
     /// - Parameter note: 要加载的笔记
     public func loadNote(_ note: Note) async {
         // 如果正在编辑同一个笔记，不重复加载
-        guard currentNote?.id != note.id else {
-            print("[NoteEditorViewModel] 已经在编辑笔记: \(note.title)")
-            return
-        }
+        guard currentNote?.id != note.id else { return }
 
         // 如果有未保存的更改，先保存
         if hasUnsavedChanges {
@@ -128,10 +123,10 @@ public final class NoteEditorViewModel: ObservableObject {
             lastSavedContent = loadedNote.content
             hasUnsavedChanges = false
 
-            print("[NoteEditorViewModel] 加载笔记: \(loadedNote.title)")
+            LogService.shared.info(.viewmodel, "加载笔记: \(loadedNote.title)")
         } catch {
             errorMessage = "加载笔记失败: \(error.localizedDescription)"
-            print("[NoteEditorViewModel] 加载失败: \(error)")
+            LogService.shared.error(.viewmodel, "加载笔记失败: \(error)")
         }
 
         isLoading = false
@@ -139,15 +134,8 @@ public final class NoteEditorViewModel: ObservableObject {
 
     /// 保存笔记
     public func saveNote() async {
-        guard let note = currentNote else {
-            print("[NoteEditorViewModel] 没有要保存的笔记")
-            return
-        }
-
-        guard hasUnsavedChanges else {
-            print("[NoteEditorViewModel] 没有未保存的更改")
-            return
-        }
+        guard let note = currentNote else { return }
+        guard hasUnsavedChanges else { return }
 
         isSaving = true
         errorMessage = nil
@@ -167,10 +155,10 @@ public final class NoteEditorViewModel: ObservableObject {
             lastSavedContent = content
             hasUnsavedChanges = false
 
-            print("[NoteEditorViewModel] 保存笔记: \(updatedNote.title)")
+            LogService.shared.info(.viewmodel, "保存笔记: \(updatedNote.title)")
         } catch {
             errorMessage = "保存笔记失败: \(error.localizedDescription)"
-            print("[NoteEditorViewModel] 保存失败: \(error)")
+            LogService.shared.error(.viewmodel, "保存笔记失败: \(error)")
         }
 
         isSaving = false
@@ -258,8 +246,6 @@ public final class NoteEditorViewModel: ObservableObject {
         title = ""
         lastSavedContent = ""
         hasUnsavedChanges = false
-
-        print("[NoteEditorViewModel] 清除笔记")
     }
 
     // MARK: - Private Methods
@@ -285,7 +271,7 @@ public final class NoteEditorViewModel: ObservableObject {
     private func autoSave() async {
         guard hasUnsavedChanges else { return }
 
-        print("[NoteEditorViewModel] 自动保存...")
+        LogService.shared.debug(.viewmodel, "自动保存触发")
         await saveNote()
     }
 }

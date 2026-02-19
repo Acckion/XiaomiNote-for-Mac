@@ -47,7 +47,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         // 现在可以更新菜单管理器的引用（因为 self 现在可用）
         menuManager.updateReferences(appDelegate: self, mainWindowController: windowManager.mainWindowController)
 
-        print("应用程序委托初始化完成")
+        LogService.shared.info(.app, "应用程序委托初始化完成")
     }
 
     // MARK: - NSApplicationDelegate
@@ -56,22 +56,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         // 配置依赖注入服务
         ServiceLocator.shared.configure()
 
-        print("")
-        print("========================================")
-        print("🚀 应用启动")
-        print("========================================")
-        print("📦 架构: AppCoordinator + 7 个 ViewModel")
-        print("")
-        print("   组件列表:")
-        print("   • NoteListViewModel      - 笔记列表管理")
-        print("   • NoteEditorViewModel    - 笔记编辑器")
-        print("   • SyncCoordinator        - 同步协调")
-        print("   • AuthenticationViewModel - 认证管理")
-        print("   • SearchViewModel        - 搜索功能")
-        print("   • FolderViewModel        - 文件夹管理")
-        print("   • AudioPanelViewModel    - 音频面板")
-        print("")
-        print("========================================")
+        LogService.shared.info(.app, "应用启动")
 
         // 创建 AppCoordinator
         let coordinator = AppCoordinator()
@@ -557,11 +542,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         menuActionHandler.validateMenuItem(menuItem)
     }
 
-    // MARK: - 清理
-
-    deinit {
-        print("应用程序委托释放")
-    }
 }
 
 // MARK: - 应用程序启动器

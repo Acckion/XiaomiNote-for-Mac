@@ -64,14 +64,14 @@ public extension SyncGuard {
         // 1. 检查是否为临时 ID（离线创建的笔记）
         // 临时 ID 笔记不会出现在云端，不需要同步
         if NoteOperation.isTemporaryId(noteId) {
-            print("[SyncGuard] 🛡️ 跳过同步: 临时 ID 笔记 \(noteId.prefix(8))...")
+            LogService.shared.debug(.sync, "跳过同步: 临时 ID 笔记 \(noteId.prefix(8))...")
             return true
         }
 
         // 2. 检查是否正在编辑
         let isEditing = await coordinator.isNoteActivelyEditing(noteId)
         if isEditing {
-            print("[SyncGuard] 🛡️ 跳过同步: 笔记正在编辑 \(noteId.prefix(8))...")
+            LogService.shared.debug(.sync, "跳过同步: 笔记正在编辑 \(noteId.prefix(8))...")
             return true
         }
 
@@ -80,18 +80,18 @@ public extension SyncGuard {
             // 比较时间戳
             if let localTimestamp = operationQueue.getLocalSaveTimestamp(for: noteId) {
                 if localTimestamp >= cloudTimestamp {
-                    print("[SyncGuard] 🛡️ 跳过同步: 本地较新 \(noteId.prefix(8))... (本地: \(localTimestamp), 云端: \(cloudTimestamp))")
+                    LogService.shared.debug(.sync, "跳过同步: 本地较新 \(noteId.prefix(8))...")
                     return true
                 }
             }
             // 即使云端较新，但笔记在待上传列表中，也应该跳过（用户优先策略）
-            print("[SyncGuard] 🛡️ 跳过同步: 待上传中 \(noteId.prefix(8))...")
+            LogService.shared.debug(.sync, "跳过同步: 待上传中 \(noteId.prefix(8))...")
             return true
         }
 
         // 4. 检查是否有待处理的 noteCreate 操作
         if operationQueue.hasPendingNoteCreate(for: noteId) {
-            print("[SyncGuard] 🛡️ 跳过同步: 待创建中 \(noteId.prefix(8))...")
+            LogService.shared.debug(.sync, "跳过同步: 待创建中 \(noteId.prefix(8))...")
             return true
         }
 

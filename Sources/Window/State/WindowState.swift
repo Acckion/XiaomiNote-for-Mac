@@ -93,13 +93,13 @@ public final class WindowState: ObservableObject {
         self.coordinator = coordinator
         self.windowId = UUID()
 
-        print("[WindowState] 初始化窗口状态，ID: \(windowId)")
+        LogService.shared.debug(.window, "初始化窗口状态，ID: \(windowId)")
 
         setupBindings()
     }
 
     deinit {
-        print("[WindowState] 释放窗口状态，ID: \(windowId)")
+        // deinit 不在 MainActor 上，无法调用 LogService（MainActor 隔离）
     }
 
     // MARK: - 操作方法
@@ -110,7 +110,6 @@ public final class WindowState: ObservableObject {
     ///
     /// - Parameter note: 要选择的笔记
     public func selectNote(_ note: Note) {
-        print("[WindowState] 选择笔记: \(note.title)")
         selectedNote = note
         coordinator?.handleNoteSelection(note)
     }
@@ -121,11 +120,6 @@ public final class WindowState: ObservableObject {
     ///
     /// - Parameter folder: 要选择的文件夹（nil 表示显示所有笔记）
     public func selectFolder(_ folder: Folder?) {
-        if let folder {
-            print("[WindowState] 选择文件夹: \(folder.name)")
-        } else {
-            print("[WindowState] 清除文件夹选择")
-        }
         coordinator?.handleFolderSelection(folder)
     }
 
@@ -133,13 +127,11 @@ public final class WindowState: ObservableObject {
     ///
     /// - Parameter note: 要展开的笔记
     public func expandNote(_ note: Note) {
-        print("[WindowState] 展开笔记: \(note.title)")
         expandedNote = note
     }
 
     /// 折叠笔记（画廊视图）
     public func collapseNote() {
-        print("[WindowState] 折叠笔记")
         expandedNote = nil
     }
 
@@ -149,17 +141,14 @@ public final class WindowState: ObservableObject {
     public func toggleFolderExpansion(_ folderId: String) {
         if expandedFolders.contains(folderId) {
             expandedFolders.remove(folderId)
-            print("[WindowState] 折叠文件夹: \(folderId)")
         } else {
             expandedFolders.insert(folderId)
-            print("[WindowState] 展开文件夹: \(folderId)")
         }
     }
 
     /// 切换侧边栏显示状态
     public func toggleSidebar() {
         showSidebar.toggle()
-        print("[WindowState] 侧边栏显示状态: \(showSidebar)")
     }
 
     /// 更新滚动位置
@@ -176,7 +165,7 @@ public final class WindowState: ObservableObject {
     /// 监听 AppCoordinator 的数据变化，自动刷新 UI
     private func setupBindings() {
         guard let coordinator else {
-            print("[WindowState] 警告: AppCoordinator 为 nil，无法设置绑定")
+            LogService.shared.warning(.window, "AppCoordinator 为 nil，无法设置绑定")
             return
         }
 
@@ -190,7 +179,6 @@ public final class WindowState: ObservableObject {
                 if let selectedNote,
                    !notes.contains(where: { $0.id == selectedNote.id })
                 {
-                    print("[WindowState] 选中的笔记已被删除，清除选择")
                     self.selectedNote = nil
                 }
 
@@ -200,7 +188,6 @@ public final class WindowState: ObservableObject {
                 {
                     // 只有当笔记内容真正变化时才更新
                     if !selectedNote.contentEquals(updatedNote) {
-                        print("[WindowState] 更新选中笔记的内容")
                         self.selectedNote = updatedNote
                     }
                 }
@@ -260,7 +247,5 @@ public final class WindowState: ObservableObject {
                 self?.showStarredOnly = showStarredOnly
             }
             .store(in: &cancellables)
-
-        print("[WindowState] 数据绑定设置完成")
     }
 }

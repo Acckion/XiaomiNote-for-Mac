@@ -44,24 +44,24 @@ enum DatabaseMigrationManager {
 
         // 获取当前版本
         let currentVer = try currentVersion(db: db)
-        print("[[调试]] 当前数据库版本: \(currentVer)")
+        LogService.shared.debug(.storage, "当前数据库版本: \(currentVer)")
 
         // 筛选待执行的迁移
         let pendingMigrations = migrations.filter { $0.version > currentVer }
 
         if pendingMigrations.isEmpty {
-            print("[[调试]] 数据库已是最新版本，无需迁移")
+            LogService.shared.info(.storage, "数据库已是最新版本，无需迁移")
             return
         }
 
-        print("[[调试]] 待执行迁移数量: \(pendingMigrations.count)")
+        LogService.shared.debug(.storage, "待执行迁移数量: \(pendingMigrations.count)")
 
         // 按版本号升序执行迁移
         for migration in pendingMigrations.sorted(by: { $0.version < $1.version }) {
             try execute(migration, db: db)
         }
 
-        print("[[调试]] 所有迁移执行完成")
+        LogService.shared.info(.storage, "所有迁移执行完成")
     }
 
     /// 确保 schema_migrations 表存在
@@ -124,7 +124,7 @@ enum DatabaseMigrationManager {
 
     /// 在事务中执行单个迁移
     private static func execute(_ migration: Migration, db: OpaquePointer) throws {
-        print("[[调试]] 执行迁移 v\(migration.version): \(migration.description)")
+        LogService.shared.info(.storage, "执行迁移 v\(migration.version): \(migration.description)")
 
         // 开始事务
         guard sqlite3_exec(db, "BEGIN TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
@@ -153,11 +153,11 @@ enum DatabaseMigrationManager {
                 throw MigrationError.transactionFailed("COMMIT 失败: \(errorMsg)")
             }
 
-            print("[[调试]] 迁移 v\(migration.version) 执行成功")
+            LogService.shared.info(.storage, "迁移 v\(migration.version) 执行成功")
         } catch {
             // 回滚事务
             sqlite3_exec(db, "ROLLBACK;", nil, nil, nil)
-            print("[[调试]] 迁移 v\(migration.version) 执行失败，已回滚: \(error)")
+            LogService.shared.error(.storage, "迁移 v\(migration.version) 执行失败，已回滚: \(error)")
             throw error
         }
     }

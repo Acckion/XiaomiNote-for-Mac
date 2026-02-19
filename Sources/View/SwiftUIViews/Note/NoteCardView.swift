@@ -416,7 +416,6 @@ struct NoteCardView: View {
             if note.content.isEmpty {
                 if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
                     await MemoryCacheManager.shared.cacheNote(fullNote)
-                    print("[NoteCardView] 预加载完成 - ID: \(note.id.prefix(8))...")
                 }
             } else {
                 await MemoryCacheManager.shared.cacheNote(note)

@@ -67,7 +67,6 @@ public class ParagraphManager {
                     paragraphRanges.append(range)
                 } else {
                     // 附件验证失败，记录警告但仍然添加段落
-                    print("[ParagraphManager] ⚠️ 警告: 段落 \(range) 包含跨越边界的附件")
                     paragraphRanges.append(range)
                 }
 
@@ -94,7 +93,6 @@ public class ParagraphManager {
                 paragraphRanges.append(range)
             } else {
                 // 附件验证失败，记录警告但仍然添加段落
-                print("[ParagraphManager] ⚠️ 警告: 段落 \(range) 包含跨越边界的附件")
                 paragraphRanges.append(range)
             }
         }
@@ -134,9 +132,6 @@ public class ParagraphManager {
 
                     // 验证附件字符不跨越段落边界
                     if !NSEqualRanges(NSIntersectionRange(subRange, range), subRange) {
-                        print("[ParagraphManager] ❌ 错误: 附件字符跨越段落边界")
-                        print("[ParagraphManager]   - 附件范围: \(subRange)")
-                        print("[ParagraphManager]   - 段落范围: \(range)")
                         isValid = false
                         stop.pointee = true
                     }
@@ -153,7 +148,6 @@ public class ParagraphManager {
 
         // 验证"真实附件"独占段落的规则
         if hasTrueAttachment, hasText {
-            print("[ParagraphManager] ⚠️ 警告: 段落 \(range) 包含真实附件但不是独占段落")
             // 注意: 这里只是警告，不强制失败，因为可能存在遗留数据
             // isValid = false
         }
@@ -331,11 +325,8 @@ public class ParagraphManager {
         let affectedParagraphs = paragraphs(in: range)
 
         guard !affectedParagraphs.isEmpty else {
-            print("[ParagraphManager] 警告：范围 \(range) 内没有段落")
             return
         }
-
-        print("[ParagraphManager] 应用段落格式 \(type) 到 \(affectedParagraphs.count) 个段落")
 
         textStorage.beginEditing()
 
@@ -348,8 +339,6 @@ public class ParagraphManager {
 
         // 3. 更新段落列表中的段落类型
         updateParagraphTypes(affectedParagraphs, newType: type)
-
-        print("[ParagraphManager] ✅ 段落格式应用完成")
     }
 
     /// 应用段落格式到单个段落
@@ -394,8 +383,6 @@ public class ParagraphManager {
 
         // 设置段落类型元属性
         textStorage.addAttribute(.paragraphType, value: type, range: paragraphRange)
-
-        print("[ParagraphManager]   - 应用格式到段落 \(paragraphRange): \(type)")
     }
 
     /// 更新段落列表中的段落类型

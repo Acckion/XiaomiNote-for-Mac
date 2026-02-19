@@ -149,24 +149,23 @@ public final class ConsoleErrorLogger: ErrorLogger, @unchecked Sendable {
     public init() {}
 
     public func logError(_ error: Error, context: [String: String]) {
-        print("❌ 错误: \(error.localizedDescription)")
+        var message = "解析错误: \(error.localizedDescription)"
         if !context.isEmpty {
-            print("   上下文: \(context)")
+            message += " 上下文: \(context)"
         }
+        LogService.shared.error(.editor, message)
     }
 
     public func logWarning(_ warning: ParseWarning) {
-        var message = "⚠️  警告: \(warning.message)"
+        var message = "解析警告: \(warning.message)"
         if let location = warning.location {
             message += " (位置: \(location))"
         }
-        print(message)
+        LogService.shared.warning(.editor, message)
     }
 
     public func logDebug(_ message: String) {
-        #if DEBUG
-            print("🔍 调试: \(message)")
-        #endif
+        LogService.shared.debug(.editor, message)
     }
 }
 

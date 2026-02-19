@@ -298,7 +298,7 @@ class NotesListViewController: NSViewController {
                     let note = notes[clickedRow - rowIndex]
                     // TODO: 实现多窗口支持后启用
                     // 当前由于模块依赖问题暂时禁用
-                    print("[NotesListViewController] 在新窗口打开笔记功能暂时禁用")
+                    LogService.shared.debug(.window, "在新窗口打开笔记功能暂时禁用")
                     return
                 }
                 rowIndex += notes.count
@@ -385,9 +385,9 @@ class NotesListViewController: NSViewController {
         NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
             switch result {
             case .success:
-                print("[NotesListViewController] 笔记移动到未分类成功: \(note.id)")
+                LogService.shared.info(.window, "笔记移动到未分类成功: \(note.id)")
             case let .failure(error):
-                print("[NotesListViewController] 移动到未分类失败: \(error.localizedDescription)")
+                LogService.shared.error(.window, "移动到未分类失败: \(error.localizedDescription)")
             }
         }
     }
@@ -399,9 +399,9 @@ class NotesListViewController: NSViewController {
         NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
             switch result {
             case .success:
-                print("[NotesListViewController] 笔记移动成功: \(note.id) -> \(folder.name)")
+                LogService.shared.info(.window, "笔记移动成功: \(note.id) -> \(folder.name)")
             case let .failure(error):
-                print("[NotesListViewController] 移动笔记失败: \(error.localizedDescription)")
+                LogService.shared.error(.window, "移动笔记失败: \(error.localizedDescription)")
             }
         }
     }
@@ -978,14 +978,14 @@ extension NotesListViewController {
             scrollPosition: scrollPosition
         )
 
-        print("[NotesListViewController] 笔记列表状态已保存: \(state)")
+        LogService.shared.debug(.window, "笔记列表状态已保存: \(state)")
         return state
     }
 
     /// 恢复窗口状态
     /// - Parameter state: 要恢复的笔记列表窗口状态
     func restoreWindowState(_ state: NotesListWindowState) {
-        print("[NotesListViewController] 恢复笔记列表状态: \(state)")
+        LogService.shared.debug(.window, "恢复笔记列表状态: \(state)")
 
         // 恢复选中的笔记
         if let selectedNoteId = state.selectedNoteId,
@@ -1000,6 +1000,6 @@ extension NotesListViewController {
             scrollView.contentView.scroll(to: scrollPoint)
         }
 
-        print("[NotesListViewController] 笔记列表状态恢复完成")
+        LogService.shared.info(.window, "笔记列表状态恢复完成")
     }
 }

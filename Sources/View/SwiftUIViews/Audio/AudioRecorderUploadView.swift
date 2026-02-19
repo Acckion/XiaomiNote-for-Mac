@@ -363,11 +363,9 @@ struct AudioRecorderUploadPopoverView: View {
 
 #Preview("Uploading State") {
     AudioRecorderUploadView(
-        onUploadComplete: { fileId, _, _ in
-            print("Upload complete: fileId=\(fileId)")
+        onUploadComplete: { _, _, _ in
         },
         onCancel: {
-            print("Cancelled")
         }
     )
     .padding()

@@ -41,7 +41,7 @@ extension DatabaseService {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
 
-            print("[[调试]] 保存文件夹: \(folder.id)")
+            LogService.shared.debug(.storage, "保存文件夹: \(folder.id)")
         }
     }
 
@@ -77,7 +77,7 @@ extension DatabaseService {
                 }
             }
 
-            print("[[调试]] loadFolders: 处理了 \(rowCount) 行，成功解析 \(folders.count) 个文件夹")
+            LogService.shared.debug(.storage, "loadFolders: 处理了 \(rowCount) 行，成功解析 \(folders.count) 个文件夹")
             return folders
         }
     }
@@ -104,7 +104,7 @@ extension DatabaseService {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
 
-            print("[[调试]] 删除文件夹: \(folderId)")
+            LogService.shared.debug(.storage, "删除文件夹: \(folderId)")
         }
     }
 
@@ -132,7 +132,7 @@ extension DatabaseService {
             }
 
             let changes = sqlite3_changes(db)
-            print("[[调试]] 更新笔记文件夹ID: \(oldFolderId) -> \(newFolderId), 影响了 \(changes) 条笔记")
+            LogService.shared.debug(.storage, "更新笔记文件夹ID: \(oldFolderId) -> \(newFolderId), 影响了 \(changes) 条笔记")
 
             if newFolderId != "0", oldFolderId != "0" {
                 try LocalStorageService.shared.renameFolderImageDirectory(oldFolderId: oldFolderId, newFolderId: newFolderId)
@@ -180,7 +180,7 @@ extension DatabaseService {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))
             }
 
-            print("[[调试]] 保存文件夹排序信息: eTag=\(eTag), orders数量=\(orders.count)")
+            LogService.shared.debug(.storage, "保存文件夹排序信息: eTag=\(eTag), orders数量=\(orders.count)")
         }
     }
 
@@ -240,7 +240,7 @@ extension DatabaseService {
 
             let orders = try JSONDecoder().decode([String].self, from: ordersData)
 
-            print("[[调试]] 加载文件夹排序信息: eTag=\(eTag), orders数量=\(orders.count)")
+            LogService.shared.debug(.storage, "加载文件夹排序信息: eTag=\(eTag), orders数量=\(orders.count)")
             return (eTag: eTag, orders: orders)
         }
     }
@@ -250,7 +250,7 @@ extension DatabaseService {
         try dbQueue.sync(flags: .barrier) {
             let sql = "DELETE FROM folder_sort_info WHERE id = 1;"
             executeSQL(sql)
-            print("[[调试]] 清除文件夹排序信息")
+            LogService.shared.debug(.storage, "清除文件夹排序信息")
         }
     }
 }

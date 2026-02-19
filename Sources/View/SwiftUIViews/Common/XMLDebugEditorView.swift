@@ -319,7 +319,6 @@ struct XMLDebugEditorView: View {
                 isEditable: $isEditable,
                 saveStatus: $saveStatus,
                 onSave: {
-                    print("Save triggered")
                     saveStatus = .saving
                     // 模拟保存延迟
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
@@ -327,7 +326,6 @@ struct XMLDebugEditorView: View {
                     }
                 },
                 onContentChange: { newContent in
-                    print("Content changed: \(newContent.prefix(50))...")
                     if saveStatus != .saving {
                         saveStatus = .unsaved
                     }

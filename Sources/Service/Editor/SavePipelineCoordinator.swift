@@ -92,14 +92,14 @@ public final class SavePipelineCoordinator: ObservableObject {
         do {
             // 步骤 1: 开始保存
             try await executeStep(.startSave) {
-                print("[SavePipelineCoordinator] 🚀 开始保存流程 - 笔记 ID: \(noteId)")
+                LogService.shared.info(.editor, "开始保存流程，笔记 ID: \(noteId)")
                 self.saveStartTime = Date()
                 self.updateState(.preparing)
             }
 
             // 步骤 2: 提取标题
             let titleResult = try await executeStep(.extractTitle) {
-                print("[SavePipelineCoordinator] 📝 提取标题...")
+                LogService.shared.debug(.editor, "提取标题...")
 
                 // 优先从原生编辑器提取标题
                 if let textStorage {
@@ -111,7 +111,7 @@ public final class SavePipelineCoordinator: ObservableObject {
 
             // 步骤 3: 验证标题
             try await executeStep(.validateTitle) {
-                print("[SavePipelineCoordinator] ✅ 验证标题: '\(titleResult.title)'")
+                LogService.shared.debug(.editor, "验证标题: '\(titleResult.title)'")
 
                 let validation = self.titleExtractionService.validateTitle(titleResult.title)
                 if !validation.isValid {
@@ -121,13 +121,13 @@ public final class SavePipelineCoordinator: ObservableObject {
 
             // 步骤 4: 移除标题标签
             let processedContent = try await executeStep(.removeTitleTag) {
-                print("[SavePipelineCoordinator] 🔧 移除标题标签...")
+                LogService.shared.debug(.editor, "移除标题标签...")
                 return self.removeTitleTagFromXML(xmlContent)
             }
 
             // 步骤 5: 构建笔记对象
             let (finalTitle, finalContent) = try await executeStep(.buildNote) {
-                print("[SavePipelineCoordinator] 🏗️ 构建笔记对象...")
+                LogService.shared.debug(.editor, "构建笔记对象...")
 
                 // 使用提取的标题，如果提取失败则使用后备方案
                 let title = titleResult.isValid && !titleResult.title.isEmpty
@@ -142,19 +142,19 @@ public final class SavePipelineCoordinator: ObservableObject {
 
             // 步骤 6: 调用 API
             try await executeStep(.callAPI) {
-                print("[SavePipelineCoordinator] 🌐 调用保存 API...")
+                LogService.shared.debug(.editor, "调用保存 API...")
                 try await apiSaveHandler(noteId, finalTitle, finalContent)
             }
 
             // 步骤 7: 更新状态
             try await executeStep(.updateState) {
-                print("[SavePipelineCoordinator] 🔄 更新本地状态...")
+                LogService.shared.debug(.editor, "更新本地状态...")
                 // 这里可以添加本地状态更新逻辑
             }
 
             // 步骤 8: 完成保存
             try await executeStep(.completeSave) {
-                print("[SavePipelineCoordinator] ✨ 保存流程完成")
+                LogService.shared.debug(.editor, "保存流程完成")
                 self.updateState(.completed)
             }
 
@@ -167,7 +167,7 @@ public final class SavePipelineCoordinator: ObservableObject {
                 stepsExecuted: SaveStep.allCases.prefix(8).map(\.self)
             )
 
-            print("[SavePipelineCoordinator] 🎉 保存流程成功完成 - 耗时: \(String(format: "%.2f", result.executionTime))秒")
+            LogService.shared.info(.editor, "保存流程完成，耗时: \(String(format: "%.2f", result.executionTime))秒")
             return result
         } catch {
             // 处理错误
@@ -181,7 +181,7 @@ public final class SavePipelineCoordinator: ObservableObject {
     ///
     /// _需求: 3.3_ - 支持保存流程的取消操作
     public func cancelSavePipeline() {
-        print("[SavePipelineCoordinator] ❌ 取消保存流程")
+        LogService.shared.info(.editor, "取消保存流程")
         isCancelled = true
         updateState(.cancelled)
         lastError = .saveCancelled
@@ -197,8 +197,6 @@ public final class SavePipelineCoordinator: ObservableObject {
         lastError = nil
         saveStartTime = nil
         isCancelled = false
-
-        print("[SavePipelineCoordinator] 🔄 流程状态已重置")
     }
 
     // MARK: - 私有方法
@@ -231,16 +229,12 @@ public final class SavePipelineCoordinator: ObservableObject {
         let stepProgress = Double(step.order) / Double(SaveStep.allCases.count)
         progress = stepProgress
 
-        print("[SavePipelineCoordinator] 📍 执行步骤: \(step.displayName) (进度: \(Int(stepProgress * 100))%)")
+        LogService.shared.debug(.editor, "执行步骤: \(step.displayName) (\(Int(stepProgress * 100))%)")
 
         do {
-            // 执行操作
-            let result = try await operation()
-
-            print("[SavePipelineCoordinator] ✅ 步骤完成: \(step.displayName)")
-            return result
+            return try await operation()
         } catch {
-            print("[SavePipelineCoordinator] ❌ 步骤失败: \(step.displayName) - \(error)")
+            LogService.shared.error(.editor, "步骤失败: \(step.displayName) - \(error)")
             throw TitleIntegrationError.saveStepFailed(step, reason: error.localizedDescription)
         }
     }
@@ -290,10 +284,7 @@ public final class SavePipelineCoordinator: ObservableObject {
     ///
     /// - Parameter newState: 新的保存状态
     private func updateState(_ newState: SavePipelineState) {
-        let oldState = currentState
         currentState = newState
-
-        print("[SavePipelineCoordinator] 🔄 状态变更: \(oldState.displayName) -> \(newState.displayName)")
     }
 
     /// 处理流程错误
@@ -303,11 +294,10 @@ public final class SavePipelineCoordinator: ObservableObject {
         lastError = error
         updateState(.failed)
 
-        print("[SavePipelineCoordinator] 💥 流程错误: \(error)")
-        print("[SavePipelineCoordinator] 📋 错误详情: \(error.errorDescription ?? "无详细信息")")
+        LogService.shared.error(.editor, "保存流程错误: \(error.errorDescription ?? error.localizedDescription)")
 
         if let suggestion = error.recoverySuggestion {
-            print("[SavePipelineCoordinator] 💡 恢复建议: \(suggestion)")
+            LogService.shared.debug(.editor, "恢复建议: \(suggestion)")
         }
     }
 }

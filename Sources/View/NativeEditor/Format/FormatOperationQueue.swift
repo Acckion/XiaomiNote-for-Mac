@@ -138,7 +138,6 @@ final class FormatOperationQueue {
     func enqueue(_ operation: FormatOperation) -> Bool {
         // 检查队列是否已满
         if operationQueue.count >= maxQueueLength {
-            print("[FormatOperationQueue] ⚠️ 队列已满，丢弃操作: \(operation.format.displayName)")
             droppedOperations += 1
             return false
         }
@@ -149,15 +148,12 @@ final class FormatOperationQueue {
                 // 替换为新操作（保留最新的范围）
                 operationQueue[mergedIndex] = operation
                 mergedOperations += 1
-                print("[FormatOperationQueue] 合并操作: \(operation.format.displayName)")
                 return true
             }
         }
 
         // 根据优先级插入队列
         insertByPriority(operation)
-
-        print("[FormatOperationQueue] 添加操作: \(operation.format.displayName), 队列长度: \(operationQueue.count)")
 
         // 开始处理队列
         processQueue()
@@ -186,7 +182,6 @@ final class FormatOperationQueue {
         let cancelledCount = operationQueue.count
         operationQueue.removeAll()
         droppedOperations += cancelledCount
-        print("[FormatOperationQueue] 取消所有操作，共 \(cancelledCount) 个")
     }
 
     /// 取消指定格式的操作
@@ -196,7 +191,6 @@ final class FormatOperationQueue {
         operationQueue.removeAll { $0.format == format }
         let cancelledCount = beforeCount - operationQueue.count
         droppedOperations += cancelledCount
-        print("[FormatOperationQueue] 取消 \(format.displayName) 操作，共 \(cancelledCount) 个")
     }
 
     // MARK: - 队列处理方法
@@ -206,7 +200,6 @@ final class FormatOperationQueue {
         guard !isProcessing else { return }
         guard !operationQueue.isEmpty else { return }
         guard executeCallback != nil else {
-            print("[FormatOperationQueue] ⚠️ 未设置执行回调")
             return
         }
 
@@ -396,16 +389,16 @@ final class FormatOperationQueue {
     func printStatistics() {
         let stats = getStatistics()
 
-        print("[FormatOperationQueue] 统计信息:")
-        print("  - 总操作数: \(stats["totalOperations"] ?? 0)")
-        print("  - 成功操作数: \(stats["successfulOperations"] ?? 0)")
-        print("  - 失败操作数: \(stats["failedOperations"] ?? 0)")
-        print("  - 丢弃操作数: \(stats["droppedOperations"] ?? 0)")
-        print("  - 合并操作数: \(stats["mergedOperations"] ?? 0)")
-        print("  - 平均处理时间: \(String(format: "%.2f", stats["averageProcessingTime"] as? Double ?? 0))ms")
-        print("  - 最大处理时间: \(String(format: "%.2f", stats["maxProcessingTime"] as? Double ?? 0))ms")
-        print("  - 成功率: \(String(format: "%.1f", (stats["successRate"] as? Double ?? 0) * 100))%")
-        print("  - 当前队列长度: \(stats["currentQueueLength"] ?? 0)")
+        LogService.shared.debug(.editor, "[FormatOperationQueue] 统计信息:")
+        LogService.shared.debug(.editor, "  - 总操作数: \(stats["totalOperations"] ?? 0)")
+        LogService.shared.debug(.editor, "  - 成功操作数: \(stats["successfulOperations"] ?? 0)")
+        LogService.shared.debug(.editor, "  - 失败操作数: \(stats["failedOperations"] ?? 0)")
+        LogService.shared.debug(.editor, "  - 丢弃操作数: \(stats["droppedOperations"] ?? 0)")
+        LogService.shared.debug(.editor, "  - 合并操作数: \(stats["mergedOperations"] ?? 0)")
+        LogService.shared.debug(.editor, "  - 平均处理时间: \(String(format: "%.2f", stats["averageProcessingTime"] as? Double ?? 0))ms")
+        LogService.shared.debug(.editor, "  - 最大处理时间: \(String(format: "%.2f", stats["maxProcessingTime"] as? Double ?? 0))ms")
+        LogService.shared.debug(.editor, "  - 成功率: \(String(format: "%.1f", (stats["successRate"] as? Double ?? 0) * 100))%")
+        LogService.shared.debug(.editor, "  - 当前队列长度: \(stats["currentQueueLength"] ?? 0)")
     }
 
     /// 生成性能报告

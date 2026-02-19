@@ -28,7 +28,7 @@ final class NetworkMonitor: ObservableObject, @unchecked Sendable {
                 self.isConnected = path.status == .satisfied
 
                 if wasConnected != self.isConnected {
-                    print("[NetworkMonitor] 网络连接状态变化: \(self.isConnected ? "已连接" : "已断开")")
+                    LogService.shared.debug(.network, "网络连接状态变化: \(self.isConnected ? "已连接" : "已断开")")
                     if self.isConnected {
                         // 网络恢复，通知需要同步
                         NotificationCenter.default.post(name: .networkDidBecomeAvailable, object: nil)

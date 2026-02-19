@@ -106,7 +106,6 @@ class AudioPanelHostingController: NSViewController {
         // 设置状态监听
         setupStateObservers()
 
-        print("[AudioPanelHostingController] 视图已加载")
     }
 
     override func viewDidLayout() {
@@ -118,22 +117,18 @@ class AudioPanelHostingController: NSViewController {
 
     override func viewWillAppear() {
         super.viewWillAppear()
-        print("[AudioPanelHostingController] 视图即将显示")
     }
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        print("[AudioPanelHostingController] 视图已显示")
     }
 
     override func viewWillDisappear() {
         super.viewWillDisappear()
-        print("[AudioPanelHostingController] 视图即将消失")
     }
 
     override func viewDidDisappear() {
         super.viewDidDisappear()
-        print("[AudioPanelHostingController] 视图已消失")
     }
 
     // MARK: - 键盘事件处理
@@ -144,14 +139,11 @@ class AudioPanelHostingController: NSViewController {
     /// 如果正在录制，则不响应 Escape 键，需要用户通过确认对话框关闭。
     ///
     override func cancelOperation(_: Any?) {
-        print("[AudioPanelHostingController] 收到 Escape 键事件")
 
         // 检查是否可以安全关闭
         if stateManager.canClose() {
-            print("[AudioPanelHostingController] 面板处于空闲状态，关闭面板")
             handleClose()
         } else {
-            print("[AudioPanelHostingController] 面板正在录制中，忽略 Escape 键")
             // 正在录制时，发出提示音
             NSSound.beep()
         }
@@ -176,7 +168,6 @@ class AudioPanelHostingController: NSViewController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] mode in
                 self?.refreshView()
-                print("[AudioPanelHostingController] 模式变化: \(mode)")
             }
             .store(in: &cancellables)
 
@@ -185,7 +176,6 @@ class AudioPanelHostingController: NSViewController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] fileId in
                 self?.refreshView()
-                print("[AudioPanelHostingController] 文件 ID 变化: \(fileId ?? "nil")")
             }
             .store(in: &cancellables)
     }
@@ -194,13 +184,11 @@ class AudioPanelHostingController: NSViewController {
     ///
     /// - Parameter url: 录制文件的 URL
     private func handleRecordingComplete(url: URL) {
-        print("[AudioPanelHostingController] 录制完成: \(url)")
         onRecordingComplete?(url)
     }
 
     /// 处理关闭
     private func handleClose() {
-        print("[AudioPanelHostingController] 请求关闭面板")
         onClose?()
     }
 

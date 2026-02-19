@@ -207,13 +207,6 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
 
         // 图片附件
         if let imageAttachment = attachment as? ImageAttachment {
-            print("[AttributedStringToASTConverter] 📝 提取图片属性:")
-            print("[AttributedStringToASTConverter]   - fileId: '\(imageAttachment.fileId ?? "nil")'")
-            print("[AttributedStringToASTConverter]   - imageDescription: '\(imageAttachment.imageDescription ?? "nil")'")
-            print("[AttributedStringToASTConverter]   - imgshow: '\(imageAttachment.imgshow ?? "nil")'")
-            print("[AttributedStringToASTConverter]   - 附件对象地址: \(Unmanaged.passUnretained(imageAttachment).toOpaque())")
-
-            // 非有序列表，重置序列状态
             isInOrderedListSequence = false
             lastOrderedListNumber = 0
             return ImageNode(

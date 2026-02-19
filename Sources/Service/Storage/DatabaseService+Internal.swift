@@ -195,7 +195,7 @@ extension DatabaseService {
                 do {
                     tags = try JSONDecoder().decode([String].self, from: tagsData)
                 } catch {
-                    print("[[调试]] 解析 tags JSON 失败 (id=\(id)): \(error)")
+                    LogService.shared.error(.storage, "解析 tags JSON 失败 (id=\(id)): \(error)")
                     tags = []
                 }
             }
@@ -208,7 +208,7 @@ extension DatabaseService {
                 do {
                     rawData = try JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
                 } catch {
-                    print("[[调试]] 解析 raw_data JSON 失败 (id=\(id)): \(error)")
+                    LogService.shared.error(.storage, "解析 raw_data JSON 失败 (id=\(id)): \(error)")
                     rawData = nil
                 }
             }
@@ -255,9 +255,6 @@ extension DatabaseService {
            let tagText = sqlite3_column_text(statement, 14)
         {
             serverTag = String(cString: tagText)
-            print("[[调试]] 读取 serverTag: \(serverTag ?? "nil"), id: \(id)")
-        } else {
-            print("[[调试]] serverTag 为 NULL, id: \(id)")
         }
 
         let status = if sqlite3_column_type(statement, 15) != SQLITE_NULL,
@@ -279,7 +276,7 @@ extension DatabaseService {
                     do {
                         _ = try JSONSerialization.jsonObject(with: jsonData, options: [])
                     } catch {
-                        print("[[调试]] setting_json 格式无效 (id=\(id)): \(error)")
+                        LogService.shared.error(.storage, "setting_json 格式无效 (id=\(id)): \(error)")
                         settingJson = nil
                     }
                 }
@@ -297,7 +294,7 @@ extension DatabaseService {
                     do {
                         _ = try JSONSerialization.jsonObject(with: jsonData, options: [])
                     } catch {
-                        print("[[调试]] extra_info_json 格式无效 (id=\(id)): \(error)")
+                        LogService.shared.error(.storage, "extra_info_json 格式无效 (id=\(id)): \(error)")
                         extraInfoJson = nil
                     }
                 }
@@ -359,7 +356,7 @@ extension DatabaseService {
                     do {
                         rawData = try JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
                     } catch {
-                        print("[[调试]] parseFolder: 解析 raw_data 失败 (id=\(id)): \(error)")
+                        LogService.shared.error(.storage, "parseFolder: 解析 raw_data 失败 (id=\(id)): \(error)")
                     }
                 }
             }

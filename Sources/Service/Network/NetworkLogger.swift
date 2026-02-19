@@ -1,10 +1,8 @@
 import Foundation
-import OSLog
 
 final class NetworkLogger: @unchecked Sendable {
     static let shared = NetworkLogger()
 
-    private let logger = Logger(subsystem: "com.xiaomi.minote.mac", category: "network")
     private var logs: [NetworkLogEntry] = []
     private let maxLogs = 1000 // 最多保存1000条日志
     private let queue = DispatchQueue(label: "com.xiaomi.minote.mac.networklogger", qos: .utility)
@@ -18,14 +16,9 @@ final class NetworkLogger: @unchecked Sendable {
 
     func logRequest(url: String, method: String, headers: [String: String]?, body: String?) {
         queue.sync {
-            // 检查是否重复记录
-            var logMessage = "📤 请求: \(method) \(url)"
-            // 注释掉请求头输出，使日志更简洁
-            // if let headers = headers, !headers.isEmpty {
-            //     logMessage += "\n请求头: \(headers)"
-            // }
+            var logMessage = "请求: \(method) \(url)"
             if let body, !body.isEmpty {
-                logMessage += "\n请求体: \(body)"
+                logMessage += "\n请求体: \(LogService.truncate(body, maxLength: 200))"
             }
 
             if shouldSkipLog(logMessage) {
@@ -47,21 +40,15 @@ final class NetworkLogger: @unchecked Sendable {
 
             addLog(entry)
 
-            // 使用系统日志记录
-            logger.info("\(logMessage)")
+            LogService.shared.debug(.network, logMessage)
         }
     }
 
     func logResponse(url: String, method: String, statusCode: Int, headers: [String: String]?, response: String?, error: Error?) {
         queue.sync {
-            // 检查是否重复记录
-            var logMessage = "📥 响应: \(method) \(url) - 状态码: \(statusCode)"
-            // 注释掉响应头输出，使日志更简洁
-            // if let headers = headers, !headers.isEmpty {
-            //     logMessage += "\n响应头: \(headers)"
-            // }
+            var logMessage = "响应: \(method) \(url) - 状态码: \(statusCode)"
             if let response, !response.isEmpty {
-                let preview = response.count > 500 ? String(response.prefix(500)) + "..." : response
+                let preview = LogService.truncate(response, maxLength: 200)
                 logMessage += "\n响应体: \(preview)"
             }
             if let error {
@@ -88,16 +75,16 @@ final class NetworkLogger: @unchecked Sendable {
             addLog(entry)
 
             if statusCode >= 400 {
-                logger.error("\(logMessage)")
+                LogService.shared.error(.network, logMessage)
             } else {
-                logger.info("\(logMessage)")
+                LogService.shared.debug(.network, logMessage)
             }
         }
     }
 
     func logError(url: String, method: String, error: Error) {
         queue.sync {
-            let logMessage = "❌ 错误: \(method) \(url) - \(error.localizedDescription)"
+            let logMessage = "错误: \(method) \(url) - \(error.localizedDescription)"
 
             if shouldSkipLog(logMessage) {
                 return
@@ -118,7 +105,7 @@ final class NetworkLogger: @unchecked Sendable {
 
             addLog(entry)
 
-            logger.error("\(logMessage)")
+            LogService.shared.error(.network, logMessage)
         }
     }
 
@@ -188,11 +175,11 @@ struct NetworkLogEntry: Identifiable {
         case response
         case error
 
-        var emoji: String {
+        var symbol: String {
             switch self {
-            case .request: "📤"
-            case .response: "📥"
-            case .error: "❌"
+            case .request: "[->]"
+            case .response: "[<-]"
+            case .error: "[!!]"
             }
         }
 
@@ -209,7 +196,7 @@ struct NetworkLogEntry: Identifiable {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
 
-        var desc = "\(type.emoji) [\(dateFormatter.string(from: timestamp))] \(type.description): \(method) \(url)"
+        var desc = "\(type.symbol) [\(dateFormatter.string(from: timestamp))] \(type.description): \(method) \(url)"
 
         if let statusCode {
             desc += "\n状态码: \(statusCode)"

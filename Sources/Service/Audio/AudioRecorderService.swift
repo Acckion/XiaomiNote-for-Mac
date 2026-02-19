@@ -220,10 +220,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         // 检查初始权限状态
         updatePermissionStatus()
 
-        print("[AudioRecorder] 初始化完成")
-        print("[AudioRecorder]   - 临时目录: \(tempDirectory.path)")
-        print("[AudioRecorder]   - 最大录制时长: \(Int(maxDuration)) 秒")
-        print("[AudioRecorder]   - 权限状态: \(permissionStatus)")
+        LogService.shared.debug(.audio, "录制器初始化完成，临时目录: \(tempDirectory.path)")
     }
 
     deinit {
@@ -236,9 +233,8 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         if !FileManager.default.fileExists(atPath: tempDirectory.path) {
             do {
                 try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true, attributes: nil)
-                print("[AudioRecorder] 创建临时目录: \(tempDirectory.path)")
             } catch {
-                print("[AudioRecorder] ❌ 创建临时目录失败: \(error)")
+                LogService.shared.error(.audio, "创建临时目录失败: \(error)")
             }
         }
     }
@@ -250,41 +246,34 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     /// - Returns: 是否获得授权
     @MainActor
     func requestPermission() async -> Bool {
-        print("[AudioRecorder] 请求麦克风权限...")
-
-        // 检查当前权限状态
         let currentStatus = AVCaptureDevice.authorizationStatus(for: .audio)
 
         switch currentStatus {
         case .authorized:
-            print("[AudioRecorder] ✅ 麦克风权限已授权")
             updatePermissionStatus(.granted)
             return true
 
         case .notDetermined:
-            // 请求权限
             let granted = await AVCaptureDevice.requestAccess(for: .audio)
             if granted {
-                print("[AudioRecorder] ✅ 用户授权麦克风权限")
                 updatePermissionStatus(.granted)
             } else {
-                print("[AudioRecorder] ❌ 用户拒绝麦克风权限")
+                LogService.shared.warning(.audio, "用户拒绝麦克风权限")
                 updatePermissionStatus(.denied)
             }
             return granted
 
         case .denied:
-            print("[AudioRecorder] ❌ 麦克风权限已被拒绝")
+            LogService.shared.warning(.audio, "麦克风权限已被拒绝")
             updatePermissionStatus(.denied)
             return false
 
         case .restricted:
-            print("[AudioRecorder] ❌ 麦克风权限受限制")
+            LogService.shared.warning(.audio, "麦克风权限受限制")
             updatePermissionStatus(.restricted)
             return false
 
         @unknown default:
-            print("[AudioRecorder] ❌ 未知的权限状态")
             updatePermissionStatus(.denied)
             return false
         }
@@ -341,7 +330,6 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     func openSystemPreferences() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
             NSWorkspace.shared.open(url)
-            print("[AudioRecorder] 打开系统偏好设置 - 麦克风权限")
         }
     }
 
@@ -354,84 +342,53 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         stateLock.lock()
         defer { stateLock.unlock() }
 
-        print("[AudioRecorder] 开始录制...")
-
-        // 检查权限
         guard permissionStatus == .granted else {
             let errorMsg = "麦克风权限未授权"
-            print("[AudioRecorder] ❌ \(errorMsg)")
+            LogService.shared.error(.audio, errorMsg)
             updateStateInternal(.error(errorMsg))
             throw RecordingError.permissionDenied
         }
 
-        // 检查音频输入设备健康状态
         let healthCheck = checkAudioInputHealth()
-        print("[AudioRecorder] 音频输入检查: \(healthCheck.message)")
         if !healthCheck.isHealthy {
-            print("[AudioRecorder] ⚠️ 音频输入可能有问题")
+            LogService.shared.warning(.audio, "音频输入检查异常: \(healthCheck.message)")
         }
 
-        // 打印音频输入设备信息
-        print("[AudioRecorder] \(getAudioInputDeviceInfo())")
-
-        // 如果已经在录制，先停止
         if audioRecorder?.isRecording == true {
             audioRecorder?.stop()
         }
 
-        // 重置状态
         recordingDuration = 0
         accumulatedDuration = 0
         audioLevel = 0
         errorMessage = nil
 
-        // 生成临时文件路径
         let fileName = "recording_\(Date().timeIntervalSince1970).m4a"
         let fileURL = tempDirectory.appendingPathComponent(fileName)
         recordedFileURL = fileURL
 
-        // 打印录制设置
-        print("[AudioRecorder] 录制设置:")
-        print("[AudioRecorder]   - 格式: AAC (kAudioFormatMPEG4AAC)")
-        print("[AudioRecorder]   - 采样率: 44100 Hz")
-        print("[AudioRecorder]   - 声道数: 1 (单声道)")
-        print("[AudioRecorder]   - 比特率: 128000 bps")
-        print("[AudioRecorder]   - 质量: High")
-        print("[AudioRecorder]   - 输出文件: \(fileURL.path)")
-
-        // 创建录制器
         do {
             audioRecorder = try AVAudioRecorder(url: fileURL, settings: recordingSettings)
             audioRecorder?.delegate = self
-            audioRecorder?.isMeteringEnabled = true // 启用音量监控
+            audioRecorder?.isMeteringEnabled = true
             audioRecorder?.prepareToRecord()
 
-            // 打印录制器信息
-            if let recorder = audioRecorder {
-                print("[AudioRecorder] 录制器创建成功:")
-                print("[AudioRecorder]   - 格式: \(recorder.format)")
-                print("[AudioRecorder]   - 设备当前时间: \(recorder.deviceCurrentTime)")
-            }
-
-            // 开始录制
             let success = audioRecorder?.record() ?? false
 
             if success {
                 recordingStartTime = Date()
                 updateStateInternal(.recording)
                 startTimers()
-                print("[AudioRecorder] ✅ 录制开始: \(fileURL.lastPathComponent)")
-                print("[AudioRecorder] 💡 提示：请对着麦克风说话，确保有声音输入")
-                print("[AudioRecorder] 💡 录制过程中请观察音量指示器是否有变化")
+                LogService.shared.info(.audio, "录制开始: \(fileURL.lastPathComponent)")
             } else {
                 let errorMsg = "录制启动失败"
-                print("[AudioRecorder] ❌ \(errorMsg)")
+                LogService.shared.error(.audio, errorMsg)
                 updateStateInternal(.error(errorMsg))
                 throw RecordingError.recordingFailed
             }
         } catch {
             let errorMsg = "创建录制器失败: \(error.localizedDescription)"
-            print("[AudioRecorder] ❌ \(errorMsg)")
+            LogService.shared.error(.audio, errorMsg)
             updateStateInternal(.error(errorMsg))
             throw error
         }
@@ -444,13 +401,11 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         defer { stateLock.unlock() }
 
         guard state == .recording, let recorder = audioRecorder else {
-            print("[AudioRecorder] 无法暂停：没有正在进行的录制")
             return
         }
 
         recorder.pause()
 
-        // 保存累计时长
         if let startTime = recordingStartTime {
             accumulatedDuration += Date().timeIntervalSince(startTime)
         }
@@ -458,8 +413,6 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
 
         stopTimers()
         updateStateInternal(.paused)
-
-        print("[AudioRecorder] 暂停录制，当前时长: \(formatTime(recordingDuration))")
     }
 
     /// 继续录制
@@ -469,13 +422,10 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         defer { stateLock.unlock() }
 
         guard state == .paused, let recorder = audioRecorder else {
-            print("[AudioRecorder] 无法继续：没有暂停的录制")
             return
         }
 
-        // 检查是否已达到最大时长
         if recordingDuration >= maxDuration {
-            print("[AudioRecorder] 已达到最大录制时长，无法继续")
             return
         }
 
@@ -484,8 +434,6 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
 
         startTimers()
         updateStateInternal(.recording)
-
-        print("[AudioRecorder] 继续录制")
     }
 
     /// 停止录制并返回文件 URL
@@ -496,7 +444,6 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         stateLock.lock()
 
         guard state == .recording || state == .paused else {
-            print("[AudioRecorder] 无法停止：没有进行中的录制")
             stateLock.unlock()
             return nil
         }
@@ -523,29 +470,17 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
 
         updateStateInternal(.finished)
 
-        print("[AudioRecorder] ✅ 录制完成")
-        print("[AudioRecorder]   - 文件: \(fileURL?.lastPathComponent ?? "无")")
-        print("[AudioRecorder]   - 时长: \(formatTime(finalDuration))")
-
-        // 打印详细的文件信息
         if let url = fileURL {
+            LogService.shared.info(.audio, "录制完成: \(url.lastPathComponent), 时长: \(formatTime(finalDuration))")
+
             if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
-               let size = attrs[.size] as? Int64
+               let size = attrs[.size] as? Int64,
+               size < 1000
             {
-                print("[AudioRecorder]   - 文件大小: \(size) 字节")
-
-                // 检查文件是否太小（可能没有录到声音）
-                if size < 1000 {
-                    print("[AudioRecorder] ⚠️ 警告：文件太小，可能没有录到声音")
-                }
+                LogService.shared.warning(.audio, "录制文件过小(\(size)字节)，可能未录到声音")
             }
-
-            // 使用 AudioConverterService 检查文件详细信息
-            let probeResult = AudioConverterService.shared.probeAudioFileDetailed(url)
-            print("[AudioRecorder]   - 音频信息:\n\(probeResult)")
         }
 
-        // 发送完成通知
         postFinishNotification()
 
         return fileURL
@@ -557,19 +492,13 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         stateLock.lock()
         defer { stateLock.unlock() }
 
-        print("[AudioRecorder] 取消录制")
-
-        // 停止录制
         audioRecorder?.stop()
         stopTimers()
 
-        // 删除临时文件
         if let fileURL = recordedFileURL {
             try? FileManager.default.removeItem(at: fileURL)
-            print("[AudioRecorder] 删除临时文件: \(fileURL.lastPathComponent)")
         }
 
-        // 重置状态
         resetInternal()
         updateStateInternal(.idle)
     }
@@ -660,9 +589,6 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
 
         // 检查是否达到最大时长
         if currentDuration >= maxDuration {
-            print("[AudioRecorder] ⚠️ 达到最大录制时长限制")
-
-            // 在主线程上停止录制
             DispatchQueue.main.async { [weak self] in
                 _ = self?.stopRecording()
             }
@@ -708,12 +634,10 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         let smoothingFactor: Float = 0.3
         let newLevel = audioLevel * (1 - smoothingFactor) + normalizedLevel * smoothingFactor
 
-        // 如果音量一直很低，打印警告
         if newLevel < 0.01, recordingDuration > 1.0 {
-            // 每 5 秒打印一次警告
             let seconds = Int(recordingDuration)
-            if seconds % 5 == 0, seconds > 0 {
-                print("[AudioRecorder] ⚠️ 音量很低 (avg: \(averagePower) dB, peak: \(peakPower) dB)，请检查麦克风是否正常工作")
+            if seconds % 30 == 0, seconds > 0 {
+                LogService.shared.warning(.audio, "录制音量持续偏低，请检查麦克风")
             }
         }
 
@@ -830,21 +754,18 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
             let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
             return attributes[.size] as? Int64
         } catch {
-            print("[AudioRecorder] 获取文件大小失败: \(error)")
             return nil
         }
     }
 
-    /// 清理临时录音文件
     func cleanupTempFiles() {
         do {
             let files = try FileManager.default.contentsOfDirectory(at: tempDirectory, includingPropertiesForKeys: nil)
             for file in files {
                 try FileManager.default.removeItem(at: file)
             }
-            print("[AudioRecorder] ✅ 清理临时文件完成，共 \(files.count) 个文件")
         } catch {
-            print("[AudioRecorder] ❌ 清理临时文件失败: \(error)")
+            LogService.shared.error(.audio, "清理临时文件失败: \(error)")
         }
     }
 }
@@ -860,12 +781,9 @@ extension AudioRecorderService: AVAudioRecorderDelegate {
 
         stopTimers()
 
-        if flag {
-            print("[AudioRecorder] ✅ 录制完成（委托回调）")
-            // 状态已在 stopRecording() 中更新
-        } else {
+        if !flag {
             let errorMsg = "录制异常结束"
-            print("[AudioRecorder] ❌ \(errorMsg)")
+            LogService.shared.error(.audio, errorMsg)
             updateStateInternal(.error(errorMsg))
             postErrorNotification(errorMsg)
         }
@@ -879,7 +797,7 @@ extension AudioRecorderService: AVAudioRecorderDelegate {
         stopTimers()
 
         let errorMsg = error?.localizedDescription ?? "音频编码错误"
-        print("[AudioRecorder] ❌ 编码错误: \(errorMsg)")
+        LogService.shared.error(.audio, "编码错误: \(errorMsg)")
 
         updateStateInternal(.error(errorMsg))
         postErrorNotification(errorMsg)

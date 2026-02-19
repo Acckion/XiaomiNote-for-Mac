@@ -83,7 +83,6 @@ public final class TypingOptimizer {
 
     private init() {}
 
-    // MARK: - 简单输入检测（任务 7.1）
 
     /// 检测是否为简单输入
     ///
@@ -97,15 +96,10 @@ public final class TypingOptimizer {
     ///   - location: 变化位置
     ///   - textStorage: 文本存储
     /// - Returns: 是否为简单输入场景
-    /// - 需求: 6.1
     public func isSimpleTyping(change: String, at location: Int, in textStorage: NSTextStorage) -> Bool {
         guard isEnabled else { return false }
 
-        // 1. 检测单字符输入
         guard change.count == 1 else {
-            if verboseLogging {
-                print("[TypingOptimizer] ❌ 非简单输入: 多字符输入 (\(change.count) 字符)")
-            }
             return false
         }
 
@@ -113,17 +107,11 @@ public final class TypingOptimizer {
 
         // 2. 检查是否为段落结构变化字符
         if structureChangeCharacters.contains(character) {
-            if verboseLogging {
-                print("[TypingOptimizer] ❌ 非简单输入: 段落结构变化字符 '\(character)'")
-            }
             return false
         }
 
         // 3. 检查是否为特殊格式符号
         if specialFormatCharacters.contains(character) {
-            if verboseLogging {
-                print("[TypingOptimizer] ❌ 非简单输入: 特殊格式符号 '\(character)'")
-            }
             return false
         }
 
@@ -134,19 +122,11 @@ public final class TypingOptimizer {
         )
 
         if hasSpecialCharactersAround {
-            if verboseLogging {
-                print("[TypingOptimizer] ❌ 非简单输入: 周围有特殊格式符号")
-            }
             return false
         }
 
         // 5. 通过所有检查，是简单输入
         simpleInputCount += 1
-
-        if verboseLogging {
-            print("[TypingOptimizer] ✅ 简单输入检测通过: '\(character)' at \(location)")
-        }
-
         return true
     }
 
@@ -183,8 +163,6 @@ public final class TypingOptimizer {
         return false
     }
 
-    // MARK: - 完整解析判断（任务 7.2）
-
     /// 检测是否需要完整解析
     ///
     /// 需要完整解析的情况：
@@ -197,29 +175,18 @@ public final class TypingOptimizer {
     ///   - location: 变化位置
     ///   - textStorage: 文本存储
     /// - Returns: 是否需要完整解析
-    /// - 需求: 6.3
     func needsFullParse(change: String, at location: Int, in textStorage: NSTextStorage) -> Bool {
         guard isEnabled else { return true }
 
         // 1. 检测段落结构变化
         if hasParagraphStructureChange(change: change) {
             fullParseCount += 1
-
-            if verboseLogging {
-                print("[TypingOptimizer] 🔄 需要完整解析: 段落结构变化")
-            }
-
             return true
         }
 
         // 2. 检测元属性变化
         if hasMetaAttributeChange(at: location, in: textStorage) {
             fullParseCount += 1
-
-            if verboseLogging {
-                print("[TypingOptimizer] 🔄 需要完整解析: 元属性变化")
-            }
-
             return true
         }
 
@@ -228,10 +195,6 @@ public final class TypingOptimizer {
 
         if !isSimple {
             fullParseCount += 1
-
-            if verboseLogging {
-                print("[TypingOptimizer] 🔄 需要完整解析: 非简单输入")
-            }
         }
 
         return !isSimple
@@ -315,10 +278,6 @@ public final class TypingOptimizer {
         accumulatedChanges.append(textChange)
         lastInputTime = Date()
 
-        if verboseLogging {
-            print("[TypingOptimizer] 📝 累积变化: '\(change)' at \(location), 总计: \(accumulatedChanges.count)")
-        }
-
         // 重置定时器
         resetBatchProcessTimer()
     }
@@ -352,20 +311,12 @@ public final class TypingOptimizer {
 
         batchProcessCount += 1
 
-        if verboseLogging {
-            print("[TypingOptimizer] 🔄 批量处理开始: \(accumulatedChanges.count) 个变化")
-        }
-
         // 调用批量处理回调
         onBatchProcess?(accumulatedChanges)
 
         // 清空累积的变化
         accumulatedChanges.removeAll()
         lastInputTime = nil
-
-        if verboseLogging {
-            print("[TypingOptimizer] ✅ 批量处理完成")
-        }
     }
 
     /// 立即处理累积的变化
@@ -385,10 +336,6 @@ public final class TypingOptimizer {
         batchProcessTimer = nil
         accumulatedChanges.removeAll()
         lastInputTime = nil
-
-        if verboseLogging {
-            print("[TypingOptimizer] ❌ 批量处理已取消")
-        }
     }
 
     // MARK: - 统计和报告
@@ -434,10 +381,6 @@ public final class TypingOptimizer {
         batchProcessCount = 0
         accumulatedChanges.removeAll()
         lastInputTime = nil
-
-        if verboseLogging {
-            print("[TypingOptimizer] 🔄 统计信息已重置")
-        }
     }
 
     /// 获取当前累积的变化数量

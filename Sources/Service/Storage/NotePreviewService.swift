@@ -47,15 +47,10 @@ public class NotePreviewService: ObservableObject {
     ///   - fileType: 文件类型（如 "png", "jpg"）
     /// - Returns: NSImage 对象，如果加载失败则返回 nil
     public func loadPreviewImage(fileId: String, fileType: String) -> NSImage? {
-        print("[NotePreviewService] 请求加载图片: \(fileId).\(fileType)")
-
         // 1. 检查缓存
         if let cached = getCachedImage(fileId: fileId) {
-            print("[NotePreviewService] ✅ 从缓存加载: \(fileId)")
             return cached
         }
-
-        print("[NotePreviewService] 缓存未命中，从本地存储加载")
 
         // 2. 从本地存储加载
         var imageData: Data? = localStorage.loadImage(fileId: fileId, fileType: fileType)
@@ -63,7 +58,6 @@ public class NotePreviewService: ObservableObject {
 
         // 如果加载失败且文件类型是 "jpg"，尝试 "jpeg"
         if imageData == nil, fileType == "jpg" {
-            print("[NotePreviewService] jpg 加载失败，尝试 jpeg")
             imageData = localStorage.loadImage(fileId: fileId, fileType: "jpeg")
             if imageData != nil {
                 actualFileType = "jpeg"
@@ -71,19 +65,13 @@ public class NotePreviewService: ObservableObject {
         }
 
         guard let imageData else {
-            print("[NotePreviewService] ❌ 本地存储加载失败: \(fileId).\(fileType)")
             return nil
         }
-
-        print("[NotePreviewService] ✅ 本地存储加载成功（\(actualFileType)），数据大小: \(imageData.count) 字节")
 
         // 3. 创建 NSImage
         guard let image = NSImage(data: imageData) else {
-            print("[NotePreviewService] ❌ 无法从数据创建 NSImage: \(fileId)")
             return nil
         }
-
-        print("[NotePreviewService] ✅ NSImage 创建成功，尺寸: \(image.size)")
 
         // 4. 缓存图片
         cacheImage(image, forFileId: fileId)
@@ -95,7 +83,6 @@ public class NotePreviewService: ObservableObject {
     public func clearCache() {
         imageCache.removeAll()
         cacheAccessOrder.removeAll()
-        print("[NotePreviewService] 缓存已清除")
     }
 
     /// 清除指定图片的缓存
@@ -156,7 +143,5 @@ public class NotePreviewService: ObservableObject {
 
         imageCache.removeValue(forKey: oldestFileId)
         cacheAccessOrder.removeFirst()
-
-        print("[NotePreviewService] 移除最旧的缓存图片: \(oldestFileId)")
     }
 }

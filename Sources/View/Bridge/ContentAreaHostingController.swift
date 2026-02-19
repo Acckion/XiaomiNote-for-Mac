@@ -111,7 +111,6 @@ public class ContentAreaHostingController: NSViewController {
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] viewMode in
-                print("[ContentAreaHostingController] 视图模式变化: \(viewMode)")
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -122,7 +121,6 @@ public class ContentAreaHostingController: NSViewController {
         viewModel.$selectedFolder
             .receive(on: DispatchQueue.main)
             .sink { [weak self] folder in
-                print("[ContentAreaHostingController] 文件夹变化: \(folder?.name ?? "nil")")
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -134,7 +132,6 @@ public class ContentAreaHostingController: NSViewController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] searchText in
                 if !searchText.isEmpty {
-                    print("[ContentAreaHostingController] 搜索文本变化: \(searchText)")
                 }
                 self?.refreshView()
             }

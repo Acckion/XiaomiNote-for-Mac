@@ -59,7 +59,6 @@ public enum InlineFormatHandler {
     ) {
         guard range.length > 0 else { return }
         guard format.category == .inline else {
-            print("[InlineFormatHandler] 警告：尝试应用非内联格式 \(format.displayName)")
             return
         }
 
@@ -300,7 +299,6 @@ public enum InlineFormatHandler {
     ) {
         // 统一使用 obliqueness 实现斜体，不依赖字体特性
         textStorage.addAttribute(.obliqueness, value: italicObliquenessValue, range: range)
-        print("[InlineFormatHandler] 添加斜体（obliqueness）")
     }
 
     /// 移除斜体效果
@@ -311,7 +309,6 @@ public enum InlineFormatHandler {
     ) {
         // 移除 obliqueness 属性
         textStorage.removeAttribute(.obliqueness, range: range)
-        print("[InlineFormatHandler] 移除斜体")
     }
 
     /// 应用下划线格式

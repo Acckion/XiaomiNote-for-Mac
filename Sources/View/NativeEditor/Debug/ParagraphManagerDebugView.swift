@@ -128,8 +128,6 @@ struct ParagraphManagerDebugView: View {
 
         // 获取段落列表
         paragraphs = manager.paragraphs
-
-        print("[ParagraphManagerDebugView] 更新段落列表: \(paragraphs.count) 个段落")
     }
 
     private func applyFormatToSelectedParagraph() {
@@ -138,8 +136,6 @@ struct ParagraphManagerDebugView: View {
         }
 
         let paragraph = paragraphs[index]
-
-        print("[ParagraphManagerDebugView] 应用格式 \(selectedFormatType) 到段落 \(index)")
 
         // 应用格式
         manager.applyParagraphFormat(selectedFormatType, to: paragraph.range, in: textStorage)
