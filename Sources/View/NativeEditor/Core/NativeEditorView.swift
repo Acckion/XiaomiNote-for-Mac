@@ -111,6 +111,9 @@ struct NativeEditorView: NSViewRepresentable {
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
+
+        // NSStackView 中使用 Auto Layout，需要关闭 autoresizing mask 转换
+        // 但 NSTextView 的高度由内容决定，需要通过 invalidateIntrinsicContentSize 驱动
         textView.translatesAutoresizingMaskIntoConstraints = false
 
         // 组装 StackView
@@ -133,9 +136,12 @@ struct NativeEditorView: NSViewRepresentable {
             titleField.topAnchor.constraint(equalTo: stackView.topAnchor, constant: 16),
         ])
 
-        // textView 宽度跟随 stackView
+        // textView 宽度跟随 stackView，高度至少填满可见区域
+        let textViewHeightConstraint = textView.heightAnchor.constraint(greaterThanOrEqualTo: scrollView.contentView.heightAnchor, constant: -60)
+        textViewHeightConstraint.priority = .defaultHigh
         NSLayoutConstraint.activate([
             textView.widthAnchor.constraint(equalTo: stackView.widthAnchor),
+            textViewHeightConstraint,
         ])
 
         // 保存引用

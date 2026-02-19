@@ -956,27 +956,6 @@ struct NoteDetailView: View {
         // 加载内容
         var contentToLoad = note.primaryXMLContent
 
-        // 关键修复：插入标题到 XML（与 loadNoteContent 保持一致）
-        // 任务 22.2: 如果有标题，将标题插入到内容的开头
-        // 标题将作为编辑器的第一个段落显示
-        if !title.isEmpty {
-            // 检查 XML 中是否已经有 <title> 标签
-            if !contentToLoad.contains("<title>") {
-                // 如果没有 <title> 标签，添加一个
-                // 将标题插入到内容的最前面（在 <new-format/> 之后）
-                let titleTag = "<title>\(encodeXMLEntities(title))</title>"
-
-                if contentToLoad.hasPrefix("<new-format/>") {
-                    // 在 <new-format/> 后插入标题
-                    let afterPrefix = String(contentToLoad.dropFirst("<new-format/>".count))
-                    contentToLoad = "<new-format/>\(titleTag)\(afterPrefix)"
-                } else {
-                    // 直接在开头插入标题
-                    contentToLoad = "\(titleTag)\(contentToLoad)"
-                }
-            }
-        }
-
         currentXMLContent = contentToLoad
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
@@ -1103,19 +1082,6 @@ struct NoteDetailView: View {
             }
         } else {
             await MemoryCacheManager.shared.cacheNote(note)
-        }
-
-        // 任务 22.2: 如果有标题，将标题插入到内容的开头
-        if !title.isEmpty {
-            if !contentToLoad.contains("<title>") {
-                let titleTag = "<title>\(encodeXMLEntities(title))</title>"
-                if contentToLoad.hasPrefix("<new-format/>") {
-                    let afterPrefix = String(contentToLoad.dropFirst("<new-format/>".count))
-                    contentToLoad = "<new-format/>\(titleTag)\(afterPrefix)"
-                } else {
-                    contentToLoad = "\(titleTag)\(contentToLoad)"
-                }
-            }
         }
 
         currentXMLContent = contentToLoad
