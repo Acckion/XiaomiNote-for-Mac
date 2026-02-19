@@ -95,16 +95,12 @@ public class ViewStateCoordinator: ObservableObject {
     public init(viewModel: NotesViewModel? = nil) {
         self.viewModel = viewModel
 
-        if isDebugLoggingEnabled {
-            log("ViewStateCoordinator 初始化完成")
-        }
     }
 
     /// 设置关联的 ViewModel
     /// - Parameter viewModel: NotesViewModel 实例
     public func setViewModel(_ viewModel: NotesViewModel) {
         self.viewModel = viewModel
-        log("已关联 NotesViewModel")
 
         // 关联 ViewModel 后，尝试恢复之前保存的状态
         if isStatePersistenceEnabled, !hasRestoredState {
@@ -143,8 +139,6 @@ public class ViewStateCoordinator: ObservableObject {
 
         // 同时更新内存缓存
         cachedState = currentState
-
-        log("状态已保存到 UserDefaults: folder=\(selectedFolder?.id ?? "nil"), note=\(selectedNote?.id ?? "nil")")
     }
 
     /// 从 UserDefaults 恢复状态
@@ -166,8 +160,6 @@ public class ViewStateCoordinator: ObservableObject {
         let savedNoteId = defaults.string(forKey: StorageKeys.selectedNoteId)
         let savedTimestamp = defaults.double(forKey: StorageKeys.stateTimestamp)
 
-        log("从 UserDefaults 读取状态: folder=\(savedFolderId ?? "nil"), note=\(savedNoteId ?? "nil")")
-
         // 检查保存的状态是否有效（24小时内）
         let maxAge: TimeInterval = 24 * 60 * 60 // 24小时
         let stateAge = Date().timeIntervalSince1970 - savedTimestamp
@@ -187,20 +179,15 @@ public class ViewStateCoordinator: ObservableObject {
             if let folder = viewModel.folders.first(where: { $0.id == folderId }) {
                 selectedFolder = folder
                 stateRestored = true
-                log("恢复文件夹选择: \(folder.name)")
             } else if folderId == "0" {
                 // "所有笔记"虚拟文件夹
                 selectedFolder = Folder(id: "0", name: "所有笔记", count: viewModel.notes.count, isSystem: true)
                 stateRestored = true
-                log("恢复文件夹选择: 所有笔记")
             } else if folderId == "starred" {
                 // "置顶"虚拟文件夹
                 let starredCount = viewModel.notes.count(where: { $0.isStarred })
                 selectedFolder = Folder(id: "starred", name: "置顶", count: starredCount, isSystem: true)
                 stateRestored = true
-                log("恢复文件夹选择: 置顶")
-            } else {
-                log("文件夹 \(folderId) 不存在，跳过恢复")
             }
         }
 
@@ -213,18 +200,12 @@ public class ViewStateCoordinator: ObservableObject {
                     if isNoteInFolder(note: note, folderId: folderId) {
                         selectedNote = note
                         stateRestored = true
-                        log("恢复笔记选择: \(note.title)")
-                    } else {
-                        log("笔记 \(noteId) 不属于当前文件夹，跳过恢复")
                     }
                 } else {
                     // 没有选中文件夹，直接恢复笔记
                     selectedNote = note
                     stateRestored = true
-                    log("恢复笔记选择: \(note.title)")
                 }
-            } else {
-                log("笔记 \(noteId) 不存在，跳过恢复")
             }
         }
 
@@ -234,9 +215,7 @@ public class ViewStateCoordinator: ObservableObject {
         if stateRestored {
             let newState = currentState
             recordTransition(from: previousState, to: newState, trigger: .viewRestore, additionalInfo: "从 UserDefaults 恢复")
-            log("✅ 状态恢复完成")
-        } else {
-            log("没有需要恢复的状态")
+            log("状态恢复完成")
         }
     }
 
@@ -250,7 +229,6 @@ public class ViewStateCoordinator: ObservableObject {
     @discardableResult
     public func restoreStateFromCache() -> Bool {
         guard let cachedState else {
-            log("没有缓存的状态")
             return false
         }
 
@@ -268,8 +246,6 @@ public class ViewStateCoordinator: ObservableObject {
         defaults.removeObject(forKey: StorageKeys.stateTimestamp)
 
         cachedState = nil
-
-        log("已清除持久化状态")
     }
 
     /// 获取持久化的状态（不恢复）
@@ -304,10 +280,7 @@ public class ViewStateCoordinator: ObservableObject {
     ///
     /// - 1.4: 视图重建后恢复选择状态
     public func triggerStateRestoration() {
-        guard isStatePersistenceEnabled else {
-            log("状态持久化已禁用，跳过恢复")
-            return
-        }
+        guard isStatePersistenceEnabled else { return }
 
         // 如果已经恢复过，先检查内存缓存
         if hasRestoredState {
@@ -343,7 +316,6 @@ public class ViewStateCoordinator: ObservableObject {
     public func selectFolder(_ folder: Folder?) async -> Bool {
         // 如果选择的是同一个文件夹，不做任何操作
         if folder?.id == selectedFolder?.id {
-            log("选择相同文件夹，跳过: \(folder?.id ?? "nil")")
             return true
         }
 
@@ -361,20 +333,14 @@ public class ViewStateCoordinator: ObservableObject {
 
         // 步骤1: 检查并保存未保存的内容
         if hasUnsavedContent {
-            log("检测到未保存内容，触发保存...")
             let saved = await saveCurrentContent()
             if !saved {
-                log("⚠️ 保存失败，但继续切换文件夹")
-            } else {
-                log("✅ 保存成功，继续切换文件夹")
+                log("保存失败，但继续切换文件夹")
             }
-        } else {
-            log("无未保存内容，直接切换")
         }
 
         // 步骤2: 更新 selectedFolder
         selectedFolder = folder
-        log("已更新 selectedFolder: \(newFolderName)")
 
         // 步骤3: 智能选择笔记
         // 优先保持当前笔记选中（如果它在新文件夹中），否则选择第一个笔记
@@ -382,37 +348,20 @@ public class ViewStateCoordinator: ObservableObject {
            let folderId = folder?.id,
            isNoteInFolder(note: currentNote, folderId: folderId)
         {
-            // 当前笔记在新文件夹中，保持选中
-            // 需要在 filteredNotes 中找到对应的笔记（因为可能是不同的实例）
             if let noteInList = viewModel?.filteredNotes.first(where: { $0.id == currentNote.id }) {
                 selectedNote = noteInList
-                log("当前笔记在新文件夹中，保持选中: \(noteInList.title)")
             } else {
-                // 笔记不在 filteredNotes 中（可能被过滤掉了），选择第一个
-                if let firstNote = viewModel?.filteredNotes.first {
-                    selectedNote = firstNote
-                    log("当前笔记不在过滤列表中，选择第一个笔记: \(firstNote.title)")
-                } else {
-                    selectedNote = nil
-                    log("文件夹为空，已清除 selectedNote")
-                }
+                selectedNote = viewModel?.filteredNotes.first
             }
         } else {
-            // 当前笔记不在新文件夹中，选择第一个笔记
-            if let firstNote = viewModel?.filteredNotes.first {
-                selectedNote = firstNote
-                log("当前笔记不在新文件夹中，选择第一个笔记: \(firstNote.title)")
-            } else {
-                selectedNote = nil
-                log("文件夹为空，已清除 selectedNote")
-            }
+            selectedNote = viewModel?.filteredNotes.first
         }
 
         // 记录状态转换
         let newState = currentState
         recordTransition(from: previousState, to: newState, trigger: .folderSelection)
 
-        log("✅ 文件夹切换完成: \(newFolderName)")
+        log("文件夹切换完成: \(newFolderName)")
         return true
     }
 
@@ -429,7 +378,6 @@ public class ViewStateCoordinator: ObservableObject {
     public func selectNote(_ note: Note?) async -> Bool {
         // 如果选择的是同一个笔记，不做任何操作
         if note?.id == selectedNote?.id {
-            log("选择相同笔记，跳过: \(note?.id ?? "nil")")
             return true
         }
 
@@ -443,7 +391,6 @@ public class ViewStateCoordinator: ObservableObject {
             selectedNote = nil
             let newState = currentState
             recordTransition(from: previousState, to: newState, trigger: .noteSelection)
-            log("清除笔记选择")
             return true
         }
 
@@ -451,22 +398,12 @@ public class ViewStateCoordinator: ObservableObject {
         if let folderId = selectedFolder?.id {
             let belongsToFolder = isNoteInFolder(note: note, folderId: folderId)
 
-            if !belongsToFolder {
-                // 笔记不属于当前文件夹
-                log("笔记 \(note.id) 不属于当前文件夹 \(folderId)")
-
-                // 策略：自动更新 selectedFolder 到笔记所属的文件夹
-                // 或者如果是特殊文件夹（如"所有笔记"），则允许选择
-                if folderId != "0" {
-                    // 查找笔记所属的文件夹
-                    if let noteFolder = viewModel?.folders.first(where: { $0.id == note.folderId }) {
-                        log("自动切换到笔记所属文件夹: \(noteFolder.name)")
-                        selectedFolder = noteFolder
-                    } else if note.folderId == "0" || note.folderId.isEmpty {
-                        // 未分类笔记
-                        log("笔记属于未分类，切换到未分类文件夹")
-                        selectedFolder = viewModel?.uncategorizedFolder
-                    }
+            if !belongsToFolder, folderId != "0" {
+                // 自动切换到笔记所属文件夹
+                if let noteFolder = viewModel?.folders.first(where: { $0.id == note.folderId }) {
+                    selectedFolder = noteFolder
+                } else if note.folderId == "0" || note.folderId.isEmpty {
+                    selectedFolder = viewModel?.uncategorizedFolder
                 }
             }
         }
@@ -494,14 +431,10 @@ public class ViewStateCoordinator: ObservableObject {
     public func updateNoteContent(_ note: Note) {
         let previousState = currentState
 
-        // 如果更新的是当前选中的笔记，更新 selectedNote 但保持选中状态
         if selectedNote?.id == note.id {
-            // 更新 selectedNote 的引用，但不触发选择变化
             selectedNote = note
-            log("更新选中笔记内容: \(note.id)")
         }
 
-        // 记录状态转换（如果有变化）
         let newState = currentState
         if previousState != newState {
             recordTransition(from: previousState, to: newState, trigger: .contentUpdate)
@@ -523,11 +456,8 @@ public class ViewStateCoordinator: ObservableObject {
         let state = currentState
         let isConsistent = state.isConsistent(with: viewModel.notes, folders: viewModel.folders)
 
-        if !isConsistent {
-            log("检测到状态不一致")
-            if let inconsistency = detectInconsistency() {
-                log("不一致详情: \(inconsistency.description)")
-            }
+        if !isConsistent, let inconsistency = detectInconsistency() {
+            log("状态不一致: \(inconsistency.description)")
         }
 
         return isConsistent
@@ -538,14 +468,10 @@ public class ViewStateCoordinator: ObservableObject {
     /// 当检测到状态不一致时，自动修复
     ///
     public func synchronizeState() {
-        guard !validateStateConsistency() else {
-            log("状态一致，无需同步")
-            return
-        }
+        guard !validateStateConsistency() else { return }
 
         let previousState = currentState
 
-        // 检测不一致类型并修复
         if let inconsistency = detectInconsistency() {
             let resolution = resolveInconsistency(inconsistency)
             applyResolution(resolution)
@@ -574,14 +500,12 @@ public class ViewStateCoordinator: ObservableObject {
 
         let previousState = currentState
 
-        // 恢复文件夹选择
         if let folderId = state.selectedFolderId {
             selectedFolder = viewModel.folders.first(where: { $0.id == folderId })
         } else {
             selectedFolder = nil
         }
 
-        // 恢复笔记选择
         if let noteId = state.selectedNoteId {
             selectedNote = viewModel.notes.first(where: { $0.id == noteId })
         } else {
@@ -590,7 +514,6 @@ public class ViewStateCoordinator: ObservableObject {
 
         let newState = currentState
         recordTransition(from: previousState, to: newState, trigger: .viewRestore)
-
         log("状态恢复完成")
     }
 
@@ -621,24 +544,13 @@ public class ViewStateCoordinator: ObservableObject {
     ///
     /// - Returns: 是否保存成功
     private func saveCurrentContent() async -> Bool {
-        log("触发内容保存...")
-
-        // 如果有注册的保存回调，调用它
         if let saveCallback = saveContentCallback {
-            log("调用保存回调...")
             let success = await saveCallback()
-
             if success {
-                log("保存回调执行成功")
                 hasUnsavedContent = false
-            } else {
-                log("保存回调执行失败")
             }
-
             return success
         } else {
-            // 没有注册保存回调，直接标记为已保存
-            log("没有注册保存回调，跳过保存")
             hasUnsavedContent = false
             return true
         }
@@ -715,19 +627,16 @@ public class ViewStateCoordinator: ObservableObject {
         switch resolution {
         case .clearSelection:
             selectedNote = nil
-            log("应用解决策略: 清除笔记选择")
         case let .updateFolder(folderId):
             if let folder = viewModel?.folders.first(where: { $0.id == folderId }) {
                 selectedFolder = folder
             } else if folderId == "0" {
-                // 创建"所有笔记"虚拟文件夹
                 selectedFolder = Folder(id: "0", name: "所有笔记", count: viewModel?.notes.count ?? 0, isSystem: true)
             }
             log("应用解决策略: 切换到文件夹 \(folderId)")
         case .selectFirstNote:
             if let firstNote = viewModel?.filteredNotes.first {
                 selectedNote = firstNote
-                log("应用解决策略: 选择第一个笔记")
             }
         case .logAndIgnore:
             log("应用解决策略: 记录日志并忽略")
