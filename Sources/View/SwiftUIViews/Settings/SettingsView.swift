@@ -74,6 +74,11 @@ public struct SettingsView: View {
                     }
                     .help("查看和管理待上传注册表、离线操作队列等")
 
+                    NavigationLink("XML 往返一致性检测") {
+                        XMLRoundtripDebugView()
+                    }
+                    .help("检测所有笔记的 XML 转换往返一致性")
+
                     NavigationLink("调试设置") {
                         DebugSettingsView()
                     }
