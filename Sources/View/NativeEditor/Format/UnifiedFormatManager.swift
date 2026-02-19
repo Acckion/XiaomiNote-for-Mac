@@ -5,7 +5,6 @@
 //  统一格式管理器 - 整合所有格式处理逻辑
 //  负责格式应用、换行继承和 typingAttributes 同步的统一处理
 //
-//  _Requirements: 8.1, 8.2, 9.1_
 //
 
 import AppKit
@@ -16,7 +15,6 @@ import Foundation
 
 /// 格式分类枚举
 /// 用于区分不同类型的格式，决定换行继承规则
-/// _Requirements: 3.1-3.6_
 public enum FormatCategory: Equatable, Sendable {
     /// 内联格式：加粗、斜体、下划线、删除线、高亮
     case inline
@@ -39,7 +37,6 @@ public enum FormatCategory: Equatable, Sendable {
 public extension TextFormat {
 
     /// 获取格式的分类
-    /// _Requirements: 3.1-3.6_
     var category: FormatCategory {
         switch self {
         case .bold, .italic, .underline, .strikethrough, .highlight:
@@ -67,7 +64,6 @@ public extension TextFormat {
     /// - 引用格式：继承
     /// - 对齐属性：继承
     ///
-    /// _Requirements: 2.1-2.6, 4.1-4.4, 5.1-5.3, 6.1-6.2, 7.1-7.3_
     var shouldInheritOnNewLine: Bool {
         switch category {
         case .inline, .blockTitle:
@@ -82,7 +78,6 @@ public extension TextFormat {
 
 /// 换行上下文
 /// 包含换行时需要的所有信息
-/// _Requirements: 8.3_
 public struct NewLineContext: Equatable, Sendable {
 
     /// 当前行的范围
@@ -139,7 +134,6 @@ public struct NewLineContext: Equatable, Sendable {
 
 /// 统一格式管理器
 /// 整合所有格式处理逻辑，提供统一的 API
-/// _Requirements: 8.1, 8.2, 9.1_
 @MainActor
 public final class UnifiedFormatManager {
 
@@ -170,7 +164,6 @@ public final class UnifiedFormatManager {
     /// - Parameters:
     ///   - textView: NSTextView 实例
     ///   - context: NativeEditorContext 实例
-    /// _Requirements: 8.1, 8.2, 9.1_
     public func register(textView: NSTextView, context: NativeEditorContext) {
         self.textView = textView
         editorContext = context
@@ -178,7 +171,6 @@ public final class UnifiedFormatManager {
     }
 
     /// 取消注册
-    /// _Requirements: 8.1, 8.2, 9.1_
     public func unregister() {
         textView = nil
         editorContext = nil
@@ -195,7 +187,6 @@ public final class UnifiedFormatManager {
     ///   - format: 要应用的内联格式
     ///   - range: 应用范围
     ///   - toggle: 是否切换模式（默认 true）
-    /// _Requirements: 1.1, 1.2, 1.3_
     public func applyInlineFormat(_ format: TextFormat, to range: NSRange, toggle: Bool = true) {
         guard let textStorage = currentTextStorage else {
             return
@@ -216,7 +207,6 @@ public final class UnifiedFormatManager {
     ///   - formats: 要应用的内联格式集合
     ///   - range: 应用范围
     ///   - toggle: 是否切换模式（默认 true）
-    /// _Requirements: 1.4_
     public func applyMultipleInlineFormats(_ formats: Set<TextFormat>, to range: NSRange, toggle: Bool = true) {
         guard let textStorage = currentTextStorage else {
             return
@@ -230,7 +220,6 @@ public final class UnifiedFormatManager {
     /// - Parameters:
     ///   - position: 检测位置
     /// - Returns: 当前位置激活的内联格式集合
-    /// _Requirements: 1.3_
     public func detectInlineFormats(at position: Int) -> Set<TextFormat> {
         guard let textStorage = currentTextStorage else {
             return []
@@ -245,7 +234,6 @@ public final class UnifiedFormatManager {
     ///
     /// - Parameter baseAttributes: 基础属性（可选）
     /// - Returns: 清除内联格式后的属性字典
-    /// _Requirements: 2.1-2.6_
     public func buildCleanTypingAttributes(from baseAttributes: [NSAttributedString.Key: Any]? = nil) -> [NSAttributedString.Key: Any] {
         InlineFormatHandler.buildCleanTypingAttributes(from: baseAttributes)
     }
@@ -260,7 +248,6 @@ public final class UnifiedFormatManager {
     ///   - format: 要应用的块级格式
     ///   - range: 应用范围
     ///   - toggle: 是否切换模式（默认 true）
-    /// _Requirements: 3.1-3.7_
     public func applyBlockFormat(_ format: TextFormat, to range: NSRange, toggle: Bool = true) {
         guard let textStorage = currentTextStorage else {
             return
@@ -278,7 +265,6 @@ public final class UnifiedFormatManager {
     /// - Parameters:
     ///   - position: 检测位置
     /// - Returns: 当前位置的块级格式（如果有）
-    /// _Requirements: 3.1-3.6_
     public func detectBlockFormat(at position: Int) -> TextFormat? {
         guard let textStorage = currentTextStorage else {
             return nil
@@ -304,7 +290,6 @@ public final class UnifiedFormatManager {
     ///
     /// - Parameters:
     ///   - range: 移除范围
-    /// _Requirements: 3.7_
     public func removeBlockFormat(from range: NSRange) {
         guard let textStorage = currentTextStorage else {
             return
@@ -318,7 +303,6 @@ public final class UnifiedFormatManager {
     /// - Parameters:
     ///   - position: 检测位置
     /// - Returns: 是否为空列表项
-    /// _Requirements: 5.4, 5.5, 5.6_
     public func isListItemEmpty(at position: Int) -> Bool {
         guard let textStorage = currentTextStorage else {
             return false
@@ -332,7 +316,6 @@ public final class UnifiedFormatManager {
     /// - Parameters:
     ///   - position: 检测位置
     /// - Returns: 列表类型（bulletList、numberedList、checkbox 或 nil）
-    /// _Requirements: 5.4, 5.5, 5.6_
     public func getListType(at position: Int) -> TextFormat? {
         guard let textStorage = currentTextStorage else {
             return nil
@@ -346,7 +329,6 @@ public final class UnifiedFormatManager {
     /// - Parameters:
     ///   - position: 检测位置
     /// - Returns: 是否是列表格式
-    /// _Requirements: 5.4, 5.5, 5.6_
     public func isList(at position: Int) -> Bool {
         guard let textStorage = currentTextStorage else {
             return false
@@ -360,7 +342,6 @@ public final class UnifiedFormatManager {
     /// - Parameters:
     ///   - position: 当前光标位置
     /// - Returns: 换行上下文
-    /// _Requirements: 8.3_
     public func buildNewLineContext(at position: Int) -> NewLineContext {
         guard let textStorage = currentTextStorage else {
             return .default
@@ -424,7 +405,6 @@ public final class UnifiedFormatManager {
     /// - Parameters:
     ///   - format: 要应用的格式
     ///   - range: 应用范围
-    /// _Requirements: 9.1, 9.5_
     public func applyFormat(_ format: TextFormat, to range: NSRange) {
         switch format.category {
         case .inline:
@@ -446,7 +426,6 @@ public final class UnifiedFormatManager {
     /// - 对齐属性：继承
     ///
     /// - Returns: 是否已处理换行（true 表示已处理，调用方不需要执行默认行为）
-    /// _Requirements: 8.1, 8.2, 8.3, 8.4_
     public func handleNewLine() -> Bool {
         guard let textView = currentTextView else {
             return false
@@ -470,7 +449,6 @@ public final class UnifiedFormatManager {
     ///
     /// - Parameter position: 光标位置
     /// - Returns: 完整的格式状态
-    /// _Requirements: 1.3_
     public func detectFormatState(at position: Int) -> FormatState {
         guard let textStorage = currentTextStorage else {
             return FormatState.default
@@ -583,7 +561,6 @@ public final class UnifiedFormatManager {
     ///
     /// - Parameter range: 选择范围
     /// - Returns: 完整的格式状态
-    /// _Requirements: 1.3_
     public func detectFormatState(in range: NSRange) -> FormatState {
         guard let textStorage = currentTextStorage else {
             return FormatState.default
@@ -680,7 +657,6 @@ public final class UnifiedFormatManager {
     /// - 格式应用后：更新 typingAttributes 以反映新格式
     ///
     /// - Parameter newLineContext: 换行上下文（可选，用于换行后的同步）
-    /// _Requirements: 10.1, 10.2, 10.3, 10.4_
     public func syncTypingAttributes(for newLineContext: NewLineContext? = nil) {
         guard let textView = currentTextView else {
             return
@@ -688,11 +664,9 @@ public final class UnifiedFormatManager {
 
         if let context = newLineContext {
             // 换行后的同步：根据继承规则设置 typingAttributes
-            // _Requirements: 10.4_
             syncTypingAttributesAfterNewLine(context: context, textView: textView)
         } else {
             // 光标移动或格式应用后的同步
-            // _Requirements: 10.2, 10.3_
             syncTypingAttributesAtCursor(textView: textView)
         }
     }
@@ -707,7 +681,6 @@ public final class UnifiedFormatManager {
     /// - Parameters:
     ///   - context: 换行上下文
     ///   - textView: NSTextView 实例
-    /// _Requirements: 10.4_
     private func syncTypingAttributesAfterNewLine(context: NewLineContext, textView: NSTextView) {
         // 构建清除内联格式后的基础属性
         var attrs = InlineFormatHandler.buildCleanTypingAttributes()
@@ -753,7 +726,6 @@ public final class UnifiedFormatManager {
     /// 根据当前光标位置的格式状态同步 typingAttributes
     ///
     /// - Parameter textView: NSTextView 实例
-    /// _Requirements: 10.2, 10.3_
     private func syncTypingAttributesAtCursor(textView: NSTextView) {
         guard let textStorage = textView.textStorage else {
             return

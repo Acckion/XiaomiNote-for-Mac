@@ -5,7 +5,6 @@
 //  格式状态结构体 - 表示当前光标或选择处的完整格式状态
 //  用于统一格式菜单系统，确保工具栏和菜单栏显示一致的格式状态
 //
-//  _Requirements: 1.1, 1.2, 1.3, 2.1_
 //
 
 import Foundation
@@ -14,7 +13,6 @@ import Foundation
 
 /// 段落格式枚举
 /// 定义所有互斥的段落级格式类型
-/// _Requirements: 2.1_
 public enum ParagraphFormat: String, CaseIterable, Equatable, Hashable, Sendable {
     case heading1 // 大标题
     case heading2 // 二级标题
@@ -88,7 +86,6 @@ public enum ParagraphFormat: String, CaseIterable, Equatable, Hashable, Sendable
 
 /// 对齐格式枚举
 /// 定义所有互斥的对齐方式
-/// _Requirements: 3.1, 3.2, 3.3_
 public enum AlignmentFormat: String, CaseIterable, Equatable, Hashable, Sendable {
     case left // 左对齐（默认）
     case center // 居中对齐
@@ -126,19 +123,16 @@ public enum AlignmentFormat: String, CaseIterable, Equatable, Hashable, Sendable
 
 /// 格式状态结构体
 /// 表示当前光标或选择处的完整格式状态
-/// _Requirements: 1.1, 1.2, 1.3_
 public struct FormatState: Equatable, Sendable {
 
     // MARK: - 段落级格式
 
     /// 当前段落格式（互斥）
-    /// _Requirements: 2.1_
     public var paragraphFormat: ParagraphFormat = .body
 
     // MARK: - 对齐格式
 
     /// 当前对齐方式（互斥）
-    /// _Requirements: 3.1, 3.2, 3.3_
     public var alignment: AlignmentFormat = .left
 
     // MARK: - 字符级格式（可叠加）
@@ -176,11 +170,9 @@ public struct FormatState: Equatable, Sendable {
     // MARK: - 选择模式信息
 
     /// 是否有选中文本
-    /// _Requirements: 1.1, 1.3_
     public var hasSelection = false
 
     /// 选择范围长度
-    /// _Requirements: 1.3_
     public var selectionLength = 0
 
     // MARK: - 初始化
@@ -315,7 +307,6 @@ public struct FormatState: Equatable, Sendable {
     }
 
     /// 默认格式状态（用于空文档或光标在文档开头）
-    /// _Requirements: 1.2_
     public static let `default` = FormatState()
 }
 

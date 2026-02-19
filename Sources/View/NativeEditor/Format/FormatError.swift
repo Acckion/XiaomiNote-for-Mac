@@ -19,7 +19,6 @@ import Foundation
 /// - 状态检测错误：格式状态检测失败
 /// - 状态同步错误：格式状态同步失败
 ///
-/// 需求: 4.1, 4.2
 enum FormatError: Error, LocalizedError, Equatable {
 
     // MARK: - 范围错误

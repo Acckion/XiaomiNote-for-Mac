@@ -158,45 +158,35 @@ public class NotesViewModel: ObservableObject {
     @Published var offlineQueueProgress = 0.0
 
     /// 离线队列处理状态消息
-    /// _Requirements: 7.2_
     @Published var offlineQueueStatusMessage = ""
 
     /// 离线队列待处理操作数量
-    /// _Requirements: 7.2_
     @Published var offlineQueuePendingCount = 0
 
     /// 离线队列已处理操作数量
-    /// _Requirements: 7.2_
     @Published var offlineQueueProcessedCount = 0
 
     /// 离线队列失败操作数量
-    /// _Requirements: 7.2_
     @Published var offlineQueueFailedCount = 0
 
     /// 同步完成后的笔记数量
-    /// _Requirements: 7.4_
     @Published var lastSyncedNotesCount = 0
 
     /// 是否处于离线模式
-    /// _Requirements: 7.5_
     @Published var isOfflineMode = false
 
     /// 离线模式原因
-    /// _Requirements: 7.5_
     @Published var offlineModeReason = ""
 
     /// 启动序列当前阶段（从 StartupSequenceManager 同步）
-    /// _Requirements: 7.1, 7.2, 7.3_
     @Published var startupPhase: StartupSequenceManager.StartupPhase = .idle
 
     /// 启动序列状态消息
-    /// _Requirements: 7.1, 7.2, 7.3_
     @Published var startupStatusMessage = ""
 
     /// 综合状态消息（用于状态栏显示）
     ///
     /// 根据当前状态返回最相关的状态消息
-    /// _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
     var currentStatusMessage: String {
         // 优先显示离线模式
         if isOfflineMode {
@@ -233,7 +223,6 @@ public class NotesViewModel: ObservableObject {
     }
 
     /// 是否有任何加载/处理操作正在进行
-    /// _Requirements: 7.1, 7.2, 7.3_
     var isAnyOperationInProgress: Bool {
         isLoadingLocalData || isProcessingOfflineQueue || isSyncing || isLoading
     }
@@ -253,7 +242,6 @@ public class NotesViewModel: ObservableObject {
     }
 
     /// 统一操作队列待上传数量
-    /// _需求: 6.1, 6.2_
     var unifiedPendingUploadCount: Int {
         unifiedQueue.getPendingUploadCount()
     }
@@ -268,25 +256,21 @@ public class NotesViewModel: ObservableObject {
     @Published var operationStatusMessage = ""
 
     /// 统一操作队列所有待上传笔记 ID
-    /// _需求: 6.1_
     var unifiedPendingNoteIds: [String] {
         unifiedQueue.getAllPendingNoteIds()
     }
 
     /// 临时 ID 笔记数量（离线创建的笔记）
-    /// _需求: 6.1_
     var temporaryIdNoteCount: Int {
         unifiedQueue.getTemporaryIdNoteCount()
     }
 
     /// 检查笔记是否有待处理上传
-    /// _需求: 6.2_
     func hasPendingUpload(for noteId: String) -> Bool {
         unifiedQueue.hasPendingUpload(for: noteId)
     }
 
     /// 检查笔记是否使用临时 ID（离线创建）
-    /// _需求: 6.2_
     func isTemporaryIdNote(_ noteId: String) -> Bool {
         NoteOperation.isTemporaryId(noteId)
     }
@@ -351,13 +335,11 @@ public class NotesViewModel: ObservableObject {
     /// 启动序列管理器
     ///
     /// 负责协调应用启动时的各个步骤，确保按正确顺序执行
-    /// _Requirements: 2.1, 2.2, 2.3, 2.4_
     private let startupManager = StartupSequenceManager()
 
     /// 是否为首次启动（本次会话）
     ///
     /// 用于区分首次启动和后续的数据刷新
-    /// _Requirements: 1.1, 1.2_
     private var isFirstLaunch = true
 
     // MARK: - 计算属性
@@ -533,10 +515,8 @@ public class NotesViewModel: ObservableObject {
     /// 6. 监听网络状态
     /// 7. 如果已登录，执行启动序列（加载本地数据 → 处理离线队列 → 执行同步）
     ///
-    /// _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4_
     public init() {
         // 加载本地数据（根据登录状态决定加载本地数据还是示例数据）
-        // _Requirements: 1.1, 1.2, 1.3_
         loadLocalData()
 
         // 加载设置
@@ -549,7 +529,6 @@ public class NotesViewModel: ObservableObject {
         restoreLastSelectedState()
 
         // 如果已登录，获取用户信息并执行启动序列
-        // _Requirements: 2.1, 2.2, 2.3, 2.4_
         if isLoggedIn {
             Task {
                 await fetchUserProfile()
@@ -565,11 +544,9 @@ public class NotesViewModel: ObservableObject {
 
         // 同步 ViewOptionsManager 的排序设置到 ViewModel
         // 确保画廊视图和列表视图使用相同的排序设置
-        // _Requirements: 8.1, 8.3, 8.4, 8.5_
         setupViewOptionsSync()
 
         // 监听原生编辑器的内容变化（基于版本号机制）
-        // _Requirements: FR-6.2_ - 只在有未保存更改时触发保存
         setupNativeEditorContentChangeListener()
 
         // 监听selectedNote和selectedFolder变化，保存状态
@@ -611,7 +588,6 @@ public class NotesViewModel: ObservableObject {
         }
 
         // 监听启动序列完成通知
-        // _Requirements: 2.4_
         NotificationCenter.default.addObserver(
             forName: .startupSequenceCompleted,
             object: nil,
@@ -627,7 +603,6 @@ public class NotesViewModel: ObservableObject {
         }
 
         // 监听 Cookie 刷新成功通知
-        // _Requirements: 5.2_
         NotificationCenter.default.addObserver(
             forName: NSNotification.Name("CookieRefreshedSuccessfully"),
             object: nil,
@@ -639,7 +614,6 @@ public class NotesViewModel: ObservableObject {
         }
 
         // 监听 ID 映射完成通知
-        // _Requirements: 8.7_ - 更新 UI 中的笔记引用（selectedNote 等）
         NotificationCenter.default.addObserver(
             forName: IdMappingRegistry.idMappingCompletedNotification,
             object: nil,
@@ -668,7 +642,6 @@ public class NotesViewModel: ObservableObject {
     ///
     /// 注意：本地数据已在 loadLocalData() 中加载，这里只执行后续步骤
     ///
-    /// _Requirements: 2.1, 2.2, 2.3_
     private func executeStartupSequence() async {
         guard isFirstLaunch else { return }
 
@@ -684,7 +657,6 @@ public class NotesViewModel: ObservableObject {
 
     /// 启动序列完成后重新加载数据
     ///
-    /// _Requirements: 1.4, 4.4_
     private func reloadDataAfterStartup() async {
         do {
             let localNotes = try localStorage.getAllLocalNotes()
@@ -703,7 +675,6 @@ public class NotesViewModel: ObservableObject {
 
     /// 处理启动序列完成通知
     ///
-    /// _Requirements: 2.4_
     private func handleStartupSequenceCompletedWithValues(success: Bool, errors: [String], duration: TimeInterval) {
         LogService.shared.info(.viewmodel, "启动序列完成 - 成功: \(success), 耗时: \(String(format: "%.2f", duration))s")
         if !errors.isEmpty {
@@ -802,7 +773,7 @@ public class NotesViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // 同步 StartupSequenceManager 的状态（需求 7.1, 7.2, 7.3）
+        // 同步 StartupSequenceManager 的状态
         startupManager.$currentPhase
             .receive(on: DispatchQueue.main)
             .sink { [weak self] phase in
@@ -833,7 +804,7 @@ public class NotesViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .assign(to: &$startupStatusMessage)
 
-        // 同步离线模式状态（需求 7.5）
+        // 同步离线模式状态
         // 监听 OnlineStateManager 的在线状态
         OnlineStateManager.shared.$isOnline
             .receive(on: DispatchQueue.main)
@@ -950,7 +921,6 @@ public class NotesViewModel: ObservableObject {
     /// 监听 NativeEditorContext 的 contentChangePublisher，基于版本号机制判断是否需要保存
     /// 只在有未保存更改时触发保存操作
     ///
-    /// _Requirements: FR-6.2_ - 只在有未保存更改时保存
     private func setupNativeEditorContentChangeListener() {
         nativeEditorContext.contentChangePublisher
             .receive(on: DispatchQueue.main)
@@ -971,7 +941,6 @@ public class NotesViewModel: ObservableObject {
     ///
     /// 当编辑器内容变化且需要保存时，执行保存操作
     ///
-    /// _Requirements: FR-6.2_ - 只在有未保存更改时保存
     @MainActor
     private func handleContentChangeAndSave(_ note: Note) async {
         let xmlContent = nativeEditorContext.exportToXML()
@@ -1146,7 +1115,7 @@ public class NotesViewModel: ObservableObject {
             return false
         }
 
-        // 使用 ErrorRecoveryService 统一处理错误（需求 8.1, 8.7）
+        // 使用 ErrorRecoveryService 统一处理错误
         let result = ErrorRecoveryService.shared.handleNetworkError(
             operation: operationType,
             noteId: noteId,
@@ -1481,7 +1450,6 @@ public class NotesViewModel: ObservableObject {
     ///
     /// 清除示例数据，执行完整同步
     ///
-    /// _Requirements: 5.1, 5.3, 5.4_
     /// - 5.1: 用户成功登录后自动执行完整同步
     /// - 5.3: 登录后同步失败时显示错误信息并保留本地数据
     /// - 5.4: 登录后同步成功时清除示例数据并显示云端数据
@@ -1515,7 +1483,6 @@ public class NotesViewModel: ObservableObject {
     ///
     /// 恢复在线状态，执行完整同步
     ///
-    /// _Requirements: 5.2, 5.3, 5.4_
     /// - 5.2: 用户成功刷新Cookie后自动执行完整同步
     /// - 5.3: 同步失败时显示错误信息并保留本地数据
     /// - 5.4: 同步成功时更新本地数据
@@ -1525,24 +1492,21 @@ public class NotesViewModel: ObservableObject {
         restoreOnlineStatus()
         await processPendingOperations()
 
-        // _Requirements: 5.2_
         do {
             isSyncing = true
             syncStatusMessage = "正在同步数据..."
 
             let result = try await syncService.performFullSync()
 
-            // _Requirements: 5.4_
             await reloadDataAfterSync()
 
             isSyncing = false
             syncStatusMessage = "同步完成"
             lastSyncTime = Date()
-            lastSyncedNotesCount = result.syncedNotes // _Requirements: 7.4_
+            lastSyncedNotesCount = result.syncedNotes
 
             LogService.shared.info(.viewmodel, "Cookie刷新后同步成功，同步了 \(result.syncedNotes) 条笔记")
         } catch {
-            // _Requirements: 5.3_
             isSyncing = false
             syncStatusMessage = "同步失败"
             errorMessage = "同步失败: \(error.localizedDescription)"
@@ -1560,8 +1524,6 @@ public class NotesViewModel: ObservableObject {
     ///   - serverId: 云端下发的正式 ID
     ///   - entityType: 实体类型（"note" 或 "folder"）
     ///
-    /// **需求覆盖**：
-    /// - 需求 8.7: 更新 UI 中的笔记引用（selectedNote 等）
     private func handleIdMappingCompleted(localId: String, serverId: String, entityType: String) {
         LogService.shared.debug(.viewmodel, "处理 ID 映射完成: \(localId.prefix(16))... -> \(serverId.prefix(8))... (\(entityType))")
 
@@ -1616,7 +1578,6 @@ public class NotesViewModel: ObservableObject {
     ///
     /// 检查当前笔记是否为示例数据，如果是则清除
     ///
-    /// _Requirements: 5.4_
     private func clearSampleDataIfNeeded() {
         // 检查是否有示例数据（示例数据的ID以"sample-"开头）
         let hasSampleData = notes.contains { $0.id.hasPrefix("sample-") }
@@ -1636,7 +1597,6 @@ public class NotesViewModel: ObservableObject {
 
     /// 同步后重新加载数据
     ///
-    /// _Requirements: 5.4_
     private func reloadDataAfterSync() async {
         do {
             let localNotes = try localStorage.getAllLocalNotes()
@@ -1733,7 +1693,7 @@ public class NotesViewModel: ObservableObject {
             // 更新同步结果
             syncResult = result
             lastSyncTime = result.lastSyncTime
-            lastSyncedNotesCount = result.syncedNotes // _Requirements: 7.4_
+            lastSyncedNotesCount = result.syncedNotes
 
             // 重新加载本地数据
             await loadLocalDataAfterSync()
@@ -1894,13 +1854,11 @@ public class NotesViewModel: ObservableObject {
     /// **统一操作队列集成**：
     /// - 离线时使用 NoteOperationCoordinator.createNoteOffline() 生成临时 ID
     /// - 在线时直接调用 API 创建笔记
-    /// - 需求 8.1: 离线时调用 createNoteOffline()
     ///
     /// - Parameter note: 要创建的笔记对象
     /// - Throws: 创建失败时抛出错误（网络错误、认证错误等）
     public func createNote(_ note: Note) async throws {
         // 检查是否离线或未认证
-        // 需求 8.1: 离线时调用 createNoteOffline()，在线时直接创建
         if !isOnline || !service.isAuthenticated() {
             // 离线模式：使用 NoteOperationCoordinator 创建临时 ID 笔记
             do {
@@ -2102,8 +2060,6 @@ public class NotesViewModel: ObservableObject {
     /// - 自动创建 cloudUpload 操作到 UnifiedOperationQueue
     /// - 网络可用时立即处理上传
     ///
-    /// **需求覆盖**：
-    /// - 需求 2.1: 本地保存完成且网络可用时立即尝试上传
     ///
     /// - Parameter note: 要更新的笔记对象
     /// - Throws: 更新失败时抛出错误（网络错误、认证错误等）
@@ -2323,7 +2279,7 @@ public class NotesViewModel: ObservableObject {
 
     /// 统一处理更新时的错误（内部方法）
     private func handleUpdateError(_ error: Error, for note: Note) {
-        // 使用 ErrorRecoveryService 统一处理错误（需求 8.1, 8.7）
+        // 使用 ErrorRecoveryService 统一处理错误
         let operationData: [String: Any] = [
             "title": note.title,
             "content": note.content,
@@ -2370,7 +2326,6 @@ public class NotesViewModel: ObservableObject {
     /// **注意**：此方法在更新笔记时会尽量避免触发不必要的排序变化，
     /// 以防止笔记在列表中错误移动。
     ///
-    /// _需求: 3.5_
     func ensureNoteHasFullContent(_ note: Note) async {
         if !note.content.isEmpty { return }
 
@@ -2427,7 +2382,6 @@ public class NotesViewModel: ObservableObject {
     ///   - originalTitle: 原始标题
     /// - Returns: 如果内容或标题发生实际变化返回 true，否则返回 false
     ///
-    /// _需求: 2.1, 2.2, 3.3_
     private func hasContentActuallyChanged(currentContent: String, savedContent: String, currentTitle: String, originalTitle: String) -> Bool {
         let normalizedCurrent = XMLNormalizer.shared.normalize(currentContent)
         let normalizedSaved = XMLNormalizer.shared.normalize(savedContent)

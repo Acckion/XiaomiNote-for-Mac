@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  打字优化器 - 检测简单输入场景并跳过完整解析以提高性能
-//  需求: 6.1, 6.3, 6.4
 //
 
 import AppKit
@@ -264,7 +263,6 @@ public final class TypingOptimizer {
     ///   - change: 文本变化内容
     ///   - location: 变化位置
     ///   - textStorage: 文本存储
-    /// - 需求: 6.4
     func accumulateChange(change: String, at location: Int, in _: NSTextStorage) {
         guard isEnabled else { return }
 
@@ -301,10 +299,6 @@ public final class TypingOptimizer {
     }
 
     /// 批量处理累积的变化
-    ///
-    /// 在用户停止输入后，批量处理所有累积的变化
-    ///
-    /// - 需求: 6.4
     func processBatchedChanges() {
         guard isEnabled else { return }
         guard !accumulatedChanges.isEmpty else { return }

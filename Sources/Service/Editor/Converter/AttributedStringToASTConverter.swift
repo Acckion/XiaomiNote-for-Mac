@@ -28,7 +28,6 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     private let spanMerger: FormatSpanMerger
 
     /// 是否在有序列表序列中（用于计算 inputNumber）
-    /// _Requirements: 10.3_ - 遵循 inputNumber 规则
     private var isInOrderedListSequence = false
 
     /// 上一个有序列表的编号（用于验证连续性）
@@ -46,8 +45,6 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     ///
     /// - Parameter attributedString: NSAttributedString
     /// - Returns: 文档 AST 节点
-    /// _Requirements: 10.3_ - 正确计算 inputNumber
-    /// _Requirements: 3.4_ - 识别第一个段落为标题段落
     public func convert(_ attributedString: NSAttributedString) -> DocumentNode {
         // 重置有序列表跟踪状态
         isInOrderedListSequence = false
@@ -104,8 +101,6 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     ///   - paragraph: 段落 NSAttributedString
     ///   - isFirstParagraph: 是否为第一个段落
     /// - Returns: 块级节点
-    /// _Requirements: 10.3_ - 非有序列表块重置序列状态
-    /// _Requirements: 3.4_ - 第一个段落识别为标题段落
     /// - Note: 空段落会被转换为空内容的 TextBlockNode，以保留空行
     private func convertParagraphToBlock(_ paragraph: NSAttributedString, isFirstParagraph: Bool = false) -> (any BlockNode)? {
         // 修复：空段落转换为空内容的 TextBlockNode，而不是返回 nil
@@ -125,7 +120,6 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         }
 
         // 检查是否为标题段落（第一个段落且有标题属性）
-        // _Requirements: 3.4_ - 识别第一个段落为标题段落
         if isFirstParagraph {
             // 检查是否有标题段落标记
             if let isTitle = paragraph.attribute(.isTitle, at: 0, effectiveRange: nil) as? Bool, isTitle {
@@ -139,7 +133,6 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         }
 
         // 非附件段落（普通文本块），重置有序列表序列状态
-        // _Requirements: 10.3_ - 只有连续的有序列表才使用 inputNumber = 0
         isInOrderedListSequence = false
         lastOrderedListNumber = 0
 
@@ -160,7 +153,6 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     ///   - attachment: NSTextAttachment
     ///   - paragraph: 段落 NSAttributedString
     /// - Returns: 块级节点
-    /// _Requirements: 10.1, 10.2, 10.3_ - 正确检测附件并计算 inputNumber
     private func convertAttachmentToBlock(_ attachment: NSTextAttachment, paragraph: NSAttributedString) -> (any BlockNode)? {
         // 提取段落属性（作为后备）
         let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
@@ -242,14 +234,12 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         }
 
         // 有序列表附件
-        // _Requirements: 10.2, 10.3_ - 正确计算 inputNumber
         if let orderAttachment = attachment as? OrderAttachment {
             // 优先使用附件自身的 indent 属性
             let indent = orderAttachment.indent
             let currentNumber = orderAttachment.number
 
             // 计算 inputNumber
-            // _Requirements: 10.3_ - inputNumber 规则：
             // - 第一项：inputNumber = 实际编号 - 1
             // - 后续连续项：inputNumber = 0
             let calculatedInputNumber: Int = if isInOrderedListSequence, currentNumber == lastOrderedListNumber + 1 {
@@ -351,7 +341,6 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
             let fontSize = font.pointSize
 
             // 使用 FontSizeConstants 检测标题级别（非 MainActor 上下文）
-            // _Requirements: 7.1, 7.2, 7.3_
             let detectedFormat = FontSizeConstants.detectParagraphFormat(fontSize: fontSize)
 
             // 检查粗体（包括标题的粗体）
@@ -365,7 +354,6 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
             }
 
             // 使用 FontSizeConstants 的检测结果设置标题格式
-            // _Requirements: 7.1, 7.2, 7.3_
             switch detectedFormat {
             case .heading1:
                 formats.insert(.heading1) // 大标题 23pt

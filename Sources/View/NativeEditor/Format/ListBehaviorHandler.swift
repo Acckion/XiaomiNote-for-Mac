@@ -5,7 +5,6 @@
 //  列表行为处理器 - 处理列表的光标限制、回车键和删除键行为
 //  负责光标位置限制、文本分割、行合并、编号更新和勾选框状态切换
 //
-//  _Requirements: 1.1-1.5, 2.1-2.8, 3.1-3.4, 4.1-4.4, 5.1-5.2, 6.1-6.4, 7.1-7.5_
 //
 
 import AppKit
@@ -15,7 +14,6 @@ import Foundation
 
 /// 列表项信息
 /// 包含列表项的完整信息，用于光标限制和文本分割操作
-/// _Requirements: 1.1, 1.3, 1.4_
 public struct ListItemInfo {
     /// 列表类型（无序、有序或勾选框）
     public let listType: ListType
@@ -51,7 +49,6 @@ public struct ListItemInfo {
 
 /// 文本分割结果
 /// 用于回车键处理时的文本分割操作
-/// _Requirements: 2.1, 2.2, 2.3_
 public struct TextSplitResult {
     /// 光标前的文本
     public let textBefore: String
@@ -70,7 +67,6 @@ public struct TextSplitResult {
 
 /// 列表行为处理器
 /// 负责处理列表的光标限制、回车键和删除键行为
-/// _Requirements: 1.1-1.5, 2.1-2.8, 3.1-3.4, 4.1-4.4, 5.1-5.2, 6.1-6.4, 7.1-7.5_
 @MainActor
 public struct ListBehaviorHandler {
 
@@ -83,11 +79,9 @@ public struct ListBehaviorHandler {
     }
 
     /// 默认行间距（与正文一致）
-    /// _Requirements: 2.1_
     public static let defaultLineSpacing: CGFloat = 4
 
     /// 默认段落间距（与正文一致）
-    /// _Requirements: 2.2_
     public static let defaultParagraphSpacing: CGFloat = 8
 
     // MARK: - 光标位置限制
@@ -102,7 +96,6 @@ public struct ListBehaviorHandler {
     ///   - textStorage: 文本存储
     ///   - position: 当前位置
     /// - Returns: 内容区域起始位置（列表标记之后的位置）
-    /// _Requirements: 1.1, 1.3, 1.4_
     public static func getContentStartPosition(
         in textStorage: NSTextStorage,
         at position: Int
@@ -146,7 +139,6 @@ public struct ListBehaviorHandler {
     ///   - textStorage: 文本存储
     ///   - position: 要检查的位置
     /// - Returns: 是否在列表标记区域内
-    /// _Requirements: 1.1_
     public static func isInListMarkerArea(
         in textStorage: NSTextStorage,
         at position: Int
@@ -285,7 +277,6 @@ public struct ListBehaviorHandler {
     ///   - textStorage: 文本存储
     ///   - position: 位置
     /// - Returns: 是否为空列表项
-    /// _Requirements: 3.1, 3.2, 3.3, 3.4_
     public static func isEmptyListItem(
         in textStorage: NSTextStorage,
         at position: Int
@@ -392,7 +383,6 @@ public struct ListBehaviorHandler {
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - startPosition: 起始位置
-    /// _Requirements: 6.1, 6.2, 6.3, 6.4_
     public static func updateOrderedListNumbers(
         in textStorage: NSTextStorage,
         from startPosition: Int
@@ -476,7 +466,6 @@ public struct ListBehaviorHandler {
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - position: 列表中的任意位置
-    /// _Requirements: 6.4_
     public static func renumberOrderedListFromBeginning(
         in textStorage: NSTextStorage,
         at position: Int
@@ -554,7 +543,6 @@ public struct ListBehaviorHandler {
     ///   - textStorage: 文本存储
     ///   - position: 列表中的任意位置
     /// - Returns: 编号是否连续
-    /// _Requirements: 6.4_
     public static func isOrderedListNumberingConsecutive(
         in textStorage: NSTextStorage,
         at position: Int
@@ -626,7 +614,6 @@ public struct ListBehaviorHandler {
     ///   - textStorage: 文本存储
     ///   - position: 列表中的任意位置
     /// - Returns: 编号数组
-    /// _Requirements: 6.4_
     public static func getOrderedListNumbers(
         in textStorage: NSTextStorage,
         at position: Int
@@ -721,7 +708,6 @@ public struct ListBehaviorHandler {
     ///
     /// - Parameter textView: NSTextView 实例
     /// - Returns: 是否已处理（true 表示已处理，调用方不需要执行默认行为）
-    /// _Requirements: 2.1-2.8, 3.1-3.4_
     public static func handleEnterKey(
         textView: NSTextView
     ) -> Bool {
@@ -741,12 +727,10 @@ public struct ListBehaviorHandler {
         // 检查是否为空列表项
         if listInfo.isEmpty {
             // 空列表项：取消格式，不换行
-            // _Requirements: 3.1, 3.2, 3.3, 3.4_
             return handleEmptyListItemEnter(textView: textView, textStorage: textStorage, listInfo: listInfo)
         }
 
         // 有内容列表项：分割文本，创建新列表项
-        // _Requirements: 2.1-2.8_
         return splitTextAtCursor(textView: textView, textStorage: textStorage, cursorPosition: position, listInfo: listInfo)
     }
 
@@ -764,7 +748,6 @@ public struct ListBehaviorHandler {
     ///   - textStorage: NSTextStorage 实例
     ///   - listInfo: 列表项信息
     /// - Returns: 是否已处理
-    /// _Requirements: 3.1, 3.2, 3.3, 3.4_
     private static func handleEmptyListItemEnter(
         textView: NSTextView,
         textStorage: NSTextStorage,
@@ -777,7 +760,6 @@ public struct ListBehaviorHandler {
         textStorage.beginEditing()
 
         // 1. 移除列表附件（序号、项目符号或勾选框）
-        // _Requirements: 3.2_
         if let markerRange = listInfo.markerRange {
             textStorage.deleteCharacters(in: markerRange)
         }
@@ -788,7 +770,6 @@ public struct ListBehaviorHandler {
         let newLineRange = NSRange(location: lineStart, length: newLineLength)
 
         // 3. 移除列表格式属性，恢复为普通正文格式
-        // _Requirements: 3.3_
         if newLineRange.length > 0 {
             // 移除所有列表相关属性
             textStorage.removeAttribute(.listType, range: newLineRange)
@@ -810,7 +791,6 @@ public struct ListBehaviorHandler {
         textStorage.endEditing()
 
         // 4. 更新光标位置到行首（保持在当前行）
-        // _Requirements: 3.4_
         textView.setSelectedRange(NSRange(location: lineStart, length: 0))
 
         // 5. 更新 typingAttributes 为普通正文
@@ -823,7 +803,6 @@ public struct ListBehaviorHandler {
         ]
 
         // 6. 如果是有序列表，更新后续编号
-        // _Requirements: 6.2_
         if isOrderedList {
             // 计算下一行的起始位置
             let nextLineStart = lineStart + newLineLength
@@ -850,7 +829,6 @@ public struct ListBehaviorHandler {
     ///   - cursorPosition: 光标位置
     ///   - listInfo: 列表项信息
     /// - Returns: 是否成功分割
-    /// _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
     public static func splitTextAtCursor(
         textView: NSTextView,
         textStorage: NSTextStorage,
@@ -942,7 +920,6 @@ public struct ListBehaviorHandler {
     ///   - number: 编号（仅有序列表）
     ///   - textAfter: 光标后的文本
     /// - Returns: 新列表项的 NSAttributedString
-    /// _Requirements: 2.4, 2.5, 2.6_
     public static func createNewListItem(
         listType: ListType,
         indent: Int,
@@ -968,7 +945,6 @@ public struct ListBehaviorHandler {
         paragraphStyle.headIndent = CGFloat(indent - 1) * 20 + bulletWidth
 
         // 设置行间距和段落间距（与正文一致）
-        // _Requirements: 1.1, 1.2, 1.3, 1.4_
         paragraphStyle.lineSpacing = defaultLineSpacing
         paragraphStyle.paragraphSpacing = defaultParagraphSpacing
 
@@ -991,7 +967,6 @@ public struct ListBehaviorHandler {
 
         case .checkbox:
             // 新建勾选框默认为未勾选状态
-            // _Requirements: 2.6_
             attachment = InteractiveCheckboxAttachment(checked: false)
             attributes[.checkboxLevel] = 3
             attributes[.checkboxChecked] = false
@@ -1023,7 +998,6 @@ public struct ListBehaviorHandler {
     ///   - textStorage: 文本存储
     ///   - cursorPosition: 光标位置
     /// - Returns: 文本分割结果，如果不在列表项中则返回 nil
-    /// _Requirements: 2.1, 2.2, 2.3_
     public static func getTextSplitResult(
         in textStorage: NSTextStorage,
         at cursorPosition: Int
@@ -1067,7 +1041,6 @@ public struct ListBehaviorHandler {
     ///
     /// - Parameter textView: NSTextView 实例
     /// - Returns: 是否已处理（true 表示已处理，调用方不需要执行默认行为）
-    /// _Requirements: 4.1, 4.2, 4.3, 4.4_
     public static func handleBackspaceKey(
         textView: NSTextView
     ) -> Bool {
@@ -1096,7 +1069,6 @@ public struct ListBehaviorHandler {
         }
 
         // 无论是空列表项还是有内容的列表项，都只删除列表标记，保持行结构不变
-        // _Requirements: 4.1, 4.2, 4.3, 4.4_
         return removeListMarkerOnly(textView: textView, textStorage: textStorage, listInfo: listInfo)
     }
 
@@ -1182,7 +1154,6 @@ public struct ListBehaviorHandler {
     ///   - textStorage: 文本存储
     ///   - position: 光标位置
     /// - Returns: 是否在内容起始位置
-    /// _Requirements: 4.1_
     public static func isCursorAtContentStart(
         in textStorage: NSTextStorage,
         at position: Int

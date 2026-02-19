@@ -235,7 +235,7 @@ class FormatStateSynchronizer {
         - 总耗时: \(String(format: "%.2f", stats["totalTime"] as? Double ?? 0))ms
 
         ## 性能阈值
-        - 状态同步阈值: \(performanceThreshold)ms (需求 3.2)
+        - 状态同步阈值: \(performanceThreshold)ms
         - 慢速更新比例: \(String(format: "%.1f", (stats["slowUpdateRatio"] as? Double ?? 0) * 100))%
 
         ## 性能合规性检查

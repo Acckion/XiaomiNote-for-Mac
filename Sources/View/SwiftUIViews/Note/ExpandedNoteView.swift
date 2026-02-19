@@ -15,7 +15,6 @@ import SwiftUI
 /// 从画廊视图点击笔记后的全屏编辑模式
 /// 导航功能已移至工具栏的返回按钮
 /// 支持 Escape 键返回画廊视图
-/// _Requirements: 6.1, 6.2, 6.4, 6.5, 7.5_
 @available(macOS 14.0, *)
 struct ExpandedNoteView: View {
 
@@ -43,7 +42,6 @@ struct ExpandedNoteView: View {
         editorContent
             .background(Color(NSColor.windowBackgroundColor))
             // Escape 键返回画廊视图
-            // _Requirements: 7.5_
             .onKeyPress(.escape) {
                 collapseToGallery()
                 return .handled
@@ -53,7 +51,6 @@ struct ExpandedNoteView: View {
     // MARK: - 子视图
 
     /// 编辑器内容
-    /// _Requirements: 6.2_
     @ViewBuilder
     private var editorContent: some View {
         if let note = windowState.expandedNote {
@@ -84,13 +81,11 @@ struct ExpandedNoteView: View {
     // MARK: - 方法
 
     /// 收起到画廊视图
-    /// _Requirements: 6.4, 6.5_
     private func collapseToGallery() {
         guard !isCollapsing else { return }
         isCollapsing = true
 
         // 使用 easeInOut 动画，时长 350ms
-        // _Requirements: 6.5_
         withAnimation(.easeInOut(duration: 0.35)) {
             windowState.collapseNote()
         }

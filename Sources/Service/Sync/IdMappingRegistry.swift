@@ -17,11 +17,6 @@ import Foundation
 ///
 /// **线程安全**：使用 NSLock 确保所有操作的线程安全
 ///
-/// **需求覆盖**：
-/// - 需求 9.1: 记录临时 ID 到正式 ID 的映射关系
-/// - 需求 9.2: 返回最新的有效 ID
-/// - 需求 9.3: 清理过期的映射记录
-/// - 需求 9.4: 应用重启时从数据库恢复未完成的映射关系
 public final class IdMappingRegistry: @unchecked Sendable {
 
     // MARK: - 单例
@@ -88,7 +83,6 @@ public final class IdMappingRegistry: @unchecked Sendable {
 
     /// 从数据库加载未完成的映射
     ///
-    /// 需求: 9.4 - 应用重启时从数据库恢复未完成的映射关系
     private func loadFromDatabase() {
         lock.lock()
         defer { lock.unlock() }
@@ -124,8 +118,6 @@ public extension IdMappingRegistry {
     ///   - entityType: 实体类型（"note" 或 "folder"）
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// **需求覆盖**：
-    /// - 需求 9.1: 记录临时 ID 到正式 ID 的映射关系
     func registerMapping(localId: String, serverId: String, entityType: String) throws {
         lock.lock()
         defer { lock.unlock() }
@@ -191,8 +183,6 @@ public extension IdMappingRegistry {
     /// - Parameter id: 要解析的 ID
     /// - Returns: 解析后的 ID（正式 ID 或原 ID）
     ///
-    /// **需求覆盖**：
-    /// - 需求 9.2: 返回最新的有效 ID
     func resolveId(_ id: String) -> String {
         lock.lock()
         defer { lock.unlock() }
@@ -256,10 +246,6 @@ public extension IdMappingRegistry {
     ///   - serverId: 正式 ID
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// **需求覆盖**：
-    /// - 需求 8.5: 更新本地数据库中的笔记 ID
-    /// - 需求 8.6: 更新操作队列中的 noteId
-    /// - 需求 8.7: 更新 UI 中的笔记引用
     func updateAllReferences(localId: String, serverId: String) async throws {
         LogService.shared.debug(.sync, "开始更新所有引用: \(localId) -> \(serverId)")
 
@@ -354,8 +340,6 @@ public extension IdMappingRegistry {
     /// - Parameter localId: 临时 ID
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// **需求覆盖**：
-    /// - 需求 9.3: 标记映射完成
     func markCompleted(localId: String) throws {
         lock.lock()
         defer { lock.unlock() }
@@ -379,8 +363,6 @@ public extension IdMappingRegistry {
     ///
     /// - Throws: DatabaseError（数据库操作失败）
     ///
-    /// **需求覆盖**：
-    /// - 需求 9.3: 清理过期的映射记录
     func cleanupCompletedMappings() throws {
         lock.lock()
         defer { lock.unlock() }
@@ -447,8 +429,6 @@ public extension IdMappingRegistry {
     /// 从数据库重新加载所有未完成的映射。
     /// 通常在应用启动时自动调用，也可以手动调用以刷新缓存。
     ///
-    /// **需求覆盖**：
-    /// - 需求 9.4: 应用重启时从数据库恢复未完成的映射关系
     func reload() {
         loadFromDatabase()
         LogService.shared.debug(.sync, "IdMappingRegistry 重新加载完成，当前有 \(mappingsCache.count) 个映射")

@@ -25,7 +25,6 @@ import Foundation
 /// - 维护保存流程的状态一致性
 /// - 支持异步操作和取消机制
 ///
-/// _需求: 1.2, 3.1, 3.2_ - 实现完整的保存流程方法和状态管理
 @MainActor
 public final class SavePipelineCoordinator: ObservableObject {
 
@@ -78,7 +77,6 @@ public final class SavePipelineCoordinator: ObservableObject {
     ///   - apiSaveHandler: API 保存处理器
     /// - Returns: 保存结果，包含提取的标题和处理后的内容
     ///
-    /// _需求: 1.2, 3.1_ - 确保正确的执行顺序
     public func executeSavePipeline(
         xmlContent: String,
         textStorage: NSTextStorage? = nil,
@@ -179,7 +177,6 @@ public final class SavePipelineCoordinator: ObservableObject {
 
     /// 取消保存流程
     ///
-    /// _需求: 3.3_ - 支持保存流程的取消操作
     public func cancelSavePipeline() {
         LogService.shared.info(.editor, "取消保存流程")
         isCancelled = true

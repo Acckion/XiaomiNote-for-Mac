@@ -5,7 +5,6 @@
 //  光标格式管理器 - 统一管理光标位置的格式检测、工具栏同步和输入格式继承
 //  负责协调格式检测、工具栏同步和 typingAttributes 同步
 //
-//  _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 //
 
 import AppKit
@@ -15,7 +14,6 @@ import Foundation
 // MARK: - 光标格式检测错误
 
 /// 光标格式检测错误
-/// _Requirements: 5.5_
 public enum CursorFormatDetectionError: Error, CustomStringConvertible {
     case textViewUnavailable
     case textStorageEmpty
@@ -39,7 +37,6 @@ public enum CursorFormatDetectionError: Error, CustomStringConvertible {
 // MARK: - 格式检测结果
 
 /// 格式检测结果
-/// _Requirements: 1.1-1.6_
 public struct FormatDetectionResult {
     /// 检测到的格式状态
     public let state: FormatState
@@ -65,7 +62,6 @@ public struct FormatDetectionResult {
 
 /// 光标格式管理器
 /// 统一管理光标位置的格式检测、工具栏同步和输入格式继承
-/// _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 @MainActor
 public final class CursorFormatManager {
 
@@ -86,11 +82,9 @@ public final class CursorFormatManager {
     private var debounceTimer: Timer?
 
     /// 防抖间隔（毫秒）
-    /// _Requirements: 6.5_
     private let debounceInterval: TimeInterval = 0.05 // 50ms
 
     /// 当前检测到的格式状态
-    /// _Requirements: 1.1-1.6_
     public private(set) var currentFormatState = FormatState()
 
     /// 待处理的选择范围（用于防抖）
@@ -140,13 +134,11 @@ public final class CursorFormatManager {
     ///   - 当 range.length == 0 时，表示光标模式（无选择）
     ///   - 当 range.length > 0 时，表示选择模式（有选中文字）
     ///
-    /// _Requirements: 3.1, 6.2_
     public func handleSelectionChange(_ range: NSRange) {
         // 保存待处理的范围
         pendingRange = range
 
         // 使用防抖机制
-        // _Requirements: 6.5 - 支持防抖机制以避免频繁的状态更新影响性能
         scheduleUpdate()
     }
 
@@ -160,7 +152,6 @@ public final class CursorFormatManager {
     /// 4. 通知 FormatStateManager 以同步菜单栏状态
     ///
     /// - Parameter format: 要切换的格式
-    /// _Requirements: 4.1-4.6, 6.3_
     public func handleToolbarFormatToggle(_ format: TextFormat) {
         // 更新当前格式状态
         var newState = currentFormatState
@@ -317,7 +308,6 @@ extension CursorFormatManager {
 extension CursorFormatManager {
 
     /// 调度更新（使用防抖）
-    /// _Requirements: 6.5_
     private func scheduleUpdate() {
         // 取消之前的定时器
         debounceTimer?.invalidate()
@@ -338,7 +328,6 @@ extension CursorFormatManager {
     /// 3. 在选择模式下：检测选中文字的格式（使用选择起始位置的格式）
     /// 4. 更新工具栏状态和通知 FormatStateManager
     ///
-    /// _Requirements: 3.1, 6.2_
     private func performUpdate() {
         guard let range = pendingRange else { return }
 
@@ -387,7 +376,6 @@ extension CursorFormatManager {
 
     /// 同步 typingAttributes
     /// - Parameter state: 格式状态
-    /// _Requirements: 3.1, 3.4, 10.3_
     private func syncTypingAttributes(with state: FormatState) {
         guard let textView else { return }
 
@@ -436,7 +424,6 @@ extension CursorFormatManager {
 
     /// 更新工具栏状态
     /// - Parameter state: 格式状态
-    /// _Requirements: 1.1-1.6, 4.6_
     private func updateToolbarState(with state: FormatState) {
         guard let editorContext else { return }
 
@@ -464,4 +451,3 @@ extension CursorFormatManager {
 // MARK: - FormatAttributesBuilder
 
 // FormatAttributesBuilder 已移至单独的文件: FormatAttributesBuilder.swift
-// _Requirements: 2.1-2.6, 3.1_

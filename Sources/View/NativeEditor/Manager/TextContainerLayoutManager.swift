@@ -4,7 +4,6 @@ import Foundation
 /// 文本容器布局配置
 /// 定义文本容器的布局参数
 ///
-/// _Requirements: 14.1, 14.2_
 public struct TextContainerLayoutConfig: Sendable {
     /// 首选行长度（字符数或点数）
     public let preferredLineLength: CGFloat
@@ -42,7 +41,6 @@ public struct TextContainerLayoutConfig: Sendable {
 /// - 响应窗口尺寸变化
 /// - 支持渐进式边距折叠
 ///
-/// _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6_
 public class TextContainerLayoutManager {
     // MARK: - Properties
 
@@ -89,7 +87,6 @@ public class TextContainerLayoutManager {
     /// 2. 否则，使用可用宽度 - 2 * 最小边距
     /// 3. 确保容器宽度不小于最小值
     ///
-    /// _Requirements: 14.1, 14.2_
     ///
     /// - Parameter availableWidth: 可用宽度
     /// - Returns: 文本容器尺寸
@@ -118,7 +115,6 @@ public class TextContainerLayoutManager {
     /// 3. 如果空间不足，使用最小边距
     /// 4. 使用渐进式边距折叠算法平滑过渡
     ///
-    /// _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
     ///
     /// - Parameter availableWidth: 可用宽度
     /// - Returns: 左右边距
@@ -131,12 +127,10 @@ public class TextContainerLayoutManager {
 
         if idealTotalMargin >= 2 * minMargin {
             // 空间充足：均匀分配边距
-            // _Requirements: 14.2 - 在可用空间内均匀分配侧边距
             let margin = idealTotalMargin / 2
             currentMargins = (margin, margin)
         } else {
             // 空间不足：使用渐进式边距折叠
-            // _Requirements: 14.5 - 使用数学函数实现渐进式边距折叠
             let margin = calculateProgressiveMargin(
                 availableWidth: availableWidth,
                 preferredWidth: preferredWidth,

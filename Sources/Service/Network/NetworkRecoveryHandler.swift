@@ -5,7 +5,6 @@ import Foundation
 ///
 /// 负责监听网络状态变化，并在网络恢复时自动处理离线队列
 ///
-/// 遵循需求 8.6：网络恢复时自动处理离线队列中的待处理操作
 @MainActor
 public final class NetworkRecoveryHandler: ObservableObject {
     public static let shared = NetworkRecoveryHandler()
@@ -109,7 +108,6 @@ public final class NetworkRecoveryHandler: ObservableObject {
 
     /// 处理网络恢复事件
     ///
-    /// 遵循需求 8.6
     private func handleNetworkRecovery() async {
         guard autoProcessEnabled else {
             return

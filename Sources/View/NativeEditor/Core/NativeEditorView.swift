@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  原生编辑器视图 - 基于 NSTextView 的富文本编辑器
-//  需求: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8
 //
 
 import AppKit
@@ -86,7 +85,6 @@ struct NativeEditorView: NSViewRepresentable {
         textView.backgroundColor = .clear
         textView.drawsBackground = false
         // 使用 FontSizeManager 统一管理默认字体 (14pt)
-        // _Requirements: 5.1, 5.2_
         textView.font = FontSizeManager.shared.defaultFont
         textView.textColor = .labelColor // 使用 labelColor 自动适配深色模式
         textView.insertionPointColor = .controlAccentColor // 设置光标颜色为系统强调色
@@ -117,7 +115,6 @@ struct NativeEditorView: NSViewRepresentable {
         CustomRenderer.shared.warmUpCache()
 
         // 注册 CursorFormatManager
-        // _Requirements: 6.4 - 提供统一的 API 供 NativeEditorContext 和 NativeEditorView 调用
         CursorFormatManager.shared.register(textView: textView, context: editorContext)
         UnifiedFormatManager.shared.register(textView: textView, context: editorContext)
         AttachmentSelectionManager.shared.register(textView: textView)
@@ -126,7 +123,6 @@ struct NativeEditorView: NSViewRepresentable {
     }
 
     /// 视图销毁时取消注册 CursorFormatManager 和 UnifiedFormatManager
-    /// _Requirements: 6.4, 8.1_
     static func dismantleNSView(_: NSScrollView, coordinator _: Coordinator) {
         CursorFormatManager.shared.unregister()
         UnifiedFormatManager.shared.unregister()
@@ -149,7 +145,6 @@ struct NativeEditorView: NSViewRepresentable {
 
             // 修改：增加版本号比较，确保内容变化时强制更新
             // 当笔记切换时，即使字符串内容相同但格式不同，也需要更新
-            // _Requirements: 3.1, 3.2, 3.3_
             let versionChanged = context.coordinator.lastContentVersion != editorContext.contentVersion
             let contentChanged = currentText.string != newText.string
             let lengthChanged = currentText.length != newText.length
@@ -164,7 +159,6 @@ struct NativeEditorView: NSViewRepresentable {
                 textView.textStorage?.setAttributedString(newText)
 
                 // 新增：强制刷新显示，确保格式正确渲染
-                // _Requirements: 1.1, 1.3_
                 textView.needsDisplay = true
 
                 // 初始化音频附件集合（用于删除检测）
@@ -200,12 +194,10 @@ struct NativeEditorView: NSViewRepresentable {
         var previousAudioFileIds: Set<String> = []
 
         /// 上一次的内容版本号（用于检测内容变化）
-        /// _Requirements: 3.1, 3.2 - 确保视图更新机制能够可靠地检测内容和格式变化
         var lastContentVersion = 0
 
         // MARK: - Paper-Inspired Managers (Task 19.1)
 
-        // _Requirements: 1.1, 2.1 - 初始化所有管理器
 
         /// 段落管理器 - 负责段落边界检测和段落列表维护
         private let paragraphManager = ParagraphManager()
@@ -249,7 +241,6 @@ struct NativeEditorView: NSViewRepresentable {
                 .store(in: &cancellables)
 
             // 监听缩进操作
-            // 需求: 6.1, 6.2, 6.3, 6.5 - 支持缩进操作
             parent.editorContext.indentChangePublisher
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] operation in
@@ -295,8 +286,6 @@ struct NativeEditorView: NSViewRepresentable {
                 }
                 .store(in: &cancellables)
 
-            // 需求 5.1, 5.2, 5.3: 监听快捷键格式命令
-            // 当用户使用 Cmd+B/I/U 快捷键时，确保格式菜单状态同步更新
             NotificationCenter.default.publisher(for: .nativeEditorFormatCommand)
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] notification in
@@ -307,7 +296,6 @@ struct NativeEditorView: NSViewRepresentable {
                 }
                 .store(in: &cancellables)
 
-            // 需求 5.5: 监听撤销/重做操作
             // 当用户撤销或重做格式操作时，确保格式菜单状态正确更新
             NotificationCenter.default.publisher(for: .NSUndoManagerDidUndoChange)
                 .receive(on: DispatchQueue.main)
@@ -344,12 +332,10 @@ struct NativeEditorView: NSViewRepresentable {
                 .store(in: &cancellables)
         }
 
-        // MARK: - 快捷键格式处理 (需求 5.1, 5.2, 5.3, 5.4)
+        // MARK: - 快捷键格式处理
 
         /// 处理快捷键格式命令
         /// - Parameter format: 格式类型
-        /// 需求: 5.1, 5.2, 5.3 - 确保快捷键操作后菜单状态更新
-        /// 需求: 5.4 - 确保格式应用方式一致性
         private func handleKeyboardShortcutFormat(_ format: TextFormat) {
             applyFormatWithMethod(.keyboard, format: format)
             syncContentToContext()
@@ -359,13 +345,12 @@ struct NativeEditorView: NSViewRepresentable {
             }
         }
 
-        // MARK: - 撤销/重做处理 (需求 5.5)
+        // MARK: - 撤销/重做处理
 
         /// 撤销/重做状态处理器
         private let undoRedoHandler = UndoRedoStateHandler.shared
 
         /// 处理撤销操作
-        /// 需求: 5.5 - 确保撤销后状态正确更新
         private func handleUndoOperation() {
             let formatsBefore = parent.editorContext.currentFormats
 
@@ -389,7 +374,6 @@ struct NativeEditorView: NSViewRepresentable {
         }
 
         /// 处理重做操作
-        /// 需求: 5.5 - 确保重做后状态正确更新
         private func handleRedoOperation() {
             let formatsBefore = parent.editorContext.currentFormats
 
@@ -413,7 +397,6 @@ struct NativeEditorView: NSViewRepresentable {
         }
 
         /// 处理撤销/重做操作（兼容旧代码）
-        /// 需求: 5.5 - 确保撤销后状态正确更新
         private func handleUndoRedoOperation() {
             syncContentToContext()
             Task { @MainActor in
@@ -503,7 +486,6 @@ struct NativeEditorView: NSViewRepresentable {
             parent.editorContext.updateSelectedRange(selectedRange)
 
             // 异步更新格式状态，避免在视图更新中触发其他视图更新
-            // _Requirements: FR-3.3.1_ - 使用异步方法更新状态
             parent.editorContext.updateCurrentFormatsAsync()
         }
 
@@ -550,7 +532,6 @@ struct NativeEditorView: NSViewRepresentable {
             guard let textStorage = textView.textStorage else { return }
 
             // 记录输入法检测（性能监控）
-            // _Requirements: FR-3.4.1_ - 监控输入法状态检测次数
             PerformanceMonitor.shared.recordInputMethodDetection()
 
             // 检查是否处于输入法组合状态（如中文拼音输入）
@@ -558,7 +539,6 @@ struct NativeEditorView: NSViewRepresentable {
             // 此时不应该触发保存，否则会中断输入法的候选词选择
             if textView.hasMarkedText() {
                 // 记录跳过保存（输入法状态）
-                // _Requirements: FR-3.4.2_ - 监控因输入法状态跳过的保存次数
                 PerformanceMonitor.shared.recordSkippedSaveInputMethod()
                 return
             }
@@ -575,12 +555,10 @@ struct NativeEditorView: NSViewRepresentable {
             detectAndHandleAudioAttachmentDeletion(currentAttributedString: attributedString)
 
             // 记录保存请求（性能监控）
-            // _Requirements: FR-3.4.2_ - 监控保存请求次数
             PerformanceMonitor.shared.recordSaveRequest()
 
             // MARK: - Paper-Inspired Integration (Task 19.2)
 
-            // _Requirements: 1.2, 4.1, 4.2 - 集成打字优化器、段落管理器和属性管理器
 
             // 1. 使用 TypingOptimizer 判断更新策略
             let selectedRange = textView.selectedRange()
@@ -619,17 +597,14 @@ struct NativeEditorView: NSViewRepresentable {
                 // 如果用户仍在输入（例如连续输入多个拼音），则跳过此次更新
                 if textView.hasMarkedText() {
                     // 记录跳过保存（输入法状态）
-                    // _Requirements: FR-3.4.2_ - 监控因输入法状态跳过的保存次数
                     PerformanceMonitor.shared.recordSkippedSaveInputMethod()
                     self.isUpdatingFromTextView = false
                     return
                 }
 
                 // 记录实际保存（性能监控）
-                // _Requirements: FR-3.4.2_ - 监控实际执行的保存次数
                 PerformanceMonitor.shared.recordActualSave()
 
-                // _Requirements: FR-3.3.1_ - 使用异步方法更新内容
                 self.parent.editorContext.updateNSContentAsync(attributedString)
                 // 调用回调
                 contentChangeCallback?(attributedString)
@@ -660,7 +635,6 @@ struct NativeEditorView: NSViewRepresentable {
 
             // MARK: - Paper-Inspired Integration (Task 19.4)
 
-            // _Requirements: 12.3, 12.4, 13.1 - 集成选择锚点管理器和打字属性更新
 
             // 1. 使用 SelectionAnchorManager 管理锚点
             // 检查是否是选择开始（从无选择到有选择）
@@ -673,11 +647,9 @@ struct NativeEditorView: NSViewRepresentable {
             }
 
             // 使用 CursorFormatManager 处理选择变化
-            // _Requirements: 6.2 - 自动执行格式检测、工具栏更新和 Typing_Attributes 同步
             CursorFormatManager.shared.handleSelectionChange(selectedRange)
 
             // 使用 AttachmentSelectionManager 处理附件选择
-            // _Requirements: 50-1.1, 50-1.2 - 检测光标是否在附件处并显示高亮
             AttachmentSelectionManager.shared.handleSelectionChange(selectedRange)
 
             // 异步调用回调，避免在视图更新中触发其他视图更新
@@ -709,7 +681,6 @@ struct NativeEditorView: NSViewRepresentable {
         /// - Parameters:
         ///   - method: 应用方式
         ///   - format: 格式类型
-        /// 需求: 5.4 - 确保格式应用方式一致性
         func applyFormatWithMethod(_ method: FormatApplicationMethod, format: TextFormat) {
             // 临时存储应用方式，供 applyFormat 使用
             currentApplicationMethod = method
@@ -718,12 +689,8 @@ struct NativeEditorView: NSViewRepresentable {
         }
 
         /// 应用格式到选中文本
-        /// 需求: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8
-        /// 性能需求: 3.1 - 确保50ms内开始格式应用
-        /// 错误处理需求: 4.1 - 格式应用失败时记录错误日志并保持界面状态一致
-        /// 一致性需求: 5.4 - 记录格式应用操作以进行一致性检查
         func applyFormat(_ format: TextFormat) {
-            // 开始性能测量 - 需求 3.1
+            // 开始性能测量
             let performanceOptimizer = FormatApplicationPerformanceOptimizer.shared
             let errorHandler = FormatErrorHandler.shared
             let consistencyChecker = FormatApplicationConsistencyChecker.shared
@@ -743,7 +710,6 @@ struct NativeEditorView: NSViewRepresentable {
             }
 
             guard let textStorage = textView.textStorage else {
-                // 需求 4.1: 记录错误日志
                 let context = FormatErrorContext(
                     operation: "applyFormat",
                     format: format.displayName,
@@ -759,7 +725,7 @@ struct NativeEditorView: NSViewRepresentable {
             let selectedRange = textView.selectedRange()
             let textLength = textStorage.length
 
-            // 记录应用前的格式状态 - 需求 5.4
+            // 记录应用前的格式状态
             let beforeState = parent.editorContext.currentFormats
 
             // 开始性能测量
@@ -774,7 +740,6 @@ struct NativeEditorView: NSViewRepresentable {
             // 对于块级格式，即使没有选中文本也可以应用到当前行
             if selectedRange.length == 0, format.isInlineFormat {
                 performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: "内联格式需要选中文本")
-                // 需求 4.1: 记录错误日志
                 let context = FormatErrorContext(
                     operation: "applyFormat",
                     format: format.displayName,
@@ -799,7 +764,6 @@ struct NativeEditorView: NSViewRepresentable {
 
             guard effectiveRange.location + effectiveRange.length <= textLength else {
                 performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: "选择范围超出文本长度")
-                // 需求 4.1: 记录错误日志
                 errorHandler.handleRangeError(range: effectiveRange, textLength: textLength)
                 return
             }
@@ -807,7 +771,6 @@ struct NativeEditorView: NSViewRepresentable {
 
             // MARK: - Paper-Inspired Integration (Task 19.3)
 
-            // _Requirements: 1.3, 9.1 - 集成段落管理器和属性管理器
 
             // 4. 应用格式
             do {
@@ -832,7 +795,7 @@ struct NativeEditorView: NSViewRepresentable {
                 // 7. 记录成功日志和性能数据
                 performanceOptimizer.endMeasurement(measurementContext, success: true)
 
-                // 8. 记录一致性检查数据 - 需求 5.4
+                // 8. 记录一致性检查数据
                 let afterState = parent.editorContext.currentFormats
                 // 优先使用显式设置的方式，否则从 editorContext 获取
                 let applicationMethod = currentApplicationMethod ?? parent.editorContext.currentApplicationMethod
@@ -849,10 +812,10 @@ struct NativeEditorView: NSViewRepresentable {
                 // 9. 重置错误计数（成功后重置）
                 errorHandler.resetErrorCount()
             } catch {
-                // 9. 错误处理 - 需求 4.1
+                // 9. 错误处理
                 performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: error.localizedDescription)
 
-                // 记录一致性检查数据（失败情况）- 需求 5.4
+                // 记录一致性检查数据（失败情况）
                 let afterState = parent.editorContext.currentFormats
                 // 优先使用显式设置的方式，否则从 editorContext 获取
                 let applicationMethod = currentApplicationMethod ?? parent.editorContext.currentApplicationMethod
@@ -911,7 +874,6 @@ struct NativeEditorView: NSViewRepresentable {
         /// - Parameters:
         ///   - result: 错误处理结果
         ///   - format: 格式类型
-        /// 需求: 4.1
         private func handleFormatErrorRecovery(_ result: FormatErrorHandlingResult, format: TextFormat) {
             switch result.recoveryAction {
             case .retryWithFallback:
@@ -937,7 +899,6 @@ struct NativeEditorView: NSViewRepresentable {
         ///   - range: 应用范围
         ///   - textStorage: 文本存储
         /// - Throws: 格式应用错误
-        /// _Requirements: 1.1-1.3, 2.1-2.3, 3.1-3.3, 4.1-4.3 - 集成 ListFormatHandler
         private func applyFormatSafely(_ format: TextFormat, to range: NSRange, in textStorage: NSTextStorage) throws {
             // 开始编辑
             textStorage.beginEditing()
@@ -948,7 +909,6 @@ struct NativeEditorView: NSViewRepresentable {
             }
 
             // 特殊处理：列表格式使用 ListFormatHandler
-            // _Requirements: 1.1-1.3, 2.1-2.3, 3.1-3.3, 4.1-4.3_
             if format == .bulletList || format == .numberedList {
 
                 if format == .bulletList {
@@ -963,7 +923,6 @@ struct NativeEditorView: NSViewRepresentable {
             }
 
             // 使用 UnifiedFormatManager 统一处理其他格式应用
-            // _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5 - 统一格式应用入口
             if UnifiedFormatManager.shared.isRegistered {
                 // 根据格式类型调用对应的处理器
                 switch format.category {
@@ -983,7 +942,6 @@ struct NativeEditorView: NSViewRepresentable {
             } else {
                 // 回退到旧的处理逻辑（兼容性）
                 // 注意：applyFontTrait 和 toggleAttribute 逻辑已整合到 UnifiedFormatManager
-                // _Requirements: 1.1, 1.2 - 内联格式统一处理
                 // 直接使用 InlineFormatHandler 和 BlockFormatHandler
                 switch format.category {
                 case .inline:
@@ -1005,7 +963,6 @@ struct NativeEditorView: NSViewRepresentable {
         /// - Parameter format: 应用的格式
         private func updateContextAfterFormatApplication(_: TextFormat) {
             // 延迟更新状态，避免在视图更新中修改 @Published 属性
-            // _Requirements: FR-3.3.1_ - 使用异步方法更新状态
             parent.editorContext.updateCurrentFormatsAsync()
         }
 
@@ -1199,7 +1156,6 @@ struct NativeEditorView: NSViewRepresentable {
         // MARK: - Indent Operations
 
         /// 应用缩进操作
-        /// 需求: 6.1, 6.2, 6.3, 6.5 - 支持增加和减少缩进
         func applyIndentOperation(_ operation: IndentOperation) {
             guard let textView,
                   let textStorage = textView.textStorage
@@ -1215,10 +1171,8 @@ struct NativeEditorView: NSViewRepresentable {
 
             switch operation {
             case .increase:
-                // 需求 6.1, 6.3: 增加缩进
                 formatManager.increaseIndent(to: textStorage, range: selectedRange)
             case .decrease:
-                // 需求 6.2, 6.4: 减少缩进
                 formatManager.decreaseIndent(to: textStorage, range: selectedRange)
             }
 
@@ -1241,7 +1195,6 @@ struct NativeEditorView: NSViewRepresentable {
         /// 2. 如果当前行是其他列表类型，则转换为复选框列表
         /// 3. 如果当前行不是列表，则应用复选框列表格式
         ///
-        /// _Requirements: 1.1, 1.2, 1.3_
         private func insertCheckbox(checked _: Bool, level _: Int, at location: Int, in textStorage: NSTextStorage) {
             // 使用 ListFormatHandler.toggleCheckboxList 实现复选框列表切换
             // 这会正确处理：
@@ -1400,7 +1353,6 @@ struct NativeEditorView: NSViewRepresentable {
 
 /// 自定义 NSTextView 子类，支持额外的交互功能
 /// 扩展了光标位置限制功能，确保光标不能移动到列表标记区域内
-/// _Requirements: 1.1, 1.2, 1.4_
 class NativeTextView: NSTextView {
 
     /// 复选框点击回调
@@ -1418,11 +1370,9 @@ class NativeTextView: NSTextView {
 
     // MARK: - Cursor Position Restriction
 
-    // _Requirements: 1.1, 1.2, 1.4_
 
     /// 重写 setSelectedRange 方法，限制光标位置
     /// 确保光标不能移动到列表标记区域内
-    /// _Requirements: 1.1, 1.2_
     override func setSelectedRange(_ charRange: NSRange) {
 
         // 先调用父类方法
@@ -1461,7 +1411,6 @@ class NativeTextView: NSTextView {
 
     /// 重写 moveLeft 方法，处理左移光标到上一行
     /// 当光标在列表项（包括 checkbox）内容起始位置时，左移应跳到上一行末尾
-    /// _Requirements: 1.1, 1.2_
     override func moveLeft(_ sender: Any?) {
         guard enableListCursorRestriction,
               let textStorage
@@ -1499,7 +1448,6 @@ class NativeTextView: NSTextView {
 
     /// 重写 moveToBeginningOfLine 方法，移动到内容起始位置
     /// 对于列表项（包括 checkbox），移动到内容区域起始位置而非行首
-    /// _Requirements: 1.1, 1.4_
     override func moveToBeginningOfLine(_ sender: Any?) {
         guard enableListCursorRestriction,
               let textStorage
@@ -1523,7 +1471,6 @@ class NativeTextView: NSTextView {
 
     /// 重写 moveWordLeft 方法，处理 Option+左方向键
     /// 确保不会移动到列表标记区域内（包括 checkbox）
-    /// _Requirements: 1.1, 1.2_
     override func moveWordLeft(_ sender: Any?) {
         guard enableListCursorRestriction,
               let textStorage
@@ -1560,11 +1507,9 @@ class NativeTextView: NSTextView {
 
     // MARK: - Selection Restriction
 
-    // _Requirements: 5.1, 5.2_
 
     /// 重写 moveLeftAndModifySelection 方法，处理 Shift+左方向键选择
     /// 当选择起点在列表项内容起始位置时，向左扩展选择应跳到上一行而非选中列表标记
-    /// _Requirements: 5.1_
     override func moveLeftAndModifySelection(_ sender: Any?) {
         guard enableListCursorRestriction,
               let textStorage
@@ -1610,7 +1555,6 @@ class NativeTextView: NSTextView {
 
     /// 重写 moveToBeginningOfLineAndModifySelection 方法，处理 Cmd+Shift+左方向键选择
     /// 对于列表项，选择到内容区域起始位置而非行首
-    /// _Requirements: 5.2_
     override func moveToBeginningOfLineAndModifySelection(_ sender: Any?) {
         guard enableListCursorRestriction,
               let textStorage
@@ -1639,7 +1583,6 @@ class NativeTextView: NSTextView {
 
     /// 重写 moveWordLeftAndModifySelection 方法，处理 Option+Shift+左方向键选择
     /// 确保选择不会包含列表标记
-    /// _Requirements: 5.1_
     override func moveWordLeftAndModifySelection(_ sender: Any?) {
         guard enableListCursorRestriction,
               let textStorage
@@ -1791,7 +1734,6 @@ class NativeTextView: NSTextView {
             }
 
             // Cmd+Shift+U : 切换当前行勾选框状态
-            // _Requirements: 7.5_
             if event.modifierFlags.contains(.shift), event.charactersIgnoringModifiers?.lowercased() == "u" {
                 if toggleCurrentLineCheckboxState() {
                     return
@@ -1800,7 +1742,6 @@ class NativeTextView: NSTextView {
         }
 
         // 处理回车键 - 使用 UnifiedFormatManager 统一处理换行逻辑
-        // _Requirements: 8.2 - 回车键调用 UnifiedFormatManager.handleNewLine
         if event.keyCode == 36 { // Return key
             // 关键修复：检查输入法组合状态
             // 如果用户正在使用输入法（如中文输入法输入英文），按回车应该只是确认输入，不换行
@@ -1812,7 +1753,6 @@ class NativeTextView: NSTextView {
             }
 
             // 任务 22.7: 处理标题中的 Enter 键
-            // _Requirements: 3.2_ - 在标题段落中按 Enter 时移动光标到正文开头
             if handleReturnKeyForTitle() {
                 // 通知内容变化
                 delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
@@ -1831,7 +1771,6 @@ class NativeTextView: NSTextView {
 
             // 回退到旧的处理逻辑（兼容性）
             // 注意：高亮清除逻辑已整合到 UnifiedFormatManager
-            // _Requirements: 2.5 - 内联格式换行不继承
 
             if handleReturnKeyForList() {
                 return
@@ -1848,7 +1787,6 @@ class NativeTextView: NSTextView {
         // 处理删除键 - 删除分割线
         if event.keyCode == 51 { // Delete key (Backspace)
             // 首先检查标题边界保护
-            // _Requirements: 3.2_ - 标题边界保护
             if !canDeleteAtCurrentPosition() {
                 return
             }
@@ -1859,7 +1797,6 @@ class NativeTextView: NSTextView {
             }
 
             // 然后尝试处理列表项合并
-            // _Requirements: 4.1, 4.2, 4.3, 4.4_
             if handleBackspaceKeyForList() {
                 return
             }
@@ -1879,7 +1816,6 @@ class NativeTextView: NSTextView {
     ///
     /// - Returns: 是否处理了 Enter 键
     ///
-    /// _Requirements: 3.2_ - 在标题段落中按 Enter 时移动光标到正文开头
     private func handleReturnKeyForTitle() -> Bool {
         guard let textStorage else { return false }
 
@@ -1948,7 +1884,6 @@ class NativeTextView: NSTextView {
         setSelectedRange(NSRange(location: bodyStart, length: 0))
 
         // 更新打字属性，继承正文第一行的格式
-        // _Requirements: 12.2_ - 新输入继承打字属性
         if let font = bodyAttributes[.font] as? NSFont {
             typingAttributes[.font] = font
         }
@@ -1965,7 +1900,6 @@ class NativeTextView: NSTextView {
     /// 处理回车键创建新列表项
     /// 使用 ListBehaviorHandler 统一处理列表回车行为
     /// - Returns: 是否处理了回车键
-    /// _Requirements: 2.1, 2.2, 2.3_
     private func handleReturnKeyForList() -> Bool {
         guard let textStorage else { return false }
 
@@ -1978,7 +1912,6 @@ class NativeTextView: NSTextView {
         }
 
         // 使用 ListBehaviorHandler 处理列表回车
-        // _Requirements: 2.1-2.8, 3.1-3.4_
         if ListBehaviorHandler.handleEnterKey(textView: self) {
             // 通知内容变化
             delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
@@ -2141,7 +2074,6 @@ class NativeTextView: NSTextView {
     ///
     /// - Returns: 是否可以删除
     ///
-    /// _Requirements: 3.2_ - 标题边界保护
     private func canDeleteAtCurrentPosition() -> Bool {
         guard let textStorage else { return true }
 
@@ -2253,7 +2185,6 @@ class NativeTextView: NSTextView {
     /// 处理删除键（Backspace）合并列表项
     /// 当光标在列表项内容起始位置时，将当前行内容合并到上一行
     /// - Returns: 是否处理了删除键
-    /// _Requirements: 4.1, 4.2, 4.3, 4.4_
     private func handleBackspaceKeyForList() -> Bool {
         guard let textStorage else { return false }
 
@@ -2270,7 +2201,6 @@ class NativeTextView: NSTextView {
     /// 切换当前行勾选框状态
     /// 使用快捷键 Cmd+Shift+U 切换当前行的勾选框状态
     /// - Returns: 是否成功切换
-    /// _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
     private func toggleCurrentLineCheckboxState() -> Bool {
         guard let textStorage else { return false }
 

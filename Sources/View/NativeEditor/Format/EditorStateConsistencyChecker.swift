@@ -101,7 +101,6 @@ enum EditorState: Equatable {
 /// 负责监控编辑器状态，确保格式菜单按钮状态与编辑器状态一致。
 /// 当编辑器处于不可编辑状态时，自动禁用所有格式按钮。
 ///
-/// 需求: 4.3
 @MainActor
 final class EditorStateConsistencyChecker: ObservableObject {
 

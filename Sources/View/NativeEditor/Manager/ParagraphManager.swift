@@ -38,7 +38,6 @@ public class ParagraphManager {
     /// - "列表标记附件"（BulletAttachment, OrderAttachment, InteractiveCheckboxAttachment）
     ///   在逻辑上不是附件，而是段落的一部分，不需要特殊处理
     ///
-    /// _Requirements: 8.5_
     ///
     /// - Parameter textStorage: 文本存储
     /// - Returns: 段落范围数组
@@ -112,7 +111,6 @@ public class ParagraphManager {
     /// 2. "列表标记附件"（项目符号、编号、复选框）可以与文本共存
     /// 3. 附件字符不能跨越段落边界
     ///
-    /// _Requirements: 8.5_
     ///
     /// - Parameters:
     ///   - range: 段落范围
@@ -167,7 +165,6 @@ public class ParagraphManager {
     /// - OrderAttachment: 有序列表编号
     /// - InteractiveCheckboxAttachment: 复选框
     ///
-    /// _Requirements: 8.5_
     ///
     /// - Parameter attachment: NSTextAttachment 对象
     /// - Returns: 如果是真实附件返回 true，否则返回 false
@@ -319,7 +316,6 @@ public class ParagraphManager {
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
     ///
-    /// _Requirements: 1.3, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6_
     public func applyParagraphFormat(_ type: ParagraphType, to range: NSRange, in textStorage: NSTextStorage) {
         // 1. 获取范围内的所有段落
         let affectedParagraphs = paragraphs(in: range)

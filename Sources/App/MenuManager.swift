@@ -102,7 +102,6 @@ class MenuManager {
     /// 更新格式菜单状态
     /// 根据 FormatState 更新菜单栏中格式菜单项的勾选状态
     /// - Parameter state: 格式状态
-    /// _Requirements: 8.1, 8.2, 8.3_
     func updateFormatMenuState(_ state: FormatState) {
         // 更新段落格式菜单项
         updateParagraphFormatMenuItems(state.paragraphFormat)
@@ -131,7 +130,6 @@ class MenuManager {
 
     /// 更新段落格式菜单项
     /// - Parameter format: 当前段落格式
-    /// _Requirements: 8.1_
     private func updateParagraphFormatMenuItems(_ format: ParagraphFormat) {
         guard let mainMenu = NSApp.mainMenu,
               let formatMenu = mainMenu.item(withTitle: "格式")?.submenu
@@ -150,7 +148,6 @@ class MenuManager {
 
     /// 更新对齐格式菜单项
     /// - Parameter alignment: 当前对齐格式
-    /// _Requirements: 8.1_
     private func updateAlignmentMenuItems(_ alignment: AlignmentFormat) {
         guard let mainMenu = NSApp.mainMenu,
               let formatMenu = mainMenu.item(withTitle: "格式")?.submenu,
@@ -177,7 +174,6 @@ class MenuManager {
 
     /// 更新字符格式菜单项
     /// - Parameter state: 格式状态
-    /// _Requirements: 8.1_
     private func updateCharacterFormatMenuItems(_ state: FormatState) {
         guard let mainMenu = NSApp.mainMenu,
               let formatMenu = mainMenu.item(withTitle: "格式")?.submenu,
@@ -214,7 +210,6 @@ class MenuManager {
 
     /// 更新引用块菜单项
     /// - Parameter isQuote: 是否为引用块
-    /// _Requirements: 8.1_
     private func updateQuoteMenuItem(_ isQuote: Bool) {
         guard let mainMenu = NSApp.mainMenu,
               let formatMenu = mainMenu.item(withTitle: "格式")?.submenu
@@ -323,7 +318,6 @@ class MenuManager {
         }
 
         // 监听格式状态变化通知
-        // _Requirements: 8.1, 8.2, 8.3_
         formatStateObserver = NotificationCenter.default.addObserver(
             forName: .formatStateDidChange,
             object: nil,

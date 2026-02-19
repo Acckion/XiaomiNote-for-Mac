@@ -204,14 +204,12 @@ class CrossParagraphFormatHandler {
     /// - 禁止对标题段落应用段落格式（列表、标题样式等）
     /// - 允许对标题段落应用内联格式（加粗、斜体等）
     ///
-    /// _Requirements: 3.1_ - 标题段落格式限制
     private func applyFormatToParagraph(
         _ format: TextFormat,
         to textStorage: NSTextStorage,
         paragraphRange: NSRange
     ) {
         // 检查是否为标题段落
-        // _Requirements: 3.1_ - 禁止对标题段落应用段落格式
         if isTitleParagraph(in: textStorage, range: paragraphRange) {
             return
         }
@@ -244,7 +242,6 @@ class CrossParagraphFormatHandler {
     ///   - range: 段落范围
     /// - Returns: 是否为标题段落
     ///
-    /// _Requirements: 3.1_ - 标题段落检测
     private func isTitleParagraph(in textStorage: NSTextStorage, range: NSRange) -> Bool {
         guard range.location < textStorage.length else {
             return false
@@ -267,7 +264,6 @@ class CrossParagraphFormatHandler {
     }
 
     /// 应用标题格式到段落
-    /// _Requirements: 4.1, 4.2, 4.3_ - 使用 FontSizeManager 获取字体大小
     private func applyHeadingToParagraph(
         level: Int,
         to textStorage: NSTextStorage,
@@ -303,7 +299,6 @@ class CrossParagraphFormatHandler {
     }
 
     /// 检查段落是否有指定格式
-    /// _Requirements: 4.1, 4.2, 4.3_ - 使用 FontSizeManager 统一检测逻辑
     private func isParagraphFormatActive(
         _ format: TextFormat,
         in textStorage: NSAttributedString,

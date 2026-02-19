@@ -45,7 +45,6 @@ final class SyncService: @unchecked Sendable {
     // MARK: - 同步状态
 
     /// 同步锁 - 使用 NSLock 确保线程安全
-    /// 遵循需求 6.1: 同步正在进行中时阻止新的同步请求
     private let syncLock = NSLock()
 
     /// 是否正在同步（内部状态）
@@ -100,7 +99,6 @@ final class SyncService: @unchecked Sendable {
     }
 
     /// 检查是否存在有效的同步状态
-    /// 遵循需求 6.3, 6.4: 根据 SyncStatus 决定使用增量同步还是完整同步
     var hasValidSyncStatus: Bool {
         guard let status = localStorage.loadSyncStatus() else {
             return false
@@ -113,7 +111,6 @@ final class SyncService: @unchecked Sendable {
     // MARK: - 同步锁管理
 
     /// 尝试获取同步锁
-    /// 遵循需求 6.1: 同步正在进行中时阻止新的同步请求
     /// - Returns: 是否成功获取锁
     private func tryAcquireSyncLock() -> Bool {
         syncLock.lock()
@@ -129,7 +126,6 @@ final class SyncService: @unchecked Sendable {
     }
 
     /// 释放同步锁
-    /// 遵循需求 6.2: 同步完成后更新状态
     private func releaseSyncLock() {
         syncLock.lock()
         defer { syncLock.unlock() }
@@ -138,7 +134,6 @@ final class SyncService: @unchecked Sendable {
     }
 
     /// 执行智能同步
-    /// 遵循需求 6.3, 6.4:
     /// - 如果存在有效的 SyncStatus，使用增量同步
     /// - 如果是首次登录或 SyncStatus 不存在，执行完整同步
     /// - Returns: 同步结果
@@ -418,7 +413,7 @@ final class SyncService: @unchecked Sendable {
                 }
             }
 
-            // 使用 SyncStateManager 暂存 syncTag（需求 2.1, 2.3）
+            // 使用 SyncStateManager 暂存 syncTag
             if let syncTag = finalSyncTag, !syncTag.isEmpty {
                 let hasPendingNotes = await syncStateManager.hasPendingUploadNotes()
                 try await syncStateManager.stageSyncTag(syncTag, hasPendingNotes: hasPendingNotes)
@@ -513,7 +508,7 @@ final class SyncService: @unchecked Sendable {
                 LogService.shared.warning(.sync, "网页版增量同步失败，回退到旧 API: \(error)")
             }
 
-            // 使用 SyncStateManager 获取 syncTag（需求 1.1）
+            // 使用 SyncStateManager 获取 syncTag
             let lastSyncTag = await syncStateManager.getCurrentSyncTag()
 
             syncStatusMessage = "获取自上次同步以来的更改..."
@@ -607,7 +602,7 @@ final class SyncService: @unchecked Sendable {
         var result = SyncResult()
 
         do {
-            // 使用 SyncStateManager 获取 syncTag（需求 1.1）
+            // 使用 SyncStateManager 获取 syncTag
             let lastSyncTag = await syncStateManager.getCurrentSyncTag()
 
             syncStatusMessage = "获取自上次同步以来的更改..."

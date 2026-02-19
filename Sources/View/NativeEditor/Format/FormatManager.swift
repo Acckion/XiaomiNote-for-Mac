@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  格式管理器 - 处理富文本格式的应用和转换
-//  需求: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7
 //
 
 import AppKit
@@ -43,7 +42,6 @@ class FormatManager {
 
     /// 默认字体
     /// 使用 FontSizeManager 统一管理，14pt（正文字体大小）
-    /// _Requirements: 1.4, 1.5_
     var defaultFont: NSFont {
         FontSizeManager.shared.defaultFont
     }
@@ -56,21 +54,18 @@ class FormatManager {
 
     /// 大标题字体大小 (23pt)
     /// 使用 FontSizeManager 统一管理
-    /// _Requirements: 1.1, 1.5_
     var heading1Size: CGFloat {
         FontSizeManager.shared.heading1Size
     }
 
     /// 二级标题字体大小 (20pt)
     /// 使用 FontSizeManager 统一管理
-    /// _Requirements: 1.2, 1.5_
     var heading2Size: CGFloat {
         FontSizeManager.shared.heading2Size
     }
 
     /// 三级标题字体大小 (17pt)
     /// 使用 FontSizeManager 统一管理
-    /// _Requirements: 1.3, 1.5_
     var heading3Size: CGFloat {
         FontSizeManager.shared.heading3Size
     }
@@ -88,16 +83,14 @@ class FormatManager {
     var checkboxWidth: CGFloat = 24
 
     /// 默认行间距（与正文一致）
-    /// _Requirements: 2.1_
     private let defaultLineSpacing: CGFloat = 4
 
     /// 默认段落间距（与正文一致）
-    /// _Requirements: 2.2_
     private let defaultParagraphSpacing: CGFloat = 8
 
     // MARK: - Public Methods - 格式应用
 
-    /// 应用加粗格式 (需求 2.1)
+    /// 应用加粗格式
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
@@ -106,7 +99,7 @@ class FormatManager {
         applyFontTrait(.bold, to: textStorage, range: range, toggle: toggle)
     }
 
-    /// 应用斜体格式 (需求 2.2)
+    /// 应用斜体格式
     /// 使用 obliqueness 属性来实现斜体效果，这样可以支持中文字体
     /// - Parameters:
     ///   - textStorage: 文本存储
@@ -135,7 +128,7 @@ class FormatManager {
         textStorage.endEditing()
     }
 
-    /// 应用下划线格式 (需求 2.3)
+    /// 应用下划线格式
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
@@ -150,7 +143,7 @@ class FormatManager {
         )
     }
 
-    /// 应用删除线格式 (需求 2.4)
+    /// 应用删除线格式
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
@@ -165,7 +158,7 @@ class FormatManager {
         )
     }
 
-    /// 应用高亮格式 (需求 2.5)
+    /// 应用高亮格式
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
@@ -182,7 +175,7 @@ class FormatManager {
         )
     }
 
-    /// 应用居中对齐 (需求 2.6)
+    /// 应用居中对齐
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
@@ -190,7 +183,7 @@ class FormatManager {
         applyAlignment(.center, to: textStorage, range: range)
     }
 
-    /// 应用右对齐 (需求 2.7)
+    /// 应用右对齐
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
@@ -206,7 +199,7 @@ class FormatManager {
         applyAlignment(.left, to: textStorage, range: range)
     }
 
-    /// 设置缩进级别 (需求 2.8)
+    /// 设置缩进级别
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
@@ -250,27 +243,24 @@ class FormatManager {
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
-    /// _Requirements: 2.1, 4.1_
     func applyHeading1(to textStorage: NSTextStorage, range: NSRange) {
         applyHeadingStyle(to: textStorage, range: range, size: heading1Size, level: .h1)
     }
 
-    /// 应用二级标题格式 (需求 6.4)
+    /// 应用二级标题格式
     /// 使用常规字重，不默认加粗
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
-    /// _Requirements: 2.2, 4.2_
     func applyHeading2(to textStorage: NSTextStorage, range: NSRange) {
         applyHeadingStyle(to: textStorage, range: range, size: heading2Size, level: .h2)
     }
 
-    /// 应用三级标题格式 (需求 6.5)
+    /// 应用三级标题格式
     /// 使用常规字重，不默认加粗
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
-    /// _Requirements: 2.3, 4.3_
     func applyHeading3(to textStorage: NSTextStorage, range: NSRange) {
         applyHeadingStyle(to: textStorage, range: range, size: heading3Size, level: .h3)
     }
@@ -287,7 +277,7 @@ class FormatManager {
         textStorage.endEditing()
     }
 
-    // MARK: - Public Methods - 列表格式 (需求 6.1, 6.2, 6.6, 6.7)
+    // MARK: - Public Methods - 列表格式
 
     /// 应用无序列表格式
     /// - Parameters:
@@ -392,7 +382,7 @@ class FormatManager {
         }
     }
 
-    // MARK: - Public Methods - 复选框列表格式 (需求 3.1, 3.2, 3.3, 3.6)
+    // MARK: - Public Methods - 复选框列表格式
 
     /// 应用复选框列表格式
     /// - Parameters:
@@ -425,7 +415,6 @@ class FormatManager {
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
-    /// _Requirements: 1.1, 1.2, 1.3_
     func toggleCheckboxList(to textStorage: NSTextStorage, range: NSRange) {
         // 调用 ListFormatHandler 实现复选框列表切换
         // ListFormatHandler 会正确处理：
@@ -460,7 +449,7 @@ class FormatManager {
         return 3
     }
 
-    // MARK: - Public Methods - 引用块格式 (需求 5.1, 5.3, 5.4, 5.6)
+    // MARK: - Public Methods - 引用块格式
 
     /// 应用引用块格式
     /// - Parameters:
@@ -625,7 +614,7 @@ class FormatManager {
         textStorage.endEditing()
     }
 
-    // MARK: - Public Methods - 标题格式 (需求 6.3, 6.4, 6.5)
+    // MARK: - Public Methods - 标题格式
 
     /// 切换标题格式
     /// - Parameters:
@@ -752,7 +741,6 @@ class FormatManager {
     ///   - textStorage: 文本存储
     ///   - position: 位置
     /// - Returns: 标题级别（0 = 无标题，1 = 大标题，2 = 二级标题，3 = 三级标题）
-    /// _Requirements: 3.1, 3.2, 3.3, 3.4_
     func getHeadingLevel(in textStorage: NSTextStorage, at position: Int) -> Int {
         guard position < textStorage.length else { return 0 }
 
@@ -849,10 +837,8 @@ class FormatManager {
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
     ///
-    /// _Requirements: 3.1_ - 标题段落格式限制
     func applyFormat(_ format: TextFormat, to textStorage: NSTextStorage, range: NSRange) {
         // 检查是否为标题段落
-        // _Requirements: 3.1_ - 禁止对标题段落应用段落格式
         if format.isBlockFormat, isTitleParagraph(in: textStorage, range: range) {
             return
         }
@@ -943,7 +929,6 @@ class FormatManager {
     ///   - range: 段落范围
     /// - Returns: 是否为标题段落
     ///
-    /// _Requirements: 3.1_ - 标题段落检测
     private func isTitleParagraph(in textStorage: NSTextStorage, range: NSRange) -> Bool {
         guard range.location < textStorage.length else {
             return false
@@ -1072,7 +1057,6 @@ class FormatManager {
     /// 标题格式完全通过字体大小来标识，不再使用 headingLevel 属性
     /// 因为在小米笔记中，字体大小和标题类型是一一对应的
     ///
-    /// _Requirements: 2.1, 2.2, 2.3_
     private func applyHeadingStyle(to textStorage: NSTextStorage, range: NSRange, size: CGFloat, level _: HeadingLevel = .none) {
         let lineRange = (textStorage.string as NSString).lineRange(for: range)
         // 使用常规字重，标题不默认加粗
@@ -1124,7 +1108,6 @@ class FormatManager {
         style.defaultTabInterval = indentUnit
 
         // 设置行间距和段落间距（与正文一致）
-        // _Requirements: 1.1, 1.2, 1.3, 1.4_
         style.lineSpacing = defaultLineSpacing
         style.paragraphSpacing = defaultParagraphSpacing
 

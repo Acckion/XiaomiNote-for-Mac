@@ -26,7 +26,6 @@ public enum UndoCoalescingStrategy {
 /// - 时间间隔检测：超过指定时间后开始新分组
 /// - 非输入操作检测：格式切换、光标移动等操作结束当前分组
 ///
-/// _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6_
 public class UndoCoalescingManager {
     // MARK: - Properties
 
@@ -77,7 +76,6 @@ public class UndoCoalescingManager {
     /// - 单词边界：是否在单词边界处
     /// - 字符类型：是否为特殊字符（换行符、标点等）
     ///
-    /// _Requirements: 11.1, 11.3, 11.4, 11.5, 11.6_
     ///
     /// - Parameters:
     ///   - change: 文本变化内容
@@ -121,7 +119,6 @@ public class UndoCoalescingManager {
     ///
     /// 结束当前分组（如果存在）并开始新的撤销分组。
     ///
-    /// _Requirements: 11.2_
     ///
     /// - Parameter location: 新分组的起始位置
     public func beginNewGroup(at location: Int) {
@@ -144,7 +141,6 @@ public class UndoCoalescingManager {
     ///
     /// 结束当前活动的撤销分组，使其成为一个完整的撤销操作。
     ///
-    /// _Requirements: 11.2_
     public func endCurrentGroup() {
         guard isGroupActive else {
             return
@@ -182,7 +178,6 @@ public class UndoCoalescingManager {
     /// 当用户执行非输入操作（如格式切换、光标移动等）时调用。
     /// 这些操作应该结束当前的撤销分组。
     ///
-    /// _Requirements: 11.2_
     public func handleNonTypingAction() {
         if isGroupActive {
             endCurrentGroup()

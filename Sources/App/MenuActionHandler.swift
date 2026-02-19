@@ -146,7 +146,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
 
     /// 处理编辑器焦点变化
-    /// _Requirements: 14.5_
     @objc private func handleEditorFocusChanged(_ notification: Notification) {
         // 从通知中获取焦点状态
         if let isEditorFocused = notification.userInfo?["isEditorFocused"] as? Bool {
@@ -160,7 +159,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
 
     /// 处理视图模式变化
-    /// _Requirements: 14.7_
     @objc private func handleViewModeChanged(_ notification: Notification) {
         // 从通知中获取视图模式
         if let viewModeRaw = notification.userInfo?["viewMode"] as? String,
@@ -181,7 +179,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
 
     /// 处理段落样式变化
-    /// _Requirements: 14.6_
     @objc private func handleParagraphStyleChanged(_ notification: Notification) {
         // 从通知中获取段落样式
         if let paragraphStyleRaw = notification.userInfo?["paragraphStyle"] as? String,
@@ -204,7 +201,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     }
 
     /// 处理笔记数量显示变化
-    /// _Requirements: 5.5_
     @objc private func handleNoteCountVisibilityChanged(_ notification: Notification) {
         // 从通知中获取笔记数量显示状态
         if let isNoteCountVisible = notification.userInfo?["isNoteCountVisible"] as? Bool {
@@ -217,7 +213,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 从当前上下文更新菜单状态
     ///
     /// 从编辑器上下文获取当前的格式状态，并更新菜单状态
-    /// _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
     private func updateMenuStateFromContext() {
         var newState = menuState
 
@@ -264,11 +259,9 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         }
 
         // 更新笔记数量显示状态
-        // _Requirements: 9.3_
         newState.isNoteCountVisible = ViewOptionsManager.shared.showNoteCount
 
         // 更新段落样式状态（从编辑器上下文获取）
-        // _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
         // 关键修复：检查当前使用的是哪种编辑器
         let isUsingNativeEditor = mainWindowController?.isUsingNativeEditor ?? false
 
@@ -302,7 +295,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         menuItem.state = shouldCheck ? .on : .off
 
         // 更新动态标题
-        // _Requirements: 9.2, 9.3_
         updateMenuItemDynamicTitle(menuItem, for: tag)
     }
 
@@ -312,7 +304,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// - Parameters:
     ///   - menuItem: 菜单项
     ///   - tag: 菜单项标签
-    /// _Requirements: 9.2, 9.3_
     private func updateMenuItemDynamicTitle(_ menuItem: NSMenuItem, for tag: MenuItemTag) {
         switch tag {
         case .hideFolders:
@@ -451,7 +442,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 切换粗体
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleBold(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -464,7 +454,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 切换斜体
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleItalic(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -477,7 +466,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 切换下划线
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleUnderline(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -490,7 +478,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 切换删除线
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleStrikethrough(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -527,7 +514,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 居左对齐
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func alignLeft(_ sender: Any?) {
         // 优先使用 FormatStateManager 清除对齐格式（恢复左对齐）
         if FormatStateManager.shared.hasActiveEditor {
@@ -540,7 +526,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 居中对齐
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func alignCenter(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -553,7 +538,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 居右对齐
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func alignRight(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -566,7 +550,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 切换无序列表
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func toggleBulletList(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
         if FormatStateManager.shared.hasActiveEditor {
@@ -639,7 +622,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 设置正文
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
-    /// _Requirements: 8.1, 8.2_
     func setBodyText(_ sender: Any?) {
         // 优先使用 FormatStateManager 清除段落格式（恢复正文）
         if FormatStateManager.shared.hasActiveEditor {

@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  音频录制器视图 - 用于录制语音
-//  需求: 8.1, 8.4, 8.6, 8.7
 //
 
 import AVFoundation

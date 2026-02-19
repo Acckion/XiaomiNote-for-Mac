@@ -117,7 +117,6 @@
         static let backToGallery = NSToolbarItem.Identifier("backToGallery")
 
         /// XML 调试模式
-        /// _Requirements: 1.1, 1.2, 5.2, 6.1_
         static let debugMode = NSToolbarItem.Identifier("debugMode")
 
         // MARK: - 编辑器区域间距

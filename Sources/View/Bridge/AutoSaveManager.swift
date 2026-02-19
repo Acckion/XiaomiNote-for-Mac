@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  自动保存管理器 - 负责自动保存的调度、防抖和并发控制
-//  需求: 59.6
 //
 
 import Foundation
@@ -34,14 +33,12 @@ import Foundation
 /// await manager.saveImmediately()
 /// ```
 ///
-/// _Requirements: FR-6_
 @MainActor
 public class AutoSaveManager {
     // MARK: - 配置
 
     /// 防抖延迟时间（秒）
     ///
-    /// _Requirements: FR-6.1_
     private let debounceDelay: TimeInterval
 
     // MARK: - 状态
@@ -78,7 +75,6 @@ public class AutoSaveManager {
     /// 使用防抖机制，避免频繁保存
     /// 如果在延迟时间内再次调用，会取消之前的定时器并重新计时
     ///
-    /// _Requirements: FR-6.1, FR-6.2_
     public func scheduleAutoSave() {
         // 取消之前的定时器
         debounceTimer?.invalidate()
@@ -99,7 +95,6 @@ public class AutoSaveManager {
     ///
     /// 取消待处理的保存任务
     ///
-    /// _Requirements: FR-6.3_
     public func cancelAutoSave() {
         debounceTimer?.invalidate()
         debounceTimer = nil
@@ -133,7 +128,6 @@ public class AutoSaveManager {
     ///
     /// - Parameter version: 正在保存的版本号
     ///
-    /// _Requirements: FR-5.1_
     public func markSaveStarted(version: Int) {
         savingVersion = version
     }

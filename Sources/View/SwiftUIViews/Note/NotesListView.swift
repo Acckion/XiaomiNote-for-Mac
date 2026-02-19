@@ -59,7 +59,6 @@ struct NotePositionPreferenceKey: PreferenceKey {
 /// - tags: 标签（不在列表行中显示）
 /// - rawData 中的其他字段（如 extraInfo、setting 中的非图片数据等）
 ///
-/// _Requirements: 5.3, 5.4_
 struct NoteDisplayProperties: Equatable, Hashable {
     let id: String
     let title: String
@@ -161,7 +160,6 @@ struct NoteDisplayProperties: Equatable, Hashable {
 /// 使用独立的 `@ObservedObject` 视图来观察 `viewModel`，确保当 `selectedNote` 变化时，
 /// 视图能正确重新计算 `isSelected` 并更新高亮状态。
 ///
-/// _Requirements: 2.1, 2.2, 2.3_
 struct PinnedNoteRowContent<ContextMenu: View>: View {
     let note: Note
     let showDivider: Bool
@@ -201,13 +199,11 @@ struct PinnedNoteRowContent<ContextMenu: View>: View {
         let currentSelectedId = windowState.selectedNote?.id
 
         // 如果点击的是已选中的笔记，不需要做任何事情
-        // _Requirements: 2.3_
         if currentSelectedId == note.id {
             return
         }
 
         // 设置选择标志，禁用选择期间的动画
-        // _Requirements: 2.1, 2.2, 2.3_
         isSelectingNote = true
         windowState.selectNote(note)
 
@@ -249,7 +245,6 @@ struct NotesListView: View {
     }
 
     /// 视图选项管理器，用于控制日期分组开关
-    /// _Requirements: 3.3, 3.4_
     @ObservedObject var optionsManager: ViewOptionsManager = .shared
     @State private var showingDeleteAlert = false
     @State private var noteToDelete: Note?
@@ -258,7 +253,6 @@ struct NotesListView: View {
     /// 列表标识符，用于在文件夹切换时强制重建列表（避免动画）
     @State private var listId = UUID()
     /// 是否正在进行选择操作，用于禁用选择期间的动画
-    /// _Requirements: 2.1, 2.2, 2.3_
     @State private var isSelectingNote = false
     /// 当前可见的分组标题（用于粘性分组头显示）
     @State private var currentVisibleSection: String?
@@ -283,7 +277,6 @@ struct NotesListView: View {
                 .listStyle(.sidebar)
             } else if optionsManager.isDateGroupingEnabled {
                 // 分组模式：使用 ScrollView + LazyVStack 实现固定分组标题
-                // _Requirements: 3.3, 固定分组标题_
                 pinnedHeadersListContent
             } else {
                 // 平铺模式：使用标准 List
@@ -296,10 +289,8 @@ struct NotesListView: View {
         .id(listId)
         // 监听 filteredNotes 变化，触发列表移动动画
         // 只有在非选择操作时才触发动画，避免选择笔记时的错误移动
-        // _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3_
         .animation(isSelectingNote ? nil : ListAnimationConfig.moveAnimation, value: viewModel.filteredNotes.map(\.id))
         // 监听日期分组状态变化，触发过渡动画
-        // _Requirements: 3.7_
         .animation(.easeInOut(duration: 0.3), value: optionsManager.isDateGroupingEnabled)
         // 监听文件夹切换，更新 listId 强制重建列表
         .onChange(of: viewModel.selectedFolder?.id) { _, _ in
@@ -544,7 +535,6 @@ struct NotesListView: View {
     }
 
     /// 平铺显示的笔记内容（不带分组头）
-    /// _Requirements: 3.4_
     private var flatNotesContent: some View {
         ForEach(Array(viewModel.filteredNotes.enumerated()), id: \.element.id) { index, note in
             NoteRow(note: note, showDivider: index < viewModel.filteredNotes.count - 1, viewModel: viewModel)
@@ -818,13 +808,11 @@ struct NoteRow: View {
 
     /// 用于比较的显示属性
     /// 只有当这些属性变化时，才会触发视图重建
-    /// _Requirements: 5.3, 5.4_
     private var displayProperties: NoteDisplayProperties {
         NoteDisplayProperties(from: note)
     }
 
     /// 根据排序方式获取要显示的日期
-    /// _Requirements: 1.1, 1.2, 1.3_
     private var displayDate: Date {
         switch optionsManager.sortOrder {
         case .createDate:
@@ -843,20 +831,17 @@ struct NoteRow: View {
     // MARK: - 同步状态
 
     /// 笔记是否有待处理上传
-    /// _需求: 6.2_
     private var hasPendingUpload: Bool {
         viewModel.hasPendingUpload(for: note.id)
     }
 
     /// 笔记是否使用临时 ID（离线创建）
-    /// _需求: 6.2_
     private var isTemporaryIdNote: Bool {
         viewModel.isTemporaryIdNote(note.id)
     }
 
     /// 同步状态指示器
     /// 显示"未同步"图标或"离线创建"标记
-    /// _需求: 6.2_
     @ViewBuilder
     private var syncStatusIndicator: some View {
         if isTemporaryIdNote {
@@ -952,7 +937,6 @@ struct NoteRow: View {
 
                     HStack(spacing: 4) {
                         // 时间 - 加粗，与标题同色，根据排序方式显示创建时间或修改时间
-                        // _Requirements: 1.1, 1.2, 1.3, 1.4_
                         Text(formatDate(displayDate))
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(.primary)
@@ -1011,7 +995,6 @@ struct NoteRow: View {
                 }
 
                 // 同步状态标记
-                // _需求: 6.2_
                 syncStatusIndicator
             }
             .padding(.vertical, 6)
@@ -1065,7 +1048,6 @@ struct NoteRow: View {
         // 使用笔记 ID 作为视图标识符（而非 displayProperties）
         // 这样编辑笔记内容时不会改变视图标识，选择状态能够保持
         // displayProperties 的变化通过 onChange 监听器处理，不影响视图标识
-        // _Requirements: 1.1, 1.2, 5.2_
         // - 1.1: 编辑笔记内容时保持选中状态不变
         // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
         .id(note.id)

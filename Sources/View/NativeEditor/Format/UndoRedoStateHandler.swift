@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  撤销/重做操作状态处理器 - 确保撤销/重做操作后格式菜单状态正确更新
-//  需求: 5.5 - 确保撤销后状态正确更新
 //
 
 import AppKit
@@ -41,7 +40,6 @@ struct UndoRedoOperationRecord {
 /// 撤销/重做状态处理器
 ///
 /// 负责监听撤销/重做操作，并确保格式菜单状态正确更新。
-/// 需求: 5.5 - 确保撤销后状态正确更新
 @MainActor
 class UndoRedoStateHandler {
 

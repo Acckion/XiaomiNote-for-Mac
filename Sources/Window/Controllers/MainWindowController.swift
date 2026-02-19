@@ -50,7 +50,6 @@
         private var searchFilterMenuPopover: NSPopover?
 
         /// 视图选项菜单popover
-        /// _Requirements: 1.2, 1.3, 1.4_
         private var viewOptionsMenuPopover: NSPopover?
 
         /// 在线状态菜单工具栏项
@@ -670,7 +669,6 @@
                 // 时间线跟踪分隔符
                 // 注意：由于使用两栏布局（侧边栏 + 内容区域），只有一个分隔符
                 // 如果分割视图只有一个分隔符，返回普通分隔符
-                // _Requirements: 4.3, 4.4, 4.5_
                 if let splitViewController = window?.contentViewController as? NSSplitViewController {
                     let dividerCount = splitViewController.splitView.subviews.count - 1
                     if dividerCount > 1 {
@@ -1161,7 +1159,6 @@
                 }
 
                 // 视图选项菜单的选中状态
-                // _Requirements: 2.4, 2.8, 3.5, 4.6_
 
                 // 排序方式选中状态
                 if item.tag == 1 { // 编辑时间
@@ -1550,17 +1547,14 @@
         // MARK: - 新增工具栏按钮动作方法
 
         /// 切换待办（插入复选框）
-        /// 需求: 3.1, 3.2, 3.4 - 调用原生编辑器的 insertCheckbox 方法
         @objc internal func toggleCheckbox(_: Any?) {
             LogService.shared.debug(.window, "切换待办")
 
-            // 需求 3.4: 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
                 LogService.shared.debug(.window, "没有选中笔记，无法插入待办")
                 return
             }
 
-            // 需求 3.1: 使用原生编辑器插入复选框
             LogService.shared.debug(.window, "使用原生编辑器，调用 NativeEditorContext.insertCheckbox()")
             if let nativeContext = getCurrentNativeEditorContext() {
                 nativeContext.insertCheckbox()
@@ -1570,17 +1564,14 @@
         }
 
         /// 插入分割线
-        /// 需求: 4.1, 4.2, 4.4 - 调用原生编辑器的 insertHorizontalRule 方法
         @objc internal func insertHorizontalRule(_: Any?) {
             LogService.shared.debug(.window, "插入分割线")
 
-            // 需求 4.4: 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
                 LogService.shared.debug(.window, "没有选中笔记，无法插入分割线")
                 return
             }
 
-            // 需求 4.1: 使用原生编辑器插入分隔线
             LogService.shared.debug(.window, "使用原生编辑器，调用 NativeEditorContext.insertHorizontalRule()")
             if let nativeContext = getCurrentNativeEditorContext() {
                 nativeContext.insertHorizontalRule()
@@ -1590,17 +1581,14 @@
         }
 
         /// 插入附件（图片）
-        /// 需求: 5.1, 5.2, 5.3, 5.5 - 显示文件选择对话框，根据编辑器类型调用对应的 insertImage 方法
         @objc func insertAttachment(_: Any?) {
             LogService.shared.debug(.window, "插入附件")
 
-            // 需求 5.5: 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
                 LogService.shared.debug(.window, "没有选中笔记，无法插入附件")
                 return
             }
 
-            // 需求 5.1: 显示文件选择对话框
             let openPanel = NSOpenPanel()
             openPanel.allowedContentTypes = [.image, .png, .jpeg, .gif]
             openPanel.allowsMultipleSelection = false
@@ -1613,7 +1601,6 @@
                 guard let self else { return }
 
                 if response == .OK, let url = openPanel.url {
-                    // 需求 5.2, 5.3: 上传图片并插入到编辑器
                     Task { @MainActor in
                         await self.insertImage(from: url)
                     }
@@ -1622,7 +1609,6 @@
         }
 
         /// 从 URL 插入图片
-        /// 需求: 5.2, 5.3 - 上传图片并插入到原生编辑器
         @MainActor
         private func insertImage(from url: URL) async {
             guard let viewModel else {
@@ -1640,7 +1626,6 @@
                 let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
                 LogService.shared.info(.window, "图片上传成功: fileId=\(fileId)")
 
-                // 需求 5.2: 使用原生编辑器插入图片
                 LogService.shared.debug(.window, "使用原生编辑器，调用 NativeEditorContext.insertImage()")
                 if let nativeContext = getCurrentNativeEditorContext() {
                     nativeContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
@@ -2193,7 +2178,6 @@
         // MARK: - 视图选项菜单
 
         /// 显示视图选项菜单（已弃用，改用原生 NSMenu）
-        /// _Requirements: 1.2, 1.3, 1.4_
         @objc internal func showViewOptionsMenu(_: Any?) {
             // 此方法已弃用，视图选项菜单现在使用原生 NSMenuToolbarItem
         }
@@ -2201,21 +2185,18 @@
         // MARK: - 视图选项菜单操作
 
         /// 设置排序方式为编辑时间
-        /// _Requirements: 2.3_
         @objc internal func setSortOrderEditDate(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.editDate)
             viewModel?.setNotesListSortField(.editDate)
         }
 
         /// 设置排序方式为创建时间
-        /// _Requirements: 2.3_
         @objc internal func setSortOrderCreateDate(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.createDate)
             viewModel?.setNotesListSortField(.createDate)
         }
 
         /// 设置排序方式为标题
-        /// _Requirements: 2.3_
         @objc internal func setSortOrderTitle(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.title)
             viewModel?.setNotesListSortField(.title)
@@ -2226,27 +2207,23 @@
         }
 
         /// 设置排序方向为降序
-        /// _Requirements: 2.7_
         @objc internal func setSortDirectionDescending(_: Any?) {
             ViewOptionsManager.shared.setSortDirection(.descending)
             viewModel?.setNotesListSortDirection(.descending)
         }
 
         /// 设置排序方向为升序
-        /// _Requirements: 2.7_
         @objc internal func setSortDirectionAscending(_: Any?) {
             ViewOptionsManager.shared.setSortDirection(.ascending)
             viewModel?.setNotesListSortDirection(.ascending)
         }
 
         /// 切换日期分组（已弃用，改用 setDateGroupingOn/Off）
-        /// _Requirements: 3.3, 3.4_
         @objc internal func toggleDateGrouping(_: Any?) {
             ViewOptionsManager.shared.toggleDateGrouping()
         }
 
         /// 开启日期分组
-        /// _Requirements: 3.3_
         @objc internal func setDateGroupingOn(_: Any?) {
             // 如果当前是按标题排序，自动切换到按编辑时间排序
             // 因为按标题排序时日期分组没有意义
@@ -2258,19 +2235,16 @@
         }
 
         /// 关闭日期分组
-        /// _Requirements: 3.4_
         @objc internal func setDateGroupingOff(_: Any?) {
             ViewOptionsManager.shared.setDateGrouping(false)
         }
 
         /// 设置视图模式为列表视图
-        /// _Requirements: 4.3_
         @objc internal func setViewModeList(_: Any?) {
             ViewOptionsManager.shared.setViewMode(.list)
         }
 
         /// 设置视图模式为画廊视图
-        /// _Requirements: 4.3_
         @objc internal func setViewModeGallery(_: Any?) {
             ViewOptionsManager.shared.setViewMode(.gallery)
         }
@@ -2285,13 +2259,11 @@
         // MARK: - 编辑器类型检测和路由
 
         /// 是否正在使用原生编辑器（始终为 true）
-        /// 需求: 7.1 - 现在仅使用原生编辑器
         var isUsingNativeEditor: Bool {
             EditorPreferencesService.shared.isNativeEditorAvailable
         }
 
         /// 获取当前的 NativeEditorContext
-        /// 需求: 1.3, 7.2 - 从 viewModel 获取 nativeEditorContext
         /// - Returns: 当前的 NativeEditorContext，如果 viewModel 不存在则返回 nil
         func getCurrentNativeEditorContext() -> NativeEditorContext? {
             viewModel?.nativeEditorContext
@@ -2343,12 +2315,10 @@
 
         @objc func increaseIndent(_: Any?) {
 
-            // 需求 6.5: 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
                 return
             }
 
-            // 需求 6.1: 使用原生编辑器增加缩进
             if let nativeContext = getCurrentNativeEditorContext() {
                 nativeContext.increaseIndent()
             } else {
@@ -2358,12 +2328,10 @@
 
         @objc func decreaseIndent(_: Any?) {
 
-            // 需求 6.5: 检查是否有选中笔记
             guard viewModel?.selectedNote != nil else {
                 return
             }
 
-            // 需求 6.2: 使用原生编辑器减少缩进
             if let nativeContext = getCurrentNativeEditorContext() {
                 nativeContext.decreaseIndent()
             } else {

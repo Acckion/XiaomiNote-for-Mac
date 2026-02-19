@@ -5,7 +5,6 @@
 //  格式属性构建器 - 将 FormatState 转换为 NSAttributedString 属性字典
 //  用于构建 typingAttributes，确保新输入的文字能继承正确的格式
 //
-//  _Requirements: 2.1-2.6, 3.1_
 //
 
 import AppKit
@@ -15,7 +14,6 @@ import Foundation
 
 /// 格式属性构建器
 /// 将 FormatState 转换为 NSAttributedString 属性字典
-/// _Requirements: 2.1-2.6, 3.1_
 @MainActor
 public struct FormatAttributesBuilder {
 
@@ -23,7 +21,6 @@ public struct FormatAttributesBuilder {
 
     /// 默认字体
     /// 使用 FontSizeManager 统一管理，14pt（正文字体大小）
-    /// _Requirements: 1.4, 3.2, 3.3_
     public static var defaultFont: NSFont {
         FontSizeManager.shared.defaultFont
     }
@@ -32,11 +29,9 @@ public struct FormatAttributesBuilder {
     public static let defaultTextColor = NSColor.labelColor
 
     /// 高亮背景色
-    /// _Requirements: 2.5_
     public static let highlightColor = NSColor.yellow.withAlphaComponent(0.5)
 
     /// 标题字体大小 - 使用 FontSizeManager 统一管理
-    /// _Requirements: 1.1, 1.2, 1.3, 1.4_
     private static var heading1FontSize: CGFloat {
         FontSizeManager.shared.heading1Size
     } // 23pt
@@ -59,12 +54,10 @@ public struct FormatAttributesBuilder {
     ///
     /// - Parameter state: 格式状态
     /// - Returns: 属性字典
-    /// _Requirements: 2.1-2.6, 3.1_
     public static func build(from state: FormatState) -> [NSAttributedString.Key: Any] {
         var attributes: [NSAttributedString.Key: Any] = [:]
 
         // 1. 构建字体（处理加粗、斜体）
-        // _Requirements: 2.1, 2.2_
         let font = buildFont(from: state)
         attributes[.font] = font
 
@@ -72,19 +65,15 @@ public struct FormatAttributesBuilder {
         attributes[.foregroundColor] = defaultTextColor
 
         // 3. 添加下划线属性
-        // _Requirements: 2.3_
         addUnderlineAttributes(to: &attributes, state: state)
 
         // 4. 添加删除线属性
-        // _Requirements: 2.4_
         addStrikethroughAttributes(to: &attributes, state: state)
 
         // 5. 添加高亮属性
-        // _Requirements: 2.5_
         addHighlightAttributes(to: &attributes, state: state)
 
         // 6. 添加斜体属性（使用 obliqueness 支持中文）
-        // _Requirements: 2.2_
         addItalicObliqueness(to: &attributes, font: font, state: state)
 
         // 7. 添加列表属性（确保列表格式在输入时正确继承）
@@ -102,7 +91,6 @@ public struct FormatAttributesBuilder {
     ///
     /// - Parameter state: 格式状态
     /// - Returns: 字体
-    /// _Requirements: 2.1, 2.2_
     public static func buildFont(from state: FormatState) -> NSFont {
         // 确定字体大小（根据段落格式）
         let fontSize = determineFontSize(for: state.paragraphFormat)
@@ -111,7 +99,6 @@ public struct FormatAttributesBuilder {
         var traits: NSFontDescriptor.SymbolicTraits = []
 
         // 加粗
-        // _Requirements: 2.1_
         if state.isBold {
             traits.insert(.bold)
         }
@@ -165,7 +152,6 @@ public struct FormatAttributesBuilder {
     /// - Parameters:
     ///   - attributes: 属性字典（inout）
     ///   - state: 格式状态
-    /// _Requirements: 2.3_
     public static func addUnderlineAttributes(to attributes: inout [NSAttributedString.Key: Any], state: FormatState) {
         if state.isUnderline {
             attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
@@ -179,7 +165,6 @@ public struct FormatAttributesBuilder {
     /// - Parameters:
     ///   - attributes: 属性字典（inout）
     ///   - state: 格式状态
-    /// _Requirements: 2.4_
     public static func addStrikethroughAttributes(to attributes: inout [NSAttributedString.Key: Any], state: FormatState) {
         if state.isStrikethrough {
             attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
@@ -193,7 +178,6 @@ public struct FormatAttributesBuilder {
     /// - Parameters:
     ///   - attributes: 属性字典（inout）
     ///   - state: 格式状态
-    /// _Requirements: 2.5_
     public static func addHighlightAttributes(to attributes: inout [NSAttributedString.Key: Any], state: FormatState) {
         if state.isHighlight {
             attributes[.backgroundColor] = highlightColor
@@ -209,7 +193,6 @@ public struct FormatAttributesBuilder {
     ///   - attributes: 属性字典（inout）
     ///   - font: 当前字体（未使用，保留参数以保持 API 兼容）
     ///   - state: 格式状态
-    /// _Requirements: 2.2_
     private static func addItalicObliqueness(to attributes: inout [NSAttributedString.Key: Any], font _: NSFont, state: FormatState) {
         if state.isItalic {
             // 统一使用 obliqueness 实现斜体，不依赖字体特性
@@ -256,7 +239,6 @@ public struct FormatAttributesBuilder {
     /// 用于空文档或光标在文档开头的情况
     ///
     /// - Returns: 默认属性字典
-    /// _Requirements: 3.2, 3.3_
     public static func buildDefault() -> [NSAttributedString.Key: Any] {
         build(from: FormatState.default)
     }

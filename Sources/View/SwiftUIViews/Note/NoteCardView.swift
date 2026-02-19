@@ -13,7 +13,6 @@ import SwiftUI
 /// 笔记卡片视图
 ///
 /// 画廊视图中的单个笔记预览卡片，显示笔记的标题、内容预览、日期和缩略图
-/// _Requirements: 5.2, 5.3, 5.4, 7.2, 7.3_
 struct NoteCardView: View {
 
     // MARK: - 属性
@@ -31,7 +30,6 @@ struct NoteCardView: View {
     @ObservedObject var viewModel: NotesViewModel
 
     /// 视图选项管理器（用于获取排序方式）
-    /// _Requirements: 1.5_
     @ObservedObject var optionsManager: ViewOptionsManager = .shared
 
     // MARK: - 状态
@@ -83,7 +81,6 @@ struct NoteCardView: View {
             isHovering = hovering
             if hovering {
                 // 悬停100ms后预加载笔记内容
-                // _Requirements: 7.3_
                 preloadNoteContent()
             }
         }
@@ -104,7 +101,6 @@ struct NoteCardView: View {
     // MARK: - 子视图
 
     /// 缩略图区域
-    /// _Requirements: 5.3_
     @ViewBuilder
     private var thumbnailSection: some View {
         if let _ = getFirstImageInfo(from: note) {
@@ -132,7 +128,6 @@ struct NoteCardView: View {
     }
 
     /// 标题区域
-    /// _Requirements: 5.2_
     private var titleSection: some View {
         Text(hasRealTitle() ? note.title : "无标题")
             .font(.headline)
@@ -141,7 +136,6 @@ struct NoteCardView: View {
     }
 
     /// 内容预览区域
-    /// _Requirements: 5.2_
     private var contentPreviewSection: some View {
         Text(extractPreviewText(from: note.content))
             .font(.subheadline)
@@ -150,7 +144,6 @@ struct NoteCardView: View {
     }
 
     /// 日期区域
-    /// _Requirements: 1.5, 5.2_
     private var dateSection: some View {
         Text(formatDate(displayDate))
             .font(.caption)
@@ -158,7 +151,6 @@ struct NoteCardView: View {
     }
 
     /// 锁定图标覆盖层
-    /// _Requirements: 5.4_
     @ViewBuilder
     private var lockIconOverlay: some View {
         if note.rawData?["isLocked"] as? Bool == true {
@@ -177,7 +169,6 @@ struct NoteCardView: View {
     /// 根据排序方式获取要显示的日期
     ///
     /// 当排序方式为创建时间时，显示创建时间；否则显示修改时间
-    /// _Requirements: 1.5_
     private var displayDate: Date {
         switch optionsManager.sortOrder {
         case .createDate:
@@ -338,7 +329,6 @@ struct NoteCardView: View {
     }
 
     /// 加载缩略图
-    /// _Requirements: 5.3_
     private func loadThumbnail() {
         guard let imageInfo = getFirstImageInfo(from: note) else {
             thumbnailImage = nil
@@ -406,7 +396,6 @@ struct NoteCardView: View {
     }
 
     /// 预加载笔记内容
-    /// _Requirements: 7.3_
     private func preloadNoteContent() {
         Task { @MainActor in
             // 延迟100ms

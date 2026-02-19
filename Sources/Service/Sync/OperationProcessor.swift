@@ -26,17 +26,14 @@ public actor OperationProcessor {
 
     /// 最大重试次数
     ///
-    /// 需求: 5.2
     private let maxRetryCount = 5
 
     /// 基础重试延迟（秒）
     ///
-    /// 需求: 5.2
     private let baseRetryDelay: TimeInterval = 1.0
 
     /// 最大重试延迟（秒）
     ///
-    /// 需求: 5.2
     private let maxRetryDelay: TimeInterval = 60.0
 
     // MARK: - 依赖
@@ -146,7 +143,6 @@ public extension OperationProcessor {
     ///
     /// - Parameter operation: 要处理的操作
     ///
-    /// 需求: 2.1
     func processImmediately(_ operation: NoteOperation) async {
         // 检查网络是否可用
         guard await isNetworkConnected() else {
@@ -191,7 +187,6 @@ public extension OperationProcessor {
     ///
     /// 按优先级排序处理所有待处理操作（noteCreate 最高优先级）。
     ///
-    /// 需求: 2.1
     func processQueue() async {
         // 防止重复处理
         guard !isProcessingQueue else {
@@ -301,7 +296,6 @@ public extension OperationProcessor {
     /// - Parameter error: 错误对象
     /// - Returns: 错误类型
     ///
-    /// 需求: 5.1
     func classifyError(_ error: Error) -> OperationErrorType {
         // 处理 MiNoteError
         if let miNoteError = error as? MiNoteError {
@@ -387,7 +381,6 @@ public extension OperationProcessor {
     /// - Parameter error: 错误对象
     /// - Returns: 如果可重试返回 true
     ///
-    /// 需求: 5.1
     func isRetryable(_ error: Error) -> Bool {
         let errorType = classifyError(error)
         return errorType.isRetryable
@@ -414,7 +407,6 @@ public extension OperationProcessor {
     /// - Parameter retryCount: 当前重试次数
     /// - Returns: 延迟时间（秒）
     ///
-    /// 需求: 5.2
     func calculateRetryDelay(retryCount: Int) -> TimeInterval {
         // delay = min(baseDelay * 2^retryCount, maxDelay)
         let delay = baseRetryDelay * pow(2.0, Double(retryCount))
@@ -430,7 +422,6 @@ public extension OperationProcessor {
     ///
     /// 检查所有失败的操作，如果已到达重试时间则重新处理。
     ///
-    /// 需求: 5.2
     func processRetries() async {
         // 防止重复处理
         guard !isProcessingRetries else {
@@ -536,7 +527,6 @@ extension OperationProcessor {
     ///   - operation: 失败的操作
     ///   - error: 错误对象
     ///
-    /// 需求: 2.2, 2.3, 2.4
     private func handleOperationFailure(operation: NoteOperation, error: Error) async {
         let errorType = classifyError(error)
         let isRetryable = errorType.isRetryable
@@ -582,7 +572,6 @@ extension OperationProcessor {
     ///
     /// - Parameter operation: 成功的操作
     ///
-    /// 需求: 2.2
     private func handleOperationSuccess(operation: NoteOperation) async {
         LogService.shared.debug(.sync, "OperationProcessor 操作成功: \(operation.id), type: \(operation.type.rawValue)")
 
@@ -638,7 +627,6 @@ extension OperationProcessor {
     /// - Parameter operation: noteCreate 操作
     /// - Throws: 执行错误
     ///
-    /// 需求: 8.4
     public func processNoteCreate(_ operation: NoteOperation) async throws {
         LogService.shared.debug(.sync, "OperationProcessor 处理 noteCreate: \(operation.noteId)")
 

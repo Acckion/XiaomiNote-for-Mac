@@ -33,7 +33,6 @@ struct NoteDetailView: View {
     ///
     /// 用于显示当前笔记的保存状态
     ///
-    /// _Requirements: 6.1, 6.2, 6.3, 6.4_
     enum SaveStatus: Equatable {
         case saved // 已保存（绿色）
         case saving // 保存中（黄色）
@@ -57,7 +56,6 @@ struct NoteDetailView: View {
 
     // MARK: - 调试模式状态
 
-    // _Requirements: 1.1, 1.2_
 
     /// 是否处于调试模式
     ///
@@ -92,7 +90,6 @@ struct NoteDetailView: View {
 
     // MARK: - 保存重试状态
 
-    // _Requirements: 2.5, 9.1_ - 保存失败时的内容保护和重试
 
     /// 待重试保存的 XML 内容
     @State private var pendingRetryXMLContent: String?
@@ -145,11 +142,9 @@ struct NoteDetailView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .toggleDebugMode)) { _ in
                 // 监听调试模式切换通知
-                // _Requirements: 1.1, 1.2, 5.2, 6.1_
                 toggleDebugMode()
             }
             // 监听原生编辑器保存状态变化通知
-            // _Requirements: 6.1, 6.2, 6.3, 6.4_
             .onReceive(NotificationCenter.default.publisher(for: .nativeEditorSaveStatusDidChange)) { notification in
                 handleNativeEditorSaveStatusChange(notification)
             }
@@ -163,7 +158,6 @@ struct NoteDetailView: View {
     ///
     /// 当原生编辑器的 needsSave 状态变化时,更新保存状态指示器
     ///
-    /// _Requirements: FR-1, FR-6_ - 使用版本号机制判断是否需要保存
     private func handleNativeEditorSaveStatusChange(_ notification: Notification) {
         // 只在使用原生编辑器时处理
         guard isUsingNativeEditor else { return }
@@ -179,7 +173,6 @@ struct NoteDetailView: View {
         }
 
         // 更新保存状态
-        // _Requirements: FR-1, FR-6_ - 内容未保存时显示"未保存"状态
         if needsSave {
             // 只有在当前状态不是 saving 时才更新为 unsaved
             // 避免在保存过程中被覆盖
@@ -326,7 +319,6 @@ struct NoteDetailView: View {
             indentButtons
             Spacer()
             // 调试模式切换按钮
-            // _Requirements: 1.3, 1.5, 6.1_
             debugModeToggleButton
             if let note = viewModel.selectedNote {
                 shareAndMoreButtons(for: note)
@@ -336,7 +328,6 @@ struct NoteDetailView: View {
 
     /// 调试模式切换按钮
     ///
-    /// _Requirements: 1.1, 1.2, 1.3, 1.5, 5.2, 6.1_
     private var debugModeToggleButton: some View {
         Button {
             toggleDebugMode()
@@ -485,12 +476,10 @@ struct NoteDetailView: View {
     ///
     /// 显示当前保存状态：已保存（绿色）、保存中（黄色）、未保存（红色）、保存失败（红色，可点击查看详情和重试）
     ///
-    /// _Requirements: 6.1, 6.2, 6.3, 6.4, 2.5, 9.1_
     private var saveStatusIndicator: some View {
         Group {
             switch saveStatus {
             case .saved:
-                // _Requirements: 6.3_ - 保存完成显示"已保存"状态（绿色）
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 8))
@@ -499,7 +488,6 @@ struct NoteDetailView: View {
                 }
                 .foregroundColor(.green)
             case .saving:
-                // _Requirements: 6.2_ - 保存中显示"保存中..."状态（黄色）
                 HStack(spacing: 4) {
                     ProgressView()
                         .scaleEffect(0.5)
@@ -509,7 +497,6 @@ struct NoteDetailView: View {
                 }
                 .foregroundColor(.orange)
             case .unsaved:
-                // _Requirements: 6.1_ - 内容未保存显示"未保存"状态（红色）
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: 8))
@@ -518,7 +505,6 @@ struct NoteDetailView: View {
                 }
                 .foregroundColor(.red)
             case let .error(message):
-                // _Requirements: 6.4, 2.5, 9.1_ - 保存失败显示"保存失败"状态（红色，可点击查看详情和重试）
                 HStack(spacing: 6) {
                     HStack(spacing: 4) {
                         Image(systemName: "xmark.circle.fill")
@@ -533,7 +519,6 @@ struct NoteDetailView: View {
                         showSaveErrorAlert = true
                     }
 
-                    // _Requirements: 9.1_ - 提供重试选项
                     if pendingRetryXMLContent != nil {
                         Button(action: {
                             retrySave()
@@ -585,10 +570,8 @@ struct NoteDetailView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let note = viewModel.selectedNote {
                 // 根据调试模式显示不同编辑器
-                // _Requirements: 1.1, 1.2, 1.4, 6.2_
                 if isDebugMode {
                     // 调试模式：显示 XML 调试编辑器
-                    // _Requirements: 1.1, 2.1, 6.2_
                     XMLDebugEditorView(
                         xmlContent: $debugXMLContent,
                         isEditable: $isEditable,
@@ -627,7 +610,6 @@ struct NoteDetailView: View {
 
                             Task { @MainActor in
                                 // 任务 4.1: 集成 TitleExtractionService 进行标题提取
-                                // _需求: 1.1, 1.2, 4.2_ - 使用 TitleExtractionService 提取标题
 
                                 // 1. 优先从原生编辑器提取标题
                                 var titleResult: TitleExtractionResult
@@ -681,11 +663,9 @@ struct NoteDetailView: View {
 
     /// 切换调试模式
     ///
-    /// _Requirements: 1.1, 1.2, 1.4_
     private func toggleDebugMode() {
         if isDebugMode {
             // 从调试模式切换到普通模式
-            // _Requirements: 1.2, 1.4_
             // 保留调试模式下编辑的内容
             if debugXMLContent != currentXMLContent {
                 currentXMLContent = debugXMLContent
@@ -697,7 +677,6 @@ struct NoteDetailView: View {
             isDebugMode = false
         } else {
             // 从普通模式切换到调试模式
-            // _Requirements: 1.1_
             // 同步当前内容到调试编辑器
             if let note = viewModel.selectedNote {
                 // 优先使用当前编辑的内容，如果为空则使用笔记的原始内容
@@ -710,7 +689,6 @@ struct NoteDetailView: View {
 
     /// 处理调试模式下的内容变化
     ///
-    /// _Requirements: 3.1, 3.3_
     private func handleDebugContentChange(_ newContent: String) {
         guard !isInitializing else { return }
 
@@ -727,7 +705,6 @@ struct NoteDetailView: View {
     /// 2. 触发本地数据库保存
     /// 3. 调度云端同步
     ///
-    /// _Requirements: 4.1, 4.2, 4.3, 4.4_
     @MainActor
     private func saveDebugContent() async {
         guard let note = viewModel.selectedNote, note.id == currentEditingNoteId else {
@@ -742,24 +719,19 @@ struct NoteDetailView: View {
             return
         }
 
-        // _Requirements: 4.5_ - 显示 "保存中..." 状态
         debugSaveStatus = .saving
 
         // 同步内容到 currentXMLContent
-        // _Requirements: 4.1, 4.2_ - 更新 Note.content
         currentXMLContent = debugXMLContent
 
         // 构建更新的笔记对象
         let updated = buildUpdatedNote(from: note, xmlContent: debugXMLContent)
 
-        // _Requirements: 4.3_ - 触发本地数据库保存
         do {
             try await saveDebugContentToDatabase(updated)
 
-            // _Requirements: 4.6_ - 显示 "已保存" 状态
             debugSaveStatus = .saved
             // 关键修复：确保 lastSavedXMLContent 与 debugXMLContent 同步
-            // _需求: 2.2_
             lastSavedXMLContent = debugXMLContent
 
             // 更新内存缓存
@@ -777,7 +749,6 @@ struct NoteDetailView: View {
             // 清除未保存内容标志
             viewModel.stateCoordinator.hasUnsavedContent = false
 
-            // _Requirements: 4.4_ - 调度云端同步
             scheduleCloudUpload(for: updated, xmlContent: debugXMLContent)
         } catch {
             let errorMessage = "保存失败: \(error.localizedDescription)"
@@ -788,7 +759,6 @@ struct NoteDetailView: View {
 
     /// 将调试内容保存到数据库
     ///
-    /// _Requirements: 4.3_
     @MainActor
     private func saveDebugContentToDatabase(_ note: Note) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -1034,7 +1004,6 @@ struct NoteDetailView: View {
 
         currentXMLContent = contentToLoad
         // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
-        // _需求: 2.2_
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
 
@@ -1045,7 +1014,6 @@ struct NoteDetailView: View {
         }
 
         // 调试模式：同步内容到调试编辑器
-        // _Requirements: 6.4_
         if isDebugMode {
             debugXMLContent = currentXMLContent
             debugSaveStatus = DebugSaveStatus.saved
@@ -1101,7 +1069,6 @@ struct NoteDetailView: View {
         // 暂时使用 primaryXMLContent，后台会加载完整内容
         currentXMLContent = note.primaryXMLContent
         // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
-        // _需求: 2.2_
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
 
@@ -1124,7 +1091,6 @@ struct NoteDetailView: View {
             }
         } else {
             // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
-            // _需求: 2.2_
             // 更新缓存
             await MemoryCacheManager.shared.cacheNote(note)
         }
@@ -1259,7 +1225,6 @@ struct NoteDetailView: View {
     @MainActor
     private func saveTitleAndContent(title: String, xmlContent: String, for note: Note) async {
         // 使用改进的内容变化检测
-        // _需求: 1.3, 2.4_
         let hasActualChange = hasContentActuallyChanged(
             currentContent: xmlContent,
             savedContent: lastSavedXMLContent,
@@ -1313,7 +1278,6 @@ struct NoteDetailView: View {
     ///   - htmlContent: HTML内容
     ///   - note: 笔记对象
     ///
-    /// _Requirements: 6.1_ - 内容变化时设置为 unsaved 状态
     @MainActor
     private func updateMemoryCache(xmlContent: String, htmlContent _: String?, for note: Note) async {
         guard note.id == currentEditingNoteId else {
@@ -1356,7 +1320,6 @@ struct NoteDetailView: View {
             viewModel.notes[index] = updated
         }
 
-        // _Requirements: 6.1_ - 内容变化时设置为 unsaved 状态
         // 只有在当前状态不是 saving 时才更新为 unsaved
         if case .saving = saveStatus {
             // 保持 saving 状态，不覆盖
@@ -1386,7 +1349,6 @@ struct NoteDetailView: View {
     ///   - extractedTitle: 提取的标题结果（可选）
     ///   - immediate: 是否立即保存（切换笔记时使用），默认false（防抖保存）
     ///
-    /// _Requirements: 6.2_ - 保存中显示"保存中..."状态
     @MainActor
     private func scheduleXMLSave(xmlContent: String, for note: Note, extractedTitle: TitleExtractionResult? = nil, immediate: Bool = false) {
         guard note.id == currentEditingNoteId else {
@@ -1450,14 +1412,9 @@ struct NoteDetailView: View {
 
     /// 执行XML保存
     ///
-    /// _Requirements: 6.2_ - 保存中显示"保存中..."状态
-    /// _Requirements: 6.3_ - 保存完成显示"已保存"状态
-    /// _Requirements: 6.4_ - 保存失败显示"保存失败"状态
-    /// _Requirements: 2.5, 9.1_ - 保存失败时保留编辑内容在内存中
     @MainActor
     private func performXMLSave(xmlContent: String, for note: Note, extractedTitle _: TitleExtractionResult? = nil) {
         // 任务 4.3: 集成 SavePipelineCoordinator
-        // _需求: 1.2, 3.1_ - 确保使用新的保存流程
 
         xmlSaveTask?.cancel()
 
@@ -1594,7 +1551,6 @@ struct NoteDetailView: View {
     @State private var lastUploadedContentByNoteId: [String: String] = [:]
 
     private func scheduleCloudUpload(for note: Note, xmlContent: String) {
-        // _Requirements: 4.1_ - 网络不可用时将编辑操作加入离线队列
         guard viewModel.isOnline, viewModel.isLoggedIn else {
             // 网络不可用或未登录时，将操作添加到离线队列
             queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
@@ -1634,8 +1590,6 @@ struct NoteDetailView: View {
     ///
     /// 当网络不可用时，将编辑操作保存到离线队列，等待网络恢复后同步
     ///
-    /// _Requirements: 4.1_ - 网络不可用时将编辑操作加入离线队列
-    /// _Requirements: 4.2_ - 离线队列中有待处理操作时在 UI 中显示待同步状态
     @MainActor
     private func queueOfflineUpdateOperation(for note: Note, xmlContent: String) {
         let dataDict: [String: Any] = [
@@ -1713,7 +1667,6 @@ struct NoteDetailView: View {
         return false
     }
 
-    /// _需求: 3.5_
     private func saveCurrentNoteBeforeSwitching(newNoteId: String) -> Task<Void, Never>? {
         guard let currentId = currentEditingNoteId, currentId != newNoteId else {
             return nil
@@ -1795,7 +1748,6 @@ struct NoteDetailView: View {
         return currentXMLContent
     }
 
-    /// _需求: 1.5, 3.3_
     private func buildUpdatedNote(
         from note: Note,
         xmlContent: String,
@@ -1803,7 +1755,6 @@ struct NoteDetailView: View {
         shouldUpdateTimestamp: Bool = true
     ) -> Note {
         // 任务 4.2: 修改标题使用逻辑，优先使用传入的提取标题
-        // _需求: 1.3, 3.2_ - 优先使用传入的提取标题
         let titleToUse: String
         if let extractedTitle, extractedTitle.isValid, !extractedTitle.title.isEmpty {
             titleToUse = extractedTitle.title
@@ -1899,7 +1850,6 @@ struct NoteDetailView: View {
     ///   - originalTitle: 原始标题
     /// - Returns: 如果内容或标题发生实际变化则返回 true
     ///
-    /// _需求: 2.1, 2.2, 3.3_
     private func hasContentActuallyChanged(currentContent: String, savedContent: String, currentTitle: String, originalTitle: String) -> Bool {
         let normalizedCurrent = XMLNormalizer.shared.normalize(currentContent)
         let normalizedSaved = XMLNormalizer.shared.normalize(savedContent)

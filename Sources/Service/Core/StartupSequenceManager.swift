@@ -9,7 +9,6 @@ import OSLog
 /// 2. 处理离线队列
 /// 3. 执行完整同步
 ///
-/// 遵循需求 2.1, 2.2, 2.3, 2.4 的规定
 @MainActor
 final class StartupSequenceManager: ObservableObject {
 
@@ -150,7 +149,6 @@ final class StartupSequenceManager: ObservableObject {
     /// 执行启动序列
     ///
     /// 按顺序执行：加载本地数据 → 处理离线队列 → 执行同步
-    /// 遵循需求 2.1, 2.2, 2.3
     func executeStartupSequence() async {
         LogService.shared.info(.core, "开始执行启动序列")
 

@@ -190,7 +190,6 @@ public struct ContentView: View {
         .onChange(of: viewModel.isLoggedIn) { oldValue, newValue in
             if newValue, !oldValue {
                 // 登录成功后处理
-                // _Requirements: 5.1, 5.3, 5.4_
                 Task {
                     await viewModel.handleLoginSuccess()
                 }
@@ -550,7 +549,6 @@ public struct ContentView: View {
                     .foregroundColor(statusColor)
 
                 // 显示统一操作队列待上传数量（优先显示）
-                // _需求: 6.2_
                 if viewModel.unifiedPendingUploadCount > 0 {
                     HStack(spacing: 2) {
                         Image(systemName: "arrow.up.circle")

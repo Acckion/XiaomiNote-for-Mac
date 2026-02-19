@@ -824,7 +824,6 @@ struct SidebarFolderRow: View {
     @State private var isHovering = false
 
     /// 视图选项管理器（用于获取笔记数量显示状态）
-    /// _Requirements: 9.3_
     @ObservedObject private var viewOptionsManager = ViewOptionsManager.shared
 
     /// 初始化器 - 用于正常模式（非编辑模式）
@@ -912,7 +911,6 @@ struct SidebarFolderRow: View {
             Spacer()
 
             // 笔记数量（编辑模式下不显示，根据设置可隐藏）
-            // _Requirements: 9.3_
             if !isEditing, viewOptionsManager.showNoteCount {
                 Text("\(folder.count)")
                     .font(.caption)

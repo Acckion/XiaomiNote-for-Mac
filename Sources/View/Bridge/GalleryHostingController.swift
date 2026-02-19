@@ -13,7 +13,6 @@ import SwiftUI
 ///
 /// 使用 NSHostingView 托管 SwiftUI 的画廊视图
 /// 包含 GalleryView 和 ExpandedNoteView 的切换逻辑
-/// _Requirements: 4.4, 4.5, 5.1, 6.1_
 @available(macOS 14.0, *)
 class GalleryHostingController: NSViewController {
 
@@ -143,7 +142,6 @@ class GalleryHostingController: NSViewController {
 /// 画廊容器视图
 ///
 /// 包含 GalleryView 和 ExpandedNoteView 的切换逻辑
-/// _Requirements: 4.4, 4.5, 6.1_
 @available(macOS 14.0, *)
 struct GalleryContainerView: View {
 
@@ -191,7 +189,6 @@ struct GalleryContainerView: View {
         ZStack {
             if let _ = expandedNote {
                 // 展开模式：显示笔记编辑器
-                // _Requirements: 6.1, 6.2_
                 if let coordinator, let windowState {
                     // 新架构：使用 coordinator 和 windowState
                     ExpandedNoteView(
@@ -207,7 +204,6 @@ struct GalleryContainerView: View {
                 }
             } else {
                 // 画廊模式：显示笔记卡片网格
-                // _Requirements: 5.1_
                 if let coordinator, let windowState {
                     // 新架构：使用 coordinator 和 windowState
                     GalleryView(
@@ -242,7 +238,6 @@ struct GalleryContainerView: View {
     }
 
     /// 展开视图的过渡动画
-    /// _Requirements: 6.4, 6.5_
     private var expandedTransition: AnyTransition {
         .asymmetric(
             insertion: .scale(scale: 0.95).combined(with: .opacity),

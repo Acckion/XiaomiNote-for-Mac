@@ -38,19 +38,16 @@ public final class ASTToAttributedStringConverter {
     private let defaultParagraphStyle: NSMutableParagraphStyle
 
     /// 当前有序列表编号（用于跟踪连续有序列表）
-    /// _Requirements: 9.3_ - 根据 inputNumber 规则自动递增编号
     private var currentOrderedListNumber = 0
 
     // MARK: - Initialization
 
     /// 创建转换器
     /// - Parameter folderId: 文件夹 ID（用于图片加载）
-    /// _Requirements: 7.4, 7.5, 7.6_ - 使用 FontSizeConstants 统一字体大小
     public init(folderId: String? = nil) {
         self.folderId = folderId
 
         // 使用 FontSizeConstants 获取默认字体大小
-        // _Requirements: 7.4, 7.5, 7.6_
         self.defaultFont = NSFont.systemFont(ofSize: FontSizeConstants.body)
 
         // 设置默认段落样式
@@ -66,7 +63,6 @@ public final class ASTToAttributedStringConverter {
     ///
     /// - Parameter document: 文档 AST 节点
     /// - Returns: NSAttributedString
-    /// _Requirements: 3.5_ - 从 XML 的 `<title>` 标签加载标题作为第一个段落
     public func convert(_ document: DocumentNode) -> NSAttributedString {
         let result = NSMutableAttributedString()
 
@@ -106,7 +102,6 @@ public final class ASTToAttributedStringConverter {
     /// 转换标题块节点
     /// - Parameter node: 标题块节点
     /// - Returns: NSAttributedString
-    /// _Requirements: 3.5_ - 将标题块转换为带有标题属性的段落
     /// _任务 22.2_ - 标题段落使用 40pt Semibold 字体
     private func convertTitleBlock(_ node: TitleBlockNode) -> NSAttributedString {
         let result = NSMutableAttributedString()
@@ -133,7 +128,6 @@ public final class ASTToAttributedStringConverter {
     /// 创建标题段落（从纯文本）
     /// - Parameter title: 标题文本
     /// - Returns: NSAttributedString
-    /// _Requirements: 3.5_ - 从 XML 的 title 文本创建标题段落
     /// _任务 22.2_ - 标题段落使用 40pt Semibold 字体
     private func createTitleParagraph(_ title: String) -> NSAttributedString {
         let result = NSMutableAttributedString(string: title)
@@ -161,7 +155,6 @@ public final class ASTToAttributedStringConverter {
     /// - Returns: NSAttributedString
     private func convertBlock(_ block: any BlockNode) -> NSAttributedString {
         // 非有序列表块会重置编号计数器
-        // _Requirements: 9.3_ - 只有连续的有序列表才继续编号
         if block.nodeType != .orderedList {
             currentOrderedListNumber = 0
         }
@@ -214,7 +207,6 @@ public final class ASTToAttributedStringConverter {
     /// 转换无序列表节点
     /// - Parameter node: 无序列表节点
     /// - Returns: NSAttributedString
-    /// _Requirements: 9.1, 9.4_ - 设置 listType 属性以支持列表换行继承
     private func convertBulletList(_ node: BulletListNode) -> NSAttributedString {
         let result = NSMutableAttributedString()
 
@@ -232,7 +224,6 @@ public final class ASTToAttributedStringConverter {
 
         // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
         // 这对于列表换行继承功能至关重要
-        // _Requirements: 9.4, 7.1_ - 列表换行继承需要 listType 属性
         let fullRange = NSRange(location: 0, length: result.length)
         result.addAttribute(.listType, value: ListType.bullet, range: fullRange)
         result.addAttribute(.listIndent, value: node.indent, range: fullRange)
@@ -247,13 +238,10 @@ public final class ASTToAttributedStringConverter {
     /// 转换有序列表节点
     /// - Parameter node: 有序列表节点
     /// - Returns: NSAttributedString
-    /// _Requirements: 9.2, 9.3_ - 根据 inputNumber 正确计算显示编号
-    /// _Requirements: 9.4, 7.2_ - 设置 listType 属性以支持列表换行继承
     private func convertOrderedList(_ node: OrderedListNode) -> NSAttributedString {
         let result = NSMutableAttributedString()
 
         // 计算实际显示编号
-        // _Requirements: 9.3_ - inputNumber 规则：
         // - inputNumber = 0 表示继续编号（使用上一个编号 + 1）
         // - inputNumber > 0 表示新列表起始值（实际值 = inputNumber + 1）
         let displayNumber: Int
@@ -281,7 +269,6 @@ public final class ASTToAttributedStringConverter {
 
         // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
         // 这对于列表换行继承功能至关重要
-        // _Requirements: 9.4, 7.2_ - 列表换行继承需要 listType 属性
         let fullRange = NSRange(location: 0, length: result.length)
         result.addAttribute(.listType, value: ListType.ordered, range: fullRange)
         result.addAttribute(.listIndent, value: node.indent, range: fullRange)
@@ -297,7 +284,6 @@ public final class ASTToAttributedStringConverter {
     /// 转换复选框节点
     /// - Parameter node: 复选框节点
     /// - Returns: NSAttributedString
-    /// _Requirements: 9.4_ - 设置 listType 属性以支持列表换行继承
     private func convertCheckbox(_ node: CheckboxNode) -> NSAttributedString {
         let result = NSMutableAttributedString()
 
@@ -318,7 +304,6 @@ public final class ASTToAttributedStringConverter {
         result.append(inlineString)
 
         // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
-        // _Requirements: 9.4_ - 列表换行继承需要 listType 属性
         let fullRange = NSRange(location: 0, length: result.length)
         result.addAttribute(.listType, value: ListType.checkbox, range: fullRange)
         result.addAttribute(.listIndent, value: node.indent, range: fullRange)
@@ -540,19 +525,16 @@ public final class ASTToAttributedStringConverter {
 
         case .heading1:
             // 大标题：使用 FontSizeConstants，常规字重（不加粗）
-            // _Requirements: 7.4_
             attributes[.fontSize] = FontSizeConstants.heading1 // 23pt
             // 不设置 fontWeight，使用默认的 regular
 
         case .heading2:
             // 二级标题：使用 FontSizeConstants，常规字重（不加粗）
-            // _Requirements: 7.5_
             attributes[.fontSize] = FontSizeConstants.heading2 // 20pt
             // 不设置 fontWeight，使用默认的 regular
 
         case .heading3:
             // 三级标题：使用 FontSizeConstants，常规字重（不加粗）
-            // _Requirements: 7.6_
             attributes[.fontSize] = FontSizeConstants.heading3 // 17pt
             // 不设置 fontWeight，使用默认的 regular
 
@@ -686,7 +668,6 @@ public final class ASTToAttributedStringConverter {
             let size = fontSize ?? FontSizeConstants.body
             // 只有明确设置了 fontWeight 或 isBold 时才使用粗体
             // 标题格式不再默认加粗
-            // _Requirements: 7.4, 7.5, 7.6_
             let weight = fontWeight ?? (isBold ? .bold : .regular)
 
             let font = NSFont.systemFont(ofSize: size, weight: weight)

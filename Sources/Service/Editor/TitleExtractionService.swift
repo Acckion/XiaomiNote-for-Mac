@@ -25,7 +25,6 @@ import Foundation
 /// - 支持多种数据源（XML、NSTextStorage）
 /// - 包含完善的错误处理和验证逻辑
 ///
-/// _需求: 1.1, 2.1, 2.2, 2.3_
 @MainActor
 public final class TitleExtractionService {
 
@@ -46,7 +45,6 @@ public final class TitleExtractionService {
     /// - Parameter xmlContent: XML 字符串内容
     /// - Returns: TitleExtractionResult 包含提取结果和元数据
     ///
-    /// _需求: 1.1, 2.1_ - 从 XML 内容提取标题的方法
     ///
     /// 示例：
     /// ```xml
@@ -128,7 +126,6 @@ public final class TitleExtractionService {
     /// - Parameter textStorage: NSTextStorage 对象
     /// - Returns: TitleExtractionResult 包含提取结果和元数据
     ///
-    /// _需求: 1.1, 2.2_ - 从原生编辑器提取标题的方法
     ///
     /// 注意：
     /// - 只提取第一个段落的文本
@@ -227,7 +224,6 @@ public final class TitleExtractionService {
     /// - Parameter title: 待验证的标题文本
     /// - Returns: 验证结果，包含是否有效和错误信息
     ///
-    /// _需求: 2.3_ - 添加标题验证逻辑
     public func validateTitle(_ title: String) -> (isValid: Bool, error: String?) {
         // 检查长度限制
         if title.count > 200 {
@@ -291,7 +287,6 @@ public final class TitleExtractionService {
     /// - Parameter text: 包含 XML 实体的文本
     /// - Returns: 解码后的文本
     ///
-    /// _需求: 2.2_ - 处理特殊字符和XML实体编码
     private func decodeXMLEntities(_ text: String) -> String {
         var result = text
 

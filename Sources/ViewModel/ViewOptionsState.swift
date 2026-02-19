@@ -12,7 +12,6 @@ import Foundation
 /// 视图模式枚举
 ///
 /// 定义笔记列表的显示模式
-/// _Requirements: 4.2, 4.3_
 public enum ViewMode: String, Codable, CaseIterable {
     /// 列表视图 - 传统的垂直列表形式展示笔记
     case list
@@ -50,7 +49,6 @@ public extension ViewMode {
 /// 视图选项状态
 ///
 /// 管理笔记列表的显示选项，包括排序方式、排序方向、日期分组和视图模式
-/// _Requirements: 2.3, 2.7, 2.9, 3.3, 3.6, 4.7_
 public struct ViewOptionsState: Codable, Equatable {
     /// 排序方式
     public var sortOrder: NoteSortOrder
@@ -65,7 +63,6 @@ public struct ViewOptionsState: Codable, Equatable {
     public var viewMode: ViewMode
 
     /// 是否显示笔记数量
-    /// _Requirements: 9.3_
     public var showNoteCount: Bool
 
     /// 初始化方法

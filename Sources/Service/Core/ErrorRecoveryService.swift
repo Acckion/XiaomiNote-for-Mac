@@ -8,7 +8,6 @@ import Foundation
 /// - 重试限制和失败标记
 /// - 失败操作通知用户
 ///
-/// 遵循需求 8.1, 8.7
 @MainActor
 public final class ErrorRecoveryService: ObservableObject {
     public static let shared = ErrorRecoveryService()
@@ -81,7 +80,6 @@ public final class ErrorRecoveryService: ObservableObject {
     /// - Cookie过期：添加到离线队列，等待Cookie刷新
     /// - 其他错误：根据是否可重试决定
     ///
-    /// 遵循需求 8.1
     ///
     /// - Parameters:
     ///   - operation: 操作类型
@@ -147,7 +145,6 @@ public final class ErrorRecoveryService: ObservableObject {
 
     /// 添加操作到统一队列
     ///
-    /// 遵循需求 8.1
     ///
     /// - Parameters:
     ///   - operation: 操作类型

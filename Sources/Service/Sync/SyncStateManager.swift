@@ -64,7 +64,6 @@ actor SyncStateManager {
     ///
     /// - Returns: 当前的 syncTag，如果不存在则返回空字符串
     ///
-    /// **验证: 需求 1.1, 1.2**
     func getCurrentSyncTag() -> String {
         let syncStatus = localStorage.loadSyncStatus()
         let syncTag = syncStatus?.syncTag ?? ""
@@ -81,7 +80,6 @@ actor SyncStateManager {
     ///   - syncTag: 新的 syncTag
     ///   - hasPendingNotes: 是否有待上传笔记
     ///
-    /// **验证: 需求 2.1, 2.2, 2.3, 2.4**
     func stageSyncTag(_ syncTag: String, hasPendingNotes: Bool) async throws {
         LogService.shared.debug(.sync, "暂存 syncTag, 有待上传笔记: \(hasPendingNotes)")
 
@@ -101,7 +99,6 @@ actor SyncStateManager {
     ///
     /// - Returns: 是否确认了 syncTag（true 表示有暂存的 syncTag 被确认）
     ///
-    /// **验证: 需求 3.1, 3.2, 3.3, 3.4**
     @discardableResult
     func confirmPendingSyncTagIfNeeded() async throws -> Bool {
         guard let syncTag = pendingSyncTag else {
@@ -123,7 +120,6 @@ actor SyncStateManager {
     ///
     /// - Returns: 如果有暂存的 syncTag 返回 true
     ///
-    /// **验证: 需求 7.1**
     func hasPendingSyncTag() -> Bool {
         pendingSyncTag != nil
     }
@@ -132,7 +128,6 @@ actor SyncStateManager {
     ///
     /// - Returns: 暂存的 syncTag，如果不存在则返回 nil
     ///
-    /// **验证: 需求 7.2**
     func getPendingSyncTag() -> String? {
         pendingSyncTag
     }
@@ -143,7 +138,6 @@ actor SyncStateManager {
     ///
     /// - Returns: 上次同步时间，如果不存在则返回 nil
     ///
-    /// **验证: 需求 7.3**
     func getLastSyncTime() -> Date? {
         let syncStatus = localStorage.loadSyncStatus()
         let lastSyncTime = syncStatus?.lastSyncTime
@@ -157,7 +151,6 @@ actor SyncStateManager {
     ///
     /// - Returns: 如果有待上传笔记返回 true
     ///
-    /// **验证: 需求 7.4**
     func hasPendingUploadNotes() -> Bool {
         checkHasPendingUploadNotes()
     }
@@ -166,7 +159,6 @@ actor SyncStateManager {
     ///
     /// 在某些错误情况下，可能需要清除暂存的 syncTag 重新开始。
     ///
-    /// **验证: 需求 8.3**
     func clearPendingSyncTag() {
         LogService.shared.debug(.sync, "清除暂存的 syncTag")
         pendingSyncTag = nil
@@ -183,7 +175,6 @@ actor SyncStateManager {
     /// - Parameter syncTag: 要持久化的 syncTag
     /// - Throws: SyncStateError.storageOperationFailed 如果存储操作失败
     ///
-    /// **验证: 需求 3.2**
     private func confirmSyncTag(_ syncTag: String) async throws {
         let syncStatus = SyncStatus(
             lastSyncTime: Date(),
@@ -206,7 +197,6 @@ actor SyncStateManager {
     ///
     /// - Returns: 如果有待上传笔记返回 true
     ///
-    /// **验证: 需求 4.1, 4.2, 4.3, 8.2**
     private func checkHasPendingUploadNotes() -> Bool {
         // 查询 UnifiedOperationQueue 获取待上传笔记数量
         let pendingCount = operationQueue.getPendingUploadCount()
@@ -223,7 +213,6 @@ actor SyncStateManager {
 ///
 /// 定义了 SyncStateManager 可能抛出的所有错误类型。
 ///
-/// **验证: 需求 8.1, 8.2, 8.4**
 enum SyncStateError: Error, LocalizedError {
     /// 存储操作失败
     case storageOperationFailed(Error)

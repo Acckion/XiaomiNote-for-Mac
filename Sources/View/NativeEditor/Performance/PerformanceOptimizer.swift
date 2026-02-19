@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  性能优化器 - 负责编辑器渲染和响应性能优化
-//  需求: 11.1, 11.2, 11.3, 11.4, 11.5
 //
 
 import AppKit
@@ -721,7 +720,6 @@ class IncrementalRenderManager {
 // MARK: - 编辑器初始化优化器
 
 /// 编辑器初始化优化器 - 确保快速初始化
-/// 需求: 11.1
 @MainActor
 class EditorInitializationOptimizer {
 
@@ -738,7 +736,6 @@ class EditorInitializationOptimizer {
         let startTime = CFAbsoluteTimeGetCurrent()
 
         // 预加载字体 - 使用 FontSizeManager 统一管理
-        // _Requirements: 1.1, 1.2, 1.3, 1.4_
         _ = NSFont.systemFont(ofSize: FontSizeConstants.body) // 14pt 正文
         _ = NSFont.systemFont(ofSize: FontSizeConstants.heading1) // 23pt 大标题
         _ = NSFont.systemFont(ofSize: FontSizeConstants.heading2) // 20pt 二级标题
@@ -780,7 +777,6 @@ class EditorInitializationOptimizer {
 
         // 设置合理的默认值
         // 使用 FontSizeConstants.body (14pt) 保持与 FontSizeManager 一致
-        // _Requirements: 1.4_
         textView.font = NSFont.systemFont(ofSize: FontSizeConstants.body)
         textView.textColor = .textColor
 

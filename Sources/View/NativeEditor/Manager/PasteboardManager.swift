@@ -9,7 +9,6 @@ import Foundation
 /// - 从剪贴板导入最合适的格式
 /// - 支持"粘贴并匹配样式"功能
 ///
-/// _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5, 15.6_
 @MainActor
 public class PasteboardManager {
     // MARK: - Singleton
@@ -53,7 +52,6 @@ public class PasteboardManager {
         let item = NSPasteboardItem()
 
         // 1. 导出纯文本格式
-        // _Requirements: 15.1 - 导出纯文本格式
         let plainText = attributedString.string
         item.setString(plainText, forType: .string)
 
@@ -61,7 +59,6 @@ public class PasteboardManager {
         #endif
 
         // 2. 导出 RTF 格式
-        // _Requirements: 15.2 - 导出 RTF 格式
         if let rtfData = try? attributedString.data(
             from: NSRange(location: 0, length: attributedString.length),
             documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
@@ -73,7 +70,6 @@ public class PasteboardManager {
         }
 
         // 3. 导出 HTML 格式
-        // _Requirements: 15.3 - 导出 HTML 格式
         if let htmlData = try? attributedString.data(
             from: NSRange(location: 0, length: attributedString.length),
             documentAttributes: [
@@ -90,7 +86,6 @@ public class PasteboardManager {
         items.append(item)
 
         // 写入剪贴板
-        // _Requirements: 15.4 - 同时写入多种格式到剪贴板
         pasteboard.writeObjects(items)
 
         #if DEBUG
@@ -106,7 +101,6 @@ public class PasteboardManager {
     /// 2. HTML 格式
     /// 3. 纯文本格式（最基础）
     ///
-    /// _Requirements: 15.5 - 按优先级选择最合适的格式
     ///
     /// - Parameter pasteboard: 源剪贴板，默认为通用剪贴板
     /// - Returns: 导入的富文本，如果失败返回 nil
@@ -163,7 +157,6 @@ public class PasteboardManager {
     /// 从剪贴板导入内容，但只保留纯文本，应用当前的打字属性。
     /// 这样可以确保粘贴的内容与周围文本的样式一致。
     ///
-    /// _Requirements: 15.6 - 实现"粘贴并匹配样式"功能
     ///
     /// - Parameters:
     ///   - pasteboard: 源剪贴板，默认为通用剪贴板

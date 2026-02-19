@@ -5,7 +5,6 @@
 //  列表格式处理器 - 统一处理有序列表和无序列表的格式操作
 //  负责列表的创建、切换、转换、继承和取消功能
 //
-//  _Requirements: 1.1-1.3, 2.1-2.3, 3.1-3.3, 4.1-4.3, 5.1-5.3_
 //
 
 import AppKit
@@ -15,7 +14,6 @@ import Foundation
 
 /// 列表格式处理器
 /// 负责处理列表格式的应用、切换、转换和移除
-/// _Requirements: 1.1-1.3, 2.1-2.3, 3.1-3.3, 4.1-4.3_
 @MainActor
 public struct ListFormatHandler {
 
@@ -23,14 +21,12 @@ public struct ListFormatHandler {
 
     /// 正文字体大小 (14pt)
     /// 使用 FontSizeManager 统一管理
-    /// _Requirements: 5.3_
     public static var bodyFontSize: CGFloat {
         FontSizeManager.shared.bodySize
     }
 
     /// 默认字体 (14pt)
     /// 使用 FontSizeManager 统一管理
-    /// _Requirements: 5.3_
     public static var defaultFont: NSFont {
         FontSizeManager.shared.defaultFont
     }
@@ -45,11 +41,9 @@ public struct ListFormatHandler {
     public static let orderNumberWidth: CGFloat = 28
 
     /// 默认行间距（与正文一致）
-    /// _Requirements: 2.1_
     public static let defaultLineSpacing: CGFloat = 4
 
     /// 默认段落间距（与正文一致）
-    /// _Requirements: 2.2_
     public static let defaultParagraphSpacing: CGFloat = 8
 
     // MARK: - 列表应用
@@ -62,7 +56,6 @@ public struct ListFormatHandler {
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
     ///   - indent: 缩进级别（默认为 1）
-    /// _Requirements: 1.1, 2.1, 6.1_
     public static func applyBulletList(
         to textStorage: NSTextStorage,
         range: NSRange,
@@ -109,7 +102,6 @@ public struct ListFormatHandler {
     ///   - range: 应用范围
     ///   - number: 起始编号（默认为 1）
     ///   - indent: 缩进级别（默认为 1）
-    /// _Requirements: 1.2, 2.2, 6.2_
     public static func applyOrderedList(
         to textStorage: NSTextStorage,
         range: NSRange,
@@ -163,7 +155,6 @@ public struct ListFormatHandler {
     ///   - range: 应用范围
     ///   - indent: 缩进级别（默认为 1）
     ///   - level: 复选框级别（默认为 3，对应 XML 中的 level 属性）
-    /// _Requirements: 1.1, 1.4, 1.5, 7.1, 7.3, 7.4_
     public static func applyCheckboxList(
         to textStorage: NSTextStorage,
         range: NSRange,
@@ -211,7 +202,6 @@ public struct ListFormatHandler {
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
-    /// _Requirements: 1.2_
     public static func removeCheckboxList(
         from textStorage: NSTextStorage,
         range: NSRange
@@ -264,7 +254,6 @@ public struct ListFormatHandler {
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
-    /// _Requirements: 1.2, 1.3_
     public static func toggleCheckboxList(
         to textStorage: NSTextStorage,
         range: NSRange
@@ -291,7 +280,6 @@ public struct ListFormatHandler {
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
-    /// _Requirements: 3.1, 3.2, 3.3_
     public static func removeListFormat(
         from textStorage: NSTextStorage,
         range: NSRange
@@ -347,7 +335,6 @@ public struct ListFormatHandler {
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
-    /// _Requirements: 3.1, 4.2_
     public static func toggleBulletList(
         to textStorage: NSTextStorage,
         range: NSRange
@@ -375,7 +362,6 @@ public struct ListFormatHandler {
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
-    /// _Requirements: 3.2, 4.1_
     public static func toggleOrderedList(
         to textStorage: NSTextStorage,
         range: NSRange
@@ -407,7 +393,6 @@ public struct ListFormatHandler {
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
     ///   - targetType: 目标列表类型
-    /// _Requirements: 4.1, 4.2, 4.3_
     public static func convertListType(
         in textStorage: NSTextStorage,
         range: NSRange,
@@ -489,7 +474,6 @@ public struct ListFormatHandler {
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围（应该是整行范围）
-    /// _Requirements: 5.1, 5.2, 5.3_
     public static func handleListHeadingMutualExclusion(
         in textStorage: NSTextStorage,
         range: NSRange
@@ -538,7 +522,6 @@ public struct ListFormatHandler {
     ///   - textStorage: 文本存储
     ///   - range: 应用范围（应该是整行范围）
     /// - Returns: 是否移除了列表格式
-    /// _Requirements: 5.1, 5.2_
     @discardableResult
     public static func handleHeadingListMutualExclusion(
         in textStorage: NSTextStorage,
@@ -763,7 +746,6 @@ public struct ListFormatHandler {
     ///   - indent: 缩进级别
     ///   - bulletWidth: 项目符号宽度
     /// - Returns: 段落样式
-    /// _Requirements: 1.1, 1.2, 1.3, 1.4_
     private static func createListParagraphStyle(indent: Int, bulletWidth: CGFloat) -> NSParagraphStyle {
         let style = NSMutableParagraphStyle()
         let baseIndent = CGFloat(indent - 1) * indentUnit
@@ -790,7 +772,6 @@ public struct ListFormatHandler {
     /// - Parameters:
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
-    /// _Requirements: 5.3_
     private static func applyBodyFontSizePreservingTraits(
         to textStorage: NSTextStorage,
         range: NSRange

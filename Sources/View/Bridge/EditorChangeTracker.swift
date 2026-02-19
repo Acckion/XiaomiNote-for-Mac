@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  编辑器变化追踪器 - 使用版本号机制追踪内容变化
-//  需求: 59.1, 59.2, 59.3, 59.4, 59.5
 //
 
 import Foundation
@@ -44,7 +43,6 @@ import Foundation
 /// }
 /// ```
 ///
-/// _Requirements: FR-1, FR-2, FR-3, FR-4, FR-5_
 @MainActor
 public class EditorChangeTracker: ObservableObject {
     // MARK: - 版本号
@@ -53,14 +51,12 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 每次用户编辑时递增，用于追踪内容变化
     ///
-    /// _Requirements: FR-1.1_
     @Published private(set) var contentVersion = 0
 
     /// 最后保存的版本号
     ///
     /// 保存成功后更新为 contentVersion，用于判断是否需要保存
     ///
-    /// _Requirements: FR-1.2_
     private var lastSavedVersion = 0
 
     // MARK: - 状态标记
@@ -69,14 +65,12 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 程序化修改（如加载笔记）不会增加版本号
     ///
-    /// _Requirements: FR-3.1_
     private var isProgrammaticChange = false
 
     /// 是否正在进行程序化修改（公开只读）
     ///
     /// 用于外部检查当前是否在程序化修改中
     ///
-    /// _Requirements: FR-3.1_
     public var isInProgrammaticChange: Bool {
         isProgrammaticChange
     }
@@ -85,7 +79,6 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 用于区分用户编辑和程序化修改
     ///
-    /// _Requirements: FR-2.1_
     private var hasUserEdits = false
 
     // MARK: - 计算属性
@@ -94,7 +87,6 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 当内容版本号大于最后保存版本号，且有用户编辑时返回 true
     ///
-    /// _Requirements: FR-1.3_
     public var needsSave: Bool {
         contentVersion > lastSavedVersion && hasUserEdits
     }
@@ -117,7 +109,6 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 当用户输入、删除或粘贴文本时调用
     ///
-    /// _Requirements: FR-2.1_
     public func textDidChange() {
         guard !isProgrammaticChange else {
             return
@@ -132,7 +123,6 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 当用户应用或移除格式时调用
     ///
-    /// _Requirements: FR-2.2_
     public func formatDidChange() {
         guard !isProgrammaticChange else {
             return
@@ -147,7 +137,6 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 当用户插入或删除附件（图片、音频等）时调用
     ///
-    /// _Requirements: FR-2.3_
     public func attachmentDidChange() {
         guard !isProgrammaticChange else {
             return
@@ -172,7 +161,6 @@ public class EditorChangeTracker: ObservableObject {
     /// }
     /// ```
     ///
-    /// _Requirements: FR-3.2_
     public func performProgrammaticChange(_ block: () -> Void) {
         let wasProgrammaticChange = isProgrammaticChange
         isProgrammaticChange = true
@@ -185,7 +173,6 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 异步版本的 performProgrammaticChange
     ///
-    /// _Requirements: FR-3.2_
     public func performProgrammaticChange(_ block: @escaping () async -> Void) async {
         let wasProgrammaticChange = isProgrammaticChange
         isProgrammaticChange = true
@@ -200,7 +187,6 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 同步版本号，重置编辑标记
     ///
-    /// _Requirements: FR-4.1_
     public func didSaveSuccessfully() {
         lastSavedVersion = contentVersion
         hasUserEdits = false
@@ -211,7 +197,6 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 版本号保持不变，保留编辑标记
     ///
-    /// _Requirements: FR-4.2_
     public func didSaveFail() {
     }
 
@@ -222,7 +207,6 @@ public class EditorChangeTracker: ObservableObject {
     /// - Parameter savingVersion: 正在保存的版本号
     /// - Returns: 是否有新编辑
     ///
-    /// _Requirements: FR-5.1_
     public func hasNewEditsSince(savingVersion: Int) -> Bool {
         let hasNew = contentVersion > savingVersion
         if hasNew {
@@ -234,7 +218,6 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 用于切换笔记或清空编辑器
     ///
-    /// _Requirements: FR-3.3_
     public func reset() {
         contentVersion = 0
         lastSavedVersion = 0

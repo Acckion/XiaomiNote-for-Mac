@@ -14,7 +14,6 @@
     /// 可复用的菜单项按钮组件
     ///
     /// 支持标题、图标、选中状态显示
-    /// _Requirements: 2.4, 2.8, 3.5, 4.6_
     struct MenuItemButton: View {
 
         // MARK: - Properties
@@ -122,7 +121,6 @@
     /// 视图选项菜单视图
     ///
     /// 显示排序方式、排序方向、日期分组和视图模式选项
-    /// _Requirements: 1.2, 2.1, 2.2, 2.6, 3.2, 4.2_
     struct ViewOptionsMenuView: View {
 
         // MARK: - Properties
@@ -164,7 +162,6 @@
         // MARK: - 排序方式部分
 
         /// 排序方式选项
-        /// _Requirements: 2.1, 2.2, 2.4_
         private var sortOrderSection: some View {
             VStack(alignment: .leading, spacing: 0) {
                 MenuSectionTitle(title: "排序方式")
@@ -184,7 +181,6 @@
         // MARK: - 排序方向部分
 
         /// 排序方向选项
-        /// _Requirements: 2.6, 2.8_
         private var sortDirectionSection: some View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach([SortDirection.descending, .ascending], id: \.self) { direction in
@@ -202,7 +198,6 @@
         // MARK: - 日期分组部分
 
         /// 日期分组选项
-        /// _Requirements: 3.2, 3.5_
         private var dateGroupingSection: some View {
             MenuItemButton(
                 title: "按日期分组",
@@ -216,7 +211,6 @@
         // MARK: - 视图模式部分
 
         /// 视图模式选项
-        /// _Requirements: 4.2, 4.6_
         private var viewModeSection: some View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(ViewMode.allCases, id: \.self) { mode in

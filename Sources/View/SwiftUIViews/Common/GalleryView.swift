@@ -13,7 +13,6 @@ import SwiftUI
 /// 画廊视图
 ///
 /// 以卡片网格形式展示笔记，支持响应式布局、日期分组和键盘导航
-/// _Requirements: 5.1, 5.5, 5.7, 5.8, 5.9, 7.4, 5.3, 5.4, 5.5_
 struct GalleryView: View {
 
     // MARK: - 属性
@@ -33,7 +32,6 @@ struct GalleryView: View {
     @ObservedObject var optionsManager: ViewOptionsManager
 
     /// 动画命名空间（外部传入，用于与 ExpandedNoteView 共享）
-    /// _Requirements: 6.1, 6.4_
     var animation: Namespace.ID
 
     // MARK: - 状态
@@ -50,7 +48,6 @@ struct GalleryView: View {
     // MARK: - 常量
 
     /// 网格列配置：自适应布局，最小宽度200，最大宽度300
-    /// _Requirements: 5.5, 5.6_
     private let columns = [
         GridItem(.adaptive(minimum: 200, maximum: 300), spacing: 16),
     ]
@@ -62,7 +59,6 @@ struct GalleryView: View {
             ScrollView {
                 if optionsManager.isDateGroupingEnabled {
                     // 分组显示模式
-                    // _Requirements: 5.9_
                     groupedGalleryContent
                 } else {
                     // 平铺显示模式
@@ -71,7 +67,6 @@ struct GalleryView: View {
             }
             .onChange(of: windowState.selectedNote?.id) { _, newValue in
                 // 滚动到选中的笔记
-                // _Requirements: 6.7_
                 if let noteId = newValue {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         proxy.scrollTo(noteId, anchor: .center)
@@ -81,7 +76,6 @@ struct GalleryView: View {
         }
         .background(Color(NSColor.windowBackgroundColor))
         // 键盘导航支持
-        // _Requirements: 7.4_
         .onKeyPress(.leftArrow) {
             navigateToPreviousNote()
             return .handled
@@ -112,7 +106,6 @@ struct GalleryView: View {
     // MARK: - 平铺显示内容
 
     /// 平铺显示的画廊内容（不分组）
-    /// _Requirements: 5.1, 5.7_
     private var flatGalleryContent: some View {
         LazyVGrid(columns: columns, spacing: 16) {
             ForEach(viewModel.filteredNotes) { note in
@@ -125,7 +118,6 @@ struct GalleryView: View {
     // MARK: - 分组显示内容
 
     /// 分组显示的画廊内容
-    /// _Requirements: 5.9_
     private var groupedGalleryContent: some View {
         LazyVStack(alignment: .leading, spacing: 24) {
             let groupedNotes = groupNotesByDate(viewModel.filteredNotes)
@@ -184,7 +176,6 @@ struct GalleryView: View {
             isSelected: windowState.selectedNote?.id == note.id,
             onTap: {
                 // 点击卡片时展开笔记
-                // _Requirements: 6.1, 6.6_
                 withAnimation(.easeInOut(duration: 0.35)) {
                     windowState.expandNote(note)
                     windowState.selectNote(note)
@@ -204,7 +195,6 @@ struct GalleryView: View {
     /// 按日期分组笔记
     ///
     /// 与 NotesListView 中的实现保持一致
-    /// _Requirements: 5.8, 5.9_
     private func groupNotesByDate(_ notes: [Note]) -> [String: [Note]] {
         var grouped: [String: [Note]] = [:]
         let calendar = Calendar.current
@@ -267,7 +257,6 @@ struct GalleryView: View {
     // MARK: - 键盘导航
 
     /// 导航到上一个笔记
-    /// _Requirements: 7.4_
     private func navigateToPreviousNote() {
         let notes = viewModel.filteredNotes
         guard !notes.isEmpty else { return }
@@ -285,7 +274,6 @@ struct GalleryView: View {
     }
 
     /// 导航到下一个笔记
-    /// _Requirements: 7.4_
     private func navigateToNextNote() {
         let notes = viewModel.filteredNotes
         guard !notes.isEmpty else { return }
@@ -303,7 +291,6 @@ struct GalleryView: View {
     }
 
     /// 向上导航（跳过一行）
-    /// _Requirements: 7.4_
     private func navigateUp() {
         let notes = viewModel.filteredNotes
         guard !notes.isEmpty else { return }
@@ -324,7 +311,6 @@ struct GalleryView: View {
     }
 
     /// 向下导航（跳过一行）
-    /// _Requirements: 7.4_
     private func navigateDown() {
         let notes = viewModel.filteredNotes
         guard !notes.isEmpty else { return }
@@ -345,7 +331,6 @@ struct GalleryView: View {
     }
 
     /// 打开当前聚焦的笔记
-    /// _Requirements: 7.4_
     private func openFocusedNote() {
         if let note = windowState.selectedNote {
             withAnimation(.easeInOut(duration: 0.35)) {
@@ -359,7 +344,6 @@ struct GalleryView: View {
     /// 笔记右键菜单
     ///
     /// 与 NotesListView 中的实现保持一致
-    /// _Requirements: 7.1_
     @ViewBuilder
     private func noteContextMenu(for note: Note) -> some View {
         // 在新窗口打开笔记

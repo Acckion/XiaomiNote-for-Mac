@@ -5,7 +5,6 @@ import SwiftUI
 
 /// 调试编辑器保存状态枚举
 ///
-/// _Requirements: 4.5, 4.6, 4.7_
 enum DebugSaveStatus: Equatable {
     case saved // 已保存
     case saving // 保存中
@@ -28,7 +27,6 @@ enum DebugSaveStatus: Equatable {
 ///
 /// 提供原始 XML 内容的查看和编辑功能，用于调试格式转换问题和排查数据异常。
 ///
-/// _Requirements: 1.1, 2.1, 2.2, 2.4, 3.1, 3.4, 4.1, 4.5, 4.6, 4.7, 5.1, 6.5_
 @available(macOS 14.0, *)
 struct XMLDebugEditorView: View {
 
@@ -66,7 +64,6 @@ struct XMLDebugEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             // 工具栏区域
-            // _Requirements: 4.1, 4.5, 4.6, 4.7, 5.1_
             debugToolbar
 
             Divider()
@@ -92,11 +89,9 @@ struct XMLDebugEditorView: View {
     ///
     /// 包含保存按钮和状态指示器
     ///
-    /// _Requirements: 4.1, 4.5, 4.6, 4.7, 5.1_
     private var debugToolbar: some View {
         HStack(spacing: 12) {
             // 保存按钮
-            // _Requirements: 4.1, 5.1_
             Button {
                 onSave()
             } label: {
@@ -113,7 +108,6 @@ struct XMLDebugEditorView: View {
             Spacer()
 
             // 保存状态指示器
-            // _Requirements: 4.5, 4.6, 4.7_
             toolbarSaveStatusIndicator
         }
         .padding(.horizontal, 12)
@@ -123,18 +117,15 @@ struct XMLDebugEditorView: View {
 
     /// 工具栏保存状态指示器
     ///
-    /// _Requirements: 4.5, 4.6, 4.7_
     private var toolbarSaveStatusIndicator: some View {
         HStack(spacing: 6) {
             switch saveStatus {
             case .saved:
-                // _Requirements: 4.6_
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(.green)
                 Text("已保存")
                     .foregroundColor(.green)
             case .saving:
-                // _Requirements: 4.5_
                 ProgressView()
                     .scaleEffect(0.7)
                 Text("保存中...")
@@ -146,7 +137,6 @@ struct XMLDebugEditorView: View {
                 Text("未保存")
                     .foregroundColor(.red)
             case let .error(message):
-                // _Requirements: 4.7_
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.red)
                 Text("保存失败")
@@ -159,16 +149,13 @@ struct XMLDebugEditorView: View {
 
     /// 编辑器区域
     ///
-    /// _Requirements: 2.1, 2.2, 2.4, 3.1, 3.4, 6.5_
     @ViewBuilder
     private var editorArea: some View {
         if xmlContent.isEmpty, editingContent.isEmpty {
             // 空内容占位符
-            // _Requirements: 2.4_
             emptyContentPlaceholder
         } else {
             // XML 编辑器
-            // _Requirements: 2.1, 2.2, 3.1, 3.4, 6.5_
             xmlEditor
         }
     }
@@ -177,7 +164,6 @@ struct XMLDebugEditorView: View {
     ///
     /// 当 XML 内容为空时显示占位符提示
     ///
-    /// _Requirements: 2.4_
     private var emptyContentPlaceholder: some View {
         VStack(spacing: 16) {
             Image(systemName: "doc.text")
@@ -200,7 +186,6 @@ struct XMLDebugEditorView: View {
     ///
     /// 使用 TextEditor 显示和编辑 XML 内容
     ///
-    /// _Requirements: 2.1, 2.2, 3.1, 3.4, 6.5_
     private var xmlEditor: some View {
         ScrollView([.horizontal, .vertical]) {
             TextEditor(text: $editingContent)
@@ -220,7 +205,6 @@ struct XMLDebugEditorView: View {
 
     /// 背景颜色（支持深色/浅色模式）
     ///
-    /// _Requirements: 6.5_
     private var backgroundColor: Color {
         Color(nsColor: NSColor.textBackgroundColor)
     }
@@ -237,7 +221,6 @@ struct XMLDebugEditorView: View {
 
     /// 处理内容变化
     ///
-    /// _Requirements: 3.1, 3.4_
     private func handleContentChange(oldValue: String, newValue: String) {
         guard isInitialized, oldValue != newValue else { return }
 

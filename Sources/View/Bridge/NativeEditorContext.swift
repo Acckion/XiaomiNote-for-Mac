@@ -3,7 +3,6 @@
 //  MiNoteMac
 //
 //  原生编辑器上下文 - 管理编辑器状态、格式应用和用户交互
-//  需求: 9.1, 9.2, 9.3, 9.4, 9.5
 //
 
 import AppKit
@@ -109,7 +108,6 @@ enum SpecialElement: Equatable {
 }
 
 /// 缩进操作类型枚举
-/// 需求: 6.1, 6.2, 6.3, 6.5 - 支持增加和减少缩进操作
 enum IndentOperation: Equatable {
     case increase // 增加缩进
     case decrease // 减少缩进
@@ -159,7 +157,6 @@ public enum EditorType: String, CaseIterable, Identifiable, Codable, Sendable {
 }
 
 /// 原生编辑器上下文 - 管理编辑器状态和操作
-/// 需求: 9.1, 9.2, 9.3, 9.4, 9.5
 @MainActor
 public class NativeEditorContext: ObservableObject {
     // MARK: - Published Properties
@@ -202,55 +199,45 @@ public class NativeEditorContext: ObservableObject {
     /// 当笔记切换时，SwiftUI 可能无法正确检测 NSAttributedString 的属性变化
     /// 通过递增版本号，可以强制触发 NativeEditorView 的 updateNSView 方法
     ///
-    /// _Requirements: 3.1_
     @Published var contentVersion = 0
 
     // MARK: - 内容保护属性
 
-    // _Requirements: 2.5, 9.1_ - 保存失败时的内容保护
 
     /// 保存失败时的备份内容
     ///
     /// 当保存操作失败时，将当前编辑内容备份到此属性
     /// 用于后续重试保存或恢复内容
     ///
-    /// _Requirements: 2.5, 9.1_
     @Published var backupContent: NSAttributedString?
 
     /// 最后一次保存失败的错误信息
     ///
-    /// _Requirements: 9.1_
     @Published var lastSaveError: String?
 
     /// 是否有待重试的保存操作
     ///
-    /// _Requirements: 9.1_
     @Published var hasPendingRetry = false
 
     /// 部分激活的格式集合（用于混合格式状态显示）
-    /// 需求: 6.1, 6.2
     @Published var partiallyActiveFormats: Set<TextFormat> = []
 
     /// 格式激活比例（用于混合格式状态显示）
-    /// 需求: 6.2
     @Published var formatActivationRatios: [TextFormat: Double] = [:]
 
     // MARK: - 版本号机制属性
 
-    // _Requirements: FR-1, FR-6_ - 版本号追踪和自动保存
 
     /// 变化追踪器
     ///
     /// 使用版本号机制追踪内容变化，避免内容比较的性能开销和误判问题
     ///
-    /// _Requirements: FR-1, FR-2, FR-3, FR-4_
     let changeTracker = EditorChangeTracker()
 
     /// 自动保存管理器
     ///
     /// 负责自动保存的调度、防抖和并发控制
     ///
-    /// _Requirements: FR-6_
     private lazy var autoSaveManager = AutoSaveManager { [weak self] in
         await self?.performAutoSave()
     }
@@ -259,7 +246,6 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// 通过版本号差异判断是否需要保存，避免内容比较的性能开销
     ///
-    /// _Requirements: FR-1.3_
     public var needsSave: Bool {
         changeTracker.needsSave
     }
@@ -283,7 +269,6 @@ public class NativeEditorContext: ObservableObject {
     private let selectionChangeSubject = PassthroughSubject<NSRange, Never>()
 
     /// 缩进操作发布者
-    /// 需求: 6.1, 6.2, 6.3, 6.5 - 支持缩进操作
     private let indentChangeSubject = PassthroughSubject<IndentOperation, Never>()
 
     /// 格式转换器
@@ -301,11 +286,9 @@ public class NativeEditorContext: ObservableObject {
     // MARK: - 格式提供者
 
     /// 格式提供者（延迟初始化）
-    /// _Requirements: 3.1, 3.2, 3.3_
     private var _formatProvider: NativeFormatProvider?
 
     /// 格式提供者（公开访问）
-    /// _Requirements: 3.1, 3.2, 3.3_
     public var formatProvider: NativeFormatProvider {
         if _formatProvider == nil {
             _formatProvider = NativeFormatProvider(editorContext: self)
@@ -339,7 +322,6 @@ public class NativeEditorContext: ObservableObject {
     }
 
     /// 缩进操作发布者
-    /// 需求: 6.1, 6.2, 6.3, 6.5 - 支持缩进操作
     var indentChangePublisher: AnyPublisher<IndentOperation, Never> {
         indentChangeSubject.eraseToAnyPublisher()
     }
@@ -369,10 +351,9 @@ public class NativeEditorContext: ObservableObject {
         }
     }
 
-    // MARK: - Public Methods - 格式应用 (需求 9.3)
+    // MARK: - Public Methods - 格式应用
 
     /// 当前格式应用方式（用于一致性检查）
-    /// 需求: 5.4 - 确保格式应用方式一致性
     @Published var currentApplicationMethod: FormatApplicationMethod = .programmatic
 
     /// 应用格式到选中文本
@@ -385,13 +366,11 @@ public class NativeEditorContext: ObservableObject {
     /// - Parameters:
     ///   - format: 要应用的格式
     ///   - method: 应用方式
-    /// 需求: 5.4 - 确保格式应用方式一致性
     func applyFormat(_ format: TextFormat, method: FormatApplicationMethod) {
         // 记录应用方式
         currentApplicationMethod = method
 
         // 使用批量更新机制，减少视图重绘次数
-        // _需求: FR-3.3.3 - 批量更新机制_
         batchUpdateState {
             // 切换格式状态
             if currentFormats.contains(format) {
@@ -409,14 +388,12 @@ public class NativeEditorContext: ObservableObject {
         formatChangeSubject.send(format)
 
         // 使用 CursorFormatManager 处理工具栏格式切换
-        // _Requirements: 6.3 - 同步更新 Format_State 和 Typing_Attributes
         CursorFormatManager.shared.handleToolbarFormatToggle(format)
 
         // 标记有未保存的更改
         hasUnsavedChanges = true
 
         // 使用版本号机制追踪格式变化
-        // _Requirements: FR-2.2, FR-6_
         changeTracker.formatDidChange()
         autoSaveManager.scheduleAutoSave()
 
@@ -440,7 +417,6 @@ public class NativeEditorContext: ObservableObject {
     /// 清除所有格式
     func clearAllFormats() {
         // 使用批量更新机制，减少视图重绘次数
-        // _需求: FR-3.3.3 - 批量更新机制_
         batchUpdateState {
             currentFormats.removeAll()
             for format in TextFormat.allCases {
@@ -449,7 +425,6 @@ public class NativeEditorContext: ObservableObject {
         }
 
         // 使用版本号机制追踪格式变化
-        // _Requirements: FR-2.2, FR-6_
         changeTracker.formatDidChange()
         autoSaveManager.scheduleAutoSave()
     }
@@ -458,7 +433,6 @@ public class NativeEditorContext: ObservableObject {
     func clearHeadingFormat() {
 
         // 使用批量更新机制，减少视图重绘次数
-        // _需求: FR-3.3.3 - 批量更新机制_
         batchUpdateState {
             // 移除所有标题格式
             currentFormats.remove(.heading1)
@@ -470,7 +444,6 @@ public class NativeEditorContext: ObservableObject {
         }
 
         // 重置字体大小为正文大小（13pt）
-        // _需求: 1.6, 1.7, 5.1, 5.4, 5.5_
         resetFontSizeToBody()
 
         // 注意：不要调用 formatChangeSubject.send(.heading1)！
@@ -482,7 +455,6 @@ public class NativeEditorContext: ObservableObject {
         hasUnsavedChanges = true
 
         // 使用版本号机制追踪格式变化
-        // _Requirements: FR-2.2, FR-6_
         changeTracker.formatDidChange()
         autoSaveManager.scheduleAutoSave()
 
@@ -624,7 +596,7 @@ public class NativeEditorContext: ObservableObject {
         insertSpecialElement(.audio(fileId: fileId, digest: digest, mimeType: mimeType))
     }
 
-    // MARK: - Public Methods - 录音模板操作 (需求 4.2, 4.3)
+    // MARK: - Public Methods - 录音模板操作
 
     /// 插入录音模板占位符
     ///
@@ -668,7 +640,6 @@ public class NativeEditorContext: ObservableObject {
         hasUnsavedChanges = true
 
         // 使用版本号机制追踪附件变化
-        // _Requirements: FR-2.3, FR-6_
         changeTracker.attachmentDidChange()
         autoSaveManager.scheduleAutoSave()
 
@@ -724,7 +695,6 @@ public class NativeEditorContext: ObservableObject {
             hasUnsavedChanges = true
 
             // 使用版本号机制追踪附件变化
-            // _Requirements: FR-2.3, FR-6_
             changeTracker.attachmentDidChange()
             autoSaveManager.scheduleAutoSave()
 
@@ -844,14 +814,12 @@ public class NativeEditorContext: ObservableObject {
     // MARK: - Public Methods - 缩进操作
 
     /// 增加缩进
-    /// 需求: 6.1, 6.3, 6.5 - 增加当前行或选中文本的缩进级别
     func increaseIndent() {
         indentChangeSubject.send(.increase)
         hasUnsavedChanges = true
     }
 
     /// 减少缩进
-    /// 需求: 6.2, 6.4, 6.5 - 减少当前行或选中文本的缩进级别
     func decreaseIndent() {
         indentChangeSubject.send(.decrease)
         hasUnsavedChanges = true
@@ -879,11 +847,10 @@ public class NativeEditorContext: ObservableObject {
         selectionChangeSubject.send(range)
     }
 
-    /// 设置编辑器焦点状态 (需求 9.5)
+    /// 设置编辑器焦点状态
     /// - Parameter focused: 是否获得焦点
     ///
     /// 当焦点状态变化时，发送 `.editorFocusDidChange` 通知以更新菜单状态
-    /// _Requirements: 14.5_
     func setEditorFocused(_ focused: Bool) {
         // 只有状态真正变化时才更新和发送通知
         guard isEditorFocused != focused else { return }
@@ -891,12 +858,10 @@ public class NativeEditorContext: ObservableObject {
         isEditorFocused = focused
 
         // 发送编辑器焦点变化通知
-        // _Requirements: 14.5_
         postEditorFocusNotification(focused)
 
         if focused {
             // 注册格式提供者到 FormatStateManager
-            // _Requirements: 8.4_
             FormatStateManager.shared.setActiveProvider(formatProvider)
 
             // 同步编辑器上下文状态
@@ -913,7 +878,6 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// 当编辑器焦点状态变化时，发送通知以更新菜单状态
     ///
-    /// _Requirements: 14.5_
     private func postEditorFocusNotification(_ focused: Bool) {
         NotificationCenter.default.post(
             name: .editorFocusDidChange,
@@ -938,7 +902,6 @@ public class NativeEditorContext: ObservableObject {
         contentChangeSubject.send(text)
 
         // 使用版本号机制追踪文本变化
-        // _Requirements: FR-2.1, FR-6_
         changeTracker.textDidChange()
         autoSaveManager.scheduleAutoSave()
     }
@@ -954,7 +917,6 @@ public class NativeEditorContext: ObservableObject {
             contentChangeSubject.send(text)
 
             // 使用版本号机制追踪文本变化
-            // _Requirements: FR-2.1, FR-6_
             changeTracker.textDidChange()
             autoSaveManager.scheduleAutoSave()
         }
@@ -966,7 +928,6 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// - Parameter value: 新的状态值
     ///
-    /// _Requirements: 5.1_ - 异步状态更新方法
     func updateHasUnsavedChangesAsync(_ value: Bool) {
         Task { @MainActor in
             hasUnsavedChanges = value
@@ -982,10 +943,8 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// - Parameter xml: 小米笔记 XML 格式内容
     ///
-    /// _Requirements: 3.5_ - 从 XML 加载标题段落
     func loadFromXML(_ xml: String) {
         // 使用程序化修改包裹，确保版本号不变
-        // _Requirements: FR-3_
         changeTracker.performProgrammaticChange {
             loadFromXMLInternal(xml)
         }
@@ -1064,13 +1023,11 @@ public class NativeEditorContext: ObservableObject {
             nsAttributedText = mutableAttributed
 
             // 新增：递增版本号，强制触发视图更新
-            // _Requirements: 3.1_
             contentVersion += 1
 
             // 关键修复：移除 contentChangeSubject.send() 调用
             // loadFromXML 是加载操作，不是编辑操作，不应触发 handleExternalContentUpdate
             // contentVersion 的递增已经足以触发 SwiftUI 视图更新
-            // _Requirements: 5.3_ - loadFromXML 不触发 contentChangeSubject
 
             // 调试日志：检查斜体字体是否正确保留
             mutableAttributed.enumerateAttribute(.font, in: fullRange, options: []) { value, range, _ in
@@ -1132,7 +1089,6 @@ public class NativeEditorContext: ObservableObject {
 
             return xmlContent
         } catch {
-            // _Requirements: 9.3_ - 格式转换失败时记录错误日志
             return ""
         }
     }
@@ -1144,7 +1100,6 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// - Returns: 标题文本，如果没有标题段落则返回空字符串
     ///
-    /// _Requirements: 3.3_ - 从编辑器提取标题文本
     ///
     /// 注意：
     /// - 只提取第一个段落的文本
@@ -1167,7 +1122,6 @@ public class NativeEditorContext: ObservableObject {
 
     // MARK: - 标题段落支持方法
 
-    // _Requirements: 3.1, 3.3_ - 标题段落管理
 
     /// 插入标题段落
     ///
@@ -1176,7 +1130,6 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// - Parameter title: 标题文本
     ///
-    /// _Requirements: 3.1_ - 将标题作为第一个段落插入编辑器
     ///
     /// 注意：
     /// - 如果编辑器已有内容，标题会插入到最前面
@@ -1206,7 +1159,6 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// - Returns: 标题文本，如果没有标题段落则返回空字符串
     ///
-    /// _Requirements: 3.3_ - 从编辑器提取标题文本
     public func extractTitleFromContent() -> String {
         extractTitle()
     }
@@ -1268,35 +1220,29 @@ public class NativeEditorContext: ObservableObject {
     /// 1. 通过 contentChangeSubject 发布内容变化
     /// 2. hasUnsavedChanges 正确更新
     ///
-    /// _Requirements: 2.1, 6.1_
     private func setupInternalObservers() {
         // 监听 nsAttributedText 变化
         // 当内容变化时，更新 hasUnsavedChanges 状态
-        // _Requirements: 6.1_ - 内容未保存时显示"未保存"状态
         $nsAttributedText
             .dropFirst()
             .sink { [weak self] newContent in
                 guard let self else { return }
 
                 // 检查是否是程序化修改
-                // _Requirements: FR-3.1_ - 程序化修改不触发保存
                 if changeTracker.isInProgrammaticChange {
                     return
                 }
 
                 // 更新未保存状态
-                // _Requirements: 6.1_
                 hasUnsavedChanges = true
 
                 // 发布内容变化通知
-                // _Requirements: 2.1_ - 内容变化时触发保存流程
                 // 注意：这里不直接发送 contentChangeSubject，因为 updateNSContent 方法已经会发送
                 // 这里只处理通过 @Published 属性直接修改的情况
             }
             .store(in: &cancellables)
 
         // 监听版本号变化,用于状态同步
-        // _Requirements: FR-1, FR-6_ - 使用版本号机制判断是否需要保存
         changeTracker.$contentVersion
             .dropFirst()
             .removeDuplicates()
@@ -1307,7 +1253,6 @@ public class NativeEditorContext: ObservableObject {
                 let needsSave = needsSave
 
                 // 发送保存状态变化通知
-                // _Requirements: FR-1, FR-6_
                 NotificationCenter.default.post(
                     name: .nativeEditorSaveStatusDidChange,
                     object: self,
@@ -1322,7 +1267,6 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// 当内容成功保存后调用此方法，重置 hasUnsavedChanges 状态
     ///
-    /// _Requirements: 6.3_ - 保存完成时显示"已保存"状态
     public func markContentSaved() {
         hasUnsavedChanges = false
         // 清除备份内容和错误状态
@@ -1392,7 +1336,6 @@ public class NativeEditorContext: ObservableObject {
 
     // MARK: - 自动保存方法
 
-    // _Requirements: FR-4, FR-5, FR-6_ - 自动保存逻辑
 
     /// 执行自动保存
     ///
@@ -1502,7 +1445,6 @@ public class NativeEditorContext: ObservableObject {
         let specialFormats = detectSpecialElementFormats(at: attributePosition)
         detectedFormats.formUnion(specialFormats)
 
-        // 需求 6.1: 如果有选中范围，合并混合格式检测结果
         if selectedRange.length > 0 {
             let mixedHandler = MixedFormatStateHandler.shared
             let activeFormats = mixedHandler.getActiveFormats(in: nsAttributedText, range: selectedRange)
@@ -1588,7 +1530,7 @@ public class NativeEditorContext: ObservableObject {
             break
         }
 
-        // 加粗检测 (需求 2.1)
+        // 加粗检测
         // 方法 1: 检查 symbolicTraits
         var isBold = traits.contains(.bold)
 
@@ -1616,7 +1558,7 @@ public class NativeEditorContext: ObservableObject {
             formats.insert(.bold)
         }
 
-        // 斜体检测 (需求 2.2)
+        // 斜体检测
         // 方法 1: 检查 symbolicTraits
         var isItalic = traits.contains(.italic)
 
@@ -1811,7 +1753,6 @@ public class NativeEditorContext: ObservableObject {
             }
             errorHandler.resetErrorCount()
         } catch {
-            // 需求 4.2: 状态同步失败时重新检测格式状态
             let context = FormatErrorContext(
                 operation: "updateFormatsWithValidation",
                 format: nil,
@@ -1914,7 +1855,7 @@ public class NativeEditorContext: ObservableObject {
         return validated
     }
 
-    /// 检测光标位置的特殊元素 (需求 9.2, 9.4)
+    /// 检测光标位置的特殊元素
     private func detectSpecialElementAtCursor() {
         guard !nsAttributedText.string.isEmpty else {
             currentSpecialElement = nil
@@ -2006,7 +1947,6 @@ public class NativeEditorContext: ObservableObject {
     /// - Parameter format: 要应用的格式
     private func handleMutuallyExclusiveFormats(for format: TextFormat) {
         // 使用批量更新机制，减少视图重绘次数
-        // _需求: FR-3.3.3 - 批量更新机制_
         batchUpdateState {
             handleMutuallyExclusiveFormatsInline(for: format)
         }

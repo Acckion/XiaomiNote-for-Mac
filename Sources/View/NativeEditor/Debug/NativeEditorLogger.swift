@@ -60,7 +60,6 @@ enum LogLevel: Int, Comparable, CaseIterable {
 // MARK: - 日志类别
 
 /// 日志类别 - 用于分类和过滤日志
-/// 需求: 8.1 - 启用调试模式时输出格式状态变化的详细日志
 enum LogCategory: String, CaseIterable {
     case general = "General"
     case formatMenu = "FormatMenu"
@@ -142,7 +141,6 @@ struct LogEntry: Identifiable {
 // MARK: - 格式状态变化记录
 
 /// 格式状态变化记录
-/// 需求: 8.1 - 格式状态变化的详细日志
 struct FormatStateChangeRecord: Identifiable {
     let id = UUID()
     let timestamp: Date
@@ -185,7 +183,6 @@ enum FormatStateChangeTrigger: String {
 
 /// 原生编辑器日志记录器
 /// 提供详细的日志记录、格式转换日志和性能日志
-/// 需求: 8.1 - 启用调试模式时输出格式状态变化的详细日志
 @MainActor
 final class NativeEditorLogger: ObservableObject {
 
@@ -196,7 +193,6 @@ final class NativeEditorLogger: ObservableObject {
     // MARK: - Published Properties
 
     /// 是否启用调试模式
-    /// 需求: 8.1 - 创建调试模式的开关
     @Published var isDebugModeEnabled = false {
         didSet {
             if isDebugModeEnabled != oldValue {
@@ -210,7 +206,6 @@ final class NativeEditorLogger: ObservableObject {
     }
 
     /// 当前日志级别
-    /// 需求: 8.1 - 实现可配置的日志级别
     @Published var currentLogLevel: LogLevel = .info
 
     /// 启用的日志类别
@@ -222,7 +217,6 @@ final class NativeEditorLogger: ObservableObject {
     private var logEntries: [LogEntry] = []
 
     /// 格式状态变化记录
-    /// 需求: 8.1 - 添加格式状态变化的日志记录
     private var formatStateChanges: [FormatStateChangeRecord] = []
 
     /// 最大日志条目数
@@ -256,7 +250,6 @@ final class NativeEditorLogger: ObservableObject {
     var enablePerformanceLogging = true
 
     /// 格式状态变化日志是否启用
-    /// 需求: 8.1 - 添加格式状态变化的日志记录
     var enableFormatStateLogging = true
 
     /// 详细跟踪日志是否启用
@@ -380,7 +373,6 @@ final class NativeEditorLogger: ObservableObject {
     // MARK: - Specialized Logging
 
     /// 记录格式状态变化
-    /// 需求: 8.1 - 添加格式状态变化的日志记录
     func logFormatStateChange(
         format: TextFormat,
         previousState: Bool,
@@ -435,7 +427,6 @@ final class NativeEditorLogger: ObservableObject {
     }
 
     /// 记录格式应用操作
-    /// 需求: 8.1 - 添加格式状态变化的日志记录
     func logFormatApplication(
         format: TextFormat,
         range: NSRange,
@@ -472,7 +463,6 @@ final class NativeEditorLogger: ObservableObject {
     }
 
     /// 记录状态同步操作
-    /// 需求: 8.1 - 添加格式状态变化的日志记录
     func logStateSynchronization(
         cursorPosition: Int,
         detectedFormats: Set<TextFormat>,
@@ -506,7 +496,6 @@ final class NativeEditorLogger: ObservableObject {
     }
 
     /// 记录状态检测操作
-    /// 需求: 8.1 - 添加格式状态变化的日志记录
     func logStateDetection(
         format: TextFormat,
         detected: Bool,
@@ -750,7 +739,6 @@ final class NativeEditorLogger: ObservableObject {
     }
 
     /// 获取格式状态变化记录
-    /// 需求: 8.1 - 添加格式状态变化的日志记录
     func getFormatStateChanges() -> [FormatStateChangeRecord] {
         formatStateChanges
     }
@@ -798,7 +786,6 @@ final class NativeEditorLogger: ObservableObject {
     }
 
     /// 生成调试报告
-    /// 需求: 8.1 - 启用调试模式时输出格式状态变化的详细日志
     func generateDebugReport() -> String {
         var report = """
         ========================================
@@ -862,13 +849,11 @@ final class NativeEditorLogger: ObservableObject {
     // MARK: - Debug Mode
 
     /// 启用调试模式
-    /// 需求: 8.1 - 创建调试模式的开关
     func enableDebugMode() {
         isDebugModeEnabled = true
     }
 
     /// 禁用调试模式
-    /// 需求: 8.1 - 创建调试模式的开关
     func disableDebugMode() {
         isDebugModeEnabled = false
     }
@@ -910,7 +895,6 @@ final class NativeEditorLogger: ObservableObject {
     }
 
     /// 设置日志级别
-    /// 需求: 8.1 - 实现可配置的日志级别
     func setLogLevel(_ level: LogLevel) {
         minimumLogLevel = level
         currentLogLevel = level

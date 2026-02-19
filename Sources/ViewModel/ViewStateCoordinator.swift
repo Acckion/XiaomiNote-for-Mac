@@ -365,9 +365,6 @@ public class ViewStateCoordinator: ObservableObject {
             let saved = await saveCurrentContent()
             if !saved {
                 log("⚠️ 保存失败，但继续切换文件夹")
-                // 即使保存失败，也继续切换（用户可能选择放弃更改）
-                // 根据需求 6.3，如果保存失败应该显示错误提示并询问用户
-                // 但目前简化处理，直接继续切换
             } else {
                 log("✅ 保存成功，继续切换文件夹")
             }

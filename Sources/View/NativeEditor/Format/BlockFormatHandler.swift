@@ -5,7 +5,6 @@
 //  块级格式处理器 - 统一处理标题、列表、引用等块级格式
 //  负责格式的应用、检测、移除和互斥逻辑
 //
-//  _Requirements: 3.1-3.7, 5.4, 5.5, 5.6_
 //
 
 import AppKit
@@ -15,7 +14,6 @@ import Foundation
 
 /// 块级格式处理器
 /// 统一处理所有块级格式（标题、列表、引用）
-/// _Requirements: 3.1-3.7_
 @MainActor
 public struct BlockFormatHandler {
 
@@ -23,21 +21,18 @@ public struct BlockFormatHandler {
 
     /// 大标题字体大小 (23pt)
     /// 使用 FontSizeManager 统一管理
-    /// _Requirements: 1.1, 1.5_
     public static var heading1Size: CGFloat {
         FontSizeManager.shared.heading1Size
     }
 
     /// 二级标题字体大小 (20pt)
     /// 使用 FontSizeManager 统一管理
-    /// _Requirements: 1.2, 1.5_
     public static var heading2Size: CGFloat {
         FontSizeManager.shared.heading2Size
     }
 
     /// 三级标题字体大小 (17pt)
     /// 使用 FontSizeManager 统一管理
-    /// _Requirements: 1.3, 1.5_
     public static var heading3Size: CGFloat {
         FontSizeManager.shared.heading3Size
     }
@@ -61,23 +56,19 @@ public struct BlockFormatHandler {
     public static let quotePadding: CGFloat = 12
 
     /// 默认行间距（与正文一致）
-    /// _Requirements: 2.1_
     public static let defaultLineSpacing: CGFloat = 4
 
     /// 默认段落间距（与正文一致）
-    /// _Requirements: 2.2_
     public static let defaultParagraphSpacing: CGFloat = 8
 
     /// 正文字体大小 (14pt)
     /// 使用 FontSizeManager 统一管理
-    /// _Requirements: 1.4, 1.5_
     public static var bodyFontSize: CGFloat {
         FontSizeManager.shared.bodySize
     }
 
     /// 默认字体 (14pt)
     /// 使用 FontSizeManager 统一管理
-    /// _Requirements: 1.4, 1.5_
     public static var defaultFont: NSFont {
         FontSizeManager.shared.defaultFont
     }
@@ -103,7 +94,6 @@ public struct BlockFormatHandler {
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
     ///   - toggle: 是否切换模式（true 则切换，false 则强制应用）
-    /// _Requirements: 3.1-3.7, 5.1, 5.2, 5.3_
     public static func apply(
         _ format: TextFormat,
         to range: NSRange,
@@ -177,7 +167,6 @@ public struct BlockFormatHandler {
     ///   - position: 检测位置
     ///   - textStorage: 文本存储
     /// - Returns: 当前位置的块级格式（如果有）
-    /// _Requirements: 3.1-3.6_
     public static func detect(at position: Int, in textStorage: NSTextStorage) -> TextFormat? {
         guard position >= 0, position < textStorage.length else {
             return nil
@@ -240,7 +229,6 @@ public struct BlockFormatHandler {
     /// - Parameters:
     ///   - range: 移除范围
     ///   - textStorage: 文本存储
-    /// _Requirements: 3.7_
     public static func removeBlockFormat(from range: NSRange, in textStorage: NSTextStorage) {
         let lineRange = (textStorage.string as NSString).lineRange(for: range)
 
@@ -301,7 +289,6 @@ public struct BlockFormatHandler {
     ///   - position: 检测位置（光标位置）
     ///   - textStorage: 文本存储
     /// - Returns: 是否为空列表项
-    /// _Requirements: 5.4, 5.5, 5.6, 8.1, 8.2, 8.3_
     public static func isListItemEmpty(at position: Int, in textStorage: NSTextStorage) -> Bool {
         guard position >= 0 && position <= textStorage.length else {
             return false
@@ -377,7 +364,6 @@ public struct BlockFormatHandler {
     ///   - position: 检测位置
     ///   - textStorage: 文本存储
     /// - Returns: 列表类型（bulletList、numberedList、checkbox 或 nil）
-    /// _Requirements: 5.4, 5.5, 5.6_
     public static func getListType(at position: Int, in textStorage: NSTextStorage) -> TextFormat? {
         guard position >= 0, position < textStorage.length else {
             return nil
@@ -403,7 +389,6 @@ public struct BlockFormatHandler {
     ///   - position: 检测位置
     ///   - textStorage: 文本存储
     /// - Returns: 是否是列表格式
-    /// _Requirements: 5.4, 5.5, 5.6_
     public static func isList(at position: Int, in textStorage: NSTextStorage) -> Bool {
         getListType(at: position, in: textStorage) != nil
     }
@@ -469,7 +454,6 @@ public struct BlockFormatHandler {
     ///   - level: 标题级别（1-3）
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
-    /// _Requirements: 2.1, 2.2, 2.3, 5.1, 5.2_
     private static func applyHeading(level: Int, to range: NSRange, in textStorage: NSTextStorage) {
         let fontSize: CGFloat
 
@@ -496,7 +480,6 @@ public struct BlockFormatHandler {
     /// 完全基于字体大小检测，因为在小米笔记中字体大小和标题类型是一一对应的
     /// - Parameter attributes: 属性字典
     /// - Returns: 标题级别（1-3），如果不是标题则返回 nil
-    /// _Requirements: 3.1, 3.2, 3.3, 3.4_
     private static func detectHeadingLevel(from attributes: [NSAttributedString.Key: Any]) -> Int? {
         // 通过字体大小判断，使用 FontSizeManager 的检测逻辑
         if let font = attributes[.font] as? NSFont {
@@ -517,7 +500,6 @@ public struct BlockFormatHandler {
     ///   - range: 应用范围
     ///   - textStorage: 文本存储
     ///   - indent: 缩进级别（默认为 1）
-    /// _Requirements: 1.1, 2.1, 6.1 - 使用 ListFormatHandler 统一处理
     private static func applyBulletList(to range: NSRange, in textStorage: NSTextStorage, indent: Int = 1) {
         // 使用 ListFormatHandler 统一处理无序列表格式
         // 这确保了列表附件的正确创建和列表与标题的互斥处理
@@ -533,7 +515,6 @@ public struct BlockFormatHandler {
     ///   - textStorage: 文本存储
     ///   - number: 列表编号（默认为 1）
     ///   - indent: 缩进级别（默认为 1）
-    /// _Requirements: 1.2, 2.2, 6.2 - 使用 ListFormatHandler 统一处理
     private static func applyNumberedList(to range: NSRange, in textStorage: NSTextStorage, number: Int = 1, indent: Int = 1) {
         // 使用 ListFormatHandler 统一处理有序列表格式
         // 这确保了列表附件的正确创建和列表与标题的互斥处理
@@ -550,7 +531,6 @@ public struct BlockFormatHandler {
     ///   - textStorage: 文本存储
     ///   - indent: 缩进级别（默认为 1）
     ///   - level: 复选框级别（默认为 3）
-    /// _Requirements: 1.1, 1.4, 1.5, 7.1, 7.3, 7.4 - 使用 ListFormatHandler 统一处理
     private static func applyCheckbox(to range: NSRange, in textStorage: NSTextStorage, indent: Int = 1, level: Int = 3) {
         // 使用 ListFormatHandler 统一处理复选框列表格式
         // 这确保了：
@@ -566,7 +546,6 @@ public struct BlockFormatHandler {
     ///   - indent: 缩进级别
     ///   - bulletWidth: 项目符号宽度
     /// - Returns: 段落样式
-    /// _Requirements: 1.1, 1.2, 1.3, 1.4_
     private static func createListParagraphStyle(indent: Int, bulletWidth: CGFloat) -> NSParagraphStyle {
         let style = NSMutableParagraphStyle()
         let baseIndent = CGFloat(indent - 1) * indentUnit
@@ -577,7 +556,6 @@ public struct BlockFormatHandler {
         style.defaultTabInterval = indentUnit
 
         // 设置行间距和段落间距（与正文一致）
-        // _Requirements: 1.1, 1.2, 1.3, 1.4_
         style.lineSpacing = defaultLineSpacing
         style.paragraphSpacing = defaultParagraphSpacing
 

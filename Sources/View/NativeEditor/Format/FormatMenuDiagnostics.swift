@@ -30,7 +30,6 @@ enum DiagnosticInfoType: String, CaseIterable {
 // MARK: - 问题类型
 
 /// 格式菜单问题类型
-/// 需求: 8.4 - 创建格式问题的诊断工具
 enum FormatMenuProblemType: String, CaseIterable {
     case formatNotApplied = "格式未应用"
     case stateNotSynchronized = "状态未同步"
@@ -76,7 +75,6 @@ enum FormatMenuProblemType: String, CaseIterable {
 // MARK: - 问题报告
 
 /// 格式菜单问题报告
-/// 需求: 8.4 - 添加问题报告的生成功能
 struct FormatMenuProblemReport: Identifiable {
     let id = UUID()
     let timestamp: Date
@@ -160,7 +158,6 @@ struct FormatMenuProblemReport: Identifiable {
 // MARK: - 上下文收集器
 
 /// 上下文信息收集器
-/// 需求: 8.4 - 实现上下文信息的收集
 enum DiagnosticContextCollector {
 
     /// 收集系统信息
@@ -434,7 +431,6 @@ struct FormatMenuDiagnosticSnapshot {
 
 /// 格式菜单诊断工具
 /// 收集和分析格式菜单问题的诊断信息
-/// 需求: 8.4 - 创建格式问题的诊断工具，实现上下文信息的收集，添加问题报告的生成功能
 @MainActor
 final class FormatMenuDiagnostics {
 
@@ -457,7 +453,6 @@ final class FormatMenuDiagnostics {
     private var snapshots: [FormatMenuDiagnosticSnapshot] = []
 
     /// 问题报告历史
-    /// 需求: 8.4 - 添加问题报告的生成功能
     private var problemReports: [FormatMenuProblemReport] = []
 
     /// 最大快照数
@@ -816,7 +811,6 @@ final class FormatMenuDiagnostics {
 
     // MARK: - Problem Report Generation
 
-    // 需求: 8.4 - 添加问题报告的生成功能
 
     /// 创建问题报告
     /// - Parameters:
@@ -1049,7 +1043,6 @@ final class FormatMenuDiagnostics {
 
     // MARK: - Auto Diagnostics
 
-    // 需求: 8.4 - 创建格式问题的诊断工具
 
     /// 自动检测问题
     /// - Parameters:
@@ -1119,7 +1112,6 @@ final class FormatMenuDiagnostics {
 
     // MARK: - Comprehensive Context Collection
 
-    // 需求: 8.4 - 实现上下文信息的收集
 
     /// 收集完整的上下文信息
     /// - Parameters:

@@ -62,7 +62,6 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     /// - Returns: 解析结果（包含文档 AST 和警告）
     /// - Throws: ParseError（仅在无法恢复时抛出）
     ///
-    /// _Requirements: 3.5_ - 从 XML 的 `<title>` 标签加载为文档标题
     public func parse(_ xml: String) throws -> ParseResult<DocumentNode> {
         warnings = []
         currentIndex = 0

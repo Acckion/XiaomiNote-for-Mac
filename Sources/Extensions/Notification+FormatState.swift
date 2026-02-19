@@ -5,7 +5,6 @@
 //  格式状态相关的通知名称扩展
 //  这些通知用于在不同组件之间同步格式状态
 //
-//  _Requirements: 4.1, 4.2_
 //
 
 import Foundation
@@ -21,7 +20,6 @@ public extension Notification.Name {
     /// userInfo:
     /// - "state": FormatState - 新的格式状态
     ///
-    /// _Requirements: 4.1_
     static let formatStateDidChange = Notification.Name("FormatStateDidChange")
 
     /// 请求格式状态更新通知
@@ -31,7 +29,6 @@ public extension Notification.Name {
     ///
     /// userInfo: 无
     ///
-    /// _Requirements: 4.2_
     static let requestFormatStateUpdate = Notification.Name("RequestFormatStateUpdate")
 
     /// 音频附件点击通知
@@ -41,7 +38,6 @@ public extension Notification.Name {
     /// userInfo:
     /// - "fileId": String - 音频文件 ID
     ///
-    /// _Requirements: 2.2_
     static let audioAttachmentClicked = Notification.Name("AudioAttachmentClicked")
 
     /// 原生编辑器保存状态变化通知
@@ -52,7 +48,6 @@ public extension Notification.Name {
     /// userInfo:
     /// - "hasUnsavedChanges": Bool - 是否有未保存的更改
     ///
-    /// _Requirements: 6.1, 6.2, 6.3, 6.4_
     static let nativeEditorSaveStatusDidChange = Notification.Name("NativeEditorSaveStatusDidChange")
 
     // 注意：nativeEditorRequestContentSync 已在 NativeEditorView.swift 中定义
@@ -85,7 +80,6 @@ public extension NotificationCenter {
 
     /// 发送音频附件点击通知
     /// - Parameter fileId: 音频文件 ID
-    /// _Requirements: 2.2_
     @MainActor
     func postAudioAttachmentClicked(fileId: String) {
         post(
@@ -105,7 +99,6 @@ public extension NotificationCenter {
     /// 从通知中提取音频文件 ID
     /// - Parameter notification: 通知对象
     /// - Returns: 音频文件 ID，如果无法提取则返回 nil
-    /// _Requirements: 2.2_
     static func extractAudioFileId(from notification: Notification) -> String? {
         notification.userInfo?["fileId"] as? String
     }

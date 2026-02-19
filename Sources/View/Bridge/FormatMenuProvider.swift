@@ -5,7 +5,6 @@
 //  格式菜单提供者协议 - 定义编辑器的格式操作接口
 //  用于统一格式菜单系统，确保工具栏和菜单栏使用相同的格式操作逻辑
 //
-//  _Requirements: 3.1, 3.2, 3.3_
 //
 
 import Combine
@@ -15,7 +14,6 @@ import Foundation
 
 /// 格式菜单提供者协议
 /// 定义编辑器的格式操作接口
-/// _Requirements: 3.1, 3.2, 3.3_
 @MainActor
 public protocol FormatMenuProvider: AnyObject {
 
@@ -23,13 +21,11 @@ public protocol FormatMenuProvider: AnyObject {
 
     /// 获取当前格式状态
     /// - Returns: 当前格式状态
-    /// _Requirements: 7.1_
     func getCurrentFormatState() -> FormatState
 
     /// 检查指定格式是否激活
     /// - Parameter format: 格式类型
     /// - Returns: 是否激活
-    /// _Requirements: 7.3_
     func isFormatActive(_ format: TextFormat) -> Bool
 
     // MARK: - 格式应用
@@ -37,7 +33,6 @@ public protocol FormatMenuProvider: AnyObject {
     /// 应用格式
     /// - Parameter format: 要应用的格式
     /// - Note: 自动处理互斥规则
-    /// _Requirements: 7.2_
     func applyFormat(_ format: TextFormat)
 
     /// 切换格式
@@ -46,23 +41,19 @@ public protocol FormatMenuProvider: AnyObject {
     func toggleFormat(_ format: TextFormat)
 
     /// 清除段落格式（恢复为正文）
-    /// _Requirements: 2.2_
     func clearParagraphFormat()
 
     /// 清除对齐格式（恢复为左对齐）
-    /// _Requirements: 3.2_
     func clearAlignmentFormat()
 
     // MARK: - 状态发布
 
     /// 格式状态变化发布者
-    /// _Requirements: 8.1, 8.2, 8.3_
     var formatStatePublisher: AnyPublisher<FormatState, Never> { get }
 
     // MARK: - 编辑器信息
 
     /// 编辑器类型
-    /// _Requirements: 7.4_
     var editorType: EditorType { get }
 
     /// 编辑器是否可用

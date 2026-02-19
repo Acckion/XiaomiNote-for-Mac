@@ -13,7 +13,6 @@ import Foundation
 /// - 检查元属性是否变化，决定是否需要完整重新解析
 /// - 使用版本号跟踪段落状态，跳过未变化的段落
 ///
-/// _Requirements: 4.2, 4.3, 4.4, 4.5_
 public class IncrementalUpdateManager {
     // MARK: - Properties
 
@@ -50,7 +49,6 @@ public class IncrementalUpdateManager {
     ///   - textStorage: 文本存储
     /// - Returns: 受影响的段落数组
     ///
-    /// _Requirements: 4.2, 4.3_
     public func identifyAffectedParagraphs(
         changedRange: NSRange,
         in textStorage: NSTextStorage
@@ -182,7 +180,6 @@ public class IncrementalUpdateManager {
     /// - Parameter paragraph: 段落对象
     /// - Returns: 版本号递增后的新段落对象
     ///
-    /// _Requirements: 4.4_
     public func incrementParagraphVersion(_ paragraph: Paragraph) -> Paragraph {
         let newParagraph = paragraph.incrementVersion()
         logDebug("📈 段落 \(paragraph.range) 版本递增: \(paragraph.version) -> \(newParagraph.version)")
@@ -198,7 +195,6 @@ public class IncrementalUpdateManager {
     ///   - lastProcessedVersion: 上次处理的版本号
     /// - Returns: 如果需要更新返回 true，否则返回 false
     ///
-    /// _Requirements: 4.4_
     public func shouldUpdateParagraph(
         _ paragraph: Paragraph,
         lastProcessedVersion: Int
@@ -258,7 +254,6 @@ public class IncrementalUpdateManager {
     ///   - updateHandler: 更新处理闭包，接收需要更新的段落
     /// - Returns: 更新的段落数量
     ///
-    /// _Requirements: 4.5_
     public func performIncrementalUpdate(
         changedRange: NSRange,
         in textStorage: NSTextStorage,
@@ -311,7 +306,6 @@ public class IncrementalUpdateManager {
     ///   - lastProcessedVersions: 上次处理的版本号字典（段落位置 -> 版本号）
     /// - Returns: 需要更新的段落数组
     ///
-    /// _Requirements: 4.5_
     public func filterParagraphsNeedingUpdate(
         _ paragraphs: [Paragraph],
         lastProcessedVersions: [Int: Int]

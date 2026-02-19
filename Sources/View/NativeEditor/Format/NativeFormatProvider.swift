@@ -5,7 +5,6 @@
 //  原生编辑器格式提供者 - 实现 FormatMenuProvider 协议
 //  为原生编辑器提供统一的格式状态获取和应用接口
 //
-//  _Requirements: 3.1, 3.2, 3.3, 5.3, 6.3, 10.1, 10.3_
 //
 
 import AppKit
@@ -15,7 +14,6 @@ import Foundation
 // MARK: - 性能监控记录
 
 /// 格式检测性能记录
-/// _Requirements: 10.3_
 public struct FormatDetectionPerformanceRecord: Sendable {
     public let timestamp: Date
     public let durationMs: Double
@@ -34,7 +32,6 @@ public struct FormatDetectionPerformanceRecord: Sendable {
 
 /// 原生编辑器格式提供者
 /// 实现 FormatMenuProvider 协议，为原生编辑器提供格式操作接口
-/// _Requirements: 3.1, 3.2, 3.3, 5.3, 6.3, 10.1, 10.3_
 @MainActor
 public final class NativeFormatProvider: FormatMenuProvider {
 
@@ -55,13 +52,10 @@ public final class NativeFormatProvider: FormatMenuProvider {
     /// 防抖定时器
     private var debounceTimer: Timer?
 
-    /// 防抖间隔（毫秒）- 满足需求 10.1 的 50ms 要求
-    /// _Requirements: 10.1_
     private let debounceInterval: TimeInterval = 0.05 // 50ms
 
     // MARK: - 性能监控属性
 
-    // _Requirements: 10.3_
 
     /// 性能监控是否启用
     private var performanceMonitoringEnabled = true
@@ -93,7 +87,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     // MARK: - FormatMenuProvider Protocol Properties
 
     /// 编辑器类型
-    /// _Requirements: 7.4_
     public var editorType: EditorType {
         .native
     }
@@ -105,7 +98,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     }
 
     /// 格式状态变化发布者
-    /// _Requirements: 8.1, 8.2, 8.3_
     public var formatStatePublisher: AnyPublisher<FormatState, Never> {
         formatStateSubject.eraseToAnyPublisher()
     }
@@ -123,7 +115,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
 
     /// 获取当前格式状态
     /// - Returns: 当前格式状态
-    /// _Requirements: 7.1, 5.3, 6.3_
     public func getCurrentFormatState() -> FormatState {
         let startTime = CFAbsoluteTimeGetCurrent()
         var detectionType: FormatDetectionPerformanceRecord.DetectionType = .cursor
@@ -145,7 +136,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
         }
 
         // 边界条件：编辑器上下文不可用
-        // _Requirements: 5.3, 6.3_
         guard let context = editorContext else {
             errorMessage = "编辑器上下文不可用"
             success = false
@@ -176,7 +166,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     /// 检查指定格式是否激活
     /// - Parameter format: 格式类型
     /// - Returns: 是否激活
-    /// _Requirements: 7.3_
     public func isFormatActive(_ format: TextFormat) -> Bool {
         let state = getCurrentFormatState()
         return state.isFormatActive(format)
@@ -184,7 +173,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
 
     // MARK: - 性能监控方法
 
-    // _Requirements: 10.3_
 
     /// 启用或禁用性能监控
     /// - Parameter enabled: 是否启用
@@ -264,7 +252,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     /// 应用格式
     /// - Parameter format: 要应用的格式
     /// - Note: 自动处理互斥规则
-    /// _Requirements: 7.2_
     public func applyFormat(_ format: TextFormat) {
         guard let context = editorContext else {
             return
@@ -300,7 +287,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     }
 
     /// 清除段落格式（恢复为正文）
-    /// _Requirements: 2.2_
     public func clearParagraphFormat() {
         guard let context = editorContext else {
             return
@@ -313,7 +299,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     }
 
     /// 清除对齐格式（恢复为左对齐）
-    /// _Requirements: 3.2_
     public func clearAlignmentFormat() {
         guard let context = editorContext else {
             return
@@ -331,7 +316,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     /// - Parameter position: 光标位置
     /// - Returns: 格式状态
     /// - Throws: 检测过程中的错误
-    /// _Requirements: 5.1, 5.2, 5.3_
     private func detectFormatStateAtCursorSafe(position: Int) throws -> FormatState {
         guard let context = editorContext else {
             throw FormatDetectionError.editorNotAvailable
@@ -344,19 +328,16 @@ public final class NativeFormatProvider: FormatMenuProvider {
         let textStorage = context.nsAttributedText
 
         // 边界条件：文档为空
-        // _Requirements: 5.3_
         guard textStorage.length > 0 else {
             return state
         }
 
         // 边界条件：光标在文档开头
-        // _Requirements: 1.2, 5.3_
         guard position > 0 else {
             return state
         }
 
         // 边界条件：光标位置超出文档长度
-        // _Requirements: 5.3_
         guard position <= textStorage.length else {
             let safePosition = textStorage.length - 1
             if safePosition >= 0 {
@@ -369,7 +350,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
         }
 
         // 获取光标前一个字符的属性
-        // _Requirements: 1.1_
         let attributePosition = min(position - 1, textStorage.length - 1)
         let attributes = textStorage.attributes(at: attributePosition, effectiveRange: nil)
 
@@ -384,7 +364,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     /// 光标模式下的格式状态检测（原始版本，保持向后兼容）
     /// - Parameter position: 光标位置
     /// - Returns: 格式状态
-    /// _Requirements: 5.1, 5.2, 5.3_
     public func detectFormatStateAtCursor(position: Int) -> FormatState {
         do {
             return try detectFormatStateAtCursorSafe(position: position)
@@ -399,7 +378,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     /// - Parameter range: 选择范围
     /// - Returns: 格式状态
     /// - Throws: 检测过程中的错误
-    /// _Requirements: 6.1, 6.2, 6.3_
     private func detectFormatStateInSelectionSafe(range: NSRange) throws -> FormatState {
         guard let context = editorContext else {
             throw FormatDetectionError.editorNotAvailable
@@ -412,7 +390,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
         let textStorage = context.nsAttributedText
 
         // 边界条件：文档为空
-        // _Requirements: 6.3_
         guard textStorage.length > 0 else {
             state.hasSelection = false
             state.selectionLength = 0
@@ -420,7 +397,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
         }
 
         // 边界条件：选择范围起始位置超出文档长度
-        // _Requirements: 6.3_
         guard range.location < textStorage.length else {
             state.hasSelection = false
             state.selectionLength = 0
@@ -428,7 +404,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
         }
 
         // 调整范围以确保不超出文本长度
-        // _Requirements: 6.3_
         let validRange = NSRange(
             location: range.location,
             length: min(range.length, textStorage.length - range.location)
@@ -444,7 +419,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
         state.selectionLength = validRange.length
 
         // 使用优化的遍历方法检测格式
-        // _Requirements: 10.3_
         state = detectFormatsInRangeOptimized(textStorage: textStorage, range: validRange)
         state.hasSelection = true
         state.selectionLength = validRange.length
@@ -455,7 +429,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     /// 选择模式下的格式状态检测（原始版本，保持向后兼容）
     /// - Parameter range: 选择范围
     /// - Returns: 格式状态
-    /// _Requirements: 6.1, 6.2, 6.3_
     public func detectFormatStateInSelection(range: NSRange) -> FormatState {
         do {
             return try detectFormatStateInSelectionSafe(range: range)
@@ -466,12 +439,10 @@ public final class NativeFormatProvider: FormatMenuProvider {
 
     /// 优化的范围内格式检测
     /// 使用批量遍历减少性能开销
-    /// _Requirements: 10.3_
     private func detectFormatsInRangeOptimized(textStorage: NSAttributedString, range: NSRange) -> FormatState {
         var state = FormatState()
 
         // 初始化为全部激活（用于"全选检测"逻辑）
-        // _Requirements: 1.3, 1.4_
         var allBold = true
         var allItalic = true
         var allUnderline = true
@@ -479,7 +450,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
         var allHighlight = true
 
         // 优化：对于大范围选择，使用采样检测
-        // _Requirements: 10.3_
         let shouldSample = range.length > 1000
         let sampleInterval = shouldSample ? max(1, range.length / 100) : 1
 
@@ -550,7 +520,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     /// - Parameters:
     ///   - format: 要应用的格式
     ///   - range: 选择范围
-    /// _Requirements: 5.1, 5.2, 5.3_
     private func applyFormatToSelection(_ format: TextFormat, range _: NSRange) {
         guard let context = editorContext else { return }
 
@@ -561,7 +530,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
 
     /// 光标模式下应用格式
     /// - Parameter format: 要应用的格式
-    /// _Requirements: 6.1, 6.2, 6.3, 6.4_
     private func applyFormatAtCursor(_ format: TextFormat) {
         guard let context = editorContext else { return }
 
@@ -697,7 +665,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     ///
     /// 标题检测完全基于字体大小，因为在小米笔记中字体大小和标题类型是一一对应的
     ///
-    /// _Requirements: 3.1, 3.2, 3.3, 3.4_
     private func detectParagraphFormat(
         from attributes: [NSAttributedString.Key: Any],
         textStorage: NSAttributedString,
@@ -705,7 +672,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     ) -> ParagraphFormat {
         // 使用 FontSizeManager 检查字体大小来检测标题格式
         // 在小米笔记中，字体大小和标题类型是一一对应的
-        // _Requirements: 3.1, 3.2, 3.3, 3.4_ - 使用统一的检测逻辑
         if let font = attributes[.font] as? NSFont {
             let fontSize = font.pointSize
             let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
@@ -774,7 +740,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     // MARK: - 私有方法 - 状态更新
 
     /// 调度状态更新（带防抖）
-    /// _Requirements: 10.1, 10.4_
     private func scheduleStateUpdate() {
         debounceTimer?.invalidate()
         debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
@@ -785,12 +750,10 @@ public final class NativeFormatProvider: FormatMenuProvider {
     }
 
     /// 执行状态更新
-    /// _Requirements: 10.3_
     private func performStateUpdate() {
         let state = getCurrentFormatState()
 
         // 增量更新：只有状态变化时才发送
-        // _Requirements: 10.3_
         if let lastState, state == lastState {
             return
         }
@@ -877,7 +840,6 @@ public extension NativeFormatProvider {
 // MARK: - 格式检测错误枚举
 
 /// 格式检测错误
-/// _Requirements: 5.3, 6.3_
 public enum FormatDetectionError: Error, LocalizedError {
     case editorNotAvailable
     case invalidRange(location: Int, length: Int, textLength: Int)

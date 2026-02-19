@@ -175,7 +175,6 @@ class MixedFormatApplicationHandler {
 
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
             // 使用 FontSizeManager 统一管理默认字体
-            // _Requirements: 4.5_
             let font = (value as? NSFont) ?? FontSizeManager.shared.defaultFont
             let traits = font.fontDescriptor.symbolicTraits
 
@@ -209,7 +208,6 @@ class MixedFormatApplicationHandler {
 
         textStorage.enumerateAttribute(.font, in: range, options: []) { value, attrRange, _ in
             // 使用 FontSizeManager 统一管理默认字体
-            // _Requirements: 4.5_
             let font = (value as? NSFont) ?? FontSizeManager.shared.defaultFont
             let traits = font.fontDescriptor.symbolicTraits
 

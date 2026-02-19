@@ -5,7 +5,6 @@
 //  换行处理器 - 统一处理换行时的格式继承逻辑
 //  负责内联格式清除、块级格式继承、空列表项处理等
 //
-//  _Requirements: 2.1-2.6, 4.1-4.4, 5.1-5.6, 6.1-6.2, 7.1-7.3, 8.1, 8.3, 8.4_
 //
 
 import AppKit
@@ -15,7 +14,6 @@ import Foundation
 
 /// 换行处理器
 /// 统一处理所有换行时的格式继承逻辑
-/// _Requirements: 8.1, 8.3, 8.4_
 @MainActor
 public struct NewLineHandler {
 
@@ -23,7 +21,6 @@ public struct NewLineHandler {
 
     /// 默认字体 (14pt)
     /// 使用 FontSizeManager 统一管理
-    /// _Requirements: 1.4, 8.1, 8.3_
     public static var defaultFont: NSFont {
         FontSizeManager.shared.defaultFont
     }
@@ -43,7 +40,6 @@ public struct NewLineHandler {
     ///   - context: 换行上下文
     ///   - textView: NSTextView 实例
     /// - Returns: 是否已处理换行（true 表示已处理，调用方不需要执行默认行为）
-    /// _Requirements: 8.1, 8.3, 8.4_
     public static func handleNewLine(context: NewLineContext, textView: NSTextView) -> Bool {
         guard let textStorage = textView.textStorage else {
             return false
@@ -54,19 +50,16 @@ public struct NewLineHandler {
         // 2. 根据块级格式类型处理
         guard let blockFormat = context.currentBlockFormat else {
             // 没有块级格式，手动处理换行以确保内联格式被清除
-            // _Requirements: 2.1-2.6, 7.1-7.3_
             return handlePlainTextNewLine(context: context, textView: textView, textStorage: textStorage)
         }
 
         switch blockFormat.category {
         case .blockTitle:
             // 标题格式：换行后新行变为普通正文
-            // _Requirements: 4.1-4.4_
             return handleTitleNewLine(context: context, textView: textView, textStorage: textStorage)
 
         case .blockList:
             // 列表格式：根据是否为空决定行为
-            // _Requirements: 5.1-5.6_
             if context.isListItemEmpty {
                 // 空列表项：取消格式，不换行
                 return handleEmptyListItem(context: context, textView: textView, textStorage: textStorage)
@@ -77,12 +70,10 @@ public struct NewLineHandler {
 
         case .blockQuote:
             // 引用格式：继承
-            // _Requirements: 6.1, 6.2_
             return handleQuoteNewLine(context: context, textView: textView, textStorage: textStorage)
 
         case .alignment:
             // 对齐属性：手动处理换行以确保内联格式被清除
-            // _Requirements: 2.1-2.6, 7.1-7.3_
             return handlePlainTextNewLine(context: context, textView: textView, textStorage: textStorage)
 
         case .inline:
@@ -102,7 +93,6 @@ public struct NewLineHandler {
     ///   - textView: NSTextView 实例
     ///   - textStorage: NSTextStorage 实例
     /// - Returns: 是否已处理
-    /// _Requirements: 2.1-2.6, 7.1-7.3_
     private static func handlePlainTextNewLine(
         context: NewLineContext,
         textView: NSTextView,
@@ -137,7 +127,6 @@ public struct NewLineHandler {
     ///
     /// - Parameter format: 格式类型
     /// - Returns: 是否应该继承
-    /// _Requirements: 2.1-2.6, 4.1-4.4, 5.1-5.3, 6.1-6.2, 7.1-7.3_
     public static func shouldInheritFormat(_ format: TextFormat?) -> Bool {
         guard let format else {
             return false
@@ -158,7 +147,6 @@ public struct NewLineHandler {
     ///   - textView: NSTextView 实例
     ///   - textStorage: NSTextStorage 实例
     /// - Returns: 是否已处理
-    /// _Requirements: 8.1, 8.2, 8.3_
     public static func handleEmptyListItem(
         context: NewLineContext,
         textView: NSTextView,
@@ -231,7 +219,6 @@ public struct NewLineHandler {
     /// - 高亮（背景色，但保留引用块背景）
     ///
     /// - Parameter textView: NSTextView 实例
-    /// _Requirements: 2.1-2.6_
     public static func clearInlineFormatsFromTypingAttributes(textView: NSTextView) {
         var attrs = textView.typingAttributes
 
@@ -252,7 +239,6 @@ public struct NewLineHandler {
     ///   - textView: NSTextView 实例
     ///   - textStorage: NSTextStorage 实例
     /// - Returns: 是否已处理
-    /// _Requirements: 4.1-4.4_
     private static func handleTitleNewLine(
         context: NewLineContext,
         textView: NSTextView,
@@ -297,7 +283,6 @@ public struct NewLineHandler {
     ///   - textStorage: NSTextStorage 实例
     ///   - format: 列表格式类型
     /// - Returns: 是否已处理
-    /// _Requirements: 7.1, 7.2, 7.3_
     private static func handleListNewLine(
         context: NewLineContext,
         textView: NSTextView,
@@ -372,7 +357,6 @@ public struct NewLineHandler {
     ///   - textView: NSTextView 实例
     ///   - textStorage: NSTextStorage 实例
     /// - Returns: 是否已处理
-    /// _Requirements: 6.1, 6.2_
     private static func handleQuoteNewLine(
         context: NewLineContext,
         textView: NSTextView,
@@ -419,7 +403,6 @@ public struct NewLineHandler {
     /// - Parameters:
     ///   - context: 换行上下文
     ///   - textView: NSTextView 实例
-    /// _Requirements: 7.1-7.3_
     private static func inheritAlignment(context: NewLineContext, textView: NSTextView) {
         var attrs = textView.typingAttributes
 
@@ -443,7 +426,6 @@ public struct NewLineHandler {
     ///
     /// - Parameter alignment: 对齐方式
     /// - Returns: 属性字典
-    /// _Requirements: 2.1-2.6_
     public static func buildCleanTypingAttributes(alignment: NSTextAlignment = .left) -> [NSAttributedString.Key: Any] {
         var attrs = InlineFormatHandler.buildCleanTypingAttributes()
 
@@ -529,7 +511,6 @@ public struct NewLineHandler {
     ///   - position: 插入位置
     ///   - indent: 缩进级别
     ///   - textStorage: NSTextStorage 实例
-    /// _Requirements: 7.1_
     private static func applyBulletAttachmentToNewLine(at position: Int, indent: Int, textStorage: NSTextStorage) {
         // 创建 BulletAttachment
         let bulletAttachment = BulletAttachment(indent: indent)
@@ -565,7 +546,6 @@ public struct NewLineHandler {
     ///   - number: 列表编号
     ///   - indent: 缩进级别
     ///   - textStorage: NSTextStorage 实例
-    /// _Requirements: 7.2_
     private static func applyOrderAttachmentToNewLine(at position: Int, number: Int, indent: Int, textStorage: NSTextStorage) {
         // 创建 OrderAttachment
         let orderAttachment = OrderAttachment(number: number, inputNumber: 0, indent: indent)

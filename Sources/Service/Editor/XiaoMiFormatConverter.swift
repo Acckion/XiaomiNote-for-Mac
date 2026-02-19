@@ -185,7 +185,6 @@ class XiaoMiFormatConverter {
     /// - Returns: 小米笔记 XML 格式字符串
     /// - Throws: ConversionError
     ///
-    /// _Requirements: 所有_ - 使用新的 AST 转换器实现完整的转换流程
     func nsAttributedStringToXML(_ nsAttributedString: NSAttributedString) throws -> String {
         // 使用新的 AST 转换器
         let astConverter = AttributedStringToASTConverter()
@@ -205,7 +204,6 @@ class XiaoMiFormatConverter {
     /// - Returns: 小米笔记 XML 格式字符串
     /// - Throws: ConversionError
     ///
-    /// _Requirements: 9.3_ - 格式转换失败时记录日志并尝试使用原始内容
     @available(*, deprecated, message: "使用新的 AST 转换器实现")
     func nsAttributedStringToXMLLegacy(_ nsAttributedString: NSAttributedString) throws -> String {
         var xmlElements: [String] = []
@@ -233,7 +231,6 @@ class XiaoMiFormatConverter {
             let lineAttributedString = nsAttributedString.attributedSubstring(from: lineRange)
 
             // 转换该行，带错误回退
-            // _Requirements: 9.3_ - 转换失败时记录日志并尝试使用原始内容
             do {
                 let xmlElement = try convertNSLineToXML(lineAttributedString)
                 xmlElements.append(xmlElement)
@@ -269,7 +266,6 @@ class XiaoMiFormatConverter {
     /// - Parameter nsAttributedString: 要转换的 NSAttributedString
     /// - Returns: 小米笔记 XML 格式字符串（保证不为空，除非输入为空）
     ///
-    /// _Requirements: 9.3_ - 格式转换失败时记录日志并尝试使用原始内容
     func safeNSAttributedStringToXML(_ nsAttributedString: NSAttributedString) -> String {
         // 处理空内容
         guard nsAttributedString.length > 0 else {
@@ -321,7 +317,6 @@ class XiaoMiFormatConverter {
             // 检查是否是附件
             if let attachment = attributes[.attachment] as? NSTextAttachment {
                 // 检查是否是复选框附件
-                // _Requirements: 5.8_ - 导出时保留 checked 属性
                 if let checkboxAttachment = attachment as? InteractiveCheckboxAttachment {
                     isCheckboxLine = true
                     // 导出 checked 属性：选中时添加 checked="true"，未选中时不添加该属性
@@ -429,7 +424,6 @@ class XiaoMiFormatConverter {
             }
 
             // 使用 FontSizeManager 检测标题级别
-            // _Requirements: 7.1, 7.2, 7.3_
             let fontSize = font.pointSize
             let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
             switch detectedFormat {
@@ -618,7 +612,6 @@ class XiaoMiFormatConverter {
     /// - Returns: 转换后的 NSAttributedString
     /// - Throws: ConversionError
     ///
-    /// _Requirements: 所有_ - 使用新的 AST 转换器实现完整的转换流程
     func xmlToNSAttributedString(_ xml: String, folderId: String? = nil) throws -> NSAttributedString {
         guard !xml.isEmpty else {
             return NSAttributedString()
@@ -816,7 +809,6 @@ class XiaoMiFormatConverter {
     /// 3. 正确导出为小米笔记 XML 格式
     /// 4. 正确解析和保存 checked 属性（勾选状态）
     ///
-    /// _Requirements: 1.4, 5.8_
     private func processCheckboxElementToNSAttributedString(_ line: String) throws -> NSAttributedString {
         // 1. 提取属性
         let indent = Int(extractAttribute("indent", from: line) ?? "1") ?? 1
@@ -824,7 +816,6 @@ class XiaoMiFormatConverter {
 
         // 2. 提取 checked 属性（勾选状态）
         // 小米笔记 XML 格式：<input type="checkbox" indent="1" level="3" checked="true" />
-        // _Requirements: 1.4_ - 正确渲染可交互的复选框并保留勾选状态
         let checkedStr = extractAttribute("checked", from: line)
         let isChecked = checkedStr?.lowercased() == "true"
 
@@ -832,7 +823,6 @@ class XiaoMiFormatConverter {
         let content = extractContentAfterElement(from: line, elementName: "input")
 
         // 4. 创建复选框附件（传入勾选状态）
-        // _Requirements: 5.8_ - 创建 InteractiveCheckboxAttachment 时传入正确的状态
         let checkboxAttachment = CustomRenderer.shared.createCheckboxAttachment(
             checked: isChecked,
             level: level,
@@ -1465,11 +1455,9 @@ class XiaoMiFormatConverter {
     /// 修复：使用最外层优先的策略处理嵌套标签
     /// 对于 `<i><b>你好</b></i>`，先处理 `<i>` 标签，再递归处理内部的 `<b>` 标签
     ///
-    /// _Requirements: 7.4, 7.5, 7.6_ - 使用 FontSizeManager 统一字体大小，标题使用常规字重
     private func processNestedTags(_ text: String, attributes: inout [(NSRange, [NSAttributedString.Key: Any])]) throws -> String {
         // 定义所有支持的标签及其对应的属性
         // 使用 FontSizeManager 获取字体大小，标题使用常规字重（不加粗）
-        // _Requirements: 7.4, 7.5, 7.6_
         let tagMappings: [(tag: String, attribute: NSAttributedString.Key, value: Any)] = [
             ("size", .font, FontSizeManager.shared.createFont(for: .heading1)), // 23pt, regular
             ("mid-size", .font, FontSizeManager.shared.createFont(for: .heading2)), // 20pt, regular

@@ -105,9 +105,6 @@ public actor NoteOperationCoordinator {
     /// - Parameter note: 要保存的笔记
     /// - Returns: 保存结果
     ///
-    /// **需求覆盖**：
-    /// - 需求 1.2: 本地保存后创建 cloudUpload 操作
-    /// - 需求 2.1: 网络可用时立即处理
     public func saveNote(_ note: Note) async -> SaveResult {
         let timestamp = Date()
 
@@ -149,8 +146,6 @@ public actor NoteOperationCoordinator {
     ///
     /// - Parameter note: 要保存的笔记
     ///
-    /// **需求覆盖**：
-    /// - 需求 2.1: 立即保存和上传
     public func saveNoteImmediately(_ note: Note) async throws {
         let timestamp = Date()
 
@@ -210,9 +205,6 @@ public actor NoteOperationCoordinator {
     ///
     /// - Parameter noteId: 笔记 ID，传 nil 表示清除活跃编辑状态
     ///
-    /// **需求覆盖**：
-    /// - 需求 3.1: 标记活跃编辑笔记
-    /// - 需求 3.3: 切换笔记时清除原笔记标记
     public func setActiveEditingNote(_ noteId: String?) {
         if let oldNoteId = activeEditingNoteId, oldNoteId != noteId {
             LogService.shared.debug(.sync, "切换活跃编辑笔记: \(oldNoteId.prefix(8))... -> \(noteId?.prefix(8) ?? "nil")")
@@ -229,8 +221,6 @@ public actor NoteOperationCoordinator {
     /// - Parameter noteId: 笔记 ID
     /// - Returns: 是否正在编辑
     ///
-    /// **需求覆盖**：
-    /// - 需求 3.2: 检查活跃编辑状态
     public func isNoteActivelyEditing(_ noteId: String) -> Bool {
         activeEditingNoteId == noteId
     }
@@ -254,11 +244,6 @@ public actor NoteOperationCoordinator {
     ///   - cloudTimestamp: 云端时间戳
     /// - Returns: 是否可以更新
     ///
-    /// **需求覆盖**：
-    /// - 需求 4.1: 使用 SyncGuard 进行同步保护
-    /// - 需求 4.2: 待上传笔记跳过同步
-    /// - 需求 4.3: 活跃编辑笔记跳过同步
-    /// - 需求 8.3: 临时 ID 笔记跳过同步
     public func canSyncUpdateNote(_ noteId: String, cloudTimestamp: Date) async -> Bool {
         let syncGuard = SyncGuard(operationQueue: operationQueue, coordinator: self)
         let shouldSkip = await syncGuard.shouldSkipSync(noteId: noteId, cloudTimestamp: cloudTimestamp)
@@ -284,11 +269,6 @@ public actor NoteOperationCoordinator {
     ///   - cloudTimestamp: 云端时间戳
     /// - Returns: 冲突解决结果
     ///
-    /// **需求覆盖**：
-    /// - 需求 5.1: 比较时间戳
-    /// - 需求 5.2: 本地较新时保留本地
-    /// - 需求 5.3: 云端较新且不在待上传列表时使用云端
-    /// - 需求 5.4: 云端较新但在待上传列表时保留本地
     public func resolveConflict(noteId: String, cloudTimestamp: Date) -> ConflictResolution {
         // 1. 检查是否为临时 ID（离线创建的笔记）
         if NoteOperation.isTemporaryId(noteId) {
@@ -330,8 +310,6 @@ public actor NoteOperationCoordinator {
     ///
     /// - Parameter noteId: 笔记 ID
     ///
-    /// **需求覆盖**：
-    /// - 需求 2.2: 上传成功后更新 UnifiedOperationQueue 状态
     public func onUploadSuccess(noteId: String) {
         // 操作状态由 OperationProcessor 直接更新 UnifiedOperationQueue
         // 这里只做日志记录
@@ -346,8 +324,6 @@ public actor NoteOperationCoordinator {
     ///   - noteId: 笔记 ID
     ///   - error: 错误信息
     ///
-    /// **需求覆盖**：
-    /// - 需求 2.3: 上传失败时操作保留在队列中等待重试
     public func onUploadFailure(noteId: String, error: Error) {
         // 操作状态由 OperationProcessor 直接更新 UnifiedOperationQueue
         // 这里只做日志记录
@@ -370,9 +346,6 @@ public actor NoteOperationCoordinator {
     /// - Returns: 创建的笔记（使用临时 ID）
     /// - Throws: NoteOperationError
     ///
-    /// **需求覆盖**：
-    /// - 需求 8.1: 生成临时 ID 并立即保存到本地
-    /// - 需求 8.2: 创建 noteCreate 操作并标记 isLocalId = true
     public func createNoteOffline(title: String, content: String, folderId: String) async throws -> Note {
         // 1. 生成临时 ID
         let temporaryId = NoteOperation.generateTemporaryId()
@@ -432,11 +405,6 @@ public actor NoteOperationCoordinator {
     ///   - temporaryId: 临时 ID
     ///   - serverId: 云端下发的正式 ID
     ///
-    /// **需求覆盖**：
-    /// - 需求 8.4: 获取云端下发的正式 ID
-    /// - 需求 8.5: 更新本地数据库中的笔记 ID
-    /// - 需求 8.6: 更新操作队列中的 noteId
-    /// - 需求 8.7: 更新 UI 中的笔记引用
     public func handleNoteCreateSuccess(temporaryId: String, serverId: String) async throws {
         LogService.shared.info(.sync, "处理笔记创建成功: \(temporaryId.prefix(16))... -> \(serverId.prefix(8))...")
 
@@ -466,8 +434,6 @@ public actor NoteOperationCoordinator {
     /// - Parameter noteId: 笔记 ID（临时 ID）
     /// - Throws: NoteOperationError
     ///
-    /// **需求覆盖**：
-    /// - 需求 8.8: 临时 ID 笔记被删除时取消 noteCreate 操作
     public func deleteTemporaryNote(_ noteId: String) async throws {
         // 验证是否为临时 ID
         guard NoteOperation.isTemporaryId(noteId) else {

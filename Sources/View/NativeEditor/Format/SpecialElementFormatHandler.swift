@@ -38,7 +38,6 @@ struct SpecialElementDetectionResult {
 /// 特殊元素格式处理器
 ///
 /// 负责处理复选框、分割线、图片等特殊元素的格式应用逻辑。
-/// 需求: 7.1, 7.2, 7.3, 7.4
 @MainActor
 class SpecialElementFormatHandler {
 
@@ -55,7 +54,6 @@ class SpecialElementFormatHandler {
     ///   - textStorage: 文本存储
     ///   - position: 位置
     /// - Returns: 特殊元素检测结果
-    /// 需求: 7.1, 7.2, 7.3
     func detectSpecialElement(
         in textStorage: NSAttributedString,
         at position: Int
@@ -118,7 +116,6 @@ class SpecialElementFormatHandler {
     ///   - format: 格式类型
     ///   - elementType: 特殊元素类型
     /// - Returns: 格式应用决策
-    /// 需求: 7.4
     func shouldApplyFormat(
         _ format: TextFormat,
         to elementType: SpecialElement
@@ -156,7 +153,6 @@ class SpecialElementFormatHandler {
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
     /// - Returns: 实际应用格式的范围数组
-    /// 需求: 7.4
     func applyFormatWithSpecialElements(
         _ format: TextFormat,
         to textStorage: NSTextStorage,
@@ -217,7 +213,6 @@ class SpecialElementFormatHandler {
     /// 获取特殊元素附近应该禁用的格式按钮
     /// - Parameter elementType: 特殊元素类型
     /// - Returns: 应该禁用的格式类型数组
-    /// 需求: 7.2
     func getDisabledFormats(for elementType: SpecialElement) -> [TextFormat] {
         switch elementType {
         case .horizontalRule:

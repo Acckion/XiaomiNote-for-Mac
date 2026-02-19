@@ -10,7 +10,6 @@ import Foundation
 /// - 处理选择方向变化
 /// - 支持键盘和鼠标混合扩展选择
 ///
-/// _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6_
 public class SelectionAnchorManager {
     // MARK: - Properties
 
