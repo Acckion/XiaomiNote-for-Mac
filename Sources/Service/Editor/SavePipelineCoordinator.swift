@@ -8,7 +8,6 @@
 //  Created by Title Content Integration Fix
 //
 
-import AppKit
 import Foundation
 
 /// 保存流程协调器
@@ -29,9 +28,6 @@ import Foundation
 public final class SavePipelineCoordinator: ObservableObject {
 
     // MARK: - 依赖服务
-
-    /// 标题提取服务
-    private let titleExtractionService: TitleExtractionService
 
     /// 当前保存状态
     @Published public private(set) var currentState: SavePipelineState = .notStarted
@@ -57,29 +53,23 @@ public final class SavePipelineCoordinator: ObservableObject {
     // MARK: - 初始化
 
     /// 初始化保存流程协调器
-    /// - Parameter titleExtractionService: 标题提取服务实例
-    public init(titleExtractionService: TitleExtractionService = .shared) {
-        self.titleExtractionService = titleExtractionService
-    }
+    public init() {}
 
     // MARK: - 公共接口
 
     /// 执行完整的保存流程
     ///
     /// 按照正确的顺序执行保存操作：
-    /// 1. 开始保存 -> 2. 提取标题 -> 3. 验证标题 -> 4. 移除标题标签
-    /// -> 5. 构建笔记对象 -> 6. 调用 API -> 7. 更新状态 -> 8. 完成保存
+    /// 1. 开始保存 -> 2. 构建笔记对象 -> 3. 调用 API -> 4. 更新状态 -> 5. 完成保存
     ///
     /// - Parameters:
     ///   - xmlContent: 编辑器的 XML 内容
-    ///   - textStorage: 原生编辑器的文本存储（可选）
     ///   - noteId: 笔记 ID
     ///   - apiSaveHandler: API 保存处理器
-    /// - Returns: 保存结果，包含提取的标题和处理后的内容
+    /// - Returns: 保存结果
     ///
     public func executeSavePipeline(
         xmlContent: String,
-        textStorage: NSTextStorage? = nil,
         noteId: String,
         apiSaveHandler: @escaping (String, String, String) async throws -> Void
     ) async throws -> SavePipelineResult {
@@ -95,62 +85,28 @@ public final class SavePipelineCoordinator: ObservableObject {
                 self.updateState(.preparing)
             }
 
-            // 步骤 2: 提取标题
-            let titleResult = try await executeStep(.extractTitle) {
-                LogService.shared.debug(.editor, "提取标题...")
-
-                // 优先从原生编辑器提取标题
-                if let textStorage {
-                    return self.titleExtractionService.extractTitleFromEditor(textStorage)
-                } else {
-                    return self.titleExtractionService.extractTitleFromXML(xmlContent)
-                }
-            }
-
-            // 步骤 3: 验证标题
-            try await executeStep(.validateTitle) {
-                LogService.shared.debug(.editor, "验证标题: '\(titleResult.title)'")
-
-                let validation = self.titleExtractionService.validateTitle(titleResult.title)
-                if !validation.isValid {
-                    throw TitleIntegrationError.titleValidation(validation.error ?? "标题验证失败")
-                }
-            }
-
-            // 步骤 4: 移除标题标签
-            let processedContent = try await executeStep(.removeTitleTag) {
-                LogService.shared.debug(.editor, "移除标题标签...")
-                return self.removeTitleTagFromXML(xmlContent)
-            }
-
-            // 步骤 5: 构建笔记对象
-            let (finalTitle, finalContent) = try await executeStep(.buildNote) {
+            // 步骤 2: 构建笔记对象（标题从数据库读取，不再从 XML/编辑器提取）
+            let finalContent: String = try await executeStep(.buildNote) {
                 LogService.shared.debug(.editor, "构建笔记对象...")
-
-                // 使用提取的标题，如果提取失败则使用后备方案
-                let title = titleResult.isValid && !titleResult.title.isEmpty
-                    ? titleResult.title
-                    : self.extractFallbackTitle(from: processedContent)
-
-                return (title, processedContent)
+                return xmlContent
             }
 
             // 更新状态为执行中
             updateState(.executing)
 
-            // 步骤 6: 调用 API
+            // 步骤 3: 调用 API
             try await executeStep(.callAPI) {
                 LogService.shared.debug(.editor, "调用保存 API...")
-                try await apiSaveHandler(noteId, finalTitle, finalContent)
+                // 标题由 apiSaveHandler 内部从数据库获取
+                try await apiSaveHandler(noteId, "", finalContent)
             }
 
-            // 步骤 7: 更新状态
+            // 步骤 4: 更新状态
             try await executeStep(.updateState) {
                 LogService.shared.debug(.editor, "更新本地状态...")
-                // 这里可以添加本地状态更新逻辑
             }
 
-            // 步骤 8: 完成保存
+            // 步骤 5: 完成保存
             try await executeStep(.completeSave) {
                 LogService.shared.debug(.editor, "保存流程完成")
                 self.updateState(.completed)
@@ -158,11 +114,9 @@ public final class SavePipelineCoordinator: ObservableObject {
 
             // 构建保存结果
             let result = SavePipelineResult(
-                extractedTitle: finalTitle,
                 processedContent: finalContent,
-                titleSource: titleResult.source,
                 executionTime: Date().timeIntervalSince(saveStartTime ?? Date()),
-                stepsExecuted: SaveStep.allCases.prefix(8).map(\.self)
+                stepsExecuted: [.startSave, .buildNote, .callAPI, .updateState, .completeSave]
             )
 
             LogService.shared.info(.editor, "保存流程完成，耗时: \(String(format: "%.2f", result.executionTime))秒")
@@ -236,47 +190,6 @@ public final class SavePipelineCoordinator: ObservableObject {
         }
     }
 
-    /// 从 XML 内容中移除标题标签
-    ///
-    /// - Parameter xmlContent: 原始 XML 内容
-    /// - Returns: 移除标题标签后的 XML 内容
-    private func removeTitleTagFromXML(_ xmlContent: String) -> String {
-        var result = xmlContent
-
-        // 查找并移除 <title>...</title> 标签
-        let titlePattern = "<title>.*?</title>"
-        if let regex = try? NSRegularExpression(pattern: titlePattern, options: .dotMatchesLineSeparators) {
-            let range = NSRange(result.startIndex..., in: result)
-            result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "")
-        }
-
-        // 清理多余的空白行
-        result = result.replacingOccurrences(of: "\n\n+", with: "\n", options: .regularExpression)
-        result = result.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        return result
-    }
-
-    /// 提取后备标题
-    ///
-    /// 当主要标题提取失败时，从内容中提取第一行作为标题
-    ///
-    /// - Parameter content: 内容文本
-    /// - Returns: 后备标题
-    private func extractFallbackTitle(from content: String) -> String {
-        // 从内容的第一行提取标题
-        let lines = content.components(separatedBy: .newlines)
-        let firstLine = lines.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-        // 限制标题长度
-        let maxLength = 50
-        if firstLine.count > maxLength {
-            return String(firstLine.prefix(maxLength)) + "..."
-        }
-
-        return firstLine.isEmpty ? "无标题" : firstLine
-    }
-
     /// 更新保存状态
     ///
     /// - Parameter newState: 新的保存状态
@@ -302,17 +215,9 @@ public final class SavePipelineCoordinator: ObservableObject {
 // MARK: - 保存流程结果
 
 /// 保存流程结果
-///
-/// 包含保存操作的完整结果信息
 public struct SavePipelineResult {
-    /// 提取的标题
-    public let extractedTitle: String
-
     /// 处理后的内容
     public let processedContent: String
-
-    /// 标题来源
-    public let titleSource: TitleSource
 
     /// 执行时间（秒）
     public let executionTime: TimeInterval
@@ -320,17 +225,12 @@ public struct SavePipelineResult {
     /// 已执行的步骤列表
     public let stepsExecuted: [SaveStep]
 
-    /// 初始化方法
     public init(
-        extractedTitle: String,
         processedContent: String,
-        titleSource: TitleSource,
         executionTime: TimeInterval,
         stepsExecuted: [SaveStep]
     ) {
-        self.extractedTitle = extractedTitle
         self.processedContent = processedContent
-        self.titleSource = titleSource
         self.executionTime = executionTime
         self.stepsExecuted = stepsExecuted
     }
@@ -340,7 +240,7 @@ public struct SavePipelineResult {
 
 extension SavePipelineResult: CustomStringConvertible {
     public var description: String {
-        "SavePipelineResult(标题: '\(extractedTitle)', 来源: \(titleSource.displayName), 耗时: \(String(format: "%.2f", executionTime))秒, 步骤: \(stepsExecuted.count))"
+        "SavePipelineResult(耗时: \(String(format: "%.2f", executionTime))秒, 步骤: \(stepsExecuted.count))"
     }
 }
 

@@ -20,12 +20,6 @@ public enum TitleIntegrationError: Error, LocalizedError {
     /// XML 格式错误
     case xmlFormatError(String)
 
-    /// 标题标签缺失
-    case titleTagMissing
-
-    /// 标题标签格式错误
-    case titleTagMalformed(String)
-
     /// 编辑器内容为空
     case editorContentEmpty
 
@@ -101,10 +95,6 @@ public enum TitleIntegrationError: Error, LocalizedError {
         // 标题提取错误
         case let .xmlFormatError(details):
             return "XML 格式错误：\(details)"
-        case .titleTagMissing:
-            return "缺少标题标签"
-        case let .titleTagMalformed(details):
-            return "标题标签格式错误：\(details)"
         case .editorContentEmpty:
             return "编辑器内容为空"
         case let .editorStateInvalid(details):
@@ -156,11 +146,7 @@ public enum TitleIntegrationError: Error, LocalizedError {
     public var failureReason: String? {
         switch self {
         case .xmlFormatError:
-            "XML 内容格式不正确，无法解析标题标签"
-        case .titleTagMissing:
-            "XML 内容中没有找到 <title> 标签"
-        case .titleTagMalformed:
-            "标题标签的开始或结束标记不完整"
+            "XML 内容格式不正确"
         case .editorContentEmpty:
             "编辑器中没有任何内容可以提取"
         case .editorStateInvalid:
@@ -205,8 +191,8 @@ public enum TitleIntegrationError: Error, LocalizedError {
     /// 恢复建议
     public var recoverySuggestion: String? {
         switch self {
-        case .xmlFormatError, .titleTagMissing, .titleTagMalformed:
-            "请检查笔记内容的格式，或尝试重新编辑标题"
+        case .xmlFormatError:
+            "请检查笔记内容的格式"
         case .editorContentEmpty:
             "请在编辑器中输入一些内容后再尝试保存"
         case .editorStateInvalid:
@@ -245,7 +231,7 @@ public enum TitleIntegrationError: Error, LocalizedError {
             .warning
         case .titleTooLong, .editorContentEmpty, .saveCancelled:
             .minor
-        case .xmlFormatError, .titleTagMissing, .titleTagMalformed, .editorStateInvalid,
+        case .xmlFormatError, .editorStateInvalid,
              .saveStateError, .saveStepFailed, .stateSyncFailed, .uiUpdateFailed, .cacheUpdateFailed:
             .moderate
         case .saveTimeout, .apiCallFailed, .apiResponseInvalid, .networkError:
@@ -258,7 +244,7 @@ public enum TitleIntegrationError: Error, LocalizedError {
     /// 是否可重试
     public var isRetryable: Bool {
         switch self {
-        case .xmlFormatError, .titleTagMissing, .titleTagMalformed, .editorContentEmpty,
+        case .xmlFormatError, .editorContentEmpty,
              .titleTooLong, .titleContainsInvalidCharacters, .titleContainsNewlines, .titleContainsControlCharacters:
             false
         case .editorStateInvalid, .saveStateError, .saveStepFailed, .saveTimeout,
@@ -274,8 +260,6 @@ public enum TitleIntegrationError: Error, LocalizedError {
     public var errorCode: String {
         switch self {
         case .xmlFormatError: "TIE001"
-        case .titleTagMissing: "TIE002"
-        case .titleTagMalformed: "TIE003"
         case .editorContentEmpty: "TIE004"
         case .editorStateInvalid: "TIE005"
         case .titleTooLong: "TIE101"
