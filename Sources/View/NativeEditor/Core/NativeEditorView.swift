@@ -596,8 +596,10 @@ struct NativeEditorView: NSViewRepresentable {
             guard !isUpdatingTitleProgrammatically else { return }
 
             isUpdatingTitleProgrammatically = true
-            parent.editorContext.titleText = titleField.stringValue
+            let newTitle = titleField.stringValue
+            parent.editorContext.titleText = newTitle
             parent.editorContext.hasUnsavedChanges = true
+            parent.editorContext.notifyTitleChange(newTitle)
             isUpdatingTitleProgrammatically = false
         }
 
