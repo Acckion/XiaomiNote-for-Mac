@@ -595,6 +595,25 @@ struct NativeEditorView: NSViewRepresentable {
             isUpdatingTitleProgrammatically = false
         }
 
+        /// 处理标题 TextField 的特殊按键（Enter/Tab → 焦点转移到正文）
+        func control(_ control: NSControl, textView _: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            if control is TitleTextField,
+               commandSelector == #selector(NSResponder.insertNewline(_:)) ||
+               commandSelector == #selector(NSResponder.insertTab(_:))
+            {
+                guard let textView else { return true }
+                textView.window?.makeFirstResponder(textView)
+                textView.setSelectedRange(NSRange(location: 0, length: 0))
+                return true
+            }
+            return false
+        }
+
+        func controlTextDidBeginEditing(_ notification: Notification) {
+            guard notification.object is TitleTextField else { return }
+            parent.editorContext.setEditorFocused(true)
+        }
+
         // MARK: - NSTextViewDelegate
 
         func textDidChange(_ notification: Notification) {
@@ -1771,6 +1790,22 @@ class NativeTextView: NSTextView {
         // 先尝试让附件键盘处理器处理
         if AttachmentKeyboardHandler.shared.handleKeyDown(event, in: self) {
             return
+        }
+
+        // 向上方向键：光标在第一行开头时，焦点转移到标题 TextField
+        if event.keyCode == 126 { // Up arrow
+            let cursorLocation = selectedRange().location
+            if cursorLocation == 0 {
+                if let scrollView = enclosingScrollView,
+                   let stackView = scrollView.documentView as? FlippedStackView,
+                   let titleField = stackView.arrangedSubviews.first as? TitleTextField
+                {
+                    window?.makeFirstResponder(titleField)
+                    // 将光标移到标题末尾
+                    titleField.currentEditor()?.selectedRange = NSRange(location: titleField.stringValue.count, length: 0)
+                    return
+                }
+            }
         }
 
         // 处理快捷键
