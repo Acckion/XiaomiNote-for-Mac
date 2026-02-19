@@ -11,7 +11,6 @@
 		018FC642F36C2622E6F437B2 /* OperationProcessorProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D2958C630522F173B34204 /* OperationProcessorProgressView.swift */; };
 		01FA068133809256656CA1E6 /* PrivateNotesPasswordInputDialogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECC9DF49DCB152F71BF490A4 /* PrivateNotesPasswordInputDialogView.swift */; };
 		047F5BE676672A9A39F59EB0 /* MainWindowToolbarDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5622B69AF87C36DE3D9D365 /* MainWindowToolbarDelegate.swift */; };
-		04BB2ECD7658AD20148B9ACD /* SearchPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5767A8F9F5F64421BEBD9923 /* SearchPanelController.swift */; };
 		04DF50186DDA20153CB2422A /* DefaultNoteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D4CC42D2A8BE15659354FB8 /* DefaultNoteService.swift */; };
 		058BB3EC81704771A8FFA252 /* SpecialElementFormatHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690890368250EA7A0BBB83B7 /* SpecialElementFormatHandler.swift */; };
 		077E1732A0453F54099EADDE /* AudioPanelHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2581C453FE41B54A4B57196E /* AudioPanelHostingController.swift */; };
@@ -107,7 +106,6 @@
 		5C394B8DD6D2A9BEA19EB904 /* AudioPlayerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B4D68D7A1D5417FE442C4A7 /* AudioPlayerService.swift */; };
 		5F7C34C98AAB9B255ABA1EF8 /* UnifiedEditorWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B786CE6C44F733E90A4EB13 /* UnifiedEditorWrapper.swift */; };
 		60A2791CDC973AD7E2DA88FE /* SidebarWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69E8372B9DDB3042119971E2 /* SidebarWindowState.swift */; };
-		6278046F9AB0966B8743EC7A /* SearchPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF106D1C11364EA28F52D92C /* SearchPanelView.swift */; };
 		62F7FD32DC8581CCF814BF07 /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1ABCE2B774CDF77B76A251D /* GalleryView.swift */; };
 		62FEF9120204F9F7DAB703C0 /* CrossParagraphFormatHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E02BED92A2320CE43A87555 /* CrossParagraphFormatHandler.swift */; };
 		6370B86B6C2FA781CDC335EE /* FormatApplicationPerformanceOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2F9D80E55516F226B64D42C /* FormatApplicationPerformanceOptimizer.swift */; };
@@ -410,7 +408,6 @@
 		55B4B2CC41CAC90B9E638851 /* PerformanceCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceCache.swift; sourceTree = "<group>"; };
 		568BE73C2FC4E84138643989 /* XiaoMiFormatConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XiaoMiFormatConverter.swift; sourceTree = "<group>"; };
 		56EA3023AC02C6C7FD16FDDC /* MemoryCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryCacheManager.swift; sourceTree = "<group>"; };
-		5767A8F9F5F64421BEBD9923 /* SearchPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPanelController.swift; sourceTree = "<group>"; };
 		5850C05E06D29B03CF92F52C /* PerformanceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMonitor.swift; sourceTree = "<group>"; };
 		598769660960CF358F48F4A9 /* AttributedStringToASTConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttributedStringToASTConverter.swift; sourceTree = "<group>"; };
 		5AA2C5228C6D1AD33C3CC0ED /* FormatMenuProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatMenuProvider.swift; sourceTree = "<group>"; };
@@ -501,7 +498,6 @@
 		ABE5F4289985D6251543ECE9 /* OfflineOperationsProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineOperationsProgressView.swift; sourceTree = "<group>"; };
 		ABF2C4848C1DAC598DCA8CEC /* FormatManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatManager.swift; sourceTree = "<group>"; };
 		AEF19FCB59B84D1474DA6684 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
-		AF106D1C11364EA28F52D92C /* SearchPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPanelView.swift; sourceTree = "<group>"; };
 		B1B157A5008284F9354BB52D /* FormatSpan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatSpan.swift; sourceTree = "<group>"; };
 		B293C41F4B82AC07103F0968 /* XMLNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLNormalizer.swift; sourceTree = "<group>"; };
 		B2E26C94F70FEF0956F74FF8 /* EditorChangeTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorChangeTracker.swift; sourceTree = "<group>"; };
@@ -706,7 +702,6 @@
 				A7D8D743FBFC1AA843C6E833 /* LoginWindowController.swift */,
 				673F8B6390F2F7C84F32E4F6 /* MainWindowController.swift */,
 				0BC91543705F2AC75FA52B3A /* ParagraphDebugWindowController.swift */,
-				5767A8F9F5F64421BEBD9923 /* SearchPanelController.swift */,
 				44B3D5E462F26593AB71C991 /* SettingsWindowController.swift */,
 				220034954E0B66DD478E6095 /* TrashWindowController.swift */,
 			);
@@ -1106,7 +1101,6 @@
 			isa = PBXGroup;
 			children = (
 				7F5AA98706224C93394BA6CD /* SearchFilterMenuContent.swift */,
-				AF106D1C11364EA28F52D92C /* SearchPanelView.swift */,
 			);
 			path = Search;
 			sourceTree = "<group>";
@@ -1800,8 +1794,6 @@
 				5B494F40439553F8D670F78A /* SavePipelineCoordinator.swift in Sources */,
 				19EEC6CE8CE350BBE8E7450F /* ScheduledTaskManager.swift in Sources */,
 				856A47453F767DEDEDA9B87B /* SearchFilterMenuContent.swift in Sources */,
-				04BB2ECD7658AD20148B9ACD /* SearchPanelController.swift in Sources */,
-				6278046F9AB0966B8743EC7A /* SearchPanelView.swift in Sources */,
 				71FB526AB84AAF03A0AF7AFF /* SearchViewModel.swift in Sources */,
 				775528A002122361B24F297C /* SelectionAnchorManager.swift in Sources */,
 				9940AAB10DA90750080FA205 /* ServiceLocator.swift in Sources */,

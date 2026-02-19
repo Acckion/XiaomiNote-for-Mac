@@ -77,9 +77,6 @@
         /// 负责根据应用状态动态更新工具栏项的可见性
         private var visibilityManager: ToolbarVisibilityManager?
 
-        /// 查找面板控制器
-        private var searchPanelController: SearchPanelController?
-
         /// 保存的笔记列表宽度（用于视图模式切换时恢复）
         private var savedNotesListWidth: CGFloat?
 
@@ -141,9 +138,6 @@
 
             // 设置状态监听
             setupStateObservers()
-
-            // 初始化查找面板控制器
-            self.searchPanelController = SearchPanelController(mainWindowController: self)
 
             LogService.shared.info(.window, "初始化完成，窗口ID: \(windowState.windowId)")
         }
@@ -2467,24 +2461,31 @@
 
         // MARK: - 查找功能
 
+        /// 通过 NSTextFinder 原生查找面板执行查找操作
+        private func performFindAction(_ action: NSTextFinder.Action) {
+            let menuItem = NSMenuItem()
+            menuItem.tag = Int(action.rawValue)
+            NSApp.sendAction(#selector(NSTextView.performFindPanelAction(_:)), to: nil, from: menuItem)
+        }
+
         /// 显示查找面板
         @objc func showFindPanel(_: Any?) {
-            searchPanelController?.showSearchPanel()
+            performFindAction(.showFindInterface)
         }
 
         /// 查找下一个匹配项
         @objc func findNext(_: Any?) {
-            searchPanelController?.findNext()
+            performFindAction(.nextMatch)
         }
 
         /// 查找上一个匹配项
         @objc func findPrevious(_: Any?) {
-            searchPanelController?.findPrevious()
+            performFindAction(.previousMatch)
         }
 
         /// 显示查找和替换面板
         @objc func showFindAndReplacePanel(_: Any?) {
-            searchPanelController?.showSearchPanel()
+            performFindAction(.showReplaceInterface)
         }
 
         // MARK: - 附件操作
