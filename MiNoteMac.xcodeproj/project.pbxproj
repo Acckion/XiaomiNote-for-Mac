@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -150,6 +150,7 @@
 		80404DFC2924118749941B73 /* NoteCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE732FED5F7B16DEBDDB4D6F /* NoteCardView.swift */; };
 		8078A0D5E94E341B88BE4BFB /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837D1A4BD47198D9037FB29C /* Note.swift */; };
 		81348C353C6753A4412F1CA7 /* XMLEntityCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 813AD28F80536DCB40808194 /* XMLEntityCodec.swift */; };
+		81AD9FCDB21ABDC4245A4844 /* FlippedStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53AB6D065365A80727209289 /* FlippedStackView.swift */; };
 		82C2B6DF0C1EEECCA47E5140 /* BaseViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C6AAD1C2AB2A2A45AF0C864 /* BaseViewModel.swift */; };
 		83F73AF43550EFE3A37FD168 /* AutoSaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F99F485F449DFAF8E614266 /* AutoSaveManager.swift */; };
 		856A47453F767DEDEDA9B87B /* SearchFilterMenuContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F5AA98706224C93394BA6CD /* SearchFilterMenuContent.swift */; };
@@ -248,6 +249,7 @@
 		E6E8651B913B70759DA14C05 /* NoteOperationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81EBE7C53EE9B172B194465B /* NoteOperationCoordinator.swift */; };
 		E8E6B649C5050545E27EB13E /* NetworkLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5F6D1068AACE1CFC896341B /* NetworkLogger.swift */; };
 		E8FD8E1B08767D1D11360400 /* AudioPanelStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F503F883538E6E04A540CF77 /* AudioPanelStateManager.swift */; };
+		EA3F532B0956C5E0C33EBD03 /* TitleTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FF30651D051B00D75DEA6F8 /* TitleTextField.swift */; };
 		EA9509130EF9D401E5A50E97 /* NativeEditorMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A188F651D9BA502D8C37C3F5 /* NativeEditorMetrics.swift */; };
 		EAEE159B82319FE0A34FDD95 /* PageableViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5378E2CEA9ACB11DB1BA79D0 /* PageableViewModel.swift */; };
 		EBA5E00131015D430D09503A /* ExpandedNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23C0A34630D09A5EF91919EF /* ExpandedNoteView.swift */; };
@@ -402,8 +404,10 @@
 		4F74A5BE0EA62E0F08B459F3 /* FormatApplicationMethod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatApplicationMethod.swift; sourceTree = "<group>"; };
 		4F99F485F449DFAF8E614266 /* AutoSaveManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoSaveManager.swift; sourceTree = "<group>"; };
 		4FC9B374C346E86438315072 /* CacheServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheServiceProtocol.swift; sourceTree = "<group>"; };
+		4FF30651D051B00D75DEA6F8 /* TitleTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleTextField.swift; sourceTree = "<group>"; };
 		5233A3FADFEFFA29C91C10D2 /* MiNoteService+NoteServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MiNoteService+NoteServiceProtocol.swift"; sourceTree = "<group>"; };
 		5378E2CEA9ACB11DB1BA79D0 /* PageableViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageableViewModel.swift; sourceTree = "<group>"; };
+		53AB6D065365A80727209289 /* FlippedStackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlippedStackView.swift; sourceTree = "<group>"; };
 		5410BDF0B84821CA6A86CFAA /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
 		550F9ADF16CD5879E0E72834 /* MiNoteService+Encryption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MiNoteService+Encryption.swift"; sourceTree = "<group>"; };
 		556702212ADAF5D108879BA1 /* CustomSearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSearchField.swift; sourceTree = "<group>"; };
@@ -1179,11 +1183,13 @@
 			isa = PBXGroup;
 			children = (
 				4B2B963AF565507419FAC9FB /* CustomRenderer.swift */,
+				53AB6D065365A80727209289 /* FlippedStackView.swift */,
 				926B8428724A337ED50DC628 /* NativeEditorInitializer.swift */,
 				A9B169C15EB27658B047F945 /* NativeEditorView.swift */,
 				FBD4DDBBE64B7C019361D962 /* QuoteBlockRenderer.swift */,
 				2DE2D4837F3377E32D80BA10 /* SafeRenderer.swift */,
 				811DB3C2760EE536BF82D47B /* TitleIntegration.swift */,
+				4FF30651D051B00D75DEA6F8 /* TitleTextField.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -1555,7 +1561,6 @@
 			);
 			mainGroup = 35BBF0899E592177F9F49D3A;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -1670,6 +1675,7 @@
 				6DBE66AC34F276C1BE7028D9 /* EditorStateConsistencyChecker.swift in Sources */,
 				FB9D22888993D0CBEBFE1EFD /* ErrorRecoveryService.swift in Sources */,
 				EBA5E00131015D430D09503A /* ExpandedNoteView.swift in Sources */,
+				81AD9FCDB21ABDC4245A4844 /* FlippedStackView.swift in Sources */,
 				F00707AF58806715F39E45A1 /* FloatingInfoBar.swift in Sources */,
 				4C8F032FCAC2B617F227FDA1 /* Folder.swift in Sources */,
 				6B8691D5A2172D0AD0739B65 /* FolderViewModel.swift in Sources */,
@@ -1823,6 +1829,7 @@
 				3FD5B762753C698C358E155F /* TitleExtractionService.swift in Sources */,
 				32DFE02E7EF3CD8C2AC40D09 /* TitleIntegration.swift in Sources */,
 				0C7D4FE2FB60CE765BF8B165 /* TitleIntegrationError.swift in Sources */,
+				EA3F532B0956C5E0C33EBD03 /* TitleTextField.swift in Sources */,
 				3E7AC791A98EB566D6AB09BE /* ToolbarIdentifiers.swift in Sources */,
 				67CAF4F592FBE5C00C21D296 /* ToolbarItemFactory.swift in Sources */,
 				4706A288EE19BA6F05FB3A74 /* ToolbarItemProtocol.swift in Sources */,
@@ -1987,7 +1994,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = XG3RL88PUJ;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1996,6 +2007,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteMac;
 				PRODUCT_NAME = MiNoteMac;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 6.0;
@@ -2119,8 +2131,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = XG3RL88PUJ;
 				ENABLE_DEBUG_DYLIB = YES;
 				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2130,6 +2146,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.minote.MiNoteMac;
 				PRODUCT_NAME = MiNoteMac;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;

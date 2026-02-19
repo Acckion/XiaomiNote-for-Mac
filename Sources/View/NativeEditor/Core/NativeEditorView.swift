@@ -59,6 +59,17 @@ struct NativeEditorView: NSViewRepresentable {
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
 
+        // 创建垂直 StackView 作为 documentView（标题 + 正文）
+        let stackView = FlippedStackView()
+        stackView.orientation = .vertical
+        stackView.alignment = .leading
+        stackView.spacing = 0
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+
+        // 创建标题 TextField
+        let titleField = TitleTextField()
+        titleField.isEditable = isEditable
+
         // 创建优化的文本视图
         let textView = NativeTextView()
         textView.delegate = context.coordinator
@@ -86,11 +97,11 @@ struct NativeEditorView: NSViewRepresentable {
         textView.drawsBackground = false
         // 使用 FontSizeManager 统一管理默认字体 (14pt)
         textView.font = FontSizeManager.shared.defaultFont
-        textView.textColor = .labelColor // 使用 labelColor 自动适配深色模式
-        textView.insertionPointColor = .controlAccentColor // 设置光标颜色为系统强调色
+        textView.textColor = .labelColor
+        textView.insertionPointColor = .controlAccentColor
 
-        // 设置内边距
-        textView.textContainerInset = NSSize(width: 16, height: 16)
+        // 内边距：左右 16pt，上下 0（上边距由 stackView 布局控制）
+        textView.textContainerInset = NSSize(width: 16, height: 0)
 
         // 设置自动调整大小
         textView.minSize = NSSize(width: 0, height: 0)
@@ -98,13 +109,37 @@ struct NativeEditorView: NSViewRepresentable {
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
+        textView.translatesAutoresizingMaskIntoConstraints = false
+
+        // 组装 StackView
+        stackView.addArrangedSubview(titleField)
+        stackView.addArrangedSubview(textView)
 
         // 配置滚动视图
-        scrollView.documentView = textView
+        scrollView.documentView = stackView
+
+        // 约束：stackView 宽度跟随 scrollView.contentView
+        NSLayoutConstraint.activate([
+            stackView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
+        ])
+
+        // 标题 TextField 约束：左右内边距与 textView 的 textContainerInset 对齐
+        // NSTextField 文本起始位置比 NSTextView 偏左约 5pt，所以用 21pt 对齐
+        NSLayoutConstraint.activate([
+            titleField.leadingAnchor.constraint(equalTo: stackView.leadingAnchor, constant: 21),
+            titleField.trailingAnchor.constraint(equalTo: stackView.trailingAnchor, constant: -21),
+            titleField.topAnchor.constraint(equalTo: stackView.topAnchor, constant: 16),
+        ])
+
+        // textView 宽度跟随 stackView
+        NSLayoutConstraint.activate([
+            textView.widthAnchor.constraint(equalTo: stackView.widthAnchor),
+        ])
 
         // 保存引用
         context.coordinator.textView = textView
         context.coordinator.scrollView = scrollView
+        context.coordinator.titleField = titleField
 
         // 加载初始内容
         if !editorContext.nsAttributedText.string.isEmpty {
@@ -129,11 +164,12 @@ struct NativeEditorView: NSViewRepresentable {
         AttachmentSelectionManager.shared.unregister()
     }
 
-    func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let textView = scrollView.documentView as? NativeTextView else { return }
+    func updateNSView(_: NSScrollView, context: Context) {
+        guard let textView = context.coordinator.textView else { return }
 
         // 更新可编辑状态
         textView.isEditable = isEditable
+        context.coordinator.titleField?.isEditable = isEditable
 
         // 确保文字颜色适配当前外观（深色/浅色模式）
         textView.textColor = .labelColor
@@ -192,6 +228,7 @@ struct NativeEditorView: NSViewRepresentable {
         var parent: NativeEditorView
         weak var textView: NativeTextView?
         weak var scrollView: NSScrollView?
+        weak var titleField: TitleTextField?
         var isUpdatingFromTextView = false
 
         /// 标记是否正在从 SwiftUI updateNSView 更新（诊断用）
