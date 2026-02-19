@@ -689,26 +689,32 @@ public class NotesViewModel: ObservableObject {
     private func setupAuthStateSync() {
         // 同步 isOnline
         authStateManager.$isOnline
+            .receive(on: DispatchQueue.main)
             .assign(to: &$isOnline)
 
         // 同步 isCookieExpired
         authStateManager.$isCookieExpired
+            .receive(on: DispatchQueue.main)
             .assign(to: &$isCookieExpired)
 
         // 同步 cookieExpiredShown
         authStateManager.$cookieExpiredShown
+            .receive(on: DispatchQueue.main)
             .assign(to: &$cookieExpiredShown)
 
         // 同步 showCookieExpiredAlert
         authStateManager.$showCookieExpiredAlert
+            .receive(on: DispatchQueue.main)
             .assign(to: &$showCookieExpiredAlert)
 
         // 同步 shouldStayOffline
         authStateManager.$shouldStayOffline
+            .receive(on: DispatchQueue.main)
             .assign(to: &$shouldStayOffline)
 
         // 同步 showLoginView
         authStateManager.$showLoginView
+            .receive(on: DispatchQueue.main)
             .assign(to: &$showLoginView)
 
         // 同步 ViewStateCoordinator 的状态到 ViewModel
