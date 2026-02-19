@@ -108,7 +108,7 @@ class GalleryHostingController: NSViewController {
     private func setupFolderObserver() {
         viewModel.$selectedFolder
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] folder in
+            .sink { [weak self] _ in
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -118,7 +118,7 @@ class GalleryHostingController: NSViewController {
     private func setupSearchObserver() {
         viewModel.$searchText
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] searchText in
+            .sink { [weak self] _ in
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -174,7 +174,9 @@ struct GalleryContainerView: View {
             .animation(.easeInOut(duration: 0.35), value: expandedNote?.id)
             .background(Color(NSColor.windowBackgroundColor))
             .onChange(of: expandedNote?.id) { _, newValue in
-                viewModel.isGalleryExpanded = (newValue != nil)
+                DispatchQueue.main.async {
+                    viewModel.isGalleryExpanded = (newValue != nil)
+                }
             }
             .onChange(of: optionsManager.viewMode) { _, newMode in
                 handleViewModeChange(newMode)
@@ -226,7 +228,9 @@ struct GalleryContainerView: View {
     private func handleViewModeChange(_ newMode: ViewMode) {
         if newMode == .list {
             expandedNote = nil
-            viewModel.isGalleryExpanded = false
+            DispatchQueue.main.async {
+                viewModel.isGalleryExpanded = false
+            }
         }
     }
 

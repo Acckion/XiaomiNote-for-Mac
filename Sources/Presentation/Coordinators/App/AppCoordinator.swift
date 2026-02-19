@@ -247,9 +247,11 @@ public final class AppCoordinator: ObservableObject {
             .sink { [weak self] note in
                 guard let self else { return }
 
-                // 更新笔记列表中的笔记
-                if let index = noteListViewModel.notes.firstIndex(where: { $0.id == note.id }) {
-                    noteListViewModel.notes[index] = note
+                // 延迟到下一个 RunLoop 周期，避免在视图更新周期内修改 @Published 属性
+                DispatchQueue.main.async {
+                    if let index = self.noteListViewModel.notes.firstIndex(where: { $0.id == note.id }) {
+                        self.noteListViewModel.notes[index] = note
+                    }
                 }
             }
             .store(in: &cancellables)

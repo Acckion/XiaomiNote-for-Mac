@@ -145,6 +145,7 @@ public class NotesViewModel: ObservableObject {
     @Published var syncResult: SyncService.SyncResult?
 
     // MARK: - 数据加载状态指示
+
     /// 是否正在加载本地数据
     @Published var isLoadingLocalData = false
 
@@ -667,7 +668,6 @@ public class NotesViewModel: ObservableObject {
 
             loadFolders()
             updateFolderCounts()
-            objectWillChange.send()
         } catch {
             LogService.shared.error(.viewmodel, "启动后重新加载数据失败: \(error)")
         }
@@ -689,26 +689,32 @@ public class NotesViewModel: ObservableObject {
     private func setupAuthStateSync() {
         // 同步 isOnline
         authStateManager.$isOnline
+            .receive(on: DispatchQueue.main)
             .assign(to: &$isOnline)
 
         // 同步 isCookieExpired
         authStateManager.$isCookieExpired
+            .receive(on: DispatchQueue.main)
             .assign(to: &$isCookieExpired)
 
         // 同步 cookieExpiredShown
         authStateManager.$cookieExpiredShown
+            .receive(on: DispatchQueue.main)
             .assign(to: &$cookieExpiredShown)
 
         // 同步 showCookieExpiredAlert
         authStateManager.$showCookieExpiredAlert
+            .receive(on: DispatchQueue.main)
             .assign(to: &$showCookieExpiredAlert)
 
         // 同步 shouldStayOffline
         authStateManager.$shouldStayOffline
+            .receive(on: DispatchQueue.main)
             .assign(to: &$shouldStayOffline)
 
         // 同步 showLoginView
         authStateManager.$showLoginView
+            .receive(on: DispatchQueue.main)
             .assign(to: &$showLoginView)
 
         // 同步 ViewStateCoordinator 的状态到 ViewModel
@@ -875,7 +881,7 @@ public class NotesViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    /// 发送笔记选中状态变化通知
+    // 发送笔记选中状态变化通知
 
     private func postNoteSelectionNotification() {
         let hasSelectedNote = selectedNote != nil
@@ -1245,7 +1251,6 @@ public class NotesViewModel: ObservableObject {
         }
 
         loadFolders()
-        objectWillChange.send()
     }
 
     public func loadFolders() {
@@ -1303,9 +1308,6 @@ public class NotesViewModel: ObservableObject {
                 }
 
                 folders = foldersWithCount
-
-                // 强制触发 UI 更新
-                objectWillChange.send()
             } else {
                 // 如果没有本地文件夹数据，加载示例数据
                 // loadSampleFolders()
@@ -1570,8 +1572,6 @@ public class NotesViewModel: ObservableObject {
             )
             notes[index] = updatedNote
         }
-
-        objectWillChange.send()
     }
 
     /// 清除示例数据（如果有）
@@ -1605,7 +1605,6 @@ public class NotesViewModel: ObservableObject {
 
             loadFolders()
             updateFolderCounts()
-            objectWillChange.send()
         } catch {
             LogService.shared.error(.viewmodel, "重新加载数据失败: \(error)")
         }
@@ -2364,7 +2363,10 @@ public class NotesViewModel: ObservableObject {
                     selectedNote = updatedNote
                 }
 
-                LogService.shared.debug(.viewmodel, "已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count), 时间戳决策: \(contentActuallyChanged ? "更新" : "保持")")
+                LogService.shared.debug(
+                    .viewmodel,
+                    "已获取并更新笔记完整内容: \(note.id), 内容长度: \(updatedNote.content.count), 时间戳决策: \(contentActuallyChanged ? "更新" : "保持")"
+                )
             }
         } catch {
             LogService.shared.error(.viewmodel, "获取笔记完整内容失败: \(error.localizedDescription)")
@@ -2943,9 +2945,6 @@ public class NotesViewModel: ObservableObject {
             updatedFolders[index] = updatedFolder
             folders = updatedFolders
 
-            // 强制触发 UI 更新（通过 objectWillChange）
-            objectWillChange.send()
-
             try localStorage.saveFolders(folders.filter { !$0.isSystem })
 
             // 确保 selectedFolder 也更新（使用新的 updatedFolder 实例）
@@ -3042,8 +3041,6 @@ public class NotesViewModel: ObservableObject {
                 var updatedFolders = folders
                 updatedFolders[index] = updatedFolder
                 folders = updatedFolders
-
-                objectWillChange.send()
 
                 if selectedFolder?.id == folder.id {
                     selectedFolder = updatedFolder

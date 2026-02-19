@@ -107,7 +107,7 @@ public class ContentAreaHostingController: NSViewController {
             .map(\.viewMode)
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] viewMode in
+            .sink { [weak self] _ in
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -117,7 +117,7 @@ public class ContentAreaHostingController: NSViewController {
     private func setupFolderObserver() {
         viewModel.$selectedFolder
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] folder in
+            .sink { [weak self] _ in
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -128,8 +128,7 @@ public class ContentAreaHostingController: NSViewController {
         viewModel.$searchText
             .receive(on: DispatchQueue.main)
             .sink { [weak self] searchText in
-                if !searchText.isEmpty {
-                }
+                if !searchText.isEmpty {}
                 self?.refreshView()
             }
             .store(in: &cancellables)

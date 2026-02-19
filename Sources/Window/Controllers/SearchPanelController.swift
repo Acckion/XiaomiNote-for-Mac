@@ -238,7 +238,7 @@
         private func replace() {
             guard !searchText.isEmpty else { return }
 
-            logger.debug("替换: \(self.searchText) -> \(self.replaceText)")
+            logger.debug("替换: \(searchText) -> \(replaceText)")
 
             // 调用编辑器的替换功能
             replaceInEditor(replaceAll: false)
@@ -249,7 +249,7 @@
         private func replaceAll() {
             guard !searchText.isEmpty else { return }
 
-            logger.debug("替换所有: \(self.searchText) -> \(self.replaceText)")
+            logger.debug("替换所有: \(searchText) -> \(replaceText)")
 
             // 调用编辑器的替换所有功能
             replaceInEditor(replaceAll: true)

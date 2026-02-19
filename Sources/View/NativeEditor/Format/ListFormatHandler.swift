@@ -507,7 +507,6 @@ public struct ListFormatHandler {
                 }
             }
 
-
         }
     }
 

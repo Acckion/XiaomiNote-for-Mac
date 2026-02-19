@@ -388,15 +388,15 @@ public struct SidebarView: View {
                     // 调用原有的 selectFolder 方法处理私密笔记等特殊逻辑
                     viewModel.selectFolder(newValue)
 
-                    // 选中文件夹时，清除搜索状态
-                    // 1. 清除搜索文本
-                    viewModel.searchText = ""
-                    // 2. 清除所有筛选选项
-                    viewModel.searchFilterHasTags = false
-                    viewModel.searchFilterHasChecklist = false
-                    viewModel.searchFilterHasImages = false
-                    viewModel.searchFilterHasAudio = false
-                    viewModel.searchFilterIsPrivate = false
+                    // 延迟到当前渲染周期结束后再清除搜索状态，避免在视图更新中修改 @Published 属性
+                    DispatchQueue.main.async {
+                        viewModel.searchText = ""
+                        viewModel.searchFilterHasTags = false
+                        viewModel.searchFilterHasChecklist = false
+                        viewModel.searchFilterHasImages = false
+                        viewModel.searchFilterHasAudio = false
+                        viewModel.searchFilterIsPrivate = false
+                    }
                 }
             }
         }

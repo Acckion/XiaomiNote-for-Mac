@@ -1730,7 +1730,7 @@
             historySheetToolbarDelegate = toolbarDelegate
 
             // 显示sheet
-            window.beginSheet(sheetWindow) { response in
+            window.beginSheet(sheetWindow) { _ in
                 // 清理工具栏代理引用
                 self.historySheetToolbarDelegate = nil
             }
@@ -1762,7 +1762,6 @@
             sheetWindow.titlebarAppearsTransparent = false // 显示标题栏
             sheetWindow.titleVisibility = .visible // 显示标题
 
-
             // 为sheet窗口添加工具栏
             let toolbarDelegate = BaseSheetToolbarDelegate()
             toolbarDelegate.onClose = { [weak window] in
@@ -1782,9 +1781,8 @@
             // 存储工具栏代理引用，防止被ARC释放
             trashSheetToolbarDelegate = toolbarDelegate
 
-
             // 显示sheet
-            window.beginSheet(sheetWindow) { response in
+            window.beginSheet(sheetWindow) { _ in
                 // 清理工具栏代理引用
                 self.trashSheetToolbarDelegate = nil
             }
@@ -2042,7 +2040,7 @@
             currentSheetToolbarDelegate = toolbarDelegate
 
             // 显示sheet
-            window.beginSheet(sheetWindow) { response in
+            window.beginSheet(sheetWindow) { _ in
                 // 清理sheet窗口引用和工具栏代理引用
                 self.currentSheetWindow = nil
                 self.currentSheetToolbarDelegate = nil
@@ -2138,7 +2136,6 @@
             guard let nativeEditorContext = getCurrentNativeEditorContext() else {
                 return
             }
-
 
             // 请求内容同步并更新格式状态
             nativeEditorContext.requestContentSync()
@@ -2597,7 +2594,7 @@
             }
 
             // 获取窗口状态
-            let windowState = MainWindowState(
+            return MainWindowState(
                 isFullScreen: window.styleMask.contains(.fullScreen),
                 splitViewWidths: splitViewWidths,
                 isSidebarHidden: isSidebarHidden,
@@ -2605,8 +2602,6 @@
                 notesListWindowState: notesListWindowState,
                 noteDetailWindowState: noteDetailWindowState
             )
-
-            return windowState
         }
 
         /// 恢复窗口状态
@@ -2618,7 +2613,6 @@
                 LogService.shared.error(.window, "无法恢复窗口状态：窗口或分割视图控制器不存在")
                 return
             }
-
 
             // 恢复分割视图宽度
             if state.splitViewWidths.count == splitViewController.splitViewItems.count {
@@ -2879,14 +2873,12 @@
                 return
             }
 
-
             // 创建SwiftUI搜索筛选菜单视图
             let searchFilterMenuView = SearchFilterMenuContent(viewModel: viewModel)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: searchFilterMenuView)
             hostingController.view.frame = NSRect(x: 0, y: 0, width: 200, height: 190)
-
 
             // 创建popover
             let popover = NSPopover()
@@ -3027,7 +3019,6 @@
                 return
             }
 
-
             // 创建音频面板托管控制器
             let audioPanelController = AudioPanelHostingController(
                 stateManager: audioPanelStateManager,
@@ -3082,7 +3073,6 @@
             guard splitViewController.splitViewItems.count >= 4 else {
                 return
             }
-
 
             // 移除第四栏（音频面板）
             let audioPanelItem = splitViewController.splitViewItems[3]
@@ -3185,11 +3175,13 @@
                         rawData["setting"] = setting
                         note.rawData = rawData
 
-
-                        // 更新 viewModel 中的笔记
-                        viewModel.selectedNote = note
-                        if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
-                            viewModel.notes[index] = note
+                        // 延迟到下一个 RunLoop 周期，避免在视图更新周期内修改 @Published 属性
+                        DispatchQueue.main.async { [weak self] in
+                            guard let self else { return }
+                            self.viewModel?.selectedNote = note
+                            if let index = self.viewModel?.notes.firstIndex(where: { $0.id == note.id }) {
+                                self.viewModel?.notes[index] = note
+                            }
                         }
                     }
 

@@ -64,6 +64,7 @@ public final class FormatStateManager: ObservableObject {
     private let debounceInterval: TimeInterval = 0.05 // 50ms
 
     // MARK: - 性能监控属性
+
     /// 性能监控是否启用
     private var performanceMonitoringEnabled = true
 
@@ -218,7 +219,6 @@ public final class FormatStateManager: ObservableObject {
     }
 
     // MARK: - Public Methods - 性能监控
-
 
     /// 启用或禁用性能监控
     /// - Parameter enabled: 是否启用
@@ -403,6 +403,5 @@ public final class FormatStateManager: ObservableObject {
 public extension FormatStateManager {
 
     /// 打印当前状态（调试用）
-    func printCurrentState() {
-    }
+    func printCurrentState() {}
 }

@@ -166,7 +166,7 @@ class AudioPanelHostingController: NSViewController {
         // 监听状态管理器的模式变化
         stateManager.$mode
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] mode in
+            .sink { [weak self] _ in
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -174,7 +174,7 @@ class AudioPanelHostingController: NSViewController {
         // 监听文件 ID 变化
         stateManager.$currentFileId
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] fileId in
+            .sink { [weak self] _ in
                 self?.refreshView()
             }
             .store(in: &cancellables)

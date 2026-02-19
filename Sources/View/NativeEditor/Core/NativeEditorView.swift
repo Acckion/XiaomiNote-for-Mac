@@ -155,6 +155,9 @@ struct NativeEditorView: NSViewRepresentable {
                 // 保存当前选择范围
                 let selectedRange = textView.selectedRange()
 
+                // 标记正在从 SwiftUI 更新，防止 textViewDidChangeSelection 中的 @Published 赋值
+                context.coordinator.isUpdatingFromSwiftUI = true
+
                 // 更新内容
                 textView.textStorage?.setAttributedString(newText)
 
@@ -172,6 +175,8 @@ struct NativeEditorView: NSViewRepresentable {
                     )
                     textView.setSelectedRange(newRange)
                 }
+
+                context.coordinator.isUpdatingFromSwiftUI = false
             }
         }
     }
@@ -188,6 +193,10 @@ struct NativeEditorView: NSViewRepresentable {
         weak var textView: NativeTextView?
         weak var scrollView: NSScrollView?
         var isUpdatingFromTextView = false
+
+        /// 标记是否正在从 SwiftUI updateNSView 更新（诊断用）
+        var isUpdatingFromSwiftUI = false
+
         private var cancellables = Set<AnyCancellable>()
 
         /// 上一次的音频附件文件 ID 集合（用于检测删除）
@@ -197,7 +206,6 @@ struct NativeEditorView: NSViewRepresentable {
         var lastContentVersion = 0
 
         // MARK: - Paper-Inspired Managers (Task 19.1)
-
 
         /// 段落管理器 - 负责段落边界检测和段落列表维护
         private let paragraphManager = ParagraphManager()
@@ -465,12 +473,10 @@ struct NativeEditorView: NSViewRepresentable {
             let attributedString = NSAttributedString(attributedString: textStorage)
             let selectedRange = textView.selectedRange()
 
-
             // 打印位置 16 处的属性（用于调试）
             if selectedRange.location < textStorage.length {
                 let attrs = textStorage.attributes(at: selectedRange.location, effectiveRange: nil)
-                for (key, value) in attrs {
-                }
+                for (key, value) in attrs {}
 
                 // 检查字体
                 if let font = attrs[.font] as? NSFont {
@@ -559,7 +565,6 @@ struct NativeEditorView: NSViewRepresentable {
 
             // MARK: - Paper-Inspired Integration (Task 19.2)
 
-
             // 1. 使用 TypingOptimizer 判断更新策略
             let selectedRange = textView.selectedRange()
             let isSimpleTyping = typingOptimizer.isSimpleTyping(
@@ -622,19 +627,24 @@ struct NativeEditorView: NSViewRepresentable {
             // 直接从 textStorage 获取内容（保留所有属性）
             let currentAttributedString = NSAttributedString(attributedString: textStorage)
 
-            // 关键修复：同步更新 nsAttributedText，确保菜单栏验证时数据是最新的
-            // 这是为了解决菜单栏格式菜单勾选状态不正确的问题
-            // 之前使用 Task 异步更新，导致 validateMenuItem 调用时数据还没更新
-            parent.editorContext.nsAttributedText = currentAttributedString
-            parent.editorContext.updateSelectedRange(selectedRange)
+            if isUpdatingFromSwiftUI {
+                // updateNSView 期间的 selection change 是程序化的，完全跳过
+                return
+            }
 
-            // 当选择变化时，说明用户正在与编辑器交互，设置焦点状态为 true
-            if !parent.editorContext.isEditorFocused {
-                parent.editorContext.setEditorFocused(true)
+            // 将 @Published 属性修改延迟到下一个 run loop，
+            // 避免在 SwiftUI 视图更新周期（包括 updateNSView 后的布局阶段）内触发 Publishing 警告
+            let editorContext = parent.editorContext
+            let wasFocused = editorContext.isEditorFocused
+            DispatchQueue.main.async {
+                editorContext.nsAttributedText = currentAttributedString
+                editorContext.updateSelectedRange(selectedRange)
+                if !wasFocused {
+                    editorContext.setEditorFocused(true)
+                }
             }
 
             // MARK: - Paper-Inspired Integration (Task 19.4)
-
 
             // 1. 使用 SelectionAnchorManager 管理锚点
             // 检查是否是选择开始（从无选择到有选择）
@@ -734,7 +744,6 @@ struct NativeEditorView: NSViewRepresentable {
                 selectedRange: selectedRange
             )
 
-
             // 2. 处理空选择范围的情况
             // 对于内联格式，如果没有选中文本，则不应用格式
             // 对于块级格式，即使没有选中文本也可以应用到当前行
@@ -768,9 +777,7 @@ struct NativeEditorView: NSViewRepresentable {
                 return
             }
 
-
             // MARK: - Paper-Inspired Integration (Task 19.3)
-
 
             // 4. 应用格式
             do {
@@ -874,7 +881,7 @@ struct NativeEditorView: NSViewRepresentable {
         /// - Parameters:
         ///   - result: 错误处理结果
         ///   - format: 格式类型
-        private func handleFormatErrorRecovery(_ result: FormatErrorHandlingResult, format: TextFormat) {
+        private func handleFormatErrorRecovery(_ result: FormatErrorHandlingResult, format _: TextFormat) {
             switch result.recoveryAction {
             case .retryWithFallback:
                 break
@@ -1370,7 +1377,6 @@ class NativeTextView: NSTextView {
 
     // MARK: - Cursor Position Restriction
 
-
     /// 重写 setSelectedRange 方法，限制光标位置
     /// 确保光标不能移动到列表标记区域内
     override func setSelectedRange(_ charRange: NSRange) {
@@ -1381,8 +1387,7 @@ class NativeTextView: NSTextView {
         // 通知附件选择管理器（仅在非递归调用时）
         if !isAdjustingSelection {
             AttachmentSelectionManager.shared.handleSelectionChange(charRange)
-        } else {
-        }
+        } else {}
 
         // 如果禁用限制、没有 textStorage 或有选择范围，不进行列表光标限制
         guard enableListCursorRestriction,
@@ -1506,7 +1511,6 @@ class NativeTextView: NSTextView {
     }
 
     // MARK: - Selection Restriction
-
 
     /// 重写 moveLeftAndModifySelection 方法，处理 Shift+左方向键选择
     /// 当选择起点在列表项内容起始位置时，向左扩展选择应跳到上一行而非选中列表标记
@@ -1652,7 +1656,6 @@ class NativeTextView: NSTextView {
                         let newCheckedState = !attachment.isChecked
                         attachment.isChecked = newCheckedState
 
-
                         // 关键修复：强制标记 textStorage 为已修改
                         // 通过重新设置附件属性来触发 textStorage 的变化通知
                         textStorage.beginEditing()
@@ -1667,7 +1670,6 @@ class NativeTextView: NSTextView {
 
                         // 通知代理 - 内容已变化
                         delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
-
 
                         return
                     }
@@ -1686,7 +1688,6 @@ class NativeTextView: NSTextView {
                         guard let fileId = audioAttachment.fileId, !fileId.isEmpty else {
                             return
                         }
-
 
                         // 发送通知，让音频面板处理播放
                         NotificationCenter.default.postAudioAttachmentClicked(fileId: fileId)
@@ -1827,7 +1828,6 @@ class NativeTextView: NSTextView {
             return false
         }
 
-
         // 查找标题段落的结束位置（第一个换行符）
         let string = textStorage.string as NSString
         let titleLineRange = string.lineRange(for: NSRange(location: 0, length: 1))
@@ -1890,7 +1890,6 @@ class NativeTextView: NSTextView {
         if let foregroundColor = bodyAttributes[.foregroundColor] as? NSColor {
             typingAttributes[.foregroundColor] = foregroundColor
         }
-
 
         return true
     }

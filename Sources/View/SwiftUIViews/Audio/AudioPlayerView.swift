@@ -468,10 +468,9 @@ struct AudioPlayerPopoverView: View {
         fileId: "test-file-id",
         showCloseButton: true,
         isCompact: false
-    ) {
-    }
-    .frame(width: 300)
-    .padding()
+    ) {}
+        .frame(width: 300)
+        .padding()
 }
 
 #Preview("Compact") {
@@ -492,6 +491,5 @@ struct AudioPlayerPopoverView: View {
 #Preview("Popover") {
     AudioPlayerPopoverView(
         fileId: "test-file-id"
-    ) {
-    }
+    ) {}
 }

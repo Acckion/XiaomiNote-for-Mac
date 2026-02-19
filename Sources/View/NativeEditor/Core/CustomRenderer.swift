@@ -470,6 +470,7 @@ class CustomRenderer {
             _ = getCachedOrderAttachment(number: number, indent: 1)
         }
     }
+
     func clearCacheForType(_ type: String) {
         let keysToRemove = attachmentCache.keys.filter { $0.hasPrefix(type) }
         for key in keysToRemove {

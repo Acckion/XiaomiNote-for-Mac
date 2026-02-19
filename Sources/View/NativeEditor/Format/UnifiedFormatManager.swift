@@ -155,8 +155,7 @@ public final class UnifiedFormatManager {
 
     // MARK: - 初始化
 
-    private init() {
-    }
+    private init() {}
 
     // MARK: - 注册/注销
 
@@ -740,17 +739,15 @@ public final class UnifiedFormatManager {
         }
 
         // 获取当前位置的属性
-        var attrs: [NSAttributedString.Key: Any]
-
-        if position > 0, position <= textStorage.length {
+        var attrs: [NSAttributedString.Key: Any] = if position > 0, position <= textStorage.length {
             // 使用前一个字符的属性
-            attrs = textStorage.attributes(at: position - 1, effectiveRange: nil)
+            textStorage.attributes(at: position - 1, effectiveRange: nil)
         } else if position < textStorage.length {
             // 使用当前位置的属性
-            attrs = textStorage.attributes(at: position, effectiveRange: nil)
+            textStorage.attributes(at: position, effectiveRange: nil)
         } else {
             // 空文档或文档末尾，使用默认属性
-            attrs = InlineFormatHandler.buildCleanTypingAttributes()
+            InlineFormatHandler.buildCleanTypingAttributes()
         }
 
         textView.typingAttributes = attrs

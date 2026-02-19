@@ -263,15 +263,13 @@ public final class MiNoteService: @unchecked Sendable {
 
         // 如果有Cookie（无论是否有效）且是认证错误：视为Cookie过期
         if hasCookie, isAuthError {
-            if hasLoginURL {
-            }
+            if hasLoginURL {}
             // 使用锁确保只触发一次回调
             cookieExpiredLock.lock()
             let shouldTrigger = !cookieExpiredFlag
             if shouldTrigger {
                 cookieExpiredFlag = true
-            } else {
-            }
+            } else {}
             cookieExpiredLock.unlock()
 
             if shouldTrigger {
@@ -288,8 +286,7 @@ public final class MiNoteService: @unchecked Sendable {
             let shouldTrigger = !cookieExpiredFlag
             if shouldTrigger {
                 cookieExpiredFlag = true
-            } else {
-            }
+            } else {}
             cookieExpiredLock.unlock()
 
             if shouldTrigger {
@@ -528,8 +525,7 @@ public final class MiNoteService: @unchecked Sendable {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "获取私密笔记失败"
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {
-                }
+                } else {}
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
             }
@@ -1043,8 +1039,7 @@ public final class MiNoteService: @unchecked Sendable {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "重命名文件夹失败"
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {
-                }
+                } else {}
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
             }
@@ -1123,8 +1118,7 @@ public final class MiNoteService: @unchecked Sendable {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "删除文件夹失败"
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {
-                }
+                } else {}
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
             }
@@ -1263,8 +1257,7 @@ public final class MiNoteService: @unchecked Sendable {
                 }
             }
 
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-            return json
+            return try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
         } catch {
             NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
             throw error
@@ -1343,9 +1336,7 @@ public final class MiNoteService: @unchecked Sendable {
         // 使用 ScheduledTaskManager 的实时检查结果
         // ScheduledTaskManager 会定期检查Cookie在服务器端的有效性
         // 注意：isCookieValid 属性是实时更新的，由定时任务维护
-        let isCookieValid = ScheduledTaskManager.shared.isCookieValid
-
-        return isCookieValid
+        return ScheduledTaskManager.shared.isCookieValid
     }
 
     /// 检查是否在 cookie 设置后的保护期内
@@ -1456,8 +1447,7 @@ public final class MiNoteService: @unchecked Sendable {
         else if let responseEntries = response["entries"] as? [[String: Any]] {
             entries = responseEntries
         } else {
-            if let data = response["data"] as? [String: Any] {
-            }
+            if let data = response["data"] as? [String: Any] {}
         }
 
         for entry in entries {
@@ -1500,8 +1490,7 @@ public final class MiNoteService: @unchecked Sendable {
             folderEntries = responseFolders
         } else {
             // 打印响应结构以便调试
-            if let data = response["data"] as? [String: Any] {
-            }
+            if let data = response["data"] as? [String: Any] {}
         }
 
         for folderEntry in folderEntries {
@@ -1509,10 +1498,8 @@ public final class MiNoteService: @unchecked Sendable {
             if let type = folderEntry["type"] as? String, type == "folder" {
                 if let folder = Folder.fromMinoteData(folderEntry) {
                     folders.append(folder)
-                } else {
-                }
-            } else {
-            }
+                } else {}
+            } else {}
         }
 
         // 添加系统文件夹（参考 Obsidian 插件：默认文件夹 id='0', name='未分类'）
@@ -1527,7 +1514,6 @@ public final class MiNoteService: @unchecked Sendable {
             let starredIndex = hasAllNotes ? 1 : 0
             folders.insert(Folder(id: "starred", name: "置顶", count: 0, isSystem: true), at: starredIndex)
         }
-
 
         return folders
     }
@@ -1561,7 +1547,6 @@ public final class MiNoteService: @unchecked Sendable {
         let sha1 = sha1Hash(of: imageData)
         let md5 = md5Hash(of: imageData)
         let fileSize = imageData.count
-
 
         // 第一步：请求上传
         let requestUploadResponse = try await requestImageUpload(
@@ -1608,7 +1593,6 @@ public final class MiNoteService: @unchecked Sendable {
                     throw MiNoteError.invalidResponse
                 }
 
-
                 // 第二步：实际上传文件数据，获取 commit_meta
                 let commitMeta = try await uploadFileChunk(
                     fileData: imageData,
@@ -1633,7 +1617,6 @@ public final class MiNoteService: @unchecked Sendable {
         guard let finalFileId = fileId else {
             throw MiNoteError.invalidResponse
         }
-
 
         // 返回文件信息
         return [
@@ -1668,7 +1651,6 @@ public final class MiNoteService: @unchecked Sendable {
         let sha1 = sha1Hash(of: audioData)
         let md5 = md5Hash(of: audioData)
         let fileSize = audioData.count
-
 
         // 第一步：请求上传
         // 注意：语音文件必须使用 note_img 类型（与图片相同）
@@ -1712,7 +1694,6 @@ public final class MiNoteService: @unchecked Sendable {
                     throw MiNoteError.invalidResponse
                 }
 
-
                 // 第二步：上传文件块
                 let commitMeta = try await uploadFileChunk(
                     fileData: audioData,
@@ -1721,7 +1702,6 @@ public final class MiNoteService: @unchecked Sendable {
                     blockMeta: blockMeta,
                     chunkPos: 0
                 )
-
 
                 // 第三步：提交上传
                 fileId = try await commitAudioUpload(
@@ -1738,7 +1718,6 @@ public final class MiNoteService: @unchecked Sendable {
         guard let finalFileId = fileId else {
             throw MiNoteError.invalidResponse
         }
-
 
         // 返回文件信息
         return [
@@ -2456,8 +2435,7 @@ public final class MiNoteService: @unchecked Sendable {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "获取笔记历史记录失败"
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {
-                }
+                } else {}
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
             }
@@ -2770,8 +2748,7 @@ extension MiNoteService {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "获取用户信息失败"
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {
-                }
+                } else {}
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
             }
@@ -2867,8 +2844,7 @@ extension MiNoteService {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "服务检查失败"
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {
-                }
+                } else {}
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
             }
@@ -2959,8 +2935,7 @@ extension MiNoteService {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "获取回收站笔记失败"
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {
-                }
+                } else {}
             } else {
                 // 如果没有 code 字段，但状态码是 200，也认为成功
             }
@@ -3162,8 +3137,7 @@ extension MiNoteService {
 
                 // 提取解密密钥
                 let secureKey = kss["secure_key"] as? String
-                if let key = secureKey {
-                }
+                if let key = secureKey {}
 
                 if let downloadURL = URL(string: secureURLString) {
                     return AudioDownloadInfo(url: downloadURL, secureKey: secureKey)
@@ -3202,7 +3176,6 @@ extension MiNoteService {
         guard isAuthenticated() else {
             throw MiNoteError.notAuthenticated
         }
-
 
         // 第一步：获取下载 URL 和解密密钥
         let downloadInfo = try await getAudioDownloadInfo(fileId: fileId)
@@ -3243,13 +3216,11 @@ extension MiNoteService {
                 throw MiNoteError.invalidResponse
             }
 
-
             // 第三步：解密数据（如果有密钥）
             var audioData = data
             if let secureKey = downloadInfo.secureKey, !secureKey.isEmpty {
                 audioData = AudioDecryptService.shared.decrypt(data: data, secureKey: secureKey)
-            } else {
-            }
+            } else {}
 
             // 验证下载的音频数据
             let format = AudioConverterService.shared.getAudioFormat(audioData)
@@ -3294,8 +3265,6 @@ extension MiNoteService {
         let audioData = try await downloadAudio(fileId: fileId, progressHandler: progressHandler)
 
         // 缓存文件
-        let cachedURL = try AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
-
-        return cachedURL
+        return try AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
     }
 }

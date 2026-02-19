@@ -39,16 +39,16 @@
         ) -> NSToolbarItem? {
             switch itemIdentifier {
             case .close:
-                return buildCloseToolbarButton()
+                buildCloseToolbarButton()
 
             case .save:
-                return showSaveButton ? buildSaveToolbarButton() : nil
+                showSaveButton ? buildSaveToolbarButton() : nil
 
             case .flexibleSpace:
-                return NSToolbarItem(itemIdentifier: .flexibleSpace)
+                NSToolbarItem(itemIdentifier: .flexibleSpace)
 
             default:
-                return nil
+                nil
             }
         }
 

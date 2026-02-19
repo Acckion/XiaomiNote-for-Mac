@@ -161,7 +161,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
 
     // MARK: - Image Loading
 
-    private nonisolated func loadImageFromLocalStorage(fileId: String, folderId: String) {
+    private nonisolated func loadImageFromLocalStorage(fileId: String, folderId _: String) {
         isLoading = true
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in

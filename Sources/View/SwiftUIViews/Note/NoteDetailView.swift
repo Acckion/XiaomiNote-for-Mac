@@ -56,7 +56,6 @@ struct NoteDetailView: View {
 
     // MARK: - 调试模式状态
 
-
     /// 是否处于调试模式
     ///
     /// 当为 true 时，显示 XML 调试编辑器；当为 false 时，显示普通编辑器
@@ -89,7 +88,6 @@ struct NoteDetailView: View {
     private let xmlSaveDebounceDelay: UInt64 = 300_000_000 // 300ms
 
     // MARK: - 保存重试状态
-
 
     /// 待重试保存的 XML 内容
     @State private var pendingRetryXMLContent: String?
@@ -263,10 +261,8 @@ struct NoteDetailView: View {
             // 立即更新内存缓存（不阻塞）
             await MemoryCacheManager.shared.cacheNote(updated)
 
-            // 更新视图模型中的笔记（不阻塞）
-            if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
-                viewModel.notes[index] = updated
-            }
+            // 延迟更新视图模型，避免在视图更新周期内修改 @Published 属性
+            updateNotesArrayDelayed(with: updated)
 
             // 4. 后台异步保存到数据库
             DatabaseService.shared.saveNoteAsync(updated) { error in
@@ -369,11 +365,7 @@ struct NoteDetailView: View {
         .onAppear {
             handleNoteAppear(note)
         }
-        .onChange(of: note) { oldValue, newValue in
-            if oldValue.id != newValue.id {
-                Task { @MainActor in await handleNoteChange(newValue) }
-            }
-        }
+        // 笔记切换由外层 handleSelectedNoteChange 统一处理，此处不再重复
         .onChange(of: editedTitle) { _, newValue in
             Task { @MainActor in await handleTitleChange(newValue) }
         }
@@ -689,7 +681,7 @@ struct NoteDetailView: View {
 
     /// 处理调试模式下的内容变化
     ///
-    private func handleDebugContentChange(_ newContent: String) {
+    private func handleDebugContentChange(_: String) {
         guard !isInitializing else { return }
 
         // 标记为未保存
@@ -737,14 +729,8 @@ struct NoteDetailView: View {
             // 更新内存缓存
             await MemoryCacheManager.shared.cacheNote(updated)
 
-            // 更新视图模型中的笔记
-            if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
-                viewModel.notes[index] = updated
-            }
-            if viewModel.selectedNote?.id == updated.id {
-                viewModel.selectedNote = updated
-                viewModel.stateCoordinator.updateNoteContent(updated)
-            }
+            // 延迟更新视图模型，避免在视图更新周期内修改 @Published 属性
+            updateViewModelDelayed(with: updated)
 
             // 清除未保存内容标志
             viewModel.stateCoordinator.hasUnsavedContent = false
@@ -912,6 +898,8 @@ struct NoteDetailView: View {
         let task = saveCurrentNoteBeforeSwitching(newNoteId: note.id)
         Task { @MainActor in
             if let t = task { await t.value }
+            // 确保脱离可能的视图更新周期
+            await Task.yield()
             await quickSwitchToNote(note)
         }
     }
@@ -1003,15 +991,11 @@ struct NoteDetailView: View {
         }
 
         currentXMLContent = contentToLoad
-        // 关键修复：确保 lastSavedXMLContent 与 currentXMLContent 同步
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
 
-        // 关键修复：立即调用 loadFromXML 确保编辑器内容同步
-        // 这解决了笔记切换时内容丢失的问题
-        if isUsingNativeEditor {
-            nativeEditorContext.loadFromXML(currentXMLContent)
-        }
+        // loadFromXML 由 UnifiedEditorWrapper 的 .onChange(of: xmlContent) 统一处理，
+        // 通过 DispatchQueue.main.async 确保脱离视图更新周期
 
         // 调试模式：同步内容到调试编辑器
         if isDebugMode {
@@ -1151,9 +1135,7 @@ struct NoteDetailView: View {
         lastSavedXMLContent = currentXMLContent
         originalXMLContent = currentXMLContent
 
-        if isUsingNativeEditor {
-            nativeEditorContext.loadFromXML(currentXMLContent)
-        }
+        // loadFromXML 由 UnifiedEditorWrapper 的 .onChange(of: xmlContent) 统一处理
 
         if isDebugMode {
             debugXMLContent = currentXMLContent
@@ -1252,16 +1234,8 @@ struct NoteDetailView: View {
                     lastSavedXMLContent = xmlContent
                     originalTitle = title
                     currentXMLContent = xmlContent
-                    // 更新笔记列表和选中的笔记
-                    if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
-                        viewModel.notes[index] = updated
-                    }
-                    if viewModel.selectedNote?.id == updated.id {
-                        viewModel.selectedNote = updated
-
-                        // 通过 coordinator 更新笔记内容，保持选择状态不变
-                        viewModel.stateCoordinator.updateNoteContent(updated)
-                    }
+                    // 延迟更新视图模型，避免在视图更新周期内修改 @Published 属性
+                    updateViewModelDelayed(with: updated)
                     scheduleCloudUpload(for: updated, xmlContent: xmlContent)
                     continuation.resume()
                 }
@@ -1315,10 +1289,8 @@ struct NoteDetailView: View {
         // 立即更新内存缓存（<1ms）
         await MemoryCacheManager.shared.cacheNote(updated)
 
-        // 更新viewModel.notes数组（不更新selectedNote，避免闪烁）
-        if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
-            viewModel.notes[index] = updated
-        }
+        // 延迟更新 notes 数组，避免在视图更新周期内修改 @Published 属性
+        updateNotesArrayDelayed(with: updated)
 
         // 只有在当前状态不是 saving 时才更新为 unsaved
         if case .saving = saveStatus {
@@ -1473,20 +1445,15 @@ struct NoteDetailView: View {
     }
 
     @MainActor
-    private func handleSaveSuccess(xmlContent: String, noteId: String, updatedNote: Note) async {
+    private func handleSaveSuccess(xmlContent: String, noteId _: String, updatedNote: Note) async {
         lastSavedXMLContent = xmlContent
         currentXMLContent = xmlContent
 
         pendingRetryXMLContent = nil
         pendingRetryNote = nil
 
-        if let index = viewModel.notes.firstIndex(where: { $0.id == noteId }) {
-            viewModel.notes[index] = updatedNote
-        }
-
-        if viewModel.selectedNote?.id == noteId {
-            viewModel.selectedNote = updatedNote
-        }
+        // 延迟更新视图模型，避免在视图更新周期内修改 @Published 属性
+        updateViewModelDelayed(with: updatedNote)
 
         await MemoryCacheManager.shared.cacheNote(updatedNote)
 
@@ -1707,9 +1674,8 @@ struct NoteDetailView: View {
 
                 await MemoryCacheManager.shared.cacheNote(updated)
 
-                if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
-                    viewModel.notes[index] = updated
-                }
+                // 延迟更新 notes 数组，避免在视图更新周期内修改 @Published 属性
+                updateNotesArrayDelayed(with: updated)
 
                 DatabaseService.shared.saveNoteAsync(updated) { error in
                     Task { @MainActor in
@@ -1730,9 +1696,13 @@ struct NoteDetailView: View {
         guard let newNote = newValue else { return }
         if oldValue?.id != newNote.id {
             let task = saveCurrentNoteBeforeSwitching(newNoteId: newNote.id)
-            Task { @MainActor in
-                if let t = task { await t.value }
-                await quickSwitchToNote(newNote)
+            // 使用 DispatchQueue.main.async 确保在下一个 run loop 迭代中执行，
+            // 彻底脱离 .onChange 的视图更新周期
+            DispatchQueue.main.async {
+                Task { @MainActor in
+                    if let t = task { await t.value }
+                    await quickSwitchToNote(newNote)
+                }
             }
         }
     }
@@ -1754,14 +1724,12 @@ struct NoteDetailView: View {
         extractedTitle: TitleExtractionResult? = nil,
         shouldUpdateTimestamp: Bool = true
     ) -> Note {
-        // 任务 4.2: 修改标题使用逻辑，优先使用传入的提取标题
-        let titleToUse: String
-        if let extractedTitle, extractedTitle.isValid, !extractedTitle.title.isEmpty {
-            titleToUse = extractedTitle.title
+        let titleToUse: String = if let extractedTitle, extractedTitle.isValid, !extractedTitle.title.isEmpty {
+            extractedTitle.title
         } else if note.id == currentEditingNoteId {
-            titleToUse = editedTitle
+            editedTitle
         } else {
-            titleToUse = note.title
+            note.title
         }
 
         // ✅ 关键修复：移除 XML 中的 <title> 标签
@@ -1815,23 +1783,28 @@ struct NoteDetailView: View {
         }
 
         let range = NSRange(xml.startIndex..., in: xml)
-        let result = regex.stringByReplacingMatches(in: xml, range: range, withTemplate: "")
-
-        return result
+        return regex.stringByReplacingMatches(in: xml, range: range, withTemplate: "")
     }
 
+    /// 延迟更新 viewModel 中的笔记数据，避免在视图更新周期内修改 @Published 属性
     private func updateViewModelDelayed(with updated: Note) {
-        if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
-            viewModel.notes[index] = updated
+        DispatchQueue.main.async {
+            if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
+                viewModel.notes[index] = updated
+            }
+            if viewModel.selectedNote?.id == updated.id {
+                viewModel.selectedNote = updated
+                viewModel.stateCoordinator.updateNoteContent(updated)
+            }
         }
-        if viewModel.selectedNote?.id == updated.id {
-            viewModel.selectedNote = updated
+    }
 
-            // 通过 coordinator 更新笔记内容，保持选择状态不变
-            // - 1.1: 编辑笔记内容时保持选中状态不变
-            // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
-            // - 1.3: 笔记的 updatedAt 时间戳变化时保持选中笔记的高亮状态
-            viewModel.stateCoordinator.updateNoteContent(updated)
+    /// 延迟更新 viewModel.notes 数组中的笔记（不更新 selectedNote）
+    private func updateNotesArrayDelayed(with updated: Note) {
+        DispatchQueue.main.async {
+            if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
+                viewModel.notes[index] = updated
+            }
         }
     }
 
