@@ -3,27 +3,12 @@
 //  MiNoteMac
 //
 //  保存流程协调器
-//  负责协调标题提取、内容处理和保存操作的完整流程
-//
-//  Created by Title Content Integration Fix
+//  负责协调内容处理和保存操作的完整流程
 //
 
 import Foundation
 
 /// 保存流程协调器
-///
-/// 核心职责：
-/// 1. 协调完整的保存流程，确保正确的执行顺序
-/// 2. 在移除标题标签之前提取标题
-/// 3. 管理保存状态和错误处理
-/// 4. 提供详细的日志记录和调试信息
-///
-/// 设计原则：
-/// - 确保标题提取在标签移除之前执行
-/// - 提供完善的错误处理和恢复机制
-/// - 维护保存流程的状态一致性
-/// - 支持异步操作和取消机制
-///
 @MainActor
 public final class SavePipelineCoordinator: ObservableObject {
 

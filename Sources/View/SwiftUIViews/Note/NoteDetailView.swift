@@ -589,8 +589,6 @@ struct NoteDetailView: View {
                     )
                 } else {
                     // 普通模式：使用原生编辑器包装器
-                    // 任务 22.2 修复：使用 currentXMLContent（包含标题）而不是 note.primaryXMLContent
-                    // 这确保标题能够正确显示在编辑器中
                     UnifiedEditorWrapper(
                         content: $currentXMLContent,
                         isEditable: $isEditable,

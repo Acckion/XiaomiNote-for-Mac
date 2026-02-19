@@ -2,10 +2,7 @@
 //  TitleIntegrationError.swift
 //  MiNoteMac
 //
-//  标题集成错误类型定义
-//  定义标题提取和保存过程中可能出现的所有错误类型
-//
-//  Created by Title Content Integration Fix
+//  保存流程错误类型定义
 //
 
 import Foundation

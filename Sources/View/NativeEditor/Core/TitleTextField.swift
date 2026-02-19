@@ -8,7 +8,7 @@
 import AppKit
 
 /// 标题编辑 TextField
-/// 使用 NSTextField 实现单行纯文本标题编辑，视觉效果与原标题段落一致
+/// 使用 NSTextField 实现单行纯文本标题编辑
 class TitleTextField: NSTextField {
 
     /// 焦点转移回调（Enter/Tab 键触发）
