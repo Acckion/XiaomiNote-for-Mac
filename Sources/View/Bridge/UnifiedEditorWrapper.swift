@@ -104,7 +104,7 @@ struct UnifiedEditorWrapper: View {
 
     /// 设置编辑器
     private func setupEditor() {
-        setupNativeEditor()
+        // setupNativeEditor 由 nativeEditorView 的 onAppear 调用，此处不再重复
 
         // 初始加载内容
         let contentToLoad = xmlContent ?? content
@@ -126,10 +126,10 @@ struct UnifiedEditorWrapper: View {
             // 设置文件夹 ID（用于图片存储）
             nativeEditorContext.currentFolderId = folderId
 
-            // 加载 XML 内容到原生编辑器
+            // 仅在 handleSelectedNoteChange 尚未加载内容时才加载
+            // 避免与 handleSelectedNoteChange 路径重复调用 loadFromXML
             let contentToLoad = xmlContent ?? content
-            if !contentToLoad.isEmpty {
-                print("[[诊断]] UnifiedEditorWrapper.onAppear: 调用 loadFromXML")
+            if !contentToLoad.isEmpty, lastLoadedContent != contentToLoad {
                 nativeEditorContext.loadFromXML(contentToLoad)
                 lastLoadedContent = contentToLoad
             }
@@ -197,10 +197,8 @@ struct UnifiedEditorWrapper: View {
                 nativeEditorContext.currentFolderId = folderId
 
                 if newContent.isEmpty {
-                    print("[[诊断]] handleXMLContentChange: 直接赋值 nsAttributedText = empty")
                     nativeEditorContext.nsAttributedText = NSAttributedString()
                 } else {
-                    print("[[诊断]] handleXMLContentChange: 调用 loadFromXML")
                     nativeEditorContext.loadFromXML(newContent)
                 }
             }
@@ -264,10 +262,8 @@ struct UnifiedEditorWrapper: View {
 
                     // 关键修复：先清空编辑器，再加载新内容
                     if newValue.isEmpty {
-                        print("[[诊断]] handleContentChange: 直接赋值 nsAttributedText = empty")
                         nativeEditorContext.nsAttributedText = NSAttributedString()
                     } else {
-                        print("[[诊断]] handleContentChange: 调用 loadFromXML")
                         nativeEditorContext.loadFromXML(newValue)
                     }
                 }
@@ -379,10 +375,8 @@ struct UnifiedEditorWrapper: View {
 
                 // 关键修复：先清空编辑器，再加载新内容
                 if contentToLoad.isEmpty {
-                    print("[[诊断]] handleFolderIdChange: 直接赋值 nsAttributedText = empty")
                     nativeEditorContext.nsAttributedText = NSAttributedString()
                 } else {
-                    print("[[诊断]] handleFolderIdChange: 调用 loadFromXML")
                     nativeEditorContext.loadFromXML(contentToLoad)
                 }
             }

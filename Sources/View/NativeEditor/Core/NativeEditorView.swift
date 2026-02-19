@@ -632,16 +632,9 @@ struct NativeEditorView: NSViewRepresentable {
             let currentAttributedString = NSAttributedString(attributedString: textStorage)
 
             if isUpdatingFromSwiftUI {
-                // updateNSView 期间：跳过 nsAttributedText 回写，延迟其他 @Published 赋值
-                // 避免在视图更新周期内触发 Publishing 警告
-                let editorContext = parent.editorContext
-                let isEditorFocused = editorContext.isEditorFocused
-                Task { @MainActor in
-                    editorContext.updateSelectedRange(selectedRange)
-                    if !isEditorFocused {
-                        editorContext.setEditorFocused(true)
-                    }
-                }
+                // updateNSView 期间的 selection change 是程序化的，完全跳过
+                // 避免 @Published 赋值触发新的视图更新周期
+                return
             } else {
                 // 正常交互：同步更新，确保菜单栏 validateMenuItem 能获取最新数据
                 parent.editorContext.nsAttributedText = currentAttributedString

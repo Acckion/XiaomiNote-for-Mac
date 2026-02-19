@@ -367,11 +367,7 @@ struct NoteDetailView: View {
         .onAppear {
             handleNoteAppear(note)
         }
-        .onChange(of: note) { oldValue, newValue in
-            if oldValue.id != newValue.id {
-                Task { @MainActor in await handleNoteChange(newValue) }
-            }
-        }
+        // 笔记切换由外层 handleSelectedNoteChange 统一处理，此处不再重复
         .onChange(of: editedTitle) { _, newValue in
             Task { @MainActor in await handleTitleChange(newValue) }
         }
@@ -1004,7 +1000,6 @@ struct NoteDetailView: View {
         // 关键修复：立即调用 loadFromXML 确保编辑器内容同步
         // 这解决了笔记切换时内容丢失的问题
         if isUsingNativeEditor {
-            print("[[诊断]] loadNoteContentFromCache: 调用 loadFromXML")
             nativeEditorContext.loadFromXML(currentXMLContent)
         }
 
@@ -1147,7 +1142,6 @@ struct NoteDetailView: View {
         originalXMLContent = currentXMLContent
 
         if isUsingNativeEditor {
-            print("[[诊断]] loadNoteContent: 调用 loadFromXML")
             nativeEditorContext.loadFromXML(currentXMLContent)
         }
 
