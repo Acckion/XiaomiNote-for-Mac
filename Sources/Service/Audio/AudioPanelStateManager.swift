@@ -110,13 +110,11 @@ final class AudioPanelStateManager: ObservableObject {
         }
         set {
             if let templateId = newValue {
-                // 设置新的模板 ID，进入已插入状态
                 recordingTemplateState = .inserted(templateId: templateId)
-                print("[AudioPanelState] 📝 模板状态: \(recordingTemplateState)")
+                LogService.shared.debug(.audio, "模板状态: \(recordingTemplateState)")
             } else {
-                // 清除模板状态
                 recordingTemplateState = .none
-                print("[AudioPanelState] 📝 模板状态已清除")
+                LogService.shared.debug(.audio, "模板状态已清除")
             }
         }
     }
@@ -156,7 +154,7 @@ final class AudioPanelStateManager: ObservableObject {
 
         setupObservers()
 
-        print("[AudioPanelState] 初始化完成")
+        LogService.shared.debug(.audio, "AudioPanelStateManager 初始化完成")
     }
 
     /// 设置观察者
@@ -184,7 +182,7 @@ final class AudioPanelStateManager: ObservableObject {
     ///
     /// - Parameter noteId: 当前笔记 ID
     func showForRecording(noteId: String) {
-        print("[AudioPanelState] 显示面板 - 录制模式，笔记: \(noteId)")
+        LogService.shared.info(.audio, "显示音频面板 - 录制模式")
 
         // 如果正在播放，先停止
         if playerService.isPlaying {
@@ -215,11 +213,11 @@ final class AudioPanelStateManager: ObservableObject {
     ///   - fileId: 音频文件 ID
     ///   - noteId: 当前笔记 ID
     func showForPlayback(fileId: String, noteId: String) {
-        print("[AudioPanelState] 显示面板 - 播放模式，文件: \(fileId)，笔记: \(noteId)")
+        LogService.shared.info(.audio, "显示音频面板 - 播放模式")
 
         // 如果正在录制，需要先确认
         if isRecording() {
-            print("[AudioPanelState] ⚠️ 正在录制中，无法切换到播放模式")
+            LogService.shared.warning(.audio, "正在录制中，无法切换到播放模式")
             return
         }
 
@@ -246,11 +244,9 @@ final class AudioPanelStateManager: ObservableObject {
     /// - Returns: 是否成功隐藏（录制中可能需要确认）
     @discardableResult
     func hide() -> Bool {
-        print("[AudioPanelState] 请求隐藏面板")
-
         // 检查是否可以安全关闭
         if !canClose() {
-            print("[AudioPanelState] ⚠️ 无法关闭：正在录制中")
+            LogService.shared.warning(.audio, "无法关闭面板：正在录制中")
             postNeedsConfirmationNotification()
             return false
         }
@@ -272,7 +268,7 @@ final class AudioPanelStateManager: ObservableObject {
             postVisibilityNotification(visible: false)
         }
 
-        print("[AudioPanelState] ✅ 面板已隐藏")
+        LogService.shared.info(.audio, "音频面板已隐藏")
         return true
     }
 
@@ -280,8 +276,6 @@ final class AudioPanelStateManager: ObservableObject {
     ///
     /// 即使正在录制也会关闭面板，应该在用户确认后调用
     func forceHide() {
-        print("[AudioPanelState] 强制隐藏面板")
-
         // 取消录制
         if isRecording() {
             recorderService.cancelRecording()
@@ -304,7 +298,7 @@ final class AudioPanelStateManager: ObservableObject {
             postVisibilityNotification(visible: false)
         }
 
-        print("[AudioPanelState] ✅ 面板已强制隐藏")
+        LogService.shared.info(.audio, "音频面板已强制隐藏")
     }
 
     /// 检查是否可以安全关闭
@@ -327,8 +321,6 @@ final class AudioPanelStateManager: ObservableObject {
     /// - Returns: 是否允许切换（录制中可能需要确认）
     @discardableResult
     func handleNoteSwitch(to newNoteId: String) -> Bool {
-        print("[AudioPanelState] 处理笔记切换: \(currentNoteId ?? "nil") -> \(newNoteId)")
-
         // 如果面板不可见，直接允许切换
         guard isVisible else {
             return true
@@ -341,14 +333,13 @@ final class AudioPanelStateManager: ObservableObject {
 
         // 如果正在录制，需要确认
         if isRecording() {
-            print("[AudioPanelState] ⚠️ 正在录制中，需要用户确认")
+            LogService.shared.warning(.audio, "正在录制中，笔记切换需要用户确认")
             postNeedsConfirmationNotification()
             return false
         }
 
         // 如果正在播放，停止播放并关闭面板
         if mode == .playback {
-            print("[AudioPanelState] 停止播放并关闭面板")
             playerService.stop()
             hide()
         }
@@ -360,11 +351,9 @@ final class AudioPanelStateManager: ObservableObject {
     ///
     /// - Parameter fileId: 被删除的文件 ID
     func handleAudioAttachmentDeleted(fileId: String) {
-        print("[AudioPanelState] 处理音频附件删除: \(fileId)")
-
         // 如果正在播放被删除的文件，关闭面板
         if mode == .playback, currentFileId == fileId {
-            print("[AudioPanelState] 正在播放的文件被删除，关闭面板")
+            LogService.shared.info(.audio, "正在播放的文件被删除，关闭面板")
             playerService.stop()
             hide()
         }
@@ -403,14 +392,14 @@ final class AudioPanelStateManager: ObservableObject {
     /// - Parameter templateId: 模板 ID
     func setTemplateRecording(templateId: String) {
         recordingTemplateState = .recording(templateId: templateId)
-        print("[AudioPanelState] 📝 模板状态: \(recordingTemplateState)")
+        LogService.shared.debug(.audio, "模板状态: \(recordingTemplateState)")
     }
 
     /// 更新录音模板状态为上传中
     /// - Parameter templateId: 模板 ID
     func setTemplateUploading(templateId: String) {
         recordingTemplateState = .uploading(templateId: templateId)
-        print("[AudioPanelState] 📝 模板状态: \(recordingTemplateState)")
+        LogService.shared.debug(.audio, "模板状态: \(recordingTemplateState)")
     }
 
     /// 更新录音模板状态为更新中
@@ -419,7 +408,7 @@ final class AudioPanelStateManager: ObservableObject {
     ///   - fileId: 文件 ID
     func setTemplateUpdating(templateId: String, fileId: String) {
         recordingTemplateState = .updating(templateId: templateId, fileId: fileId)
-        print("[AudioPanelState] 📝 模板状态: \(recordingTemplateState)")
+        LogService.shared.debug(.audio, "模板状态: \(recordingTemplateState)")
     }
 
     /// 更新录音模板状态为完成
@@ -428,14 +417,13 @@ final class AudioPanelStateManager: ObservableObject {
     ///   - fileId: 文件 ID
     func setTemplateCompleted(templateId: String, fileId: String) {
         recordingTemplateState = .completed(templateId: templateId, fileId: fileId)
-        print("[AudioPanelState] 📝 模板状态: \(recordingTemplateState)")
+        LogService.shared.info(.audio, "录音模板处理完成")
 
         // 完成后延迟清除状态
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒
             if case .completed = self.recordingTemplateState {
                 self.recordingTemplateState = .none
-                print("[AudioPanelState] 📝 模板状态已自动清除")
             }
         }
     }
@@ -446,13 +434,13 @@ final class AudioPanelStateManager: ObservableObject {
     ///   - error: 错误信息
     func setTemplateFailed(templateId: String, error: String) {
         recordingTemplateState = .failed(templateId: templateId, error: error)
-        print("[AudioPanelState] 📝 模板状态: \(recordingTemplateState)")
+        LogService.shared.error(.audio, "录音模板处理失败: \(error)")
     }
 
     /// 清除录音模板状态
     func clearTemplateState() {
         recordingTemplateState = .none
-        print("[AudioPanelState] 📝 模板状态已清除")
+        LogService.shared.debug(.audio, "模板状态已清除")
     }
 
     // MARK: - 私有方法
@@ -463,15 +451,13 @@ final class AudioPanelStateManager: ObservableObject {
             return
         }
 
-        print("[AudioPanelState] 录制状态变化: \(newState)")
+        LogService.shared.debug(.audio, "录制状态变化: \(newState)")
 
-        // 如果录制完成或出错，可能需要更新 UI
         switch newState {
         case .finished:
-            // 录制完成，等待用户确认
             break
         case let .error(message):
-            print("[AudioPanelState] ❌ 录制错误: \(message)")
+            LogService.shared.error(.audio, "录制错误: \(message)")
         default:
             break
         }
@@ -479,8 +465,7 @@ final class AudioPanelStateManager: ObservableObject {
 
     /// 处理播放完成
     private func handlePlaybackFinished() {
-        print("[AudioPanelState] 播放完成")
-        // 播放完成后保持面板打开，用户可以重新播放或关闭
+        LogService.shared.debug(.audio, "播放完成")
     }
 
     // MARK: - 通知发送

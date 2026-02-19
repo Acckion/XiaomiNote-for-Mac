@@ -37,23 +37,17 @@
             itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
             willBeInsertedIntoToolbar _: Bool
         ) -> NSToolbarItem? {
-            print("[BaseSheetToolbarDelegate] toolbar(_:itemForItemIdentifier:willBeInsertedIntoToolbar:) 被调用，itemIdentifier: \(itemIdentifier)")
-
             switch itemIdentifier {
             case .close:
-                print("[BaseSheetToolbarDelegate] 请求创建关闭按钮")
                 return buildCloseToolbarButton()
 
             case .save:
-                print("[BaseSheetToolbarDelegate] 请求创建保存按钮，showSaveButton: \(showSaveButton)")
                 return showSaveButton ? buildSaveToolbarButton() : nil
 
             case .flexibleSpace:
-                print("[BaseSheetToolbarDelegate] 请求创建弹性空间")
                 return NSToolbarItem(itemIdentifier: .flexibleSpace)
 
             default:
-                print("[BaseSheetToolbarDelegate] 未知的itemIdentifier: \(itemIdentifier)")
                 return nil
             }
         }
@@ -127,7 +121,6 @@
         // MARK: - 动作方法
 
         @objc private func closeButtonClicked(_: Any?) {
-            print("[BaseSheetToolbarDelegate] 关闭按钮被点击")
             onClose?()
         }
 

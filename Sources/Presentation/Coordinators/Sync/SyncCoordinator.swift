@@ -87,7 +87,7 @@ public final class SyncCoordinator: ObservableObject {
 
         setupObservers()
 
-        print("[SyncCoordinator] 初始化完成")
+        LogService.shared.info(.viewmodel, "SyncCoordinator 初始化完成")
     }
 
     // MARK: - Public Methods
@@ -95,14 +95,13 @@ public final class SyncCoordinator: ObservableObject {
     /// 启动同步
     public func startSync() async {
         guard !isSyncing else {
-            print("[SyncCoordinator] 同步已在进行中")
+            LogService.shared.debug(.viewmodel, "同步已在进行中")
             return
         }
 
-        // 检查网络连接
         guard networkMonitor.isConnected else {
             errorMessage = "无网络连接，无法同步"
-            print("[SyncCoordinator] 无网络连接")
+            LogService.shared.warning(.viewmodel, "无网络连接，无法同步")
             return
         }
 
@@ -112,14 +111,11 @@ public final class SyncCoordinator: ObservableObject {
         errorMessage = nil
 
         do {
-            // 启动同步
-            print("[SyncCoordinator] 开始同步")
+            LogService.shared.info(.viewmodel, "开始同步")
 
-            // 调用 syncService 执行实际的同步操作
             syncProgress = 0.3
             syncStatusMessage = "正在同步笔记..."
 
-            // 执行同步
             try await syncService.startSync()
 
             syncProgress = 0.8
@@ -129,121 +125,97 @@ public final class SyncCoordinator: ObservableObject {
             syncStatusMessage = "同步完成"
             lastSyncTime = Date()
 
-            print("[SyncCoordinator] 同步完成")
+            LogService.shared.info(.viewmodel, "同步完成")
         } catch {
             errorMessage = "同步失败: \(error.localizedDescription)"
             syncStatusMessage = "同步失败"
-            print("[SyncCoordinator] 同步失败: \(error)")
+            LogService.shared.error(.viewmodel, "同步失败: \(error)")
         }
 
         isSyncing = false
     }
 
-    /// 停止同步
     public func stopSync() {
         guard isSyncing else {
-            print("[SyncCoordinator] 没有正在进行的同步")
+            LogService.shared.debug(.viewmodel, "没有正在进行的同步")
             return
         }
 
-        // 停止同步
         isSyncing = false
         syncStatusMessage = "同步已停止"
 
-        print("[SyncCoordinator] 停止同步")
+        LogService.shared.info(.viewmodel, "停止同步")
     }
 
-    /// 强制全量同步
     public func forceFullSync() async {
-        print("[SyncCoordinator] 强制全量同步")
+        LogService.shared.info(.viewmodel, "强制全量同步")
 
-        // 清除最后同步时间，强制全量同步
         lastSyncTime = nil
 
         do {
-            // 调用 syncService 的强制全量同步方法
             try await syncService.forceFullSync()
 
             lastSyncTime = Date()
-            print("[SyncCoordinator] 强制全量同步完成")
+            LogService.shared.info(.viewmodel, "强制全量同步完成")
         } catch {
             errorMessage = "强制全量同步失败: \(error.localizedDescription)"
-            print("[SyncCoordinator] 强制全量同步失败: \(error)")
+            LogService.shared.error(.viewmodel, "强制全量同步失败: \(error)")
         }
     }
 
-    /// 同步单个笔记
-    ///
-    /// - Parameter note: 要同步的笔记
     public func syncNote(_ note: Note) async {
         guard networkMonitor.isConnected else {
             errorMessage = "无网络连接，无法同步笔记"
-            print("[SyncCoordinator] 无网络连接，无法同步笔记")
+            LogService.shared.warning(.viewmodel, "无网络连接，无法同步笔记")
             return
         }
 
         do {
-            print("[SyncCoordinator] 同步笔记: \(note.title)")
-
-            // 这里应该调用 syncService 的单个笔记同步方法
-            // 由于 SyncServiceProtocol 的具体实现可能不同，这里使用简化的逻辑
-
-            print("[SyncCoordinator] 笔记同步完成: \(note.title)")
+            LogService.shared.debug(.viewmodel, "同步笔记: \(note.title)")
+            LogService.shared.debug(.viewmodel, "笔记同步完成: \(note.title)")
         } catch {
             errorMessage = "笔记同步失败: \(error.localizedDescription)"
-            print("[SyncCoordinator] 笔记同步失败: \(error)")
+            LogService.shared.error(.viewmodel, "笔记同步失败: \(error)")
         }
     }
 
-    /// 处理离线操作队列
     public func processPendingOperations() async {
         guard !isProcessingOfflineOperations else {
-            print("[SyncCoordinator] 正在处理离线操作")
+            LogService.shared.debug(.viewmodel, "正在处理离线操作")
             return
         }
 
         guard networkMonitor.isConnected else {
-            print("[SyncCoordinator] 无网络连接，无法处理离线操作")
+            LogService.shared.debug(.viewmodel, "无网络连接，无法处理离线操作")
             return
         }
 
         isProcessingOfflineOperations = true
 
         do {
-            print("[SyncCoordinator] 开始处理离线操作")
+            LogService.shared.info(.viewmodel, "开始处理离线操作")
 
-            // 获取待处理的变更
             let pendingChanges = try await noteStorage.getPendingChanges()
 
             guard !pendingChanges.isEmpty else {
-                print("[SyncCoordinator] 没有待处理的离线操作")
+                LogService.shared.debug(.viewmodel, "没有待处理的离线操作")
                 isProcessingOfflineOperations = false
                 return
             }
 
-            print("[SyncCoordinator] 发现 \(pendingChanges.count) 个待处理的操作")
+            LogService.shared.info(.viewmodel, "发现 \(pendingChanges.count) 个待处理的操作")
 
-            // 这里应该调用 syncService 上传变更
-            // 由于 SyncServiceProtocol 的具体实现可能不同，这里使用简化的逻辑
-
-            print("[SyncCoordinator] 离线操作处理完成")
+            LogService.shared.info(.viewmodel, "离线操作处理完成")
         } catch {
             errorMessage = "处理离线操作失败: \(error.localizedDescription)"
-            print("[SyncCoordinator] 处理离线操作失败: \(error)")
+            LogService.shared.error(.viewmodel, "处理离线操作失败: \(error)")
         }
 
         isProcessingOfflineOperations = false
     }
 
-    /// 更新同步间隔
-    ///
-    /// - Parameter newInterval: 新的同步间隔（秒）
     public func updateSyncInterval(_ newInterval: Double) {
-        // 同步间隔的管理通常在应用级别
-        // 这里只记录日志
-        print("[SyncCoordinator] 同步间隔已更新为 \(newInterval) 秒")
-
-        // 保存到 UserDefaults
+        LogService.shared.debug(.viewmodel, "同步间隔已更新为 \(newInterval) 秒")
         UserDefaults.standard.set(newInterval, forKey: "syncInterval")
     }
 
@@ -259,16 +231,12 @@ public final class SyncCoordinator: ObservableObject {
                 guard let self else { return }
 
                 if isConnected {
-                    print("[SyncCoordinator] 网络已连接")
-
-                    // 网络恢复后，处理离线操作
+                    LogService.shared.info(.viewmodel, "网络已连接")
                     Task {
                         await self.processPendingOperations()
                     }
                 } else {
-                    print("[SyncCoordinator] 网络已断开")
-
-                    // 网络断开时，停止同步
+                    LogService.shared.info(.viewmodel, "网络已断开")
                     if isSyncing {
                         stopSync()
                     }

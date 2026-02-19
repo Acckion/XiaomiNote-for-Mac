@@ -162,7 +162,6 @@ public final class UnifiedFormatManager {
     // MARK: - 初始化
 
     private init() {
-        print("[UnifiedFormatManager] 初始化")
     }
 
     // MARK: - 注册/注销
@@ -173,7 +172,6 @@ public final class UnifiedFormatManager {
     ///   - context: NativeEditorContext 实例
     /// _Requirements: 8.1, 8.2, 9.1_
     public func register(textView: NSTextView, context: NativeEditorContext) {
-        print("[UnifiedFormatManager] 注册编辑器组件")
         self.textView = textView
         editorContext = context
         isRegistered = true
@@ -182,7 +180,6 @@ public final class UnifiedFormatManager {
     /// 取消注册
     /// _Requirements: 8.1, 8.2, 9.1_
     public func unregister() {
-        print("[UnifiedFormatManager] 取消注册")
         textView = nil
         editorContext = nil
         isRegistered = false
@@ -201,17 +198,14 @@ public final class UnifiedFormatManager {
     /// _Requirements: 1.1, 1.2, 1.3_
     public func applyInlineFormat(_ format: TextFormat, to range: NSRange, toggle: Bool = true) {
         guard let textStorage = currentTextStorage else {
-            print("[UnifiedFormatManager] 警告：textStorage 不可用")
             return
         }
 
         guard format.category == .inline else {
-            print("[UnifiedFormatManager] 警告：\(format.displayName) 不是内联格式")
             return
         }
 
         InlineFormatHandler.apply(format, to: range, in: textStorage, toggle: toggle)
-        print("[UnifiedFormatManager] 应用内联格式: \(format.displayName), range: \(range)")
     }
 
     /// 应用多个内联格式到选中文本
@@ -225,12 +219,10 @@ public final class UnifiedFormatManager {
     /// _Requirements: 1.4_
     public func applyMultipleInlineFormats(_ formats: Set<TextFormat>, to range: NSRange, toggle: Bool = true) {
         guard let textStorage = currentTextStorage else {
-            print("[UnifiedFormatManager] 警告：textStorage 不可用")
             return
         }
 
         InlineFormatHandler.applyMultiple(formats, to: range, in: textStorage, toggle: toggle)
-        print("[UnifiedFormatManager] 应用多个内联格式: \(formats.map(\.displayName)), range: \(range)")
     }
 
     /// 检测指定位置的内联格式
@@ -271,17 +263,14 @@ public final class UnifiedFormatManager {
     /// _Requirements: 3.1-3.7_
     public func applyBlockFormat(_ format: TextFormat, to range: NSRange, toggle: Bool = true) {
         guard let textStorage = currentTextStorage else {
-            print("[UnifiedFormatManager] 警告：textStorage 不可用")
             return
         }
 
         guard BlockFormatHandler.isBlockFormat(format) else {
-            print("[UnifiedFormatManager] 警告：\(format.displayName) 不是块级格式")
             return
         }
 
         BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: toggle)
-        print("[UnifiedFormatManager] 应用块级格式: \(format.displayName), range: \(range)")
     }
 
     /// 检测指定位置的块级格式
@@ -318,12 +307,10 @@ public final class UnifiedFormatManager {
     /// _Requirements: 3.7_
     public func removeBlockFormat(from range: NSRange) {
         guard let textStorage = currentTextStorage else {
-            print("[UnifiedFormatManager] 警告：textStorage 不可用")
             return
         }
 
         BlockFormatHandler.removeBlockFormat(from: range, in: textStorage)
-        print("[UnifiedFormatManager] 移除块级格式, range: \(range)")
     }
 
     /// 检测列表项是否为空
@@ -462,16 +449,11 @@ public final class UnifiedFormatManager {
     /// _Requirements: 8.1, 8.2, 8.3, 8.4_
     public func handleNewLine() -> Bool {
         guard let textView = currentTextView else {
-            print("[UnifiedFormatManager] 警告：textView 不可用")
             return false
         }
 
         // 构建换行上下文
         let context = NewLineContext.build(from: textView)
-
-        print(
-            "[UnifiedFormatManager] handleNewLine - 块级格式: \(context.currentBlockFormat?.displayName ?? "无"), 对齐: \(context.currentAlignment.rawValue), 空列表项: \(context.isListItemEmpty)"
-        )
 
         // 调用 NewLineHandler 处理换行
         return NewLineHandler.handleNewLine(context: context, textView: textView)
@@ -592,7 +574,6 @@ public final class UnifiedFormatManager {
             state.alignment = .left
         }
 
-        print("[UnifiedFormatManager] detectFormatState - position: \(position), state: \(state)")
         return state
     }
 
@@ -686,7 +667,6 @@ public final class UnifiedFormatManager {
             state.alignment = .left
         }
 
-        print("[UnifiedFormatManager] detectFormatState(range) - range: \(range), state: \(state)")
         return state
     }
 
@@ -703,7 +683,6 @@ public final class UnifiedFormatManager {
     /// _Requirements: 10.1, 10.2, 10.3, 10.4_
     public func syncTypingAttributes(for newLineContext: NewLineContext? = nil) {
         guard let textView = currentTextView else {
-            print("[UnifiedFormatManager] 警告：textView 不可用")
             return
         }
 
@@ -767,7 +746,6 @@ public final class UnifiedFormatManager {
         }
 
         textView.typingAttributes = attrs
-        print("[UnifiedFormatManager] 换行后同步 typingAttributes - 继承格式: \(context.shouldInheritFormat), 对齐: \(context.currentAlignment.rawValue)")
     }
 
     /// 光标位置同步 typingAttributes
@@ -795,12 +773,6 @@ public final class UnifiedFormatManager {
         if position > 0, position <= textStorage.length {
             // 使用前一个字符的属性
             attrs = textStorage.attributes(at: position - 1, effectiveRange: nil)
-
-            // 调试：打印获取到的属性
-            print("[UnifiedFormatManager] 从 textStorage 获取属性 at position \(position - 1):")
-            for (key, value) in attrs {
-                print("  - \(key.rawValue): \(value)")
-            }
         } else if position < textStorage.length {
             // 使用当前位置的属性
             attrs = textStorage.attributes(at: position, effectiveRange: nil)
@@ -810,13 +782,6 @@ public final class UnifiedFormatManager {
         }
 
         textView.typingAttributes = attrs
-
-        // 调试：打印设置后的 typingAttributes
-        print("[UnifiedFormatManager] 光标位置同步 typingAttributes - position: \(position)")
-        print("[UnifiedFormatManager] 设置后的 typingAttributes:")
-        for (key, value) in textView.typingAttributes {
-            print("  - \(key.rawValue): \(value)")
-        }
     }
 
     // MARK: - 辅助方法

@@ -469,7 +469,6 @@ struct AudioPlayerPopoverView: View {
         showCloseButton: true,
         isCompact: false
     ) {
-        print("Close tapped")
     }
     .frame(width: 300)
     .padding()
@@ -494,6 +493,5 @@ struct AudioPlayerPopoverView: View {
     AudioPlayerPopoverView(
         fileId: "test-file-id"
     ) {
-        print("Dismiss")
     }
 }

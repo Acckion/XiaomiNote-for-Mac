@@ -726,16 +726,11 @@ public struct ContentView: View {
     /// - 启动自动刷新Cookie定时器
     /// - 检查Cookie状态，如果失效则尝试静默刷新
     private func handleAppear() {
-        print("ContentView onAppear - 检查认证状态")
         let isAuthenticated = MiNoteService.shared.isAuthenticated()
-        print("isAuthenticated: \(isAuthenticated)")
 
         if !isAuthenticated {
-            print("显示登录界面")
             showingLogin = true
         } else {
-            print("已认证，不显示登录界面")
-
             // 启动自动刷新Cookie定时器
             viewModel.startAutoRefreshCookieIfNeeded()
 
@@ -746,29 +741,16 @@ public struct ContentView: View {
 
     /// 检查Cookie状态，如果失效则尝试静默刷新
     private func checkCookieStatusAndRefreshIfNeeded() {
-        print("[ContentView] 检查Cookie状态")
-
-        // 检查Cookie是否有效
         let hasValidCookie = MiNoteService.shared.hasValidCookie()
-        print("[ContentView] Cookie是否有效: \(hasValidCookie)")
 
         if !hasValidCookie {
-            print("[ContentView] Cookie无效，尝试静默刷新")
-
-            // 检查是否启用静默刷新
             let silentRefreshOnFailure = UserDefaults.standard.bool(forKey: "silentRefreshOnFailure")
-            print("[ContentView] 静默刷新是否启用: \(silentRefreshOnFailure)")
 
             if silentRefreshOnFailure {
-                // 尝试静默刷新
                 Task {
                     await viewModel.handleCookieExpiredSilently()
                 }
-            } else {
-                print("[ContentView] 静默刷新未启用，等待用户手动刷新")
             }
-        } else {
-            print("[ContentView] Cookie有效，无需刷新")
         }
     }
 

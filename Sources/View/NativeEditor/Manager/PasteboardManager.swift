@@ -21,7 +21,6 @@ public class PasteboardManager {
 
     private init() {
         #if DEBUG
-            print("[PasteboardManager] 初始化")
         #endif
     }
 
@@ -36,7 +35,6 @@ public class PasteboardManager {
     ///
     /// 这样可以确保与各种应用的兼容性。
     ///
-    /// _Requirements: 15.1, 15.2, 15.3, 15.4_
     ///
     /// - Parameters:
     ///   - attributedString: 要导出的富文本
@@ -46,7 +44,6 @@ public class PasteboardManager {
         to pasteboard: NSPasteboard = .general
     ) {
         #if DEBUG
-            print("[PasteboardManager] 导出多种格式到剪贴板")
         #endif
 
         // 清空剪贴板
@@ -61,7 +58,6 @@ public class PasteboardManager {
         item.setString(plainText, forType: .string)
 
         #if DEBUG
-            print("[PasteboardManager] 导出纯文本: \(plainText.prefix(50))...")
         #endif
 
         // 2. 导出 RTF 格式
@@ -73,7 +69,6 @@ public class PasteboardManager {
             item.setData(rtfData, forType: .rtf)
 
             #if DEBUG
-                print("[PasteboardManager] 导出 RTF: \(rtfData.count) 字节")
             #endif
         }
 
@@ -89,7 +84,6 @@ public class PasteboardManager {
             item.setData(htmlData, forType: .html)
 
             #if DEBUG
-                print("[PasteboardManager] 导出 HTML: \(htmlData.count) 字节")
             #endif
         }
 
@@ -100,7 +94,6 @@ public class PasteboardManager {
         pasteboard.writeObjects(items)
 
         #if DEBUG
-            print("[PasteboardManager] 多格式导出完成")
         #endif
     }
 
@@ -121,7 +114,6 @@ public class PasteboardManager {
         from pasteboard: NSPasteboard = .general
     ) -> NSAttributedString? {
         #if DEBUG
-            print("[PasteboardManager] 从剪贴板导入最合适的格式")
         #endif
 
         // 优先级 1: RTF 格式
@@ -132,7 +124,6 @@ public class PasteboardManager {
                 documentAttributes: nil
             ) {
                 #if DEBUG
-                    print("[PasteboardManager] 导入 RTF 格式成功")
                 #endif
                 return attributedString
             }
@@ -149,7 +140,6 @@ public class PasteboardManager {
                 documentAttributes: nil
             ) {
                 #if DEBUG
-                    print("[PasteboardManager] 导入 HTML 格式成功")
                 #endif
                 return attributedString
             }
@@ -158,13 +148,11 @@ public class PasteboardManager {
         // 优先级 3: 纯文本格式
         if let plainText = pasteboard.string(forType: .string) {
             #if DEBUG
-                print("[PasteboardManager] 导入纯文本格式")
             #endif
             return NSAttributedString(string: plainText)
         }
 
         #if DEBUG
-            print("[PasteboardManager] 导入失败：没有可用的格式")
         #endif
 
         return nil
@@ -186,13 +174,11 @@ public class PasteboardManager {
         typingAttributes: [NSAttributedString.Key: Any]
     ) -> NSAttributedString? {
         #if DEBUG
-            print("[PasteboardManager] 粘贴并匹配样式")
         #endif
 
         // 获取纯文本
         guard let plainText = pasteboard.string(forType: .string) else {
             #if DEBUG
-                print("[PasteboardManager] 粘贴失败：没有纯文本")
             #endif
             return nil
         }
@@ -204,7 +190,6 @@ public class PasteboardManager {
         )
 
         #if DEBUG
-            print("[PasteboardManager] 粘贴并匹配样式成功，文本长度: \(plainText.count)")
         #endif
 
         return attributedString
@@ -225,7 +210,6 @@ public class PasteboardManager {
         pasteboard.setString(text, forType: .string)
 
         #if DEBUG
-            print("[PasteboardManager] 复制纯文本: \(text.prefix(50))...")
         #endif
     }
 

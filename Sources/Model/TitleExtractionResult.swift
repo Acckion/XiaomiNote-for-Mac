@@ -1,21 +1,12 @@
-//
-//  TitleExtractionResult.swift
-//  MiNoteMac
-//
 //  标题提取结果数据模型
 //  包含标题提取操作的结果和相关元数据
-//
-//  Created by Title Content Integration Fix
-//
+
 
 import Foundation
 
 // MARK: - 标题提取结果
 
 /// 标题提取结果
-///
-/// 包含提取的标题文本和相关元数据
-/// _需求: 6.1, 6.2_ - 提供详细的操作结果和元数据
 public struct TitleExtractionResult {
     /// 提取的标题文本
     public let title: String
@@ -61,7 +52,6 @@ public struct TitleExtractionResult {
 // MARK: - 标题来源枚举
 
 /// 标题来源枚举
-/// _需求: 6.1_ - 记录标题的来源以便调试和追踪
 public enum TitleSource: String, CaseIterable {
     /// 来自 XML 内容
     case xml
@@ -93,8 +83,6 @@ public enum TitleSource: String, CaseIterable {
 // MARK: - 保存流程状态枚举
 
 /// 保存流程状态枚举
-/// 用于跟踪保存操作的整体状态
-/// _需求: 6.2_ - 记录保存流程的执行状态
 public enum SavePipelineState: String, CaseIterable {
     /// 未开始
     case notStarted
@@ -147,7 +135,6 @@ public enum SavePipelineState: String, CaseIterable {
 
 /// 保存步骤枚举
 /// 定义保存流程中的具体步骤
-/// _需求: 6.2_ - 记录保存流程的详细步骤
 public enum SaveStep: String, CaseIterable, Sendable {
     /// 开始保存
     case startSave

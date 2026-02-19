@@ -138,10 +138,6 @@ public class UndoCoalescingManager {
 
         // 通知撤销管理器开始新分组
         undoManager?.beginUndoGrouping()
-
-        #if DEBUG
-            print("[UndoCoalescingManager] 开始新的撤销分组，位置: \(location)")
-        #endif
     }
 
     /// 结束当前撤销分组
@@ -162,10 +158,6 @@ public class UndoCoalescingManager {
 
         // 通知撤销管理器结束分组
         undoManager?.endUndoGrouping()
-
-        #if DEBUG
-            print("[UndoCoalescingManager] 结束当前撤销分组")
-        #endif
     }
 
     /// 记录输入操作
@@ -195,10 +187,6 @@ public class UndoCoalescingManager {
         if isGroupActive {
             endCurrentGroup()
         }
-
-        #if DEBUG
-            print("[UndoCoalescingManager] 处理非输入操作，结束当前分组")
-        #endif
     }
 
     /// 更新策略
@@ -211,12 +199,7 @@ public class UndoCoalescingManager {
         if isGroupActive {
             endCurrentGroup()
         }
-
         strategy = newStrategy
-
-        #if DEBUG
-            print("[UndoCoalescingManager] 更新策略: \(newStrategy)")
-        #endif
     }
 
     // MARK: - Private Helper Methods
@@ -227,8 +210,6 @@ public class UndoCoalescingManager {
     /// - 输入位置不连续 → 开始新分组
     /// - 输入换行符 → 开始新分组
     /// - 删除操作方向改变 → 开始新分组
-    ///
-    /// _Requirements: 11.1_
     private func shouldStartNewGroupForContinuous(
         change: String,
         location: Int
@@ -244,17 +225,11 @@ public class UndoCoalescingManager {
         let expectedLocation = isInsert ? lastLocation + 1 : lastLocation
 
         if location != expectedLocation && location != lastLocation {
-            #if DEBUG
-                print("[UndoCoalescingManager] 位置不连续: \(location) vs \(expectedLocation)")
-            #endif
             return true
         }
 
         // 检查是否输入了换行符
         if change.contains("\n") || change.contains("\r") {
-            #if DEBUG
-                print("[UndoCoalescingManager] 输入换行符")
-            #endif
             return true
         }
 
@@ -267,8 +242,6 @@ public class UndoCoalescingManager {
     /// - 输入空格或标点 → 开始新分组
     /// - 输入换行符 → 开始新分组
     /// - 位置不连续 → 开始新分组
-    ///
-    /// _Requirements: 11.4_
     private func shouldStartNewGroupForWordBased(
         change: String,
         location: Int
@@ -280,9 +253,6 @@ public class UndoCoalescingManager {
 
         // 检查是否在单词边界
         if isWordBoundary(change) {
-            #if DEBUG
-                print("[UndoCoalescingManager] 单词边界: \(change)")
-            #endif
             return true
         }
 
@@ -293,8 +263,6 @@ public class UndoCoalescingManager {
     ///
     /// **判断规则**:
     /// - 距离上次输入超过指定时间间隔 → 开始新分组
-    ///
-    /// _Requirements: 11.3_
     private func shouldStartNewGroupForTimeBased(interval: TimeInterval) -> Bool {
         guard let lastTime = lastInputTime else {
             return true
@@ -302,9 +270,6 @@ public class UndoCoalescingManager {
 
         let elapsed = Date().timeIntervalSince(lastTime)
         if elapsed > interval {
-            #if DEBUG
-                print("[UndoCoalescingManager] 时间间隔超过阈值: \(elapsed)s > \(interval)s")
-            #endif
             return true
         }
 

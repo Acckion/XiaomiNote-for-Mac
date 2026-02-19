@@ -255,9 +255,6 @@ extension DatabaseService {
            let tagText = sqlite3_column_text(statement, 14)
         {
             serverTag = String(cString: tagText)
-            LogService.shared.debug(.storage, "读取 serverTag: \(serverTag ?? "nil"), id: \(id)")
-        } else {
-            LogService.shared.debug(.storage, "serverTag 为 NULL, id: \(id)")
         }
 
         let status = if sqlite3_column_type(statement, 15) != SQLITE_NULL,

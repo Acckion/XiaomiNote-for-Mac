@@ -761,14 +761,14 @@ public class ViewStateCoordinator: ObservableObject {
         lastTransition = transition
 
         if isDebugLoggingEnabled {
-            print(transition.logDescription)
+            LogService.shared.debug(.viewmodel, transition.logDescription)
         }
     }
 
     /// 输出日志
     private func log(_ message: String) {
         if isDebugLoggingEnabled {
-            print("[ViewStateCoordinator] \(message)")
+            LogService.shared.debug(.viewmodel, "[ViewStateCoordinator] \(message)")
         }
     }
 }

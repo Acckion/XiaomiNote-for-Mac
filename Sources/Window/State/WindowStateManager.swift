@@ -31,9 +31,9 @@ public class WindowStateManager {
             savedStates[windowId] = data
 
             userDefaults.set(try? JSONSerialization.data(withJSONObject: savedStates), forKey: windowStateKey)
-            print("窗口状态保存成功: \(windowId)")
+            LogService.shared.info(.window, "窗口状态保存成功: \(windowId)")
         } catch {
-            print("保存窗口状态失败: \(error)")
+            LogService.shared.error(.window, "保存窗口状态失败: \(error)")
         }
     }
 
@@ -50,7 +50,7 @@ public class WindowStateManager {
         do {
             return try NSKeyedUnarchiver.unarchivedObject(ofClass: MainWindowState.self, from: data)
         } catch {
-            print("恢复窗口状态失败: \(error)")
+            LogService.shared.error(.window, "恢复窗口状态失败: \(error)")
             return nil
         }
     }
@@ -182,7 +182,7 @@ public class WindowStateManager {
             userDefaults.removeObject(forKey: "LastWindowWidth")
             userDefaults.removeObject(forKey: "LastWindowHeight")
 
-            print("旧版窗口状态迁移完成")
+            LogService.shared.info(.window, "旧版窗口状态迁移完成")
         }
     }
 }

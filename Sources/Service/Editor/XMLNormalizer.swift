@@ -1,11 +1,3 @@
-//
-//  XMLNormalizer.swift
-//  MiNoteMac
-//
-//  Created by Kiro on 2024.
-//  Copyright © 2024 Acckion. All rights reserved.
-//
-
 import Foundation
 
 /// XML规范化器

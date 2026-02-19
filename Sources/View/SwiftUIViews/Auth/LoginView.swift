@@ -109,7 +109,7 @@ struct LoginView: View {
     /// 从小米账号页面获取到 passToken 后的处理
     private func handlePassTokenExtracted(passToken: String, userId: String) {
         let maskedToken = String(passToken.prefix(8)) + "..." + String(passToken.suffix(4))
-        print("[[调试]] 登录页面提取到 passToken=\(maskedToken) (长度:\(passToken.count)), userId=\(userId)")
+        LogService.shared.debug(.core, "登录页面提取到 passToken=\(maskedToken) (长度:\(passToken.count)), userId=\(userId)")
 
         withAnimation {
             isRefreshing = true
@@ -128,7 +128,7 @@ struct LoginView: View {
             do {
                 let serviceToken = try await PassTokenManager.shared.refreshServiceToken()
                 let maskedST = String(serviceToken.prefix(8)) + "..." + String(serviceToken.suffix(4))
-                print("[[调试]] 三步流程成功, serviceToken=\(maskedST) (长度:\(serviceToken.count))")
+                LogService.shared.debug(.core, "三步流程成功, serviceToken=\(maskedST) (长度:\(serviceToken.count))")
 
                 await MainActor.run {
                     withAnimation {
@@ -139,7 +139,7 @@ struct LoginView: View {
 
                 await viewModel.loadNotesFromCloud()
             } catch {
-                print("[[调试]] 三步流程失败: \(error.localizedDescription)")
+                LogService.shared.error(.core, "三步流程失败: \(error.localizedDescription)")
                 await MainActor.run {
                     isRefreshing = false
                     errorMessage = "获取访问凭证失败: \(error.localizedDescription)"
@@ -173,7 +173,7 @@ struct WebView: NSViewRepresentable {
         )
         request.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
 
-        print("[[调试]] WebView 加载小米账号登录页: \(url.absoluteString)")
+        LogService.shared.debug(.core, "WebView 加载小米账号登录页")
         webView.load(request)
         return webView
     }
@@ -193,7 +193,6 @@ struct WebView: NSViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation _: WKNavigation!) {
-            print("[[调试]] WebView 开始加载: \(webView.url?.absoluteString ?? "未知")")
             DispatchQueue.main.async {
                 self.parent.isLoading = true
             }
@@ -201,7 +200,6 @@ struct WebView: NSViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish _: WKNavigation!) {
             let currentURL = webView.url
-            print("[[调试]] WebView 导航完成: \(currentURL?.absoluteString ?? "未知")")
 
             DispatchQueue.main.async {
                 self.parent.isLoading = false
@@ -215,7 +213,7 @@ struct WebView: NSViewRepresentable {
                 return
             }
 
-            print("[[调试]] 检测到登录成功重定向，开始提取 passToken")
+            LogService.shared.info(.core, "检测到登录成功重定向，开始提取 passToken")
             hasExtracted = true
 
             // 从 WKWebView cookie store 提取 passToken 和 userId
@@ -223,14 +221,13 @@ struct WebView: NSViewRepresentable {
                 let passToken = cookies.first(where: { $0.name == "passToken" })?.value
                 let userId = cookies.first(where: { $0.name == "userId" })?.value
 
-                // 打印所有 cookie 名称用于调试
-                let cookieNames = cookies.map { "\($0.name) (domain: \($0.domain))" }
-                print("[[调试]] WebView 所有 cookie: \(cookieNames.joined(separator: ", "))")
+                let cookieNames = cookies.map { $0.name }
+                LogService.shared.debug(.core, "WebView 获取到 cookie 列表: \(cookieNames.joined(separator: ", "))")
 
                 guard let passToken, !passToken.isEmpty,
                       let userId, !userId.isEmpty
                 else {
-                    print("[[调试]] 未找到 passToken 或 userId, passToken=\(passToken != nil), userId=\(userId != nil)")
+                    LogService.shared.warning(.core, "未找到 passToken 或 userId")
                     return
                 }
 
@@ -241,14 +238,14 @@ struct WebView: NSViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFail _: WKNavigation!, withError error: Error) {
-            print("[[调试]] WebView 导航失败: \(error.localizedDescription), URL: \(webView.url?.absoluteString ?? "未知")")
+            LogService.shared.error(.core, "WebView 导航失败: \(error.localizedDescription)")
             DispatchQueue.main.async {
                 self.parent.isLoading = false
             }
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError error: Error) {
-            print("[[调试]] WebView 加载失败: \(error.localizedDescription), URL: \(webView.url?.absoluteString ?? "未知")")
+            LogService.shared.error(.core, "WebView 加载失败: \(error.localizedDescription)")
             DispatchQueue.main.async {
                 self.parent.isLoading = false
             }
@@ -259,7 +256,6 @@ struct WebView: NSViewRepresentable {
             decidePolicyFor navigationAction: WKNavigationAction,
             decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
         ) {
-            print("[[调试]] WebView 导航策略: \(navigationAction.request.url?.absoluteString ?? "未知")")
             decisionHandler(.allow)
         }
     }

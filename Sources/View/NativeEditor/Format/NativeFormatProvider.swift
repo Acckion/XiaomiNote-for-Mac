@@ -860,17 +860,17 @@ public extension NativeFormatProvider {
     /// 打印当前格式状态（调试用）
     func printCurrentState() {
         let state = getCurrentFormatState()
-        print("[NativeFormatProvider] 当前格式状态:")
-        print("  - 段落格式: \(state.paragraphFormat.displayName)")
-        print("  - 对齐方式: \(state.alignment.displayName)")
-        print("  - 加粗: \(state.isBold)")
-        print("  - 斜体: \(state.isItalic)")
-        print("  - 下划线: \(state.isUnderline)")
-        print("  - 删除线: \(state.isStrikethrough)")
-        print("  - 高亮: \(state.isHighlight)")
-        print("  - 引用块: \(state.isQuote)")
-        print("  - 有选择: \(state.hasSelection)")
-        print("  - 选择长度: \(state.selectionLength)")
+        LogService.shared.debug(.editor, "[NativeFormatProvider] 当前格式状态:")
+        LogService.shared.debug(.editor, "  - 段落格式: \(state.paragraphFormat.displayName)")
+        LogService.shared.debug(.editor, "  - 对齐方式: \(state.alignment.displayName)")
+        LogService.shared.debug(.editor, "  - 加粗: \(state.isBold)")
+        LogService.shared.debug(.editor, "  - 斜体: \(state.isItalic)")
+        LogService.shared.debug(.editor, "  - 下划线: \(state.isUnderline)")
+        LogService.shared.debug(.editor, "  - 删除线: \(state.isStrikethrough)")
+        LogService.shared.debug(.editor, "  - 高亮: \(state.isHighlight)")
+        LogService.shared.debug(.editor, "  - 引用块: \(state.isQuote)")
+        LogService.shared.debug(.editor, "  - 有选择: \(state.hasSelection)")
+        LogService.shared.debug(.editor, "  - 选择长度: \(state.selectionLength)")
     }
 }
 

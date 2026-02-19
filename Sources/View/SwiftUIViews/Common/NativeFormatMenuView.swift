@@ -398,7 +398,6 @@ struct NativeFormatMenuView: View {
     private func clearAlignmentFormats() {
         // 检查是否在标题段落中，如果是则禁止格式操作
         if isInTitleParagraph {
-            print("[NativeFormatMenuView] 标题段落中禁止对齐操作")
             return
         }
 
@@ -415,7 +414,6 @@ struct NativeFormatMenuView: View {
     private func handleStyleSelection(_ style: NativeTextStyle) {
         // 检查是否在标题段落中，如果是则禁止格式操作
         if isInTitleParagraph {
-            print("[NativeFormatMenuView] 标题段落中禁止样式操作: \(style.displayName)")
             return
         }
 
@@ -463,7 +461,6 @@ struct NativeFormatMenuView: View {
     private func applyFormat(_ format: TextFormat) {
         // 检查是否在标题段落中，如果是则禁止格式操作
         if isInTitleParagraph {
-            print("[NativeFormatMenuView] 标题段落中禁止格式操作: \(format.displayName)")
             return
         }
 

@@ -192,7 +192,7 @@ public final class SearchViewModel: ObservableObject {
             addToHistory(keyword)
         } catch {
             errorMessage = "搜索失败: \(error.localizedDescription)"
-            print("[SearchViewModel] 搜索失败: \(error)")
+            LogService.shared.error(.viewmodel, "搜索失败: \(error)")
         }
 
         isSearching = false

@@ -46,7 +46,6 @@ public class SidebarHostingController: NSViewController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self, let viewModel = viewModel as NotesViewModel? else {
-                    print("[SidebarHostingController] 错误: viewModel 为 nil，无法刷新视图")
                     return
                 }
                 // 强制刷新SwiftUI视图
@@ -59,7 +58,6 @@ public class SidebarHostingController: NSViewController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self, let viewModel = viewModel as NotesViewModel? else {
-                    print("[SidebarHostingController] 错误: viewModel 为 nil，无法刷新视图")
                     return
                 }
                 // 强制刷新SwiftUI视图

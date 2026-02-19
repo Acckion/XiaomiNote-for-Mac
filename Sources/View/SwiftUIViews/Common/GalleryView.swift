@@ -386,11 +386,8 @@ struct GalleryView: View {
             // 未分类文件夹
             Button {
                 NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
-                    switch result {
-                    case .success:
-                        print("[GalleryView] 笔记移动到未分类成功: \(note.id)")
-                    case let .failure(error):
-                        print("[GalleryView] 移动到未分类失败: \(error.localizedDescription)")
+                    if case let .failure(error) = result {
+                        LogService.shared.error(.window, "移动到未分类失败: \(error.localizedDescription)")
                     }
                 }
             } label: {
@@ -452,8 +449,6 @@ struct GalleryView: View {
     /// 在新窗口打开笔记
     private func openNoteInNewWindow(_: Note) {
         // TODO: 实现多窗口支持后启用
-        // 当前由于模块依赖问题暂时禁用
-        print("[GalleryView] 在新窗口打开笔记功能暂时禁用")
     }
 
     /// 复制笔记内容到剪贴板
@@ -482,11 +477,8 @@ struct GalleryView: View {
     /// 移动笔记到指定文件夹
     private func moveNoteToFolder(note: Note, folder: Folder) {
         NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
-            switch result {
-            case .success:
-                print("[GalleryView] 笔记移动成功: \(note.id) -> \(folder.name)")
-            case let .failure(error):
-                print("[GalleryView] 移动笔记失败: \(error.localizedDescription)")
+            if case let .failure(error) = result {
+                LogService.shared.error(.window, "移动笔记失败: \(error.localizedDescription)")
             }
         }
     }

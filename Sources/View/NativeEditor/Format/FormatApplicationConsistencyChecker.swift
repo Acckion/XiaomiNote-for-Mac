@@ -179,12 +179,7 @@ class FormatApplicationConsistencyChecker: ObservableObject {
 
         // 如果发现不一致，记录警告
         if !isConsistent {
-            print("⚠️ [FormatConsistencyChecker] 发现格式应用不一致: \(format.displayName)")
-            print("   - 菜单应用: \(menu.isFormatToggled ? "成功" : "失败")")
-            print("   - 快捷键应用: \(keyboard.isFormatToggled ? "成功" : "失败")")
-            if let reason = inconsistencyReason {
-                print("   - 不一致原因: \(reason)")
-            }
+            LogService.shared.warning(.editor, "发现格式应用不一致: \(format.displayName), 菜单: \(menu.isFormatToggled ? "成功" : "失败"), 快捷键: \(keyboard.isFormatToggled ? "成功" : "失败")\(inconsistencyReason.map { ", 原因: \($0)" } ?? "")")
         }
 
         return result
@@ -235,14 +230,12 @@ class FormatApplicationConsistencyChecker: ObservableObject {
     func clearHistory() {
         applicationHistory.removeAll()
         lastConsistencyResults.removeAll()
-        print("[FormatConsistencyChecker] 历史记录已清除")
     }
 
     /// 启用或禁用详细日志
     /// - Parameter enabled: 是否启用
     func setVerboseLogging(_ enabled: Bool) {
         isVerboseLoggingEnabled = enabled
-        print("[FormatConsistencyChecker] 详细日志已\(enabled ? "启用" : "禁用")")
     }
 
     // MARK: - Private Methods
@@ -364,74 +357,8 @@ class FormatApplicationConsistencyChecker: ObservableObject {
     /// 记录格式应用记录的详细日志
     /// - Parameter record: 应用记录
     private func logFormatApplicationRecord(_ record: ConsistencyApplicationRecord) {
-        print("📝 [FormatConsistencyChecker] 格式应用记录:")
-        print("   - 方式: \(record.method.displayName)")
-        print("   - 格式: \(record.format.displayName)")
-        print("   - 时间: \(record.timestamp)")
-        print("   - 选择范围: \(record.selectedRange)")
-        print("   - 文本长度: \(record.textLength)")
-        print("   - 应用前状态: \(record.beforeState.map(\.displayName))")
-        print("   - 应用后状态: \(record.afterState.map(\.displayName))")
-        print("   - 成功: \(record.success)")
-        print("   - 格式切换: \(record.isFormatToggled)")
-        if let error = record.errorMessage {
-            print("   - 错误: \(error)")
-        }
+        LogService.shared.debug(.editor, "格式应用记录: 方式=\(record.method.displayName), 格式=\(record.format.displayName), 成功=\(record.success), 切换=\(record.isFormatToggled)")
     }
 }
 
 // MARK: - Extensions
-
-extension FormatApplicationConsistencyChecker {
-
-    /// 打印应用统计信息
-    func printStatistics() {
-        let stats = getApplicationStatistics()
-
-        print("📊 [FormatConsistencyChecker] 格式应用统计:")
-        print("   - 总应用次数: \(stats["totalApplications"] ?? 0)")
-        print("   - 成功次数: \(stats["successfulApplications"] ?? 0)")
-        print("   - 失败次数: \(stats["failedApplications"] ?? 0)")
-        print("   - 成功率: \(String(format: "%.1f%%", (stats["successRate"] as? Double ?? 0) * 100))")
-
-        if let methodCounts = stats["methodCounts"] as? [String: Int] {
-            print("   - 应用方式统计:")
-            for (method, count) in methodCounts {
-                print("     - \(method): \(count)")
-            }
-        }
-
-        if let formatCounts = stats["formatCounts"] as? [String: Int] {
-            print("   - 格式统计:")
-            for (format, count) in formatCounts {
-                print("     - \(format): \(count)")
-            }
-        }
-    }
-
-    /// 打印一致性检查结果
-    func printConsistencyResults() {
-        guard !lastConsistencyResults.isEmpty else {
-            print("📋 [FormatConsistencyChecker] 暂无一致性检查结果")
-            return
-        }
-
-        print("📋 [FormatConsistencyChecker] 一致性检查结果:")
-
-        for result in lastConsistencyResults {
-            print("   - 格式: \(result.format.displayName)")
-            print("     - 一致性: \(result.isConsistent ? "✅ 一致" : "❌ 不一致")")
-
-            if let reason = result.inconsistencyReason {
-                print("     - 不一致原因: \(reason)")
-            }
-
-            if !result.recommendations.isEmpty {
-                print("     - 建议:")
-                for recommendation in result.recommendations {
-                    print("       - \(recommendation)")
-                }
-            }
-        }
-    }
-}

@@ -81,9 +81,6 @@ class UndoRedoStateHandler {
     // MARK: - Initialization
 
     private init() {
-        if verboseLogging {
-            print("[UndoRedoStateHandler] 初始化完成")
-        }
     }
 
     // MARK: - Public Methods
@@ -110,12 +107,6 @@ class UndoRedoStateHandler {
         cursorPositionBefore: Int
     ) async -> UndoRedoOperationRecord {
         undoCount += 1
-
-        if verboseLogging {
-            print("[UndoRedoStateHandler] 处理撤销操作 #\(undoCount)")
-            print("[UndoRedoStateHandler]   - 撤销前格式: \(formatsBefore.map(\.displayName))")
-            print("[UndoRedoStateHandler]   - 撤销前光标位置: \(cursorPositionBefore)")
-        }
 
         // 1. 同步内容
         contentSyncCallback?()
@@ -148,12 +139,6 @@ class UndoRedoStateHandler {
         addRecord(record)
         successCount += 1
 
-        if verboseLogging {
-            print("[UndoRedoStateHandler] 撤销操作完成")
-            print("[UndoRedoStateHandler]   - 格式变化: \(record.formatsChanged)")
-            print("[UndoRedoStateHandler]   - 光标位置变化: \(record.cursorPositionChanged)")
-        }
-
         return record
     }
 
@@ -167,12 +152,6 @@ class UndoRedoStateHandler {
         cursorPositionBefore: Int
     ) async -> UndoRedoOperationRecord {
         redoCount += 1
-
-        if verboseLogging {
-            print("[UndoRedoStateHandler] 处理重做操作 #\(redoCount)")
-            print("[UndoRedoStateHandler]   - 重做前格式: \(formatsBefore.map(\.displayName))")
-            print("[UndoRedoStateHandler]   - 重做前光标位置: \(cursorPositionBefore)")
-        }
 
         // 1. 同步内容
         contentSyncCallback?()
@@ -205,22 +184,12 @@ class UndoRedoStateHandler {
         addRecord(record)
         successCount += 1
 
-        if verboseLogging {
-            print("[UndoRedoStateHandler] 重做操作完成")
-            print("[UndoRedoStateHandler]   - 格式变化: \(record.formatsChanged)")
-            print("[UndoRedoStateHandler]   - 光标位置变化: \(record.cursorPositionChanged)")
-        }
-
         return record
     }
 
     /// 处理撤销/重做操作（简化版本）
     /// - Parameter operationType: 操作类型
     func handleOperation(_ operationType: UndoRedoOperationType) {
-        if verboseLogging {
-            print("[UndoRedoStateHandler] 处理\(operationType.rawValue)操作")
-        }
-
         switch operationType {
         case .undo:
             undoCount += 1
@@ -238,10 +207,6 @@ class UndoRedoStateHandler {
 
             // 强制更新格式状态
             self.stateUpdateCallback?()
-
-            if self.verboseLogging {
-                print("[UndoRedoStateHandler] \(operationType.rawValue)操作后状态已更新")
-            }
 
             self.successCount += 1
         }
@@ -275,23 +240,19 @@ class UndoRedoStateHandler {
         successCount = 0
         failureCount = 0
         operationRecords.removeAll()
-
-        if verboseLogging {
-            print("[UndoRedoStateHandler] 统计信息已重置")
-        }
     }
 
     /// 打印统计信息
     func printStatistics() {
         let stats = getStatistics()
 
-        print("[UndoRedoStateHandler] 统计信息:")
-        print("  - 撤销次数: \(stats["undoCount"] ?? 0)")
-        print("  - 重做次数: \(stats["redoCount"] ?? 0)")
-        print("  - 总操作次数: \(stats["totalCount"] ?? 0)")
-        print("  - 成功次数: \(stats["successCount"] ?? 0)")
-        print("  - 失败次数: \(stats["failureCount"] ?? 0)")
-        print("  - 记录数量: \(stats["recordCount"] ?? 0)")
+        LogService.shared.debug(.editor, "[UndoRedoStateHandler] 统计信息:")
+        LogService.shared.debug(.editor, "  - 撤销次数: \(stats["undoCount"] ?? 0)")
+        LogService.shared.debug(.editor, "  - 重做次数: \(stats["redoCount"] ?? 0)")
+        LogService.shared.debug(.editor, "  - 总操作次数: \(stats["totalCount"] ?? 0)")
+        LogService.shared.debug(.editor, "  - 成功次数: \(stats["successCount"] ?? 0)")
+        LogService.shared.debug(.editor, "  - 失败次数: \(stats["failureCount"] ?? 0)")
+        LogService.shared.debug(.editor, "  - 记录数量: \(stats["recordCount"] ?? 0)")
     }
 
     // MARK: - Private Methods

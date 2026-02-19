@@ -75,14 +75,9 @@ extension MiNoteService {
             if let code = json["code"] as? Int {
                 if code != 0 {
                     let message = json["description"] as? String ?? json["message"] as? String ?? "获取加密信息失败"
-                    print("[MiNoteService] 获取加密信息失败，code: \(code), message: \(message)")
+                    LogService.shared.error(.network, "获取加密信息失败，code: \(code), message: \(message)")
                     throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {
-                    print("[MiNoteService] ✅ 获取加密信息成功，code: \(code)")
                 }
-            } else {
-                // 如果没有 code 字段，但状态码是 200，也认为成功
-                print("[MiNoteService] ✅ 获取加密信息成功（响应中没有 code 字段，但状态码为 200）")
             }
 
             // 返回 data 字段中的加密信息

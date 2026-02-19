@@ -110,7 +110,6 @@ class GalleryHostingController: NSViewController {
         viewModel.$selectedFolder
             .receive(on: DispatchQueue.main)
             .sink { [weak self] folder in
-                print("[GalleryHostingController] 文件夹变化: \(folder?.name ?? "nil")")
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -121,9 +120,6 @@ class GalleryHostingController: NSViewController {
         viewModel.$searchText
             .receive(on: DispatchQueue.main)
             .sink { [weak self] searchText in
-                if !searchText.isEmpty {
-                    print("[GalleryHostingController] 搜索文本变化: \(searchText)")
-                }
                 self?.refreshView()
             }
             .store(in: &cancellables)

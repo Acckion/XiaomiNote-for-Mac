@@ -199,15 +199,10 @@ struct PinnedNoteRowContent<ContextMenu: View>: View {
     /// 处理点击事件
     private func handleTap() {
         let currentSelectedId = windowState.selectedNote?.id
-        Swift
-            .print(
-                "[PinnedNoteRowContent] 点击笔记 - ID: \(note.id.prefix(8))..., 当前选中: \(currentSelectedId?.prefix(8) ?? "nil"), isSelected: \(isSelected)"
-            )
 
         // 如果点击的是已选中的笔记，不需要做任何事情
         // _Requirements: 2.3_
         if currentSelectedId == note.id {
-            Swift.print("[PinnedNoteRowContent] 点击已选中的笔记，无需操作")
             return
         }
 
@@ -215,7 +210,6 @@ struct PinnedNoteRowContent<ContextMenu: View>: View {
         // _Requirements: 2.1, 2.2, 2.3_
         isSelectingNote = true
         windowState.selectNote(note)
-        Swift.print("[PinnedNoteRowContent] 设置 selectedNote 为 \(note.id.prefix(8))...")
 
         // 延迟重置选择标志，确保动画禁用生效
         // 延长到 1.5 秒以覆盖 ensureNoteHasFullContent 等异步操作
@@ -328,19 +322,11 @@ struct NotesListView: View {
         // - 1.1: 编辑笔记内容时保持选中状态不变
         // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
         .onChange(of: windowState.selectedNote) { oldValue, newValue in
-            // 添加日志追踪选择状态变化
-            let oldId = oldValue?.id.prefix(8) ?? "nil"
-            let newId = newValue?.id.prefix(8) ?? "nil"
-            Swift.print("[NotesListView] 📊 selectedNote 变化: \(oldId) -> \(newId)")
-
             // 只有当选择真正变化时才通知 coordinator
             if oldValue?.id != newValue?.id {
-                Swift.print("[NotesListView] 🔄 选择 ID 变化，通知 coordinator")
                 Task {
                     await viewModel.stateCoordinator.selectNote(newValue)
                 }
-            } else {
-                Swift.print("[NotesListView] ⏭️ 选择 ID 未变化，跳过 coordinator 通知")
             }
         }
     }
@@ -717,9 +703,9 @@ struct NotesListView: View {
                 NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
                     switch result {
                     case .success:
-                        print("[NotesListView] 笔记移动到未分类成功: \(note.id)")
+                        break
                     case let .failure(error):
-                        print("[NotesListView] 移动到未分类失败: \(error.localizedDescription)")
+                        LogService.shared.error(.viewmodel, "移动到未分类失败: \(error.localizedDescription)")
                     }
                 }
             } label: {
@@ -779,13 +765,7 @@ struct NotesListView: View {
     // MARK: - 菜单操作
 
     private func openNoteInNewWindow(_: Note) {
-        // 在新窗口打开笔记
-        // TODO: 实现多窗口支持后启用
-        // 当前由于模块依赖问题暂时禁用
-        print("[NotesListView] 在新窗口打开笔记功能暂时禁用")
-
-        // 未来实现：通过 coordinator 的回调来创建新窗口
-        // coordinator.createNewWindow?(withNote: note)
+        // 多窗口支持暂时禁用，等待模块依赖问题解决
     }
 
     private func copyNote(_ note: Note) {
@@ -816,9 +796,9 @@ struct NotesListView: View {
         NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
             switch result {
             case .success:
-                print("[NotesListView] 笔记移动成功: \(note.id) -> \(folder.name)")
+                break
             case let .failure(error):
-                print("[NotesListView] 移动笔记失败: \(error.localizedDescription)")
+                LogService.shared.error(.viewmodel, "移动笔记失败: \(error.localizedDescription)")
             }
         }
     }
@@ -1075,7 +1055,6 @@ struct NoteRow: View {
                     if note.content.isEmpty {
                         if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
                             await MemoryCacheManager.shared.cacheNote(fullNote)
-                            Swift.print("[预加载] 悬停预加载完成 - ID: \(note.id.prefix(8))...")
                         }
                     } else {
                         await MemoryCacheManager.shared.cacheNote(note)

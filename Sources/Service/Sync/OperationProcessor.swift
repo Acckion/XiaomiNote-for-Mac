@@ -1013,7 +1013,8 @@ extension OperationProcessor {
             }
         }
 
-        LogService.shared.info(.sync, "OperationProcessor 重命名文件夹成功: \(operation.noteId)")    }
+        LogService.shared.info(.sync, "OperationProcessor 重命名文件夹成功: \(operation.noteId)")
+    }
 
     /// 处理删除文件夹操作
     ///

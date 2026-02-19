@@ -69,7 +69,6 @@ public class AutoSaveManager {
         self.debounceDelay = debounceDelay
         self.saveCallback = saveCallback
 
-        print("[AutoSaveManager] 初始化 - 防抖延迟: \(debounceDelay)秒")
     }
 
     // MARK: - 调度保存
@@ -94,7 +93,6 @@ public class AutoSaveManager {
             }
         }
 
-        print("[AutoSaveManager] 已调度自动保存（\(debounceDelay)秒后）")
     }
 
     /// 取消自动保存
@@ -106,7 +104,6 @@ public class AutoSaveManager {
         debounceTimer?.invalidate()
         debounceTimer = nil
 
-        print("[AutoSaveManager] 已取消自动保存")
     }
 
     /// 立即保存
@@ -124,11 +121,9 @@ public class AutoSaveManager {
     /// 执行保存回调函数
     private func triggerSave() async {
         guard let callback = saveCallback else {
-            print("[AutoSaveManager] ⚠️ 保存回调未设置")
             return
         }
 
-        print("[AutoSaveManager] 触发保存")
         await callback()
     }
 
@@ -141,7 +136,6 @@ public class AutoSaveManager {
     /// _Requirements: FR-5.1_
     public func markSaveStarted(version: Int) {
         savingVersion = version
-        print("[AutoSaveManager] 保存开始 - 版本: \(version)")
     }
 
     /// 标记保存完成
@@ -150,7 +144,6 @@ public class AutoSaveManager {
     public func markSaveCompleted() {
         let version = savingVersion
         savingVersion = nil
-        print("[AutoSaveManager] 保存完成 - 版本: \(version ?? -1)")
     }
 
     /// 检查是否正在保存
@@ -178,9 +171,6 @@ public class AutoSaveManager {
 
     /// 打印调试信息
     public func printDebugInfo() {
-        print("[AutoSaveManager] ========================================")
-        print(getDebugInfo())
-        print("[AutoSaveManager] ========================================")
     }
 
     // MARK: - 清理
@@ -188,6 +178,5 @@ public class AutoSaveManager {
     deinit {
         // 注意：由于 Swift 6 的 Sendable 限制，我们不能在 deinit 中直接访问 Timer
         // Timer 会在 AutoSaveManager 释放时自动失效
-        print("[AutoSaveManager] 已释放")
     }
 }

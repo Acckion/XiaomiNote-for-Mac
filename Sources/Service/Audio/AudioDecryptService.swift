@@ -29,16 +29,11 @@ final class AudioDecryptService: @unchecked Sendable {
     ///   - secureKey: 解密密钥（十六进制字符串）
     /// - Returns: 解密后的音频数据，如果解密失败则返回原始数据
     func decrypt(data: Data, secureKey: String) -> Data {
-        print("[AudioDecrypt] 开始解密，数据大小: \(data.count) 字节，密钥: \(secureKey)")
-
         // 将十六进制密钥转换为字节数组
         guard let keyBytes = hexStringToBytes(secureKey) else {
-            print("[AudioDecrypt] ❌ 无效的密钥格式，返回原始数据")
+            LogService.shared.error(.audio, "解密失败：无效的密钥格式")
             return data
         }
-
-        print("[AudioDecrypt] 密钥长度: \(keyBytes.count) 字节")
-        print("[AudioDecrypt] 加密数据头部: \(data.prefix(32).map { String(format: "%02x", $0) }.joined(separator: " "))")
 
         // 尝试不同的解密方法
         let methods: [(String, (Data, [UInt8]) -> Data)] = [
@@ -50,23 +45,17 @@ final class AudioDecryptService: @unchecked Sendable {
         for (name, decryptFunc) in methods {
             let decrypted = decryptFunc(data, keyBytes)
 
-            // 检查是否是有效的音频文件
             if isValidAudioFile(decrypted) {
-                print("[AudioDecrypt] ✅ 使用 \(name) 解密成功！")
-                print("[AudioDecrypt] 解密后头部: \(decrypted.prefix(32).map { String(format: "%02x", $0) }.joined(separator: " "))")
+                LogService.shared.debug(.audio, "使用 \(name) 解密成功")
                 return decrypted
-            } else {
-                print("[AudioDecrypt] ❌ \(name) 解密后不是有效音频")
             }
         }
 
-        // 如果所有方法都失败，返回原始数据（可能本身就是未加密的）
         if isValidAudioFile(data) {
-            print("[AudioDecrypt] ⚠️ 原始数据已经是有效音频，无需解密")
             return data
         }
 
-        print("[AudioDecrypt] ⚠️ 所有解密方法都失败，返回原始数据")
+        LogService.shared.warning(.audio, "所有解密方法均失败，返回原始数据")
         return data
     }
 
@@ -203,47 +192,33 @@ final class AudioDecryptService: @unchecked Sendable {
         let bytes = [UInt8](data.prefix(12))
 
         // MP3 文件头
-        // ID3 标签：以 "ID3" 开头
         if bytes[0] == 0x49, bytes[1] == 0x44, bytes[2] == 0x33 {
-            print("[AudioDecrypt] 检测到 ID3 标签")
             return true
         }
 
-        // MP3 帧同步：0xFF 0xFB, 0xFF 0xFA, 0xFF 0xF3, 0xFF 0xF2 等
         if bytes[0] == 0xFF, (bytes[1] & 0xE0) == 0xE0 {
-            print("[AudioDecrypt] 检测到 MP3 帧同步")
             return true
         }
 
-        // AAC 文件头：ADTS 同步字 0xFF 0xF0 或 0xFF 0xF1
         if bytes[0] == 0xFF, (bytes[1] & 0xF0) == 0xF0 {
-            print("[AudioDecrypt] 检测到 AAC ADTS 头")
             return true
         }
 
-        // M4A/MP4 文件头：ftyp
         if bytes[4] == 0x66, bytes[5] == 0x74, bytes[6] == 0x79, bytes[7] == 0x70 {
-            print("[AudioDecrypt] 检测到 M4A/MP4 ftyp")
             return true
         }
 
-        // WAV 文件头：RIFF....WAVE
         if bytes[0] == 0x52, bytes[1] == 0x49, bytes[2] == 0x46, bytes[3] == 0x46,
            bytes[8] == 0x57, bytes[9] == 0x41, bytes[10] == 0x56, bytes[11] == 0x45
         {
-            print("[AudioDecrypt] 检测到 WAV RIFF 头")
             return true
         }
 
-        // OGG 文件头：OggS
         if bytes[0] == 0x4F, bytes[1] == 0x67, bytes[2] == 0x67, bytes[3] == 0x53 {
-            print("[AudioDecrypt] 检测到 OGG 头")
             return true
         }
 
-        // FLAC 文件头：fLaC
         if bytes[0] == 0x66, bytes[1] == 0x4C, bytes[2] == 0x61, bytes[3] == 0x43 {
-            print("[AudioDecrypt] 检测到 FLAC 头")
             return true
         }
 

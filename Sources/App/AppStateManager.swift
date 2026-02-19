@@ -3,12 +3,6 @@ import Combine
 import MiNoteLibrary
 
 /// 应用程序状态管理器
-/// 负责应用程序的生命周期状态管理
-///
-/// 遵循需求：
-/// - 2.1, 2.2, 2.3, 2.4: 启动序列管理
-/// - 5.1, 5.2: 登录/Cookie刷新成功后自动同步
-/// - 8.1, 8.6, 8.7: 错误恢复机制
 @MainActor
 class AppStateManager {
 
@@ -23,13 +17,13 @@ class AppStateManager {
     /// 菜单管理器
     private let menuManager: MenuManager
 
-    /// 网络恢复处理器（需求 8.6）
+    /// 网络恢复处理器
     private var networkRecoveryHandler: NetworkRecoveryHandler?
 
-    /// 错误恢复服务（需求 8.1, 8.7）
+    /// 错误恢复服务
     private var errorRecoveryService: ErrorRecoveryService?
 
-    /// 在线状态管理器（需求 8.6）
+    /// 在线状态管理器
     private var onlineStateManager: OnlineStateManager?
 
     /// Combine 订阅集合
@@ -55,7 +49,7 @@ class AppStateManager {
     func handleApplicationDidFinishLaunching() {
         launchTime = Date()
 
-        // 初始化错误恢复相关服务（需求 8.1, 8.6, 8.7）
+        // 初始化错误恢复相关服务
         initializeErrorRecoveryServices()
 
         // 启动后台服务（在创建主窗口之前）
@@ -83,7 +77,7 @@ class AppStateManager {
         // 获取 OnlineStateManager 单例
         onlineStateManager = OnlineStateManager.shared
 
-        // 监听在线状态变化（需求 8.6）
+        // 监听在线状态变化
         onlineStateManager?.$isOnline
             .removeDuplicates()
             .sink { [weak self] isOnline in
@@ -91,14 +85,14 @@ class AppStateManager {
             }
             .store(in: &cancellables)
 
-        // 监听启动序列完成通知（需求 2.4）
+        // 监听启动序列完成通知
         NotificationCenter.default.publisher(for: .startupSequenceCompleted)
             .sink { [weak self] notification in
                 self?.handleStartupSequenceCompleted(notification)
             }
             .store(in: &cancellables)
 
-        // 监听网络恢复处理完成通知（需求 8.6）
+        // 监听网络恢复处理完成通知
         NotificationCenter.default.publisher(for: .networkRecoveryProcessingCompleted)
             .sink { [weak self] notification in
                 self?.handleNetworkRecoveryProcessingCompleted(notification)
@@ -126,19 +120,12 @@ class AppStateManager {
     }
 
     /// 初始化错误恢复相关服务
-    ///
-    /// 遵循需求 8.1, 8.6, 8.7
     private func initializeErrorRecoveryServices() {
         errorRecoveryService = ErrorRecoveryService.shared
         networkRecoveryHandler = NetworkRecoveryHandler.shared
     }
 
     /// 启动后台服务
-    ///
-    /// 在应用启动完成后立即启动所有后台服务，包括：
-    /// - ScheduledTaskManager: 定时任务管理器
-    ///
-    /// 遵循需求 1.1, 1.2, 1.3, 1.4
     private func startBackgroundServices() {
         do {
             ScheduledTaskManager.shared.start()

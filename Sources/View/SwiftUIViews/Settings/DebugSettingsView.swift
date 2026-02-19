@@ -773,7 +773,7 @@ public struct DebugSettingsView: View {
                 try logs.write(to: url, atomically: true, encoding: .utf8)
                 showExportLogsAlert = true
             } catch {
-                print("导出日志失败: \(error)")
+                LogService.shared.error(.app, "导出日志失败: \(error)")
             }
         }
     }

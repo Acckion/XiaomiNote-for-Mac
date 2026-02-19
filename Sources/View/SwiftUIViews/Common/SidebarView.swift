@@ -434,14 +434,11 @@ public struct SidebarView: View {
         // 立即执行创建，而不是进入编辑模式
         Task {
             do {
-                // 调用 createFolder 方法，它会返回新创建的文件夹ID
                 let newFolderId = try await viewModel.createFolder(name: folderName)
-                print("[SidebarView] ✅ 文件夹创建成功，返回的文件夹ID: \(newFolderId)")
-
-                // 创建成功后，立即选中并进入重命名模式
+                LogService.shared.info(.window, "文件夹创建成功: \(newFolderId)")
                 await selectAndRenameNewFolder(folderId: newFolderId, folderName: folderName)
             } catch {
-                print("[SidebarView] 创建文件夹失败: \(error.localizedDescription)")
+                LogService.shared.error(.window, "创建文件夹失败: \(error.localizedDescription)")
             }
         }
     }
@@ -495,45 +492,27 @@ public struct SidebarView: View {
             // 检查文件夹是否已更新
             await MainActor.run {
                 let nonSystemFolders = viewModel.folders.filter { !$0.isSystem }
-                print("[SidebarView] 等待文件夹更新，尝试 \(attempts)/\(maxAttempts)，文件夹名称: '\(folderName)', 返回的文件夹ID: '\(folderId)'")
-                print("[SidebarView] 非系统文件夹数量: \(nonSystemFolders.count)")
-                print("[SidebarView] 非系统文件夹列表: \(nonSystemFolders.map { "\($0.id):'\($0.name)' (创建于: \($0.createdAt))" }.joined(separator: ", "))")
 
                 // 首先尝试使用返回的文件夹ID查找
                 if let newFolder = nonSystemFolders.first(where: { $0.id == folderId }) {
-                    print("[SidebarView] ✅ 通过返回的ID找到新创建的文件夹: \(newFolder.id) - '\(newFolder.name)' (创建于: \(newFolder.createdAt))")
-
-                    // 选中文件夹（在侧边栏中高亮显示）
                     viewModel.selectedFolder = newFolder
-                    print(
-                        "[SidebarView] ✅ 已设置 selectedFolder: '\(viewModel.selectedFolder?.name ?? "nil")' (ID: \(viewModel.selectedFolder?.id ?? "nil"))"
-                    )
-
-                    // 进入编辑状态（光标在文件夹名称处，可以立即修改）
                     editingFolderId = newFolder.id
                     editingFolderName = newFolder.name
-                    print("[SidebarView] ✅ 已进入编辑状态，editingFolderId: \(editingFolderId ?? "nil")")
-
-                    // 成功找到并选中，退出循环
                     return
                 } else {
                     // 如果通过ID找不到，尝试查找名称完全匹配的文件夹
                     let matchingFolders = nonSystemFolders.filter { $0.name == folderName }
-                    print("[SidebarView] 名称匹配的文件夹数量: \(matchingFolders.count)")
 
                     if let newFolder = matchingFolders.first {
-                        print("[SidebarView] ⚠️ 通过ID未找到，但通过名称找到文件夹: \(newFolder.id) - '\(newFolder.name)'")
                         viewModel.selectedFolder = newFolder
                         editingFolderId = newFolder.id
                         editingFolderName = newFolder.name
                         return
                     } else {
                         // 如果还没有找到，尝试查找创建时间在创建操作之后的文件夹
-                        let recentlyCreatedFolders = nonSystemFolders.filter { $0.createdAt > Date().addingTimeInterval(-10) } // 最近10秒内创建的
-                        print("[SidebarView] 最近创建的文件夹数量: \(recentlyCreatedFolders.count)")
+                        let recentlyCreatedFolders = nonSystemFolders.filter { $0.createdAt > Date().addingTimeInterval(-10) }
 
                         if let newFolder = recentlyCreatedFolders.first {
-                            print("[SidebarView] ⚠️ 通过名称未找到，但找到最近创建的文件夹: \(newFolder.id) - '\(newFolder.name)'")
                             viewModel.selectedFolder = newFolder
                             editingFolderId = newFolder.id
                             editingFolderName = newFolder.name
@@ -544,12 +523,9 @@ public struct SidebarView: View {
             }
         }
 
-        // 如果循环结束还没有找到，打印警告
+        // 如果循环结束还没有找到，记录警告
         await MainActor.run {
-            print("[SidebarView] ❌ 警告：未找到新创建的文件夹 '\(folderName)' (ID: \(folderId))")
-            print(
-                "[SidebarView] 所有文件夹列表: \(viewModel.folders.map { "\($0.id):'\($0.name)' (系统: \($0.isSystem), 创建于: \($0.createdAt))" }.joined(separator: ", "))"
-            )
+            LogService.shared.warning(.window, "未找到新创建的文件夹 '\(folderName)' (ID: \(folderId))")
         }
     }
 
@@ -561,7 +537,7 @@ public struct SidebarView: View {
             do {
                 try await viewModel.toggleFolderPin(folder)
             } catch {
-                print("[SidebarView] 切换文件夹置顶状态失败: \(error.localizedDescription)")
+                LogService.shared.error(.window, "切换文件夹置顶状态失败: \(error.localizedDescription)")
             }
         }
     }
@@ -714,7 +690,7 @@ public struct SidebarView: View {
                 // 重命名失败，恢复原名称
                 editingFolderId = nil
                 editingFolderName = ""
-                print("[SidebarView] 重命名文件夹失败: \(error.localizedDescription)")
+                LogService.shared.error(.window, "重命名文件夹失败: \(error.localizedDescription)")
             }
         }
     }

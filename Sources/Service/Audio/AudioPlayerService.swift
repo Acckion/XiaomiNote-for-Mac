@@ -102,7 +102,6 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
 
     override private init() {
         super.init()
-        print("[AudioPlayer] 初始化完成")
     }
 
     deinit {
@@ -120,60 +119,46 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
         stateLock.lock()
         defer { stateLock.unlock() }
 
-        print("[AudioPlayer] 开始播放: \(url.lastPathComponent)")
-
-        // 如果正在播放同一个文件，继续播放
         if let currentURL, currentURL == url, let player = audioPlayer {
             if !player.isPlaying {
                 let success = player.play()
                 if success {
                     updateState(.playing)
                     startProgressTimer()
-                    print("[AudioPlayer] 继续播放成功")
                 } else {
-                    print("[AudioPlayer] ❌ 继续播放失败")
+                    LogService.shared.error(.audio, "继续播放失败: \(url.lastPathComponent)")
                 }
-            } else {
-                print("[AudioPlayer] 已经在播放中")
             }
             return
         }
 
-        // 停止当前播放
         stopInternal()
 
-        // 创建新的播放器
         do {
             audioPlayer = try AVAudioPlayer(contentsOf: url)
             audioPlayer?.delegate = self
             audioPlayer?.prepareToPlay()
-
-            // 设置音量为最大
             audioPlayer?.volume = 1.0
 
-            // 更新状态
             currentURL = url
             duration = audioPlayer?.duration ?? 0
             currentTime = 0
             errorMessage = nil
 
-            print("[AudioPlayer] 播放器创建成功，时长: \(formatTime(duration))，音量: \(audioPlayer?.volume ?? 0)")
-
-            // 开始播放
             let playSuccess = audioPlayer?.play() ?? false
             if playSuccess {
                 updateState(.playing)
                 startProgressTimer()
-                print("[AudioPlayer] ✅ 播放开始，时长: \(formatTime(duration))")
+                LogService.shared.info(.audio, "播放开始: \(url.lastPathComponent), 时长: \(formatTime(duration))")
             } else {
                 let errorMsg = "播放启动失败"
-                print("[AudioPlayer] ❌ \(errorMsg)")
+                LogService.shared.error(.audio, errorMsg)
                 updateState(.error(errorMsg))
                 throw NSError(domain: "AudioPlayerService", code: -1, userInfo: [NSLocalizedDescriptionKey: errorMsg])
             }
         } catch {
             let errorMsg = "播放失败: \(error.localizedDescription)"
-            print("[AudioPlayer] ❌ \(errorMsg)")
+            LogService.shared.error(.audio, errorMsg)
             updateState(.error(errorMsg))
             throw error
         }
@@ -197,28 +182,19 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
         defer { stateLock.unlock() }
 
         guard let player = audioPlayer, player.isPlaying else {
-            print("[AudioPlayer] 无法暂停：没有正在播放的音频")
             return
         }
 
         player.pause()
         stopProgressTimer()
         updateState(.paused)
-
-        print("[AudioPlayer] 暂停播放，当前位置: \(formatTime(currentTime))")
     }
 
-    /// 停止播放
-    ///
     func stop() {
         stateLock.lock()
         defer { stateLock.unlock() }
 
         stopInternal()
-
-        // 打印调用栈以帮助调试
-        let callStack = Thread.callStackSymbols.prefix(5).joined(separator: "\n")
-        print("[AudioPlayer] 停止播放，调用栈:\n\(callStack)")
     }
 
     /// 内部停止方法（不加锁）
@@ -246,20 +222,15 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
         defer { stateLock.unlock() }
 
         guard let player = audioPlayer else {
-            print("[AudioPlayer] 无法跳转：没有加载的音频")
             return
         }
 
-        // 限制进度范围
         let clampedProgress = max(0, min(1, progress))
         let targetTime = duration * clampedProgress
 
         player.currentTime = targetTime
         currentTime = targetTime
 
-        print("[AudioPlayer] 跳转到: \(formatTime(targetTime)) (\(Int(clampedProgress * 100))%)")
-
-        // 发送进度变化通知
         postProgressNotification()
     }
 
@@ -447,7 +418,6 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
             let player = try AVAudioPlayer(contentsOf: url)
             return player.duration
         } catch {
-            print("[AudioPlayer] 获取时长失败: \(error.localizedDescription)")
             return nil
         }
     }
@@ -524,24 +494,18 @@ extension AudioPlayerService: AVAudioPlayerDelegate {
         stopProgressTimer()
 
         if flag {
-            print("[AudioPlayer] ✅ 播放完成")
-
-            // 重置到开始位置
             currentTime = 0
             player.currentTime = 0
-
             updateStateInternal(.idle)
             postFinishNotification()
         } else {
             let errorMsg = "播放异常结束"
-            print("[AudioPlayer] ❌ \(errorMsg)")
+            LogService.shared.error(.audio, errorMsg)
             updateStateInternal(.error(errorMsg))
             postErrorNotification(errorMsg)
         }
     }
 
-    /// 播放解码错误回调
-    ///
     func audioPlayerDecodeErrorDidOccur(_: AVAudioPlayer, error: Error?) {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -549,7 +513,7 @@ extension AudioPlayerService: AVAudioPlayerDelegate {
         stopProgressTimer()
 
         let errorMsg = error?.localizedDescription ?? "音频解码错误"
-        print("[AudioPlayer] ❌ 解码错误: \(errorMsg)")
+        LogService.shared.error(.audio, "解码错误: \(errorMsg)")
 
         updateStateInternal(.error(errorMsg))
         postErrorNotification(errorMsg)

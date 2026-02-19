@@ -97,20 +97,15 @@ class NoteDetailViewController: NSViewController {
             cursorPosition: cursorPosition
         )
 
-        print("[NoteDetailViewController] 笔记详情状态已保存: \(state)")
         return state
     }
 
     /// 恢复窗口状态
     /// - Parameter state: 要恢复的笔记详情窗口状态
     func restoreWindowState(_ state: NoteDetailWindowState) {
-        print("[NoteDetailViewController] 恢复笔记详情状态: \(state)")
-
         // 恢复编辑器内容
         if let editorContent = state.editorContent {
             coordinator.notesViewModel.nativeEditorContext.loadFromXML(editorContent)
         }
-
-        print("[NoteDetailViewController] 笔记详情状态恢复完成")
     }
 }

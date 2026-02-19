@@ -1500,8 +1500,7 @@ final class SyncService: @unchecked Sendable {
 
         for attempt in 1 ... maxRetries {
             do {
-                let data = try await miNoteService.downloadFile(fileId: fileId, type: type)
-                return data
+                return try await miNoteService.downloadFile(fileId: fileId, type: type)
             } catch {
                 lastError = error
                 if attempt < maxRetries {

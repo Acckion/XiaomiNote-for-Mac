@@ -56,11 +56,11 @@ public class IncrementalUpdateManager {
         in textStorage: NSTextStorage
     ) -> [Paragraph] {
         guard let paragraphManager else {
-            logDebug("⚠️ 段落管理器不可用")
+            logDebug("段落管理器不可用")
             return []
         }
 
-        logDebug("🔍 识别受影响的段落，变化范围: \(changedRange)")
+        logDebug("识别受影响的段落，变化范围: \(changedRange)")
 
         // 1. 获取与变化范围有交集的所有段落
         let intersectingParagraphs = paragraphManager.paragraphs(in: changedRange)
@@ -101,7 +101,7 @@ public class IncrementalUpdateManager {
             }
         }
 
-        logDebug("✅ 识别完成，共 \(affectedParagraphs.count) 个受影响段落")
+        logDebug("识别完成，共 \(affectedParagraphs.count) 个受影响段落")
 
         return affectedParagraphs
     }
@@ -225,7 +225,7 @@ public class IncrementalUpdateManager {
     /// - Returns: 标记后的新段落对象
     public func markParagraphNeedsReparse(_ paragraph: Paragraph) -> Paragraph {
         let newParagraph = paragraph.markNeedsReparse()
-        logDebug("🔄 段落 \(paragraph.range) 标记为需要重新解析")
+        logDebug("段落 \(paragraph.range) 标记为需要重新解析")
         return newParagraph
     }
 
@@ -264,7 +264,7 @@ public class IncrementalUpdateManager {
         in textStorage: NSTextStorage,
         updateHandler: (Paragraph) -> Void
     ) -> Int {
-        logDebug("🚀 开始增量更新，变化范围: \(changedRange)")
+        logDebug("开始增量更新，变化范围: \(changedRange)")
 
         // 1. 识别受影响的段落
         let affectedParagraphs = identifyAffectedParagraphs(
@@ -273,7 +273,7 @@ public class IncrementalUpdateManager {
         )
 
         guard !affectedParagraphs.isEmpty else {
-            logDebug("✅ 无受影响段落，跳过更新")
+            logDebug("无受影响段落，跳过更新")
             return 0
         }
 
@@ -286,7 +286,7 @@ public class IncrementalUpdateManager {
             updatedCount += 1
         }
 
-        logDebug("✅ 增量更新完成，共更新 \(updatedCount) 个段落")
+        logDebug("增量更新完成，共更新 \(updatedCount) 个段落")
 
         return updatedCount
     }
@@ -298,7 +298,7 @@ public class IncrementalUpdateManager {
     /// - Parameter paragraphs: 段落数组
     /// - Returns: 版本号递增后的新段落数组
     public func batchIncrementVersions(_ paragraphs: [Paragraph]) -> [Paragraph] {
-        logDebug("📊 批量更新 \(paragraphs.count) 个段落的版本")
+        logDebug("批量更新 \(paragraphs.count) 个段落的版本")
         return paragraphs.map { incrementParagraphVersion($0) }
     }
 
@@ -316,7 +316,7 @@ public class IncrementalUpdateManager {
         _ paragraphs: [Paragraph],
         lastProcessedVersions: [Int: Int]
     ) -> [Paragraph] {
-        logDebug("🔍 过滤需要更新的段落")
+        logDebug("过滤需要更新的段落")
 
         let needsUpdate = paragraphs.filter { paragraph in
             let lastVersion = lastProcessedVersions[paragraph.range.location] ?? -1
@@ -335,7 +335,7 @@ public class IncrementalUpdateManager {
     /// - Parameter message: 日志消息
     private func logDebug(_ message: String) {
         if enableDebugLog {
-            print("[IncrementalUpdateManager] \(message)")
+            LogService.shared.debug(.editor, "[IncrementalUpdateManager] \(message)")
         }
     }
 }

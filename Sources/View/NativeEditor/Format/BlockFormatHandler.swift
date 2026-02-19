@@ -111,64 +111,40 @@ public struct BlockFormatHandler {
         toggle: Bool = true
     ) {
         guard isBlockFormat(format) else {
-            print("[BlockFormatHandler] 警告：尝试应用非块级格式 \(format.displayName)")
             return
         }
 
-        // 获取整行范围
         let lineRange = (textStorage.string as NSString).lineRange(for: range)
 
-        // 对齐格式是独立的，不与其他块级格式互斥
         if format.category == .alignment {
             applyAlignmentFormat(format, to: lineRange, in: textStorage, toggle: toggle)
             return
         }
 
-        // 检测当前块级格式（不包括对齐）
         let currentFormat = detect(at: lineRange.location, in: textStorage)
 
-        // 切换模式：如果已经是该格式，则移除
         if toggle, currentFormat == format {
             removeBlockFormat(from: lineRange, in: textStorage)
-            print("[BlockFormatHandler] 移除块级格式: \(format.displayName)")
             return
         }
 
-        // 互斥逻辑：标题和列表格式互斥
-        // _Requirements: 5.1, 5.2, 5.3_
-
-        // 如果要应用标题格式，先移除列表格式
         if isHeadingFormat(format) {
             let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
             if listType != .none {
-                // 使用 ListFormatHandler 的互斥处理方法
                 ListFormatHandler.handleHeadingListMutualExclusion(in: textStorage, range: lineRange)
-                print("[BlockFormatHandler] 互斥：移除列表格式，准备应用标题格式 \(format.displayName)")
             }
         }
 
-        // 如果要应用列表格式，先移除标题格式（由 ListFormatHandler 内部处理）
-        // ListFormatHandler.applyBulletList/applyOrderedList 内部会调用 handleListHeadingMutualExclusion
-
-        // 移除其他现有的块级格式（标题、列表、引用互斥）
-        // _Requirements: 3.7_
         if currentFormat != nil, currentFormat != format {
-            // 如果当前是列表格式且要应用标题，已经在上面处理了
-            // 如果当前是标题格式且要应用列表，会在 ListFormatHandler 中处理
-            // 这里处理其他情况（如引用块）
             if !isListFormat(format), !isHeadingFormat(format) {
                 removeBlockFormat(from: lineRange, in: textStorage)
             } else if isHeadingFormat(format), !isListFormat(currentFormat!) {
-                // 当前不是列表，但有其他块级格式（如引用），需要移除
                 removeBlockFormat(from: lineRange, in: textStorage)
             } else if isListFormat(format), !isHeadingFormat(currentFormat!) {
-                // 当前不是标题，但有其他块级格式（如引用），需要移除
                 removeBlockFormat(from: lineRange, in: textStorage)
             }
-            print("[BlockFormatHandler] 互斥：移除现有格式 \(currentFormat!.displayName)，应用新格式 \(format.displayName)")
         }
 
-        // 应用新格式
         switch format {
         case .heading1:
             applyHeading(level: 1, to: lineRange, in: textStorage)
@@ -191,8 +167,6 @@ public struct BlockFormatHandler {
         default:
             break
         }
-
-        print("[BlockFormatHandler] 应用块级格式: \(format.displayName), range: \(lineRange)")
     }
 
     // MARK: - 格式检测
@@ -276,7 +250,6 @@ public struct BlockFormatHandler {
         // 如果有列表格式，使用 ListFormatHandler 移除（会正确移除附件）
         if listType != .none {
             ListFormatHandler.removeListFormat(from: textStorage, range: lineRange)
-            print("[BlockFormatHandler] 使用 ListFormatHandler 移除列表格式")
             return
         }
 
@@ -310,8 +283,6 @@ public struct BlockFormatHandler {
         }
 
         textStorage.endEditing()
-
-        print("[BlockFormatHandler] 移除块级格式, range: \(lineRange)")
     }
 
     // MARK: - 空列表项检测
@@ -382,7 +353,6 @@ public struct BlockFormatHandler {
 
         // 如果没有列表格式和列表附件，则不是列表项
         guard hasListFormat || hasListAttachment else {
-            print("[BlockFormatHandler] isListItemEmpty - 位置: \(position), 不是列表项")
             return false
         }
 
@@ -397,10 +367,6 @@ public struct BlockFormatHandler {
 
         // 空列表项：移除附件后内容为空或只有空白字符
         let isEmpty = contentWithoutAttachment.trimmingCharacters(in: .whitespaces).isEmpty
-
-        print(
-            "[BlockFormatHandler] isListItemEmpty - 位置: \(position), 安全位置: \(safePosition), 行范围: \(lineRange), 有列表格式: \(hasListFormat), 有列表附件: \(hasListAttachment), 行内容: '\(trimmedContent)', 移除附件后: '\(contentWithoutAttachment)', 是否为空: \(isEmpty)"
-        )
 
         return isEmpty
     }
@@ -556,7 +522,6 @@ public struct BlockFormatHandler {
         // 使用 ListFormatHandler 统一处理无序列表格式
         // 这确保了列表附件的正确创建和列表与标题的互斥处理
         ListFormatHandler.applyBulletList(to: textStorage, range: range, indent: indent)
-        print("[BlockFormatHandler] 使用 ListFormatHandler 应用无序列表格式")
     }
 
     /// 应用有序列表格式
@@ -573,7 +538,6 @@ public struct BlockFormatHandler {
         // 使用 ListFormatHandler 统一处理有序列表格式
         // 这确保了列表附件的正确创建和列表与标题的互斥处理
         ListFormatHandler.applyOrderedList(to: textStorage, range: range, number: number, indent: indent)
-        print("[BlockFormatHandler] 使用 ListFormatHandler 应用有序列表格式")
     }
 
     /// 应用复选框格式
@@ -594,7 +558,6 @@ public struct BlockFormatHandler {
         // 2. 设置列表类型属性
         // 3. 处理标题格式互斥
         ListFormatHandler.applyCheckboxList(to: textStorage, range: range, indent: indent, level: level)
-        print("[BlockFormatHandler] 使用 ListFormatHandler 应用复选框列表格式")
     }
 
     /// 创建列表段落样式
@@ -691,10 +654,8 @@ public struct BlockFormatHandler {
         // 切换模式：如果已经是该对齐方式，则恢复左对齐
         if toggle, currentAlignment == targetAlignment {
             applyAlignment(.left, to: range, in: textStorage)
-            print("[BlockFormatHandler] 恢复左对齐")
         } else {
             applyAlignment(targetAlignment, to: range, in: textStorage)
-            print("[BlockFormatHandler] 应用对齐格式: \(format.displayName)")
         }
     }
 

@@ -212,12 +212,8 @@ struct AudioPanelView: View {
         stateManager: AudioPanelStateManager.shared,
         recorderService: .shared,
         playerService: .shared,
-        onRecordingComplete: { url in
-            print("Recording completed: \(url)")
-        },
-        onClose: {
-            print("Panel closed")
-        }
+        onRecordingComplete: { _ in },
+        onClose: {}
     )
     .frame(width: 320, height: 500)
 }
@@ -705,10 +701,8 @@ struct AudioPanelRecordingContent: View {
 
     /// 加载音频用于预览
     private func loadAudioForPreview(_ url: URL) {
-        if let duration = playerService.getDuration(for: url) {
-            print("[AudioPanelRecording] ✅ 预览音频加载成功，时长: \(formatTime(duration))")
-        } else {
-            print("[AudioPanelRecording] ⚠️ 无法获取音频时长")
+        if playerService.getDuration(for: url) == nil {
+            LogService.shared.warning(.audio, "无法获取音频时长")
         }
     }
 
@@ -721,13 +715,13 @@ struct AudioPanelRecordingContent: View {
                 do {
                     try playerService.play(url: url)
                 } catch {
-                    print("[AudioPanelRecording] ❌ 播放预览失败: \(error)")
+                    LogService.shared.error(.audio, "播放预览失败: \(error)")
                 }
             } else {
                 do {
                     try playerService.play(url: url)
                 } catch {
-                    print("[AudioPanelRecording] ❌ 继续播放失败: \(error)")
+                    LogService.shared.error(.audio, "继续播放失败: \(error)")
                 }
             }
         }
@@ -1132,7 +1126,6 @@ struct AudioPanelPlaybackContent: View {
         playerService: .shared,
         fileId: "test-file-id",
         onClose: {
-            print("Panel closed")
         }
     )
     .frame(width: 320, height: 500)
