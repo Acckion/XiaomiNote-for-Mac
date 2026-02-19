@@ -944,6 +944,13 @@ public class NativeEditorContext: ObservableObject {
     /// - Parameter xml: 小米笔记 XML 格式内容
     ///
     func loadFromXML(_ xml: String) {
+        print("[[调试]] [spec89-诊断] loadFromXML: 被调用 (xml长度=\(xml.count))")
+        // 打印调用栈前几帧，帮助定位调用来源
+        let callStack = Thread.callStackSymbols.prefix(8)
+        for (index, frame) in callStack.enumerated() {
+            print("[[调试]] [spec89-诊断] loadFromXML 调用栈[\(index)]: \(frame)")
+        }
+
         // 使用程序化修改包裹，确保版本号不变
         changeTracker.performProgrammaticChange {
             loadFromXMLInternal(xml)
@@ -957,8 +964,11 @@ public class NativeEditorContext: ObservableObject {
     /// - Parameter xml: 小米笔记 XML 格式内容
     private func loadFromXMLInternal(_ xml: String) {
 
+        print("[[调试]] [spec89-诊断] loadFromXMLInternal: 开始加载 XML (长度=\(xml.count))")
+
         // 关键修复：如果 XML 为空，清空编辑器
         guard !xml.isEmpty else {
+            print("[[调试]] [spec89-诊断] loadFromXMLInternal: XML 为空，即将赋值 @Published 属性 (attributedText, nsAttributedText, hasUnsavedChanges)")
             attributedText = AttributedString()
             nsAttributedText = NSAttributedString()
             hasUnsavedChanges = false
@@ -1022,8 +1032,12 @@ public class NativeEditorContext: ObservableObject {
 
             nsAttributedText = mutableAttributed
 
+            print("[[调试]] [spec89-诊断] loadFromXMLInternal: 已赋值 nsAttributedText (长度=\(mutableAttributed.length))")
+
             // 新增：递增版本号，强制触发视图更新
             contentVersion += 1
+
+            print("[[调试]] [spec89-诊断] loadFromXMLInternal: 已递增 contentVersion=\(contentVersion)")
 
             // 关键修复：移除 contentChangeSubject.send() 调用
             // loadFromXML 是加载操作，不是编辑操作，不应触发 handleExternalContentUpdate
@@ -1040,10 +1054,13 @@ public class NativeEditorContext: ObservableObject {
             // 同时更新 attributedText（用于导出）
             if let attributed = try? AttributedString(mutableAttributed, including: \.appKit) {
                 attributedText = attributed
+                print("[[调试]] [spec89-诊断] loadFromXMLInternal: 已赋值 attributedText")
             }
 
             hasUnsavedChanges = false
+            print("[[调试]] [spec89-诊断] loadFromXMLInternal: 已赋值 hasUnsavedChanges=false，加载完成")
         } catch {
+            print("[[调试]] [spec89-诊断] loadFromXMLInternal: 解析失败，即将赋值清空 @Published 属性")
             // 关键修复：加载失败时清空编辑器，避免显示旧内容
             attributedText = AttributedString()
             nsAttributedText = NSAttributedString()

@@ -155,6 +155,12 @@ struct NativeEditorView: NSViewRepresentable {
                 // 保存当前选择范围
                 let selectedRange = textView.selectedRange()
 
+                // [[调试]] 诊断：标记进入 updateNSView 内容更新阶段
+                print("[[调试]] [spec89-诊断] updateNSView: 开始内容更新，设置 isUpdatingFromSwiftUI = true")
+
+                // 标记正在从 SwiftUI 更新，防止 textViewDidChangeSelection 中的 @Published 赋值
+                context.coordinator.isUpdatingFromSwiftUI = true
+
                 // 更新内容
                 textView.textStorage?.setAttributedString(newText)
 
@@ -170,8 +176,12 @@ struct NativeEditorView: NSViewRepresentable {
                         location: min(selectedRange.location, textView.string.count),
                         length: min(selectedRange.length, max(0, textView.string.count - selectedRange.location))
                     )
+                    print("[[调试]] [spec89-诊断] updateNSView: 即将调用 setSelectedRange(\(newRange))")
                     textView.setSelectedRange(newRange)
                 }
+
+                context.coordinator.isUpdatingFromSwiftUI = false
+                print("[[调试]] [spec89-诊断] updateNSView: 内容更新完成，设置 isUpdatingFromSwiftUI = false")
             }
         }
     }
@@ -188,6 +198,10 @@ struct NativeEditorView: NSViewRepresentable {
         weak var textView: NativeTextView?
         weak var scrollView: NSScrollView?
         var isUpdatingFromTextView = false
+
+        /// 标记是否正在从 SwiftUI updateNSView 更新（诊断用）
+        var isUpdatingFromSwiftUI = false
+
         private var cancellables = Set<AnyCancellable>()
 
         /// 上一次的音频附件文件 ID 集合（用于检测删除）
@@ -618,6 +632,17 @@ struct NativeEditorView: NSViewRepresentable {
 
             let selectedRange = textView.selectedRange()
             let selectionChangeCallback = parent.onSelectionChange
+
+            // [[调试]] 诊断：检测是否在 updateNSView 期间被触发
+            if isUpdatingFromSwiftUI {
+                print("[[调试]] [spec89-诊断] textViewDidChangeSelection: 在 updateNSView 期间被触发! selectedRange=\(selectedRange)")
+                print("[[调试]] [spec89-诊断] 以下 @Published 赋值将在视图更新周期内执行（这是警告来源）:")
+                print("[[调试]] [spec89-诊断]   - editorContext.nsAttributedText = ...")
+                print("[[调试]] [spec89-诊断]   - editorContext.updateSelectedRange(\(selectedRange))")
+                if !parent.editorContext.isEditorFocused {
+                    print("[[调试]] [spec89-诊断]   - editorContext.setEditorFocused(true)")
+                }
+            }
 
             // 直接从 textStorage 获取内容（保留所有属性）
             let currentAttributedString = NSAttributedString(attributedString: textStorage)
