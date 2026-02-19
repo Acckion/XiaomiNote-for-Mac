@@ -232,8 +232,8 @@ public struct ListFormatHandler {
             textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
             textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
 
-            // 重置段落样式
-            let paragraphStyle = NSMutableParagraphStyle()
+            // 重置段落样式（使用 ParagraphStyleFactory 确保行距属性完整）
+            let paragraphStyle = ParagraphStyleFactory.makeDefault()
             textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
         }
 
@@ -311,8 +311,8 @@ public struct ListFormatHandler {
             textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
             textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
 
-            // 重置段落样式
-            let paragraphStyle = NSMutableParagraphStyle()
+            // 重置段落样式（使用 ParagraphStyleFactory 确保行距属性完整）
+            let paragraphStyle = ParagraphStyleFactory.makeDefault()
             textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
         }
 

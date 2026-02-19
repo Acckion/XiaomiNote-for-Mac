@@ -78,7 +78,9 @@ public final class ASTToAttributedStringConverter {
             result.append(blockString)
 
             if index < contentBlocks.count - 1 {
-                result.append(NSAttributedString(string: "\n"))
+                // 换行符需要继承当前块的属性，确保空行保持正确的字体和段落样式
+                let newlineAttributes = resolveNewlineAttributes(for: block, blockString: blockString)
+                result.append(NSAttributedString(string: "\n", attributes: newlineAttributes))
             }
         }
 
@@ -491,6 +493,43 @@ public final class ASTToAttributedStringConverter {
     }
 
     // MARK: - Helper Methods
+
+    /// 从块级节点和转换结果中推断换行符应携带的属性
+    ///
+    /// 空标题行转换后 blockString 长度为 0，换行符需要从 AST 节点推断字体和段落样式，
+    /// 否则空行会丢失标题格式
+    private func resolveNewlineAttributes(for block: any BlockNode, blockString: NSAttributedString) -> [NSAttributedString.Key: Any] {
+        // 优先从已转换的内容末尾继承属性
+        if blockString.length > 0 {
+            return blockString.attributes(at: blockString.length - 1, effectiveRange: nil)
+        }
+
+        // blockString 为空时，从 AST 节点推断（空标题行场景）
+        guard let textBlock = block as? TextBlockNode else {
+            return getDefaultAttributes()
+        }
+
+        // 检查是否包含标题格式节点
+        let headingType = textBlock.content.compactMap { $0 as? FormattedNode }.first(where: {
+            $0.nodeType == .heading1 || $0.nodeType == .heading2 || $0.nodeType == .heading3
+        })?.nodeType
+
+        guard let headingType else {
+            return getDefaultAttributes()
+        }
+
+        let fontSize: CGFloat = switch headingType {
+        case .heading1: FontSizeConstants.heading1
+        case .heading2: FontSizeConstants.heading2
+        case .heading3: FontSizeConstants.heading3
+        default: FontSizeConstants.body
+        }
+
+        return [
+            .font: NSFont.systemFont(ofSize: fontSize),
+            .paragraphStyle: ParagraphStyleFactory.makeDefault(fontSize: fontSize),
+        ]
+    }
 
     /// 应用缩进到 NSAttributedString
     /// - Parameters:

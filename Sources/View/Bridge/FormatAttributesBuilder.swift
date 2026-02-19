@@ -79,6 +79,9 @@ public struct FormatAttributesBuilder {
         // 7. 添加列表属性（确保列表格式在输入时正确继承）
         addListAttributes(to: &attributes, state: state)
 
+        // 8. 添加段落样式（确保行距、段落间距和行高属性不丢失）
+        addParagraphStyle(to: &attributes, state: state)
+
         return attributes
     }
 
@@ -228,6 +231,42 @@ public struct FormatAttributesBuilder {
         default:
             // 非列表格式，不添加列表属性
             break
+        }
+    }
+
+    /// 添加段落样式
+    ///
+    /// 根据段落格式创建包含行距、段落间距和行高属性的段落样式
+    /// 标题格式会设置 minimumLineHeight/maximumLineHeight，确保空行也能保持正确高度
+    ///
+    /// - Parameters:
+    ///   - attributes: 属性字典（inout）
+    ///   - state: 格式状态
+    private static func addParagraphStyle(to attributes: inout [NSAttributedString.Key: Any], state: FormatState) {
+        let fontSize = determineFontSize(for: state.paragraphFormat)
+        let alignment: NSTextAlignment = switch state.alignment {
+        case .center: .center
+        case .right: .right
+        default: .left
+        }
+
+        // 列表格式使用列表段落样式（包含缩进和制表位）
+        if state.paragraphFormat.isList {
+            let bulletWidth: CGFloat = switch state.paragraphFormat {
+            case .numberedList: ParagraphStyleFactory.orderNumberWidth
+            default: ParagraphStyleFactory.bulletWidth
+            }
+            attributes[.paragraphStyle] = ParagraphStyleFactory.makeList(
+                indent: state.listIndent,
+                bulletWidth: bulletWidth,
+                alignment: alignment,
+                fontSize: fontSize
+            )
+        } else {
+            attributes[.paragraphStyle] = ParagraphStyleFactory.makeDefault(
+                alignment: alignment,
+                fontSize: fontSize
+            )
         }
     }
 
