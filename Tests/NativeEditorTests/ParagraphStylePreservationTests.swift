@@ -5,8 +5,6 @@
 //  保持性属性测试 - 验证列表缩进、引用块缩进、对齐方式、标题字体大小不受修复影响
 //  此测试在未修复代码上应通过，确认基线行为需要保持。
 //
-//  **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7**
-//
 
 import AppKit
 import XCTest
@@ -29,8 +27,6 @@ final class ParagraphStylePreservationTests: XCTestCase {
     private let quotePadding: CGFloat = 12
 
     // MARK: - 属性基测试 1: 列表段落样式缩进保持
-
-    // **Validates: Requirements 3.2**
 
     /// 对于任意缩进级别（0-5）和列表类型，列表段落样式的缩进计算结果与原始代码一致
     func testListParagraphStyleIndentation_PreservedForAllIndentLevels() {
@@ -93,8 +89,6 @@ final class ParagraphStylePreservationTests: XCTestCase {
 
     // MARK: - 属性基测试 2: 引用块段落样式缩进保持
 
-    // **Validates: Requirements 3.3**
-
     /// 引用块段落样式的缩进计算与原始代码一致
     func testQuoteParagraphStyleIndentation_PreservedForAllIndentLevels() {
         let indentLevels = 1 ... 5
@@ -129,8 +123,6 @@ final class ParagraphStylePreservationTests: XCTestCase {
 
     // MARK: - 属性基测试 3: 对齐方式保持
 
-    // **Validates: Requirements 3.4**
-
     /// 对于任意对齐方式（left/center/right），段落样式的 alignment 属性正确传递
     func testAlignmentPreservation_ForAllAlignmentTypes() {
         let alignments: [(String, NSTextAlignment)] = [
@@ -151,8 +143,6 @@ final class ParagraphStylePreservationTests: XCTestCase {
     }
 
     // MARK: - 属性基测试 4: 标题字体大小保持
-
-    // **Validates: Requirements 3.5**
 
     /// 标题字体大小（H1=23pt、H2=20pt、H3=17pt）不受影响
     func testHeadingFontSizes_Preserved() {

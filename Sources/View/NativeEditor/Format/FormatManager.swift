@@ -331,7 +331,6 @@ class FormatManager {
         textStorage.removeAttribute(.listIndent, range: lineRange)
         textStorage.removeAttribute(.listNumber, range: lineRange)
 
-        // 重置段落样式（保留默认行距属性）
         let paragraphStyle = ParagraphStyleFactory.makeDefault()
         textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
 
@@ -498,7 +497,6 @@ class FormatManager {
         textStorage.removeAttribute(.quoteIndent, range: lineRange)
         textStorage.removeAttribute(.backgroundColor, range: lineRange)
 
-        // 重置段落样式（保留默认行距属性）
         let paragraphStyle = ParagraphStyleFactory.makeDefault()
         textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
 

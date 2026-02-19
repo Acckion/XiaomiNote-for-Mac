@@ -684,7 +684,6 @@ public final class UnifiedFormatManager {
         // 构建清除内联格式后的基础属性
         var attrs = InlineFormatHandler.buildCleanTypingAttributes()
 
-        // 通过 ParagraphStyleFactory 创建段落样式，确保行距属性不遗漏
         attrs[.paragraphStyle] = ParagraphStyleFactory.makeDefault(alignment: context.currentAlignment)
 
         // 根据块级格式设置继承属性

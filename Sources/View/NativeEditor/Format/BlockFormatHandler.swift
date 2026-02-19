@@ -252,7 +252,6 @@ public struct BlockFormatHandler {
         textStorage.removeAttribute(.quoteIndent, range: lineRange)
         textStorage.removeAttribute(.quoteBlockId, range: lineRange)
 
-        // 重置段落样式（保留对齐方式）
         let currentAlignment = detectAlignment(at: lineRange.location, in: textStorage)
         let paragraphStyle = ParagraphStyleFactory.makeDefault(alignment: currentAlignment)
         textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
@@ -462,14 +461,12 @@ public struct BlockFormatHandler {
         // 使用常规字重，标题不默认加粗
         let font = NSFont.systemFont(ofSize: fontSize, weight: .regular)
 
-        // 保留当前对齐方式
         let currentAlignment = detectAlignment(at: range.location, in: textStorage)
 
         textStorage.beginEditing()
         textStorage.addAttribute(.font, value: font, range: range)
 
-        // 设置段落样式，确保 minimumLineHeight 跟随字体大小
-        // 这样即使行内文字被全部删除，空行也能保持标题级别的行高
+        // 确保空行也能保持标题级别的行高
         let paragraphStyle = ParagraphStyleFactory.makeDefault(alignment: currentAlignment, fontSize: fontSize)
         textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
 

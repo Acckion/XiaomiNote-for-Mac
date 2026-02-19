@@ -771,11 +771,9 @@ public struct ListBehaviorHandler {
             textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
             textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
 
-            // 重置段落样式为默认（无缩进），通过工厂方法确保行距属性完整
             let paragraphStyle = ParagraphStyleFactory.makeDefault()
             textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
 
-            // 确保使用正文字体
             textStorage.addAttribute(.font, value: defaultFont, range: newLineRange)
         }
 
@@ -917,7 +915,6 @@ public struct ListBehaviorHandler {
     ) -> NSAttributedString {
         let result = NSMutableAttributedString()
 
-        // 根据列表类型选择正确的标记宽度
         let markerWidth: CGFloat = switch listType {
         case .bullet:
             ParagraphStyleFactory.bulletWidth
@@ -929,7 +926,6 @@ public struct ListBehaviorHandler {
             0
         }
 
-        // 通过工厂方法创建列表段落样式，确保行距属性完整
         let paragraphStyle = ParagraphStyleFactory.makeList(indent: indent, bulletWidth: markerWidth)
 
         // 创建附件
@@ -1096,7 +1092,6 @@ public struct ListBehaviorHandler {
             textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
             textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
 
-            // 重置段落样式为默认（无缩进），通过工厂方法确保行距属性完整
             let paragraphStyle = ParagraphStyleFactory.makeDefault()
             textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
 

@@ -186,7 +186,6 @@ public struct NewLineHandler {
             textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
             textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
 
-            // 使用 ParagraphStyleFactory 创建包含行距属性的段落样式（保留对齐方式）
             let paragraphStyle = ParagraphStyleFactory.makeDefault(alignment: context.currentAlignment)
             textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
 
@@ -428,7 +427,6 @@ public struct NewLineHandler {
     public static func buildCleanTypingAttributes(alignment: NSTextAlignment = .left) -> [NSAttributedString.Key: Any] {
         var attrs = InlineFormatHandler.buildCleanTypingAttributes()
 
-        // 使用 ParagraphStyleFactory 创建包含行距属性的段落样式
         let paragraphStyle = ParagraphStyleFactory.makeDefault(alignment: alignment)
         attrs[.paragraphStyle] = paragraphStyle
 
@@ -521,7 +519,6 @@ public struct NewLineHandler {
             .listIndent: indent,
         ]
 
-        // 使用 ParagraphStyleFactory 创建列表段落样式
         let paragraphStyle = ParagraphStyleFactory.makeList(indent: indent, bulletWidth: ParagraphStyleFactory.bulletWidth)
         attributes[.paragraphStyle] = paragraphStyle
 
@@ -555,7 +552,6 @@ public struct NewLineHandler {
             .listNumber: number,
         ]
 
-        // 使用 ParagraphStyleFactory 创建列表段落样式
         let paragraphStyle = ParagraphStyleFactory.makeList(indent: indent, bulletWidth: ParagraphStyleFactory.orderNumberWidth)
         attributes[.paragraphStyle] = paragraphStyle
 
@@ -606,7 +602,6 @@ public struct NewLineHandler {
             .checkboxLevel: 3,
         ]
 
-        // 使用 ParagraphStyleFactory 创建列表段落样式
         let paragraphStyle = ParagraphStyleFactory.makeList(indent: indent, bulletWidth: ParagraphStyleFactory.bulletWidth)
         attributes[.paragraphStyle] = paragraphStyle
 
@@ -654,7 +649,6 @@ public struct NewLineHandler {
                 .quoteIndent: indent,
             ]
 
-            // 使用 ParagraphStyleFactory 创建引用块段落样式
             let paragraphStyle = ParagraphStyleFactory.makeQuote(indent: indent)
             attributes[.paragraphStyle] = paragraphStyle
 
