@@ -51,18 +51,22 @@ public final class NotesViewModelAdapter: NotesViewModel {
     private func setupStateSync() {
         // 1. 同步笔记列表
         coordinator.noteListViewModel.$notes
+            .receive(on: DispatchQueue.main)
             .assign(to: &$notes)
 
         // 2. 同步选中的笔记
         coordinator.noteListViewModel.$selectedNote
+            .receive(on: DispatchQueue.main)
             .assign(to: &$selectedNote)
 
         // 3. 同步文件夹列表
         coordinator.folderViewModel.$folders
+            .receive(on: DispatchQueue.main)
             .assign(to: &$folders)
 
         // 4. 同步选中的文件夹
         coordinator.folderViewModel.$selectedFolder
+            .receive(on: DispatchQueue.main)
             .assign(to: &$selectedFolder)
 
         // 5. 同步加载状态
@@ -72,10 +76,12 @@ public final class NotesViewModelAdapter: NotesViewModel {
             coordinator.syncCoordinator.$isSyncing
         )
         .map { $0 || $1 || $2 }
+        .receive(on: DispatchQueue.main)
         .assign(to: &$isLoading)
 
         // 同步同步状态（用于显示同步指示器）
         coordinator.syncCoordinator.$isSyncing
+            .receive(on: DispatchQueue.main)
             .assign(to: &$isSyncing)
 
         // 6. 同步错误消息
@@ -85,17 +91,21 @@ public final class NotesViewModelAdapter: NotesViewModel {
             coordinator.syncCoordinator.$errorMessage.compactMap(\.self),
             coordinator.authViewModel.$errorMessage.compactMap(\.self)
         )
+        .receive(on: DispatchQueue.main)
         .assign(to: &$errorMessage)
 
         // 7. 同步搜索文本
         coordinator.searchViewModel.$searchText
+            .receive(on: DispatchQueue.main)
             .assign(to: &$searchText)
 
         // 8. 同步认证状态
         coordinator.authViewModel.$showLoginView
+            .receive(on: DispatchQueue.main)
             .assign(to: &$showLoginView)
 
         coordinator.authViewModel.$isPrivateNotesUnlocked
+            .receive(on: DispatchQueue.main)
             .assign(to: &$isPrivateNotesUnlocked)
 
         // 9. 同步 ViewOptionsManager 的排序设置到 NoteListViewModel
@@ -121,22 +131,28 @@ public final class NotesViewModelAdapter: NotesViewModel {
             .store(in: &cancellables)
 
         coordinator.authViewModel.$userProfile
+            .receive(on: DispatchQueue.main)
             .assign(to: &$userProfile)
 
         // 9. 同步搜索过滤器
         coordinator.searchViewModel.$filterHasTags
+            .receive(on: DispatchQueue.main)
             .assign(to: &$searchFilterHasTags)
 
         coordinator.searchViewModel.$filterHasChecklist
+            .receive(on: DispatchQueue.main)
             .assign(to: &$searchFilterHasChecklist)
 
         coordinator.searchViewModel.$filterHasImages
+            .receive(on: DispatchQueue.main)
             .assign(to: &$searchFilterHasImages)
 
         coordinator.searchViewModel.$filterHasAudio
+            .receive(on: DispatchQueue.main)
             .assign(to: &$searchFilterHasAudio)
 
         coordinator.searchViewModel.$filterIsPrivate
+            .receive(on: DispatchQueue.main)
             .assign(to: &$searchFilterIsPrivate)
 
         LogService.shared.debug(.viewmodel, "状态同步设置完成")

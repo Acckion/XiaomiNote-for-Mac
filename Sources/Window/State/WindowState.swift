@@ -171,6 +171,7 @@ public final class WindowState: ObservableObject {
 
         // 同步笔记列表
         coordinator.noteListViewModel.$notes
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] notes in
                 guard let self else { return }
                 self.notes = notes
@@ -196,6 +197,7 @@ public final class WindowState: ObservableObject {
 
         // 同步文件夹列表
         coordinator.folderViewModel.$folders
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] folders in
                 guard let self else { return }
                 self.folders = folders
@@ -208,6 +210,7 @@ public final class WindowState: ObservableObject {
 
         // 同步选中的文件夹
         coordinator.folderViewModel.$selectedFolder
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] folder in
                 self?.selectedFolder = folder
             }
@@ -215,6 +218,7 @@ public final class WindowState: ObservableObject {
 
         // 同步加载状态
         coordinator.noteListViewModel.$isLoading
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] isLoading in
                 self?.isLoading = isLoading
             }
@@ -222,6 +226,7 @@ public final class WindowState: ObservableObject {
 
         // 同步错误消息
         coordinator.noteListViewModel.$errorMessage
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] errorMessage in
                 self?.errorMessage = errorMessage
             }
@@ -229,6 +234,7 @@ public final class WindowState: ObservableObject {
 
         // 同步排序方式
         coordinator.noteListViewModel.$sortOrder
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] sortOrder in
                 self?.sortOrder = sortOrder
             }
@@ -236,6 +242,7 @@ public final class WindowState: ObservableObject {
 
         // 同步排序方向
         coordinator.noteListViewModel.$sortDirection
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] sortDirection in
                 self?.sortDirection = sortDirection
             }
@@ -243,6 +250,7 @@ public final class WindowState: ObservableObject {
 
         // 同步收藏筛选
         coordinator.noteListViewModel.$showStarredOnly
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] showStarredOnly in
                 self?.showStarredOnly = showStarredOnly
             }
