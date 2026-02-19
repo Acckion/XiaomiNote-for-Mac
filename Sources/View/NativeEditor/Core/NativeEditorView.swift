@@ -63,7 +63,7 @@ struct NativeEditorView: NSViewRepresentable {
         let stackView = FlippedStackView()
         stackView.orientation = .vertical
         stackView.alignment = .leading
-        stackView.spacing = 0
+        stackView.spacing = 12
         stackView.translatesAutoresizingMaskIntoConstraints = false
 
         // 创建标题 TextField
