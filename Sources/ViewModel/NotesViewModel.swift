@@ -547,8 +547,7 @@ public class NotesViewModel: ObservableObject {
         // 确保画廊视图和列表视图使用相同的排序设置
         setupViewOptionsSync()
 
-        // 监听原生编辑器的内容变化（基于版本号机制）
-        setupNativeEditorContentChangeListener()
+        // 内容变化保存由 NoteEditingCoordinator 统一管理，不再在 ViewModel 中监听
 
         // 监听selectedNote和selectedFolder变化，保存状态
         Publishers.CombineLatest($selectedNote, $selectedFolder)
@@ -908,83 +907,6 @@ public class NotesViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
-    }
-
-    /// 设置原生编辑器内容变化监听器
-    ///
-    /// 监听 NativeEditorContext 的 contentChangePublisher，基于版本号机制判断是否需要保存
-    /// 只在有未保存更改时触发保存操作
-    ///
-    private func setupNativeEditorContentChangeListener() {
-        nativeEditorContext.contentChangePublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-
-                guard nativeEditorContext.needsSave else { return }
-                guard let note = selectedNote else { return }
-
-                Task { @MainActor in
-                    await self.handleContentChangeAndSave(note)
-                }
-            }
-            .store(in: &cancellables)
-    }
-
-    /// 处理内容变化并保存
-    ///
-    /// 当编辑器内容变化且需要保存时，执行保存操作
-    ///
-    @MainActor
-    private func handleContentChangeAndSave(_ note: Note) async {
-        let xmlContent = nativeEditorContext.exportToXML()
-
-        guard !xmlContent.isEmpty else { return }
-
-        let updatedNote = Note(
-            id: note.id,
-            title: note.title,
-            content: xmlContent,
-            folderId: note.folderId,
-            isStarred: note.isStarred,
-            createdAt: note.createdAt,
-            updatedAt: Date(),
-            tags: note.tags,
-            rawData: note.rawData,
-            snippet: note.snippet,
-            colorId: note.colorId,
-            subject: note.subject,
-            alertDate: note.alertDate,
-            type: note.type,
-            serverTag: note.serverTag, // 保留 serverTag
-            status: note.status,
-            settingJson: note.settingJson, // 保留 settingJson
-            extraInfoJson: note.extraInfoJson // 保留 extraInfoJson
-        )
-
-        do {
-            let saveResult = await NoteOperationCoordinator.shared.saveNote(updatedNote)
-
-            switch saveResult {
-            case .success:
-                LogService.shared.debug(.viewmodel, "笔记保存成功: \(updatedNote.id.prefix(8))...")
-
-                nativeEditorContext.changeTracker.didSaveSuccessfully()
-
-                if let index = notes.firstIndex(where: { $0.id == updatedNote.id }) {
-                    notes[index] = updatedNote
-                }
-
-                if selectedNote?.id == updatedNote.id {
-                    selectedNote = updatedNote
-                }
-
-            case let .failure(error):
-                LogService.shared.error(.viewmodel, "笔记保存失败: \(error)")
-
-                nativeEditorContext.changeTracker.didSaveFail()
-            }
-        }
     }
 
     @MainActor

@@ -789,7 +789,7 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     /// 统一更新 ViewModel（替代 updateViewModelDelayed + updateNotesArrayDelayed）
     func updateViewModel(with updated: Note) {
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self else { return }
             if let index = viewModel?.notes.firstIndex(where: { $0.id == updated.id }) {
                 viewModel?.notes[index] = updated
@@ -803,7 +803,7 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     /// 仅更新 notes 数组（不更新 selectedNote）
     func updateNotesArrayOnly(with updated: Note) {
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self else { return }
             if let index = viewModel?.notes.firstIndex(where: { $0.id == updated.id }) {
                 viewModel?.notes[index] = updated
