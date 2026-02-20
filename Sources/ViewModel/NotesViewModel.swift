@@ -115,13 +115,6 @@ public class NotesViewModel: ObservableObject {
     /// 当前加载任务的唯一标识符，跟踪延迟加载任务，防止过期任务完成时触发意外操作
     private var currentLoadingTaskId: UUID?
 
-    // MARK: - 状态协调器
-
-    /// 视图状态协调器
-    ///
-    /// 负责协调侧边栏、笔记列表和编辑器之间的状态同步
-    public private(set) lazy var stateCoordinator = ViewStateCoordinator(viewModel: self)
-
     // MARK: - 设置
 
     /// 同步间隔（秒），默认5分钟
