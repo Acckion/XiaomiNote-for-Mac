@@ -557,6 +557,7 @@ public final class NoteEditingCoordinator: ObservableObject {
                     self.originalTitle = title
                     self.currentXMLContent = xmlContent
                     self.updateViewModel(with: updated)
+                    await MemoryCacheManager.shared.cacheNote(updated)
                     self.scheduleCloudUpload(for: updated, xmlContent: xmlContent)
                     continuation.resume()
                 }
