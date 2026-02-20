@@ -31,6 +31,12 @@ public final class NotesViewModelAdapter: NotesViewModel {
     /// Cancellables
     private var cancellables = Set<AnyCancellable>()
 
+    /// 同步标志位，防止循环更新
+    private var isSyncingNotesFromList = false
+    private var isSyncingNotesBack = false
+    private var isSyncingSelectedNoteFromList = false
+    private var isSyncingSelectedNoteBack = false
+
     // MARK: - Initialization
 
     /// 初始化适配器
@@ -49,15 +55,55 @@ public final class NotesViewModelAdapter: NotesViewModel {
     ///
     /// 将 AppCoordinator 中各个 ViewModel 的状态同步到 NotesViewModel 的属性
     private func setupStateSync() {
-        // 1. 同步笔记列表
+        // 1. 双向同步笔记列表
+        // NoteListViewModel → NotesViewModel（加载和同步后刷新）
         coordinator.noteListViewModel.$notes
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$notes)
+            .sink { [weak self] notes in
+                guard let self, !isSyncingNotesBack else { return }
+                guard self.notes != notes else { return }
+                isSyncingNotesFromList = true
+                self.notes = notes
+                isSyncingNotesFromList = false
+            }
+            .store(in: &cancellables)
 
-        // 2. 同步选中的笔记
+        // NotesViewModel → NoteListViewModel（编辑器保存后更新列表）
+        $notes
+            .sink { [weak self] notes in
+                guard let self, !isSyncingNotesFromList else { return }
+                guard coordinator.noteListViewModel.notes != notes else { return }
+                isSyncingNotesBack = true
+                coordinator.noteListViewModel.notes = notes
+                isSyncingNotesBack = false
+            }
+            .store(in: &cancellables)
+
+        // 2. 双向同步选中的笔记
+        // NoteListViewModel → NotesViewModel
         coordinator.noteListViewModel.$selectedNote
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$selectedNote)
+            .sink { [weak self] note in
+                guard let self, !isSyncingSelectedNoteBack else { return }
+                guard selectedNote?.id != note?.id else { return }
+                isSyncingSelectedNoteFromList = true
+                selectedNote = note
+                isSyncingSelectedNoteFromList = false
+            }
+            .store(in: &cancellables)
+
+        // NotesViewModel → NoteListViewModel
+        $selectedNote
+            .sink { [weak self] note in
+                guard let self, !isSyncingSelectedNoteFromList else { return }
+                guard coordinator.noteListViewModel.selectedNote?.id != note?.id else { return }
+                isSyncingSelectedNoteBack = true
+                if let note {
+                    coordinator.noteListViewModel.selectNote(note)
+                } else {
+                    coordinator.noteListViewModel.selectedNote = nil
+                }
+                isSyncingSelectedNoteBack = false
+            }
+            .store(in: &cancellables)
 
         // 3. 同步文件夹列表
         coordinator.folderViewModel.$folders
@@ -209,8 +255,8 @@ public final class NotesViewModelAdapter: NotesViewModel {
         // TODO: 调用存储服务保存笔记
     }
 
-    override func updateNote(_: Note) async throws {
-        await coordinator.noteEditorViewModel.saveNote()
+    override func updateNote(_ note: Note) async throws {
+        try await super.updateNote(note)
     }
 
     override public func updateNoteInPlace(_ note: Note) -> Bool {

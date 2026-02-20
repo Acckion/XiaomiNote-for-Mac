@@ -1002,10 +1002,9 @@
             }
 
             // 检查是否能访问共享数据（通过 AppCoordinator）
-            // 如果 notes 和 folders 都为空，可能表示 AppCoordinator 未正确设置
-            // 但这不一定是错误，因为数据可能还在加载中
-            if windowState.notes.isEmpty, windowState.folders.isEmpty {
-                logger.warning("[MainWindowController] WindowState 数据为空，可能正在加载")
+            // 如果 coordinator 为 nil，可能表示 AppCoordinator 未正确设置
+            if windowState.coordinator == nil {
+                logger.warning("[MainWindowController] WindowState coordinator 为空，可能正在加载")
             }
 
             return true

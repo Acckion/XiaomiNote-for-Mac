@@ -146,17 +146,13 @@ public extension OperationProcessor {
     func processImmediately(_ operation: NoteOperation) async {
         // 检查网络是否可用
         guard await isNetworkConnected() else {
-            LogService.shared.debug(.sync, "网络不可用，跳过立即处理: \(operation.id)")
             return
         }
 
         // 检查是否已认证
         guard miNoteService.isAuthenticated() else {
-            LogService.shared.debug(.sync, "未认证，跳过立即处理: \(operation.id)")
             return
         }
-
-        LogService.shared.debug(.sync, "立即处理操作: \(operation.type.rawValue) for \(operation.noteId)")
 
         currentOperationId = operation.id
         defer { currentOperationId = nil }
@@ -170,9 +166,8 @@ public extension OperationProcessor {
 
             // 标记为完成
             try operationQueue.markCompleted(operation.id)
-
-            LogService.shared.debug(.sync, "立即处理成功: \(operation.id)")
         } catch {
+            LogService.shared.error(.sync, "立即处理操作失败 - 操作ID: \(operation.id), 错误: \(error)")
             // 处理失败
             await handleOperationFailure(operation: operation, error: error)
         }
@@ -748,8 +743,6 @@ extension OperationProcessor {
     /// - Parameter operation: cloudUpload 操作
     /// - Throws: 执行错误
     private func processCloudUpload(_ operation: NoteOperation) async throws {
-        LogService.shared.debug(.sync, "OperationProcessor 处理 cloudUpload: \(operation.noteId)")
-
         // 从本地加载笔记
         guard let note = try? localStorage.loadNote(noteId: operation.noteId) else {
             throw NSError(
@@ -760,7 +753,6 @@ extension OperationProcessor {
         }
 
         let existingTag = note.serverTag ?? note.id
-        LogService.shared.debug(.sync, "OperationProcessor cloudUpload 使用 tag: \(existingTag)")
 
         // 调用 API 更新笔记
         let response = try await miNoteService.updateNote(
@@ -781,8 +773,16 @@ extension OperationProcessor {
             )
         }
 
-        // 从响应中提取新的 tag（updateNote 响应只包含 data.tag，没有完整的 entry）
-        // 响应格式：{"code": 0, "data": {"modifyDate": xxx, "id": "xxx", "tag": "xxx", "conflict": false}}
+        // 检测服务器返回的 conflict 标志
+        // 当 tag 不匹配时，服务器返回 conflict: true 且新 tag 等于旧 tag（实际未更新）
+        let isConflict: Bool = if let data = response["data"] as? [String: Any],
+                                  let conflict = data["conflict"] as? Bool
+        {
+            conflict
+        } else {
+            false
+        }
+
         let newTag: String = if let data = response["data"] as? [String: Any],
                                 let tag = data["tag"] as? String
         {
@@ -791,36 +791,116 @@ extension OperationProcessor {
             existingTag
         }
 
-        LogService.shared.debug(.sync, "OperationProcessor 服务器返回新 tag: \(newTag)")
+        if isConflict {
+            // 服务器拒绝了更新（tag 不匹配），使用服务器返回的最新 tag 重试
+            LogService.shared.warning(.sync, "云端上传冲突，使用服务器最新 tag 重试: \(operation.noteId.prefix(8))...")
 
-        // 更新 rawData 中的 tag
+            // 用服务器返回的正确 tag 更新本地数据库
+            var updatedRawData = note.rawData ?? [:]
+            updatedRawData["tag"] = newTag
+            let noteWithCorrectTag = Note(
+                id: note.id, title: note.title, content: note.content,
+                folderId: note.folderId, isStarred: note.isStarred,
+                createdAt: note.createdAt, updatedAt: note.updatedAt,
+                tags: note.tags, rawData: updatedRawData,
+                snippet: note.snippet, colorId: note.colorId,
+                subject: note.subject, alertDate: note.alertDate,
+                type: note.type, serverTag: newTag,
+                status: note.status, settingJson: note.settingJson,
+                extraInfoJson: note.extraInfoJson
+            )
+            try localStorage.saveNote(noteWithCorrectTag)
+
+            // 传播新 tag 到内存
+            await propagateServerTag(newTag, forNoteId: note.id)
+
+            // 使用正确的 tag 重新上传
+            let retryResponse = try await miNoteService.updateNote(
+                noteId: note.id,
+                title: note.title,
+                content: note.content,
+                folderId: note.folderId,
+                existingTag: newTag
+            )
+
+            guard isResponseSuccess(retryResponse) else {
+                let message = extractErrorMessage(from: retryResponse, defaultMessage: "重试上传失败")
+                throw NSError(
+                    domain: "OperationProcessor",
+                    code: 500,
+                    userInfo: [NSLocalizedDescriptionKey: message]
+                )
+            }
+
+            // 提取重试后的 tag
+            let retryTag: String = if let data = retryResponse["data"] as? [String: Any],
+                                      let tag = data["tag"] as? String
+            {
+                tag
+            } else {
+                newTag
+            }
+
+            // 保存重试后的 tag 到数据库
+            var retryRawData = noteWithCorrectTag.rawData ?? [:]
+            retryRawData["tag"] = retryTag
+            let finalNote = Note(
+                id: note.id, title: note.title, content: note.content,
+                folderId: note.folderId, isStarred: note.isStarred,
+                createdAt: note.createdAt, updatedAt: note.updatedAt,
+                tags: note.tags, rawData: retryRawData,
+                snippet: note.snippet, colorId: note.colorId,
+                subject: note.subject, alertDate: note.alertDate,
+                type: note.type, serverTag: retryTag,
+                status: note.status, settingJson: note.settingJson,
+                extraInfoJson: note.extraInfoJson
+            )
+            try localStorage.saveNote(finalNote)
+            await propagateServerTag(retryTag, forNoteId: note.id)
+
+            LogService.shared.info(.sync, "云端上传冲突重试成功: \(operation.noteId.prefix(8))...")
+            return
+        }
+
+        // 正常成功路径
         var updatedRawData = note.rawData ?? [:]
         updatedRawData["tag"] = newTag
 
-        // 创建更新后的笔记（只更新 serverTag 和 rawData，保持其他字段不变）
         let updatedNote = Note(
-            id: note.id,
-            title: note.title,
-            content: note.content,
-            folderId: note.folderId,
-            isStarred: note.isStarred,
-            createdAt: note.createdAt,
-            updatedAt: note.updatedAt,
-            tags: note.tags,
-            rawData: updatedRawData,
-            snippet: note.snippet,
-            colorId: note.colorId,
-            subject: note.subject,
-            alertDate: note.alertDate,
-            type: note.type,
-            serverTag: newTag, // 更新 serverTag
-            status: note.status,
-            settingJson: note.settingJson, // 保持原值
-            extraInfoJson: note.extraInfoJson // 保持原值
+            id: note.id, title: note.title, content: note.content,
+            folderId: note.folderId, isStarred: note.isStarred,
+            createdAt: note.createdAt, updatedAt: note.updatedAt,
+            tags: note.tags, rawData: updatedRawData,
+            snippet: note.snippet, colorId: note.colorId,
+            subject: note.subject, alertDate: note.alertDate,
+            type: note.type, serverTag: newTag,
+            status: note.status, settingJson: note.settingJson,
+            extraInfoJson: note.extraInfoJson
         )
 
         try localStorage.saveNote(updatedNote)
-        LogService.shared.info(.sync, "OperationProcessor 上传成功: \(operation.noteId)")
+
+        // 将新 tag 传播到内存中的 notes 数组，避免后续编辑使用过期 tag
+        await propagateServerTag(newTag, forNoteId: note.id)
+
+        LogService.shared.info(.sync, "云端上传成功: \(operation.noteId.prefix(8))...")
+    }
+
+    /// 将服务器返回的新 tag 传播到内存中的 notes 数组
+    ///
+    /// 解决 tag 过期问题：processCloudUpload 保存新 tag 到数据库后，
+    /// 内存中的 viewModel.notes 仍持有旧 tag，导致下次编辑保存时覆盖数据库中的新 tag
+    private func propagateServerTag(_ newTag: String, forNoteId noteId: String) async {
+        await MainActor.run {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("NoteServerTagUpdated"),
+                object: nil,
+                userInfo: [
+                    "noteId": noteId,
+                    "serverTag": newTag,
+                ]
+            )
+        }
     }
 
     /// 处理云端删除操作

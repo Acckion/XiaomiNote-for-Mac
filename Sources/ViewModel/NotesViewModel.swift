@@ -58,6 +58,12 @@ public class NotesViewModel: ObservableObject {
     /// 错误消息（用于显示错误提示）
     @Published var errorMessage: String?
 
+    /// 是否有未保存的编辑内容
+    @Published public var hasUnsavedContent = false
+
+    /// 文件夹切换前保存回调（由 NoteDetailView 注册）
+    public var saveContentCallback: (() async -> Bool)?
+
     /// 搜索文本
     @Published var searchText = ""
 
@@ -106,18 +112,8 @@ public class NotesViewModel: ObservableObject {
     /// 笔记切换防抖时间间隔（秒）
     private let switchDebounceInterval: TimeInterval = 0.3
 
-    /// 是否正在从 ViewStateCoordinator 更新状态
-    private var isUpdatingFromCoordinator = false
-
     /// 当前加载任务的唯一标识符，跟踪延迟加载任务，防止过期任务完成时触发意外操作
     private var currentLoadingTaskId: UUID?
-
-    // MARK: - 状态协调器
-
-    /// 视图状态协调器
-    ///
-    /// 负责协调侧边栏、笔记列表和编辑器之间的状态同步
-    public private(set) lazy var stateCoordinator = ViewStateCoordinator(viewModel: self)
 
     // MARK: - 设置
 
@@ -547,8 +543,7 @@ public class NotesViewModel: ObservableObject {
         // 确保画廊视图和列表视图使用相同的排序设置
         setupViewOptionsSync()
 
-        // 监听原生编辑器的内容变化（基于版本号机制）
-        setupNativeEditorContentChangeListener()
+        // 内容变化保存由 NoteEditingCoordinator 统一管理，不再在 ViewModel 中监听
 
         // 监听selectedNote和selectedFolder变化，保存状态
         Publishers.CombineLatest($selectedNote, $selectedFolder)
@@ -626,6 +621,20 @@ public class NotesViewModel: ObservableObject {
             let entityType = notification.userInfo?["entityType"] as? String ?? ""
             Task { @MainActor in
                 self?.handleIdMappingCompleted(localId: localId, serverId: serverId, entityType: entityType)
+            }
+        }
+
+        // 监听云端上传后 serverTag 更新通知
+        // 避免内存中的 notes 数组持有过期 tag，导致后续编辑保存时覆盖数据库中的新 tag
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("NoteServerTagUpdated"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let noteId = notification.userInfo?["noteId"] as? String ?? ""
+            let serverTag = notification.userInfo?["serverTag"] as? String ?? ""
+            Task { @MainActor in
+                self?.handleServerTagUpdated(noteId: noteId, serverTag: serverTag)
             }
         }
 
@@ -716,12 +725,6 @@ public class NotesViewModel: ObservableObject {
         authStateManager.$showLoginView
             .receive(on: DispatchQueue.main)
             .assign(to: &$showLoginView)
-
-        // 同步 ViewStateCoordinator 的状态到 ViewModel
-        // - 1.1: 编辑笔记内容时保持选中状态不变
-        // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
-        // - 4.1: 作为单一数据源管理 selectedFolder 和 selectedNote 的状态
-        setupStateCoordinatorSync()
 
         // 同步数据加载状态指示
         setupDataLoadingStatusSync()
@@ -831,48 +834,6 @@ public class NotesViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    /// 同步 ViewStateCoordinator 的状态到 ViewModel
-    ///
-    /// 通过 Combine 将 ViewStateCoordinator 的 @Published 属性同步到 ViewModel 的 @Published 属性
-    /// 这样 ViewStateCoordinator 的状态变化会自动触发 ViewModel 的状态更新，进而触发 UI 更新
-    ///
-    private func setupStateCoordinatorSync() {
-        // 同步 selectedFolder
-        stateCoordinator.$selectedFolder
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] folder in
-                guard let self else { return }
-
-                // 防止循环更新：当正在从 Coordinator 更新时，忽略新的更新
-                guard !isUpdatingFromCoordinator else { return }
-
-                if selectedFolder?.id != folder?.id {
-                    isUpdatingFromCoordinator = true
-                    selectedFolder = folder
-                    isUpdatingFromCoordinator = false
-                }
-            }
-            .store(in: &cancellables)
-
-        // 同步 selectedNote
-        stateCoordinator.$selectedNote
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] note in
-                guard let self else { return }
-
-                guard !isUpdatingFromCoordinator else { return }
-
-                if selectedNote?.id != note?.id {
-                    isUpdatingFromCoordinator = true
-                    selectedNote = note
-                    isUpdatingFromCoordinator = false
-
-                    postNoteSelectionNotification()
-                }
-            }
-            .store(in: &cancellables)
-    }
-
     // 发送笔记选中状态变化通知
 
     private func postNoteSelectionNotification() {
@@ -908,83 +869,6 @@ public class NotesViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
-    }
-
-    /// 设置原生编辑器内容变化监听器
-    ///
-    /// 监听 NativeEditorContext 的 contentChangePublisher，基于版本号机制判断是否需要保存
-    /// 只在有未保存更改时触发保存操作
-    ///
-    private func setupNativeEditorContentChangeListener() {
-        nativeEditorContext.contentChangePublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-
-                guard nativeEditorContext.needsSave else { return }
-                guard let note = selectedNote else { return }
-
-                Task { @MainActor in
-                    await self.handleContentChangeAndSave(note)
-                }
-            }
-            .store(in: &cancellables)
-    }
-
-    /// 处理内容变化并保存
-    ///
-    /// 当编辑器内容变化且需要保存时，执行保存操作
-    ///
-    @MainActor
-    private func handleContentChangeAndSave(_ note: Note) async {
-        let xmlContent = nativeEditorContext.exportToXML()
-
-        guard !xmlContent.isEmpty else { return }
-
-        let updatedNote = Note(
-            id: note.id,
-            title: note.title,
-            content: xmlContent,
-            folderId: note.folderId,
-            isStarred: note.isStarred,
-            createdAt: note.createdAt,
-            updatedAt: Date(),
-            tags: note.tags,
-            rawData: note.rawData,
-            snippet: note.snippet,
-            colorId: note.colorId,
-            subject: note.subject,
-            alertDate: note.alertDate,
-            type: note.type,
-            serverTag: note.serverTag, // 保留 serverTag
-            status: note.status,
-            settingJson: note.settingJson, // 保留 settingJson
-            extraInfoJson: note.extraInfoJson // 保留 extraInfoJson
-        )
-
-        do {
-            let saveResult = await NoteOperationCoordinator.shared.saveNote(updatedNote)
-
-            switch saveResult {
-            case .success:
-                LogService.shared.debug(.viewmodel, "笔记保存成功: \(updatedNote.id.prefix(8))...")
-
-                nativeEditorContext.changeTracker.didSaveSuccessfully()
-
-                if let index = notes.firstIndex(where: { $0.id == updatedNote.id }) {
-                    notes[index] = updatedNote
-                }
-
-                if selectedNote?.id == updatedNote.id {
-                    selectedNote = updatedNote
-                }
-
-            case let .failure(error):
-                LogService.shared.error(.viewmodel, "笔记保存失败: \(error)")
-
-                nativeEditorContext.changeTracker.didSaveFail()
-            }
-        }
     }
 
     @MainActor
@@ -1556,6 +1440,28 @@ public class NotesViewModel: ObservableObject {
         }
     }
 
+    /// 处理云端上传后 serverTag 更新
+    ///
+    /// 将新 tag 同步到内存中的 notes 数组和 selectedNote，
+    /// 防止后续编辑保存时使用过期 tag 覆盖数据库
+    private func handleServerTagUpdated(noteId: String, serverTag: String) {
+        guard !noteId.isEmpty, !serverTag.isEmpty else { return }
+
+        if let index = notes.firstIndex(where: { $0.id == noteId }) {
+            notes[index].serverTag = serverTag
+            var rawData = notes[index].rawData ?? [:]
+            rawData["tag"] = serverTag
+            notes[index].rawData = rawData
+        }
+
+        if selectedNote?.id == noteId {
+            selectedNote?.serverTag = serverTag
+            var rawData = selectedNote?.rawData ?? [:]
+            rawData["tag"] = serverTag
+            selectedNote?.rawData = rawData
+        }
+    }
+
     /// 清除示例数据（如果有）
     ///
     /// 检查当前笔记是否为示例数据，如果是则清除
@@ -1584,6 +1490,14 @@ public class NotesViewModel: ObservableObject {
             let localNotes = try localStorage.getAllLocalNotes()
             notes = localNotes
             LogService.shared.debug(.viewmodel, "重新加载了 \(localNotes.count) 条笔记")
+
+            // 同步后更新 selectedNote，确保编辑器显示最新内容
+            if let currentId = selectedNote?.id,
+               let updatedNote = localNotes.first(where: { $0.id == currentId })
+            {
+                selectedNote = updatedNote
+                await MemoryCacheManager.shared.cacheNote(updatedNote)
+            }
 
             loadFolders()
             updateFolderCounts()
@@ -2079,6 +1993,11 @@ public class NotesViewModel: ObservableObject {
             }
         }
 
+        // tag 字段始终以数据库中的值为准，避免内存中的过期 tag 覆盖上传成功后的新 tag
+        if let dbTag = existingRawData["tag"] {
+            mergedRawData["tag"] = dbTag
+        }
+
         // 特别处理 setting.data (图片)
         if let existingSetting = existingRawData["setting"] as? [String: Any],
            let existingSettingData = existingSetting["data"] as? [[String: Any]],
@@ -2091,8 +2010,8 @@ public class NotesViewModel: ObservableObject {
 
         var merged = note
         merged.rawData = mergedRawData
-        // 确保保留现有的内容，除非传入的笔记有更新的
-        // 注意：Note模型中没有htmlContent属性，这里保留注释但移除相关代码
+        // serverTag 以数据库为准，避免过期 tag 导致上传冲突
+        merged.serverTag = existingNote.serverTag
         return merged
     }
 
@@ -2635,32 +2554,27 @@ public class NotesViewModel: ObservableObject {
         }
     }
 
-    /// 通过状态协调器选择文件夹
+    /// 选择文件夹（带保存逻辑）
     ///
-    /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
-    ///
+    /// 切换文件夹前保存未保存的内容，然后更新 selectedFolder
     ///
     /// - Parameter folder: 要选择的文件夹
     public func selectFolderWithCoordinator(_ folder: Folder?) {
+        if folder?.id == selectedFolder?.id { return }
+
         Task {
-            await stateCoordinator.selectFolder(folder)
-            // 同步 coordinator 的状态到 ViewModel
-            syncStateFromCoordinator()
+            // 切换前保存未保存的内容
+            if hasUnsavedContent, let callback = saveContentCallback {
+                _ = await callback()
+                hasUnsavedContent = false
+            }
+            selectedFolder = folder
         }
     }
 
-    /// 通过状态协调器选择笔记
+    /// 选择笔记
     ///
-    /// 使用 ViewStateCoordinator 进行状态管理，确保三个视图之间的状态同步
-    ///
-    ///
-    /// **统一操作队列集成**：
-    /// - 切换笔记时设置活跃编辑状态
-    /// - 切换前保存当前笔记（如果有未保存的更改）
-    ///
-    /// **死循环防护**（Spec 60）：
-    /// - 使用 `isSwitchingNote` 标志防止切换过程中被打断
-    /// - 使用 `defer` 确保标志正确重置
+    /// 切换笔记时设置活跃编辑状态，切换前保存当前笔记
     ///
     /// - Parameter note: 要选择的笔记
     public func selectNoteWithCoordinator(_ note: Note?) {
@@ -2690,22 +2604,8 @@ public class NotesViewModel: ObservableObject {
             }
 
             await NoteOperationCoordinator.shared.setActiveEditingNote(note?.id)
-            await stateCoordinator.selectNote(note)
-            syncStateFromCoordinator()
-        }
-    }
-
-    /// 从 coordinator 同步状态到 ViewModel
-    ///
-    /// 将 ViewStateCoordinator 的选择状态同步到 ViewModel 的 @Published 属性
-    /// 这样可以触发 UI 更新
-    private func syncStateFromCoordinator() {
-        // 只有当状态真正变化时才更新，避免不必要的 UI 刷新
-        if selectedFolder?.id != stateCoordinator.selectedFolder?.id {
-            selectedFolder = stateCoordinator.selectedFolder
-        }
-        if selectedNote?.id != stateCoordinator.selectedNote?.id {
-            selectedNote = stateCoordinator.selectedNote
+            selectedNote = note
+            postNoteSelectionNotification()
         }
     }
 

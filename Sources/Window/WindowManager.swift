@@ -159,7 +159,7 @@ public class WindowManager {
 
             // 如果指定了笔记，设置为选中状态
             if let note {
-                windowState.selectedNote = note
+                windowState.selectNote(note)
                 LogService.shared.debug(.window, "新窗口将打开笔记: \(note.title)")
             }
 
@@ -193,7 +193,7 @@ public class WindowManager {
 
          // 如果指定了笔记，设置为选中状态
          if let note = note {
-             windowState.selectedNote = note
+             windowState.selectNote(note)
              print("[WindowManager] 新窗口将打开笔记: \(note.title)")
          }
 

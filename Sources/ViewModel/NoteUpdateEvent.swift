@@ -91,7 +91,7 @@ public enum NoteUpdateEvent: Equatable {
             false
         case .folderChanged:
             // 文件夹变化后，如果笔记移出当前文件夹，可能需要清除选择
-            // 但这个决定应该由 ViewStateCoordinator 根据上下文做出
+            // 但这个决定应该由上层调用方根据上下文做出
             true
         default:
             // 其他所有更新都应该保持选择状态
