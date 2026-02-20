@@ -113,6 +113,7 @@
 		6370B86B6C2FA781CDC335EE /* FormatApplicationPerformanceOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2F9D80E55516F226B64D42C /* FormatApplicationPerformanceOptimizer.swift */; };
 		64ED84CA0BC4A8B29D88F30B /* NoteDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A74DF7460C3AD0DDBA0AAC0 /* NoteDetailViewController.swift */; };
 		657EB82DF3D8F8CF9F2C6993 /* CustomAttachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7541E75A1076D9B6B161FA81 /* CustomAttachments.swift */; };
+		6604D3C5A86CB4331A7B8650 /* EventBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F5606FE32A5486A59ADDDC3 /* EventBus.swift */; };
 		6723371F7CBF4512A53F9349 /* AttachmentSelectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE523F5616E916AA10F4D21D /* AttachmentSelectionManager.swift */; };
 		6729F7893BE734836B913B21 /* MainWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 253D1427C8F76E2989212651 /* MainWindowState.swift */; };
 		67CAF4F592FBE5C00C21D296 /* ToolbarItemFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A74C1A54F67378DDA7001B70 /* ToolbarItemFactory.swift */; };
@@ -376,6 +377,7 @@
 		2B786CE6C44F733E90A4EB13 /* UnifiedEditorWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedEditorWrapper.swift; sourceTree = "<group>"; };
 		2CC88C52AB5EADCAAAFEB601 /* NoteServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteServiceProtocol.swift; sourceTree = "<group>"; };
 		2DE2D4837F3377E32D80BA10 /* SafeRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafeRenderer.swift; sourceTree = "<group>"; };
+		2F5606FE32A5486A59ADDDC3 /* EventBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventBus.swift; sourceTree = "<group>"; };
 		2FC4DFE5A72297F6145EA260 /* EditorStateConsistencyChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorStateConsistencyChecker.swift; sourceTree = "<group>"; };
 		305FEF5D4ABF0071C1325748 /* AudioAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAttachment.swift; sourceTree = "<group>"; };
 		30F9C29A7C4099E8FA362063 /* UnifiedFormatManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedFormatManager.swift; sourceTree = "<group>"; };
@@ -1071,6 +1073,7 @@
 			isa = PBXGroup;
 			children = (
 				47ADF471FFDD5A9BDB727649 /* AppEvent.swift */,
+				2F5606FE32A5486A59ADDDC3 /* EventBus.swift */,
 				E0C14DEAB022888FB425EC53 /* Events */,
 			);
 			path = EventBus;
@@ -1719,6 +1722,7 @@
 				6DBE66AC34F276C1BE7028D9 /* EditorStateConsistencyChecker.swift in Sources */,
 				5B22F3187370A08C0DBC0347 /* ErrorEvent.swift in Sources */,
 				FB9D22888993D0CBEBFE1EFD /* ErrorRecoveryService.swift in Sources */,
+				6604D3C5A86CB4331A7B8650 /* EventBus.swift in Sources */,
 				EBA5E00131015D430D09503A /* ExpandedNoteView.swift in Sources */,
 				81AD9FCDB21ABDC4245A4844 /* FlippedStackView.swift in Sources */,
 				F00707AF58806715F39E45A1 /* FloatingInfoBar.swift in Sources */,
