@@ -176,7 +176,16 @@ struct NoteDetailView: View {
             }
         }
         .onAppear {
-            handleNoteAppear(note)
+            // handleSelectedNoteChange 已处理笔记切换，onAppear 仅用于首次加载
+            if editingCoordinator.currentEditingNoteId != note.id {
+                Task { @MainActor in
+                    await editingCoordinator.switchToNote(note)
+                    if isDebugMode {
+                        debugXMLContent = editingCoordinator.currentXMLContent
+                        debugSaveStatus = .saved
+                    }
+                }
+            }
         }
         .onReceive(nativeEditorContext.titleChangePublisher) { newValue in
             if editingCoordinator.editedTitle != newValue {
@@ -265,21 +274,6 @@ struct NoteDetailView: View {
                         }
                     )
                 }
-            }
-        }
-    }
-
-    // MARK: - 笔记切换
-
-    private func handleNoteAppear(_ note: Note) {
-        let task = editingCoordinator.saveBeforeSwitching(newNoteId: note.id)
-        Task { @MainActor in
-            if let t = task { await t.value }
-            await Task.yield()
-            await editingCoordinator.switchToNote(note)
-            if isDebugMode {
-                debugXMLContent = editingCoordinator.currentXMLContent
-                debugSaveStatus = .saved
             }
         }
     }

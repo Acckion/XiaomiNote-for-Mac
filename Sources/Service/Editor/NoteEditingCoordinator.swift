@@ -472,7 +472,10 @@ public final class NoteEditingCoordinator: ObservableObject {
         }
     }
 
-    func handleSaveSuccess(xmlContent: String, noteId _: String, updatedNote: Note) async {
+    func handleSaveSuccess(xmlContent: String, noteId: String, updatedNote: Note) async {
+        // 保存完成后检查：如果任务已取消或已切换到其他笔记，丢弃结果
+        guard !Task.isCancelled, currentEditingNoteId == noteId else { return }
+
         lastSavedXMLContent = xmlContent
         currentXMLContent = xmlContent
 
