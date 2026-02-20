@@ -113,15 +113,6 @@ struct NoteDetailView: View {
                     debugSaveStatus = .saved
                 }
             }
-        } else if let oldNote = oldValue,
-                  oldNote.content != newNote.content,
-                  !editingCoordinator.isSavingLocally,
-                  !editingCoordinator.isSavingBeforeSwitch
-        {
-            // 同一笔记但内容变化（外部同步更新），重新加载
-            Task { @MainActor in
-                await editingCoordinator.switchToNote(newNote)
-            }
         }
     }
 
