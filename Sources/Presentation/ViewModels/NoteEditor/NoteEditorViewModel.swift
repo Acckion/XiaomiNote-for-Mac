@@ -134,8 +134,12 @@ public final class NoteEditorViewModel: ObservableObject {
 
     /// 保存笔记
     public func saveNote() async {
-        guard let note = currentNote else { return }
-        guard hasUnsavedChanges else { return }
+        guard let note = currentNote else {
+            return
+        }
+        guard hasUnsavedChanges else {
+            return
+        }
 
         isSaving = true
         errorMessage = nil

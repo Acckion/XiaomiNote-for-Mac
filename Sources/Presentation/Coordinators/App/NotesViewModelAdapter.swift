@@ -255,8 +255,8 @@ public final class NotesViewModelAdapter: NotesViewModel {
         // TODO: 调用存储服务保存笔记
     }
 
-    override func updateNote(_: Note) async throws {
-        await coordinator.noteEditorViewModel.saveNote()
+    override func updateNote(_ note: Note) async throws {
+        try await super.updateNote(note)
     }
 
     override public func updateNoteInPlace(_ note: Note) -> Bool {

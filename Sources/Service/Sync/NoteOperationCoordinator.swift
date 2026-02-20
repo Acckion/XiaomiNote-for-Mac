@@ -111,7 +111,6 @@ public actor NoteOperationCoordinator {
         // 1. 本地保存到数据库（同步执行）
         do {
             try databaseService.saveNote(note)
-            LogService.shared.debug(.sync, "本地保存成功: \(note.id.prefix(8))...")
         } catch {
             LogService.shared.error(.sync, "本地保存失败: \(error)")
             return .failure(NoteOperationError.saveFailed(error.localizedDescription))
@@ -128,10 +127,8 @@ public actor NoteOperationCoordinator {
                 isLocalId: NoteOperation.isTemporaryId(note.id)
             )
             try operationQueue.enqueue(operation)
-            LogService.shared.debug(.sync, "已创建 cloudUpload 操作: \(note.id.prefix(8))...")
         } catch {
             LogService.shared.error(.sync, "创建 cloudUpload 操作失败: \(error)")
-            // 本地保存成功，但操作入队失败，不影响返回结果
         }
 
         // 3. 网络可用时立即处理
@@ -187,13 +184,10 @@ public actor NoteOperationCoordinator {
 
         if isOnline {
             if let operation = operationQueue.getPendingUpload(for: note.id) {
-                LogService.shared.debug(.sync, "网络可用，立即处理上传: \(note.id.prefix(8))...")
                 Task { @MainActor in
                     await OperationProcessor.shared.processImmediately(operation)
                 }
             }
-        } else {
-            LogService.shared.debug(.sync, "网络不可用，操作已加入队列等待: \(note.id.prefix(8))...")
         }
     }
 

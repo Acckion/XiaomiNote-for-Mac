@@ -624,6 +624,20 @@ public class NotesViewModel: ObservableObject {
             }
         }
 
+        // 监听云端上传后 serverTag 更新通知
+        // 避免内存中的 notes 数组持有过期 tag，导致后续编辑保存时覆盖数据库中的新 tag
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("NoteServerTagUpdated"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let noteId = notification.userInfo?["noteId"] as? String ?? ""
+            let serverTag = notification.userInfo?["serverTag"] as? String ?? ""
+            Task { @MainActor in
+                self?.handleServerTagUpdated(noteId: noteId, serverTag: serverTag)
+            }
+        }
+
         // 启动自动同步定时器（如果应用在前台）
         if isAppActive {
             startAutoSyncTimer()
@@ -1426,6 +1440,28 @@ public class NotesViewModel: ObservableObject {
         }
     }
 
+    /// 处理云端上传后 serverTag 更新
+    ///
+    /// 将新 tag 同步到内存中的 notes 数组和 selectedNote，
+    /// 防止后续编辑保存时使用过期 tag 覆盖数据库
+    private func handleServerTagUpdated(noteId: String, serverTag: String) {
+        guard !noteId.isEmpty, !serverTag.isEmpty else { return }
+
+        if let index = notes.firstIndex(where: { $0.id == noteId }) {
+            notes[index].serverTag = serverTag
+            var rawData = notes[index].rawData ?? [:]
+            rawData["tag"] = serverTag
+            notes[index].rawData = rawData
+        }
+
+        if selectedNote?.id == noteId {
+            selectedNote?.serverTag = serverTag
+            var rawData = selectedNote?.rawData ?? [:]
+            rawData["tag"] = serverTag
+            selectedNote?.rawData = rawData
+        }
+    }
+
     /// 清除示例数据（如果有）
     ///
     /// 检查当前笔记是否为示例数据，如果是则清除
@@ -1957,6 +1993,11 @@ public class NotesViewModel: ObservableObject {
             }
         }
 
+        // tag 字段始终以数据库中的值为准，避免内存中的过期 tag 覆盖上传成功后的新 tag
+        if let dbTag = existingRawData["tag"] {
+            mergedRawData["tag"] = dbTag
+        }
+
         // 特别处理 setting.data (图片)
         if let existingSetting = existingRawData["setting"] as? [String: Any],
            let existingSettingData = existingSetting["data"] as? [[String: Any]],
@@ -1969,8 +2010,8 @@ public class NotesViewModel: ObservableObject {
 
         var merged = note
         merged.rawData = mergedRawData
-        // 确保保留现有的内容，除非传入的笔记有更新的
-        // 注意：Note模型中没有htmlContent属性，这里保留注释但移除相关代码
+        // serverTag 以数据库为准，避免过期 tag 导致上传冲突
+        merged.serverTag = existingNote.serverTag
         return merged
     }
 

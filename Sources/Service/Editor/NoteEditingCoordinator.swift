@@ -103,10 +103,14 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     /// 处理编辑器内容变化（统一入口）
     public func handleContentChange(xmlContent: String, htmlContent: String?) async {
-        guard !isInitializing else { return }
+        guard !isInitializing else {
+            return
+        }
         guard let currentNote = viewModel?.selectedNote,
               currentNote.id == currentEditingNoteId
-        else { return }
+        else {
+            return
+        }
 
         // 标题直接从 nativeEditorContext.titleText 获取
         if let context = nativeEditorContext {
@@ -422,6 +426,8 @@ public final class NoteEditingCoordinator: ObservableObject {
         xmlSaveTask?.cancel()
         let noteId = note.id
 
+        LogService.shared.debug(.editor, "performXMLSave 开始 - 笔记ID: \(noteId.prefix(8))..., 内容长度: \(xmlContent.count)")
+
         saveStatus = .saving
         saveStartTime = Date()
         isCancelled = false
@@ -475,6 +481,8 @@ public final class NoteEditingCoordinator: ObservableObject {
     func handleSaveSuccess(xmlContent: String, noteId: String, updatedNote: Note) async {
         // 保存完成后检查：如果任务已取消或已切换到其他笔记，丢弃结果
         guard !Task.isCancelled, currentEditingNoteId == noteId else { return }
+
+        LogService.shared.debug(.editor, "handleSaveSuccess(Path A) - 笔记ID: \(noteId.prefix(8))...")
 
         lastSavedXMLContent = xmlContent
         currentXMLContent = xmlContent
@@ -733,7 +741,6 @@ public final class NoteEditingCoordinator: ObservableObject {
 
         do {
             try await viewModel?.updateNote(updated)
-            LogService.shared.info(.editor, "云端同步成功 - 笔记ID: \(note.id.prefix(8))...")
         } catch {
             LogService.shared.error(.editor, "云端同步失败: \(error)")
             if isNetworkRelatedError(error) {
@@ -830,6 +837,18 @@ public final class NoteEditingCoordinator: ObservableObject {
             }
         }
 
+        // 从数据库读取最新的 serverTag，避免内存中的过期 tag 覆盖数据库中上传成功后更新的新 tag
+        let latestServerTag: String? = if let dbNote = try? DatabaseService.shared.loadNote(noteId: note.id) {
+            dbNote.serverTag
+        } else {
+            note.serverTag
+        }
+
+        // 同步更新 rawData 中的 tag 字段，保持一致性
+        if let tag = latestServerTag {
+            mergedRawData["tag"] = tag
+        }
+
         let updatedAt = shouldUpdateTimestamp ? Date() : note.updatedAt
 
         return Note(
@@ -843,7 +862,7 @@ public final class NoteEditingCoordinator: ObservableObject {
             tags: note.tags,
             rawData: mergedRawData,
             subject: note.subject,
-            serverTag: note.serverTag,
+            serverTag: latestServerTag,
             settingJson: note.settingJson,
             extraInfoJson: note.extraInfoJson
         )
