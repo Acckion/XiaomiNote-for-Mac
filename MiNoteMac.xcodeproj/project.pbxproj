@@ -20,6 +20,7 @@
 		0ABFE94851CC09C0BC9964A2 /* DefaultCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA9C677B52491DDB9517DB34 /* DefaultCacheService.swift */; };
 		0ACD977EBE2231E5783FABA9 /* NoteStorageProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 394072D0B60A67D8C6768AD4 /* NoteStorageProtocol.swift */; };
 		0B7E2A03EA3D6CF23A5CDD27 /* NoteEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6AA49D3AF038E2D967552ED /* NoteEditorViewModel.swift */; };
+		0C02BF0E40482E6A62EE2801 /* NoteEditingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95AB10A38F211568F6A1F668 /* NoteEditingCoordinator.swift */; };
 		0C7D4FE2FB60CE765BF8B165 /* TitleIntegrationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6F2CA4D82511029EC40AC5 /* TitleIntegrationError.swift */; };
 		0D0F4EB88DD0C86DE91B52EE /* NewNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A164FE1770FFB98A74958A /* NewNoteView.swift */; };
 		0DF1B923170E02BB94E35DDD /* XMLDebugEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0009A6156CFF4E810CE7C7FF /* XMLDebugEditorView.swift */; };
@@ -481,6 +482,7 @@
 		943F2FF4A27B6E45C2C665F5 /* SyncServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncServiceProtocol.swift; sourceTree = "<group>"; };
 		94AE1166BBBEA0591105B760 /* ServiceLocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceLocator.swift; sourceTree = "<group>"; };
 		94EF00779B29A5F9B5E0EE1F /* ParagraphStylePreservationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParagraphStylePreservationTests.swift; sourceTree = "<group>"; };
+		95AB10A38F211568F6A1F668 /* NoteEditingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditingCoordinator.swift; sourceTree = "<group>"; };
 		9662A527C63B10F67400910D /* AuthenticationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationViewModel.swift; sourceTree = "<group>"; };
 		96F6355E51C3D0A1C60586CE /* IdMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdMapping.swift; sourceTree = "<group>"; };
 		99757E80D91043E06A2681FD /* StartupSequenceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupSequenceManager.swift; sourceTree = "<group>"; };
@@ -1424,6 +1426,7 @@
 			children = (
 				DCBD00E79A0F1B72CD0C005A /* EditorConfiguration.swift */,
 				15545D21BA291E581CAC4C5E /* EditorPreferencesService.swift */,
+				95AB10A38F211568F6A1F668 /* NoteEditingCoordinator.swift */,
 				DA3E75A83C0A5E76944FF8F4 /* SavePipelineCoordinator.swift */,
 				FA6F2CA4D82511029EC40AC5 /* TitleIntegrationError.swift */,
 				568BE73C2FC4E84138643989 /* XiaoMiFormatConverter.swift */,
@@ -1760,6 +1763,7 @@
 				64ED84CA0BC4A8B29D88F30B /* NoteDetailViewController.swift in Sources */,
 				43AE56001A4F1ABF7E5F5C57 /* NoteDetailWindowState.swift in Sources */,
 				FED586B2AB19DBD03604AD3D /* NoteDetailWindowView.swift in Sources */,
+				0C02BF0E40482E6A62EE2801 /* NoteEditingCoordinator.swift in Sources */,
 				0B7E2A03EA3D6CF23A5CDD27 /* NoteEditorViewModel.swift in Sources */,
 				F28FE4BBE79F11DB5D9FE9FD /* NoteHistoryVersion.swift in Sources */,
 				D74AFB5E74289F288091F0EE /* NoteHistoryView.swift in Sources */,
