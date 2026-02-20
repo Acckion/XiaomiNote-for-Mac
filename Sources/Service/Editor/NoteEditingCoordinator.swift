@@ -356,7 +356,7 @@ public final class NoteEditingCoordinator: ObservableObject {
             saveStatus = .unsaved
         }
 
-        viewModel?.stateCoordinator.hasUnsavedContent = true
+        viewModel?.hasUnsavedContent = true
     }
 
     func flashSaveHTML(_: String, for _: Note) {
@@ -486,7 +486,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         await MemoryCacheManager.shared.cacheNote(updatedNote)
 
         saveStatus = .saved
-        viewModel?.stateCoordinator.hasUnsavedContent = false
+        viewModel?.hasUnsavedContent = false
 
         if isUsingNativeEditor, let context = nativeEditorContext {
             context.markContentSaved()
@@ -792,15 +792,12 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     /// 统一更新 ViewModel
     ///
-    /// 只更新 notes 数组和 stateCoordinator，不更新 selectedNote
+    /// 只更新 notes 数组，不更新 selectedNote
     /// 避免触发 SwiftUI onChange 链导致编辑器状态混乱
     func updateViewModel(with updated: Note) {
         guard let viewModel else { return }
         if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
             viewModel.notes[index] = updated
-        }
-        if viewModel.selectedNote?.id == updated.id {
-            viewModel.stateCoordinator.updateNoteContent(updated)
         }
     }
 
