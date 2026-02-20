@@ -373,19 +373,8 @@ public struct SidebarView: View {
                     }
                 }
 
-                // 确保切换文件夹时，编辑视图跟随更新
-                // 使用 coordinator 进行状态管理，确保三个视图之间的状态同步
-                // - 3.1: 选择新文件夹时立即显示该文件夹下的笔记列表
-                // - 3.2: 选择新文件夹时清空编辑器或显示第一篇笔记
-                // - 3.3: 选择新文件夹时清除之前的笔记选择状态
                 if newValue != oldValue {
-                    // 通过 coordinator 进行文件夹选择
-                    // coordinator 会处理保存检查、状态更新和笔记选择清除
-                    Task {
-                        await viewModel.stateCoordinator.selectFolder(newValue)
-                    }
-
-                    // 调用原有的 selectFolder 方法处理私密笔记等特殊逻辑
+                    viewModel.selectFolderWithCoordinator(newValue)
                     viewModel.selectFolder(newValue)
 
                     // 延迟到当前渲染周期结束后再清除搜索状态，避免在视图更新中修改 @Published 属性
