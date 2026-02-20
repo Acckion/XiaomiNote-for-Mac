@@ -296,44 +296,16 @@ struct NoteDetailView: View {
     /// 工具栏内容
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItemGroup(placement: .automatic) {
-            newNoteButton
-        }
-        ToolbarItemGroup(placement: .automatic) {
-            undoButton
-            redoButton
-        }
-        ToolbarItemGroup(placement: .automatic) {
-            formatMenu
-            checkboxButton
-            horizontalRuleButton
-            imageButton
-        }
-        ToolbarItemGroup(placement: .automatic) {
-            indentButtons
-            Spacer()
-            // 调试模式切换按钮
-            debugModeToggleButton
-            if let note = viewModel.selectedNote {
-                shareAndMoreButtons(for: note)
-            }
-        }
-    }
-
-    /// 调试模式切换按钮
-    ///
-    private var debugModeToggleButton: some View {
-        Button {
-            toggleDebugMode()
-        } label: {
-            Label(
-                isDebugMode ? "退出调试" : "调试模式",
-                systemImage: isDebugMode ? "xmark.circle" : "chevron.left.forwardslash.chevron.right"
-            )
-        }
-        .keyboardShortcut("d", modifiers: [.command, .shift])
-        .disabled(viewModel.selectedNote == nil)
-        .help(isDebugMode ? "退出 XML 调试模式 (⌘⇧D)" : "进入 XML 调试模式 (⌘⇧D)")
+        NoteEditorToolbar(
+            viewModel: viewModel,
+            nativeEditorContext: nativeEditorContext,
+            isUsingNativeEditor: isUsingNativeEditor,
+            isDebugMode: isDebugMode,
+            selectedNote: viewModel.selectedNote,
+            onToggleDebugMode: { toggleDebugMode() },
+            onInsertImage: { insertImage() },
+            showingHistoryView: $showingHistoryView
+        )
     }
 
     private func noteEditorView(for note: Note) -> some View {
@@ -385,6 +357,9 @@ struct NoteDetailView: View {
                 onDismiss: { imageInsertStatus = .idle }
             )
         }
+        .sheet(isPresented: $showingHistoryView) {
+            NoteHistoryView(viewModel: viewModel, noteId: note.id)
+        }
         .alert("保存失败", isPresented: $showSaveErrorAlert) {
             Button("确定", role: .cancel) {}
         } message: {
@@ -417,60 +392,23 @@ struct NoteDetailView: View {
 
             // 调试模式指示器
             if isDebugMode {
-                debugModeIndicator
+                DebugModeIndicator()
             }
 
             // 保存状态指示器（根据模式显示不同状态）
             if isDebugMode {
-                debugSaveStatusIndicator
+                DebugSaveStatusIndicator(
+                    debugSaveStatus: debugSaveStatus,
+                    showSaveErrorAlert: $showSaveErrorAlert,
+                    saveErrorMessage: $saveErrorMessage
+                )
             } else {
                 saveStatusIndicator
             }
         }
     }
 
-    /// 调试模式指示器
-    private var debugModeIndicator: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "chevron.left.forwardslash.chevron.right")
-                .font(.system(size: 8))
-            Text("调试模式")
-                .font(.system(size: 10, weight: .medium))
-        }
-        .foregroundColor(.orange)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(Color.orange.opacity(0.15))
-        .cornerRadius(4)
-    }
-
-    /// 调试模式保存状态指示器
-    private var debugSaveStatusIndicator: some View {
-        Group {
-            switch debugSaveStatus {
-            case .saved:
-                Text("已保存")
-                    .font(.system(size: 10))
-                    .foregroundColor(.green)
-            case .saving:
-                Text("保存中...")
-                    .font(.system(size: 10))
-                    .foregroundColor(.orange)
-            case .unsaved:
-                Text("未保存")
-                    .font(.system(size: 10))
-                    .foregroundColor(.red)
-            case let .error(message):
-                Text("保存失败")
-                    .font(.system(size: 10))
-                    .foregroundColor(.red)
-                    .onTapGesture {
-                        saveErrorMessage = message
-                        showSaveErrorAlert = true
-                    }
-            }
-        }
-    }
+    // debugModeIndicator 和 debugSaveStatusIndicator 已提取到 DebugModeView.swift
 
     /// 保存状态指示器
     ///
@@ -752,73 +690,7 @@ struct NoteDetailView: View {
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - 工具栏按钮
-
-    private var undoButton: some View {
-        Button {
-            if isUsingNativeEditor {
-                // 原生编辑器撤销（通过 NSTextView 的 undoManager）
-                NSApp.sendAction(#selector(UndoManager.undo), to: nil, from: nil)
-            }
-        } label: { Label("撤销", systemImage: "arrow.uturn.backward") }
-    }
-
-    private var redoButton: some View {
-        Button {
-            if isUsingNativeEditor {
-                // 原生编辑器重做（通过 NSTextView 的 undoManager）
-                NSApp.sendAction(#selector(UndoManager.redo), to: nil, from: nil)
-            }
-        } label: { Label("重做", systemImage: "arrow.uturn.forward") }
-    }
-
-    @State private var showFormatMenu = false
-    private var formatMenu: some View {
-        Button { showFormatMenu.toggle() } label: { Label("格式", systemImage: "textformat") }
-            .popover(isPresented: $showFormatMenu, arrowEdge: .top) {
-                FormatMenuPopoverContent(
-                    nativeEditorContext: nativeEditorContext,
-                    onDismiss: { showFormatMenu = false }
-                )
-            }
-    }
-
-    private var checkboxButton: some View {
-        Button {
-            if isUsingNativeEditor {
-                nativeEditorContext.insertCheckbox()
-            }
-        } label: { Label("插入待办", systemImage: "checklist") }
-    }
-
-    private var horizontalRuleButton: some View {
-        Button {
-            if isUsingNativeEditor {
-                nativeEditorContext.insertHorizontalRule()
-            }
-        } label: { Label("插入分割线", systemImage: "minus") }
-    }
-
-    private var imageButton: some View {
-        Button { insertImage() } label: { Label("插入图片", systemImage: "paperclip") }
-    }
-
-    @ViewBuilder
-    private var indentButtons: some View {
-        Button {
-            if isUsingNativeEditor {
-                // 原生编辑器增加缩进
-                nativeEditorContext.increaseIndent()
-            }
-        } label: { Label("增加缩进", systemImage: "increase.indent") }
-
-        Button {
-            if isUsingNativeEditor {
-                // 原生编辑器减少缩进
-                nativeEditorContext.decreaseIndent()
-            }
-        } label: { Label("减少缩进", systemImage: "decrease.indent") }
-    }
+    // MARK: - 工具栏按钮（已提取到 NoteEditorToolbar）
 
     private func insertImage() {
         let openPanel = NSOpenPanel()
@@ -840,7 +712,6 @@ struct NoteDetailView: View {
         do {
             let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
 
-            // 使用原生编辑器插入图片
             if isUsingNativeEditor {
                 nativeEditorContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
             }
@@ -856,29 +727,7 @@ struct NoteDetailView: View {
         }
     }
 
-    @ViewBuilder
-    private func shareAndMoreButtons(for note: Note) -> some View {
-        Button {
-            let picker = NSSharingServicePicker(items: [note.content])
-            if let window = NSApplication.shared.keyWindow, let view = window.contentView {
-                picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
-            }
-        } label: { Label("分享", systemImage: "square.and.arrow.up") }
-
-        Button { showingHistoryView = true } label: { Label("历史记录", systemImage: "clock.arrow.circlepath") }
-
-        Menu {
-            Button { viewModel.toggleStar(note) } label: { Label(note.isStarred ? "取消置顶" : "置顶", systemImage: "pin") }
-            Divider()
-            Button { viewModel.showTrashView = true } label: { Label("回收站", systemImage: "trash") }
-            Button(role: .destructive) { viewModel.deleteNote(note) } label: { Label("删除", systemImage: "trash") }
-        } label: { Label("更多", systemImage: "ellipsis.circle") }
-            .sheet(isPresented: $showingHistoryView) { NoteHistoryView(viewModel: viewModel, noteId: note.id) }
-    }
-
-    private var newNoteButton: some View {
-        Button { viewModel.createNewNote() } label: { Label("新建笔记", systemImage: "square.and.pencil") }
-    }
+    // shareAndMoreButtons 和 newNoteButton 已提取到 NoteEditorToolbar
 
     private func handleNoteAppear(_ note: Note) {
         let task = saveCurrentNoteBeforeSwitching(newNoteId: note.id)
