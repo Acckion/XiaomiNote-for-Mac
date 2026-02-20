@@ -426,14 +426,10 @@ public class NotesViewModel: ObservableObject {
     /// - Returns: 如果包含图片返回 true，否则返回 false
     private func noteHasImages(_ note: Note) -> Bool {
         let content = note.primaryXMLContent.lowercased()
-        // 检查是否包含图片相关标签
         if content.contains("<img") || content.contains("image") || content.contains("fileid") {
             return true
         }
-        // 检查 rawData 中是否有图片数据
-        if let setting = note.rawData?["setting"] as? [String: Any],
-           let data = setting["data"] as? [[String: Any]], !data.isEmpty
-        {
+        if note.hasImages {
             return true
         }
         return false
@@ -1408,7 +1404,13 @@ public class NotesViewModel: ObservableObject {
                     createdAt: updatedNote.createdAt,
                     updatedAt: updatedNote.updatedAt,
                     tags: updatedNote.tags,
-                    rawData: updatedNote.rawData
+                    snippet: updatedNote.snippet,
+                    colorId: updatedNote.colorId,
+                    type: updatedNote.type,
+                    serverTag: updatedNote.serverTag,
+                    status: updatedNote.status,
+                    settingJson: updatedNote.settingJson,
+                    extraInfoJson: updatedNote.extraInfoJson
                 )
                 selectedNote = updatedNote
             }
@@ -1425,11 +1427,8 @@ public class NotesViewModel: ObservableObject {
                 createdAt: oldNote.createdAt,
                 updatedAt: oldNote.updatedAt,
                 tags: oldNote.tags,
-                rawData: oldNote.rawData,
                 snippet: oldNote.snippet,
                 colorId: oldNote.colorId,
-                subject: oldNote.subject,
-                alertDate: oldNote.alertDate,
                 type: oldNote.type,
                 serverTag: oldNote.serverTag,
                 status: oldNote.status,
@@ -1449,16 +1448,10 @@ public class NotesViewModel: ObservableObject {
 
         if let index = notes.firstIndex(where: { $0.id == noteId }) {
             notes[index].serverTag = serverTag
-            var rawData = notes[index].rawData ?? [:]
-            rawData["tag"] = serverTag
-            notes[index].rawData = rawData
         }
 
         if selectedNote?.id == noteId {
             selectedNote?.serverTag = serverTag
-            var rawData = selectedNote?.rawData ?? [:]
-            rawData["tag"] = serverTag
-            selectedNote?.rawData = rawData
         }
     }
 
@@ -1835,34 +1828,24 @@ public class NotesViewModel: ObservableObject {
                     note.folderId
                 }
 
-                // 更新 rawData，包含完整的 entry 数据
-                var updatedRawData = note.rawData ?? [:]
-                if let entryData {
-                    for (key, value) in entryData {
-                        updatedRawData[key] = value
-                    }
-                }
-                updatedRawData["tag"] = tag
+                // 从 entry 中提取 serverTag
+                let serverTag = tag
 
                 // 如果本地笔记的 ID 与服务器返回的不同，需要创建新笔记并删除旧的
                 if note.id != noteId {
-                    // 创建新的笔记对象（使用服务器返回的 ID 和 folderId，保留所有字段）
                     let updatedNote = Note(
                         id: noteId,
                         title: note.title,
                         content: note.content,
-                        folderId: serverFolderId, // 使用服务器返回的 folderId
+                        folderId: serverFolderId,
                         isStarred: note.isStarred,
                         createdAt: note.createdAt,
                         updatedAt: note.updatedAt,
                         tags: note.tags,
-                        rawData: updatedRawData,
                         snippet: note.snippet,
                         colorId: note.colorId,
-                        subject: note.subject,
-                        alertDate: note.alertDate,
                         type: note.type,
-                        serverTag: note.serverTag,
+                        serverTag: serverTag,
                         status: note.status,
                         settingJson: note.settingJson,
                         extraInfoJson: note.extraInfoJson
@@ -1884,26 +1867,8 @@ public class NotesViewModel: ObservableObject {
                     selectedNote = updatedNote
                 } else {
                     // ID 相同，更新现有笔记（保留所有字段）
-                    let updatedNote = Note(
-                        id: note.id,
-                        title: note.title,
-                        content: note.content,
-                        folderId: note.folderId,
-                        isStarred: note.isStarred,
-                        createdAt: note.createdAt,
-                        updatedAt: note.updatedAt,
-                        tags: note.tags,
-                        rawData: updatedRawData,
-                        snippet: note.snippet,
-                        colorId: note.colorId,
-                        subject: note.subject,
-                        alertDate: note.alertDate,
-                        type: note.type,
-                        serverTag: note.serverTag,
-                        status: note.status,
-                        settingJson: note.settingJson,
-                        extraInfoJson: note.extraInfoJson
-                    )
+                    var updatedNote = note
+                    updatedNote.serverTag = serverTag
 
                     // 更新笔记列表
                     if let index = notes.firstIndex(where: { $0.id == note.id }) {
@@ -1980,38 +1945,28 @@ public class NotesViewModel: ObservableObject {
     }
 
     private func mergeWithLocalData(_ note: Note) -> Note {
-        guard let existingNote = try? localStorage.loadNote(noteId: note.id),
-              let existingRawData = existingNote.rawData
-        else {
+        guard let existingNote = try? localStorage.loadNote(noteId: note.id) else {
             return note
         }
 
-        var mergedRawData = existingRawData
-        if let newRawData = note.rawData {
-            for (key, value) in newRawData {
-                mergedRawData[key] = value
-            }
-        }
-
-        // tag 字段始终以数据库中的值为准，避免内存中的过期 tag 覆盖上传成功后的新 tag
-        if let dbTag = existingRawData["tag"] {
-            mergedRawData["tag"] = dbTag
-        }
-
-        // 特别处理 setting.data (图片)
-        if let existingSetting = existingRawData["setting"] as? [String: Any],
-           let existingSettingData = existingSetting["data"] as? [[String: Any]],
-           !existingSettingData.isEmpty
-        {
-            var mergedSetting = mergedRawData["setting"] as? [String: Any] ?? [:]
-            mergedSetting["data"] = existingSettingData
-            mergedRawData["setting"] = mergedSetting
-        }
-
         var merged = note
-        merged.rawData = mergedRawData
         // serverTag 以数据库为准，避免过期 tag 导致上传冲突
         merged.serverTag = existingNote.serverTag
+
+        // 保留数据库中的 settingJson（包含图片信息）
+        if let existingSettingJson = existingNote.settingJson, !existingSettingJson.isEmpty,
+           merged.settingJson == nil || merged.settingJson?.isEmpty == true
+        {
+            merged.settingJson = existingSettingJson
+        }
+
+        // 保留数据库中的 extraInfoJson
+        if let existingExtraInfoJson = existingNote.extraInfoJson, !existingExtraInfoJson.isEmpty,
+           merged.extraInfoJson == nil || merged.extraInfoJson?.isEmpty == true
+        {
+            merged.extraInfoJson = existingExtraInfoJson
+        }
+
         return merged
     }
 
@@ -2113,10 +2068,10 @@ public class NotesViewModel: ObservableObject {
     }
 
     private func performCloudUpdateWithRetry(_ note: Note, retryOnConflict: Bool = true) async throws {
-        var existingTag = note.rawData?["tag"] as? String ?? ""
-        let originalCreateDate = note.rawData?["createDate"] as? Int
+        var existingTag = note.serverTag ?? ""
+        let originalCreateDate: Int? = nil
 
-        // 如果没有 tag，先 fetch 一次（通常是新建笔记或者是从 snippet 转换来的）
+        // 如果没有 tag，先 fetch 一次
         if existingTag.isEmpty {
             let details = try await service.fetchNoteDetails(noteId: note.id)
             if let entry = extractEntry(from: details), let tag = entry["tag"] as? String {
@@ -2124,8 +2079,15 @@ public class NotesViewModel: ObservableObject {
             }
         }
 
-        // 提取图片信息
-        let imageData = (note.rawData?["setting"] as? [String: Any])?["data"] as? [[String: Any]]
+        // 从 settingJson 提取图片信息
+        let imageData: [[String: Any]]? = {
+            guard let settingJson = note.settingJson,
+                  let jsonData = settingJson.data(using: .utf8),
+                  let setting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                  let data = setting["data"] as? [[String: Any]]
+            else { return nil }
+            return data
+        }()
         nonisolated(unsafe) let unsafeImageData = imageData
 
         let response = try await service.updateNote(
@@ -2144,11 +2106,9 @@ public class NotesViewModel: ObservableObject {
             let details = try await service.fetchNoteDetails(noteId: note.id)
             if let entry = extractEntry(from: details) {
                 var updatedWithNewTag = note
-                var raw = note.rawData ?? [:]
-                for (k, v) in entry {
-                    raw[k] = v
+                if let newTag = entry["tag"] as? String {
+                    updatedWithNewTag.serverTag = newTag
                 }
-                updatedWithNewTag.rawData = raw
                 try await performCloudUpdateWithRetry(updatedWithNewTag, retryOnConflict: false)
                 return
             }
@@ -2157,17 +2117,13 @@ public class NotesViewModel: ObservableObject {
         if code == 0 {
             if let entry = extractEntry(from: response) {
                 var updatedNote = note
-                var updatedRawData = updatedNote.rawData ?? [:]
-                for (key, value) in entry {
-                    updatedRawData[key] = value
+                if let newTag = entry["tag"] as? String {
+                    updatedNote.serverTag = newTag
                 }
-
                 if let modifyDate = entry["modifyDate"] as? Int {
                     updatedNote.updatedAt = Date(timeIntervalSince1970: TimeInterval(modifyDate) / 1000)
                 }
-                updatedNote.rawData = updatedRawData
 
-                // 再次应用本地更新（包含 ID 守卫判断）
                 try await applyLocalUpdate(updatedNote)
             }
         } else {
@@ -2184,7 +2140,7 @@ public class NotesViewModel: ObservableObject {
             "title": note.title,
             "content": note.content,
             "folderId": note.folderId,
-            "tag": note.rawData?["tag"] as? String ?? note.id,
+            "tag": note.serverTag ?? note.id,
         ]
 
         // 将操作数据编码为 Data
@@ -2229,7 +2185,7 @@ public class NotesViewModel: ObservableObject {
     func ensureNoteHasFullContent(_ note: Note) async {
         if !note.content.isEmpty { return }
 
-        if note.rawData?["snippet"] == nil { return }
+        if note.snippet == nil { return }
 
         LogService.shared.debug(.viewmodel, "笔记内容为空，获取完整内容: \(note.id)")
 
@@ -2243,7 +2199,7 @@ public class NotesViewModel: ObservableObject {
                 let originalContent = updatedNote.content
                 let originalTitle = updatedNote.title
 
-                updatedNote.updateContent(from: noteDetails)
+                NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
                 let contentActuallyChanged = hasContentActuallyChanged(
                     currentContent: updatedNote.content,
@@ -2331,7 +2287,7 @@ public class NotesViewModel: ObservableObject {
         }
 
         guard isOnline, service.isAuthenticated() else {
-            let tag = note.rawData?["tag"] as? String ?? note.id
+            let tag = note.serverTag ?? note.id
             let operationData: [String: Any] = ["tag": tag, "purge": false]
 
             guard let data = try? JSONSerialization.data(withJSONObject: operationData) else {
@@ -2358,7 +2314,7 @@ public class NotesViewModel: ObservableObject {
 
         Task {
             do {
-                var finalTag = note.rawData?["tag"] as? String ?? note.id
+                var finalTag = note.serverTag ?? note.id
 
                 do {
                     let noteDetails = try await service.fetchNoteDetails(noteId: note.id)
@@ -2378,7 +2334,7 @@ public class NotesViewModel: ObservableObject {
             } catch {
                 LogService.shared.error(.viewmodel, "云端删除失败: \(error)")
 
-                let tag = note.rawData?["tag"] as? String ?? note.id
+                let tag = note.serverTag ?? note.id
                 let operationData: [String: Any] = ["tag": tag, "purge": false]
 
                 guard let data = try? JSONSerialization.data(withJSONObject: operationData) else {
@@ -3152,25 +3108,30 @@ public class NotesViewModel: ObservableObject {
             let fileType = String(mimeType.dropFirst("image/".count))
             try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
 
-            // 更新笔记的 setting.data，添加图片信息
+            // 更新笔记的 settingJson，添加图片信息
             var updatedNote = note
-            var rawData = updatedNote.rawData ?? [:]
-            var setting = rawData["setting"] as? [String: Any] ?? [
-                "themeId": 0,
-                "stickyTime": 0,
-                "version": 0,
-            ]
-
-            var settingData = setting["data"] as? [[String: Any]] ?? []
             let imageInfo: [String: Any] = [
                 "fileId": fileId,
                 "mimeType": mimeType,
                 "digest": digest,
             ]
+
+            // 从现有 settingJson 解析或创建新的 setting
+            var setting: [String: Any] = [
+                "themeId": 0,
+                "stickyTime": 0,
+                "version": 0,
+            ]
+            if let existingSettingJson = note.settingJson,
+               let jsonData = existingSettingJson.data(using: .utf8),
+               let existingSetting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+            {
+                setting = existingSetting
+            }
+
+            var settingData = setting["data"] as? [[String: Any]] ?? []
             settingData.append(imageInfo)
-            setting["data"] = settingData
-            rawData["setting"] = setting
-            updatedNote.rawData = rawData
+            NoteMapper.updateSettingData(&updatedNote, settingData: settingData)
 
             // 注意：根据小米笔记的格式，图片不应该直接添加到 content 中
             // 图片信息只在 setting.data 中，content 中的图片标签由编辑器管理
@@ -3277,13 +3238,11 @@ public class NotesViewModel: ObservableObject {
                 throw MiNoteError.invalidResponse
             }
 
-            // 使用 Note.fromMinoteData 解析历史记录数据
-            guard var note = Note.fromMinoteData(entry) else {
+            guard var note = NoteMapper.fromMinoteListData(entry) else {
                 throw MiNoteError.invalidResponse
             }
 
-            // 使用 updateContent 更新内容（包括 content 字段）
-            note.updateContent(from: response)
+            NoteMapper.updateFromServerDetails(&note, details: response)
 
             return note
         } catch {

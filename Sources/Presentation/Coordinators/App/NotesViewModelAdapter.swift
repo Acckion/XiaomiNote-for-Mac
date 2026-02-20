@@ -440,13 +440,13 @@ public final class NotesViewModelAdapter: NotesViewModel {
             throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "无效的响应"])
         }
 
-        // 使用 Note.fromMinoteData 解析历史记录数据
-        guard var note = Note.fromMinoteData(entry) else {
+        // 使用 NoteMapper 解析历史记录数据
+        guard var note = NoteMapper.fromMinoteListData(entry) else {
             throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "无法解析笔记数据"])
         }
 
-        // 使用 updateContent 更新内容
-        note.updateContent(from: response)
+        // 使用 NoteMapper 更新内容
+        NoteMapper.updateFromServerDetails(&note, details: response)
 
         return note
     }
@@ -544,14 +544,19 @@ public final class NotesViewModelAdapter: NotesViewModel {
         let fileType = String(mimeType.dropFirst("image/".count))
         try LocalStorageService.shared.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
 
-        // 更新笔记的 setting.data，添加图片信息
+        // 更新笔记的 settingJson，添加图片信息
         var updatedNote = note
-        var rawData = updatedNote.rawData ?? [:]
-        var setting = rawData["setting"] as? [String: Any] ?? [
+        var setting: [String: Any] = [
             "themeId": 0,
             "stickyTime": 0,
             "version": 0,
         ]
+        if let existingSettingJson = updatedNote.settingJson,
+           let jsonData = existingSettingJson.data(using: .utf8),
+           let existingSetting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+        {
+            setting = existingSetting
+        }
 
         var settingData = setting["data"] as? [[String: Any]] ?? []
         let imageInfo: [String: Any] = [
@@ -561,8 +566,12 @@ public final class NotesViewModelAdapter: NotesViewModel {
         ]
         settingData.append(imageInfo)
         setting["data"] = settingData
-        rawData["setting"] = setting
-        updatedNote.rawData = rawData
+
+        if let settingJsonData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
+           let settingString = String(data: settingJsonData, encoding: .utf8)
+        {
+            updatedNote.settingJson = settingString
+        }
 
         // 更新笔记
         await coordinator.noteEditorViewModel.saveNote()

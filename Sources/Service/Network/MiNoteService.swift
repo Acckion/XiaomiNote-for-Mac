@@ -1440,7 +1440,7 @@ public final class MiNoteService: @unchecked Sendable {
         }
 
         for entry in entries {
-            if let note = Note.fromMinoteData(entry) {
+            if let note = NoteMapper.fromMinoteListData(entry) {
                 notes.append(note)
             }
         }

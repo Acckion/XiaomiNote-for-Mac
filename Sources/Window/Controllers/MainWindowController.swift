@@ -3154,12 +3154,18 @@
                     // 1.5. 更新笔记的 setting.data，添加音频信息
                     // 这是小米笔记服务器识别音频文件的关键
                     if var note = viewModel.selectedNote {
-                        var rawData = note.rawData ?? [:]
-                        var setting = rawData["setting"] as? [String: Any] ?? [
+                        // 从 settingJson 解析现有 setting，添加音频信息
+                        var setting: [String: Any] = [
                             "themeId": 0,
                             "stickyTime": 0,
                             "version": 0,
                         ]
+                        if let existingSettingJson = note.settingJson,
+                           let jsonData = existingSettingJson.data(using: .utf8),
+                           let existingSetting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+                        {
+                            setting = existingSetting
+                        }
 
                         var settingData = setting["data"] as? [[String: Any]] ?? []
 
@@ -3172,8 +3178,13 @@
                         ]
                         settingData.append(audioInfo)
                         setting["data"] = settingData
-                        rawData["setting"] = setting
-                        note.rawData = rawData
+
+                        // 更新 settingJson
+                        if let settingData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
+                           let settingString = String(data: settingData, encoding: .utf8)
+                        {
+                            note.settingJson = settingString
+                        }
 
                         // 延迟到下一个 RunLoop 周期，避免在视图更新周期内修改 @Published 属性
                         DispatchQueue.main.async { [weak self] in

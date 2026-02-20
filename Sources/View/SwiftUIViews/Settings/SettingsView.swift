@@ -330,7 +330,7 @@ public struct SettingsView: View {
     }
 
     private func exportNotes() {
-        let notesData = viewModel.notes.map { $0.toMinoteData() }
+        let notesData = viewModel.notes.map { NoteMapper.toUploadPayload($0) }
 
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: notesData, options: .prettyPrinted)
@@ -368,7 +368,7 @@ public struct SettingsView: View {
                 let notesArray = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [[String: Any]] ?? []
 
                 // 导入笔记到ViewModel
-                let importedNotes = notesArray.compactMap { Note.fromMinoteData($0) }
+                let importedNotes = notesArray.compactMap { NoteMapper.fromMinoteListData($0) }
                 viewModel.notes.append(contentsOf: importedNotes)
 
                 // 显示成功提示

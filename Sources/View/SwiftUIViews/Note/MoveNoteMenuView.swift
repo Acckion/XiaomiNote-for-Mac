@@ -107,9 +107,8 @@ struct MoveNoteMenuView: View {
                     folderId: folder.id,
                     isStarred: note.isStarred,
                     createdAt: note.createdAt,
-                    updatedAt: note.updatedAt, // 保持原来的修改日期不变
-                    tags: note.tags,
-                    rawData: note.rawData
+                    updatedAt: note.updatedAt,
+                    tags: note.tags
                 )
 
                 // 使用视图模型的updateNote方法（它会处理在线/离线逻辑）

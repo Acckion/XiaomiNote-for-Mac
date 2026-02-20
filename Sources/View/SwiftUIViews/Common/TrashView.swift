@@ -278,7 +278,7 @@ struct TrashView: View {
                 let response = try await viewModel.service.fetchNoteDetails(noteId: deletedNote.id)
 
                 // 解析响应并创建 Note 对象
-                if let note = Note.fromMinoteData(response) {
+                if let note = NoteMapper.fromMinoteListData(response) {
                     await MainActor.run {
                         noteContent = note
                         isLoadingContent = false
@@ -317,17 +317,9 @@ struct TrashView: View {
                     isStarred: false,
                     createdAt: Date(timeIntervalSince1970: TimeInterval(deletedNote.createDate) / 1000.0),
                     updatedAt: Date(timeIntervalSince1970: TimeInterval(deletedNote.modifyDate) / 1000.0),
-                    rawData: [
-                        "id": deletedNote.id,
-                        "tag": deletedNote.tag,
-                        "subject": deletedNote.subject,
-                        "snippet": deletedNote.snippet,
-                        "folderId": deletedNote.folderId,
-                        "createDate": deletedNote.createDate,
-                        "modifyDate": deletedNote.modifyDate,
-                        "deleteTime": deletedNote.deleteTime,
-                        "status": deletedNote.status,
-                    ]
+                    snippet: deletedNote.snippet,
+                    serverTag: deletedNote.tag,
+                    status: deletedNote.status
                 )
 
                 await MainActor.run {

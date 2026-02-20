@@ -751,10 +751,9 @@ class NoteTableCellView: NSView {
             return false
         }
 
-        // 检查 rawData 中的 extraInfo 是否有真正的标题
-        if let rawData = note.rawData,
-           let extraInfo = rawData["extraInfo"] as? String,
-           let extraData = extraInfo.data(using: .utf8),
+        // 检查 extraInfoJson 中是否有真正的标题
+        if let extraInfoJson = note.extraInfoJson,
+           let extraData = extraInfoJson.data(using: .utf8),
            let extraJson = try? JSONSerialization.jsonObject(with: extraData) as? [String: Any],
            let realTitle = extraJson["title"] as? String,
            !realTitle.isEmpty
@@ -868,8 +867,9 @@ class NoteTableCellView: NSView {
     }
 
     func getFirstImageInfo(from note: Note) -> (fileId: String, fileType: String)? {
-        guard let rawData = note.rawData,
-              let setting = rawData["setting"] as? [String: Any],
+        guard let settingJson = note.settingJson,
+              let jsonData = settingJson.data(using: .utf8),
+              let setting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
               let settingData = setting["data"] as? [[String: Any]]
         else {
             return nil

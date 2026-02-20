@@ -29,7 +29,7 @@ extension MiNoteService: NoteServiceProtocol {
         // 从响应中解析笔记
         guard let data = response["data"] as? [String: Any],
               let entry = data["entry"] as? [String: Any],
-              let note = Note.fromMinoteData(entry)
+              let note = NoteMapper.fromMinoteListData(entry)
         else {
             throw MiNoteError.invalidResponse
         }
@@ -54,7 +54,7 @@ extension MiNoteService: NoteServiceProtocol {
         // 从响应中解析创建后的笔记
         guard let data = response["data"] as? [String: Any],
               let entry = data["entry"] as? [String: Any],
-              let createdNote = Note.fromMinoteData(entry)
+              let createdNote = NoteMapper.fromMinoteListData(entry)
         else {
             throw MiNoteError.invalidResponse
         }
@@ -77,7 +77,7 @@ extension MiNoteService: NoteServiceProtocol {
         // 从响应中解析更新后的笔记
         guard let data = response["data"] as? [String: Any],
               let entry = data["entry"] as? [String: Any],
-              let updatedNote = Note.fromMinoteData(entry)
+              let updatedNote = NoteMapper.fromMinoteListData(entry)
         else {
             throw MiNoteError.invalidResponse
         }

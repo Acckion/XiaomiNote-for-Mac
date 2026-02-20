@@ -672,16 +672,11 @@ extension OperationProcessor {
         LogService.shared.info(.sync, "OperationProcessor 云端创建成功: \(operation.noteId) -> \(serverNoteId)")
 
         // 4. 更新本地笔记
-        var updatedRawData = note.rawData ?? [:]
-        for (key, value) in entry {
-            updatedRawData[key] = value
-        }
-        updatedRawData["tag"] = tag
+        let serverTag = tag
 
         // 如果服务器返回的 ID 与本地不同，需要更新
         if note.id != serverNoteId {
-            // 创建新笔记（使用正式 ID）
-            let updatedNote = Note(
+            var updatedNote = Note(
                 id: serverNoteId,
                 title: note.title,
                 content: note.content,
@@ -690,7 +685,9 @@ extension OperationProcessor {
                 createdAt: note.createdAt,
                 updatedAt: note.updatedAt,
                 tags: note.tags,
-                rawData: updatedRawData
+                serverTag: serverTag,
+                settingJson: note.settingJson,
+                extraInfoJson: note.extraInfoJson
             )
 
             // 保存新笔记
@@ -722,18 +719,10 @@ extension OperationProcessor {
 
             LogService.shared.info(.sync, "OperationProcessor ID 更新完成: \(note.id) -> \(serverNoteId)")
         } else {
-            // ID 相同，只更新 rawData
-            let updatedNote = Note(
-                id: note.id,
-                title: note.title,
-                content: note.content,
-                folderId: serverFolderId,
-                isStarred: note.isStarred,
-                createdAt: note.createdAt,
-                updatedAt: note.updatedAt,
-                tags: note.tags,
-                rawData: updatedRawData
-            )
+            // ID 相同，只更新 serverTag
+            var updatedNote = note
+            updatedNote.serverTag = serverTag
+            updatedNote.folderId = serverFolderId
             try localStorage.saveNote(updatedNote)
         }
     }
@@ -796,19 +785,8 @@ extension OperationProcessor {
             LogService.shared.warning(.sync, "云端上传冲突，使用服务器最新 tag 重试: \(operation.noteId.prefix(8))...")
 
             // 用服务器返回的正确 tag 更新本地数据库
-            var updatedRawData = note.rawData ?? [:]
-            updatedRawData["tag"] = newTag
-            let noteWithCorrectTag = Note(
-                id: note.id, title: note.title, content: note.content,
-                folderId: note.folderId, isStarred: note.isStarred,
-                createdAt: note.createdAt, updatedAt: note.updatedAt,
-                tags: note.tags, rawData: updatedRawData,
-                snippet: note.snippet, colorId: note.colorId,
-                subject: note.subject, alertDate: note.alertDate,
-                type: note.type, serverTag: newTag,
-                status: note.status, settingJson: note.settingJson,
-                extraInfoJson: note.extraInfoJson
-            )
+            var noteWithCorrectTag = note
+            noteWithCorrectTag.serverTag = newTag
             try localStorage.saveNote(noteWithCorrectTag)
 
             // 传播新 tag 到内存
@@ -842,19 +820,8 @@ extension OperationProcessor {
             }
 
             // 保存重试后的 tag 到数据库
-            var retryRawData = noteWithCorrectTag.rawData ?? [:]
-            retryRawData["tag"] = retryTag
-            let finalNote = Note(
-                id: note.id, title: note.title, content: note.content,
-                folderId: note.folderId, isStarred: note.isStarred,
-                createdAt: note.createdAt, updatedAt: note.updatedAt,
-                tags: note.tags, rawData: retryRawData,
-                snippet: note.snippet, colorId: note.colorId,
-                subject: note.subject, alertDate: note.alertDate,
-                type: note.type, serverTag: retryTag,
-                status: note.status, settingJson: note.settingJson,
-                extraInfoJson: note.extraInfoJson
-            )
+            var finalNote = noteWithCorrectTag
+            finalNote.serverTag = retryTag
             try localStorage.saveNote(finalNote)
             await propagateServerTag(retryTag, forNoteId: note.id)
 
@@ -863,20 +830,8 @@ extension OperationProcessor {
         }
 
         // 正常成功路径
-        var updatedRawData = note.rawData ?? [:]
-        updatedRawData["tag"] = newTag
-
-        let updatedNote = Note(
-            id: note.id, title: note.title, content: note.content,
-            folderId: note.folderId, isStarred: note.isStarred,
-            createdAt: note.createdAt, updatedAt: note.updatedAt,
-            tags: note.tags, rawData: updatedRawData,
-            snippet: note.snippet, colorId: note.colorId,
-            subject: note.subject, alertDate: note.alertDate,
-            type: note.type, serverTag: newTag,
-            status: note.status, settingJson: note.settingJson,
-            extraInfoJson: note.extraInfoJson
-        )
+        var updatedNote = note
+        updatedNote.serverTag = newTag
 
         try localStorage.saveNote(updatedNote)
 

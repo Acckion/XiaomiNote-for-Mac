@@ -298,23 +298,11 @@ final class SyncService: @unchecked Sendable {
                     // 获取笔记详情
                     let noteDetails = try await miNoteService.fetchNoteDetails(noteId: note.id)
                     var updatedNote = note
-                    updatedNote.updateContent(from: noteDetails)
+                    NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
                     // 下载图片，并获取更新后的 setting.data (完整同步强制重新下载)
                     if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id, forceRedownload: true) {
-                        // 更新笔记的 rawData 中的 setting.data
-                        var rawData = updatedNote.rawData ?? [:]
-                        var setting = rawData["setting"] as? [String: Any] ?? [:]
-                        setting["data"] = updatedSettingData
-                        rawData["setting"] = setting
-                        updatedNote.rawData = rawData
-
-                        // 同步更新 settingJson 字段
-                        if let settingData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
-                           let settingString = String(data: settingData, encoding: .utf8)
-                        {
-                            updatedNote.settingJson = settingString
-                        }
+                        NoteMapper.updateSettingData(&updatedNote, settingData: updatedSettingData)
                     }
 
                     // 保存到本地
@@ -344,21 +332,11 @@ final class SyncService: @unchecked Sendable {
                     // 获取笔记详情
                     let noteDetails = try await miNoteService.fetchNoteDetails(noteId: note.id)
                     var updatedNote = note
-                    updatedNote.updateContent(from: noteDetails)
+                    NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
                     // 下载图片，并获取更新后的 setting.data (完整同步强制重新下载)
                     if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id, forceRedownload: true) {
-                        var rawData = updatedNote.rawData ?? [:]
-                        var setting = rawData["setting"] as? [String: Any] ?? [:]
-                        setting["data"] = updatedSettingData
-                        rawData["setting"] = setting
-                        updatedNote.rawData = rawData
-
-                        if let settingData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
-                           let settingString = String(data: settingData, encoding: .utf8)
-                        {
-                            updatedNote.settingJson = settingString
-                        }
+                        NoteMapper.updateSettingData(&updatedNote, settingData: updatedSettingData)
                     }
 
                     // 保存到本地（确保 folderId 为 "2"）
@@ -372,8 +350,7 @@ final class SyncService: @unchecked Sendable {
                             isStarred: finalNote.isStarred,
                             createdAt: finalNote.createdAt,
                             updatedAt: finalNote.updatedAt,
-                            tags: finalNote.tags,
-                            rawData: finalNote.rawData
+                            tags: finalNote.tags
                         )
                     }
 
@@ -963,14 +940,10 @@ final class SyncService: @unchecked Sendable {
                 // 云端较新，拉取云端覆盖本地
                 let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
                 var updatedNote = cloudNote
-                updatedNote.updateContent(from: noteDetails)
+                NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
                 if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id) {
-                    var rawData = updatedNote.rawData ?? [:]
-                    var setting = rawData["setting"] as? [String: Any] ?? [:]
-                    setting["data"] = updatedSettingData
-                    rawData["setting"] = setting
-                    updatedNote.rawData = rawData
+                    NoteMapper.updateSettingData(&updatedNote, settingData: updatedSettingData)
                 }
 
                 try localStorage.saveNote(updatedNote)
@@ -983,14 +956,10 @@ final class SyncService: @unchecked Sendable {
                 if localNote.primaryXMLContent != cloudNote.primaryXMLContent {
                     let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
                     var updatedNote = cloudNote
-                    updatedNote.updateContent(from: noteDetails)
+                    NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
                     if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id) {
-                        var rawData = updatedNote.rawData ?? [:]
-                        var setting = rawData["setting"] as? [String: Any] ?? [:]
-                        setting["data"] = updatedSettingData
-                        rawData["setting"] = setting
-                        updatedNote.rawData = rawData
+                        NoteMapper.updateSettingData(&updatedNote, settingData: updatedSettingData)
                     }
 
                     try localStorage.saveNote(updatedNote)
@@ -1009,7 +978,7 @@ final class SyncService: @unchecked Sendable {
                 operation.type == .cloudDelete && operation.noteId == cloudNote.id
             }
             if hasDeleteOp {
-                if let tag = cloudNote.rawData?["tag"] as? String {
+                if let tag = cloudNote.serverTag {
                     _ = try await miNoteService.deleteNote(noteId: cloudNote.id, tag: tag, purge: false)
                     result.status = .skipped
                     result.message = "在删除队列中，已删除云端"
@@ -1021,14 +990,10 @@ final class SyncService: @unchecked Sendable {
                     if existingNote.updatedAt < cloudNote.updatedAt {
                         let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
                         var updatedNote = cloudNote
-                        updatedNote.updateContent(from: noteDetails)
+                        NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
                         if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id) {
-                            var rawData = updatedNote.rawData ?? [:]
-                            var setting = rawData["setting"] as? [String: Any] ?? [:]
-                            setting["data"] = updatedSettingData
-                            rawData["setting"] = setting
-                            updatedNote.rawData = rawData
+                            NoteMapper.updateSettingData(&updatedNote, settingData: updatedSettingData)
                         }
 
                         try localStorage.saveNote(updatedNote)
@@ -1043,14 +1008,10 @@ final class SyncService: @unchecked Sendable {
                 } else {
                     let noteDetails = try await miNoteService.fetchNoteDetails(noteId: cloudNote.id)
                     var updatedNote = cloudNote
-                    updatedNote.updateContent(from: noteDetails)
+                    NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
                     if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: cloudNote.id) {
-                        var rawData = updatedNote.rawData ?? [:]
-                        var setting = rawData["setting"] as? [String: Any] ?? [:]
-                        setting["data"] = updatedSettingData
-                        rawData["setting"] = setting
-                        updatedNote.rawData = rawData
+                        NoteMapper.updateSettingData(&updatedNote, settingData: updatedSettingData)
                     }
 
                     try localStorage.saveNote(updatedNote)
@@ -1109,12 +1070,7 @@ final class SyncService: @unchecked Sendable {
                            let serverNoteId = entry["id"] as? String,
                            serverNoteId != localNote.id
                         {
-                            var updatedRawData = localNote.rawData ?? [:]
-                            for (key, value) in entry {
-                                updatedRawData[key] = value
-                            }
-
-                            let updatedNote = Note(
+                            var updatedNote = Note(
                                 id: serverNoteId,
                                 title: localNote.title,
                                 content: localNote.content,
@@ -1123,7 +1079,9 @@ final class SyncService: @unchecked Sendable {
                                 createdAt: localNote.createdAt,
                                 updatedAt: localNote.updatedAt,
                                 tags: localNote.tags,
-                                rawData: updatedRawData
+                                serverTag: entry["tag"] as? String ?? localNote.serverTag,
+                                settingJson: localNote.settingJson,
+                                extraInfoJson: localNote.extraInfoJson
                             )
 
                             try localStorage.saveNote(updatedNote)
@@ -1225,14 +1183,10 @@ final class SyncService: @unchecked Sendable {
                 }
 
                 var updatedNote = note
-                updatedNote.updateContent(from: noteDetails)
+                NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
                 if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
-                    var rawData = updatedNote.rawData ?? [:]
-                    var setting = rawData["setting"] as? [String: Any] ?? [:]
-                    setting["data"] = updatedSettingData
-                    rawData["setting"] = setting
-                    updatedNote.rawData = rawData
+                    NoteMapper.updateSettingData(&updatedNote, settingData: updatedSettingData)
                 }
 
                 try localStorage.saveNote(updatedNote)
@@ -1261,7 +1215,7 @@ final class SyncService: @unchecked Sendable {
                         do {
                             let noteDetails = try await miNoteService.fetchNoteDetails(noteId: note.id)
                             var cloudNote = note
-                            cloudNote.updateContent(from: noteDetails)
+                            NoteMapper.updateFromServerDetails(&cloudNote, details: noteDetails)
 
                             let localContent = localNote.primaryXMLContent
                             let cloudContent = cloudNote.primaryXMLContent
@@ -1273,15 +1227,11 @@ final class SyncService: @unchecked Sendable {
                                 return result
                             } else {
                                 if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
-                                    var rawData = cloudNote.rawData ?? [:]
-                                    var setting = rawData["setting"] as? [String: Any] ?? [:]
-                                    setting["data"] = updatedSettingData
-                                    rawData["setting"] = setting
-                                    cloudNote.rawData = rawData
+                                    NoteMapper.updateSettingData(&cloudNote, settingData: updatedSettingData)
                                 }
 
                                 var updatedNote = cloudNote
-                                updatedNote.updateContent(from: noteDetails)
+                                NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
                                 try localStorage.saveNote(updatedNote)
                                 result.status = .updated
                                 result.message = "笔记已更新"
@@ -1310,14 +1260,10 @@ final class SyncService: @unchecked Sendable {
                 }
 
                 var updatedNote = note
-                updatedNote.updateContent(from: noteDetails)
+                NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
                 if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
-                    var rawData = updatedNote.rawData ?? [:]
-                    var setting = rawData["setting"] as? [String: Any] ?? [:]
-                    setting["data"] = updatedSettingData
-                    rawData["setting"] = setting
-                    updatedNote.rawData = rawData
+                    NoteMapper.updateSettingData(&updatedNote, settingData: updatedSettingData)
                 }
 
                 try localStorage.saveNote(updatedNote)
@@ -1340,14 +1286,10 @@ final class SyncService: @unchecked Sendable {
                 }
 
                 var newNote = note
-                newNote.updateContent(from: noteDetails)
+                NoteMapper.updateFromServerDetails(&newNote, details: noteDetails)
 
                 if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
-                    var rawData = newNote.rawData ?? [:]
-                    var setting = rawData["setting"] as? [String: Any] ?? [:]
-                    setting["data"] = updatedSettingData
-                    rawData["setting"] = setting
-                    newNote.rawData = rawData
+                    NoteMapper.updateSettingData(&newNote, settingData: updatedSettingData)
                 }
 
                 try localStorage.saveNote(newNote)
@@ -1934,7 +1876,7 @@ final class SyncService: @unchecked Sendable {
         }
 
         // 转换为Note对象
-        guard let note = Note.fromMinoteData(noteDetails) else {
+        guard let note = NoteMapper.fromMinoteListData(noteDetails) else {
             throw SyncError.invalidNoteData
         }
 
@@ -1983,7 +1925,7 @@ final class SyncService: @unchecked Sendable {
         {
             if let entries = noteViewData["entries"] as? [[String: Any]] {
                 for entry in entries {
-                    if let note = Note.fromMinoteData(entry) {
+                    if let note = NoteMapper.fromMinoteListData(entry) {
                         modifiedNotes.append(note)
                     }
                 }
@@ -2052,10 +1994,7 @@ final class SyncService: @unchecked Sendable {
             return result
         }
 
-        if let rawData = note.rawData,
-           let status = rawData["status"] as? String,
-           status == "deleted"
-        {
+        if note.status == "deleted" {
             try localStorage.deleteNote(noteId: note.id)
             result.status = .skipped
             result.message = "笔记已从云端删除"
@@ -2068,14 +2007,10 @@ final class SyncService: @unchecked Sendable {
             let noteDetails = try await miNoteService.fetchNoteDetails(noteId: note.id)
 
             var updatedNote = note
-            updatedNote.updateContent(from: noteDetails)
+            NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
             if let updatedSettingData = try await downloadNoteImages(from: noteDetails, noteId: note.id) {
-                var rawData = updatedNote.rawData ?? [:]
-                var setting = rawData["setting"] as? [String: Any] ?? [:]
-                setting["data"] = updatedSettingData
-                rawData["setting"] = setting
-                updatedNote.rawData = rawData
+                NoteMapper.updateSettingData(&updatedNote, settingData: updatedSettingData)
             }
 
             try localStorage.saveNote(updatedNote)

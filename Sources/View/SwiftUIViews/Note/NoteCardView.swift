@@ -153,7 +153,7 @@ struct NoteCardView: View {
     /// 锁定图标覆盖层
     @ViewBuilder
     private var lockIconOverlay: some View {
-        if note.rawData?["isLocked"] as? Bool == true {
+        if NoteDisplayProperties.parseIsLocked(from: note) {
             Image(systemName: "lock.fill")
                 .font(.system(size: 12))
                 .foregroundColor(.white)
@@ -202,10 +202,9 @@ struct NoteCardView: View {
             return false
         }
 
-        // 检查 rawData 中的 extraInfo 是否有真正的标题
-        if let rawData = note.rawData,
-           let extraInfo = rawData["extraInfo"] as? String,
-           let extraData = extraInfo.data(using: .utf8),
+        // 检查 extraInfoJson 中是否有真正的标题
+        if let extraInfoJson = note.extraInfoJson,
+           let extraData = extraInfoJson.data(using: .utf8),
            let extraJson = try? JSONSerialization.jsonObject(with: extraData) as? [String: Any],
            let realTitle = extraJson["title"] as? String,
            !realTitle.isEmpty
@@ -281,14 +280,14 @@ struct NoteCardView: View {
 
     /// 从笔记中提取第一张图片的信息
     private func getFirstImageInfo(from note: Note) -> (fileId: String, fileType: String)? {
-        guard let rawData = note.rawData,
-              let setting = rawData["setting"] as? [String: Any],
+        guard let settingJson = note.settingJson,
+              let jsonData = settingJson.data(using: .utf8),
+              let setting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
               let settingData = setting["data"] as? [[String: Any]]
         else {
             return nil
         }
 
-        // 查找第一张图片
         for imgData in settingData {
             if let fileId = imgData["fileId"] as? String,
                let mimeType = imgData["mimeType"] as? String,
@@ -304,8 +303,9 @@ struct NoteCardView: View {
 
     /// 获取图片信息的哈希值
     private func getImageInfoHash(from note: Note) -> String {
-        guard let rawData = note.rawData,
-              let setting = rawData["setting"] as? [String: Any],
+        guard let settingJson = note.settingJson,
+              let jsonData = settingJson.data(using: .utf8),
+              let setting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
               let settingData = setting["data"] as? [[String: Any]]
         else {
             return "no_images"

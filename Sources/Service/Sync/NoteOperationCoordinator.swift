@@ -355,8 +355,7 @@ public actor NoteOperationCoordinator {
             isStarred: false,
             createdAt: now,
             updatedAt: now,
-            tags: [],
-            rawData: nil
+            tags: []
         )
 
         // 3. 保存到本地数据库

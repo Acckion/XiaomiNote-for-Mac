@@ -155,6 +155,7 @@
 		81348C353C6753A4412F1CA7 /* XMLEntityCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 813AD28F80536DCB40808194 /* XMLEntityCodec.swift */; };
 		81AD9FCDB21ABDC4245A4844 /* FlippedStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53AB6D065365A80727209289 /* FlippedStackView.swift */; };
 		82C2B6DF0C1EEECCA47E5140 /* BaseViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C6AAD1C2AB2A2A45AF0C864 /* BaseViewModel.swift */; };
+		83F61AB5AB2B89C04535539D /* NoteMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509EC27F4B5AEFDE54A37A32 /* NoteMapper.swift */; };
 		83F73AF43550EFE3A37FD168 /* AutoSaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F99F485F449DFAF8E614266 /* AutoSaveManager.swift */; };
 		856A47453F767DEDEDA9B87B /* SearchFilterMenuContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F5AA98706224C93394BA6CD /* SearchFilterMenuContent.swift */; };
 		868E02A3BB670D82FA7A24D2 /* InlineFormatHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 935849EE298307BDFA679DA7 /* InlineFormatHandler.swift */; };
@@ -417,6 +418,7 @@
 		4F99F485F449DFAF8E614266 /* AutoSaveManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoSaveManager.swift; sourceTree = "<group>"; };
 		4FC9B374C346E86438315072 /* CacheServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheServiceProtocol.swift; sourceTree = "<group>"; };
 		4FF30651D051B00D75DEA6F8 /* TitleTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleTextField.swift; sourceTree = "<group>"; };
+		509EC27F4B5AEFDE54A37A32 /* NoteMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteMapper.swift; sourceTree = "<group>"; };
 		5233A3FADFEFFA29C91C10D2 /* MiNoteService+NoteServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MiNoteService+NoteServiceProtocol.swift"; sourceTree = "<group>"; };
 		5378E2CEA9ACB11DB1BA79D0 /* PageableViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageableViewModel.swift; sourceTree = "<group>"; };
 		53AB6D065365A80727209289 /* FlippedStackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlippedStackView.swift; sourceTree = "<group>"; };
@@ -1374,6 +1376,7 @@
 				837D1A4BD47198D9037FB29C /* Note.swift */,
 				E37A7A4CBCA0AB8BDB7F6D8F /* NoteHistoryVersion.swift */,
 				4C7F993C8253413F7C9A9F79 /* NoteImageAttachment.swift */,
+				509EC27F4B5AEFDE54A37A32 /* NoteMapper.swift */,
 				270282B256DE7C3BF5ED1372 /* PendingUploadEntry.swift */,
 				75F1DB31FF5233FAD5310C6D /* TitleExtractionResult.swift */,
 				AEF19FCB59B84D1474DA6684 /* UserProfile.swift */,
@@ -1814,6 +1817,7 @@
 				D74AFB5E74289F288091F0EE /* NoteHistoryView.swift in Sources */,
 				D48317C12C293D8CC572EB77 /* NoteImageAttachment.swift in Sources */,
 				33C57888CDB8669D085913C3 /* NoteListViewModel.swift in Sources */,
+				83F61AB5AB2B89C04535539D /* NoteMapper.swift in Sources */,
 				42EBB76CFCDF239FC0416063 /* NoteMoveHelper.swift in Sources */,
 				3F4307B857D9361CD3D3E2A6 /* NoteOperation.swift in Sources */,
 				E6E8651B913B70759DA14C05 /* NoteOperationCoordinator.swift in Sources */,

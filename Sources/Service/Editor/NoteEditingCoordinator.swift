@@ -233,11 +233,8 @@ public final class NoteEditingCoordinator: ObservableObject {
                 createdAt: capturedNote.createdAt,
                 updatedAt: capturedNote.updatedAt,
                 tags: capturedNote.tags,
-                rawData: capturedNote.rawData,
                 snippet: capturedNote.snippet,
                 colorId: capturedNote.colorId,
-                subject: capturedNote.subject,
-                alertDate: capturedNote.alertDate,
                 type: capturedNote.type,
                 serverTag: capturedNote.serverTag,
                 status: capturedNote.status,
@@ -339,11 +336,8 @@ public final class NoteEditingCoordinator: ObservableObject {
             createdAt: note.createdAt,
             updatedAt: Date(),
             tags: note.tags,
-            rawData: note.rawData,
             snippet: note.snippet,
             colorId: note.colorId,
-            subject: note.subject,
-            alertDate: note.alertDate,
             type: note.type,
             serverTag: note.serverTag,
             status: note.status,
@@ -828,15 +822,6 @@ public final class NoteEditingCoordinator: ObservableObject {
             note.title
         }
 
-        var mergedRawData = note.rawData ?? [:]
-        if let latestNote = viewModel?.selectedNote, latestNote.id == note.id {
-            if let latestRawData = latestNote.rawData {
-                if let latestSetting = latestRawData["setting"] as? [String: Any] {
-                    mergedRawData["setting"] = latestSetting
-                }
-            }
-        }
-
         // 从数据库读取最新的 serverTag，避免内存中的过期 tag 覆盖数据库中上传成功后更新的新 tag
         let latestServerTag: String? = if let dbNote = try? DatabaseService.shared.loadNote(noteId: note.id) {
             dbNote.serverTag
@@ -844,9 +829,12 @@ public final class NoteEditingCoordinator: ObservableObject {
             note.serverTag
         }
 
-        // 同步更新 rawData 中的 tag 字段，保持一致性
-        if let tag = latestServerTag {
-            mergedRawData["tag"] = tag
+        // 同步更新 settingJson：合并最新的 setting 数据
+        var mergedSettingJson = note.settingJson
+        if let latestNote = viewModel?.selectedNote, latestNote.id == note.id {
+            if let latestSettingJson = latestNote.settingJson, !latestSettingJson.isEmpty {
+                mergedSettingJson = latestSettingJson
+            }
         }
 
         let updatedAt = shouldUpdateTimestamp ? Date() : note.updatedAt
@@ -860,10 +848,8 @@ public final class NoteEditingCoordinator: ObservableObject {
             createdAt: note.createdAt,
             updatedAt: updatedAt,
             tags: note.tags,
-            rawData: mergedRawData,
-            subject: note.subject,
             serverTag: latestServerTag,
-            settingJson: note.settingJson,
+            settingJson: mergedSettingJson,
             extraInfoJson: note.extraInfoJson
         )
     }

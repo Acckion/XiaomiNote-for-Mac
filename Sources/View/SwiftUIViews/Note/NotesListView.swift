@@ -50,7 +50,7 @@ struct NoteDisplayProperties: Equatable, Hashable {
         self.updatedAt = note.updatedAt
         self.isStarred = note.isStarred
         self.folderId = note.folderId
-        self.isLocked = note.rawData?["isLocked"] as? Bool ?? false
+        self.isLocked = NoteDisplayProperties.parseIsLocked(from: note)
         self.imageInfoHash = NoteDisplayProperties.getImageInfoHash(from: note)
     }
 
@@ -86,12 +86,25 @@ struct NoteDisplayProperties: Equatable, Hashable {
         return text
     }
 
+    /// 从 extraInfoJson 解析 isLocked 状态
+    static func parseIsLocked(from note: Note) -> Bool {
+        guard let extraInfoJson = note.extraInfoJson,
+              let jsonData = extraInfoJson.data(using: .utf8),
+              let extraInfo = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+              let isLocked = extraInfo["isLocked"] as? Bool
+        else {
+            return false
+        }
+        return isLocked
+    }
+
     /// 获取图片信息的哈希值
     /// - Parameter note: 笔记对象
     /// - Returns: 图片信息哈希字符串
     private static func getImageInfoHash(from note: Note) -> String {
-        guard let rawData = note.rawData,
-              let setting = rawData["setting"] as? [String: Any],
+        guard let settingJson = note.settingJson,
+              let jsonData = settingJson.data(using: .utf8),
+              let setting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
               let settingData = setting["data"] as? [[String: Any]]
         else {
             return "no_images"
@@ -833,7 +846,7 @@ struct NoteRow: View {
                 }
 
                 // 锁图标（如果有）
-                if note.rawData?["isLocked"] as? Bool == true {
+                if NoteDisplayProperties.parseIsLocked(from: note) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
@@ -908,10 +921,9 @@ struct NoteRow: View {
             return false
         }
 
-        // 检查 rawData 中的 extraInfo 是否有真正的标题
-        if let rawData = note.rawData,
-           let extraInfo = rawData["extraInfo"] as? String,
-           let extraData = extraInfo.data(using: .utf8),
+        // 检查 extraInfoJson 中是否有真正的标题
+        if let extraInfoJson = note.extraInfoJson,
+           let extraData = extraInfoJson.data(using: .utf8),
            let extraJson = try? JSONSerialization.jsonObject(with: extraData) as? [String: Any],
            let realTitle = extraJson["title"] as? String,
            !realTitle.isEmpty

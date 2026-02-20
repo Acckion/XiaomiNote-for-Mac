@@ -103,20 +103,8 @@ extension DatabaseService {
         }
         idx += 1
 
-        if let rawData = note.rawData {
-            do {
-                let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
-                if let rawDataString = String(data: jsonData, encoding: .utf8) {
-                    sqlite3_bind_text(statement, idx, (rawDataString as NSString).utf8String, -1, nil)
-                } else {
-                    sqlite3_bind_null(statement, idx)
-                }
-            } catch {
-                throw DatabaseError.validationFailed("rawData JSON 序列化失败: \(error)")
-            }
-        } else {
-            sqlite3_bind_null(statement, idx)
-        }
+        // raw_data 列保留但不再写入，绑定 NULL
+        sqlite3_bind_null(statement, idx)
         idx += 1
 
         if let snippet = note.snippet {
@@ -129,18 +117,12 @@ extension DatabaseService {
         sqlite3_bind_int(statement, idx, Int32(note.colorId))
         idx += 1
 
-        if let subject = note.subject {
-            sqlite3_bind_text(statement, idx, (subject as NSString).utf8String, -1, nil)
-        } else {
-            sqlite3_bind_null(statement, idx)
-        }
+        // subject 列保留但不再写入，绑定 NULL
+        sqlite3_bind_null(statement, idx)
         idx += 1
 
-        if let alertDate = note.alertDate {
-            sqlite3_bind_int64(statement, idx, Int64(alertDate.timeIntervalSince1970 * 1000))
-        } else {
-            sqlite3_bind_null(statement, idx)
-        }
+        // alertDate 列保留但不再写入，绑定 NULL
+        sqlite3_bind_null(statement, idx)
         idx += 1
 
         sqlite3_bind_text(statement, idx, (note.type as NSString).utf8String, -1, nil)
@@ -202,17 +184,7 @@ extension DatabaseService {
         }
 
         var rawData: [String: Any]?
-        if let rawDataText = sqlite3_column_text(statement, 8) {
-            let rawDataString = String(cString: rawDataText)
-            if !rawDataString.isEmpty, let rawDataData = rawDataString.data(using: .utf8) {
-                do {
-                    rawData = try JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
-                } catch {
-                    LogService.shared.error(.storage, "解析 raw_data JSON 失败 (id=\(id)): \(error)")
-                    rawData = nil
-                }
-            }
-        }
+        // raw_data 列保留但不再读取（跳过 column 8）
 
         var snippet: String?
         if sqlite3_column_type(statement, 9) != SQLITE_NULL,
@@ -227,20 +199,9 @@ extension DatabaseService {
             0
         }
 
-        var subject: String?
-        if sqlite3_column_type(statement, 11) != SQLITE_NULL,
-           let subjectText = sqlite3_column_text(statement, 11)
-        {
-            subject = String(cString: subjectText)
-        }
+        // subject 列保留但不再读取（跳过 column 11）
 
-        var alertDate: Date?
-        if sqlite3_column_type(statement, 12) != SQLITE_NULL {
-            let alertDateMs = sqlite3_column_int64(statement, 12)
-            if alertDateMs > 0 {
-                alertDate = Date(timeIntervalSince1970: TimeInterval(alertDateMs) / 1000.0)
-            }
-        }
+        // alertDate 列保留但不再读取（跳过 column 12）
 
         let type = if sqlite3_column_type(statement, 13) != SQLITE_NULL,
                       let typeText = sqlite3_column_text(statement, 13)
@@ -310,11 +271,8 @@ extension DatabaseService {
             createdAt: createdAt,
             updatedAt: updatedAt,
             tags: tags,
-            rawData: rawData,
             snippet: snippet,
             colorId: colorId,
-            subject: subject,
-            alertDate: alertDate,
             type: type,
             serverTag: serverTag,
             status: status,
