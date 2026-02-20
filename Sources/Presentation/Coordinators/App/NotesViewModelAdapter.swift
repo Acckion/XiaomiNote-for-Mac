@@ -58,9 +58,9 @@ public final class NotesViewModelAdapter: NotesViewModel {
         // 1. 双向同步笔记列表
         // NoteListViewModel → NotesViewModel（加载和同步后刷新）
         coordinator.noteListViewModel.$notes
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] notes in
                 guard let self, !isSyncingNotesBack else { return }
+                guard self.notes != notes else { return }
                 isSyncingNotesFromList = true
                 self.notes = notes
                 isSyncingNotesFromList = false
@@ -69,9 +69,9 @@ public final class NotesViewModelAdapter: NotesViewModel {
 
         // NotesViewModel → NoteListViewModel（编辑器保存后更新列表）
         $notes
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] notes in
                 guard let self, !isSyncingNotesFromList else { return }
+                guard coordinator.noteListViewModel.notes != notes else { return }
                 isSyncingNotesBack = true
                 coordinator.noteListViewModel.notes = notes
                 isSyncingNotesBack = false
@@ -81,9 +81,9 @@ public final class NotesViewModelAdapter: NotesViewModel {
         // 2. 双向同步选中的笔记
         // NoteListViewModel → NotesViewModel
         coordinator.noteListViewModel.$selectedNote
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] note in
                 guard let self, !isSyncingSelectedNoteBack else { return }
+                guard selectedNote?.id != note?.id else { return }
                 isSyncingSelectedNoteFromList = true
                 selectedNote = note
                 isSyncingSelectedNoteFromList = false
@@ -92,7 +92,6 @@ public final class NotesViewModelAdapter: NotesViewModel {
 
         // NotesViewModel → NoteListViewModel
         $selectedNote
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] note in
                 guard let self, !isSyncingSelectedNoteFromList else { return }
                 guard coordinator.noteListViewModel.selectedNote?.id != note?.id else { return }
