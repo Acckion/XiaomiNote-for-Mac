@@ -58,6 +58,12 @@ public class NotesViewModel: ObservableObject {
     /// 错误消息（用于显示错误提示）
     @Published var errorMessage: String?
 
+    /// 是否有未保存的编辑内容
+    @Published public var hasUnsavedContent = false
+
+    /// 文件夹切换前保存回调（由 NoteDetailView 注册）
+    public var saveContentCallback: (() async -> Bool)?
+
     /// 搜索文本
     @Published var searchText = ""
 
