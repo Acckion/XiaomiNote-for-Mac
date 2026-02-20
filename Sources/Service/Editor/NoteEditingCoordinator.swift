@@ -787,27 +787,25 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     // MARK: - 辅助方法
 
-    /// 统一更新 ViewModel（替代 updateViewModelDelayed + updateNotesArrayDelayed）
+    /// 统一更新 ViewModel
+    ///
+    /// 只更新 notes 数组和 stateCoordinator，不更新 selectedNote
+    /// 避免触发 SwiftUI onChange 链导致编辑器状态混乱
     func updateViewModel(with updated: Note) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            if let index = viewModel?.notes.firstIndex(where: { $0.id == updated.id }) {
-                viewModel?.notes[index] = updated
-            }
-            if viewModel?.selectedNote?.id == updated.id {
-                viewModel?.selectedNote = updated
-                viewModel?.stateCoordinator.updateNoteContent(updated)
-            }
+        guard let viewModel else { return }
+        if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
+            viewModel.notes[index] = updated
+        }
+        if viewModel.selectedNote?.id == updated.id {
+            viewModel.stateCoordinator.updateNoteContent(updated)
         }
     }
 
     /// 仅更新 notes 数组（不更新 selectedNote）
     func updateNotesArrayOnly(with updated: Note) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            if let index = viewModel?.notes.firstIndex(where: { $0.id == updated.id }) {
-                viewModel?.notes[index] = updated
-            }
+        guard let viewModel else { return }
+        if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
+            viewModel.notes[index] = updated
         }
     }
 

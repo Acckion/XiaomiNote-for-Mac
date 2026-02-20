@@ -1507,6 +1507,14 @@ public class NotesViewModel: ObservableObject {
             notes = localNotes
             LogService.shared.debug(.viewmodel, "重新加载了 \(localNotes.count) 条笔记")
 
+            // 同步后更新 selectedNote，确保编辑器显示最新内容
+            if let currentId = selectedNote?.id,
+               let updatedNote = localNotes.first(where: { $0.id == currentId })
+            {
+                selectedNote = updatedNote
+                await MemoryCacheManager.shared.cacheNote(updatedNote)
+            }
+
             loadFolders()
             updateFolderCounts()
         } catch {

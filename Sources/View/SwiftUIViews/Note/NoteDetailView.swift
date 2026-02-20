@@ -103,6 +103,7 @@ struct NoteDetailView: View {
     private func handleSelectedNoteChange(oldValue: Note?, newValue: Note?) {
         guard let newNote = newValue else { return }
         if oldValue?.id != newNote.id {
+            // 不同笔记：先保存旧笔记再切换
             let task = editingCoordinator.saveBeforeSwitching(newNoteId: newNote.id)
             Task { @MainActor in
                 if let t = task { await t.value }
@@ -111,6 +112,15 @@ struct NoteDetailView: View {
                     debugXMLContent = editingCoordinator.currentXMLContent
                     debugSaveStatus = .saved
                 }
+            }
+        } else if let oldNote = oldValue,
+                  oldNote.content != newNote.content,
+                  !editingCoordinator.isSavingLocally,
+                  !editingCoordinator.isSavingBeforeSwitch
+        {
+            // 同一笔记但内容变化（外部同步更新），重新加载
+            Task { @MainActor in
+                await editingCoordinator.switchToNote(newNote)
             }
         }
     }
