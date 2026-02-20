@@ -364,7 +364,7 @@ struct NoteDetailView: View {
             handleNoteAppear(note)
         }
         // 笔记切换由外层 handleSelectedNoteChange 统一处理，此处不再重复
-        .onChange(of: nativeEditorContext.titleText) { _, newValue in
+        .onReceive(nativeEditorContext.titleChangePublisher) { newValue in
             // 标题由 TitleTextField 编辑时，同步到 editedTitle
             if editedTitle != newValue {
                 editedTitle = newValue
@@ -1114,7 +1114,7 @@ struct NoteDetailView: View {
     private func handleTitleChange(_ newValue: String) async {
         guard !isInitializing, newValue != originalTitle else { return }
 
-        originalTitle = newValue
+        // originalTitle 在 saveTitleAndContent 保存成功后更新，避免提前赋值导致变化检测失效
         await performTitleChangeSave(newTitle: newValue)
     }
 
@@ -1436,6 +1436,8 @@ struct NoteDetailView: View {
     @State private var cloudUploadTask: Task<Void, Never>?
     /// 每个笔记的最后上传内容（按笔记 ID 存储）
     @State private var lastUploadedContentByNoteId: [String: String] = [:]
+    /// 每个笔记的最后上传标题（按笔记 ID 存储）
+    @State private var lastUploadedTitleByNoteId: [String: String] = [:]
 
     private func scheduleCloudUpload(for note: Note, xmlContent: String) {
         guard viewModel.isOnline, viewModel.isLoggedIn else {
@@ -1445,7 +1447,10 @@ struct NoteDetailView: View {
         }
 
         let lastUploadedForThisNote = lastUploadedContentByNoteId[note.id] ?? ""
-        guard xmlContent != lastUploadedForThisNote else {
+        let lastUploadedTitle = lastUploadedTitleByNoteId[note.id] ?? ""
+        let currentTitle = editedTitle.isEmpty ? note.title : editedTitle
+        // 内容和标题都没变时才跳过
+        guard xmlContent != lastUploadedForThisNote || currentTitle != lastUploadedTitle else {
             return
         }
 
@@ -1457,9 +1462,11 @@ struct NoteDetailView: View {
             guard !Task.isCancelled, currentEditingNoteId == noteId else { return }
 
             let latestXMLContent = currentXMLContent.isEmpty ? xmlContent : currentXMLContent
+            let latestTitle = editedTitle.isEmpty ? note.title : editedTitle
 
             let lastUploaded = lastUploadedContentByNoteId[noteId] ?? ""
-            guard latestXMLContent != lastUploaded else {
+            let lastTitle = lastUploadedTitleByNoteId[noteId] ?? ""
+            guard latestXMLContent != lastUploaded || latestTitle != lastTitle else {
                 return
             }
 
@@ -1470,6 +1477,7 @@ struct NoteDetailView: View {
 
             await performCloudUpload(for: note, xmlContent: latestXMLContent)
             lastUploadedContentByNoteId[noteId] = latestXMLContent
+            lastUploadedTitleByNoteId[noteId] = latestTitle
         }
     }
 

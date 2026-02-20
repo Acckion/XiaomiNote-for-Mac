@@ -272,6 +272,9 @@ public class NativeEditorContext: ObservableObject {
     /// 缩进操作发布者
     private let indentChangeSubject = PassthroughSubject<IndentOperation, Never>()
 
+    /// 标题变化发布者（用于绕过 SwiftUI 无法观察计算属性链上 @Published 变化的问题）
+    private let titleChangeSubject = PassthroughSubject<String, Never>()
+
     /// 格式转换器
     private let formatConverter = XiaoMiFormatConverter.shared
 
@@ -325,6 +328,11 @@ public class NativeEditorContext: ObservableObject {
     /// 缩进操作发布者
     var indentChangePublisher: AnyPublisher<IndentOperation, Never> {
         indentChangeSubject.eraseToAnyPublisher()
+    }
+
+    /// 标题变化发布者
+    var titleChangePublisher: AnyPublisher<String, Never> {
+        titleChangeSubject.eraseToAnyPublisher()
     }
 
     // MARK: - Initialization
@@ -1228,6 +1236,11 @@ public class NativeEditorContext: ObservableObject {
     public func notifyContentChange() {
         contentChangeSubject.send(nsAttributedText)
         hasUnsavedChanges = true
+    }
+
+    /// 通知标题变化（由 NativeEditorView.Coordinator 调用）
+    public func notifyTitleChange(_ title: String) {
+        titleChangeSubject.send(title)
     }
 
     /// 根据当前光标位置更新格式状态
