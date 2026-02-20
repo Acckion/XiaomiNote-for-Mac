@@ -234,6 +234,7 @@
 		D40874FA4B050A82820914E7 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F72E84B0EB4D67C81832A72 /* SidebarView.swift */; };
 		D48317C12C293D8CC572EB77 /* NoteImageAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C7F993C8253413F7C9A9F79 /* NoteImageAttachment.swift */; };
 		D50C0193018C0FD064802EF0 /* BaseSheetToolbarDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CA14F2F9F71D998E97AF5D /* BaseSheetToolbarDelegate.swift */; };
+		D6E8049ABDBB8400C8949CBA /* NoteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA0ACBEBAA68D957B50D00D /* NoteStore.swift */; };
 		D74AFB5E74289F288091F0EE /* NoteHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C86277B721480A72E5E65BE8 /* NoteHistoryView.swift */; };
 		D963273E02023EA1FB48AA9F /* AudioAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 305FEF5D4ABF0071C1325748 /* AudioAttachment.swift */; };
 		DBAA0A08844DA6808949C1B5 /* UndoRedoStateHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438DF85A272111C8EE27CC07 /* UndoRedoStateHandler.swift */; };
@@ -547,6 +548,7 @@
 		CA9C677B52491DDB9517DB34 /* DefaultCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultCacheService.swift; sourceTree = "<group>"; };
 		CAEF726E1B0B16672107891A /* SidebarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewController.swift; sourceTree = "<group>"; };
 		CB8E6EBCA9EAA667044F9F3E /* PasteboardManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteboardManager.swift; sourceTree = "<group>"; };
+		CBA0ACBEBAA68D957B50D00D /* NoteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStore.swift; sourceTree = "<group>"; };
 		CBABE7BAC4DC8FDD181B7B9F /* ParagraphManagerDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParagraphManagerDebugView.swift; sourceTree = "<group>"; };
 		CCB262906957F0C09B5BB34A /* EditorProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorProtocol.swift; sourceTree = "<group>"; };
 		CE3938611CC064A722858184 /* DatabaseMigrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseMigrationManager.swift; sourceTree = "<group>"; };
@@ -673,6 +675,14 @@
 				8AA6DDC54F732545F3846011 /* Implementation */,
 			);
 			path = Cache;
+			sourceTree = "<group>";
+		};
+		0FF4B2C5BF84ABE5A51CBB03 /* Store */ = {
+			isa = PBXGroup;
+			children = (
+				CBA0ACBEBAA68D957B50D00D /* NoteStore.swift */,
+			);
+			path = Store;
 			sourceTree = "<group>";
 		};
 		15F7CA8BB89AEB292A13A3D9 /* Generator */ = {
@@ -813,6 +823,7 @@
 				C6671AB760CA36EDBA6AFBAF /* Model */,
 				B6FDF8C4ABEEFD122A7DAD77 /* Presentation */,
 				71046AD57CD13E9510A9B807 /* Service */,
+				0FF4B2C5BF84ABE5A51CBB03 /* Store */,
 				7649859D3BEACD50ACB89AD3 /* ToolbarItem */,
 				49BCB5DE1940DBC664E1DA7B /* View */,
 				082187BAF9CF3A7D9D58DA2E /* ViewModel */,
@@ -1825,6 +1836,7 @@
 				DFE4F55D3EEABAD1AD4366DE /* NotePreviewService.swift in Sources */,
 				28C69F9CC00BBE3BB2E0300B /* NoteServiceProtocol.swift in Sources */,
 				0ACD977EBE2231E5783FABA9 /* NoteStorageProtocol.swift in Sources */,
+				D6E8049ABDBB8400C8949CBA /* NoteStore.swift in Sources */,
 				FCD7487FEDD86516F504BA95 /* NoteUpdateEvent.swift in Sources */,
 				2B74B192C5F0ECF3B0CAF378 /* NotesListHostingController.swift in Sources */,
 				F3B320B44618ABF1B5827B54 /* NotesListView.swift in Sources */,
