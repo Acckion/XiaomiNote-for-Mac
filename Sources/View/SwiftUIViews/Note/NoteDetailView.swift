@@ -63,7 +63,7 @@ struct NoteDetailView: View {
                 registerSaveCallback()
             }
             .onDisappear {
-                viewModel.stateCoordinator.saveContentCallback = nil
+                viewModel.saveContentCallback = nil
             }
             .onReceive(NotificationCenter.default.publisher(for: .toggleDebugMode)) { _ in
                 toggleDebugMode()
@@ -95,7 +95,7 @@ struct NoteDetailView: View {
     }
 
     private func registerSaveCallback() {
-        viewModel.stateCoordinator.saveContentCallback = { [editingCoordinator] in
+        viewModel.saveContentCallback = { [editingCoordinator] in
             await editingCoordinator.saveForFolderSwitch()
         }
     }
@@ -332,7 +332,7 @@ struct NoteDetailView: View {
 
             await MemoryCacheManager.shared.cacheNote(updated)
             editingCoordinator.updateViewModel(with: updated)
-            viewModel.stateCoordinator.hasUnsavedContent = false
+            viewModel.hasUnsavedContent = false
             editingCoordinator.scheduleCloudUpload(for: updated, xmlContent: debugXMLContent)
         } catch {
             let errorMessage = "保存失败: \(error.localizedDescription)"
