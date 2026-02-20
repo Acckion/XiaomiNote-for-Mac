@@ -1585,7 +1585,7 @@ struct NoteDetailView: View {
 
         isSavingBeforeSwitch = true
 
-        Task { @MainActor in
+        return Task { @MainActor in
             defer { isSavingBeforeSwitch = false }
 
             let content: String = capturedContent
@@ -1598,12 +1598,10 @@ struct NoteDetailView: View {
             )
 
             if hasActualChange {
-                // 切换笔记时的自动保存不更新时间戳，避免触发列表重排
                 let updated = buildUpdatedNote(from: currentNote, xmlContent: content, shouldUpdateTimestamp: false)
 
                 await MemoryCacheManager.shared.cacheNote(updated)
 
-                // 延迟更新 notes 数组，避免在视图更新周期内修改 @Published 属性
                 updateNotesArrayDelayed(with: updated)
 
                 DatabaseService.shared.saveNoteAsync(updated) { error in
@@ -1617,8 +1615,6 @@ struct NoteDetailView: View {
                 }
             }
         }
-
-        return nil
     }
 
     private func handleSelectedNoteChange(oldValue: Note?, newValue: Note?) {

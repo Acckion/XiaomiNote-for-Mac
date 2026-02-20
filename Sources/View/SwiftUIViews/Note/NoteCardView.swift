@@ -401,14 +401,18 @@ struct NoteCardView: View {
             // 延迟100ms
             try? await Task.sleep(nanoseconds: 100_000_000)
 
-            // 如果笔记内容为空，预加载完整内容
+            // 如果笔记内容为空，从数据库预加载完整内容
             if note.content.isEmpty {
-                if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
-                    await MemoryCacheManager.shared.cacheNote(fullNote)
+                // 先检查缓存中是否已有该笔记，避免覆盖更新的数据
+                let cached = await MemoryCacheManager.shared.getNote(noteId: note.id)
+                if cached == nil {
+                    if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+                        await MemoryCacheManager.shared.cacheNote(fullNote)
+                    }
                 }
-            } else {
-                await MemoryCacheManager.shared.cacheNote(note)
             }
+            // 当 note.content 不为空时，不再写入缓存
+            // 因为 notes 数组中的 note 对象可能是过时的，写入缓存会覆盖最新内容
         }
     }
 }
