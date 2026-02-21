@@ -28,7 +28,7 @@ public struct ContentView: View {
     @ObservedObject var searchState: SearchState
     @ObservedObject var noteEditorState: NoteEditorState
 
-    /// 向后兼容：仍需要 viewModel 用于尚未迁移的子视图
+    /// 向后兼容：仅用于 TrashView 和 NotesListViewControllerWrapper（尚未迁移到 State 架构）
     private var viewModel: NotesViewModel {
         coordinator.notesViewModel
     }
@@ -399,8 +399,8 @@ public struct ContentView: View {
     /// 状态提示文本（包含待处理操作信息）
     private var statusHelpTextWithOperations: String {
         var helpText = statusHelpText
-        if viewModel.pendingOperationsCount > 0 {
-            helpText += "\n待处理操作: \(viewModel.pendingOperationsCount) 个"
+        if syncState.pendingOperationsCount > 0 {
+            helpText += "\n待处理操作: \(syncState.pendingOperationsCount) 个"
         }
         return helpText
     }
@@ -441,7 +441,9 @@ public struct ContentView: View {
             }
 
             Button {
-                viewModel.resetSyncStatus()
+                syncState.lastSyncTime = nil
+                syncState.syncStatusMessage = ""
+                syncState.lastSyncedNotesCount = 0
             } label: {
                 Label("重置同步状态", systemImage: "arrow.counterclockwise")
             }
@@ -488,27 +490,27 @@ public struct ContentView: View {
 
             Divider()
 
-            // 离线操作处理（仍使用 viewModel，因为 State 对象尚未提供这些属性）
-            if viewModel.pendingOperationsCount > 0 {
+            // 离线操作处理
+            if syncState.pendingOperationsCount > 0 {
                 Button {
                     showingOfflineOperationsProgress = true
                     Task {
                         await OperationProcessor.shared.processQueue()
                     }
                 } label: {
-                    Label("处理离线操作 (\(viewModel.pendingOperationsCount))", systemImage: "arrow.clockwise.circle")
+                    Label("处理离线操作 (\(syncState.pendingOperationsCount))", systemImage: "arrow.clockwise.circle")
                 }
-                .disabled(viewModel.isProcessingOfflineQueue || !authState.isOnline)
+                .disabled(syncState.isProcessingOfflineQueue || !authState.isOnline)
 
-                if viewModel.offlineQueueFailedCount > 0 {
+                if syncState.offlineQueueFailedCount > 0 {
                     Button {
                         Task {
                             await OperationProcessor.shared.processRetries()
                         }
                     } label: {
-                        Label("重试失败操作 (\(viewModel.offlineQueueFailedCount))", systemImage: "arrow.counterclockwise.circle")
+                        Label("重试失败操作 (\(syncState.offlineQueueFailedCount))", systemImage: "arrow.counterclockwise.circle")
                     }
-                    .disabled(viewModel.isProcessingOfflineQueue || !authState.isOnline)
+                    .disabled(syncState.isProcessingOfflineQueue || !authState.isOnline)
                 }
 
                 Divider()
@@ -523,8 +525,8 @@ public struct ContentView: View {
                     let alert = NSAlert()
                     alert.messageText = "同步状态"
                     var infoText = "上次同步时间: \(formatter.string(from: lastSync))"
-                    if viewModel.pendingOperationsCount > 0 {
-                        infoText += "\n待处理操作: \(viewModel.pendingOperationsCount) 个"
+                    if syncState.pendingOperationsCount > 0 {
+                        infoText += "\n待处理操作: \(syncState.pendingOperationsCount) 个"
                     }
                     alert.informativeText = infoText
                     alert.addButton(withTitle: "确定")
@@ -533,8 +535,8 @@ public struct ContentView: View {
                     let alert = NSAlert()
                     alert.messageText = "同步状态"
                     var infoText = "从未同步"
-                    if viewModel.pendingOperationsCount > 0 {
-                        infoText += "\n待处理操作: \(viewModel.pendingOperationsCount) 个"
+                    if syncState.pendingOperationsCount > 0 {
+                        infoText += "\n待处理操作: \(syncState.pendingOperationsCount) 个"
                     }
                     alert.informativeText = infoText
                     alert.addButton(withTitle: "确定")
@@ -558,24 +560,24 @@ public struct ContentView: View {
                     .font(.caption2)
                     .foregroundColor(statusColor)
 
-                if viewModel.unifiedPendingUploadCount > 0 {
+                if syncState.unifiedPendingUploadCount > 0 {
                     HStack(spacing: 2) {
                         Image(systemName: "arrow.up.circle")
                             .font(.system(size: 8))
-                        Text("\(viewModel.unifiedPendingUploadCount)")
+                        Text("\(syncState.unifiedPendingUploadCount)")
                             .font(.caption2)
                     }
                     .foregroundColor(.orange)
-                } else if viewModel.temporaryIdNoteCount > 0 {
+                } else if syncState.temporaryIdNoteCount > 0 {
                     HStack(spacing: 2) {
                         Image(systemName: "doc.badge.clock")
                             .font(.system(size: 8))
-                        Text("\(viewModel.temporaryIdNoteCount)")
+                        Text("\(syncState.temporaryIdNoteCount)")
                             .font(.caption2)
                     }
                     .foregroundColor(.purple)
-                } else if viewModel.pendingOperationsCount > 0 {
-                    Text("(\(viewModel.pendingOperationsCount))")
+                } else if syncState.pendingOperationsCount > 0 {
+                    Text("(\(syncState.pendingOperationsCount))")
                         .font(.caption2)
                         .foregroundColor(.orange)
                 }

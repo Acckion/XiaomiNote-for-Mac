@@ -64,6 +64,39 @@ final class SyncState: ObservableObject {
         isSyncing || isProcessingOfflineQueue || isLoadingLocalData
     }
 
+    // MARK: - 离线操作队列（从 UnifiedOperationQueue 获取）
+
+    /// 待处理的离线操作数量
+    var pendingOperationsCount: Int {
+        UnifiedOperationQueue.shared.getPendingOperations().count
+    }
+
+    /// 统一操作队列待上传数量
+    var unifiedPendingUploadCount: Int {
+        UnifiedOperationQueue.shared.getPendingUploadCount()
+    }
+
+    /// 临时 ID 笔记数量（离线创建的笔记）
+    var temporaryIdNoteCount: Int {
+        UnifiedOperationQueue.shared.getTemporaryIdNoteCount()
+    }
+
+    /// 离线队列失败操作数量
+    var offlineQueueFailedCount: Int {
+        let stats = UnifiedOperationQueue.shared.getStatistics()
+        return stats["failed"] ?? 0
+    }
+
+    /// 检查笔记是否有待处理上传
+    func hasPendingUpload(for noteId: String) -> Bool {
+        UnifiedOperationQueue.shared.hasPendingUpload(for: noteId)
+    }
+
+    /// 检查笔记是否使用临时 ID（离线创建）
+    func isTemporaryIdNote(_ noteId: String) -> Bool {
+        NoteOperation.isTemporaryId(noteId)
+    }
+
     // MARK: - 依赖
 
     private let eventBus: EventBus
