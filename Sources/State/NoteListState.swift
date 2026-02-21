@@ -102,12 +102,15 @@ public final class NoteListState: ObservableObject {
         let note = Note(
             id: UUID().uuidString,
             title: "",
-            content: "",
+            content: "<new-format/><text indent=\"1\"></text>",
             folderId: folderId,
             createdAt: now,
             updatedAt: now
         )
         await eventBus.publish(NoteEvent.created(note))
+
+        // 自动选中新创建的笔记，确保编辑器立即加载空内容
+        selectedNote = note
     }
 
     // MARK: - 就地更新
