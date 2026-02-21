@@ -716,7 +716,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 显示调试设置窗口
     func showDebugSettings(_: Any?) {
         // 创建调试窗口控制器
-        let debugWindowController = DebugWindowController(viewModel: mainWindowController?.viewModel)
+        let debugWindowController = DebugWindowController()
 
         // 显示窗口
         debugWindowController.showWindow(nil)
