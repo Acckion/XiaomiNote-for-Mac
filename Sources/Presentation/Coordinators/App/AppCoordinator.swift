@@ -17,7 +17,7 @@ import Foundation
 /// - 管理应用级别的状态
 @MainActor
 public final class AppCoordinator: ObservableObject {
-    // MARK: - ViewModels
+    // MARK: - ViewModels（旧架构，UI 层仍在使用）
 
     /// 笔记列表视图模型
     public let noteListViewModel: NoteListViewModel
@@ -42,6 +42,21 @@ public final class AppCoordinator: ObservableObject {
 
     /// NotesViewModel 适配器（用于向后兼容）
     public private(set) lazy var notesViewModel: NotesViewModel = NotesViewModelAdapter(coordinator: self)
+
+    // MARK: - 核心基础设施（新架构）
+
+    let eventBus: EventBus
+    let noteStore: NoteStore
+    let syncEngine: SyncEngine
+
+    // MARK: - State 对象（新架构，UI 层使用）
+
+    let noteListState: NoteListState
+    let noteEditorState: NoteEditorState
+    let folderState: FolderState
+    let syncState: SyncState
+    let authState: AuthState
+    let searchState: SearchState
 
     // MARK: - Dependencies
 
@@ -102,6 +117,17 @@ public final class AppCoordinator: ObservableObject {
             noteService: noteStorage
         )
 
+        // 新架构组件
+        self.eventBus = EventBus.shared
+        self.noteStore = NoteStore.shared
+        self.syncEngine = SyncEngine.shared
+        self.noteListState = NoteListState(eventBus: EventBus.shared, noteStore: NoteStore.shared)
+        self.noteEditorState = NoteEditorState(eventBus: EventBus.shared, noteStore: NoteStore.shared)
+        self.folderState = FolderState(eventBus: EventBus.shared, noteStore: NoteStore.shared)
+        self.syncState = SyncState(eventBus: EventBus.shared)
+        self.authState = AuthState(eventBus: EventBus.shared, apiService: MiNoteService.shared)
+        self.searchState = SearchState(noteStore: NoteStore.shared)
+
         // 设置 ViewModel 之间的通信
         setupCommunication()
 
@@ -114,12 +140,35 @@ public final class AppCoordinator: ObservableObject {
     public func start() async {
         LogService.shared.info(.app, "启动应用")
 
+        // 旧架构启动
         await folderViewModel.loadFolders()
         await noteListViewModel.loadNotes()
 
         if authViewModel.isLoggedIn {
             await syncCoordinator.startSync()
         }
+
+        // 启动新架构组件
+        await noteStore.start()
+        await noteListState.start()
+        noteEditorState.start()
+        await folderState.start()
+        syncState.start()
+        authState.start()
+
+        if authState.isLoggedIn {
+            await syncEngine.start()
+        }
+    }
+
+    /// 停止新架构组件，释放事件订阅
+    public func stop() {
+        noteListState.stop()
+        noteEditorState.stop()
+        folderState.stop()
+        syncState.stop()
+        authState.stop()
+        Task { await syncEngine.stop() }
     }
 
     // MARK: - Private Methods - Communication Setup
