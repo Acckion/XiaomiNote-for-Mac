@@ -7,7 +7,18 @@ import SwiftUI
 /// 1. "小米笔记" - 系统文件夹（置顶、所有笔记）
 /// 2. "我的文件夹" - 用户文件夹（未分类 + 数据库中的文件夹，置顶的在前）
 public struct SidebarView: View {
-    @ObservedObject var viewModel: NotesViewModel
+    let coordinator: AppCoordinator
+    @ObservedObject var folderState: FolderState
+    @ObservedObject var syncState: SyncState
+    @ObservedObject var authState: AuthState
+    @ObservedObject var noteListState: NoteListState
+    @ObservedObject var searchState: SearchState
+
+    /// 向后兼容：仍需要 viewModel 用于尚未迁移的子视图
+    private var viewModel: NotesViewModel {
+        coordinator.notesViewModel
+    }
+
     @State private var showingSyncMenu = false
 
     // 行内编辑状态
@@ -20,8 +31,13 @@ public struct SidebarView: View {
     @State private var lastDuplicateAlertFolderName: String?
     @State private var lastDuplicateAlertTime: Date?
 
-    public init(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    public init(coordinator: AppCoordinator) {
+        self.coordinator = coordinator
+        self._folderState = ObservedObject(wrappedValue: coordinator.folderState)
+        self._syncState = ObservedObject(wrappedValue: coordinator.syncState)
+        self._authState = ObservedObject(wrappedValue: coordinator.authState)
+        self._noteListState = ObservedObject(wrappedValue: coordinator.noteListState)
+        self._searchState = ObservedObject(wrappedValue: coordinator.searchState)
     }
 
     /// 计算属性：根据文件夹ID返回对应的图标名称
@@ -53,22 +69,20 @@ public struct SidebarView: View {
             Color.clear
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    // 当用户点击侧边栏外部时，如果当前有文件夹正在编辑，触发名称检查
                     if let editingFolderId,
-                       let editingFolder = viewModel.folders.first(where: { $0.id == editingFolderId })
+                       let editingFolder = folderState.folders.first(where: { $0.id == editingFolderId })
                     {
-                        // 延迟一小段时间，确保点击事件已经处理完成
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             saveRename(folder: editingFolder)
                         }
                     }
                 }
-            List(selection: $viewModel.selectedFolder) {
+            List(selection: $folderState.selectedFolder) {
                 // MARK: 小米笔记 Section
 
                 Section {
                     // 所有笔记文件夹
-                    if let allNotesFolder = viewModel.folders.first(where: { $0.id == "0" }) {
+                    if let allNotesFolder = folderState.folders.first(where: { $0.id == "0" }) {
                         SidebarFolderRow(folder: allNotesFolder)
                             .tag(allNotesFolder)
                             .contextMenu {
@@ -83,24 +97,27 @@ public struct SidebarView: View {
                                 // 排序方式
                                 Menu {
                                     Button {
-                                        viewModel.setFolderSortOrder(allNotesFolder, sortOrder: .editDate)
-                                    } label: {
-                                        Label("编辑日期", systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .editDate ? "checkmark" : "circle")
-                                    }
-
-                                    Button {
-                                        viewModel.setFolderSortOrder(allNotesFolder, sortOrder: .createDate)
+                                        folderState.setFolderSortOrder(allNotesFolder, sortOrder: .editDate)
                                     } label: {
                                         Label(
-                                            "创建日期",
-                                            systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .createDate ? "checkmark" : "circle"
+                                            "编辑日期",
+                                            systemImage: folderState.getFolderSortOrder(allNotesFolder) == .editDate ? "checkmark" : "circle"
                                         )
                                     }
 
                                     Button {
-                                        viewModel.setFolderSortOrder(allNotesFolder, sortOrder: .title)
+                                        folderState.setFolderSortOrder(allNotesFolder, sortOrder: .createDate)
                                     } label: {
-                                        Label("标题", systemImage: viewModel.getFolderSortOrder(allNotesFolder) == .title ? "checkmark" : "circle")
+                                        Label(
+                                            "创建日期",
+                                            systemImage: folderState.getFolderSortOrder(allNotesFolder) == .createDate ? "checkmark" : "circle"
+                                        )
+                                    }
+
+                                    Button {
+                                        folderState.setFolderSortOrder(allNotesFolder, sortOrder: .title)
+                                    } label: {
+                                        Label("标题", systemImage: folderState.getFolderSortOrder(allNotesFolder) == .title ? "checkmark" : "circle")
                                     }
                                 } label: {
                                     Label("排序方式", systemImage: "arrow.up.arrow.down")
@@ -108,7 +125,7 @@ public struct SidebarView: View {
                             }
                     }
                     // 置顶文件夹
-                    if let starredFolder = viewModel.folders.first(where: { $0.id == "starred" }) {
+                    if let starredFolder = folderState.folders.first(where: { $0.id == "starred" }) {
                         SidebarFolderRow(folder: starredFolder)
                             .tag(starredFolder)
                             .contextMenu {
@@ -123,24 +140,27 @@ public struct SidebarView: View {
                                 // 排序方式
                                 Menu {
                                     Button {
-                                        viewModel.setFolderSortOrder(starredFolder, sortOrder: .editDate)
-                                    } label: {
-                                        Label("编辑日期", systemImage: viewModel.getFolderSortOrder(starredFolder) == .editDate ? "checkmark" : "circle")
-                                    }
-
-                                    Button {
-                                        viewModel.setFolderSortOrder(starredFolder, sortOrder: .createDate)
+                                        folderState.setFolderSortOrder(starredFolder, sortOrder: .editDate)
                                     } label: {
                                         Label(
-                                            "创建日期",
-                                            systemImage: viewModel.getFolderSortOrder(starredFolder) == .createDate ? "checkmark" : "circle"
+                                            "编辑日期",
+                                            systemImage: folderState.getFolderSortOrder(starredFolder) == .editDate ? "checkmark" : "circle"
                                         )
                                     }
 
                                     Button {
-                                        viewModel.setFolderSortOrder(starredFolder, sortOrder: .title)
+                                        folderState.setFolderSortOrder(starredFolder, sortOrder: .createDate)
                                     } label: {
-                                        Label("标题", systemImage: viewModel.getFolderSortOrder(starredFolder) == .title ? "checkmark" : "circle")
+                                        Label(
+                                            "创建日期",
+                                            systemImage: folderState.getFolderSortOrder(starredFolder) == .createDate ? "checkmark" : "circle"
+                                        )
+                                    }
+
+                                    Button {
+                                        folderState.setFolderSortOrder(starredFolder, sortOrder: .title)
+                                    } label: {
+                                        Label("标题", systemImage: folderState.getFolderSortOrder(starredFolder) == .title ? "checkmark" : "circle")
                                     }
                                 } label: {
                                     Label("排序方式", systemImage: "arrow.up.arrow.down")
@@ -148,7 +168,7 @@ public struct SidebarView: View {
                             }
                     }
                     // 私密笔记文件夹
-                    if let privateNotesFolder = viewModel.folders.first(where: { $0.id == "2" }) {
+                    if let privateNotesFolder = folderState.folders.first(where: { $0.id == "2" }) {
                         SidebarFolderRow(folder: privateNotesFolder)
                             .tag(privateNotesFolder)
                             .contextMenu {
@@ -164,7 +184,7 @@ public struct SidebarView: View {
                     HStack(spacing: 6) {
                         Text("小米笔记")
                         // 同步时显示加载图标
-                        if viewModel.isSyncing {
+                        if syncState.isSyncing {
                             ProgressView()
                                 .scaleEffect(0.4) // 缩小图标大小
                                 .frame(width: 10, height: 10)
@@ -176,8 +196,8 @@ public struct SidebarView: View {
 
                 Section {
                     // 未分类文件夹 - 现在 Folder 的 Equatable 只比较 id，所以可以正常保持选中状态
-                    SidebarFolderRow(folder: viewModel.uncategorizedFolder)
-                        .tag(viewModel.uncategorizedFolder)
+                    SidebarFolderRow(folder: noteListState.uncategorizedFolder)
+                        .tag(noteListState.uncategorizedFolder)
                         .contextMenu {
                             Button {
                                 createNewFolder()
@@ -190,29 +210,30 @@ public struct SidebarView: View {
                             // 排序方式
                             Menu {
                                 Button {
-                                    viewModel.setFolderSortOrder(viewModel.uncategorizedFolder, sortOrder: .editDate)
+                                    folderState.setFolderSortOrder(noteListState.uncategorizedFolder, sortOrder: .editDate)
                                 } label: {
                                     Label(
                                         "编辑日期",
-                                        systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .editDate ? "checkmark" : "circle"
+                                        systemImage: folderState.getFolderSortOrder(noteListState.uncategorizedFolder) == .editDate ? "checkmark" : "circle"
                                     )
                                 }
 
                                 Button {
-                                    viewModel.setFolderSortOrder(viewModel.uncategorizedFolder, sortOrder: .createDate)
+                                    folderState.setFolderSortOrder(noteListState.uncategorizedFolder, sortOrder: .createDate)
                                 } label: {
                                     Label(
                                         "创建日期",
-                                        systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .createDate ? "checkmark" : "circle"
+                                        systemImage: folderState
+                                            .getFolderSortOrder(noteListState.uncategorizedFolder) == .createDate ? "checkmark" : "circle"
                                     )
                                 }
 
                                 Button {
-                                    viewModel.setFolderSortOrder(viewModel.uncategorizedFolder, sortOrder: .title)
+                                    folderState.setFolderSortOrder(noteListState.uncategorizedFolder, sortOrder: .title)
                                 } label: {
                                     Label(
                                         "标题",
-                                        systemImage: viewModel.getFolderSortOrder(viewModel.uncategorizedFolder) == .title ? "checkmark" : "circle"
+                                        systemImage: folderState.getFolderSortOrder(noteListState.uncategorizedFolder) == .title ? "checkmark" : "circle"
                                     )
                                 }
                             } label: {
@@ -223,7 +244,7 @@ public struct SidebarView: View {
                     // 显示所有非系统文件夹（从数据库加载）
                     // 排除系统文件夹（id == "0" 或 "starred"）和未分类文件夹（id == "uncategorized"）
                     // 按置顶状态排序：置顶的在前
-                    ForEach(viewModel.folders.filter { folder in
+                    ForEach(folderState.folders.filter { folder in
                         !folder.isSystem &&
                             folder.id != "0" &&
                             folder.id != "starred" &&
@@ -268,21 +289,21 @@ public struct SidebarView: View {
                                     // 排序方式
                                     Menu {
                                         Button {
-                                            viewModel.setFolderSortOrder(folder, sortOrder: .editDate)
+                                            folderState.setFolderSortOrder(folder, sortOrder: .editDate)
                                         } label: {
-                                            Label("编辑日期", systemImage: viewModel.getFolderSortOrder(folder) == .editDate ? "checkmark" : "circle")
+                                            Label("编辑日期", systemImage: folderState.getFolderSortOrder(folder) == .editDate ? "checkmark" : "circle")
                                         }
 
                                         Button {
-                                            viewModel.setFolderSortOrder(folder, sortOrder: .createDate)
+                                            folderState.setFolderSortOrder(folder, sortOrder: .createDate)
                                         } label: {
-                                            Label("创建日期", systemImage: viewModel.getFolderSortOrder(folder) == .createDate ? "checkmark" : "circle")
+                                            Label("创建日期", systemImage: folderState.getFolderSortOrder(folder) == .createDate ? "checkmark" : "circle")
                                         }
 
                                         Button {
-                                            viewModel.setFolderSortOrder(folder, sortOrder: .title)
+                                            folderState.setFolderSortOrder(folder, sortOrder: .title)
                                         } label: {
-                                            Label("标题", systemImage: viewModel.getFolderSortOrder(folder) == .title ? "checkmark" : "circle")
+                                            Label("标题", systemImage: folderState.getFolderSortOrder(folder) == .title ? "checkmark" : "circle")
                                         }
                                     } label: {
                                         Label("排序方式", systemImage: "arrow.up.arrow.down")
@@ -344,8 +365,7 @@ public struct SidebarView: View {
             }
             .listStyle(.sidebar)
             .onKeyPress(.return) {
-                // 检查是否应该进入重命名模式
-                if let selectedFolder = viewModel.selectedFolder,
+                if let selectedFolder = folderState.selectedFolder,
                    !selectedFolder.isSystem,
                    selectedFolder.id != "uncategorized",
                    selectedFolder.id != "0",
@@ -361,30 +381,21 @@ public struct SidebarView: View {
                 }
                 return .ignored
             }
-            .onChange(of: viewModel.selectedFolder) { oldValue, newValue in
-                // 当用户点击其他文件夹时，如果当前有文件夹正在编辑，触发名称检查
+            .onChange(of: folderState.selectedFolder) { oldValue, newValue in
                 if let editingFolderId,
-                   let editingFolder = viewModel.folders.first(where: { $0.id == editingFolderId })
+                   let editingFolder = folderState.folders.first(where: { $0.id == editingFolderId })
                 {
-                    // 延迟一小段时间，确保点击事件已经处理完成
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        // 标记这是通过点击其他文件夹退出的
                         saveRename(folder: editingFolder, isExitingByClickingOtherFolder: true)
                     }
                 }
 
                 if newValue != oldValue {
-                    viewModel.selectFolderWithCoordinator(newValue)
-                    viewModel.selectFolder(newValue)
+                    coordinator.handleFolderSelection(newValue)
 
-                    // 延迟到当前渲染周期结束后再清除搜索状态，避免在视图更新中修改 @Published 属性
+                    // 清除搜索状态
                     DispatchQueue.main.async {
-                        viewModel.searchText = ""
-                        viewModel.searchFilterHasTags = false
-                        viewModel.searchFilterHasChecklist = false
-                        viewModel.searchFilterHasImages = false
-                        viewModel.searchFilterHasAudio = false
-                        viewModel.searchFilterIsPrivate = false
+                        searchState.clearSearch()
                     }
                 }
             }
@@ -395,16 +406,12 @@ public struct SidebarView: View {
 
     /// 执行完整同步
     private func performFullSync() {
-        Task {
-            await viewModel.performFullSync()
-        }
+        syncState.requestFullSync(mode: .normal)
     }
 
     /// 执行增量同步
     private func performIncrementalSync() {
-        Task {
-            await viewModel.performIncrementalSync()
-        }
+        syncState.requestSync(mode: .full(.normal))
     }
 
     /// 重置同步状态
@@ -417,18 +424,14 @@ public struct SidebarView: View {
     /// 自动生成文件夹名称（"新建文件夹x"，如果已存在则递增）
     /// 然后立即创建并选中，进入重命名模式
     private func createNewFolder() {
-        // 生成文件夹名称
         let folderName = generateNewFolderName()
 
-        // 立即执行创建，而不是进入编辑模式
         Task {
-            do {
-                let newFolderId = try await viewModel.createFolder(name: folderName)
-                LogService.shared.info(.window, "文件夹创建成功: \(newFolderId)")
-                await selectAndRenameNewFolder(folderId: newFolderId, folderName: folderName)
-            } catch {
-                LogService.shared.error(.window, "创建文件夹失败: \(error.localizedDescription)")
-            }
+            // FolderState.createFolder 通过事件总线异步创建，不返回 ID
+            // 创建后通过 selectAndRenameNewFolder 查找新文件夹
+            await folderState.createFolder(name: folderName)
+            LogService.shared.info(.window, "文件夹创建请求已发送: \(folderName)")
+            await selectAndRenameNewFolder(folderId: "", folderName: folderName)
         }
     }
 
@@ -441,7 +444,7 @@ public struct SidebarView: View {
         var maxNumber = 0
 
         // 查找所有以"新建文件夹"开头的文件夹
-        for folder in viewModel.folders {
+        for folder in folderState.folders {
             if folder.name.hasPrefix(baseName) {
                 let suffix = String(folder.name.dropFirst(baseName.count))
                 if let number = Int(suffix) {
@@ -463,46 +466,39 @@ public struct SidebarView: View {
 
     /// 选中并重命名新创建的文件夹
     private func selectAndRenameNewFolder(folderId: String, folderName: String) async {
-        // 等待文件夹列表更新（最多尝试5次，每次间隔0.2秒）
         var attempts = 0
         let maxAttempts = 5
 
         while attempts < maxAttempts {
             attempts += 1
 
-            // 在主线程刷新文件夹列表
             await MainActor.run {
-                viewModel.loadFolders()
+                // folderState 会通过事件总线自动更新
             }
 
-            // 等待一小段时间
-            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
+            try? await Task.sleep(nanoseconds: 200_000_000)
 
-            // 检查文件夹是否已更新
             await MainActor.run {
-                let nonSystemFolders = viewModel.folders.filter { !$0.isSystem }
+                let nonSystemFolders = folderState.folders.filter { !$0.isSystem }
 
-                // 首先尝试使用返回的文件夹ID查找
                 if let newFolder = nonSystemFolders.first(where: { $0.id == folderId }) {
-                    viewModel.selectedFolder = newFolder
+                    folderState.selectedFolder = newFolder
                     editingFolderId = newFolder.id
                     editingFolderName = newFolder.name
                     return
                 } else {
-                    // 如果通过ID找不到，尝试查找名称完全匹配的文件夹
                     let matchingFolders = nonSystemFolders.filter { $0.name == folderName }
 
                     if let newFolder = matchingFolders.first {
-                        viewModel.selectedFolder = newFolder
+                        folderState.selectedFolder = newFolder
                         editingFolderId = newFolder.id
                         editingFolderName = newFolder.name
                         return
                     } else {
-                        // 如果还没有找到，尝试查找创建时间在创建操作之后的文件夹
                         let recentlyCreatedFolders = nonSystemFolders.filter { $0.createdAt > Date().addingTimeInterval(-10) }
 
                         if let newFolder = recentlyCreatedFolders.first {
-                            viewModel.selectedFolder = newFolder
+                            folderState.selectedFolder = newFolder
                             editingFolderId = newFolder.id
                             editingFolderName = newFolder.name
                             return
@@ -512,7 +508,6 @@ public struct SidebarView: View {
             }
         }
 
-        // 如果循环结束还没有找到，记录警告
         await MainActor.run {
             LogService.shared.warning(.window, "未找到新创建的文件夹 '\(folderName)' (ID: \(folderId))")
         }
@@ -523,11 +518,7 @@ public struct SidebarView: View {
     /// - Parameter folder: 要切换置顶状态的文件夹
     private func toggleFolderPin(_ folder: Folder) {
         Task {
-            do {
-                try await viewModel.toggleFolderPin(folder)
-            } catch {
-                LogService.shared.error(.window, "切换文件夹置顶状态失败: \(error.localizedDescription)")
-            }
+            await folderState.toggleFolderPin(folder)
         }
     }
 
@@ -550,7 +541,7 @@ public struct SidebarView: View {
     /// 未分类文件夹是系统文件夹，不能重命名
     private func renameUncategorizedFolder() {
         // 未分类文件夹是系统文件夹，不能重命名
-        showSystemFolderRenameAlert(folder: viewModel.uncategorizedFolder)
+        showSystemFolderRenameAlert(folder: noteListState.uncategorizedFolder)
     }
 
     /// 重命名文件夹
@@ -579,11 +570,7 @@ public struct SidebarView: View {
 
         if response == .alertFirstButtonReturn {
             Task {
-                do {
-                    try await viewModel.deleteFolder(folder)
-                } catch {
-                    viewModel.errorMessage = "删除文件夹失败: \(error.localizedDescription)"
-                }
+                await folderState.deleteFolder(folder)
             }
         }
     }
@@ -593,7 +580,7 @@ public struct SidebarView: View {
     /// 显示上次同步时间或"从未同步"提示
     private func showSyncStatus() {
         // 显示同步状态信息
-        if let lastSync = viewModel.lastSyncTime {
+        if let lastSync = syncState.lastSyncTime {
             let formatter = DateFormatter()
             formatter.dateStyle = .short
             formatter.timeStyle = .short
@@ -643,7 +630,7 @@ public struct SidebarView: View {
         }
 
         // 检查是否有同名文件夹
-        if viewModel.folders.contains(where: { $0.name == newName && $0.id != folder.id }) {
+        if folderState.folders.contains(where: { $0.name == newName && $0.id != folder.id }) {
             // 如果通过点击其他文件夹退出，总是显示弹窗（不检查防重复逻辑）
             if isExitingByClickingOtherFolder {
                 // 名称已存在，显示弹窗提示
@@ -669,18 +656,10 @@ public struct SidebarView: View {
             return
         }
 
-        // 执行重命名
         Task {
-            do {
-                try await viewModel.renameFolder(folder, newName: newName)
-                editingFolderId = nil
-                editingFolderName = ""
-            } catch {
-                // 重命名失败，恢复原名称
-                editingFolderId = nil
-                editingFolderName = ""
-                LogService.shared.error(.window, "重命名文件夹失败: \(error.localizedDescription)")
-            }
+            await folderState.renameFolder(folder, newName: newName)
+            editingFolderId = nil
+            editingFolderName = ""
         }
     }
 
@@ -772,8 +751,7 @@ public struct SidebarView: View {
                 // 对于重命名，恢复编辑状态并重新选中该文件夹
                 editingFolderId = folder.id
                 editingFolderName = folderName
-                // 重新选中该文件夹，确保用户可以继续编辑
-                viewModel.selectedFolder = folder
+                folderState.selectedFolder = folder
             }
         }
     }

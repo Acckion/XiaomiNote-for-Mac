@@ -12,7 +12,7 @@
     /// 在线状态指示器视图
     /// 用于在工具栏中显示当前网络连接状态
     struct OnlineStatusIndicator: View {
-        @ObservedObject var viewModel: NotesViewModel
+        @ObservedObject var authState: AuthState
 
         var body: some View {
             HStack(spacing: 4) {
@@ -32,9 +32,9 @@
 
         /// 状态颜色
         private var statusColor: Color {
-            if viewModel.isOnline {
+            if authState.isOnline {
                 .green
-            } else if viewModel.isCookieExpired {
+            } else if authState.isCookieExpired {
                 .red
             } else {
                 .yellow
@@ -43,9 +43,9 @@
 
         /// 状态文本
         private var statusText: String {
-            if viewModel.isOnline {
+            if authState.isOnline {
                 "在线"
-            } else if viewModel.isCookieExpired {
+            } else if authState.isCookieExpired {
                 "Cookie失效"
             } else {
                 "离线"
@@ -54,9 +54,9 @@
 
         /// 状态提示文本
         private var statusHelpText: String {
-            if viewModel.isOnline {
+            if authState.isOnline {
                 "已连接到小米笔记服务器"
-            } else if viewModel.isCookieExpired {
+            } else if authState.isCookieExpired {
                 "Cookie已失效，请刷新Cookie或重新登录"
             } else {
                 "离线模式：更改将在网络恢复后同步"

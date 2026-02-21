@@ -11,13 +11,14 @@ struct NoteDetailView: View {
     /// 窗口状态（窗口独立状态）
     @ObservedObject var windowState: WindowState
 
+    /// State 对象引用（从 coordinator 获取）
+    @ObservedObject private var noteListState: NoteListState
+    @ObservedObject private var noteEditorState: NoteEditorState
+    @ObservedObject private var folderState: FolderState
+    @ObservedObject private var authState: AuthState
+
     /// 编辑会话协调器
     @StateObject private var editingCoordinator = NoteEditingCoordinator()
-
-    /// 笔记视图模型（通过 coordinator 访问）
-    private var viewModel: NotesViewModel {
-        coordinator.notesViewModel
-    }
 
     // MARK: - 调试模式状态
 
@@ -35,14 +36,10 @@ struct NoteDetailView: View {
     @State private var isInsertingImage = false
     @State private var imageInsertStatus: ImageInsertStatus = .idle
     @State private var showingHistoryView = false
+    @State private var showTrashView = false
 
     enum ImageInsertStatus {
         case idle, uploading, success, failed
-    }
-
-    /// 使用共享的 NativeEditorContext（从 viewModel 获取）
-    private var nativeEditorContext: NativeEditorContext {
-        viewModel.nativeEditorContext
     }
 
     /// 编辑器偏好设置服务
@@ -53,17 +50,28 @@ struct NoteDetailView: View {
         editorPreferencesService.isNativeEditorAvailable
     }
 
+    // MARK: - 初始化
+
+    init(coordinator: AppCoordinator, windowState: WindowState) {
+        self.coordinator = coordinator
+        self._windowState = ObservedObject(wrappedValue: windowState)
+        self._noteListState = ObservedObject(wrappedValue: coordinator.noteListState)
+        self._noteEditorState = ObservedObject(wrappedValue: coordinator.noteEditorState)
+        self._folderState = ObservedObject(wrappedValue: coordinator.folderState)
+        self._authState = ObservedObject(wrappedValue: coordinator.authState)
+    }
+
     var body: some View {
         mainContentView
-            .onChange(of: viewModel.selectedNote) { oldValue, newValue in
+            .onChange(of: windowState.selectedNote) { oldValue, newValue in
                 handleSelectedNoteChange(oldValue: oldValue, newValue: newValue)
             }
             .onAppear {
-                editingCoordinator.configure(viewModel: viewModel)
+                editingCoordinator.configure(viewModel: coordinator.notesViewModel)
                 registerSaveCallback()
             }
             .onDisappear {
-                viewModel.saveContentCallback = nil
+                noteEditorState.saveContentCallback = nil
             }
             .onReceive(NotificationCenter.default.publisher(for: .toggleDebugMode)) { _ in
                 toggleDebugMode()
@@ -88,14 +96,12 @@ struct NoteDetailView: View {
         if needsSave {
             if case .saving = editingCoordinator.saveStatus {
                 // 保持 saving 状态
-            } else {
-                // 通过 coordinator 的状态驱动，这里不需要额外处理
             }
         }
     }
 
     private func registerSaveCallback() {
-        viewModel.saveContentCallback = { [editingCoordinator] in
+        noteEditorState.saveContentCallback = { [editingCoordinator] in
             await editingCoordinator.saveForFolderSwitch()
         }
     }
@@ -103,7 +109,6 @@ struct NoteDetailView: View {
     private func handleSelectedNoteChange(oldValue: Note?, newValue: Note?) {
         guard let newNote = newValue else { return }
         if oldValue?.id != newNote.id {
-            // 不同笔记：先保存旧笔记再切换
             let task = editingCoordinator.saveBeforeSwitching(newNoteId: newNote.id)
             Task { @MainActor in
                 if let t = task { await t.value }
@@ -120,9 +125,9 @@ struct NoteDetailView: View {
 
     @ViewBuilder
     private var mainContentView: some View {
-        if let folder = viewModel.selectedFolder, folder.id == "2", !viewModel.isPrivateNotesUnlocked {
-            PrivateNotesVerificationView(viewModel: viewModel)
-        } else if let note = viewModel.selectedNote {
+        if let folder = folderState.selectedFolder, folder.id == "2", !authState.isPrivateNotesUnlocked {
+            PrivateNotesVerificationView(authState: authState)
+        } else if let note = windowState.selectedNote {
             noteEditorView(for: note)
         } else {
             emptyNoteView
@@ -132,14 +137,16 @@ struct NoteDetailView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         NoteEditorToolbar(
-            viewModel: viewModel,
-            nativeEditorContext: nativeEditorContext,
+            noteListState: noteListState,
+            noteEditorState: noteEditorState,
+            nativeEditorContext: noteEditorState.nativeEditorContext,
             isUsingNativeEditor: isUsingNativeEditor,
             isDebugMode: isDebugMode,
-            selectedNote: viewModel.selectedNote,
+            selectedNote: windowState.selectedNote,
             onToggleDebugMode: { toggleDebugMode() },
             onInsertImage: { insertImage() },
-            showingHistoryView: $showingHistoryView
+            showingHistoryView: $showingHistoryView,
+            showTrashView: $showTrashView
         )
     }
 
@@ -167,7 +174,6 @@ struct NoteDetailView: View {
             }
         }
         .onAppear {
-            // handleSelectedNoteChange 已处理笔记切换，onAppear 仅用于首次加载
             if editingCoordinator.currentEditingNoteId != note.id {
                 Task { @MainActor in
                     await editingCoordinator.switchToNote(note)
@@ -178,14 +184,14 @@ struct NoteDetailView: View {
                 }
             }
         }
-        .onReceive(nativeEditorContext.titleChangePublisher) { newValue in
+        .onReceive(noteEditorState.nativeEditorContext.titleChangePublisher) { newValue in
             if editingCoordinator.editedTitle != newValue {
                 editingCoordinator.editedTitle = newValue
             }
         }
         .onChange(of: editingCoordinator.editedTitle) { _, newValue in
-            if nativeEditorContext.titleText != newValue {
-                nativeEditorContext.titleText = newValue
+            if noteEditorState.nativeEditorContext.titleText != newValue {
+                noteEditorState.nativeEditorContext.titleText = newValue
             }
             Task { @MainActor in await editingCoordinator.handleTitleChange(newValue) }
         }
@@ -198,7 +204,7 @@ struct NoteDetailView: View {
             )
         }
         .sheet(isPresented: $showingHistoryView) {
-            NoteHistoryView(viewModel: viewModel, noteId: note.id)
+            NoteHistoryView(noteEditorState: noteEditorState, noteId: note.id)
         }
         .alert("保存失败", isPresented: $showSaveErrorAlert) {
             Button("确定", role: .cancel) {}
@@ -214,7 +220,7 @@ struct NoteDetailView: View {
     }
 
     private func hasRealTitle() -> Bool {
-        guard let note = viewModel.selectedNote else { return false }
+        guard let note = windowState.selectedNote else { return false }
         return !note.title.isEmpty && !note.title.hasPrefix("未命名笔记_")
     }
 
@@ -231,7 +237,7 @@ struct NoteDetailView: View {
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.selectedNote != nil {
+            } else if windowState.selectedNote != nil {
                 if isDebugMode {
                     XMLDebugEditorView(
                         xmlContent: $debugXMLContent,
@@ -250,12 +256,12 @@ struct NoteDetailView: View {
                     UnifiedEditorWrapper(
                         content: $editingCoordinator.currentXMLContent,
                         isEditable: $isEditable,
-                        nativeEditorContext: nativeEditorContext,
+                        nativeEditorContext: noteEditorState.nativeEditorContext,
                         xmlContent: editingCoordinator.currentXMLContent,
-                        folderId: viewModel.selectedNote?.folderId ?? "",
+                        folderId: windowState.selectedNote?.folderId ?? "",
                         onContentChange: { newXML, newHTML in
                             guard !editingCoordinator.isInitializing else { return }
-                            guard let currentNote = viewModel.selectedNote,
+                            guard let currentNote = windowState.selectedNote,
                                   currentNote.id == editingCoordinator.currentEditingNoteId
                             else { return }
 
@@ -275,13 +281,13 @@ struct NoteDetailView: View {
         if isDebugMode {
             if debugXMLContent != editingCoordinator.currentXMLContent {
                 editingCoordinator.currentXMLContent = debugXMLContent
-                if let note = viewModel.selectedNote {
+                if let note = windowState.selectedNote {
                     editingCoordinator.scheduleXMLSave(xmlContent: debugXMLContent, for: note, immediate: false)
                 }
             }
             isDebugMode = false
         } else {
-            if let note = viewModel.selectedNote {
+            if let note = windowState.selectedNote {
                 debugXMLContent = editingCoordinator.currentXMLContent.isEmpty ? note.primaryXMLContent : editingCoordinator.currentXMLContent
             }
             debugSaveStatus = .saved
@@ -298,7 +304,7 @@ struct NoteDetailView: View {
 
     @MainActor
     private func saveDebugContent() async {
-        guard let note = viewModel.selectedNote, note.id == editingCoordinator.currentEditingNoteId else {
+        guard let note = windowState.selectedNote, note.id == editingCoordinator.currentEditingNoteId else {
             debugSaveStatus = .error("无法保存：未选择笔记")
             return
         }
@@ -323,7 +329,7 @@ struct NoteDetailView: View {
 
             await MemoryCacheManager.shared.cacheNote(updated)
             editingCoordinator.updateViewModel(with: updated)
-            viewModel.hasUnsavedContent = false
+            noteEditorState.hasUnsavedContent = false
             editingCoordinator.scheduleCloudUpload(for: updated, xmlContent: debugXMLContent)
         } catch {
             let errorMessage = "保存失败: \(error.localizedDescription)"
@@ -359,16 +365,16 @@ struct NoteDetailView: View {
 
     @MainActor
     private func insertImage(from url: URL) async {
-        guard viewModel.selectedNote != nil else { return }
+        guard windowState.selectedNote != nil else { return }
         isInsertingImage = true
         imageInsertStatus = .uploading
         imageInsertMessage = "正在上传图片..."
         showImageInsertAlert = true
         do {
-            let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
+            let fileId = try await noteEditorState.uploadImageAndInsertToNote(imageURL: url)
 
             if isUsingNativeEditor {
-                nativeEditorContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
+                noteEditorState.nativeEditorContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
             }
 
             imageInsertStatus = .success
@@ -388,7 +394,11 @@ struct NoteDetailView: View {
         VStack(spacing: 16) {
             Image(systemName: "note.text").font(.system(size: 48)).foregroundColor(.secondary)
             Text("选择笔记或创建新笔记").font(.title2).foregroundColor(.secondary)
-            Button(action: { viewModel.createNewNote() }) { Label("新建笔记", systemImage: "plus") }.buttonStyle(.borderedProminent)
+            Button(action: {
+                Task { await noteListState.createNewNote(inFolder: folderState.selectedFolder?.id ?? "0") }
+            }) {
+                Label("新建笔记", systemImage: "plus")
+            }.buttonStyle(.borderedProminent)
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

@@ -13,27 +13,14 @@
         private init() {}
 
         /// 创建用于 Preview 的 AppCoordinator
-        ///
-        /// 注意: 这是一个简化的 Coordinator,仅用于 Preview
         public func createPreviewCoordinator() -> AppCoordinator {
             AppCoordinator()
-            // 可以添加一些测试数据
         }
 
-        /// 创建用于 Preview 的 NotesViewModelAdapter
-        ///
-        /// 这是推荐的方式,因为它使用新架构
-        public func createPreviewViewModel() -> NotesViewModelAdapter {
+        /// 创建用于 Preview 的 NotesViewModel（向后兼容，供尚未迁移的视图使用）
+        public func createPreviewViewModel() -> NotesViewModel {
             let coordinator = createPreviewCoordinator()
-            return NotesViewModelAdapter(coordinator: coordinator)
-        }
-
-        /// 创建用于 Preview 的 NotesViewModel (向后兼容)
-        ///
-        /// 注意: 这个方法保留用于向后兼容,新代码应该使用 createPreviewViewModel()
-        @available(*, deprecated, message: "使用 createPreviewViewModel() 代替")
-        public func createLegacyPreviewViewModel() -> NotesViewModel {
-            NotesViewModel()
+            return coordinator.notesViewModel
         }
     }
 #endif

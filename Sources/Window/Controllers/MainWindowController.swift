@@ -21,7 +21,7 @@
         private let logger = Logger(subsystem: "com.minote.MiNoteMac", category: "MainWindowController")
 
         /// AppCoordinator 引用
-        private let coordinator: AppCoordinator
+        public private(set) var coordinator: AppCoordinator
 
         /// 窗口状态
         private let windowState: WindowState
@@ -167,9 +167,6 @@
         private func setupWindowContent() {
             guard let window else { return }
 
-            // 通过 coordinator 获取 viewModel（向后兼容）
-            let viewModel = coordinator.notesViewModel
-
             // 创建分割视图控制器（三栏布局）
             let splitViewController = NSSplitViewController()
 
@@ -177,7 +174,7 @@
             splitViewController.splitView.autosaveName = "MainWindowSplitView"
 
             // 第一栏：侧边栏（使用SwiftUI视图）
-            let sidebarSplitViewItem = NSSplitViewItem(sidebarWithViewController: SidebarHostingController(viewModel: viewModel))
+            let sidebarSplitViewItem = NSSplitViewItem(sidebarWithViewController: SidebarHostingController(coordinator: coordinator))
             sidebarSplitViewItem.minimumThickness = 180
             sidebarSplitViewItem.maximumThickness = 300
             sidebarSplitViewItem.canCollapse = true
@@ -216,25 +213,22 @@
         // 在列表模式和画廊模式之间切换时，动态调整分割视图布局
 
         private func setupViewModeObserver(splitViewController: NSSplitViewController) {
-            // 通过 coordinator 获取 viewModel（向后兼容）
-            let viewModel = coordinator.notesViewModel
-
             ViewOptionsManager.shared.$state
                 .map(\.viewMode)
                 .removeDuplicates()
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self, weak splitViewController] viewMode in
                     guard let self, let splitViewController else { return }
-                    updateLayoutForViewMode(viewMode, splitViewController: splitViewController, viewModel: viewModel)
+                    updateLayoutForViewMode(viewMode, splitViewController: splitViewController)
                 }
                 .store(in: &cancellables)
 
             // 初始化时根据当前视图模式设置布局
-            updateLayoutForViewMode(ViewOptionsManager.shared.viewMode, splitViewController: splitViewController, viewModel: viewModel)
+            updateLayoutForViewMode(ViewOptionsManager.shared.viewMode, splitViewController: splitViewController)
         }
 
         /// 根据视图模式更新布局
-        private func updateLayoutForViewMode(_ viewMode: ViewMode, splitViewController: NSSplitViewController, viewModel: NotesViewModel) {
+        private func updateLayoutForViewMode(_ viewMode: ViewMode, splitViewController: NSSplitViewController) {
             let splitViewItems = splitViewController.splitViewItems
             guard splitViewItems.count >= 2 else { return }
 
@@ -284,7 +278,7 @@
                     splitViewController.removeSplitViewItem(splitViewItems[1])
 
                     // 添加画廊视图
-                    let galleryHostingController = GalleryHostingController(viewModel: viewModel)
+                    let galleryHostingController = GalleryHostingController(coordinator: coordinator, windowState: windowState)
                     let gallerySplitViewItem = NSSplitViewItem(viewController: galleryHostingController)
                     gallerySplitViewItem.minimumThickness = 500
                     // 画廊视图 holdingPriority 较低，窗口缩小时先压缩
@@ -324,7 +318,6 @@
         private func setupToolbar() {
             guard let window else { return }
 
-            // 通过 coordinator 获取 viewModel（向后兼容）
             let viewModel = coordinator.notesViewModel
 
             // 创建工具栏代理
@@ -1441,7 +1434,7 @@
             // 显示设置窗口
 
             // 创建设置窗口控制器
-            let settingsWindowController = SettingsWindowController(viewModel: viewModel)
+            let settingsWindowController = SettingsWindowController(coordinator: coordinator)
 
             // 显示窗口
             settingsWindowController.showWindow(nil)
@@ -1454,13 +1447,8 @@
                 return
             }
 
-            guard let viewModel else {
-                LogService.shared.error(.window, "viewModel 为 nil，无法创建登录视图")
-                return
-            }
-
             // 创建登录视图
-            let loginView = LoginView(viewModel: viewModel)
+            let loginView = LoginView(authState: coordinator.authState)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: loginView)
@@ -1688,13 +1676,8 @@
                 return
             }
 
-            guard let viewModel else {
-                LogService.shared.error(.window, "viewModel 为 nil，无法创建历史记录视图")
-                return
-            }
-
             // 创建历史记录视图
-            let historyView = NoteHistoryView(viewModel: viewModel, noteId: note.id)
+            let historyView = NoteHistoryView(noteEditorState: coordinator.noteEditorState, noteId: note.id)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: historyView)
@@ -2867,14 +2850,8 @@
                 return
             }
 
-            // 确保有viewModel
-            guard let viewModel else {
-                LogService.shared.error(.window, "viewModel 不存在，无法显示搜索筛选菜单")
-                return
-            }
-
             // 创建SwiftUI搜索筛选菜单视图
-            let searchFilterMenuView = SearchFilterMenuContent(viewModel: viewModel)
+            let searchFilterMenuView = SearchFilterMenuContent(noteListState: coordinator.noteListState)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: searchFilterMenuView)

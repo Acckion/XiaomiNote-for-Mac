@@ -23,10 +23,11 @@ struct GalleryView: View {
     /// 窗口状态（窗口独立状态）
     @ObservedObject var windowState: WindowState
 
-    /// 笔记视图模型（通过 coordinator 访问）
-    private var viewModel: NotesViewModel {
-        coordinator.notesViewModel
-    }
+    /// 笔记列表状态
+    @ObservedObject var noteListState: NoteListState
+
+    /// 文件夹状态
+    @ObservedObject var folderState: FolderState
 
     /// 视图选项管理器
     @ObservedObject var optionsManager: ViewOptionsManager
@@ -108,7 +109,7 @@ struct GalleryView: View {
     /// 平铺显示的画廊内容（不分组）
     private var flatGalleryContent: some View {
         LazyVGrid(columns: columns, spacing: 16) {
-            ForEach(viewModel.filteredNotes) { note in
+            ForEach(noteListState.filteredNotes) { note in
                 noteCardItem(note: note)
             }
         }
@@ -120,7 +121,7 @@ struct GalleryView: View {
     /// 分组显示的画廊内容
     private var groupedGalleryContent: some View {
         LazyVStack(alignment: .leading, spacing: 24) {
-            let groupedNotes = groupNotesByDate(viewModel.filteredNotes)
+            let groupedNotes = groupNotesByDate(noteListState.filteredNotes)
 
             // 定义分组显示顺序
             let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
@@ -175,13 +176,11 @@ struct GalleryView: View {
             note: note,
             isSelected: windowState.selectedNote?.id == note.id,
             onTap: {
-                // 点击卡片时展开笔记
                 withAnimation(.easeInOut(duration: 0.35)) {
                     windowState.expandNote(note)
                     windowState.selectNote(note)
                 }
-            },
-            viewModel: viewModel
+            }
         )
         .id(note.id)
         .matchedGeometryEffect(id: note.id, in: animation)
@@ -258,7 +257,7 @@ struct GalleryView: View {
 
     /// 导航到上一个笔记
     private func navigateToPreviousNote() {
-        let notes = viewModel.filteredNotes
+        let notes = noteListState.filteredNotes
         guard !notes.isEmpty else { return }
 
         if let currentNote = windowState.selectedNote,
@@ -275,7 +274,7 @@ struct GalleryView: View {
 
     /// 导航到下一个笔记
     private func navigateToNextNote() {
-        let notes = viewModel.filteredNotes
+        let notes = noteListState.filteredNotes
         guard !notes.isEmpty else { return }
 
         if let currentNote = windowState.selectedNote,
@@ -292,10 +291,9 @@ struct GalleryView: View {
 
     /// 向上导航（跳过一行）
     private func navigateUp() {
-        let notes = viewModel.filteredNotes
+        let notes = noteListState.filteredNotes
         guard !notes.isEmpty else { return }
 
-        // 假设每行大约4个卡片（根据自适应布局）
         let columnsPerRow = 4
 
         if let currentNote = windowState.selectedNote,
@@ -312,10 +310,9 @@ struct GalleryView: View {
 
     /// 向下导航（跳过一行）
     private func navigateDown() {
-        let notes = viewModel.filteredNotes
+        let notes = noteListState.filteredNotes
         guard !notes.isEmpty else { return }
 
-        // 假设每行大约4个卡片（根据自适应布局）
         let columnsPerRow = 4
 
         if let currentNote = windowState.selectedNote,
@@ -357,7 +354,7 @@ struct GalleryView: View {
 
         // 置顶笔记
         Button {
-            viewModel.toggleStar(note)
+            Task { await noteListState.toggleStar(note) }
         } label: {
             Label(
                 note.isStarred ? "取消置顶笔记" : "置顶笔记",
@@ -369,7 +366,7 @@ struct GalleryView: View {
         Menu("移到") {
             // 未分类文件夹
             Button {
-                NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
+                NoteMoveHelper.moveToUncategorized(note, using: coordinator.notesViewModel) { result in
                     if case let .failure(error) = result {
                         LogService.shared.error(.window, "移动到未分类失败: \(error.localizedDescription)")
                     }
@@ -379,7 +376,7 @@ struct GalleryView: View {
             }
 
             // 其他可用文件夹
-            let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+            let availableFolders = NoteMoveHelper.getAvailableFolders(for: coordinator.notesViewModel)
 
             if !availableFolders.isEmpty {
                 Divider()
@@ -413,7 +410,7 @@ struct GalleryView: View {
 
         // 新建笔记
         Button {
-            viewModel.createNewNote()
+            Task { await noteListState.createNewNote(inFolder: folderState.selectedFolder?.id ?? "0") }
         } label: {
             Label("新建笔记", systemImage: "square.and.pencil")
         }
@@ -460,7 +457,7 @@ struct GalleryView: View {
 
     /// 移动笔记到指定文件夹
     private func moveNoteToFolder(note: Note, folder: Folder) {
-        NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
+        NoteMoveHelper.moveNote(note, to: folder, using: coordinator.notesViewModel) { result in
             if case let .failure(error) = result {
                 LogService.shared.error(.window, "移动笔记失败: \(error.localizedDescription)")
             }
@@ -475,7 +472,7 @@ struct GalleryView: View {
                 noteToDelete = nil
             }
             Button("删除", role: .destructive) {
-                viewModel.deleteNote(note)
+                Task { await noteListState.deleteNote(note) }
                 noteToDelete = nil
             }
         }
@@ -499,6 +496,8 @@ struct GalleryView: View {
             GalleryView(
                 coordinator: coordinator,
                 windowState: windowState,
+                noteListState: coordinator.noteListState,
+                folderState: coordinator.folderState,
                 optionsManager: .shared,
                 animation: animation
             )

@@ -654,7 +654,7 @@ struct NotesListView: View {
     // MARK: - 移动笔记 Sheet
 
     private func moveNoteSheetView(for note: Note) -> some View {
-        MoveNoteSheetView(note: note, viewModel: viewModel)
+        MoveNoteSheetView(note: note, folderState: coordinator.folderState)
     }
 }
 

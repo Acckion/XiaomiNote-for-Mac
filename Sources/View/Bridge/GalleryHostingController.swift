@@ -18,13 +18,10 @@ class GalleryHostingController: NSViewController {
 
     // MARK: - 属性
 
-    /// 笔记视图模型
-    private var viewModel: NotesViewModel
-
-    /// 应用协调器（用于新架构视图）
+    /// 应用协调器
     private var coordinator: AppCoordinator?
 
-    /// 窗口状态（用于新架构视图）
+    /// 窗口状态
     private var windowState: WindowState?
 
     /// 视图选项管理器
@@ -38,16 +35,6 @@ class GalleryHostingController: NSViewController {
 
     // MARK: - 初始化
 
-    /// 初始化方法（旧架构）
-    /// - Parameters:
-    ///   - viewModel: 笔记视图模型
-    ///   - optionsManager: 视图选项管理器，默认使用共享实例
-    init(viewModel: NotesViewModel, optionsManager: ViewOptionsManager = .shared) {
-        self.viewModel = viewModel
-        self.optionsManager = optionsManager
-        super.init(nibName: nil, bundle: nil)
-    }
-
     /// 初始化方法（新架构）
     /// - Parameters:
     ///   - coordinator: 应用协调器
@@ -56,7 +43,6 @@ class GalleryHostingController: NSViewController {
     init(coordinator: AppCoordinator, windowState: WindowState, optionsManager: ViewOptionsManager = .shared) {
         self.coordinator = coordinator
         self.windowState = windowState
-        self.viewModel = coordinator.notesViewModel
         self.optionsManager = optionsManager
         super.init(nibName: nil, bundle: nil)
     }
@@ -69,36 +55,25 @@ class GalleryHostingController: NSViewController {
     // MARK: - 视图生命周期
 
     override func loadView() {
-        // 创建 SwiftUI 视图
         let galleryContainerView = GalleryContainerView(
-            viewModel: viewModel,
             coordinator: coordinator,
             windowState: windowState,
             optionsManager: optionsManager
         )
 
-        // 创建 NSHostingView
         let hostingView = NSHostingView(rootView: galleryContainerView)
         self.hostingView = hostingView
-
-        // 设置视图
         view = hostingView
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // 监听文件夹变化
         setupFolderObserver()
-
-        // 监听搜索文本变化
         setupSearchObserver()
     }
 
     override func viewDidLayout() {
         super.viewDidLayout()
-
-        // 确保 hostingView 填充整个视图
         hostingView?.frame = view.bounds
     }
 
@@ -106,7 +81,8 @@ class GalleryHostingController: NSViewController {
 
     /// 设置文件夹监听
     private func setupFolderObserver() {
-        viewModel.$selectedFolder
+        guard let coordinator else { return }
+        coordinator.folderState.$selectedFolder
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.refreshView()
@@ -116,7 +92,8 @@ class GalleryHostingController: NSViewController {
 
     /// 设置搜索监听
     private func setupSearchObserver() {
-        viewModel.$searchText
+        guard let coordinator else { return }
+        coordinator.searchState.$searchText
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.refreshView()
@@ -129,7 +106,6 @@ class GalleryHostingController: NSViewController {
     /// 刷新 SwiftUI 视图
     func refreshView() {
         hostingView?.rootView = GalleryContainerView(
-            viewModel: viewModel,
             coordinator: coordinator,
             windowState: windowState,
             optionsManager: optionsManager
@@ -146,9 +122,6 @@ class GalleryHostingController: NSViewController {
 struct GalleryContainerView: View {
 
     // MARK: - 属性
-
-    /// 笔记视图模型
-    @ObservedObject var viewModel: NotesViewModel
 
     /// 应用协调器（可选，用于新架构）
     var coordinator: AppCoordinator?
@@ -175,7 +148,7 @@ struct GalleryContainerView: View {
             .background(Color(NSColor.windowBackgroundColor))
             .onChange(of: expandedNote?.id) { _, newValue in
                 DispatchQueue.main.async {
-                    viewModel.isGalleryExpanded = (newValue != nil)
+                    coordinator?.noteListState.isGalleryExpanded = (newValue != nil)
                 }
             }
             .onChange(of: optionsManager.viewMode) { _, newMode in
@@ -190,9 +163,7 @@ struct GalleryContainerView: View {
     private var contentView: some View {
         ZStack {
             if let _ = expandedNote {
-                // 展开模式：显示笔记编辑器
                 if let coordinator, let windowState {
-                    // 新架构：使用 coordinator 和 windowState
                     ExpandedNoteView(
                         coordinator: coordinator,
                         windowState: windowState,
@@ -200,23 +171,21 @@ struct GalleryContainerView: View {
                     )
                     .transition(expandedTransition)
                 } else {
-                    // 旧架构：显示错误提示
                     Text("展开视图不可用")
                         .foregroundColor(.secondary)
                 }
             } else {
-                // 画廊模式：显示笔记卡片网格
                 if let coordinator, let windowState {
-                    // 新架构：使用 coordinator 和 windowState
                     GalleryView(
                         coordinator: coordinator,
                         windowState: windowState,
+                        noteListState: coordinator.noteListState,
+                        folderState: coordinator.folderState,
                         optionsManager: optionsManager,
                         animation: animation
                     )
                     .transition(.opacity)
                 } else {
-                    // 旧架构：显示错误提示
                     Text("画廊视图不可用")
                         .foregroundColor(.secondary)
                 }
@@ -229,7 +198,7 @@ struct GalleryContainerView: View {
         if newMode == .list {
             expandedNote = nil
             DispatchQueue.main.async {
-                viewModel.isGalleryExpanded = false
+                coordinator?.noteListState.isGalleryExpanded = false
             }
         }
     }

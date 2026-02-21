@@ -2,7 +2,7 @@ import SwiftUI
 import WebKit
 
 struct LoginView: View {
-    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var authState: AuthState
     @Environment(\.dismiss) private var dismiss
 
     @State private var isLoggedIn = false
@@ -137,7 +137,8 @@ struct LoginView: View {
                     }
                 }
 
-                await viewModel.loadNotesFromCloud()
+                // 通过 AuthState 处理登录成功逻辑（包括获取用户信息、发布事件等）
+                await authState.handleLoginSuccess()
             } catch {
                 LogService.shared.error(.core, "三步流程失败: \(error.localizedDescription)")
                 await MainActor.run {
@@ -262,5 +263,5 @@ struct WebView: NSViewRepresentable {
 }
 
 #Preview {
-    LoginView(viewModel: PreviewHelper.shared.createPreviewViewModel())
+    LoginView(authState: AuthState())
 }

@@ -26,9 +26,6 @@ struct NoteCardView: View {
     /// 点击回调
     let onTap: () -> Void
 
-    /// 视图模型（用于获取文件夹信息）
-    @ObservedObject var viewModel: NotesViewModel
-
     /// 视图选项管理器（用于获取排序方式）
     @ObservedObject var optionsManager: ViewOptionsManager = .shared
 
@@ -47,18 +44,10 @@ struct NoteCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 缩略图区域（如果有图片）
             thumbnailSection
-
-            // 标题
             titleSection
-
-            // 内容预览
             contentPreviewSection
-
             Spacer(minLength: 0)
-
-            // 日期
             dateSection
         }
         .padding(12)
@@ -80,7 +69,6 @@ struct NoteCardView: View {
         .onHover { hovering in
             isHovering = hovering
             if hovering {
-                // 悬停100ms后预加载笔记内容
                 preloadNoteContent()
             }
         }
@@ -91,7 +79,6 @@ struct NoteCardView: View {
             loadThumbnail()
         }
         .onChange(of: noteImageHash) { oldValue, newValue in
-            // 图片信息变化时重新加载缩略图
             if oldValue != newValue {
                 loadThumbnail()
             }
@@ -100,7 +87,6 @@ struct NoteCardView: View {
 
     // MARK: - 子视图
 
-    /// 缩略图区域
     @ViewBuilder
     private var thumbnailSection: some View {
         if let _ = getFirstImageInfo(from: note) {
@@ -110,7 +96,6 @@ struct NoteCardView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 } else {
-                    // 占位图标
                     Rectangle()
                         .fill(Color(NSColor.controlBackgroundColor))
                         .overlay(
@@ -127,7 +112,6 @@ struct NoteCardView: View {
         }
     }
 
-    /// 标题区域
     private var titleSection: some View {
         Text(hasRealTitle() ? note.title : "无标题")
             .font(.headline)
@@ -135,7 +119,6 @@ struct NoteCardView: View {
             .foregroundColor(hasRealTitle() ? .primary : .secondary)
     }
 
-    /// 内容预览区域
     private var contentPreviewSection: some View {
         Text(extractPreviewText(from: note.content))
             .font(.subheadline)
@@ -143,14 +126,12 @@ struct NoteCardView: View {
             .lineLimit(hasImageThumbnail ? 2 : 3)
     }
 
-    /// 日期区域
     private var dateSection: some View {
         Text(formatDate(displayDate))
             .font(.caption)
             .foregroundColor(.secondary)
     }
 
-    /// 锁定图标覆盖层
     @ViewBuilder
     private var lockIconOverlay: some View {
         if NoteDisplayProperties.parseIsLocked(from: note) {
@@ -166,9 +147,6 @@ struct NoteCardView: View {
 
     // MARK: - 辅助属性
 
-    /// 根据排序方式获取要显示的日期
-    ///
-    /// 当排序方式为创建时间时，显示创建时间；否则显示修改时间
     private var displayDate: Date {
         switch optionsManager.sortOrder {
         case .createDate:
@@ -178,31 +156,25 @@ struct NoteCardView: View {
         }
     }
 
-    /// 是否有图片缩略图
     private var hasImageThumbnail: Bool {
         getFirstImageInfo(from: note) != nil
     }
 
-    /// 图片信息哈希值（用于检测变化）
     private var noteImageHash: String {
         getImageInfoHash(from: note)
     }
 
     // MARK: - 辅助方法
 
-    /// 检查笔记是否有真正的标题
     private func hasRealTitle() -> Bool {
-        // 如果标题为空，没有真正的标题
         if note.title.isEmpty {
             return false
         }
 
-        // 如果标题是"未命名笔记_xxx"格式，没有真正的标题
         if note.title.hasPrefix("未命名笔记_") {
             return false
         }
 
-        // 检查 extraInfoJson 中是否有真正的标题
         if let extraInfoJson = note.extraInfoJson,
            let extraData = extraInfoJson.data(using: .utf8),
            let extraJson = try? JSONSerialization.jsonObject(with: extraData) as? [String: Any],
@@ -214,7 +186,6 @@ struct NoteCardView: View {
             }
         }
 
-        // 检查标题是否与内容的第一行匹配
         if !note.content.isEmpty {
             let textContent = note.content
                 .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
@@ -235,7 +206,6 @@ struct NoteCardView: View {
         return true
     }
 
-    /// 格式化日期
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         let calendar = Calendar.current
@@ -253,13 +223,11 @@ struct NoteCardView: View {
         }
     }
 
-    /// 从 XML 内容中提取预览文本
     private func extractPreviewText(from xmlContent: String) -> String {
         guard !xmlContent.isEmpty else {
             return "无内容"
         }
 
-        // 移除 XML 标签，提取纯文本
         var text = xmlContent
             .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
             .replacingOccurrences(of: "&amp;", with: "&")
@@ -269,7 +237,6 @@ struct NoteCardView: View {
             .replacingOccurrences(of: "&apos;", with: "'")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // 限制长度
         let maxLength = 100
         if text.count > maxLength {
             text = String(text.prefix(maxLength)) + "..."
@@ -278,7 +245,6 @@ struct NoteCardView: View {
         return text.isEmpty ? "无内容" : text
     }
 
-    /// 从笔记中提取第一张图片的信息
     private func getFirstImageInfo(from note: Note) -> (fileId: String, fileType: String)? {
         guard let settingJson = note.settingJson,
               let jsonData = settingJson.data(using: .utf8),
@@ -301,7 +267,6 @@ struct NoteCardView: View {
         return nil
     }
 
-    /// 获取图片信息的哈希值
     private func getImageInfoHash(from note: Note) -> String {
         guard let settingJson = note.settingJson,
               let jsonData = settingJson.data(using: .utf8),
@@ -328,7 +293,6 @@ struct NoteCardView: View {
         return imageInfos.sorted().joined(separator: "|")
     }
 
-    /// 加载缩略图
     private func loadThumbnail() {
         guard let imageInfo = getFirstImageInfo(from: note) else {
             thumbnailImage = nil
@@ -336,19 +300,16 @@ struct NoteCardView: View {
             return
         }
 
-        // 如果图片ID没有变化，不重新加载
         if currentImageFileId == imageInfo.fileId, thumbnailImage != nil {
             return
         }
 
         currentImageFileId = imageInfo.fileId
 
-        // 在后台线程加载图片
         Task {
             if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
                let nsImage = NSImage(data: imageData)
             {
-                // 创建缩略图
                 let thumbnail = createThumbnail(from: nsImage, targetHeight: 80)
 
                 await MainActor.run {
@@ -362,7 +323,6 @@ struct NoteCardView: View {
         }
     }
 
-    /// 创建缩略图
     private func createThumbnail(from image: NSImage, targetHeight: CGFloat) -> NSImage {
         let imageSize = image.size
         let scale = targetHeight / imageSize.height
@@ -374,17 +334,14 @@ struct NoteCardView: View {
         thumbnail.lockFocus()
         defer { thumbnail.unlockFocus() }
 
-        // 填充背景色
         NSColor.controlBackgroundColor.setFill()
         NSRect(origin: .zero, size: thumbnailSize).fill()
 
-        // 计算居中位置
         let scaledWidth = imageSize.width * scale
         let scaledHeight = imageSize.height * scale
         let offsetX = (thumbnailSize.width - scaledWidth) / 2
         let offsetY = (thumbnailSize.height - scaledHeight) / 2
 
-        // 绘制图片
         image.draw(
             in: NSRect(origin: NSPoint(x: offsetX, y: offsetY), size: NSSize(width: scaledWidth, height: scaledHeight)),
             from: NSRect(origin: .zero, size: imageSize),
@@ -395,15 +352,11 @@ struct NoteCardView: View {
         return thumbnail
     }
 
-    /// 预加载笔记内容
     private func preloadNoteContent() {
         Task { @MainActor in
-            // 延迟100ms
             try? await Task.sleep(nanoseconds: 100_000_000)
 
-            // 如果笔记内容为空，从数据库预加载完整内容
             if note.content.isEmpty {
-                // 先检查缓存中是否已有该笔记，避免覆盖更新的数据
                 let cached = await MemoryCacheManager.shared.getNote(noteId: note.id)
                 if cached == nil {
                     if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
@@ -411,8 +364,6 @@ struct NoteCardView: View {
                     }
                 }
             }
-            // 当 note.content 不为空时，不再写入缓存
-            // 因为 notes 数组中的 note 对象可能是过时的，写入缓存会覆盖最新内容
         }
     }
 }
@@ -434,8 +385,7 @@ struct NoteCardView: View {
     return NoteCardView(
         note: sampleNote,
         isSelected: false,
-        onTap: {},
-        viewModel: PreviewHelper.shared.createPreviewViewModel()
+        onTap: {}
     )
     .frame(width: 250, height: 200)
     .padding()

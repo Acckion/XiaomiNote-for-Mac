@@ -84,10 +84,8 @@ class NoteDetailViewController: NSViewController {
     /// 获取可保存的窗口状态
     /// - Returns: 笔记详情窗口状态对象
     func savableWindowState() -> NoteDetailWindowState {
-        // 获取编辑器内容（从原生编辑器导出）
-        let editorContent = coordinator.notesViewModel.nativeEditorContext.exportToXML()
+        let editorContent = coordinator.noteEditorState.nativeEditorContext.exportToXML()
 
-        // 滚动位置和光标位置暂时设为0
         let scrollPosition = 0.0
         let cursorPosition = 0
 
@@ -101,9 +99,8 @@ class NoteDetailViewController: NSViewController {
     /// 恢复窗口状态
     /// - Parameter state: 要恢复的笔记详情窗口状态
     func restoreWindowState(_ state: NoteDetailWindowState) {
-        // 恢复编辑器内容
         if let editorContent = state.editorContent {
-            coordinator.notesViewModel.nativeEditorContext.loadFromXML(editorContent)
+            coordinator.noteEditorState.nativeEditorContext.loadFromXML(editorContent)
         }
     }
 }

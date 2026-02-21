@@ -326,8 +326,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 显示设置窗口
     func showSettings(_: Any?) {
-        // 创建设置窗口控制器
-        let settingsWindowController = SettingsWindowController(viewModel: mainWindowController?.viewModel)
+        let settingsWindowController = SettingsWindowController(coordinator: mainWindowController?.coordinator)
 
         // 显示窗口
         settingsWindowController.showWindow(nil)

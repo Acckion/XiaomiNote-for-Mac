@@ -16,18 +16,17 @@
 
         // MARK: - 属性
 
-        /// 视图模型
-        private var viewModel: NotesViewModel?
+        /// AppCoordinator 引用
+        private var coordinator: AppCoordinator?
 
         /// 工具栏标识符
         private static let toolbarIdentifier = NSToolbar.Identifier("SettingsToolbar")
 
         // MARK: - 初始化
 
-        /// 使用指定的视图模型初始化窗口控制器
-        /// - Parameter viewModel: 笔记视图模型
-        public init(viewModel: NotesViewModel? = nil) {
-            self.viewModel = viewModel
+        /// 使用指定的 AppCoordinator 初始化窗口控制器
+        public init(coordinator: AppCoordinator? = nil) {
+            self.coordinator = coordinator
 
             // 创建窗口 - 使用 macOS 26 样式（大圆角、材质背景）
             let window = NSWindow(
@@ -101,13 +100,13 @@
         private func setupWindowContent() {
             guard let window else { return }
 
-            guard let viewModel else {
-                LogService.shared.error(.window, "viewModel 为 nil，无法创建设置视图")
+            guard let coordinator else {
+                LogService.shared.error(.window, "coordinator 为 nil，无法创建设置视图")
                 return
             }
 
             // 创建 SwiftUI 设置视图
-            let settingsView = SettingsView(viewModel: viewModel)
+            let settingsView = SettingsView(syncState: coordinator.syncState, authState: coordinator.authState)
                 .frame(minWidth: 550, minHeight: 500)
 
             // 使用 NSHostingController 包装 SwiftUI 视图

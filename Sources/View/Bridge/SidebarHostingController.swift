@@ -8,14 +8,14 @@ public class SidebarHostingController: NSViewController {
 
     // MARK: - 属性
 
-    private var viewModel: NotesViewModel
+    private let coordinator: AppCoordinator
     private var hostingView: NSHostingView<SidebarView>?
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - 初始化
 
-    public init(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    public init(coordinator: AppCoordinator) {
+        self.coordinator = coordinator
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -27,49 +27,32 @@ public class SidebarHostingController: NSViewController {
     // MARK: - 视图生命周期
 
     override public func loadView() {
-        // 创建SwiftUI视图
-        let sidebarView = SidebarView(viewModel: viewModel)
-
-        // 创建NSHostingView
+        let sidebarView = SidebarView(coordinator: coordinator)
         let hostingView = NSHostingView(rootView: sidebarView)
         self.hostingView = hostingView
-
-        // 设置视图
         view = hostingView
     }
 
     override public func viewDidLoad() {
         super.viewDidLoad()
 
-        // 监听视图模型变化，确保SwiftUI视图更新
-        viewModel.$selectedFolder
+        coordinator.folderState.$selectedFolder
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                guard let self, let viewModel = viewModel as NotesViewModel? else {
-                    return
-                }
-                // 强制刷新SwiftUI视图
-                hostingView?.rootView = SidebarView(viewModel: viewModel)
+                self?.refreshView()
             }
             .store(in: &cancellables)
 
-        // 监听文件夹列表变化
-        viewModel.$folders
+        coordinator.folderState.$folders
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                guard let self, let viewModel = viewModel as NotesViewModel? else {
-                    return
-                }
-                // 强制刷新SwiftUI视图
-                hostingView?.rootView = SidebarView(viewModel: viewModel)
+                self?.refreshView()
             }
             .store(in: &cancellables)
     }
 
     override public func viewDidLayout() {
         super.viewDidLayout()
-
-        // 确保hostingView填充整个视图
         hostingView?.frame = view.bounds
     }
 
@@ -77,6 +60,6 @@ public class SidebarHostingController: NSViewController {
 
     /// 刷新SwiftUI视图
     func refreshView() {
-        hostingView?.rootView = SidebarView(viewModel: viewModel)
+        hostingView?.rootView = SidebarView(coordinator: coordinator)
     }
 }

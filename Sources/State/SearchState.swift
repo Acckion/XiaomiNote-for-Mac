@@ -57,6 +57,11 @@ final class SearchState: ObservableObject {
 
     // MARK: - 计算属性
 
+    /// 是否有激活的搜索筛选选项
+    var hasSearchFilters: Bool {
+        filterHasTags || filterHasChecklist || filterHasImages || filterHasAudio || filterIsPrivate
+    }
+
     /// 当前激活的筛选标签文本
     var filterTagsText: String {
         var tags: [String] = []

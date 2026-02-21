@@ -16,8 +16,8 @@
 
         // MARK: - 属性
 
-        /// 视图模型
-        private var viewModel: NotesViewModel
+        /// AppCoordinator 引用
+        private var coordinator: AppCoordinator
 
         /// 笔记ID
         private var noteId: String
@@ -27,12 +27,9 @@
 
         // MARK: - 初始化
 
-        /// 使用指定的视图模型和笔记ID初始化窗口控制器
-        /// - Parameters:
-        ///   - viewModel: 笔记视图模型
-        ///   - noteId: 要查看历史记录的笔记ID
-        public init(viewModel: NotesViewModel, noteId: String) {
-            self.viewModel = viewModel
+        /// 使用指定的 AppCoordinator 和笔记ID初始化窗口控制器
+        public init(coordinator: AppCoordinator, noteId: String) {
+            self.coordinator = coordinator
             self.noteId = noteId
 
             // 创建窗口
@@ -89,7 +86,7 @@
             guard let window else { return }
 
             // 创建SwiftUI历史记录视图
-            let historyView = NoteHistoryView(viewModel: viewModel, noteId: noteId)
+            let historyView = NoteHistoryView(noteEditorState: coordinator.noteEditorState, noteId: noteId)
 
             // 使用NSHostingController包装SwiftUI视图
             let hostingController = NSHostingController(rootView: historyView)

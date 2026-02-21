@@ -17,8 +17,21 @@ import SwiftUI
 public struct ContentView: View {
     // MARK: - 数据绑定和状态管理
 
-    /// 视图模型 - 管理笔记、文件夹、同步等业务逻辑
-    @ObservedObject var viewModel: NotesViewModel
+    /// 应用协调器
+    let coordinator: AppCoordinator
+
+    /// State 对象
+    @ObservedObject var noteListState: NoteListState
+    @ObservedObject var folderState: FolderState
+    @ObservedObject var syncState: SyncState
+    @ObservedObject var authState: AuthState
+    @ObservedObject var searchState: SearchState
+    @ObservedObject var noteEditorState: NoteEditorState
+
+    /// 向后兼容：仍需要 viewModel 用于尚未迁移的子视图
+    private var viewModel: NotesViewModel {
+        coordinator.notesViewModel
+    }
 
     /// 侧边栏可见性状态
     /// - `.all`: 显示所有列（侧边栏、列表、编辑区）
@@ -41,6 +54,9 @@ public struct ContentView: View {
 
     /// 是否显示离线操作处理进度视图
     @State private var showingOfflineOperationsProgress = false
+
+    /// 是否显示回收站视图
+    @State private var showTrashView = false
 
     /// 当前窗口宽度 - 用于响应式布局计算
     @State private var windowWidth: CGFloat = 800
@@ -106,9 +122,15 @@ public struct ContentView: View {
     // MARK: - 初始化方法
 
     /// 初始化方法
-    /// - Parameter viewModel: 笔记视图模型实例
-    public init(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    /// - Parameter coordinator: 应用协调器
+    public init(coordinator: AppCoordinator) {
+        self.coordinator = coordinator
+        self._noteListState = ObservedObject(wrappedValue: coordinator.noteListState)
+        self._folderState = ObservedObject(wrappedValue: coordinator.folderState)
+        self._syncState = ObservedObject(wrappedValue: coordinator.syncState)
+        self._authState = ObservedObject(wrappedValue: coordinator.authState)
+        self._searchState = ObservedObject(wrappedValue: coordinator.searchState)
+        self._noteEditorState = ObservedObject(wrappedValue: coordinator.noteEditorState)
     }
 
     // MARK: - 主视图
@@ -150,52 +172,50 @@ public struct ContentView: View {
         }
         .frame(minWidth: minWindowWidth, minHeight: 400)
         .sheet(isPresented: $showingNewNote) {
-            NewNoteView(viewModel: viewModel)
+            NewNoteView(noteListState: noteListState, folderState: folderState)
         }
         .sheet(isPresented: $showingSettings) {
-            SettingsView(viewModel: viewModel)
+            SettingsView(syncState: syncState, authState: authState)
         }
         .sheet(isPresented: $showingLogin) {
-            LoginView(viewModel: viewModel)
+            LoginView(authState: authState)
         }
         .sheet(isPresented: $showingOfflineOperationsProgress) {
             OfflineOperationsProgressView(processor: OperationProcessor.shared)
         }
-        .sheet(isPresented: $viewModel.showTrashView) {
+        .sheet(isPresented: $showTrashView) {
             TrashView(viewModel: viewModel)
         }
         .alert("Cookie已失效", isPresented: $showingCookieExpiredAlert) {
             Button("重新登录") {
-                viewModel.handleCookieExpiredRefresh()
+                authState.handleCookieExpiredRefresh()
             }
             Button("取消", role: .cancel) {
-                viewModel.handleCookieExpiredCancel()
+                authState.showLoginView = true
             }
         } message: {
             Text("Cookie已失效，请重新登录以恢复同步功能。选择\"取消\"将保持离线模式。")
         }
-        .onChange(of: viewModel.showCookieExpiredAlert) { _, newValue in
+        .onChange(of: authState.showCookieExpiredAlert) { _, newValue in
             if newValue {
                 showingCookieExpiredAlert = true
-                viewModel.showCookieExpiredAlert = false
+                authState.showCookieExpiredAlert = false
             }
         }
         .onAppear(perform: handleAppear)
-        .onChange(of: viewModel.showLoginView) { _, newValue in
+        .onChange(of: authState.showLoginView) { _, newValue in
             if newValue {
                 showingLogin = true
-                viewModel.showLoginView = false
+                authState.showLoginView = false
             }
         }
-        .onChange(of: viewModel.isLoggedIn) { oldValue, newValue in
+        .onChange(of: authState.isLoggedIn) { oldValue, newValue in
             if newValue, !oldValue {
-                // 登录成功后处理
                 Task {
-                    await viewModel.handleLoginSuccess()
+                    await authState.handleLoginSuccess()
                 }
             } else if !newValue, oldValue {
-                // 登出后清空用户信息
-                viewModel.userProfile = nil
+                authState.userProfile = nil
             }
         }
     }
@@ -232,7 +252,7 @@ public struct ContentView: View {
     /// - 理想：calculatedSidebarIdealWidth（动态计算）
     /// - 最大：sidebarMaxWidth（300）
     private var sidebarContent: some View {
-        SidebarView(viewModel: viewModel)
+        SidebarView(coordinator: coordinator)
             .navigationSplitViewColumnWidth(
                 min: calculatedSidebarMinWidth,
                 ideal: calculatedSidebarIdealWidth,
@@ -252,10 +272,9 @@ public struct ContentView: View {
     /// - 最大：notesListMaxWidth（400）
     private var notesListContent: some View {
         Group {
-            if viewModel.selectedFolder != nil || !viewModel.searchText.isEmpty || viewModel.hasSearchFilters {
+            if folderState.selectedFolder != nil || !searchState.searchText.isEmpty || searchState.hasSearchFilters {
                 NotesListViewControllerWrapper(viewModel: viewModel)
             } else {
-                // 如果没有选中文件夹且没有搜索且没有筛选，显示空状态
                 ContentUnavailableView(
                     "选择文件夹",
                     systemImage: "folder",
@@ -263,20 +282,23 @@ public struct ContentView: View {
                 )
             }
         }
-        .navigationTitle(viewModel.searchText.isEmpty && !viewModel.hasSearchFilters ? (viewModel.selectedFolder?.name ?? "所有笔记") : "搜索")
-        .navigationSubtitle(viewModel.searchText.isEmpty && !viewModel
-            .hasSearchFilters ? "\(viewModel.filteredNotes.count) 个笔记" : "找到 \(viewModel.filteredNotes.count) 个结果")
+        .navigationTitle(searchState.searchText.isEmpty && !searchState.hasSearchFilters ? (folderState.selectedFolder?.name ?? "所有笔记") : "搜索")
+        .navigationSubtitle(searchState.searchText.isEmpty && !searchState
+            .hasSearchFilters ? "\(noteListState.filteredNotes.count) 个笔记" : "找到 \(noteListState.filteredNotes.count) 个结果")
         .navigationSplitViewColumnWidth(
             min: calculatedNotesListMinWidth,
             ideal: notesListMaxWidth,
             max: notesListMaxWidth
         )
-        .searchable(text: $viewModel.searchText, placement: .toolbar, prompt: viewModel.filterTagsText.isEmpty ? "搜索笔记" : viewModel.filterTagsText)
+        .searchable(
+            text: $searchState.searchText,
+            placement: .toolbar,
+            prompt: searchState.filterTagsText.isEmpty ? "搜索笔记" : searchState.filterTagsText
+        )
         .searchSuggestions {
-            SearchFilterMenuContent(viewModel: viewModel)
+            SearchFilterMenuContent(noteListState: noteListState)
         }
         .toolbar {
-            // 自动位置：在线状态指示器（Cookie失效时可点击刷新）
             ToolbarItem(placement: .automatic) {
                 onlineStatusIndicatorWithAction
             }
@@ -312,7 +334,7 @@ public struct ContentView: View {
     /// 大小：12pt，中等粗细
     private var newNoteButton: some View {
         Button {
-            viewModel.createNewNote()
+            Task { await noteListState.createNewNote(inFolder: folderState.selectedFolder?.id ?? "0") }
         } label: {
             Image(systemName: "square.and.pencil")
                 .font(.system(size: 12, weight: .medium)) // 中等粗细
@@ -343,9 +365,9 @@ public struct ContentView: View {
 
     /// 状态颜色
     private var statusColor: Color {
-        if viewModel.isOnline {
+        if authState.isOnline {
             .green
-        } else if viewModel.isCookieExpired {
+        } else if authState.isCookieExpired {
             .red
         } else {
             .yellow
@@ -354,9 +376,9 @@ public struct ContentView: View {
 
     /// 状态文本
     private var statusText: String {
-        if viewModel.isOnline {
+        if authState.isOnline {
             "在线"
-        } else if viewModel.isCookieExpired {
+        } else if authState.isCookieExpired {
             "Cookie失效"
         } else {
             "离线"
@@ -365,9 +387,9 @@ public struct ContentView: View {
 
     /// 状态提示文本
     private var statusHelpText: String {
-        if viewModel.isOnline {
+        if authState.isOnline {
             "已连接到小米笔记服务器"
-        } else if viewModel.isCookieExpired {
+        } else if authState.isCookieExpired {
             "Cookie已失效，请刷新Cookie或重新登录（点击可刷新）"
         } else {
             "离线模式：更改将在网络恢复后同步"
@@ -392,31 +414,25 @@ public struct ContentView: View {
     /// - 同步状态
     private var onlineStatusIndicatorWithAction: some View {
         Menu {
-            // 同步选项
             Button {
-                Task {
-                    await viewModel.performFullSync()
-                }
+                syncState.requestFullSync(mode: .normal)
             } label: {
                 Label("完整同步", systemImage: "arrow.down.circle")
             }
-            .disabled(viewModel.isSyncing || !viewModel.isLoggedIn)
+            .disabled(syncState.isSyncing || !authState.isLoggedIn)
 
             Button {
-                Task {
-                    await viewModel.performIncrementalSync()
-                }
+                syncState.requestSync(mode: .full(.normal))
             } label: {
                 Label("增量同步", systemImage: "arrow.down.circle.dotted")
             }
-            .disabled(viewModel.isSyncing || !viewModel.isLoggedIn)
+            .disabled(syncState.isSyncing || !authState.isLoggedIn)
 
             Divider()
 
-            // Cookie 刷新（如果失效，提示重新登录）
-            if viewModel.isCookieExpired {
+            if authState.isCookieExpired {
                 Button {
-                    viewModel.showLoginView = true
+                    authState.showLoginView = true
                 } label: {
                     Label("重新登录", systemImage: "person.crop.circle.badge.exclamationmark")
                 }
@@ -424,50 +440,47 @@ public struct ContentView: View {
                 Divider()
             }
 
-            // 重置同步状态
             Button {
                 viewModel.resetSyncStatus()
             } label: {
                 Label("重置同步状态", systemImage: "arrow.counterclockwise")
             }
-            .disabled(viewModel.isSyncing)
+            .disabled(syncState.isSyncing)
 
             Divider()
 
             // 笔记列表排序方式
             Menu {
-                // 排序字段
                 Button {
-                    viewModel.setNotesListSortField(.createDate)
+                    noteListState.notesListSortField = .createDate
                 } label: {
-                    Label("按创建时间排序", systemImage: viewModel.notesListSortField == .createDate ? "checkmark" : "circle")
+                    Label("按创建时间排序", systemImage: noteListState.notesListSortField == .createDate ? "checkmark" : "circle")
                 }
 
                 Button {
-                    viewModel.setNotesListSortField(.editDate)
+                    noteListState.notesListSortField = .editDate
                 } label: {
-                    Label("按修改时间排序", systemImage: viewModel.notesListSortField == .editDate ? "checkmark" : "circle")
+                    Label("按修改时间排序", systemImage: noteListState.notesListSortField == .editDate ? "checkmark" : "circle")
                 }
 
                 Button {
-                    viewModel.setNotesListSortField(.title)
+                    noteListState.notesListSortField = .title
                 } label: {
-                    Label("按名称排序", systemImage: viewModel.notesListSortField == .title ? "checkmark" : "circle")
+                    Label("按名称排序", systemImage: noteListState.notesListSortField == .title ? "checkmark" : "circle")
                 }
 
                 Divider()
 
-                // 排序方向
                 Button {
-                    viewModel.setNotesListSortDirection(.ascending)
+                    noteListState.notesListSortDirection = .ascending
                 } label: {
-                    Label("升序", systemImage: viewModel.notesListSortDirection == .ascending ? "checkmark" : "circle")
+                    Label("升序", systemImage: noteListState.notesListSortDirection == .ascending ? "checkmark" : "circle")
                 }
 
                 Button {
-                    viewModel.setNotesListSortDirection(.descending)
+                    noteListState.notesListSortDirection = .descending
                 } label: {
-                    Label("降序", systemImage: viewModel.notesListSortDirection == .descending ? "checkmark" : "circle")
+                    Label("降序", systemImage: noteListState.notesListSortDirection == .descending ? "checkmark" : "circle")
                 }
             } label: {
                 Label("笔记列表排序", systemImage: "arrow.up.arrow.down")
@@ -475,7 +488,7 @@ public struct ContentView: View {
 
             Divider()
 
-            // 离线操作处理
+            // 离线操作处理（仍使用 viewModel，因为 State 对象尚未提供这些属性）
             if viewModel.pendingOperationsCount > 0 {
                 Button {
                     showingOfflineOperationsProgress = true
@@ -485,7 +498,7 @@ public struct ContentView: View {
                 } label: {
                     Label("处理离线操作 (\(viewModel.pendingOperationsCount))", systemImage: "arrow.clockwise.circle")
                 }
-                .disabled(viewModel.isProcessingOfflineQueue || !viewModel.isOnline)
+                .disabled(viewModel.isProcessingOfflineQueue || !authState.isOnline)
 
                 if viewModel.offlineQueueFailedCount > 0 {
                     Button {
@@ -495,16 +508,14 @@ public struct ContentView: View {
                     } label: {
                         Label("重试失败操作 (\(viewModel.offlineQueueFailedCount))", systemImage: "arrow.counterclockwise.circle")
                     }
-                    .disabled(viewModel.isProcessingOfflineQueue || !viewModel.isOnline)
+                    .disabled(viewModel.isProcessingOfflineQueue || !authState.isOnline)
                 }
 
                 Divider()
             }
 
-            // 同步状态
             Button {
-                // 显示同步状态信息
-                if let lastSync = viewModel.lastSyncTime {
+                if let lastSync = syncState.lastSyncTime {
                     let formatter = DateFormatter()
                     formatter.dateStyle = .short
                     formatter.timeStyle = .short
@@ -534,8 +545,7 @@ public struct ContentView: View {
             }
         } label: {
             HStack(spacing: 4) {
-                // 同步时显示加载图标，否则显示状态圆点
-                if viewModel.isSyncing {
+                if syncState.isSyncing {
                     ProgressView()
                         .scaleEffect(0.6)
                         .frame(width: 8, height: 8)
@@ -548,7 +558,6 @@ public struct ContentView: View {
                     .font(.caption2)
                     .foregroundColor(statusColor)
 
-                // 显示统一操作队列待上传数量（优先显示）
                 if viewModel.unifiedPendingUploadCount > 0 {
                     HStack(spacing: 2) {
                         Image(systemName: "arrow.up.circle")
@@ -557,9 +566,7 @@ public struct ContentView: View {
                             .font(.caption2)
                     }
                     .foregroundColor(.orange)
-                }
-                // 显示临时 ID 笔记数量（离线创建）
-                else if viewModel.temporaryIdNoteCount > 0 {
+                } else if viewModel.temporaryIdNoteCount > 0 {
                     HStack(spacing: 2) {
                         Image(systemName: "doc.badge.clock")
                             .font(.system(size: 8))
@@ -567,9 +574,7 @@ public struct ContentView: View {
                             .font(.caption2)
                     }
                     .foregroundColor(.purple)
-                }
-                // 兼容旧的离线操作队列
-                else if viewModel.pendingOperationsCount > 0 {
+                } else if viewModel.pendingOperationsCount > 0 {
                     Text("(\(viewModel.pendingOperationsCount))")
                         .font(.caption2)
                         .foregroundColor(.orange)
@@ -729,10 +734,7 @@ public struct ContentView: View {
         if !isAuthenticated {
             showingLogin = true
         } else {
-            // 启动自动刷新Cookie定时器
-            viewModel.startAutoRefreshCookieIfNeeded()
-
-            // 检查Cookie状态，如果失效则尝试静默刷新
+            authState.startAutoRefreshCookieIfNeeded()
             checkCookieStatusAndRefreshIfNeeded()
         }
     }
@@ -746,7 +748,7 @@ public struct ContentView: View {
 
             if silentRefreshOnFailure {
                 Task {
-                    await viewModel.handleCookieExpiredSilently()
+                    await authState.handleCookieExpiredSilently()
                 }
             }
         }
@@ -827,7 +829,7 @@ struct AccountRow: View {
 // MARK: - 同步状态覆盖层
 
 struct SyncStatusOverlay: View {
-    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var syncState: SyncState
 
     var body: some View {
         VStack(spacing: 8) {
@@ -835,17 +837,11 @@ struct SyncStatusOverlay: View {
                 ProgressView()
                     .scaleEffect(0.8)
 
-                Text(viewModel.syncStatusMessage)
+                Text(syncState.syncStatusMessage)
                     .font(.caption)
                     .lineLimit(1)
 
                 Spacer()
-
-                Button("取消") {
-                    viewModel.cancelSync()
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -855,8 +851,8 @@ struct SyncStatusOverlay: View {
                     .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
             )
 
-            if viewModel.syncProgress > 0 {
-                ProgressView(value: viewModel.syncProgress)
+            if syncState.syncProgress > 0 {
+                ProgressView(value: syncState.syncProgress)
                     .progressViewStyle(.linear)
                     .frame(width: 200)
             }
@@ -919,5 +915,5 @@ struct NotesListViewControllerWrapper: NSViewControllerRepresentable {
 
 @available(macOS 14.0, *)
 #Preview {
-    ContentView(viewModel: PreviewHelper.shared.createPreviewViewModel())
+    ContentView(coordinator: PreviewHelper.shared.createPreviewCoordinator())
 }
