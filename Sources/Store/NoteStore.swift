@@ -228,6 +228,40 @@ actor NoteStore {
                 await eventBus.publish(ErrorEvent.storageFailed(operation: "deleteFolder", errorMessage: error.localizedDescription))
             }
 
+        case let .folderSaved(folder):
+            do {
+                try db.saveFolders([folder])
+                refreshFoldersCache()
+                await eventBus.publish(FolderEvent.saved(folder))
+                await eventBus.publish(FolderEvent.listChanged(folders))
+            } catch {
+                LogService.shared.error(.storage, "NoteStore 保存文件夹失败: \(error)")
+                await eventBus.publish(ErrorEvent.storageFailed(operation: "folderSaved", errorMessage: error.localizedDescription))
+            }
+
+        case let .batchSaved(folderList):
+            do {
+                try db.saveFolders(folderList)
+                refreshFoldersCache()
+                await eventBus.publish(FolderEvent.listChanged(folders))
+            } catch {
+                LogService.shared.error(.storage, "NoteStore 批量保存文件夹失败: \(error)")
+                await eventBus.publish(ErrorEvent.storageFailed(operation: "batchSaved", errorMessage: error.localizedDescription))
+            }
+
+        case let .folderIdMigrated(oldId, newId):
+            do {
+                try db.updateNotesFolderId(oldFolderId: oldId, newFolderId: newId)
+                try db.deleteFolder(folderId: oldId)
+                refreshNotesCache()
+                refreshFoldersCache()
+                await eventBus.publish(NoteEvent.listChanged(notes))
+                await eventBus.publish(FolderEvent.listChanged(folders))
+            } catch {
+                LogService.shared.error(.storage, "NoteStore 文件夹ID迁移失败: \(error)")
+                await eventBus.publish(ErrorEvent.storageFailed(operation: "folderIdMigrated", errorMessage: error.localizedDescription))
+            }
+
         case .saved, .listChanged:
             break
         }

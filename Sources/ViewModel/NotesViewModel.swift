@@ -291,6 +291,9 @@ public class NotesViewModel: ObservableObject {
 
     // MARK: - 依赖服务
 
+    /// 事件总线
+    private let eventBus = EventBus.shared
+
     /// 小米笔记API服务
     let service = MiNoteService.shared
 
@@ -1772,7 +1775,7 @@ public class NotesViewModel: ObservableObject {
         }
 
         // 在线模式：先保存到本地，然后上传到云端
-        try localStorage.saveNote(note)
+        await eventBus.publish(NoteEvent.created(note))
 
         // 更新视图数据
         if !notes.contains(where: { $0.id == note.id }) {
@@ -1852,7 +1855,7 @@ public class NotesViewModel: ObservableObject {
                     )
 
                     // 删除旧的本地文件
-                    try? localStorage.deleteNote(noteId: note.id)
+                    await eventBus.publish(NoteEvent.deleted(noteId: note.id, tag: note.serverTag))
 
                     // 更新笔记列表
                     if let index = notes.firstIndex(where: { $0.id == note.id }) {
@@ -1861,7 +1864,7 @@ public class NotesViewModel: ObservableObject {
                     }
 
                     // 保存新笔记
-                    try localStorage.saveNote(updatedNote)
+                    await eventBus.publish(NoteEvent.saved(updatedNote))
 
                     // 更新选中状态
                     selectedNote = updatedNote
@@ -1878,7 +1881,7 @@ public class NotesViewModel: ObservableObject {
                     }
 
                     // 保存更新后的笔记
-                    try localStorage.saveNote(updatedNote)
+                    await eventBus.publish(NoteEvent.saved(updatedNote))
 
                     // 更新选中状态
                     selectedNote = updatedNote
@@ -1971,8 +1974,8 @@ public class NotesViewModel: ObservableObject {
     }
 
     private func applyLocalUpdate(_ note: Note) async throws {
-        // 立即物理保存
-        try localStorage.saveNote(note)
+        // 通过 EventBus 保存到数据库
+        await eventBus.publish(NoteEvent.saved(note))
 
         // 更新内存列表
         if let index = notes.firstIndex(where: { $0.id == note.id }) {
@@ -2212,7 +2215,7 @@ public class NotesViewModel: ObservableObject {
                     updatedNote.updatedAt = originalUpdatedAt
                 }
 
-                try localStorage.saveNote(updatedNote)
+                await eventBus.publish(NoteEvent.saved(updatedNote))
 
                 notes[index] = updatedNote
 
@@ -2280,10 +2283,8 @@ public class NotesViewModel: ObservableObject {
             if selectedNote?.id == note.id { selectedNote = nil }
         }
 
-        do {
-            try localStorage.deleteNote(noteId: note.id)
-        } catch {
-            LogService.shared.error(.viewmodel, "删除本地笔记失败: \(error)")
+        Task {
+            await eventBus.publish(NoteEvent.deleted(noteId: note.id, tag: note.serverTag))
         }
 
         guard isOnline, service.isAuthenticated() else {
@@ -2590,7 +2591,7 @@ public class NotesViewModel: ObservableObject {
         let systemFolders = folders.filter(\.isSystem)
         var userFolders = folders.filter { !$0.isSystem }
         userFolders.append(newFolder)
-        try localStorage.saveFolders(userFolders)
+        await eventBus.publish(FolderEvent.batchSaved(userFolders))
 
         // 更新视图数据（系统文件夹在前）
         folders = systemFolders + userFolders
@@ -2645,8 +2646,8 @@ public class NotesViewModel: ObservableObject {
             if let folderId, let folderName {
                 // 如果服务器返回的 ID 与本地不同，需要更新
                 if tempFolderId != folderId {
-                    // 1. 更新所有使用旧文件夹ID的笔记，将它们的 folder_id 更新为新ID
-                    try DatabaseService.shared.updateNotesFolderId(oldFolderId: tempFolderId, newFolderId: folderId)
+                    // 1. 通过 EventBus 迁移文件夹 ID（更新关联笔记 + 删除旧文件夹记录）
+                    await eventBus.publish(FolderEvent.folderIdMigrated(oldId: tempFolderId, newId: folderId))
 
                     // 2. 更新内存中的笔记列表
                     notes = notes.map { note in
@@ -2657,10 +2658,7 @@ public class NotesViewModel: ObservableObject {
                         return updatedNote
                     }
 
-                    // 3. 删除数据库中的旧文件夹记录
-                    try DatabaseService.shared.deleteFolder(folderId: tempFolderId)
-
-                    // 4. 创建新的文件夹对象（使用服务器返回的 ID）
+                    // 3. 创建新的文件夹对象（使用服务器返回的 ID）
                     let updatedFolder = Folder(
                         id: folderId,
                         name: folderName,
@@ -2683,7 +2681,7 @@ public class NotesViewModel: ObservableObject {
                     folders = systemFolders + userFolders
 
                     // 6. 保存到本地存储
-                    try localStorage.saveFolders(userFolders)
+                    await eventBus.publish(FolderEvent.batchSaved(userFolders))
                 } else {
                     // ID 相同，更新现有文件夹
                     let updatedFolder = Folder(
@@ -2705,7 +2703,7 @@ public class NotesViewModel: ObservableObject {
                     folders = systemFolders + userFolders
 
                     // 保存到本地存储
-                    try localStorage.saveFolders(userFolders)
+                    await eventBus.publish(FolderEvent.batchSaved(userFolders))
                 }
             } else {
                 throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "创建文件夹失败：服务器返回无效响应"])
@@ -2736,7 +2734,7 @@ public class NotesViewModel: ObservableObject {
         if let index = folders.firstIndex(where: { $0.id == folder.id }) {
             if index < folders.count {
                 folders[index].isPinned.toggle()
-                try? localStorage.saveFolders(folders.filter { !$0.isSystem })
+                await eventBus.publish(FolderEvent.batchSaved(folders.filter { !$0.isSystem }))
             }
             // 确保 selectedFolder 也更新
             if selectedFolder?.id == folder.id {
@@ -2780,7 +2778,7 @@ public class NotesViewModel: ObservableObject {
             updatedFolders[index] = updatedFolder
             folders = updatedFolders
 
-            try localStorage.saveFolders(folders.filter { !$0.isSystem })
+            await eventBus.publish(FolderEvent.batchSaved(folders.filter { !$0.isSystem }))
 
             // 确保 selectedFolder 也更新（使用新的 updatedFolder 实例）
             if selectedFolder?.id == folder.id {
@@ -2881,7 +2879,7 @@ public class NotesViewModel: ObservableObject {
                     selectedFolder = updatedFolder
                 }
 
-                try localStorage.saveFolders(folders.filter { !$0.isSystem })
+                await eventBus.publish(FolderEvent.batchSaved(folders.filter { !$0.isSystem }))
                 LogService.shared.info(.viewmodel, "文件夹重命名成功: \(folder.id) -> \(newName)")
             } else {
                 let errorCode = code ?? -1
@@ -2914,8 +2912,8 @@ public class NotesViewModel: ObservableObject {
 
             if let index = folders.firstIndex(where: { $0.id == folder.id }) {
                 folders.remove(at: index)
-                try DatabaseService.shared.deleteFolder(folderId: folder.id)
-                try localStorage.saveFolders(folders.filter { !$0.isSystem })
+                await eventBus.publish(FolderEvent.deleted(folderId: folder.id))
+                await eventBus.publish(FolderEvent.batchSaved(folders.filter { !$0.isSystem }))
                 if selectedFolder?.id == folder.id { selectedFolder = nil }
             }
 
@@ -2991,8 +2989,8 @@ public class NotesViewModel: ObservableObject {
 
         if let index = folders.firstIndex(where: { $0.id == folder.id }) {
             if index < folders.count { folders.remove(at: index) }
-            try DatabaseService.shared.deleteFolder(folderId: folder.id)
-            try localStorage.saveFolders(folders.filter { !$0.isSystem })
+            await eventBus.publish(FolderEvent.deleted(folderId: folder.id))
+            await eventBus.publish(FolderEvent.batchSaved(folders.filter { !$0.isSystem }))
             if selectedFolder?.id == folder.id { selectedFolder = nil }
         }
 

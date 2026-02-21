@@ -6,6 +6,9 @@ enum FolderEvent: AppEvent {
     case created(name: String)
     case renamed(folderId: String, newName: String)
     case deleted(folderId: String)
+    case folderSaved(Folder)
+    case batchSaved([Folder])
+    case folderIdMigrated(oldId: String, newId: String)
 
     // 结果事件
     case saved(Folder)
