@@ -14,11 +14,6 @@ public struct SidebarView: View {
     @ObservedObject var noteListState: NoteListState
     @ObservedObject var searchState: SearchState
 
-    /// 向后兼容：仍需要 viewModel 用于尚未迁移的子视图
-    private var viewModel: NotesViewModel {
-        coordinator.notesViewModel
-    }
-
     @State private var showingSyncMenu = false
 
     // 行内编辑状态
@@ -416,7 +411,9 @@ public struct SidebarView: View {
 
     /// 重置同步状态
     private func resetSyncStatus() {
-        viewModel.resetSyncStatus()
+        syncState.lastSyncTime = nil
+        syncState.syncStatusMessage = ""
+        syncState.lastSyncedNotesCount = 0
     }
 
     /// 创建新文件夹
