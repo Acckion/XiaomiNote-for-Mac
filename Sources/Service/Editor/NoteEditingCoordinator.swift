@@ -81,6 +81,7 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     private let eventBus = EventBus.shared
     private(set) weak var noteEditorState: NoteEditorState?
+    private var noteStore: NoteStore?
     var nativeEditorContext: NativeEditorContext? {
         noteEditorState?.nativeEditorContext
     }
@@ -90,8 +91,9 @@ public final class NoteEditingCoordinator: ObservableObject {
     public init() {}
 
     /// 配置依赖
-    func configure(noteEditorState: NoteEditorState) {
+    func configure(noteEditorState: NoteEditorState, noteStore: NoteStore) {
         self.noteEditorState = noteEditorState
+        self.noteStore = noteStore
     }
 
     // MARK: - 编辑器偏好
@@ -558,8 +560,13 @@ public final class NoteEditingCoordinator: ObservableObject {
         var contentToLoad = note.primaryXMLContent
 
         if note.content.isEmpty {
-            // 从数据库加载完整内容
-            if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+            // 优先从 NoteStore 内存缓存获取
+            if let cachedNote = await noteStore?.getNote(byId: note.id), !cachedNote.content.isEmpty {
+                guard note.id == currentEditingNoteId else { return }
+                contentToLoad = cachedNote.primaryXMLContent
+                await MemoryCacheManager.shared.cacheNote(cachedNote)
+            } else if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+                // NoteStore 缓存也没有完整内容，回退到直接读 DB
                 guard note.id == currentEditingNoteId else { return }
                 contentToLoad = fullNote.primaryXMLContent
                 await MemoryCacheManager.shared.cacheNote(fullNote)
@@ -602,8 +609,14 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     func loadFullContentAsync(for note: Note) async {
         if note.content.isEmpty {
-            // 从数据库加载完整内容
-            if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+            // 优先从 NoteStore 内存缓存获取
+            if let cachedNote = await noteStore?.getNote(byId: note.id), !cachedNote.content.isEmpty {
+                await MemoryCacheManager.shared.cacheNote(cachedNote)
+                currentXMLContent = cachedNote.primaryXMLContent
+                lastSavedXMLContent = currentXMLContent
+                originalXMLContent = currentXMLContent
+            } else if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+                // NoteStore 缓存也没有完整内容，回退到直接读 DB
                 await MemoryCacheManager.shared.cacheNote(fullNote)
                 currentXMLContent = fullNote.primaryXMLContent
                 lastSavedXMLContent = currentXMLContent
@@ -759,12 +772,8 @@ public final class NoteEditingCoordinator: ObservableObject {
             note.title
         }
 
-        // 从数据库读取最新的 serverTag，避免内存中的过期 tag 覆盖数据库中上传成功后更新的新 tag
-        let latestServerTag: String? = if let dbNote = try? DatabaseService.shared.loadNote(noteId: note.id) {
-            dbNote.serverTag
-        } else {
-            note.serverTag
-        }
+        // serverTag 由 NoteStore 处理 contentUpdated 事件时从 DB 读取最新值再更新，这里直接使用 note 自身的值
+        let latestServerTag = note.serverTag
 
         // 同步更新 settingJson：合并最新的 setting 数据
         var mergedSettingJson = note.settingJson

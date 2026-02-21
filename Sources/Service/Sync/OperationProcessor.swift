@@ -889,18 +889,7 @@ extension OperationProcessor {
             )
         }
 
-        // 如果服务器返回的 ID 与本地不同，需要更新本地文件夹和笔记
-        if operation.noteId != folderId {
-            // 更新所有使用旧文件夹 ID 的笔记
-            let notes = try localStorage.getAllLocalNotes()
-            for note in notes where note.folderId == operation.noteId {
-                var updatedNote = note
-                updatedNote.folderId = folderId
-                await eventBus.publish(SyncEvent.noteDownloaded(updatedNote))
-            }
-        }
-
-        // 保存文件夹到数据库
+        // 保存文件夹到数据库（通过 EventBus）
         let tag = extractTag(from: response, fallbackTag: entry["tag"] as? String ?? folderId)
         var folderRawData: [String: Any] = [:]
         for (key, value) in entry {
@@ -918,7 +907,13 @@ extension OperationProcessor {
             rawData: folderRawData
         )
 
-        try databaseService.saveFolder(folder)
+        await eventBus.publish(FolderEvent.folderSaved(folder))
+
+        // 如果服务器返回的 ID 与本地不同，需要更新本地文件夹和笔记
+        if operation.noteId != folderId {
+            // 发布文件夹 ID 迁移事件，NoteStore 会更新笔记的 folderId 并删除旧文件夹
+            await eventBus.publish(FolderEvent.folderIdMigrated(oldId: operation.noteId, newId: folderId))
+        }
 
         LogService.shared.info(.sync, "OperationProcessor 创建文件夹成功: \(operation.noteId) -> \(folderId)")
     }
@@ -980,7 +975,7 @@ extension OperationProcessor {
                     rawData: updatedRawData
                 )
 
-                try databaseService.saveFolder(updatedFolder)
+                await eventBus.publish(FolderEvent.folderSaved(updatedFolder))
             }
         }
 

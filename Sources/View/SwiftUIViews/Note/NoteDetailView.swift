@@ -67,7 +67,7 @@ struct NoteDetailView: View {
                 handleSelectedNoteChange(oldValue: oldValue, newValue: newValue)
             }
             .onAppear {
-                editingCoordinator.configure(noteEditorState: noteEditorState)
+                editingCoordinator.configure(noteEditorState: noteEditorState, noteStore: coordinator.noteStore)
                 registerSaveCallback()
             }
             .onDisappear {
