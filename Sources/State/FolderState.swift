@@ -33,7 +33,8 @@ public final class FolderState: ObservableObject {
 
     func start() async {
         let storeFolders = await noteStore.folders
-        folders = storeFolders
+        let storeNotes = await noteStore.notes
+        folders = ensureSystemFolders(in: storeFolders, notes: storeNotes)
 
         folderEventTask = Task { [weak self] in
             guard let self else { return }
@@ -42,11 +43,71 @@ public final class FolderState: ObservableObject {
                 guard !Task.isCancelled else { break }
                 switch event {
                 case let .listChanged(updatedFolders):
-                    folders = updatedFolders
+                    let currentNotes = await noteStore.notes
+                    folders = ensureSystemFolders(in: updatedFolders, notes: currentNotes)
                 default:
                     break
                 }
             }
+        }
+    }
+
+    // MARK: - 系统文件夹注入
+
+    /// 确保系统文件夹（所有笔记、置顶笔记、私密笔记）始终存在
+    private func ensureSystemFolders(in folderList: [Folder], notes: [Note]) -> [Folder] {
+        var result = folderList
+
+        let allNotesCount = notes.count
+        let starredCount = notes.count(where: { $0.isStarred })
+        let privateCount = notes.count(where: { $0.folderId == "2" })
+
+        let hasAllNotes = result.contains { $0.id == "0" }
+        let hasStarred = result.contains { $0.id == "starred" }
+        let hasPrivate = result.contains { $0.id == "2" }
+
+        // 按固定顺序插入缺失的系统文件夹
+        if !hasPrivate {
+            result.insert(Folder(id: "2", name: "私密笔记", count: privateCount, isSystem: true), at: 0)
+        }
+        if !hasStarred {
+            result.insert(Folder(id: "starred", name: "置顶", count: starredCount, isSystem: true), at: 0)
+        }
+        if !hasAllNotes {
+            result.insert(Folder(id: "0", name: "所有笔记", count: allNotesCount, isSystem: true), at: 0)
+        }
+
+        // 更新已存在的系统文件夹的笔记数量
+        result = result.map { folder in
+            switch folder.id {
+            case "0":
+                var f = folder
+                f.count = allNotesCount
+                return f
+            case "starred":
+                var f = folder
+                f.count = starredCount
+                return f
+            case "2":
+                var f = folder
+                f.count = privateCount
+                return f
+            default:
+                return folder
+            }
+        }
+
+        // 排序：系统文件夹在前，按固定顺序
+        return result.sorted { f1, f2 in
+            if f1.isSystem, !f2.isSystem { return true }
+            if !f1.isSystem, f2.isSystem { return false }
+            if f1.isSystem, f2.isSystem {
+                let order = ["0", "starred", "2"]
+                let i1 = order.firstIndex(of: f1.id) ?? Int.max
+                let i2 = order.firstIndex(of: f2.id) ?? Int.max
+                return i1 < i2
+            }
+            return f1.createdAt < f2.createdAt
         }
     }
 
