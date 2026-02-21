@@ -5,7 +5,7 @@ import SwiftUI
 /// 替代 NotesViewModel 中的同步状态管理功能，
 /// 负责同步进度、离线队列、离线模式和启动序列的状态跟踪。
 @MainActor
-final class SyncState: ObservableObject {
+public final class SyncState: ObservableObject {
     // MARK: - 同步状态
 
     @Published var isSyncing = false

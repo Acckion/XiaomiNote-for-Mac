@@ -4,7 +4,7 @@ import Foundation
 ///
 /// 全局事件分发中心，支持发布-订阅模式。
 /// 使用 actor 保证并发安全。
-actor EventBus {
+public actor EventBus {
     static let shared = EventBus()
 
     /// 事件历史最大容量

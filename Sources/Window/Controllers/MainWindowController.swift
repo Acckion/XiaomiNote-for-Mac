@@ -26,10 +26,10 @@
         /// 窗口状态
         private let windowState: WindowState
 
-        /// 内容视图模型（向后兼容，供 TrashView 和 MenuActionHandler 使用）
-        /// 新代码应使用 coordinator 上的 State 对象
+        /// 内容视图模型（已废弃，新代码应使用 coordinator 上的 State 对象）
+        @available(*, deprecated, message: "使用 coordinator 上的 State 对象替代")
         public var viewModel: NotesViewModel? {
-            coordinator.notesViewModel
+            nil
         }
 
         /// 当前搜索字段（用于工具栏搜索项）
@@ -1705,13 +1705,8 @@
                 return
             }
 
-            guard let viewModel else {
-                LogService.shared.error(.window, "viewModel 为 nil，无法创建回收站视图")
-                return
-            }
-
             // 创建回收站视图
-            let trashView = TrashView(viewModel: viewModel)
+            let trashView = TrashView(noteListState: coordinator.noteListState)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: trashView)

@@ -106,7 +106,6 @@
 		52ADA13E3A89B6CAFC325AC1 /* MiNoteLibrary.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; };
 		55C5393E785F6D282FD5ABEC /* SyncState.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA99B62732C1CF59E1CF6464 /* SyncState.swift */; };
 		56C611D7C228635469129A23 /* AttributeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64E236D3FD2323ED87F99D90 /* AttributeManager.swift */; };
-		56E1518A2B5F27138B184C1E /* NotesViewModelAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41CDC2D28375654E951E5252 /* NotesViewModelAdapter.swift */; };
 		5B22F3187370A08C0DBC0347 /* ErrorEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE20FF79BA5893FC193B539D /* ErrorEvent.swift */; };
 		5C2020421AA15138371BD227 /* TypingOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C899D8B37D4EAB34DD8726 /* TypingOptimizer.swift */; };
 		5C394B8DD6D2A9BEA19EB904 /* AudioPlayerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B4D68D7A1D5417FE442C4A7 /* AudioPlayerService.swift */; };
@@ -399,7 +398,6 @@
 		3C61489E4FB25E635D3F4216 /* Notification+MenuState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Notification+MenuState.swift"; sourceTree = "<group>"; };
 		3E674D3C681C4EC48790DE69 /* ToolbarIdentifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarIdentifiers.swift; sourceTree = "<group>"; };
 		40E028C4E58734DF7C83C8D2 /* ParagraphManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParagraphManager.swift; sourceTree = "<group>"; };
-		41CDC2D28375654E951E5252 /* NotesViewModelAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesViewModelAdapter.swift; sourceTree = "<group>"; };
 		438DF85A272111C8EE27CC07 /* UndoRedoStateHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoRedoStateHandler.swift; sourceTree = "<group>"; };
 		43CA14F2F9F71D998E97AF5D /* BaseSheetToolbarDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseSheetToolbarDelegate.swift; sourceTree = "<group>"; };
 		4412C82EA1558B82AE40CD1C /* ViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewState.swift; sourceTree = "<group>"; };
@@ -663,7 +661,6 @@
 			isa = PBXGroup;
 			children = (
 				117ECA92DFD42B10E70CF2EB /* AppCoordinator.swift */,
-				41CDC2D28375654E951E5252 /* NotesViewModelAdapter.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -1859,7 +1856,6 @@
 				333F0FFC231A4E8D7EFFE291 /* NotesListViewController.swift in Sources */,
 				ACA1C2E0098869D52C872110 /* NotesListWindowState.swift in Sources */,
 				FA31A3C141A35190A53B00BC /* NotesViewModel.swift in Sources */,
-				56E1518A2B5F27138B184C1E /* NotesViewModelAdapter.swift in Sources */,
 				1006775DF6A1BC8FFC04E264 /* Notification+FormatState.swift in Sources */,
 				41E8C23D23A5363C0B5D2919 /* Notification+MenuState.swift in Sources */,
 				5046891BC06CE0B59413BFD1 /* OfflineOperationsProgressView.swift in Sources */,

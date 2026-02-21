@@ -28,11 +28,6 @@ public struct ContentView: View {
     @ObservedObject var searchState: SearchState
     @ObservedObject var noteEditorState: NoteEditorState
 
-    /// 向后兼容：仅用于 TrashView 和 NotesListViewControllerWrapper（尚未迁移到 State 架构）
-    private var viewModel: NotesViewModel {
-        coordinator.notesViewModel
-    }
-
     /// 侧边栏可见性状态
     /// - `.all`: 显示所有列（侧边栏、列表、编辑区）
     /// - `.detailOnly`: 只显示列表和编辑区（隐藏侧边栏）
@@ -184,7 +179,7 @@ public struct ContentView: View {
             OfflineOperationsProgressView(processor: OperationProcessor.shared)
         }
         .sheet(isPresented: $showTrashView) {
-            TrashView(viewModel: viewModel)
+            TrashView(noteListState: coordinator.noteListState)
         }
         .alert("Cookie已失效", isPresented: $showingCookieExpiredAlert) {
             Button("重新登录") {
@@ -273,7 +268,9 @@ public struct ContentView: View {
     private var notesListContent: some View {
         Group {
             if folderState.selectedFolder != nil || !searchState.searchText.isEmpty || searchState.hasSearchFilters {
-                NotesListViewControllerWrapper(viewModel: viewModel)
+                // ContentView 已废弃，此处保留占位
+                Text("请使用新架构的 ContentAreaView")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView(
                     "选择文件夹",
@@ -896,26 +893,21 @@ struct AutoFocusTextField: View {
     }
 }
 
-// MARK: - NotesListViewControllerWrapper
+// MARK: - NotesListViewControllerWrapper (已废弃)
 
-/// NotesListViewController的SwiftUI包装器
-///
-/// 将AppKit的NotesListViewController包装成SwiftUI视图
-/// 用于在ContentView中替换原来的SwiftUI NotesListView
+/// NotesListViewController的SwiftUI包装器（已废弃）
+@available(*, deprecated, message: "ContentView 已废弃，使用新架构的 ContentAreaView")
 struct NotesListViewControllerWrapper: NSViewControllerRepresentable {
-    @ObservedObject var viewModel: NotesViewModel
+    let coordinator: AppCoordinator
 
-    func makeNSViewController(context _: Context) -> NotesListViewController {
-        NotesListViewController(viewModel: viewModel)
+    func makeNSViewController(context _: Context) -> NSViewController {
+        NSViewController()
     }
 
-    func updateNSViewController(_: NotesListViewController, context _: Context) {
-        // 视图模型更新时，不需要额外操作
-        // NotesListViewController内部已经通过Combine监听viewModel的变化
-    }
+    func updateNSViewController(_: NSViewController, context _: Context) {}
 }
 
 @available(macOS 14.0, *)
 #Preview {
-    ContentView(coordinator: PreviewHelper.shared.createPreviewCoordinator())
+    ContentView(coordinator: AppCoordinator())
 }

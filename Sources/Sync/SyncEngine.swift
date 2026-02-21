@@ -4,7 +4,7 @@ import Foundation
 ///
 /// 新架构中的同步核心，替代 SyncService。
 /// 关键区别：不直接写 DB，通过 EventBus 发布事件让 NoteStore 处理 DB 写入。
-actor SyncEngine {
+public actor SyncEngine {
     static let shared = SyncEngine()
 
     // MARK: - 依赖

@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import SwiftUI
 
 /// 笔记列表视图控制器
@@ -8,11 +7,15 @@ class NotesListViewController: NSViewController {
 
     // MARK: - 属性
 
-    private var viewModel: NotesViewModel
+    private var noteListState: NoteListState
+    private var folderState: FolderState
+    private var searchState: SearchState
     private var tableView: NSTableView!
     private var scrollView: NSScrollView!
 
-    private var cancellables = Set<AnyCancellable>()
+    private var notesObserveTask: Task<Void, Never>?
+    private var selectionObserveTask: Task<Void, Never>?
+    private var folderObserveTask: Task<Void, Never>?
 
     // 分组数据
     private var groupedNotes: [String: [Note]] = [:]
@@ -20,8 +23,10 @@ class NotesListViewController: NSViewController {
 
     // MARK: - 初始化
 
-    init(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    init(noteListState: NoteListState, folderState: FolderState, searchState: SearchState) {
+        self.noteListState = noteListState
+        self.folderState = folderState
+        self.searchState = searchState
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -53,7 +58,7 @@ class NotesListViewController: NSViewController {
         tableView.headerView = nil
         tableView.style = .plain
         tableView.selectionHighlightStyle = .regular
-        tableView.rowHeight = 60 // 增加行高以容纳更多内容
+        tableView.rowHeight = 60
         tableView.intercellSpacing = NSSize(width: 0, height: 1)
         tableView.usesAlternatingRowBackgroundColors = false
         tableView.backgroundColor = NSColor.windowBackgroundColor
@@ -83,38 +88,49 @@ class NotesListViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // 监听数据变化
-        Publishers.CombineLatest(viewModel.$notes, viewModel.$searchText)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.updateGroupedNotes()
-                self?.tableView.reloadData()
+        // 监听笔记列表变化
+        notesObserveTask = Task { [weak self] in
+            guard let self else { return }
+            for await _ in noteListState.$notes.values {
+                guard !Task.isCancelled else { break }
+                updateGroupedNotes()
+                tableView.reloadData()
             }
-            .store(in: &cancellables)
+        }
 
-        viewModel.$selectedNote
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.updateSelection()
+        // 监听选中笔记变化
+        selectionObserveTask = Task { [weak self] in
+            guard let self else { return }
+            for await _ in noteListState.$selectedNote.values {
+                guard !Task.isCancelled else { break }
+                updateSelection()
             }
-            .store(in: &cancellables)
+        }
 
-        viewModel.$selectedFolder
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.updateGroupedNotes()
-                self?.tableView.reloadData()
+        // 监听选中文件夹变化
+        folderObserveTask = Task { [weak self] in
+            guard let self else { return }
+            for await _ in folderState.$selectedFolder.values {
+                guard !Task.isCancelled else { break }
+                updateGroupedNotes()
+                tableView.reloadData()
             }
-            .store(in: &cancellables)
+        }
 
         // 设置右键菜单
         tableView.menu = createContextMenu()
     }
 
+    deinit {
+        notesObserveTask?.cancel()
+        selectionObserveTask?.cancel()
+        folderObserveTask?.cancel()
+    }
+
     // MARK: - 私有方法
 
     private func updateGroupedNotes() {
-        groupedNotes = groupNotesByDate(viewModel.filteredNotes)
+        groupedNotes = groupNotesByDate(noteListState.filteredNotes)
 
         // 定义分组显示顺序
         let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
@@ -136,7 +152,7 @@ class NotesListViewController: NSViewController {
     }
 
     private func updateSelection() {
-        guard let selectedNote = viewModel.selectedNote else {
+        guard let selectedNote = noteListState.selectedNote else {
             tableView.deselectAll(nil)
             return
         }
@@ -181,16 +197,12 @@ class NotesListViewController: NSViewController {
             } else if calendar.isDateInYesterday(date) {
                 key = "昨天"
             } else if calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear) {
-                // 本周（但不包括今天和昨天）
                 key = "本周"
             } else if calendar.isDate(date, equalTo: now, toGranularity: .month) {
-                // 本月（但不包括本周）
                 key = "本月"
             } else if calendar.isDate(date, equalTo: now, toGranularity: .year) {
-                // 本年（但不包括本月）
                 key = "本年"
             } else {
-                // 其他年份
                 let year = calendar.component(.year, from: date)
                 key = "\(year)年"
             }
@@ -212,7 +224,6 @@ class NotesListViewController: NSViewController {
     private func createContextMenu() -> NSMenu {
         let menu = NSMenu()
 
-        // 在新窗口打开笔记
         let openInNewWindowItem = NSMenuItem(
             title: "在新窗口打开笔记",
             action: #selector(openNoteInNewWindow(_:)),
@@ -223,7 +234,6 @@ class NotesListViewController: NSViewController {
 
         menu.addItem(NSMenuItem.separator())
 
-        // 置顶笔记
         let toggleStarItem = NSMenuItem(
             title: "置顶笔记",
             action: #selector(toggleStarNote(_:)),
@@ -232,7 +242,6 @@ class NotesListViewController: NSViewController {
         toggleStarItem.target = self
         menu.addItem(toggleStarItem)
 
-        // 移动笔记
         let moveNoteItem = NSMenuItem(
             title: "移动笔记",
             action: #selector(moveNote(_:)),
@@ -243,7 +252,6 @@ class NotesListViewController: NSViewController {
 
         menu.addItem(NSMenuItem.separator())
 
-        // 删除笔记
         let deleteNoteItem = NSMenuItem(
             title: "删除笔记",
             action: #selector(deleteNote(_:)),
@@ -252,7 +260,6 @@ class NotesListViewController: NSViewController {
         deleteNoteItem.target = self
         menu.addItem(deleteNoteItem)
 
-        // 复制笔记
         let copyNoteItem = NSMenuItem(
             title: "复制笔记",
             action: #selector(copyNote(_:)),
@@ -261,7 +268,6 @@ class NotesListViewController: NSViewController {
         copyNoteItem.target = self
         menu.addItem(copyNoteItem)
 
-        // 新建笔记
         let newNoteItem = NSMenuItem(
             title: "新建笔记",
             action: #selector(createNewNote(_:)),
@@ -272,7 +278,6 @@ class NotesListViewController: NSViewController {
 
         menu.addItem(NSMenuItem.separator())
 
-        // 共享笔记
         let shareNoteItem = NSMenuItem(
             title: "共享笔记",
             action: #selector(shareNote(_:)),
@@ -284,71 +289,46 @@ class NotesListViewController: NSViewController {
         return menu
     }
 
+    // MARK: - 辅助方法：根据行号查找笔记
+
+    private func noteForRow(_ row: Int) -> Note? {
+        var currentRow = 0
+        for sectionKey in sectionKeys {
+            if let notes = groupedNotes[sectionKey] {
+                if row >= currentRow, row < currentRow + notes.count {
+                    return notes[row - currentRow]
+                }
+                currentRow += notes.count
+            }
+        }
+        return nil
+    }
+
     // MARK: - 上下文菜单动作
 
     @objc private func openNoteInNewWindow(_: Any?) {
         let clickedRow = tableView.clickedRow
-        guard clickedRow >= 0 else { return }
-
-        // 查找点击的笔记
-        var rowIndex = 0
-        for sectionKey in sectionKeys {
-            if let notes = groupedNotes[sectionKey] {
-                if clickedRow >= rowIndex, clickedRow < rowIndex + notes.count {
-                    let note = notes[clickedRow - rowIndex]
-                    // TODO: 实现多窗口支持后启用
-                    // 当前由于模块依赖问题暂时禁用
-                    LogService.shared.debug(.window, "在新窗口打开笔记功能暂时禁用")
-                    return
-                }
-                rowIndex += notes.count
-            }
-        }
+        guard clickedRow >= 0, noteForRow(clickedRow) != nil else { return }
+        LogService.shared.debug(.window, "在新窗口打开笔记功能暂时禁用")
     }
 
     @objc private func toggleStarNote(_: Any?) {
         let clickedRow = tableView.clickedRow
-        guard clickedRow >= 0 else { return }
-
-        // 查找点击的笔记
-        var rowIndex = 0
-        for sectionKey in sectionKeys {
-            if let notes = groupedNotes[sectionKey] {
-                if clickedRow >= rowIndex, clickedRow < rowIndex + notes.count {
-                    let note = notes[clickedRow - rowIndex]
-                    viewModel.toggleStar(note)
-                    return
-                }
-                rowIndex += notes.count
-            }
-        }
+        guard clickedRow >= 0, let note = noteForRow(clickedRow) else { return }
+        Task { await noteListState.toggleStar(note) }
     }
 
     @objc private func moveNote(_: Any?) {
         let clickedRow = tableView.clickedRow
-        guard clickedRow >= 0 else { return }
-
-        // 查找点击的笔记
-        var rowIndex = 0
-        for sectionKey in sectionKeys {
-            if let notes = groupedNotes[sectionKey] {
-                if clickedRow >= rowIndex, clickedRow < rowIndex + notes.count {
-                    let note = notes[clickedRow - rowIndex]
-                    showMoveNoteMenu(for: note)
-                    return
-                }
-                rowIndex += notes.count
-            }
-        }
+        guard clickedRow >= 0, let note = noteForRow(clickedRow) else { return }
+        showMoveNoteMenu(for: note)
     }
 
     /// 显示移动笔记菜单
-    /// - Parameter note: 要移动的笔记
     private func showMoveNoteMenu(for note: Note) {
-        // 创建菜单
         let menu = NSMenu()
 
-        // 未分类文件夹（folderId为"0"）
+        // 未分类文件夹
         let uncategorizedMenuItem = NSMenuItem(title: "未分类", action: #selector(moveToUncategorized(_:)), keyEquivalent: "")
         uncategorizedMenuItem.representedObject = note
         uncategorizedMenuItem.image = NSImage(systemSymbolName: "folder.badge.questionmark", accessibilityDescription: nil)
@@ -357,7 +337,7 @@ class NotesListViewController: NSViewController {
         menu.addItem(uncategorizedMenuItem)
 
         // 其他可用文件夹
-        let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+        let availableFolders = NoteMoveHelper.getAvailableFolders(from: folderState)
 
         if !availableFolders.isEmpty {
             menu.addItem(NSMenuItem.separator())
@@ -372,17 +352,15 @@ class NotesListViewController: NSViewController {
             }
         }
 
-        // 在点击位置显示菜单
         let clickedRow = tableView.clickedRow
         let rowRect = tableView.rect(ofRow: clickedRow)
         menu.popUp(positioning: nil, at: NSPoint(x: rowRect.midX, y: rowRect.minY), in: tableView)
     }
 
-    /// 移动笔记到未分类文件夹
     @objc private func moveToUncategorized(_ sender: NSMenuItem) {
         guard let note = sender.representedObject as? Note else { return }
 
-        NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
+        NoteMoveHelper.moveToUncategorized(note, using: noteListState) { result in
             switch result {
             case .success:
                 LogService.shared.info(.window, "笔记移动到未分类成功: \(note.id)")
@@ -392,11 +370,10 @@ class NotesListViewController: NSViewController {
         }
     }
 
-    /// 移动笔记到指定文件夹
     @objc private func moveNoteToFolder(_ sender: NSMenuItem) {
         guard let (note, folder) = sender.representedObject as? (Note, Folder) else { return }
 
-        NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
+        NoteMoveHelper.moveNote(note, to: folder, using: noteListState) { result in
             switch result {
             case .success:
                 LogService.shared.info(.window, "笔记移动成功: \(note.id) -> \(folder.name)")
@@ -408,87 +385,49 @@ class NotesListViewController: NSViewController {
 
     @objc private func deleteNote(_: Any?) {
         let clickedRow = tableView.clickedRow
-        guard clickedRow >= 0 else { return }
+        guard clickedRow >= 0, let note = noteForRow(clickedRow) else { return }
 
-        // 查找点击的笔记
-        var rowIndex = 0
-        for sectionKey in sectionKeys {
-            if let notes = groupedNotes[sectionKey] {
-                if clickedRow >= rowIndex, clickedRow < rowIndex + notes.count {
-                    let note = notes[clickedRow - rowIndex]
+        let alert = NSAlert()
+        alert.messageText = "删除笔记"
+        alert.informativeText = "确定要删除笔记 \"\(note.title)\" 吗？此操作无法撤销。"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "删除")
+        alert.addButton(withTitle: "取消")
 
-                    let alert = NSAlert()
-                    alert.messageText = "删除笔记"
-                    alert.informativeText = "确定要删除笔记 \"\(note.title)\" 吗？此操作无法撤销。"
-                    alert.alertStyle = .warning
-                    alert.addButton(withTitle: "删除")
-                    alert.addButton(withTitle: "取消")
-
-                    let response = alert.runModal()
-                    if response == .alertFirstButtonReturn {
-                        // 直接调用deleteNote方法，它内部会处理异步操作
-                        viewModel.deleteNote(note)
-                    }
-                    return
-                }
-                rowIndex += notes.count
-            }
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            Task { await noteListState.deleteNote(note) }
         }
     }
 
     @objc private func copyNote(_: Any?) {
         let clickedRow = tableView.clickedRow
-        guard clickedRow >= 0 else { return }
+        guard clickedRow >= 0, let note = noteForRow(clickedRow) else { return }
 
-        // 查找点击的笔记
-        var rowIndex = 0
-        for sectionKey in sectionKeys {
-            if let notes = groupedNotes[sectionKey] {
-                if clickedRow >= rowIndex, clickedRow < rowIndex + notes.count {
-                    let note = notes[clickedRow - rowIndex]
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
 
-                    let pasteboard = NSPasteboard.general
-                    pasteboard.clearContents()
-
-                    // 复制标题和内容
-                    let content = note.title.isEmpty ? note.content : "\(note.title)\n\n\(note.content)"
-                    pasteboard.setString(content, forType: .string)
-                    return
-                }
-                rowIndex += notes.count
-            }
-        }
+        let content = note.title.isEmpty ? note.content : "\(note.title)\n\n\(note.content)"
+        pasteboard.setString(content, forType: .string)
     }
 
     @objc private func createNewNote(_: Any?) {
-        viewModel.createNewNote()
+        Task { await noteListState.createNewNote(inFolder: folderState.selectedFolder?.id ?? "0") }
     }
 
     @objc private func shareNote(_: Any?) {
         let clickedRow = tableView.clickedRow
-        guard clickedRow >= 0 else { return }
+        guard clickedRow >= 0, let note = noteForRow(clickedRow) else { return }
 
-        // 查找点击的笔记
-        var rowIndex = 0
-        for sectionKey in sectionKeys {
-            if let notes = groupedNotes[sectionKey] {
-                if clickedRow >= rowIndex, clickedRow < rowIndex + notes.count {
-                    let note = notes[clickedRow - rowIndex]
+        let sharingService = NSSharingServicePicker(items: [
+            note.title,
+            note.content,
+        ])
 
-                    let sharingService = NSSharingServicePicker(items: [
-                        note.title,
-                        note.content,
-                    ])
-
-                    if let window = view.window,
-                       let contentView = window.contentView
-                    {
-                        sharingService.show(relativeTo: NSRect.zero, of: contentView, preferredEdge: .minY)
-                    }
-                    return
-                }
-                rowIndex += notes.count
-            }
+        if let window = view.window,
+           let contentView = window.contentView
+        {
+            sharingService.show(relativeTo: NSRect.zero, of: contentView, preferredEdge: .minY)
         }
     }
 }
@@ -508,7 +447,7 @@ extension NotesListViewController: NSTableViewDataSource {
     }
 
     func tableView(_: NSTableView, objectValueFor _: NSTableColumn?, row _: Int) -> Any? {
-        nil // 我们使用自定义视图，所以返回nil
+        nil
     }
 }
 
@@ -517,7 +456,6 @@ extension NotesListViewController: NSTableViewDataSource {
 extension NotesListViewController: NSTableViewDelegate {
 
     func tableView(_ tableView: NSTableView, viewFor _: NSTableColumn?, row: Int) -> NSView? {
-        // 查找对应的笔记
         var currentRow = 0
         for sectionKey in sectionKeys {
             if let notes = groupedNotes[sectionKey] {
@@ -525,7 +463,6 @@ extension NotesListViewController: NSTableViewDelegate {
                     let note = notes[row - currentRow]
                     let isLastInSection = (row - currentRow) == notes.count - 1
 
-                    // 创建或重用单元格
                     let identifier = NSUserInterfaceItemIdentifier("NoteCell")
                     var cell = tableView.makeView(withIdentifier: identifier, owner: self) as? NoteTableCellView
 
@@ -534,7 +471,7 @@ extension NotesListViewController: NSTableViewDelegate {
                         cell?.identifier = identifier
                     }
 
-                    cell?.configure(with: note, viewModel: viewModel, showDivider: !isLastInSection)
+                    cell?.configure(with: note, folderState: folderState, searchState: searchState, showDivider: !isLastInSection)
                     return cell
                 }
                 currentRow += notes.count
@@ -549,30 +486,21 @@ extension NotesListViewController: NSTableViewDelegate {
     }
 
     func tableView(_: NSTableView, heightOfRow _: Int) -> CGFloat {
-        60 // 固定行高
+        60
     }
 
     func tableViewSelectionDidChange(_: Notification) {
         let selectedRow = tableView.selectedRow
         if selectedRow >= 0 {
-            // 查找对应的笔记
-            var currentRow = 0
-            for sectionKey in sectionKeys {
-                if let notes = groupedNotes[sectionKey] {
-                    if selectedRow >= currentRow, selectedRow < currentRow + notes.count {
-                        let note = notes[selectedRow - currentRow]
-                        // 延迟到下一个 RunLoop 周期，避免在视图更新周期内修改 @Published 属性
-                        DispatchQueue.main.async { [weak self] in
-                            self?.viewModel.selectedNote = note
-                        }
-                        return
-                    }
-                    currentRow += notes.count
+            if let note = noteForRow(selectedRow) {
+                // 延迟到下一个 RunLoop 周期，避免在视图更新周期内修改 @Published 属性
+                DispatchQueue.main.async { [weak self] in
+                    self?.noteListState.selectNote(note)
                 }
             }
         } else {
             DispatchQueue.main.async { [weak self] in
-                self?.viewModel.selectedNote = nil
+                self?.noteListState.selectedNote = nil
             }
         }
     }
@@ -590,7 +518,8 @@ class NoteTableCellView: NSView {
     private var dividerView: NSView!
 
     private var note: Note?
-    private var viewModel: NotesViewModel?
+    private var folderState: FolderState?
+    private var searchState: SearchState?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -603,7 +532,6 @@ class NoteTableCellView: NSView {
     }
 
     private func setupViews() {
-        // 创建标题标签
         titleLabel = NSTextField(labelWithString: "")
         titleLabel.font = NSFont.systemFont(ofSize: 14)
         titleLabel.textColor = .labelColor
@@ -611,14 +539,12 @@ class NoteTableCellView: NSView {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(titleLabel)
 
-        // 创建日期标签
         dateLabel = NSTextField(labelWithString: "")
         dateLabel.font = NSFont.systemFont(ofSize: 11)
         dateLabel.textColor = .secondaryLabelColor
         dateLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(dateLabel)
 
-        // 创建预览标签
         previewLabel = NSTextField(labelWithString: "")
         previewLabel.font = NSFont.systemFont(ofSize: 11)
         previewLabel.textColor = .secondaryLabelColor
@@ -626,7 +552,6 @@ class NoteTableCellView: NSView {
         previewLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(previewLabel)
 
-        // 创建文件夹标签
         folderLabel = NSTextField(labelWithString: "")
         folderLabel.font = NSFont.systemFont(ofSize: 10)
         folderLabel.textColor = .secondaryLabelColor
@@ -634,47 +559,38 @@ class NoteTableCellView: NSView {
         folderLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(folderLabel)
 
-        // 创建图片视图
         imageView = NSImageView()
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(imageView)
 
-        // 创建分割线视图
         dividerView = NSView()
         dividerView.wantsLayer = true
         dividerView.layer?.backgroundColor = NSColor.separatorColor.cgColor
         dividerView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(dividerView)
 
-        // 设置约束
         NSLayoutConstraint.activate([
-            // 标题标签
             titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 6),
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: imageView.leadingAnchor, constant: -8),
 
-            // 日期标签
             dateLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
             dateLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
 
-            // 预览标签
             previewLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
             previewLabel.leadingAnchor.constraint(equalTo: dateLabel.trailingAnchor, constant: 4),
             previewLabel.trailingAnchor.constraint(lessThanOrEqualTo: imageView.leadingAnchor, constant: -8),
 
-            // 文件夹标签
             folderLabel.topAnchor.constraint(equalTo: dateLabel.bottomAnchor, constant: 2),
             folderLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             folderLabel.trailingAnchor.constraint(lessThanOrEqualTo: imageView.leadingAnchor, constant: -8),
 
-            // 图片视图
             imageView.topAnchor.constraint(equalTo: topAnchor, constant: 6),
             imageView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             imageView.widthAnchor.constraint(equalToConstant: 50),
             imageView.heightAnchor.constraint(equalToConstant: 50),
 
-            // 分割线
             dividerView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             dividerView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             dividerView.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -682,15 +598,15 @@ class NoteTableCellView: NSView {
         ])
     }
 
-    func configure(with note: Note, viewModel: NotesViewModel, showDivider: Bool) {
+    func configure(with note: Note, folderState: FolderState, searchState: SearchState, showDivider: Bool) {
         self.note = note
-        self.viewModel = viewModel
+        self.folderState = folderState
+        self.searchState = searchState
 
         // 设置标题
         if note.isStarred {
             let attributedString = NSMutableAttributedString()
 
-            // 添加星标图标
             if let starImage = NSImage(systemSymbolName: "star.fill", accessibilityDescription: nil) {
                 let attachment = NSTextAttachment()
                 attachment.image = starImage
@@ -698,11 +614,9 @@ class NoteTableCellView: NSView {
                 attributedString.append(starString)
                 attributedString.append(NSAttributedString(string: " "))
 
-                // 设置星标颜色
                 attributedString.addAttribute(.foregroundColor, value: NSColor.systemYellow, range: NSRange(location: 0, length: 1))
             }
 
-            // 添加笔记标题
             let title = hasRealTitle(note) ? note.title : "无标题"
             let titleString = NSAttributedString(string: title)
             attributedString.append(titleString)
@@ -713,21 +627,16 @@ class NoteTableCellView: NSView {
             titleLabel.stringValue = title
         }
 
-        // 设置日期
         dateLabel.stringValue = formatDate(note.updatedAt)
-
-        // 设置预览文本
         previewLabel.stringValue = extractPreviewText(from: note.content)
 
-        // 设置文件夹信息
-        if shouldShowFolderInfo(for: note, viewModel: viewModel) {
-            folderLabel.stringValue = getFolderName(for: note.folderId, viewModel: viewModel)
+        if shouldShowFolderInfo(for: note) {
+            folderLabel.stringValue = getFolderName(for: note.folderId)
             folderLabel.isHidden = false
         } else {
             folderLabel.isHidden = true
         }
 
-        // 设置图片预览
         if let imageInfo = getFirstImageInfo(from: note) {
             loadThumbnail(imageInfo: imageInfo)
             imageView.isHidden = false
@@ -736,38 +645,30 @@ class NoteTableCellView: NSView {
             imageView.isHidden = true
         }
 
-        // 设置分割线
         dividerView.isHidden = !showDivider
     }
 
     private func hasRealTitle(_ note: Note) -> Bool {
-        // 如果标题为空，没有真正的标题
         if note.title.isEmpty {
             return false
         }
 
-        // 如果标题是"未命名笔记_xxx"格式，没有真正的标题
         if note.title.hasPrefix("未命名笔记_") {
             return false
         }
 
-        // 检查 extraInfoJson 中是否有真正的标题
         if let extraInfoJson = note.extraInfoJson,
            let extraData = extraInfoJson.data(using: .utf8),
            let extraJson = try? JSONSerialization.jsonObject(with: extraData) as? [String: Any],
            let realTitle = extraJson["title"] as? String,
            !realTitle.isEmpty
         {
-            // 如果 extraInfo 中有标题，且与当前标题匹配，说明有真正的标题
             if realTitle == note.title {
                 return true
             }
         }
 
-        // 检查标题是否与内容的第一行匹配（去除XML标签后）
-        // 如果匹配，说明标题可能是从内容中提取的（处理旧数据），没有真正的标题
         if !note.content.isEmpty {
-            // 移除XML标签，提取纯文本
             let textContent = note.content
                 .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
                 .replacingOccurrences(of: "&amp;", with: "&")
@@ -777,16 +678,13 @@ class NoteTableCellView: NSView {
                 .replacingOccurrences(of: "&apos;", with: "'")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
-            // 获取第一行
             let firstLine = textContent.split(separator: "\n").first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
-            // 如果标题与第一行匹配，说明可能是从内容中提取的（处理旧数据）
             if !firstLine.isEmpty, note.title == firstLine {
                 return false
             }
         }
 
-        // 默认情况下，如果标题不为空且不是"未命名笔记_xxx"，认为有真正的标题
         return true
     }
 
@@ -812,7 +710,6 @@ class NoteTableCellView: NSView {
             return ""
         }
 
-        // 移除 XML 标签，提取纯文本
         var text = xmlContent
             .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
             .replacingOccurrences(of: "&amp;", with: "&")
@@ -822,7 +719,6 @@ class NoteTableCellView: NSView {
             .replacingOccurrences(of: "&apos;", with: "'")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // 限制长度（比如前 50 个字符）
         let maxLength = 50
         if text.count > maxLength {
             text = String(text.prefix(maxLength)) + "..."
@@ -831,24 +727,23 @@ class NoteTableCellView: NSView {
         return text.isEmpty ? "无内容" : text
     }
 
-    func shouldShowFolderInfo(for _: Note, viewModel: NotesViewModel) -> Bool {
+    func shouldShowFolderInfo(for _: Note) -> Bool {
         // 如果选中"未分类"文件夹，不显示文件夹信息
-        if let folderId = viewModel.selectedFolder?.id, folderId == "uncategorized" {
+        if let folderId = folderState?.selectedFolder?.id, folderId == "uncategorized" {
             return false
         }
 
         // 有搜索文本
-        if !viewModel.searchText.isEmpty {
+        if !(searchState?.searchText ?? "").isEmpty {
             return true
         }
 
         // 根据当前选中文件夹判断
-        guard let folderId = viewModel.selectedFolder?.id else { return false }
+        guard let folderId = folderState?.selectedFolder?.id else { return false }
         return folderId == "0" || folderId == "starred"
     }
 
-    func getFolderName(for folderId: String, viewModel: NotesViewModel) -> String {
-        // 系统文件夹名称
+    func getFolderName(for folderId: String) -> String {
         if folderId == "0" {
             return "未分类"
         } else if folderId == "starred" {
@@ -857,12 +752,10 @@ class NoteTableCellView: NSView {
             return "私密笔记"
         }
 
-        // 用户自定义文件夹
-        if let folder = viewModel.folders.first(where: { $0.id == folderId }) {
+        if let folder = folderState?.folders.first(where: { $0.id == folderId }) {
             return folder.name
         }
 
-        // 找不到时，回退显示 ID（理论上很少出现）
         return folderId
     }
 
@@ -875,7 +768,6 @@ class NoteTableCellView: NSView {
             return nil
         }
 
-        // 查找第一张图片
         for imgData in settingData {
             if let fileId = imgData["fileId"] as? String,
                let mimeType = imgData["mimeType"] as? String,
@@ -894,34 +786,28 @@ class NoteTableCellView: NSView {
             if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
                let nsImage = NSImage(data: imageData)
             {
-                // 创建缩略图（50x50）
                 let thumbnailSize = NSSize(width: 50, height: 50)
                 let thumbnail = NSImage(size: thumbnailSize)
 
                 thumbnail.lockFocus()
                 defer { thumbnail.unlockFocus() }
 
-                // 计算缩放比例，保持宽高比
                 let imageSize = nsImage.size
                 let scaleX = thumbnailSize.width / imageSize.width
                 let scaleY = thumbnailSize.height / imageSize.height
                 let scale = max(scaleX, scaleY)
 
-                // 计算缩放后的尺寸
                 let scaledSize = NSSize(
                     width: imageSize.width * scale,
                     height: imageSize.height * scale
                 )
 
-                // 计算居中位置
                 let offsetX = (thumbnailSize.width - scaledSize.width) / 2
                 let offsetY = (thumbnailSize.height - scaledSize.height) / 2
 
-                // 填充背景色
                 NSColor.controlBackgroundColor.setFill()
                 NSRect(origin: .zero, size: thumbnailSize).fill()
 
-                // 绘制图片
                 nsImage.draw(
                     in: NSRect(origin: NSPoint(x: offsetX, y: offsetY), size: scaledSize),
                     from: NSRect(origin: .zero, size: imageSize),
@@ -933,7 +819,6 @@ class NoteTableCellView: NSView {
                     self.imageView.image = thumbnail
                 }
             } else {
-                // 如果加载失败，显示占位符
                 await MainActor.run {
                     self.imageView.image = NSImage(systemSymbolName: "photo", accessibilityDescription: nil)
                 }
@@ -968,12 +853,9 @@ extension NotesListViewController {
     // MARK: - 窗口状态管理
 
     /// 获取可保存的窗口状态
-    /// - Returns: 笔记列表窗口状态对象
     func savableWindowState() -> NotesListWindowState {
-        // 获取选中的笔记ID
-        let selectedNoteId = viewModel.selectedNote?.id
+        let selectedNoteId = noteListState.selectedNote?.id
 
-        // 获取滚动位置（如果有滚动视图）
         let scrollPosition: Double
         let clipView = scrollView.contentView
         let visibleRect = clipView.documentVisibleRect
@@ -989,20 +871,17 @@ extension NotesListViewController {
     }
 
     /// 恢复窗口状态
-    /// - Parameter state: 要恢复的笔记列表窗口状态
     func restoreWindowState(_ state: NotesListWindowState) {
         LogService.shared.debug(.window, "恢复笔记列表状态: \(state)")
 
-        // 恢复选中的笔记，延迟到下一个 RunLoop 周期避免视图更新冲突
         if let selectedNoteId = state.selectedNoteId,
-           let note = viewModel.notes.first(where: { $0.id == selectedNoteId })
+           let note = noteListState.notes.first(where: { $0.id == selectedNoteId })
         {
             DispatchQueue.main.async { [weak self] in
-                self?.viewModel.selectedNote = note
+                self?.noteListState.selectNote(note)
             }
         }
 
-        // 恢复滚动位置
         if state.scrollPosition > 0 {
             let scrollPoint = NSPoint(x: 0, y: CGFloat(state.scrollPosition))
             scrollView.contentView.scroll(to: scrollPoint)

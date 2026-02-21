@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 
 /// 侧边栏视图控制器
 /// 显示文件夹列表，包含两个Section：
@@ -9,11 +8,12 @@ class SidebarViewController: NSViewController {
 
     // MARK: - 属性
 
-    private var viewModel: NotesViewModel
+    private var folderState: FolderState
     private var outlineView: NSOutlineView!
     private var scrollView: NSScrollView!
 
-    private var cancellables = Set<AnyCancellable>()
+    private var foldersObserveTask: Task<Void, Never>?
+    private var selectionObserveTask: Task<Void, Never>?
 
     /// 侧边栏项数据
     private var sidebarItems: [SidebarItem] = []
@@ -42,24 +42,29 @@ class SidebarViewController: NSViewController {
 
     /// 系统文件夹（小米笔记部分）
     private var systemFolders: [Folder] {
-        viewModel.folders.filter { $0.isSystem || $0.id == "uncategorized" }
+        folderState.folders.filter { $0.isSystem || $0.id == "uncategorized" }
     }
 
     /// 用户文件夹（我的文件夹部分）
     private var userFolders: [Folder] {
-        viewModel.folders.filter { !$0.isSystem && $0.id != "uncategorized" }
+        folderState.folders.filter { !$0.isSystem && $0.id != "uncategorized" }
     }
 
     // MARK: - 初始化
 
-    init(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    init(folderState: FolderState) {
+        self.folderState = folderState
         super.init(nibName: nil, bundle: nil)
     }
 
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        foldersObserveTask?.cancel()
+        selectionObserveTask?.cancel()
     }
 
     // MARK: - 视图生命周期
@@ -114,23 +119,25 @@ class SidebarViewController: NSViewController {
         // 构建初始侧边栏项
         rebuildSidebarItems()
 
-        // 监听数据变化
-        viewModel.$folders
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.rebuildSidebarItems()
-                self?.outlineView.reloadData()
-                // 展开所有项
-                self?.outlineView.expandItem(nil, expandChildren: true)
+        // 监听文件夹列表变化
+        foldersObserveTask = Task { [weak self] in
+            guard let self else { return }
+            for await _ in folderState.$folders.values {
+                guard !Task.isCancelled else { break }
+                rebuildSidebarItems()
+                outlineView.reloadData()
+                outlineView.expandItem(nil, expandChildren: true)
             }
-            .store(in: &cancellables)
+        }
 
-        viewModel.$selectedFolder
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.updateSelection()
+        // 监听选中文件夹变化
+        selectionObserveTask = Task { [weak self] in
+            guard let self else { return }
+            for await _ in folderState.$selectedFolder.values {
+                guard !Task.isCancelled else { break }
+                updateSelection()
             }
-            .store(in: &cancellables)
+        }
 
         // 注册右键菜单
         let menu = NSMenu()
@@ -166,13 +173,7 @@ class SidebarViewController: NSViewController {
         let item = sidebarItems[clickedRow]
 
         if case let .folder(folder) = item {
-            Task {
-                do {
-                    try await viewModel.toggleFolderPin(folder)
-                } catch {
-                    LogService.shared.error(.app, "切换文件夹置顶状态失败: \(error)")
-                }
-            }
+            Task { await folderState.toggleFolderPin(folder) }
         }
     }
 
@@ -183,7 +184,7 @@ class SidebarViewController: NSViewController {
     // MARK: - 对话框显示
 
     private func showRenameDialog(for folder: Folder) {
-        // 检查是否是系统文件夹
+        // 系统文件夹不可重命名
         if folder.isSystem || folder.id == "uncategorized" {
             showSystemFolderAlert(folder: folder)
             return
@@ -207,19 +208,13 @@ class SidebarViewController: NSViewController {
         if response == .alertFirstButtonReturn {
             let newName = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if !newName.isEmpty, newName != folder.name {
-                Task {
-                    do {
-                        try await viewModel.renameFolder(folder, newName: newName)
-                    } catch {
-                        LogService.shared.error(.app, "重命名文件夹失败: \(error)")
-                    }
-                }
+                Task { await folderState.renameFolder(folder, newName: newName) }
             }
         }
     }
 
     private func showDeleteDialog(for folder: Folder) {
-        // 检查是否是系统文件夹
+        // 系统文件夹不可删除
         if folder.isSystem || folder.id == "uncategorized" {
             showSystemFolderAlert(folder: folder)
             return
@@ -234,13 +229,7 @@ class SidebarViewController: NSViewController {
 
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
-            Task {
-                do {
-                    try await viewModel.deleteFolder(folder)
-                } catch {
-                    LogService.shared.error(.app, "删除文件夹失败: \(error)")
-                }
-            }
+            Task { await folderState.deleteFolder(folder) }
         }
     }
 
@@ -262,13 +251,7 @@ class SidebarViewController: NSViewController {
         if response == .alertFirstButtonReturn {
             let folderName = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if !folderName.isEmpty {
-                Task {
-                    do {
-                        try await viewModel.createFolder(name: folderName)
-                    } catch {
-                        LogService.shared.error(.app, "创建文件夹失败: \(error)")
-                    }
-                }
+                Task { await folderState.createFolder(name: folderName) }
             }
         }
     }
@@ -292,15 +275,15 @@ class SidebarViewController: NSViewController {
         sidebarItems.append(.group("小米笔记"))
 
         // 添加系统文件夹（按照旧版顺序：所有笔记、置顶、私密笔记）
-        if let allNotesFolder = viewModel.folders.first(where: { $0.id == "0" }) {
+        if let allNotesFolder = folderState.folders.first(where: { $0.id == "0" }) {
             sidebarItems.append(.folder(allNotesFolder))
         }
 
-        if let starredFolder = viewModel.folders.first(where: { $0.id == "starred" }) {
+        if let starredFolder = folderState.folders.first(where: { $0.id == "starred" }) {
             sidebarItems.append(.folder(starredFolder))
         }
 
-        if let privateNotesFolder = viewModel.folders.first(where: { $0.id == "2" }) {
+        if let privateNotesFolder = folderState.folders.first(where: { $0.id == "2" }) {
             sidebarItems.append(.folder(privateNotesFolder))
         }
 
@@ -308,7 +291,7 @@ class SidebarViewController: NSViewController {
         sidebarItems.append(.group("我的文件夹"))
 
         // 添加未分类文件夹
-        sidebarItems.append(.folder(viewModel.uncategorizedFolder))
+        sidebarItems.append(.folder(folderState.uncategorizedFolder))
 
         // 添加用户文件夹（按置顶状态排序：置顶的在前）
         let userFoldersSorted = userFolders.sorted { folder1, folder2 in
@@ -354,7 +337,7 @@ class SidebarViewController: NSViewController {
     }
 
     private func updateSelection() {
-        guard let selectedFolder = viewModel.selectedFolder else {
+        guard let selectedFolder = folderState.selectedFolder else {
             outlineView.deselectAll(nil)
             return
         }
@@ -457,7 +440,7 @@ extension SidebarViewController: NSOutlineViewDelegate {
                     cell?.addSubview(countLabel)
 
                     NSLayoutConstraint.activate([
-                        imageView.leadingAnchor.constraint(equalTo: cell!.leadingAnchor, constant: 16), // 文件夹缩进更多
+                        imageView.leadingAnchor.constraint(equalTo: cell!.leadingAnchor, constant: 16),
                         imageView.centerYAnchor.constraint(equalTo: cell!.centerYAnchor),
                         imageView.widthAnchor.constraint(equalToConstant: 16),
                         imageView.heightAnchor.constraint(equalToConstant: 16),
@@ -496,7 +479,6 @@ extension SidebarViewController: NSOutlineViewDelegate {
 
                 if let image = NSImage(systemSymbolName: imageName, accessibilityDescription: nil) {
                     cell?.imageView?.image = image
-                    // 使用白色图标（匹配旧版）
                     cell?.imageView?.contentTintColor = .white
                 }
             }
@@ -509,7 +491,6 @@ extension SidebarViewController: NSOutlineViewDelegate {
     }
 
     func outlineView(_: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-        // 分组项不能选择
         if let sidebarItem = item as? SidebarItem {
             switch sidebarItem {
             case .group:
@@ -522,7 +503,6 @@ extension SidebarViewController: NSOutlineViewDelegate {
     }
 
     func outlineView(_: NSOutlineView, isGroupItem item: Any) -> Bool {
-        // 分组项显示为分组样式
         if let sidebarItem = item as? SidebarItem {
             switch sidebarItem {
             case .group:
@@ -535,7 +515,6 @@ extension SidebarViewController: NSOutlineViewDelegate {
     }
 
     func outlineView(_: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
-        // 分组项高度较小
         if let sidebarItem = item as? SidebarItem {
             switch sidebarItem {
             case .group:
@@ -553,20 +532,16 @@ extension SidebarViewController: NSOutlineViewDelegate {
 
         let item = sidebarItems[selectedRow]
         if case let .folder(folder) = item {
-            viewModel.selectedFolder = folder
+            folderState.selectFolder(folder)
         }
     }
 
     // MARK: - 窗口状态管理
 
     /// 获取可保存的窗口状态
-    /// - Returns: 侧边栏窗口状态对象
     func savableWindowState() -> SidebarWindowState {
-        // 获取选中的文件夹ID
-        let selectedFolderId = viewModel.selectedFolder?.id
-
-        // 获取展开的文件夹ID（在这个实现中，所有文件夹都是展开的）
-        let expandedFolderIds = viewModel.folders.map(\.id)
+        let selectedFolderId = folderState.selectedFolder?.id
+        let expandedFolderIds = folderState.folders.map(\.id)
 
         return SidebarWindowState(
             selectedFolderId: selectedFolderId,
@@ -575,17 +550,12 @@ extension SidebarViewController: NSOutlineViewDelegate {
     }
 
     /// 恢复窗口状态
-    /// - Parameter state: 要恢复的侧边栏窗口状态
     func restoreWindowState(_ state: SidebarWindowState) {
-        // 恢复选中的文件夹
         if let selectedFolderId = state.selectedFolderId,
-           let folder = viewModel.folders.first(where: { $0.id == selectedFolderId })
+           let folder = folderState.folders.first(where: { $0.id == selectedFolderId })
         {
-            viewModel.selectedFolder = folder
+            folderState.selectFolder(folder)
         }
-
-        // 恢复展开状态（在这个实现中，所有文件夹都是展开的）
-        // 如果需要，可以在这里实现具体的展开逻辑
     }
 }
 
@@ -603,7 +573,6 @@ extension SidebarViewController: NSMenuDelegate {
 
         switch item {
         case let .group(groupName):
-            // 分组右键菜单
             if groupName == "我的文件夹" {
                 let newFolderItem = NSMenuItem(
                     title: "新建文件夹",
@@ -615,9 +584,7 @@ extension SidebarViewController: NSMenuDelegate {
             }
 
         case let .folder(folder):
-            // 文件夹右键菜单
             if folder.isSystem || folder.id == "uncategorized" {
-                // 系统文件夹：只有新建文件夹选项
                 let newFolderItem = NSMenuItem(
                     title: "新建文件夹",
                     action: #selector(createNewFolder(_:)),
@@ -626,7 +593,6 @@ extension SidebarViewController: NSMenuDelegate {
                 newFolderItem.target = self
                 menu.addItem(newFolderItem)
             } else {
-                // 用户文件夹：完整菜单
                 let renameItem = NSMenuItem(
                     title: "重命名文件夹",
                     action: #selector(renameFolder(_:)),

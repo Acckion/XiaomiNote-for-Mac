@@ -3,121 +3,41 @@
 //  MiNoteMac
 //
 //  Created on 2026-01-23.
-//  应用协调器 - 管理所有 ViewModel 并协调它们之间的通信
+//  应用协调器 - 管理 State 对象并协调它们之间的通信
 //
 
-import Combine
 import Foundation
 
 /// 应用协调器
 ///
 /// 负责：
-/// - 创建和管理所有 ViewModel
-/// - 处理 ViewModel 之间的通信
+/// - 创建和管理所有 State 对象
+/// - 处理跨 State 的协调逻辑
 /// - 管理应用级别的状态
 @MainActor
 public final class AppCoordinator: ObservableObject {
-    // MARK: - ViewModels（旧架构，UI 层仍在使用）
+    // MARK: - 核心基础设施
 
-    /// 笔记列表视图模型
-    public let noteListViewModel: NoteListViewModel
+    public let eventBus: EventBus
+    public let noteStore: NoteStore
+    public let syncEngine: SyncEngine
 
-    /// 笔记编辑器视图模型
-    public let noteEditorViewModel: NoteEditorViewModel
+    // MARK: - State 对象
 
-    /// 同步协调器
-    public let syncCoordinator: SyncCoordinator
+    public let noteListState: NoteListState
+    public let noteEditorState: NoteEditorState
+    public let folderState: FolderState
+    public let syncState: SyncState
+    public let authState: AuthState
+    public let searchState: SearchState
 
-    /// 认证视图模型
-    public let authViewModel: AuthenticationViewModel
+    // MARK: - 音频面板（暂不重构）
 
-    /// 搜索视图模型
-    public let searchViewModel: SearchViewModel
+    let audioPanelViewModel: AudioPanelViewModel
 
-    /// 文件夹视图模型
-    public let folderViewModel: FolderViewModel
+    // MARK: - 初始化
 
-    /// 音频面板视图模型
-    public let audioPanelViewModel: AudioPanelViewModel
-
-    /// NotesViewModel 适配器（用于向后兼容）
-    public private(set) lazy var notesViewModel: NotesViewModel = NotesViewModelAdapter(coordinator: self)
-
-    // MARK: - 核心基础设施（新架构）
-
-    let eventBus: EventBus
-    let noteStore: NoteStore
-    let syncEngine: SyncEngine
-
-    // MARK: - State 对象（新架构，UI 层使用）
-
-    let noteListState: NoteListState
-    let noteEditorState: NoteEditorState
-    let folderState: FolderState
-    let syncState: SyncState
-    let authState: AuthState
-    let searchState: SearchState
-
-    // MARK: - Dependencies
-
-    private let container: DIContainer
-
-    // MARK: - Private Properties
-
-    /// Cancellables
-    private var cancellables = Set<AnyCancellable>()
-
-    // MARK: - Initialization
-
-    /// 初始化应用协调器
-    /// - Parameter container: 依赖注入容器
-    public init(container: DIContainer = .shared) {
-        self.container = container
-
-        // 解析服务
-        let noteStorage = container.resolve(NoteStorageProtocol.self)
-        let noteService = container.resolve(NoteServiceProtocol.self)
-        let networkMonitor = container.resolve(NetworkMonitorProtocol.self)
-        let authService = container.resolve(AuthenticationServiceProtocol.self)
-        let audioService = container.resolve(AudioServiceProtocol.self)
-
-        // 创建所有 ViewModel
-        self.noteListViewModel = NoteListViewModel(
-            noteStorage: noteStorage,
-            noteService: noteService
-        )
-
-        self.noteEditorViewModel = NoteEditorViewModel(
-            noteStorage: noteStorage,
-            noteService: noteService
-        )
-
-        self.syncCoordinator = SyncCoordinator(
-            noteStorage: noteStorage,
-            networkMonitor: networkMonitor
-        )
-
-        self.authViewModel = AuthenticationViewModel(
-            authService: authService,
-            noteStorage: noteStorage
-        )
-
-        self.searchViewModel = SearchViewModel(
-            noteStorage: noteStorage,
-            noteService: noteService
-        )
-
-        self.folderViewModel = FolderViewModel(
-            noteStorage: noteStorage,
-            noteService: noteService
-        )
-
-        self.audioPanelViewModel = AudioPanelViewModel(
-            audioService: audioService,
-            noteService: noteStorage
-        )
-
-        // 新架构组件
+    public init() {
         self.eventBus = EventBus.shared
         let noteStoreInstance = NoteStore(db: DatabaseService.shared, eventBus: EventBus.shared)
         self.noteStore = noteStoreInstance
@@ -129,27 +49,20 @@ public final class AppCoordinator: ObservableObject {
         self.authState = AuthState(eventBus: EventBus.shared, apiService: MiNoteService.shared)
         self.searchState = SearchState(noteStore: noteStoreInstance)
 
-        // 设置 ViewModel 之间的通信
-        setupCommunication()
+        self.audioPanelViewModel = AudioPanelViewModel(
+            audioService: DefaultAudioService(cacheService: DefaultCacheService()),
+            noteService: DefaultNoteStorage()
+        )
 
         LogService.shared.info(.app, "AppCoordinator 初始化完成")
     }
 
-    // MARK: - Public Methods
+    // MARK: - 生命周期
 
     /// 启动应用
     public func start() async {
         LogService.shared.info(.app, "启动应用")
 
-        // 旧架构启动
-        await folderViewModel.loadFolders()
-        await noteListViewModel.loadNotes()
-
-        if authViewModel.isLoggedIn {
-            await syncCoordinator.startSync()
-        }
-
-        // 启动新架构组件
         await noteStore.start()
         await noteListState.start()
         noteEditorState.start()
@@ -172,177 +85,50 @@ public final class AppCoordinator: ObservableObject {
         Task { await syncEngine.stop() }
     }
 
-    // MARK: - Private Methods - Communication Setup
-
-    /// 设置 ViewModel 之间的通信
-    private func setupCommunication() {
-        // 1. 笔记选择 → 编辑器加载
-        setupNoteSelectionCommunication()
-
-        // 2. 文件夹选择 → 笔记列表过滤
-        setupFolderSelectionCommunication()
-
-        // 3. 同步完成 → 刷新笔记列表
-        setupSyncCompletionCommunication()
-
-        // 4. 认证状态变化 → 启动同步
-        setupAuthenticationCommunication()
-
-        // 5. 搜索结果 → 笔记列表更新
-        setupSearchCommunication()
-
-        // 6. 笔记编辑 → 列表更新
-        setupNoteEditCommunication()
-    }
-
-    /// 设置笔记选择通信
-    private func setupNoteSelectionCommunication() {
-        noteListViewModel.$selectedNote
-            .compactMap(\.self)
-            .sink { [weak self] note in
-                guard let self else { return }
-                LogService.shared.debug(.app, "笔记选择: \(note.title)")
-                Task { @MainActor in
-                    await self.noteEditorViewModel.loadNote(note)
-                }
-            }
-            .store(in: &cancellables)
-    }
-
-    /// 设置文件夹选择通信
-    private func setupFolderSelectionCommunication() {
-        folderViewModel.$selectedFolder
-            .sink { [weak self] folder in
-                guard let self else { return }
-                if let folder {
-                    LogService.shared.debug(.app, "文件夹选择: \(folder.name)")
-                }
-                noteListViewModel.selectedFolder = folder
-            }
-            .store(in: &cancellables)
-    }
-
-    /// 设置同步完成通信
-    private func setupSyncCompletionCommunication() {
-        syncCoordinator.$isSyncing
-            .removeDuplicates()
-            .sink { [weak self] isSyncing in
-                guard let self else { return }
-                if !isSyncing {
-                    LogService.shared.info(.app, "同步完成，刷新笔记列表和文件夹")
-                    Task { @MainActor in
-                        await self.folderViewModel.loadFolders()
-                        await self.noteListViewModel.loadNotes()
-                    }
-                }
-            }
-            .store(in: &cancellables)
-    }
-
-    /// 设置认证状态通信
-    private func setupAuthenticationCommunication() {
-        authViewModel.$isLoggedIn
-            .filter(\.self)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                LogService.shared.info(.app, "用户已登录，启动同步")
-                Task { @MainActor in
-                    await self.syncCoordinator.startSync()
-                }
-            }
-            .store(in: &cancellables)
-
-        authViewModel.$isLoggedIn
-            .filter { !$0 }
-            .sink { [weak self] _ in
-                guard let self else { return }
-                LogService.shared.info(.app, "用户已登出，停止同步")
-                Task { @MainActor in
-                    await self.syncCoordinator.stopSync()
-                }
-            }
-            .store(in: &cancellables)
-    }
-
-    /// 设置搜索通信
-    private func setupSearchCommunication() {
-        searchViewModel.$searchResults
-            .sink { [weak self] results in
-                guard let self else { return }
-                if !results.isEmpty {
-                    LogService.shared.debug(.app, "搜索结果: \(results.count) 条笔记")
-                    noteListViewModel.notes = results
-                }
-            }
-            .store(in: &cancellables)
-
-        searchViewModel.$searchText
-            .filter(\.isEmpty)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                Task { @MainActor in
-                    await self.noteListViewModel.loadNotes()
-                }
-            }
-            .store(in: &cancellables)
-    }
-
-    /// 设置笔记编辑通信
-    private func setupNoteEditCommunication() {
-        // 监听笔记保存事件
-        noteEditorViewModel.$currentNote
-            .compactMap(\.self)
-            .sink { [weak self] note in
-                guard let self else { return }
-
-                // 延迟到下一个 RunLoop 周期，避免在视图更新周期内修改 @Published 属性
-                DispatchQueue.main.async {
-                    if let index = self.noteListViewModel.notes.firstIndex(where: { $0.id == note.id }) {
-                        self.noteListViewModel.notes[index] = note
-                    }
-                }
-            }
-            .store(in: &cancellables)
-    }
-
-    // MARK: - Public Methods - Actions
+    // MARK: - 协调方法
 
     /// 处理笔记选择
-    /// - Parameter note: 选中的笔记
     public func handleNoteSelection(_ note: Note) {
-        noteListViewModel.selectNote(note)
+        noteListState.selectNote(note)
+        noteEditorState.loadNote(note)
     }
 
     /// 处理文件夹选择
-    /// - Parameter folder: 选中的文件夹
     public func handleFolderSelection(_ folder: Folder?) {
-        folderViewModel.selectFolder(folder)
+        folderState.selectFolder(folder)
 
-        // 处理私密笔记文件夹的解锁状态
+        // 同步文件夹选择到 NoteListState，用于过滤
+        noteListState.selectedFolder = folder
+        noteListState.selectedFolderId = folder?.id
+
         if let folder, folder.id == "2" {
             if PrivateNotesPasswordManager.shared.hasPassword() {
-                authViewModel.isPrivateNotesUnlocked = false
+                authState.isPrivateNotesUnlocked = false
             } else {
-                authViewModel.isPrivateNotesUnlocked = true
+                authState.isPrivateNotesUnlocked = true
             }
         } else {
-            authViewModel.isPrivateNotesUnlocked = false
+            authState.isPrivateNotesUnlocked = false
         }
     }
 
     /// 处理同步请求
     public func handleSyncRequest() async {
-        await syncCoordinator.startSync()
+        syncState.requestSync(mode: .full(.normal))
     }
 
     /// 处理搜索请求
-    /// - Parameter keyword: 搜索关键词
     public func handleSearchRequest(_ keyword: String) {
-        searchViewModel.search(keyword: keyword)
+        Task {
+            await searchState.search(keyword: keyword)
+            // 同步搜索文本到 NoteListState，用于过滤和高亮
+            noteListState.searchText = keyword
+        }
     }
 
     /// 处理清除搜索
     public func handleClearSearch() {
-        searchViewModel.clearSearch()
+        searchState.clearSearch()
+        noteListState.searchText = ""
     }
 }

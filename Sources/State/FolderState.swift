@@ -5,11 +5,11 @@ import SwiftUI
 /// 替代 NotesViewModel 中的文件夹管理功能，
 /// 负责文件夹的选择、创建、重命名、删除和排序设置。
 @MainActor
-final class FolderState: ObservableObject {
+public final class FolderState: ObservableObject {
     // MARK: - Published 属性
 
     @Published var folders: [Folder] = []
-    @Published var selectedFolder: Folder?
+    @Published public var selectedFolder: Folder?
     @Published var selectedFolderId: String?
     @Published var folderSortOrders: [String: NoteSortOrder] = [:]
 

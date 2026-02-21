@@ -5,7 +5,7 @@ import SwiftUI
 /// 替代 NotesViewModel 中的认证管理功能，
 /// 负责登录状态、Cookie 管理、私密笔记和网络状态。
 @MainActor
-final class AuthState: ObservableObject {
+public final class AuthState: ObservableObject {
     // MARK: - 认证状态
 
     @Published var isLoggedIn = false

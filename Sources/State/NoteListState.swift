@@ -5,11 +5,11 @@ import SwiftUI
 /// 替代 NotesViewModel 中的笔记列表管理功能，
 /// 负责笔记的过滤、排序、选择和基本操作。
 @MainActor
-final class NoteListState: ObservableObject {
+public final class NoteListState: ObservableObject {
     // MARK: - Published 属性
 
     @Published var notes: [Note] = []
-    @Published var selectedNote: Note?
+    @Published public var selectedNote: Note?
     @Published var notesListSortField: NoteSortOrder = .editDate
     @Published var notesListSortDirection: SortDirection = .descending
     @Published var isLoading = false
@@ -89,7 +89,7 @@ final class NoteListState: ObservableObject {
         await eventBus.publish(NoteEvent.deleted(noteId: note.id, tag: note.serverTag))
     }
 
-    func toggleStar(_ note: Note) async {
+    public func toggleStar(_ note: Note) async {
         await eventBus.publish(NoteEvent.starred(noteId: note.id, isStarred: !note.isStarred))
     }
 
@@ -97,7 +97,7 @@ final class NoteListState: ObservableObject {
         await eventBus.publish(NoteEvent.moved(noteId: note.id, fromFolder: note.folderId, toFolder: folderId))
     }
 
-    func createNewNote(inFolder folderId: String) async {
+    public func createNewNote(inFolder folderId: String) async {
         let now = Date()
         let note = Note(
             id: UUID().uuidString,
@@ -239,6 +239,80 @@ final class NoteListState: ObservableObject {
     var uncategorizedFolder: Folder {
         let count = notes.count(where: { $0.folderId == "0" || $0.folderId.isEmpty })
         return Folder(id: "uncategorized", name: "未分类", count: count, isSystem: false)
+    }
+
+    // MARK: - 回收站功能
+
+    @Published var deletedNotes: [DeletedNote] = []
+    @Published var isLoadingDeletedNotes = false
+
+    /// 获取回收站笔记列表
+    func fetchDeletedNotes() async {
+        guard MiNoteService.shared.isAuthenticated() else { return }
+
+        isLoadingDeletedNotes = true
+        defer { isLoadingDeletedNotes = false }
+
+        do {
+            let response = try await MiNoteService.shared.fetchDeletedNotes()
+
+            guard let code = response["code"] as? Int, code == 0,
+                  let data = response["data"] as? [String: Any],
+                  let entries = data["entries"] as? [[String: Any]]
+            else {
+                throw MiNoteError.invalidResponse
+            }
+
+            var result: [DeletedNote] = []
+            for entry in entries {
+                if let deletedNote = DeletedNote.fromAPIResponse(entry) {
+                    result.append(deletedNote)
+                }
+            }
+
+            deletedNotes = result
+            LogService.shared.info(.viewmodel, "获取回收站笔记成功，共 \(result.count) 条")
+        } catch {
+            LogService.shared.error(.viewmodel, "获取回收站笔记失败: \(error.localizedDescription)")
+            deletedNotes = []
+        }
+    }
+
+    /// 恢复回收站笔记
+    func restoreDeletedNote(noteId: String, tag: String) async throws {
+        guard MiNoteService.shared.isAuthenticated() else {
+            throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
+        }
+
+        let response = try await MiNoteService.shared.restoreDeletedNote(noteId: noteId, tag: tag)
+
+        guard let code = response["code"] as? Int, code == 0 else {
+            let message = response["description"] as? String ?? response["message"] as? String ?? "恢复笔记失败"
+            throw NSError(domain: "MiNote", code: -1, userInfo: [NSLocalizedDescriptionKey: message])
+        }
+
+        LogService.shared.info(.viewmodel, "恢复笔记成功: \(noteId)")
+
+        // 触发同步刷新
+        await eventBus.publish(SyncEvent.requested(mode: .full(.normal)))
+        await fetchDeletedNotes()
+    }
+
+    /// 永久删除笔记
+    func permanentlyDeleteNote(noteId: String, tag: String) async throws {
+        guard MiNoteService.shared.isAuthenticated() else {
+            throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
+        }
+
+        let response = try await MiNoteService.shared.deleteNote(noteId: noteId, tag: tag, purge: true)
+
+        guard let code = response["code"] as? Int, code == 0 else {
+            let message = response["description"] as? String ?? response["message"] as? String ?? "永久删除笔记失败"
+            throw NSError(domain: "MiNote", code: -1, userInfo: [NSLocalizedDescriptionKey: message])
+        }
+
+        LogService.shared.info(.viewmodel, "永久删除笔记成功: \(noteId)")
+        await fetchDeletedNotes()
     }
 
     // MARK: - 内部方法

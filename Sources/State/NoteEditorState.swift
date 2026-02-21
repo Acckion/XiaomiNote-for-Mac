@@ -13,7 +13,7 @@ enum SaveStatus: Equatable {
 /// 替代 NotesViewModel 中的编辑器交互功能和 NoteEditingCoordinator 的对外接口，
 /// 负责当前笔记的加载、保存、历史记录和图片上传。
 @MainActor
-final class NoteEditorState: ObservableObject {
+public final class NoteEditorState: ObservableObject {
     // MARK: - Published 属性
 
     @Published var currentNote: Note?

@@ -5,7 +5,7 @@ import SwiftUI
 /// 替代 NotesViewModel 中的搜索功能，
 /// 负责搜索文本、搜索结果和筛选选项的管理。
 @MainActor
-final class SearchState: ObservableObject {
+public final class SearchState: ObservableObject {
     // MARK: - Published 属性
 
     @Published var searchText = ""
