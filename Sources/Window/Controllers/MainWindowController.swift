@@ -318,10 +318,13 @@
         private func setupToolbar() {
             guard let window else { return }
 
-            let viewModel = coordinator.notesViewModel
-
             // 创建工具栏代理
-            toolbarDelegate = MainWindowToolbarDelegate(viewModel: viewModel, windowController: self)
+            toolbarDelegate = MainWindowToolbarDelegate(
+                folderState: coordinator.folderState,
+                authState: coordinator.authState,
+                syncState: coordinator.syncState,
+                windowController: self
+            )
 
             let toolbar = NSToolbar(identifier: "MainWindowToolbar")
             toolbar.allowsUserCustomization = true
@@ -333,7 +336,12 @@
             window.toolbarStyle = .unified
 
             // 创建工具栏可见性管理器
-            visibilityManager = ToolbarVisibilityManager(toolbar: toolbar, viewModel: viewModel)
+            visibilityManager = ToolbarVisibilityManager(
+                toolbar: toolbar,
+                noteListState: coordinator.noteListState,
+                folderState: coordinator.folderState,
+                authState: coordinator.authState
+            )
 
             // 将可见性管理器传递给工具栏代理
             toolbarDelegate?.visibilityManager = visibilityManager
@@ -779,10 +787,8 @@
                 customSearchField.target = self
                 customSearchField.action = #selector(performSearch(_:))
 
-                // 设置视图模型
-                if let viewModel {
-                    customSearchField.setViewModel(viewModel)
-                }
+                // 设置搜索状态
+                customSearchField.setSearchState(coordinator.searchState)
 
                 // 替换搜索项中的搜索字段
                 searchItem.searchField = customSearchField

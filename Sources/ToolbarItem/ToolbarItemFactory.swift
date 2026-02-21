@@ -17,14 +17,8 @@
     public class ToolbarItemFactory {
         private let logger = Logger(subsystem: "com.minote.MiNoteMac", category: "ToolbarItemFactory")
 
-        /// 视图模型引用
-        private weak var viewModel: NotesViewModel?
-
         /// 初始化工厂
-        /// - Parameter viewModel: 笔记视图模型
-        public init(viewModel: NotesViewModel?) {
-            self.viewModel = viewModel
-        }
+        public init() {}
 
         /// 创建工具栏项
         /// - Parameters:
