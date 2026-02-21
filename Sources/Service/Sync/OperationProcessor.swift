@@ -56,6 +56,9 @@ public actor OperationProcessor {
     /// 同步状态管理器
     private let syncStateManager: SyncStateManager
 
+    /// 事件总线
+    private let eventBus: EventBus
+
     // MARK: - 状态
 
     /// 是否正在处理队列
@@ -84,6 +87,7 @@ public actor OperationProcessor {
         self.databaseService = DatabaseService.shared
         self.networkMonitor = NetworkMonitor.shared
         self.syncStateManager = SyncStateManager.createDefault()
+        self.eventBus = EventBus.shared
     }
 
     /// 用于测试的初始化方法
@@ -101,7 +105,8 @@ public actor OperationProcessor {
         localStorage: LocalStorageService,
         databaseService: DatabaseService,
         networkMonitor: NetworkMonitor,
-        syncStateManager: SyncStateManager
+        syncStateManager: SyncStateManager,
+        eventBus: EventBus = EventBus.shared
     ) {
         self.operationQueue = operationQueue
         self.miNoteService = miNoteService
@@ -109,6 +114,7 @@ public actor OperationProcessor {
         self.databaseService = databaseService
         self.networkMonitor = networkMonitor
         self.syncStateManager = syncStateManager
+        self.eventBus = eventBus
     }
 
     // MARK: - 网络状态检查
@@ -266,17 +272,13 @@ public extension OperationProcessor {
             LogService.shared.warning(.sync, "OperationProcessor 确认 syncTag 失败: \(error.localizedDescription)")
         }
 
-        // 发送处理完成通知
-        await MainActor.run {
-            NotificationCenter.default.post(
-                name: NSNotification.Name("OperationQueueProcessingCompleted"),
-                object: nil,
-                userInfo: [
-                    "successCount": successCount,
-                    "failureCount": failureCount,
-                ]
-            )
-        }
+        // 发送处理完成事件
+        await eventBus.publish(SyncEvent.completed(result: SyncEventResult(
+            downloadedCount: 0,
+            uploadedCount: successCount,
+            deletedCount: 0,
+            duration: 0
+        )))
     }
 }
 
@@ -539,17 +541,8 @@ extension OperationProcessor {
                 // 认证错误：标记为 authFailed 并通知用户
                 try operationQueue.markFailed(operation.id, error: error, errorType: errorType)
 
-                // 发送认证失败通知
-                await MainActor.run {
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("OperationAuthFailed"),
-                        object: nil,
-                        userInfo: [
-                            "operationId": operation.id,
-                            "noteId": operation.noteId,
-                        ]
-                    )
-                }
+                // 发送认证失败事件
+                await eventBus.publish(ErrorEvent.authRequired(reason: "操作处理认证失败: \(operation.noteId)"))
 
                 LogService.shared.error(.sync, "OperationProcessor 认证失败，已通知用户: \(operation.id)")
             } else {
@@ -569,19 +562,6 @@ extension OperationProcessor {
     ///
     private func handleOperationSuccess(operation: NoteOperation) async {
         LogService.shared.debug(.sync, "OperationProcessor 操作成功: \(operation.id), type: \(operation.type.rawValue)")
-
-        // 发送成功通知
-        await MainActor.run {
-            NotificationCenter.default.post(
-                name: NSNotification.Name("OperationCompleted"),
-                object: nil,
-                userInfo: [
-                    "operationId": operation.id,
-                    "noteId": operation.noteId,
-                    "type": operation.type.rawValue,
-                ]
-            )
-        }
     }
 }
 
@@ -691,10 +671,10 @@ extension OperationProcessor {
             )
 
             // 保存新笔记
-            try localStorage.saveNote(updatedNote)
+            await eventBus.publish(SyncEvent.noteDownloaded(updatedNote))
 
             // 删除旧笔记（临时 ID）
-            try? localStorage.deleteNote(noteId: note.id)
+            await eventBus.publish(NoteEvent.deleted(noteId: note.id, tag: nil))
 
             // 5. 更新操作队列中的 noteId
             try operationQueue.updateNoteIdInPendingOperations(
@@ -705,17 +685,8 @@ extension OperationProcessor {
             // 6. 触发 ID 更新回调
             await onIdMappingCreated?(note.id, serverNoteId)
 
-            // 7. 发送 ID 变更通知
-            await MainActor.run {
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("NoteIdChanged"),
-                    object: nil,
-                    userInfo: [
-                        "oldId": note.id,
-                        "newId": serverNoteId,
-                    ]
-                )
-            }
+            // 7. 发送 ID 变更事件
+            await eventBus.publish(NoteEvent.saved(updatedNote))
 
             LogService.shared.info(.sync, "OperationProcessor ID 更新完成: \(note.id) -> \(serverNoteId)")
         } else {
@@ -723,7 +694,7 @@ extension OperationProcessor {
             var updatedNote = note
             updatedNote.serverTag = serverTag
             updatedNote.folderId = serverFolderId
-            try localStorage.saveNote(updatedNote)
+            await eventBus.publish(SyncEvent.noteDownloaded(updatedNote))
         }
     }
 
@@ -784,12 +755,7 @@ extension OperationProcessor {
             // 服务器拒绝了更新（tag 不匹配），使用服务器返回的最新 tag 重试
             LogService.shared.warning(.sync, "云端上传冲突，使用服务器最新 tag 重试: \(operation.noteId.prefix(8))...")
 
-            // 用服务器返回的正确 tag 更新本地数据库
-            var noteWithCorrectTag = note
-            noteWithCorrectTag.serverTag = newTag
-            try localStorage.saveNote(noteWithCorrectTag)
-
-            // 传播新 tag 到内存
+            // 用服务器返回的正确 tag 更新
             await propagateServerTag(newTag, forNoteId: note.id)
 
             // 使用正确的 tag 重新上传
@@ -819,23 +785,14 @@ extension OperationProcessor {
                 newTag
             }
 
-            // 保存重试后的 tag 到数据库
-            var finalNote = noteWithCorrectTag
-            finalNote.serverTag = retryTag
-            try localStorage.saveNote(finalNote)
+            // 保存重试后的 tag
             await propagateServerTag(retryTag, forNoteId: note.id)
 
             LogService.shared.info(.sync, "云端上传冲突重试成功: \(operation.noteId.prefix(8))...")
             return
         }
 
-        // 正常成功路径
-        var updatedNote = note
-        updatedNote.serverTag = newTag
-
-        try localStorage.saveNote(updatedNote)
-
-        // 将新 tag 传播到内存中的 notes 数组，避免后续编辑使用过期 tag
+        // 正常成功路径：传播新 tag 到 NoteStore 和内存
         await propagateServerTag(newTag, forNoteId: note.id)
 
         LogService.shared.info(.sync, "云端上传成功: \(operation.noteId.prefix(8))...")
@@ -846,16 +803,7 @@ extension OperationProcessor {
     /// 解决 tag 过期问题：processCloudUpload 保存新 tag 到数据库后，
     /// 内存中的 viewModel.notes 仍持有旧 tag，导致下次编辑保存时覆盖数据库中的新 tag
     private func propagateServerTag(_ newTag: String, forNoteId noteId: String) async {
-        await MainActor.run {
-            NotificationCenter.default.post(
-                name: NSNotification.Name("NoteServerTagUpdated"),
-                object: nil,
-                userInfo: [
-                    "noteId": noteId,
-                    "serverTag": newTag,
-                ]
-            )
-        }
+        await eventBus.publish(SyncEvent.tagUpdated(noteId: noteId, newTag: newTag))
     }
 
     /// 处理云端删除操作
@@ -948,7 +896,7 @@ extension OperationProcessor {
             for note in notes where note.folderId == operation.noteId {
                 var updatedNote = note
                 updatedNote.folderId = folderId
-                try localStorage.saveNote(updatedNote)
+                await eventBus.publish(SyncEvent.noteDownloaded(updatedNote))
             }
         }
 
