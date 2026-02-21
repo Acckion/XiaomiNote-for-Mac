@@ -79,6 +79,7 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     // MARK: - 依赖
 
+    private let eventBus = EventBus.shared
     private(set) weak var viewModel: NotesViewModel?
     var nativeEditorContext: NativeEditorContext? {
         viewModel?.nativeEditorContext
@@ -183,15 +184,8 @@ public final class NoteEditingCoordinator: ObservableObject {
                 await MemoryCacheManager.shared.cacheNote(updated)
                 updateNotesArrayOnly(with: updated)
 
-                DatabaseService.shared.saveNoteAsync(updated) { [weak self] error in
-                    Task { @MainActor in
-                        if let error {
-                            LogService.shared.error(.editor, "笔记切换后台保存失败: \(error)")
-                        } else {
-                            self?.scheduleCloudUpload(for: updated, xmlContent: content)
-                        }
-                    }
-                }
+                await eventBus.publish(NoteEvent.contentUpdated(noteId: currentNote.id, title: capturedTitle, content: content))
+                scheduleCloudUpload(for: updated, xmlContent: content)
             }
         }
     }
@@ -245,15 +239,8 @@ public final class NoteEditingCoordinator: ObservableObject {
             await MemoryCacheManager.shared.cacheNote(updated)
             updateNotesArrayOnly(with: updated)
 
-            DatabaseService.shared.saveNoteAsync(updated) { [weak self] error in
-                Task { @MainActor in
-                    if let error {
-                        LogService.shared.error(.editor, "文件夹切换后台保存失败: \(error)")
-                    } else {
-                        self?.scheduleCloudUpload(for: updated, xmlContent: content)
-                    }
-                }
-            }
+            await eventBus.publish(NoteEvent.contentUpdated(noteId: capturedNote.id, title: capturedTitle, content: content))
+            scheduleCloudUpload(for: updated, xmlContent: content)
         }
 
         return true
@@ -415,7 +402,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         }
     }
 
-    /// 执行 XML 保存（直接通过 NoteOperationCoordinator，不再经过 SavePipelineCoordinator）
+    /// 执行 XML 保存（通过 EventBus 发布事件，由 NoteStore 统一处理 DB 写入）
     func performXMLSave(xmlContent: String, for note: Note) {
         xmlSaveTask?.cancel()
         let noteId = note.id
@@ -454,21 +441,9 @@ public final class NoteEditingCoordinator: ObservableObject {
                 return
             }
 
-            do {
-                let updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
-                let saveResult = await NoteOperationCoordinator.shared.saveNote(updated)
-
-                switch saveResult {
-                case .success:
-                    await handleSaveSuccess(xmlContent: xmlContent, noteId: noteId, updatedNote: updated)
-                case let .failure(error):
-                    throw error
-                }
-            } catch {
-                guard !Task.isCancelled, currentEditingNoteId == noteId else { return }
-                LogService.shared.error(.editor, "保存失败: \(error)")
-                await handleSaveFailure(error: error, xmlContent: xmlContent, note: note)
-            }
+            let updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
+            await eventBus.publish(NoteEvent.contentUpdated(noteId: note.id, title: editedTitle, content: xmlContent))
+            await handleSaveSuccess(xmlContent: xmlContent, noteId: noteId, updatedNote: updated)
         }
     }
 
@@ -542,29 +517,14 @@ public final class NoteEditingCoordinator: ObservableObject {
         let updated = buildUpdatedNote(from: note, xmlContent: xmlContent, shouldUpdateTimestamp: shouldUpdateTimestamp)
         editedTitle = previousEditedTitle
 
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            DatabaseService.shared.saveNoteAsync(updated) { [weak self] error in
-                Task { @MainActor in
-                    guard let self else {
-                        continuation.resume()
-                        return
-                    }
-                    if let error {
-                        LogService.shared.error(.editor, "标题和内容保存失败: \(error)")
-                        continuation.resume()
-                        return
-                    }
+        await eventBus.publish(NoteEvent.contentUpdated(noteId: note.id, title: title, content: xmlContent))
 
-                    self.lastSavedXMLContent = xmlContent
-                    self.originalTitle = title
-                    self.currentXMLContent = xmlContent
-                    self.updateViewModel(with: updated)
-                    await MemoryCacheManager.shared.cacheNote(updated)
-                    self.scheduleCloudUpload(for: updated, xmlContent: xmlContent)
-                    continuation.resume()
-                }
-            }
-        }
+        lastSavedXMLContent = xmlContent
+        originalTitle = title
+        currentXMLContent = xmlContent
+        updateViewModel(with: updated)
+        await MemoryCacheManager.shared.cacheNote(updated)
+        scheduleCloudUpload(for: updated, xmlContent: xmlContent)
     }
 
     func performSaveImmediately() async {
@@ -731,16 +691,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     }
 
     func performCloudUpload(for note: Note, xmlContent: String) async {
-        let updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
-
-        do {
-            try await viewModel?.updateNote(updated)
-        } catch {
-            LogService.shared.error(.editor, "云端同步失败: \(error)")
-            if isNetworkRelatedError(error) {
-                queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
-            }
-        }
+        queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
     }
 
     func queueOfflineUpdateOperation(for note: Note, xmlContent: String) {
