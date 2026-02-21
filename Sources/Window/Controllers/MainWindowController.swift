@@ -2998,8 +2998,7 @@
 
             // 创建音频面板托管控制器
             let audioPanelController = AudioPanelHostingController(
-                stateManager: audioPanelStateManager,
-                viewModel: viewModel
+                stateManager: audioPanelStateManager
             )
 
             // 设置录制完成回调

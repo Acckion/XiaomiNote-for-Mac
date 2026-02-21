@@ -80,9 +80,9 @@ public final class NoteEditingCoordinator: ObservableObject {
     // MARK: - 依赖
 
     private let eventBus = EventBus.shared
-    private(set) weak var viewModel: NotesViewModel?
+    private(set) weak var noteEditorState: NoteEditorState?
     var nativeEditorContext: NativeEditorContext? {
-        viewModel?.nativeEditorContext
+        noteEditorState?.nativeEditorContext
     }
 
     // MARK: - 初始化
@@ -90,8 +90,8 @@ public final class NoteEditingCoordinator: ObservableObject {
     public init() {}
 
     /// 配置依赖
-    public func configure(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    func configure(noteEditorState: NoteEditorState) {
+        self.noteEditorState = noteEditorState
     }
 
     // MARK: - 编辑器偏好
@@ -107,7 +107,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         guard !isInitializing else {
             return
         }
-        guard let currentNote = viewModel?.selectedNote,
+        guard let currentNote = noteEditorState?.currentNote,
               currentNote.id == currentEditingNoteId
         else {
             return
@@ -150,7 +150,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         guard let currentId = currentEditingNoteId, currentId != newNoteId else {
             return nil
         }
-        guard let currentNote = viewModel?.notes.first(where: { $0.id == currentId }) else {
+        guard let currentNote = noteEditorState?.currentNote, currentNote.id == currentId else {
             return nil
         }
 
@@ -192,7 +192,7 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     /// 文件夹切换前保存
     public func saveForFolderSwitch() async -> Bool {
-        guard let note = viewModel?.selectedNote, note.id == currentEditingNoteId else {
+        guard let note = noteEditorState?.currentNote, note.id == currentEditingNoteId else {
             return true
         }
 
@@ -257,7 +257,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     /// 重试保存
     public func retrySave() {
         guard let xmlContent = pendingRetryXMLContent,
-              let note = pendingRetryNote ?? viewModel?.selectedNote
+              let note = pendingRetryNote ?? noteEditorState?.currentNote
         else { return }
 
         var contentToSave = xmlContent
@@ -341,7 +341,7 @@ public final class NoteEditingCoordinator: ObservableObject {
             saveStatus = .unsaved
         }
 
-        viewModel?.hasUnsavedContent = true
+        noteEditorState?.hasUnsavedContent = true
     }
 
     func flashSaveHTML(_: String, for _: Note) {
@@ -463,7 +463,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         await MemoryCacheManager.shared.cacheNote(updatedNote)
 
         saveStatus = .saved
-        viewModel?.hasUnsavedContent = false
+        noteEditorState?.hasUnsavedContent = false
 
         if isUsingNativeEditor, let context = nativeEditorContext {
             context.markContentSaved()
@@ -483,7 +483,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     }
 
     func performTitleChangeSave(newTitle: String) async {
-        guard let note = viewModel?.selectedNote, note.id == currentEditingNoteId else { return }
+        guard let note = noteEditorState?.currentNote, note.id == currentEditingNoteId else { return }
         if isSavingLocally {
             try? await Task.sleep(nanoseconds: 100_000_000)
             if isSavingLocally { return }
@@ -528,7 +528,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     }
 
     func performSaveImmediately() async {
-        guard let note = viewModel?.selectedNote else { return }
+        guard let note = noteEditorState?.currentNote else { return }
         let content = await getLatestContentFromEditor()
         scheduleXMLSave(xmlContent: content, for: note, immediate: true)
         await xmlSaveTask?.value
@@ -558,12 +558,11 @@ public final class NoteEditingCoordinator: ObservableObject {
         var contentToLoad = note.primaryXMLContent
 
         if note.content.isEmpty {
-            await viewModel?.ensureNoteHasFullContent(note)
-            guard note.id == currentEditingNoteId else { return }
-
-            if let updated = viewModel?.selectedNote, updated.id == note.id {
-                contentToLoad = updated.primaryXMLContent
-                await MemoryCacheManager.shared.cacheNote(updated)
+            // 从数据库加载完整内容
+            if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+                guard note.id == currentEditingNoteId else { return }
+                contentToLoad = fullNote.primaryXMLContent
+                await MemoryCacheManager.shared.cacheNote(fullNote)
             }
         } else {
             await MemoryCacheManager.shared.cacheNote(note)
@@ -603,10 +602,10 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     func loadFullContentAsync(for note: Note) async {
         if note.content.isEmpty {
-            await viewModel?.ensureNoteHasFullContent(note)
-            if let updated = viewModel?.selectedNote, updated.id == note.id {
-                await MemoryCacheManager.shared.cacheNote(updated)
-                currentXMLContent = updated.primaryXMLContent
+            // 从数据库加载完整内容
+            if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+                await MemoryCacheManager.shared.cacheNote(fullNote)
+                currentXMLContent = fullNote.primaryXMLContent
                 lastSavedXMLContent = currentXMLContent
                 originalXMLContent = currentXMLContent
             }
@@ -653,7 +652,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     // MARK: - 内部方法（云端同步）
 
     func scheduleCloudUpload(for note: Note, xmlContent: String) {
-        guard let viewModel, viewModel.isOnline, viewModel.isLoggedIn else {
+        guard MiNoteService.shared.isAuthenticated(), MiNoteService.shared.hasValidCookie() else {
             queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
             return
         }
@@ -679,7 +678,7 @@ public final class NoteEditingCoordinator: ObservableObject {
             let lastTitle = lastUploadedTitleByNoteId[noteId] ?? ""
             guard latestXMLContent != lastUploaded || latestTitle != lastTitle else { return }
 
-            guard let vm = self.viewModel, vm.isOnline, vm.isLoggedIn else {
+            guard MiNoteService.shared.isAuthenticated(), MiNoteService.shared.hasValidCookie() else {
                 queueOfflineUpdateOperation(for: note, xmlContent: latestXMLContent)
                 return
             }
@@ -743,24 +742,11 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     // MARK: - 辅助方法
 
-    /// 统一更新 ViewModel
-    ///
-    /// 只更新 notes 数组，不更新 selectedNote
-    /// 避免触发 SwiftUI onChange 链导致编辑器状态混乱
-    func updateViewModel(with updated: Note) {
-        guard let viewModel else { return }
-        if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
-            viewModel.notes[index] = updated
-        }
-    }
+    /// 笔记更新已通过 EventBus 发布，NoteStore 和 NoteListState 会自动处理
+    func updateViewModel(with _: Note) {}
 
-    /// 仅更新 notes 数组（不更新 selectedNote）
-    func updateNotesArrayOnly(with updated: Note) {
-        guard let viewModel else { return }
-        if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
-            viewModel.notes[index] = updated
-        }
-    }
+    /// 笔记更新已通过 EventBus 发布，NoteStore 和 NoteListState 会自动处理
+    func updateNotesArrayOnly(with _: Note) {}
 
     func buildUpdatedNote(
         from note: Note,
@@ -782,7 +768,7 @@ public final class NoteEditingCoordinator: ObservableObject {
 
         // 同步更新 settingJson：合并最新的 setting 数据
         var mergedSettingJson = note.settingJson
-        if let latestNote = viewModel?.selectedNote, latestNote.id == note.id {
+        if let latestNote = noteEditorState?.currentNote, latestNote.id == note.id {
             if let latestSettingJson = latestNote.settingJson, !latestSettingJson.isEmpty {
                 mergedSettingJson = latestSettingJson
             }

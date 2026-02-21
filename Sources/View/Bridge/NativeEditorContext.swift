@@ -1196,12 +1196,8 @@ public class NativeEditorContext: ObservableObject {
     /// 1. 检查 needsSave 状态
     /// 2. 记录保存版本号
     /// 3. 导出 XML 内容
-    /// 4. 通过 contentChangeSubject 发布内容变化，触发 NotesViewModel 的保存逻辑
+    /// 4. 通过 contentChangeSubject 发布内容变化，触发上层保存逻辑
     /// 5. 检测并发编辑（保存期间是否有新编辑）
-    ///
-    /// **注意**：
-    /// - 保存成功/失败的处理将在后续任务 3.2 和 3.3 中由 NotesViewModel 调用 changeTracker 的方法
-    /// - 此方法只负责触发保存流程，不直接处理保存结果
     private func performAutoSave() async {
         // 1. 检查是否需要保存
         guard changeTracker.needsSave else {
