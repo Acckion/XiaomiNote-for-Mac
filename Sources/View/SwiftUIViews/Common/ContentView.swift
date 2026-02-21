@@ -175,7 +175,7 @@ public struct ContentView: View {
             NewNoteView(noteListState: noteListState, folderState: folderState)
         }
         .sheet(isPresented: $showingSettings) {
-            SettingsView(syncState: syncState, authState: authState)
+            SettingsView(syncState: syncState, authState: authState, noteStore: coordinator.noteStore)
         }
         .sheet(isPresented: $showingLogin) {
             LoginView(authState: authState)

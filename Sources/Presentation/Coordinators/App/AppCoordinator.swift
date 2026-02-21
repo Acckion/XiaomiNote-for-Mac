@@ -119,14 +119,15 @@ public final class AppCoordinator: ObservableObject {
 
         // 新架构组件
         self.eventBus = EventBus.shared
-        self.noteStore = NoteStore.shared
+        let noteStoreInstance = NoteStore(db: DatabaseService.shared, eventBus: EventBus.shared)
+        self.noteStore = noteStoreInstance
         self.syncEngine = SyncEngine.shared
-        self.noteListState = NoteListState(eventBus: EventBus.shared, noteStore: NoteStore.shared)
-        self.noteEditorState = NoteEditorState(eventBus: EventBus.shared, noteStore: NoteStore.shared)
-        self.folderState = FolderState(eventBus: EventBus.shared, noteStore: NoteStore.shared)
+        self.noteListState = NoteListState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
+        self.noteEditorState = NoteEditorState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
+        self.folderState = FolderState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
         self.syncState = SyncState(eventBus: EventBus.shared)
         self.authState = AuthState(eventBus: EventBus.shared, apiService: MiNoteService.shared)
-        self.searchState = SearchState(noteStore: NoteStore.shared)
+        self.searchState = SearchState(noteStore: noteStoreInstance)
 
         // 设置 ViewModel 之间的通信
         setupCommunication()

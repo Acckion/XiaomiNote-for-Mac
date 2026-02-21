@@ -24,7 +24,7 @@ final class FolderState: ObservableObject {
 
     // MARK: - 初始化
 
-    init(eventBus: EventBus = .shared, noteStore: NoteStore = .shared) {
+    init(eventBus: EventBus = .shared, noteStore: NoteStore) {
         self.eventBus = eventBus
         self.noteStore = noteStore
     }

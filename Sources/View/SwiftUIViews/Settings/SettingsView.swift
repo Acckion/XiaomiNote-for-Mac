@@ -3,6 +3,7 @@ import SwiftUI
 public struct SettingsView: View {
     @ObservedObject var syncState: SyncState
     @ObservedObject var authState: AuthState
+    let noteStore: NoteStore
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("syncInterval") private var syncInterval: Double = 300
@@ -19,9 +20,10 @@ public struct SettingsView: View {
     @State private var showLogoutAlert = false
     @State private var showClearCacheAlert = false
 
-    init(syncState: SyncState, authState: AuthState) {
+    init(syncState: SyncState, authState: AuthState, noteStore: NoteStore) {
         self.syncState = syncState
         self.authState = authState
+        self.noteStore = noteStore
     }
 
     public var body: some View {
@@ -117,7 +119,7 @@ public struct SettingsView: View {
     private var debugSection: some View {
         Section("调试") {
             NavigationLink("操作队列调试") {
-                OperationQueueDebugView()
+                OperationQueueDebugView(noteStore: noteStore)
             }
             .help("查看和管理待上传注册表、离线操作队列等")
 
@@ -323,7 +325,7 @@ public struct SettingsView: View {
 
     private func exportNotes() {
         Task {
-            let notes = await NoteStore.shared.notes
+            let notes = await noteStore.notes
             let notesData = notes.map { NoteMapper.toUploadPayload($0) }
 
             do {
@@ -659,5 +661,5 @@ struct ChangePasswordDialogView: View {
 }
 
 #Preview {
-    SettingsView(syncState: SyncState(), authState: AuthState())
+    SettingsView(syncState: SyncState(), authState: AuthState(), noteStore: NoteStore(db: .shared, eventBus: .shared))
 }

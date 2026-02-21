@@ -6,13 +6,6 @@ import Foundation
 /// 内部维护笔记和文件夹的内存缓存，提供只读查询方法。
 /// 同时管理活跃编辑状态、离线创建、保存上传等操作（原 NoteOperationCoordinator 的职责）。
 public actor NoteStore {
-    public static let shared = NoteStore(
-        db: .shared,
-        eventBus: .shared,
-        operationQueue: .shared,
-        idMappingRegistry: .shared
-    )
-
     private let db: DatabaseService
     private let eventBus: EventBus
     private let operationQueue: UnifiedOperationQueue

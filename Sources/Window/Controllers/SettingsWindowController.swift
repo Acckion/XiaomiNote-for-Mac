@@ -106,7 +106,7 @@
             }
 
             // 创建 SwiftUI 设置视图
-            let settingsView = SettingsView(syncState: coordinator.syncState, authState: coordinator.authState)
+            let settingsView = SettingsView(syncState: coordinator.syncState, authState: coordinator.authState, noteStore: coordinator.noteStore)
                 .frame(minWidth: 550, minHeight: 500)
 
             // 使用 NSHostingController 包装 SwiftUI 视图

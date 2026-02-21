@@ -22,7 +22,7 @@ final class SearchState: ObservableObject {
 
     // MARK: - 初始化
 
-    init(noteStore: NoteStore = .shared) {
+    init(noteStore: NoteStore) {
         self.noteStore = noteStore
     }
 

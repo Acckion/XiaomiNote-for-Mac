@@ -298,7 +298,7 @@ public class NotesViewModel: ObservableObject {
     let service = MiNoteService.shared
 
     /// 笔记数据仓库
-    private let noteStore = NoteStore.shared
+    private let noteStore: NoteStore
 
     /// 本地存储服务
     private let localStorage = LocalStorageService.shared
@@ -511,7 +511,9 @@ public class NotesViewModel: ObservableObject {
     /// 6. 监听网络状态
     /// 7. 如果已登录，执行启动序列（加载本地数据 → 处理离线队列 → 执行同步）
     ///
-    public init() {
+    public init(noteStore: NoteStore) {
+        self.noteStore = noteStore
+
         // 加载本地数据（根据登录状态决定加载本地数据还是示例数据）
         loadLocalData()
 

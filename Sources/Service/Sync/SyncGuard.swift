@@ -31,7 +31,7 @@ public struct SyncGuard: Sendable {
     ///   - noteStore: 笔记数据仓库
     public init(
         operationQueue: UnifiedOperationQueue = .shared,
-        noteStore: NoteStore = .shared
+        noteStore: NoteStore
     ) {
         self.operationQueue = operationQueue
         self.noteStore = noteStore

@@ -16,6 +16,10 @@ import SwiftUI
 ///
 public struct OperationQueueDebugView: View {
 
+    // MARK: - Dependencies
+
+    let noteStore: NoteStore
+
     // MARK: - State
 
     /// 统一操作队列中的操作
@@ -53,7 +57,9 @@ public struct OperationQueueDebugView: View {
     @State private var showRetryConfirmation = false
     @State private var showClearHistoryConfirmation = false
 
-    public init() {}
+    public init(noteStore: NoteStore) {
+        self.noteStore = noteStore
+    }
 
     // MARK: - Body
 
@@ -633,7 +639,7 @@ public struct OperationQueueDebugView: View {
             let mappingStats = mappingRegistry.getStatistics()
 
             // 获取活跃编辑笔记 ID
-            let activeNoteId = await NoteStore.shared.getActiveEditingNoteId()
+            let activeNoteId = await noteStore.getActiveEditingNoteId()
 
             await MainActor.run {
                 unifiedOperations = operations

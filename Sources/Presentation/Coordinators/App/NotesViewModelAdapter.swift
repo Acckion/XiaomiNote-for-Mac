@@ -43,7 +43,7 @@ public final class NotesViewModelAdapter: NotesViewModel {
     /// - Parameter coordinator: 应用协调器
     public init(coordinator: AppCoordinator) {
         self.coordinator = coordinator
-        super.init()
+        super.init(noteStore: coordinator.noteStore)
 
         // 设置状态同步
         setupStateSync()

@@ -29,14 +29,17 @@ actor SyncEngine {
         operationQueue: UnifiedOperationQueue = .shared,
         localStorage: LocalStorageService = .shared,
         syncStateManager: SyncStateManager = .createDefault(),
-        syncGuard: SyncGuard = SyncGuard()
+        syncGuard: SyncGuard? = nil,
+        noteStore: NoteStore? = nil
     ) {
         self.api = api
         self.eventBus = eventBus
         self.operationQueue = operationQueue
         self.localStorage = localStorage
         self.syncStateManager = syncStateManager
-        self.syncGuard = syncGuard
+        // SyncGuard 需要 NoteStore 来查询活跃编辑状态
+        let store = noteStore ?? NoteStore(db: .shared, eventBus: .shared)
+        self.syncGuard = syncGuard ?? SyncGuard(noteStore: store)
         LogService.shared.info(.sync, "SyncEngine 初始化完成")
     }
 
