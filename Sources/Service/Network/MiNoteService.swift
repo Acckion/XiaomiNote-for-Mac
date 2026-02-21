@@ -1328,10 +1328,7 @@ public final class MiNoteService: @unchecked Sendable {
             return false
         }
 
-        // 使用 ScheduledTaskManager 的实时检查结果
-        // ScheduledTaskManager 会定期检查Cookie在服务器端的有效性
-        // 注意：isCookieValid 属性是实时更新的，由定时任务维护
-        return ScheduledTaskManager.shared.isCookieValid
+        return true
     }
 
     /// 检查是否在 cookie 设置后的保护期内

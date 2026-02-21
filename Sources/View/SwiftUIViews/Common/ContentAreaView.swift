@@ -56,7 +56,7 @@ struct ContentAreaView: View {
         }
         // 动画配置：easeInOut，时长 350ms
         .animation(.easeInOut(duration: 0.35), value: windowState.expandedNote?.id)
-        // 同步 expandedNote 状态到 notesViewModel（用于工具栏可见性管理）
+        // 同步 expandedNote 状态到 noteListState（用于工具栏可见性管理）
         // 使用 async 避免在视图更新周期内直接修改外部 @Published 属性
         .onChange(of: windowState.expandedNote?.id) { _, newValue in
             DispatchQueue.main.async {

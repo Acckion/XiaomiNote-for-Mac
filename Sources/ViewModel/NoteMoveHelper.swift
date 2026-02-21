@@ -55,61 +55,6 @@ public class NoteMoveHelper {
         moveNote(note, to: uncategorizedFolder, using: noteListState, completion: completion)
     }
 
-    // MARK: - 向后兼容 API（使用 NotesViewModel，供未迁移的视图使用）
-
-    /// 移动笔记到指定文件夹（向后兼容）
-    @MainActor
-    public static func moveNote(
-        _ note: Note,
-        to folder: Folder,
-        using viewModel: NotesViewModel,
-        completion: @escaping (Result<Void, Error>) -> Void
-    ) {
-        guard note.folderId != folder.id else {
-            completion(.success(()))
-            return
-        }
-
-        let noteId = note.id
-        let folderId = folder.id
-        let folderName = folder.name
-        let capturedCompletion = completion
-
-        Task {
-            do {
-                let updatedNote = Note(
-                    id: note.id,
-                    title: note.title,
-                    content: note.content,
-                    folderId: folderId,
-                    isStarred: note.isStarred,
-                    createdAt: note.createdAt,
-                    updatedAt: note.updatedAt,
-                    tags: note.tags
-                )
-                try await viewModel.updateNote(updatedNote)
-                LogService.shared.debug(.viewmodel, "笔记移动成功: \(noteId) -> \(folderName)")
-                capturedCompletion(.success(()))
-            } catch {
-                LogService.shared.error(.viewmodel, "移动笔记失败: \(error.localizedDescription)")
-                capturedCompletion(.failure(error))
-            }
-        }
-    }
-
-    /// 获取可用的文件夹列表（向后兼容）
-    @MainActor
-    public static func getAvailableFolders(for viewModel: NotesViewModel) -> [Folder] {
-        filterFolders(viewModel.folders)
-    }
-
-    /// 处理移动到未分类文件夹的逻辑（向后兼容）
-    @MainActor
-    public static func moveToUncategorized(_ note: Note, using viewModel: NotesViewModel, completion: @escaping (Result<Void, Error>) -> Void) {
-        let uncategorizedFolder = uncategorizedFolder()
-        moveNote(note, to: uncategorizedFolder, using: viewModel, completion: completion)
-    }
-
     // MARK: - 共享方法
 
     /// 创建未分类文件夹对象

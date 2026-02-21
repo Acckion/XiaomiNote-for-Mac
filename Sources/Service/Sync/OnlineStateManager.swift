@@ -18,7 +18,11 @@ public final class OnlineStateManager: ObservableObject {
 
     private let networkMonitor = NetworkMonitor.shared
     private let service = MiNoteService.shared
-    private let scheduledTaskManager = ScheduledTaskManager.shared
+
+    // MARK: - 内部状态
+
+    /// Cookie 有效性状态，通过通知更新
+    private var isCookieValid = true
 
     // MARK: - Combine订阅
 
@@ -28,7 +32,6 @@ public final class OnlineStateManager: ObservableObject {
 
     private init() {
         setupStateMonitoring()
-        // 立即计算一次初始状态
         updateOnlineStatus()
     }
 
@@ -45,48 +48,25 @@ public final class OnlineStateManager: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // 监听Cookie有效性变化
-        // 使用定时检查的方式，因为 ScheduledTaskManager 的 isCookieValid 是计算属性
-        // 我们通过监听任务状态变化来触发更新
-        scheduledTaskManager.$taskStatuses
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.updateOnlineStatus()
-                }
-            }
-            .store(in: &cancellables)
-
-        // 监听认证状态变化（通过监听Cookie设置通知）
+        // 监听 Cookie 刷新成功通知
         NotificationCenter.default.publisher(for: NSNotification.Name("CookieRefreshedSuccessfully"))
             .sink { [weak self] _ in
                 Task { @MainActor in
+                    self?.isCookieValid = true
                     self?.updateOnlineStatus()
                 }
             }
             .store(in: &cancellables)
 
-        // 监听Cookie失效通知（由 MiNoteService 发送）
+        // 监听 Cookie 失效通知
         NotificationCenter.default.publisher(for: NSNotification.Name("CookieExpired"))
             .sink { [weak self] _ in
                 Task { @MainActor in
+                    self?.isCookieValid = false
                     self?.updateOnlineStatus()
                 }
             }
             .store(in: &cancellables)
-
-        // 延迟设置Cookie有效性监听，确保 ScheduledTaskManager 已启动
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒延迟
-            if let cookieTask = scheduledTaskManager.cookieValidityCheckTask {
-                cookieTask.$isCookieValid
-                    .sink { [weak self] _ in
-                        Task { @MainActor in
-                            self?.updateOnlineStatus()
-                        }
-                    }
-                    .store(in: &cancellables)
-            }
-        }
     }
 
     // MARK: - 状态更新
@@ -97,15 +77,14 @@ public final class OnlineStateManager: ObservableObject {
     private func updateOnlineStatus() {
         let isConnected = networkMonitor.isConnected
         let isAuthenticated = service.isAuthenticated()
-        let isCookieValid = scheduledTaskManager.isCookieValid
+        let cookieValid = isCookieValid
 
         let wasOnline = isOnline
-        isOnline = isConnected && isAuthenticated && isCookieValid
+        isOnline = isConnected && isAuthenticated && cookieValid
 
         if wasOnline != isOnline {
-            LogService.shared.info(.sync, "在线状态变化: \(isOnline ? "在线" : "离线"), 网络: \(isConnected), 认证: \(isAuthenticated), Cookie: \(isCookieValid)")
+            LogService.shared.info(.sync, "在线状态变化: \(isOnline ? "在线" : "离线"), 网络: \(isConnected), 认证: \(isAuthenticated), Cookie: \(cookieValid)")
 
-            // 发布状态变化通知
             NotificationCenter.default.post(
                 name: .onlineStatusDidChange,
                 object: nil,

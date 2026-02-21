@@ -57,10 +57,6 @@ public class WindowManager {
     public func createMainWindow() -> MainWindowController? {
         LogService.shared.debug(.window, "创建主窗口")
 
-        // TODO: 任务 5 完成后启用新实现
-        // 当前使用旧实现保持向后兼容
-
-        // 旧实现：使用 NotesViewModel
         guard let coordinator = appCoordinator else {
             let errorMessage = "AppCoordinator 未设置，无法创建窗口"
             LogService.shared.error(.window, errorMessage)
@@ -142,10 +138,6 @@ public class WindowManager {
     public func createNewWindow(withNote note: Note? = nil) -> MainWindowController? {
         LogService.shared.debug(.window, "创建新窗口")
 
-        // TODO: 任务 5 完成后启用新实现
-        // 当前使用旧实现保持向后兼容
-
-        // 旧实现：使用 NotesViewModel
         guard let coordinator = appCoordinator else {
             let errorMessage = "AppCoordinator 未设置，无法创建窗口"
             LogService.shared.error(.window, errorMessage)
