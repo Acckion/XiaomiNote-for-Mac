@@ -26,7 +26,8 @@
         /// 窗口状态
         private let windowState: WindowState
 
-        /// 内容视图模型（向后兼容，通过 coordinator 获取）
+        /// 内容视图模型（向后兼容，供 TrashView 和 MenuActionHandler 使用）
+        /// 新代码应使用 coordinator 上的 State 对象
         public var viewModel: NotesViewModel? {
             coordinator.notesViewModel
         }
@@ -1320,7 +1321,9 @@
     public extension MainWindowController {
 
         @objc func createNewNote(_: Any?) {
-            viewModel?.createNewNote()
+            Task {
+                await coordinator.noteListState.createNewNote(inFolder: coordinator.folderState.selectedFolderId ?? "0")
+            }
         }
 
         @objc func createNewFolder(_: Any?) {
@@ -1343,20 +1346,14 @@
                 let folderName = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !folderName.isEmpty {
                     Task {
-                        do {
-                            try await viewModel?.createFolder(name: folderName)
-                        } catch {
-                            LogService.shared.error(.window, "创建文件夹失败: \(error)")
-                        }
+                        await coordinator.folderState.createFolder(name: folderName)
                     }
                 }
             }
         }
 
         @objc func performSync(_: Any?) {
-            Task {
-                await viewModel?.performFullSync()
-            }
+            coordinator.syncState.requestFullSync(mode: .normal)
         }
 
         @objc func shareNote(_: Any?) {
@@ -1376,7 +1373,9 @@
 
         @objc internal func toggleStarNote(_: Any?) {
             guard let note = coordinator.noteListState.selectedNote else { return }
-            viewModel?.toggleStar(note)
+            Task {
+                await coordinator.noteListState.toggleStar(note)
+            }
         }
 
         @objc internal func deleteNote(_: Any?) {
@@ -1391,8 +1390,9 @@
 
             let response = alert.runModal()
             if response == .alertFirstButtonReturn {
-                // 直接调用deleteNote方法，它内部会处理异步操作
-                viewModel?.deleteNote(note)
+                Task {
+                    await coordinator.noteListState.deleteNote(note)
+                }
             }
         }
 
@@ -1586,19 +1586,13 @@
         /// 从 URL 插入图片
         @MainActor
         private func insertImage(from url: URL) async {
-            guard let viewModel else {
-                LogService.shared.error(.window, "viewModel 不存在")
-                return
-            }
-
             guard coordinator.noteListState.selectedNote != nil else {
                 LogService.shared.error(.window, "没有选中笔记，无法插入图片")
                 return
             }
 
             do {
-                // 上传图片并获取 fileId
-                let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
+                let fileId = try await coordinator.noteEditorState.uploadImageAndInsertToNote(imageURL: url)
                 LogService.shared.info(.window, "图片上传成功: fileId=\(fileId)")
 
                 LogService.shared.debug(.window, "使用原生编辑器，调用 NativeEditorContext.insertImage()")
@@ -1609,7 +1603,6 @@
                 }
             } catch {
                 LogService.shared.error(.window, "插入图片失败: \(error.localizedDescription)")
-                // 显示错误提示
                 let alert = NSAlert()
                 alert.messageText = "插入图片失败"
                 alert.informativeText = error.localizedDescription
@@ -1802,8 +1795,7 @@
         }
 
         @objc internal func moveNote(_ sender: Any?) {
-            guard let note = coordinator.noteListState.selectedNote,
-                  let viewModel else { return }
+            guard let note = coordinator.noteListState.selectedNote else { return }
 
             // 创建菜单
             let menu = NSMenu()
@@ -1815,7 +1807,7 @@
             menu.addItem(uncategorizedMenuItem)
 
             // 其他可用文件夹
-            let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+            let availableFolders = NoteMoveHelper.getAvailableFolders(from: coordinator.folderState)
 
             if !availableFolders.isEmpty {
                 menu.addItem(NSMenuItem.separator())
@@ -1840,10 +1832,9 @@
         }
 
         @objc internal func moveToUncategorized(_: NSMenuItem) {
-            guard let note = coordinator.noteListState.selectedNote,
-                  let viewModel else { return }
+            guard let note = coordinator.noteListState.selectedNote else { return }
 
-            NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
+            NoteMoveHelper.moveToUncategorized(note, using: coordinator.noteListState) { result in
                 switch result {
                 case .success:
                     LogService.shared.info(.window, "笔记移动到未分类成功: \(note.id)")
@@ -1855,10 +1846,9 @@
 
         @objc internal func moveNoteToFolder(_ sender: NSMenuItem) {
             guard let folder = sender.representedObject as? Folder,
-                  let note = coordinator.noteListState.selectedNote,
-                  let viewModel else { return }
+                  let note = coordinator.noteListState.selectedNote else { return }
 
-            NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
+            NoteMoveHelper.moveNote(note, to: folder, using: coordinator.noteListState) { result in
                 switch result {
                 case .success:
                     LogService.shared.info(.window, "笔记移动成功: \(note.id) -> \(folder.name)")
@@ -1873,13 +1863,13 @@
         }
 
         @objc internal func performIncrementalSync(_: Any?) {
-            Task {
-                await viewModel?.performIncrementalSync()
-            }
+            coordinator.syncState.requestSync(mode: .incremental)
         }
 
         @objc internal func resetSyncStatus(_: Any?) {
-            viewModel?.resetSyncStatus()
+            coordinator.syncState.lastSyncTime = nil
+            coordinator.syncState.syncStatusMessage = ""
+            coordinator.syncState.lastSyncedNotesCount = 0
         }
 
         @objc internal func showSyncStatus(_: Any?) {
@@ -2142,19 +2132,19 @@
         /// 设置排序方式为编辑时间
         @objc internal func setSortOrderEditDate(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.editDate)
-            viewModel?.setNotesListSortField(.editDate)
+            coordinator.noteListState.notesListSortField = .editDate
         }
 
         /// 设置排序方式为创建时间
         @objc internal func setSortOrderCreateDate(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.createDate)
-            viewModel?.setNotesListSortField(.createDate)
+            coordinator.noteListState.notesListSortField = .createDate
         }
 
         /// 设置排序方式为标题
         @objc internal func setSortOrderTitle(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.title)
-            viewModel?.setNotesListSortField(.title)
+            coordinator.noteListState.notesListSortField = .title
             // 按标题排序时，自动关闭日期分组（因为日期分组对标题排序没有意义）
             if ViewOptionsManager.shared.isDateGroupingEnabled {
                 ViewOptionsManager.shared.setDateGrouping(false)
@@ -2164,13 +2154,13 @@
         /// 设置排序方向为降序
         @objc internal func setSortDirectionDescending(_: Any?) {
             ViewOptionsManager.shared.setSortDirection(.descending)
-            viewModel?.setNotesListSortDirection(.descending)
+            coordinator.noteListState.notesListSortDirection = .descending
         }
 
         /// 设置排序方向为升序
         @objc internal func setSortDirectionAscending(_: Any?) {
             ViewOptionsManager.shared.setSortDirection(.ascending)
-            viewModel?.setNotesListSortDirection(.ascending)
+            coordinator.noteListState.notesListSortDirection = .ascending
         }
 
         /// 切换日期分组（已弃用，改用 setDateGroupingOn/Off）
@@ -2184,7 +2174,7 @@
             // 因为按标题排序时日期分组没有意义
             if ViewOptionsManager.shared.sortOrder == .title {
                 ViewOptionsManager.shared.setSortOrder(.editDate)
-                viewModel?.setNotesListSortField(.editDate)
+                coordinator.noteListState.notesListSortField = .editDate
             }
             ViewOptionsManager.shared.setDateGrouping(true)
         }

@@ -366,7 +366,7 @@ struct GalleryView: View {
         Menu("移到") {
             // 未分类文件夹
             Button {
-                NoteMoveHelper.moveToUncategorized(note, using: coordinator.notesViewModel) { result in
+                NoteMoveHelper.moveToUncategorized(note, using: noteListState) { result in
                     if case let .failure(error) = result {
                         LogService.shared.error(.window, "移动到未分类失败: \(error.localizedDescription)")
                     }
@@ -376,7 +376,7 @@ struct GalleryView: View {
             }
 
             // 其他可用文件夹
-            let availableFolders = NoteMoveHelper.getAvailableFolders(for: coordinator.notesViewModel)
+            let availableFolders = NoteMoveHelper.getAvailableFolders(from: folderState)
 
             if !availableFolders.isEmpty {
                 Divider()
@@ -457,7 +457,7 @@ struct GalleryView: View {
 
     /// 移动笔记到指定文件夹
     private func moveNoteToFolder(note: Note, folder: Folder) {
-        NoteMoveHelper.moveNote(note, to: folder, using: coordinator.notesViewModel) { result in
+        NoteMoveHelper.moveNote(note, to: folder, using: noteListState) { result in
             if case let .failure(error) = result {
                 LogService.shared.error(.window, "移动笔记失败: \(error.localizedDescription)")
             }

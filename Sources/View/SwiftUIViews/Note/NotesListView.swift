@@ -548,7 +548,7 @@ struct NotesListView: View {
         Menu("移到") {
             // 未分类文件夹（folderId为"0"）
             Button {
-                NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
+                NoteMoveHelper.moveToUncategorized(note, using: coordinator.noteListState) { result in
                     switch result {
                     case .success:
                         break
@@ -561,7 +561,7 @@ struct NotesListView: View {
             }
 
             // 其他可用文件夹
-            let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+            let availableFolders = NoteMoveHelper.getAvailableFolders(from: coordinator.folderState)
 
             if !availableFolders.isEmpty {
                 Divider()
@@ -641,7 +641,7 @@ struct NotesListView: View {
     // MARK: - 移动笔记功能
 
     private func moveNoteToFolder(note: Note, folder: Folder) {
-        NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
+        NoteMoveHelper.moveNote(note, to: folder, using: coordinator.noteListState) { result in
             switch result {
             case .success:
                 break
