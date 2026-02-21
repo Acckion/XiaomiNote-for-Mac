@@ -62,7 +62,6 @@ public final class AppCoordinator: ObservableObject {
         // 解析服务
         let noteStorage = container.resolve(NoteStorageProtocol.self)
         let noteService = container.resolve(NoteServiceProtocol.self)
-        let syncService = container.resolve(SyncServiceProtocol.self)
         let networkMonitor = container.resolve(NetworkMonitorProtocol.self)
         let authService = container.resolve(AuthenticationServiceProtocol.self)
         let audioService = container.resolve(AudioServiceProtocol.self)
@@ -79,7 +78,6 @@ public final class AppCoordinator: ObservableObject {
         )
 
         self.syncCoordinator = SyncCoordinator(
-            syncService: syncService,
             noteStorage: noteStorage,
             networkMonitor: networkMonitor
         )

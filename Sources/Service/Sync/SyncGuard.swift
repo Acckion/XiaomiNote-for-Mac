@@ -19,8 +19,8 @@ public struct SyncGuard: Sendable {
     /// 统一操作队列
     private let operationQueue: UnifiedOperationQueue
 
-    /// 笔记操作协调器
-    private let coordinator: NoteOperationCoordinator
+    /// 笔记数据仓库（提供活跃编辑状态查询）
+    private let noteStore: NoteStore
 
     // MARK: - 初始化
 
@@ -28,13 +28,13 @@ public struct SyncGuard: Sendable {
     ///
     /// - Parameters:
     ///   - operationQueue: 统一操作队列
-    ///   - coordinator: 笔记操作协调器
+    ///   - noteStore: 笔记数据仓库
     public init(
         operationQueue: UnifiedOperationQueue = .shared,
-        coordinator: NoteOperationCoordinator = .shared
+        noteStore: NoteStore = .shared
     ) {
         self.operationQueue = operationQueue
-        self.coordinator = coordinator
+        self.noteStore = noteStore
     }
 }
 
@@ -43,28 +43,15 @@ public struct SyncGuard: Sendable {
 public extension SyncGuard {
 
     /// 检查笔记是否应该被同步跳过
-    ///
-    /// 检查顺序：
-    /// 1. 检查是否为临时 ID（离线创建的笔记不会出现在云端）
-    /// 2. 检查是否正在编辑（活跃编辑保护）
-    /// 3. 检查是否有待处理上传（待上传保护）
-    /// 4. 比较时间戳（本地较新时跳过）
-    ///
-    /// - Parameters:
-    ///   - noteId: 笔记 ID
-    ///   - cloudTimestamp: 云端时间戳
-    /// - Returns: 是否应该跳过同步
-    ///
     func shouldSkipSync(noteId: String, cloudTimestamp: Date) async -> Bool {
         // 1. 检查是否为临时 ID（离线创建的笔记）
-        // 临时 ID 笔记不会出现在云端，不需要同步
         if NoteOperation.isTemporaryId(noteId) {
             LogService.shared.debug(.sync, "跳过同步: 临时 ID 笔记 \(noteId.prefix(8))...")
             return true
         }
 
         // 2. 检查是否正在编辑
-        let isEditing = await coordinator.isNoteActivelyEditing(noteId)
+        let isEditing = await noteStore.isNoteActivelyEditing(noteId)
         if isEditing {
             LogService.shared.debug(.sync, "跳过同步: 笔记正在编辑 \(noteId.prefix(8))...")
             return true
@@ -72,7 +59,6 @@ public extension SyncGuard {
 
         // 3. 检查是否有待处理上传
         if operationQueue.hasPendingUpload(for: noteId) {
-            // 比较时间戳
             if let localTimestamp = operationQueue.getLocalSaveTimestamp(for: noteId) {
                 if localTimestamp >= cloudTimestamp {
                     LogService.shared.debug(.sync, "跳过同步: 本地较新 \(noteId.prefix(8))...")
@@ -95,36 +81,21 @@ public extension SyncGuard {
     }
 
     /// 检查笔记是否正在编辑
-    ///
-    /// - Parameter noteId: 笔记 ID
-    /// - Returns: 是否正在编辑
-    ///
     func isActivelyEditing(noteId: String) async -> Bool {
-        await coordinator.isNoteActivelyEditing(noteId)
+        await noteStore.isNoteActivelyEditing(noteId)
     }
 
     /// 检查笔记是否有待处理上传
-    ///
-    /// - Parameter noteId: 笔记 ID
-    /// - Returns: 是否有待处理上传
-    ///
     func hasPendingUpload(noteId: String) -> Bool {
         operationQueue.hasPendingUpload(for: noteId)
     }
 
     /// 获取笔记的本地保存时间戳
-    ///
-    /// - Parameter noteId: 笔记 ID
-    /// - Returns: 本地保存时间戳，如果没有则返回 nil
     func getLocalSaveTimestamp(noteId: String) -> Date? {
         operationQueue.getLocalSaveTimestamp(for: noteId)
     }
 
     /// 检查笔记是否为临时 ID
-    ///
-    /// - Parameter noteId: 笔记 ID
-    /// - Returns: 是否为临时 ID
-    ///
     func isTemporaryId(_ noteId: String) -> Bool {
         NoteOperation.isTemporaryId(noteId)
     }
@@ -135,26 +106,15 @@ public extension SyncGuard {
 public extension SyncGuard {
 
     /// 获取跳过同步的原因
-    ///
-    /// 用于日志记录和调试
-    ///
-    /// - Parameters:
-    ///   - noteId: 笔记 ID
-    ///   - cloudTimestamp: 云端时间戳
-    /// - Returns: 跳过原因，如果不应该跳过则返回 nil
-    ///
     func getSkipReason(noteId: String, cloudTimestamp: Date) async -> SyncSkipReason? {
-        // 1. 检查是否为临时 ID
         if NoteOperation.isTemporaryId(noteId) {
             return .temporaryId
         }
 
-        // 2. 检查是否正在编辑
-        if await coordinator.isNoteActivelyEditing(noteId) {
+        if await noteStore.isNoteActivelyEditing(noteId) {
             return .activelyEditing
         }
 
-        // 3. 检查是否有待处理上传
         if operationQueue.hasPendingUpload(for: noteId) {
             if let localTimestamp = operationQueue.getLocalSaveTimestamp(for: noteId) {
                 if localTimestamp >= cloudTimestamp {
@@ -166,7 +126,6 @@ public extension SyncGuard {
             return .pendingUpload
         }
 
-        // 4. 检查是否有待处理的 noteCreate 操作
         if operationQueue.hasPendingNoteCreate(for: noteId) {
             return .pendingCreate
         }
@@ -178,8 +137,6 @@ public extension SyncGuard {
 // MARK: - 同步跳过原因
 
 /// 同步跳过原因
-///
-/// 用于日志记录和调试，描述为什么笔记被跳过同步
 public enum SyncSkipReason: Sendable, Equatable {
     /// 笔记使用临时 ID（离线创建）
     case temporaryId

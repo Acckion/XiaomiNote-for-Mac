@@ -137,8 +137,8 @@ public class NotesViewModel: ObservableObject {
     /// 上次同步时间
     @Published var lastSyncTime: Date?
 
-    /// 同步结果
-    @Published var syncResult: SyncService.SyncResult?
+    /// 同步结果（已弃用，保留属性用于 UI 兼容）
+    @Published var syncResult: SyncEventResult?
 
     // MARK: - 数据加载状态指示
 
@@ -211,7 +211,7 @@ public class NotesViewModel: ObservableObject {
         }
 
         // 显示同步结果
-        if let result = syncResult, lastSyncedNotesCount > 0 {
+        if syncResult != nil, lastSyncedNotesCount > 0 {
             return "已同步 \(lastSyncedNotesCount) 条笔记"
         }
 
@@ -297,8 +297,8 @@ public class NotesViewModel: ObservableObject {
     /// 小米笔记API服务
     let service = MiNoteService.shared
 
-    /// 同步服务
-    private let syncService = SyncService.shared
+    /// 笔记数据仓库
+    private let noteStore = NoteStore.shared
 
     /// 本地存储服务
     private let localStorage = LocalStorageService.shared
@@ -1331,21 +1331,15 @@ public class NotesViewModel: ObservableObject {
             isSyncing = true
             syncStatusMessage = "正在同步数据..."
 
-            let result = try await syncService.performFullSync()
+            await eventBus.publish(SyncEvent.requested(mode: .full(.normal)))
 
             await reloadDataAfterSync()
 
             isSyncing = false
             syncStatusMessage = "同步完成"
             lastSyncTime = Date()
-            lastSyncedNotesCount = result.syncedNotes
 
-            LogService.shared.info(.viewmodel, "登录后同步成功，同步了 \(result.syncedNotes) 条笔记")
-        } catch {
-            isSyncing = false
-            syncStatusMessage = "同步失败"
-            errorMessage = "同步失败: \(error.localizedDescription)"
-            LogService.shared.error(.viewmodel, "登录后同步失败: \(error)")
+            LogService.shared.info(.viewmodel, "登录后已发起全量同步请求")
         }
     }
 
@@ -1363,21 +1357,15 @@ public class NotesViewModel: ObservableObject {
             isSyncing = true
             syncStatusMessage = "正在同步数据..."
 
-            let result = try await syncService.performFullSync()
+            await eventBus.publish(SyncEvent.requested(mode: .full(.normal)))
 
             await reloadDataAfterSync()
 
             isSyncing = false
             syncStatusMessage = "同步完成"
             lastSyncTime = Date()
-            lastSyncedNotesCount = result.syncedNotes
 
-            LogService.shared.info(.viewmodel, "Cookie刷新后同步成功，同步了 \(result.syncedNotes) 条笔记")
-        } catch {
-            isSyncing = false
-            syncStatusMessage = "同步失败"
-            errorMessage = "同步失败: \(error.localizedDescription)"
-            LogService.shared.error(.viewmodel, "Cookie刷新后同步失败: \(error)")
+            LogService.shared.info(.viewmodel, "Cookie刷新后已发起全量同步请求")
         }
     }
 
@@ -1531,27 +1519,14 @@ public class NotesViewModel: ObservableObject {
             isSyncing = false
         }
 
-        do {
-            let result = try await syncService.performFullSync()
+        await eventBus.publish(SyncEvent.requested(mode: .full(.normal)))
 
-            syncResult = result
-            lastSyncTime = result.lastSyncTime
-            lastSyncedNotesCount = result.syncedNotes
+        await loadLocalDataAfterSync()
 
-            await loadLocalDataAfterSync()
-
-            syncProgress = 1.0
-            syncStatusMessage = "同步完成: 成功同步 \(result.syncedNotes) 条笔记"
-            LogService.shared.info(.viewmodel, "同步成功，同步了 \(result.syncedNotes) 条笔记")
-        } catch let error as MiNoteError {
-            LogService.shared.error(.viewmodel, "同步失败 MiNoteError: \(error)")
-            handleMiNoteError(error)
-            syncStatusMessage = "同步失败"
-        } catch {
-            LogService.shared.error(.viewmodel, "同步失败: \(error)")
-            errorMessage = "同步失败: \(error.localizedDescription)"
-            syncStatusMessage = "同步失败"
-        }
+        syncProgress = 1.0
+        syncStatusMessage = "已发起全量同步请求"
+        lastSyncTime = Date()
+        LogService.shared.info(.viewmodel, "已通过 EventBus 发起全量同步请求")
     }
 
     /// 执行增量同步
@@ -1578,26 +1553,14 @@ public class NotesViewModel: ObservableObject {
             isSyncing = false
         }
 
-        do {
-            let result = try await syncService.performIncrementalSync()
+        await eventBus.publish(SyncEvent.requested(mode: .incremental))
 
-            // 更新同步结果
-            syncResult = result
-            lastSyncTime = result.lastSyncTime
-            lastSyncedNotesCount = result.syncedNotes
+        await loadLocalDataAfterSync()
 
-            // 重新加载本地数据
-            await loadLocalDataAfterSync()
-
-            syncProgress = 1.0
-            syncStatusMessage = "增量同步完成: 成功同步 \(result.syncedNotes) 条笔记"
-        } catch let error as MiNoteError {
-            handleMiNoteError(error)
-            syncStatusMessage = "增量同步失败"
-        } catch {
-            errorMessage = "增量同步失败: \(error.localizedDescription)"
-            syncStatusMessage = "增量同步失败"
-        }
+        syncProgress = 1.0
+        syncStatusMessage = "已发起增量同步请求"
+        lastSyncTime = Date()
+        LogService.shared.info(.viewmodel, "已通过 EventBus 发起增量同步请求")
     }
 
     /// 同步后重新加载本地数据
@@ -1605,14 +1568,14 @@ public class NotesViewModel: ObservableObject {
     /// **关键修复**：如果用户正在编辑笔记且有未保存的更改，不更新 selectedNote 的内容
     /// 这样可以防止云端同步覆盖用户正在编辑的内容
     ///
-    /// **统一操作队列集成**：使用 NoteOperationCoordinator 检查活跃编辑状态
+    /// **统一操作队列集成**：使用 NoteStore 检查活跃编辑状态
     private func loadLocalDataAfterSync() async {
         do {
             let currentSelectedNoteId = selectedNote?.id
             let hasUnsavedChanges = nativeEditorContext.hasUnsavedChanges
 
             let isActivelyEditing: Bool = if let noteId = currentSelectedNoteId {
-                await NoteOperationCoordinator.shared.isNoteActivelyEditing(noteId)
+                await noteStore.isNoteActivelyEditing(noteId)
             } else {
                 false
             }
@@ -1680,21 +1643,15 @@ public class NotesViewModel: ObservableObject {
 
     /// 取消同步
     func cancelSync() {
-        syncService.cancelSync()
         isSyncing = false
         syncStatusMessage = "同步已取消"
     }
 
     /// 重置同步状态
     func resetSyncStatus() {
-        do {
-            try syncService.resetSyncStatus()
-            lastSyncTime = nil
-            syncResult = nil
-            errorMessage = "同步状态已重置"
-        } catch {
-            errorMessage = "重置同步状态失败: \(error.localizedDescription)"
-        }
+        lastSyncTime = nil
+        syncResult = nil
+        errorMessage = "同步状态已重置"
     }
 
     /// 获取同步状态摘要
@@ -1738,12 +1695,12 @@ public class NotesViewModel: ObservableObject {
     /// **统一接口**：推荐使用此方法创建笔记，而不是直接调用API
     ///
     /// **特性**：
-    /// - 支持离线模式：如果离线，使用 NoteOperationCoordinator.createNoteOffline() 创建临时 ID 笔记
+    /// - 支持离线模式：如果离线，使用 NoteStore.createNoteOffline() 创建临时 ID 笔记
     /// - 自动处理ID变更：如果服务器返回新的ID，会自动更新本地笔记
     /// - 自动更新UI：创建后会自动更新笔记列表和文件夹计数
     ///
     /// **统一操作队列集成**：
-    /// - 离线时使用 NoteOperationCoordinator.createNoteOffline() 生成临时 ID
+    /// - 离线时使用 NoteStore.createNoteOffline() 生成临时 ID
     /// - 在线时直接调用 API 创建笔记
     ///
     /// - Parameter note: 要创建的笔记对象
@@ -1751,9 +1708,9 @@ public class NotesViewModel: ObservableObject {
     public func createNote(_ note: Note) async throws {
         // 检查是否离线或未认证
         if !isOnline || !service.isAuthenticated() {
-            // 离线模式：使用 NoteOperationCoordinator 创建临时 ID 笔记
+            // 离线模式：使用 NoteStore 创建临时 ID 笔记
             do {
-                let offlineNote = try await NoteOperationCoordinator.shared.createNoteOffline(
+                let offlineNote = try await noteStore.createNoteOffline(
                     title: note.title,
                     content: note.content,
                     folderId: note.folderId
@@ -1919,7 +1876,7 @@ public class NotesViewModel: ObservableObject {
     /// - 自动更新UI：更新后会自动更新笔记列表
     ///
     /// **统一操作队列集成**：
-    /// - 使用 NoteOperationCoordinator 进行保存
+    /// - 使用 NoteStore 进行保存
     /// - 自动创建 cloudUpload 操作到 UnifiedOperationQueue
     /// - 网络可用时立即处理上传
     ///
@@ -1929,19 +1886,13 @@ public class NotesViewModel: ObservableObject {
     func updateNote(_ note: Note) async throws {
         let noteToSave = mergeWithLocalData(note)
 
-        let saveResult = await NoteOperationCoordinator.shared.saveNote(noteToSave)
+        await noteStore.saveNoteAndUpload(noteToSave)
 
-        switch saveResult {
-        case .success:
-            if let index = notes.firstIndex(where: { $0.id == note.id }) {
-                notes[index] = noteToSave
-            }
-            if selectedNote?.id == note.id {
-                selectedNote = noteToSave
-            }
-        case let .failure(error):
-            LogService.shared.error(.viewmodel, "保存笔记失败: \(error)")
-            throw error
+        if let index = notes.firstIndex(where: { $0.id == note.id }) {
+            notes[index] = noteToSave
+        }
+        if selectedNote?.id == note.id {
+            selectedNote = noteToSave
         }
 
         guard isOnline, service.isAuthenticated() else { return }
@@ -2267,7 +2218,7 @@ public class NotesViewModel: ObservableObject {
 
             Task {
                 do {
-                    try await NoteOperationCoordinator.shared.deleteTemporaryNote(note.id)
+                    try await noteStore.deleteTemporaryNote(note.id)
                 } catch {
                     LogService.shared.error(.viewmodel, "临时 ID 笔记删除失败: \(error)")
                 }
@@ -2554,13 +2505,13 @@ public class NotesViewModel: ObservableObject {
                nativeEditorContext.hasUnsavedChanges
             {
                 do {
-                    try await NoteOperationCoordinator.shared.saveNoteImmediately(prevNote)
+                    try await noteStore.saveNoteImmediately(prevNote)
                 } catch {
                     LogService.shared.warning(.viewmodel, "切换笔记前保存失败: \(error)")
                 }
             }
 
-            await NoteOperationCoordinator.shared.setActiveEditingNote(note?.id)
+            await noteStore.setActiveEditingNote(note?.id)
             selectedNote = note
             postNoteSelectionNotification()
         }

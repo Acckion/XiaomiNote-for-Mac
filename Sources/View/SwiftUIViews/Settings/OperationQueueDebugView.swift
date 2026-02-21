@@ -633,8 +633,7 @@ public struct OperationQueueDebugView: View {
             let mappingStats = mappingRegistry.getStatistics()
 
             // 获取活跃编辑笔记 ID
-            let coordinator = NoteOperationCoordinator.shared
-            let activeNoteId = await coordinator.getActiveEditingNoteId()
+            let activeNoteId = await NoteStore.shared.getActiveEditingNoteId()
 
             await MainActor.run {
                 unifiedOperations = operations

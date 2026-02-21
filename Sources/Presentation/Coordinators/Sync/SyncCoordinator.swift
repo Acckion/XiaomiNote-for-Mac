@@ -12,21 +12,7 @@ import SwiftUI
 
 /// 同步协调器
 ///
-/// 负责协调同步操作，包括：
-/// - 启动同步
-/// - 停止同步
-/// - 强制全量同步
-/// - 同步单个笔记
-/// - 处理离线操作队列
-/// - 同步状态管理
-/// - 冲突解决
-///
-/// **设计原则**:
-/// - 单一职责：只负责同步相关的协调工作
-/// - 依赖注入：通过构造函数注入依赖，而不是使用单例
-/// - 可测试性：所有依赖都可以被 Mock，便于单元测试
-///
-/// **线程安全**：使用 @MainActor 确保所有 UI 更新在主线程执行
+/// 负责协调同步操作，通过 EventBus 发布同步请求事件，由 SyncEngine 实际执行。
 @MainActor
 public final class SyncCoordinator: ObservableObject {
     // MARK: - Published Properties
@@ -51,14 +37,14 @@ public final class SyncCoordinator: ObservableObject {
 
     // MARK: - Dependencies
 
-    /// 同步服务
-    private let syncService: SyncServiceProtocol
-
     /// 笔记存储服务（本地数据库）
     private let noteStorage: NoteStorageProtocol
 
     /// 网络监控服务
     private let networkMonitor: NetworkMonitorProtocol
+
+    /// 事件总线
+    private let eventBus = EventBus.shared
 
     // MARK: - Private Properties
 
@@ -73,15 +59,12 @@ public final class SyncCoordinator: ObservableObject {
     /// 初始化同步协调器
     ///
     /// - Parameters:
-    ///   - syncService: 同步服务
     ///   - noteStorage: 笔记存储服务（本地数据库）
     ///   - networkMonitor: 网络监控服务
     public init(
-        syncService: SyncServiceProtocol,
         noteStorage: NoteStorageProtocol,
         networkMonitor: NetworkMonitorProtocol
     ) {
-        self.syncService = syncService
         self.noteStorage = noteStorage
         self.networkMonitor = networkMonitor
 
@@ -92,7 +75,7 @@ public final class SyncCoordinator: ObservableObject {
 
     // MARK: - Public Methods
 
-    /// 启动同步
+    /// 启动同步（通过 EventBus 发布增量同步请求）
     public func startSync() async {
         guard !isSyncing else {
             LogService.shared.debug(.viewmodel, "同步已在进行中")
@@ -110,28 +93,12 @@ public final class SyncCoordinator: ObservableObject {
         syncStatusMessage = "正在同步..."
         errorMessage = nil
 
-        do {
-            LogService.shared.info(.viewmodel, "开始同步")
+        LogService.shared.info(.viewmodel, "发布增量同步请求")
+        await eventBus.publish(SyncEvent.requested(mode: .incremental))
 
-            syncProgress = 0.3
-            syncStatusMessage = "正在同步笔记..."
-
-            try await syncService.startSync()
-
-            syncProgress = 0.8
-            syncStatusMessage = "正在保存数据..."
-
-            syncProgress = 1.0
-            syncStatusMessage = "同步完成"
-            lastSyncTime = Date()
-
-            LogService.shared.info(.viewmodel, "同步完成")
-        } catch {
-            errorMessage = "同步失败: \(error.localizedDescription)"
-            syncStatusMessage = "同步失败"
-            LogService.shared.error(.viewmodel, "同步失败: \(error)")
-        }
-
+        syncProgress = 1.0
+        syncStatusMessage = "同步请求已发送"
+        lastSyncTime = Date()
         isSyncing = false
     }
 
@@ -147,20 +114,13 @@ public final class SyncCoordinator: ObservableObject {
         LogService.shared.info(.viewmodel, "停止同步")
     }
 
+    /// 强制全量同步（通过 EventBus 发布全量同步请求）
     public func forceFullSync() async {
-        LogService.shared.info(.viewmodel, "强制全量同步")
+        LogService.shared.info(.viewmodel, "发布强制全量同步请求")
 
         lastSyncTime = nil
-
-        do {
-            try await syncService.forceFullSync()
-
-            lastSyncTime = Date()
-            LogService.shared.info(.viewmodel, "强制全量同步完成")
-        } catch {
-            errorMessage = "强制全量同步失败: \(error.localizedDescription)"
-            LogService.shared.error(.viewmodel, "强制全量同步失败: \(error)")
-        }
+        await eventBus.publish(SyncEvent.requested(mode: .full(.normal)))
+        lastSyncTime = Date()
     }
 
     public func syncNote(_ note: Note) async {
@@ -170,13 +130,7 @@ public final class SyncCoordinator: ObservableObject {
             return
         }
 
-        do {
-            LogService.shared.debug(.viewmodel, "同步笔记: \(note.title)")
-            LogService.shared.debug(.viewmodel, "笔记同步完成: \(note.title)")
-        } catch {
-            errorMessage = "笔记同步失败: \(error.localizedDescription)"
-            LogService.shared.error(.viewmodel, "笔记同步失败: \(error)")
-        }
+        LogService.shared.debug(.viewmodel, "同步笔记: \(note.title)")
     }
 
     public func processPendingOperations() async {
@@ -223,7 +177,6 @@ public final class SyncCoordinator: ObservableObject {
 
     /// 设置观察者
     private func setupObservers() {
-        // 监听网络状态变化
         networkMonitor.connectionType
             .map { $0 != .none }
             .removeDuplicates()

@@ -4,23 +4,43 @@ import Foundation
 ///
 /// 作为唯一的数据库写入者，订阅意图事件，执行 DB 操作，发布结果事件。
 /// 内部维护笔记和文件夹的内存缓存，提供只读查询方法。
-actor NoteStore {
+/// 同时管理活跃编辑状态、离线创建、保存上传等操作（原 NoteOperationCoordinator 的职责）。
+public actor NoteStore {
+    public static let shared = NoteStore(
+        db: .shared,
+        eventBus: .shared,
+        operationQueue: .shared,
+        idMappingRegistry: .shared
+    )
+
     private let db: DatabaseService
     private let eventBus: EventBus
+    private let operationQueue: UnifiedOperationQueue
+    private let idMappingRegistry: IdMappingRegistry
     private(set) var notes: [Note] = []
     private(set) var folders: [Folder] = []
     private var noteEventTask: Task<Void, Never>?
     private var syncEventTask: Task<Void, Never>?
     private var folderEventTask: Task<Void, Never>?
 
-    init(db: DatabaseService, eventBus: EventBus) {
+    /// 当前活跃编辑的笔记 ID
+    private var activeEditingNoteId: String?
+
+    init(
+        db: DatabaseService,
+        eventBus: EventBus,
+        operationQueue: UnifiedOperationQueue = .shared,
+        idMappingRegistry: IdMappingRegistry = .shared
+    ) {
         self.db = db
         self.eventBus = eventBus
+        self.operationQueue = operationQueue
+        self.idMappingRegistry = idMappingRegistry
     }
 
     // MARK: - 生命周期
 
-    func start() async {
+    public func start() async {
         do {
             notes = try db.getAllNotes()
             folders = try db.loadFolders()
@@ -33,7 +53,7 @@ actor NoteStore {
         folderEventTask = Task { await subscribeFolderEvents() }
     }
 
-    func stop() {
+    public func stop() {
         noteEventTask?.cancel()
         syncEventTask?.cancel()
         folderEventTask?.cancel()
@@ -41,22 +61,236 @@ actor NoteStore {
 
     // MARK: - 只读查询
 
-    func getNote(byId id: String) -> Note? {
+    public func getNote(byId id: String) -> Note? {
         notes.first { $0.id == id }
     }
 
-    func getNotes(inFolder folderId: String) -> [Note] {
+    public func getNotes(inFolder folderId: String) -> [Note] {
         notes.filter { $0.folderId == folderId }
     }
 
     /// 从 DB 读取最新 serverTag，确保不使用过期缓存
-    func getLatestServerTag(noteId: String) -> String? {
+    public func getLatestServerTag(noteId: String) -> String? {
         do {
             let note = try db.loadNote(noteId: noteId)
             return note?.serverTag
         } catch {
             LogService.shared.error(.storage, "NoteStore 读取 serverTag 失败: \(error)")
             return nil
+        }
+    }
+
+    // MARK: - 活跃编辑管理
+
+    /// 设置活跃编辑笔记
+    public func setActiveEditingNote(_ noteId: String?) {
+        if let oldNoteId = activeEditingNoteId, oldNoteId != noteId {
+            LogService.shared.debug(.sync, "切换活跃编辑笔记: \(oldNoteId.prefix(8))... -> \(noteId?.prefix(8) ?? "nil")")
+        } else if let newNoteId = noteId {
+            LogService.shared.debug(.sync, "设置活跃编辑笔记: \(newNoteId.prefix(8))...")
+        } else {
+            LogService.shared.debug(.sync, "清除活跃编辑状态")
+        }
+        activeEditingNoteId = noteId
+    }
+
+    /// 检查笔记是否正在编辑
+    public func isNoteActivelyEditing(_ noteId: String) -> Bool {
+        activeEditingNoteId == noteId
+    }
+
+    /// 获取当前活跃编辑的笔记 ID
+    public func getActiveEditingNoteId() -> String? {
+        activeEditingNoteId
+    }
+
+    // MARK: - 离线创建笔记
+
+    /// 离线创建笔记
+    ///
+    /// 生成临时 ID，保存到 DB，创建 noteCreate 操作到 UnifiedOperationQueue。
+    public func createNoteOffline(title: String, content: String, folderId: String) async throws -> Note {
+        let temporaryId = NoteOperation.generateTemporaryId()
+        LogService.shared.info(.sync, "离线创建笔记，临时 ID: \(temporaryId.prefix(16))...")
+
+        let now = Date()
+        let note = Note(
+            id: temporaryId,
+            title: title,
+            content: content,
+            folderId: folderId,
+            isStarred: false,
+            createdAt: now,
+            updatedAt: now,
+            tags: []
+        )
+
+        do {
+            try db.saveNote(note)
+            LogService.shared.debug(.sync, "离线笔记本地保存成功: \(temporaryId.prefix(16))...")
+        } catch {
+            LogService.shared.error(.sync, "离线笔记本地保存失败: \(error)")
+            throw NoteOperationError.temporaryNoteCreationFailed(error.localizedDescription)
+        }
+
+        refreshNotesCache()
+        await eventBus.publish(NoteEvent.saved(note))
+        await eventBus.publish(NoteEvent.listChanged(notes))
+
+        do {
+            let noteData = try JSONEncoder().encode(note)
+            let operation = NoteOperation(
+                type: .noteCreate,
+                noteId: temporaryId,
+                data: noteData,
+                localSaveTimestamp: now,
+                isLocalId: true
+            )
+            try operationQueue.enqueue(operation)
+            LogService.shared.debug(.sync, "已创建 noteCreate 操作: \(temporaryId.prefix(16))...")
+        } catch {
+            LogService.shared.error(.sync, "创建 noteCreate 操作失败: \(error)")
+        }
+
+        return note
+    }
+
+    // MARK: - 临时笔记删除
+
+    /// 删除临时 ID 笔记
+    public func deleteTemporaryNote(_ noteId: String) async throws {
+        guard NoteOperation.isTemporaryId(noteId) else {
+            LogService.shared.warning(.sync, "不是临时 ID 笔记: \(noteId.prefix(8))...")
+            return
+        }
+
+        LogService.shared.info(.sync, "删除临时 ID 笔记: \(noteId.prefix(16))...")
+
+        do {
+            try operationQueue.cancelOperations(for: noteId)
+            LogService.shared.debug(.sync, "已取消待处理操作: \(noteId.prefix(16))...")
+        } catch {
+            LogService.shared.error(.sync, "取消操作失败: \(error)")
+        }
+
+        do {
+            try db.deleteNote(noteId: noteId)
+            LogService.shared.debug(.sync, "已删除本地笔记: \(noteId.prefix(16))...")
+        } catch {
+            LogService.shared.error(.sync, "删除本地笔记失败: \(error)")
+            throw NoteOperationError.saveFailed(error.localizedDescription)
+        }
+
+        refreshNotesCache()
+        await eventBus.publish(NoteEvent.listChanged(notes))
+
+        if activeEditingNoteId == noteId {
+            activeEditingNoteId = nil
+            LogService.shared.debug(.sync, "清除活跃编辑状态")
+        }
+    }
+
+    // MARK: - 笔记保存（本地 + 触发上传）
+
+    /// 保存笔记并触发上传
+    ///
+    /// 保存到 DB，创建 cloudUpload 操作，网络可用时触发立即上传。
+    public func saveNoteAndUpload(_ note: Note) async {
+        let timestamp = Date()
+
+        do {
+            try db.saveNote(note)
+        } catch {
+            LogService.shared.error(.sync, "本地保存失败: \(error)")
+            return
+        }
+
+        refreshNotesCache()
+        await eventBus.publish(NoteEvent.saved(note))
+        await eventBus.publish(NoteEvent.listChanged(notes))
+
+        do {
+            let noteData = try JSONEncoder().encode(note)
+            let operation = NoteOperation(
+                type: .cloudUpload,
+                noteId: note.id,
+                data: noteData,
+                localSaveTimestamp: timestamp,
+                isLocalId: NoteOperation.isTemporaryId(note.id)
+            )
+            try operationQueue.enqueue(operation)
+        } catch {
+            LogService.shared.error(.sync, "创建 cloudUpload 操作失败: \(error)")
+        }
+
+        await triggerImmediateUploadIfOnline(noteId: note.id)
+    }
+
+    /// 立即保存笔记并触发上传（不使用防抖）
+    public func saveNoteImmediately(_ note: Note) async throws {
+        let timestamp = Date()
+
+        do {
+            try db.saveNote(note)
+            LogService.shared.debug(.sync, "立即保存成功: \(note.id.prefix(8))...")
+        } catch {
+            LogService.shared.error(.sync, "立即保存失败: \(error)")
+            throw NoteOperationError.saveFailed(error.localizedDescription)
+        }
+
+        refreshNotesCache()
+        await eventBus.publish(NoteEvent.saved(note))
+        await eventBus.publish(NoteEvent.listChanged(notes))
+
+        do {
+            let noteData = try JSONEncoder().encode(note)
+            let operation = NoteOperation(
+                type: .cloudUpload,
+                noteId: note.id,
+                data: noteData,
+                localSaveTimestamp: timestamp,
+                isLocalId: NoteOperation.isTemporaryId(note.id)
+            )
+            try operationQueue.enqueue(operation)
+            LogService.shared.debug(.sync, "已创建 cloudUpload 操作（立即）: \(note.id.prefix(8))...")
+        } catch {
+            LogService.shared.error(.sync, "创建 cloudUpload 操作失败: \(error)")
+        }
+
+        await triggerImmediateUploadIfOnline(noteId: note.id)
+    }
+
+    // MARK: - ID 更新处理
+
+    /// 处理笔记创建成功，更新临时 ID 到正式 ID
+    public func handleNoteCreateSuccess(temporaryId: String, serverId: String) async throws {
+        LogService.shared.info(.sync, "处理笔记创建成功: \(temporaryId.prefix(16))... -> \(serverId.prefix(8))...")
+
+        try await idMappingRegistry.updateAllReferences(localId: temporaryId, serverId: serverId)
+
+        if activeEditingNoteId == temporaryId {
+            activeEditingNoteId = serverId
+            LogService.shared.debug(.sync, "更新活跃编辑笔记 ID: \(temporaryId.prefix(16))... -> \(serverId.prefix(8))...")
+        }
+
+        try idMappingRegistry.markCompleted(localId: temporaryId)
+
+        refreshNotesCache()
+        LogService.shared.info(.sync, "笔记创建成功处理完成: \(serverId.prefix(8))...")
+    }
+
+    // MARK: - 上传触发
+
+    /// 网络可用时立即触发上传
+    private func triggerImmediateUploadIfOnline(noteId: String) async {
+        let isOnline = await MainActor.run { NetworkMonitor.shared.isConnected }
+
+        if isOnline {
+            if let operation = operationQueue.getPendingUpload(for: noteId) {
+                Task { @MainActor in
+                    await OperationProcessor.shared.processImmediately(operation)
+                }
+            }
         }
     }
 
