@@ -704,6 +704,11 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     func performCloudUpload(for note: Note, xmlContent: String) async {
         queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
+
+        // 入队后立即触发处理
+        if let operation = UnifiedOperationQueue.shared.getPendingUpload(for: note.id) {
+            await OperationProcessor.shared.processImmediately(operation)
+        }
     }
 
     func queueOfflineUpdateOperation(for note: Note, xmlContent: String) {
