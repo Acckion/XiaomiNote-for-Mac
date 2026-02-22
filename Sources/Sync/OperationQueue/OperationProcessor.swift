@@ -885,28 +885,22 @@ extension OperationProcessor {
         // 注册 ID 映射
         try IdMappingRegistry.shared.registerMapping(localId: uploadData.temporaryFileId, serverId: serverFileId, entityType: "file")
 
-        // 更新笔记内容中的 fileId 引用
+        // 更新笔记内容中的 fileId 引用（内部有重试等待机制，并会入队 cloudUpload）
         try await IdMappingRegistry.shared.updateAllFileReferences(
             localId: uploadData.temporaryFileId,
             serverId: serverFileId,
             noteId: uploadData.noteId
         )
 
-        // 移动文件到正式缓存
+        // 移动 pending 文件到正式缓存（用正式 ID）
         let fileType = String(uploadData.mimeType.dropFirst("image/".count))
         try? localStorage.movePendingUploadToCache(fileId: uploadData.temporaryFileId, extension: fileType, newFileId: serverFileId)
 
-        // 入队 cloudUpload 触发笔记重新保存
-        if let note = try? localStorage.loadNote(noteId: uploadData.noteId) {
-            _ = try? operationQueue.enqueueCloudUpload(
-                noteId: note.id,
-                title: note.title,
-                content: note.content,
-                folderId: note.folderId
-            )
-        }
+        // 清理图片缓存中临时 ID 的旧文件（saveImage 在入队前用临时 ID 保存了一份）
+        let oldCacheURL = localStorage.imagesDirectory.appendingPathComponent("\(uploadData.temporaryFileId).\(fileType)")
+        try? FileManager.default.removeItem(at: oldCacheURL)
 
-        // 清理临时文件
+        // 清理 pending 临时文件
         try? localStorage.deletePendingUpload(fileId: uploadData.temporaryFileId, extension: ext)
 
         LogService.shared.info(.sync, "图片上传成功: \(uploadData.temporaryFileId.prefix(20))... -> \(serverFileId)")

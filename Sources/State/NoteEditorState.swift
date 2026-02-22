@@ -221,8 +221,12 @@ public final class NoteEditorState: ObservableObject {
         )
         _ = try UnifiedOperationQueue.shared.enqueue(operation)
 
-        // 网络可用时立即处理
-        await OperationProcessor.shared.processImmediately(operation)
+        // 后台异步处理上传，不阻塞返回
+        // 必须先让调用方拿到 temporaryFileId 插入编辑器并保存 XML，
+        // 上传完成后 updateAllFileReferences 才能在 XML 中找到临时 ID 并替换
+        Task {
+            await OperationProcessor.shared.processImmediately(operation)
+        }
 
         LogService.shared.info(.editor, "图片已入队上传: temporaryFileId=\(temporaryFileId.prefix(20))...")
         return temporaryFileId

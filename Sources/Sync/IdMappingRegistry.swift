@@ -337,6 +337,9 @@ public extension IdMappingRegistry {
 
     /// 更新文件引用（图片/音频上传成功后替换临时 fileId）
     ///
+    /// 上传完成后，编辑器可能还未将包含临时 fileId 的 XML 保存到数据库，
+    /// 因此需要重试等待，确保数据库中的 XML 已包含临时 fileId 后再替换。
+    ///
     /// - Parameters:
     ///   - localId: 临时文件 ID
     ///   - serverId: 云端下发的正式文件 ID
@@ -350,41 +353,55 @@ public extension IdMappingRegistry {
             try registerMapping(localId: localId, serverId: serverId, entityType: "file")
         }
 
-        // 2. 更新数据库中笔记 XML 内容的 fileId 引用
-        do {
-            if var note = try databaseService.loadNote(noteId: noteId) {
-                let oldContent = note.content
-                note.content = oldContent.replacingOccurrences(of: localId, with: serverId)
+        // 2. 带重试的 fileId 替换
+        // 上传和编辑器保存是并发的，上传可能先完成，此时 DB 中的 XML 还不包含临时 ID
+        let maxAttempts = 10
+        let retryInterval: UInt64 = 500_000_000 // 0.5 秒
 
-                if note.content != oldContent {
-                    try databaseService.saveNote(note)
-                    LogService.shared.debug(.sync, "笔记 XML 内容 fileId 替换成功")
+        for attempt in 1 ... maxAttempts {
+            do {
+                if var note = try databaseService.loadNote(noteId: noteId) {
+                    let oldContent = note.content
+                    note.content = oldContent.replacingOccurrences(of: localId, with: serverId)
 
-                    // 3. 通过 EventBus 通知编辑器刷新
-                    let eventBus = EventBus.shared
-                    await eventBus.publish(NoteEvent.saved(note))
+                    if note.content != oldContent {
+                        try databaseService.saveNote(note)
+                        LogService.shared.debug(.sync, "笔记 XML 内容 fileId 替换成功")
 
-                    // 4. 入队 cloudUpload 操作触发笔记重新保存到云端
-                    try operationQueue.enqueueCloudUpload(
-                        noteId: noteId,
-                        title: note.title,
-                        content: note.content,
-                        folderId: note.folderId,
-                        localSaveTimestamp: Date()
-                    )
-                    LogService.shared.debug(.sync, "已入队 cloudUpload 操作（文件引用更新）")
+                        let eventBus = EventBus.shared
+                        await eventBus.publish(NoteEvent.saved(note))
+
+                        try operationQueue.enqueueCloudUpload(
+                            noteId: noteId,
+                            title: note.title,
+                            content: note.content,
+                            folderId: note.folderId,
+                            localSaveTimestamp: Date()
+                        )
+                        LogService.shared.debug(.sync, "已入队 cloudUpload 操作（文件引用更新）")
+
+                        LogService.shared.info(.sync, "文件引用更新完成: \(localId) -> \(serverId)")
+                        return
+                    }
+
+                    // XML 中未找到临时 ID，等待编辑器保存完成后重试
+                    if attempt < maxAttempts {
+                        LogService.shared.debug(.sync, "笔记内容中未找到临时 fileId，等待重试 (\(attempt)/\(maxAttempts)): \(localId)")
+                        try? await Task.sleep(nanoseconds: retryInterval)
+                    } else {
+                        LogService.shared.warning(.sync, "笔记内容中始终未找到临时 fileId: \(localId)")
+                    }
                 } else {
-                    LogService.shared.debug(.sync, "笔记内容中未找到临时 fileId: \(localId)")
+                    LogService.shared.warning(.sync, "未找到笔记: \(noteId.prefix(8))..., 跳过文件引用更新")
+                    return
                 }
-            } else {
-                LogService.shared.warning(.sync, "未找到笔记: \(noteId.prefix(8))..., 跳过文件引用更新")
+            } catch {
+                LogService.shared.error(.sync, "更新文件引用失败: \(error)")
+                throw error
             }
-        } catch {
-            LogService.shared.error(.sync, "更新文件引用失败: \(error)")
-            throw error
         }
 
-        LogService.shared.info(.sync, "文件引用更新完成: \(localId) -> \(serverId)")
+        LogService.shared.info(.sync, "文件引用更新完成（未替换）: \(localId) -> \(serverId)")
     }
 }
 

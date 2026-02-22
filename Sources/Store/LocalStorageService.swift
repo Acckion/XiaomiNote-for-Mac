@@ -186,7 +186,7 @@ final class LocalStorageService: @unchecked Sendable {
 
     // MARK: - 图片文件管理
 
-    private var imagesDirectory: URL {
+    var imagesDirectory: URL {
         documentsDirectory.appendingPathComponent("images")
     }
 
