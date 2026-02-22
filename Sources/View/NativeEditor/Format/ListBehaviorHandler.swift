@@ -78,12 +78,6 @@ public struct ListBehaviorHandler {
         FontSizeManager.shared.defaultFont
     }
 
-    /// 默认行间距（与正文一致）
-    public static let defaultLineSpacing: CGFloat = 4
-
-    /// 默认段落间距（与正文一致）
-    public static let defaultParagraphSpacing: CGFloat = 8
-
     // MARK: - 光标位置限制
 
     /// 获取列表项内容区域的起始位置
@@ -185,8 +179,7 @@ public struct ListBehaviorHandler {
         // 检查是否在列表标记区域内
         if isInListMarkerArea(in: textStorage, at: position) {
             // 调整到内容起始位置
-            let adjustedPosition = getContentStartPosition(in: textStorage, at: position)
-            return adjustedPosition
+            return getContentStartPosition(in: textStorage, at: position)
         }
 
         return position
@@ -348,14 +341,14 @@ public struct ListBehaviorHandler {
         return true
     }
 
-    /// 检查位置是否在勾选框区域内
-    ///
-    /// 勾选框区域是勾选框附件所占的字符位置
-    ///
-    /// - Parameters:
-    ///   - textStorage: 文本存储
-    ///   - position: 要检查的位置
-    /// - Returns: 是否在勾选框区域内
+    // 检查位置是否在勾选框区域内
+    //
+    // 勾选框区域是勾选框附件所占的字符位置
+    //
+    // - Parameters:
+    //   - textStorage: 文本存储
+    //   - position: 要检查的位置
+    // - Returns: 是否在勾选框区域内
 
     public static func isInCheckboxArea(
         in textStorage: NSTextStorage,
@@ -778,13 +771,9 @@ public struct ListBehaviorHandler {
             textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
             textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
 
-            // 重置段落样式为默认（无缩进）
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.firstLineHeadIndent = 0
-            paragraphStyle.headIndent = 0
+            let paragraphStyle = ParagraphStyleFactory.makeDefault()
             textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
 
-            // 确保使用正文字体
             textStorage.addAttribute(.font, value: defaultFont, range: newLineRange)
         }
 
@@ -794,12 +783,10 @@ public struct ListBehaviorHandler {
         textView.setSelectedRange(NSRange(location: lineStart, length: 0))
 
         // 5. 更新 typingAttributes 为普通正文
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.firstLineHeadIndent = 0
-        paragraphStyle.headIndent = 0
+        let defaultStyle = ParagraphStyleFactory.makeDefault()
         textView.typingAttributes = [
             .font: defaultFont,
-            .paragraphStyle: paragraphStyle,
+            .paragraphStyle: defaultStyle,
         ]
 
         // 6. 如果是有序列表，更新后续编号
@@ -928,25 +915,18 @@ public struct ListBehaviorHandler {
     ) -> NSAttributedString {
         let result = NSMutableAttributedString()
 
-        // 创建段落样式
-        let paragraphStyle = NSMutableParagraphStyle()
-        let bulletWidth: CGFloat = switch listType {
+        let markerWidth: CGFloat = switch listType {
         case .bullet:
-            24
+            ParagraphStyleFactory.bulletWidth
         case .ordered:
-            28
+            ParagraphStyleFactory.orderNumberWidth
         case .checkbox:
-            24
+            ParagraphStyleFactory.bulletWidth
         case .none:
             0
         }
 
-        paragraphStyle.firstLineHeadIndent = CGFloat(indent - 1) * 20
-        paragraphStyle.headIndent = CGFloat(indent - 1) * 20 + bulletWidth
-
-        // 设置行间距和段落间距（与正文一致）
-        paragraphStyle.lineSpacing = defaultLineSpacing
-        paragraphStyle.paragraphSpacing = defaultParagraphSpacing
+        let paragraphStyle = ParagraphStyleFactory.makeList(indent: indent, bulletWidth: markerWidth)
 
         // 创建附件
         let attachment: NSTextAttachment
@@ -1112,10 +1092,7 @@ public struct ListBehaviorHandler {
             textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
             textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
 
-            // 重置段落样式为默认（无缩进）
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.firstLineHeadIndent = 0
-            paragraphStyle.headIndent = 0
+            let paragraphStyle = ParagraphStyleFactory.makeDefault()
             textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
 
             // 确保使用正文字体
@@ -1128,12 +1105,10 @@ public struct ListBehaviorHandler {
         textView.setSelectedRange(NSRange(location: lineStart, length: 0))
 
         // 5. 更新 typingAttributes 为普通正文
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.firstLineHeadIndent = 0
-        paragraphStyle.headIndent = 0
+        let defaultStyle = ParagraphStyleFactory.makeDefault()
         textView.typingAttributes = [
             .font: defaultFont,
-            .paragraphStyle: paragraphStyle,
+            .paragraphStyle: defaultStyle,
         ]
 
         // 6. 如果是有序列表，更新后续编号

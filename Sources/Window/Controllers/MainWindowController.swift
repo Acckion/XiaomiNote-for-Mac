@@ -21,15 +21,10 @@
         private let logger = Logger(subsystem: "com.minote.MiNoteMac", category: "MainWindowController")
 
         /// AppCoordinator 引用
-        private let coordinator: AppCoordinator
+        public private(set) var coordinator: AppCoordinator
 
         /// 窗口状态
         private let windowState: WindowState
-
-        /// 内容视图模型（向后兼容，通过 coordinator 获取）
-        public var viewModel: NotesViewModel? {
-            coordinator.notesViewModel
-        }
 
         /// 当前搜索字段（用于工具栏搜索项）
         private var currentSearchField: CustomSearchField?
@@ -76,9 +71,6 @@
         /// 工具栏可见性管理器
         /// 负责根据应用状态动态更新工具栏项的可见性
         private var visibilityManager: ToolbarVisibilityManager?
-
-        /// 查找面板控制器
-        private var searchPanelController: SearchPanelController?
 
         /// 保存的笔记列表宽度（用于视图模式切换时恢复）
         private var savedNotesListWidth: CGFloat?
@@ -142,9 +134,6 @@
             // 设置状态监听
             setupStateObservers()
 
-            // 初始化查找面板控制器
-            self.searchPanelController = SearchPanelController(mainWindowController: self)
-
             LogService.shared.info(.window, "初始化完成，窗口ID: \(windowState.windowId)")
         }
 
@@ -173,9 +162,6 @@
         private func setupWindowContent() {
             guard let window else { return }
 
-            // 通过 coordinator 获取 viewModel（向后兼容）
-            let viewModel = coordinator.notesViewModel
-
             // 创建分割视图控制器（三栏布局）
             let splitViewController = NSSplitViewController()
 
@@ -183,7 +169,7 @@
             splitViewController.splitView.autosaveName = "MainWindowSplitView"
 
             // 第一栏：侧边栏（使用SwiftUI视图）
-            let sidebarSplitViewItem = NSSplitViewItem(sidebarWithViewController: SidebarHostingController(viewModel: viewModel))
+            let sidebarSplitViewItem = NSSplitViewItem(sidebarWithViewController: SidebarHostingController(coordinator: coordinator))
             sidebarSplitViewItem.minimumThickness = 180
             sidebarSplitViewItem.maximumThickness = 300
             sidebarSplitViewItem.canCollapse = true
@@ -222,25 +208,22 @@
         // 在列表模式和画廊模式之间切换时，动态调整分割视图布局
 
         private func setupViewModeObserver(splitViewController: NSSplitViewController) {
-            // 通过 coordinator 获取 viewModel（向后兼容）
-            let viewModel = coordinator.notesViewModel
-
             ViewOptionsManager.shared.$state
                 .map(\.viewMode)
                 .removeDuplicates()
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self, weak splitViewController] viewMode in
                     guard let self, let splitViewController else { return }
-                    updateLayoutForViewMode(viewMode, splitViewController: splitViewController, viewModel: viewModel)
+                    updateLayoutForViewMode(viewMode, splitViewController: splitViewController)
                 }
                 .store(in: &cancellables)
 
             // 初始化时根据当前视图模式设置布局
-            updateLayoutForViewMode(ViewOptionsManager.shared.viewMode, splitViewController: splitViewController, viewModel: viewModel)
+            updateLayoutForViewMode(ViewOptionsManager.shared.viewMode, splitViewController: splitViewController)
         }
 
         /// 根据视图模式更新布局
-        private func updateLayoutForViewMode(_ viewMode: ViewMode, splitViewController: NSSplitViewController, viewModel: NotesViewModel) {
+        private func updateLayoutForViewMode(_ viewMode: ViewMode, splitViewController: NSSplitViewController) {
             let splitViewItems = splitViewController.splitViewItems
             guard splitViewItems.count >= 2 else { return }
 
@@ -290,7 +273,7 @@
                     splitViewController.removeSplitViewItem(splitViewItems[1])
 
                     // 添加画廊视图
-                    let galleryHostingController = GalleryHostingController(viewModel: viewModel)
+                    let galleryHostingController = GalleryHostingController(coordinator: coordinator, windowState: windowState)
                     let gallerySplitViewItem = NSSplitViewItem(viewController: galleryHostingController)
                     gallerySplitViewItem.minimumThickness = 500
                     // 画廊视图 holdingPriority 较低，窗口缩小时先压缩
@@ -330,11 +313,13 @@
         private func setupToolbar() {
             guard let window else { return }
 
-            // 通过 coordinator 获取 viewModel（向后兼容）
-            let viewModel = coordinator.notesViewModel
-
             // 创建工具栏代理
-            toolbarDelegate = MainWindowToolbarDelegate(viewModel: viewModel, windowController: self)
+            toolbarDelegate = MainWindowToolbarDelegate(
+                folderState: coordinator.folderState,
+                authState: coordinator.authState,
+                syncState: coordinator.syncState,
+                windowController: self
+            )
 
             let toolbar = NSToolbar(identifier: "MainWindowToolbar")
             toolbar.allowsUserCustomization = true
@@ -346,7 +331,12 @@
             window.toolbarStyle = .unified
 
             // 创建工具栏可见性管理器
-            visibilityManager = ToolbarVisibilityManager(toolbar: toolbar, viewModel: viewModel)
+            visibilityManager = ToolbarVisibilityManager(
+                toolbar: toolbar,
+                noteListState: coordinator.noteListState,
+                folderState: coordinator.folderState,
+                authState: coordinator.authState
+            )
 
             // 将可见性管理器传递给工具栏代理
             toolbarDelegate?.visibilityManager = visibilityManager
@@ -771,8 +761,8 @@
             ]
 
             // 只有在选中私密笔记文件夹且已解锁时才添加锁图标
-            let isPrivateFolder = viewModel?.selectedFolder?.id == "2"
-            let isUnlocked = viewModel?.isPrivateNotesUnlocked ?? false
+            let isPrivateFolder = coordinator.folderState.selectedFolder?.id == "2"
+            let isUnlocked = coordinator.authState.isPrivateNotesUnlocked
             if isPrivateFolder, isUnlocked {
                 identifiers.append(NSToolbarItem.Identifier.lockPrivateNotes)
             }
@@ -792,10 +782,8 @@
                 customSearchField.target = self
                 customSearchField.action = #selector(performSearch(_:))
 
-                // 设置视图模型
-                if let viewModel {
-                    customSearchField.setViewModel(viewModel)
-                }
+                // 设置搜索状态
+                customSearchField.setSearchState(coordinator.searchState)
 
                 // 替换搜索项中的搜索字段
                 searchItem.searchField = customSearchField
@@ -910,25 +898,23 @@
             let statusText: String
             let statusColor: NSColor
 
-            if let viewModel {
-                if viewModel.isLoggedIn {
-                    if viewModel.isSyncing {
-                        statusText = "同步中..."
-                        statusColor = .systemYellow
-                    } else if viewModel.isCookieExpired {
-                        statusText = "Cookie已过期"
-                        statusColor = .systemRed
-                    } else {
-                        statusText = "在线"
-                        statusColor = .systemGreen
-                    }
+            let authState = coordinator.authState
+            let syncState = coordinator.syncState
+
+            if authState.isLoggedIn {
+                if syncState.isSyncing {
+                    statusText = "同步中..."
+                    statusColor = .systemYellow
+                } else if authState.isCookieExpired {
+                    statusText = "Cookie已过期"
+                    statusColor = .systemRed
                 } else {
-                    statusText = "离线"
-                    statusColor = .systemGray
+                    statusText = "在线"
+                    statusColor = .systemGreen
                 }
             } else {
-                statusText = "未知"
-                statusColor = .gray
+                statusText = "离线"
+                statusColor = .systemGray
             }
 
             // 创建富文本字符串
@@ -1008,10 +994,9 @@
             }
 
             // 检查是否能访问共享数据（通过 AppCoordinator）
-            // 如果 notes 和 folders 都为空，可能表示 AppCoordinator 未正确设置
-            // 但这不一定是错误，因为数据可能还在加载中
-            if windowState.notes.isEmpty, windowState.folders.isEmpty {
-                logger.warning("[MainWindowController] WindowState 数据为空，可能正在加载")
+            // 如果 coordinator 为 nil，可能表示 AppCoordinator 未正确设置
+            if windowState.coordinator == nil {
+                logger.warning("[MainWindowController] WindowState coordinator 为空，可能正在加载")
             }
 
             return true
@@ -1059,19 +1044,15 @@
     extension MainWindowController: NSSearchFieldDelegate {
 
         public func searchFieldDidStartSearching(_ sender: NSSearchField) {
-            // 搜索开始
-            viewModel?.searchText = sender.stringValue
+            coordinator.noteListState.searchText = sender.stringValue
         }
 
         public func searchFieldDidEndSearching(_: NSSearchField) {
-            // 搜索结束
-            viewModel?.searchText = ""
+            coordinator.noteListState.searchText = ""
         }
 
         @objc func performSearch(_ sender: NSSearchField) {
-            // 无论搜索内容是否为空，都更新搜索文本
-            // 这样当用户清空搜索框并按Enter时，会结束搜索
-            viewModel?.searchText = sender.stringValue
+            coordinator.noteListState.searchText = sender.stringValue
         }
 
         public func controlTextDidBeginEditing(_ obj: Notification) {
@@ -1216,23 +1197,23 @@
             }
 
             if item.action == #selector(performSync(_:)) {
-                return viewModel?.isLoggedIn ?? false
+                return coordinator.authState.isLoggedIn
             }
 
             if item.action == #selector(shareNote(_:)) {
-                return viewModel?.selectedNote != nil
+                return coordinator.noteListState.selectedNote != nil
             }
 
             if item.action == #selector(toggleStarNote(_:)) {
-                return viewModel?.selectedNote != nil
+                return coordinator.noteListState.selectedNote != nil
             }
 
             if item.action == #selector(deleteNote(_:)) {
-                return viewModel?.selectedNote != nil
+                return coordinator.noteListState.selectedNote != nil
             }
 
             if item.action == #selector(restoreNote(_:)) {
-                return viewModel?.selectedNote != nil
+                return coordinator.noteListState.selectedNote != nil
             }
 
             // 格式操作：只有在编辑模式下才可用
@@ -1251,8 +1232,7 @@
             ]
 
             if formatActions.contains(item.action!) {
-                // 检查是否在编辑模式下（有选中的笔记）
-                return viewModel?.selectedNote != nil
+                return coordinator.noteListState.selectedNote != nil
             }
 
             // 验证新的按钮
@@ -1261,30 +1241,30 @@
             }
 
             if item.action == #selector(showLogin(_:)) {
-                let isLoggedIn = viewModel?.isLoggedIn ?? false
-                return !isLoggedIn
+                return !coordinator.authState.isLoggedIn
             }
 
             if item.action == #selector(showOfflineOperations(_:)) {
-                let pendingCount = viewModel?.pendingOperationsCount ?? 0
+                let stats = UnifiedOperationQueue.shared.getStatistics()
+                let pendingCount = (stats["pending"] ?? 0) + (stats["failed"] ?? 0)
                 return pendingCount > 0
             }
 
             // 验证新增的工具栏按钮
             if item.action == #selector(toggleCheckbox(_:)) {
-                return viewModel?.selectedNote != nil
+                return coordinator.noteListState.selectedNote != nil
             }
 
             if item.action == #selector(insertHorizontalRule(_:)) {
-                return viewModel?.selectedNote != nil
+                return coordinator.noteListState.selectedNote != nil
             }
 
             if item.action == #selector(insertAttachment(_:)) {
-                return viewModel?.selectedNote != nil
+                return coordinator.noteListState.selectedNote != nil
             }
 
             if item.action == #selector(showHistory(_:)) {
-                return viewModel?.selectedNote != nil
+                return coordinator.noteListState.selectedNote != nil
             }
 
             if item.action == #selector(showTrash(_:)) {
@@ -1292,7 +1272,7 @@
             }
 
             if item.action == #selector(performIncrementalSync(_:)) {
-                return viewModel?.isLoggedIn ?? false
+                return coordinator.authState.isLoggedIn
             }
 
             if item.action == #selector(resetSyncStatus(_:)) {
@@ -1310,7 +1290,7 @@
 
             // 验证撤销/重做按钮
             if item.action == #selector(undo(_:)) || item.action == #selector(redo(_:)) {
-                return viewModel?.selectedNote != nil
+                return coordinator.noteListState.selectedNote != nil
             }
 
             // 验证搜索按钮
@@ -1320,11 +1300,8 @@
 
             // 验证锁定私密笔记按钮
             if item.action == #selector(lockPrivateNotes(_:)) {
-                // 只有在以下条件满足时才显示锁图标：
-                // 1. 当前选中的文件夹是私密笔记文件夹 (folderId == "2")
-                // 2. 私密笔记已解锁 (isPrivateNotesUnlocked == true)
-                let isPrivateFolder = viewModel?.selectedFolder?.id == "2"
-                let isUnlocked = viewModel?.isPrivateNotesUnlocked ?? false
+                let isPrivateFolder = coordinator.folderState.selectedFolder?.id == "2"
+                let isUnlocked = coordinator.authState.isPrivateNotesUnlocked
                 return isPrivateFolder && isUnlocked
             }
 
@@ -1338,7 +1315,9 @@
     public extension MainWindowController {
 
         @objc func createNewNote(_: Any?) {
-            viewModel?.createNewNote()
+            Task {
+                await coordinator.noteListState.createNewNote(inFolder: coordinator.folderState.selectedFolderId ?? "0")
+            }
         }
 
         @objc func createNewFolder(_: Any?) {
@@ -1361,25 +1340,18 @@
                 let folderName = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !folderName.isEmpty {
                     Task {
-                        do {
-                            try await viewModel?.createFolder(name: folderName)
-                        } catch {
-                            LogService.shared.error(.window, "创建文件夹失败: \(error)")
-                        }
+                        await coordinator.folderState.createFolder(name: folderName)
                     }
                 }
             }
         }
 
         @objc func performSync(_: Any?) {
-            Task {
-                await viewModel?.performFullSync()
-            }
+            coordinator.syncState.requestFullSync(mode: .normal)
         }
 
         @objc func shareNote(_: Any?) {
-            // 分享选中的笔记
-            guard let note = viewModel?.selectedNote else { return }
+            guard let note = coordinator.noteListState.selectedNote else { return }
 
             let sharingService = NSSharingServicePicker(items: [
                 note.title,
@@ -1394,12 +1366,14 @@
         }
 
         @objc internal func toggleStarNote(_: Any?) {
-            guard let note = viewModel?.selectedNote else { return }
-            viewModel?.toggleStar(note)
+            guard let note = coordinator.noteListState.selectedNote else { return }
+            Task {
+                await coordinator.noteListState.toggleStar(note)
+            }
         }
 
         @objc internal func deleteNote(_: Any?) {
-            guard let note = viewModel?.selectedNote else { return }
+            guard let note = coordinator.noteListState.selectedNote else { return }
 
             let alert = NSAlert()
             alert.messageText = "删除笔记"
@@ -1410,8 +1384,9 @@
 
             let response = alert.runModal()
             if response == .alertFirstButtonReturn {
-                // 直接调用deleteNote方法，它内部会处理异步操作
-                viewModel?.deleteNote(note)
+                Task {
+                    await coordinator.noteListState.deleteNote(note)
+                }
             }
         }
 
@@ -1448,7 +1423,7 @@
             // 显示设置窗口
 
             // 创建设置窗口控制器
-            let settingsWindowController = SettingsWindowController(viewModel: viewModel)
+            let settingsWindowController = SettingsWindowController(coordinator: coordinator)
 
             // 显示窗口
             settingsWindowController.showWindow(nil)
@@ -1461,13 +1436,8 @@
                 return
             }
 
-            guard let viewModel else {
-                LogService.shared.error(.window, "viewModel 为 nil，无法创建登录视图")
-                return
-            }
-
             // 创建登录视图
-            let loginView = LoginView(viewModel: viewModel)
+            let loginView = LoginView(authState: coordinator.authState)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: loginView)
@@ -1534,8 +1504,7 @@
         @objc internal func toggleDebugMode(_: Any?) {
             LogService.shared.debug(.window, "切换 XML 调试模式")
 
-            // 检查是否有选中笔记
-            guard viewModel?.selectedNote != nil else {
+            guard coordinator.noteListState.selectedNote != nil else {
                 LogService.shared.debug(.window, "没有选中笔记，无法切换调试模式")
                 return
             }
@@ -1550,7 +1519,7 @@
         @objc internal func toggleCheckbox(_: Any?) {
             LogService.shared.debug(.window, "切换待办")
 
-            guard viewModel?.selectedNote != nil else {
+            guard coordinator.noteListState.selectedNote != nil else {
                 LogService.shared.debug(.window, "没有选中笔记，无法插入待办")
                 return
             }
@@ -1567,7 +1536,7 @@
         @objc internal func insertHorizontalRule(_: Any?) {
             LogService.shared.debug(.window, "插入分割线")
 
-            guard viewModel?.selectedNote != nil else {
+            guard coordinator.noteListState.selectedNote != nil else {
                 LogService.shared.debug(.window, "没有选中笔记，无法插入分割线")
                 return
             }
@@ -1584,7 +1553,7 @@
         @objc func insertAttachment(_: Any?) {
             LogService.shared.debug(.window, "插入附件")
 
-            guard viewModel?.selectedNote != nil else {
+            guard coordinator.noteListState.selectedNote != nil else {
                 LogService.shared.debug(.window, "没有选中笔记，无法插入附件")
                 return
             }
@@ -1611,19 +1580,13 @@
         /// 从 URL 插入图片
         @MainActor
         private func insertImage(from url: URL) async {
-            guard let viewModel else {
-                LogService.shared.error(.window, "viewModel 不存在")
-                return
-            }
-
-            guard viewModel.selectedNote != nil else {
+            guard coordinator.noteListState.selectedNote != nil else {
                 LogService.shared.error(.window, "没有选中笔记，无法插入图片")
                 return
             }
 
             do {
-                // 上传图片并获取 fileId
-                let fileId = try await viewModel.uploadImageAndInsertToNote(imageURL: url)
+                let fileId = try await coordinator.noteEditorState.uploadImageAndInsertToNote(imageURL: url)
                 LogService.shared.info(.window, "图片上传成功: fileId=\(fileId)")
 
                 LogService.shared.debug(.window, "使用原生编辑器，调用 NativeEditorContext.insertImage()")
@@ -1634,7 +1597,6 @@
                 }
             } catch {
                 LogService.shared.error(.window, "插入图片失败: \(error.localizedDescription)")
-                // 显示错误提示
                 let alert = NSAlert()
                 alert.messageText = "插入图片失败"
                 alert.informativeText = error.localizedDescription
@@ -1651,8 +1613,7 @@
         ///
         @objc func insertAudioRecording(_: Any?) {
 
-            guard let viewModel,
-                  let selectedNote = viewModel.selectedNote
+            guard let selectedNote = coordinator.noteListState.selectedNote
             else {
                 LogService.shared.error(.window, "无法插入录音：没有选中的笔记")
                 return
@@ -1679,8 +1640,7 @@
 
         @objc func showHistory(_: Any?) {
 
-            // 检查是否有选中的笔记
-            guard let note = viewModel?.selectedNote else {
+            guard let note = coordinator.noteListState.selectedNote else {
                 let alert = NSAlert()
                 alert.messageText = "历史记录"
                 alert.informativeText = "请先选择要查看历史记录的笔记"
@@ -1695,13 +1655,8 @@
                 return
             }
 
-            guard let viewModel else {
-                LogService.shared.error(.window, "viewModel 为 nil，无法创建历史记录视图")
-                return
-            }
-
             // 创建历史记录视图
-            let historyView = NoteHistoryView(viewModel: viewModel, noteId: note.id)
+            let historyView = NoteHistoryView(noteEditorState: coordinator.noteEditorState, noteId: note.id)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: historyView)
@@ -1730,7 +1685,7 @@
             historySheetToolbarDelegate = toolbarDelegate
 
             // 显示sheet
-            window.beginSheet(sheetWindow) { response in
+            window.beginSheet(sheetWindow) { _ in
                 // 清理工具栏代理引用
                 self.historySheetToolbarDelegate = nil
             }
@@ -1744,13 +1699,8 @@
                 return
             }
 
-            guard let viewModel else {
-                LogService.shared.error(.window, "viewModel 为 nil，无法创建回收站视图")
-                return
-            }
-
             // 创建回收站视图
-            let trashView = TrashView(viewModel: viewModel)
+            let trashView = TrashView(noteListState: coordinator.noteListState)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: trashView)
@@ -1761,7 +1711,6 @@
             sheetWindow.title = "回收站"
             sheetWindow.titlebarAppearsTransparent = false // 显示标题栏
             sheetWindow.titleVisibility = .visible // 显示标题
-
 
             // 为sheet窗口添加工具栏
             let toolbarDelegate = BaseSheetToolbarDelegate()
@@ -1782,9 +1731,8 @@
             // 存储工具栏代理引用，防止被ARC释放
             trashSheetToolbarDelegate = toolbarDelegate
 
-
             // 显示sheet
-            window.beginSheet(sheetWindow) { response in
+            window.beginSheet(sheetWindow) { _ in
                 // 清理工具栏代理引用
                 self.trashSheetToolbarDelegate = nil
             }
@@ -1814,7 +1762,7 @@
         }
 
         @objc internal func addToPrivateNotes(_: Any?) {
-            guard let note = viewModel?.selectedNote else { return }
+            guard let note = coordinator.noteListState.selectedNote else { return }
 
             let alert = NSAlert()
             alert.messageText = "添加到私密笔记"
@@ -1836,8 +1784,7 @@
         }
 
         @objc internal func moveNote(_ sender: Any?) {
-            guard let note = viewModel?.selectedNote,
-                  let viewModel else { return }
+            guard let note = coordinator.noteListState.selectedNote else { return }
 
             // 创建菜单
             let menu = NSMenu()
@@ -1849,7 +1796,7 @@
             menu.addItem(uncategorizedMenuItem)
 
             // 其他可用文件夹
-            let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+            let availableFolders = NoteMoveHelper.getAvailableFolders(from: coordinator.folderState)
 
             if !availableFolders.isEmpty {
                 menu.addItem(NSMenuItem.separator())
@@ -1874,10 +1821,9 @@
         }
 
         @objc internal func moveToUncategorized(_: NSMenuItem) {
-            guard let note = viewModel?.selectedNote,
-                  let viewModel else { return }
+            guard let note = coordinator.noteListState.selectedNote else { return }
 
-            NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
+            NoteMoveHelper.moveToUncategorized(note, using: coordinator.noteListState) { result in
                 switch result {
                 case .success:
                     LogService.shared.info(.window, "笔记移动到未分类成功: \(note.id)")
@@ -1889,10 +1835,9 @@
 
         @objc internal func moveNoteToFolder(_ sender: NSMenuItem) {
             guard let folder = sender.representedObject as? Folder,
-                  let note = viewModel?.selectedNote,
-                  let viewModel else { return }
+                  let note = coordinator.noteListState.selectedNote else { return }
 
-            NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
+            NoteMoveHelper.moveNote(note, to: folder, using: coordinator.noteListState) { result in
                 switch result {
                 case .success:
                     LogService.shared.info(.window, "笔记移动成功: \(note.id) -> \(folder.name)")
@@ -1907,18 +1852,18 @@
         }
 
         @objc internal func performIncrementalSync(_: Any?) {
-            Task {
-                await viewModel?.performIncrementalSync()
-            }
+            coordinator.syncState.requestSync(mode: .incremental)
         }
 
         @objc internal func resetSyncStatus(_: Any?) {
-            viewModel?.resetSyncStatus()
+            coordinator.syncState.lastSyncTime = nil
+            coordinator.syncState.syncStatusMessage = ""
+            coordinator.syncState.lastSyncedNotesCount = 0
         }
 
         @objc internal func showSyncStatus(_: Any?) {
-            // 显示同步状态信息
-            if let lastSync = viewModel?.lastSyncTime {
+            let syncState = coordinator.syncState
+            if let lastSync = syncState.lastSyncTime {
                 let formatter = DateFormatter()
                 formatter.dateStyle = .short
                 formatter.timeStyle = .short
@@ -1926,7 +1871,9 @@
                 let alert = NSAlert()
                 alert.messageText = "同步状态"
                 var infoText = "上次同步时间: \(formatter.string(from: lastSync))"
-                if let pendingCount = viewModel?.pendingOperationsCount, pendingCount > 0 {
+                let stats = UnifiedOperationQueue.shared.getStatistics()
+                let pendingCount = (stats["pending"] ?? 0) + (stats["failed"] ?? 0)
+                if pendingCount > 0 {
                     infoText += "\n待处理操作: \(pendingCount) 个"
                 }
                 alert.informativeText = infoText
@@ -1936,7 +1883,9 @@
                 let alert = NSAlert()
                 alert.messageText = "同步状态"
                 var infoText = "从未同步"
-                if let pendingCount = viewModel?.pendingOperationsCount, pendingCount > 0 {
+                let stats = UnifiedOperationQueue.shared.getStatistics()
+                let pendingCount = (stats["pending"] ?? 0) + (stats["failed"] ?? 0)
+                if pendingCount > 0 {
                     infoText += "\n待处理操作: \(pendingCount) 个"
                 }
                 alert.informativeText = infoText
@@ -1983,18 +1932,6 @@
 
         @objc internal func showOfflineOperationsProgress(_: Any?) {
 
-            // 检查是否有离线操作处理器
-            guard let viewModel else {
-                let alert = NSAlert()
-                alert.messageText = "离线操作进度"
-                alert.informativeText = "视图模型未初始化。"
-                alert.alertStyle = .informational
-                alert.addButton(withTitle: "确定")
-                alert.runModal()
-                return
-            }
-
-            // 创建sheet窗口
             guard let window else {
                 return
             }
@@ -2042,7 +1979,7 @@
             currentSheetToolbarDelegate = toolbarDelegate
 
             // 显示sheet
-            window.beginSheet(sheetWindow) { response in
+            window.beginSheet(sheetWindow) { _ in
                 // 清理sheet窗口引用和工具栏代理引用
                 self.currentSheetWindow = nil
                 self.currentSheetToolbarDelegate = nil
@@ -2087,11 +2024,9 @@
 
         @objc internal func lockPrivateNotes(_: Any?) {
 
-            // 锁定私密笔记
-            viewModel?.isPrivateNotesUnlocked = false
+            coordinator.authState.isPrivateNotesUnlocked = false
 
-            // 可选：清空选中的笔记
-            viewModel?.selectedNote = nil
+            coordinator.noteListState.selectedNote = nil
 
             // 显示提示信息
             let alert = NSAlert()
@@ -2138,7 +2073,6 @@
             guard let nativeEditorContext = getCurrentNativeEditorContext() else {
                 return
             }
-
 
             // 请求内容同步并更新格式状态
             nativeEditorContext.requestContentSync()
@@ -2187,19 +2121,19 @@
         /// 设置排序方式为编辑时间
         @objc internal func setSortOrderEditDate(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.editDate)
-            viewModel?.setNotesListSortField(.editDate)
+            coordinator.noteListState.notesListSortField = .editDate
         }
 
         /// 设置排序方式为创建时间
         @objc internal func setSortOrderCreateDate(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.createDate)
-            viewModel?.setNotesListSortField(.createDate)
+            coordinator.noteListState.notesListSortField = .createDate
         }
 
         /// 设置排序方式为标题
         @objc internal func setSortOrderTitle(_: Any?) {
             ViewOptionsManager.shared.setSortOrder(.title)
-            viewModel?.setNotesListSortField(.title)
+            coordinator.noteListState.notesListSortField = .title
             // 按标题排序时，自动关闭日期分组（因为日期分组对标题排序没有意义）
             if ViewOptionsManager.shared.isDateGroupingEnabled {
                 ViewOptionsManager.shared.setDateGrouping(false)
@@ -2209,13 +2143,13 @@
         /// 设置排序方向为降序
         @objc internal func setSortDirectionDescending(_: Any?) {
             ViewOptionsManager.shared.setSortDirection(.descending)
-            viewModel?.setNotesListSortDirection(.descending)
+            coordinator.noteListState.notesListSortDirection = .descending
         }
 
         /// 设置排序方向为升序
         @objc internal func setSortDirectionAscending(_: Any?) {
             ViewOptionsManager.shared.setSortDirection(.ascending)
-            viewModel?.setNotesListSortDirection(.ascending)
+            coordinator.noteListState.notesListSortDirection = .ascending
         }
 
         /// 切换日期分组（已弃用，改用 setDateGroupingOn/Off）
@@ -2229,7 +2163,7 @@
             // 因为按标题排序时日期分组没有意义
             if ViewOptionsManager.shared.sortOrder == .title {
                 ViewOptionsManager.shared.setSortOrder(.editDate)
-                viewModel?.setNotesListSortField(.editDate)
+                coordinator.noteListState.notesListSortField = .editDate
             }
             ViewOptionsManager.shared.setDateGrouping(true)
         }
@@ -2264,9 +2198,8 @@
         }
 
         /// 获取当前的 NativeEditorContext
-        /// - Returns: 当前的 NativeEditorContext，如果 viewModel 不存在则返回 nil
         func getCurrentNativeEditorContext() -> NativeEditorContext? {
-            viewModel?.nativeEditorContext
+            coordinator.noteEditorState.nativeEditorContext
         }
 
         // MARK: - 编辑菜单动作
@@ -2315,7 +2248,7 @@
 
         @objc func increaseIndent(_: Any?) {
 
-            guard viewModel?.selectedNote != nil else {
+            guard coordinator.noteListState.selectedNote != nil else {
                 return
             }
 
@@ -2328,7 +2261,7 @@
 
         @objc func decreaseIndent(_: Any?) {
 
-            guard viewModel?.selectedNote != nil else {
+            guard coordinator.noteListState.selectedNote != nil else {
                 return
             }
 
@@ -2458,7 +2391,7 @@
         // MARK: - 新增的菜单动作方法
 
         @objc func copyNote(_: Any?) {
-            guard let note = viewModel?.selectedNote else { return }
+            guard let note = coordinator.noteListState.selectedNote else { return }
 
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
@@ -2470,24 +2403,31 @@
 
         // MARK: - 查找功能
 
+        /// 通过 NSTextFinder 原生查找面板执行查找操作
+        private func performFindAction(_ action: NSTextFinder.Action) {
+            let menuItem = NSMenuItem()
+            menuItem.tag = Int(action.rawValue)
+            NSApp.sendAction(#selector(NSTextView.performFindPanelAction(_:)), to: nil, from: menuItem)
+        }
+
         /// 显示查找面板
         @objc func showFindPanel(_: Any?) {
-            searchPanelController?.showSearchPanel()
+            performFindAction(.showFindInterface)
         }
 
         /// 查找下一个匹配项
         @objc func findNext(_: Any?) {
-            searchPanelController?.findNext()
+            performFindAction(.nextMatch)
         }
 
         /// 查找上一个匹配项
         @objc func findPrevious(_: Any?) {
-            searchPanelController?.findPrevious()
+            performFindAction(.previousMatch)
         }
 
         /// 显示查找和替换面板
         @objc func showFindAndReplacePanel(_: Any?) {
-            searchPanelController?.showSearchPanel()
+            performFindAction(.showReplaceInterface)
         }
 
         // MARK: - 附件操作
@@ -2496,8 +2436,7 @@
         /// - Parameter url: 文件 URL
         @objc func attachFile(_ url: URL) {
 
-            // 检查是否有选中笔记
-            guard viewModel?.selectedNote != nil else {
+            guard coordinator.noteListState.selectedNote != nil else {
                 return
             }
 
@@ -2525,8 +2464,7 @@
         /// - Parameter urlString: 链接地址
         @objc func addLink(_ urlString: String) {
 
-            // 检查是否有选中笔记
-            guard viewModel?.selectedNote != nil else {
+            guard coordinator.noteListState.selectedNote != nil else {
                 return
             }
 
@@ -2597,7 +2535,7 @@
             }
 
             // 获取窗口状态
-            let windowState = MainWindowState(
+            return MainWindowState(
                 isFullScreen: window.styleMask.contains(.fullScreen),
                 splitViewWidths: splitViewWidths,
                 isSidebarHidden: isSidebarHidden,
@@ -2605,8 +2543,6 @@
                 notesListWindowState: notesListWindowState,
                 noteDetailWindowState: noteDetailWindowState
             )
-
-            return windowState
         }
 
         /// 恢复窗口状态
@@ -2618,7 +2554,6 @@
                 LogService.shared.error(.window, "无法恢复窗口状态：窗口或分割视图控制器不存在")
                 return
             }
-
 
             // 恢复分割视图宽度
             if state.splitViewWidths.count == splitViewController.splitViewItems.count {
@@ -2673,67 +2608,60 @@
 
         /// 设置状态监听器
         private func setupStateObservers() {
-            guard let viewModel else { return }
-
-            // 监听登录视图显示状态
-            viewModel.$showLoginView
+            // 监听登录视图显示状态（通过 AuthState）
+            coordinator.authState.$showLoginView
                 .receive(on: RunLoop.main)
                 .sink { [weak self] showLoginView in
                     if showLoginView {
                         self?.showLogin(nil)
-                        // 重置状态，避免重复触发
-                        viewModel.showLoginView = false
+                        self?.coordinator.authState.showLoginView = false
                     }
                 }
                 .store(in: &cancellables)
 
-            // 监听选中的文件夹变化，更新窗口标题
-            viewModel.$selectedFolder
+            // 监听选中的文件夹变化，更新窗口标题（通过 FolderState）
+            coordinator.folderState.$selectedFolder
                 .receive(on: RunLoop.main)
                 .sink { [weak self] selectedFolder in
                     self?.updateWindowTitle(for: selectedFolder)
                 }
                 .store(in: &cancellables)
 
-            // 监听笔记列表变化，更新窗口副标题
-            viewModel.$notes
+            // 监听笔记列表变化，更新窗口副标题（通过 NoteListState）
+            coordinator.noteListState.$notes
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in
-                    self?.updateWindowTitle(for: viewModel.selectedFolder)
+                    self?.updateWindowTitle(for: self?.coordinator.folderState.selectedFolder)
                 }
                 .store(in: &cancellables)
 
-            // 监听选中文件夹变化，更新工具栏
-            viewModel.$selectedFolder
+            // 监听选中文件夹变化，更新工具栏（通过 FolderState）
+            coordinator.folderState.$selectedFolder
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in
-                    // 当选中文件夹变化时，重新配置工具栏以显示/隐藏锁图标
                     self?.reconfigureToolbar()
                 }
                 .store(in: &cancellables)
 
-            // 监听私密笔记解锁状态变化，更新工具栏
-            viewModel.$isPrivateNotesUnlocked
+            // 监听私密笔记解锁状态变化，更新工具栏（通过 AuthState）
+            coordinator.authState.$isPrivateNotesUnlocked
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in
-                    // 当私密笔记解锁状态变化时，重新配置工具栏以显示/隐藏锁图标
                     self?.reconfigureToolbar()
                 }
                 .store(in: &cancellables)
 
-            // 监听搜索文本变化，同步到搜索框UI并更新窗口标题
-            viewModel.$searchText
+            // 监听搜索文本变化，同步到搜索框UI并更新窗口标题（通过 NoteListState）
+            coordinator.noteListState.$searchText
                 .receive(on: RunLoop.main)
                 .sink { [weak self] searchText in
-                    // 当ViewModel的searchText变化时，更新搜索框的UI
-                    if let searchField = self?.currentSearchField,
+                    guard let self else { return }
+                    if let searchField = currentSearchField,
                        searchField.stringValue != searchText
                     {
                         searchField.stringValue = searchText
                     }
-
-                    // 更新窗口标题和副标题
-                    self?.updateWindowTitle(for: viewModel.selectedFolder)
+                    updateWindowTitle(for: coordinator.folderState.selectedFolder)
                 }
                 .store(in: &cancellables)
 
@@ -2792,50 +2720,43 @@
 
         /// 更新窗口标题和副标题
         private func updateWindowTitle(for folder: Folder?) {
-            guard let window, let viewModel else { return }
+            guard let window else { return }
 
-            // 检查是否有搜索文本
-            if !viewModel.searchText.isEmpty {
-                // 搜索状态：取消选中文件夹，标题改为"搜索"
-                viewModel.selectedFolder = nil
+            let noteListState = coordinator.noteListState
+
+            if !noteListState.searchText.isEmpty {
+                coordinator.folderState.selectFolder(nil)
                 window.title = "搜索"
 
-                // 副标题显示找到的笔记数量
-                let foundCount = viewModel.filteredNotes.count
+                let foundCount = noteListState.filteredNotes.count
                 window.subtitle = "找到\(foundCount)个笔记"
             } else {
-                // 正常状态：设置主标题为选中的文件夹名称
                 let folderName = folder?.name ?? "笔记"
                 window.title = folderName
 
-                // 计算当前文件夹中的笔记数量
                 let noteCount = getNoteCount(for: folder)
-
-                // 设置副标题为笔记数量
                 window.subtitle = "\(noteCount)个笔记"
             }
         }
 
         /// 获取指定文件夹中的笔记数量
         private func getNoteCount(for folder: Folder?) -> Int {
-            guard let viewModel else { return 0 }
+            let notes = coordinator.noteListState.notes
 
             if let folder {
                 if folder.id == "starred" {
-                    return viewModel.notes.count(where: { $0.isStarred })
+                    return notes.count(where: { $0.isStarred })
                 } else if folder.id == "0" {
-                    return viewModel.notes.count
+                    return notes.count
                 } else if folder.id == "2" {
-                    // 私密笔记文件夹：显示 folderId 为 "2" 的笔记
-                    return viewModel.notes.count(where: { $0.folderId == "2" })
+                    return notes.count(where: { $0.folderId == "2" })
                 } else if folder.id == "uncategorized" {
-                    // 未分类文件夹：显示 folderId 为 "0" 或空的笔记
-                    return viewModel.notes.count(where: { $0.folderId == "0" || $0.folderId.isEmpty })
+                    return notes.count(where: { $0.folderId == "0" || $0.folderId.isEmpty })
                 } else {
-                    return viewModel.notes.count(where: { $0.folderId == folder.id })
+                    return notes.count(where: { $0.folderId == folder.id })
                 }
             } else {
-                return viewModel.notes.count
+                return notes.count
             }
         }
 
@@ -2873,20 +2794,12 @@
                 return
             }
 
-            // 确保有viewModel
-            guard let viewModel else {
-                LogService.shared.error(.window, "viewModel 不存在，无法显示搜索筛选菜单")
-                return
-            }
-
-
             // 创建SwiftUI搜索筛选菜单视图
-            let searchFilterMenuView = SearchFilterMenuContent(viewModel: viewModel)
+            let searchFilterMenuView = SearchFilterMenuContent(noteListState: coordinator.noteListState)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: searchFilterMenuView)
             hostingController.view.frame = NSRect(x: 0, y: 0, width: 200, height: 190)
-
 
             // 创建popover
             let popover = NSPopover()
@@ -2923,22 +2836,21 @@
 
         /// 检查是否有任何筛选选项被启用
         private func hasAnySearchFilter() -> Bool {
-            guard let viewModel else { return false }
-
-            return viewModel.searchFilterHasTags ||
-                viewModel.searchFilterHasChecklist ||
-                viewModel.searchFilterHasImages ||
-                viewModel.searchFilterHasAudio ||
-                viewModel.searchFilterIsPrivate
+            let state = coordinator.noteListState
+            return state.filterHasTags ||
+                state.filterHasChecklist ||
+                state.filterHasImages ||
+                state.filterHasAudio ||
+                state.filterIsPrivate
         }
 
         /// 清除所有筛选选项
         private func clearAllSearchFilters() {
-            viewModel?.searchFilterHasTags = false
-            viewModel?.searchFilterHasChecklist = false
-            viewModel?.searchFilterHasImages = false
-            viewModel?.searchFilterHasAudio = false
-            viewModel?.searchFilterIsPrivate = false
+            coordinator.noteListState.filterHasTags = false
+            coordinator.noteListState.filterHasChecklist = false
+            coordinator.noteListState.filterHasImages = false
+            coordinator.noteListState.filterHasAudio = false
+            coordinator.noteListState.filterIsPrivate = false
         }
 
         /// 放大
@@ -3004,8 +2916,7 @@
         ///
         private func showAudioPanel() {
             guard let window,
-                  let splitViewController = window.contentViewController as? NSSplitViewController,
-                  let viewModel
+                  let splitViewController = window.contentViewController as? NSSplitViewController
             else {
                 LogService.shared.error(.window, "无法显示音频面板：窗口或分割视图控制器不存在")
                 return
@@ -3027,11 +2938,9 @@
                 return
             }
 
-
             // 创建音频面板托管控制器
             let audioPanelController = AudioPanelHostingController(
-                stateManager: audioPanelStateManager,
-                viewModel: viewModel
+                stateManager: audioPanelStateManager
             )
 
             // 设置录制完成回调
@@ -3082,7 +2991,6 @@
             guard splitViewController.splitViewItems.count >= 4 else {
                 return
             }
-
 
             // 移除第四栏（音频面板）
             let audioPanelItem = splitViewController.splitViewItems[3]
@@ -3137,8 +3045,7 @@
         ///
         private func handleAudioRecordingComplete(url: URL) {
 
-            guard let viewModel,
-                  let selectedNote = viewModel.selectedNote
+            guard let selectedNote = coordinator.noteListState.selectedNote
             else {
                 LogService.shared.error(.window, "无法处理录制完成：没有选中的笔记")
                 return
@@ -3163,13 +3070,19 @@
 
                     // 1.5. 更新笔记的 setting.data，添加音频信息
                     // 这是小米笔记服务器识别音频文件的关键
-                    if var note = viewModel.selectedNote {
-                        var rawData = note.rawData ?? [:]
-                        var setting = rawData["setting"] as? [String: Any] ?? [
+                    if var note = coordinator.noteListState.selectedNote {
+                        // 从 settingJson 解析现有 setting，添加音频信息
+                        var setting: [String: Any] = [
                             "themeId": 0,
                             "stickyTime": 0,
                             "version": 0,
                         ]
+                        if let existingSettingJson = note.settingJson,
+                           let jsonData = existingSettingJson.data(using: .utf8),
+                           let existingSetting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+                        {
+                            setting = existingSetting
+                        }
 
                         var settingData = setting["data"] as? [[String: Any]] ?? []
 
@@ -3182,14 +3095,19 @@
                         ]
                         settingData.append(audioInfo)
                         setting["data"] = settingData
-                        rawData["setting"] = setting
-                        note.rawData = rawData
 
+                        // 更新 settingJson
+                        if let settingData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
+                           let settingString = String(data: settingData, encoding: .utf8)
+                        {
+                            note.settingJson = settingString
+                        }
 
-                        // 更新 viewModel 中的笔记
-                        viewModel.selectedNote = note
-                        if let index = viewModel.notes.firstIndex(where: { $0.id == note.id }) {
-                            viewModel.notes[index] = note
+                        // 延迟到下一个 RunLoop 周期，避免在视图更新周期内修改 @Published 属性
+                        DispatchQueue.main.async { [weak self] in
+                            guard let self else { return }
+                            coordinator.noteListState.selectedNote = note
+                            coordinator.noteListState.updateNoteInPlace(note)
                         }
                     }
 
@@ -3289,8 +3207,7 @@
         /// 供工具栏按钮调用，显示音频面板并进入录制模式。
         ///
         func showAudioPanelForRecording() {
-            guard let viewModel,
-                  let selectedNote = viewModel.selectedNote
+            guard let selectedNote = coordinator.noteListState.selectedNote
             else {
                 LogService.shared.error(.window, "无法显示录制面板：没有选中的笔记")
                 return
@@ -3304,8 +3221,7 @@
         /// 供音频附件点击调用，显示音频面板并播放指定音频。
         ///
         func showAudioPanelForPlayback(fileId: String) {
-            guard let viewModel,
-                  let selectedNote = viewModel.selectedNote
+            guard let selectedNote = coordinator.noteListState.selectedNote
             else {
                 LogService.shared.error(.window, "无法显示播放面板：没有选中的笔记")
                 return

@@ -82,7 +82,6 @@ public final class TypingOptimizer {
 
     private init() {}
 
-
     /// 检测是否为简单输入
     ///
     /// 简单输入的定义：
@@ -237,11 +236,6 @@ public final class TypingOptimizer {
 
         // 检查是否有段落类型属性
         if attributes[.paragraphType] != nil {
-            return true
-        }
-
-        // 检查是否有标题属性
-        if attributes[.isTitle] != nil {
             return true
         }
 

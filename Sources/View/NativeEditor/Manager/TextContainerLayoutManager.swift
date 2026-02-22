@@ -170,7 +170,6 @@ public class TextContainerLayoutManager {
         // 如果支持非对称布局，可以在这里设置额外的布局参数
         if config.allowAsymmetricLayout {
             // 预留：可以设置不同的左右边距
-            // 例如：为标题标签留出空间
         }
     }
 

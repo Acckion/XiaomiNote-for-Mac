@@ -51,10 +51,7 @@ public final class ASTToAttributedStringConverter {
         self.defaultFont = NSFont.systemFont(ofSize: FontSizeConstants.body)
 
         // 设置默认段落样式
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = 4
-        paragraphStyle.paragraphSpacing = 8
-        self.defaultParagraphStyle = paragraphStyle
+        self.defaultParagraphStyle = ParagraphStyleFactory.makeDefault()
     }
 
     // MARK: - Public Methods
@@ -69,22 +66,11 @@ public final class ASTToAttributedStringConverter {
         // 每次转换文档时重置有序列表编号计数器
         currentOrderedListNumber = 0
 
-        var hasTitle = false
         var contentBlocks = document.blocks
 
-        if let firstBlock = document.blocks.first as? TitleBlockNode {
-            let titleString = convertTitleBlock(firstBlock)
-            result.append(titleString)
-            hasTitle = true
+        // 跳过 TitleBlockNode，标题已独立于正文，不再渲染到 NSTextView 中
+        if document.blocks.first is TitleBlockNode {
             contentBlocks = Array(document.blocks.dropFirst())
-        } else if let title = document.title, !title.isEmpty {
-            let titleString = createTitleParagraph(title)
-            result.append(titleString)
-            hasTitle = true
-        }
-
-        if hasTitle, !contentBlocks.isEmpty {
-            result.append(NSAttributedString(string: "\n"))
         }
 
         for (index, block) in contentBlocks.enumerated() {
@@ -92,57 +78,11 @@ public final class ASTToAttributedStringConverter {
             result.append(blockString)
 
             if index < contentBlocks.count - 1 {
-                result.append(NSAttributedString(string: "\n"))
+                // 换行符需要继承当前块的属性，确保空行保持正确的字体和段落样式
+                let newlineAttributes = resolveNewlineAttributes(for: block, blockString: blockString)
+                result.append(NSAttributedString(string: "\n", attributes: newlineAttributes))
             }
         }
-
-        return result
-    }
-
-    /// 转换标题块节点
-    /// - Parameter node: 标题块节点
-    /// - Returns: NSAttributedString
-    /// _任务 22.2_ - 标题段落使用 40pt Semibold 字体
-    private func convertTitleBlock(_ node: TitleBlockNode) -> NSAttributedString {
-        let result = NSMutableAttributedString()
-
-        let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
-        result.append(inlineString)
-
-        let fullRange = NSRange(location: 0, length: result.length)
-
-        result.addAttribute(.isTitle, value: true, range: fullRange)
-
-        let titleFont = NSFont.systemFont(ofSize: 40, weight: .semibold)
-        result.addAttribute(.font, value: titleFont, range: fullRange)
-
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .left
-        paragraphStyle.lineSpacing = 4
-        paragraphStyle.paragraphSpacing = 12
-        result.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
-
-        return result
-    }
-
-    /// 创建标题段落（从纯文本）
-    /// - Parameter title: 标题文本
-    /// - Returns: NSAttributedString
-    /// _任务 22.2_ - 标题段落使用 40pt Semibold 字体
-    private func createTitleParagraph(_ title: String) -> NSAttributedString {
-        let result = NSMutableAttributedString(string: title)
-        let fullRange = NSRange(location: 0, length: result.length)
-
-        result.addAttribute(.isTitle, value: true, range: fullRange)
-
-        let titleFont = NSFont.systemFont(ofSize: 40, weight: .semibold)
-        result.addAttribute(.font, value: titleFont, range: fullRange)
-
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .left
-        paragraphStyle.lineSpacing = 4
-        paragraphStyle.paragraphSpacing = 12
-        result.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
 
         return result
     }
@@ -161,9 +101,8 @@ public final class ASTToAttributedStringConverter {
 
         switch block.nodeType {
         case .titleBlock:
-            // 标题块应该在 convert() 方法中处理，不应该出现在这里
-            // 如果出现，说明有错误，但为了容错，转换为标题段落
-            return convertTitleBlock(block as! TitleBlockNode)
+            // 标题块在 convert() 中已跳过，此处为容错处理，返回空字符串
+            return NSAttributedString()
         case .textBlock:
             return convertTextBlock(block as! TextBlockNode)
         case .bulletList:
@@ -540,15 +479,11 @@ public final class ASTToAttributedStringConverter {
 
         case .centerAlign:
             // 居中对齐
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.alignment = .center
-            attributes[.paragraphStyle] = paragraphStyle
+            attributes[.paragraphStyle] = ParagraphStyleFactory.makeDefault(alignment: .center)
 
         case .rightAlign:
             // 右对齐
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.alignment = .right
-            attributes[.paragraphStyle] = paragraphStyle
+            attributes[.paragraphStyle] = ParagraphStyleFactory.makeDefault(alignment: .right)
 
         default:
             break
@@ -558,6 +493,43 @@ public final class ASTToAttributedStringConverter {
     }
 
     // MARK: - Helper Methods
+
+    /// 从块级节点和转换结果中推断换行符应携带的属性
+    ///
+    /// 空标题行转换后 blockString 长度为 0，换行符需要从 AST 节点推断字体和段落样式，
+    /// 否则空行会丢失标题格式
+    private func resolveNewlineAttributes(for block: any BlockNode, blockString: NSAttributedString) -> [NSAttributedString.Key: Any] {
+        // 优先从已转换的内容末尾继承属性
+        if blockString.length > 0 {
+            return blockString.attributes(at: blockString.length - 1, effectiveRange: nil)
+        }
+
+        // blockString 为空时，从 AST 节点推断（空标题行场景）
+        guard let textBlock = block as? TextBlockNode else {
+            return getDefaultAttributes()
+        }
+
+        // 检查是否包含标题格式节点
+        let headingType = textBlock.content.compactMap { $0 as? FormattedNode }.first(where: {
+            $0.nodeType == .heading1 || $0.nodeType == .heading2 || $0.nodeType == .heading3
+        })?.nodeType
+
+        guard let headingType else {
+            return getDefaultAttributes()
+        }
+
+        let fontSize: CGFloat = switch headingType {
+        case .heading1: FontSizeConstants.heading1
+        case .heading2: FontSizeConstants.heading2
+        case .heading3: FontSizeConstants.heading3
+        default: FontSizeConstants.body
+        }
+
+        return [
+            .font: NSFont.systemFont(ofSize: fontSize),
+            .paragraphStyle: ParagraphStyleFactory.makeDefault(fontSize: fontSize),
+        ]
+    }
 
     /// 应用缩进到 NSAttributedString
     /// - Parameters:
@@ -588,9 +560,7 @@ public final class ASTToAttributedStringConverter {
         let range = NSRange(location: 0, length: attributedString.length)
 
         // 应用引用块的段落样式
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.firstLineHeadIndent = 20
-        paragraphStyle.headIndent = 20
+        let paragraphStyle = ParagraphStyleFactory.makeQuote()
         paragraphStyle.tailIndent = -20
 
         attributedString.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
@@ -691,22 +661,6 @@ public final class ASTToAttributedStringConverter {
     ///   - bulletWidth: 项目符号宽度
     /// - Returns: 段落样式
     private func createListParagraphStyle(indent: Int, bulletWidth: CGFloat) -> NSParagraphStyle {
-        let style = NSMutableParagraphStyle()
-        let indentUnit: CGFloat = 20
-        let baseIndent = CGFloat(indent - 1) * indentUnit
-
-        // 设置首行缩进（为项目符号留出空间）
-        style.firstLineHeadIndent = baseIndent
-        // 设置后续行缩进（与项目符号后的文本对齐）
-        style.headIndent = baseIndent + bulletWidth
-        // 设置制表位
-        style.tabStops = [NSTextTab(textAlignment: .left, location: baseIndent + bulletWidth)]
-        style.defaultTabInterval = indentUnit
-
-        // 设置行间距和段落间距（与正文一致）
-        style.lineSpacing = 4
-        style.paragraphSpacing = 8
-
-        return style
+        ParagraphStyleFactory.makeList(indent: indent, bulletWidth: bulletWidth)
     }
 }

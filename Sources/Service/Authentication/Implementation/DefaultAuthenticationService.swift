@@ -14,7 +14,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
     private var currentAuthUser: AuthUser?
     private var currentCookie: String?
 
-    // 与旧架构 MiNoteService 共享的 UserDefaults 键名
+    /// 与旧架构 MiNoteService 共享的 UserDefaults 键名
     private static let cookieKey = "minote_cookie"
 
     var currentUser: AnyPublisher<UserProfile?, Never> {
@@ -34,7 +34,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
         if let savedCookie = UserDefaults.standard.string(forKey: Self.cookieKey),
            !savedCookie.isEmpty
         {
-            currentCookie = savedCookie
+            self.currentCookie = savedCookie
             isAuthenticatedSubject.send(true)
         }
     }

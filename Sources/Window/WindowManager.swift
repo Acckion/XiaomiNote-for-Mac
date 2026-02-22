@@ -57,10 +57,6 @@ public class WindowManager {
     public func createMainWindow() -> MainWindowController? {
         LogService.shared.debug(.window, "创建主窗口")
 
-        // TODO: 任务 5 完成后启用新实现
-        // 当前使用旧实现保持向后兼容
-
-        // 旧实现：使用 NotesViewModel
         guard let coordinator = appCoordinator else {
             let errorMessage = "AppCoordinator 未设置，无法创建窗口"
             LogService.shared.error(.window, errorMessage)
@@ -142,10 +138,6 @@ public class WindowManager {
     public func createNewWindow(withNote note: Note? = nil) -> MainWindowController? {
         LogService.shared.debug(.window, "创建新窗口")
 
-        // TODO: 任务 5 完成后启用新实现
-        // 当前使用旧实现保持向后兼容
-
-        // 旧实现：使用 NotesViewModel
         guard let coordinator = appCoordinator else {
             let errorMessage = "AppCoordinator 未设置，无法创建窗口"
             LogService.shared.error(.window, errorMessage)
@@ -159,7 +151,7 @@ public class WindowManager {
 
             // 如果指定了笔记，设置为选中状态
             if let note {
-                windowState.selectedNote = note
+                windowState.selectNote(note)
                 LogService.shared.debug(.window, "新窗口将打开笔记: \(note.title)")
             }
 
@@ -193,7 +185,7 @@ public class WindowManager {
 
          // 如果指定了笔记，设置为选中状态
          if let note = note {
-             windowState.selectedNote = note
+             windowState.selectNote(note)
              print("[WindowManager] 新窗口将打开笔记: \(note.title)")
          }
 
@@ -454,10 +446,6 @@ public class WindowManager {
     // MARK: - 错误处理
 
     /// 显示窗口创建错误提示
-    ///
-    /// 向用户显示友好的错误消息，并提供重启应用的建议
-    ///
-    /// - Parameter message: 错误消息
     private func showWindowCreationError(message: String) {
         let alert = NSAlert()
         alert.messageText = "无法创建窗口"

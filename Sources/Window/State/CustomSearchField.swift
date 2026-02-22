@@ -7,8 +7,8 @@ class CustomSearchField: NSSearchField {
 
     // MARK: - 属性
 
-    /// 视图模型
-    weak var viewModel: NotesViewModel?
+    /// 搜索状态
+    weak var searchState: SearchState?
 
     /// Combine订阅集合
     private var cancellables = Set<AnyCancellable>()
@@ -41,15 +41,14 @@ class CustomSearchField: NSSearchField {
         )
     }
 
-    /// 设置视图模型
-    func setViewModel(_ viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    /// 设置搜索状态
+    func setSearchState(_ searchState: SearchState) {
+        self.searchState = searchState
 
         // 监听搜索文本变化
-        viewModel.$searchText
+        searchState.$searchText
             .receive(on: RunLoop.main)
             .sink { [weak self] searchText in
-                // 直接更新搜索框文本
                 if self?.stringValue != searchText {
                     self?.stringValue = searchText
                 }
@@ -61,11 +60,8 @@ class CustomSearchField: NSSearchField {
 
     /// 文本变化通知
     @objc override func textDidChange(_: Notification) {
-        // 获取当前文本
         let currentText = stringValue
-
-        // 更新视图模型的搜索文本
-        viewModel?.searchText = currentText
+        searchState?.searchText = currentText
     }
 
     // MARK: - 焦点处理

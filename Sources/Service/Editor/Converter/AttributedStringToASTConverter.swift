@@ -50,13 +50,12 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         isInOrderedListSequence = false
         lastOrderedListNumber = 0
 
-        // 按段落分割
-        let paragraphs = splitIntoParagraphs(attributedString)
+        // 按段落分割，同时记录每个段落在原始文本中的起始位置
+        let paragraphsWithPositions = splitIntoParagraphsWithPositions(attributedString)
 
         // 转换每个段落为块级节点
-        // 第一个段落特殊处理：检查是否为标题段落
-        let blocks = paragraphs.enumerated().compactMap { index, paragraph -> (any BlockNode)? in
-            convertParagraphToBlock(paragraph, isFirstParagraph: index == 0)
+        let blocks = paragraphsWithPositions.compactMap { paragraph, position -> (any BlockNode)? in
+            convertParagraphToBlock(paragraph, originalString: attributedString, startPosition: position)
         }
 
         return DocumentNode(blocks: blocks)
@@ -64,14 +63,13 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
 
     // MARK: - Private Methods - 段落分割
 
-    /// 按段落分割 NSAttributedString
+    /// 按段落分割 NSAttributedString，同时记录每个段落在原始文本中的起始位置
     ///
     /// - Parameter attributedString: NSAttributedString
-    /// - Returns: 段落数组（包括空行）
-    /// - Note: 空行会被保留为空的 NSAttributedString，以便后续转换为空的 TextBlockNode
-    private func splitIntoParagraphs(_ attributedString: NSAttributedString) -> [NSAttributedString] {
+    /// - Returns: (段落, 起始位置) 数组
+    private func splitIntoParagraphsWithPositions(_ attributedString: NSAttributedString) -> [(NSAttributedString, Int)] {
         let string = attributedString.string
-        var paragraphs: [NSAttributedString] = []
+        var result: [(NSAttributedString, Int)] = []
 
         var currentStart = 0
         let length = (string as NSString).length
@@ -82,15 +80,13 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
             (string as NSString).getLineStart(nil, end: &lineEnd, contentsEnd: &contentsEnd, for: NSRange(location: currentStart, length: 0))
 
             let range = NSRange(location: currentStart, length: contentsEnd - currentStart)
-            // 修复：保留空行（range.length == 0 的情况）
-            // 空行在 XML 中表示为 <text indent="1"></text>
             let paragraph = attributedString.attributedSubstring(from: range)
-            paragraphs.append(paragraph)
+            result.append((paragraph, currentStart))
 
             currentStart = lineEnd
         }
 
-        return paragraphs
+        return result
     }
 
     // MARK: - Private Methods - 段落转换
@@ -99,17 +95,38 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     ///
     /// - Parameters:
     ///   - paragraph: 段落 NSAttributedString
-    ///   - isFirstParagraph: 是否为第一个段落
     /// - Returns: 块级节点
     /// - Note: 空段落会被转换为空内容的 TextBlockNode，以保留空行
-    private func convertParagraphToBlock(_ paragraph: NSAttributedString, isFirstParagraph: Bool = false) -> (any BlockNode)? {
-        // 修复：空段落转换为空内容的 TextBlockNode，而不是返回 nil
-        // 这样可以保留用户创建的空行
+    private func convertParagraphToBlock(
+        _ paragraph: NSAttributedString,
+        originalString: NSAttributedString,
+        startPosition: Int
+    ) -> (any BlockNode)? {
         if paragraph.length == 0 {
             // 重置有序列表序列状态
             isInOrderedListSequence = false
             lastOrderedListNumber = 0
-            // 返回空内容的文本块，默认缩进为 1
+
+            // 空行：从换行符位置读取属性，检测是否有标题格式
+            // 换行符 \n 承载了该行的格式属性（字体大小等）
+            if startPosition < originalString.length {
+                let attrs = originalString.attributes(at: startPosition, effectiveRange: nil)
+                if let font = attrs[.font] as? NSFont {
+                    let detectedFormat = FontSizeConstants.detectParagraphFormat(fontSize: font.pointSize)
+                    let headingType: ASTNodeType? = switch detectedFormat {
+                    case .heading1: .heading1
+                    case .heading2: .heading2
+                    case .heading3: .heading3
+                    default: nil
+                    }
+                    if let headingType {
+                        let emptyText = TextNode(text: "")
+                        let formattedNode = FormattedNode(type: headingType, content: [emptyText])
+                        return TextBlockNode(indent: 1, content: [formattedNode])
+                    }
+                }
+            }
+
             return TextBlockNode(indent: 1, content: [])
         }
 
@@ -117,19 +134,6 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
             // 识别附件类型并创建对应的块级节点
             return convertAttachmentToBlock(attachment, paragraph: paragraph)
-        }
-
-        // 检查是否为标题段落（第一个段落且有标题属性）
-        if isFirstParagraph {
-            // 检查是否有标题段落标记
-            if let isTitle = paragraph.attribute(.isTitle, at: 0, effectiveRange: nil) as? Bool, isTitle {
-                // 提取行内内容
-                let inlineNodes = convertToInlineNodes(paragraph)
-
-                // 创建标题块节点（使用特殊的 indent 值 0 表示标题）
-                // 注意：标题段落在 XML 中会被转换为 <title> 标签，而不是 <text> 标签
-                return TitleBlockNode(content: inlineNodes)
-            }
         }
 
         // 非附件段落（普通文本块），重置有序列表序列状态

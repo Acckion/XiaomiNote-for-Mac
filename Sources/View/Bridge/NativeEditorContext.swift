@@ -179,6 +179,9 @@ public class NativeEditorContext: ObservableObject {
     /// 当前编辑的 NSAttributedString（用于 NSTextView）
     @Published public var nsAttributedText = NSAttributedString()
 
+    /// 标题文本（独立于正文，由 loadFromXML 提取）
+    @Published public var titleText = ""
+
     /// 当前检测到的特殊元素类型
     @Published var currentSpecialElement: SpecialElement?
 
@@ -203,7 +206,6 @@ public class NativeEditorContext: ObservableObject {
 
     // MARK: - 内容保护属性
 
-
     /// 保存失败时的备份内容
     ///
     /// 当保存操作失败时，将当前编辑内容备份到此属性
@@ -226,7 +228,6 @@ public class NativeEditorContext: ObservableObject {
     @Published var formatActivationRatios: [TextFormat: Double] = [:]
 
     // MARK: - 版本号机制属性
-
 
     /// 变化追踪器
     ///
@@ -270,6 +271,9 @@ public class NativeEditorContext: ObservableObject {
 
     /// 缩进操作发布者
     private let indentChangeSubject = PassthroughSubject<IndentOperation, Never>()
+
+    /// 标题变化发布者（用于绕过 SwiftUI 无法观察计算属性链上 @Published 变化的问题）
+    private let titleChangeSubject = PassthroughSubject<String, Never>()
 
     /// 格式转换器
     private let formatConverter = XiaoMiFormatConverter.shared
@@ -324,6 +328,11 @@ public class NativeEditorContext: ObservableObject {
     /// 缩进操作发布者
     var indentChangePublisher: AnyPublisher<IndentOperation, Never> {
         indentChangeSubject.eraseToAnyPublisher()
+    }
+
+    /// 标题变化发布者
+    var titleChangePublisher: AnyPublisher<String, Never> {
+        titleChangeSubject.eraseToAnyPublisher()
     }
 
     // MARK: - Initialization
@@ -698,8 +707,7 @@ public class NativeEditorContext: ObservableObject {
             changeTracker.attachmentDidChange()
             autoSaveManager.scheduleAutoSave()
 
-        } else {
-        }
+        } else {}
     }
 
     /// 更新录音模板并强制保存
@@ -748,12 +756,10 @@ public class NativeEditorContext: ObservableObject {
         let expectedHasAudio = normalizedExpected.contains("<sound fileid=")
         let expectedHasTemp = normalizedExpected.contains("des=\"temp\"")
 
-
         // 分析当前内容的类型（使用规范化后的内容）
         let currentIsEmpty = normalizedCurrent.isEmpty
         let currentHasAudio = normalizedCurrent.contains("<sound fileid=")
         let currentHasTemp = normalizedCurrent.contains("des=\"temp\"")
-
 
         // 验证逻辑
         var isValid = false
@@ -789,8 +795,7 @@ public class NativeEditorContext: ObservableObject {
         }
 
         // 输出验证结果摘要
-        if !isValid, !failureReason.isEmpty {
-        }
+        if !isValid, !failureReason.isEmpty {}
 
         // 如果验证失败，输出规范化后的内容预览（前200个字符）
         if !isValid {
@@ -798,14 +803,12 @@ public class NativeEditorContext: ObservableObject {
             let expectedPreviewLength = min(200, normalizedExpected.count)
             if expectedPreviewLength > 0 {
                 let expectedPreview = String(normalizedExpected.prefix(expectedPreviewLength))
-            } else {
-            }
+            } else {}
 
             let currentPreviewLength = min(200, normalizedCurrent.count)
             if currentPreviewLength > 0 {
                 let currentPreview = String(normalizedCurrent.prefix(currentPreviewLength))
-            } else {
-            }
+            } else {}
         }
 
         return isValid
@@ -841,7 +844,6 @@ public class NativeEditorContext: ObservableObject {
     func updateSelectedRange(_ range: NSRange) {
         selectedRange = range
         cursorPosition = range.location
-        // 使用同步器调度状态更新（防抖）
         formatStateSynchronizer.scheduleStateUpdate()
         detectSpecialElementAtCursor()
         selectionChangeSubject.send(range)
@@ -852,7 +854,6 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// 当焦点状态变化时，发送 `.editorFocusDidChange` 通知以更新菜单状态
     func setEditorFocused(_ focused: Bool) {
-        // 只有状态真正变化时才更新和发送通知
         guard isEditorFocused != focused else { return }
 
         isEditorFocused = focused
@@ -934,155 +935,75 @@ public class NativeEditorContext: ObservableObject {
         }
     }
 
-    /// 从 XML 加载内容
-    ///
-    /// **标题段落处理**：
-    /// - XML 的 `<title>` 标签通过 `XMLParser` 解析为 `TitleBlockNode`
-    /// - `ASTToAttributedStringConverter` 将 `TitleBlockNode` 转换为带有 `.isTitle` 属性的段落
-    /// - 标题段落会被插入到编辑器的第一个位置
+    /// 从 XML 加载正文内容（不含标题）
     ///
     /// - Parameter xml: 小米笔记 XML 格式内容
     ///
     func loadFromXML(_ xml: String) {
-        // 使用程序化修改包裹，确保版本号不变
         changeTracker.performProgrammaticChange {
             loadFromXMLInternal(xml)
         }
-
-        // 重置追踪器
         changeTracker.reset()
     }
 
     /// 内部加载 XML 方法
     /// - Parameter xml: 小米笔记 XML 格式内容
     private func loadFromXMLInternal(_ xml: String) {
-
-        // 关键修复：如果 XML 为空，清空编辑器
         guard !xml.isEmpty else {
             attributedText = AttributedString()
             nsAttributedText = NSAttributedString()
+            titleText = ""
             hasUnsavedChanges = false
             hasNewFormatPrefix = false
             return
         }
 
-        // 检测并保存 <new-format/> 标签的存在
         let trimmedXml = xml.trimmingCharacters(in: .whitespacesAndNewlines)
-        hasNewFormatPrefix = trimmedXml.hasPrefix("<new-format/>")
-        if hasNewFormatPrefix {
-        }
+        let detectedNewFormat = trimmedXml.hasPrefix("<new-format/>")
 
         do {
-            // 使用新的 xmlToNSAttributedString 方法直接获取 NSAttributedString
-            // 这样可以正确保留自定义的 NSTextAttachment 子类（如 ImageAttachment）
             let nsAttributed = try formatConverter.xmlToNSAttributedString(xml, folderId: currentFolderId)
 
-
-            // 检查是否包含标题段落
-            var hasTitleParagraph = false
-            nsAttributed.enumerateAttribute(.isTitle, in: NSRange(location: 0, length: nsAttributed.length), options: []) { value, range, stop in
-                if let isTitle = value as? Bool, isTitle {
-                    hasTitleParagraph = true
-                    let titleText = (nsAttributed.string as NSString).substring(with: range)
-
-                    // 检查字体
-                    if let font = nsAttributed.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont {
-                    }
-
-                    stop.pointee = true
-                }
-            }
-
-            if !hasTitleParagraph {
-            }
-
-            // 检查是否包含附件
-            var attachmentCount = 0
-            var imageAttachmentCount = 0
-            nsAttributed.enumerateAttribute(.attachment, in: NSRange(location: 0, length: nsAttributed.length), options: []) { value, _, _ in
-                if let attachment = value as? NSTextAttachment {
-                    attachmentCount += 1
-                    if let imageAttachment = attachment as? ImageAttachment {
-                        imageAttachmentCount += 1
-                    }
-                }
-            }
-
-            // 为没有设置前景色的文本添加默认颜色（适配深色模式）
             let mutableAttributed = NSMutableAttributedString(attributedString: nsAttributed)
             let fullRange = NSRange(location: 0, length: mutableAttributed.length)
 
-            // 遍历所有范围，为没有前景色的文本设置 labelColor
             mutableAttributed.enumerateAttribute(.foregroundColor, in: fullRange, options: []) { value, range, _ in
                 if value == nil {
-                    // 使用 labelColor，它会自动适配深色/浅色模式
                     mutableAttributed.addAttribute(.foregroundColor, value: NSColor.labelColor, range: range)
                 }
             }
 
+            hasNewFormatPrefix = detectedNewFormat
             nsAttributedText = mutableAttributed
-
-            // 新增：递增版本号，强制触发视图更新
             contentVersion += 1
-
-            // 关键修复：移除 contentChangeSubject.send() 调用
-            // loadFromXML 是加载操作，不是编辑操作，不应触发 handleExternalContentUpdate
-            // contentVersion 的递增已经足以触发 SwiftUI 视图更新
-
-            // 调试日志：检查斜体字体是否正确保留
-            mutableAttributed.enumerateAttribute(.font, in: fullRange, options: []) { value, range, _ in
-                if let font = value as? NSFont {
-                    let traits = font.fontDescriptor.symbolicTraits
-                    let rangeText = (mutableAttributed.string as NSString).substring(with: range)
-                }
-            }
-
-            // 同时更新 attributedText（用于导出）
             if let attributed = try? AttributedString(mutableAttributed, including: \.appKit) {
                 attributedText = attributed
             }
-
             hasUnsavedChanges = false
         } catch {
-            // 关键修复：加载失败时清空编辑器，避免显示旧内容
             attributedText = AttributedString()
             nsAttributedText = NSAttributedString()
             hasUnsavedChanges = false
         }
     }
 
-    /// 导出为 XML
+    /// 导出正文为 XML（不含标题）
     ///
-    /// 将当前编辑器内容（nsAttributedText）转换为小米笔记 XML 格式
-    ///
-    /// **标题段落处理**：
-    /// - 第一个段落如果标记为 `.isTitle` 属性，会被识别为标题段落
-    /// - 标题段落通过 `AttributedStringToASTConverter` 转换为 `TitleBlockNode`
-    /// - `XMLGenerator` 将 `TitleBlockNode` 转换为 XML 的 `<title>` 标签
-    ///
-    /// - Returns: 小米笔记 XML 格式内容
-    /// - Note:
-    ///   - 使用 nsAttributedText 而不是 attributedText，因为 NativeEditorView 使用的是 nsAttributedText
-    ///   - 空内容返回空字符串
-    ///   - 转换失败时记录错误并返回空字符串
+    /// - Returns: 小米笔记 XML 格式内容（仅正文）
     func exportToXML() -> String {
-        // 处理空内容的情况
+        // 处理空正文的情况
         guard nsAttributedText.length > 0 else {
             return ""
         }
 
-        // 检查是否只包含空白字符
         let trimmedString = nsAttributedText.string.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedString.isEmpty {
             return ""
         }
 
         do {
-            // 关键修复：使用 nsAttributedText 而不是 attributedText
-            // 因为 NativeEditorView 使用的是 nsAttributedText，编辑后的内容存储在这里
             var xmlContent = try formatConverter.nsAttributedStringToXML(nsAttributedText)
 
-            // 如果原始内容有 <new-format/> 前缀，则在导出时也添加
             if hasNewFormatPrefix, !xmlContent.hasPrefix("<new-format/>") {
                 xmlContent = "<new-format/>" + xmlContent
             }
@@ -1091,76 +1012,6 @@ public class NativeEditorContext: ObservableObject {
         } catch {
             return ""
         }
-    }
-
-    /// 从编辑器内容提取标题
-    ///
-    /// 从当前编辑器内容中提取第一个段落作为标题
-    /// 如果第一个段落标记为 `.title` 类型，则提取其文本内容
-    ///
-    /// - Returns: 标题文本，如果没有标题段落则返回空字符串
-    ///
-    ///
-    /// 注意：
-    /// - 只提取第一个段落的文本
-    /// - 会移除末尾的换行符
-    /// - 如果第一个段落不是标题类型，返回空字符串
-    public func extractTitle() -> String {
-        // 处理空内容的情况
-        guard nsAttributedText.length > 0 else {
-            return ""
-        }
-
-        // 创建临时的 NSTextStorage 以使用 TitleIntegration
-        let textStorage = NSTextStorage(attributedString: nsAttributedText)
-
-        // 使用 TitleIntegration 提取标题
-        let title = TitleIntegration.shared.extractTitle(from: textStorage)
-
-        return title
-    }
-
-    // MARK: - 标题段落支持方法
-
-
-    /// 插入标题段落
-    ///
-    /// 将标题作为第一个段落插入到编辑器中
-    /// 标题段落使用特殊的格式标记（通过自定义属性）
-    ///
-    /// - Parameter title: 标题文本
-    ///
-    ///
-    /// 注意：
-    /// - 如果编辑器已有内容，标题会插入到最前面
-    /// - 标题后会自动添加换行符
-    /// - 标题使用自定义属性 `paragraphType` 标记为 `.title`
-    public func insertTitleParagraph(_ title: String) {
-
-        // 如果标题为空，不插入
-        guard !title.isEmpty else {
-            return
-        }
-
-        // 创建临时的 NSTextStorage
-        let textStorage = NSTextStorage(attributedString: nsAttributedText)
-
-        // 使用 TitleIntegration 插入标题
-        TitleIntegration.shared.insertTitle(title, into: textStorage)
-
-        // 更新编辑器内容
-        updateNSContent(NSAttributedString(attributedString: textStorage))
-
-    }
-
-    /// 从编辑器内容提取标题（别名方法）
-    ///
-    /// 此方法是 `extractTitle()` 的别名，提供更明确的命名
-    ///
-    /// - Returns: 标题文本，如果没有标题段落则返回空字符串
-    ///
-    public func extractTitleFromContent() -> String {
-        extractTitle()
     }
 
     /// 检查格式是否激活
@@ -1225,7 +1076,7 @@ public class NativeEditorContext: ObservableObject {
         // 当内容变化时，更新 hasUnsavedChanges 状态
         $nsAttributedText
             .dropFirst()
-            .sink { [weak self] newContent in
+            .sink { [weak self] _ in
                 guard let self else { return }
 
                 // 检查是否是程序化修改
@@ -1336,7 +1187,6 @@ public class NativeEditorContext: ObservableObject {
 
     // MARK: - 自动保存方法
 
-
     /// 执行自动保存
     ///
     /// 检查是否需要保存，如果需要则导出 XML 并触发保存流程
@@ -1346,12 +1196,8 @@ public class NativeEditorContext: ObservableObject {
     /// 1. 检查 needsSave 状态
     /// 2. 记录保存版本号
     /// 3. 导出 XML 内容
-    /// 4. 通过 contentChangeSubject 发布内容变化，触发 NotesViewModel 的保存逻辑
+    /// 4. 通过 contentChangeSubject 发布内容变化，触发上层保存逻辑
     /// 5. 检测并发编辑（保存期间是否有新编辑）
-    ///
-    /// **注意**：
-    /// - 保存成功/失败的处理将在后续任务 3.2 和 3.3 中由 NotesViewModel 调用 changeTracker 的方法
-    /// - 此方法只负责触发保存流程，不直接处理保存结果
     private func performAutoSave() async {
         // 1. 检查是否需要保存
         guard changeTracker.needsSave else {
@@ -1388,7 +1234,12 @@ public class NativeEditorContext: ObservableObject {
         hasUnsavedChanges = true
     }
 
-    /// 根据当前光标位置更新格式状态 
+    /// 通知标题变化（由 NativeEditorView.Coordinator 调用）
+    public func notifyTitleChange(_ title: String) {
+        titleChangeSubject.send(title)
+    }
+
+    /// 根据当前光标位置更新格式状态
     func updateCurrentFormats() {
 
         let errorHandler = FormatErrorHandler.shared
@@ -1451,7 +1302,6 @@ public class NativeEditorContext: ObservableObject {
             detectedFormats.formUnion(activeFormats)
         }
 
-
         // 更新状态并验证
         updateFormatsWithValidation(detectedFormats)
     }
@@ -1464,10 +1314,11 @@ public class NativeEditorContext: ObservableObject {
     }
 
     /// 批量更新状态
+    ///
+    /// 直接执行更新闭包，@Published 属性的修改会自动触发 objectWillChange
+    /// 不需要手动调用 objectWillChange.send()，否则会在视图渲染周期内产生额外发布
     func batchUpdateState(updates: () -> Void) {
-        objectWillChange.send()
         updates()
-        objectWillChange.send()
     }
 
     /// 更新混合格式状态
@@ -1538,8 +1389,7 @@ public class NativeEditorContext: ObservableObject {
         if !isBold {
             let fontName = font.fontName.lowercased()
             isBold = fontName.contains("bold") || fontName.contains("-bold")
-            if isBold {
-            }
+            if isBold {}
         }
 
         // 方法 3: 检查字体 weight（备用检测）
@@ -1549,8 +1399,7 @@ public class NativeEditorContext: ObservableObject {
             {
                 // NSFontWeight.bold 的值约为 0.4
                 isBold = weight >= 0.4
-                if isBold {
-                }
+                if isBold {}
             }
         }
 
@@ -1566,8 +1415,7 @@ public class NativeEditorContext: ObservableObject {
         if !isItalic {
             let fontName = font.fontName.lowercased()
             isItalic = fontName.contains("italic") || fontName.contains("oblique")
-            if isItalic {
-            }
+            if isItalic {}
         }
 
         if isItalic {
@@ -1783,30 +1631,26 @@ public class NativeEditorContext: ObservableObject {
     ///
     /// - Returns: 段落样式字符串（heading, subheading, subtitle, body, orderedList, unorderedList, blockQuote）
     public func getCurrentParagraphStyleString() -> String {
-        let result = detectParagraphStyleFromFormats(currentFormats)
-        return result
+        detectParagraphStyleFromFormats(currentFormats)
     }
 
     /// 从格式集合中检测段落样式
     private func detectParagraphStyleFromFormats(_ formats: Set<TextFormat>) -> String {
-        let paragraphStyle: String
-
         if formats.contains(.heading1) {
-            paragraphStyle = "heading"
+            "heading"
         } else if formats.contains(.heading2) {
-            paragraphStyle = "subheading"
+            "subheading"
         } else if formats.contains(.heading3) {
-            paragraphStyle = "subtitle"
+            "subtitle"
         } else if formats.contains(.numberedList) {
-            paragraphStyle = "orderedList"
+            "orderedList"
         } else if formats.contains(.bulletList) {
-            paragraphStyle = "unorderedList"
+            "unorderedList"
         } else if formats.contains(.quote) {
-            paragraphStyle = "blockQuote"
+            "blockQuote"
         } else {
-            paragraphStyle = "body"
+            "body"
         }
-        return paragraphStyle
     }
 
     /// 发送段落样式变化通知

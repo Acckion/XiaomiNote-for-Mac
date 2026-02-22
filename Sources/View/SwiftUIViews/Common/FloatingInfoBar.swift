@@ -86,7 +86,7 @@ struct FloatingInfoBar: View {
     /// 普通模式保存状态视图
     ///
     @ViewBuilder
-    private func normalSaveStatusView(_ status: NoteDetailView.SaveStatus) -> some View {
+    private func normalSaveStatusView(_ status: NoteEditingCoordinator.SaveStatus) -> some View {
         switch status {
         case .saved:
             // 已保存状态（绿色）
@@ -226,6 +226,6 @@ struct FloatingInfoBar: View {
 ///
 /// 用于区分普通模式和调试模式的保存状态
 enum SaveStatusType {
-    case normal(NoteDetailView.SaveStatus)
+    case normal(NoteEditingCoordinator.SaveStatus)
     case debug(DebugSaveStatus)
 }

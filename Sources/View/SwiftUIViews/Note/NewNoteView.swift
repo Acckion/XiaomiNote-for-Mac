@@ -2,7 +2,8 @@ import SwiftUI
 
 @available(macOS 14.0, *)
 struct NewNoteView: View {
-    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var noteListState: NoteListState
+    @ObservedObject var folderState: FolderState
     @Environment(\.dismiss) private var dismiss
 
     @State private var title = ""
@@ -17,12 +18,10 @@ struct NewNoteView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // 编辑器背景
                 Color(nsColor: NSColor.textBackgroundColor)
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // 标题（作为放大的正文，不单独区分）
                     HStack {
                         TextField("笔记标题", text: $title)
                             .font(.system(size: 28, weight: .regular))
@@ -34,10 +33,10 @@ struct NewNoteView: View {
 
                         Spacer()
 
-                        if !viewModel.folders.isEmpty {
+                        if !folderState.folders.isEmpty {
                             Picker("", selection: $selectedFolderId) {
                                 Text("未分类").tag(String?.none)
-                                ForEach(viewModel.folders.filter { !$0.isSystem || $0.id == "0" }) { folder in
+                                ForEach(folderState.folders.filter { !$0.isSystem || $0.id == "0" }) { folder in
                                     Text(folder.name).tag(folder.id as String?)
                                 }
                             }
@@ -47,7 +46,6 @@ struct NewNoteView: View {
                         }
                     }
 
-                    // 编辑器区域（正文）
                     NativeEditorView(
                         editorContext: nativeEditorContext,
                         onContentChange: { _ in
@@ -92,8 +90,7 @@ struct NewNoteView: View {
                 Text(errorMessage)
             }
             .onAppear {
-                // 默认选择第一个文件夹
-                if selectedFolderId == nil, let firstFolder = viewModel.folders.first(where: { !$0.isSystem || $0.id == "0" }) {
+                if selectedFolderId == nil, let firstFolder = folderState.folders.first(where: { !$0.isSystem || $0.id == "0" }) {
                     selectedFolderId = firstFolder.id
                 }
             }
@@ -107,38 +104,25 @@ struct NewNoteView: View {
         isCreating = true
 
         Task {
-            do {
-                // 确保 XML 内容格式正确
-                let finalContent = xmlContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? "<new-format/><text indent=\"1\"></text>"
-                    : xmlContent
+            let finalContent = xmlContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? "<new-format/><text indent=\"1\"></text>"
+                : xmlContent
 
-                let newNote = Note(
-                    id: UUID().uuidString,
-                    title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-                    content: finalContent,
-                    folderId: selectedFolderId ?? "0",
-                    isStarred: false,
-                    createdAt: Date(),
-                    updatedAt: Date()
-                )
+            let newNote = Note(
+                id: UUID().uuidString,
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                content: finalContent,
+                folderId: selectedFolderId ?? "0",
+                isStarred: false,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
 
-                try await viewModel.createNote(newNote)
+            await EventBus.shared.publish(NoteEvent.created(newNote))
 
-                // 创建成功后关闭视图
-                await MainActor.run {
-                    dismiss()
-                }
-            } catch {
-                errorMessage = error.localizedDescription
-                showError = true
-                isCreating = false
+            await MainActor.run {
+                dismiss()
             }
         }
     }
-}
-
-@available(macOS 14.0, *)
-#Preview {
-    NewNoteView(viewModel: PreviewHelper.shared.createPreviewViewModel())
 }

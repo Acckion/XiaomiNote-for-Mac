@@ -244,10 +244,9 @@
             title: "编辑时间",
             icon: "pencil",
             isSelected: true
-        ) {
-        }
-        .frame(width: 180)
-        .padding()
+        ) {}
+            .frame(width: 180)
+            .padding()
     }
 
     #Preview("菜单项按钮 - 未选中") {
@@ -255,10 +254,9 @@
             title: "创建时间",
             icon: "calendar.badge.plus",
             isSelected: false
-        ) {
-        }
-        .frame(width: 180)
-        .padding()
+        ) {}
+            .frame(width: 180)
+            .padding()
     }
 
 #endif

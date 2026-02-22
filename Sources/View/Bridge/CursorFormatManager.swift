@@ -294,7 +294,7 @@ extension CursorFormatManager {
         return state
     }
 
-    private func handleDetectionError(_ error: CursorFormatDetectionError) {
+    private func handleDetectionError(_: CursorFormatDetectionError) {
         let defaultState = FormatState.default
         currentFormatState = defaultState
         syncTypingAttributes(with: defaultState)
@@ -335,11 +335,10 @@ extension CursorFormatManager {
 
         if isCursorMode {
             let position = range.location
-            let state: FormatState
-            if UnifiedFormatManager.shared.isRegistered {
-                state = UnifiedFormatManager.shared.detectFormatState(at: position)
+            let state: FormatState = if UnifiedFormatManager.shared.isRegistered {
+                UnifiedFormatManager.shared.detectFormatState(at: position)
             } else {
-                state = detectFormatState(at: position)
+                detectFormatState(at: position)
             }
 
             currentFormatState = state
@@ -351,11 +350,10 @@ extension CursorFormatManager {
             notifyFormatStateManager(with: state)
         } else {
             let position = range.location
-            var state: FormatState
-            if UnifiedFormatManager.shared.isRegistered {
-                state = UnifiedFormatManager.shared.detectFormatState(in: range)
+            var state: FormatState = if UnifiedFormatManager.shared.isRegistered {
+                UnifiedFormatManager.shared.detectFormatState(in: range)
             } else {
-                state = detectFormatState(at: position)
+                detectFormatState(at: position)
             }
 
             state.hasSelection = true
@@ -379,47 +377,8 @@ extension CursorFormatManager {
     private func syncTypingAttributes(with state: FormatState) {
         guard let textView else { return }
 
-        let isInTitleParagraph = checkIfInTitleParagraph()
-
-        if isInTitleParagraph {
-            var titleAttributes = textView.typingAttributes
-            titleAttributes[.font] = NSFont.systemFont(ofSize: 40, weight: .semibold)
-            titleAttributes[.foregroundColor] = NSColor.labelColor
-            textView.typingAttributes = titleAttributes
-        } else {
-            let attributes = FormatAttributesBuilder.build(from: state)
-            textView.typingAttributes = attributes
-        }
-    }
-
-    /// 检查当前光标是否在标题段落中
-    /// - Returns: 是否在标题段落中
-    private func checkIfInTitleParagraph() -> Bool {
-        guard let textView,
-              let textStorage = textView.textStorage
-        else {
-            return false
-        }
-
-        let selectedRange = textView.selectedRange()
-        let cursorPosition = selectedRange.location
-
-        // 检查光标位置是否在标题段落中
-        if cursorPosition < textStorage.length {
-            // 获取光标所在行的范围
-            let string = textStorage.string as NSString
-            let lineRange = string.lineRange(for: NSRange(location: cursorPosition, length: 0))
-
-            // 检查该行是否有 .isTitle 属性
-            if lineRange.location < textStorage.length {
-                let attributes = textStorage.attributes(at: lineRange.location, effectiveRange: nil)
-                if let isTitle = attributes[.isTitle] as? Bool, isTitle {
-                    return true
-                }
-            }
-        }
-
-        return false
+        let attributes = FormatAttributesBuilder.build(from: state)
+        textView.typingAttributes = attributes
     }
 
     /// 更新工具栏状态

@@ -131,8 +131,8 @@ final class StartupSequenceManager: ObservableObject {
     private let operationProcessor = OperationProcessor.shared
     /// 统一操作队列（替代旧的 OfflineOperationQueue）
     private let unifiedQueue = UnifiedOperationQueue.shared
-    private let syncService = SyncService.shared
-    private let miNoteService = MiNoteService.shared
+    private let eventBus = EventBus.shared
+    private let apiClient = APIClient.shared
 
     // MARK: - Combine 订阅
 
@@ -298,7 +298,7 @@ final class StartupSequenceManager: ObservableObject {
     }
 
     private func performSync() async throws {
-        guard miNoteService.isAuthenticated() else {
+        guard apiClient.isAuthenticated() else {
             LogService.shared.debug(.core, "用户未登录，跳过同步")
             return
         }
@@ -308,8 +308,9 @@ final class StartupSequenceManager: ObservableObject {
             return
         }
 
-        let result = try await syncService.performSmartSync()
-        startupState.syncedNotesCount = result.syncedNotes
+        // 通过 EventBus 发布同步请求，由 SyncEngine 处理
+        await eventBus.publish(SyncEvent.requested(mode: .incremental))
+        startupState.syncedNotesCount = 0
     }
 }
 

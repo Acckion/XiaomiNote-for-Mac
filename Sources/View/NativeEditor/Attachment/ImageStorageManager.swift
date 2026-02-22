@@ -198,8 +198,7 @@ class ImageStorageManager {
             }
 
             let actualFileId = components.dropFirst().joined(separator: ".")
-            let miNoteService = MiNoteService.shared
-            let imageData = try await miNoteService.downloadFile(fileId: actualFileId, type: "note_img")
+            let imageData = try await FileAPI.shared.downloadFile(fileId: actualFileId, type: "note_img")
 
             let localStorage = LocalStorageService.shared
             try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: "jpg")

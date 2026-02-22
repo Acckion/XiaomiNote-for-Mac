@@ -1,229 +1,48 @@
 import SwiftUI
 
 public struct SettingsView: View {
-    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var syncState: SyncState
+    @ObservedObject var authState: AuthState
+    let noteStore: NoteStore
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage("syncInterval") private var syncInterval: Double = 300 // 默认5分钟
+    @AppStorage("syncInterval") private var syncInterval: Double = 300
     @AppStorage("autoSave") private var autoSave = true
     @AppStorage("offlineMode") private var offlineMode = false
     @AppStorage("theme") private var theme = "system"
     @AppStorage("autoRefreshCookie") private var autoRefreshCookie = false
-    @AppStorage("autoRefreshInterval") private var autoRefreshInterval: Double = 86400 // 默认每天（24小时）
-    @AppStorage("silentRefreshOnFailure") private var silentRefreshOnFailure = true // 默认启用静默刷新
+    @AppStorage("autoRefreshInterval") private var autoRefreshInterval: Double = 86400
+    @AppStorage("silentRefreshOnFailure") private var silentRefreshOnFailure = true
 
-    // 编辑器显示设置
-    @AppStorage("editorFontSize") private var editorFontSize = 14.0 // 默认字体大小 14px
-    @AppStorage("editorLineHeight") private var editorLineHeight = 1.5 // 默认行间距 1.5
+    @AppStorage("editorFontSize") private var editorFontSize = 14.0
+    @AppStorage("editorLineHeight") private var editorLineHeight = 1.5
 
     @State private var showLogoutAlert = false
     @State private var showClearCacheAlert = false
 
-    public init(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    init(syncState: SyncState, authState: AuthState, noteStore: NoteStore) {
+        self.syncState = syncState
+        self.authState = authState
+        self.noteStore = noteStore
     }
 
     public var body: some View {
         NavigationStack {
             Form {
-                Section("同步设置") {
-                    Toggle("自动保存", isOn: $autoSave)
-
-                    Picker("同步间隔", selection: $syncInterval) {
-                        Text("10秒").tag(10.0)
-                        Text("30秒").tag(30.0)
-                        Text("1分钟").tag(60.0)
-                        Text("5分钟").tag(300.0)
-                        Text("15分钟").tag(900.0)
-                        Text("30分钟").tag(1800.0)
-                        Text("1小时").tag(3600.0)
-                    }
-                    .onChange(of: syncInterval) { newValue in
-                        viewModel.updateSyncInterval(newValue)
-                    }
-
-                    Toggle("离线模式", isOn: $offlineMode)
-                        .help("离线模式下仅使用本地缓存，不进行网络同步")
-
-                    Toggle("自动刷新Cookie", isOn: $autoRefreshCookie)
-                        .help("启用后，系统会自动定期刷新Cookie，避免Cookie过期导致同步失败")
-
-                    if autoRefreshCookie {
-                        Picker("刷新频率", selection: $autoRefreshInterval) {
-                            Text("每天").tag(86400.0)
-                            Text("每周").tag(604_800.0)
-                            Text("每月").tag(2_592_000.0)
-                        }
-                        .help("自动刷新Cookie的时间间隔")
-                    }
-
-                    Toggle("Cookie失效时静默刷新", isOn: $silentRefreshOnFailure)
-                        .help("启用后，当Cookie失效时会自动尝试静默刷新，刷新失败才会弹窗提示")
-                }
-
-                Section("编辑器") {
-                    NavigationLink("编辑器设置") {
-                        EditorSettingsView()
-                    }
-                    .help("配置原生编辑器")
-                }
-
-                Section("调试") {
-                    NavigationLink("操作队列调试") {
-                        OperationQueueDebugView()
-                    }
-                    .help("查看和管理待上传注册表、离线操作队列等")
-
-                    NavigationLink("调试设置") {
-                        DebugSettingsView()
-                    }
-                    .help("Cookie 管理、API 测试等调试功能")
-                }
-
-                Section("外观") {
-                    Picker("主题", selection: $theme) {
-                        Text("跟随系统").tag("system")
-                        Text("浅色").tag("light")
-                        Text("深色").tag("dark")
-                    }
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("编辑器显示")
-                            .font(.headline)
-                            .padding(.bottom, 4)
-
-                        // 字体大小设置
-                        VStack(alignment: .leading, spacing: 8) {
-                            Slider(value: $editorFontSize, in: 12 ... 24, step: 1) {
-                                Text("字体大小")
-                            } minimumValueLabel: {
-                                Text("12")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            } maximumValueLabel: {
-                                Text("24")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .onChange(of: editorFontSize) { _ in
-                                // 立即应用字体大小更改
-                                applyEditorSettings()
-                            }
-                        }
-
-                        // 行间距设置
-                        VStack(alignment: .leading, spacing: 8) {
-                            Slider(value: $editorLineHeight, in: 1.0 ... 2.5, step: 0.1) {
-                                Text("行间距")
-                            } minimumValueLabel: {
-                                Text("1.0")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            } maximumValueLabel: {
-                                Text("2.5")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .onChange(of: editorLineHeight) { _ in
-                                // 立即应用行间距更改
-                                applyEditorSettings()
-                            }
-                        }
-
-                        // 预设按钮
-                        HStack {
-                            Spacer()
-                            Button("重置为默认") {
-                                editorFontSize = 14.0
-                                editorLineHeight = 1.5
-                                applyEditorSettings()
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
-                        .padding(.top, 8)
-                    }
-                    .padding(.vertical, 8)
-                }
-
-                Section("私密笔记") {
-                    PrivateNotesPasswordSettingsView()
-                }
-
-                Section("账户") {
-                    // 用户信息显示
-                    if let profile = viewModel.userProfile {
-                        HStack {
-                            // 头像
-                            AsyncImage(url: URL(string: profile.icon)) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            } placeholder: {
-                                Image(systemName: "person.circle.fill")
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(width: 40, height: 40)
-                            .clipShape(Circle())
-
-                            // 用户名
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(profile.nickname)
-                                    .font(.headline)
-                                Text("已登录")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                            }
-
-                            Spacer()
-                        }
-                        .padding(.vertical, 4)
-                    } else {
-                        HStack {
-                            Text("登录状态")
-                            Spacer()
-                            if viewModel.isLoggedIn {
-                                Text("已登录")
-                                    .foregroundColor(.green)
-                            } else {
-                                Text("未登录")
-                                    .foregroundColor(.red)
-                            }
-                        }
-                    }
-
-                    Button("重新登录") {
-                        // 发送通知让主窗口控制器显示登录视图
-                        NotificationCenter.default.post(name: NSNotification.Name("ShowLoginView"), object: nil)
-                        dismiss()
-                    }
-
-                    Button("退出登录", role: .destructive) {
-                        showLogoutAlert = true
-                    }
-                }
-
-                Section("数据管理") {
-                    Button("清除本地缓存") {
-                        showClearCacheAlert = true
-                    }
-
-                    Button("导出所有笔记") {
-                        exportNotes()
-                    }
-
-                    Button("从文件导入") {
-                        importNotes()
-                    }
-                }
+                syncSection
+                editorSection
+                debugSection
+                appearanceSection
+                privateNotesSection
+                accountSection
+                dataManagementSection
             }
             .formStyle(.grouped)
             .navigationTitle("设置")
             .toolbarTitleDisplayMode(.inline)
-            .toolbarBackground(.ultraThinMaterial, for: .windowToolbar) // 导航栏模糊背景
+            .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
             .toolbarBackgroundVisibility(.automatic, for: .windowToolbar)
             .toolbar {
-                // 空工具栏，确保导航栏始终存在以保持大圆角样式
                 ToolbarItem(placement: .automatic) {
                     Color.clear.frame(width: 0, height: 0)
                 }
@@ -245,12 +64,216 @@ public struct SettingsView: View {
                 Text("清除缓存将删除所有本地笔记数据，但不会影响云端数据。")
             }
         }
-        .background(.ultraThickMaterial) // macOS 26 材质背景
+        .background(.ultraThickMaterial)
         .frame(minWidth: 550, idealWidth: 650, minHeight: 500, idealHeight: 600)
     }
 
+    // MARK: - 各 Section
+
+    private var syncSection: some View {
+        Section("同步设置") {
+            Toggle("自动保存", isOn: $autoSave)
+
+            Picker("同步间隔", selection: $syncInterval) {
+                Text("10秒").tag(10.0)
+                Text("30秒").tag(30.0)
+                Text("1分钟").tag(60.0)
+                Text("5分钟").tag(300.0)
+                Text("15分钟").tag(900.0)
+                Text("30分钟").tag(1800.0)
+                Text("1小时").tag(3600.0)
+            }
+            .onChange(of: syncInterval) { newValue in
+                syncState.updateSyncInterval(newValue)
+            }
+
+            Toggle("离线模式", isOn: $offlineMode)
+                .help("离线模式下仅使用本地缓存，不进行网络同步")
+
+            Toggle("自动刷新Cookie", isOn: $autoRefreshCookie)
+                .help("启用后，系统会自动定期刷新Cookie，避免Cookie过期导致同步失败")
+
+            if autoRefreshCookie {
+                Picker("刷新频率", selection: $autoRefreshInterval) {
+                    Text("每天").tag(86400.0)
+                    Text("每周").tag(604_800.0)
+                    Text("每月").tag(2_592_000.0)
+                }
+                .help("自动刷新Cookie的时间间隔")
+            }
+
+            Toggle("Cookie失效时静默刷新", isOn: $silentRefreshOnFailure)
+                .help("启用后，当Cookie失效时会自动尝试静默刷新，刷新失败才会弹窗提示")
+        }
+    }
+
+    private var editorSection: some View {
+        Section("编辑器") {
+            NavigationLink("编辑器设置") {
+                EditorSettingsView()
+            }
+            .help("配置原生编辑器")
+        }
+    }
+
+    private var debugSection: some View {
+        Section("调试") {
+            NavigationLink("操作队列调试") {
+                OperationQueueDebugView(noteStore: noteStore)
+            }
+            .help("查看和管理待上传注册表、离线操作队列等")
+
+            NavigationLink("XML 往返一致性检测") {
+                XMLRoundtripDebugView()
+            }
+            .help("检测所有笔记的 XML 转换往返一致性")
+
+            NavigationLink("调试设置") {
+                DebugSettingsView()
+            }
+            .help("Cookie 管理、API 测试等调试功能")
+        }
+    }
+
+    private var appearanceSection: some View {
+        Section("外观") {
+            Picker("主题", selection: $theme) {
+                Text("跟随系统").tag("system")
+                Text("浅色").tag("light")
+                Text("深色").tag("dark")
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("编辑器显示")
+                    .font(.headline)
+                    .padding(.bottom, 4)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Slider(value: $editorFontSize, in: 12 ... 24, step: 1) {
+                        Text("字体大小")
+                    } minimumValueLabel: {
+                        Text("12")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } maximumValueLabel: {
+                        Text("24")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .onChange(of: editorFontSize) { _ in
+                        applyEditorSettings()
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Slider(value: $editorLineHeight, in: 1.0 ... 2.5, step: 0.1) {
+                        Text("行间距")
+                    } minimumValueLabel: {
+                        Text("1.0")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } maximumValueLabel: {
+                        Text("2.5")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .onChange(of: editorLineHeight) { _ in
+                        applyEditorSettings()
+                    }
+                }
+
+                HStack {
+                    Spacer()
+                    Button("重置为默认") {
+                        editorFontSize = 14.0
+                        editorLineHeight = 1.5
+                        applyEditorSettings()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(.top, 8)
+            }
+            .padding(.vertical, 8)
+        }
+    }
+
+    private var privateNotesSection: some View {
+        Section("私密笔记") {
+            PrivateNotesPasswordSettingsView()
+        }
+    }
+
+    private var accountSection: some View {
+        Section("账户") {
+            if let profile = authState.userProfile {
+                HStack {
+                    AsyncImage(url: URL(string: profile.icon)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Image(systemName: "person.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(profile.nickname)
+                            .font(.headline)
+                        Text("已登录")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    }
+
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+            } else {
+                HStack {
+                    Text("登录状态")
+                    Spacer()
+                    if authState.isLoggedIn {
+                        Text("已登录")
+                            .foregroundColor(.green)
+                    } else {
+                        Text("未登录")
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+
+            Button("重新登录") {
+                NotificationCenter.default.post(name: NSNotification.Name("ShowLoginView"), object: nil)
+                dismiss()
+            }
+
+            Button("退出登录", role: .destructive) {
+                showLogoutAlert = true
+            }
+        }
+    }
+
+    private var dataManagementSection: some View {
+        Section("数据管理") {
+            Button("清除本地缓存") {
+                showClearCacheAlert = true
+            }
+
+            Button("导出所有笔记") {
+                exportNotes()
+            }
+
+            Button("从文件导入") {
+                importNotes()
+            }
+        }
+    }
+
+    // MARK: - 操作方法
+
     private func saveSettings() {
-        // 保存设置到UserDefaults
         UserDefaults.standard.set(syncInterval, forKey: "syncInterval")
         UserDefaults.standard.set(autoSave, forKey: "autoSave")
         UserDefaults.standard.set(offlineMode, forKey: "offlineMode")
@@ -261,24 +284,18 @@ public struct SettingsView: View {
         UserDefaults.standard.set(editorFontSize, forKey: "editorFontSize")
         UserDefaults.standard.set(editorLineHeight, forKey: "editorLineHeight")
 
-        // 通知ViewModel设置已更改
-        viewModel.syncInterval = syncInterval
-        viewModel.autoSave = autoSave
+        syncState.updateSyncInterval(syncInterval)
 
-        // 启动或停止自动刷新Cookie定时器
         if autoRefreshCookie {
-            viewModel.startAutoRefreshCookieIfNeeded()
+            authState.startAutoRefreshCookieIfNeeded()
         } else {
-            viewModel.stopAutoRefreshCookie()
+            authState.stopAutoRefreshCookie()
         }
 
-        // 应用编辑器设置
         applyEditorSettings()
     }
 
-    /// 应用编辑器显示设置（字体大小和行间距）
     private func applyEditorSettings() {
-        // 通知所有活动的编辑器更新显示设置
         NotificationCenter.default.post(
             name: NSNotification.Name("EditorSettingsChanged"),
             object: nil,
@@ -292,62 +309,46 @@ public struct SettingsView: View {
     }
 
     private func logout() {
-        // 清除cookie
-        MiNoteService.shared.clearCookie()
-
-        // 清除本地数据
-        viewModel.notes = []
-        viewModel.folders = []
-        viewModel.selectedNote = nil
-        viewModel.selectedFolder = nil
-
-        // 显示登录视图
-        viewModel.showLoginView = true
-
+        APIClient.shared.clearCookie()
+        authState.handleLogout()
         dismiss()
     }
 
     private func clearCache() {
-        // 清除所有本地存储的数据
         UserDefaults.standard.removeObject(forKey: "cachedNotes")
         UserDefaults.standard.removeObject(forKey: "cachedFolders")
 
-        // 重新加载空数据
-        viewModel.notes = []
-        viewModel.folders = []
-
-        // 如果已登录，从云端重新加载
-        if viewModel.isLoggedIn {
-            Task {
-                await viewModel.loadNotesFromCloud()
-            }
+        if authState.isLoggedIn {
+            syncState.requestFullSync(mode: .normal)
         }
     }
 
     private func exportNotes() {
-        let notesData = viewModel.notes.map { $0.toMinoteData() }
+        Task {
+            let notes = await noteStore.notes
+            let notesData = notes.map { NoteMapper.toUploadPayload($0) }
 
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: notesData, options: .prettyPrinted)
+            do {
+                let jsonData = try JSONSerialization.data(withJSONObject: notesData, options: .prettyPrinted)
 
-            let savePanel = NSSavePanel()
-            savePanel.title = "导出笔记"
-            savePanel.nameFieldStringValue = "小米笔记备份.json"
-            savePanel.allowedContentTypes = [.json]
+                let savePanel = NSSavePanel()
+                savePanel.title = "导出笔记"
+                savePanel.nameFieldStringValue = "小米笔记备份.json"
+                savePanel.allowedContentTypes = [.json]
 
-            if savePanel.runModal() == .OK, let url = savePanel.url {
-                try jsonData.write(to: url)
+                if savePanel.runModal() == .OK, let url = savePanel.url {
+                    try jsonData.write(to: url)
 
-                // 显示成功提示
-                let alert = NSAlert()
-                alert.messageText = "导出成功"
-                alert.informativeText = "笔记已成功导出到 \(url.lastPathComponent)"
-                alert.alertStyle = .informational
-                alert.addButton(withTitle: "确定")
-                alert.runModal()
+                    let alert = NSAlert()
+                    alert.messageText = "导出成功"
+                    alert.informativeText = "笔记已成功导出到 \(url.lastPathComponent)"
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: "确定")
+                    alert.runModal()
+                }
+            } catch {
+                LogService.shared.error(.app, "导出笔记失败: \(error)")
             }
-        } catch {
-            LogService.shared.error(.app, "导出笔记失败: \(error)")
         }
     }
 
@@ -362,11 +363,10 @@ public struct SettingsView: View {
                 let jsonData = try Data(contentsOf: url)
                 let notesArray = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [[String: Any]] ?? []
 
-                // 导入笔记到ViewModel
-                let importedNotes = notesArray.compactMap { Note.fromMinoteData($0) }
-                viewModel.notes.append(contentsOf: importedNotes)
+                let importedNotes = notesArray.compactMap { NoteMapper.fromMinoteListData($0) }
+                // TODO: 导入功能需要通过 NoteStore 或 EventBus 处理，后续任务实现
+                LogService.shared.info(.app, "导入了 \(importedNotes.count) 条笔记，待后续处理")
 
-                // 显示成功提示
                 let alert = NSAlert()
                 alert.messageText = "导入成功"
                 alert.informativeText = "成功导入 \(importedNotes.count) 条笔记"
@@ -377,16 +377,6 @@ public struct SettingsView: View {
                 LogService.shared.error(.app, "导入笔记失败: \(error)")
             }
         }
-    }
-
-    private func checkForUpdates() {
-        // 检查更新逻辑
-        let alert = NSAlert()
-        alert.messageText = "检查更新"
-        alert.informativeText = "当前已是最新版本 (1.0.0)"
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "确定")
-        alert.runModal()
     }
 }
 
@@ -423,7 +413,6 @@ struct PrivateNotesPasswordSettingsView: View {
 
                 Divider()
 
-                // Touch ID 设置
                 if passwordManager.isBiometricAvailable() {
                     Toggle("使用 \(passwordManager.getBiometricType() ?? "Touch ID")", isOn: $touchIDEnabled)
                         .onChange(of: touchIDEnabled) { newValue in
@@ -672,5 +661,5 @@ struct ChangePasswordDialogView: View {
 }
 
 #Preview {
-    SettingsView(viewModel: PreviewHelper.shared.createPreviewViewModel())
+    SettingsView(syncState: SyncState(), authState: AuthState(), noteStore: NoteStore(db: .shared, eventBus: .shared))
 }

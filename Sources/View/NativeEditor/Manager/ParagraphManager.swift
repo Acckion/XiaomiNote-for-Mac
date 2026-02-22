@@ -9,19 +9,6 @@ public class ParagraphManager {
     /// 当前所有段落
     public private(set) var paragraphs: [Paragraph] = []
 
-    // MARK: - Testing Support
-
-    /// 设置段落列表（仅用于测试）
-    /// - Parameter paragraphs: 段落数组
-    func setParagraphs(_ paragraphs: [Paragraph]) {
-        self.paragraphs = paragraphs
-    }
-
-    /// 标题段落（总是第一个）
-    public var titleParagraph: Paragraph? {
-        paragraphs.first(where: { $0.type == .title })
-    }
-
     // MARK: - Initialization
 
     public init() {}
@@ -191,13 +178,10 @@ public class ParagraphManager {
 
         // 2. 如果段落列表为空（首次初始化），直接创建所有段落
         if paragraphs.isEmpty {
-            paragraphs = newParagraphRanges.enumerated().map { index, range in
-                // 第一个段落是标题类型
-                let type: ParagraphType = (index == 0) ? .title : .normal
-
-                return Paragraph(
+            paragraphs = newParagraphRanges.map { range in
+                Paragraph(
                     range: range,
-                    type: type,
+                    type: .normal,
                     version: 0,
                     needsReparse: true
                 )
@@ -259,13 +243,9 @@ public class ParagraphManager {
                     paragraphs.remove(at: location)
                 }
             } else {
-                // 没有找到对应的旧段落，创建新段落
-                // 第一个段落保持标题类型
-                let type: ParagraphType = (index == 0 && newParagraphs.isEmpty) ? .title : .normal
-
                 let newParagraph = Paragraph(
                     range: newRange,
-                    type: type,
+                    type: .normal,
                     version: 0,
                     needsReparse: true
                 )
@@ -353,8 +333,7 @@ public class ParagraphManager {
         // 根据段落类型应用相应的格式
         switch type {
         case .title:
-            // 标题段落：应用标题样式（通常是第一个段落）
-            applyTitleFormat(to: paragraphRange, in: textStorage)
+            break
 
         case let .heading(level):
             // 标题格式：应用对应级别的标题字体大小
@@ -398,27 +377,6 @@ public class ParagraphManager {
 
     // MARK: - Format Application Helpers
 
-    /// 应用标题段落格式
-    ///
-    /// - Parameters:
-    ///   - range: 应用范围
-    ///   - textStorage: 文本存储
-    private func applyTitleFormat(to range: NSRange, in textStorage: NSTextStorage) {
-        // 标题段落使用较大的字体（可以根据需要调整）
-        let titleFont = NSFont.systemFont(ofSize: 18, weight: .semibold)
-        textStorage.addAttribute(.font, value: titleFont, range: range)
-
-        // 设置段落样式
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .left
-        paragraphStyle.lineSpacing = 4
-        paragraphStyle.paragraphSpacing = 12
-        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
-
-        // 设置元属性标记
-        textStorage.addAttribute(.isTitle, value: true, range: range)
-    }
-
     /// 应用标题格式
     ///
     /// - Parameters:
@@ -459,7 +417,6 @@ public class ParagraphManager {
         textStorage.addAttribute(.font, value: normalFont, range: range)
 
         // 移除所有块级格式属性
-        textStorage.removeAttribute(.isTitle, range: range)
         textStorage.removeAttribute(.listType, range: range)
         textStorage.removeAttribute(.listIndent, range: range)
         textStorage.removeAttribute(.listNumber, range: range)

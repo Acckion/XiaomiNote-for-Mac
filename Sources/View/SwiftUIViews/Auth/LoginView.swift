@@ -2,7 +2,7 @@ import SwiftUI
 import WebKit
 
 struct LoginView: View {
-    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var authState: AuthState
     @Environment(\.dismiss) private var dismiss
 
     @State private var isLoggedIn = false
@@ -137,7 +137,8 @@ struct LoginView: View {
                     }
                 }
 
-                await viewModel.loadNotesFromCloud()
+                // 通过 AuthState 处理登录成功逻辑（包括获取用户信息、发布事件等）
+                await authState.handleLoginSuccess()
             } catch {
                 LogService.shared.error(.core, "三步流程失败: \(error.localizedDescription)")
                 await MainActor.run {
@@ -192,7 +193,7 @@ struct WebView: NSViewRepresentable {
             self.parent = parent
         }
 
-        func webView(_ webView: WKWebView, didStartProvisionalNavigation _: WKNavigation!) {
+        func webView(_: WKWebView, didStartProvisionalNavigation _: WKNavigation!) {
             DispatchQueue.main.async {
                 self.parent.isLoading = true
             }
@@ -221,7 +222,7 @@ struct WebView: NSViewRepresentable {
                 let passToken = cookies.first(where: { $0.name == "passToken" })?.value
                 let userId = cookies.first(where: { $0.name == "userId" })?.value
 
-                let cookieNames = cookies.map { $0.name }
+                let cookieNames = cookies.map(\.name)
                 LogService.shared.debug(.core, "WebView 获取到 cookie 列表: \(cookieNames.joined(separator: ", "))")
 
                 guard let passToken, !passToken.isEmpty,
@@ -237,14 +238,14 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        func webView(_ webView: WKWebView, didFail _: WKNavigation!, withError error: Error) {
+        func webView(_: WKWebView, didFail _: WKNavigation!, withError error: Error) {
             LogService.shared.error(.core, "WebView 导航失败: \(error.localizedDescription)")
             DispatchQueue.main.async {
                 self.parent.isLoading = false
             }
         }
 
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError error: Error) {
+        func webView(_: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError error: Error) {
             LogService.shared.error(.core, "WebView 加载失败: \(error.localizedDescription)")
             DispatchQueue.main.async {
                 self.parent.isLoading = false
@@ -253,7 +254,7 @@ struct WebView: NSViewRepresentable {
 
         func webView(
             _: WKWebView,
-            decidePolicyFor navigationAction: WKNavigationAction,
+            decidePolicyFor _: WKNavigationAction,
             decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
         ) {
             decisionHandler(.allow)
@@ -262,5 +263,5 @@ struct WebView: NSViewRepresentable {
 }
 
 #Preview {
-    LoginView(viewModel: PreviewHelper.shared.createPreviewViewModel())
+    LoginView(authState: AuthState())
 }

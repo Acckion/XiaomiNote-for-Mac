@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 私密笔记验证视图（类似Apple Notes样式）
 struct PrivateNotesVerificationView: View {
-    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var authState: AuthState
     @State private var password = ""
     @State private var showError = false
     @State private var errorMessage = ""
@@ -18,12 +18,10 @@ struct PrivateNotesVerificationView: View {
 
             // 锁图标和Touch ID图标
             ZStack {
-                // 大锁图标
                 Image(systemName: "lock.fill")
                     .font(.system(size: 80))
                     .foregroundColor(.secondary)
 
-                // Touch ID图标（如果支持且启用）
                 if passwordManager.isTouchIDEnabled(), passwordManager.isBiometricAvailable() {
                     Image(systemName: "touchid")
                         .font(.system(size: 40))
@@ -33,13 +31,11 @@ struct PrivateNotesVerificationView: View {
             }
             .padding(.bottom, 30)
 
-            // 提示文字
             Text("此笔记已锁定。")
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.primary)
                 .padding(.bottom, 8)
 
-            // 说明文字
             Text("使用触控 ID 或输入为\"iCloud\"账户中笔记创建的密码查看此笔记。")
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
@@ -47,7 +43,6 @@ struct PrivateNotesVerificationView: View {
                 .padding(.horizontal, 40)
                 .padding(.bottom, 30)
 
-            // 密码输入按钮
             Button {
                 showPasswordInput = true
             } label: {
@@ -58,7 +53,6 @@ struct PrivateNotesVerificationView: View {
             .buttonStyle(.bordered)
             .padding(.bottom, 20)
 
-            // Touch ID按钮（如果支持且启用）
             if passwordManager.isTouchIDEnabled(), passwordManager.isBiometricAvailable() {
                 Button {
                     authenticateWithTouchID()
@@ -82,7 +76,7 @@ struct PrivateNotesVerificationView: View {
         .background(Color(nsColor: NSColor.textBackgroundColor))
         .sheet(isPresented: $showPasswordInput) {
             PasswordInputSheetView(
-                viewModel: viewModel,
+                authState: authState,
                 password: $password,
                 showError: $showError,
                 errorMessage: $errorMessage,
@@ -105,8 +99,7 @@ struct PrivateNotesVerificationView: View {
                 await MainActor.run {
                     isAuthenticating = false
                     if success {
-                        // Touch ID 验证成功，解锁私密笔记
-                        viewModel.unlockPrivateNotes()
+                        authState.unlockPrivateNotes()
                     }
                 }
             } catch let error as PasswordError {
@@ -114,10 +107,8 @@ struct PrivateNotesVerificationView: View {
                     isAuthenticating = false
                     switch error {
                     case .biometricCancelled:
-                        // 用户取消，不显示错误
                         break
                     case .biometricFallback:
-                        // 用户选择使用密码，显示密码输入
                         showPasswordInput = true
                     default:
                         errorMessage = error.localizedDescription ?? "Touch ID 验证失败"
@@ -137,7 +128,7 @@ struct PrivateNotesVerificationView: View {
 
 /// 密码输入Sheet视图
 struct PasswordInputSheetView: View {
-    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var authState: AuthState
     @Binding var password: String
     @Binding var showError: Bool
     @Binding var errorMessage: String
@@ -191,9 +182,8 @@ struct PasswordInputSheetView: View {
         .padding(30)
         .frame(width: 400)
         .onAppear {
-            // 自动聚焦密码输入框
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                // 这里可以添加自动聚焦逻辑
+                // 自动聚焦密码输入框
             }
         }
     }
@@ -202,15 +192,13 @@ struct PasswordInputSheetView: View {
         if password.isEmpty {
             errorMessage = "请输入密码"
             showError = true
-        } else if viewModel.verifyPrivateNotesPassword(password) {
-            // 密码正确，解锁私密笔记（verifyPrivateNotesPassword已经调用了unlockPrivateNotes）
+        } else if authState.verifyPrivateNotesPassword(password) {
             password = ""
             showError = false
             errorMessage = ""
             dismiss()
             onDismiss()
         } else {
-            // 密码错误
             errorMessage = "密码错误，请重试"
             showError = true
             password = ""
