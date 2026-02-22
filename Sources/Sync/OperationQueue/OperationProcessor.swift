@@ -682,13 +682,16 @@ extension OperationProcessor {
                 newNoteId: serverNoteId
             )
 
-            // 6. 触发 ID 更新回调
+            // 6. 注册 ID 映射，供后续 switchToNote 等场景解析临时 ID
+            try IdMappingRegistry.shared.registerMapping(localId: note.id, serverId: serverNoteId, entityType: "note")
+
+            // 7. 触发 ID 更新回调
             await onIdMappingCreated?(note.id, serverNoteId)
 
-            // 7. 发送 ID 变更事件
+            // 8. 发送 ID 变更事件
             await eventBus.publish(NoteEvent.saved(updatedNote))
 
-            // 8. 发布 ID 迁移事件，通知 UI 层更新引用
+            // 9. 发布 ID 迁移事件，通知 UI 层更新引用
             await eventBus.publish(NoteEvent.idMigrated(oldId: note.id, newId: serverNoteId, note: updatedNote))
 
             LogService.shared.info(.sync, "OperationProcessor ID 更新完成: \(note.id) -> \(serverNoteId)")

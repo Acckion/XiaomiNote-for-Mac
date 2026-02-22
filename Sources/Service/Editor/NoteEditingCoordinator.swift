@@ -310,9 +310,15 @@ public final class NoteEditingCoordinator: ObservableObject {
         var resolvedNote = note
         if NoteOperation.isTemporaryId(note.id) {
             let resolvedId = IdMappingRegistry.shared.resolveId(note.id)
-            if resolvedId != note.id, let officialNote = await noteStore?.getNote(byId: resolvedId) {
-                LogService.shared.info(.editor, "switchToNote 检测到临时 ID 已迁移: \(note.id.prefix(8))... -> \(resolvedId.prefix(8))...")
-                resolvedNote = officialNote
+            if resolvedId != note.id {
+                if let officialNote = await noteStore?.getNote(byId: resolvedId) {
+                    resolvedNote = officialNote
+                } else if let dbNote = try? LocalStorageService.shared.loadNote(noteId: resolvedId) {
+                    resolvedNote = dbNote
+                }
+                if resolvedNote.id != note.id {
+                    LogService.shared.info(.editor, "switchToNote 临时 ID 已迁移: \(note.id.prefix(8))... -> \(resolvedId.prefix(8))...")
+                }
             }
         }
 
