@@ -142,6 +142,7 @@ SwiftUI 视图层 (View ← 读取 State 对象)
   - `MainWindowController+Search.swift`: NSSearchFieldDelegate + 搜索筛选
   - `MainWindowController+Delegates.swift`: NSWindowDelegate + NSMenuDelegate + NSUserInterfaceValidations
   - `MainWindowController+StateObservers.swift`: 状态监听 + 窗口标题更新
+- `NoteEditorWindowController.swift`: 独立笔记编辑器窗口控制器（在新窗口中编辑特定笔记）
 - `NoteStore.swift`: 笔记数据存储和操作（依赖注入，非单例）
 - `SyncEngine.swift`: 云端同步引擎（Actor）
 - `EventBus.swift`: 跨层事件通信（Actor）
