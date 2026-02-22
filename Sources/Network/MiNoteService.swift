@@ -12,32 +12,20 @@ import Foundation
 public final class MiNoteService: @unchecked Sendable {
     public static let shared = MiNoteService()
 
-    // MARK: - 配置常量
+    // MARK: - 桥接到 APIClient（过渡期使用，后续 Task 7 会重写为完整 Facade）
 
-    /// 小米笔记API基础URL
-    let baseURL = "https://i.mi.com"
-
-    // MARK: - 网络请求管理器
-
-    /// 网络请求管理器（可选，逐步迁移）
-    private var requestManager: NetworkRequestManager?
-
-    @MainActor
-    private func getRequestManager() -> NetworkRequestManager {
-        NetworkRequestManager.shared
+    private var apiClient: APIClient {
+        APIClient.shared
     }
 
-    /// 使用 NetworkRequestManager 执行请求（辅助方法）
-    ///
-    /// - Parameters:
-    ///   - url: 请求URL
-    ///   - method: HTTP方法
-    ///   - headers: 请求头
-    ///   - body: 请求体数据
-    ///   - priority: 请求优先级
-    ///   - cachePolicy: 缓存策略
-    /// - Returns: API响应字典
-    /// - Throws: MiNoteError（网络错误、认证错误等）
+    var baseURL: String {
+        apiClient.baseURL
+    }
+
+    private var serviceToken: String {
+        apiClient.serviceToken
+    }
+
     func performRequest(
         url: String,
         method: String = "GET",
@@ -46,198 +34,48 @@ public final class MiNoteService: @unchecked Sendable {
         priority: RequestPriority = .normal,
         cachePolicy: NetworkRequest.CachePolicy = .noCache
     ) async throws -> [String: Any] {
-        // 记录请求
-        let bodyString = body.flatMap { String(data: $0, encoding: .utf8) }
-        NetworkLogger.shared.logRequest(
-            url: url,
-            method: method,
-            headers: headers,
-            body: bodyString
-        )
-
-        do {
-            // 使用 NetworkRequestManager 执行请求（通过 MainActor 访问）
-            let manager = await MainActor.run { NetworkRequestManager.shared }
-            let response = try await manager.request(
-                url: url,
-                method: method,
-                headers: headers,
-                body: body,
-                priority: priority,
-                cachePolicy: cachePolicy,
-                retryOnFailure: true
-            )
-
-            let responseString = String(data: response.data, encoding: .utf8)
-
-            // 记录响应
-            NetworkLogger.shared.logResponse(
-                url: url,
-                method: method,
-                statusCode: response.response.statusCode,
-                headers: response.response.allHeaderFields as? [String: String],
-                response: responseString,
-                error: nil
-            )
-
-            // 处理401未授权错误
-            if response.response.statusCode == 401 {
-                try handle401Error(responseBody: responseString ?? "", urlString: url)
-            }
-
-            // 检查状态码
-            if response.response.statusCode != 200 {
-                let errorMessage = responseString ?? "未知错误"
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-
-            // 解析JSON响应
-            return try JSONSerialization.jsonObject(with: response.data) as? [String: Any] ?? [:]
-        } catch {
-            NetworkLogger.shared.logError(url: url, method: method, error: error)
-
-            // 重新抛出错误，让 NetworkRequestManager 处理重试
-            throw error
-        }
-    }
-
-    // MARK: - 认证状态
-
-    /// Cookie字符串，用于API认证
-    private var cookie = ""
-
-    /// ServiceToken，从Cookie中提取的认证令牌
-    private var serviceToken = ""
-
-    /// Cookie设置时间，用于判断是否在保护期内
-    private var cookieSetTime: Date?
-
-    /// Cookie保护期（秒），刚设置Cookie后的短时间内，401错误不视为过期
-    /// 这是为了避免Cookie设置后立即请求时可能出现的临时认证失败
-    private let cookieGracePeriod: TimeInterval = 10.0
-
-    /// Cookie有效性检查结果缓存
-    private var cookieValidityCache = false
-
-    /// Cookie有效性检查时间戳
-    private var cookieValidityCheckTime: Date?
-
-    /// Cookie有效性检查间隔（秒）
-    private let cookieValidityCheckInterval: TimeInterval = 30.0
-
-    /// Cookie有效性检查队列（用于异步安全的锁）
-    private let cookieValidityQueue = DispatchQueue(label: "com.minote.cookieValidityQueue")
-
-    /// 是否正在检查Cookie有效性
-    private var isCheckingCookieValidity = false
-
-    private init() {
-        // 从 UserDefaults 加载 cookie
-        Task {
-            await loadCredentials()
-        }
-    }
-
-    @MainActor
-    private func loadCredentials() {
-        if let savedCookie = UserDefaults.standard.string(forKey: "minote_cookie") {
-            cookie = savedCookie
-            extractServiceToken()
-        }
-    }
-
-    @MainActor
-    private func saveCredentials() {
-        UserDefaults.standard.set(cookie, forKey: "minote_cookie")
-    }
-
-    // MARK: - Cookie和Token管理
-
-    /// 从Cookie字符串中提取ServiceToken
-    /// ServiceToken是小米笔记API认证的关键参数，需要从Cookie中解析
-    private func extractServiceToken() {
-        let pattern = "serviceToken=([^;]+)"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return }
-
-        let range = NSRange(location: 0, length: cookie.utf16.count)
-        if let match = regex.firstMatch(in: cookie, options: [], range: range),
-           let tokenRange = Range(match.range(at: 1), in: cookie)
-        {
-            serviceToken = String(cookie[tokenRange])
-        }
-    }
-
-    func setCookie(_ newCookie: String) {
-        cookie = newCookie
-        extractServiceToken()
-        cookieSetTime = Date()
-
-        Task {
-            await saveCredentials()
-        }
-
-        cookieValidityQueue.sync {
-            cookieValidityCache = true
-            cookieValidityCheckTime = Date()
-            isCheckingCookieValidity = false
-        }
-    }
-
-    public func isAuthenticated() -> Bool {
-        !cookie.isEmpty && !serviceToken.isEmpty
+        try await apiClient.performRequest(url: url, method: method, headers: headers, body: body, priority: priority, cachePolicy: cachePolicy)
     }
 
     func getHeaders() -> [String: String] {
-        [
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-            "Cookie": cookie,
-        ]
+        apiClient.getHeaders()
     }
 
-    /// 获取用于 POST 请求的请求头（包含 origin 和 referer）
-    private func getPostHeaders() -> [String: String] {
-        var headers = getHeaders()
-        headers["origin"] = "https://i.mi.com"
-        headers["referer"] = "https://i.mi.com/note/h5"
-        return headers
+    func getPostHeaders() -> [String: String] {
+        apiClient.getPostHeaders()
     }
 
-    // MARK: - 工具方法
-
-    /// 模拟 JavaScript 的 encodeURIComponent 函数
-    ///
-    /// 小米笔记API使用URL编码，需要与JavaScript的encodeURIComponent行为一致
-    /// 只编码除了字母、数字和 -_.!~*'() 之外的所有字符
-    ///
-    /// - Parameter string: 需要编码的字符串
-    /// - Returns: URL编码后的字符串
-    private func encodeURIComponent(_ string: String) -> String {
-        // 定义不需要编码的字符集（字母、数字和 -_.!~*'()）
-        let allowedCharacters = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()")
-        return string.addingPercentEncoding(withAllowedCharacters: allowedCharacters) ?? string
+    func encodeURIComponent(_ string: String) -> String {
+        apiClient.encodeURIComponent(string)
     }
 
-    /// 处理HTTP 401未授权错误
-    ///
-    /// 根据响应内容判断是Cookie过期、未登录还是其他认证问题
-    /// 考虑Cookie保护期，避免刚设置Cookie后的临时认证失败被误判为过期
-    ///
-    /// - Parameters:
-    ///   - responseBody: HTTP响应体字符串
-    ///   - urlString: 请求URL（用于日志）
-    /// - Throws: MiNoteError（cookieExpired、notAuthenticated或networkError）
-    func handle401Error(responseBody _: String, urlString _: String) throws {
-        // 检查是否有Cookie
-        let hasCookie = !cookie.isEmpty && cookie.contains("serviceToken=")
-
-        if hasCookie {
-            throw MiNoteError.cookieExpired
-        } else {
-            throw MiNoteError.notAuthenticated
-        }
+    func handle401Error(responseBody: String, urlString: String) throws {
+        try apiClient.handle401Error(responseBody: responseBody, urlString: urlString)
     }
+
+    // MARK: - 公开认证管理方法（转发到 APIClient）
+
+    func setCookie(_ newCookie: String) {
+        apiClient.setCookie(newCookie)
+    }
+
+    func clearCookie() {
+        apiClient.clearCookie()
+    }
+
+    public func isAuthenticated() -> Bool {
+        apiClient.isAuthenticated()
+    }
+
+    @MainActor func hasValidCookie() -> Bool {
+        apiClient.hasValidCookie()
+    }
+
+    func refreshCookie() async throws -> Bool {
+        try await apiClient.refreshCookie()
+    }
+
+    private init() {}
 
     // MARK: - API Methods
 
@@ -733,68 +571,6 @@ public final class MiNoteService: @unchecked Sendable {
         )
     }
 
-    // MARK: - Cookie Management
-
-    /// 刷新Cookie（通过 PassTokenManager 三步流程）
-    ///
-    /// 使用 PassToken 通过纯 HTTP 请求刷新 serviceToken，
-    /// 替代旧的 WebView 模拟点击方式
-    ///
-    /// - Returns: 是否成功刷新
-    func refreshCookie() async throws -> Bool {
-
-        // 先检查Cookie是否仍然有效，避免不必要的刷新
-        let isValid = await MainActor.run {
-            hasValidCookie()
-        }
-
-        if isValid {
-            return true
-        }
-
-        do {
-            let _ = try await PassTokenManager.shared.refreshServiceToken()
-            return true
-        } catch {
-            throw error
-        }
-    }
-
-    func clearCookie() {
-        cookie = ""
-        serviceToken = ""
-        cookieSetTime = nil
-        UserDefaults.standard.removeObject(forKey: "minote_cookie")
-    }
-
-    /// 检查Cookie是否有效
-    @MainActor
-    func hasValidCookie() -> Bool {
-        guard let cookie = UserDefaults.standard.string(forKey: "minote_cookie"),
-              !cookie.isEmpty
-        else {
-            return false
-        }
-
-        let hasUserId = cookie.contains("userId=")
-        let hasServiceToken = cookie.contains("serviceToken=")
-
-        if !hasUserId || !hasServiceToken {
-            return false
-        }
-
-        return true
-    }
-
-    /// 检查是否在 cookie 设置后的保护期内
-    private func checkIfInGracePeriod() -> Bool {
-        guard let setTime = cookieSetTime else {
-            return false
-        }
-        let elapsed = Date().timeIntervalSince(setTime)
-        return elapsed < cookieGracePeriod
-    }
-
     /// 检查Cookie在服务器端是否有效
     func checkCookieValidity() async throws -> Bool {
 
@@ -823,140 +599,18 @@ public final class MiNoteService: @unchecked Sendable {
         _ = try? await checkCookieValidity()
     }
 
-    // MARK: - Helper Methods
+    // MARK: - Helper Methods（桥接到 ResponseParser）
 
-    /// 从响应中提取syncTag
-    ///
-    /// 支持两种响应格式：
-    /// 1. 完整/增量同步：response["syncTag"] 或 response["data"]["syncTag"]
-    /// 2. 轻量级同步：response["data"]["note_view"]["data"]["syncTag"]
-    ///
-    /// - Parameter response: API响应字典
-    /// - Returns: syncTag字符串，如果找不到则返回空字符串
     func extractSyncTag(from response: [String: Any]) -> String {
-        // 首先尝试从响应顶层获取
-        if let syncTag = response["syncTag"] as? String {
-            return syncTag
-        }
-
-        // 尝试从data字段获取
-        if let data = response["data"] as? [String: Any] {
-            // 完整/增量同步格式：data.syncTag
-            if let syncTag = data["syncTag"] as? String {
-                return syncTag
-            }
-
-            // 轻量级同步格式：data.note_view.data.syncTag
-            if let noteView = data["note_view"] as? [String: Any],
-               let noteViewData = noteView["data"] as? [String: Any],
-               let syncTag = noteViewData["syncTag"] as? String
-            {
-                return syncTag
-            }
-        }
-
-        return ""
+        ResponseParser.extractSyncTag(from: response)
     }
 
-    /// 解析笔记列表
-    ///
-    /// 支持两种响应格式：
-    /// 1. 完整/增量同步：response["data"]["entries"]
-    /// 2. 轻量级同步：response["data"]["note_view"]["data"]["entries"]
-    ///
-    /// - Parameter response: API响应字典
-    /// - Returns: 笔记对象数组
     func parseNotes(from response: [String: Any]) -> [Note] {
-        var notes: [Note] = []
-        var entries: [[String: Any]] = []
-
-        // 首先尝试完整/增量同步格式：data.entries
-        if let data = response["data"] as? [String: Any],
-           let dataEntries = data["entries"] as? [[String: Any]]
-        {
-            entries = dataEntries
-        }
-        // 尝试轻量级同步格式：data.note_view.data.entries
-        else if let data = response["data"] as? [String: Any],
-                let noteView = data["note_view"] as? [String: Any],
-                let noteViewData = noteView["data"] as? [String: Any],
-                let noteViewEntries = noteViewData["entries"] as? [[String: Any]]
-        {
-            entries = noteViewEntries
-        }
-        // 如果data字段没有，尝试直接从响应中获取（向后兼容）
-        else if let responseEntries = response["entries"] as? [[String: Any]] {
-            entries = responseEntries
-        } else {
-            if let data = response["data"] as? [String: Any] {}
-        }
-
-        for entry in entries {
-            if let note = NoteMapper.fromMinoteListData(entry) {
-                notes.append(note)
-            }
-        }
-
-        return notes
+        ResponseParser.parseNotes(from: response)
     }
 
-    /// 解析文件夹列表
-    ///
-    /// 支持两种响应格式：
-    /// 1. 完整/增量同步：response["data"]["folders"]
-    /// 2. 轻量级同步：response["data"]["note_view"]["data"]["folders"]
-    ///
-    /// - Parameter response: API响应字典
-    /// - Returns: 文件夹对象数组
     func parseFolders(from response: [String: Any]) -> [Folder] {
-        var folders: [Folder] = []
-        var folderEntries: [[String: Any]] = []
-
-        // 首先尝试完整/增量同步格式：data.folders
-        if let data = response["data"] as? [String: Any],
-           let dataFolders = data["folders"] as? [[String: Any]]
-        {
-            folderEntries = dataFolders
-        }
-        // 尝试轻量级同步格式：data.note_view.data.folders
-        else if let data = response["data"] as? [String: Any],
-                let noteView = data["note_view"] as? [String: Any],
-                let noteViewData = noteView["data"] as? [String: Any],
-                let noteViewFolders = noteViewData["folders"] as? [[String: Any]]
-        {
-            folderEntries = noteViewFolders
-        }
-        // 如果data字段没有，尝试直接从响应中获取（向后兼容）
-        else if let responseFolders = response["folders"] as? [[String: Any]] {
-            folderEntries = responseFolders
-        } else {
-            // 打印响应结构以便调试
-            if let data = response["data"] as? [String: Any] {}
-        }
-
-        for folderEntry in folderEntries {
-            // 检查类型，只处理文件夹类型（参考 Obsidian 插件）
-            if let type = folderEntry["type"] as? String, type == "folder" {
-                if let folder = Folder.fromMinoteData(folderEntry) {
-                    folders.append(folder)
-                } else {}
-            } else {}
-        }
-
-        // 添加系统文件夹（参考 Obsidian 插件：默认文件夹 id='0', name='未分类'）
-        // 但为了与UI一致，我们使用"所有笔记"和"收藏"
-        let hasAllNotes = folders.contains { $0.id == "0" }
-        let hasStarred = folders.contains { $0.id == "starred" }
-
-        if !hasAllNotes {
-            folders.insert(Folder(id: "0", name: "所有笔记", count: 0, isSystem: true), at: 0)
-        }
-        if !hasStarred {
-            let starredIndex = hasAllNotes ? 1 : 0
-            folders.insert(Folder(id: "starred", name: "置顶", count: 0, isSystem: true), at: starredIndex)
-        }
-
-        return folders
+        ResponseParser.parseFolders(from: response)
     }
 
     // MARK: - File Upload
@@ -1610,15 +1264,6 @@ public final class MiNoteService: @unchecked Sendable {
     }
 }
 
-// MARK: - Error Types
-
-enum MiNoteError: Error {
-    case cookieExpired
-    case notAuthenticated
-    case networkError(Error)
-    case invalidResponse
-}
-
 // MARK: - 历史记录相关方法
 
 extension MiNoteService {
@@ -1695,21 +1340,6 @@ extension MiNoteService {
             headers: headers,
             body: body.data(using: .utf8)
         )
-    }
-}
-
-extension MiNoteError: LocalizedError {
-    var errorDescription: String? {
-        switch self {
-        case .cookieExpired:
-            "Cookie已过期，请重新登录"
-        case .notAuthenticated:
-            "未登录，请先登录小米账号"
-        case let .networkError(error):
-            "网络错误: \(error.localizedDescription)"
-        case .invalidResponse:
-            "服务器返回无效响应"
-        }
     }
 }
 
