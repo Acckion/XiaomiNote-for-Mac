@@ -462,6 +462,23 @@ public actor NoteStore {
             } catch {
                 LogService.shared.error(.storage, "NoteStore 创建文件夹失败: \(error)")
                 await eventBus.publish(ErrorEvent.storageFailed(operation: "createFolder", errorMessage: error.localizedDescription))
+                return
+            }
+
+            // 入队 folderCreate 操作，同步到云端
+            do {
+                let dataDict: [String: Any] = ["name": name]
+                let jsonData = try JSONSerialization.data(withJSONObject: dataDict)
+                let operation = NoteOperation(
+                    type: .folderCreate,
+                    noteId: folder.id,
+                    data: jsonData,
+                    localSaveTimestamp: Date()
+                )
+                try operationQueue.enqueue(operation)
+                LogService.shared.debug(.sync, "已入队 folderCreate 操作: \(folder.id.prefix(8))...")
+            } catch {
+                LogService.shared.error(.sync, "创建 folderCreate 操作失败: \(error)")
             }
 
         case let .renamed(folderId, newName):
@@ -469,6 +486,7 @@ public actor NoteStore {
                 LogService.shared.warning(.storage, "NoteStore renamed: 文件夹不存在 \(folderId)")
                 return
             }
+            let existingTag = folder.rawData?["tag"] as? String
             folder.name = newName
             do {
                 try db.saveFolders([folder])
@@ -477,9 +495,32 @@ public actor NoteStore {
             } catch {
                 LogService.shared.error(.storage, "NoteStore 重命名文件夹失败: \(error)")
                 await eventBus.publish(ErrorEvent.storageFailed(operation: "renameFolder", errorMessage: error.localizedDescription))
+                return
+            }
+
+            // 入队 folderRename 操作，同步到云端
+            if let tag = existingTag {
+                do {
+                    let dataDict: [String: Any] = ["name": newName, "tag": tag]
+                    let jsonData = try JSONSerialization.data(withJSONObject: dataDict)
+                    let operation = NoteOperation(
+                        type: .folderRename,
+                        noteId: folderId,
+                        data: jsonData,
+                        localSaveTimestamp: Date()
+                    )
+                    try operationQueue.enqueue(operation)
+                    LogService.shared.debug(.sync, "已入队 folderRename 操作: \(folderId.prefix(8))...")
+                } catch {
+                    LogService.shared.error(.sync, "创建 folderRename 操作失败: \(error)")
+                }
+            } else {
+                LogService.shared.warning(.sync, "文件夹缺少 tag，无法同步重命名: \(folderId.prefix(8))...")
             }
 
         case let .deleted(folderId):
+            // 删除前获取 tag，用于云端同步
+            let existingTag = folders.first(where: { $0.id == folderId })?.rawData?["tag"] as? String
             do {
                 try db.deleteFolder(folderId: folderId)
                 refreshFoldersCache()
@@ -487,6 +528,27 @@ public actor NoteStore {
             } catch {
                 LogService.shared.error(.storage, "NoteStore 删除文件夹失败: \(error)")
                 await eventBus.publish(ErrorEvent.storageFailed(operation: "deleteFolder", errorMessage: error.localizedDescription))
+                return
+            }
+
+            // 入队 folderDelete 操作，同步到云端
+            if let tag = existingTag {
+                do {
+                    let dataDict: [String: Any] = ["tag": tag]
+                    let jsonData = try JSONSerialization.data(withJSONObject: dataDict)
+                    let operation = NoteOperation(
+                        type: .folderDelete,
+                        noteId: folderId,
+                        data: jsonData,
+                        localSaveTimestamp: Date()
+                    )
+                    try operationQueue.enqueue(operation)
+                    LogService.shared.debug(.sync, "已入队 folderDelete 操作: \(folderId.prefix(8))...")
+                } catch {
+                    LogService.shared.error(.sync, "创建 folderDelete 操作失败: \(error)")
+                }
+            } else {
+                LogService.shared.warning(.sync, "文件夹缺少 tag，无法同步删除: \(folderId.prefix(8))...")
             }
 
         case let .folderSaved(folder):
@@ -546,6 +608,23 @@ public actor NoteStore {
             refreshNotesCache()
             await eventBus.publish(NoteEvent.saved(note))
             await eventBus.publish(NoteEvent.listChanged(notes))
+
+            // 入队 cloudUpload 操作，同步元数据变更到云端
+            do {
+                let noteData = try JSONEncoder().encode(note)
+                let operation = NoteOperation(
+                    type: .cloudUpload,
+                    noteId: note.id,
+                    data: noteData,
+                    localSaveTimestamp: note.updatedAt,
+                    isLocalId: NoteOperation.isTemporaryId(note.id)
+                )
+                try operationQueue.enqueue(operation)
+                LogService.shared.debug(.sync, "元数据变更已入队 cloudUpload: \(noteId.prefix(8))...")
+                await triggerImmediateUploadIfOnline(noteId: noteId)
+            } catch {
+                LogService.shared.error(.sync, "元数据变更创建 cloudUpload 操作失败: \(error)")
+            }
         } catch {
             LogService.shared.error(.storage, "NoteStore 更新笔记元数据失败: \(error)")
             await eventBus.publish(ErrorEvent.storageFailed(operation: "metadataUpdated", errorMessage: error.localizedDescription))
