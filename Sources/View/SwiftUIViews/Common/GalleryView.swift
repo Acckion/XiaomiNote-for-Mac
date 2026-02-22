@@ -429,10 +429,7 @@ struct GalleryView: View {
 
     /// 在新窗口打开笔记
     private func openNoteInNewWindow(_ note: Note) {
-        if let controller = WindowManager.shared.createNewWindow(withNote: note) {
-            controller.showWindow(nil)
-            controller.window?.makeKeyAndOrderFront(nil)
-        }
+        WindowManager.shared.openNoteEditorWindow(note: note)
     }
 
     /// 复制笔记内容到剪贴板

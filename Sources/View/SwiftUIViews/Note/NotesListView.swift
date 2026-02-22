@@ -608,10 +608,7 @@ struct NotesListView: View {
     // MARK: - 菜单操作
 
     private func openNoteInNewWindow(_ note: Note) {
-        if let controller = WindowManager.shared.createNewWindow(withNote: note) {
-            controller.showWindow(nil)
-            controller.window?.makeKeyAndOrderFront(nil)
-        }
+        WindowManager.shared.openNoteEditorWindow(note: note)
     }
 
     private func copyNote(_ note: Note) {

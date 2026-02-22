@@ -18,6 +18,9 @@ public class WindowManager {
     /// 活动窗口控制器列表
     private var windowControllers: [MainWindowController] = []
 
+    /// 独立编辑器窗口控制器列表
+    private var editorWindowControllers: [NoteEditorWindowController] = []
+
     // TODO: 任务 5 完成后启用这些属性
     /*
      /// 窗口状态字典（UUID -> WindowState）
@@ -422,6 +425,40 @@ public class WindowManager {
                 window.setFrame(NSRect(origin: defaultOrigin, size: defaultSize), display: true)
             }
         }
+    }
+
+    // MARK: - 独立编辑器窗口
+
+    /// 在独立编辑器窗口中打开笔记
+    ///
+    /// 如果该笔记已在编辑器窗口中打开，则前置显示已有窗口
+    ///
+    /// - Parameter note: 要打开的笔记
+    public func openNoteEditorWindow(note: Note) {
+        // 检查是否已打开该笔记
+        if let existing = editorWindowControllers.first(where: { $0.noteId == note.id }) {
+            existing.showWindow(nil)
+            existing.window?.makeKeyAndOrderFront(nil)
+            LogService.shared.debug(.window, "编辑器窗口已存在，前置显示: \(note.title)")
+            return
+        }
+
+        guard let coordinator = appCoordinator else {
+            LogService.shared.error(.window, "AppCoordinator 未设置，无法创建编辑器窗口")
+            return
+        }
+
+        let controller = NoteEditorWindowController(coordinator: coordinator, note: note)
+        editorWindowControllers.append(controller)
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
+        LogService.shared.info(.window, "打开编辑器窗口: \(note.title)")
+    }
+
+    /// 移除编辑器窗口控制器
+    public func removeEditorWindow(_ controller: NoteEditorWindowController) {
+        editorWindowControllers.removeAll { $0 === controller }
+        LogService.shared.debug(.window, "编辑器窗口已移除，剩余: \(editorWindowControllers.count)")
     }
 
     // MARK: - 调试工具
