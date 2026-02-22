@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 重构
+- MainWindowController 拆分重构（spec-105）：将 MainWindowController.swift（3,239 行）拆分为 7 个文件（1 核心 + 6 extension），提升代码可维护性
 - 编辑器桥接层重构（spec-103）：
   - NativeEditorView.swift（2,423 行）按职责拆分为 4 个文件：NativeEditorView（纯 NSViewRepresentable）、NativeEditorCoordinator（Delegate + 内容同步）、CoordinatorFormatApplier（格式应用）、NativeTextView（自定义 NSTextView）
   - NativeEditorContext.swift（1,827 行）按职责拆分为 4 个文件：NativeEditorContext（核心状态 + 格式入口 + XML）、EditorEnums（枚举定义）、EditorContentManager（内容管理 + 录音模板）、EditorFormatDetector（格式检测）
