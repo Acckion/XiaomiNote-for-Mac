@@ -306,19 +306,35 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     /// 切换到新笔记（统一入口）
     public func switchToNote(_ note: Note) async {
+        // 竞态防护：如果传入的是临时 ID 但 ID 迁移已完成，使用正式 ID 笔记
+        var resolvedNote = note
+        if NoteOperation.isTemporaryId(note.id) {
+            let resolvedId = IdMappingRegistry.shared.resolveId(note.id)
+            if resolvedId != note.id {
+                if let officialNote = await noteStore?.getNote(byId: resolvedId) {
+                    resolvedNote = officialNote
+                } else if let dbNote = try? LocalStorageService.shared.loadNote(noteId: resolvedId) {
+                    resolvedNote = dbNote
+                }
+                if resolvedNote.id != note.id {
+                    LogService.shared.info(.editor, "switchToNote 临时 ID 已迁移: \(note.id.prefix(8))... -> \(resolvedId.prefix(8))...")
+                }
+            }
+        }
+
         LogService.shared.debug(
             .editor,
-            "switchToNote 开始 - 笔记ID: \(note.id.prefix(8))..., noteEditorState.currentNote: \(noteEditorState?.currentNote?.id.prefix(8) ?? "nil")"
+            "switchToNote 开始 - 笔记ID: \(resolvedNote.id.prefix(8))..., noteEditorState.currentNote: \(noteEditorState?.currentNote?.id.prefix(8) ?? "nil")"
         )
 
-        currentEditingNoteId = note.id
+        currentEditingNoteId = resolvedNote.id
         isInitializing = true
         saveStatus = .saved
 
         // 同步更新 NoteEditorState.currentNote，确保 handleContentChange 的 guard 能通过
-        noteEditorState?.loadNote(note)
+        noteEditorState?.loadNote(resolvedNote)
 
-        let title = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
+        let title = resolvedNote.title.isEmpty || resolvedNote.title.hasPrefix("未命名笔记_") ? "" : resolvedNote.title
         editedTitle = title
         originalTitle = title
 
@@ -333,13 +349,13 @@ public final class NoteEditingCoordinator: ObservableObject {
         lastSavedXMLContent = ""
         originalXMLContent = ""
 
-        let cachedNote = await MemoryCacheManager.shared.getNote(noteId: note.id)
-        if let cachedNote, cachedNote.id == note.id {
+        let cachedNote = await MemoryCacheManager.shared.getNote(noteId: resolvedNote.id)
+        if let cachedNote, cachedNote.id == resolvedNote.id {
             await loadNoteContentFromCache(cachedNote)
             return
         }
 
-        await loadNoteContent(note)
+        await loadNoteContent(resolvedNote)
     }
 
     // MARK: - 内部方法（保存）

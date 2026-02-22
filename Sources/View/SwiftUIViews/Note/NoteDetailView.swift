@@ -31,16 +31,10 @@ struct NoteDetailView: View {
     @State private var showSaveErrorAlert = false
     @State private var saveErrorMessage = ""
     @State private var isEditable = true
-    @State private var showImageInsertAlert = false
-    @State private var imageInsertMessage = ""
-    @State private var isInsertingImage = false
-    @State private var imageInsertStatus: ImageInsertStatus = .idle
+    @State private var showImageInsertFailedAlert = false
+    @State private var imageInsertErrorMessage = ""
     @State private var showingHistoryView = false
     @State private var showTrashView = false
-
-    enum ImageInsertStatus {
-        case idle, uploading, success, failed
-    }
 
     /// 编辑器偏好设置服务
     @ObservedObject private var editorPreferencesService = EditorPreferencesService.shared
@@ -195,13 +189,10 @@ struct NoteDetailView: View {
             }
             Task { @MainActor in await editingCoordinator.handleTitleChange(newValue) }
         }
-        .sheet(isPresented: $showImageInsertAlert) {
-            ImageInsertStatusView(
-                isInserting: isInsertingImage,
-                message: imageInsertMessage,
-                status: imageInsertStatus,
-                onDismiss: { imageInsertStatus = .idle }
-            )
+        .alert("图片插入失败", isPresented: $showImageInsertFailedAlert) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text(imageInsertErrorMessage)
         }
         .sheet(isPresented: $showingHistoryView) {
             NoteHistoryView(noteEditorState: noteEditorState, noteId: note.id)
@@ -366,10 +357,6 @@ struct NoteDetailView: View {
     @MainActor
     private func insertImage(from url: URL) async {
         guard windowState.selectedNote != nil else { return }
-        isInsertingImage = true
-        imageInsertStatus = .uploading
-        imageInsertMessage = "正在上传图片..."
-        showImageInsertAlert = true
         do {
             let fileId = try await noteEditorState.uploadImageAndInsertToNote(imageURL: url)
 
@@ -377,14 +364,10 @@ struct NoteDetailView: View {
                 noteEditorState.nativeEditorContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
             }
 
-            imageInsertStatus = .success
-            imageInsertMessage = "图片插入成功"
-            isInsertingImage = false
             await editingCoordinator.performSaveImmediately()
         } catch {
-            imageInsertStatus = .failed
-            imageInsertMessage = "插入失败"
-            isInsertingImage = false
+            imageInsertErrorMessage = error.localizedDescription
+            showImageInsertFailedAlert = true
         }
     }
 
@@ -400,30 +383,6 @@ struct NoteDetailView: View {
                 Label("新建笔记", systemImage: "plus")
             }.buttonStyle(.borderedProminent)
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// MARK: - 图片插入状态视图
-
-@available(macOS 14.0, *)
-struct ImageInsertStatusView: View {
-    let isInserting: Bool
-    let message: String
-    let status: NoteDetailView.ImageInsertStatus
-    let onDismiss: () -> Void
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        VStack(spacing: 20) {
-            if isInserting { ProgressView().scaleEffect(1.2) } else {
-                Image(systemName: status == .success ? "checkmark.circle.fill" : "xmark.circle.fill").font(.system(size: 48))
-                    .foregroundColor(status == .success ? .green : .red)
-            }
-            Text(isInserting ? "正在插入图片" : (status == .success ? "插入成功" : "插入失败")).font(.headline)
-            Text(message).font(.body).foregroundColor(.secondary).multilineTextAlignment(.center).padding(.horizontal)
-            if !isInserting { Button("确定") { onDismiss()
-                dismiss()
-            }.buttonStyle(.borderedProminent) }
-        }.padding(30).frame(width: 400)
     }
 }
 

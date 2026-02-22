@@ -169,66 +169,30 @@ final class AudioUploadService: ObservableObject, @unchecked Sendable {
                 actualFileName = nameWithoutExt + ".mp3"
             }
 
-            progress = 0.1
-            postProgressNotification()
+            // 生成临时 fileId，保存到本地，入队操作
+            let temporaryFileId = NoteOperation.generateTemporaryId()
 
-            progress = 0.2
-            postProgressNotification()
-
-            let progressTask = Task { @MainActor in
-                var currentProgress = 0.2
-                while currentProgress < 0.9, !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 100_000_000)
-                    currentProgress += 0.05
-                    if currentProgress < 0.9 {
-                        self.progress = currentProgress
-                        self.postProgressNotification()
-                    }
-                }
-            }
-
-            let result = try await FileAPI.shared.uploadAudio(
-                audioData: audioData,
-                fileName: actualFileName,
-                mimeType: mimeType
-            )
-
-            progressTask.cancel()
+            try LocalStorageService.shared.savePendingUpload(data: audioData, fileId: temporaryFileId, extension: "mp3")
 
             progress = 1.0
             postProgressNotification()
 
-            guard let fileId = result["fileId"] as? String else {
-                throw UploadError.invalidResponse
-            }
-
-            let digest = result["digest"] as? String
-            let resultMimeType = result["mimeType"] as? String ?? mimeType
-
             let uploadResult = UploadResult(
-                fileId: fileId,
-                digest: digest,
-                mimeType: resultMimeType
+                fileId: temporaryFileId,
+                digest: nil,
+                mimeType: mimeType
             )
 
             state = .success
             postStateNotification(oldState: .uploading, newState: .success)
             postCompleteNotification(result: uploadResult)
 
-            LogService.shared.info(.audio, "语音上传成功: fileId=\(fileId)")
+            LogService.shared.info(.audio, "语音已入队上传: temporaryFileId=\(temporaryFileId.prefix(20))..., fileName=\(actualFileName)")
 
             return uploadResult
         } catch {
             let errorMsg = error.localizedDescription
-            LogService.shared.error(.audio, "语音上传失败: \(errorMsg)")
-
-            if retryCount < maxRetryCount, shouldRetry(error: error) {
-                retryCount += 1
-                LogService.shared.info(.audio, "尝试重试 (\(retryCount)/\(maxRetryCount))")
-
-                try await Task.sleep(nanoseconds: UInt64(1_000_000_000 * retryCount))
-                return try await uploadAudio(fileURL: fileURL, fileName: fileName, mimeType: mimeType)
-            }
+            LogService.shared.error(.audio, "语音上传准备失败: \(errorMsg)")
 
             state = .failed(errorMsg)
             errorMessage = errorMsg
@@ -237,6 +201,29 @@ final class AudioUploadService: ObservableObject, @unchecked Sendable {
 
             throw error
         }
+    }
+
+    /// 入队音频上传操作
+    ///
+    /// 在 AudioUploadService.uploadAudio 返回临时 fileId 后，
+    /// 由调用方（MainWindowController）调用此方法将操作入队。
+    func enqueueAudioUpload(temporaryFileId: String, fileName: String, mimeType: String, noteId: String) throws {
+        let uploadData = FileUploadOperationData(
+            temporaryFileId: temporaryFileId,
+            localFilePath: LocalStorageService.shared.pendingUploadsDirectory
+                .appendingPathComponent("\(temporaryFileId).mp3").path,
+            fileName: fileName,
+            mimeType: mimeType,
+            noteId: noteId
+        )
+        let operation = NoteOperation(
+            type: .audioUpload,
+            noteId: noteId,
+            data: uploadData.encoded(),
+            isLocalId: NoteOperation.isTemporaryId(noteId)
+        )
+        _ = try UnifiedOperationQueue.shared.enqueue(operation)
+        LogService.shared.debug(.audio, "音频上传操作已入队: \(temporaryFileId.prefix(20))...")
     }
 
     func cancelUpload() {

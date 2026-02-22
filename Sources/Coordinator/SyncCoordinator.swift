@@ -29,9 +29,6 @@ public final class SyncCoordinator: ObservableObject {
     /// 最后同步时间
     @Published public var lastSyncTime: Date?
 
-    /// 同步结果
-    @Published public var syncResult: SyncResult?
-
     /// 错误消息（用于显示错误提示）
     @Published public var errorMessage: String?
 
@@ -50,9 +47,6 @@ public final class SyncCoordinator: ObservableObject {
 
     /// Combine 订阅集合
     private var cancellables = Set<AnyCancellable>()
-
-    /// 是否正在处理离线操作
-    private var isProcessingOfflineOperations = false
 
     // MARK: - Initialization
 
@@ -133,41 +127,6 @@ public final class SyncCoordinator: ObservableObject {
         LogService.shared.debug(.viewmodel, "同步笔记: \(note.title)")
     }
 
-    public func processPendingOperations() async {
-        guard !isProcessingOfflineOperations else {
-            LogService.shared.debug(.viewmodel, "正在处理离线操作")
-            return
-        }
-
-        guard networkMonitor.isConnected else {
-            LogService.shared.debug(.viewmodel, "无网络连接，无法处理离线操作")
-            return
-        }
-
-        isProcessingOfflineOperations = true
-
-        do {
-            LogService.shared.info(.viewmodel, "开始处理离线操作")
-
-            let pendingChanges = try await noteStorage.getPendingChanges()
-
-            guard !pendingChanges.isEmpty else {
-                LogService.shared.debug(.viewmodel, "没有待处理的离线操作")
-                isProcessingOfflineOperations = false
-                return
-            }
-
-            LogService.shared.info(.viewmodel, "发现 \(pendingChanges.count) 个待处理的操作")
-
-            LogService.shared.info(.viewmodel, "离线操作处理完成")
-        } catch {
-            errorMessage = "处理离线操作失败: \(error.localizedDescription)"
-            LogService.shared.error(.viewmodel, "处理离线操作失败: \(error)")
-        }
-
-        isProcessingOfflineOperations = false
-    }
-
     public func updateSyncInterval(_ newInterval: Double) {
         LogService.shared.debug(.viewmodel, "同步间隔已更新为 \(newInterval) 秒")
         UserDefaults.standard.set(newInterval, forKey: "syncInterval")
@@ -186,7 +145,7 @@ public final class SyncCoordinator: ObservableObject {
                 if isConnected {
                     LogService.shared.info(.viewmodel, "网络已连接")
                     Task {
-                        await self.processPendingOperations()
+                        await self.startSync()
                     }
                 } else {
                     LogService.shared.info(.viewmodel, "网络已断开")

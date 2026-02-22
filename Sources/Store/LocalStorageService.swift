@@ -186,8 +186,58 @@ final class LocalStorageService: @unchecked Sendable {
 
     // MARK: - 图片文件管理
 
-    private var imagesDirectory: URL {
+    var imagesDirectory: URL {
         documentsDirectory.appendingPathComponent("images")
+    }
+
+    // MARK: - 待上传文件管理
+
+    /// 待上传文件暂存目录
+    var pendingUploadsDirectory: URL {
+        documentsDirectory.appendingPathComponent("pending_uploads")
+    }
+
+    private func ensurePendingUploadsDirectory() throws {
+        let dir = pendingUploadsDirectory
+        if !fileManager.fileExists(atPath: dir.path) {
+            try fileManager.createDirectory(at: dir, withIntermediateDirectories: true, attributes: nil)
+            LogService.shared.debug(.storage, "创建待上传文件目录: \(dir.path)")
+        }
+    }
+
+    /// 保存待上传文件
+    func savePendingUpload(data: Data, fileId: String, extension ext: String) throws {
+        try ensurePendingUploadsDirectory()
+        let fileURL = pendingUploadsDirectory.appendingPathComponent("\(fileId).\(ext)")
+        try data.write(to: fileURL)
+        LogService.shared.debug(.storage, "保存待上传文件: \(fileId).\(ext)")
+    }
+
+    /// 读取待上传文件
+    func loadPendingUpload(fileId: String, extension ext: String) -> Data? {
+        let fileURL = pendingUploadsDirectory.appendingPathComponent("\(fileId).\(ext)")
+        guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
+        return try? Data(contentsOf: fileURL)
+    }
+
+    /// 上传成功后移动到正式缓存目录
+    func movePendingUploadToCache(fileId: String, extension ext: String, newFileId: String) throws {
+        let sourceURL = pendingUploadsDirectory.appendingPathComponent("\(fileId).\(ext)")
+        guard fileManager.fileExists(atPath: sourceURL.path) else { return }
+
+        try ensureImagesDirectory()
+        let destURL = imagesDirectory.appendingPathComponent("\(newFileId).\(ext)")
+        try fileManager.moveItem(at: sourceURL, to: destURL)
+        LogService.shared.debug(.storage, "移动待上传文件到缓存: \(fileId).\(ext) -> \(newFileId).\(ext)")
+    }
+
+    /// 删除待上传文件
+    func deletePendingUpload(fileId: String, extension ext: String) throws {
+        let fileURL = pendingUploadsDirectory.appendingPathComponent("\(fileId).\(ext)")
+        if fileManager.fileExists(atPath: fileURL.path) {
+            try fileManager.removeItem(at: fileURL)
+            LogService.shared.debug(.storage, "删除待上传文件: \(fileId).\(ext)")
+        }
     }
 
     private func ensureImagesDirectory() throws {

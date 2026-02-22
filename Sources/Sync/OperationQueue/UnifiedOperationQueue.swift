@@ -13,7 +13,15 @@ import Foundation
 /// - 重试调度
 /// - 查询和统计
 ///
-/// 线程安全：使用 NSLock 确保所有操作的线程安全
+/// **线程安全设计**：
+/// 使用 NSLock 而非 Actor 的原因：
+/// 1. 同步访问需求：getPendingOperations() 等方法需要同步返回结果，
+///    如果使用 Actor 则所有调用都需要 await，会传染到整个调用链
+/// 2. 性能考虑：NSLock 的开销远小于 Actor 的上下文切换
+/// 3. 操作粒度：每个操作都是短暂的内存读写，不涉及 I/O，
+///    NSLock 的持有时间极短，不会造成阻塞
+/// 4. 与 OperationProcessor（Actor）的交互：OperationProcessor 是 Actor，
+///    如果 UnifiedOperationQueue 也是 Actor，两者交互时可能产生死锁风险
 ///
 public final class UnifiedOperationQueue: @unchecked Sendable {
 
@@ -252,8 +260,8 @@ extension UnifiedOperationQueue {
             }
             return newOperation
 
-        case .imageUpload:
-            // 图片上传不去重
+        case .imageUpload, .audioUpload:
+            // 文件上传不去重（每个文件独立）
             return newOperation
 
         case .folderCreate, .folderRename, .folderDelete:
@@ -527,6 +535,20 @@ public extension UnifiedOperationQueue {
 
         return operationsByNoteId[noteId]?.contains {
             $0.type == .noteCreate &&
+                ($0.status == .pending || $0.status == .failed || $0.status == .processing)
+        } ?? false
+    }
+
+    /// 检查笔记是否有待处理的文件上传操作（图片或音频）
+    ///
+    /// - Parameter noteId: 笔记 ID
+    /// - Returns: 如果有待处理的文件上传操作返回 true
+    func hasPendingFileUpload(for noteId: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
+        return operationsByNoteId[noteId]?.contains {
+            ($0.type == .imageUpload || $0.type == .audioUpload) &&
                 ($0.status == .pending || $0.status == .failed || $0.status == .processing)
         } ?? false
     }
@@ -957,5 +979,138 @@ public extension UnifiedOperationQueue {
         }
 
         return stats
+    }
+}
+
+// MARK: - 便捷入队方法
+
+public extension UnifiedOperationQueue {
+
+    /// 入队笔记创建操作
+    @discardableResult
+    func enqueueNoteCreate(noteId: String) throws -> NoteOperation? {
+        let data = NoteCreateData().encoded()
+        return try enqueue(NoteOperation(
+            type: .noteCreate,
+            noteId: noteId,
+            data: data,
+            isLocalId: NoteOperation.isTemporaryId(noteId)
+        ))
+    }
+
+    /// 入队云端上传操作
+    @discardableResult
+    func enqueueCloudUpload(
+        noteId: String,
+        title: String,
+        content: String,
+        folderId: String,
+        localSaveTimestamp: Date? = nil
+    ) throws -> NoteOperation? {
+        let data = CloudUploadData(title: title, content: content, folderId: folderId).encoded()
+        return try enqueue(NoteOperation(
+            type: .cloudUpload,
+            noteId: noteId,
+            data: data,
+            localSaveTimestamp: localSaveTimestamp,
+            isLocalId: NoteOperation.isTemporaryId(noteId)
+        ))
+    }
+
+    /// 入队云端删除操作
+    @discardableResult
+    func enqueueCloudDelete(noteId: String, tag: String) throws -> NoteOperation? {
+        let data = CloudDeleteData(tag: tag).encoded()
+        return try enqueue(NoteOperation(
+            type: .cloudDelete,
+            noteId: noteId,
+            data: data,
+            localSaveTimestamp: Date(),
+            isLocalId: NoteOperation.isTemporaryId(noteId)
+        ))
+    }
+
+    /// 入队图片上传操作
+    @discardableResult
+    func enqueueImageUpload(
+        noteId: String,
+        temporaryFileId: String,
+        localFilePath: String,
+        fileName: String,
+        mimeType: String
+    ) throws -> NoteOperation? {
+        let data = FileUploadOperationData(
+            temporaryFileId: temporaryFileId,
+            localFilePath: localFilePath,
+            fileName: fileName,
+            mimeType: mimeType,
+            noteId: noteId
+        ).encoded()
+        return try enqueue(NoteOperation(
+            type: .imageUpload,
+            noteId: noteId,
+            data: data,
+            isLocalId: NoteOperation.isTemporaryId(noteId)
+        ))
+    }
+
+    /// 入队音频上传操作
+    @discardableResult
+    func enqueueAudioUpload(
+        noteId: String,
+        temporaryFileId: String,
+        localFilePath: String,
+        fileName: String,
+        mimeType: String
+    ) throws -> NoteOperation? {
+        let data = FileUploadOperationData(
+            temporaryFileId: temporaryFileId,
+            localFilePath: localFilePath,
+            fileName: fileName,
+            mimeType: mimeType,
+            noteId: noteId
+        ).encoded()
+        return try enqueue(NoteOperation(
+            type: .audioUpload,
+            noteId: noteId,
+            data: data,
+            isLocalId: NoteOperation.isTemporaryId(noteId)
+        ))
+    }
+
+    /// 入队文件夹创建操作
+    @discardableResult
+    func enqueueFolderCreate(folderId: String, name: String) throws -> NoteOperation? {
+        let data = FolderCreateData(name: name).encoded()
+        return try enqueue(NoteOperation(
+            type: .folderCreate,
+            noteId: folderId,
+            data: data,
+            localSaveTimestamp: Date()
+        ))
+    }
+
+    /// 入队文件夹重命名操作
+    @discardableResult
+    func enqueueFolderRename(folderId: String, name: String, tag: String) throws -> NoteOperation? {
+        let data = FolderRenameData(name: name, tag: tag).encoded()
+        return try enqueue(NoteOperation(
+            type: .folderRename,
+            noteId: folderId,
+            data: data,
+            localSaveTimestamp: Date()
+        ))
+    }
+
+    /// 入队文件夹删除操作
+    @discardableResult
+    func enqueueFolderDelete(folderId: String, tag: String) throws -> NoteOperation? {
+        let data = FolderDeleteData(tag: tag).encoded()
+        return try enqueue(NoteOperation(
+            type: .folderDelete,
+            noteId: folderId,
+            data: data,
+            localSaveTimestamp: Date()
+        ))
     }
 }

@@ -15,7 +15,15 @@ import Foundation
 /// - 清理已完成的映射
 /// - 应用启动时恢复未完成的映射
 ///
-/// **线程安全**：使用 NSLock 确保所有操作的线程安全
+/// **线程安全设计**：
+/// 使用 NSLock 而非 Actor 的原因：
+/// 1. 同步访问需求：resolveId() 等方法需要同步返回结果，
+///    如果使用 Actor 则所有调用都需要 await，会传染到整个调用链
+/// 2. 性能考虑：NSLock 的开销远小于 Actor 的上下文切换
+/// 3. 操作粒度：每个操作都是短暂的内存读写，不涉及 I/O，
+///    NSLock 的持有时间极短，不会造成阻塞
+/// 4. 与 OperationProcessor（Actor）的交互：OperationProcessor 是 Actor，
+///    如果 IdMappingRegistry 也是 Actor，两者交互时可能产生死锁风险
 ///
 public final class IdMappingRegistry: @unchecked Sendable {
 
@@ -325,6 +333,75 @@ public extension IdMappingRegistry {
         }
 
         LogService.shared.info(.sync, "文件夹引用更新完成: \(localId) -> \(serverId)")
+    }
+
+    /// 更新文件引用（图片/音频上传成功后替换临时 fileId）
+    ///
+    /// 上传完成后，编辑器可能还未将包含临时 fileId 的 XML 保存到数据库，
+    /// 因此需要重试等待，确保数据库中的 XML 已包含临时 fileId 后再替换。
+    ///
+    /// - Parameters:
+    ///   - localId: 临时文件 ID
+    ///   - serverId: 云端下发的正式文件 ID
+    ///   - noteId: 所属笔记 ID
+    /// - Throws: DatabaseError（数据库操作失败）
+    func updateAllFileReferences(localId: String, serverId: String, noteId: String) async throws {
+        LogService.shared.debug(.sync, "开始更新文件引用: \(localId) -> \(serverId), 笔记: \(noteId.prefix(8))...")
+
+        // 1. 注册映射
+        if !hasMapping(for: localId) {
+            try registerMapping(localId: localId, serverId: serverId, entityType: "file")
+        }
+
+        // 2. 带重试的 fileId 替换
+        // 上传和编辑器保存是并发的，上传可能先完成，此时 DB 中的 XML 还不包含临时 ID
+        let maxAttempts = 10
+        let retryInterval: UInt64 = 500_000_000 // 0.5 秒
+
+        for attempt in 1 ... maxAttempts {
+            do {
+                if var note = try databaseService.loadNote(noteId: noteId) {
+                    let oldContent = note.content
+                    note.content = oldContent.replacingOccurrences(of: localId, with: serverId)
+
+                    if note.content != oldContent {
+                        try databaseService.saveNote(note)
+                        LogService.shared.debug(.sync, "笔记 XML 内容 fileId 替换成功")
+
+                        let eventBus = EventBus.shared
+                        await eventBus.publish(NoteEvent.saved(note))
+
+                        try operationQueue.enqueueCloudUpload(
+                            noteId: noteId,
+                            title: note.title,
+                            content: note.content,
+                            folderId: note.folderId,
+                            localSaveTimestamp: Date()
+                        )
+                        LogService.shared.debug(.sync, "已入队 cloudUpload 操作（文件引用更新）")
+
+                        LogService.shared.info(.sync, "文件引用更新完成: \(localId) -> \(serverId)")
+                        return
+                    }
+
+                    // XML 中未找到临时 ID，等待编辑器保存完成后重试
+                    if attempt < maxAttempts {
+                        LogService.shared.debug(.sync, "笔记内容中未找到临时 fileId，等待重试 (\(attempt)/\(maxAttempts)): \(localId)")
+                        try? await Task.sleep(nanoseconds: retryInterval)
+                    } else {
+                        LogService.shared.warning(.sync, "笔记内容中始终未找到临时 fileId: \(localId)")
+                    }
+                } else {
+                    LogService.shared.warning(.sync, "未找到笔记: \(noteId.prefix(8))..., 跳过文件引用更新")
+                    return
+                }
+            } catch {
+                LogService.shared.error(.sync, "更新文件引用失败: \(error)")
+                throw error
+            }
+        }
+
+        LogService.shared.info(.sync, "文件引用更新完成（未替换）: \(localId) -> \(serverId)")
     }
 }
 

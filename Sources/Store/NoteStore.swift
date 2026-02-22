@@ -131,15 +131,7 @@ public actor NoteStore {
         await eventBus.publish(NoteEvent.listChanged(notes))
 
         do {
-            let noteData = try JSONEncoder().encode(note)
-            let operation = NoteOperation(
-                type: .noteCreate,
-                noteId: temporaryId,
-                data: noteData,
-                localSaveTimestamp: now,
-                isLocalId: true
-            )
-            try operationQueue.enqueue(operation)
+            try operationQueue.enqueueNoteCreate(noteId: temporaryId)
             LogService.shared.debug(.sync, "已创建 noteCreate 操作: \(temporaryId.prefix(16))...")
         } catch {
             LogService.shared.error(.sync, "创建 noteCreate 操作失败: \(error)")
@@ -205,15 +197,13 @@ public actor NoteStore {
         await eventBus.publish(NoteEvent.listChanged(notes))
 
         do {
-            let noteData = try JSONEncoder().encode(note)
-            let operation = NoteOperation(
-                type: .cloudUpload,
+            try operationQueue.enqueueCloudUpload(
                 noteId: note.id,
-                data: noteData,
-                localSaveTimestamp: timestamp,
-                isLocalId: NoteOperation.isTemporaryId(note.id)
+                title: note.title,
+                content: note.content,
+                folderId: note.folderId,
+                localSaveTimestamp: timestamp
             )
-            try operationQueue.enqueue(operation)
         } catch {
             LogService.shared.error(.sync, "创建 cloudUpload 操作失败: \(error)")
         }
@@ -238,15 +228,13 @@ public actor NoteStore {
         await eventBus.publish(NoteEvent.listChanged(notes))
 
         do {
-            let noteData = try JSONEncoder().encode(note)
-            let operation = NoteOperation(
-                type: .cloudUpload,
+            try operationQueue.enqueueCloudUpload(
                 noteId: note.id,
-                data: noteData,
-                localSaveTimestamp: timestamp,
-                isLocalId: NoteOperation.isTemporaryId(note.id)
+                title: note.title,
+                content: note.content,
+                folderId: note.folderId,
+                localSaveTimestamp: timestamp
             )
-            try operationQueue.enqueue(operation)
             LogService.shared.debug(.sync, "已创建 cloudUpload 操作（立即）: \(note.id.prefix(8))...")
         } catch {
             LogService.shared.error(.sync, "创建 cloudUpload 操作失败: \(error)")
@@ -282,9 +270,7 @@ public actor NoteStore {
 
         if isOnline {
             if let operation = operationQueue.getPendingUpload(for: noteId) {
-                Task { @MainActor in
-                    await OperationProcessor.shared.processImmediately(operation)
-                }
+                await OperationProcessor.shared.processImmediately(operation)
             }
         }
     }
@@ -371,15 +357,7 @@ public actor NoteStore {
             // 入队 cloudDelete 操作，同步删除到云端
             if let deleteTag = tag {
                 do {
-                    let dataDict: [String: Any] = ["tag": deleteTag]
-                    let jsonData = try JSONSerialization.data(withJSONObject: dataDict)
-                    let operation = NoteOperation(
-                        type: .cloudDelete,
-                        noteId: noteId,
-                        data: jsonData,
-                        localSaveTimestamp: Date()
-                    )
-                    try operationQueue.enqueue(operation)
+                    try operationQueue.enqueueCloudDelete(noteId: noteId, tag: deleteTag)
                     LogService.shared.debug(.sync, "已入队 cloudDelete 操作: \(noteId.prefix(8))...")
                     await triggerImmediateUploadIfOnline(noteId: noteId)
                 } catch {
@@ -467,15 +445,7 @@ public actor NoteStore {
 
             // 入队 folderCreate 操作，同步到云端
             do {
-                let dataDict: [String: Any] = ["name": name]
-                let jsonData = try JSONSerialization.data(withJSONObject: dataDict)
-                let operation = NoteOperation(
-                    type: .folderCreate,
-                    noteId: folder.id,
-                    data: jsonData,
-                    localSaveTimestamp: Date()
-                )
-                try operationQueue.enqueue(operation)
+                try operationQueue.enqueueFolderCreate(folderId: folder.id, name: name)
                 LogService.shared.debug(.sync, "已入队 folderCreate 操作: \(folder.id.prefix(8))...")
             } catch {
                 LogService.shared.error(.sync, "创建 folderCreate 操作失败: \(error)")
@@ -501,15 +471,7 @@ public actor NoteStore {
             // 入队 folderRename 操作，同步到云端
             if let tag = existingTag {
                 do {
-                    let dataDict: [String: Any] = ["name": newName, "tag": tag]
-                    let jsonData = try JSONSerialization.data(withJSONObject: dataDict)
-                    let operation = NoteOperation(
-                        type: .folderRename,
-                        noteId: folderId,
-                        data: jsonData,
-                        localSaveTimestamp: Date()
-                    )
-                    try operationQueue.enqueue(operation)
+                    try operationQueue.enqueueFolderRename(folderId: folderId, name: newName, tag: tag)
                     LogService.shared.debug(.sync, "已入队 folderRename 操作: \(folderId.prefix(8))...")
                 } catch {
                     LogService.shared.error(.sync, "创建 folderRename 操作失败: \(error)")
@@ -534,15 +496,7 @@ public actor NoteStore {
             // 入队 folderDelete 操作，同步到云端
             if let tag = existingTag {
                 do {
-                    let dataDict: [String: Any] = ["tag": tag]
-                    let jsonData = try JSONSerialization.data(withJSONObject: dataDict)
-                    let operation = NoteOperation(
-                        type: .folderDelete,
-                        noteId: folderId,
-                        data: jsonData,
-                        localSaveTimestamp: Date()
-                    )
-                    try operationQueue.enqueue(operation)
+                    try operationQueue.enqueueFolderDelete(folderId: folderId, tag: tag)
                     LogService.shared.debug(.sync, "已入队 folderDelete 操作: \(folderId.prefix(8))...")
                 } catch {
                     LogService.shared.error(.sync, "创建 folderDelete 操作失败: \(error)")
@@ -611,15 +565,13 @@ public actor NoteStore {
 
             // 入队 cloudUpload 操作，同步元数据变更到云端
             do {
-                let noteData = try JSONEncoder().encode(note)
-                let operation = NoteOperation(
-                    type: .cloudUpload,
+                try operationQueue.enqueueCloudUpload(
                     noteId: note.id,
-                    data: noteData,
-                    localSaveTimestamp: note.updatedAt,
-                    isLocalId: NoteOperation.isTemporaryId(note.id)
+                    title: note.title,
+                    content: note.content,
+                    folderId: note.folderId,
+                    localSaveTimestamp: note.updatedAt
                 )
-                try operationQueue.enqueue(operation)
                 LogService.shared.debug(.sync, "元数据变更已入队 cloudUpload: \(noteId.prefix(8))...")
                 await triggerImmediateUploadIfOnline(noteId: noteId)
             } catch {

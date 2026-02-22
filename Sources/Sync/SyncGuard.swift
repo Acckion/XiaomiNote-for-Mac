@@ -76,7 +76,13 @@ public extension SyncGuard {
             return true
         }
 
-        // 5. 无保护条件，允许同步
+        // 5. 检查是否有待处理的文件上传操作（避免覆盖包含临时 fileId 的内容）
+        if operationQueue.hasPendingFileUpload(for: noteId) {
+            LogService.shared.debug(.sync, "跳过同步: 文件上传中 \(noteId.prefix(8))...")
+            return true
+        }
+
+        // 6. 无保护条件，允许同步
         return false
     }
 
@@ -130,6 +136,10 @@ public extension SyncGuard {
             return .pendingCreate
         }
 
+        if operationQueue.hasPendingFileUpload(for: noteId) {
+            return .pendingFileUpload
+        }
+
         return nil
     }
 }
@@ -146,6 +156,8 @@ public enum SyncSkipReason: Sendable, Equatable {
     case pendingUpload
     /// 笔记在待创建列表中
     case pendingCreate
+    /// 笔记有待处理的文件上传
+    case pendingFileUpload
     /// 本地版本较新
     case localNewer(localTimestamp: Date, cloudTimestamp: Date)
 
@@ -160,6 +172,8 @@ public enum SyncSkipReason: Sendable, Equatable {
             "笔记在待上传列表中"
         case .pendingCreate:
             "笔记在待创建列表中"
+        case .pendingFileUpload:
+            "笔记有待处理的文件上传"
         case let .localNewer(localTimestamp, cloudTimestamp):
             "本地版本较新 (本地: \(localTimestamp), 云端: \(cloudTimestamp))"
         }

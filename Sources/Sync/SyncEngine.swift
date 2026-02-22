@@ -104,6 +104,8 @@ public actor SyncEngine {
                     deletedCount: 0,
                     duration: duration
                 )))
+                // 同步完成后触发队列处理
+                await OperationProcessor.shared.processQueue()
             case let .full(fullMode):
                 let result = try await performFullSync(mode: fullMode)
                 let duration = Date().timeIntervalSince(startTime)
@@ -113,6 +115,8 @@ public actor SyncEngine {
                     deletedCount: 0,
                     duration: duration
                 )))
+                // 同步完成后触发队列处理
+                await OperationProcessor.shared.processQueue()
             }
         } catch {
             await eventBus.publish(SyncEvent.failed(errorMessage: error.localizedDescription))
@@ -550,19 +554,11 @@ public actor SyncEngine {
                     // 本地较新，添加到上传队列
                     let hasRenameOp = pendingOps.contains { $0.type == .folderRename && $0.noteId == localFolder.id }
                     if !hasRenameOp {
-                        let opData: [String: Any] = [
-                            "folderId": localFolder.id,
-                            "name": localFolder.name,
-                        ]
-                        let data = try JSONSerialization.data(withJSONObject: opData)
-                        let operation = NoteOperation(
-                            type: .folderRename,
-                            noteId: localFolder.id,
-                            data: data,
-                            status: .pending,
-                            priority: NoteOperation.calculatePriority(for: .folderRename)
+                        _ = try operationQueue.enqueueFolderRename(
+                            folderId: localFolder.id,
+                            name: localFolder.name,
+                            tag: localFolder.rawData?["tag"] as? String ?? localFolder.id
                         )
-                        _ = try operationQueue.enqueue(operation)
                         LogService.shared.debug(.sync, "文件夹本地较新，已添加到上传队列: \(localFolder.name)")
                     }
                 } else {
@@ -577,8 +573,8 @@ public actor SyncEngine {
                 let hasDeleteOp = pendingOps.contains { $0.type == .folderDelete && $0.noteId == cloudFolder.id }
                 if hasDeleteOp {
                     if let tag = cloudFolder.rawData?["tag"] as? String {
-                        _ = try await folderAPI.deleteFolder(folderId: cloudFolder.id, tag: tag, purge: false)
-                        LogService.shared.debug(.sync, "文件夹在删除队列中，已删除云端: \(cloudFolder.name)")
+                        // 删除操作已在队列中，由 OperationProcessor 统一处理
+                        LogService.shared.debug(.sync, "文件夹在删除队列中，跳过: \(cloudFolder.name)")
                     }
                 } else {
                     await eventBus.publish(FolderEvent.folderSaved(cloudFolder))
@@ -617,20 +613,12 @@ public actor SyncEngine {
                 // 本地较新，添加到上传队列
                 let hasUpdateOp = pendingOps.contains { $0.type == .cloudUpload && $0.noteId == localNote.id }
                 if !hasUpdateOp {
-                    let opData: [String: Any] = [
-                        "title": localNote.title,
-                        "content": localNote.content,
-                        "folderId": localNote.folderId,
-                    ]
-                    let data = try JSONSerialization.data(withJSONObject: opData)
-                    let operation = NoteOperation(
-                        type: .cloudUpload,
+                    _ = try operationQueue.enqueueCloudUpload(
                         noteId: localNote.id,
-                        data: data,
-                        status: .pending,
-                        priority: NoteOperation.calculatePriority(for: .cloudUpload)
+                        title: localNote.title,
+                        content: localNote.content,
+                        folderId: localNote.folderId
                     )
-                    _ = try operationQueue.enqueue(operation)
                     LogService.shared.debug(.sync, "笔记本地较新，已添加到上传队列: \(localNote.title)")
                 }
                 result.status = .skipped
@@ -677,11 +665,11 @@ public actor SyncEngine {
             let hasDeleteOp = pendingOps.contains { $0.type == .cloudDelete && $0.noteId == cloudNote.id }
             if hasDeleteOp {
                 if let tag = cloudNote.serverTag {
-                    _ = try await noteAPI.deleteNote(noteId: cloudNote.id, tag: tag, purge: false)
+                    // 删除操作已在队列中，由 OperationProcessor 统一处理
                     result.status = .skipped
-                    result.message = "在删除队列中，已删除云端"
+                    result.message = "在删除队列中，等待处理"
                     result.success = true
-                    LogService.shared.debug(.sync, "笔记在删除队列中，已删除云端: \(cloudNote.title)")
+                    LogService.shared.debug(.sync, "笔记在删除队列中，跳过: \(cloudNote.title)")
                 }
             } else {
                 // 再次检查本地是否存在（防止并发问题）
@@ -739,41 +727,9 @@ public actor SyncEngine {
 
             let hasCreateOp = pendingOps.contains { $0.type == .noteCreate && $0.noteId == localNote.id }
             if hasCreateOp {
-                do {
-                    let response = try await noteAPI.createNote(
-                        title: localNote.title,
-                        content: localNote.content,
-                        folderId: localNote.folderId
-                    )
-
-                    if let code = response["code"] as? Int, code == 0,
-                       let data = response["data"] as? [String: Any],
-                       let entry = data["entry"] as? [String: Any],
-                       let serverNoteId = entry["id"] as? String,
-                       serverNoteId != localNote.id
-                    {
-                        let updatedNote = Note(
-                            id: serverNoteId,
-                            title: localNote.title,
-                            content: localNote.content,
-                            folderId: localNote.folderId,
-                            isStarred: localNote.isStarred,
-                            createdAt: localNote.createdAt,
-                            updatedAt: localNote.updatedAt,
-                            tags: localNote.tags,
-                            serverTag: entry["tag"] as? String ?? localNote.serverTag,
-                            settingJson: localNote.settingJson,
-                            extraInfoJson: localNote.extraInfoJson
-                        )
-
-                        // 通过事件保存新笔记并删除旧笔记
-                        await eventBus.publish(SyncEvent.noteDownloaded(updatedNote))
-                        await eventBus.publish(NoteEvent.deleted(noteId: localNote.id, tag: nil))
-                        LogService.shared.info(.sync, "笔记上传后 ID 变更: \(localNote.id.prefix(8)) -> \(serverNoteId.prefix(8))")
-                    }
-                } catch {
-                    LogService.shared.error(.sync, "上传笔记失败: \(error.localizedDescription)")
-                }
+                // 已有 noteCreate 操作在队列中，由 OperationProcessor 处理
+                LogService.shared.debug(.sync, "笔记在创建队列中，跳过: \(localNote.title)")
+                continue
             } else {
                 let hasUpdateOp = pendingOps.contains { $0.type == .cloudUpload && $0.noteId == localNote.id }
                 if !hasUpdateOp {
@@ -790,37 +746,8 @@ public actor SyncEngine {
 
             let hasCreateOp = pendingOps.contains { $0.type == .folderCreate && $0.noteId == localFolder.id }
             if hasCreateOp {
-                let response = try await folderAPI.createFolder(name: localFolder.name)
-
-                if let code = response["code"] as? Int, code == 0,
-                   let data = response["data"] as? [String: Any],
-                   let entry = data["entry"] as? [String: Any]
-                {
-                    var serverFolderId: String?
-                    if let idString = entry["id"] as? String {
-                        serverFolderId = idString
-                    } else if let idInt = entry["id"] as? Int {
-                        serverFolderId = String(idInt)
-                    }
-
-                    if let folderId = serverFolderId, folderId != localFolder.id {
-                        // 通过事件迁移文件夹 ID 并删除旧文件夹
-                        await eventBus.publish(FolderEvent.folderIdMigrated(oldId: localFolder.id, newId: folderId))
-
-                        let updatedFolder = Folder(
-                            id: folderId,
-                            name: entry["subject"] as? String ?? localFolder.name,
-                            count: 0,
-                            isSystem: false,
-                            createdAt: Date()
-                        )
-                        await eventBus.publish(FolderEvent.folderSaved(updatedFolder))
-
-                        LogService.shared.info(.sync, "文件夹 ID 已更新: \(localFolder.id.prefix(8)) -> \(folderId.prefix(8))")
-                    }
-                } else {
-                    LogService.shared.warning(.sync, "文件夹上传后服务器返回无效响应: \(localFolder.name)")
-                }
+                // 已有 folderCreate 操作在队列中，由 OperationProcessor 处理
+                LogService.shared.debug(.sync, "文件夹在创建队列中，跳过: \(localFolder.name)")
             } else {
                 await eventBus.publish(FolderEvent.deleted(folderId: localFolder.id))
                 LogService.shared.debug(.sync, "文件夹不在新建队列，已删除本地: \(localFolder.name)")
