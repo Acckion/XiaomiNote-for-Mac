@@ -635,6 +635,18 @@ extension NativeEditorView.Coordinator {
         result.append(NSAttributedString(string: "\n"))
 
         textStorage.insert(result, at: location)
+
+        // 刷新布局以确保图片附件正确显示
+        // 不刷新的话，NSTextView 在非焦点状态下不会渲染新插入的附件
+        if let layoutManager = textView?.layoutManager {
+            let insertedRange = NSRange(location: location, length: result.length)
+            layoutManager.invalidateLayout(forCharacterRange: insertedRange, actualCharacterRange: nil)
+            layoutManager.invalidateDisplay(forCharacterRange: insertedRange)
+        }
+
+        // 将光标移动到插入内容之后
+        let newCursorPosition = location + result.length
+        textView?.setSelectedRange(NSRange(location: newCursorPosition, length: 0))
     }
 
     /// 插入语音录音
