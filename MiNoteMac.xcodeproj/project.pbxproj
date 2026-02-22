@@ -232,6 +232,7 @@
 		BD8C378CBACCCF807D0B37B8 /* MiNoteLibrary.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BE1CF42F6EF7475161CE744C /* WindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83E1F8B12D36CBA530172305 /* WindowState.swift */; };
 		C06A161BC4D3D48643D6CF8A /* AudioDecryptService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8328D5D05FC0EFCDCBB49C06 /* AudioDecryptService.swift */; };
+		C31A29AC7E383EC66253AB8D /* EditorEnums.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60D3E44EEC0BDD1B8050A67 /* EditorEnums.swift */; };
 		C44FF0CDBA3757D9CBF4C56F /* AuthenticationServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47BB8AE35F30AB2A3F7650BC /* AuthenticationServiceProtocol.swift */; };
 		C4854EE9F51762317A1EE68F /* DatabaseService+Internal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5DE220C4BAB73B9CDEE935 /* DatabaseService+Internal.swift */; };
 		C4F6494E12E9E852488DD40B /* IncrementalUpdateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD154D4385EDD8B76C293132 /* IncrementalUpdateManager.swift */; };
@@ -553,6 +554,7 @@
 		C21836DD022F654A54170710 /* DefaultNoteStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultNoteStorage.swift; sourceTree = "<group>"; };
 		C60702B3363ABB4271317254 /* NetworkRecoveryHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkRecoveryHandler.swift; sourceTree = "<group>"; };
 		C60C133F92A9701F6B796AE9 /* Paragraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paragraph.swift; sourceTree = "<group>"; };
+		C60D3E44EEC0BDD1B8050A67 /* EditorEnums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorEnums.swift; sourceTree = "<group>"; };
 		C85E3F212EFE5309CA8DA279 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		C86277B721480A72E5E65BE8 /* NoteHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteHistoryView.swift; sourceTree = "<group>"; };
 		C88083B427871B6F24E50522 /* NoteDetailHostingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailHostingController.swift; sourceTree = "<group>"; };
@@ -780,6 +782,7 @@
 				80BBCA48EFA57357B70598AF /* ContentAreaHostingController.swift */,
 				DC9ACA09AC76ACE5502AAC5C /* CursorFormatManager.swift */,
 				B2E26C94F70FEF0956F74FF8 /* EditorChangeTracker.swift */,
+				C60D3E44EEC0BDD1B8050A67 /* EditorEnums.swift */,
 				CCB262906957F0C09B5BB34A /* EditorProtocol.swift */,
 				01EF78479C2330A1621ADC47 /* FormatAttributesBuilder.swift */,
 				5AA2C5228C6D1AD33C3CC0ED /* FormatMenuProvider.swift */,
@@ -1735,6 +1738,7 @@
 				7C87882B34113556E821D1D6 /* DeletedNote.swift in Sources */,
 				B34CD9077EDE2B8BD0D2FF23 /* EditorChangeTracker.swift in Sources */,
 				E4F7E0FB6DDA2D804ABE06A2 /* EditorConfiguration.swift in Sources */,
+				C31A29AC7E383EC66253AB8D /* EditorEnums.swift in Sources */,
 				21FA93745D5E413239332874 /* EditorPreferencesService.swift in Sources */,
 				44510BC8A5760B0A171F426B /* EditorProtocol.swift in Sources */,
 				AF1F44ACCA12C270CE126E0A /* EditorSettingsView.swift in Sources */,
