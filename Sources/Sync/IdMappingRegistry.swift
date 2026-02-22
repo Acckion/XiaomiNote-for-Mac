@@ -357,15 +357,13 @@ public extension IdMappingRegistry {
                     await eventBus.publish(NoteEvent.saved(note))
 
                     // 4. 入队 cloudUpload 操作触发笔记重新保存到云端
-                    let noteData = try JSONEncoder().encode(note)
-                    let operation = NoteOperation(
-                        type: .cloudUpload,
+                    try operationQueue.enqueueCloudUpload(
                         noteId: noteId,
-                        data: noteData,
-                        localSaveTimestamp: Date(),
-                        isLocalId: NoteOperation.isTemporaryId(noteId)
+                        title: note.title,
+                        content: note.content,
+                        folderId: note.folderId,
+                        localSaveTimestamp: Date()
                     )
-                    try operationQueue.enqueue(operation)
                     LogService.shared.debug(.sync, "已入队 cloudUpload 操作（文件引用更新）")
                 } else {
                     LogService.shared.debug(.sync, "笔记内容中未找到临时 fileId: \(localId)")

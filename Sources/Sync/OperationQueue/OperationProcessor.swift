@@ -26,7 +26,7 @@ public actor OperationProcessor {
 
     /// 最大重试次数
     ///
-    private let maxRetryCount = 5
+    private let maxRetryCount = 8
 
     /// 基础重试延迟（秒）
     ///
@@ -34,7 +34,7 @@ public actor OperationProcessor {
 
     /// 最大重试延迟（秒）
     ///
-    private let maxRetryDelay: TimeInterval = 60.0
+    private let maxRetryDelay: TimeInterval = 300.0
 
     // MARK: - 依赖
 
@@ -414,17 +414,18 @@ public extension OperationProcessor {
 
 public extension OperationProcessor {
 
-    /// 计算重试延迟（指数退避）
+    /// 计算重试延迟（指数退避 + 随机抖动）
     ///
-    /// 延迟序列：1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s...
+    /// 延迟序列（含 0-25% 抖动）：~1s, ~2s, ~4s, ~8s, ~16s, ~32s, ~64s, ~128s
     ///
     /// - Parameter retryCount: 当前重试次数
     /// - Returns: 延迟时间（秒）
     ///
     func calculateRetryDelay(retryCount: Int) -> TimeInterval {
-        // delay = min(baseDelay * 2^retryCount, maxDelay)
-        let delay = baseRetryDelay * pow(2.0, Double(retryCount))
-        return min(delay, maxRetryDelay)
+        let baseDelay = baseRetryDelay * pow(2.0, Double(retryCount))
+        let cappedDelay = min(baseDelay, maxRetryDelay)
+        let jitter = cappedDelay * Double.random(in: 0 ... 0.25)
+        return cappedDelay + jitter
     }
 }
 
@@ -827,10 +828,10 @@ extension OperationProcessor {
     private func processCloudDelete(_ operation: NoteOperation) async throws {
         LogService.shared.debug(.sync, "OperationProcessor 处理 cloudDelete: \(operation.noteId)")
 
-        // 从操作数据中解析 tag
-        guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
-              let tag = operationData["tag"] as? String
-        else {
+        let deleteData: CloudDeleteData
+        do {
+            deleteData = try CloudDeleteData.decoded(from: operation.data)
+        } catch {
             throw NSError(
                 domain: "OperationProcessor",
                 code: 400,
@@ -839,7 +840,7 @@ extension OperationProcessor {
         }
 
         // 调用 API 删除笔记
-        _ = try await noteAPI.deleteNote(noteId: operation.noteId, tag: tag, purge: false)
+        _ = try await noteAPI.deleteNote(noteId: operation.noteId, tag: deleteData.tag, purge: false)
 
         LogService.shared.info(.sync, "OperationProcessor 删除成功: \(operation.noteId)")
     }
@@ -907,18 +908,12 @@ extension OperationProcessor {
 
         // 入队 cloudUpload 触发笔记重新保存
         if let note = try? localStorage.loadNote(noteId: uploadData.noteId) {
-            let cloudUploadData: [String: Any] = [
-                "title": note.title,
-                "content": note.content,
-                "folderId": note.folderId,
-            ]
-            let data = try JSONSerialization.data(withJSONObject: cloudUploadData)
-            let cloudUploadOp = NoteOperation(
-                type: .cloudUpload,
+            _ = try? operationQueue.enqueueCloudUpload(
                 noteId: note.id,
-                data: data
+                title: note.title,
+                content: note.content,
+                folderId: note.folderId
             )
-            _ = try? operationQueue.enqueue(cloudUploadOp)
         }
 
         // 清理临时文件
@@ -1032,18 +1027,12 @@ extension OperationProcessor {
             }
 
             // 入队 cloudUpload 触发笔记重新保存
-            let cloudUploadData: [String: Any] = [
-                "title": note.title,
-                "content": note.content,
-                "folderId": note.folderId,
-            ]
-            let data = try JSONSerialization.data(withJSONObject: cloudUploadData)
-            let cloudUploadOp = NoteOperation(
-                type: .cloudUpload,
+            _ = try? operationQueue.enqueueCloudUpload(
                 noteId: note.id,
-                data: data
+                title: note.title,
+                content: note.content,
+                folderId: note.folderId
             )
-            _ = try? operationQueue.enqueue(cloudUploadOp)
         }
 
         // 移动文件到正式缓存
@@ -1062,16 +1051,18 @@ extension OperationProcessor {
     private func processFolderCreate(_ operation: NoteOperation) async throws {
         LogService.shared.debug(.sync, "OperationProcessor 处理 folderCreate: \(operation.noteId)")
 
-        // 从操作数据中解析文件夹名称
-        guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
-              let folderName = operationData["name"] as? String
-        else {
+        let createData: FolderCreateData
+        do {
+            createData = try FolderCreateData.decoded(from: operation.data)
+        } catch {
             throw NSError(
                 domain: "OperationProcessor",
                 code: 400,
                 userInfo: [NSLocalizedDescriptionKey: "无效的文件夹操作数据"]
             )
         }
+
+        let folderName = createData.name
 
         // 调用 API 创建文件夹
         let response = try await folderAPI.createFolder(name: folderName)
@@ -1141,17 +1132,19 @@ extension OperationProcessor {
     private func processFolderRename(_ operation: NoteOperation) async throws {
         LogService.shared.debug(.sync, "OperationProcessor 处理 folderRename: \(operation.noteId)")
 
-        // 从操作数据中解析参数
-        guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
-              let newName = operationData["name"] as? String,
-              let existingTag = operationData["tag"] as? String
-        else {
+        let renameData: FolderRenameData
+        do {
+            renameData = try FolderRenameData.decoded(from: operation.data)
+        } catch {
             throw NSError(
                 domain: "OperationProcessor",
                 code: 400,
                 userInfo: [NSLocalizedDescriptionKey: "无效的文件夹操作数据"]
             )
         }
+
+        let newName = renameData.name
+        let existingTag = renameData.tag
 
         // 调用 API 重命名文件夹
         let response = try await folderAPI.renameFolder(
@@ -1205,10 +1198,10 @@ extension OperationProcessor {
     private func processFolderDelete(_ operation: NoteOperation) async throws {
         LogService.shared.debug(.sync, "OperationProcessor 处理 folderDelete: \(operation.noteId)")
 
-        // 从操作数据中解析 tag
-        guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
-              let tag = operationData["tag"] as? String
-        else {
+        let deleteData: FolderDeleteData
+        do {
+            deleteData = try FolderDeleteData.decoded(from: operation.data)
+        } catch {
             throw NSError(
                 domain: "OperationProcessor",
                 code: 400,
@@ -1217,7 +1210,7 @@ extension OperationProcessor {
         }
 
         // 调用 API 删除文件夹
-        _ = try await folderAPI.deleteFolder(folderId: operation.noteId, tag: tag, purge: false)
+        _ = try await folderAPI.deleteFolder(folderId: operation.noteId, tag: deleteData.tag, purge: false)
 
         LogService.shared.info(.sync, "OperationProcessor 删除文件夹成功: \(operation.noteId)")
     }

@@ -554,19 +554,11 @@ public actor SyncEngine {
                     // 本地较新，添加到上传队列
                     let hasRenameOp = pendingOps.contains { $0.type == .folderRename && $0.noteId == localFolder.id }
                     if !hasRenameOp {
-                        let opData: [String: Any] = [
-                            "folderId": localFolder.id,
-                            "name": localFolder.name,
-                        ]
-                        let data = try JSONSerialization.data(withJSONObject: opData)
-                        let operation = NoteOperation(
-                            type: .folderRename,
-                            noteId: localFolder.id,
-                            data: data,
-                            status: .pending,
-                            priority: NoteOperation.calculatePriority(for: .folderRename)
+                        _ = try operationQueue.enqueueFolderRename(
+                            folderId: localFolder.id,
+                            name: localFolder.name,
+                            tag: localFolder.rawData?["tag"] as? String ?? localFolder.id
                         )
-                        _ = try operationQueue.enqueue(operation)
                         LogService.shared.debug(.sync, "文件夹本地较新，已添加到上传队列: \(localFolder.name)")
                     }
                 } else {
@@ -621,20 +613,12 @@ public actor SyncEngine {
                 // 本地较新，添加到上传队列
                 let hasUpdateOp = pendingOps.contains { $0.type == .cloudUpload && $0.noteId == localNote.id }
                 if !hasUpdateOp {
-                    let opData: [String: Any] = [
-                        "title": localNote.title,
-                        "content": localNote.content,
-                        "folderId": localNote.folderId,
-                    ]
-                    let data = try JSONSerialization.data(withJSONObject: opData)
-                    let operation = NoteOperation(
-                        type: .cloudUpload,
+                    _ = try operationQueue.enqueueCloudUpload(
                         noteId: localNote.id,
-                        data: data,
-                        status: .pending,
-                        priority: NoteOperation.calculatePriority(for: .cloudUpload)
+                        title: localNote.title,
+                        content: localNote.content,
+                        folderId: localNote.folderId
                     )
-                    _ = try operationQueue.enqueue(operation)
                     LogService.shared.debug(.sync, "笔记本地较新，已添加到上传队列: \(localNote.title)")
                 }
                 result.status = .skipped
