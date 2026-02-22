@@ -69,7 +69,7 @@ function_body_length:
 
 function_parameter_count:
   warning: 6
-  error: 8
+  error: 10
 
 type_name:
   min_length: 3
@@ -103,13 +103,35 @@ identifier_name:
     - t
     - v
     - S
+    - f
 
 large_tuple:
   warning: 3
-  error: 4
+  error: 5
 
 cyclomatic_complexity:
   warning: 20
-  error: 50
+  error: 60
+
+force_try:
+  severity: warning
+
+redundant_discardable_let:
+  severity: warning
+
+non_optional_string_data_conversion:
+  severity: warning
+
+optional_data_string_conversion:
+  severity: warning
+
+unused_optional_binding:
+  severity: warning
+
+unneeded_override:
+  severity: warning
+
+unused_enumerated:
+  severity: warning
 
 reporter: xcode

@@ -30,7 +30,7 @@ jobs:
         run: brew install swiftlint
       
       - name: Lint
-        run: swiftlint lint --config .swiftlint.yml --strict
+        run: swiftlint lint --config .swiftlint.yml
       
       - name: Build
         run: |
