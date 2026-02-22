@@ -21,6 +21,7 @@ enum NoteEvent: AppEvent {
     // 结果事件
     case saved(Note)
     case listChanged([Note])
+    case idMigrated(oldId: String, newId: String, note: Note)
 
     // MARK: - AppEvent
 

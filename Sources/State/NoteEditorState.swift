@@ -24,6 +24,9 @@ public final class NoteEditorState: ObservableObject {
     /// 外部注入的保存回调，由编辑器层设置
     var saveContentCallback: (() async -> Bool)?
 
+    /// ID 迁移回调，通知 NoteEditingCoordinator 更新编辑状态
+    var onIdMigrated: ((String, String, Note) -> Void)?
+
     // MARK: - 依赖
 
     private let eventBus: EventBus
@@ -52,6 +55,8 @@ public final class NoteEditorState: ObservableObject {
                 switch event {
                 case let .saved(note):
                     handleNoteSaved(note)
+                case let .idMigrated(oldId, _, note):
+                    handleIdMigrated(oldId: oldId, note: note)
                 default:
                     break
                 }
@@ -222,5 +227,13 @@ public final class NoteEditorState: ObservableObject {
         guard var current = currentNote, current.id == noteId else { return }
         current.serverTag = newTag
         currentNote = current
+    }
+
+    /// 处理笔记 ID 迁移（临时 ID -> 正式 ID）
+    private func handleIdMigrated(oldId: String, note: Note) {
+        guard let current = currentNote, current.id == oldId else { return }
+        currentNote = note
+        onIdMigrated?(oldId, note.id, note)
+        LogService.shared.debug(.editor, "NoteEditorState 更新当前笔记 ID: \(oldId.prefix(8))... -> \(note.id.prefix(8))...")
     }
 }

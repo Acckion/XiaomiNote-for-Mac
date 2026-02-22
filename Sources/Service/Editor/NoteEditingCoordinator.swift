@@ -94,6 +94,11 @@ public final class NoteEditingCoordinator: ObservableObject {
     func configure(noteEditorState: NoteEditorState, noteStore: NoteStore) {
         self.noteEditorState = noteEditorState
         self.noteStore = noteStore
+
+        // 设置 ID 迁移回调
+        noteEditorState.onIdMigrated = { [weak self] oldId, newId, note in
+            self?.handleIdMigration(oldId: oldId, newId: newId, note: note)
+        }
     }
 
     // MARK: - 编辑器偏好
@@ -102,16 +107,40 @@ public final class NoteEditingCoordinator: ObservableObject {
         EditorPreferencesService.shared.isNativeEditorAvailable
     }
 
+    // MARK: - ID 迁移处理
+
+    /// 处理笔记 ID 迁移（临时 ID -> 正式 ID）
+    public func handleIdMigration(oldId: String, newId: String, note _: Note) {
+        guard currentEditingNoteId == oldId else { return }
+
+        LogService.shared.info(.editor, "NoteEditingCoordinator ID 迁移: \(oldId.prefix(8))... -> \(newId.prefix(8))...")
+
+        currentEditingNoteId = newId
+
+        // 迁移内存缓存中的引用
+        if let oldContent = lastUploadedContentByNoteId.removeValue(forKey: oldId) {
+            lastUploadedContentByNoteId[newId] = oldContent
+        }
+        if let oldTitle = lastUploadedTitleByNoteId.removeValue(forKey: oldId) {
+            lastUploadedTitleByNoteId[newId] = oldTitle
+        }
+    }
+
     // MARK: - 核心方法（保存）
 
     /// 处理编辑器内容变化（统一入口）
     public func handleContentChange(xmlContent: String, htmlContent: String?) async {
         guard !isInitializing else {
+            LogService.shared.debug(.editor, "handleContentChange 跳过 - isInitializing=true")
             return
         }
         guard let currentNote = noteEditorState?.currentNote,
               currentNote.id == currentEditingNoteId
         else {
+            LogService.shared.warning(
+                .editor,
+                "handleContentChange 跳过 - currentNote: \(noteEditorState?.currentNote?.id.prefix(8) ?? "nil"), editingNoteId: \(currentEditingNoteId?.prefix(8) ?? "nil")"
+            )
             return
         }
 
@@ -277,9 +306,17 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     /// 切换到新笔记（统一入口）
     public func switchToNote(_ note: Note) async {
+        LogService.shared.debug(
+            .editor,
+            "switchToNote 开始 - 笔记ID: \(note.id.prefix(8))..., noteEditorState.currentNote: \(noteEditorState?.currentNote?.id.prefix(8) ?? "nil")"
+        )
+
         currentEditingNoteId = note.id
         isInitializing = true
         saveStatus = .saved
+
+        // 同步更新 NoteEditorState.currentNote，确保 handleContentChange 的 guard 能通过
+        noteEditorState?.loadNote(note)
 
         let title = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
         editedTitle = title

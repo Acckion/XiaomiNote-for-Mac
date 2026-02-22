@@ -371,6 +371,12 @@ public actor NoteStore {
 
         case .saved, .listChanged:
             break
+
+        case let .idMigrated(oldId, newId, _):
+            if activeEditingNoteId == oldId {
+                activeEditingNoteId = newId
+                LogService.shared.debug(.storage, "NoteStore 更新活跃编辑笔记 ID: \(oldId.prefix(8))... -> \(newId.prefix(8))...")
+            }
         }
     }
 

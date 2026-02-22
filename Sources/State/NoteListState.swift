@@ -63,6 +63,12 @@ public final class NoteListState: ObservableObject {
                     notes = updatedNotes
                 case let .saved(note):
                     updateNoteInList(note)
+                case let .idMigrated(oldId, _, note):
+                    // 临时 ID -> 正式 ID 迁移：更新选中笔记引用
+                    if selectedNote?.id == oldId {
+                        selectedNote = note
+                        LogService.shared.debug(.viewmodel, "NoteListState 更新选中笔记 ID: \(oldId.prefix(8))... -> \(note.id.prefix(8))...")
+                    }
                 default:
                     break
                 }

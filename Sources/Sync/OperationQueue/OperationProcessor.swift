@@ -688,6 +688,9 @@ extension OperationProcessor {
             // 7. 发送 ID 变更事件
             await eventBus.publish(NoteEvent.saved(updatedNote))
 
+            // 8. 发布 ID 迁移事件，通知 UI 层更新引用
+            await eventBus.publish(NoteEvent.idMigrated(oldId: note.id, newId: serverNoteId, note: updatedNote))
+
             LogService.shared.info(.sync, "OperationProcessor ID 更新完成: \(note.id) -> \(serverNoteId)")
         } else {
             // ID 相同，只更新 serverTag
