@@ -699,12 +699,23 @@ extension OperationProcessor {
         // 4. 更新本地笔记
         let serverTag = tag
 
+        // 在保存新笔记前，用已有的文件 ID 映射替换 content 中残留的临时 fileId
+        // 场景：imageUpload 先完成并注册了映射，但 updateAllFileReferences 可能因时序问题未成功替换
+        var resolvedContent = note.content
+        let fileMappings = IdMappingRegistry.shared.getAllMappings().filter { $0.entityType == "file" }
+        for mapping in fileMappings {
+            resolvedContent = resolvedContent.replacingOccurrences(of: mapping.localId, with: mapping.serverId)
+        }
+        if resolvedContent != note.content {
+            LogService.shared.info(.sync, "noteCreate 保存前替换了 content 中的临时 fileId")
+        }
+
         // 如果服务器返回的 ID 与本地不同，需要更新
         if note.id != serverNoteId {
             var updatedNote = Note(
                 id: serverNoteId,
                 title: note.title,
-                content: note.content,
+                content: resolvedContent,
                 folderId: serverFolderId,
                 isStarred: note.isStarred,
                 createdAt: note.createdAt,
@@ -743,6 +754,7 @@ extension OperationProcessor {
         } else {
             // ID 相同，只更新 serverTag
             var updatedNote = note
+            updatedNote.content = resolvedContent
             updatedNote.serverTag = serverTag
             updatedNote.folderId = serverFolderId
             await eventBus.publish(SyncEvent.noteDownloaded(updatedNote))
@@ -811,12 +823,15 @@ extension OperationProcessor {
             // 用服务器返回的正确 tag 更新
             await propagateServerTag(newTag, forNoteId: note.id)
 
-            // 使用正确的 tag 重新上传
+            // 重新从 DB 加载笔记，确保使用最新的 content（可能已被 updateAllFileReferences 替换）
+            let retryNote = (try? localStorage.loadNote(noteId: note.id)) ?? note
+
+            // 使用正确的 tag 和最新 content 重新上传
             let retryResponse = try await noteAPI.updateNote(
-                noteId: note.id,
-                title: note.title,
-                content: note.content,
-                folderId: note.folderId,
+                noteId: retryNote.id,
+                title: retryNote.title,
+                content: retryNote.content,
+                folderId: retryNote.folderId,
                 existingTag: newTag
             )
 
@@ -829,6 +844,15 @@ extension OperationProcessor {
                 )
             }
 
+            // 检查重试后是否仍然冲突
+            let retryConflict: Bool = if let data = retryResponse["data"] as? [String: Any],
+                                         let conflict = data["conflict"] as? Bool
+            {
+                conflict
+            } else {
+                false
+            }
+
             // 提取重试后的 tag
             let retryTag: String = if let data = retryResponse["data"] as? [String: Any],
                                       let tag = data["tag"] as? String
@@ -836,6 +860,17 @@ extension OperationProcessor {
                 tag
             } else {
                 newTag
+            }
+
+            if retryConflict {
+                // 重试后仍然冲突，保存最新 tag 后抛出错误让上层重试
+                await propagateServerTag(retryTag, forNoteId: note.id)
+                LogService.shared.error(.sync, "云端上传冲突重试后仍然冲突: \(operation.noteId.prefix(8))...")
+                throw NSError(
+                    domain: "OperationProcessor",
+                    code: 409,
+                    userInfo: [NSLocalizedDescriptionKey: "云端上传冲突重试后仍然冲突"]
+                )
             }
 
             // 保存重试后的 tag
