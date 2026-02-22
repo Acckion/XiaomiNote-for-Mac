@@ -9,7 +9,11 @@ public actor SyncEngine {
 
     // MARK: - 依赖
 
-    private let api: MiNoteService
+    private let apiClient: APIClient
+    private let noteAPI: NoteAPI
+    private let folderAPI: FolderAPI
+    private let syncAPI: SyncAPI
+    private let fileAPI: FileAPI
     private let eventBus: EventBus
     private let operationQueue: UnifiedOperationQueue
     private let localStorage: LocalStorageService
@@ -24,7 +28,11 @@ public actor SyncEngine {
     // MARK: - 初始化
 
     init(
-        api: MiNoteService = .shared,
+        apiClient: APIClient = .shared,
+        noteAPI: NoteAPI = .shared,
+        folderAPI: FolderAPI = .shared,
+        syncAPI: SyncAPI = .shared,
+        fileAPI: FileAPI = .shared,
         eventBus: EventBus = .shared,
         operationQueue: UnifiedOperationQueue = .shared,
         localStorage: LocalStorageService = .shared,
@@ -32,7 +40,11 @@ public actor SyncEngine {
         syncGuard: SyncGuard? = nil,
         noteStore: NoteStore? = nil
     ) {
-        self.api = api
+        self.apiClient = apiClient
+        self.noteAPI = noteAPI
+        self.folderAPI = folderAPI
+        self.syncAPI = syncAPI
+        self.fileAPI = fileAPI
         self.eventBus = eventBus
         self.operationQueue = operationQueue
         self.localStorage = localStorage
@@ -138,7 +150,7 @@ public actor SyncEngine {
     func performIncrementalSync() async throws -> SyncResult {
         LogService.shared.info(.sync, "开始执行增量同步")
 
-        guard await api.isAuthenticated() else {
+        guard apiClient.isAuthenticated() else {
             LogService.shared.error(.sync, "增量同步失败：未认证")
             throw SyncError.notAuthenticated
         }
@@ -174,10 +186,10 @@ public actor SyncEngine {
         let lastSyncTag = await syncStateManager.getCurrentSyncTag()
         await eventBus.publish(SyncEvent.progress(message: "获取自上次同步以来的更改...", percent: 0.1))
 
-        let syncResponse = try await api.fetchPage(syncTag: lastSyncTag)
+        let syncResponse = try await noteAPI.fetchPage(syncTag: lastSyncTag)
 
-        let notes = await api.parseNotes(from: syncResponse)
-        let folders = await api.parseFolders(from: syncResponse)
+        let notes = ResponseParser.parseNotes(from: syncResponse)
+        let folders = ResponseParser.parseFolders(from: syncResponse)
 
         var syncedNotes = 0
         var cloudNoteIds = Set<String>()
@@ -226,7 +238,7 @@ public actor SyncEngine {
 
     /// 使用 syncFull API 进行增量同步
     private func performWebIncrementalSync() async throws -> SyncResult {
-        guard await api.isAuthenticated() else {
+        guard apiClient.isAuthenticated() else {
             throw SyncError.notAuthenticated
         }
 
@@ -239,10 +251,10 @@ public actor SyncEngine {
 
         await eventBus.publish(SyncEvent.progress(message: "开始网页版增量同步...", percent: 0))
 
-        let syncResponse = try await api.syncFull(syncTag: lastSyncTag)
+        let syncResponse = try await syncAPI.syncFull(syncTag: lastSyncTag)
 
-        let notes = await api.parseNotes(from: syncResponse)
-        let folders = await api.parseFolders(from: syncResponse)
+        let notes = ResponseParser.parseNotes(from: syncResponse)
+        let folders = ResponseParser.parseFolders(from: syncResponse)
 
         var syncedNotes = 0
         var cloudNoteIds = Set<String>()
@@ -287,7 +299,7 @@ public actor SyncEngine {
 
     /// 只同步有修改的条目，效率最高
     private func performLightweightIncrementalSync() async throws -> SyncResult {
-        guard await api.isAuthenticated() else {
+        guard apiClient.isAuthenticated() else {
             throw SyncError.notAuthenticated
         }
 
@@ -300,7 +312,7 @@ public actor SyncEngine {
 
         await eventBus.publish(SyncEvent.progress(message: "开始轻量级增量同步...", percent: 0))
 
-        let syncResponse = try await api.syncFull(syncTag: lastSyncTag)
+        let syncResponse = try await syncAPI.syncFull(syncTag: lastSyncTag)
         let (modifiedNotes, modifiedFolders, newSyncTag) = try parseLightweightSyncResponse(syncResponse)
 
         LogService.shared.info(.sync, "轻量级增量同步：\(modifiedNotes.count) 个笔记，\(modifiedFolders.count) 个文件夹有修改")
@@ -346,7 +358,7 @@ public actor SyncEngine {
     func performFullSync(mode: FullSyncMode) async throws -> SyncResult {
         LogService.shared.info(.sync, "开始执行全量同步")
 
-        guard await api.isAuthenticated() else {
+        guard apiClient.isAuthenticated() else {
             LogService.shared.error(.sync, "全量同步失败：未认证")
             throw SyncError.notAuthenticated
         }
@@ -388,13 +400,13 @@ public actor SyncEngine {
 
                 let pageResponse: [String: Any]
                 do {
-                    pageResponse = try await api.fetchPage(syncTag: syncTag)
+                    pageResponse = try await noteAPI.fetchPage(syncTag: syncTag)
                 } catch let error as MiNoteError {
                     throw mapMiNoteError(error)
                 }
 
-                let notes = await api.parseNotes(from: pageResponse)
-                let folders = await api.parseFolders(from: pageResponse)
+                let notes = ResponseParser.parseNotes(from: pageResponse)
+                let folders = ResponseParser.parseFolders(from: pageResponse)
 
                 totalNotes += notes.count
 
@@ -424,7 +436,7 @@ public actor SyncEngine {
                 await eventBus.publish(SyncEvent.progress(message: "正在同步笔记: \(note.title)", percent: percent))
 
                 do {
-                    let noteDetails = try await api.fetchNoteDetails(noteId: note.id)
+                    let noteDetails = try await noteAPI.fetchNoteDetails(noteId: note.id)
                     var updatedNote = note
                     NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
@@ -443,14 +455,14 @@ public actor SyncEngine {
             // 5. 获取并同步私密笔记
             await eventBus.publish(SyncEvent.progress(message: "获取私密笔记...", percent: 0.85))
             do {
-                let privateNotesResponse = try await api.fetchPrivateNotes(folderId: "2", limit: 200)
-                let privateNotes = await api.parseNotes(from: privateNotesResponse)
+                let privateNotesResponse = try await noteAPI.fetchPrivateNotes(folderId: "2", limit: 200)
+                let privateNotes = ResponseParser.parseNotes(from: privateNotesResponse)
 
                 LogService.shared.debug(.sync, "获取到 \(privateNotes.count) 条私密笔记")
                 totalNotes += privateNotes.count
 
                 for note in privateNotes {
-                    let noteDetails = try await api.fetchNoteDetails(noteId: note.id)
+                    let noteDetails = try await noteAPI.fetchNoteDetails(noteId: note.id)
                     var updatedNote = note
                     NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
@@ -485,7 +497,7 @@ public actor SyncEngine {
             } else {
                 // 尝试从最后一次 API 响应中提取
                 do {
-                    let lastPageResponse = try await api.fetchPage(syncTag: "")
+                    let lastPageResponse = try await noteAPI.fetchPage(syncTag: "")
                     if let lastSyncTag = lastPageResponse["syncTag"] as? String, !lastSyncTag.isEmpty {
                         finalSyncTag = lastSyncTag
                     } else if let extracted = extractSyncTags(from: lastPageResponse) {
@@ -565,7 +577,7 @@ public actor SyncEngine {
                 let hasDeleteOp = pendingOps.contains { $0.type == .folderDelete && $0.noteId == cloudFolder.id }
                 if hasDeleteOp {
                     if let tag = cloudFolder.rawData?["tag"] as? String {
-                        _ = try await api.deleteFolder(folderId: cloudFolder.id, tag: tag, purge: false)
+                        _ = try await folderAPI.deleteFolder(folderId: cloudFolder.id, tag: tag, purge: false)
                         LogService.shared.debug(.sync, "文件夹在删除队列中，已删除云端: \(cloudFolder.name)")
                     }
                 } else {
@@ -626,7 +638,7 @@ public actor SyncEngine {
                 result.success = true
             } else if cloudNote.updatedAt > localNote.updatedAt {
                 // 云端较新
-                let noteDetails = try await api.fetchNoteDetails(noteId: cloudNote.id)
+                let noteDetails = try await noteAPI.fetchNoteDetails(noteId: cloudNote.id)
                 var updatedNote = cloudNote
                 NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
@@ -642,7 +654,7 @@ public actor SyncEngine {
             } else {
                 // 时间一致，比较内容
                 if localNote.primaryXMLContent != cloudNote.primaryXMLContent {
-                    let noteDetails = try await api.fetchNoteDetails(noteId: cloudNote.id)
+                    let noteDetails = try await noteAPI.fetchNoteDetails(noteId: cloudNote.id)
                     var updatedNote = cloudNote
                     NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
@@ -665,7 +677,7 @@ public actor SyncEngine {
             let hasDeleteOp = pendingOps.contains { $0.type == .cloudDelete && $0.noteId == cloudNote.id }
             if hasDeleteOp {
                 if let tag = cloudNote.serverTag {
-                    _ = try await api.deleteNote(noteId: cloudNote.id, tag: tag, purge: false)
+                    _ = try await noteAPI.deleteNote(noteId: cloudNote.id, tag: tag, purge: false)
                     result.status = .skipped
                     result.message = "在删除队列中，已删除云端"
                     result.success = true
@@ -675,7 +687,7 @@ public actor SyncEngine {
                 // 再次检查本地是否存在（防止并发问题）
                 if let existingNote = try? localStorage.loadNote(noteId: cloudNote.id) {
                     if existingNote.updatedAt < cloudNote.updatedAt {
-                        let noteDetails = try await api.fetchNoteDetails(noteId: cloudNote.id)
+                        let noteDetails = try await noteAPI.fetchNoteDetails(noteId: cloudNote.id)
                         var updatedNote = cloudNote
                         NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
@@ -694,7 +706,7 @@ public actor SyncEngine {
                     }
                 } else {
                     // 新笔记，下载到本地
-                    let noteDetails = try await api.fetchNoteDetails(noteId: cloudNote.id)
+                    let noteDetails = try await noteAPI.fetchNoteDetails(noteId: cloudNote.id)
                     var updatedNote = cloudNote
                     NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
@@ -728,7 +740,7 @@ public actor SyncEngine {
             let hasCreateOp = pendingOps.contains { $0.type == .noteCreate && $0.noteId == localNote.id }
             if hasCreateOp {
                 do {
-                    let response = try await api.createNote(
+                    let response = try await noteAPI.createNote(
                         title: localNote.title,
                         content: localNote.content,
                         folderId: localNote.folderId
@@ -778,7 +790,7 @@ public actor SyncEngine {
 
             let hasCreateOp = pendingOps.contains { $0.type == .folderCreate && $0.noteId == localFolder.id }
             if hasCreateOp {
-                let response = try await api.createFolder(name: localFolder.name)
+                let response = try await folderAPI.createFolder(name: localFolder.name)
 
                 if let code = response["code"] as? Int, code == 0,
                    let data = response["data"] as? [String: Any],
@@ -902,7 +914,7 @@ public actor SyncEngine {
         }
 
         do {
-            let noteDetails = try await api.fetchNoteDetails(noteId: note.id)
+            let noteDetails = try await noteAPI.fetchNoteDetails(noteId: note.id)
             var updatedNote = note
             NoteMapper.updateFromServerDetails(&updatedNote, details: noteDetails)
 
@@ -934,7 +946,7 @@ public actor SyncEngine {
             if isFullSync {
                 let noteDetails: [String: Any]
                 do {
-                    noteDetails = try await api.fetchNoteDetails(noteId: note.id)
+                    noteDetails = try await noteAPI.fetchNoteDetails(noteId: note.id)
                 } catch let error as MiNoteError {
                     throw mapMiNoteError(error)
                 }
@@ -970,7 +982,7 @@ public actor SyncEngine {
 
                     if timeDifference < 2.0 {
                         do {
-                            let noteDetails = try await api.fetchNoteDetails(noteId: note.id)
+                            let noteDetails = try await noteAPI.fetchNoteDetails(noteId: note.id)
                             var cloudNote = note
                             NoteMapper.updateFromServerDetails(&cloudNote, details: noteDetails)
 
@@ -998,7 +1010,7 @@ public actor SyncEngine {
 
                 let noteDetails: [String: Any]
                 do {
-                    noteDetails = try await api.fetchNoteDetails(noteId: note.id)
+                    noteDetails = try await noteAPI.fetchNoteDetails(noteId: note.id)
                 } catch let error as MiNoteError {
                     throw mapMiNoteError(error)
                 }
@@ -1016,7 +1028,7 @@ public actor SyncEngine {
             } else {
                 let noteDetails: [String: Any]
                 do {
-                    noteDetails = try await api.fetchNoteDetails(noteId: note.id)
+                    noteDetails = try await noteAPI.fetchNoteDetails(noteId: note.id)
                 } catch let error as MiNoteError {
                     throw mapMiNoteError(error)
                 }
@@ -1110,7 +1122,7 @@ public actor SyncEngine {
                 }
 
                 do {
-                    let audioData = try await api.downloadAudio(fileId: fileId)
+                    let audioData = try await fileAPI.downloadAudio(fileId: fileId)
                     try AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
                     var updatedData = attachmentData
                     updatedData["localExists"] = true
@@ -1145,7 +1157,7 @@ public actor SyncEngine {
 
         for attempt in 1 ... maxRetries {
             do {
-                return try await api.downloadFile(fileId: fileId, type: type)
+                return try await fileAPI.downloadFile(fileId: fileId, type: type)
             } catch {
                 lastError = error
                 if attempt < maxRetries {
@@ -1466,11 +1478,11 @@ public actor SyncEngine {
     func redownloadNoteImages(noteId: String) async throws -> (success: Int, failed: Int) {
         LogService.shared.info(.sync, "手动重新下载笔记图片: \(noteId)")
 
-        guard await api.isAuthenticated() else {
+        guard apiClient.isAuthenticated() else {
             throw SyncError.notAuthenticated
         }
 
-        let noteDetails = try await api.fetchNoteDetails(noteId: noteId)
+        let noteDetails = try await noteAPI.fetchNoteDetails(noteId: noteId)
 
         guard let updatedSettingData = try await downloadNoteImages(
             from: noteDetails,
@@ -1497,13 +1509,13 @@ public actor SyncEngine {
 
     /// 手动同步单个笔记
     func syncSingleNote(noteId: String) async throws -> NoteSyncResult {
-        guard await api.isAuthenticated() else {
+        guard apiClient.isAuthenticated() else {
             throw SyncError.notAuthenticated
         }
 
         let noteDetails: [String: Any]
         do {
-            noteDetails = try await api.fetchNoteDetails(noteId: noteId)
+            noteDetails = try await noteAPI.fetchNoteDetails(noteId: noteId)
         } catch let error as MiNoteError {
             throw mapMiNoteError(error)
         }

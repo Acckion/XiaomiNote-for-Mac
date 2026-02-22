@@ -41,8 +41,14 @@ public actor OperationProcessor {
     /// 统一操作队列
     private let operationQueue: UnifiedOperationQueue
 
-    /// 小米笔记服务
-    private let miNoteService: MiNoteService
+    /// API 客户端
+    private let apiClient: APIClient
+    /// 笔记 API
+    private let noteAPI: NoteAPI
+    /// 文件夹 API
+    private let folderAPI: FolderAPI
+    /// 文件 API
+    private let fileAPI: FileAPI
 
     /// 本地存储服务
     private let localStorage: LocalStorageService
@@ -82,7 +88,10 @@ public actor OperationProcessor {
     @MainActor
     private init() {
         self.operationQueue = UnifiedOperationQueue.shared
-        self.miNoteService = MiNoteService.shared
+        self.apiClient = APIClient.shared
+        self.noteAPI = NoteAPI.shared
+        self.folderAPI = FolderAPI.shared
+        self.fileAPI = FileAPI.shared
         self.localStorage = LocalStorageService.shared
         self.databaseService = DatabaseService.shared
         self.networkMonitor = NetworkMonitor.shared
@@ -94,14 +103,20 @@ public actor OperationProcessor {
     ///
     /// - Parameters:
     ///   - operationQueue: 操作队列实例
-    ///   - miNoteService: 小米笔记服务实例
+    ///   - apiClient: API 客户端实例
+    ///   - noteAPI: 笔记 API 实例
+    ///   - folderAPI: 文件夹 API 实例
+    ///   - fileAPI: 文件 API 实例
     ///   - localStorage: 本地存储服务实例
     ///   - databaseService: 数据库服务实例
     ///   - networkMonitor: 网络监控实例
     ///   - syncStateManager: 同步状态管理器实例
     init(
         operationQueue: UnifiedOperationQueue,
-        miNoteService: MiNoteService,
+        apiClient: APIClient,
+        noteAPI: NoteAPI,
+        folderAPI: FolderAPI,
+        fileAPI: FileAPI,
         localStorage: LocalStorageService,
         databaseService: DatabaseService,
         networkMonitor: NetworkMonitor,
@@ -109,7 +124,10 @@ public actor OperationProcessor {
         eventBus: EventBus = EventBus.shared
     ) {
         self.operationQueue = operationQueue
-        self.miNoteService = miNoteService
+        self.apiClient = apiClient
+        self.noteAPI = noteAPI
+        self.folderAPI = folderAPI
+        self.fileAPI = fileAPI
         self.localStorage = localStorage
         self.databaseService = databaseService
         self.networkMonitor = networkMonitor
@@ -156,7 +174,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard miNoteService.isAuthenticated() else {
+        guard apiClient.isAuthenticated() else {
             return
         }
 
@@ -202,7 +220,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard miNoteService.isAuthenticated() else {
+        guard apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "未认证，跳过队列处理")
             return
         }
@@ -432,7 +450,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard miNoteService.isAuthenticated() else {
+        guard apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过重试处理")
             return
         }
@@ -606,7 +624,7 @@ extension OperationProcessor {
         }
 
         // 2. 调用 API 创建笔记
-        let response = try await miNoteService.createNote(
+        let response = try await noteAPI.createNote(
             title: note.title,
             content: note.content,
             folderId: note.folderId
@@ -709,7 +727,7 @@ extension OperationProcessor {
         let existingTag = note.serverTag ?? note.id
 
         // 调用 API 更新笔记
-        let response = try await miNoteService.updateNote(
+        let response = try await noteAPI.updateNote(
             noteId: note.id,
             title: note.title,
             content: note.content,
@@ -753,7 +771,7 @@ extension OperationProcessor {
             await propagateServerTag(newTag, forNoteId: note.id)
 
             // 使用正确的 tag 重新上传
-            let retryResponse = try await miNoteService.updateNote(
+            let retryResponse = try await noteAPI.updateNote(
                 noteId: note.id,
                 title: note.title,
                 content: note.content,
@@ -819,7 +837,7 @@ extension OperationProcessor {
         }
 
         // 调用 API 删除笔记
-        _ = try await miNoteService.deleteNote(noteId: operation.noteId, tag: tag, purge: false)
+        _ = try await noteAPI.deleteNote(noteId: operation.noteId, tag: tag, purge: false)
 
         LogService.shared.info(.sync, "OperationProcessor 删除成功: \(operation.noteId)")
     }
@@ -852,7 +870,7 @@ extension OperationProcessor {
         }
 
         // 调用 API 创建文件夹
-        let response = try await miNoteService.createFolder(name: folderName)
+        let response = try await folderAPI.createFolder(name: folderName)
 
         guard isResponseSuccess(response),
               let entry = extractEntry(from: response)
@@ -932,7 +950,7 @@ extension OperationProcessor {
         }
 
         // 调用 API 重命名文件夹
-        let response = try await miNoteService.renameFolder(
+        let response = try await folderAPI.renameFolder(
             folderId: operation.noteId,
             newName: newName,
             existingTag: existingTag,
@@ -995,7 +1013,7 @@ extension OperationProcessor {
         }
 
         // 调用 API 删除文件夹
-        _ = try await miNoteService.deleteFolder(folderId: operation.noteId, tag: tag, purge: false)
+        _ = try await folderAPI.deleteFolder(folderId: operation.noteId, tag: tag, purge: false)
 
         LogService.shared.info(.sync, "OperationProcessor 删除文件夹成功: \(operation.noteId)")
     }
@@ -1121,7 +1139,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard miNoteService.isAuthenticated() else {
+        guard apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过启动处理")
             return (0, 0)
         }

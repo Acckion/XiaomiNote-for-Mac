@@ -46,7 +46,7 @@ public final class AppCoordinator: ObservableObject {
         self.noteEditorState = NoteEditorState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
         self.folderState = FolderState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
         self.syncState = SyncState(eventBus: EventBus.shared)
-        self.authState = AuthState(eventBus: EventBus.shared, apiService: MiNoteService.shared)
+        self.authState = AuthState(eventBus: EventBus.shared, apiClient: APIClient.shared, userAPI: UserAPI.shared)
         self.searchState = SearchState(noteStore: noteStoreInstance)
 
         self.audioPanelViewModel = AudioPanelViewModel(

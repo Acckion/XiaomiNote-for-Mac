@@ -26,7 +26,8 @@ public final class AuthState: ObservableObject {
     // MARK: - 依赖
 
     private let eventBus: EventBus
-    private let apiService: MiNoteService
+    private let apiClient: APIClient
+    private let userAPI: UserAPI
 
     // MARK: - 事件订阅任务
 
@@ -42,15 +43,16 @@ public final class AuthState: ObservableObject {
 
     // MARK: - 初始化
 
-    init(eventBus: EventBus = .shared, apiService: MiNoteService = .shared) {
+    init(eventBus: EventBus = .shared, apiClient: APIClient = .shared, userAPI: UserAPI = .shared) {
         self.eventBus = eventBus
-        self.apiService = apiService
+        self.apiClient = apiClient
+        self.userAPI = userAPI
     }
 
     // MARK: - 生命周期
 
     func start() {
-        isLoggedIn = apiService.isAuthenticated()
+        isLoggedIn = apiClient.isAuthenticated()
         isOnline = OnlineStateManager.shared.isOnline
 
         authEventTask = Task { [weak self] in
@@ -99,10 +101,10 @@ public final class AuthState: ObservableObject {
     // MARK: - 用户信息
 
     func fetchUserProfile() async {
-        guard apiService.isAuthenticated() else { return }
+        guard apiClient.isAuthenticated() else { return }
 
         do {
-            let response = try await apiService.fetchUserProfile()
+            let response = try await userAPI.fetchUserProfile()
             if let profile = UserProfile.fromAPIResponse(response) {
                 userProfile = profile
                 LogService.shared.info(.core, "用户信息获取成功")
@@ -117,7 +119,7 @@ public final class AuthState: ObservableObject {
     func refreshCookie() async {
         do {
             _ = try await PassTokenManager.shared.refreshServiceToken()
-            let isValid = try await apiService.checkCookieValidity()
+            let isValid = try await userAPI.checkCookieValidity()
 
             if isValid {
                 isCookieExpired = false
@@ -145,7 +147,7 @@ public final class AuthState: ObservableObject {
     }
 
     func handleCookieExpiredSilently() async {
-        guard apiService.isAuthenticated() else { return }
+        guard apiClient.isAuthenticated() else { return }
 
         LogService.shared.info(.core, "静默刷新 Cookie")
         await refreshCookie()
@@ -215,10 +217,10 @@ public final class AuthState: ObservableObject {
     }
 
     private func performCookieValidityCheck() async {
-        guard apiService.isAuthenticated() else { return }
+        guard apiClient.isAuthenticated() else { return }
 
         do {
-            let isValid = try await apiService.checkCookieValidity()
+            let isValid = try await userAPI.checkCookieValidity()
             if !isValid, !isCookieExpired {
                 isCookieExpired = true
                 LogService.shared.warning(.core, "定时检查发现 Cookie 已失效")

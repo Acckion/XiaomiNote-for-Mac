@@ -254,13 +254,13 @@ public final class NoteListState: ObservableObject {
 
     /// 获取回收站笔记列表
     func fetchDeletedNotes() async {
-        guard MiNoteService.shared.isAuthenticated() else { return }
+        guard APIClient.shared.isAuthenticated() else { return }
 
         isLoadingDeletedNotes = true
         defer { isLoadingDeletedNotes = false }
 
         do {
-            let response = try await MiNoteService.shared.fetchDeletedNotes()
+            let response = try await NoteAPI.shared.fetchDeletedNotes()
 
             guard let code = response["code"] as? Int, code == 0,
                   let data = response["data"] as? [String: Any],
@@ -286,11 +286,11 @@ public final class NoteListState: ObservableObject {
 
     /// 恢复回收站笔记
     func restoreDeletedNote(noteId: String, tag: String) async throws {
-        guard MiNoteService.shared.isAuthenticated() else {
+        guard APIClient.shared.isAuthenticated() else {
             throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
         }
 
-        let response = try await MiNoteService.shared.restoreDeletedNote(noteId: noteId, tag: tag)
+        let response = try await NoteAPI.shared.restoreDeletedNote(noteId: noteId, tag: tag)
 
         guard let code = response["code"] as? Int, code == 0 else {
             let message = response["description"] as? String ?? response["message"] as? String ?? "恢复笔记失败"
@@ -306,11 +306,11 @@ public final class NoteListState: ObservableObject {
 
     /// 永久删除笔记
     func permanentlyDeleteNote(noteId: String, tag: String) async throws {
-        guard MiNoteService.shared.isAuthenticated() else {
+        guard APIClient.shared.isAuthenticated() else {
             throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
         }
 
-        let response = try await MiNoteService.shared.deleteNote(noteId: noteId, tag: tag, purge: true)
+        let response = try await NoteAPI.shared.deleteNote(noteId: noteId, tag: tag, purge: true)
 
         guard let code = response["code"] as? Int, code == 0 else {
             let message = response["description"] as? String ?? response["message"] as? String ?? "永久删除笔记失败"
