@@ -33,6 +33,8 @@
 		12862229FCE593C2E7B3B844 /* ParagraphType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0619B853D684CBB7BDDD4AF /* ParagraphType.swift */; };
 		12BF0FE07D447AC19A5049A8 /* NetworkClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5F36F87538870706F693EA /* NetworkClientProtocol.swift */; };
 		1337AEB434FDFFA78B7B9DE1 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6880F7FD58283B28D401384E /* AppCoordinator.swift */; };
+		1646ED07F4C69E963E989F82 /* NoteAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D41C9F4415AFF48A2218272D /* NoteAPI.swift */; };
+		1666F119E161BCB200449951 /* FileAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C22C0F687E0E99817E3E394 /* FileAPI.swift */; };
 		1714F2294A6358848F3CFC7B /* AudioPanelViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61BBA4FABAA4EF6F9B4F9E24 /* AudioPanelViewModel.swift */; };
 		17C279CFEE846973C7933C56 /* ParagraphManagerDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBABE7BAC4DC8FDD181B7B9F /* ParagraphManagerDebugView.swift */; };
 		17EB7311213A3D8EEB40C864 /* MiNoteService+NoteServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 734D6B669FA2F97C4DDA85F6 /* MiNoteService+NoteServiceProtocol.swift */; };
@@ -62,6 +64,7 @@
 		2D7C83D6973A746A2AA4977B /* DebugModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E368B07F12CEB31C3F83DDEF /* DebugModeView.swift */; };
 		2E026C2D5C15FA58D42204C6 /* MoveNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B45BF5C9F7754010D58D5BF6 /* MoveNoteView.swift */; };
 		3135E123F861FD128602C96C /* WindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F6CC48C9EB05EA5DB4C9B1E /* WindowManager.swift */; };
+		32D992CCBB4901DE62145BA9 /* UserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06312F85C610FF0BE9C0C6A9 /* UserAPI.swift */; };
 		333F0FFC231A4E8D7EFFE291 /* NotesListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A3C89BCCABD0E45A3309D9 /* NotesListViewController.swift */; };
 		33873EAD5BF53C6FF5B78E4C /* XMLGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D31141023C933334BE386ED5 /* XMLGenerator.swift */; };
 		33C57888CDB8669D085913C3 /* NoteListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A1D4EE69AD95C046EF9AD03 /* NoteListViewModel.swift */; };
@@ -118,6 +121,7 @@
 		64ED84CA0BC4A8B29D88F30B /* NoteDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A74DF7460C3AD0DDBA0AAC0 /* NoteDetailViewController.swift */; };
 		657EB82DF3D8F8CF9F2C6993 /* CustomAttachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7541E75A1076D9B6B161FA81 /* CustomAttachments.swift */; };
 		6604D3C5A86CB4331A7B8650 /* EventBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F5606FE32A5486A59ADDDC3 /* EventBus.swift */; };
+		667B75B54CCC8C6FED972BAA /* FolderAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77D10EFB4DE50306F1975F85 /* FolderAPI.swift */; };
 		6723371F7CBF4512A53F9349 /* AttachmentSelectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE523F5616E916AA10F4D21D /* AttachmentSelectionManager.swift */; };
 		6729F7893BE734836B913B21 /* MainWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 253D1427C8F76E2989212651 /* MainWindowState.swift */; };
 		67CAF4F592FBE5C00C21D296 /* ToolbarItemFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A74C1A54F67378DDA7001B70 /* ToolbarItemFactory.swift */; };
@@ -291,6 +295,7 @@
 		FB9F0EBF4A58AC8C1A74F4D6 /* AttachmentHighlightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4359C5D7A1B6E7C98FD9228 /* AttachmentHighlightView.swift */; };
 		FBFB7A710949262115BAA589 /* NetworkRequestManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE18F9E277BB73782CF8E511 /* NetworkRequestManager.swift */; };
 		FFD62250849C26982A5B4532 /* ContentAreaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39ADFA5993E5132BB0D77892 /* ContentAreaView.swift */; };
+		FFFACAE59AAC68779D5B9A8F /* SyncAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4E21AB4FF515A2EA2CDD77 /* SyncAPI.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -342,6 +347,7 @@
 		046370A6EA39E646485F1DB8 /* FolderEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderEvent.swift; sourceTree = "<group>"; };
 		04AFAC98180E3C67C7B439DF /* MenuManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuManager.swift; sourceTree = "<group>"; };
 		05B3251A48BCDCD589C03984 /* MiNoteError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteError.swift; sourceTree = "<group>"; };
+		06312F85C610FF0BE9C0C6A9 /* UserAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAPI.swift; sourceTree = "<group>"; };
 		06A7F86012A975B065F90A99 /* HistoryWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWindowController.swift; sourceTree = "<group>"; };
 		0702C41AF42048EDDA73321C /* FormatApplicationConsistencyChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatApplicationConsistencyChecker.swift; sourceTree = "<group>"; };
 		0926A570970B4C1082E0027C /* LoadableViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadableViewModel.swift; sourceTree = "<group>"; };
@@ -413,6 +419,7 @@
 		4AF05A85D65CE9514ADD86D9 /* NetworkLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogView.swift; sourceTree = "<group>"; };
 		4B2B963AF565507419FAC9FB /* CustomRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomRenderer.swift; sourceTree = "<group>"; };
 		4B5132BDDE9E5C35C68218F8 /* DefaultAuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultAuthenticationService.swift; sourceTree = "<group>"; };
+		4C22C0F687E0E99817E3E394 /* FileAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileAPI.swift; sourceTree = "<group>"; };
 		4C5E5D58F33CA9E2E9D6ACEF /* PassTokenManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassTokenManager.swift; sourceTree = "<group>"; };
 		4C7F993C8253413F7C9A9F79 /* NoteImageAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteImageAttachment.swift; sourceTree = "<group>"; };
 		4D3AD9766528663C9AF736CF /* FloatingInfoBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingInfoBar.swift; sourceTree = "<group>"; };
@@ -471,6 +478,7 @@
 		7541E75A1076D9B6B161FA81 /* CustomAttachments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomAttachments.swift; sourceTree = "<group>"; };
 		75F1DB31FF5233FAD5310C6D /* TitleExtractionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleExtractionResult.swift; sourceTree = "<group>"; };
 		7648C7008EF018469F094465 /* NotesListWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListWindowState.swift; sourceTree = "<group>"; };
+		77D10EFB4DE50306F1975F85 /* FolderAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAPI.swift; sourceTree = "<group>"; };
 		783B405112717E49DF20E8F3 /* FormatOperationQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatOperationQueue.swift; sourceTree = "<group>"; };
 		78A0F747E4A33E4C13B0066E /* ToolbarItemProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarItemProtocol.swift; sourceTree = "<group>"; };
 		78DA16711A740028C19A40B7 /* XMLRoundtripDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLRoundtripDebugView.swift; sourceTree = "<group>"; };
@@ -538,6 +546,7 @@
 		B468A4C50FB86D50FCFC7239 /* SyncStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStateManager.swift; sourceTree = "<group>"; };
 		B4E2EE44754A0D5742CDE5B9 /* NativeFormatMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFormatMenuView.swift; sourceTree = "<group>"; };
 		B5622B69AF87C36DE3D9D365 /* MainWindowToolbarDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowToolbarDelegate.swift; sourceTree = "<group>"; };
+		BD4E21AB4FF515A2EA2CDD77 /* SyncAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncAPI.swift; sourceTree = "<group>"; };
 		BD8F451E19DBA2FC33DCF651 /* AuthEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthEvent.swift; sourceTree = "<group>"; };
 		BE20FF79BA5893FC193B539D /* ErrorEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorEvent.swift; sourceTree = "<group>"; };
 		C0E1DFBD0D1C0389FF259238 /* ResponseParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseParser.swift; sourceTree = "<group>"; };
@@ -562,6 +571,7 @@
 		D1311A49E554CC193A0A318C /* DefaultImageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultImageService.swift; sourceTree = "<group>"; };
 		D194384700AE79A33F16FC55 /* XMLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLParser.swift; sourceTree = "<group>"; };
 		D31141023C933334BE386ED5 /* XMLGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLGenerator.swift; sourceTree = "<group>"; };
+		D41C9F4415AFF48A2218272D /* NoteAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteAPI.swift; sourceTree = "<group>"; };
 		D4B0551668185836339B74A7 /* ASTNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASTNode.swift; sourceTree = "<group>"; };
 		D5D3A6928ABBEDCA697FAF45 /* DebugSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSettingsView.swift; sourceTree = "<group>"; };
 		D65A6703E87D480834F8E4D8 /* FormatState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatState.swift; sourceTree = "<group>"; };
@@ -880,6 +890,7 @@
 				C60702B3363ABB4271317254 /* NetworkRecoveryHandler.swift */,
 				DE18F9E277BB73782CF8E511 /* NetworkRequestManager.swift */,
 				C0E1DFBD0D1C0389FF259238 /* ResponseParser.swift */,
+				DE2C00A1EC37C0B5962E09CA /* API */,
 				A4261D2F6C9AA3DB48BCDE93 /* Implementation */,
 			);
 			path = Network;
@@ -1385,6 +1396,18 @@
 			path = NativeEditor;
 			sourceTree = "<group>";
 		};
+		DE2C00A1EC37C0B5962E09CA /* API */ = {
+			isa = PBXGroup;
+			children = (
+				4C22C0F687E0E99817E3E394 /* FileAPI.swift */,
+				77D10EFB4DE50306F1975F85 /* FolderAPI.swift */,
+				D41C9F4415AFF48A2218272D /* NoteAPI.swift */,
+				BD4E21AB4FF515A2EA2CDD77 /* SyncAPI.swift */,
+				06312F85C610FF0BE9C0C6A9 /* UserAPI.swift */,
+			);
+			path = API;
+			sourceTree = "<group>";
+		};
 		DEC4F985C77FCA7E37187C95 /* Format */ = {
 			isa = PBXGroup;
 			children = (
@@ -1720,9 +1743,11 @@
 				FB9D22888993D0CBEBFE1EFD /* ErrorRecoveryService.swift in Sources */,
 				6604D3C5A86CB4331A7B8650 /* EventBus.swift in Sources */,
 				EBA5E00131015D430D09503A /* ExpandedNoteView.swift in Sources */,
+				1666F119E161BCB200449951 /* FileAPI.swift in Sources */,
 				81AD9FCDB21ABDC4245A4844 /* FlippedStackView.swift in Sources */,
 				F00707AF58806715F39E45A1 /* FloatingInfoBar.swift in Sources */,
 				4C8F032FCAC2B617F227FDA1 /* Folder.swift in Sources */,
+				667B75B54CCC8C6FED972BAA /* FolderAPI.swift in Sources */,
 				8D1E58665F2FC107B3439CB1 /* FolderEvent.swift in Sources */,
 				82093343399CF8F51530B3EB /* FolderState.swift in Sources */,
 				6B8691D5A2172D0AD0739B65 /* FolderViewModel.swift in Sources */,
@@ -1798,6 +1823,7 @@
 				51F1038247446C443FE06035 /* NewLineHandler.swift in Sources */,
 				0D0F4EB88DD0C86DE91B52EE /* NewNoteView.swift in Sources */,
 				8078A0D5E94E341B88BE4BFB /* Note.swift in Sources */,
+				1646ED07F4C69E963E989F82 /* NoteAPI.swift in Sources */,
 				80404DFC2924118749941B73 /* NoteCardView.swift in Sources */,
 				6A12AAFD369114B190A33BD3 /* NoteDetailHostingController.swift in Sources */,
 				DCF46E4C55ED4F712EA91325 /* NoteDetailView.swift in Sources */,
@@ -1871,6 +1897,7 @@
 				60A2791CDC973AD7E2DA88FE /* SidebarWindowState.swift in Sources */,
 				058BB3EC81704771A8FFA252 /* SpecialElementFormatHandler.swift in Sources */,
 				69C63F24FA80584E47006646 /* StartupSequenceManager.swift in Sources */,
+				FFFACAE59AAC68779D5B9A8F /* SyncAPI.swift in Sources */,
 				D245C48EB00EFDAF02DFA025 /* SyncCoordinator.swift in Sources */,
 				3AAFC46E05CECB3A628E7A1B /* SyncEngine.swift in Sources */,
 				E495ADAD8E608C1BB77AF8B1 /* SyncEvent.swift in Sources */,
@@ -1894,6 +1921,7 @@
 				5F7C34C98AAB9B255ABA1EF8 /* UnifiedEditorWrapper.swift in Sources */,
 				E4D22E0494D85F03180F3D04 /* UnifiedFormatManager.swift in Sources */,
 				44225D61901A3371958A3FA6 /* UnifiedOperationQueue.swift in Sources */,
+				32D992CCBB4901DE62145BA9 /* UserAPI.swift in Sources */,
 				F3296E10A249F036F83F8998 /* UserProfile.swift in Sources */,
 				8397E55BCE833332AF3A3CFB /* ViewOptionsManager.swift in Sources */,
 				4245A4E45C1BBFBD9825D1DF /* ViewOptionsMenuView.swift in Sources */,
