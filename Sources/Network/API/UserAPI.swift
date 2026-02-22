@@ -39,7 +39,7 @@ public final class UserAPI: @unchecked Sendable {
         // 验证响应：检查 code 字段
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "获取用户信息失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "UserAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         // 返回 data 字段中的用户信息
@@ -80,7 +80,7 @@ public final class UserAPI: @unchecked Sendable {
         // 验证响应：检查 code 字段
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "服务检查失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "UserAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json
@@ -150,7 +150,7 @@ public final class UserAPI: @unchecked Sendable {
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "获取加密信息失败"
             LogService.shared.error(.network, "获取加密信息失败，code: \(code), message: \(message)")
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "UserAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         if let data = json["data"] as? [String: Any] {

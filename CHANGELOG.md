@@ -8,6 +8,7 @@
 - 独立笔记编辑器窗口（spec-107）：支持在新窗口中打开特定笔记进行编辑，包含编辑器区域和 unified 工具栏，支持重复打开检测
 
 ### 重构
+- 废弃代码清理（spec-106）：删除 MiNoteService 废弃文件、清理 deprecated 方法、统一 print() 为 LogService、修正 error domain 字符串、更新过时注释引用和项目文档
 - MainWindowController 拆分重构（spec-105）：将 MainWindowController.swift（3,239 行）拆分为 7 个文件（1 核心 + 6 extension），提升代码可维护性
 - 编辑器桥接层重构（spec-103）：
   - NativeEditorView.swift（2,423 行）按职责拆分为 4 个文件：NativeEditorView（纯 NSViewRepresentable）、NativeEditorCoordinator（Delegate + 内容同步）、CoordinatorFormatApplier（格式应用）、NativeTextView（自定义 NSTextView）

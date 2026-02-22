@@ -80,7 +80,7 @@ public final class NoteAPI: @unchecked Sendable {
 
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "创建笔记失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "NoteAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json
@@ -333,7 +333,7 @@ public final class NoteAPI: @unchecked Sendable {
 
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "获取私密笔记失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "NoteAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json
@@ -372,7 +372,7 @@ public final class NoteAPI: @unchecked Sendable {
 
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "获取回收站笔记失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "NoteAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json
@@ -408,7 +408,7 @@ public final class NoteAPI: @unchecked Sendable {
 
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "获取笔记历史记录失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "NoteAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json

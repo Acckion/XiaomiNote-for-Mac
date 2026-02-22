@@ -448,7 +448,7 @@ public final class FileAPI: @unchecked Sendable {
 
         if let code = json["code"] as? Int, code != 0 {
             let message = json["message"] as? String ?? "上传失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "FileAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json

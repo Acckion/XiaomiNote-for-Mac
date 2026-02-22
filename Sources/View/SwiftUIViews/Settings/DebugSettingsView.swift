@@ -959,7 +959,7 @@ public struct DebugSettingsView: View {
         // 使用用户提供的固定错误cookie值来模拟Cookie失效
         let errorCookie = "uLocale=zh_CN; iplocale=zh_CN; i.mi.com_istrudev=true; i.mi.com_ph=fbhlytsHantjWiM3coD/idLvg==; i.mi.com_slh=scc1NZGaixBpJhkdxNAjyIWw7c=; serviceToken=U7s/v0JE/UQMNZhVxzLeOktqG4Qz13woP/80HaIvVY2dK8xLxEqwCrhtt80BPc4u1FUfd0MAkS1ihlTjRbFwu3cOujdykqotf2nz2J72FFnubqv0sqv0j4danVlHBEqUHhLfu3bO5A0QHr9CrUxqwalUPhw9sfffOKuF24H0qwA5zRrT4X/Kds8M7tq/r3dRUMwmlu30l/TXMM8ieBhO51ELmbZSzOkXLZxPttDPaQjvfmBCdpllDxBOInmgiadm8ZugLFwD0Q0S3+3eHf4/mlCaPoOciQ78sPpyUaAfTWfM5i/LqHziosMyrkb5uKf7ZAMh0XKLwVV3mNlVx5PDK1y+SZKfMQoejrWJxSlOqwGnnYs=; userId=1315204657; i.mi.com_isvalid_servicetoken=true"
 
-        // 保存到UserDefaults并更新MiNoteService的内部缓存
+        // 保存到 UserDefaults 并更新 APIClient 的内部缓存
         UserDefaults.standard.set(errorCookie, forKey: "minote_cookie")
         APIClient.shared.setCookie(errorCookie)
 
@@ -967,7 +967,7 @@ public struct DebugSettingsView: View {
         loadCredentials()
 
         // 显示提示信息
-        copyAlertMessage = "已设置错误Cookie用于模拟失效场景\n\n注意：这是一个格式正确但内容无效的Cookie，用于测试Cookie失效时的行为。\nMiNoteService的内部缓存已更新，下次网络请求将使用此无效Cookie。"
+        copyAlertMessage = "已设置错误Cookie用于模拟失效场景\n\n注意：这是一个格式正确但内容无效的Cookie，用于测试Cookie失效时的行为。\nAPIClient 的内部缓存已更新，下次网络请求将使用此无效Cookie。"
         showCopyAlert = true
     }
 

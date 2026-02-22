@@ -50,7 +50,7 @@ public final class FolderAPI: @unchecked Sendable {
 
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "创建文件夹失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "FolderAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json
@@ -103,7 +103,7 @@ public final class FolderAPI: @unchecked Sendable {
 
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "重命名文件夹失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "FolderAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json
@@ -139,7 +139,7 @@ public final class FolderAPI: @unchecked Sendable {
 
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "删除文件夹失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "FolderAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json
@@ -204,7 +204,7 @@ public final class FolderAPI: @unchecked Sendable {
                 ],
             ]
         } else {
-            throw NSError(domain: "MiNoteService", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在: \(folderId)"])
+            throw NSError(domain: "FolderAPI", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在: \(folderId)"])
         }
     }
 

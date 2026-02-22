@@ -221,15 +221,12 @@
 		B5649522F2D6690782A06D82 /* EditorContentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5AAF052F3C9194715715B3 /* EditorContentManager.swift */; };
 		B5B07793D066157A16642742 /* ParagraphStyleConsistencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6882A1EEB7788C348583B7E2 /* ParagraphStyleConsistencyTests.swift */; };
 		B61D0B62F77C5FA259D3E0CE /* MixedFormatStateHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A208B67FF097623E7633F0A1 /* MixedFormatStateHandler.swift */; };
-		B62BBFD2CEC0E6D32BDFFCF3 /* MiNoteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0656135C02E552ED928C869 /* MiNoteService.swift */; };
 		B644336E7ADFD5E5562B2AEF /* TitleEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C6E0B358F33404B6C8D42D /* TitleEditorView.swift */; };
-		B74F363998FE6F24189A5BBE /* MiNoteService+Encryption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B654F68DA67BE224C20B4A3 /* MiNoteService+Encryption.swift */; };
 		B799367F5950DC88472B6C24 /* AuthenticationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9662A527C63B10F67400910D /* AuthenticationViewModel.swift */; };
 		B8E362613978E5B6986E4FBB /* NoteEditorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10D36C87297D5857CC106DF /* NoteEditorState.swift */; };
 		B964C66D9D47FFE1CA09C13F /* ParagraphStyleFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C7F905B1FAA4F9B7E7FFB9 /* ParagraphStyleFactory.swift */; };
 		BA1F442F9CAA49DCDFBA1751 /* CursorFormatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC9ACA09AC76ACE5502AAC5C /* CursorFormatManager.swift */; };
 		BA483596F7A9FA8CF1EDB5F6 /* AuthEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD8F451E19DBA2FC33DCF651 /* AuthEvent.swift */; };
-		BA6169125A7EB9213E5C21EB /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 720CC824AAA08D790B1559C9 /* ContentView.swift */; };
 		BB261E54B2003B42C1196858 /* NoteEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 710E8552B18E249CCF2C6054 /* NoteEvent.swift */; };
 		BD586058832DEDA7D4F20E59 /* CoordinatorFormatApplier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 787A7FB08B7D3BC5065F1FAE /* CoordinatorFormatApplier.swift */; };
 		BD8C378CBACCCF807D0B37B8 /* MiNoteLibrary.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -478,7 +475,6 @@
 		70F39B957B9908A1976F40E2 /* AudioRecorderUploadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorderUploadView.swift; sourceTree = "<group>"; };
 		710E8552B18E249CCF2C6054 /* NoteEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEvent.swift; sourceTree = "<group>"; };
 		713C944418F1FB35E9EB133F /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
-		720CC824AAA08D790B1559C9 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7365617C93BDDB1EC0F4F623 /* SyncEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEvent.swift; sourceTree = "<group>"; };
 		73C43716EF906941DD0B39E1 /* BlockFormatHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockFormatHandler.swift; sourceTree = "<group>"; };
 		73E4609FAB97AA612BEF9B49 /* PrivateNotesVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateNotesVerificationView.swift; sourceTree = "<group>"; };
@@ -508,7 +504,6 @@
 		8A0EE2EC0B53336F95BB9B10 /* DeletedNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeletedNote.swift; sourceTree = "<group>"; };
 		8A3C41EB2418BBF1DC6DDA69 /* SyncGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncGuard.swift; sourceTree = "<group>"; };
 		8B5F36F87538870706F693EA /* NetworkClientProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkClientProtocol.swift; sourceTree = "<group>"; };
-		8B654F68DA67BE224C20B4A3 /* MiNoteService+Encryption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MiNoteService+Encryption.swift"; sourceTree = "<group>"; };
 		8D94A9BC2781F3A74F8A3C25 /* SyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngine.swift; sourceTree = "<group>"; };
 		8E02BED92A2320CE43A87555 /* CrossParagraphFormatHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossParagraphFormatHandler.swift; sourceTree = "<group>"; };
 		8F72E84B0EB4D67C81832A72 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
@@ -579,7 +574,6 @@
 		CCB262906957F0C09B5BB34A /* EditorProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorProtocol.swift; sourceTree = "<group>"; };
 		CED22130F7FF92451DE0F6F9 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		CFF0B9774340B45C25C2DE68 /* DatabaseMigrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseMigrationManager.swift; sourceTree = "<group>"; };
-		D0656135C02E552ED928C869 /* MiNoteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteService.swift; sourceTree = "<group>"; };
 		D0EFBEC9DDBADADED047698F /* OperationProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationProcessor.swift; sourceTree = "<group>"; };
 		D1311A49E554CC193A0A318C /* DefaultImageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultImageService.swift; sourceTree = "<group>"; };
 		D194384700AE79A33F16FC55 /* XMLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLParser.swift; sourceTree = "<group>"; };
@@ -733,7 +727,6 @@
 			isa = PBXGroup;
 			children = (
 				39ADFA5993E5132BB0D77892 /* ContentAreaView.swift */,
-				720CC824AAA08D790B1559C9 /* ContentView.swift */,
 				4D3AD9766528663C9AF736CF /* FloatingInfoBar.swift */,
 				F1ABCE2B774CDF77B76A251D /* GalleryView.swift */,
 				B4E2EE44754A0D5742CDE5B9 /* NativeFormatMenuView.swift */,
@@ -898,8 +891,6 @@
 			children = (
 				CED22130F7FF92451DE0F6F9 /* APIClient.swift */,
 				05B3251A48BCDCD589C03984 /* MiNoteError.swift */,
-				D0656135C02E552ED928C869 /* MiNoteService.swift */,
-				8B654F68DA67BE224C20B4A3 /* MiNoteService+Encryption.swift */,
 				2572B02D7EA1F92F708486FC /* NetworkClient.swift */,
 				8B5F36F87538870706F693EA /* NetworkClientProtocol.swift */,
 				3DA1FC1DB2C4B725933C5B90 /* NetworkErrorHandler.swift */,
@@ -1689,7 +1680,6 @@
 				DD2B92EED23D4E85FCF1A854 /* CacheServiceProtocol.swift in Sources */,
 				0EC9C5443C499CDF6BB3BB3C /* ContentAreaHostingController.swift in Sources */,
 				FFD62250849C26982A5B4532 /* ContentAreaView.swift in Sources */,
-				BA6169125A7EB9213E5C21EB /* ContentView.swift in Sources */,
 				BD586058832DEDA7D4F20E59 /* CoordinatorFormatApplier.swift in Sources */,
 				62FEF9120204F9F7DAB703C0 /* CrossParagraphFormatHandler.swift in Sources */,
 				BA1F442F9CAA49DCDFBA1751 /* CursorFormatManager.swift in Sources */,
@@ -1783,8 +1773,6 @@
 				047F5BE676672A9A39F59EB0 /* MainWindowToolbarDelegate.swift in Sources */,
 				0F3AACA6FA2EC3EB9B52A713 /* MemoryCacheManager.swift in Sources */,
 				9A0FF325CFB5F55B467626C8 /* MiNoteError.swift in Sources */,
-				B74F363998FE6F24189A5BBE /* MiNoteService+Encryption.swift in Sources */,
-				B62BBFD2CEC0E6D32BDFFCF3 /* MiNoteService.swift in Sources */,
 				24752713BABD19E2204E8ED6 /* MiNoteToolbarItem.swift in Sources */,
 				73A4F04F6A6E9883CC89C444 /* MixedFormatApplicationHandler.swift in Sources */,
 				B61D0B62F77C5FA259D3E0CE /* MixedFormatStateHandler.swift in Sources */,

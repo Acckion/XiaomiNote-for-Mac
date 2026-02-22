@@ -365,7 +365,8 @@ public extension OperationProcessor {
         // 处理 NSError
         if let nsError = error as? NSError {
             // 检查 HTTP 状态码
-            if nsError.domain == "MiNoteService" {
+            let apiDomains: Set<String> = ["NoteAPI", "FolderAPI", "FileAPI", "UserAPI", "OperationProcessor"]
+            if apiDomains.contains(nsError.domain) {
                 switch nsError.code {
                 case 401:
                     return .authExpired

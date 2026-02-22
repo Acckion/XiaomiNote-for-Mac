@@ -146,7 +146,6 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 - `NoteStore.swift`: 笔记数据存储和操作（依赖注入，非单例）
 - `SyncEngine.swift`: 云端同步引擎（Actor）
 - `EventBus.swift`: 跨层事件通信（Actor）
-- `MiNoteService.swift`: 小米笔记 API Facade 转发层（已废弃，新代码使用 APIClient/NoteAPI/FolderAPI/FileAPI/SyncAPI/UserAPI）
 - `APIClient.swift`: 网络请求基础设施（认证、Cookie 管理、请求执行）
 - `NetworkRequestManager.swift`: 网络请求管理器，统一处理 401 自动刷新 Cookie 并重试
 - `DatabaseService.swift`: SQLite 数据库操作
