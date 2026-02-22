@@ -114,11 +114,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
     /// 注意：此方法为多窗口支持预留，当前实现将在任务 5 完成后启用
     ///
     /// - Parameter note: 要在新窗口中打开的笔记
-    public func createNewWindow(withNote _: Note?) {
-        // TODO: 任务 5 完成后，使用 WindowManager.shared.createNewWindow(withNote:)
-        // 当前暂时使用旧的实现
-        windowManager.createNewWindow()
-        menuActionHandler.updateMainWindowController(windowManager.mainWindowController)
+    public func createNewWindow(withNote note: Note?) {
+        if let controller = windowManager.createNewWindow(withNote: note) {
+            controller.showWindow(nil)
+            controller.window?.makeKeyAndOrderFront(nil)
+        }
     }
 
     /// 移除窗口控制器
