@@ -11,22 +11,20 @@ import Foundation
 /// MiNoteService 实现 NoteServiceProtocol
 ///
 /// 这个扩展将 MiNoteService 的现有方法适配到 NoteServiceProtocol 接口
-/// 作为过渡期的适配层,最终应该直接重构 MiNoteService 来实现协议
+/// 内部实现通过 NoteAPI、FolderAPI、ResponseParser 等新 API 类完成
 extension MiNoteService: NoteServiceProtocol {
     // MARK: - 笔记操作
 
     /// 获取所有笔记
     public func fetchNotes() async throws -> [Note] {
-        // 使用 fetchPage 获取所有笔记
-        let response = try await fetchPage()
-        return parseNotes(from: response)
+        let response = try await NoteAPI.shared.fetchPage()
+        return ResponseParser.parseNotes(from: response)
     }
 
     /// 获取指定笔记
     public func fetchNote(id: String) async throws -> Note {
-        let response = try await fetchNoteDetails(noteId: id)
+        let response = try await NoteAPI.shared.fetchNoteDetails(noteId: id)
 
-        // 从响应中解析笔记
         guard let data = response["data"] as? [String: Any],
               let entry = data["entry"] as? [String: Any],
               let note = NoteMapper.fromMinoteListData(entry)
@@ -39,19 +37,16 @@ extension MiNoteService: NoteServiceProtocol {
 
     /// 创建新笔记
     public func createNote(_ note: Note) async throws -> Note {
-        // 提取标题和内容
         let title = note.title
         let content = note.content
         let folderId = note.folderId
 
-        // 调用现有的 createNote 方法
-        let response = try await createNote(
+        let response = try await NoteAPI.shared.createNote(
             title: title,
             content: content,
             folderId: folderId
         )
 
-        // 从响应中解析创建后的笔记
         guard let data = response["data"] as? [String: Any],
               let entry = data["entry"] as? [String: Any],
               let createdNote = NoteMapper.fromMinoteListData(entry)
@@ -64,8 +59,7 @@ extension MiNoteService: NoteServiceProtocol {
 
     /// 更新笔记
     public func updateNote(_ note: Note) async throws -> Note {
-        // 调用现有的 updateNote 方法
-        let response = try await updateNote(
+        let response = try await NoteAPI.shared.updateNote(
             noteId: note.id,
             title: note.title,
             content: note.content,
@@ -74,7 +68,6 @@ extension MiNoteService: NoteServiceProtocol {
             originalCreateDate: Int(note.createdAt.timeIntervalSince1970 * 1000)
         )
 
-        // 从响应中解析更新后的笔记
         guard let data = response["data"] as? [String: Any],
               let entry = data["entry"] as? [String: Any],
               let updatedNote = NoteMapper.fromMinoteListData(entry)
@@ -87,42 +80,31 @@ extension MiNoteService: NoteServiceProtocol {
 
     /// 删除笔记
     public func deleteNote(id: String) async throws {
-        // 首先获取笔记的 serverTag
         let note = try await fetchNote(id: id)
-
-        // 调用现有的 deleteNote 方法
-        _ = try await deleteNote(noteId: id, tag: note.serverTag ?? "", purge: false)
+        _ = try await NoteAPI.shared.deleteNote(noteId: id, tag: note.serverTag ?? "", purge: false)
     }
 
     // MARK: - 同步操作
 
     /// 同步笔记
     public func syncNotes(since _: Date?) async throws -> SyncResult {
-        // 如果提供了 since 参数,使用增量同步
-        // 否则使用完整同步
-        let response = try await fetchPage()
+        let response = try await NoteAPI.shared.fetchPage()
 
-        // 解析笔记和文件夹
-        let notes = parseNotes(from: response)
-        let folders = parseFolders(from: response)
+        let notes = ResponseParser.parseNotes(from: response)
+        let folders = ResponseParser.parseFolders(from: response)
+        _ = ResponseParser.extractSyncTag(from: response)
 
-        // 提取 syncTag 作为最后同步时间的标记
-        _ = extractSyncTag(from: response)
-
-        // 构造同步结果
-        // 注意:这里简化了实现,实际应该根据 since 参数过滤结果
         return SyncResult(
             notes: notes,
-            deletedIds: [], // MiNoteService 的 fetchPage 不返回删除的笔记ID
+            deletedIds: [],
             folders: folders,
-            deletedFolderIds: [], // MiNoteService 的 fetchPage 不返回删除的文件夹ID
-            lastSyncTime: Date() // 使用当前时间作为同步时间
+            deletedFolderIds: [],
+            lastSyncTime: Date()
         )
     }
 
     /// 上传变更
     public func uploadChanges(_ changes: [NoteChange]) async throws {
-        // 遍历所有变更并应用
         for change in changes {
             switch change.type {
             case .create:
@@ -143,15 +125,14 @@ extension MiNoteService: NoteServiceProtocol {
 
     /// 获取所有文件夹
     public func fetchFolders() async throws -> [Folder] {
-        let response = try await fetchPage()
-        return parseFolders(from: response)
+        let response = try await NoteAPI.shared.fetchPage()
+        return ResponseParser.parseFolders(from: response)
     }
 
     /// 创建文件夹
     public func createFolder(_ folder: Folder) async throws -> Folder {
-        let response = try await createFolder(name: folder.name)
+        let response = try await FolderAPI.shared.createFolder(name: folder.name)
 
-        // 从响应中解析创建后的文件夹
         guard let data = response["data"] as? [String: Any],
               let entry = data["entry"] as? [String: Any],
               let createdFolder = Folder.fromMinoteData(entry)
@@ -164,8 +145,7 @@ extension MiNoteService: NoteServiceProtocol {
 
     /// 更新文件夹
     public func updateFolder(_ folder: Folder) async throws -> Folder {
-        // 首先获取文件夹的详细信息以获取 tag
-        let detailsResponse = try await fetchFolderDetails(folderId: folder.id)
+        let detailsResponse = try await FolderAPI.shared.fetchFolderDetails(folderId: folder.id)
 
         guard let data = detailsResponse["data"] as? [String: Any],
               let entry = data["entry"] as? [String: Any],
@@ -174,14 +154,12 @@ extension MiNoteService: NoteServiceProtocol {
             throw MiNoteError.invalidResponse
         }
 
-        // 调用现有的 renameFolder 方法
-        let response = try await renameFolder(
+        let response = try await FolderAPI.shared.renameFolder(
             folderId: folder.id,
             newName: folder.name,
             existingTag: tag
         )
 
-        // 从响应中解析更新后的文件夹
         guard let responseData = response["data"] as? [String: Any],
               let responseEntry = responseData["entry"] as? [String: Any],
               let updatedFolder = Folder.fromMinoteData(responseEntry)
@@ -194,8 +172,7 @@ extension MiNoteService: NoteServiceProtocol {
 
     /// 删除文件夹
     public func deleteFolder(id: String) async throws {
-        // 首先获取文件夹的详细信息以获取 tag
-        let detailsResponse = try await fetchFolderDetails(folderId: id)
+        let detailsResponse = try await FolderAPI.shared.fetchFolderDetails(folderId: id)
 
         guard let data = detailsResponse["data"] as? [String: Any],
               let entry = data["entry"] as? [String: Any],
@@ -204,7 +181,6 @@ extension MiNoteService: NoteServiceProtocol {
             throw MiNoteError.invalidResponse
         }
 
-        // 调用现有的 deleteFolder 方法
-        _ = try await deleteFolder(folderId: id, tag: tag, purge: false)
+        _ = try await FolderAPI.shared.deleteFolder(folderId: id, tag: tag, purge: false)
     }
 }
