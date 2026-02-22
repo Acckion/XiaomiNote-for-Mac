@@ -25,7 +25,7 @@ Sources/
 │   └── Pagination/         # 分页工具
 ├── Extensions/             # Swift 扩展
 ├── Model/                  # 数据模型（Note, Folder, NoteMapper 等）
-├── Network/                # 网络层（MiNoteService, NetworkClient）
+├── Network/                # 网络层（MiNoteService, NetworkRequestManager, NetworkClient）
 ├── Presentation/           # 展示层辅助
 │   └── ViewModels/         # ViewModel（音频、认证、搜索等独立模块）
 ├── Service/                # 业务服务层
@@ -135,7 +135,8 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 - `NoteStore.swift`: 笔记数据存储和操作（依赖注入，非单例）
 - `SyncEngine.swift`: 云端同步引擎（Actor）
 - `EventBus.swift`: 跨层事件通信（Actor）
-- `MiNoteService.swift`: 小米笔记 API 调用
+- `MiNoteService.swift`: 小米笔记 API 调用（所有请求通过 performRequest 统一走 NetworkRequestManager）
+- `NetworkRequestManager.swift`: 网络请求管理器，统一处理 401 自动刷新 Cookie 并重试
 - `DatabaseService.swift`: SQLite 数据库操作
 - `NativeEditorView.swift`: 原生富文本编辑器
 - `Sources/State/*.swift`: State 对象，替代原 NotesViewModel
