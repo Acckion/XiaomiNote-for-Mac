@@ -351,7 +351,13 @@ public actor NoteStore {
         case let .metadataUpdated(noteId, changes):
             await applyMetadataChanges(noteId: noteId, changes: changes)
 
-        case let .deleted(noteId, _):
+        case let .deleted(noteId, tag):
+            // 临时笔记走专用删除流程，不入队云端操作
+            if NoteOperation.isTemporaryId(noteId) {
+                try? await deleteTemporaryNote(noteId)
+                return
+            }
+
             do {
                 try db.deleteNote(noteId: noteId)
                 refreshNotesCache()
@@ -359,6 +365,26 @@ public actor NoteStore {
             } catch {
                 LogService.shared.error(.storage, "NoteStore 删除笔记失败: \(error)")
                 await eventBus.publish(ErrorEvent.storageFailed(operation: "deleteNote", errorMessage: error.localizedDescription))
+                return
+            }
+
+            // 入队 cloudDelete 操作，同步删除到云端
+            if let deleteTag = tag {
+                do {
+                    let dataDict: [String: Any] = ["tag": deleteTag]
+                    let jsonData = try JSONSerialization.data(withJSONObject: dataDict)
+                    let operation = NoteOperation(
+                        type: .cloudDelete,
+                        noteId: noteId,
+                        data: jsonData,
+                        localSaveTimestamp: Date()
+                    )
+                    try operationQueue.enqueue(operation)
+                    LogService.shared.debug(.sync, "已入队 cloudDelete 操作: \(noteId.prefix(8))...")
+                    await triggerImmediateUploadIfOnline(noteId: noteId)
+                } catch {
+                    LogService.shared.error(.sync, "创建 cloudDelete 操作失败: \(error)")
+                }
             }
 
         case let .moved(noteId, _, toFolder):
