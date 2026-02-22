@@ -18,55 +18,55 @@
 
         // MARK: - 属性
 
-        private let logger = Logger(subsystem: "com.minote.MiNoteMac", category: "MainWindowController")
+        let logger = Logger(subsystem: "com.minote.MiNoteMac", category: "MainWindowController")
 
         /// AppCoordinator 引用
         public private(set) var coordinator: AppCoordinator
 
         /// 窗口状态
-        private let windowState: WindowState
+        let windowState: WindowState
 
         /// 当前搜索字段（用于工具栏搜索项）
-        private var currentSearchField: CustomSearchField?
+        var currentSearchField: CustomSearchField?
 
         /// 窗口控制器引用（防止被释放）
-        private var loginWindowController: LoginWindowController?
-        private var settingsWindowController: SettingsWindowController?
-        private var historyWindowController: HistoryWindowController?
-        private var trashWindowController: TrashWindowController?
+        var loginWindowController: LoginWindowController?
+        var settingsWindowController: SettingsWindowController?
+        var historyWindowController: HistoryWindowController?
+        var trashWindowController: TrashWindowController?
 
         /// Combine订阅集合
-        private var cancellables = Set<AnyCancellable>()
+        var cancellables = Set<AnyCancellable>()
 
         /// 格式菜单popover
-        private var formatMenuPopover: NSPopover?
+        var formatMenuPopover: NSPopover?
 
         /// 搜索筛选菜单popover
-        private var searchFilterMenuPopover: NSPopover?
+        var searchFilterMenuPopover: NSPopover?
 
         /// 视图选项菜单popover
-        private var viewOptionsMenuPopover: NSPopover?
+        var viewOptionsMenuPopover: NSPopover?
 
         /// 在线状态菜单工具栏项
         private var onlineStatusMenuToolbarItem: NSToolbarItem?
 
         /// 当前显示的sheet窗口引用
-        private var currentSheetWindow: NSWindow?
+        var currentSheetWindow: NSWindow?
 
         /// 当前sheet窗口的工具栏代理引用
-        private weak var currentSheetToolbarDelegate: BaseSheetToolbarDelegate?
+        weak var currentSheetToolbarDelegate: BaseSheetToolbarDelegate?
 
         /// 回收站sheet的工具栏代理引用
-        private weak var trashSheetToolbarDelegate: BaseSheetToolbarDelegate?
+        weak var trashSheetToolbarDelegate: BaseSheetToolbarDelegate?
 
         /// 登录sheet的工具栏代理引用
-        private weak var loginSheetToolbarDelegate: BaseSheetToolbarDelegate?
+        weak var loginSheetToolbarDelegate: BaseSheetToolbarDelegate?
 
         /// 历史记录sheet的工具栏代理引用
-        private weak var historySheetToolbarDelegate: BaseSheetToolbarDelegate?
+        weak var historySheetToolbarDelegate: BaseSheetToolbarDelegate?
 
         /// 工具栏代理
-        private var toolbarDelegate: MainWindowToolbarDelegate?
+        var toolbarDelegate: MainWindowToolbarDelegate?
 
         /// 工具栏可见性管理器
         /// 负责根据应用状态动态更新工具栏项的可见性
@@ -82,11 +82,11 @@
 
         /// 音频面板状态管理器
         /// 负责管理音频面板的显示状态、模式和与其他组件的协调
-        private let audioPanelStateManager = AudioPanelStateManager.shared
+        let audioPanelStateManager = AudioPanelStateManager.shared
 
         /// 音频面板托管控制器
         /// 用于将 AudioPanelView 嵌入 NSSplitViewController 作为第四栏
-        private var audioPanelHostingController: AudioPanelHostingController?
+        var audioPanelHostingController: AudioPanelHostingController?
 
         // MARK: - 初始化
 
