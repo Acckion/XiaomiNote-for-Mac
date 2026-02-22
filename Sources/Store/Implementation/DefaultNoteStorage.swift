@@ -151,13 +151,7 @@ final class DefaultNoteStorage: NoteStorageProtocol, @unchecked Sendable {
         }
     }
 
-    // MARK: - 同步支持
-
-    func getPendingChanges() async throws -> [NoteChange] {
-        // 简化实现：返回空数组
-        // 实际应用中应该跟踪本地更改
-        []
-    }
+    // MARK: - 异步读取
 
     func getNote(id: String) async throws -> Note {
         try queue.sync {

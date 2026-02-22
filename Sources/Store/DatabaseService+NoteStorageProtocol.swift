@@ -98,13 +98,7 @@ extension DatabaseService: NoteStorageProtocol {
         return notes.count
     }
 
-    // MARK: - 同步支持
-
-    public func getPendingChanges() async throws -> [NoteChange] {
-        // DatabaseService 不直接跟踪变更
-        // 这个功能由 UnifiedOperationQueue 处理
-        []
-    }
+    // MARK: - 异步读取
 
     public func getNote(id: String) async throws -> Note {
         guard let note = try loadNote(noteId: id) else {

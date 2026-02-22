@@ -42,15 +42,12 @@ public final class ServiceLocator: @unchecked Sendable {
         container.register(CacheServiceProtocol.self, instance: cacheService)
         container.register(NoteStorageProtocol.self, instance: noteStorage)
 
-        let noteService = MiNoteService.shared
-
         let authService = DefaultAuthenticationService(networkClient: networkClient)
         let imageService = DefaultImageService(networkClient: networkClient, cacheService: cacheService)
         let audioService = DefaultAudioService(cacheService: cacheService)
 
         let networkMonitor = NetworkMonitor.shared
 
-        container.register(NoteServiceProtocol.self, instance: noteService)
         container.register(AuthenticationServiceProtocol.self, instance: authService)
         container.register(ImageServiceProtocol.self, instance: imageService)
         container.register(AudioServiceProtocol.self, instance: audioService)
@@ -74,7 +71,6 @@ public final class ServiceLocator: @unchecked Sendable {
         let services: [(String, Any.Type)] = [
             ("CacheServiceProtocol", CacheServiceProtocol.self),
             ("NoteStorageProtocol", NoteStorageProtocol.self),
-            ("NoteServiceProtocol", NoteServiceProtocol.self),
             ("AuthenticationServiceProtocol", AuthenticationServiceProtocol.self),
             ("ImageServiceProtocol", ImageServiceProtocol.self),
             ("AudioServiceProtocol", AudioServiceProtocol.self),
@@ -121,11 +117,6 @@ public final class ServiceLocator: @unchecked Sendable {
     /// 网络监控服务
     var networkMonitor: NetworkMonitorProtocol {
         resolve(NetworkMonitorProtocol.self)
-    }
-
-    /// 笔记服务
-    var noteService: NoteServiceProtocol {
-        resolve(NoteServiceProtocol.self)
     }
 
     /// 认证服务
