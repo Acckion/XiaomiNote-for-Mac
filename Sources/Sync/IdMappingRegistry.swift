@@ -15,7 +15,15 @@ import Foundation
 /// - 清理已完成的映射
 /// - 应用启动时恢复未完成的映射
 ///
-/// **线程安全**：使用 NSLock 确保所有操作的线程安全
+/// **线程安全设计**：
+/// 使用 NSLock 而非 Actor 的原因：
+/// 1. 同步访问需求：resolveId() 等方法需要同步返回结果，
+///    如果使用 Actor 则所有调用都需要 await，会传染到整个调用链
+/// 2. 性能考虑：NSLock 的开销远小于 Actor 的上下文切换
+/// 3. 操作粒度：每个操作都是短暂的内存读写，不涉及 I/O，
+///    NSLock 的持有时间极短，不会造成阻塞
+/// 4. 与 OperationProcessor（Actor）的交互：OperationProcessor 是 Actor，
+///    如果 IdMappingRegistry 也是 Actor，两者交互时可能产生死锁风险
 ///
 public final class IdMappingRegistry: @unchecked Sendable {
 

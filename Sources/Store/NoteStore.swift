@@ -270,9 +270,7 @@ public actor NoteStore {
 
         if isOnline {
             if let operation = operationQueue.getPendingUpload(for: noteId) {
-                Task { @MainActor in
-                    await OperationProcessor.shared.processImmediately(operation)
-                }
+                await OperationProcessor.shared.processImmediately(operation)
             }
         }
     }

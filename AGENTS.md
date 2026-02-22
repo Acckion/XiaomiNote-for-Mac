@@ -50,7 +50,7 @@ Sources/
 │   └── ViewState           # 视图状态
 ├── Store/                  # 数据存储层（DatabaseService, NoteStore）
 ├── Sync/                   # 同步引擎
-│   ├── OperationQueue/     # 操作队列（OperationProcessor）
+│   ├── OperationQueue/     # 操作队列（UnifiedOperationQueue, OperationProcessor）
 │   ├── SyncEngine          # 同步引擎核心
 │   └── IdMappingRegistry   # ID 映射注册表
 ├── ToolbarItem/            # 工具栏组件

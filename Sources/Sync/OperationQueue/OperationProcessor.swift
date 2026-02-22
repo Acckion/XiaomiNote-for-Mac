@@ -16,10 +16,6 @@ public actor OperationProcessor {
     // MARK: - 单例
 
     /// 共享实例
-    ///
-    /// 注意：由于 NetworkMonitor 是 @MainActor 隔离的，
-    /// 需要在 MainActor 上初始化此单例
-    @MainActor
     public static let shared = OperationProcessor()
 
     // MARK: - 重试配置
@@ -56,9 +52,6 @@ public actor OperationProcessor {
     /// 数据库服务
     private let databaseService: DatabaseService
 
-    /// 网络监控
-    private let networkMonitor: NetworkMonitor
-
     /// 同步状态管理器
     private let syncStateManager: SyncStateManager
 
@@ -85,7 +78,6 @@ public actor OperationProcessor {
     // MARK: - 初始化
 
     /// 私有初始化方法（单例模式）
-    @MainActor
     private init() {
         self.operationQueue = UnifiedOperationQueue.shared
         self.apiClient = APIClient.shared
@@ -94,7 +86,6 @@ public actor OperationProcessor {
         self.fileAPI = FileAPI.shared
         self.localStorage = LocalStorageService.shared
         self.databaseService = DatabaseService.shared
-        self.networkMonitor = NetworkMonitor.shared
         self.syncStateManager = SyncStateManager.createDefault()
         self.eventBus = EventBus.shared
     }
@@ -109,7 +100,6 @@ public actor OperationProcessor {
     ///   - fileAPI: 文件 API 实例
     ///   - localStorage: 本地存储服务实例
     ///   - databaseService: 数据库服务实例
-    ///   - networkMonitor: 网络监控实例
     ///   - syncStateManager: 同步状态管理器实例
     init(
         operationQueue: UnifiedOperationQueue,
@@ -119,7 +109,6 @@ public actor OperationProcessor {
         fileAPI: FileAPI,
         localStorage: LocalStorageService,
         databaseService: DatabaseService,
-        networkMonitor: NetworkMonitor,
         syncStateManager: SyncStateManager,
         eventBus: EventBus = EventBus.shared
     ) {
@@ -130,7 +119,6 @@ public actor OperationProcessor {
         self.fileAPI = fileAPI
         self.localStorage = localStorage
         self.databaseService = databaseService
-        self.networkMonitor = networkMonitor
         self.syncStateManager = syncStateManager
         self.eventBus = eventBus
     }
@@ -141,7 +129,7 @@ public actor OperationProcessor {
     ///
     /// 由于 NetworkMonitor 是 @MainActor 隔离的，需要在主线程上访问
     private func isNetworkConnected() async -> Bool {
-        await MainActor.run { networkMonitor.isConnected }
+        await MainActor.run { NetworkMonitor.shared.isConnected }
     }
 
     // MARK: - 公共属性
