@@ -5,6 +5,10 @@
 ## [Unreleased]
 
 ### 重构
+- 编辑器桥接层重构（spec-103）：
+  - NativeEditorView.swift（2,423 行）按职责拆分为 4 个文件：NativeEditorView（纯 NSViewRepresentable）、NativeEditorCoordinator（Delegate + 内容同步）、CoordinatorFormatApplier（格式应用）、NativeTextView（自定义 NSTextView）
+  - NativeEditorContext.swift（1,827 行）按职责拆分为 4 个文件：NativeEditorContext（核心状态 + 格式入口 + XML）、EditorEnums（枚举定义）、EditorContentManager（内容管理 + 录音模板）、EditorFormatDetector（格式检测）
+  - 纯代码组织重构，不改变运行时行为，extension 方法编译时静态分派
 - 操作队列重构与优化（spec-104）：
   - 清理 NoteServiceProtocol 体系和旧 ViewModel 死代码
   - 新增文件上传基础设施（audioUpload 类型、FileUploadOperationData、pending_uploads 目录管理）
@@ -19,6 +23,8 @@
 - 修复离线创建笔记后操作队列使用过期临时 ID 及执行顺序问题
 - 修复插入图片后不渲染需要点击编辑器才显示的问题
 - 修复插入图片/音频后 XML 未即时保存导致上传后 fileId 替换失败
+- 修复离线创建笔记插入图片后云端仍使用临时 fileId（noteCreate 和 cloudUpload 等待文件上传完成、processQueue 二次检查新入队操作）
+- 修复云端上传冲突重试不检查结果导致后续上传持续冲突，以及 noteCreate 保存覆盖已替换的正式 fileId
 - MiNoteService 网络层重构（spec-102）：将 2,029 行的 MiNoteService 按功能领域拆分为 APIClient、NoteAPI、FolderAPI、FileAPI、SyncAPI、UserAPI、ResponseParser 7 个独立类，MiNoteService 保留为 deprecated Facade 转发层，所有调用方已迁移到新 API 类
 - Cookie 自动刷新重构：NetworkRequestManager 统一拦截 HTTP 401，自动通过 PassToken 刷新 Cookie 并重试
 - MiNoteService 所有 API 方法迁移到 performRequest/NetworkRequestManager，消除直接 URLSession 调用

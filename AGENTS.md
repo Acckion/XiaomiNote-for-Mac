@@ -56,8 +56,9 @@ Sources/
 ├── ToolbarItem/            # 工具栏组件
 ├── View/                   # UI 视图组件
 │   ├── AppKitComponents/   # AppKit 视图控制器
-│   ├── Bridge/             # SwiftUI-AppKit 桥接
+│   ├── Bridge/             # SwiftUI-AppKit 桥接（NativeEditorContext, EditorEnums, EditorContentManager, EditorFormatDetector）
 │   ├── NativeEditor/       # 原生富文本编辑器
+│   │   └── Core/           # 核心组件（NativeEditorView, NativeEditorCoordinator, CoordinatorFormatApplier, NativeTextView）
 │   ├── Shared/             # 共享组件（NoteMoveHelper 等）
 │   └── SwiftUIViews/       # SwiftUI 视图
 └── Window/                 # 窗口控制器
@@ -141,8 +142,18 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 - `APIClient.swift`: 网络请求基础设施（认证、Cookie 管理、请求执行）
 - `NetworkRequestManager.swift`: 网络请求管理器，统一处理 401 自动刷新 Cookie 并重试
 - `DatabaseService.swift`: SQLite 数据库操作
-- `NativeEditorView.swift`: 原生富文本编辑器
 - `Sources/State/*.swift`: State 对象，替代原 NotesViewModel
+- `OperationProcessor.swift`: 操作处理器（Actor），执行队列中的操作（笔记创建、云端上传、文件上传等）
+- `UnifiedOperationQueue.swift`: 统一操作队列，管理操作入队、去重合并、状态管理
+- `IdMappingRegistry.swift`: ID 映射注册表，管理临时 ID 到正式 ID 的映射
+- `NativeEditorView.swift`: 原生编辑器 NSViewRepresentable 桥接
+- `NativeEditorCoordinator.swift`: 编辑器 Coordinator（NSTextViewDelegate + 内容同步）
+- `CoordinatorFormatApplier.swift`: Coordinator 格式应用方法
+- `NativeTextView.swift`: 自定义 NSTextView 子类（键盘处理、列表行为、粘贴、拖放）
+- `NativeEditorContext.swift`: 编辑器上下文（核心状态 + 格式入口 + XML 加载/导出）
+- `EditorEnums.swift`: 编辑器枚举定义（TextFormat、SpecialElement、IndentOperation、EditorType）
+- `EditorContentManager.swift`: 编辑器内容管理（录音模板、内容保护、自动保存）
+- `EditorFormatDetector.swift`: 编辑器格式检测（格式状态更新、混合格式检测）
 
 ## 数据格式
 
