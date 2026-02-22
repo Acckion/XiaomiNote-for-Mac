@@ -327,7 +327,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
                 cachedFileURL = cachedURL
             } else {
                 // 需要下载
-                let audioData = try await MiNoteService.shared.downloadAudio(fileId: fileId)
+                let audioData = try await FileAPI.shared.downloadAudio(fileId: fileId)
 
                 // 缓存文件
                 let mimeType = mimeType ?? "audio/mpeg"

@@ -187,7 +187,7 @@ final class AudioUploadService: ObservableObject, @unchecked Sendable {
                 }
             }
 
-            let result = try await MiNoteService.shared.uploadAudio(
+            let result = try await FileAPI.shared.uploadAudio(
                 audioData: audioData,
                 fileName: actualFileName,
                 mimeType: mimeType
