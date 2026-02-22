@@ -387,9 +387,8 @@ public extension OperationProcessor {
     ///
     /// - Parameter error: 错误对象
     /// - Returns: 如果需要用户操作返回 true
-    func requiresUserAction(_ error: Error) -> Bool {
-        let errorType = classifyError(error)
-        return errorType == .authExpired
+    func requiresUserAction(_: Error) -> Bool {
+        false
     }
 }
 
@@ -537,14 +536,6 @@ extension OperationProcessor {
                 try operationQueue.scheduleRetry(operation.id, delay: retryDelay)
 
                 LogService.shared.debug(.sync, "OperationProcessor 安排重试: \(operation.id), 延迟 \(retryDelay) 秒")
-            } else if errorType == .authExpired {
-                // 认证错误：标记为 authFailed 并通知用户
-                try operationQueue.markFailed(operation.id, error: error, errorType: errorType)
-
-                // 发送认证失败事件
-                await eventBus.publish(ErrorEvent.authRequired(reason: "操作处理认证失败: \(operation.noteId)"))
-
-                LogService.shared.error(.sync, "OperationProcessor 认证失败，已通知用户: \(operation.id)")
             } else {
                 // 不可重试错误或超过最大重试次数：标记为失败
                 try operationQueue.markFailed(operation.id, error: error, errorType: errorType)

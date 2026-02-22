@@ -66,9 +66,9 @@ public enum OperationErrorType: String, Codable, Sendable {
     /// 判断错误是否可重试
     public var isRetryable: Bool {
         switch self {
-        case .network, .timeout, .serverError:
+        case .network, .timeout, .serverError, .authExpired:
             true
-        case .authExpired, .notFound, .conflict, .unknown:
+        case .notFound, .conflict, .unknown:
             false
         }
     }
