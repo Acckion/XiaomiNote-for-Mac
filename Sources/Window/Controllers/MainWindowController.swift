@@ -3041,7 +3041,7 @@
 
         /// 处理音频录制完成
         ///
-        /// 上传音频文件并更新之前插入的录音模板为实际的音频附件。
+        /// 生成临时 fileId，入队上传操作，立即更新编辑器。
         ///
         private func handleAudioRecordingComplete(url: URL) {
 
@@ -3054,7 +3054,6 @@
             // 获取模板 ID
             let templateId = audioPanelStateManager.currentRecordingTemplateId
 
-            // 异步上传音频文件
             Task { @MainActor in
                 do {
 
@@ -3063,15 +3062,14 @@
                         audioPanelStateManager.setTemplateUploading(templateId: templateId)
                     }
 
-                    // 1. 上传音频文件到服务器
+                    // 1. 格式转换 + 生成临时 fileId + 保存到 pending_uploads
                     let uploadResult = try await AudioUploadService.shared.uploadAudio(fileURL: url)
+                    let temporaryFileId = uploadResult.fileId
 
-                    LogService.shared.info(.window, "音频上传成功: fileId=\(uploadResult.fileId)")
+                    LogService.shared.info(.window, "音频已准备入队: temporaryFileId=\(temporaryFileId.prefix(20))...")
 
-                    // 1.5. 更新笔记的 setting.data，添加音频信息
-                    // 这是小米笔记服务器识别音频文件的关键
+                    // 1.5. 更新笔记的 setting.data，使用临时 fileId
                     if var note = coordinator.noteListState.selectedNote {
-                        // 从 settingJson 解析现有 setting，添加音频信息
                         var setting: [String: Any] = [
                             "themeId": 0,
                             "stickyTime": 0,
@@ -3086,24 +3084,20 @@
 
                         var settingData = setting["data"] as? [[String: Any]] ?? []
 
-                        // 构建音频元数据（与图片格式一致）
-                        // digest 格式：{sha1}.mp3
                         let audioInfo: [String: Any] = [
-                            "fileId": uploadResult.fileId,
-                            "mimeType": uploadResult.mimeType ?? "audio/mpeg",
-                            "digest": (uploadResult.digest ?? uploadResult.fileId) + ".mp3",
+                            "fileId": temporaryFileId,
+                            "mimeType": uploadResult.mimeType,
+                            "digest": temporaryFileId + ".mp3",
                         ]
                         settingData.append(audioInfo)
                         setting["data"] = settingData
 
-                        // 更新 settingJson
-                        if let settingData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
-                           let settingString = String(data: settingData, encoding: .utf8)
+                        if let settingJsonData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
+                           let settingString = String(data: settingJsonData, encoding: .utf8)
                         {
                             note.settingJson = settingString
                         }
 
-                        // 延迟到下一个 RunLoop 周期，避免在视图更新周期内修改 @Published 属性
                         DispatchQueue.main.async { [weak self] in
                             guard let self else { return }
                             coordinator.noteListState.selectedNote = note
@@ -3111,36 +3105,49 @@
                         }
                     }
 
-                    // 2. 检查是否有录音模板需要更新
-                    if let templateId {
-                        // 更新模板状态为更新中
-                        audioPanelStateManager.setTemplateUpdating(templateId: templateId, fileId: uploadResult.fileId)
+                    // 2. 入队音频上传操作
+                    let actualFileName = (url.lastPathComponent as NSString).deletingPathExtension + ".mp3"
+                    try AudioUploadService.shared.enqueueAudioUpload(
+                        temporaryFileId: temporaryFileId,
+                        fileName: actualFileName,
+                        mimeType: uploadResult.mimeType,
+                        noteId: selectedNote.id
+                    )
 
-                        // 有录音模板：使用原生编辑器更新模板并强制保存
+                    // 网络可用时立即处理
+                    let pendingOps = UnifiedOperationQueue.shared.getPendingOperations()
+                    if let audioOp = pendingOps.first(where: {
+                        $0.type == .audioUpload && $0.noteId == selectedNote.id
+                    }) {
+                        await OperationProcessor.shared.processImmediately(audioOp)
+                    }
+
+                    // 3. 检查是否有录音模板需要更新
+                    if let templateId {
+                        audioPanelStateManager.setTemplateUpdating(templateId: templateId, fileId: temporaryFileId)
+
                         if self.isUsingNativeEditor {
                             if let nativeEditorContext = self.getCurrentNativeEditorContext() {
                                 try await nativeEditorContext.updateRecordingTemplateAndSave(
                                     templateId: templateId,
-                                    fileId: uploadResult.fileId,
-                                    digest: uploadResult.digest,
+                                    fileId: temporaryFileId,
+                                    digest: nil,
                                     mimeType: uploadResult.mimeType
                                 )
-                                LogService.shared.info(.window, "原生编辑器录音模板已更新并保存: \(templateId) -> \(uploadResult.fileId)")
+                                LogService.shared.info(.window, "原生编辑器录音模板已更新: \(templateId) -> \(temporaryFileId.prefix(20))...")
                             } else {
                                 LogService.shared.error(.window, "无法获取原生编辑器上下文，录音模板未更新")
                                 self.audioPanelStateManager.setTemplateFailed(templateId: templateId, error: "无法获取原生编辑器上下文")
                             }
                         }
 
-                        // 更新模板状态为完成
-                        audioPanelStateManager.setTemplateCompleted(templateId: templateId, fileId: uploadResult.fileId)
+                        audioPanelStateManager.setTemplateCompleted(templateId: templateId, fileId: temporaryFileId)
                     } else {
-                        // 没有录音模板：使用原生编辑器插入音频附件
                         if self.isUsingNativeEditor {
                             if let nativeEditorContext = self.getCurrentNativeEditorContext() {
                                 nativeEditorContext.insertAudio(
-                                    fileId: uploadResult.fileId,
-                                    digest: uploadResult.digest,
+                                    fileId: temporaryFileId,
+                                    digest: nil,
                                     mimeType: uploadResult.mimeType
                                 )
                                 LogService.shared.info(.window, "音频附件已插入到原生编辑器")
@@ -3150,21 +3157,19 @@
                         }
                     }
 
-                    // 3. 关闭音频面板
+                    // 4. 关闭音频面板
                     audioPanelStateManager.forceHide()
 
-                    // 4. 删除临时文件
+                    // 5. 删除临时文件
                     try? FileManager.default.removeItem(at: url)
                     LogService.shared.debug(.window, "临时文件已删除")
                 } catch {
-                    LogService.shared.error(.window, "音频上传失败: \(error.localizedDescription)")
+                    LogService.shared.error(.window, "音频上传准备失败: \(error.localizedDescription)")
 
-                    // 更新模板状态为失败
                     if let templateId {
                         audioPanelStateManager.setTemplateFailed(templateId: templateId, error: error.localizedDescription)
                     }
 
-                    // 显示错误提示
                     await showAudioUploadErrorAlert(error: error)
                 }
             }

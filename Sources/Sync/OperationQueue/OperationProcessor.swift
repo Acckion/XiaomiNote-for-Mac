@@ -595,8 +595,7 @@ extension OperationProcessor {
         case .imageUpload:
             try await processImageUpload(operation)
         case .audioUpload:
-            // 音频上传处理（后续任务实现）
-            try await processImageUpload(operation)
+            try await processAudioUpload(operation)
         case .folderCreate:
             try await processFolderCreate(operation)
         case .folderRename:
@@ -851,7 +850,209 @@ extension OperationProcessor {
     /// - Throws: 执行错误
     private func processImageUpload(_ operation: NoteOperation) async throws {
         LogService.shared.debug(.sync, "OperationProcessor 处理 imageUpload: \(operation.noteId)")
-        // 图片上传通常在更新笔记时一起处理
+
+        // 解析操作数据
+        let uploadData: FileUploadOperationData
+        do {
+            uploadData = try FileUploadOperationData.decoded(from: operation.data)
+        } catch {
+            throw NSError(
+                domain: "OperationProcessor",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "无效的图片上传操作数据"]
+            )
+        }
+
+        // 读取本地文件
+        let fileExtension = (uploadData.fileName as NSString).pathExtension.lowercased()
+        let ext = fileExtension.isEmpty ? String(uploadData.mimeType.dropFirst("image/".count)) : fileExtension
+        guard let imageData = localStorage.loadPendingUpload(fileId: uploadData.temporaryFileId, extension: ext) else {
+            // 本地文件丢失，无法重试
+            LogService.shared.error(.sync, "图片本地文件丢失: \(uploadData.temporaryFileId)")
+            try operationQueue.markFailed(operation.id, error: NSError(
+                domain: "OperationProcessor", code: 404,
+                userInfo: [NSLocalizedDescriptionKey: "本地文件丢失"]
+            ), errorType: .notFound)
+            return
+        }
+
+        // 调用 API 上传
+        let result = try await fileAPI.uploadImage(
+            imageData: imageData,
+            fileName: uploadData.fileName,
+            mimeType: uploadData.mimeType
+        )
+
+        guard let serverFileId = result["fileId"] as? String else {
+            throw NSError(
+                domain: "OperationProcessor",
+                code: 500,
+                userInfo: [NSLocalizedDescriptionKey: "上传图片响应无效"]
+            )
+        }
+
+        // 注册 ID 映射
+        try IdMappingRegistry.shared.registerMapping(localId: uploadData.temporaryFileId, serverId: serverFileId, entityType: "file")
+
+        // 更新笔记内容中的 fileId 引用
+        try await IdMappingRegistry.shared.updateAllFileReferences(
+            localId: uploadData.temporaryFileId,
+            serverId: serverFileId,
+            noteId: uploadData.noteId
+        )
+
+        // 移动文件到正式缓存
+        let fileType = String(uploadData.mimeType.dropFirst("image/".count))
+        try? localStorage.movePendingUploadToCache(fileId: uploadData.temporaryFileId, extension: fileType, newFileId: serverFileId)
+
+        // 入队 cloudUpload 触发笔记重新保存
+        if let note = try? localStorage.loadNote(noteId: uploadData.noteId) {
+            let cloudUploadData: [String: Any] = [
+                "title": note.title,
+                "content": note.content,
+                "folderId": note.folderId,
+            ]
+            let data = try JSONSerialization.data(withJSONObject: cloudUploadData)
+            let cloudUploadOp = NoteOperation(
+                type: .cloudUpload,
+                noteId: note.id,
+                data: data
+            )
+            _ = try? operationQueue.enqueue(cloudUploadOp)
+        }
+
+        // 清理临时文件
+        try? localStorage.deletePendingUpload(fileId: uploadData.temporaryFileId, extension: ext)
+
+        LogService.shared.info(.sync, "图片上传成功: \(uploadData.temporaryFileId.prefix(20))... -> \(serverFileId)")
+    }
+
+    /// 处理音频上传操作
+    ///
+    /// - Parameter operation: audioUpload 操作
+    /// - Throws: 执行错误
+    private func processAudioUpload(_ operation: NoteOperation) async throws {
+        LogService.shared.debug(.sync, "OperationProcessor 处理 audioUpload: \(operation.noteId)")
+
+        let uploadData: FileUploadOperationData
+        do {
+            uploadData = try FileUploadOperationData.decoded(from: operation.data)
+        } catch {
+            throw NSError(
+                domain: "OperationProcessor",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "无效的音频上传操作数据"]
+            )
+        }
+
+        // 读取本地文件
+        guard let audioData = localStorage.loadPendingUpload(fileId: uploadData.temporaryFileId, extension: "mp3") else {
+            LogService.shared.error(.sync, "音频本地文件丢失: \(uploadData.temporaryFileId)")
+            try operationQueue.markFailed(operation.id, error: NSError(
+                domain: "OperationProcessor", code: 404,
+                userInfo: [NSLocalizedDescriptionKey: "本地文件丢失"]
+            ), errorType: .notFound)
+            return
+        }
+
+        // 调用 API 上传
+        let result = try await fileAPI.uploadAudio(
+            audioData: audioData,
+            fileName: uploadData.fileName,
+            mimeType: uploadData.mimeType
+        )
+
+        guard let serverFileId = result["fileId"] as? String else {
+            throw NSError(
+                domain: "OperationProcessor",
+                code: 500,
+                userInfo: [NSLocalizedDescriptionKey: "上传音频响应无效"]
+            )
+        }
+
+        let digest = result["digest"] as? String
+
+        // 注册 ID 映射
+        try IdMappingRegistry.shared.registerMapping(localId: uploadData.temporaryFileId, serverId: serverFileId, entityType: "file")
+
+        // 更新笔记内容中的 fileId 引用
+        try await IdMappingRegistry.shared.updateAllFileReferences(
+            localId: uploadData.temporaryFileId,
+            serverId: serverFileId,
+            noteId: uploadData.noteId
+        )
+
+        // 更新笔记 settingJson 中的音频信息
+        if var note = try? localStorage.loadNote(noteId: uploadData.noteId) {
+            var setting: [String: Any] = [
+                "themeId": 0,
+                "stickyTime": 0,
+                "version": 0,
+            ]
+            if let existingSettingJson = note.settingJson,
+               let jsonData = existingSettingJson.data(using: .utf8),
+               let existingSetting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+            {
+                setting = existingSetting
+            }
+
+            var settingData = setting["data"] as? [[String: Any]] ?? []
+
+            // 替换临时 fileId 为正式 fileId
+            var updated = false
+            for i in 0 ..< settingData.count {
+                if let existingFileId = settingData[i]["fileId"] as? String,
+                   existingFileId == uploadData.temporaryFileId
+                {
+                    settingData[i]["fileId"] = serverFileId
+                    if let digest {
+                        settingData[i]["digest"] = digest + ".mp3"
+                    }
+                    updated = true
+                }
+            }
+
+            // 如果没有找到临时 ID 的条目，添加新条目
+            if !updated {
+                let audioInfo: [String: Any] = [
+                    "fileId": serverFileId,
+                    "mimeType": uploadData.mimeType,
+                    "digest": (digest ?? serverFileId) + ".mp3",
+                ]
+                settingData.append(audioInfo)
+            }
+
+            setting["data"] = settingData
+
+            if let settingJsonData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
+               let settingString = String(data: settingJsonData, encoding: .utf8)
+            {
+                note.settingJson = settingString
+                try? localStorage.saveNote(note)
+            }
+
+            // 入队 cloudUpload 触发笔记重新保存
+            let cloudUploadData: [String: Any] = [
+                "title": note.title,
+                "content": note.content,
+                "folderId": note.folderId,
+            ]
+            let data = try JSONSerialization.data(withJSONObject: cloudUploadData)
+            let cloudUploadOp = NoteOperation(
+                type: .cloudUpload,
+                noteId: note.id,
+                data: data
+            )
+            _ = try? operationQueue.enqueue(cloudUploadOp)
+        }
+
+        // 移动文件到正式缓存
+        try? localStorage.movePendingUploadToCache(fileId: uploadData.temporaryFileId, extension: "mp3", newFileId: serverFileId)
+
+        // 清理临时文件
+        try? localStorage.deletePendingUpload(fileId: uploadData.temporaryFileId, extension: "mp3")
+
+        LogService.shared.info(.sync, "音频上传成功: \(uploadData.temporaryFileId.prefix(20))... -> \(serverFileId)")
     }
 
     /// 处理创建文件夹操作
