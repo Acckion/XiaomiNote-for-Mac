@@ -11,7 +11,8 @@ import SwiftUI
 /// 笔记编辑器工具栏
 @available(macOS 14.0, *)
 struct NoteEditorToolbar: ToolbarContent {
-    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var noteListState: NoteListState
+    @ObservedObject var noteEditorState: NoteEditorState
     let nativeEditorContext: NativeEditorContext
     let isUsingNativeEditor: Bool
     let isDebugMode: Bool
@@ -19,6 +20,7 @@ struct NoteEditorToolbar: ToolbarContent {
     let onToggleDebugMode: () -> Void
     let onInsertImage: () -> Void
     @Binding var showingHistoryView: Bool
+    @Binding var showTrashView: Bool
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .automatic) {
@@ -127,15 +129,21 @@ struct NoteEditorToolbar: ToolbarContent {
         Button { showingHistoryView = true } label: { Label("历史记录", systemImage: "clock.arrow.circlepath") }
 
         Menu {
-            Button { viewModel.toggleStar(note) } label: { Label(note.isStarred ? "取消置顶" : "置顶", systemImage: "pin") }
+            Button {
+                Task { await noteListState.toggleStar(note) }
+            } label: { Label(note.isStarred ? "取消置顶" : "置顶", systemImage: "pin") }
             Divider()
-            Button { viewModel.showTrashView = true } label: { Label("回收站", systemImage: "trash") }
-            Button(role: .destructive) { viewModel.deleteNote(note) } label: { Label("删除", systemImage: "trash") }
+            Button { showTrashView = true } label: { Label("回收站", systemImage: "trash") }
+            Button(role: .destructive) {
+                Task { await noteListState.deleteNote(note) }
+            } label: { Label("删除", systemImage: "trash") }
         } label: { Label("更多", systemImage: "ellipsis.circle") }
     }
 
     private var newNoteButton: some View {
-        Button { viewModel.createNewNote() } label: { Label("新建笔记", systemImage: "square.and.pencil") }
+        Button {
+            Task { await noteListState.createNewNote(inFolder: "0") }
+        } label: { Label("新建笔记", systemImage: "square.and.pencil") }
     }
 }
 

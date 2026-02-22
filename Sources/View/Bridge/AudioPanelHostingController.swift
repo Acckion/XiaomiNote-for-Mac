@@ -23,9 +23,6 @@ class AudioPanelHostingController: NSViewController {
     /// 音频面板状态管理器
     private let stateManager: AudioPanelStateManager
 
-    /// 笔记视图模型
-    private let viewModel: NotesViewModel
-
     /// 录制服务
     private let recorderService: AudioRecorderService
 
@@ -50,17 +47,14 @@ class AudioPanelHostingController: NSViewController {
     ///
     /// - Parameters:
     ///   - stateManager: 音频面板状态管理器
-    ///   - viewModel: 笔记视图模型
     ///   - recorderService: 录制服务（默认使用共享实例）
     ///   - playerService: 播放服务（默认使用共享实例）
     init(
         stateManager: AudioPanelStateManager,
-        viewModel: NotesViewModel,
         recorderService: AudioRecorderService = .shared,
         playerService: AudioPlayerService = .shared
     ) {
         self.stateManager = stateManager
-        self.viewModel = viewModel
         self.recorderService = recorderService
         self.playerService = playerService
         super.init(nibName: nil, bundle: nil)

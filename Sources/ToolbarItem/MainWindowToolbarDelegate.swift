@@ -20,8 +20,14 @@
 
         private let logger = Logger(subsystem: "com.minote.MiNoteMac", category: "MainWindowToolbarDelegate")
 
-        /// 视图模型引用
-        public weak var viewModel: NotesViewModel?
+        /// 文件夹状态引用
+        weak var folderState: FolderState?
+
+        /// 认证状态引用
+        weak var authState: AuthState?
+
+        /// 同步状态引用
+        weak var syncState: SyncState?
 
         /// 主窗口控制器引用
         public weak var windowController: MainWindowController?
@@ -53,12 +59,17 @@
             uncategorizedMenuItem.image?.size = NSSize(width: 16, height: 16)
             moveNoteMenu.addItem(uncategorizedMenuItem)
 
-            // 其他可用文件夹（安全解包viewModel）
-            if let viewModel {
-                // 告诉编译器假设当前环境已经是 MainActor
-                let availableFolders = MainActor.assumeIsolated {
-                    NoteMoveHelper.getAvailableFolders(for: viewModel)
-                }
+            // 从 FolderState 获取可用文件夹列表
+            if let folderState {
+                let availableFolders = folderState.folders.filter { folder in
+                    // 排除系统文件夹（除了私密笔记）
+                    if folder.isSystem, folder.id != "2" { return false }
+                    // 排除"所有笔记"文件夹
+                    if folder.id == "0" { return false }
+                    // 排除特殊文件夹
+                    if ["starred", "new"].contains(folder.id) { return false }
+                    return true
+                }.sorted { $0.name < $1.name }
 
                 if !availableFolders.isEmpty {
                     moveNoteMenu.addItem(NSMenuItem.separator())
@@ -138,10 +149,14 @@
 
         /// 初始化工具栏代理
         /// - Parameters:
-        ///   - viewModel: 笔记视图模型
+        ///   - folderState: 文件夹状态
+        ///   - authState: 认证状态
+        ///   - syncState: 同步状态
         ///   - windowController: 主窗口控制器
-        public init(viewModel: NotesViewModel?, windowController: MainWindowController?) {
-            self.viewModel = viewModel
+        init(folderState: FolderState?, authState: AuthState?, syncState: SyncState?, windowController: MainWindowController?) {
+            self.folderState = folderState
+            self.authState = authState
+            self.syncState = syncState
             self.windowController = windowController
             super.init()
         }
@@ -213,25 +228,24 @@
             let statusText: String
             let statusColor: NSColor
 
-            if let viewModel {
-                if viewModel.isLoggedIn {
-                    if viewModel.isSyncing {
-                        statusText = "同步中..."
-                        statusColor = .systemYellow
-                    } else if viewModel.isCookieExpired {
-                        statusText = "Cookie已过期"
-                        statusColor = .systemRed
-                    } else {
-                        statusText = "在线"
-                        statusColor = .systemGreen
-                    }
+            let isLoggedIn = authState?.isLoggedIn ?? false
+            let isSyncing = syncState?.isSyncing ?? false
+            let isCookieExpired = authState?.isCookieExpired ?? false
+
+            if isLoggedIn {
+                if isSyncing {
+                    statusText = "同步中..."
+                    statusColor = .systemYellow
+                } else if isCookieExpired {
+                    statusText = "Cookie已过期"
+                    statusColor = .systemRed
                 } else {
-                    statusText = "离线"
-                    statusColor = .systemGray
+                    statusText = "在线"
+                    statusColor = .systemGreen
                 }
             } else {
-                statusText = "未知"
-                statusColor = .gray
+                statusText = "离线"
+                statusColor = .systemGray
             }
 
             // 创建富文本字符串
@@ -765,8 +779,8 @@
             ]
 
             // 只有在选中私密笔记文件夹且已解锁时才添加锁图标
-            let isPrivateFolder = viewModel?.selectedFolder?.id == "2"
-            let isUnlocked = viewModel?.isPrivateNotesUnlocked ?? false
+            let isPrivateFolder = folderState?.selectedFolder?.id == "2"
+            let isUnlocked = authState?.isPrivateNotesUnlocked ?? false
             if isPrivateFolder, isUnlocked {
                 identifiers.append(NSToolbarItem.Identifier.lockPrivateNotes)
             }
@@ -789,9 +803,9 @@
                 customSearchField.target = windowController
                 customSearchField.action = #selector(MainWindowController.performSearch(_:))
 
-                // 设置视图模型
-                if let viewModel {
-                    customSearchField.setViewModel(viewModel)
+                // 设置搜索状态
+                if let searchState = windowController?.coordinator.searchState {
+                    customSearchField.setSearchState(searchState)
                 }
 
                 // 替换搜索项中的搜索字段

@@ -16,18 +16,17 @@
 
         // MARK: - 属性
 
-        /// 视图模型
-        private var viewModel: NotesViewModel
+        /// 笔记列表状态
+        private var noteListState: NoteListState
 
         /// 工具栏代理
         private var toolbarDelegate: BaseSheetToolbarDelegate?
 
         // MARK: - 初始化
 
-        /// 使用指定的视图模型初始化窗口控制器
-        /// - Parameter viewModel: 笔记视图模型
-        public init(viewModel: NotesViewModel) {
-            self.viewModel = viewModel
+        /// 使用指定的 NoteListState 初始化窗口控制器
+        init(noteListState: NoteListState) {
+            self.noteListState = noteListState
 
             // 创建窗口
             let window = NSWindow(
@@ -83,7 +82,7 @@
             guard let window else { return }
 
             // 创建SwiftUI回收站视图
-            let trashView = TrashView(viewModel: viewModel)
+            let trashView = TrashView(noteListState: noteListState)
 
             // 使用NSHostingController包装SwiftUI视图
             let hostingController = NSHostingController(rootView: trashView)

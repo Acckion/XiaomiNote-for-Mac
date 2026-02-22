@@ -35,7 +35,7 @@ public final class WindowState: ObservableObject {
 
     // MARK: - 窗口独立状态
 
-    /// 当前选中的笔记（从 NotesViewModel 单向同步）
+    /// 当前选中的笔记（从 NoteListState 单向同步）
     @Published public var selectedNote: Note?
 
     /// 当前展开的笔记（用于画廊视图）
@@ -80,9 +80,9 @@ public final class WindowState: ObservableObject {
 
     /// 选择笔记
     ///
-    /// 直接设置 NotesViewModel.selectedNote，通过 Combine 同步回 WindowState
+    /// 通过 AppCoordinator 处理笔记选择
     public func selectNote(_ note: Note) {
-        coordinator?.notesViewModel.selectedNote = note
+        coordinator?.handleNoteSelection(note)
     }
 
     /// 选择文件夹
@@ -131,19 +131,18 @@ public final class WindowState: ObservableObject {
 
     /// 设置数据绑定
     ///
-    /// 从 NotesViewModel 单向同步 selectedNote
+    /// 从 NoteListState 单向同步 selectedNote
     private func setupBindings() {
         guard let coordinator else {
             LogService.shared.warning(.window, "AppCoordinator 为 nil，无法设置绑定")
             return
         }
 
-        // 从 NotesViewModel 单向同步 selectedNote
-        coordinator.notesViewModel.$selectedNote
+        // 从 NoteListState 单向同步 selectedNote
+        coordinator.noteListState.$selectedNote
             .receive(on: DispatchQueue.main)
             .sink { [weak self] note in
                 guard let self else { return }
-                // 避免循环更新
                 if selectedNote?.id != note?.id {
                     selectedNote = note
                 }
@@ -151,7 +150,7 @@ public final class WindowState: ObservableObject {
             .store(in: &cancellables)
 
         // 同步文件夹列表（仅用于清理展开状态）
-        coordinator.folderViewModel.$folders
+        coordinator.folderState.$folders
             .receive(on: DispatchQueue.main)
             .sink { [weak self] folders in
                 guard let self else { return }

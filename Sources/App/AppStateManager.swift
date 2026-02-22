@@ -127,16 +127,7 @@ class AppStateManager {
 
     /// 启动后台服务
     private func startBackgroundServices() {
-        do {
-            ScheduledTaskManager.shared.start()
-
-            if let onlineStateManager {
-                onlineStateManager.refreshStatus()
-            }
-        } catch {
-            // 定时任务启动失败不阻塞应用，记录错误供排查
-            LogService.shared.error(.app, "ScheduledTaskManager 启动失败: \(error)")
-        }
+        onlineStateManager?.refreshStatus()
     }
 
     /// 处理应用程序即将终止

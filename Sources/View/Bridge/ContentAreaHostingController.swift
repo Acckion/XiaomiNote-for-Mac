@@ -24,11 +24,6 @@ public class ContentAreaHostingController: NSViewController {
     /// 窗口状态（窗口独立状态）
     private let windowState: WindowState
 
-    /// 笔记视图模型（通过 coordinator 访问）
-    private var viewModel: NotesViewModel {
-        coordinator.notesViewModel
-    }
-
     /// 视图选项管理器
     private var optionsManager: ViewOptionsManager
 
@@ -115,7 +110,7 @@ public class ContentAreaHostingController: NSViewController {
 
     /// 设置文件夹监听
     private func setupFolderObserver() {
-        viewModel.$selectedFolder
+        coordinator.folderState.$selectedFolder
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.refreshView()
@@ -125,7 +120,7 @@ public class ContentAreaHostingController: NSViewController {
 
     /// 设置搜索监听
     private func setupSearchObserver() {
-        viewModel.$searchText
+        coordinator.searchState.$searchText
             .receive(on: DispatchQueue.main)
             .sink { [weak self] searchText in
                 if !searchText.isEmpty {}

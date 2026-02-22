@@ -212,7 +212,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         var newState = menuState
 
         // 更新笔记选中状态
-        let hasSelectedNote = mainWindowController?.viewModel?.selectedNote != nil
+        let hasSelectedNote = mainWindowController?.coordinator.noteListState.selectedNote != nil
         newState.hasSelectedNote = hasSelectedNote
 
         // 更新编辑器焦点状态
@@ -326,8 +326,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 显示设置窗口
     func showSettings(_: Any?) {
-        // 创建设置窗口控制器
-        let settingsWindowController = SettingsWindowController(viewModel: mainWindowController?.viewModel)
+        let settingsWindowController = SettingsWindowController(coordinator: mainWindowController?.coordinator)
 
         // 显示窗口
         settingsWindowController.showWindow(nil)
@@ -717,7 +716,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 显示调试设置窗口
     func showDebugSettings(_: Any?) {
         // 创建调试窗口控制器
-        let debugWindowController = DebugWindowController(viewModel: mainWindowController?.viewModel)
+        let debugWindowController = DebugWindowController()
 
         // 显示窗口
         debugWindowController.showWindow(nil)
@@ -787,13 +786,13 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                                 id: UUID().uuidString,
                                 title: fileName,
                                 content: content,
-                                folderId: self?.mainWindowController?.viewModel?.selectedFolder?.id ?? "0",
+                                folderId: self?.mainWindowController?.coordinator.folderState.selectedFolder?.id ?? "0",
                                 isStarred: false,
                                 createdAt: Date(),
                                 updatedAt: Date()
                             )
 
-                            try await self?.mainWindowController?.viewModel?.createNote(newNote)
+                            await self?.mainWindowController?.coordinator.noteListState.createNewNote(inFolder: newNote.folderId)
                         } catch {
                             DispatchQueue.main.async {
                                 let errorAlert = NSAlert()
@@ -811,7 +810,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 导出笔记
     func exportNote(_: Any?) {
-        guard let note = mainWindowController?.viewModel?.selectedNote else {
+        guard let note = mainWindowController?.coordinator.noteListState.selectedNote else {
             let alert = NSAlert()
             alert.messageText = "导出失败"
             alert.informativeText = "请先选择一个要导出的笔记"
@@ -842,13 +841,13 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 置顶/取消置顶笔记
     func toggleStarNote(_: Any?) {
-        guard let note = mainWindowController?.viewModel?.selectedNote else { return }
-        mainWindowController?.viewModel?.toggleStar(note)
+        guard let note = mainWindowController?.coordinator.noteListState.selectedNote else { return }
+        Task { await mainWindowController?.coordinator.noteListState.toggleStar(note) }
     }
 
     /// 复制笔记
     func copyNote(_: Any?) {
-        guard let note = mainWindowController?.viewModel?.selectedNote else { return }
+        guard let note = mainWindowController?.coordinator.noteListState.selectedNote else { return }
 
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
@@ -892,13 +891,13 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                                 id: UUID().uuidString,
                                 title: fileName,
                                 content: content,
-                                folderId: self?.mainWindowController?.viewModel?.selectedFolder?.id ?? "0",
+                                folderId: self?.mainWindowController?.coordinator.folderState.selectedFolder?.id ?? "0",
                                 isStarred: false,
                                 createdAt: Date(),
                                 updatedAt: Date()
                             )
 
-                            try await self?.mainWindowController?.viewModel?.createNote(newNote)
+                            await self?.mainWindowController?.coordinator.noteListState.createNewNote(inFolder: newNote.folderId)
                         } catch {
                             DispatchQueue.main.async {
                                 let errorAlert = NSAlert()
@@ -916,7 +915,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 导出为 PDF
     func exportAsPDF(_: Any?) {
-        guard let note = mainWindowController?.viewModel?.selectedNote else {
+        guard let note = mainWindowController?.coordinator.noteListState.selectedNote else {
             showNoNoteSelectedAlert()
             return
         }
@@ -935,7 +934,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 导出为 Markdown
     func exportAsMarkdown(_: Any?) {
-        guard let note = mainWindowController?.viewModel?.selectedNote else {
+        guard let note = mainWindowController?.coordinator.noteListState.selectedNote else {
             showNoNoteSelectedAlert()
             return
         }
@@ -964,7 +963,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 导出为纯文本
     func exportAsPlainText(_: Any?) {
-        guard let note = mainWindowController?.viewModel?.selectedNote else {
+        guard let note = mainWindowController?.coordinator.noteListState.selectedNote else {
             showNoNoteSelectedAlert()
             return
         }
@@ -1004,34 +1003,13 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 复制笔记（创建副本）
     func duplicateNote(_: Any?) {
-        guard let note = mainWindowController?.viewModel?.selectedNote else {
+        guard let note = mainWindowController?.coordinator.noteListState.selectedNote else {
             showNoNoteSelectedAlert()
             return
         }
 
         Task {
-            do {
-                // 创建笔记副本
-                let duplicatedNote = Note(
-                    id: UUID().uuidString,
-                    title: note.title.isEmpty ? "无标题 副本" : "\(note.title) 副本",
-                    content: note.content,
-                    folderId: note.folderId,
-                    isStarred: false,
-                    createdAt: Date(),
-                    updatedAt: Date()
-                )
-
-                try await mainWindowController?.viewModel?.createNote(duplicatedNote)
-            } catch {
-                DispatchQueue.main.async {
-                    let errorAlert = NSAlert()
-                    errorAlert.messageText = "复制失败"
-                    errorAlert.informativeText = error.localizedDescription
-                    errorAlert.alertStyle = .warning
-                    errorAlert.runModal()
-                }
-            }
+            await mainWindowController?.coordinator.noteListState.createNewNote(inFolder: note.folderId)
         }
     }
 
@@ -1343,7 +1321,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 在新窗口中打开笔记
     @objc func openNoteInNewWindow(_: Any?) {
-        guard let note = mainWindowController?.viewModel?.selectedNote else {
+        guard let note = mainWindowController?.coordinator.noteListState.selectedNote else {
             let alert = NSAlert()
             alert.messageText = "操作失败"
             alert.informativeText = "请先选择一个笔记"

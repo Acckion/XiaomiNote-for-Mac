@@ -1,0 +1,107 @@
+import Combine
+import Foundation
+
+/// 在线状态管理器
+///
+/// 统一计算和管理应用的在线状态
+/// 在线状态 = 网络连接 && 已认证 && Cookie有效
+///
+/// 作为单一数据源（Single Source of Truth），其他组件应该依赖此管理器获取在线状态
+@MainActor
+public final class OnlineStateManager: ObservableObject {
+    public static let shared = OnlineStateManager()
+
+    /// 是否在线（需要同时满足：网络连接、已认证、Cookie有效）
+    @Published public private(set) var isOnline = true
+
+    // MARK: - 依赖服务
+
+    private let networkMonitor = NetworkMonitor.shared
+    private let service = MiNoteService.shared
+
+    // MARK: - 内部状态
+
+    /// Cookie 有效性状态，通过通知更新
+    private var isCookieValid = true
+
+    // MARK: - Combine订阅
+
+    private var cancellables = Set<AnyCancellable>()
+
+    // MARK: - 初始化
+
+    private init() {
+        setupStateMonitoring()
+        updateOnlineStatus()
+    }
+
+    // MARK: - 状态监控设置
+
+    /// 设置状态监控，监听所有影响在线状态的因素
+    private func setupStateMonitoring() {
+        // 监听网络连接状态变化
+        networkMonitor.$isConnected
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.updateOnlineStatus()
+                }
+            }
+            .store(in: &cancellables)
+
+        // 监听 Cookie 刷新成功通知
+        NotificationCenter.default.publisher(for: NSNotification.Name("CookieRefreshedSuccessfully"))
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.isCookieValid = true
+                    self?.updateOnlineStatus()
+                }
+            }
+            .store(in: &cancellables)
+
+        // 监听 Cookie 失效通知
+        NotificationCenter.default.publisher(for: NSNotification.Name("CookieExpired"))
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.isCookieValid = false
+                    self?.updateOnlineStatus()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - 状态更新
+
+    /// 更新在线状态
+    ///
+    /// 计算逻辑：isOnline = isConnected && isAuthenticated && isCookieValid
+    private func updateOnlineStatus() {
+        let isConnected = networkMonitor.isConnected
+        let isAuthenticated = service.isAuthenticated()
+        let cookieValid = isCookieValid
+
+        let wasOnline = isOnline
+        isOnline = isConnected && isAuthenticated && cookieValid
+
+        if wasOnline != isOnline {
+            LogService.shared.info(.sync, "在线状态变化: \(isOnline ? "在线" : "离线"), 网络: \(isConnected), 认证: \(isAuthenticated), Cookie: \(cookieValid)")
+
+            NotificationCenter.default.post(
+                name: .onlineStatusDidChange,
+                object: nil,
+                userInfo: ["isOnline": isOnline]
+            )
+        }
+    }
+
+    /// 手动触发状态更新（供外部调用）
+    public func refreshStatus() {
+        updateOnlineStatus()
+    }
+}
+
+// MARK: - 通知扩展
+
+extension Notification.Name {
+    /// 在线状态变化通知
+    static let onlineStatusDidChange = Notification.Name("onlineStatusDidChange")
+}

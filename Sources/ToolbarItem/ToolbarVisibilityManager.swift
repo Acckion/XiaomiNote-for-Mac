@@ -17,8 +17,14 @@
         /// 工具栏引用（弱引用避免循环引用）
         private weak var toolbar: NSToolbar?
 
-        /// 视图模型引用（弱引用避免循环引用）
-        private weak var viewModel: NotesViewModel?
+        /// 笔记列表状态引用
+        private weak var noteListState: NoteListState?
+
+        /// 文件夹状态引用
+        private weak var folderState: FolderState?
+
+        /// 认证状态引用（私密笔记解锁状态）
+        private weak var authState: AuthState?
 
         /// Combine 订阅集合
         private var cancellables = Set<AnyCancellable>()
@@ -70,10 +76,14 @@
         /// 初始化工具栏可见性管理器
         /// - Parameters:
         ///   - toolbar: 要管理的工具栏
-        ///   - viewModel: 笔记视图模型
-        public init(toolbar: NSToolbar, viewModel: NotesViewModel?) {
+        ///   - noteListState: 笔记列表状态
+        ///   - folderState: 文件夹状态
+        ///   - authState: 认证状态
+        init(toolbar: NSToolbar, noteListState: NoteListState?, folderState: FolderState?, authState: AuthState?) {
             self.toolbar = toolbar
-            self.viewModel = viewModel
+            self.noteListState = noteListState
+            self.folderState = folderState
+            self.authState = authState
 
             // 设置状态监听
             setupStateObservers()
@@ -97,7 +107,7 @@
                 .store(in: &cancellables)
 
             // 监听文件夹选择变化
-            viewModel?.$selectedFolder
+            folderState?.$selectedFolder
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.updateToolbarVisibility()
@@ -105,7 +115,7 @@
                 .store(in: &cancellables)
 
             // 监听笔记选择变化
-            viewModel?.$selectedNote
+            noteListState?.$selectedNote
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.updateToolbarVisibility()
@@ -113,7 +123,7 @@
                 .store(in: &cancellables)
 
             // 监听私密笔记解锁状态变化
-            viewModel?.$isPrivateNotesUnlocked
+            authState?.$isPrivateNotesUnlocked
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.updateToolbarVisibility()
@@ -122,7 +132,7 @@
 
             // 监听画廊展开状态变化
             // 用于控制返回按钮和编辑器工具栏项的可见性
-            viewModel?.$isGalleryExpanded
+            noteListState?.$isGalleryExpanded
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.updateToolbarVisibility()
@@ -138,10 +148,10 @@
 
             // 获取当前状态
             let viewMode = ViewOptionsManager.shared.viewMode
-            let hasSelectedNote = viewModel?.selectedNote != nil
-            let isPrivateFolder = viewModel?.selectedFolder?.id == "2"
-            let isUnlocked = viewModel?.isPrivateNotesUnlocked ?? false
-            let isGalleryExpanded = viewModel?.isGalleryExpanded ?? false
+            let hasSelectedNote = noteListState?.selectedNote != nil
+            let isPrivateFolder = folderState?.selectedFolder?.id == "2"
+            let isUnlocked = authState?.isPrivateNotesUnlocked ?? false
+            let isGalleryExpanded = noteListState?.isGalleryExpanded ?? false
 
             // 遍历工具栏项并更新可见性
             for item in toolbar.items {
@@ -175,10 +185,10 @@
         ) {
             // 使用传入的值或获取当前状态
             let currentViewMode = viewMode ?? ViewOptionsManager.shared.viewMode
-            let currentHasSelectedNote = hasSelectedNote ?? (viewModel?.selectedNote != nil)
-            let currentIsPrivateFolder = isPrivateFolder ?? (viewModel?.selectedFolder?.id == "2")
-            let currentIsUnlocked = isUnlocked ?? (viewModel?.isPrivateNotesUnlocked ?? false)
-            let currentIsGalleryExpanded = isGalleryExpanded ?? (viewModel?.isGalleryExpanded ?? false)
+            let currentHasSelectedNote = hasSelectedNote ?? (noteListState?.selectedNote != nil)
+            let currentIsPrivateFolder = isPrivateFolder ?? (folderState?.selectedFolder?.id == "2")
+            let currentIsUnlocked = isUnlocked ?? (authState?.isPrivateNotesUnlocked ?? false)
+            let currentIsGalleryExpanded = isGalleryExpanded ?? (noteListState?.isGalleryExpanded ?? false)
 
             let identifier = item.itemIdentifier
 

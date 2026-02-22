@@ -79,9 +79,11 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     // MARK: - 依赖
 
-    private(set) weak var viewModel: NotesViewModel?
+    private let eventBus = EventBus.shared
+    private(set) weak var noteEditorState: NoteEditorState?
+    private var noteStore: NoteStore?
     var nativeEditorContext: NativeEditorContext? {
-        viewModel?.nativeEditorContext
+        noteEditorState?.nativeEditorContext
     }
 
     // MARK: - 初始化
@@ -89,8 +91,14 @@ public final class NoteEditingCoordinator: ObservableObject {
     public init() {}
 
     /// 配置依赖
-    public func configure(viewModel: NotesViewModel) {
-        self.viewModel = viewModel
+    func configure(noteEditorState: NoteEditorState, noteStore: NoteStore) {
+        self.noteEditorState = noteEditorState
+        self.noteStore = noteStore
+
+        // 设置 ID 迁移回调
+        noteEditorState.onIdMigrated = { [weak self] oldId, newId, note in
+            self?.handleIdMigration(oldId: oldId, newId: newId, note: note)
+        }
     }
 
     // MARK: - 编辑器偏好
@@ -99,16 +107,40 @@ public final class NoteEditingCoordinator: ObservableObject {
         EditorPreferencesService.shared.isNativeEditorAvailable
     }
 
+    // MARK: - ID 迁移处理
+
+    /// 处理笔记 ID 迁移（临时 ID -> 正式 ID）
+    public func handleIdMigration(oldId: String, newId: String, note _: Note) {
+        guard currentEditingNoteId == oldId else { return }
+
+        LogService.shared.info(.editor, "NoteEditingCoordinator ID 迁移: \(oldId.prefix(8))... -> \(newId.prefix(8))...")
+
+        currentEditingNoteId = newId
+
+        // 迁移内存缓存中的引用
+        if let oldContent = lastUploadedContentByNoteId.removeValue(forKey: oldId) {
+            lastUploadedContentByNoteId[newId] = oldContent
+        }
+        if let oldTitle = lastUploadedTitleByNoteId.removeValue(forKey: oldId) {
+            lastUploadedTitleByNoteId[newId] = oldTitle
+        }
+    }
+
     // MARK: - 核心方法（保存）
 
     /// 处理编辑器内容变化（统一入口）
     public func handleContentChange(xmlContent: String, htmlContent: String?) async {
         guard !isInitializing else {
+            LogService.shared.debug(.editor, "handleContentChange 跳过 - isInitializing=true")
             return
         }
-        guard let currentNote = viewModel?.selectedNote,
+        guard let currentNote = noteEditorState?.currentNote,
               currentNote.id == currentEditingNoteId
         else {
+            LogService.shared.warning(
+                .editor,
+                "handleContentChange 跳过 - currentNote: \(noteEditorState?.currentNote?.id.prefix(8) ?? "nil"), editingNoteId: \(currentEditingNoteId?.prefix(8) ?? "nil")"
+            )
             return
         }
 
@@ -149,7 +181,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         guard let currentId = currentEditingNoteId, currentId != newNoteId else {
             return nil
         }
-        guard let currentNote = viewModel?.notes.first(where: { $0.id == currentId }) else {
+        guard let currentNote = noteEditorState?.currentNote, currentNote.id == currentId else {
             return nil
         }
 
@@ -183,22 +215,15 @@ public final class NoteEditingCoordinator: ObservableObject {
                 await MemoryCacheManager.shared.cacheNote(updated)
                 updateNotesArrayOnly(with: updated)
 
-                DatabaseService.shared.saveNoteAsync(updated) { [weak self] error in
-                    Task { @MainActor in
-                        if let error {
-                            LogService.shared.error(.editor, "笔记切换后台保存失败: \(error)")
-                        } else {
-                            self?.scheduleCloudUpload(for: updated, xmlContent: content)
-                        }
-                    }
-                }
+                await eventBus.publish(NoteEvent.contentUpdated(noteId: currentNote.id, title: capturedTitle, content: content))
+                scheduleCloudUpload(for: updated, xmlContent: content)
             }
         }
     }
 
     /// 文件夹切换前保存
     public func saveForFolderSwitch() async -> Bool {
-        guard let note = viewModel?.selectedNote, note.id == currentEditingNoteId else {
+        guard let note = noteEditorState?.currentNote, note.id == currentEditingNoteId else {
             return true
         }
 
@@ -233,11 +258,8 @@ public final class NoteEditingCoordinator: ObservableObject {
                 createdAt: capturedNote.createdAt,
                 updatedAt: capturedNote.updatedAt,
                 tags: capturedNote.tags,
-                rawData: capturedNote.rawData,
                 snippet: capturedNote.snippet,
                 colorId: capturedNote.colorId,
-                subject: capturedNote.subject,
-                alertDate: capturedNote.alertDate,
                 type: capturedNote.type,
                 serverTag: capturedNote.serverTag,
                 status: capturedNote.status,
@@ -248,15 +270,8 @@ public final class NoteEditingCoordinator: ObservableObject {
             await MemoryCacheManager.shared.cacheNote(updated)
             updateNotesArrayOnly(with: updated)
 
-            DatabaseService.shared.saveNoteAsync(updated) { [weak self] error in
-                Task { @MainActor in
-                    if let error {
-                        LogService.shared.error(.editor, "文件夹切换后台保存失败: \(error)")
-                    } else {
-                        self?.scheduleCloudUpload(for: updated, xmlContent: content)
-                    }
-                }
-            }
+            await eventBus.publish(NoteEvent.contentUpdated(noteId: capturedNote.id, title: capturedTitle, content: content))
+            scheduleCloudUpload(for: updated, xmlContent: content)
         }
 
         return true
@@ -273,7 +288,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     /// 重试保存
     public func retrySave() {
         guard let xmlContent = pendingRetryXMLContent,
-              let note = pendingRetryNote ?? viewModel?.selectedNote
+              let note = pendingRetryNote ?? noteEditorState?.currentNote
         else { return }
 
         var contentToSave = xmlContent
@@ -291,9 +306,17 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     /// 切换到新笔记（统一入口）
     public func switchToNote(_ note: Note) async {
+        LogService.shared.debug(
+            .editor,
+            "switchToNote 开始 - 笔记ID: \(note.id.prefix(8))..., noteEditorState.currentNote: \(noteEditorState?.currentNote?.id.prefix(8) ?? "nil")"
+        )
+
         currentEditingNoteId = note.id
         isInitializing = true
         saveStatus = .saved
+
+        // 同步更新 NoteEditorState.currentNote，确保 handleContentChange 的 guard 能通过
+        noteEditorState?.loadNote(note)
 
         let title = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
         editedTitle = title
@@ -339,11 +362,8 @@ public final class NoteEditingCoordinator: ObservableObject {
             createdAt: note.createdAt,
             updatedAt: Date(),
             tags: note.tags,
-            rawData: note.rawData,
             snippet: note.snippet,
             colorId: note.colorId,
-            subject: note.subject,
-            alertDate: note.alertDate,
             type: note.type,
             serverTag: note.serverTag,
             status: note.status,
@@ -360,7 +380,7 @@ public final class NoteEditingCoordinator: ObservableObject {
             saveStatus = .unsaved
         }
 
-        viewModel?.hasUnsavedContent = true
+        noteEditorState?.hasUnsavedContent = true
     }
 
     func flashSaveHTML(_: String, for _: Note) {
@@ -421,7 +441,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         }
     }
 
-    /// 执行 XML 保存（直接通过 NoteOperationCoordinator，不再经过 SavePipelineCoordinator）
+    /// 执行 XML 保存（通过 EventBus 发布事件，由 NoteStore 统一处理 DB 写入）
     func performXMLSave(xmlContent: String, for note: Note) {
         xmlSaveTask?.cancel()
         let noteId = note.id
@@ -460,21 +480,9 @@ public final class NoteEditingCoordinator: ObservableObject {
                 return
             }
 
-            do {
-                let updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
-                let saveResult = await NoteOperationCoordinator.shared.saveNote(updated)
-
-                switch saveResult {
-                case .success:
-                    await handleSaveSuccess(xmlContent: xmlContent, noteId: noteId, updatedNote: updated)
-                case let .failure(error):
-                    throw error
-                }
-            } catch {
-                guard !Task.isCancelled, currentEditingNoteId == noteId else { return }
-                LogService.shared.error(.editor, "保存失败: \(error)")
-                await handleSaveFailure(error: error, xmlContent: xmlContent, note: note)
-            }
+            let updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
+            await eventBus.publish(NoteEvent.contentUpdated(noteId: note.id, title: editedTitle, content: xmlContent))
+            await handleSaveSuccess(xmlContent: xmlContent, noteId: noteId, updatedNote: updated)
         }
     }
 
@@ -494,7 +502,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         await MemoryCacheManager.shared.cacheNote(updatedNote)
 
         saveStatus = .saved
-        viewModel?.hasUnsavedContent = false
+        noteEditorState?.hasUnsavedContent = false
 
         if isUsingNativeEditor, let context = nativeEditorContext {
             context.markContentSaved()
@@ -514,7 +522,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     }
 
     func performTitleChangeSave(newTitle: String) async {
-        guard let note = viewModel?.selectedNote, note.id == currentEditingNoteId else { return }
+        guard let note = noteEditorState?.currentNote, note.id == currentEditingNoteId else { return }
         if isSavingLocally {
             try? await Task.sleep(nanoseconds: 100_000_000)
             if isSavingLocally { return }
@@ -548,33 +556,18 @@ public final class NoteEditingCoordinator: ObservableObject {
         let updated = buildUpdatedNote(from: note, xmlContent: xmlContent, shouldUpdateTimestamp: shouldUpdateTimestamp)
         editedTitle = previousEditedTitle
 
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            DatabaseService.shared.saveNoteAsync(updated) { [weak self] error in
-                Task { @MainActor in
-                    guard let self else {
-                        continuation.resume()
-                        return
-                    }
-                    if let error {
-                        LogService.shared.error(.editor, "标题和内容保存失败: \(error)")
-                        continuation.resume()
-                        return
-                    }
+        await eventBus.publish(NoteEvent.contentUpdated(noteId: note.id, title: title, content: xmlContent))
 
-                    self.lastSavedXMLContent = xmlContent
-                    self.originalTitle = title
-                    self.currentXMLContent = xmlContent
-                    self.updateViewModel(with: updated)
-                    await MemoryCacheManager.shared.cacheNote(updated)
-                    self.scheduleCloudUpload(for: updated, xmlContent: xmlContent)
-                    continuation.resume()
-                }
-            }
-        }
+        lastSavedXMLContent = xmlContent
+        originalTitle = title
+        currentXMLContent = xmlContent
+        updateViewModel(with: updated)
+        await MemoryCacheManager.shared.cacheNote(updated)
+        scheduleCloudUpload(for: updated, xmlContent: xmlContent)
     }
 
     func performSaveImmediately() async {
-        guard let note = viewModel?.selectedNote else { return }
+        guard let note = noteEditorState?.currentNote else { return }
         let content = await getLatestContentFromEditor()
         scheduleXMLSave(xmlContent: content, for: note, immediate: true)
         await xmlSaveTask?.value
@@ -604,12 +597,16 @@ public final class NoteEditingCoordinator: ObservableObject {
         var contentToLoad = note.primaryXMLContent
 
         if note.content.isEmpty {
-            await viewModel?.ensureNoteHasFullContent(note)
-            guard note.id == currentEditingNoteId else { return }
-
-            if let updated = viewModel?.selectedNote, updated.id == note.id {
-                contentToLoad = updated.primaryXMLContent
-                await MemoryCacheManager.shared.cacheNote(updated)
+            // 优先从 NoteStore 内存缓存获取
+            if let cachedNote = await noteStore?.getNote(byId: note.id), !cachedNote.content.isEmpty {
+                guard note.id == currentEditingNoteId else { return }
+                contentToLoad = cachedNote.primaryXMLContent
+                await MemoryCacheManager.shared.cacheNote(cachedNote)
+            } else if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+                // NoteStore 缓存也没有完整内容，回退到直接读 DB
+                guard note.id == currentEditingNoteId else { return }
+                contentToLoad = fullNote.primaryXMLContent
+                await MemoryCacheManager.shared.cacheNote(fullNote)
             }
         } else {
             await MemoryCacheManager.shared.cacheNote(note)
@@ -649,10 +646,16 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     func loadFullContentAsync(for note: Note) async {
         if note.content.isEmpty {
-            await viewModel?.ensureNoteHasFullContent(note)
-            if let updated = viewModel?.selectedNote, updated.id == note.id {
-                await MemoryCacheManager.shared.cacheNote(updated)
-                currentXMLContent = updated.primaryXMLContent
+            // 优先从 NoteStore 内存缓存获取
+            if let cachedNote = await noteStore?.getNote(byId: note.id), !cachedNote.content.isEmpty {
+                await MemoryCacheManager.shared.cacheNote(cachedNote)
+                currentXMLContent = cachedNote.primaryXMLContent
+                lastSavedXMLContent = currentXMLContent
+                originalXMLContent = currentXMLContent
+            } else if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+                // NoteStore 缓存也没有完整内容，回退到直接读 DB
+                await MemoryCacheManager.shared.cacheNote(fullNote)
+                currentXMLContent = fullNote.primaryXMLContent
                 lastSavedXMLContent = currentXMLContent
                 originalXMLContent = currentXMLContent
             }
@@ -699,7 +702,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     // MARK: - 内部方法（云端同步）
 
     func scheduleCloudUpload(for note: Note, xmlContent: String) {
-        guard let viewModel, viewModel.isOnline, viewModel.isLoggedIn else {
+        guard MiNoteService.shared.isAuthenticated(), MiNoteService.shared.hasValidCookie() else {
             queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
             return
         }
@@ -725,7 +728,7 @@ public final class NoteEditingCoordinator: ObservableObject {
             let lastTitle = lastUploadedTitleByNoteId[noteId] ?? ""
             guard latestXMLContent != lastUploaded || latestTitle != lastTitle else { return }
 
-            guard let vm = self.viewModel, vm.isOnline, vm.isLoggedIn else {
+            guard MiNoteService.shared.isAuthenticated(), MiNoteService.shared.hasValidCookie() else {
                 queueOfflineUpdateOperation(for: note, xmlContent: latestXMLContent)
                 return
             }
@@ -737,15 +740,11 @@ public final class NoteEditingCoordinator: ObservableObject {
     }
 
     func performCloudUpload(for note: Note, xmlContent: String) async {
-        let updated = buildUpdatedNote(from: note, xmlContent: xmlContent)
+        queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
 
-        do {
-            try await viewModel?.updateNote(updated)
-        } catch {
-            LogService.shared.error(.editor, "云端同步失败: \(error)")
-            if isNetworkRelatedError(error) {
-                queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
-            }
+        // 入队后立即触发处理
+        if let operation = UnifiedOperationQueue.shared.getPendingUpload(for: note.id) {
+            await OperationProcessor.shared.processImmediately(operation)
         }
     }
 
@@ -798,24 +797,11 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     // MARK: - 辅助方法
 
-    /// 统一更新 ViewModel
-    ///
-    /// 只更新 notes 数组，不更新 selectedNote
-    /// 避免触发 SwiftUI onChange 链导致编辑器状态混乱
-    func updateViewModel(with updated: Note) {
-        guard let viewModel else { return }
-        if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
-            viewModel.notes[index] = updated
-        }
-    }
+    /// 笔记更新已通过 EventBus 发布，NoteStore 和 NoteListState 会自动处理
+    func updateViewModel(with _: Note) {}
 
-    /// 仅更新 notes 数组（不更新 selectedNote）
-    func updateNotesArrayOnly(with updated: Note) {
-        guard let viewModel else { return }
-        if let index = viewModel.notes.firstIndex(where: { $0.id == updated.id }) {
-            viewModel.notes[index] = updated
-        }
-    }
+    /// 笔记更新已通过 EventBus 发布，NoteStore 和 NoteListState 会自动处理
+    func updateNotesArrayOnly(with _: Note) {}
 
     func buildUpdatedNote(
         from note: Note,
@@ -828,25 +814,15 @@ public final class NoteEditingCoordinator: ObservableObject {
             note.title
         }
 
-        var mergedRawData = note.rawData ?? [:]
-        if let latestNote = viewModel?.selectedNote, latestNote.id == note.id {
-            if let latestRawData = latestNote.rawData {
-                if let latestSetting = latestRawData["setting"] as? [String: Any] {
-                    mergedRawData["setting"] = latestSetting
-                }
+        // serverTag 由 NoteStore 处理 contentUpdated 事件时从 DB 读取最新值再更新，这里直接使用 note 自身的值
+        let latestServerTag = note.serverTag
+
+        // 同步更新 settingJson：合并最新的 setting 数据
+        var mergedSettingJson = note.settingJson
+        if let latestNote = noteEditorState?.currentNote, latestNote.id == note.id {
+            if let latestSettingJson = latestNote.settingJson, !latestSettingJson.isEmpty {
+                mergedSettingJson = latestSettingJson
             }
-        }
-
-        // 从数据库读取最新的 serverTag，避免内存中的过期 tag 覆盖数据库中上传成功后更新的新 tag
-        let latestServerTag: String? = if let dbNote = try? DatabaseService.shared.loadNote(noteId: note.id) {
-            dbNote.serverTag
-        } else {
-            note.serverTag
-        }
-
-        // 同步更新 rawData 中的 tag 字段，保持一致性
-        if let tag = latestServerTag {
-            mergedRawData["tag"] = tag
         }
 
         let updatedAt = shouldUpdateTimestamp ? Date() : note.updatedAt
@@ -860,10 +836,8 @@ public final class NoteEditingCoordinator: ObservableObject {
             createdAt: note.createdAt,
             updatedAt: updatedAt,
             tags: note.tags,
-            rawData: mergedRawData,
-            subject: note.subject,
             serverTag: latestServerTag,
-            settingJson: note.settingJson,
+            settingJson: mergedSettingJson,
             extraInfoJson: note.extraInfoJson
         )
     }

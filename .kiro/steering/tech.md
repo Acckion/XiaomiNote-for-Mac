@@ -8,7 +8,7 @@
 - **网络请求**: URLSession
 - **富文本编辑**: 自定义 Web 编辑器（WebKit）+ 原生编辑器
 - **并发处理**: async/await, Task, Actor
-- **架构模式**: MVVM + AppKit 控制器
+- **架构模式**: EventBus 驱动 + State 对象 + AppKit 控制器
 
 ## 构建系统
 
@@ -52,7 +52,7 @@ xcodebuild clean -project MiNoteMac.xcodeproj -scheme MiNoteMac
 
 ## 数据库迁移指南
 
-项目使用版本化迁移机制管理数据库结构变更，迁移文件位于 `Sources/Service/Storage/DatabaseMigrationManager.swift`。
+项目使用版本化迁移机制管理数据库结构变更，迁移文件位于 `Sources/Store/DatabaseMigrationManager.swift`。
 
 ### 添加新迁移
 

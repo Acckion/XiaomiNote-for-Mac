@@ -6,7 +6,7 @@ import SwiftUI
 /// 显示笔记的历史记录列表，支持查看和恢复历史记录
 @available(macOS 14.0, *)
 struct NoteHistoryView: View {
-    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var noteEditorState: NoteEditorState
     let noteId: String
     @Environment(\.dismiss) private var dismiss
 
@@ -19,15 +19,12 @@ struct NoteHistoryView: View {
     @State private var isRestoring = false
     @State private var restoreError: String?
 
-    /// 日志记录器
     private let logger = Logger(subsystem: "com.xiaomi.minote.mac", category: "NoteHistoryView")
 
     /// 自定义关闭方法，用于AppKit环境
     private func closeSheet() {
-        // 尝试使用dismiss环境变量
         dismiss()
 
-        // 如果dismiss无效，尝试通过NSApp关闭窗口
         DispatchQueue.main.async {
             if let window = NSApp.keyWindow,
                let sheetParent = window.sheetParent
@@ -39,13 +36,10 @@ struct NoteHistoryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 主内容区域
             HSplitView {
-                // 左侧：历史记录列表
                 leftPanel
                     .frame(minWidth: 300, idealWidth: 350, maxWidth: 400)
 
-                // 右侧：预览区域
                 rightPanel
                     .frame(minWidth: 400)
             }
@@ -197,7 +191,7 @@ struct NoteHistoryView: View {
 
         Task {
             do {
-                let versions = try await viewModel.getNoteHistoryTimes(noteId: noteId)
+                let versions = try await noteEditorState.getNoteHistoryTimes(noteId: noteId)
                 await MainActor.run {
                     historyVersions = versions
                     isLoading = false
@@ -220,7 +214,7 @@ struct NoteHistoryView: View {
 
         Task {
             do {
-                let note = try await viewModel.getNoteHistory(noteId: noteId, version: version.version)
+                let note = try await noteEditorState.getNoteHistory(noteId: noteId, version: version.version)
                 await MainActor.run {
                     versionContent = note
                     isLoadingContent = false
@@ -242,7 +236,7 @@ struct NoteHistoryView: View {
 
         Task {
             do {
-                try await viewModel.restoreNoteHistory(noteId: noteId, version: version.version)
+                try await noteEditorState.restoreNoteHistory(noteId: noteId, version: version.version)
                 await MainActor.run {
                     isRestoring = false
                     dismiss()
@@ -297,12 +291,10 @@ private struct VersionPreviewView: View {
     let note: Note
     let onRestore: () -> Void
 
-    /// 创建只读的编辑器上下文
     @StateObject private var editorContext = NativeEditorContext()
 
     var body: some View {
         VStack(spacing: 0) {
-            // 工具栏
             HStack {
                 if let version {
                     Text("版本时间: \(version.formattedUpdateTime)")
@@ -326,16 +318,14 @@ private struct VersionPreviewView: View {
             .background(Color(NSColor.controlBackgroundColor))
             .border(Color(NSColor.separatorColor), width: 0.5)
 
-            // 内容区域 - 使用原生编辑器（只读模式）
             VStack(alignment: .leading, spacing: 0) {
                 if !note.content.isEmpty {
                     NativeEditorView(
                         editorContext: editorContext,
-                        isEditable: false // 设置为只读
+                        isEditable: false
                     )
-                    .opacity(0.9) // 降低透明度表示只读
+                    .opacity(0.9)
                     .onAppear {
-                        // 加载内容到编辑器
                         loadContentToEditor()
                     }
                 } else {
@@ -351,21 +341,16 @@ private struct VersionPreviewView: View {
         }
     }
 
-    /// 加载内容到编辑器
     private func loadContentToEditor() {
         Task { @MainActor in
             do {
-                // 使用 XiaoMiFormatConverter 将 XML 转换为 NSAttributedString
                 let attributedString = try XiaoMiFormatConverter.shared.xmlToNSAttributedString(
                     note.content,
                     folderId: note.folderId
                 )
-
-                // 设置到编辑器上下文
                 editorContext.updateNSContent(attributedString)
             } catch {
                 LogService.shared.error(.window, "历史版本加载内容失败: \(error.localizedDescription)")
-                // 如果转换失败，显示纯文本
                 let plainText = note.content
                     .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
                     .replacingOccurrences(of: "&amp;", with: "&")

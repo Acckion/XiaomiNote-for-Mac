@@ -14,17 +14,9 @@
     /// 负责管理调试设置窗口
     public class DebugWindowController: NSWindowController {
 
-        // MARK: - 属性
-
-        /// 视图模型
-        private var viewModel: NotesViewModel?
-
         // MARK: - 初始化
 
-        /// 使用指定的视图模型初始化窗口控制器
-        /// - Parameter viewModel: 笔记视图模型
-        public init(viewModel: NotesViewModel? = nil) {
-            self.viewModel = viewModel
+        public init() {
 
             // 创建窗口
             let window = NSWindow(
