@@ -18,8 +18,8 @@
 
             // 如果是主窗口关闭，从 WindowManager 移除
             if window == self.window {
-                LogService.shared.info(.window, "主窗口即将关闭，从 WindowManager 移除，窗口ID: \(windowState.windowId)")
-                WindowManager.shared.removeWindow(withId: windowState.windowId)
+                LogService.shared.info(.window, "主窗口即将关闭，从 WindowManager 移除")
+                WindowManager.shared.removeWindowController(self)
             }
 
             // 清理其他窗口控制器引用
