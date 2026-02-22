@@ -702,7 +702,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     // MARK: - 内部方法（云端同步）
 
     func scheduleCloudUpload(for note: Note, xmlContent: String) {
-        guard MiNoteService.shared.isAuthenticated(), MiNoteService.shared.hasValidCookie() else {
+        guard APIClient.shared.isAuthenticated(), APIClient.shared.hasValidCookie() else {
             queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
             return
         }
@@ -728,7 +728,7 @@ public final class NoteEditingCoordinator: ObservableObject {
             let lastTitle = lastUploadedTitleByNoteId[noteId] ?? ""
             guard latestXMLContent != lastUploaded || latestTitle != lastTitle else { return }
 
-            guard MiNoteService.shared.isAuthenticated(), MiNoteService.shared.hasValidCookie() else {
+            guard APIClient.shared.isAuthenticated(), APIClient.shared.hasValidCookie() else {
                 queueOfflineUpdateOperation(for: note, xmlContent: latestXMLContent)
                 return
             }

@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 重构
+- MiNoteService 网络层重构（spec-102）：将 2,029 行的 MiNoteService 按功能领域拆分为 APIClient、NoteAPI、FolderAPI、FileAPI、SyncAPI、UserAPI、ResponseParser 7 个独立类，MiNoteService 保留为 deprecated Facade 转发层，所有调用方已迁移到新 API 类
 - Cookie 自动刷新重构：NetworkRequestManager 统一拦截 HTTP 401，自动通过 PassToken 刷新 Cookie 并重试
 - MiNoteService 所有 API 方法迁移到 performRequest/NetworkRequestManager，消除直接 URLSession 调用
 - 移除 MiNoteService 中无效的 onCookieExpired 回调和 cookieExpiredFlag 机制

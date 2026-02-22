@@ -127,7 +127,7 @@ public final class NoteEditorState: ObservableObject {
     // MARK: - 笔记历史
 
     func getNoteHistoryTimes(noteId: String) async throws -> [NoteHistoryVersion] {
-        let response = try await MiNoteService.shared.getNoteHistoryTimes(noteId: noteId)
+        let response = try await NoteAPI.shared.getNoteHistoryTimes(noteId: noteId)
 
         guard let code = response["code"] as? Int, code == 0,
               let data = response["data"] as? [String: Any],
@@ -148,7 +148,7 @@ public final class NoteEditorState: ObservableObject {
     }
 
     func getNoteHistory(noteId: String, version: Int64) async throws -> Note {
-        let response = try await MiNoteService.shared.getNoteHistory(noteId: noteId, version: version)
+        let response = try await NoteAPI.shared.getNoteHistory(noteId: noteId, version: version)
 
         guard let code = response["code"] as? Int, code == 0,
               let data = response["data"] as? [String: Any],
@@ -166,7 +166,7 @@ public final class NoteEditorState: ObservableObject {
     }
 
     func restoreNoteHistory(noteId: String, version: Int64) async throws {
-        let response = try await MiNoteService.shared.restoreNoteHistory(noteId: noteId, version: version)
+        let response = try await NoteAPI.shared.restoreNoteHistory(noteId: noteId, version: version)
 
         guard let code = response["code"] as? Int, code == 0 else {
             throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "恢复历史记录失败"])
@@ -194,7 +194,7 @@ public final class NoteEditorState: ObservableObject {
         default: "image/jpeg"
         }
 
-        let uploadResult = try await MiNoteService.shared.uploadImage(
+        let uploadResult = try await FileAPI.shared.uploadImage(
             imageData: imageData, fileName: fileName, mimeType: mimeType
         )
 

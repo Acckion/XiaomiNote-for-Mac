@@ -728,7 +728,7 @@ public struct ContentView: View {
     /// - 启动自动刷新Cookie定时器
     /// - 检查Cookie状态，如果失效则尝试静默刷新
     private func handleAppear() {
-        let isAuthenticated = MiNoteService.shared.isAuthenticated()
+        let isAuthenticated = APIClient.shared.isAuthenticated()
 
         if !isAuthenticated {
             showingLogin = true
@@ -740,7 +740,7 @@ public struct ContentView: View {
 
     /// 检查Cookie状态，如果失效则尝试静默刷新
     private func checkCookieStatusAndRefreshIfNeeded() {
-        let hasValidCookie = MiNoteService.shared.hasValidCookie()
+        let hasValidCookie = APIClient.shared.hasValidCookie()
 
         if !hasValidCookie {
             let silentRefreshOnFailure = UserDefaults.standard.bool(forKey: "silentRefreshOnFailure")

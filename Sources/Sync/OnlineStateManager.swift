@@ -17,7 +17,7 @@ public final class OnlineStateManager: ObservableObject {
     // MARK: - 依赖服务
 
     private let networkMonitor = NetworkMonitor.shared
-    private let service = MiNoteService.shared
+    private let apiClient = APIClient.shared
 
     // MARK: - 内部状态
 
@@ -76,7 +76,7 @@ public final class OnlineStateManager: ObservableObject {
     /// 计算逻辑：isOnline = isConnected && isAuthenticated && isCookieValid
     private func updateOnlineStatus() {
         let isConnected = networkMonitor.isConnected
-        let isAuthenticated = service.isAuthenticated()
+        let isAuthenticated = apiClient.isAuthenticated()
         let cookieValid = isCookieValid
 
         let wasOnline = isOnline

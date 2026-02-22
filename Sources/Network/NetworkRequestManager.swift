@@ -520,7 +520,7 @@ final class NetworkRequestManager: ObservableObject {
 
         // 使用新 Cookie 重建请求并重试
         var retryRequest = urlRequest
-        let newHeaders = MiNoteService.shared.getHeaders()
+        let newHeaders = APIClient.shared.getHeaders()
         retryRequest.allHTTPHeaderFields = newHeaders
         // 保留原始请求中的非 Cookie 头
         if let originalHeaders = urlRequest.allHTTPHeaderFields {
