@@ -207,6 +207,8 @@ public final class ErrorRecoveryService: ObservableObject {
             6 // 创建文件夹较高优先级
         case .imageUpload:
             3 // 图片上传低优先级
+        case .audioUpload:
+            3 // 音频上传低优先级
         }
     }
 
@@ -295,6 +297,7 @@ public struct FailedOperation: Identifiable {
         case .cloudUpload: "更新笔记"
         case .cloudDelete: "删除笔记"
         case .imageUpload: "上传图片"
+        case .audioUpload: "上传音频"
         case .folderCreate: "创建文件夹"
         case .folderRename: "重命名文件夹"
         case .folderDelete: "删除文件夹"

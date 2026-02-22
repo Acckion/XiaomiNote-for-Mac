@@ -915,6 +915,7 @@ extension OperationType {
         case .cloudUpload: "上传笔记"
         case .cloudDelete: "删除笔记"
         case .imageUpload: "上传图片"
+        case .audioUpload: "上传音频"
         case .folderCreate: "创建文件夹"
         case .folderRename: "重命名文件夹"
         case .folderDelete: "删除文件夹"

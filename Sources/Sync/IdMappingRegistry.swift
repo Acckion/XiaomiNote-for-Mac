@@ -326,6 +326,60 @@ public extension IdMappingRegistry {
 
         LogService.shared.info(.sync, "文件夹引用更新完成: \(localId) -> \(serverId)")
     }
+
+    /// 更新文件引用（图片/音频上传成功后替换临时 fileId）
+    ///
+    /// - Parameters:
+    ///   - localId: 临时文件 ID
+    ///   - serverId: 云端下发的正式文件 ID
+    ///   - noteId: 所属笔记 ID
+    /// - Throws: DatabaseError（数据库操作失败）
+    func updateAllFileReferences(localId: String, serverId: String, noteId: String) async throws {
+        LogService.shared.debug(.sync, "开始更新文件引用: \(localId) -> \(serverId), 笔记: \(noteId.prefix(8))...")
+
+        // 1. 注册映射
+        if !hasMapping(for: localId) {
+            try registerMapping(localId: localId, serverId: serverId, entityType: "file")
+        }
+
+        // 2. 更新数据库中笔记 XML 内容的 fileId 引用
+        do {
+            if var note = try databaseService.loadNote(noteId: noteId) {
+                let oldContent = note.content
+                note.content = oldContent.replacingOccurrences(of: localId, with: serverId)
+
+                if note.content != oldContent {
+                    try databaseService.saveNote(note)
+                    LogService.shared.debug(.sync, "笔记 XML 内容 fileId 替换成功")
+
+                    // 3. 通过 EventBus 通知编辑器刷新
+                    let eventBus = EventBus.shared
+                    await eventBus.publish(NoteEvent.saved(note))
+
+                    // 4. 入队 cloudUpload 操作触发笔记重新保存到云端
+                    let noteData = try JSONEncoder().encode(note)
+                    let operation = NoteOperation(
+                        type: .cloudUpload,
+                        noteId: noteId,
+                        data: noteData,
+                        localSaveTimestamp: Date(),
+                        isLocalId: NoteOperation.isTemporaryId(noteId)
+                    )
+                    try operationQueue.enqueue(operation)
+                    LogService.shared.debug(.sync, "已入队 cloudUpload 操作（文件引用更新）")
+                } else {
+                    LogService.shared.debug(.sync, "笔记内容中未找到临时 fileId: \(localId)")
+                }
+            } else {
+                LogService.shared.warning(.sync, "未找到笔记: \(noteId.prefix(8))..., 跳过文件引用更新")
+            }
+        } catch {
+            LogService.shared.error(.sync, "更新文件引用失败: \(error)")
+            throw error
+        }
+
+        LogService.shared.info(.sync, "文件引用更新完成: \(localId) -> \(serverId)")
+    }
 }
 
 // MARK: - 清理方法

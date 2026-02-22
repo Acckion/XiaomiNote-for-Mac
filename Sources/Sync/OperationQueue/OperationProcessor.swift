@@ -594,6 +594,9 @@ extension OperationProcessor {
             try await processCloudDelete(operation)
         case .imageUpload:
             try await processImageUpload(operation)
+        case .audioUpload:
+            // 音频上传处理（后续任务实现）
+            try await processImageUpload(operation)
         case .folderCreate:
             try await processFolderCreate(operation)
         case .folderRename:

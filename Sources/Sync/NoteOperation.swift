@@ -14,6 +14,8 @@ public enum OperationType: String, Codable, Sendable, CaseIterable {
     case cloudDelete
     /// 上传图片
     case imageUpload
+    /// 上传音频
+    case audioUpload
     /// 创建文件夹
     case folderCreate
     /// 重命名文件夹
@@ -199,7 +201,7 @@ public struct NoteOperation: Codable, Identifiable, Sendable {
     /// - noteCreate: 4（最高优先级，确保先获取正式 ID）
     /// - cloudDelete, folderDelete: 3
     /// - cloudUpload, folderRename: 2
-    /// - imageUpload, folderCreate: 1
+    /// - imageUpload, audioUpload, folderCreate: 1
     ///
     /// - Parameter type: 操作类型
     /// - Returns: 优先级数值
@@ -211,7 +213,7 @@ public struct NoteOperation: Codable, Identifiable, Sendable {
             3
         case .cloudUpload, .folderRename:
             2
-        case .imageUpload, .folderCreate:
+        case .imageUpload, .audioUpload, .folderCreate:
             1
         }
     }

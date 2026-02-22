@@ -252,8 +252,8 @@ extension UnifiedOperationQueue {
             }
             return newOperation
 
-        case .imageUpload:
-            // 图片上传不去重
+        case .imageUpload, .audioUpload:
+            // 文件上传不去重（每个文件独立）
             return newOperation
 
         case .folderCreate, .folderRename, .folderDelete:
