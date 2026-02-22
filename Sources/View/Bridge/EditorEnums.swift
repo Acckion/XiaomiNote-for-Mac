@@ -103,6 +103,14 @@ enum SpecialElement: Equatable {
         case .audio: "语音录音"
         }
     }
+
+    /// 是否为文件附件（图片/音频），需要即时保存以配合上传流程
+    var isFileAttachment: Bool {
+        switch self {
+        case .image, .audio: true
+        default: false
+        }
+    }
 }
 
 /// 缩进操作类型枚举

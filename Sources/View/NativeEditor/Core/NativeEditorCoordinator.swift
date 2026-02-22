@@ -291,7 +291,7 @@ extension NativeEditorView {
         }
 
         /// 同步 textView 内容到 editorContext
-        private func syncContentToContext() {
+        func syncContentToContext() {
             guard let textView else {
                 return
             }

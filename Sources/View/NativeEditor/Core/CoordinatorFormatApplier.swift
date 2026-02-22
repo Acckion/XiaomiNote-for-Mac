@@ -484,6 +484,16 @@ extension NativeEditorView.Coordinator {
 
         // 通知内容变化
         textDidChange(Notification(name: NSText.didChangeNotification, object: textView))
+
+        // 图片/音频插入后必须立即同步内容并保存到 DB，
+        // 不能等 textDidChange 的 50ms + 2秒防抖链路，
+        // 否则上传完成时 DB 中的 XML 还不包含临时 fileId
+        if element.isFileAttachment {
+            syncContentToContext()
+            Task { @MainActor in
+                await self.parent.editorContext.autoSaveManager.saveImmediately()
+            }
+        }
     }
 
     // MARK: - 缩进操作
