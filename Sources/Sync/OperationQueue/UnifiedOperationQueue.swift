@@ -456,7 +456,7 @@ public extension UnifiedOperationQueue {
         defer { lock.unlock() }
 
         return operationsByNoteId[noteId]?.first {
-            $0.type == .cloudUpload && ($0.status == .pending || $0.status == .failed)
+            ($0.type == .cloudUpload || $0.type == .noteCreate) && ($0.status == .pending || $0.status == .failed)
         }
     }
 

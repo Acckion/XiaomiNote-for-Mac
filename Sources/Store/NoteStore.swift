@@ -145,6 +145,8 @@ public actor NoteStore {
             LogService.shared.error(.sync, "创建 noteCreate 操作失败: \(error)")
         }
 
+        await triggerImmediateUploadIfOnline(noteId: temporaryId)
+
         return note
     }
 
