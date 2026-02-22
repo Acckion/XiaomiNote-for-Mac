@@ -855,9 +855,8 @@ extension OperationProcessor {
             )
         }
 
-        // 读取本地文件
-        let fileExtension = (uploadData.fileName as NSString).pathExtension.lowercased()
-        let ext = fileExtension.isEmpty ? String(uploadData.mimeType.dropFirst("image/".count)) : fileExtension
+        // 读取本地文件（扩展名从 mimeType 推导，与保存时一致）
+        let ext = String(uploadData.mimeType.dropFirst("image/".count))
         guard let imageData = localStorage.loadPendingUpload(fileId: uploadData.temporaryFileId, extension: ext) else {
             // 本地文件丢失，无法重试
             LogService.shared.error(.sync, "图片本地文件丢失: \(uploadData.temporaryFileId)")
