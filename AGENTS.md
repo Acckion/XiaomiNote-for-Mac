@@ -27,7 +27,7 @@ Sources/
 ├── Model/                  # 数据模型（Note, Folder, NoteMapper 等）
 ├── Network/                # 网络层（MiNoteService, NetworkClient）
 ├── Presentation/           # 展示层辅助
-│   └── ViewModels/         # 遗留 ViewModel（逐步迁移中）
+│   └── ViewModels/         # ViewModel（音频、认证、搜索等独立模块）
 ├── Service/                # 业务服务层
 │   ├── Audio/              # 音频服务
 │   ├── Authentication/     # 认证服务
@@ -43,7 +43,9 @@ Sources/
 │   ├── NoteListState       # 笔记列表状态
 │   ├── SearchState         # 搜索状态
 │   ├── SyncState           # 同步状态
-│   └── ViewOptionsState    # 视图选项状态
+│   ├── ViewOptionsState    # 视图选项状态
+│   ├── ViewOptionsManager  # 视图选项管理
+│   └── ViewState           # 视图状态
 ├── Store/                  # 数据存储层（DatabaseService, NoteStore）
 ├── Sync/                   # 同步引擎
 │   ├── OperationQueue/     # 操作队列（OperationProcessor）
@@ -136,7 +138,7 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 - `MiNoteService.swift`: 小米笔记 API 调用
 - `DatabaseService.swift`: SQLite 数据库操作
 - `NativeEditorView.swift`: 原生富文本编辑器
-- `Sources/State/*.swift`: 6 个 State 对象，替代原 NotesViewModel
+- `Sources/State/*.swift`: State 对象，替代原 NotesViewModel
 
 ## 数据格式
 
