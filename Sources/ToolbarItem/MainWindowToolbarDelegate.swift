@@ -845,8 +845,6 @@
         /// 为搜索框设置下拉菜单
         @MainActor
         private func setupSearchFieldMenu(for searchField: NSSearchField) {
-            logger.debug("设置搜索框菜单")
-
             // 设置搜索框属性以确保菜单正确工作
             searchField.sendsSearchStringImmediately = false
             searchField.sendsWholeSearchString = true
@@ -861,8 +859,6 @@
             // 重要：确保搜索框有正确的行为设置
             searchField.bezelStyle = .roundedBezel
             searchField.controlSize = .regular
-
-            logger.debug("搜索框菜单已设置")
         }
 
         // MARK: - 视图选项菜单

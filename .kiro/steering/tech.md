@@ -5,7 +5,7 @@
 - **语言**: Swift 6.0
 - **UI 框架**: AppKit + SwiftUI 混合架构
 - **数据存储**: SQLite 3
-- **网络请求**: URLSession
+- **网络请求**: URLSession（通过 NetworkRequestManager 统一管理，内置 401 自动刷新 Cookie 机制）
 - **富文本编辑**: 自定义 Web 编辑器（WebKit）+ 原生编辑器
 - **并发处理**: async/await, Task, Actor
 - **架构模式**: EventBus 驱动 + State 对象 + AppKit 控制器

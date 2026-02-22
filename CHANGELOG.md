@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### 重构
+- Cookie 自动刷新重构：NetworkRequestManager 统一拦截 HTTP 401，自动通过 PassToken 刷新 Cookie 并重试
+- MiNoteService 所有 API 方法迁移到 performRequest/NetworkRequestManager，消除直接 URLSession 调用
+- 移除 MiNoteService 中无效的 onCookieExpired 回调和 cookieExpiredFlag 机制
+- OperationProcessor 认证错误改为可重试，走标准指数退避重试路径
+
 ## [3.4.0] - 2026-01-18
 
 ### 新增
