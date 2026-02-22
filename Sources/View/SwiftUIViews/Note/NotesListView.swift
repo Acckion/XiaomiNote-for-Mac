@@ -607,8 +607,8 @@ struct NotesListView: View {
 
     // MARK: - 菜单操作
 
-    private func openNoteInNewWindow(_: Note) {
-        // 多窗口支持暂时禁用，等待模块依赖问题解决
+    private func openNoteInNewWindow(_ note: Note) {
+        WindowManager.shared.openNoteEditorWindow(note: note)
     }
 
     private func copyNote(_ note: Note) {

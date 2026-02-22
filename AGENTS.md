@@ -62,6 +62,7 @@ Sources/
 │   ├── Shared/             # 共享组件（NoteMoveHelper 等）
 │   └── SwiftUIViews/       # SwiftUI 视图
 └── Window/                 # 窗口控制器
+    └── Controllers/        # MainWindowController（1 核心 + 6 extension）
 
 Tests/                      # 测试代码
 References/                 # 参考项目（不参与编译）
@@ -134,7 +135,14 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 
 - `AppDelegate.swift`: 应用生命周期、菜单系统
 - `AppCoordinator.swift`: 应用协调器，创建和管理所有 State 对象
-- `MainWindowController.swift`: 主窗口、工具栏、分割视图
+- `MainWindowController.swift`: 主窗口核心（属性、初始化、生命周期、分割视图布局），已拆分为 7 个文件：
+  - `MainWindowController+Actions.swift`: 所有 @objc 动作方法
+  - `MainWindowController+Toolbar.swift`: NSToolbarDelegate + 工具栏项构建
+  - `MainWindowController+Audio.swift`: 音频面板管理
+  - `MainWindowController+Search.swift`: NSSearchFieldDelegate + 搜索筛选
+  - `MainWindowController+Delegates.swift`: NSWindowDelegate + NSMenuDelegate + NSUserInterfaceValidations
+  - `MainWindowController+StateObservers.swift`: 状态监听 + 窗口标题更新
+- `NoteEditorWindowController.swift`: 独立笔记编辑器窗口控制器（在新窗口中编辑特定笔记）
 - `NoteStore.swift`: 笔记数据存储和操作（依赖注入，非单例）
 - `SyncEngine.swift`: 云端同步引擎（Actor）
 - `EventBus.swift`: 跨层事件通信（Actor）

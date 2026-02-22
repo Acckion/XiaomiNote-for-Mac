@@ -428,8 +428,8 @@ struct GalleryView: View {
     // MARK: - 菜单操作
 
     /// 在新窗口打开笔记
-    private func openNoteInNewWindow(_: Note) {
-        // TODO: 实现多窗口支持后启用
+    private func openNoteInNewWindow(_ note: Note) {
+        WindowManager.shared.openNoteEditorWindow(note: note)
     }
 
     /// 复制笔记内容到剪贴板

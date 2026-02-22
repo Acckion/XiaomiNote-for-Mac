@@ -53,6 +53,9 @@ public final class WindowState: ObservableObject {
     /// 窗口唯一标识符
     public let windowId: UUID
 
+    /// 是否为独立编辑器窗口（不同步主窗口的 selectedNote）
+    private let isStandalone: Bool
+
     // MARK: - Private Properties
 
     /// Combine 订阅集合
@@ -62,12 +65,15 @@ public final class WindowState: ObservableObject {
 
     /// 初始化窗口状态
     ///
-    /// - Parameter coordinator: AppCoordinator 实例（弱引用）
-    public init(coordinator: AppCoordinator) {
+    /// - Parameters:
+    ///   - coordinator: AppCoordinator 实例（弱引用）
+    ///   - standalone: 是否为独立模式（独立编辑器窗口使用，不同步主窗口的 selectedNote）
+    public init(coordinator: AppCoordinator, standalone: Bool = false) {
         self.coordinator = coordinator
         self.windowId = UUID()
+        self.isStandalone = standalone
 
-        LogService.shared.debug(.window, "初始化窗口状态，ID: \(windowId)")
+        LogService.shared.debug(.window, "初始化窗口状态，ID: \(windowId)，独立模式: \(standalone)")
 
         setupBindings()
     }
@@ -138,16 +144,18 @@ public final class WindowState: ObservableObject {
             return
         }
 
-        // 从 NoteListState 单向同步 selectedNote
-        coordinator.noteListState.$selectedNote
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] note in
-                guard let self else { return }
-                if selectedNote?.id != note?.id {
-                    selectedNote = note
+        // 独立模式不同步 selectedNote，由外部直接设置
+        if !isStandalone {
+            coordinator.noteListState.$selectedNote
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] note in
+                    guard let self else { return }
+                    if selectedNote?.id != note?.id {
+                        selectedNote = note
+                    }
                 }
-            }
-            .store(in: &cancellables)
+                .store(in: &cancellables)
+        }
 
         // 同步文件夹列表（仅用于清理展开状态）
         coordinator.folderState.$folders

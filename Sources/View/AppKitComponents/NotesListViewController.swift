@@ -308,8 +308,8 @@ class NotesListViewController: NSViewController {
 
     @objc private func openNoteInNewWindow(_: Any?) {
         let clickedRow = tableView.clickedRow
-        guard clickedRow >= 0, noteForRow(clickedRow) != nil else { return }
-        LogService.shared.debug(.window, "在新窗口打开笔记功能暂时禁用")
+        guard clickedRow >= 0, let note = noteForRow(clickedRow) else { return }
+        WindowManager.shared.openNoteEditorWindow(note: note)
     }
 
     @objc private func toggleStarNote(_: Any?) {
