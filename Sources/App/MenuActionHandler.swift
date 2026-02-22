@@ -1331,10 +1331,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
             return
         }
 
-        // 使用 AppDelegate 的 createNewWindow 方法
-        if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
-            appDelegate.createNewWindow(withNote: note)
-        }
+        WindowManager.shared.openNoteEditorWindow(note: note)
     }
 
     // MARK: - 清理

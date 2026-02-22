@@ -309,10 +309,7 @@ class NotesListViewController: NSViewController {
     @objc private func openNoteInNewWindow(_: Any?) {
         let clickedRow = tableView.clickedRow
         guard clickedRow >= 0, let note = noteForRow(clickedRow) else { return }
-        if let controller = WindowManager.shared.createNewWindow(withNote: note) {
-            controller.showWindow(nil)
-            controller.window?.makeKeyAndOrderFront(nil)
-        }
+        WindowManager.shared.openNoteEditorWindow(note: note)
     }
 
     @objc private func toggleStarNote(_: Any?) {
