@@ -308,7 +308,7 @@ struct XMLDebugEditorView: View {
                         saveStatus = .saved
                     }
                 },
-                onContentChange: { newContent in
+                onContentChange: { _ in
                     if saveStatus != .saving {
                         saveStatus = .unsaved
                     }

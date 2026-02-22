@@ -6,7 +6,7 @@ import SwiftUI
 /// 显示已删除的笔记列表，使用与历史记录相同的UI布局
 @available(macOS 14.0, *)
 struct TrashView: View {
-    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var noteListState: NoteListState
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedDeletedNote: DeletedNote?
@@ -53,8 +53,7 @@ struct TrashView: View {
             }
         }
         .task {
-            // 打开时自动获取回收站笔记
-            await viewModel.fetchDeletedNotes()
+            await noteListState.fetchDeletedNotes()
         }
         .alert("恢复笔记", isPresented: $showingRestoreConfirm) {
             Button("取消", role: .cancel) {}
@@ -92,7 +91,7 @@ struct TrashView: View {
 
     private var leftPanel: some View {
         Group {
-            if viewModel.isLoadingDeletedNotes {
+            if noteListState.isLoadingDeletedNotes {
                 VStack(spacing: 16) {
                     ProgressView("加载回收站...")
                     Text("正在加载...")
@@ -100,7 +99,7 @@ struct TrashView: View {
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.deletedNotes.isEmpty {
+            } else if noteListState.deletedNotes.isEmpty {
                 VStack(spacing: 16) {
                     Image(systemName: "trash")
                         .font(.system(size: 48))
@@ -116,7 +115,7 @@ struct TrashView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(viewModel.deletedNotes) { deletedNote in
+                        ForEach(noteListState.deletedNotes) { deletedNote in
                             DeletedNoteRow(
                                 deletedNote: deletedNote,
                                 isSelected: selectedDeletedNote?.id == deletedNote.id
@@ -275,10 +274,10 @@ struct TrashView: View {
                 // 尝试获取笔记的完整内容
                 // 注意：回收站的笔记可能无法直接获取完整内容，先尝试使用 snippet
                 // 如果需要完整内容，可能需要调用特定的 API
-                let response = try await viewModel.service.fetchNoteDetails(noteId: deletedNote.id)
+                let response = try await NoteAPI.shared.fetchNoteDetails(noteId: deletedNote.id)
 
                 // 解析响应并创建 Note 对象
-                if let note = Note.fromMinoteData(response) {
+                if let note = NoteMapper.fromMinoteListData(response) {
                     await MainActor.run {
                         noteContent = note
                         isLoadingContent = false
@@ -317,17 +316,9 @@ struct TrashView: View {
                     isStarred: false,
                     createdAt: Date(timeIntervalSince1970: TimeInterval(deletedNote.createDate) / 1000.0),
                     updatedAt: Date(timeIntervalSince1970: TimeInterval(deletedNote.modifyDate) / 1000.0),
-                    rawData: [
-                        "id": deletedNote.id,
-                        "tag": deletedNote.tag,
-                        "subject": deletedNote.subject,
-                        "snippet": deletedNote.snippet,
-                        "folderId": deletedNote.folderId,
-                        "createDate": deletedNote.createDate,
-                        "modifyDate": deletedNote.modifyDate,
-                        "deleteTime": deletedNote.deleteTime,
-                        "status": deletedNote.status,
-                    ]
+                    snippet: deletedNote.snippet,
+                    serverTag: deletedNote.tag,
+                    status: deletedNote.status
                 )
 
                 await MainActor.run {
@@ -345,17 +336,14 @@ struct TrashView: View {
 
         Task {
             do {
-                // 调用 ViewModel 的恢复方法
-                try await viewModel.restoreDeletedNote(noteId: deletedNote.id, tag: deletedNote.tag)
+                try await noteListState.restoreDeletedNote(noteId: deletedNote.id, tag: deletedNote.tag)
 
                 await MainActor.run {
                     isRestoring = false
-                    // 清除选中状态
                     selectedDeletedNote = nil
                     noteContent = nil
-                    // 刷新回收站列表
                     Task {
-                        await viewModel.fetchDeletedNotes()
+                        await noteListState.fetchDeletedNotes()
                     }
                 }
             } catch {
@@ -375,17 +363,14 @@ struct TrashView: View {
 
         Task {
             do {
-                // 调用 ViewModel 的永久删除方法
-                try await viewModel.permanentlyDeleteNote(noteId: deletedNote.id, tag: deletedNote.tag)
+                try await noteListState.permanentlyDeleteNote(noteId: deletedNote.id, tag: deletedNote.tag)
 
                 await MainActor.run {
                     isPermanentlyDeleting = false
-                    // 清除选中状态
                     selectedDeletedNote = nil
                     noteContent = nil
-                    // 刷新回收站列表
                     Task {
-                        await viewModel.fetchDeletedNotes()
+                        await noteListState.fetchDeletedNotes()
                     }
                 }
             } catch {

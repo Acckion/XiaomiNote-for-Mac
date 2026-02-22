@@ -15,26 +15,52 @@
 
 ```
 Sources/
-├── App/                    # 应用程序入口（AppDelegate, MenuManager）
-├── Model/                  # 数据模型（Note, Folder 等）
-├── Service/                # 业务服务层（模块化）
+├── App/                    # 应用程序入口（AppDelegate, MenuManager, AppStateManager）
+├── Coordinator/            # 协调器（AppCoordinator, SyncCoordinator）
+├── Core/                   # 核心基础设施
+│   ├── Cache/              # 缓存工具
+│   ├── Concurrency/        # 并发工具
+│   ├── DependencyInjection/# 依赖注入（ServiceLocator）
+│   ├── EventBus/           # 事件总线（跨层通信）
+│   └── Pagination/         # 分页工具
+├── Extensions/             # Swift 扩展
+├── Model/                  # 数据模型（Note, Folder, NoteMapper 等）
+├── Network/                # 网络层（APIClient, NoteAPI, FolderAPI, FileAPI, SyncAPI, UserAPI）
+│   ├── API/                # 领域 API 类（按功能拆分）
+│   └── Implementation/     # 网络协议实现
+├── Presentation/           # 展示层辅助
+│   └── ViewModels/         # ViewModel（音频、认证、搜索等独立模块）
+├── Service/                # 业务服务层
 │   ├── Audio/              # 音频服务
-│   ├── Network/            # 网络服务（MiNoteService）
-│   ├── Sync/               # 同步服务
-│   ├── Storage/            # 存储服务（DatabaseService）
-│   ├── Editor/             # 编辑器服务
-│   └── Core/               # 核心服务
-├── ViewModel/              # 视图模型（NotesViewModel）
+│   ├── Authentication/     # 认证服务
+│   ├── Cache/              # 缓存服务
+│   ├── Core/               # 核心服务（StartupSequenceManager, LogService）
+│   ├── Editor/             # 编辑器服务（NoteEditingCoordinator）
+│   ├── Image/              # 图片服务
+│   └── Protocols/          # 服务协议定义
+├── State/                  # 状态对象（替代 NotesViewModel）
+│   ├── AuthState           # 认证状态
+│   ├── FolderState         # 文件夹状态
+│   ├── NoteEditorState     # 编辑器状态
+│   ├── NoteListState       # 笔记列表状态
+│   ├── SearchState         # 搜索状态
+│   ├── SyncState           # 同步状态
+│   ├── ViewOptionsState    # 视图选项状态
+│   ├── ViewOptionsManager  # 视图选项管理
+│   └── ViewState           # 视图状态
+├── Store/                  # 数据存储层（DatabaseService, NoteStore）
+├── Sync/                   # 同步引擎
+│   ├── OperationQueue/     # 操作队列（OperationProcessor）
+│   ├── SyncEngine          # 同步引擎核心
+│   └── IdMappingRegistry   # ID 映射注册表
+├── ToolbarItem/            # 工具栏组件
 ├── View/                   # UI 视图组件
 │   ├── AppKitComponents/   # AppKit 视图控制器
 │   ├── Bridge/             # SwiftUI-AppKit 桥接
 │   ├── NativeEditor/       # 原生富文本编辑器
-│   ├── SwiftUIViews/       # SwiftUI 视图
-│   └── Shared/             # 共享组件
-├── Window/                 # 窗口控制器
-├── ToolbarItem/            # 工具栏组件
-├── Extensions/             # Swift 扩展
-└── Web/                    # Web 编辑器（备用）
+│   ├── Shared/             # 共享组件（NoteMoveHelper 等）
+│   └── SwiftUIViews/       # SwiftUI 视图
+└── Window/                 # 窗口控制器
 
 Tests/                      # 测试代码
 References/                 # 参考项目（不参与编译）
@@ -74,9 +100,11 @@ xcodebuild test -project MiNoteMac.xcodeproj -scheme MiNoteMac -destination 'pla
 
 ### 日志规范
 
-- 调试日志统一使用 `[[调试]]` 前缀
+- 统一使用 `LogService.shared` 记录日志，禁止使用 `print()`
+- 按模块标识记录：storage, network, sync, core, editor, app, viewmodel, window, audio
+- 按级别选择：debug（调试）、info（关键操作）、warning（性能警告）、error（失败）
+- 禁止在日志中使用 emoji、装饰性符号、`[[调试]]` 前缀
 - 日志信息使用中文
-- 避免在生产代码中保留过多调试日志
 
 ### 命名规范
 
@@ -90,9 +118,13 @@ xcodebuild test -project MiNoteMac.xcodeproj -scheme MiNoteMac -destination 'pla
 ```
 AppKit 控制器层 (AppDelegate, WindowController)
         ↓
-SwiftUI 视图层 (View + ViewModel)
+协调器层 (AppCoordinator → 管理 State 对象)
         ↓
-服务层 (Service)
+SwiftUI 视图层 (View ← 读取 State 对象)
+        ↓
+状态层 (State 对象 → 调用 Store/Sync/Service)
+        ↓
+数据层 (NoteStore, DatabaseService, SyncEngine)
         ↓
 数据模型层 (Model)
 ```
@@ -100,12 +132,17 @@ SwiftUI 视图层 (View + ViewModel)
 ### 关键文件
 
 - `AppDelegate.swift`: 应用生命周期、菜单系统
+- `AppCoordinator.swift`: 应用协调器，创建和管理所有 State 对象
 - `MainWindowController.swift`: 主窗口、工具栏、分割视图
-- `NotesViewModel.swift`: 主业务逻辑和状态管理
-- `MiNoteService.swift`: 小米笔记 API 调用
+- `NoteStore.swift`: 笔记数据存储和操作（依赖注入，非单例）
+- `SyncEngine.swift`: 云端同步引擎（Actor）
+- `EventBus.swift`: 跨层事件通信（Actor）
+- `MiNoteService.swift`: 小米笔记 API Facade 转发层（已废弃，新代码使用 APIClient/NoteAPI/FolderAPI/FileAPI/SyncAPI/UserAPI）
+- `APIClient.swift`: 网络请求基础设施（认证、Cookie 管理、请求执行）
+- `NetworkRequestManager.swift`: 网络请求管理器，统一处理 401 自动刷新 Cookie 并重试
 - `DatabaseService.swift`: SQLite 数据库操作
-- `SyncService.swift`: 云端同步逻辑
 - `NativeEditorView.swift`: 原生富文本编辑器
+- `Sources/State/*.swift`: State 对象，替代原 NotesViewModel
 
 ## 数据格式
 
@@ -115,7 +152,7 @@ SwiftUI 视图层 (View + ViewModel)
 
 ## 数据库迁移指南
 
-项目使用版本化迁移机制管理数据库结构变更，迁移文件位于 `Sources/Service/Storage/DatabaseMigrationManager.swift`。
+项目使用版本化迁移机制管理数据库结构变更，迁移文件位于 `Sources/Store/DatabaseMigrationManager.swift`。
 
 ### 添加新迁移
 

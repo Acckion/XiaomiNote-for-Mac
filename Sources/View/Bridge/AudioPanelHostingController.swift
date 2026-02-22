@@ -16,17 +16,12 @@ import SwiftUI
 /// 将 AudioPanelView 嵌入 NSSplitViewController 作为第四栏。
 /// 负责管理音频面板的显示和与主窗口的交互。
 ///
-/// - 1.1: 在主窗口右侧显示第四栏音频面板
-/// - 1.2: 保持侧边栏、笔记列表和编辑器的原有布局
 class AudioPanelHostingController: NSViewController {
 
     // MARK: - 属性
 
     /// 音频面板状态管理器
     private let stateManager: AudioPanelStateManager
-
-    /// 笔记视图模型
-    private let viewModel: NotesViewModel
 
     /// 录制服务
     private let recorderService: AudioRecorderService
@@ -52,17 +47,14 @@ class AudioPanelHostingController: NSViewController {
     ///
     /// - Parameters:
     ///   - stateManager: 音频面板状态管理器
-    ///   - viewModel: 笔记视图模型
     ///   - recorderService: 录制服务（默认使用共享实例）
     ///   - playerService: 播放服务（默认使用共享实例）
     init(
         stateManager: AudioPanelStateManager,
-        viewModel: NotesViewModel,
         recorderService: AudioRecorderService = .shared,
         playerService: AudioPlayerService = .shared
     ) {
         self.stateManager = stateManager
-        self.viewModel = viewModel
         self.recorderService = recorderService
         self.playerService = playerService
         super.init(nibName: nil, bundle: nil)
@@ -166,7 +158,7 @@ class AudioPanelHostingController: NSViewController {
         // 监听状态管理器的模式变化
         stateManager.$mode
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] mode in
+            .sink { [weak self] _ in
                 self?.refreshView()
             }
             .store(in: &cancellables)
@@ -174,7 +166,7 @@ class AudioPanelHostingController: NSViewController {
         // 监听文件 ID 变化
         stateManager.$currentFileId
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] fileId in
+            .sink { [weak self] _ in
                 self?.refreshView()
             }
             .store(in: &cancellables)

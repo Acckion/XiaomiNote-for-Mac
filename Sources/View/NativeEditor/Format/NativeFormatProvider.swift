@@ -56,7 +56,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
 
     // MARK: - 性能监控属性
 
-
     /// 性能监控是否启用
     private var performanceMonitoringEnabled = true
 
@@ -172,7 +171,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     }
 
     // MARK: - 性能监控方法
-
 
     /// 启用或禁用性能监控
     /// - Parameter enabled: 是否启用
@@ -778,6 +776,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
         // 监听选择范围变化
         context.$selectedRange
             .dropFirst()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.scheduleStateUpdate()
             }
@@ -786,6 +785,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
         // 监听光标位置变化
         context.$cursorPosition
             .dropFirst()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.scheduleStateUpdate()
             }
@@ -794,6 +794,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
         // 监听当前格式变化
         context.$currentFormats
             .dropFirst()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.scheduleStateUpdate()
             }
@@ -802,6 +803,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
         // 监听内容变化
         context.$nsAttributedText
             .dropFirst()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.scheduleStateUpdate()
             }

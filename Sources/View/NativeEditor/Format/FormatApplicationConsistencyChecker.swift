@@ -179,7 +179,10 @@ class FormatApplicationConsistencyChecker: ObservableObject {
 
         // 如果发现不一致，记录警告
         if !isConsistent {
-            LogService.shared.warning(.editor, "发现格式应用不一致: \(format.displayName), 菜单: \(menu.isFormatToggled ? "成功" : "失败"), 快捷键: \(keyboard.isFormatToggled ? "成功" : "失败")\(inconsistencyReason.map { ", 原因: \($0)" } ?? "")")
+            LogService.shared.warning(
+                .editor,
+                "发现格式应用不一致: \(format.displayName), 菜单: \(menu.isFormatToggled ? "成功" : "失败"), 快捷键: \(keyboard.isFormatToggled ? "成功" : "失败")\(inconsistencyReason.map { ", 原因: \($0)" } ?? "")"
+            )
         }
 
         return result
@@ -357,7 +360,10 @@ class FormatApplicationConsistencyChecker: ObservableObject {
     /// 记录格式应用记录的详细日志
     /// - Parameter record: 应用记录
     private func logFormatApplicationRecord(_ record: ConsistencyApplicationRecord) {
-        LogService.shared.debug(.editor, "格式应用记录: 方式=\(record.method.displayName), 格式=\(record.format.displayName), 成功=\(record.success), 切换=\(record.isFormatToggled)")
+        LogService.shared.debug(
+            .editor,
+            "格式应用记录: 方式=\(record.method.displayName), 格式=\(record.format.displayName), 成功=\(record.success), 切换=\(record.isFormatToggled)"
+        )
     }
 }
 

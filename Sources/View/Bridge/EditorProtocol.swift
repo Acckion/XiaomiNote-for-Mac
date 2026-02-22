@@ -215,8 +215,7 @@ class EditorFactory {
         // 检查系统版本
         if #available(macOS 13.0, *) {
             // 检查必要的框架
-            let hasNSTextAttachment = NSClassFromString("NSTextAttachment") != nil
-            return hasNSTextAttachment
+            return NSClassFromString("NSTextAttachment") != nil
         }
         return false
     }

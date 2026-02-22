@@ -186,9 +186,7 @@ public struct NewLineHandler {
             textStorage.removeAttribute(.checkboxLevel, range: newLineRange)
             textStorage.removeAttribute(.checkboxChecked, range: newLineRange)
 
-            // 重置段落样式（保留对齐方式）
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.alignment = context.currentAlignment
+            let paragraphStyle = ParagraphStyleFactory.makeDefault(alignment: context.currentAlignment)
             textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: newLineRange)
 
             // 确保使用正文字体
@@ -429,9 +427,7 @@ public struct NewLineHandler {
     public static func buildCleanTypingAttributes(alignment: NSTextAlignment = .left) -> [NSAttributedString.Key: Any] {
         var attrs = InlineFormatHandler.buildCleanTypingAttributes()
 
-        // 设置对齐方式
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = alignment
+        let paragraphStyle = ParagraphStyleFactory.makeDefault(alignment: alignment)
         attrs[.paragraphStyle] = paragraphStyle
 
         return attrs
@@ -523,10 +519,7 @@ public struct NewLineHandler {
             .listIndent: indent,
         ]
 
-        // 设置段落样式
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.firstLineHeadIndent = CGFloat(indent - 1) * 20
-        paragraphStyle.headIndent = CGFloat(indent - 1) * 20 + 24
+        let paragraphStyle = ParagraphStyleFactory.makeList(indent: indent, bulletWidth: ParagraphStyleFactory.bulletWidth)
         attributes[.paragraphStyle] = paragraphStyle
 
         // 创建附件字符串
@@ -559,10 +552,7 @@ public struct NewLineHandler {
             .listNumber: number,
         ]
 
-        // 设置段落样式
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.firstLineHeadIndent = CGFloat(indent - 1) * 20
-        paragraphStyle.headIndent = CGFloat(indent - 1) * 20 + 28
+        let paragraphStyle = ParagraphStyleFactory.makeList(indent: indent, bulletWidth: ParagraphStyleFactory.orderNumberWidth)
         attributes[.paragraphStyle] = paragraphStyle
 
         // 创建附件字符串
@@ -612,9 +602,7 @@ public struct NewLineHandler {
             .checkboxLevel: 3,
         ]
 
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.firstLineHeadIndent = CGFloat(indent - 1) * 20
-        paragraphStyle.headIndent = CGFloat(indent - 1) * 20 + 24
+        let paragraphStyle = ParagraphStyleFactory.makeList(indent: indent, bulletWidth: ParagraphStyleFactory.bulletWidth)
         attributes[.paragraphStyle] = paragraphStyle
 
         let checkboxString = NSAttributedString(attachment: checkbox)
@@ -661,9 +649,7 @@ public struct NewLineHandler {
                 .quoteIndent: indent,
             ]
 
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.firstLineHeadIndent = CGFloat(indent - 1) * 20 + 3 + 12 // quoteBorderWidth + quotePadding
-            paragraphStyle.headIndent = CGFloat(indent - 1) * 20 + 3 + 12
+            let paragraphStyle = ParagraphStyleFactory.makeQuote(indent: indent)
             attributes[.paragraphStyle] = paragraphStyle
 
             // 设置引用块背景色

@@ -3,7 +3,7 @@ import SwiftUI
 /// 移动笔记视图（Sheet）
 struct MoveNoteSheetView: View {
     let note: Note
-    @ObservedObject var viewModel: NotesViewModel
+    @ObservedObject var folderState: FolderState
     @Environment(\.dismiss) private var dismiss
     @State private var selectedFolderId = ""
 
@@ -18,8 +18,7 @@ struct MoveNoteSheetView: View {
                 .foregroundColor(.secondary)
 
             List(selection: $selectedFolderId) {
-                // 所有笔记
-                if let allNotesFolder = viewModel.folders.first(where: { $0.id == "0" }) {
+                if let allNotesFolder = folderState.folders.first(where: { $0.id == "0" }) {
                     HStack {
                         Image(systemName: "tray.full")
                             .foregroundColor(.white)
@@ -30,18 +29,16 @@ struct MoveNoteSheetView: View {
                     .tag(allNotesFolder.id)
                 }
 
-                // 未分类
                 HStack {
                     Image(systemName: "folder.badge.questionmark")
                         .foregroundColor(.white)
                         .frame(width: 20)
-                    Text(viewModel.uncategorizedFolder.name)
+                    Text(folderState.uncategorizedFolder.name)
                     Spacer()
                 }
-                .tag(viewModel.uncategorizedFolder.id)
+                .tag(folderState.uncategorizedFolder.id)
 
-                // 其他文件夹
-                ForEach(viewModel.folders.filter { folder in
+                ForEach(folderState.folders.filter { folder in
                     !folder.isSystem &&
                         folder.id != "0" &&
                         folder.id != "starred" &&
@@ -84,21 +81,10 @@ struct MoveNoteSheetView: View {
 
     private func moveNote() {
         Task {
-            do {
-                let updatedNote = Note(
-                    id: note.id,
-                    title: note.title,
-                    content: note.content,
-                    folderId: selectedFolderId,
-                    isStarred: note.isStarred,
-                    createdAt: note.createdAt,
-                    updatedAt: note.updatedAt // 保持原来的修改日期不变
-                )
-                try await viewModel.updateNote(updatedNote)
-                dismiss()
-            } catch {
-                LogService.shared.error(.viewmodel, "移动笔记失败: \(error.localizedDescription)")
-            }
+            await EventBus.shared.publish(
+                NoteEvent.moved(noteId: note.id, fromFolder: note.folderId, toFolder: selectedFolderId)
+            )
+            dismiss()
         }
     }
 }

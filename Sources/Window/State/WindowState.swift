@@ -31,11 +31,11 @@ public final class WindowState: ObservableObject {
     // MARK: - 共享数据层引用
 
     /// AppCoordinator 引用（弱引用避免循环引用）
-    private weak var coordinator: AppCoordinator?
+    private(set) weak var coordinator: AppCoordinator?
 
     // MARK: - 窗口独立状态
 
-    /// 当前选中的笔记
+    /// 当前选中的笔记（从 NoteListState 单向同步）
     @Published public var selectedNote: Note?
 
     /// 当前展开的笔记（用于画廊视图）
@@ -52,32 +52,6 @@ public final class WindowState: ObservableObject {
 
     /// 窗口唯一标识符
     public let windowId: UUID
-
-    // MARK: - 共享数据（从 AppCoordinator 同步）
-
-    /// 笔记列表（从 AppCoordinator 同步）
-    @Published public var notes: [Note] = []
-
-    /// 文件夹列表（从 AppCoordinator 同步）
-    @Published public var folders: [Folder] = []
-
-    /// 当前选中的文件夹（从 AppCoordinator 同步）
-    @Published public var selectedFolder: Folder?
-
-    /// 是否正在加载（从 AppCoordinator 同步）
-    @Published public var isLoading = false
-
-    /// 错误消息（从 AppCoordinator 同步）
-    @Published public var errorMessage: String?
-
-    /// 笔记排序方式（从 AppCoordinator 同步）
-    @Published public var sortOrder: NoteSortOrder = .editDate
-
-    /// 排序方向（从 AppCoordinator 同步）
-    @Published public var sortDirection: SortDirection = .descending
-
-    /// 是否只显示收藏的笔记（从 AppCoordinator 同步）
-    @Published public var showStarredOnly = false
 
     // MARK: - Private Properties
 
@@ -106,19 +80,14 @@ public final class WindowState: ObservableObject {
 
     /// 选择笔记
     ///
-    /// 更新窗口的选中状态，并通知 AppCoordinator 加载笔记内容
-    ///
-    /// - Parameter note: 要选择的笔记
+    /// 通过 AppCoordinator 处理笔记选择
     public func selectNote(_ note: Note) {
-        selectedNote = note
         coordinator?.handleNoteSelection(note)
     }
 
     /// 选择文件夹
     ///
-    /// 通知 AppCoordinator 更新文件夹选择，这会触发笔记列表的重新加载
-    ///
-    /// - Parameter folder: 要选择的文件夹（nil 表示显示所有笔记）
+    /// 通知 AppCoordinator 更新文件夹选择
     public func selectFolder(_ folder: Folder?) {
         coordinator?.handleFolderSelection(folder)
     }
@@ -162,89 +131,31 @@ public final class WindowState: ObservableObject {
 
     /// 设置数据绑定
     ///
-    /// 监听 AppCoordinator 的数据变化，自动刷新 UI
+    /// 从 NoteListState 单向同步 selectedNote
     private func setupBindings() {
         guard let coordinator else {
             LogService.shared.warning(.window, "AppCoordinator 为 nil，无法设置绑定")
             return
         }
 
-        // 同步笔记列表
-        coordinator.noteListViewModel.$notes
-            .sink { [weak self] notes in
+        // 从 NoteListState 单向同步 selectedNote
+        coordinator.noteListState.$selectedNote
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] note in
                 guard let self else { return }
-                self.notes = notes
-
-                // 如果当前选中的笔记不在新列表中，清除选择
-                if let selectedNote,
-                   !notes.contains(where: { $0.id == selectedNote.id })
-                {
-                    self.selectedNote = nil
-                }
-
-                // 如果当前选中的笔记在新列表中，更新为新版本
-                if let selectedNote,
-                   let updatedNote = notes.first(where: { $0.id == selectedNote.id })
-                {
-                    // 只有当笔记内容真正变化时才更新
-                    if !selectedNote.contentEquals(updatedNote) {
-                        self.selectedNote = updatedNote
-                    }
+                if selectedNote?.id != note?.id {
+                    selectedNote = note
                 }
             }
             .store(in: &cancellables)
 
-        // 同步文件夹列表
-        coordinator.folderViewModel.$folders
+        // 同步文件夹列表（仅用于清理展开状态）
+        coordinator.folderState.$folders
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] folders in
                 guard let self else { return }
-                self.folders = folders
-
-                // 清理不存在的文件夹展开状态
                 let folderIds = Set(folders.map(\.id))
                 expandedFolders = expandedFolders.intersection(folderIds)
-            }
-            .store(in: &cancellables)
-
-        // 同步选中的文件夹
-        coordinator.folderViewModel.$selectedFolder
-            .sink { [weak self] folder in
-                self?.selectedFolder = folder
-            }
-            .store(in: &cancellables)
-
-        // 同步加载状态
-        coordinator.noteListViewModel.$isLoading
-            .sink { [weak self] isLoading in
-                self?.isLoading = isLoading
-            }
-            .store(in: &cancellables)
-
-        // 同步错误消息
-        coordinator.noteListViewModel.$errorMessage
-            .sink { [weak self] errorMessage in
-                self?.errorMessage = errorMessage
-            }
-            .store(in: &cancellables)
-
-        // 同步排序方式
-        coordinator.noteListViewModel.$sortOrder
-            .sink { [weak self] sortOrder in
-                self?.sortOrder = sortOrder
-            }
-            .store(in: &cancellables)
-
-        // 同步排序方向
-        coordinator.noteListViewModel.$sortDirection
-            .sink { [weak self] sortDirection in
-                self?.sortDirection = sortDirection
-            }
-            .store(in: &cancellables)
-
-        // 同步收藏筛选
-        coordinator.noteListViewModel.$showStarredOnly
-            .sink { [weak self] showStarredOnly in
-                self?.showStarredOnly = showStarredOnly
             }
             .store(in: &cancellables)
     }

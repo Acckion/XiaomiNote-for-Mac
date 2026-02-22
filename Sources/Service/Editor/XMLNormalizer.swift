@@ -35,6 +35,9 @@ public class XMLNormalizer {
 
         var normalized = xml
 
+        // 0. 移除 <new-format/> 元数据标签（不影响内容语义）
+        normalized = removeNewFormatTag(normalized)
+
         // 1. 统一图片格式
         let imageFormatStart = CFAbsoluteTimeGetCurrent()
         normalized = normalizeImageFormat(normalized)
@@ -76,6 +79,25 @@ public class XMLNormalizer {
     }
 
     // MARK: - 私有方法
+
+    /// 移除 <new-format/> 元数据标签
+    ///
+    /// `<new-format/>` 是小米笔记的格式版本标记，不影响内容语义。
+    /// 转换过程中会被解析器跳过，因此规范化时也应移除以保证比较一致性。
+    private func removeNewFormatTag(_ xml: String) -> String {
+        var result = xml
+        // 匹配 <new-format/> 及其后可能的空白
+        let pattern = "<new-format\\s*/?>\\s*"
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            result = regex.stringByReplacingMatches(
+                in: result,
+                options: [],
+                range: NSRange(location: 0, length: (result as NSString).length),
+                withTemplate: ""
+            )
+        }
+        return result
+    }
 
     /// 统一图片格式
     ///
@@ -199,27 +221,25 @@ public class XMLNormalizer {
 
     /// 移除空标签
     ///
-    /// 移除内容为空的标签，例如 `<text indent="1"></text>`
+    /// 移除内容为空或仅含空白的标签，例如 `<text indent="1"></text>`
     /// 这些空标签不影响内容语义，但会导致内容比较时出现差异
+    /// 连续空行在往返转换中可能数量变化，因此统一移除
     ///
     /// - Parameter xml: 原始XML内容
     /// - Returns: 移除空标签后的XML内容
     private func removeEmptyTags(_ xml: String) -> String {
         var result = xml
 
-        // 匹配空的 text 标签：<text ...></text>
-        // 注意：只匹配完全为空的标签，不包含任何内容（包括空格）
-        let emptyTextPattern = "<text\\s+([^>]+)>\\s*</text>"
+        // 匹配空的 text 标签（内容为空或仅含空白）
+        let emptyTextPattern = "<text\\s+[^>]*>\\s*</text>"
 
         if let regex = try? NSRegularExpression(pattern: emptyTextPattern, options: []) {
-            let nsString = result as NSString
-            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
-
-            // 从后往前替换，避免索引变化
-            for match in matches.reversed() {
-                let matchRange = match.range
-                result = (nsString.replacingCharacters(in: matchRange, with: "") as NSString) as String
-            }
+            result = regex.stringByReplacingMatches(
+                in: result,
+                options: [],
+                range: NSRange(location: 0, length: (result as NSString).length),
+                withTemplate: ""
+            )
         }
 
         return result

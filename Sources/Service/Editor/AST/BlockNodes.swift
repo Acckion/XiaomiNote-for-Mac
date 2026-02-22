@@ -48,8 +48,8 @@ public struct DocumentNode: ASTNode, Equatable, Sendable {
 // MARK: - 文本块节点
 
 /// 标题块节点
-/// 对应 XML 中的 `<title>内容</title>`
-/// 标题段落是文档的第一个段落，具有特殊的格式和语义
+/// 对应 XML 中的 `<title>` 标签，用于向后兼容旧数据的解析
+/// 新架构中标题独立于 XML，此节点在 AST 转换时被跳过
 public struct TitleBlockNode: BlockNode, Equatable, Sendable {
     public var nodeType: ASTNodeType {
         .titleBlock

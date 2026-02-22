@@ -98,11 +98,9 @@ class MetaAttributeLayer: AttributeLayer {
 
     /// 判断是否为元属性
     private func isMetaAttribute(_ key: NSAttributedString.Key) -> Bool {
-        // 元属性包括：段落类型、列表级别、列表类型等
         key == .paragraphType ||
             key == .listLevel ||
-            key == .listType ||
-            key == .isTitle
+            key == .listType
     }
 }
 
@@ -219,7 +217,7 @@ extension NSAttributedString.Key {
     /// 段落版本属性键
     static let paragraphVersion = NSAttributedString.Key("ParagraphVersion")
 
-    /// 是否为标题段落属性键
+    /// 是否为标题段落属性键（向后兼容保留，新架构不再使用）
     public static let isTitle = NSAttributedString.Key("IsTitle")
 
     /// 列表级别属性键

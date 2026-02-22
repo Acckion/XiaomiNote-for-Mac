@@ -9,34 +9,6 @@ enum ListAnimationConfig {
     static let moveAnimation: Animation = .easeInOut(duration: 0.3)
 }
 
-// MARK: - SectionHeaderPreferenceKey
-
-/// 用于追踪分组头位置的 PreferenceKey
-struct SectionHeaderPreferenceKey: PreferenceKey {
-    static let defaultValue: [String: CGFloat] = [:]
-
-    static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
-        value.merge(nextValue()) { $1 }
-    }
-}
-
-// MARK: - NotePositionPreferenceKey
-
-/// 用于追踪笔记位置的 PreferenceKey
-struct NotePositionPreferenceKey: PreferenceKey {
-    struct NotePosition: Equatable {
-        let noteId: String
-        let section: String
-        let yPosition: CGFloat
-    }
-
-    static let defaultValue: [NotePosition] = []
-
-    static func reduce(value: inout [NotePosition], nextValue: () -> [NotePosition]) {
-        value.append(contentsOf: nextValue())
-    }
-}
-
 // MARK: - NoteDisplayProperties
 
 /// 笔记显示属性（用于 Equatable 比较）
@@ -78,7 +50,7 @@ struct NoteDisplayProperties: Equatable, Hashable {
         self.updatedAt = note.updatedAt
         self.isStarred = note.isStarred
         self.folderId = note.folderId
-        self.isLocked = note.rawData?["isLocked"] as? Bool ?? false
+        self.isLocked = NoteDisplayProperties.parseIsLocked(from: note)
         self.imageInfoHash = NoteDisplayProperties.getImageInfoHash(from: note)
     }
 
@@ -114,12 +86,25 @@ struct NoteDisplayProperties: Equatable, Hashable {
         return text
     }
 
+    /// 从 extraInfoJson 解析 isLocked 状态
+    static func parseIsLocked(from note: Note) -> Bool {
+        guard let extraInfoJson = note.extraInfoJson,
+              let jsonData = extraInfoJson.data(using: .utf8),
+              let extraInfo = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+              let isLocked = extraInfo["isLocked"] as? Bool
+        else {
+            return false
+        }
+        return isLocked
+    }
+
     /// 获取图片信息的哈希值
     /// - Parameter note: 笔记对象
     /// - Returns: 图片信息哈希字符串
     private static func getImageInfoHash(from note: Note) -> String {
-        guard let rawData = note.rawData,
-              let setting = rawData["setting"] as? [String: Any],
+        guard let settingJson = note.settingJson,
+              let jsonData = settingJson.data(using: .utf8),
+              let setting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
               let settingData = setting["data"] as? [[String: Any]]
         else {
             return "no_images"
@@ -163,7 +148,7 @@ struct NoteDisplayProperties: Equatable, Hashable {
 struct PinnedNoteRowContent<ContextMenu: View>: View {
     let note: Note
     let showDivider: Bool
-    @ObservedObject var viewModel: NotesViewModel
+    let coordinator: AppCoordinator
     @ObservedObject var windowState: WindowState
     @Binding var isSelectingNote: Bool
     let contextMenuBuilder: () -> ContextMenu
@@ -175,7 +160,7 @@ struct PinnedNoteRowContent<ContextMenu: View>: View {
     }
 
     var body: some View {
-        NoteRow(note: note, showDivider: showDivider, viewModel: viewModel)
+        NoteRow(note: note, showDivider: showDivider, coordinator: coordinator)
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(isSelected
@@ -224,15 +209,10 @@ struct NotesListView: View {
     /// 窗口状态（窗口独立状态）
     @ObservedObject var windowState: WindowState
 
-    /// 笔记视图模型（通过 coordinator 访问）
-    /// 使用 @ObservedObject 确保 SwiftUI 能够追踪 filteredNotes 的变化
-    @ObservedObject private var viewModel: NotesViewModel
+    /// 笔记列表状态
+    @ObservedObject private var noteListState: NoteListState
 
     /// 初始化方法
-    /// - Parameters:
-    ///   - coordinator: 应用协调器
-    ///   - windowState: 窗口状态
-    ///   - optionsManager: 视图选项管理器（可选）
     init(
         coordinator: AppCoordinator,
         windowState: WindowState,
@@ -240,7 +220,7 @@ struct NotesListView: View {
     ) {
         self.coordinator = coordinator
         self.windowState = windowState
-        _viewModel = ObservedObject(wrappedValue: coordinator.notesViewModel)
+        _noteListState = ObservedObject(wrappedValue: coordinator.noteListState)
         _optionsManager = ObservedObject(wrappedValue: optionsManager)
     }
 
@@ -254,13 +234,11 @@ struct NotesListView: View {
     @State private var listId = UUID()
     /// 是否正在进行选择操作，用于禁用选择期间的动画
     @State private var isSelectingNote = false
-    /// 当前可见的分组标题（用于粘性分组头显示）
-    @State private var currentVisibleSection: String?
 
     var body: some View {
         Group {
             // 检查是否是私密笔记文件夹且未解锁
-            if let folder = viewModel.selectedFolder, folder.id == "2", !viewModel.isPrivateNotesUnlocked {
+            if let folder = coordinator.folderState.selectedFolder, folder.id == "2", !coordinator.authState.isPrivateNotesUnlocked {
                 // 私密笔记未解锁，显示锁定状态
                 List {
                     ContentUnavailableView(
@@ -270,7 +248,7 @@ struct NotesListView: View {
                     )
                 }
                 .listStyle(.sidebar)
-            } else if viewModel.filteredNotes.isEmpty {
+            } else if noteListState.filteredNotes.isEmpty {
                 List {
                     emptyNotesView
                 }
@@ -289,15 +267,13 @@ struct NotesListView: View {
         .id(listId)
         // 监听 filteredNotes 变化，触发列表移动动画
         // 只有在非选择操作时才触发动画，避免选择笔记时的错误移动
-        .animation(isSelectingNote ? nil : ListAnimationConfig.moveAnimation, value: viewModel.filteredNotes.map(\.id))
+        .animation(isSelectingNote ? nil : ListAnimationConfig.moveAnimation, value: noteListState.filteredNotes.map(\.id))
         // 监听日期分组状态变化，触发过渡动画
         .animation(.easeInOut(duration: 0.3), value: optionsManager.isDateGroupingEnabled)
         // 监听文件夹切换，更新 listId 强制重建列表
-        .onChange(of: viewModel.selectedFolder?.id) { _, _ in
+        .onChange(of: coordinator.folderState.selectedFolder?.id) { _, _ in
             // 文件夹切换时，更新 listId 强制重建列表，避免动画
             listId = UUID()
-            // 重置当前可见分组
-            currentVisibleSection = nil
         }
         .alert("删除笔记", isPresented: $showingDeleteAlert, presenting: noteToDelete) { note in
             deleteAlertButtons(for: note)
@@ -309,104 +285,53 @@ struct NotesListView: View {
                 moveNoteSheetView(for: note)
             }
         }
-        // 监听笔记选择变化，通过 coordinator 进行状态管理
-        // - 1.1: 编辑笔记内容时保持选中状态不变
-        // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
         .onChange(of: windowState.selectedNote) { oldValue, newValue in
-            // 只有当选择真正变化时才通知 coordinator
             if oldValue?.id != newValue?.id {
-                Task {
-                    await viewModel.stateCoordinator.selectNote(newValue)
-                }
+                noteListState.selectedNote = newValue
             }
         }
     }
 
     // MARK: - 固定分组标题的列表内容
 
-    /// 使用 ScrollView + safeAreaInset 实现固定分组标题
-    /// 当开启日期分组时使用此视图，分组标题会固定在顶部
+    /// 获取有序的分组列表（固定顺序分组 + 年份分组）
+    private func orderedSections(from groupedNotes: [String: [Note]]) -> [(key: String, notes: [Note])] {
+        let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
+        var result: [(key: String, notes: [Note])] = []
+
+        // 固定顺序分组
+        for key in sectionOrder {
+            if let notes = groupedNotes[key], !notes.isEmpty {
+                result.append((key: key, notes: notes))
+            }
+        }
+
+        // 年份分组（降序）
+        let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
+        for year in yearGroups.keys.sorted(by: >) {
+            if let notes = yearGroups[year], !notes.isEmpty {
+                result.append((key: year, notes: notes))
+            }
+        }
+
+        return result
+    }
+
+    /// 使用原生 pinnedViews 实现粘性分组头，避免 GeometryReader + PreferenceKey 的布局反馈循环
     private var pinnedHeadersListContent: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
-                let groupedNotes = groupNotesByDate(viewModel.filteredNotes)
+            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                let groupedNotes = groupNotesByDate(noteListState.filteredNotes)
+                let sections = orderedSections(from: groupedNotes)
 
-                // 定义分组显示顺序
-                let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
-
-                // 确定第一个实际存在的分组（用于隐藏）
-                let allSections = sectionOrder.filter {
-                    guard let notes = groupedNotes[$0] else { return false }
-                    return !notes.isEmpty
-                }
-                let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
-                let firstSection = allSections.first ?? yearGroups.keys.sorted(by: >).first
-
-                // 先显示固定顺序的分组
-                ForEach(sectionOrder, id: \.self) { sectionKey in
-                    if let notes = groupedNotes[sectionKey], !notes.isEmpty {
-                        // 分组头（非粘性，随内容滚动）
-                        // 使用 GeometryReader 追踪分组头的位置
-                        // 第一个分组头需要隐藏，避免与粘性头重复显示
-                        GeometryReader { geometry in
-                            LiquidGlassSectionHeader(title: sectionKey)
-                                .opacity(sectionKey == firstSection ? 0 : 1) // 隐藏第一个分组头
-                                .preference(
-                                    key: SectionHeaderPreferenceKey.self,
-                                    value: [sectionKey: geometry.frame(in: .global).minY]
-                                )
+                ForEach(sections, id: \.key) { section in
+                    Section {
+                        ForEach(Array(section.notes.enumerated()), id: \.element.id) { index, note in
+                            pinnedNoteRow(note: note, showDivider: index < section.notes.count - 1)
                         }
-                        .frame(height: sectionKey == firstSection ? 1 : 44) // 第一个分组头高度为1（避免空白），其他为44
-
-                        // 笔记列表
-                        ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
-                            GeometryReader { geometry in
-                                pinnedNoteRow(note: note, showDivider: index < notes.count - 1)
-                                    .preference(
-                                        key: NotePositionPreferenceKey.self,
-                                        value: [NotePositionPreferenceKey.NotePosition(
-                                            noteId: note.id,
-                                            section: sectionKey,
-                                            yPosition: geometry.frame(in: .global).minY
-                                        )]
-                                    )
-                            }
-                            .frame(height: 70) // 笔记行的固定高度（根据实际情况调整）
-                        }
-                    }
-                }
-
-                // 然后按年份分组其他笔记（降序排列）
-                ForEach(yearGroups.keys.sorted(by: >), id: \.self) { year in
-                    if let notes = yearGroups[year], !notes.isEmpty {
-                        // 分组头（非粘性，随内容滚动）
-                        // 使用 GeometryReader 追踪分组头的位置
-                        // 第一个分组头需要隐藏，避免与粘性头重复显示
-                        GeometryReader { geometry in
-                            LiquidGlassSectionHeader(title: year)
-                                .opacity(year == firstSection ? 0 : 1) // 隐藏第一个分组头
-                                .preference(
-                                    key: SectionHeaderPreferenceKey.self,
-                                    value: [year: geometry.frame(in: .global).minY]
-                                )
-                        }
-                        .frame(height: year == firstSection ? 1 : 44) // 第一个分组头高度为1（避免空白），其他为44
-
-                        // 笔记列表
-                        ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
-                            GeometryReader { geometry in
-                                pinnedNoteRow(note: note, showDivider: index < notes.count - 1)
-                                    .preference(
-                                        key: NotePositionPreferenceKey.self,
-                                        value: [NotePositionPreferenceKey.NotePosition(
-                                            noteId: note.id,
-                                            section: year,
-                                            yPosition: geometry.frame(in: .global).minY
-                                        )]
-                                    )
-                            }
-                            .frame(height: 70) // 笔记行的固定高度（根据实际情况调整）
-                        }
+                    } header: {
+                        LiquidGlassSectionHeader(title: section.key)
+                            .background(Color(NSColor.windowBackgroundColor))
                     }
                 }
             }
@@ -414,78 +339,6 @@ struct NotesListView: View {
             .padding(.bottom, 8)
         }
         .background(Color(NSColor.windowBackgroundColor))
-        .onPreferenceChange(SectionHeaderPreferenceKey.self) { _ in
-            // 不再使用这个回调，改为使用笔记位置来判断
-        }
-        .onPreferenceChange(NotePositionPreferenceKey.self) { notePositions in
-            // 根据笔记位置更新当前可见的分组
-            updateCurrentVisibleSection(notePositions: notePositions)
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            // 粘性分组头（固定在顶部）
-            // 始终显示，用于覆盖第一个分组头，避免重复显示
-            if let currentSection = currentVisibleSection {
-                LiquidGlassSectionHeader(title: currentSection)
-            }
-        }
-        .onAppear {
-            // 初始化时设置第一个分组为当前可见分组
-            let groupedNotes = groupNotesByDate(viewModel.filteredNotes)
-            let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
-            let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
-            let allSections = sectionOrder.filter {
-                guard let notes = groupedNotes[$0] else { return false }
-                return !notes.isEmpty
-            } + yearGroups.keys.sorted(by: >)
-
-            if let firstSection = allSections.first {
-                currentVisibleSection = firstSection
-            }
-        }
-    }
-
-    /// 根据笔记位置更新当前可见的分组
-    /// - Parameter notePositions: 各笔记的位置信息
-    private func updateCurrentVisibleSection(notePositions: [NotePositionPreferenceKey.NotePosition]) {
-
-        // 定义分组显示顺序
-        let groupedNotes = groupNotesByDate(viewModel.filteredNotes)
-        let sectionOrder = ["置顶", "今天", "昨天", "本周", "本月", "本年"]
-        let yearGroups = groupedNotes.filter { !sectionOrder.contains($0.key) }
-        let allSections = sectionOrder.filter {
-            guard let notes = groupedNotes[$0] else { return false }
-            return !notes.isEmpty
-        } + yearGroups.keys.sorted(by: >)
-
-        // 找到第一个在工具栏下方可见的笔记（Y >= 0）
-        let visibleNotes = notePositions
-            .filter { $0.yPosition >= 0 }
-            .sorted { $0.yPosition < $1.yPosition } // 按 Y 坐标升序排列
-
-        if let firstVisibleNote = visibleNotes.first {
-            // 找到第一个可见笔记所属的分组
-            let targetSection = firstVisibleNote.section
-
-            // 更新粘性头显示该分组
-            if currentVisibleSection != targetSection {
-                currentVisibleSection = targetSection
-            }
-        } else {
-            // 没有可见的笔记，说明所有笔记都滚动过去了
-            // 显示最后一个分组
-            if let lastSection = allSections.last {
-                if currentVisibleSection != lastSection {
-                    currentVisibleSection = lastSection
-                }
-            } else {
-                // 没有任何分组，显示第一个分组（边界情况）
-                if let firstSection = allSections.first {
-                    if currentVisibleSection != firstSection {
-                        currentVisibleSection = firstSection
-                    }
-                }
-            }
-        }
     }
 
     // 固定分组标题的笔记行
@@ -495,7 +348,7 @@ struct NotesListView: View {
         PinnedNoteRowContent(
             note: note,
             showDivider: showDivider,
-            viewModel: viewModel,
+            coordinator: coordinator,
             windowState: windowState,
             isSelectingNote: $isSelectingNote,
             contextMenuBuilder: { noteContextMenu(for: note) }
@@ -530,14 +383,14 @@ struct NotesListView: View {
         ContentUnavailableView(
             "没有笔记",
             systemImage: "note.text",
-            description: Text(viewModel.searchText.isEmpty ? "点击 + 创建新笔记" : "尝试其他搜索词")
+            description: Text(coordinator.searchState.searchText.isEmpty ? "点击 + 创建新笔记" : "尝试其他搜索词")
         )
     }
 
     /// 平铺显示的笔记内容（不带分组头）
     private var flatNotesContent: some View {
-        ForEach(Array(viewModel.filteredNotes.enumerated()), id: \.element.id) { index, note in
-            NoteRow(note: note, showDivider: index < viewModel.filteredNotes.count - 1, viewModel: viewModel)
+        ForEach(Array(noteListState.filteredNotes.enumerated()), id: \.element.id) { index, note in
+            NoteRow(note: note, showDivider: index < noteListState.filteredNotes.count - 1, coordinator: coordinator)
                 .tag(note)
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -630,7 +483,7 @@ struct NotesListView: View {
             }
 
             Button {
-                viewModel.toggleStar(note)
+                Task { await noteListState.toggleStar(note) }
             } label: {
                 Label(
                     note.isStarred ? "取消置顶" : "置顶笔记",
@@ -646,7 +499,7 @@ struct NotesListView: View {
                 noteToDelete = nil
             }
             Button("删除", role: .destructive) {
-                viewModel.deleteNote(note)
+                Task { await noteListState.deleteNote(note) }
                 noteToDelete = nil
             }
         }
@@ -678,7 +531,7 @@ struct NotesListView: View {
 
         // 置顶笔记
         Button {
-            viewModel.toggleStar(note)
+            Task { await coordinator.noteListState.toggleStar(note) }
         } label: {
             Label(
                 note.isStarred ? "取消置顶笔记" : "置顶笔记",
@@ -690,7 +543,7 @@ struct NotesListView: View {
         Menu("移到") {
             // 未分类文件夹（folderId为"0"）
             Button {
-                NoteMoveHelper.moveToUncategorized(note, using: viewModel) { result in
+                NoteMoveHelper.moveToUncategorized(note, using: coordinator.noteListState) { result in
                     switch result {
                     case .success:
                         break
@@ -703,7 +556,7 @@ struct NotesListView: View {
             }
 
             // 其他可用文件夹
-            let availableFolders = NoteMoveHelper.getAvailableFolders(for: viewModel)
+            let availableFolders = NoteMoveHelper.getAvailableFolders(from: coordinator.folderState)
 
             if !availableFolders.isEmpty {
                 Divider()
@@ -737,7 +590,7 @@ struct NotesListView: View {
 
         // 新建笔记
         Button {
-            viewModel.createNewNote()
+            Task { await coordinator.noteListState.createNewNote(inFolder: coordinator.folderState.selectedFolder?.id ?? "0") }
         } label: {
             Label("新建笔记", systemImage: "square.and.pencil")
         }
@@ -783,7 +636,7 @@ struct NotesListView: View {
     // MARK: - 移动笔记功能
 
     private func moveNoteToFolder(note: Note, folder: Folder) {
-        NoteMoveHelper.moveNote(note, to: folder, using: viewModel) { result in
+        NoteMoveHelper.moveNote(note, to: folder, using: coordinator.noteListState) { result in
             switch result {
             case .success:
                 break
@@ -796,14 +649,14 @@ struct NotesListView: View {
     // MARK: - 移动笔记 Sheet
 
     private func moveNoteSheetView(for note: Note) -> some View {
-        MoveNoteSheetView(note: note, viewModel: viewModel)
+        MoveNoteSheetView(note: note, folderState: coordinator.folderState)
     }
 }
 
 struct NoteRow: View {
     let note: Note
     let showDivider: Bool
-    @ObservedObject var viewModel: NotesViewModel
+    let coordinator: AppCoordinator
     @ObservedObject var optionsManager: ViewOptionsManager = .shared
 
     /// 用于比较的显示属性
@@ -822,22 +675,22 @@ struct NoteRow: View {
         }
     }
 
-    init(note: Note, showDivider: Bool = false, viewModel: NotesViewModel) {
+    init(note: Note, showDivider: Bool = false, coordinator: AppCoordinator) {
         self.note = note
         self.showDivider = showDivider
-        self.viewModel = viewModel
+        self.coordinator = coordinator
     }
 
     // MARK: - 同步状态
 
     /// 笔记是否有待处理上传
     private var hasPendingUpload: Bool {
-        viewModel.hasPendingUpload(for: note.id)
+        coordinator.syncState.hasPendingUpload(for: note.id)
     }
 
     /// 笔记是否使用临时 ID（离线创建）
     private var isTemporaryIdNote: Bool {
-        viewModel.isTemporaryIdNote(note.id)
+        coordinator.syncState.isTemporaryIdNote(note.id)
     }
 
     /// 同步状态指示器
@@ -875,32 +728,32 @@ struct NoteRow: View {
     /// - 选中其他用户文件夹
     private var shouldShowFolderInfo: Bool {
         // 如果选中"未分类"文件夹，不显示文件夹信息
-        if let folderId = viewModel.selectedFolder?.id, folderId == "uncategorized" {
+        if let folderId = coordinator.folderState.selectedFolder?.id, folderId == "uncategorized" {
             return false
         }
 
         // 如果选中用户文件夹（非系统文件夹），不显示文件夹信息
-        if let folder = viewModel.selectedFolder, !folder.isSystem {
+        if let folder = coordinator.folderState.selectedFolder, !folder.isSystem {
             return false
         }
 
         // 有搜索文本
-        if !viewModel.searchText.isEmpty {
+        if !coordinator.searchState.searchText.isEmpty {
             return true
         }
 
         // 有任意搜索筛选条件
-        if viewModel.searchFilterHasTags ||
-            viewModel.searchFilterHasChecklist ||
-            viewModel.searchFilterHasImages ||
-            viewModel.searchFilterHasAudio ||
-            viewModel.searchFilterIsPrivate
+        if coordinator.searchState.filterHasTags ||
+            coordinator.searchState.filterHasChecklist ||
+            coordinator.searchState.filterHasImages ||
+            coordinator.searchState.filterHasAudio ||
+            coordinator.searchState.filterIsPrivate
         {
             return true
         }
 
         // 根据当前选中文件夹判断
-        guard let folderId = viewModel.selectedFolder?.id else { return false }
+        guard let folderId = coordinator.folderState.selectedFolder?.id else { return false }
         return folderId == "0" || folderId == "starred"
     }
 
@@ -917,7 +770,7 @@ struct NoteRow: View {
         }
 
         // 用户自定义文件夹
-        if let folder = viewModel.folders.first(where: { $0.id == folderId }) {
+        if let folder = coordinator.folderState.folders.first(where: { $0.id == folderId }) {
             return folder.name
         }
 
@@ -930,7 +783,7 @@ struct NoteRow: View {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     // 标题（支持搜索高亮）- 加粗显示
-                    highlightText(hasRealTitle() ? note.title : "无标题", searchText: viewModel.searchText)
+                    highlightText(hasRealTitle() ? note.title : "无标题", searchText: coordinator.searchState.searchText)
                         .font(.system(size: 14, weight: .semibold))
                         .lineLimit(1)
                         .foregroundColor(hasRealTitle() ? .primary : .secondary)
@@ -942,7 +795,7 @@ struct NoteRow: View {
                             .foregroundColor(.primary)
 
                         // 预览文本（支持搜索高亮）
-                        highlightText(extractPreviewText(from: note.content), searchText: viewModel.searchText)
+                        highlightText(extractPreviewText(from: note.content), searchText: coordinator.searchState.searchText)
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -988,7 +841,7 @@ struct NoteRow: View {
                 }
 
                 // 锁图标（如果有）
-                if note.rawData?["isLocked"] as? Bool == true {
+                if NoteDisplayProperties.parseIsLocked(from: note) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
@@ -1012,19 +865,6 @@ struct NoteRow: View {
                         .frame(height: 0.5)
                         .frame(width: lineWidth, alignment: .leading)
                         .padding(.leading, leadingPadding)
-                        // #region agent log
-                        .onAppear {
-                            let logPath = "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.cursor/debug.log"
-                            let logEntry = "{\"location\":\"NotesListView.swift:divider\",\"message\":\"分割线GeometryReader渲染\",\"data\":{\"noteId\":\"\(note.id.prefix(8))\",\"showDivider\":\(showDivider),\"method\":\"geometry_calculated_width\",\"totalWidth\":\(geometry.size.width),\"lineWidth\":\(lineWidth),\"leadingPadding\":\(leadingPadding),\"trailingPadding\":\(trailingPadding),\"hypothesisId\":\"H\"},\"timestamp\":\(Int(Date().timeIntervalSince1970 * 1000)),\"sessionId\":\"debug-session\",\"runId\":\"post-fix\"}\n"
-                            if let fileHandle = FileHandle(forWritingAtPath: logPath) {
-                                defer { try? fileHandle.close() }
-                                try? fileHandle.seekToEnd()
-                                try? fileHandle.write(contentsOf: logEntry.data(using: .utf8)!)
-                            } else {
-                                try? logEntry.write(toFile: logPath, atomically: true, encoding: .utf8)
-                            }
-                        }
-                    // #endregion
                 }
                 .frame(height: 0.5) // GeometryReader 需要明确的高度
             }
@@ -1034,14 +874,19 @@ struct NoteRow: View {
                 // 延迟100ms后预加载笔记
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-                    // 如果笔记内容为空，预加载完整内容
+                    // 如果笔记内容为空，从数据库预加载完整内容
                     if note.content.isEmpty {
-                        if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
-                            await MemoryCacheManager.shared.cacheNote(fullNote)
+                        // 先检查缓存中是否已有该笔记，避免覆盖更新的数据
+                        let cached = await MemoryCacheManager.shared.getNote(noteId: note.id)
+                        if cached == nil {
+                            if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+                                await MemoryCacheManager.shared.cacheNote(fullNote)
+                            }
                         }
-                    } else {
-                        await MemoryCacheManager.shared.cacheNote(note)
                     }
+                    // 当 note.content 不为空时，不再写入缓存
+                    // 因为 notes 数组中的 note 对象可能是过时的（updateNotesArrayDelayed 延迟更新），
+                    // 写入缓存会覆盖编辑器刚保存的最新内容
                 }
             }
         }
@@ -1051,19 +896,6 @@ struct NoteRow: View {
         // - 1.1: 编辑笔记内容时保持选中状态不变
         // - 1.2: 笔记内容保存触发 notes 数组更新时不重置 selectedNote
         .id(note.id)
-        // #region agent log
-        .onAppear {
-            let logPath = "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/.cursor/debug.log"
-            let logEntry = "{\"location\":\"NotesListView.swift:body\",\"message\":\"NoteRow渲染\",\"data\":{\"noteId\":\"\(note.id.prefix(8))\",\"showDivider\":\(showDivider),\"verticalPadding\":6,\"layoutMethod\":\"overlay\",\"hypothesisId\":\"B\"},\"timestamp\":\(Int(Date().timeIntervalSince1970 * 1000)),\"sessionId\":\"debug-session\",\"runId\":\"initial\"}\n"
-            if let fileHandle = FileHandle(forWritingAtPath: logPath) {
-                defer { try? fileHandle.close() }
-                try? fileHandle.seekToEnd()
-                try? fileHandle.write(contentsOf: logEntry.data(using: .utf8)!)
-            } else {
-                try? logEntry.write(toFile: logPath, atomically: true, encoding: .utf8)
-            }
-        }
-        // #endregion
     }
 
     /// 检查笔记是否有真正的标题（不是从内容中提取的）
@@ -1084,10 +916,9 @@ struct NoteRow: View {
             return false
         }
 
-        // 检查 rawData 中的 extraInfo 是否有真正的标题
-        if let rawData = note.rawData,
-           let extraInfo = rawData["extraInfo"] as? String,
-           let extraData = extraInfo.data(using: .utf8),
+        // 检查 extraInfoJson 中是否有真正的标题
+        if let extraInfoJson = note.extraInfoJson,
+           let extraData = extraInfoJson.data(using: .utf8),
            let extraJson = try? JSONSerialization.jsonObject(with: extraData) as? [String: Any],
            let realTitle = extraJson["title"] as? String,
            !realTitle.isEmpty

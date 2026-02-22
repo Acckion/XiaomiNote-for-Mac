@@ -229,7 +229,7 @@ actor PassTokenManager {
                 )
                 let maskedCookie = String(fullCookie.prefix(80)) + "..."
                 LogService.shared.debugSensitive(.core, "更新 MiNoteService Cookie", sensitiveValue: maskedCookie)
-                MiNoteService.shared.setCookie(fullCookie)
+                APIClient.shared.setCookie(fullCookie)
             }
 
             // 通知所有等待的调用方

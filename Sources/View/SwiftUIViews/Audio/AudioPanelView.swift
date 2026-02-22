@@ -1125,8 +1125,7 @@ struct AudioPanelPlaybackContent: View {
     AudioPanelPlaybackContent(
         playerService: .shared,
         fileId: "test-file-id",
-        onClose: {
-        }
+        onClose: {}
     )
     .frame(width: 320, height: 500)
     .background(Color(NSColor.controlBackgroundColor))

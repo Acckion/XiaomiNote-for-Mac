@@ -3,7 +3,7 @@ import Foundation
 /// 用户信息数据模型
 ///
 /// 表示当前登录用户的基本信息
-public struct UserProfile: Codable, Identifiable {
+public struct UserProfile: Codable, Identifiable, Sendable {
     /// 用户昵称
     public let nickname: String
 

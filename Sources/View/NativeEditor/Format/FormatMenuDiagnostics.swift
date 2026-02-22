@@ -811,7 +811,6 @@ final class FormatMenuDiagnostics {
 
     // MARK: - Problem Report Generation
 
-
     /// 创建问题报告
     /// - Parameters:
     ///   - problemType: 问题类型
@@ -1043,7 +1042,6 @@ final class FormatMenuDiagnostics {
 
     // MARK: - Auto Diagnostics
 
-
     /// 自动检测问题
     /// - Parameters:
     ///   - context: 编辑器上下文
@@ -1111,7 +1109,6 @@ final class FormatMenuDiagnostics {
     }
 
     // MARK: - Comprehensive Context Collection
-
 
     /// 收集完整的上下文信息
     /// - Parameters:

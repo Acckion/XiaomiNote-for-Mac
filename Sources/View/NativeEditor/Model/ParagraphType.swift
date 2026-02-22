@@ -3,7 +3,7 @@ import Foundation
 /// 段落类型枚举
 /// 定义编辑器中支持的所有段落类型
 public enum ParagraphType: Equatable, Hashable {
-    /// 标题段落（特殊）- 始终是编辑器中的第一个段落
+    /// 标题段落（向后兼容保留，新架构中标题独立于编辑器）
     case title
 
     /// 标题 H1-H6

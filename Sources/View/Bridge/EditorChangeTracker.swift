@@ -100,8 +100,7 @@ public class EditorChangeTracker: ObservableObject {
 
     // MARK: - 初始化
 
-    public init() {
-    }
+    public init() {}
 
     // MARK: - 编辑追踪
 
@@ -197,8 +196,7 @@ public class EditorChangeTracker: ObservableObject {
     ///
     /// 版本号保持不变，保留编辑标记
     ///
-    public func didSaveFail() {
-    }
+    public func didSaveFail() {}
 
     /// 检查是否有新编辑（在保存期间）
     ///
@@ -209,8 +207,7 @@ public class EditorChangeTracker: ObservableObject {
     ///
     public func hasNewEditsSince(savingVersion: Int) -> Bool {
         let hasNew = contentVersion > savingVersion
-        if hasNew {
-        }
+        if hasNew {}
         return hasNew
     }
 
@@ -246,6 +243,5 @@ public class EditorChangeTracker: ObservableObject {
     }
 
     /// 打印调试信息
-    public func printDebugInfo() {
-    }
+    public func printDebugInfo() {}
 }

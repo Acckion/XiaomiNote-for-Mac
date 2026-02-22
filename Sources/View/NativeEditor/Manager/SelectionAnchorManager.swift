@@ -107,15 +107,13 @@ public class SelectionAnchorManager {
         activeLocation = newLocation
 
         // 计算新的选择范围
-        let newRange = if newIsForward {
+        return if newIsForward {
             // 向前选择：从锚点到新位置
             NSRange(location: anchor, length: newLocation - anchor)
         } else {
             // 向后选择：从新位置到锚点
             NSRange(location: newLocation, length: anchor - newLocation)
         }
-
-        return newRange
     }
 
     /// 处理选择方向变化
