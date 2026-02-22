@@ -476,83 +476,35 @@ public final class MiNoteService: @unchecked Sendable {
             "modifyDate": Int(Date().timeIntervalSince1970 * 1000),
         ]
 
-        // 使用 JSONSerialization 的 sortedKeys 选项确保字段顺序一致
         guard let entryData = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]),
               let entryJson = String(data: entryData, encoding: .utf8)
         else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/note/folder", method: "POST", error: URLError(.cannotParseResponse))
             throw URLError(.cannotParseResponse)
         }
 
-        // 参考 Obsidian 插件：使用 encodeURIComponent 进行 URL 编码
         let entryEncoded = encodeURIComponent(entryJson)
         let serviceTokenEncoded = encodeURIComponent(serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(baseURL)/note/folder"
 
-        // 记录请求
-        let postHeaders = getPostHeaders()
-        NetworkLogger.shared.logRequest(
+        var headers = getPostHeaders()
+        headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
+
+        let json = try await performRequest(
             url: urlString,
             method: "POST",
-            headers: postHeaders,
-            body: body
+            headers: headers,
+            body: body.data(using: .utf8)
         )
 
-        guard let url = URL(string: urlString) else {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
-            throw URLError(.badURL)
+        // 验证响应：检查 code 字段
+        if let code = json["code"] as? Int, code != 0 {
+            let message = json["description"] as? String ?? json["message"] as? String ?? "创建文件夹失败"
+            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = postHeaders
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body.data(using: .utf8)
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-
-            let responseString = String(data: data, encoding: .utf8)
-
-            // 记录响应
-            NetworkLogger.shared.logResponse(
-                url: urlString,
-                method: "POST",
-                statusCode: httpResponse.statusCode,
-                headers: httpResponse.allHeaderFields as? [String: String],
-                response: responseString,
-                error: nil
-            )
-
-            if httpResponse.statusCode == 401 {
-                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-
-            // 验证响应：检查 code 字段
-            if let code = json["code"] as? Int {
-                if code != 0 {
-                    let message = json["description"] as? String ?? json["message"] as? String ?? "创建文件夹失败"
-                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                }
-            }
-
-            return json
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
-            throw error
-        }
+        return json
     }
 
     /// 获取文件夹详情
@@ -633,92 +585,39 @@ public final class MiNoteService: @unchecked Sendable {
             "type": "folder",
         ]
 
-        // 使用 JSONSerialization 的 sortedKeys 选项确保字段顺序一致
         guard let entryData = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]),
               let entryJson = String(data: entryData, encoding: .utf8)
         else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/note/folder/\(folderId)", method: "POST", error: URLError(.cannotParseResponse))
             throw URLError(.cannotParseResponse)
         }
 
-        // 参考 Obsidian 插件：使用 encodeURIComponent 进行 URL 编码
         let entryEncoded = encodeURIComponent(entryJson)
         let serviceTokenEncoded = encodeURIComponent(serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(baseURL)/note/folder/\(folderId)"
 
-        // 记录请求
-        let postHeaders = getPostHeaders()
-        NetworkLogger.shared.logRequest(
+        var headers = getPostHeaders()
+        headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
+
+        let json = try await performRequest(
             url: urlString,
             method: "POST",
-            headers: postHeaders,
-            body: body
+            headers: headers,
+            body: body.data(using: .utf8)
         )
 
-        guard let url = URL(string: urlString) else {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
-            throw URLError(.badURL)
+        // 验证响应：检查 code 字段
+        if let code = json["code"] as? Int, code != 0 {
+            let message = json["description"] as? String ?? json["message"] as? String ?? "重命名文件夹失败"
+            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = postHeaders
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body.data(using: .utf8)
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-
-            let responseString = String(data: data, encoding: .utf8)
-
-            // 记录响应
-            NetworkLogger.shared.logResponse(
-                url: urlString,
-                method: "POST",
-                statusCode: httpResponse.statusCode,
-                headers: httpResponse.allHeaderFields as? [String: String],
-                response: responseString,
-                error: nil
-            )
-
-            if httpResponse.statusCode == 401 {
-                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-
-            // 记录响应内容以便调试
-
-            // 验证响应：检查 code 字段
-            if let code = json["code"] as? Int {
-                if code != 0 {
-                    let message = json["description"] as? String ?? json["message"] as? String ?? "重命名文件夹失败"
-                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {}
-            } else {
-                // 如果没有 code 字段，但状态码是 200，也认为成功
-            }
-
-            return json
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
-            throw error
-        }
+        return json
     }
 
     /// 删除文件夹
     func deleteFolder(folderId: String, tag: String, purge: Bool = false) async throws -> [String: Any] {
-        // 构建请求体：tag={tag}&purge={purge}&serviceToken={serviceToken}
         let tagEncoded = encodeURIComponent(tag)
         let purgeString = purge ? "true" : "false"
         let serviceTokenEncoded = encodeURIComponent(serviceToken)
@@ -726,73 +625,23 @@ public final class MiNoteService: @unchecked Sendable {
 
         let urlString = "\(baseURL)/note/full/\(folderId)/delete"
 
-        // 记录请求
-        let postHeaders = getPostHeaders()
-        NetworkLogger.shared.logRequest(
+        var headers = getPostHeaders()
+        headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
+
+        let json = try await performRequest(
             url: urlString,
             method: "POST",
-            headers: postHeaders,
-            body: body
+            headers: headers,
+            body: body.data(using: .utf8)
         )
 
-        guard let url = URL(string: urlString) else {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
-            throw URLError(.badURL)
+        // 验证响应：检查 code 字段
+        if let code = json["code"] as? Int, code != 0 {
+            let message = json["description"] as? String ?? json["message"] as? String ?? "删除文件夹失败"
+            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = postHeaders
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body.data(using: .utf8)
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-
-            let responseString = String(data: data, encoding: .utf8)
-
-            // 记录响应
-            NetworkLogger.shared.logResponse(
-                url: urlString,
-                method: "POST",
-                statusCode: httpResponse.statusCode,
-                headers: httpResponse.allHeaderFields as? [String: String],
-                response: responseString,
-                error: nil
-            )
-
-            if httpResponse.statusCode == 401 {
-                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-
-            // 记录响应内容以便调试
-
-            // 验证响应：检查 code 字段
-            // 如果响应中没有 code 字段，或者 code 为 0，则认为成功
-            if let code = json["code"] as? Int {
-                if code != 0 {
-                    let message = json["description"] as? String ?? json["message"] as? String ?? "删除文件夹失败"
-                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {}
-            } else {
-                // 如果没有 code 字段，但状态码是 200，也认为成功
-            }
-
-            return json
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
-            throw error
-        }
+        return json
     }
 
     /// 更新笔记
@@ -1781,68 +1630,38 @@ public final class MiNoteService: @unchecked Sendable {
 
         let urlString = "\(baseURL)/file/upload"
 
-        // 记录请求（不记录文件数据，只记录元信息）
-        NetworkLogger.shared.logRequest(
+        var headers = getHeaders()
+        headers["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
+        headers["Content-Length"] = "\(body.count)"
+
+        // uploadFile 接受 200 和 201，performRequest 只接受 200，需要直接使用 NetworkRequestManager
+        let manager = await MainActor.run { NetworkRequestManager.shared }
+        let response = try await manager.request(
             url: urlString,
             method: "POST",
-            headers: getHeaders(),
-            body: "[文件数据: \(fileData.count) 字节, 类型: \(mimeType)]"
+            headers: headers,
+            body: body,
+            retryOnFailure: true
         )
 
-        guard let url = URL(string: urlString) else {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
-            throw URLError(.badURL)
+        if response.response.statusCode == 401 {
+            let responseString = String(data: response.data, encoding: .utf8) ?? ""
+            try handle401Error(responseBody: responseString, urlString: urlString)
         }
 
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = getHeaders()
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue("\(body.count)", forHTTPHeaderField: "Content-Length")
-        request.httpBody = body
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                let responseString = String(data: data, encoding: .utf8)
-
-                // 记录响应
-                NetworkLogger.shared.logResponse(
-                    url: urlString,
-                    method: "POST",
-                    statusCode: httpResponse.statusCode,
-                    headers: httpResponse.allHeaderFields as? [String: String],
-                    response: responseString,
-                    error: nil
-                )
-
-                // 检查401未授权错误
-                // 处理401未授权错误
-                if httpResponse.statusCode == 401 {
-                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-                }
-
-                // 检查其他错误状态码
-                guard httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
-                    let errorMessage = responseString ?? "未知错误"
-                    throw MiNoteError.networkError(URLError(.badServerResponse))
-                }
-            }
-
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-
-            // 检查响应是否成功
-            if let code = json["code"] as? Int, code != 0 {
-                let message = json["message"] as? String ?? "上传失败"
-                throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-            }
-
-            return json
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
-            throw error
+        guard response.response.statusCode == 200 || response.response.statusCode == 201 else {
+            throw MiNoteError.networkError(URLError(.badServerResponse))
         }
+
+        let json = try JSONSerialization.jsonObject(with: response.data) as? [String: Any] ?? [:]
+
+        // 检查响应是否成功
+        if let code = json["code"] as? Int, code != 0 {
+            let message = json["message"] as? String ?? "上传失败"
+            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+        }
+
+        return json
     }
 
     /// 从文件URL上传文件
@@ -1904,56 +1723,28 @@ public final class MiNoteService: @unchecked Sendable {
         ]
 
         guard let urlString = urlComponents?.url?.absoluteString else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/file/full", method: "GET", error: URLError(.badURL))
             throw URLError(.badURL)
         }
 
-        // 记录请求
-        NetworkLogger.shared.logRequest(
+        // 返回 Data，不能使用 performRequest（它返回 [String: Any]），直接使用 NetworkRequestManager
+        let manager = await MainActor.run { NetworkRequestManager.shared }
+        let response = try await manager.request(
             url: urlString,
             method: "GET",
             headers: getHeaders(),
-            body: nil
+            retryOnFailure: true
         )
 
-        guard let url = urlComponents?.url else {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
-            throw URLError(.badURL)
+        if response.response.statusCode == 401 {
+            let responseBody = String(data: response.data, encoding: .utf8) ?? ""
+            try handle401Error(responseBody: responseBody, urlString: urlString)
         }
 
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = getHeaders()
-        request.httpMethod = "GET"
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                // 记录响应（不记录文件数据）
-                NetworkLogger.shared.logResponse(
-                    url: urlString,
-                    method: "GET",
-                    statusCode: httpResponse.statusCode,
-                    headers: httpResponse.allHeaderFields as? [String: String],
-                    response: "[文件数据: \(data.count) 字节]",
-                    error: nil
-                )
-
-                if httpResponse.statusCode == 401 {
-                    let responseBody = String(data: data, encoding: .utf8) ?? ""
-                    try handle401Error(responseBody: responseBody, urlString: urlString)
-                }
-
-                guard httpResponse.statusCode == 200 else {
-                    throw MiNoteError.networkError(URLError(.badServerResponse))
-                }
-            }
-
-            return data
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
-            throw error
+        guard response.response.statusCode == 200 else {
+            throw MiNoteError.networkError(URLError(.badServerResponse))
         }
+
+        return response.data
     }
 
     /// 获取笔记历史记录列表
