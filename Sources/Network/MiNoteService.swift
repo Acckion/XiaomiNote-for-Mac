@@ -109,13 +109,6 @@ public final class MiNoteService: @unchecked Sendable {
     /// ServiceToken，从Cookie中提取的认证令牌
     private var serviceToken = ""
 
-    /// Cookie过期回调，当检测到Cookie过期时调用
-    var onCookieExpired: (() -> Void)?
-
-    /// Cookie是否已标记为失效（用于防止重复触发回调）
-    private var cookieExpiredFlag = false
-    private let cookieExpiredLock = NSLock()
-
     /// Cookie设置时间，用于判断是否在保护期内
     private var cookieSetTime: Date?
 
@@ -175,26 +168,19 @@ public final class MiNoteService: @unchecked Sendable {
     }
 
     func setCookie(_ newCookie: String) {
-        // 使用现有的锁来确保线程安全
-        cookieExpiredLock.lock()
         cookie = newCookie
         extractServiceToken()
         cookieSetTime = Date()
-        cookieExpiredFlag = false
-        cookieExpiredLock.unlock()
 
-        // 异步保存凭据
         Task {
             await saveCredentials()
         }
 
-        // 强制更新Cookie有效性缓存为true，因为新设置的Cookie应该是有效的
         cookieValidityQueue.sync {
             cookieValidityCache = true
             cookieValidityCheckTime = Date()
             isCheckingCookieValidity = false
         }
-
     }
 
     public func isAuthenticated() -> Bool {
@@ -242,62 +228,13 @@ public final class MiNoteService: @unchecked Sendable {
     ///   - responseBody: HTTP响应体字符串
     ///   - urlString: 请求URL（用于日志）
     /// - Throws: MiNoteError（cookieExpired、notAuthenticated或networkError）
-    func handle401Error(responseBody: String, urlString _: String) throws {
-        // 检查响应中是否包含登录重定向URL（明确的认证失败标志）
-        let hasLoginURL = responseBody.contains("serviceLogin") ||
-            responseBody.contains("account.xiaomi.com") ||
-            responseBody.contains("pass/serviceLogin")
-
-        // 检查响应中是否包含认证错误关键词
-        let hasAuthKeywords = responseBody.contains("unauthorized") ||
-            responseBody.contains("未授权") ||
-            responseBody.contains("登录") ||
-            responseBody.contains("login") ||
-            responseBody.contains("\"R\":401") ||
-            responseBody.contains("\"S\":\"Err\"")
-
-        let isAuthError = hasLoginURL || hasAuthKeywords
-
-        // 检查是否有Cookie（无论是否有效）
+    func handle401Error(responseBody _: String, urlString _: String) throws {
+        // 检查是否有Cookie
         let hasCookie = !cookie.isEmpty && cookie.contains("serviceToken=")
 
-        // 如果有Cookie（无论是否有效）且是认证错误：视为Cookie过期
-        if hasCookie, isAuthError {
-            if hasLoginURL {}
-            // 使用锁确保只触发一次回调
-            cookieExpiredLock.lock()
-            let shouldTrigger = !cookieExpiredFlag
-            if shouldTrigger {
-                cookieExpiredFlag = true
-            } else {}
-            cookieExpiredLock.unlock()
-
-            if shouldTrigger {
-                DispatchQueue.main.async {
-                    self.onCookieExpired?()
-                }
-            }
+        if hasCookie {
             throw MiNoteError.cookieExpired
-        }
-        // 如果有Cookie（无论是否有效）但不是明确的认证错误：仍然可能是Cookie问题，设置为离线状态
-        else if hasCookie, !isAuthError {
-            // 使用锁确保只触发一次回调
-            cookieExpiredLock.lock()
-            let shouldTrigger = !cookieExpiredFlag
-            if shouldTrigger {
-                cookieExpiredFlag = true
-            } else {}
-            cookieExpiredLock.unlock()
-
-            if shouldTrigger {
-                DispatchQueue.main.async {
-                    self.onCookieExpired?()
-                }
-            }
-            throw MiNoteError.cookieExpired // 统一作为cookieExpired处理，确保添加到离线队列
-        }
-        // 没有Cookie：说明尚未登录
-        else {
+        } else {
             throw MiNoteError.notAuthenticated
         }
     }
@@ -1295,32 +1232,18 @@ public final class MiNoteService: @unchecked Sendable {
         cookie = ""
         serviceToken = ""
         cookieSetTime = nil
-        cookieExpiredLock.lock()
-        cookieExpiredFlag = false
-        cookieExpiredLock.unlock()
         UserDefaults.standard.removeObject(forKey: "minote_cookie")
     }
 
     /// 检查Cookie是否有效
     @MainActor
     func hasValidCookie() -> Bool {
-        // 首先检查是否有Cookie失效标志
-        cookieExpiredLock.lock()
-        let isExpired = cookieExpiredFlag
-        cookieExpiredLock.unlock()
-
-        if isExpired {
-            return false
-        }
-
-        // 从UserDefaults获取最新的Cookie
         guard let cookie = UserDefaults.standard.string(forKey: "minote_cookie"),
               !cookie.isEmpty
         else {
             return false
         }
 
-        // 检查Cookie是否包含必要的字段
         let hasUserId = cookie.contains("userId=")
         let hasServiceToken = cookie.contains("serviceToken=")
 
