@@ -98,19 +98,16 @@ public final class NoteListState: ObservableObject {
     }
 
     public func createNewNote(inFolder folderId: String) async {
-        let now = Date()
-        let note = Note(
-            id: UUID().uuidString,
-            title: "",
-            content: "<new-format/><text indent=\"1\"></text>",
-            folderId: folderId,
-            createdAt: now,
-            updatedAt: now
-        )
-        await eventBus.publish(NoteEvent.created(note))
-
-        // 自动选中新创建的笔记，确保编辑器立即加载空内容
-        selectedNote = note
+        do {
+            let note = try await noteStore.createNoteOffline(
+                title: "",
+                content: "<new-format/><text indent=\"1\"></text>",
+                folderId: folderId
+            )
+            selectedNote = note
+        } catch {
+            LogService.shared.error(.viewmodel, "创建笔记失败: \(error)")
+        }
     }
 
     // MARK: - 就地更新
