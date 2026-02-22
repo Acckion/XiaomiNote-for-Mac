@@ -38,7 +38,6 @@ public final class MiNoteService: @unchecked Sendable {
     ///   - cachePolicy: 缓存策略
     /// - Returns: API响应字典
     /// - Throws: MiNoteError（网络错误、认证错误等）
-    @MainActor
     private func performRequest(
         url: String,
         method: String = "GET",
@@ -57,8 +56,9 @@ public final class MiNoteService: @unchecked Sendable {
         )
 
         do {
-            // 使用 NetworkRequestManager 执行请求
-            let response = try await NetworkRequestManager.shared.request(
+            // 使用 NetworkRequestManager 执行请求（通过 MainActor 访问）
+            let manager = await MainActor.run { NetworkRequestManager.shared }
+            let response = try await manager.request(
                 url: url,
                 method: method,
                 headers: headers,
@@ -251,7 +251,6 @@ public final class MiNoteService: @unchecked Sendable {
     /// - Returns: API响应字典
     /// - Throws: MiNoteError（网络错误、认证错误等）
     func deleteNote(noteId: String, tag: String, purge: Bool = false) async throws -> [String: Any] {
-        // 构建请求体：tag={tag}&purge={purge}&serviceToken={serviceToken}
         let tagEncoded = encodeURIComponent(tag)
         let purgeString = purge ? "true" : "false"
         let serviceTokenEncoded = encodeURIComponent(serviceToken)
@@ -259,58 +258,15 @@ public final class MiNoteService: @unchecked Sendable {
 
         let urlString = "\(baseURL)/note/full/\(noteId)/delete"
 
-        // 记录请求
-        let postHeaders = getPostHeaders()
-        NetworkLogger.shared.logRequest(
+        var headers = getPostHeaders()
+        headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
+
+        return try await performRequest(
             url: urlString,
             method: "POST",
-            headers: postHeaders,
-            body: body
+            headers: headers,
+            body: body.data(using: .utf8)
         )
-
-        guard let url = URL(string: urlString) else {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = postHeaders
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body.data(using: .utf8)
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                let responseString = String(data: data, encoding: .utf8)
-
-                // 记录响应
-                NetworkLogger.shared.logResponse(
-                    url: urlString,
-                    method: "POST",
-                    statusCode: httpResponse.statusCode,
-                    headers: httpResponse.allHeaderFields as? [String: String],
-                    response: responseString,
-                    error: nil
-                )
-
-                // 处理401未授权错误
-                if httpResponse.statusCode == 401 {
-                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-                }
-
-                if httpResponse.statusCode != 200 {
-                    let errorMessage = responseString ?? "未知错误"
-                    throw MiNoteError.networkError(URLError(.badServerResponse))
-                }
-            }
-
-            return try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
-            throw error
-        }
     }
 
     /// 恢复回收站笔记
@@ -324,66 +280,21 @@ public final class MiNoteService: @unchecked Sendable {
     /// - Returns: API响应字典
     /// - Throws: MiNoteError（网络错误、认证错误等）
     func restoreDeletedNote(noteId: String, tag: String) async throws -> [String: Any] {
-        // 构建请求体：tag={tag}&serviceToken={serviceToken}
         let tagEncoded = encodeURIComponent(tag)
         let serviceTokenEncoded = encodeURIComponent(serviceToken)
         let body = "tag=\(tagEncoded)&serviceToken=\(serviceTokenEncoded)"
 
-        // 使用正确的恢复API端点
         let urlString = "\(baseURL)/note/note/\(noteId)/restore"
 
-        // 记录请求
-        let postHeaders = getPostHeaders()
-        NetworkLogger.shared.logRequest(
+        var headers = getPostHeaders()
+        headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
+
+        return try await performRequest(
             url: urlString,
             method: "POST",
-            headers: postHeaders,
-            body: body
+            headers: headers,
+            body: body.data(using: .utf8)
         )
-
-        guard let url = URL(string: urlString) else {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = postHeaders
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body.data(using: .utf8)
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                let responseString = String(data: data, encoding: .utf8)
-
-                // 记录响应
-                NetworkLogger.shared.logResponse(
-                    url: urlString,
-                    method: "POST",
-                    statusCode: httpResponse.statusCode,
-                    headers: httpResponse.allHeaderFields as? [String: String],
-                    response: responseString,
-                    error: nil
-                )
-
-                // 处理401未授权错误
-                if httpResponse.statusCode == 401 {
-                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-                }
-
-                if httpResponse.statusCode != 200 {
-                    let errorMessage = responseString ?? "未知错误"
-                    throw MiNoteError.networkError(URLError(.badServerResponse))
-                }
-            }
-
-            return try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
-            throw error
-        }
     }
 
     // MARK: 获取私密笔记列表
@@ -397,7 +308,6 @@ public final class MiNoteService: @unchecked Sendable {
     /// - Returns: 包含笔记列表的响应字典
     /// - Throws: MiNoteError（网络错误、认证错误等）
     func fetchPrivateNotes(folderId: String = "2", limit: Int = 200) async throws -> [String: Any] {
-        // 构建URL参数
         var urlComponents = URLComponents(string: "\(baseURL)/note/full/folder")
         urlComponents?.queryItems = [
             URLQueryItem(name: "ts", value: "\(Int(Date().timeIntervalSince1970 * 1000))"),
@@ -406,72 +316,22 @@ public final class MiNoteService: @unchecked Sendable {
         ]
 
         guard let urlString = urlComponents?.url?.absoluteString else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/note/full/folder", method: "GET", error: URLError(.badURL))
             throw URLError(.badURL)
         }
 
-        guard let url = URL(string: urlString) else {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = getHeaders()
-        request.httpMethod = "GET"
-
-        // 记录请求
-        NetworkLogger.shared.logRequest(
+        let json = try await performRequest(
             url: urlString,
             method: "GET",
-            headers: getHeaders(),
-            body: nil
+            headers: getHeaders()
         )
 
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-
-            let responseString = String(data: data, encoding: .utf8)
-
-            // 记录响应
-            NetworkLogger.shared.logResponse(
-                url: urlString,
-                method: "GET",
-                statusCode: httpResponse.statusCode,
-                headers: httpResponse.allHeaderFields as? [String: String],
-                response: responseString,
-                error: nil
-            )
-
-            // 处理401未授权错误
-            if httpResponse.statusCode == 401 {
-                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-
-            // 验证响应：检查 code 字段
-            if let code = json["code"] as? Int {
-                if code != 0 {
-                    let message = json["description"] as? String ?? json["message"] as? String ?? "获取私密笔记失败"
-                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                } else {}
-            } else {
-                // 如果没有 code 字段，但状态码是 200，也认为成功
-            }
-
-            return json
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
-            throw error
+        // 验证响应：检查 code 字段
+        if let code = json["code"] as? Int, code != 0 {
+            let message = json["description"] as? String ?? json["message"] as? String ?? "获取私密笔记失败"
+            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
+
+        return json
     }
 
     // MARK: 获取笔记列表（分页）
@@ -492,12 +352,9 @@ public final class MiNoteService: @unchecked Sendable {
     /// - Returns: 包含笔记和文件夹列表的响应字典
     /// - Throws: MiNoteError（网络错误、认证错误等）
     func fetchPage(syncTag _: String = "") async throws -> [String: Any] {
-        // 正确编码URL参数
         var urlComponents = URLComponents(string: "\(baseURL)/note/full/page")
 
-        // 构建查询参数
-        // 注意：完整同步和增量同步在任何情况下都不要syncTag查询参数
-        // syncTag仅用于内部逻辑，不会发送到服务器
+        // syncTag 仅用于内部逻辑，不会发送到服务器
         let queryItems = [
             URLQueryItem(name: "ts", value: "\(Int(Date().timeIntervalSince1970 * 1000))"),
             URLQueryItem(name: "limit", value: "200"),
@@ -506,54 +363,14 @@ public final class MiNoteService: @unchecked Sendable {
         urlComponents?.queryItems = queryItems
 
         guard let urlString = urlComponents?.url?.absoluteString else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/note/full/page", method: "GET", error: URLError(.badURL))
             throw URLError(.badURL)
         }
 
-        // 记录请求
-        NetworkLogger.shared.logRequest(
+        return try await performRequest(
             url: urlString,
             method: "GET",
-            headers: getHeaders(),
-            body: nil
+            headers: getHeaders()
         )
-
-        guard let url = urlComponents?.url else {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = getHeaders()
-        request.httpMethod = "GET"
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                let responseString = String(data: data, encoding: .utf8)
-
-                // 记录响应
-                NetworkLogger.shared.logResponse(
-                    url: urlString,
-                    method: "GET",
-                    statusCode: httpResponse.statusCode,
-                    headers: httpResponse.allHeaderFields as? [String: String],
-                    response: responseString,
-                    error: nil
-                )
-
-                // 检查401未授权错误
-                if httpResponse.statusCode == 401 {
-                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-                }
-            }
-
-            return try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
-            throw error
-        }
     }
 
     // MARK: 获取笔记详情（完整内容）
@@ -565,60 +382,20 @@ public final class MiNoteService: @unchecked Sendable {
     /// - Returns: 包含完整笔记内容的响应字典
     /// - Throws: MiNoteError（网络错误、认证错误等）
     func fetchNoteDetails(noteId: String) async throws -> [String: Any] {
-        // 正确编码URL参数
         var urlComponents = URLComponents(string: "\(baseURL)/note/note/\(noteId)/")
         urlComponents?.queryItems = [
             URLQueryItem(name: "ts", value: "\(Int(Date().timeIntervalSince1970 * 1000))"),
         ]
 
         guard let urlString = urlComponents?.url?.absoluteString else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/note/note/\(noteId)/", method: "GET", error: URLError(.badURL))
             throw URLError(.badURL)
         }
 
-        // 记录请求
-        NetworkLogger.shared.logRequest(
+        return try await performRequest(
             url: urlString,
             method: "GET",
-            headers: getHeaders(),
-            body: nil
+            headers: getHeaders()
         )
-
-        guard let url = urlComponents?.url else {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: URLError(.badURL))
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = getHeaders()
-        request.httpMethod = "GET"
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                let responseString = String(data: data, encoding: .utf8)
-
-                // 记录响应
-                NetworkLogger.shared.logResponse(
-                    url: urlString,
-                    method: "GET",
-                    statusCode: httpResponse.statusCode,
-                    headers: httpResponse.allHeaderFields as? [String: String],
-                    response: responseString,
-                    error: nil
-                )
-
-                if httpResponse.statusCode == 401 {
-                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-                }
-            }
-
-            return try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "GET", error: error)
-            throw error
-        }
     }
 
     /// 创建新笔记
@@ -636,7 +413,7 @@ public final class MiNoteService: @unchecked Sendable {
             cleanedContent = String(cleanedContent.dropFirst("<new-format/>".count))
         }
 
-        // 构建 extraInfo，包含标题（参考 updateNote 的实现）
+        // 构建 extraInfo，包含标题
         let extraInfoDict: [String: Any] = [
             "note_content_type": "common",
             "web_images": "",
@@ -648,7 +425,6 @@ public final class MiNoteService: @unchecked Sendable {
         guard let extraInfoData = try? JSONSerialization.data(withJSONObject: extraInfoDict),
               let extraInfoString = String(data: extraInfoData, encoding: .utf8)
         else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/note/note", method: "POST", error: URLError(.cannotParseResponse))
             throw URLError(.cannotParseResponse)
         }
 
@@ -658,86 +434,38 @@ public final class MiNoteService: @unchecked Sendable {
             "folderId": folderId,
             "createDate": Int(Date().timeIntervalSince1970 * 1000),
             "modifyDate": Int(Date().timeIntervalSince1970 * 1000),
-            "extraInfo": extraInfoString, // 添加 extraInfo 包含标题
+            "extraInfo": extraInfoString,
         ]
 
-        // 使用 JSONSerialization 的 sortedKeys 选项确保字段顺序一致
         guard let entryData = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]),
               let entryJson = String(data: entryData, encoding: .utf8)
         else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/note/note", method: "POST", error: URLError(.cannotParseResponse))
             throw URLError(.cannotParseResponse)
         }
 
-        // 参考 Obsidian 插件：使用 encodeURIComponent 进行 URL 编码
         let entryEncoded = encodeURIComponent(entryJson)
         let serviceTokenEncoded = encodeURIComponent(serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(baseURL)/note/note"
 
-        // 记录请求
-        let postHeaders = getPostHeaders()
-        NetworkLogger.shared.logRequest(
+        var headers = getPostHeaders()
+        headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
+
+        let json = try await performRequest(
             url: urlString,
             method: "POST",
-            headers: postHeaders,
-            body: body
+            headers: headers,
+            body: body.data(using: .utf8)
         )
 
-        guard let url = URL(string: urlString) else {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
-            throw URLError(.badURL)
+        // 验证响应：检查 code 字段
+        if let code = json["code"] as? Int, code != 0 {
+            let message = json["description"] as? String ?? json["message"] as? String ?? "创建笔记失败"
+            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = postHeaders
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body.data(using: .utf8)
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-
-            let responseString = String(data: data, encoding: .utf8)
-
-            // 记录响应
-            NetworkLogger.shared.logResponse(
-                url: urlString,
-                method: "POST",
-                statusCode: httpResponse.statusCode,
-                headers: httpResponse.allHeaderFields as? [String: String],
-                response: responseString,
-                error: nil
-            )
-
-            if httpResponse.statusCode == 401 {
-                try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                throw MiNoteError.networkError(URLError(.badServerResponse))
-            }
-
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-
-            // 验证响应：检查 code 字段
-            if let code = json["code"] as? Int {
-                if code != 0 {
-                    let message = json["description"] as? String ?? json["message"] as? String ?? "创建笔记失败"
-                    throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
-                }
-            }
-
-            return json
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
-            throw error
-        }
+        return json
     }
 
     /// 创建文件夹
@@ -1090,7 +818,6 @@ public final class MiNoteService: @unchecked Sendable {
     ) async throws -> [String: Any] {
         let createDate = originalCreateDate ?? Int(Date().timeIntervalSince1970 * 1000)
 
-        // 参考正确的请求示例：extraInfo 应该是包含字段的 JSON 字符串
         let extraInfoDict: [String: Any] = [
             "note_content_type": "common",
             "web_images": "",
@@ -1102,7 +829,6 @@ public final class MiNoteService: @unchecked Sendable {
         guard let extraInfoData = try? JSONSerialization.data(withJSONObject: extraInfoDict),
               let extraInfoString = String(data: extraInfoData, encoding: .utf8)
         else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/note/note/\(noteId)", method: "POST", error: URLError(.cannotParseResponse))
             throw URLError(.cannotParseResponse)
         }
 
@@ -1112,7 +838,6 @@ public final class MiNoteService: @unchecked Sendable {
             cleanedContent = String(cleanedContent.dropFirst("<new-format/>".count))
         }
 
-        // 构建 setting 对象，如果提供了图片数据则包含
         var setting: [String: Any] = [
             "themeId": 0,
             "stickyTime": 0,
@@ -1136,69 +861,27 @@ public final class MiNoteService: @unchecked Sendable {
             "extraInfo": extraInfoString,
         ]
 
-        // 使用 JSONSerialization 的 sortedKeys 选项确保字段顺序一致
         guard let entryData = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]),
               let entryJson = String(data: entryData, encoding: .utf8)
         else {
-            NetworkLogger.shared.logError(url: "\(baseURL)/note/note/\(noteId)", method: "POST", error: URLError(.cannotParseResponse))
             throw URLError(.cannotParseResponse)
         }
 
-        // 参考 Obsidian 插件：使用 encodeURIComponent 进行 URL 编码
-        // 在 Swift 中，我们需要模拟 encodeURIComponent 的行为
-        // encodeURIComponent 会编码除了字母、数字和 -_.!~*'() 之外的所有字符
         let entryEncoded = encodeURIComponent(entryJson)
         let serviceTokenEncoded = encodeURIComponent(serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(baseURL)/note/note/\(noteId)"
 
-        // 记录请求
-        let postHeaders = getPostHeaders()
-        NetworkLogger.shared.logRequest(
+        var headers = getPostHeaders()
+        headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
+
+        return try await performRequest(
             url: urlString,
             method: "POST",
-            headers: postHeaders,
-            body: body
+            headers: headers,
+            body: body.data(using: .utf8)
         )
-
-        guard let url = URL(string: urlString) else {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: URLError(.badURL))
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.allHTTPHeaderFields = postHeaders
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded; charset=UTF-8", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body.data(using: .utf8)
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                let responseString = String(data: data, encoding: .utf8)
-
-                // 记录响应
-                NetworkLogger.shared.logResponse(
-                    url: urlString,
-                    method: "POST",
-                    statusCode: httpResponse.statusCode,
-                    headers: httpResponse.allHeaderFields as? [String: String],
-                    response: responseString,
-                    error: nil
-                )
-
-                if httpResponse.statusCode == 401 {
-                    try handle401Error(responseBody: responseString ?? "", urlString: urlString)
-                }
-            }
-
-            return try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-        } catch {
-            NetworkLogger.shared.logError(url: urlString, method: "POST", error: error)
-            throw error
-        }
     }
 
     // MARK: - Cookie Management
