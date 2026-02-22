@@ -241,6 +241,30 @@ final class NetworkRequestManager: ObservableObject {
 
                         // 处理错误响应
                         if httpResponse.statusCode >= 400 {
+                            // 401 错误：尝试自动刷新 Cookie 并重试
+                            if httpResponse.statusCode == 401 {
+                                do {
+                                    let retryResponse = try await self.handle401WithRefresh(
+                                        urlRequest: urlRequest,
+                                        request: request
+                                    )
+                                    Task { @MainActor in
+                                        self.activeRequests.remove(request.id)
+                                        self.activeRequestCount = self.activeRequests.count
+                                    }
+                                    continuation.resume(returning: retryResponse)
+                                    return
+                                } catch {
+                                    // 刷新失败或重试仍然失败
+                                    Task { @MainActor in
+                                        self.activeRequests.remove(request.id)
+                                        self.activeRequestCount = self.activeRequests.count
+                                    }
+                                    continuation.resume(throwing: error)
+                                    return
+                                }
+                            }
+
                             let error = self.handleHTTPError(statusCode: httpResponse.statusCode, request: request)
 
                             // 检查是否需要重试
@@ -468,6 +492,55 @@ final class NetworkRequestManager: ObservableObject {
     }
 
     // MARK: - 错误处理
+
+    /// 处理 401 错误：自动刷新 Cookie 并重试
+    private func handle401WithRefresh(
+        urlRequest: URLRequest,
+        request: NetworkRequest
+    ) async throws -> NetworkResponse {
+        // 检查是否有存储的 PassToken
+        let hasPassToken = await PassTokenManager.shared.hasStoredPassToken()
+        guard hasPassToken else {
+            await EventBus.shared.publish(AuthEvent.tokenRefreshFailed(errorMessage: "未存储 PassToken"))
+            throw MiNoteError.notAuthenticated
+        }
+
+        // 调用 PassTokenManager 刷新（Actor 内部处理并发排队）
+        do {
+            _ = try await PassTokenManager.shared.refreshServiceToken()
+        } catch {
+            await EventBus.shared.publish(
+                AuthEvent.tokenRefreshFailed(errorMessage: error.localizedDescription)
+            )
+            throw MiNoteError.cookieExpired
+        }
+
+        // 刷新成功，发布事件
+        await EventBus.shared.publish(AuthEvent.cookieRefreshed)
+
+        // 使用新 Cookie 重建请求并重试
+        var retryRequest = urlRequest
+        let newHeaders = MiNoteService.shared.getHeaders()
+        retryRequest.allHTTPHeaderFields = newHeaders
+        // 保留原始请求中的非 Cookie 头
+        if let originalHeaders = urlRequest.allHTTPHeaderFields {
+            for (key, value) in originalHeaders where key != "Cookie" {
+                retryRequest.setValue(value, forHTTPHeaderField: key)
+            }
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: retryRequest)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw MiNoteError.invalidResponse
+        }
+
+        // 重试后仍然 401 则抛出错误
+        if httpResponse.statusCode == 401 {
+            throw MiNoteError.cookieExpired
+        }
+
+        return NetworkResponse(data: data, response: httpResponse, request: request)
+    }
 
     /// 处理HTTP错误
     private nonisolated func handleHTTPError(statusCode: Int, request _: NetworkRequest) -> Error {
