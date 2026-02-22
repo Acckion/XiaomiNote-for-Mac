@@ -610,7 +610,7 @@ public struct DebugSettingsView: View {
         isTestingEncryptionInfo = true
         Task {
             do {
-                let response = try await MiNoteService.shared.getEncryptionInfo(hsid: 2, appId: "micloud")
+                let response = try await UserAPI.shared.getEncryptionInfo(hsid: 2, appId: "micloud")
 
                 // 解析响应
                 var resultText = "✅ 加密信息API测试成功！\n\n"

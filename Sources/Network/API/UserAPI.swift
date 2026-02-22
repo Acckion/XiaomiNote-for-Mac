@@ -117,4 +117,46 @@ public final class UserAPI: @unchecked Sendable {
     func updateCookieValidityCache() async {
         _ = try? await checkCookieValidity()
     }
+
+    // MARK: - 加密信息
+
+    /// 获取加密信息
+    ///
+    /// 用于检查端到端加密（E2EE）状态，通常在访问私密笔记或最近删除笔记时调用
+    ///
+    /// - Parameters:
+    ///   - hsid: 硬件/服务ID，2 表示私密笔记相关服务
+    ///   - appId: 应用ID，默认为 "micloud"
+    /// - Returns: 加密信息字典，包含 e2eeStatus、nonce、appKeyVersion 等
+    /// - Throws: MiNoteError（网络错误、认证错误等）
+    func getEncryptionInfo(hsid: Int = 2, appId: String = "micloud") async throws -> [String: Any] {
+        var urlComponents = URLComponents(string: "\(client.baseURL)/mic/keybag/v1/getEncInfo")
+        urlComponents?.queryItems = [
+            URLQueryItem(name: "hsid", value: "\(hsid)"),
+            URLQueryItem(name: "appId", value: appId),
+            URLQueryItem(name: "ts", value: "\(Int(Date().timeIntervalSince1970 * 1000))"),
+        ]
+
+        guard let urlString = urlComponents?.url?.absoluteString else {
+            throw URLError(.badURL)
+        }
+
+        let json = try await client.performRequest(
+            url: urlString,
+            method: "GET",
+            headers: client.getHeaders()
+        )
+
+        if let code = json["code"] as? Int, code != 0 {
+            let message = json["description"] as? String ?? json["message"] as? String ?? "获取加密信息失败"
+            LogService.shared.error(.network, "获取加密信息失败，code: \(code), message: \(message)")
+            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+        }
+
+        if let data = json["data"] as? [String: Any] {
+            return data
+        } else {
+            return json
+        }
+    }
 }
