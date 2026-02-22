@@ -16,17 +16,13 @@ public actor OperationProcessor {
     // MARK: - 单例
 
     /// 共享实例
-    ///
-    /// 注意：由于 NetworkMonitor 是 @MainActor 隔离的，
-    /// 需要在 MainActor 上初始化此单例
-    @MainActor
     public static let shared = OperationProcessor()
 
     // MARK: - 重试配置
 
     /// 最大重试次数
     ///
-    private let maxRetryCount = 5
+    private let maxRetryCount = 8
 
     /// 基础重试延迟（秒）
     ///
@@ -34,7 +30,7 @@ public actor OperationProcessor {
 
     /// 最大重试延迟（秒）
     ///
-    private let maxRetryDelay: TimeInterval = 60.0
+    private let maxRetryDelay: TimeInterval = 300.0
 
     // MARK: - 依赖
 
@@ -55,9 +51,6 @@ public actor OperationProcessor {
 
     /// 数据库服务
     private let databaseService: DatabaseService
-
-    /// 网络监控
-    private let networkMonitor: NetworkMonitor
 
     /// 同步状态管理器
     private let syncStateManager: SyncStateManager
@@ -85,7 +78,6 @@ public actor OperationProcessor {
     // MARK: - 初始化
 
     /// 私有初始化方法（单例模式）
-    @MainActor
     private init() {
         self.operationQueue = UnifiedOperationQueue.shared
         self.apiClient = APIClient.shared
@@ -94,7 +86,6 @@ public actor OperationProcessor {
         self.fileAPI = FileAPI.shared
         self.localStorage = LocalStorageService.shared
         self.databaseService = DatabaseService.shared
-        self.networkMonitor = NetworkMonitor.shared
         self.syncStateManager = SyncStateManager.createDefault()
         self.eventBus = EventBus.shared
     }
@@ -109,7 +100,6 @@ public actor OperationProcessor {
     ///   - fileAPI: 文件 API 实例
     ///   - localStorage: 本地存储服务实例
     ///   - databaseService: 数据库服务实例
-    ///   - networkMonitor: 网络监控实例
     ///   - syncStateManager: 同步状态管理器实例
     init(
         operationQueue: UnifiedOperationQueue,
@@ -119,7 +109,6 @@ public actor OperationProcessor {
         fileAPI: FileAPI,
         localStorage: LocalStorageService,
         databaseService: DatabaseService,
-        networkMonitor: NetworkMonitor,
         syncStateManager: SyncStateManager,
         eventBus: EventBus = EventBus.shared
     ) {
@@ -130,7 +119,6 @@ public actor OperationProcessor {
         self.fileAPI = fileAPI
         self.localStorage = localStorage
         self.databaseService = databaseService
-        self.networkMonitor = networkMonitor
         self.syncStateManager = syncStateManager
         self.eventBus = eventBus
     }
@@ -141,7 +129,7 @@ public actor OperationProcessor {
     ///
     /// 由于 NetworkMonitor 是 @MainActor 隔离的，需要在主线程上访问
     private func isNetworkConnected() async -> Bool {
-        await MainActor.run { networkMonitor.isConnected }
+        await MainActor.run { NetworkMonitor.shared.isConnected }
     }
 
     // MARK: - 公共属性
@@ -256,6 +244,18 @@ public extension OperationProcessor {
                 continue
             }
 
+            // noteCreate 和 cloudUpload 都必须等同一笔记的文件上传全部完成后再执行，
+            // 否则会把包含临时 fileId 的 XML 上传到云端
+            if operation.type == .cloudUpload || operation.type == .noteCreate {
+                let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+                if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
+                    operationQueue.hasPendingFileUpload(for: operation.noteId)
+                {
+                    LogService.shared.debug(.sync, "跳过 \(operation.type.rawValue)，等待文件上传完成: \(resolvedNoteId.prefix(8))...")
+                    continue
+                }
+            }
+
             currentOperationId = operation.id
 
             do {
@@ -279,6 +279,39 @@ public extension OperationProcessor {
         currentOperationId = nil
 
         LogService.shared.info(.sync, "OperationProcessor 队列处理完成，成功: \(successCount), 失败: \(failureCount)")
+
+        // 处理过程中可能有新操作入队（如 imageUpload 成功后入队 cloudUpload），
+        // 检查并处理这些新操作
+        let remainingOperations = operationQueue.getPendingOperations()
+        if !remainingOperations.isEmpty, await isNetworkConnected() {
+            LogService.shared.debug(.sync, "发现新入队的操作，继续处理: \(remainingOperations.count)")
+            for operation in remainingOperations {
+                guard await isNetworkConnected() else { break }
+                guard operation.status != .processing else { continue }
+
+                // 同样的文件上传等待保护
+                if operation.type == .cloudUpload || operation.type == .noteCreate {
+                    let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+                    if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
+                        operationQueue.hasPendingFileUpload(for: operation.noteId)
+                    {
+                        continue
+                    }
+                }
+
+                currentOperationId = operation.id
+                do {
+                    try operationQueue.markProcessing(operation.id)
+                    try await executeOperation(operation)
+                    try operationQueue.markCompleted(operation.id)
+                    successCount += 1
+                } catch {
+                    failureCount += 1
+                    await handleOperationFailure(operation: operation, error: error)
+                }
+            }
+            currentOperationId = nil
+        }
 
         // 确认暂存的 syncTag（如果存在）
         do {
@@ -414,17 +447,18 @@ public extension OperationProcessor {
 
 public extension OperationProcessor {
 
-    /// 计算重试延迟（指数退避）
+    /// 计算重试延迟（指数退避 + 随机抖动）
     ///
-    /// 延迟序列：1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s...
+    /// 延迟序列（含 0-25% 抖动）：~1s, ~2s, ~4s, ~8s, ~16s, ~32s, ~64s, ~128s
     ///
     /// - Parameter retryCount: 当前重试次数
     /// - Returns: 延迟时间（秒）
     ///
     func calculateRetryDelay(retryCount: Int) -> TimeInterval {
-        // delay = min(baseDelay * 2^retryCount, maxDelay)
-        let delay = baseRetryDelay * pow(2.0, Double(retryCount))
-        return min(delay, maxRetryDelay)
+        let baseDelay = baseRetryDelay * pow(2.0, Double(retryCount))
+        let cappedDelay = min(baseDelay, maxRetryDelay)
+        let jitter = cappedDelay * Double.random(in: 0 ... 0.25)
+        return cappedDelay + jitter
     }
 }
 
@@ -594,6 +628,8 @@ extension OperationProcessor {
             try await processCloudDelete(operation)
         case .imageUpload:
             try await processImageUpload(operation)
+        case .audioUpload:
+            try await processAudioUpload(operation)
         case .folderCreate:
             try await processFolderCreate(operation)
         case .folderRename:
@@ -663,12 +699,23 @@ extension OperationProcessor {
         // 4. 更新本地笔记
         let serverTag = tag
 
+        // 在保存新笔记前，用已有的文件 ID 映射替换 content 中残留的临时 fileId
+        // 场景：imageUpload 先完成并注册了映射，但 updateAllFileReferences 可能因时序问题未成功替换
+        var resolvedContent = note.content
+        let fileMappings = IdMappingRegistry.shared.getAllMappings().filter { $0.entityType == "file" }
+        for mapping in fileMappings {
+            resolvedContent = resolvedContent.replacingOccurrences(of: mapping.localId, with: mapping.serverId)
+        }
+        if resolvedContent != note.content {
+            LogService.shared.info(.sync, "noteCreate 保存前替换了 content 中的临时 fileId")
+        }
+
         // 如果服务器返回的 ID 与本地不同，需要更新
         if note.id != serverNoteId {
             var updatedNote = Note(
                 id: serverNoteId,
                 title: note.title,
-                content: note.content,
+                content: resolvedContent,
                 folderId: serverFolderId,
                 isStarred: note.isStarred,
                 createdAt: note.createdAt,
@@ -691,19 +738,23 @@ extension OperationProcessor {
                 newNoteId: serverNoteId
             )
 
-            // 6. 触发 ID 更新回调
+            // 6. 注册 ID 映射，供后续 switchToNote 等场景解析临时 ID
+            try IdMappingRegistry.shared.registerMapping(localId: note.id, serverId: serverNoteId, entityType: "note")
+
+            // 7. 触发 ID 更新回调
             await onIdMappingCreated?(note.id, serverNoteId)
 
-            // 7. 发送 ID 变更事件
+            // 8. 发送 ID 变更事件
             await eventBus.publish(NoteEvent.saved(updatedNote))
 
-            // 8. 发布 ID 迁移事件，通知 UI 层更新引用
+            // 9. 发布 ID 迁移事件，通知 UI 层更新引用
             await eventBus.publish(NoteEvent.idMigrated(oldId: note.id, newId: serverNoteId, note: updatedNote))
 
             LogService.shared.info(.sync, "OperationProcessor ID 更新完成: \(note.id) -> \(serverNoteId)")
         } else {
             // ID 相同，只更新 serverTag
             var updatedNote = note
+            updatedNote.content = resolvedContent
             updatedNote.serverTag = serverTag
             updatedNote.folderId = serverFolderId
             await eventBus.publish(SyncEvent.noteDownloaded(updatedNote))
@@ -715,12 +766,14 @@ extension OperationProcessor {
     /// - Parameter operation: cloudUpload 操作
     /// - Throws: 执行错误
     private func processCloudUpload(_ operation: NoteOperation) async throws {
-        // 从本地加载笔记
-        guard let note = try? localStorage.loadNote(noteId: operation.noteId) else {
+        // noteCreate 成功后 pendingOperations 快照中的 noteId 可能仍是临时 ID
+        let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+
+        guard let note = try? localStorage.loadNote(noteId: resolvedNoteId) else {
             throw NSError(
                 domain: "OperationProcessor",
                 code: 404,
-                userInfo: [NSLocalizedDescriptionKey: "笔记不存在: \(operation.noteId)"]
+                userInfo: [NSLocalizedDescriptionKey: "笔记不存在: \(resolvedNoteId)"]
             )
         }
 
@@ -770,12 +823,15 @@ extension OperationProcessor {
             // 用服务器返回的正确 tag 更新
             await propagateServerTag(newTag, forNoteId: note.id)
 
-            // 使用正确的 tag 重新上传
+            // 重新从 DB 加载笔记，确保使用最新的 content（可能已被 updateAllFileReferences 替换）
+            let retryNote = (try? localStorage.loadNote(noteId: note.id)) ?? note
+
+            // 使用正确的 tag 和最新 content 重新上传
             let retryResponse = try await noteAPI.updateNote(
-                noteId: note.id,
-                title: note.title,
-                content: note.content,
-                folderId: note.folderId,
+                noteId: retryNote.id,
+                title: retryNote.title,
+                content: retryNote.content,
+                folderId: retryNote.folderId,
                 existingTag: newTag
             )
 
@@ -788,6 +844,15 @@ extension OperationProcessor {
                 )
             }
 
+            // 检查重试后是否仍然冲突
+            let retryConflict: Bool = if let data = retryResponse["data"] as? [String: Any],
+                                         let conflict = data["conflict"] as? Bool
+            {
+                conflict
+            } else {
+                false
+            }
+
             // 提取重试后的 tag
             let retryTag: String = if let data = retryResponse["data"] as? [String: Any],
                                       let tag = data["tag"] as? String
@@ -795,6 +860,17 @@ extension OperationProcessor {
                 tag
             } else {
                 newTag
+            }
+
+            if retryConflict {
+                // 重试后仍然冲突，保存最新 tag 后抛出错误让上层重试
+                await propagateServerTag(retryTag, forNoteId: note.id)
+                LogService.shared.error(.sync, "云端上传冲突重试后仍然冲突: \(operation.noteId.prefix(8))...")
+                throw NSError(
+                    domain: "OperationProcessor",
+                    code: 409,
+                    userInfo: [NSLocalizedDescriptionKey: "云端上传冲突重试后仍然冲突"]
+                )
             }
 
             // 保存重试后的 tag
@@ -825,10 +901,10 @@ extension OperationProcessor {
     private func processCloudDelete(_ operation: NoteOperation) async throws {
         LogService.shared.debug(.sync, "OperationProcessor 处理 cloudDelete: \(operation.noteId)")
 
-        // 从操作数据中解析 tag
-        guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
-              let tag = operationData["tag"] as? String
-        else {
+        let deleteData: CloudDeleteData
+        do {
+            deleteData = try CloudDeleteData.decoded(from: operation.data)
+        } catch {
             throw NSError(
                 domain: "OperationProcessor",
                 code: 400,
@@ -837,7 +913,7 @@ extension OperationProcessor {
         }
 
         // 调用 API 删除笔记
-        _ = try await noteAPI.deleteNote(noteId: operation.noteId, tag: tag, purge: false)
+        _ = try await noteAPI.deleteNote(noteId: operation.noteId, tag: deleteData.tag, purge: false)
 
         LogService.shared.info(.sync, "OperationProcessor 删除成功: \(operation.noteId)")
     }
@@ -847,8 +923,199 @@ extension OperationProcessor {
     /// - Parameter operation: imageUpload 操作
     /// - Throws: 执行错误
     private func processImageUpload(_ operation: NoteOperation) async throws {
-        LogService.shared.debug(.sync, "OperationProcessor 处理 imageUpload: \(operation.noteId)")
-        // 图片上传通常在更新笔记时一起处理
+        // noteCreate 成功后 pendingOperations 快照中的 noteId 可能仍是临时 ID
+        let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+        LogService.shared.debug(.sync, "OperationProcessor 处理 imageUpload: \(resolvedNoteId)")
+
+        let uploadData: FileUploadOperationData
+        do {
+            uploadData = try FileUploadOperationData.decoded(from: operation.data)
+        } catch {
+            throw NSError(
+                domain: "OperationProcessor",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "无效的图片上传操作数据"]
+            )
+        }
+
+        // data JSON 内部的 noteId 也可能是临时 ID
+        let resolvedUploadNoteId = IdMappingRegistry.shared.resolveId(uploadData.noteId)
+
+        let ext = String(uploadData.mimeType.dropFirst("image/".count))
+        guard let imageData = localStorage.loadPendingUpload(fileId: uploadData.temporaryFileId, extension: ext) else {
+            // 本地文件丢失，无法重试
+            LogService.shared.error(.sync, "图片本地文件丢失: \(uploadData.temporaryFileId)")
+            try operationQueue.markFailed(operation.id, error: NSError(
+                domain: "OperationProcessor", code: 404,
+                userInfo: [NSLocalizedDescriptionKey: "本地文件丢失"]
+            ), errorType: .notFound)
+            return
+        }
+
+        // 调用 API 上传
+        let result = try await fileAPI.uploadImage(
+            imageData: imageData,
+            fileName: uploadData.fileName,
+            mimeType: uploadData.mimeType
+        )
+
+        guard let serverFileId = result["fileId"] as? String else {
+            throw NSError(
+                domain: "OperationProcessor",
+                code: 500,
+                userInfo: [NSLocalizedDescriptionKey: "上传图片响应无效"]
+            )
+        }
+
+        // 注册 ID 映射
+        try IdMappingRegistry.shared.registerMapping(localId: uploadData.temporaryFileId, serverId: serverFileId, entityType: "file")
+
+        // 使用解析后的 noteId 更新笔记内容中的 fileId 引用
+        try await IdMappingRegistry.shared.updateAllFileReferences(
+            localId: uploadData.temporaryFileId,
+            serverId: serverFileId,
+            noteId: resolvedUploadNoteId
+        )
+
+        // 移动 pending 文件到正式缓存（用正式 ID）
+        let fileType = String(uploadData.mimeType.dropFirst("image/".count))
+        try? localStorage.movePendingUploadToCache(fileId: uploadData.temporaryFileId, extension: fileType, newFileId: serverFileId)
+
+        // 清理图片缓存中临时 ID 的旧文件（saveImage 在入队前用临时 ID 保存了一份）
+        let oldCacheURL = localStorage.imagesDirectory.appendingPathComponent("\(uploadData.temporaryFileId).\(fileType)")
+        try? FileManager.default.removeItem(at: oldCacheURL)
+
+        // 清理 pending 临时文件
+        try? localStorage.deletePendingUpload(fileId: uploadData.temporaryFileId, extension: ext)
+
+        LogService.shared.info(.sync, "图片上传成功: \(uploadData.temporaryFileId.prefix(20))... -> \(serverFileId)")
+    }
+
+    /// 处理音频上传操作
+    ///
+    /// - Parameter operation: audioUpload 操作
+    /// - Throws: 执行错误
+    private func processAudioUpload(_ operation: NoteOperation) async throws {
+        // noteCreate 成功后 pendingOperations 快照中的 noteId 可能仍是临时 ID
+        let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+        LogService.shared.debug(.sync, "OperationProcessor 处理 audioUpload: \(resolvedNoteId)")
+
+        let uploadData: FileUploadOperationData
+        do {
+            uploadData = try FileUploadOperationData.decoded(from: operation.data)
+        } catch {
+            throw NSError(
+                domain: "OperationProcessor",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "无效的音频上传操作数据"]
+            )
+        }
+
+        // data JSON 内部的 noteId 也可能是临时 ID
+        let resolvedUploadNoteId = IdMappingRegistry.shared.resolveId(uploadData.noteId)
+
+        // 读取本地文件
+        guard let audioData = localStorage.loadPendingUpload(fileId: uploadData.temporaryFileId, extension: "mp3") else {
+            LogService.shared.error(.sync, "音频本地文件丢失: \(uploadData.temporaryFileId)")
+            try operationQueue.markFailed(operation.id, error: NSError(
+                domain: "OperationProcessor", code: 404,
+                userInfo: [NSLocalizedDescriptionKey: "本地文件丢失"]
+            ), errorType: .notFound)
+            return
+        }
+
+        // 调用 API 上传
+        let result = try await fileAPI.uploadAudio(
+            audioData: audioData,
+            fileName: uploadData.fileName,
+            mimeType: uploadData.mimeType
+        )
+
+        guard let serverFileId = result["fileId"] as? String else {
+            throw NSError(
+                domain: "OperationProcessor",
+                code: 500,
+                userInfo: [NSLocalizedDescriptionKey: "上传音频响应无效"]
+            )
+        }
+
+        let digest = result["digest"] as? String
+
+        // 注册 ID 映射
+        try IdMappingRegistry.shared.registerMapping(localId: uploadData.temporaryFileId, serverId: serverFileId, entityType: "file")
+
+        // 更新笔记内容中的 fileId 引用
+        try await IdMappingRegistry.shared.updateAllFileReferences(
+            localId: uploadData.temporaryFileId,
+            serverId: serverFileId,
+            noteId: resolvedUploadNoteId
+        )
+
+        // 更新笔记 settingJson 中的音频信息
+        if var note = try? localStorage.loadNote(noteId: resolvedUploadNoteId) {
+            var setting: [String: Any] = [
+                "themeId": 0,
+                "stickyTime": 0,
+                "version": 0,
+            ]
+            if let existingSettingJson = note.settingJson,
+               let jsonData = existingSettingJson.data(using: .utf8),
+               let existingSetting = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+            {
+                setting = existingSetting
+            }
+
+            var settingData = setting["data"] as? [[String: Any]] ?? []
+
+            // 替换临时 fileId 为正式 fileId
+            var updated = false
+            for i in 0 ..< settingData.count {
+                if let existingFileId = settingData[i]["fileId"] as? String,
+                   existingFileId == uploadData.temporaryFileId
+                {
+                    settingData[i]["fileId"] = serverFileId
+                    if let digest {
+                        settingData[i]["digest"] = digest + ".mp3"
+                    }
+                    updated = true
+                }
+            }
+
+            // 如果没有找到临时 ID 的条目，添加新条目
+            if !updated {
+                let audioInfo: [String: Any] = [
+                    "fileId": serverFileId,
+                    "mimeType": uploadData.mimeType,
+                    "digest": (digest ?? serverFileId) + ".mp3",
+                ]
+                settingData.append(audioInfo)
+            }
+
+            setting["data"] = settingData
+
+            if let settingJsonData = try? JSONSerialization.data(withJSONObject: setting, options: [.sortedKeys]),
+               let settingString = String(data: settingJsonData, encoding: .utf8)
+            {
+                note.settingJson = settingString
+                try? localStorage.saveNote(note)
+            }
+
+            // 入队 cloudUpload 触发笔记重新保存
+            _ = try? operationQueue.enqueueCloudUpload(
+                noteId: note.id,
+                title: note.title,
+                content: note.content,
+                folderId: note.folderId
+            )
+        }
+
+        // 移动文件到正式缓存
+        try? localStorage.movePendingUploadToCache(fileId: uploadData.temporaryFileId, extension: "mp3", newFileId: serverFileId)
+
+        // 清理临时文件
+        try? localStorage.deletePendingUpload(fileId: uploadData.temporaryFileId, extension: "mp3")
+
+        LogService.shared.info(.sync, "音频上传成功: \(uploadData.temporaryFileId.prefix(20))... -> \(serverFileId)")
     }
 
     /// 处理创建文件夹操作
@@ -858,16 +1125,18 @@ extension OperationProcessor {
     private func processFolderCreate(_ operation: NoteOperation) async throws {
         LogService.shared.debug(.sync, "OperationProcessor 处理 folderCreate: \(operation.noteId)")
 
-        // 从操作数据中解析文件夹名称
-        guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
-              let folderName = operationData["name"] as? String
-        else {
+        let createData: FolderCreateData
+        do {
+            createData = try FolderCreateData.decoded(from: operation.data)
+        } catch {
             throw NSError(
                 domain: "OperationProcessor",
                 code: 400,
                 userInfo: [NSLocalizedDescriptionKey: "无效的文件夹操作数据"]
             )
         }
+
+        let folderName = createData.name
 
         // 调用 API 创建文件夹
         let response = try await folderAPI.createFolder(name: folderName)
@@ -937,17 +1206,19 @@ extension OperationProcessor {
     private func processFolderRename(_ operation: NoteOperation) async throws {
         LogService.shared.debug(.sync, "OperationProcessor 处理 folderRename: \(operation.noteId)")
 
-        // 从操作数据中解析参数
-        guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
-              let newName = operationData["name"] as? String,
-              let existingTag = operationData["tag"] as? String
-        else {
+        let renameData: FolderRenameData
+        do {
+            renameData = try FolderRenameData.decoded(from: operation.data)
+        } catch {
             throw NSError(
                 domain: "OperationProcessor",
                 code: 400,
                 userInfo: [NSLocalizedDescriptionKey: "无效的文件夹操作数据"]
             )
         }
+
+        let newName = renameData.name
+        let existingTag = renameData.tag
 
         // 调用 API 重命名文件夹
         let response = try await folderAPI.renameFolder(
@@ -1001,10 +1272,10 @@ extension OperationProcessor {
     private func processFolderDelete(_ operation: NoteOperation) async throws {
         LogService.shared.debug(.sync, "OperationProcessor 处理 folderDelete: \(operation.noteId)")
 
-        // 从操作数据中解析 tag
-        guard let operationData = try? JSONSerialization.jsonObject(with: operation.data) as? [String: Any],
-              let tag = operationData["tag"] as? String
-        else {
+        let deleteData: FolderDeleteData
+        do {
+            deleteData = try FolderDeleteData.decoded(from: operation.data)
+        } catch {
             throw NSError(
                 domain: "OperationProcessor",
                 code: 400,
@@ -1013,7 +1284,7 @@ extension OperationProcessor {
         }
 
         // 调用 API 删除文件夹
-        _ = try await folderAPI.deleteFolder(folderId: operation.noteId, tag: tag, purge: false)
+        _ = try await folderAPI.deleteFolder(folderId: operation.noteId, tag: deleteData.tag, purge: false)
 
         LogService.shared.info(.sync, "OperationProcessor 删除文件夹成功: \(operation.noteId)")
     }

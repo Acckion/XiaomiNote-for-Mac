@@ -98,11 +98,7 @@ public protocol NoteStorageProtocol: Sendable {
     /// - Returns: 笔记数量
     func getNoteCount(in folderId: String) throws -> Int
 
-    // MARK: - 同步支持
-
-    /// 获取待同步的变更
-    /// - Returns: 待同步的笔记变更数组
-    func getPendingChanges() async throws -> [NoteChange]
+    // MARK: - 异步读取
 
     /// 获取指定笔记
     /// - Parameter id: 笔记ID

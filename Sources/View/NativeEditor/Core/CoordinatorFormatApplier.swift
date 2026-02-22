@@ -484,6 +484,16 @@ extension NativeEditorView.Coordinator {
 
         // 通知内容变化
         textDidChange(Notification(name: NSText.didChangeNotification, object: textView))
+
+        // 图片/音频插入后必须立即同步内容并保存到 DB，
+        // 不能等 textDidChange 的 50ms + 2秒防抖链路，
+        // 否则上传完成时 DB 中的 XML 还不包含临时 fileId
+        if element.isFileAttachment {
+            syncContentToContext()
+            Task { @MainActor in
+                await self.parent.editorContext.autoSaveManager.saveImmediately()
+            }
+        }
     }
 
     // MARK: - 缩进操作
@@ -635,6 +645,18 @@ extension NativeEditorView.Coordinator {
         result.append(NSAttributedString(string: "\n"))
 
         textStorage.insert(result, at: location)
+
+        // 刷新布局以确保图片附件正确显示
+        // 不刷新的话，NSTextView 在非焦点状态下不会渲染新插入的附件
+        if let layoutManager = textView?.layoutManager {
+            let insertedRange = NSRange(location: location, length: result.length)
+            layoutManager.invalidateLayout(forCharacterRange: insertedRange, actualCharacterRange: nil)
+            layoutManager.invalidateDisplay(forCharacterRange: insertedRange)
+        }
+
+        // 将光标移动到插入内容之后
+        let newCursorPosition = location + result.length
+        textView?.setSelectedRange(NSRange(location: newCursorPosition, length: 0))
     }
 
     /// 插入语音录音

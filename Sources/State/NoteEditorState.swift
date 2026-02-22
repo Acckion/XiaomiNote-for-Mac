@@ -176,10 +176,10 @@ public final class NoteEditorState: ObservableObject {
         await eventBus.publish(SyncEvent.requested(mode: .full(.normal)))
     }
 
-    // MARK: - 图片上传
+    // MARK: - 图片上传（离线优先）
 
     func uploadImageAndInsertToNote(imageURL: URL) async throws -> String {
-        guard currentNote != nil else {
+        guard let note = currentNote else {
             throw NSError(domain: "MiNote", code: 400, userInfo: [NSLocalizedDescriptionKey: "请先选择笔记"])
         }
 
@@ -194,21 +194,42 @@ public final class NoteEditorState: ObservableObject {
         default: "image/jpeg"
         }
 
-        let uploadResult = try await FileAPI.shared.uploadImage(
-            imageData: imageData, fileName: fileName, mimeType: mimeType
-        )
+        // 生成临时 fileId
+        let temporaryFileId = NoteOperation.generateTemporaryId()
+        let fileType = String(mimeType.dropFirst("image/".count))
 
-        guard let fileId = uploadResult["fileId"] as? String,
-              let _ = uploadResult["digest"] as? String
-        else {
-            throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "上传图片失败"])
+        // 保存到 pending_uploads 目录
+        try LocalStorageService.shared.savePendingUpload(data: imageData, fileId: temporaryFileId, extension: fileType)
+
+        // 保存到图片缓存（供编辑器立即渲染）
+        try LocalStorageService.shared.saveImage(imageData: imageData, fileId: temporaryFileId, fileType: fileType)
+
+        // 构建操作数据并入队
+        let uploadData = FileUploadOperationData(
+            temporaryFileId: temporaryFileId,
+            localFilePath: LocalStorageService.shared.pendingUploadsDirectory
+                .appendingPathComponent("\(temporaryFileId).\(fileType)").path,
+            fileName: fileName,
+            mimeType: mimeType,
+            noteId: note.id
+        )
+        let operation = NoteOperation(
+            type: .imageUpload,
+            noteId: note.id,
+            data: uploadData.encoded(),
+            isLocalId: NoteOperation.isTemporaryId(note.id)
+        )
+        _ = try UnifiedOperationQueue.shared.enqueue(operation)
+
+        // 后台异步处理上传，不阻塞返回
+        // 必须先让调用方拿到 temporaryFileId 插入编辑器并保存 XML，
+        // 上传完成后 updateAllFileReferences 才能在 XML 中找到临时 ID 并替换
+        Task {
+            await OperationProcessor.shared.processImmediately(operation)
         }
 
-        let fileType = String(mimeType.dropFirst("image/".count))
-        try LocalStorageService.shared.saveImage(imageData: imageData, fileId: fileId, fileType: fileType)
-
-        LogService.shared.info(.editor, "图片上传成功: fileId=\(fileId)")
-        return fileId
+        LogService.shared.info(.editor, "图片已入队上传: temporaryFileId=\(temporaryFileId.prefix(20))...")
+        return temporaryFileId
     }
 
     // MARK: - 事件处理（内部）

@@ -5,6 +5,20 @@
 ## [Unreleased]
 
 ### 重构
+- 操作队列重构与优化（spec-104）：
+  - 清理 NoteServiceProtocol 体系和旧 ViewModel 死代码
+  - 新增文件上传基础设施（audioUpload 类型、FileUploadOperationData、pending_uploads 目录管理）
+  - 统一写入出口：图片/音频离线插入通过 SyncEngine 队列化
+  - 操作队列类型安全化：新增 OperationData 类型安全解析，收敛便捷入队方法
+  - 移除 OperationProcessor 的 @MainActor 依赖，消除并发模型传染
+  - 添加 IdMappingRegistry 和 UnifiedOperationQueue 的 NSLock 设计决策文档
+
+### 修复
+- 修复图片上传时文件扩展名不一致导致本地文件丢失
+- 修复图片上传成功后 XML 未更新 fileId 的时序问题
+- 修复离线创建笔记后操作队列使用过期临时 ID 及执行顺序问题
+- 修复插入图片后不渲染需要点击编辑器才显示的问题
+- 修复插入图片/音频后 XML 未即时保存导致上传后 fileId 替换失败
 - MiNoteService 网络层重构（spec-102）：将 2,029 行的 MiNoteService 按功能领域拆分为 APIClient、NoteAPI、FolderAPI、FileAPI、SyncAPI、UserAPI、ResponseParser 7 个独立类，MiNoteService 保留为 deprecated Facade 转发层，所有调用方已迁移到新 API 类
 - Cookie 自动刷新重构：NetworkRequestManager 统一拦截 HTTP 401，自动通过 PassToken 刷新 Cookie 并重试
 - MiNoteService 所有 API 方法迁移到 performRequest/NetworkRequestManager，消除直接 URLSession 调用
