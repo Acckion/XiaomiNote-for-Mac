@@ -65,6 +65,7 @@
 		2E026C2D5C15FA58D42204C6 /* MoveNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B45BF5C9F7754010D58D5BF6 /* MoveNoteView.swift */; };
 		3125DF6E88CBE5B26A53C593 /* MainWindowController+Audio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 466ABE724298AE501B27B1B7 /* MainWindowController+Audio.swift */; };
 		3135E123F861FD128602C96C /* WindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F6CC48C9EB05EA5DB4C9B1E /* WindowManager.swift */; };
+		315CEFA6B8D10A022EF7F840 /* MainWindowController+Delegates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C24C44BC2BA9E66A7E8912C /* MainWindowController+Delegates.swift */; };
 		32D992CCBB4901DE62145BA9 /* UserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06312F85C610FF0BE9C0C6A9 /* UserAPI.swift */; };
 		333F0FFC231A4E8D7EFFE291 /* NotesListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A3C89BCCABD0E45A3309D9 /* NotesListViewController.swift */; };
 		33873EAD5BF53C6FF5B78E4C /* XMLGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D31141023C933334BE386ED5 /* XMLGenerator.swift */; };
@@ -407,6 +408,7 @@
 		39ADFA5993E5132BB0D77892 /* ContentAreaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAreaView.swift; sourceTree = "<group>"; };
 		3A6B407AC757C4CF9CE8B305 /* MoveNoteMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveNoteMenuView.swift; sourceTree = "<group>"; };
 		3A7220E32FBC1316BEEB5687 /* AuthUser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthUser.swift; sourceTree = "<group>"; };
+		3C24C44BC2BA9E66A7E8912C /* MainWindowController+Delegates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MainWindowController+Delegates.swift"; sourceTree = "<group>"; };
 		3C61489E4FB25E635D3F4216 /* Notification+MenuState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Notification+MenuState.swift"; sourceTree = "<group>"; };
 		3DA1FC1DB2C4B725933C5B90 /* NetworkErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkErrorHandler.swift; sourceTree = "<group>"; };
 		3DEFFE35328D7CAB63E80F85 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
@@ -751,6 +753,7 @@
 				A7D8D743FBFC1AA843C6E833 /* LoginWindowController.swift */,
 				673F8B6390F2F7C84F32E4F6 /* MainWindowController.swift */,
 				466ABE724298AE501B27B1B7 /* MainWindowController+Audio.swift */,
+				3C24C44BC2BA9E66A7E8912C /* MainWindowController+Delegates.swift */,
 				AE85A751A74F6346F7DA85A1 /* MainWindowController+Search.swift */,
 				9AE6C31945D44861A029F056 /* MainWindowController+StateObservers.swift */,
 				621A8B9D8F3D848175411367 /* MainWindowController+Toolbar.swift */,
@@ -1764,6 +1767,7 @@
 				3B98F4EDCD42284B05553281 /* LoginView.swift in Sources */,
 				FA6C761DB3820A1E6EB6E452 /* LoginWindowController.swift in Sources */,
 				3125DF6E88CBE5B26A53C593 /* MainWindowController+Audio.swift in Sources */,
+				315CEFA6B8D10A022EF7F840 /* MainWindowController+Delegates.swift in Sources */,
 				1445D4E874910E9972C3FD47 /* MainWindowController+Search.swift in Sources */,
 				17B69F492DBCCEFFA742BE79 /* MainWindowController+StateObservers.swift in Sources */,
 				57AF76032A767D0E88013B66 /* MainWindowController+Toolbar.swift in Sources */,
