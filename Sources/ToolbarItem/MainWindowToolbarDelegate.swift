@@ -1,11 +1,3 @@
-//
-//  MainWindowToolbarDelegate.swift
-//  MiNoteLibrary
-//
-//  Created by Acckion on 2026/1/5.
-//  Copyright © 2026 Acckion. All rights reserved.
-//
-
 #if os(macOS)
     import AppKit
     import Combine
