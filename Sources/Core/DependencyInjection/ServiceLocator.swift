@@ -56,6 +56,14 @@ public final class ServiceLocator: @unchecked Sendable {
         container.register(AudioServiceProtocol.self, instance: audioService)
         container.register(NetworkMonitorProtocol.self, instance: networkMonitor)
 
+        // 注册新 API 层服务
+        container.register(APIClient.self, instance: APIClient.shared)
+        container.register(NoteAPI.self, instance: NoteAPI.shared)
+        container.register(FolderAPI.self, instance: FolderAPI.shared)
+        container.register(FileAPI.self, instance: FileAPI.shared)
+        container.register(SyncAPI.self, instance: SyncAPI.shared)
+        container.register(UserAPI.self, instance: UserAPI.shared)
+
         isConfigured = true
         LogService.shared.info(.core, "ServiceLocator 配置完成")
 
@@ -71,6 +79,12 @@ public final class ServiceLocator: @unchecked Sendable {
             ("ImageServiceProtocol", ImageServiceProtocol.self),
             ("AudioServiceProtocol", AudioServiceProtocol.self),
             ("NetworkMonitorProtocol", NetworkMonitorProtocol.self),
+            ("APIClient", APIClient.self),
+            ("NoteAPI", NoteAPI.self),
+            ("FolderAPI", FolderAPI.self),
+            ("FileAPI", FileAPI.self),
+            ("SyncAPI", SyncAPI.self),
+            ("UserAPI", UserAPI.self),
         ]
 
         let allRegistered = services.allSatisfy { _, type in container.isRegistered(type) }
@@ -137,6 +151,36 @@ public final class ServiceLocator: @unchecked Sendable {
     /// 音频服务
     var audioService: AudioServiceProtocol {
         resolve(AudioServiceProtocol.self)
+    }
+
+    /// API 客户端
+    var apiClient: APIClient {
+        resolve(APIClient.self)
+    }
+
+    /// 笔记 API
+    var noteAPI: NoteAPI {
+        resolve(NoteAPI.self)
+    }
+
+    /// 文件夹 API
+    var folderAPI: FolderAPI {
+        resolve(FolderAPI.self)
+    }
+
+    /// 文件 API
+    var fileAPI: FileAPI {
+        resolve(FileAPI.self)
+    }
+
+    /// 同步 API
+    var syncAPI: SyncAPI {
+        resolve(SyncAPI.self)
+    }
+
+    /// 用户 API
+    var userAPI: UserAPI {
+        resolve(UserAPI.self)
     }
 
     // MARK: - Testing Support
