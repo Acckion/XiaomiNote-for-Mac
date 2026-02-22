@@ -244,6 +244,18 @@ public extension OperationProcessor {
                 continue
             }
 
+            // cloudUpload 必须等同一笔记的文件上传全部完成后再执行，
+            // 否则会把包含临时 fileId 的 XML 上传到云端
+            if operation.type == .cloudUpload {
+                let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+                if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
+                    operationQueue.hasPendingFileUpload(for: operation.noteId)
+                {
+                    LogService.shared.debug(.sync, "跳过 cloudUpload，等待文件上传完成: \(resolvedNoteId.prefix(8))...")
+                    continue
+                }
+            }
+
             currentOperationId = operation.id
 
             do {
@@ -709,12 +721,14 @@ extension OperationProcessor {
     /// - Parameter operation: cloudUpload 操作
     /// - Throws: 执行错误
     private func processCloudUpload(_ operation: NoteOperation) async throws {
-        // 从本地加载笔记
-        guard let note = try? localStorage.loadNote(noteId: operation.noteId) else {
+        // noteCreate 成功后 pendingOperations 快照中的 noteId 可能仍是临时 ID
+        let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+
+        guard let note = try? localStorage.loadNote(noteId: resolvedNoteId) else {
             throw NSError(
                 domain: "OperationProcessor",
                 code: 404,
-                userInfo: [NSLocalizedDescriptionKey: "笔记不存在: \(operation.noteId)"]
+                userInfo: [NSLocalizedDescriptionKey: "笔记不存在: \(resolvedNoteId)"]
             )
         }
 
@@ -841,9 +855,10 @@ extension OperationProcessor {
     /// - Parameter operation: imageUpload 操作
     /// - Throws: 执行错误
     private func processImageUpload(_ operation: NoteOperation) async throws {
-        LogService.shared.debug(.sync, "OperationProcessor 处理 imageUpload: \(operation.noteId)")
+        // noteCreate 成功后 pendingOperations 快照中的 noteId 可能仍是临时 ID
+        let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+        LogService.shared.debug(.sync, "OperationProcessor 处理 imageUpload: \(resolvedNoteId)")
 
-        // 解析操作数据
         let uploadData: FileUploadOperationData
         do {
             uploadData = try FileUploadOperationData.decoded(from: operation.data)
@@ -855,7 +870,9 @@ extension OperationProcessor {
             )
         }
 
-        // 读取本地文件（扩展名从 mimeType 推导，与保存时一致）
+        // data JSON 内部的 noteId 也可能是临时 ID
+        let resolvedUploadNoteId = IdMappingRegistry.shared.resolveId(uploadData.noteId)
+
         let ext = String(uploadData.mimeType.dropFirst("image/".count))
         guard let imageData = localStorage.loadPendingUpload(fileId: uploadData.temporaryFileId, extension: ext) else {
             // 本地文件丢失，无法重试
@@ -885,11 +902,11 @@ extension OperationProcessor {
         // 注册 ID 映射
         try IdMappingRegistry.shared.registerMapping(localId: uploadData.temporaryFileId, serverId: serverFileId, entityType: "file")
 
-        // 更新笔记内容中的 fileId 引用（内部有重试等待机制，并会入队 cloudUpload）
+        // 使用解析后的 noteId 更新笔记内容中的 fileId 引用
         try await IdMappingRegistry.shared.updateAllFileReferences(
             localId: uploadData.temporaryFileId,
             serverId: serverFileId,
-            noteId: uploadData.noteId
+            noteId: resolvedUploadNoteId
         )
 
         // 移动 pending 文件到正式缓存（用正式 ID）
@@ -911,7 +928,9 @@ extension OperationProcessor {
     /// - Parameter operation: audioUpload 操作
     /// - Throws: 执行错误
     private func processAudioUpload(_ operation: NoteOperation) async throws {
-        LogService.shared.debug(.sync, "OperationProcessor 处理 audioUpload: \(operation.noteId)")
+        // noteCreate 成功后 pendingOperations 快照中的 noteId 可能仍是临时 ID
+        let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+        LogService.shared.debug(.sync, "OperationProcessor 处理 audioUpload: \(resolvedNoteId)")
 
         let uploadData: FileUploadOperationData
         do {
@@ -923,6 +942,9 @@ extension OperationProcessor {
                 userInfo: [NSLocalizedDescriptionKey: "无效的音频上传操作数据"]
             )
         }
+
+        // data JSON 内部的 noteId 也可能是临时 ID
+        let resolvedUploadNoteId = IdMappingRegistry.shared.resolveId(uploadData.noteId)
 
         // 读取本地文件
         guard let audioData = localStorage.loadPendingUpload(fileId: uploadData.temporaryFileId, extension: "mp3") else {
@@ -958,11 +980,11 @@ extension OperationProcessor {
         try await IdMappingRegistry.shared.updateAllFileReferences(
             localId: uploadData.temporaryFileId,
             serverId: serverFileId,
-            noteId: uploadData.noteId
+            noteId: resolvedUploadNoteId
         )
 
         // 更新笔记 settingJson 中的音频信息
-        if var note = try? localStorage.loadNote(noteId: uploadData.noteId) {
+        if var note = try? localStorage.loadNote(noteId: resolvedUploadNoteId) {
             var setting: [String: Any] = [
                 "themeId": 0,
                 "stickyTime": 0,
