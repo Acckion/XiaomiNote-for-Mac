@@ -917,3 +917,38 @@ class NativeTextView: NSTextView {
         return false
     }
 }
+
+// MARK: - ListStateManager
+
+/// 列表状态管理器 - 跟踪和管理列表的连续性和编号
+class ListStateManager {
+
+    /// 有序列表编号缓存
+    private var orderedListNumbers: [Int: Int] = [:] // [lineIndex: number]
+
+    /// 重置状态
+    func reset() {
+        orderedListNumbers.removeAll()
+    }
+
+    /// 获取指定行的有序列表编号
+    func getOrderedListNumber(for lineIndex: Int, in textStorage: NSTextStorage) -> Int {
+        if let cached = orderedListNumbers[lineIndex] {
+            return cached
+        }
+
+        let number = calculateOrderedListNumber(for: lineIndex, in: textStorage)
+        orderedListNumbers[lineIndex] = number
+        return number
+    }
+
+    /// 计算有序列表编号
+    private func calculateOrderedListNumber(for lineIndex: Int, in _: NSTextStorage) -> Int {
+        lineIndex + 1
+    }
+
+    /// 更新编号（当列表发生变化时）
+    func updateNumbers(from lineIndex: Int, in _: NSTextStorage) {
+        orderedListNumbers = orderedListNumbers.filter { $0.key < lineIndex }
+    }
+}

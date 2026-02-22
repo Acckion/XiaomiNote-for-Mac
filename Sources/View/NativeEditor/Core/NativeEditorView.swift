@@ -248,48 +248,6 @@ extension Notification.Name {
     // nativeEditorNeedsRefresh 已在 NativeEditorErrorHandler.swift 中定义
 }
 
-// MARK: - ListStateManager
-
-/// 列表状态管理器 - 跟踪和管理列表的连续性和编号
-class ListStateManager {
-
-    /// 有序列表编号缓存
-    private var orderedListNumbers: [Int: Int] = [:] // [lineIndex: number]
-
-    /// 重置状态
-    func reset() {
-        orderedListNumbers.removeAll()
-    }
-
-    /// 获取指定行的有序列表编号
-    /// - Parameters:
-    ///   - lineIndex: 行索引
-    ///   - textStorage: 文本存储
-    /// - Returns: 列表编号
-    func getOrderedListNumber(for lineIndex: Int, in textStorage: NSTextStorage) -> Int {
-        if let cached = orderedListNumbers[lineIndex] {
-            return cached
-        }
-
-        // 计算编号
-        let number = calculateOrderedListNumber(for: lineIndex, in: textStorage)
-        orderedListNumbers[lineIndex] = number
-        return number
-    }
-
-    /// 计算有序列表编号
-    private func calculateOrderedListNumber(for lineIndex: Int, in _: NSTextStorage) -> Int {
-        // 简化实现：从 1 开始
-        lineIndex + 1
-    }
-
-    /// 更新编号（当列表发生变化时）
-    func updateNumbers(from lineIndex: Int, in _: NSTextStorage) {
-        // 清除从指定行开始的所有缓存
-        orderedListNumbers = orderedListNumbers.filter { $0.key < lineIndex }
-    }
-}
-
 // MARK: - Preview
 
 #if DEBUG
