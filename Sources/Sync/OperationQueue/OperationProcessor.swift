@@ -244,14 +244,14 @@ public extension OperationProcessor {
                 continue
             }
 
-            // cloudUpload 必须等同一笔记的文件上传全部完成后再执行，
+            // noteCreate 和 cloudUpload 都必须等同一笔记的文件上传全部完成后再执行，
             // 否则会把包含临时 fileId 的 XML 上传到云端
-            if operation.type == .cloudUpload {
+            if operation.type == .cloudUpload || operation.type == .noteCreate {
                 let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
                 if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
                     operationQueue.hasPendingFileUpload(for: operation.noteId)
                 {
-                    LogService.shared.debug(.sync, "跳过 cloudUpload，等待文件上传完成: \(resolvedNoteId.prefix(8))...")
+                    LogService.shared.debug(.sync, "跳过 \(operation.type.rawValue)，等待文件上传完成: \(resolvedNoteId.prefix(8))...")
                     continue
                 }
             }
@@ -279,6 +279,39 @@ public extension OperationProcessor {
         currentOperationId = nil
 
         LogService.shared.info(.sync, "OperationProcessor 队列处理完成，成功: \(successCount), 失败: \(failureCount)")
+
+        // 处理过程中可能有新操作入队（如 imageUpload 成功后入队 cloudUpload），
+        // 检查并处理这些新操作
+        let remainingOperations = operationQueue.getPendingOperations()
+        if !remainingOperations.isEmpty, await isNetworkConnected() {
+            LogService.shared.debug(.sync, "发现新入队的操作，继续处理: \(remainingOperations.count)")
+            for operation in remainingOperations {
+                guard await isNetworkConnected() else { break }
+                guard operation.status != .processing else { continue }
+
+                // 同样的文件上传等待保护
+                if operation.type == .cloudUpload || operation.type == .noteCreate {
+                    let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+                    if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
+                        operationQueue.hasPendingFileUpload(for: operation.noteId)
+                    {
+                        continue
+                    }
+                }
+
+                currentOperationId = operation.id
+                do {
+                    try operationQueue.markProcessing(operation.id)
+                    try await executeOperation(operation)
+                    try operationQueue.markCompleted(operation.id)
+                    successCount += 1
+                } catch {
+                    failureCount += 1
+                    await handleOperationFailure(operation: operation, error: error)
+                }
+            }
+            currentOperationId = nil
+        }
 
         // 确认暂存的 syncTag（如果存在）
         do {
