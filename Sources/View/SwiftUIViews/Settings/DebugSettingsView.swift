@@ -239,7 +239,7 @@ public struct DebugSettingsView: View {
             HStack {
                 Text("认证状态")
                 Spacer()
-                if MiNoteService.shared.isAuthenticated() {
+                if APIClient.shared.isAuthenticated() {
                     Text("已认证")
                         .foregroundColor(.green)
                 } else {
@@ -493,7 +493,7 @@ public struct DebugSettingsView: View {
 
         // 保存 cookie
         UserDefaults.standard.set(trimmedCookie, forKey: "minote_cookie")
-        MiNoteService.shared.setCookie(trimmedCookie)
+        APIClient.shared.setCookie(trimmedCookie)
 
         // 更新显示
         cookieString = trimmedCookie
@@ -519,16 +519,16 @@ public struct DebugSettingsView: View {
 
     private func clearCookie() {
         UserDefaults.standard.removeObject(forKey: "minote_cookie")
-        MiNoteService.shared.setCookie("")
+        APIClient.shared.setCookie("")
         loadCredentials()
     }
 
     func testNetworkConnection() {
         Task {
             do {
-                let response = try await MiNoteService.shared.fetchPage()
-                let notesCount = MiNoteService.shared.parseNotes(from: response).count
-                let foldersCount = MiNoteService.shared.parseFolders(from: response).count
+                let response = try await NoteAPI.shared.fetchPage()
+                let notesCount = ResponseParser.parseNotes(from: response).count
+                let foldersCount = ResponseParser.parseFolders(from: response).count
 
                 networkTestResult = "网络连接成功！\n获取到 \(notesCount) 条笔记，\(foldersCount) 个文件夹"
                 showNetworkTestAlert = true
@@ -543,7 +543,7 @@ public struct DebugSettingsView: View {
         isTestingPrivateNotes = true
         Task {
             do {
-                let response = try await MiNoteService.shared.fetchPrivateNotes(folderId: "2", limit: 200)
+                let response = try await NoteAPI.shared.fetchPrivateNotes(folderId: "2", limit: 200)
 
                 // 解析响应
                 var resultText = "✅ 私密笔记API测试成功！\n\n"
@@ -680,7 +680,7 @@ public struct DebugSettingsView: View {
         isTestingServiceStatus = true
         Task {
             do {
-                let response = try await MiNoteService.shared.checkServiceStatus()
+                let response = try await UserAPI.shared.checkServiceStatus()
 
                 // 解析响应
                 var resultText = "✅ 服务状态检查API测试成功！\n\n"
@@ -748,7 +748,7 @@ public struct DebugSettingsView: View {
         === 认证信息 ===
         Cookie: \(cookieString)
         Service Token: \(serviceToken)
-        认证状态：\(MiNoteService.shared.isAuthenticated() ? "已认证" : "未认证")
+        认证状态：\(APIClient.shared.isAuthenticated() ? "已认证" : "未认证")
 
         === 系统信息 ===
         应用程序版本：1.0.0
@@ -832,7 +832,7 @@ public struct DebugSettingsView: View {
             var resultText = "🔧 静默刷新Cookie测试开始...\n\n"
 
             // 检查当前认证状态
-            let isAuthenticatedBefore = MiNoteService.shared.isAuthenticated()
+            let isAuthenticatedBefore = APIClient.shared.isAuthenticated()
             resultText += "测试前认证状态: \(isAuthenticatedBefore ? "已认证" : "未认证")\n"
 
             // 获取当前Cookie
@@ -854,10 +854,10 @@ public struct DebugSettingsView: View {
             // 模拟Cookie失效（清除Cookie）
             resultText += "\n📝 模拟Cookie失效...\n"
             UserDefaults.standard.removeObject(forKey: "minote_cookie")
-            MiNoteService.shared.setCookie("")
+            APIClient.shared.setCookie("")
 
             // 验证Cookie已清除
-            let isAuthenticatedAfterClear = MiNoteService.shared.isAuthenticated()
+            let isAuthenticatedAfterClear = APIClient.shared.isAuthenticated()
             resultText += "清除Cookie后认证状态: \(isAuthenticatedAfterClear ? "已认证" : "未认证")\n"
 
             if isAuthenticatedAfterClear {
@@ -865,7 +865,7 @@ public struct DebugSettingsView: View {
 
                 // 恢复原始Cookie
                 UserDefaults.standard.set(currentCookie, forKey: "minote_cookie")
-                MiNoteService.shared.setCookie(currentCookie)
+                APIClient.shared.setCookie(currentCookie)
 
                 await MainActor.run {
                     silentRefreshResult = resultText
@@ -885,7 +885,7 @@ public struct DebugSettingsView: View {
                 resultText += "PassToken 刷新完成，获取到 serviceToken\n"
 
                 // 检查刷新结果
-                let isAuthenticatedAfterRefresh = MiNoteService.shared.isAuthenticated()
+                let isAuthenticatedAfterRefresh = APIClient.shared.isAuthenticated()
                 let newCookie = UserDefaults.standard.string(forKey: "minote_cookie") ?? ""
 
                 resultText += "\n测试结果:\n"
@@ -922,7 +922,7 @@ public struct DebugSettingsView: View {
 
                     resultText += "恢复原始Cookie...\n"
                     UserDefaults.standard.set(currentCookie, forKey: "minote_cookie")
-                    MiNoteService.shared.setCookie(currentCookie)
+                    APIClient.shared.setCookie(currentCookie)
 
                     resultText += "原始Cookie已恢复\n"
                     resultText += "\n可能的原因:\n"
@@ -935,7 +935,7 @@ public struct DebugSettingsView: View {
 
                 resultText += "恢复原始Cookie...\n"
                 UserDefaults.standard.set(currentCookie, forKey: "minote_cookie")
-                MiNoteService.shared.setCookie(currentCookie)
+                APIClient.shared.setCookie(currentCookie)
 
                 resultText += "原始Cookie已恢复\n"
                 resultText += "\n可能的原因:\n"
@@ -961,7 +961,7 @@ public struct DebugSettingsView: View {
 
         // 保存到UserDefaults并更新MiNoteService的内部缓存
         UserDefaults.standard.set(errorCookie, forKey: "minote_cookie")
-        MiNoteService.shared.setCookie(errorCookie)
+        APIClient.shared.setCookie(errorCookie)
 
         // 重新加载凭证以更新UI显示
         loadCredentials()
@@ -979,13 +979,13 @@ public struct DebugSettingsView: View {
         isTestingSyncAPI = true
 
         Task {
-            var resultText = "🔧 测试完整同步API...\n\n"
+            var resultText = "测试完整同步API...\n\n"
             resultText += "使用的syncTag: \(syncTagInput.isEmpty ? "（空，表示第一页）" : syncTagInput)\n\n"
 
             do {
-                let response = try await MiNoteService.shared.fetchPage(syncTag: syncTagInput)
+                let response = try await NoteAPI.shared.fetchPage(syncTag: syncTagInput)
 
-                resultText += "✅ API调用成功！\n\n"
+                resultText += "API调用成功！\n\n"
 
                 // 解析响应
                 if let code = response["code"] as? Int {
@@ -997,8 +997,8 @@ public struct DebugSettingsView: View {
                 }
 
                 // 解析笔记和文件夹
-                let notes = MiNoteService.shared.parseNotes(from: response)
-                let folders = MiNoteService.shared.parseFolders(from: response)
+                let notes = ResponseParser.parseNotes(from: response)
+                let folders = ResponseParser.parseFolders(from: response)
 
                 resultText += "\n📊 解析结果：\n"
                 resultText += "- 笔记数量: \(notes.count)\n"
@@ -1063,13 +1063,13 @@ public struct DebugSettingsView: View {
         isTestingSyncAPI = true
 
         Task {
-            var resultText = "🔧 测试增量同步API...\n\n"
+            var resultText = "测试增量同步API...\n\n"
             resultText += "使用的syncTag: \(syncTagInput.isEmpty ? "（空，表示第一页）" : syncTagInput)\n\n"
 
             do {
-                let response = try await MiNoteService.shared.fetchPage(syncTag: syncTagInput)
+                let response = try await NoteAPI.shared.fetchPage(syncTag: syncTagInput)
 
-                resultText += "✅ API调用成功！\n\n"
+                resultText += "API调用成功！\n\n"
 
                 // 解析响应
                 if let code = response["code"] as? Int {
@@ -1081,8 +1081,8 @@ public struct DebugSettingsView: View {
                 }
 
                 // 解析笔记和文件夹
-                let notes = MiNoteService.shared.parseNotes(from: response)
-                let folders = MiNoteService.shared.parseFolders(from: response)
+                let notes = ResponseParser.parseNotes(from: response)
+                let folders = ResponseParser.parseFolders(from: response)
 
                 resultText += "\n📊 解析结果：\n"
                 resultText += "- 笔记数量: \(notes.count)\n"
@@ -1148,13 +1148,13 @@ public struct DebugSettingsView: View {
         isTestingSyncAPI = true
 
         Task {
-            var resultText = "🔧 测试网页版增量同步API...\n\n"
+            var resultText = "测试网页版增量同步API...\n\n"
             resultText += "使用的syncTag: \(syncTagInput.isEmpty ? "（空，表示第一页）" : syncTagInput)\n\n"
 
             do {
-                let response = try await MiNoteService.shared.syncFull(syncTag: syncTagInput)
+                let response = try await SyncAPI.shared.syncFull(syncTag: syncTagInput)
 
-                resultText += "✅ API调用成功！\n\n"
+                resultText += "API调用成功！\n\n"
 
                 // 解析响应
                 if let code = response["code"] as? Int {
@@ -1166,8 +1166,8 @@ public struct DebugSettingsView: View {
                 }
 
                 // 解析笔记和文件夹
-                let notes = MiNoteService.shared.parseNotes(from: response)
-                let folders = MiNoteService.shared.parseFolders(from: response)
+                let notes = ResponseParser.parseNotes(from: response)
+                let folders = ResponseParser.parseFolders(from: response)
 
                 resultText += "\n📊 解析结果：\n"
                 resultText += "- 笔记数量: \(notes.count)\n"

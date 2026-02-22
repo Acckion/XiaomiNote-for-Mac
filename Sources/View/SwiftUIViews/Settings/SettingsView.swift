@@ -309,7 +309,7 @@ public struct SettingsView: View {
     }
 
     private func logout() {
-        MiNoteService.shared.clearCookie()
+        APIClient.shared.clearCookie()
         authState.handleLogout()
         dismiss()
     }
