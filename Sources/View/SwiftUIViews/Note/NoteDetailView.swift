@@ -313,32 +313,16 @@ struct NoteDetailView: View {
         let updated = editingCoordinator.buildUpdatedNote(from: note, xmlContent: debugXMLContent)
 
         do {
-            try await saveDebugContentToDatabase(updated)
+            try await coordinator.noteStore.saveNoteImmediately(updated)
 
             debugSaveStatus = .saved
             editingCoordinator.lastSavedXMLContent = debugXMLContent
-
-            await MemoryCacheManager.shared.cacheNote(updated)
             editingCoordinator.updateViewModel(with: updated)
             noteEditorState.hasUnsavedContent = false
-            editingCoordinator.scheduleCloudUpload(for: updated, xmlContent: debugXMLContent)
         } catch {
             let errorMessage = "保存失败: \(error.localizedDescription)"
             debugSaveStatus = .error(errorMessage)
             LogService.shared.error(.editor, "调试模式保存失败: \(error)")
-        }
-    }
-
-    @MainActor
-    private func saveDebugContentToDatabase(_ note: Note) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            DatabaseService.shared.saveNoteAsync(note) { error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume()
-                }
-            }
         }
     }
 
