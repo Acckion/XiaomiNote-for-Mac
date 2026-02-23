@@ -27,10 +27,13 @@ jobs:
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "Validated tag: $TAG_NAME -> version: $VERSION"
 
-      - name: Setup Build Environment
-        uses: ./.github/actions/setup-build-env
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Setup Build Environment
+        uses: ./.github/actions/setup-build-env
 
       - name: Build Release
         run: |
