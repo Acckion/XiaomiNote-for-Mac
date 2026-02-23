@@ -8,23 +8,9 @@
 import AppKit
 import SwiftUI
 
-// MARK: - 列表类型枚举
+// MARK: - 类型定义已迁移到 FormatTypes.swift
 
-/// 列表类型
-public enum ListType: Equatable {
-    case bullet // 无序列表
-    case ordered // 有序列表
-    case checkbox // 复选框列表
-    case none // 非列表
-}
-
-/// 标题级别
-enum HeadingLevel: Int {
-    case none = 0
-    case h1 = 1 // 大标题
-    case h2 = 2 // 二级标题
-    case h3 = 3 // 三级标题
-}
+// ListType 和 HeadingLevel 的定义已迁移到 FormatTypes.swift
 
 // MARK: - FormatManager
 

@@ -184,6 +184,7 @@
 		925BE2F1EDDCBFB2D929F407 /* UndoCoalescingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A4B0B9382D9EA49DADB6FA /* UndoCoalescingManager.swift */; };
 		929498ABB613E0E4005D9EA7 /* OperationQueueDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E15BE193071CD4784522F26C /* OperationQueueDebugView.swift */; };
 		9306EA29A0770FDE5D1D3891 /* AppStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28FAA4982B15A440D56E5C45 /* AppStateManager.swift */; };
+		946A26744D375B236803BF0F /* FormatTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E57349DCCFC6034C61833760 /* FormatTypes.swift */; };
 		95BD1D4493EDDF2E8F34B852 /* SyncEngine+PublicHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 696DB8B0D41F949729B28B6E /* SyncEngine+PublicHelpers.swift */; };
 		96BC9B76EC85258B6890D9F6 /* SyncStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B468A4C50FB86D50FCFC7239 /* SyncStateManager.swift */; };
 		976583EC8E6FF8605BE48265 /* AudioServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90D5F7FA2E463A7BB519C532 /* AudioServiceProtocol.swift */; };
@@ -630,6 +631,7 @@
 		E3AAF34D9D6591C692EE671C /* XMLEntityCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLEntityCodec.swift; sourceTree = "<group>"; };
 		E4859FC7DF92EAA20C7ABF7C /* MiNoteMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MiNoteMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E5498BC06BB14980F14979DC /* Color+MiNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+MiNote.swift"; sourceTree = "<group>"; };
+		E57349DCCFC6034C61833760 /* FormatTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatTypes.swift; sourceTree = "<group>"; };
 		E8F3A82FADAAD3C9F08661ED /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		EA99B62732C1CF59E1CF6464 /* SyncState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncState.swift; sourceTree = "<group>"; };
 		EB9214C72828FA76E4756DD5 /* AttributeLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttributeLayer.swift; sourceTree = "<group>"; };
@@ -1442,6 +1444,7 @@
 				EE6B27FF59DCDB619C8879DF /* FormatMenuPerformanceMonitor.swift */,
 				783B405112717E49DF20E8F3 /* FormatOperationQueue.swift */,
 				6FB493AEA912DB26484DDE5C /* FormatStateSynchronizer.swift */,
+				E57349DCCFC6034C61833760 /* FormatTypes.swift */,
 				935849EE298307BDFA679DA7 /* InlineFormatHandler.swift */,
 				7997EA57FDFE5D2E1F1DA65C /* ListBehaviorHandler.swift */,
 				14A0F49BE5BBE8B013FDED77 /* ListFormatHandler.swift */,
@@ -1788,6 +1791,7 @@
 				8E610F2C410C106E7B619A76 /* FormatState.swift in Sources */,
 				2AC3ACBDF8BB18683868874C /* FormatStateManager.swift in Sources */,
 				A0DDD62A7DFB5DF16E4B0B13 /* FormatStateSynchronizer.swift in Sources */,
+				946A26744D375B236803BF0F /* FormatTypes.swift in Sources */,
 				EE2577EBD0917307417A77DC /* GalleryHostingController.swift in Sources */,
 				62F7FD32DC8581CCF814BF07 /* GalleryView.swift in Sources */,
 				4ED1F63AFCC8E14D49BDD7E2 /* HistoryWindowController.swift in Sources */,
