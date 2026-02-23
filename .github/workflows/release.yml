@@ -11,51 +11,184 @@ jobs:
   build-release:
     name: Build Release
     runs-on: macos-15
-    
+
     steps:
+      - name: Validate Tag Format
+        run: |
+          set -e
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag format error: '$TAG_NAME' does not match vX.Y.Z"
+            echo "Expected format: v1.0.0, v2.1.3, etc."
+            exit 1
+          fi
+          VERSION="${TAG_NAME#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "Validated tag: $TAG_NAME -> version: $VERSION"
+
       - name: Checkout
         uses: actions/checkout@v4
-      
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
-      
-      - name: Install XcodeGen
-        run: brew install xcodegen
-      
-      - name: Generate Xcode Project
-        run: xcodegen generate
-      
+          fetch-depth: 0
+
+      - name: Setup Build Environment
+        uses: ./.github/actions/setup-build-env
+
       - name: Build Release
         run: |
-          xcodebuild -project MiNoteMac.xcodeproj \
+          set -e
+          VERSION="${{ env.VERSION }}"
+          BUILD_NUMBER="${{ github.run_number }}"
+          xcodebuild archive \
+            -project MiNoteMac.xcodeproj \
             -scheme MiNoteMac \
             -configuration Release \
             -destination 'platform=macOS' \
             -archivePath build/MiNoteMac.xcarchive \
-            archive
-      
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+
       - name: Export App
         run: |
+          set -e
           xcodebuild -exportArchive \
             -archivePath build/MiNoteMac.xcarchive \
             -exportPath build/export \
-            -exportOptionsPlist ExportOptions.plist || true
-      
+            -exportOptionsPlist ExportOptions.plist
+
       - name: Create DMG
         run: |
-          APP_PATH="build/MiNoteMac.xcarchive/Products/Applications/MiNoteMac.app"
-          if [ -d "$APP_PATH" ]; then
-            hdiutil create -volname "MiNoteMac" \
-              -srcfolder "$APP_PATH" \
-              -ov -format UDZO \
-              "build/MiNoteMac-${{ github.event.release.tag_name }}.dmg"
+          set -e
+          APP_PATH="build/export/MiNoteMac.app"
+          DMG_NAME="MiNoteMac-${{ env.TAG_NAME }}.dmg"
+          DMG_PATH="build/$DMG_NAME"
+
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Error: App not found at $APP_PATH"
+            ls -la build/export/ 2>/dev/null || echo "Export directory not found"
+            exit 1
           fi
-      
-      - name: Upload Release Asset
+
+          hdiutil create -volname "MiNoteMac" \
+            -srcfolder "$APP_PATH" \
+            -ov -format UDZO \
+            "$DMG_PATH"
+
+          if [ ! -f "$DMG_PATH" ]; then
+            echo "Error: DMG creation failed, file not found at $DMG_PATH"
+            exit 1
+          fi
+
+          echo "DMG_PATH=$DMG_PATH" >> $GITHUB_ENV
+          echo "DMG_NAME=$DMG_NAME" >> $GITHUB_ENV
+
+      - name: Calculate SHA256
+        run: |
+          set -e
+          DMG_PATH="${{ env.DMG_PATH }}"
+          SHA256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')
+          DMG_SIZE=$(du -h "$DMG_PATH" | awk '{print $1}')
+
+          echo "SHA256=$SHA256" >> $GITHUB_ENV
+          echo "DMG_SIZE=$DMG_SIZE" >> $GITHUB_ENV
+
+          echo "$SHA256  ${{ env.DMG_NAME }}" > "${DMG_PATH}.sha256"
+
+          echo "DMG Size: $DMG_SIZE"
+          echo "SHA256: $SHA256"
+
+      - name: Generate Changelog
+        run: |
+          set -e
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"%s" 2>/dev/null || echo "")
+          else
+            COMMITS=$(git log --pretty=format:"%s" "${PREV_TAG}..HEAD" 2>/dev/null || echo "")
+          fi
+
+          CHANGELOG=""
+
+          FEATS=$(echo "$COMMITS" | grep -E "^feat" || true)
+          FIXES=$(echo "$COMMITS" | grep -E "^fix" || true)
+          REFACTORS=$(echo "$COMMITS" | grep -E "^refactor" || true)
+          PERFS=$(echo "$COMMITS" | grep -E "^perf" || true)
+          OTHERS=$(echo "$COMMITS" | grep -vE "^(feat|fix|refactor|perf|docs|test|chore|style|revert)" | grep -v "^$" || true)
+
+          if [ -n "$FEATS" ]; then
+            CHANGELOG+="### New Features\n"
+            while IFS= read -r line; do
+              [ -n "$line" ] && CHANGELOG+="- $line\n"
+            done <<< "$FEATS"
+            CHANGELOG+="\n"
+          fi
+
+          if [ -n "$FIXES" ]; then
+            CHANGELOG+="### Bug Fixes\n"
+            while IFS= read -r line; do
+              [ -n "$line" ] && CHANGELOG+="- $line\n"
+            done <<< "$FIXES"
+            CHANGELOG+="\n"
+          fi
+
+          if [ -n "$REFACTORS" ]; then
+            CHANGELOG+="### Refactoring\n"
+            while IFS= read -r line; do
+              [ -n "$line" ] && CHANGELOG+="- $line\n"
+            done <<< "$REFACTORS"
+            CHANGELOG+="\n"
+          fi
+
+          if [ -n "$PERFS" ]; then
+            CHANGELOG+="### Performance\n"
+            while IFS= read -r line; do
+              [ -n "$line" ] && CHANGELOG+="- $line\n"
+            done <<< "$PERFS"
+            CHANGELOG+="\n"
+          fi
+
+          if [ -n "$OTHERS" ]; then
+            CHANGELOG+="### Other Changes\n"
+            while IFS= read -r line; do
+              [ -n "$line" ] && CHANGELOG+="- $line\n"
+            done <<< "$OTHERS"
+            CHANGELOG+="\n"
+          fi
+
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="No structured changelog entries found."
+          fi
+
+          CHANGELOG+="\n---\n"
+          CHANGELOG+="**SHA256**: \`${{ env.SHA256 }}\`\n"
+          CHANGELOG+="**Size**: ${{ env.DMG_SIZE }}\n"
+
+          # Write to file for gh-release action
+          echo -e "$CHANGELOG" > build/changelog.md
+
+      - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
-          files: build/MiNoteMac-${{ github.event.release.tag_name }}.dmg
+          files: |
+            ${{ env.DMG_PATH }}
+            ${{ env.DMG_PATH }}.sha256
+          body_path: build/changelog.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Job Summary
+        if: always()
+        run: |
+          echo "## CD 发布报告" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 项目 | 结果 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | ${{ env.TAG_NAME }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 版本号 | ${{ env.VERSION }} (Build ${{ github.run_number }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| DMG 大小 | ${{ env.DMG_SIZE }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SHA256 | \`${{ env.SHA256 }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release**: ${{ env.TAG_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**状态**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY

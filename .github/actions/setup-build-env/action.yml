@@ -1,0 +1,43 @@
+name: 'Setup Build Environment'
+description: 'Setup Xcode, install tools with cache, generate Xcode project'
+
+inputs:
+  xcode-version:
+    description: 'Xcode version to use'
+    required: false
+    default: 'latest-stable'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: ${{ inputs.xcode-version }}
+
+    - name: Restore Homebrew cache
+      uses: actions/cache@v4
+      id: brew-cache
+      with:
+        path: |
+          /opt/homebrew/Cellar/xcodegen
+          /opt/homebrew/Cellar/swiftlint
+          /opt/homebrew/bin/xcodegen
+          /opt/homebrew/bin/swiftlint
+          /opt/homebrew/opt/xcodegen
+          /opt/homebrew/opt/swiftlint
+        key: brew-tools-${{ runner.os }}-${{ hashFiles('.github/actions/setup-build-env/action.yml') }}
+
+    - name: Install XcodeGen
+      if: steps.brew-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: brew install xcodegen
+
+    - name: Install SwiftLint
+      if: steps.brew-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: brew install swiftlint
+
+    - name: Generate Xcode Project
+      shell: bash
+      run: xcodegen generate
