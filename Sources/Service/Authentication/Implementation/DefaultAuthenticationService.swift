@@ -9,8 +9,8 @@ actor DefaultAuthenticationService: AuthenticationServiceProtocol {
     // MARK: - Properties
 
     private let networkClient: NetworkClient
-    private let userStateSubject = CurrentValueSubject<UserProfile?, Never>(nil)
-    private let isAuthenticatedSubject = CurrentValueSubject<Bool, Never>(false)
+    private nonisolated(unsafe) let userStateSubject = CurrentValueSubject<UserProfile?, Never>(nil)
+    private nonisolated(unsafe) let isAuthenticatedSubject = CurrentValueSubject<Bool, Never>(false)
     private var currentAuthUser: AuthUser?
     private var currentCookie: String?
 
