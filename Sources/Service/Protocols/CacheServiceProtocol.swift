@@ -20,14 +20,14 @@ protocol CacheServiceProtocol {
     /// 获取缓存对象
     /// - Parameter key: 缓存键
     /// - Returns: 缓存对象，如果不存在返回 nil
-    func get<T: Codable>(key: String) async throws -> T?
+    func get<T: Codable & Sendable>(key: String) async throws -> T?
 
     /// 设置缓存对象
     /// - Parameters:
     ///   - key: 缓存键
     ///   - value: 缓存对象
     ///   - policy: 缓存策略
-    func set(key: String, value: some Codable, policy: CachePolicy) async throws
+    func set(key: String, value: some Codable & Sendable, policy: CachePolicy) async throws
 
     /// 删除缓存对象
     /// - Parameter key: 缓存键
@@ -43,13 +43,13 @@ protocol CacheServiceProtocol {
     /// 批量获取缓存对象
     /// - Parameter keys: 缓存键数组
     /// - Returns: 缓存对象字典
-    func getMultiple<T: Codable>(keys: [String]) async throws -> [String: T]
+    func getMultiple<T: Codable & Sendable>(keys: [String]) async throws -> [String: T]
 
     /// 批量设置缓存对象
     /// - Parameters:
     ///   - values: 缓存对象字典
     ///   - policy: 缓存策略
-    func setMultiple(values: [String: some Codable], policy: CachePolicy) async throws
+    func setMultiple(values: [String: some Codable & Sendable], policy: CachePolicy) async throws
 
     /// 批量删除缓存对象
     /// - Parameter keys: 缓存键数组

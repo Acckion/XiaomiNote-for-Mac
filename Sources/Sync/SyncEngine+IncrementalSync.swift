@@ -29,7 +29,7 @@ extension SyncEngine {
                         _ = try operationQueue.enqueueFolderRename(
                             folderId: localFolder.id,
                             name: localFolder.name,
-                            tag: localFolder.rawData?["tag"] as? String ?? localFolder.id
+                            tag: localFolder.tag ?? localFolder.id
                         )
                         LogService.shared.debug(.sync, "文件夹本地较新，已添加到上传队列: \(localFolder.name)")
                     }
@@ -44,7 +44,7 @@ extension SyncEngine {
                 // 只有云端存在
                 let hasDeleteOp = pendingOps.contains { $0.type == .folderDelete && $0.noteId == cloudFolder.id }
                 if hasDeleteOp {
-                    if let tag = cloudFolder.rawData?["tag"] as? String {
+                    if let tag = cloudFolder.tag {
                         // 删除操作已在队列中，由 OperationProcessor 统一处理
                         LogService.shared.debug(.sync, "文件夹在删除队列中，跳过: \(cloudFolder.name)")
                     }
@@ -270,7 +270,7 @@ extension SyncEngine {
 
     /// 处理有修改的文件夹
     func processModifiedFolder(_ folder: Folder) async throws {
-        if let rawData = folder.rawData,
+        if let rawData = folder.rawDataDict,
            let status = rawData["status"] as? String,
            status == "deleted"
         {

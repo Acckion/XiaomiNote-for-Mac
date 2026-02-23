@@ -5,19 +5,19 @@ import Foundation
 /// 表示一个文件夹，包括：
 /// - 基本信息：ID、名称、笔记数量
 /// - 系统属性：是否为系统文件夹、是否置顶
-/// - 原始数据：rawData存储从API获取的原始数据（包括tag等）
+/// - 原始数据：rawDataJson 存储从 API 获取的原始 JSON 字符串（包括 tag 等）
 ///
 /// **系统文件夹**：
 /// - id = "0": 所有笔记
 /// - id = "starred": 置顶笔记
-public struct Folder: Identifiable, Codable, Equatable, Hashable {
+public struct Folder: Identifiable, Codable, Equatable, Hashable, Sendable {
     public let id: String
     public var name: String
     public var count: Int
     public var isSystem = false
-    public var isPinned = false // 是否置顶
+    public var isPinned = false
     public var createdAt = Date()
-    public var rawData: [String: Any]? // 存储原始 API 数据（包括 tag 等）
+    public var rawDataJson: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name, count, isSystem, isPinned, createdAt
@@ -30,7 +30,7 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
         isSystem: Bool = false,
         isPinned: Bool = false,
         createdAt: Date = Date(),
-        rawData: [String: Any]? = nil
+        rawDataJson: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -38,7 +38,24 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
         self.isSystem = isSystem
         self.isPinned = isPinned
         self.createdAt = createdAt
-        self.rawData = rawData
+        self.rawDataJson = rawDataJson
+    }
+
+    /// 从 rawDataJson 中解析 tag
+    public var tag: String? {
+        guard let json = rawDataJson,
+              let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return dict["tag"] as? String
+    }
+
+    /// 从 rawDataJson 中解析完整字典
+    public var rawDataDict: [String: Any]? {
+        guard let json = rawDataJson,
+              let data = json.data(using: .utf8)
+        else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 
     /// Hashable 实现
@@ -60,12 +77,10 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
     /// - Parameter data: API返回的文件夹数据字典
     /// - Returns: Folder对象，如果数据无效则返回nil
     static func fromMinoteData(_ data: [String: Any]) -> Folder? {
-        // 检查类型，只处理文件夹类型
         if let type = data["type"] as? String, type != "folder" {
             return nil
         }
 
-        // 获取ID（可能是String或Int，需要转换）
         var id: String
         if let idString = data["id"] as? String {
             id = idString
@@ -75,7 +90,6 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
             return nil
         }
 
-        // 获取名称（小米笔记API使用 subject 字段，不是 name）
         let name: String
         if let subject = data["subject"] as? String, !subject.isEmpty {
             name = subject
@@ -95,7 +109,13 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
             Date()
         }
 
-        return Folder(id: id, name: name, count: count, isSystem: isSystem, createdAt: createdAt, rawData: data)
+        let rawDataJson: String? = if let jsonData = try? JSONSerialization.data(withJSONObject: data, options: []) {
+            String(data: jsonData, encoding: .utf8)
+        } else {
+            nil
+        }
+
+        return Folder(id: id, name: name, count: count, isSystem: isSystem, createdAt: createdAt, rawDataJson: rawDataJson)
     }
 
     /// 转换为小米笔记API格式
@@ -111,5 +131,3 @@ public struct Folder: Identifiable, Codable, Equatable, Hashable {
         ]
     }
 }
-
-extension Folder: @unchecked Sendable {}

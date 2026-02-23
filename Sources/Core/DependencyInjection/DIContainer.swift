@@ -10,13 +10,18 @@ import Foundation
 
 /// 依赖注入容器
 ///
-/// 用于注册和解析应用中的服务依赖，支持单例和工厂模式
-/// 这是重构的第一步，用于逐步替代现有的单例模式
+/// 用于注册和解析应用中的服务依赖，支持单例和工厂模式。
+///
+/// ## 线程安全
+/// 保留 `@unchecked Sendable` + NSLock 而非改为 Actor 的原因：
+/// `resolve()` 是同步方法，被大量同步上下文调用，改为 Actor 需要所有调用方加 `await`，影响面过大。
+/// NSLock 保护 `services` 和 `factories` 两个字典，所有读写操作均在 lock/unlock 范围内完成。
 public final class DIContainer: @unchecked Sendable {
+    /// 单例在进程生命周期内只初始化一次，private init() 保证外部无法创建新实例
     public nonisolated(unsafe) static let shared = DIContainer()
 
-    private var services: [String: Any] = [:]
-    private var factories: [String: () -> Any] = [:]
+    private var services: [String: Any] = [:] // 受 lock 保护
+    private var factories: [String: () -> Any] = [:] // 受 lock 保护
     private let lock = NSLock()
 
     private nonisolated init() {}
