@@ -270,8 +270,13 @@ public extension OperationProcessor {
 
                 successCount += 1
                 LogService.shared.debug(.sync, "OperationProcessor 处理成功: \(operation.id), type: \(operation.type.rawValue)")
+                await eventBus.publish(OperationEvent.operationCompleted)
             } catch {
                 failureCount += 1
+                let errorType = classifyError(error)
+                if errorType == .authExpired {
+                    await eventBus.publish(OperationEvent.authFailed)
+                }
                 await handleOperationFailure(operation: operation, error: error)
             }
         }
@@ -305,8 +310,13 @@ public extension OperationProcessor {
                     try await executeOperation(operation)
                     try operationQueue.markCompleted(operation.id)
                     successCount += 1
+                    await eventBus.publish(OperationEvent.operationCompleted)
                 } catch {
                     failureCount += 1
+                    let errorType = classifyError(error)
+                    if errorType == .authExpired {
+                        await eventBus.publish(OperationEvent.authFailed)
+                    }
                     await handleOperationFailure(operation: operation, error: error)
                 }
             }
@@ -324,6 +334,7 @@ public extension OperationProcessor {
         }
 
         // 发送处理完成事件
+        await eventBus.publish(OperationEvent.queueProcessingCompleted(successCount: successCount, failedCount: failureCount))
         await eventBus.publish(SyncEvent.completed(result: SyncEventResult(
             downloadedCount: 0,
             uploadedCount: successCount,

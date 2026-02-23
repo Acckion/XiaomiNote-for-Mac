@@ -168,7 +168,7 @@ final class StartupSequenceManager: ObservableObject {
         await executePerformSync()
 
         // 完成启动序列
-        completeStartupSequence()
+        await completeStartupSequence()
     }
 
     /// 重置启动序列状态
@@ -231,7 +231,7 @@ final class StartupSequenceManager: ObservableObject {
         }
     }
 
-    private func completeStartupSequence() {
+    private func completeStartupSequence() async {
         startupState.completionTime = Date()
         let duration = startupState.completionTime?.timeIntervalSince(startupState.startTime) ?? 0
 
@@ -250,15 +250,11 @@ final class StartupSequenceManager: ObservableObject {
 
         isCompleted = true
         statusMessage = "启动完成"
-        NotificationCenter.default.post(
-            name: .startupSequenceCompleted,
-            object: nil,
-            userInfo: [
-                "success": startupState.errors.isEmpty,
-                "errors": startupState.errors.map(\.message),
-                "duration": duration,
-            ]
-        )
+        await eventBus.publish(StartupEvent.startupCompleted(
+            success: startupState.errors.isEmpty,
+            errors: startupState.errors.map(\.message),
+            duration: duration
+        ))
     }
 
     // MARK: - 私有方法 - 具体实现
@@ -312,11 +308,4 @@ final class StartupSequenceManager: ObservableObject {
         await eventBus.publish(SyncEvent.requested(mode: .incremental))
         startupState.syncedNotesCount = 0
     }
-}
-
-// MARK: - 通知扩展
-
-public extension Notification.Name {
-    /// 启动序列完成通知
-    static let startupSequenceCompleted = Notification.Name("startupSequenceCompleted")
 }

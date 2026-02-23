@@ -21,25 +21,33 @@ public final class OnlineStateManager: ObservableObject {
 
     // MARK: - 内部状态
 
-    /// Cookie 有效性状态，通过通知更新
+    /// Cookie 有效性状态，通过 AuthEvent 更新
     private var isCookieValid = true
 
     // MARK: - Combine订阅
 
     private var cancellables = Set<AnyCancellable>()
 
+    // MARK: - EventBus 订阅
+
+    private var authEventTask: Task<Void, Never>?
+
     // MARK: - 初始化
 
     private init() {
         setupStateMonitoring()
+        setupAuthEventSubscription()
         updateOnlineStatus()
+    }
+
+    deinit {
+        authEventTask?.cancel()
     }
 
     // MARK: - 状态监控设置
 
-    /// 设置状态监控，监听所有影响在线状态的因素
+    /// 设置网络状态监控
     private func setupStateMonitoring() {
-        // 监听网络连接状态变化
         networkMonitor.$isConnected
             .sink { [weak self] _ in
                 Task { @MainActor in
@@ -47,26 +55,26 @@ public final class OnlineStateManager: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+    }
 
-        // 监听 Cookie 刷新成功通知
-        NotificationCenter.default.publisher(for: NSNotification.Name("CookieRefreshedSuccessfully"))
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.isCookieValid = true
-                    self?.updateOnlineStatus()
+    /// 设置 AuthEvent 订阅，监听 Cookie 状态变化
+    private func setupAuthEventSubscription() {
+        authEventTask = Task { [weak self] in
+            let stream = await EventBus.shared.subscribe(to: AuthEvent.self)
+            for await event in stream {
+                guard let self else { break }
+                switch event {
+                case .cookieRefreshed:
+                    isCookieValid = true
+                    updateOnlineStatus()
+                case .cookieExpired:
+                    isCookieValid = false
+                    updateOnlineStatus()
+                default:
+                    break
                 }
             }
-            .store(in: &cancellables)
-
-        // 监听 Cookie 失效通知
-        NotificationCenter.default.publisher(for: NSNotification.Name("CookieExpired"))
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.isCookieValid = false
-                    self?.updateOnlineStatus()
-                }
-            }
-            .store(in: &cancellables)
+        }
     }
 
     // MARK: - 状态更新
@@ -85,11 +93,9 @@ public final class OnlineStateManager: ObservableObject {
         if wasOnline != isOnline {
             LogService.shared.info(.sync, "在线状态变化: \(isOnline ? "在线" : "离线"), 网络: \(isConnected), 认证: \(isAuthenticated), Cookie: \(cookieValid)")
 
-            NotificationCenter.default.post(
-                name: .onlineStatusDidChange,
-                object: nil,
-                userInfo: ["isOnline": isOnline]
-            )
+            Task {
+                await EventBus.shared.publish(OnlineEvent.onlineStatusChanged(isOnline: isOnline))
+            }
         }
     }
 
@@ -97,11 +103,4 @@ public final class OnlineStateManager: ObservableObject {
     public func refreshStatus() {
         updateOnlineStatus()
     }
-}
-
-// MARK: - 通知扩展
-
-extension Notification.Name {
-    /// 在线状态变化通知
-    static let onlineStatusDidChange = Notification.Name("onlineStatusDidChange")
 }

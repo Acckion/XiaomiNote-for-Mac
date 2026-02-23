@@ -38,6 +38,9 @@
         /// Combine订阅集合
         var cancellables = Set<AnyCancellable>()
 
+        /// 设置事件订阅 Task
+        nonisolated(unsafe) var settingsEventTask: Task<Void, Never>?
+
         /// 格式菜单popover
         var formatMenuPopover: NSPopover?
 
@@ -353,6 +356,7 @@
 
         deinit {
             NotificationCenter.default.removeObserver(self)
+            settingsEventTask?.cancel()
             // 由于 deinit 是 nonisolated 的，不能访问 @MainActor 隔离的属性
             // 这些属性会在对象释放时自动清理
             LogService.shared.debug(.window, "主窗口控制器已释放")

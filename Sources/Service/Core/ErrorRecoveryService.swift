@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 
 /// 错误恢复服务
@@ -44,32 +43,9 @@ public final class ErrorRecoveryService: ObservableObject {
     /// 最后一次错误消息
     @Published public var lastErrorMessage: String?
 
-    // MARK: - Combine
-
-    private var cancellables = Set<AnyCancellable>()
-
     // MARK: - 初始化
 
-    private init() {
-        setupNotificationObservers()
-    }
-
-    // MARK: - 通知监听
-
-    /// 设置通知监听
-    private func setupNotificationObservers() {
-        // 监听离线操作失败通知
-        NotificationCenter.default.publisher(for: NSNotification.Name("OfflineOperationsFailed"))
-            .sink { [weak self] notification in
-                Task { @MainActor in
-                    if let count = notification.userInfo?["count"] as? Int, count > 0 {
-                        self?.hasFailedOperations = true
-                        self?.lastErrorMessage = "有 \(count) 个操作失败，请检查网络连接后重试"
-                    }
-                }
-            }
-            .store(in: &cancellables)
-    }
+    private init() {}
 
     // MARK: - 公共方法
 
