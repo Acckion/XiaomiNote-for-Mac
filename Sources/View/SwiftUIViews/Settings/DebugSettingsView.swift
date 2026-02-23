@@ -413,7 +413,7 @@ public struct DebugSettingsView: View {
             HStack {
                 Text("应用程序版本")
                 Spacer()
-                Text("1.0.0")
+                Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "未知")
                     .foregroundColor(.secondary)
             }
 
@@ -751,7 +751,7 @@ public struct DebugSettingsView: View {
         认证状态：\(APIClient.shared.hasValidCookie() ? "已认证" : "未认证")
 
         === 系统信息 ===
-        应用程序版本：1.0.0
+        应用程序版本：\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "未知")
         macOS版本：\(ProcessInfo.processInfo.operatingSystemVersionString)
         设备型号：\(getDeviceModel())
         内存使用：\(getMemoryUsage())

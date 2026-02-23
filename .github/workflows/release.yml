@@ -44,7 +44,7 @@ jobs:
             -project MiNoteMac.xcodeproj \
             -scheme MiNoteMac \
             -configuration Release \
-            -destination 'platform=macOS' \
+            -destination 'platform=macOS,arch=arm64' \
             -archivePath build/MiNoteMac.xcarchive \
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
@@ -52,10 +52,14 @@ jobs:
       - name: Export App
         run: |
           set -e
-          xcodebuild -exportArchive \
-            -archivePath build/MiNoteMac.xcarchive \
-            -exportPath build/export \
-            -exportOptionsPlist ExportOptions.plist
+          APP_SRC="build/MiNoteMac.xcarchive/Products/Applications/MiNoteMac.app"
+          if [ ! -d "$APP_SRC" ]; then
+            echo "Error: App not found in archive"
+            find build/MiNoteMac.xcarchive -name "*.app" 2>/dev/null || echo "No .app found"
+            exit 1
+          fi
+          mkdir -p build/export
+          cp -R "$APP_SRC" build/export/
 
       - name: Create DMG
         run: |
@@ -70,10 +74,17 @@ jobs:
             exit 1
           fi
 
+          DMG_STAGING="build/dmg-staging"
+          mkdir -p "$DMG_STAGING"
+          cp -R "$APP_PATH" "$DMG_STAGING/"
+          ln -s /Applications "$DMG_STAGING/Applications"
+
           hdiutil create -volname "MiNoteMac" \
-            -srcfolder "$APP_PATH" \
+            -srcfolder "$DMG_STAGING" \
             -ov -format UDZO \
             "$DMG_PATH"
+
+          rm -rf "$DMG_STAGING"
 
           if [ ! -f "$DMG_PATH" ]; then
             echo "Error: DMG creation failed, file not found at $DMG_PATH"
