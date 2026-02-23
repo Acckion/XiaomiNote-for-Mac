@@ -10,7 +10,7 @@ import Foundation
 /// - RC4 变体（带 1024 轮预热）- 小米云服务常用
 /// - 标准 RC4
 /// - 简单 XOR
-final class AudioDecryptService: @unchecked Sendable {
+struct AudioDecryptService: Sendable {
 
     // MARK: - 单例
 

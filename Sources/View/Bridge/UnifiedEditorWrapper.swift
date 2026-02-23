@@ -37,12 +37,9 @@ struct UnifiedEditorWrapper: View {
     let folderId: String?
 
     /// 内容变化回调
-    let onContentChange: (String, String?) -> Void
+    let onContentChange: (String) -> Void
 
     // MARK: - State
-
-    /// 编辑器偏好设置服务
-    @ObservedObject private var preferencesService = EditorPreferencesService.shared
 
     /// 上次加载的内容（用于防止重复加载）
     @State private var lastLoadedContent = ""
@@ -145,31 +142,27 @@ struct UnifiedEditorWrapper: View {
             return
         }
 
-        // ✅ 关键修复：增强内容比较逻辑，避免保存后不必要的重新加载
-        // 检查是否是保存后的内容更新（而不是笔记切换）
+        // 增强内容比较逻辑，避免保存后不必要的重新加载
         // 如果新内容与当前编辑器中的内容相同（或非常接近），说明这是保存后的更新
         // 不需要重新加载，避免触发 hasUnsavedChanges = true 和打断输入法
-        if preferencesService.isNativeEditorAvailable {
-            let currentEditorXML = nativeEditorContext.exportToXML()
+        let currentEditorXML = nativeEditorContext.exportToXML()
 
-            // ✅ 规范化内容比较：去除空白字符后比较
-            let normalizedCurrent = currentEditorXML.trimmingCharacters(in: .whitespacesAndNewlines)
-            let normalizedNew = newContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedCurrent = currentEditorXML.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedNew = newContent.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            if !normalizedCurrent.isEmpty, normalizedCurrent == normalizedNew {
-                lastLoadedContent = newContent
-                return
-            }
-
-            // 长度差异检查：如果内容长度差异很小（< 10 个字符），也认为是保存后的更新
-            let lengthDiff = abs(currentEditorXML.count - newContent.count)
-            if lengthDiff < 10, !currentEditorXML.isEmpty {
-                lastLoadedContent = newContent
-                return
-            }
+        if !normalizedCurrent.isEmpty, normalizedCurrent == normalizedNew {
+            lastLoadedContent = newContent
+            return
         }
 
-        // ✅ 真正的内容变化（笔记切换），执行重新加载
+        // 长度差异检查：如果内容长度差异很小（< 10 个字符），也认为是保存后的更新
+        let lengthDiff = abs(currentEditorXML.count - newContent.count)
+        if lengthDiff < 10, !currentEditorXML.isEmpty {
+            lastLoadedContent = newContent
+            return
+        }
+
+        // 真正的内容变化（笔记切换），执行重新加载
 
         // 记录内容重新加载（性能监控）
         PerformanceMonitor.shared.recordContentReload()
@@ -180,14 +173,12 @@ struct UnifiedEditorWrapper: View {
             isUpdatingFromExternal = true
             lastLoadedContent = newContent
 
-            if preferencesService.isNativeEditorAvailable {
-                nativeEditorContext.currentFolderId = folderId
+            nativeEditorContext.currentFolderId = folderId
 
-                if newContent.isEmpty {
-                    nativeEditorContext.nsAttributedText = NSAttributedString()
-                } else {
-                    nativeEditorContext.loadFromXML(newContent)
-                }
+            if newContent.isEmpty {
+                nativeEditorContext.nsAttributedText = NSAttributedString()
+            } else {
+                nativeEditorContext.loadFromXML(newContent)
             }
 
             isUpdatingFromExternal = false
@@ -196,31 +187,28 @@ struct UnifiedEditorWrapper: View {
 
     /// 处理内容变化
     ///
-    /// 关键修复：增强内容比较逻辑，避免保存后不必要的重新加载
+    /// 增强内容比较逻辑，避免保存后不必要的重新加载
     private func handleContentChange(oldValue: String, newValue: String) {
         guard oldValue != newValue else { return }
         guard !isUpdatingFromExternal else { return }
 
         if newValue != lastLoadedContent {
-            if preferencesService.isNativeEditorAvailable {
-                let currentEditorXML = nativeEditorContext.exportToXML()
+            let currentEditorXML = nativeEditorContext.exportToXML()
 
-                // 使用规范化比较：去除空白字符后比较
-                let normalizedCurrent = currentEditorXML.trimmingCharacters(in: .whitespacesAndNewlines)
-                let normalizedNew = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            // 规范化比较：去除空白字符后比较
+            let normalizedCurrent = currentEditorXML.trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalizedNew = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
 
-                if !normalizedCurrent.isEmpty, normalizedCurrent == normalizedNew {
-                    lastLoadedContent = newValue
-                    return
-                }
+            if !normalizedCurrent.isEmpty, normalizedCurrent == normalizedNew {
+                lastLoadedContent = newValue
+                return
+            }
 
-                // 额外检查：如果内容长度差异很小（< 10 个字符），也认为是保存后的更新
-                // 这可以处理格式化差异（如空格、换行符的微小变化）
-                let lengthDiff = abs(currentEditorXML.count - newValue.count)
-                if lengthDiff < 10, !currentEditorXML.isEmpty {
-                    lastLoadedContent = newValue
-                    return
-                }
+            // 如果内容长度差异很小（< 10 个字符），也认为是保存后的更新
+            let lengthDiff = abs(currentEditorXML.count - newValue.count)
+            if lengthDiff < 10, !currentEditorXML.isEmpty {
+                lastLoadedContent = newValue
+                return
             }
 
             // 使用 DispatchQueue.main.async 确保在下一个 run loop 迭代中执行
@@ -228,14 +216,12 @@ struct UnifiedEditorWrapper: View {
                 isUpdatingFromExternal = true
                 lastLoadedContent = newValue
 
-                if preferencesService.isNativeEditorAvailable {
-                    nativeEditorContext.currentFolderId = folderId
+                nativeEditorContext.currentFolderId = folderId
 
-                    if newValue.isEmpty {
-                        nativeEditorContext.nsAttributedText = NSAttributedString()
-                    } else {
-                        nativeEditorContext.loadFromXML(newValue)
-                    }
+                if newValue.isEmpty {
+                    nativeEditorContext.nsAttributedText = NSAttributedString()
+                } else {
+                    nativeEditorContext.loadFromXML(newValue)
                 }
 
                 isUpdatingFromExternal = false
@@ -312,8 +298,8 @@ struct UnifiedEditorWrapper: View {
                 isUpdatingFromExternal = false
             }
 
-            // 调用内容变化回调（原生编辑器不提供 HTML 缓存）
-            onContentChange(xmlContent, nil)
+            // 调用内容变化回调
+            onContentChange(xmlContent)
 
         } else {}
     }
@@ -329,14 +315,12 @@ struct UnifiedEditorWrapper: View {
             isUpdatingFromExternal = true
             lastLoadedContent = contentToLoad
 
-            if preferencesService.isNativeEditorAvailable {
-                nativeEditorContext.currentFolderId = newValue
+            nativeEditorContext.currentFolderId = newValue
 
-                if contentToLoad.isEmpty {
-                    nativeEditorContext.nsAttributedText = NSAttributedString()
-                } else {
-                    nativeEditorContext.loadFromXML(contentToLoad)
-                }
+            if contentToLoad.isEmpty {
+                nativeEditorContext.nsAttributedText = NSAttributedString()
+            } else {
+                nativeEditorContext.loadFromXML(contentToLoad)
             }
 
             isUpdatingFromExternal = false
@@ -354,7 +338,7 @@ struct UnifiedEditorWrapper: View {
         nativeEditorContext: NativeEditorContext(),
         xmlContent: nil,
         folderId: nil,
-        onContentChange: { _, _ in }
+        onContentChange: { _ in }
     )
     .frame(width: 600, height: 400)
 }

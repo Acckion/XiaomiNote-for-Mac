@@ -5,23 +5,23 @@ import Foundation
 ///
 /// 注意：这是重构过渡期的实现，暂时不完全可用
 /// 需要等待 NetworkClient 完整实现后才能正常工作
-final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchecked Sendable {
+actor DefaultAuthenticationService: AuthenticationServiceProtocol {
     // MARK: - Properties
 
     private let networkClient: NetworkClient
-    private let userStateSubject = CurrentValueSubject<UserProfile?, Never>(nil)
-    private let isAuthenticatedSubject = CurrentValueSubject<Bool, Never>(false)
+    private nonisolated(unsafe) let userStateSubject = CurrentValueSubject<UserProfile?, Never>(nil)
+    private nonisolated(unsafe) let isAuthenticatedSubject = CurrentValueSubject<Bool, Never>(false)
     private var currentAuthUser: AuthUser?
     private var currentCookie: String?
 
-    /// 与旧架构 MiNoteService 共享的 UserDefaults 键名
+    /// Cookie 存储的 UserDefaults 键名
     private static let cookieKey = "minote_cookie"
 
-    var currentUser: AnyPublisher<UserProfile?, Never> {
+    nonisolated var currentUser: AnyPublisher<UserProfile?, Never> {
         userStateSubject.eraseToAnyPublisher()
     }
 
-    var isAuthenticated: AnyPublisher<Bool, Never> {
+    nonisolated var isAuthenticated: AnyPublisher<Bool, Never> {
         isAuthenticatedSubject.eraseToAnyPublisher()
     }
 
@@ -114,7 +114,7 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
         isAuthenticatedSubject.send(false)
     }
 
-    func getAccessToken() -> String? {
+    func getAccessToken() async -> String? {
         currentAuthUser?.token
     }
 
@@ -204,15 +204,15 @@ final class DefaultAuthenticationService: AuthenticationServiceProtocol, @unchec
         userStateSubject.send(profile)
     }
 
-    func getCurrentCookie() -> String? {
+    func getCurrentCookie() async -> String? {
         currentCookie
     }
 
-    func saveCookie(_ cookie: String) throws {
+    func saveCookie(_ cookie: String) async throws {
         currentCookie = cookie
     }
 
-    func clearCookie() throws {
+    func clearCookie() async throws {
         currentCookie = nil
     }
 

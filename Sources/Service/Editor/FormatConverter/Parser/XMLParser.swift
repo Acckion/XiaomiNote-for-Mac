@@ -12,38 +12,50 @@ import Foundation
 
 /// 小米笔记 XML 解析器
 /// 将小米笔记 XML 字符串解析为 AST
-public final class MiNoteXMLParser: @unchecked Sendable {
+public struct MiNoteXMLParser: Sendable {
+
+    // MARK: - 解析上下文
+
+    /// 封装解析过程中的可变状态
+    private struct ParsingContext {
+        /// Token 数组
+        var tokens: [XMLToken] = []
+
+        /// 当前位置
+        var currentIndex = 0
+
+        /// 解析警告
+        var warnings: [ParseWarning] = []
+
+        /// 是否启用错误恢复
+        var enableErrorRecovery = true
+
+        /// 是否已到达末尾
+        var isAtEnd: Bool {
+            currentIndex >= tokens.count
+        }
+
+        /// 当前 Token
+        var currentToken: XMLToken? {
+            guard !isAtEnd else { return nil }
+            return tokens[currentIndex]
+        }
+
+        /// 前进一个 Token
+        mutating func advance() {
+            if currentIndex < tokens.count {
+                currentIndex += 1
+            }
+        }
+    }
 
     // MARK: - 属性
-
-    /// Token 数组
-    private var tokens: [XMLToken] = []
-
-    /// 当前位置
-    private var currentIndex = 0
-
-    /// 是否已到达末尾
-    private var isAtEnd: Bool {
-        currentIndex >= tokens.count
-    }
-
-    /// 当前 Token
-    private var currentToken: XMLToken? {
-        guard !isAtEnd else { return nil }
-        return tokens[currentIndex]
-    }
-
-    /// 解析警告（用于记录跳过的不支持元素）
-    public private(set) var warnings: [ParseWarning] = []
 
     /// 错误日志记录器
     private let errorLogger: ErrorLogger
 
     /// 错误恢复处理器
     private let errorRecoveryHandler: ErrorRecoveryHandler
-
-    /// 是否启用错误恢复（默认启用）
-    public var enableErrorRecovery = true
 
     // MARK: - 初始化
 
@@ -63,16 +75,15 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     /// - Throws: ParseError（仅在无法恢复时抛出）
     ///
     public func parse(_ xml: String) throws -> ParseResult<DocumentNode> {
-        warnings = []
-        currentIndex = 0
+        var ctx = ParsingContext()
 
         LogService.shared.debug(.editor, "开始解析 XML，长度: \(xml.count)")
 
         do {
-            let tokenizer = XMLTokenizer(input: xml)
-            tokens = try tokenizer.tokenize()
+            let tokenizer = XMLTokenizer()
+            ctx.tokens = try tokenizer.tokenize(xml)
         } catch {
-            if enableErrorRecovery {
+            if ctx.enableErrorRecovery {
                 errorLogger.logError(error, context: ["phase": "tokenization"])
                 let fallbackNode = createFallbackDocument(xml)
                 let warning = ParseWarning(
@@ -88,23 +99,23 @@ public final class MiNoteXMLParser: @unchecked Sendable {
         var title: String?
         var blocks: [any BlockNode] = []
 
-        while !isAtEnd {
-            if case .newline = currentToken {
-                advance()
+        while !ctx.isAtEnd {
+            if case .newline = ctx.currentToken {
+                ctx.advance()
                 continue
             }
 
-            if case let .startTag(name, _, selfClosing) = currentToken, name == "title" {
-                advance()
+            if case let .startTag(name, _, selfClosing) = ctx.currentToken, name == "title" {
+                ctx.advance()
 
                 if !selfClosing {
-                    if case let .text(titleText) = currentToken {
+                    if case let .text(titleText) = ctx.currentToken {
                         title = titleText
-                        advance()
+                        ctx.advance()
                     }
 
-                    if case let .endTag(endName) = currentToken, endName == "title" {
-                        advance()
+                    if case let .endTag(endName) = ctx.currentToken, endName == "title" {
+                        ctx.advance()
                     }
                 }
 
@@ -112,15 +123,15 @@ public final class MiNoteXMLParser: @unchecked Sendable {
             }
 
             do {
-                if let block = try parseBlock() {
+                if let block = try parseBlock(ctx: &ctx) {
                     blocks.append(block)
                 }
             } catch let error as ParseError {
-                if enableErrorRecovery {
+                if ctx.enableErrorRecovery {
                     let context = ErrorContext(
-                        elementName: extractElementName(from: currentToken),
-                        content: extractContent(from: currentToken),
-                        position: currentIndex
+                        elementName: extractElementName(from: ctx.currentToken),
+                        content: extractContent(from: ctx.currentToken),
+                        position: ctx.currentIndex
                     )
 
                     let strategy = errorRecoveryHandler.handleError(error, context: context)
@@ -129,22 +140,22 @@ public final class MiNoteXMLParser: @unchecked Sendable {
                     case .skipElement:
                         let warning = ParseWarning(
                             message: "跳过错误元素: \(error.localizedDescription)",
-                            location: "位置 \(currentIndex)",
+                            location: "位置 \(ctx.currentIndex)",
                             type: .unsupportedElement
                         )
-                        warnings.append(warning)
+                        ctx.warnings.append(warning)
                         errorLogger.logWarning(warning)
-                        skipToNextBlock()
+                        skipToNextBlock(ctx: &ctx)
 
                     case .fallbackToPlainText:
                         if let content = context.content {
                             let textBlock = TextBlockNode(indent: 1, content: [TextNode(text: content)])
                             blocks.append(textBlock)
                         }
-                        advance()
+                        ctx.advance()
 
                     case .useDefaultValue:
-                        advance()
+                        ctx.advance()
 
                     case .abort:
                         throw error
@@ -155,7 +166,7 @@ public final class MiNoteXMLParser: @unchecked Sendable {
             }
         }
 
-        return ParseResult(value: DocumentNode(title: title, blocks: blocks), warnings: warnings)
+        return ParseResult(value: DocumentNode(title: title, blocks: blocks), warnings: ctx.warnings)
     }
 
     /// 创建纯文本回退文档
@@ -192,23 +203,23 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     }
 
     /// 跳到下一个块级元素
-    private func skipToNextBlock() {
-        while !isAtEnd {
-            guard let token = currentToken else { break }
+    private func skipToNextBlock(ctx: inout ParsingContext) {
+        while !ctx.isAtEnd {
+            guard let token = ctx.currentToken else { break }
 
             switch token {
             case .newline:
-                advance()
+                ctx.advance()
                 return
 
             case let .startTag(name, _, _):
                 if isBlockLevelTag(name) {
                     return
                 }
-                advance()
+                ctx.advance()
 
             default:
-                advance()
+                ctx.advance()
             }
         }
     }
@@ -216,81 +227,81 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     // MARK: - 块级元素解析
 
     /// 解析块级元素
-    private func parseBlock() throws -> (any BlockNode)? {
-        guard let token = currentToken else { return nil }
+    private func parseBlock(ctx: inout ParsingContext) throws -> (any BlockNode)? {
+        guard let token = ctx.currentToken else { return nil }
 
         switch token {
         case let .startTag(name, attributes, selfClosing):
-            return try parseBlockElement(name: name, attributes: attributes, selfClosing: selfClosing)
+            return try parseBlockElement(name: name, attributes: attributes, selfClosing: selfClosing, ctx: &ctx)
 
         case let .text(text):
-            // 独立的文本（可能是 bullet/order/checkbox 后的内容）
-            // 这种情况不应该在这里出现，因为我们在解析特殊块级元素时会处理
-            advance()
+            ctx.advance()
             if !text.trimmingCharacters(in: .whitespaces).isEmpty {
                 return TextBlockNode(indent: 1, content: [TextNode(text: text)])
             }
             return nil
 
         case .endTag:
-            // 结束标签不应该在块级解析中出现
-            advance()
+            ctx.advance()
             return nil
 
         case .newline:
-            advance()
+            ctx.advance()
             return nil
         }
     }
 
     /// 解析块级元素
-    private func parseBlockElement(name: String, attributes: [String: String], selfClosing: Bool) throws -> (any BlockNode)? {
-        // 特殊处理：<new-format/> 标签
-        // 这是一个元数据标记，不影响文本渲染，直接跳过
+    private func parseBlockElement(
+        name: String,
+        attributes: [String: String],
+        selfClosing: Bool,
+        ctx: inout ParsingContext
+    ) throws -> (any BlockNode)? {
+        // <new-format/> 是元数据标记，不影响文本渲染
         if name == "new-format" {
-            advance()
+            ctx.advance()
             return nil
         }
 
         switch name {
         case "text":
-            return try parseTextBlock(attributes: attributes, selfClosing: selfClosing)
+            return try parseTextBlock(attributes: attributes, selfClosing: selfClosing, ctx: &ctx)
 
         case "bullet":
-            return try parseBulletList(attributes: attributes, selfClosing: selfClosing)
+            return try parseBulletList(attributes: attributes, selfClosing: selfClosing, ctx: &ctx)
 
         case "order":
-            return try parseOrderedList(attributes: attributes, selfClosing: selfClosing)
+            return try parseOrderedList(attributes: attributes, selfClosing: selfClosing, ctx: &ctx)
 
         case "input":
-            return try parseCheckbox(attributes: attributes, selfClosing: selfClosing)
+            return try parseCheckbox(attributes: attributes, selfClosing: selfClosing, ctx: &ctx)
 
         case "hr":
-            advance()
+            ctx.advance()
             return HorizontalRuleNode()
 
         case "img":
-            return try parseImage(attributes: attributes)
+            return try parseImage(attributes: attributes, ctx: &ctx)
 
         case "sound":
-            return try parseAudio(attributes: attributes)
+            return try parseAudio(attributes: attributes, ctx: &ctx)
 
         case "quote":
-            return try parseQuote(selfClosing: selfClosing)
+            return try parseQuote(selfClosing: selfClosing, ctx: &ctx)
 
         default:
-            // 不支持的元素，记录警告并跳过
             let warning = ParseWarning(
                 message: "跳过不支持的元素: <\(name)>",
-                location: "位置 \(currentIndex)",
+                location: "位置 \(ctx.currentIndex)",
                 type: .unsupportedElement
             )
-            warnings.append(warning)
+            ctx.warnings.append(warning)
             errorLogger.logWarning(warning)
 
-            advance()
+            ctx.advance()
             if !selfClosing {
-                try skipUntilEndTag(name)
+                try skipUntilEndTag(name, ctx: &ctx)
             }
             return nil
         }
@@ -299,69 +310,57 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     // MARK: - 具体块级元素解析
 
     /// 解析文本块 `<text indent="N">内容</text>`
-    private func parseTextBlock(attributes: [String: String], selfClosing: Bool) throws -> TextBlockNode {
+    private func parseTextBlock(attributes: [String: String], selfClosing: Bool, ctx: inout ParsingContext) throws -> TextBlockNode {
         let indent = Int(attributes["indent"] ?? "1") ?? 1
 
-        // 跳过开始标签
-        advance()
+        ctx.advance()
 
         if selfClosing {
             return TextBlockNode(indent: indent, content: [])
         }
 
-        // 解析行内内容
-        let content = try parseInlineContent(until: "text")
+        let content = try parseInlineContent(until: "text", ctx: &ctx)
 
         return TextBlockNode(indent: indent, content: content)
     }
 
     /// 解析无序列表 `<bullet indent="N" />内容`
-    /// 注意：内容在标签外部
-    private func parseBulletList(attributes: [String: String], selfClosing: Bool) throws -> BulletListNode {
+    private func parseBulletList(attributes: [String: String], selfClosing: Bool, ctx: inout ParsingContext) throws -> BulletListNode {
         let indent = Int(attributes["indent"] ?? "1") ?? 1
 
-        // 跳过开始标签
-        advance()
+        ctx.advance()
 
-        // 如果不是自闭合标签，需要跳过结束标签
         if !selfClosing {
-            if case let .endTag(name) = currentToken, name == "bullet" {
-                advance()
+            if case let .endTag(name) = ctx.currentToken, name == "bullet" {
+                ctx.advance()
             }
         }
 
-        // 解析标签后的文本内容（直到换行符）
-        let content = try parseContentAfterTag()
+        let content = try parseContentAfterTag(ctx: &ctx)
 
         return BulletListNode(indent: indent, content: content)
     }
 
     /// 解析有序列表 `<order indent="N" inputNumber="M" />内容`
-    /// 注意：内容在标签外部
-    private func parseOrderedList(attributes: [String: String], selfClosing: Bool) throws -> OrderedListNode {
+    private func parseOrderedList(attributes: [String: String], selfClosing: Bool, ctx: inout ParsingContext) throws -> OrderedListNode {
         let indent = Int(attributes["indent"] ?? "1") ?? 1
         let inputNumber = Int(attributes["inputNumber"] ?? "0") ?? 0
 
-        // 跳过开始标签
-        advance()
+        ctx.advance()
 
-        // 如果不是自闭合标签，需要跳过结束标签
         if !selfClosing {
-            if case let .endTag(name) = currentToken, name == "order" {
-                advance()
+            if case let .endTag(name) = ctx.currentToken, name == "order" {
+                ctx.advance()
             }
         }
 
-        // 解析标签后的文本内容（直到换行符）
-        let content = try parseContentAfterTag()
+        let content = try parseContentAfterTag(ctx: &ctx)
 
         return OrderedListNode(indent: indent, inputNumber: inputNumber, content: content)
     }
 
     /// 解析复选框 `<input type="checkbox" indent="N" level="M" />内容`
-    /// 注意：内容在标签外部
-    private func parseCheckbox(attributes: [String: String], selfClosing: Bool) throws -> CheckboxNode {
-        // 验证是 checkbox 类型
+    private func parseCheckbox(attributes: [String: String], selfClosing: Bool, ctx: inout ParsingContext) throws -> CheckboxNode {
         guard attributes["type"] == "checkbox" else {
             throw ParseError.unsupportedElement("input type=\"\(attributes["type"] ?? "unknown")\"")
         }
@@ -370,24 +369,21 @@ public final class MiNoteXMLParser: @unchecked Sendable {
         let level = Int(attributes["level"] ?? "1") ?? 1
         let isChecked = attributes["checked"] == "true"
 
-        // 跳过开始标签
-        advance()
+        ctx.advance()
 
-        // 如果不是自闭合标签，需要跳过结束标签
         if !selfClosing {
-            if case let .endTag(name) = currentToken, name == "input" {
-                advance()
+            if case let .endTag(name) = ctx.currentToken, name == "input" {
+                ctx.advance()
             }
         }
 
-        // 解析标签后的文本内容（直到换行符）
-        let content = try parseContentAfterTag()
+        let content = try parseContentAfterTag(ctx: &ctx)
 
         return CheckboxNode(indent: indent, level: level, isChecked: isChecked, content: content)
     }
 
     /// 解析图片 `<img fileid="ID" />` 或 `<img src="URL" />`
-    private func parseImage(attributes: [String: String]) throws -> ImageNode {
+    private func parseImage(attributes: [String: String], ctx: inout ParsingContext) throws -> ImageNode {
         let fileId = attributes["fileid"]
         let src = attributes["src"]
         let width = attributes["width"].flatMap { Int($0) }
@@ -404,29 +400,27 @@ public final class MiNoteXMLParser: @unchecked Sendable {
 
         let imgshow = attributes["imgshow"]
 
-        advance()
+        ctx.advance()
 
         return ImageNode(fileId: fileId, src: src, width: width, height: height, description: description, imgshow: imgshow)
     }
 
     /// 解析音频 `<sound fileid="ID" />`
-    private func parseAudio(attributes: [String: String]) throws -> AudioNode {
+    private func parseAudio(attributes: [String: String], ctx: inout ParsingContext) throws -> AudioNode {
         guard let fileId = attributes["fileid"] else {
             throw ParseError.missingAttribute(tag: "sound", attribute: "fileid")
         }
 
         let isTemporary = attributes["temporary"] == "true"
 
-        // 跳过标签
-        advance()
+        ctx.advance()
 
         return AudioNode(fileId: fileId, isTemporary: isTemporary)
     }
 
     /// 解析引用块 `<quote>多行内容</quote>`
-    private func parseQuote(selfClosing: Bool) throws -> QuoteNode {
-        // 跳过开始标签
-        advance()
+    private func parseQuote(selfClosing: Bool, ctx: inout ParsingContext) throws -> QuoteNode {
+        ctx.advance()
 
         if selfClosing {
             return QuoteNode(textBlocks: [])
@@ -434,45 +428,39 @@ public final class MiNoteXMLParser: @unchecked Sendable {
 
         var textBlocks: [TextBlockNode] = []
 
-        // 解析引用块内的内容
-        while !isAtEnd {
-            // 跳过换行符
-            if case .newline = currentToken {
-                advance()
+        while !ctx.isAtEnd {
+            if case .newline = ctx.currentToken {
+                ctx.advance()
                 continue
             }
 
-            // 检查结束标签
-            if case let .endTag(name) = currentToken {
+            if case let .endTag(name) = ctx.currentToken {
                 if name == "quote" {
-                    advance()
+                    ctx.advance()
                     break
                 }
             }
 
-            // 解析内部的 text 元素
-            if case let .startTag(name, attributes, selfClosing) = currentToken {
+            if case let .startTag(name, attributes, selfClosing) = ctx.currentToken {
                 if name == "text" {
-                    let textBlock = try parseTextBlock(attributes: attributes, selfClosing: selfClosing)
+                    let textBlock = try parseTextBlock(attributes: attributes, selfClosing: selfClosing, ctx: &ctx)
                     textBlocks.append(textBlock)
                 } else {
-                    // 跳过其他元素
                     let warning = ParseWarning(
                         message: "引用块内跳过不支持的元素: <\(name)>",
-                        location: "位置 \(currentIndex)",
+                        location: "位置 \(ctx.currentIndex)",
                         type: .unsupportedElement
                     )
-                    warnings.append(warning)
+                    ctx.warnings.append(warning)
                     errorLogger.logWarning(warning)
 
-                    advance()
+                    ctx.advance()
                     if !selfClosing {
-                        try skipUntilEndTag(name)
+                        try skipUntilEndTag(name, ctx: &ctx)
                     }
                 }
             } else {
-                // 跳过其他 Token
-                advance()
+                ctx.advance()
             }
         }
 
@@ -482,35 +470,34 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     // MARK: - 行内内容解析
 
     /// 解析行内内容直到指定的结束标签
-    private func parseInlineContent(until endTagName: String) throws -> [any InlineNode] {
+    private func parseInlineContent(until endTagName: String, ctx: inout ParsingContext) throws -> [any InlineNode] {
         var nodes: [any InlineNode] = []
 
-        while !isAtEnd {
-            guard let token = currentToken else { break }
+        while !ctx.isAtEnd {
+            guard let token = ctx.currentToken else { break }
 
             switch token {
             case let .endTag(name):
                 if name == endTagName {
-                    advance()
+                    ctx.advance()
                     return nodes
                 } else {
                     throw ParseError.unmatchedTag(expected: endTagName, found: name)
                 }
 
             case let .text(text):
-                advance()
+                ctx.advance()
                 if !text.isEmpty {
                     nodes.append(TextNode(text: text))
                 }
 
             case let .startTag(name, attributes, selfClosing):
-                if let inlineNode = try parseInlineElement(name: name, attributes: attributes, selfClosing: selfClosing) {
+                if let inlineNode = try parseInlineElement(name: name, attributes: attributes, selfClosing: selfClosing, ctx: &ctx) {
                     nodes.append(inlineNode)
                 }
 
             case .newline:
-                // 行内内容中的换行符作为文本处理
-                advance()
+                ctx.advance()
                 nodes.append(TextNode(text: "\n"))
             }
         }
@@ -519,39 +506,33 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     }
 
     /// 解析标签后的内容（用于 bullet/order/checkbox）
-    /// 直到换行符或下一个块级标签
-    private func parseContentAfterTag() throws -> [any InlineNode] {
+    private func parseContentAfterTag(ctx: inout ParsingContext) throws -> [any InlineNode] {
         var nodes: [any InlineNode] = []
 
-        while !isAtEnd {
-            guard let token = currentToken else { break }
+        while !ctx.isAtEnd {
+            guard let token = ctx.currentToken else { break }
 
             switch token {
             case .newline:
-                // 遇到换行符，结束解析
-                advance()
+                ctx.advance()
                 return nodes
 
             case let .text(text):
-                advance()
+                ctx.advance()
                 if !text.isEmpty {
                     nodes.append(TextNode(text: text))
                 }
 
             case let .startTag(name, attributes, selfClosing):
-                // 检查是否为块级元素
                 if isBlockLevelTag(name) {
-                    // 遇到块级元素，结束解析（不消费这个 Token）
                     return nodes
                 }
 
-                // 解析行内元素
-                if let inlineNode = try parseInlineElement(name: name, attributes: attributes, selfClosing: selfClosing) {
+                if let inlineNode = try parseInlineElement(name: name, attributes: attributes, selfClosing: selfClosing, ctx: &ctx) {
                     nodes.append(inlineNode)
                 }
 
             case .endTag:
-                // 结束标签不应该在这里出现
                 return nodes
             }
         }
@@ -560,78 +541,70 @@ public final class MiNoteXMLParser: @unchecked Sendable {
     }
 
     /// 解析行内元素
-    private func parseInlineElement(name: String, attributes: [String: String], selfClosing: Bool) throws -> (any InlineNode)? {
-        // 特殊处理：<new-format/> 标签
-        // 这是一个元数据标记，不影响文本渲染，直接跳过
+    private func parseInlineElement(
+        name: String,
+        attributes: [String: String],
+        selfClosing: Bool,
+        ctx: inout ParsingContext
+    ) throws -> (any InlineNode)? {
+        // <new-format/> 是元数据标记，不影响文本渲染
         if name == "new-format" {
-            advance()
+            ctx.advance()
             return nil
         }
 
-        // 获取对应的节点类型
         guard let nodeType = inlineTagToNodeType(name) else {
-            // 不支持的行内元素，记录警告并跳过
             let warning = ParseWarning(
                 message: "跳过不支持的行内元素: <\(name)>",
-                location: "位置 \(currentIndex)",
+                location: "位置 \(ctx.currentIndex)",
                 type: .unsupportedElement
             )
-            warnings.append(warning)
+            ctx.warnings.append(warning)
             errorLogger.logWarning(warning)
 
-            advance()
+            ctx.advance()
             if !selfClosing {
-                try skipUntilEndTag(name)
+                try skipUntilEndTag(name, ctx: &ctx)
             }
             return nil
         }
 
-        // 跳过开始标签
-        advance()
+        ctx.advance()
 
         if selfClosing {
             return FormattedNode(type: nodeType, content: [], color: attributes["color"])
         }
 
-        // 递归解析内容
-        let content = try parseInlineContent(until: name)
+        let content = try parseInlineContent(until: name, ctx: &ctx)
 
-        // 创建格式化节点
         let color = (nodeType == .highlight) ? attributes["color"] : nil
         return FormattedNode(type: nodeType, content: content, color: color)
     }
 
     // MARK: - 辅助方法
 
-    /// 前进一个 Token
-    private func advance() {
-        if currentIndex < tokens.count {
-            currentIndex += 1
-        }
-    }
-
     /// 跳过直到指定的结束标签
-    private func skipUntilEndTag(_ tagName: String) throws {
+    private func skipUntilEndTag(_ tagName: String, ctx: inout ParsingContext) throws {
         var depth = 1
 
-        while !isAtEnd, depth > 0 {
-            guard let token = currentToken else { break }
+        while !ctx.isAtEnd, depth > 0 {
+            guard let token = ctx.currentToken else { break }
 
             switch token {
             case let .startTag(name, _, selfClosing):
                 if name == tagName, !selfClosing {
                     depth += 1
                 }
-                advance()
+                ctx.advance()
 
             case let .endTag(name):
                 if name == tagName {
                     depth -= 1
                 }
-                advance()
+                ctx.advance()
 
             default:
-                advance()
+                ctx.advance()
             }
         }
     }
@@ -670,9 +643,6 @@ public final class MiNoteXMLParser: @unchecked Sendable {
         case "right":
             .rightAlign
         case "new-format":
-            // <new-format/> 标签是一个标记标签，表示使用新版格式
-            // 它不影响文本渲染，只是一个元数据标记
-            // 返回 nil 表示跳过这个标签，但不记录警告
             nil
         default:
             nil

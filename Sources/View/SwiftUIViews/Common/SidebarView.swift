@@ -330,18 +330,11 @@ public struct SidebarView: View {
                                 .font(.system(size: 16))
                                 .frame(width: 24)
 
-                            AutoFocusTextField(
-                                text: $newFolderName,
-                                placeholder: "输入文件夹名称",
-                                onCommit: {
-                                    // 直接调用 createNewFolder 方法
+                            TextField("输入文件夹名称", text: $newFolderName)
+                                .textFieldStyle(.plain)
+                                .onSubmit {
                                     createNewFolder()
                                 }
-                            )
-                            .onSubmit {
-                                // 直接调用 createNewFolder 方法
-                                createNewFolder()
-                            }
                         }
                         .tag(Folder(id: "new", name: "新建文件夹", count: 0, isSystem: false, isPinned: false))
                     }

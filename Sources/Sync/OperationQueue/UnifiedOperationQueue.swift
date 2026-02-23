@@ -15,13 +15,23 @@ import Foundation
 ///
 /// **线程安全设计**：
 /// 使用 NSLock 而非 Actor 的原因：
-/// 1. 同步访问需求：getPendingOperations() 等方法需要同步返回结果，
+/// 1. 同步访问需求：getPendingOperations()、hasPendingUpload() 等方法需要同步返回结果，
 ///    如果使用 Actor 则所有调用都需要 await，会传染到整个调用链
 /// 2. 性能考虑：NSLock 的开销远小于 Actor 的上下文切换
 /// 3. 操作粒度：每个操作都是短暂的内存读写，不涉及 I/O，
 ///    NSLock 的持有时间极短，不会造成阻塞
 /// 4. 与 OperationProcessor（Actor）的交互：OperationProcessor 是 Actor，
 ///    如果 UnifiedOperationQueue 也是 Actor，两者交互时可能产生死锁风险
+///    （spec 104 已验证双 Actor 方案存在死锁问题）
+///
+/// **锁保护的可变状态**：
+/// - `operationsById`: 操作缓存（按 ID 索引）
+/// - `operationsByNoteId`: 操作缓存（按笔记 ID 索引）
+///
+/// **死锁风险及规避措施**：
+/// OperationProcessor（Actor）会调用本类的同步方法（如 markProcessing、markCompleted），
+/// 本类内部不会反向 await OperationProcessor 的方法，从而避免循环等待。
+/// 规避原则：锁内只做内存读写和数据库操作，不调用任何 Actor 方法。
 ///
 public final class UnifiedOperationQueue: @unchecked Sendable {
 
@@ -43,9 +53,11 @@ public final class UnifiedOperationQueue: @unchecked Sendable {
     // MARK: - 内存缓存
 
     /// 操作缓存（按 ID 索引）
+    /// 受 lock 保护
     private var operationsById: [String: NoteOperation] = [:]
 
     /// 操作缓存（按笔记 ID 索引）
+    /// 受 lock 保护
     private var operationsByNoteId: [String: [NoteOperation]] = [:]
 
     // MARK: - 初始化

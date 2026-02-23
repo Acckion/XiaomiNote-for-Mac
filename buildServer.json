@@ -1,0 +1,19 @@
+{
+	"name": "xcode build server",
+	"version": "1.3.0",
+	"bspVersion": "2.2.0",
+	"languages": [
+		"c",
+		"cpp",
+		"objective-c",
+		"objective-cpp",
+		"swift"
+	],
+	"argv": [
+		"/opt/homebrew/bin/xcode-build-server"
+	],
+	"workspace": "/Users/acckion/Desktop/SwiftUI-MiNote-for-Mac/MiNoteMac.xcodeproj/project.xcworkspace",
+	"build_root": "/Users/acckion/Library/Developer/Xcode/DerivedData/MiNoteMac-cmqkotvnxxllvohlgjtbfvqugpkt",
+	"scheme": "MiNoteMac",
+	"kind": "xcode"
+}

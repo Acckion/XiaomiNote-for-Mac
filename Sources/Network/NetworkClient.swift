@@ -3,16 +3,15 @@
 //  MiNoteMac
 //
 //  Created on 2026-01-22.
-//  网络客户端 - 包装现有 MiNoteService 的网络功能
+//  网络客户端 - 符合 NetworkClientProtocol 的实现
 //
 
 import Foundation
 
 /// 网络客户端实现
 ///
-/// 这是一个适配器，将现有的 MiNoteService 包装成符合 NetworkClientProtocol 的实现
-/// 在重构过渡期使用，最终应该实现独立的网络层
-final class NetworkClient: NetworkClientProtocol, @unchecked Sendable {
+/// 符合 NetworkClientProtocol 的网络客户端实现
+struct NetworkClient: NetworkClientProtocol, Sendable {
 
     // MARK: - Properties
 

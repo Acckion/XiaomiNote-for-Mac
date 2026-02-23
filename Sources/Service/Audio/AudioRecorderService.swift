@@ -12,7 +12,8 @@ import Foundation
 /// - 音量级别监控
 /// - 最大时长限制
 ///
-final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendable {
+@MainActor
+final class AudioRecorderService: NSObject, ObservableObject {
 
     // MARK: - 单例
 
@@ -109,9 +110,6 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     /// 临时录音文件目录
     private let tempDirectory: URL
 
-    /// 状态访问锁
-    private let stateLock = NSLock()
-
     /// 录制开始时间
     private var recordingStartTime: Date?
 
@@ -192,19 +190,19 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     // MARK: - 通知名称
 
     /// 录制状态变化通知
-    static let recordingStateDidChangeNotification = Notification.Name("AudioRecorderService.recordingStateDidChange")
+    nonisolated(unsafe) static let recordingStateDidChangeNotification = Notification.Name("AudioRecorderService.recordingStateDidChange")
 
     /// 录制时长变化通知
-    static let recordingDurationDidChangeNotification = Notification.Name("AudioRecorderService.recordingDurationDidChange")
+    nonisolated(unsafe) static let recordingDurationDidChangeNotification = Notification.Name("AudioRecorderService.recordingDurationDidChange")
 
     /// 录制完成通知
-    static let recordingDidFinishNotification = Notification.Name("AudioRecorderService.recordingDidFinish")
+    nonisolated(unsafe) static let recordingDidFinishNotification = Notification.Name("AudioRecorderService.recordingDidFinish")
 
     /// 录制错误通知
-    static let recordingErrorNotification = Notification.Name("AudioRecorderService.recordingError")
+    nonisolated(unsafe) static let recordingErrorNotification = Notification.Name("AudioRecorderService.recordingError")
 
     /// 权限状态变化通知
-    static let permissionStatusDidChangeNotification = Notification.Name("AudioRecorderService.permissionStatusDidChange")
+    nonisolated(unsafe) static let permissionStatusDidChangeNotification = Notification.Name("AudioRecorderService.permissionStatusDidChange")
 
     // MARK: - 初始化
 
@@ -223,10 +221,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         LogService.shared.debug(.audio, "录制器初始化完成，临时目录: \(tempDirectory.path)")
     }
 
-    deinit {
-        stopAllTimers()
-        audioRecorder?.stop()
-    }
+    // 单例不会被释放，无需 deinit
 
     /// 创建临时目录（如果不存在）
     private func createTempDirectoryIfNeeded() {
@@ -339,8 +334,6 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     ///
     /// - Throws: 录制失败时抛出错误
     func startRecording() throws {
-        stateLock.lock()
-        defer { stateLock.unlock() }
 
         guard permissionStatus == .granted else {
             let errorMsg = "麦克风权限未授权"
@@ -397,8 +390,6 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     /// 暂停录制
     ///
     func pauseRecording() {
-        stateLock.lock()
-        defer { stateLock.unlock() }
 
         guard state == .recording, let recorder = audioRecorder else {
             return
@@ -418,8 +409,6 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     /// 继续录制
     ///
     func resumeRecording() {
-        stateLock.lock()
-        defer { stateLock.unlock() }
 
         guard state == .paused, let recorder = audioRecorder else {
             return
@@ -441,10 +430,8 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     /// - Returns: 录制的音频文件 URL，如果录制失败则返回 nil
     @discardableResult
     func stopRecording() -> URL? {
-        stateLock.lock()
 
         guard state == .recording || state == .paused else {
-            stateLock.unlock()
             return nil
         }
 
@@ -460,13 +447,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         let fileURL = recordedFileURL
         recordingStartTime = nil
 
-        // 先解锁，再更新 @Published 属性（确保在主线程上触发 UI 更新）
-        stateLock.unlock()
-
-        // 在主线程上更新 @Published 属性
-        DispatchQueue.main.async { [weak self] in
-            self?.recordingDuration = finalDuration
-        }
+        recordingDuration = finalDuration
 
         updateStateInternal(.finished)
 
@@ -489,8 +470,6 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     /// 取消录制
     ///
     func cancelRecording() {
-        stateLock.lock()
-        defer { stateLock.unlock() }
 
         audioRecorder?.stop()
         stopTimers()
@@ -505,8 +484,6 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
 
     /// 重置录制器状态
     func reset() {
-        stateLock.lock()
-        defer { stateLock.unlock() }
 
         resetInternal()
         updateStateInternal(.idle)
@@ -776,31 +753,29 @@ extension AudioRecorderService: AVAudioRecorderDelegate {
 
     /// 录制完成回调
     nonisolated func audioRecorderDidFinishRecording(_: AVAudioRecorder, successfully flag: Bool) {
-        stateLock.lock()
-        defer { stateLock.unlock() }
+        Task { @MainActor in
+            stopTimers()
 
-        stopTimers()
-
-        if !flag {
-            let errorMsg = "录制异常结束"
-            LogService.shared.error(.audio, errorMsg)
-            updateStateInternal(.error(errorMsg))
-            postErrorNotification(errorMsg)
+            if !flag {
+                let errorMsg = "录制异常结束"
+                LogService.shared.error(.audio, errorMsg)
+                updateStateInternal(.error(errorMsg))
+                postErrorNotification(errorMsg)
+            }
         }
     }
 
     /// 录制编码错误回调
     nonisolated func audioRecorderEncodeErrorDidOccur(_: AVAudioRecorder, error: Error?) {
-        stateLock.lock()
-        defer { stateLock.unlock() }
+        Task { @MainActor in
+            stopTimers()
 
-        stopTimers()
+            let errorMsg = error?.localizedDescription ?? "音频编码错误"
+            LogService.shared.error(.audio, "编码错误: \(errorMsg)")
 
-        let errorMsg = error?.localizedDescription ?? "音频编码错误"
-        LogService.shared.error(.audio, "编码错误: \(errorMsg)")
-
-        updateStateInternal(.error(errorMsg))
-        postErrorNotification(errorMsg)
+            updateStateInternal(.error(errorMsg))
+            postErrorNotification(errorMsg)
+        }
     }
 }
 

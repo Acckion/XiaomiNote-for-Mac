@@ -3,7 +3,7 @@ import Foundation
 /// 同步 API
 ///
 /// 负责网页版增量同步 API 调用
-public final class SyncAPI: @unchecked Sendable {
+public struct SyncAPI: Sendable {
     public static let shared = SyncAPI()
 
     private let client: APIClient

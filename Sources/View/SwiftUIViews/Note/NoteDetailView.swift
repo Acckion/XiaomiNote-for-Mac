@@ -36,14 +36,6 @@ struct NoteDetailView: View {
     @State private var showingHistoryView = false
     @State private var showTrashView = false
 
-    /// 编辑器偏好设置服务
-    @ObservedObject private var editorPreferencesService = EditorPreferencesService.shared
-
-    /// 当前是否使用原生编辑器
-    private var isUsingNativeEditor: Bool {
-        editorPreferencesService.isNativeEditorAvailable
-    }
-
     // MARK: - 初始化
 
     init(coordinator: AppCoordinator, windowState: WindowState) {
@@ -82,7 +74,7 @@ struct NoteDetailView: View {
     // MARK: - 事件处理
 
     private func handleNativeEditorSaveStatusChange(_ notification: Notification) {
-        guard isUsingNativeEditor, !isDebugMode else { return }
+        guard !isDebugMode else { return }
         guard let userInfo = notification.userInfo,
               let needsSave = userInfo["needsSave"] as? Bool
         else { return }
@@ -134,7 +126,6 @@ struct NoteDetailView: View {
             noteListState: noteListState,
             noteEditorState: noteEditorState,
             nativeEditorContext: noteEditorState.nativeEditorContext,
-            isUsingNativeEditor: isUsingNativeEditor,
             isDebugMode: isDebugMode,
             selectedNote: windowState.selectedNote,
             onToggleDebugMode: { toggleDebugMode() },
@@ -250,14 +241,14 @@ struct NoteDetailView: View {
                         nativeEditorContext: noteEditorState.nativeEditorContext,
                         xmlContent: editingCoordinator.currentXMLContent,
                         folderId: windowState.selectedNote?.folderId ?? "",
-                        onContentChange: { newXML, newHTML in
+                        onContentChange: { newXML in
                             guard !editingCoordinator.isInitializing else { return }
                             guard let currentNote = windowState.selectedNote,
                                   currentNote.id == editingCoordinator.currentEditingNoteId
                             else { return }
 
                             Task { @MainActor in
-                                await editingCoordinator.handleContentChange(xmlContent: newXML, htmlContent: newHTML)
+                                await editingCoordinator.handleContentChange(xmlContent: newXML)
                             }
                         }
                     )
@@ -313,32 +304,16 @@ struct NoteDetailView: View {
         let updated = editingCoordinator.buildUpdatedNote(from: note, xmlContent: debugXMLContent)
 
         do {
-            try await saveDebugContentToDatabase(updated)
+            try await coordinator.noteStore.saveNoteImmediately(updated)
 
             debugSaveStatus = .saved
             editingCoordinator.lastSavedXMLContent = debugXMLContent
-
-            await MemoryCacheManager.shared.cacheNote(updated)
             editingCoordinator.updateViewModel(with: updated)
             noteEditorState.hasUnsavedContent = false
-            editingCoordinator.scheduleCloudUpload(for: updated, xmlContent: debugXMLContent)
         } catch {
             let errorMessage = "保存失败: \(error.localizedDescription)"
             debugSaveStatus = .error(errorMessage)
             LogService.shared.error(.editor, "调试模式保存失败: \(error)")
-        }
-    }
-
-    @MainActor
-    private func saveDebugContentToDatabase(_ note: Note) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            DatabaseService.shared.saveNoteAsync(note) { error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume()
-                }
-            }
         }
     }
 
@@ -360,9 +335,7 @@ struct NoteDetailView: View {
         do {
             let fileId = try await noteEditorState.uploadImageAndInsertToNote(imageURL: url)
 
-            if isUsingNativeEditor {
-                noteEditorState.nativeEditorContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
-            }
+            noteEditorState.nativeEditorContext.insertImage(fileId: fileId, src: "minote://image/\(fileId)")
 
             await editingCoordinator.performSaveImmediately()
         } catch {

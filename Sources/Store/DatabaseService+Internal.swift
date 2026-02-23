@@ -306,16 +306,12 @@ extension DatabaseService {
 
         let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, createdAtIndex))
 
-        var rawData: [String: Any]?
+        var rawDataJson: String?
         if sqlite3_column_type(statement, rawDataIndex) != SQLITE_NULL {
             if let rawDataText = sqlite3_column_text(statement, rawDataIndex) {
                 let rawDataString = String(cString: rawDataText)
-                if !rawDataString.isEmpty, let rawDataData = rawDataString.data(using: .utf8), !rawDataData.isEmpty {
-                    do {
-                        rawData = try JSONSerialization.jsonObject(with: rawDataData, options: []) as? [String: Any]
-                    } catch {
-                        LogService.shared.error(.storage, "parseFolder: 解析 raw_data 失败 (id=\(id)): \(error)")
-                    }
+                if !rawDataString.isEmpty {
+                    rawDataJson = rawDataString
                 }
             }
         }
@@ -327,7 +323,7 @@ extension DatabaseService {
             isSystem: isSystem,
             isPinned: isPinned,
             createdAt: createdAt,
-            rawData: rawData
+            rawDataJson: rawDataJson
         )
     }
 

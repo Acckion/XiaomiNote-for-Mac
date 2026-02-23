@@ -456,7 +456,7 @@ public actor NoteStore {
                 LogService.shared.warning(.storage, "NoteStore renamed: 文件夹不存在 \(folderId)")
                 return
             }
-            let existingTag = folder.rawData?["tag"] as? String
+            let existingTag = folder.tag
             folder.name = newName
             do {
                 try db.saveFolders([folder])
@@ -482,7 +482,7 @@ public actor NoteStore {
 
         case let .deleted(folderId):
             // 删除前获取 tag，用于云端同步
-            let existingTag = folders.first(where: { $0.id == folderId })?.rawData?["tag"] as? String
+            let existingTag = folders.first(where: { $0.id == folderId })?.tag
             do {
                 try db.deleteFolder(folderId: folderId)
                 refreshFoldersCache()

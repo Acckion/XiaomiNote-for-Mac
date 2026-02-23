@@ -10,10 +10,14 @@ import Foundation
 
 /// 服务定位器（过渡期使用，最终应该移除）
 ///
-/// 这个类用于在重构过渡期间提供一个集中的地方来配置所有服务
-/// 随着重构的进行，应该逐步将依赖注入直接传递到需要的地方
-/// 最终目标是完全移除这个类，使用纯粹的依赖注入
+/// 在重构过渡期间提供集中的服务配置和访问入口。
+/// 随着重构的进行，应逐步将依赖注入直接传递到需要的地方。
+///
+/// ## 线程安全
+/// 与 DIContainer 保持一致的策略：保留 `@unchecked Sendable`，
+/// 所有服务解析操作委托给 DIContainer（由其 NSLock 保护）。
 public final class ServiceLocator: @unchecked Sendable {
+    // 单例在进程生命周期内只初始化一次，private init() 保证外部无法创建新实例
     public nonisolated(unsafe) static let shared = ServiceLocator()
     private let container = DIContainer.shared
 
@@ -21,6 +25,7 @@ public final class ServiceLocator: @unchecked Sendable {
 
     // MARK: - Configuration
 
+    /// 仅在 @MainActor configure() 中写入，启动时单次调用
     private var isConfigured = false
 
     /// 配置所有服务

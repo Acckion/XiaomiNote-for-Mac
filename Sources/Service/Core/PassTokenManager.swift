@@ -219,7 +219,7 @@ actor PassTokenManager {
             let maskedServiceToken = String(serviceToken.prefix(8)) + "..." + String(serviceToken.suffix(4))
             LogService.shared.infoSensitive(.core, "serviceToken 刷新成功", sensitiveValue: maskedServiceToken)
 
-            // 构建完整 Cookie 并更新 MiNoteService
+            // 构建完整 Cookie 并更新 APIClient
             if let passToken = getPassToken(), let userId = getUserId() {
                 let fullCookie = buildFullCookie(
                     userId: userId,
@@ -228,8 +228,8 @@ actor PassTokenManager {
                     serviceToken: serviceToken
                 )
                 let maskedCookie = String(fullCookie.prefix(80)) + "..."
-                LogService.shared.debugSensitive(.core, "更新 MiNoteService Cookie", sensitiveValue: maskedCookie)
-                APIClient.shared.setCookie(fullCookie)
+                LogService.shared.debugSensitive(.core, "更新 APIClient Cookie", sensitiveValue: maskedCookie)
+                await APIClient.shared.setCookie(fullCookie)
             }
 
             // 通知所有等待的调用方

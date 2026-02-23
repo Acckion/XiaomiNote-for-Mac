@@ -162,7 +162,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             return
         }
 
@@ -208,7 +208,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "未认证，跳过队列处理")
             return
         }
@@ -270,8 +270,13 @@ public extension OperationProcessor {
 
                 successCount += 1
                 LogService.shared.debug(.sync, "OperationProcessor 处理成功: \(operation.id), type: \(operation.type.rawValue)")
+                await eventBus.publish(OperationEvent.operationCompleted)
             } catch {
                 failureCount += 1
+                let errorType = classifyError(error)
+                if errorType == .authExpired {
+                    await eventBus.publish(OperationEvent.authFailed)
+                }
                 await handleOperationFailure(operation: operation, error: error)
             }
         }
@@ -305,8 +310,13 @@ public extension OperationProcessor {
                     try await executeOperation(operation)
                     try operationQueue.markCompleted(operation.id)
                     successCount += 1
+                    await eventBus.publish(OperationEvent.operationCompleted)
                 } catch {
                     failureCount += 1
+                    let errorType = classifyError(error)
+                    if errorType == .authExpired {
+                        await eventBus.publish(OperationEvent.authFailed)
+                    }
                     await handleOperationFailure(operation: operation, error: error)
                 }
             }
@@ -324,6 +334,7 @@ public extension OperationProcessor {
         }
 
         // 发送处理完成事件
+        await eventBus.publish(OperationEvent.queueProcessingCompleted(successCount: successCount, failedCount: failureCount))
         await eventBus.publish(SyncEvent.completed(result: SyncEventResult(
             downloadedCount: 0,
             uploadedCount: successCount,
@@ -365,7 +376,8 @@ public extension OperationProcessor {
         // 处理 NSError
         if let nsError = error as? NSError {
             // 检查 HTTP 状态码
-            if nsError.domain == "MiNoteService" {
+            let apiDomains: Set<String> = ["NoteAPI", "FolderAPI", "FileAPI", "UserAPI", "OperationProcessor"]
+            if apiDomains.contains(nsError.domain) {
                 switch nsError.code {
                 case 401:
                     return .authExpired
@@ -484,7 +496,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过重试处理")
             return
         }
@@ -1178,6 +1190,12 @@ extension OperationProcessor {
         }
         folderRawData["tag"] = tag
 
+        let folderRawDataJson: String? = if let jsonData = try? JSONSerialization.data(withJSONObject: folderRawData, options: []) {
+            String(data: jsonData, encoding: .utf8)
+        } else {
+            nil
+        }
+
         let folder = Folder(
             id: folderId,
             name: subject,
@@ -1185,7 +1203,7 @@ extension OperationProcessor {
             isSystem: false,
             isPinned: false,
             createdAt: Date(),
-            rawData: folderRawData
+            rawDataJson: folderRawDataJson
         )
 
         await eventBus.publish(FolderEvent.folderSaved(folder))
@@ -1241,12 +1259,18 @@ extension OperationProcessor {
         if let entry = extractEntry(from: response) {
             let folders = try? databaseService.loadFolders()
             if let folder = folders?.first(where: { $0.id == operation.noteId }) {
-                var updatedRawData = folder.rawData ?? [:]
+                var updatedRawData = folder.rawDataDict ?? [:]
                 for (key, value) in entry {
                     updatedRawData[key] = value
                 }
                 updatedRawData["tag"] = extractTag(from: response, fallbackTag: existingTag)
                 updatedRawData["subject"] = newName
+
+                let updatedRawDataJson: String? = if let jsonData = try? JSONSerialization.data(withJSONObject: updatedRawData, options: []) {
+                    String(data: jsonData, encoding: .utf8)
+                } else {
+                    folder.rawDataJson
+                }
 
                 let updatedFolder = Folder(
                     id: folder.id,
@@ -1255,7 +1279,7 @@ extension OperationProcessor {
                     isSystem: folder.isSystem,
                     isPinned: folder.isPinned,
                     createdAt: folder.createdAt,
-                    rawData: updatedRawData
+                    rawDataJson: updatedRawDataJson
                 )
 
                 await eventBus.publish(FolderEvent.folderSaved(updatedFolder))
@@ -1410,7 +1434,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过启动处理")
             return (0, 0)
         }

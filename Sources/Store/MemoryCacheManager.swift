@@ -35,7 +35,7 @@ public actor MemoryCacheManager {
     private var cache: [String: CacheNode] = [:]
 
     private init() {
-        Swift.print("[MemoryCache] 初始化内存缓存管理器，最大缓存数: \(maxCacheSize)")
+        LogService.shared.debug(.storage, "初始化内存缓存管理器，最大缓存数: \(maxCacheSize)")
     }
 
     // MARK: - 公共接口
@@ -46,7 +46,7 @@ public actor MemoryCacheManager {
     /// - Returns: 笔记对象，如果缓存未命中则返回nil
     func getNote(noteId: String) -> Note? {
         guard let node = cache[noteId] else {
-            Swift.print("[MemoryCache] 缓存未命中 - ID: \(noteId.prefix(8))...")
+            LogService.shared.debug(.storage, "缓存未命中 - ID: \(noteId.prefix(8))...")
             return nil
         }
 
@@ -56,7 +56,7 @@ public actor MemoryCacheManager {
         // 移动到链表头部（标记为最近访问）
         moveToHead(node)
 
-        Swift.print("[MemoryCache] 缓存命中 - ID: \(noteId.prefix(8))..., 标题: \(node.note.title)")
+        LogService.shared.debug(.storage, "缓存命中 - ID: \(noteId.prefix(8))..., 标题: \(node.note.title)")
         return node.note
     }
 
@@ -71,7 +71,7 @@ public actor MemoryCacheManager {
             existingNode.note = note
             existingNode.lastAccessTime = Date()
             moveToHead(existingNode)
-            Swift.print("[MemoryCache] 更新缓存 - ID: \(noteId.prefix(8))..., 标题: \(note.title)")
+            LogService.shared.debug(.storage, "更新缓存 - ID: \(noteId.prefix(8))..., 标题: \(note.title)")
         } else {
             // 创建新节点
             let newNode = CacheNode(noteId: noteId, note: note)
@@ -85,7 +85,7 @@ public actor MemoryCacheManager {
             addToHead(newNode)
             cache[noteId] = newNode
 
-            Swift.print("[MemoryCache] 添加缓存 - ID: \(noteId.prefix(8))..., 标题: \(note.title), 当前缓存数: \(cache.count)")
+            LogService.shared.debug(.storage, "添加缓存 - ID: \(noteId.prefix(8))..., 标题: \(note.title), 当前缓存数: \(cache.count)")
         }
     }
 
@@ -101,7 +101,7 @@ public actor MemoryCacheManager {
         cache.removeAll()
         head = nil
         tail = nil
-        Swift.print("[MemoryCache] 清除所有缓存")
+        LogService.shared.info(.storage, "清除所有缓存")
     }
 
     /// 移除指定笔记的缓存
@@ -114,7 +114,7 @@ public actor MemoryCacheManager {
 
         removeNode(node)
         cache.removeValue(forKey: noteId)
-        Swift.print("[MemoryCache] 移除缓存 - ID: \(noteId.prefix(8))...")
+        LogService.shared.debug(.storage, "移除缓存 - ID: \(noteId.prefix(8))...")
     }
 
     /// 预加载笔记列表
@@ -135,7 +135,7 @@ public actor MemoryCacheManager {
             }
         }
 
-        Swift.print("[MemoryCache] 预加载完成 - 预加载 \(min(notes.count, maxCacheSize)) 条笔记，当前缓存数: \(cache.count)")
+        LogService.shared.debug(.storage, "预加载完成 - 预加载 \(min(notes.count, maxCacheSize)) 条笔记，当前缓存数: \(cache.count)")
     }
 
     /// 获取缓存统计信息
@@ -201,6 +201,6 @@ public actor MemoryCacheManager {
 
         removeNode(tailNode)
         cache.removeValue(forKey: tailNode.noteId)
-        Swift.print("[MemoryCache] 移除LRU缓存 - ID: \(tailNode.noteId.prefix(8))..., 标题: \(tailNode.note.title)")
+        LogService.shared.debug(.storage, "移除LRU缓存 - ID: \(tailNode.noteId.prefix(8))..., 标题: \(tailNode.note.title)")
     }
 }

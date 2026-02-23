@@ -14,7 +14,6 @@ struct NoteEditorToolbar: ToolbarContent {
     @ObservedObject var noteListState: NoteListState
     @ObservedObject var noteEditorState: NoteEditorState
     let nativeEditorContext: NativeEditorContext
-    let isUsingNativeEditor: Bool
     let isDebugMode: Bool
     let selectedNote: Note?
     let onToggleDebugMode: () -> Void
@@ -50,17 +49,13 @@ struct NoteEditorToolbar: ToolbarContent {
 
     private var undoButton: some View {
         Button {
-            if isUsingNativeEditor {
-                NSApp.sendAction(#selector(UndoManager.undo), to: nil, from: nil)
-            }
+            NSApp.sendAction(#selector(UndoManager.undo), to: nil, from: nil)
         } label: { Label("撤销", systemImage: "arrow.uturn.backward") }
     }
 
     private var redoButton: some View {
         Button {
-            if isUsingNativeEditor {
-                NSApp.sendAction(#selector(UndoManager.redo), to: nil, from: nil)
-            }
+            NSApp.sendAction(#selector(UndoManager.redo), to: nil, from: nil)
         } label: { Label("重做", systemImage: "arrow.uturn.forward") }
     }
 
@@ -70,17 +65,13 @@ struct NoteEditorToolbar: ToolbarContent {
 
     private var checkboxButton: some View {
         Button {
-            if isUsingNativeEditor {
-                nativeEditorContext.insertCheckbox()
-            }
+            nativeEditorContext.insertCheckbox()
         } label: { Label("插入待办", systemImage: "checklist") }
     }
 
     private var horizontalRuleButton: some View {
         Button {
-            if isUsingNativeEditor {
-                nativeEditorContext.insertHorizontalRule()
-            }
+            nativeEditorContext.insertHorizontalRule()
         } label: { Label("插入分割线", systemImage: "minus") }
     }
 
@@ -91,15 +82,11 @@ struct NoteEditorToolbar: ToolbarContent {
     @ViewBuilder
     private var indentButtons: some View {
         Button {
-            if isUsingNativeEditor {
-                nativeEditorContext.increaseIndent()
-            }
+            nativeEditorContext.increaseIndent()
         } label: { Label("增加缩进", systemImage: "increase.indent") }
 
         Button {
-            if isUsingNativeEditor {
-                nativeEditorContext.decreaseIndent()
-            }
+            nativeEditorContext.decreaseIndent()
         } label: { Label("减少缩进", systemImage: "decrease.indent") }
     }
 

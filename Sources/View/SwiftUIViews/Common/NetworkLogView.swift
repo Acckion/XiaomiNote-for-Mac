@@ -392,29 +392,33 @@ struct ExportLogView: View {
     }
 
     private func copyToClipboard() {
-        let exportText = NetworkLogger.shared.exportLogs()
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(exportText, forType: .string)
+        Task {
+            let exportText = await NetworkLogger.shared.exportLogs()
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(exportText, forType: .string)
 
-        showAlert(title: "导出成功", message: "日志已复制到剪贴板")
+            showAlert(title: "导出成功", message: "日志已复制到剪贴板")
+        }
     }
 
     private func saveToFile() {
-        let exportText = NetworkLogger.shared.exportLogs()
+        Task {
+            let exportText = await NetworkLogger.shared.exportLogs()
 
-        let savePanel = NSSavePanel()
-        savePanel.title = "保存网络日志"
-        savePanel.nameFieldStringValue = "minote-network-logs-\(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .medium)).txt"
-        savePanel.allowedContentTypes = [.plainText]
+            let savePanel = NSSavePanel()
+            savePanel.title = "保存网络日志"
+            savePanel.nameFieldStringValue = "minote-network-logs-\(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .medium)).txt"
+            savePanel.allowedContentTypes = [.plainText]
 
-        if savePanel.runModal() == .OK, let url = savePanel.url {
-            do {
-                try exportText.write(to: url, atomically: true, encoding: .utf8)
-                showAlert(title: "保存成功", message: "日志已保存到文件")
-                dismiss()
-            } catch {
-                showAlert(title: "保存失败", message: error.localizedDescription)
+            if savePanel.runModal() == .OK, let url = savePanel.url {
+                do {
+                    try exportText.write(to: url, atomically: true, encoding: .utf8)
+                    showAlert(title: "保存成功", message: "日志已保存到文件")
+                    dismiss()
+                } catch {
+                    showAlert(title: "保存失败", message: error.localizedDescription)
+                }
             }
         }
     }
@@ -434,26 +438,30 @@ class NetworkLogViewModel: ObservableObject {
     @Published var logs: [NetworkLogEntry] = []
 
     func refreshLogs() {
-        logs = NetworkLogger.shared.getLogs()
+        Task {
+            logs = await NetworkLogger.shared.getLogs()
+        }
     }
 
     func clearLogs() {
-        NetworkLogger.shared.clearLogs()
-        refreshLogs()
+        Task {
+            await NetworkLogger.shared.clearLogs()
+            logs = await NetworkLogger.shared.getLogs()
+        }
     }
 
     func removeLog(_ id: UUID) {
-        // 注意：NetworkLogger目前不支持删除单个日志
-        // 这里我们可以通过过滤来实现
-        var currentLogs = NetworkLogger.shared.getLogs()
-        currentLogs.removeAll { $0.id == id }
+        Task {
+            var currentLogs = await NetworkLogger.shared.getLogs()
+            currentLogs.removeAll { $0.id == id }
 
-        // 清空并重新添加
-        NetworkLogger.shared.clearLogs()
-        for logEntry in currentLogs.reversed() { // 因为addLogEntry是插入到开头
-            NetworkLogger.shared.addLogEntry(logEntry)
+            // 清空并重新添加
+            await NetworkLogger.shared.clearLogs()
+            for logEntry in currentLogs.reversed() { // 因为addLogEntry是插入到开头
+                await NetworkLogger.shared.addLogEntry(logEntry)
+            }
+            logs = await NetworkLogger.shared.getLogs()
         }
-        refreshLogs()
     }
 }
 

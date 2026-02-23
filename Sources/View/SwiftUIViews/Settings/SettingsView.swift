@@ -245,7 +245,7 @@ public struct SettingsView: View {
             }
 
             Button("重新登录") {
-                NotificationCenter.default.post(name: NSNotification.Name("ShowLoginView"), object: nil)
+                Task { await EventBus.shared.publish(SettingsEvent.showLoginRequested) }
                 dismiss()
             }
 
@@ -296,22 +296,16 @@ public struct SettingsView: View {
     }
 
     private func applyEditorSettings() {
-        NotificationCenter.default.post(
-            name: NSNotification.Name("EditorSettingsChanged"),
-            object: nil,
-            userInfo: [
-                "fontSize": editorFontSize,
-                "lineHeight": editorLineHeight,
-            ]
-        )
-
+        Task { await EventBus.shared.publish(SettingsEvent.editorSettingsChanged) }
         LogService.shared.debug(.app, "编辑器设置已更新: 字体大小=\(editorFontSize)px, 行间距=\(editorLineHeight)")
     }
 
     private func logout() {
-        APIClient.shared.clearCookie()
-        authState.handleLogout()
-        dismiss()
+        Task {
+            await APIClient.shared.clearCookie()
+            authState.handleLogout()
+            dismiss()
+        }
     }
 
     private func clearCache() {

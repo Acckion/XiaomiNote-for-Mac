@@ -3,7 +3,7 @@ import Foundation
 /// 文件夹 API
 ///
 /// 负责文件夹的创建、重命名、删除、详情获取
-public final class FolderAPI: @unchecked Sendable {
+public struct FolderAPI: Sendable {
     public static let shared = FolderAPI()
 
     private let client: APIClient
@@ -33,12 +33,12 @@ public final class FolderAPI: @unchecked Sendable {
         }
 
         let entryEncoded = client.encodeURIComponent(entryJson)
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(client.baseURL)/note/folder"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         let json = try await client.performRequest(
@@ -50,7 +50,7 @@ public final class FolderAPI: @unchecked Sendable {
 
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "创建文件夹失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "FolderAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json
@@ -86,12 +86,12 @@ public final class FolderAPI: @unchecked Sendable {
         }
 
         let entryEncoded = client.encodeURIComponent(entryJson)
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(client.baseURL)/note/folder/\(folderId)"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         let json = try await client.performRequest(
@@ -103,7 +103,7 @@ public final class FolderAPI: @unchecked Sendable {
 
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "重命名文件夹失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "FolderAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json
@@ -122,12 +122,12 @@ public final class FolderAPI: @unchecked Sendable {
     func deleteFolder(folderId: String, tag: String, purge: Bool = false) async throws -> [String: Any] {
         let tagEncoded = client.encodeURIComponent(tag)
         let purgeString = purge ? "true" : "false"
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "tag=\(tagEncoded)&purge=\(purgeString)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(client.baseURL)/note/full/\(folderId)/delete"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         let json = try await client.performRequest(
@@ -139,7 +139,7 @@ public final class FolderAPI: @unchecked Sendable {
 
         if let code = json["code"] as? Int, code != 0 {
             let message = json["description"] as? String ?? json["message"] as? String ?? "删除文件夹失败"
-            throw MiNoteError.networkError(NSError(domain: "MiNoteService", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
+            throw MiNoteError.networkError(NSError(domain: "FolderAPI", code: code, userInfo: [NSLocalizedDescriptionKey: message]))
         }
 
         return json
@@ -204,7 +204,7 @@ public final class FolderAPI: @unchecked Sendable {
                 ],
             ]
         } else {
-            throw NSError(domain: "MiNoteService", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在: \(folderId)"])
+            throw NSError(domain: "FolderAPI", code: 404, userInfo: [NSLocalizedDescriptionKey: "文件夹不存在: \(folderId)"])
         }
     }
 

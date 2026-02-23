@@ -5,7 +5,7 @@ import Security
 /// 私密笔记密码管理器
 ///
 /// 使用 Keychain 安全存储私密笔记密码
-public final class PrivateNotesPasswordManager: @unchecked Sendable {
+public struct PrivateNotesPasswordManager: Sendable {
     public static let shared = PrivateNotesPasswordManager()
 
     private let service = "com.mi.note.mac.privateNotes"

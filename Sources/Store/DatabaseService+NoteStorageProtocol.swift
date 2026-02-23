@@ -13,20 +13,20 @@ import Foundation
 extension DatabaseService: NoteStorageProtocol {
     // MARK: - 读取操作
 
-    public func fetchAllNotes() throws -> [Note] {
+    public func fetchAllNotes() async throws -> [Note] {
         try getAllNotes()
     }
 
-    public func fetchNote(id: String) throws -> Note? {
+    public func fetchNote(id: String) async throws -> Note? {
         try loadNote(noteId: id)
     }
 
-    public func fetchNotes(in folderId: String) throws -> [Note] {
+    public func fetchNotes(in folderId: String) async throws -> [Note] {
         let allNotes = try getAllNotes()
         return allNotes.filter { $0.folderId == folderId }
     }
 
-    public func searchNotes(query: String) throws -> [Note] {
+    public func searchNotes(query: String) async throws -> [Note] {
         let allNotes = try getAllNotes()
         let lowercasedQuery = query.lowercased()
         return allNotes.filter { note in
@@ -35,7 +35,7 @@ extension DatabaseService: NoteStorageProtocol {
         }
     }
 
-    public func fetchStarredNotes() throws -> [Note] {
+    public func fetchStarredNotes() async throws -> [Note] {
         let allNotes = try getAllNotes()
         return allNotes.filter(\.isStarred)
     }
@@ -44,11 +44,11 @@ extension DatabaseService: NoteStorageProtocol {
 
     // saveNote 和 saveNotes 已在 DatabaseService+Notes.swift 中实现
 
-    public func deleteNote(id: String) throws {
+    public func deleteNote(id: String) async throws {
         try deleteNote(noteId: id)
     }
 
-    public func deleteNotes(ids: [String]) throws {
+    public func deleteNotes(ids: [String]) async throws {
         for id in ids {
             try deleteNote(noteId: id)
         }
@@ -56,8 +56,7 @@ extension DatabaseService: NoteStorageProtocol {
 
     // MARK: - 批量操作
 
-    public func performBatchUpdate(_ block: () throws -> Void) throws {
-        // 使用 dbQueue 保证线程安全
+    public func performBatchUpdate(_ block: @Sendable () throws -> Void) async throws {
         try dbQueue.sync(flags: .barrier) {
             executeSQL("BEGIN TRANSACTION;")
             do {
@@ -72,29 +71,29 @@ extension DatabaseService: NoteStorageProtocol {
 
     // MARK: - 文件夹操作
 
-    public func fetchAllFolders() throws -> [Folder] {
+    public func fetchAllFolders() async throws -> [Folder] {
         try loadFolders()
     }
 
-    public func fetchFolder(id: String) throws -> Folder? {
+    public func fetchFolder(id: String) async throws -> Folder? {
         let folders = try loadFolders()
         return folders.first { $0.id == id }
     }
 
     // saveFolder 和 saveFolders 已在 DatabaseService+Folders.swift 中实现
 
-    public func deleteFolder(id: String) throws {
+    public func deleteFolder(id: String) async throws {
         try deleteFolder(folderId: id)
     }
 
     // MARK: - 统计操作
 
-    public func getNoteCount() throws -> Int {
+    public func getNoteCount() async throws -> Int {
         try getAllNotes().count
     }
 
-    public func getNoteCount(in folderId: String) throws -> Int {
-        let notes = try fetchNotes(in: folderId)
+    public func getNoteCount(in folderId: String) async throws -> Int {
+        let notes = try await fetchNotes(in: folderId)
         return notes.count
     }
 

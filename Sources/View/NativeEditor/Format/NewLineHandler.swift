@@ -563,29 +563,6 @@ public struct NewLineHandler {
         textStorage.insert(attachmentString, at: position)
     }
 
-    /// 应用无序列表到新行（旧方法，保留用于兼容）
-    ///
-    /// - Parameters:
-    ///   - position: 插入位置
-    ///   - indent: 缩进级别
-    ///   - textStorage: NSTextStorage 实例
-    @available(*, deprecated, message: "使用 applyBulletAttachmentToNewLine 替代")
-    private static func applyBulletListToNewLine(at position: Int, indent: Int, textStorage: NSTextStorage) {
-        applyBulletAttachmentToNewLine(at: position, indent: indent, textStorage: textStorage)
-    }
-
-    /// 应用有序列表到新行（旧方法，保留用于兼容）
-    ///
-    /// - Parameters:
-    ///   - position: 插入位置
-    ///   - number: 列表编号
-    ///   - indent: 缩进级别
-    ///   - textStorage: NSTextStorage 实例
-    @available(*, deprecated, message: "使用 applyOrderAttachmentToNewLine 替代")
-    private static func applyNumberedListToNewLine(at position: Int, number: Int, indent: Int, textStorage: NSTextStorage) {
-        applyOrderAttachmentToNewLine(at: position, number: number, indent: indent, textStorage: textStorage)
-    }
-
     /// 应用 Checkbox 到新行
     ///
     /// - Parameters:

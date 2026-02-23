@@ -16,7 +16,8 @@ import Foundation
 /// - 进度回调
 /// - 错误处理和重试
 ///
-final class AudioUploadService: ObservableObject, @unchecked Sendable {
+@MainActor
+final class AudioUploadService: ObservableObject {
 
     // MARK: - 单例
 
@@ -87,16 +88,16 @@ final class AudioUploadService: ObservableObject, @unchecked Sendable {
     // MARK: - 通知名称
 
     /// 上传状态变化通知
-    static let uploadStateDidChangeNotification = Notification.Name("AudioUploadService.uploadStateDidChange")
+    nonisolated(unsafe) static let uploadStateDidChangeNotification = Notification.Name("AudioUploadService.uploadStateDidChange")
 
     /// 上传进度变化通知
-    static let uploadProgressDidChangeNotification = Notification.Name("AudioUploadService.uploadProgressDidChange")
+    nonisolated(unsafe) static let uploadProgressDidChangeNotification = Notification.Name("AudioUploadService.uploadProgressDidChange")
 
     /// 上传完成通知
-    static let uploadDidCompleteNotification = Notification.Name("AudioUploadService.uploadDidComplete")
+    nonisolated(unsafe) static let uploadDidCompleteNotification = Notification.Name("AudioUploadService.uploadDidComplete")
 
     /// 上传失败通知
-    static let uploadDidFailNotification = Notification.Name("AudioUploadService.uploadDidFail")
+    nonisolated(unsafe) static let uploadDidFailNotification = Notification.Name("AudioUploadService.uploadDidFail")
 
     // MARK: - 私有属性
 

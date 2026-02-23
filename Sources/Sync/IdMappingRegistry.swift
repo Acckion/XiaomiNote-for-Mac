@@ -17,13 +17,17 @@ import Foundation
 ///
 /// **线程安全设计**：
 /// 使用 NSLock 而非 Actor 的原因：
-/// 1. 同步访问需求：resolveId() 等方法需要同步返回结果，
+/// 1. 同步访问需求：resolveId()、hasMapping() 等方法需要同步返回结果，
 ///    如果使用 Actor 则所有调用都需要 await，会传染到整个调用链
 /// 2. 性能考虑：NSLock 的开销远小于 Actor 的上下文切换
 /// 3. 操作粒度：每个操作都是短暂的内存读写，不涉及 I/O，
 ///    NSLock 的持有时间极短，不会造成阻塞
 /// 4. 与 OperationProcessor（Actor）的交互：OperationProcessor 是 Actor，
 ///    如果 IdMappingRegistry 也是 Actor，两者交互时可能产生死锁风险
+///    （spec 104 已验证双 Actor 方案存在死锁问题）
+///
+/// **锁保护的可变状态**：
+/// - `mappingsCache`: 映射缓存（临时 ID -> 映射记录）
 ///
 public final class IdMappingRegistry: @unchecked Sendable {
 
@@ -40,6 +44,9 @@ public final class IdMappingRegistry: @unchecked Sendable {
     /// 统一操作队列
     private let operationQueue: UnifiedOperationQueue
 
+    /// EventBus 实例
+    private let eventBus: EventBus
+
     // MARK: - 线程安全
 
     /// 操作锁，确保线程安全
@@ -48,18 +55,8 @@ public final class IdMappingRegistry: @unchecked Sendable {
     // MARK: - 内存缓存
 
     /// 映射缓存（临时 ID -> 映射记录）
+    /// 受 lock 保护
     private var mappingsCache: [String: IdMapping] = [:]
-
-    // MARK: - 通知名称
-
-    /// ID 映射完成通知
-    ///
-    /// 当临时 ID 成功映射到正式 ID 后发送此通知。
-    /// userInfo 包含：
-    /// - "localId": 临时 ID
-    /// - "serverId": 正式 ID
-    /// - "entityType": 实体类型（"note" 或 "folder"）
-    public static let idMappingCompletedNotification = Notification.Name("IdMappingRegistry.idMappingCompleted")
 
     // MARK: - 初始化
 
@@ -67,6 +64,7 @@ public final class IdMappingRegistry: @unchecked Sendable {
     private init() {
         self.databaseService = DatabaseService.shared
         self.operationQueue = UnifiedOperationQueue.shared
+        self.eventBus = EventBus.shared
 
         // 从数据库恢复未完成的映射
         loadFromDatabase()
@@ -79,9 +77,10 @@ public final class IdMappingRegistry: @unchecked Sendable {
     /// - Parameters:
     ///   - databaseService: 数据库服务实例
     ///   - operationQueue: 统一操作队列实例
-    init(databaseService: DatabaseService, operationQueue: UnifiedOperationQueue) {
+    init(databaseService: DatabaseService, operationQueue: UnifiedOperationQueue, eventBus: EventBus = EventBus.shared) {
         self.databaseService = databaseService
         self.operationQueue = operationQueue
+        self.eventBus = eventBus
 
         // 从数据库恢复未完成的映射
         loadFromDatabase()
@@ -280,18 +279,8 @@ public extension IdMappingRegistry {
             throw error
         }
 
-        // 4. 发送通知给 UI
-        await MainActor.run {
-            NotificationCenter.default.post(
-                name: Self.idMappingCompletedNotification,
-                object: nil,
-                userInfo: [
-                    "localId": localId,
-                    "serverId": serverId,
-                    "entityType": "note",
-                ]
-            )
-        }
+        // 4. 发布事件通知 UI
+        await eventBus.publish(IdMappingEvent.mappingCompleted(localId: localId, serverId: serverId, entityType: "note"))
 
         LogService.shared.info(.sync, "所有引用更新完成: \(localId) -> \(serverId)")
     }
@@ -319,18 +308,8 @@ public extension IdMappingRegistry {
             throw error
         }
 
-        // 3. 发送通知给 UI
-        await MainActor.run {
-            NotificationCenter.default.post(
-                name: Self.idMappingCompletedNotification,
-                object: nil,
-                userInfo: [
-                    "localId": localId,
-                    "serverId": serverId,
-                    "entityType": "folder",
-                ]
-            )
-        }
+        // 3. 发布事件通知 UI
+        await eventBus.publish(IdMappingEvent.mappingCompleted(localId: localId, serverId: serverId, entityType: "folder"))
 
         LogService.shared.info(.sync, "文件夹引用更新完成: \(localId) -> \(serverId)")
     }

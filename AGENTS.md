@@ -35,7 +35,7 @@ Sources/
 │   ├── Authentication/     # 认证服务
 │   ├── Cache/              # 缓存服务
 │   ├── Core/               # 核心服务（StartupSequenceManager, LogService）
-│   ├── Editor/             # 编辑器服务（NoteEditingCoordinator）
+│   ├── Editor/             # 编辑器服务（NoteEditingCoordinator, FormatConverter）
 │   ├── Image/              # 图片服务
 │   └── Protocols/          # 服务协议定义
 ├── State/                  # 状态对象（替代 NotesViewModel）
@@ -51,7 +51,7 @@ Sources/
 ├── Store/                  # 数据存储层（DatabaseService, NoteStore）
 ├── Sync/                   # 同步引擎
 │   ├── OperationQueue/     # 操作队列（UnifiedOperationQueue, OperationProcessor）
-│   ├── SyncEngine          # 同步引擎核心
+│   ├── SyncEngine          # 同步引擎核心（1 核心 + 4 extension）
 │   └── IdMappingRegistry   # ID 映射注册表
 ├── ToolbarItem/            # 工具栏组件
 ├── View/                   # UI 视图组件
@@ -74,14 +74,8 @@ References/                 # 参考项目（不参与编译）
 # 生成 Xcode 项目（修改 project.yml 后必须执行）
 xcodegen generate
 
-# 构建 Release 版本
-./scripts/build_release.sh
-
 # 构建 Debug 版本
 xcodebuild -project MiNoteMac.xcodeproj -scheme MiNoteMac -configuration Debug
-
-# 运行测试
-xcodebuild test -project MiNoteMac.xcodeproj -scheme MiNoteMac -destination 'platform=macOS'
 ```
 
 ## 代码规范
@@ -90,14 +84,12 @@ xcodebuild test -project MiNoteMac.xcodeproj -scheme MiNoteMac -destination 'pla
 
 - 禁止在代码、注释、控制台输出中使用 emoji
 - 禁止添加过多解释性注释，代码应当自解释
-- 禁止提交敏感信息（Cookie、密钥等）
-- 禁止提交构建产物（.build/、build/）
 
 ### 注释规范
 
 - 只在复杂逻辑或非显而易见的实现处添加注释
 - 注释使用中文
-- 避免注释描述"做什么"，而应描述"为什么"
+- 避免注释描述"做什么"、"为什么"
 - 公开 API 使用文档注释（///）
 
 ### 日志规范
@@ -105,7 +97,6 @@ xcodebuild test -project MiNoteMac.xcodeproj -scheme MiNoteMac -destination 'pla
 - 统一使用 `LogService.shared` 记录日志，禁止使用 `print()`
 - 按模块标识记录：storage, network, sync, core, editor, app, viewmodel, window, audio
 - 按级别选择：debug（调试）、info（关键操作）、warning（性能警告）、error（失败）
-- 禁止在日志中使用 emoji、装饰性符号、`[[调试]]` 前缀
 - 日志信息使用中文
 
 ### 命名规范
@@ -131,43 +122,11 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 数据模型层 (Model)
 ```
 
-### 关键文件
-
-- `AppDelegate.swift`: 应用生命周期、菜单系统
-- `AppCoordinator.swift`: 应用协调器，创建和管理所有 State 对象
-- `MainWindowController.swift`: 主窗口核心（属性、初始化、生命周期、分割视图布局），已拆分为 7 个文件：
-  - `MainWindowController+Actions.swift`: 所有 @objc 动作方法
-  - `MainWindowController+Toolbar.swift`: NSToolbarDelegate + 工具栏项构建
-  - `MainWindowController+Audio.swift`: 音频面板管理
-  - `MainWindowController+Search.swift`: NSSearchFieldDelegate + 搜索筛选
-  - `MainWindowController+Delegates.swift`: NSWindowDelegate + NSMenuDelegate + NSUserInterfaceValidations
-  - `MainWindowController+StateObservers.swift`: 状态监听 + 窗口标题更新
-- `NoteEditorWindowController.swift`: 独立笔记编辑器窗口控制器（在新窗口中编辑特定笔记）
-- `NoteStore.swift`: 笔记数据存储和操作（依赖注入，非单例）
-- `SyncEngine.swift`: 云端同步引擎（Actor）
-- `EventBus.swift`: 跨层事件通信（Actor）
-- `MiNoteService.swift`: 小米笔记 API Facade 转发层（已废弃，新代码使用 APIClient/NoteAPI/FolderAPI/FileAPI/SyncAPI/UserAPI）
-- `APIClient.swift`: 网络请求基础设施（认证、Cookie 管理、请求执行）
-- `NetworkRequestManager.swift`: 网络请求管理器，统一处理 401 自动刷新 Cookie 并重试
-- `DatabaseService.swift`: SQLite 数据库操作
-- `Sources/State/*.swift`: State 对象，替代原 NotesViewModel
-- `OperationProcessor.swift`: 操作处理器（Actor），执行队列中的操作（笔记创建、云端上传、文件上传等）
-- `UnifiedOperationQueue.swift`: 统一操作队列，管理操作入队、去重合并、状态管理
-- `IdMappingRegistry.swift`: ID 映射注册表，管理临时 ID 到正式 ID 的映射
-- `NativeEditorView.swift`: 原生编辑器 NSViewRepresentable 桥接
-- `NativeEditorCoordinator.swift`: 编辑器 Coordinator（NSTextViewDelegate + 内容同步）
-- `CoordinatorFormatApplier.swift`: Coordinator 格式应用方法
-- `NativeTextView.swift`: 自定义 NSTextView 子类（键盘处理、列表行为、粘贴、拖放）
-- `NativeEditorContext.swift`: 编辑器上下文（核心状态 + 格式入口 + XML 加载/导出）
-- `EditorEnums.swift`: 编辑器枚举定义（TextFormat、SpecialElement、IndentOperation、EditorType）
-- `EditorContentManager.swift`: 编辑器内容管理（录音模板、内容保护、自动保存）
-- `EditorFormatDetector.swift`: 编辑器格式检测（格式状态更新、混合格式检测）
-
 ## 数据格式
 
 - **本地存储**: SQLite 数据库
 - **云端格式**: XML（小米笔记格式）
-- **编辑器格式**: NSAttributedString（原生编辑器）/ HTML（Web 编辑器）
+- **编辑器格式**: NSAttributedString（原生编辑器）
 
 ## 数据库迁移指南
 
@@ -197,27 +156,14 @@ static let migrations: [Migration] = [
 - SQL 语句建议使用 `IF NOT EXISTS` / `IF EXISTS` 增强健壮性
 - 迁移在应用启动时自动执行
 
-### 常见迁移类型
 
-```swift
-// 添加列
-"ALTER TABLE notes ADD COLUMN new_field TEXT;"
+## Git 分支规范
 
-// 添加索引
-"CREATE INDEX IF NOT EXISTS idx_name ON table(column);"
+- `main`：主分支，仅用于发布。未得到用户明确指令时，禁止直接操作
+- `dev`：开发分支，所有功能分支的基准和合并目标
+- `feature/{编号}-{描述}`、`fix/{编号}-{描述}`、`refactor/{编号}-{描述}`：功能分支
 
-// 创建新表
-"CREATE TABLE IF NOT EXISTS new_table (id TEXT PRIMARY KEY, ...);"
-
-// 删除索引
-"DROP INDEX IF EXISTS idx_name;"
-```
-
-### 注意事项
-
-- SQLite 不支持 `DROP COLUMN`，需要重建表
-- 复杂迁移可使用多条 SQL 语句，用分号分隔
-- 测试迁移时可删除本地数据库文件（位于 `~/Library/Application Support/com.mi.note.mac/minote.db`）
+工作流：从 `dev` 创建功能分支 → 在功能分支上开发 → 等待用户指令合并回 `dev`（`--no-ff`）→ 删除功能分支
 
 ## Git 提交规范
 
