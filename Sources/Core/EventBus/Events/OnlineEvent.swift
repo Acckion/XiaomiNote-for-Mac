@@ -1,20 +1,20 @@
 import Foundation
 
 /// 在线状态事件
-enum OnlineEvent: AppEvent {
+public enum OnlineEvent: AppEvent {
     case onlineStatusChanged(isOnline: Bool)
 
     // MARK: - AppEvent
 
-    var id: UUID {
+    public var id: UUID {
         UUID()
     }
 
-    var timestamp: Date {
+    public var timestamp: Date {
         Date()
     }
 
-    var source: EventSource {
+    public var source: EventSource {
         .system
     }
 }

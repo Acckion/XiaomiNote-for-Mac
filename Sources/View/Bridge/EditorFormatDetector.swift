@@ -15,8 +15,6 @@ extension NativeEditorContext {
     /// 根据当前光标位置更新格式状态
     func updateCurrentFormats() {
 
-        let errorHandler = FormatErrorHandler.shared
-
         guard !nsAttributedText.string.isEmpty else {
             clearAllFormats()
             clearMixedFormatStates()
@@ -70,8 +68,7 @@ extension NativeEditorContext {
         detectedFormats.formUnion(specialFormats)
 
         if selectedRange.length > 0 {
-            let mixedHandler = MixedFormatStateHandler.shared
-            let activeFormats = mixedHandler.getActiveFormats(in: nsAttributedText, range: selectedRange)
+            let activeFormats = detectActiveInlineFormats(in: nsAttributedText, range: selectedRange)
             detectedFormats.formUnion(activeFormats)
         }
 
@@ -90,29 +87,115 @@ extension NativeEditorContext {
 
     /// 更新混合格式状态
     private func updateMixedFormatStates() {
-        let mixedHandler = MixedFormatStateHandler.shared
-        let states = mixedHandler.detectMixedFormatStates(in: nsAttributedText, range: selectedRange)
+        let inlineFormats: [TextFormat] = [.bold, .italic, .underline, .strikethrough, .highlight]
 
-        // 更新部分激活格式集合
         var newPartiallyActive: Set<TextFormat> = []
         var newRatios: [TextFormat: Double] = [:]
 
-        for (format, state) in states {
-            newRatios[format] = state.activationRatio
-            if state.isPartiallyActive {
+        let effectiveRange = NSRange(
+            location: selectedRange.location,
+            length: min(selectedRange.length, nsAttributedText.length - selectedRange.location)
+        )
+
+        guard effectiveRange.length > 0 else {
+            partiallyActiveFormats.removeAll()
+            formatActivationRatios.removeAll()
+            return
+        }
+
+        for format in inlineFormats {
+            var activeCount = 0
+            let totalCount = effectiveRange.length
+
+            nsAttributedText.enumerateAttributes(in: effectiveRange, options: []) { attributes, attrRange, _ in
+                if self.isInlineFormatActive(format, in: attributes) {
+                    activeCount += attrRange.length
+                }
+            }
+
+            let ratio = Double(activeCount) / Double(totalCount)
+            newRatios[format] = ratio
+
+            // 部分激活：既非全部激活也非全部未激活
+            if activeCount > 0, activeCount < totalCount {
                 newPartiallyActive.insert(format)
             }
         }
 
         partiallyActiveFormats = newPartiallyActive
         formatActivationRatios = newRatios
-
     }
 
     /// 清除混合格式状态
     private func clearMixedFormatStates() {
         partiallyActiveFormats.removeAll()
         formatActivationRatios.removeAll()
+    }
+
+    // MARK: - 内联格式检测辅助
+
+    /// 检测选中范围内应显示为激活的内联格式集合
+    private func detectActiveInlineFormats(in attributedString: NSAttributedString, range: NSRange) -> Set<TextFormat> {
+        let inlineFormats: [TextFormat] = [.bold, .italic, .underline, .strikethrough, .highlight]
+        var activeFormats: Set<TextFormat> = []
+
+        let effectiveRange = NSRange(
+            location: range.location,
+            length: min(range.length, attributedString.length - range.location)
+        )
+
+        guard effectiveRange.length > 0 else { return activeFormats }
+
+        for format in inlineFormats {
+            var activeCount = 0
+
+            attributedString.enumerateAttributes(in: effectiveRange, options: []) { attributes, attrRange, _ in
+                if self.isInlineFormatActive(format, in: attributes) {
+                    activeCount += attrRange.length
+                }
+            }
+
+            // 只要有任意字符激活就显示为激活
+            if activeCount > 0 {
+                activeFormats.insert(format)
+            }
+        }
+
+        return activeFormats
+    }
+
+    /// 检测属性中是否包含指定内联格式
+    private func isInlineFormatActive(_ format: TextFormat, in attributes: [NSAttributedString.Key: Any]) -> Bool {
+        switch format {
+        case .bold:
+            guard let font = attributes[.font] as? NSFont else { return false }
+            let traits = font.fontDescriptor.symbolicTraits
+            if traits.contains(.bold) { return true }
+            let fontName = font.fontName.lowercased()
+            if fontName.contains("bold") || fontName.contains("-bold") { return true }
+            if let weightTrait = font.fontDescriptor.object(forKey: .traits) as? [NSFontDescriptor.TraitKey: Any],
+               let weight = weightTrait[.weight] as? CGFloat, weight >= 0.4 { return true }
+            return false
+        case .italic:
+            guard let font = attributes[.font] as? NSFont else { return false }
+            let traits = font.fontDescriptor.symbolicTraits
+            if traits.contains(.italic) { return true }
+            let fontName = font.fontName.lowercased()
+            return fontName.contains("italic") || fontName.contains("oblique")
+        case .underline:
+            if let underlineStyle = attributes[.underlineStyle] as? Int, underlineStyle != 0 { return true }
+            return false
+        case .strikethrough:
+            if let strikethroughStyle = attributes[.strikethroughStyle] as? Int, strikethroughStyle != 0 { return true }
+            return false
+        case .highlight:
+            if let backgroundColor = attributes[.backgroundColor] as? NSColor {
+                if backgroundColor.alphaComponent > 0.1, backgroundColor != .clear, backgroundColor != .white { return true }
+            }
+            return false
+        default:
+            return false
+        }
     }
 
     // MARK: - 字体格式检测
@@ -389,68 +472,27 @@ extension NativeEditorContext {
 
     /// 更新格式状态并验证
     private func updateFormatsWithValidation(_ detectedFormats: Set<TextFormat>) {
-        let errorHandler = FormatErrorHandler.shared
-
-        do {
-            let validatedFormats = validateMutuallyExclusiveFormats(detectedFormats)
-            let previousFormats = currentFormats
-            let previousParagraphStyle = detectParagraphStyleFromFormats(previousFormats)
-            batchUpdateState {
-                currentFormats = validatedFormats
-                for format in TextFormat.allCases {
-                    toolbarButtonStates[format] = validatedFormats.contains(format)
-                }
+        let validatedFormats = validateMutuallyExclusiveFormats(detectedFormats)
+        let previousFormats = currentFormats
+        let previousParagraphStyle = detectParagraphStyleFromFormats(previousFormats)
+        batchUpdateState {
+            currentFormats = validatedFormats
+            for format in TextFormat.allCases {
+                toolbarButtonStates[format] = validatedFormats.contains(format)
             }
+        }
 
-            // 检测新的段落样式并发送通知（如果变化）
-            let newParagraphStyle = detectParagraphStyleFromFormats(validatedFormats)
-            if previousParagraphStyle != newParagraphStyle {
-                postParagraphStyleNotification(newParagraphStyle)
-            }
+        // 检测新的段落样式并发送通知（如果变化）
+        let newParagraphStyle = detectParagraphStyleFromFormats(validatedFormats)
+        if previousParagraphStyle != newParagraphStyle {
+            postParagraphStyleNotification(newParagraphStyle)
+        }
 
-            // 验证状态更新是否成功
-            if currentFormats != validatedFormats {
-                // 状态不一致，记录错误
-                let context = FormatErrorContext(
-                    operation: "updateFormatsWithValidation",
-                    format: nil,
-                    selectedRange: selectedRange,
-                    textLength: nsAttributedText.length,
-                    cursorPosition: cursorPosition,
-                    additionalInfo: [
-                        "previousFormats": previousFormats.map(\.displayName),
-                        "expectedFormats": validatedFormats.map(\.displayName),
-                        "actualFormats": currentFormats.map(\.displayName),
-                    ]
-                )
-                errorHandler.handleError(
-                    .stateInconsistency(
-                        expected: validatedFormats.map(\.displayName).joined(separator: ", "),
-                        actual: currentFormats.map(\.displayName).joined(separator: ", ")
-                    ),
-                    context: context
-                )
-            }
-            errorHandler.resetErrorCount()
-        } catch {
-            let context = FormatErrorContext(
-                operation: "updateFormatsWithValidation",
-                format: nil,
-                selectedRange: selectedRange,
-                textLength: nsAttributedText.length,
-                cursorPosition: cursorPosition,
-                additionalInfo: nil
-            )
-            let result = errorHandler.handleError(
-                .stateSyncFailed(reason: error.localizedDescription),
-                context: context
-            )
-
-            // 根据恢复操作执行相应处理
-            if result.recoveryAction == .forceStateUpdate {
-                // 清除所有格式并重新检测
-                clearAllFormats()
-            }
+        // 验证状态更新是否成功
+        if currentFormats != validatedFormats {
+            let expected = validatedFormats.map(\.displayName).joined(separator: ", ")
+            let actual = currentFormats.map(\.displayName).joined(separator: ", ")
+            LogService.shared.warning(.editor, "格式状态不一致: 期望=[\(expected)], 实际=[\(actual)]")
         }
     }
 

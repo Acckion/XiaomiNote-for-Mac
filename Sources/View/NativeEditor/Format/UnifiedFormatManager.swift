@@ -750,7 +750,358 @@ public final class UnifiedFormatManager {
         textView.typingAttributes = attrs
     }
 
+    // MARK: - 公共方法 - 列表操作（委托给 ListFormatHandler）
+
+    /// 应用无序列表格式
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    ///   - indent: 缩进级别（默认为 1）
+    public func applyBulletList(to textStorage: NSTextStorage, range: NSRange, indent: Int = 1) {
+        ListFormatHandler.applyBulletList(to: textStorage, range: range, indent: indent)
+    }
+
+    /// 应用有序列表格式
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    ///   - number: 列表编号
+    ///   - indent: 缩进级别（默认为 1）
+    public func applyOrderedList(to textStorage: NSTextStorage, range: NSRange, number: Int = 1, indent: Int = 1) {
+        ListFormatHandler.applyOrderedList(to: textStorage, range: range, number: number, indent: indent)
+    }
+
+    /// 移除列表格式
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    public func removeListFormat(from textStorage: NSTextStorage, range: NSRange) {
+        ListFormatHandler.removeListFormat(from: textStorage, range: range)
+    }
+
+    /// 获取指定位置的列表类型
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - position: 位置
+    /// - Returns: 列表类型
+    public func getListType(in textStorage: NSTextStorage, at position: Int) -> ListType {
+        ListFormatHandler.detectListType(in: textStorage, at: position)
+    }
+
+    /// 获取指定位置的列表缩进级别
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - position: 位置
+    /// - Returns: 缩进级别
+    public func getListIndent(in textStorage: NSTextStorage, at position: Int) -> Int {
+        ListFormatHandler.getListIndent(in: textStorage, at: position)
+    }
+
+    /// 获取指定位置的列表编号
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - position: 位置
+    /// - Returns: 列表编号
+    public func getListNumber(in textStorage: NSTextStorage, at position: Int) -> Int {
+        ListFormatHandler.getListNumber(in: textStorage, at: position)
+    }
+
+    /// 增加列表缩进
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    public func increaseListIndent(to textStorage: NSTextStorage, range: NSRange) {
+        let currentIndent = getListIndent(in: textStorage, at: range.location)
+        let listType = getListType(in: textStorage, at: range.location)
+
+        guard listType != .none else { return }
+
+        let newIndent = min(currentIndent + 1, 6)
+
+        textStorage.beginEditing()
+
+        let lineRange = (textStorage.string as NSString).lineRange(for: range)
+        textStorage.addAttribute(.listIndent, value: newIndent, range: lineRange)
+
+        let bulletWidth = listType == .ordered ? ListFormatHandler.orderNumberWidth : ListFormatHandler.bulletWidth
+        let paragraphStyle = ParagraphStyleFactory.makeList(indent: newIndent, bulletWidth: bulletWidth)
+        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+
+        textStorage.endEditing()
+    }
+
+    /// 减少列表缩进
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    public func decreaseListIndent(to textStorage: NSTextStorage, range: NSRange) {
+        let currentIndent = getListIndent(in: textStorage, at: range.location)
+        let listType = getListType(in: textStorage, at: range.location)
+
+        guard listType != .none else { return }
+
+        if currentIndent <= 1 {
+            removeListFormat(from: textStorage, range: range)
+            return
+        }
+
+        let newIndent = currentIndent - 1
+
+        textStorage.beginEditing()
+
+        let lineRange = (textStorage.string as NSString).lineRange(for: range)
+        textStorage.addAttribute(.listIndent, value: newIndent, range: lineRange)
+
+        let bulletWidth = listType == .ordered ? ListFormatHandler.orderNumberWidth : ListFormatHandler.bulletWidth
+        let paragraphStyle = ParagraphStyleFactory.makeList(indent: newIndent, bulletWidth: bulletWidth)
+        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+
+        textStorage.endEditing()
+    }
+
+    // MARK: - 公共方法 - 引用操作（委托给 BlockFormatHandler）
+
+    /// 检测指定位置是否是引用块
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - position: 位置
+    /// - Returns: 是否是引用块
+    public func isQuoteBlock(in textStorage: NSTextStorage, at position: Int) -> Bool {
+        guard position < textStorage.length else { return false }
+
+        if let isQuote = textStorage.attribute(.quoteBlock, at: position, effectiveRange: nil) as? Bool {
+            return isQuote
+        }
+
+        return false
+    }
+
+    /// 应用引用块格式
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    ///   - indent: 缩进级别（默认为 1）
+    public func applyQuoteBlock(to textStorage: NSTextStorage, range: NSRange, indent: Int = 1) {
+        let lineRange = (textStorage.string as NSString).lineRange(for: range)
+
+        textStorage.beginEditing()
+
+        textStorage.addAttribute(.quoteBlock, value: true, range: lineRange)
+        textStorage.addAttribute(.quoteIndent, value: indent, range: lineRange)
+
+        let paragraphStyle = ParagraphStyleFactory.makeQuote(indent: indent)
+        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+
+        let quoteBackgroundColor = NSColor.systemBlue.withAlphaComponent(0.05)
+        textStorage.addAttribute(.backgroundColor, value: quoteBackgroundColor, range: lineRange)
+
+        textStorage.endEditing()
+    }
+
+    /// 移除引用块格式
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    public func removeQuoteBlock(from textStorage: NSTextStorage, range: NSRange) {
+        let lineRange = (textStorage.string as NSString).lineRange(for: range)
+
+        textStorage.beginEditing()
+
+        textStorage.removeAttribute(.quoteBlock, range: lineRange)
+        textStorage.removeAttribute(.quoteIndent, range: lineRange)
+        textStorage.removeAttribute(.backgroundColor, range: lineRange)
+
+        let paragraphStyle = ParagraphStyleFactory.makeDefault()
+        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+
+        textStorage.endEditing()
+    }
+
+    /// 获取指定位置的引用块缩进级别
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - position: 位置
+    /// - Returns: 缩进级别（默认为 1）
+    public func getQuoteIndent(in textStorage: NSTextStorage, at position: Int) -> Int {
+        guard position < textStorage.length else { return 1 }
+
+        if let indent = textStorage.attribute(.quoteIndent, at: position, effectiveRange: nil) as? Int {
+            return indent
+        }
+
+        return 1
+    }
+
+    // MARK: - 公共方法 - 缩进操作
+
+    /// 增加缩进
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    public func increaseIndent(to textStorage: NSTextStorage, range: NSRange) {
+        let currentLevel = getCurrentIndentLevel(in: textStorage, at: range.location)
+        setIndentLevel(to: textStorage, range: range, level: currentLevel + 1)
+    }
+
+    /// 减少缩进
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    public func decreaseIndent(to textStorage: NSTextStorage, range: NSRange) {
+        let currentLevel = getCurrentIndentLevel(in: textStorage, at: range.location)
+        setIndentLevel(to: textStorage, range: range, level: max(1, currentLevel - 1))
+    }
+
+    /// 获取指定位置的缩进级别
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - position: 位置
+    /// - Returns: 缩进级别
+    public func getCurrentIndentLevel(in textStorage: NSTextStorage, at position: Int) -> Int {
+        guard position < textStorage.length else { return 1 }
+
+        if let paragraphStyle = textStorage.attribute(.paragraphStyle, at: position, effectiveRange: nil) as? NSParagraphStyle {
+            return Int(paragraphStyle.firstLineHeadIndent / indentUnit) + 1
+        }
+
+        return 1
+    }
+
+    // MARK: - 公共方法 - 通用格式操作
+
+    /// 应用格式（接受外部 textStorage 参数）
+    ///
+    /// 路由到对应 Handler 处理
+    ///
+    /// - Parameters:
+    ///   - format: 格式类型
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    public func applyFormat(_ format: TextFormat, to textStorage: NSTextStorage, range: NSRange) {
+        switch format {
+        case .bold:
+            InlineFormatHandler.apply(.bold, to: range, in: textStorage, toggle: true)
+        case .italic:
+            InlineFormatHandler.apply(.italic, to: range, in: textStorage, toggle: true)
+        case .underline:
+            InlineFormatHandler.apply(.underline, to: range, in: textStorage, toggle: true)
+        case .strikethrough:
+            InlineFormatHandler.apply(.strikethrough, to: range, in: textStorage, toggle: true)
+        case .highlight:
+            InlineFormatHandler.apply(.highlight, to: range, in: textStorage, toggle: true)
+        case .heading1:
+            BlockFormatHandler.apply(.heading1, to: range, in: textStorage, toggle: true)
+        case .heading2:
+            BlockFormatHandler.apply(.heading2, to: range, in: textStorage, toggle: true)
+        case .heading3:
+            BlockFormatHandler.apply(.heading3, to: range, in: textStorage, toggle: true)
+        case .alignCenter:
+            BlockFormatHandler.apply(.alignCenter, to: range, in: textStorage, toggle: true)
+        case .alignRight:
+            BlockFormatHandler.apply(.alignRight, to: range, in: textStorage, toggle: true)
+        case .bulletList:
+            ListFormatHandler.toggleBulletList(to: textStorage, range: range)
+        case .numberedList:
+            ListFormatHandler.toggleOrderedList(to: textStorage, range: range)
+        case .checkbox:
+            ListFormatHandler.toggleCheckboxList(to: textStorage, range: range)
+        case .quote:
+            BlockFormatHandler.apply(.quote, to: range, in: textStorage, toggle: true)
+        default:
+            break
+        }
+    }
+
+    /// 检测格式是否激活
+    /// - Parameters:
+    ///   - format: 格式类型
+    ///   - textStorage: 文本存储
+    ///   - position: 位置
+    /// - Returns: 是否激活
+    public func isFormatActive(_ format: TextFormat, in textStorage: NSTextStorage, at position: Int) -> Bool {
+        guard position >= 0, position < textStorage.length else { return false }
+
+        let attributes = textStorage.attributes(at: position, effectiveRange: nil)
+
+        switch format {
+        case .bold:
+            return InlineFormatHandler.isFormatActive(.bold, in: attributes)
+        case .italic:
+            return InlineFormatHandler.isFormatActive(.italic, in: attributes)
+        case .underline:
+            return InlineFormatHandler.isFormatActive(.underline, in: attributes)
+        case .strikethrough:
+            return InlineFormatHandler.isFormatActive(.strikethrough, in: attributes)
+        case .highlight:
+            return InlineFormatHandler.isFormatActive(.highlight, in: attributes)
+        case .heading1:
+            if let font = attributes[.font] as? NSFont {
+                return FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize) == 1
+            }
+            return false
+        case .heading2:
+            if let font = attributes[.font] as? NSFont {
+                return FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize) == 2
+            }
+            return false
+        case .heading3:
+            if let font = attributes[.font] as? NSFont {
+                return FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize) == 3
+            }
+            return false
+        case .alignCenter:
+            return BlockFormatHandler.detectAlignment(at: position, in: textStorage) == .center
+        case .alignRight:
+            return BlockFormatHandler.detectAlignment(at: position, in: textStorage) == .right
+        case .bulletList:
+            return ListFormatHandler.detectListType(in: textStorage, at: position) == .bullet
+        case .numberedList:
+            return ListFormatHandler.detectListType(in: textStorage, at: position) == .ordered
+        case .checkbox:
+            return ListFormatHandler.detectListType(in: textStorage, at: position) == .checkbox
+        case .quote:
+            return isQuoteBlock(in: textStorage, at: position)
+        default:
+            return false
+        }
+    }
+
+    // MARK: - 内部方法 - 错误处理
+
+    /// 记录格式操作错误
+    /// - Parameters:
+    ///   - error: 格式错误
+    ///   - context: 错误上下文描述
+    private func logFormatError(_ error: FormatError, context: String) {
+        LogService.shared.error(.editor, "格式操作错误: \(error.errorDescription ?? "未知"), 上下文: \(context)")
+    }
+
     // MARK: - 辅助方法
+
+    /// 缩进单位（像素）
+    private var indentUnit: CGFloat {
+        20
+    }
+
+    /// 设置缩进级别
+    /// - Parameters:
+    ///   - textStorage: 文本存储
+    ///   - range: 应用范围
+    ///   - level: 缩进级别
+    private func setIndentLevel(to textStorage: NSTextStorage, range: NSRange, level: Int) {
+        let lineRange = (textStorage.string as NSString).lineRange(for: range)
+
+        textStorage.beginEditing()
+
+        let paragraphStyle = NSMutableParagraphStyle()
+        let indentValue = CGFloat(max(0, level - 1)) * indentUnit
+        paragraphStyle.firstLineHeadIndent = indentValue
+        paragraphStyle.headIndent = indentValue
+
+        textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+
+        textStorage.endEditing()
+    }
 
     /// 获取当前 textView
     /// - Returns: NSTextView 实例，如果未注册则返回 nil

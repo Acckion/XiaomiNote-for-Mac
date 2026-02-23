@@ -1,21 +1,21 @@
 import Foundation
 
 /// 设置事件
-enum SettingsEvent: AppEvent {
+public enum SettingsEvent: AppEvent {
     case showLoginRequested
     case editorSettingsChanged
 
     // MARK: - AppEvent
 
-    var id: UUID {
+    public var id: UUID {
         UUID()
     }
 
-    var timestamp: Date {
+    public var timestamp: Date {
         Date()
     }
 
-    var source: EventSource {
+    public var source: EventSource {
         .user
     }
 }

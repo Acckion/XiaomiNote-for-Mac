@@ -1,7 +1,7 @@
 import Foundation
 
 /// 文件夹事件
-enum FolderEvent: AppEvent {
+public enum FolderEvent: AppEvent {
     // 意图事件
     case created(name: String)
     case renamed(folderId: String, newName: String)
@@ -16,15 +16,15 @@ enum FolderEvent: AppEvent {
 
     // MARK: - AppEvent
 
-    var id: UUID {
+    public var id: UUID {
         UUID()
     }
 
-    var timestamp: Date {
+    public var timestamp: Date {
         Date()
     }
 
-    var source: EventSource {
+    public var source: EventSource {
         .user
     }
 }

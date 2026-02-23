@@ -186,21 +186,12 @@ extension NativeEditorView {
 
         // MARK: - 撤销/重做处理
 
-        /// 撤销/重做状态处理器
-        private let undoRedoHandler = UndoRedoStateHandler.shared
-
         /// 处理撤销操作
         private func handleUndoOperation() {
             let formatsBefore = parent.editorContext.currentFormats
 
-            undoRedoHandler.setContentSyncCallback { [weak self] in
-                self?.syncContentToContext()
-            }
-            undoRedoHandler.setStateUpdateCallback { [weak self] in
-                self?.parent.editorContext.forceUpdateFormats()
-            }
-            undoRedoHandler.handleOperation(.undo)
-
+            // 同步内容并延迟更新格式状态
+            syncContentToContext()
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 100_000_000)
                 self.syncContentToContext()
@@ -216,14 +207,8 @@ extension NativeEditorView {
         private func handleRedoOperation() {
             let formatsBefore = parent.editorContext.currentFormats
 
-            undoRedoHandler.setContentSyncCallback { [weak self] in
-                self?.syncContentToContext()
-            }
-            undoRedoHandler.setStateUpdateCallback { [weak self] in
-                self?.parent.editorContext.forceUpdateFormats()
-            }
-            undoRedoHandler.handleOperation(.redo)
-
+            // 同步内容并延迟更新格式状态
+            syncContentToContext()
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 100_000_000)
                 self.syncContentToContext()
@@ -232,15 +217,6 @@ extension NativeEditorView {
                 if formatsBefore != formatsAfter {
                     LogService.shared.debug(.editor, "重做操作完成，格式已变化")
                 }
-            }
-        }
-
-        /// 处理撤销/重做操作（兼容旧代码）
-        private func handleUndoRedoOperation() {
-            syncContentToContext()
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 50_000_000)
-                self.parent.editorContext.forceUpdateFormats()
             }
         }
 

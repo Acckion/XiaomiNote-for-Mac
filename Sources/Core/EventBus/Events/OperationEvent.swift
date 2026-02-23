@@ -1,22 +1,22 @@
 import Foundation
 
 /// 操作队列事件
-enum OperationEvent: AppEvent {
+public enum OperationEvent: AppEvent {
     case operationCompleted
     case queueProcessingCompleted(successCount: Int, failedCount: Int)
     case authFailed
 
     // MARK: - AppEvent
 
-    var id: UUID {
+    public var id: UUID {
         UUID()
     }
 
-    var timestamp: Date {
+    public var timestamp: Date {
         Date()
     }
 
-    var source: EventSource {
+    public var source: EventSource {
         .sync
     }
 }

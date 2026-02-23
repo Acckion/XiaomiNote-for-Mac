@@ -1,28 +1,35 @@
 import Foundation
 
 /// 全量同步模式
-enum FullSyncMode: Sendable {
+public enum FullSyncMode: Sendable {
     case normal
     case forceRedownload
     case simulatedIncremental
 }
 
 /// 同步模式
-enum SyncMode: Sendable {
+public enum SyncMode: Sendable {
     case incremental
     case full(FullSyncMode)
 }
 
 /// 同步事件结果
-struct SyncEventResult: Sendable {
-    let downloadedCount: Int
-    let uploadedCount: Int
-    let deletedCount: Int
-    let duration: TimeInterval
+public struct SyncEventResult: Sendable {
+    public let downloadedCount: Int
+    public let uploadedCount: Int
+    public let deletedCount: Int
+    public let duration: TimeInterval
+
+    public init(downloadedCount: Int, uploadedCount: Int, deletedCount: Int, duration: TimeInterval) {
+        self.downloadedCount = downloadedCount
+        self.uploadedCount = uploadedCount
+        self.deletedCount = deletedCount
+        self.duration = duration
+    }
 }
 
 /// 同步事件
-enum SyncEvent: AppEvent {
+public enum SyncEvent: AppEvent {
     case requested(mode: SyncMode)
     case started
     case progress(message: String, percent: Double)
@@ -33,15 +40,15 @@ enum SyncEvent: AppEvent {
 
     // MARK: - AppEvent
 
-    var id: UUID {
+    public var id: UUID {
         UUID()
     }
 
-    var timestamp: Date {
+    public var timestamp: Date {
         Date()
     }
 
-    var source: EventSource {
+    public var source: EventSource {
         .sync
     }
 }

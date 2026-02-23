@@ -28,35 +28,14 @@ extension NativeEditorView.Coordinator {
 
     /// 应用格式到选中文本
     func applyFormat(_ format: TextFormat) {
-        // 开始性能测量
-        let performanceOptimizer = FormatApplicationPerformanceOptimizer.shared
-        let errorHandler = FormatErrorHandler.shared
-        let consistencyChecker = FormatApplicationConsistencyChecker.shared
-
         // 1. 预检查 - 验证编辑器状态
         guard let textView else {
-            let context = FormatErrorContext(
-                operation: "applyFormat",
-                format: format.displayName,
-                selectedRange: nil,
-                textLength: nil,
-                cursorPosition: nil,
-                additionalInfo: nil
-            )
-            errorHandler.handleError(.textViewUnavailable, context: context)
+            LogService.shared.error(.editor, "格式操作错误: textView 不可用, 上下文: applyFormat(\(format.displayName))")
             return
         }
 
         guard let textStorage = textView.textStorage else {
-            let context = FormatErrorContext(
-                operation: "applyFormat",
-                format: format.displayName,
-                selectedRange: nil,
-                textLength: nil,
-                cursorPosition: nil,
-                additionalInfo: nil
-            )
-            errorHandler.handleError(.textStorageUnavailable, context: context)
+            LogService.shared.error(.editor, "格式操作错误: textStorage 不可用, 上下文: applyFormat(\(format.displayName))")
             return
         }
 
@@ -66,26 +45,11 @@ extension NativeEditorView.Coordinator {
         // 记录应用前的格式状态
         let beforeState = parent.editorContext.currentFormats
 
-        // 开始性能测量
-        let measurementContext = performanceOptimizer.beginMeasurement(
-            format: format,
-            selectedRange: selectedRange
-        )
-
         // 2. 处理空选择范围的情况
         // 对于内联格式，如果没有选中文本，则不应用格式
         // 对于块级格式，即使没有选中文本也可以应用到当前行
         if selectedRange.length == 0, format.isInlineFormat {
-            performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: "内联格式需要选中文本")
-            let context = FormatErrorContext(
-                operation: "applyFormat",
-                format: format.displayName,
-                selectedRange: selectedRange,
-                textLength: textLength,
-                cursorPosition: selectedRange.location,
-                additionalInfo: nil
-            )
-            errorHandler.handleError(.emptySelectionForInlineFormat(format: format.displayName), context: context)
+            LogService.shared.error(.editor, "格式操作错误: 内联格式 '\(format.displayName)' 需要选中文本, 上下文: applyFormat")
             return
         }
 
@@ -100,8 +64,7 @@ extension NativeEditorView.Coordinator {
         }
 
         guard effectiveRange.location + effectiveRange.length <= textLength else {
-            performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: "选择范围超出文本长度")
-            errorHandler.handleRangeError(range: effectiveRange, textLength: textLength)
+            LogService.shared.error(.editor, "格式操作错误: 选择范围超出文本长度, 范围: \(effectiveRange), 文本长度: \(textLength)")
             return
         }
 
@@ -127,54 +90,9 @@ extension NativeEditorView.Coordinator {
             // 6. 通知内容变化
             textDidChange(Notification(name: NSText.didChangeNotification, object: textView))
 
-            // 7. 记录成功日志和性能数据
-            performanceOptimizer.endMeasurement(measurementContext, success: true)
-
-            // 8. 记录一致性检查数据
-            let afterState = parent.editorContext.currentFormats
-            // 优先使用显式设置的方式，否则从 editorContext 获取
-            let applicationMethod = currentApplicationMethod ?? parent.editorContext.currentApplicationMethod
-            consistencyChecker.recordFormatApplication(
-                method: applicationMethod,
-                format: format,
-                selectedRange: selectedRange,
-                textLength: textLength,
-                beforeState: beforeState,
-                afterState: afterState,
-                success: true
-            )
-
-            // 9. 重置错误计数（成功后重置）
-            errorHandler.resetErrorCount()
         } catch {
-            // 9. 错误处理
-            performanceOptimizer.endMeasurement(measurementContext, success: false, errorMessage: error.localizedDescription)
-
-            // 记录一致性检查数据（失败情况）
-            let afterState = parent.editorContext.currentFormats
-            // 优先使用显式设置的方式，否则从 editorContext 获取
-            let applicationMethod = currentApplicationMethod ?? parent.editorContext.currentApplicationMethod
-            consistencyChecker.recordFormatApplication(
-                method: applicationMethod,
-                format: format,
-                selectedRange: selectedRange,
-                textLength: textLength,
-                beforeState: beforeState,
-                afterState: afterState,
-                success: false,
-                errorMessage: error.localizedDescription
-            )
-
-            // 记录错误并尝试恢复
-            let result = errorHandler.handleFormatApplicationError(
-                format: format,
-                range: effectiveRange,
-                textLength: textLength,
-                underlyingError: error
-            )
-
-            // 根据恢复操作执行相应处理
-            handleFormatErrorRecovery(result, format: format)
+            // 错误处理：记录日志并尝试恢复
+            LogService.shared.error(.editor, "格式应用失败: \(error.localizedDescription), 格式: \(format.displayName), 范围: \(effectiveRange)")
 
             // 触发状态重新同步
             parent.editorContext.updateCurrentFormats()
@@ -207,29 +125,6 @@ extension NativeEditorView.Coordinator {
         }
     }
 
-    /// 处理格式错误恢复
-    /// - Parameters:
-    ///   - result: 错误处理结果
-    ///   - format: 格式类型
-    private func handleFormatErrorRecovery(_ result: FormatErrorHandlingResult, format _: TextFormat) {
-        switch result.recoveryAction {
-        case .retryWithFallback:
-            break
-
-        case .forceStateUpdate:
-            // 强制更新状态
-            parent.editorContext.forceUpdateFormats()
-
-        case .refreshEditor:
-            // 刷新编辑器
-            NotificationCenter.default.post(name: .nativeEditorNeedsRefresh, object: nil)
-
-        default:
-            // 其他情况不做额外处理
-            break
-        }
-    }
-
     /// 安全地应用格式（带错误处理）
     /// - Parameters:
     ///   - format: 格式类型
@@ -259,40 +154,16 @@ extension NativeEditorView.Coordinator {
             return
         }
 
-        // 使用 UnifiedFormatManager 统一处理其他格式应用
-        if UnifiedFormatManager.shared.isRegistered {
-            // 根据格式类型调用对应的处理器
-            switch format.category {
-            case .inline:
-                // 内联格式：使用 InlineFormatHandler
-                InlineFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
+        // 根据格式类型调用对应的处理器
+        switch format.category {
+        case .inline:
+            InlineFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
 
-            case .blockTitle, .blockList, .blockQuote:
-                // 块级格式：使用 BlockFormatHandler
-                BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
+        case .blockTitle, .blockList, .blockQuote:
+            BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
 
-            case .alignment:
-                // 对齐格式：使用 BlockFormatHandler
-                BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
-            }
-
-        } else {
-            // 回退到旧的处理逻辑（兼容性）
-            // 注意：applyFontTrait 和 toggleAttribute 逻辑已整合到 UnifiedFormatManager
-            // 直接使用 InlineFormatHandler 和 BlockFormatHandler
-            switch format.category {
-            case .inline:
-                InlineFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
-
-            case .blockTitle, .blockList, .blockQuote:
-                // 块级格式：使用 BlockFormatHandler
-                BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
-
-            case .alignment:
-                // 对齐格式：使用 BlockFormatHandler
-                BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
-            }
-
+        case .alignment:
+            BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
         }
     }
 
@@ -362,7 +233,7 @@ extension NativeEditorView.Coordinator {
 
         textStorage.beginEditing()
 
-        let formatManager = FormatManager.shared
+        let formatManager = UnifiedFormatManager.shared
 
         switch operation {
         case .increase:

@@ -13,7 +13,7 @@ public enum ParagraphType: Equatable, Hashable {
     case normal
 
     /// 列表段落
-    /// 注意：使用 FormatManager 中定义的 ListType
+    /// 注意：使用 FormatTypes.swift 中定义的 ListType
     case list(ListType)
 
     /// 引用段落
@@ -23,7 +23,7 @@ public enum ParagraphType: Equatable, Hashable {
     case code
 }
 
-// 注意：ListType 已在 FormatManager.swift 中定义
+// 注意：ListType 已在 FormatTypes.swift 中定义
 // public enum ListType: Equatable {
 //     case bullet     // 无序列表
 //     case ordered    // 有序列表
