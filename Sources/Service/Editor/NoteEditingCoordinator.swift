@@ -680,40 +680,46 @@ public final class NoteEditingCoordinator: ObservableObject {
     // MARK: - 内部方法（云端同步）
 
     func scheduleCloudUpload(for note: Note, xmlContent: String) {
-        guard APIClient.shared.isAuthenticated(), APIClient.shared.hasValidCookie() else {
-            queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
-            return
-        }
-
-        let lastUploadedForThisNote = lastUploadedContentByNoteId[note.id] ?? ""
-        let lastUploadedTitle = lastUploadedTitleByNoteId[note.id] ?? ""
-        let currentTitle = editedTitle.isEmpty ? note.title : editedTitle
-        guard xmlContent != lastUploadedForThisNote || currentTitle != lastUploadedTitle else {
-            return
-        }
-
-        cloudUploadTask?.cancel()
-        let noteId = note.id
-
-        cloudUploadTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
-            guard !Task.isCancelled, currentEditingNoteId == noteId else { return }
-
-            let latestXMLContent = currentXMLContent.isEmpty ? xmlContent : currentXMLContent
-            let latestTitle = editedTitle.isEmpty ? note.title : editedTitle
-
-            let lastUploaded = lastUploadedContentByNoteId[noteId] ?? ""
-            let lastTitle = lastUploadedTitleByNoteId[noteId] ?? ""
-            guard latestXMLContent != lastUploaded || latestTitle != lastTitle else { return }
-
-            guard APIClient.shared.isAuthenticated(), APIClient.shared.hasValidCookie() else {
-                queueOfflineUpdateOperation(for: note, xmlContent: latestXMLContent)
+        Task {
+            let isAuth = await APIClient.shared.isAuthenticated()
+            let hasCookie = APIClient.shared.hasValidCookie()
+            guard isAuth, hasCookie else {
+                queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
                 return
             }
 
-            await performCloudUpload(for: note, xmlContent: latestXMLContent)
-            lastUploadedContentByNoteId[noteId] = latestXMLContent
-            lastUploadedTitleByNoteId[noteId] = latestTitle
+            let lastUploadedForThisNote = lastUploadedContentByNoteId[note.id] ?? ""
+            let lastUploadedTitle = lastUploadedTitleByNoteId[note.id] ?? ""
+            let currentTitle = editedTitle.isEmpty ? note.title : editedTitle
+            guard xmlContent != lastUploadedForThisNote || currentTitle != lastUploadedTitle else {
+                return
+            }
+
+            cloudUploadTask?.cancel()
+            let noteId = note.id
+
+            cloudUploadTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                guard !Task.isCancelled, currentEditingNoteId == noteId else { return }
+
+                let latestXMLContent = currentXMLContent.isEmpty ? xmlContent : currentXMLContent
+                let latestTitle = editedTitle.isEmpty ? note.title : editedTitle
+
+                let lastUploaded = lastUploadedContentByNoteId[noteId] ?? ""
+                let lastTitle = lastUploadedTitleByNoteId[noteId] ?? ""
+                guard latestXMLContent != lastUploaded || latestTitle != lastTitle else { return }
+
+                let isAuth2 = await APIClient.shared.isAuthenticated()
+                let hasCookie2 = APIClient.shared.hasValidCookie()
+                guard isAuth2, hasCookie2 else {
+                    queueOfflineUpdateOperation(for: note, xmlContent: latestXMLContent)
+                    return
+                }
+
+                await performCloudUpload(for: note, xmlContent: latestXMLContent)
+                lastUploadedContentByNoteId[noteId] = latestXMLContent
+                lastUploadedTitleByNoteId[noteId] = latestTitle
+            }
         }
     }
 

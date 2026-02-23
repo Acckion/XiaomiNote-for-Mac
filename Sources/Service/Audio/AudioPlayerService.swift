@@ -10,7 +10,8 @@ import Foundation
 /// - 播放状态管理
 /// - 播放完成通知
 ///
-final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable {
+@MainActor
+final class AudioPlayerService: NSObject, ObservableObject {
 
     // MARK: - 单例
 
@@ -81,22 +82,19 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
     /// 进度更新间隔（秒）
     private let progressUpdateInterval: TimeInterval = 0.1
 
-    /// 状态访问锁
-    private let stateLock = NSLock()
-
     // MARK: - 通知名称
 
     /// 播放状态变化通知
-    static let playbackStateDidChangeNotification = Notification.Name("AudioPlayerService.playbackStateDidChange")
+    nonisolated(unsafe) static let playbackStateDidChangeNotification = Notification.Name("AudioPlayerService.playbackStateDidChange")
 
     /// 播放进度变化通知
-    static let playbackProgressDidChangeNotification = Notification.Name("AudioPlayerService.playbackProgressDidChange")
+    nonisolated(unsafe) static let playbackProgressDidChangeNotification = Notification.Name("AudioPlayerService.playbackProgressDidChange")
 
     /// 播放完成通知
-    static let playbackDidFinishNotification = Notification.Name("AudioPlayerService.playbackDidFinish")
+    nonisolated(unsafe) static let playbackDidFinishNotification = Notification.Name("AudioPlayerService.playbackDidFinish")
 
     /// 播放错误通知
-    static let playbackErrorNotification = Notification.Name("AudioPlayerService.playbackError")
+    nonisolated(unsafe) static let playbackErrorNotification = Notification.Name("AudioPlayerService.playbackError")
 
     // MARK: - 初始化
 
@@ -104,10 +102,7 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
         super.init()
     }
 
-    deinit {
-        stopProgressTimer()
-        audioPlayer?.stop()
-    }
+    // 单例不会被释放，无需 deinit
 
     // MARK: - 播放控制方法
 
@@ -116,8 +111,6 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
     /// - Parameter url: 音频文件 URL
     /// - Throws: 播放失败时抛出错误
     func play(url: URL) throws {
-        stateLock.lock()
-        defer { stateLock.unlock() }
 
         if let currentURL, currentURL == url, let player = audioPlayer {
             if !player.isPlaying {
@@ -178,8 +171,6 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
     /// 暂停播放
     ///
     func pause() {
-        stateLock.lock()
-        defer { stateLock.unlock() }
 
         guard let player = audioPlayer, player.isPlaying else {
             return
@@ -191,8 +182,6 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
     }
 
     func stop() {
-        stateLock.lock()
-        defer { stateLock.unlock() }
 
         stopInternal()
     }
@@ -218,8 +207,6 @@ final class AudioPlayerService: NSObject, ObservableObject, @unchecked Sendable 
     ///
     /// - Parameter progress: 进度值（0.0 - 1.0）
     func seek(to progress: Double) {
-        stateLock.lock()
-        defer { stateLock.unlock() }
 
         guard let player = audioPlayer else {
             return
@@ -487,35 +474,33 @@ extension AudioPlayerService: AVAudioPlayerDelegate {
 
     /// 播放完成回调
     ///
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        stateLock.lock()
-        defer { stateLock.unlock() }
+    nonisolated func audioPlayerDidFinishPlaying(_: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in
+            stopProgressTimer()
 
-        stopProgressTimer()
-
-        if flag {
-            currentTime = 0
-            player.currentTime = 0
-            updateStateInternal(.idle)
-            postFinishNotification()
-        } else {
-            let errorMsg = "播放异常结束"
-            LogService.shared.error(.audio, errorMsg)
-            updateStateInternal(.error(errorMsg))
-            postErrorNotification(errorMsg)
+            if flag {
+                currentTime = 0
+                audioPlayer?.currentTime = 0
+                updateStateInternal(.idle)
+                postFinishNotification()
+            } else {
+                let errorMsg = "播放异常结束"
+                LogService.shared.error(.audio, errorMsg)
+                updateStateInternal(.error(errorMsg))
+                postErrorNotification(errorMsg)
+            }
         }
     }
 
-    func audioPlayerDecodeErrorDidOccur(_: AVAudioPlayer, error: Error?) {
-        stateLock.lock()
-        defer { stateLock.unlock() }
-
-        stopProgressTimer()
-
+    nonisolated func audioPlayerDecodeErrorDidOccur(_: AVAudioPlayer, error: Error?) {
         let errorMsg = error?.localizedDescription ?? "音频解码错误"
-        LogService.shared.error(.audio, "解码错误: \(errorMsg)")
+        Task { @MainActor in
+            stopProgressTimer()
 
-        updateStateInternal(.error(errorMsg))
-        postErrorNotification(errorMsg)
+            LogService.shared.error(.audio, "解码错误: \(errorMsg)")
+
+            updateStateInternal(.error(errorMsg))
+            postErrorNotification(errorMsg)
+        }
     }
 }

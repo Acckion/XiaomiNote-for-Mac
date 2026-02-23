@@ -28,7 +28,7 @@ struct CachedAudioFile: Codable {
 /// - 缓存大小管理
 /// - LRU 淘汰策略
 /// - 缓存清理
-final class AudioCacheService: @unchecked Sendable {
+actor AudioCacheService {
 
     // MARK: - 单例
 
@@ -51,26 +51,24 @@ final class AudioCacheService: @unchecked Sendable {
     /// 缓存元数据（fileId -> CachedAudioFile）
     private var cacheMetadata: [String: CachedAudioFile] = [:]
 
-    /// 元数据访问锁
-    private let metadataLock = NSLock()
-
     // MARK: - 初始化
 
     private init() {
-        // 配置缓存目录：~/Library/Application Support/{bundleId}/audio/
-        // 与图片存储目录 images/ 保持一致的结构
-        let appSupportDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let appSupportDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let appBundleID = Bundle.main.bundleIdentifier ?? "com.mi.note.mac"
         let appDirectory = appSupportDirectory.appendingPathComponent(appBundleID)
         self.cacheDirectory = appDirectory.appendingPathComponent("audio")
         self.metadataFilePath = appDirectory.appendingPathComponent("audio_cache_metadata.json")
 
-        // 创建缓存目录
+        // 目录创建和元数据加载在 actor 初始化后通过 nonisolated 方法处理
+    }
+
+    /// 初始化缓存目录和元数据（需要在首次使用前调用）
+    func initializeIfNeeded() {
         createCacheDirectoryIfNeeded()
-
-        // 加载缓存元数据
-        loadMetadata()
-
+        if cacheMetadata.isEmpty {
+            loadMetadata()
+        }
     }
 
     // MARK: - 目录管理
@@ -90,9 +88,6 @@ final class AudioCacheService: @unchecked Sendable {
 
     /// 加载缓存元数据
     private func loadMetadata() {
-        metadataLock.lock()
-        defer { metadataLock.unlock() }
-
         guard fileManager.fileExists(atPath: metadataFilePath.path) else {
             return
         }
@@ -114,9 +109,6 @@ final class AudioCacheService: @unchecked Sendable {
 
     /// 保存缓存元数据
     private func saveMetadata() {
-        metadataLock.lock()
-        defer { metadataLock.unlock() }
-
         do {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
@@ -151,8 +143,7 @@ final class AudioCacheService: @unchecked Sendable {
     /// - Parameter fileId: 文件 ID
     /// - Returns: 本地文件 URL，如果未缓存则返回 nil
     func getCachedFile(for fileId: String) -> URL? {
-        metadataLock.lock()
-        defer { metadataLock.unlock() }
+        initializeIfNeededSync()
 
         guard var metadata = cacheMetadata[fileId] else {
             return nil
@@ -162,13 +153,13 @@ final class AudioCacheService: @unchecked Sendable {
 
         guard fileManager.fileExists(atPath: filePath.path) else {
             cacheMetadata.removeValue(forKey: fileId)
-            saveMetadataAsync()
+            saveMetadata()
             return nil
         }
 
         metadata.lastAccessedAt = Date()
         cacheMetadata[fileId] = metadata
-        saveMetadataAsync()
+        saveMetadata()
 
         return filePath
     }
@@ -183,25 +174,22 @@ final class AudioCacheService: @unchecked Sendable {
     /// - Throws: 缓存失败时抛出错误
     @discardableResult
     func cacheFile(data: Data, fileId: String, mimeType: String) throws -> URL {
-        // 确保缓存目录存在
+        initializeIfNeededSync()
+
         createCacheDirectoryIfNeeded()
 
-        // 检查是否需要清理缓存
-        let currentSize = getCacheSize()
+        let currentSize = calculateCacheSize()
         let dataSize = Int64(data.count)
 
         if currentSize + dataSize > maxCacheSize {
-            // 需要清理缓存以腾出空间
-            let targetSize = maxCacheSize - dataSize - (10 * 1024 * 1024) // 预留 10MB 空间
-            evictLeastRecentlyUsed(targetSize: max(0, targetSize))
+            let targetSize = maxCacheSize - dataSize - (10 * 1024 * 1024)
+            evictLeastRecentlyUsedInternal(targetSize: max(0, targetSize))
         }
 
-        // 生成文件名
-        let fileExtension = getFileExtension(for: mimeType)
+        let fileExtension = Self.getFileExtension(for: mimeType)
         let fileName = "\(fileId).\(fileExtension)"
         let filePath = cacheDirectory.appendingPathComponent(fileName)
 
-        // 写入文件
         do {
             try data.write(to: filePath, options: .atomic)
         } catch {
@@ -209,8 +197,6 @@ final class AudioCacheService: @unchecked Sendable {
             throw error
         }
 
-        // 更新元数据
-        metadataLock.lock()
         let metadata = CachedAudioFile(
             fileId: fileId,
             localPath: fileName,
@@ -220,9 +206,8 @@ final class AudioCacheService: @unchecked Sendable {
             lastAccessedAt: Date()
         )
         cacheMetadata[fileId] = metadata
-        metadataLock.unlock()
 
-        saveMetadataAsync()
+        saveMetadata()
 
         return filePath
     }
@@ -232,20 +217,18 @@ final class AudioCacheService: @unchecked Sendable {
     /// - Parameter fileId: 文件 ID
     /// - Returns: 是否已缓存
     func isCached(fileId: String) -> Bool {
-        metadataLock.lock()
-        defer { metadataLock.unlock() }
+        initializeIfNeededSync()
 
         guard let metadata = cacheMetadata[fileId] else {
             return false
         }
 
-        // 验证文件是否存在
         let filePath = cacheDirectory.appendingPathComponent(metadata.localPath)
         return fileManager.fileExists(atPath: filePath.path)
     }
 
     /// 根据 MIME 类型获取文件扩展名
-    private func getFileExtension(for mimeType: String) -> String {
+    private nonisolated static func getFileExtension(for mimeType: String) -> String {
         switch mimeType.lowercased() {
         case "audio/mpeg", "audio/mp3":
             "mp3"
@@ -258,14 +241,15 @@ final class AudioCacheService: @unchecked Sendable {
         case "audio/ogg":
             "ogg"
         default:
-            "mp3" // 默认使用 mp3
+            "mp3"
         }
     }
 
-    /// 异步保存元数据
-    private func saveMetadataAsync() {
-        DispatchQueue.global(qos: .utility).async { [weak self] in
-            self?.saveMetadata()
+    /// 同步初始化检查
+    private func initializeIfNeededSync() {
+        if cacheMetadata.isEmpty {
+            createCacheDirectoryIfNeeded()
+            loadMetadata()
         }
     }
 
@@ -275,15 +259,16 @@ final class AudioCacheService: @unchecked Sendable {
     ///
     /// - Returns: 缓存总大小
     func getCacheSize() -> Int64 {
-        metadataLock.lock()
-        defer { metadataLock.unlock() }
+        initializeIfNeededSync()
+        return calculateCacheSize()
+    }
 
+    /// 计算缓存大小（内部方法，不触发初始化）
+    private func calculateCacheSize() -> Int64 {
         var totalSize: Int64 = 0
-
         for metadata in cacheMetadata.values {
             totalSize += metadata.fileSize
         }
-
         return totalSize
     }
 
@@ -292,13 +277,11 @@ final class AudioCacheService: @unchecked Sendable {
     /// - Returns: 格式化的缓存大小字符串
     func getFormattedCacheSize() -> String {
         let size = getCacheSize()
-        return formatBytes(size)
+        return Self.formatBytes(size)
     }
 
     /// 清理所有缓存
     func clearCache() {
-        metadataLock.lock()
-
         for metadata in cacheMetadata.values {
             let filePath = cacheDirectory.appendingPathComponent(metadata.localPath)
             try? fileManager.removeItem(at: filePath)
@@ -306,16 +289,11 @@ final class AudioCacheService: @unchecked Sendable {
 
         cacheMetadata.removeAll()
 
-        metadataLock.unlock()
-
         saveMetadata()
     }
 
     func removeCache(for fileId: String) {
-        metadataLock.lock()
-
         guard let metadata = cacheMetadata[fileId] else {
-            metadataLock.unlock()
             return
         }
 
@@ -324,42 +302,37 @@ final class AudioCacheService: @unchecked Sendable {
 
         cacheMetadata.removeValue(forKey: fileId)
 
-        metadataLock.unlock()
-
-        saveMetadataAsync()
+        saveMetadata()
     }
 
     /// 使用 LRU 策略淘汰缓存，直到缓存大小小于目标大小
     ///
     /// - Parameter targetSize: 目标缓存大小（字节）
     func evictLeastRecentlyUsed(targetSize: Int64) {
-        metadataLock.lock()
+        evictLeastRecentlyUsedInternal(targetSize: targetSize)
+    }
 
+    /// LRU 淘汰内部实现
+    private func evictLeastRecentlyUsedInternal(targetSize: Int64) {
         var currentSize = cacheMetadata.values.reduce(0) { $0 + $1.fileSize }
 
-        // 如果当前大小已经小于目标大小，无需清理
         guard currentSize > targetSize else {
-            metadataLock.unlock()
             return
         }
 
-        // 按最后访问时间排序（最久未访问的在前）
         let sortedMetadata = cacheMetadata.values.sorted { $0.lastAccessedAt < $1.lastAccessedAt }
 
         var evictedCount = 0
         var evictedSize: Int64 = 0
 
         for metadata in sortedMetadata {
-            // 如果已经达到目标大小，停止清理
             if currentSize <= targetSize {
                 break
             }
 
-            // 删除文件
             let filePath = cacheDirectory.appendingPathComponent(metadata.localPath)
             try? fileManager.removeItem(at: filePath)
 
-            // 移除元数据
             cacheMetadata.removeValue(forKey: metadata.fileId)
 
             currentSize -= metadata.fileSize
@@ -367,10 +340,8 @@ final class AudioCacheService: @unchecked Sendable {
             evictedCount += 1
         }
 
-        metadataLock.unlock()
-
         if evictedCount > 0 {
-            saveMetadataAsync()
+            saveMetadata()
         }
     }
 
@@ -383,7 +354,7 @@ final class AudioCacheService: @unchecked Sendable {
     // MARK: - 辅助方法
 
     /// 格式化字节数为可读字符串
-    private func formatBytes(_ bytes: Int64) -> String {
+    private nonisolated static func formatBytes(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
         return formatter.string(fromByteCount: bytes)
@@ -393,17 +364,16 @@ final class AudioCacheService: @unchecked Sendable {
     ///
     /// - Returns: 缓存统计信息字典
     func getCacheStats() -> [String: Any] {
-        metadataLock.lock()
-        defer { metadataLock.unlock() }
+        initializeIfNeededSync()
 
         let totalSize = cacheMetadata.values.reduce(0) { $0 + $1.fileSize }
 
         return [
             "fileCount": cacheMetadata.count,
             "totalSize": totalSize,
-            "formattedSize": formatBytes(totalSize),
+            "formattedSize": Self.formatBytes(totalSize),
             "maxSize": maxCacheSize,
-            "formattedMaxSize": formatBytes(maxCacheSize),
+            "formattedMaxSize": Self.formatBytes(maxCacheSize),
             "usagePercent": Double(totalSize) / Double(maxCacheSize) * 100,
         ]
     }
@@ -411,7 +381,7 @@ final class AudioCacheService: @unchecked Sendable {
     /// 获取缓存目录路径
     ///
     /// - Returns: 缓存目录 URL
-    func getCacheDirectoryPath() -> URL {
+    nonisolated func getCacheDirectoryPath() -> URL {
         cacheDirectory
     }
 }

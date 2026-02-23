@@ -11,7 +11,7 @@ import Foundation
 /// 网络客户端实现
 ///
 /// 符合 NetworkClientProtocol 的网络客户端实现
-final class NetworkClient: NetworkClientProtocol, @unchecked Sendable {
+struct NetworkClient: NetworkClientProtocol, Sendable {
 
     // MARK: - Properties
 

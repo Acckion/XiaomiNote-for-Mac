@@ -84,16 +84,16 @@ public final class OnlineStateManager: ObservableObject {
     /// 计算逻辑：isOnline = isConnected && isAuthenticated && isCookieValid
     private func updateOnlineStatus() {
         let isConnected = networkMonitor.isConnected
-        let isAuthenticated = apiClient.isAuthenticated()
         let cookieValid = isCookieValid
 
-        let wasOnline = isOnline
-        isOnline = isConnected && isAuthenticated && cookieValid
+        Task {
+            let isAuthenticated = await apiClient.isAuthenticated()
+            let wasOnline = isOnline
+            isOnline = isConnected && isAuthenticated && cookieValid
 
-        if wasOnline != isOnline {
-            LogService.shared.info(.sync, "在线状态变化: \(isOnline ? "在线" : "离线"), 网络: \(isConnected), 认证: \(isAuthenticated), Cookie: \(cookieValid)")
+            if wasOnline != isOnline {
+                LogService.shared.info(.sync, "在线状态变化: \(isOnline ? "在线" : "离线"), 网络: \(isConnected), 认证: \(isAuthenticated), Cookie: \(cookieValid)")
 
-            Task {
                 await EventBus.shared.publish(OnlineEvent.onlineStatusChanged(isOnline: isOnline))
             }
         }

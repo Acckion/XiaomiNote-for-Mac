@@ -294,7 +294,7 @@ final class StartupSequenceManager: ObservableObject {
     }
 
     private func performSync() async throws {
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.debug(.core, "用户未登录，跳过同步")
             return
         }

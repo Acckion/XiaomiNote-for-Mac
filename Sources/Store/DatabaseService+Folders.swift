@@ -30,12 +30,7 @@ extension DatabaseService {
             sqlite3_bind_int(statement, 5, folder.isPinned ? 1 : 0)
             sqlite3_bind_double(statement, 6, folder.createdAt.timeIntervalSince1970)
 
-            var rawDataJSON: String?
-            if let rawData = folder.rawData {
-                let jsonData = try JSONSerialization.data(withJSONObject: rawData, options: [])
-                rawDataJSON = String(data: jsonData, encoding: .utf8)
-            }
-            sqlite3_bind_text(statement, 7, rawDataJSON, -1, nil)
+            sqlite3_bind_text(statement, 7, folder.rawDataJson, -1, nil)
 
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 throw DatabaseError.executionFailed(String(cString: sqlite3_errmsg(db)))

@@ -46,7 +46,7 @@ public protocol AuthenticationServiceProtocol: Sendable {
 
     /// 获取当前访问令牌
     /// - Returns: 访问令牌，如果未登录返回 nil
-    func getAccessToken() -> String?
+    func getAccessToken() async -> String?
 
     /// 刷新访问令牌
     /// - Returns: 新的访问令牌
@@ -70,12 +70,12 @@ public protocol AuthenticationServiceProtocol: Sendable {
 
     /// 获取当前 Cookie
     /// - Returns: Cookie 字符串，如果未登录返回 nil
-    func getCurrentCookie() -> String?
+    func getCurrentCookie() async -> String?
 
     /// 保存 Cookie
     /// - Parameter cookie: Cookie 字符串
-    func saveCookie(_ cookie: String) throws
+    func saveCookie(_ cookie: String) async throws
 
     /// 清除 Cookie
-    func clearCookie() throws
+    func clearCookie() async throws
 }

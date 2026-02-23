@@ -29,40 +29,61 @@ public enum XMLToken: Equatable, Sendable {
 
 /// XML 词法分析器
 /// 将小米笔记 XML 字符串分解为 Token 流
-public final class XMLTokenizer: @unchecked Sendable {
+public struct XMLTokenizer: Sendable {
 
-    // MARK: - 属性
+    // MARK: - 解析上下文
 
-    /// 输入字符串
-    private let input: String
+    /// 封装解析过程中的可变状态
+    private struct ParsingContext {
+        let input: String
+        var currentIndex: String.Index
 
-    /// 当前位置
-    private var currentIndex: String.Index
+        /// 是否已到达输入末尾
+        var isAtEnd: Bool {
+            currentIndex >= input.endIndex
+        }
 
-    /// 是否已到达输入末尾
-    private var isAtEnd: Bool {
-        currentIndex >= input.endIndex
+        /// 当前字符
+        var currentChar: Character {
+            input[currentIndex]
+        }
+
+        /// 前进一个字符
+        mutating func advance() {
+            if currentIndex < input.endIndex {
+                currentIndex = input.index(after: currentIndex)
+            }
+        }
+
+        /// 跳过空白字符（不包括换行符）
+        mutating func skipWhitespace() {
+            while !isAtEnd {
+                let char = currentChar
+                if char == " " || char == "\t" || char == "\r" {
+                    advance()
+                } else {
+                    break
+                }
+            }
+        }
     }
 
     // MARK: - 初始化
 
-    /// 创建词法分析器
-    /// - Parameter input: XML 字符串
-    public init(input: String) {
-        self.input = input
-        self.currentIndex = input.startIndex
-    }
+    public init() {}
 
     // MARK: - 公共方法
 
     /// 获取所有 Token
+    /// - Parameter input: XML 字符串
     /// - Returns: Token 数组
     /// - Throws: TokenizerError
-    public func tokenize() throws -> [XMLToken] {
+    public func tokenize(_ input: String) throws -> [XMLToken] {
+        var context = ParsingContext(input: input, currentIndex: input.startIndex)
         var tokens: [XMLToken] = []
 
-        while !isAtEnd {
-            if let token = try nextToken() {
+        while !context.isAtEnd {
+            if let token = try nextToken(&context) {
                 tokens.append(token)
             }
         }
@@ -70,119 +91,119 @@ public final class XMLTokenizer: @unchecked Sendable {
         return tokens
     }
 
-    /// 获取下一个 Token
-    /// - Returns: Token 或 nil（如果已到达末尾）
-    /// - Throws: TokenizerError
-    public func nextToken() throws -> XMLToken? {
-        guard !isAtEnd else { return nil }
+    // MARK: - 私有方法 - Token 解析
 
-        let char = currentChar
+    /// 获取下一个 Token
+    private func nextToken(_ context: inout ParsingContext) throws -> XMLToken? {
+        guard !context.isAtEnd else { return nil }
+
+        let char = context.currentChar
 
         // 检查换行符
         if char == "\n" {
-            advance()
+            context.advance()
             return .newline
         }
 
         // 检查标签开始
         if char == "<" {
-            return try parseTag()
+            return try parseTag(&context)
         }
 
         // 解析文本内容
-        return try parseText()
+        return try parseText(&context)
     }
 
     // MARK: - 私有方法 - 标签解析
 
     /// 解析标签（开始标签、结束标签或自闭合标签）
-    private func parseTag() throws -> XMLToken {
+    private func parseTag(_ context: inout ParsingContext) throws -> XMLToken {
         // 跳过 '<'
-        advance()
+        context.advance()
 
-        guard !isAtEnd else {
+        guard !context.isAtEnd else {
             throw TokenizerError.unexpectedEndOfInput
         }
 
         // 检查是否为结束标签
-        if currentChar == "/" {
-            return try parseEndTag()
+        if context.currentChar == "/" {
+            return try parseEndTag(&context)
         }
 
         // 解析开始标签
-        return try parseStartTag()
+        return try parseStartTag(&context)
     }
 
     /// 解析开始标签
-    private func parseStartTag() throws -> XMLToken {
+    private func parseStartTag(_ context: inout ParsingContext) throws -> XMLToken {
         // 解析标签名
-        let tagName = parseTagName()
+        let tagName = parseTagName(&context)
 
         guard !tagName.isEmpty else {
             throw TokenizerError.invalidTagName
         }
 
         // 跳过空白
-        skipWhitespace()
+        context.skipWhitespace()
 
         // 解析属性
         var attributes: [String: String] = [:]
-        while !isAtEnd, currentChar != ">", currentChar != "/" {
-            let (name, value) = try parseAttribute()
+        while !context.isAtEnd, context.currentChar != ">", context.currentChar != "/" {
+            let (name, value) = try parseAttribute(&context)
             attributes[name] = value
-            skipWhitespace()
+            context.skipWhitespace()
         }
 
         // 检查自闭合标签
         var selfClosing = false
-        if !isAtEnd, currentChar == "/" {
+        if !context.isAtEnd, context.currentChar == "/" {
             selfClosing = true
-            advance()
+            context.advance()
         }
 
         // 跳过 '>'
-        guard !isAtEnd, currentChar == ">" else {
+        guard !context.isAtEnd, context.currentChar == ">" else {
             throw TokenizerError.expectedClosingBracket
         }
-        advance()
+        context.advance()
 
         return .startTag(name: tagName, attributes: attributes, selfClosing: selfClosing)
     }
 
     /// 解析结束标签
-    private func parseEndTag() throws -> XMLToken {
+    private func parseEndTag(_ context: inout ParsingContext) throws -> XMLToken {
         // 跳过 '/'
-        advance()
+        context.advance()
 
         // 解析标签名
-        let tagName = parseTagName()
+        let tagName = parseTagName(&context)
 
         guard !tagName.isEmpty else {
             throw TokenizerError.invalidTagName
         }
 
         // 跳过空白
-        skipWhitespace()
+        context.skipWhitespace()
 
         // 跳过 '>'
-        guard !isAtEnd, currentChar == ">" else {
+        guard !context.isAtEnd, context.currentChar == ">" else {
             throw TokenizerError.expectedClosingBracket
         }
-        advance()
+        context.advance()
 
         return .endTag(name: tagName)
     }
 
     /// 解析标签名
-    private func parseTagName() -> String {
+    private func parseTagName(_ context: inout ParsingContext) -> String {
         var name = ""
 
-        while !isAtEnd {
-            let char = currentChar
+        while !context.isAtEnd {
+            let char = context.currentChar
             // 标签名可以包含字母、数字、连字符
             if char.isLetter || char.isNumber || char == "-" || char == "_" {
                 name.append(char)
-                advance()
+                context.advance()
             } else {
                 break
             }
@@ -192,42 +213,42 @@ public final class XMLTokenizer: @unchecked Sendable {
     }
 
     /// 解析属性
-    private func parseAttribute() throws -> (String, String) {
+    private func parseAttribute(_ context: inout ParsingContext) throws -> (String, String) {
         // 解析属性名
-        let name = parseAttributeName()
+        let name = parseAttributeName(&context)
 
         guard !name.isEmpty else {
             throw TokenizerError.invalidAttributeName
         }
 
         // 跳过空白
-        skipWhitespace()
+        context.skipWhitespace()
 
         // 检查是否有值
-        guard !isAtEnd, currentChar == "=" else {
+        guard !context.isAtEnd, context.currentChar == "=" else {
             // 没有值的属性，返回空字符串
             return (name, "")
         }
 
         // 跳过 '='
-        advance()
-        skipWhitespace()
+        context.advance()
+        context.skipWhitespace()
 
         // 解析属性值
-        let value = try parseAttributeValue()
+        let value = try parseAttributeValue(&context)
 
         return (name, value)
     }
 
     /// 解析属性名
-    private func parseAttributeName() -> String {
+    private func parseAttributeName(_ context: inout ParsingContext) -> String {
         var name = ""
 
-        while !isAtEnd {
-            let char = currentChar
+        while !context.isAtEnd {
+            let char = context.currentChar
             if char.isLetter || char.isNumber || char == "-" || char == "_" {
                 name.append(char)
-                advance()
+                context.advance()
             } else {
                 break
             }
@@ -237,50 +258,50 @@ public final class XMLTokenizer: @unchecked Sendable {
     }
 
     /// 解析属性值
-    private func parseAttributeValue() throws -> String {
-        guard !isAtEnd else {
+    private func parseAttributeValue(_ context: inout ParsingContext) throws -> String {
+        guard !context.isAtEnd else {
             throw TokenizerError.unexpectedEndOfInput
         }
 
-        let quote = currentChar
+        let quote = context.currentChar
 
         // 检查引号
         guard quote == "\"" || quote == "'" else {
             // 无引号的属性值
-            return parseUnquotedAttributeValue()
+            return parseUnquotedAttributeValue(&context)
         }
 
         // 跳过开始引号
-        advance()
+        context.advance()
 
         var value = ""
 
-        while !isAtEnd, currentChar != quote {
-            value.append(currentChar)
-            advance()
+        while !context.isAtEnd, context.currentChar != quote {
+            value.append(context.currentChar)
+            context.advance()
         }
 
         // 跳过结束引号
-        guard !isAtEnd, currentChar == quote else {
+        guard !context.isAtEnd, context.currentChar == quote else {
             throw TokenizerError.unterminatedString
         }
-        advance()
+        context.advance()
 
         // 解码 XML 实体
         return XMLEntityCodec.decode(value)
     }
 
     /// 解析无引号的属性值
-    private func parseUnquotedAttributeValue() -> String {
+    private func parseUnquotedAttributeValue(_ context: inout ParsingContext) -> String {
         var value = ""
 
-        while !isAtEnd {
-            let char = currentChar
+        while !context.isAtEnd {
+            let char = context.currentChar
             if char.isWhitespace || char == ">" || char == "/" {
                 break
             }
             value.append(char)
-            advance()
+            context.advance()
         }
 
         return XMLEntityCodec.decode(value)
@@ -289,21 +310,21 @@ public final class XMLTokenizer: @unchecked Sendable {
     // MARK: - 私有方法 - 文本解析
 
     /// 解析文本内容
-    private func parseText() throws -> XMLToken {
+    private func parseText(_ context: inout ParsingContext) throws -> XMLToken {
         var text = ""
 
-        while !isAtEnd {
-            let char = currentChar
+        while !context.isAtEnd {
+            let char = context.currentChar
 
-            // 检查旧格式图片标记 ☺
-            if char == "☺" {
+            // 检查旧格式图片标记
+            if char == "\u{263A}" {
                 // 如果已经累积了文本，先返回文本 Token
                 if !text.isEmpty {
                     let decodedText = XMLEntityCodec.decode(text)
                     return .text(decodedText)
                 }
                 // 解析旧格式图片
-                return try parseLegacyImage()
+                return try parseLegacyImage(&context)
             }
 
             // 遇到标签开始或换行符时停止
@@ -312,7 +333,7 @@ public final class XMLTokenizer: @unchecked Sendable {
             }
 
             text.append(char)
-            advance()
+            context.advance()
         }
 
         // 解码 XML 实体
@@ -322,31 +343,30 @@ public final class XMLTokenizer: @unchecked Sendable {
     }
 
     /// 解析旧格式图片
-    /// 格式：☺ {fileId}<0/><[{description}]/> 或 ☺ {fileId}<0/></>
-    private func parseLegacyImage() throws -> XMLToken {
-        // 跳过 ☺ 字符
-        advance()
+    /// 格式：\u{263A} {fileId}<0/><[{description}]/> 或 \u{263A} {fileId}<0/></>
+    private func parseLegacyImage(_ context: inout ParsingContext) throws -> XMLToken {
+        // 跳过特殊字符
+        context.advance()
 
         // 跳过空白
-        skipWhitespace()
+        context.skipWhitespace()
 
         // 提取 fileId（直到 <0/> 标记）
         var fileId = ""
-        while !isAtEnd {
-            let char = currentChar
+        while !context.isAtEnd {
+            let char = context.currentChar
 
             // 检查是否到达 <0/> 标记
             if char == "<" {
-                // 检查后续是否为 "0/>"
-                let savedIndex = currentIndex
-                advance()
+                let savedIndex = context.currentIndex
+                context.advance()
 
-                if !isAtEnd, currentChar == "0" {
-                    advance()
-                    if !isAtEnd, currentChar == "/" {
-                        advance()
-                        if !isAtEnd, currentChar == ">" {
-                            advance()
+                if !context.isAtEnd, context.currentChar == "0" {
+                    context.advance()
+                    if !context.isAtEnd, context.currentChar == "/" {
+                        context.advance()
+                        if !context.isAtEnd, context.currentChar == ">" {
+                            context.advance()
                             // 找到 <0/> 标记
                             break
                         }
@@ -354,12 +374,12 @@ public final class XMLTokenizer: @unchecked Sendable {
                 }
 
                 // 不是 <0/> 标记，恢复位置并继续
-                currentIndex = savedIndex
+                context.currentIndex = savedIndex
                 fileId.append(char)
-                advance()
+                context.advance()
             } else {
                 fileId.append(char)
-                advance()
+                context.advance()
             }
         }
 
@@ -376,73 +396,72 @@ public final class XMLTokenizer: @unchecked Sendable {
         var description = ""
 
         // 查找描述标记
-        if !isAtEnd, currentChar == "<" {
-            let savedIndex = currentIndex
-            advance()
+        if !context.isAtEnd, context.currentChar == "<" {
+            context.advance()
 
             // 检查是否是空描述标记 </>
-            if !isAtEnd, currentChar == "/" {
-                advance()
-                if !isAtEnd, currentChar == ">" {
-                    advance()
+            if !context.isAtEnd, context.currentChar == "/" {
+                context.advance()
+                if !context.isAtEnd, context.currentChar == ">" {
+                    context.advance()
                     // 找到 </> 标记，表示无描述
                     description = ""
                 }
-            } else if !isAtEnd, currentChar == "[" {
+            } else if !context.isAtEnd, context.currentChar == "[" {
                 // 格式 2：有描述的情况 <[description]/>
-                advance()
+                context.advance()
 
                 // 提取描述内容（直到 ]/> 标记）
-                while !isAtEnd {
-                    let char = currentChar
+                while !context.isAtEnd {
+                    let char = context.currentChar
 
                     // 检查是否到达 ]/> 标记
                     if char == "]" {
-                        let savedDescIndex = currentIndex
-                        advance()
+                        let savedDescIndex = context.currentIndex
+                        context.advance()
 
-                        if !isAtEnd, currentChar == "/" {
-                            advance()
-                            if !isAtEnd, currentChar == ">" {
-                                advance()
+                        if !context.isAtEnd, context.currentChar == "/" {
+                            context.advance()
+                            if !context.isAtEnd, context.currentChar == ">" {
+                                context.advance()
                                 // 找到 ]/> 标记
                                 break
                             }
                         }
 
                         // 不是 ]/> 标记，恢复位置并继续
-                        currentIndex = savedDescIndex
+                        context.currentIndex = savedDescIndex
                         description.append(char)
-                        advance()
+                        context.advance()
                     } else {
                         description.append(char)
-                        advance()
+                        context.advance()
                     }
                 }
             } else {
                 // 格式 3：<tagname/> 格式，标签名就是描述内容
                 // 提取标签名（直到 /> 标记）
-                while !isAtEnd {
-                    let char = currentChar
+                while !context.isAtEnd {
+                    let char = context.currentChar
 
                     // 检查是否到达 /> 标记
                     if char == "/" {
-                        let savedDescIndex = currentIndex
-                        advance()
+                        let savedDescIndex = context.currentIndex
+                        context.advance()
 
-                        if !isAtEnd, currentChar == ">" {
-                            advance()
+                        if !context.isAtEnd, context.currentChar == ">" {
+                            context.advance()
                             // 找到 /> 标记
                             break
                         }
 
                         // 不是 /> 标记，恢复位置并继续
-                        currentIndex = savedDescIndex
+                        context.currentIndex = savedDescIndex
                         description.append(char)
-                        advance()
+                        context.advance()
                     } else {
                         description.append(char)
-                        advance()
+                        context.advance()
                     }
                 }
             }
@@ -456,32 +475,6 @@ public final class XMLTokenizer: @unchecked Sendable {
         ]
 
         return .startTag(name: "img", attributes: attributes, selfClosing: true)
-    }
-
-    // MARK: - 辅助方法
-
-    /// 当前字符
-    private var currentChar: Character {
-        input[currentIndex]
-    }
-
-    /// 前进一个字符
-    private func advance() {
-        if currentIndex < input.endIndex {
-            currentIndex = input.index(after: currentIndex)
-        }
-    }
-
-    /// 跳过空白字符（不包括换行符）
-    private func skipWhitespace() {
-        while !isAtEnd {
-            let char = currentChar
-            if char == " " || char == "\t" || char == "\r" {
-                advance()
-            } else {
-                break
-            }
-        }
     }
 }
 

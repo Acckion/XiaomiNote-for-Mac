@@ -301,9 +301,11 @@ public struct SettingsView: View {
     }
 
     private func logout() {
-        APIClient.shared.clearCookie()
-        authState.handleLogout()
-        dismiss()
+        Task {
+            await APIClient.shared.clearCookie()
+            authState.handleLogout()
+            dismiss()
+        }
     }
 
     private func clearCache() {

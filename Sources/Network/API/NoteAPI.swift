@@ -7,7 +7,7 @@ import Foundation
 /// - 笔记列表获取（分页、私密、回收站）
 /// - 笔记详情获取
 /// - 笔记历史记录管理
-public final class NoteAPI: @unchecked Sendable {
+public struct NoteAPI: Sendable {
     public static let shared = NoteAPI()
 
     private let client: APIClient
@@ -63,12 +63,12 @@ public final class NoteAPI: @unchecked Sendable {
         }
 
         let entryEncoded = client.encodeURIComponent(entryJson)
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(client.baseURL)/note/note"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         let json = try await client.performRequest(
@@ -161,12 +161,12 @@ public final class NoteAPI: @unchecked Sendable {
         }
 
         let entryEncoded = client.encodeURIComponent(entryJson)
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(client.baseURL)/note/note/\(noteId)"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         return try await client.performRequest(
@@ -190,12 +190,12 @@ public final class NoteAPI: @unchecked Sendable {
     func deleteNote(noteId: String, tag: String, purge: Bool = false) async throws -> [String: Any] {
         let tagEncoded = client.encodeURIComponent(tag)
         let purgeString = purge ? "true" : "false"
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "tag=\(tagEncoded)&purge=\(purgeString)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(client.baseURL)/note/full/\(noteId)/delete"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         return try await client.performRequest(
@@ -220,12 +220,12 @@ public final class NoteAPI: @unchecked Sendable {
     /// - Throws: MiNoteError（网络错误、认证错误等）
     func restoreDeletedNote(noteId: String, tag: String) async throws -> [String: Any] {
         let tagEncoded = client.encodeURIComponent(tag)
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "tag=\(tagEncoded)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(client.baseURL)/note/note/\(noteId)/restore"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         return try await client.performRequest(
@@ -475,10 +475,10 @@ public final class NoteAPI: @unchecked Sendable {
     func restoreNoteHistory(noteId: String, version: Int64) async throws -> [String: Any] {
         let urlString = "\(client.baseURL)/note/note/\(noteId)/history"
 
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "id=\(noteId)&version=\(version)&serviceToken=\(serviceTokenEncoded)"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         return try await client.performRequest(

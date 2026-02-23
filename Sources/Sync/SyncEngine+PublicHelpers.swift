@@ -8,7 +8,7 @@ extension SyncEngine {
     func redownloadNoteImages(noteId: String) async throws -> (success: Int, failed: Int) {
         LogService.shared.info(.sync, "手动重新下载笔记图片: \(noteId)")
 
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             throw SyncError.notAuthenticated
         }
 
@@ -39,7 +39,7 @@ extension SyncEngine {
 
     /// 手动同步单个笔记
     func syncSingleNote(noteId: String) async throws -> NoteSyncResult {
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             throw SyncError.notAuthenticated
         }
 

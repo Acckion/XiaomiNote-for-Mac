@@ -12,7 +12,7 @@ import Foundation
 ///
 /// 使用 macOS 系统自带的 afconvert 工具将 AAC (M4A) 格式转换为 MP3 格式。
 /// 小米笔记服务器期望的是 MP3 格式 (audio/mpeg)，但 AVAudioRecorder 默认录制为 AAC 格式。
-final class AudioConverterService: @unchecked Sendable {
+struct AudioConverterService: Sendable {
 
     // MARK: - 单例
 

@@ -300,7 +300,7 @@ final class NetworkRequestManager: ObservableObject {
 
         // 使用新 Cookie 重建请求并重试
         var retryRequest = urlRequest
-        let newHeaders = APIClient.shared.getHeaders()
+        let newHeaders = await APIClient.shared.getHeaders()
         retryRequest.allHTTPHeaderFields = newHeaders
         if let originalHeaders = urlRequest.allHTTPHeaderFields {
             for (key, value) in originalHeaders where key != "Cookie" {

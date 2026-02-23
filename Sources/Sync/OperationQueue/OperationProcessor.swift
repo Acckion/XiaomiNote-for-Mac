@@ -162,7 +162,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             return
         }
 
@@ -208,7 +208,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "未认证，跳过队列处理")
             return
         }
@@ -496,7 +496,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过重试处理")
             return
         }
@@ -1190,6 +1190,12 @@ extension OperationProcessor {
         }
         folderRawData["tag"] = tag
 
+        let folderRawDataJson: String? = if let jsonData = try? JSONSerialization.data(withJSONObject: folderRawData, options: []) {
+            String(data: jsonData, encoding: .utf8)
+        } else {
+            nil
+        }
+
         let folder = Folder(
             id: folderId,
             name: subject,
@@ -1197,7 +1203,7 @@ extension OperationProcessor {
             isSystem: false,
             isPinned: false,
             createdAt: Date(),
-            rawData: folderRawData
+            rawDataJson: folderRawDataJson
         )
 
         await eventBus.publish(FolderEvent.folderSaved(folder))
@@ -1253,12 +1259,18 @@ extension OperationProcessor {
         if let entry = extractEntry(from: response) {
             let folders = try? databaseService.loadFolders()
             if let folder = folders?.first(where: { $0.id == operation.noteId }) {
-                var updatedRawData = folder.rawData ?? [:]
+                var updatedRawData = folder.rawDataDict ?? [:]
                 for (key, value) in entry {
                     updatedRawData[key] = value
                 }
                 updatedRawData["tag"] = extractTag(from: response, fallbackTag: existingTag)
                 updatedRawData["subject"] = newName
+
+                let updatedRawDataJson: String? = if let jsonData = try? JSONSerialization.data(withJSONObject: updatedRawData, options: []) {
+                    String(data: jsonData, encoding: .utf8)
+                } else {
+                    folder.rawDataJson
+                }
 
                 let updatedFolder = Folder(
                     id: folder.id,
@@ -1267,7 +1279,7 @@ extension OperationProcessor {
                     isSystem: folder.isSystem,
                     isPinned: folder.isPinned,
                     createdAt: folder.createdAt,
-                    rawData: updatedRawData
+                    rawDataJson: updatedRawDataJson
                 )
 
                 await eventBus.publish(FolderEvent.folderSaved(updatedFolder))
@@ -1422,7 +1434,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过启动处理")
             return (0, 0)
         }

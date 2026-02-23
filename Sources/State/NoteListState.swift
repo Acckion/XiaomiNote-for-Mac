@@ -254,7 +254,7 @@ public final class NoteListState: ObservableObject {
 
     /// 获取回收站笔记列表
     func fetchDeletedNotes() async {
-        guard APIClient.shared.isAuthenticated() else { return }
+        guard await APIClient.shared.isAuthenticated() else { return }
 
         isLoadingDeletedNotes = true
         defer { isLoadingDeletedNotes = false }
@@ -286,7 +286,7 @@ public final class NoteListState: ObservableObject {
 
     /// 恢复回收站笔记
     func restoreDeletedNote(noteId: String, tag: String) async throws {
-        guard APIClient.shared.isAuthenticated() else {
+        guard await APIClient.shared.isAuthenticated() else {
             throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
         }
 
@@ -306,7 +306,7 @@ public final class NoteListState: ObservableObject {
 
     /// 永久删除笔记
     func permanentlyDeleteNote(noteId: String, tag: String) async throws {
-        guard APIClient.shared.isAuthenticated() else {
+        guard await APIClient.shared.isAuthenticated() else {
             throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
         }
 

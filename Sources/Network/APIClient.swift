@@ -4,13 +4,14 @@ import Foundation
 ///
 /// 负责管理认证状态和执行网络请求的基础设施类。
 /// 所有 API 类（NoteAPI、FolderAPI 等）都通过此类执行网络请求。
-public final class APIClient: @unchecked Sendable {
+/// 使用 actor 隔离保证认证状态的线程安全。
+public actor APIClient {
     public static let shared = APIClient()
 
     // MARK: - 配置常量
 
     /// 小米笔记 API 基础 URL
-    let baseURL = "https://i.mi.com"
+    nonisolated let baseURL = "https://i.mi.com"
 
     // MARK: - 认证状态
 
@@ -36,9 +37,6 @@ public final class APIClient: @unchecked Sendable {
     /// Cookie 有效性检查间隔（秒）
     private let cookieValidityCheckInterval: TimeInterval = 30.0
 
-    /// Cookie 有效性检查队列（用于异步安全的锁）
-    private let cookieValidityQueue = DispatchQueue(label: "com.minote.cookieValidityQueue")
-
     /// 是否正在检查 Cookie 有效性
     private var isCheckingCookieValidity = false
 
@@ -63,14 +61,24 @@ public final class APIClient: @unchecked Sendable {
     @MainActor
     private func loadCredentials() {
         if let savedCookie = UserDefaults.standard.string(forKey: "minote_cookie") {
-            cookie = savedCookie
-            extractServiceToken()
+            // loadCredentials 在 @MainActor 上下文中，不能直接访问 actor 隔离属性
+            // 通过 Task 回到 actor 上下文
+            let cookieValue = savedCookie
+            Task {
+                await self.setInitialCookie(cookieValue)
+            }
         }
     }
 
+    /// 初始化时设置 Cookie（仅供 loadCredentials 使用）
+    private func setInitialCookie(_ cookieValue: String) {
+        cookie = cookieValue
+        extractServiceToken()
+    }
+
     @MainActor
-    private func saveCredentials() {
-        UserDefaults.standard.set(cookie, forKey: "minote_cookie")
+    private func saveCredentials(_ cookieValue: String) {
+        UserDefaults.standard.set(cookieValue, forKey: "minote_cookie")
     }
 
     // MARK: - 请求执行
@@ -93,9 +101,9 @@ public final class APIClient: @unchecked Sendable {
         body: Data? = nil,
         priority: RequestPriority = .normal,
         cachePolicy: NetworkRequest.CachePolicy = .noCache
-    ) async throws -> [String: Any] {
+    ) async throws -> sending [String: Any] {
         let bodyString = body.flatMap { String(data: $0, encoding: .utf8) }
-        NetworkLogger.shared.logRequest(
+        await NetworkLogger.shared.logRequest(
             url: url,
             method: method,
             headers: headers,
@@ -116,7 +124,7 @@ public final class APIClient: @unchecked Sendable {
 
             let responseString = String(data: response.data, encoding: .utf8)
 
-            NetworkLogger.shared.logResponse(
+            await NetworkLogger.shared.logResponse(
                 url: url,
                 method: method,
                 statusCode: response.response.statusCode,
@@ -136,7 +144,7 @@ public final class APIClient: @unchecked Sendable {
 
             return try JSONSerialization.jsonObject(with: response.data) as? [String: Any] ?? [:]
         } catch {
-            NetworkLogger.shared.logError(url: url, method: method, error: error)
+            await NetworkLogger.shared.logError(url: url, method: method, error: error)
             throw error
         }
     }
@@ -162,15 +170,14 @@ public final class APIClient: @unchecked Sendable {
         extractServiceToken()
         cookieSetTime = Date()
 
+        let cookieValue = cookie
         Task {
-            await saveCredentials()
+            await saveCredentials(cookieValue)
         }
 
-        cookieValidityQueue.sync {
-            cookieValidityCache = true
-            cookieValidityCheckTime = Date()
-            isCheckingCookieValidity = false
-        }
+        cookieValidityCache = true
+        cookieValidityCheckTime = Date()
+        isCheckingCookieValidity = false
     }
 
     /// 清除 Cookie
@@ -248,7 +255,7 @@ public final class APIClient: @unchecked Sendable {
     /// 模拟 JavaScript 的 encodeURIComponent 函数
     ///
     /// 只编码除了字母、数字和 -_.!~*'() 之外的所有字符
-    func encodeURIComponent(_ string: String) -> String {
+    nonisolated func encodeURIComponent(_ string: String) -> String {
         let allowedCharacters = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()")
         return string.addingPercentEncoding(withAllowedCharacters: allowedCharacters) ?? string
     }

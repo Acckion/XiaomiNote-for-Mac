@@ -3,7 +3,7 @@ import Foundation
 /// 文件夹 API
 ///
 /// 负责文件夹的创建、重命名、删除、详情获取
-public final class FolderAPI: @unchecked Sendable {
+public struct FolderAPI: Sendable {
     public static let shared = FolderAPI()
 
     private let client: APIClient
@@ -33,12 +33,12 @@ public final class FolderAPI: @unchecked Sendable {
         }
 
         let entryEncoded = client.encodeURIComponent(entryJson)
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(client.baseURL)/note/folder"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         let json = try await client.performRequest(
@@ -86,12 +86,12 @@ public final class FolderAPI: @unchecked Sendable {
         }
 
         let entryEncoded = client.encodeURIComponent(entryJson)
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "entry=\(entryEncoded)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(client.baseURL)/note/folder/\(folderId)"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         let json = try await client.performRequest(
@@ -122,12 +122,12 @@ public final class FolderAPI: @unchecked Sendable {
     func deleteFolder(folderId: String, tag: String, purge: Bool = false) async throws -> [String: Any] {
         let tagEncoded = client.encodeURIComponent(tag)
         let purgeString = purge ? "true" : "false"
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "tag=\(tagEncoded)&purge=\(purgeString)&serviceToken=\(serviceTokenEncoded)"
 
         let urlString = "\(client.baseURL)/note/full/\(folderId)/delete"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         let json = try await client.performRequest(
