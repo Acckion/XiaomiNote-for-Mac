@@ -12,8 +12,6 @@ public struct EditorSettingsView: View {
 
     // MARK: - Properties
 
-    // 使用 @ObservedObject 而不是 @StateObject，因为这些是单例
-    @ObservedObject private var preferencesService = EditorPreferencesService.shared
     @ObservedObject private var configurationManager = EditorConfigurationManager.shared
 
     @State private var showCompatibilityInfo = false
@@ -45,34 +43,19 @@ public struct EditorSettingsView: View {
     /// 编辑器信息部分
     private var editorInfoSection: some View {
         Section("编辑器") {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 16) {
-                    // 编辑器图标
-                    Image(systemName: EditorType.native.icon)
-                        .font(.title)
-                        .foregroundColor(.accentColor)
-                        .frame(width: 32, height: 32)
+            HStack(spacing: 16) {
+                Image(systemName: "doc.text")
+                    .font(.title)
+                    .foregroundColor(.accentColor)
+                    .frame(width: 32, height: 32)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(EditorType.native.displayName)
-                            .font(.headline)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("原生编辑器")
+                        .font(.headline)
 
-                        Text(EditorType.native.description)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.vertical, 8)
-
-                if !preferencesService.isNativeEditorAvailable {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle")
-                            .foregroundColor(.orange)
-                        Text("原生编辑器需要 macOS 13.0 或更高版本")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.top, 8)
+                    Text("使用 SwiftUI 和 NSTextView 实现的原生编辑器，提供最佳的 macOS 体验")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
             .padding(.vertical, 8)
@@ -106,11 +89,6 @@ public struct EditorSettingsView: View {
                     SystemCompatibilityView()
                         .transition(.opacity.combined(with: .slide))
                 }
-
-                Button("重新检查兼容性") {
-                    preferencesService.recheckNativeEditorAvailability()
-                }
-                .buttonStyle(.bordered)
             }
         }
     }
@@ -248,8 +226,8 @@ struct SystemCompatibilityView: View {
 
                 compatibilityRow(
                     title: "原生编辑器支持",
-                    value: EditorFactory.isEditorAvailable(.native) ? "支持" : "不支持",
-                    status: EditorFactory.isEditorAvailable(.native) ? .success : .warning
+                    value: "支持",
+                    status: .success
                 )
 
                 compatibilityRow(

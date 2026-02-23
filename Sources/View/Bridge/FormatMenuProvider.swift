@@ -51,13 +51,6 @@ public protocol FormatMenuProvider: AnyObject {
     /// 格式状态变化发布者
     var formatStatePublisher: AnyPublisher<FormatState, Never> { get }
 
-    // MARK: - 编辑器信息
-
-    /// 编辑器类型
-    var editorType: EditorType { get }
-
-    /// 编辑器是否可用
-    var isEditorAvailable: Bool { get }
 }
 
 // MARK: - 协议默认实现

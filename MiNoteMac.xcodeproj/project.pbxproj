@@ -53,7 +53,6 @@
 		214098617A3B145C7ABCC2CA /* SyncGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3C41EB2418BBF1DC6DDA69 /* SyncGuard.swift */; };
 		217E1D8AE1480A99B9AA8114 /* CustomRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B2B963AF565507419FAC9FB /* CustomRenderer.swift */; };
 		21D18111453D5C66791D221D /* MiNoteLibrary.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; };
-		21FA93745D5E413239332874 /* EditorPreferencesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15545D21BA291E581CAC4C5E /* EditorPreferencesService.swift */; };
 		23354AB4E73298F3A89D9864 /* ParagraphStylePreservationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94EF00779B29A5F9B5E0EE1F /* ParagraphStylePreservationTests.swift */; };
 		23DD8515C12B5DEB43649091 /* IdMappingEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784C8EC2E34DCC736CD36F25 /* IdMappingEvent.swift */; };
 		2443EB969FBE05F9ADC32D2B /* DefaultNetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592AE5EB0C26EA9D0717CA89 /* DefaultNetworkMonitor.swift */; };
@@ -95,7 +94,6 @@
 		43AE56001A4F1ABF7E5F5C57 /* NoteDetailWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D68D0EDC2E2ECA8E5EA4E5 /* NoteDetailWindowState.swift */; };
 		43F3CB26801A57BE010B1692 /* NSWindow+MiNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DFE1069C662E60ABE7F4C43 /* NSWindow+MiNote.swift */; };
 		44225D61901A3371958A3FA6 /* UnifiedOperationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 876F692E52ED2FD382DCEC23 /* UnifiedOperationQueue.swift */; };
-		44510BC8A5760B0A171F426B /* EditorProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB262906957F0C09B5BB34A /* EditorProtocol.swift */; };
 		45789D1EAB54B74E4A971D4B /* NotePreviewImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5444C9D0A89CC9675B0FBA /* NotePreviewImageView.swift */; };
 		4706A288EE19BA6F05FB3A74 /* ToolbarItemProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A0F747E4A33E4C13B0066E /* ToolbarItemProtocol.swift */; };
 		478E56141041DFCDA68E54BA /* FormatSpanMerger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55BD411EF69D17B012084F68 /* FormatSpanMerger.swift */; };
@@ -380,7 +378,6 @@
 		11D7F1F8DBAF0F0CD9328529 /* FormatErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatErrorHandler.swift; sourceTree = "<group>"; };
 		135B87A13848CA8B5640F158 /* NativeEditorCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorCoordinator.swift; sourceTree = "<group>"; };
 		14A0F49BE5BBE8B013FDED77 /* ListFormatHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListFormatHandler.swift; sourceTree = "<group>"; };
-		15545D21BA291E581CAC4C5E /* EditorPreferencesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorPreferencesService.swift; sourceTree = "<group>"; };
 		15930156CC59F329FF4CB98C /* AudioUploadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioUploadService.swift; sourceTree = "<group>"; };
 		15B2DBA94A9DF673AEB609C0 /* NetworkMonitorProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitorProtocol.swift; sourceTree = "<group>"; };
 		168A659FB284BF0E4D9AC211 /* DatabaseService+Operations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DatabaseService+Operations.swift"; sourceTree = "<group>"; };
@@ -599,7 +596,6 @@
 		CB8E6EBCA9EAA667044F9F3E /* PasteboardManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteboardManager.swift; sourceTree = "<group>"; };
 		CBA0ACBEBAA68D957B50D00D /* NoteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStore.swift; sourceTree = "<group>"; };
 		CBABE7BAC4DC8FDD181B7B9F /* ParagraphManagerDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParagraphManagerDebugView.swift; sourceTree = "<group>"; };
-		CCB262906957F0C09B5BB34A /* EditorProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorProtocol.swift; sourceTree = "<group>"; };
 		CED22130F7FF92451DE0F6F9 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		CFF0B9774340B45C25C2DE68 /* DatabaseMigrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseMigrationManager.swift; sourceTree = "<group>"; };
 		D0EFBEC9DDBADADED047698F /* OperationProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationProcessor.swift; sourceTree = "<group>"; };
@@ -834,7 +830,6 @@
 				0B5AAF052F3C9194715715B3 /* EditorContentManager.swift */,
 				C60D3E44EEC0BDD1B8050A67 /* EditorEnums.swift */,
 				429688715A8528F8DFAD2C5A /* EditorFormatDetector.swift */,
-				CCB262906957F0C09B5BB34A /* EditorProtocol.swift */,
 				01EF78479C2330A1621ADC47 /* FormatAttributesBuilder.swift */,
 				5AA2C5228C6D1AD33C3CC0ED /* FormatMenuProvider.swift */,
 				D65A6703E87D480834F8E4D8 /* FormatState.swift */,
@@ -1505,7 +1500,6 @@
 			isa = PBXGroup;
 			children = (
 				DCBD00E79A0F1B72CD0C005A /* EditorConfiguration.swift */,
-				15545D21BA291E581CAC4C5E /* EditorPreferencesService.swift */,
 				95AB10A38F211568F6A1F668 /* NoteEditingCoordinator.swift */,
 				FA6F2CA4D82511029EC40AC5 /* TitleIntegrationError.swift */,
 				3D65073D80543591C6545EF0 /* FormatConverter */,
@@ -1762,8 +1756,6 @@
 				B5649522F2D6690782A06D82 /* EditorContentManager.swift in Sources */,
 				C31A29AC7E383EC66253AB8D /* EditorEnums.swift in Sources */,
 				DCB483E7B7A332A5CE4B192C /* EditorFormatDetector.swift in Sources */,
-				21FA93745D5E413239332874 /* EditorPreferencesService.swift in Sources */,
-				44510BC8A5760B0A171F426B /* EditorProtocol.swift in Sources */,
 				AF1F44ACCA12C270CE126E0A /* EditorSettingsView.swift in Sources */,
 				6DBE66AC34F276C1BE7028D9 /* EditorStateConsistencyChecker.swift in Sources */,
 				5B22F3187370A08C0DBC0347 /* ErrorEvent.swift in Sources */,

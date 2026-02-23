@@ -13,7 +13,6 @@ import Foundation
 enum EditorInitializationResult {
     case success(NativeEditorContext)
     case failure(NativeEditorError)
-    case fallbackToWeb(reason: String)
 }
 
 // MARK: - 系统兼容性检查结果
@@ -63,7 +62,7 @@ final class NativeEditorInitializer {
     private let metrics = NativeEditorMetrics.shared
 
     /// 最低支持的 macOS 版本
-    private let minimumMacOSVersion = "13.0"
+    private let minimumMacOSVersion = "15.0"
 
     /// 必需的框架
     private let requiredFrameworks = [
@@ -103,7 +102,8 @@ final class NativeEditorInitializer {
             let duration = CFAbsoluteTimeGetCurrent() - startTime
             metrics.recordInitialization("nativeEditor", duration: duration)
 
-            return .fallbackToWeb(reason: compatibilityResult.summary)
+            lastInitializationResult = .failure(error)
+            return .failure(error)
         }
 
         // 2. 检查必需框架
@@ -117,7 +117,8 @@ final class NativeEditorInitializer {
             let duration = CFAbsoluteTimeGetCurrent() - startTime
             metrics.recordInitialization("nativeEditor", duration: duration)
 
-            return .fallbackToWeb(reason: "缺少必需框架: \(compatibilityResult.missingFrameworks.joined(separator: ", "))")
+            lastInitializationResult = .failure(error)
+            return .failure(error)
         }
 
         // 3. 尝试创建编辑器上下文
@@ -167,8 +168,8 @@ final class NativeEditorInitializer {
         let osVersion = processInfo.operatingSystemVersion
         let versionString = "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)"
 
-        // 检查 macOS 版本
-        let isVersionCompatible = osVersion.majorVersion >= 13
+        // macOS 15.0+ 始终满足版本要求
+        let isVersionCompatible = true
 
         // 检查必需框架
         var missingFrameworks: [String] = []

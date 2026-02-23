@@ -114,7 +114,7 @@ public final class FormatStateManager: ObservableObject {
         cancellables.removeAll()
 
         activeProvider = provider
-        hasActiveEditor = provider != nil && provider?.isEditorAvailable == true
+        hasActiveEditor = provider != nil
 
         // 订阅新提供者的状态变化
         if let provider {
@@ -148,10 +148,6 @@ public final class FormatStateManager: ObservableObject {
             return
         }
 
-        guard provider.isEditorAvailable else {
-            return
-        }
-
         provider.applyFormat(format)
     }
 
@@ -159,10 +155,6 @@ public final class FormatStateManager: ObservableObject {
     /// - Parameter format: 要切换的格式
     public func toggleFormat(_ format: TextFormat) {
         guard let provider = activeProvider else {
-            return
-        }
-
-        guard provider.isEditorAvailable else {
             return
         }
 

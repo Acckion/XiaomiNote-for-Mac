@@ -126,38 +126,3 @@ enum IndentOperation: Equatable {
         }
     }
 }
-
-/// 编辑器类型枚举
-public enum EditorType: String, CaseIterable, Identifiable, Codable, Sendable {
-    case native
-
-    public var id: String {
-        rawValue
-    }
-
-    nonisolated var displayName: String {
-        "原生编辑器"
-    }
-
-    nonisolated var description: String {
-        "使用 SwiftUI 和 NSTextView 实现的原生编辑器，提供最佳的 macOS 体验"
-    }
-
-    nonisolated var icon: String {
-        "doc.text"
-    }
-
-    nonisolated var features: [String] {
-        [
-            "原生 macOS 体验",
-            "更好的性能",
-            "系统级快捷键支持",
-            "无缝的复制粘贴",
-            "原生滚动和缩放",
-        ]
-    }
-
-    nonisolated var minimumSystemVersion: String {
-        "macOS 13.0"
-    }
-}

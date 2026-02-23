@@ -231,34 +231,30 @@
                     if let templateId {
                         audioPanelStateManager.setTemplateUpdating(templateId: templateId, fileId: temporaryFileId)
 
-                        if self.isUsingNativeEditor {
-                            if let nativeEditorContext = self.getCurrentNativeEditorContext() {
-                                try await nativeEditorContext.updateRecordingTemplateAndSave(
-                                    templateId: templateId,
-                                    fileId: temporaryFileId,
-                                    digest: nil,
-                                    mimeType: uploadResult.mimeType
-                                )
-                                LogService.shared.info(.window, "原生编辑器录音模板已更新: \(templateId) -> \(temporaryFileId.prefix(20))...")
-                            } else {
-                                LogService.shared.error(.window, "无法获取原生编辑器上下文，录音模板未更新")
-                                self.audioPanelStateManager.setTemplateFailed(templateId: templateId, error: "无法获取原生编辑器上下文")
-                            }
+                        if let nativeEditorContext = self.getCurrentNativeEditorContext() {
+                            try await nativeEditorContext.updateRecordingTemplateAndSave(
+                                templateId: templateId,
+                                fileId: temporaryFileId,
+                                digest: nil,
+                                mimeType: uploadResult.mimeType
+                            )
+                            LogService.shared.info(.window, "原生编辑器录音模板已更新: \(templateId) -> \(temporaryFileId.prefix(20))...")
+                        } else {
+                            LogService.shared.error(.window, "无法获取原生编辑器上下文，录音模板未更新")
+                            self.audioPanelStateManager.setTemplateFailed(templateId: templateId, error: "无法获取原生编辑器上下文")
                         }
 
                         audioPanelStateManager.setTemplateCompleted(templateId: templateId, fileId: temporaryFileId)
                     } else {
-                        if self.isUsingNativeEditor {
-                            if let nativeEditorContext = self.getCurrentNativeEditorContext() {
-                                nativeEditorContext.insertAudio(
-                                    fileId: temporaryFileId,
-                                    digest: nil,
-                                    mimeType: uploadResult.mimeType
-                                )
-                                LogService.shared.info(.window, "音频附件已插入到原生编辑器")
-                            } else {
-                                LogService.shared.error(.window, "无法获取原生编辑器上下文，音频附件未插入")
-                            }
+                        if let nativeEditorContext = self.getCurrentNativeEditorContext() {
+                            nativeEditorContext.insertAudio(
+                                fileId: temporaryFileId,
+                                digest: nil,
+                                mimeType: uploadResult.mimeType
+                            )
+                            LogService.shared.info(.window, "音频附件已插入到原生编辑器")
+                        } else {
+                            LogService.shared.error(.window, "无法获取原生编辑器上下文，音频附件未插入")
                         }
                     }
 

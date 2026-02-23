@@ -85,11 +85,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
 
     // MARK: - FormatMenuProvider Protocol Properties
 
-    /// 编辑器类型
-    public var editorType: EditorType {
-        .native
-    }
-
     /// 编辑器是否可用
     public var isEditorAvailable: Bool {
         guard let context = editorContext else { return false }

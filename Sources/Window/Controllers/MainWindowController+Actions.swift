@@ -891,12 +891,7 @@
             NotificationCenter.default.post(name: .backToGalleryRequested, object: nil)
         }
 
-        // MARK: - 编辑器类型检测和路由
-
-        /// 是否正在使用原生编辑器（始终为 true）
-        var isUsingNativeEditor: Bool {
-            EditorPreferencesService.shared.isNativeEditorAvailable
-        }
+        // MARK: - 编辑器上下文
 
         /// 获取当前的 NativeEditorContext
         func getCurrentNativeEditorContext() -> NativeEditorContext? {

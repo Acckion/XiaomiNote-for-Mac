@@ -8,6 +8,7 @@
 - 独立笔记编辑器窗口（spec-107）：支持在新窗口中打开特定笔记进行编辑，包含编辑器区域和 unified 工具栏，支持重复打开检测
 
 ### 重构
+- Web 编辑器残留清理（spec-110）：删除 EditorProtocol/EditorFactory/EditorType/EditorPreferencesService 抽象层，移除所有 isUsingNativeEditor 条件判断，清理 HTML 数据通道残留，简化 EditorSettingsView 和 NativeEditorInitializer
 - SyncEngine 拆分重构（spec-108）：将 SyncEngine.swift（1,596 行）按职责拆分为 5 个文件（1 核心 + 4 extension），核心文件瘦身至 ~380 行，提升代码可维护性
 - XiaoMiFormatConverter 清理重构（spec-107）：删除旧管道代码（2,052 行缩减至 112 行），收拢转换模块到 `Sources/Service/Editor/FormatConverter/` 子目录
 - 废弃代码清理（spec-106）：删除 MiNoteService 废弃文件、清理 deprecated 方法、统一 print() 为 LogService、修正 error domain 字符串、更新过时注释引用和项目文档

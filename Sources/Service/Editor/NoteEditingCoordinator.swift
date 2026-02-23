@@ -53,7 +53,6 @@ public final class NoteEditingCoordinator: ObservableObject {
     // 保存任务跟踪
     var xmlSaveDebounceTask: Task<Void, Never>?
     var xmlSaveTask: Task<Void, Never>?
-    var htmlSaveTask: Task<Void, Never>?
     var cloudUploadTask: Task<Void, Never>?
 
     /// 每个笔记的最后上传内容
@@ -101,12 +100,6 @@ public final class NoteEditingCoordinator: ObservableObject {
         }
     }
 
-    // MARK: - 编辑器偏好
-
-    var isUsingNativeEditor: Bool {
-        EditorPreferencesService.shared.isNativeEditorAvailable
-    }
-
     // MARK: - ID 迁移处理
 
     /// 处理笔记 ID 迁移（临时 ID -> 正式 ID）
@@ -129,7 +122,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     // MARK: - 核心方法（保存）
 
     /// 处理编辑器内容变化（统一入口）
-    public func handleContentChange(xmlContent: String, htmlContent: String?) async {
+    public func handleContentChange(xmlContent: String) async {
         guard !isInitializing else {
             LogService.shared.debug(.editor, "handleContentChange 跳过 - isInitializing=true")
             return
@@ -155,12 +148,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         currentXMLContent = xmlContent
 
         // [Tier 0] 立即更新内存缓存
-        await updateMemoryCache(xmlContent: xmlContent, htmlContent: htmlContent, for: currentNote)
-
-        // [Tier 1] 异步保存 HTML 缓存
-        if let html = htmlContent {
-            flashSaveHTML(html, for: currentNote)
-        }
+        await updateMemoryCache(xmlContent: xmlContent, for: currentNote)
 
         // [Tier 2] 异步保存 XML（防抖 300ms）
         scheduleXMLSave(xmlContent: xmlContent, for: currentNote, immediate: false)
@@ -190,7 +178,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         let capturedLastSavedXMLContent = lastSavedXMLContent
 
         var capturedContent = ""
-        if isUsingNativeEditor, let context = nativeEditorContext {
+        if let context = nativeEditorContext {
             capturedContent = context.exportToXML()
             if capturedContent.isEmpty, !currentXMLContent.isEmpty {
                 capturedContent = currentXMLContent
@@ -233,7 +221,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         let capturedNote = note
 
         var capturedContent = ""
-        if isUsingNativeEditor, let context = nativeEditorContext {
+        if let context = nativeEditorContext {
             capturedContent = context.exportToXML()
             if capturedContent.isEmpty, !currentXMLContent.isEmpty {
                 capturedContent = currentXMLContent
@@ -292,7 +280,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         else { return }
 
         var contentToSave = xmlContent
-        if isUsingNativeEditor, let context = nativeEditorContext {
+        if let context = nativeEditorContext {
             let backupContent = context.getContentForRetry()
             if backupContent.length > 0 {
                 contentToSave = XiaoMiFormatConverter.shared.safeNSAttributedStringToXML(backupContent)
@@ -338,10 +326,8 @@ public final class NoteEditingCoordinator: ObservableObject {
         editedTitle = title
         originalTitle = title
 
-        htmlSaveTask?.cancel()
         xmlSaveTask?.cancel()
         xmlSaveDebounceTask?.cancel()
-        htmlSaveTask = nil
         xmlSaveTask = nil
         xmlSaveDebounceTask = nil
 
@@ -360,7 +346,7 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     // MARK: - 内部方法（保存）
 
-    func updateMemoryCache(xmlContent: String, htmlContent _: String?, for note: Note) async {
+    func updateMemoryCache(xmlContent: String, for note: Note) async {
         guard note.id == currentEditingNoteId else { return }
 
         let titleToUse: String = if note.id == currentEditingNoteId {
@@ -399,11 +385,6 @@ public final class NoteEditingCoordinator: ObservableObject {
         noteEditorState?.hasUnsavedContent = true
     }
 
-    func flashSaveHTML(_: String, for _: Note) {
-        htmlSaveTask?.cancel()
-        // HTML 缓存功能已移除
-    }
-
     func scheduleXMLSave(xmlContent: String, for note: Note, immediate: Bool = false) {
         guard note.id == currentEditingNoteId else { return }
 
@@ -434,7 +415,7 @@ public final class NoteEditingCoordinator: ObservableObject {
                 guard !Task.isCancelled, currentEditingNoteId == noteId else { return }
 
                 var latestXMLContent = xmlContent
-                if isUsingNativeEditor, let context = nativeEditorContext {
+                if let context = nativeEditorContext {
                     let exportedXML = context.exportToXML()
                     if !exportedXML.isEmpty {
                         latestXMLContent = exportedXML
@@ -468,7 +449,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         saveStartTime = Date()
         isCancelled = false
 
-        if isUsingNativeEditor, let context = nativeEditorContext {
+        if let context = nativeEditorContext {
             context.backupCurrentContent()
         }
 
@@ -520,7 +501,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         saveStatus = .saved
         noteEditorState?.hasUnsavedContent = false
 
-        if isUsingNativeEditor, let context = nativeEditorContext {
+        if let context = nativeEditorContext {
             context.markContentSaved()
         }
     }
@@ -530,7 +511,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         saveStatus = .error(errorMessage)
         LogService.shared.error(.editor, "保存失败: \(error)")
 
-        if isUsingNativeEditor, let context = nativeEditorContext {
+        if let context = nativeEditorContext {
             context.markSaveFailed(error: errorMessage)
         }
         pendingRetryXMLContent = xmlContent
@@ -597,10 +578,8 @@ public final class NoteEditingCoordinator: ObservableObject {
 
         isInitializing = true
 
-        htmlSaveTask?.cancel()
         xmlSaveTask?.cancel()
         xmlSaveDebounceTask?.cancel()
-        htmlSaveTask = nil
         xmlSaveTask = nil
         xmlSaveDebounceTask = nil
 
@@ -680,23 +659,6 @@ public final class NoteEditingCoordinator: ObservableObject {
         }
     }
 
-    func loadNoteContentWithHTML(note: Note, htmlContent _: String) async {
-        currentXMLContent = ""
-        lastSavedXMLContent = ""
-        originalXMLContent = ""
-
-        let title = note.title.isEmpty || note.title.hasPrefix("未命名笔记_") ? "" : note.title
-        editedTitle = title
-        originalTitle = title
-
-        currentXMLContent = note.primaryXMLContent
-        lastSavedXMLContent = currentXMLContent
-        originalXMLContent = currentXMLContent
-
-        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-        isInitializing = false
-    }
-
     func verifyAudioAttachmentPersistence(note: Note) async {
         let contentToVerify = currentXMLContent.isEmpty ? note.primaryXMLContent : currentXMLContent
 
@@ -707,7 +669,7 @@ public final class NoteEditingCoordinator: ObservableObject {
             LogService.shared.warning(.editor, "发现临时录音模板未更新 - 笔记ID: \(note.id.prefix(8))...")
         }
 
-        if isUsingNativeEditor, let context = nativeEditorContext {
+        if let context = nativeEditorContext {
             let isValid = await context.verifyContentPersistence(expectedContent: contentToVerify)
             if !isValid {
                 LogService.shared.warning(.editor, "原生编辑器内容持久化验证失败 - 笔记ID: \(note.id.prefix(8))...")
@@ -874,7 +836,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     }
 
     func getLatestContentFromEditor() async -> String {
-        if isUsingNativeEditor, let context = nativeEditorContext {
+        if let context = nativeEditorContext {
             let xmlContent = context.exportToXML()
             if !xmlContent.isEmpty {
                 return xmlContent

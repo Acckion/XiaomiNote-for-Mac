@@ -257,24 +257,12 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         newState.isNoteCountVisible = ViewOptionsManager.shared.showNoteCount
 
         // 更新段落样式状态（从编辑器上下文获取）
-        // 关键修复：检查当前使用的是哪种编辑器
-        let isUsingNativeEditor = mainWindowController?.isUsingNativeEditor ?? false
+        if let nativeEditorContext = mainWindowController?.getCurrentNativeEditorContext() {
+            nativeEditorContext.forceUpdateFormats()
 
-        if isUsingNativeEditor {
-            // 原生编辑器：从 NativeEditorContext 获取格式状态
-            if let nativeEditorContext = mainWindowController?.getCurrentNativeEditorContext() {
-                // 注意：不再调用 requestContentSync，因为它是异步的
-                // nsAttributedText 应该已经在 textViewDidChangeSelection 中同步更新了
-                // 如果需要确保内容是最新的，可以直接从 textView 获取
-
-                // 强制更新格式状态
-                // 这与工具栏格式菜单（NativeFormatMenuView）的行为保持一致
-                nativeEditorContext.forceUpdateFormats()
-
-                let paragraphStyleString = nativeEditorContext.getCurrentParagraphStyleString()
-                if let paragraphStyle = ParagraphStyle(rawValue: paragraphStyleString) {
-                    newState.setParagraphStyle(paragraphStyle)
-                }
+            let paragraphStyleString = nativeEditorContext.getCurrentParagraphStyleString()
+            if let paragraphStyle = ParagraphStyle(rawValue: paragraphStyleString) {
+                newState.setParagraphStyle(paragraphStyle)
             }
         }
 
