@@ -138,7 +138,6 @@
 		6A6A3101E4BC0B1974E129D9 /* AuthUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A7220E32FBC1316BEEB5687 /* AuthUser.swift */; };
 		6C08F0CD7D52038FA68F3AAE /* ToolbarVisibilityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44DCA8EF4946B8FDE81DD270 /* ToolbarVisibilityManager.swift */; };
 		6C77AED6D0559ACCA7D4243C /* PassTokenManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C5E5D58F33CA9E2E9D6ACEF /* PassTokenManager.swift */; };
-		6DBE66AC34F276C1BE7028D9 /* EditorStateConsistencyChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FC4DFE5A72297F6145EA260 /* EditorStateConsistencyChecker.swift */; };
 		6E63D4502AD91BAC76B7A880 /* ListBehaviorHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7997EA57FDFE5D2E1F1DA65C /* ListBehaviorHandler.swift */; };
 		70CE5E9434D7A32E47DC7E4E /* OnlineStatusIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3CDA00AB09FA1D8E878E1FB /* OnlineStatusIndicator.swift */; };
 		71CB37439BBDDCFCF099773D /* OnlineStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C19D32B8974F474E83385C5 /* OnlineStateManager.swift */; };
@@ -399,7 +398,6 @@
 		2BD3DF85EF1F93B2A5762187 /* XiaoMiFormatConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XiaoMiFormatConverter.swift; sourceTree = "<group>"; };
 		2DE2D4837F3377E32D80BA10 /* SafeRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafeRenderer.swift; sourceTree = "<group>"; };
 		2F5606FE32A5486A59ADDDC3 /* EventBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventBus.swift; sourceTree = "<group>"; };
-		2FC4DFE5A72297F6145EA260 /* EditorStateConsistencyChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorStateConsistencyChecker.swift; sourceTree = "<group>"; };
 		2FD21BE654F69FD7ACEFBC64 /* AuthState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthState.swift; sourceTree = "<group>"; };
 		305454EB9BED24D094278777 /* LocalStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStorageService.swift; sourceTree = "<group>"; };
 		305FEF5D4ABF0071C1325748 /* AudioAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAttachment.swift; sourceTree = "<group>"; };
@@ -1410,7 +1408,6 @@
 			isa = PBXGroup;
 			children = (
 				73C43716EF906941DD0B39E1 /* BlockFormatHandler.swift */,
-				2FC4DFE5A72297F6145EA260 /* EditorStateConsistencyChecker.swift */,
 				E029C2225FC8BA512E3ECE30 /* FontSizeManager.swift */,
 				4F74A5BE0EA62E0F08B459F3 /* FormatApplicationMethod.swift */,
 				F536EF508195999D2B84CE4C /* FormatError.swift */,
@@ -1729,7 +1726,6 @@
 				C31A29AC7E383EC66253AB8D /* EditorEnums.swift in Sources */,
 				DCB483E7B7A332A5CE4B192C /* EditorFormatDetector.swift in Sources */,
 				AF1F44ACCA12C270CE126E0A /* EditorSettingsView.swift in Sources */,
-				6DBE66AC34F276C1BE7028D9 /* EditorStateConsistencyChecker.swift in Sources */,
 				5B22F3187370A08C0DBC0347 /* ErrorEvent.swift in Sources */,
 				FB9D22888993D0CBEBFE1EFD /* ErrorRecoveryService.swift in Sources */,
 				6604D3C5A86CB4331A7B8650 /* EventBus.swift in Sources */,

@@ -52,17 +52,21 @@ struct NativeFormatMenuView: View {
     // MARK: - Properties
 
     @ObservedObject var context: NativeEditorContext
-    @StateObject private var stateChecker = EditorStateConsistencyChecker.shared
     /// 格式状态管理器 - 用于统一工具栏和菜单栏的格式状态
     @ObservedObject private var stateManager = FormatStateManager.shared
     var onFormatApplied: ((TextFormat) -> Void)?
+
+    /// 格式按钮是否可用（编辑器获得焦点且有内容时启用）
+    private var isFormatEnabled: Bool {
+        context.isEditorFocused && context.nsAttributedText.length > 0
+    }
 
     // MARK: - Body
 
     var body: some View {
         VStack(spacing: 0) {
             // 状态提示（当编辑器不可编辑时显示）
-            if !stateChecker.formatButtonsEnabled {
+            if !isFormatEnabled {
                 stateWarningView
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
@@ -83,7 +87,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!isFormatEnabled)
 
                 // 斜体按钮
                 Button(action: {
@@ -97,7 +101,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!isFormatEnabled)
 
                 // 下划线按钮
                 Button(action: {
@@ -112,7 +116,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!isFormatEnabled)
 
                 // 删除线按钮
                 Button(action: {
@@ -127,7 +131,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!isFormatEnabled)
 
                 // 高亮按钮
                 Button(action: {
@@ -141,7 +145,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!isFormatEnabled)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -179,7 +183,7 @@ struct NativeFormatMenuView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .disabled(!stateChecker.formatButtonsEnabled)
+                    .disabled(!isFormatEnabled)
                 }
             }
 
@@ -215,7 +219,7 @@ struct NativeFormatMenuView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!isFormatEnabled)
             }
 
             // 分割线（引用块和对齐按钮组之间）
@@ -236,7 +240,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!isFormatEnabled)
 
                 // 居中按钮
                 Button(action: {
@@ -250,7 +254,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!isFormatEnabled)
 
                 // 居右按钮
                 Button(action: {
@@ -264,7 +268,7 @@ struct NativeFormatMenuView: View {
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
-                .disabled(!stateChecker.formatButtonsEnabled)
+                .disabled(!isFormatEnabled)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -273,10 +277,6 @@ struct NativeFormatMenuView: View {
         .onAppear {
             if !context.isEditorFocused {
                 context.setEditorFocused(true)
-            }
-
-            if context.isEditorFocused, context.nsAttributedText.length > 0 {
-                stateChecker.updateState(.editable, reason: "格式菜单显示")
             }
 
             context.requestContentSync()
@@ -291,12 +291,9 @@ struct NativeFormatMenuView: View {
         }
         .onChange(of: context.currentFormats) { _, _ in
         }
-        .onChange(of: stateChecker.formatButtonsEnabled) { _, _ in
+        .onChange(of: isFormatEnabled) { _, _ in
         }
-        .onChange(of: context.isEditorFocused) { _, newValue in
-            if newValue, context.nsAttributedText.length > 0 {
-                stateChecker.updateState(.editable, reason: "编辑器获得焦点")
-            }
+        .onChange(of: context.isEditorFocused) { _, _ in
         }
     }
 
@@ -321,7 +318,13 @@ struct NativeFormatMenuView: View {
 
     /// 警告消息
     private var warningMessage: String {
-        stateChecker.currentState.userMessage ?? "格式操作不可用"
+        if !context.isEditorFocused {
+            return "请先点击编辑器"
+        }
+        if context.nsAttributedText.length == 0 {
+            return "请先输入内容"
+        }
+        return "格式操作不可用"
     }
 
     /// 检查样式是否被选中
@@ -383,7 +386,7 @@ struct NativeFormatMenuView: View {
     /// 应用格式
     /// 使用 FormatStateManager 确保工具栏和菜单栏状态同步
     private func applyFormat(_ format: TextFormat) {
-        guard stateChecker.validateFormatOperation(format) else {
+        guard isFormatEnabled else {
             return
         }
 
