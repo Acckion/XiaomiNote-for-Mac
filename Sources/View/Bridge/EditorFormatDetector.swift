@@ -15,8 +15,6 @@ extension NativeEditorContext {
     /// 根据当前光标位置更新格式状态
     func updateCurrentFormats() {
 
-        let errorHandler = FormatErrorHandler.shared
-
         guard !nsAttributedText.string.isEmpty else {
             clearAllFormats()
             clearMixedFormatStates()
@@ -474,68 +472,27 @@ extension NativeEditorContext {
 
     /// 更新格式状态并验证
     private func updateFormatsWithValidation(_ detectedFormats: Set<TextFormat>) {
-        let errorHandler = FormatErrorHandler.shared
-
-        do {
-            let validatedFormats = validateMutuallyExclusiveFormats(detectedFormats)
-            let previousFormats = currentFormats
-            let previousParagraphStyle = detectParagraphStyleFromFormats(previousFormats)
-            batchUpdateState {
-                currentFormats = validatedFormats
-                for format in TextFormat.allCases {
-                    toolbarButtonStates[format] = validatedFormats.contains(format)
-                }
+        let validatedFormats = validateMutuallyExclusiveFormats(detectedFormats)
+        let previousFormats = currentFormats
+        let previousParagraphStyle = detectParagraphStyleFromFormats(previousFormats)
+        batchUpdateState {
+            currentFormats = validatedFormats
+            for format in TextFormat.allCases {
+                toolbarButtonStates[format] = validatedFormats.contains(format)
             }
+        }
 
-            // 检测新的段落样式并发送通知（如果变化）
-            let newParagraphStyle = detectParagraphStyleFromFormats(validatedFormats)
-            if previousParagraphStyle != newParagraphStyle {
-                postParagraphStyleNotification(newParagraphStyle)
-            }
+        // 检测新的段落样式并发送通知（如果变化）
+        let newParagraphStyle = detectParagraphStyleFromFormats(validatedFormats)
+        if previousParagraphStyle != newParagraphStyle {
+            postParagraphStyleNotification(newParagraphStyle)
+        }
 
-            // 验证状态更新是否成功
-            if currentFormats != validatedFormats {
-                // 状态不一致，记录错误
-                let context = FormatErrorContext(
-                    operation: "updateFormatsWithValidation",
-                    format: nil,
-                    selectedRange: selectedRange,
-                    textLength: nsAttributedText.length,
-                    cursorPosition: cursorPosition,
-                    additionalInfo: [
-                        "previousFormats": previousFormats.map(\.displayName),
-                        "expectedFormats": validatedFormats.map(\.displayName),
-                        "actualFormats": currentFormats.map(\.displayName),
-                    ]
-                )
-                errorHandler.handleError(
-                    .stateInconsistency(
-                        expected: validatedFormats.map(\.displayName).joined(separator: ", "),
-                        actual: currentFormats.map(\.displayName).joined(separator: ", ")
-                    ),
-                    context: context
-                )
-            }
-            errorHandler.resetErrorCount()
-        } catch {
-            let context = FormatErrorContext(
-                operation: "updateFormatsWithValidation",
-                format: nil,
-                selectedRange: selectedRange,
-                textLength: nsAttributedText.length,
-                cursorPosition: cursorPosition,
-                additionalInfo: nil
-            )
-            let result = errorHandler.handleError(
-                .stateSyncFailed(reason: error.localizedDescription),
-                context: context
-            )
-
-            // 根据恢复操作执行相应处理
-            if result.recoveryAction == .forceStateUpdate {
-                // 清除所有格式并重新检测
-                clearAllFormats()
-            }
+        // 验证状态更新是否成功
+        if currentFormats != validatedFormats {
+            let expected = validatedFormats.map(\.displayName).joined(separator: ", ")
+            let actual = currentFormats.map(\.displayName).joined(separator: ", ")
+            LogService.shared.warning(.editor, "格式状态不一致: 期望=[\(expected)], 实际=[\(actual)]")
         }
     }
 
