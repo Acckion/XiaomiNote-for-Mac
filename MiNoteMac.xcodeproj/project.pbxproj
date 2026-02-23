@@ -257,7 +257,6 @@
 		D8982FD9619CA67488A0E329 /* SyncEngine+Types.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9999CA23D56088CABDC5870F /* SyncEngine+Types.swift */; };
 		D963273E02023EA1FB48AA9F /* AudioAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 305FEF5D4ABF0071C1325748 /* AudioAttachment.swift */; };
 		D9B8687E9DD3E74D653894BC /* NSFont+MiNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 383FD9A8C10630FB1F3512A4 /* NSFont+MiNote.swift */; };
-		DBAA0A08844DA6808949C1B5 /* UndoRedoStateHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438DF85A272111C8EE27CC07 /* UndoRedoStateHandler.swift */; };
 		DCB483E7B7A332A5CE4B192C /* EditorFormatDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 429688715A8528F8DFAD2C5A /* EditorFormatDetector.swift */; };
 		DCF46E4C55ED4F712EA91325 /* NoteDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F789083FAF24C819C5F3B066 /* NoteDetailView.swift */; };
 		DD2B92EED23D4E85FCF1A854 /* CacheServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC9B374C346E86438315072 /* CacheServiceProtocol.swift */; };
@@ -424,7 +423,6 @@
 		408AB37D71548724EF25ABFA /* NSColor+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSColor+Hex.swift"; sourceTree = "<group>"; };
 		40E028C4E58734DF7C83C8D2 /* ParagraphManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParagraphManager.swift; sourceTree = "<group>"; };
 		429688715A8528F8DFAD2C5A /* EditorFormatDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorFormatDetector.swift; sourceTree = "<group>"; };
-		438DF85A272111C8EE27CC07 /* UndoRedoStateHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoRedoStateHandler.swift; sourceTree = "<group>"; };
 		43CA14F2F9F71D998E97AF5D /* BaseSheetToolbarDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseSheetToolbarDelegate.swift; sourceTree = "<group>"; };
 		44B3D5E462F26593AB71C991 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		44DCA8EF4946B8FDE81DD270 /* ToolbarVisibilityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarVisibilityManager.swift; sourceTree = "<group>"; };
@@ -1427,7 +1425,6 @@
 				A95D04A341EF5C70245B351D /* NewLineHandler.swift */,
 				82C7F905B1FAA4F9B7E7FFB9 /* ParagraphStyleFactory.swift */,
 				690890368250EA7A0BBB83B7 /* SpecialElementFormatHandler.swift */,
-				438DF85A272111C8EE27CC07 /* UndoRedoStateHandler.swift */,
 				30F9C29A7C4099E8FA362063 /* UnifiedFormatManager.swift */,
 			);
 			path = Format;
@@ -1917,7 +1914,6 @@
 				1BA5819B46540D45BAFD8B5A /* TrashWindowController.swift in Sources */,
 				5C2020421AA15138371BD227 /* TypingOptimizer.swift in Sources */,
 				925BE2F1EDDCBFB2D929F407 /* UndoCoalescingManager.swift in Sources */,
-				DBAA0A08844DA6808949C1B5 /* UndoRedoStateHandler.swift in Sources */,
 				5F7C34C98AAB9B255ABA1EF8 /* UnifiedEditorWrapper.swift in Sources */,
 				E4D22E0494D85F03180F3D04 /* UnifiedFormatManager.swift in Sources */,
 				44225D61901A3371958A3FA6 /* UnifiedOperationQueue.swift in Sources */,
