@@ -140,8 +140,7 @@ class MixedFormatApplicationHandler {
             let highlightColor = NSColor(hex: "#9affe8af") ?? NSColor.systemYellow
             textStorage.addAttribute(.backgroundColor, value: highlightColor, range: range)
         default:
-            // 块级格式使用 FormatManager 处理
-            FormatManager.shared.applyFormat(format, to: textStorage, range: range)
+            UnifiedFormatManager.shared.applyFormat(format, to: textStorage, range: range)
         }
     }
 
@@ -163,7 +162,6 @@ class MixedFormatApplicationHandler {
         case .highlight:
             textStorage.removeAttribute(.backgroundColor, range: range)
         default:
-            // 块级格式使用 FormatManager 处理
             // 对于块级格式，移除操作通常是切换操作
             break
         }

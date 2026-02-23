@@ -223,6 +223,6 @@ extension NSAttributedString.Key {
     /// 列表级别属性键
     static let listLevel = NSAttributedString.Key("ListLevel")
 
-    // 注意：listType 已在 FormatManager.swift 中定义
+    // 注意：listType 已在 FormatTypes.swift 中定义
     // static let listType = NSAttributedString.Key("listType")
 }

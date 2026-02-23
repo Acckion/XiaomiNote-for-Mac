@@ -215,8 +215,7 @@ class CrossParagraphFormatHandler {
         case .alignRight:
             applyAlignmentToParagraph(.right, to: textStorage, paragraphRange: paragraphRange)
         case .bulletList, .numberedList, .checkbox, .quote:
-            // 这些格式使用 FormatManager 处理
-            FormatManager.shared.applyFormat(format, to: textStorage, range: paragraphRange)
+            UnifiedFormatManager.shared.applyFormat(format, to: textStorage, range: paragraphRange)
         default:
             break
         }

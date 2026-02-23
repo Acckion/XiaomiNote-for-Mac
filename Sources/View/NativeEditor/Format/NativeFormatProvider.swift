@@ -47,7 +47,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
     private var cancellables = Set<AnyCancellable>()
 
     /// 格式管理器
-    private let formatManager = FormatManager.shared
+    private let formatManager = UnifiedFormatManager.shared
 
     /// 防抖定时器
     private var debounceTimer: Timer?

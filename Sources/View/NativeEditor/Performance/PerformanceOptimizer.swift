@@ -750,7 +750,7 @@ class EditorInitializationOptimizer {
         _ = CustomRenderer.shared
 
         // 预加载格式管理器
-        _ = FormatManager.shared
+        _ = UnifiedFormatManager.shared
 
         isPreloaded = true
 

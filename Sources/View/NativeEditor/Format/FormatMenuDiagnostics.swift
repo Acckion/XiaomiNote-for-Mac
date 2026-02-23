@@ -619,7 +619,7 @@ final class FormatMenuDiagnostics {
         }
 
         // 检查格式管理器
-        let formatManager = FormatManager.shared
+        let formatManager = UnifiedFormatManager.shared
         if selectedRange.length > 0 {
             let isActive = formatManager.isFormatActive(format, in: textStorage, at: selectedRange.location)
             if isActive {
@@ -690,7 +690,7 @@ final class FormatMenuDiagnostics {
 
         // 检查格式状态一致性
         if cursorPosition < textStorage.length {
-            let formatManager = FormatManager.shared
+            let formatManager = UnifiedFormatManager.shared
             var inconsistencies: [TextFormat] = []
 
             for format in TextFormat.allCases {
@@ -1087,7 +1087,7 @@ final class FormatMenuDiagnostics {
 
         // 检测状态不一致
         if let format {
-            let formatManager = FormatManager.shared
+            let formatManager = UnifiedFormatManager.shared
             if let textStorage = textView.textStorage,
                context.cursorPosition < textStorage.length
             {
