@@ -1,21 +1,21 @@
 import Foundation
 
 /// 网络恢复事件
-public enum NetworkRecoveryEvent: AppEvent {
+enum NetworkRecoveryEvent: AppEvent {
     case recoveryStarted
     case recoveryCompleted(successCount: Int, failedCount: Int)
 
     // MARK: - AppEvent
 
-    public var id: UUID {
+    var id: UUID {
         UUID()
     }
 
-    public var timestamp: Date {
+    var timestamp: Date {
         Date()
     }
 
-    public var source: EventSource {
+    var source: EventSource {
         .system
     }
 }
