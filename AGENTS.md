@@ -51,7 +51,7 @@ Sources/
 ├── Store/                  # 数据存储层（DatabaseService, NoteStore）
 ├── Sync/                   # 同步引擎
 │   ├── OperationQueue/     # 操作队列（UnifiedOperationQueue, OperationProcessor）
-│   ├── SyncEngine          # 同步引擎核心
+│   ├── SyncEngine          # 同步引擎核心（1 核心 + 4 extension）
 │   └── IdMappingRegistry   # ID 映射注册表
 ├── ToolbarItem/            # 工具栏组件
 ├── View/                   # UI 视图组件
@@ -144,7 +144,11 @@ SwiftUI 视图层 (View ← 读取 State 对象)
   - `MainWindowController+StateObservers.swift`: 状态监听 + 窗口标题更新
 - `NoteEditorWindowController.swift`: 独立笔记编辑器窗口控制器（在新窗口中编辑特定笔记）
 - `NoteStore.swift`: 笔记数据存储和操作（依赖注入，非单例）
-- `SyncEngine.swift`: 云端同步引擎（Actor）
+- `SyncEngine.swift`: 云端同步引擎（Actor），已拆分为 5 个文件：
+  - `SyncEngine+Types.swift`: 类型定义（SyncResult、NoteSyncResult、SyncError）和错误映射
+  - `SyncEngine+Attachments.swift`: 附件下载、格式检测、setting.data 构建
+  - `SyncEngine+IncrementalSync.swift`: 增量同步辅助方法、冲突解决、轻量级同步解析
+  - `SyncEngine+PublicHelpers.swift`: 公共辅助方法（重新下载图片、单笔记同步、取消同步、重置状态）
 - `EventBus.swift`: 跨层事件通信（Actor）
 - `APIClient.swift`: 网络请求基础设施（认证、Cookie 管理、请求执行）
 - `NetworkRequestManager.swift`: 网络请求管理器，统一处理 401 自动刷新 Cookie 并重试
@@ -218,6 +222,14 @@ static let migrations: [Migration] = [
 - SQLite 不支持 `DROP COLUMN`，需要重建表
 - 复杂迁移可使用多条 SQL 语句，用分号分隔
 - 测试迁移时可删除本地数据库文件（位于 `~/Library/Application Support/com.mi.note.mac/minote.db`）
+
+## Git 分支规范
+
+- `main`：主分支，仅用于发布。未得到用户明确指令时，禁止直接操作
+- `dev`：开发分支，所有功能分支的基准和合并目标
+- `feature/{编号}-{描述}`、`fix/{编号}-{描述}`、`refactor/{编号}-{描述}`：功能分支
+
+工作流：从 `dev` 创建功能分支 → 在功能分支上开发 → 等待用户指令合并回 `dev`（`--no-ff`）→ 删除功能分支
 
 ## Git 提交规范
 
