@@ -32,6 +32,9 @@ class AppStateManager {
     /// 启动事件订阅 Task
     private var startupEventTask: Task<Void, Never>?
 
+    /// 网络恢复事件订阅 Task
+    private var networkRecoveryEventTask: Task<Void, Never>?
+
     // MARK: - 初始化
 
     /// 初始化应用程序状态管理器
@@ -100,24 +103,24 @@ class AppStateManager {
             }
         }
 
-        // 监听网络恢复处理完成通知
-        NotificationCenter.default.publisher(for: .networkRecoveryProcessingCompleted)
-            .sink { [weak self] notification in
-                self?.handleNetworkRecoveryProcessingCompleted(notification)
+        // 监听网络恢复处理完成事件
+        networkRecoveryEventTask = Task { [weak self] in
+            let stream = await EventBus.shared.subscribe(to: NetworkRecoveryEvent.self)
+            for await event in stream {
+                guard let self else { break }
+                switch event {
+                case let .recoveryCompleted(successCount, failedCount):
+                    LogService.shared.info(.app, "网络恢复处理完成: 成功=\(successCount), 失败=\(failedCount)")
+                case .recoveryStarted:
+                    break
+                }
             }
-            .store(in: &cancellables)
+        }
 
     }
 
     private func handleOnlineStatusChange(isOnline: Bool) {
         LogService.shared.info(.app, "在线状态变化: \(isOnline ? "在线" : "离线")")
-    }
-
-    /// 处理网络恢复处理完成通知
-    private func handleNetworkRecoveryProcessingCompleted(_ notification: Notification) {
-        let successCount = notification.userInfo?["successCount"] as? Int ?? 0
-        let failedCount = notification.userInfo?["failedCount"] as? Int ?? 0
-        LogService.shared.info(.app, "网络恢复处理完成: 成功=\(successCount), 失败=\(failedCount)")
     }
 
     /// 初始化错误恢复相关服务
@@ -160,5 +163,6 @@ class AppStateManager {
 
     deinit {
         startupEventTask?.cancel()
+        networkRecoveryEventTask?.cancel()
     }
 }

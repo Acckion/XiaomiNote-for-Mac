@@ -49,10 +49,31 @@ public final class NetworkRecoveryHandler: ObservableObject {
     /// 网络恢复处理任务
     private var recoveryTask: Task<Void, Never>?
 
+    /// Cookie 刷新事件订阅 Task
+    private var authEventTask: Task<Void, Never>?
+
     // MARK: - 初始化
 
     private init() {
         setupNetworkMonitoring()
+        setupEventBusSubscription()
+    }
+
+    // MARK: - EventBus 订阅
+
+    private func setupEventBusSubscription() {
+        authEventTask = Task { [weak self] in
+            let stream = await EventBus.shared.subscribe(to: AuthEvent.self)
+            for await event in stream {
+                guard let self else { break }
+                switch event {
+                case .cookieRefreshed:
+                    await handleOnlineStateRecovery()
+                default:
+                    break
+                }
+            }
+        }
     }
 
     // MARK: - 网络监控设置
@@ -90,15 +111,6 @@ public final class NetworkRecoveryHandler: ObservableObject {
             .sink { [weak self] _ in
                 Task { @MainActor in
                     await self?.handleNetworkRecovery()
-                }
-            }
-            .store(in: &cancellables)
-
-        // 监听 Cookie 刷新成功通知
-        NotificationCenter.default.publisher(for: NSNotification.Name("CookieRefreshedSuccessfully"))
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    await self?.handleOnlineStateRecovery()
                 }
             }
             .store(in: &cancellables)
@@ -189,11 +201,7 @@ public final class NetworkRecoveryHandler: ObservableObject {
     private func processOfflineQueue() async {
         isWaitingToProcess = false
 
-        // 发送开始处理通知
-        NotificationCenter.default.post(
-            name: .networkRecoveryProcessingStarted,
-            object: nil
-        )
+        await EventBus.shared.publish(NetworkRecoveryEvent.recoveryStarted)
 
         // 获取处理前的统计
         let beforeStats = unifiedQueue.getStatistics()
@@ -216,15 +224,10 @@ public final class NetworkRecoveryHandler: ObservableObject {
             skippedReason: nil
         )
 
-        // 发送处理完成通知
-        NotificationCenter.default.post(
-            name: .networkRecoveryProcessingCompleted,
-            object: nil,
-            userInfo: [
-                "successCount": successCount,
-                "failedCount": failedCount,
-            ]
-        )
+        await EventBus.shared.publish(NetworkRecoveryEvent.recoveryCompleted(
+            successCount: successCount,
+            failedCount: failedCount
+        ))
     }
 
     // MARK: - 公共方法
@@ -296,14 +299,4 @@ public struct ProcessingResult: Sendable {
         self.skippedReason = skippedReason
         self.timestamp = Date()
     }
-}
-
-// MARK: - 通知扩展
-
-public extension Notification.Name {
-    /// 网络恢复处理开始通知
-    static let networkRecoveryProcessingStarted = Notification.Name("networkRecoveryProcessingStarted")
-
-    /// 网络恢复处理完成通知
-    static let networkRecoveryProcessingCompleted = Notification.Name("networkRecoveryProcessingCompleted")
 }
