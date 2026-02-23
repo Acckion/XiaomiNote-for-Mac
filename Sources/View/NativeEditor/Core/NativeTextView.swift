@@ -470,7 +470,7 @@ class NativeTextView: NSTextView {
         let position = selectedRange.location
 
         // 首先检查是否在引用块中
-        if FormatManager.shared.isQuoteBlock(in: textStorage, at: position) {
+        if UnifiedFormatManager.shared.isQuoteBlock(in: textStorage, at: position) {
             return handleReturnKeyForQuote()
         }
 
@@ -482,7 +482,7 @@ class NativeTextView: NSTextView {
         }
 
         // 检查当前行是否是列表项（回退逻辑）
-        let listType = FormatManager.shared.getListType(in: textStorage, at: position)
+        let listType = UnifiedFormatManager.shared.getListType(in: textStorage, at: position)
         guard listType != .none else { return false }
 
         let string = textStorage.string as NSString
@@ -495,7 +495,7 @@ class NativeTextView: NSTextView {
         if isEmptyListItem {
             // 空列表项，移除列表格式
             textStorage.beginEditing()
-            FormatManager.shared.removeListFormat(from: textStorage, range: lineRange)
+            UnifiedFormatManager.shared.removeListFormat(from: textStorage, range: lineRange)
             textStorage.endEditing()
 
             // 通知内容变化
@@ -504,7 +504,7 @@ class NativeTextView: NSTextView {
         }
 
         // 非空列表项，创建新的列表项
-        let indent = FormatManager.shared.getListIndent(in: textStorage, at: position)
+        let indent = UnifiedFormatManager.shared.getListIndent(in: textStorage, at: position)
 
         textStorage.beginEditing()
 
@@ -518,14 +518,14 @@ class NativeTextView: NSTextView {
 
         switch listType {
         case .bullet:
-            FormatManager.shared.applyBulletList(to: textStorage, range: newLineRange, indent: indent)
+            UnifiedFormatManager.shared.applyBulletList(to: textStorage, range: newLineRange, indent: indent)
             // 插入项目符号
             let bulletString = createBulletString(indent: indent)
             textStorage.insert(bulletString, at: newLineStart)
 
         case .ordered:
-            let newNumber = FormatManager.shared.getListNumber(in: textStorage, at: position) + 1
-            FormatManager.shared.applyOrderedList(to: textStorage, range: newLineRange, number: newNumber, indent: indent)
+            let newNumber = UnifiedFormatManager.shared.getListNumber(in: textStorage, at: position) + 1
+            UnifiedFormatManager.shared.applyOrderedList(to: textStorage, range: newLineRange, number: newNumber, indent: indent)
             // 插入编号
             let orderString = createOrderString(number: newNumber, indent: indent)
             textStorage.insert(orderString, at: newLineStart)
@@ -561,13 +561,13 @@ class NativeTextView: NSTextView {
         let position = selectedRange.location
 
         // 检查当前行是否是列表项
-        let listType = FormatManager.shared.getListType(in: textStorage, at: position)
+        let listType = UnifiedFormatManager.shared.getListType(in: textStorage, at: position)
         guard listType != .none else { return false }
 
         if increase {
-            FormatManager.shared.increaseListIndent(to: textStorage, range: selectedRange)
+            UnifiedFormatManager.shared.increaseListIndent(to: textStorage, range: selectedRange)
         } else {
-            FormatManager.shared.decreaseListIndent(to: textStorage, range: selectedRange)
+            UnifiedFormatManager.shared.decreaseListIndent(to: textStorage, range: selectedRange)
         }
 
         // 通知内容变化
@@ -594,7 +594,7 @@ class NativeTextView: NSTextView {
         if isEmptyLine {
             // 空行，退出引用块
             textStorage.beginEditing()
-            FormatManager.shared.removeQuoteBlock(from: textStorage, range: lineRange)
+            UnifiedFormatManager.shared.removeQuoteBlock(from: textStorage, range: lineRange)
             textStorage.endEditing()
 
             // 通知内容变化
@@ -603,7 +603,7 @@ class NativeTextView: NSTextView {
         }
 
         // 非空行，继续引用格式
-        let indent = FormatManager.shared.getQuoteIndent(in: textStorage, at: position)
+        let indent = UnifiedFormatManager.shared.getQuoteIndent(in: textStorage, at: position)
 
         textStorage.beginEditing()
 
@@ -615,7 +615,7 @@ class NativeTextView: NSTextView {
         let newLineStart = insertionPoint + 1
         let newLineRange = NSRange(location: newLineStart, length: 0)
 
-        FormatManager.shared.applyQuoteBlock(to: textStorage, range: newLineRange, indent: indent)
+        UnifiedFormatManager.shared.applyQuoteBlock(to: textStorage, range: newLineRange, indent: indent)
 
         textStorage.endEditing()
 
