@@ -143,7 +143,6 @@
 		70CE5E9434D7A32E47DC7E4E /* OnlineStatusIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3CDA00AB09FA1D8E878E1FB /* OnlineStatusIndicator.swift */; };
 		71CB37439BBDDCFCF099773D /* OnlineStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C19D32B8974F474E83385C5 /* OnlineStateManager.swift */; };
 		7320FED1FB9BD5418BCA67A7 /* SidebarHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A132808FB8BD901AF2D9A566 /* SidebarHostingController.swift */; };
-		73A4F04F6A6E9883CC89C444 /* MixedFormatApplicationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F441DAC237FF10BD07E1187F /* MixedFormatApplicationHandler.swift */; };
 		73FCCB905F17CDEFAF3528EB /* DefaultImageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1311A49E554CC193A0A318C /* DefaultImageService.swift */; };
 		7416BF8F4AB2BD8E2D83DF93 /* MenuManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04AFAC98180E3C67C7B439DF /* MenuManager.swift */; };
 		752929A27B66E3ECA5E5E8F7 /* ImageAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C37403A6DA7279ACAE4D31A /* ImageAttachment.swift */; };
@@ -632,7 +631,6 @@
 		F28437201444B973E9444C02 /* DatabaseService+Folders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DatabaseService+Folders.swift"; sourceTree = "<group>"; };
 		F2CAB91FFBFA919AAE886718 /* AudioPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPanelView.swift; sourceTree = "<group>"; };
 		F4359C5D7A1B6E7C98FD9228 /* AttachmentHighlightView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentHighlightView.swift; sourceTree = "<group>"; };
-		F441DAC237FF10BD07E1187F /* MixedFormatApplicationHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixedFormatApplicationHandler.swift; sourceTree = "<group>"; };
 		F503F883538E6E04A540CF77 /* AudioPanelStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPanelStateManager.swift; sourceTree = "<group>"; };
 		F536EF508195999D2B84CE4C /* FormatError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatError.swift; sourceTree = "<group>"; };
 		F5A164FE1770FFB98A74958A /* NewNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewNoteView.swift; sourceTree = "<group>"; };
@@ -1424,7 +1422,6 @@
 				935849EE298307BDFA679DA7 /* InlineFormatHandler.swift */,
 				7997EA57FDFE5D2E1F1DA65C /* ListBehaviorHandler.swift */,
 				14A0F49BE5BBE8B013FDED77 /* ListFormatHandler.swift */,
-				F441DAC237FF10BD07E1187F /* MixedFormatApplicationHandler.swift */,
 				A208B67FF097623E7633F0A1 /* MixedFormatStateHandler.swift */,
 				F982132BE5AD3AEDF14BA8FF /* NativeFormatProvider.swift */,
 				A95D04A341EF5C70245B351D /* NewLineHandler.swift */,
@@ -1791,7 +1788,6 @@
 				0F3AACA6FA2EC3EB9B52A713 /* MemoryCacheManager.swift in Sources */,
 				9A0FF325CFB5F55B467626C8 /* MiNoteError.swift in Sources */,
 				24752713BABD19E2204E8ED6 /* MiNoteToolbarItem.swift in Sources */,
-				73A4F04F6A6E9883CC89C444 /* MixedFormatApplicationHandler.swift in Sources */,
 				B61D0B62F77C5FA259D3E0CE /* MixedFormatStateHandler.swift in Sources */,
 				9FED13360CD1A8A114251CC2 /* MoveNoteMenuView.swift in Sources */,
 				2E026C2D5C15FA58D42204C6 /* MoveNoteView.swift in Sources */,
