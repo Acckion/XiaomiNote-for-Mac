@@ -254,32 +254,8 @@ enum FormatErrorRecoveryAction: String, CaseIterable {
     }
 }
 
-// MARK: - 格式错误记录
+// MARK: - 格式错误上下文
 
-/// 格式错误记录
-struct FormatErrorRecord {
-    /// 错误
-    let error: FormatError
-
-    /// 上下文信息
-    let context: FormatErrorContext
-
-    /// 时间戳
-    let timestamp: Date
-
-    /// 是否已处理
-    var handled: Bool
-
-    /// 恢复操作
-    var recoveryAction: FormatErrorRecoveryAction?
-
-    /// 描述
-    var description: String {
-        "[\(ISO8601DateFormatter().string(from: timestamp))] \(error.localizedDescription ?? "未知错误") - \(context.description)"
-    }
-}
-
-/// 格式错误上下文
 struct FormatErrorContext {
     /// 操作类型
     let operation: String

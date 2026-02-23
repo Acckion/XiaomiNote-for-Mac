@@ -265,7 +265,6 @@
 		DEE9277CD279D9751E407F27 /* Paragraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60C133F92A9701F6B796AE9 /* Paragraph.swift */; };
 		DF56A6D5FA2CE29CD602E5FA /* PrivateNotesPasswordManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A04B6DFCC8AAB90EB0DC9466 /* PrivateNotesPasswordManager.swift */; };
 		DF77EF10B6132E12E847BB10 /* XMLTokenizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD491E3D452F6997B87F0C6 /* XMLTokenizer.swift */; };
-		E08D1963A4CA79BAAD38AE01 /* NativeEditorDebugger.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5A050D92DB0EA5CE60AA66 /* NativeEditorDebugger.swift */; };
 		E0CECEAB5C4D1A233677784C /* FormatMenuProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA2C5228C6D1AD33C3CC0ED /* FormatMenuProvider.swift */; };
 		E105BA9A72AC4F34F4F58004 /* TitleExtractionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F1DB31FF5233FAD5310C6D /* TitleExtractionResult.swift */; };
 		E11CF9ACA07646605794744A /* ParagraphDebugWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC91543705F2AC75FA52B3A /* ParagraphDebugWindowController.swift */; };
@@ -284,7 +283,6 @@
 		EBA5E00131015D430D09503A /* ExpandedNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23C0A34630D09A5EF91919EF /* ExpandedNoteView.swift */; };
 		ECA6A09CFF9D0286E9ECFE05 /* ASTNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D1CDAA7A03B061863948886 /* ASTNode.swift */; };
 		EE2577EBD0917307417A77DC /* GalleryHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB8443B36E7272469F67E446 /* GalleryHostingController.swift */; };
-		EE4C90B6FBCC621335FA6A57 /* PerformanceOptimizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AAB3F04549B463A337781EF /* PerformanceOptimizer.swift */; };
 		EEE696BA06A2AA0C0F71D9A3 /* ViewOptionsState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60892A1BA5ACC42476B0CCD6 /* ViewOptionsState.swift */; };
 		EFFDF2991B43F2F705B422CA /* SettingsEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95517ECE7B8BC83C7A90277C /* SettingsEvent.swift */; };
 		F00707AF58806715F39E45A1 /* FloatingInfoBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D3AD9766528663C9AF736CF /* FloatingInfoBar.swift */; };
@@ -471,7 +469,6 @@
 		696DB8B0D41F949729B28B6E /* SyncEngine+PublicHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncEngine+PublicHelpers.swift"; sourceTree = "<group>"; };
 		69E8372B9DDB3042119971E2 /* SidebarWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWindowState.swift; sourceTree = "<group>"; };
 		6A5FC733DDBCA7906346BDAC /* EditorSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorSettingsView.swift; sourceTree = "<group>"; };
-		6AAB3F04549B463A337781EF /* PerformanceOptimizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceOptimizer.swift; sourceTree = "<group>"; };
 		6ADA099997AC3611FED4FD09 /* DebugWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugWindowController.swift; sourceTree = "<group>"; };
 		6C5DE220C4BAB73B9CDEE935 /* DatabaseService+Internal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DatabaseService+Internal.swift"; sourceTree = "<group>"; };
 		6D51E338C31EEFDA834023C5 /* BlockNodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockNodes.swift; sourceTree = "<group>"; };
@@ -619,7 +616,6 @@
 		ED3BD9C2A384231D8B8E6238 /* NoteEditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorToolbar.swift; sourceTree = "<group>"; };
 		EE5AA888EEF1A6EDA0DACD40 /* XMLRoundtripChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLRoundtripChecker.swift; sourceTree = "<group>"; };
 		EE79EB83D90635D39CF02F0F /* AudioCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCacheService.swift; sourceTree = "<group>"; };
-		EF5A050D92DB0EA5CE60AA66 /* NativeEditorDebugger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorDebugger.swift; sourceTree = "<group>"; };
 		F1ABCE2B774CDF77B76A251D /* GalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryView.swift; sourceTree = "<group>"; };
 		F212BFBE5273EA716F02ED8C /* FormatStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatStateManager.swift; sourceTree = "<group>"; };
 		F28437201444B973E9444C02 /* DatabaseService+Folders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DatabaseService+Folders.swift"; sourceTree = "<group>"; };
@@ -1024,7 +1020,6 @@
 		705C4BF7FD1E656B937D553A /* Debug */ = {
 			isa = PBXGroup;
 			children = (
-				EF5A050D92DB0EA5CE60AA66 /* NativeEditorDebugger.swift */,
 				A1B8CDA1EBF6527C983E15F3 /* NativeEditorErrorHandler.swift */,
 				A054576271DE2E23FFE0172E /* NativeEditorLogger.swift */,
 				A188F651D9BA502D8C37C3F5 /* NativeEditorMetrics.swift */,
@@ -1109,7 +1104,6 @@
 			children = (
 				DD154D4385EDD8B76C293132 /* IncrementalUpdateManager.swift */,
 				5850C05E06D29B03CF92F52C /* PerformanceMonitor.swift */,
-				6AAB3F04549B463A337781EF /* PerformanceOptimizer.swift */,
 				64C899D8B37D4EAB34DD8726 /* TypingOptimizer.swift */,
 			);
 			path = Performance;
@@ -1789,7 +1783,6 @@
 				43F3CB26801A57BE010B1692 /* NSWindow+MiNote.swift in Sources */,
 				4144A006574CAC1E804987C2 /* NativeEditorContext.swift in Sources */,
 				423BAAEE2C25100A6CA075D7 /* NativeEditorCoordinator.swift in Sources */,
-				E08D1963A4CA79BAAD38AE01 /* NativeEditorDebugger.swift in Sources */,
 				9A1C2820245A15D307EA519D /* NativeEditorErrorHandler.swift in Sources */,
 				A270D0413C60659EE7CB9D06 /* NativeEditorInitializer.swift in Sources */,
 				A2C45B6C1562B74CAFBE7EF4 /* NativeEditorLogger.swift in Sources */,
@@ -1864,7 +1857,6 @@
 				209FBD54924BF259AA003953 /* PendingUploadEntry.swift in Sources */,
 				CE3D635DB3EE4344580E883B /* PerformanceCache.swift in Sources */,
 				07A64B47ADD68695A10B39B3 /* PerformanceMonitor.swift in Sources */,
-				EE4C90B6FBCC621335FA6A57 /* PerformanceOptimizer.swift in Sources */,
 				DE745FB4EA41F63F55CE80D4 /* PreviewHelper.swift in Sources */,
 				01FA068133809256656CA1E6 /* PrivateNotesPasswordInputDialogView.swift in Sources */,
 				DF56A6D5FA2CE29CD602E5FA /* PrivateNotesPasswordManager.swift in Sources */,

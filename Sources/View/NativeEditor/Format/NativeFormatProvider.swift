@@ -11,23 +11,6 @@ import AppKit
 import Combine
 import Foundation
 
-// MARK: - 性能监控记录
-
-/// 格式检测性能记录
-public struct FormatDetectionPerformanceRecord: Sendable {
-    public let timestamp: Date
-    public let durationMs: Double
-    public let detectionType: DetectionType
-    public let rangeLength: Int
-    public let success: Bool
-    public let errorMessage: String?
-
-    public enum DetectionType: String, Sendable {
-        case cursor
-        case selection
-    }
-}
-
 // MARK: - NativeFormatProvider
 
 /// 原生编辑器格式提供者
@@ -46,39 +29,10 @@ public final class NativeFormatProvider: FormatMenuProvider {
     /// 取消订阅集合
     private var cancellables = Set<AnyCancellable>()
 
-    /// 格式管理器
-    private let formatManager = UnifiedFormatManager.shared
-
     /// 防抖定时器
     private var debounceTimer: Timer?
 
     private let debounceInterval: TimeInterval = 0.05 // 50ms
-
-    // MARK: - 性能监控属性
-
-    /// 性能监控是否启用
-    private var performanceMonitoringEnabled = true
-
-    /// 性能记录
-    private var performanceRecords: [FormatDetectionPerformanceRecord] = []
-
-    /// 最大记录数量
-    private let maxRecordCount = 200
-
-    /// 检测计数
-    private var detectionCount = 0
-
-    /// 总检测时间（毫秒）
-    private var totalDetectionTime: Double = 0
-
-    /// 最大检测时间（毫秒）
-    private var maxDetectionTime: Double = 0
-
-    /// 最小检测时间（毫秒）
-    private var minDetectionTime = Double.infinity
-
-    /// 错误计数
-    private var errorCount = 0
 
     /// 上次状态（用于增量更新）
     private var lastState: FormatState?
@@ -110,49 +64,19 @@ public final class NativeFormatProvider: FormatMenuProvider {
     /// 获取当前格式状态
     /// - Returns: 当前格式状态
     public func getCurrentFormatState() -> FormatState {
-        let startTime = CFAbsoluteTimeGetCurrent()
-        var detectionType: FormatDetectionPerformanceRecord.DetectionType = .cursor
-        var rangeLength = 0
-        var success = true
-        var errorMessage: String?
-
-        defer {
-            if performanceMonitoringEnabled {
-                let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
-                recordPerformance(
-                    duration: duration,
-                    detectionType: detectionType,
-                    rangeLength: rangeLength,
-                    success: success,
-                    errorMessage: errorMessage
-                )
-            }
-        }
-
-        // 边界条件：编辑器上下文不可用
         guard let context = editorContext else {
-            errorMessage = "编辑器上下文不可用"
-            success = false
-            errorCount += 1
             return FormatState.default
         }
 
         let hasSelection = context.selectedRange.length > 0
-        rangeLength = hasSelection ? context.selectedRange.length : 0
-        detectionType = hasSelection ? .selection : .cursor
 
         do {
             if hasSelection {
-                // 选择模式：检测选择范围内的格式状态
                 return try detectFormatStateInSelectionSafe(range: context.selectedRange)
             } else {
-                // 光标模式：检测光标位置的格式状态
                 return try detectFormatStateAtCursorSafe(position: context.cursorPosition)
             }
         } catch {
-            errorMessage = error.localizedDescription
-            success = false
-            errorCount += 1
             return FormatState.default
         }
     }
@@ -163,81 +87,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
     public func isFormatActive(_ format: TextFormat) -> Bool {
         let state = getCurrentFormatState()
         return state.isFormatActive(format)
-    }
-
-    // MARK: - 性能监控方法
-
-    /// 启用或禁用性能监控
-    /// - Parameter enabled: 是否启用
-    public func setPerformanceMonitoring(enabled: Bool) {
-        performanceMonitoringEnabled = enabled
-    }
-
-    /// 获取性能统计信息
-    /// - Returns: 性能统计信息字典
-    public func getPerformanceStats() -> [String: Any] {
-        guard detectionCount > 0 else {
-            return [
-                "detectionCount": 0,
-                "errorCount": errorCount,
-                "averageTime": 0.0,
-                "maxTime": 0.0,
-                "minTime": 0.0,
-                "totalTime": 0.0,
-            ]
-        }
-
-        return [
-            "detectionCount": detectionCount,
-            "errorCount": errorCount,
-            "averageTime": totalDetectionTime / Double(detectionCount),
-            "maxTime": maxDetectionTime,
-            "minTime": minDetectionTime == Double.infinity ? 0.0 : minDetectionTime,
-            "totalTime": totalDetectionTime,
-            "errorRate": Double(errorCount) / Double(detectionCount),
-        ]
-    }
-
-    /// 重置性能统计信息
-    public func resetPerformanceStats() {
-        detectionCount = 0
-        errorCount = 0
-        totalDetectionTime = 0
-        maxDetectionTime = 0
-        minDetectionTime = Double.infinity
-        performanceRecords.removeAll()
-    }
-
-    /// 记录性能数据
-    private func recordPerformance(
-        duration: Double,
-        detectionType: FormatDetectionPerformanceRecord.DetectionType,
-        rangeLength: Int,
-        success: Bool,
-        errorMessage: String?
-    ) {
-        // 更新统计信息
-        detectionCount += 1
-        totalDetectionTime += duration
-        maxDetectionTime = max(maxDetectionTime, duration)
-        minDetectionTime = min(minDetectionTime, duration)
-
-        // 创建性能记录
-        let record = FormatDetectionPerformanceRecord(
-            timestamp: Date(),
-            durationMs: duration,
-            detectionType: detectionType,
-            rangeLength: rangeLength,
-            success: success,
-            errorMessage: errorMessage
-        )
-
-        performanceRecords.append(record)
-
-        // 限制记录数量
-        if performanceRecords.count > maxRecordCount {
-            performanceRecords.removeFirst(performanceRecords.count - maxRecordCount)
-        }
     }
 
     // MARK: - FormatMenuProvider Protocol Methods - 格式应用
