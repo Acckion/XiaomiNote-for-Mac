@@ -35,7 +35,7 @@ Sources/
 │   ├── Authentication/     # 认证服务
 │   ├── Cache/              # 缓存服务
 │   ├── Core/               # 核心服务（StartupSequenceManager, LogService）
-│   ├── Editor/             # 编辑器服务（NoteEditingCoordinator）
+│   ├── Editor/             # 编辑器服务（NoteEditingCoordinator, FormatConverter）
 │   ├── Image/              # 图片服务
 │   └── Protocols/          # 服务协议定义
 ├── State/                  # 状态对象（替代 NotesViewModel）
@@ -161,6 +161,7 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 - `EditorEnums.swift`: 编辑器枚举定义（TextFormat、SpecialElement、IndentOperation、EditorType）
 - `EditorContentManager.swift`: 编辑器内容管理（录音模板、内容保护、自动保存）
 - `EditorFormatDetector.swift`: 编辑器格式检测（格式状态更新、混合格式检测）
+- `Sources/Service/Editor/FormatConverter/`: 格式转换模块（XiaoMiFormatConverter 门面 + AST 管道）
 
 ## 数据格式
 

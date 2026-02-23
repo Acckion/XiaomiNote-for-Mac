@@ -263,7 +263,7 @@ final class NativeEditorInitializer {
         // 验证格式转换器
         let testXML = "<text indent=\"1\">测试</text>"
         do {
-            _ = try XiaoMiFormatConverter.shared.xmlToAttributedString(testXML)
+            _ = try XiaoMiFormatConverter.shared.xmlToNSAttributedString(testXML)
         } catch {
             throw NativeEditorError.initializationFailed(reason: "格式转换器验证失败: \(error.localizedDescription)")
         }
