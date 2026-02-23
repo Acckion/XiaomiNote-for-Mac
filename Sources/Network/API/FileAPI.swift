@@ -389,7 +389,7 @@ public struct FileAPI: Sendable {
         progressHandler: ((Int64, Int64) -> Void)? = nil
     ) async throws -> URL {
         // 检查缓存
-        if let cachedURL = AudioCacheService.shared.getCachedFile(for: fileId) {
+        if let cachedURL = await AudioCacheService.shared.getCachedFile(for: fileId) {
             return cachedURL
         }
 
@@ -397,7 +397,7 @@ public struct FileAPI: Sendable {
         let audioData = try await downloadAudio(fileId: fileId, progressHandler: progressHandler)
 
         // 缓存文件
-        return try AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
+        return try await AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
     }
 
     // MARK: - 通用文件上传/下载

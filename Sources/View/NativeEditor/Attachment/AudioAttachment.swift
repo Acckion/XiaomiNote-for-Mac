@@ -181,8 +181,11 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
 
     deinit {
         // 如果当前正在播放此附件的音频，停止播放
-        if let fileId, AudioPlayerService.shared.currentFileId == fileId {
-            AudioPlayerService.shared.stop()
+        let capturedFileId = fileId
+        Task { @MainActor in
+            if let capturedFileId, AudioPlayerService.shared.currentFileId == capturedFileId {
+                AudioPlayerService.shared.stop()
+            }
         }
         cancellables.removeAll()
     }
@@ -309,6 +312,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     /// 开始播放（自动下载和缓存）
     ///
     /// - Throws: 播放失败时抛出错误
+    @MainActor
     func play() async throws {
         guard let fileId else {
             let error = "无法播放：缺少文件 ID"
@@ -322,7 +326,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
         do {
             // 检查缓存
             let audioURL: URL
-            if let cachedURL = AudioCacheService.shared.getCachedFile(for: fileId) {
+            if let cachedURL = await AudioCacheService.shared.getCachedFile(for: fileId) {
                 audioURL = cachedURL
                 cachedFileURL = cachedURL
             } else {
@@ -331,7 +335,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
 
                 // 缓存文件
                 let mimeType = mimeType ?? "audio/mpeg"
-                audioURL = try AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
+                audioURL = try await AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
                 cachedFileURL = audioURL
             }
 
@@ -353,6 +357,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
 
     /// 暂停播放
     ///
+    @MainActor
     func pause() {
         guard let fileId,
               AudioPlayerService.shared.currentFileId == fileId
@@ -365,6 +370,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
 
     /// 停止播放
+    @MainActor
     func stop() {
         guard let fileId,
               AudioPlayerService.shared.currentFileId == fileId
@@ -381,6 +387,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     /// 跳转到指定位置
     ///
     /// - Parameter progress: 进度值（0.0 - 1.0）
+    @MainActor
     func seek(to progress: Double) {
         guard let fileId,
               AudioPlayerService.shared.currentFileId == fileId
@@ -395,6 +402,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
 
     /// 切换播放/暂停状态
+    @MainActor
     func togglePlayPause() async throws {
         switch playbackState {
         case .idle, .paused:

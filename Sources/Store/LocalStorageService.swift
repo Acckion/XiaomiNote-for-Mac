@@ -1,9 +1,10 @@
 import Foundation
 
-final class LocalStorageService: @unchecked Sendable {
+struct LocalStorageService: Sendable {
     static let shared = LocalStorageService()
 
-    private let fileManager = FileManager.default
+    // FileManager.default 是线程安全的全局单例
+    private nonisolated(unsafe) let fileManager = FileManager.default
     private let documentsDirectory: URL
     private let database = DatabaseService.shared
 
@@ -371,7 +372,7 @@ final class LocalStorageService: @unchecked Sendable {
 
     // MARK: - 应用重置
 
-    func clearAllData() throws {
+    func clearAllData() async throws {
         LogService.shared.info(.storage, "开始清除所有本地数据")
 
         let notes = try getAllLocalNotes()
@@ -394,7 +395,7 @@ final class LocalStorageService: @unchecked Sendable {
             try fileManager.removeItem(at: imagesDir)
         }
 
-        AudioCacheService.shared.clearCache()
+        await AudioCacheService.shared.clearCache()
 
         LogService.shared.info(.storage, "所有本地数据已清除")
     }

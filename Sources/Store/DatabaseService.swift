@@ -2,17 +2,24 @@ import AppKit
 import Foundation
 import SQLite3
 
-/// SQLite数据库服务
+/// SQLite 数据库服务
 ///
-/// 负责所有数据库操作，包括：
-/// - 笔记的CRUD操作
-/// - 文件夹的CRUD操作
-/// - 离线操作队列管理
-/// - 同步状态管理
-/// - 待删除笔记管理
+/// 负责所有数据库操作，包括笔记/文件夹的 CRUD、离线操作队列管理、同步状态管理等。
+/// 数据库位置：`~/Library/Application Support/{bundleId}/minote.db`
 ///
-/// **线程安全**：使用并发队列（DispatchQueue）确保线程安全
-/// **数据库位置**：存储在应用程序支持目录中
+/// ## 线程安全
+///
+/// 本类标记为 `@unchecked Sendable`，通过 `dbQueue`（并发 DispatchQueue）手动保证线程安全。
+/// 未改为 actor 的原因：项目中大量同步方法（`saveNote`、`loadNote`、`getAllNotes` 等）直接调用本类，
+/// 改为 actor 需要所有调用方变为 async，影响面过大。
+///
+/// ## dbQueue 保护规则
+///
+/// - `dbQueue` 是并发队列（`attributes: .concurrent`），采用读写锁模式
+/// - 读操作使用 `dbQueue.sync { ... }`（允许并发读）
+/// - 写操作使用 `dbQueue.sync(flags: .barrier) { ... }`（独占写，阻塞其他读写）
+/// - 所有访问 `db` 指针的操作必须在 `dbQueue` 上执行
+/// - `db` 是唯一受 `dbQueue` 保护的可变状态
 final class DatabaseService: @unchecked Sendable {
     static let shared = DatabaseService()
 
@@ -76,7 +83,9 @@ final class DatabaseService: @unchecked Sendable {
 
     // MARK: - 内部属性（供 extension 访问）
 
+    /// SQLite 数据库连接指针，受 dbQueue 保护
     var db: OpaquePointer?
+    /// 并发读写队列：读操作用 sync，写操作用 sync(flags: .barrier)
     let dbQueue = DispatchQueue(label: "DatabaseQueue", attributes: .concurrent)
     let dbPath: URL
 
