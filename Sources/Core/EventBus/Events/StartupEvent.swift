@@ -1,20 +1,20 @@
 import Foundation
 
 /// 启动序列事件
-enum StartupEvent: AppEvent {
+public enum StartupEvent: AppEvent {
     case startupCompleted(success: Bool, errors: [String], duration: TimeInterval)
 
     // MARK: - AppEvent
 
-    var id: UUID {
+    public var id: UUID {
         UUID()
     }
 
-    var timestamp: Date {
+    public var timestamp: Date {
         Date()
     }
 
-    var source: EventSource {
+    public var source: EventSource {
         .system
     }
 }

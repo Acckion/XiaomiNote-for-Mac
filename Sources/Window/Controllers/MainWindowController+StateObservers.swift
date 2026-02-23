@@ -73,13 +73,18 @@
                 }
                 .store(in: &cancellables)
 
-            // 监听来自设置视图的通知
-            NotificationCenter.default.addObserver(
-                forName: NSNotification.Name("ShowLoginView"),
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                self?.showLogin(nil)
+            // 监听来自设置视图的登录请求
+            settingsEventTask = Task { [weak self] in
+                let stream = await EventBus.shared.subscribe(to: SettingsEvent.self)
+                for await event in stream {
+                    guard let self else { break }
+                    switch event {
+                    case .showLoginRequested:
+                        showLogin(nil)
+                    case .editorSettingsChanged:
+                        break
+                    }
+                }
             }
 
             // 监听音频面板可见性变化

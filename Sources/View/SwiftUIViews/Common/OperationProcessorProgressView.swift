@@ -1,4 +1,4 @@
-import Combine
+import MiNoteLibrary
 import SwiftUI
 
 /// 操作处理器进度视图
@@ -163,14 +163,12 @@ class OperationProcessorProgressViewModel: ObservableObject {
 
     // MARK: - Private Properties
 
-    private var cancellables = Set<AnyCancellable>()
     private var updateTimer: Timer?
+    private var operationEventTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
-    init() {
-        setupNotificationObservers()
-    }
+    init() {}
 
     // MARK: - Monitoring
 
@@ -184,12 +182,31 @@ class OperationProcessorProgressViewModel: ObservableObject {
                 self?.updateStatus()
             }
         }
+
+        // 订阅 EventBus 操作事件
+        operationEventTask = Task { [weak self] in
+            let stream = await EventBus.shared.subscribe(to: OperationEvent.self)
+            for await event in stream {
+                guard let self else { break }
+                switch event {
+                case .operationCompleted:
+                    updateStatus()
+                case let .queueProcessingCompleted(successCount, failedCount):
+                    updateStatus()
+                    statusMessage = "处理完成: 成功 \(successCount), 失败 \(failedCount)"
+                case .authFailed:
+                    updateStatus()
+                    statusMessage = "认证失败，请重新登录"
+                }
+            }
+        }
     }
 
     func stopMonitoring() {
         updateTimer?.invalidate()
         updateTimer = nil
-        cancellables.removeAll()
+        operationEventTask?.cancel()
+        operationEventTask = nil
     }
 
     // MARK: - Status Update
@@ -242,45 +259,6 @@ class OperationProcessorProgressViewModel: ObservableObject {
             failedOperations = UnifiedOperationQueue.shared.getPendingOperations()
                 .filter { $0.status == .failed || $0.status == .authFailed || $0.status == .maxRetryExceeded }
         }
-    }
-
-    // MARK: - Notification Observers
-
-    private func setupNotificationObservers() {
-        // 监听操作完成通知
-        NotificationCenter.default.publisher(for: NSNotification.Name("OperationCompleted"))
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.updateStatus()
-                }
-            }
-            .store(in: &cancellables)
-
-        // 监听队列处理完成通知
-        NotificationCenter.default.publisher(for: NSNotification.Name("OperationQueueProcessingCompleted"))
-            .sink { [weak self] notification in
-                Task { @MainActor in
-                    self?.updateStatus()
-
-                    if let userInfo = notification.userInfo,
-                       let successCount = userInfo["successCount"] as? Int,
-                       let failureCount = userInfo["failureCount"] as? Int
-                    {
-                        self?.statusMessage = "处理完成: 成功 \(successCount), 失败 \(failureCount)"
-                    }
-                }
-            }
-            .store(in: &cancellables)
-
-        // 监听认证失败通知
-        NotificationCenter.default.publisher(for: NSNotification.Name("OperationAuthFailed"))
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.updateStatus()
-                    self?.statusMessage = "认证失败，请重新登录"
-                }
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: - Actions

@@ -40,6 +40,9 @@ public final class IdMappingRegistry: @unchecked Sendable {
     /// 统一操作队列
     private let operationQueue: UnifiedOperationQueue
 
+    /// EventBus 实例
+    private let eventBus: EventBus
+
     // MARK: - 线程安全
 
     /// 操作锁，确保线程安全
@@ -50,23 +53,13 @@ public final class IdMappingRegistry: @unchecked Sendable {
     /// 映射缓存（临时 ID -> 映射记录）
     private var mappingsCache: [String: IdMapping] = [:]
 
-    // MARK: - 通知名称
-
-    /// ID 映射完成通知
-    ///
-    /// 当临时 ID 成功映射到正式 ID 后发送此通知。
-    /// userInfo 包含：
-    /// - "localId": 临时 ID
-    /// - "serverId": 正式 ID
-    /// - "entityType": 实体类型（"note" 或 "folder"）
-    public static let idMappingCompletedNotification = Notification.Name("IdMappingRegistry.idMappingCompleted")
-
     // MARK: - 初始化
 
     /// 私有初始化方法（单例模式）
     private init() {
         self.databaseService = DatabaseService.shared
         self.operationQueue = UnifiedOperationQueue.shared
+        self.eventBus = EventBus.shared
 
         // 从数据库恢复未完成的映射
         loadFromDatabase()
@@ -79,9 +72,10 @@ public final class IdMappingRegistry: @unchecked Sendable {
     /// - Parameters:
     ///   - databaseService: 数据库服务实例
     ///   - operationQueue: 统一操作队列实例
-    init(databaseService: DatabaseService, operationQueue: UnifiedOperationQueue) {
+    init(databaseService: DatabaseService, operationQueue: UnifiedOperationQueue, eventBus: EventBus = EventBus.shared) {
         self.databaseService = databaseService
         self.operationQueue = operationQueue
+        self.eventBus = eventBus
 
         // 从数据库恢复未完成的映射
         loadFromDatabase()
@@ -280,18 +274,8 @@ public extension IdMappingRegistry {
             throw error
         }
 
-        // 4. 发送通知给 UI
-        await MainActor.run {
-            NotificationCenter.default.post(
-                name: Self.idMappingCompletedNotification,
-                object: nil,
-                userInfo: [
-                    "localId": localId,
-                    "serverId": serverId,
-                    "entityType": "note",
-                ]
-            )
-        }
+        // 4. 发布事件通知 UI
+        await eventBus.publish(IdMappingEvent.mappingCompleted(localId: localId, serverId: serverId, entityType: "note"))
 
         LogService.shared.info(.sync, "所有引用更新完成: \(localId) -> \(serverId)")
     }
@@ -319,18 +303,8 @@ public extension IdMappingRegistry {
             throw error
         }
 
-        // 3. 发送通知给 UI
-        await MainActor.run {
-            NotificationCenter.default.post(
-                name: Self.idMappingCompletedNotification,
-                object: nil,
-                userInfo: [
-                    "localId": localId,
-                    "serverId": serverId,
-                    "entityType": "folder",
-                ]
-            )
-        }
+        // 3. 发布事件通知 UI
+        await eventBus.publish(IdMappingEvent.mappingCompleted(localId: localId, serverId: serverId, entityType: "folder"))
 
         LogService.shared.info(.sync, "文件夹引用更新完成: \(localId) -> \(serverId)")
     }

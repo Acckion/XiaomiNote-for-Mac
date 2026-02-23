@@ -29,6 +29,9 @@ class AppStateManager {
     /// Combine 订阅集合
     private var cancellables = Set<AnyCancellable>()
 
+    /// 启动事件订阅 Task
+    private var startupEventTask: Task<Void, Never>?
+
     // MARK: - 初始化
 
     /// 初始化应用程序状态管理器
@@ -85,12 +88,17 @@ class AppStateManager {
             }
             .store(in: &cancellables)
 
-        // 监听启动序列完成通知
-        NotificationCenter.default.publisher(for: .startupSequenceCompleted)
-            .sink { [weak self] notification in
-                self?.handleStartupSequenceCompleted(notification)
+        // 监听启动序列完成事件
+        startupEventTask = Task { [weak self] in
+            let stream = await EventBus.shared.subscribe(to: StartupEvent.self)
+            for await event in stream {
+                guard let self else { break }
+                switch event {
+                case let .startupCompleted(success, _, duration):
+                    LogService.shared.info(.app, "启动序列完成: 成功=\(success), 耗时=\(String(format: "%.2f", duration))秒")
+                }
             }
-            .store(in: &cancellables)
+        }
 
         // 监听网络恢复处理完成通知
         NotificationCenter.default.publisher(for: .networkRecoveryProcessingCompleted)
@@ -103,13 +111,6 @@ class AppStateManager {
 
     private func handleOnlineStatusChange(isOnline: Bool) {
         LogService.shared.info(.app, "在线状态变化: \(isOnline ? "在线" : "离线")")
-    }
-
-    /// 处理启动序列完成通知
-    private func handleStartupSequenceCompleted(_ notification: Notification) {
-        let success = notification.userInfo?["success"] as? Bool ?? false
-        let duration = notification.userInfo?["duration"] as? TimeInterval ?? 0
-        LogService.shared.info(.app, "启动序列完成: 成功=\(success), 耗时=\(String(format: "%.2f", duration))秒")
     }
 
     /// 处理网络恢复处理完成通知
@@ -158,6 +159,6 @@ class AppStateManager {
     // MARK: - 清理
 
     deinit {
-        // 不在 deinit 中调用 LogService，避免潜在的线程问题
+        startupEventTask?.cancel()
     }
 }

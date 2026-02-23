@@ -5,7 +5,7 @@ import Foundation
 /// 全局事件分发中心，支持发布-订阅模式。
 /// 使用 actor 保证并发安全。
 public actor EventBus {
-    static let shared = EventBus()
+    public static let shared = EventBus()
 
     /// 事件历史最大容量
     private let maxHistoryCount = 200
@@ -21,7 +21,7 @@ public actor EventBus {
     // MARK: - 发布
 
     /// 发布事件给所有订阅者
-    func publish<E: AppEvent>(_ event: E) {
+    public func publish<E: AppEvent>(_ event: E) {
         recordEvent(event)
 
         let typeId = ObjectIdentifier(E.self)
@@ -37,7 +37,7 @@ public actor EventBus {
     // MARK: - 订阅
 
     /// 订阅特定类型的事件
-    func subscribe<E: AppEvent>(to _: E.Type) -> AsyncStream<E> {
+    public func subscribe<E: AppEvent>(to _: E.Type) -> AsyncStream<E> {
         let subscriberId = UUID()
         let typeId = ObjectIdentifier(E.self)
 
