@@ -1,15 +1,22 @@
 import Foundation
 
 /// 笔记元数据变更
-struct NoteMetadataChanges: Sendable {
-    var folderId: String?
-    var isStarred: Bool?
-    var colorId: Int?
-    var status: Int?
+public struct NoteMetadataChanges: Sendable {
+    public var folderId: String?
+    public var isStarred: Bool?
+    public var colorId: Int?
+    public var status: Int?
+
+    public init(folderId: String? = nil, isStarred: Bool? = nil, colorId: Int? = nil, status: Int? = nil) {
+        self.folderId = folderId
+        self.isStarred = isStarred
+        self.colorId = colorId
+        self.status = status
+    }
 }
 
 /// 笔记事件
-enum NoteEvent: AppEvent {
+public enum NoteEvent: AppEvent {
     // 意图事件
     case created(Note)
     case contentUpdated(noteId: String, title: String, content: String)
@@ -25,15 +32,15 @@ enum NoteEvent: AppEvent {
 
     // MARK: - AppEvent
 
-    var id: UUID {
+    public var id: UUID {
         UUID()
     }
 
-    var timestamp: Date {
+    public var timestamp: Date {
         Date()
     }
 
-    var source: EventSource {
+    public var source: EventSource {
         .user
     }
 }

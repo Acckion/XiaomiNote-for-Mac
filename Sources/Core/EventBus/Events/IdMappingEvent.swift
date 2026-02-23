@@ -1,20 +1,20 @@
 import Foundation
 
 /// ID 映射事件
-enum IdMappingEvent: AppEvent {
+public enum IdMappingEvent: AppEvent {
     case mappingCompleted(localId: String, serverId: String, entityType: String)
 
     // MARK: - AppEvent
 
-    var id: UUID {
+    public var id: UUID {
         UUID()
     }
 
-    var timestamp: Date {
+    public var timestamp: Date {
         Date()
     }
 
-    var source: EventSource {
+    public var source: EventSource {
         .sync
     }
 }
