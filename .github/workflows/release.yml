@@ -29,6 +29,8 @@ jobs:
 
       - name: Setup Build Environment
         uses: ./.github/actions/setup-build-env
+        with:
+          fetch-depth: 0
 
       - name: Build Release
         run: |
@@ -55,13 +57,13 @@ jobs:
       - name: Create DMG
         run: |
           set -e
-          APP_PATH="build/MiNoteMac.xcarchive/Products/Applications/MiNoteMac.app"
+          APP_PATH="build/export/MiNoteMac.app"
           DMG_NAME="MiNoteMac-${{ env.TAG_NAME }}.dmg"
           DMG_PATH="build/$DMG_NAME"
 
           if [ ! -d "$APP_PATH" ]; then
             echo "Error: App not found at $APP_PATH"
-            ls -la build/MiNoteMac.xcarchive/Products/Applications/ 2>/dev/null || echo "Applications directory not found"
+            ls -la build/export/ 2>/dev/null || echo "Export directory not found"
             exit 1
           fi
 

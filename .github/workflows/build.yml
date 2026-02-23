@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, dev]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build and Test
@@ -16,6 +19,7 @@ jobs:
         uses: ./.github/actions/setup-build-env
 
       - name: SwiftLint (PR annotation)
+        id: swiftlint-pr
         if: github.event_name == 'pull_request'
         uses: norio-nomura/action-swiftlint@3.2.1
         with:
@@ -24,10 +28,12 @@ jobs:
           DIFF_BASE: ${{ github.event.pull_request.base.sha }}
 
       - name: SwiftLint
+        id: swiftlint
         if: github.event_name != 'pull_request'
         run: swiftlint lint --config .swiftlint.yml --reporter xcode
 
       - name: Build
+        id: build
         run: |
           xcodebuild -project MiNoteMac.xcodeproj \
             -scheme MiNoteMac \
@@ -36,6 +42,7 @@ jobs:
             build
 
       - name: Test
+        id: test
         run: |
           xcodebuild test -project MiNoteMac.xcodeproj \
             -scheme MiNoteLibrary \
@@ -48,13 +55,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| 项目 | 结果 |" >> $GITHUB_STEP_SUMMARY
           echo "|------|------|" >> $GITHUB_STEP_SUMMARY
-
-          if [ "${{ steps.*.outcome }}" != "" ]; then
-            echo "| SwiftLint | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          echo "| 构建 (Debug) | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 单元测试 | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SwiftLint | ${{ steps.swiftlint-pr.outcome || steps.swiftlint.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 构建 (Debug) | ${{ steps.build.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 单元测试 | ${{ steps.test.outcome }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**分支**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**提交**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
