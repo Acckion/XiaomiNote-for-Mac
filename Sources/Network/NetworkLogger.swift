@@ -1,11 +1,10 @@
 import Foundation
 
-final class NetworkLogger: @unchecked Sendable {
+actor NetworkLogger {
     static let shared = NetworkLogger()
 
     private var logs: [NetworkLogEntry] = []
     private let maxLogs = 1000 // 最多保存1000条日志
-    private let queue = DispatchQueue(label: "com.xiaomi.minote.mac.networklogger", qos: .utility)
 
     // 用于防止重复记录
     private var lastLogMessage = ""
@@ -15,98 +14,92 @@ final class NetworkLogger: @unchecked Sendable {
     private init() {}
 
     func logRequest(url: String, method: String, headers: [String: String]?, body: String?) {
-        queue.sync {
-            var logMessage = "请求: \(method) \(url)"
-            if let body, !body.isEmpty {
-                logMessage += "\n请求体: \(LogService.truncate(body, maxLength: 200))"
-            }
+        var logMessage = "请求: \(method) \(url)"
+        if let body, !body.isEmpty {
+            logMessage += "\n请求体: \(LogService.truncate(body, maxLength: 200))"
+        }
 
-            if shouldSkipLog(logMessage) {
-                return
-            }
+        if shouldSkipLog(logMessage) {
+            return
+        }
 
-            let entry = NetworkLogEntry(
-                id: UUID(),
-                timestamp: Date(),
-                type: .request,
-                url: url,
-                method: method,
-                headers: headers,
-                body: body,
-                statusCode: nil,
-                response: nil,
-                error: nil
-            )
+        let entry = NetworkLogEntry(
+            id: UUID(),
+            timestamp: Date(),
+            type: .request,
+            url: url,
+            method: method,
+            headers: headers,
+            body: body,
+            statusCode: nil,
+            response: nil,
+            error: nil
+        )
 
-            addLog(entry)
+        addLog(entry)
 
+        LogService.shared.debug(.network, logMessage)
+    }
+
+    func logResponse(url: String, method: String, statusCode: Int, headers: [String: String]?, response: String?, error: Error?) {
+        var logMessage = "响应: \(method) \(url) - 状态码: \(statusCode)"
+        if let response, !response.isEmpty {
+            let preview = LogService.truncate(response, maxLength: 200)
+            logMessage += "\n响应体: \(preview)"
+        }
+        if let error {
+            logMessage += "\n错误: \(error.localizedDescription)"
+        }
+
+        if shouldSkipLog(logMessage) {
+            return
+        }
+
+        let entry = NetworkLogEntry(
+            id: UUID(),
+            timestamp: Date(),
+            type: .response,
+            url: url,
+            method: method,
+            headers: headers,
+            body: nil,
+            statusCode: statusCode,
+            response: response,
+            error: error?.localizedDescription
+        )
+
+        addLog(entry)
+
+        if statusCode >= 400 {
+            LogService.shared.error(.network, logMessage)
+        } else {
             LogService.shared.debug(.network, logMessage)
         }
     }
 
-    func logResponse(url: String, method: String, statusCode: Int, headers: [String: String]?, response: String?, error: Error?) {
-        queue.sync {
-            var logMessage = "响应: \(method) \(url) - 状态码: \(statusCode)"
-            if let response, !response.isEmpty {
-                let preview = LogService.truncate(response, maxLength: 200)
-                logMessage += "\n响应体: \(preview)"
-            }
-            if let error {
-                logMessage += "\n错误: \(error.localizedDescription)"
-            }
-
-            if shouldSkipLog(logMessage) {
-                return
-            }
-
-            let entry = NetworkLogEntry(
-                id: UUID(),
-                timestamp: Date(),
-                type: .response,
-                url: url,
-                method: method,
-                headers: headers,
-                body: nil,
-                statusCode: statusCode,
-                response: response,
-                error: error?.localizedDescription
-            )
-
-            addLog(entry)
-
-            if statusCode >= 400 {
-                LogService.shared.error(.network, logMessage)
-            } else {
-                LogService.shared.debug(.network, logMessage)
-            }
-        }
-    }
-
     func logError(url: String, method: String, error: Error) {
-        queue.sync {
-            let logMessage = "错误: \(method) \(url) - \(error.localizedDescription)"
+        let logMessage = "错误: \(method) \(url) - \(error.localizedDescription)"
 
-            if shouldSkipLog(logMessage) {
-                return
-            }
-
-            let entry = NetworkLogEntry(
-                id: UUID(),
-                timestamp: Date(),
-                type: .error,
-                url: url,
-                method: method,
-                headers: nil,
-                body: nil,
-                statusCode: nil,
-                response: nil,
-                error: error.localizedDescription
-            )
-
-            addLog(entry)
-
-            LogService.shared.error(.network, logMessage)
+        if shouldSkipLog(logMessage) {
+            return
         }
+
+        let entry = NetworkLogEntry(
+            id: UUID(),
+            timestamp: Date(),
+            type: .error,
+            url: url,
+            method: method,
+            headers: nil,
+            body: nil,
+            statusCode: nil,
+            response: nil,
+            error: error.localizedDescription
+        )
+
+        addLog(entry)
+
+        LogService.shared.error(.network, logMessage)
     }
 
     private func addLog(_ entry: NetworkLogEntry) {
@@ -132,33 +125,27 @@ final class NetworkLogger: @unchecked Sendable {
     }
 
     func getLogs() -> [NetworkLogEntry] {
-        queue.sync {
-            logs
-        }
+        logs
     }
 
     func clearLogs() {
-        queue.sync {
-            logs.removeAll()
-        }
+        logs.removeAll()
     }
 
     func exportLogs() -> String {
-        queue.sync {
-            var exportText = "小米笔记网络日志导出\n"
-            exportText += "导出时间: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .medium))\n"
-            exportText += "日志数量: \(logs.count)\n\n"
+        var exportText = "小米笔记网络日志导出\n"
+        exportText += "导出时间: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .medium))\n"
+        exportText += "日志数量: \(logs.count)\n\n"
 
-            for log in logs.reversed() { // 按时间顺序导出
-                exportText += "\(log.description)\n\n"
-            }
-
-            return exportText
+        for log in logs.reversed() { // 按时间顺序导出
+            exportText += "\(log.description)\n\n"
         }
+
+        return exportText
     }
 }
 
-struct NetworkLogEntry: Identifiable {
+struct NetworkLogEntry: Identifiable, Sendable {
     let id: UUID
     let timestamp: Date
     let type: LogType
@@ -170,7 +157,7 @@ struct NetworkLogEntry: Identifiable {
     let response: String?
     let error: String?
 
-    enum LogType {
+    enum LogType: Sendable {
         case request
         case response
         case error
@@ -201,11 +188,6 @@ struct NetworkLogEntry: Identifiable {
         if let statusCode {
             desc += "\n状态码: \(statusCode)"
         }
-
-        // 注释掉请求头输出，使日志更简洁
-        // if let headers = headers, !headers.isEmpty {
-        //     desc += "\n请求头: \(headers)"
-        // }
 
         if let body, !body.isEmpty {
             let bodyPreview = body.count > 500 ? String(body.prefix(500)) + "..." : body

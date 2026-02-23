@@ -3,7 +3,7 @@ import Foundation
 /// 用户 API
 ///
 /// 负责用户信息获取、服务状态检查、Cookie 有效性验证
-public final class UserAPI: @unchecked Sendable {
+public struct UserAPI: Sendable {
     public static let shared = UserAPI()
 
     private let client: APIClient

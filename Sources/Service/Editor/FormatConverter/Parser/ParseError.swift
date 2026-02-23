@@ -145,7 +145,7 @@ public protocol ErrorLogger: Sendable {
 }
 
 /// 默认的控制台日志记录器
-public final class ConsoleErrorLogger: ErrorLogger, @unchecked Sendable {
+public struct ConsoleErrorLogger: ErrorLogger, Sendable {
     public init() {}
 
     public func logError(_ error: Error, context: [String: String]) {
@@ -199,7 +199,7 @@ public struct ErrorContext: Sendable {
 }
 
 /// 默认的错误恢复处理器
-public final class DefaultErrorRecoveryHandler: ErrorRecoveryHandler, @unchecked Sendable {
+public struct DefaultErrorRecoveryHandler: ErrorRecoveryHandler, Sendable {
     private let logger: ErrorLogger
 
     public init(logger: ErrorLogger = ConsoleErrorLogger()) {

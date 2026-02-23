@@ -20,18 +20,12 @@ import Foundation
 /// 4. 使用 FormatSpanMerger 合并相邻相同格式
 /// 5. 将 FormatSpan 转换为行内节点树
 /// 6. 组装成块级节点
-public final class AttributedStringToASTConverter: @unchecked Sendable {
+public struct AttributedStringToASTConverter: Sendable {
 
     // MARK: - Properties
 
     /// 格式跨度合并器
     private let spanMerger: FormatSpanMerger
-
-    /// 是否在有序列表序列中（用于计算 inputNumber）
-    private var isInOrderedListSequence = false
-
-    /// 上一个有序列表的编号（用于验证连续性）
-    private var lastOrderedListNumber = 0
 
     // MARK: - Initialization
 
@@ -46,16 +40,22 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     /// - Parameter attributedString: NSAttributedString
     /// - Returns: 文档 AST 节点
     public func convert(_ attributedString: NSAttributedString) -> DocumentNode {
-        // 重置有序列表跟踪状态
-        isInOrderedListSequence = false
-        lastOrderedListNumber = 0
+        // 有序列表跟踪状态（方法局部变量）
+        var isInOrderedListSequence = false
+        var lastOrderedListNumber = 0
 
         // 按段落分割，同时记录每个段落在原始文本中的起始位置
         let paragraphsWithPositions = splitIntoParagraphsWithPositions(attributedString)
 
         // 转换每个段落为块级节点
         let blocks = paragraphsWithPositions.compactMap { paragraph, position -> (any BlockNode)? in
-            convertParagraphToBlock(paragraph, originalString: attributedString, startPosition: position)
+            convertParagraphToBlock(
+                paragraph,
+                originalString: attributedString,
+                startPosition: position,
+                isInOrderedListSequence: &isInOrderedListSequence,
+                lastOrderedListNumber: &lastOrderedListNumber
+            )
         }
 
         return DocumentNode(blocks: blocks)
@@ -95,12 +95,18 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     ///
     /// - Parameters:
     ///   - paragraph: 段落 NSAttributedString
+    ///   - originalString: 原始完整 NSAttributedString
+    ///   - startPosition: 段落在原始文本中的起始位置
+    ///   - isInOrderedListSequence: 是否在有序列表序列中
+    ///   - lastOrderedListNumber: 上一个有序列表的编号
     /// - Returns: 块级节点
     /// - Note: 空段落会被转换为空内容的 TextBlockNode，以保留空行
     private func convertParagraphToBlock(
         _ paragraph: NSAttributedString,
         originalString: NSAttributedString,
-        startPosition: Int
+        startPosition: Int,
+        isInOrderedListSequence: inout Bool,
+        lastOrderedListNumber: inout Int
     ) -> (any BlockNode)? {
         if paragraph.length == 0 {
             // 重置有序列表序列状态
@@ -133,7 +139,12 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
         // 检查第一个字符是否为附件
         if let attachment = paragraph.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment {
             // 识别附件类型并创建对应的块级节点
-            return convertAttachmentToBlock(attachment, paragraph: paragraph)
+            return convertAttachmentToBlock(
+                attachment,
+                paragraph: paragraph,
+                isInOrderedListSequence: &isInOrderedListSequence,
+                lastOrderedListNumber: &lastOrderedListNumber
+            )
         }
 
         // 非附件段落（普通文本块），重置有序列表序列状态
@@ -156,8 +167,15 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
     /// - Parameters:
     ///   - attachment: NSTextAttachment
     ///   - paragraph: 段落 NSAttributedString
+    ///   - isInOrderedListSequence: 是否在有序列表序列中
+    ///   - lastOrderedListNumber: 上一个有序列表的编号
     /// - Returns: 块级节点
-    private func convertAttachmentToBlock(_ attachment: NSTextAttachment, paragraph: NSAttributedString) -> (any BlockNode)? {
+    private func convertAttachmentToBlock(
+        _ attachment: NSTextAttachment,
+        paragraph: NSAttributedString,
+        isInOrderedListSequence: inout Bool,
+        lastOrderedListNumber: inout Int
+    ) -> (any BlockNode)? {
         // 提取段落属性（作为后备）
         let paragraphStyle = paragraph.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
         let defaultIndent = extractIndent(from: paragraphStyle)
@@ -348,8 +366,6 @@ public final class AttributedStringToASTConverter: @unchecked Sendable {
             let detectedFormat = FontSizeConstants.detectParagraphFormat(fontSize: fontSize)
 
             // 检查粗体（包括标题的粗体）
-            // 修复：移除 !isHeading 条件，允许标题文本同时具有粗体格式
-            // 这样可以正确保留 <size><b>1</b></size> 这样的嵌套格式
             if font.fontDescriptor.symbolicTraits.contains(.bold) {
                 formats.insert(.bold)
             }

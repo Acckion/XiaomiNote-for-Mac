@@ -162,7 +162,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             return
         }
 
@@ -208,7 +208,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "未认证，跳过队列处理")
             return
         }
@@ -496,7 +496,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过重试处理")
             return
         }
@@ -1422,7 +1422,7 @@ public extension OperationProcessor {
         }
 
         // 检查是否已认证
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过启动处理")
             return (0, 0)
         }

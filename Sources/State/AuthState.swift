@@ -52,19 +52,21 @@ public final class AuthState: ObservableObject {
     // MARK: - 生命周期
 
     func start() {
-        isLoggedIn = apiClient.isAuthenticated()
-        isOnline = OnlineStateManager.shared.isOnline
+        Task {
+            isLoggedIn = await apiClient.isAuthenticated()
+            isOnline = OnlineStateManager.shared.isOnline
 
-        authEventTask = Task { [weak self] in
-            guard let self else { return }
-            let stream = await eventBus.subscribe(to: AuthEvent.self)
-            for await event in stream {
-                guard !Task.isCancelled else { break }
-                handleAuthEvent(event)
+            authEventTask = Task { [weak self] in
+                guard let self else { return }
+                let stream = await eventBus.subscribe(to: AuthEvent.self)
+                for await event in stream {
+                    guard !Task.isCancelled else { break }
+                    handleAuthEvent(event)
+                }
             }
-        }
 
-        startCookieValidityCheck()
+            startCookieValidityCheck()
+        }
     }
 
     func stop() {
@@ -101,7 +103,7 @@ public final class AuthState: ObservableObject {
     // MARK: - 用户信息
 
     func fetchUserProfile() async {
-        guard apiClient.isAuthenticated() else { return }
+        guard await apiClient.isAuthenticated() else { return }
 
         do {
             let response = try await userAPI.fetchUserProfile()
@@ -147,7 +149,7 @@ public final class AuthState: ObservableObject {
     }
 
     func handleCookieExpiredSilently() async {
-        guard apiClient.isAuthenticated() else { return }
+        guard await apiClient.isAuthenticated() else { return }
 
         LogService.shared.info(.core, "静默刷新 Cookie")
         await refreshCookie()
@@ -217,7 +219,7 @@ public final class AuthState: ObservableObject {
     }
 
     private func performCookieValidityCheck() async {
-        guard apiClient.isAuthenticated() else { return }
+        guard await apiClient.isAuthenticated() else { return }
 
         do {
             let isValid = try await userAPI.checkCookieValidity()

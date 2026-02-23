@@ -7,7 +7,7 @@ import Network
 /// 只负责监控网络连接状态，不涉及认证或Cookie有效性检查
 /// 在线状态的计算由 OnlineStateManager 统一管理
 @MainActor
-final class NetworkMonitor: ObservableObject, @unchecked Sendable {
+final class NetworkMonitor: ObservableObject {
     static let shared = NetworkMonitor()
 
     /// 网络是否连接（只检查网络连接，不检查认证）

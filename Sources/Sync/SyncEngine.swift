@@ -154,7 +154,7 @@ public actor SyncEngine {
     func performIncrementalSync() async throws -> SyncResult {
         LogService.shared.info(.sync, "开始执行增量同步")
 
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.error(.sync, "增量同步失败：未认证")
             throw SyncError.notAuthenticated
         }
@@ -242,7 +242,7 @@ public actor SyncEngine {
 
     /// 使用 syncFull API 进行增量同步
     private func performWebIncrementalSync() async throws -> SyncResult {
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             throw SyncError.notAuthenticated
         }
 
@@ -303,7 +303,7 @@ public actor SyncEngine {
 
     /// 只同步有修改的条目，效率最高
     private func performLightweightIncrementalSync() async throws -> SyncResult {
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             throw SyncError.notAuthenticated
         }
 
@@ -362,7 +362,7 @@ public actor SyncEngine {
     func performFullSync(mode: FullSyncMode) async throws -> SyncResult {
         LogService.shared.info(.sync, "开始执行全量同步")
 
-        guard apiClient.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             LogService.shared.error(.sync, "全量同步失败：未认证")
             throw SyncError.notAuthenticated
         }

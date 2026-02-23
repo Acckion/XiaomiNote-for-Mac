@@ -5,7 +5,7 @@ import Foundation
 ///
 /// 负责文件上传（三步流程：请求上传 -> 上传块 -> 提交）和下载，
 /// 支持图片、音频、通用文件
-public final class FileAPI: @unchecked Sendable {
+public struct FileAPI: Sendable {
     public static let shared = FileAPI()
 
     private let client: APIClient
@@ -73,7 +73,7 @@ public final class FileAPI: @unchecked Sendable {
     ///   - mimeType: MIME 类型（如 "image/jpeg", "image/png"）
     /// - Returns: 包含文件ID的响应字典
     func uploadImage(imageData: Data, fileName: String, mimeType: String) async throws -> [String: Any] {
-        guard client.isAuthenticated() else {
+        guard await client.isAuthenticated() else {
             throw MiNoteError.notAuthenticated
         }
 
@@ -168,7 +168,7 @@ public final class FileAPI: @unchecked Sendable {
     /// - Returns: 包含 fileId、digest、mimeType 的字典
     /// - Throws: MiNoteError（未认证、网络错误、响应无效等）
     public func uploadAudio(audioData: Data, fileName: String, mimeType: String = "audio/mpeg") async throws -> [String: Any] {
-        guard client.isAuthenticated() else {
+        guard await client.isAuthenticated() else {
             throw MiNoteError.notAuthenticated
         }
 
@@ -257,7 +257,7 @@ public final class FileAPI: @unchecked Sendable {
     /// - Returns: 下载信息（URL 和解密密钥）
     /// - Throws: MiNoteError（未认证、网络错误、响应无效等）
     func getAudioDownloadInfo(fileId: String) async throws -> AudioDownloadInfo {
-        guard client.isAuthenticated() else {
+        guard await client.isAuthenticated() else {
             throw MiNoteError.notAuthenticated
         }
 
@@ -330,7 +330,7 @@ public final class FileAPI: @unchecked Sendable {
     /// - Returns: 解密后的音频文件数据
     /// - Throws: MiNoteError（未认证、网络错误、下载失败等）
     public func downloadAudio(fileId: String, progressHandler: ((Int64, Int64) -> Void)? = nil) async throws -> Data {
-        guard client.isAuthenticated() else {
+        guard await client.isAuthenticated() else {
             throw MiNoteError.notAuthenticated
         }
 
@@ -421,7 +421,7 @@ public final class FileAPI: @unchecked Sendable {
 
         let urlString = "\(client.baseURL)/file/upload"
 
-        var headers = client.getHeaders()
+        var headers = await client.getHeaders()
         headers["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
         headers["Content-Length"] = "\(body.count)"
 
@@ -437,7 +437,7 @@ public final class FileAPI: @unchecked Sendable {
 
         if response.response.statusCode == 401 {
             let responseString = String(data: response.data, encoding: .utf8) ?? ""
-            try client.handle401Error(responseBody: responseString, urlString: urlString)
+            try await client.handle401Error(responseBody: responseString, urlString: urlString)
         }
 
         guard response.response.statusCode == 200 || response.response.statusCode == 201 else {
@@ -499,7 +499,7 @@ public final class FileAPI: @unchecked Sendable {
 
         if response.response.statusCode == 401 {
             let responseBody = String(data: response.data, encoding: .utf8) ?? ""
-            try client.handle401Error(responseBody: responseBody, urlString: urlString)
+            try await client.handle401Error(responseBody: responseBody, urlString: urlString)
         }
 
         guard response.response.statusCode == 200 else {
@@ -542,10 +542,10 @@ public final class FileAPI: @unchecked Sendable {
         }
 
         let dataEncoded = client.encodeURIComponent(dataString)
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "data=\(dataEncoded)&serviceToken=\(serviceTokenEncoded)"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         let json = try await client.performRequest(
@@ -578,10 +578,10 @@ public final class FileAPI: @unchecked Sendable {
         """
 
         let dataEncoded = client.encodeURIComponent(dataString)
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "data=\(dataEncoded)&serviceToken=\(serviceTokenEncoded)"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         let json = try await client.performRequest(
@@ -670,10 +670,10 @@ public final class FileAPI: @unchecked Sendable {
         }
 
         let commitEncoded = client.encodeURIComponent(commitString)
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "commit=\(commitEncoded)&serviceToken=\(serviceTokenEncoded)"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         let manager = await MainActor.run { NetworkRequestManager.shared }
@@ -687,7 +687,7 @@ public final class FileAPI: @unchecked Sendable {
 
         if response.response.statusCode == 401 {
             let responseString = String(data: response.data, encoding: .utf8) ?? ""
-            try client.handle401Error(responseBody: responseString, urlString: urlString)
+            try await client.handle401Error(responseBody: responseString, urlString: urlString)
         }
 
         guard response.response.statusCode == 200 else {
@@ -720,10 +720,10 @@ public final class FileAPI: @unchecked Sendable {
         """
 
         let commitEncoded = client.encodeURIComponent(commitDataString)
-        let serviceTokenEncoded = client.encodeURIComponent(client.serviceToken)
+        let serviceTokenEncoded = await client.encodeURIComponent(client.serviceToken)
         let body = "commit=\(commitEncoded)&serviceToken=\(serviceTokenEncoded)"
 
-        var headers = client.getPostHeaders()
+        var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
         let manager = await MainActor.run { NetworkRequestManager.shared }
@@ -737,7 +737,7 @@ public final class FileAPI: @unchecked Sendable {
 
         if response.response.statusCode == 401 {
             let responseString = String(data: response.data, encoding: .utf8) ?? ""
-            try client.handle401Error(responseBody: responseString, urlString: urlString)
+            try await client.handle401Error(responseBody: responseString, urlString: urlString)
         }
 
         guard response.response.statusCode == 200 else {

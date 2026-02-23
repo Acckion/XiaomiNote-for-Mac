@@ -12,7 +12,7 @@ import Foundation
 
 /// 小米笔记 XML 生成器
 /// 将 AST 转换为小米笔记 XML 字符串
-public final class XMLGenerator: @unchecked Sendable {
+public struct XMLGenerator: Sendable {
 
     // MARK: - 格式标签嵌套顺序
 
