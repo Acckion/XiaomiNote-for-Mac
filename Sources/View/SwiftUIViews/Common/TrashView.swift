@@ -7,6 +7,7 @@ import SwiftUI
 @available(macOS 14.0, *)
 struct TrashView: View {
     @ObservedObject var noteListState: NoteListState
+    var formatConverter: XiaoMiFormatConverter?
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedDeletedNote: DeletedNote?
@@ -245,10 +246,10 @@ struct TrashView: View {
         Task { @MainActor in
             do {
                 // 使用 XiaoMiFormatConverter 将 XML 转换为 NSAttributedString
-                let attributedString = try XiaoMiFormatConverter.shared.xmlToNSAttributedString(
+                let attributedString = try formatConverter?.xmlToNSAttributedString(
                     note.content,
                     folderId: note.folderId
-                )
+                ) ?? NSAttributedString()
 
                 // 设置到编辑器上下文
                 editorContext.updateNSContent(attributedString)
@@ -274,7 +275,7 @@ struct TrashView: View {
                 // 尝试获取笔记的完整内容
                 // 注意：回收站的笔记可能无法直接获取完整内容，先尝试使用 snippet
                 // 如果需要完整内容，可能需要调用特定的 API
-                let response = try await NoteAPI.shared.fetchNoteDetails(noteId: deletedNote.id)
+                let response = try await noteListState.noteAPI.fetchNoteDetails(noteId: deletedNote.id)
 
                 // 解析响应并创建 Note 对象
                 if let note = NoteMapper.fromMinoteListData(response) {

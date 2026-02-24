@@ -30,7 +30,7 @@ Sources/
 ├── Presentation/           # 展示层辅助
 │   └── ViewModels/         # ViewModel（音频、认证、搜索等独立模块）
 ├── Service/                # 业务服务层
-│   ├── Audio/              # 音频服务
+│   ├── Audio/              # 音频服务（AudioModule, AudioCacheService, AudioConverterService, AudioUploadService, AudioPanelStateManager）
 │   ├── Authentication/     # 认证服务
 │   ├── Cache/              # 缓存服务
 │   ├── Core/               # 核心服务（StartupSequenceManager, LogService）
@@ -111,6 +111,8 @@ xcodebuild -project MiNoteMac.xcodeproj -scheme MiNoteMac -configuration Debug
 ```
 AppKit 控制器层 (AppDelegate, WindowController)
         ↓
+模块工厂层 (NetworkModule → SyncModule → EditorModule → AudioModule)
+        ↓
 协调器层 (AppCoordinator → 管理 State 对象)
         ↓
 SwiftUI 视图层 (View ← 读取 State 对象)
@@ -121,6 +123,19 @@ SwiftUI 视图层 (View ← 读取 State 对象)
         ↓
 数据模型层 (Model)
 ```
+
+### 模块工厂
+
+项目使用 4 个模块工厂集中构建依赖图，消除 `.shared` 单例耦合：
+
+- **NetworkModule**：构建网络层（APIClient, NetworkRequestManager, NoteAPI, FolderAPI, FileAPI, SyncAPI, UserAPI）
+- **SyncModule**：构建同步层（LocalStorageService, UnifiedOperationQueue, IdMappingRegistry, OperationProcessor, OnlineStateManager, SyncEngine）
+- **EditorModule**：构建编辑器层（FormatStateManager, FontSizeManager, UnifiedFormatManager, CustomRenderer 等 20 个类）
+- **AudioModule**：构建音频层（AudioCacheService, AudioConverterService, AudioUploadService, AudioPanelStateManager）
+
+启动链：AppDelegate → NetworkModule → SyncModule → EditorModule → AudioModule → AppCoordinator
+
+仅 15 个基础设施类保留 `static let shared`：LogService, DatabaseService, EventBus, NetworkMonitor, NetworkErrorHandler, NetworkLogger, AudioPlayerService, AudioRecorderService, AudioDecryptService, PrivateNotesPasswordManager, ViewOptionsManager, NativeEditorLogger, NativeEditorMetrics, NativeEditorErrorHandler, PreviewHelper
 
 ## 数据格式
 

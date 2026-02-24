@@ -4,18 +4,12 @@ import Foundation
 ///
 /// 负责网页版增量同步 API 调用
 public struct SyncAPI: Sendable {
-    public static let shared = SyncAPI()
 
     private let client: APIClient
 
     /// NetworkModule 使用的构造器
     init(client: APIClient) {
         self.client = client
-    }
-
-    /// 过渡期兼容构造器（供 static let shared 使用）
-    private init() {
-        self.client = .shared
     }
 
     // MARK: - 增量同步

@@ -9,7 +9,6 @@ import Foundation
 ///
 @MainActor
 public final class ErrorRecoveryService: ObservableObject {
-    public static let shared = ErrorRecoveryService()
 
     // MARK: - 配置
 
@@ -28,9 +27,9 @@ public final class ErrorRecoveryService: ObservableObject {
     // MARK: - 依赖服务
 
     /// 统一操作队列
-    private let unifiedQueue = UnifiedOperationQueue.shared
-    private let networkErrorHandler = NetworkErrorHandler.shared
-    private let onlineStateManager = OnlineStateManager.shared
+    private let unifiedQueue: UnifiedOperationQueue
+    private let networkErrorHandler: NetworkErrorHandler
+    private let onlineStateManager: OnlineStateManager
 
     // MARK: - 状态
 
@@ -45,7 +44,16 @@ public final class ErrorRecoveryService: ObservableObject {
 
     // MARK: - 初始化
 
-    private init() {}
+    /// 构造器注入
+    init(
+        unifiedQueue: UnifiedOperationQueue,
+        networkErrorHandler: NetworkErrorHandler,
+        onlineStateManager: OnlineStateManager
+    ) {
+        self.unifiedQueue = unifiedQueue
+        self.networkErrorHandler = networkErrorHandler
+        self.onlineStateManager = onlineStateManager
+    }
 
     // MARK: - 公共方法
 

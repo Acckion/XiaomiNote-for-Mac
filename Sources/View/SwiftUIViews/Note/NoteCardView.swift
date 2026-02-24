@@ -29,6 +29,12 @@ struct NoteCardView: View {
     /// 视图选项管理器（用于获取排序方式）
     @ObservedObject var optionsManager: ViewOptionsManager = .shared
 
+    /// 本地存储服务
+    let localStorage: LocalStorageService
+
+    /// 内存缓存管理器
+    let memoryCacheManager: MemoryCacheManager
+
     // MARK: - 状态
 
     /// 是否悬停
@@ -307,7 +313,7 @@ struct NoteCardView: View {
         currentImageFileId = imageInfo.fileId
 
         Task {
-            if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
+            if let imageData = localStorage.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
                let nsImage = NSImage(data: imageData)
             {
                 let thumbnail = createThumbnail(from: nsImage, targetHeight: 80)
@@ -357,10 +363,10 @@ struct NoteCardView: View {
             try? await Task.sleep(nanoseconds: 100_000_000)
 
             if note.content.isEmpty {
-                let cached = await MemoryCacheManager.shared.getNote(noteId: note.id)
+                let cached = await memoryCacheManager.getNote(noteId: note.id)
                 if cached == nil {
-                    if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
-                        await MemoryCacheManager.shared.cacheNote(fullNote)
+                    if let fullNote = try? localStorage.loadNote(noteId: note.id) {
+                        await memoryCacheManager.cacheNote(fullNote)
                     }
                 }
             }
@@ -385,7 +391,9 @@ struct NoteCardView: View {
     return NoteCardView(
         note: sampleNote,
         isSelected: false,
-        onTap: {}
+        onTap: {},
+        localStorage: SyncModule().localStorage,
+        memoryCacheManager: MemoryCacheManager()
     )
     .frame(width: 250, height: 200)
     .padding()

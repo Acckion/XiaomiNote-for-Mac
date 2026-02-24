@@ -11,7 +11,7 @@ actor NetworkLogger {
     private var lastLogTime = Date.distantPast
     private let duplicateThreshold: TimeInterval = 0.1 // 100毫秒内相同的日志视为重复
 
-    private init() {}
+    init() {}
 
     func logRequest(url: String, method: String, headers: [String: String]?, body: String?) {
         var logMessage = "请求: \(method) \(url)"

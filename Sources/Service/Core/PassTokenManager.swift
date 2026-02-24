@@ -51,7 +51,10 @@ enum PassTokenError: Error, LocalizedError {
 /// 使用 passToken 通过三步 HTTP 流程获取 serviceToken，
 /// Actor 保证并发安全
 actor PassTokenManager {
-    static let shared = PassTokenManager()
+
+    // MARK: - 依赖
+
+    private let apiClient: APIClient
 
     // MARK: - 常量
 
@@ -75,6 +78,13 @@ actor PassTokenManager {
     /// 生成设备标识符，格式为 wb_ 加 UUID
     private var deviceId: String {
         "wb_\(UUID().uuidString)"
+    }
+
+    // MARK: - 初始化
+
+    /// 构造器注入
+    init(apiClient: APIClient) {
+        self.apiClient = apiClient
     }
 
     // MARK: - 凭据管理
@@ -229,7 +239,7 @@ actor PassTokenManager {
                 )
                 let maskedCookie = String(fullCookie.prefix(80)) + "..."
                 LogService.shared.debugSensitive(.core, "更新 APIClient Cookie", sensitiveValue: maskedCookie)
-                await APIClient.shared.setCookie(fullCookie)
+                await apiClient.setCookie(fullCookie)
             }
 
             // 通知所有等待的调用方

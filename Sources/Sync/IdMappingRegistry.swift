@@ -31,11 +31,6 @@ import Foundation
 ///
 public final class IdMappingRegistry: @unchecked Sendable {
 
-    // MARK: - 单例
-
-    /// 共享实例
-    public static let shared = IdMappingRegistry()
-
     // MARK: - 依赖
 
     /// 数据库服务
@@ -60,19 +55,7 @@ public final class IdMappingRegistry: @unchecked Sendable {
 
     // MARK: - 初始化
 
-    /// 私有初始化方法（单例模式）
-    private init() {
-        self.databaseService = DatabaseService.shared
-        self.operationQueue = UnifiedOperationQueue.shared
-        self.eventBus = EventBus.shared
-
-        // 从数据库恢复未完成的映射
-        loadFromDatabase()
-
-        LogService.shared.info(.sync, "IdMappingRegistry 初始化完成，加载了 \(mappingsCache.count) 个未完成的映射")
-    }
-
-    /// 用于测试的初始化方法
+    /// 初始化方法
     ///
     /// - Parameters:
     ///   - databaseService: 数据库服务实例

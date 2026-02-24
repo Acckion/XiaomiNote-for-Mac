@@ -10,6 +10,8 @@ public actor NoteStore {
     private let eventBus: EventBus
     private let operationQueue: UnifiedOperationQueue
     private let idMappingRegistry: IdMappingRegistry
+    private let localStorage: LocalStorageService
+    private let operationProcessor: OperationProcessor
     private(set) var notes: [Note] = []
     private(set) var folders: [Folder] = []
     private var noteEventTask: Task<Void, Never>?
@@ -22,13 +24,17 @@ public actor NoteStore {
     init(
         db: DatabaseService,
         eventBus: EventBus,
-        operationQueue: UnifiedOperationQueue = .shared,
-        idMappingRegistry: IdMappingRegistry = .shared
+        operationQueue: UnifiedOperationQueue,
+        idMappingRegistry: IdMappingRegistry,
+        localStorage: LocalStorageService,
+        operationProcessor: OperationProcessor
     ) {
         self.db = db
         self.eventBus = eventBus
         self.operationQueue = operationQueue
         self.idMappingRegistry = idMappingRegistry
+        self.localStorage = localStorage
+        self.operationProcessor = operationProcessor
     }
 
     // MARK: - 生命周期
@@ -270,7 +276,7 @@ public actor NoteStore {
 
         if isOnline {
             if let operation = operationQueue.getPendingUpload(for: noteId) {
-                await OperationProcessor.shared.processImmediately(operation)
+                await operationProcessor.processImmediately(operation)
             }
         }
     }
@@ -529,6 +535,10 @@ public actor NoteStore {
         case let .folderIdMigrated(oldId, newId):
             do {
                 try db.updateNotesFolderId(oldFolderId: oldId, newFolderId: newId)
+                // 重命名图片目录（从 DatabaseService 层上移到此处）
+                if newId != "0", oldId != "0" {
+                    try localStorage.renameFolderImageDirectory(oldFolderId: oldId, newFolderId: newId)
+                }
                 try db.deleteFolder(folderId: oldId)
                 refreshNotesCache()
                 refreshFoldersCache()

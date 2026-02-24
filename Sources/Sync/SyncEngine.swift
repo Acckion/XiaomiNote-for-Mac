@@ -5,7 +5,6 @@ import Foundation
 /// 新架构中的同步核心，替代 SyncService。
 /// 关键区别：不直接写 DB，通过 EventBus 发布事件让 NoteStore 处理 DB 写入。
 public actor SyncEngine {
-    static let shared = SyncEngine()
 
     // MARK: - 依赖
 
@@ -20,6 +19,7 @@ public actor SyncEngine {
     let syncStateManager: SyncStateManager
     let syncGuard: SyncGuard
     let operationProcessor: OperationProcessor
+    let audioCacheService: AudioCacheService
 
     // MARK: - 状态
 
@@ -41,7 +41,8 @@ public actor SyncEngine {
         syncStateManager: SyncStateManager,
         syncGuard: SyncGuard,
         noteStore _: NoteStore?,
-        operationProcessor: OperationProcessor
+        operationProcessor: OperationProcessor,
+        audioCacheService: AudioCacheService
     ) {
         self.apiClient = apiClient
         self.noteAPI = noteAPI
@@ -54,23 +55,8 @@ public actor SyncEngine {
         self.syncStateManager = syncStateManager
         self.syncGuard = syncGuard
         self.operationProcessor = operationProcessor
+        self.audioCacheService = audioCacheService
         LogService.shared.info(.sync, "SyncEngine 初始化完成")
-    }
-
-    /// 过渡期兼容构造器（供 static let shared 使用）
-    private init() {
-        self.apiClient = .shared
-        self.noteAPI = .shared
-        self.folderAPI = .shared
-        self.syncAPI = .shared
-        self.fileAPI = .shared
-        self.eventBus = .shared
-        self.operationQueue = .shared
-        self.localStorage = .shared
-        self.syncStateManager = SyncStateManager.createDefault()
-        let store = NoteStore(db: .shared, eventBus: .shared)
-        self.syncGuard = SyncGuard(operationQueue: .shared, noteStore: store)
-        self.operationProcessor = .shared
     }
 
     // MARK: - 生命周期

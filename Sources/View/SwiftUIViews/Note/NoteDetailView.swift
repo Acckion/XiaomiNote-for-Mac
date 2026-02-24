@@ -18,7 +18,7 @@ struct NoteDetailView: View {
     @ObservedObject private var authState: AuthState
 
     /// 编辑会话协调器
-    @StateObject private var editingCoordinator = NoteEditingCoordinator()
+    @StateObject private var editingCoordinator: NoteEditingCoordinator
 
     // MARK: - 调试模式状态
 
@@ -45,6 +45,16 @@ struct NoteDetailView: View {
         self._noteEditorState = ObservedObject(wrappedValue: coordinator.noteEditorState)
         self._folderState = ObservedObject(wrappedValue: coordinator.folderState)
         self._authState = ObservedObject(wrappedValue: coordinator.authState)
+        self._editingCoordinator = StateObject(wrappedValue: NoteEditingCoordinator(
+            apiClient: coordinator.networkModule.apiClient,
+            operationQueue: coordinator.syncModule.operationQueue,
+            localStorage: coordinator.syncModule.localStorage,
+            operationProcessor: coordinator.syncModule.operationProcessor,
+            idMappingRegistry: coordinator.syncModule.idMappingRegistry,
+            formatConverter: coordinator.editorModule.formatConverter,
+            xmlNormalizer: coordinator.editorModule.xmlNormalizer,
+            memoryCacheManager: coordinator.memoryCacheManager
+        ))
     }
 
     var body: some View {
@@ -186,7 +196,7 @@ struct NoteDetailView: View {
             Text(imageInsertErrorMessage)
         }
         .sheet(isPresented: $showingHistoryView) {
-            NoteHistoryView(noteEditorState: noteEditorState, noteId: note.id)
+            NoteHistoryView(noteEditorState: noteEditorState, noteId: note.id, formatConverter: coordinator.editorModule.formatConverter)
         }
         .alert("保存失败", isPresented: $showSaveErrorAlert) {
             Button("确定", role: .cancel) {}

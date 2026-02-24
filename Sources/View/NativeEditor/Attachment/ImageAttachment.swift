@@ -31,6 +31,7 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
     private nonisolated(unsafe) var cachedImage: NSImage?
     private nonisolated(unsafe) var placeholderImage: NSImage?
     nonisolated(unsafe) var onLoadComplete: ((Bool) -> Void)?
+    nonisolated(unsafe) var localStorage: LocalStorageService?
 
     // MARK: - Initialization
 
@@ -165,7 +166,13 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         isLoading = true
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let localStorage = LocalStorageService.shared
+            guard let localStorage = self?.localStorage else {
+                DispatchQueue.main.async {
+                    self?.isLoading = false
+                    self?.loadFailed = true
+                }
+                return
+            }
             let result = localStorage.loadImageWithFullFormatAllFormats(fullFileId: fileId)
 
             DispatchQueue.main.async {

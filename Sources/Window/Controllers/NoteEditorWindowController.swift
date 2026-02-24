@@ -91,7 +91,7 @@
         // MARK: - NSWindowDelegate
 
         public func windowWillClose(_: Notification) {
-            WindowManager.shared.removeEditorWindow(self)
+            coordinator.removeEditorWindow(self)
             LogService.shared.info(.window, "编辑器窗口关闭: \(note.title)")
         }
     }

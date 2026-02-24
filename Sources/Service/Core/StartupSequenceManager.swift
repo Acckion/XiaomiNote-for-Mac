@@ -125,14 +125,14 @@ final class StartupSequenceManager: ObservableObject {
 
     // MARK: - 依赖服务
 
-    private let localStorage = LocalStorageService.shared
-    private let onlineStateManager = OnlineStateManager.shared
+    private let localStorage: LocalStorageService
+    private let onlineStateManager: OnlineStateManager
     /// 新的操作处理器（替代旧的 OfflineOperationProcessor）
-    private let operationProcessor = OperationProcessor.shared
+    private let operationProcessor: OperationProcessor
     /// 统一操作队列（替代旧的 OfflineOperationQueue）
-    private let unifiedQueue = UnifiedOperationQueue.shared
-    private let eventBus = EventBus.shared
-    private let apiClient = APIClient.shared
+    private let unifiedQueue: UnifiedOperationQueue
+    private let eventBus: EventBus
+    private let apiClient: APIClient
 
     // MARK: - Combine 订阅
 
@@ -140,7 +140,20 @@ final class StartupSequenceManager: ObservableObject {
 
     // MARK: - 初始化
 
-    init() {
+    init(
+        localStorage: LocalStorageService,
+        onlineStateManager: OnlineStateManager,
+        operationProcessor: OperationProcessor,
+        unifiedQueue: UnifiedOperationQueue,
+        eventBus: EventBus,
+        apiClient: APIClient
+    ) {
+        self.localStorage = localStorage
+        self.onlineStateManager = onlineStateManager
+        self.operationProcessor = operationProcessor
+        self.unifiedQueue = unifiedQueue
+        self.eventBus = eventBus
+        self.apiClient = apiClient
         LogService.shared.debug(.core, "StartupSequenceManager 初始化")
     }
 

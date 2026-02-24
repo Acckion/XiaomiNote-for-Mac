@@ -20,21 +20,18 @@ public struct BlockFormatHandler {
     // MARK: - 常量
 
     /// 大标题字体大小 (23pt)
-    /// 使用 FontSizeManager 统一管理
     public static var heading1Size: CGFloat {
-        FontSizeManager.shared.heading1Size
+        FontSizeConstants.heading1
     }
 
     /// 二级标题字体大小 (20pt)
-    /// 使用 FontSizeManager 统一管理
     public static var heading2Size: CGFloat {
-        FontSizeManager.shared.heading2Size
+        FontSizeConstants.heading2
     }
 
     /// 三级标题字体大小 (17pt)
-    /// 使用 FontSizeManager 统一管理
     public static var heading3Size: CGFloat {
-        FontSizeManager.shared.heading3Size
+        FontSizeConstants.heading3
     }
 
     /// 缩进单位（像素）
@@ -56,16 +53,12 @@ public struct BlockFormatHandler {
     public static let quotePadding: CGFloat = 12
 
     /// 正文字体大小 (14pt)
-    /// 使用 FontSizeManager 统一管理
     public static var bodyFontSize: CGFloat {
-        FontSizeManager.shared.bodySize
+        FontSizeConstants.body
     }
 
     /// 默认字体 (14pt)
-    /// 使用 FontSizeManager 统一管理
-    public static var defaultFont: NSFont {
-        FontSizeManager.shared.defaultFont
-    }
+    public static let defaultFont = NSFont.systemFont(ofSize: FontSizeConstants.body, weight: .regular)
 
     // MARK: - 格式应用
 
@@ -478,10 +471,14 @@ public struct BlockFormatHandler {
     /// - Parameter attributes: 属性字典
     /// - Returns: 标题级别（1-3），如果不是标题则返回 nil
     private static func detectHeadingLevel(from attributes: [NSAttributedString.Key: Any]) -> Int? {
-        // 通过字体大小判断，使用 FontSizeManager 的检测逻辑
         if let font = attributes[.font] as? NSFont {
-            let level = FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize)
-            return level > 0 ? level : nil
+            let format = FontSizeConstants.detectParagraphFormat(fontSize: font.pointSize)
+            switch format {
+            case .heading1: return 1
+            case .heading2: return 2
+            case .heading3: return 3
+            default: return nil
+            }
         }
 
         return nil

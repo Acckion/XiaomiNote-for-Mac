@@ -17,12 +17,13 @@ class CustomRenderer {
 
     // MARK: - Singleton
 
-    static let shared = CustomRenderer()
-
     // MARK: - Properties
 
     /// 引用块样式
     var quoteStyle = QuoteBlockStyle()
+
+    /// 本地存储服务（用于注入到 ImageAttachment）
+    var localStorage: LocalStorageService?
 
     /// 是否为深色模式
     private(set) var isDarkMode = false
@@ -545,15 +546,17 @@ extension CustomRenderer {
     ///   - folderId: 文件夹 ID
     /// - Returns: 图片附件
     func createImageAttachment(src: String?, fileId: String?, folderId: String?) -> ImageAttachment {
+        let attachment: ImageAttachment
         if let src, !src.isEmpty {
-            return ImageAttachment(src: src, fileId: fileId, folderId: folderId)
+            attachment = ImageAttachment(src: src, fileId: fileId, folderId: folderId)
         } else if let fileId {
             let minoteURL = "minote://image/\(fileId)"
-            return ImageAttachment(src: minoteURL, fileId: fileId, folderId: folderId)
+            attachment = ImageAttachment(src: minoteURL, fileId: fileId, folderId: folderId)
+        } else {
+            attachment = ImageAttachment(src: "", fileId: fileId, folderId: folderId)
+            attachment.loadFailed = true
         }
-
-        let attachment = ImageAttachment(src: "", fileId: fileId, folderId: folderId)
-        attachment.loadFailed = true
+        attachment.localStorage = localStorage
         return attachment
     }
 
@@ -564,6 +567,8 @@ extension CustomRenderer {
     ///   - folderId: 文件夹 ID
     /// - Returns: 图片附件
     func createImageAttachment(image: NSImage, fileId: String? = nil, folderId: String? = nil) -> ImageAttachment {
-        ImageAttachment(image: image, fileId: fileId, folderId: folderId)
+        let attachment = ImageAttachment(image: image, fileId: fileId, folderId: folderId)
+        attachment.localStorage = localStorage
+        return attachment
     }
 }

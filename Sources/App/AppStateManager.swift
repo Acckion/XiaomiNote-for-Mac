@@ -80,17 +80,6 @@ class AppStateManager {
     /// - 登录成功通知
     /// - Cookie 刷新成功通知
     private func setupComponentConnections() {
-        // 获取 OnlineStateManager 单例
-        onlineStateManager = OnlineStateManager.shared
-
-        // 监听在线状态变化
-        onlineStateManager?.$isOnline
-            .removeDuplicates()
-            .sink { [weak self] isOnline in
-                self?.handleOnlineStatusChange(isOnline: isOnline)
-            }
-            .store(in: &cancellables)
-
         // 监听启动序列完成事件
         startupEventTask = Task { [weak self] in
             let stream = await EventBus.shared.subscribe(to: StartupEvent.self)
@@ -123,10 +112,28 @@ class AppStateManager {
         LogService.shared.info(.app, "在线状态变化: \(isOnline ? "在线" : "离线")")
     }
 
+    /// 配置错误恢复相关服务（由 AppDelegate 注入）
+    func configure(
+        errorRecoveryService: ErrorRecoveryService,
+        networkRecoveryHandler: NetworkRecoveryHandler,
+        onlineStateManager: OnlineStateManager
+    ) {
+        self.errorRecoveryService = errorRecoveryService
+        self.networkRecoveryHandler = networkRecoveryHandler
+        self.onlineStateManager = onlineStateManager
+
+        // 监听在线状态变化
+        onlineStateManager.$isOnline
+            .removeDuplicates()
+            .sink { [weak self] isOnline in
+                self?.handleOnlineStatusChange(isOnline: isOnline)
+            }
+            .store(in: &cancellables)
+    }
+
     /// 初始化错误恢复相关服务
     private func initializeErrorRecoveryServices() {
-        errorRecoveryService = ErrorRecoveryService.shared
-        networkRecoveryHandler = NetworkRecoveryHandler.shared
+        // 服务通过 configure() 注入，不再使用兜底
     }
 
     /// 启动后台服务

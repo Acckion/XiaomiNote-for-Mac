@@ -10,8 +10,11 @@ struct OperationProcessorProgressView: View {
     @StateObject private var viewModel: OperationProcessorProgressViewModel
     var onClose: (() -> Void)?
 
-    init(onClose: (() -> Void)? = nil) {
-        _viewModel = StateObject(wrappedValue: OperationProcessorProgressViewModel())
+    init(operationQueue: UnifiedOperationQueue, operationProcessor: OperationProcessor, onClose: (() -> Void)? = nil) {
+        _viewModel = StateObject(wrappedValue: OperationProcessorProgressViewModel(
+            operationQueue: operationQueue,
+            operationProcessor: operationProcessor
+        ))
         self.onClose = onClose
     }
 
@@ -163,12 +166,17 @@ class OperationProcessorProgressViewModel: ObservableObject {
 
     // MARK: - Private Properties
 
+    private let operationQueue: UnifiedOperationQueue
+    private let operationProcessor: OperationProcessor
     private var updateTimer: Timer?
     private var operationEventTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
-    init() {}
+    init(operationQueue: UnifiedOperationQueue, operationProcessor: OperationProcessor) {
+        self.operationQueue = operationQueue
+        self.operationProcessor = operationProcessor
+    }
 
     // MARK: - Monitoring
 
@@ -214,7 +222,7 @@ class OperationProcessorProgressViewModel: ObservableObject {
     private func updateStatus() {
         Task {
             // 获取队列统计信息
-            let stats = UnifiedOperationQueue.shared.getStatistics()
+            let stats = operationQueue.getStatistics()
 
             totalCount = stats["pending", default: 0] +
                 stats["processing", default: 0] +
@@ -227,12 +235,11 @@ class OperationProcessorProgressViewModel: ObservableObject {
                 stats["maxRetryExceeded", default: 0]
 
             // 检查是否正在处理
-            let processor = await OperationProcessor.shared
-            isProcessing = await processor.isProcessing
+            isProcessing = await operationProcessor.isProcessing
 
             // 获取当前操作
-            if let currentOpId = await processor.currentOperation,
-               let operation = UnifiedOperationQueue.shared.getOperation(currentOpId)
+            if let currentOpId = await operationProcessor.currentOperation,
+               let operation = operationQueue.getOperation(currentOpId)
             {
                 currentOperationType = operation.type.rawValue
             } else {
@@ -256,7 +263,7 @@ class OperationProcessorProgressViewModel: ObservableObject {
             }
 
             // 获取失败的操作
-            failedOperations = UnifiedOperationQueue.shared.getPendingOperations()
+            failedOperations = operationQueue.getPendingOperations()
                 .filter { $0.status == .failed || $0.status == .authFailed || $0.status == .maxRetryExceeded }
         }
     }
@@ -266,11 +273,11 @@ class OperationProcessorProgressViewModel: ObservableObject {
     func retryFailedOperations() async {
         // 重置所有失败操作的状态
         for operation in failedOperations {
-            try? UnifiedOperationQueue.shared.resetToPending(operation.id)
+            try? operationQueue.resetToPending(operation.id)
         }
 
         // 触发处理
-        await OperationProcessor.shared.processQueue()
+        await operationProcessor.processQueue()
 
         // 更新状态
         updateStatus()

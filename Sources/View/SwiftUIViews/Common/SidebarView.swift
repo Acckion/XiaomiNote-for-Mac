@@ -781,7 +781,7 @@ struct SidebarFolderRow: View {
     @State private var isHovering = false
 
     /// 视图选项管理器（用于获取笔记数量显示状态）
-    @ObservedObject private var viewOptionsManager = ViewOptionsManager.shared
+    @EnvironmentObject private var viewOptionsManager: ViewOptionsManager
 
     /// 初始化器 - 用于正常模式（非编辑模式）
     init(folder: Folder, prefix: String = "") {

@@ -73,10 +73,6 @@ enum RecordingTemplateState: Equatable, CustomStringConvertible {
 @MainActor
 final class AudioPanelStateManager: ObservableObject {
 
-    // MARK: - 单例
-
-    static let shared = AudioPanelStateManager()
-
     // MARK: - 面板模式枚举
 
     /// 面板模式
@@ -145,9 +141,10 @@ final class AudioPanelStateManager: ObservableObject {
 
     // MARK: - 初始化
 
-    private init(
-        recorderService: AudioRecorderService = .shared,
-        playerService: AudioPlayerService = .shared
+    /// AudioModule 使用的构造器
+    init(
+        recorderService: AudioRecorderService,
+        playerService: AudioPlayerService
     ) {
         self.recorderService = recorderService
         self.playerService = playerService

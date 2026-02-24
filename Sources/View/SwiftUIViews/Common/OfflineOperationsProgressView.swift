@@ -6,6 +6,7 @@ import SwiftUI
 @available(macOS 14.0, *)
 struct OfflineOperationsProgressView: View {
     let processor: OperationProcessor
+    let operationQueue: UnifiedOperationQueue
     var onClose: (() -> Void)?
 
     @State private var pendingCount = 0
@@ -49,7 +50,7 @@ struct OfflineOperationsProgressView: View {
         .task {
             // 定期更新待处理数量
             while !Task.isCancelled {
-                let operations = await UnifiedOperationQueue.shared.getPendingOperations()
+                let operations = await operationQueue.getPendingOperations()
                 pendingCount = operations.count
 
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒

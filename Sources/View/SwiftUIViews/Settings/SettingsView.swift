@@ -4,6 +4,11 @@ public struct SettingsView: View {
     @ObservedObject var syncState: SyncState
     @ObservedObject var authState: AuthState
     let noteStore: NoteStore
+    let apiClient: APIClient
+    let operationQueue: UnifiedOperationQueue
+    let operationProcessor: OperationProcessor
+    let idMappingRegistry: IdMappingRegistry
+    let editorConfigurationManager: EditorConfigurationManager
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("syncInterval") private var syncInterval: Double = 300
@@ -20,10 +25,24 @@ public struct SettingsView: View {
     @State private var showLogoutAlert = false
     @State private var showClearCacheAlert = false
 
-    init(syncState: SyncState, authState: AuthState, noteStore: NoteStore) {
+    init(
+        syncState: SyncState,
+        authState: AuthState,
+        noteStore: NoteStore,
+        apiClient: APIClient,
+        operationQueue: UnifiedOperationQueue,
+        operationProcessor: OperationProcessor,
+        idMappingRegistry: IdMappingRegistry,
+        editorConfigurationManager: EditorConfigurationManager
+    ) {
         self.syncState = syncState
         self.authState = authState
         self.noteStore = noteStore
+        self.apiClient = apiClient
+        self.operationQueue = operationQueue
+        self.operationProcessor = operationProcessor
+        self.idMappingRegistry = idMappingRegistry
+        self.editorConfigurationManager = editorConfigurationManager
     }
 
     public var body: some View {
@@ -110,7 +129,7 @@ public struct SettingsView: View {
     private var editorSection: some View {
         Section("编辑器") {
             NavigationLink("编辑器设置") {
-                EditorSettingsView()
+                EditorSettingsView(configurationManager: editorConfigurationManager)
             }
             .help("配置原生编辑器")
         }
@@ -119,7 +138,12 @@ public struct SettingsView: View {
     private var debugSection: some View {
         Section("调试") {
             NavigationLink("操作队列调试") {
-                OperationQueueDebugView(noteStore: noteStore)
+                OperationQueueDebugView(
+                    noteStore: noteStore,
+                    operationQueue: operationQueue,
+                    operationProcessor: operationProcessor,
+                    idMappingRegistry: idMappingRegistry
+                )
             }
             .help("查看和管理待上传注册表、离线操作队列等")
 
@@ -302,7 +326,7 @@ public struct SettingsView: View {
 
     private func logout() {
         Task {
-            await APIClient.shared.clearCookie()
+            await apiClient.clearCookie()
             authState.handleLogout()
             dismiss()
         }
@@ -655,9 +679,25 @@ struct ChangePasswordDialogView: View {
 }
 
 #Preview {
+    let nm = NetworkModule()
+    let sm = SyncModule(networkModule: nm)
+    let em = EditorModule(syncModule: sm, networkModule: nm)
+    let ptm = PassTokenManager(apiClient: nm.apiClient)
     SettingsView(
-        syncState: SyncState(),
-        authState: AuthState(apiClient: .shared, userAPI: .shared),
-        noteStore: NoteStore(db: .shared, eventBus: .shared)
+        syncState: SyncState(operationQueue: sm.operationQueue),
+        authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI, onlineStateManager: sm.onlineStateManager, passTokenManager: ptm),
+        noteStore: NoteStore(
+            db: .shared,
+            eventBus: .shared,
+            operationQueue: sm.operationQueue,
+            idMappingRegistry: sm.idMappingRegistry,
+            localStorage: sm.localStorage,
+            operationProcessor: sm.operationProcessor
+        ),
+        apiClient: nm.apiClient,
+        operationQueue: sm.operationQueue,
+        operationProcessor: sm.operationProcessor,
+        idMappingRegistry: sm.idMappingRegistry,
+        editorConfigurationManager: em.editorConfigurationManager
     )
 }

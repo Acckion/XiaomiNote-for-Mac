@@ -14,10 +14,6 @@ import Foundation
 /// 小米笔记服务器期望的是 MP3 格式 (audio/mpeg)，但 AVAudioRecorder 默认录制为 AAC 格式。
 struct AudioConverterService: Sendable {
 
-    // MARK: - 单例
-
-    static let shared = AudioConverterService()
-
     // MARK: - 错误类型
 
     enum ConversionError: LocalizedError {
@@ -53,7 +49,7 @@ struct AudioConverterService: Sendable {
 
     // MARK: - 初始化
 
-    private init() {
+    init() {
         self.tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("AudioConversion")
         createTempDirectoryIfNeeded()
         LogService.shared.debug(.audio, "AudioConverterService 初始化完成")

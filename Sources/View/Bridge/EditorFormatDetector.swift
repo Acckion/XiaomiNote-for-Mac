@@ -220,8 +220,8 @@ extension NativeEditorContext {
         // 检测字体特性
         let traits = font.fontDescriptor.symbolicTraits
 
-        // 使用 FontSizeManager 的统一检测逻辑
-        let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
+        // 使用 FontSizeConstants 的统一检测逻辑
+        let detectedFormat = FontSizeConstants.detectParagraphFormat(fontSize: fontSize)
         switch detectedFormat {
         case .heading1:
             formats.insert(.heading1)

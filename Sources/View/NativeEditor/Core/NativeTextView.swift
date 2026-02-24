@@ -13,6 +13,21 @@ class NativeTextView: NSTextView {
     /// 复选框点击回调
     var onCheckboxClick: ((InteractiveCheckboxAttachment, Int) -> Void)?
 
+    /// 图片存储管理器（由外部注入）
+    var imageStorageManager: ImageStorageManager?
+
+    /// 自定义渲染器（由外部注入）
+    var customRenderer: CustomRenderer?
+
+    /// 统一格式管理器（由外部注入）
+    var unifiedFormatManager: UnifiedFormatManager?
+
+    /// 附件选择管理器（由外部注入）
+    var attachmentSelectionManager: AttachmentSelectionManager?
+
+    /// 附件键盘处理器（由外部注入）
+    var attachmentKeyboardHandler: AttachmentKeyboardHandler?
+
     /// 列表状态管理器
     private var listStateManager = ListStateManager()
 
@@ -34,8 +49,8 @@ class NativeTextView: NSTextView {
 
         // 通知附件选择管理器（仅在非递归调用时）
         if !isAdjustingSelection {
-            AttachmentSelectionManager.shared.handleSelectionChange(charRange)
-        } else {}
+            attachmentSelectionManager?.handleSelectionChange(charRange)
+        }
 
         // 如果禁用限制、没有 textStorage 或有选择范围，不进行列表光标限制
         guard enableListCursorRestriction,
@@ -57,7 +72,7 @@ class NativeTextView: NSTextView {
             isAdjustingSelection = true
             super.setSelectedRange(adjustedRange)
             // 通知附件选择管理器调整后的位置
-            AttachmentSelectionManager.shared.handleSelectionChange(adjustedRange)
+            attachmentSelectionManager?.handleSelectionChange(adjustedRange)
             isAdjustingSelection = false
         }
     }
@@ -353,7 +368,7 @@ class NativeTextView: NSTextView {
 
     override func keyDown(with event: NSEvent) {
         // 先尝试让附件键盘处理器处理
-        if AttachmentKeyboardHandler.shared.handleKeyDown(event, in: self) {
+        if let handler = attachmentKeyboardHandler, handler.handleKeyDown(event, in: self) {
             return
         }
 
@@ -419,8 +434,8 @@ class NativeTextView: NSTextView {
 
             // 首先尝试使用 UnifiedFormatManager 处理换行
             // 如果 UnifiedFormatManager 已注册且处理了换行，则不执行默认行为
-            if UnifiedFormatManager.shared.isRegistered {
-                if UnifiedFormatManager.shared.handleNewLine() {
+            if let formatManager = unifiedFormatManager, formatManager.isRegistered {
+                if formatManager.handleNewLine() {
                     // 通知内容变化
                     delegate?.textDidChange?(Notification(name: NSText.didChangeNotification, object: self))
                     return
@@ -470,7 +485,7 @@ class NativeTextView: NSTextView {
         let position = selectedRange.location
 
         // 首先检查是否在引用块中
-        if UnifiedFormatManager.shared.isQuoteBlock(in: textStorage, at: position) {
+        if unifiedFormatManager?.isQuoteBlock(in: textStorage, at: position) == true {
             return handleReturnKeyForQuote()
         }
 
@@ -482,7 +497,7 @@ class NativeTextView: NSTextView {
         }
 
         // 检查当前行是否是列表项（回退逻辑）
-        let listType = UnifiedFormatManager.shared.getListType(in: textStorage, at: position)
+        let listType = unifiedFormatManager?.getListType(in: textStorage, at: position) ?? .none
         guard listType != .none else { return false }
 
         let string = textStorage.string as NSString
@@ -495,7 +510,7 @@ class NativeTextView: NSTextView {
         if isEmptyListItem {
             // 空列表项，移除列表格式
             textStorage.beginEditing()
-            UnifiedFormatManager.shared.removeListFormat(from: textStorage, range: lineRange)
+            unifiedFormatManager?.removeListFormat(from: textStorage, range: lineRange)
             textStorage.endEditing()
 
             // 通知内容变化
@@ -504,7 +519,7 @@ class NativeTextView: NSTextView {
         }
 
         // 非空列表项，创建新的列表项
-        let indent = UnifiedFormatManager.shared.getListIndent(in: textStorage, at: position)
+        let indent = unifiedFormatManager?.getListIndent(in: textStorage, at: position) ?? 1
 
         textStorage.beginEditing()
 
@@ -518,14 +533,14 @@ class NativeTextView: NSTextView {
 
         switch listType {
         case .bullet:
-            UnifiedFormatManager.shared.applyBulletList(to: textStorage, range: newLineRange, indent: indent)
+            unifiedFormatManager?.applyBulletList(to: textStorage, range: newLineRange, indent: indent)
             // 插入项目符号
             let bulletString = createBulletString(indent: indent)
             textStorage.insert(bulletString, at: newLineStart)
 
         case .ordered:
-            let newNumber = UnifiedFormatManager.shared.getListNumber(in: textStorage, at: position) + 1
-            UnifiedFormatManager.shared.applyOrderedList(to: textStorage, range: newLineRange, number: newNumber, indent: indent)
+            let newNumber = (unifiedFormatManager?.getListNumber(in: textStorage, at: position) ?? 0) + 1
+            unifiedFormatManager?.applyOrderedList(to: textStorage, range: newLineRange, number: newNumber, indent: indent)
             // 插入编号
             let orderString = createOrderString(number: newNumber, indent: indent)
             textStorage.insert(orderString, at: newLineStart)
@@ -561,13 +576,13 @@ class NativeTextView: NSTextView {
         let position = selectedRange.location
 
         // 检查当前行是否是列表项
-        let listType = UnifiedFormatManager.shared.getListType(in: textStorage, at: position)
+        let listType = unifiedFormatManager?.getListType(in: textStorage, at: position) ?? .none
         guard listType != .none else { return false }
 
         if increase {
-            UnifiedFormatManager.shared.increaseListIndent(to: textStorage, range: selectedRange)
+            unifiedFormatManager?.increaseListIndent(to: textStorage, range: selectedRange)
         } else {
-            UnifiedFormatManager.shared.decreaseListIndent(to: textStorage, range: selectedRange)
+            unifiedFormatManager?.decreaseListIndent(to: textStorage, range: selectedRange)
         }
 
         // 通知内容变化
@@ -594,7 +609,7 @@ class NativeTextView: NSTextView {
         if isEmptyLine {
             // 空行，退出引用块
             textStorage.beginEditing()
-            UnifiedFormatManager.shared.removeQuoteBlock(from: textStorage, range: lineRange)
+            unifiedFormatManager?.removeQuoteBlock(from: textStorage, range: lineRange)
             textStorage.endEditing()
 
             // 通知内容变化
@@ -603,7 +618,7 @@ class NativeTextView: NSTextView {
         }
 
         // 非空行，继续引用格式
-        let indent = UnifiedFormatManager.shared.getQuoteIndent(in: textStorage, at: position)
+        let indent = unifiedFormatManager?.getQuoteIndent(in: textStorage, at: position) ?? 1
 
         textStorage.beginEditing()
 
@@ -615,7 +630,7 @@ class NativeTextView: NSTextView {
         let newLineStart = insertionPoint + 1
         let newLineRange = NSRange(location: newLineStart, length: 0)
 
-        UnifiedFormatManager.shared.applyQuoteBlock(to: textStorage, range: newLineRange, indent: indent)
+        unifiedFormatManager?.applyQuoteBlock(to: textStorage, range: newLineRange, indent: indent)
 
         textStorage.endEditing()
 
@@ -694,7 +709,7 @@ class NativeTextView: NSTextView {
     private func createBulletString(indent: Int) -> NSAttributedString {
         let bullet = "• "
         var attributes: [NSAttributedString.Key: Any] = [
-            .font: FontSizeManager.shared.defaultFont,
+            .font: NSFont.systemFont(ofSize: FontSizeConstants.body),
             .listType: ListType.bullet,
             .listIndent: indent,
         ]
@@ -711,7 +726,7 @@ class NativeTextView: NSTextView {
     private func createOrderString(number: Int, indent: Int) -> NSAttributedString {
         let orderText = "\(number). "
         var attributes: [NSAttributedString.Key: Any] = [
-            .font: FontSizeManager.shared.defaultFont,
+            .font: NSFont.systemFont(ofSize: FontSizeConstants.body),
             .listType: ListType.ordered,
             .listIndent: indent,
             .listNumber: number,
@@ -728,7 +743,7 @@ class NativeTextView: NSTextView {
     /// 创建复选框字符串
     private func createCheckboxString(indent: Int) -> NSAttributedString {
         // 使用 InteractiveCheckboxAttachment 创建可交互的复选框
-        let renderer = CustomRenderer.shared
+        let renderer = customRenderer ?? CustomRenderer()
         let attachment = renderer.createCheckboxAttachment(checked: false, level: 3, indent: indent)
         let attachmentString = NSMutableAttributedString(attachment: attachment)
 
@@ -736,7 +751,7 @@ class NativeTextView: NSTextView {
         // 设置列表类型属性
         let fullRange = NSRange(location: 0, length: attachmentString.length)
         attachmentString.addAttributes([
-            .font: FontSizeManager.shared.defaultFont,
+            .font: NSFont.systemFont(ofSize: FontSizeConstants.body),
             .listType: ListType.checkbox,
             .listIndent: indent,
         ], range: fullRange)
@@ -783,14 +798,17 @@ class NativeTextView: NSTextView {
         let folderId = "default"
 
         // 保存图片到本地存储
-        guard let saveResult = ImageStorageManager.shared.saveImage(image, folderId: folderId) else {
+        guard let imageStorageManager,
+              let saveResult = imageStorageManager.saveImage(image, folderId: folderId)
+        else {
             return
         }
 
         let fileId = saveResult.fileId
 
         // 创建图片附件
-        let attachment = CustomRenderer.shared.createImageAttachment(
+        guard let customRenderer else { return }
+        let attachment = customRenderer.createImageAttachment(
             image: image,
             fileId: fileId,
             folderId: folderId
@@ -841,7 +859,7 @@ class NativeTextView: NSTextView {
         textStorage.beginEditing()
 
         // 创建分割线附件
-        let renderer = CustomRenderer.shared
+        let renderer = customRenderer ?? CustomRenderer()
         let attachment = renderer.createHorizontalRuleAttachment()
         let attachmentString = NSAttributedString(attachment: attachment)
 

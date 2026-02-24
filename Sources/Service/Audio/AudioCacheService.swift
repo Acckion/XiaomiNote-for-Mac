@@ -30,10 +30,6 @@ struct CachedAudioFile: Codable {
 /// - 缓存清理
 actor AudioCacheService {
 
-    // MARK: - 单例
-
-    static let shared = AudioCacheService()
-
     // MARK: - 属性
 
     /// 文件管理器
@@ -53,7 +49,7 @@ actor AudioCacheService {
 
     // MARK: - 初始化
 
-    private init() {
+    init() {
         let appSupportDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let appBundleID = Bundle.main.bundleIdentifier ?? "com.mi.note.mac"
         let appDirectory = appSupportDirectory.appendingPathComponent(appBundleID)

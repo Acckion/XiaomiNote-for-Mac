@@ -78,11 +78,9 @@ struct EditorConfiguration: Codable, Equatable {
 
 /// 编辑器配置管理器
 @MainActor
-class EditorConfigurationManager: ObservableObject {
+public class EditorConfigurationManager: ObservableObject {
 
     // MARK: - Singleton
-
-    static let shared = EditorConfigurationManager()
 
     // MARK: - Published Properties
 

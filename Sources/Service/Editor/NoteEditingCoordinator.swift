@@ -79,6 +79,14 @@ public final class NoteEditingCoordinator: ObservableObject {
     // MARK: - 依赖
 
     private let eventBus = EventBus.shared
+    private let apiClient: APIClient
+    private let operationQueue: UnifiedOperationQueue
+    private let localStorage: LocalStorageService
+    private let operationProcessor: OperationProcessor
+    private let idMappingRegistry: IdMappingRegistry
+    private let formatConverter: XiaoMiFormatConverter
+    private let xmlNormalizer: XMLNormalizer
+    private let memoryCacheManager: MemoryCacheManager
     private(set) weak var noteEditorState: NoteEditorState?
     private var noteStore: NoteStore?
     var nativeEditorContext: NativeEditorContext? {
@@ -87,7 +95,25 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     // MARK: - 初始化
 
-    public init() {}
+    init(
+        apiClient: APIClient,
+        operationQueue: UnifiedOperationQueue,
+        localStorage: LocalStorageService,
+        operationProcessor: OperationProcessor,
+        idMappingRegistry: IdMappingRegistry,
+        formatConverter: XiaoMiFormatConverter,
+        xmlNormalizer: XMLNormalizer,
+        memoryCacheManager: MemoryCacheManager
+    ) {
+        self.apiClient = apiClient
+        self.operationQueue = operationQueue
+        self.localStorage = localStorage
+        self.operationProcessor = operationProcessor
+        self.idMappingRegistry = idMappingRegistry
+        self.formatConverter = formatConverter
+        self.xmlNormalizer = xmlNormalizer
+        self.memoryCacheManager = memoryCacheManager
+    }
 
     /// 配置依赖
     func configure(noteEditorState: NoteEditorState, noteStore: NoteStore) {
@@ -200,7 +226,7 @@ public final class NoteEditingCoordinator: ObservableObject {
 
             if hasActualChange {
                 let updated = buildUpdatedNote(from: currentNote, xmlContent: content, shouldUpdateTimestamp: false)
-                await MemoryCacheManager.shared.cacheNote(updated)
+                await memoryCacheManager.cacheNote(updated)
                 updateNotesArrayOnly(with: updated)
 
                 await eventBus.publish(NoteEvent.contentUpdated(noteId: currentNote.id, title: capturedTitle, content: content))
@@ -255,7 +281,7 @@ public final class NoteEditingCoordinator: ObservableObject {
                 extraInfoJson: capturedNote.extraInfoJson
             )
 
-            await MemoryCacheManager.shared.cacheNote(updated)
+            await memoryCacheManager.cacheNote(updated)
             updateNotesArrayOnly(with: updated)
 
             await eventBus.publish(NoteEvent.contentUpdated(noteId: capturedNote.id, title: capturedTitle, content: content))
@@ -283,7 +309,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         if let context = nativeEditorContext {
             let backupContent = context.getContentForRetry()
             if backupContent.length > 0 {
-                contentToSave = XiaoMiFormatConverter.shared.safeNSAttributedStringToXML(backupContent)
+                contentToSave = formatConverter.safeNSAttributedStringToXML(backupContent)
             }
         }
 
@@ -297,11 +323,11 @@ public final class NoteEditingCoordinator: ObservableObject {
         // 竞态防护：如果传入的是临时 ID 但 ID 迁移已完成，使用正式 ID 笔记
         var resolvedNote = note
         if NoteOperation.isTemporaryId(note.id) {
-            let resolvedId = IdMappingRegistry.shared.resolveId(note.id)
+            let resolvedId = idMappingRegistry.resolveId(note.id)
             if resolvedId != note.id {
                 if let officialNote = await noteStore?.getNote(byId: resolvedId) {
                     resolvedNote = officialNote
-                } else if let dbNote = try? LocalStorageService.shared.loadNote(noteId: resolvedId) {
+                } else if let dbNote = try? localStorage.loadNote(noteId: resolvedId) {
                     resolvedNote = dbNote
                 }
                 if resolvedNote.id != note.id {
@@ -335,7 +361,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         lastSavedXMLContent = ""
         originalXMLContent = ""
 
-        let cachedNote = await MemoryCacheManager.shared.getNote(noteId: resolvedNote.id)
+        let cachedNote = await memoryCacheManager.getNote(noteId: resolvedNote.id)
         if let cachedNote, cachedNote.id == resolvedNote.id {
             await loadNoteContentFromCache(cachedNote)
             return
@@ -373,7 +399,7 @@ public final class NoteEditingCoordinator: ObservableObject {
             extraInfoJson: note.extraInfoJson
         )
 
-        await MemoryCacheManager.shared.cacheNote(updated)
+        await memoryCacheManager.cacheNote(updated)
         updateNotesArrayOnly(with: updated)
 
         if case .saving = saveStatus {
@@ -496,7 +522,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         pendingRetryNote = nil
 
         updateViewModel(with: updatedNote)
-        await MemoryCacheManager.shared.cacheNote(updatedNote)
+        await memoryCacheManager.cacheNote(updatedNote)
 
         saveStatus = .saved
         noteEditorState?.hasUnsavedContent = false
@@ -559,7 +585,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         originalTitle = title
         currentXMLContent = xmlContent
         updateViewModel(with: updated)
-        await MemoryCacheManager.shared.cacheNote(updated)
+        await memoryCacheManager.cacheNote(updated)
         scheduleCloudUpload(for: updated, xmlContent: xmlContent)
     }
 
@@ -596,15 +622,15 @@ public final class NoteEditingCoordinator: ObservableObject {
             if let cachedNote = await noteStore?.getNote(byId: note.id), !cachedNote.content.isEmpty {
                 guard note.id == currentEditingNoteId else { return }
                 contentToLoad = cachedNote.primaryXMLContent
-                await MemoryCacheManager.shared.cacheNote(cachedNote)
-            } else if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+                await memoryCacheManager.cacheNote(cachedNote)
+            } else if let fullNote = try? localStorage.loadNote(noteId: note.id) {
                 // NoteStore 缓存也没有完整内容，回退到直接读 DB
                 guard note.id == currentEditingNoteId else { return }
                 contentToLoad = fullNote.primaryXMLContent
-                await MemoryCacheManager.shared.cacheNote(fullNote)
+                await memoryCacheManager.cacheNote(fullNote)
             }
         } else {
-            await MemoryCacheManager.shared.cacheNote(note)
+            await memoryCacheManager.cacheNote(note)
         }
 
         currentXMLContent = contentToLoad
@@ -643,19 +669,19 @@ public final class NoteEditingCoordinator: ObservableObject {
         if note.content.isEmpty {
             // 优先从 NoteStore 内存缓存获取
             if let cachedNote = await noteStore?.getNote(byId: note.id), !cachedNote.content.isEmpty {
-                await MemoryCacheManager.shared.cacheNote(cachedNote)
+                await memoryCacheManager.cacheNote(cachedNote)
                 currentXMLContent = cachedNote.primaryXMLContent
                 lastSavedXMLContent = currentXMLContent
                 originalXMLContent = currentXMLContent
-            } else if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+            } else if let fullNote = try? localStorage.loadNote(noteId: note.id) {
                 // NoteStore 缓存也没有完整内容，回退到直接读 DB
-                await MemoryCacheManager.shared.cacheNote(fullNote)
+                await memoryCacheManager.cacheNote(fullNote)
                 currentXMLContent = fullNote.primaryXMLContent
                 lastSavedXMLContent = currentXMLContent
                 originalXMLContent = currentXMLContent
             }
         } else {
-            await MemoryCacheManager.shared.cacheNote(note)
+            await memoryCacheManager.cacheNote(note)
         }
     }
 
@@ -681,8 +707,8 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     func scheduleCloudUpload(for note: Note, xmlContent: String) {
         Task {
-            let isAuth = await APIClient.shared.isAuthenticated()
-            let hasCookie = APIClient.shared.hasValidCookie()
+            let isAuth = await apiClient.isAuthenticated()
+            let hasCookie = apiClient.hasValidCookie()
             guard isAuth, hasCookie else {
                 queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
                 return
@@ -709,8 +735,8 @@ public final class NoteEditingCoordinator: ObservableObject {
                 let lastTitle = lastUploadedTitleByNoteId[noteId] ?? ""
                 guard latestXMLContent != lastUploaded || latestTitle != lastTitle else { return }
 
-                let isAuth2 = await APIClient.shared.isAuthenticated()
-                let hasCookie2 = APIClient.shared.hasValidCookie()
+                let isAuth2 = await apiClient.isAuthenticated()
+                let hasCookie2 = apiClient.hasValidCookie()
                 guard isAuth2, hasCookie2 else {
                     queueOfflineUpdateOperation(for: note, xmlContent: latestXMLContent)
                     return
@@ -727,8 +753,8 @@ public final class NoteEditingCoordinator: ObservableObject {
         queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
 
         // 入队后立即触发处理
-        if let operation = UnifiedOperationQueue.shared.getPendingUpload(for: note.id) {
-            await OperationProcessor.shared.processImmediately(operation)
+        if let operation = operationQueue.getPendingUpload(for: note.id) {
+            await operationProcessor.processImmediately(operation)
         }
     }
 
@@ -748,7 +774,7 @@ public final class NoteEditingCoordinator: ObservableObject {
                 data: jsonData,
                 localSaveTimestamp: Date()
             )
-            try UnifiedOperationQueue.shared.enqueue(operation)
+            try operationQueue.enqueue(operation)
             lastUploadedContentByNoteId[note.id] = xmlContent
         } catch {
             LogService.shared.error(.editor, "添加操作到离线队列失败: \(error)")
@@ -832,8 +858,8 @@ public final class NoteEditingCoordinator: ObservableObject {
         currentTitle: String,
         originalTitle: String
     ) -> Bool {
-        let normalizedCurrent = XMLNormalizer.shared.normalize(currentContent)
-        let normalizedSaved = XMLNormalizer.shared.normalize(savedContent)
+        let normalizedCurrent = xmlNormalizer.normalize(currentContent)
+        let normalizedSaved = xmlNormalizer.normalize(savedContent)
         return normalizedCurrent != normalizedSaved || currentTitle != originalTitle
     }
 

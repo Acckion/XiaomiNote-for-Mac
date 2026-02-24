@@ -9,7 +9,6 @@ import Foundation
 /// 作为单一数据源（Single Source of Truth），其他组件应该依赖此管理器获取在线状态
 @MainActor
 public final class OnlineStateManager: ObservableObject {
-    public static let shared = OnlineStateManager()
 
     /// 是否在线（需要同时满足：网络连接、已认证、Cookie有效）
     @Published public private(set) var isOnline = true
@@ -18,6 +17,7 @@ public final class OnlineStateManager: ObservableObject {
 
     private let networkMonitor: NetworkMonitor
     private let apiClient: APIClient
+    private let eventBus: EventBus
 
     // MARK: - 内部状态
 
@@ -34,20 +34,13 @@ public final class OnlineStateManager: ObservableObject {
 
     // MARK: - 初始化
 
-    private init() {
-        self.networkMonitor = NetworkMonitor.shared
-        self.apiClient = APIClient.shared
-        setupStateMonitoring()
-        setupAuthEventSubscription()
-        updateOnlineStatus()
-    }
-
     /// SyncModule 使用的构造器
     init(networkMonitor: NetworkMonitor, apiClient: APIClient, eventBus: EventBus) {
         self.networkMonitor = networkMonitor
         self.apiClient = apiClient
+        self.eventBus = eventBus
         setupStateMonitoring()
-        setupAuthEventSubscription(eventBus: eventBus)
+        setupAuthEventSubscription()
         updateOnlineStatus()
     }
 
@@ -70,11 +63,7 @@ public final class OnlineStateManager: ObservableObject {
 
     /// 设置 AuthEvent 订阅，监听 Cookie 状态变化
     private func setupAuthEventSubscription() {
-        setupAuthEventSubscription(eventBus: EventBus.shared)
-    }
-
-    /// 设置 AuthEvent 订阅，使用指定的 EventBus
-    private func setupAuthEventSubscription(eventBus: EventBus) {
+        let eventBus = eventBus
         authEventTask = Task { [weak self] in
             let stream = await eventBus.subscribe(to: AuthEvent.self)
             for await event in stream {
@@ -101,6 +90,7 @@ public final class OnlineStateManager: ObservableObject {
     private func updateOnlineStatus() {
         let isConnected = networkMonitor.isConnected
         let cookieValid = isCookieValid
+        let eventBus = eventBus
 
         Task {
             let isAuthenticated = await apiClient.isAuthenticated()
@@ -110,7 +100,7 @@ public final class OnlineStateManager: ObservableObject {
             if wasOnline != isOnline {
                 LogService.shared.info(.sync, "在线状态变化: \(isOnline ? "在线" : "离线"), 网络: \(isConnected), 认证: \(isAuthenticated), Cookie: \(cookieValid)")
 
-                await EventBus.shared.publish(OnlineEvent.onlineStatusChanged(isOnline: isOnline))
+                await eventBus.publish(OnlineEvent.onlineStatusChanged(isOnline: isOnline))
             }
         }
     }

@@ -608,7 +608,7 @@ struct NotesListView: View {
     // MARK: - 菜单操作
 
     private func openNoteInNewWindow(_ note: Note) {
-        WindowManager.shared.openNoteEditorWindow(note: note)
+        coordinator.openNoteEditorWindow(note: note)
     }
 
     private func copyNote(_ note: Note) {
@@ -836,7 +836,8 @@ struct NoteRow: View {
                     NotePreviewImageView(
                         fileId: attachment.fileId,
                         fileType: attachment.fileType,
-                        size: 50
+                        size: 50,
+                        previewService: coordinator.notePreviewService
                     )
                 }
 
@@ -877,10 +878,10 @@ struct NoteRow: View {
                     // 如果笔记内容为空，从数据库预加载完整内容
                     if note.content.isEmpty {
                         // 先检查缓存中是否已有该笔记，避免覆盖更新的数据
-                        let cached = await MemoryCacheManager.shared.getNote(noteId: note.id)
+                        let cached = await coordinator.memoryCacheManager.getNote(noteId: note.id)
                         if cached == nil {
-                            if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
-                                await MemoryCacheManager.shared.cacheNote(fullNote)
+                            if let fullNote = try? coordinator.syncModule.localStorage.loadNote(noteId: note.id) {
+                                await coordinator.memoryCacheManager.cacheNote(fullNote)
                             }
                         }
                     }

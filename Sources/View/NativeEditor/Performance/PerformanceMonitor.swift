@@ -14,8 +14,7 @@ class PerformanceMonitor: ObservableObject {
 
     // MARK: - 单例
 
-    /// 共享实例
-    static let shared = PerformanceMonitor()
+    // 共享实例
 
     // MARK: - 输入法状态监控
 

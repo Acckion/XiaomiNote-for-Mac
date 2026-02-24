@@ -39,11 +39,9 @@ struct SpecialElementDetectionResult {
 ///
 /// 负责处理复选框、分割线、图片等特殊元素的格式应用逻辑。
 @MainActor
-class SpecialElementFormatHandler {
+public class SpecialElementFormatHandler {
 
     // MARK: - Singleton
-
-    static let shared = SpecialElementFormatHandler()
 
     init() {}
 
@@ -304,7 +302,15 @@ extension NativeEditorContext {
     /// 检测当前光标位置的特殊元素
     /// - Returns: 特殊元素检测结果
     func detectSpecialElementAtCursorPosition() -> SpecialElementDetectionResult {
-        SpecialElementFormatHandler.shared.detectSpecialElement(
+        guard let handler = specialElementFormatHandler else {
+            return SpecialElementDetectionResult(
+                elementType: nil,
+                range: NSRange(location: 0, length: 0),
+                isInsideElement: false,
+                isNearElement: false
+            )
+        }
+        return handler.detectSpecialElement(
             in: nsAttributedText,
             at: cursorPosition
         )
@@ -317,7 +323,7 @@ extension NativeEditorContext {
         guard let elementType = detection.elementType else {
             return []
         }
-        return SpecialElementFormatHandler.shared.getDisabledFormats(for: elementType)
+        return specialElementFormatHandler?.getDisabledFormats(for: elementType) ?? []
     }
 
     /// 检查指定格式在当前位置是否可用

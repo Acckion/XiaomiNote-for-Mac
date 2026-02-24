@@ -5,26 +5,18 @@ import Foundation
 @MainActor
 class ImageStorageManager {
 
-    // MARK: - Singleton
-
-    static let shared = ImageStorageManager()
-
     // MARK: - Properties
 
     private let localStorage: LocalStorageService
+    private let fileAPI: FileAPI
     private var imageCache: [String: NSImage] = [:]
     private let maxCacheSize = 50
 
     // MARK: - Initialization
 
-    /// 过渡期兼容构造器
-    private init() {
-        self.localStorage = LocalStorageService.shared
-    }
-
-    /// EditorModule 使用的构造器
-    init(localStorage: LocalStorageService) {
+    init(localStorage: LocalStorageService, fileAPI: FileAPI) {
         self.localStorage = localStorage
+        self.fileAPI = fileAPI
     }
 
     // MARK: - Public Methods
@@ -99,7 +91,12 @@ class ImageStorageManager {
         }
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let localStorage = LocalStorageService.shared
+            guard let localStorage = self?.localStorage else {
+                DispatchQueue.main.async {
+                    completion(nil)
+                }
+                return
+            }
             var image: NSImage?
             if let (imageData, _) = localStorage.loadImageWithFullFormatAllFormats(fullFileId: fileId),
                let loadedImage = NSImage(data: imageData)
@@ -206,9 +203,8 @@ class ImageStorageManager {
             }
 
             let actualFileId = components.dropFirst().joined(separator: ".")
-            let imageData = try await FileAPI.shared.downloadFile(fileId: actualFileId, type: "note_img")
+            let imageData = try await fileAPI.downloadFile(fileId: actualFileId, type: "note_img")
 
-            let localStorage = LocalStorageService.shared
             try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: "jpg")
 
             if let image = NSImage(data: imageData) {

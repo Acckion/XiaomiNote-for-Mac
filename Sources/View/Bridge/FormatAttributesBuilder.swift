@@ -20,10 +20,7 @@ public struct FormatAttributesBuilder {
     // MARK: - 常量
 
     /// 默认字体
-    /// 使用 FontSizeManager 统一管理，14pt（正文字体大小）
-    public static var defaultFont: NSFont {
-        FontSizeManager.shared.defaultFont
-    }
+    public static let defaultFont = NSFont.systemFont(ofSize: FontSizeConstants.body, weight: .regular)
 
     /// 默认文本颜色
     public static let defaultTextColor = NSColor.labelColor
@@ -31,19 +28,22 @@ public struct FormatAttributesBuilder {
     /// 高亮背景色
     public static let highlightColor = NSColor.yellow.withAlphaComponent(0.5)
 
-    /// 标题字体大小 - 使用 FontSizeManager 统一管理
+    /// 标题字体大小
     private static var heading1FontSize: CGFloat {
-        FontSizeManager.shared.heading1Size
-    } // 23pt
+        FontSizeConstants.heading1
+    }
+
     private static var heading2FontSize: CGFloat {
-        FontSizeManager.shared.heading2Size
-    } // 20pt
+        FontSizeConstants.heading2
+    }
+
     private static var heading3FontSize: CGFloat {
-        FontSizeManager.shared.heading3Size
-    } // 17pt
+        FontSizeConstants.heading3
+    }
+
     private static var bodyFontSize: CGFloat {
-        FontSizeManager.shared.bodySize
-    } // 14pt
+        FontSizeConstants.body
+    }
 
     // MARK: - 主要构建方法
 

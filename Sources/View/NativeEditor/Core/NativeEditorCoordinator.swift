@@ -45,10 +45,14 @@ extension NativeEditorView {
         private let attributeManager = AttributeManager()
 
         /// 性能缓存 - 缓存常用的属性对象
-        private let performanceCache = PerformanceCache.shared
+        private var performanceCache: PerformanceCache? {
+            parent.editorContext.performanceCache
+        }
 
         /// 打字优化器 - 检测简单输入场景并优化更新策略
-        private let typingOptimizer = TypingOptimizer.shared
+        private var typingOptimizer: TypingOptimizer? {
+            parent.editorContext.typingOptimizer
+        }
 
         /// 选择锚点管理器 - 管理文本选择的锚点
         private let selectionAnchorManager = SelectionAnchorManager()
@@ -331,7 +335,7 @@ extension NativeEditorView {
 
             // 处理每个被删除的音频附件
             for fileId in deletedFileIds {
-                AudioPanelStateManager.shared.handleAudioAttachmentDeleted(fileId: fileId)
+                parent.editorContext.audioPanelStateManager?.handleAudioAttachmentDeleted(fileId: fileId)
             }
 
             // 更新记录的音频附件集合
@@ -378,40 +382,31 @@ extension NativeEditorView {
             guard let textStorage = textView.textStorage else { return }
 
             // 记录输入法检测（性能监控）
-            PerformanceMonitor.shared.recordInputMethodDetection()
+            parent.editorContext.performanceMonitor?.recordInputMethodDetection()
 
-            // 检查是否处于输入法组合状态（如中文拼音输入）
-            // 如果有 markedText，说明用户正在输入拼音但还未选择候选词
-            // 此时不应该触发保存，否则会中断输入法的候选词选择
             if textView.hasMarkedText() {
-                // 记录跳过保存（输入法状态）
-                PerformanceMonitor.shared.recordSkippedSaveInputMethod()
+                parent.editorContext.performanceMonitor?.recordSkippedSaveInputMethod()
                 return
             }
 
             isUpdatingFromTextView = true
 
-            // 关键修复：使用 NSAttributedString(attributedString: textStorage) 而不是 textView.attributedString()
-            // textView.attributedString() 可能不会保留自定义属性（如 XMLContent、RecordingTemplate 等）
-            // 而直接从 textStorage 创建 NSAttributedString 会保留所有属性
             let attributedString = NSAttributedString(attributedString: textStorage)
             let contentChangeCallback = parent.onContentChange
 
-            // 检测音频附件删除
             detectAndHandleAudioAttachmentDeletion(currentAttributedString: attributedString)
 
-            // 记录保存请求（性能监控）
-            PerformanceMonitor.shared.recordSaveRequest()
+            parent.editorContext.performanceMonitor?.recordSaveRequest()
 
             // MARK: - Paper-Inspired Integration (Task 19.2)
 
             // 1. 使用 TypingOptimizer 判断更新策略
             let selectedRange = textView.selectedRange()
-            let isSimpleTyping = typingOptimizer.isSimpleTyping(
-                change: "", // 简化：不传递具体变化内容
+            let isSimpleTyping = typingOptimizer?.isSimpleTyping(
+                change: "",
                 at: selectedRange.location,
                 in: textStorage
-            )
+            ) ?? false
 
             if isSimpleTyping {
                 // 简单输入场景：只更新打字属性，不进行完整解析
@@ -441,14 +436,12 @@ extension NativeEditorView {
                 // 再次检查输入法状态
                 // 如果用户仍在输入（例如连续输入多个拼音），则跳过此次更新
                 if textView.hasMarkedText() {
-                    // 记录跳过保存（输入法状态）
-                    PerformanceMonitor.shared.recordSkippedSaveInputMethod()
+                    parent.editorContext.performanceMonitor?.recordSkippedSaveInputMethod()
                     self.isUpdatingFromTextView = false
                     return
                 }
 
-                // 记录实际保存（性能监控）
-                PerformanceMonitor.shared.recordActualSave()
+                parent.editorContext.performanceMonitor?.recordActualSave()
 
                 self.parent.editorContext.updateNSContentAsync(attributedString)
                 // 调用回调
@@ -497,10 +490,10 @@ extension NativeEditorView {
             }
 
             // 使用 CursorFormatManager 处理选择变化
-            CursorFormatManager.shared.handleSelectionChange(selectedRange)
+            editorContext.cursorFormatManager?.handleSelectionChange(selectedRange)
 
             // 使用 AttachmentSelectionManager 处理附件选择
-            AttachmentSelectionManager.shared.handleSelectionChange(selectedRange)
+            editorContext.attachmentSelectionManager?.handleSelectionChange(selectedRange)
 
             // 异步调用回调，避免在视图更新中触发其他视图更新
             Task { @MainActor in

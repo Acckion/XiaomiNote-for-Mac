@@ -7,9 +7,9 @@ import Foundation
 @MainActor
 public struct EditorModule: Sendable {
     // 第 1 层：无依赖类
-    let performanceCache: PerformanceCache
+    public let performanceCache: PerformanceCache
     public let fontSizeManager: FontSizeManager
-    let editorConfigurationManager: EditorConfigurationManager
+    public let editorConfigurationManager: EditorConfigurationManager
     public let xmlNormalizer: XMLNormalizer
     let performanceMonitor: PerformanceMonitor
     public let typingOptimizer: TypingOptimizer
@@ -18,7 +18,7 @@ public struct EditorModule: Sendable {
     // 第 2 层：依赖第 1 层
     let formatConverter: XiaoMiFormatConverter
     let customRenderer: CustomRenderer
-    let specialElementFormatHandler: SpecialElementFormatHandler
+    public let specialElementFormatHandler: SpecialElementFormatHandler
     public let unifiedFormatManager: UnifiedFormatManager
 
     // 第 3 层：依赖第 2 层
@@ -29,13 +29,13 @@ public struct EditorModule: Sendable {
 
     // 第 4 层：附件管理
     let attachmentSelectionManager: AttachmentSelectionManager
-    let attachmentKeyboardHandler: AttachmentKeyboardHandler
+    public let attachmentKeyboardHandler: AttachmentKeyboardHandler
 
     // 第 5 层：Bridge 层
     public let formatStateManager: FormatStateManager
     public let cursorFormatManager: CursorFormatManager
 
-    public init(syncModule: SyncModule) {
+    public init(syncModule: SyncModule, networkModule: NetworkModule) {
         // 第 1 层
         let cache = PerformanceCache()
         self.performanceCache = cache
@@ -63,6 +63,7 @@ public struct EditorModule: Sendable {
         self.formatConverter = converter
 
         let renderer = CustomRenderer()
+        renderer.localStorage = syncModule.localStorage
         self.customRenderer = renderer
 
         let specialHandler = SpecialElementFormatHandler()
@@ -85,7 +86,8 @@ public struct EditorModule: Sendable {
         self.editorRecoveryManager = recovery
 
         let imageStorage = ImageStorageManager(
-            localStorage: syncModule.localStorage
+            localStorage: syncModule.localStorage,
+            fileAPI: networkModule.fileAPI
         )
         self.imageStorageManager = imageStorage
 
@@ -111,6 +113,8 @@ public struct EditorModule: Sendable {
 
     /// Preview 和测试用的便利构造器
     public init() {
-        self.init(syncModule: SyncModule())
+        let nm = NetworkModule()
+        let sm = SyncModule(networkModule: nm)
+        self.init(syncModule: sm, networkModule: nm)
     }
 }

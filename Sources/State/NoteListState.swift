@@ -31,6 +31,8 @@ public final class NoteListState: ObservableObject {
 
     private let eventBus: EventBus
     private let noteStore: NoteStore
+    private let apiClient: APIClient
+    let noteAPI: NoteAPI
 
     // MARK: - 事件订阅任务
 
@@ -39,9 +41,11 @@ public final class NoteListState: ObservableObject {
 
     // MARK: - 初始化
 
-    init(eventBus: EventBus = .shared, noteStore: NoteStore) {
+    init(eventBus: EventBus = .shared, noteStore: NoteStore, apiClient: APIClient, noteAPI: NoteAPI) {
         self.eventBus = eventBus
         self.noteStore = noteStore
+        self.apiClient = apiClient
+        self.noteAPI = noteAPI
     }
 
     // MARK: - 生命周期
@@ -254,13 +258,13 @@ public final class NoteListState: ObservableObject {
 
     /// 获取回收站笔记列表
     func fetchDeletedNotes() async {
-        guard await APIClient.shared.isAuthenticated() else { return }
+        guard await apiClient.isAuthenticated() else { return }
 
         isLoadingDeletedNotes = true
         defer { isLoadingDeletedNotes = false }
 
         do {
-            let response = try await NoteAPI.shared.fetchDeletedNotes()
+            let response = try await noteAPI.fetchDeletedNotes()
 
             guard let code = response["code"] as? Int, code == 0,
                   let data = response["data"] as? [String: Any],
@@ -286,11 +290,11 @@ public final class NoteListState: ObservableObject {
 
     /// 恢复回收站笔记
     func restoreDeletedNote(noteId: String, tag: String) async throws {
-        guard await APIClient.shared.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
         }
 
-        let response = try await NoteAPI.shared.restoreDeletedNote(noteId: noteId, tag: tag)
+        let response = try await noteAPI.restoreDeletedNote(noteId: noteId, tag: tag)
 
         guard let code = response["code"] as? Int, code == 0 else {
             let message = response["description"] as? String ?? response["message"] as? String ?? "恢复笔记失败"
@@ -306,11 +310,11 @@ public final class NoteListState: ObservableObject {
 
     /// 永久删除笔记
     func permanentlyDeleteNote(noteId: String, tag: String) async throws {
-        guard await APIClient.shared.isAuthenticated() else {
+        guard await apiClient.isAuthenticated() else {
             throw NSError(domain: "MiNote", code: 401, userInfo: [NSLocalizedDescriptionKey: "请先登录小米账号"])
         }
 
-        let response = try await NoteAPI.shared.deleteNote(noteId: noteId, tag: tag, purge: true)
+        let response = try await noteAPI.deleteNote(noteId: noteId, tag: tag, purge: true)
 
         guard let code = response["code"] as? Int, code == 0 else {
             let message = response["description"] as? String ?? response["message"] as? String ?? "永久删除笔记失败"

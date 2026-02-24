@@ -8,6 +8,7 @@ import SwiftUI
 struct NoteHistoryView: View {
     @ObservedObject var noteEditorState: NoteEditorState
     let noteId: String
+    var formatConverter: XiaoMiFormatConverter?
     @Environment(\.dismiss) private var dismiss
 
     @State private var historyVersions: [NoteHistoryVersion] = []
@@ -164,6 +165,7 @@ struct NoteHistoryView: View {
                 VersionPreviewView(
                     version: selectedVersion,
                     note: content,
+                    formatConverter: formatConverter,
                     onRestore: {
                         if let version = selectedVersion {
                             restoreVersion(version)
@@ -289,6 +291,7 @@ private struct HistoryVersionRow: View {
 private struct VersionPreviewView: View {
     let version: NoteHistoryVersion?
     let note: Note
+    var formatConverter: XiaoMiFormatConverter?
     let onRestore: () -> Void
 
     @StateObject private var editorContext = NativeEditorContext()
@@ -344,10 +347,10 @@ private struct VersionPreviewView: View {
     private func loadContentToEditor() {
         Task { @MainActor in
             do {
-                let attributedString = try XiaoMiFormatConverter.shared.xmlToNSAttributedString(
+                let attributedString = try formatConverter?.xmlToNSAttributedString(
                     note.content,
                     folderId: note.folderId
-                )
+                ) ?? NSAttributedString()
                 editorContext.updateNSContent(attributedString)
             } catch {
                 LogService.shared.error(.window, "历史版本加载内容失败: \(error.localizedDescription)")

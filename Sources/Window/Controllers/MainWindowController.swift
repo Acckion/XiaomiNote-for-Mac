@@ -23,6 +23,12 @@
         /// AppCoordinator 引用
         public private(set) var coordinator: AppCoordinator
 
+        /// 统一操作队列
+        let operationQueue: UnifiedOperationQueue
+
+        /// 操作处理器
+        let operationProcessor: OperationProcessor
+
         /// 窗口状态
         let windowState: WindowState
 
@@ -85,7 +91,7 @@
 
         /// 音频面板状态管理器
         /// 负责管理音频面板的显示状态、模式和与其他组件的协调
-        let audioPanelStateManager = AudioPanelStateManager.shared
+        let audioPanelStateManager: AudioPanelStateManager
 
         /// 音频面板托管控制器
         /// 用于将 AudioPanelView 嵌入 NSSplitViewController 作为第四栏
@@ -97,9 +103,17 @@
         /// - Parameters:
         ///   - coordinator: 应用协调器（共享数据层）
         ///   - windowState: 窗口状态（独立 UI 状态）
-        public init(coordinator: AppCoordinator, windowState: WindowState) {
+        public init(
+            coordinator: AppCoordinator,
+            windowState: WindowState,
+            operationQueue: UnifiedOperationQueue,
+            operationProcessor: OperationProcessor
+        ) {
             self.coordinator = coordinator
             self.windowState = windowState
+            self.operationQueue = operationQueue
+            self.operationProcessor = operationProcessor
+            self.audioPanelStateManager = coordinator.audioModule.panelStateManager
 
             // 创建窗口
             let window = NSWindow(
@@ -321,7 +335,8 @@
                 folderState: coordinator.folderState,
                 authState: coordinator.authState,
                 syncState: coordinator.syncState,
-                windowController: self
+                windowController: self,
+                operationQueue: operationQueue
             )
 
             let toolbar = NSToolbar(identifier: "MainWindowToolbar")

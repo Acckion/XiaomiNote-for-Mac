@@ -165,7 +165,7 @@ struct UnifiedEditorWrapper: View {
         // 真正的内容变化（笔记切换），执行重新加载
 
         // 记录内容重新加载（性能监控）
-        PerformanceMonitor.shared.recordContentReload()
+        nativeEditorContext.performanceMonitor?.recordContentReload()
 
         // 使用 DispatchQueue.main.async 确保在下一个 run loop 迭代中执行，
         // 彻底脱离 .onChange 的视图更新周期
@@ -273,7 +273,7 @@ struct UnifiedEditorWrapper: View {
         // 而不是依赖 nativeEditorContext.nsAttributedText
         // 因为 nsAttributedText 可能还没有被更新（异步更新）
 
-        let xmlContent = XiaoMiFormatConverter.shared.safeNSAttributedStringToXML(attributedString)
+        let xmlContent = nativeEditorContext.formatConverter?.safeNSAttributedStringToXML(attributedString) ?? ""
 
         // 检查转换结果
         if xmlContent.isEmpty && attributedString.length > 0 {

@@ -13,11 +13,6 @@ import Foundation
 /// - 指数退避重试策略
 public actor OperationProcessor {
 
-    // MARK: - 单例
-
-    /// 共享实例
-    public static let shared = OperationProcessor()
-
     // MARK: - 重试配置
 
     /// 最大重试次数
@@ -80,21 +75,7 @@ public actor OperationProcessor {
 
     // MARK: - 初始化
 
-    /// 私有初始化方法（单例模式）
-    private init() {
-        self.operationQueue = UnifiedOperationQueue.shared
-        self.apiClient = APIClient.shared
-        self.noteAPI = NoteAPI.shared
-        self.folderAPI = FolderAPI.shared
-        self.fileAPI = FileAPI.shared
-        self.localStorage = LocalStorageService.shared
-        self.databaseService = DatabaseService.shared
-        self.syncStateManager = SyncStateManager.createDefault()
-        self.eventBus = EventBus.shared
-        self.idMappingRegistry = IdMappingRegistry.shared
-    }
-
-    /// 用于测试和 SyncModule 的初始化方法
+    /// 初始化方法
     ///
     /// - Parameters:
     ///   - operationQueue: 操作队列实例

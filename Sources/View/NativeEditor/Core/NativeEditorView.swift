@@ -97,8 +97,8 @@ struct NativeEditorView: NSViewRepresentable {
         // 设置外观
         textView.backgroundColor = .clear
         textView.drawsBackground = false
-        // 使用 FontSizeManager 统一管理默认字体 (14pt)
-        textView.font = FontSizeManager.shared.defaultFont
+        // 使用 FontSizeConstants 统一管理默认字体 (14pt)
+        textView.font = NSFont.systemFont(ofSize: FontSizeConstants.body)
         textView.textColor = .labelColor
         textView.insertionPointColor = .controlAccentColor
 
@@ -154,22 +154,29 @@ struct NativeEditorView: NSViewRepresentable {
             textView.textStorage?.setAttributedString(editorContext.nsAttributedText)
         }
 
+        // 接线编辑器依赖到 NativeTextView
+        textView.imageStorageManager = editorContext.imageStorageManager
+        textView.customRenderer = editorContext.customRenderer
+        textView.unifiedFormatManager = editorContext.unifiedFormatManager
+        textView.attachmentSelectionManager = editorContext.attachmentSelectionManager
+        textView.attachmentKeyboardHandler = editorContext.attachmentKeyboardHandler
+
         // 预热渲染器缓存
-        CustomRenderer.shared.warmUpCache()
+        editorContext.customRenderer.warmUpCache()
 
         // 注册 CursorFormatManager
-        CursorFormatManager.shared.register(textView: textView, context: editorContext)
-        UnifiedFormatManager.shared.register(textView: textView, context: editorContext)
-        AttachmentSelectionManager.shared.register(textView: textView)
+        editorContext.cursorFormatManager?.register(textView: textView, context: editorContext)
+        editorContext.unifiedFormatManager?.register(textView: textView, context: editorContext)
+        editorContext.attachmentSelectionManager?.register(textView: textView)
 
         return scrollView
     }
 
     /// 视图销毁时取消注册 CursorFormatManager 和 UnifiedFormatManager
-    static func dismantleNSView(_: NSScrollView, coordinator _: Coordinator) {
-        CursorFormatManager.shared.unregister()
-        UnifiedFormatManager.shared.unregister()
-        AttachmentSelectionManager.shared.unregister()
+    static func dismantleNSView(_: NSScrollView, coordinator: Coordinator) {
+        coordinator.parent.editorContext.cursorFormatManager?.unregister()
+        coordinator.parent.editorContext.unifiedFormatManager?.unregister()
+        coordinator.parent.editorContext.attachmentSelectionManager?.unregister()
     }
 
     func updateNSView(_: NSScrollView, context: Context) {

@@ -19,6 +19,9 @@ public struct OperationQueueDebugView: View {
     // MARK: - Dependencies
 
     let noteStore: NoteStore
+    let operationQueue: UnifiedOperationQueue
+    let operationProcessor: OperationProcessor
+    let idMappingRegistry: IdMappingRegistry
 
     // MARK: - State
 
@@ -57,8 +60,16 @@ public struct OperationQueueDebugView: View {
     @State private var showRetryConfirmation = false
     @State private var showClearHistoryConfirmation = false
 
-    public init(noteStore: NoteStore) {
+    public init(
+        noteStore: NoteStore,
+        operationQueue: UnifiedOperationQueue,
+        operationProcessor: OperationProcessor,
+        idMappingRegistry: IdMappingRegistry
+    ) {
         self.noteStore = noteStore
+        self.operationQueue = operationQueue
+        self.operationProcessor = operationProcessor
+        self.idMappingRegistry = idMappingRegistry
     }
 
     // MARK: - Body
@@ -244,9 +255,9 @@ public struct OperationQueueDebugView: View {
 
                 StatusCard(
                     title: "待上传",
-                    value: "\(UnifiedOperationQueue.shared.getPendingUploadCount())",
+                    value: "\(operationQueue.getPendingUploadCount())",
                     icon: "arrow.up.circle",
-                    color: UnifiedOperationQueue.shared.getPendingUploadCount() == 0 ? .green : .orange
+                    color: operationQueue.getPendingUploadCount() == 0 ? .green : .orange
                 )
 
                 StatusCard(
@@ -624,7 +635,7 @@ public struct OperationQueueDebugView: View {
 
         Task {
             // 获取统一操作队列数据
-            let queue = UnifiedOperationQueue.shared
+            let queue = operationQueue
             let operations = queue.getPendingOperations()
             let stats = queue.getStatistics()
             let tempCount = queue.getTemporaryIdNoteCount()
@@ -635,8 +646,7 @@ public struct OperationQueueDebugView: View {
             let historyStats = queue.getHistoryStatistics()
 
             // 获取 ID 映射统计
-            let mappingRegistry = IdMappingRegistry.shared
-            let mappingStats = mappingRegistry.getStatistics()
+            let mappingStats = idMappingRegistry.getStatistics()
 
             // 获取活跃编辑笔记 ID
             let activeNoteId = await noteStore.getActiveEditingNoteId()
@@ -671,18 +681,18 @@ public struct OperationQueueDebugView: View {
     }
 
     private func clearAllOperations() {
-        try? UnifiedOperationQueue.shared.clearAll()
+        try? operationQueue.clearAll()
         refreshData()
     }
 
     private func deleteOperation(_ operation: NoteOperation) {
-        try? UnifiedOperationQueue.shared.markCompleted(operation.id)
+        try? operationQueue.markCompleted(operation.id)
         refreshData()
     }
 
     private func retryFailedOperations() {
         Task {
-            await OperationProcessor.shared.processRetries()
+            await operationProcessor.processRetries()
             await MainActor.run {
                 refreshData()
             }
@@ -690,7 +700,7 @@ public struct OperationQueueDebugView: View {
     }
 
     private func clearHistory() {
-        try? UnifiedOperationQueue.shared.clearHistory()
+        try? operationQueue.clearHistory()
         refreshData()
     }
 }

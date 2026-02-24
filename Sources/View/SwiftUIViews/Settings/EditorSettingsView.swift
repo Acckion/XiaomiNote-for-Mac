@@ -12,11 +12,13 @@ public struct EditorSettingsView: View {
 
     // MARK: - Properties
 
-    @ObservedObject private var configurationManager = EditorConfigurationManager.shared
+    @ObservedObject private var configurationManager: EditorConfigurationManager
 
     @State private var showCompatibilityInfo = false
 
-    public init() {}
+    public init(configurationManager: EditorConfigurationManager) {
+        self._configurationManager = ObservedObject(wrappedValue: configurationManager)
+    }
 
     // MARK: - Body
 
@@ -294,7 +296,7 @@ enum CompatibilityStatus {
 
 #Preview {
     NavigationView {
-        EditorSettingsView()
+        EditorSettingsView(configurationManager: EditorConfigurationManager())
     }
     .frame(width: 600, height: 700)
 }

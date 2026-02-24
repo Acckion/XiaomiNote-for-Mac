@@ -28,6 +28,8 @@ public final class AuthState: ObservableObject {
     private let eventBus: EventBus
     private let apiClient: APIClient
     private let userAPI: UserAPI
+    private let onlineStateManager: OnlineStateManager
+    private let passTokenManager: PassTokenManager
 
     // MARK: - 事件订阅任务
 
@@ -43,10 +45,18 @@ public final class AuthState: ObservableObject {
 
     // MARK: - 初始化
 
-    init(eventBus: EventBus = .shared, apiClient: APIClient, userAPI: UserAPI) {
+    init(
+        eventBus: EventBus = .shared,
+        apiClient: APIClient,
+        userAPI: UserAPI,
+        onlineStateManager: OnlineStateManager,
+        passTokenManager: PassTokenManager
+    ) {
         self.eventBus = eventBus
         self.apiClient = apiClient
         self.userAPI = userAPI
+        self.onlineStateManager = onlineStateManager
+        self.passTokenManager = passTokenManager
     }
 
     // MARK: - 生命周期
@@ -54,7 +64,7 @@ public final class AuthState: ObservableObject {
     func start() {
         Task {
             isLoggedIn = await apiClient.isAuthenticated()
-            isOnline = OnlineStateManager.shared.isOnline
+            isOnline = onlineStateManager.isOnline
 
             authEventTask = Task { [weak self] in
                 guard let self else { return }
@@ -120,7 +130,7 @@ public final class AuthState: ObservableObject {
 
     func refreshCookie() async {
         do {
-            _ = try await PassTokenManager.shared.refreshServiceToken()
+            _ = try await passTokenManager.refreshServiceToken()
             let isValid = try await userAPI.checkCookieValidity()
 
             if isValid {
@@ -143,7 +153,7 @@ public final class AuthState: ObservableObject {
     func handleCookieExpiredRefresh() {
         LogService.shared.info(.core, "用户选择重新登录")
         Task {
-            await PassTokenManager.shared.clearCredentials()
+            await passTokenManager.clearCredentials()
             showLoginView = true
         }
     }
