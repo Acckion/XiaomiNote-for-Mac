@@ -8,6 +8,7 @@
 - 独立笔记编辑器窗口（spec-107）：支持在新窗口中打开特定笔记进行编辑，包含编辑器区域和 unified 工具栏，支持重复打开检测
 
 ### 重构
+- 构造器注入 + 模块工厂（spec-114）：删除未使用的 DIContainer/ServiceLocator 死代码，创建 NetworkModule 工厂集中构建网络层依赖图，重构 7 个网络层类（NetworkRequestManager、APIClient、NoteAPI、FolderAPI、FileAPI、SyncAPI、UserAPI）支持构造器注入，修改 AppCoordinator/AppDelegate/AuthState 使用注入实例，保留 .shared 供未重构模块过渡期使用
 - @unchecked Sendable 清理（spec-112）：将项目中 30+ 处 @unchecked Sendable 减少到 5 处，12 个类改为 struct、7 个改为 actor、3 个添加 @MainActor、Folder.rawData 改为 Sendable 类型，保留的 5 处（DatabaseService、UnifiedOperationQueue、IdMappingRegistry、DIContainer、ServiceLocator）补充线程安全文档
 - Web 编辑器残留清理（spec-110）：删除 EditorProtocol/EditorFactory/EditorType/EditorPreferencesService 抽象层，移除所有 isUsingNativeEditor 条件判断，清理 HTML 数据通道残留，简化 EditorSettingsView 和 NativeEditorInitializer
 - SyncEngine 拆分重构（spec-108）：将 SyncEngine.swift（1,596 行）按职责拆分为 5 个文件（1 核心 + 4 extension），核心文件瘦身至 ~380 行，提升代码可维护性

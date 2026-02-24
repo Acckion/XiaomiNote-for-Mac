@@ -263,5 +263,5 @@ struct WebView: NSViewRepresentable {
 }
 
 #Preview {
-    LoginView(authState: AuthState())
+    LoginView(authState: AuthState(apiClient: .shared, userAPI: .shared))
 }

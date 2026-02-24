@@ -43,7 +43,7 @@ public final class AuthState: ObservableObject {
 
     // MARK: - 初始化
 
-    init(eventBus: EventBus = .shared, apiClient: APIClient = .shared, userAPI: UserAPI = .shared) {
+    init(eventBus: EventBus = .shared, apiClient: APIClient, userAPI: UserAPI) {
         self.eventBus = eventBus
         self.apiClient = apiClient
         self.userAPI = userAPI

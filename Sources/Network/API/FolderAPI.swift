@@ -8,8 +8,14 @@ public struct FolderAPI: Sendable {
 
     private let client: APIClient
 
-    init(client: APIClient = .shared) {
+    /// NetworkModule 使用的构造器
+    init(client: APIClient) {
         self.client = client
+    }
+
+    /// 过渡期兼容构造器（供 static let shared 使用）
+    private init() {
+        self.client = .shared
     }
 
     // MARK: - 创建文件夹
