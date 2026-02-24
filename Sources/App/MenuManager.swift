@@ -1092,15 +1092,6 @@ class MenuManager {
     private func createDebugToolsSubmenu() -> NSMenu {
         let debugMenu = NSMenu(title: "调试工具")
 
-        // 段落管理器调试窗口
-        let paragraphDebugItem = NSMenuItem(
-            title: "段落管理器调试",
-            action: #selector(AppDelegate.showParagraphDebugWindow(_:)),
-            keyEquivalent: ""
-        )
-        setMenuItemIcon(paragraphDebugItem, symbolName: "text.alignleft")
-        debugMenu.addItem(paragraphDebugItem)
-
         // 调试设置窗口
         let debugSettingsItem = NSMenuItem(
             title: "调试设置",

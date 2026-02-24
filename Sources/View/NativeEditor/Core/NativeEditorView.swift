@@ -252,7 +252,6 @@ struct NativeEditorView: NSViewRepresentable {
 extension Notification.Name {
     static let nativeEditorFormatCommand = Notification.Name("nativeEditorFormatCommand")
     static let nativeEditorRequestContentSync = Notification.Name("nativeEditorRequestContentSync")
-    // nativeEditorNeedsRefresh 已在 NativeEditorErrorHandler.swift 中定义
 }
 
 // MARK: - Preview
