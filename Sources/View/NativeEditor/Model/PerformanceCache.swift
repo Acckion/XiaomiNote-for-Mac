@@ -97,55 +97,6 @@ struct ColorCacheKey: Hashable {
     }
 }
 
-// MARK: - Cache Statistics
-
-/// 缓存统计信息
-struct CacheStatistics {
-    /// 字体缓存命中次数
-    var fontCacheHits = 0
-
-    /// 字体缓存未命中次数
-    var fontCacheMisses = 0
-
-    /// 段落样式缓存命中次数
-    var paragraphStyleCacheHits = 0
-
-    /// 段落样式缓存未命中次数
-    var paragraphStyleCacheMisses = 0
-
-    /// 颜色缓存命中次数
-    var colorCacheHits = 0
-
-    /// 颜色缓存未命中次数
-    var colorCacheMisses = 0
-
-    /// 字体缓存命中率
-    var fontCacheHitRate: Double {
-        let total = fontCacheHits + fontCacheMisses
-        return total > 0 ? Double(fontCacheHits) / Double(total) : 0
-    }
-
-    /// 段落样式缓存命中率
-    var paragraphStyleCacheHitRate: Double {
-        let total = paragraphStyleCacheHits + paragraphStyleCacheMisses
-        return total > 0 ? Double(paragraphStyleCacheHits) / Double(total) : 0
-    }
-
-    /// 颜色缓存命中率
-    var colorCacheHitRate: Double {
-        let total = colorCacheHits + colorCacheMisses
-        return total > 0 ? Double(colorCacheHits) / Double(total) : 0
-    }
-
-    /// 总体缓存命中率
-    var overallCacheHitRate: Double {
-        let totalHits = fontCacheHits + paragraphStyleCacheHits + colorCacheHits
-        let totalMisses = fontCacheMisses + paragraphStyleCacheMisses + colorCacheMisses
-        let total = totalHits + totalMisses
-        return total > 0 ? Double(totalHits) / Double(total) : 0
-    }
-}
-
 // MARK: - Performance Cache
 
 /// 性能缓存
@@ -162,9 +113,6 @@ public class PerformanceCache {
 
     /// 缓存大小限制
     private let maxCacheSize = 100
-
-    /// 缓存统计信息
-    private(set) var statistics = CacheStatistics()
 
     /// LRU 访问顺序跟踪（字体）
     private var fontAccessOrder: [FontCacheKey] = []
@@ -195,13 +143,11 @@ public class PerformanceCache {
 
         // 查询缓存
         if let cachedFont = fontCache[key] {
-            statistics.fontCacheHits += 1
             updateAccessOrder(for: key, in: &fontAccessOrder)
             return cachedFont
         }
 
         // 缓存未命中，创建新字体
-        statistics.fontCacheMisses += 1
         let font = NSFont(name: name, size: size) ?? NSFont.systemFont(ofSize: size)
 
         // 加入缓存
@@ -227,13 +173,11 @@ public class PerformanceCache {
 
         // 查询缓存
         if let cachedStyle = paragraphStyleCache[key] {
-            statistics.paragraphStyleCacheHits += 1
             updateAccessOrder(for: key, in: &paragraphStyleAccessOrder)
             return cachedStyle
         }
 
         // 缓存未命中，创建新样式
-        statistics.paragraphStyleCacheMisses += 1
         let style = createParagraphStyle(from: key)
 
         // 加入缓存
@@ -275,13 +219,11 @@ public class PerformanceCache {
 
         // 查询缓存
         if let cachedColor = colorCache[key] {
-            statistics.colorCacheHits += 1
             updateAccessOrder(for: key, in: &colorAccessOrder)
             return cachedColor
         }
 
         // 缓存未命中，创建新颜色
-        statistics.colorCacheMisses += 1
         let color = createColor(from: hex)
 
         // 加入缓存
@@ -356,41 +298,6 @@ public class PerformanceCache {
         fontAccessOrder.removeAll()
         paragraphStyleAccessOrder.removeAll()
         colorAccessOrder.removeAll()
-
-        statistics = CacheStatistics()
     }
 
-    /// 获取缓存统计信息
-    /// - Returns: 缓存统计信息
-    func cacheStatistics() -> CacheStatistics {
-        lock.lock()
-        defer { lock.unlock() }
-
-        return statistics
-    }
-
-    /// 重置统计信息
-    func resetStatistics() {
-        lock.lock()
-        defer { lock.unlock() }
-
-        statistics = CacheStatistics()
-    }
-}
-
-// MARK: - CustomStringConvertible
-
-extension CacheStatistics: CustomStringConvertible {
-    var description: String {
-        """
-        缓存统计信息:
-        - 字体缓存: \(fontCacheHits) 命中 / \(fontCacheMisses) 未命中 (命中率: \(String(format: "%.2f%%", fontCacheHitRate * 100)))
-        - 段落样式缓存: \(paragraphStyleCacheHits) 命中 / \(paragraphStyleCacheMisses) 未命中 (命中率: \(String(
-            format: "%.2f%%",
-            paragraphStyleCacheHitRate * 100
-        )))
-        - 颜色缓存: \(colorCacheHits) 命中 / \(colorCacheMisses) 未命中 (命中率: \(String(format: "%.2f%%", colorCacheHitRate * 100)))
-        - 总体命中率: \(String(format: "%.2f%%", overallCacheHitRate * 100))
-        """
-    }
 }

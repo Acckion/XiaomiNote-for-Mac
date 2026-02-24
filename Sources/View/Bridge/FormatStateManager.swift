@@ -10,22 +10,6 @@
 import Combine
 import Foundation
 
-// MARK: - 性能监控记录
-
-/// 格式状态更新性能记录
-public struct FormatStatePerformanceRecord: Sendable {
-    public let timestamp: Date
-    public let durationMs: Double
-    public let updateType: UpdateType
-    public let stateChanged: Bool
-
-    public enum UpdateType: String, Sendable {
-        case debounced
-        case immediate
-        case forced
-    }
-}
-
 // MARK: - 格式状态管理器
 
 /// 格式状态管理器
@@ -57,35 +41,6 @@ public final class FormatStateManager: ObservableObject {
 
     /// 防抖间隔（毫秒）
     private let debounceInterval: TimeInterval = 0.05 // 50ms
-
-    // MARK: - 性能监控属性
-
-    /// 性能监控是否启用
-    private var performanceMonitoringEnabled = true
-
-    /// 性能记录
-    private var performanceRecords: [FormatStatePerformanceRecord] = []
-
-    /// 最大记录数量
-    private let maxRecordCount = 200
-
-    /// 更新计数
-    private var updateCount = 0
-
-    /// 总更新时间（毫秒）
-    private var totalUpdateTime: Double = 0
-
-    /// 最大更新时间（毫秒）
-    private var maxUpdateTime: Double = 0
-
-    /// 最小更新时间（毫秒）
-    private var minUpdateTime = Double.infinity
-
-    /// 跳过的更新次数（因为状态未变化）
-    private var skippedUpdateCount = 0
-
-    /// 上次状态更新时间
-    private var lastUpdateTime: Date?
 
     // MARK: - Public Publishers
 
@@ -196,64 +151,10 @@ public final class FormatStateManager: ObservableObject {
     }
 
     /// 强制刷新格式状态
-    /// 用于在某些情况下需要立即更新状态
     public func forceRefresh() {
         guard let provider = activeProvider else { return }
-
-        let startTime = CFAbsoluteTimeGetCurrent()
         let state = provider.getCurrentFormatState()
-        updateStateImmediately(state, updateType: .forced)
-    }
-
-    // MARK: - Public Methods - 性能监控
-
-    /// 启用或禁用性能监控
-    /// - Parameter enabled: 是否启用
-    public func setPerformanceMonitoring(enabled: Bool) {
-        performanceMonitoringEnabled = enabled
-    }
-
-    /// 获取性能统计信息
-    /// - Returns: 性能统计信息字典
-    public func getPerformanceStats() -> [String: Any] {
-        guard updateCount > 0 else {
-            return [
-                "updateCount": 0,
-                "skippedCount": skippedUpdateCount,
-                "averageTime": 0.0,
-                "maxTime": 0.0,
-                "minTime": 0.0,
-                "totalTime": 0.0,
-            ]
-        }
-
-        return [
-            "updateCount": updateCount,
-            "skippedCount": skippedUpdateCount,
-            "averageTime": totalUpdateTime / Double(updateCount),
-            "maxTime": maxUpdateTime,
-            "minTime": minUpdateTime == Double.infinity ? 0.0 : minUpdateTime,
-            "totalTime": totalUpdateTime,
-            "skipRatio": Double(skippedUpdateCount) / Double(updateCount + skippedUpdateCount),
-        ]
-    }
-
-    /// 重置性能统计信息
-    public func resetPerformanceStats() {
-        updateCount = 0
-        skippedUpdateCount = 0
-        totalUpdateTime = 0
-        maxUpdateTime = 0
-        minUpdateTime = Double.infinity
-        performanceRecords.removeAll()
-    }
-
-    /// 获取最近的性能记录
-    /// - Parameter count: 记录数量
-    /// - Returns: 性能记录数组
-    public func getRecentPerformanceRecords(count: Int = 50) -> [FormatStatePerformanceRecord] {
-        let startIndex = max(0, performanceRecords.count - count)
-        return Array(performanceRecords[startIndex...])
+        updateStateImmediately(state)
     }
 
     // MARK: - Private Methods - 状态更新
@@ -266,63 +167,21 @@ public final class FormatStateManager: ObservableObject {
         // 设置新的定时器
         debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
             Task { @MainActor in
-                self?.updateStateImmediately(state, updateType: .debounced)
+                self?.updateStateImmediately(state)
             }
         }
     }
 
     /// 立即更新状态（不使用防抖）
-    /// - Parameters:
-    ///   - state: 新的格式状态
-    ///   - updateType: 更新类型（用于性能监控）
-    private func updateStateImmediately(_ state: FormatState, updateType: FormatStatePerformanceRecord.UpdateType = .immediate) {
-        let startTime = CFAbsoluteTimeGetCurrent()
+    private func updateStateImmediately(_ state: FormatState) {
+        PerformanceService.shared.measure(.editor, "格式状态更新", thresholdMs: 16) {
+            guard state != currentState else {
+                return
+            }
 
-        // 增量更新：检查状态是否真的变化了
-        guard state != currentState else {
-            skippedUpdateCount += 1
-            return
-        }
-
-        // 更新当前状态
-        currentState = state
-
-        // 发送状态变化
-        stateSubject.send(state)
-
-        // 发送通知以更新菜单栏
-        postFormatStateNotification(state)
-
-        // 记录性能数据
-        if performanceMonitoringEnabled {
-            let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
-            recordPerformance(duration: duration, updateType: updateType, stateChanged: true)
-        }
-
-        lastUpdateTime = Date()
-    }
-
-    /// 记录性能数据
-    private func recordPerformance(duration: Double, updateType: FormatStatePerformanceRecord.UpdateType, stateChanged: Bool) {
-        // 更新统计信息
-        updateCount += 1
-        totalUpdateTime += duration
-        maxUpdateTime = max(maxUpdateTime, duration)
-        minUpdateTime = min(minUpdateTime, duration)
-
-        // 创建性能记录
-        let record = FormatStatePerformanceRecord(
-            timestamp: Date(),
-            durationMs: duration,
-            updateType: updateType,
-            stateChanged: stateChanged
-        )
-
-        performanceRecords.append(record)
-
-        // 限制记录数量
-        if performanceRecords.count > maxRecordCount {
-            performanceRecords.removeFirst(performanceRecords.count - maxRecordCount)
+            currentState = state
+            stateSubject.send(state)
+            postFormatStateNotification(state)
         }
     }
 

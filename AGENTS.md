@@ -135,7 +135,7 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 
 启动链：AppDelegate → NetworkModule → SyncModule → EditorModule → AudioModule → AppCoordinator
 
-仅 12 个基础设施类保留 `static let shared`：LogService, DatabaseService, EventBus, NetworkMonitor, NetworkErrorHandler, NetworkLogger, AudioPlayerService, AudioRecorderService, AudioDecryptService, PrivateNotesPasswordManager, ViewOptionsManager, PreviewHelper
+仅 13 个基础设施类保留 `static let shared`：LogService, DatabaseService, EventBus, NetworkMonitor, NetworkErrorHandler, NetworkLogger, AudioPlayerService, AudioRecorderService, AudioDecryptService, PrivateNotesPasswordManager, ViewOptionsManager, PreviewHelper, PerformanceService
 
 ## 数据格式
 
