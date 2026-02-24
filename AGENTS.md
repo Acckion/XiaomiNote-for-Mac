@@ -51,6 +51,7 @@ Sources/
 ├── Sync/                   # 同步引擎
 │   ├── OperationQueue/     # 操作队列（UnifiedOperationQueue, OperationProcessor）
 │   ├── SyncEngine          # 同步引擎核心（1 核心 + 4 extension）
+│   ├── SyncModule          # 同步层模块工厂（构建同步层完整依赖图）
 │   └── IdMappingRegistry   # ID 映射注册表
 ├── ToolbarItem/            # 工具栏组件
 ├── View/                   # UI 视图组件

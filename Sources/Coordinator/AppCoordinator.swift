@@ -34,6 +34,7 @@ public final class AppCoordinator: ObservableObject {
     // MARK: - 网络模块
 
     private let networkModule: NetworkModule
+    private let syncModule: SyncModule
 
     // MARK: - 音频面板（暂不重构）
 
@@ -41,12 +42,13 @@ public final class AppCoordinator: ObservableObject {
 
     // MARK: - 初始化
 
-    public init(networkModule: NetworkModule) {
+    public init(networkModule: NetworkModule, syncModule: SyncModule) {
         self.networkModule = networkModule
+        self.syncModule = syncModule
         self.eventBus = EventBus.shared
         let noteStoreInstance = NoteStore(db: DatabaseService.shared, eventBus: EventBus.shared)
         self.noteStore = noteStoreInstance
-        self.syncEngine = SyncEngine.shared
+        self.syncEngine = syncModule.createSyncEngine(noteStore: noteStoreInstance)
         self.noteListState = NoteListState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
         self.noteEditorState = NoteEditorState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
         self.folderState = FolderState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
@@ -62,9 +64,10 @@ public final class AppCoordinator: ObservableObject {
         LogService.shared.info(.app, "AppCoordinator 初始化完成")
     }
 
-    /// Preview 和测试用的便利构造器，内部创建默认 NetworkModule
+    /// Preview 和测试用的便利构造器，内部创建默认 NetworkModule 和 SyncModule
     convenience init() {
-        self.init(networkModule: NetworkModule())
+        let nm = NetworkModule()
+        self.init(networkModule: nm, syncModule: SyncModule(networkModule: nm))
     }
 
     // MARK: - 生命周期

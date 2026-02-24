@@ -19,6 +19,7 @@ public actor SyncEngine {
     let localStorage: LocalStorageService
     let syncStateManager: SyncStateManager
     let syncGuard: SyncGuard
+    let operationProcessor: OperationProcessor
 
     // MARK: - 状态
 
@@ -27,18 +28,20 @@ public actor SyncEngine {
 
     // MARK: - 初始化
 
+    /// SyncModule 使用的构造器（无默认值）
     init(
-        apiClient: APIClient = .shared,
-        noteAPI: NoteAPI = .shared,
-        folderAPI: FolderAPI = .shared,
-        syncAPI: SyncAPI = .shared,
-        fileAPI: FileAPI = .shared,
-        eventBus: EventBus = .shared,
-        operationQueue: UnifiedOperationQueue = .shared,
-        localStorage: LocalStorageService = .shared,
-        syncStateManager: SyncStateManager = .createDefault(),
-        syncGuard: SyncGuard? = nil,
-        noteStore: NoteStore? = nil
+        apiClient: APIClient,
+        noteAPI: NoteAPI,
+        folderAPI: FolderAPI,
+        syncAPI: SyncAPI,
+        fileAPI: FileAPI,
+        eventBus: EventBus,
+        operationQueue: UnifiedOperationQueue,
+        localStorage: LocalStorageService,
+        syncStateManager: SyncStateManager,
+        syncGuard: SyncGuard,
+        noteStore _: NoteStore?,
+        operationProcessor: OperationProcessor
     ) {
         self.apiClient = apiClient
         self.noteAPI = noteAPI
@@ -49,10 +52,25 @@ public actor SyncEngine {
         self.operationQueue = operationQueue
         self.localStorage = localStorage
         self.syncStateManager = syncStateManager
-        // SyncGuard 需要 NoteStore 来查询活跃编辑状态
-        let store = noteStore ?? NoteStore(db: .shared, eventBus: .shared)
-        self.syncGuard = syncGuard ?? SyncGuard(noteStore: store)
+        self.syncGuard = syncGuard
+        self.operationProcessor = operationProcessor
         LogService.shared.info(.sync, "SyncEngine 初始化完成")
+    }
+
+    /// 过渡期兼容构造器（供 static let shared 使用）
+    private init() {
+        self.apiClient = .shared
+        self.noteAPI = .shared
+        self.folderAPI = .shared
+        self.syncAPI = .shared
+        self.fileAPI = .shared
+        self.eventBus = .shared
+        self.operationQueue = .shared
+        self.localStorage = .shared
+        self.syncStateManager = SyncStateManager.createDefault()
+        let store = NoteStore(db: .shared, eventBus: .shared)
+        self.syncGuard = SyncGuard(operationQueue: .shared, noteStore: store)
+        self.operationProcessor = .shared
     }
 
     // MARK: - 生命周期
@@ -105,7 +123,7 @@ public actor SyncEngine {
                     duration: duration
                 )))
                 // 同步完成后触发队列处理
-                await OperationProcessor.shared.processQueue()
+                await operationProcessor.processQueue()
             case let .full(fullMode):
                 let result = try await performFullSync(mode: fullMode)
                 let duration = Date().timeIntervalSince(startTime)
@@ -116,7 +134,7 @@ public actor SyncEngine {
                     duration: duration
                 )))
                 // 同步完成后触发队列处理
-                await OperationProcessor.shared.processQueue()
+                await operationProcessor.processQueue()
             }
         } catch {
             await eventBus.publish(SyncEvent.failed(errorMessage: error.localizedDescription))

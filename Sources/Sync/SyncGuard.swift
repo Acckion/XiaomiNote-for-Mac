@@ -30,7 +30,7 @@ public struct SyncGuard: Sendable {
     ///   - operationQueue: 统一操作队列
     ///   - noteStore: 笔记数据仓库
     public init(
-        operationQueue: UnifiedOperationQueue = .shared,
+        operationQueue: UnifiedOperationQueue,
         noteStore: NoteStore
     ) {
         self.operationQueue = operationQueue

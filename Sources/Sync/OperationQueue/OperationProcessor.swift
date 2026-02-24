@@ -58,6 +58,9 @@ public actor OperationProcessor {
     /// 事件总线
     private let eventBus: EventBus
 
+    /// ID 映射注册表
+    private let idMappingRegistry: IdMappingRegistry
+
     // MARK: - 状态
 
     /// 是否正在处理队列
@@ -88,9 +91,10 @@ public actor OperationProcessor {
         self.databaseService = DatabaseService.shared
         self.syncStateManager = SyncStateManager.createDefault()
         self.eventBus = EventBus.shared
+        self.idMappingRegistry = IdMappingRegistry.shared
     }
 
-    /// 用于测试的初始化方法
+    /// 用于测试和 SyncModule 的初始化方法
     ///
     /// - Parameters:
     ///   - operationQueue: 操作队列实例
@@ -101,6 +105,8 @@ public actor OperationProcessor {
     ///   - localStorage: 本地存储服务实例
     ///   - databaseService: 数据库服务实例
     ///   - syncStateManager: 同步状态管理器实例
+    ///   - eventBus: 事件总线实例
+    ///   - idMappingRegistry: ID 映射注册表实例
     init(
         operationQueue: UnifiedOperationQueue,
         apiClient: APIClient,
@@ -110,7 +116,8 @@ public actor OperationProcessor {
         localStorage: LocalStorageService,
         databaseService: DatabaseService,
         syncStateManager: SyncStateManager,
-        eventBus: EventBus = EventBus.shared
+        eventBus: EventBus,
+        idMappingRegistry: IdMappingRegistry
     ) {
         self.operationQueue = operationQueue
         self.apiClient = apiClient
@@ -121,6 +128,7 @@ public actor OperationProcessor {
         self.databaseService = databaseService
         self.syncStateManager = syncStateManager
         self.eventBus = eventBus
+        self.idMappingRegistry = idMappingRegistry
     }
 
     // MARK: - 网络状态检查
@@ -247,7 +255,7 @@ public extension OperationProcessor {
             // noteCreate 和 cloudUpload 都必须等同一笔记的文件上传全部完成后再执行，
             // 否则会把包含临时 fileId 的 XML 上传到云端
             if operation.type == .cloudUpload || operation.type == .noteCreate {
-                let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+                let resolvedNoteId = idMappingRegistry.resolveId(operation.noteId)
                 if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
                     operationQueue.hasPendingFileUpload(for: operation.noteId)
                 {
@@ -296,7 +304,7 @@ public extension OperationProcessor {
 
                 // 同样的文件上传等待保护
                 if operation.type == .cloudUpload || operation.type == .noteCreate {
-                    let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+                    let resolvedNoteId = idMappingRegistry.resolveId(operation.noteId)
                     if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
                         operationQueue.hasPendingFileUpload(for: operation.noteId)
                     {
@@ -714,7 +722,7 @@ extension OperationProcessor {
         // 在保存新笔记前，用已有的文件 ID 映射替换 content 中残留的临时 fileId
         // 场景：imageUpload 先完成并注册了映射，但 updateAllFileReferences 可能因时序问题未成功替换
         var resolvedContent = note.content
-        let fileMappings = IdMappingRegistry.shared.getAllMappings().filter { $0.entityType == "file" }
+        let fileMappings = idMappingRegistry.getAllMappings().filter { $0.entityType == "file" }
         for mapping in fileMappings {
             resolvedContent = resolvedContent.replacingOccurrences(of: mapping.localId, with: mapping.serverId)
         }
@@ -751,7 +759,7 @@ extension OperationProcessor {
             )
 
             // 6. 注册 ID 映射，供后续 switchToNote 等场景解析临时 ID
-            try IdMappingRegistry.shared.registerMapping(localId: note.id, serverId: serverNoteId, entityType: "note")
+            try idMappingRegistry.registerMapping(localId: note.id, serverId: serverNoteId, entityType: "note")
 
             // 7. 触发 ID 更新回调
             await onIdMappingCreated?(note.id, serverNoteId)
@@ -779,7 +787,7 @@ extension OperationProcessor {
     /// - Throws: 执行错误
     private func processCloudUpload(_ operation: NoteOperation) async throws {
         // noteCreate 成功后 pendingOperations 快照中的 noteId 可能仍是临时 ID
-        let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+        let resolvedNoteId = idMappingRegistry.resolveId(operation.noteId)
 
         guard let note = try? localStorage.loadNote(noteId: resolvedNoteId) else {
             throw NSError(
@@ -936,7 +944,7 @@ extension OperationProcessor {
     /// - Throws: 执行错误
     private func processImageUpload(_ operation: NoteOperation) async throws {
         // noteCreate 成功后 pendingOperations 快照中的 noteId 可能仍是临时 ID
-        let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+        let resolvedNoteId = idMappingRegistry.resolveId(operation.noteId)
         LogService.shared.debug(.sync, "OperationProcessor 处理 imageUpload: \(resolvedNoteId)")
 
         let uploadData: FileUploadOperationData
@@ -951,7 +959,7 @@ extension OperationProcessor {
         }
 
         // data JSON 内部的 noteId 也可能是临时 ID
-        let resolvedUploadNoteId = IdMappingRegistry.shared.resolveId(uploadData.noteId)
+        let resolvedUploadNoteId = idMappingRegistry.resolveId(uploadData.noteId)
 
         let ext = String(uploadData.mimeType.dropFirst("image/".count))
         guard let imageData = localStorage.loadPendingUpload(fileId: uploadData.temporaryFileId, extension: ext) else {
@@ -980,10 +988,10 @@ extension OperationProcessor {
         }
 
         // 注册 ID 映射
-        try IdMappingRegistry.shared.registerMapping(localId: uploadData.temporaryFileId, serverId: serverFileId, entityType: "file")
+        try idMappingRegistry.registerMapping(localId: uploadData.temporaryFileId, serverId: serverFileId, entityType: "file")
 
         // 使用解析后的 noteId 更新笔记内容中的 fileId 引用
-        try await IdMappingRegistry.shared.updateAllFileReferences(
+        try await idMappingRegistry.updateAllFileReferences(
             localId: uploadData.temporaryFileId,
             serverId: serverFileId,
             noteId: resolvedUploadNoteId
@@ -1009,7 +1017,7 @@ extension OperationProcessor {
     /// - Throws: 执行错误
     private func processAudioUpload(_ operation: NoteOperation) async throws {
         // noteCreate 成功后 pendingOperations 快照中的 noteId 可能仍是临时 ID
-        let resolvedNoteId = IdMappingRegistry.shared.resolveId(operation.noteId)
+        let resolvedNoteId = idMappingRegistry.resolveId(operation.noteId)
         LogService.shared.debug(.sync, "OperationProcessor 处理 audioUpload: \(resolvedNoteId)")
 
         let uploadData: FileUploadOperationData
@@ -1024,7 +1032,7 @@ extension OperationProcessor {
         }
 
         // data JSON 内部的 noteId 也可能是临时 ID
-        let resolvedUploadNoteId = IdMappingRegistry.shared.resolveId(uploadData.noteId)
+        let resolvedUploadNoteId = idMappingRegistry.resolveId(uploadData.noteId)
 
         // 读取本地文件
         guard let audioData = localStorage.loadPendingUpload(fileId: uploadData.temporaryFileId, extension: "mp3") else {
@@ -1054,10 +1062,10 @@ extension OperationProcessor {
         let digest = result["digest"] as? String
 
         // 注册 ID 映射
-        try IdMappingRegistry.shared.registerMapping(localId: uploadData.temporaryFileId, serverId: serverFileId, entityType: "file")
+        try idMappingRegistry.registerMapping(localId: uploadData.temporaryFileId, serverId: serverFileId, entityType: "file")
 
         // 更新笔记内容中的 fileId 引用
-        try await IdMappingRegistry.shared.updateAllFileReferences(
+        try await idMappingRegistry.updateAllFileReferences(
             localId: uploadData.temporaryFileId,
             serverId: serverFileId,
             noteId: resolvedUploadNoteId

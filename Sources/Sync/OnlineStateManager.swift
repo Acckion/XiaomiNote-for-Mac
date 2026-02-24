@@ -16,8 +16,8 @@ public final class OnlineStateManager: ObservableObject {
 
     // MARK: - 依赖服务
 
-    private let networkMonitor = NetworkMonitor.shared
-    private let apiClient = APIClient.shared
+    private let networkMonitor: NetworkMonitor
+    private let apiClient: APIClient
 
     // MARK: - 内部状态
 
@@ -35,8 +35,19 @@ public final class OnlineStateManager: ObservableObject {
     // MARK: - 初始化
 
     private init() {
+        self.networkMonitor = NetworkMonitor.shared
+        self.apiClient = APIClient.shared
         setupStateMonitoring()
         setupAuthEventSubscription()
+        updateOnlineStatus()
+    }
+
+    /// SyncModule 使用的构造器
+    init(networkMonitor: NetworkMonitor, apiClient: APIClient, eventBus: EventBus) {
+        self.networkMonitor = networkMonitor
+        self.apiClient = apiClient
+        setupStateMonitoring()
+        setupAuthEventSubscription(eventBus: eventBus)
         updateOnlineStatus()
     }
 
@@ -59,8 +70,13 @@ public final class OnlineStateManager: ObservableObject {
 
     /// 设置 AuthEvent 订阅，监听 Cookie 状态变化
     private func setupAuthEventSubscription() {
+        setupAuthEventSubscription(eventBus: EventBus.shared)
+    }
+
+    /// 设置 AuthEvent 订阅，使用指定的 EventBus
+    private func setupAuthEventSubscription(eventBus: EventBus) {
         authEventTask = Task { [weak self] in
-            let stream = await EventBus.shared.subscribe(to: AuthEvent.self)
+            let stream = await eventBus.subscribe(to: AuthEvent.self)
             for await event in stream {
                 guard let self else { break }
                 switch event {
