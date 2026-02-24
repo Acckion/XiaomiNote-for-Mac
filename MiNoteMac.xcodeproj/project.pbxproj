@@ -193,6 +193,7 @@
 		A0833C4490B76CCE3CEA31AD /* LogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E54929596C00B125F5810CB /* LogService.swift */; };
 		A0DDD62A7DFB5DF16E4B0B13 /* FormatStateSynchronizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FB493AEA912DB26484DDE5C /* FormatStateSynchronizer.swift */; };
 		A270D0413C60659EE7CB9D06 /* NativeEditorInitializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926B8428724A337ED50DC628 /* NativeEditorInitializer.swift */; };
+		A289070E18EB05262A41FFFC /* SyncModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078A4F2EFC1EA327B24B6BBC /* SyncModule.swift */; };
 		A2C45B6C1562B74CAFBE7EF4 /* NativeEditorLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A054576271DE2E23FFE0172E /* NativeEditorLogger.swift */; };
 		A3017A7115BCD8F400DB3FB2 /* MenuActionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685FEDE9207773081854F9F4 /* MenuActionHandler.swift */; };
 		A38D2A2C53FC6EA0516EE669 /* StartupEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0002B5C29F9D767AB617440B /* StartupEvent.swift */; };
@@ -351,6 +352,7 @@
 		05B3251A48BCDCD589C03984 /* MiNoteError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteError.swift; sourceTree = "<group>"; };
 		06312F85C610FF0BE9C0C6A9 /* UserAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAPI.swift; sourceTree = "<group>"; };
 		06A7F86012A975B065F90A99 /* HistoryWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWindowController.swift; sourceTree = "<group>"; };
+		078A4F2EFC1EA327B24B6BBC /* SyncModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModule.swift; sourceTree = "<group>"; };
 		0B5AAF052F3C9194715715B3 /* EditorContentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorContentManager.swift; sourceTree = "<group>"; };
 		0BC91543705F2AC75FA52B3A /* ParagraphDebugWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParagraphDebugWindowController.swift; sourceTree = "<group>"; };
 		0BDE2985CB0BF6AB51C4D297 /* FolderState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderState.swift; sourceTree = "<group>"; };
@@ -672,6 +674,7 @@
 				696DB8B0D41F949729B28B6E /* SyncEngine+PublicHelpers.swift */,
 				9999CA23D56088CABDC5870F /* SyncEngine+Types.swift */,
 				8A3C41EB2418BBF1DC6DDA69 /* SyncGuard.swift */,
+				078A4F2EFC1EA327B24B6BBC /* SyncModule.swift */,
 				B468A4C50FB86D50FCFC7239 /* SyncStateManager.swift */,
 				71515F35DF45EE5E9BCBC09B /* OperationQueue */,
 			);
@@ -1875,6 +1878,7 @@
 				3AAFC46E05CECB3A628E7A1B /* SyncEngine.swift in Sources */,
 				E495ADAD8E608C1BB77AF8B1 /* SyncEvent.swift in Sources */,
 				214098617A3B145C7ABCC2CA /* SyncGuard.swift in Sources */,
+				A289070E18EB05262A41FFFC /* SyncModule.swift in Sources */,
 				55C5393E785F6D282FD5ABEC /* SyncState.swift in Sources */,
 				96BC9B76EC85258B6890D9F6 /* SyncStateManager.swift in Sources */,
 				8B3C05418AB01E7E2815C6D4 /* TextContainerLayoutManager.swift in Sources */,

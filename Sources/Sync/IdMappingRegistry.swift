@@ -77,7 +77,7 @@ public final class IdMappingRegistry: @unchecked Sendable {
     /// - Parameters:
     ///   - databaseService: 数据库服务实例
     ///   - operationQueue: 统一操作队列实例
-    init(databaseService: DatabaseService, operationQueue: UnifiedOperationQueue, eventBus: EventBus = EventBus.shared) {
+    init(databaseService: DatabaseService, operationQueue: UnifiedOperationQueue, eventBus: EventBus) {
         self.databaseService = databaseService
         self.operationQueue = operationQueue
         self.eventBus = eventBus
