@@ -32,6 +32,9 @@ struct NoteCardView: View {
     /// 本地存储服务
     let localStorage: LocalStorageService
 
+    /// 内存缓存管理器
+    let memoryCacheManager: MemoryCacheManager
+
     // MARK: - 状态
 
     /// 是否悬停
@@ -360,10 +363,10 @@ struct NoteCardView: View {
             try? await Task.sleep(nanoseconds: 100_000_000)
 
             if note.content.isEmpty {
-                let cached = await MemoryCacheManager.shared.getNote(noteId: note.id)
+                let cached = await memoryCacheManager.getNote(noteId: note.id)
                 if cached == nil {
                     if let fullNote = try? localStorage.loadNote(noteId: note.id) {
-                        await MemoryCacheManager.shared.cacheNote(fullNote)
+                        await memoryCacheManager.cacheNote(fullNote)
                     }
                 }
             }
@@ -389,7 +392,8 @@ struct NoteCardView: View {
         note: sampleNote,
         isSelected: false,
         onTap: {},
-        localStorage: SyncModule().localStorage
+        localStorage: SyncModule().localStorage,
+        memoryCacheManager: MemoryCacheManager()
     )
     .frame(width: 250, height: 200)
     .padding()

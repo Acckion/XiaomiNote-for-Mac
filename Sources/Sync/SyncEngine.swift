@@ -19,6 +19,7 @@ public actor SyncEngine {
     let syncStateManager: SyncStateManager
     let syncGuard: SyncGuard
     let operationProcessor: OperationProcessor
+    let audioCacheService: AudioCacheService
 
     // MARK: - 状态
 
@@ -40,7 +41,8 @@ public actor SyncEngine {
         syncStateManager: SyncStateManager,
         syncGuard: SyncGuard,
         noteStore _: NoteStore?,
-        operationProcessor: OperationProcessor
+        operationProcessor: OperationProcessor,
+        audioCacheService: AudioCacheService
     ) {
         self.apiClient = apiClient
         self.noteAPI = noteAPI
@@ -53,6 +55,7 @@ public actor SyncEngine {
         self.syncStateManager = syncStateManager
         self.syncGuard = syncGuard
         self.operationProcessor = operationProcessor
+        self.audioCacheService = audioCacheService
         LogService.shared.info(.sync, "SyncEngine 初始化完成")
     }
 

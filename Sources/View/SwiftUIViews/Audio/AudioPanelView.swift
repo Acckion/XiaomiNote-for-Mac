@@ -209,7 +209,10 @@ struct AudioPanelView: View {
 
 #Preview("Recording Mode") {
     AudioPanelView(
-        stateManager: AudioPanelStateManager.shared,
+        stateManager: AudioPanelStateManager(
+            recorderService: .shared,
+            playerService: .shared
+        ),
         recorderService: .shared,
         playerService: .shared,
         onRecordingComplete: { _ in },

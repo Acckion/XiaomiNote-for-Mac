@@ -52,7 +52,8 @@ struct NoteDetailView: View {
             operationProcessor: coordinator.syncModule.operationProcessor,
             idMappingRegistry: coordinator.syncModule.idMappingRegistry,
             formatConverter: coordinator.editorModule.formatConverter,
-            xmlNormalizer: coordinator.editorModule.xmlNormalizer
+            xmlNormalizer: coordinator.editorModule.xmlNormalizer,
+            memoryCacheManager: coordinator.memoryCacheManager
         ))
     }
 

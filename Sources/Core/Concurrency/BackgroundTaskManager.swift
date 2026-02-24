@@ -2,7 +2,6 @@ import Foundation
 
 /// 后台任务管理器
 actor BackgroundTaskManager {
-    static let shared = BackgroundTaskManager()
 
     private init() {}
 

@@ -14,6 +14,9 @@ class NotesListViewController: NSViewController {
     private var tableView: NSTableView!
     private var scrollView: NSScrollView!
 
+    /// 在新窗口打开笔记的回调
+    var onOpenNoteInNewWindow: ((Note) -> Void)?
+
     private var notesObserveTask: Task<Void, Never>?
     private var selectionObserveTask: Task<Void, Never>?
     private var folderObserveTask: Task<Void, Never>?
@@ -311,7 +314,7 @@ class NotesListViewController: NSViewController {
     @objc private func openNoteInNewWindow(_: Any?) {
         let clickedRow = tableView.clickedRow
         guard clickedRow >= 0, let note = noteForRow(clickedRow) else { return }
-        WindowManager.shared.openNoteEditorWindow(note: note)
+        onOpenNoteInNewWindow?(note)
     }
 
     @objc private func toggleStarNote(_: Any?) {

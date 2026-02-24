@@ -11,15 +11,15 @@ public struct AudioModule: Sendable {
     let uploadService: AudioUploadService
     let panelStateManager: AudioPanelStateManager
 
-    public init(syncModule: SyncModule, networkModule _: NetworkModule) {
-        let cache = AudioCacheService()
-        self.cacheService = cache
-
-        let converter = AudioConverterService()
-        self.converterService = converter
+    public init(
+        syncModule: SyncModule,
+        networkModule: NetworkModule
+    ) {
+        self.cacheService = networkModule.audioCacheService
+        self.converterService = networkModule.audioConverterService
 
         let uploader = AudioUploadService(
-            converterService: converter,
+            converterService: networkModule.audioConverterService,
             localStorage: syncModule.localStorage,
             unifiedQueue: syncModule.operationQueue
         )
@@ -34,6 +34,8 @@ public struct AudioModule: Sendable {
 
     /// Preview 和测试用的便利构造器
     public init() {
-        self.init(syncModule: SyncModule(), networkModule: NetworkModule())
+        let nm = NetworkModule()
+        let sm = SyncModule(networkModule: nm)
+        self.init(syncModule: sm, networkModule: nm)
     }
 }

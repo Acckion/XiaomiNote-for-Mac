@@ -73,10 +73,6 @@ enum RecordingTemplateState: Equatable, CustomStringConvertible {
 @MainActor
 final class AudioPanelStateManager: ObservableObject {
 
-    // MARK: - 单例
-
-    static let shared = AudioPanelStateManager()
-
     // MARK: - 面板模式枚举
 
     /// 面板模式
@@ -144,16 +140,6 @@ final class AudioPanelStateManager: ObservableObject {
     static let needsConfirmationNotification = Notification.Name("AudioPanelStateManager.needsConfirmation")
 
     // MARK: - 初始化
-
-    /// 过渡期兼容构造器
-    private init() {
-        self.recorderService = AudioRecorderService.shared
-        self.playerService = AudioPlayerService.shared
-
-        setupObservers()
-
-        LogService.shared.debug(.audio, "AudioPanelStateManager 初始化完成")
-    }
 
     /// AudioModule 使用的构造器
     init(

@@ -682,9 +682,10 @@ struct ChangePasswordDialogView: View {
     let nm = NetworkModule()
     let sm = SyncModule(networkModule: nm)
     let em = EditorModule(syncModule: sm, networkModule: nm)
+    let ptm = PassTokenManager(apiClient: nm.apiClient)
     SettingsView(
         syncState: SyncState(operationQueue: sm.operationQueue),
-        authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI, onlineStateManager: sm.onlineStateManager),
+        authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI, onlineStateManager: sm.onlineStateManager, passTokenManager: ptm),
         noteStore: NoteStore(
             db: .shared,
             eventBus: .shared,

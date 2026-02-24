@@ -49,7 +49,11 @@ public final class AppCoordinator: ObservableObject {
     public let networkRecoveryHandler: NetworkRecoveryHandler
     public let onlineStateManager: OnlineStateManager
     public let notePreviewService: NotePreviewService
-    private let passTokenManager: PassTokenManager
+    let passTokenManager: PassTokenManager
+
+    // MARK: - 缓存
+
+    public let memoryCacheManager: MemoryCacheManager
 
     // MARK: - 音频面板（暂不重构）
 
@@ -96,11 +100,16 @@ public final class AppCoordinator: ObservableObject {
         )
         self.folderState = FolderState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
         self.syncState = SyncState(eventBus: EventBus.shared, operationQueue: syncModule.operationQueue)
+
+        let ptm = PassTokenManager(apiClient: networkModule.apiClient)
+        self.passTokenManager = ptm
+
         self.authState = AuthState(
             eventBus: EventBus.shared,
             apiClient: networkModule.apiClient,
             userAPI: networkModule.userAPI,
-            onlineStateManager: syncModule.onlineStateManager
+            onlineStateManager: syncModule.onlineStateManager,
+            passTokenManager: ptm
         )
         self.searchState = SearchState(noteStore: noteStoreInstance)
 
@@ -108,6 +117,8 @@ public final class AppCoordinator: ObservableObject {
             audioService: DefaultAudioService(cacheService: DefaultCacheService()),
             noteService: DefaultNoteStorage()
         )
+
+        self.memoryCacheManager = MemoryCacheManager()
 
         // 创建辅助服务（这些类型在 MiNoteLibrary 内部可访问）
         self.startupSequenceManager = StartupSequenceManager(
@@ -133,7 +144,8 @@ public final class AppCoordinator: ObservableObject {
             eventBus: EventBus.shared
         )
 
-        self.passTokenManager = PassTokenManager(apiClient: networkModule.apiClient)
+        // 接线 PassTokenManager 到 NetworkModule（解决循环依赖）
+        networkModule.setPassTokenManager(ptm)
 
         self.notePreviewService = NotePreviewService(localStorage: syncModule.localStorage)
 
@@ -158,6 +170,9 @@ public final class AppCoordinator: ObservableObject {
         noteEditorState.nativeEditorContext.typingOptimizer = editorModule.typingOptimizer
         noteEditorState.nativeEditorContext.attachmentKeyboardHandler = editorModule.attachmentKeyboardHandler
         noteEditorState.nativeEditorContext.editorConfigurationManager = editorModule.editorConfigurationManager
+
+        // 接线音频面板状态管理器
+        noteEditorState.nativeEditorContext.audioPanelStateManager = audioModule.panelStateManager
 
         LogService.shared.info(.app, "AppCoordinator 初始化完成")
     }
@@ -251,5 +266,22 @@ public final class AppCoordinator: ObservableObject {
     public func handleClearSearch() {
         searchState.clearSearch()
         noteListState.searchText = ""
+    }
+
+    // MARK: - 窗口管理代理
+
+    /// 在新窗口中打开笔记
+    public func openNoteEditorWindow(note: Note) {
+        windowManager.openNoteEditorWindow(note: note)
+    }
+
+    /// 移除编辑器窗口
+    public func removeEditorWindow(_ controller: NoteEditorWindowController) {
+        windowManager.removeEditorWindow(controller)
+    }
+
+    /// 移除主窗口控制器
+    public func removeWindowController(_ controller: MainWindowController) {
+        windowManager.removeWindowController(controller)
     }
 }

@@ -335,7 +335,7 @@ extension NativeEditorView {
 
             // 处理每个被删除的音频附件
             for fileId in deletedFileIds {
-                AudioPanelStateManager.shared.handleAudioAttachmentDeleted(fileId: fileId)
+                parent.editorContext.audioPanelStateManager?.handleAudioAttachmentDeleted(fileId: fileId)
             }
 
             // 更新记录的音频附件集合

@@ -9,11 +9,20 @@ public struct FileAPI: Sendable {
 
     private let client: APIClient
     private let requestManager: NetworkRequestManager
+    private let audioCacheService: AudioCacheService
+    private let audioConverterService: AudioConverterService
 
     /// NetworkModule 使用的构造器
-    init(client: APIClient, requestManager: NetworkRequestManager) {
+    init(
+        client: APIClient,
+        requestManager: NetworkRequestManager,
+        audioCacheService: AudioCacheService,
+        audioConverterService: AudioConverterService
+    ) {
         self.client = client
         self.requestManager = requestManager
+        self.audioCacheService = audioCacheService
+        self.audioConverterService = audioConverterService
     }
 
     /// 获取 NetworkRequestManager 实例
@@ -368,11 +377,11 @@ public struct FileAPI: Sendable {
         }
 
         // 验证下载的音频数据
-        let format = AudioConverterService.shared.getAudioFormat(audioData)
+        let format = audioConverterService.getAudioFormat(audioData)
 
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("downloaded_audio_check.mp3")
         try? audioData.write(to: tempURL)
-        let probeResult = AudioConverterService.shared.probeAudioFileDetailed(tempURL)
+        let probeResult = audioConverterService.probeAudioFileDetailed(tempURL)
         try? FileManager.default.removeItem(at: tempURL)
 
         // 调用进度回调（下载完成）
@@ -397,7 +406,7 @@ public struct FileAPI: Sendable {
         progressHandler: ((Int64, Int64) -> Void)? = nil
     ) async throws -> URL {
         // 检查缓存
-        if let cachedURL = await AudioCacheService.shared.getCachedFile(for: fileId) {
+        if let cachedURL = await audioCacheService.getCachedFile(for: fileId) {
             return cachedURL
         }
 
@@ -405,7 +414,7 @@ public struct FileAPI: Sendable {
         let audioData = try await downloadAudio(fileId: fileId, progressHandler: progressHandler)
 
         // 缓存文件
-        return try await AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
+        return try await audioCacheService.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
     }
 
     // MARK: - 通用文件上传/下载

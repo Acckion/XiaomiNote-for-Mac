@@ -138,7 +138,7 @@
             }
 
             // 创建登录视图
-            let loginView = LoginView(authState: coordinator.authState)
+            let loginView = LoginView(authState: coordinator.authState, passTokenManager: coordinator.passTokenManager)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: loginView)

@@ -181,7 +181,8 @@ struct GalleryView: View {
                     windowState.selectNote(note)
                 }
             },
-            localStorage: coordinator.syncModule.localStorage
+            localStorage: coordinator.syncModule.localStorage,
+            memoryCacheManager: coordinator.memoryCacheManager
         )
         .id(note.id)
         .matchedGeometryEffect(id: note.id, in: animation)
@@ -430,7 +431,7 @@ struct GalleryView: View {
 
     /// 在新窗口打开笔记
     private func openNoteInNewWindow(_ note: Note) {
-        WindowManager.shared.openNoteEditorWindow(note: note)
+        coordinator.openNoteEditorWindow(note: note)
     }
 
     /// 复制笔记内容到剪贴板

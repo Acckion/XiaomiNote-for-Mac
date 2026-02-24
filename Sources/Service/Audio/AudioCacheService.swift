@@ -30,10 +30,6 @@ struct CachedAudioFile: Codable {
 /// - 缓存清理
 actor AudioCacheService {
 
-    // MARK: - 单例
-
-    static let shared = AudioCacheService()
-
     // MARK: - 属性
 
     /// 文件管理器

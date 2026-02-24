@@ -22,7 +22,6 @@ private class CacheNode {
 /// - 线程安全（使用actor）
 /// - 自动清理过期缓存
 public actor MemoryCacheManager {
-    static let shared = MemoryCacheManager()
 
     /// 缓存大小限制
     private let maxCacheSize = 10

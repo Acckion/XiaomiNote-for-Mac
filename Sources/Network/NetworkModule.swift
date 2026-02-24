@@ -14,8 +14,12 @@ public struct NetworkModule: Sendable {
     public let fileAPI: FileAPI
     public let syncAPI: SyncAPI
     public let userAPI: UserAPI
+    let audioCacheService: AudioCacheService
+    let audioConverterService: AudioConverterService
 
-    public init() {
+    init(audioCacheService: AudioCacheService, audioConverterService: AudioConverterService) {
+        self.audioCacheService = audioCacheService
+        self.audioConverterService = audioConverterService
         let manager = NetworkRequestManager()
         self.requestManager = manager
 
@@ -30,8 +34,27 @@ public struct NetworkModule: Sendable {
 
         self.noteAPI = NoteAPI(client: client)
         self.folderAPI = FolderAPI(client: client)
-        self.fileAPI = FileAPI(client: client, requestManager: manager)
+        self.fileAPI = FileAPI(
+            client: client,
+            requestManager: manager,
+            audioCacheService: audioCacheService,
+            audioConverterService: audioConverterService
+        )
         self.syncAPI = SyncAPI(client: client)
         self.userAPI = UserAPI(client: client)
+    }
+
+    /// 接线 PassTokenManager（解决循环依赖：PassTokenManager 需要 APIClient，APIClient/NetworkRequestManager 需要 PassTokenManager）
+    func setPassTokenManager(_ manager: PassTokenManager) {
+        requestManager.setPassTokenManager(manager)
+        Task { await apiClient.setPassTokenManager(manager) }
+    }
+
+    /// Preview 和测试用的便利构造器
+    public init() {
+        self.init(
+            audioCacheService: AudioCacheService(),
+            audioConverterService: AudioConverterService()
+        )
     }
 }

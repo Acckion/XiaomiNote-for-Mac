@@ -9,7 +9,6 @@ public class SidebarHostingController: NSViewController {
     // MARK: - 属性
 
     private let coordinator: AppCoordinator
-    private var hostingView: NSHostingView<SidebarView>?
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - 初始化
@@ -28,9 +27,8 @@ public class SidebarHostingController: NSViewController {
 
     override public func loadView() {
         let sidebarView = SidebarView(coordinator: coordinator)
-        let hostingView = NSHostingView(rootView: sidebarView)
-        self.hostingView = hostingView
-        view = hostingView
+            .environmentObject(ViewOptionsManager.shared)
+        view = NSHostingView(rootView: sidebarView)
     }
 
     override public func viewDidLoad() {
@@ -51,15 +49,12 @@ public class SidebarHostingController: NSViewController {
             .store(in: &cancellables)
     }
 
-    override public func viewDidLayout() {
-        super.viewDidLayout()
-        hostingView?.frame = view.bounds
-    }
-
     // MARK: - 公共方法
 
     /// 刷新SwiftUI视图
     func refreshView() {
-        hostingView?.rootView = SidebarView(coordinator: coordinator)
+        let sidebarView = SidebarView(coordinator: coordinator)
+            .environmentObject(ViewOptionsManager.shared)
+        view = NSHostingView(rootView: sidebarView)
     }
 }

@@ -120,7 +120,14 @@ public struct DebugSettingsView: View {
     /// 网络模块（调试工具直接创建，不通过注入）
     private let networkModule = NetworkModule()
 
-    public init() {}
+    /// PassTokenManager（调试工具直接创建）
+    private let passTokenManager: PassTokenManager
+
+    public init() {
+        let ptm = PassTokenManager(apiClient: networkModule.apiClient)
+        self.passTokenManager = ptm
+        networkModule.setPassTokenManager(ptm)
+    }
 
     public var body: some View {
         NavigationStack {
@@ -880,10 +887,10 @@ public struct DebugSettingsView: View {
             resultText += "Cookie清除成功，开始 PassToken 刷新...\n\n"
 
             // 调用 PassTokenManager 进行刷新
-            resultText += "调用 PassTokenManager.shared.refreshServiceToken()...\n"
+            resultText += "调用 passTokenManager.refreshServiceToken()...\n"
 
             do {
-                let serviceToken = try await PassTokenManager.shared.refreshServiceToken()
+                let serviceToken = try await passTokenManager.refreshServiceToken()
                 resultText += "PassToken 刷新完成，获取到 serviceToken\n"
 
                 // 检查刷新结果

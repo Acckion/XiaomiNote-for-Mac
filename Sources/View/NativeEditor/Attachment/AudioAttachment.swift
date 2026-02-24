@@ -82,8 +82,10 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     var mimeType: String?
 
     /// 文件 API（用于下载音频）
-    /// Phase 5 将通过依赖注入替换
     var fileAPI: FileAPI?
+
+    /// 音频缓存服务
+    var audioCacheService: AudioCacheService?
 
     /// 是否为临时占位符（录音中）
     /// 临时占位符的 fileId 以 "temp_" 开头，导出时会添加 des="temp" 属性
@@ -337,10 +339,20 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
         // 设置加载状态
         playbackState = .loading
 
+        // 延迟获取 audioCacheService
+        let cache: AudioCacheService
+        if let existing = audioCacheService {
+            cache = existing
+        } else {
+            let c = AudioCacheService()
+            audioCacheService = c
+            cache = c
+        }
+
         do {
             // 检查缓存
             let audioURL: URL
-            if let cachedURL = await AudioCacheService.shared.getCachedFile(for: fileId) {
+            if let cachedURL = await cache.getCachedFile(for: fileId) {
                 audioURL = cachedURL
                 cachedFileURL = cachedURL
             } else {
@@ -349,7 +361,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
 
                 // 缓存文件
                 let mimeType = mimeType ?? "audio/mpeg"
-                audioURL = try await AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
+                audioURL = try await cache.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
                 cachedFileURL = audioURL
             }
 

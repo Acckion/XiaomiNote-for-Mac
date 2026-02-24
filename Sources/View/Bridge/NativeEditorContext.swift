@@ -170,6 +170,9 @@ public class NativeEditorContext: ObservableObject {
     /// 编辑器配置管理器
     var editorConfigurationManager: EditorConfigurationManager?
 
+    /// 音频面板状态管理器
+    var audioPanelStateManager: AudioPanelStateManager?
+
     /// 格式状态同步器
     let formatStateSynchronizer = FormatStateSynchronizer.createDefault()
 

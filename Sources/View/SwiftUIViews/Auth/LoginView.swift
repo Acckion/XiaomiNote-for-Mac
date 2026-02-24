@@ -3,6 +3,7 @@ import WebKit
 
 struct LoginView: View {
     @ObservedObject var authState: AuthState
+    let passTokenManager: PassTokenManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var isLoggedIn = false
@@ -118,7 +119,7 @@ struct LoginView: View {
 
         Task {
             // 存储 passToken
-            await PassTokenManager.shared.storeCredentials(passToken: passToken, userId: userId)
+            await passTokenManager.storeCredentials(passToken: passToken, userId: userId)
 
             // 通过三步流程获取 serviceToken
             await MainActor.run {
@@ -126,7 +127,7 @@ struct LoginView: View {
             }
 
             do {
-                let serviceToken = try await PassTokenManager.shared.refreshServiceToken()
+                let serviceToken = try await passTokenManager.refreshServiceToken()
                 let maskedST = String(serviceToken.prefix(8)) + "..." + String(serviceToken.suffix(4))
                 LogService.shared.debug(.core, "三步流程成功, serviceToken=\(maskedST) (长度:\(serviceToken.count))")
 
@@ -265,5 +266,9 @@ struct WebView: NSViewRepresentable {
 #Preview {
     let nm = NetworkModule()
     let sm = SyncModule(networkModule: nm)
-    LoginView(authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI, onlineStateManager: sm.onlineStateManager))
+    let ptm = PassTokenManager(apiClient: nm.apiClient)
+    LoginView(
+        authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI, onlineStateManager: sm.onlineStateManager, passTokenManager: ptm),
+        passTokenManager: ptm
+    )
 }

@@ -91,7 +91,7 @@
 
         /// 音频面板状态管理器
         /// 负责管理音频面板的显示状态、模式和与其他组件的协调
-        let audioPanelStateManager = AudioPanelStateManager.shared
+        let audioPanelStateManager: AudioPanelStateManager
 
         /// 音频面板托管控制器
         /// 用于将 AudioPanelView 嵌入 NSSplitViewController 作为第四栏
@@ -113,6 +113,7 @@
             self.windowState = windowState
             self.operationQueue = operationQueue
             self.operationProcessor = operationProcessor
+            self.audioPanelStateManager = coordinator.audioModule.panelStateManager
 
             // 创建窗口
             let window = NSWindow(

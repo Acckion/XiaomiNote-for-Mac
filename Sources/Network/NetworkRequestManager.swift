@@ -76,6 +76,9 @@ public final class NetworkRequestManager: ObservableObject {
     /// 注入的 APIClient（NetworkModule 创建时传入，用于 401 刷新后获取新 headers）
     private var apiClient: APIClient?
 
+    /// 注入的 PassTokenManager（NetworkModule 创建后通过 setter 设置，解决循环依赖）
+    private var passTokenManager: PassTokenManager?
+
     // MARK: - 队列状态
 
     private var pendingRequests: [NetworkRequest] = []
@@ -105,6 +108,11 @@ public final class NetworkRequestManager: ObservableObject {
     /// 设置 APIClient 引用（NetworkModule 创建后回调设置，解决循环依赖）
     func setAPIClient(_ client: APIClient) {
         apiClient = client
+    }
+
+    /// 设置 PassTokenManager 引用（解决循环依赖）
+    func setPassTokenManager(_ manager: PassTokenManager) {
+        passTokenManager = manager
     }
 
     /// 设置 OnlineStateManager 引用（SyncModule 创建后回调设置，解决跨模块依赖）
@@ -294,14 +302,19 @@ public final class NetworkRequestManager: ObservableObject {
         urlRequest: URLRequest,
         request: NetworkRequest
     ) async throws -> NetworkResponse {
-        let hasPassToken = await PassTokenManager.shared.hasStoredPassToken()
+        guard let passTokenManager else {
+            await EventBus.shared.publish(AuthEvent.tokenRefreshFailed(errorMessage: "PassTokenManager 未注入"))
+            throw MiNoteError.notAuthenticated
+        }
+
+        let hasPassToken = await passTokenManager.hasStoredPassToken()
         guard hasPassToken else {
             await EventBus.shared.publish(AuthEvent.tokenRefreshFailed(errorMessage: "未存储 PassToken"))
             throw MiNoteError.notAuthenticated
         }
 
         do {
-            _ = try await PassTokenManager.shared.refreshServiceToken()
+            _ = try await passTokenManager.refreshServiceToken()
         } catch {
             await EventBus.shared.publish(
                 AuthEvent.tokenRefreshFailed(errorMessage: error.localizedDescription)

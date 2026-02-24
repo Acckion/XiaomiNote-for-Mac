@@ -5,11 +5,6 @@ import AppKit
 @MainActor
 public class WindowManager {
 
-    // MARK: - 单例
-
-    /// 共享实例
-    public static let shared = WindowManager()
-
     // MARK: - 属性
 
     /// 主窗口控制器

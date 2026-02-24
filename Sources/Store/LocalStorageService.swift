@@ -6,10 +6,12 @@ public struct LocalStorageService: Sendable {
     private nonisolated(unsafe) let fileManager = FileManager.default
     private let documentsDirectory: URL
     private let database: DatabaseService
+    private let audioCacheService: AudioCacheService
 
     /// SyncModule 使用的构造器
-    init(database: DatabaseService) {
+    init(database: DatabaseService, audioCacheService: AudioCacheService) {
         self.database = database
+        self.audioCacheService = audioCacheService
         let appSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let appBundleID = Bundle.main.bundleIdentifier ?? "com.mi.note.mac"
         self.documentsDirectory = appSupportURL.appendingPathComponent(appBundleID)
@@ -396,7 +398,7 @@ public struct LocalStorageService: Sendable {
             try fileManager.removeItem(at: imagesDir)
         }
 
-        await AudioCacheService.shared.clearCache()
+        await audioCacheService.clearCache()
 
         LogService.shared.info(.storage, "所有本地数据已清除")
     }

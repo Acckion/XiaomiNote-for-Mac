@@ -86,6 +86,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     private let idMappingRegistry: IdMappingRegistry
     private let formatConverter: XiaoMiFormatConverter
     private let xmlNormalizer: XMLNormalizer
+    private let memoryCacheManager: MemoryCacheManager
     private(set) weak var noteEditorState: NoteEditorState?
     private var noteStore: NoteStore?
     var nativeEditorContext: NativeEditorContext? {
@@ -101,7 +102,8 @@ public final class NoteEditingCoordinator: ObservableObject {
         operationProcessor: OperationProcessor,
         idMappingRegistry: IdMappingRegistry,
         formatConverter: XiaoMiFormatConverter,
-        xmlNormalizer: XMLNormalizer
+        xmlNormalizer: XMLNormalizer,
+        memoryCacheManager: MemoryCacheManager
     ) {
         self.apiClient = apiClient
         self.operationQueue = operationQueue
@@ -110,6 +112,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         self.idMappingRegistry = idMappingRegistry
         self.formatConverter = formatConverter
         self.xmlNormalizer = xmlNormalizer
+        self.memoryCacheManager = memoryCacheManager
     }
 
     /// 配置依赖
@@ -223,7 +226,7 @@ public final class NoteEditingCoordinator: ObservableObject {
 
             if hasActualChange {
                 let updated = buildUpdatedNote(from: currentNote, xmlContent: content, shouldUpdateTimestamp: false)
-                await MemoryCacheManager.shared.cacheNote(updated)
+                await memoryCacheManager.cacheNote(updated)
                 updateNotesArrayOnly(with: updated)
 
                 await eventBus.publish(NoteEvent.contentUpdated(noteId: currentNote.id, title: capturedTitle, content: content))
@@ -278,7 +281,7 @@ public final class NoteEditingCoordinator: ObservableObject {
                 extraInfoJson: capturedNote.extraInfoJson
             )
 
-            await MemoryCacheManager.shared.cacheNote(updated)
+            await memoryCacheManager.cacheNote(updated)
             updateNotesArrayOnly(with: updated)
 
             await eventBus.publish(NoteEvent.contentUpdated(noteId: capturedNote.id, title: capturedTitle, content: content))
@@ -358,7 +361,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         lastSavedXMLContent = ""
         originalXMLContent = ""
 
-        let cachedNote = await MemoryCacheManager.shared.getNote(noteId: resolvedNote.id)
+        let cachedNote = await memoryCacheManager.getNote(noteId: resolvedNote.id)
         if let cachedNote, cachedNote.id == resolvedNote.id {
             await loadNoteContentFromCache(cachedNote)
             return
@@ -396,7 +399,7 @@ public final class NoteEditingCoordinator: ObservableObject {
             extraInfoJson: note.extraInfoJson
         )
 
-        await MemoryCacheManager.shared.cacheNote(updated)
+        await memoryCacheManager.cacheNote(updated)
         updateNotesArrayOnly(with: updated)
 
         if case .saving = saveStatus {
@@ -519,7 +522,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         pendingRetryNote = nil
 
         updateViewModel(with: updatedNote)
-        await MemoryCacheManager.shared.cacheNote(updatedNote)
+        await memoryCacheManager.cacheNote(updatedNote)
 
         saveStatus = .saved
         noteEditorState?.hasUnsavedContent = false
@@ -582,7 +585,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         originalTitle = title
         currentXMLContent = xmlContent
         updateViewModel(with: updated)
-        await MemoryCacheManager.shared.cacheNote(updated)
+        await memoryCacheManager.cacheNote(updated)
         scheduleCloudUpload(for: updated, xmlContent: xmlContent)
     }
 
@@ -619,15 +622,15 @@ public final class NoteEditingCoordinator: ObservableObject {
             if let cachedNote = await noteStore?.getNote(byId: note.id), !cachedNote.content.isEmpty {
                 guard note.id == currentEditingNoteId else { return }
                 contentToLoad = cachedNote.primaryXMLContent
-                await MemoryCacheManager.shared.cacheNote(cachedNote)
+                await memoryCacheManager.cacheNote(cachedNote)
             } else if let fullNote = try? localStorage.loadNote(noteId: note.id) {
                 // NoteStore 缓存也没有完整内容，回退到直接读 DB
                 guard note.id == currentEditingNoteId else { return }
                 contentToLoad = fullNote.primaryXMLContent
-                await MemoryCacheManager.shared.cacheNote(fullNote)
+                await memoryCacheManager.cacheNote(fullNote)
             }
         } else {
-            await MemoryCacheManager.shared.cacheNote(note)
+            await memoryCacheManager.cacheNote(note)
         }
 
         currentXMLContent = contentToLoad
@@ -666,19 +669,19 @@ public final class NoteEditingCoordinator: ObservableObject {
         if note.content.isEmpty {
             // 优先从 NoteStore 内存缓存获取
             if let cachedNote = await noteStore?.getNote(byId: note.id), !cachedNote.content.isEmpty {
-                await MemoryCacheManager.shared.cacheNote(cachedNote)
+                await memoryCacheManager.cacheNote(cachedNote)
                 currentXMLContent = cachedNote.primaryXMLContent
                 lastSavedXMLContent = currentXMLContent
                 originalXMLContent = currentXMLContent
             } else if let fullNote = try? localStorage.loadNote(noteId: note.id) {
                 // NoteStore 缓存也没有完整内容，回退到直接读 DB
-                await MemoryCacheManager.shared.cacheNote(fullNote)
+                await memoryCacheManager.cacheNote(fullNote)
                 currentXMLContent = fullNote.primaryXMLContent
                 lastSavedXMLContent = currentXMLContent
                 originalXMLContent = currentXMLContent
             }
         } else {
-            await MemoryCacheManager.shared.cacheNote(note)
+            await memoryCacheManager.cacheNote(note)
         }
     }
 

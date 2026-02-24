@@ -87,7 +87,7 @@
             }
 
             // 创建SwiftUI登录视图
-            let loginView = LoginView(authState: coordinator.authState)
+            let loginView = LoginView(authState: coordinator.authState, passTokenManager: coordinator.passTokenManager)
 
             // 使用NSHostingController包装SwiftUI视图
             let hostingController = NSHostingController(rootView: loginView)

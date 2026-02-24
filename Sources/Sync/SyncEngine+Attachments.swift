@@ -61,7 +61,7 @@ extension SyncEngine {
                     LogService.shared.error(.sync, "图片下载失败: \(fileId).\(fileType) - \(error.localizedDescription)")
                 }
             } else if mimeType.hasPrefix("audio/") {
-                if await AudioCacheService.shared.isCached(fileId: fileId) {
+                if await audioCacheService.isCached(fileId: fileId) {
                     var updatedData = attachmentData
                     updatedData["localExists"] = true
                     settingData[index] = updatedData
@@ -70,7 +70,7 @@ extension SyncEngine {
 
                 do {
                     let audioData = try await fileAPI.downloadAudio(fileId: fileId)
-                    try await AudioCacheService.shared.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
+                    try await audioCacheService.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
                     var updatedData = attachmentData
                     updatedData["localExists"] = true
                     updatedData["downloaded"] = true
@@ -293,9 +293,9 @@ extension SyncEngine {
                     }
                 }
             } else if attachmentType == "audio" {
-                if await AudioCacheService.shared.isCached(fileId: fileId) {
+                if await audioCacheService.isCached(fileId: fileId) {
                     existingFormat = "amr"
-                    if let cachedFileURL = await AudioCacheService.shared.getCachedFile(for: fileId) {
+                    if let cachedFileURL = await audioCacheService.getCachedFile(for: fileId) {
                         if let attributes = try? FileManager.default.attributesOfItem(atPath: cachedFileURL.path),
                            let size = attributes[.size] as? Int
                         {
@@ -322,7 +322,7 @@ extension SyncEngine {
                     downloadedFormat = detectedFormat
                     let mimeType = "audio/\(detectedFormat)"
                     do {
-                        try await AudioCacheService.shared.cacheFile(data: data, fileId: fileId, mimeType: mimeType)
+                        try await audioCacheService.cacheFile(data: data, fileId: fileId, mimeType: mimeType)
                     } catch {
                         LogService.shared.error(.sync, "音频保存失败: \(fileId) - \(error)")
                         return nil

@@ -58,7 +58,10 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         networkModule.requestManager.setOnlineStateManager(syncModule.onlineStateManager)
 
         let editorModule = EditorModule(syncModule: syncModule, networkModule: networkModule)
-        let audioModule = AudioModule(syncModule: syncModule, networkModule: networkModule)
+        let audioModule = AudioModule(
+            syncModule: syncModule,
+            networkModule: networkModule
+        )
 
         let coordinator = AppCoordinator(
             networkModule: networkModule,

@@ -114,6 +114,7 @@ public struct EditorModule: Sendable {
     /// Preview 和测试用的便利构造器
     public init() {
         let nm = NetworkModule()
-        self.init(syncModule: SyncModule(networkModule: nm), networkModule: nm)
+        let sm = SyncModule(networkModule: nm)
+        self.init(syncModule: sm, networkModule: nm)
     }
 }
