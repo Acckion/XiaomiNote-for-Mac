@@ -35,18 +35,9 @@ struct NativeEditorView: NSViewRepresentable {
     // MARK: - NSViewRepresentable
 
     func makeNSView(context: Context) -> NSScrollView {
-        // 测量初始化时间
-        let startTime = CFAbsoluteTimeGetCurrent()
-        let scrollView = createScrollView(context: context)
-        let endTime = CFAbsoluteTimeGetCurrent()
-        let duration = (endTime - startTime) * 1000
-
-        // 检查是否超过阈值
-        if duration > 100 {
-            LogService.shared.warning(.editor, "初始化时间超过 100ms (\(String(format: "%.2f", duration))ms)")
+        PerformanceService.shared.measure(.editor, "编辑器初始化", thresholdMs: 100) {
+            createScrollView(context: context)
         }
-
-        return scrollView
     }
 
     /// 创建滚动视图（内部方法）

@@ -28,51 +28,16 @@ public class XMLNormalizer {
     /// - Parameter xml: 原始XML内容
     /// - Returns: 规范化后的XML内容
     public func normalize(_ xml: String) -> String {
-        let startTime = CFAbsoluteTimeGetCurrent()
-
-        var normalized = xml
-
-        // 0. 移除 <new-format/> 元数据标签（不影响内容语义）
-        normalized = removeNewFormatTag(normalized)
-
-        // 1. 统一图片格式
-        let imageFormatStart = CFAbsoluteTimeGetCurrent()
-        normalized = normalizeImageFormat(normalized)
-        let imageFormatTime = (CFAbsoluteTimeGetCurrent() - imageFormatStart) * 1000
-
-        // 2. 移除空标签
-        let emptyTagStart = CFAbsoluteTimeGetCurrent()
-        normalized = removeEmptyTags(normalized)
-        let emptyTagTime = (CFAbsoluteTimeGetCurrent() - emptyTagStart) * 1000
-
-        // 3. 移除多余空格和换行
-        let whitespaceStart = CFAbsoluteTimeGetCurrent()
-        normalized = removeExtraWhitespace(normalized)
-        let whitespaceTime = (CFAbsoluteTimeGetCurrent() - whitespaceStart) * 1000
-
-        // 4. 统一属性顺序
-        let attributeOrderStart = CFAbsoluteTimeGetCurrent()
-        normalized = normalizeAttributeOrder(normalized)
-        let attributeOrderTime = (CFAbsoluteTimeGetCurrent() - attributeOrderStart) * 1000
-
-        // 5. 规范化属性值
-        let attributeValueStart = CFAbsoluteTimeGetCurrent()
-        normalized = normalizeAttributeValues(normalized)
-        let attributeValueTime = (CFAbsoluteTimeGetCurrent() - attributeValueStart) * 1000
-
-        let elapsedTime = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
-
-        // 性能监控：超过阈值时输出详情（warning），否则仅输出总耗时（debug）
-        if elapsedTime > 10 {
-            LogService.shared.warning(
-                .editor,
-                "XML 规范化耗时超过阈值: \(String(format: "%.2f", elapsedTime))ms，内容长度: \(xml.count) 字符，各步骤: 图片格式 \(String(format: "%.2f", imageFormatTime))ms，空标签 \(String(format: "%.2f", emptyTagTime))ms，空格 \(String(format: "%.2f", whitespaceTime))ms，属性顺序 \(String(format: "%.2f", attributeOrderTime))ms，属性值 \(String(format: "%.2f", attributeValueTime))ms"
-            )
-        } else {
-            LogService.shared.debug(.editor, "XML 规范化完成，耗时: \(String(format: "%.2f", elapsedTime))ms")
+        PerformanceService.shared.measure(.editor, "XML 规范化", thresholdMs: 10) {
+            var normalized = xml
+            normalized = removeNewFormatTag(normalized)
+            normalized = normalizeImageFormat(normalized)
+            normalized = removeEmptyTags(normalized)
+            normalized = removeExtraWhitespace(normalized)
+            normalized = normalizeAttributeOrder(normalized)
+            normalized = normalizeAttributeValues(normalized)
+            return normalized
         }
-
-        return normalized
     }
 
     // MARK: - 私有方法
