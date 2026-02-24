@@ -18,7 +18,17 @@ class XiaoMiFormatConverter {
 
     static let shared = XiaoMiFormatConverter()
 
-    private init() {}
+    private let xmlNormalizer: XMLNormalizer
+
+    /// 过渡期兼容构造器，供 .shared 使用
+    private init() {
+        self.xmlNormalizer = XMLNormalizer.shared
+    }
+
+    /// EditorModule 使用的构造器
+    init(xmlNormalizer: XMLNormalizer) {
+        self.xmlNormalizer = xmlNormalizer
+    }
 
     // MARK: - XML -> NSAttributedString
 
@@ -103,7 +113,7 @@ class XiaoMiFormatConverter {
         do {
             let nsAttributedString = try xmlToNSAttributedString(xml)
             let backConverted = try nsAttributedStringToXML(nsAttributedString)
-            return XMLNormalizer.shared.normalize(xml) == XMLNormalizer.shared.normalize(backConverted)
+            return xmlNormalizer.normalize(xml) == xmlNormalizer.normalize(backConverted)
         } catch {
             LogService.shared.error(.editor, "验证转换失败: \(error)")
             return false

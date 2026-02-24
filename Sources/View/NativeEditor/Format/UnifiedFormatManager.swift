@@ -155,7 +155,7 @@ public final class UnifiedFormatManager {
 
     // MARK: - 初始化
 
-    private init() {}
+    init() {}
 
     // MARK: - 注册/注销
 

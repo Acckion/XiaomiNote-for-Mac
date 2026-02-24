@@ -18,11 +18,19 @@ class AttachmentKeyboardHandler {
     static let shared = AttachmentKeyboardHandler()
 
     /// 选择管理器
-    private let selectionManager = AttachmentSelectionManager.shared
+    private let selectionManager: AttachmentSelectionManager
 
     // MARK: - Initialization
 
-    private init() {}
+    /// 过渡期兼容构造器
+    private init() {
+        self.selectionManager = AttachmentSelectionManager.shared
+    }
+
+    /// EditorModule 使用的构造器
+    init(selectionManager: AttachmentSelectionManager) {
+        self.selectionManager = selectionManager
+    }
 
     // MARK: - Keyboard Handling
 

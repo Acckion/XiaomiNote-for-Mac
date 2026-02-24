@@ -55,10 +55,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
     public func applicationDidFinishLaunching(_: Notification) {
         LogService.shared.info(.app, "应用启动")
 
-        // 创建网络模块、同步模块和 AppCoordinator
+        // 创建网络模块、同步模块、编辑器模块和 AppCoordinator
         let networkModule = NetworkModule()
         let syncModule = SyncModule(networkModule: networkModule)
-        let coordinator = AppCoordinator(networkModule: networkModule, syncModule: syncModule)
+        let editorModule = EditorModule(syncModule: syncModule)
+        let coordinator = AppCoordinator(networkModule: networkModule, syncModule: syncModule, editorModule: editorModule)
         appCoordinator = coordinator
 
         // 配置 WindowManager（为未来的多窗口支持做准备）

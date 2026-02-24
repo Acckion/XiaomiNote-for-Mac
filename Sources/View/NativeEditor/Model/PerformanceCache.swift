@@ -182,7 +182,7 @@ class PerformanceCache {
     /// 线程安全锁
     private let lock = NSLock()
 
-    private init() {}
+    init() {}
 
     // MARK: - Font Cache
 

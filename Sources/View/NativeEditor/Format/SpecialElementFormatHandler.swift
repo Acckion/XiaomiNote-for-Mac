@@ -45,7 +45,7 @@ class SpecialElementFormatHandler {
 
     static let shared = SpecialElementFormatHandler()
 
-    private init() {}
+    init() {}
 
     // MARK: - Public Methods
 

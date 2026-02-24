@@ -50,7 +50,7 @@ class CustomRenderer {
 
     // MARK: - Initialization
 
-    private init() {
+    init() {
         updateTheme()
 
         // 监听主题变化

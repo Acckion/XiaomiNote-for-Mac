@@ -57,8 +57,8 @@ class PerformanceMonitor: ObservableObject {
 
     // MARK: - 初始化
 
-    /// 私有初始化方法（单例模式）
-    private init() {}
+    /// 初始化方法
+    init() {}
 
     // MARK: - 输入法状态监控方法
 

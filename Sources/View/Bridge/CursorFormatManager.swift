@@ -72,6 +72,12 @@ public final class CursorFormatManager {
 
     // MARK: - Properties
 
+    /// 统一格式管理器
+    private let unifiedFormatManager: UnifiedFormatManager
+
+    /// 字号管理器
+    private let fontSizeManager: FontSizeManager
+
     /// 当前关联的 NSTextView（弱引用）
     private weak var textView: NSTextView?
 
@@ -95,7 +101,17 @@ public final class CursorFormatManager {
 
     // MARK: - Initialization
 
-    private init() {}
+    /// 过渡期兼容构造器
+    private init() {
+        self.unifiedFormatManager = UnifiedFormatManager.shared
+        self.fontSizeManager = FontSizeManager.shared
+    }
+
+    /// EditorModule 使用的构造器
+    init(unifiedFormatManager: UnifiedFormatManager, fontSizeManager: FontSizeManager) {
+        self.unifiedFormatManager = unifiedFormatManager
+        self.fontSizeManager = fontSizeManager
+    }
 
     public func register(textView: NSTextView, context: NativeEditorContext) {
         self.textView = textView
@@ -235,7 +251,7 @@ extension CursorFormatManager {
                 state.isItalic = true
             }
 
-            let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: font.pointSize)
+            let detectedFormat = fontSizeManager.detectParagraphFormat(fontSize: font.pointSize)
             if detectedFormat != .body {
                 state.paragraphFormat = detectedFormat
             }
@@ -335,8 +351,8 @@ extension CursorFormatManager {
 
         if isCursorMode {
             let position = range.location
-            let state: FormatState = if UnifiedFormatManager.shared.isRegistered {
-                UnifiedFormatManager.shared.detectFormatState(at: position)
+            let state: FormatState = if unifiedFormatManager.isRegistered {
+                unifiedFormatManager.detectFormatState(at: position)
             } else {
                 detectFormatState(at: position)
             }
@@ -350,8 +366,8 @@ extension CursorFormatManager {
             notifyFormatStateManager(with: state)
         } else {
             let position = range.location
-            var state: FormatState = if UnifiedFormatManager.shared.isRegistered {
-                UnifiedFormatManager.shared.detectFormatState(in: range)
+            var state: FormatState = if unifiedFormatManager.isRegistered {
+                unifiedFormatManager.detectFormatState(in: range)
             } else {
                 detectFormatState(at: position)
             }

@@ -31,10 +31,11 @@ public final class AppCoordinator: ObservableObject {
     public let authState: AuthState
     public let searchState: SearchState
 
-    // MARK: - 网络模块
+    // MARK: - 模块
 
     private let networkModule: NetworkModule
     private let syncModule: SyncModule
+    private let editorModule: EditorModule
 
     // MARK: - 音频面板（暂不重构）
 
@@ -42,9 +43,10 @@ public final class AppCoordinator: ObservableObject {
 
     // MARK: - 初始化
 
-    public init(networkModule: NetworkModule, syncModule: SyncModule) {
+    public init(networkModule: NetworkModule, syncModule: SyncModule, editorModule: EditorModule) {
         self.networkModule = networkModule
         self.syncModule = syncModule
+        self.editorModule = editorModule
         self.eventBus = EventBus.shared
         let noteStoreInstance = NoteStore(db: DatabaseService.shared, eventBus: EventBus.shared)
         self.noteStore = noteStoreInstance
@@ -64,10 +66,11 @@ public final class AppCoordinator: ObservableObject {
         LogService.shared.info(.app, "AppCoordinator 初始化完成")
     }
 
-    /// Preview 和测试用的便利构造器，内部创建默认 NetworkModule 和 SyncModule
+    /// Preview 和测试用的便利构造器
     convenience init() {
         let nm = NetworkModule()
-        self.init(networkModule: nm, syncModule: SyncModule(networkModule: nm))
+        let sm = SyncModule(networkModule: nm)
+        self.init(networkModule: nm, syncModule: sm, editorModule: EditorModule(syncModule: sm))
     }
 
     // MARK: - 生命周期
