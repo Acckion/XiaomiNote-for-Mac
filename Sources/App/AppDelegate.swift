@@ -53,7 +53,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         // 按依赖顺序构建模块
         let networkModule = NetworkModule()
         let syncModule = SyncModule(networkModule: networkModule)
-        let editorModule = EditorModule(syncModule: syncModule)
+        let editorModule = EditorModule(syncModule: syncModule, networkModule: networkModule)
         let audioModule = AudioModule(syncModule: syncModule, networkModule: networkModule)
 
         let coordinator = AppCoordinator(

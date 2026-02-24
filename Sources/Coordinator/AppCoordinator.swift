@@ -33,7 +33,7 @@ public final class AppCoordinator: ObservableObject {
 
     // MARK: - 模块
 
-    private let networkModule: NetworkModule
+    public let networkModule: NetworkModule
     private let syncModule: SyncModule
     private let editorModule: EditorModule
     private let audioModule: AudioModule
@@ -77,8 +77,13 @@ public final class AppCoordinator: ObservableObject {
         )
         self.noteStore = noteStoreInstance
         self.syncEngine = syncModule.createSyncEngine(noteStore: noteStoreInstance)
-        self.noteListState = NoteListState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
-        self.noteEditorState = NoteEditorState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
+        self.noteListState = NoteListState(
+            eventBus: EventBus.shared,
+            noteStore: noteStoreInstance,
+            apiClient: networkModule.apiClient,
+            noteAPI: networkModule.noteAPI
+        )
+        self.noteEditorState = NoteEditorState(eventBus: EventBus.shared, noteStore: noteStoreInstance, noteAPI: networkModule.noteAPI)
         self.folderState = FolderState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
         self.syncState = SyncState(eventBus: EventBus.shared)
         self.authState = AuthState(eventBus: EventBus.shared, apiClient: networkModule.apiClient, userAPI: networkModule.userAPI)
@@ -124,7 +129,7 @@ public final class AppCoordinator: ObservableObject {
     convenience init() {
         let nm = NetworkModule()
         let sm = SyncModule(networkModule: nm)
-        let em = EditorModule(syncModule: sm)
+        let em = EditorModule(syncModule: sm, networkModule: nm)
         let am = AudioModule(syncModule: sm, networkModule: nm)
         let wm = WindowManager()
         self.init(

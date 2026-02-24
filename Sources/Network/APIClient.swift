@@ -6,7 +6,6 @@ import Foundation
 /// 所有 API 类（NoteAPI、FolderAPI 等）都通过此类执行网络请求。
 /// 使用 actor 隔离保证认证状态的线程安全。
 public actor APIClient {
-    public static let shared = APIClient()
 
     // MARK: - 配置常量
 
@@ -43,17 +42,14 @@ public actor APIClient {
     // MARK: - 网络请求管理器
 
     /// 注入的网络请求管理器（NetworkModule 创建时传入）
-    private let requestManager: NetworkRequestManager?
+    private let requestManager: NetworkRequestManager
 
     /// 注入的网络日志记录器（NetworkModule 创建时传入）
     private let networkLogger: NetworkLogger
 
     @MainActor
     private func getRequestManager() -> NetworkRequestManager {
-        if let manager = requestManager {
-            return manager
-        }
-        return NetworkRequestManager.shared
+        requestManager
     }
 
     // MARK: - 初始化
@@ -62,14 +58,6 @@ public actor APIClient {
     init(requestManager: NetworkRequestManager, networkLogger: NetworkLogger) {
         self.requestManager = requestManager
         self.networkLogger = networkLogger
-        Task {
-            await loadCredentials()
-        }
-    }
-
-    private init() {
-        self.requestManager = nil
-        self.networkLogger = NetworkLogger.shared
         Task {
             await loadCredentials()
         }

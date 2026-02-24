@@ -18,7 +18,7 @@ struct NoteDetailView: View {
     @ObservedObject private var authState: AuthState
 
     /// 编辑会话协调器
-    @StateObject private var editingCoordinator = NoteEditingCoordinator()
+    @StateObject private var editingCoordinator: NoteEditingCoordinator
 
     // MARK: - 调试模式状态
 
@@ -45,6 +45,7 @@ struct NoteDetailView: View {
         self._noteEditorState = ObservedObject(wrappedValue: coordinator.noteEditorState)
         self._folderState = ObservedObject(wrappedValue: coordinator.folderState)
         self._authState = ObservedObject(wrappedValue: coordinator.authState)
+        self._editingCoordinator = StateObject(wrappedValue: NoteEditingCoordinator(apiClient: coordinator.networkModule.apiClient))
     }
 
     var body: some View {

@@ -25,9 +25,12 @@ public struct NetworkModule: Sendable {
         let client = APIClient(requestManager: manager, networkLogger: logger)
         self.apiClient = client
 
+        // 回调设置，解决 NetworkRequestManager <-> APIClient 循环依赖
+        manager.setAPIClient(client)
+
         self.noteAPI = NoteAPI(client: client)
         self.folderAPI = FolderAPI(client: client)
-        self.fileAPI = FileAPI(client: client)
+        self.fileAPI = FileAPI(client: client, requestManager: manager)
         self.syncAPI = SyncAPI(client: client)
         self.userAPI = UserAPI(client: client)
     }

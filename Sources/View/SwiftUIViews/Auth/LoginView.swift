@@ -263,5 +263,6 @@ struct WebView: NSViewRepresentable {
 }
 
 #Preview {
-    LoginView(authState: AuthState(apiClient: .shared, userAPI: .shared))
+    let nm = NetworkModule()
+    LoginView(authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI))
 }

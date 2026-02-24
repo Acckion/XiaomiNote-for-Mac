@@ -81,6 +81,10 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     /// MIME 类型
     var mimeType: String?
 
+    /// 文件 API（用于下载音频）
+    /// Phase 5 将通过依赖注入替换
+    var fileAPI: FileAPI?
+
     /// 是否为临时占位符（录音中）
     /// 临时占位符的 fileId 以 "temp_" 开头，导出时会添加 des="temp" 属性
     var isTemporaryPlaceholder = false
@@ -320,6 +324,16 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
             throw NSError(domain: "AudioAttachment", code: -1, userInfo: [NSLocalizedDescriptionKey: error])
         }
 
+        // 延迟获取 fileAPI
+        let api: FileAPI
+        if let existing = fileAPI {
+            api = existing
+        } else {
+            let nm = NetworkModule()
+            api = nm.fileAPI
+            fileAPI = api
+        }
+
         // 设置加载状态
         playbackState = .loading
 
@@ -331,7 +345,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
                 cachedFileURL = cachedURL
             } else {
                 // 需要下载
-                let audioData = try await FileAPI.shared.downloadAudio(fileId: fileId)
+                let audioData = try await api.downloadAudio(fileId: fileId)
 
                 // 缓存文件
                 let mimeType = mimeType ?? "audio/mpeg"

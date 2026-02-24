@@ -117,6 +117,9 @@ public struct DebugSettingsView: View {
     @State private var syncTestResult = ""
     @State private var syncTestType = ""
 
+    /// 网络模块（调试工具直接创建，不通过注入）
+    private let networkModule = NetworkModule()
+
     public init() {}
 
     public var body: some View {
@@ -239,7 +242,7 @@ public struct DebugSettingsView: View {
             HStack {
                 Text("认证状态")
                 Spacer()
-                if APIClient.shared.hasValidCookie() {
+                if networkModule.apiClient.hasValidCookie() {
                     Text("已认证")
                         .foregroundColor(.green)
                 } else {
@@ -493,7 +496,7 @@ public struct DebugSettingsView: View {
 
         // 保存 cookie
         UserDefaults.standard.set(trimmedCookie, forKey: "minote_cookie")
-        Task { await APIClient.shared.setCookie(trimmedCookie) }
+        Task { await networkModule.apiClient.setCookie(trimmedCookie) }
 
         // 更新显示
         cookieString = trimmedCookie
@@ -519,14 +522,13 @@ public struct DebugSettingsView: View {
 
     private func clearCookie() {
         UserDefaults.standard.removeObject(forKey: "minote_cookie")
-        Task { await APIClient.shared.setCookie("") }
-        loadCredentials()
+        Task { await networkModule.apiClient.setCookie("") }
     }
 
     func testNetworkConnection() {
         Task {
             do {
-                let response = try await NoteAPI.shared.fetchPage()
+                let response = try await networkModule.noteAPI.fetchPage()
                 let notesCount = ResponseParser.parseNotes(from: response).count
                 let foldersCount = ResponseParser.parseFolders(from: response).count
 
@@ -543,7 +545,7 @@ public struct DebugSettingsView: View {
         isTestingPrivateNotes = true
         Task {
             do {
-                let response = try await NoteAPI.shared.fetchPrivateNotes(folderId: "2", limit: 200)
+                let response = try await networkModule.noteAPI.fetchPrivateNotes(folderId: "2", limit: 200)
 
                 // 解析响应
                 var resultText = "✅ 私密笔记API测试成功！\n\n"
@@ -610,7 +612,7 @@ public struct DebugSettingsView: View {
         isTestingEncryptionInfo = true
         Task {
             do {
-                let response = try await UserAPI.shared.getEncryptionInfo(hsid: 2, appId: "micloud")
+                let response = try await networkModule.userAPI.getEncryptionInfo(hsid: 2, appId: "micloud")
 
                 // 解析响应
                 var resultText = "✅ 加密信息API测试成功！\n\n"
@@ -680,7 +682,7 @@ public struct DebugSettingsView: View {
         isTestingServiceStatus = true
         Task {
             do {
-                let response = try await UserAPI.shared.checkServiceStatus()
+                let response = try await networkModule.userAPI.checkServiceStatus()
 
                 // 解析响应
                 var resultText = "✅ 服务状态检查API测试成功！\n\n"
@@ -748,7 +750,7 @@ public struct DebugSettingsView: View {
         === 认证信息 ===
         Cookie: \(cookieString)
         Service Token: \(serviceToken)
-        认证状态：\(APIClient.shared.hasValidCookie() ? "已认证" : "未认证")
+        认证状态：\(networkModule.apiClient.hasValidCookie() ? "已认证" : "未认证")
 
         === 系统信息 ===
         应用程序版本：1.0.0
@@ -832,7 +834,7 @@ public struct DebugSettingsView: View {
             var resultText = "🔧 静默刷新Cookie测试开始...\n\n"
 
             // 检查当前认证状态
-            let isAuthenticatedBefore = await APIClient.shared.isAuthenticated()
+            let isAuthenticatedBefore = await networkModule.apiClient.isAuthenticated()
             resultText += "测试前认证状态: \(isAuthenticatedBefore ? "已认证" : "未认证")\n"
 
             // 获取当前Cookie
@@ -854,10 +856,10 @@ public struct DebugSettingsView: View {
             // 模拟Cookie失效（清除Cookie）
             resultText += "\n模拟Cookie失效...\n"
             UserDefaults.standard.removeObject(forKey: "minote_cookie")
-            await APIClient.shared.setCookie("")
+            await networkModule.apiClient.setCookie("")
 
             // 验证Cookie已清除
-            let isAuthenticatedAfterClear = await APIClient.shared.isAuthenticated()
+            let isAuthenticatedAfterClear = await networkModule.apiClient.isAuthenticated()
             resultText += "清除Cookie后认证状态: \(isAuthenticatedAfterClear ? "已认证" : "未认证")\n"
 
             if isAuthenticatedAfterClear {
@@ -865,7 +867,7 @@ public struct DebugSettingsView: View {
 
                 // 恢复原始Cookie
                 UserDefaults.standard.set(currentCookie, forKey: "minote_cookie")
-                await APIClient.shared.setCookie(currentCookie)
+                await networkModule.apiClient.setCookie(currentCookie)
 
                 await MainActor.run {
                     silentRefreshResult = resultText
@@ -885,7 +887,7 @@ public struct DebugSettingsView: View {
                 resultText += "PassToken 刷新完成，获取到 serviceToken\n"
 
                 // 检查刷新结果
-                let isAuthenticatedAfterRefresh = await APIClient.shared.isAuthenticated()
+                let isAuthenticatedAfterRefresh = await networkModule.apiClient.isAuthenticated()
                 let newCookie = UserDefaults.standard.string(forKey: "minote_cookie") ?? ""
 
                 resultText += "\n测试结果:\n"
@@ -922,7 +924,7 @@ public struct DebugSettingsView: View {
 
                     resultText += "恢复原始Cookie...\n"
                     UserDefaults.standard.set(currentCookie, forKey: "minote_cookie")
-                    await APIClient.shared.setCookie(currentCookie)
+                    await networkModule.apiClient.setCookie(currentCookie)
 
                     resultText += "原始Cookie已恢复\n"
                     resultText += "\n可能的原因:\n"
@@ -935,7 +937,7 @@ public struct DebugSettingsView: View {
 
                 resultText += "恢复原始Cookie...\n"
                 UserDefaults.standard.set(currentCookie, forKey: "minote_cookie")
-                await APIClient.shared.setCookie(currentCookie)
+                await networkModule.apiClient.setCookie(currentCookie)
 
                 resultText += "原始Cookie已恢复\n"
                 resultText += "\n可能的原因:\n"
@@ -961,7 +963,7 @@ public struct DebugSettingsView: View {
 
         // 保存到 UserDefaults 并更新 APIClient 的内部缓存
         UserDefaults.standard.set(errorCookie, forKey: "minote_cookie")
-        Task { await APIClient.shared.setCookie(errorCookie) }
+        Task { await networkModule.apiClient.setCookie(errorCookie) }
 
         // 重新加载凭证以更新UI显示
         loadCredentials()
@@ -983,7 +985,7 @@ public struct DebugSettingsView: View {
             resultText += "使用的syncTag: \(syncTagInput.isEmpty ? "（空，表示第一页）" : syncTagInput)\n\n"
 
             do {
-                let response = try await NoteAPI.shared.fetchPage(syncTag: syncTagInput)
+                let response = try await networkModule.noteAPI.fetchPage(syncTag: syncTagInput)
 
                 resultText += "API调用成功！\n\n"
 
@@ -1067,7 +1069,7 @@ public struct DebugSettingsView: View {
             resultText += "使用的syncTag: \(syncTagInput.isEmpty ? "（空，表示第一页）" : syncTagInput)\n\n"
 
             do {
-                let response = try await NoteAPI.shared.fetchPage(syncTag: syncTagInput)
+                let response = try await networkModule.noteAPI.fetchPage(syncTag: syncTagInput)
 
                 resultText += "API调用成功！\n\n"
 
@@ -1152,7 +1154,7 @@ public struct DebugSettingsView: View {
             resultText += "使用的syncTag: \(syncTagInput.isEmpty ? "（空，表示第一页）" : syncTagInput)\n\n"
 
             do {
-                let response = try await SyncAPI.shared.syncFull(syncTag: syncTagInput)
+                let response = try await networkModule.syncAPI.syncFull(syncTag: syncTagInput)
 
                 resultText += "API调用成功！\n\n"
 

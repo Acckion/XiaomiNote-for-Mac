@@ -4,6 +4,7 @@ public struct SettingsView: View {
     @ObservedObject var syncState: SyncState
     @ObservedObject var authState: AuthState
     let noteStore: NoteStore
+    let apiClient: APIClient
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("syncInterval") private var syncInterval: Double = 300
@@ -20,10 +21,11 @@ public struct SettingsView: View {
     @State private var showLogoutAlert = false
     @State private var showClearCacheAlert = false
 
-    init(syncState: SyncState, authState: AuthState, noteStore: NoteStore) {
+    init(syncState: SyncState, authState: AuthState, noteStore: NoteStore, apiClient: APIClient) {
         self.syncState = syncState
         self.authState = authState
         self.noteStore = noteStore
+        self.apiClient = apiClient
     }
 
     public var body: some View {
@@ -302,7 +304,7 @@ public struct SettingsView: View {
 
     private func logout() {
         Task {
-            await APIClient.shared.clearCookie()
+            await apiClient.clearCookie()
             authState.handleLogout()
             dismiss()
         }
@@ -655,9 +657,11 @@ struct ChangePasswordDialogView: View {
 }
 
 #Preview {
+    let nm = NetworkModule()
     SettingsView(
         syncState: SyncState(),
-        authState: AuthState(apiClient: .shared, userAPI: .shared),
-        noteStore: NoteStore(db: .shared, eventBus: .shared, operationQueue: .shared, idMappingRegistry: .shared)
+        authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI),
+        noteStore: NoteStore(db: .shared, eventBus: .shared, operationQueue: .shared, idMappingRegistry: .shared),
+        apiClient: nm.apiClient
     )
 }

@@ -31,6 +31,7 @@ public final class NoteEditorState: ObservableObject {
 
     private let eventBus: EventBus
     private let noteStore: NoteStore
+    private let noteAPI: NoteAPI
 
     // MARK: - 事件订阅任务
 
@@ -39,9 +40,10 @@ public final class NoteEditorState: ObservableObject {
 
     // MARK: - 初始化
 
-    init(eventBus: EventBus = .shared, noteStore: NoteStore) {
+    init(eventBus: EventBus = .shared, noteStore: NoteStore, noteAPI: NoteAPI) {
         self.eventBus = eventBus
         self.noteStore = noteStore
+        self.noteAPI = noteAPI
     }
 
     // MARK: - 生命周期
@@ -127,7 +129,7 @@ public final class NoteEditorState: ObservableObject {
     // MARK: - 笔记历史
 
     func getNoteHistoryTimes(noteId: String) async throws -> [NoteHistoryVersion] {
-        let response = try await NoteAPI.shared.getNoteHistoryTimes(noteId: noteId)
+        let response = try await noteAPI.getNoteHistoryTimes(noteId: noteId)
 
         guard let code = response["code"] as? Int, code == 0,
               let data = response["data"] as? [String: Any],
@@ -148,7 +150,7 @@ public final class NoteEditorState: ObservableObject {
     }
 
     func getNoteHistory(noteId: String, version: Int64) async throws -> Note {
-        let response = try await NoteAPI.shared.getNoteHistory(noteId: noteId, version: version)
+        let response = try await noteAPI.getNoteHistory(noteId: noteId, version: version)
 
         guard let code = response["code"] as? Int, code == 0,
               let data = response["data"] as? [String: Any],
@@ -166,7 +168,7 @@ public final class NoteEditorState: ObservableObject {
     }
 
     func restoreNoteHistory(noteId: String, version: Int64) async throws {
-        let response = try await NoteAPI.shared.restoreNoteHistory(noteId: noteId, version: version)
+        let response = try await noteAPI.restoreNoteHistory(noteId: noteId, version: version)
 
         guard let code = response["code"] as? Int, code == 0 else {
             throw NSError(domain: "MiNote", code: 500, userInfo: [NSLocalizedDescriptionKey: "恢复历史记录失败"])

@@ -15,8 +15,8 @@ public actor OperationProcessor {
 
     // MARK: - 单例
 
-    /// 共享实例
-    public static let shared = OperationProcessor()
+    /// 共享实例（过渡期，阶段 3 删除）
+    @MainActor public static let shared = OperationProcessor()
 
     // MARK: - 重试配置
 
@@ -80,13 +80,15 @@ public actor OperationProcessor {
 
     // MARK: - 初始化
 
-    /// 私有初始化方法（单例模式）
+    /// 私有初始化方法（单例模式，过渡期使用）
+    @MainActor
     private init() {
+        let networkModule = NetworkModule()
         self.operationQueue = UnifiedOperationQueue.shared
-        self.apiClient = APIClient.shared
-        self.noteAPI = NoteAPI.shared
-        self.folderAPI = FolderAPI.shared
-        self.fileAPI = FileAPI.shared
+        self.apiClient = networkModule.apiClient
+        self.noteAPI = networkModule.noteAPI
+        self.folderAPI = networkModule.folderAPI
+        self.fileAPI = networkModule.fileAPI
         self.localStorage = LocalStorageService.shared
         self.databaseService = DatabaseService.shared
         self.syncStateManager = SyncStateManager.createDefault()

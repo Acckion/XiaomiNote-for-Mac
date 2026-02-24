@@ -5,7 +5,6 @@ import Foundation
 /// 新架构中的同步核心，替代 SyncService。
 /// 关键区别：不直接写 DB，通过 EventBus 发布事件让 NoteStore 处理 DB 写入。
 public actor SyncEngine {
-    static let shared = SyncEngine()
 
     // MARK: - 依赖
 
@@ -55,22 +54,6 @@ public actor SyncEngine {
         self.syncGuard = syncGuard
         self.operationProcessor = operationProcessor
         LogService.shared.info(.sync, "SyncEngine 初始化完成")
-    }
-
-    /// 过渡期兼容构造器（供 static let shared 使用）
-    private init() {
-        self.apiClient = .shared
-        self.noteAPI = .shared
-        self.folderAPI = .shared
-        self.syncAPI = .shared
-        self.fileAPI = .shared
-        self.eventBus = .shared
-        self.operationQueue = .shared
-        self.localStorage = .shared
-        self.syncStateManager = SyncStateManager.createDefault()
-        let store = NoteStore(db: .shared, eventBus: .shared, operationQueue: .shared, idMappingRegistry: .shared)
-        self.syncGuard = SyncGuard(operationQueue: .shared, noteStore: store)
-        self.operationProcessor = .shared
     }
 
     // MARK: - 生命周期

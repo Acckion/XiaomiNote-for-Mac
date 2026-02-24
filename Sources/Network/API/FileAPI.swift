@@ -6,18 +6,20 @@ import Foundation
 /// 负责文件上传（三步流程：请求上传 -> 上传块 -> 提交）和下载，
 /// 支持图片、音频、通用文件
 public struct FileAPI: Sendable {
-    public static let shared = FileAPI()
 
     private let client: APIClient
+    private let requestManager: NetworkRequestManager
 
     /// NetworkModule 使用的构造器
-    init(client: APIClient) {
+    init(client: APIClient, requestManager: NetworkRequestManager) {
         self.client = client
+        self.requestManager = requestManager
     }
 
-    /// 过渡期兼容构造器（供 static let shared 使用）
-    private init() {
-        self.client = .shared
+    /// 获取 NetworkRequestManager 实例
+    @MainActor
+    private func getRequestManager() -> NetworkRequestManager {
+        requestManager
     }
 
     /// 音频下载信息
@@ -344,7 +346,7 @@ public struct FileAPI: Sendable {
         let downloadInfo = try await getAudioDownloadInfo(fileId: fileId)
 
         // 第二步：下载音频数据（下载请求不需要认证头，URL 已包含认证信息）
-        let manager = await MainActor.run { NetworkRequestManager.shared }
+        let manager = await MainActor.run { getRequestManager() }
         let response = try await manager.request(
             url: downloadInfo.url.absoluteString,
             method: "GET",
@@ -432,7 +434,7 @@ public struct FileAPI: Sendable {
         headers["Content-Length"] = "\(body.count)"
 
         // uploadFile 接受 200 和 201，performRequest 只接受 200，需要直接使用 NetworkRequestManager
-        let manager = await MainActor.run { NetworkRequestManager.shared }
+        let manager = await MainActor.run { getRequestManager() }
         let response = try await manager.request(
             url: urlString,
             method: "POST",
@@ -495,7 +497,7 @@ public struct FileAPI: Sendable {
         }
 
         // 返回 Data，不能使用 performRequest（它返回 [String: Any]），直接使用 NetworkRequestManager
-        let manager = await MainActor.run { NetworkRequestManager.shared }
+        let manager = await MainActor.run { getRequestManager() }
         let response = try await manager.request(
             url: urlString,
             method: "GET",
@@ -620,7 +622,7 @@ public struct FileAPI: Sendable {
             "Content-Length": "\(fileData.count)",
         ]
 
-        let manager = await MainActor.run { NetworkRequestManager.shared }
+        let manager = await MainActor.run { getRequestManager() }
         let response = try await manager.request(
             url: urlString,
             method: "POST",
@@ -682,7 +684,7 @@ public struct FileAPI: Sendable {
         var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
-        let manager = await MainActor.run { NetworkRequestManager.shared }
+        let manager = await MainActor.run { getRequestManager() }
         let response = try await manager.request(
             url: urlString,
             method: "POST",
@@ -732,7 +734,7 @@ public struct FileAPI: Sendable {
         var headers = await client.getPostHeaders()
         headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 
-        let manager = await MainActor.run { NetworkRequestManager.shared }
+        let manager = await MainActor.run { getRequestManager() }
         let response = try await manager.request(
             url: urlString,
             method: "POST",

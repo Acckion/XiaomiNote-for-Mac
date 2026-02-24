@@ -12,6 +12,7 @@ class ImageStorageManager {
     // MARK: - Properties
 
     private let localStorage: LocalStorageService
+    private let fileAPI: FileAPI
     private var imageCache: [String: NSImage] = [:]
     private let maxCacheSize = 50
 
@@ -19,12 +20,15 @@ class ImageStorageManager {
 
     /// 过渡期兼容构造器
     private init() {
+        let networkModule = NetworkModule()
         self.localStorage = LocalStorageService.shared
+        self.fileAPI = networkModule.fileAPI
     }
 
     /// EditorModule 使用的构造器
-    init(localStorage: LocalStorageService) {
+    init(localStorage: LocalStorageService, fileAPI: FileAPI) {
         self.localStorage = localStorage
+        self.fileAPI = fileAPI
     }
 
     // MARK: - Public Methods
@@ -206,7 +210,7 @@ class ImageStorageManager {
             }
 
             let actualFileId = components.dropFirst().joined(separator: ".")
-            let imageData = try await FileAPI.shared.downloadFile(fileId: actualFileId, type: "note_img")
+            let imageData = try await fileAPI.downloadFile(fileId: actualFileId, type: "note_img")
 
             let localStorage = LocalStorageService.shared
             try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: "jpg")

@@ -51,7 +51,8 @@ enum PassTokenError: Error, LocalizedError {
 /// 使用 passToken 通过三步 HTTP 流程获取 serviceToken，
 /// Actor 保证并发安全
 actor PassTokenManager {
-    static let shared = PassTokenManager()
+    /// 过渡期共享实例（阶段 5 删除）
+    @MainActor static let shared = PassTokenManager()
 
     // MARK: - 依赖
 
@@ -84,8 +85,13 @@ actor PassTokenManager {
     // MARK: - 初始化
 
     /// 过渡期兼容构造器
+    @MainActor
     private init() {
-        self.apiClient = APIClient.shared
+        let manager = NetworkRequestManager()
+        let logger = NetworkLogger()
+        let client = APIClient(requestManager: manager, networkLogger: logger)
+        manager.setAPIClient(client)
+        self.apiClient = client
     }
 
     /// 构造器注入

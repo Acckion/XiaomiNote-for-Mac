@@ -79,6 +79,7 @@ public final class NoteEditingCoordinator: ObservableObject {
     // MARK: - 依赖
 
     private let eventBus = EventBus.shared
+    private let apiClient: APIClient
     private(set) weak var noteEditorState: NoteEditorState?
     private var noteStore: NoteStore?
     var nativeEditorContext: NativeEditorContext? {
@@ -87,7 +88,9 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     // MARK: - 初始化
 
-    public init() {}
+    public init(apiClient: APIClient) {
+        self.apiClient = apiClient
+    }
 
     /// 配置依赖
     func configure(noteEditorState: NoteEditorState, noteStore: NoteStore) {
@@ -681,8 +684,8 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     func scheduleCloudUpload(for note: Note, xmlContent: String) {
         Task {
-            let isAuth = await APIClient.shared.isAuthenticated()
-            let hasCookie = APIClient.shared.hasValidCookie()
+            let isAuth = await apiClient.isAuthenticated()
+            let hasCookie = apiClient.hasValidCookie()
             guard isAuth, hasCookie else {
                 queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
                 return
@@ -709,8 +712,8 @@ public final class NoteEditingCoordinator: ObservableObject {
                 let lastTitle = lastUploadedTitleByNoteId[noteId] ?? ""
                 guard latestXMLContent != lastUploaded || latestTitle != lastTitle else { return }
 
-                let isAuth2 = await APIClient.shared.isAuthenticated()
-                let hasCookie2 = APIClient.shared.hasValidCookie()
+                let isAuth2 = await apiClient.isAuthenticated()
+                let hasCookie2 = apiClient.hasValidCookie()
                 guard isAuth2, hasCookie2 else {
                     queueOfflineUpdateOperation(for: note, xmlContent: latestXMLContent)
                     return

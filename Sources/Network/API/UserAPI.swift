@@ -4,18 +4,12 @@ import Foundation
 ///
 /// 负责用户信息获取、服务状态检查、Cookie 有效性验证
 public struct UserAPI: Sendable {
-    public static let shared = UserAPI()
 
     private let client: APIClient
 
     /// NetworkModule 使用的构造器
     init(client: APIClient) {
         self.client = client
-    }
-
-    /// 过渡期兼容构造器（供 static let shared 使用）
-    private init() {
-        self.client = .shared
     }
 
     // MARK: - 用户信息

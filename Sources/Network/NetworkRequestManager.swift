@@ -61,7 +61,6 @@ struct NetworkResponse {
 /// - 401 自动刷新 Cookie 并重试
 @MainActor
 final class NetworkRequestManager: ObservableObject {
-    static let shared = NetworkRequestManager()
 
     // MARK: - 配置
 
@@ -73,6 +72,9 @@ final class NetworkRequestManager: ObservableObject {
 
     private let errorHandler = NetworkErrorHandler.shared
     private let onlineStateManager = OnlineStateManager.shared
+
+    /// 注入的 APIClient（NetworkModule 创建时传入，用于 401 刷新后获取新 headers）
+    private var apiClient: APIClient?
 
     // MARK: - 队列状态
 
@@ -99,6 +101,11 @@ final class NetworkRequestManager: ObservableObject {
     init() {
         setupOnlineStateMonitoring()
         startProcessingLoop()
+    }
+
+    /// 设置 APIClient 引用（NetworkModule 创建后回调设置，解决循环依赖）
+    func setAPIClient(_ client: APIClient) {
+        apiClient = client
     }
 
     private func setupOnlineStateMonitoring() {
@@ -300,8 +307,10 @@ final class NetworkRequestManager: ObservableObject {
 
         // 使用新 Cookie 重建请求并重试
         var retryRequest = urlRequest
-        let newHeaders = await APIClient.shared.getHeaders()
-        retryRequest.allHTTPHeaderFields = newHeaders
+        if let client = apiClient {
+            let newHeaders = await client.getHeaders()
+            retryRequest.allHTTPHeaderFields = newHeaders
+        }
         if let originalHeaders = urlRequest.allHTTPHeaderFields {
             for (key, value) in originalHeaders where key != "Cookie" {
                 retryRequest.setValue(value, forHTTPHeaderField: key)

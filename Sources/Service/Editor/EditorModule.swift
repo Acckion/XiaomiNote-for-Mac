@@ -35,7 +35,7 @@ public struct EditorModule: Sendable {
     public let formatStateManager: FormatStateManager
     public let cursorFormatManager: CursorFormatManager
 
-    public init(syncModule: SyncModule) {
+    public init(syncModule: SyncModule, networkModule: NetworkModule) {
         // 第 1 层
         let cache = PerformanceCache()
         self.performanceCache = cache
@@ -85,7 +85,8 @@ public struct EditorModule: Sendable {
         self.editorRecoveryManager = recovery
 
         let imageStorage = ImageStorageManager(
-            localStorage: syncModule.localStorage
+            localStorage: syncModule.localStorage,
+            fileAPI: networkModule.fileAPI
         )
         self.imageStorageManager = imageStorage
 
@@ -111,6 +112,7 @@ public struct EditorModule: Sendable {
 
     /// Preview 和测试用的便利构造器
     public init() {
-        self.init(syncModule: SyncModule())
+        let nm = NetworkModule()
+        self.init(syncModule: SyncModule(networkModule: nm), networkModule: nm)
     }
 }

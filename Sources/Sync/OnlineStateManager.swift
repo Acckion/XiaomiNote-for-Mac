@@ -34,9 +34,12 @@ public final class OnlineStateManager: ObservableObject {
 
     // MARK: - 初始化
 
+    /// 过渡期兼容构造器
+    @MainActor
     private init() {
+        let networkModule = NetworkModule()
         self.networkMonitor = NetworkMonitor.shared
-        self.apiClient = APIClient.shared
+        self.apiClient = networkModule.apiClient
         setupStateMonitoring()
         setupAuthEventSubscription()
         updateOnlineStatus()
