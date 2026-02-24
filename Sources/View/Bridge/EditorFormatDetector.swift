@@ -572,22 +572,4 @@ extension NativeEditorContext {
             userInfo: ["paragraphStyle": paragraphStyleRaw]
         )
     }
-
-    // MARK: - 性能统计
-
-    /// 获取格式状态同步器的性能统计信息
-    /// - Returns: 性能统计信息字典
-    func getFormatSyncPerformanceStats() -> [String: Any] {
-        formatStateSynchronizer.getPerformanceStats()
-    }
-
-    /// 重置格式状态同步器的性能统计信息
-    func resetFormatSyncPerformanceStats() {
-        formatStateSynchronizer.resetPerformanceStats()
-    }
-
-    /// 打印格式状态同步器的性能统计信息
-    func printFormatSyncPerformanceStats() {
-        formatStateSynchronizer.printPerformanceStats()
-    }
 }

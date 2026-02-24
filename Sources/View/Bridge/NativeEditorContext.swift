@@ -171,7 +171,7 @@ public class NativeEditorContext: ObservableObject {
     var audioPanelStateManager: AudioPanelStateManager?
 
     /// 格式状态同步器
-    let formatStateSynchronizer = FormatStateSynchronizer.createDefault()
+    let formatStateSynchronizer = FormatStateSynchronizer()
 
     /// 取消订阅集合
     private var cancellables = Set<AnyCancellable>()
