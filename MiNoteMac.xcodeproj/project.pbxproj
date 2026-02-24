@@ -16,7 +16,6 @@
 		058BB3EC81704771A8FFA252 /* SpecialElementFormatHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690890368250EA7A0BBB83B7 /* SpecialElementFormatHandler.swift */; };
 		05D98C6ABB7112B3237CB138 /* AudioModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13260A2476BF532645DE7B71 /* AudioModule.swift */; };
 		077E1732A0453F54099EADDE /* AudioPanelHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2581C453FE41B54A4B57196E /* AudioPanelHostingController.swift */; };
-		07A64B47ADD68695A10B39B3 /* PerformanceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5850C05E06D29B03CF92F52C /* PerformanceMonitor.swift */; };
 		09FD16EBE52F8487CE24E3E6 /* NoteUpdateEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D55308D90824597F7EA09E3 /* NoteUpdateEvent.swift */; };
 		0A2EAB9BF8EA028389C0EE1F /* DefaultAuthenticationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B5132BDDE9E5C35C68218F8 /* DefaultAuthenticationService.swift */; };
 		0ABAD0338AE3BA08F8CFDAF4 /* ConversionError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5286D8BE0E3151107597988B /* ConversionError.swift */; };
@@ -450,7 +449,6 @@
 		55B4B2CC41CAC90B9E638851 /* PerformanceCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceCache.swift; sourceTree = "<group>"; };
 		55BD411EF69D17B012084F68 /* FormatSpanMerger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatSpanMerger.swift; sourceTree = "<group>"; };
 		5718CFB3CE8BCCCD6AC4B6A1 /* ViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewState.swift; sourceTree = "<group>"; };
-		5850C05E06D29B03CF92F52C /* PerformanceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMonitor.swift; sourceTree = "<group>"; };
 		592AE5EB0C26EA9D0717CA89 /* DefaultNetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultNetworkMonitor.swift; sourceTree = "<group>"; };
 		5AA2C5228C6D1AD33C3CC0ED /* FormatMenuProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatMenuProvider.swift; sourceTree = "<group>"; };
 		5B4D68D7A1D5417FE442C4A7 /* AudioPlayerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerService.swift; sourceTree = "<group>"; };
@@ -1092,7 +1090,6 @@
 			isa = PBXGroup;
 			children = (
 				DD154D4385EDD8B76C293132 /* IncrementalUpdateManager.swift */,
-				5850C05E06D29B03CF92F52C /* PerformanceMonitor.swift */,
 				64C899D8B37D4EAB34DD8726 /* TypingOptimizer.swift */,
 			);
 			path = Performance;
@@ -1836,7 +1833,6 @@
 				CFE56CC841FE95DA872872E0 /* PasteboardManager.swift in Sources */,
 				209FBD54924BF259AA003953 /* PendingUploadEntry.swift in Sources */,
 				CE3D635DB3EE4344580E883B /* PerformanceCache.swift in Sources */,
-				07A64B47ADD68695A10B39B3 /* PerformanceMonitor.swift in Sources */,
 				DE745FB4EA41F63F55CE80D4 /* PreviewHelper.swift in Sources */,
 				01FA068133809256656CA1E6 /* PrivateNotesPasswordInputDialogView.swift in Sources */,
 				DF56A6D5FA2CE29CD602E5FA /* PrivateNotesPasswordManager.swift in Sources */,

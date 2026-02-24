@@ -381,11 +381,7 @@ extension NativeEditorView {
             guard let textView = notification.object as? NSTextView else { return }
             guard let textStorage = textView.textStorage else { return }
 
-            // 记录输入法检测（性能监控）
-            parent.editorContext.performanceMonitor?.recordInputMethodDetection()
-
             if textView.hasMarkedText() {
-                parent.editorContext.performanceMonitor?.recordSkippedSaveInputMethod()
                 return
             }
 
@@ -395,8 +391,6 @@ extension NativeEditorView {
             let contentChangeCallback = parent.onContentChange
 
             detectAndHandleAudioAttachmentDeletion(currentAttributedString: attributedString)
-
-            parent.editorContext.performanceMonitor?.recordSaveRequest()
 
             // MARK: - Paper-Inspired Integration (Task 19.2)
 
@@ -436,12 +430,9 @@ extension NativeEditorView {
                 // 再次检查输入法状态
                 // 如果用户仍在输入（例如连续输入多个拼音），则跳过此次更新
                 if textView.hasMarkedText() {
-                    parent.editorContext.performanceMonitor?.recordSkippedSaveInputMethod()
                     self.isUpdatingFromTextView = false
                     return
                 }
-
-                parent.editorContext.performanceMonitor?.recordActualSave()
 
                 self.parent.editorContext.updateNSContentAsync(attributedString)
                 // 调用回调
