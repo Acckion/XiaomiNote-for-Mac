@@ -45,6 +45,9 @@ public actor APIClient {
     /// 注入的网络请求管理器（NetworkModule 创建时传入）
     private let requestManager: NetworkRequestManager?
 
+    /// 注入的网络日志记录器（NetworkModule 创建时传入）
+    private let networkLogger: NetworkLogger
+
     @MainActor
     private func getRequestManager() -> NetworkRequestManager {
         if let manager = requestManager {
@@ -56,8 +59,9 @@ public actor APIClient {
     // MARK: - 初始化
 
     /// NetworkModule 使用的构造器
-    init(requestManager: NetworkRequestManager) {
+    init(requestManager: NetworkRequestManager, networkLogger: NetworkLogger) {
         self.requestManager = requestManager
+        self.networkLogger = networkLogger
         Task {
             await loadCredentials()
         }
@@ -65,6 +69,7 @@ public actor APIClient {
 
     private init() {
         self.requestManager = nil
+        self.networkLogger = NetworkLogger.shared
         Task {
             await loadCredentials()
         }
@@ -115,7 +120,7 @@ public actor APIClient {
         cachePolicy: NetworkRequest.CachePolicy = .noCache
     ) async throws -> sending [String: Any] {
         let bodyString = body.flatMap { String(data: $0, encoding: .utf8) }
-        await NetworkLogger.shared.logRequest(
+        await networkLogger.logRequest(
             url: url,
             method: method,
             headers: headers,
@@ -136,7 +141,7 @@ public actor APIClient {
 
             let responseString = String(data: response.data, encoding: .utf8)
 
-            await NetworkLogger.shared.logResponse(
+            await networkLogger.logResponse(
                 url: url,
                 method: method,
                 statusCode: response.response.statusCode,
@@ -156,7 +161,7 @@ public actor APIClient {
 
             return try JSONSerialization.jsonObject(with: response.data) as? [String: Any] ?? [:]
         } catch {
-            await NetworkLogger.shared.logError(url: url, method: method, error: error)
+            await networkLogger.logError(url: url, method: method, error: error)
             throw error
         }
     }

@@ -145,9 +145,20 @@ final class AudioPanelStateManager: ObservableObject {
 
     // MARK: - 初始化
 
-    private init(
-        recorderService: AudioRecorderService = .shared,
-        playerService: AudioPlayerService = .shared
+    /// 过渡期兼容构造器
+    private init() {
+        self.recorderService = AudioRecorderService.shared
+        self.playerService = AudioPlayerService.shared
+
+        setupObservers()
+
+        LogService.shared.debug(.audio, "AudioPanelStateManager 初始化完成")
+    }
+
+    /// AudioModule 使用的构造器
+    init(
+        recorderService: AudioRecorderService,
+        playerService: AudioPlayerService
     ) {
         self.recorderService = recorderService
         self.playerService = playerService

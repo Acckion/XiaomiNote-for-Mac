@@ -53,7 +53,7 @@ struct AudioConverterService: Sendable {
 
     // MARK: - 初始化
 
-    private init() {
+    init() {
         self.tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("AudioConversion")
         createTempDirectoryIfNeeded()
         LogService.shared.debug(.audio, "AudioConverterService 初始化完成")

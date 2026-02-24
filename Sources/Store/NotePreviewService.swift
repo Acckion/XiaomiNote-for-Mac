@@ -28,11 +28,16 @@ public class NotePreviewService: ObservableObject {
     private var cacheAccessOrder: [String] = []
 
     /// 本地存储服务
-    private let localStorage = LocalStorageService.shared
+    private let localStorage: LocalStorageService
 
+    /// 过渡期兼容构造器
     private init() {
-        // macOS 没有内存警告通知，可以监听其他系统通知
-        // 或者提供手动清除缓存的方法
+        self.localStorage = LocalStorageService.shared
+    }
+
+    /// 构造器注入
+    init(localStorage: LocalStorageService) {
+        self.localStorage = localStorage
     }
 
     // MARK: - 公共方法

@@ -21,12 +21,13 @@ public final class NetworkRecoveryHandler: ObservableObject {
 
     // MARK: - 依赖服务
 
-    private let networkMonitor = NetworkMonitor.shared
-    private let onlineStateManager = OnlineStateManager.shared
+    private let networkMonitor: NetworkMonitor
+    private let onlineStateManager: OnlineStateManager
     /// 新的操作处理器（替代旧的 OfflineOperationProcessor）
-    private let operationProcessor = OperationProcessor.shared
+    private let operationProcessor: OperationProcessor
     /// 统一操作队列（替代旧的 OfflineOperationQueue）
-    private let unifiedQueue = UnifiedOperationQueue.shared
+    private let unifiedQueue: UnifiedOperationQueue
+    private let eventBus: EventBus
 
     // MARK: - 状态
 
@@ -54,7 +55,30 @@ public final class NetworkRecoveryHandler: ObservableObject {
 
     // MARK: - 初始化
 
+    /// 过渡期兼容构造器
     private init() {
+        self.networkMonitor = NetworkMonitor.shared
+        self.onlineStateManager = OnlineStateManager.shared
+        self.operationProcessor = OperationProcessor.shared
+        self.unifiedQueue = UnifiedOperationQueue.shared
+        self.eventBus = EventBus.shared
+        setupNetworkMonitoring()
+        setupEventBusSubscription()
+    }
+
+    /// 构造器注入
+    init(
+        networkMonitor: NetworkMonitor,
+        onlineStateManager: OnlineStateManager,
+        operationProcessor: OperationProcessor,
+        unifiedQueue: UnifiedOperationQueue,
+        eventBus: EventBus
+    ) {
+        self.networkMonitor = networkMonitor
+        self.onlineStateManager = onlineStateManager
+        self.operationProcessor = operationProcessor
+        self.unifiedQueue = unifiedQueue
+        self.eventBus = eventBus
         setupNetworkMonitoring()
         setupEventBusSubscription()
     }
@@ -63,7 +87,8 @@ public final class NetworkRecoveryHandler: ObservableObject {
 
     private func setupEventBusSubscription() {
         authEventTask = Task { [weak self] in
-            let stream = await EventBus.shared.subscribe(to: AuthEvent.self)
+            let stream = await self?.eventBus.subscribe(to: AuthEvent.self)
+            guard let stream else { return }
             for await event in stream {
                 guard let self else { break }
                 switch event {
@@ -201,7 +226,7 @@ public final class NetworkRecoveryHandler: ObservableObject {
     private func processOfflineQueue() async {
         isWaitingToProcess = false
 
-        await EventBus.shared.publish(NetworkRecoveryEvent.recoveryStarted)
+        await eventBus.publish(NetworkRecoveryEvent.recoveryStarted)
 
         // 获取处理前的统计
         let beforeStats = unifiedQueue.getStatistics()
@@ -224,7 +249,7 @@ public final class NetworkRecoveryHandler: ObservableObject {
             skippedReason: nil
         )
 
-        await EventBus.shared.publish(NetworkRecoveryEvent.recoveryCompleted(
+        await eventBus.publish(NetworkRecoveryEvent.recoveryCompleted(
             successCount: successCount,
             failedCount: failedCount
         ))

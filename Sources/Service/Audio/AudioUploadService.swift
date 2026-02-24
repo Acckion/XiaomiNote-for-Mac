@@ -110,9 +110,31 @@ final class AudioUploadService: ObservableObject {
     /// 最大重试次数
     private let maxRetryCount = 3
 
+    // MARK: - 依赖
+
+    private let converterService: AudioConverterService
+    private let localStorage: LocalStorageService
+    private let unifiedQueue: UnifiedOperationQueue
+
     // MARK: - 初始化
 
-    private init() {}
+    /// 过渡期兼容构造器
+    private init() {
+        self.converterService = AudioConverterService.shared
+        self.localStorage = LocalStorageService.shared
+        self.unifiedQueue = UnifiedOperationQueue.shared
+    }
+
+    /// AudioModule 使用的构造器
+    init(
+        converterService: AudioConverterService,
+        localStorage: LocalStorageService,
+        unifiedQueue: UnifiedOperationQueue
+    ) {
+        self.converterService = converterService
+        self.localStorage = localStorage
+        self.unifiedQueue = unifiedQueue
+    }
 
     @MainActor
     func uploadAudio(fileURL: URL, fileName: String? = nil, mimeType: String = "audio/mpeg") async throws -> UploadResult {
@@ -127,12 +149,12 @@ final class AudioUploadService: ObservableObject {
 
         do {
             var uploadFileURL = fileURL
-            let originalFormat = AudioConverterService.shared.getAudioFormat(fileURL)
+            let originalFormat = converterService.getAudioFormat(fileURL)
 
             if originalFormat.contains("M4A") || originalFormat.contains("AAC") || fileURL.pathExtension.lowercased() == "m4a" {
                 LogService.shared.debug(.audio, "检测到 M4A/AAC 格式，开始转换为 MP3")
                 do {
-                    uploadFileURL = try await AudioConverterService.shared.convertM4AToMP3(inputURL: fileURL)
+                    uploadFileURL = try await converterService.convertM4AToMP3(inputURL: fileURL)
                 } catch AudioConverterService.ConversionError.ffmpegNotInstalled {
                     let errorMsg = "需要安装 ffmpeg 才能上传语音。\n\n请在终端运行以下命令安装：\nbrew install ffmpeg"
                     LogService.shared.error(.audio, "ffmpeg 未安装")
@@ -173,7 +195,7 @@ final class AudioUploadService: ObservableObject {
             // 生成临时 fileId，保存到本地，入队操作
             let temporaryFileId = NoteOperation.generateTemporaryId()
 
-            try LocalStorageService.shared.savePendingUpload(data: audioData, fileId: temporaryFileId, extension: "mp3")
+            try localStorage.savePendingUpload(data: audioData, fileId: temporaryFileId, extension: "mp3")
 
             progress = 1.0
             postProgressNotification()
@@ -211,7 +233,7 @@ final class AudioUploadService: ObservableObject {
     func enqueueAudioUpload(temporaryFileId: String, fileName: String, mimeType: String, noteId: String) throws {
         let uploadData = FileUploadOperationData(
             temporaryFileId: temporaryFileId,
-            localFilePath: LocalStorageService.shared.pendingUploadsDirectory
+            localFilePath: localStorage.pendingUploadsDirectory
                 .appendingPathComponent("\(temporaryFileId).mp3").path,
             fileName: fileName,
             mimeType: mimeType,
@@ -223,7 +245,7 @@ final class AudioUploadService: ObservableObject {
             data: uploadData.encoded(),
             isLocalId: NoteOperation.isTemporaryId(noteId)
         )
-        _ = try UnifiedOperationQueue.shared.enqueue(operation)
+        _ = try unifiedQueue.enqueue(operation)
         LogService.shared.debug(.audio, "音频上传操作已入队: \(temporaryFileId.prefix(20))...")
     }
 

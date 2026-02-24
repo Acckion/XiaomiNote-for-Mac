@@ -8,6 +8,7 @@ import Foundation
 public struct NetworkModule: Sendable {
     let requestManager: NetworkRequestManager
     public let apiClient: APIClient
+    let networkLogger: NetworkLogger
     public let noteAPI: NoteAPI
     public let folderAPI: FolderAPI
     public let fileAPI: FileAPI
@@ -18,7 +19,10 @@ public struct NetworkModule: Sendable {
         let manager = NetworkRequestManager()
         self.requestManager = manager
 
-        let client = APIClient(requestManager: manager)
+        let logger = NetworkLogger()
+        self.networkLogger = logger
+
+        let client = APIClient(requestManager: manager, networkLogger: logger)
         self.apiClient = client
 
         self.noteAPI = NoteAPI(client: client)

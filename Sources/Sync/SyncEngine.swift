@@ -68,7 +68,7 @@ public actor SyncEngine {
         self.operationQueue = .shared
         self.localStorage = .shared
         self.syncStateManager = SyncStateManager.createDefault()
-        let store = NoteStore(db: .shared, eventBus: .shared)
+        let store = NoteStore(db: .shared, eventBus: .shared, operationQueue: .shared, idMappingRegistry: .shared)
         self.syncGuard = SyncGuard(operationQueue: .shared, noteStore: store)
         self.operationProcessor = .shared
     }

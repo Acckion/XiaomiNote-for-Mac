@@ -34,7 +34,7 @@ public actor MemoryCacheManager {
     /// 快速查找字典
     private var cache: [String: CacheNode] = [:]
 
-    private init() {
+    init() {
         LogService.shared.debug(.storage, "初始化内存缓存管理器，最大缓存数: \(maxCacheSize)")
     }
 

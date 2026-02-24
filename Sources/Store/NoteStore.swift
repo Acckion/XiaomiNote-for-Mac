@@ -22,8 +22,8 @@ public actor NoteStore {
     init(
         db: DatabaseService,
         eventBus: EventBus,
-        operationQueue: UnifiedOperationQueue = .shared,
-        idMappingRegistry: IdMappingRegistry = .shared
+        operationQueue: UnifiedOperationQueue,
+        idMappingRegistry: IdMappingRegistry
     ) {
         self.db = db
         self.eventBus = eventBus

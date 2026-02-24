@@ -9,8 +9,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
 
     // MARK: - 属性
 
-    /// 窗口管理器（使用共享实例）
-    private let windowManager = WindowManager.shared
+    /// 窗口管理器
+    private let windowManager: WindowManager
 
     /// 菜单管理器
     private let menuManager: MenuManager
@@ -29,23 +29,18 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
     // MARK: - 初始化
 
     override init() {
-        // 获取窗口管理器共享实例
-        let windowManager = WindowManager.shared
+        let wm = WindowManager()
+        self.windowManager = wm
 
-        // 初始化菜单管理器（暂时使用 nil，稍后更新）
-        self.menuManager = MenuManager(appDelegate: nil, mainWindowController: windowManager.mainWindowController)
+        self.menuManager = MenuManager(appDelegate: nil, mainWindowController: wm.mainWindowController)
 
-        // 初始化应用程序状态管理器
-        self.appStateManager = AppStateManager(windowManager: windowManager, menuManager: menuManager)
+        self.appStateManager = AppStateManager(windowManager: wm, menuManager: menuManager)
 
-        // 初始化菜单动作处理器
-        self.menuActionHandler = MenuActionHandler(mainWindowController: windowManager.mainWindowController, windowManager: windowManager)
+        self.menuActionHandler = MenuActionHandler(mainWindowController: wm.mainWindowController, windowManager: wm)
 
-        // 然后调用 super.init()
         super.init()
 
-        // 现在可以更新菜单管理器的引用（因为 self 现在可用）
-        menuManager.updateReferences(appDelegate: self, mainWindowController: windowManager.mainWindowController)
+        menuManager.updateReferences(appDelegate: self, mainWindowController: wm.mainWindowController)
 
         LogService.shared.info(.app, "应用程序委托初始化完成")
     }
@@ -55,15 +50,30 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
     public func applicationDidFinishLaunching(_: Notification) {
         LogService.shared.info(.app, "应用启动")
 
-        // 创建网络模块、同步模块、编辑器模块和 AppCoordinator
+        // 按依赖顺序构建模块
         let networkModule = NetworkModule()
         let syncModule = SyncModule(networkModule: networkModule)
         let editorModule = EditorModule(syncModule: syncModule)
-        let coordinator = AppCoordinator(networkModule: networkModule, syncModule: syncModule, editorModule: editorModule)
+        let audioModule = AudioModule(syncModule: syncModule, networkModule: networkModule)
+
+        let coordinator = AppCoordinator(
+            networkModule: networkModule,
+            syncModule: syncModule,
+            editorModule: editorModule,
+            audioModule: audioModule,
+            windowManager: windowManager
+        )
         appCoordinator = coordinator
 
-        // 配置 WindowManager（为未来的多窗口支持做准备）
-        WindowManager.shared.setAppCoordinator(coordinator)
+        // 配置 AppStateManager 使用 coordinator 创建的服务实例
+        appStateManager.configure(
+            errorRecoveryService: coordinator.errorRecoveryService,
+            networkRecoveryHandler: coordinator.networkRecoveryHandler,
+            onlineStateManager: coordinator.onlineStateManager
+        )
+
+        // 配置 WindowManager
+        windowManager.setAppCoordinator(coordinator)
 
         // 启动应用
         Task { @MainActor in
@@ -72,7 +82,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
 
         appStateManager.handleApplicationDidFinishLaunching()
 
-        // 应用程序启动完成后，更新MenuActionHandler的主窗口控制器引用
         menuActionHandler.updateMainWindowController(windowManager.mainWindowController)
     }
 

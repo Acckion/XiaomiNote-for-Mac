@@ -29,7 +29,7 @@ public class WindowManager {
 
     // MARK: - 初始化
 
-    private init() {
+    public init() {
         LogService.shared.debug(.window, "窗口管理器初始化")
     }
 
