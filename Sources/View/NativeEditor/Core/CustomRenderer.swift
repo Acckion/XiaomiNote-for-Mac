@@ -17,8 +17,6 @@ class CustomRenderer {
 
     // MARK: - Singleton
 
-    static let shared = CustomRenderer()
-
     // MARK: - Properties
 
     /// 引用块样式

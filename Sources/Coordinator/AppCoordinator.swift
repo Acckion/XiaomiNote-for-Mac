@@ -142,6 +142,22 @@ public final class AppCoordinator: ObservableObject {
         // 接线编辑器依赖到 NativeEditorContext
         noteEditorState.nativeEditorContext.customRenderer = editorModule.customRenderer
         noteEditorState.nativeEditorContext.imageStorageManager = editorModule.imageStorageManager
+        noteEditorState.nativeEditorContext.formatStateManager = editorModule.formatStateManager
+        noteEditorState.nativeEditorContext.unifiedFormatManager = editorModule.unifiedFormatManager
+        noteEditorState.nativeEditorContext.formatConverter = editorModule.formatConverter
+        noteEditorState.nativeEditorContext.attachmentSelectionManager = editorModule.attachmentSelectionManager
+
+        // 接线编辑器监控和格式管理依赖
+        noteEditorState.nativeEditorContext.performanceMonitor = editorModule.performanceMonitor
+        noteEditorState.nativeEditorContext.xmlNormalizer = editorModule.xmlNormalizer
+        noteEditorState.nativeEditorContext.cursorFormatManager = editorModule.cursorFormatManager
+
+        // 接线编辑器辅助组件依赖
+        noteEditorState.nativeEditorContext.specialElementFormatHandler = editorModule.specialElementFormatHandler
+        noteEditorState.nativeEditorContext.performanceCache = editorModule.performanceCache
+        noteEditorState.nativeEditorContext.typingOptimizer = editorModule.typingOptimizer
+        noteEditorState.nativeEditorContext.attachmentKeyboardHandler = editorModule.attachmentKeyboardHandler
+        noteEditorState.nativeEditorContext.editorConfigurationManager = editorModule.editorConfigurationManager
 
         LogService.shared.info(.app, "AppCoordinator 初始化完成")
     }

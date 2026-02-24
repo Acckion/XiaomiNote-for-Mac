@@ -20,16 +20,12 @@ public struct ListFormatHandler {
     // MARK: - 常量
 
     /// 正文字体大小 (14pt)
-    /// 使用 FontSizeManager 统一管理
     public static var bodyFontSize: CGFloat {
-        FontSizeManager.shared.bodySize
+        FontSizeConstants.body
     }
 
     /// 默认字体 (14pt)
-    /// 使用 FontSizeManager 统一管理
-    public static var defaultFont: NSFont {
-        FontSizeManager.shared.defaultFont
-    }
+    public static let defaultFont = NSFont.systemFont(ofSize: FontSizeConstants.body, weight: .regular)
 
     /// 缩进单位（像素）
     public static let indentUnit: CGFloat = 20
@@ -630,7 +626,13 @@ public struct ListFormatHandler {
         }
 
         if let font = textStorage.attribute(.font, at: position, effectiveRange: nil) as? NSFont {
-            return FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize)
+            let format = FontSizeConstants.detectParagraphFormat(fontSize: font.pointSize)
+            switch format {
+            case .heading1: return 1
+            case .heading2: return 2
+            case .heading3: return 3
+            default: return 0
+            }
         }
 
         return 0

@@ -128,14 +128,47 @@ public class NativeEditorContext: ObservableObject {
     /// 标题变化发布者（用于绕过 SwiftUI 无法观察计算属性链上 @Published 变化的问题）
     let titleChangeSubject = PassthroughSubject<String, Never>()
 
-    /// 格式转换器
-    private let formatConverter = XiaoMiFormatConverter.shared
+    /// 格式转换器（由外部注入）
+    var formatConverter: XiaoMiFormatConverter?
 
     /// 自定义渲染器
     var customRenderer = CustomRenderer()
 
     /// 图片存储管理器
     var imageStorageManager: ImageStorageManager?
+
+    /// 格式状态管理器
+    var formatStateManager: FormatStateManager?
+
+    /// 统一格式管理器
+    var unifiedFormatManager: UnifiedFormatManager?
+
+    /// 附件选择管理器
+    var attachmentSelectionManager: AttachmentSelectionManager?
+
+    /// 性能监控器
+    var performanceMonitor: PerformanceMonitor?
+
+    /// XML 规范化器
+    var xmlNormalizer: XMLNormalizer?
+
+    /// 光标格式管理器
+    var cursorFormatManager: CursorFormatManager?
+
+    /// 特殊元素格式处理器
+    var specialElementFormatHandler: SpecialElementFormatHandler?
+
+    /// 性能缓存
+    var performanceCache: PerformanceCache?
+
+    /// 打字优化器
+    var typingOptimizer: TypingOptimizer?
+
+    /// 附件键盘处理器
+    var attachmentKeyboardHandler: AttachmentKeyboardHandler?
+
+    /// 编辑器配置管理器
+    var editorConfigurationManager: EditorConfigurationManager?
 
     /// 格式状态同步器
     let formatStateSynchronizer = FormatStateSynchronizer.createDefault()
@@ -253,7 +286,7 @@ public class NativeEditorContext: ObservableObject {
         formatChangeSubject.send(format)
 
         // 使用 CursorFormatManager 处理工具栏格式切换
-        CursorFormatManager.shared.handleToolbarFormatToggle(format)
+        cursorFormatManager?.handleToolbarFormatToggle(format)
 
         // 标记有未保存的更改
         hasUnsavedChanges = true
@@ -336,42 +369,38 @@ public class NativeEditorContext: ObservableObject {
     /// - 选择模式：重置选中文本的字体大小
     /// - 光标模式：重置当前行的字体大小
     private func resetFontSizeToBody() {
-        // 使用 FontSizeManager 获取正文字体大小
-        let bodySize = FontSizeManager.shared.bodySize
+        let bodySize = FontSizeConstants.body
 
-        // 确定要处理的范围
         let range: NSRange
         if selectedRange.length > 0 {
-            // 选择模式：使用选中范围
             range = selectedRange
         } else {
-            // 光标模式：获取当前行的范围
             let string = nsAttributedText.string as NSString
             let lineRange = string.lineRange(for: NSRange(location: cursorPosition, length: 0))
             range = lineRange
         }
 
-        // 检查范围是否有效
         guard range.length > 0 else {
             return
         }
 
-        // 创建可变副本
         let mutableText = nsAttributedText.mutableCopy() as! NSMutableAttributedString
 
-        // 遍历范围，重置字体大小
         mutableText.enumerateAttribute(.font, in: range, options: []) { value, subRange, _ in
             if let font = value as? NSFont {
-                // 使用 FontSizeManager 创建新字体，保留字体特性（加粗、斜体）
                 let traits = font.fontDescriptor.symbolicTraits
-                let newFont = FontSizeManager.shared.createFont(ofSize: bodySize, traits: traits)
-
-                // 应用新字体
+                let baseFont = NSFont.systemFont(ofSize: bodySize, weight: .regular)
+                let newFont: NSFont
+                if traits.isEmpty {
+                    newFont = baseFont
+                } else {
+                    let descriptor = baseFont.fontDescriptor.withSymbolicTraits(traits)
+                    newFont = NSFont(descriptor: descriptor, size: bodySize) ?? baseFont
+                }
                 mutableText.addAttribute(.font, value: newFont, range: subRange)
             }
         }
 
-        // 更新编辑器内容
         updateNSContent(mutableText)
     }
 
@@ -512,7 +541,7 @@ public class NativeEditorContext: ObservableObject {
 
         if focused {
             // 注册格式提供者到 FormatStateManager
-            FormatStateManager.shared.setActiveProvider(formatProvider)
+            formatStateManager?.setActiveProvider(formatProvider)
 
             // 同步编辑器上下文状态
             updateCurrentFormats()
@@ -611,7 +640,7 @@ public class NativeEditorContext: ObservableObject {
         let detectedNewFormat = trimmedXml.hasPrefix("<new-format/>")
 
         do {
-            let nsAttributed = try formatConverter.xmlToNSAttributedString(xml, folderId: currentFolderId)
+            let nsAttributed = try formatConverter?.xmlToNSAttributedString(xml, folderId: currentFolderId) ?? NSAttributedString()
 
             let mutableAttributed = NSMutableAttributedString(attributedString: nsAttributed)
             let fullRange = NSRange(location: 0, length: mutableAttributed.length)
@@ -651,7 +680,7 @@ public class NativeEditorContext: ObservableObject {
         }
 
         do {
-            var xmlContent = try formatConverter.nsAttributedStringToXML(nsAttributedText)
+            var xmlContent = try formatConverter?.nsAttributedStringToXML(nsAttributedText) ?? ""
 
             if hasNewFormatPrefix, !xmlContent.hasPrefix("<new-format/>") {
                 xmlContent = "<new-format/>" + xmlContent

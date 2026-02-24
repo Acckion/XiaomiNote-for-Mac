@@ -28,9 +28,6 @@ public final class FontSizeManager {
 
     // MARK: - Singleton
 
-    /// 共享实例
-    public static let shared = FontSizeManager()
-
     init() {}
 
     // MARK: - 字体大小常量
@@ -228,9 +225,16 @@ public enum FontSizeConstants {
 
 public extension ParagraphFormat {
     /// 获取该格式对应的字体大小
-    /// 注意：此属性需要在 MainActor 上下文中使用
-    @MainActor
     var fontSize: CGFloat {
-        FontSizeManager.shared.fontSize(for: self)
+        switch self {
+        case .heading1:
+            FontSizeConstants.heading1
+        case .heading2:
+            FontSizeConstants.heading2
+        case .heading3:
+            FontSizeConstants.heading3
+        default:
+            FontSizeConstants.body
+        }
     }
 }

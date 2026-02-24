@@ -74,10 +74,7 @@ public struct ListBehaviorHandler {
     // MARK: - 常量
 
     /// 默认字体
-    /// 使用 FontSizeManager 统一管理
-    public static var defaultFont: NSFont {
-        FontSizeManager.shared.defaultFont
-    }
+    public static let defaultFont = NSFont.systemFont(ofSize: FontSizeConstants.body, weight: .regular)
 
     // MARK: - 光标位置限制
 

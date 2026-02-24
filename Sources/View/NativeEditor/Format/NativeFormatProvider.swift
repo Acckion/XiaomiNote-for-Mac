@@ -516,7 +516,7 @@ public final class NativeFormatProvider: FormatMenuProvider {
         // 在小米笔记中，字体大小和标题类型是一一对应的
         if let font = attributes[.font] as? NSFont {
             let fontSize = font.pointSize
-            let detectedFormat = FontSizeManager.shared.detectParagraphFormat(fontSize: fontSize)
+            let detectedFormat = FontSizeConstants.detectParagraphFormat(fontSize: fontSize)
             if detectedFormat != .body {
                 return detectedFormat
             }

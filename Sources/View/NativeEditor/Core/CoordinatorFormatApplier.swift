@@ -233,7 +233,7 @@ extension NativeEditorView.Coordinator {
 
         textStorage.beginEditing()
 
-        let formatManager = UnifiedFormatManager.shared
+        guard let formatManager = parent.editorContext.unifiedFormatManager else { return }
 
         switch operation {
         case .increase:

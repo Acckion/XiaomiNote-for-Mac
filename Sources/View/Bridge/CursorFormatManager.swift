@@ -67,9 +67,6 @@ public final class CursorFormatManager {
 
     // MARK: - Singleton
 
-    /// 共享实例
-    public static let shared = CursorFormatManager()
-
     // MARK: - Properties
 
     /// 统一格式管理器
@@ -100,12 +97,6 @@ public final class CursorFormatManager {
     public private(set) var isRegistered = false
 
     // MARK: - Initialization
-
-    /// 过渡期兼容构造器
-    private init() {
-        self.unifiedFormatManager = UnifiedFormatManager.shared
-        self.fontSizeManager = FontSizeManager.shared
-    }
 
     /// EditorModule 使用的构造器
     init(unifiedFormatManager: UnifiedFormatManager, fontSizeManager: FontSizeManager) {

@@ -33,11 +33,6 @@ public struct FormatStatePerformanceRecord: Sendable {
 @MainActor
 public final class FormatStateManager: ObservableObject {
 
-    // MARK: - Singleton
-
-    /// 共享实例
-    public static let shared = FormatStateManager()
-
     // MARK: - Published Properties
 
     /// 当前格式状态

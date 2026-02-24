@@ -357,7 +357,11 @@
             }
 
             // 创建历史记录视图
-            let historyView = NoteHistoryView(noteEditorState: coordinator.noteEditorState, noteId: note.id)
+            let historyView = NoteHistoryView(
+                noteEditorState: coordinator.noteEditorState,
+                noteId: note.id,
+                formatConverter: coordinator.editorModule.formatConverter
+            )
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: historyView)
@@ -401,7 +405,7 @@
             }
 
             // 创建回收站视图
-            let trashView = TrashView(noteListState: coordinator.noteListState)
+            let trashView = TrashView(noteListState: coordinator.noteListState, formatConverter: coordinator.editorModule.formatConverter)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: trashView)
@@ -785,6 +789,7 @@
                 self?.formatMenuPopover?.performClose(nil)
                 self?.formatMenuPopover = nil
             }
+            .environmentObject(coordinator.editorModule.formatStateManager)
 
             let hostingController = NSHostingController(rootView: AnyView(formatMenuView))
             let contentSize = NSSize(width: 280, height: 450)

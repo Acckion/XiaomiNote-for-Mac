@@ -16,6 +16,9 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 窗口管理器
     private let windowManager: WindowManager
 
+    /// 格式状态管理器
+    private var formatStateManager: FormatStateManager?
+
     /// 菜单状态
     /// 用于管理菜单项的启用/禁用和勾选状态
     private(set) var menuState = MenuState()
@@ -31,6 +34,11 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         self.windowManager = windowManager
         super.init()
         setupStateObservers()
+    }
+
+    /// 延迟注入格式状态管理器（AppDelegate 启动链中 EditorModule 创建后调用）
+    func setFormatStateManager(_ manager: FormatStateManager) {
+        formatStateManager = manager
     }
 
     // MARK: - 公共方法
@@ -377,8 +385,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func toggleBold(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.bold)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.bold)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.toggleBold(sender)
@@ -389,8 +397,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func toggleItalic(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.italic)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.italic)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.toggleItalic(sender)
@@ -401,8 +409,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func toggleUnderline(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.underline)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.underline)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.toggleUnderline(sender)
@@ -413,8 +421,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func toggleStrikethrough(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.strikethrough)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.strikethrough)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.toggleStrikethrough(sender)
@@ -449,8 +457,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func alignLeft(_ sender: Any?) {
         // 优先使用 FormatStateManager 清除对齐格式（恢复左对齐）
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.clearAlignmentFormat()
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.clearAlignmentFormat()
         } else {
             // 回退到主窗口控制器
             mainWindowController?.alignLeft(sender)
@@ -461,8 +469,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func alignCenter(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.applyFormat(.alignCenter)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.applyFormat(.alignCenter)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.alignCenter(sender)
@@ -473,8 +481,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func alignRight(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.applyFormat(.alignRight)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.applyFormat(.alignRight)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.alignRight(sender)
@@ -485,8 +493,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func toggleBulletList(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.bulletList)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.bulletList)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.toggleBulletList(sender)
@@ -497,8 +505,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func toggleNumberedList(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.numberedList)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.numberedList)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.toggleNumberedList(sender)
@@ -509,8 +517,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func toggleCheckboxList(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.checkbox)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.checkbox)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.toggleCheckboxList(sender)
@@ -521,8 +529,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func setHeading1(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.applyFormat(.heading1)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.applyFormat(.heading1)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.setHeading1(sender)
@@ -533,8 +541,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func setHeading2(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.applyFormat(.heading2)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.applyFormat(.heading2)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.setHeading2(sender)
@@ -545,8 +553,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func setHeading3(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.applyFormat(.heading3)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.applyFormat(.heading3)
         } else {
             // 回退到主窗口控制器
             mainWindowController?.setHeading3(sender)
@@ -557,8 +565,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     func setBodyText(_ sender: Any?) {
         // 优先使用 FormatStateManager 清除段落格式（恢复正文）
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.clearParagraphFormat()
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.clearParagraphFormat()
         } else {
             // 回退到主窗口控制器
             mainWindowController?.setBodyText(sender)
@@ -571,8 +579,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     @objc func setHeading(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.applyFormat(.heading1)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.applyFormat(.heading1)
         } else {
             mainWindowController?.setHeading1(sender)
         }
@@ -582,8 +590,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     @objc func setSubheading(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.applyFormat(.heading2)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.applyFormat(.heading2)
         } else {
             mainWindowController?.setHeading2(sender)
         }
@@ -593,8 +601,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     @objc func setSubtitle(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.applyFormat(.heading3)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.applyFormat(.heading3)
         } else {
             mainWindowController?.setHeading3(sender)
         }
@@ -604,8 +612,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     @objc func toggleOrderedList(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.numberedList)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.numberedList)
         } else {
             mainWindowController?.toggleNumberedList(sender)
         }
@@ -615,8 +623,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     @objc func toggleUnorderedList(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.bulletList)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.bulletList)
         } else {
             mainWindowController?.toggleBulletList(sender)
         }
@@ -626,8 +634,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     @objc func toggleBlockQuote(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.quote)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.quote)
         } else {
             mainWindowController?.toggleBlockQuote(sender)
         }
@@ -639,8 +647,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     @objc func toggleChecklist(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.checkbox)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.checkbox)
         } else {
             mainWindowController?.toggleCheckboxList(sender)
         }
@@ -692,8 +700,8 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 使用 FormatStateManager 确保菜单操作和工具栏操作使用相同的逻辑
     @objc func toggleHighlight(_ sender: Any?) {
         // 优先使用 FormatStateManager 应用格式
-        if FormatStateManager.shared.hasActiveEditor {
-            FormatStateManager.shared.toggleFormat(.highlight)
+        if formatStateManager?.hasActiveEditor ?? false {
+            formatStateManager?.toggleFormat(.highlight)
         } else {
             mainWindowController?.toggleHighlight(sender)
         }
@@ -1319,7 +1327,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
             return
         }
 
-        WindowManager.shared.openNoteEditorWindow(note: note)
+        windowManager.openNoteEditorWindow(note: note)
     }
 
     // MARK: - 清理

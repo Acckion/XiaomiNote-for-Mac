@@ -16,14 +16,7 @@ class XiaoMiFormatConverter {
 
     // MARK: - Singleton
 
-    static let shared = XiaoMiFormatConverter()
-
     private let xmlNormalizer: XMLNormalizer
-
-    /// 过渡期兼容构造器，供 .shared 使用
-    private init() {
-        self.xmlNormalizer = XMLNormalizer.shared
-    }
 
     /// EditorModule 使用的构造器
     init(xmlNormalizer: XMLNormalizer) {

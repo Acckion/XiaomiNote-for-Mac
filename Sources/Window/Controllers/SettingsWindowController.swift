@@ -113,7 +113,8 @@
                 apiClient: coordinator.networkModule.apiClient,
                 operationQueue: coordinator.syncModule.operationQueue,
                 operationProcessor: coordinator.syncModule.operationProcessor,
-                idMappingRegistry: coordinator.syncModule.idMappingRegistry
+                idMappingRegistry: coordinator.syncModule.idMappingRegistry,
+                editorConfigurationManager: coordinator.editorModule.editorConfigurationManager
             )
             .frame(minWidth: 550, minHeight: 500)
 

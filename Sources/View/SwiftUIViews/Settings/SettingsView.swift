@@ -8,6 +8,7 @@ public struct SettingsView: View {
     let operationQueue: UnifiedOperationQueue
     let operationProcessor: OperationProcessor
     let idMappingRegistry: IdMappingRegistry
+    let editorConfigurationManager: EditorConfigurationManager
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("syncInterval") private var syncInterval: Double = 300
@@ -31,7 +32,8 @@ public struct SettingsView: View {
         apiClient: APIClient,
         operationQueue: UnifiedOperationQueue,
         operationProcessor: OperationProcessor,
-        idMappingRegistry: IdMappingRegistry
+        idMappingRegistry: IdMappingRegistry,
+        editorConfigurationManager: EditorConfigurationManager
     ) {
         self.syncState = syncState
         self.authState = authState
@@ -40,6 +42,7 @@ public struct SettingsView: View {
         self.operationQueue = operationQueue
         self.operationProcessor = operationProcessor
         self.idMappingRegistry = idMappingRegistry
+        self.editorConfigurationManager = editorConfigurationManager
     }
 
     public var body: some View {
@@ -126,7 +129,7 @@ public struct SettingsView: View {
     private var editorSection: some View {
         Section("编辑器") {
             NavigationLink("编辑器设置") {
-                EditorSettingsView()
+                EditorSettingsView(configurationManager: editorConfigurationManager)
             }
             .help("配置原生编辑器")
         }
@@ -678,6 +681,7 @@ struct ChangePasswordDialogView: View {
 #Preview {
     let nm = NetworkModule()
     let sm = SyncModule(networkModule: nm)
+    let em = EditorModule(syncModule: sm, networkModule: nm)
     SettingsView(
         syncState: SyncState(operationQueue: sm.operationQueue),
         authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI, onlineStateManager: sm.onlineStateManager),
@@ -692,6 +696,7 @@ struct ChangePasswordDialogView: View {
         apiClient: nm.apiClient,
         operationQueue: sm.operationQueue,
         operationProcessor: sm.operationProcessor,
-        idMappingRegistry: sm.idMappingRegistry
+        idMappingRegistry: sm.idMappingRegistry,
+        editorConfigurationManager: em.editorConfigurationManager
     )
 }

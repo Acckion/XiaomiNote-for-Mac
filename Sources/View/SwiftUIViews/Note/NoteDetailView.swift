@@ -50,7 +50,9 @@ struct NoteDetailView: View {
             operationQueue: coordinator.syncModule.operationQueue,
             localStorage: coordinator.syncModule.localStorage,
             operationProcessor: coordinator.syncModule.operationProcessor,
-            idMappingRegistry: coordinator.syncModule.idMappingRegistry
+            idMappingRegistry: coordinator.syncModule.idMappingRegistry,
+            formatConverter: coordinator.editorModule.formatConverter,
+            xmlNormalizer: coordinator.editorModule.xmlNormalizer
         ))
     }
 
@@ -193,7 +195,7 @@ struct NoteDetailView: View {
             Text(imageInsertErrorMessage)
         }
         .sheet(isPresented: $showingHistoryView) {
-            NoteHistoryView(noteEditorState: noteEditorState, noteId: note.id)
+            NoteHistoryView(noteEditorState: noteEditorState, noteId: note.id, formatConverter: coordinator.editorModule.formatConverter)
         }
         .alert("保存失败", isPresented: $showSaveErrorAlert) {
             Button("确定", role: .cancel) {}

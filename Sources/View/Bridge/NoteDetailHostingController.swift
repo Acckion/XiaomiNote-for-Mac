@@ -24,7 +24,7 @@ class NoteDetailHostingController: NSViewController {
     private let windowState: WindowState
 
     /// 托管视图
-    private var hostingView: NSHostingView<NoteDetailView>?
+    private var hostingView: NSHostingView<AnyView>?
 
     /// Combine 订阅集合
     private var cancellables = Set<AnyCancellable>()
@@ -49,14 +49,13 @@ class NoteDetailHostingController: NSViewController {
     // MARK: - 视图生命周期
 
     override func loadView() {
-        // 创建 SwiftUI 视图
-        let noteDetailView = NoteDetailView(coordinator: coordinator, windowState: windowState)
+        let noteDetailView = AnyView(
+            NoteDetailView(coordinator: coordinator, windowState: windowState)
+                .environmentObject(coordinator.editorModule.formatStateManager)
+        )
 
-        // 创建 NSHostingView
         let hostingView = NSHostingView(rootView: noteDetailView)
         self.hostingView = hostingView
-
-        // 设置视图
         view = hostingView
     }
 
@@ -90,6 +89,9 @@ class NoteDetailHostingController: NSViewController {
 
     /// 刷新 SwiftUI 视图
     func refreshView() {
-        hostingView?.rootView = NoteDetailView(coordinator: coordinator, windowState: windowState)
+        hostingView?.rootView = AnyView(
+            NoteDetailView(coordinator: coordinator, windowState: windowState)
+                .environmentObject(coordinator.editorModule.formatStateManager)
+        )
     }
 }

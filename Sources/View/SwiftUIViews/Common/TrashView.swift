@@ -7,6 +7,7 @@ import SwiftUI
 @available(macOS 14.0, *)
 struct TrashView: View {
     @ObservedObject var noteListState: NoteListState
+    var formatConverter: XiaoMiFormatConverter?
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedDeletedNote: DeletedNote?
@@ -245,10 +246,10 @@ struct TrashView: View {
         Task { @MainActor in
             do {
                 // 使用 XiaoMiFormatConverter 将 XML 转换为 NSAttributedString
-                let attributedString = try XiaoMiFormatConverter.shared.xmlToNSAttributedString(
+                let attributedString = try formatConverter?.xmlToNSAttributedString(
                     note.content,
                     folderId: note.folderId
-                )
+                ) ?? NSAttributedString()
 
                 // 设置到编辑器上下文
                 editorContext.updateNSContent(attributedString)

@@ -11,21 +11,15 @@ enum ArrowDirection {
 /// 附件键盘处理器
 /// 负责根据光标位置处理不同的键盘交互
 @MainActor
-class AttachmentKeyboardHandler {
+public class AttachmentKeyboardHandler {
     // MARK: - Properties
 
-    /// 单例实例
-    static let shared = AttachmentKeyboardHandler()
+    // 单例实例
 
     /// 选择管理器
     private let selectionManager: AttachmentSelectionManager
 
     // MARK: - Initialization
-
-    /// 过渡期兼容构造器
-    private init() {
-        self.selectionManager = AttachmentSelectionManager.shared
-    }
 
     /// EditorModule 使用的构造器
     init(selectionManager: AttachmentSelectionManager) {

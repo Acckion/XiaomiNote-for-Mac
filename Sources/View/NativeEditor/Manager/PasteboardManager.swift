@@ -13,8 +13,7 @@ import Foundation
 public class PasteboardManager {
     // MARK: - Singleton
 
-    /// 共享实例
-    public static let shared = PasteboardManager()
+    // 共享实例
 
     // MARK: - Initialization
 

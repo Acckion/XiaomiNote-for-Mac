@@ -18,10 +18,6 @@ import Foundation
 @MainActor
 public final class TypingOptimizer {
 
-    // MARK: - Singleton
-
-    public static let shared = TypingOptimizer()
-
     // MARK: - 常量
 
     /// 输入停止检测延迟（秒）

@@ -139,8 +139,7 @@ public final class UnifiedFormatManager {
 
     // MARK: - 单例
 
-    /// 共享实例
-    public static let shared = UnifiedFormatManager()
+    // 共享实例
 
     // MARK: - 属性
 
@@ -1036,17 +1035,17 @@ public final class UnifiedFormatManager {
             return InlineFormatHandler.isFormatActive(.highlight, in: attributes)
         case .heading1:
             if let font = attributes[.font] as? NSFont {
-                return FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize) == 1
+                return FontSizeConstants.detectParagraphFormat(fontSize: font.pointSize) == .heading1
             }
             return false
         case .heading2:
             if let font = attributes[.font] as? NSFont {
-                return FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize) == 2
+                return FontSizeConstants.detectParagraphFormat(fontSize: font.pointSize) == .heading2
             }
             return false
         case .heading3:
             if let font = attributes[.font] as? NSFont {
-                return FontSizeManager.shared.detectHeadingLevel(fontSize: font.pointSize) == 3
+                return FontSizeConstants.detectParagraphFormat(fontSize: font.pointSize) == .heading3
             }
             return false
         case .alignCenter:

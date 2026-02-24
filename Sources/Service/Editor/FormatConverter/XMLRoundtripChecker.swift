@@ -41,6 +41,21 @@ class XMLRoundtripChecker: ObservableObject {
 
     @Published var progress: (current: Int, total: Int) = (0, 0)
 
+    private let formatConverter: XiaoMiFormatConverter
+    private let xmlNormalizer: XMLNormalizer
+
+    init(formatConverter: XiaoMiFormatConverter, xmlNormalizer: XMLNormalizer) {
+        self.formatConverter = formatConverter
+        self.xmlNormalizer = xmlNormalizer
+    }
+
+    /// 调试用便利构造器，创建独立的转换器实例
+    convenience init() {
+        let normalizer = XMLNormalizer()
+        let converter = XiaoMiFormatConverter(xmlNormalizer: normalizer)
+        self.init(formatConverter: converter, xmlNormalizer: normalizer)
+    }
+
     /// 执行往返检测
     func runCheck() async -> RoundtripCheckResult {
         let startTime = CFAbsoluteTimeGetCurrent()
@@ -66,8 +81,8 @@ class XMLRoundtripChecker: ObservableObject {
         var errorCount = 0
         var failedNotes: [NoteRoundtripResult] = []
 
-        let converter = XiaoMiFormatConverter.shared
-        let normalizer = XMLNormalizer.shared
+        let converter = formatConverter
+        let normalizer = xmlNormalizer
 
         for (index, note) in notes.enumerated() {
             progress = (index + 1, notes.count)

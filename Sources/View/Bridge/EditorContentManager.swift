@@ -155,8 +155,8 @@ public extension NativeEditorContext {
         let currentXML = exportToXML()
 
         // 使用 XMLNormalizer 规范化两边的内容
-        let normalizedExpected = XMLNormalizer.shared.normalize(expectedContent)
-        let normalizedCurrent = XMLNormalizer.shared.normalize(currentXML)
+        let normalizedExpected = xmlNormalizer?.normalize(expectedContent) ?? expectedContent
+        let normalizedCurrent = xmlNormalizer?.normalize(currentXML) ?? currentXML
 
         // 分析预期内容的类型（使用规范化后的内容）
         let expectedIsEmpty = normalizedExpected.isEmpty

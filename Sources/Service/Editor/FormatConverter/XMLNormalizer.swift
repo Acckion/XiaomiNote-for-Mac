@@ -11,9 +11,6 @@ import Foundation
 /// - 移除无意义的属性差异
 @MainActor
 public class XMLNormalizer {
-    /// 单例
-    public static let shared = XMLNormalizer()
-
     /// 公共初始化器，允许测试创建实例
     public init() {}
 

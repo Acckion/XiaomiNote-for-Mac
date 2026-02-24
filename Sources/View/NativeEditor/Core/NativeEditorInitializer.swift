@@ -48,8 +48,6 @@ final class NativeEditorInitializer {
 
     // MARK: - Singleton
 
-    static let shared = NativeEditorInitializer()
-
     // MARK: - Properties
 
     /// 自定义渲染器
@@ -84,12 +82,6 @@ final class NativeEditorInitializer {
     private var cachedCompatibilityResult: SystemCompatibilityResult?
 
     // MARK: - Initialization
-
-    /// 过渡期兼容构造器
-    private init() {
-        self.customRenderer = CustomRenderer.shared
-        self.formatConverter = XiaoMiFormatConverter.shared
-    }
 
     /// EditorModule 使用的构造器
     init(customRenderer: CustomRenderer, formatConverter: XiaoMiFormatConverter) {
@@ -304,8 +296,6 @@ final class NativeEditorInitializer {
 final class EditorRecoveryManager {
 
     // MARK: - Singleton
-
-    static let shared = EditorRecoveryManager()
 
     // MARK: - Properties
 

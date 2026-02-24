@@ -16,8 +16,6 @@ final class SafeRenderer {
 
     // MARK: - Singleton
 
-    static let shared = SafeRenderer()
-
     // MARK: - Properties
 
     /// 自定义渲染器
@@ -41,11 +39,6 @@ final class SafeRenderer {
     }
 
     // MARK: - Initialization
-
-    /// 过渡期兼容构造器
-    private init() {
-        self.customRenderer = CustomRenderer.shared
-    }
 
     /// EditorModule 使用的构造器
     init(customRenderer: CustomRenderer) {

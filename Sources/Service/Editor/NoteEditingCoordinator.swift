@@ -84,6 +84,8 @@ public final class NoteEditingCoordinator: ObservableObject {
     private let localStorage: LocalStorageService
     private let operationProcessor: OperationProcessor
     private let idMappingRegistry: IdMappingRegistry
+    private let formatConverter: XiaoMiFormatConverter
+    private let xmlNormalizer: XMLNormalizer
     private(set) weak var noteEditorState: NoteEditorState?
     private var noteStore: NoteStore?
     var nativeEditorContext: NativeEditorContext? {
@@ -92,18 +94,22 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     // MARK: - 初始化
 
-    public init(
+    init(
         apiClient: APIClient,
         operationQueue: UnifiedOperationQueue,
         localStorage: LocalStorageService,
         operationProcessor: OperationProcessor,
-        idMappingRegistry: IdMappingRegistry
+        idMappingRegistry: IdMappingRegistry,
+        formatConverter: XiaoMiFormatConverter,
+        xmlNormalizer: XMLNormalizer
     ) {
         self.apiClient = apiClient
         self.operationQueue = operationQueue
         self.localStorage = localStorage
         self.operationProcessor = operationProcessor
         self.idMappingRegistry = idMappingRegistry
+        self.formatConverter = formatConverter
+        self.xmlNormalizer = xmlNormalizer
     }
 
     /// 配置依赖
@@ -300,7 +306,7 @@ public final class NoteEditingCoordinator: ObservableObject {
         if let context = nativeEditorContext {
             let backupContent = context.getContentForRetry()
             if backupContent.length > 0 {
-                contentToSave = XiaoMiFormatConverter.shared.safeNSAttributedStringToXML(backupContent)
+                contentToSave = formatConverter.safeNSAttributedStringToXML(backupContent)
             }
         }
 
@@ -849,8 +855,8 @@ public final class NoteEditingCoordinator: ObservableObject {
         currentTitle: String,
         originalTitle: String
     ) -> Bool {
-        let normalizedCurrent = XMLNormalizer.shared.normalize(currentContent)
-        let normalizedSaved = XMLNormalizer.shared.normalize(savedContent)
+        let normalizedCurrent = xmlNormalizer.normalize(currentContent)
+        let normalizedSaved = xmlNormalizer.normalize(savedContent)
         return normalizedCurrent != normalizedSaved || currentTitle != originalTitle
     }
 

@@ -13,8 +13,7 @@ enum CursorPositionRelativeToAttachment {
 class AttachmentSelectionManager {
     // MARK: - Properties
 
-    /// 单例实例
-    static let shared = AttachmentSelectionManager()
+    // 单例实例
 
     /// 当前选中的附件
     private(set) var selectedAttachment: NSTextAttachment?

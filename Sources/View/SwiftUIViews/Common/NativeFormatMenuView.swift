@@ -53,7 +53,7 @@ struct NativeFormatMenuView: View {
 
     @ObservedObject var context: NativeEditorContext
     /// 格式状态管理器 - 用于统一工具栏和菜单栏的格式状态
-    @ObservedObject private var stateManager = FormatStateManager.shared
+    @EnvironmentObject private var stateManager: FormatStateManager
     var onFormatApplied: ((TextFormat) -> Void)?
 
     /// 格式按钮是否可用（编辑器获得焦点且有内容时启用）
@@ -415,5 +415,6 @@ extension NativeFormatMenuView {
 
 #Preview {
     NativeFormatMenuView(context: NativeEditorContext())
+        .environmentObject(FormatStateManager())
         .frame(width: 220, height: 400)
 }
