@@ -53,13 +53,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
     // MARK: - NSApplicationDelegate
 
     public func applicationDidFinishLaunching(_: Notification) {
-        // 配置依赖注入服务
-        ServiceLocator.shared.configure()
-
         LogService.shared.info(.app, "应用启动")
 
-        // 创建 AppCoordinator
-        let coordinator = AppCoordinator()
+        // 创建网络模块和 AppCoordinator
+        let networkModule = NetworkModule()
+        let coordinator = AppCoordinator(networkModule: networkModule)
         appCoordinator = coordinator
 
         // 配置 WindowManager（为未来的多窗口支持做准备）
