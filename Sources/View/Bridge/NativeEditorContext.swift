@@ -550,9 +550,7 @@ public class NativeEditorContext: ObservableObject {
             updateCurrentFormats()
             detectSpecialElementAtCursor()
         } else {
-            // 编辑器失去焦点时，清除活动提供者
-            // 注意：这里不清除，因为用户可能只是临时切换焦点
-            // FormatStateManager.shared.clearActiveProvider()
+            // 编辑器失去焦点时不清除活动提供者，用户可能只是临时切换焦点
         }
     }
 

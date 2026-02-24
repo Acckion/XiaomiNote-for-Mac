@@ -74,7 +74,6 @@
 		32D992CCBB4901DE62145BA9 /* UserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06312F85C610FF0BE9C0C6A9 /* UserAPI.swift */; };
 		333F0FFC231A4E8D7EFFE291 /* NotesListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A3C89BCCABD0E45A3309D9 /* NotesListViewController.swift */; };
 		341E0910293A114EF5E3E876 /* MenuManager+FormatMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D2E7AE9BE1A2A7A2FEB12DB /* MenuManager+FormatMenu.swift */; };
-		34545675841CC5AE1E6D3D84 /* BackgroundTaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8AE6D04E1D8E76D213B3037 /* BackgroundTaskManager.swift */; };
 		345A41D2D77465098CC68E07 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA4193B25283EC76AF010994 /* App.swift */; };
 		35A6B87DBFE4351F34A86AFA /* AudioUploadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15930156CC59F329FF4CB98C /* AudioUploadService.swift */; };
 		35FCCE04D3FBA66CEDA432CE /* MenuManager+EditMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F386288A1CB171EBBD679BA /* MenuManager+EditMenu.swift */; };
@@ -585,7 +584,6 @@
 		D41C9F4415AFF48A2218272D /* NoteAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteAPI.swift; sourceTree = "<group>"; };
 		D5D3A6928ABBEDCA697FAF45 /* DebugSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSettingsView.swift; sourceTree = "<group>"; };
 		D65A6703E87D480834F8E4D8 /* FormatState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatState.swift; sourceTree = "<group>"; };
-		D8AE6D04E1D8E76D213B3037 /* BackgroundTaskManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskManager.swift; sourceTree = "<group>"; };
 		D9A3E318377C517D3F7C3F57 /* NativeEditorContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorContext.swift; sourceTree = "<group>"; };
 		DB04FA3C7BF26F0F02F26124 /* NoteEditorWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorWindowController.swift; sourceTree = "<group>"; };
 		DB76B020DFCF6D142B6CFA74 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
@@ -1182,14 +1180,6 @@
 			path = AudioPanel;
 			sourceTree = "<group>";
 		};
-		99E784C177749FDE25FF5D9B /* Concurrency */ = {
-			isa = PBXGroup;
-			children = (
-				D8AE6D04E1D8E76D213B3037 /* BackgroundTaskManager.swift */,
-			);
-			path = Concurrency;
-			sourceTree = "<group>";
-		};
 		9BBCB8CB7791417AFF0BDEFA /* Image */ = {
 			isa = PBXGroup;
 			children = (
@@ -1211,7 +1201,6 @@
 		A0DD281D3476BB6A6A1A2CD3 /* Core */ = {
 			isa = PBXGroup;
 			children = (
-				99E784C177749FDE25FF5D9B /* Concurrency */,
 				7F6BF382B0FA18863F412D08 /* EventBus */,
 				F351872A8AFD5113EEEE1ED1 /* Pagination */,
 			);
@@ -1680,7 +1669,6 @@
 				C44FF0CDBA3757D9CBF4C56F /* AuthenticationServiceProtocol.swift in Sources */,
 				B799367F5950DC88472B6C24 /* AuthenticationViewModel.swift in Sources */,
 				83F73AF43550EFE3A37FD168 /* AutoSaveManager.swift in Sources */,
-				34545675841CC5AE1E6D3D84 /* BackgroundTaskManager.swift in Sources */,
 				D50C0193018C0FD064802EF0 /* BaseSheetToolbarDelegate.swift in Sources */,
 				2BA81EAE173461CC788DB9E1 /* BlockFormatHandler.swift in Sources */,
 				B01898D06EA148D6BE82E3E6 /* BlockNodes.swift in Sources */,
