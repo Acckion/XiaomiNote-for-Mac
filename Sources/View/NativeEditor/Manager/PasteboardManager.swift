@@ -18,7 +18,7 @@ public class PasteboardManager {
 
     // MARK: - Initialization
 
-    private init() {
+    init() {
         #if DEBUG
         #endif
     }

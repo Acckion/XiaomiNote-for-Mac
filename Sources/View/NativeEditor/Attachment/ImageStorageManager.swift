@@ -11,13 +11,21 @@ class ImageStorageManager {
 
     // MARK: - Properties
 
-    private let localStorage = LocalStorageService.shared
+    private let localStorage: LocalStorageService
     private var imageCache: [String: NSImage] = [:]
     private let maxCacheSize = 50
 
     // MARK: - Initialization
 
-    private init() {}
+    /// 过渡期兼容构造器
+    private init() {
+        self.localStorage = LocalStorageService.shared
+    }
+
+    /// EditorModule 使用的构造器
+    init(localStorage: LocalStorageService) {
+        self.localStorage = localStorage
+    }
 
     // MARK: - Public Methods
 

@@ -101,7 +101,7 @@ public final class FormatStateManager: ObservableObject {
 
     // MARK: - Initialization
 
-    private init() {
+    init() {
         setupNotificationObservers()
     }
 

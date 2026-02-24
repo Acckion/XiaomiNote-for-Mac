@@ -34,7 +34,7 @@ Sources/
 │   ├── Authentication/     # 认证服务
 │   ├── Cache/              # 缓存服务
 │   ├── Core/               # 核心服务（StartupSequenceManager, LogService）
-│   ├── Editor/             # 编辑器服务（NoteEditingCoordinator, FormatConverter）
+│   ├── Editor/             # 编辑器服务（EditorModule, NoteEditingCoordinator, FormatConverter）
 │   ├── Image/              # 图片服务
 │   └── Protocols/          # 服务协议定义
 ├── State/                  # 状态对象（替代 NotesViewModel）

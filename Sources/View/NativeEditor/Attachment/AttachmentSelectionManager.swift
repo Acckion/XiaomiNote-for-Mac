@@ -33,7 +33,7 @@ class AttachmentSelectionManager {
 
     // MARK: - Initialization
 
-    private init() {}
+    init() {}
 
     // MARK: - Registration
 

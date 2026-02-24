@@ -52,6 +52,12 @@ final class NativeEditorInitializer {
 
     // MARK: - Properties
 
+    /// 自定义渲染器
+    private let customRenderer: CustomRenderer
+
+    /// 格式转换器
+    private let formatConverter: XiaoMiFormatConverter
+
     /// 日志记录器
     private let logger = NativeEditorLogger.shared
 
@@ -79,7 +85,17 @@ final class NativeEditorInitializer {
 
     // MARK: - Initialization
 
-    private init() {}
+    /// 过渡期兼容构造器
+    private init() {
+        self.customRenderer = CustomRenderer.shared
+        self.formatConverter = XiaoMiFormatConverter.shared
+    }
+
+    /// EditorModule 使用的构造器
+    init(customRenderer: CustomRenderer, formatConverter: XiaoMiFormatConverter) {
+        self.customRenderer = customRenderer
+        self.formatConverter = formatConverter
+    }
 
     // MARK: - Public Methods
 
@@ -248,7 +264,7 @@ final class NativeEditorInitializer {
     /// 创建编辑器上下文
     private func createEditorContext() throws -> NativeEditorContext {
         // 预热渲染器缓存
-        CustomRenderer.shared.warmUpCache()
+        customRenderer.warmUpCache()
 
         // 创建上下文
         let context = NativeEditorContext()
@@ -264,13 +280,13 @@ final class NativeEditorInitializer {
         // 验证格式转换器
         let testXML = "<text indent=\"1\">测试</text>"
         do {
-            _ = try XiaoMiFormatConverter.shared.xmlToNSAttributedString(testXML)
+            _ = try formatConverter.xmlToNSAttributedString(testXML)
         } catch {
             throw NativeEditorError.initializationFailed(reason: "格式转换器验证失败: \(error.localizedDescription)")
         }
 
         // 验证渲染器
-        let renderer = CustomRenderer.shared
+        let renderer = customRenderer
         _ = renderer.createCheckboxAttachment(checked: false, level: 3, indent: 1)
         _ = renderer.createHorizontalRuleAttachment()
         _ = renderer.createBulletAttachment(indent: 1)
@@ -322,7 +338,7 @@ final class EditorRecoveryManager {
 
     // MARK: - Initialization
 
-    private init() {
+    init() {
         setupRecoveryDirectory()
     }
 

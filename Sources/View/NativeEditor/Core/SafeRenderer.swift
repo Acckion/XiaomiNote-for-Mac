@@ -21,7 +21,7 @@ final class SafeRenderer {
     // MARK: - Properties
 
     /// 自定义渲染器
-    private let customRenderer = CustomRenderer.shared
+    private let customRenderer: CustomRenderer
 
     /// 错误处理器
     private let errorHandler = NativeEditorErrorHandler.shared
@@ -42,7 +42,15 @@ final class SafeRenderer {
 
     // MARK: - Initialization
 
-    private init() {}
+    /// 过渡期兼容构造器
+    private init() {
+        self.customRenderer = CustomRenderer.shared
+    }
+
+    /// EditorModule 使用的构造器
+    init(customRenderer: CustomRenderer) {
+        self.customRenderer = customRenderer
+    }
 
     // MARK: - Safe Rendering Methods
 

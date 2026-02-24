@@ -31,7 +31,7 @@ public final class FontSizeManager {
     /// 共享实例
     public static let shared = FontSizeManager()
 
-    private init() {}
+    init() {}
 
     // MARK: - 字体大小常量
 

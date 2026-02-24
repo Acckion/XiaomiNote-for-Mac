@@ -80,7 +80,7 @@ public final class TypingOptimizer {
 
     // MARK: - Initialization
 
-    private init() {}
+    init() {}
 
     /// 检测是否为简单输入
     ///
