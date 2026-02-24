@@ -34,9 +34,9 @@ public final class AppCoordinator: ObservableObject {
     // MARK: - 模块
 
     public let networkModule: NetworkModule
-    private let syncModule: SyncModule
-    private let editorModule: EditorModule
-    private let audioModule: AudioModule
+    public let syncModule: SyncModule
+    public let editorModule: EditorModule
+    public let audioModule: AudioModule
 
     // MARK: - 窗口管理
 
@@ -48,6 +48,7 @@ public final class AppCoordinator: ObservableObject {
     public let errorRecoveryService: ErrorRecoveryService
     public let networkRecoveryHandler: NetworkRecoveryHandler
     public let onlineStateManager: OnlineStateManager
+    public let notePreviewService: NotePreviewService
     private let passTokenManager: PassTokenManager
 
     // MARK: - 音频面板（暂不重构）
@@ -73,7 +74,9 @@ public final class AppCoordinator: ObservableObject {
             db: DatabaseService.shared,
             eventBus: EventBus.shared,
             operationQueue: syncModule.operationQueue,
-            idMappingRegistry: syncModule.idMappingRegistry
+            idMappingRegistry: syncModule.idMappingRegistry,
+            localStorage: syncModule.localStorage,
+            operationProcessor: syncModule.operationProcessor
         )
         self.noteStore = noteStoreInstance
         self.syncEngine = syncModule.createSyncEngine(noteStore: noteStoreInstance)
@@ -83,10 +86,22 @@ public final class AppCoordinator: ObservableObject {
             apiClient: networkModule.apiClient,
             noteAPI: networkModule.noteAPI
         )
-        self.noteEditorState = NoteEditorState(eventBus: EventBus.shared, noteStore: noteStoreInstance, noteAPI: networkModule.noteAPI)
+        self.noteEditorState = NoteEditorState(
+            eventBus: EventBus.shared,
+            noteStore: noteStoreInstance,
+            noteAPI: networkModule.noteAPI,
+            operationQueue: syncModule.operationQueue,
+            localStorage: syncModule.localStorage,
+            operationProcessor: syncModule.operationProcessor
+        )
         self.folderState = FolderState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
-        self.syncState = SyncState(eventBus: EventBus.shared)
-        self.authState = AuthState(eventBus: EventBus.shared, apiClient: networkModule.apiClient, userAPI: networkModule.userAPI)
+        self.syncState = SyncState(eventBus: EventBus.shared, operationQueue: syncModule.operationQueue)
+        self.authState = AuthState(
+            eventBus: EventBus.shared,
+            apiClient: networkModule.apiClient,
+            userAPI: networkModule.userAPI,
+            onlineStateManager: syncModule.onlineStateManager
+        )
         self.searchState = SearchState(noteStore: noteStoreInstance)
 
         self.audioPanelViewModel = AudioPanelViewModel(
@@ -120,7 +135,13 @@ public final class AppCoordinator: ObservableObject {
 
         self.passTokenManager = PassTokenManager(apiClient: networkModule.apiClient)
 
+        self.notePreviewService = NotePreviewService(localStorage: syncModule.localStorage)
+
         self.onlineStateManager = syncModule.onlineStateManager
+
+        // 接线编辑器依赖到 NativeEditorContext
+        noteEditorState.nativeEditorContext.customRenderer = editorModule.customRenderer
+        noteEditorState.nativeEditorContext.imageStorageManager = editorModule.imageStorageManager
 
         LogService.shared.info(.app, "AppCoordinator 初始化完成")
     }

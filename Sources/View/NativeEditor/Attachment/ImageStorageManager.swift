@@ -5,10 +5,6 @@ import Foundation
 @MainActor
 class ImageStorageManager {
 
-    // MARK: - Singleton
-
-    static let shared = ImageStorageManager()
-
     // MARK: - Properties
 
     private let localStorage: LocalStorageService
@@ -18,14 +14,6 @@ class ImageStorageManager {
 
     // MARK: - Initialization
 
-    /// 过渡期兼容构造器
-    private init() {
-        let networkModule = NetworkModule()
-        self.localStorage = LocalStorageService.shared
-        self.fileAPI = networkModule.fileAPI
-    }
-
-    /// EditorModule 使用的构造器
     init(localStorage: LocalStorageService, fileAPI: FileAPI) {
         self.localStorage = localStorage
         self.fileAPI = fileAPI
@@ -103,7 +91,12 @@ class ImageStorageManager {
         }
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let localStorage = LocalStorageService.shared
+            guard let localStorage = self?.localStorage else {
+                DispatchQueue.main.async {
+                    completion(nil)
+                }
+                return
+            }
             var image: NSImage?
             if let (imageData, _) = localStorage.loadImageWithFullFormatAllFormats(fullFileId: fileId),
                let loadedImage = NSImage(data: imageData)
@@ -212,7 +205,6 @@ class ImageStorageManager {
             let actualFileId = components.dropFirst().joined(separator: ".")
             let imageData = try await fileAPI.downloadFile(fileId: actualFileId, type: "note_img")
 
-            let localStorage = LocalStorageService.shared
             try localStorage.saveImage(imageData: imageData, fileId: fileId, fileType: "jpg")
 
             if let image = NSImage(data: imageData) {

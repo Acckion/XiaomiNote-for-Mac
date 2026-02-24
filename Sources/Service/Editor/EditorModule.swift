@@ -63,6 +63,7 @@ public struct EditorModule: Sendable {
         self.formatConverter = converter
 
         let renderer = CustomRenderer()
+        renderer.localStorage = syncModule.localStorage
         self.customRenderer = renderer
 
         let specialHandler = SpecialElementFormatHandler()

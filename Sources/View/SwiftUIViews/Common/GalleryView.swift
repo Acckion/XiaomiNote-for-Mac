@@ -180,7 +180,8 @@ struct GalleryView: View {
                     windowState.expandNote(note)
                     windowState.selectNote(note)
                 }
-            }
+            },
+            localStorage: coordinator.syncModule.localStorage
         )
         .id(note.id)
         .matchedGeometryEffect(id: note.id, in: animation)

@@ -9,7 +9,6 @@ import Foundation
 /// 作为单一数据源（Single Source of Truth），其他组件应该依赖此管理器获取在线状态
 @MainActor
 public final class OnlineStateManager: ObservableObject {
-    public static let shared = OnlineStateManager()
 
     /// 是否在线（需要同时满足：网络连接、已认证、Cookie有效）
     @Published public private(set) var isOnline = true

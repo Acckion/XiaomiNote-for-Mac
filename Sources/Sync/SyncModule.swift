@@ -6,7 +6,7 @@ import Foundation
 /// SyncEngine 需要 NoteStore（不属于同步层），通过工厂方法延迟创建。
 @MainActor
 public struct SyncModule: Sendable {
-    let localStorage: LocalStorageService
+    public let localStorage: LocalStorageService
     public let operationQueue: UnifiedOperationQueue
     public let idMappingRegistry: IdMappingRegistry
     let syncStateManager: SyncStateManager

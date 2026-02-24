@@ -1,20 +1,11 @@
 import Foundation
 
-struct LocalStorageService: Sendable {
-    static let shared = LocalStorageService()
+public struct LocalStorageService: Sendable {
 
     // FileManager.default 是线程安全的全局单例
     private nonisolated(unsafe) let fileManager = FileManager.default
     private let documentsDirectory: URL
     private let database: DatabaseService
-
-    private init() {
-        self.database = DatabaseService.shared
-        let appSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let appBundleID = Bundle.main.bundleIdentifier ?? "com.mi.note.mac"
-        self.documentsDirectory = appSupportURL.appendingPathComponent(appBundleID)
-        createDirectoryIfNeeded()
-    }
 
     /// SyncModule 使用的构造器
     init(database: DatabaseService) {

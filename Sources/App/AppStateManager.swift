@@ -133,13 +133,7 @@ class AppStateManager {
 
     /// 初始化错误恢复相关服务
     private func initializeErrorRecoveryServices() {
-        // 服务已通过 configure() 注入，此处仅做兜底
-        if errorRecoveryService == nil {
-            errorRecoveryService = ErrorRecoveryService.shared
-        }
-        if networkRecoveryHandler == nil {
-            networkRecoveryHandler = NetworkRecoveryHandler.shared
-        }
+        // 服务通过 configure() 注入，不再使用兜底
     }
 
     /// 启动后台服务

@@ -6,7 +6,7 @@ import Foundation
 /// 在 AppDelegate 中创建，通过构造器注入传递给 AppCoordinator。
 @MainActor
 public struct NetworkModule: Sendable {
-    let requestManager: NetworkRequestManager
+    public let requestManager: NetworkRequestManager
     public let apiClient: APIClient
     let networkLogger: NetworkLogger
     public let noteAPI: NoteAPI

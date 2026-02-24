@@ -35,11 +35,6 @@ import Foundation
 ///
 public final class UnifiedOperationQueue: @unchecked Sendable {
 
-    // MARK: - 单例
-
-    /// 共享实例
-    public static let shared = UnifiedOperationQueue()
-
     // MARK: - 依赖
 
     /// 数据库服务
@@ -62,13 +57,7 @@ public final class UnifiedOperationQueue: @unchecked Sendable {
 
     // MARK: - 初始化
 
-    /// 私有初始化方法（单例模式）
-    private init() {
-        self.databaseService = DatabaseService.shared
-        loadFromDatabase()
-    }
-
-    /// 用于测试的初始化方法
+    /// 初始化方法
     ///
     /// - Parameter databaseService: 数据库服务实例
     init(databaseService: DatabaseService) {

@@ -274,7 +274,7 @@ extension NativeEditorView.Coordinator {
 
     /// 插入分割线
     private func insertHorizontalRule(at location: Int, in textStorage: NSTextStorage) {
-        let renderer = CustomRenderer.shared
+        let renderer = parent.editorContext.customRenderer
         let attachment = renderer.createHorizontalRuleAttachment()
         let attachmentString = NSAttributedString(attachment: attachment)
 
@@ -287,7 +287,7 @@ extension NativeEditorView.Coordinator {
 
     /// 插入项目符号
     private func insertBulletPoint(indent: Int, at location: Int, in textStorage: NSTextStorage) {
-        let renderer = CustomRenderer.shared
+        let renderer = parent.editorContext.customRenderer
         let attachment = renderer.createBulletAttachment(indent: indent)
         let attachmentString = NSAttributedString(attachment: attachment)
 
@@ -298,7 +298,7 @@ extension NativeEditorView.Coordinator {
 
     /// 插入编号列表项
     private func insertNumberedItem(number: Int, indent: Int, at location: Int, in textStorage: NSTextStorage) {
-        let renderer = CustomRenderer.shared
+        let renderer = parent.editorContext.customRenderer
         let attachment = renderer.createOrderAttachment(number: number, indent: indent)
         let attachmentString = NSAttributedString(attachment: attachment)
 
@@ -309,7 +309,7 @@ extension NativeEditorView.Coordinator {
 
     /// 插入引用块
     private func insertQuote(content: String, at location: Int, in textStorage: NSTextStorage) {
-        let renderer = CustomRenderer.shared
+        let renderer = parent.editorContext.customRenderer
         let quoteString = renderer.createQuoteAttributedString(content: content.isEmpty ? " " : content, indent: 1)
 
         let result = NSMutableAttributedString(string: "\n")
@@ -326,15 +326,15 @@ extension NativeEditorView.Coordinator {
 
         if let src {
             // 从 URL 创建（延迟加载）
-            attachment = CustomRenderer.shared.createImageAttachment(
+            attachment = parent.editorContext.customRenderer.createImageAttachment(
                 src: src,
                 fileId: fileId,
                 folderId: parent.editorContext.currentFolderId
             )
         } else if let fileId, let folderId = parent.editorContext.currentFolderId {
             // 从本地存储加载
-            if let image = ImageStorageManager.shared.loadImage(fileId: fileId, folderId: folderId) {
-                attachment = CustomRenderer.shared.createImageAttachment(
+            if let image = parent.editorContext.imageStorageManager?.loadImage(fileId: fileId, folderId: folderId) {
+                attachment = parent.editorContext.customRenderer.createImageAttachment(
                     image: image,
                     fileId: fileId,
                     folderId: folderId

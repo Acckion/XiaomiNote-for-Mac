@@ -7,8 +7,6 @@ import Foundation
 ///
 @MainActor
 public final class NetworkRecoveryHandler: ObservableObject {
-    public static let shared = NetworkRecoveryHandler()
-
     // MARK: - 配置
 
     /// 网络恢复后的处理延迟（秒）
@@ -54,17 +52,6 @@ public final class NetworkRecoveryHandler: ObservableObject {
     private var authEventTask: Task<Void, Never>?
 
     // MARK: - 初始化
-
-    /// 过渡期兼容构造器
-    private init() {
-        self.networkMonitor = NetworkMonitor.shared
-        self.onlineStateManager = OnlineStateManager.shared
-        self.operationProcessor = OperationProcessor.shared
-        self.unifiedQueue = UnifiedOperationQueue.shared
-        self.eventBus = EventBus.shared
-        setupNetworkMonitoring()
-        setupEventBusSubscription()
-    }
 
     /// 构造器注入
     init(

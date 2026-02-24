@@ -9,7 +9,6 @@ import Foundation
 ///
 @MainActor
 public final class ErrorRecoveryService: ObservableObject {
-    public static let shared = ErrorRecoveryService()
 
     // MARK: - 配置
 
@@ -44,13 +43,6 @@ public final class ErrorRecoveryService: ObservableObject {
     @Published public var lastErrorMessage: String?
 
     // MARK: - 初始化
-
-    /// 过渡期兼容构造器
-    private init() {
-        self.unifiedQueue = UnifiedOperationQueue.shared
-        self.networkErrorHandler = NetworkErrorHandler.shared
-        self.onlineStateManager = OnlineStateManager.shared
-    }
 
     /// 构造器注入
     init(

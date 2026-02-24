@@ -13,6 +13,12 @@ class NativeTextView: NSTextView {
     /// 复选框点击回调
     var onCheckboxClick: ((InteractiveCheckboxAttachment, Int) -> Void)?
 
+    /// 图片存储管理器（由外部注入）
+    var imageStorageManager: ImageStorageManager?
+
+    /// 自定义渲染器（由外部注入）
+    var customRenderer: CustomRenderer?
+
     /// 列表状态管理器
     private var listStateManager = ListStateManager()
 
@@ -728,7 +734,7 @@ class NativeTextView: NSTextView {
     /// 创建复选框字符串
     private func createCheckboxString(indent: Int) -> NSAttributedString {
         // 使用 InteractiveCheckboxAttachment 创建可交互的复选框
-        let renderer = CustomRenderer.shared
+        let renderer = customRenderer ?? CustomRenderer()
         let attachment = renderer.createCheckboxAttachment(checked: false, level: 3, indent: indent)
         let attachmentString = NSMutableAttributedString(attachment: attachment)
 
@@ -783,14 +789,17 @@ class NativeTextView: NSTextView {
         let folderId = "default"
 
         // 保存图片到本地存储
-        guard let saveResult = ImageStorageManager.shared.saveImage(image, folderId: folderId) else {
+        guard let imageStorageManager,
+              let saveResult = imageStorageManager.saveImage(image, folderId: folderId)
+        else {
             return
         }
 
         let fileId = saveResult.fileId
 
         // 创建图片附件
-        let attachment = CustomRenderer.shared.createImageAttachment(
+        guard let customRenderer else { return }
+        let attachment = customRenderer.createImageAttachment(
             image: image,
             fileId: fileId,
             folderId: folderId
@@ -841,7 +850,7 @@ class NativeTextView: NSTextView {
         textStorage.beginEditing()
 
         // 创建分割线附件
-        let renderer = CustomRenderer.shared
+        let renderer = customRenderer ?? CustomRenderer()
         let attachment = renderer.createHorizontalRuleAttachment()
         let attachmentString = NSAttributedString(attachment: attachment)
 

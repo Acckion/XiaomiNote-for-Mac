@@ -45,7 +45,13 @@ struct NoteDetailView: View {
         self._noteEditorState = ObservedObject(wrappedValue: coordinator.noteEditorState)
         self._folderState = ObservedObject(wrappedValue: coordinator.folderState)
         self._authState = ObservedObject(wrappedValue: coordinator.authState)
-        self._editingCoordinator = StateObject(wrappedValue: NoteEditingCoordinator(apiClient: coordinator.networkModule.apiClient))
+        self._editingCoordinator = StateObject(wrappedValue: NoteEditingCoordinator(
+            apiClient: coordinator.networkModule.apiClient,
+            operationQueue: coordinator.syncModule.operationQueue,
+            localStorage: coordinator.syncModule.localStorage,
+            operationProcessor: coordinator.syncModule.operationProcessor,
+            idMappingRegistry: coordinator.syncModule.idMappingRegistry
+        ))
     }
 
     var body: some View {

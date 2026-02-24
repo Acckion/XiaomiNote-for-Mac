@@ -8,16 +8,13 @@ import Foundation
 ///
 /// **使用方式**：
 /// ```swift
-/// let service = NotePreviewService.shared
+/// let service = NotePreviewService(localStorage: syncModule.localStorage)
 /// if let image = service.loadPreviewImage(fileId: "xxx", fileType: "png") {
 ///     // 使用图片
 /// }
 /// ```
 @MainActor
 public class NotePreviewService: ObservableObject {
-    /// 单例实例
-    public static let shared = NotePreviewService()
-
     /// 内存缓存：fileId -> NSImage
     private var imageCache: [String: NSImage] = [:]
 
@@ -29,11 +26,6 @@ public class NotePreviewService: ObservableObject {
 
     /// 本地存储服务
     private let localStorage: LocalStorageService
-
-    /// 过渡期兼容构造器
-    private init() {
-        self.localStorage = LocalStorageService.shared
-    }
 
     /// 构造器注入
     init(localStorage: LocalStorageService) {

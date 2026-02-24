@@ -10,6 +10,7 @@ class NotesListViewController: NSViewController {
     private var noteListState: NoteListState
     private var folderState: FolderState
     private var searchState: SearchState
+    private var localStorage: LocalStorageService
     private var tableView: NSTableView!
     private var scrollView: NSScrollView!
 
@@ -23,10 +24,11 @@ class NotesListViewController: NSViewController {
 
     // MARK: - 初始化
 
-    init(noteListState: NoteListState, folderState: FolderState, searchState: SearchState) {
+    init(noteListState: NoteListState, folderState: FolderState, searchState: SearchState, localStorage: LocalStorageService) {
         self.noteListState = noteListState
         self.folderState = folderState
         self.searchState = searchState
+        self.localStorage = localStorage
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -471,7 +473,13 @@ extension NotesListViewController: NSTableViewDelegate {
                         cell?.identifier = identifier
                     }
 
-                    cell?.configure(with: note, folderState: folderState, searchState: searchState, showDivider: !isLastInSection)
+                    cell?.configure(
+                        with: note,
+                        folderState: folderState,
+                        searchState: searchState,
+                        localStorage: localStorage,
+                        showDivider: !isLastInSection
+                    )
                     return cell
                 }
                 currentRow += notes.count
@@ -520,6 +528,7 @@ class NoteTableCellView: NSView {
     private var note: Note?
     private var folderState: FolderState?
     private var searchState: SearchState?
+    private var localStorage: LocalStorageService?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -598,10 +607,11 @@ class NoteTableCellView: NSView {
         ])
     }
 
-    func configure(with note: Note, folderState: FolderState, searchState: SearchState, showDivider: Bool) {
+    func configure(with note: Note, folderState: FolderState, searchState: SearchState, localStorage: LocalStorageService, showDivider: Bool) {
         self.note = note
         self.folderState = folderState
         self.searchState = searchState
+        self.localStorage = localStorage
 
         // 设置标题
         if note.isStarred {
@@ -783,7 +793,7 @@ class NoteTableCellView: NSView {
 
     func loadThumbnail(imageInfo: (fileId: String, fileType: String)) {
         Task {
-            if let imageData = LocalStorageService.shared.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
+            if let imageData = localStorage?.loadImage(fileId: imageInfo.fileId, fileType: imageInfo.fileType),
                let nsImage = NSImage(data: imageData)
             {
                 let thumbnailSize = NSSize(width: 50, height: 50)

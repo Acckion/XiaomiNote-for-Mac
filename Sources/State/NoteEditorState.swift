@@ -32,6 +32,9 @@ public final class NoteEditorState: ObservableObject {
     private let eventBus: EventBus
     private let noteStore: NoteStore
     private let noteAPI: NoteAPI
+    private let operationQueue: UnifiedOperationQueue
+    private let localStorage: LocalStorageService
+    private let operationProcessor: OperationProcessor
 
     // MARK: - 事件订阅任务
 
@@ -40,10 +43,20 @@ public final class NoteEditorState: ObservableObject {
 
     // MARK: - 初始化
 
-    init(eventBus: EventBus = .shared, noteStore: NoteStore, noteAPI: NoteAPI) {
+    init(
+        eventBus: EventBus = .shared,
+        noteStore: NoteStore,
+        noteAPI: NoteAPI,
+        operationQueue: UnifiedOperationQueue,
+        localStorage: LocalStorageService,
+        operationProcessor: OperationProcessor
+    ) {
         self.eventBus = eventBus
         self.noteStore = noteStore
         self.noteAPI = noteAPI
+        self.operationQueue = operationQueue
+        self.localStorage = localStorage
+        self.operationProcessor = operationProcessor
     }
 
     // MARK: - 生命周期
@@ -201,15 +214,15 @@ public final class NoteEditorState: ObservableObject {
         let fileType = String(mimeType.dropFirst("image/".count))
 
         // 保存到 pending_uploads 目录
-        try LocalStorageService.shared.savePendingUpload(data: imageData, fileId: temporaryFileId, extension: fileType)
+        try localStorage.savePendingUpload(data: imageData, fileId: temporaryFileId, extension: fileType)
 
         // 保存到图片缓存（供编辑器立即渲染）
-        try LocalStorageService.shared.saveImage(imageData: imageData, fileId: temporaryFileId, fileType: fileType)
+        try localStorage.saveImage(imageData: imageData, fileId: temporaryFileId, fileType: fileType)
 
         // 构建操作数据并入队
         let uploadData = FileUploadOperationData(
             temporaryFileId: temporaryFileId,
-            localFilePath: LocalStorageService.shared.pendingUploadsDirectory
+            localFilePath: localStorage.pendingUploadsDirectory
                 .appendingPathComponent("\(temporaryFileId).\(fileType)").path,
             fileName: fileName,
             mimeType: mimeType,
@@ -221,13 +234,13 @@ public final class NoteEditorState: ObservableObject {
             data: uploadData.encoded(),
             isLocalId: NoteOperation.isTemporaryId(note.id)
         )
-        _ = try UnifiedOperationQueue.shared.enqueue(operation)
+        _ = try operationQueue.enqueue(operation)
 
         // 后台异步处理上传，不阻塞返回
         // 必须先让调用方拿到 temporaryFileId 插入编辑器并保存 XML，
         // 上传完成后 updateAllFileReferences 才能在 XML 中找到临时 ID 并替换
         Task {
-            await OperationProcessor.shared.processImmediately(operation)
+            await operationProcessor.processImmediately(operation)
         }
 
         LogService.shared.info(.editor, "图片已入队上传: temporaryFileId=\(temporaryFileId.prefix(20))...")

@@ -62,7 +62,9 @@ public class WindowManager {
         let windowState = WindowState(coordinator: coordinator)
         let controller = MainWindowController(
             coordinator: coordinator,
-            windowState: windowState
+            windowState: windowState,
+            operationQueue: coordinator.syncModule.operationQueue,
+            operationProcessor: coordinator.syncModule.operationProcessor
         )
 
         mainWindowController = controller
@@ -101,7 +103,9 @@ public class WindowManager {
 
         let controller = MainWindowController(
             coordinator: coordinator,
-            windowState: windowState
+            windowState: windowState,
+            operationQueue: coordinator.syncModule.operationQueue,
+            operationProcessor: coordinator.syncModule.operationProcessor
         )
 
         windowControllers.append(controller)

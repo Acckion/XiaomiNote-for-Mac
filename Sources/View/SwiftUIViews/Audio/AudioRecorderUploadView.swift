@@ -20,7 +20,7 @@ struct AudioRecorderUploadView: View {
     // MARK: - Properties
 
     /// 上传服务
-    @ObservedObject private var uploadService = AudioUploadService.shared
+    @ObservedObject private var uploadService: AudioUploadService
 
     /// 录制完成并上传成功的回调
     /// - Parameters:
@@ -46,6 +46,12 @@ struct AudioRecorderUploadView: View {
 
     /// 是否显示重试按钮
     @State private var showRetryButton = false
+
+    init(uploadService: AudioUploadService, onUploadComplete: @escaping (String, String?, String) -> Void, onCancel: @escaping () -> Void) {
+        self.uploadService = uploadService
+        self.onUploadComplete = onUploadComplete
+        self.onCancel = onCancel
+    }
 
     // MARK: - View State
 
@@ -321,11 +327,14 @@ struct AudioRecorderUploadSheetView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    let uploadService: AudioUploadService
+
     /// 上传完成回调
     let onUploadComplete: (String, String?, String) -> Void
 
     var body: some View {
         AudioRecorderUploadView(
+            uploadService: uploadService,
             onUploadComplete: { fileId, digest, mimeType in
                 onUploadComplete(fileId, digest, mimeType)
                 dismiss()
@@ -342,6 +351,8 @@ struct AudioRecorderUploadSheetView: View {
 /// 语音录制上传弹出视图
 struct AudioRecorderUploadPopoverView: View {
 
+    let uploadService: AudioUploadService
+
     /// 上传完成回调
     let onUploadComplete: (String, String?, String) -> Void
 
@@ -350,6 +361,7 @@ struct AudioRecorderUploadPopoverView: View {
 
     var body: some View {
         AudioRecorderUploadView(
+            uploadService: uploadService,
             onUploadComplete: { fileId, digest, mimeType in
                 onUploadComplete(fileId, digest, mimeType)
                 onDismiss()
@@ -363,6 +375,7 @@ struct AudioRecorderUploadPopoverView: View {
 
 #Preview("Uploading State") {
     AudioRecorderUploadView(
+        uploadService: AudioModule().uploadService,
         onUploadComplete: { _, _, _ in
         },
         onCancel: {}

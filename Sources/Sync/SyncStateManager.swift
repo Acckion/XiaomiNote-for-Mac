@@ -47,14 +47,6 @@ actor SyncStateManager {
         LogService.shared.info(.sync, "SyncStateManager 初始化完成")
     }
 
-    /// 便捷初始化方法，使用默认的 shared 实例
-    static func createDefault() -> SyncStateManager {
-        SyncStateManager(
-            localStorage: .shared,
-            operationQueue: .shared
-        )
-    }
-
     // MARK: - 公共接口
 
     /// 获取当前的 syncTag

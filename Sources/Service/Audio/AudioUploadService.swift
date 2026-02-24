@@ -19,10 +19,6 @@ import Foundation
 @MainActor
 final class AudioUploadService: ObservableObject {
 
-    // MARK: - 单例
-
-    static let shared = AudioUploadService()
-
     // MARK: - 上传状态枚举
 
     /// 上传状态
@@ -118,14 +114,7 @@ final class AudioUploadService: ObservableObject {
 
     // MARK: - 初始化
 
-    /// 过渡期兼容构造器
-    private init() {
-        self.converterService = AudioConverterService.shared
-        self.localStorage = LocalStorageService.shared
-        self.unifiedQueue = UnifiedOperationQueue.shared
-    }
-
-    /// AudioModule 使用的构造器
+    /// 构造器注入
     init(
         converterService: AudioConverterService,
         localStorage: LocalStorageService,

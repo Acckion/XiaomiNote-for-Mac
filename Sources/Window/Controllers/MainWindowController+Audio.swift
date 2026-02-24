@@ -168,7 +168,7 @@
                     }
 
                     // 1. 格式转换 + 生成临时 fileId + 保存到 pending_uploads
-                    let uploadResult = try await AudioUploadService.shared.uploadAudio(fileURL: url)
+                    let uploadResult = try await coordinator.audioModule.uploadService.uploadAudio(fileURL: url)
                     let temporaryFileId = uploadResult.fileId
 
                     LogService.shared.info(.window, "音频已准备入队: temporaryFileId=\(temporaryFileId.prefix(20))...")
@@ -212,7 +212,7 @@
 
                     // 2. 入队音频上传操作
                     let actualFileName = (url.lastPathComponent as NSString).deletingPathExtension + ".mp3"
-                    try AudioUploadService.shared.enqueueAudioUpload(
+                    try coordinator.audioModule.uploadService.enqueueAudioUpload(
                         temporaryFileId: temporaryFileId,
                         fileName: actualFileName,
                         mimeType: uploadResult.mimeType,
@@ -220,11 +220,11 @@
                     )
 
                     // 网络可用时立即处理
-                    let pendingOps = UnifiedOperationQueue.shared.getPendingOperations()
+                    let pendingOps = operationQueue.getPendingOperations()
                     if let audioOp = pendingOps.first(where: {
                         $0.type == .audioUpload && $0.noteId == selectedNote.id
                     }) {
-                        await OperationProcessor.shared.processImmediately(audioOp)
+                        await self.operationProcessor.processImmediately(audioOp)
                     }
 
                     // 3. 检查是否有录音模板需要更新

@@ -28,6 +28,7 @@ public final class AuthState: ObservableObject {
     private let eventBus: EventBus
     private let apiClient: APIClient
     private let userAPI: UserAPI
+    private let onlineStateManager: OnlineStateManager
 
     // MARK: - 事件订阅任务
 
@@ -43,10 +44,11 @@ public final class AuthState: ObservableObject {
 
     // MARK: - 初始化
 
-    init(eventBus: EventBus = .shared, apiClient: APIClient, userAPI: UserAPI) {
+    init(eventBus: EventBus = .shared, apiClient: APIClient, userAPI: UserAPI, onlineStateManager: OnlineStateManager) {
         self.eventBus = eventBus
         self.apiClient = apiClient
         self.userAPI = userAPI
+        self.onlineStateManager = onlineStateManager
     }
 
     // MARK: - 生命周期
@@ -54,7 +56,7 @@ public final class AuthState: ObservableObject {
     func start() {
         Task {
             isLoggedIn = await apiClient.isAuthenticated()
-            isOnline = OnlineStateManager.shared.isOnline
+            isOnline = onlineStateManager.isOnline
 
             authEventTask = Task { [weak self] in
                 guard let self else { return }

@@ -60,7 +60,7 @@ struct NetworkResponse {
 /// - 统一的重试机制和错误处理
 /// - 401 自动刷新 Cookie 并重试
 @MainActor
-final class NetworkRequestManager: ObservableObject {
+public final class NetworkRequestManager: ObservableObject {
 
     // MARK: - 配置
 
@@ -71,7 +71,7 @@ final class NetworkRequestManager: ObservableObject {
     // MARK: - 依赖
 
     private let errorHandler = NetworkErrorHandler.shared
-    private let onlineStateManager = OnlineStateManager.shared
+    private var onlineStateManager: OnlineStateManager?
 
     /// 注入的 APIClient（NetworkModule 创建时传入，用于 401 刷新后获取新 headers）
     private var apiClient: APIClient?
@@ -99,7 +99,6 @@ final class NetworkRequestManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        setupOnlineStateMonitoring()
         startProcessingLoop()
     }
 
@@ -108,7 +107,14 @@ final class NetworkRequestManager: ObservableObject {
         apiClient = client
     }
 
+    /// 设置 OnlineStateManager 引用（SyncModule 创建后回调设置，解决跨模块依赖）
+    public func setOnlineStateManager(_ manager: OnlineStateManager) {
+        onlineStateManager = manager
+        setupOnlineStateMonitoring()
+    }
+
     private func setupOnlineStateMonitoring() {
+        guard let onlineStateManager else { return }
         onlineStateManager.$isOnline
             .sink { [weak self] isOnline in
                 Task { @MainActor in
@@ -159,7 +165,7 @@ final class NetworkRequestManager: ObservableObject {
         }
 
         // 离线时直接加入重试队列
-        guard onlineStateManager.isOnline else {
+        guard onlineStateManager?.isOnline != false else {
             if request.retryOnFailure {
                 addToRetryQueue(request, retryCount: 0)
             }
@@ -203,7 +209,7 @@ final class NetworkRequestManager: ObservableObject {
 
     /// 从队列取出请求并发起执行（不阻塞循环）
     private func processNextBatch() {
-        guard onlineStateManager.isOnline else { return }
+        guard onlineStateManager?.isOnline != false else { return }
 
         while activeRequestCount < maxConcurrentRequests, !pendingRequests.isEmpty {
             let request = pendingRequests.removeFirst()

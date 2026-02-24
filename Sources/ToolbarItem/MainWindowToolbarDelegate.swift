@@ -21,6 +21,9 @@
         /// 同步状态引用
         weak var syncState: SyncState?
 
+        /// 统一操作队列
+        let operationQueue: UnifiedOperationQueue
+
         /// 主窗口控制器引用
         public weak var windowController: MainWindowController?
 
@@ -145,11 +148,18 @@
         ///   - authState: 认证状态
         ///   - syncState: 同步状态
         ///   - windowController: 主窗口控制器
-        init(folderState: FolderState?, authState: AuthState?, syncState: SyncState?, windowController: MainWindowController?) {
+        init(
+            folderState: FolderState?,
+            authState: AuthState?,
+            syncState: SyncState?,
+            windowController: MainWindowController?,
+            operationQueue: UnifiedOperationQueue
+        ) {
             self.folderState = folderState
             self.authState = authState
             self.syncState = syncState
             self.windowController = windowController
+            self.operationQueue = operationQueue
             super.init()
         }
 
@@ -192,7 +202,7 @@
                     item.attributedTitle = getOnlineStatusAttributedTitle()
                 } else if item.tag == 200 { // 离线操作状态项
                     // 更新离线操作状态（使用新的 UnifiedOperationQueue）
-                    let unifiedQueue = UnifiedOperationQueue.shared
+                    let unifiedQueue = operationQueue
                     let stats = unifiedQueue.getStatistics()
                     let pendingCount = stats["pending"] ?? 0
                     let failedCount = stats["failed"] ?? 0

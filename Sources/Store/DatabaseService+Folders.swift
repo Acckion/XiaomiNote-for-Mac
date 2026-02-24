@@ -128,10 +128,6 @@ extension DatabaseService {
 
             let changes = sqlite3_changes(db)
             LogService.shared.debug(.storage, "更新笔记文件夹ID: \(oldFolderId) -> \(newFolderId), 影响了 \(changes) 条笔记")
-
-            if newFolderId != "0", oldFolderId != "0" {
-                try LocalStorageService.shared.renameFolderImageDirectory(oldFolderId: oldFolderId, newFolderId: newFolderId)
-            }
         }
     }
 

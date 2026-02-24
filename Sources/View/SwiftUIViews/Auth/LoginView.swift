@@ -264,5 +264,6 @@ struct WebView: NSViewRepresentable {
 
 #Preview {
     let nm = NetworkModule()
-    LoginView(authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI))
+    let sm = SyncModule(networkModule: nm)
+    LoginView(authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI, onlineStateManager: sm.onlineStateManager))
 }

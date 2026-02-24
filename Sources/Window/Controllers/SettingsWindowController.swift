@@ -110,7 +110,10 @@
                 syncState: coordinator.syncState,
                 authState: coordinator.authState,
                 noteStore: coordinator.noteStore,
-                apiClient: coordinator.networkModule.apiClient
+                apiClient: coordinator.networkModule.apiClient,
+                operationQueue: coordinator.syncModule.operationQueue,
+                operationProcessor: coordinator.syncModule.operationProcessor,
+                idMappingRegistry: coordinator.syncModule.idMappingRegistry
             )
             .frame(minWidth: 550, minHeight: 500)
 

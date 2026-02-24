@@ -23,6 +23,12 @@
         /// AppCoordinator 引用
         public private(set) var coordinator: AppCoordinator
 
+        /// 统一操作队列
+        let operationQueue: UnifiedOperationQueue
+
+        /// 操作处理器
+        let operationProcessor: OperationProcessor
+
         /// 窗口状态
         let windowState: WindowState
 
@@ -97,9 +103,16 @@
         /// - Parameters:
         ///   - coordinator: 应用协调器（共享数据层）
         ///   - windowState: 窗口状态（独立 UI 状态）
-        public init(coordinator: AppCoordinator, windowState: WindowState) {
+        public init(
+            coordinator: AppCoordinator,
+            windowState: WindowState,
+            operationQueue: UnifiedOperationQueue,
+            operationProcessor: OperationProcessor
+        ) {
             self.coordinator = coordinator
             self.windowState = windowState
+            self.operationQueue = operationQueue
+            self.operationProcessor = operationProcessor
 
             // 创建窗口
             let window = NSWindow(
@@ -321,7 +334,8 @@
                 folderState: coordinator.folderState,
                 authState: coordinator.authState,
                 syncState: coordinator.syncState,
-                windowController: self
+                windowController: self,
+                operationQueue: operationQueue
             )
 
             let toolbar = NSToolbar(identifier: "MainWindowToolbar")

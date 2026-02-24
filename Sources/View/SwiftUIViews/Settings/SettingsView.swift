@@ -5,6 +5,9 @@ public struct SettingsView: View {
     @ObservedObject var authState: AuthState
     let noteStore: NoteStore
     let apiClient: APIClient
+    let operationQueue: UnifiedOperationQueue
+    let operationProcessor: OperationProcessor
+    let idMappingRegistry: IdMappingRegistry
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("syncInterval") private var syncInterval: Double = 300
@@ -21,11 +24,22 @@ public struct SettingsView: View {
     @State private var showLogoutAlert = false
     @State private var showClearCacheAlert = false
 
-    init(syncState: SyncState, authState: AuthState, noteStore: NoteStore, apiClient: APIClient) {
+    init(
+        syncState: SyncState,
+        authState: AuthState,
+        noteStore: NoteStore,
+        apiClient: APIClient,
+        operationQueue: UnifiedOperationQueue,
+        operationProcessor: OperationProcessor,
+        idMappingRegistry: IdMappingRegistry
+    ) {
         self.syncState = syncState
         self.authState = authState
         self.noteStore = noteStore
         self.apiClient = apiClient
+        self.operationQueue = operationQueue
+        self.operationProcessor = operationProcessor
+        self.idMappingRegistry = idMappingRegistry
     }
 
     public var body: some View {
@@ -121,7 +135,12 @@ public struct SettingsView: View {
     private var debugSection: some View {
         Section("调试") {
             NavigationLink("操作队列调试") {
-                OperationQueueDebugView(noteStore: noteStore)
+                OperationQueueDebugView(
+                    noteStore: noteStore,
+                    operationQueue: operationQueue,
+                    operationProcessor: operationProcessor,
+                    idMappingRegistry: idMappingRegistry
+                )
             }
             .help("查看和管理待上传注册表、离线操作队列等")
 
@@ -658,10 +677,21 @@ struct ChangePasswordDialogView: View {
 
 #Preview {
     let nm = NetworkModule()
+    let sm = SyncModule(networkModule: nm)
     SettingsView(
-        syncState: SyncState(),
-        authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI),
-        noteStore: NoteStore(db: .shared, eventBus: .shared, operationQueue: .shared, idMappingRegistry: .shared),
-        apiClient: nm.apiClient
+        syncState: SyncState(operationQueue: sm.operationQueue),
+        authState: AuthState(apiClient: nm.apiClient, userAPI: nm.userAPI, onlineStateManager: sm.onlineStateManager),
+        noteStore: NoteStore(
+            db: .shared,
+            eventBus: .shared,
+            operationQueue: sm.operationQueue,
+            idMappingRegistry: sm.idMappingRegistry,
+            localStorage: sm.localStorage,
+            operationProcessor: sm.operationProcessor
+        ),
+        apiClient: nm.apiClient,
+        operationQueue: sm.operationQueue,
+        operationProcessor: sm.operationProcessor,
+        idMappingRegistry: sm.idMappingRegistry
     )
 }

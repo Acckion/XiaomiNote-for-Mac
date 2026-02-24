@@ -80,6 +80,10 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     private let eventBus = EventBus.shared
     private let apiClient: APIClient
+    private let operationQueue: UnifiedOperationQueue
+    private let localStorage: LocalStorageService
+    private let operationProcessor: OperationProcessor
+    private let idMappingRegistry: IdMappingRegistry
     private(set) weak var noteEditorState: NoteEditorState?
     private var noteStore: NoteStore?
     var nativeEditorContext: NativeEditorContext? {
@@ -88,8 +92,18 @@ public final class NoteEditingCoordinator: ObservableObject {
 
     // MARK: - 初始化
 
-    public init(apiClient: APIClient) {
+    public init(
+        apiClient: APIClient,
+        operationQueue: UnifiedOperationQueue,
+        localStorage: LocalStorageService,
+        operationProcessor: OperationProcessor,
+        idMappingRegistry: IdMappingRegistry
+    ) {
         self.apiClient = apiClient
+        self.operationQueue = operationQueue
+        self.localStorage = localStorage
+        self.operationProcessor = operationProcessor
+        self.idMappingRegistry = idMappingRegistry
     }
 
     /// 配置依赖
@@ -300,11 +314,11 @@ public final class NoteEditingCoordinator: ObservableObject {
         // 竞态防护：如果传入的是临时 ID 但 ID 迁移已完成，使用正式 ID 笔记
         var resolvedNote = note
         if NoteOperation.isTemporaryId(note.id) {
-            let resolvedId = IdMappingRegistry.shared.resolveId(note.id)
+            let resolvedId = idMappingRegistry.resolveId(note.id)
             if resolvedId != note.id {
                 if let officialNote = await noteStore?.getNote(byId: resolvedId) {
                     resolvedNote = officialNote
-                } else if let dbNote = try? LocalStorageService.shared.loadNote(noteId: resolvedId) {
+                } else if let dbNote = try? localStorage.loadNote(noteId: resolvedId) {
                     resolvedNote = dbNote
                 }
                 if resolvedNote.id != note.id {
@@ -600,7 +614,7 @@ public final class NoteEditingCoordinator: ObservableObject {
                 guard note.id == currentEditingNoteId else { return }
                 contentToLoad = cachedNote.primaryXMLContent
                 await MemoryCacheManager.shared.cacheNote(cachedNote)
-            } else if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+            } else if let fullNote = try? localStorage.loadNote(noteId: note.id) {
                 // NoteStore 缓存也没有完整内容，回退到直接读 DB
                 guard note.id == currentEditingNoteId else { return }
                 contentToLoad = fullNote.primaryXMLContent
@@ -650,7 +664,7 @@ public final class NoteEditingCoordinator: ObservableObject {
                 currentXMLContent = cachedNote.primaryXMLContent
                 lastSavedXMLContent = currentXMLContent
                 originalXMLContent = currentXMLContent
-            } else if let fullNote = try? LocalStorageService.shared.loadNote(noteId: note.id) {
+            } else if let fullNote = try? localStorage.loadNote(noteId: note.id) {
                 // NoteStore 缓存也没有完整内容，回退到直接读 DB
                 await MemoryCacheManager.shared.cacheNote(fullNote)
                 currentXMLContent = fullNote.primaryXMLContent
@@ -730,8 +744,8 @@ public final class NoteEditingCoordinator: ObservableObject {
         queueOfflineUpdateOperation(for: note, xmlContent: xmlContent)
 
         // 入队后立即触发处理
-        if let operation = UnifiedOperationQueue.shared.getPendingUpload(for: note.id) {
-            await OperationProcessor.shared.processImmediately(operation)
+        if let operation = operationQueue.getPendingUpload(for: note.id) {
+            await operationProcessor.processImmediately(operation)
         }
     }
 
@@ -751,7 +765,7 @@ public final class NoteEditingCoordinator: ObservableObject {
                 data: jsonData,
                 localSaveTimestamp: Date()
             )
-            try UnifiedOperationQueue.shared.enqueue(operation)
+            try operationQueue.enqueue(operation)
             lastUploadedContentByNoteId[note.id] = xmlContent
         } catch {
             LogService.shared.error(.editor, "添加操作到离线队列失败: \(error)")

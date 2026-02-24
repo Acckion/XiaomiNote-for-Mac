@@ -154,8 +154,12 @@ struct NativeEditorView: NSViewRepresentable {
             textView.textStorage?.setAttributedString(editorContext.nsAttributedText)
         }
 
+        // 接线编辑器依赖到 NativeTextView
+        textView.imageStorageManager = editorContext.imageStorageManager
+        textView.customRenderer = editorContext.customRenderer
+
         // 预热渲染器缓存
-        CustomRenderer.shared.warmUpCache()
+        editorContext.customRenderer.warmUpCache()
 
         // 注册 CursorFormatManager
         CursorFormatManager.shared.register(textView: textView, context: editorContext)

@@ -132,7 +132,10 @@ public class NativeEditorContext: ObservableObject {
     private let formatConverter = XiaoMiFormatConverter.shared
 
     /// 自定义渲染器
-    let customRenderer = CustomRenderer.shared
+    var customRenderer = CustomRenderer()
+
+    /// 图片存储管理器
+    var imageStorageManager: ImageStorageManager?
 
     /// 格式状态同步器
     let formatStateSynchronizer = FormatStateSynchronizer.createDefault()
@@ -444,7 +447,9 @@ public class NativeEditorContext: ObservableObject {
         // 保存图片到本地存储
         let folderId = currentFolderId ?? "default"
 
-        if let saveResult = ImageStorageManager.shared.saveImage(image, folderId: folderId) {
+        if let imageStorageManager,
+           let saveResult = imageStorageManager.saveImage(image, folderId: folderId)
+        {
             insertSpecialElement(.image(fileId: saveResult.fileId, src: nil))
         }
     }

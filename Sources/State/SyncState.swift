@@ -68,28 +68,28 @@ public final class SyncState: ObservableObject {
 
     /// 待处理的离线操作数量
     var pendingOperationsCount: Int {
-        UnifiedOperationQueue.shared.getPendingOperations().count
+        operationQueue.getPendingOperations().count
     }
 
     /// 统一操作队列待上传数量
     var unifiedPendingUploadCount: Int {
-        UnifiedOperationQueue.shared.getPendingUploadCount()
+        operationQueue.getPendingUploadCount()
     }
 
     /// 临时 ID 笔记数量（离线创建的笔记）
     var temporaryIdNoteCount: Int {
-        UnifiedOperationQueue.shared.getTemporaryIdNoteCount()
+        operationQueue.getTemporaryIdNoteCount()
     }
 
     /// 离线队列失败操作数量
     var offlineQueueFailedCount: Int {
-        let stats = UnifiedOperationQueue.shared.getStatistics()
+        let stats = operationQueue.getStatistics()
         return stats["failed"] ?? 0
     }
 
     /// 检查笔记是否有待处理上传
     func hasPendingUpload(for noteId: String) -> Bool {
-        UnifiedOperationQueue.shared.hasPendingUpload(for: noteId)
+        operationQueue.hasPendingUpload(for: noteId)
     }
 
     /// 检查笔记是否使用临时 ID（离线创建）
@@ -100,6 +100,7 @@ public final class SyncState: ObservableObject {
     // MARK: - 依赖
 
     private let eventBus: EventBus
+    private let operationQueue: UnifiedOperationQueue
 
     // MARK: - 事件订阅任务
 
@@ -107,8 +108,9 @@ public final class SyncState: ObservableObject {
 
     // MARK: - 初始化
 
-    init(eventBus: EventBus = .shared) {
+    init(eventBus: EventBus = .shared, operationQueue: UnifiedOperationQueue) {
         self.eventBus = eventBus
+        self.operationQueue = operationQueue
     }
 
     // MARK: - 生命周期

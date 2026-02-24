@@ -572,7 +572,7 @@
                 let alert = NSAlert()
                 alert.messageText = "同步状态"
                 var infoText = "上次同步时间: \(formatter.string(from: lastSync))"
-                let stats = UnifiedOperationQueue.shared.getStatistics()
+                let stats = operationQueue.getStatistics()
                 let pendingCount = (stats["pending"] ?? 0) + (stats["failed"] ?? 0)
                 if pendingCount > 0 {
                     infoText += "\n待处理操作: \(pendingCount) 个"
@@ -584,7 +584,7 @@
                 let alert = NSAlert()
                 alert.messageText = "同步状态"
                 var infoText = "从未同步"
-                let stats = UnifiedOperationQueue.shared.getStatistics()
+                let stats = operationQueue.getStatistics()
                 let pendingCount = (stats["pending"] ?? 0) + (stats["failed"] ?? 0)
                 if pendingCount > 0 {
                     infoText += "\n待处理操作: \(pendingCount) 个"
@@ -600,7 +600,7 @@
         @objc internal func processOfflineOperations(_: Any?) {
 
             // 检查是否有待处理的离线操作（使用新的 UnifiedOperationQueue）
-            let unifiedQueue = UnifiedOperationQueue.shared
+            let unifiedQueue = operationQueue
             let stats = unifiedQueue.getStatistics()
             let pendingCount = (stats["pending"] ?? 0) + (stats["failed"] ?? 0)
 
@@ -626,7 +626,7 @@
             if response == .alertFirstButtonReturn {
                 // 开始处理离线操作（使用新的 OperationProcessor）
                 Task {
-                    await OperationProcessor.shared.processQueue()
+                    await self.operationProcessor.processQueue()
                 }
             }
         }
@@ -639,7 +639,8 @@
 
             // 创建离线操作进度视图，传递关闭回调
             let progressView = OfflineOperationsProgressView(
-                processor: OperationProcessor.shared,
+                processor: operationProcessor,
+                operationQueue: operationQueue,
                 onClose: { [weak window, weak self] in
                     // 关闭sheet
                     if let sheetWindow = self?.currentSheetWindow {
@@ -690,7 +691,7 @@
         @objc internal func retryFailedOperations(_: Any?) {
 
             // 检查是否有失败的离线操作（使用新的 UnifiedOperationQueue）
-            let unifiedQueue = UnifiedOperationQueue.shared
+            let unifiedQueue = operationQueue
             let stats = unifiedQueue.getStatistics()
             let failedCount = stats["failed"] ?? 0
 
@@ -716,7 +717,7 @@
             if response == .alertFirstButtonReturn {
                 // 重试失败的操作（使用新的 OperationProcessor）
                 Task {
-                    await OperationProcessor.shared.processRetries()
+                    await self.operationProcessor.processRetries()
                 }
             }
         }

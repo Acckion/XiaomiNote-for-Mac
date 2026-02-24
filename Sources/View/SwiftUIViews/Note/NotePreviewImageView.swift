@@ -11,7 +11,8 @@ import SwiftUI
 /// NotePreviewImageView(
 ///     fileId: "1315204657.mqD6sEiru5CFpGR0vUZaMA",
 ///     fileType: "png",
-///     size: 50
+///     size: 50,
+///     previewService: coordinator.notePreviewService
 /// )
 /// ```
 struct NotePreviewImageView: View {
@@ -25,7 +26,7 @@ struct NotePreviewImageView: View {
     let size: CGFloat
 
     /// 预览服务
-    @StateObject private var previewService = NotePreviewService.shared
+    @ObservedObject private var previewService: NotePreviewService
 
     /// 加载的图片
     @State private var image: NSImage?
@@ -36,10 +37,11 @@ struct NotePreviewImageView: View {
     /// 是否加载失败
     @State private var loadFailed = false
 
-    init(fileId: String, fileType: String, size: CGFloat = 50) {
+    init(fileId: String, fileType: String, size: CGFloat = 50, previewService: NotePreviewService) {
         self.fileId = fileId
         self.fileType = fileType
         self.size = size
+        self.previewService = previewService
     }
 
     var body: some View {
@@ -111,10 +113,12 @@ struct NotePreviewImageView: View {
 // MARK: - 预览
 
 #Preview("有图片") {
+    let sm = SyncModule()
     NotePreviewImageView(
         fileId: "test.image",
         fileType: "png",
-        size: 50
+        size: 50,
+        previewService: NotePreviewService(localStorage: sm.localStorage)
     )
     .padding()
 }
