@@ -56,15 +56,6 @@ final class NativeEditorInitializer {
     /// 格式转换器
     private let formatConverter: XiaoMiFormatConverter
 
-    /// 日志记录器
-    private let logger = NativeEditorLogger.shared
-
-    /// 错误处理器
-    private let errorHandler = NativeEditorErrorHandler.shared
-
-    /// 性能指标
-    private let metrics = NativeEditorMetrics.shared
-
     /// 最低支持的 macOS 版本
     private let minimumMacOSVersion = "15.0"
 
@@ -94,8 +85,7 @@ final class NativeEditorInitializer {
     /// 初始化原生编辑器
     /// - Returns: 初始化结果
     func initializeNativeEditor() -> EditorInitializationResult {
-        let startTime = CFAbsoluteTimeGetCurrent()
-        logger.logInfo("开始初始化原生编辑器", category: "Initialization")
+        LogService.shared.info(.editor, "开始初始化原生编辑器")
 
         // 1. 检查系统兼容性
         let compatibilityResult = checkSystemCompatibility()
@@ -104,11 +94,6 @@ final class NativeEditorInitializer {
                 required: compatibilityResult.requiredVersion,
                 current: compatibilityResult.macOSVersion
             )
-
-            errorHandler.handleError(error, context: "系统兼容性检查")
-
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            metrics.recordInitialization("nativeEditor", duration: duration)
 
             lastInitializationResult = .failure(error)
             return .failure(error)
@@ -120,11 +105,6 @@ final class NativeEditorInitializer {
                 framework: compatibilityResult.missingFrameworks.joined(separator: ", ")
             )
 
-            errorHandler.handleError(error, context: "框架检查")
-
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            metrics.recordInitialization("nativeEditor", duration: duration)
-
             lastInitializationResult = .failure(error)
             return .failure(error)
         }
@@ -133,31 +113,15 @@ final class NativeEditorInitializer {
         do {
             let context = try createEditorContext()
 
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            metrics.recordInitialization("nativeEditor", duration: duration)
-            logger.logInfo("原生编辑器初始化成功，耗时: \(String(format: "%.2f", duration * 1000))ms", category: "Initialization")
-
-            // 检查初始化时间是否超过阈值
-            if duration > 0.1 { // 100ms
-                logger.logWarning("初始化时间超过阈值: \(String(format: "%.2f", duration * 1000))ms", category: "Initialization")
-            }
+            LogService.shared.info(.editor, "原生编辑器初始化成功")
 
             lastInitializationResult = .success(context)
             return .success(context)
         } catch let error as NativeEditorError {
-            errorHandler.handleError(error, context: "创建编辑器上下文")
-
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            metrics.recordInitialization("nativeEditor", duration: duration)
-
             lastInitializationResult = .failure(error)
             return .failure(error)
         } catch {
             let editorError = NativeEditorError.initializationFailed(reason: error.localizedDescription)
-            errorHandler.handleError(editorError, context: "创建编辑器上下文")
-
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            metrics.recordInitialization("nativeEditor", duration: duration)
 
             lastInitializationResult = .failure(editorError)
             return .failure(editorError)
@@ -222,7 +186,7 @@ final class NativeEditorInitializer {
 
         cachedCompatibilityResult = result
 
-        logger.logInfo("系统兼容性检查完成: \(result.summary)", category: "Initialization")
+        LogService.shared.info(.editor, "系统兼容性检查完成: \(result.summary)")
 
         return result
     }
@@ -247,8 +211,7 @@ final class NativeEditorInitializer {
     func resetInitializationState() {
         lastInitializationResult = nil
         cachedCompatibilityResult = nil
-        errorHandler.resetErrorCount()
-        logger.logInfo("初始化状态已重置", category: "Initialization")
+        LogService.shared.info(.editor, "初始化状态已重置")
     }
 
     // MARK: - Private Methods
@@ -284,7 +247,7 @@ final class NativeEditorInitializer {
         _ = renderer.createBulletAttachment(indent: 1)
         _ = renderer.createOrderAttachment(number: 1, indent: 1)
 
-        logger.logDebug("编辑器上下文验证通过", category: "Initialization")
+        LogService.shared.debug(.editor, "编辑器上下文验证通过")
     }
 }
 
@@ -298,9 +261,6 @@ final class EditorRecoveryManager {
     // MARK: - Singleton
 
     // MARK: - Properties
-
-    /// 日志记录器
-    private let logger = NativeEditorLogger.shared
 
     /// 自动保存间隔（秒）
     var autoSaveInterval: TimeInterval = 30
@@ -341,9 +301,9 @@ final class EditorRecoveryManager {
         if !fileManager.fileExists(atPath: directory.path) {
             do {
                 try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-                logger.logInfo("恢复目录已创建: \(directory.path)", category: "Recovery")
+                LogService.shared.info(.editor, "恢复目录已创建: \(directory.path)")
             } catch {
-                logger.logError(error, context: "创建恢复目录失败", category: "Recovery")
+                LogService.shared.error(.editor, "创建恢复目录失败: \(error.localizedDescription)")
             }
         }
     }
@@ -367,7 +327,7 @@ final class EditorRecoveryManager {
             }
         }
 
-        logger.logInfo("自动保存已启动，间隔: \(autoSaveInterval)秒", category: "Recovery")
+        LogService.shared.info(.editor, "自动保存已启动，间隔: \(autoSaveInterval)秒")
     }
 
     /// 停止自动保存
@@ -398,9 +358,9 @@ final class EditorRecoveryManager {
             // 清理旧的恢复文件
             cleanupOldRecoveryFiles(noteId: noteId)
 
-            logger.logDebug("恢复数据已保存: \(fileName)", category: "Recovery")
+            LogService.shared.debug(.editor, "恢复数据已保存: \(fileName)")
         } catch {
-            logger.logError(error, context: "保存恢复数据失败", category: "Recovery")
+            LogService.shared.error(.editor, "保存恢复数据失败: \(error.localizedDescription)")
         }
     }
 
@@ -435,11 +395,11 @@ final class EditorRecoveryManager {
                 documentAttributes: nil
             )
 
-            logger.logInfo("数据已恢复: \(latestFile.lastPathComponent)", category: "Recovery")
+            LogService.shared.info(.editor, "数据已恢复: \(latestFile.lastPathComponent)")
 
             return content
         } catch {
-            logger.logError(error, context: "恢复数据失败", category: "Recovery")
+            LogService.shared.error(.editor, "恢复数据失败: \(error.localizedDescription)")
             return nil
         }
     }
@@ -475,9 +435,9 @@ final class EditorRecoveryManager {
                 try fileManager.removeItem(at: file)
             }
 
-            logger.logInfo("恢复数据已清除: \(noteId)", category: "Recovery")
+            LogService.shared.info(.editor, "恢复数据已清除: \(noteId)")
         } catch {
-            logger.logError(error, context: "清除恢复数据失败", category: "Recovery")
+            LogService.shared.error(.editor, "清除恢复数据失败: \(error.localizedDescription)")
         }
     }
 
@@ -507,10 +467,10 @@ final class EditorRecoveryManager {
                     try fileManager.removeItem(at: file)
                 }
 
-                logger.logDebug("已清理 \(filesToDelete.count) 个旧恢复文件", category: "Recovery")
+                LogService.shared.debug(.editor, "已清理 \(filesToDelete.count) 个旧恢复文件")
             }
         } catch {
-            logger.logError(error, context: "清理旧恢复文件失败", category: "Recovery")
+            LogService.shared.error(.editor, "清理旧恢复文件失败: \(error.localizedDescription)")
         }
     }
 }
