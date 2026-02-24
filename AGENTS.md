@@ -20,12 +20,11 @@ Sources/
 ├── Core/                   # 核心基础设施
 │   ├── Cache/              # 缓存工具
 │   ├── Concurrency/        # 并发工具
-│   ├── DependencyInjection/# 依赖注入（ServiceLocator）
 │   ├── EventBus/           # 事件总线（跨层通信）
 │   └── Pagination/         # 分页工具
 ├── Extensions/             # Swift 扩展
 ├── Model/                  # 数据模型（Note, Folder, NoteMapper 等）
-├── Network/                # 网络层（APIClient, NoteAPI, FolderAPI, FileAPI, SyncAPI, UserAPI）
+├── Network/                # 网络层（APIClient, NetworkModule, NoteAPI, FolderAPI, FileAPI, SyncAPI, UserAPI）
 │   ├── API/                # 领域 API 类（按功能拆分）
 │   └── Implementation/     # 网络协议实现
 ├── Presentation/           # 展示层辅助

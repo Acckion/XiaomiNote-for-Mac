@@ -655,5 +655,9 @@ struct ChangePasswordDialogView: View {
 }
 
 #Preview {
-    SettingsView(syncState: SyncState(), authState: AuthState(), noteStore: NoteStore(db: .shared, eventBus: .shared))
+    SettingsView(
+        syncState: SyncState(),
+        authState: AuthState(apiClient: .shared, userAPI: .shared),
+        noteStore: NoteStore(db: .shared, eventBus: .shared)
+    )
 }

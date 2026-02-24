@@ -96,7 +96,7 @@ final class NetworkRequestManager: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
 
-    private init() {
+    init() {
         setupOnlineStateMonitoring()
         startProcessingLoop()
     }

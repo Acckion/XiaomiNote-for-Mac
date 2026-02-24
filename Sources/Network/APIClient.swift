@@ -42,17 +42,29 @@ public actor APIClient {
 
     // MARK: - 网络请求管理器
 
-    /// 网络请求管理器（可选，逐步迁移）
-    private var requestManager: NetworkRequestManager?
+    /// 注入的网络请求管理器（NetworkModule 创建时传入）
+    private let requestManager: NetworkRequestManager?
 
     @MainActor
     private func getRequestManager() -> NetworkRequestManager {
-        NetworkRequestManager.shared
+        if let manager = requestManager {
+            return manager
+        }
+        return NetworkRequestManager.shared
     }
 
     // MARK: - 初始化
 
+    /// NetworkModule 使用的构造器
+    init(requestManager: NetworkRequestManager) {
+        self.requestManager = requestManager
+        Task {
+            await loadCredentials()
+        }
+    }
+
     private init() {
+        self.requestManager = nil
         Task {
             await loadCredentials()
         }
@@ -111,7 +123,7 @@ public actor APIClient {
         )
 
         do {
-            let manager = await MainActor.run { NetworkRequestManager.shared }
+            let manager = await getRequestManager()
             let response = try await manager.request(
                 url: url,
                 method: method,

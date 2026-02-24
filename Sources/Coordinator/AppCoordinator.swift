@@ -31,13 +31,18 @@ public final class AppCoordinator: ObservableObject {
     public let authState: AuthState
     public let searchState: SearchState
 
+    // MARK: - 网络模块
+
+    private let networkModule: NetworkModule
+
     // MARK: - 音频面板（暂不重构）
 
     let audioPanelViewModel: AudioPanelViewModel
 
     // MARK: - 初始化
 
-    public init() {
+    public init(networkModule: NetworkModule) {
+        self.networkModule = networkModule
         self.eventBus = EventBus.shared
         let noteStoreInstance = NoteStore(db: DatabaseService.shared, eventBus: EventBus.shared)
         self.noteStore = noteStoreInstance
@@ -46,7 +51,7 @@ public final class AppCoordinator: ObservableObject {
         self.noteEditorState = NoteEditorState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
         self.folderState = FolderState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
         self.syncState = SyncState(eventBus: EventBus.shared)
-        self.authState = AuthState(eventBus: EventBus.shared, apiClient: APIClient.shared, userAPI: UserAPI.shared)
+        self.authState = AuthState(eventBus: EventBus.shared, apiClient: networkModule.apiClient, userAPI: networkModule.userAPI)
         self.searchState = SearchState(noteStore: noteStoreInstance)
 
         self.audioPanelViewModel = AudioPanelViewModel(
@@ -55,6 +60,11 @@ public final class AppCoordinator: ObservableObject {
         )
 
         LogService.shared.info(.app, "AppCoordinator 初始化完成")
+    }
+
+    /// Preview 和测试用的便利构造器，内部创建默认 NetworkModule
+    convenience init() {
+        self.init(networkModule: NetworkModule())
     }
 
     // MARK: - 生命周期
