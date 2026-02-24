@@ -350,10 +350,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         menuActionHandler.showDebugSettings(sender)
     }
 
-    @objc func showParagraphDebugWindow(_ sender: Any?) {
-        menuActionHandler.showParagraphDebugWindow(sender)
-    }
-
     @objc func testAudioFileAPI(_ sender: Any?) {
         menuActionHandler.testAudioFileAPI(sender)
     }

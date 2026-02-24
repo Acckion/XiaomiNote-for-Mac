@@ -146,9 +146,6 @@ public class NativeEditorContext: ObservableObject {
     /// 附件选择管理器
     var attachmentSelectionManager: AttachmentSelectionManager?
 
-    /// 性能监控器
-    var performanceMonitor: PerformanceMonitor?
-
     /// XML 规范化器
     var xmlNormalizer: XMLNormalizer?
 

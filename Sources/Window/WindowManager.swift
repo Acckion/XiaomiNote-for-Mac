@@ -296,19 +296,6 @@ public class WindowManager {
         LogService.shared.debug(.window, "编辑器窗口已移除，剩余: \(editorWindowControllers.count)")
     }
 
-    // MARK: - 调试工具
-
-    /// 段落管理器调试窗口控制器
-    private var paragraphDebugWindowController: ParagraphDebugWindowController?
-
-    /// 显示段落管理器调试窗口
-    public func showParagraphDebugWindow() {
-        if paragraphDebugWindowController == nil {
-            paragraphDebugWindowController = ParagraphDebugWindowController()
-        }
-        paragraphDebugWindowController?.show()
-    }
-
     // MARK: - 错误处理
 
     /// 显示窗口创建错误提示

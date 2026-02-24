@@ -159,8 +159,7 @@ public final class AppCoordinator: ObservableObject {
         noteEditorState.nativeEditorContext.formatConverter = editorModule.formatConverter
         noteEditorState.nativeEditorContext.attachmentSelectionManager = editorModule.attachmentSelectionManager
 
-        // 接线编辑器监控和格式管理依赖
-        noteEditorState.nativeEditorContext.performanceMonitor = editorModule.performanceMonitor
+        // 接线编辑器格式管理依赖
         noteEditorState.nativeEditorContext.xmlNormalizer = editorModule.xmlNormalizer
         noteEditorState.nativeEditorContext.cursorFormatManager = editorModule.cursorFormatManager
 

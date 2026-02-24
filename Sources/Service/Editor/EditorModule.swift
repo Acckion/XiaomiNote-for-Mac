@@ -11,7 +11,6 @@ public struct EditorModule: Sendable {
     public let fontSizeManager: FontSizeManager
     public let editorConfigurationManager: EditorConfigurationManager
     public let xmlNormalizer: XMLNormalizer
-    let performanceMonitor: PerformanceMonitor
     public let typingOptimizer: TypingOptimizer
     public let pasteboardManager: PasteboardManager
 
@@ -48,9 +47,6 @@ public struct EditorModule: Sendable {
 
         let normalizer = XMLNormalizer()
         self.xmlNormalizer = normalizer
-
-        let perfMonitor = PerformanceMonitor()
-        self.performanceMonitor = perfMonitor
 
         let optimizer = TypingOptimizer()
         self.typingOptimizer = optimizer

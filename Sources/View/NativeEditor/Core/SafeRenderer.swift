@@ -21,15 +21,6 @@ final class SafeRenderer {
     /// 自定义渲染器
     private let customRenderer: CustomRenderer
 
-    /// 错误处理器
-    private let errorHandler = NativeEditorErrorHandler.shared
-
-    /// 日志记录器
-    private let logger = NativeEditorLogger.shared
-
-    /// 性能指标
-    private let metrics = NativeEditorMetrics.shared
-
     /// 回退文本样式
     private var fallbackTextAttributes: [NSAttributedString.Key: Any] {
         [
@@ -58,29 +49,15 @@ final class SafeRenderer {
         level: Int,
         indent: Int
     ) -> NSAttributedString {
-        let startTime = CFAbsoluteTimeGetCurrent()
-
         do {
             let attachment = try createCheckboxAttachmentWithValidation(
                 checked: checked,
                 level: level,
                 indent: indent
             )
-
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            metrics.recordRendering("checkbox", duration: duration)
-            logger.logRendering(element: "checkbox", duration: duration, cached: false, success: true)
-
             return NSAttributedString(attachment: attachment)
         } catch {
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            logger.logRendering(element: "checkbox", duration: duration, cached: false, success: false)
-
-            errorHandler.handleError(
-                .attachmentCreationFailed(type: "checkbox"),
-                context: "checked=\(checked), level=\(level), indent=\(indent)"
-            )
-
+            LogService.shared.error(.editor, "复选框附件创建失败: \(error.localizedDescription)")
             return createFallbackCheckbox(checked: checked)
         }
     }
@@ -89,25 +66,11 @@ final class SafeRenderer {
     /// - Parameter width: 宽度
     /// - Returns: 附件或回退文本
     func safeCreateHorizontalRuleAttachment(width: CGFloat = 300) -> NSAttributedString {
-        let startTime = CFAbsoluteTimeGetCurrent()
-
         do {
             let attachment = try createHorizontalRuleAttachmentWithValidation(width: width)
-
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            metrics.recordRendering("horizontalRule", duration: duration)
-            logger.logRendering(element: "horizontalRule", duration: duration, cached: false, success: true)
-
             return NSAttributedString(attachment: attachment)
         } catch {
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            logger.logRendering(element: "horizontalRule", duration: duration, cached: false, success: false)
-
-            errorHandler.handleError(
-                .attachmentCreationFailed(type: "horizontalRule"),
-                context: "width=\(width)"
-            )
-
+            LogService.shared.error(.editor, "分割线附件创建失败: \(error.localizedDescription)")
             return createFallbackHorizontalRule()
         }
     }
@@ -116,25 +79,11 @@ final class SafeRenderer {
     /// - Parameter indent: 缩进
     /// - Returns: 附件或回退文本
     func safeCreateBulletAttachment(indent: Int) -> NSAttributedString {
-        let startTime = CFAbsoluteTimeGetCurrent()
-
         do {
             let attachment = try createBulletAttachmentWithValidation(indent: indent)
-
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            metrics.recordRendering("bullet", duration: duration)
-            logger.logRendering(element: "bullet", duration: duration, cached: false, success: true)
-
             return NSAttributedString(attachment: attachment)
         } catch {
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            logger.logRendering(element: "bullet", duration: duration, cached: false, success: false)
-
-            errorHandler.handleError(
-                .attachmentCreationFailed(type: "bullet"),
-                context: "indent=\(indent)"
-            )
-
+            LogService.shared.error(.editor, "项目符号附件创建失败: \(error.localizedDescription)")
             return createFallbackBullet(indent: indent)
         }
     }
@@ -145,25 +94,11 @@ final class SafeRenderer {
     ///   - indent: 缩进
     /// - Returns: 附件或回退文本
     func safeCreateOrderAttachment(number: Int, indent: Int) -> NSAttributedString {
-        let startTime = CFAbsoluteTimeGetCurrent()
-
         do {
             let attachment = try createOrderAttachmentWithValidation(number: number, indent: indent)
-
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            metrics.recordRendering("order", duration: duration)
-            logger.logRendering(element: "order", duration: duration, cached: false, success: true)
-
             return NSAttributedString(attachment: attachment)
         } catch {
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            logger.logRendering(element: "order", duration: duration, cached: false, success: false)
-
-            errorHandler.handleError(
-                .attachmentCreationFailed(type: "order"),
-                context: "number=\(number), indent=\(indent)"
-            )
-
+            LogService.shared.error(.editor, "有序列表附件创建失败: \(error.localizedDescription)")
             return createFallbackOrder(number: number, indent: indent)
         }
     }
@@ -179,29 +114,15 @@ final class SafeRenderer {
         fileId: String?,
         folderId: String?
     ) -> NSAttributedString {
-        let startTime = CFAbsoluteTimeGetCurrent()
-
         do {
             let attachment = try createImageAttachmentWithValidation(
                 src: src,
                 fileId: fileId,
                 folderId: folderId
             )
-
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            metrics.recordRendering("image", duration: duration)
-            logger.logRendering(element: "image", duration: duration, cached: false, success: true)
-
             return NSAttributedString(attachment: attachment)
         } catch {
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-            logger.logRendering(element: "image", duration: duration, cached: false, success: false)
-
-            errorHandler.handleError(
-                .imageLoadFailed(fileId: fileId, reason: error.localizedDescription),
-                context: "src=\(src ?? "nil"), fileId=\(fileId ?? "nil")"
-            )
-
+            LogService.shared.error(.editor, "图片附件创建失败: \(error.localizedDescription)")
             return createFallbackImage()
         }
     }
@@ -344,7 +265,7 @@ final class SafeRenderer {
             )
 
         default:
-            logger.logWarning("未知的元素类型: \(elementType)", category: "SafeRenderer")
+            LogService.shared.warning(.editor, "未知的元素类型: \(elementType)")
             return NSAttributedString(string: "[\(elementType)]", attributes: fallbackTextAttributes)
         }
     }

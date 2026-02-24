@@ -164,9 +164,6 @@ struct UnifiedEditorWrapper: View {
 
         // 真正的内容变化（笔记切换），执行重新加载
 
-        // 记录内容重新加载（性能监控）
-        nativeEditorContext.performanceMonitor?.recordContentReload()
-
         // 使用 DispatchQueue.main.async 确保在下一个 run loop 迭代中执行，
         // 彻底脱离 .onChange 的视图更新周期
         DispatchQueue.main.async { [self] in
