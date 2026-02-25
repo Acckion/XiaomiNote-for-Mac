@@ -1,5 +1,4 @@
 import AppKit
-import MiNoteLibrary
 
 /// 应用程序委托
 /// 替代SwiftUI的App结构，采用纯AppKit架构

@@ -1,6 +1,5 @@
 import AppKit
 import Combine
-import MiNoteLibrary
 
 /// 应用程序状态管理器
 @MainActor

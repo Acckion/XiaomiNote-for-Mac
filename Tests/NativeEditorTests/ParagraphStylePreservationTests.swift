@@ -8,7 +8,7 @@
 
 import AppKit
 import XCTest
-@testable import MiNoteLibrary
+@testable import MiNoteMac
 
 // MARK: - 保持性属性测试
 

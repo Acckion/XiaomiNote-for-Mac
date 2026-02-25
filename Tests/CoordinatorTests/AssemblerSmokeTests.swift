@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import MiNoteLibrary
+@testable import MiNoteMac
 
 final class AssemblerSmokeTests: XCTestCase {
 

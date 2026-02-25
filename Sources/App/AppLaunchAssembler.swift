@@ -1,5 +1,4 @@
 import AppKit
-import MiNoteLibrary
 
 /// AppDelegate 启动装配器
 ///

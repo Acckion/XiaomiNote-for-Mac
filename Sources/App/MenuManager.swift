@@ -1,5 +1,4 @@
 import AppKit
-import MiNoteLibrary
 
 /// 菜单管理器
 /// 负责应用程序菜单的设置和管理

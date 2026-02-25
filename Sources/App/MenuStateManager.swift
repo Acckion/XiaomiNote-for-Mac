@@ -1,5 +1,4 @@
 import AppKit
-import MiNoteLibrary
 
 /// 菜单状态管理器
 /// 纯状态管理类，负责：
