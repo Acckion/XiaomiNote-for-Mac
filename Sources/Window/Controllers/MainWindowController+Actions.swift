@@ -904,38 +904,6 @@
             coordinator.noteEditorState.nativeEditorContext
         }
 
-        // MARK: - 编辑菜单动作
-
-        @objc func undo(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
-        @objc func redo(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
-        @objc func cut(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
-        @objc func copy(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
-        @objc func paste(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
-        @objc override func selectAll(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
         // MARK: - 格式菜单动作
 
         @objc func increaseFontSize(_: Any?) {

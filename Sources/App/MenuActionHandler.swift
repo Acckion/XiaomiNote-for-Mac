@@ -341,44 +341,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         windowManager.createNewWindow()
     }
 
-    // MARK: - 编辑菜单动作
-
-    /// 撤销
-    func undo(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.undo(sender)
-    }
-
-    /// 重做
-    func redo(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.redo(sender)
-    }
-
-    /// 剪切
-    func cut(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.cut(sender)
-    }
-
-    /// 复制
-    func copy(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.copy(sender)
-    }
-
-    /// 粘贴
-    func paste(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.paste(sender)
-    }
-
-    /// 全选
-    func selectAll(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.selectAll(sender)
-    }
-
     // MARK: - 格式菜单动作
 
     /// 切换粗体
