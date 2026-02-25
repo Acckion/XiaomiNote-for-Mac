@@ -15,9 +15,7 @@ public actor OperationProcessor {
 
     // MARK: - 重试配置
 
-    private let maxRetryCount = 8
-    private let baseRetryDelay: TimeInterval = 1.0
-    private let maxRetryDelay: TimeInterval = 300.0
+    private let config: OperationQueueConfig
 
     // MARK: - 依赖
 
@@ -46,7 +44,8 @@ public actor OperationProcessor {
         eventBus: EventBus,
         idMappingRegistry: IdMappingRegistry,
         handlers: [OperationType: OperationHandler],
-        networkMonitor: NetworkMonitor
+        networkMonitor: NetworkMonitor,
+        config: OperationQueueConfig = .default
     ) {
         self.operationQueue = operationQueue
         self.apiClient = apiClient
@@ -55,6 +54,7 @@ public actor OperationProcessor {
         self.idMappingRegistry = idMappingRegistry
         self.handlers = handlers
         self.networkMonitor = networkMonitor
+        self.config = config
     }
 
     // MARK: - 网络状态检查
@@ -291,8 +291,8 @@ public extension OperationProcessor {
 public extension OperationProcessor {
 
     func calculateRetryDelay(retryCount: Int) -> TimeInterval {
-        let baseDelay = baseRetryDelay * pow(2.0, Double(retryCount))
-        let cappedDelay = min(baseDelay, maxRetryDelay)
+        let baseDelay = config.baseRetryDelay * pow(2.0, Double(retryCount))
+        let cappedDelay = min(baseDelay, config.maxRetryDelay)
         let jitter = cappedDelay * Double.random(in: 0 ... 0.25)
         return cappedDelay + jitter
     }
@@ -336,7 +336,7 @@ public extension OperationProcessor {
                 break
             }
 
-            guard operation.retryCount < maxRetryCount else {
+            guard operation.retryCount < config.maxRetryCount else {
                 LogService.shared.warning(.sync, "OperationProcessor 操作超过最大重试次数: \(operation.id)")
                 continue
             }
@@ -470,7 +470,7 @@ extension OperationProcessor {
         LogService.shared.error(.sync, "OperationProcessor 操作失败: \(operation.id), 错误类型: \(errorType.rawValue), 可重试: \(isRetryable)")
 
         do {
-            if isRetryable, operation.retryCount < maxRetryCount {
+            if isRetryable, operation.retryCount < config.maxRetryCount {
                 let retryDelay = calculateRetryDelay(retryCount: operation.retryCount)
                 try operationQueue.scheduleRetry(operation.id, delay: retryDelay)
                 LogService.shared.debug(.sync, "OperationProcessor 安排重试: \(operation.id), 延迟 \(retryDelay) 秒")

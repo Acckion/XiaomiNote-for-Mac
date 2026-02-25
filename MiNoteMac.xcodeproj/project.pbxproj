@@ -161,6 +161,7 @@
 		775528A002122361B24F297C /* SelectionAnchorManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39D8E5945BF31E7DD44BA35 /* SelectionAnchorManager.swift */; };
 		7792B34687B28566CD64B13D /* AudioRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 919C03060525D8E0E1B05D0E /* AudioRecorderView.swift */; };
 		79B444234D0C652B844E1CF1 /* UtilityCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DAF0853441A067E3DCBE0BC /* UtilityCommands.swift */; };
+		7A4986A19F554CB435B40C3D /* OperationQueueConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B1DD616F8A0B2A0055F297 /* OperationQueueConfig.swift */; };
 		7BCDCF3EF05B30F7FBFA4C43 /* NoteMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F792ED6943570A8DEB283A0A /* NoteMapper.swift */; };
 		7C972F4A18D5AB7D246AC248 /* AuthAssembler.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE02F2EBBA02BD872AFAEEBB /* AuthAssembler.swift */; };
 		7D2B13E46A198A7F1EA57668 /* NoteMoveHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 991FD0949661FC56C5840781 /* NoteMoveHelper.swift */; };
@@ -554,6 +555,7 @@
 		9E1463E0A3478BCA4991F051 /* TextContainerLayoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextContainerLayoutManager.swift; sourceTree = "<group>"; };
 		9F386288A1CB171EBBD679BA /* MenuManager+EditMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuManager+EditMenu.swift"; sourceTree = "<group>"; };
 		A00CCA3AB2B75BFC26068759 /* XMLNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLNormalizer.swift; sourceTree = "<group>"; };
+		A0B1DD616F8A0B2A0055F297 /* OperationQueueConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationQueueConfig.swift; sourceTree = "<group>"; };
 		A0CEF05F6E98008F12D12632 /* MiNoteLibraryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MiNoteLibraryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A132808FB8BD901AF2D9A566 /* SidebarHostingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarHostingController.swift; sourceTree = "<group>"; };
 		A1AF8D68A097A383693265C1 /* SyncAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncAPI.swift; sourceTree = "<group>"; };
@@ -791,6 +793,7 @@
 				EBC2862C480DD3FB5B6AAE3D /* NoteOperationHandler.swift */,
 				460D876F50B552C1EACF6859 /* OperationHandler.swift */,
 				C703929F8BADE97CBA48F19E /* OperationProcessor.swift */,
+				A0B1DD616F8A0B2A0055F297 /* OperationQueueConfig.swift */,
 				5C1FD7A4E0EB6D572E5FFEE4 /* UnifiedOperationQueue.swift */,
 			);
 			path = OperationQueue;
@@ -2041,6 +2044,7 @@
 				9F2F0F151AC872D43006219C /* OperationHandler.swift in Sources */,
 				774B69AC20A21FBC0313F46A /* OperationProcessor.swift in Sources */,
 				018FC642F36C2622E6F437B2 /* OperationProcessorProgressView.swift in Sources */,
+				7A4986A19F554CB435B40C3D /* OperationQueueConfig.swift in Sources */,
 				929498ABB613E0E4005D9EA7 /* OperationQueueDebugView.swift in Sources */,
 				2038890AFB763815678D1EB1 /* Pageable.swift in Sources */,
 				DEE9277CD279D9751E407F27 /* Paragraph.swift in Sources */,

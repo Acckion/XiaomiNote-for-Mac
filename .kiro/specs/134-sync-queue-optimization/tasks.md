@@ -15,12 +15,12 @@
 
 ## 任务 2：统一重试参数配置源
 
-- [ ] 2. 创建统一配置
-  - [ ] 2.1 创建 `Sources/Features/Sync/Infrastructure/OperationQueue/OperationQueueConfig.swift`
-  - [ ] 2.2 修改 OperationProcessor 构造器，接收 OperationQueueConfig
-  - [ ] 2.3 修改 UnifiedOperationQueue，移除内部 maxRetryCount 定义，改用 OperationQueueConfig
-  - [ ] 2.4 更新 SyncModule 中的构造调用
-  - [ ] 2.5 编译验证
+- [x] 2. 创建统一配置
+  - [x] 2.1 创建 `Sources/Features/Sync/Infrastructure/OperationQueue/OperationQueueConfig.swift`
+  - [x] 2.2 修改 OperationProcessor 构造器，接收 OperationQueueConfig
+  - [x] 2.3 修改 UnifiedOperationQueue，移除内部 maxRetryCount 定义，改用 OperationQueueConfig
+  - [x] 2.4 更新 SyncModule 中的构造调用
+  - [x] 2.5 编译验证
 
 ## 任务 3：提取 OperationFailurePolicy
 

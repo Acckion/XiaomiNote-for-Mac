@@ -40,6 +40,9 @@ public final class UnifiedOperationQueue: @unchecked Sendable {
     /// 数据库服务
     private let databaseService: DatabaseService
 
+    /// 队列配置
+    private let config: OperationQueueConfig
+
     // MARK: - 线程安全
 
     /// 操作锁，确保线程安全
@@ -60,8 +63,9 @@ public final class UnifiedOperationQueue: @unchecked Sendable {
     /// 初始化方法
     ///
     /// - Parameter databaseService: 数据库服务实例
-    init(databaseService: DatabaseService) {
+    init(databaseService: DatabaseService, config: OperationQueueConfig = .default) {
         self.databaseService = databaseService
+        self.config = config
         loadFromDatabase()
     }
 
@@ -373,9 +377,7 @@ public extension UnifiedOperationQueue {
         operation.errorType = errorType
         operation.retryCount += 1
 
-        // 检查是否超过最大重试次数
-        let maxRetryCount = 5
-        if operation.retryCount >= maxRetryCount {
+        if operation.retryCount >= config.maxRetryCount {
             operation.status = .maxRetryExceeded
             LogService.shared.error(.sync, "操作超过最大重试次数: \(operationId)")
         }
@@ -413,9 +415,7 @@ public extension UnifiedOperationQueue {
         operation.errorType = errorType
         operation.retryCount += 1
 
-        // 检查是否超过最大重试次数
-        let maxRetryCount = 5
-        if operation.retryCount >= maxRetryCount {
+        if operation.retryCount >= config.maxRetryCount {
             operation.status = .maxRetryExceeded
         }
 
@@ -570,19 +570,9 @@ public extension UnifiedOperationQueue {
 
 public extension UnifiedOperationQueue {
 
-    /// 重试配置
-    private enum RetryConfig {
-        /// 基础重试延迟（秒）
-        static let baseDelay: TimeInterval = 1.0
-        /// 最大重试延迟（秒）
-        static let maxDelay: TimeInterval = 60.0
-        /// 最大重试次数
-        static let maxRetryCount = 5
-    }
-
     /// 安排重试
     ///
-    /// 使用指数退避策略计算下次重试时间：1s, 2s, 4s, 8s, 16s, 32s, 60s
+    /// 使用指数退避策略计算下次重试时间
     ///
     /// - Parameters:
     ///   - operationId: 操作 ID
@@ -613,14 +603,11 @@ public extension UnifiedOperationQueue {
 
     /// 计算重试延迟（指数退避）
     ///
-    /// 延迟序列：1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s...
-    ///
     /// - Parameter retryCount: 当前重试次数
     /// - Returns: 延迟时间（秒）
     func calculateRetryDelay(retryCount: Int) -> TimeInterval {
-        // delay = min(baseDelay * 2^retryCount, maxDelay)
-        let delay = RetryConfig.baseDelay * pow(2.0, Double(retryCount))
-        return min(delay, RetryConfig.maxDelay)
+        let delay = config.baseRetryDelay * pow(2.0, Double(retryCount))
+        return min(delay, config.maxRetryDelay)
     }
 
     /// 获取需要重试的操作
