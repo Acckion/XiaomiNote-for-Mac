@@ -740,7 +740,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 导入笔记
     func importNotes(_: Any?) {
-        // 实现导入功能
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
@@ -755,18 +754,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                         do {
                             let content = try String(contentsOf: url, encoding: .utf8)
                             let fileName = url.deletingPathExtension().lastPathComponent
-
-                            let newNote = Note(
-                                id: UUID().uuidString,
-                                title: fileName,
-                                content: content,
-                                folderId: self?.mainWindowController?.coordinator.folderState.selectedFolder?.id ?? "0",
-                                isStarred: false,
-                                createdAt: Date(),
-                                updatedAt: Date()
-                            )
-
-                            await self?.mainWindowController?.coordinator.noteListState.createNewNote(inFolder: newNote.folderId)
+                            await self?.createImportedNote(title: fileName, content: content)
                         } catch {
                             DispatchQueue.main.async {
                                 let errorAlert = NSAlert()
@@ -864,18 +852,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                         do {
                             let content = try String(contentsOf: url, encoding: .utf8)
                             let fileName = url.deletingPathExtension().lastPathComponent
-
-                            let newNote = Note(
-                                id: UUID().uuidString,
-                                title: fileName,
-                                content: content,
-                                folderId: self?.mainWindowController?.coordinator.folderState.selectedFolder?.id ?? "0",
-                                isStarred: false,
-                                createdAt: Date(),
-                                updatedAt: Date()
-                            )
-
-                            await self?.mainWindowController?.coordinator.noteListState.createNewNote(inFolder: newNote.folderId)
+                            await self?.createImportedNote(title: fileName, content: content)
                         } catch {
                             DispatchQueue.main.async {
                                 let errorAlert = NSAlert()
@@ -1001,6 +978,25 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "确定")
         alert.runModal()
+    }
+
+    /// 创建导入笔记并选中
+    private func createImportedNote(title: String, content: String) async {
+        guard let coordinator = mainWindowController?.coordinator else { return }
+
+        let folderId = coordinator.folderState.selectedFolder?.id ?? "0"
+        let normalizedContent = content.isEmpty ? "<new-format/><text indent=\"1\"></text>" : content
+
+        do {
+            let note = try await coordinator.noteStore.createNoteOffline(
+                title: title,
+                content: normalizedContent,
+                folderId: folderId
+            )
+            coordinator.noteListState.selectedNote = note
+        } catch {
+            LogService.shared.error(.app, "导入笔记落库失败: \(error)")
+        }
     }
 
     /// 将笔记导出为 PDF

@@ -58,7 +58,7 @@
     }
 
     /// 分享笔记命令
-    public struct ShareNoteCommand: AppCommand, @unchecked Sendable {
+    public struct ShareNoteCommand: AppCommand {
         public let window: NSWindow?
 
         public init(window: NSWindow?) {

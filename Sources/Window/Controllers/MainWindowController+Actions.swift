@@ -893,53 +893,53 @@
         }
 
         @objc func alignLeft(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.clearAlignmentFormat()
         }
 
         @objc func alignCenter(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.applyFormat(.alignCenter)
         }
 
         @objc func alignRight(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.applyFormat(.alignRight)
         }
 
         @objc func toggleBulletList(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.bulletList)
         }
 
         @objc func toggleNumberedList(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.numberedList)
         }
 
         @objc func toggleCheckboxList(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.checkbox)
         }
 
         @objc func setHeading1(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.applyFormat(.heading1)
         }
 
         @objc func setHeading2(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.applyFormat(.heading2)
         }
 
         @objc func setHeading3(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.applyFormat(.heading3)
         }
 
         @objc func setBodyText(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.clearParagraphFormat()
         }
 
         // MARK: - 格式菜单动作（Apple Notes 风格）
