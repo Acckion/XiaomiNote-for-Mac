@@ -41,9 +41,9 @@
   - [x] 3.5 回到主 spec，更新状态
 
 - [ ] 4. 创建并完成 spec 127-sync-vertical-slice
-  - [ ] 4.1 创建 spec 127 的 requirements.md、design.md、tasks.md
-  - [ ] 4.2 实施 Sync 域迁移
-  - [ ] 4.3 更新 project.yml，编译验证
+  - [x] 4.1 创建 spec 127 的 requirements.md、design.md、tasks.md
+  - [x] 4.2 实施 Sync 域迁移
+  - [x] 4.3 更新 project.yml，编译验证
   - [ ] 4.4 手动测试验收，合并分支
   - [ ] 4.5 回到主 spec，更新状态
 

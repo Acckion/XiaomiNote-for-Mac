@@ -16,7 +16,7 @@
 ```
 Sources/
 ├── App/                    # 应用程序入口（AppDelegate, MenuManager, MenuStateManager, AppStateManager）
-├── Coordinator/            # 协调器（AppCoordinator, SyncCoordinator）
+├── Coordinator/            # 协调器（AppCoordinator；SyncCoordinator 已迁至 Features/Sync/）
 ├── Core/                   # 核心基础设施
 │   ├── Cache/              # 缓存工具
 │   ├── Command/            # 命令模式（AppCommand, CommandDispatcher, NoteCommands, SyncCommands, FormatCommands, FileCommands, WindowCommands, ViewCommands, UtilityCommands）
@@ -25,14 +25,22 @@ Sources/
 │   └── Pagination/         # 分页工具
 ├── Extensions/             # Swift 扩展
 ├── Features/               # 按域组织的功能模块
-│   └── Notes/              # 笔记域（Vertical Slice）
-│       ├── Domain/         # 领域模型（Note, NoteMapper, DeletedNote, NoteSortOrder 等 8 个文件）
-│       ├── Infrastructure/ # 基础设施（NoteStore, NotePreviewService, NoteOperationError, NoteAPI）
-│       ├── Application/    # 应用层状态（NoteListState, NoteEditorState）
-│       └── UI/             # 视图层（NotesListView, NoteDetailView 等 18 个文件）
+│   ├── Notes/              # 笔记域（Vertical Slice）
+│   │   ├── Domain/         # 领域模型（Note, NoteMapper, DeletedNote, NoteSortOrder 等 8 个文件）
+│   │   ├── Infrastructure/ # 基础设施（NoteStore, NotePreviewService, NoteOperationError, NoteAPI）
+│   │   ├── Application/    # 应用层状态（NoteListState, NoteEditorState）
+│   │   └── UI/             # 视图层（NotesListView, NoteDetailView 等 18 个文件）
+│   └── Sync/               # 同步域（Vertical Slice）
+│       ├── Domain/         # 领域模型（NoteOperation, OperationData, FileUploadOperationData, IdMapping, SyncGuard）
+│       ├── Infrastructure/ # 基础设施
+│       │   ├── Engine/     # SyncEngine（1 核心 + 4 extension）、SyncStateManager
+│       │   ├── OperationQueue/ # OperationProcessor、OperationHandler、NoteOperationHandler、FileOperationHandler、FolderOperationHandler、UnifiedOperationQueue
+│       │   └── API/        # SyncAPI
+│       ├── Application/    # SyncState、SyncCoordinator
+│       └── UI/             # 预留（当前无独立 UI）
 ├── Model/                  # 数据模型（Folder, AuthUser, UserProfile 等非 Notes 域模型）
-├── Network/                # 网络层（APIClient, NetworkModule, FolderAPI, FileAPI, SyncAPI, UserAPI）
-│   ├── API/                # 领域 API 类（按功能拆分，NoteAPI 已迁至 Features/Notes/）
+├── Network/                # 网络层（APIClient, NetworkModule, FolderAPI, FileAPI, UserAPI）
+│   ├── API/                # 领域 API 类（按功能拆分，NoteAPI 已迁至 Features/Notes/，SyncAPI 已迁至 Features/Sync/）
 │   └── Implementation/     # 网络协议实现
 ├── Presentation/           # 展示层辅助
 │   └── ViewModels/         # ViewModel（音频、认证、搜索等独立模块）
@@ -44,26 +52,14 @@ Sources/
 │   └── Protocols/          # 服务协议定义
 ├── Shared/                 # 跨域共享
 │   └── Contracts/          # 预留协议目录（未来多 target 拆分用）
-├── State/                  # 状态对象（NoteListState/NoteEditorState 已迁至 Features/Notes/）
+├── State/                  # 状态对象（NoteListState/NoteEditorState 已迁至 Features/Notes/，SyncState 已迁至 Features/Sync/）
 │   ├── AuthState           # 认证状态
 │   ├── FolderState         # 文件夹状态
 │   ├── SearchState         # 搜索状态
-│   ├── SyncState           # 同步状态
 │   ├── ViewOptionsState    # 视图选项状态
 │   ├── ViewOptionsManager  # 视图选项管理
 │   └── ViewState           # 视图状态
 ├── Store/                  # 数据存储层（DatabaseService；NoteStore 已迁至 Features/Notes/）
-├── Sync/                   # 同步引擎
-│   ├── OperationQueue/     # 操作队列
-│   │   ├── OperationProcessor      # 调度层（队列处理、重试、错误分类）
-│   │   ├── OperationHandler        # handler 协议 + OperationResponseParser
-│   │   ├── NoteOperationHandler    # 笔记操作（创建、上传、删除）
-│   │   ├── FileOperationHandler    # 文件操作（图片上传、音频上传）
-│   │   ├── FolderOperationHandler  # 文件夹操作（创建、重命名、删除）
-│   │   └── UnifiedOperationQueue   # 统一操作队列
-│   ├── SyncEngine          # 同步引擎核心（1 核心 + 4 extension）
-│   ├── SyncModule          # 同步层模块工厂（构建同步层完整依赖图）
-│   └── IdMappingRegistry   # ID 映射注册表
 ├── ToolbarItem/            # 工具栏组件
 ├── View/                   # UI 视图组件（笔记相关视图已迁至 Features/Notes/UI/）
 │   ├── AppKitComponents/   # AppKit 视图控制器（非 Notes 域）
