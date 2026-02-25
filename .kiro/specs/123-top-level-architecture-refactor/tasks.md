@@ -33,12 +33,12 @@
 
 ## 阶段 C：目录纵向切片
 
-- [ ] 3. 创建并完成 spec 126-notes-vertical-slice
-  - [ ] 3.1 创建 spec 126 的 requirements.md、design.md、tasks.md
-  - [ ] 3.2 实施 Notes 域迁移
-  - [ ] 3.3 更新 project.yml，编译验证
-  - [ ] 3.4 手动测试验收，合并分支
-  - [ ] 3.5 回到主 spec，更新状态
+- [x] 3. 创建并完成 spec 126-notes-vertical-slice
+  - [x] 3.1 创建 spec 126 的 requirements.md、design.md、tasks.md
+  - [x] 3.2 实施 Notes 域迁移
+  - [x] 3.3 更新 project.yml，编译验证
+  - [x] 3.4 手动测试验收，合并分支
+  - [x] 3.5 回到主 spec，更新状态
 
 - [ ] 4. 创建并完成 spec 127-sync-vertical-slice
   - [ ] 4.1 创建 spec 127 的 requirements.md、design.md、tasks.md

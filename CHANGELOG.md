@@ -12,6 +12,7 @@
 - 过渡网络链路清理：删除 NetworkClient/NetworkClientProtocol 过渡抽象及其唯一消费者 DefaultAuthenticationService/DefaultImageService，清理 AuthenticationServiceProtocol/ImageServiceProtocol 无消费者协议，移除 Authentication/Image 空目录
 
 ### 重构
+- Notes 域 Vertical Slice 迁移（spec-126）：将 32 个笔记相关文件按四层架构迁移到 `Sources/Features/Notes/`（Domain 8 + Infrastructure 4 + Application 2 + UI 18），创建 `Sources/Shared/Contracts/` 预留跨域协议目录，每层独立提交且编译通过，使用 `git mv` 保留文件历史
 - 网络层单例迁入 NetworkModule（spec-125）：NetworkMonitor、NetworkErrorHandler、NetworkLogger 三个单例迁入 NetworkModule 构造器注入，消除所有外部 `.shared` 引用，`static let shared` 标记为 deprecated，保留 `.shared` 的类从 13 个减少到 10 个
 - 菜单 Command 化迁移（spec-124）：将 MenuActionHandler（1,317 行）拆分为 7 个领域 Command 文件（FormatCommands、FileCommands、WindowCommands、ViewCommands、UtilityCommands、NoteCommands、SyncCommands），共约 73 个 Command struct 通过 CommandDispatcher 统一调度，提取 MenuStateManager 分离菜单状态管理职责，AppDelegate @objc 方法简化为单行 dispatch 调用，删除 MenuActionHandler
 - OperationProcessor 拆分（spec-122）：将 OperationProcessor（1,441 行）拆分为调度层 + handler 分发模式，定义 OperationHandler 协议和 OperationResponseParser 工具结构体，按操作域拆出 NoteOperationHandler、FileOperationHandler、FolderOperationHandler 三个 actor，OperationProcessor 瘦身至 478 行纯调度层，公共接口不变，外部调用方零改动
