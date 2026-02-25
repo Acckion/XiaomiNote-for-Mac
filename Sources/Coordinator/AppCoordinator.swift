@@ -55,6 +55,10 @@ public final class AppCoordinator: ObservableObject {
 
     public let memoryCacheManager: MemoryCacheManager
 
+    // MARK: - 命令调度
+
+    private(set) var commandDispatcher: CommandDispatcher!
+
     // MARK: - 音频面板（暂不重构）
 
     let audioPanelViewModel: AudioPanelViewModel
@@ -172,6 +176,8 @@ public final class AppCoordinator: ObservableObject {
 
         // 接线音频面板状态管理器
         noteEditorState.nativeEditorContext.audioPanelStateManager = audioModule.panelStateManager
+
+        self.commandDispatcher = CommandDispatcher(coordinator: self)
 
         LogService.shared.info(.app, "AppCoordinator 初始化完成")
     }
