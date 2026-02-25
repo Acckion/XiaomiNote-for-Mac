@@ -445,8 +445,19 @@ public extension UnifiedOperationQueue {
         lock.lock()
         defer { lock.unlock() }
 
+        let now = Date()
+
         return operationsById.values
-            .filter { $0.status == .pending || $0.status == .failed }
+            .filter { operation in
+                if operation.status == .pending {
+                    return true
+                }
+                if operation.status == .failed {
+                    guard let nextRetryAt = operation.nextRetryAt else { return true }
+                    return nextRetryAt <= now
+                }
+                return false
+            }
             .sorted {
                 if $0.priority != $1.priority {
                     return $0.priority > $1.priority
