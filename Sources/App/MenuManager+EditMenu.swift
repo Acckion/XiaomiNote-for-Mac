@@ -113,7 +113,7 @@ extension MenuManager {
     private func setupAttachmentItems(in editMenu: NSMenu) {
         let attachFileItem = NSMenuItem(
             title: "附加文件...",
-            action: #selector(MenuActionHandler.attachFile(_:)),
+            action: #selector(AppDelegate.attachFile(_:)),
             keyEquivalent: ""
         )
         attachFileItem.tag = MenuItemTag.attachFile.rawValue
@@ -122,7 +122,7 @@ extension MenuManager {
 
         let addLinkItem = NSMenuItem(
             title: "添加链接...",
-            action: #selector(MenuActionHandler.addLink(_:)),
+            action: #selector(AppDelegate.addLink(_:)),
             keyEquivalent: "k"
         )
         addLinkItem.keyEquivalentModifierMask = [.command]

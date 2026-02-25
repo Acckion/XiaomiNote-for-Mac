@@ -18,8 +18,11 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
     /// 应用程序状态管理器
     private let appStateManager: AppStateManager
 
-    /// 菜单动作处理器
-    private let menuActionHandler: MenuActionHandler
+    /// 命令调度器（coordinator 就绪后初始化）
+    private var commandDispatcher: CommandDispatcher?
+
+    /// 菜单状态管理器（coordinator 就绪后初始化）
+    private var menuStateManager: MenuStateManager?
 
     // MARK: - 架构
 
@@ -33,7 +36,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         self.windowManager = shell.windowManager
         self.menuManager = shell.menuManager
         self.appStateManager = shell.appStateManager
-        self.menuActionHandler = shell.menuActionHandler
 
         super.init()
 
@@ -50,13 +52,15 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         let shell = AppLaunchAssembler.Shell(
             windowManager: windowManager,
             menuManager: menuManager,
-            appStateManager: appStateManager,
-            menuActionHandler: menuActionHandler
+            appStateManager: appStateManager
         )
         let coordinator = AppLaunchAssembler.buildRuntime(shell: shell)
         appCoordinator = coordinator
 
-        // 启动应用
+        // 初始化命令调度器和菜单状态管理器
+        commandDispatcher = coordinator.commandDispatcher
+        menuStateManager = MenuStateManager(mainWindowController: windowManager.mainWindowController)
+
         Task { @MainActor in
             await coordinator.start()
         }
@@ -92,9 +96,8 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
 
     /// 创建新窗口
     func createNewWindow() {
-        windowManager.createNewWindow()
-        // 更新菜单动作处理器的引用
-        menuActionHandler.updateMainWindowController(windowManager.mainWindowController)
+        _ = windowManager.createNewWindow()
+        menuStateManager?.updateMainWindowController(windowManager.mainWindowController)
     }
 
     /// 创建新窗口并打开指定笔记
@@ -115,387 +118,364 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         windowManager.removeWindowController(windowController)
     }
 
-    // MARK: - 菜单动作（需要暴露给菜单管理器）
+    // MARK: - 格式菜单动作
 
-    @objc func showAboutPanel(_ sender: Any?) {
-        menuActionHandler.showAboutPanel(sender)
+    @objc func toggleBold(_: Any?) {
+        commandDispatcher?.dispatch(ToggleBoldCommand())
     }
 
-    @objc func showSettings(_ sender: Any?) {
-        menuActionHandler.showSettings(sender)
+    @objc func toggleItalic(_: Any?) {
+        commandDispatcher?.dispatch(ToggleItalicCommand())
     }
 
-    @objc func createNewWindow(_ sender: Any?) {
-        menuActionHandler.createNewWindow(sender)
+    @objc func toggleUnderline(_: Any?) {
+        commandDispatcher?.dispatch(ToggleUnderlineCommand())
     }
 
-    @objc func showHelp(_ sender: Any?) {
-        menuActionHandler.showHelp(sender)
+    @objc func toggleStrikethrough(_: Any?) {
+        commandDispatcher?.dispatch(ToggleStrikethroughCommand())
     }
 
-    @objc func toggleBold(_ sender: Any?) {
-        menuActionHandler.toggleBold(sender)
+    @objc func increaseFontSize(_: Any?) {
+        commandDispatcher?.dispatch(IncreaseFontSizeCommand())
     }
 
-    @objc func toggleItalic(_ sender: Any?) {
-        menuActionHandler.toggleItalic(sender)
+    @objc func decreaseFontSize(_: Any?) {
+        commandDispatcher?.dispatch(DecreaseFontSizeCommand())
     }
 
-    @objc func toggleUnderline(_ sender: Any?) {
-        menuActionHandler.toggleUnderline(sender)
+    @objc func setHeading(_: Any?) {
+        commandDispatcher?.dispatch(SetHeadingCommand())
     }
 
-    @objc func toggleStrikethrough(_ sender: Any?) {
-        menuActionHandler.toggleStrikethrough(sender)
+    @objc func setSubheading(_: Any?) {
+        commandDispatcher?.dispatch(SetSubheadingCommand())
     }
 
-    // MARK: - 旧版格式菜单动作（向后兼容）
-
-    // 注意：这些方法保留用于向后兼容，新的菜单系统使用 Apple Notes 风格的方法
-
-    @objc func increaseFontSize(_ sender: Any?) {
-        menuActionHandler.increaseFontSize(sender)
+    @objc func setSubtitle(_: Any?) {
+        commandDispatcher?.dispatch(SetSubtitleCommand())
     }
 
-    @objc func decreaseFontSize(_ sender: Any?) {
-        menuActionHandler.decreaseFontSize(sender)
+    @objc func setBodyText(_: Any?) {
+        commandDispatcher?.dispatch(SetBodyTextCommand())
     }
 
-    /// 注意：toggleBulletList 和 toggleNumberedList 现在映射到 toggleUnorderedList 和 toggleOrderedList
-    @objc func toggleBulletList(_ sender: Any?) {
-        menuActionHandler.toggleBulletList(sender)
+    // 旧版格式方法（向后兼容）
+
+    @objc func setHeading1(_: Any?) {
+        commandDispatcher?.dispatch(SetHeadingCommand())
     }
 
-    @objc func toggleNumberedList(_ sender: Any?) {
-        menuActionHandler.toggleNumberedList(sender)
+    @objc func setHeading2(_: Any?) {
+        commandDispatcher?.dispatch(SetSubheadingCommand())
     }
 
-    @objc func toggleCheckboxList(_ sender: Any?) {
-        menuActionHandler.toggleCheckboxList(sender)
+    @objc func setHeading3(_: Any?) {
+        commandDispatcher?.dispatch(SetSubtitleCommand())
     }
 
-    /// 注意：setHeading1/2/3 现在映射到 setHeading/setSubheading/setSubtitle
-    @objc func setHeading1(_ sender: Any?) {
-        menuActionHandler.setHeading1(sender)
+    @objc func toggleOrderedList(_: Any?) {
+        commandDispatcher?.dispatch(ToggleOrderedListCommand())
     }
 
-    @objc func setHeading2(_ sender: Any?) {
-        menuActionHandler.setHeading2(sender)
+    @objc func toggleUnorderedList(_: Any?) {
+        commandDispatcher?.dispatch(ToggleUnorderedListCommand())
     }
 
-    @objc func setHeading3(_ sender: Any?) {
-        menuActionHandler.setHeading3(sender)
+    @objc func toggleBulletList(_: Any?) {
+        commandDispatcher?.dispatch(ToggleUnorderedListCommand())
     }
 
-    // MARK: - 格式菜单动作（Apple Notes 风格）
-
-    // 这些是新的菜单系统使用的方法
-
-    @objc func setHeading(_ sender: Any?) {
-        menuActionHandler.setHeading(sender)
+    @objc func toggleNumberedList(_: Any?) {
+        commandDispatcher?.dispatch(ToggleOrderedListCommand())
     }
 
-    @objc func setSubheading(_ sender: Any?) {
-        menuActionHandler.setSubheading(sender)
+    @objc func toggleCheckboxList(_: Any?) {
+        commandDispatcher?.dispatch(ToggleCheckboxListCommand())
     }
 
-    @objc func setSubtitle(_ sender: Any?) {
-        menuActionHandler.setSubtitle(sender)
+    @objc func toggleBlockQuote(_: Any?) {
+        commandDispatcher?.dispatch(ToggleBlockQuoteCommand())
     }
 
-    @objc func setBodyText(_ sender: Any?) {
-        menuActionHandler.setBodyText(sender)
+    @objc func increaseIndent(_: Any?) {
+        commandDispatcher?.dispatch(IncreaseIndentCommand())
     }
 
-    @objc func toggleOrderedList(_ sender: Any?) {
-        menuActionHandler.toggleOrderedList(sender)
+    @objc func decreaseIndent(_: Any?) {
+        commandDispatcher?.dispatch(DecreaseIndentCommand())
     }
 
-    @objc func toggleUnorderedList(_ sender: Any?) {
-        menuActionHandler.toggleUnorderedList(sender)
+    @objc func alignLeft(_: Any?) {
+        commandDispatcher?.dispatch(AlignLeftCommand())
     }
 
-    @objc func toggleBlockQuote(_ sender: Any?) {
-        menuActionHandler.toggleBlockQuote(sender)
+    @objc func alignCenter(_: Any?) {
+        commandDispatcher?.dispatch(AlignCenterCommand())
     }
 
-    @objc func increaseIndent(_ sender: Any?) {
-        menuActionHandler.increaseIndent(sender)
-    }
-
-    @objc func decreaseIndent(_ sender: Any?) {
-        menuActionHandler.decreaseIndent(sender)
-    }
-
-    @objc func alignLeft(_ sender: Any?) {
-        menuActionHandler.alignLeft(sender)
-    }
-
-    @objc func alignCenter(_ sender: Any?) {
-        menuActionHandler.alignCenter(sender)
-    }
-
-    @objc func alignRight(_ sender: Any?) {
-        menuActionHandler.alignRight(sender)
+    @objc func alignRight(_: Any?) {
+        commandDispatcher?.dispatch(AlignRightCommand())
     }
 
     // MARK: - 核对清单动作
 
-    @objc func toggleChecklist(_ sender: Any?) {
-        menuActionHandler.toggleChecklist(sender)
+    @objc func toggleChecklist(_: Any?) {
+        commandDispatcher?.dispatch(ToggleCheckboxListCommand())
     }
 
-    @objc func markAsChecked(_ sender: Any?) {
-        menuActionHandler.markAsChecked(sender)
+    @objc func markAsChecked(_: Any?) {
+        commandDispatcher?.dispatch(MarkAsCheckedCommand())
     }
 
-    @objc func checkAll(_ sender: Any?) {
-        menuActionHandler.checkAll(sender)
+    @objc func checkAll(_: Any?) {
+        commandDispatcher?.dispatch(CheckAllCommand())
     }
 
-    @objc func uncheckAll(_ sender: Any?) {
-        menuActionHandler.uncheckAll(sender)
+    @objc func uncheckAll(_: Any?) {
+        commandDispatcher?.dispatch(UncheckAllCommand())
     }
 
-    @objc func moveCheckedToBottom(_ sender: Any?) {
-        menuActionHandler.moveCheckedToBottom(sender)
+    @objc func moveCheckedToBottom(_: Any?) {
+        commandDispatcher?.dispatch(MoveCheckedToBottomCommand())
     }
 
-    @objc func deleteCheckedItems(_ sender: Any?) {
-        menuActionHandler.deleteCheckedItems(sender)
+    @objc func deleteCheckedItems(_: Any?) {
+        commandDispatcher?.dispatch(DeleteCheckedItemsCommand())
     }
 
-    @objc func moveItemUp(_ sender: Any?) {
-        menuActionHandler.moveItemUp(sender)
+    @objc func moveItemUp(_: Any?) {
+        commandDispatcher?.dispatch(MoveItemUpCommand())
     }
 
-    @objc func moveItemDown(_ sender: Any?) {
-        menuActionHandler.moveItemDown(sender)
+    @objc func moveItemDown(_: Any?) {
+        commandDispatcher?.dispatch(MoveItemDownCommand())
     }
 
     // MARK: - 外观动作
 
-    @objc func toggleLightBackground(_ sender: Any?) {
-        menuActionHandler.toggleLightBackground(sender)
+    @objc func toggleLightBackground(_: Any?) {
+        commandDispatcher?.dispatch(ToggleLightBackgroundCommand())
     }
 
-    @objc func toggleHighlight(_ sender: Any?) {
-        menuActionHandler.toggleHighlight(sender)
-    }
-
-    // MARK: - 调试菜单动作
-
-    // 这些方法用于调试功能，不在主菜单中显示
-
-    @objc func showDebugSettings(_ sender: Any?) {
-        menuActionHandler.showDebugSettings(sender)
-    }
-
-    @objc func testAudioFileAPI(_ sender: Any?) {
-        menuActionHandler.testAudioFileAPI(sender)
-    }
-
-    @objc func showLogin(_ sender: Any?) {
-        menuActionHandler.showLogin(sender)
-    }
-
-    @objc func showOfflineOperations(_ sender: Any?) {
-        menuActionHandler.showOfflineOperations(sender)
-    }
-
-    @objc func createNewNote(_ sender: Any?) {
-        menuActionHandler.createNewNote(sender)
-    }
-
-    @objc func createNewFolder(_ sender: Any?) {
-        menuActionHandler.createNewFolder(sender)
-    }
-
-    @objc func shareNote(_ sender: Any?) {
-        menuActionHandler.shareNote(sender)
-    }
-
-    @objc func importNotes(_ sender: Any?) {
-        menuActionHandler.importNotes(sender)
-    }
-
-    // MARK: - 旧版文件菜单动作（向后兼容）
-
-    // 注意：exportNote 和 copyNote 保留用于向后兼容
-    // 新的菜单系统使用 exportAsPDF/exportAsMarkdown/exportAsPlainText 和 duplicateNote
-
-    @objc func exportNote(_ sender: Any?) {
-        menuActionHandler.exportNote(sender)
-    }
-
-    @objc func copyNote(_ sender: Any?) {
-        menuActionHandler.copyNote(sender)
+    @objc func toggleHighlight(_: Any?) {
+        commandDispatcher?.dispatch(ToggleHighlightCommand())
     }
 
     // MARK: - 文件菜单动作
 
-    @objc func createSmartFolder(_ sender: Any?) {
-        menuActionHandler.createSmartFolder(sender)
+    @objc func createNewNote(_: Any?) {
+        commandDispatcher?.dispatch(CreateNoteCommand(folderId: appCoordinator?.folderState.selectedFolderId))
     }
 
-    @objc func importMarkdown(_ sender: Any?) {
-        menuActionHandler.importMarkdown(sender)
+    @objc func createNewFolder(_: Any?) {
+        commandDispatcher?.dispatch(CreateFolderCommand())
     }
 
-    @objc func exportAsPDF(_ sender: Any?) {
-        menuActionHandler.exportAsPDF(sender)
+    @objc func shareNote(_: Any?) {
+        commandDispatcher?.dispatch(ShareNoteCommand(window: mainWindowController?.window))
     }
 
-    @objc func exportAsMarkdown(_ sender: Any?) {
-        menuActionHandler.exportAsMarkdown(sender)
+    @objc func importNotes(_: Any?) {
+        commandDispatcher?.dispatch(ImportNotesCommand())
     }
 
-    @objc func exportAsPlainText(_ sender: Any?) {
-        menuActionHandler.exportAsPlainText(sender)
+    @objc func importMarkdown(_: Any?) {
+        commandDispatcher?.dispatch(ImportMarkdownCommand())
     }
 
-    @objc func addToPrivateNotes(_ sender: Any?) {
-        menuActionHandler.addToPrivateNotes(sender)
+    @objc func exportNote(_: Any?) {
+        commandDispatcher?.dispatch(ExportNoteCommand())
     }
 
-    @objc func duplicateNote(_ sender: Any?) {
-        menuActionHandler.duplicateNote(sender)
+    @objc func exportAsPDF(_: Any?) {
+        commandDispatcher?.dispatch(ExportAsPDFCommand())
     }
 
-    @objc func toggleStarNote(_ sender: Any?) {
-        menuActionHandler.toggleStarNote(sender)
+    @objc func exportAsMarkdown(_: Any?) {
+        commandDispatcher?.dispatch(ExportAsMarkdownCommand())
     }
 
-    // MARK: - 查找功能（向后兼容）
-
-    // 注意：新的菜单系统使用标准 NSTextFinder 选择器
-    // 这些方法保留用于工具栏按钮和向后兼容
-
-    @objc func showFindPanel(_ sender: Any?) {
-        menuActionHandler.showFindPanel(sender)
+    @objc func exportAsPlainText(_: Any?) {
+        commandDispatcher?.dispatch(ExportAsPlainTextCommand())
     }
 
-    @objc func showFindAndReplacePanel(_ sender: Any?) {
-        menuActionHandler.showFindAndReplacePanel(sender)
+    @objc func copyNote(_: Any?) {
+        commandDispatcher?.dispatch(CopyNoteCommand())
     }
 
-    @objc func findNext(_ sender: Any?) {
-        menuActionHandler.findNext(sender)
+    @objc func duplicateNote(_: Any?) {
+        commandDispatcher?.dispatch(DuplicateNoteCommand())
     }
 
-    @objc func findPrevious(_ sender: Any?) {
-        menuActionHandler.findPrevious(sender)
+    @objc func toggleStarNote(_: Any?) {
+        commandDispatcher?.dispatch(ToggleStarCommand())
     }
 
-    // MARK: - 显示菜单动作
-
-    @objc func setListView(_ sender: Any?) {
-        menuActionHandler.setListView(sender)
+    @objc func createSmartFolder(_: Any?) {
+        commandDispatcher?.dispatch(CreateSmartFolderCommand())
     }
 
-    @objc func setGalleryView(_ sender: Any?) {
-        menuActionHandler.setGalleryView(sender)
-    }
-
-    @objc func toggleFolderVisibility(_ sender: Any?) {
-        menuActionHandler.toggleFolderVisibility(sender)
-    }
-
-    @objc func toggleNoteCount(_ sender: Any?) {
-        menuActionHandler.toggleNoteCount(sender)
-    }
-
-    @objc func zoomIn(_ sender: Any?) {
-        menuActionHandler.zoomIn(sender)
-    }
-
-    @objc func zoomOut(_ sender: Any?) {
-        menuActionHandler.zoomOut(sender)
-    }
-
-    @objc func actualSize(_ sender: Any?) {
-        menuActionHandler.actualSize(sender)
-    }
-
-    @objc func expandSection(_ sender: Any?) {
-        menuActionHandler.expandSection(sender)
-    }
-
-    @objc func expandAllSections(_ sender: Any?) {
-        menuActionHandler.expandAllSections(sender)
-    }
-
-    @objc func collapseSection(_ sender: Any?) {
-        menuActionHandler.collapseSection(sender)
-    }
-
-    @objc func collapseAllSections(_ sender: Any?) {
-        menuActionHandler.collapseAllSections(sender)
+    @objc func addToPrivateNotes(_: Any?) {
+        commandDispatcher?.dispatch(AddToPrivateNotesCommand())
     }
 
     // MARK: - 窗口菜单动作
 
-    /// 填充窗口到屏幕
-    @objc func fillWindow(_ sender: Any?) {
-        menuActionHandler.fillWindow(sender)
+    @objc func createNewWindow(_: Any?) {
+        commandDispatcher?.dispatch(CreateNewWindowCommand())
     }
 
-    /// 居中窗口
-    @objc func centerWindow(_ sender: Any?) {
-        menuActionHandler.centerWindow(sender)
+    @objc func fillWindow(_: Any?) {
+        commandDispatcher?.dispatch(FillWindowCommand())
     }
 
-    /// 移动窗口到屏幕左半边
-    @objc func moveWindowToLeftHalf(_ sender: Any?) {
-        menuActionHandler.moveWindowToLeftHalf(sender)
+    @objc func centerWindow(_: Any?) {
+        commandDispatcher?.dispatch(CenterWindowCommand())
     }
 
-    /// 移动窗口到屏幕右半边
-    @objc func moveWindowToRightHalf(_ sender: Any?) {
-        menuActionHandler.moveWindowToRightHalf(sender)
+    @objc func moveWindowToLeftHalf(_: Any?) {
+        commandDispatcher?.dispatch(MoveWindowToLeftHalfCommand())
     }
 
-    /// 移动窗口到屏幕上半边
-    @objc func moveWindowToTopHalf(_ sender: Any?) {
-        menuActionHandler.moveWindowToTopHalf(sender)
+    @objc func moveWindowToRightHalf(_: Any?) {
+        commandDispatcher?.dispatch(MoveWindowToRightHalfCommand())
     }
 
-    /// 移动窗口到屏幕下半边
-    @objc func moveWindowToBottomHalf(_ sender: Any?) {
-        menuActionHandler.moveWindowToBottomHalf(sender)
+    @objc func moveWindowToTopHalf(_: Any?) {
+        commandDispatcher?.dispatch(MoveWindowToTopHalfCommand())
     }
 
-    /// 最大化窗口
-    @objc func maximizeWindow(_ sender: Any?) {
-        menuActionHandler.maximizeWindow(sender)
+    @objc func moveWindowToBottomHalf(_: Any?) {
+        commandDispatcher?.dispatch(MoveWindowToBottomHalfCommand())
     }
 
-    /// 恢复窗口
-    @objc func restoreWindow(_ sender: Any?) {
-        menuActionHandler.restoreWindow(sender)
+    @objc func maximizeWindow(_: Any?) {
+        commandDispatcher?.dispatch(MaximizeWindowCommand())
     }
 
-    /// 平铺窗口到屏幕左侧（全屏幕平铺）
-    @objc func tileWindowToLeft(_ sender: Any?) {
-        menuActionHandler.tileWindowToLeft(sender)
+    @objc func restoreWindow(_: Any?) {
+        commandDispatcher?.dispatch(RestoreWindowCommand())
     }
 
-    /// 平铺窗口到屏幕右侧（全屏幕平铺）
-    @objc func tileWindowToRight(_ sender: Any?) {
-        menuActionHandler.tileWindowToRight(sender)
+    @objc func tileWindowToLeft(_: Any?) {
+        commandDispatcher?.dispatch(TileWindowToLeftCommand())
     }
 
-    /// 在新窗口中打开笔记
-    @objc func openNoteInNewWindow(_ sender: Any?) {
-        menuActionHandler.openNoteInNewWindow(sender)
+    @objc func tileWindowToRight(_: Any?) {
+        commandDispatcher?.dispatch(TileWindowToRightCommand())
+    }
+
+    @objc func openNoteInNewWindow(_: Any?) {
+        commandDispatcher?.dispatch(OpenNoteInNewWindowCommand())
+    }
+
+    // MARK: - 视图菜单动作
+
+    @objc func setListView(_: Any?) {
+        commandDispatcher?.dispatch(SetListViewCommand())
+    }
+
+    @objc func setGalleryView(_: Any?) {
+        commandDispatcher?.dispatch(SetGalleryViewCommand())
+    }
+
+    @objc func toggleFolderVisibility(_: Any?) {
+        commandDispatcher?.dispatch(ToggleFolderVisibilityCommand())
+    }
+
+    @objc func toggleNoteCount(_: Any?) {
+        commandDispatcher?.dispatch(ToggleNoteCountCommand())
+    }
+
+    @objc func zoomIn(_: Any?) {
+        commandDispatcher?.dispatch(ZoomInCommand())
+    }
+
+    @objc func zoomOut(_: Any?) {
+        commandDispatcher?.dispatch(ZoomOutCommand())
+    }
+
+    @objc func actualSize(_: Any?) {
+        commandDispatcher?.dispatch(ActualSizeCommand())
+    }
+
+    @objc func expandSection(_: Any?) {
+        commandDispatcher?.dispatch(ExpandSectionCommand())
+    }
+
+    @objc func expandAllSections(_: Any?) {
+        commandDispatcher?.dispatch(ExpandAllSectionsCommand())
+    }
+
+    @objc func collapseSection(_: Any?) {
+        commandDispatcher?.dispatch(CollapseSectionCommand())
+    }
+
+    @objc func collapseAllSections(_: Any?) {
+        commandDispatcher?.dispatch(CollapseAllSectionsCommand())
+    }
+
+    // MARK: - 杂项菜单动作
+
+    @objc func showAboutPanel(_: Any?) {
+        commandDispatcher?.dispatch(ShowAboutPanelCommand())
+    }
+
+    @objc func showSettings(_: Any?) {
+        commandDispatcher?.dispatch(ShowSettingsCommand())
+    }
+
+    @objc func showHelp(_: Any?) {
+        commandDispatcher?.dispatch(ShowHelpCommand())
+    }
+
+    @objc func showLogin(_: Any?) {
+        commandDispatcher?.dispatch(ShowLoginCommand())
+    }
+
+    @objc func showDebugSettings(_: Any?) {
+        commandDispatcher?.dispatch(ShowDebugSettingsCommand())
+    }
+
+    @objc func testAudioFileAPI(_: Any?) {
+        commandDispatcher?.dispatch(TestAudioFileAPICommand())
+    }
+
+    @objc func showOfflineOperations(_: Any?) {
+        commandDispatcher?.dispatch(ShowOfflineOperationsCommand())
+    }
+
+    @objc func showFindPanel(_: Any?) {
+        commandDispatcher?.dispatch(ShowFindPanelCommand())
+    }
+
+    @objc func showFindAndReplacePanel(_: Any?) {
+        commandDispatcher?.dispatch(ShowFindAndReplacePanelCommand())
+    }
+
+    @objc func findNext(_: Any?) {
+        commandDispatcher?.dispatch(FindNextCommand())
+    }
+
+    @objc func findPrevious(_: Any?) {
+        commandDispatcher?.dispatch(FindPreviousCommand())
+    }
+
+    @objc func attachFile(_: Any?) {
+        commandDispatcher?.dispatch(AttachFileCommand())
+    }
+
+    @objc func addLink(_: Any?) {
+        commandDispatcher?.dispatch(AddLinkCommand())
     }
 
     // MARK: - NSMenuItemValidation
 
     /// 验证菜单项是否应该启用
-    /// 将验证委托给 MenuActionHandler
+    /// 将验证委托给 MenuStateManager
     public func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        menuActionHandler.validateMenuItem(menuItem)
+        menuStateManager?.validateMenuItem(menuItem) ?? true
     }
 
 }

@@ -10,23 +10,17 @@ enum AppLaunchAssembler {
         let windowManager: WindowManager
         let menuManager: MenuManager
         let appStateManager: AppStateManager
-        let menuActionHandler: MenuActionHandler
     }
 
     static func buildShell() -> Shell {
         let windowManager = WindowManager()
         let menuManager = MenuManager(appDelegate: nil, mainWindowController: windowManager.mainWindowController)
         let appStateManager = AppStateManager(windowManager: windowManager, menuManager: menuManager)
-        let menuActionHandler = MenuActionHandler(
-            mainWindowController: windowManager.mainWindowController,
-            windowManager: windowManager
-        )
 
         return Shell(
             windowManager: windowManager,
             menuManager: menuManager,
-            appStateManager: appStateManager,
-            menuActionHandler: menuActionHandler
+            appStateManager: appStateManager
         )
     }
 
@@ -46,9 +40,6 @@ enum AppLaunchAssembler {
             onlineStateManager: coordinator.onlineStateManager
         )
         shell.windowManager.setAppCoordinator(coordinator)
-        shell.menuActionHandler.updateMainWindowController(shell.windowManager.mainWindowController)
-        shell.menuActionHandler.setFormatStateManager(coordinator.editorModule.formatStateManager)
-        shell.menuActionHandler.setCommandDispatcher(coordinator.commandDispatcher)
 
         return coordinator
     }

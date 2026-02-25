@@ -2,7 +2,7 @@ import AppKit
 import MiNoteLibrary
 
 /// 菜单状态管理器
-/// 从 MenuActionHandler 提取的纯状态管理类，负责：
+/// 纯状态管理类，负责：
 /// - 维护 MenuState（菜单项启用/禁用/勾选状态）
 /// - 实现 validateMenuItem 逻辑
 /// - 监听 NotificationCenter 通知更新状态
