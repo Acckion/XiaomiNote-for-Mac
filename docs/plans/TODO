@@ -6,3 +6,10 @@
 - 菜单验证逻辑与 Command 的 canExecute 整合
 - 拆分 `MenuActionHandler`（当前 1316 行）为独立职责文件
 - 删除 `MenuActionHandler` 内同一动作的 fallback 双路径（保留单一命令入口）
+
+## 同步队列后续（OperationProcessor 第一层拆分后）
+
+- 补齐 `OperationProcessor` / `UnifiedOperationQueue` 回归测试（文件丢失失败、`nextRetryAt` 门控、二次入队场景）
+- 增加 `processQueue` 批处理路径的可观测日志（首轮/次轮执行数量、跳过原因）
+- 清理 `OperationProcessor` 与 `UnifiedOperationQueue` 的重试参数分散问题（统一 `maxRetryCount` 配置源）
+- 开始第二层拆分：提取 `OperationFailurePolicy`（错误分类+重试决策）减少 Processor 体积
