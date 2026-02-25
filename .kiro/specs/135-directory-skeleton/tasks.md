@@ -12,15 +12,15 @@
   - [x] 1.1 重写 project.yml：删除 MiNoteLibrary target，MiNoteMac sources 覆盖整个 Sources/，测试 target 依赖 MiNoteMac
   - [x] 1.2 删除 Sources 中所有 `import MiNoteLibrary`（7 处）
   - [x] 1.3 修改 Tests 中所有 `@testable import MiNoteLibrary` 为 `@testable import MiNoteMac`（7 处）
-  - [-] 1.4 执行 `xcodegen generate` + 编译验证 + 测试验证
+  - [x] 1.4 执行 `xcodegen generate` + 编译验证 + 测试验证
 
 ## 任务 2：建立 App 三层目录并迁移文件
 
-- [ ] 2. App 三层目录迁移
-  - [ ] 2.1 创建 `Sources/App/Bootstrap/`，迁入 AppDelegate.swift、AppLaunchAssembler.swift
-  - [ ] 2.2 创建 `Sources/App/Runtime/`，迁入 AppStateManager.swift
-  - [ ] 2.3 创建 `Sources/App/Composition/`，迁入 AppCoordinatorAssembler.swift 及各域 Assembler（从 Sources/Coordinator/）
-  - [ ] 2.4 执行 `xcodegen generate` + 编译验证
+- [-] 2. App 三层目录迁移
+  - [x] 2.1 创建 `Sources/App/Bootstrap/`，迁入 AppDelegate.swift、AppLaunchAssembler.swift
+  - [x] 2.2 创建 `Sources/App/Runtime/`，迁入 AppStateManager.swift
+  - [x] 2.3 创建 `Sources/App/Composition/`，迁入 AppCoordinatorAssembler.swift 及各域 Assembler（从 Sources/Coordinator/）
+  - [-] 2.4 执行 `xcodegen generate` + 编译验证
 
 ## 任务 3：建立 Shared 两层目录 + Legacy 目录
 
