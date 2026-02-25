@@ -11,11 +11,35 @@ import Foundation
 /// 应用协调器
 ///
 /// 负责：
-/// - 创建和管理所有 State 对象
+/// - 管理所有 State 对象
 /// - 处理跨 State 的协调逻辑
 /// - 管理应用级别的状态
 @MainActor
 public final class AppCoordinator: ObservableObject {
+    public struct Dependencies {
+        public let eventBus: EventBus
+        public let noteStore: NoteStore
+        public let syncEngine: SyncEngine
+        public let noteListState: NoteListState
+        public let noteEditorState: NoteEditorState
+        public let folderState: FolderState
+        public let syncState: SyncState
+        public let authState: AuthState
+        public let searchState: SearchState
+        public let networkModule: NetworkModule
+        public let syncModule: SyncModule
+        public let editorModule: EditorModule
+        public let audioModule: AudioModule
+        let startupSequenceManager: StartupSequenceManager
+        public let errorRecoveryService: ErrorRecoveryService
+        public let networkRecoveryHandler: NetworkRecoveryHandler
+        public let onlineStateManager: OnlineStateManager
+        public let notePreviewService: NotePreviewService
+        let passTokenManager: PassTokenManager
+        public let memoryCacheManager: MemoryCacheManager
+        let audioPanelViewModel: AudioPanelViewModel
+    }
+
     // MARK: - 核心基础设施
 
     public let eventBus: EventBus
@@ -65,117 +89,29 @@ public final class AppCoordinator: ObservableObject {
 
     // MARK: - 初始化
 
-    public init(
-        networkModule: NetworkModule,
-        syncModule: SyncModule,
-        editorModule: EditorModule,
-        audioModule: AudioModule,
-        windowManager: WindowManager
-    ) {
-        self.networkModule = networkModule
-        self.syncModule = syncModule
-        self.editorModule = editorModule
-        self.audioModule = audioModule
+    public init(dependencies: Dependencies, windowManager: WindowManager) {
+        self.eventBus = dependencies.eventBus
+        self.noteStore = dependencies.noteStore
+        self.syncEngine = dependencies.syncEngine
+        self.noteListState = dependencies.noteListState
+        self.noteEditorState = dependencies.noteEditorState
+        self.folderState = dependencies.folderState
+        self.syncState = dependencies.syncState
+        self.authState = dependencies.authState
+        self.searchState = dependencies.searchState
+        self.networkModule = dependencies.networkModule
+        self.syncModule = dependencies.syncModule
+        self.editorModule = dependencies.editorModule
+        self.audioModule = dependencies.audioModule
         self.windowManager = windowManager
-        self.eventBus = EventBus.shared
-        let noteStoreInstance = NoteStore(
-            db: DatabaseService.shared,
-            eventBus: EventBus.shared,
-            operationQueue: syncModule.operationQueue,
-            idMappingRegistry: syncModule.idMappingRegistry,
-            localStorage: syncModule.localStorage,
-            operationProcessor: syncModule.operationProcessor
-        )
-        self.noteStore = noteStoreInstance
-        self.syncEngine = syncModule.createSyncEngine(noteStore: noteStoreInstance)
-        self.noteListState = NoteListState(
-            eventBus: EventBus.shared,
-            noteStore: noteStoreInstance,
-            apiClient: networkModule.apiClient,
-            noteAPI: networkModule.noteAPI
-        )
-        self.noteEditorState = NoteEditorState(
-            eventBus: EventBus.shared,
-            noteStore: noteStoreInstance,
-            noteAPI: networkModule.noteAPI,
-            operationQueue: syncModule.operationQueue,
-            localStorage: syncModule.localStorage,
-            operationProcessor: syncModule.operationProcessor
-        )
-        self.folderState = FolderState(eventBus: EventBus.shared, noteStore: noteStoreInstance)
-        self.syncState = SyncState(eventBus: EventBus.shared, operationQueue: syncModule.operationQueue)
-
-        let ptm = PassTokenManager(apiClient: networkModule.apiClient)
-        self.passTokenManager = ptm
-
-        self.authState = AuthState(
-            eventBus: EventBus.shared,
-            apiClient: networkModule.apiClient,
-            userAPI: networkModule.userAPI,
-            onlineStateManager: syncModule.onlineStateManager,
-            passTokenManager: ptm
-        )
-        self.searchState = SearchState(noteStore: noteStoreInstance)
-
-        self.audioPanelViewModel = AudioPanelViewModel(
-            audioService: DefaultAudioService(cacheService: DefaultCacheService()),
-            noteService: DefaultNoteStorage()
-        )
-
-        self.memoryCacheManager = MemoryCacheManager()
-
-        // 创建辅助服务（这些类型在 MiNoteLibrary 内部可访问）
-        self.startupSequenceManager = StartupSequenceManager(
-            localStorage: syncModule.localStorage,
-            onlineStateManager: syncModule.onlineStateManager,
-            operationProcessor: syncModule.operationProcessor,
-            unifiedQueue: syncModule.operationQueue,
-            eventBus: EventBus.shared,
-            apiClient: networkModule.apiClient
-        )
-
-        self.errorRecoveryService = ErrorRecoveryService(
-            unifiedQueue: syncModule.operationQueue,
-            networkErrorHandler: NetworkErrorHandler.shared,
-            onlineStateManager: syncModule.onlineStateManager
-        )
-
-        self.networkRecoveryHandler = NetworkRecoveryHandler(
-            networkMonitor: NetworkMonitor.shared,
-            onlineStateManager: syncModule.onlineStateManager,
-            operationProcessor: syncModule.operationProcessor,
-            unifiedQueue: syncModule.operationQueue,
-            eventBus: EventBus.shared
-        )
-
-        // 接线 PassTokenManager 到 NetworkModule（解决循环依赖）
-        networkModule.setPassTokenManager(ptm)
-
-        self.notePreviewService = NotePreviewService(localStorage: syncModule.localStorage)
-
-        self.onlineStateManager = syncModule.onlineStateManager
-
-        // 接线编辑器依赖到 NativeEditorContext
-        noteEditorState.nativeEditorContext.customRenderer = editorModule.customRenderer
-        noteEditorState.nativeEditorContext.imageStorageManager = editorModule.imageStorageManager
-        noteEditorState.nativeEditorContext.formatStateManager = editorModule.formatStateManager
-        noteEditorState.nativeEditorContext.unifiedFormatManager = editorModule.unifiedFormatManager
-        noteEditorState.nativeEditorContext.formatConverter = editorModule.formatConverter
-        noteEditorState.nativeEditorContext.attachmentSelectionManager = editorModule.attachmentSelectionManager
-
-        // 接线编辑器格式管理依赖
-        noteEditorState.nativeEditorContext.xmlNormalizer = editorModule.xmlNormalizer
-        noteEditorState.nativeEditorContext.cursorFormatManager = editorModule.cursorFormatManager
-
-        // 接线编辑器辅助组件依赖
-        noteEditorState.nativeEditorContext.specialElementFormatHandler = editorModule.specialElementFormatHandler
-        noteEditorState.nativeEditorContext.performanceCache = editorModule.performanceCache
-        noteEditorState.nativeEditorContext.typingOptimizer = editorModule.typingOptimizer
-        noteEditorState.nativeEditorContext.attachmentKeyboardHandler = editorModule.attachmentKeyboardHandler
-        noteEditorState.nativeEditorContext.editorConfigurationManager = editorModule.editorConfigurationManager
-
-        // 接线音频面板状态管理器
-        noteEditorState.nativeEditorContext.audioPanelStateManager = audioModule.panelStateManager
+        self.startupSequenceManager = dependencies.startupSequenceManager
+        self.errorRecoveryService = dependencies.errorRecoveryService
+        self.networkRecoveryHandler = dependencies.networkRecoveryHandler
+        self.onlineStateManager = dependencies.onlineStateManager
+        self.notePreviewService = dependencies.notePreviewService
+        self.passTokenManager = dependencies.passTokenManager
+        self.memoryCacheManager = dependencies.memoryCacheManager
+        self.audioPanelViewModel = dependencies.audioPanelViewModel
 
         self.commandDispatcher = CommandDispatcher(coordinator: self)
 
@@ -184,18 +120,9 @@ public final class AppCoordinator: ObservableObject {
 
     /// Preview 和测试用的便利构造器
     convenience init() {
-        let nm = NetworkModule()
-        let sm = SyncModule(networkModule: nm)
-        let em = EditorModule(syncModule: sm, networkModule: nm)
-        let am = AudioModule(syncModule: sm, networkModule: nm)
         let wm = WindowManager()
-        self.init(
-            networkModule: nm,
-            syncModule: sm,
-            editorModule: em,
-            audioModule: am,
-            windowManager: wm
-        )
+        let dependencies = AppCoordinatorAssembler.buildDependencies()
+        self.init(dependencies: dependencies, windowManager: wm)
     }
 
     // MARK: - 生命周期

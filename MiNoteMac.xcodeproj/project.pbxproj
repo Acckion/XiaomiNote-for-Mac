@@ -49,6 +49,7 @@
 		209FBD54924BF259AA003953 /* PendingUploadEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270282B256DE7C3BF5ED1372 /* PendingUploadEntry.swift */; };
 		214098617A3B145C7ABCC2CA /* SyncGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A3C41EB2418BBF1DC6DDA69 /* SyncGuard.swift */; };
 		217E1D8AE1480A99B9AA8114 /* CustomRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B2B963AF565507419FAC9FB /* CustomRenderer.swift */; };
+		218107F1307E7DF992B5E5A3 /* AppCoordinatorAssembler.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABF06208DBDAC0A893041C21 /* AppCoordinatorAssembler.swift */; };
 		21D18111453D5C66791D221D /* MiNoteLibrary.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; };
 		23354AB4E73298F3A89D9864 /* ParagraphStylePreservationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94EF00779B29A5F9B5E0EE1F /* ParagraphStylePreservationTests.swift */; };
 		23DD8515C12B5DEB43649091 /* IdMappingEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784C8EC2E34DCC736CD36F25 /* IdMappingEvent.swift */; };
@@ -279,6 +280,7 @@
 		EA3F532B0956C5E0C33EBD03 /* TitleTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FF30651D051B00D75DEA6F8 /* TitleTextField.swift */; };
 		EBA5E00131015D430D09503A /* ExpandedNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23C0A34630D09A5EF91919EF /* ExpandedNoteView.swift */; };
 		ECA6A09CFF9D0286E9ECFE05 /* ASTNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D1CDAA7A03B061863948886 /* ASTNode.swift */; };
+		ED64E8E6D93FD0CFE2E892CA /* AppLaunchAssembler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56E98163EE7A56343F8CB41A /* AppLaunchAssembler.swift */; };
 		EE2577EBD0917307417A77DC /* GalleryHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB8443B36E7272469F67E446 /* GalleryHostingController.swift */; };
 		EEE696BA06A2AA0C0F71D9A3 /* ViewOptionsState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60892A1BA5ACC42476B0CCD6 /* ViewOptionsState.swift */; };
 		EFFDF2991B43F2F705B422CA /* SettingsEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95517ECE7B8BC83C7A90277C /* SettingsEvent.swift */; };
@@ -446,6 +448,7 @@
 		557666FC37FCAA5E75D4A31C /* ImageStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStorageManager.swift; sourceTree = "<group>"; };
 		55B4B2CC41CAC90B9E638851 /* PerformanceCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceCache.swift; sourceTree = "<group>"; };
 		55BD411EF69D17B012084F68 /* FormatSpanMerger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatSpanMerger.swift; sourceTree = "<group>"; };
+		56E98163EE7A56343F8CB41A /* AppLaunchAssembler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLaunchAssembler.swift; sourceTree = "<group>"; };
 		5718CFB3CE8BCCCD6AC4B6A1 /* ViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewState.swift; sourceTree = "<group>"; };
 		592AE5EB0C26EA9D0717CA89 /* DefaultNetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultNetworkMonitor.swift; sourceTree = "<group>"; };
 		5AA2C5228C6D1AD33C3CC0ED /* FormatMenuProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatMenuProvider.swift; sourceTree = "<group>"; };
@@ -535,6 +538,7 @@
 		A95D04A341EF5C70245B351D /* NewLineHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewLineHandler.swift; sourceTree = "<group>"; };
 		A9B169C15EB27658B047F945 /* NativeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorView.swift; sourceTree = "<group>"; };
 		ABE5F4289985D6251543ECE9 /* OfflineOperationsProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineOperationsProgressView.swift; sourceTree = "<group>"; };
+		ABF06208DBDAC0A893041C21 /* AppCoordinatorAssembler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinatorAssembler.swift; sourceTree = "<group>"; };
 		AE7E9F2FE1CBB3A0B6FEFFB6 /* DatabaseService+Notes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DatabaseService+Notes.swift"; sourceTree = "<group>"; };
 		AE85A751A74F6346F7DA85A1 /* MainWindowController+Search.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MainWindowController+Search.swift"; sourceTree = "<group>"; };
 		AEF19FCB59B84D1474DA6684 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
@@ -768,6 +772,7 @@
 			isa = PBXGroup;
 			children = (
 				6880F7FD58283B28D401384E /* AppCoordinator.swift */,
+				ABF06208DBDAC0A893041C21 /* AppCoordinatorAssembler.swift */,
 				24E1AB432B6390C80FA6052D /* SyncCoordinator.swift */,
 			);
 			path = Coordinator;
@@ -1431,6 +1436,7 @@
 			children = (
 				FA4193B25283EC76AF010994 /* App.swift */,
 				8996FB971F8481100292D094 /* AppDelegate.swift */,
+				56E98163EE7A56343F8CB41A /* AppLaunchAssembler.swift */,
 				28FAA4982B15A440D56E5C45 /* AppStateManager.swift */,
 				FB238A8636288F6888DE3904 /* Assets.xcassets */,
 				685FEDE9207773081854F9F4 /* MenuActionHandler.swift */,
@@ -1569,6 +1575,7 @@
 			files = (
 				345A41D2D77465098CC68E07 /* App.swift in Sources */,
 				4FE055E41374193D2F5C625D /* AppDelegate.swift in Sources */,
+				ED64E8E6D93FD0CFE2E892CA /* AppLaunchAssembler.swift in Sources */,
 				9306EA29A0770FDE5D1D3891 /* AppStateManager.swift in Sources */,
 				A3017A7115BCD8F400DB3FB2 /* MenuActionHandler.swift in Sources */,
 				690F06D7197F58985BFCBE02 /* MenuItemTag.swift in Sources */,
@@ -1588,6 +1595,7 @@
 				3663E41C35FEF76434691569 /* ASTToAttributedStringConverter.swift in Sources */,
 				5BFA7E6EAD0AFC61A409DB84 /* AppCommand.swift in Sources */,
 				1337AEB434FDFFA78B7B9DE1 /* AppCoordinator.swift in Sources */,
+				218107F1307E7DF992B5E5A3 /* AppCoordinatorAssembler.swift in Sources */,
 				8CE2FE75AE4A1727F77F354F /* AppEvent.swift in Sources */,
 				FB9F0EBF4A58AC8C1A74F4D6 /* AttachmentHighlightView.swift in Sources */,
 				204431DA186C3CE1FF2920A0 /* AttachmentKeyboardHandler.swift in Sources */,

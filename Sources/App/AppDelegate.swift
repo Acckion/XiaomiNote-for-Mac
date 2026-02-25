@@ -29,18 +29,15 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
     // MARK: - 初始化
 
     override init() {
-        let wm = WindowManager()
-        self.windowManager = wm
-
-        self.menuManager = MenuManager(appDelegate: nil, mainWindowController: wm.mainWindowController)
-
-        self.appStateManager = AppStateManager(windowManager: wm, menuManager: menuManager)
-
-        self.menuActionHandler = MenuActionHandler(mainWindowController: wm.mainWindowController, windowManager: wm)
+        let shell = AppLaunchAssembler.buildShell()
+        self.windowManager = shell.windowManager
+        self.menuManager = shell.menuManager
+        self.appStateManager = shell.appStateManager
+        self.menuActionHandler = shell.menuActionHandler
 
         super.init()
 
-        menuManager.updateReferences(appDelegate: self, mainWindowController: wm.mainWindowController)
+        AppLaunchAssembler.bindShell(shell, appDelegate: self)
 
         LogService.shared.info(.app, "应用程序委托初始化完成")
     }
@@ -50,37 +47,14 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
     public func applicationDidFinishLaunching(_: Notification) {
         LogService.shared.info(.app, "应用启动")
 
-        // 按依赖顺序构建模块
-        let networkModule = NetworkModule()
-        let syncModule = SyncModule(networkModule: networkModule)
-
-        // 跨模块依赖回调：NetworkRequestManager 需要 OnlineStateManager 监控在线状态
-        networkModule.requestManager.setOnlineStateManager(syncModule.onlineStateManager)
-
-        let editorModule = EditorModule(syncModule: syncModule, networkModule: networkModule)
-        let audioModule = AudioModule(
-            syncModule: syncModule,
-            networkModule: networkModule
+        let shell = AppLaunchAssembler.Shell(
+            windowManager: windowManager,
+            menuManager: menuManager,
+            appStateManager: appStateManager,
+            menuActionHandler: menuActionHandler
         )
-
-        let coordinator = AppCoordinator(
-            networkModule: networkModule,
-            syncModule: syncModule,
-            editorModule: editorModule,
-            audioModule: audioModule,
-            windowManager: windowManager
-        )
+        let coordinator = AppLaunchAssembler.buildRuntime(shell: shell)
         appCoordinator = coordinator
-
-        // 配置 AppStateManager 使用 coordinator 创建的服务实例
-        appStateManager.configure(
-            errorRecoveryService: coordinator.errorRecoveryService,
-            networkRecoveryHandler: coordinator.networkRecoveryHandler,
-            onlineStateManager: coordinator.onlineStateManager
-        )
-
-        // 配置 WindowManager
-        windowManager.setAppCoordinator(coordinator)
 
         // 启动应用
         Task { @MainActor in
@@ -88,12 +62,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
         }
 
         appStateManager.handleApplicationDidFinishLaunching()
-
-        menuActionHandler.updateMainWindowController(windowManager.mainWindowController)
-
-        // 延迟注入 formatStateManager（EditorModule 在此时已创建）
-        menuActionHandler.setFormatStateManager(editorModule.formatStateManager)
-        menuActionHandler.setCommandDispatcher(coordinator.commandDispatcher)
     }
 
     public func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
