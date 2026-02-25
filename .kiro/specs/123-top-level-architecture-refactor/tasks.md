@@ -56,19 +56,19 @@
 
 ## 阶段 D：遗留清算与稳态治理
 
-- [ ] 6. 创建并完成 spec 129-architecture-governance-hardening（6.1 + 6.2 + 6.3 + 6.5）
-  - [ ] 6.1 确认 Legacy 目录不存在（零工作量）
-  - [ ] 6.2 修复架构检查脚本（ALLOWED_SHARED 路径、RULE-004 豁免、CI 强制门禁）
-  - [ ] 6.3 删除已废弃 .shared 单例（NetworkMonitor/NetworkErrorHandler/NetworkLogger/PreviewHelper）
-  - [ ] 6.4 评估并迁移 PerformanceService / PrivateNotesPasswordManager
-  - [ ] 6.5 验证编辑命令已工作，修正 architecture-next.md 过时描述
-  - [ ] 6.6 手动测试验收，合并分支
+- [x] 6. 创建并完成 spec 129-architecture-governance-hardening（6.1 + 6.2 + 6.3 + 6.5）
+  - [x] 6.1 确认 Legacy 目录不存在（零工作量）
+  - [x] 6.2 修复架构检查脚本（ALLOWED_SHARED 路径、RULE-004 豁免、CI 强制门禁）
+  - [x] 6.3 删除已废弃 .shared 单例（NetworkMonitor/NetworkErrorHandler/NetworkLogger/PreviewHelper）
+  - [x] 6.4 评估并迁移 PerformanceService / PrivateNotesPasswordManager
+  - [x] 6.5 验证编辑命令已工作，修正 architecture-next.md 过时描述
+  - [x] 6.6 手动测试验收，合并分支
 
-- [ ] 7. 创建并完成 spec 130-import-flow-fix（原 6.4）
-  - [ ] 7.1 实现 ImportContentConverter（纯文本/Markdown/RTF → 小米笔记 XML）
-  - [ ] 7.2 修复 ImportNotesCommand 和 ImportMarkdownCommand 的导入逻辑
-  - [ ] 7.3 编译验证
-  - [ ] 7.4 手动测试验收，合并分支
+- [x] 7. 创建并完成 spec 130-import-flow-fix（原 6.4）
+  - [x] 7.1 实现 ImportContentConverter（纯文本/Markdown/RTF → 小米笔记 XML）
+  - [x] 7.2 修复 ImportNotesCommand 和 ImportMarkdownCommand 的导入逻辑
+  - [x] 7.3 编译验证
+  - [x] 7.4 手动测试验收，合并分支
 
 ## 收尾
 

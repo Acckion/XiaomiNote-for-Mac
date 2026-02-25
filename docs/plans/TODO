@@ -2,14 +2,24 @@
 
 ## 菜单命令链路（spec-121 后续）
 
-- 剩余业务操作的 Command 化（格式菜单弹窗、视图选项、音频面板、离线操作等）
-- 菜单验证逻辑与 Command 的 canExecute 整合
-- 拆分 `MenuActionHandler`（当前 1316 行）为独立职责文件
-- 删除 `MenuActionHandler` 内同一动作的 fallback 双路径（保留单一命令入口）
+- [spec-130][截止 2026-03-15] 剩余业务操作的 Command 化（格式菜单弹窗、视图选项、音频面板、离线操作等）
+- [spec-130][截止 2026-03-15] 菜单验证逻辑与 Command 的 canExecute 整合
+- [spec-130][截止 2026-03-01] 清理文档中已过时的 `MenuActionHandler` 待办与描述（`architecture-next.md` / `refactor_all.md` / `TECHNICAL_DOCUMENTATION.md`）
+
+## 架构审计收口（2026-02-26）
+
+- [spec-131][截止 2026-03-02] 修复 RULE-001 扫描范围：从仅检查 `Sources/Model` 扩展到 `Sources/Features/*/Domain`（保留旧目录兼容）
+- [spec-131][截止 2026-03-02] 处理现存 Domain 违规：`Sources/Features/Notes/Domain/Note.swift` 移除 `import AppKit`，将 UI 相关类型下沉到 UI/Infrastructure 层
+- [spec-131][截止 2026-03-03] 为架构脚本增加自检用例（至少覆盖 RULE-001 正/反样本），避免“脚本通过但规则失效”
+- [spec-132][截止 2026-03-06] 补齐 Command 链路回归测试（菜单 selector -> CommandDispatcher -> execute 调用）
+- [spec-132][截止 2026-03-06] 补齐导入流程回归测试（`ImportMarkdownCommand` / `ImportNotesCommand` 的“内容真实写入”断言）
+- [spec-132][截止 2026-03-07] 补齐同步队列关键回归（文件丢失失败、`nextRetryAt` 门控、二次入队）
+- [spec-133][截止 2026-03-10] 拆分 `AppCoordinatorAssembler` 为按域 FeatureAssembler（Notes / Sync / Auth / Editor / Audio），主装配器仅聚合
+- [spec-133][截止 2026-03-10] 为组合根补充装配冒烟测试（启动链依赖完整性、关键服务非空）
 
 ## 同步队列后续（OperationProcessor 第一层拆分后）
 
-- 补齐 `OperationProcessor` / `UnifiedOperationQueue` 回归测试（文件丢失失败、`nextRetryAt` 门控、二次入队场景）
-- 增加 `processQueue` 批处理路径的可观测日志（首轮/次轮执行数量、跳过原因）
-- 清理 `OperationProcessor` 与 `UnifiedOperationQueue` 的重试参数分散问题（统一 `maxRetryCount` 配置源）
-- 开始第二层拆分：提取 `OperationFailurePolicy`（错误分类+重试决策）减少 Processor 体积
+- [spec-132][截止 2026-03-07] 补齐 `OperationProcessor` / `UnifiedOperationQueue` 回归测试（文件丢失失败、`nextRetryAt` 门控、二次入队场景）
+- [spec-134][截止 2026-03-12] 增加 `processQueue` 批处理路径可观测日志（首轮/次轮执行数量、跳过原因）
+- [spec-134][截止 2026-03-12] 清理 `OperationProcessor` 与 `UnifiedOperationQueue` 的重试参数分散问题（统一 `maxRetryCount` 配置源）
+- [spec-134][截止 2026-03-14] 开始第二层拆分：提取 `OperationFailurePolicy`（错误分类 + 重试决策）减少 Processor 体积
