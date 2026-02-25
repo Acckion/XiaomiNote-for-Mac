@@ -57,7 +57,7 @@ public final class AppCoordinator: ObservableObject {
 
     // MARK: - 命令调度
 
-    private(set) var commandDispatcher: CommandDispatcher!
+    public private(set) var commandDispatcher: CommandDispatcher!
 
     // MARK: - 音频面板（暂不重构）
 

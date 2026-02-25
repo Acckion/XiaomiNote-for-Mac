@@ -7,10 +7,14 @@
     import AppKit
 
     /// 新建笔记命令
-    struct CreateNoteCommand: AppCommand {
-        let folderId: String?
+    public struct CreateNoteCommand: AppCommand {
+        public let folderId: String?
 
-        func execute(with context: CommandContext) {
+        public init(folderId: String?) {
+            self.folderId = folderId
+        }
+
+        public func execute(with context: CommandContext) {
             let targetFolderId = folderId ?? context.coordinator.folderState.selectedFolderId ?? "0"
             Task {
                 await context.coordinator.noteListState.createNewNote(inFolder: targetFolderId)
@@ -19,8 +23,10 @@
     }
 
     /// 删除笔记命令
-    struct DeleteNoteCommand: AppCommand {
-        func execute(with context: CommandContext) {
+    public struct DeleteNoteCommand: AppCommand {
+        public init() {}
+
+        public func execute(with context: CommandContext) {
             guard let note = context.coordinator.noteListState.selectedNote else { return }
 
             let alert = NSAlert()
@@ -40,8 +46,10 @@
     }
 
     /// 切换星标命令
-    struct ToggleStarCommand: AppCommand {
-        func execute(with context: CommandContext) {
+    public struct ToggleStarCommand: AppCommand {
+        public init() {}
+
+        public func execute(with context: CommandContext) {
             guard let note = context.coordinator.noteListState.selectedNote else { return }
             Task {
                 await context.coordinator.noteListState.toggleStar(note)
@@ -50,10 +58,14 @@
     }
 
     /// 分享笔记命令
-    struct ShareNoteCommand: AppCommand, @unchecked Sendable {
-        let window: NSWindow?
+    public struct ShareNoteCommand: AppCommand, @unchecked Sendable {
+        public let window: NSWindow?
 
-        func execute(with context: CommandContext) {
+        public init(window: NSWindow?) {
+            self.window = window
+        }
+
+        public func execute(with context: CommandContext) {
             guard let note = context.coordinator.noteListState.selectedNote else { return }
 
             let sharingService = NSSharingServicePicker(items: [
@@ -70,8 +82,10 @@
     }
 
     /// 新建文件夹命令
-    struct CreateFolderCommand: AppCommand {
-        func execute(with context: CommandContext) {
+    public struct CreateFolderCommand: AppCommand {
+        public init() {}
+
+        public func execute(with context: CommandContext) {
             let alert = NSAlert()
             alert.messageText = "新建文件夹"
             alert.informativeText = "请输入文件夹名称："

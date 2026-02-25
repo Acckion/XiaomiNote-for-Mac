@@ -10,7 +10,7 @@ public final class FolderState: ObservableObject {
 
     @Published var folders: [Folder] = []
     @Published public var selectedFolder: Folder?
-    @Published var selectedFolderId: String?
+    @Published public var selectedFolderId: String?
     @Published var folderSortOrders: [String: NoteSortOrder] = [:]
 
     // MARK: - 依赖

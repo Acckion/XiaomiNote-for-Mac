@@ -93,6 +93,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
 
         // 延迟注入 formatStateManager（EditorModule 在此时已创建）
         menuActionHandler.setFormatStateManager(editorModule.formatStateManager)
+        menuActionHandler.setCommandDispatcher(coordinator.commandDispatcher)
     }
 
     public func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {

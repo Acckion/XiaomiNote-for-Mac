@@ -19,6 +19,9 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 格式状态管理器
     private var formatStateManager: FormatStateManager?
 
+    /// 命令调度器
+    private var commandDispatcher: CommandDispatcher?
+
     /// 菜单状态
     /// 用于管理菜单项的启用/禁用和勾选状态
     private(set) var menuState = MenuState()
@@ -39,6 +42,11 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 延迟注入格式状态管理器（AppDelegate 启动链中 EditorModule 创建后调用）
     func setFormatStateManager(_ manager: FormatStateManager) {
         formatStateManager = manager
+    }
+
+    /// 延迟注入命令调度器
+    func setCommandDispatcher(_ dispatcher: CommandDispatcher) {
+        commandDispatcher = dispatcher
     }
 
     // MARK: - 公共方法
@@ -322,11 +330,13 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 显示设置窗口
     func showSettings(_: Any?) {
-        let settingsWindowController = SettingsWindowController(coordinator: mainWindowController?.coordinator)
-
-        // 显示窗口
-        settingsWindowController.showWindow(nil)
-        settingsWindowController.window?.makeKeyAndOrderFront(nil)
+        if let commandDispatcher {
+            commandDispatcher.dispatch(ShowSettingsCommand())
+        } else {
+            let settingsWindowController = SettingsWindowController(coordinator: mainWindowController?.coordinator)
+            settingsWindowController.showWindow(nil)
+            settingsWindowController.window?.makeKeyAndOrderFront(nil)
+        }
     }
 
     /// 显示帮助
@@ -701,20 +711,31 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 创建新笔记
     func createNewNote(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.createNewNote(sender)
+        if let commandDispatcher {
+            commandDispatcher.dispatch(CreateNoteCommand(
+                folderId: mainWindowController?.coordinator.folderState.selectedFolderId
+            ))
+        } else {
+            mainWindowController?.createNewNote(sender)
+        }
     }
 
     /// 创建新文件夹
     func createNewFolder(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.createNewFolder(sender)
+        if let commandDispatcher {
+            commandDispatcher.dispatch(CreateFolderCommand())
+        } else {
+            mainWindowController?.createNewFolder(sender)
+        }
     }
 
     /// 共享笔记
     func shareNote(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.shareNote(sender)
+        if let commandDispatcher {
+            commandDispatcher.dispatch(ShareNoteCommand(window: mainWindowController?.window))
+        } else {
+            mainWindowController?.shareNote(sender)
+        }
     }
 
     /// 导入笔记
@@ -794,8 +815,12 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 置顶/取消置顶笔记
     func toggleStarNote(_: Any?) {
-        guard let note = mainWindowController?.coordinator.noteListState.selectedNote else { return }
-        Task { await mainWindowController?.coordinator.noteListState.toggleStar(note) }
+        if let commandDispatcher {
+            commandDispatcher.dispatch(ToggleStarCommand())
+        } else {
+            guard let note = mainWindowController?.coordinator.noteListState.selectedNote else { return }
+            Task { await mainWindowController?.coordinator.noteListState.toggleStar(note) }
+        }
     }
 
     /// 复制笔记
