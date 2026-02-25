@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 
 /// 笔记数据模型

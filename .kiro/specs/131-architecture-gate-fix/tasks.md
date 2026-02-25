@@ -8,17 +8,17 @@
 
 ## 任务 1：扩展 RULE-001 扫描范围
 
-- [ ] 1. 修改 check-architecture.sh 的 RULE-001 扫描逻辑
-  - [ ] 1.1 修改 `check_domain_imports` 函数，扫描 `Sources/Model` + `Sources/Features/*/Domain`（glob 展开）
-  - [ ] 1.2 更新函数头部注释，反映新的扫描范围
-  - [ ] 1.3 运行 `./scripts/check-architecture.sh` 验证能检测到 `Note.swift` 的 `import AppKit` 违规
+- [x] 1. 修改 check-architecture.sh 的 RULE-001 扫描逻辑
+  - [x] 1.1 修改 `check_domain_imports` 函数，扫描 `Sources/Model` + `Sources/Features/*/Domain`（glob 展开）
+  - [x] 1.2 更新函数头部注释，反映新的扫描范围
+  - [x] 1.3 运行 `./scripts/check-architecture.sh` 验证能检测到 `Note.swift` 的 `import AppKit` 违规
 
 ## 任务 2：修复现存 Domain 违规
 
-- [ ] 2. 修复 Note.swift
-  - [ ] 2.1 移除 `Sources/Features/Notes/Domain/Note.swift` 中的 `import AppKit`
-  - [ ] 2.2 编译验证：`xcodebuild -project MiNoteMac.xcodeproj -scheme MiNoteMac -configuration Debug build 2>&1 | tail -30`
-  - [ ] 2.3 运行 `./scripts/check-architecture.sh --strict` 确认 0 error
+- [x] 2. 修复 Note.swift
+  - [x] 2.1 移除 `Sources/Features/Notes/Domain/Note.swift` 中的 `import AppKit`
+  - [x] 2.2 编译验证：`xcodebuild -project MiNoteMac.xcodeproj -scheme MiNoteMac -configuration Debug build 2>&1 | tail -30`
+  - [x] 2.3 运行 `./scripts/check-architecture.sh --strict` 确认 0 error
 
 ## 任务 3：增加架构脚本自检用例
 
