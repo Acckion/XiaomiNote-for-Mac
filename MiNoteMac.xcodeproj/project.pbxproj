@@ -99,7 +99,6 @@
 		48056B69A558E0D58F35D44B /* NetworkMonitorProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15B2DBA94A9DF673AEB609C0 /* NetworkMonitorProtocol.swift */; };
 		4A1920B56168D908C3C7B478 /* NetworkLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215A9F846947EB8FE74FF6F7 /* NetworkLogger.swift */; };
 		4B5813BCDA1550D9E8B980BF /* NotesListHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76427333A876E289B95BDD92 /* NotesListHostingController.swift */; };
-		4C8F032FCAC2B617F227FDA1 /* Folder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102242AC16C6126DB877CA7A /* Folder.swift */; };
 		4D08246317514F8BFD4BE487 /* SyncGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB4DC9957FDBE09746AE16F /* SyncGuard.swift */; };
 		4D3ABFEF8B6E49880F5D27FC /* NativeFormatMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4E2EE44754A0D5742CDE5B9 /* NativeFormatMenuView.swift */; };
 		4DDB5A05D6CCC2B9BC927364 /* DefaultAudioService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2F3F2AC562D9D4BC70B50D /* DefaultAudioService.swift */; };
@@ -213,6 +212,7 @@
 		A8C2FC9D4B8D84B30B846C8E /* NewNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 946DC976657CFB6524F9D2C9 /* NewNoteView.swift */; };
 		A8D7B72D17877DDA73E7B12F /* DefaultNoteStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21836DD022F654A54170710 /* DefaultNoteStorage.swift */; };
 		A915686369C45A3A16AC17ED /* AttachmentSelectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E145EF9C7B9AE363CE4B146 /* AttachmentSelectionState.swift */; };
+		AA89B01439B869CF9EE799D5 /* Folder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06F12E60B043984764B351E5 /* Folder.swift */; };
 		AC4324E5B45183E3492FC4FA /* OperationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC515419F71A495D07879CA7 /* OperationEvent.swift */; };
 		ACA1C2E0098869D52C872110 /* NotesListWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7648C7008EF018469F094465 /* NotesListWindowState.swift */; };
 		ADCE61B11EC5B906277149BE /* SearchState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDFCABE390960D8ADD01CCFE /* SearchState.swift */; };
@@ -355,13 +355,13 @@
 		05B3251A48BCDCD589C03984 /* MiNoteError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiNoteError.swift; sourceTree = "<group>"; };
 		066E198C3D1076E3054D1E3F /* EditorModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorModule.swift; sourceTree = "<group>"; };
 		06A7F86012A975B065F90A99 /* HistoryWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWindowController.swift; sourceTree = "<group>"; };
+		06F12E60B043984764B351E5 /* Folder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Folder.swift; sourceTree = "<group>"; };
 		0B5AAF052F3C9194715715B3 /* EditorContentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorContentManager.swift; sourceTree = "<group>"; };
 		0BDE2985CB0BF6AB51C4D297 /* FolderState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderState.swift; sourceTree = "<group>"; };
 		0C37403A6DA7279ACAE4D31A /* ImageAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageAttachment.swift; sourceTree = "<group>"; };
 		0D55308D90824597F7EA09E3 /* NoteUpdateEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteUpdateEvent.swift; sourceTree = "<group>"; };
 		0EE3FEB7525ADB47B0F95484 /* FormatSpan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatSpan.swift; sourceTree = "<group>"; };
 		0F6CC48C9EB05EA5DB4C9B1E /* WindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManager.swift; sourceTree = "<group>"; };
-		102242AC16C6126DB877CA7A /* Folder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Folder.swift; sourceTree = "<group>"; };
 		13260A2476BF532645DE7B71 /* AudioModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioModule.swift; sourceTree = "<group>"; };
 		135B87A13848CA8B5640F158 /* NativeEditorCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorCoordinator.swift; sourceTree = "<group>"; };
 		14A0F49BE5BBE8B013FDED77 /* ListFormatHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListFormatHandler.swift; sourceTree = "<group>"; };
@@ -701,6 +701,7 @@
 			isa = PBXGroup;
 			children = (
 				18A6D807C385628BC6F00868 /* Auth */,
+				AF59E753213705F085E0D4CB /* Folders */,
 				D6FC9A06F28BD8F0D8CD8974 /* Notes */,
 				AE59805411C63505DAACBF25 /* Sync */,
 			);
@@ -874,7 +875,6 @@
 				A0DD281D3476BB6A6A1A2CD3 /* Core */,
 				03C1172140F00F753595A838 /* Extensions */,
 				0B0592ECC5B6E8B5D4430C58 /* Features */,
-				C6671AB760CA36EDBA6AFBAF /* Model */,
 				3CC44600E033D9A86A917AF2 /* Network */,
 				B6FDF8C4ABEEFD122A7DAD77 /* Presentation */,
 				71046AD57CD13E9510A9B807 /* Service */,
@@ -1328,6 +1328,14 @@
 			path = Sync;
 			sourceTree = "<group>";
 		};
+		AF59E753213705F085E0D4CB /* Folders */ = {
+			isa = PBXGroup;
+			children = (
+				D3D54F189A8DF960DF3CD79D /* Domain */,
+			);
+			path = Folders;
+			sourceTree = "<group>";
+		};
 		B03808E47D42B0528287C715 /* Generator */ = {
 			isa = PBXGroup;
 			children = (
@@ -1399,14 +1407,6 @@
 			path = ViewModels;
 			sourceTree = "<group>";
 		};
-		C6671AB760CA36EDBA6AFBAF /* Model */ = {
-			isa = PBXGroup;
-			children = (
-				102242AC16C6126DB877CA7A /* Folder.swift */,
-			);
-			path = Model;
-			sourceTree = "<group>";
-		};
 		CE2A62BD57A8D4CDD7A205D1 /* API */ = {
 			isa = PBXGroup;
 			children = (
@@ -1423,6 +1423,14 @@
 				A27B7223C9310EE43428FACA /* NoteOperation.swift */,
 				9490173ADFF54E342C1A2CE8 /* OperationData.swift */,
 				8EB4DC9957FDBE09746AE16F /* SyncGuard.swift */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+		D3D54F189A8DF960DF3CD79D /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				06F12E60B043984764B351E5 /* Folder.swift */,
 			);
 			path = Domain;
 			sourceTree = "<group>";
@@ -1832,7 +1840,7 @@
 				A4F5C8973F6F83F3A346EC8B /* FileUploadOperationData.swift in Sources */,
 				81AD9FCDB21ABDC4245A4844 /* FlippedStackView.swift in Sources */,
 				F00707AF58806715F39E45A1 /* FloatingInfoBar.swift in Sources */,
-				4C8F032FCAC2B617F227FDA1 /* Folder.swift in Sources */,
+				AA89B01439B869CF9EE799D5 /* Folder.swift in Sources */,
 				667B75B54CCC8C6FED972BAA /* FolderAPI.swift in Sources */,
 				8D1E58665F2FC107B3439CB1 /* FolderEvent.swift in Sources */,
 				7DDC498CAEF04B4438412493 /* FolderOperationHandler.swift in Sources */,
