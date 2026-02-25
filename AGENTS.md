@@ -30,31 +30,39 @@ Sources/
 │   │   ├── Infrastructure/ # 基础设施（NoteStore, NotePreviewService, NoteOperationError, NoteAPI）
 │   │   ├── Application/    # 应用层状态（NoteListState, NoteEditorState）
 │   │   └── UI/             # 视图层（NotesListView, NoteDetailView 等 18 个文件）
-│   └── Sync/               # 同步域（Vertical Slice）
-│       ├── Domain/         # 领域模型（NoteOperation, OperationData, FileUploadOperationData, IdMapping, SyncGuard）
-│       ├── Infrastructure/ # 基础设施
-│       │   ├── Engine/     # SyncEngine（1 核心 + 4 extension）、SyncStateManager
-│       │   ├── OperationQueue/ # OperationProcessor、OperationHandler、NoteOperationHandler、FileOperationHandler、FolderOperationHandler、UnifiedOperationQueue
-│       │   └── API/        # SyncAPI
-│       ├── Application/    # SyncState、SyncCoordinator
+│   ├── Sync/               # 同步域（Vertical Slice）
+│   │   ├── Domain/         # 领域模型（NoteOperation, OperationData, FileUploadOperationData, IdMapping, SyncGuard）
+│   │   ├── Infrastructure/ # 基础设施
+│   │   │   ├── Engine/     # SyncEngine（1 核心 + 4 extension）、SyncStateManager
+│   │   │   ├── OperationQueue/ # OperationProcessor、OperationHandler、NoteOperationHandler、FileOperationHandler、FolderOperationHandler、UnifiedOperationQueue
+│   │   │   └── API/        # SyncAPI
+│   │   ├── Application/    # SyncState、SyncCoordinator
+│   │   └── UI/             # 预留（当前无独立 UI）
+│   ├── Auth/               # 认证域（Vertical Slice）
+│   │   ├── Domain/         # 领域模型（AuthUser, UserProfile）
+│   │   ├── Infrastructure/ # 基础设施（UserAPI, PassTokenManager, PrivateNotesPasswordManager）
+│   │   ├── Application/    # AuthState
+│   │   └── UI/             # 预留（当前无独立 UI）
+│   └── Folders/            # 文件夹域（Vertical Slice）
+│       ├── Domain/         # 领域模型（Folder）
+│       ├── Infrastructure/ # 基础设施（FolderAPI）
+│       ├── Application/    # FolderState
 │       └── UI/             # 预留（当前无独立 UI）
-├── Model/                  # 数据模型（Folder, AuthUser, UserProfile 等非 Notes 域模型）
-├── Network/                # 网络层（APIClient, NetworkModule, FolderAPI, FileAPI, UserAPI）
-│   ├── API/                # 领域 API 类（按功能拆分，NoteAPI 已迁至 Features/Notes/，SyncAPI 已迁至 Features/Sync/）
+├── Model/                  # 数据模型（跨域共享模型；AuthUser/UserProfile/Folder 已迁至 Features/）
+├── Network/                # 网络层（APIClient, NetworkModule, FileAPI）
+│   ├── API/                # 领域 API 类（NoteAPI 已迁至 Features/Notes/，SyncAPI 已迁至 Features/Sync/，UserAPI 已迁至 Features/Auth/，FolderAPI 已迁至 Features/Folders/）
 │   └── Implementation/     # 网络协议实现
 ├── Presentation/           # 展示层辅助
-│   └── ViewModels/         # ViewModel（音频、认证、搜索等独立模块）
+│   └── ViewModels/         # ViewModel（音频、搜索等独立模块）
 ├── Service/                # 业务服务层
 │   ├── Audio/              # 音频服务（AudioModule, AudioCacheService, AudioConverterService, AudioUploadService, AudioPanelStateManager）
 │   ├── Cache/              # 缓存服务
-│   ├── Core/               # 核心服务（StartupSequenceManager, LogService）
+│   ├── Core/               # 核心服务（StartupSequenceManager, LogService；PassTokenManager/PrivateNotesPasswordManager 已迁至 Features/Auth/）
 │   ├── Editor/             # 编辑器服务（EditorModule, NoteEditingCoordinator, FormatConverter）
 │   └── Protocols/          # 服务协议定义
 ├── Shared/                 # 跨域共享
 │   └── Contracts/          # 预留协议目录（未来多 target 拆分用）
-├── State/                  # 状态对象（NoteListState/NoteEditorState 已迁至 Features/Notes/，SyncState 已迁至 Features/Sync/）
-│   ├── AuthState           # 认证状态
-│   ├── FolderState         # 文件夹状态
+├── State/                  # 状态对象（AuthState/FolderState 已迁至 Features/，NoteListState/NoteEditorState 已迁至 Features/Notes/，SyncState 已迁至 Features/Sync/）
 │   ├── SearchState         # 搜索状态
 │   ├── ViewOptionsState    # 视图选项状态
 │   ├── ViewOptionsManager  # 视图选项管理

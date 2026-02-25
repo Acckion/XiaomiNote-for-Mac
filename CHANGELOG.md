@@ -12,6 +12,7 @@
 - 过渡网络链路清理：删除 NetworkClient/NetworkClientProtocol 过渡抽象及其唯一消费者 DefaultAuthenticationService/DefaultImageService，清理 AuthenticationServiceProtocol/ImageServiceProtocol 无消费者协议，移除 Authentication/Image 空目录
 
 ### 重构
+- Auth + Folders 域 Vertical Slice 迁移（spec-128）：将 Auth 域 6 个文件（AuthUser、UserProfile、UserAPI、PassTokenManager、PrivateNotesPasswordManager、AuthState）迁移到 `Sources/Features/Auth/`，Folders 域 3 个文件（Folder、FolderAPI、FolderState）迁移到 `Sources/Features/Folders/`，按 Domain/Infrastructure/Application 四层架构组织，使用 `git mv` 保留文件历史，Features/ 目录现包含 Notes、Sync、Auth、Folders 四个业务域
 - Sync 域 Vertical Slice 迁移（spec-127）：将 21 个同步相关文件按四层架构迁移到 `Sources/Features/Sync/`（Domain 5 + Infrastructure 14 + Application 2 + UI 预留），包含 SyncEngine（1 核心 + 4 extension）、SyncModule 模块工厂、OperationQueue（6 个文件）、SyncAPI、SyncState、SyncCoordinator 等，删除旧 `Sources/Sync/` 目录，每层独立提交且编译通过，使用 `git mv` 保留文件历史
 - Notes 域 Vertical Slice 迁移（spec-126）：将 32 个笔记相关文件按四层架构迁移到 `Sources/Features/Notes/`（Domain 8 + Infrastructure 4 + Application 2 + UI 18），创建 `Sources/Shared/Contracts/` 预留跨域协议目录，每层独立提交且编译通过，使用 `git mv` 保留文件历史
 - 网络层单例迁入 NetworkModule（spec-125）：NetworkMonitor、NetworkErrorHandler、NetworkLogger 三个单例迁入 NetworkModule 构造器注入，消除所有外部 `.shared` 引用，`static let shared` 标记为 deprecated，保留 `.shared` 的类从 13 个减少到 10 个
