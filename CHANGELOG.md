@@ -8,6 +8,7 @@
 - 独立笔记编辑器窗口（spec-107）：支持在新窗口中打开特定笔记进行编辑，包含编辑器区域和 unified 工具栏，支持重复打开检测
 
 ### 重构
+- OperationProcessor 拆分（spec-122）：将 OperationProcessor（1,441 行）拆分为调度层 + handler 分发模式，定义 OperationHandler 协议和 OperationResponseParser 工具结构体，按操作域拆出 NoteOperationHandler、FileOperationHandler、FolderOperationHandler 三个 actor，OperationProcessor 瘦身至 478 行纯调度层，公共接口不变，外部调用方零改动
 - 菜单命令链路收敛（spec-120）：删除编辑操作空壳方法（undo/redo/cut/copy/paste/selectAll）改走 NSResponder 链，填实格式操作方法统一调用 FormatStateManager，引入 AppCommand 协议和 CommandDispatcher 统一调度业务操作（新建/删除笔记、新建文件夹、同步、分享、设置窗口），精简 MenuActionHandler 转发层注入 CommandDispatcher
 - 调试基础设施清理（spec-119）：移除 NativeEditorLogger（800+ 行）、NativeEditorMetrics（400+ 行）、NativeEditorErrorHandler（490+ 行）、PerformanceMonitor（130 行）、ParagraphManagerDebugView、ParagraphDebugWindowController，统一使用 LogService.shared 记录日志，提取 NativeEditorError 枚举到独立文件，单例数量从 15 个减少到 12 个
 - 剩余单例清理（spec-118）：创建 AudioModule 工厂管理 4 个音频类，重构 12 个纠缠单例为构造器注入，消除约 271 处外部 `.shared` 引用，改造 AppDelegate 启动链为 NetworkModule → SyncModule → EditorModule → AudioModule → AppCoordinator，ViewOptionsManager 改用 EnvironmentObject 注入，最终仅保留 15 个基础设施类的 `static let shared`

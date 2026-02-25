@@ -12,6 +12,7 @@ public struct SyncModule: Sendable {
     let syncStateManager: SyncStateManager
     public let operationProcessor: OperationProcessor
     public let onlineStateManager: OnlineStateManager
+    public let noteOperationHandler: NoteOperationHandler
 
     private let networkModule: NetworkModule
     private let eventBus: EventBus
@@ -43,17 +44,52 @@ public struct SyncModule: Sendable {
         )
         self.syncStateManager = stateManager
 
+        // 构建 handler
+        let responseParser = OperationResponseParser()
+
+        let noteHandler = NoteOperationHandler(
+            noteAPI: networkModule.noteAPI,
+            localStorage: storage,
+            idMappingRegistry: registry,
+            operationQueue: queue,
+            eventBus: EventBus.shared,
+            responseParser: responseParser
+        )
+        self.noteOperationHandler = noteHandler
+
+        let fileHandler = FileOperationHandler(
+            fileAPI: networkModule.fileAPI,
+            localStorage: storage,
+            idMappingRegistry: registry,
+            operationQueue: queue,
+            eventBus: EventBus.shared
+        )
+
+        let folderHandler = FolderOperationHandler(
+            folderAPI: networkModule.folderAPI,
+            databaseService: db,
+            eventBus: EventBus.shared,
+            responseParser: responseParser
+        )
+
+        let handlers: [OperationType: OperationHandler] = [
+            .noteCreate: noteHandler,
+            .cloudUpload: noteHandler,
+            .cloudDelete: noteHandler,
+            .imageUpload: fileHandler,
+            .audioUpload: fileHandler,
+            .folderCreate: folderHandler,
+            .folderRename: folderHandler,
+            .folderDelete: folderHandler,
+        ]
+
         let processor = OperationProcessor(
             operationQueue: queue,
             apiClient: networkModule.apiClient,
-            noteAPI: networkModule.noteAPI,
-            folderAPI: networkModule.folderAPI,
-            fileAPI: networkModule.fileAPI,
-            localStorage: storage,
-            databaseService: db,
             syncStateManager: stateManager,
             eventBus: EventBus.shared,
-            idMappingRegistry: registry
+            idMappingRegistry: registry,
+            handlers: handlers
         )
         self.operationProcessor = processor
 
