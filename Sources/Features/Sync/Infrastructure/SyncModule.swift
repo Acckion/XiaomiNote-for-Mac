@@ -28,7 +28,9 @@ public struct SyncModule: Sendable {
         let storage = LocalStorageService(database: db, audioCacheService: audioCacheService)
         self.localStorage = storage
 
-        let queue = UnifiedOperationQueue(databaseService: db)
+        let queueConfig = OperationQueueConfig.default
+
+        let queue = UnifiedOperationQueue(databaseService: db, config: queueConfig)
         self.operationQueue = queue
 
         let registry = IdMappingRegistry(
@@ -90,7 +92,8 @@ public struct SyncModule: Sendable {
             eventBus: EventBus.shared,
             idMappingRegistry: registry,
             handlers: handlers,
-            networkMonitor: networkModule.networkMonitor
+            networkMonitor: networkModule.networkMonitor,
+            config: queueConfig
         )
         self.operationProcessor = processor
 
