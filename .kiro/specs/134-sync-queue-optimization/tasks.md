@@ -8,10 +8,10 @@
 
 ## 任务 1：增加批处理可观测日志
 
-- [ ] 1. 在 processQueue 中插入日志
-  - [ ] 1.1 在 `OperationProcessor.processQueue()` 开始处记录待处理总数、跳过数量及原因
-  - [ ] 1.2 在处理完成后记录成功/失败数量
-  - [ ] 1.3 编译验证
+- [x] 1. 在 processQueue 中插入日志
+  - [x] 1.1 在 `OperationProcessor.processQueue()` 开始处记录待处理总数、跳过数量及原因
+  - [x] 1.2 在处理完成后记录成功/失败数量
+  - [x] 1.3 编译验证
 
 ## 任务 2：统一重试参数配置源
 

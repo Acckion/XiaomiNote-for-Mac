@@ -145,7 +145,7 @@ public extension OperationProcessor {
             return
         }
 
-        LogService.shared.debug(.sync, "OperationProcessor 待处理操作数量: \(pendingOperations.count)")
+        LogService.shared.debug(.sync, "待处理操作数量: \(pendingOperations.count)")
 
         var successCount = 0
         var failureCount = 0
@@ -154,9 +154,13 @@ public extension OperationProcessor {
         successCount += firstPassStats.successCount
         failureCount += firstPassStats.failureCount
 
-        currentOperationId = nil
+        let firstSkipped = firstPassStats.skippedProcessing + firstPassStats.skippedNotReady + firstPassStats.skippedFileUpload
+        LogService.shared.info(
+            .sync,
+            "首轮处理: 总计 \(pendingOperations.count), 执行 \(firstPassStats.successCount + firstPassStats.failureCount), 跳过 \(firstSkipped)(处理中: \(firstPassStats.skippedProcessing), 未到重试时间: \(firstPassStats.skippedNotReady), 等待文件上传: \(firstPassStats.skippedFileUpload))"
+        )
 
-        LogService.shared.info(.sync, "OperationProcessor 队列处理完成，成功: \(successCount), 失败: \(failureCount)")
+        currentOperationId = nil
 
         // 处理过程中可能有新操作入队，检查并处理
         let remainingOperations = operationQueue.getPendingOperations()
@@ -168,8 +172,17 @@ public extension OperationProcessor {
             let secondPassStats = await processOperationBatch(remainingOperations)
             successCount += secondPassStats.successCount
             failureCount += secondPassStats.failureCount
+
+            let secondSkipped = secondPassStats.skippedProcessing + secondPassStats.skippedNotReady + secondPassStats.skippedFileUpload
+            LogService.shared.info(
+                .sync,
+                "次轮处理: 总计 \(remainingOperations.count), 执行 \(secondPassStats.successCount + secondPassStats.failureCount), 跳过 \(secondSkipped)(处理中: \(secondPassStats.skippedProcessing), 未到重试时间: \(secondPassStats.skippedNotReady), 等待文件上传: \(secondPassStats.skippedFileUpload))"
+            )
+
             currentOperationId = nil
         }
+
+        LogService.shared.info(.sync, "队列处理完成: 成功 \(successCount), 失败 \(failureCount)")
 
         // 确认暂存的 syncTag
         do {
@@ -367,10 +380,42 @@ public extension OperationProcessor {
 // MARK: - 成功/失败处理
 
 extension OperationProcessor {
-    private struct OperationBatchStats {
+    struct OperationBatchStats {
         var successCount = 0
         var failureCount = 0
         var networkInterrupted = false
+        var skippedProcessing = 0
+        var skippedNotReady = 0
+        var skippedFileUpload = 0
+    }
+
+    /// 跳过原因
+    enum SkipReason {
+        case processing
+        case notReadyForRetry
+        case waitingFileUpload
+    }
+
+    private func skipReason(for operation: NoteOperation) -> SkipReason? {
+        guard operation.status != .processing else { return .processing }
+
+        if operation.status == .failed,
+           let nextRetryAt = operation.nextRetryAt,
+           nextRetryAt > Date()
+        {
+            return .notReadyForRetry
+        }
+
+        if operation.type == .cloudUpload || operation.type == .noteCreate {
+            let resolvedNoteId = idMappingRegistry.resolveId(operation.noteId)
+            if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
+                operationQueue.hasPendingFileUpload(for: operation.noteId)
+            {
+                return .waitingFileUpload
+            }
+        }
+
+        return nil
     }
 
     private func processOperationBatch(_ operations: [NoteOperation]) async -> OperationBatchStats {
@@ -378,12 +423,23 @@ extension OperationProcessor {
 
         for operation in operations {
             guard await isNetworkConnected() else {
-                LogService.shared.warning(.sync, "OperationProcessor 网络断开，停止队列处理")
+                LogService.shared.warning(.sync, "网络断开，停止队列处理")
                 stats.networkInterrupted = true
                 break
             }
 
-            guard shouldProcessInQueue(operation) else { continue }
+            if let reason = skipReason(for: operation) {
+                switch reason {
+                case .processing:
+                    stats.skippedProcessing += 1
+                case .notReadyForRetry:
+                    stats.skippedNotReady += 1
+                case .waitingFileUpload:
+                    LogService.shared.debug(.sync, "跳过 \(operation.type.rawValue)，等待文件上传完成: \(operation.noteId.prefix(8))...")
+                    stats.skippedFileUpload += 1
+                }
+                continue
+            }
 
             currentOperationId = operation.id
 
@@ -392,7 +448,7 @@ extension OperationProcessor {
                 try await executeOperation(operation)
                 try operationQueue.markCompleted(operation.id)
                 stats.successCount += 1
-                LogService.shared.debug(.sync, "OperationProcessor 处理成功: \(operation.id), type: \(operation.type.rawValue)")
+                LogService.shared.debug(.sync, "处理成功: \(operation.id), type: \(operation.type.rawValue)")
                 await eventBus.publish(OperationEvent.operationCompleted)
             } catch {
                 stats.failureCount += 1
@@ -405,30 +461,6 @@ extension OperationProcessor {
         }
 
         return stats
-    }
-
-    private func shouldProcessInQueue(_ operation: NoteOperation) -> Bool {
-        guard operation.status != .processing else { return false }
-
-        if operation.status == .failed,
-           let nextRetryAt = operation.nextRetryAt,
-           nextRetryAt > Date()
-        {
-            return false
-        }
-
-        // noteCreate 和 cloudUpload 必须等同一笔记的文件上传全部完成后再执行
-        if operation.type == .cloudUpload || operation.type == .noteCreate {
-            let resolvedNoteId = idMappingRegistry.resolveId(operation.noteId)
-            if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
-                operationQueue.hasPendingFileUpload(for: operation.noteId)
-            {
-                LogService.shared.debug(.sync, "跳过 \(operation.type.rawValue)，等待文件上传完成: \(resolvedNoteId.prefix(8))...")
-                return false
-            }
-        }
-
-        return true
     }
 
     private func handleOperationFailure(operation: NoteOperation, error: Error) async {
