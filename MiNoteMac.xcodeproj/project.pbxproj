@@ -84,6 +84,7 @@
 		3E7AC791A98EB566D6AB09BE /* ToolbarIdentifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E674D3C681C4EC48790DE69 /* ToolbarIdentifiers.swift */; };
 		3EF63DE8C38FACA453FF779E /* DatabaseService+Folders.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28437201444B973E9444C02 /* DatabaseService+Folders.swift */; };
 		3FF34F2B3316CDF2AABCE631 /* AttributeLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB9214C72828FA76E4756DD5 /* AttributeLayer.swift */; };
+		40208D38274593E259FEC3A0 /* NoteCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4536C9A10914A72FB433B67E /* NoteCommands.swift */; };
 		4144A006574CAC1E804987C2 /* NativeEditorContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A3E318377C517D3F7C3F57 /* NativeEditorContext.swift */; };
 		41A2124B8EC3B27576B97989 /* FormatAttributesBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01EF78479C2330A1621ADC47 /* FormatAttributesBuilder.swift */; };
 		41E8C23D23A5363C0B5D2919 /* Notification+MenuState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C61489E4FB25E635D3F4216 /* Notification+MenuState.swift */; };
@@ -418,6 +419,7 @@
 		43CA14F2F9F71D998E97AF5D /* BaseSheetToolbarDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseSheetToolbarDelegate.swift; sourceTree = "<group>"; };
 		44B3D5E462F26593AB71C991 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		44DCA8EF4946B8FDE81DD270 /* ToolbarVisibilityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarVisibilityManager.swift; sourceTree = "<group>"; };
+		4536C9A10914A72FB433B67E /* NoteCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteCommands.swift; sourceTree = "<group>"; };
 		466ABE724298AE501B27B1B7 /* MainWindowController+Audio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MainWindowController+Audio.swift"; sourceTree = "<group>"; };
 		47ADF471FFDD5A9BDB727649 /* AppEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEvent.swift; sourceTree = "<group>"; };
 		47BB8AE35F30AB2A3F7650BC /* AuthenticationServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationServiceProtocol.swift; sourceTree = "<group>"; };
@@ -1221,6 +1223,7 @@
 			isa = PBXGroup;
 			children = (
 				7A3AE8040078C6B1A6DFA95C /* AppCommand.swift */,
+				4536C9A10914A72FB433B67E /* NoteCommands.swift */,
 			);
 			path = Command;
 			sourceTree = "<group>";
@@ -1768,6 +1771,7 @@
 				8078A0D5E94E341B88BE4BFB /* Note.swift in Sources */,
 				1646ED07F4C69E963E989F82 /* NoteAPI.swift in Sources */,
 				80404DFC2924118749941B73 /* NoteCardView.swift in Sources */,
+				40208D38274593E259FEC3A0 /* NoteCommands.swift in Sources */,
 				6A12AAFD369114B190A33BD3 /* NoteDetailHostingController.swift in Sources */,
 				DCF46E4C55ED4F712EA91325 /* NoteDetailView.swift in Sources */,
 				64ED84CA0BC4A8B29D88F30B /* NoteDetailViewController.swift in Sources */,
