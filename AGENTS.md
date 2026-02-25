@@ -150,9 +150,9 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 
 启动链：AppDelegate → NetworkModule → SyncModule → EditorModule → AudioModule → AppCoordinator
 
-仅 13 个基础设施类保留 `static let shared`：LogService, DatabaseService, EventBus, ~~NetworkMonitor~~, ~~NetworkErrorHandler~~, ~~NetworkLogger~~, AudioPlayerService, AudioRecorderService, AudioDecryptService, PrivateNotesPasswordManager, ViewOptionsManager, PreviewHelper, PerformanceService
+仅 9 个基础设施类保留 `static let shared`：LogService, DatabaseService, EventBus, AudioPlayerService, AudioRecorderService, AudioDecryptService, PrivateNotesPasswordManager, ViewOptionsManager, PerformanceService
 
-其中 NetworkMonitor、NetworkErrorHandler、NetworkLogger 已迁入 NetworkModule 构造器注入，`static let shared` 标记为 deprecated，仅保留向后兼容。实际保留 10 个。
+其中 NetworkMonitor、NetworkErrorHandler、NetworkLogger、PreviewHelper 的 `static let shared` 已在 spec129 中删除。
 
 ## 架构治理
 
@@ -176,7 +176,7 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 
 检查规则：RULE-001（Domain 层 import）、RULE-002（.shared 新增）、RULE-003（EventBus 生命周期）、RULE-004（URLSession 直接使用）。
 
-CI 中已集成（continue-on-error: true），详见 `.github/workflows/build.yml`。
+CI 中已集成为强制门禁（`--strict` 模式，违规阻塞 PR），详见 `.github/workflows/build.yml`。
 
 ## 数据格式
 
