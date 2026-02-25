@@ -26,9 +26,9 @@
 | AudioPlayerService | Sources/Service/Audio/AudioPlayerService.swift | 音频播放全局状态 |
 | AudioRecorderService | Sources/Service/Audio/AudioRecorderService.swift | 音频录制全局状态 |
 | AudioDecryptService | Sources/Service/Audio/AudioDecryptService.swift | 音频解密工具 |
-| PrivateNotesPasswordManager | Sources/Service/PrivateNotesPasswordManager.swift | 私密笔记密码管理 |
+| PrivateNotesPasswordManager | Sources/Service/Core/PrivateNotesPasswordManager.swift | 私密笔记密码管理 |
 | ViewOptionsManager | Sources/State/ViewOptionsManager.swift | 视图选项全局状态 |
-| PreviewHelper | Sources/Presentation/PreviewHelper.swift | SwiftUI Preview 辅助 |
+| PreviewHelper | Sources/View/SwiftUIViews/Common/PreviewHelper.swift | SwiftUI Preview 辅助 |
 | PerformanceService | Sources/Service/Core/PerformanceService.swift | 性能监控 |
 
 ### 已标记 deprecated 的 .shared（待清理）
