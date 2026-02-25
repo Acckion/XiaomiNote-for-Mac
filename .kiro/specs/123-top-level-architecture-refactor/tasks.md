@@ -10,15 +10,15 @@
 
 ## 阶段 A：菜单命令链 Command 化
 
-- [ ] 1. 创建并完成 spec 124-menu-command-migration
+- [x] 1. 创建并完成 spec 124-menu-command-migration
   - [x] 1.1 创建 spec 124 的 requirements.md、design.md、tasks.md
-  - [ ] 1.2 实施 spec 124（格式命令迁移）
-  - [ ] 1.3 实施 spec 124（文件命令迁移）
-  - [ ] 1.4 实施 spec 124（窗口命令迁移）
-  - [ ] 1.5 实施 spec 124（视图命令迁移）
-  - [ ] 1.6 清理 MenuActionHandler，简化 AppDelegate
-  - [ ] 1.7 手动测试验收，合并分支
-  - [ ] 1.8 回到主 spec，更新状态，评估后续计划
+  - [x] 1.2 实施 spec 124（格式命令迁移）
+  - [x] 1.3 实施 spec 124（文件命令迁移）
+  - [x] 1.4 实施 spec 124（窗口命令迁移）
+  - [x] 1.5 实施 spec 124（视图命令迁移）
+  - [x] 1.6 清理 MenuActionHandler，简化 AppDelegate
+  - [x] 1.7 手动测试验收，合并分支
+  - [x] 1.8 回到主 spec，更新状态，评估后续计划
 
 ## 阶段 B：架构立规与约束自动化
 
@@ -56,17 +56,24 @@
 
 ## 阶段 D：遗留清算与稳态治理
 
-- [ ] 6. 遗留清算
-  - [ ] 6.1 清理 Legacy 目录
-  - [ ] 6.2 规则脚本转强制 gate
-  - [ ] 6.3 第二、三级 .shared 单例评估与退出
-  - [ ] 6.4 导入流程逻辑断层修复
-  - [ ] 6.5 菜单编辑命令补齐实现
+- [ ] 6. 创建并完成 spec 129-architecture-governance-hardening（6.1 + 6.2 + 6.3 + 6.5）
+  - [ ] 6.1 确认 Legacy 目录不存在（零工作量）
+  - [ ] 6.2 修复架构检查脚本（ALLOWED_SHARED 路径、RULE-004 豁免、CI 强制门禁）
+  - [ ] 6.3 删除已废弃 .shared 单例（NetworkMonitor/NetworkErrorHandler/NetworkLogger/PreviewHelper）
+  - [ ] 6.4 评估并迁移 PerformanceService / PrivateNotesPasswordManager
+  - [ ] 6.5 验证编辑命令已工作，修正 architecture-next.md 过时描述
+  - [ ] 6.6 手动测试验收，合并分支
+
+- [ ] 7. 创建并完成 spec 130-import-flow-fix（原 6.4）
+  - [ ] 7.1 实现 ImportContentConverter（纯文本/Markdown/RTF → 小米笔记 XML）
+  - [ ] 7.2 修复 ImportNotesCommand 和 ImportMarkdownCommand 的导入逻辑
+  - [ ] 7.3 编译验证
+  - [ ] 7.4 手动测试验收，合并分支
 
 ## 收尾
 
-- [ ] 7. 整体验收
-  - [ ] 7.1 确认所有完成定义条目已满足
-  - [ ] 7.2 更新 AGENTS.md 反映新架构
-  - [ ] 7.3 更新 docs/architecture-next.md 标记为已完成
-  - [ ] 7.4 更新 docs/spec-catalog.md
+- [ ] 8. 整体验收
+  - [ ] 8.1 确认所有完成定义条目已满足
+  - [ ] 8.2 更新 AGENTS.md 反映新架构
+  - [ ] 8.3 更新 docs/architecture-next.md 标记为已完成
+  - [ ] 8.4 更新 docs/spec-catalog.md
