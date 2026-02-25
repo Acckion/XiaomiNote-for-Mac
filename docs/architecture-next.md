@@ -26,15 +26,9 @@
 
 按严重程度排序：
 
-1. 菜单系统三层并行（最大单点复杂度）：
-   - AppDelegate：70+ 个 @objc 转发方法，约 500 行纯转发代码，无任何业务逻辑。
-   - MenuActionHandler：961 行，混合格式、文件、窗口、导入导出等多域业务逻辑。
-   - MenuManager：911 行，菜单定义与状态更新耦合。
-   - 同一个菜单动作需要跨 3 个文件追踪，维护成本极高。
+1. ~~菜单系统三层并行（最大单点复杂度）~~ 已完成 Command 化迁移（spec124）：MenuActionHandler 已删除，所有菜单动作通过 Command 模式调度，AppDelegate @objc 方法已精简为薄转发层。
 
-2. Command 模式覆盖率不足：
-   - 已有基础设施：AppCommand 协议、CommandDispatcher、6 个具体命令（CreateNote、DeleteNote、ToggleStar、ShareNote、CreateFolder、ShowSettings、Sync、IncrementalSync）。
-   - 但 MenuActionHandler 中 90% 以上的业务逻辑仍未迁移到 Command，Command 化形同虚设。
+2. ~~Command 模式覆盖率不足~~ 已完成（spec124）：所有菜单业务逻辑已迁移到 Command 体系（FormatCommands、FileCommands、WindowCommands、ViewCommands、NoteCommands、SyncCommands、UtilityCommands）。
 
 3. 目录组织以技术层为主（Network/Store/State/View），功能改动跨目录跳转频繁。
 
@@ -188,13 +182,9 @@ EventBus 作为跨域业务事件总线保留。
 3. Command 调用 State 对象或 Service 执行业务逻辑。
 4. 按需发布 EventBus 事件。
 
-迁移策略（渐进式，非一次性替换）：
+迁移策略（已完成，spec124）：
 
-1. 第一批：格式命令（toggleBold、toggleItalic 等，约 20 个，纯转发无复杂逻辑）。
-2. 第二批：文件命令（导入、导出、创建笔记/文件夹，约 15 个）。
-3. 第三批：窗口命令（平铺、最大化、居中等，约 12 个）。
-4. 第四批：视图命令（列表/画廊切换、缩放、折叠等，约 10 个）。
-5. 最终：MenuActionHandler 清空并删除。
+所有菜单命令已按域迁移到 Command 体系，MenuActionHandler 已删除。当前 Command 文件：FormatCommands、FileCommands、WindowCommands、ViewCommands、NoteCommands、SyncCommands、UtilityCommands。
 
 收益：同一业务动作的多入口不再分叉实现。
 
@@ -263,11 +253,11 @@ EventBus 作为跨域业务事件总线保留。
 2. 单类型公开方法建议不超过 30 个。
 3. 超限必须在 PR 中给出拆分计划。
 
-### 7.4 菜单系统约束（必须，Command 化完成后生效）
+### 7.4 菜单系统约束（必须，已生效）
 
 1. AppDelegate 的 @objc 菜单方法体不超过 3 行。
-2. 禁止在 AppDelegate 或 MenuActionHandler 中新增业务逻辑，所有新菜单动作必须实现为 Command。
-3. MenuActionHandler 中的方法只减不增，直到清空删除。
+2. 禁止在 AppDelegate 中新增业务逻辑，所有新菜单动作必须实现为 Command。
+3. ~~MenuActionHandler 中的方法只减不增，直到清空删除。~~ MenuActionHandler 已删除（spec124）。
 
 ---
 
@@ -316,27 +306,16 @@ EventBus 作为跨域业务事件总线保留。
 
 ## 10. 迁移路线图（修订版，4 阶段）
 
-### 阶段 A：菜单命令链 Command 化（2-3 周）
+### 阶段 A：菜单命令链 Command 化 ~~（2-3 周）~~ 已完成
 
-这是当前代码库最大的单点复杂度，优先解决。
+对应 spec：124-menu-command-migration（已完成）
 
-范围：
-
-1. 将 MenuActionHandler 中的格式命令迁移为 FormatCommands（约 20 个）。
-2. 将文件命令迁移为 FileCommands（导入、导出、创建，约 15 个）。
-3. 将窗口命令迁移为 WindowCommands（平铺、最大化等，约 12 个）。
-4. 将视图命令迁移为 ViewCommands（列表/画廊切换、缩放等，约 10 个）。
-5. 简化 AppDelegate 的 @objc 方法为 1-2 行 Command 构造 + dispatch。
-6. MenuActionHandler 清空后删除。
-
-验收：
+验收结果：
 
 1. 所有菜单动作通过 Command 调度。
 2. AppDelegate 的菜单方法体均不超过 3 行。
 3. MenuActionHandler 文件已删除。
 4. 应用功能行为无变化。
-
-对应 spec：124-menu-command-migration
 
 ### 阶段 B：架构立规与约束自动化（1-2 周）
 
