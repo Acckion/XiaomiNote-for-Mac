@@ -1,25 +1,71 @@
 # 未来工作
 
-## 菜单命令链路（spec-121 后续）
+> 路线图设计文档：`docs/plans/2026-02-26-architecture-improvement-roadmap-design.md`
+> 审计基线：2026-02-26
 
-- [spec-130][截止 2026-03-15] 剩余业务操作的 Command 化（格式菜单弹窗、视图选项、音频面板、离线操作等）
-- [spec-130][截止 2026-03-15] 菜单验证逻辑与 Command 的 canExecute 整合
-- [spec-130][截止 2026-03-01] 清理文档中已过时的 `MenuActionHandler` 待办与描述（`architecture-next.md` / `refactor_all.md` / `TECHNICAL_DOCUMENTATION.md`）
+## 当前重构后仍存在的缺陷
 
-## 架构审计收口（2026-02-26）
+- 缺陷 1：架构门禁 RULE-001 只扫描 `Sources/Model`，漏检 `Features/*/Domain`。已确认 `Note.swift` 有 `import AppKit` 违规，CI 绿灯通过。→ spec-131
+- 缺陷 2：关键链路（Command 调度、导入写入、同步队列）缺少回归测试，仍以人工回归为主。→ spec-132
+- 缺陷 3：`AppCoordinatorAssembler` 仍是单体装配（约 150 行），未按域拆分。→ spec-133
+- 缺陷 4：目标目录结构 4 个差距未落地。→ spec-135 / spec-136
+  - 差距 A：`Sources/App/Bootstrap`、`Composition`、`Runtime` 未成型
+  - 差距 B：`Sources/Shared/Kernel`、`UICommons` 未建立
+  - 差距 C：`Features/Editor`、`Features/Search`、`Features/Audio` 未切片
+  - 差距 D：`Sources/Legacy` 过渡目录未启用
+- 缺陷 5：文档残留已过时的 MenuActionHandler 描述。→ spec-131 附带清理
 
-- [spec-131][截止 2026-03-02] 修复 RULE-001 扫描范围：从仅检查 `Sources/Model` 扩展到 `Sources/Features/*/Domain`（保留旧目录兼容）
-- [spec-131][截止 2026-03-02] 处理现存 Domain 违规：`Sources/Features/Notes/Domain/Note.swift` 移除 `import AppKit`，将 UI 相关类型下沉到 UI/Infrastructure 层
-- [spec-131][截止 2026-03-03] 为架构脚本增加自检用例（至少覆盖 RULE-001 正/反样本），避免“脚本通过但规则失效”
-- [spec-132][截止 2026-03-06] 补齐 Command 链路回归测试（菜单 selector -> CommandDispatcher -> execute 调用）
-- [spec-132][截止 2026-03-06] 补齐导入流程回归测试（`ImportMarkdownCommand` / `ImportNotesCommand` 的“内容真实写入”断言）
-- [spec-132][截止 2026-03-07] 补齐同步队列关键回归（文件丢失失败、`nextRetryAt` 门控、二次入队）
-- [spec-133][截止 2026-03-10] 拆分 `AppCoordinatorAssembler` 为按域 FeatureAssembler（Notes / Sync / Auth / Editor / Audio），主装配器仅聚合
-- [spec-133][截止 2026-03-10] 为组合根补充装配冒烟测试（启动链依赖完整性、关键服务非空）
+## 路线图（安全网优先）
 
-## 同步队列后续（OperationProcessor 第一层拆分后）
+执行顺序：131 → 132 → 133 + 134（可并行）→ 135 → 136
 
-- [spec-132][截止 2026-03-07] 补齐 `OperationProcessor` / `UnifiedOperationQueue` 回归测试（文件丢失失败、`nextRetryAt` 门控、二次入队场景）
-- [spec-134][截止 2026-03-12] 增加 `processQueue` 批处理路径可观测日志（首轮/次轮执行数量、跳过原因）
-- [spec-134][截止 2026-03-12] 清理 `OperationProcessor` 与 `UnifiedOperationQueue` 的重试参数分散问题（统一 `maxRetryCount` 配置源）
-- [spec-134][截止 2026-03-14] 开始第二层拆分：提取 `OperationFailurePolicy`（错误分类 + 重试决策）减少 Processor 体积
+```
+spec-131 (门禁修复)
+    │
+    ▼
+spec-132 (回归测试)
+    │
+    ├──────────────┐
+    ▼              ▼
+spec-133        spec-134
+(组合根拆分)    (同步队列优化)
+    │
+    ▼
+spec-135 (目录骨架)
+    │
+    ▼
+spec-136 (Editor/Search/Audio 切片)
+```
+
+### 阶段一：门禁修复（风险低，1-2 天）
+
+- [spec-131] 扩展 RULE-001 扫描范围：`Sources/Model` + `Sources/Features/*/Domain`
+- [spec-131] 修复 `Note.swift` 的 `import AppKit` 违规
+- [spec-131] 为架构脚本增加自检用例（RULE-001 正/反样本）
+- [spec-131] 清理文档中已过时的 MenuActionHandler 描述
+
+### 阶段二：关键链路回归测试（风险中，3-5 天）
+
+- [spec-132] Command 链路测试（CommandDispatcher -> execute 调用验证）
+- [spec-132] 导入流程测试（ImportMarkdownCommand / ImportNotesCommand 内容真实写入断言）
+- [spec-132] 同步队列测试（文件丢失失败、nextRetryAt 门控、二次入队）
+- [spec-132] 组合根冒烟测试（启动链依赖完整性、关键服务非空）
+
+### 阶段三：组合根拆分 + 目录骨架（风险中，1-2 周）
+
+- [spec-133] 拆分 AppCoordinatorAssembler 为 5 个域 Assembler（Notes/Sync/Auth/Editor/Audio）
+- [spec-133] 主装配器仅聚合各域产出 + 跨域接线
+- [spec-135] 建立 `Sources/App/Bootstrap`、`Composition`、`Runtime`，迁入首批文件
+- [spec-135] 建立 `Sources/Shared/Kernel`、`UICommons`（先建壳）
+- [spec-135] 建立 `Sources/Legacy` 过渡规范
+
+### 阶段四：剩余域切片 + 持续治理（风险中-高，2-4 周）
+
+- [spec-136] Search 域迁移（SearchState -> Features/Search/Application）
+- [spec-136] Editor 域迁移（Service/Editor -> Features/Editor）
+- [spec-136] Audio 域迁移（Service/Audio -> Features/Audio）
+- [spec-134] 同步队列可观测日志、重试参数统一、OperationFailurePolicy 提取
+
+## 已完成
+
+- ~~spec-130：导入流程修复~~（2026-02-26 完成）
