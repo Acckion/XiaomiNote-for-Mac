@@ -96,28 +96,35 @@
         }
 
         @objc func toggleBold(_: Any?) {
-            // 切换粗体
-            // 这里应该调用编辑器API
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.bold)
         }
 
         @objc func toggleItalic(_: Any?) {
-            // 切换斜体
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.italic)
         }
 
         @objc func toggleUnderline(_: Any?) {
-            // 切换下划线
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.underline)
         }
 
         @objc func toggleStrikethrough(_: Any?) {
-            // 切换删除线
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.strikethrough)
         }
 
         @objc internal func toggleCode(_: Any?) {
-            // 切换代码格式
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            // TODO(spec-121): TextFormat 暂无 .code 成员，需要扩展枚举
+            LogService.shared.debug(.window, "toggleCode 待实现")
         }
 
         @objc internal func insertLink(_: Any?) {
-            // 插入链接
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            // TODO(spec-121): 链接插入需要 NativeEditorContext 提供 insertLink API
+            LogService.shared.debug(.window, "insertLink 待实现")
         }
 
         @objc internal func showSettings(_: Any?) {
@@ -907,13 +914,15 @@
         // MARK: - 格式菜单动作
 
         @objc func increaseFontSize(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            // TODO(spec-121): FontSizeManager 暂无 increase/decrease API
+            LogService.shared.debug(.window, "increaseFontSize 待实现")
         }
 
         @objc func decreaseFontSize(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            // TODO(spec-121): FontSizeManager 暂无 increase/decrease API
+            LogService.shared.debug(.window, "decreaseFontSize 待实现")
         }
 
         @objc func increaseIndent(_: Any?) {
