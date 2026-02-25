@@ -1,0 +1,8 @@
+# 未来工作
+
+## 菜单命令链路（spec-121 后续）
+
+- 剩余业务操作的 Command 化（格式菜单弹窗、视图选项、音频面板、离线操作等）
+- Command 日志/审计能力
+- 菜单验证逻辑与 Command 的 canExecute 整合
+- MenuActionHandler 进一步精简或拆分
