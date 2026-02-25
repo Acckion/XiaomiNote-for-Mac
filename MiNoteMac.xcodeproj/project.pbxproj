@@ -491,6 +491,7 @@
 		7541E75A1076D9B6B161FA81 /* CustomAttachments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomAttachments.swift; sourceTree = "<group>"; };
 		75F1DB31FF5233FAD5310C6D /* TitleExtractionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleExtractionResult.swift; sourceTree = "<group>"; };
 		7648C7008EF018469F094465 /* NotesListWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListWindowState.swift; sourceTree = "<group>"; };
+		77417963490BD77A45C4F955 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		77D10EFB4DE50306F1975F85 /* FolderAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAPI.swift; sourceTree = "<group>"; };
 		784C8EC2E34DCC736CD36F25 /* IdMappingEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdMappingEvent.swift; sourceTree = "<group>"; };
 		787A7FB08B7D3BC5065F1FAE /* CoordinatorFormatApplier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoordinatorFormatApplier.swift; sourceTree = "<group>"; };
@@ -860,6 +861,7 @@
 				3CC44600E033D9A86A917AF2 /* Network */,
 				B6FDF8C4ABEEFD122A7DAD77 /* Presentation */,
 				71046AD57CD13E9510A9B807 /* Service */,
+				48327A78209AC2FF694E41F9 /* Shared */,
 				FB88CD792225FA05F809855D /* State */,
 				0FF4B2C5BF84ABE5A51CBB03 /* Store */,
 				02968E1A09AB7830C085A2D5 /* Sync */,
@@ -957,6 +959,14 @@
 				919C03060525D8E0E1B05D0E /* AudioRecorderView.swift */,
 			);
 			path = Audio;
+			sourceTree = "<group>";
+		};
+		48327A78209AC2FF694E41F9 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				AC4D866ABFAEF14E51CC790E /* Contracts */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		49BCB5DE1940DBC664E1DA7B /* View */ = {
@@ -1231,6 +1241,14 @@
 			path = Command;
 			sourceTree = "<group>";
 		};
+		AC4D866ABFAEF14E51CC790E /* Contracts */ = {
+			isa = PBXGroup;
+			children = (
+				77417963490BD77A45C4F955 /* .gitkeep */,
+			);
+			path = Contracts;
+			sourceTree = "<group>";
+		};
 		ACD0ED03D7DD2EBCDDB9ECAB /* Window */ = {
 			isa = PBXGroup;
 			children = (
@@ -1476,6 +1494,20 @@
 				5718CFB3CE8BCCCD6AC4B6A1 /* ViewState.swift */,
 			);
 			path = State;
+			sourceTree = "<group>";
+		};
+		"TEMP_42988231-28F9-4E08-85CF-75B7E5A4944F" /* Features */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		"TEMP_B33C9A31-20AB-4881-84A3-EAC6D37539DC" /* Notes */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Notes;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
