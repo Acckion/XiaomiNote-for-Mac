@@ -15,11 +15,11 @@
 
 ```
 Sources/
-├── App/                    # 应用程序入口（AppDelegate, MenuManager, AppStateManager）
+├── App/                    # 应用程序入口（AppDelegate, MenuManager, MenuStateManager, AppStateManager）
 ├── Coordinator/            # 协调器（AppCoordinator, SyncCoordinator）
 ├── Core/                   # 核心基础设施
 │   ├── Cache/              # 缓存工具
-│   ├── Command/            # 命令模式（AppCommand, CommandDispatcher, 业务命令）
+│   ├── Command/            # 命令模式（AppCommand, CommandDispatcher, NoteCommands, SyncCommands, FormatCommands, FileCommands, WindowCommands, ViewCommands, UtilityCommands）
 │   ├── Concurrency/        # 并发工具
 │   ├── EventBus/           # 事件总线（跨层通信）
 │   └── Pagination/         # 分页工具

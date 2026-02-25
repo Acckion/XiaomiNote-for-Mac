@@ -66,6 +66,16 @@ public final class AppCoordinator: ObservableObject {
 
     private let windowManager: WindowManager
 
+    /// 格式状态管理器（从 EditorModule 获取，供 Command 使用）
+    public var formatStateManager: FormatStateManager? {
+        editorModule.formatStateManager
+    }
+
+    /// 主窗口控制器（供 Command 使用）
+    public var mainWindowController: MainWindowController? {
+        windowManager.mainWindowController
+    }
+
     // MARK: - 辅助服务
 
     private let startupSequenceManager: StartupSequenceManager
@@ -201,6 +211,12 @@ public final class AppCoordinator: ObservableObject {
     }
 
     // MARK: - 窗口管理代理
+
+    /// 创建新窗口
+    @discardableResult
+    public func createNewWindow() -> MainWindowController? {
+        windowManager.createNewWindow()
+    }
 
     /// 在新窗口中打开笔记
     public func openNoteEditorWindow(note: Note) {

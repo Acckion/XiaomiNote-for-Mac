@@ -11,6 +11,7 @@
 - 过渡网络链路清理：删除 NetworkClient/NetworkClientProtocol 过渡抽象及其唯一消费者 DefaultAuthenticationService/DefaultImageService，清理 AuthenticationServiceProtocol/ImageServiceProtocol 无消费者协议，移除 Authentication/Image 空目录
 
 ### 重构
+- 菜单 Command 化迁移（spec-124）：将 MenuActionHandler（1,317 行）拆分为 7 个领域 Command 文件（FormatCommands、FileCommands、WindowCommands、ViewCommands、UtilityCommands、NoteCommands、SyncCommands），共约 73 个 Command struct 通过 CommandDispatcher 统一调度，提取 MenuStateManager 分离菜单状态管理职责，AppDelegate @objc 方法简化为单行 dispatch 调用，删除 MenuActionHandler
 - OperationProcessor 拆分（spec-122）：将 OperationProcessor（1,441 行）拆分为调度层 + handler 分发模式，定义 OperationHandler 协议和 OperationResponseParser 工具结构体，按操作域拆出 NoteOperationHandler、FileOperationHandler、FolderOperationHandler 三个 actor，OperationProcessor 瘦身至 478 行纯调度层，公共接口不变，外部调用方零改动
 - 菜单命令链路收敛（spec-120）：删除编辑操作空壳方法（undo/redo/cut/copy/paste/selectAll）改走 NSResponder 链，填实格式操作方法统一调用 FormatStateManager，引入 AppCommand 协议和 CommandDispatcher 统一调度业务操作（新建/删除笔记、新建文件夹、同步、分享、设置窗口），精简 MenuActionHandler 转发层注入 CommandDispatcher
 - 调试基础设施清理（spec-119）：移除 NativeEditorLogger（800+ 行）、NativeEditorMetrics（400+ 行）、NativeEditorErrorHandler（490+ 行）、PerformanceMonitor（130 行）、ParagraphManagerDebugView、ParagraphDebugWindowController，统一使用 LogService.shared 记录日志，提取 NativeEditorError 枚举到独立文件，单例数量从 15 个减少到 12 个

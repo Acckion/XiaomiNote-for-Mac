@@ -339,7 +339,7 @@ EventBus 作为跨域业务事件总线保留。
 3. MenuActionHandler 文件已删除。
 4. 应用功能行为无变化。
 
-对应 spec：123-menu-command-migration
+对应 spec：124-menu-command-migration
 
 ### 阶段 B：架构立规与约束自动化（1-2 周）
 
@@ -356,7 +356,7 @@ EventBus 作为跨域业务事件总线保留。
 2. 新代码已按新规则落位。
 3. NetworkModule 内部 3 个单例已消除。
 
-对应 spec：124-architecture-governance
+对应 spec：125-architecture-governance
 
 ### 阶段 C：目录纵向切片（3-6 周）
 
@@ -373,7 +373,7 @@ EventBus 作为跨域业务事件总线保留。
 2. 跨域依赖数量持续下降。
 3. project.yml 反映新目录结构。
 
-对应 spec：125-notes-vertical-slice、126-sync-vertical-slice、127+
+对应 spec：126-notes-vertical-slice、127-sync-vertical-slice、128-auth-folders-vertical-slice
 
 ### 阶段 D：遗留清算与稳态治理（持续）
 
@@ -397,19 +397,16 @@ EventBus 作为跨域业务事件总线保留。
 
 | Spec 编号 | 名称 | 阶段 | 风险 | 预估工作量 |
 |-----------|------|------|------|-----------|
-| 123 | menu-command-migration | A | 中 | 2-3 周 |
-| 124 | architecture-governance | B | 低 | 1-2 周 |
-| 125 | notes-vertical-slice | C | 高 | 1-2 周 |
-| 126 | sync-vertical-slice | C | 高 | 1-2 周 |
-| 127 | auth-folders-vertical-slice | C | 中 | 1 周 |
-| 128+ | 按需追加 | C/D | - | - |
+| 124 | menu-command-migration | A | 中 | 2-3 周 |
+| 125 | architecture-governance | B | 低 | 1-2 周 |
+| 126 | notes-vertical-slice | C | 高 | 1-2 周 |
+| 127 | sync-vertical-slice | C | 高 | 1-2 周 |
+| 128 | auth-folders-vertical-slice | C | 中 | 1 周 |
+| 129+ | 按需追加 | C/D | - | - |
 
-建议执行顺序：123 → 124 → 125 → 126 → 127+
+建议执行顺序：124 → 125（可并行）→ 126 → 127 → 128 → 129+
 
-理由：
-- 123（菜单 Command 化）是当前最大痛点，且不依赖目录重组，可独立执行。
-- 124（架构立规）为后续 Vertical Slice 迁移建立约束基础。
-- 125-127（目录迁移）依赖前两步的基础，按域逐步推进。
+注：spec 123 为主控 spec，不包含具体实现，负责统筹管理上述子 spec。
 
 ---
 
