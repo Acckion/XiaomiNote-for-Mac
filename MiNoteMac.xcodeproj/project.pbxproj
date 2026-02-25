@@ -35,6 +35,7 @@
 		1006775DF6A1BC8FFC04E264 /* Notification+FormatState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22A62A87B1103758B3A1D672 /* Notification+FormatState.swift */; };
 		12862229FCE593C2E7B3B844 /* ParagraphType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0619B853D684CBB7BDDD4AF /* ParagraphType.swift */; };
 		12BF0FE07D447AC19A5049A8 /* NetworkClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5F36F87538870706F693EA /* NetworkClientProtocol.swift */; };
+		12F9612331C047BA3DB52B75 /* SyncCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23E693BBC135B77654F7D57 /* SyncCommands.swift */; };
 		1337AEB434FDFFA78B7B9DE1 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6880F7FD58283B28D401384E /* AppCoordinator.swift */; };
 		1445D4E874910E9972C3FD47 /* MainWindowController+Search.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE85A751A74F6346F7DA85A1 /* MainWindowController+Search.swift */; };
 		1646ED07F4C69E963E989F82 /* NoteAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D41C9F4415AFF48A2218272D /* NoteAPI.swift */; };
@@ -110,6 +111,7 @@
 		52ADA13E3A89B6CAFC325AC1 /* MiNoteLibrary.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 330447DDB151694673431B9E /* MiNoteLibrary.framework */; };
 		55C5393E785F6D282FD5ABEC /* SyncState.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA99B62732C1CF59E1CF6464 /* SyncState.swift */; };
 		55FF3998737779B1932128C1 /* DatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1106C635C69C7E62998742 /* DatabaseService.swift */; };
+		568BA56F8CDA9C27546016CC /* WindowCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 351F3747FFC36F18F4EA83F3 /* WindowCommands.swift */; };
 		56C611D7C228635469129A23 /* AttributeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64E236D3FD2323ED87F99D90 /* AttributeManager.swift */; };
 		57AF76032A767D0E88013B66 /* MainWindowController+Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 621A8B9D8F3D848175411367 /* MainWindowController+Toolbar.swift */; };
 		57E0AE386C8EC4114F33271F /* DatabaseMigrationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFF0B9774340B45C25C2DE68 /* DatabaseMigrationManager.swift */; };
@@ -399,6 +401,7 @@
 		30F9C29A7C4099E8FA362063 /* UnifiedFormatManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedFormatManager.swift; sourceTree = "<group>"; };
 		330447DDB151694673431B9E /* MiNoteLibrary.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = MiNoteLibrary.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		34C2D543AEB9F54188EE9DF4 /* MemoryCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryCacheManager.swift; sourceTree = "<group>"; };
+		351F3747FFC36F18F4EA83F3 /* WindowCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCommands.swift; sourceTree = "<group>"; };
 		383FD9A8C10630FB1F3512A4 /* NSFont+MiNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSFont+MiNote.swift"; sourceTree = "<group>"; };
 		38DB7A38DB435A8149205321 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		394072D0B60A67D8C6768AD4 /* NoteStorageProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStorageProtocol.swift; sourceTree = "<group>"; };
@@ -530,6 +533,7 @@
 		A04B6DFCC8AAB90EB0DC9466 /* PrivateNotesPasswordManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateNotesPasswordManager.swift; sourceTree = "<group>"; };
 		A0CEF05F6E98008F12D12632 /* MiNoteLibraryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MiNoteLibraryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A132808FB8BD901AF2D9A566 /* SidebarHostingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarHostingController.swift; sourceTree = "<group>"; };
+		A23E693BBC135B77654F7D57 /* SyncCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCommands.swift; sourceTree = "<group>"; };
 		A2C6E0B358F33404B6C8D42D /* TitleEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleEditorView.swift; sourceTree = "<group>"; };
 		A41D32DA81E0A2F6BE5BCFF0 /* NotesListHostingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListHostingController.swift; sourceTree = "<group>"; };
 		A74C1A54F67378DDA7001B70 /* ToolbarItemFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarItemFactory.swift; sourceTree = "<group>"; };
@@ -1224,6 +1228,8 @@
 			children = (
 				7A3AE8040078C6B1A6DFA95C /* AppCommand.swift */,
 				4536C9A10914A72FB433B67E /* NoteCommands.swift */,
+				A23E693BBC135B77654F7D57 /* SyncCommands.swift */,
+				351F3747FFC36F18F4EA83F3 /* WindowCommands.swift */,
 			);
 			path = Command;
 			sourceTree = "<group>";
@@ -1842,6 +1848,7 @@
 				A38D2A2C53FC6EA0516EE669 /* StartupEvent.swift in Sources */,
 				69C63F24FA80584E47006646 /* StartupSequenceManager.swift in Sources */,
 				FFFACAE59AAC68779D5B9A8F /* SyncAPI.swift in Sources */,
+				12F9612331C047BA3DB52B75 /* SyncCommands.swift in Sources */,
 				D245C48EB00EFDAF02DFA025 /* SyncCoordinator.swift in Sources */,
 				2078773284CB045DFAAFDF24 /* SyncEngine+Attachments.swift in Sources */,
 				A998264D7B8998CBBA25D16D /* SyncEngine+IncrementalSync.swift in Sources */,
@@ -1875,6 +1882,7 @@
 				4245A4E45C1BBFBD9825D1DF /* ViewOptionsMenuView.swift in Sources */,
 				EEE696BA06A2AA0C0F71D9A3 /* ViewOptionsState.swift in Sources */,
 				1FED1092CD798F91D8E21A11 /* ViewState.swift in Sources */,
+				568BA56F8CDA9C27546016CC /* WindowCommands.swift in Sources */,
 				3135E123F861FD128602C96C /* WindowManager.swift in Sources */,
 				BE1CF42F6EF7475161CE744C /* WindowState.swift in Sources */,
 				192A97F16386E61E47C97ECD /* WindowStateManager.swift in Sources */,
