@@ -152,6 +152,7 @@
 		76584EEBBE851CE5955B9ED9 /* AudioRecorderUploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70F39B957B9908A1976F40E2 /* AudioRecorderUploadView.swift */; };
 		775528A002122361B24F297C /* SelectionAnchorManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39D8E5945BF31E7DD44BA35 /* SelectionAnchorManager.swift */; };
 		7792B34687B28566CD64B13D /* AudioRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 919C03060525D8E0E1B05D0E /* AudioRecorderView.swift */; };
+		79B444234D0C652B844E1CF1 /* UtilityCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DAF0853441A067E3DCBE0BC /* UtilityCommands.swift */; };
 		7C87882B34113556E821D1D6 /* DeletedNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0EE2EC0B53336F95BB9B10 /* DeletedNote.swift */; };
 		7E129BA577DF9B5996F1A7BE /* AudioConverterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03EDAF6E1DC3DDE1845156C6 /* AudioConverterService.swift */; };
 		7F29B6B3CF735DA16EAFBE68 /* OperationProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0EFBEC9DDBADADED047698F /* OperationProcessor.swift */; };
@@ -514,6 +515,7 @@
 		8A0EE2EC0B53336F95BB9B10 /* DeletedNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeletedNote.swift; sourceTree = "<group>"; };
 		8A3C41EB2418BBF1DC6DDA69 /* SyncGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncGuard.swift; sourceTree = "<group>"; };
 		8D94A9BC2781F3A74F8A3C25 /* SyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngine.swift; sourceTree = "<group>"; };
+		8DAF0853441A067E3DCBE0BC /* UtilityCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilityCommands.swift; sourceTree = "<group>"; };
 		8F72E84B0EB4D67C81832A72 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		90D5F7FA2E463A7BB519C532 /* AudioServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioServiceProtocol.swift; sourceTree = "<group>"; };
 		912AD0623157E3FEF51C3918 /* AudioRecorderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorderService.swift; sourceTree = "<group>"; };
@@ -1222,6 +1224,7 @@
 				4EAC7535474E3303F093287D /* FormatCommands.swift */,
 				4536C9A10914A72FB433B67E /* NoteCommands.swift */,
 				A23E693BBC135B77654F7D57 /* SyncCommands.swift */,
+				8DAF0853441A067E3DCBE0BC /* UtilityCommands.swift */,
 				69B7D83F7FA272F9957FCF70 /* ViewCommands.swift */,
 				351F3747FFC36F18F4EA83F3 /* WindowCommands.swift */,
 			);
@@ -1857,6 +1860,7 @@
 				44225D61901A3371958A3FA6 /* UnifiedOperationQueue.swift in Sources */,
 				32D992CCBB4901DE62145BA9 /* UserAPI.swift in Sources */,
 				F3296E10A249F036F83F8998 /* UserProfile.swift in Sources */,
+				79B444234D0C652B844E1CF1 /* UtilityCommands.swift in Sources */,
 				07BDB9E7ABF79A8D36C3BDC0 /* ViewCommands.swift in Sources */,
 				8397E55BCE833332AF3A3CFB /* ViewOptionsManager.swift in Sources */,
 				4245A4E45C1BBFBD9825D1DF /* ViewOptionsMenuView.swift in Sources */,
