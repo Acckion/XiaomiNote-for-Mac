@@ -62,9 +62,7 @@ public struct SyncModule: Sendable {
             localStorage: storage,
             idMappingRegistry: registry,
             operationQueue: queue,
-            eventBus: EventBus.shared,
-            databaseService: db,
-            responseParser: responseParser
+            eventBus: EventBus.shared
         )
 
         let folderHandler = FolderOperationHandler(

@@ -15,8 +15,6 @@ actor FileOperationHandler: OperationHandler {
     private let idMappingRegistry: IdMappingRegistry
     private let operationQueue: UnifiedOperationQueue
     private let eventBus: EventBus
-    private let databaseService: DatabaseService
-    private let responseParser: OperationResponseParser
 
     // MARK: - 初始化
 
@@ -26,17 +24,13 @@ actor FileOperationHandler: OperationHandler {
         localStorage: LocalStorageService,
         idMappingRegistry: IdMappingRegistry,
         operationQueue: UnifiedOperationQueue,
-        eventBus: EventBus,
-        databaseService: DatabaseService,
-        responseParser: OperationResponseParser
+        eventBus: EventBus
     ) {
         self.fileAPI = fileAPI
         self.localStorage = localStorage
         self.idMappingRegistry = idMappingRegistry
         self.operationQueue = operationQueue
         self.eventBus = eventBus
-        self.databaseService = databaseService
-        self.responseParser = responseParser
     }
 
     // MARK: - OperationHandler
