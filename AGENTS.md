@@ -19,6 +19,7 @@ Sources/
 ├── Coordinator/            # 协调器（AppCoordinator, SyncCoordinator）
 ├── Core/                   # 核心基础设施
 │   ├── Cache/              # 缓存工具
+│   ├── Command/            # 命令模式（AppCommand, CommandDispatcher, 业务命令）
 │   ├── Concurrency/        # 并发工具
 │   ├── EventBus/           # 事件总线（跨层通信）
 │   └── Pagination/         # 分页工具
