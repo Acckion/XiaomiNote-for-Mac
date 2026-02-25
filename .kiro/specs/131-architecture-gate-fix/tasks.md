@@ -22,14 +22,14 @@
 
 ## 任务 3：增加架构脚本自检用例
 
-- [ ] 3. 实现 --self-test 模式
-  - [ ] 3.1 在 `check-architecture.sh` 中增加 `--self-test` 参数解析
-  - [ ] 3.2 实现自检函数：创建临时目录，写入 RULE-001 正/反样本，运行检查，验证结果，清理
-  - [ ] 3.3 运行 `./scripts/check-architecture.sh --self-test` 验证通过
+- [x] 3. 实现 --self-test 模式
+  - [x] 3.1 在 `check-architecture.sh` 中增加 `--self-test` 参数解析
+  - [x] 3.2 实现自检函数：创建临时目录，写入 RULE-001 正/反样本，运行检查，验证结果，清理
+  - [x] 3.3 运行 `./scripts/check-architecture.sh --self-test` 验证通过
 
 ## 任务 4：清理文档残留
 
-- [ ] 4. 更新过时文档
-  - [ ] 4.1 更新 `docs/architecture-next.md`：将 MenuActionHandler 相关描述标记为已完成（第 2.2 节、第 6.3 节、第 7.4 节）
-  - [ ] 4.2 检查 `docs/refactor_all.md`，更新或移除 MenuActionHandler 相关描述
-  - [ ] 4.3 提交所有变更
+- [-] 4. 更新过时文档
+  - [x] 4.1 更新 `docs/architecture-next.md`：将 MenuActionHandler 相关描述标记为已完成（第 2.2 节、第 6.3 节、第 7.4 节）
+  - [x] 4.2 检查 `docs/refactor_all.md`，更新或移除 MenuActionHandler 相关描述
+  - [-] 4.3 提交所有变更
