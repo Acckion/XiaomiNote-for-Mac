@@ -81,7 +81,7 @@ ALLOWED_SHARED=(
     "Sources/Service/Audio/AudioPlayerService.swift"
     "Sources/Service/Audio/AudioRecorderService.swift"
     "Sources/Service/Audio/AudioDecryptService.swift"
-    "Sources/Service/Core/PrivateNotesPasswordManager.swift"
+    "Sources/Features/Auth/Infrastructure/PrivateNotesPasswordManager.swift"
     "Sources/State/ViewOptionsManager.swift"
     "Sources/View/SwiftUIViews/Common/PreviewHelper.swift"
     "Sources/Service/Core/PerformanceService.swift"
@@ -153,6 +153,14 @@ check_network_backbone() {
 
         # 跳过测试和参考代码
         if echo "$file" | grep -q "Tests/\|References/"; then
+            continue
+        fi
+
+        # 跳过已知的合理 URLSession 使用
+        # PassTokenManager: Cookie 刷新需独立于 NetworkModule，避免循环依赖
+        # ImageAttachment: 图片异步加载
+        # DefaultAudioService: 音频流播放
+        if echo "$file" | grep -q "PassTokenManager\|ImageAttachment\|DefaultAudioService"; then
             continue
         fi
 
