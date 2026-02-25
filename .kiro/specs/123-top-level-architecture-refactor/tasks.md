@@ -47,12 +47,12 @@
   - [x] 4.4 手动测试验收，合并分支
   - [x] 4.5 回到主 spec，更新状态
 
-- [-] 5. 创建并完成 spec 128-auth-folders-vertical-slice
+- [x] 5. 创建并完成 spec 128-auth-folders-vertical-slice
   - [x] 5.1 创建 spec 128 的 requirements.md、design.md、tasks.md
   - [x] 5.2 实施 Auth + Folders 域迁移
   - [x] 5.3 更新 project.yml，编译验证
-  - [ ] 5.4 手动测试验收，合并分支
-  - [ ] 5.5 回到主 spec，更新状态
+  - [x] 5.4 手动测试验收，合并分支
+  - [x] 5.5 回到主 spec，更新状态
 
 ## 阶段 D：遗留清算与稳态治理
 
