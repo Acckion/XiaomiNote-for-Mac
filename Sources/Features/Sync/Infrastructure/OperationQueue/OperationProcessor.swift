@@ -17,6 +17,8 @@ public actor OperationProcessor {
 
     private let config: OperationQueueConfig
 
+    private let failurePolicy: OperationFailurePolicy
+
     // MARK: - 依赖
 
     private let operationQueue: UnifiedOperationQueue
@@ -55,6 +57,7 @@ public actor OperationProcessor {
         self.handlers = handlers
         self.networkMonitor = networkMonitor
         self.config = config
+        self.failurePolicy = OperationFailurePolicy(config: config)
     }
 
     // MARK: - 网络状态检查
@@ -204,81 +207,16 @@ public extension OperationProcessor {
     }
 }
 
-// MARK: - 错误分类
+// MARK: - 错误分类（委托给 OperationFailurePolicy）
 
 public extension OperationProcessor {
 
     func classifyError(_ error: Error) -> OperationErrorType {
-        if let miNoteError = error as? MiNoteError {
-            switch miNoteError {
-            case .cookieExpired, .notAuthenticated:
-                return .authExpired
-            case let .networkError(underlyingError):
-                return classifyURLError(underlyingError)
-            case .invalidResponse:
-                return .serverError
-            }
-        }
-
-        if let urlError = error as? URLError {
-            return classifyURLError(urlError)
-        }
-
-        if let nsError = error as? NSError {
-            let apiDomains: Set<String> = ["NoteAPI", "FolderAPI", "FileAPI", "UserAPI", "OperationProcessor"]
-            if apiDomains.contains(nsError.domain) {
-                switch nsError.code {
-                case 401:
-                    return .authExpired
-                case 404:
-                    return .notFound
-                case 409:
-                    return .conflict
-                case 500 ... 599:
-                    return .serverError
-                default:
-                    return .unknown
-                }
-            }
-
-            if nsError.domain == NSURLErrorDomain {
-                return classifyURLErrorCode(nsError.code)
-            }
-        }
-
-        return .unknown
-    }
-
-    private func classifyURLError(_ error: Error) -> OperationErrorType {
-        if let urlError = error as? URLError {
-            return classifyURLErrorCode(urlError.code.rawValue)
-        }
-        return .network
-    }
-
-    private func classifyURLErrorCode(_ code: Int) -> OperationErrorType {
-        switch code {
-        case URLError.timedOut.rawValue:
-            .timeout
-        case URLError.notConnectedToInternet.rawValue,
-             URLError.networkConnectionLost.rawValue,
-             URLError.cannotFindHost.rawValue,
-             URLError.cannotConnectToHost.rawValue,
-             URLError.dnsLookupFailed.rawValue:
-            .network
-        case URLError.badServerResponse.rawValue,
-             URLError.cannotParseResponse.rawValue:
-            .serverError
-        case URLError.userAuthenticationRequired.rawValue:
-            .authExpired
-        default:
-            .network
-        }
+        failurePolicy.classifyError(error)
     }
 
     func isRetryable(_ error: Error) -> Bool {
-        let errorType = classifyError(error)
-        return errorType.isRetryable
+        failurePolicy.isRetryable(error)
     }
 
     func requiresUserAction(_: Error) -> Bool {
@@ -291,10 +229,7 @@ public extension OperationProcessor {
 public extension OperationProcessor {
 
     func calculateRetryDelay(retryCount: Int) -> TimeInterval {
-        let baseDelay = config.baseRetryDelay * pow(2.0, Double(retryCount))
-        let cappedDelay = min(baseDelay, config.maxRetryDelay)
-        let jitter = cappedDelay * Double.random(in: 0 ... 0.25)
-        return cappedDelay + jitter
+        failurePolicy.calculateRetryDelay(retryCount: retryCount)
     }
 }
 
@@ -464,22 +399,22 @@ extension OperationProcessor {
     }
 
     private func handleOperationFailure(operation: NoteOperation, error: Error) async {
-        let errorType = classifyError(error)
-        let isRetryable = errorType.isRetryable
+        let errorType = failurePolicy.classifyError(error)
+        let decision = failurePolicy.decide(error: error, retryCount: operation.retryCount)
 
-        LogService.shared.error(.sync, "OperationProcessor 操作失败: \(operation.id), 错误类型: \(errorType.rawValue), 可重试: \(isRetryable)")
+        LogService.shared.error(.sync, "操作失败: \(operation.id), 错误类型: \(errorType.rawValue)")
 
         do {
-            if isRetryable, operation.retryCount < config.maxRetryCount {
-                let retryDelay = calculateRetryDelay(retryCount: operation.retryCount)
-                try operationQueue.scheduleRetry(operation.id, delay: retryDelay)
-                LogService.shared.debug(.sync, "OperationProcessor 安排重试: \(operation.id), 延迟 \(retryDelay) 秒")
-            } else {
+            switch decision {
+            case let .retry(delay):
+                try operationQueue.scheduleRetry(operation.id, delay: delay)
+                LogService.shared.debug(.sync, "安排重试: \(operation.id), 延迟 \(String(format: "%.1f", delay)) 秒")
+            case let .abandon(reason):
                 try operationQueue.markFailed(operation.id, error: error, errorType: errorType)
-                LogService.shared.error(.sync, "OperationProcessor 操作最终失败: \(operation.id)")
+                LogService.shared.error(.sync, "操作最终失败: \(operation.id), 原因: \(reason)")
             }
         } catch {
-            LogService.shared.error(.sync, "OperationProcessor 更新操作状态失败: \(error)")
+            LogService.shared.error(.sync, "更新操作状态失败: \(error)")
         }
     }
 

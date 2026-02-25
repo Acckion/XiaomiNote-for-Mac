@@ -24,11 +24,11 @@
 
 ## 任务 3：提取 OperationFailurePolicy
 
-- [ ] 3. 提取错误分类逻辑
-  - [ ] 3.1 创建 `Sources/Features/Sync/Infrastructure/OperationQueue/OperationFailurePolicy.swift`
-  - [ ] 3.2 从 OperationProcessor 中提取错误分类和重试决策逻辑到 OperationFailurePolicy
-  - [ ] 3.3 OperationProcessor 调用 OperationFailurePolicy.decide() 替代内联逻辑
-  - [ ] 3.4 编译验证
+- [x] 3. 提取错误分类逻辑
+  - [x] 3.1 创建 `Sources/Features/Sync/Infrastructure/OperationQueue/OperationFailurePolicy.swift`
+  - [x] 3.2 从 OperationProcessor 中提取错误分类和重试决策逻辑到 OperationFailurePolicy
+  - [x] 3.3 OperationProcessor 调用 OperationFailurePolicy.decide() 替代内联逻辑
+  - [x] 3.4 编译验证
 
 ## 任务 4：测试与提交
 
