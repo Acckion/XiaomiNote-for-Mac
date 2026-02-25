@@ -63,7 +63,6 @@
 		2AC3ACBDF8BB18683868874C /* FormatStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F212BFBE5273EA716F02ED8C /* FormatStateManager.swift */; };
 		2AC9FA0344198983CB4A7E32 /* AudioRecorderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 912AD0623157E3FEF51C3918 /* AudioRecorderService.swift */; };
 		2B2438BAD968D6DD4A91A915 /* NSColor+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408AB37D71548724EF25ABFA /* NSColor+Hex.swift */; };
-		2B8B999C7F79C108A570CD16 /* AuthState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD21BE654F69FD7ACEFBC64 /* AuthState.swift */; };
 		2BA81EAE173461CC788DB9E1 /* BlockFormatHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73C43716EF906941DD0B39E1 /* BlockFormatHandler.swift */; };
 		2C11E13AA39E0C87D54004BB /* NoteImageAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73DA5F9539F17BA1EE3B29DC /* NoteImageAttachment.swift */; };
 		2C21B95197D013EFFD14FA3A /* NoteCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86233D26380C0DB7286FE03E /* NoteCardView.swift */; };
@@ -121,6 +120,7 @@
 		57E0AE386C8EC4114F33271F /* DatabaseMigrationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFF0B9774340B45C25C2DE68 /* DatabaseMigrationManager.swift */; };
 		580C6469AEAC2AF0D97C4C86 /* DatabaseService+Notes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE7E9F2FE1CBB3A0B6FEFFB6 /* DatabaseService+Notes.swift */; };
 		585949CD97787C3C44A039E0 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CED22130F7FF92451DE0F6F9 /* APIClient.swift */; };
+		58E31B85C6FA20C2ACB22EAD /* AuthState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70E2BC96E506CDE17F2EF325 /* AuthState.swift */; };
 		5A05D5BA33178E164164ADDB /* SyncModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57B18CC7ECAD97A45CB3DE04 /* SyncModule.swift */; };
 		5A49FABACEF435BD8931E44B /* FileOperationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A3274A1D3F3FF49633A1D4 /* FileOperationHandler.swift */; };
 		5B22F3187370A08C0DBC0347 /* ErrorEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE20FF79BA5893FC193B539D /* ErrorEvent.swift */; };
@@ -396,7 +396,6 @@
 		2E28C6FE9F02FA729A440ECD /* PassTokenManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassTokenManager.swift; sourceTree = "<group>"; };
 		2F3352DEF84FC05AA31B8B71 /* SyncEngine+PublicHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncEngine+PublicHelpers.swift"; sourceTree = "<group>"; };
 		2F5606FE32A5486A59ADDDC3 /* EventBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventBus.swift; sourceTree = "<group>"; };
-		2FD21BE654F69FD7ACEFBC64 /* AuthState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthState.swift; sourceTree = "<group>"; };
 		305454EB9BED24D094278777 /* LocalStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStorageService.swift; sourceTree = "<group>"; };
 		305FEF5D4ABF0071C1325748 /* AudioAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAttachment.swift; sourceTree = "<group>"; };
 		30F9C29A7C4099E8FA362063 /* UnifiedFormatManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedFormatManager.swift; sourceTree = "<group>"; };
@@ -479,6 +478,7 @@
 		6DA02229B347460B67C4A068 /* ViewOptionsMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewOptionsMenuView.swift; sourceTree = "<group>"; };
 		6DFE1069C662E60ABE7F4C43 /* NSWindow+MiNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSWindow+MiNote.swift"; sourceTree = "<group>"; };
 		6FB493AEA912DB26484DDE5C /* FormatStateSynchronizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatStateSynchronizer.swift; sourceTree = "<group>"; };
+		70E2BC96E506CDE17F2EF325 /* AuthState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthState.swift; sourceTree = "<group>"; };
 		70F39B957B9908A1976F40E2 /* AudioRecorderUploadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorderUploadView.swift; sourceTree = "<group>"; };
 		710E8552B18E249CCF2C6054 /* NoteEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEvent.swift; sourceTree = "<group>"; };
 		713C944418F1FB35E9EB133F /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
@@ -629,6 +629,7 @@
 		F44FEBA8DBD52E822CEE743D /* ListBehaviorHandler+EnterKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ListBehaviorHandler+EnterKey.swift"; sourceTree = "<group>"; };
 		F503F883538E6E04A540CF77 /* AudioPanelStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPanelStateManager.swift; sourceTree = "<group>"; };
 		F536EF508195999D2B84CE4C /* FormatError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatError.swift; sourceTree = "<group>"; };
+		F5931EEDE0E99A9A5B672D25 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		F5FB964505F0C450D3D69407 /* NoteEditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorToolbar.swift; sourceTree = "<group>"; };
 		F6245570575A061F0D614EA0 /* ExpandedNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandedNoteView.swift; sourceTree = "<group>"; };
 		F77C3C040EC6CA0CF4519B9F /* Pageable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pageable.swift; sourceTree = "<group>"; };
@@ -724,6 +725,14 @@
 			path = Store;
 			sourceTree = "<group>";
 		};
+		124576FFC396B7C771BA628A /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				F5931EEDE0E99A9A5B672D25 /* .gitkeep */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
 		170DF742F61EDDFD4F09676C /* Common */ = {
 			isa = PBXGroup;
 			children = (
@@ -745,8 +754,10 @@
 		18A6D807C385628BC6F00868 /* Auth */ = {
 			isa = PBXGroup;
 			children = (
+				4A920866629C4BB9B33BBF0B /* Application */,
 				A18606B835145C5D47CDF6CD /* Domain */,
 				F98F280FE068E28460502564 /* Infrastructure */,
+				124576FFC396B7C771BA628A /* UI */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -988,6 +999,14 @@
 			);
 			name = Mocks;
 			path = Tests/Mocks;
+			sourceTree = "<group>";
+		};
+		4A920866629C4BB9B33BBF0B /* Application */ = {
+			isa = PBXGroup;
+			children = (
+				70E2BC96E506CDE17F2EF325 /* AuthState.swift */,
+			);
+			path = Application;
 			sourceTree = "<group>";
 		};
 		528FFE70AE6ED973A3C8E7C4 /* Application */ = {
@@ -1587,7 +1606,6 @@
 		FB88CD792225FA05F809855D /* State */ = {
 			isa = PBXGroup;
 			children = (
-				2FD21BE654F69FD7ACEFBC64 /* AuthState.swift */,
 				0BDE2985CB0BF6AB51C4D297 /* FolderState.swift */,
 				FDFCABE390960D8ADD01CCFE /* SearchState.swift */,
 				E289E8AF37E1134011C6F99C /* ViewOptionsManager.swift */,
@@ -1765,7 +1783,7 @@
 				976583EC8E6FF8605BE48265 /* AudioServiceProtocol.swift in Sources */,
 				35A6B87DBFE4351F34A86AFA /* AudioUploadService.swift in Sources */,
 				BA483596F7A9FA8CF1EDB5F6 /* AuthEvent.swift in Sources */,
-				2B8B999C7F79C108A570CD16 /* AuthState.swift in Sources */,
+				58E31B85C6FA20C2ACB22EAD /* AuthState.swift in Sources */,
 				D0B74378E3EB17E553D01C74 /* AuthUser.swift in Sources */,
 				83F73AF43550EFE3A37FD168 /* AutoSaveManager.swift in Sources */,
 				D50C0193018C0FD064802EF0 /* BaseSheetToolbarDelegate.swift in Sources */,
