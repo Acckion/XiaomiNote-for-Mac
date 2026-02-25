@@ -20,7 +20,7 @@
 2. 模块工厂已成熟 — 4 个模块工厂（NetworkModule、SyncModule、EditorModule、AudioModule）稳定运行，启动链清晰。
 3. OperationProcessor 已拆分 — spec122 完成拆分为 NoteOperationHandler、FileOperationHandler、FolderOperationHandler。
 4. State 对象已替代 ViewModel — 9 个 State 对象已就位（AuthState、FolderState、NoteListState、NoteEditorState、SearchState、SyncState、ViewOptionsState、ViewOptionsManager、ViewState）。
-5. 构造器注入已替代 .shared — 除 13 个基础设施类外，所有依赖通过构造器注入。
+5. 构造器注入已替代 .shared — 除 9 个基础设施类外（3 个核心 + 2 个工具 + 1 个视图选项 + 3 个音频），所有依赖通过构造器注入。详见第 6.6 节。
 
 ### 2.2 仍存在的结构性问题
 
@@ -42,14 +42,11 @@
 
 5. 缺少架构约束自动化，重构成果容易被新代码破坏。
 
-6. 13 个基础设施类仍保留 `.shared` 单例，缺少分级退出策略：
-   - 可退出（中期）：NetworkMonitor、NetworkErrorHandler、NetworkLogger、PerformanceService、PreviewHelper、ViewOptionsManager
-   - 需保留（长期）：LogService、DatabaseService、EventBus
-   - 待评估：AudioPlayerService、AudioRecorderService、AudioDecryptService、PrivateNotesPasswordManager
+6. ~~13 个基础设施类仍保留 `.shared` 单例，缺少分级退出策略~~ 已完成分级退出：4 个已删除（NetworkMonitor、NetworkErrorHandler、NetworkLogger、PreviewHelper），2 个评估后保留（PerformanceService、PrivateNotesPasswordManager），剩余 4 个待评估（3 个 Audio + ViewOptionsManager）。详见第 6.6 节。
 
 7. 导入流程存在逻辑断层：创建空笔记但未真实写入内容。
 
-8. 菜单编辑命令（undo/redo/cut/copy/paste）为空实现。
+8. ~~菜单编辑命令（undo/redo/cut/copy/paste）为空实现。~~ 已通过标准 NSResponder 链实现（spec129 审计确认）。
 
 9. AppCoordinator 本身已较精简（约 200 行），但 AppCoordinatorAssembler 的手工接线代码（100+ 行）缺少按域拆分能力，随着功能增长会持续膨胀。
 
@@ -222,26 +219,26 @@ EventBus 作为跨域业务事件总线保留。
 
 ### 6.6 .shared 单例分级退出策略
 
-将 13 个残留 .shared 单例分为三级：
+将残留 .shared 单例分为三级（spec129 更新）：
 
-第一级（可退出，中期目标）：
-- NetworkMonitor → 迁入 NetworkModule 构造
-- NetworkErrorHandler → 迁入 NetworkModule 构造
-- NetworkLogger → 迁入 NetworkModule 构造
-- PerformanceService → 迁入 AppCoordinatorAssembler 构造
-- PreviewHelper → 迁入需要的 State 对象构造
-- ViewOptionsManager → 迁入 AppCoordinatorAssembler 构造
+第一级（已退出）：
+- ~~NetworkMonitor~~ → 已迁入 NetworkModule 构造，.shared 已删除（spec129）
+- ~~NetworkErrorHandler~~ → 已迁入 NetworkModule 构造，.shared 已删除（spec129）
+- ~~NetworkLogger~~ → 已迁入 NetworkModule 构造，.shared 已删除（spec129）
+- ~~PreviewHelper~~ → 零调用方，.shared 已删除（spec129）
+- ViewOptionsManager → 待迁入 AppCoordinatorAssembler 构造
 
 第二级（需保留，架构基础设施）：
 - LogService → 全局日志，保留 .shared
 - DatabaseService → 全局数据库，保留 .shared
 - EventBus → 全局事件总线，保留 .shared
+- PerformanceService → Sendable 无状态工具类，注入成本高于收益，保留 .shared（spec129 评估）
+- PrivateNotesPasswordManager → Sendable 无状态 Keychain 工具类，8 个调用方分布广泛，保留 .shared（spec129 评估）
 
 第三级（待评估，依赖硬件资源）：
 - AudioPlayerService → 评估是否可迁入 AudioModule
 - AudioRecorderService → 评估是否可迁入 AudioModule
 - AudioDecryptService → 评估是否可迁入 AudioModule
-- PrivateNotesPasswordManager → 评估是否可迁入 AuthState
 
 ---
 
@@ -383,7 +380,7 @@ EventBus 作为跨域业务事件总线保留。
 2. 规则脚本转强制 gate（违规 PR 无法合并）。
 3. 第二、三级 .shared 单例评估与退出。
 4. 导入流程逻辑断层修复。
-5. 菜单编辑命令（undo/redo/cut/copy/paste）补齐实现。
+5. ~~菜单编辑命令（undo/redo/cut/copy/paste）补齐实现。~~ 已确认通过标准 NSResponder 链正常工作（spec129 完成）。
 
 验收：
 
