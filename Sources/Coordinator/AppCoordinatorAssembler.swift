@@ -69,7 +69,7 @@ public enum AppCoordinatorAssembler {
         )
         let errorRecoveryService = ErrorRecoveryService(
             unifiedQueue: syncModule.operationQueue,
-            networkErrorHandler: NetworkErrorHandler.shared,
+            networkErrorHandler: networkModule.networkErrorHandler,
             onlineStateManager: syncModule.onlineStateManager
         )
         let networkRecoveryHandler = NetworkRecoveryHandler(
