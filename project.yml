@@ -88,6 +88,9 @@ targets:
       - path: Tests/NativeEditorTests
       - path: Tests/ViewModelTests
       - path: Tests/CoordinatorTests
+      - path: Tests/CommandTests
+      - path: Tests/ImportTests
+      - path: Tests/SyncTests
       - path: Tests/Mocks
       - path: Tests/TestSupport
     settings:
