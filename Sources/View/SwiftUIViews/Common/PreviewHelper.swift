@@ -7,10 +7,8 @@
     /// 为 SwiftUI Preview 提供测试用的 Coordinator 和数据
     @MainActor
     public class PreviewHelper {
-        /// 单例
-        public static let shared = PreviewHelper()
 
-        private init() {}
+        public init() {}
 
         /// 创建用于 Preview 的 AppCoordinator
         public func createPreviewCoordinator() -> AppCoordinator {

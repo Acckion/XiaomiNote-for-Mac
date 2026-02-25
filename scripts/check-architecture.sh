@@ -75,15 +75,11 @@ ALLOWED_SHARED=(
     "Sources/Service/Core/LogService.swift"
     "Sources/Store/DatabaseService.swift"
     "Sources/Core/EventBus/EventBus.swift"
-    "Sources/Network/NetworkMonitor.swift"
-    "Sources/Network/NetworkErrorHandler.swift"
-    "Sources/Network/NetworkLogger.swift"
     "Sources/Service/Audio/AudioPlayerService.swift"
     "Sources/Service/Audio/AudioRecorderService.swift"
     "Sources/Service/Audio/AudioDecryptService.swift"
     "Sources/Features/Auth/Infrastructure/PrivateNotesPasswordManager.swift"
     "Sources/State/ViewOptionsManager.swift"
-    "Sources/View/SwiftUIViews/Common/PreviewHelper.swift"
     "Sources/Service/Core/PerformanceService.swift"
 )
 

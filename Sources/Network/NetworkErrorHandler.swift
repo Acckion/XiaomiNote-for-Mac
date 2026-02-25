@@ -5,8 +5,6 @@ import Foundation
 /// 统一处理网络请求错误，包括错误分类、重试策略和错误恢复
 @MainActor
 final class NetworkErrorHandler {
-    @available(*, deprecated, message: "使用 NetworkModule 注入的实例")
-    static let shared = NetworkErrorHandler()
 
     // MARK: - 配置
 
