@@ -43,10 +43,9 @@ jobs:
 
       - name: Architecture Check
         id: arch-check
-        continue-on-error: true
         run: |
           chmod +x scripts/check-architecture.sh
-          ./scripts/check-architecture.sh 2>&1 | tee arch-check-output.txt
+          ./scripts/check-architecture.sh --strict 2>&1 | tee arch-check-output.txt
           echo "ARCH_RESULT<<EOF" >> $GITHUB_ENV
           cat arch-check-output.txt >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
