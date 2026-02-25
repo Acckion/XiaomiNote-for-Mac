@@ -89,12 +89,13 @@ public struct SyncModule: Sendable {
             syncStateManager: stateManager,
             eventBus: EventBus.shared,
             idMappingRegistry: registry,
-            handlers: handlers
+            handlers: handlers,
+            networkMonitor: networkModule.networkMonitor
         )
         self.operationProcessor = processor
 
         self.onlineStateManager = OnlineStateManager(
-            networkMonitor: NetworkMonitor.shared,
+            networkMonitor: networkModule.networkMonitor,
             apiClient: networkModule.apiClient,
             eventBus: EventBus.shared
         )

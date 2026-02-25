@@ -692,7 +692,8 @@ struct ChangePasswordDialogView: View {
             operationQueue: sm.operationQueue,
             idMappingRegistry: sm.idMappingRegistry,
             localStorage: sm.localStorage,
-            operationProcessor: sm.operationProcessor
+            operationProcessor: sm.operationProcessor,
+            networkMonitor: nm.networkMonitor
         ),
         apiClient: nm.apiClient,
         operationQueue: sm.operationQueue,

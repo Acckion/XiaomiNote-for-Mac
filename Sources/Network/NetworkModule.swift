@@ -9,6 +9,7 @@ public struct NetworkModule: Sendable {
     public let requestManager: NetworkRequestManager
     public let apiClient: APIClient
     let networkLogger: NetworkLogger
+    let networkMonitor: NetworkMonitor
     public let noteAPI: NoteAPI
     public let folderAPI: FolderAPI
     public let fileAPI: FileAPI
@@ -20,6 +21,7 @@ public struct NetworkModule: Sendable {
     init(audioCacheService: AudioCacheService, audioConverterService: AudioConverterService) {
         self.audioCacheService = audioCacheService
         self.audioConverterService = audioConverterService
+        self.networkMonitor = NetworkMonitor()
         let manager = NetworkRequestManager()
         self.requestManager = manager
 
