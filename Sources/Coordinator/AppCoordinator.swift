@@ -212,6 +212,12 @@ public final class AppCoordinator: ObservableObject {
 
     // MARK: - 窗口管理代理
 
+    /// 创建新窗口
+    @discardableResult
+    public func createNewWindow() -> MainWindowController? {
+        windowManager.createNewWindow()
+    }
+
     /// 在新窗口中打开笔记
     public func openNoteEditorWindow(note: Note) {
         windowManager.openNoteEditorWindow(note: note)
