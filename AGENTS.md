@@ -49,7 +49,13 @@ Sources/
 │   └── ViewState           # 视图状态
 ├── Store/                  # 数据存储层（DatabaseService, NoteStore）
 ├── Sync/                   # 同步引擎
-│   ├── OperationQueue/     # 操作队列（UnifiedOperationQueue, OperationProcessor）
+│   ├── OperationQueue/     # 操作队列
+│   │   ├── OperationProcessor      # 调度层（队列处理、重试、错误分类）
+│   │   ├── OperationHandler        # handler 协议 + OperationResponseParser
+│   │   ├── NoteOperationHandler    # 笔记操作（创建、上传、删除）
+│   │   ├── FileOperationHandler    # 文件操作（图片上传、音频上传）
+│   │   ├── FolderOperationHandler  # 文件夹操作（创建、重命名、删除）
+│   │   └── UnifiedOperationQueue   # 统一操作队列
 │   ├── SyncEngine          # 同步引擎核心（1 核心 + 4 extension）
 │   ├── SyncModule          # 同步层模块工厂（构建同步层完整依赖图）
 │   └── IdMappingRegistry   # ID 映射注册表
@@ -129,7 +135,7 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 项目使用 4 个模块工厂集中构建依赖图，消除 `.shared` 单例耦合：
 
 - **NetworkModule**：构建网络层（APIClient, NetworkRequestManager, NoteAPI, FolderAPI, FileAPI, SyncAPI, UserAPI）
-- **SyncModule**：构建同步层（LocalStorageService, UnifiedOperationQueue, IdMappingRegistry, OperationProcessor, OnlineStateManager, SyncEngine）
+- **SyncModule**：构建同步层（LocalStorageService, UnifiedOperationQueue, IdMappingRegistry, OperationProcessor, OnlineStateManager, SyncEngine, NoteOperationHandler, FileOperationHandler, FolderOperationHandler）
 - **EditorModule**：构建编辑器层（FormatStateManager, FontSizeManager, UnifiedFormatManager, CustomRenderer 等 20 个类）
 - **AudioModule**：构建音频层（AudioCacheService, AudioConverterService, AudioUploadService, AudioPanelStateManager）
 
