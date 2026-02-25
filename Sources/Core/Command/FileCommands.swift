@@ -26,9 +26,19 @@
                     for url in panel.urls {
                         Task {
                             do {
-                                let content = try String(contentsOf: url, encoding: .utf8)
                                 let fileName = url.deletingPathExtension().lastPathComponent
-                                await createImportedNote(title: fileName, content: content, context: context)
+                                let ext = url.pathExtension.lowercased()
+                                let xmlContent: String
+
+                                if ext == "rtf" {
+                                    let data = try Data(contentsOf: url)
+                                    xmlContent = ImportContentConverter.rtfToXML(data)
+                                } else {
+                                    let text = try String(contentsOf: url, encoding: .utf8)
+                                    xmlContent = ImportContentConverter.plainTextToXML(text)
+                                }
+
+                                await createImportedNote(title: fileName, xmlContent: xmlContent, context: context)
                             } catch {
                                 await MainActor.run {
                                     let errorAlert = NSAlert()
@@ -64,7 +74,8 @@
                             do {
                                 let content = try String(contentsOf: url, encoding: .utf8)
                                 let fileName = url.deletingPathExtension().lastPathComponent
-                                await createImportedNote(title: fileName, content: content, context: context)
+                                let xmlContent = ImportContentConverter.markdownToXML(content)
+                                await createImportedNote(title: fileName, xmlContent: xmlContent, context: context)
                             } catch {
                                 await MainActor.run {
                                     let errorAlert = NSAlert()
@@ -277,15 +288,14 @@
     }
 
     /// 创建导入笔记并选中
-    @MainActor private func createImportedNote(title: String, content: String, context: CommandContext) async {
+    @MainActor private func createImportedNote(title: String, xmlContent: String, context: CommandContext) async {
         let coordinator = context.coordinator
         let folderId = coordinator.folderState.selectedFolder?.id ?? "0"
-        let normalizedContent = content.isEmpty ? "<new-format/><text indent=\"1\"></text>" : content
 
         do {
             let note = try await coordinator.noteStore.createNoteOffline(
                 title: title,
-                content: normalizedContent,
+                content: xmlContent,
                 folderId: folderId
             )
             coordinator.noteListState.selectedNote = note
