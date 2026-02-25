@@ -57,6 +57,7 @@
 		245D9741AB7D6080E13FFC94 /* DebugSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D3A6928ABBEDCA697FAF45 /* DebugSettingsView.swift */; };
 		24752713BABD19E2204E8ED6 /* MiNoteToolbarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D9E193F6285E5B73F3B182D /* MiNoteToolbarItem.swift */; };
 		26517317A9D369CAE431E7B5 /* NoteEditorToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5FB964505F0C450D3D69407 /* NoteEditorToolbar.swift */; };
+		274E63BFF4662C8C325B118C /* FolderAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDD47124913EFDE123AFDAE /* FolderAPI.swift */; };
 		294D0DF19F2472D4AC026720 /* ParseError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200971EAE6287951D287C342 /* ParseError.swift */; };
 		2A59C922B7349F51B0B98911 /* MenuStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE6AF79FE75F5025AC8B1512 /* MenuStateManager.swift */; };
 		2A74FA69CF4E5E398B778A5D /* NotePreviewImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C4FF27CB3405837BF0CFF73 /* NotePreviewImageView.swift */; };
@@ -135,7 +136,6 @@
 		657EB82DF3D8F8CF9F2C6993 /* CustomAttachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7541E75A1076D9B6B161FA81 /* CustomAttachments.swift */; };
 		6604D3C5A86CB4331A7B8650 /* EventBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F5606FE32A5486A59ADDDC3 /* EventBus.swift */; };
 		6679CB6D697F63F496B0AC9C /* XMLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C061964DD5A6DEAADE7E846E /* XMLParser.swift */; };
-		667B75B54CCC8C6FED972BAA /* FolderAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77D10EFB4DE50306F1975F85 /* FolderAPI.swift */; };
 		6723371F7CBF4512A53F9349 /* AttachmentSelectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE523F5616E916AA10F4D21D /* AttachmentSelectionManager.swift */; };
 		6729F7893BE734836B913B21 /* MainWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 253D1427C8F76E2989212651 /* MainWindowState.swift */; };
 		67CAF4F592FBE5C00C21D296 /* ToolbarItemFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A74C1A54F67378DDA7001B70 /* ToolbarItemFactory.swift */; };
@@ -457,6 +457,7 @@
 		5C1FD7A4E0EB6D572E5FFEE4 /* UnifiedOperationQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedOperationQueue.swift; sourceTree = "<group>"; };
 		5C2F3F2AC562D9D4BC70B50D /* DefaultAudioService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultAudioService.swift; sourceTree = "<group>"; };
 		5E145EF9C7B9AE363CE4B146 /* AttachmentSelectionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentSelectionState.swift; sourceTree = "<group>"; };
+		5FDD47124913EFDE123AFDAE /* FolderAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAPI.swift; sourceTree = "<group>"; };
 		60892A1BA5ACC42476B0CCD6 /* ViewOptionsState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewOptionsState.swift; sourceTree = "<group>"; };
 		61BBA4FABAA4EF6F9B4F9E24 /* AudioPanelViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPanelViewModel.swift; sourceTree = "<group>"; };
 		61BC9A5B291CE23CA31D4A63 /* NotesListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListViewController.swift; sourceTree = "<group>"; };
@@ -491,7 +492,6 @@
 		76427333A876E289B95BDD92 /* NotesListHostingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListHostingController.swift; sourceTree = "<group>"; };
 		7648C7008EF018469F094465 /* NotesListWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListWindowState.swift; sourceTree = "<group>"; };
 		77417963490BD77A45C4F955 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
-		77D10EFB4DE50306F1975F85 /* FolderAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAPI.swift; sourceTree = "<group>"; };
 		784C8EC2E34DCC736CD36F25 /* IdMappingEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdMappingEvent.swift; sourceTree = "<group>"; };
 		787A7FB08B7D3BC5065F1FAE /* CoordinatorFormatApplier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoordinatorFormatApplier.swift; sourceTree = "<group>"; };
 		78A0F747E4A33E4C13B0066E /* ToolbarItemProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarItemProtocol.swift; sourceTree = "<group>"; };
@@ -1077,6 +1077,14 @@
 			path = UI;
 			sourceTree = "<group>";
 		};
+		6B08FD80803361650962E7AB /* Infrastructure */ = {
+			isa = PBXGroup;
+			children = (
+				5FDD47124913EFDE123AFDAE /* FolderAPI.swift */,
+			);
+			path = Infrastructure;
+			sourceTree = "<group>";
+		};
 		6B4D4B1264B508010B2743CF /* TestSupport */ = {
 			isa = PBXGroup;
 			children = (
@@ -1332,6 +1340,7 @@
 			isa = PBXGroup;
 			children = (
 				D3D54F189A8DF960DF3CD79D /* Domain */,
+				6B08FD80803361650962E7AB /* Infrastructure */,
 			);
 			path = Folders;
 			sourceTree = "<group>";
@@ -1463,7 +1472,6 @@
 			isa = PBXGroup;
 			children = (
 				4C22C0F687E0E99817E3E394 /* FileAPI.swift */,
-				77D10EFB4DE50306F1975F85 /* FolderAPI.swift */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -1841,7 +1849,7 @@
 				81AD9FCDB21ABDC4245A4844 /* FlippedStackView.swift in Sources */,
 				F00707AF58806715F39E45A1 /* FloatingInfoBar.swift in Sources */,
 				AA89B01439B869CF9EE799D5 /* Folder.swift in Sources */,
-				667B75B54CCC8C6FED972BAA /* FolderAPI.swift in Sources */,
+				274E63BFF4662C8C325B118C /* FolderAPI.swift in Sources */,
 				8D1E58665F2FC107B3439CB1 /* FolderEvent.swift in Sources */,
 				7DDC498CAEF04B4438412493 /* FolderOperationHandler.swift in Sources */,
 				82093343399CF8F51530B3EB /* FolderState.swift in Sources */,
