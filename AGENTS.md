@@ -140,7 +140,33 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 
 启动链：AppDelegate → NetworkModule → SyncModule → EditorModule → AudioModule → AppCoordinator
 
-仅 13 个基础设施类保留 `static let shared`：LogService, DatabaseService, EventBus, NetworkMonitor, NetworkErrorHandler, NetworkLogger, AudioPlayerService, AudioRecorderService, AudioDecryptService, PrivateNotesPasswordManager, ViewOptionsManager, PreviewHelper, PerformanceService
+仅 13 个基础设施类保留 `static let shared`：LogService, DatabaseService, EventBus, ~~NetworkMonitor~~, ~~NetworkErrorHandler~~, ~~NetworkLogger~~, AudioPlayerService, AudioRecorderService, AudioDecryptService, PrivateNotesPasswordManager, ViewOptionsManager, PreviewHelper, PerformanceService
+
+其中 NetworkMonitor、NetworkErrorHandler、NetworkLogger 已迁入 NetworkModule 构造器注入，`static let shared` 标记为 deprecated，仅保留向后兼容。实际保留 10 个。
+
+## 架构治理
+
+项目通过 ADR 文档和自动化脚本维护架构约束。
+
+### ADR 文档
+
+位于 `docs/adr/`，记录关键架构决策：
+
+- ADR-001：依赖方向规则（Domain 层禁止 import AppKit/SwiftUI）
+- ADR-002：事件治理规则（EventBus vs NotificationCenter 使用边界）
+- ADR-003：网络主干规则（所有网络请求通过 NetworkModule）
+- ADR-004：.shared 使用规则（禁止新增 .shared 单例）
+
+### 架构检查脚本
+
+```bash
+./scripts/check-architecture.sh           # 报告模式
+./scripts/check-architecture.sh --strict  # 严格模式（违规时退出码 1）
+```
+
+检查规则：RULE-001（Domain 层 import）、RULE-002（.shared 新增）、RULE-003（EventBus 生命周期）、RULE-004（URLSession 直接使用）。
+
+CI 中已集成（continue-on-error: true），详见 `.github/workflows/build.yml`。
 
 ## 数据格式
 

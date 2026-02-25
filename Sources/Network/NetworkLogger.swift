@@ -1,6 +1,7 @@
 import Foundation
 
 actor NetworkLogger {
+    @available(*, deprecated, message: "使用 NetworkModule 注入的实例")
     static let shared = NetworkLogger()
 
     private var logs: [NetworkLogEntry] = []

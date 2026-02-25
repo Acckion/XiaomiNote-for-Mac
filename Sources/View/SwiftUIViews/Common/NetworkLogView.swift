@@ -1,11 +1,17 @@
 import SwiftUI
 
 struct NetworkLogView: View {
-    @StateObject private var viewModel = NetworkLogViewModel()
+    @StateObject private var viewModel: NetworkLogViewModel
+    private let logger: NetworkLogger
     @State private var searchText = ""
     @State private var selectedLogType: NetworkLogEntry.LogType?
     @State private var showingExportSheet = false
     @State private var showingClearAlert = false
+
+    init(logger: NetworkLogger) {
+        self.logger = logger
+        _viewModel = StateObject(wrappedValue: NetworkLogViewModel(logger: logger))
+    }
 
     var filteredLogs: [NetworkLogEntry] {
         var logs = viewModel.logs
@@ -176,7 +182,7 @@ struct NetworkLogView: View {
             Text("确定要清空所有网络日志吗？此操作不可撤销。")
         }
         .sheet(isPresented: $showingExportSheet) {
-            ExportLogView(logs: viewModel.logs)
+            ExportLogView(logs: viewModel.logs, logger: logger)
         }
     }
 
@@ -360,6 +366,7 @@ struct StatusCodeBadge: View {
 
 struct ExportLogView: View {
     let logs: [NetworkLogEntry]
+    let logger: NetworkLogger
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -393,7 +400,7 @@ struct ExportLogView: View {
 
     private func copyToClipboard() {
         Task {
-            let exportText = await NetworkLogger.shared.exportLogs()
+            let exportText = await logger.exportLogs()
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.setString(exportText, forType: .string)
@@ -404,7 +411,7 @@ struct ExportLogView: View {
 
     private func saveToFile() {
         Task {
-            let exportText = await NetworkLogger.shared.exportLogs()
+            let exportText = await logger.exportLogs()
 
             let savePanel = NSSavePanel()
             savePanel.title = "保存网络日志"
@@ -436,31 +443,35 @@ struct ExportLogView: View {
 @MainActor
 class NetworkLogViewModel: ObservableObject {
     @Published var logs: [NetworkLogEntry] = []
+    private let logger: NetworkLogger
+
+    init(logger: NetworkLogger) {
+        self.logger = logger
+    }
 
     func refreshLogs() {
         Task {
-            logs = await NetworkLogger.shared.getLogs()
+            logs = await logger.getLogs()
         }
     }
 
     func clearLogs() {
         Task {
-            await NetworkLogger.shared.clearLogs()
-            logs = await NetworkLogger.shared.getLogs()
+            await logger.clearLogs()
+            logs = await logger.getLogs()
         }
     }
 
     func removeLog(_ id: UUID) {
         Task {
-            var currentLogs = await NetworkLogger.shared.getLogs()
+            var currentLogs = await logger.getLogs()
             currentLogs.removeAll { $0.id == id }
 
-            // 清空并重新添加
-            await NetworkLogger.shared.clearLogs()
-            for logEntry in currentLogs.reversed() { // 因为addLogEntry是插入到开头
-                await NetworkLogger.shared.addLogEntry(logEntry)
+            await logger.clearLogs()
+            for logEntry in currentLogs.reversed() {
+                await logger.addLogEntry(logEntry)
             }
-            logs = await NetworkLogger.shared.getLogs()
+            logs = await logger.getLogs()
         }
     }
 }

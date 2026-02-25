@@ -70,7 +70,7 @@ public final class NetworkRequestManager: ObservableObject {
 
     // MARK: - 依赖
 
-    private let errorHandler = NetworkErrorHandler.shared
+    private let errorHandler: NetworkErrorHandler
     private var onlineStateManager: OnlineStateManager?
 
     /// 注入的 APIClient（NetworkModule 创建时传入，用于 401 刷新后获取新 headers）
@@ -101,7 +101,8 @@ public final class NetworkRequestManager: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
 
-    init() {
+    init(errorHandler: NetworkErrorHandler) {
+        self.errorHandler = errorHandler
         startProcessingLoop()
     }
 

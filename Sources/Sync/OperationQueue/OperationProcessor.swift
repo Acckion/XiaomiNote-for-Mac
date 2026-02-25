@@ -26,6 +26,7 @@ public actor OperationProcessor {
     private let syncStateManager: SyncStateManager
     private let eventBus: EventBus
     private let idMappingRegistry: IdMappingRegistry
+    private let networkMonitor: NetworkMonitor
 
     /// handler 字典，按操作类型分发
     private let handlers: [OperationType: OperationHandler]
@@ -44,7 +45,8 @@ public actor OperationProcessor {
         syncStateManager: SyncStateManager,
         eventBus: EventBus,
         idMappingRegistry: IdMappingRegistry,
-        handlers: [OperationType: OperationHandler]
+        handlers: [OperationType: OperationHandler],
+        networkMonitor: NetworkMonitor
     ) {
         self.operationQueue = operationQueue
         self.apiClient = apiClient
@@ -52,12 +54,13 @@ public actor OperationProcessor {
         self.eventBus = eventBus
         self.idMappingRegistry = idMappingRegistry
         self.handlers = handlers
+        self.networkMonitor = networkMonitor
     }
 
     // MARK: - 网络状态检查
 
     private func isNetworkConnected() async -> Bool {
-        await MainActor.run { NetworkMonitor.shared.isConnected }
+        await MainActor.run { networkMonitor.isConnected }
     }
 
     // MARK: - 公共属性

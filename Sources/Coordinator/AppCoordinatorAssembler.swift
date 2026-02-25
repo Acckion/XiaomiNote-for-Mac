@@ -27,7 +27,8 @@ public enum AppCoordinatorAssembler {
             operationQueue: syncModule.operationQueue,
             idMappingRegistry: syncModule.idMappingRegistry,
             localStorage: syncModule.localStorage,
-            operationProcessor: syncModule.operationProcessor
+            operationProcessor: syncModule.operationProcessor,
+            networkMonitor: networkModule.networkMonitor
         )
         let syncEngine = syncModule.createSyncEngine(noteStore: noteStore)
 
@@ -68,11 +69,11 @@ public enum AppCoordinatorAssembler {
         )
         let errorRecoveryService = ErrorRecoveryService(
             unifiedQueue: syncModule.operationQueue,
-            networkErrorHandler: NetworkErrorHandler.shared,
+            networkErrorHandler: networkModule.networkErrorHandler,
             onlineStateManager: syncModule.onlineStateManager
         )
         let networkRecoveryHandler = NetworkRecoveryHandler(
-            networkMonitor: NetworkMonitor.shared,
+            networkMonitor: networkModule.networkMonitor,
             onlineStateManager: syncModule.onlineStateManager,
             operationProcessor: syncModule.operationProcessor,
             unifiedQueue: syncModule.operationQueue,

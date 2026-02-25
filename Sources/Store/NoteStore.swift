@@ -12,6 +12,7 @@ public actor NoteStore {
     private let idMappingRegistry: IdMappingRegistry
     private let localStorage: LocalStorageService
     private let operationProcessor: OperationProcessor
+    private let networkMonitor: NetworkMonitor
     private(set) var notes: [Note] = []
     private(set) var folders: [Folder] = []
     private var noteEventTask: Task<Void, Never>?
@@ -27,7 +28,8 @@ public actor NoteStore {
         operationQueue: UnifiedOperationQueue,
         idMappingRegistry: IdMappingRegistry,
         localStorage: LocalStorageService,
-        operationProcessor: OperationProcessor
+        operationProcessor: OperationProcessor,
+        networkMonitor: NetworkMonitor
     ) {
         self.db = db
         self.eventBus = eventBus
@@ -35,6 +37,7 @@ public actor NoteStore {
         self.idMappingRegistry = idMappingRegistry
         self.localStorage = localStorage
         self.operationProcessor = operationProcessor
+        self.networkMonitor = networkMonitor
     }
 
     // MARK: - 生命周期
@@ -272,7 +275,7 @@ public actor NoteStore {
 
     /// 网络可用时立即触发上传
     private func triggerImmediateUploadIfOnline(noteId: String) async {
-        let isOnline = await MainActor.run { NetworkMonitor.shared.isConnected }
+        let isOnline = await MainActor.run { networkMonitor.isConnected }
 
         if isOnline {
             if let operation = operationQueue.getPendingUpload(for: noteId) {
