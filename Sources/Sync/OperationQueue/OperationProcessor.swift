@@ -147,43 +147,9 @@ public extension OperationProcessor {
         var successCount = 0
         var failureCount = 0
 
-        for operation in pendingOperations {
-            guard await isNetworkConnected() else {
-                LogService.shared.warning(.sync, "OperationProcessor 网络断开，停止队列处理")
-                break
-            }
-
-            guard operation.status != .processing else { continue }
-
-            // noteCreate 和 cloudUpload 必须等同一笔记的文件上传全部完成后再执行
-            if operation.type == .cloudUpload || operation.type == .noteCreate {
-                let resolvedNoteId = idMappingRegistry.resolveId(operation.noteId)
-                if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
-                    operationQueue.hasPendingFileUpload(for: operation.noteId)
-                {
-                    LogService.shared.debug(.sync, "跳过 \(operation.type.rawValue)，等待文件上传完成: \(resolvedNoteId.prefix(8))...")
-                    continue
-                }
-            }
-
-            currentOperationId = operation.id
-
-            do {
-                try operationQueue.markProcessing(operation.id)
-                try await executeOperation(operation)
-                try operationQueue.markCompleted(operation.id)
-                successCount += 1
-                LogService.shared.debug(.sync, "OperationProcessor 处理成功: \(operation.id), type: \(operation.type.rawValue)")
-                await eventBus.publish(OperationEvent.operationCompleted)
-            } catch {
-                failureCount += 1
-                let errorType = classifyError(error)
-                if errorType == .authExpired {
-                    await eventBus.publish(OperationEvent.authFailed)
-                }
-                await handleOperationFailure(operation: operation, error: error)
-            }
-        }
+        let firstPassStats = await processOperationBatch(pendingOperations)
+        successCount += firstPassStats.successCount
+        failureCount += firstPassStats.failureCount
 
         currentOperationId = nil
 
@@ -191,37 +157,14 @@ public extension OperationProcessor {
 
         // 处理过程中可能有新操作入队，检查并处理
         let remainingOperations = operationQueue.getPendingOperations()
-        if !remainingOperations.isEmpty, await isNetworkConnected() {
+        if !firstPassStats.networkInterrupted,
+           !remainingOperations.isEmpty,
+           await isNetworkConnected()
+        {
             LogService.shared.debug(.sync, "发现新入队的操作，继续处理: \(remainingOperations.count)")
-            for operation in remainingOperations {
-                guard await isNetworkConnected() else { break }
-                guard operation.status != .processing else { continue }
-
-                if operation.type == .cloudUpload || operation.type == .noteCreate {
-                    let resolvedNoteId = idMappingRegistry.resolveId(operation.noteId)
-                    if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
-                        operationQueue.hasPendingFileUpload(for: operation.noteId)
-                    {
-                        continue
-                    }
-                }
-
-                currentOperationId = operation.id
-                do {
-                    try operationQueue.markProcessing(operation.id)
-                    try await executeOperation(operation)
-                    try operationQueue.markCompleted(operation.id)
-                    successCount += 1
-                    await eventBus.publish(OperationEvent.operationCompleted)
-                } catch {
-                    failureCount += 1
-                    let errorType = classifyError(error)
-                    if errorType == .authExpired {
-                        await eventBus.publish(OperationEvent.authFailed)
-                    }
-                    await handleOperationFailure(operation: operation, error: error)
-                }
-            }
+            let secondPassStats = await processOperationBatch(remainingOperations)
+            successCount += secondPassStats.successCount
+            failureCount += secondPassStats.failureCount
             currentOperationId = nil
         }
 
@@ -421,6 +364,69 @@ public extension OperationProcessor {
 // MARK: - 成功/失败处理
 
 extension OperationProcessor {
+    private struct OperationBatchStats {
+        var successCount = 0
+        var failureCount = 0
+        var networkInterrupted = false
+    }
+
+    private func processOperationBatch(_ operations: [NoteOperation]) async -> OperationBatchStats {
+        var stats = OperationBatchStats()
+
+        for operation in operations {
+            guard await isNetworkConnected() else {
+                LogService.shared.warning(.sync, "OperationProcessor 网络断开，停止队列处理")
+                stats.networkInterrupted = true
+                break
+            }
+
+            guard shouldProcessInQueue(operation) else { continue }
+
+            currentOperationId = operation.id
+
+            do {
+                try operationQueue.markProcessing(operation.id)
+                try await executeOperation(operation)
+                try operationQueue.markCompleted(operation.id)
+                stats.successCount += 1
+                LogService.shared.debug(.sync, "OperationProcessor 处理成功: \(operation.id), type: \(operation.type.rawValue)")
+                await eventBus.publish(OperationEvent.operationCompleted)
+            } catch {
+                stats.failureCount += 1
+                let errorType = classifyError(error)
+                if errorType == .authExpired {
+                    await eventBus.publish(OperationEvent.authFailed)
+                }
+                await handleOperationFailure(operation: operation, error: error)
+            }
+        }
+
+        return stats
+    }
+
+    private func shouldProcessInQueue(_ operation: NoteOperation) -> Bool {
+        guard operation.status != .processing else { return false }
+
+        if operation.status == .failed,
+           let nextRetryAt = operation.nextRetryAt,
+           nextRetryAt > Date()
+        {
+            return false
+        }
+
+        // noteCreate 和 cloudUpload 必须等同一笔记的文件上传全部完成后再执行
+        if operation.type == .cloudUpload || operation.type == .noteCreate {
+            let resolvedNoteId = idMappingRegistry.resolveId(operation.noteId)
+            if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
+                operationQueue.hasPendingFileUpload(for: operation.noteId)
+            {
+                LogService.shared.debug(.sync, "跳过 \(operation.type.rawValue)，等待文件上传完成: \(resolvedNoteId.prefix(8))...")
+                return false
+            }
+        }
+
+        return true
+    }
 
     private func handleOperationFailure(operation: NoteOperation, error: Error) async {
         let errorType = classifyError(error)
@@ -442,9 +448,6 @@ extension OperationProcessor {
         }
     }
 
-    private func handleOperationSuccess(operation: NoteOperation) async {
-        LogService.shared.debug(.sync, "OperationProcessor 操作成功: \(operation.id), type: \(operation.type.rawValue)")
-    }
 }
 
 // MARK: - 启动时处理

@@ -83,13 +83,12 @@ extension FileOperationHandler {
 
         let ext = String(uploadData.mimeType.dropFirst("image/".count))
         guard let imageData = localStorage.loadPendingUpload(fileId: uploadData.temporaryFileId, extension: ext) else {
-            // 本地文件丢失，无法重试
             LogService.shared.error(.sync, "图片本地文件丢失: \(uploadData.temporaryFileId)")
-            try operationQueue.markFailed(operation.id, error: NSError(
-                domain: "OperationProcessor", code: 404,
+            throw NSError(
+                domain: "OperationProcessor",
+                code: 404,
                 userInfo: [NSLocalizedDescriptionKey: "本地文件丢失"]
-            ), errorType: .notFound)
-            return
+            )
         }
 
         // 调用 API 上传
@@ -159,11 +158,11 @@ extension FileOperationHandler {
         // 读取本地文件
         guard let audioData = localStorage.loadPendingUpload(fileId: uploadData.temporaryFileId, extension: "mp3") else {
             LogService.shared.error(.sync, "音频本地文件丢失: \(uploadData.temporaryFileId)")
-            try operationQueue.markFailed(operation.id, error: NSError(
-                domain: "OperationProcessor", code: 404,
+            throw NSError(
+                domain: "OperationProcessor",
+                code: 404,
                 userInfo: [NSLocalizedDescriptionKey: "本地文件丢失"]
-            ), errorType: .notFound)
-            return
+            )
         }
 
         // 调用 API 上传
