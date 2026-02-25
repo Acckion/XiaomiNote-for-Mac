@@ -24,9 +24,15 @@ Sources/
 │   ├── EventBus/           # 事件总线（跨层通信）
 │   └── Pagination/         # 分页工具
 ├── Extensions/             # Swift 扩展
-├── Model/                  # 数据模型（Note, Folder, NoteMapper 等）
-├── Network/                # 网络层（APIClient, NetworkModule, NoteAPI, FolderAPI, FileAPI, SyncAPI, UserAPI）
-│   ├── API/                # 领域 API 类（按功能拆分）
+├── Features/               # 按域组织的功能模块
+│   └── Notes/              # 笔记域（Vertical Slice）
+│       ├── Domain/         # 领域模型（Note, NoteMapper, DeletedNote, NoteSortOrder 等 8 个文件）
+│       ├── Infrastructure/ # 基础设施（NoteStore, NotePreviewService, NoteOperationError, NoteAPI）
+│       ├── Application/    # 应用层状态（NoteListState, NoteEditorState）
+│       └── UI/             # 视图层（NotesListView, NoteDetailView 等 18 个文件）
+├── Model/                  # 数据模型（Folder, AuthUser, UserProfile 等非 Notes 域模型）
+├── Network/                # 网络层（APIClient, NetworkModule, FolderAPI, FileAPI, SyncAPI, UserAPI）
+│   ├── API/                # 领域 API 类（按功能拆分，NoteAPI 已迁至 Features/Notes/）
 │   └── Implementation/     # 网络协议实现
 ├── Presentation/           # 展示层辅助
 │   └── ViewModels/         # ViewModel（音频、认证、搜索等独立模块）
@@ -36,17 +42,17 @@ Sources/
 │   ├── Core/               # 核心服务（StartupSequenceManager, LogService）
 │   ├── Editor/             # 编辑器服务（EditorModule, NoteEditingCoordinator, FormatConverter）
 │   └── Protocols/          # 服务协议定义
-├── State/                  # 状态对象（替代 NotesViewModel）
+├── Shared/                 # 跨域共享
+│   └── Contracts/          # 预留协议目录（未来多 target 拆分用）
+├── State/                  # 状态对象（NoteListState/NoteEditorState 已迁至 Features/Notes/）
 │   ├── AuthState           # 认证状态
 │   ├── FolderState         # 文件夹状态
-│   ├── NoteEditorState     # 编辑器状态
-│   ├── NoteListState       # 笔记列表状态
 │   ├── SearchState         # 搜索状态
 │   ├── SyncState           # 同步状态
 │   ├── ViewOptionsState    # 视图选项状态
 │   ├── ViewOptionsManager  # 视图选项管理
 │   └── ViewState           # 视图状态
-├── Store/                  # 数据存储层（DatabaseService, NoteStore）
+├── Store/                  # 数据存储层（DatabaseService；NoteStore 已迁至 Features/Notes/）
 ├── Sync/                   # 同步引擎
 │   ├── OperationQueue/     # 操作队列
 │   │   ├── OperationProcessor      # 调度层（队列处理、重试、错误分类）
@@ -59,13 +65,13 @@ Sources/
 │   ├── SyncModule          # 同步层模块工厂（构建同步层完整依赖图）
 │   └── IdMappingRegistry   # ID 映射注册表
 ├── ToolbarItem/            # 工具栏组件
-├── View/                   # UI 视图组件
-│   ├── AppKitComponents/   # AppKit 视图控制器
+├── View/                   # UI 视图组件（笔记相关视图已迁至 Features/Notes/UI/）
+│   ├── AppKitComponents/   # AppKit 视图控制器（非 Notes 域）
 │   ├── Bridge/             # SwiftUI-AppKit 桥接（NativeEditorContext, EditorEnums, EditorContentManager, EditorFormatDetector）
 │   ├── NativeEditor/       # 原生富文本编辑器
 │   │   └── Core/           # 核心组件（NativeEditorView, NativeEditorCoordinator, CoordinatorFormatApplier, NativeTextView）
-│   ├── Shared/             # 共享组件（NoteMoveHelper 等）
-│   └── SwiftUIViews/       # SwiftUI 视图
+│   ├── Shared/             # 共享组件
+│   └── SwiftUIViews/       # SwiftUI 视图（非 Notes 域）
 └── Window/                 # 窗口控制器
     └── Controllers/        # MainWindowController（1 核心 + 6 extension）
 
