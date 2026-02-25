@@ -16,79 +16,27 @@
     public extension MainWindowController {
 
         @objc func createNewNote(_: Any?) {
-            Task {
-                await coordinator.noteListState.createNewNote(inFolder: coordinator.folderState.selectedFolderId ?? "0")
-            }
+            coordinator.commandDispatcher.dispatch(CreateNoteCommand(folderId: coordinator.folderState.selectedFolderId))
         }
 
         @objc func createNewFolder(_: Any?) {
-            // 显示新建文件夹对话框
-            let alert = NSAlert()
-            alert.messageText = "新建文件夹"
-            alert.informativeText = "请输入文件夹名称："
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "确定")
-            alert.addButton(withTitle: "取消")
-
-            let inputField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-            inputField.placeholderString = "文件夹名称"
-            alert.accessoryView = inputField
-
-            alert.window.initialFirstResponder = inputField
-
-            let response = alert.runModal()
-            if response == .alertFirstButtonReturn {
-                let folderName = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !folderName.isEmpty {
-                    Task {
-                        await coordinator.folderState.createFolder(name: folderName)
-                    }
-                }
-            }
+            coordinator.commandDispatcher.dispatch(CreateFolderCommand())
         }
 
         @objc func performSync(_: Any?) {
-            coordinator.syncState.requestFullSync(mode: .normal)
+            coordinator.commandDispatcher.dispatch(SyncCommand())
         }
 
         @objc func shareNote(_: Any?) {
-            guard let note = coordinator.noteListState.selectedNote else { return }
-
-            let sharingService = NSSharingServicePicker(items: [
-                note.title,
-                note.content,
-            ])
-
-            if let window,
-               let contentView = window.contentView
-            {
-                sharingService.show(relativeTo: NSRect.zero, of: contentView, preferredEdge: .minY)
-            }
+            coordinator.commandDispatcher.dispatch(ShareNoteCommand(window: window))
         }
 
         @objc internal func toggleStarNote(_: Any?) {
-            guard let note = coordinator.noteListState.selectedNote else { return }
-            Task {
-                await coordinator.noteListState.toggleStar(note)
-            }
+            coordinator.commandDispatcher.dispatch(ToggleStarCommand())
         }
 
         @objc internal func deleteNote(_: Any?) {
-            guard let note = coordinator.noteListState.selectedNote else { return }
-
-            let alert = NSAlert()
-            alert.messageText = "删除笔记"
-            alert.informativeText = "确定要删除笔记 \"\(note.title)\" 吗？此操作无法撤销。"
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "删除")
-            alert.addButton(withTitle: "取消")
-
-            let response = alert.runModal()
-            if response == .alertFirstButtonReturn {
-                Task {
-                    await coordinator.noteListState.deleteNote(note)
-                }
-            }
+            coordinator.commandDispatcher.dispatch(DeleteNoteCommand())
         }
 
         @objc internal func restoreNote(_: Any?) {
@@ -128,14 +76,7 @@
         }
 
         @objc internal func showSettings(_: Any?) {
-            // 显示设置窗口
-
-            // 创建设置窗口控制器
-            let settingsWindowController = SettingsWindowController(coordinator: coordinator)
-
-            // 显示窗口
-            settingsWindowController.showWindow(nil)
-            settingsWindowController.window?.makeKeyAndOrderFront(nil)
+            coordinator.commandDispatcher.dispatch(ShowSettingsCommand())
         }
 
         @objc func showLogin(_: Any?) {
@@ -564,7 +505,7 @@
         }
 
         @objc internal func performIncrementalSync(_: Any?) {
-            coordinator.syncState.requestSync(mode: .incremental)
+            coordinator.commandDispatcher.dispatch(IncrementalSyncCommand())
         }
 
         @objc internal func resetSyncStatus(_: Any?) {
