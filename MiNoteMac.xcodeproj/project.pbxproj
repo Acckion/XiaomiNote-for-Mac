@@ -58,6 +58,7 @@
 		245D9741AB7D6080E13FFC94 /* DebugSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D3A6928ABBEDCA697FAF45 /* DebugSettingsView.swift */; };
 		24752713BABD19E2204E8ED6 /* MiNoteToolbarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D9E193F6285E5B73F3B182D /* MiNoteToolbarItem.swift */; };
 		294D0DF19F2472D4AC026720 /* ParseError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200971EAE6287951D287C342 /* ParseError.swift */; };
+		2A59C922B7349F51B0B98911 /* MenuStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE6AF79FE75F5025AC8B1512 /* MenuStateManager.swift */; };
 		2AC3ACBDF8BB18683868874C /* FormatStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F212BFBE5273EA716F02ED8C /* FormatStateManager.swift */; };
 		2AC9FA0344198983CB4A7E32 /* AudioRecorderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 912AD0623157E3FEF51C3918 /* AudioRecorderService.swift */; };
 		2B2438BAD968D6DD4A91A915 /* NSColor+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408AB37D71548724EF25ABFA /* NSColor+Hex.swift */; };
@@ -620,6 +621,7 @@
 		ECC9DF49DCB152F71BF490A4 /* PrivateNotesPasswordInputDialogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateNotesPasswordInputDialogView.swift; sourceTree = "<group>"; };
 		ED3BD9C2A384231D8B8E6238 /* NoteEditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorToolbar.swift; sourceTree = "<group>"; };
 		EE5AA888EEF1A6EDA0DACD40 /* XMLRoundtripChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLRoundtripChecker.swift; sourceTree = "<group>"; };
+		EE6AF79FE75F5025AC8B1512 /* MenuStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuStateManager.swift; sourceTree = "<group>"; };
 		EE79EB83D90635D39CF02F0F /* AudioCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCacheService.swift; sourceTree = "<group>"; };
 		F115550F0ECF6A4A4F659306 /* NetworkModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkModule.swift; sourceTree = "<group>"; };
 		F1ABCE2B774CDF77B76A251D /* GalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryView.swift; sourceTree = "<group>"; };
@@ -1457,6 +1459,7 @@
 				9F386288A1CB171EBBD679BA /* MenuManager+EditMenu.swift */,
 				1D2E7AE9BE1A2A7A2FEB12DB /* MenuManager+FormatMenu.swift */,
 				E16D67DF14912FA422743986 /* MenuState.swift */,
+				EE6AF79FE75F5025AC8B1512 /* MenuStateManager.swift */,
 			);
 			name = App;
 			path = Sources/App;
@@ -1595,6 +1598,7 @@
 				341E0910293A114EF5E3E876 /* MenuManager+FormatMenu.swift in Sources */,
 				7416BF8F4AB2BD8E2D83DF93 /* MenuManager.swift in Sources */,
 				E5D9A9DC5F81933E83432991 /* MenuState.swift in Sources */,
+				2A59C922B7349F51B0B98911 /* MenuStateManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
