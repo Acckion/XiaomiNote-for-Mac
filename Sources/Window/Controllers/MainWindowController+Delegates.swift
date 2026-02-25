@@ -289,8 +289,8 @@
                 return true // 总是可以切换侧边栏
             }
 
-            // 验证撤销/重做按钮
-            if item.action == #selector(undo(_:)) || item.action == #selector(redo(_:)) {
+            // 验证撤销/重做按钮（使用 NSResponder 链标准选择器）
+            if item.action == Selector(("undo:")) || item.action == Selector(("redo:")) {
                 return coordinator.noteListState.selectedNote != nil
             }
 

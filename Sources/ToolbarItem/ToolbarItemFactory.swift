@@ -235,26 +235,28 @@
             return toolbarItem
         }
 
-        private func createUndoToolbarItem(target: AnyObject?) -> NSToolbarItem {
+        private func createUndoToolbarItem(target _: AnyObject?) -> NSToolbarItem {
             let item = BaseToolbarItem(
                 identifier: .undo,
                 title: "撤回",
                 image: NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: nil),
-                action: #selector(MainWindowController.undo(_:)),
+                action: Selector(("undo:")),
                 toolTip: "撤回"
             )
-            return item.createToolbarItem(target: target) ?? NSToolbarItem(itemIdentifier: .undo)
+            // target 传 nil，让系统通过 NSResponder 链自动路由到 NSTextView
+            return item.createToolbarItem(target: nil) ?? NSToolbarItem(itemIdentifier: .undo)
         }
 
-        private func createRedoToolbarItem(target: AnyObject?) -> NSToolbarItem {
+        private func createRedoToolbarItem(target _: AnyObject?) -> NSToolbarItem {
             let item = BaseToolbarItem(
                 identifier: .redo,
                 title: "重做",
                 image: NSImage(systemSymbolName: "arrow.uturn.forward", accessibilityDescription: nil),
-                action: #selector(MainWindowController.redo(_:)),
+                action: Selector(("redo:")),
                 toolTip: "重做"
             )
-            return item.createToolbarItem(target: target) ?? NSToolbarItem(itemIdentifier: .redo)
+            // target 传 nil，让系统通过 NSResponder 链自动路由到 NSTextView
+            return item.createToolbarItem(target: nil) ?? NSToolbarItem(itemIdentifier: .redo)
         }
 
         private func createCheckboxToolbarItem(target: AnyObject?) -> NSToolbarItem {

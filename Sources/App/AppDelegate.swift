@@ -93,6 +93,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
 
         // 延迟注入 formatStateManager（EditorModule 在此时已创建）
         menuActionHandler.setFormatStateManager(editorModule.formatStateManager)
+        menuActionHandler.setCommandDispatcher(coordinator.commandDispatcher)
     }
 
     public func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
@@ -162,34 +163,6 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
 
     @objc func showHelp(_ sender: Any?) {
         menuActionHandler.showHelp(sender)
-    }
-
-    // 注意：撤销、重做、剪切、复制、粘贴、全选等基础编辑操作
-    // 现在使用标准 NSText/NSResponder 选择器，由系统自动路由到响应链
-    // 以下方法保留用于向后兼容和工具栏按钮
-
-    @objc func undo(_ sender: Any?) {
-        menuActionHandler.undo(sender)
-    }
-
-    @objc func redo(_ sender: Any?) {
-        menuActionHandler.redo(sender)
-    }
-
-    @objc func cut(_ sender: Any?) {
-        menuActionHandler.cut(sender)
-    }
-
-    @objc func copy(_ sender: Any?) {
-        menuActionHandler.copy(sender)
-    }
-
-    @objc func paste(_ sender: Any?) {
-        menuActionHandler.paste(sender)
-    }
-
-    @objc func selectAll(_ sender: Any?) {
-        menuActionHandler.selectAll(sender)
     }
 
     @objc func toggleBold(_ sender: Any?) {

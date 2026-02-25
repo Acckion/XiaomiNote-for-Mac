@@ -19,6 +19,9 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 格式状态管理器
     private var formatStateManager: FormatStateManager?
 
+    /// 命令调度器
+    private var commandDispatcher: CommandDispatcher?
+
     /// 菜单状态
     /// 用于管理菜单项的启用/禁用和勾选状态
     private(set) var menuState = MenuState()
@@ -39,6 +42,11 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 延迟注入格式状态管理器（AppDelegate 启动链中 EditorModule 创建后调用）
     func setFormatStateManager(_ manager: FormatStateManager) {
         formatStateManager = manager
+    }
+
+    /// 延迟注入命令调度器
+    func setCommandDispatcher(_ dispatcher: CommandDispatcher) {
+        commandDispatcher = dispatcher
     }
 
     // MARK: - 公共方法
@@ -322,11 +330,13 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 显示设置窗口
     func showSettings(_: Any?) {
-        let settingsWindowController = SettingsWindowController(coordinator: mainWindowController?.coordinator)
-
-        // 显示窗口
-        settingsWindowController.showWindow(nil)
-        settingsWindowController.window?.makeKeyAndOrderFront(nil)
+        if let commandDispatcher {
+            commandDispatcher.dispatch(ShowSettingsCommand())
+        } else {
+            let settingsWindowController = SettingsWindowController(coordinator: mainWindowController?.coordinator)
+            settingsWindowController.showWindow(nil)
+            settingsWindowController.window?.makeKeyAndOrderFront(nil)
+        }
     }
 
     /// 显示帮助
@@ -339,44 +349,6 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
     /// 创建新窗口
     func createNewWindow(_: Any?) {
         windowManager.createNewWindow()
-    }
-
-    // MARK: - 编辑菜单动作
-
-    /// 撤销
-    func undo(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.undo(sender)
-    }
-
-    /// 重做
-    func redo(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.redo(sender)
-    }
-
-    /// 剪切
-    func cut(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.cut(sender)
-    }
-
-    /// 复制
-    func copy(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.copy(sender)
-    }
-
-    /// 粘贴
-    func paste(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.paste(sender)
-    }
-
-    /// 全选
-    func selectAll(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.selectAll(sender)
     }
 
     // MARK: - 格式菜单动作
@@ -739,25 +711,35 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 创建新笔记
     func createNewNote(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.createNewNote(sender)
+        if let commandDispatcher {
+            commandDispatcher.dispatch(CreateNoteCommand(
+                folderId: mainWindowController?.coordinator.folderState.selectedFolderId
+            ))
+        } else {
+            mainWindowController?.createNewNote(sender)
+        }
     }
 
     /// 创建新文件夹
     func createNewFolder(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.createNewFolder(sender)
+        if let commandDispatcher {
+            commandDispatcher.dispatch(CreateFolderCommand())
+        } else {
+            mainWindowController?.createNewFolder(sender)
+        }
     }
 
     /// 共享笔记
     func shareNote(_ sender: Any?) {
-        // 转发到主窗口控制器
-        mainWindowController?.shareNote(sender)
+        if let commandDispatcher {
+            commandDispatcher.dispatch(ShareNoteCommand(window: mainWindowController?.window))
+        } else {
+            mainWindowController?.shareNote(sender)
+        }
     }
 
     /// 导入笔记
     func importNotes(_: Any?) {
-        // 实现导入功能
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
@@ -772,18 +754,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                         do {
                             let content = try String(contentsOf: url, encoding: .utf8)
                             let fileName = url.deletingPathExtension().lastPathComponent
-
-                            let newNote = Note(
-                                id: UUID().uuidString,
-                                title: fileName,
-                                content: content,
-                                folderId: self?.mainWindowController?.coordinator.folderState.selectedFolder?.id ?? "0",
-                                isStarred: false,
-                                createdAt: Date(),
-                                updatedAt: Date()
-                            )
-
-                            await self?.mainWindowController?.coordinator.noteListState.createNewNote(inFolder: newNote.folderId)
+                            await self?.createImportedNote(title: fileName, content: content)
                         } catch {
                             DispatchQueue.main.async {
                                 let errorAlert = NSAlert()
@@ -832,8 +803,12 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
 
     /// 置顶/取消置顶笔记
     func toggleStarNote(_: Any?) {
-        guard let note = mainWindowController?.coordinator.noteListState.selectedNote else { return }
-        Task { await mainWindowController?.coordinator.noteListState.toggleStar(note) }
+        if let commandDispatcher {
+            commandDispatcher.dispatch(ToggleStarCommand())
+        } else {
+            guard let note = mainWindowController?.coordinator.noteListState.selectedNote else { return }
+            Task { await mainWindowController?.coordinator.noteListState.toggleStar(note) }
+        }
     }
 
     /// 复制笔记
@@ -877,18 +852,7 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
                         do {
                             let content = try String(contentsOf: url, encoding: .utf8)
                             let fileName = url.deletingPathExtension().lastPathComponent
-
-                            let newNote = Note(
-                                id: UUID().uuidString,
-                                title: fileName,
-                                content: content,
-                                folderId: self?.mainWindowController?.coordinator.folderState.selectedFolder?.id ?? "0",
-                                isStarred: false,
-                                createdAt: Date(),
-                                updatedAt: Date()
-                            )
-
-                            await self?.mainWindowController?.coordinator.noteListState.createNewNote(inFolder: newNote.folderId)
+                            await self?.createImportedNote(title: fileName, content: content)
                         } catch {
                             DispatchQueue.main.async {
                                 let errorAlert = NSAlert()
@@ -1014,6 +978,25 @@ class MenuActionHandler: NSObject, NSMenuItemValidation {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "确定")
         alert.runModal()
+    }
+
+    /// 创建导入笔记并选中
+    private func createImportedNote(title: String, content: String) async {
+        guard let coordinator = mainWindowController?.coordinator else { return }
+
+        let folderId = coordinator.folderState.selectedFolder?.id ?? "0"
+        let normalizedContent = content.isEmpty ? "<new-format/><text indent=\"1\"></text>" : content
+
+        do {
+            let note = try await coordinator.noteStore.createNoteOffline(
+                title: title,
+                content: normalizedContent,
+                folderId: folderId
+            )
+            coordinator.noteListState.selectedNote = note
+        } catch {
+            LogService.shared.error(.app, "导入笔记落库失败: \(error)")
+        }
     }
 
     /// 将笔记导出为 PDF

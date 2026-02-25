@@ -36,9 +36,6 @@ spec100-spec119 已完成大量模块级重构，但项目在顶层仍存在以�
 2. Domain 层不依赖 AppKit/SwiftUI/SQLite/API 细节。
 3. 组合根只负责装配，不承载业务流程逻辑。
 4. 全局事件和系统通知职责分离，统一治理。
-5. 通过静态检查阻止架构回退。
-
----
 
 ## 4. 目标架构（Target Architecture）
 
@@ -218,22 +215,17 @@ EventBus 作为跨域业务事件总线保留。
    - 涉及模块：`MenuActionHandler`、`MainWindowController+Actions`、`MenuManager`。
    - 完成标准：`undo/redo/cut/copy/paste/selectAll` 全部具备真实行为，禁止空实现占位。
 
-2. 导入导出流程下沉
-   - 目标：将 UI 中的导入导出业务逻辑迁移为 Application UseCase，修复“导入内容未真实写入”的逻辑断层。
-   - 涉及模块：`MenuActionHandler`、`SettingsView`、`NoteStore` 相关调用点。
-   - 完成标准：导入链路具备回归测试，验证标题/内容/文件夹归属的真实落库结果。
-
-3. OperationProcessor 第一层拆分
+2. OperationProcessor 第一层拆分
    - 目标：先把超大执行器拆出按操作类型的 handler 接口（note/folder/file），降低单点复杂度。
    - 涉及模块：`OperationProcessor`、`UnifiedOperationQueue`。
    - 完成标准：主流程行为保持一致，重试策略与错误分类回归通过。
 
-4. 过渡网络链路清理
+3. 过渡网络链路清理
    - 目标：消除并行网络主干，统一到 `NetworkModule -> APIClient -> 各 API`。
    - 涉及模块：`NetworkClient`、`NetworkClientProtocol`、`DefaultAuthenticationService`、`DefaultImageService`（未接入主干部分）。
    - 完成标准：主干调用路径无过渡链路依赖，相关死代码已移除或归档。
 
-5. 组合根轻量瘦身
+4. 组合根轻量瘦身
    - 目标：将 `AppCoordinator` 的装配逻辑先抽到 assembler，减少后续目录迁移阻力。
    - 涉及模块：`AppCoordinator` 与启动装配链路。
    - 完成标准：`AppCoordinator` 仅保留协调职责，不承载大块实例构建逻辑。
