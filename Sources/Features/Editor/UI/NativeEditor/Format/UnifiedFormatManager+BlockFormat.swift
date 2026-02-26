@@ -14,13 +14,14 @@ public extension UnifiedFormatManager {
 
     /// 应用块级格式到选中文本
     ///
-    /// 使用 BlockFormatHandler 统一处理所有块级格式
+    /// 段落格式通过 ParagraphManager 统一处理
     ///
     /// - Parameters:
     ///   - format: 要应用的块级格式
     ///   - range: 应用范围
     ///   - toggle: 是否切换模式（默认 true）
-    func applyBlockFormat(_ format: TextFormat, to range: NSRange, toggle: Bool = true) {
+    ///   - paragraphManager: ParagraphManager 实例
+    func applyBlockFormat(_ format: TextFormat, to range: NSRange, toggle _: Bool = true, paragraphManager: ParagraphManager? = nil) {
         guard let textStorage = currentTextStorage else {
             return
         }
@@ -29,91 +30,86 @@ public extension UnifiedFormatManager {
             return
         }
 
-        BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: toggle)
+        // 对齐格式单独处理
+        if format.category == .alignment {
+            let targetAlignment: NSTextAlignment = switch format {
+            case .alignCenter: .center
+            case .alignRight: .right
+            default: .left
+            }
+            ParagraphManager.toggleAlignment(targetAlignment, to: range, in: textStorage)
+            return
+        }
+
+        // 段落格式通过 ParagraphManager toggle
+        if let paragraphManager, let paragraphType = ParagraphType.from(format) {
+            paragraphManager.toggleParagraphFormat(paragraphType, to: range, in: textStorage)
+        }
     }
 
     /// 检测指定位置的块级格式
-    ///
-    /// - Parameters:
-    ///   - position: 检测位置
-    /// - Returns: 当前位置的块级格式（如果有）
     func detectBlockFormat(at position: Int) -> TextFormat? {
         guard let textStorage = currentTextStorage else {
             return nil
         }
 
-        return BlockFormatHandler.detect(at: position, in: textStorage)
+        let paragraphType = ParagraphManager.detectCurrentParagraphType(at: position, in: textStorage)
+        return paragraphType.textFormat
     }
 
     /// 检测指定位置的对齐方式
-    ///
-    /// - Parameters:
-    ///   - position: 检测位置
-    /// - Returns: 当前位置的对齐方式
     func detectAlignment(at position: Int) -> NSTextAlignment {
         guard let textStorage = currentTextStorage else {
             return .left
         }
 
-        return BlockFormatHandler.detectAlignment(at: position, in: textStorage)
+        let alignFormat = ParagraphManager.detectAlignment(at: position, in: textStorage)
+        return switch alignFormat {
+        case .center: .center
+        case .right: .right
+        default: .left
+        }
     }
 
     /// 移除块级格式
-    ///
-    /// - Parameters:
-    ///   - range: 移除范围
     func removeBlockFormat(from range: NSRange) {
         guard let textStorage = currentTextStorage else {
             return
         }
 
-        BlockFormatHandler.removeBlockFormat(from: range, in: textStorage)
+        ParagraphManager.removeBlockFormat(from: range, in: textStorage)
     }
 
     /// 检测列表项是否为空
-    ///
-    /// - Parameters:
-    ///   - position: 检测位置
-    /// - Returns: 是否为空列表项
     func isListItemEmpty(at position: Int) -> Bool {
         guard let textStorage = currentTextStorage else {
             return false
         }
 
-        return BlockFormatHandler.isListItemEmpty(at: position, in: textStorage)
+        return ParagraphManager.isListItemEmpty(at: position, in: textStorage)
     }
 
     /// 获取指定位置的列表类型
-    ///
-    /// - Parameters:
-    ///   - position: 检测位置
-    /// - Returns: 列表类型（bulletList、numberedList、checkbox 或 nil）
     func getListType(at position: Int) -> TextFormat? {
         guard let textStorage = currentTextStorage else {
             return nil
         }
 
-        return BlockFormatHandler.getListType(at: position, in: textStorage)
+        let listType = ParagraphManager.detectListType(at: position, in: textStorage)
+        switch listType {
+        case .bullet: return .bulletList
+        case .ordered: return .numberedList
+        case .checkbox: return .checkbox
+        case .none: return nil
+        }
     }
 
     /// 检测是否是列表格式
-    ///
-    /// - Parameters:
-    ///   - position: 检测位置
-    /// - Returns: 是否是列表格式
     func isList(at position: Int) -> Bool {
-        guard let textStorage = currentTextStorage else {
-            return false
-        }
-
-        return BlockFormatHandler.isList(at: position, in: textStorage)
+        getListType(at: position) != nil
     }
 
     /// 构建换行上下文
-    ///
-    /// - Parameters:
-    ///   - position: 当前光标位置
-    /// - Returns: 换行上下文
     func buildNewLineContext(at position: Int) -> NewLineContext {
         guard let textStorage = currentTextStorage else {
             return .default
@@ -121,12 +117,10 @@ public extension UnifiedFormatManager {
 
         let string = textStorage.string as NSString
 
-        // 计算安全位置，用于获取当前行范围
-        // 当光标在换行符位置时，使用前一个位置来获取当前行
         let safePositionForLineRange: Int
         if position > 0, position < textStorage.length {
             let charAtPosition = string.character(at: position)
-            if charAtPosition == 0x0A { // 换行符 \n
+            if charAtPosition == 0x0A {
                 safePositionForLineRange = position - 1
             } else {
                 safePositionForLineRange = position
@@ -139,24 +133,28 @@ public extension UnifiedFormatManager {
 
         let lineRange = string.lineRange(for: NSRange(location: safePositionForLineRange, length: 0))
 
-        // 使用安全位置来检测格式
         let blockFormat: TextFormat? = if safePositionForLineRange < textStorage.length {
-            BlockFormatHandler.detect(at: safePositionForLineRange, in: textStorage)
+            ParagraphManager.detectCurrentParagraphType(at: safePositionForLineRange, in: textStorage).textFormat
         } else if safePositionForLineRange > 0 {
-            BlockFormatHandler.detect(at: safePositionForLineRange - 1, in: textStorage)
+            ParagraphManager.detectCurrentParagraphType(at: safePositionForLineRange - 1, in: textStorage).textFormat
         } else {
             nil
         }
 
-        let alignment: NSTextAlignment = if safePositionForLineRange < textStorage.length {
-            BlockFormatHandler.detectAlignment(at: safePositionForLineRange, in: textStorage)
+        let detectedAlignment: AlignmentFormat = if safePositionForLineRange < textStorage.length {
+            ParagraphManager.detectAlignment(at: safePositionForLineRange, in: textStorage)
         } else if safePositionForLineRange > 0 {
-            BlockFormatHandler.detectAlignment(at: safePositionForLineRange - 1, in: textStorage)
+            ParagraphManager.detectAlignment(at: safePositionForLineRange - 1, in: textStorage)
         } else {
             .left
         }
+        let alignment: NSTextAlignment = switch detectedAlignment {
+        case .left: .left
+        case .center: .center
+        case .right: .right
+        }
 
-        let isListEmpty = BlockFormatHandler.isListItemEmpty(at: position, in: textStorage)
+        let isListEmpty = ParagraphManager.isListItemEmpty(at: position, in: textStorage)
 
         return NewLineContext(
             currentLineRange: lineRange,
@@ -167,24 +165,12 @@ public extension UnifiedFormatManager {
     }
 
     /// 处理换行
-    ///
-    /// 根据当前行的格式类型决定换行行为：
-    /// - 内联格式：清除，不继承
-    /// - 标题格式：清除，新行变为普通正文
-    /// - 列表格式：非空时继承，空时取消格式
-    /// - 引用格式：继承
-    /// - 对齐属性：继承
-    ///
-    /// - Returns: 是否已处理换行（true 表示已处理，调用方不需要执行默认行为）
     func handleNewLine() -> Bool {
         guard let textView = currentTextView else {
             return false
         }
 
-        // 构建换行上下文
         let context = NewLineContext.build(from: textView)
-
-        // 调用 NewLineHandler 处理换行
         return NewLineHandler.handleNewLine(context: context, textView: textView)
     }
 }
