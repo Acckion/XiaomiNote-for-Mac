@@ -12,6 +12,7 @@ import AppKit
 extension NativeEditorContext {
 
     /// 检测光标位置的特殊元素
+    /// 工具栏格式状态由 CursorFormatManager 统一驱动，此处仅负责附件类型识别
     func detectSpecialElementAtCursor() {
         guard !nsAttributedText.string.isEmpty else {
             currentSpecialElement = nil
@@ -24,29 +25,23 @@ extension NativeEditorContext {
             return
         }
 
-        // 检查是否有附件
         let attributes = nsAttributedText.attributes(at: position, effectiveRange: nil)
 
         if let attachment = attributes[.attachment] as? NSTextAttachment {
-            // 识别附件类型
             if let checkboxAttachment = attachment as? InteractiveCheckboxAttachment {
                 currentSpecialElement = .checkbox(
                     checked: checkboxAttachment.isChecked,
                     level: checkboxAttachment.level
                 )
-                // 更新工具栏状态
-                toolbarButtonStates[.checkbox] = true
             } else if attachment is HorizontalRuleAttachment {
                 currentSpecialElement = .horizontalRule
             } else if let bulletAttachment = attachment as? BulletAttachment {
                 currentSpecialElement = .bulletPoint(indent: bulletAttachment.indent)
-                toolbarButtonStates[.bulletList] = true
             } else if let orderAttachment = attachment as? OrderAttachment {
                 currentSpecialElement = .numberedItem(
                     number: orderAttachment.number,
                     indent: orderAttachment.indent
                 )
-                toolbarButtonStates[.numberedList] = true
             } else if let imageAttachment = attachment as? ImageAttachment {
                 currentSpecialElement = .image(
                     fileId: imageAttachment.fileId,
@@ -57,10 +52,6 @@ extension NativeEditorContext {
             }
         } else {
             currentSpecialElement = nil
-            // 清除特殊元素相关的工具栏状态
-            toolbarButtonStates[.checkbox] = false
-            toolbarButtonStates[.bulletList] = false
-            toolbarButtonStates[.numberedList] = false
         }
     }
 }
