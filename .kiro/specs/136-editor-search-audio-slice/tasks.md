@@ -82,71 +82,71 @@
 
 ## 任务 8：Editor 域迁移 — 服务层（REQ-2 部分）
 
-- [ ] 8. 迁移 Editor 域服务层
-  - [ ] 8.1 创建 `Features/Editor/` 四层目录结构（Domain/Infrastructure/Application/UI）
-  - [ ] 8.2 `git mv Sources/Service/Editor/EditorConfiguration.swift Sources/Features/Editor/Domain/`
-  - [ ] 8.3 `git mv Sources/Service/Editor/TitleIntegrationError.swift Sources/Features/Editor/Domain/`
-  - [ ] 8.4 `git mv Sources/Service/Editor/FormatConverter Sources/Features/Editor/Infrastructure/FormatConverter`
-  - [ ] 8.5 `git mv Sources/Service/Editor/NoteEditingCoordinator.swift Sources/Features/Editor/Application/`
-  - [ ] 8.6 执行 `xcodegen generate` + 编译验证
-  - [ ] 8.7 提交：`refactor(editor): 迁移编辑器服务层到 Features/Editor`
+- [x] 8. 迁移 Editor 域服务层
+  - [x] 8.1 创建 `Features/Editor/` 四层目录结构（Domain/Infrastructure/Application/UI）
+  - [x] 8.2 `git mv Sources/Service/Editor/EditorConfiguration.swift Sources/Features/Editor/Domain/`
+  - [x] 8.3 `git mv Sources/Service/Editor/TitleIntegrationError.swift Sources/Features/Editor/Domain/`
+  - [x] 8.4 `git mv Sources/Service/Editor/FormatConverter Sources/Features/Editor/Infrastructure/FormatConverter`
+  - [x] 8.5 `git mv Sources/Service/Editor/NoteEditingCoordinator.swift Sources/Features/Editor/Application/`
+  - [x] 8.6 执行 `xcodegen generate` + 编译验证
+  - [x] 8.7 提交：`refactor(editor): 迁移编辑器服务层到 Features/Editor`
 
 ## 任务 9：Editor 域迁移 — UI 层（REQ-2 部分）
 
-- [ ] 9. 迁移 Editor 域 UI 层
-  - [ ] 9.1 创建 `Sources/Features/Editor/UI/Bridge/` 目录
-  - [ ] 9.2 `git mv Sources/View/Bridge/*.swift Sources/Features/Editor/UI/Bridge/`
-  - [ ] 9.3 `git mv Sources/View/NativeEditor Sources/Features/Editor/UI/NativeEditor`
-  - [ ] 9.4 `git mv Sources/View/SwiftUIViews/Common/NativeFormatMenuView.swift Sources/Features/Editor/UI/`
-  - [ ] 9.5 `git mv Sources/View/SwiftUIViews/Common/XMLDebugEditorView.swift Sources/Features/Editor/UI/`
-  - [ ] 9.6 执行 `xcodegen generate` + 编译验证
-  - [ ] 9.7 提交：`refactor(editor): 迁移编辑器 UI 层到 Features/Editor/UI`
+- [x] 9. 迁移 Editor 域 UI 层
+  - [x] 9.1 创建 `Sources/Features/Editor/UI/Bridge/` 目录
+  - [x] 9.2 `git mv Sources/View/Bridge/*.swift Sources/Features/Editor/UI/Bridge/`
+  - [x] 9.3 `git mv Sources/View/NativeEditor Sources/Features/Editor/UI/NativeEditor`
+  - [x] 9.4 `git mv Sources/View/SwiftUIViews/Common/NativeFormatMenuView.swift Sources/Features/Editor/UI/`
+  - [x] 9.5 `git mv Sources/View/SwiftUIViews/Common/XMLDebugEditorView.swift Sources/Features/Editor/UI/`
+  - [x] 9.6 执行 `xcodegen generate` + 编译验证
+  - [x] 9.7 提交：`refactor(editor): 迁移编辑器 UI 层到 Features/Editor/UI`
 
 ## 任务 10：Audio 域迁移（REQ-3）
 
-- [ ] 10. 迁移 Audio 域
-  - [ ] 10.1 创建 `Features/Audio/` 四层目录结构（Domain/Infrastructure/Application/UI）
-  - [ ] 10.2 迁移 Infrastructure 层：AudioCacheService、AudioConverterService、AudioUploadService、AudioPlayerService、AudioRecorderService、AudioDecryptService → `Features/Audio/Infrastructure/`
-  - [ ] 10.3 `git mv Sources/Service/Audio/Implementation/DefaultAudioService.swift Sources/Features/Audio/Infrastructure/`
-  - [ ] 10.4 `git mv Sources/Service/Audio/AudioPanelStateManager.swift Sources/Features/Audio/Application/`
-  - [ ] 10.5 `git mv Sources/Presentation/ViewModels/AudioPanel/AudioPanelViewModel.swift Sources/Features/Audio/Application/`
-  - [ ] 10.6 `git mv Sources/View/SwiftUIViews/Audio/*.swift Sources/Features/Audio/UI/`
-  - [ ] 10.7 执行 `xcodegen generate` + 编译验证
-  - [ ] 10.8 提交：`refactor(audio): 迁移音频域到 Features/Audio`
+- [x] 10. 迁移 Audio 域
+  - [x] 10.1 创建 `Features/Audio/` 四层目录结构（Domain/Infrastructure/Application/UI）
+  - [x] 10.2 迁移 Infrastructure 层：AudioCacheService、AudioConverterService、AudioUploadService、AudioPlayerService、AudioRecorderService、AudioDecryptService → `Features/Audio/Infrastructure/`
+  - [x] 10.3 `git mv Sources/Service/Audio/Implementation/DefaultAudioService.swift Sources/Features/Audio/Infrastructure/`
+  - [x] 10.4 `git mv Sources/Service/Audio/AudioPanelStateManager.swift Sources/Features/Audio/Application/`
+  - [x] 10.5 `git mv Sources/Presentation/ViewModels/AudioPanel/AudioPanelViewModel.swift Sources/Features/Audio/Application/`
+  - [x] 10.6 `git mv Sources/View/SwiftUIViews/Audio/*.swift Sources/Features/Audio/UI/`
+  - [x] 10.7 执行 `xcodegen generate` + 编译验证
+  - [x] 10.8 提交：`refactor(audio): 迁移音频域到 Features/Audio`
 
 ## 任务 11：Common 视图分流（REQ-9 部分）
 
-- [ ] 11. 分流 Common 目录剩余视图到对应域
-  - [ ] 11.1 迁移到 Notes 域 UI：ContentAreaView、SidebarView、GalleryView、FloatingInfoBar、TrashView
-  - [ ] 11.2 迁移到 Sync 域 UI：OperationProcessorProgressView、OfflineOperationsProgressView
-  - [ ] 11.3 执行 `xcodegen generate` + 编译验证
-  - [ ] 11.4 提交：`refactor(ui): 分流 Common 视图到对应域`
+- [x] 11. 分流 Common 目录剩余视图到对应域
+  - [x] 11.1 迁移到 Notes 域 UI：ContentAreaView、SidebarView、GalleryView、FloatingInfoBar、TrashView
+  - [x] 11.2 迁移到 Sync 域 UI：OperationProcessorProgressView、OfflineOperationsProgressView
+  - [x] 11.3 执行 `xcodegen generate` + 编译验证
+  - [x] 11.4 提交：`refactor(ui): 分流 Common 视图到对应域`
 
 ## 任务 12：模块工厂迁移 + 启动链迁移（REQ-13、REQ-12 部分）
 
-- [ ] 12. 迁移模块工厂和启动链文件
-  - [ ] 12.1 `git mv Sources/Service/Editor/EditorModule.swift Sources/App/Composition/`
-  - [ ] 12.2 `git mv Sources/Service/Audio/AudioModule.swift Sources/App/Composition/`
-  - [ ] 12.3 `git mv Sources/Service/Core/StartupSequenceManager.swift Sources/App/Runtime/`
-  - [ ] 12.4 `git mv Sources/Service/Core/ErrorRecoveryService.swift Sources/App/Runtime/`
-  - [ ] 12.5 执行 `xcodegen generate` + 编译验证
-  - [ ] 12.6 提交：`refactor: 迁移模块工厂到 App/Composition，启动链到 App/Runtime`
+- [x] 12. 迁移模块工厂和启动链文件
+  - [x] 12.1 `git mv Sources/Service/Editor/EditorModule.swift Sources/App/Composition/`
+  - [x] 12.2 `git mv Sources/Service/Audio/AudioModule.swift Sources/App/Composition/`
+  - [x] 12.3 `git mv Sources/Service/Core/StartupSequenceManager.swift Sources/App/Runtime/`
+  - [x] 12.4 `git mv Sources/Service/Core/ErrorRecoveryService.swift Sources/App/Runtime/`
+  - [x] 12.5 执行 `xcodegen generate` + 编译验证
+  - [x] 12.6 提交：`refactor: 迁移模块工厂到 App/Composition，启动链到 App/Runtime`
 
 ## 任务 13：遗留代码归档 + 旧目录清理（REQ-11、REQ-12）
 
-- [ ] 13. 归档遗留代码并清理旧目录
-  - [ ] 13.1 `git mv Sources/Network/Implementation/DefaultNetworkMonitor.swift Sources/Legacy/`
-  - [ ] 13.2 删除已清空的旧目录（State、Presentation、Service、View、Core/EventBus、Core/Pagination、Extensions、ToolbarItem、Store、Network/Implementation）
-  - [ ] 13.3 删除 Legacy/README.md（已有实际文件）
-  - [ ] 13.4 执行 `xcodegen generate` + 编译验证
-  - [ ] 13.5 提交：`refactor: 归档遗留代码，清理旧目录结构`
+- [x] 13. 归档遗留代码并清理旧目录
+  - [x] 13.1 `git mv Sources/Network/Implementation/DefaultNetworkMonitor.swift Sources/Legacy/`
+  - [x] 13.2 删除已清空的旧目录（State、Presentation、Service、View、Core/EventBus、Core/Pagination、Extensions、ToolbarItem、Store、Network/Implementation）
+  - [x] 13.3 删除 Legacy/README.md（已有实际文件）
+  - [x] 13.4 执行 `xcodegen generate` + 编译验证
+  - [x] 13.5 提交：`refactor: 归档遗留代码，清理旧目录结构`
 
 ## 任务 14：文档更新（REQ-14）
 
-- [ ] 14. 更新项目文档
-  - [ ] 14.1 更新 `AGENTS.md` 中的项目结构描述，反映最终 7 域 Features 布局和 Shared 三层结构
-  - [ ] 14.2 更新 `architecture-next.md` 第 5 节，标记目录重组方案已完成
-  - [ ] 14.3 更新 `docs/plans/TODO`，标记 spec-136 完成
-  - [ ] 14.4 更新架构检查脚本 `scripts/check-architecture.sh` 中的路径规则（如有需要）
-  - [ ] 14.5 执行 `xcodegen generate` + 编译验证
-  - [ ] 14.6 提交：`docs: 更新项目结构文档，反映目录全面对齐`
+- [x] 14. 更新项目文档
+  - [x] 14.1 更新 `AGENTS.md` 中的项目结构描述，反映最终 7 域 Features 布局和 Shared 三层结构
+  - [x] 14.2 更新 `architecture-next.md` 第 5 节，标记目录重组方案已完成
+  - [x] 14.3 更新 `docs/plans/TODO`，标记 spec-136 完成
+  - [x] 14.4 更新架构检查脚本 `scripts/check-architecture.sh` 中的路径规则（RULE-001 扫描范围扩展到所有 Features/*/Domain，RULE-002 允许列表路径更新）
+  - [x] 14.5 执行 `xcodegen generate` + 编译验证
+  - [x] 14.6 提交：`docs: 更新项目结构文档，反映目录全面对齐`

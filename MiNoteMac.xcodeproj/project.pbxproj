@@ -340,7 +340,6 @@
 		14AF3AB4C804FF6E24F013DD /* Notification+MenuState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Notification+MenuState.swift"; sourceTree = "<group>"; };
 		15811FA92949855A4AB3459C /* SidebarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewController.swift; sourceTree = "<group>"; };
 		1655E058800FCA432D3C624C /* Color+MiNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+MiNote.swift"; sourceTree = "<group>"; };
-		1678819487287AA46624A5A9 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		16D35FDC0C14F96A3006EBE1 /* AudioAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAttachment.swift; sourceTree = "<group>"; };
 		17047363C4697D0C614A843A /* NativeFormatMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFormatMenuView.swift; sourceTree = "<group>"; };
 		1776B3DC9297493240333217 /* CommandDispatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandDispatcherTests.swift; sourceTree = "<group>"; };
@@ -1416,7 +1415,6 @@
 		BD4D7B377A85229C3477CE8F /* UI */ = {
 			isa = PBXGroup;
 			children = (
-				1678819487287AA46624A5A9 /* .gitkeep */,
 				744B6BC6584E1F5C52026929 /* OfflineOperationsProgressView.swift */,
 				56386FFACE43560935768530 /* OperationProcessorProgressView.swift */,
 			);

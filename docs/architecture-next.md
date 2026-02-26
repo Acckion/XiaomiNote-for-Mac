@@ -139,7 +139,16 @@ Sources/
 └── Legacy/                  # 过渡期兼容代码，带退出时间
 ```
 
-### 5.2 迁移约束
+### 5.2 迁移状态
+
+目录重组已在 spec-136 中全面完成（2026-02-26）。当前目录结构已与 5.1 目标一致：
+- 7 个业务域已全部就位：Notes、Editor、Sync、Auth、Folders、Search、Audio
+- Shared 三层结构已建立：Contracts、Kernel、UICommons
+- App 三层结构已建立：Bootstrap、Composition、Runtime
+- 旧技术层目录（State、View、Presentation、Service、Extensions、ToolbarItem、Store）已清理
+- Legacy 目录仅保留 DefaultNetworkMonitor.swift
+
+### 5.3 迁移约束（持续生效）
 
 1. `Legacy/` 是临时缓冲区，所有迁入文件必须带"删除截止版本"。
 2. 新增功能禁止落入旧技术层目录。

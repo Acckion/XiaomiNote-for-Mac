@@ -17,75 +17,70 @@
 Sources/
 ├── App/                    # 应用程序入口
 │   ├── Bootstrap/          # 启动相关（AppDelegate, AppLaunchAssembler）
-│   ├── Composition/        # 组合根（AppCoordinatorAssembler, NotesAssembler, SyncAssembler, AuthAssembler, EditorAssembler, AudioAssembler）
-│   ├── Runtime/            # 运行时状态（AppStateManager）
+│   ├── Composition/        # 组合根 + 模块工厂（AppCoordinatorAssembler, NotesAssembler, SyncAssembler, AuthAssembler, EditorAssembler, AudioAssembler, EditorModule, AudioModule）
+│   ├── Runtime/            # 运行时管理（AppStateManager, StartupSequenceManager, ErrorRecoveryService）
 │   ├── App.swift           # SwiftUI 入口
 │   └── Menu*/              # 菜单相关（MenuManager, MenuStateManager, MenuState, MenuItemTag）
 ├── Coordinator/            # 协调器（AppCoordinator）
 ├── Core/                   # 核心基础设施
-│   ├── Cache/              # 缓存工具
-│   ├── Command/            # 命令模式（AppCommand, CommandDispatcher, NoteCommands, SyncCommands, FormatCommands, FileCommands, WindowCommands, ViewCommands, UtilityCommands）
-│   ├── Concurrency/        # 并发工具
-│   ├── EventBus/           # 事件总线（跨层通信）
-│   └── Pagination/         # 分页工具
-├── Extensions/             # Swift 扩展
-├── Features/               # 按域组织的功能模块
+│   └── Command/            # 命令模式（AppCommand, NoteCommands, SyncCommands, FormatCommands, FileCommands, WindowCommands, ViewCommands, UtilityCommands, ImportContentConverter）
+├── Features/               # 按域组织的功能模块（7 个业务域）
 │   ├── Notes/              # 笔记域（Vertical Slice）
-│   │   ├── Domain/         # 领域模型（Note, NoteMapper, DeletedNote, NoteSortOrder 等 8 个文件）
+│   │   ├── Domain/         # 领域模型（Note, NoteMapper, DeletedNote, NoteSortOrder, NoteImageAttachment, NoteHistoryVersion, PendingUploadEntry, TitleExtractionResult）
 │   │   ├── Infrastructure/ # 基础设施（NoteStore, NotePreviewService, NoteOperationError, NoteAPI）
 │   │   ├── Application/    # 应用层状态（NoteListState, NoteEditorState）
-│   │   └── UI/             # 视图层（NotesListView, NoteDetailView 等 18 个文件）
+│   │   └── UI/             # 视图层（NotesListView, NoteDetailView, ContentAreaView, SidebarView, GalleryView, FloatingInfoBar, TrashView 等 22 个文件）
+│   ├── Editor/             # 编辑器域（Vertical Slice）
+│   │   ├── Domain/         # 领域模型（EditorConfiguration, TitleIntegrationError）
+│   │   ├── Infrastructure/ # 基础设施（FormatConverter/：XML 解析、AST、双向转换等 18 个文件）
+│   │   ├── Application/    # 应用层（NoteEditingCoordinator）
+│   │   └── UI/             # 视图层
+│   │       ├── Bridge/     # SwiftUI-AppKit 桥接（NativeEditorContext, EditorEnums, FormatStateManager 等 16 个文件）
+│   │       └── NativeEditor/ # 原生富文本编辑器（Core, Format, Attachment, Manager, Model, Performance 等 40+ 个文件）
 │   ├── Sync/               # 同步域（Vertical Slice）
 │   │   ├── Domain/         # 领域模型（NoteOperation, OperationData, FileUploadOperationData, IdMapping, SyncGuard）
 │   │   ├── Infrastructure/ # 基础设施
 │   │   │   ├── Engine/     # SyncEngine（1 核心 + 4 extension）、SyncStateManager
-│   │   │   ├── OperationQueue/ # OperationProcessor、OperationHandler、NoteOperationHandler、FileOperationHandler、FolderOperationHandler、UnifiedOperationQueue
+│   │   │   ├── OperationQueue/ # OperationProcessor、OperationHandler、NoteOperationHandler、FileOperationHandler、FolderOperationHandler、UnifiedOperationQueue、OperationFailurePolicy、OperationQueueConfig
 │   │   │   └── API/        # SyncAPI
 │   │   ├── Application/    # SyncState、SyncCoordinator
-│   │   └── UI/             # 预留（当前无独立 UI）
+│   │   └── UI/             # OfflineOperationsProgressView、OperationProcessorProgressView
 │   ├── Auth/               # 认证域（Vertical Slice）
 │   │   ├── Domain/         # 领域模型（AuthUser, UserProfile）
 │   │   ├── Infrastructure/ # 基础设施（UserAPI, PassTokenManager, PrivateNotesPasswordManager）
 │   │   ├── Application/    # AuthState
-│   │   └── UI/             # 预留（当前无独立 UI）
-│   └── Folders/            # 文件夹域（Vertical Slice）
-│       ├── Domain/         # 领域模型（Folder）
-│       ├── Infrastructure/ # 基础设施（FolderAPI）
-│       ├── Application/    # FolderState
-│       └── UI/             # 预留（当前无独立 UI）
-├── Model/                  # 数据模型（跨域共享模型；AuthUser/UserProfile/Folder 已迁至 Features/）
-├── Network/                # 网络层（APIClient, NetworkModule, FileAPI）
-│   ├── API/                # 领域 API 类（NoteAPI 已迁至 Features/Notes/，SyncAPI 已迁至 Features/Sync/，UserAPI 已迁至 Features/Auth/，FolderAPI 已迁至 Features/Folders/）
-│   └── Implementation/     # 网络协议实现
-├── Presentation/           # 展示层辅助
-│   └── ViewModels/         # ViewModel（音频、搜索等独立模块）
-├── Service/                # 业务服务层
-│   ├── Audio/              # 音频服务（AudioModule, AudioCacheService, AudioConverterService, AudioUploadService, AudioPanelStateManager）
-│   ├── Cache/              # 缓存服务
-│   ├── Core/               # 核心服务（StartupSequenceManager, LogService；PassTokenManager/PrivateNotesPasswordManager 已迁至 Features/Auth/）
-│   ├── Editor/             # 编辑器服务（EditorModule, NoteEditingCoordinator, FormatConverter）
-│   └── Protocols/          # 服务协议定义
-├── Shared/                 # 跨域共享
-│   ├── Contracts/          # 预留协议目录（未来多 target 拆分用）
-│   ├── Kernel/             # 核心基础设施（计划迁入 EventBus、LogService）
-│   └── UICommons/          # 共享 UI 组件（计划迁入）
-├── State/                  # 状态对象（AuthState/FolderState 已迁至 Features/，NoteListState/NoteEditorState 已迁至 Features/Notes/，SyncState 已迁至 Features/Sync/）
-│   ├── SearchState         # 搜索状态
-│   ├── ViewOptionsState    # 视图选项状态
-│   ├── ViewOptionsManager  # 视图选项管理
-│   └── ViewState           # 视图状态
-├── Store/                  # 数据存储层（DatabaseService；NoteStore 已迁至 Features/Notes/）
-├── Legacy/                 # 历史遗留代码过渡目录（逐步清空）
-├── ToolbarItem/            # 工具栏组件
-├── View/                   # UI 视图组件（笔记相关视图已迁至 Features/Notes/UI/）
-│   ├── AppKitComponents/   # AppKit 视图控制器（非 Notes 域）
-│   ├── Bridge/             # SwiftUI-AppKit 桥接（NativeEditorContext, EditorEnums, EditorContentManager, EditorFormatDetector）
-│   ├── NativeEditor/       # 原生富文本编辑器
-│   │   └── Core/           # 核心组件（NativeEditorView, NativeEditorCoordinator, CoordinatorFormatApplier, NativeTextView）
-│   ├── Shared/             # 共享组件
-│   └── SwiftUIViews/       # SwiftUI 视图（非 Notes 域）
-└── Window/                 # 窗口控制器
-    └── Controllers/        # MainWindowController（1 核心 + 6 extension）
+│   │   └── UI/             # LoginView, LoginWindowController, PrivateNotesPasswordInputDialogView, PrivateNotesVerificationView
+│   ├── Folders/            # 文件夹域（Vertical Slice）
+│   │   ├── Domain/         # 领域模型（Folder）
+│   │   ├── Infrastructure/ # 基础设施（FolderAPI）
+│   │   ├── Application/    # FolderState
+│   │   └── UI/             # 预留
+│   ├── Search/             # 搜索域（Vertical Slice）
+│   │   ├── Domain/         # 预留
+│   │   ├── Infrastructure/ # 预留
+│   │   ├── Application/    # SearchState
+│   │   └── UI/             # SearchFilterMenuContent
+│   └── Audio/              # 音频域（Vertical Slice）
+│       ├── Domain/         # 预留
+│       ├── Infrastructure/ # AudioCacheService, AudioConverterService, AudioUploadService, AudioPlayerService, AudioRecorderService, AudioDecryptService, DefaultAudioService
+│       ├── Application/    # AudioPanelStateManager, AudioPanelViewModel
+│       └── UI/             # AudioPanelView, AudioPlayerView, AudioRecorderUploadView, AudioRecorderView
+├── Network/                # 网络层（APIClient, NetworkModule, NetworkRequestManager, FileAPI 等）
+├── Shared/                 # 跨域共享（三层结构）
+│   ├── Contracts/          # 跨域协议（AudioServiceProtocol, CacheServiceProtocol, NetworkMonitorProtocol, NoteStorageProtocol）
+│   ├── Kernel/             # 核心基础设施
+│   │   ├── EventBus/       # 事件总线（EventBus, AppEvent, NoteUpdateEvent）
+│   │   ├── Extensions/     # Swift 扩展（NSColor+Hex, NSWindow+MiNote, Notification+FormatState, Notification+MenuState）
+│   │   ├── Store/          # 数据存储（DatabaseService + extensions, DatabaseMigrationManager, LocalStorageService, MemoryCacheManager）
+│   │   ├── Cache/          # 缓存（DefaultCacheService）
+│   │   └── *.swift         # LogService, PerformanceService, PreviewHelper, Pageable, ViewOptionsManager, ViewOptionsState, ViewState
+│   └── UICommons/          # 共享 UI 组件
+│       ├── Settings/       # 设置视图（SettingsView, DebugSettingsView, EditorSettingsView 等 6 个文件）
+│       └── Toolbar/        # 工具栏（MainWindowToolbarDelegate, ToolbarItemFactory, ToolbarItemProtocol, ToolbarVisibilityManager）
+├── Window/                 # 窗口控制器
+│   ├── Controllers/        # MainWindowController（1 核心 + 6 extension）、SettingsWindowController、DebugWindowController 等
+│   └── State/              # WindowState, WindowStateManager, MainWindowState 等
+├── Legacy/                 # 历史遗留代码过渡目录（DefaultNetworkMonitor.swift）
 
 Tests/                      # 测试代码
 References/                 # 参考项目（不参与编译）
@@ -151,10 +146,10 @@ SwiftUI 视图层 (View ← 读取 State 对象)
 
 项目使用 4 个模块工厂集中构建依赖图，消除 `.shared` 单例耦合：
 
-- **NetworkModule**：构建网络层（APIClient, NetworkRequestManager, NoteAPI, FolderAPI, FileAPI, SyncAPI, UserAPI）
-- **SyncModule**：构建同步层（LocalStorageService, UnifiedOperationQueue, IdMappingRegistry, OperationProcessor, OnlineStateManager, SyncEngine, NoteOperationHandler, FileOperationHandler, FolderOperationHandler）
-- **EditorModule**：构建编辑器层（FormatStateManager, FontSizeManager, UnifiedFormatManager, CustomRenderer 等 20 个类）
-- **AudioModule**：构建音频层（AudioCacheService, AudioConverterService, AudioUploadService, AudioPanelStateManager）
+- **NetworkModule**（`Sources/Network/`）：构建网络层（APIClient, NetworkRequestManager, NoteAPI, FolderAPI, FileAPI, SyncAPI, UserAPI）
+- **SyncModule**（`Sources/Features/Sync/Infrastructure/`）：构建同步层（LocalStorageService, UnifiedOperationQueue, IdMappingRegistry, OperationProcessor, OnlineStateManager, SyncEngine, NoteOperationHandler, FileOperationHandler, FolderOperationHandler）
+- **EditorModule**（`Sources/App/Composition/`）：构建编辑器层（FormatStateManager, FontSizeManager, UnifiedFormatManager, CustomRenderer 等 20 个类）
+- **AudioModule**（`Sources/App/Composition/`）：构建音频层（AudioCacheService, AudioConverterService, AudioUploadService, AudioPanelStateManager）
 
 启动链：AppDelegate → NetworkModule → SyncModule → EditorModule → AudioModule → AppCoordinator
 
@@ -194,7 +189,7 @@ CI 中已集成为强制门禁（`--strict` 模式，违规阻塞 PR），详见
 
 ## 数据库迁移指南
 
-项目使用版本化迁移机制管理数据库结构变更，迁移文件位于 `Sources/Store/DatabaseMigrationManager.swift`。
+项目使用版本化迁移机制管理数据库结构变更，迁移文件位于 `Sources/Shared/Kernel/Store/DatabaseMigrationManager.swift`。
 
 ### 添加新迁移
 
