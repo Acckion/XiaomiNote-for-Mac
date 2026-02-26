@@ -67,7 +67,9 @@
         public init() {}
 
         public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.increaseFontSize(nil)
+            if let fsm = context.coordinator.formatStateManager, fsm.hasActiveEditor {
+                fsm.increaseFontSize()
+            }
         }
     }
 
@@ -76,7 +78,9 @@
         public init() {}
 
         public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.decreaseFontSize(nil)
+            if let fsm = context.coordinator.formatStateManager, fsm.hasActiveEditor {
+                fsm.decreaseFontSize()
+            }
         }
     }
 
@@ -195,7 +199,9 @@
         public init() {}
 
         public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.increaseIndent(nil)
+            if let fsm = context.coordinator.formatStateManager, fsm.hasActiveEditor {
+                fsm.increaseIndent()
+            }
         }
     }
 
@@ -204,7 +210,9 @@
         public init() {}
 
         public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.decreaseIndent(nil)
+            if let fsm = context.coordinator.formatStateManager, fsm.hasActiveEditor {
+                fsm.decreaseIndent()
+            }
         }
     }
 

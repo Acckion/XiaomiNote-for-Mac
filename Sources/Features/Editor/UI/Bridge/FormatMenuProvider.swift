@@ -46,6 +46,22 @@ public protocol FormatMenuProvider: AnyObject {
     /// 清除对齐格式（恢复为左对齐）
     func clearAlignmentFormat()
 
+    // MARK: - 缩进操作
+
+    /// 增加缩进
+    func increaseIndent()
+
+    /// 减少缩进
+    func decreaseIndent()
+
+    // MARK: - 字号操作
+
+    /// 增大字体
+    func increaseFontSize()
+
+    /// 减小字体
+    func decreaseFontSize()
+
     // MARK: - 状态发布
 
     /// 格式状态变化发布者
@@ -56,6 +72,14 @@ public protocol FormatMenuProvider: AnyObject {
 // MARK: - 协议默认实现
 
 public extension FormatMenuProvider {
+
+    /// 缩进操作默认实现（空操作）
+    func increaseIndent() {}
+    func decreaseIndent() {}
+
+    /// 字号操作默认实现（空操作）
+    func increaseFontSize() {}
+    func decreaseFontSize() {}
 
     /// 切换格式的默认实现
     /// 如果格式已激活则移除，否则应用

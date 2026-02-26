@@ -855,41 +855,19 @@
         // MARK: - 格式菜单动作
 
         @objc func increaseFontSize(_: Any?) {
-            guard coordinator.noteListState.selectedNote != nil else { return }
-            // TODO(spec-121): FontSizeManager 暂无 increase/decrease API
-            LogService.shared.debug(.window, "increaseFontSize 待实现")
+            coordinator.commandDispatcher.dispatch(IncreaseFontSizeCommand())
         }
 
         @objc func decreaseFontSize(_: Any?) {
-            guard coordinator.noteListState.selectedNote != nil else { return }
-            // TODO(spec-121): FontSizeManager 暂无 increase/decrease API
-            LogService.shared.debug(.window, "decreaseFontSize 待实现")
+            coordinator.commandDispatcher.dispatch(DecreaseFontSizeCommand())
         }
 
         @objc func increaseIndent(_: Any?) {
-
-            guard coordinator.noteListState.selectedNote != nil else {
-                return
-            }
-
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.increaseIndent()
-            } else {
-                LogService.shared.error(.window, "无法获取 NativeEditorContext")
-            }
+            coordinator.commandDispatcher.dispatch(IncreaseIndentCommand())
         }
 
         @objc func decreaseIndent(_: Any?) {
-
-            guard coordinator.noteListState.selectedNote != nil else {
-                return
-            }
-
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.decreaseIndent()
-            } else {
-                LogService.shared.error(.window, "无法获取 NativeEditorContext")
-            }
+            coordinator.commandDispatcher.dispatch(DecreaseIndentCommand())
         }
 
         @objc func alignLeft(_: Any?) {
