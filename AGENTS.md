@@ -15,8 +15,13 @@
 
 ```
 Sources/
-├── App/                    # 应用程序入口（AppDelegate, MenuManager, MenuStateManager, AppStateManager）
-├── Coordinator/            # 协调器（AppCoordinator；SyncCoordinator 已迁至 Features/Sync/）
+├── App/                    # 应用程序入口
+│   ├── Bootstrap/          # 启动相关（AppDelegate, AppLaunchAssembler）
+│   ├── Composition/        # 组合根（AppCoordinatorAssembler, NotesAssembler, SyncAssembler, AuthAssembler, EditorAssembler, AudioAssembler）
+│   ├── Runtime/            # 运行时状态（AppStateManager）
+│   ├── App.swift           # SwiftUI 入口
+│   └── Menu*/              # 菜单相关（MenuManager, MenuStateManager, MenuState, MenuItemTag）
+├── Coordinator/            # 协调器（AppCoordinator）
 ├── Core/                   # 核心基础设施
 │   ├── Cache/              # 缓存工具
 │   ├── Command/            # 命令模式（AppCommand, CommandDispatcher, NoteCommands, SyncCommands, FormatCommands, FileCommands, WindowCommands, ViewCommands, UtilityCommands）
@@ -61,13 +66,16 @@ Sources/
 │   ├── Editor/             # 编辑器服务（EditorModule, NoteEditingCoordinator, FormatConverter）
 │   └── Protocols/          # 服务协议定义
 ├── Shared/                 # 跨域共享
-│   └── Contracts/          # 预留协议目录（未来多 target 拆分用）
+│   ├── Contracts/          # 预留协议目录（未来多 target 拆分用）
+│   ├── Kernel/             # 核心基础设施（计划迁入 EventBus、LogService）
+│   └── UICommons/          # 共享 UI 组件（计划迁入）
 ├── State/                  # 状态对象（AuthState/FolderState 已迁至 Features/，NoteListState/NoteEditorState 已迁至 Features/Notes/，SyncState 已迁至 Features/Sync/）
 │   ├── SearchState         # 搜索状态
 │   ├── ViewOptionsState    # 视图选项状态
 │   ├── ViewOptionsManager  # 视图选项管理
 │   └── ViewState           # 视图状态
 ├── Store/                  # 数据存储层（DatabaseService；NoteStore 已迁至 Features/Notes/）
+├── Legacy/                 # 历史遗留代码过渡目录（逐步清空）
 ├── ToolbarItem/            # 工具栏组件
 ├── View/                   # UI 视图组件（笔记相关视图已迁至 Features/Notes/UI/）
 │   ├── AppKitComponents/   # AppKit 视图控制器（非 Notes 域）

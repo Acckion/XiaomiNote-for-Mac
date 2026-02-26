@@ -1,6 +1,5 @@
 #if DEBUG
     import Foundation
-    import MiNoteLibrary
 
     /// Preview 辅助工具
     ///
