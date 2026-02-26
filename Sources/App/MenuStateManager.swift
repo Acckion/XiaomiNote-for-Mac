@@ -232,11 +232,6 @@ class MenuStateManager: NSObject, NSMenuItemValidation {
         // 更新笔记数量显示状态
         newState.isNoteCountVisible = ViewOptionsManager.shared.showNoteCount
 
-        // 从 FormatStateManager 读取最新格式状态作为兜底
-        if let latestState = formatStateManager?.currentState {
-            currentFormatState = latestState
-        }
-
         menuState = newState
     }
 
