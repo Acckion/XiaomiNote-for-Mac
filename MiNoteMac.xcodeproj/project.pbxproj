@@ -37,7 +37,6 @@
 		138D6365EF90722915FE6EFA /* ViewOptionsState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0779264A0BA2B47F9DB66808 /* ViewOptionsState.swift */; };
 		13C94FA68BD0452FA7212771 /* DebugWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ADA099997AC3611FED4FD09 /* DebugWindowController.swift */; };
 		13D76978933D6691194F681D /* AutoSaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1ADB9DC0A71108E186F8D47 /* AutoSaveManager.swift */; };
-		15D42DF292AB8AAC17F7E541 /* NetworkLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D7AE5F796BAE511255387EE /* NetworkLogView.swift */; };
 		1853E4786D5BE3CA00CBB6BD /* EditorEnums.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E4E4294B55A6A41F105FCFA /* EditorEnums.swift */; };
 		18C2003FCED7F7E222832040 /* SearchFilterMenuContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACB1C96C93E01F938195236 /* SearchFilterMenuContent.swift */; };
 		1908A718ABC57FAEE9B861F6 /* AudioPanelViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B677E48A304E00E82AC02CC5 /* AudioPanelViewModel.swift */; };
@@ -214,7 +213,6 @@
 		A906182D6E90CCF767B53243 /* UnifiedOperationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C1FD7A4E0EB6D572E5FFEE4 /* UnifiedOperationQueue.swift */; };
 		A9166D9DBE27269516F4CFFC /* XMLNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E98D168BFA61C572F4B637F /* XMLNormalizer.swift */; };
 		AA967363686B18A2B667220C /* AppStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 467432CB6E5196B1645663D9 /* AppStateManager.swift */; };
-		AB2F63368CD51C8668ECDA96 /* NetworkLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215A9F846947EB8FE74FF6F7 /* NetworkLogger.swift */; };
 		ABA8530EE400624675D23032 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CF86724CE9681926E4E83EB /* SyncCoordinator.swift */; };
 		AC7C746F93DD3E0098F88D30 /* AttributeLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510AEF3164BF92113100A588 /* AttributeLayer.swift */; };
 		ACD0AB04D1516B9EFB9BAF25 /* MenuManager+FormatMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27FEAD1F8AD62B31EF07810C /* MenuManager+FormatMenu.swift */; };
@@ -350,7 +348,6 @@
 		20C574E9F9C214CAD8785E86 /* FormatStateSynchronizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatStateSynchronizer.swift; sourceTree = "<group>"; };
 		20EBCEF6F539F442D83F9D1F /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		21055B23CF76FC58407823CE /* NoteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailView.swift; sourceTree = "<group>"; };
-		215A9F846947EB8FE74FF6F7 /* NetworkLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogger.swift; sourceTree = "<group>"; };
 		220034954E0B66DD478E6095 /* TrashWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashWindowController.swift; sourceTree = "<group>"; };
 		2331CFE5F86D151FDAD4506E /* FolderOperationHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderOperationHandler.swift; sourceTree = "<group>"; };
 		253D1427C8F76E2989212651 /* MainWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowState.swift; sourceTree = "<group>"; };
@@ -483,7 +480,6 @@
 		86233D26380C0DB7286FE03E /* NoteCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteCardView.swift; sourceTree = "<group>"; };
 		8888C0F1B62BFB9A1D8D06F5 /* XMLRoundtripDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLRoundtripDebugView.swift; sourceTree = "<group>"; };
 		8D5B6C51B0CAA5E9F8D854C3 /* QuoteBlockRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuoteBlockRenderer.swift; sourceTree = "<group>"; };
-		8D7AE5F796BAE511255387EE /* NetworkLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogView.swift; sourceTree = "<group>"; };
 		8DC0C048A28D0AE39C83AD01 /* ImageStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStorageManager.swift; sourceTree = "<group>"; };
 		8E74E12A185AA486D673081C /* PendingUploadEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingUploadEntry.swift; sourceTree = "<group>"; };
 		8EB4DC9957FDBE09746AE16F /* SyncGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncGuard.swift; sourceTree = "<group>"; };
@@ -716,7 +712,6 @@
 		0F00355325B7BAF21D8F6623 /* UICommons */ = {
 			isa = PBXGroup;
 			children = (
-				8D7AE5F796BAE511255387EE /* NetworkLogView.swift */,
 				343AD3F376015013501B0F05 /* OnlineStatusIndicator.swift */,
 				15811FA92949855A4AB3459C /* SidebarViewController.swift */,
 				262BC4A603A82DC70F7F5C4B /* Settings */,
@@ -915,7 +910,6 @@
 				DE348C538EE5A1892E14B10D /* DefaultNetworkMonitor.swift */,
 				05B3251A48BCDCD589C03984 /* MiNoteError.swift */,
 				3DA1FC1DB2C4B725933C5B90 /* NetworkErrorHandler.swift */,
-				215A9F846947EB8FE74FF6F7 /* NetworkLogger.swift */,
 				F115550F0ECF6A4A4F659306 /* NetworkModule.swift */,
 				C85E3F212EFE5309CA8DA279 /* NetworkMonitor.swift */,
 				C60702B3363ABB4271317254 /* NetworkRecoveryHandler.swift */,
@@ -1860,8 +1854,6 @@
 				38DAA368F2BA567BADFFCB30 /* NativeFormatProvider.swift in Sources */,
 				87558F0AA60CA73D71A05E9A /* NativeTextView.swift in Sources */,
 				D7FCCD3567CD9617DDBFF2DC /* NetworkErrorHandler.swift in Sources */,
-				15D42DF292AB8AAC17F7E541 /* NetworkLogView.swift in Sources */,
-				AB2F63368CD51C8668ECDA96 /* NetworkLogger.swift in Sources */,
 				781B97F79AEFE7FF69F390E7 /* NetworkModule.swift in Sources */,
 				D86435CD6D681E7631CC89BA /* NetworkMonitor.swift in Sources */,
 				1115F63212CC592B36637F94 /* NetworkMonitorProtocol.swift in Sources */,

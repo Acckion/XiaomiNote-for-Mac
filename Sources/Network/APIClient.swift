@@ -44,9 +44,6 @@ public actor APIClient {
     /// 注入的网络请求管理器（NetworkModule 创建时传入）
     private let requestManager: NetworkRequestManager
 
-    /// 注入的网络日志记录器（NetworkModule 创建时传入）
-    private let networkLogger: NetworkLogger
-
     /// 注入的 PassTokenManager（NetworkModule 创建后通过 setter 设置，解决循环依赖）
     private var passTokenManager: PassTokenManager?
 
@@ -58,9 +55,8 @@ public actor APIClient {
     // MARK: - 初始化
 
     /// NetworkModule 使用的构造器
-    init(requestManager: NetworkRequestManager, networkLogger: NetworkLogger) {
+    init(requestManager: NetworkRequestManager) {
         self.requestManager = requestManager
-        self.networkLogger = networkLogger
         Task {
             await loadCredentials()
         }
@@ -110,13 +106,8 @@ public actor APIClient {
         priority: RequestPriority = .normal,
         cachePolicy: NetworkRequest.CachePolicy = .noCache
     ) async throws -> sending [String: Any] {
-        let bodyString = body.flatMap { String(data: $0, encoding: .utf8) }
-        await networkLogger.logRequest(
-            url: url,
-            method: method,
-            headers: headers,
-            body: bodyString
-        )
+        let bodyPreview = body.flatMap { String(data: $0, encoding: .utf8) }
+        LogService.shared.debug(.network, "请求: \(method) \(url)" + (bodyPreview.map { "\n请求体: \(LogService.truncate($0, maxLength: 200))" } ?? ""))
 
         do {
             let manager = await getRequestManager()
@@ -131,28 +122,27 @@ public actor APIClient {
             )
 
             let responseString = String(data: response.data, encoding: .utf8)
+            let statusCode = response.response.statusCode
+            let responseLog = "响应: \(method) \(url) - 状态码: \(statusCode)" +
+                (responseString.map { "\n响应体: \(LogService.truncate($0, maxLength: 200))" } ?? "")
 
-            await networkLogger.logResponse(
-                url: url,
-                method: method,
-                statusCode: response.response.statusCode,
-                headers: response.response.allHeaderFields as? [String: String],
-                response: responseString,
-                error: nil
-            )
+            if statusCode >= 400 {
+                LogService.shared.error(.network, responseLog)
+            } else {
+                LogService.shared.debug(.network, responseLog)
+            }
 
-            if response.response.statusCode == 401 {
+            if statusCode == 401 {
                 try handle401Error(responseBody: responseString ?? "", urlString: url)
             }
 
-            if response.response.statusCode != 200 {
-                let errorMessage = responseString ?? "未知错误"
+            if statusCode != 200 {
                 throw MiNoteError.networkError(URLError(.badServerResponse))
             }
 
             return try JSONSerialization.jsonObject(with: response.data) as? [String: Any] ?? [:]
         } catch {
-            await networkLogger.logError(url: url, method: method, error: error)
+            LogService.shared.error(.network, "错误: \(method) \(url) - \(error.localizedDescription)")
             throw error
         }
     }

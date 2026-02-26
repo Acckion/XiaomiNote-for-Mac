@@ -8,7 +8,6 @@ import Foundation
 public struct NetworkModule: Sendable {
     public let requestManager: NetworkRequestManager
     public let apiClient: APIClient
-    let networkLogger: NetworkLogger
     let networkMonitor: NetworkMonitor
     let networkErrorHandler: NetworkErrorHandler
     public let noteAPI: NoteAPI
@@ -27,10 +26,7 @@ public struct NetworkModule: Sendable {
         let manager = NetworkRequestManager(errorHandler: networkErrorHandler)
         self.requestManager = manager
 
-        let logger = NetworkLogger()
-        self.networkLogger = logger
-
-        let client = APIClient(requestManager: manager, networkLogger: logger)
+        let client = APIClient(requestManager: manager)
         self.apiClient = client
 
         // 回调设置，解决 NetworkRequestManager <-> APIClient 循环依赖
