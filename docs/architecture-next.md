@@ -44,7 +44,7 @@
 
 9. ~~AppCoordinator 本身已较精简（约 200 行），但 AppCoordinatorAssembler 的手工接线代码（100+ 行）缺少按域拆分能力，随着功能增长会持续膨胀。~~ 已完成按域拆分（spec133）：Notes/Auth/Sync/Editor/Audio Assembler 已落地。
 
-10. Domain 层仍存在 1 处规则违规：`Sources/Features/Notes/Domain/Note.swift` 含 `import AppKit`（待收尾）。
+10. ~~Domain 层仍存在 1 处规则违规：`Sources/Features/Notes/Domain/Note.swift` 含 `import AppKit`（待收尾）。~~ 已修复（2026-02-26）。
 
 ---
 
@@ -428,6 +428,9 @@ EventBus 作为跨域业务事件总线保留。
 
 ## 14. 最新验收快照（2026-02-26）
 
-- 完成项：第 13 节 1/2/3/5/6 已满足，目录重组与组合根拆分已落地。
-- 待收尾：第 13 节第 7 项仍有 1 个阻塞（`Sources/Features/Notes/Domain/Note.swift` 存在 `import AppKit` 违规）。
-- 维护入口：收尾任务以 `docs/plans/TODO` 为准。
+- 完成项：第 13 节 1/2/3/5/6/7 已满足。
+- 验收结果：
+- `./scripts/check-architecture.sh --strict`：0 违规（0 error, 0 warning）。
+- `xcodebuild -project MiNoteMac.xcodeproj -scheme MiNoteMac -configuration Debug`：通过。
+- `xcodebuild test -project MiNoteMac.xcodeproj -scheme MiNoteMac -destination 'platform=macOS,arch=arm64'`：通过。
+- 维护入口：`docs/plans/TODO` 仅保留后续维护性收尾事项。

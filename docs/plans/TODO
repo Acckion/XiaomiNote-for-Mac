@@ -10,9 +10,9 @@
 
 ## 收尾项（非结构性重构）
 
-- [ ] 修复 Domain 规则违规：`Sources/Features/Notes/Domain/Note.swift` 移除 `import AppKit`。
-- [ ] 同步 `docs/architecture-next.md` 的最终验收状态描述（标注最新检查时间与结果）。
-- [ ] 清理历史计划文档中的“进行中”表述，统一改为“已完成（归档）”。
+- [x] 修复 Domain 规则违规：`Sources/Features/Notes/Domain/Note.swift` 已移除 `import AppKit`（2026-02-26）。
+- [x] 同步 `docs/architecture-next.md` 的最终验收状态描述（2026-02-26）。
+- [x] 清理历史计划文档中的“进行中”表述，统一改为“已完成（归档）”（2026-02-26）。
 
 ## 已完成记录（摘要）
 
