@@ -70,59 +70,42 @@ public extension UnifiedFormatManager {
         state.isStrikethrough = InlineFormatHandler.isFormatActive(.strikethrough, in: attributes)
         state.isHighlight = InlineFormatHandler.isFormatActive(.highlight, in: attributes)
 
-        // 检测块级格式
-        if let blockFormat = BlockFormatHandler.detect(at: detectPosition, in: textStorage) {
-            switch blockFormat {
-            case .heading1:
-                state.paragraphFormat = .heading1
-            case .heading2:
-                state.paragraphFormat = .heading2
-            case .heading3:
-                state.paragraphFormat = .heading3
-            case .bulletList:
-                state.paragraphFormat = .bulletList
-            case .numberedList:
-                state.paragraphFormat = .numberedList
-            case .checkbox:
-                state.paragraphFormat = .checkbox
-            case .quote:
-                state.isQuote = true
-            default:
-                break
-            }
+        // 检测块级格式（使用 ParagraphManager 统一检测）
+        let paragraphFormat = ParagraphManager.detectParagraphFormat(at: detectPosition, in: textStorage)
+        switch paragraphFormat {
+        case .heading1: state.paragraphFormat = .heading1
+        case .heading2: state.paragraphFormat = .heading2
+        case .heading3: state.paragraphFormat = .heading3
+        case .bulletList: state.paragraphFormat = .bulletList
+        case .numberedList: state.paragraphFormat = .numberedList
+        case .checkbox: state.paragraphFormat = .checkbox
+        case .body: break
+        }
+
+        // 引用需要单独检测（detectParagraphFormat 对引用返回 .body）
+        if ParagraphManager.isQuoteFormat(at: detectPosition, in: textStorage) {
+            state.isQuote = true
         }
 
         // 检测列表属性（缩进级别和编号）
         if state.paragraphFormat.isList {
-            // 获取列表缩进级别
             if let listIndent = attributes[.listIndent] as? Int {
                 state.listIndent = listIndent
             } else {
-                // 尝试从 ListFormatHandler 获取
-                state.listIndent = ListFormatHandler.getListIndent(in: textStorage, at: detectPosition)
+                state.listIndent = ParagraphManager.getListIndent(at: detectPosition, in: textStorage)
             }
 
-            // 获取列表编号（仅有序列表）
             if state.paragraphFormat == .numberedList {
                 if let listNumber = attributes[.listNumber] as? Int {
                     state.listNumber = listNumber
                 } else {
-                    // 尝试从 ListFormatHandler 获取
-                    state.listNumber = ListFormatHandler.getListNumber(in: textStorage, at: detectPosition)
+                    state.listNumber = ParagraphManager.getListNumber(at: detectPosition, in: textStorage)
                 }
             }
         }
 
         // 检测对齐属性
-        let alignment = BlockFormatHandler.detectAlignment(at: detectPosition, in: textStorage)
-        switch alignment {
-        case .center:
-            state.alignment = .center
-        case .right:
-            state.alignment = .right
-        default:
-            state.alignment = .left
-        }
+        state.alignment = ParagraphManager.detectAlignment(at: detectPosition, in: textStorage)
 
         return state
     }
@@ -184,50 +167,39 @@ public extension UnifiedFormatManager {
         }
 
         // 块级格式使用范围起始位置检测
-        if let blockFormat = BlockFormatHandler.detect(at: range.location, in: textStorage) {
-            switch blockFormat {
-            case .heading1:
-                state.paragraphFormat = .heading1
-            case .heading2:
-                state.paragraphFormat = .heading2
-            case .heading3:
-                state.paragraphFormat = .heading3
-            case .bulletList:
-                state.paragraphFormat = .bulletList
-            case .numberedList:
-                state.paragraphFormat = .numberedList
-            case .checkbox:
-                state.paragraphFormat = .checkbox
-            case .quote:
-                state.isQuote = true
-            default:
-                break
-            }
+        let paragraphFormat = ParagraphManager.detectParagraphFormat(at: range.location, in: textStorage)
+        switch paragraphFormat {
+        case .heading1: state.paragraphFormat = .heading1
+        case .heading2: state.paragraphFormat = .heading2
+        case .heading3: state.paragraphFormat = .heading3
+        case .bulletList: state.paragraphFormat = .bulletList
+        case .numberedList: state.paragraphFormat = .numberedList
+        case .checkbox: state.paragraphFormat = .checkbox
+        case .body: break
+        }
+
+        if ParagraphManager.isQuoteFormat(at: range.location, in: textStorage) {
+            state.isQuote = true
         }
 
         // 对齐属性使用范围起始位置检测
-        let alignment = BlockFormatHandler.detectAlignment(at: range.location, in: textStorage)
-        switch alignment {
-        case .center:
-            state.alignment = .center
-        case .right:
-            state.alignment = .right
-        default:
-            state.alignment = .left
-        }
+        state.alignment = ParagraphManager.detectAlignment(at: range.location, in: textStorage)
 
         return state
     }
 
     /// 应用格式（接受外部 textStorage 参数）
     ///
-    /// 路由到对应 Handler 处理
+    /// 路由到对应 Handler 处理：
+    /// - 内联格式：InlineFormatHandler
+    /// - 段落格式：ParagraphManager
     ///
     /// - Parameters:
     ///   - format: 格式类型
     ///   - textStorage: 文本存储
     ///   - range: 应用范围
-    func applyFormat(_ format: TextFormat, to textStorage: NSTextStorage, range: NSRange) {
+    ///   - paragraphManager: ParagraphManager 实例（段落格式 toggle 需要）
+    func applyFormat(_ format: TextFormat, to textStorage: NSTextStorage, range: NSRange, paragraphManager: ParagraphManager? = nil) {
         switch format {
         case .bold:
             InlineFormatHandler.apply(.bold, to: range, in: textStorage, toggle: true)
@@ -239,24 +211,14 @@ public extension UnifiedFormatManager {
             InlineFormatHandler.apply(.strikethrough, to: range, in: textStorage, toggle: true)
         case .highlight:
             InlineFormatHandler.apply(.highlight, to: range, in: textStorage, toggle: true)
-        case .heading1:
-            BlockFormatHandler.apply(.heading1, to: range, in: textStorage, toggle: true)
-        case .heading2:
-            BlockFormatHandler.apply(.heading2, to: range, in: textStorage, toggle: true)
-        case .heading3:
-            BlockFormatHandler.apply(.heading3, to: range, in: textStorage, toggle: true)
+        case .heading1, .heading2, .heading3, .bulletList, .numberedList, .checkbox, .quote:
+            if let paragraphManager, let paragraphType = ParagraphType.from(format) {
+                paragraphManager.toggleParagraphFormat(paragraphType, to: range, in: textStorage)
+            }
         case .alignCenter:
-            BlockFormatHandler.apply(.alignCenter, to: range, in: textStorage, toggle: true)
+            ParagraphManager.toggleAlignment(.center, to: range, in: textStorage)
         case .alignRight:
-            BlockFormatHandler.apply(.alignRight, to: range, in: textStorage, toggle: true)
-        case .bulletList:
-            ListFormatHandler.toggleBulletList(to: textStorage, range: range)
-        case .numberedList:
-            ListFormatHandler.toggleOrderedList(to: textStorage, range: range)
-        case .checkbox:
-            ListFormatHandler.toggleCheckboxList(to: textStorage, range: range)
-        case .quote:
-            BlockFormatHandler.apply(.quote, to: range, in: textStorage, toggle: true)
+            ParagraphManager.toggleAlignment(.right, to: range, in: textStorage)
         default:
             break
         }
@@ -300,15 +262,15 @@ public extension UnifiedFormatManager {
             }
             return false
         case .alignCenter:
-            return BlockFormatHandler.detectAlignment(at: position, in: textStorage) == .center
+            return ParagraphManager.detectAlignment(at: position, in: textStorage) == .center
         case .alignRight:
-            return BlockFormatHandler.detectAlignment(at: position, in: textStorage) == .right
+            return ParagraphManager.detectAlignment(at: position, in: textStorage) == .right
         case .bulletList:
-            return ListFormatHandler.detectListType(in: textStorage, at: position) == .bullet
+            return ParagraphManager.detectListType(at: position, in: textStorage) == .bullet
         case .numberedList:
-            return ListFormatHandler.detectListType(in: textStorage, at: position) == .ordered
+            return ParagraphManager.detectListType(at: position, in: textStorage) == .ordered
         case .checkbox:
-            return ListFormatHandler.detectListType(in: textStorage, at: position) == .checkbox
+            return ParagraphManager.detectListType(at: position, in: textStorage) == .checkbox
         case .quote:
             return isQuoteBlock(in: textStorage, at: position)
         default:

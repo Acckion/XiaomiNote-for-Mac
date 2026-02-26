@@ -102,7 +102,7 @@ public struct ListBehaviorHandler {
         let lineRange = string.lineRange(for: NSRange(location: safePosition, length: 0))
 
         // 检查是否是列表行（包括 checkbox）
-        let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
+        let listType = ParagraphManager.detectListType(at: lineRange.location, in: textStorage)
         guard listType != .none else {
             // 非列表行，返回行首位置
             return lineRange.location
@@ -145,7 +145,7 @@ public struct ListBehaviorHandler {
         let lineRange = string.lineRange(for: NSRange(location: safePosition, length: 0))
 
         // 检查是否是列表行（包括 checkbox）
-        let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
+        let listType = ParagraphManager.detectListType(at: lineRange.location, in: textStorage)
         guard listType != .none else {
             return false
         }
@@ -205,18 +205,18 @@ public struct ListBehaviorHandler {
         let lineRange = string.lineRange(for: NSRange(location: safePosition, length: 0))
 
         // 检查是否是列表行
-        let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
+        let listType = ParagraphManager.detectListType(at: lineRange.location, in: textStorage)
         guard listType != .none else {
             return nil
         }
 
         // 获取缩进级别
-        let indent = ListFormatHandler.getListIndent(in: textStorage, at: lineRange.location)
+        let indent = ParagraphManager.getListIndent(at: lineRange.location, in: textStorage)
 
         // 获取编号（仅有序列表）
         var number: Int?
         if listType == .ordered {
-            number = ListFormatHandler.getListNumber(in: textStorage, at: lineRange.location)
+            number = ParagraphManager.getListNumber(at: lineRange.location, in: textStorage)
         }
 
         // 获取勾选状态（仅勾选框列表）
