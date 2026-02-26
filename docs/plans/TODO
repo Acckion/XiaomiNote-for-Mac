@@ -14,6 +14,25 @@
 - [x] 同步 `docs/architecture-next.md` 的最终验收状态描述（2026-02-26）。
 - [x] 清理历史计划文档中的“进行中”表述，统一改为“已完成（归档）”（2026-02-26）。
 
+## 二次审计待重构项（2026-02-26）
+
+### P1（优先）
+
+- [ ] 清零 `MainWindowController+Actions.swift` 中遗留占位逻辑（`TODO(spec-121)`、`功能开发中` 弹窗、待实现分支），确保菜单动作无空壳路径。
+- [ ] 补齐架构脚本对 NotificationCenter 边界的自动化校验，满足 DoD 中“EventBus/NotificationCenter 边界可脚本校验”。
+
+### P2（高优先）
+
+- [ ] 拆分 `MenuManager.swift`（1143 行）并清理禁用占位菜单项（`isEnabled = false` 的待实现入口）。
+- [ ] 收敛 `AppDelegate` 的 84 个 selector 转发方法，评估并落地命令注册表/映射表以降低维护成本。
+- [ ] 拆分 `UnifiedOperationQueue.swift`（1115 行，45 个函数）为更小职责单元（查询/状态迁移/重试策略分离）。
+- [ ] 拆分 `UnifiedFormatManager.swift`（1122 行，40 个函数）并收窄 public API 面。
+
+### P3（优化）
+
+- [ ] 拆分 `DebugSettingsView.swift`（1256 行）为多个 Settings 子面板。
+- [ ] 拆分 `AudioPanelView.swift`（1135 行）为独立的播放/录制/上传 UI 组件。
+
 ## 已完成记录（摘要）
 
 - [x] spec-124：菜单命令链 Command 化，`MenuActionHandler` 删除。
