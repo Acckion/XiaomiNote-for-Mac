@@ -197,8 +197,8 @@ enum MenuItemTag: Int {
 
     // MARK: - 辅助方法
 
-    /// 判断是否为段落样式标签
-    var isParagraphStyle: Bool {
+    /// 判断是否为段落格式标签
+    var isParagraphFormat: Bool {
         switch self {
         case .heading, .subheading, .subtitle, .bodyText, .orderedList, .unorderedList, .blockQuote:
             true
@@ -253,8 +253,8 @@ enum MenuItemTag: Int {
         }
     }
 
-    /// 获取所有段落样式标签
-    static var allParagraphStyles: [MenuItemTag] {
+    /// 获取所有段落格式标签
+    static var allParagraphFormats: [MenuItemTag] {
         [.heading, .subheading, .subtitle, .bodyText, .orderedList, .unorderedList, .blockQuote]
     }
 

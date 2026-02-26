@@ -74,12 +74,6 @@ public class NativeEditorContext: ObservableObject {
     ///
     @Published var hasPendingRetry = false
 
-    /// 部分激活的格式集合（用于混合格式状态显示）
-    @Published var partiallyActiveFormats: Set<TextFormat> = []
-
-    /// 格式激活比例（用于混合格式状态显示）
-    @Published var formatActivationRatios: [TextFormat: Double] = [:]
-
     // MARK: - 版本号机制属性
 
     /// 变化追踪器

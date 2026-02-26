@@ -11,14 +11,14 @@ extension MenuManager {
         formatMenuItem.submenu = formatMenu
         mainMenu.addItem(formatMenuItem)
 
-        setupParagraphStyleItems(in: formatMenu)
+        setupParagraphFormatItems(in: formatMenu)
         setupChecklistItems(in: formatMenu)
         setupFontAndTextItems(in: formatMenu)
     }
 
     // MARK: - 格式菜单私有方法
 
-    private func setupParagraphStyleItems(in formatMenu: NSMenu) {
+    private func setupParagraphFormatItems(in formatMenu: NSMenu) {
         formatMenu.addItem(buildMenuItem(for: .heading))
         formatMenu.addItem(buildMenuItem(for: .subheading))
         formatMenu.addItem(buildMenuItem(for: .subtitle))
