@@ -22,8 +22,6 @@ Sources/
 │   ├── App.swift           # SwiftUI 入口
 │   └── Menu*/              # 菜单相关（MenuManager, MenuStateManager, MenuState, MenuItemTag）
 ├── Coordinator/            # 协调器（AppCoordinator）
-├── Core/                   # 核心基础设施
-│   └── Command/            # 命令模式（AppCommand, NoteCommands, SyncCommands, FormatCommands, FileCommands, WindowCommands, ViewCommands, UtilityCommands, ImportContentConverter）
 ├── Features/               # 按域组织的功能模块（7 个业务域）
 │   ├── Notes/              # 笔记域（Vertical Slice）
 │   │   ├── Domain/         # 领域模型（Note, NoteMapper, DeletedNote, NoteSortOrder, NoteImageAttachment, NoteHistoryVersion, PendingUploadEntry, TitleExtractionResult）
@@ -72,7 +70,8 @@ Sources/
 │   │   ├── EventBus/       # 事件总线（EventBus, AppEvent, NoteUpdateEvent）
 │   │   ├── Extensions/     # Swift 扩展（NSColor+Hex, NSWindow+MiNote, Notification+FormatState, Notification+MenuState）
 │   │   ├── Store/          # 数据存储（DatabaseService + extensions, DatabaseMigrationManager, LocalStorageService, MemoryCacheManager）
-│   │   ├── Cache/          # 缓存（DefaultCacheService）
+│   │   │   ├── Cache/          # 缓存（DefaultCacheService）
+│   │   ├── Command/        # 命令模式（AppCommand, NoteCommands, SyncCommands, FormatCommands, FileCommands, WindowCommands, ViewCommands, UtilityCommands, ImportContentConverter）
 │   │   └── *.swift         # LogService, PerformanceService, PreviewHelper, Pageable, ViewOptionsManager, ViewOptionsState, ViewState
 │   └── UICommons/          # 共享 UI 组件
 │       ├── Settings/       # 设置视图（SettingsView, DebugSettingsView, EditorSettingsView 等 6 个文件）
