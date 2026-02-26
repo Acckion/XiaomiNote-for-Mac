@@ -24,7 +24,7 @@
 ### P2（高优先）
 
 - [ ] 拆分 `MenuManager.swift`（1143 行）并清理禁用占位菜单项（`isEnabled = false` 的待实现入口）。
-- [ ] 收敛 `AppDelegate` 的 84 个 selector 转发方法，评估并落地命令注册表/映射表以降低维护成本。
+- [x] 收敛 `AppDelegate` 的 84 个 selector 转发方法，评估并落地命令注册表/映射表以降低维护成本。
 - [ ] 拆分 `UnifiedOperationQueue.swift`（1115 行，45 个函数）为更小职责单元（查询/状态迁移/重试策略分离）。
 - [ ] 拆分 `UnifiedFormatManager.swift`（1122 行，40 个函数）并收窄 public API 面。
 
