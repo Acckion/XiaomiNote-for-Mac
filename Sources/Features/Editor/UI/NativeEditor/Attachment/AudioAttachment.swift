@@ -2,7 +2,7 @@
 //  AudioAttachment.swift
 //  MiNoteMac
 //
-//  语音文件附件 - 用于在原生编辑器中显示语音文件占位符和播放控件
+//  语音文件附件 - 核心属性定义和生命周期管理
 
 import AppKit
 import Combine
@@ -68,7 +68,7 @@ enum AudioPlaybackState: Equatable {
 
 /// 语音文件附件 - 用于在 NSTextView 中显示语音文件占位符和播放控件
 /// 支持播放控制、进度显示和状态管理
-final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
+final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment, FileAttachmentProtocol {
 
     // MARK: - 基础属性
 
@@ -104,10 +104,10 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     var placeholderSize = NSSize(width: 240, height: 56)
 
     /// 缓存的图像
-    private var cachedImage: NSImage?
+    var cachedImage: NSImage?
 
     /// 当前播放状态
-    private(set) var playbackState: AudioPlaybackState = .idle {
+    var playbackState: AudioPlaybackState = .idle {
         didSet {
             if oldValue != playbackState {
                 invalidateCache()
@@ -117,7 +117,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
 
     /// 播放进度（0.0 - 1.0）
-    private(set) var playbackProgress = 0.0 {
+    var playbackProgress = 0.0 {
         didSet {
             if abs(oldValue - playbackProgress) > 0.01 {
                 invalidateCache()
@@ -126,7 +126,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
 
     /// 当前播放时间（秒）
-    private(set) var currentTime: TimeInterval = 0 {
+    var currentTime: TimeInterval = 0 {
         didSet {
             if abs(oldValue - currentTime) > 0.1 {
                 invalidateCache()
@@ -135,7 +135,7 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
 
     /// 总时长（秒）
-    private(set) var duration: TimeInterval = 0 {
+    var duration: TimeInterval = 0 {
         didSet {
             if abs(oldValue - duration) > 0.1 {
                 invalidateCache()
@@ -144,10 +144,10 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
     }
 
     /// 本地缓存文件 URL
-    private var cachedFileURL: URL?
+    var cachedFileURL: URL?
 
     /// 通知订阅
-    private var cancellables = Set<AnyCancellable>()
+    var cancellables = Set<AnyCancellable>()
 
     /// 状态变化通知名称
     static let playbackStateDidChangeNotification = Notification.Name("AudioAttachment.playbackStateDidChange")
@@ -196,254 +196,6 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
         cancellables.removeAll()
     }
 
-    // MARK: - 播放器通知订阅
-
-    /// 订阅播放器状态变化通知
-    private func subscribeToPlayerNotifications() {
-        // 订阅播放状态变化
-        NotificationCenter.default.publisher(for: AudioPlayerService.playbackStateDidChangeNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                self?.handlePlaybackStateChange(notification)
-            }
-            .store(in: &cancellables)
-
-        // 订阅播放进度变化
-        NotificationCenter.default.publisher(for: AudioPlayerService.playbackProgressDidChangeNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                self?.handlePlaybackProgressChange(notification)
-            }
-            .store(in: &cancellables)
-
-        // 订阅播放完成
-        NotificationCenter.default.publisher(for: AudioPlayerService.playbackDidFinishNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                self?.handlePlaybackFinished(notification)
-            }
-            .store(in: &cancellables)
-
-        // 订阅播放错误
-        NotificationCenter.default.publisher(for: AudioPlayerService.playbackErrorNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                self?.handlePlaybackError(notification)
-            }
-            .store(in: &cancellables)
-    }
-
-    /// 处理播放状态变化
-    private func handlePlaybackStateChange(_ notification: Notification) {
-        guard let notificationFileId = notification.userInfo?["fileId"] as? String,
-              notificationFileId == fileId
-        else {
-            return
-        }
-
-        if let newState = notification.userInfo?["newState"] as? AudioPlayerService.PlaybackState {
-            // 转换播放器状态到附件状态
-            switch newState {
-            case .idle:
-                playbackState = .idle
-            case .loading:
-                playbackState = .loading
-            case .playing:
-                playbackState = .playing
-            case .paused:
-                playbackState = .paused
-            case let .error(message):
-                playbackState = .error(message)
-            }
-        }
-    }
-
-    /// 处理播放进度变化
-    private func handlePlaybackProgressChange(_ notification: Notification) {
-        guard let notificationFileId = notification.userInfo?["fileId"] as? String,
-              notificationFileId == fileId
-        else {
-            return
-        }
-
-        if let progress = notification.userInfo?["progress"] as? Double {
-            playbackProgress = progress
-        }
-        if let time = notification.userInfo?["currentTime"] as? TimeInterval {
-            currentTime = time
-        }
-        if let dur = notification.userInfo?["duration"] as? TimeInterval {
-            duration = dur
-        }
-    }
-
-    /// 处理播放完成
-    private func handlePlaybackFinished(_ notification: Notification) {
-        guard let notificationFileId = notification.userInfo?["fileId"] as? String,
-              notificationFileId == fileId
-        else {
-            return
-        }
-
-        playbackState = .idle
-        playbackProgress = 0
-        currentTime = 0
-    }
-
-    /// 处理播放错误
-    private func handlePlaybackError(_ notification: Notification) {
-        guard let notificationFileId = notification.userInfo?["fileId"] as? String,
-              notificationFileId == fileId
-        else {
-            return
-        }
-
-        if let error = notification.userInfo?["error"] as? String {
-            playbackState = .error(error)
-        }
-    }
-
-    /// 通知状态变化
-    private func notifyStateChange() {
-        NotificationCenter.default.post(
-            name: Self.playbackStateDidChangeNotification,
-            object: self,
-            userInfo: [
-                "fileId": fileId as Any,
-                "state": playbackState,
-            ]
-        )
-    }
-
-    /// 开始播放（自动下载和缓存）
-    ///
-    /// - Throws: 播放失败时抛出错误
-    @MainActor
-    func play() async throws {
-        guard let fileId else {
-            let error = "无法播放：缺少文件 ID"
-            playbackState = .error(error)
-            throw NSError(domain: "AudioAttachment", code: -1, userInfo: [NSLocalizedDescriptionKey: error])
-        }
-
-        // 延迟获取 fileAPI
-        let api: FileAPI
-        if let existing = fileAPI {
-            api = existing
-        } else {
-            let nm = NetworkModule()
-            api = nm.fileAPI
-            fileAPI = api
-        }
-
-        // 设置加载状态
-        playbackState = .loading
-
-        // 延迟获取 audioCacheService
-        let cache: AudioCacheService
-        if let existing = audioCacheService {
-            cache = existing
-        } else {
-            let c = AudioCacheService()
-            audioCacheService = c
-            cache = c
-        }
-
-        do {
-            // 检查缓存
-            let audioURL: URL
-            if let cachedURL = await cache.getCachedFile(for: fileId) {
-                audioURL = cachedURL
-                cachedFileURL = cachedURL
-            } else {
-                // 需要下载
-                let audioData = try await api.downloadAudio(fileId: fileId)
-
-                // 缓存文件
-                let mimeType = mimeType ?? "audio/mpeg"
-                audioURL = try await cache.cacheFile(data: audioData, fileId: fileId, mimeType: mimeType)
-                cachedFileURL = audioURL
-            }
-
-            // 播放音频
-            try AudioPlayerService.shared.play(url: audioURL, fileId: fileId)
-
-            // 更新时长
-            if let dur = AudioPlayerService.shared.getDuration(for: audioURL) {
-                duration = dur
-            }
-
-            playbackState = .playing
-        } catch {
-            let errorMsg = "播放失败: \(error.localizedDescription)"
-            playbackState = .error(errorMsg)
-            throw error
-        }
-    }
-
-    /// 暂停播放
-    ///
-    @MainActor
-    func pause() {
-        guard let fileId,
-              AudioPlayerService.shared.currentFileId == fileId
-        else {
-            return
-        }
-
-        AudioPlayerService.shared.pause()
-        playbackState = .paused
-    }
-
-    /// 停止播放
-    @MainActor
-    func stop() {
-        guard let fileId,
-              AudioPlayerService.shared.currentFileId == fileId
-        else {
-            return
-        }
-
-        AudioPlayerService.shared.stop()
-        playbackState = .idle
-        playbackProgress = 0
-        currentTime = 0
-    }
-
-    /// 跳转到指定位置
-    ///
-    /// - Parameter progress: 进度值（0.0 - 1.0）
-    @MainActor
-    func seek(to progress: Double) {
-        guard let fileId,
-              AudioPlayerService.shared.currentFileId == fileId
-        else {
-            return
-        }
-
-        let clampedProgress = max(0, min(1, progress))
-        AudioPlayerService.shared.seek(to: clampedProgress)
-        playbackProgress = clampedProgress
-        currentTime = duration * clampedProgress
-    }
-
-    /// 切换播放/暂停状态
-    @MainActor
-    func togglePlayPause() async throws {
-        switch playbackState {
-        case .idle, .paused:
-            try await play()
-        case .playing:
-            pause()
-        case .loading:
-            // 加载中，忽略
-            break
-        case .error:
-            // 出错后重试
-            try await play()
-        }
-    }
-
     // MARK: - 辅助方法
 
     /// 格式化时间为 mm:ss 格式
@@ -480,52 +232,6 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
         ]
     }
 
-    // MARK: - NSTextAttachment Override
-
-    override nonisolated func image(
-        forBounds _: CGRect,
-        textContainer _: NSTextContainer?,
-        characterIndex _: Int
-    ) -> NSImage? {
-        // 检查主题变化
-        updateTheme()
-
-        // 如果有缓存的图像，直接返回
-        if let cached = cachedImage {
-            return cached
-        }
-
-        // 创建新图像
-        let image = createPlaceholderImage()
-        cachedImage = image
-        return image
-    }
-
-    override nonisolated func attachmentBounds(
-        for textContainer: NSTextContainer?,
-        proposedLineFragment _: CGRect,
-        glyphPosition _: CGPoint,
-        characterIndex _: Int
-    ) -> CGRect {
-        // 检查容器宽度，确保不超出
-        if let container = textContainer {
-            let containerWidth = container.size.width - container.lineFragmentPadding * 2
-            if containerWidth > 0, placeholderSize.width > containerWidth {
-                // 如果占位符宽度超过容器宽度，调整尺寸
-                let ratio = containerWidth / placeholderSize.width
-                return CGRect(
-                    origin: .zero,
-                    size: NSSize(
-                        width: containerWidth,
-                        height: placeholderSize.height * ratio
-                    )
-                )
-            }
-        }
-
-        return CGRect(origin: .zero, size: placeholderSize)
-    }
-
     // MARK: - ThemeAwareAttachment
 
     func updateTheme() {
@@ -539,6 +245,31 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
         }
     }
 
+    // MARK: - FileAttachmentProtocol
+
+    /// 从播放状态推导加载状态
+    var loadingState: FileAttachmentLoadingState {
+        switch playbackState {
+        case .loading:
+            .loading
+        case .playing, .paused:
+            .loaded
+        case .idle:
+            .idle
+        case let .error(message):
+            .error(message)
+        }
+    }
+
+    /// 开始加载音频文件
+    nonisolated func startLoading() {
+        // nonisolated(unsafe) 绕过 Swift 6 并发检查，AudioAttachment 的播放操作需要在主线程执行
+        nonisolated(unsafe) let unsafeSelf = self
+        Task { @MainActor in
+            try? await unsafeSelf.play()
+        }
+    }
+
     // MARK: - Cache Management
 
     /// 清除缓存的图像
@@ -546,326 +277,5 @@ final class AudioAttachment: NSTextAttachment, ThemeAwareAttachment {
         cachedImage = nil
         // 重新创建图像
         image = createPlaceholderImage()
-    }
-
-    // MARK: - Placeholder Image Creation
-
-    /// 创建占位符图像（带播放控件）
-    /// - Returns: 语音文件占位符图像
-    private func createPlaceholderImage() -> NSImage {
-        let size = placeholderSize
-
-        return NSImage(size: size, flipped: false) { [weak self] rect in
-            guard let self else { return false }
-
-            // 获取主题相关颜色
-            let backgroundColor: NSColor
-            let borderColor: NSColor
-            let iconColor: NSColor
-            let textColor: NSColor
-            let progressBackgroundColor: NSColor
-            let progressFillColor: NSColor
-
-            if isDarkMode {
-                backgroundColor = NSColor.white.withAlphaComponent(0.08)
-                borderColor = NSColor.white.withAlphaComponent(0.15)
-                iconColor = NSColor.systemOrange.withAlphaComponent(0.9)
-                textColor = NSColor.white.withAlphaComponent(0.7)
-                progressBackgroundColor = NSColor.white.withAlphaComponent(0.15)
-                progressFillColor = NSColor.systemOrange.withAlphaComponent(0.8)
-            } else {
-                backgroundColor = NSColor.black.withAlphaComponent(0.04)
-                borderColor = NSColor.black.withAlphaComponent(0.12)
-                iconColor = NSColor.systemOrange
-                textColor = NSColor.black.withAlphaComponent(0.6)
-                progressBackgroundColor = NSColor.black.withAlphaComponent(0.1)
-                progressFillColor = NSColor.systemOrange.withAlphaComponent(0.9)
-            }
-
-            // 绘制圆角矩形背景
-            let backgroundPath = NSBezierPath(roundedRect: rect.insetBy(dx: 1, dy: 1), xRadius: 10, yRadius: 10)
-            backgroundColor.setFill()
-            backgroundPath.fill()
-
-            // 绘制边框
-            borderColor.setStroke()
-            backgroundPath.lineWidth = 1
-            backgroundPath.stroke()
-
-            // 绘制播放/暂停按钮
-            let buttonSize: CGFloat = 28
-            let buttonRect = CGRect(
-                x: 12,
-                y: (rect.height - buttonSize) / 2,
-                width: buttonSize,
-                height: buttonSize
-            )
-            drawPlayPauseButton(in: buttonRect, color: iconColor)
-
-            // 绘制进度条
-            let progressBarX = buttonRect.maxX + 10
-            let progressBarWidth = rect.width - progressBarX - 60 // 留出时间显示空间
-            let progressBarHeight: CGFloat = 6
-            let progressBarY = rect.height / 2 + 4
-
-            let progressBarRect = CGRect(
-                x: progressBarX,
-                y: progressBarY,
-                width: progressBarWidth,
-                height: progressBarHeight
-            )
-            drawProgressBar(in: progressBarRect, backgroundColor: progressBackgroundColor, fillColor: progressFillColor)
-
-            // 绘制时间信息
-            let timeText = if duration > 0 {
-                "\(formattedCurrentTime) / \(formattedDuration)"
-            } else {
-                "语音录音"
-            }
-
-            let timeFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-            let timeAttributes: [NSAttributedString.Key: Any] = [
-                .font: timeFont,
-                .foregroundColor: textColor,
-            ]
-
-            let timeSize = (timeText as NSString).size(withAttributes: timeAttributes)
-            let timePoint = NSPoint(
-                x: rect.width - timeSize.width - 12,
-                y: (rect.height - timeSize.height) / 2
-            )
-
-            (timeText as NSString).draw(at: timePoint, withAttributes: timeAttributes)
-
-            // 如果正在加载，显示加载指示
-            if playbackState.isLoading {
-                drawLoadingIndicator(in: buttonRect, color: iconColor)
-            }
-
-            // 如果有错误，显示错误图标
-            if let _ = playbackState.errorMessage {
-                drawErrorIndicator(in: buttonRect, color: NSColor.systemRed)
-            }
-
-            return true
-        }
-    }
-
-    /// 绘制播放/暂停按钮
-    /// - Parameters:
-    ///   - rect: 绘制区域
-    ///   - color: 按钮颜色
-    private func drawPlayPauseButton(in rect: CGRect, color: NSColor) {
-        // 绘制圆形背景
-        let circlePath = NSBezierPath(ovalIn: rect)
-        color.withAlphaComponent(0.15).setFill()
-        circlePath.fill()
-
-        color.setFill()
-
-        let centerX = rect.midX
-        let centerY = rect.midY
-        let iconSize: CGFloat = 10
-
-        if playbackState.isPlaying {
-            // 绘制暂停图标（两条竖线）
-            let barWidth: CGFloat = 3
-            let barHeight: CGFloat = iconSize
-            let barSpacing: CGFloat = 4
-
-            let leftBarRect = CGRect(
-                x: centerX - barSpacing / 2 - barWidth,
-                y: centerY - barHeight / 2,
-                width: barWidth,
-                height: barHeight
-            )
-            let rightBarRect = CGRect(
-                x: centerX + barSpacing / 2,
-                y: centerY - barHeight / 2,
-                width: barWidth,
-                height: barHeight
-            )
-
-            let leftBar = NSBezierPath(roundedRect: leftBarRect, xRadius: 1, yRadius: 1)
-            let rightBar = NSBezierPath(roundedRect: rightBarRect, xRadius: 1, yRadius: 1)
-
-            leftBar.fill()
-            rightBar.fill()
-        } else {
-            // 绘制播放图标（三角形）
-            let trianglePath = NSBezierPath()
-            let triangleWidth: CGFloat = iconSize
-            let triangleHeight: CGFloat = iconSize * 1.2
-
-            // 三角形顶点（稍微向右偏移以视觉居中）
-            let offsetX: CGFloat = 2
-            trianglePath.move(to: NSPoint(x: centerX - triangleWidth / 2 + offsetX, y: centerY + triangleHeight / 2))
-            trianglePath.line(to: NSPoint(x: centerX - triangleWidth / 2 + offsetX, y: centerY - triangleHeight / 2))
-            trianglePath.line(to: NSPoint(x: centerX + triangleWidth / 2 + offsetX, y: centerY))
-            trianglePath.close()
-
-            trianglePath.fill()
-        }
-    }
-
-    /// 绘制进度条
-    /// - Parameters:
-    ///   - rect: 绘制区域
-    ///   - backgroundColor: 背景颜色
-    ///   - fillColor: 填充颜色
-    private func drawProgressBar(in rect: CGRect, backgroundColor: NSColor, fillColor: NSColor) {
-        // 绘制背景
-        let backgroundPath = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
-        backgroundColor.setFill()
-        backgroundPath.fill()
-
-        // 绘制进度
-        if playbackProgress > 0 {
-            let progressWidth = rect.width * CGFloat(playbackProgress)
-            let progressRect = CGRect(
-                x: rect.origin.x,
-                y: rect.origin.y,
-                width: max(rect.height, progressWidth), // 至少显示一个圆形
-                height: rect.height
-            )
-            let progressPath = NSBezierPath(roundedRect: progressRect, xRadius: rect.height / 2, yRadius: rect.height / 2)
-            fillColor.setFill()
-            progressPath.fill()
-
-            // 绘制进度指示点
-            let indicatorSize: CGFloat = rect.height + 4
-            let indicatorRect = CGRect(
-                x: rect.origin.x + progressWidth - indicatorSize / 2,
-                y: rect.origin.y - 2,
-                width: indicatorSize,
-                height: indicatorSize
-            )
-            let indicatorPath = NSBezierPath(ovalIn: indicatorRect)
-            fillColor.setFill()
-            indicatorPath.fill()
-
-            // 绘制指示点边框
-            NSColor.white.withAlphaComponent(0.8).setStroke()
-            indicatorPath.lineWidth = 1.5
-            indicatorPath.stroke()
-        }
-    }
-
-    /// 绘制加载指示器
-    /// - Parameters:
-    ///   - rect: 绘制区域
-    ///   - color: 颜色
-    private func drawLoadingIndicator(in rect: CGRect, color: NSColor) {
-        // 绘制简单的加载圆环
-        let centerX = rect.midX
-        let centerY = rect.midY
-        let radius: CGFloat = 8
-
-        let arcPath = NSBezierPath()
-        arcPath.appendArc(
-            withCenter: NSPoint(x: centerX, y: centerY),
-            radius: radius,
-            startAngle: 0,
-            endAngle: 270,
-            clockwise: false
-        )
-
-        color.setStroke()
-        arcPath.lineWidth = 2
-        arcPath.lineCapStyle = .round
-        arcPath.stroke()
-    }
-
-    /// 绘制错误指示器
-    /// - Parameters:
-    ///   - rect: 绘制区域
-    ///   - color: 颜色
-    private func drawErrorIndicator(in rect: CGRect, color: NSColor) {
-        let centerX = rect.midX
-        let centerY = rect.midY
-        let size: CGFloat = 12
-
-        // 绘制感叹号
-        color.setFill()
-
-        // 感叹号主体
-        let bodyRect = CGRect(
-            x: centerX - 1.5,
-            y: centerY - 2,
-            width: 3,
-            height: 8
-        )
-        let bodyPath = NSBezierPath(roundedRect: bodyRect, xRadius: 1.5, yRadius: 1.5)
-        bodyPath.fill()
-
-        // 感叹号点
-        let dotRect = CGRect(
-            x: centerX - 1.5,
-            y: centerY - size / 2,
-            width: 3,
-            height: 3
-        )
-        let dotPath = NSBezierPath(ovalIn: dotRect)
-        dotPath.fill()
-    }
-
-    /// 绘制音频图标（麦克风样式）- 保留用于无播放控件时
-    /// - Parameters:
-    ///   - rect: 绘制区域
-    ///   - color: 图标颜色
-    private func drawAudioIcon(in rect: CGRect, color: NSColor) {
-        color.setStroke()
-        color.setFill()
-
-        let centerX = rect.midX
-        let centerY = rect.midY
-
-        // 绘制麦克风主体（椭圆形）
-        let micWidth: CGFloat = 8
-        let micHeight: CGFloat = 12
-        let micRect = CGRect(
-            x: centerX - micWidth / 2,
-            y: centerY - 2,
-            width: micWidth,
-            height: micHeight
-        )
-        let micPath = NSBezierPath(roundedRect: micRect, xRadius: micWidth / 2, yRadius: micWidth / 2)
-        micPath.fill()
-
-        // 绘制麦克风支架（U 形）
-        let standPath = NSBezierPath()
-        let standWidth: CGFloat = 12
-        let standHeight: CGFloat = 8
-        let standY = centerY - 4
-
-        standPath.move(to: NSPoint(x: centerX - standWidth / 2, y: standY))
-        standPath.appendArc(
-            withCenter: NSPoint(x: centerX, y: standY),
-            radius: standWidth / 2,
-            startAngle: 180,
-            endAngle: 0,
-            clockwise: true
-        )
-
-        standPath.lineWidth = 2
-        standPath.lineCapStyle = .round
-        standPath.stroke()
-
-        // 绘制麦克风底座（竖线 + 横线）
-        let basePath = NSBezierPath()
-        let baseY = standY - standHeight
-
-        // 竖线
-        basePath.move(to: NSPoint(x: centerX, y: standY - standWidth / 2))
-        basePath.line(to: NSPoint(x: centerX, y: baseY))
-
-        // 横线
-        let baseWidth: CGFloat = 8
-        basePath.move(to: NSPoint(x: centerX - baseWidth / 2, y: baseY))
-        basePath.line(to: NSPoint(x: centerX + baseWidth / 2, y: baseY))
-
-        basePath.lineWidth = 2
-        basePath.lineCapStyle = .round
-        basePath.stroke()
     }
 }

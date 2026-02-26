@@ -67,7 +67,9 @@
         public init() {}
 
         public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.increaseFontSize(nil)
+            if let fsm = context.coordinator.formatStateManager, fsm.hasActiveEditor {
+                fsm.increaseFontSize()
+            }
         }
     }
 
@@ -76,7 +78,9 @@
         public init() {}
 
         public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.decreaseFontSize(nil)
+            if let fsm = context.coordinator.formatStateManager, fsm.hasActiveEditor {
+                fsm.decreaseFontSize()
+            }
         }
     }
 
@@ -182,8 +186,6 @@
         public func execute(with context: CommandContext) {
             if let fsm = context.coordinator.formatStateManager, fsm.hasActiveEditor {
                 fsm.toggleFormat(.quote)
-            } else {
-                context.coordinator.mainWindowController?.toggleBlockQuote(nil)
             }
         }
     }
@@ -195,7 +197,9 @@
         public init() {}
 
         public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.increaseIndent(nil)
+            if let fsm = context.coordinator.formatStateManager, fsm.hasActiveEditor {
+                fsm.increaseIndent()
+            }
         }
     }
 
@@ -204,7 +208,9 @@
         public init() {}
 
         public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.decreaseIndent(nil)
+            if let fsm = context.coordinator.formatStateManager, fsm.hasActiveEditor {
+                fsm.decreaseIndent()
+            }
         }
     }
 
@@ -251,15 +257,6 @@
 
     // MARK: - 外观命令
 
-    /// 切换浅色背景
-    public struct ToggleLightBackgroundCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.toggleLightBackground(nil)
-        }
-    }
-
     /// 切换高亮
     public struct ToggleHighlightCommand: AppCommand {
         public init() {}
@@ -267,74 +264,7 @@
         public func execute(with context: CommandContext) {
             if let fsm = context.coordinator.formatStateManager, fsm.hasActiveEditor {
                 fsm.toggleFormat(.highlight)
-            } else {
-                context.coordinator.mainWindowController?.toggleHighlight(nil)
             }
-        }
-    }
-
-    // MARK: - 核对清单命令
-
-    /// 标记为已勾选
-    public struct MarkAsCheckedCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.markAsChecked(nil)
-        }
-    }
-
-    /// 全部勾选
-    public struct CheckAllCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.checkAll(nil)
-        }
-    }
-
-    /// 全部取消勾选
-    public struct UncheckAllCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.uncheckAll(nil)
-        }
-    }
-
-    /// 将勾选项移到底部
-    public struct MoveCheckedToBottomCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.moveCheckedToBottom(nil)
-        }
-    }
-
-    /// 删除已勾选项目
-    public struct DeleteCheckedItemsCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.deleteCheckedItems(nil)
-        }
-    }
-
-    /// 向上移动项目
-    public struct MoveItemUpCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.moveItemUp(nil)
-        }
-    }
-
-    /// 向下移动项目
-    public struct MoveItemDownCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.moveItemDown(nil)
         }
     }
 

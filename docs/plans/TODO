@@ -26,7 +26,7 @@
 - [ ] 拆分 `MenuManager.swift`（1143 行）并清理禁用占位菜单项（`isEnabled = false` 的待实现入口）。
 - [x] 收敛 `AppDelegate` 的 84 个 selector 转发方法，评估并落地命令注册表/映射表以降低维护成本。
 - [ ] 拆分 `UnifiedOperationQueue.swift`（1115 行，45 个函数）为更小职责单元（查询/状态迁移/重试策略分离）。
-- [ ] 拆分 `UnifiedFormatManager.swift`（1122 行，40 个函数）并收窄 public API 面。
+- [x] 拆分 `UnifiedFormatManager.swift`（1122 行，40 个函数）并收窄 public API 面。（spec-138 完成）
 
 ### P3（优化）
 
@@ -46,3 +46,4 @@
 - [x] spec-134：同步队列第二层治理（失败策略与可观测性增强）。
 - [x] spec-135：`App/Bootstrap|Composition|Runtime` 与 `Shared/Kernel|UICommons` 骨架落地。
 - [x] spec-136：Editor/Search/Audio 切片迁移完成。
+- [x] spec-138：编辑器域重构（格式命令 Command 化、CustomAttachments/AudioAttachment/UnifiedFormatManager/NativeTextView 拆分、附件协议引入）。

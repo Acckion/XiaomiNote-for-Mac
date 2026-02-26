@@ -152,6 +152,44 @@ public final class NativeFormatProvider: FormatMenuProvider {
         scheduleStateUpdate()
     }
 
+    /// 增加缩进
+    public func increaseIndent() {
+        guard let context = editorContext else {
+            return
+        }
+
+        context.increaseIndent()
+    }
+
+    /// 减少缩进
+    public func decreaseIndent() {
+        guard let context = editorContext else {
+            return
+        }
+
+        context.decreaseIndent()
+    }
+
+    /// 增大字体
+    public func increaseFontSize() {
+        guard editorContext != nil else {
+            return
+        }
+
+        // TODO(spec-121): FontSizeManager 暂无 increase/decrease API
+        LogService.shared.debug(.editor, "increaseFontSize 待实现")
+    }
+
+    /// 减小字体
+    public func decreaseFontSize() {
+        guard editorContext != nil else {
+            return
+        }
+
+        // TODO(spec-121): FontSizeManager 暂无 increase/decrease API
+        LogService.shared.debug(.editor, "decreaseFontSize 待实现")
+    }
+
     // MARK: - 光标模式格式检测
 
     /// 光标模式下的格式状态检测（安全版本，带边界条件处理）

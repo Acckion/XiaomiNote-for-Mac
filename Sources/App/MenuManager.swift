@@ -613,14 +613,6 @@ class MenuManager {
 
         viewMenu.addItem(NSMenuItem.separator())
 
-        // 区域折叠（注册表驱动）
-        viewMenu.addItem(buildMenuItem(for: .expandSection))
-        viewMenu.addItem(buildMenuItem(for: .expandAllSections))
-        viewMenu.addItem(buildMenuItem(for: .collapseSection))
-        viewMenu.addItem(buildMenuItem(for: .collapseAllSections))
-
-        viewMenu.addItem(NSMenuItem.separator())
-
         // 工具栏（系统 selector）
         let toggleToolbarItem = NSMenuItem(
             title: "隐藏工具栏",

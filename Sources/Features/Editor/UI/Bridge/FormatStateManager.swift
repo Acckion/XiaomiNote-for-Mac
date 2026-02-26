@@ -129,6 +129,42 @@ public final class FormatStateManager: ObservableObject {
         provider.clearAlignmentFormat()
     }
 
+    /// 增加缩进
+    public func increaseIndent() {
+        guard let provider = activeProvider else {
+            return
+        }
+
+        provider.increaseIndent()
+    }
+
+    /// 减少缩进
+    public func decreaseIndent() {
+        guard let provider = activeProvider else {
+            return
+        }
+
+        provider.decreaseIndent()
+    }
+
+    /// 增大字体
+    public func increaseFontSize() {
+        guard let provider = activeProvider else {
+            return
+        }
+
+        provider.increaseFontSize()
+    }
+
+    /// 减小字体
+    public func decreaseFontSize() {
+        guard let provider = activeProvider else {
+            return
+        }
+
+        provider.decreaseFontSize()
+    }
+
     // MARK: - Public Methods - 状态查询
 
     /// 检查指定格式是否激活

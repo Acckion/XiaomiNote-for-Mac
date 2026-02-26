@@ -30,8 +30,6 @@ enum MenuItemTag: Int {
 
     // MARK: - 切换状态（3001-3099）
 
-    /// 使用浅色背景显示笔记
-    case lightBackground = 3001
     /// 隐藏文件夹
     case hideFolders = 3002
     /// 显示笔记数量
@@ -77,20 +75,6 @@ enum MenuItemTag: Int {
 
     /// 核对清单
     case checklist = 5001
-    /// 标记为已勾选
-    case markAsChecked = 5002
-    /// 全部勾选
-    case checkAll = 5003
-    /// 全部取消勾选
-    case uncheckAll = 5004
-    /// 将勾选的项目移到底部
-    case moveCheckedToBottom = 5005
-    /// 删除已勾选项目
-    case deleteCheckedItems = 5006
-    /// 向上移动项目
-    case moveItemUp = 5007
-    /// 向下移动项目
-    case moveItemDown = 5008
 
     // MARK: - 字体样式（6001-6099）
 
@@ -133,17 +117,6 @@ enum MenuItemTag: Int {
     case zoomOut = 9002
     /// 实际大小
     case actualSize = 9003
-
-    // MARK: - 区域折叠（10001-10099）
-
-    /// 展开区域
-    case expandSection = 10001
-    /// 展开所有区域
-    case expandAllSections = 10002
-    /// 折叠区域
-    case collapseSection = 10003
-    /// 折叠所有区域
-    case collapseAllSections = 10004
 
     // MARK: - 文件操作（11001-11099）
 
@@ -247,7 +220,7 @@ enum MenuItemTag: Int {
     /// 判断是否为切换状态标签
     var isToggleState: Bool {
         switch self {
-        case .lightBackground, .hideFolders, .showNoteCount:
+        case .hideFolders, .showNoteCount:
             true
         default:
             false
@@ -270,8 +243,7 @@ enum MenuItemTag: Int {
     var requiresEditorFocus: Bool {
         switch self {
         case .heading, .subheading, .subtitle, .bodyText, .orderedList, .unorderedList, .blockQuote,
-             .checklist, .markAsChecked, .checkAll, .uncheckAll, .moveCheckedToBottom, .deleteCheckedItems,
-             .moveItemUp, .moveItemDown,
+             .checklist,
              .bold, .italic, .underline, .strikethrough, .highlight,
              .alignLeft, .alignCenter, .alignRight,
              .increaseIndent, .decreaseIndent:

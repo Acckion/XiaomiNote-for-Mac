@@ -855,41 +855,19 @@
         // MARK: - 格式菜单动作
 
         @objc func increaseFontSize(_: Any?) {
-            guard coordinator.noteListState.selectedNote != nil else { return }
-            // TODO(spec-121): FontSizeManager 暂无 increase/decrease API
-            LogService.shared.debug(.window, "increaseFontSize 待实现")
+            coordinator.commandDispatcher.dispatch(IncreaseFontSizeCommand())
         }
 
         @objc func decreaseFontSize(_: Any?) {
-            guard coordinator.noteListState.selectedNote != nil else { return }
-            // TODO(spec-121): FontSizeManager 暂无 increase/decrease API
-            LogService.shared.debug(.window, "decreaseFontSize 待实现")
+            coordinator.commandDispatcher.dispatch(DecreaseFontSizeCommand())
         }
 
         @objc func increaseIndent(_: Any?) {
-
-            guard coordinator.noteListState.selectedNote != nil else {
-                return
-            }
-
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.increaseIndent()
-            } else {
-                LogService.shared.error(.window, "无法获取 NativeEditorContext")
-            }
+            coordinator.commandDispatcher.dispatch(IncreaseIndentCommand())
         }
 
         @objc func decreaseIndent(_: Any?) {
-
-            guard coordinator.noteListState.selectedNote != nil else {
-                return
-            }
-
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.decreaseIndent()
-            } else {
-                LogService.shared.error(.window, "无法获取 NativeEditorContext")
-            }
+            coordinator.commandDispatcher.dispatch(DecreaseIndentCommand())
         }
 
         @objc func alignLeft(_: Any?) {
@@ -940,72 +918,6 @@
         @objc func setBodyText(_: Any?) {
             guard coordinator.noteListState.selectedNote != nil else { return }
             coordinator.editorModule.formatStateManager.clearParagraphFormat()
-        }
-
-        // MARK: - 格式菜单动作（Apple Notes 风格）
-
-        /// 切换块引用
-        @objc func toggleBlockQuote(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "块引用")
-        }
-
-        // MARK: - 核对清单动作
-
-        /// 标记为已勾选
-        @objc func markAsChecked(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "标记为已勾选")
-        }
-
-        /// 全部勾选
-        @objc func checkAll(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "全部勾选")
-        }
-
-        /// 全部取消勾选
-        @objc func uncheckAll(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "全部取消勾选")
-        }
-
-        /// 将勾选的项目移到底部
-        @objc func moveCheckedToBottom(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "将勾选的项目移到底部")
-        }
-
-        /// 删除已勾选项目
-        @objc func deleteCheckedItems(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "删除已勾选项目")
-        }
-
-        /// 向上移动项目
-        @objc func moveItemUp(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "向上移动项目")
-        }
-
-        /// 向下移动项目
-        @objc func moveItemDown(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "向下移动项目")
-        }
-
-        // MARK: - 外观动作
-
-        /// 切换浅色背景
-        @objc func toggleLightBackground(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "浅色背景")
-        }
-
-        /// 切换高亮
-        @objc func toggleHighlight(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "高亮")
         }
 
         // MARK: - 新增的菜单动作方法
@@ -1138,47 +1050,6 @@
             } else {
                 LogService.shared.error(.window, "无法获取 NativeEditorContext")
             }
-        }
-
-        /// 展开区域
-        @objc func expandSection(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "展开区域")
-        }
-
-        /// 展开所有区域
-        @objc func expandAllSections(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "展开所有区域")
-        }
-
-        /// 折叠区域
-        @objc func collapseSection(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "折叠区域")
-        }
-
-        /// 折叠所有区域
-        @objc func collapseAllSections(_: Any?) {
-            // 功能尚未实现，显示提示
-            showFeatureNotImplementedAlert(featureName: "折叠所有区域")
-        }
-
-        /// 显示功能尚未实现的提示
-        ///
-        /// 用于未实现的菜单功能，向用户显示友好的提示信息
-        ///
-        /// - Parameter featureName: 功能名称
-        private func showFeatureNotImplementedAlert(featureName: String) {
-            guard let window else { return }
-
-            let alert = NSAlert()
-            alert.messageText = "功能尚未实现"
-            alert.informativeText = "「\(featureName)」功能正在开发中，敬请期待。"
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "确定")
-
-            alert.beginSheetModal(for: window) { _ in }
         }
 
     }

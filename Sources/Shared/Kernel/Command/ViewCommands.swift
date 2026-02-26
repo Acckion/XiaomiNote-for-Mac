@@ -89,41 +89,4 @@
         }
     }
 
-    // MARK: - 折叠/展开命令
-
-    /// 展开区域
-    public struct ExpandSectionCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.expandSection(nil)
-        }
-    }
-
-    /// 展开所有区域
-    public struct ExpandAllSectionsCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.expandAllSections(nil)
-        }
-    }
-
-    /// 折叠区域
-    public struct CollapseSectionCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.collapseSection(nil)
-        }
-    }
-
-    /// 折叠所有区域
-    public struct CollapseAllSectionsCommand: AppCommand {
-        public init() {}
-
-        public func execute(with context: CommandContext) {
-            context.coordinator.mainWindowController?.collapseAllSections(nil)
-        }
-    }
 #endif
