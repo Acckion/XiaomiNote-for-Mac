@@ -39,7 +39,7 @@ final class CommandDispatcherTests: XCTestCase {
         let coordinator = AppCoordinator()
         let dispatcher = try XCTUnwrap(coordinator.commandDispatcher)
 
-        let command = CreateNoteCommand(folderId: "0")
+        let command = CreateNoteCommand()
         dispatcher.dispatch(command)
     }
 

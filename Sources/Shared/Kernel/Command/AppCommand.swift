@@ -10,6 +10,7 @@
     /// 菜单、工具栏、快捷键统一通过 Command 调度业务操作
     @MainActor
     public protocol AppCommand {
+        init()
         func execute(with context: CommandContext)
     }
 

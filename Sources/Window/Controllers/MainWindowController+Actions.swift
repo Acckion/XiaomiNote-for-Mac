@@ -16,7 +16,7 @@
     public extension MainWindowController {
 
         @objc func createNewNote(_: Any?) {
-            coordinator.commandDispatcher.dispatch(CreateNoteCommand(folderId: coordinator.folderState.selectedFolderId))
+            coordinator.commandDispatcher.dispatch(CreateNoteCommand())
         }
 
         @objc func createNewFolder(_: Any?) {
@@ -28,7 +28,7 @@
         }
 
         @objc func shareNote(_: Any?) {
-            coordinator.commandDispatcher.dispatch(ShareNoteCommand(window: window))
+            coordinator.commandDispatcher.dispatch(ShareNoteCommand())
         }
 
         @objc internal func toggleStarNote(_: Any?) {
