@@ -285,6 +285,27 @@ class MenuManager {
         }
     }
 
+    // MARK: - 注册表驱动构建
+
+    /// 从 CommandRegistry 构建菜单项
+    /// 所有注册表驱动的菜单项统一通过此方法创建
+    func buildMenuItem(for tag: MenuItemTag) -> NSMenuItem {
+        guard let entry = CommandRegistry.shared.entry(for: tag) else {
+            fatalError("未注册的菜单项: \(tag)")
+        }
+        let item = NSMenuItem(
+            title: entry.title,
+            action: #selector(AppDelegate.performCommand(_:)),
+            keyEquivalent: entry.keyEquivalent
+        )
+        item.keyEquivalentModifierMask = entry.modifiers
+        item.tag = tag.rawValue
+        if let symbolName = entry.symbolName {
+            setMenuItemIcon(item, symbolName: symbolName)
+        }
+        return item
+    }
+
     // MARK: - 私有方法 - 图标设置
 
     /// 为菜单项设置 SF Symbols 图标
@@ -378,15 +399,8 @@ class MenuManager {
         // 1.2 添加分隔线
         appMenu.addItem(NSMenuItem.separator())
 
-        // 1.3 添加"设置..."菜单项（⌘,）
-        let settingsItem = NSMenuItem(
-            title: "设置...",
-            action: #selector(AppDelegate.showSettings(_:)),
-            keyEquivalent: ","
-        )
-        settingsItem.keyEquivalentModifierMask = [.command]
-        settingsItem.target = appDelegate
-        setMenuItemIcon(settingsItem, symbolName: "gearshape")
+        // 1.3 设置（注册表驱动）
+        let settingsItem = buildMenuItem(for: .showSettings)
         appMenu.addItem(settingsItem)
 
         // 1.4 添加分隔线
@@ -451,56 +465,17 @@ class MenuManager {
 
         // ========== 新建部分 ==========
 
-        // 2.1 添加"新建笔记"菜单项（⌘N）
-        let newNoteItem = NSMenuItem(
-            title: "新建笔记",
-            action: #selector(AppDelegate.createNewNote(_:)),
-            keyEquivalent: "n"
-        )
-        newNoteItem.keyEquivalentModifierMask = [.command]
-        newNoteItem.tag = MenuItemTag.newNote.rawValue
-        setMenuItemIcon(newNoteItem, symbolName: "square.and.pencil")
-        fileMenu.addItem(newNoteItem)
+        fileMenu.addItem(buildMenuItem(for: .newNote))
+        fileMenu.addItem(buildMenuItem(for: .newFolder))
+        fileMenu.addItem(buildMenuItem(for: .newSmartFolder))
 
-        // 2.2 添加"新建文件夹"菜单项（⇧⌘N）
-        let newFolderItem = NSMenuItem(
-            title: "新建文件夹",
-            action: #selector(AppDelegate.createNewFolder(_:)),
-            keyEquivalent: "n"
-        )
-        newFolderItem.keyEquivalentModifierMask = [.command, .shift]
-        newFolderItem.tag = MenuItemTag.newFolder.rawValue
-        setMenuItemIcon(newFolderItem, symbolName: "folder.badge.plus")
-        fileMenu.addItem(newFolderItem)
-
-        // 2.3 添加"新建智能文件夹"菜单项
-        let newSmartFolderItem = NSMenuItem(
-            title: "新建智能文件夹",
-            action: #selector(AppDelegate.createSmartFolder(_:)),
-            keyEquivalent: ""
-        )
-        newSmartFolderItem.tag = MenuItemTag.newSmartFolder.rawValue
-        setMenuItemIcon(newSmartFolderItem, symbolName: "folder.badge.gearshape")
-        fileMenu.addItem(newSmartFolderItem)
-
-        // 2.4 添加分隔线
         fileMenu.addItem(NSMenuItem.separator())
 
-        // 2.5 添加"共享"菜单项
-        let shareItem = NSMenuItem(
-            title: "共享",
-            action: #selector(AppDelegate.shareNote(_:)),
-            keyEquivalent: ""
-        )
-        shareItem.tag = MenuItemTag.share.rawValue
-        setMenuItemIcon(shareItem, symbolName: "square.and.arrow.up")
-        fileMenu.addItem(shareItem)
+        fileMenu.addItem(buildMenuItem(for: .share))
 
-        // 2.6 添加分隔线
         fileMenu.addItem(NSMenuItem.separator())
 
-        // 2.7 添加"关闭"菜单项（⌘W）
-        // 使用标准 NSWindow 选择器 performClose:
+        // 关闭（系统 selector）
         let closeItem = NSMenuItem(
             title: "关闭",
             action: #selector(NSWindow.performClose(_:)),
@@ -510,35 +485,15 @@ class MenuManager {
         setMenuItemIcon(closeItem, symbolName: "xmark")
         fileMenu.addItem(closeItem)
 
-        // 2.8 添加分隔线
         fileMenu.addItem(NSMenuItem.separator())
 
         // ========== 导入导出部分 ==========
 
-        // 2.9 添加"导入至笔记..."菜单项
-        let importNotesItem = NSMenuItem(
-            title: "导入至笔记...",
-            action: #selector(AppDelegate.importNotes(_:)),
-            keyEquivalent: ""
-        )
-        importNotesItem.tag = MenuItemTag.importNotes.rawValue
-        setMenuItemIcon(importNotesItem, symbolName: "square.and.arrow.down")
-        fileMenu.addItem(importNotesItem)
+        fileMenu.addItem(buildMenuItem(for: .importNotes))
+        fileMenu.addItem(buildMenuItem(for: .importMarkdown))
 
-        // 2.10 添加"导入 Markdown..."菜单项
-        let importMarkdownItem = NSMenuItem(
-            title: "导入 Markdown...",
-            action: #selector(AppDelegate.importMarkdown(_:)),
-            keyEquivalent: ""
-        )
-        importMarkdownItem.tag = MenuItemTag.importMarkdown.rawValue
-        setMenuItemIcon(importMarkdownItem, symbolName: "doc.text")
-        fileMenu.addItem(importMarkdownItem)
-
-        // 2.11 添加分隔线
         fileMenu.addItem(NSMenuItem.separator())
 
-        // 2.12 添加"导出为"子菜单
         let exportMenuItem = NSMenuItem(
             title: "导出为",
             action: nil,
@@ -548,48 +503,21 @@ class MenuManager {
         setMenuItemIcon(exportMenuItem, symbolName: "square.and.arrow.up.on.square")
         fileMenu.addItem(exportMenuItem)
 
-        // 2.14 添加分隔线
         fileMenu.addItem(NSMenuItem.separator())
 
         // ========== 笔记操作部分 ==========
 
-        // 2.15 添加"置顶笔记"菜单项
-        let toggleStarItem = NSMenuItem(
-            title: "置顶笔记",
-            action: #selector(AppDelegate.toggleStarNote(_:)),
-            keyEquivalent: ""
-        )
-        toggleStarItem.tag = MenuItemTag.toggleStar.rawValue
-        setMenuItemIcon(toggleStarItem, symbolName: "pin")
-        fileMenu.addItem(toggleStarItem)
+        fileMenu.addItem(buildMenuItem(for: .toggleStar))
 
-        // 2.16 添加"添加到私密笔记"菜单项（待实现）
-        let addToPrivateNotesItem = NSMenuItem(
-            title: "添加到私密笔记",
-            action: #selector(AppDelegate.addToPrivateNotes(_:)),
-            keyEquivalent: ""
-        )
-        addToPrivateNotesItem.tag = MenuItemTag.addToPrivateNotes.rawValue
-        // 标记为待实现
+        let addToPrivateNotesItem = buildMenuItem(for: .addToPrivateNotes)
         addToPrivateNotesItem.isEnabled = false
-        setMenuItemIcon(addToPrivateNotesItem, symbolName: "lock")
         fileMenu.addItem(addToPrivateNotesItem)
 
-        // 2.17 添加"复制笔记"菜单项
-        let duplicateNoteItem = NSMenuItem(
-            title: "复制笔记",
-            action: #selector(AppDelegate.duplicateNote(_:)),
-            keyEquivalent: ""
-        )
-        duplicateNoteItem.tag = MenuItemTag.duplicateNote.rawValue
-        setMenuItemIcon(duplicateNoteItem, symbolName: "doc.on.doc")
-        fileMenu.addItem(duplicateNoteItem)
+        fileMenu.addItem(buildMenuItem(for: .duplicateNote))
 
-        // 2.18 添加分隔线
         fileMenu.addItem(NSMenuItem.separator())
 
-        // 2.19 添加"打印..."菜单项（⌘P）
-        // 使用标准 NSResponder 选择器 print:
+        // 打印（系统 selector）
         let printItem = NSMenuItem(
             title: "打印...",
             action: #selector(NSView.printView(_:)),
@@ -604,37 +532,9 @@ class MenuManager {
     /// 创建"导出为"子菜单
     private func createExportSubmenu() -> NSMenu {
         let exportMenu = NSMenu(title: "导出为")
-
-        // 导出为 PDF
-        let exportPDFItem = NSMenuItem(
-            title: "PDF...",
-            action: #selector(AppDelegate.exportAsPDF(_:)),
-            keyEquivalent: ""
-        )
-        exportPDFItem.tag = MenuItemTag.exportAsPDF.rawValue
-        setMenuItemIcon(exportPDFItem, symbolName: "doc.richtext")
-        exportMenu.addItem(exportPDFItem)
-
-        // 导出为 Markdown
-        let exportMarkdownItem = NSMenuItem(
-            title: "Markdown...",
-            action: #selector(AppDelegate.exportAsMarkdown(_:)),
-            keyEquivalent: ""
-        )
-        exportMarkdownItem.tag = MenuItemTag.exportAsMarkdown.rawValue
-        setMenuItemIcon(exportMarkdownItem, symbolName: "doc.text")
-        exportMenu.addItem(exportMarkdownItem)
-
-        // 导出为纯文本
-        let exportPlainTextItem = NSMenuItem(
-            title: "纯文本...",
-            action: #selector(AppDelegate.exportAsPlainText(_:)),
-            keyEquivalent: ""
-        )
-        exportPlainTextItem.tag = MenuItemTag.exportAsPlainText.rawValue
-        setMenuItemIcon(exportPlainTextItem, symbolName: "doc.plaintext")
-        exportMenu.addItem(exportPlainTextItem)
-
+        exportMenu.addItem(buildMenuItem(for: .exportAsPDF))
+        exportMenu.addItem(buildMenuItem(for: .exportAsMarkdown))
+        exportMenu.addItem(buildMenuItem(for: .exportAsPlainText))
         return exportMenu
     }
 
@@ -648,182 +548,80 @@ class MenuManager {
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
 
-        // 8.1 添加"列表视图"菜单项（支持单选勾选状态）
-        let listViewItem = NSMenuItem(
-            title: "列表视图",
-            action: #selector(AppDelegate.setListView(_:)),
-            keyEquivalent: ""
-        )
-        listViewItem.tag = MenuItemTag.listView.rawValue
-        setMenuItemIcon(listViewItem, symbolName: "list.bullet")
-        viewMenu.addItem(listViewItem)
+        // 视图模式（注册表驱动）
+        viewMenu.addItem(buildMenuItem(for: .listView))
+        viewMenu.addItem(buildMenuItem(for: .galleryView))
 
-        // 8.2 添加"画廊视图"菜单项（支持单选勾选状态）
-        let galleryViewItem = NSMenuItem(
-            title: "画廊视图",
-            action: #selector(AppDelegate.setGalleryView(_:)),
-            keyEquivalent: ""
-        )
-        galleryViewItem.tag = MenuItemTag.galleryView.rawValue
-        setMenuItemIcon(galleryViewItem, symbolName: "square.grid.2x2")
-        viewMenu.addItem(galleryViewItem)
-
-        // 8.4 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
 
-        // 8.5 添加"最近笔记"菜单项（待实现标记）
+        // 最近笔记（待实现）
         let recentNotesItem = NSMenuItem(
             title: "最近笔记",
             action: nil,
             keyEquivalent: ""
         )
-        recentNotesItem.isEnabled = false // 待实现
+        recentNotesItem.isEnabled = false
         setMenuItemIcon(recentNotesItem, symbolName: "clock")
         viewMenu.addItem(recentNotesItem)
 
-        // 9.1 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
 
-        // 9.2 添加"隐藏文件夹"菜单项（支持切换状态）
-        let hideFoldersItem = NSMenuItem(
-            title: "隐藏文件夹",
-            action: #selector(AppDelegate.toggleFolderVisibility(_:)),
-            keyEquivalent: ""
-        )
-        hideFoldersItem.tag = MenuItemTag.hideFolders.rawValue
-        setMenuItemIcon(hideFoldersItem, symbolName: "folder")
-        viewMenu.addItem(hideFoldersItem)
+        // 文件夹选项（注册表驱动）
+        viewMenu.addItem(buildMenuItem(for: .hideFolders))
+        viewMenu.addItem(buildMenuItem(for: .showNoteCount))
 
-        // 9.3 添加"显示笔记数量"菜单项（支持切换状态）
-        let showNoteCountItem = NSMenuItem(
-            title: "显示笔记数量",
-            action: #selector(AppDelegate.toggleNoteCount(_:)),
-            keyEquivalent: ""
-        )
-        showNoteCountItem.tag = MenuItemTag.showNoteCount.rawValue
-        setMenuItemIcon(showNoteCountItem, symbolName: "number")
-        viewMenu.addItem(showNoteCountItem)
-
-        // 9.4 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
 
-        // 9.5 添加"附件视图"菜单项（待实现标记）
+        // 附件视图（待实现）
         let attachmentViewItem = NSMenuItem(
             title: "附件视图",
             action: nil,
             keyEquivalent: ""
         )
-        attachmentViewItem.isEnabled = false // 待实现
+        attachmentViewItem.isEnabled = false
         setMenuItemIcon(attachmentViewItem, symbolName: "paperclip")
         viewMenu.addItem(attachmentViewItem)
 
-        // 9.6 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
 
-        // 9.7 添加"显示附件浏览器"菜单项（待实现标记）
+        // 显示附件浏览器（待实现）
         let showAttachmentBrowserItem = NSMenuItem(
             title: "显示附件浏览器",
             action: nil,
             keyEquivalent: ""
         )
-        showAttachmentBrowserItem.isEnabled = false // 待实现
+        showAttachmentBrowserItem.isEnabled = false
         setMenuItemIcon(showAttachmentBrowserItem, symbolName: "photo.on.rectangle")
         viewMenu.addItem(showAttachmentBrowserItem)
 
-        // 9.8 添加"在笔记中显示"菜单项（待实现标记）
+        // 在笔记中显示（待实现）
         let showInNoteItem = NSMenuItem(
             title: "在笔记中显示",
             action: nil,
             keyEquivalent: ""
         )
-        showInNoteItem.isEnabled = false // 待实现
+        showInNoteItem.isEnabled = false
         setMenuItemIcon(showInNoteItem, symbolName: "doc.text.magnifyingglass")
         viewMenu.addItem(showInNoteItem)
 
-        // 10.1 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
 
-        // 10.2 添加"放大"菜单项（⌘+）
-        let zoomInItem = NSMenuItem(
-            title: "放大",
-            action: #selector(AppDelegate.zoomIn(_:)),
-            keyEquivalent: "+"
-        )
-        zoomInItem.keyEquivalentModifierMask = [.command]
-        zoomInItem.tag = MenuItemTag.zoomIn.rawValue
-        setMenuItemIcon(zoomInItem, symbolName: "plus.magnifyingglass")
-        viewMenu.addItem(zoomInItem)
+        // 缩放（注册表驱动）
+        viewMenu.addItem(buildMenuItem(for: .zoomIn))
+        viewMenu.addItem(buildMenuItem(for: .zoomOut))
+        viewMenu.addItem(buildMenuItem(for: .actualSize))
 
-        // 10.3 添加"缩小"菜单项（⌘-）
-        let zoomOutItem = NSMenuItem(
-            title: "缩小",
-            action: #selector(AppDelegate.zoomOut(_:)),
-            keyEquivalent: "-"
-        )
-        zoomOutItem.keyEquivalentModifierMask = [.command]
-        zoomOutItem.tag = MenuItemTag.zoomOut.rawValue
-        setMenuItemIcon(zoomOutItem, symbolName: "minus.magnifyingglass")
-        viewMenu.addItem(zoomOutItem)
-
-        // 10.4 添加"实际大小"菜单项（⌘0）
-        let actualSizeItem = NSMenuItem(
-            title: "实际大小",
-            action: #selector(AppDelegate.actualSize(_:)),
-            keyEquivalent: "0"
-        )
-        actualSizeItem.keyEquivalentModifierMask = [.command]
-        actualSizeItem.tag = MenuItemTag.actualSize.rawValue
-        setMenuItemIcon(actualSizeItem, symbolName: "1.magnifyingglass")
-        viewMenu.addItem(actualSizeItem)
-
-        // 11.1 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
 
-        // 11.2 添加"展开区域"菜单项
-        let expandSectionItem = NSMenuItem(
-            title: "展开区域",
-            action: #selector(AppDelegate.expandSection(_:)),
-            keyEquivalent: ""
-        )
-        expandSectionItem.tag = MenuItemTag.expandSection.rawValue
-        setMenuItemIcon(expandSectionItem, symbolName: "chevron.down")
-        viewMenu.addItem(expandSectionItem)
+        // 区域折叠（注册表驱动）
+        viewMenu.addItem(buildMenuItem(for: .expandSection))
+        viewMenu.addItem(buildMenuItem(for: .expandAllSections))
+        viewMenu.addItem(buildMenuItem(for: .collapseSection))
+        viewMenu.addItem(buildMenuItem(for: .collapseAllSections))
 
-        // 11.3 添加"展开所有区域"菜单项
-        let expandAllSectionsItem = NSMenuItem(
-            title: "展开所有区域",
-            action: #selector(AppDelegate.expandAllSections(_:)),
-            keyEquivalent: ""
-        )
-        expandAllSectionsItem.tag = MenuItemTag.expandAllSections.rawValue
-        setMenuItemIcon(expandAllSectionsItem, symbolName: "chevron.down.2")
-        viewMenu.addItem(expandAllSectionsItem)
-
-        // 11.4 添加"折叠区域"菜单项
-        let collapseSectionItem = NSMenuItem(
-            title: "折叠区域",
-            action: #selector(AppDelegate.collapseSection(_:)),
-            keyEquivalent: ""
-        )
-        collapseSectionItem.tag = MenuItemTag.collapseSection.rawValue
-        setMenuItemIcon(collapseSectionItem, symbolName: "chevron.up")
-        viewMenu.addItem(collapseSectionItem)
-
-        // 11.5 添加"折叠所有区域"菜单项
-        let collapseAllSectionsItem = NSMenuItem(
-            title: "折叠所有区域",
-            action: #selector(AppDelegate.collapseAllSections(_:)),
-            keyEquivalent: ""
-        )
-        collapseAllSectionsItem.tag = MenuItemTag.collapseAllSections.rawValue
-        setMenuItemIcon(collapseAllSectionsItem, symbolName: "chevron.up.2")
-        viewMenu.addItem(collapseAllSectionsItem)
-
-        // 12.1 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
 
-        // 12.2 添加"隐藏工具栏"菜单项
-        // 使用标准 NSWindow 选择器 toggleToolbarShown:
+        // 工具栏（系统 selector）
         let toggleToolbarItem = NSMenuItem(
             title: "隐藏工具栏",
             action: #selector(NSWindow.toggleToolbarShown(_:)),
@@ -832,8 +630,6 @@ class MenuManager {
         setMenuItemIcon(toggleToolbarItem, symbolName: "menubar.rectangle")
         viewMenu.addItem(toggleToolbarItem)
 
-        // 12.3 添加"自定义工具栏..."菜单项
-        // 使用标准 NSWindow 选择器 runToolbarCustomizationPalette:
         let customizeToolbarItem = NSMenuItem(
             title: "自定义工具栏...",
             action: #selector(NSWindow.runToolbarCustomizationPalette(_:)),
@@ -842,8 +638,7 @@ class MenuManager {
         setMenuItemIcon(customizeToolbarItem, symbolName: "slider.horizontal.3")
         viewMenu.addItem(customizeToolbarItem)
 
-        // 12.4 添加"进入全屏幕"菜单项（⌃⌘F）
-        // 使用标准 NSWindow 选择器 toggleFullScreen:
+        // 全屏幕（系统 selector）
         let toggleFullScreenItem = NSMenuItem(
             title: "进入全屏幕",
             action: #selector(NSWindow.toggleFullScreen(_:)),
@@ -853,24 +648,11 @@ class MenuManager {
         setMenuItemIcon(toggleFullScreenItem, symbolName: "arrow.up.left.and.arrow.down.right")
         viewMenu.addItem(toggleFullScreenItem)
 
-        // 添加分隔线
         viewMenu.addItem(NSMenuItem.separator())
 
-        // 添加"打开调试菜单"项
-        let debugMenuItem = NSMenuItem()
-        debugMenuItem.title = "打开调试菜单"
-        debugMenuItem.action = #selector(AppDelegate.showDebugSettings(_:))
-        debugMenuItem.target = appDelegate
-        setMenuItemIcon(debugMenuItem, symbolName: "ladybug")
-        viewMenu.addItem(debugMenuItem)
-
-        // 添加"测试语音文件 API"项
-        let testAudioAPIItem = NSMenuItem()
-        testAudioAPIItem.title = "测试语音文件 API"
-        testAudioAPIItem.action = #selector(AppDelegate.testAudioFileAPI(_:))
-        testAudioAPIItem.target = appDelegate
-        setMenuItemIcon(testAudioAPIItem, symbolName: "waveform")
-        viewMenu.addItem(testAudioAPIItem)
+        // 调试菜单项（注册表驱动）
+        viewMenu.addItem(buildMenuItem(for: .showDebugSettings))
+        viewMenu.addItem(buildMenuItem(for: .testAudioFileAPI))
     }
 
     /// 设置窗口菜单
@@ -910,28 +692,10 @@ class MenuManager {
         setMenuItemIcon(zoomItem, symbolName: "arrow.up.left.and.arrow.down.right")
         windowMenu.addItem(zoomItem)
 
-        // 13.4 添加"填充"菜单项
-        let fillItem = NSMenuItem(
-            title: "填充",
-            action: #selector(AppDelegate.fillWindow(_:)),
-            keyEquivalent: ""
-        )
-        fillItem.tag = MenuItemTag.fill.rawValue
-        setMenuItemIcon(fillItem, symbolName: "rectangle.expand.vertical")
-        windowMenu.addItem(fillItem)
+        // 13.4 填充和居中（注册表驱动）
+        windowMenu.addItem(buildMenuItem(for: .fill))
+        windowMenu.addItem(buildMenuItem(for: .center))
 
-        // 13.5 添加"居中"菜单项
-        // 使用标准 NSWindow 选择器 center
-        let centerItem = NSMenuItem(
-            title: "居中",
-            action: #selector(AppDelegate.centerWindow(_:)),
-            keyEquivalent: ""
-        )
-        centerItem.tag = MenuItemTag.center.rawValue
-        setMenuItemIcon(centerItem, symbolName: "rectangle.center.inset.filled")
-        windowMenu.addItem(centerItem)
-
-        // 13.6 添加分隔线
         windowMenu.addItem(NSMenuItem.separator())
 
         // 13.7 添加"移动与调整大小"子菜单（系统标准）
@@ -957,15 +721,8 @@ class MenuManager {
         // 13.9 添加分隔线
         windowMenu.addItem(NSMenuItem.separator())
 
-        // 13.10 添加"在新窗口中打开笔记"菜单项
-        let openInNewWindowItem = NSMenuItem(
-            title: "在新窗口中打开笔记",
-            action: #selector(AppDelegate.openNoteInNewWindow(_:)),
-            keyEquivalent: ""
-        )
-        openInNewWindowItem.tag = MenuItemTag.openNoteInNewWindow.rawValue
-        setMenuItemIcon(openInNewWindowItem, symbolName: "rectangle.on.rectangle")
-        windowMenu.addItem(openInNewWindowItem)
+        // 在新窗口中打开笔记（注册表驱动）
+        windowMenu.addItem(buildMenuItem(for: .openNoteInNewWindow))
 
         // 13.11 添加分隔线
         windowMenu.addItem(NSMenuItem.separator())
@@ -1001,63 +758,18 @@ class MenuManager {
     private func createMoveAndResizeSubmenu() -> NSMenu {
         let moveAndResizeMenu = NSMenu(title: "移动与调整大小")
 
-        // 移动到左半边
-        let moveToLeftItem = NSMenuItem(
-            title: "移动到屏幕左半边",
-            action: #selector(AppDelegate.moveWindowToLeftHalf(_:)),
-            keyEquivalent: ""
-        )
-        setMenuItemIcon(moveToLeftItem, symbolName: "rectangle.lefthalf.filled")
-        moveAndResizeMenu.addItem(moveToLeftItem)
-
-        // 移动到右半边
-        let moveToRightItem = NSMenuItem(
-            title: "移动到屏幕右半边",
-            action: #selector(AppDelegate.moveWindowToRightHalf(_:)),
-            keyEquivalent: ""
-        )
-        setMenuItemIcon(moveToRightItem, symbolName: "rectangle.righthalf.filled")
-        moveAndResizeMenu.addItem(moveToRightItem)
+        moveAndResizeMenu.addItem(buildMenuItem(for: .moveToLeftHalf))
+        moveAndResizeMenu.addItem(buildMenuItem(for: .moveToRightHalf))
 
         moveAndResizeMenu.addItem(NSMenuItem.separator())
 
-        // 移动到上半边
-        let moveToTopItem = NSMenuItem(
-            title: "移动到屏幕上半边",
-            action: #selector(AppDelegate.moveWindowToTopHalf(_:)),
-            keyEquivalent: ""
-        )
-        setMenuItemIcon(moveToTopItem, symbolName: "rectangle.tophalf.filled")
-        moveAndResizeMenu.addItem(moveToTopItem)
-
-        // 移动到下半边
-        let moveToBottomItem = NSMenuItem(
-            title: "移动到屏幕下半边",
-            action: #selector(AppDelegate.moveWindowToBottomHalf(_:)),
-            keyEquivalent: ""
-        )
-        setMenuItemIcon(moveToBottomItem, symbolName: "rectangle.bottomhalf.filled")
-        moveAndResizeMenu.addItem(moveToBottomItem)
+        moveAndResizeMenu.addItem(buildMenuItem(for: .moveToTopHalf))
+        moveAndResizeMenu.addItem(buildMenuItem(for: .moveToBottomHalf))
 
         moveAndResizeMenu.addItem(NSMenuItem.separator())
 
-        // 最大化
-        let maximizeItem = NSMenuItem(
-            title: "最大化",
-            action: #selector(AppDelegate.maximizeWindow(_:)),
-            keyEquivalent: ""
-        )
-        setMenuItemIcon(maximizeItem, symbolName: "arrow.up.left.and.arrow.down.right")
-        moveAndResizeMenu.addItem(maximizeItem)
-
-        // 恢复
-        let restoreItem = NSMenuItem(
-            title: "恢复",
-            action: #selector(AppDelegate.restoreWindow(_:)),
-            keyEquivalent: ""
-        )
-        setMenuItemIcon(restoreItem, symbolName: "arrow.down.right.and.arrow.up.left")
-        moveAndResizeMenu.addItem(restoreItem)
+        moveAndResizeMenu.addItem(buildMenuItem(for: .maximizeWindow))
+        moveAndResizeMenu.addItem(buildMenuItem(for: .restoreWindow))
 
         return moveAndResizeMenu
     }
@@ -1065,41 +777,15 @@ class MenuManager {
     /// 创建"全屏幕平铺"子菜单
     private func createFullScreenTileSubmenu() -> NSMenu {
         let fullScreenTileMenu = NSMenu(title: "全屏幕平铺")
-
-        // 平铺到屏幕左侧
-        let tileLeftItem = NSMenuItem(
-            title: "平铺到屏幕左侧",
-            action: #selector(AppDelegate.tileWindowToLeft(_:)),
-            keyEquivalent: ""
-        )
-        setMenuItemIcon(tileLeftItem, symbolName: "rectangle.split.2x1.fill")
-        fullScreenTileMenu.addItem(tileLeftItem)
-
-        // 平铺到屏幕右侧
-        let tileRightItem = NSMenuItem(
-            title: "平铺到屏幕右侧",
-            action: #selector(AppDelegate.tileWindowToRight(_:)),
-            keyEquivalent: ""
-        )
-        setMenuItemIcon(tileRightItem, symbolName: "rectangle.split.2x1.fill")
-        fullScreenTileMenu.addItem(tileRightItem)
-
+        fullScreenTileMenu.addItem(buildMenuItem(for: .tileToLeft))
+        fullScreenTileMenu.addItem(buildMenuItem(for: .tileToRight))
         return fullScreenTileMenu
     }
 
     /// 创建"调试工具"子菜单
     private func createDebugToolsSubmenu() -> NSMenu {
         let debugMenu = NSMenu(title: "调试工具")
-
-        // 调试设置窗口
-        let debugSettingsItem = NSMenuItem(
-            title: "调试设置",
-            action: #selector(AppDelegate.showDebugSettings(_:)),
-            keyEquivalent: ""
-        )
-        setMenuItemIcon(debugSettingsItem, symbolName: "gearshape.2")
-        debugMenu.addItem(debugSettingsItem)
-
+        debugMenu.addItem(buildMenuItem(for: .showDebugSettings))
         return debugMenu
     }
 
@@ -1117,13 +803,8 @@ class MenuManager {
             mainMenu.addItem(helpMenuItem)
         }
 
-        // 添加帮助菜单项
-        let helpItem = NSMenuItem()
-        helpItem.title = "笔记帮助"
-        helpItem.action = #selector(AppDelegate.showHelp(_:))
-        helpItem.target = appDelegate
-        setMenuItemIcon(helpItem, symbolName: "questionmark.circle")
-        helpMenu.addItem(helpItem)
+        // 帮助（注册表驱动）
+        helpMenu.addItem(buildMenuItem(for: .showHelp))
     }
 
     // MARK: - 清理

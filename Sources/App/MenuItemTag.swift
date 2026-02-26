@@ -104,6 +104,10 @@ enum MenuItemTag: Int {
     case strikethrough = 6004
     /// 高亮
     case highlight = 6005
+    /// 增大字号
+    case increaseFontSize = 6006
+    /// 减小字号
+    case decreaseFontSize = 6007
 
     // MARK: - 文本对齐（7001-7099）
 
@@ -184,6 +188,39 @@ enum MenuItemTag: Int {
     case openNoteInNewWindow = 12005
     /// 前置全部窗口
     case bringAllToFront = 12006
+    /// 新窗口
+    case createNewWindow = 12007
+    /// 移动到屏幕左半边
+    case moveToLeftHalf = 12008
+    /// 移动到屏幕右半边
+    case moveToRightHalf = 12009
+    /// 移动到屏幕上半边
+    case moveToTopHalf = 12010
+    /// 移动到屏幕下半边
+    case moveToBottomHalf = 12011
+    /// 最大化
+    case maximizeWindow = 12012
+    /// 恢复
+    case restoreWindow = 12013
+    /// 平铺到屏幕左侧
+    case tileToLeft = 12014
+    /// 平铺到屏幕右侧
+    case tileToRight = 12015
+
+    // MARK: - 杂项操作（13001-13099）
+
+    /// 设置
+    case showSettings = 13001
+    /// 帮助
+    case showHelp = 13002
+    /// 登录
+    case showLogin = 13003
+    /// 调试设置
+    case showDebugSettings = 13004
+    /// 测试语音文件 API
+    case testAudioFileAPI = 13005
+    /// 离线操作
+    case showOfflineOperations = 13006
 
     // MARK: - 辅助方法
 

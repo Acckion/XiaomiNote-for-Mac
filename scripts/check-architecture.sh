@@ -84,6 +84,7 @@ ALLOWED_SHARED=(
     "Sources/Features/Auth/Infrastructure/PrivateNotesPasswordManager.swift"
     "Sources/Shared/Kernel/ViewOptionsManager.swift"
     "Sources/Shared/Kernel/PerformanceService.swift"
+    "Sources/Shared/Kernel/Command/CommandRegistry.swift"
 )
 
 check_shared_singletons() {

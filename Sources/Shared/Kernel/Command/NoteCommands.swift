@@ -8,14 +8,10 @@
 
     /// 新建笔记命令
     public struct CreateNoteCommand: AppCommand {
-        public let folderId: String?
-
-        public init(folderId: String?) {
-            self.folderId = folderId
-        }
+        public init() {}
 
         public func execute(with context: CommandContext) {
-            let targetFolderId = folderId ?? context.coordinator.folderState.selectedFolderId ?? "0"
+            let targetFolderId = context.coordinator.folderState.selectedFolderId ?? "0"
             Task {
                 await context.coordinator.noteListState.createNewNote(inFolder: targetFolderId)
             }
@@ -59,11 +55,7 @@
 
     /// 分享笔记命令
     public struct ShareNoteCommand: AppCommand {
-        public let window: NSWindow?
-
-        public init(window: NSWindow?) {
-            self.window = window
-        }
+        public init() {}
 
         public func execute(with context: CommandContext) {
             guard let note = context.coordinator.noteListState.selectedNote else { return }
@@ -73,7 +65,7 @@
                 note.content,
             ])
 
-            if let window,
+            if let window = context.coordinator.mainWindowController?.window,
                let contentView = window.contentView
             {
                 sharingService.show(relativeTo: NSRect.zero, of: contentView, preferredEdge: .minY)
