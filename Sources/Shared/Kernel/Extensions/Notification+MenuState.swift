@@ -34,13 +34,6 @@ public extension Notification.Name {
     ///
     static let editorFocusDidChange = Notification.Name("EditorFocusDidChange")
 
-    /// 段落样式变化通知
-    ///
-    /// userInfo:
-    /// - "paragraphStyle": String - 当前段落样式的 rawValue
-    ///
-    static let paragraphStyleDidChange = Notification.Name("ParagraphStyleDidChange")
-
     /// 文件夹可见性变化通知
     ///
     /// userInfo:

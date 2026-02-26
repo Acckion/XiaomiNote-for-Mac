@@ -237,7 +237,7 @@ public class NativeEditorContext: ObservableObject {
 
         // 设置格式状态同步器的更新回调
         formatStateSynchronizer.setUpdateCallback { [weak self] in
-            self?.updateCurrentFormats()
+            self?.cursorFormatManager?.forceRefresh()
         }
 
         // 延迟注册格式提供者到 FormatStateManager
@@ -492,7 +492,7 @@ public class NativeEditorContext: ObservableObject {
             formatStateManager?.setActiveProvider(formatProvider)
 
             // 同步编辑器上下文状态
-            updateCurrentFormats()
+            cursorFormatManager?.forceRefresh()
             detectSpecialElementAtCursor()
         } else {
             // 编辑器失去焦点时不清除活动提供者，用户可能只是临时切换焦点

@@ -95,7 +95,7 @@ extension NativeEditorView.Coordinator {
             LogService.shared.error(.editor, "格式应用失败: \(error.localizedDescription), 格式: \(format.displayName), 范围: \(effectiveRange)")
 
             // 触发状态重新同步
-            parent.editorContext.updateCurrentFormats()
+            parent.editorContext.cursorFormatManager?.forceRefresh()
         }
     }
 
@@ -171,7 +171,9 @@ extension NativeEditorView.Coordinator {
     /// - Parameter format: 应用的格式
     private func updateContextAfterFormatApplication(_: TextFormat) {
         // 延迟更新状态，避免在视图更新中修改 @Published 属性
-        parent.editorContext.updateCurrentFormatsAsync()
+        Task { @MainActor in
+            self.parent.editorContext.cursorFormatManager?.forceRefresh()
+        }
     }
 
     // MARK: - 特殊元素插入
